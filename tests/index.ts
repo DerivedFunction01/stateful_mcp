@@ -3,6 +3,9 @@ import { validateMiddlewareConfig } from "../src/config/validator";
 import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "../src/adapters/storage/memory-repo";
 import { MemoryQueryEngine } from "../src/adapters/engines/memory-query";
 import { FilterStore } from "../src/middleware/filter/store";
+import { SqliteFilterStore } from "../src/adapters/storage/sqlite-repo";
+import { SqliteQueryEngine } from "../src/adapters/engines/sqlite-query";
+import { PgQueryEngine } from "../src/adapters/engines/pg-query";
 import type { TableSchema } from "../src/config/types";
 import * as fs from "fs/promises";
 import * as path from "path";
@@ -168,7 +171,79 @@ async function runTests() {
   }
   console.log("✓ Combined filter execution (set operations) resolved correctly.");
 
-  console.log("\n🎉 Phase 1 verification tests passed successfully!");
+  // ─── TEST CASE 5: Relational SQL Adapters (Phase 2) ───
+  console.log("\n🧪 Test Case 5: Relational SQL Adapters");
+  
+  const sqliteEngine = new SqliteQueryEngine(":memory:");
+  sqliteEngine["db"].run("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, price REAL, category TEXT)");
+  sqliteEngine["db"].run("INSERT INTO items (name, price, category) VALUES ('Socks', 10, 'apparel')");
+  sqliteEngine["db"].run("INSERT INTO items (name, price, category) VALUES ('Shoes', 80, 'apparel')");
+  sqliteEngine["db"].run("INSERT INTO items (name, price, category) VALUES ('Laptop', 1000, 'electronics')");
+
+  const compiled = sqliteEngine.compile("items", {
+    filters: [
+      { property: "category", operator: "eq", value: "apparel" },
+      { property: "price", operator: "gt", value: 15 }
+    ]
+  });
+
+  if (!compiled.sql.includes("WHERE `category` = ? AND `price` > ?") || compiled.params[0] !== "apparel" || compiled.params[1] !== 15) {
+    throw new Error(`SqliteQueryEngine compilation failed: ${JSON.stringify(compiled)}`);
+  }
+  console.log("✓ SQLite Query Compiler output parameterized query correctly.");
+
+  const sqliteResults = await sqliteEngine.execute("items", {
+    filters: [
+      { property: "category", operator: "eq", value: "apparel" },
+      { property: "price", operator: "gt", value: 15 }
+    ]
+  });
+  if (sqliteResults.length !== 1 || (sqliteResults[0] as any).name !== "Shoes") {
+    throw new Error(`SQLite Query Engine execution failed. Got: ${JSON.stringify(sqliteResults)}`);
+  }
+  console.log("✓ SQLite Query Engine executed and filtered correctly.");
+
+  const sqliteStore = new SqliteFilterStore(":memory:");
+  await sqliteStore.set("sess_sql", "f_sql", {
+    filterId: "f_sql",
+    rules: [{ property: "price", operator: "lt", value: 100 }],
+    createdAt: new Date().toISOString()
+  });
+
+  const sqliteRetrieved = await sqliteStore.get("sess_sql", "f_sql");
+  if (!sqliteRetrieved || sqliteRetrieved.rules[0]?.value !== 100) {
+    throw new Error("SqliteFilterStore session get/set failed");
+  }
+  console.log("✓ SqliteFilterStore session persistence works.");
+
+  await sqliteStore.set("f_sql", {
+    filterId: "f_sql",
+    rules: [{ property: "price", operator: "lt", value: 100 }],
+    createdAt: new Date().toISOString(),
+    tags: ["persistent"],
+    description: "sqlite persistent filter",
+    schema_snapshot: "{}"
+  }, { level: "user", userId: "u_sql" });
+
+  const sqliteRetrievedPersisted = await sqliteStore.get("f_sql", { level: "user", userId: "u_sql" });
+  if (!sqliteRetrievedPersisted || sqliteRetrievedPersisted.description !== "sqlite persistent filter") {
+    throw new Error("SqliteFilterStore persistent get/set failed");
+  }
+  console.log("✓ SqliteFilterStore persistent storage works.");
+
+  const pgEngine = new PgQueryEngine("postgresql://localhost:5432/postgres");
+  const pgCompiled = pgEngine.compile("items", {
+    filters: [
+      { property: "category", operator: "eq", value: "apparel" },
+      { property: "price", operator: "gt", value: 15 }
+    ]
+  });
+  if (!pgCompiled.sql.includes('WHERE "category" = $1 AND "price" > $2') || pgCompiled.params[0] !== "apparel" || pgCompiled.params[1] !== 15) {
+    throw new Error(`PgQueryEngine compilation failed: ${JSON.stringify(pgCompiled)}`);
+  }
+  console.log("✓ Postgres Query Compiler generated parameter indexes ($1, $2) and double-quoted identifiers correctly.");
+
+  console.log("\n🎉 Phase 2 verification tests passed successfully!");
 }
 
 runTests().catch((err) => {

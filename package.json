@@ -10,6 +10,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@types/pg": "^8.20.0",
+    "pg": "^8.22.0"
   }
 }
