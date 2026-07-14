@@ -273,3 +273,181 @@ server.registerTool(
   })
 );
 ```
+
+### 5. Postgres Adapter Parameterized SQL Compiler (`src/adapters/engines/pg-query.ts`)
+
+Postgres queries must be compiled statelessly into a parameterized statement (with `$1`, `$2` placeholders) rather than string interpolation, enabling safe type handling and injection prevention:
+
+```typescript
+import type { QueryDefinition, FilterCondition } from "../../middleware/filter/types";
+
+export interface ParameterizedQuery {
+  text: string;
+  values: any[];
+}
+
+export class PostgresQueryCompiler {
+  public compile(tableName: string, query: QueryDefinition): ParameterizedQuery {
+    const values: any[] = [];
+    const getPlaceholder = (val: any): string => {
+      values.push(val);
+      return `$${values.length}`;
+    };
+
+    let selectList = "*";
+    let whereClause = "";
+    let groupByClause = "";
+    let orderByClause = "";
+    let limitClause = "";
+
+    // 1. Projections & Aggregations
+    if (query.group_by && query.group_by.length > 0) {
+      const parts = query.group_by.map((col) => `"${col}"`);
+      if (query.aggregations) {
+        for (const agg of query.aggregations) {
+          let expr = "";
+          if (agg.function === "count") {
+            expr = `COUNT(${agg.property === "*" ? "*" : `"${agg.property}"`})`;
+          } else if (agg.function === "count_distinct") {
+            expr = `COUNT(DISTINCT "${agg.property}")`;
+          } else if (agg.function === "sum") {
+            expr = `SUM("${agg.property}")`;
+          } else if (agg.function === "avg") {
+            expr = `AVG("${agg.property}")`;
+          } else {
+            expr = `${agg.function.toUpperCase()}("${agg.property}")`;
+          }
+          parts.push(`${expr} AS "${agg.alias}"`);
+        }
+      }
+      selectList = parts.join(", ");
+      groupByClause = ` GROUP BY ${query.group_by.map((col) => `"${col}"`).join(", ")}`;
+    } else if (query.projections && query.projections.length > 0) {
+      selectList = query.projections.map((col) => `"${col}"`).join(", ");
+    }
+
+    // 2. Filters (WHERE)
+    if (query.filters && query.filters.length > 0) {
+      const conds = query.filters.map((c) => this.compileCondition(c, getPlaceholder));
+      whereClause = ` WHERE ${conds.join(" AND ")}`;
+    }
+
+    // 3. Sorting (ORDER BY)
+    if (query.sort && query.sort.length > 0) {
+      orderByClause = ` ORDER BY ${query.sort
+        .map((s) => `"${s.property}" ${s.direction === "desc" ? "DESC" : "ASC"}`)
+        .join(", ")}`;
+    }
+
+    // 4. Limit
+    if (query.limit && query.limit > 0) {
+      limitClause = ` LIMIT ${getPlaceholder(query.limit)}`;
+    }
+
+    const text = `SELECT ${selectList} FROM "${tableName}"${whereClause}${groupByClause}${orderByClause}${limitClause}`;
+    return { text, values };
+  }
+
+  private compileCondition(cond: FilterCondition, getPlaceholder: (val: any) => string): string {
+    const prop = `"${cond.property}"`;
+    const val = cond.value;
+
+    switch (cond.operator) {
+      case "eq":
+        return `${prop} = ${getPlaceholder(val)}`;
+      case "neq":
+        return `${prop} != ${getPlaceholder(val)}`;
+      case "gt":
+        return `${prop} > ${getPlaceholder(val)}`;
+      case "geq":
+        return `${prop} >= ${getPlaceholder(val)}`;
+      case "lt":
+        return `${prop} < ${getPlaceholder(val)}`;
+      case "leq":
+        return `${prop} <= ${getPlaceholder(val)}`;
+      case "like":
+        return `${prop} ILIKE ${getPlaceholder(`%${val}%`)}`;
+      case "in_set":
+        return `${prop} = ANY(${getPlaceholder(Array.isArray(val) ? val : [val])})`;
+      case "between":
+        if (Array.isArray(val) && val.length === 2) {
+          return `${prop} BETWEEN ${getPlaceholder(val[0])} AND ${getPlaceholder(val[1])}`;
+        }
+        throw new Error("Postgres compiler: between operator requires array of 2 elements");
+      default:
+        throw new Error(`Unsupported Postgres operator: ${cond.operator}`);
+    }
+  }
+}```
+
+### 6. Simplified IndexedDB In-Memory Loader Engine (`src/adapters/engines/indexeddb-query.ts`)
+
+For client-side/browser environments, the database dataset can be loaded fully into a JavaScript array via a single bulk `store.getAll()` operation, and then processed directly by the generic in-memory execution engine:
+
+```typescript
+import type { QueryDefinition } from "../../middleware/filter/types";
+import { executeQuery as memoryExecute } from "./memory-query";
+
+export class IndexedDbMemoryQueryEngine {
+  constructor(private db: IDBDatabase) {}
+
+  public async execute(tableName: string, query: QueryDefinition): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(tableName, "readonly");
+      const store = transaction.objectStore(tableName);
+      const request = store.getAll(); // Single optimized bulk fetch operation
+
+      request.onsuccess = () => {
+        const dataset = request.result;
+        // Delegate full query execution directly to the standard in-memory engine
+        const filtered = memoryExecute(dataset, query);
+        resolve(filtered);
+      };
+
+      request.onerror = () => {
+        reject(transaction.error || new Error("IndexedDB bulk read transaction failed."));
+      };
+    });
+  }
+}
+```
+
+### 7. HTTP Client Adapter (`src/adapters/engines/http-query.ts`)
+
+For remote tool backends, the adapter serializes the standard `QueryDefinition` payload and POSTs it over the network to the tool's configured backend API:
+
+```typescript
+import type { QueryDefinition } from "../../middleware/filter/types";
+
+export class HttpQueryEngine {
+  constructor(
+    private endpointUrl: string,
+    private extraHeaders?: Record<string, string>
+  ) {}
+
+  public async execute(tableName: string, query: QueryDefinition): Promise<any[]> {
+    const url = new URL(this.endpointUrl);
+    url.searchParams.set("table", tableName);
+
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...this.extraHeaders
+      },
+      body: JSON.stringify(query)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP engine failed executing query against ${this.endpointUrl}: Status ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!Array.isArray(result)) {
+      throw new Error("HTTP query engine response must be a JSON array of rows.");
+    }
+    return result;
+  }
+}
+```
+
