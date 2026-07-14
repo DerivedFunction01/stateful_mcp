@@ -1,8 +1,8 @@
-import { DictionaryStore } from "./src/dictionary";
-import { FilterStore } from "./src/filter";
-import { loadFilterConfig, loadDictionaryConfig } from "./src/config/loader";
-import { executeQuery } from "./src/examples/memory-engine";
-import { SqliteEngine } from "./src/examples/sqlite-engine";
+import { DictionaryStore } from "./uploads/sample/dictionary";
+import { FilterStore } from "./uploads/sample/filter";
+import { loadFilterConfig, loadDictionaryConfig } from "./uploads/sample/config/loader";
+import { executeQuery } from "./uploads/sample/examples/memory-engine";
+import { SqliteEngine } from "./uploads/sample/examples/sqlite-engine";
 
 async function runTests() {
   console.log("🚀 Starting verification tests...\n");
