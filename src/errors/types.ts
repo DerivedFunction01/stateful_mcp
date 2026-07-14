@@ -1,0 +1,45 @@
+export enum ErrorCode {
+  // Config / boot errors
+  CONFIG_INVALID            = "CONFIG_INVALID",
+  ADAPTER_NOT_REGISTERED    = "ADAPTER_NOT_REGISTERED",
+  SCHEMA_LOAD_FAILED        = "SCHEMA_LOAD_FAILED",
+  TRANSLATION_CYCLE         = "TRANSLATION_CYCLE",
+
+  // Filter errors
+  FILTER_NOT_FOUND          = "FILTER_NOT_FOUND",
+  FILTER_PROPERTY_INVALID   = "FILTER_PROPERTY_INVALID",
+  FILTER_OPERATOR_INVALID   = "FILTER_OPERATOR_INVALID",
+  FILTER_COMBINATION_INVALID = "FILTER_COMBINATION_INVALID",
+  FILTER_SCOPE_INVALID      = "FILTER_SCOPE_INVALID",
+  FILTER_PRIVILEGE_DENIED   = "FILTER_PRIVILEGE_DENIED",
+
+  // Dictionary errors
+  CONCEPT_NOT_FOUND         = "CONCEPT_NOT_FOUND",
+  EXPRESSION_INVALID        = "EXPRESSION_INVALID",
+  RESOLVE_NO_MATCH          = "RESOLVE_NO_MATCH",
+
+  // Object errors
+  OBJECT_NOT_FOUND          = "OBJECT_NOT_FOUND",
+  OBJECT_PATH_INVALID       = "OBJECT_PATH_INVALID",
+  OBJECT_TYPE_MISMATCH      = "OBJECT_TYPE_MISMATCH",
+  OBJECT_VALIDATION_FAILED  = "OBJECT_VALIDATION_FAILED",
+  OBJECT_CYCLE_DETECTED     = "OBJECT_CYCLE_DETECTED",
+  OBJECT_SCHEMA_EXCEEDED    = "OBJECT_SCHEMA_EXCEEDED",
+
+  // Execution errors (never expose internal DB details in message)
+  EXECUTION_FAILED          = "EXECUTION_FAILED",
+
+  // General
+  INTERNAL_ERROR            = "INTERNAL_ERROR",
+}
+
+export class McpError extends Error {
+  constructor(
+    public readonly code: ErrorCode,
+    message: string,
+    public readonly details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = "McpError";
+  }
+}
