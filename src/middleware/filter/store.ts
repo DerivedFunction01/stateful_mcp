@@ -35,6 +35,16 @@ export class FilterStore {
     return null;
   }
 
+  private getPropertyType(schema: TableSchema, property: string): string | undefined {
+    if (schema.mock_dataset && schema.mock_dataset.length > 0) {
+      const firstRow = schema.mock_dataset[0];
+      if (firstRow && firstRow[property] !== undefined && firstRow[property] !== null) {
+        return typeof firstRow[property];
+      }
+    }
+    return undefined;
+  }
+
   async getFilter(id: string, sessionId: string, userId?: string): Promise<FilterState | null> {
     return this.lookup(id, sessionId, userId);
   }
@@ -100,6 +110,24 @@ export class FilterStore {
             `Operator "${op.operator}" not allowed on "${parent.tableName}"`,
             { allowed: schema.operators }
           );
+        }
+
+        // Basic type-aware constraints
+        const propType = this.getPropertyType(schema, op.property);
+        if (propType === "number") {
+          if (op.operator === "like" || op.operator === "not_like") {
+            throw new McpError(
+              ErrorCode.FILTER_OPERATOR_INVALID,
+              `Operator "${op.operator}" is not allowed on numeric property "${op.property}"`
+            );
+          }
+        } else if (propType === "string" || propType === "boolean") {
+          if (op.operator === "between" || op.operator === "not_between") {
+            throw new McpError(
+              ErrorCode.FILTER_OPERATOR_INVALID,
+              `Operator "${op.operator}" is not allowed on non-numeric property "${op.property}"`
+            );
+          }
         }
       }
     }

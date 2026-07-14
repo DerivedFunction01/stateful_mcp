@@ -777,7 +777,8 @@ export class FilterStore {
       ? this.toolSchemas.get(parent.toolName!)?.[ parent.tableName]
       : undefined;
 
-    // Schema validation against public property names / allowed operators
+    // Schema validation against public property names / allowed operators.
+    // Also checks basic type-aware constraints (e.g. disallowing string 'like' checks on numeric fields, or mathematical aggregations on text fields).
     if (schema) {
       for (const op of operations) {
         if (!schema.filterable_properties.includes(op.property)) {

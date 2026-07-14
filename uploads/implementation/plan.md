@@ -711,9 +711,10 @@ handling as get, rather than throwing mid-pipeline.
 
 ### Operator narrowing and the capability manifest
 
-Two granularities:
+Three granularities:
 - Per-property: PropertyTranslation.allowed_operators narrows (never widens) the
   table-level operator list.
+- Basic Type-Aware Checks: Restrict operators and aggregation functions depending on field type (e.g., numeric fields cannot utilize string-based matchers like `like` / `not_like`, and non-numeric fields cannot use mathematical aggregations like `sum`, `avg`, or `std_dev`).
 - Per-table/tool, whole operation categories:
 
 ```jsonc

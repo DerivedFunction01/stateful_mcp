@@ -6,6 +6,9 @@ import { FilterStore } from "../src/middleware/filter/store";
 import { SqliteFilterStore } from "../src/adapters/storage/sqlite-repo";
 import { SqliteQueryEngine } from "../src/adapters/engines/sqlite-query";
 import { PgQueryEngine } from "../src/adapters/engines/pg-query";
+import { executePipeline } from "../src/translation/pipeline";
+import { validateTableTranslation } from "../src/translation/validator";
+import { compilePipelineToSQL } from "../src/translation/compiler";
 import type { TableSchema } from "../src/config/types";
 import * as fs from "fs/promises";
 import * as path from "path";
@@ -120,7 +123,10 @@ async function runTests() {
   toolSchemas.set("browse_catalog", {
     items: {
       filterable_properties: ["price", "category"],
-      operators: ["eq", "neq", "lt", "gt"]
+      operators: ["eq", "neq", "lt", "gt", "like", "between"],
+      mock_dataset: [
+        { price: 100, category: "apparel" }
+      ]
     }
   });
 
@@ -130,6 +136,31 @@ async function runTests() {
   // Initialize and build a hierarchical chain
   const fInit = await filterStore.init("session_123", "browse_catalog", "items");
   const fAdded1 = await filterStore.add(fInit, [{ property: "category", operator: "eq", value: "apparel" }], "session_123");
+
+  // Test invalid operator 'like' on numeric field 'price'
+  try {
+    await filterStore.add(fAdded1, [{ property: "price", operator: "like", value: "cheap" }], "session_123");
+    throw new Error("Should have thrown error on numeric column with 'like' operator");
+  } catch (err: any) {
+    if (err.message.includes("is not allowed on numeric property")) {
+      console.log("✓ Successfully caught numeric property operator constraint check.");
+    } else {
+      throw err;
+    }
+  }
+
+  // Test invalid operator 'between' on string field 'category'
+  try {
+    await filterStore.add(fAdded1, [{ property: "category", operator: "between", value: [10, 20] }], "session_123");
+    throw new Error("Should have thrown error on string column with 'between' operator");
+  } catch (err: any) {
+    if (err.message.includes("is not allowed on non-numeric property")) {
+      console.log("✓ Successfully caught non-numeric property operator constraint check.");
+    } else {
+      throw err;
+    }
+  }
+
   const fAdded2 = await filterStore.add(fAdded1, [{ property: "price", operator: "lt", value: 100 }], "session_123");
 
   const rulesChain = await filterStore.getFilterRules(fAdded2, "session_123");
@@ -243,7 +274,64 @@ async function runTests() {
   }
   console.log("✓ Postgres Query Compiler generated parameter indexes ($1, $2) and double-quoted identifiers correctly.");
 
-  console.log("\n🎉 Phase 2 verification tests passed successfully!");
+  // ─── TEST CASE 6: Property Translation Layer (Phase 3) ───
+  console.log("\n🧪 Test Case 6: Property Translation Layer");
+  
+  const translationPipeline = [
+    { op: "json_parse" as const, args: [{ $init: "tags_blob" }], return_var: "parsed" },
+    { op: "get" as const, args: [{ $var: "parsed" }, "version"] }
+  ];
+
+  const row = { tags_blob: '{"version": 42}' };
+  const res = executePipeline(translationPipeline, row, {});
+  if (res !== 42) {
+    throw new Error(`executePipeline failed. Got: ${res}`);
+  }
+  console.log("✓ executePipeline evaluated JSON nested property correctly (42).");
+
+  const validTranslation = {
+    properties: {
+      tags_version: {
+        internal: "tags_blob",
+        transform: { pipeline: translationPipeline }
+      }
+    }
+  };
+  validateTableTranslation("items", validTranslation, ["nested_access"]);
+  console.log("✓ validateTableTranslation validated a correct pipeline.");
+
+  try {
+    const invalidTranslation = {
+      properties: {
+        bad: {
+          internal: "tags_blob",
+          transform: {
+            pipeline: [
+              { op: "get" as const, args: [{ $var: "non_existent" }, "x"] }
+            ]
+          }
+        }
+      }
+    };
+    validateTableTranslation("items", invalidTranslation, ["nested_access"]);
+    throw new Error("Should have thrown error on forward/undeclared var reference");
+  } catch (err: any) {
+    console.log("✓ validateTableTranslation successfully caught undeclared return_var error: " + err.message);
+  }
+
+  const sqliteSQL = compilePipelineToSQL(translationPipeline, "sqlite");
+  if (!sqliteSQL.includes("json_extract(json(`tags_blob`), '$.version')")) {
+    throw new Error(`compilePipelineToSQL SQLite failed: ${sqliteSQL}`);
+  }
+  console.log("✓ compilePipelineToSQL (SQLite) compiled nested paths successfully.");
+
+  const pgSQL = compilePipelineToSQL(translationPipeline, "postgres");
+  if (!pgSQL.includes('(CAST("tags_blob" AS JSONB)  ->> \'version\')')) {
+    throw new Error(`compilePipelineToSQL Postgres failed: ${pgSQL}`);
+  }
+  console.log("✓ compilePipelineToSQL (Postgres) compiled nested paths successfully.");
+
+  console.log("\n🎉 Phase 3 verification tests passed successfully!");
 }
 
 runTests().catch((err) => {
