@@ -7,7 +7,7 @@ import type {
   DictionaryConfig,
   WorkspaceDefinition
 } from "./types";
-import type { ConceptResolver, ResolveResult } from "./resolver";
+import type { ConceptResolver, ResolveResult, ResolveResponse } from "./resolver";
 
 export class DictionaryStore {
   private namespaces = new Map<string, Namespace>();
@@ -189,7 +189,7 @@ export class DictionaryStore {
   public async resolve(
     term: string,
     context?: Record<string, any>
-  ): Promise<ResolveResult | null> {
+  ): Promise<ResolveResponse> {
     const result = await this.resolver.resolve(
       term,
       this.concepts,
@@ -198,17 +198,24 @@ export class DictionaryStore {
       context
     );
 
-    if (result) {
-      this.recordUsage(result.expression.id, result.conceptId, context || {});
-      const backendId = result.expression.context?.resolved_backend_id;
-      if (backendId && typeof (this.resolver as any).adjustWeight === "function") {
-        (this.resolver as any).adjustWeight(backendId, 0.05); // Reward winner
-        if (typeof (this.resolver as any).getBackends === "function") {
-          const backends = (this.resolver as any).getBackends();
-          for (const b of backends) {
-            if (b.config.id !== backendId) {
-              (this.resolver as any).adjustWeight(b.config.id, -0.01); // Decay losers
-            }
+    if (result.status === "FOUND" && result.results.length > 0) {
+      const top = result.results[0]!;
+      const matchingExpr = this.expressions.find(
+        (e) => e.conceptId === top.conceptId && top.matchedTerms.includes(e.term)
+      );
+      if (matchingExpr) {
+        this.recordUsage(matchingExpr.id, top.conceptId, context || {});
+      }
+    }
+
+    const winningBackendId = (result as any)._winningBackendId;
+    if (winningBackendId && typeof (this.resolver as any).adjustWeight === "function") {
+      (this.resolver as any).adjustWeight(winningBackendId, 0.05); // Reward winner
+      if (typeof (this.resolver as any).getBackends === "function") {
+        const backends = (this.resolver as any).getBackends();
+        for (const b of backends) {
+          if (b.config.id !== winningBackendId) {
+            (this.resolver as any).adjustWeight(b.config.id, -0.01); // Decay losers
           }
         }
       }

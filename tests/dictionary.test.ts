@@ -111,7 +111,7 @@ export async function runDictionaryTests() {
 
   // Resolve alias
   const resolved = await dictStore.resolve("patient suffered a heart attack", { workspace_id: "global" });
-  if (!resolved || resolved.conceptId !== "c_mi" || resolved.concept.display !== "Myocardial Infarction") {
+  if (resolved.status !== "FOUND" || resolved.results[0]?.conceptId !== "c_mi" || resolved.results[0]?.concept.display !== "Myocardial Infarction") {
     throw new Error(`Dictionary resolution failed. Got: ${JSON.stringify(resolved)}`);
   }
   console.log("✓ Dictionary resolved alias 'heart attack' using regex successfully.");
@@ -125,10 +125,10 @@ export async function runDictionaryTests() {
 
   // Resolve again to verify usage metrics score boosting works (initial priority 5 + usageCount 1 * 10 = 15)
   const resolvedSecond = await dictStore.resolve("patient suffered a heart attack", { workspace_id: "global" });
-  if (!resolvedSecond || resolvedSecond.score !== 15) {
-    throw new Error(`Score boosting validation failed. Score: ${resolvedSecond?.score}`);
+  if (resolvedSecond.status !== "FOUND" || resolvedSecond.results[0]?.score !== 15) {
+    throw new Error(`Score boosting validation failed. Score: ${resolvedSecond?.results[0]?.score}`);
   }
-  console.log("✓ Dictionary score boosting successfully recalculated (score: " + resolvedSecond.score + ").");
+  console.log("✓ Dictionary score boosting successfully recalculated (score: " + resolvedSecond.results[0]?.score + ").");
 
   // Find expressions
   const found = dictStore.find({ term: "heart" }, { workspace_id: "global" });
@@ -164,8 +164,8 @@ export async function runDictionaryTests() {
 
   // Initial resolution - Personal should win (weighted score: 5 * 0.8 = 4 vs Global: 5 * 0.3 = 1.5)
   const multiRes = await multiStore.resolve("heart attack");
-  if (!multiRes || multiRes.conceptId !== "p_c_mi") {
-    throw new Error(`Multi-backend resolution failed. Expected p_c_mi, got: ${multiRes?.conceptId}`);
+  if (multiRes.status !== "FOUND" || multiRes.results[0]?.conceptId !== "p_c_mi") {
+    throw new Error(`Multi-backend resolution failed. Expected p_c_mi, got: ${multiRes?.results[0]?.conceptId}`);
   }
   console.log("✓ Multi-backend resolved to the higher-weighted Personal backend candidate.");
 
