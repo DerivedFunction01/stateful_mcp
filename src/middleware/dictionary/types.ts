@@ -15,6 +15,7 @@ export interface Concept {
   namespaceCode: string;
   standardCode: string;
   display: string;
+  description?: string;
   designationDate?: string;
 }
 
@@ -29,7 +30,7 @@ export interface ConceptRelation {
   designationDate?: string;
 }
 
-export type TargetAssignment = 'MAIN_TERM' | 'ATTRIBUTE_MODIFIER' | 'BOTH';
+export type TargetAssignment = string;
 
 export interface CustomExpression {
   id: string;
@@ -56,4 +57,12 @@ export interface DictionaryConfig {
   concepts?: Concept[];
   relations?: ConceptRelation[];
   expressions?: CustomExpression[];
+  allowedTargetAssignments?: string[];
+}
+
+export interface BackendWeightConfig {
+  id: string;
+  defaultWeight: number;
+  minWeight?: number;
+  maxWeight?: number;
 }

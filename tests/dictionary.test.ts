@@ -13,7 +13,7 @@ export async function runDictionaryTests() {
       { code: "SNOMED", isPublic: true, isExternalPrivate: false }
     ],
     concepts: [
-      { id: "c_mi", namespaceCode: "SNOMED", standardCode: "I21.9", display: "Myocardial Infarction" }
+      { id: "c_mi", namespaceCode: "SNOMED", standardCode: "I21.9", display: "Myocardial Infarction", description: "A blockage of blood flow to the heart muscle." }
     ],
     expressions: [
       {
@@ -26,8 +26,35 @@ export async function runDictionaryTests() {
         priorityWeight: 5,
         active: true
       }
-    ]
+    ],
+    allowedTargetAssignments: ["MAIN_TERM", "METRIC"]
   });
+
+  // Verify Concept description is loaded
+  const concept = dictStore.getConcept("c_mi");
+  if (!concept || concept.description !== "A blockage of blood flow to the heart muscle.") {
+    throw new Error("Concept description was not loaded correctly");
+  }
+  console.log("✓ Dictionary successfully loaded concept description.");
+
+  // Verify allowedTargetAssignments validation
+  try {
+    dictStore.addExpression({
+      term: "unsupported assignment test",
+      regexPattern: "test",
+      isCaseInsensitive: true,
+      targetAssignment: "UNSUPPORTED",
+      conceptId: "c_mi",
+      priorityWeight: 1,
+      active: true
+    });
+    throw new Error("Should have thrown error on unsupported target assignment");
+  } catch (err: any) {
+    if (!err.message.includes("is not in the allowed list of assignments")) {
+      throw err;
+    }
+  }
+  console.log("✓ Dictionary successfully validated targetAssignment against allowed list.");
 
   // Resolve alias
   const resolved = await dictStore.resolve("patient suffered a heart attack", { workspace_id: "global" });
@@ -56,4 +83,49 @@ export async function runDictionaryTests() {
     throw new Error("Dictionary find expressions failed");
   }
   console.log("✓ Dictionary find expressions filtered successfully.");
+
+  // Test Case 9: Multi-Backend Weighted Concept Resolution
+  console.log("\n🧪 Test Case 9: Multi-Backend Weighted Concept Resolution");
+  
+  const personalBackend = {
+    config: { id: "personal", defaultWeight: 0.8, minWeight: 0.1, maxWeight: 1.0 },
+    currentWeight: 0.8,
+    resolver: new InMemoryConceptResolver(),
+    concepts: new Map([["p_c_mi", { id: "p_c_mi", namespaceCode: "CUSTOM", standardCode: "P-I21.9", display: "Myocardial Infarction (Personal)" }]]),
+    expressions: [{ id: "p_expr", term: "heart attack", regexPattern: "\\bheart\\s+attack\\b", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "p_c_mi", priorityWeight: 5, active: true }],
+    metrics: []
+  };
+
+  const globalBackend = {
+    config: { id: "global_backend", defaultWeight: 0.3, minWeight: 0.05, maxWeight: 0.5 },
+    currentWeight: 0.3,
+    resolver: new InMemoryConceptResolver(),
+    concepts: new Map([["g_c_mi", { id: "g_c_mi", namespaceCode: "SNOMED", standardCode: "I21.9", display: "Myocardial Infarction (Global)" }]]),
+    expressions: [{ id: "g_expr", term: "heart attack", regexPattern: "\\bheart\\s+attack\\b", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "g_c_mi", priorityWeight: 5, active: true }],
+    metrics: []
+  };
+
+  const { MultiBackendConceptResolver } = require("../src/middleware/dictionary/resolver");
+  const multiResolver = new MultiBackendConceptResolver([personalBackend, globalBackend]);
+  const multiStore = new DictionaryStore(multiResolver);
+
+  // Initial resolution - Personal should win (weighted score: 5 * 0.8 = 4 vs Global: 5 * 0.3 = 1.5)
+  const multiRes = await multiStore.resolve("heart attack");
+  if (!multiRes || multiRes.conceptId !== "p_c_mi") {
+    throw new Error(`Multi-backend resolution failed. Expected p_c_mi, got: ${multiRes?.conceptId}`);
+  }
+  console.log("✓ Multi-backend resolved to the higher-weighted Personal backend candidate.");
+
+  // Verify weights got updated (Personal rewarded +0.05 -> 0.85, Global decayed -0.01 -> 0.29)
+  const backends = multiResolver.getBackends();
+  const personal = backends.find((b: any) => b.config.id === "personal");
+  const globalB = backends.find((b: any) => b.config.id === "global_backend");
+
+  if (!personal || personal.currentWeight !== 0.85) {
+    throw new Error(`Personal weight adjustment failed. Expected 0.85, got: ${personal?.currentWeight}`);
+  }
+  if (!globalB || globalB.currentWeight !== 0.29) {
+    throw new Error(`Global weight adjustment failed. Expected 0.29, got: ${globalB?.currentWeight}`);
+  }
+  console.log("✓ Multi-backend weights adjusted successfully (winner rewarded, losers decayed).");
 }

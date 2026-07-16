@@ -14,10 +14,14 @@ export class DictionaryStore {
   private relations: ConceptRelation[] = [];
   private expressions: CustomExpression[] = [];
   private metrics: ResolutionMetric[] = [];
+  private allowedTargetAssignments?: string[];
 
   constructor(private resolver: ConceptResolver) {}
 
   public loadConfig(config: DictionaryConfig) {
+    if (config.allowedTargetAssignments) {
+      this.allowedTargetAssignments = config.allowedTargetAssignments;
+    }
     if (config.namespaces) {
       for (const ns of config.namespaces) {
         this.namespaces.set(ns.code, ns);
@@ -63,6 +67,13 @@ export class DictionaryStore {
   }
 
   public addExpression(expr: Omit<CustomExpression, "id"> & { id?: string }): string {
+    if (this.allowedTargetAssignments && this.allowedTargetAssignments.length > 0) {
+      if (!this.allowedTargetAssignments.includes(expr.targetAssignment)) {
+        throw new Error(
+          `Target assignment "${expr.targetAssignment}" is not in the allowed list of assignments: [${this.allowedTargetAssignments.join(", ")}]`
+        );
+      }
+    }
     const id = expr.id || `expr_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const newExpr: CustomExpression = {
       ...expr,
@@ -107,6 +118,18 @@ export class DictionaryStore {
 
     if (result) {
       this.recordUsage(result.expression.id, result.conceptId, context || {});
+      const backendId = result.expression.context?.resolved_backend_id;
+      if (backendId && typeof (this.resolver as any).adjustWeight === "function") {
+        (this.resolver as any).adjustWeight(backendId, 0.05); // Reward winner
+        if (typeof (this.resolver as any).getBackends === "function") {
+          const backends = (this.resolver as any).getBackends();
+          for (const b of backends) {
+            if (b.config.id !== backendId) {
+              (this.resolver as any).adjustWeight(b.config.id, -0.01); // Decay losers
+            }
+          }
+        }
+      }
     }
 
     return result;

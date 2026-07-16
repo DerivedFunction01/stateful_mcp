@@ -86,3 +86,100 @@ export class InMemoryConceptResolver implements ConceptResolver {
     };
   }
 }
+
+import type { BackendWeightConfig } from "./types";
+
+export interface BackendInstance {
+  config: BackendWeightConfig;
+  currentWeight: number;
+  resolver: ConceptResolver;
+  concepts: Map<string, Concept>;
+  expressions: CustomExpression[];
+  metrics: ResolutionMetric[];
+}
+
+export class MultiBackendConceptResolver implements ConceptResolver {
+  constructor(private backends: BackendInstance[]) {}
+
+  public getBackends(): BackendInstance[] {
+    return this.backends;
+  }
+
+  public adjustWeight(backendId: string, adjustment: number) {
+    const backend = this.backends.find((b) => b.config.id === backendId);
+    if (backend) {
+      let newWeight = backend.currentWeight + adjustment;
+      if (backend.config.minWeight !== undefined) {
+        newWeight = Math.max(backend.config.minWeight, newWeight);
+      }
+      if (backend.config.maxWeight !== undefined) {
+        newWeight = Math.min(backend.config.maxWeight, newWeight);
+      }
+      backend.currentWeight = Number(newWeight.toFixed(4));
+    }
+  }
+
+  public async resolve(
+    term: string,
+    concepts: Map<string, Concept>,
+    expressions: CustomExpression[],
+    metrics: ResolutionMetric[],
+    context?: Record<string, any>
+  ): Promise<ResolveResult | null> {
+    const queryPromises = this.backends.map(async (b) => {
+      try {
+        const res = await b.resolver.resolve(
+          term,
+          b.concepts,
+          b.expressions,
+          b.metrics,
+          context
+        );
+        if (!res) return null;
+        return {
+          backendId: b.config.id,
+          weight: b.currentWeight,
+          result: res
+        };
+      } catch (err) {
+        return null;
+      }
+    });
+
+    const responses = (await Promise.all(queryPromises)).filter(
+      (r): r is NonNullable<typeof r> => r !== null
+    );
+
+    if (responses.length === 0) return null;
+
+    const aggregated = new Map<string, { result: ResolveResult; score: number; backendId: string }>();
+
+    for (const resp of responses) {
+      const weightedScore = resp.result.score * resp.weight;
+      const existing = aggregated.get(resp.result.conceptId);
+      if (existing) {
+        existing.score += weightedScore;
+      } else {
+        aggregated.set(resp.result.conceptId, {
+          result: resp.result,
+          score: weightedScore,
+          backendId: resp.backendId
+        });
+      }
+    }
+
+    const sorted = Array.from(aggregated.values()).sort((a, b) => b.score - a.score);
+    const best = sorted[0]!;
+
+    // Tag the best result's expression context with the winning backend ID
+    best.result.expression.context = {
+      ...best.result.expression.context,
+      resolved_backend_id: best.backendId
+    };
+
+    return {
+      ...best.result,
+      score: best.score
+    };
+  }
+}
