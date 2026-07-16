@@ -141,6 +141,133 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "object_array_append",
+  {
+    description: "Append a new empty item to an array field",
+    inputSchema: {
+      object_id: z.string().describe("The object ID."),
+      path: z.array(pathSegmentSchema).describe("Field path to the array."),
+      session_id: z.string().describe("The session identifier."),
+      user_id: z.string().optional().describe("Optional user identifier.")
+    }
+  },
+  async ({ object_id, path: fieldPath, session_id, user_id }) => {
+    try {
+      const newObjectId = await objectStore.array_append(object_id, fieldPath, session_id, user_id);
+      return { content: [{ type: "text", text: JSON.stringify({ new_object_id: newObjectId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "object_array_remove",
+  {
+    description: "Remove an item from an array field at an index",
+    inputSchema: {
+      object_id: z.string().describe("The object ID."),
+      path: z.array(pathSegmentSchema).describe("Field path to the array."),
+      index: z.number().describe("The item index to remove."),
+      session_id: z.string().describe("The session identifier."),
+      user_id: z.string().optional().describe("Optional user identifier.")
+    }
+  },
+  async ({ object_id, path: fieldPath, index, session_id, user_id }) => {
+    try {
+      const newObjectId = await objectStore.array_remove(object_id, fieldPath, index, session_id, user_id);
+      return { content: [{ type: "text", text: JSON.stringify({ new_object_id: newObjectId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "object_compress",
+  {
+    description: "Collapse version chain into a standalone snapshot",
+    inputSchema: {
+      object_id: z.string().describe("The object ID to compress."),
+      session_id: z.string().describe("The session identifier."),
+      user_id: z.string().optional().describe("Optional user identifier.")
+    }
+  },
+  async ({ object_id, session_id, user_id }) => {
+    try {
+      const compressedId = await objectStore.compress(object_id, session_id, user_id);
+      return { content: [{ type: "text", text: JSON.stringify({ compressed_object_id: compressedId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "object_save",
+  {
+    description: "Promote and persist an object to user/global scope",
+    inputSchema: {
+      object_id: z.string().describe("The object ID to persist."),
+      tags: z.array(z.string()).describe("Searchable tags."),
+      description: z.string().describe("Purpose description."),
+      scope: z.enum(["session", "user", "global"]).describe("Ownership level."),
+      session_id: z.string().describe("The session identifier.")
+    }
+  },
+  async ({ object_id, tags, description, scope, session_id }) => {
+    try {
+      const ownerScope = scope === "global" ? { level: "global" as const } : { level: "user" as const, userId: "" };
+      const savedId = await objectStore.save(object_id, tags, description, ownerScope, session_id);
+      return { content: [{ type: "text", text: JSON.stringify({ saved_id: savedId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "object_inspect",
+  {
+    description: "Get full inspection status of an object",
+    inputSchema: {
+      object_id: z.string().describe("The object ID to inspect."),
+      session_id: z.string().describe("The session identifier."),
+      user_id: z.string().optional().describe("Optional user identifier.")
+    }
+  },
+  async ({ object_id, session_id, user_id }) => {
+    try {
+      const inspect = await objectStore.inspect(object_id, session_id, user_id);
+      return { content: [{ type: "text", text: JSON.stringify(inspect, null, 2) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "object_diff",
+  {
+    description: "Check differences between two object versions",
+    inputSchema: {
+      object_id_a: z.string().describe("Source object ID."),
+      object_id_b: z.string().describe("Target object ID."),
+      session_id: z.string().describe("The session identifier."),
+      user_id: z.string().optional().describe("Optional user identifier.")
+    }
+  },
+  async ({ object_id_a, object_id_b, session_id, user_id }) => {
+    try {
+      const diff = await objectStore.diff(object_id_a, object_id_b, session_id, user_id);
+      return { content: [{ type: "text", text: JSON.stringify(diff, null, 2) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
 async function main() {
   const workspaceRoot = process.cwd();
   const config = await loadMiddlewareConfig(workspaceRoot);

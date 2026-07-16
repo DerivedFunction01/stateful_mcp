@@ -24,6 +24,15 @@ const filterConditionSchema = z.object({
   value: z.any().describe("The value(s) to match.")
 });
 
+const aggregationSchema = z.object({
+  function: z.enum([
+    "count", "count_distinct", "sum", "avg", "min", "max",
+    "std_dev", "median", "q1", "q3", "range", "stat"
+  ]).describe("The mathematical function to apply."),
+  property: z.string().describe("The property to aggregate (or '*' for count)."),
+  alias: z.string().describe("Output column name for the aggregated value.")
+});
+
 server.registerTool(
   "filter_init",
   {
@@ -153,6 +162,88 @@ server.registerTool(
         () => true
       );
       return { content: [{ type: "text", text: JSON.stringify({ saved_id: savedId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "filter_parameters",
+  {
+    description: "Discover what properties and operations a specific tool or table supports filtering on",
+    inputSchema: {
+      tool_name: z.string().describe("The target tool for filtering."),
+      table_name: z.string().optional().describe("Specify a sub-table within the tool.")
+    }
+  },
+  async ({ tool_name, table_name }) => {
+    try {
+      const params = filterStore.getParameters(tool_name, table_name);
+      if (!params) {
+        return { content: [{ type: "text", text: `Tool "${tool_name}" not found in registered schemas.` }], isError: true };
+      }
+      return { content: [{ type: "text", text: JSON.stringify(params, null, 2) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "filter_init_modifier",
+  {
+    description: "Create a modifier (GROUP BY + SELECT projection schema)",
+    inputSchema: {
+      filter_id: z.string().optional().describe("Optional filter to apply modifier to")
+    }
+  },
+  async ({ filter_id }) => {
+    try {
+      const modId = filterStore.initModifier(filter_id);
+      return { content: [{ type: "text", text: JSON.stringify({ mod_id: modId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "filter_modifier_add",
+  {
+    description: "Add or refine GROUP BY columns and aggregation functions",
+    inputSchema: {
+      mod_id: z.string().describe("Reference to existing modifier"),
+      columns: z.array(z.string()).describe("Columns to group by"),
+      aggregations: z.array(aggregationSchema).describe("Mathematical roll-ups to apply to grouped data")
+    }
+  },
+  async ({ mod_id, columns, aggregations }) => {
+    try {
+      const newModId = filterStore.modifierAdd(mod_id, columns, aggregations);
+      return { content: [{ type: "text", text: JSON.stringify({ new_mod_id: newModId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "filter_init_view",
+  {
+    description: "Materialize a view: combine filter + modifier + pagination + sorting",
+    inputSchema: {
+      filter_id: z.string().describe("Which filter data to operate on"),
+      mod_id: z.string().optional().describe("How to aggregate/project"),
+      having_id: z.string().optional().describe("Which having clause to apply"),
+      limit: z.number().optional().describe("Result limit"),
+      offset: z.number().optional().describe("Pagination offset")
+    }
+  },
+  async ({ filter_id, mod_id, having_id, limit, offset }) => {
+    try {
+      const viewId = filterStore.initView(filter_id, mod_id, having_id, limit, offset);
+      return { content: [{ type: "text", text: JSON.stringify({ view_id: viewId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
     }

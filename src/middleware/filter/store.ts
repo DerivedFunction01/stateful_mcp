@@ -5,6 +5,9 @@ import type { QueryEngine } from "../../adapters/engines/interfaces";
 import { ErrorCode, McpError } from "../../errors/types";
 
 export class FilterStore {
+  private modifiers = new Map<string, { modId: string; filterId: string | null; columns: string[]; aggregations: any[]; createdAt: string }>();
+  private views = new Map<string, { viewId: string; filterId: string; modId?: string | null; havingId?: string | null; limit?: number; offset?: number; createdAt: string }>();
+
   constructor(
     private session: SessionFilterStore,
     private persistent: PersistentFilterStore,
@@ -355,5 +358,79 @@ export class FilterStore {
       table: filter.tableName,
       filters: flatRules
     });
+  }
+
+  public getParameters(toolName: string, tableName?: string): any {
+    const tool = this.toolSchemas.get(toolName);
+    if (!tool) return null;
+
+    if (tableName) {
+      const tableSchema = tool[tableName];
+      if (!tableSchema) return null;
+      return {
+        toolName,
+        tableName,
+        ...tableSchema
+      };
+    }
+
+    return {
+      toolName,
+      available_tables: Object.keys(tool),
+      table_schemas: tool
+    };
+  }
+
+  public initModifier(filterId?: string | null): string {
+    const modId = `mod_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    this.modifiers.set(modId, {
+      modId,
+      filterId: filterId || null,
+      columns: [],
+      aggregations: [],
+      createdAt: new Date().toISOString()
+    });
+    return modId;
+  }
+
+  public modifierAdd(modId: string, columns: string[], aggregations: any[]): string {
+    const parent = this.modifiers.get(modId);
+    if (!parent) {
+      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Modifier ID "${modId}" not found`);
+    }
+
+    const newModId = `mod_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    this.modifiers.set(newModId, {
+      modId: newModId,
+      filterId: parent.filterId,
+      columns,
+      aggregations,
+      createdAt: new Date().toISOString()
+    });
+    return newModId;
+  }
+
+  public initView(
+    filterId: string,
+    modId?: string | null,
+    havingId?: string | null,
+    limit?: number,
+    offset?: number
+  ): string {
+    const viewId = `view_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    this.views.set(viewId, {
+      viewId,
+      filterId,
+      modId,
+      havingId,
+      limit,
+      offset,
+      createdAt: new Date().toISOString()
+    });
+    return viewId;
+  }
+
+  public getView(viewId: string): any {
+    return this.views.get(viewId) || null;
   }
 }
