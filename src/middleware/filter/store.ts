@@ -433,4 +433,42 @@ export class FilterStore {
   public getView(viewId: string): any {
     return this.views.get(viewId) || null;
   }
+
+  public async removeRule(
+    filterId: string,
+    property: string,
+    operator: string,
+    sessionId: string,
+    userId?: string
+  ): Promise<string> {
+    const parent = await this.lookup(filterId, sessionId, userId);
+    if (!parent) {
+      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
+    }
+
+    const resolvedRules = await this.getFilterRules(filterId, sessionId, userId);
+    const filteredRules = resolvedRules.filter(
+      (r) => !(r.property === property && r.operator === operator)
+    );
+
+    const newId = `filter_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const newState: FilterState = {
+      filterId: newId,
+      toolName: parent.toolName,
+      tableName: parent.tableName,
+      rules: filteredRules,
+      parentFilterId: null,
+      createdAt: new Date().toISOString(),
+      schema_snapshot: parent.schema_snapshot
+    };
+
+    await this.session.set(sessionId, newId, newState);
+    
+    const schema = this.pinnedSchemas.get(filterId);
+    if (schema) {
+      this.pinnedSchemas.set(newId, schema);
+    }
+
+    return newId;
+  }
 }

@@ -173,6 +173,14 @@ async function runTests() {
   }
   console.log("✓ Filter hierarchy creation and rule traversal works.");
 
+  // Test removeRule
+  const fRemoved = await filterStore.removeRule(fAdded2, "price", "lt", "session_123");
+  const rulesAfterRemoval = await filterStore.getFilterRules(fRemoved, "session_123");
+  if (rulesAfterRemoval.length !== 1 || rulesAfterRemoval[0]?.property !== "category") {
+    throw new Error("removeRule failed to remove price filter rule");
+  }
+  console.log("✓ FilterStore removeRule successfully removed price constraint.");
+
   // Compress
   const compressedId = await filterStore.compress(fAdded2, "session_123");
   const compressedRules = await filterStore.getFilterRules(compressedId, "session_123");

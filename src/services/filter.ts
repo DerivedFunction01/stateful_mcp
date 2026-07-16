@@ -250,6 +250,28 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "filter_remove_rule",
+  {
+    description: "Remove specific query conditions by property name and operator, returning a new filter state ID",
+    inputSchema: {
+      filter_id: z.string().describe("The filter ID to edit."),
+      property: z.string().describe("The property matching the target rule."),
+      operator: z.string().describe("The operator matching the target rule."),
+      session_id: z.string().describe("The session identifier."),
+      user_id: z.string().optional().describe("Optional user identifier.")
+    }
+  },
+  async ({ filter_id, property, operator, session_id, user_id }) => {
+    try {
+      const newFilterId = await filterStore.removeRule(filter_id, property, operator, session_id, user_id);
+      return { content: [{ type: "text", text: JSON.stringify({ new_filter_id: newFilterId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
 async function main() {
   const workspaceRoot = process.cwd();
   const config = await loadMiddlewareConfig(workspaceRoot);
