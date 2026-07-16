@@ -4,7 +4,8 @@ import type {
   ConceptRelation,
   CustomExpression,
   ResolutionMetric,
-  DictionaryConfig
+  DictionaryConfig,
+  WorkspaceDefinition
 } from "./types";
 import type { ConceptResolver, ResolveResult } from "./resolver";
 
@@ -15,12 +16,34 @@ export class DictionaryStore {
   private expressions: CustomExpression[] = [];
   private metrics: ResolutionMetric[] = [];
   private allowedTargetAssignments?: string[];
+  private workspaces: WorkspaceDefinition[] = [];
+  private allowedTags?: string[];
+  private exposeTagsAsEnum = false;
+  private defaultDynamicNamespace = "CUSTOM";
+  private defaultWorkspaceId = "global";
+  private exposeWorkspaceAsEnum = false;
 
   constructor(private resolver: ConceptResolver) {}
 
   public loadConfig(config: DictionaryConfig) {
     if (config.allowedTargetAssignments) {
       this.allowedTargetAssignments = config.allowedTargetAssignments;
+    }
+    if (config.workspaces) {
+      this.workspaces = config.workspaces;
+    }
+    if (config.allowedTags) {
+      this.allowedTags = config.allowedTags;
+    }
+    if (config.exposeTagsAsEnum !== undefined) {
+      this.exposeTagsAsEnum = config.exposeTagsAsEnum;
+    }
+    if (config.exposeWorkspaceAsEnum !== undefined) {
+      this.exposeWorkspaceAsEnum = config.exposeWorkspaceAsEnum;
+    }
+    this.defaultWorkspaceId = config.defaultWorkspaceId || process.env.WORKSPACE_ID || "global";
+    if (config.defaultDynamicNamespace) {
+      this.defaultDynamicNamespace = config.defaultDynamicNamespace;
     }
     if (config.namespaces) {
       for (const ns of config.namespaces) {
@@ -40,6 +63,48 @@ export class DictionaryStore {
         this.addExpression(expr);
       }
     }
+  }
+
+  public shouldExposeWorkspaceAsEnum(): boolean {
+    return this.exposeWorkspaceAsEnum;
+  }
+
+  public getDefaultWorkspace(): string {
+    return this.defaultWorkspaceId;
+  }
+
+  public getWorkspaces(): WorkspaceDefinition[] {
+    return this.workspaces;
+  }
+
+  public resolveConceptId(ref: string): string | undefined {
+    if (ref.includes("::")) {
+      const idx = ref.indexOf("::");
+      const ns = ref.slice(0, idx);
+      const code = ref.slice(idx + 2);
+      for (const concept of this.concepts.values()) {
+        if (concept.namespaceCode === ns && concept.standardCode === code) {
+          return concept.id;
+        }
+      }
+      return undefined;
+    }
+    if (this.concepts.has(ref)) {
+      return ref;
+    }
+    return undefined;
+  }
+
+  public getAllowedTags(): string[] {
+    return this.allowedTags || [];
+  }
+
+  public shouldExposeTagsAsEnum(): boolean {
+    return this.exposeTagsAsEnum;
+  }
+
+  public getDefaultDynamicNamespace(): string {
+    return this.defaultDynamicNamespace;
   }
 
   public addNamespace(ns: Namespace) {
@@ -72,6 +137,23 @@ export class DictionaryStore {
         throw new Error(
           `Target assignment "${expr.targetAssignment}" is not in the allowed list of assignments: [${this.allowedTargetAssignments.join(", ")}]`
         );
+      }
+    }
+    const workspaceId = expr.context?.workspace_id || "global";
+    if (this.workspaces.length > 0 && workspaceId !== "global") {
+      const exists = this.workspaces.some((w) => w.id === workspaceId);
+      if (!exists) {
+        throw new Error(`Workspace "${workspaceId}" is not in the configured workspaces list.`);
+      }
+    }
+    const tags = expr.context?.tags;
+    if (this.allowedTags && this.allowedTags.length > 0 && Array.isArray(tags)) {
+      for (const t of tags) {
+        if (!this.allowedTags.includes(t)) {
+          throw new Error(
+            `Tag "${t}" is not in the configured allowed tags list: [${this.allowedTags.join(", ")}].`
+          );
+        }
       }
     }
     const id = expr.id || `expr_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;

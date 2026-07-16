@@ -104,6 +104,15 @@ export interface ResolutionMetric {
   lastResolvedAt: string;
 }
 
+export interface WorkspaceDefinition {
+  /** Unique workspace identifier code */
+  id: string;
+  /** Human-friendly name of the workspace */
+  name: string;
+  /** Detailed description of this workspace's purpose */
+  description?: string;
+}
+
 /**
  * Configuration payload containing lists of initial dictionary elements to load.
  */
@@ -118,6 +127,18 @@ export interface DictionaryConfig {
   expressions?: CustomExpression[];
   /** List of allowed values for targetAssignment validation */
   allowedTargetAssignments?: string[];
+  /** The default namespace identifier used for newly registered dynamic concepts */
+  defaultDynamicNamespace?: string;
+  /** Predefined set of valid workspace scopes */
+  workspaces?: WorkspaceDefinition[];
+  /** Predefined set of allowed entry tags */
+  allowedTags?: string[];
+  /** Flag to determine whether valid tags should be strictly exposed as an enum to the LLM */
+  exposeTagsAsEnum?: boolean;
+  /** The default workspace ID assigned when no workspace context is provided */
+  defaultWorkspaceId?: string;
+  /** Flag to determine whether valid workspaces should be strictly exposed as an enum to the LLM */
+  exposeWorkspaceAsEnum?: boolean;
 }
 
 /**

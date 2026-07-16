@@ -52,10 +52,22 @@ export interface ResolutionMetric {
   lastResolvedAt: string;
 }
 
+export interface WorkspaceDefinition {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface DictionaryConfig {
   namespaces?: Namespace[];
   concepts?: Concept[];
   relations?: ConceptRelation[];
   expressions?: CustomExpression[];
   allowedTargetAssignments?: string[];
+  defaultDynamicNamespace?: string;
+  workspaces?: WorkspaceDefinition[];
+  allowedTags?: string[];
+  exposeTagsAsEnum?: boolean;
+  defaultWorkspaceId?: string;
+  exposeWorkspaceAsEnum?: boolean;
 }

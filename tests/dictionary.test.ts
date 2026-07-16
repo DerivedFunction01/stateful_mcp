@@ -27,8 +27,17 @@ export async function runDictionaryTests() {
         active: true
       }
     ],
-    allowedTargetAssignments: ["MAIN_TERM", "METRIC"]
+    allowedTargetAssignments: ["MAIN_TERM", "METRIC"],
+    defaultDynamicNamespace: "LOCAL_CLINIC",
+    workspaces: [{ id: "dept_cardiology", name: "Cardiology" }],
+    allowedTags: ["clinical", "cardiology"],
+    exposeTagsAsEnum: true
   });
+
+  // Verify defaultDynamicNamespace
+  if (dictStore.getDefaultDynamicNamespace() !== "LOCAL_CLINIC") {
+    throw new Error("getDefaultDynamicNamespace failed to load correct config value");
+  }
 
   // Verify Concept description is loaded
   const concept = dictStore.getConcept("c_mi");
@@ -55,6 +64,50 @@ export async function runDictionaryTests() {
     }
   }
   console.log("✓ Dictionary successfully validated targetAssignment against allowed list.");
+
+  // Verify workspace validation
+  try {
+    dictStore.addExpression({
+      term: "unsupported workspace test",
+      regexPattern: "test",
+      isCaseInsensitive: true,
+      targetAssignment: "MAIN_TERM",
+      conceptId: "c_mi",
+      priorityWeight: 1,
+      active: true,
+      context: {
+        workspace_id: "dept_pediatrics"
+      }
+    });
+    throw new Error("Should have thrown error on unsupported workspace ID");
+  } catch (err: any) {
+    if (!err.message.includes("is not in the configured workspaces list")) {
+      throw err;
+    }
+  }
+  console.log("✓ Dictionary successfully validated workspace_id against allowed list.");
+
+  // Verify tag validation
+  try {
+    dictStore.addExpression({
+      term: "unsupported tag test",
+      regexPattern: "test",
+      isCaseInsensitive: true,
+      targetAssignment: "MAIN_TERM",
+      conceptId: "c_mi",
+      priorityWeight: 1,
+      active: true,
+      context: {
+        tags: ["billing"]
+      }
+    });
+    throw new Error("Should have thrown error on unsupported tag");
+  } catch (err: any) {
+    if (!err.message.includes("is not in the configured allowed tags list")) {
+      throw err;
+    }
+  }
+  console.log("✓ Dictionary successfully validated tags against allowed list.");
 
   // Resolve alias
   const resolved = await dictStore.resolve("patient suffered a heart attack", { workspace_id: "global" });
@@ -128,4 +181,25 @@ export async function runDictionaryTests() {
     throw new Error(`Global weight adjustment failed. Expected 0.29, got: ${globalB?.currentWeight}`);
   }
   console.log("✓ Multi-backend weights adjusted successfully (winner rewarded, losers decayed).");
+
+  // Test Case 10: Coordinate Resolution with Double Colons
+  console.log("\n🧪 Test Case 10: Coordinate Resolution with Double Colons");
+  const testStore = new DictionaryStore(new InMemoryConceptResolver());
+  testStore.loadConfig({
+    concepts: [
+      { id: "c_snomed_mi", namespaceCode: "SNOMED", standardCode: "I21.9", display: "Myocardial Infarction" }
+    ]
+  });
+
+  const resolvedId = testStore.resolveConceptId("SNOMED::I21.9");
+  if (resolvedId !== "c_snomed_mi") {
+    throw new Error(`Coordinate resolution with double colons failed. Expected c_snomed_mi, got: ${resolvedId}`);
+  }
+  console.log("✓ Successfully resolved concept by 'NAMESPACE::CODE' coordinate reference.");
+
+  const resolvedDirect = testStore.resolveConceptId("c_snomed_mi");
+  if (resolvedDirect !== "c_snomed_mi") {
+    throw new Error(`Direct concept ID resolution failed.`);
+  }
+  console.log("✓ Successfully resolved concept by direct concept ID.");
 }
