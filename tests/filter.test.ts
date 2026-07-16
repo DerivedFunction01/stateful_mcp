@@ -1,6 +1,6 @@
-import { loadMiddlewareConfig, resolveAdapter } from "../src/config/loader";
+import { loadMiddlewareConfig } from "../src/config/loader";
 import { validateMiddlewareConfig } from "../src/config/validator";
-import { MemorySessionFilterStore, MemoryPersistentFilterStore, MemorySessionObjectStore, MemoryPersistentObjectStore } from "../src/adapters/storage/memory-repo";
+import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "../src/adapters/storage/memory-repo";
 import { MemoryQueryEngine } from "../src/adapters/engines/memory-query";
 import { FilterStore } from "../src/middleware/filter/store";
 import { SqliteFilterStore } from "../src/adapters/storage/sqlite-repo";
@@ -9,16 +9,12 @@ import { PgQueryEngine } from "../src/adapters/engines/pg-query";
 import { executePipeline } from "../src/translation/pipeline";
 import { validateTableTranslation } from "../src/translation/validator";
 import { compilePipelineToSQL } from "../src/translation/compiler";
-import { ObjectStore } from "../src/middleware/object/store";
-import { validateCycleFree } from "../src/middleware/object/schema-walker";
-import { DictionaryStore } from "../src/middleware/dictionary/store";
-import { InMemoryConceptResolver } from "../src/middleware/dictionary/resolver";
 import type { TableSchema } from "../src/config/types";
 import * as fs from "fs/promises";
 import * as path from "path";
 
-async function runTests() {
-  console.log("🚀 Starting Phase 1 verification tests (from tests/folder)...\n");
+export async function runFilterTests() {
+  console.log("🚀 Starting Filter Service tests...\n");
 
   const workspaceRoot = path.resolve(process.cwd(), "..");
 
@@ -120,9 +116,8 @@ async function runTests() {
   }
   console.log("✓ Memory Query Engine filtering worked correctly.");
 
-  // ─── TEST CASE 4: FilterStore Coordinator (Set Ops, Traversal, Compression) ───
+  // ─── TEST CASE 4: FilterStore Coordinator ───
   console.log("\n🧪 Test Case 4: FilterStore Coordinator");
-  
   const toolSchemas = new Map<string, Record<string, TableSchema>>();
   toolSchemas.set("browse_catalog", {
     items: {
@@ -191,15 +186,12 @@ async function runTests() {
   console.log("✓ Filter chain compression successfully flattened rules.");
 
   // Combine Set Ops (Intersection)
-  // Filter 1: apparel only (Socks, Shoes)
   const fApparel = await filterStore.init("session_123", "browse_catalog", "items");
   const fApparelAdd = await filterStore.add(fApparel, [{ property: "category", operator: "eq", value: "apparel" }], "session_123");
 
-  // Filter 2: expensive items only (> 50) (Shoes, Laptop)
   const fExpensive = await filterStore.init("session_123", "browse_catalog", "items");
   const fExpensiveAdd = await filterStore.add(fExpensive, [{ property: "price", operator: "gt", value: 50 }], "session_123");
 
-  // Combined intersection should yield only "Shoes"
   const combinedId = await filterStore.combine("intersection", [fApparelAdd, fExpensiveAdd], "session_123");
 
   const resolvedCombinedRows = await filterStore.resolveRows(
@@ -214,7 +206,7 @@ async function runTests() {
   }
   console.log("✓ Combined filter execution (set operations) resolved correctly.");
 
-  // ─── TEST CASE 5: Relational SQL Adapters (Phase 2) ───
+  // ─── TEST CASE 5: Relational SQL Adapters ───
   console.log("\n🧪 Test Case 5: Relational SQL Adapters");
   
   const sqliteEngine = new SqliteQueryEngine(":memory:");
@@ -286,7 +278,7 @@ async function runTests() {
   }
   console.log("✓ Postgres Query Compiler generated parameter indexes ($1, $2) and double-quoted identifiers correctly.");
 
-  // ─── TEST CASE 6: Property Translation Layer (Phase 3) ───
+  // ─── TEST CASE 6: Property Translation Layer ───
   console.log("\n🧪 Test Case 6: Property Translation Layer");
   
   const translationPipeline = [
@@ -342,211 +334,4 @@ async function runTests() {
     throw new Error(`compilePipelineToSQL Postgres failed: ${pgSQL}`);
   }
   console.log("✓ compilePipelineToSQL (Postgres) compiled nested paths successfully.");
-
-  // ─── TEST CASE 7: Object Middleware (Phase 4) ───
-  console.log("\n🧪 Test Case 7: Object Middleware");
-
-  // 1. Validate cycle detection in schema loader
-  try {
-    const cyclicDefs = {
-      NodeA: {
-        properties: {
-          sibling: { $ref: "#/$defs/NodeB" }
-        }
-      },
-      NodeB: {
-        properties: {
-          parent: { $ref: "#/$defs/NodeA" }
-        }
-      }
-    };
-    validateCycleFree(cyclicDefs);
-    throw new Error("Should have thrown error on cyclic schema definition");
-  } catch (err: any) {
-    if (err.message.includes("Object schema cycle detected")) {
-      console.log("✓ validateCycleFree caught recursive schema definition cycle successfully.");
-    } else {
-      throw err;
-    }
-  }
-
-  // 2. Setup ObjectStore
-  const appointmentSchema = {
-    type: "object",
-    required: ["title", "start_date"],
-    properties: {
-      title: { type: "string" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      attendees: {
-        type: "array",
-        items: {
-          type: "object",
-          required: ["name"],
-          properties: {
-            name: { type: "string" },
-            role: { type: "string" }
-          }
-        }
-      }
-    },
-    constraints: [
-      {
-        op: "lt",
-        args: [{ $field: "start_date" }, { $field: "end_date" }],
-        error: "start_date must be before end_date"
-      }
-    ]
-  };
-
-  const schemasMap = new Map<string, any>();
-  schemasMap.set("appointment", appointmentSchema);
-
-  const objSession = new MemorySessionObjectStore();
-  const objPersistent = new MemoryPersistentObjectStore();
-  const objectStore = new ObjectStore(objSession, objPersistent, schemasMap);
-
-  // Initialize and write properties
-  const objId = await objectStore.init("appointment", "session_abc");
-  const objId2 = await objectStore.set(objId, ["title"], "Client Kickoff Meeting", "session_abc");
-  const objId3 = await objectStore.set(objId2, ["start_date"], "2026-07-15", "session_abc");
-
-  // Validate structural type check (should reject number on string field)
-  try {
-    await objectStore.set(objId3, ["title"], 12345, "session_abc");
-    throw new Error("Should have rejected number value on string field");
-  } catch (err: any) {
-    if (err.message.includes("fails schema validation") || err.message.includes("is not of type")) {
-      console.log("✓ Type check rejected numeric value on string property successfully.");
-    } else {
-      throw err;
-    }
-  }
-
-  // Validate incomplete object (missing start_date; title is set)
-  const val1 = await objectStore.validate(objId2, "session_abc");
-  if (val1.valid) {
-    throw new Error("Validation should say invalid because required fields are missing");
-  }
-  console.log("✓ Validation detected missing/incomplete fields successfully.");
-
-  // Write end_date to make it valid
-  const objId4 = await objectStore.set(objId3, ["end_date"], "2026-07-16", "session_abc");
-  const val2 = await objectStore.validate(objId4, "session_abc");
-  if (!val2.valid) {
-    throw new Error(`Expected validation to pass but failed: ${JSON.stringify(val2)}`);
-  }
-  console.log("✓ Validation passed when all required fields and constraints are satisfied.");
-
-  // Test constraint violation (start_date >= end_date)
-  const objInvalidDates = await objectStore.set(objId4, ["end_date"], "2026-07-14", "session_abc");
-  const val3 = await objectStore.validate(objInvalidDates, "session_abc");
-  if (val3.valid || val3.invalid.length === 0) {
-    throw new Error("Validation should have failed for cross-field constraint start_date < end_date");
-  }
-  console.log("✓ Cross-field constraint start_date < end_date caught violation successfully: " + (val3.invalid[0]?.reason ?? ""));
-
-  // Test array modifications
-  const objId5 = await objectStore.array_append(objId4, ["attendees"], "session_abc");
-  const objId6 = await objectStore.set(objId5, ["attendees", 0, "name"], "Alice", "session_abc");
-  const resolvedVal = await objectStore.resolve(objId6, "tool_call", "session_abc") as any;
-  if (resolvedVal.attendees[0].name !== "Alice") {
-    throw new Error("Array append and modify failed");
-  }
-  console.log("✓ Array modifications and indexing works correctly.");
-
-  // Test lazy references (ref)
-  const userProfileSchema = {
-    type: "object",
-    properties: {
-      username: { type: "string" }
-    }
-  };
-  schemasMap.set("profile", userProfileSchema);
-  const profileId = await objectStore.init("profile", "session_abc");
-  const profileId2 = await objectStore.set(profileId, ["username"], "bob_builder", "session_abc");
-
-  // Link attendee name to username reference
-  const objId7 = await objectStore.ref(objId6, ["attendees", 0, "name"], profileId2, ["username"], "session_abc");
-  const resolvedWithRef = await objectStore.resolve(objId7, "tool_call", "session_abc") as any;
-  if (resolvedWithRef.attendees[0].name !== "bob_builder") {
-    throw new Error(`Lazy reference resolution failed. Got: ${resolvedWithRef.attendees[0].name}`);
-  }
-  console.log("✓ Lazy reference links resolved recursively to target field value: " + resolvedWithRef.attendees[0].name);
-
-  // Test inspect & diff
-  const inspectInfo = await objectStore.inspect(objId7, "session_abc");
-  if (inspectInfo.objectId !== objId7 || !inspectInfo.validation.valid) {
-    throw new Error("Inspect returned wrong metadata");
-  }
-  console.log("✓ Inspect returned correct object status.");
-
-  const diffResult = await objectStore.diff(objId4, objId6, "session_abc");
-  if (!diffResult.added.attendees) {
-    throw new Error("Diff failed to show added field");
-  }
-  console.log("✓ Diff compared version states correctly.");
-
-  // ─── TEST CASE 8: Dictionary Service (Phase 5) ───
-  console.log("\n🧪 Test Case 8: Dictionary Service");
-
-  const resolver = new InMemoryConceptResolver();
-  const dictStore = new DictionaryStore(resolver);
-
-  // Load sample dictionary config
-  dictStore.loadConfig({
-    namespaces: [
-      { code: "SNOMED", isPublic: true, isExternalPrivate: false }
-    ],
-    concepts: [
-      { id: "c_mi", namespaceCode: "SNOMED", standardCode: "I21.9", display: "Myocardial Infarction" }
-    ],
-    expressions: [
-      {
-        id: "expr_1",
-        term: "heart attack",
-        regexPattern: "\\bheart\\s+attack\\b",
-        isCaseInsensitive: true,
-        targetAssignment: "MAIN_TERM",
-        conceptId: "c_mi",
-        priorityWeight: 5,
-        active: true
-      }
-    ]
-  });
-
-  // Resolve alias
-  const resolved = await dictStore.resolve("patient suffered a heart attack", { workspace_id: "global" });
-  if (!resolved || resolved.conceptId !== "c_mi" || resolved.concept.display !== "Myocardial Infarction") {
-    throw new Error(`Dictionary resolution failed. Got: ${JSON.stringify(resolved)}`);
-  }
-  console.log("✓ Dictionary resolved alias 'heart attack' using regex successfully.");
-
-  // Check metrics and usage-based score boosting
-  const metrics = dictStore.getMetrics();
-  if (metrics.length !== 1 || metrics[0]?.usageCount !== 1) {
-    throw new Error("Usage metrics recording failed");
-  }
-  console.log("✓ Dictionary usage metrics recorded successfully.");
-
-  // Resolve again to verify usage metrics score boosting works (initial priority 5 + usageCount 1 * 10 = 15)
-  const resolvedSecond = await dictStore.resolve("patient suffered a heart attack", { workspace_id: "global" });
-  if (!resolvedSecond || resolvedSecond.score !== 15) {
-    throw new Error(`Score boosting validation failed. Score: ${resolvedSecond?.score}`);
-  }
-  console.log("✓ Dictionary score boosting successfully recalculated (score: " + resolvedSecond.score + ").");
-
-  // Find expressions
-  const found = dictStore.find({ term: "heart" }, { workspace_id: "global" });
-  if (found.length !== 1 || found[0]?.id !== "expr_1") {
-    throw new Error("Dictionary find expressions failed");
-  }
-  console.log("✓ Dictionary find expressions filtered successfully.");
-
-  console.log("\n🎉 Phase 5 verification tests passed successfully!");
 }
-
-runTests().catch((err) => {
-  console.error("\n❌ Verification tests failed:", err);
-  process.exit(1);
-});
