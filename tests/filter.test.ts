@@ -334,4 +334,83 @@ export async function runFilterTests() {
     throw new Error(`compilePipelineToSQL Postgres failed: ${pgSQL}`);
   }
   console.log("✓ compilePipelineToSQL (Postgres) compiled nested paths successfully.");
+
+  // ─── TEST CASE 14: Explicit Wildcards and Array Support in Query Engines ───
+  console.log("\n🧪 Test Case 14: Explicit Wildcards and Array Support in Query Engines");
+
+  // 1. In-Memory Engine
+  const memEngine = new MemoryQueryEngine({
+    items: [
+      { id: 1, name: "Socks", category: "apparel" },
+      { id: 2, name: "Shoes", category: "apparel" },
+      { id: 3, name: "Laptop", category: "electronics" }
+    ]
+  });
+
+  // Prefix match
+  const resPrefix = await memEngine.execute("items", {
+    filters: [{ property: "name", operator: "like", value: "So%" }]
+  });
+  if (resPrefix.length !== 1 || (resPrefix[0] as any).name !== "Socks") {
+    throw new Error("Prefix wildcard failed in memory engine");
+  }
+
+  // Suffix match
+  const resSuffix = await memEngine.execute("items", {
+    filters: [{ property: "name", operator: "like", value: "%es" }]
+  });
+  if (resSuffix.length !== 1 || (resSuffix[0] as any).name !== "Shoes") {
+    throw new Error("Suffix wildcard failed in memory engine");
+  }
+
+  // Array pattern list match (matches any)
+  const resArrayLike = await memEngine.execute("items", {
+    filters: [{ property: "name", operator: "like", value: ["%oc%", "%ho%"] }]
+  });
+  if (resArrayLike.length !== 2) {
+    throw new Error("Array pattern list match failed in memory engine");
+  }
+
+  // Array pattern list NOT match (matches none of them)
+  const resArrayNotLike = await memEngine.execute("items", {
+    filters: [{ property: "name", operator: "not_like", value: ["%x%", "%y%"] }]
+  });
+  if (resArrayNotLike.length !== 3) {
+    throw new Error("Array pattern list NOT match failed in memory engine");
+  }
+  console.log("✓ Memory Query Engine explicit wildcards and array pattern matching passed.");
+
+  // 2. SQLite Engine
+  const sqlEngine = new SqliteQueryEngine(":memory:");
+  sqlEngine["db"].run("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, category TEXT)");
+  sqlEngine["db"].run("INSERT INTO items (name, category) VALUES ('Socks', 'apparel')");
+  sqlEngine["db"].run("INSERT INTO items (name, category) VALUES ('Shoes', 'apparel')");
+  sqlEngine["db"].run("INSERT INTO items (name, category) VALUES ('Laptop', 'electronics')");
+
+  // Verify compilation for array
+  const sqliteCompiled = sqlEngine.compile("items", {
+    filters: [{ property: "name", operator: "like", value: ["%oc%", "%ho%"] }]
+  });
+  if (!sqliteCompiled.sql.includes("(`name` LIKE ? OR `name` LIKE ?)") || sqliteCompiled.params[0] !== "%oc%" || sqliteCompiled.params[1] !== "%ho%") {
+    throw new Error(`SQLite compiled SQL for array LIKE is invalid: ${JSON.stringify(sqliteCompiled)}`);
+  }
+
+  // Verify execution
+  const sqliteArrayResults = await sqlEngine.execute("items", {
+    filters: [{ property: "name", operator: "like", value: ["%oc%", "%ho%"] }]
+  });
+  if (sqliteArrayResults.length !== 2) {
+    throw new Error("SQLite execution for array LIKE failed");
+  }
+  console.log("✓ SQLite Query Engine compilation and execution for explicit wildcards and array patterns passed.");
+
+  // 3. PostgreSQL Engine compiler check
+  const pgEngine2 = new PgQueryEngine("postgresql://localhost:5432/postgres");
+  const pgCompiled2 = pgEngine2.compile("items", {
+    filters: [{ property: "name", operator: "like", value: ["%oc%", "%ho%"] }]
+  });
+  if (!pgCompiled2.sql.includes('("name" LIKE $1 OR "name" LIKE $2)') || (pgCompiled2.params[0] as any) !== "%oc%" || (pgCompiled2.params[1] as any) !== "%ho%") {
+    throw new Error(`Postgres compiled SQL for array LIKE is invalid: ${JSON.stringify(pgCompiled2)}`);
+  }
+  console.log("✓ PostgreSQL Query Compiler output correctly parameterized SQL for array patterns.");
 }

@@ -49,12 +49,24 @@ export class SqliteQueryEngine implements QueryEngine {
       case "leq":
         params.push(val);
         return `${prop} <= ?`;
-      case "like":
-        params.push(`%${val}%`);
-        return `${prop} LIKE ?`;
-      case "not_like":
-        params.push(`%${val}%`);
-        return `${prop} NOT LIKE ?`;
+      case "like": {
+        const list = Array.isArray(val) ? val : [val];
+        if (list.length === 0) return "1=0";
+        const conds = list.map((item) => {
+          params.push(item);
+          return `${prop} LIKE ?`;
+        });
+        return `(${conds.join(" OR ")})`;
+      }
+      case "not_like": {
+        const list = Array.isArray(val) ? val : [val];
+        if (list.length === 0) return "1=1";
+        const conds = list.map((item) => {
+          params.push(item);
+          return `${prop} NOT LIKE ?`;
+        });
+        return `(${conds.join(" AND ")})`;
+      }
       case "in_set": {
         const list = Array.isArray(val) ? val : String(val).split(",").map(s => s.trim());
         list.forEach(v => params.push(v));

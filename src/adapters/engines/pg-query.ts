@@ -43,12 +43,24 @@ export class PgQueryEngine implements QueryEngine {
       case "leq":
         params.push(val);
         return `${prop} <= $${params.length}`;
-      case "like":
-        params.push(`%${val}%`);
-        return `${prop} LIKE $${params.length}`;
-      case "not_like":
-        params.push(`%${val}%`);
-        return `${prop} NOT LIKE $${params.length}`;
+      case "like": {
+        const list = Array.isArray(val) ? val : [val];
+        if (list.length === 0) return "1=0";
+        const conds = list.map((item) => {
+          params.push(item);
+          return `${prop} LIKE $${params.length}`;
+        });
+        return `(${conds.join(" OR ")})`;
+      }
+      case "not_like": {
+        const list = Array.isArray(val) ? val : [val];
+        if (list.length === 0) return "1=1";
+        const conds = list.map((item) => {
+          params.push(item);
+          return `${prop} NOT LIKE $${params.length}`;
+        });
+        return `(${conds.join(" AND ")})`;
+      }
       case "in_set": {
         const list = Array.isArray(val) ? val : String(val).split(",").map(s => s.trim());
         const placeholders = list.map((item) => {

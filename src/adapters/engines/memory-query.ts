@@ -4,6 +4,21 @@ import { registerAdapter } from "../../config/loader";
 import * as fs from "fs/promises";
 import * as path from "path";
 
+function sqlLikeToRegex(pattern: string): RegExp {
+  const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = pattern.split(/(%|_)/);
+  const regexStr = parts.map(part => {
+    if (part === "%") return ".*";
+    if (part === "_") return ".";
+    return escapeRegExp(part);
+  }).join("");
+  return new RegExp(`^${regexStr}$`, "i");
+}
+
+function evaluateLike(val: any, pattern: string): boolean {
+  return sqlLikeToRegex(pattern).test(String(val));
+}
+
 // Evaluate a single filter condition on a row
 export function evaluateFilter(row: any, cond: FilterCondition): boolean {
   let val = row[cond.property];
@@ -50,9 +65,15 @@ export function evaluateFilter(row: any, cond: FilterCondition): boolean {
     case "leq":
       return val <= target;
     case "like":
-      return String(val).toLowerCase().includes(String(target).toLowerCase());
+      if (Array.isArray(target)) {
+        return target.some(p => evaluateLike(val, String(p)));
+      }
+      return evaluateLike(val, String(target));
     case "not_like":
-      return !String(val).toLowerCase().includes(String(target).toLowerCase());
+      if (Array.isArray(target)) {
+        return target.every(p => !evaluateLike(val, String(p)));
+      }
+      return !evaluateLike(val, String(target));
     case "in_set":
       if (Array.isArray(target)) {
         return target
