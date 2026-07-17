@@ -145,4 +145,86 @@ export async function runObjectTests() {
     throw new Error("Diff failed to show added field");
   }
   console.log("✓ Diff compared version states correctly.");
+
+  // ─── TEST CASE 17: Object Store GC and Auto-Compression ───
+  console.log("\n🧪 Test Case 17: Object Store GC and Auto-Compression");
+
+  // Create store with chain threshold = 3
+  const gcObjectStore = new ObjectStore(
+    new MemorySessionObjectStore(),
+    new MemoryPersistentObjectStore(),
+    schemasMap,
+    7,
+    5,
+    3
+  );
+
+  const gcSessionId = "gc_session_object_999";
+  const oRoot = await gcObjectStore.init("appointment", gcSessionId);
+
+  // 1. Verify Auto-Compression
+  const o1 = await gcObjectStore.set(oRoot, ["title"], "Meeting A", gcSessionId);
+  const o2 = await gcObjectStore.set(o1, ["start_date"], "2026-07-15", gcSessionId);
+  // depth: oRoot(1) -> o1(2) -> o2(3). Adding o3 will hit depth 4 (exceeding threshold 3)
+  const o3 = await gcObjectStore.set(o2, ["end_date"], "2026-07-16", gcSessionId);
+
+  // o3 should be compressed. Check that parentObjectId is null
+  const oState3 = await gcObjectStore["session"].get(gcSessionId, o3);
+  if (!oState3 || oState3.parentObjectId !== null) {
+    throw new Error(`Object auto-compression failed: oState3 is ${JSON.stringify(oState3)}`);
+  }
+
+  // The resolved data should have all properties set
+  if (oState3.data.title !== "Meeting A" || oState3.data.start_date !== "2026-07-15" || oState3.data.end_date !== "2026-07-16") {
+    throw new Error(`Compressed object data mismatch: ${JSON.stringify(oState3.data)}`);
+  }
+  console.log("✓ ObjectStore auto-compression successfully flattened linear chain.");
+
+  // 2. Verify Branch Point preserves branch points
+  const oRoot2 = await gcObjectStore.init("appointment", gcSessionId);
+  const obid1 = await gcObjectStore.set(oRoot2, ["title"], "Branch 1", gcSessionId);
+  const obid2 = await gcObjectStore.set(oRoot2, ["title"], "Branch 2", gcSessionId);
+
+  // obid2 linearDepth should be 1 because oRoot2 has multiple children (obid1 and obid2)
+  const oStateBid2 = await gcObjectStore["session"].get(gcSessionId, obid2);
+  if (!oStateBid2 || oStateBid2.linearDepth !== 1) {
+    throw new Error(`Linear depth of object branch node should be 1, got: ${oStateBid2?.linearDepth}`);
+  }
+
+  // Extend obid2 chain
+  const obid3 = await gcObjectStore.set(obid2, ["start_date"], "2026-07-15", gcSessionId); // depth 2
+  const obid4 = await gcObjectStore.set(obid3, ["end_date"], "2026-07-16", gcSessionId); // depth 3
+  const obid5 = await gcObjectStore.set(obid4, ["title"], "Updated Title", gcSessionId); // depth 4 -> suffix compression
+
+  // obid5 should point to oRoot2 as parent (since oRoot2 is the branch point)
+  const oStateBid5 = await gcObjectStore["session"].get(gcSessionId, obid5);
+  if (!oStateBid5 || oStateBid5.parentObjectId !== oRoot2) {
+    throw new Error(`Object Suffix compression failed to stop at branch point: parent is ${oStateBid5?.parentObjectId}`);
+  }
+  console.log("✓ Object Suffix compression correctly preserves branch points.");
+
+  // 3. Verify targeted GC
+  const obidDead = await gcObjectStore.set(oRoot2, ["start_date"], "2026-07-20", gcSessionId);
+
+  // GC keeping obid5. obidDead, obid2, obid3, obid4 should be pruned. oRoot2 and obid5 should be kept.
+  await gcObjectStore.gc(gcSessionId, [obid5]);
+
+  const deadObj = await gcObjectStore["session"].get(gcSessionId, obidDead);
+  if (deadObj) {
+    throw new Error("Object GC failed to prune dead branch.");
+  }
+
+  const oNode2 = await gcObjectStore["session"].get(gcSessionId, obid2);
+  const oNode3 = await gcObjectStore["session"].get(gcSessionId, obid3);
+  const oNode4 = await gcObjectStore["session"].get(gcSessionId, obid4);
+  if (oNode2 || oNode3 || oNode4) {
+    throw new Error("Object GC failed to prune compressed intermediate nodes.");
+  }
+
+  const oNode5 = await gcObjectStore["session"].get(gcSessionId, obid5);
+  const oNodeRoot = await gcObjectStore["session"].get(gcSessionId, oRoot2);
+  if (!oNode5 || !oNodeRoot) {
+    throw new Error("Object GC deleted active or ancestor nodes.");
+  }
+  console.log("✓ ObjectStore targeted GC successfully pruned dead branches and compressed intermediate garbage.");
 }
