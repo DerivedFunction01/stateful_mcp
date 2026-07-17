@@ -97,7 +97,9 @@ function registerAllTools(store: DictionaryStore) {
     priority_weight: z.number().optional().default(1).describe("Base match ranking weight."),
     is_case_insensitive: z.boolean().optional().default(true).describe("Whether matching is case-insensitive."),
     tags: tagsSchema,
-    description: z.string().optional().describe("Context/reason for the entry mapping.")
+    description: z.string().optional().describe("Context/reason for the entry mapping."),
+    user_id: z.string().optional().describe("User ID of the caller."),
+    is_admin: z.boolean().optional().describe("Whether the caller has administrative privileges.")
   };
 
   if (workspaceSchema) {
@@ -112,11 +114,12 @@ function registerAllTools(store: DictionaryStore) {
     },
     async (args: any) => {
       try {
-        const { term, concept_ref, target_assignment, regex_pattern, priority_weight, is_case_insensitive, tags, description, workspace_id } = args;
+        const { term, concept_ref, target_assignment, regex_pattern, priority_weight, is_case_insensitive, tags, description, workspace_id, user_id, is_admin } = args;
         const conceptId = store.resolveConceptId(concept_ref);
         if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
 
         const ws = workspace_id || store.getDefaultWorkspace();
+        const callerContext = { user_id, workspace_id: ws, is_admin };
         const entryId = store.addExpression({
           term,
           regexPattern: regex_pattern || term,
@@ -128,9 +131,10 @@ function registerAllTools(store: DictionaryStore) {
           context: {
             tags: tags || [],
             workspace_id: ws,
+            user_id,
             description
           }
-        });
+        }, callerContext);
 
         return { content: [{ type: "text" as const, text: JSON.stringify({ dict_entry_id: entryId }) }] };
       } catch (err: any) {
@@ -139,8 +143,129 @@ function registerAllTools(store: DictionaryStore) {
     }
   );
 
+  const editExpressionSchema: any = {
+    dict_entry_id: z.string().describe("ID of the expression entry to edit."),
+    term: z.string().optional().describe("New shorthand alias or keyword."),
+    concept_ref: z.string().optional().describe("New target Concept reference (UUID or 'NAMESPACE::CODE' coordinate)."),
+    target_assignment: z.string().optional().describe("New target assignment classification."),
+    regex_pattern: z.string().optional().describe("New custom regex pattern override."),
+    priority_weight: z.number().optional().describe("New base match ranking weight."),
+    is_case_insensitive: z.boolean().optional().describe("New case insensitivity setting."),
+    tags: tagsSchema,
+    description: z.string().optional().describe("New context/reason for the entry mapping."),
+    user_id: z.string().optional().describe("User ID of the caller."),
+    is_admin: z.boolean().optional().describe("Whether the caller has administrative privileges.")
+  };
+
+  if (workspaceSchema) {
+    editExpressionSchema.workspace_id = workspaceSchema;
+  }
+
+  server.registerTool(
+    "dictionary_edit_expression",
+    {
+      description: "Edit properties of an expression entry.",
+      inputSchema: editExpressionSchema
+    },
+    async (args: any) => {
+      try {
+        const { dict_entry_id, term, concept_ref, target_assignment, regex_pattern, priority_weight, is_case_insensitive, tags, description, workspace_id, user_id, is_admin } = args;
+        const updates: any = {};
+        if (term !== undefined) updates.term = term;
+        if (regex_pattern !== undefined) updates.regexPattern = regex_pattern;
+        if (is_case_insensitive !== undefined) updates.isCaseInsensitive = is_case_insensitive;
+        if (target_assignment !== undefined) updates.targetAssignment = target_assignment;
+        if (priority_weight !== undefined) updates.priorityWeight = priority_weight;
+
+        if (concept_ref !== undefined) {
+          const conceptId = store.resolveConceptId(concept_ref);
+          if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
+          updates.conceptId = conceptId;
+        }
+
+        const ws = workspace_id || store.getDefaultWorkspace();
+        if (tags !== undefined || ws !== undefined || description !== undefined || user_id !== undefined) {
+          updates.context = {
+            tags: tags || [],
+            workspace_id: ws,
+            user_id,
+            description
+          };
+        }
+
+        const callerContext = { user_id, workspace_id: ws, is_admin };
+        store.editExpression(dict_entry_id, updates, callerContext);
+
+        return { content: [{ type: "text" as const, text: JSON.stringify({ dict_entry_id, success: true }) }] };
+      } catch (err: any) {
+        return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "dictionary_edit_concept",
+    {
+      description: "Edit properties of an existing concept (display or description).",
+      inputSchema: {
+        concept_ref: z.string().describe("Concept reference (UUID or 'NAMESPACE::CODE' coordinate)."),
+        display: z.string().optional().describe("New display name for the concept."),
+        description: z.string().optional().describe("New description for the concept.")
+      }
+    },
+    async ({ concept_ref, display, description }) => {
+      try {
+        const conceptId = store.resolveConceptId(concept_ref);
+        if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
+        store.editConcept(conceptId, { display, description });
+        return { content: [{ type: "text" as const, text: JSON.stringify({ concept_id: conceptId, success: true }) }] };
+      } catch (err: any) {
+        return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "dictionary_remove_concept",
+    {
+      description: "Deactivate a concept (soft-delete).",
+      inputSchema: {
+        concept_ref: z.string().describe("Concept reference (UUID or 'NAMESPACE::CODE' coordinate) to deactivate.")
+      }
+    },
+    async ({ concept_ref }) => {
+      try {
+        const conceptId = store.resolveConceptId(concept_ref);
+        if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
+        store.removeConcept(conceptId);
+        return { content: [{ type: "text" as const, text: JSON.stringify({ concept_id: conceptId, deactivated: true }) }] };
+      } catch (err: any) {
+        return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "dictionary_remove_relation",
+    {
+      description: "Deactivate a semantic relationship link (soft-delete).",
+      inputSchema: {
+        relation_id: z.string().describe("ID of the relation to deactivate.")
+      }
+    },
+    async ({ relation_id }) => {
+      try {
+        store.removeRelation(relation_id);
+        return { content: [{ type: "text" as const, text: JSON.stringify({ relation_id, deactivated: true }) }] };
+      } catch (err: any) {
+        return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
   const resolveSchema: any = {
-    term: z.string().describe("Shorthand or alias to resolve.")
+    term: z.string().describe("Shorthand or alias to resolve."),
+    user_id: z.string().optional().describe("User ID of the resolver caller.")
   };
   if (workspaceSchema) {
     resolveSchema.workspace_id = workspaceSchema;
@@ -154,9 +279,9 @@ function registerAllTools(store: DictionaryStore) {
     },
     async (args: any) => {
       try {
-        const { term, workspace_id } = args;
+        const { term, workspace_id, user_id } = args;
         const ws = workspace_id || store.getDefaultWorkspace();
-        const res = await store.resolve(term, { workspace_id: ws });
+        const res = await store.resolve(term, { workspace_id: ws, user_id });
         return { content: [{ type: "text" as const, text: JSON.stringify({ resolved: res }) }] };
       } catch (err: any) {
         return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
@@ -167,7 +292,8 @@ function registerAllTools(store: DictionaryStore) {
   const findSchema: any = {
     query: z.string().optional().describe("Search term query."),
     tags: tagsSchema,
-    concept_type: z.string().optional().describe("Namespace code filter.")
+    concept_type: z.string().optional().describe("Namespace code filter."),
+    user_id: z.string().optional().describe("User ID context for matching.")
   };
   if (workspaceSchema) {
     findSchema.workspace_id = workspaceSchema;
@@ -181,11 +307,11 @@ function registerAllTools(store: DictionaryStore) {
     },
     async (args: any) => {
       try {
-        const { query, tags, concept_type, workspace_id } = args;
+        const { query, tags, concept_type, workspace_id, user_id } = args;
         const ws = workspace_id || store.getDefaultWorkspace();
         const results = store.find(
           { term: query, tags: tags as string[], conceptType: concept_type },
-          { workspace_id: ws }
+          { workspace_id: ws, user_id }
         );
         return { content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }] };
       } catch (err: any) {
@@ -197,14 +323,19 @@ function registerAllTools(store: DictionaryStore) {
   server.registerTool(
     "dictionary_remove",
     {
-      description: "Remove an expression entry by ID",
+      description: "Remove an expression entry by ID (soft-delete if resolved metrics exist, else hard-delete).",
       inputSchema: {
-        dict_entry_id: z.string().describe("ID of the expression entry to delete.")
+        dict_entry_id: z.string().describe("ID of the expression entry to delete."),
+        user_id: z.string().optional().describe("User ID of the caller."),
+        workspace_id: z.string().optional().describe("Workspace ID of the caller."),
+        is_admin: z.boolean().optional().describe("Whether the caller has administrative privileges.")
       }
     },
-    async ({ dict_entry_id }) => {
+    async ({ dict_entry_id, user_id, workspace_id, is_admin }) => {
       try {
-        const removed = store.removeExpression(dict_entry_id);
+        const ws = workspace_id || store.getDefaultWorkspace();
+        const callerContext = { user_id, workspace_id: ws, is_admin };
+        const removed = store.removeExpression(dict_entry_id, callerContext);
         return { content: [{ type: "text" as const, text: JSON.stringify({ removed }) }] };
       } catch (err: any) {
         return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };

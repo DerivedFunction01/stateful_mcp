@@ -34,10 +34,31 @@ export interface ConceptResolver {
 }
 
 export class InMemoryConceptResolver implements ConceptResolver {
-  private matchesContext(exprContext?: Record<string, any>, queryContext?: Record<string, any>): boolean {
-    const exprWorkspace = exprContext?.workspace_id || "global";
-    const queryWorkspace = queryContext?.workspace_id || "global";
-    return exprWorkspace === queryWorkspace;
+  private getExpressionScopeLevel(expr: CustomExpression): "user" | "workspace" | "global" {
+    if (expr.context?.user_id) return "user";
+    if (expr.context?.workspace_id && expr.context.workspace_id !== "global") return "workspace";
+    return "global";
+  }
+
+  private getExpressionScopeLevelNumeric(expr: CustomExpression): number {
+    const level = this.getExpressionScopeLevel(expr);
+    if (level === "user") return 3;
+    if (level === "workspace") return 2;
+    return 1;
+  }
+
+  private matchesContext(expr: CustomExpression, queryContext?: Record<string, any>): boolean {
+    const level = this.getExpressionScopeLevel(expr);
+    const queryUserId = queryContext?.user_id;
+    const queryWorkspaceId = queryContext?.workspace_id || "global";
+
+    if (level === "user") {
+      return !!queryUserId && expr.context?.user_id === queryUserId;
+    }
+    if (level === "workspace") {
+      return expr.context?.workspace_id === queryWorkspaceId;
+    }
+    return true;
   }
 
   public async resolve(
@@ -47,11 +68,11 @@ export class InMemoryConceptResolver implements ConceptResolver {
     metrics: ResolutionMetric[],
     context?: Record<string, any>
   ): Promise<ResolveResponse> {
-    const candidates = new Map<string, { concept: Concept; score: number; matchedTerms: Set<string>; exact: boolean }>();
+    const candidates = new Map<string, { concept: Concept; score: number; matchedTerms: Set<string>; exact: boolean; maxTier: number }>();
 
     for (const expr of expressions) {
       if (!expr.active || !expr.conceptId) continue;
-      if (!this.matchesContext(expr.context, context)) continue;
+      if (!this.matchesContext(expr, context)) continue;
 
       let matched = false;
       let isExact = false;
@@ -76,29 +97,32 @@ export class InMemoryConceptResolver implements ConceptResolver {
 
       if (matched) {
         const concept = concepts.get(expr.conceptId);
-        if (concept) {
+        if (concept && concept.active !== false) {
           let score = expr.priorityWeight;
           const metric = metrics.find(
             (m) =>
               m.expressionId === expr.id &&
               m.conceptId === expr.conceptId &&
-              this.matchesContext(m.context, context)
+              this.matchesContext(expr, context)
           );
           if (metric) {
             score += metric.usageCount * 10;
           }
 
+          const tier = this.getExpressionScopeLevelNumeric(expr);
           const existing = candidates.get(expr.conceptId);
           if (existing) {
             existing.score += score;
             existing.matchedTerms.add(expr.term);
             if (isExact) existing.exact = true;
+            if (tier > existing.maxTier) existing.maxTier = tier;
           } else {
             candidates.set(expr.conceptId, {
               concept,
               score,
               matchedTerms: new Set([expr.term]),
-              exact: isExact
+              exact: isExact,
+              maxTier: tier
             });
           }
         }
@@ -116,9 +140,15 @@ export class InMemoryConceptResolver implements ConceptResolver {
         score: data.score,
         matchedTerms: Array.from(data.matchedTerms),
         sources: ["local"],
-        exact: data.exact
+        exact: data.exact,
+        maxTier: data.maxTier
       }))
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => {
+        if (b.maxTier !== a.maxTier) {
+          return b.maxTier - a.maxTier;
+        }
+        return b.score - a.score;
+      });
 
     const top = sorted[0]!;
     const status: ResolutionStatus = top.exact ? "FOUND" : "PARTIAL";

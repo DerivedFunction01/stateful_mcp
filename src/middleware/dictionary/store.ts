@@ -116,17 +116,88 @@ export class DictionaryStore {
     return this.namespaces.get(code);
   }
 
+  private verifyNamespaceMutable(namespaceCode: string) {
+    const ns = this.namespaces.get(namespaceCode);
+    if (ns && ns.isMutable === false) {
+      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Namespace "${namespaceCode}" is read-only.`);
+    }
+  }
+
+  private checkScopeAccess(exprContext: Record<string, any> | undefined, callerContext?: Record<string, any>) {
+    if (!callerContext) return;
+
+    const exprWorkspace = exprContext?.workspace_id || "global";
+    const exprUserId = exprContext?.user_id;
+
+    if (exprUserId) {
+      if (callerContext.user_id !== exprUserId) {
+        throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Access denied: Cannot modify another user's personal expression.");
+      }
+    } else if (exprWorkspace === "global") {
+      if (!callerContext.is_admin) {
+        throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Access denied: Insufficient privilege for global scope expressions.");
+      }
+    } else {
+      if (callerContext.workspace_id !== exprWorkspace) {
+        throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Access denied: Caller workspace "${callerContext.workspace_id}" does not match expression workspace "${exprWorkspace}".`);
+      }
+    }
+  }
+
   public addConcept(c: Omit<Concept, "id"> & { id?: string }): string {
+    this.verifyNamespaceMutable(c.namespaceCode);
     const conceptId = c.id || `concept_dyn_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     if (!conceptId) {
       throw new McpError(ErrorCode.CONCEPT_ALLOCATION_FAILED, "Failed to allocate a valid unique Concept ID.");
     }
     const newConcept: Concept = {
       ...c,
-      id: conceptId
+      id: conceptId,
+      active: c.active !== false
     };
     this.concepts.set(conceptId, newConcept);
     return conceptId;
+  }
+
+  public editConcept(id: string, updates: Partial<Concept>, callerContext?: Record<string, any>) {
+    const concept = this.concepts.get(id);
+    if (!concept) {
+      throw new McpError(ErrorCode.CONCEPT_NOT_FOUND, `Concept "${id}" not found.`);
+    }
+    this.verifyNamespaceMutable(concept.namespaceCode);
+
+    if (updates.standardCode !== undefined && updates.standardCode !== concept.standardCode) {
+      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Cannot edit a concept's standardCode coordinate identity.");
+    }
+    if (updates.namespaceCode !== undefined && updates.namespaceCode !== concept.namespaceCode) {
+      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Cannot edit a concept's namespaceCode coordinate identity.");
+    }
+
+    if (updates.display !== undefined) concept.display = updates.display;
+    if (updates.description !== undefined) concept.description = updates.description;
+    if (updates.designationDate !== undefined) concept.designationDate = updates.designationDate;
+    if (updates.active !== undefined) concept.active = updates.active;
+  }
+
+  public removeConcept(id: string, callerContext?: Record<string, any>) {
+    const concept = this.concepts.get(id);
+    if (!concept) {
+      throw new McpError(ErrorCode.CONCEPT_NOT_FOUND, `Concept "${id}" not found.`);
+    }
+    this.verifyNamespaceMutable(concept.namespaceCode);
+
+    const activeExprs = this.expressions.filter(e => e.conceptId === id && e.active);
+    if (activeExprs.length > 0) {
+      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Cannot remove concept "${id}": it is referenced by active expressions.`);
+    }
+
+    const activeRels = this.relations.filter(r => (r.conceptId === id || r.linkedId === id) && r.active);
+    if (activeRels.length > 0) {
+      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Cannot remove concept "${id}": it is referenced by active relations.`);
+    }
+
+    concept.active = false;
+    console.error(JSON.stringify({ event: "CONCEPT_DEACTIVATED", id }));
   }
 
   public getConcept(id: string): Concept | undefined {
@@ -134,14 +205,35 @@ export class DictionaryStore {
   }
 
   public addRelation(rel: ConceptRelation) {
+    const source = this.concepts.get(rel.conceptId);
+    const target = this.concepts.get(rel.linkedId);
+    if (source) this.verifyNamespaceMutable(source.namespaceCode);
+    if (target) this.verifyNamespaceMutable(target.namespaceCode);
+
     this.relations.push(rel);
+  }
+
+  public removeRelation(id: string, callerContext?: Record<string, any>) {
+    const relation = this.relations.find(r => r.id === id);
+    if (!relation) {
+      throw new McpError(ErrorCode.CONCEPT_NOT_FOUND, `Relation "${id}" not found.`);
+    }
+    const source = this.concepts.get(relation.conceptId);
+    const target = this.concepts.get(relation.linkedId);
+    if (source) this.verifyNamespaceMutable(source.namespaceCode);
+    if (target) this.verifyNamespaceMutable(target.namespaceCode);
+
+    relation.active = false;
+    console.error(JSON.stringify({ event: "RELATION_DEACTIVATED", id }));
   }
 
   public getRelations(): ConceptRelation[] {
     return this.relations;
   }
 
-  public addExpression(expr: Omit<CustomExpression, "id"> & { id?: string }): string {
+  public addExpression(expr: Omit<CustomExpression, "id"> & { id?: string }, callerContext?: Record<string, any>): string {
+    this.checkScopeAccess(expr.context, callerContext);
+
     if (this.allowedTargetAssignments && this.allowedTargetAssignments.length > 0) {
       if (!this.allowedTargetAssignments.includes(expr.targetAssignment)) {
         throw new Error(
@@ -177,23 +269,79 @@ export class DictionaryStore {
     return id;
   }
 
-  public removeExpression(id: string): boolean {
+  public editExpression(id: string, updates: Partial<CustomExpression>, callerContext?: Record<string, any>) {
+    const expr = this.expressions.find(e => e.id === id);
+    if (!expr) {
+      throw new McpError(ErrorCode.EXPRESSION_INVALID, `Expression "${id}" not found.`);
+    }
+
+    this.checkScopeAccess(expr.context, callerContext);
+    if (updates.context) {
+      this.checkScopeAccess(updates.context, callerContext);
+    }
+
+    if (updates.term !== undefined) expr.term = updates.term;
+    if (updates.regexPattern !== undefined) expr.regexPattern = updates.regexPattern;
+    if (updates.isCaseInsensitive !== undefined) expr.isCaseInsensitive = updates.isCaseInsensitive;
+    if (updates.targetAssignment !== undefined) {
+      if (this.allowedTargetAssignments && this.allowedTargetAssignments.length > 0) {
+        if (!this.allowedTargetAssignments.includes(updates.targetAssignment)) {
+          throw new Error(
+            `Target assignment "${updates.targetAssignment}" is not in the allowed list of assignments: [${this.allowedTargetAssignments.join(", ")}]`
+          );
+        }
+      }
+      expr.targetAssignment = updates.targetAssignment;
+    }
+    if (updates.conceptId !== undefined) expr.conceptId = updates.conceptId;
+    if (updates.priorityWeight !== undefined) expr.priorityWeight = updates.priorityWeight;
+    if (updates.active !== undefined) expr.active = updates.active;
+    if (updates.context !== undefined) expr.context = updates.context;
+
+    console.error(JSON.stringify({ event: "EXPRESSION_MODIFIED", id }));
+  }
+
+  public removeExpression(id: string, callerContext?: Record<string, any>): boolean {
     const index = this.expressions.findIndex((e) => e.id === id);
-    if (index !== -1) {
+    if (index === -1) return false;
+    const expr = this.expressions[index]!;
+
+    this.checkScopeAccess(expr.context, callerContext);
+
+    const hasMetrics = this.metrics.some(m => m.expressionId === id && m.usageCount > 0);
+    if (hasMetrics) {
+      expr.active = false;
+      console.error(JSON.stringify({ event: "EXPRESSION_DEACTIVATED", id }));
+      return true;
+    } else {
       this.expressions.splice(index, 1);
+      console.error(JSON.stringify({ event: "EXPRESSION_REMOVED", id }));
       return true;
     }
-    return false;
   }
 
   public getExpressions(): CustomExpression[] {
     return this.expressions;
   }
 
+  private getExpressionScopeLevel(exprContext?: Record<string, any>): "user" | "workspace" | "global" {
+    if (exprContext?.user_id) return "user";
+    if (exprContext?.workspace_id && exprContext.workspace_id !== "global") return "workspace";
+    return "global";
+  }
+
   private matchesContext(exprContext?: Record<string, any>, queryContext?: Record<string, any>): boolean {
-    const exprWorkspace = exprContext?.workspace_id || "global";
-    const queryWorkspace = queryContext?.workspace_id || "global";
-    return exprWorkspace === queryWorkspace;
+    const level = this.getExpressionScopeLevel(exprContext);
+    const queryUserId = queryContext?.user_id;
+    const queryWorkspaceId = queryContext?.workspace_id || "global";
+
+    if (level === "user") {
+      return !!queryUserId && exprContext?.user_id === queryUserId;
+    }
+    if (level === "workspace") {
+      return exprContext?.workspace_id === queryWorkspaceId;
+    }
+    return true;
   }
 
   public async resolve(

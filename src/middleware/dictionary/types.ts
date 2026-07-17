@@ -10,6 +10,8 @@ export interface Namespace {
   isPublic: boolean;
   /** If true, data resides in an external private store requiring authentication */
   isExternalPrivate: boolean;
+  /** If true, user can add/edit/remove entries in this namespace */
+  isMutable?: boolean;
   /** Identifier/name of the private database or integration connector */
   externalPrivateSource?: string;
   /** Endpoint URL for external REST/GraphQL concept lookup APIs */
@@ -38,6 +40,8 @@ export interface Concept {
   description?: string;
   /** Optional date stamp indicating when the concept was assigned or declared */
   designationDate?: string;
+  /** If false, the concept is deactivated and ignored during resolution */
+  active?: boolean;
 }
 
 /** Semantic mapping relationships linking two different concepts */

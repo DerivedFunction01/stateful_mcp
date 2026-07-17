@@ -202,4 +202,228 @@ export async function runDictionaryTests() {
     throw new Error(`Direct concept ID resolution failed.`);
   }
   console.log("✓ Successfully resolved concept by direct concept ID.");
+
+  // Test Case 11: Namespace Mutability Constraints
+  console.log("\n🧪 Test Case 11: Namespace Mutability Constraints");
+  const mutStore = new DictionaryStore(new InMemoryConceptResolver());
+  mutStore.loadConfig({
+    namespaces: [
+      { code: "SNOMED", isPublic: true, isExternalPrivate: false, isMutable: false },
+      { code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }
+    ],
+    concepts: [
+      { id: "c_snomed_1", namespaceCode: "SNOMED", standardCode: "111", display: "SNOMED Concept" },
+      { id: "c_custom_1", namespaceCode: "CUSTOM", standardCode: "222", display: "Custom Concept 1" },
+      { id: "c_custom_2", namespaceCode: "CUSTOM", standardCode: "333", display: "Custom Concept 2" }
+    ],
+    relations: [
+      { id: "rel_snomed", conceptId: "c_snomed_1", linkedId: "c_custom_1", relationshipType: "EQUIVALENT", active: true }
+    ]
+  });
+
+  // Try adding concept to read-only namespace
+  try {
+    mutStore.addConcept({ namespaceCode: "SNOMED", standardCode: "444", display: "Forbidden Concept" });
+    throw new Error("Should have thrown error adding concept to read-only namespace");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented adding concept to read-only namespace.");
+
+  // Try editing coordinate of custom concept
+  try {
+    mutStore.editConcept("c_custom_1", { standardCode: "999" });
+    throw new Error("Should have thrown error editing coordinate identity");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented editing concept coordinate identity.");
+
+  // Try adding relation with read-only namespace source
+  try {
+    mutStore.addRelation({ id: "rel_new", conceptId: "c_snomed_1", linkedId: "c_custom_2", relationshipType: "EQUIVALENT", active: true });
+    throw new Error("Should have thrown error adding relation with read-only source concept");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented adding relation involving read-only namespace.");
+
+  // Try removing relation with read-only concept
+  try {
+    mutStore.removeRelation("rel_snomed");
+    throw new Error("Should have thrown error removing relation involving read-only concept");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented removing relation involving read-only namespace.");
+
+  // Test Case 12: Soft-delete vs Hard-delete & Dependencies
+  console.log("\n🧪 Test Case 12: Soft-delete vs Hard-delete & Dependencies");
+  const delStore = new DictionaryStore(new InMemoryConceptResolver());
+  delStore.loadConfig({
+    namespaces: [{ code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }],
+    concepts: [{ id: "c_1", namespaceCode: "CUSTOM", standardCode: "C1", display: "Concept 1" }],
+    workspaces: [{ id: "global", name: "Global" }]
+  });
+
+  // Hard delete expression with no metrics
+  const expId1 = delStore.addExpression({
+    term: "temp term",
+    regexPattern: "temp",
+    isCaseInsensitive: true,
+    targetAssignment: "MAIN_TERM",
+    conceptId: "c_1",
+    active: true,
+    priorityWeight: 1,
+    context: { workspace_id: "global" }
+  }, { is_admin: true });
+
+  if (delStore.getExpressions().length !== 1) throw new Error("Expression not added.");
+  delStore.removeExpression(expId1, { is_admin: true });
+  if (delStore.getExpressions().length !== 0) throw new Error("Hard delete failed for expression without metrics.");
+  console.log("✓ Successfully hard-deleted expression with no usage metrics.");
+
+  // Soft delete expression with metrics
+  const expId2 = delStore.addExpression({
+    term: "used term",
+    regexPattern: "used",
+    isCaseInsensitive: true,
+    targetAssignment: "MAIN_TERM",
+    conceptId: "c_1",
+    active: true,
+    priorityWeight: 1,
+    context: { workspace_id: "global" }
+  }, { is_admin: true });
+
+  delStore.recordUsage(expId2, "c_1", { workspace_id: "global" });
+  delStore.removeExpression(expId2, { is_admin: true });
+  const expressionsList = delStore.getExpressions();
+  if (expressionsList.length !== 1 || expressionsList[0]?.active !== false) {
+    throw new Error("Soft delete failed for expression with metrics.");
+  }
+  console.log("✓ Successfully soft-deleted (deactivated) expression with usage metrics.");
+
+  // Try removing concept with active expression
+  const expId3 = delStore.addExpression({
+    term: "another term",
+    regexPattern: "another",
+    isCaseInsensitive: true,
+    targetAssignment: "MAIN_TERM",
+    conceptId: "c_1",
+    active: true,
+    priorityWeight: 1,
+    context: { workspace_id: "global" }
+  }, { is_admin: true });
+
+  try {
+    delStore.removeConcept("c_1");
+    throw new Error("Should have prevented concept removal when active expressions exist");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented concept removal when active expression references it.");
+
+  // Deactivate expression and successfully remove concept (soft-delete)
+  delStore.removeExpression(expId3, { is_admin: true });
+  delStore.removeConcept("c_1");
+  if (delStore.getConcept("c_1")?.active !== false) {
+    throw new Error("Concept soft-delete failed.");
+  }
+  console.log("✓ Successfully soft-deleted concept after clearing referencing expressions.");
+
+  // Test Case 13: Scope-Aware Write Gates & Precedence
+  console.log("\n🧪 Test Case 13: Scope-Aware Write Gates & Precedence");
+  const scopeStore = new DictionaryStore(new InMemoryConceptResolver());
+  scopeStore.loadConfig({
+    namespaces: [{ code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }],
+    concepts: [
+      { id: "c_global", namespaceCode: "CUSTOM", standardCode: "G", display: "Global Concept" },
+      { id: "c_workspace", namespaceCode: "CUSTOM", standardCode: "W", display: "Workspace Concept" },
+      { id: "c_user", namespaceCode: "CUSTOM", standardCode: "U", display: "User Concept" }
+    ],
+    workspaces: [{ id: "dept_cardiology", name: "Cardiology" }]
+  });
+
+  // Test Scope-aware Write Gates
+  // 1. Add global expression without admin privilege (should fail)
+  try {
+    scopeStore.addExpression({
+      term: "test", regexPattern: "test", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_global",
+      priorityWeight: 1, active: true,
+      context: { workspace_id: "global" }
+    }, { is_admin: false });
+    throw new Error("Should have thrown privilege denied for global expression add");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented non-admin from creating global expression.");
+
+  // 2. Add workspace expression with mismatched workspace (should fail)
+  try {
+    scopeStore.addExpression({
+      term: "test", regexPattern: "test", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_workspace",
+      priorityWeight: 1, active: true,
+      context: { workspace_id: "dept_cardiology" }
+    }, { workspace_id: "dept_pediatrics" });
+    throw new Error("Should have thrown privilege denied for workspace expression add");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented caller in different workspace from creating workspace expression.");
+
+  // 3. Add user expression with mismatched user (should fail)
+  const expUser = scopeStore.addExpression({
+    term: "user term", regexPattern: "user", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_user",
+    priorityWeight: 1, active: true,
+    context: { user_id: "alice" }
+  }, { user_id: "alice" });
+
+  try {
+    scopeStore.editExpression(expUser, { term: "hacked" }, { user_id: "bob" });
+    throw new Error("Should have thrown privilege denied for user expression edit");
+  } catch (err: any) {
+    if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
+  }
+  console.log("✓ Correctly prevented modification of user-scoped expression by another user.");
+
+  // Test precedence resolution order
+  // Add same term "symptom" at all three tiers pointing to different concepts
+  scopeStore.addExpression({
+    term: "symptom", regexPattern: "symptom", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_global",
+    priorityWeight: 1, active: true,
+    context: { workspace_id: "global" }
+  }, { is_admin: true });
+
+  scopeStore.addExpression({
+    term: "symptom", regexPattern: "symptom", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_workspace",
+    priorityWeight: 1, active: true,
+    context: { workspace_id: "dept_cardiology" }
+  }, { workspace_id: "dept_cardiology" });
+
+  scopeStore.addExpression({
+    term: "symptom", regexPattern: "symptom", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_user",
+    priorityWeight: 1, active: true,
+    context: { user_id: "alice" }
+  }, { user_id: "alice" });
+
+  // Resolve symptom as alice in dept_cardiology: should resolve to c_user (User scope wins)
+  const resAlice = await scopeStore.resolve("symptom", { user_id: "alice", workspace_id: "dept_cardiology" });
+  if (resAlice.status !== "FOUND" || resAlice.results[0]?.conceptId !== "c_user") {
+    throw new Error(`Alice resolution failed. Got: ${resAlice.results[0]?.conceptId}`);
+  }
+  console.log("✓ User-scope expression matches took priority correctly.");
+
+  // Resolve symptom as bob in dept_cardiology: should resolve to c_workspace (Workspace scope wins)
+  const resBob = await scopeStore.resolve("symptom", { user_id: "bob", workspace_id: "dept_cardiology" });
+  if (resBob.status !== "FOUND" || resBob.results[0]?.conceptId !== "c_workspace") {
+    throw new Error(`Bob resolution failed. Got: ${resBob.results[0]?.conceptId}`);
+  }
+  console.log("✓ Workspace-scope expression matches took priority correctly.");
+
+  // Resolve symptom as charlie in global: should resolve to c_global (Global scope wins)
+  const resCharlie = await scopeStore.resolve("symptom", { user_id: "charlie", workspace_id: "global" });
+  if (resCharlie.status !== "FOUND" || resCharlie.results[0]?.conceptId !== "c_global") {
+    throw new Error(`Charlie resolution failed. Got: ${resCharlie.results[0]?.conceptId}`);
+  }
+  console.log("✓ Global-scope expression matches resolved correctly when no user/workspace matched.");
 }
