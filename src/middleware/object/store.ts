@@ -20,7 +20,8 @@ export class ObjectStore {
     private persistent: PersistentObjectStore,
     private schemas: Map<string, any>, // name -> json schema
     private maxFields: number = 7,
-    private maxDepth: number = 5
+    private maxDepth: number = 5,
+    private chainThreshold: number = 15
   ) {}
 
   private async lookup(id: string, sessionId: string, userId?: string): Promise<ObjectState | null> {
@@ -44,7 +45,9 @@ export class ObjectStore {
       parentObjectId: null,
       data: {},
       createdAt: new Date().toISOString(),
-      schema_pinned_at: new Date().toISOString()
+      schema_pinned_at: new Date().toISOString(),
+      linearDepth: 1,
+      gcLock: false
     };
 
     await this.session.set(sessionId, objectId, state);
@@ -66,7 +69,9 @@ export class ObjectStore {
       parentObjectId: null,
       data: { ...saved.data },
       createdAt: new Date().toISOString(),
-      schema_pinned_at: saved.schema_pinned_at || new Date().toISOString()
+      schema_pinned_at: saved.schema_pinned_at || new Date().toISOString(),
+      linearDepth: 1,
+      gcLock: false
     };
 
     await this.session.set(sessionId, newId, state);
@@ -108,6 +113,9 @@ export class ObjectStore {
     const newData = JSON.parse(JSON.stringify(parent.data));
     this.setValueAtPath(newData, path, value);
 
+    const siblings = await this.session.listChildren(sessionId, objectId);
+    const linearDepth = siblings.length > 0 ? 1 : (parent.linearDepth || 1) + 1;
+
     const newId = `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const state: ObjectState = {
       objectId: newId,
@@ -115,11 +123,135 @@ export class ObjectStore {
       parentObjectId: objectId,
       data: newData,
       createdAt: new Date().toISOString(),
-      schema_pinned_at: parent.schema_pinned_at
+      schema_pinned_at: parent.schema_pinned_at,
+      linearDepth,
+      gcLock: false
     };
 
     await this.session.set(sessionId, newId, state);
+
+    if (linearDepth > this.chainThreshold) {
+      const compressedId = await this.compressSuffix(newId, sessionId, userId);
+      return compressedId;
+    }
+
     return newId;
+  }
+
+  private async getAncestors(id: string, sessionId: string, userId?: string, visited = new Set<string>()): Promise<void> {
+    if (visited.has(id)) return;
+    visited.add(id);
+
+    const node = await this.lookup(id, sessionId, userId);
+    if (!node) return;
+
+    if (node.parentObjectId) {
+      await this.getAncestors(node.parentObjectId, sessionId, userId, visited);
+    }
+  }
+
+  private async lockAncestors(objectId: string, sessionId: string, userId?: string) {
+    const ancestors = new Set<string>();
+    await this.getAncestors(objectId, sessionId, userId, ancestors);
+    for (const id of ancestors) {
+      const node = await this.lookup(id, sessionId, userId);
+      if (node && !node.gcLock) {
+        node.gcLock = true;
+        await this.session.set(sessionId, id, node);
+      }
+    }
+  }
+
+  private async findNearestBranchPoint(objectId: string, sessionId: string, userId?: string): Promise<string | null> {
+    let currentId: string | null = objectId;
+    let branchPointId: string | null = null;
+
+    while (currentId) {
+      const node = await this.lookup(currentId, sessionId, userId);
+      if (!node) break;
+
+      const siblings = await this.session.listChildren(sessionId, currentId);
+      if (siblings.length > 1 && currentId !== objectId) {
+        branchPointId = currentId;
+        break;
+      }
+
+      currentId = node.parentObjectId || null;
+    }
+
+    return branchPointId;
+  }
+
+  private async compressSuffix(objectId: string, sessionId: string, userId?: string): Promise<string> {
+    const obj = await this.lookup(objectId, sessionId, userId);
+    if (!obj) return objectId;
+
+    const branchPointId = await this.findNearestBranchPoint(objectId, sessionId, userId);
+
+    const compressedId = `obj_comp_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+    const compressedState: ObjectState = {
+      objectId: compressedId,
+      schemaName: obj.schemaName,
+      parentObjectId: branchPointId,
+      data: { ...obj.data },
+      createdAt: new Date().toISOString(),
+      schema_pinned_at: obj.schema_pinned_at,
+      linearDepth: 1,
+      gcLock: obj.gcLock || false
+    };
+
+    await this.session.set(sessionId, compressedId, compressedState);
+
+    console.error(JSON.stringify({
+      event: "OBJECT_AUTO_COMPRESSED",
+      new_object_id: compressedId,
+      source_tip_id: objectId,
+      linear_depth_at_compression: obj.linearDepth,
+      branch_point_id: branchPointId
+    }));
+
+    return compressedId;
+  }
+
+  async gc(sessionId: string, keepIds: string[]): Promise<{ deleted_count: number; kept_count: number }> {
+    const keptSet = new Set<string>();
+    for (const id of keepIds) {
+      await this.getAncestors(id, sessionId, undefined, keptSet);
+    }
+
+    const allSessionIds = await this.session.listSession(sessionId);
+    for (const id of allSessionIds) {
+      const node = await this.session.get(sessionId, id);
+      if (node && node.gcLock) {
+        await this.getAncestors(id, sessionId, undefined, keptSet);
+      }
+    }
+
+    let deletedCount = 0;
+    let keptCount = 0;
+    const deletedIds: string[] = [];
+    const keptIdsList: string[] = [];
+
+    for (const id of allSessionIds) {
+      if (!keptSet.has(id)) {
+        await this.session.delete(sessionId, id);
+        deletedIds.push(id);
+        deletedCount++;
+      } else {
+        keptIdsList.push(id);
+        keptCount++;
+      }
+    }
+
+    console.error(JSON.stringify({
+      event: "OBJECT_GC_RUN",
+      sessionId,
+      deletedIds,
+      keptIds: keptIdsList,
+      triggeredBy: "llm"
+    }));
+
+    return { deleted_count: deletedCount, kept_count: keptCount };
   }
 
   async patch(objectId: string, partial: Record<string, unknown>, sessionId: string, userId?: string): Promise<string> {
@@ -316,6 +448,8 @@ export class ObjectStore {
       description,
       schema_pinned_at: obj.schema_pinned_at || new Date().toISOString()
     }, scope);
+
+    await this.lockAncestors(objectId, sessionId, scope.level === "user" ? scope.userId : undefined);
 
     return objectId;
   }

@@ -443,4 +443,96 @@ export async function runFilterTests() {
 
   // Cleanup
   await fs.unlink(testDataPath);
+
+  // ─── TEST CASE 16: Filter Store GC and Auto-Compression ───
+  console.log("\n🧪 Test Case 16: Filter Store GC and Auto-Compression");
+
+  // Create store with chain threshold = 3
+  const gcFilterStore = new FilterStore(
+    new MemorySessionFilterStore(),
+    new MemoryPersistentFilterStore(),
+    toolSchemas,
+    new Map<string, TableSchema>(),
+    3
+  );
+
+  const sessionId = "gc_session_999";
+  const rootId = await gcFilterStore.init(sessionId, "browse_catalog", "items");
+
+  // 1. Verify Auto-Compression
+  const id1 = await gcFilterStore.add(rootId, [{ property: "category", operator: "eq", value: "apparel" }], sessionId);
+  const id2 = await gcFilterStore.add(id1, [{ property: "price", operator: "gt", value: 10 }], sessionId);
+  
+  // Checking depth: rootId(1) -> id1(2) -> id2(3). Adding id3 will hit depth 4 (exceeding threshold 3)
+  const id3 = await gcFilterStore.add(id2, [{ property: "price", operator: "lt", value: 100 }], sessionId);
+
+  // id3 should be compressed. Check that parentFilterId is null (as root was the only parent and not a branch point)
+  const state3 = await gcFilterStore["session"].get(sessionId, id3);
+  if (!state3 || state3.parentFilterId !== null) {
+    throw new Error(`Auto-compression failed: state3 is ${JSON.stringify(state3)}`);
+  }
+
+  // The resolved rules should have all 3 conditions
+  const rules = await gcFilterStore.getFilterRules(id3, sessionId);
+  if (rules.length !== 3) {
+    throw new Error(`Auto-compression rules resolution failed. Got: ${JSON.stringify(rules)}`);
+  }
+  console.log("✓ FilterStore auto-compression successfully flattened linear chain.");
+
+  // 2. Verify Branch Point resets depth and preserves branch points
+  const rootId2 = await gcFilterStore.init(sessionId, "browse_catalog", "items");
+  // Branch point setup:
+  // rootId2 -> bid1
+  // rootId2 -> bid2 (branch point created)
+  const bid1 = await gcFilterStore.add(rootId2, [{ property: "category", operator: "eq", value: "apparel" }], sessionId);
+  const bid2 = await gcFilterStore.add(rootId2, [{ property: "category", operator: "eq", value: "electronics" }], sessionId);
+
+  // Check bid2 linearDepth — should be 1 because rootId2 now has multiple children (bid1 and bid2)
+  const stateBid2 = await gcFilterStore["session"].get(sessionId, bid2);
+  if (!stateBid2 || stateBid2.linearDepth !== 1) {
+    throw new Error(`Linear depth of branch node should be 1, got: ${stateBid2?.linearDepth}`);
+  }
+
+  // Extend bid2 to bid3 and bid4
+  const bid3 = await gcFilterStore.add(bid2, [{ property: "price", operator: "gt", value: 50 }], sessionId); // depth 2
+  const bid4 = await gcFilterStore.add(bid3, [{ property: "price", operator: "lt", value: 150 }], sessionId); // depth 3
+  const bid5 = await gcFilterStore.add(bid4, [{ property: "price", operator: "neq", value: 100 }], sessionId); // depth 4 -> trigger suffix compression
+
+  // bid5 should be suffix-compressed, pointing back to rootId2 (the branch point) as its parentFilterId
+  const stateBid5 = await gcFilterStore["session"].get(sessionId, bid5);
+  if (!stateBid5 || stateBid5.parentFilterId !== rootId2) {
+    throw new Error(`Suffix compression failed to stop at branch point: parent is ${stateBid5?.parentFilterId}`);
+  }
+  console.log("✓ Suffix compression correctly preserves branch points.");
+
+  // 3. Verify targeted GC
+  // Let's create a dead branch off rootId2: bid_dead
+  const bidDead = await gcFilterStore.add(rootId2, [{ property: "price", operator: "lt", value: 5 }], sessionId);
+
+  // If we GC keeping only bid5, bidDead should be pruned, but rootId2, bid5 should be preserved.
+  // bid2, bid3, and bid4 were replaced by bid5 (the suffix compressed node) so they are bypassed by bid5's parent chain.
+  // Hence bid2, bid3, and bid4 should be deleted, and bidDead should be deleted.
+  const gcResult = await gcFilterStore.gc(sessionId, [bid5]);
+  
+  // Check if bidDead is deleted
+  const deadNode = await gcFilterStore["session"].get(sessionId, bidDead);
+  if (deadNode) {
+    throw new Error("Targeted GC failed to prune dead branch.");
+  }
+  
+  // Check if compressed intermediate nodes bid2, bid3, and bid4 are pruned
+  const node2 = await gcFilterStore["session"].get(sessionId, bid2);
+  const node3 = await gcFilterStore["session"].get(sessionId, bid3);
+  const node4 = await gcFilterStore["session"].get(sessionId, bid4);
+  if (node2 || node3 || node4) {
+    throw new Error("Targeted GC failed to prune compressed intermediate nodes.");
+  }
+
+  // Check if active node bid5 and branch point rootId2 are kept
+  const node5 = await gcFilterStore["session"].get(sessionId, bid5);
+  const nodeRoot = await gcFilterStore["session"].get(sessionId, rootId2);
+  if (!node5 || !nodeRoot) {
+    throw new Error("Targeted GC deleted active or ancestor nodes.");
+  }
+  console.log("✓ FilterStore targeted GC successfully pruned dead branches and compressed intermediate garbage.");
 }

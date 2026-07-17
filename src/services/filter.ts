@@ -272,6 +272,29 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "filter_gc",
+  {
+    description: "Prune intermediate filter checkpoints in the current session that are not in the ancestry of the specified active/keep filters",
+    inputSchema: {
+      session_id: z.string().describe("The session identifier."),
+      keep: z.array(z.string()).describe("Ancestors of these filter IDs will be preserved."),
+      confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty.")
+    }
+  },
+  async ({ session_id, keep, confirm }) => {
+    try {
+      if (keep.length === 0 && !confirm) {
+        throw new Error("Pruning the entire session requires confirm: true");
+      }
+      const result = await filterStore.gc(session_id, keep);
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
 async function main() {
   const workspaceRoot = process.cwd();
   const config = await loadMiddlewareConfig(workspaceRoot);
@@ -305,7 +328,8 @@ async function main() {
   }
 
   const pinnedSchemas = new Map<string, TableSchema>();
-  filterStore = new FilterStore(sessionFilterStore, persistentFilterStore, toolSchemas, pinnedSchemas);
+  const threshold = config.auto_compression?.filter_chain_threshold ?? 20;
+  filterStore = new FilterStore(sessionFilterStore, persistentFilterStore, toolSchemas, pinnedSchemas, threshold);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

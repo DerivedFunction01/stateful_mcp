@@ -5,6 +5,8 @@ export interface ObjectState {
   data: Record<string, any>;
   createdAt: string;
   schema_pinned_at?: string;
+  linearDepth?: number;
+  gcLock?: boolean;
 }
 
 export interface ObjectDiffResult {

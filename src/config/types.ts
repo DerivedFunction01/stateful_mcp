@@ -15,6 +15,11 @@ export interface ToolConfig {
   inspect?: { expose_compiled?: boolean };
 }
 
+export interface AutoCompressionConfig {
+  filter_chain_threshold?: number;
+  object_chain_threshold?: number;
+}
+
 export interface MiddlewareConfig {
   $schema?: string;
   version: 1;
@@ -27,6 +32,8 @@ export interface MiddlewareConfig {
 
   dictionary_state: ResourceLocator;
   dictionary_resolver: ResourceLocator;
+
+  auto_compression?: AutoCompressionConfig;
 
   constants?: {
     global?: ResourceLocator;

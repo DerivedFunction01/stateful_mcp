@@ -70,6 +70,10 @@ export interface FilterState {
 
   // Snapshot of public TableSchema pinned at init() time
   schema_snapshot?: TableSchema | null;
+
+  // Auto-compression & GC fields
+  linearDepth?: number;
+  gcLock?: boolean;
 }
 
 export interface ModifierState {

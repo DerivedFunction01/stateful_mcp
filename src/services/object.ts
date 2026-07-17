@@ -268,6 +268,29 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "object_gc",
+  {
+    description: "Prune intermediate object checkpoints in the current session that are not in the ancestry of the specified active/keep objects",
+    inputSchema: {
+      session_id: z.string().describe("The session identifier."),
+      keep: z.array(z.string()).describe("Ancestors of these object IDs will be preserved."),
+      confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty.")
+    }
+  },
+  async ({ session_id, keep, confirm }) => {
+    try {
+      if (keep.length === 0 && !confirm) {
+        throw new Error("Pruning the entire session requires confirm: true");
+      }
+      const result = await objectStore.gc(session_id, keep);
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
 async function main() {
   const workspaceRoot = process.cwd();
   const config = await loadMiddlewareConfig(workspaceRoot);
@@ -287,12 +310,14 @@ async function main() {
   }
 
   const limits = config.object_schema_limits;
+  const threshold = config.auto_compression?.object_chain_threshold ?? 15;
   objectStore = new ObjectStore(
     sessionObjectStore,
     persistentObjectStore,
     objectSchemas,
     limits?.max_fields_per_def ?? 7,
-    limits?.max_ref_depth ?? 5
+    limits?.max_ref_depth ?? 5,
+    threshold
   );
 
   const transport = new StdioServerTransport();
