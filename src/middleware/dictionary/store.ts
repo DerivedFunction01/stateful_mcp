@@ -8,6 +8,7 @@ import type {
   WorkspaceDefinition
 } from "./types";
 import type { ConceptResolver, ResolveResult, ResolveResponse } from "./resolver";
+import { ErrorCode, McpError } from "../../errors/types";
 
 export class DictionaryStore {
   private namespaces = new Map<string, Namespace>();
@@ -115,8 +116,17 @@ export class DictionaryStore {
     return this.namespaces.get(code);
   }
 
-  public addConcept(c: Concept) {
-    this.concepts.set(c.id, c);
+  public addConcept(c: Omit<Concept, "id"> & { id?: string }): string {
+    const conceptId = c.id || `concept_dyn_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    if (!conceptId) {
+      throw new McpError(ErrorCode.CONCEPT_ALLOCATION_FAILED, "Failed to allocate a valid unique Concept ID.");
+    }
+    const newConcept: Concept = {
+      ...c,
+      id: conceptId
+    };
+    this.concepts.set(conceptId, newConcept);
+    return conceptId;
   }
 
   public getConcept(id: string): Concept | undefined {

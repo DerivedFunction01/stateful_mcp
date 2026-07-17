@@ -44,9 +44,7 @@ function registerAllTools(store: DictionaryStore) {
     async ({ standard_code, display, namespace_code, description }) => {
       try {
         const ns = namespace_code || defaultNamespace;
-        const conceptId = `concept_dyn_${crypto.randomUUID().slice(0, 8)}`;
-        store.addConcept({
-          id: conceptId,
+        const conceptId = store.addConcept({
           namespaceCode: ns,
           standardCode: standard_code,
           display,
