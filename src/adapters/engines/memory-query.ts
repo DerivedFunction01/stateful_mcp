@@ -312,13 +312,24 @@ export class MemoryQueryEngine implements QueryEngine {
 registerAdapter("memory-engine", {
   create: async (options) => {
     let datasets: Record<string, any[]> = {};
-    if (options.fixture) {
+
+    if (options.data) {
+      let resolvedData: any = options.data;
+      if (typeof resolvedData === "object" && resolvedData !== null && "_type" in resolvedData) {
+        const { resolveSource } = await import("../../config/loader");
+        resolvedData = await resolveSource(resolvedData as any, process.cwd());
+      }
+      if (Array.isArray(resolvedData)) {
+        datasets["default"] = resolvedData;
+      } else if (resolvedData && typeof resolvedData === "object") {
+        datasets = resolvedData as Record<string, any[]>;
+      }
+    } else if (options.fixture) {
       try {
         const fixturePath = path.resolve(process.cwd(), String(options.fixture));
         const raw = await fs.readFile(fixturePath, "utf-8");
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          // Default single table fixture mapped to "default" or table name if only one
           datasets["default"] = parsed;
         } else if (parsed && typeof parsed === "object") {
           datasets = parsed;

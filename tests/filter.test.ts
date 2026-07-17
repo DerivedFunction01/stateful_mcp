@@ -413,4 +413,34 @@ export async function runFilterTests() {
     throw new Error(`Postgres compiled SQL for array LIKE is invalid: ${JSON.stringify(pgCompiled2)}`);
   }
   console.log("✓ PostgreSQL Query Compiler output correctly parameterized SQL for array patterns.");
+
+  // ─── TEST CASE 15: Memory Engine ResourceLocator Data Loading ───
+  console.log("\n🧪 Test Case 15: Memory Engine ResourceLocator Data Loading");
+  const testDataPath = path.join(process.cwd(), "config", "test_resource_data.json");
+  const testData = {
+    items: [
+      { id: 1, name: "ResourceBook", price: 45, category: "books" }
+    ]
+  };
+  await fs.writeFile(testDataPath, JSON.stringify(testData, null, 2));
+
+  const { resolveAdapter } = require("../src/config/loader");
+  const resourceEngine: any = await resolveAdapter("memory-engine", {
+    data: {
+      _type: "file",
+      path: "./config/test_resource_data.json"
+    }
+  });
+
+  const resourceResults = await resourceEngine.execute("items", {
+    filters: [{ property: "name", operator: "eq", value: "ResourceBook" }]
+  });
+
+  if (resourceResults.length !== 1 || (resourceResults[0] as any).price !== 45) {
+    throw new Error(`Memory engine failed to load datasets using ResourceLocator: ${JSON.stringify(resourceResults)}`);
+  }
+  console.log("✓ Memory Engine successfully loaded external data from ResourceLocator.");
+
+  // Cleanup
+  await fs.unlink(testDataPath);
 }
