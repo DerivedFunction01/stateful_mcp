@@ -535,4 +535,84 @@ export async function runFilterTests() {
     throw new Error("Targeted GC deleted active or ancestor nodes.");
   }
   console.log("✓ FilterStore targeted GC successfully pruned dead branches and compressed intermediate garbage.");
+
+  console.log("\n🧪 Test Case 18: Filter State Aliasing and Pruning");
+
+  const aliasFilterStore = new FilterStore(
+    new MemorySessionFilterStore(),
+    new MemoryPersistentFilterStore(),
+    toolSchemas,
+    new Map<string, TableSchema>(),
+    5
+  );
+
+  const sessionIdAlias = "alias_session_1";
+
+  // 1. Initialize with an alias
+  const aliasVal = "electronics";
+  const initId = await aliasFilterStore.init(sessionIdAlias, "browse_catalog", "items", undefined, aliasVal);
+  if (initId !== "electronics") {
+    throw new Error(`Expected alias "electronics" to be returned, got ${initId}`);
+  }
+
+  // Verify the alias points to the underlying state ID
+  const resolvedInitId = await aliasFilterStore["resolveId"](aliasVal, sessionIdAlias);
+  if (!resolvedInitId.startsWith("filter_")) {
+    throw new Error(`Expected resolved ID to be a filter UUID prefix, got ${resolvedInitId}`);
+  }
+
+  // 2. Perform mutation without changing alias name (pointer should auto-advance)
+  const childId1 = await aliasFilterStore.add("electronics", [{ property: "price", operator: "gt", value: 100 }], sessionIdAlias);
+  if (childId1 !== "electronics") {
+    throw new Error(`Expected active alias "electronics" to be returned from add, got ${childId1}`);
+  }
+  const resolvedChildId1 = await aliasFilterStore["resolveId"]("electronics", sessionIdAlias);
+  if (resolvedChildId1 === resolvedInitId) {
+    throw new Error(`Expected alias pointer to advance to the new child state`);
+  }
+
+  // 3. Progressive Tagging / Branching (using new_alias)
+  const childId2 = await aliasFilterStore.add("electronics", [{ property: "category", operator: "eq", value: "apparel" }], sessionIdAlias, undefined, "electronics_apple");
+  if (childId2 !== "electronics_apple") {
+    throw new Error(`Expected new alias "electronics_apple" to be returned, got ${childId2}`);
+  }
+
+  // Check pointers:
+  // "electronics" should still point to childId1 (resolvedChildId1)
+  const resolvedElectronics = await aliasFilterStore["resolveId"]("electronics", sessionIdAlias);
+  if (resolvedElectronics !== resolvedChildId1) {
+    throw new Error(`Expected "electronics" to still point to parent checkpoint`);
+  }
+  // "electronics_apple" should point to the new state
+  const resolvedElectronicsApple = await aliasFilterStore["resolveId"]("electronics_apple", sessionIdAlias);
+  if (resolvedElectronicsApple === resolvedElectronics) {
+    throw new Error(`Expected "electronics_apple" to point to the new branch`);
+  }
+
+  // 4. GC with Alias pruning (Whitelist/Blacklist)
+  // Let's add a dead branch from electronics with a new alias
+  const deadId = await aliasFilterStore.add("electronics", [{ property: "price", operator: "lt", value: 50 }], sessionIdAlias, undefined, "electronics_cheap");
+
+  // Verify that it is in the session
+  const cheapState = await aliasFilterStore["session"].get(sessionIdAlias, await aliasFilterStore["resolveId"]("electronics_cheap", sessionIdAlias));
+  if (!cheapState) {
+    throw new Error("Expected cheap branch state to exist");
+  }
+
+  // Prune using whitelist (only keep electronics_apple and electronics)
+  await aliasFilterStore.gc(sessionIdAlias, [], ["electronics", "electronics_apple"]);
+
+  // electronics_cheap alias should be deleted
+  const resolvedCheap = await aliasFilterStore["resolveId"]("electronics_cheap", sessionIdAlias);
+  if (resolvedCheap === "electronics_cheap") {
+    // If it doesn't resolve, it just returns the input string
+    const cheapNode = await aliasFilterStore["session"].get(sessionIdAlias, resolvedCheap);
+    if (cheapNode) {
+      throw new Error("Expected cheap branch to be garbage collected");
+    }
+  } else {
+    throw new Error(`Expected electronics_cheap alias to be deleted, but it resolved to ${resolvedCheap}`);
+  }
+
+  console.log("✓ State aliasing, branching, and GC alias whitelists/blacklists verified successfully.");
 }

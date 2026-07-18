@@ -24,23 +24,31 @@ export class ObjectStore {
     private chainThreshold: number = 15
   ) {}
 
+  private async resolveId(id: string, sessionId: string): Promise<string> {
+    const aliasTarget = await this.session.getAlias(sessionId, id);
+    return aliasTarget || id;
+  }
+
   private async lookup(id: string, sessionId: string, userId?: string): Promise<ObjectState | null> {
+    const resolvedId = await this.resolveId(id, sessionId);
     return (
-      (await this.session.get(sessionId, id)) ??
-      (userId ? await this.persistent.get(id, { level: "user", userId }) : null) ??
-      (await this.persistent.get(id, { level: "global" }))
+      (await this.session.get(sessionId, resolvedId)) ??
+      (userId ? await this.persistent.get(resolvedId, { level: "user", userId }) : null) ??
+      (await this.persistent.get(resolvedId, { level: "global" }))
     );
   }
 
-  async init(schemaName: string, sessionId: string): Promise<string> {
+  async getObject(id: string, sessionId: string, userId?: string): Promise<ObjectState | null> {
+    return this.lookup(id, sessionId, userId);
+  }
+
+  async init(schemaName: string, sessionId: string, alias?: string): Promise<string> {
     const rootSchema = this.schemas.get(schemaName);
     if (!rootSchema) {
       throw new McpError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${schemaName}" not registered`);
     }
 
-    const objectId = `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const state: ObjectState = {
-      objectId,
+    const state: Omit<ObjectState, "objectId"> = {
       schemaName,
       parentObjectId: null,
       data: {},
@@ -50,8 +58,8 @@ export class ObjectStore {
       gcLock: false
     };
 
-    await this.session.set(sessionId, objectId, state);
-    return objectId;
+    const objectId = await this.session.create(sessionId, state, alias);
+    return alias || objectId;
   }
 
   async from_saved(savedId: string, sessionId: string, userId?: string): Promise<string> {
@@ -78,8 +86,16 @@ export class ObjectStore {
     return newId;
   }
 
-  async set(objectId: string, path: (string | number)[], value: unknown, sessionId: string, userId?: string): Promise<string> {
-    const parent = await this.lookup(objectId, sessionId, userId);
+  async set(
+    objectId: string,
+    path: (string | number)[],
+    value: unknown,
+    sessionId: string,
+    userId?: string,
+    newAlias?: string
+  ): Promise<string> {
+    const resolvedParentId = await this.resolveId(objectId, sessionId);
+    const parent = await this.lookup(resolvedParentId, sessionId, userId);
     if (!parent) {
       throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
     }
@@ -113,14 +129,12 @@ export class ObjectStore {
     const newData = JSON.parse(JSON.stringify(parent.data));
     this.setValueAtPath(newData, path, value);
 
-    const siblings = await this.session.listChildren(sessionId, objectId);
+    const siblings = await this.session.listChildren(sessionId, resolvedParentId);
     const linearDepth = siblings.length > 0 ? 1 : (parent.linearDepth || 1) + 1;
 
-    const newId = `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const state: ObjectState = {
-      objectId: newId,
+    const childState: Omit<ObjectState, "objectId"> = {
       schemaName: parent.schemaName,
-      parentObjectId: objectId,
+      parentObjectId: resolvedParentId,
       data: newData,
       createdAt: new Date().toISOString(),
       schema_pinned_at: parent.schema_pinned_at,
@@ -128,14 +142,21 @@ export class ObjectStore {
       gcLock: false
     };
 
-    await this.session.set(sessionId, newId, state);
+    const isAliasInput = (await this.session.getAlias(sessionId, objectId)) !== null;
+    const targetAlias = newAlias || (isAliasInput ? objectId : undefined);
+
+    const newId = await this.session.create(sessionId, childState, targetAlias);
 
     if (linearDepth > this.chainThreshold) {
       const compressedId = await this.compressSuffix(newId, sessionId, userId);
+      if (targetAlias) {
+        await this.session.setAlias(sessionId, targetAlias, compressedId);
+        return targetAlias;
+      }
       return compressedId;
     }
 
-    return newId;
+    return targetAlias || newId;
   }
 
   private async getAncestors(id: string, sessionId: string, userId?: string, visited = new Set<string>()): Promise<void> {
@@ -183,14 +204,13 @@ export class ObjectStore {
   }
 
   private async compressSuffix(objectId: string, sessionId: string, userId?: string): Promise<string> {
-    const obj = await this.lookup(objectId, sessionId, userId);
-    if (!obj) return objectId;
+    const resolvedId = await this.resolveId(objectId, sessionId);
+    const obj = await this.lookup(resolvedId, sessionId, userId);
+    if (!obj) return resolvedId;
 
-    const branchPointId = await this.findNearestBranchPoint(objectId, sessionId, userId);
+    const branchPointId = await this.findNearestBranchPoint(resolvedId, sessionId, userId);
 
-    const compressedId = `obj_comp_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
-    const compressedState: ObjectState = {
-      objectId: compressedId,
+    const compressedId = await this.session.create(sessionId, {
       schemaName: obj.schemaName,
       parentObjectId: branchPointId,
       data: { ...obj.data },
@@ -198,14 +218,12 @@ export class ObjectStore {
       schema_pinned_at: obj.schema_pinned_at,
       linearDepth: 1,
       gcLock: obj.gcLock || false
-    };
-
-    await this.session.set(sessionId, compressedId, compressedState);
+    });
 
     console.error(JSON.stringify({
       event: "OBJECT_AUTO_COMPRESSED",
       new_object_id: compressedId,
-      source_tip_id: objectId,
+      source_tip_id: resolvedId,
       linear_depth_at_compression: obj.linearDepth,
       branch_point_id: branchPointId
     }));
@@ -213,10 +231,36 @@ export class ObjectStore {
     return compressedId;
   }
 
-  async gc(sessionId: string, keepIds: string[]): Promise<{ deleted_count: number; kept_count: number }> {
+  async gc(
+    sessionId: string,
+    keepIds: string[],
+    keepAliases?: string[],
+    deleteAliases?: string[]
+  ): Promise<{ deleted_count: number; kept_count: number }> {
+    if (deleteAliases && deleteAliases.length > 0) {
+      for (const alias of deleteAliases) {
+        await this.session.deleteAlias(sessionId, alias);
+      }
+    }
+    if (keepAliases && keepAliases.length > 0) {
+      const whitelist = new Set(keepAliases);
+      const allAliases = await this.session.listAliases(sessionId);
+      for (const item of allAliases) {
+        if (!whitelist.has(item.alias)) {
+          await this.session.deleteAlias(sessionId, item.alias);
+        }
+      }
+    }
+
     const keptSet = new Set<string>();
     for (const id of keepIds) {
-      await this.getAncestors(id, sessionId, undefined, keptSet);
+      const resolved = await this.resolveId(id, sessionId);
+      await this.getAncestors(resolved, sessionId, undefined, keptSet);
+    }
+
+    const activeAliases = await this.session.listAliases(sessionId);
+    for (const item of activeAliases) {
+      await this.getAncestors(item.targetId, sessionId, undefined, keptSet);
     }
 
     const allSessionIds = await this.session.listSession(sessionId);
@@ -287,7 +331,8 @@ export class ObjectStore {
   }
 
   async array_append(objectId: string, path: (string | number)[], sessionId: string, userId?: string): Promise<string> {
-    const parent = await this.lookup(objectId, sessionId, userId);
+    const resolvedParentId = await this.resolveId(objectId, sessionId);
+    const parent = await this.lookup(resolvedParentId, sessionId, userId);
     if (!parent) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
     const dataCopy = JSON.parse(JSON.stringify(parent.data));
@@ -299,22 +344,39 @@ export class ObjectStore {
     const newArr = Array.isArray(arr) ? [...arr, {}] : [{}];
     this.setValueAtPath(dataCopy, path, newArr);
 
-    const newId = `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const state: ObjectState = {
-      objectId: newId,
+    const siblings = await this.session.listChildren(sessionId, resolvedParentId);
+    const linearDepth = siblings.length > 0 ? 1 : (parent.linearDepth || 1) + 1;
+
+    const state: Omit<ObjectState, "objectId"> = {
       schemaName: parent.schemaName,
-      parentObjectId: objectId,
+      parentObjectId: resolvedParentId,
       data: dataCopy,
       createdAt: new Date().toISOString(),
-      schema_pinned_at: parent.schema_pinned_at
+      schema_pinned_at: parent.schema_pinned_at,
+      linearDepth,
+      gcLock: false
     };
 
-    await this.session.set(sessionId, newId, state);
-    return newId;
+    const isAliasInput = (await this.session.getAlias(sessionId, objectId)) !== null;
+    const targetAlias = isAliasInput ? objectId : undefined;
+
+    const newId = await this.session.create(sessionId, state, targetAlias);
+
+    if (linearDepth > this.chainThreshold) {
+      const compressedId = await this.compressSuffix(newId, sessionId, userId);
+      if (targetAlias) {
+        await this.session.setAlias(sessionId, targetAlias, compressedId);
+        return targetAlias;
+      }
+      return compressedId;
+    }
+
+    return targetAlias || newId;
   }
 
   async array_remove(objectId: string, path: (string | number)[], index: number, sessionId: string, userId?: string): Promise<string> {
-    const parent = await this.lookup(objectId, sessionId, userId);
+    const resolvedParentId = await this.resolveId(objectId, sessionId);
+    const parent = await this.lookup(resolvedParentId, sessionId, userId);
     if (!parent) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
     const dataCopy = JSON.parse(JSON.stringify(parent.data));
@@ -327,36 +389,56 @@ export class ObjectStore {
     newArr.splice(index, 1);
     this.setValueAtPath(dataCopy, path, newArr);
 
-    const newId = `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const state: ObjectState = {
-      objectId: newId,
+    const siblings = await this.session.listChildren(sessionId, resolvedParentId);
+    const linearDepth = siblings.length > 0 ? 1 : (parent.linearDepth || 1) + 1;
+
+    const state: Omit<ObjectState, "objectId"> = {
       schemaName: parent.schemaName,
-      parentObjectId: objectId,
+      parentObjectId: resolvedParentId,
       data: dataCopy,
       createdAt: new Date().toISOString(),
-      schema_pinned_at: parent.schema_pinned_at
+      schema_pinned_at: parent.schema_pinned_at,
+      linearDepth,
+      gcLock: false
     };
 
-    await this.session.set(sessionId, newId, state);
-    return newId;
+    const isAliasInput = (await this.session.getAlias(sessionId, objectId)) !== null;
+    const targetAlias = isAliasInput ? objectId : undefined;
+
+    const newId = await this.session.create(sessionId, state, targetAlias);
+
+    if (linearDepth > this.chainThreshold) {
+      const compressedId = await this.compressSuffix(newId, sessionId, userId);
+      if (targetAlias) {
+        await this.session.setAlias(sessionId, targetAlias, compressedId);
+        return targetAlias;
+      }
+      return compressedId;
+    }
+
+    return targetAlias || newId;
   }
 
   async compress(objectId: string, sessionId: string, userId?: string): Promise<string> {
-    const obj = await this.lookup(objectId, sessionId, userId);
+    const resolvedId = await this.resolveId(objectId, sessionId);
+    const obj = await this.lookup(resolvedId, sessionId, userId);
     if (!obj) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
-    const compressedId = `obj_comp_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
-    const compressedState: ObjectState = {
-      objectId: compressedId,
+    const compressedState: Omit<ObjectState, "objectId"> = {
       schemaName: obj.schemaName,
       parentObjectId: null,
       data: JSON.parse(JSON.stringify(obj.data)),
       createdAt: new Date().toISOString(),
-      schema_pinned_at: obj.schema_pinned_at
+      schema_pinned_at: obj.schema_pinned_at,
+      linearDepth: 1,
+      gcLock: obj.gcLock || false
     };
 
-    await this.session.set(sessionId, compressedId, compressedState);
-    return compressedId;
+    const isAliasInput = (await this.session.getAlias(sessionId, objectId)) !== null;
+    const targetAlias = isAliasInput ? objectId : undefined;
+
+    const compressedId = await this.session.create(sessionId, compressedState, targetAlias);
+    return targetAlias || compressedId;
   }
 
   async validate(objectId: string, sessionId: string, userId?: string): Promise<ValidationResult> {

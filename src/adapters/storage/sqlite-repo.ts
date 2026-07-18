@@ -9,6 +9,7 @@ import type {
 import { registerAdapter } from "../../config/loader";
 import * as path from "path";
 import * as fs from "fs";
+import * as crypto from "crypto";
 
 export class SqliteFilterStore implements SessionFilterStore, PersistentFilterStore {
   private db: Database;
@@ -66,6 +67,15 @@ export class SqliteFilterStore implements SessionFilterStore, PersistentFilterSt
       );
     `);
 
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS session_aliases (
+        session_id  TEXT NOT NULL,
+        alias_name  TEXT NOT NULL,
+        target_id   TEXT NOT NULL,
+        PRIMARY KEY (session_id, alias_name)
+      );
+    `);
+
     this.db.run("CREATE INDEX IF NOT EXISTS idx_filters_session ON filters(session_id, scope_level);");
     this.db.run("CREATE INDEX IF NOT EXISTS idx_filters_scope ON filters(scope_level, user_id);");
   }
@@ -104,6 +114,41 @@ export class SqliteFilterStore implements SessionFilterStore, PersistentFilterSt
     } else {
       return this.deletePersistent(a, b);
     }
+  }
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    const row = this.db.query("SELECT target_id FROM session_aliases WHERE session_id = ? AND alias_name = ?")
+      .get(sessionId, alias) as any;
+    return row ? row.target_id : null;
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    this.db.run(
+      `INSERT INTO session_aliases (session_id, alias_name, target_id)
+       VALUES (?, ?, ?)
+       ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
+      [sessionId, alias, targetId]
+    );
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    this.db.run("DELETE FROM session_aliases WHERE session_id = ? AND alias_name = ?", [sessionId, alias]);
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const rows = this.db.query("SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?")
+      .all(sessionId) as any[];
+    return rows.map(r => ({ alias: r.alias_name, targetId: r.target_id }));
+  }
+
+  async create(sessionId: string, state: Omit<FilterState, "filterId"> & { filterId?: string }, alias?: string): Promise<string> {
+    const id = `filter_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const fullState: FilterState = { ...state, filterId: id };
+    await this.setSession(sessionId, id, fullState);
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+    return id;
   }
 
   // ─── Internal Session Operations ───────────────────────────────────────────

@@ -227,4 +227,86 @@ export async function runObjectTests() {
     throw new Error("Object GC deleted active or ancestor nodes.");
   }
   console.log("✓ ObjectStore targeted GC successfully pruned dead branches and compressed intermediate garbage.");
+
+  console.log("\n🧪 Test Case 19: Object State Aliasing and Pruning");
+
+  const aliasObjectStore = new ObjectStore(
+    new MemorySessionObjectStore(),
+    new MemoryPersistentObjectStore(),
+    schemasMap,
+    7,
+    5,
+    5
+  );
+
+  const sessionIdAlias = "alias_session_obj_1";
+
+  // 1. Initialize with an alias
+  const aliasVal = "shopping_cart";
+  const initId = await aliasObjectStore.init("appointment", sessionIdAlias, aliasVal);
+  if (initId !== "shopping_cart") {
+    throw new Error(`Expected alias "shopping_cart" to be returned, got ${initId}`);
+  }
+
+  // Verify the alias points to the underlying state ID
+  const resolvedInitId = await aliasObjectStore["resolveId"](aliasVal, sessionIdAlias);
+  if (!resolvedInitId.startsWith("obj_")) {
+    throw new Error(`Expected resolved ID to be an object UUID prefix, got ${resolvedInitId}`);
+  }
+
+  // 2. Perform mutation without changing alias name (pointer should auto-advance)
+  const childId1 = await aliasObjectStore.set("shopping_cart", ["title"], "Holiday Party", sessionIdAlias);
+  if (childId1 !== "shopping_cart") {
+    throw new Error(`Expected active alias "shopping_cart" to be returned from set, got ${childId1}`);
+  }
+  const resolvedChildId1 = await aliasObjectStore["resolveId"]("shopping_cart", sessionIdAlias);
+  if (resolvedChildId1 === resolvedInitId) {
+    throw new Error(`Expected alias pointer to advance to the new child state`);
+  }
+
+  // 3. Progressive Tagging / Branching (using new_alias)
+  // To pass new_alias to set, we pass it as the 6th parameter.
+  const childId2 = await aliasObjectStore.set("shopping_cart", ["start_date"], "2026-07-20", sessionIdAlias, undefined, "shopping_cart_locked");
+  if (childId2 !== "shopping_cart_locked") {
+    throw new Error(`Expected new alias "shopping_cart_locked" to be returned, got ${childId2}`);
+  }
+
+  // Check pointers:
+  // "shopping_cart" should still point to childId1 (resolvedChildId1)
+  const resolvedShoppingCart = await aliasObjectStore["resolveId"]("shopping_cart", sessionIdAlias);
+  if (resolvedShoppingCart !== resolvedChildId1) {
+    throw new Error(`Expected "shopping_cart" to still point to parent checkpoint`);
+  }
+  // "shopping_cart_locked" should point to the new state
+  const resolvedShoppingCartLocked = await aliasObjectStore["resolveId"]("shopping_cart_locked", sessionIdAlias);
+  if (resolvedShoppingCartLocked === resolvedShoppingCart) {
+    throw new Error(`Expected "shopping_cart_locked" to point to the new branch`);
+  }
+
+  // 4. GC with Alias pruning (Whitelist/Blacklist)
+  // Let's add a dead branch from shopping_cart with a new alias
+  const deadId = await aliasObjectStore.set("shopping_cart", ["end_date"], "2026-07-25", sessionIdAlias, undefined, "shopping_cart_expired");
+
+  // Verify that it is in the session
+  const expiredState = await aliasObjectStore["session"].get(sessionIdAlias, await aliasObjectStore["resolveId"]("shopping_cart_expired", sessionIdAlias));
+  if (!expiredState) {
+    throw new Error("Expected expired branch state to exist");
+  }
+
+  // Prune using whitelist (only keep shopping_cart and shopping_cart_locked)
+  await aliasObjectStore.gc(sessionIdAlias, [], ["shopping_cart", "shopping_cart_locked"]);
+
+  // shopping_cart_expired alias should be deleted
+  const resolvedExpired = await aliasObjectStore["resolveId"]("shopping_cart_expired", sessionIdAlias);
+  if (resolvedExpired === "shopping_cart_expired") {
+    // If it doesn't resolve, it just returns the input string
+    const expiredNode = await aliasObjectStore["session"].get(sessionIdAlias, resolvedExpired);
+    if (expiredNode) {
+      throw new Error("Expected expired branch to be garbage collected");
+    }
+  } else {
+    throw new Error(`Expected shopping_cart_expired alias to be deleted, but it resolved to ${resolvedExpired}`);
+  }
+
+  console.log("✓ Object state aliasing, branching, and GC alias whitelists/blacklists verified successfully.");
 }

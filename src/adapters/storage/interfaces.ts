@@ -10,6 +10,11 @@ export interface SessionFilterStore {
   listSession(sessionId: string): Promise<string[]>;
   listChildren(sessionId: string, parentId: string): Promise<string[]>;
   expireSession(sessionId: string, olderThanMs?: number): Promise<void>;
+  create(sessionId: string, state: Omit<FilterState, "filterId"> & { filterId?: string }, alias?: string): Promise<string>;
+  getAlias(sessionId: string, alias: string): Promise<string | null>;
+  setAlias(sessionId: string, alias: string, targetId: string): Promise<void>;
+  deleteAlias(sessionId: string, alias: string): Promise<void>;
+  listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>>;
 }
 
 // Persistent store — keyed by (id, scope). No TTL.
@@ -44,6 +49,11 @@ export interface SessionObjectStore {
   listSession(sessionId: string): Promise<string[]>;
   listChildren(sessionId: string, parentId: string): Promise<string[]>;
   expireSession(sessionId: string, olderThanMs?: number): Promise<void>;
+  create(sessionId: string, state: Omit<ObjectState, "objectId"> & { objectId?: string }, alias?: string): Promise<string>;
+  getAlias(sessionId: string, alias: string): Promise<string | null>;
+  setAlias(sessionId: string, alias: string, targetId: string): Promise<void>;
+  deleteAlias(sessionId: string, alias: string): Promise<void>;
+  listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>>;
 }
 
 export interface PersistentObjectStore {

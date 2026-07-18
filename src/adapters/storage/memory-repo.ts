@@ -10,11 +10,49 @@ import type {
   PersistedObjectState,
 } from "./interfaces";
 import { registerAdapter } from "../../config/loader";
+import * as crypto from "crypto";
 
 // ── In-Memory Session Filter Store ───────────────────────────────────────────
 export class MemorySessionFilterStore implements SessionFilterStore {
   // Key: `${sessionId}:${id}`
   private store = new Map<string, FilterState>();
+  private aliases = new Map<string, string>();
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    const key = `${sessionId}:${alias}`;
+    return this.aliases.get(key) || null;
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.set(key, targetId);
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.delete(key);
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const prefix = `${sessionId}:`;
+    const results: Array<{ alias: string; targetId: string }> = [];
+    for (const [key, targetId] of this.aliases.entries()) {
+      if (key.startsWith(prefix)) {
+        results.push({ alias: key.slice(prefix.length), targetId });
+      }
+    }
+    return results;
+  }
+
+  async create(sessionId: string, state: Omit<FilterState, "filterId"> & { filterId?: string }, alias?: string): Promise<string> {
+    const id = `filter_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const fullState: FilterState = { ...state, filterId: id };
+    await this.set(sessionId, id, fullState);
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+    return id;
+  }
 
   async get(sessionId: string, id: string): Promise<FilterState | null> {
     const key = `${sessionId}:${id}`;
@@ -132,6 +170,43 @@ export class MemoryPersistentFilterStore implements PersistentFilterStore {
 export class MemorySessionObjectStore implements SessionObjectStore {
   // Key: `${sessionId}:${id}`
   private store = new Map<string, ObjectState>();
+  private aliases = new Map<string, string>();
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    const key = `${sessionId}:${alias}`;
+    return this.aliases.get(key) || null;
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.set(key, targetId);
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.delete(key);
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const prefix = `${sessionId}:`;
+    const results: Array<{ alias: string; targetId: string }> = [];
+    for (const [key, targetId] of this.aliases.entries()) {
+      if (key.startsWith(prefix)) {
+        results.push({ alias: key.slice(prefix.length), targetId });
+      }
+    }
+    return results;
+  }
+
+  async create(sessionId: string, state: Omit<ObjectState, "objectId"> & { objectId?: string }, alias?: string): Promise<string> {
+    const id = `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const fullState: ObjectState = { ...state, objectId: id };
+    await this.set(sessionId, id, fullState);
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+    return id;
+  }
 
   async get(sessionId: string, id: string): Promise<ObjectState | null> {
     const key = `${sessionId}:${id}`;

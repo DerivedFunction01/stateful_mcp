@@ -40,12 +40,13 @@ server.registerTool(
     inputSchema: {
       session_id: z.string().describe("The session identifier."),
       tool_name: z.string().optional().describe("Optional target tool for schema binding."),
-      table_name: z.string().optional().describe("Optional sub-table within the tool.")
+      table_name: z.string().optional().describe("Optional sub-table within the tool."),
+      alias: z.string().optional().describe("Optional descriptive alias to tag the initial state.")
     }
   },
-  async ({ session_id, tool_name, table_name }) => {
+  async ({ session_id, tool_name, table_name, alias }) => {
     try {
-      const filterId = await filterStore.init(session_id, tool_name, table_name);
+      const filterId = await filterStore.init(session_id, tool_name, table_name, undefined, alias);
       return { content: [{ type: "text", text: JSON.stringify({ filter_id: filterId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
@@ -58,15 +59,16 @@ server.registerTool(
   {
     description: "Add conditions to a filter",
     inputSchema: {
-      filter_id: z.string().describe("The current filter state ID."),
+      filter_id: z.string().describe("The current filter state ID or alias."),
       operations: z.array(filterConditionSchema).describe("List of filter conditions to add."),
       session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
+      user_id: z.string().optional().describe("Optional user identifier."),
+      new_alias: z.string().optional().describe("Optional new descriptive alias to point to the mutated head, leaving the old alias at the parent checkpoint.")
     }
   },
-  async ({ filter_id, operations, session_id, user_id }) => {
+  async ({ filter_id, operations, session_id, user_id, new_alias }) => {
     try {
-      const newFilterId = await filterStore.add(filter_id, operations as any, session_id, user_id);
+      const newFilterId = await filterStore.add(filter_id, operations as any, session_id, user_id, new_alias);
       return { content: [{ type: "text", text: JSON.stringify({ new_filter_id: newFilterId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
@@ -273,21 +275,48 @@ server.registerTool(
 );
 
 server.registerTool(
-  "filter_gc",
+  "filter_alias",
   {
-    description: "Prune intermediate filter checkpoints in the current session that are not in the ancestry of the specified active/keep filters",
+    description: "Tag an existing filter checkpoint with a new descriptive alias",
     inputSchema: {
       session_id: z.string().describe("The session identifier."),
-      keep: z.array(z.string()).describe("Ancestors of these filter IDs will be preserved."),
-      confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty.")
+      id_or_alias: z.string().describe("The existing filter ID or alias."),
+      alias: z.string().describe("The new alias pointer name to assign.")
     }
   },
-  async ({ session_id, keep, confirm }) => {
+  async ({ session_id, id_or_alias, alias }) => {
+    try {
+      const resolved = await filterStore["resolveId"](id_or_alias, session_id);
+      const node = await filterStore.getFilter(resolved, session_id);
+      if (!node) {
+        throw new Error(`Filter "${id_or_alias}" not found`);
+      }
+      await filterStore["session"].setAlias(session_id, alias, resolved);
+      return { content: [{ type: "text", text: JSON.stringify({ success: true, alias, target_id: resolved }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "filter_gc",
+  {
+    description: "Prune intermediate filter checkpoints in the current session that are not in the ancestry of the specified active/keep filters or active aliases",
+    inputSchema: {
+      session_id: z.string().describe("The session identifier."),
+      keep: z.array(z.string()).describe("Ancestors of these filter IDs or aliases will be preserved."),
+      confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty."),
+      keep_aliases: z.array(z.string()).optional().describe("Whitelist: only keep these aliases (delete all others)."),
+      delete_aliases: z.array(z.string()).optional().describe("Blacklist: explicitly delete these aliases.")
+    }
+  },
+  async ({ session_id, keep, confirm, keep_aliases, delete_aliases }) => {
     try {
       if (keep.length === 0 && !confirm) {
         throw new Error("Pruning the entire session requires confirm: true");
       }
-      const result = await filterStore.gc(session_id, keep);
+      const result = await filterStore.gc(session_id, keep, keep_aliases, delete_aliases);
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };

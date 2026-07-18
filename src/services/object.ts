@@ -21,12 +21,13 @@ server.registerTool(
     description: "Initialize an empty object against a schema",
     inputSchema: {
       schema_name: z.string().describe("The name of the registered schema."),
-      session_id: z.string().describe("The session identifier.")
+      session_id: z.string().describe("The session identifier."),
+      alias: z.string().optional().describe("Optional descriptive alias to tag the initial state.")
     }
   },
-  async ({ schema_name, session_id }) => {
+  async ({ schema_name, session_id, alias }) => {
     try {
-      const objectId = await objectStore.init(schema_name, session_id);
+      const objectId = await objectStore.init(schema_name, session_id, alias);
       return { content: [{ type: "text", text: JSON.stringify({ object_id: objectId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
@@ -39,16 +40,17 @@ server.registerTool(
   {
     description: "Set one property at a specific path in an object",
     inputSchema: {
-      object_id: z.string().describe("The target object version ID."),
+      object_id: z.string().describe("The target object version ID or alias."),
       path: z.array(pathSegmentSchema).describe("Field path (e.g. ['date_range', 'start_date'])."),
       value: z.any().describe("The field value to set."),
       session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
+      user_id: z.string().optional().describe("Optional user identifier."),
+      new_alias: z.string().optional().describe("Optional new descriptive alias to point to the mutated head, leaving the old alias at the parent checkpoint.")
     }
   },
-  async ({ object_id, path: fieldPath, value, session_id, user_id }) => {
+  async ({ object_id, path: fieldPath, value, session_id, user_id, new_alias }) => {
     try {
-      const newObjectId = await objectStore.set(object_id, fieldPath, value, session_id, user_id);
+      const newObjectId = await objectStore.set(object_id, fieldPath, value, session_id, user_id, new_alias);
       return { content: [{ type: "text", text: JSON.stringify({ new_object_id: newObjectId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
@@ -269,21 +271,48 @@ server.registerTool(
 );
 
 server.registerTool(
-  "object_gc",
+  "object_alias",
   {
-    description: "Prune intermediate object checkpoints in the current session that are not in the ancestry of the specified active/keep objects",
+    description: "Tag an existing object checkpoint with a new descriptive alias",
     inputSchema: {
       session_id: z.string().describe("The session identifier."),
-      keep: z.array(z.string()).describe("Ancestors of these object IDs will be preserved."),
-      confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty.")
+      id_or_alias: z.string().describe("The existing object ID or alias."),
+      alias: z.string().describe("The new alias pointer name to assign.")
     }
   },
-  async ({ session_id, keep, confirm }) => {
+  async ({ session_id, id_or_alias, alias }) => {
+    try {
+      const resolved = await objectStore["resolveId"](id_or_alias, session_id);
+      const node = await objectStore.getObject(resolved, session_id);
+      if (!node) {
+        throw new Error(`Object "${id_or_alias}" not found`);
+      }
+      await objectStore["session"].setAlias(session_id, alias, resolved);
+      return { content: [{ type: "text", text: JSON.stringify({ success: true, alias, target_id: resolved }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "object_gc",
+  {
+    description: "Prune intermediate object checkpoints in the current session that are not in the ancestry of the specified active/keep objects or active aliases",
+    inputSchema: {
+      session_id: z.string().describe("The session identifier."),
+      keep: z.array(z.string()).describe("Ancestors of these object IDs or aliases will be preserved."),
+      confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty."),
+      keep_aliases: z.array(z.string()).optional().describe("Whitelist: only keep these aliases (delete all others)."),
+      delete_aliases: z.array(z.string()).optional().describe("Blacklist: explicitly delete these aliases.")
+    }
+  },
+  async ({ session_id, keep, confirm, keep_aliases, delete_aliases }) => {
     try {
       if (keep.length === 0 && !confirm) {
         throw new Error("Pruning the entire session requires confirm: true");
       }
-      const result = await objectStore.gc(session_id, keep);
+      const result = await objectStore.gc(session_id, keep, keep_aliases, delete_aliases);
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };

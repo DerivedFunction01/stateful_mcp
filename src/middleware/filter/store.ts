@@ -16,12 +16,18 @@ export class FilterStore {
     private chainThreshold: number = 20
   ) {}
 
+  private async resolveId(id: string, sessionId: string): Promise<string> {
+    const aliasTarget = await this.session.getAlias(sessionId, id);
+    return aliasTarget || id;
+  }
+
   private async lookup(id: string, sessionId: string, userId?: string): Promise<FilterState | null> {
-    const fromSession = await this.session.get(sessionId, id);
+    const resolvedId = await this.resolveId(id, sessionId);
+    const fromSession = await this.session.get(sessionId, resolvedId);
     if (fromSession) return fromSession;
 
-    const fromPersistent = (userId ? await this.persistent.get(id, { level: "user", userId }) : null) ??
-                           await this.persistent.get(id, { level: "global" });
+    const fromPersistent = (userId ? await this.persistent.get(resolvedId, { level: "user", userId }) : null) ??
+                           await this.persistent.get(resolvedId, { level: "global" });
     
     if (fromPersistent) {
       let parsedSchema = null;
@@ -53,7 +59,7 @@ export class FilterStore {
     return this.lookup(id, sessionId, userId);
   }
 
-  async init(sessionId: string, toolName?: string, tableName?: string): Promise<string> {
+  async init(sessionId: string, toolName?: string, tableName?: string, userId?: string, alias?: string): Promise<string> {
     if (toolName) {
       const tables = this.toolSchemas.get(toolName);
       if (!tables) {
@@ -64,39 +70,41 @@ export class FilterStore {
       }
     }
 
-    const filterId = `filter_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const schema = toolName && tableName ? this.toolSchemas.get(toolName)?.[tableName] : undefined;
 
-    const state: FilterState = {
-      filterId,
+    const state: Omit<FilterState, "filterId"> = {
       toolName,
       tableName,
       rules: [],
       parentFilterId: null,
       createdAt: new Date().toISOString(),
-      schema_snapshot: schema
+      schema_snapshot: schema,
+      linearDepth: 1,
+      gcLock: false
     };
 
-    await this.session.set(sessionId, filterId, state);
+    const filterId = await this.session.create(sessionId, state, alias);
     if (schema) {
       this.pinnedSchemas.set(filterId, schema);
     }
 
-    return filterId;
+    return alias || filterId;
   }
 
   async add(
     filterId: string,
     operations: FilterCondition[],
     sessionId: string,
-    userId?: string
+    userId?: string,
+    newAlias?: string
   ): Promise<string> {
-    const parent = await this.lookup(filterId, sessionId, userId);
+    const resolvedParentId = await this.resolveId(filterId, sessionId);
+    const parent = await this.lookup(resolvedParentId, sessionId, userId);
     if (!parent) {
       throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
     }
 
-    const schema = this.pinnedSchemas.get(filterId);
+    const schema = this.pinnedSchemas.get(resolvedParentId);
 
     // Schema validation against public property names / allowed operators
     if (schema) {
@@ -136,33 +144,38 @@ export class FilterStore {
       }
     }
 
-    const siblings = await this.session.listChildren(sessionId, filterId);
+    const siblings = await this.session.listChildren(sessionId, resolvedParentId);
     const linearDepth = siblings.length > 0 ? 1 : (parent.linearDepth || 1) + 1;
 
-    const newId = `filter_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const newState: FilterState = {
-      filterId: newId,
+    const childState: Omit<FilterState, "filterId"> = {
       toolName: parent.toolName,
       tableName: parent.tableName,
       rules: operations,
-      parentFilterId: filterId,
+      parentFilterId: resolvedParentId,
       createdAt: new Date().toISOString(),
       schema_snapshot: schema,
       linearDepth,
       gcLock: false
     };
 
-    await this.session.set(sessionId, newId, newState);
+    const isAliasInput = (await this.session.getAlias(sessionId, filterId)) !== null;
+    const targetAlias = newAlias || (isAliasInput ? filterId : undefined);
+
+    const childId = await this.session.create(sessionId, childState, targetAlias);
     if (schema) {
-      this.pinnedSchemas.set(newId, schema);
+      this.pinnedSchemas.set(childId, schema);
     }
 
     if (linearDepth > this.chainThreshold) {
-      const compressedId = await this.compressSuffix(newId, sessionId, userId);
+      const compressedId = await this.compressSuffix(childId, sessionId, userId);
+      if (targetAlias) {
+        await this.session.setAlias(sessionId, targetAlias, compressedId);
+        return targetAlias;
+      }
       return compressedId;
     }
 
-    return newId;
+    return targetAlias || childId;
   }
 
   private async getAncestors(id: string, sessionId: string, userId?: string, visited = new Set<string>()): Promise<void> {
@@ -217,14 +230,13 @@ export class FilterStore {
   }
 
   private async compressSuffix(filterId: string, sessionId: string, userId?: string): Promise<string> {
-    const filter = await this.lookup(filterId, sessionId, userId);
-    if (!filter) return filterId;
+    const resolvedId = await this.resolveId(filterId, sessionId);
+    const filter = await this.lookup(resolvedId, sessionId, userId);
+    if (!filter) return resolvedId;
 
-    const { branchPointId, rulesToCompress } = await this.findNearestBranchPoint(filterId, sessionId, userId);
+    const { branchPointId, rulesToCompress } = await this.findNearestBranchPoint(resolvedId, sessionId, userId);
 
-    const compressedId = `filter_comp_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
-    const compressedState: FilterState = {
-      filterId: compressedId,
+    const compressedId = await this.session.create(sessionId, {
       toolName: filter.toolName,
       tableName: filter.tableName,
       rules: rulesToCompress,
@@ -233,10 +245,9 @@ export class FilterStore {
       schema_snapshot: filter.schema_snapshot,
       linearDepth: 1,
       gcLock: filter.gcLock || false
-    };
+    });
 
-    await this.session.set(sessionId, compressedId, compressedState);
-    const schema = this.pinnedSchemas.get(filterId);
+    const schema = this.pinnedSchemas.get(resolvedId);
     if (schema) {
       this.pinnedSchemas.set(compressedId, schema);
     }
@@ -244,7 +255,7 @@ export class FilterStore {
     console.error(JSON.stringify({
       event: "FILTER_AUTO_COMPRESSED",
       new_filter_id: compressedId,
-      source_tip_id: filterId,
+      source_tip_id: resolvedId,
       linear_depth_at_compression: filter.linearDepth,
       branch_point_id: branchPointId
     }));
@@ -252,10 +263,36 @@ export class FilterStore {
     return compressedId;
   }
 
-  async gc(sessionId: string, keepIds: string[]): Promise<{ deleted_count: number; kept_count: number }> {
+  async gc(
+    sessionId: string,
+    keepIds: string[],
+    keepAliases?: string[],
+    deleteAliases?: string[]
+  ): Promise<{ deleted_count: number; kept_count: number }> {
+    if (deleteAliases && deleteAliases.length > 0) {
+      for (const alias of deleteAliases) {
+        await this.session.deleteAlias(sessionId, alias);
+      }
+    }
+    if (keepAliases && keepAliases.length > 0) {
+      const whitelist = new Set(keepAliases);
+      const allAliases = await this.session.listAliases(sessionId);
+      for (const item of allAliases) {
+        if (!whitelist.has(item.alias)) {
+          await this.session.deleteAlias(sessionId, item.alias);
+        }
+      }
+    }
+
     const keptSet = new Set<string>();
     for (const id of keepIds) {
-      await this.getAncestors(id, sessionId, undefined, keptSet);
+      const resolved = await this.resolveId(id, sessionId);
+      await this.getAncestors(resolved, sessionId, undefined, keptSet);
+    }
+
+    const activeAliases = await this.session.listAliases(sessionId);
+    for (const item of activeAliases) {
+      await this.getAncestors(item.targetId, sessionId, undefined, keptSet);
     }
 
     const allSessionIds = await this.session.listSession(sessionId);
