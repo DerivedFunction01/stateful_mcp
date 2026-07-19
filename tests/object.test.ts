@@ -331,4 +331,17 @@ export async function runObjectTests() {
     }
   }
   console.log("✓ Object schema mismatch guard verified successfully.");
+
+  console.log("\n🧪 Test Case 5: Object Pre-populated Initialization");
+  const initData = {
+    title: "Launch Party",
+    start_date: "2026-07-19",
+    end_date: "2026-07-20"
+  };
+  const oPopulated = await aliasObjectStore.init("appointment", sessionIdAlias, "party_prepopulated", initData);
+  const populatedObj = await aliasObjectStore.getObject(oPopulated, sessionIdAlias);
+  if (!populatedObj || populatedObj.data.title !== "Launch Party" || populatedObj.data.start_date !== "2026-07-19") {
+    throw new Error(`Expected pre-populated object data to match input, got: ${JSON.stringify(populatedObj?.data)}`);
+  }
+  console.log("✓ Object pre-populated initialization verified successfully.");
 }

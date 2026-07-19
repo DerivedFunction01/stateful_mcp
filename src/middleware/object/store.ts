@@ -5,7 +5,7 @@ import { ErrorCode, McpError } from "../../errors/types";
 import { resolvePathSchema } from "./schema-walker";
 import Ajv from "ajv";
 
-const ajv = new Ajv();
+const ajv = new Ajv({ strict: false });
 
 export interface ValidationResult {
   valid: boolean;
@@ -42,16 +42,34 @@ export class ObjectStore {
     return this.lookup(id, sessionId, userId);
   }
 
-  async init(schemaName: string, sessionId: string, alias?: string): Promise<string> {
+  async init(schemaName: string, sessionId: string, alias?: string, data?: Record<string, any>): Promise<string> {
     const rootSchema = this.schemas.get(schemaName);
     if (!rootSchema) {
       throw new McpError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${schemaName}" not registered`);
     }
 
+    if (data && rootSchema) {
+      try {
+        const validate = ajv.compile(rootSchema);
+        if (!validate(data)) {
+          throw new McpError(
+            ErrorCode.OBJECT_VALIDATION_FAILED,
+            `Initial data fails schema validation`
+          );
+        }
+      } catch (err: any) {
+        if (err instanceof McpError) throw err;
+        throw new McpError(
+          ErrorCode.OBJECT_VALIDATION_FAILED,
+          `Initial data fails schema validation: ${err.message || String(err)}`
+        );
+      }
+    }
+
     const state: Omit<ObjectState, "objectId"> = {
       schemaName,
       parentObjectId: null,
-      data: {},
+      data: data || {},
       createdAt: new Date().toISOString(),
       schema_pinned_at: new Date().toISOString(),
       linearDepth: 1,

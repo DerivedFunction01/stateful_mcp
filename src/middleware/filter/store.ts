@@ -59,7 +59,14 @@ export class FilterStore {
     return this.lookup(id, sessionId, userId);
   }
 
-  async init(sessionId: string, toolName?: string, tableName?: string, userId?: string, alias?: string): Promise<string> {
+  async init(
+    sessionId: string,
+    toolName?: string,
+    tableName?: string,
+    userId?: string,
+    alias?: string,
+    rules?: FilterCondition[]
+  ): Promise<string> {
     if (toolName) {
       const tables = this.toolSchemas.get(toolName);
       if (!tables) {
@@ -72,10 +79,47 @@ export class FilterStore {
 
     const schema = toolName && tableName ? this.toolSchemas.get(toolName)?.[tableName] : undefined;
 
+    if (rules && schema) {
+      for (const op of rules) {
+        if (!schema.filterable_properties.includes(op.property)) {
+          throw new McpError(
+            ErrorCode.FILTER_PROPERTY_INVALID,
+            `"${op.property}" is not filterable on "${tableName}"`,
+            { allowed: schema.filterable_properties }
+          );
+        }
+        if (!schema.operators.includes(op.operator)) {
+          throw new McpError(
+            ErrorCode.FILTER_OPERATOR_INVALID,
+            `Operator "${op.operator}" not allowed on "${tableName}"`,
+            { allowed: schema.operators }
+          );
+        }
+
+        // Basic type-aware constraints
+        const propType = this.getPropertyType(schema, op.property);
+        if (propType === "number") {
+          if (op.operator === "like" || op.operator === "not_like") {
+            throw new McpError(
+              ErrorCode.FILTER_OPERATOR_INVALID,
+              `Operator "${op.operator}" is not allowed on numeric property "${op.property}"`
+            );
+          }
+        } else if (propType === "string" || propType === "boolean") {
+          if (op.operator === "between" || op.operator === "not_between") {
+            throw new McpError(
+              ErrorCode.FILTER_OPERATOR_INVALID,
+              `Operator "${op.operator}" is not allowed on non-numeric property "${op.property}"`
+            );
+          }
+        }
+      }
+    }
+
     const state: Omit<FilterState, "filterId"> = {
       toolName,
       tableName,
-      rules: [],
+      rules: rules || [],
       parentFilterId: null,
       createdAt: new Date().toISOString(),
       schema_snapshot: schema,

@@ -10,6 +10,7 @@ import { executePipeline } from "../src/translation/pipeline";
 import { validateTableTranslation } from "../src/translation/validator";
 import { compilePipelineToSQL } from "../src/translation/compiler";
 import type { TableSchema } from "../src/config/types";
+import type { FilterCondition } from "../src/middleware/filter/types";
 import * as fs from "fs/promises";
 import * as path from "path";
 
@@ -649,4 +650,25 @@ export async function runFilterTests() {
     }
   }
   console.log("✓ Filter diff and schema guard verified successfully.");
+
+  console.log("\n🧪 Test Case 12: Filter Pre-populated Initialization");
+  const initRules: FilterCondition[] = [
+    { property: "price", operator: "gt", value: 50 },
+    { property: "category", operator: "eq", value: "apparel" }
+  ];
+  // Initialize with rules directly
+  const fPopulated = await aliasFilterStore.init(
+    sessionIdAlias,
+    "browse_catalog",
+    "items",
+    undefined,
+    "catalog_prepopulated",
+    initRules
+  );
+  
+  const populatedRules = await aliasFilterStore.getFilterRules(fPopulated, sessionIdAlias);
+  if (populatedRules.length !== 2 || populatedRules[0]?.property !== "price" || populatedRules[1]?.property !== "category") {
+    throw new Error(`Expected 2 rules pre-populated in filter, got: ${JSON.stringify(populatedRules)}`);
+  }
+  console.log("✓ Filter pre-populated initialization verified successfully.");
 }

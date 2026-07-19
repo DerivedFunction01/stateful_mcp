@@ -22,12 +22,13 @@ server.registerTool(
     inputSchema: {
       schema_name: z.string().describe("The name of the registered schema."),
       session_id: z.string().describe("The session identifier."),
-      alias: z.string().optional().describe("Optional descriptive alias to tag the initial state.")
+      alias: z.string().optional().describe("Optional descriptive alias to tag the initial state."),
+      data: z.record(z.string(), z.any()).optional().describe("Optional initial key-value data to populate.")
     }
   },
-  async ({ schema_name, session_id, alias }) => {
+  async ({ schema_name, session_id, alias, data }) => {
     try {
-      const objectId = await objectStore.init(schema_name, session_id, alias);
+      const objectId = await objectStore.init(schema_name, session_id, alias, data);
       return { content: [{ type: "text", text: JSON.stringify({ object_id: objectId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };

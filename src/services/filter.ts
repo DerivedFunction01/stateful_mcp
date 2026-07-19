@@ -41,12 +41,13 @@ server.registerTool(
       session_id: z.string().describe("The session identifier."),
       tool_name: z.string().optional().describe("Optional target tool for schema binding."),
       table_name: z.string().optional().describe("Optional sub-table within the tool."),
-      alias: z.string().optional().describe("Optional descriptive alias to tag the initial state.")
+      alias: z.string().optional().describe("Optional descriptive alias to tag the initial state."),
+      rules: z.array(filterConditionSchema).optional().describe("Optional initial list of filter rules to apply.")
     }
   },
-  async ({ session_id, tool_name, table_name, alias }) => {
+  async ({ session_id, tool_name, table_name, alias, rules }) => {
     try {
-      const filterId = await filterStore.init(session_id, tool_name, table_name, undefined, alias);
+      const filterId = await filterStore.init(session_id, tool_name, table_name, undefined, alias, rules);
       return { content: [{ type: "text", text: JSON.stringify({ filter_id: filterId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
