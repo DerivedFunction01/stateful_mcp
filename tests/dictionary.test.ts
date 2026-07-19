@@ -1,8 +1,7 @@
 import { DictionaryStore } from "../src/middleware/dictionary/store";
 import { InMemoryConceptResolver } from "../src/middleware/dictionary/resolver";
-
 export async function runDictionaryTests() {
-  console.log("\n🧪 Test Case 8: Dictionary Service");
+  console.log("\n🧪 Test Case 1: Dictionary Service");
 
   const resolver = new InMemoryConceptResolver();
   const dictStore = new DictionaryStore(resolver);
@@ -137,8 +136,8 @@ export async function runDictionaryTests() {
   }
   console.log("✓ Dictionary find expressions filtered successfully.");
 
-  // Test Case 9: Multi-Backend Weighted Concept Resolution
-  console.log("\n🧪 Test Case 9: Multi-Backend Weighted Concept Resolution");
+  // Test Case 2: Multi-Backend Weighted Concept Resolution
+  console.log("\n🧪 Test Case 2: Multi-Backend Weighted Concept Resolution");
   
   const personalBackend = {
     config: { id: "personal", defaultWeight: 0.8, minWeight: 0.1, maxWeight: 1.0 },
@@ -182,8 +181,8 @@ export async function runDictionaryTests() {
   }
   console.log("✓ Multi-backend weights adjusted successfully (winner rewarded, losers decayed).");
 
-  // Test Case 10: Coordinate Resolution with Double Colons
-  console.log("\n🧪 Test Case 10: Coordinate Resolution with Double Colons");
+  // Test Case 3: Coordinate Resolution with Double Colons
+  console.log("\n🧪 Test Case 3: Coordinate Resolution with Double Colons");
   const testStore = new DictionaryStore(new InMemoryConceptResolver());
   testStore.loadConfig({
     concepts: [
@@ -203,8 +202,8 @@ export async function runDictionaryTests() {
   }
   console.log("✓ Successfully resolved concept by direct concept ID.");
 
-  // Test Case 11: Namespace Mutability Constraints
-  console.log("\n🧪 Test Case 11: Namespace Mutability Constraints");
+  // Test Case 4: Namespace Mutability Constraints
+  console.log("\n🧪 Test Case 4: Namespace Mutability Constraints");
   const mutStore = new DictionaryStore(new InMemoryConceptResolver());
   mutStore.loadConfig({
     namespaces: [
@@ -257,8 +256,8 @@ export async function runDictionaryTests() {
   }
   console.log("✓ Correctly prevented removing relation involving read-only namespace.");
 
-  // Test Case 12: Soft-delete vs Hard-delete & Dependencies
-  console.log("\n🧪 Test Case 12: Soft-delete vs Hard-delete & Dependencies");
+  // Test Case 5: Soft-delete vs Hard-delete & Dependencies
+  console.log("\n🧪 Test Case 5: Soft-delete vs Hard-delete & Dependencies");
   const delStore = new DictionaryStore(new InMemoryConceptResolver());
   delStore.loadConfig({
     namespaces: [{ code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }],
@@ -331,8 +330,8 @@ export async function runDictionaryTests() {
   }
   console.log("✓ Successfully soft-deleted concept after clearing referencing expressions.");
 
-  // Test Case 13: Scope-Aware Write Gates & Precedence
-  console.log("\n🧪 Test Case 13: Scope-Aware Write Gates & Precedence");
+  // Test Case 6: Scope-Aware Write Gates & Precedence
+  console.log("\n🧪 Test Case 6: Scope-Aware Write Gates & Precedence");
   const scopeStore = new DictionaryStore(new InMemoryConceptResolver());
   scopeStore.loadConfig({
     namespaces: [{ code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }],

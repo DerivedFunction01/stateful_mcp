@@ -78,8 +78,8 @@ export async function runLogTests() {
 
   const sessionId = "log_test_session_1";
 
-  // ──── TEST CASE 22: Filter Stateful Log Traversal ────
-  console.log("🧪 Test Case 22: Filter Stateful Log Traversal");
+  // ──── TEST CASE 1: Filter Stateful Log Traversal ────
+  console.log("🧪 Test Case 1: Filter Stateful Log Traversal");
   const fRoot = await filterStore.init(sessionId, "browse_catalog", "items");
   const f1 = await filterStore.add(fRoot, [{ property: "price", operator: "gt", value: 100 }], sessionId);
   const f2 = await filterStore.add(f1, [{ property: "category", operator: "eq", value: "apparel" }], sessionId);
@@ -170,8 +170,8 @@ export async function runLogTests() {
   }
   console.log("✓ Filter stateful log traversal completed and verified.");
 
-  // ──── TEST CASE 23: Object Stateful Log Traversal & Delta Extraction ────
-  console.log("\n🧪 Test Case 23: Object Stateful Log Traversal & Delta Extraction");
+  // ──── TEST CASE 2: Object Stateful Log Traversal & Delta Extraction ────
+  console.log("\n🧪 Test Case 2: Object Stateful Log Traversal & Delta Extraction");
   const oRoot = await objectStore.init("appointment", sessionId);
   const o1 = await objectStore.set(oRoot, ["title"], "Holiday Party", sessionId);
   const o2 = await objectStore.set(o1, ["start_date"], "2026-07-20", sessionId);
@@ -230,8 +230,8 @@ export async function runLogTests() {
   }
   console.log("✓ Object stateful log traversal and sparse delta extraction verified successfully.");
 
-  // ──── TEST CASE 24: Tampered Token Rejection ────
-  console.log("\n🧪 Test Case 24: Tampered Token Rejection");
+  // ──── TEST CASE 3: Tampered Token Rejection ────
+  console.log("\n🧪 Test Case 3: Tampered Token Rejection");
   try {
     const tamperedToken = page1.next_page_token + "tampered";
     verifyToken(tamperedToken);

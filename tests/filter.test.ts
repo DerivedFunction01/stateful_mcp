@@ -335,8 +335,8 @@ export async function runFilterTests() {
   }
   console.log("✓ compilePipelineToSQL (Postgres) compiled nested paths successfully.");
 
-  // ─── TEST CASE 14: Explicit Wildcards and Array Support in Query Engines ───
-  console.log("\n🧪 Test Case 14: Explicit Wildcards and Array Support in Query Engines");
+  // ─── TEST CASE 7: Explicit Wildcards and Array Support in Query Engines ───
+  console.log("\n🧪 Test Case 7: Explicit Wildcards and Array Support in Query Engines");
 
   // 1. In-Memory Engine
   const memEngine = new MemoryQueryEngine({
@@ -414,8 +414,8 @@ export async function runFilterTests() {
   }
   console.log("✓ PostgreSQL Query Compiler output correctly parameterized SQL for array patterns.");
 
-  // ─── TEST CASE 15: Memory Engine ResourceLocator Data Loading ───
-  console.log("\n🧪 Test Case 15: Memory Engine ResourceLocator Data Loading");
+  // ─── TEST CASE 8: Memory Engine ResourceLocator Data Loading ───
+  console.log("\n🧪 Test Case 8: Memory Engine ResourceLocator Data Loading");
   const testDataPath = path.join(process.cwd(), "config", "test_resource_data.json");
   const testData = {
     items: [
@@ -444,8 +444,8 @@ export async function runFilterTests() {
   // Cleanup
   await fs.unlink(testDataPath);
 
-  // ─── TEST CASE 16: Filter Store GC and Auto-Compression ───
-  console.log("\n🧪 Test Case 16: Filter Store GC and Auto-Compression");
+  // ─── TEST CASE 9: Filter Store GC and Auto-Compression ───
+  console.log("\n🧪 Test Case 9: Filter Store GC and Auto-Compression");
 
   // Create store with chain threshold = 3
   const gcFilterStore = new FilterStore(
@@ -536,7 +536,7 @@ export async function runFilterTests() {
   }
   console.log("✓ FilterStore targeted GC successfully pruned dead branches and compressed intermediate garbage.");
 
-  console.log("\n🧪 Test Case 18: Filter State Aliasing and Pruning");
+  console.log("\n🧪 Test Case 10: Filter State Aliasing and Pruning");
 
   const aliasFilterStore = new FilterStore(
     new MemorySessionFilterStore(),
@@ -616,7 +616,7 @@ export async function runFilterTests() {
 
   console.log("✓ State aliasing, branching, and GC alias whitelists/blacklists verified successfully.");
 
-  console.log("\n🧪 Test Case 20: Filter Diff and Schema Guard");
+  console.log("\n🧪 Test Case 11: Filter Diff and Schema Guard");
   const f1 = await aliasFilterStore.init(sessionIdAlias, "browse_catalog", "items");
   const f2 = await aliasFilterStore.add(f1, [{ property: "price", operator: "gt", value: 100 }], sessionIdAlias);
   const f3 = await aliasFilterStore.add(f2, [{ property: "category", operator: "eq", value: "apparel" }], sessionIdAlias);

@@ -1,9 +1,8 @@
 import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "../src/adapters/storage/memory-repo";
 import { ObjectStore } from "../src/middleware/object/store";
 import { validateCycleFree } from "../src/middleware/object/schema-walker";
-
 export async function runObjectTests() {
-  console.log("\n🧪 Test Case 7: Object Middleware");
+  console.log("\n🧪 Test Case 1: Object Middleware");
 
   // 1. Validate cycle detection in schema loader
   try {
@@ -146,8 +145,8 @@ export async function runObjectTests() {
   }
   console.log("✓ Diff compared version states correctly.");
 
-  // ─── TEST CASE 17: Object Store GC and Auto-Compression ───
-  console.log("\n🧪 Test Case 17: Object Store GC and Auto-Compression");
+  // ─── TEST CASE 2: Object Store GC and Auto-Compression ───
+  console.log("\n🧪 Test Case 2: Object Store GC and Auto-Compression");
 
   // Create store with chain threshold = 3
   const gcObjectStore = new ObjectStore(
@@ -228,7 +227,7 @@ export async function runObjectTests() {
   }
   console.log("✓ ObjectStore targeted GC successfully pruned dead branches and compressed intermediate garbage.");
 
-  console.log("\n🧪 Test Case 19: Object State Aliasing and Pruning");
+  console.log("\n🧪 Test Case 3: Object State Aliasing and Pruning");
 
   const aliasObjectStore = new ObjectStore(
     new MemorySessionObjectStore(),
@@ -310,7 +309,7 @@ export async function runObjectTests() {
 
   console.log("✓ Object state aliasing, branching, and GC alias whitelists/blacklists verified successfully.");
 
-  console.log("\n🧪 Test Case 21: Object Schema Guard");
+  console.log("\n🧪 Test Case 4: Object Schema Guard");
   // Initialize two objects of different schemas (e.g. appointment vs catalog)
   // Wait, does appointment exist? Yes, we resolved it above.
   // Let's check what other schemas are in the schemasMap.
