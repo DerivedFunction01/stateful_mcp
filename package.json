@@ -65,6 +65,6 @@
     "typescript": "^5"
   },
   "optionalDependencies": {
-    "duckdb": "optional — only required for the `dataframe` query engine (also needs Python 3)"
+    "duckdb": "^1.4.4"
   }
 }
