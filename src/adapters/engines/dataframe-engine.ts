@@ -1,6 +1,7 @@
-import { spawn, ChildProcess } from "child_process";
+import { DuckDBInstance, DuckDBConnection } from "@duckdb/node-api";
 import * as path from "path";
-import * as fs from "fs";
+import * as fs from "fs/promises";
+import { existsSync } from "fs";
 import type { QueryDefinition, FilterCondition } from "../../middleware/filter/types";
 import type { QueryEngine } from "./interfaces";
 import { registerAdapter } from "../../config/loader";
@@ -12,106 +13,94 @@ export class DataFrameQueryEngine implements QueryEngine {
     "in_set", "not_in_set", "between", "not_between"
   ];
 
-  private pyProcess!: ChildProcess;
-  private pendingResolvers = new Map<number, (val: any) => void>();
-  private pendingRejecters = new Map<number, (err: any) => void>();
-  private messageCounter = 0;
-  private isBridgeReady = false;
-  private bridgeReadyPromise: Promise<void>;
+  private instance!: DuckDBInstance;
+  private connection!: DuckDBConnection;
+  private initPromise: Promise<void>;
+  private journalFile: string;
+  private hasJournal = false;
 
   constructor(
     private sourceFile: string,
-    private dataframeName: string,
-    private pythonPath: string = "python3"
+    private dataframeName: string
   ) {
-    this.bridgeReadyPromise = this.startBridge();
+    this.journalFile = `${this.sourceFile}.journal.jsonl`;
+    this.initPromise = this.initialize();
   }
 
-  private startBridge(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const scriptPath = path.resolve(__dirname, "dataframe-bridge.py");
-      this.pyProcess = spawn(this.pythonPath, [scriptPath]);
-
-      let buffer = "";
-
-      this.pyProcess.stdout?.on("data", (data) => {
-        buffer += data.toString();
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const res = JSON.parse(line);
-            if (res.pong) {
-              this.isBridgeReady = true;
-              resolve();
-              continue;
-            }
-
-            const id = res.id;
-            if (id !== undefined) {
-              if (res.success) {
-                const resolver = this.pendingResolvers.get(id);
-                if (resolver) {
-                  resolver(res.data ?? res);
-                  this.pendingResolvers.delete(id);
-                  this.pendingRejecters.delete(id);
-                }
-              } else {
-                const rejecter = this.pendingRejecters.get(id);
-                if (rejecter) {
-                  rejecter(new Error(res.error || "Execution failed"));
-                  this.pendingResolvers.delete(id);
-                  this.pendingRejecters.delete(id);
-                }
-              }
-            }
-          } catch (_) {}
-        }
-      });
-
-      this.pyProcess.stderr?.on("data", (data) => {
-        const msg = data.toString().trim();
-        console.error(`Python Stderr: ${msg}`);
-        if (msg.includes("Missing 'pandas' or 'duckdb'")) {
-          reject(new Error(msg));
-        }
-      });
-
-      this.pyProcess.on("error", (err) => {
-        console.error("Python Spawn Error:", err);
-        reject(err);
-      });
-
-      this.pyProcess.on("close", (code) => {
-        reject(new Error(`Python bridge closed with code ${code}`));
-      });
-
-      // Send a ping to verify readiness
-      this.pyProcess.stdin?.write(JSON.stringify({ action: "ping" }) + "\n");
-    });
-  }
-
-  private async sendCommand(cmd: any): Promise<any> {
-    await this.bridgeReadyPromise;
-    return new Promise((resolve, reject) => {
-      const id = this.messageCounter++;
-      this.pendingResolvers.set(id, resolve);
-      this.pendingRejecters.set(id, reject);
-      this.pyProcess.stdin?.write(JSON.stringify({ ...cmd, id }) + "\n");
-    });
+  private async initialize(): Promise<void> {
+    this.instance = await DuckDBInstance.create(":memory:");
+    this.connection = await this.instance.connect();
   }
 
   public async loadDataFrame(): Promise<void> {
-    const res = await this.sendCommand({
-      action: "load",
-      source_file: this.sourceFile,
-      dataframe_name: this.dataframeName
-    });
-    if (!res.success) {
-      throw new Error(`Failed to load DataFrame: ${res.error}`);
+    await this.initPromise;
+    this.hasJournal = existsSync(this.journalFile);
+    await this.recreateView();
+  }
+
+  private async recreateView(): Promise<void> {
+    if (this.hasJournal) {
+      await this.connection.run(`
+        CREATE OR REPLACE VIEW "${this.dataframeName}" AS 
+        SELECT * FROM '${this.sourceFile}'
+        UNION ALL
+        SELECT * FROM read_json_auto('${this.journalFile}')
+      `);
+    } else {
+      await this.connection.run(
+        `CREATE OR REPLACE VIEW "${this.dataframeName}" AS SELECT * FROM '${this.sourceFile}'`
+      );
     }
+  }
+
+  /**
+   * Append a new row to the state journal log.
+   */
+  public async appendRow(row: Record<string, any>): Promise<void> {
+    await this.initPromise;
+    
+    const firstWrite = !this.hasJournal;
+
+    // Append JSON line first, so the file has content when DuckDB reads it
+    await fs.appendFile(this.journalFile, JSON.stringify(row) + "\n", "utf-8");
+
+    if (firstWrite) {
+      this.hasJournal = true;
+      await this.recreateView();
+    }
+  }
+
+  /**
+   * Compact the write log journal back into the baseline data file.
+   */
+  public async compact(): Promise<void> {
+    await this.initPromise;
+    if (!this.hasJournal) return;
+
+    const ext = path.extname(this.sourceFile).toLowerCase();
+    const tempFile = `${this.sourceFile}.compacted.tmp`;
+
+    let formatOption = "";
+    if (ext === ".parquet") {
+      formatOption = "(FORMAT 'PARQUET')";
+    } else if (ext === ".csv") {
+      formatOption = "(FORMAT 'CSV', HEADER true)";
+    } else if (ext === ".json" || ext === ".jsonl") {
+      formatOption = "(FORMAT 'JSON')";
+    } else {
+      throw new Error(`Unsupported compaction output format: ${ext}`);
+    }
+
+    // Export current consolidated view to the temporary file
+    await this.connection.run(`COPY "${this.dataframeName}" TO '${tempFile}' ${formatOption}`);
+
+    // Overwrite baseline file and clean up journal
+    await fs.rename(tempFile, this.sourceFile);
+    await fs.rm(this.journalFile, { force: true });
+    this.hasJournal = false;
+
+    // Point the view back directly to the compacted baseline file
+    await this.recreateView();
   }
 
   private compileCondition(cond: FilterCondition, params: any[]): string {
@@ -223,24 +212,40 @@ export class DataFrameQueryEngine implements QueryEngine {
   }
 
   async execute(tableName: string, query: QueryDefinition): Promise<unknown[]> {
+    await this.initPromise;
     const params: any[] = [];
     const { sql, params: compiledParams } = this.compile(tableName, query, params);
     
-    // Replace standard SQL positional question marks with sequential positional parameters supported by DuckDB query bridge
-    let index = 0;
-    const bridgeSql = sql.replace(/\?/g, () => `$${++index}`);
+    let reader;
+    if (compiledParams.length > 0) {
+      const stmt = await this.connection.prepare(sql);
+      await stmt.bind(compiledParams as any);
+      reader = await stmt.run();
+    } else {
+      reader = await this.connection.run(sql);
+    }
 
-    const res = await this.sendCommand({
-      action: "query",
-      sql: bridgeSql,
-      params: compiledParams
+    const colNames = reader.columnNames();
+    const rows = await reader.getRows();
+    
+    // Map rows array back into objects matching column keys, converting BigInts
+    const records = rows.map((row) => {
+      const record: Record<string, any> = {};
+      colNames.forEach((name, i) => {
+        const val = row[i];
+        record[name] = typeof val === "bigint" ? Number(val) : val;
+      });
+      return record;
     });
 
-    return res || [];
+    return records;
   }
 
   public destroy() {
-    this.pyProcess.kill();
+    try {
+      this.connection?.closeSync();
+      this.instance?.closeSync();
+    } catch (_) {}
   }
 }
 
@@ -249,8 +254,7 @@ registerAdapter("dataframe", {
   create: async (options) => {
     const sourceFile = path.resolve(process.cwd(), String(options.source_file));
     const dataframeName = String(options.dataframe_name || "df");
-    const pythonPath = String(options.python_path || "python3");
-    const engine = new DataFrameQueryEngine(sourceFile, dataframeName, pythonPath);
+    const engine = new DataFrameQueryEngine(sourceFile, dataframeName);
     await engine.loadDataFrame();
     return engine;
   }

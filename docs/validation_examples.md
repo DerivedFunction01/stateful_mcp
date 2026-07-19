@@ -158,7 +158,7 @@ When the filter is initialized or modified, the middleware sends a POST request 
 ---
 
 ## Example 4: Custom Validation Script Execution (Custom Adapter)
-For complex validation logic (e.g., verifying a patient's active status via a Python script), register a custom validation adapter factory that executes a script subprocess:
+For complex validation logic (e.g., verifying a patient's active status via an external script), register a custom validation adapter factory that executes a script subprocess:
 
 ### Configuration (`config/tools.config.json`)
 ```json
@@ -170,8 +170,8 @@ For complex validation logic (e.g., verifying a patient's active status via a Py
         "_type": "adapter",
         "name": "script_validator",
         "options": {
-          "script_path": "scripts/validate_narcotic_limits.py",
-          "python_path": "python3"
+          "script_path": "scripts/validate_narcotic_limits.js",
+          "runtime_path": "node"
         }
       },
       "engine": { "_type": "adapter", "name": "postgres", "options": { "url": "env:DATABASE_URL" } }
@@ -190,9 +190,9 @@ import { registerAdapter } from "@stateful-mcp/loader";
 import { spawn } from "child_process";
 
 /** Wraps child_process.spawn as a non-blocking promise. */
-function runScript(py: string, script: string, stdinPayload: string): Promise<string> {
+function runScript(runtime: string, script: string, stdinPayload: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(py, [script], { stdio: ["pipe", "pipe", "pipe"] });
+    const proc = spawn(runtime, [script], { stdio: ["pipe", "pipe", "pipe"] });
 
     let stdout = "";
     let stderr = "";
@@ -217,13 +217,14 @@ registerAdapter("script_validator", {
     return {
       validate: async (rules: any[]) => {
         const script = String(options.script_path);
-        const py = String(options.python_path || "python3");
+        const runtime = String(options.runtime_path || "node");
 
         // Pass rules as JSON via stdin — non-blocking, event loop stays free
-        const output = await runScript(py, script, JSON.stringify(rules));
+        const output = await runScript(runtime, script, JSON.stringify(rules));
         return JSON.parse(output); // Expected: { valid: true } or { valid: false, errors: [...] }
       }
     };
   }
 });
 ```
+

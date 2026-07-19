@@ -62,15 +62,9 @@ Ship your own `config/` and point the package at it — you do **not** rely on t
 
 ---
 
-## Optional: Python / DataFrame query engine
+## Optional: Native DataFrame query engine
 
-The `dataframe` query engine (runs DuckDB SQL over Pandas DataFrames in a Python subprocess) is **optional**. Enable it only if a tool's `engine` uses `"dataframe"`.
-
-```bash
-bun run setup:venv     # uv venv && uv pip install -r requirements.txt
-```
-
-Requires Python 3 and `uv`; installs `pandas` and `duckdb` (`requirements.txt`).
+The `dataframe` query engine runs DuckDB SQL natively over CSV, Parquet, or JSONL files.
 
 ---
 

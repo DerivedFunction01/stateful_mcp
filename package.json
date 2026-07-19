@@ -57,6 +57,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@duckdb/node-api": "^1.5.4-r.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8.20.0",
     "pg": "^8.22.0"

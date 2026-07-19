@@ -77,11 +77,10 @@ Registers the tools the LLM can access and how they validate and compile.
     * **Built-in Query Engines**:
       * `"memory-engine"`: In-memory arrays.
       * `"sqlite"` / `"postgres"`: Relational databases.
-      * `"dataframe"`: Runs DuckDB SQL queries over Pandas DataFrames in a Python subprocess.
+      * `"dataframe"`: Runs DuckDB SQL queries natively over CSV, Parquet, or JSONL files.
         * **Options**:
           * `source_file` (string, required): Path to CSV, Parquet, JSON, or JSONL.
           * `dataframe_name` (string, optional): View name registered in DuckDB (defaults to `"df"`).
-          * `python_path` (string, optional): Python interpreter path (defaults to `"python3"`).
     * **Custom External Adapters (`@` alias)**:
       Use `name: "@<path>"` to dynamically load an adapter module from any location. The path after `@` is resolved using these rules (in priority order):
 
