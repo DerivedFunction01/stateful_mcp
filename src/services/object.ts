@@ -6,7 +6,8 @@ import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "../adapters/storage/memory-repo";
 import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "../adapters/storage/jsonl-repo";
 import { ObjectStore } from "../middleware/object/store";
-import type { MiddlewareConfig } from "../config/types";
+import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
+import { clampLimit } from "../config/pagination";
 
 const server = new McpServer({
   name: "object-service",
@@ -15,6 +16,7 @@ const server = new McpServer({
 
 let objectStore: ObjectStore;
 let config: MiddlewareConfig;
+let paginationLimits: PaginationLimitsConfig | undefined;
 
 const pathSegmentSchema = z.union([z.string(), z.number()]);
 
@@ -383,13 +385,11 @@ server.registerTool(
         "config/examples/object.md",
         workspaceRoot
       );
-      if (page !== undefined || limit !== undefined) {
-        const parts = content.split("\n\n---\n\n");
-        const p = page ?? 1;
-        const l = limit ?? 1;
-        const paginated = parts.slice((p - 1) * l, p * l);
-        content = paginated.join("\n\n---\n\n");
-      }
+      const parts = content.split("\n\n---\n\n");
+      const p = page ?? 1;
+      const l = clampLimit(limit, "examples_page_size", paginationLimits);
+      const paginated = parts.slice((p - 1) * l, p * l);
+      content = paginated.join("\n\n---\n\n");
       return { content: [{ type: "text", text: content }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
@@ -442,6 +442,8 @@ async function main() {
     validationEngines,
     workspaceRoot
   );
+
+  paginationLimits = config.pagination_limits;
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

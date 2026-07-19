@@ -5,7 +5,8 @@ import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../
 import { validateMiddlewareConfig } from "../config/validator";
 import { DictionaryStore } from "../middleware/dictionary/store";
 import { InMemoryConceptResolver } from "../middleware/dictionary/resolver";
-import type { MiddlewareConfig } from "../config/types";
+import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
+import { clampLimit } from "../config/pagination";
 
 const server = new McpServer({
   name: "dictionary-service",
@@ -14,6 +15,7 @@ const server = new McpServer({
 
 let dictionaryStore: DictionaryStore;
 let config: MiddlewareConfig;
+let paginationLimits: PaginationLimitsConfig | undefined;
 
 function registerAllTools(store: DictionaryStore) {
   const workspaces = store.getWorkspaces().map((w) => w.id);
@@ -402,16 +404,14 @@ function registerAllTools(store: DictionaryStore) {
           "config/examples/dictionary.md",
           workspaceRoot
         );
-        if (page !== undefined || limit !== undefined) {
-          const parts = content.split("\n\n---\n\n");
-          const p = page ?? 1;
-          const l = limit ?? 1;
-          const paginated = parts.slice((p - 1) * l, p * l);
-          content = paginated.join("\n\n---\n\n");
-        }
-        return { content: [{ type: "text", text: content }] };
+        const parts = content.split("\n\n---\n\n");
+        const p = page ?? 1;
+        const l = clampLimit(limit, "examples_page_size", paginationLimits);
+        const paginated = parts.slice((p - 1) * l, p * l);
+        content = paginated.join("\n\n---\n\n");
+        return { content: [{ type: "text" as const, text: content }] };
       } catch (err: any) {
-        return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+        return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
       }
     }
   );
@@ -434,6 +434,7 @@ async function main() {
     } catch (_) {}
   }
 
+  paginationLimits = config.pagination_limits;
   registerAllTools(dictionaryStore);
 
   const transport = new StdioServerTransport();

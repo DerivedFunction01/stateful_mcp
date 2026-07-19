@@ -21,6 +21,15 @@ export interface AutoCompressionConfig {
   object_chain_threshold?: number;
 }
 
+export interface PaginationLimitsConfig {
+  /** Max entries per log page (log_open / log_next). */
+  log_page_size?: number;
+  /** Max examples returned per page by *_examples tools.  */
+  examples_page_size?: number;
+  /** Max conflicts returned per page by event_merge_inspect. */
+  merge_conflicts_page_size?: number;
+}
+
 export interface MiddlewareConfig {
   $schema?: string;
   version: 1;
@@ -50,6 +59,11 @@ export interface MiddlewareConfig {
     max_fields_per_def?: number;   // default 7
     max_ref_depth?: number;        // default 5
   };
+
+  // Hard ceilings on how much data a single tool response may stream back.
+  // Each surface defaults to a small value; ops can raise or lower the cap,
+  // but a caller's requested `limit` is never allowed to exceed it.
+  pagination_limits?: PaginationLimitsConfig;
 
   tools: Record<string, ToolConfig>;
 

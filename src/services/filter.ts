@@ -7,7 +7,8 @@ import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "../adapte
 import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
 import { JsonlSessionFilterStore, JsonlPersistentFilterStore } from "../adapters/storage/jsonl-repo";
 import { FilterStore } from "../middleware/filter/store";
-import type { TableSchema, MiddlewareConfig } from "../config/types";
+import type { TableSchema, MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
+import { clampLimit } from "../config/pagination";
 
 const server = new McpServer({
   name: "filter-service",
@@ -16,6 +17,7 @@ const server = new McpServer({
 
 let filterStore: FilterStore;
 let config: MiddlewareConfig;
+let paginationLimits: PaginationLimitsConfig | undefined;
 
 const filterConditionSchema = z.object({
   property: z.string().describe("The property to filter on."),
@@ -407,13 +409,11 @@ server.registerTool(
         "config/examples/filter.md",
         workspaceRoot
       );
-      if (page !== undefined || limit !== undefined) {
-        const parts = content.split("\n\n---\n\n");
-        const p = page ?? 1;
-        const l = limit ?? 1;
-        const paginated = parts.slice((p - 1) * l, p * l);
-        content = paginated.join("\n\n---\n\n");
-      }
+      const parts = content.split("\n\n---\n\n");
+      const p = page ?? 1;
+      const l = clampLimit(limit, "examples_page_size", paginationLimits);
+      const paginated = parts.slice((p - 1) * l, p * l);
+      content = paginated.join("\n\n---\n\n");
       return { content: [{ type: "text", text: content }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
@@ -464,6 +464,8 @@ async function main() {
   const pinnedSchemas = new Map<string, TableSchema>();
   const threshold = config.auto_compression?.filter_chain_threshold ?? 20;
   filterStore = new FilterStore(sessionFilterStore, persistentFilterStore, toolSchemas, pinnedSchemas, threshold);
+
+  paginationLimits = config.pagination_limits;
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

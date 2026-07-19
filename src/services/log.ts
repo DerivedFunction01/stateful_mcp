@@ -8,7 +8,8 @@ import { MemorySessionFilterStore, MemoryPersistentFilterStore, MemorySessionObj
 import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
 import { FilterStore } from "../middleware/filter/store";
 import { ObjectStore } from "../middleware/object/store";
-import type { TableSchema } from "../config/types";
+import type { TableSchema, PaginationLimitsConfig } from "../config/types";
+import { clampLimit } from "../config/pagination";
 
 const server = new McpServer({
   name: "log-service",
@@ -46,6 +47,7 @@ function verifyToken(token: string): LogPageToken {
 
 let filterStore: FilterStore;
 let objectStore: ObjectStore;
+let paginationLimits: PaginationLimitsConfig | undefined;
 
 server.registerTool(
   "log_open",
@@ -55,12 +57,13 @@ server.registerTool(
       type: z.enum(["filter", "object"]).describe("Whether to log a filter or an object history."),
       session_id: z.string().describe("The session identifier."),
       id_or_alias: z.string().describe("The starting ID or alias."),
-      limit: z.number().optional().default(5).describe("Page size limit (default 5)."),
+      limit: z.number().optional().describe("Max entries to return per page. Capped by pagination_limits.log_page_size (default 20, ceiling 200)."),
       user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
   async ({ type, session_id, id_or_alias, limit, user_id }) => {
     try {
+      const pageSize = clampLimit(limit, "log_page_size", paginationLimits);
       let resolvedId = "";
       if (type === "filter") {
         resolvedId = await filterStore["resolveId"](id_or_alias, session_id);
@@ -72,7 +75,7 @@ server.registerTool(
       let currentNodeId: string | null = resolvedId;
       let count = 0;
 
-      while (currentNodeId && count < limit) {
+      while (currentNodeId && count < pageSize) {
         if (type === "filter") {
           const node = await filterStore.getFilter(currentNodeId, session_id, user_id);
           if (!node) break;
@@ -112,7 +115,7 @@ server.registerTool(
         type,
         sessionId: session_id,
         currentNodeId,
-        pageSize: limit,
+        pageSize,
         userId: user_id
       }) : null;
 
@@ -258,8 +261,14 @@ async function main() {
   if (config.object_schemas) {
     for (const [schemaName, locator] of Object.entries(config.object_schemas)) {
       try {
-        const schemaData = await resolveSource(locator, workspaceRoot) as any;
-        objectSchemas.set(schemaName, schemaData);
+        const schemaLocator = "schema" in locator ? locator.schema : locator;
+        const schemaData = await resolveSource(schemaLocator, workspaceRoot) as any;
+        if (schemaData) {
+          if ("schema" in locator && locator.validation_engine) {
+            schemaData.validation_engine = await resolveSource(locator.validation_engine, workspaceRoot);
+          }
+          objectSchemas.set(schemaName, schemaData);
+        }
       } catch (_) {}
     }
   }
@@ -274,6 +283,8 @@ async function main() {
     limits?.max_ref_depth ?? 5,
     objectThreshold
   );
+
+  paginationLimits = config.pagination_limits;
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

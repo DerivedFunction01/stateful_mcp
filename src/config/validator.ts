@@ -103,6 +103,21 @@ export function validateMiddlewareConfig(config: any): asserts config is Middlew
     }
   }
 
+  if (config.pagination_limits) {
+    if (typeof config.pagination_limits !== "object") {
+      throw new Error("Validation Error: \"pagination_limits\" must be an object.");
+    }
+    const pl = config.pagination_limits as Record<string, unknown>;
+    const plFields = ["log_page_size", "examples_page_size", "merge_conflicts_page_size"] as const;
+    for (const f of plFields) {
+      if (pl[f] !== undefined) {
+        if (typeof pl[f] !== "number" || !Number.isInteger(pl[f]) || (pl[f] as number) < 1) {
+          throw new Error(`Validation Error: pagination_limits.${f} must be an integer ≥ 1.`);
+        }
+      }
+    }
+  }
+
   if (config.about_and_examples) {
     if (typeof config.about_and_examples !== "object") {
       throw new Error("Validation Error: \"about_and_examples\" must be an object.");

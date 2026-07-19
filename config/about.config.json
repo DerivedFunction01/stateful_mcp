@@ -26,6 +26,12 @@
     ],
     "event_examples": [
       { "_type": "file", "path": "config/examples/event.md" }
+    ],
+    "log_about": [
+      { "_type": "file", "path": "config/about/log.md" }
+    ],
+    "log_examples": [
+      { "_type": "file", "path": "config/examples/log.md" }
     ]
   }
 }
