@@ -5,6 +5,7 @@ import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../
 import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "../adapters/storage/memory-repo";
 import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
+import { JsonlSessionFilterStore, JsonlPersistentFilterStore } from "../adapters/storage/jsonl-repo";
 import { FilterStore } from "../middleware/filter/store";
 import type { TableSchema, MiddlewareConfig } from "../config/types";
 
@@ -425,20 +426,28 @@ async function main() {
   config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
 
+  const path = require("path");
+
   const getUrl = (locator: any) => {
     if (locator?._type === "adapter") return locator.options?.url?.toString();
     return undefined;
   };
 
   const sessUrl = getUrl(config.filter_session_state);
-  const sessionFilterStore = sessUrl && sessUrl.startsWith("sqlite://")
-    ? new SqliteFilterStore(sessUrl.replace("sqlite://", ""))
-    : new MemorySessionFilterStore();
+  const sessionFilterStore =
+    config.filter_session_state?._type === "file" && config.filter_session_state.path.endsWith(".jsonl")
+      ? new JsonlSessionFilterStore(path.resolve(workspaceRoot, config.filter_session_state.path))
+      : sessUrl && sessUrl.startsWith("sqlite://")
+      ? new SqliteFilterStore(sessUrl.replace("sqlite://", ""))
+      : new MemorySessionFilterStore();
 
   const globUrl = getUrl(config.filter_persistent_state?.global);
-  const persistentFilterStore = globUrl && globUrl.startsWith("sqlite://")
-    ? new SqliteFilterStore(globUrl.replace("sqlite://", ""))
-    : new MemoryPersistentFilterStore();
+  const persistentFilterStore =
+    config.filter_persistent_state?.global?._type === "file" && config.filter_persistent_state.global.path.endsWith(".jsonl")
+      ? new JsonlPersistentFilterStore(path.resolve(workspaceRoot, config.filter_persistent_state.global.path))
+      : globUrl && globUrl.startsWith("sqlite://")
+      ? new SqliteFilterStore(globUrl.replace("sqlite://", ""))
+      : new MemoryPersistentFilterStore();
 
   const toolSchemas = new Map<string, Record<string, TableSchema>>();
   if (config.tools) {

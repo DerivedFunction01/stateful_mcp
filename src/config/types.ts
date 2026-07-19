@@ -31,6 +31,9 @@ export interface MiddlewareConfig {
   object_session_state: ResourceLocator;
   object_persistent_state: { global: ResourceLocator; user: ResourceLocator };
 
+  event_session_state?: ResourceLocator;
+  event_persistent_state?: { global: ResourceLocator; user: ResourceLocator };
+
   dictionary_state: ResourceLocator;
   dictionary_resolver: ResourceLocator;
 

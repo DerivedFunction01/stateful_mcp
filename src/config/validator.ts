@@ -49,6 +49,17 @@ export function validateMiddlewareConfig(config: any): asserts config is Middlew
   validateLocator(config.object_persistent_state.global, "object_persistent_state.global");
   validateLocator(config.object_persistent_state.user, "object_persistent_state.user");
 
+  if (config.event_session_state) {
+    validateLocator(config.event_session_state, "event_session_state");
+  }
+  if (config.event_persistent_state) {
+    if (typeof config.event_persistent_state !== "object") {
+      throw new Error("Validation Error: event_persistent_state must be an object.");
+    }
+    validateLocator(config.event_persistent_state.global, "event_persistent_state.global");
+    validateLocator(config.event_persistent_state.user, "event_persistent_state.user");
+  }
+
   validateLocator(config.dictionary_state, "dictionary_state");
   validateLocator(config.dictionary_resolver, "dictionary_resolver");
 

@@ -49,6 +49,24 @@ Instantiates registered database storage repositories.
   }
   ```
 
+### 1.4 Behavior on Stateful vs. Read-Only Services
+
+The middleware treats resource locators differently depending on whether the service requires write operations (stateful) or is read-only:
+
+#### A. Read-Only & Configuration Services (Schemas, Dictionaries, Constants)
+* **How it works**: These can be configured using `file` or `remote_url` locators. The middleware fetches or reads the entire asset at startup (or after TTL expires) and holds it in memory for instant lookups.
+* **JSON/JSONL Support**: You can point a `file` locator to a static JSON ontology file for the Dictionary Service.
+
+#### B. Stateful & Transactional Services (Filter conditions, Object states, Event logs)
+* **How it works**: Stateful services require transactional mutation logic, branch merges, LCA graph traversals, and targeted garbage collection. Because of this complexity, they **require a database adapter** (`sqlite` or `postgres`).
+* **Fallback Behavior**: If you configure a stateful service using a standard `.json` `file` or `remote_url` locator directly, the service falls back to its **in-memory storage engine**.
+* **Special Case: JSONL Files (`.jsonl`)**: If a stateful service `file` locator points to a `.jsonl` file, the middleware treats it as a **built-in append-only file database**:
+  * **Schema**: Each line in the `.jsonl` file is a single JSON-serialized object matching the exact column keys defined in Section 2 (e.g. `commitId`, `parentCommitId`, `mutations`).
+  * **Startup Read**: On server initialization, the service reads the `.jsonl` file line-by-line to reconstruct the commit DAG in memory.
+  * **Mutations**: Any new checkpoint or commit appends a new serialized JSON line to the file.
+  * **GC/Compression**: When garbage collection or compression runs, the system rewrites the `.jsonl` file containing only the survived/flattened commits to prevent file size bloat.
+* **Custom File/HTTP Backends**: To save stateful commits to other formats, you must write a custom storage adapter class (implementing the store interfaces in `src/adapters/storage/interfaces.ts`) and register it under a custom name via `registerAdapter`.
+
 ---
 
 ## 2. Database Schema Specifications

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../config/loader";
 import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "../adapters/storage/memory-repo";
+import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "../adapters/storage/jsonl-repo";
 import { ObjectStore } from "../middleware/object/store";
 import type { MiddlewareConfig } from "../config/types";
 
@@ -401,8 +402,17 @@ async function main() {
   config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
 
-  const sessionObjectStore = new MemorySessionObjectStore();
-  const persistentObjectStore = new MemoryPersistentObjectStore();
+  const path = require("path");
+
+  const sessionObjectStore =
+    config.object_session_state?._type === "file" && config.object_session_state.path.endsWith(".jsonl")
+      ? new JsonlSessionObjectStore(path.resolve(workspaceRoot, config.object_session_state.path))
+      : new MemorySessionObjectStore();
+
+  const persistentObjectStore =
+    config.object_persistent_state?.global?._type === "file" && config.object_persistent_state.global.path.endsWith(".jsonl")
+      ? new JsonlPersistentObjectStore(path.resolve(workspaceRoot, config.object_persistent_state.global.path))
+      : new MemoryPersistentObjectStore();
 
   const objectSchemas = new Map<string, any>();
   if (config.object_schemas) {
