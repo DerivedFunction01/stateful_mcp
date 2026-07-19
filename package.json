@@ -1,6 +1,6 @@
 {
   "name": "stateful-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Stateful MCP middleware suite: versioned filters, objects, event logs, and a terminology dictionary for LLM tooling.",
   "type": "module",
   "license": "MIT",
