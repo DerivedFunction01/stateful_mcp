@@ -46,16 +46,24 @@ export function substituteEnvVars(obj: unknown): unknown {
 
 // ── Source resolution with TTL cache ─────────────────────────────────────────
 
+export function replacePlaceholders(str: string, context?: Record<string, string>): string {
+  if (!context) return str;
+  return str.replace(/\{([^}]+)\}/g, (match, key) => {
+    const val = context[key];
+    return val !== undefined ? encodeURIComponent(val) : match;
+  });
+}
+
 interface CacheEntry { value: unknown; resolvedAt: number }
 const sourceCache = new Map<string, CacheEntry>();
 
 export async function resolveSource(
   locator: ResourceLocator,
   workspaceRoot: string,
-  userId?: string    // supplied for user-scoped constants only
+  context?: Record<string, string>
 ): Promise<unknown> {
-  // Build cache key — include userId for user-scoped sources
-  const cacheKey = JSON.stringify(locator) + (userId ? `:${userId}` : "");
+  // Build cache key — include context stringification
+  const cacheKey = JSON.stringify(locator) + (context ? `:${JSON.stringify(context)}` : "");
   const ttl = locator._type !== "adapter" ? (locator.ttl_ms ?? 0) : 0;
 
   if (ttl === 0) {
@@ -75,15 +83,15 @@ export async function resolveSource(
       return resolveAdapter(locator.name, substituteEnvVars(locator.options ?? {}) as Record<string, unknown>);
 
     case "file": {
-      const resolved = path.resolve(workspaceRoot, locator.path);
+      const finalPath = replacePlaceholders(locator.path, context);
+      const resolved = path.resolve(workspaceRoot, finalPath);
       const raw = await fs.readFile(resolved, "utf-8");
       value = substituteEnvVars(JSON.parse(raw));
       break;
     }
 
     case "remote_url": {
-      // Substitute {userId} placeholder in URL for user-scoped constants
-      const url = userId ? locator.url.replace("{userId}", encodeURIComponent(userId)) : locator.url;
+      const url = replacePlaceholders(locator.url, context);
       const res = await fetch(url, { headers: locator.headers });
       if (!res.ok) throw new Error(`resolveSource fetch failed: ${url} → HTTP ${res.status}`);
       value = substituteEnvVars(await res.json());
@@ -168,16 +176,19 @@ export async function loadMiddlewareConfig(workspaceRoot: string): Promise<Middl
 
 export async function resolveTextSource(
   locator: ResourceLocator,
-  workspaceRoot: string
+  workspaceRoot: string,
+  context?: Record<string, string>
 ): Promise<string> {
   switch (locator._type) {
     case "file": {
-      const resolved = path.resolve(workspaceRoot, locator.path);
+      const finalPath = replacePlaceholders(locator.path, context);
+      const resolved = path.resolve(workspaceRoot, finalPath);
       return await fs.readFile(resolved, "utf-8");
     }
     case "remote_url": {
-      const res = await fetch(locator.url, { headers: locator.headers });
-      if (!res.ok) throw new Error(`resolveTextSource fetch failed: ${locator.url} → HTTP ${res.status}`);
+      const url = replacePlaceholders(locator.url, context);
+      const res = await fetch(url, { headers: locator.headers });
+      if (!res.ok) throw new Error(`resolveTextSource fetch failed: ${url} → HTTP ${res.status}`);
       return await res.text();
     }
     default:
@@ -188,7 +199,8 @@ export async function resolveTextSource(
 export async function resolveAboutOrExamples(
   locators: ResourceLocator[] | undefined,
   fallbackPath: string,
-  workspaceRoot: string
+  workspaceRoot: string,
+  context?: Record<string, string>
 ): Promise<string> {
   if (!locators || locators.length === 0) {
     try {
@@ -202,7 +214,7 @@ export async function resolveAboutOrExamples(
   const results: string[] = [];
   for (const loc of locators) {
     try {
-      const content = await resolveTextSource(loc, workspaceRoot);
+      const content = await resolveTextSource(loc, workspaceRoot, context);
       results.push(content);
     } catch (err: any) {
       results.push(`[Error loading resource: ${err.message}]`);
