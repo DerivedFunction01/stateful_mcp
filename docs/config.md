@@ -74,6 +74,29 @@ Registers the tools the LLM can access and how they validate and compile.
           * `source_file` (string, required): Path to CSV, Parquet, JSON, or JSONL.
           * `dataframe_name` (string, optional): View name registered in DuckDB (defaults to `"df"`).
           * `python_path` (string, optional): Python interpreter path (defaults to `"python3"`).
+    * **Custom External Adapters (`@` alias)**:
+      Use `name: "@path/to/module"` to load an adapter from a workspace-relative path without needing relative import paths in your code. The `@` prefix maps to the workspace root:
+      ```json
+      {
+        "engine": {
+          "_type": "adapter",
+          "name": "@adapters/my-custom-engine",
+          "options": { "connectionString": "env:MY_DB_URL" }
+        }
+      }
+      ```
+      `@adapters/my-custom-engine` resolves to `<workspaceRoot>/adapters/my-custom-engine.ts`.
+      The module must call `registerAdapter(name, factory)` as a side-effect at the top level.
+      Since `tsconfig.json` defines `@stateful-mcp/*` path aliases, the module itself also avoids relative imports:
+      ```typescript
+      // <workspaceRoot>/adapters/my-custom-engine.ts
+      import { registerAdapter } from "@stateful-mcp/loader";
+      import type { AdapterFactory }  from "@stateful-mcp/types";
+
+      registerAdapter("@adapters/my-custom-engine", {
+        create: async (options) => { /* your implementation */ }
+      });
+      ```
   - **`validation_engine`** (`ResourceLocator`, optional): Custom verification validator. A reserved slot to point to an external script or schema (e.g., custom AJV options or validation rules) to enforce advanced business constraints on filter inputs. See [validation_examples.md](file:///home/denny/lu/filter/docs/validation_examples.md) for concrete examples.
   - **`inspect`**: Configuration options for runtime inspections.
     - `expose_compiled` (boolean): Exposes fully compiled SQL statements.

@@ -80,7 +80,7 @@ export async function resolveSource(
   switch (locator._type) {
     case "adapter":
       // Adapter resolution is not cached here — the registry handles adapter lifecycle
-      return resolveAdapter(locator.name, substituteEnvVars(locator.options ?? {}) as Record<string, unknown>);
+      return resolveAdapter(locator.name, substituteEnvVars(locator.options ?? {}) as Record<string, unknown>, workspaceRoot);
 
     case "file": {
       const finalPath = replacePlaceholders(locator.path, context);
@@ -121,10 +121,22 @@ export function registerAdapter<T>(name: string, factory: AdapterFactory<T>): vo
 
 export async function resolveAdapter<T>(
   name: string,
-  options: Record<string, unknown> = {}
+  options: Record<string, unknown> = {},
+  workspaceRoot?: string
 ): Promise<T> {
+  // If name starts with '@', treat it as a workspace-relative path alias.
+  // '@adapters/my-engine' → '<workspaceRoot>/adapters/my-engine'
+  // The module is expected to call registerAdapter() as a side-effect on import.
+  if (name.startsWith("@")) {
+    if (!workspaceRoot) throw new Error(`Cannot resolve path alias "${name}" without workspaceRoot`);
+    const relativePath = name.slice(1); // strip leading '@'
+    const absolutePath = path.resolve(workspaceRoot, relativePath);
+    // Dynamic import triggers the module's registerAdapter side-effect
+    await import(absolutePath);
+  }
+
   const factory = registry.get(name);
-  if (!factory) throw new Error(`Unregistered adapter: "${name}"`);
+  if (!factory) throw new Error(`Unregistered adapter: "${name}". Did the module call registerAdapter()?`);
   return factory.create(options) as Promise<T>;
 }
 

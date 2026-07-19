@@ -25,6 +25,16 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Path aliases — usable in external adapters without relative paths
+    "baseUrl": ".",
+    "paths": {
+      "@stateful-mcp/loader":    ["src/config/loader.ts"],
+      "@stateful-mcp/types":     ["src/config/types.ts"],
+      "@stateful-mcp/errors":    ["src/errors/types.ts"],
+      "@stateful-mcp/*":         ["src/*"]
+    }
   }
 }
+
