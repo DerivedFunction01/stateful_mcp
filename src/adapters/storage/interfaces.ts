@@ -66,3 +66,37 @@ export interface PersistentObjectStore {
     includeGlobal?: boolean
   ): Promise<Array<PersistedObjectState & { scope: OwnerScope }>>;
 }
+
+// Event storage interfaces
+import type { EventCommit } from "../../middleware/event/types";
+
+export interface SessionEventStore {
+  get(sessionId: string, commitId: string): Promise<EventCommit | null>;
+  set(sessionId: string, commitId: string, state: EventCommit): Promise<void>;
+  delete(sessionId: string, commitId: string): Promise<void>;
+  listSession(sessionId: string): Promise<string[]>;
+  listChildren(sessionId: string, parentId: string): Promise<string[]>;
+  expireSession(sessionId: string, olderThanMs?: number): Promise<void>;
+  create(sessionId: string, state: Omit<EventCommit, "commitId"> & { commitId?: string }, alias?: string): Promise<string>;
+  getAlias(sessionId: string, alias: string): Promise<string | null>;
+  setAlias(sessionId: string, alias: string, targetId: string): Promise<void>;
+  deleteAlias(sessionId: string, alias: string): Promise<void>;
+  listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>>;
+}
+
+export type PersistedEventState = EventCommit & {
+  tags: string[];
+  description: string;
+  schema_name: string;
+};
+
+export interface PersistentEventStore {
+  get(commitId: string, scope: OwnerScope): Promise<PersistedEventState | null>;
+  set(commitId: string, state: PersistedEventState, scope: OwnerScope): Promise<void>;
+  delete(commitId: string, scope: OwnerScope): Promise<void>;
+  findByTag(tag: string, scope: OwnerScope): Promise<PersistedEventState[]>;
+  list(
+    scope: OwnerScope,
+    includeGlobal?: boolean
+  ): Promise<Array<PersistedEventState & { scope: OwnerScope }>>;
+}

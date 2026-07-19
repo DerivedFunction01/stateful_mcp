@@ -1,6 +1,7 @@
 import type { OwnerScope } from "../../config/types";
 import type { FilterState } from "../../middleware/filter/types";
 import type { ObjectState } from "../../middleware/object/types";
+import type { EventCommit } from "../../middleware/event/types";
 import type {
   SessionFilterStore,
   PersistentFilterStore,
@@ -8,6 +9,9 @@ import type {
   SessionObjectStore,
   PersistentObjectStore,
   PersistedObjectState,
+  SessionEventStore,
+  PersistentEventStore,
+  PersistedEventState,
 } from "./interfaces";
 import { registerAdapter } from "../../config/loader";
 import * as crypto from "crypto";
@@ -320,19 +324,165 @@ export class MemoryPersistentObjectStore implements PersistentObjectStore {
   }
 }
 
+// ── In-Memory Session Event Store ─────────────────────────────────────────────
+export class MemorySessionEventStore implements SessionEventStore {
+  private store = new Map<string, EventCommit>();
+  private aliases = new Map<string, string>();
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    const key = `${sessionId}:${alias}`;
+    return this.aliases.get(key) || null;
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.set(key, targetId);
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.delete(key);
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const prefix = `${sessionId}:`;
+    const results: Array<{ alias: string; targetId: string }> = [];
+    for (const [key, targetId] of this.aliases.entries()) {
+      if (key.startsWith(prefix)) {
+        results.push({ alias: key.slice(prefix.length), targetId });
+      }
+    }
+    return results;
+  }
+
+  async get(sessionId: string, commitId: string): Promise<EventCommit | null> {
+    const resolvedId = await this.getAlias(sessionId, commitId) || commitId;
+    const key = `${sessionId}:${resolvedId}`;
+    return this.store.get(key) || null;
+  }
+
+  async set(sessionId: string, commitId: string, state: EventCommit): Promise<void> {
+    const key = `${sessionId}:${commitId}`;
+    this.store.set(key, { ...state });
+  }
+
+  async delete(sessionId: string, commitId: string): Promise<void> {
+    const key = `${sessionId}:${commitId}`;
+    this.store.delete(key);
+  }
+
+  async listSession(sessionId: string): Promise<string[]> {
+    const prefix = `${sessionId}:`;
+    const results: string[] = [];
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        results.push(key.slice(prefix.length));
+      }
+    }
+    return results;
+  }
+
+  async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+    const prefix = `${sessionId}:`;
+    const results: string[] = [];
+    for (const [key, state] of this.store.entries()) {
+      if (key.startsWith(prefix) && state.parentCommitId === parentId) {
+        results.push(state.commitId);
+      }
+    }
+    return results;
+  }
+
+  async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+    const prefix = `${sessionId}:`;
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        this.store.delete(key);
+      }
+    }
+    for (const key of this.aliases.keys()) {
+      if (key.startsWith(prefix)) {
+        this.aliases.delete(key);
+      }
+    }
+  }
+
+  async create(sessionId: string, state: Omit<EventCommit, "commitId"> & { commitId?: string }, alias?: string): Promise<string> {
+    const commitId = state.commitId || `commit_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const fullState = { ...state, commitId } as EventCommit;
+    await this.set(sessionId, commitId, fullState);
+    if (alias) {
+      await this.setAlias(sessionId, alias, commitId);
+    }
+    return commitId;
+  }
+}
+
+// ── In-Memory Persistent Event Store ──────────────────────────────────────────
+export class MemoryPersistentEventStore implements PersistentEventStore {
+  private store = new Map<string, PersistedEventState>();
+
+  async get(commitId: string, scope: OwnerScope): Promise<PersistedEventState | null> {
+    const prefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const key = `${prefix}${commitId}`;
+    return this.store.get(key) || null;
+  }
+
+  async set(commitId: string, state: PersistedEventState, scope: OwnerScope): Promise<void> {
+    const prefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const key = `${prefix}${commitId}`;
+    this.store.set(key, { ...state });
+  }
+
+  async delete(commitId: string, scope: OwnerScope): Promise<void> {
+    const prefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const key = `${prefix}${commitId}`;
+    this.store.delete(key);
+  }
+
+  async findByTag(tag: string, scope: OwnerScope): Promise<PersistedEventState[]> {
+    const targetPrefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const results: PersistedEventState[] = [];
+    for (const [key, state] of this.store.entries()) {
+      if (key.startsWith(targetPrefix) && state.tags.includes(tag)) {
+        results.push({ ...state });
+      }
+    }
+    return results;
+  }
+
+  async list(
+    scope: OwnerScope,
+    includeGlobal?: boolean
+  ): Promise<Array<PersistedEventState & { scope: OwnerScope }>> {
+    const userPrefix = `user:${scope.level === "user" ? scope.userId : ""}:`;
+    const globalPrefix = `global:global:`;
+
+    const results: Array<PersistedEventState & { scope: OwnerScope }> = [];
+    for (const [key, state] of this.store.entries()) {
+      if (scope.level === "user" && key.startsWith(userPrefix)) {
+        results.push({ ...state, scope });
+      } else if (key.startsWith(globalPrefix)) {
+        if (scope.level === "global" || includeGlobal) {
+          results.push({ ...state, scope: { level: "global" } });
+        }
+      }
+    }
+    return results;
+  }
+}
+
 // ── Registry Registration ───────────────────────────────────────────────────
 
 registerAdapter("memory", {
   create: async (options) => {
-    // Return a single object hosting all memory storage instances
-    // or instantiate them as requested. For simplification, we return a new
-    // adapter instance container based on what context/options request,
-    // or return a multi-purpose object.
     return {
       sessionFilter: new MemorySessionFilterStore(),
       persistentFilter: new MemoryPersistentFilterStore(),
       sessionObject: new MemorySessionObjectStore(),
       persistentObject: new MemoryPersistentObjectStore(),
+      sessionEvent: new MemorySessionEventStore(),
+      persistentEvent: new MemoryPersistentEventStore(),
     };
   }
 });
