@@ -1,6 +1,7 @@
 export type ArgRef =
   | { $init: string }
   | { $var: string }
+  | { $fn: "now" | "utc_time" }
   | number | string | boolean;
 
 export type OpName =

@@ -12,6 +12,14 @@ function compileArg(
     if ("$var" in arg) {
       return vars[arg.$var] || "NULL";
     }
+    if ("$fn" in arg) {
+      if (arg.$fn === "now") {
+        return dialect === "sqlite" ? "date('now')" : "CURRENT_DATE";
+      }
+      if (arg.$fn === "utc_time") {
+        return dialect === "sqlite" ? "datetime('now')" : "CURRENT_TIMESTAMP";
+      }
+    }
   }
   if (typeof arg === "string") {
     return `'${arg.replace(/'/g, "''")}'`;

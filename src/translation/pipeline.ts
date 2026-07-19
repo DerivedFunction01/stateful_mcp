@@ -10,6 +10,10 @@ function resolveArg(
   if (arg !== null && typeof arg === "object") {
     if ("$init" in arg) return row[arg.$init] !== undefined ? row[arg.$init] : constants[arg.$init];
     if ("$var" in arg) return vars[arg.$var];
+    if ("$fn" in arg) {
+      if (arg.$fn === "now") return new Date().toISOString().slice(0, 10);
+      if (arg.$fn === "utc_time") return new Date().toISOString();
+    }
   }
   return arg;  // literal
 }
