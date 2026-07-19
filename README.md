@@ -50,6 +50,7 @@ bun run setup:venv
 The middleware configuration is defined in the `config/` directory:
 * **`config/tools.config.json`**: Configures tool schemas, validation engines, and query targets.
 * **`config/storage.config.json`**: Configures memory, SQLite, or PostgreSQL backends for session and persistent storage, as well as threshold parameters for auto-compression.
+* **`config/about.config.json`**: Markdown documentation for the `*_examples` and `*_about` tools.
 
 ---
 
