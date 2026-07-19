@@ -91,4 +91,32 @@ export function validateMiddlewareConfig(config: any): asserts config is Middlew
       validateLocator(toolConfig.validation_engine, `tools.${toolName}.validation_engine`);
     }
   }
+
+  if (config.about_and_examples) {
+    if (typeof config.about_and_examples !== "object") {
+      throw new Error("Validation Error: \"about_and_examples\" must be an object.");
+    }
+    const fields = [
+      "middleware_about",
+      "filter_about",
+      "filter_examples",
+      "object_about",
+      "object_examples",
+      "dictionary_about",
+      "dictionary_examples",
+      "event_about",
+      "event_examples"
+    ];
+    for (const field of fields) {
+      const locators = config.about_and_examples[field];
+      if (locators) {
+        if (!Array.isArray(locators)) {
+          throw new Error(`Validation Error: about_and_examples.${field} must be an array of ResourceLocators.`);
+        }
+        for (let i = 0; i < locators.length; i++) {
+          validateLocator(locators[i], `about_and_examples.${field}[${i}]`);
+        }
+      }
+    }
+  }
 }

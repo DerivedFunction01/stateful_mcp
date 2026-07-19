@@ -1,12 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource } from "../config/loader";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../config/loader";
 import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "../adapters/storage/memory-repo";
 import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
 import { FilterStore } from "../middleware/filter/store";
-import type { TableSchema } from "../config/types";
+import type { TableSchema, MiddlewareConfig } from "../config/types";
 
 const server = new McpServer({
   name: "filter-service",
@@ -14,6 +14,7 @@ const server = new McpServer({
 });
 
 let filterStore: FilterStore;
+let config: MiddlewareConfig;
 
 const filterConditionSchema = z.object({
   property: z.string().describe("The property to filter on."),
@@ -346,9 +347,82 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "middleware_about",
+  {
+    description: "Get meta-documentation explaining the orchestration of all stateful middleware services",
+    inputSchema: {}
+  },
+  async () => {
+    try {
+      const workspaceRoot = process.cwd();
+      const content = await resolveAboutOrExamples(
+        config.about_and_examples?.middleware_about,
+        "config/about/middleware.md",
+        workspaceRoot
+      );
+      return { content: [{ type: "text", text: content }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "filter_about",
+  {
+    description: "Get meta-documentation explaining how to design and compose stateful filter queries optimal for LLM context windows",
+    inputSchema: {}
+  },
+  async () => {
+    try {
+      const workspaceRoot = process.cwd();
+      const content = await resolveAboutOrExamples(
+        config.about_and_examples?.filter_about,
+        "config/about/filter.md",
+        workspaceRoot
+      );
+      return { content: [{ type: "text", text: content }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "filter_examples",
+  {
+    description: "Get worked conversation transcript examples showing ideal multi-turn interaction with the stateful filter service",
+    inputSchema: {
+      page: z.number().optional().describe("Page number for pagination"),
+      limit: z.number().optional().describe("Limit number of examples returned")
+    }
+  },
+  async ({ page, limit }) => {
+    try {
+      const workspaceRoot = process.cwd();
+      let content = await resolveAboutOrExamples(
+        config.about_and_examples?.filter_examples,
+        "config/examples/filter.md",
+        workspaceRoot
+      );
+      if (page !== undefined || limit !== undefined) {
+        const parts = content.split("\n\n---\n\n");
+        const p = page ?? 1;
+        const l = limit ?? 1;
+        const paginated = parts.slice((p - 1) * l, p * l);
+        content = paginated.join("\n\n---\n\n");
+      }
+      return { content: [{ type: "text", text: content }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
 async function main() {
   const workspaceRoot = process.cwd();
-  const config = await loadMiddlewareConfig(workspaceRoot);
+  config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
 
   const getUrl = (locator: any) => {

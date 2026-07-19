@@ -165,3 +165,48 @@ export async function loadMiddlewareConfig(workspaceRoot: string): Promise<Middl
 
   return substituteEnvVars(merged) as MiddlewareConfig;
 }
+
+export async function resolveTextSource(
+  locator: ResourceLocator,
+  workspaceRoot: string
+): Promise<string> {
+  switch (locator._type) {
+    case "file": {
+      const resolved = path.resolve(workspaceRoot, locator.path);
+      return await fs.readFile(resolved, "utf-8");
+    }
+    case "remote_url": {
+      const res = await fetch(locator.url, { headers: locator.headers });
+      if (!res.ok) throw new Error(`resolveTextSource fetch failed: ${locator.url} → HTTP ${res.status}`);
+      return await res.text();
+    }
+    default:
+      throw new Error(`resolveTextSource only supports file and remote_url locators for raw text reading`);
+  }
+}
+
+export async function resolveAboutOrExamples(
+  locators: ResourceLocator[] | undefined,
+  fallbackPath: string,
+  workspaceRoot: string
+): Promise<string> {
+  if (!locators || locators.length === 0) {
+    try {
+      const defaultResolved = path.resolve(workspaceRoot, fallbackPath);
+      return await fs.readFile(defaultResolved, "utf-8");
+    } catch (_) {
+      return "";
+    }
+  }
+
+  const results: string[] = [];
+  for (const loc of locators) {
+    try {
+      const content = await resolveTextSource(loc, workspaceRoot);
+      results.push(content);
+    } catch (err: any) {
+      results.push(`[Error loading resource: ${err.message}]`);
+    }
+  }
+  return results.join("\n\n---\n\n");
+}

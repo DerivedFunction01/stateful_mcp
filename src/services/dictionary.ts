@@ -1,10 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource } from "../config/loader";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../config/loader";
 import { validateMiddlewareConfig } from "../config/validator";
 import { DictionaryStore } from "../middleware/dictionary/store";
 import { InMemoryConceptResolver } from "../middleware/dictionary/resolver";
+import type { MiddlewareConfig } from "../config/types";
 
 const server = new McpServer({
   name: "dictionary-service",
@@ -12,6 +13,7 @@ const server = new McpServer({
 });
 
 let dictionaryStore: DictionaryStore;
+let config: MiddlewareConfig;
 
 function registerAllTools(store: DictionaryStore) {
   const workspaces = store.getWorkspaces().map((w) => w.id);
@@ -342,11 +344,84 @@ function registerAllTools(store: DictionaryStore) {
       }
     }
   );
+
+  server.registerTool(
+    "middleware_about",
+    {
+      description: "Get meta-documentation explaining the orchestration of all stateful middleware services",
+      inputSchema: {}
+    },
+    async () => {
+      try {
+        const workspaceRoot = process.cwd();
+        const content = await resolveAboutOrExamples(
+          config.about_and_examples?.middleware_about,
+          "config/about/middleware.md",
+          workspaceRoot
+        );
+        return { content: [{ type: "text", text: content }] };
+      } catch (err: any) {
+        return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "dictionary_about",
+    {
+      description: "Get meta-documentation explaining how to resolve and utilize terminology optimal for LLM context windows",
+      inputSchema: {}
+    },
+    async () => {
+      try {
+        const workspaceRoot = process.cwd();
+        const content = await resolveAboutOrExamples(
+          config.about_and_examples?.dictionary_about,
+          "config/about/dictionary.md",
+          workspaceRoot
+        );
+        return { content: [{ type: "text", text: content }] };
+      } catch (err: any) {
+        return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "dictionary_examples",
+    {
+      description: "Get worked conversation transcript examples showing ideal multi-turn interaction with the dictionary service",
+      inputSchema: {
+        page: z.number().optional().describe("Page number for pagination"),
+        limit: z.number().optional().describe("Limit number of examples returned")
+      }
+    },
+    async ({ page, limit }) => {
+      try {
+        const workspaceRoot = process.cwd();
+        let content = await resolveAboutOrExamples(
+          config.about_and_examples?.dictionary_examples,
+          "config/examples/dictionary.md",
+          workspaceRoot
+        );
+        if (page !== undefined || limit !== undefined) {
+          const parts = content.split("\n\n---\n\n");
+          const p = page ?? 1;
+          const l = limit ?? 1;
+          const paginated = parts.slice((p - 1) * l, p * l);
+          content = paginated.join("\n\n---\n\n");
+        }
+        return { content: [{ type: "text", text: content }] };
+      } catch (err: any) {
+        return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
 }
 
 async function main() {
   const workspaceRoot = process.cwd();
-  const config = await loadMiddlewareConfig(workspaceRoot);
+  config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
 
   const dictResolver = new InMemoryConceptResolver();

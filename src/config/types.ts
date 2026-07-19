@@ -50,6 +50,20 @@ export interface MiddlewareConfig {
   tools: Record<string, ToolConfig>;
 
   env_sources?: Array<ResourceLocator & { optional?: boolean }>;
+
+  about_and_examples?: AboutAndExamplesConfig;
+}
+
+export interface AboutAndExamplesConfig {
+  middleware_about?: ResourceLocator[];
+  filter_about?: ResourceLocator[];
+  filter_examples?: ResourceLocator[];
+  object_about?: ResourceLocator[];
+  object_examples?: ResourceLocator[];
+  dictionary_about?: ResourceLocator[];
+  dictionary_examples?: ResourceLocator[];
+  event_about?: ResourceLocator[];
+  event_examples?: ResourceLocator[];
 }
 
 export interface TableSchema {
