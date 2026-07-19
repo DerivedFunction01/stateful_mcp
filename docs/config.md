@@ -1,6 +1,6 @@
 # Configuration Specification
 
-This document details how to configure the stateful MCP middleware suite. The configuration can be defined in a single file (`filter.config.json`) or split into `config/tools.config.json` and `config/storage.config.json`.
+This document details how to configure the stateful MCP middleware suite. The configuration can be defined in a single file (`filter.config.json`) or split into three files under `config/`: `tools.config.json` (tool schemas and engines — a developer concern), `storage.config.json` (storage backends — an operations concern), and `about.config.json` (documentation/example resources — a separate concern that changes at a different cadence from both).
 
 ---
 
@@ -53,7 +53,15 @@ Controls backends for VCS DAG chains, dictionaries, and compression thresholds.
 * **`auto_compression`**:
   - `filter_chain_threshold` (number, default: 20): Maximum linear version depth of a filter chain before suffix squashing is triggered.
   - `object_chain_threshold` (number, default: 15): Maximum linear version depth of an object change chain before suffix squashing is triggered.
-* **`about_and_examples`**: Mapping of documentation resources for developer assistance tools (each must be an array of `ResourceLocator`s).
+
+---
+
+## 3. About & Examples Configuration (`about.config.json`)
+
+Optional documentation/example resources for the `*_about` / `*_examples` developer-assistance tools. It is kept in its own file because it changes at a different cadence than storage backends (ops concern) and tool schemas (dev concern). When the file is absent, each service falls back to its built-in default doc path (e.g. `config/about/filter.md`, `config/examples/filter.md`).
+
+### Parameters
+* **`about_and_examples`**: Mapping of documentation resources (each an array of `ResourceLocator`s).
   - `middleware_about`, `filter_about`, `filter_examples`, `object_about`, `object_examples`, `dictionary_about`, `dictionary_examples`, `event_about`, `event_examples`.
 
 ---

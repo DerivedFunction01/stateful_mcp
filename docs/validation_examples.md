@@ -181,9 +181,36 @@ For complex validation logic (e.g., verifying a patient's active status via a Py
 ```
 
 ### Script Validator Factory Registration (`src/adapters/validators/script-validator.ts`)
+
+> [!WARNING]
+> Do **not** use `spawnSync` here. It blocks the entire Node.js event loop for the duration of the subprocess, freezing the MCP server for all concurrent requests. Use async `spawn` with a promise wrapper instead.
+
 ```typescript
-import { registerAdapter } from "../../config/loader";
-import { spawnSync } from "child_process";
+import { registerAdapter } from "@stateful-mcp/loader";
+import { spawn } from "child_process";
+
+/** Wraps child_process.spawn as a non-blocking promise. */
+function runScript(py: string, script: string, stdinPayload: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(py, [script], { stdio: ["pipe", "pipe", "pipe"] });
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (chunk) => { stdout += chunk; });
+    proc.stderr.on("data", (chunk) => { stderr += chunk; });
+
+    proc.on("close", (code) => {
+      if (code !== 0) reject(new Error(`Validator script exited ${code}: ${stderr.trim()}`));
+      else resolve(stdout);
+    });
+
+    proc.on("error", reject);
+
+    proc.stdin.write(stdinPayload);
+    proc.stdin.end();
+  });
+}
 
 registerAdapter("script_validator", {
   create: async (options) => {
@@ -192,15 +219,11 @@ registerAdapter("script_validator", {
         const script = String(options.script_path);
         const py = String(options.python_path || "python3");
 
-        // Spawn validator script and pass rules as JSON stdin
-        const proc = spawnSync(py, [script], { input: JSON.stringify(rules), encoding: "utf-8" });
-        if (proc.status !== 0) {
-          throw new Error(`Validation rejected: ${proc.stderr.trim()}`);
-        }
-        return JSON.parse(proc.stdout); // Expected: { valid: true } or { valid: false, errors: [...] }
+        // Pass rules as JSON via stdin — non-blocking, event loop stays free
+        const output = await runScript(py, script, JSON.stringify(rules));
+        return JSON.parse(output); // Expected: { valid: true } or { valid: false, errors: [...] }
       }
     };
   }
 });
 ```
-

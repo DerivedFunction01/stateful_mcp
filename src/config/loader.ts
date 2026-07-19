@@ -164,9 +164,11 @@ export async function loadMiddlewareConfig(workspaceRoot: string): Promise<Middl
   // Try loading split configs if they exist, or fallback to filter.config.json / config.json
   const toolsPath = path.join(workspaceRoot, "config", "tools.config.json");
   const storagePath = path.join(workspaceRoot, "config", "storage.config.json");
-  
+  const aboutPath = path.join(workspaceRoot, "config", "about.config.json");
+
   let toolsConfig: any = {};
   let storageConfig: any = {};
+  let aboutConfig: any = {};
 
   try {
     const rawTools = await fs.readFile(toolsPath, "utf-8");
@@ -191,8 +193,16 @@ export async function loadMiddlewareConfig(workspaceRoot: string): Promise<Middl
     throw new Error(`Storage configuration not found at ${storagePath}`);
   }
 
+  try {
+    const rawAbout = await fs.readFile(aboutPath, "utf-8");
+    aboutConfig = JSON.parse(rawAbout);
+  } catch (e) {
+    // About/examples config is optional; absence falls back to default docs paths.
+  }
+
   const merged = {
     ...storageConfig,
+    ...aboutConfig,
     tools: toolsConfig.tools || toolsConfig,
   };
 

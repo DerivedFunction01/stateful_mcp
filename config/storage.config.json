@@ -35,34 +35,5 @@
   "dictionary_resolver": {
     "_type": "adapter",
     "name": "memory"
-  },
-  "about_and_examples": {
-    "middleware_about": [
-      { "_type": "file", "path": "config/about/middleware.md" }
-    ],
-    "filter_about": [
-      { "_type": "file", "path": "config/about/filter.md" }
-    ],
-    "filter_examples": [
-      { "_type": "file", "path": "config/examples/filter.md" }
-    ],
-    "object_about": [
-      { "_type": "file", "path": "config/about/object.md" }
-    ],
-    "object_examples": [
-      { "_type": "file", "path": "config/examples/object.md" }
-    ],
-    "dictionary_about": [
-      { "_type": "file", "path": "config/about/dictionary.md" }
-    ],
-    "dictionary_examples": [
-      { "_type": "file", "path": "config/examples/dictionary.md" }
-    ],
-    "event_about": [
-      { "_type": "file", "path": "config/about/event.md" }
-    ],
-    "event_examples": [
-      { "_type": "file", "path": "config/examples/event.md" }
-    ]
   }
 }
