@@ -42,3 +42,6 @@ __pycache__/
 # Uploads
 uploads/
 scratch/
+
+# Anything with a dot
+.*
