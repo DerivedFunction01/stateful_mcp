@@ -1,10 +1,11 @@
+import { z } from "zod";
 import type { PaginationLimitsConfig } from "./types";
 
 // Per-surface defaults and hard ceilings
 const SURFACES = {
   log_page_size:             { default: 20,  ceiling: 200  },
   examples_page_size:        { default: 5,   ceiling: 50   },
-  merge_conflicts_page_size: { default: 20,  ceiling: 200  },
+  merge_conflicts_page_size: { default: 50,  ceiling: 500  },
 } as const;
 
 export type LimitKey = keyof typeof SURFACES;
@@ -31,4 +32,34 @@ export function clampLimit(
     ? Math.min(Math.max(1, Math.floor(requested)), ceiling)
     : configuredDefault;
   return base;
+}
+
+/**
+ * Returns the effective maximum to advertise in a Zod schema (.max() / JSON Schema "maximum").
+ * This is the operator-configured default capped at the hard ceiling — i.e. the largest value
+ * a caller may request on this surface given the current configuration.
+ */
+export function getMax(key: LimitKey, cfg: PaginationLimitsConfig | undefined): number {
+  return clampLimit(undefined, key, cfg);
+}
+
+/**
+ * Builds a Zod field for a caller-supplied `limit`, advertising the
+ * operator-configured maximum as a JSON-Schema-style bound (min/max) the way
+ * OpenAI function schemas do. The bounds are derived entirely from config at
+ * registration time — the default/ceiling numbers are never hardcoded into a
+ * description string, so changing `pagination_limits` in config is reflected
+ * automatically without touching service code.
+ */
+export function buildLimitField(key: LimitKey, cfg: PaginationLimitsConfig | undefined) {
+  const max = getMax(key, cfg);
+  return z
+    .number()
+    .int()
+    .min(1)
+    .max(max)
+    .optional()
+    .describe(
+      `Maximum number of items to return per page. Bounded by the operator-configured pagination limit for this surface (max ${max}).`
+    );
 }

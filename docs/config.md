@@ -122,7 +122,58 @@ Registers the tools the LLM can access and how they validate and compile.
 
 ---
 
-## 5. Environment Files & Substitutions (`env_sources` / `env:VAR_NAME`)
+## 5. Pagination Limits (`pagination_limits`)
+
+An optional block that controls how many items are returned per page across paginated surfaces. Each field has a built-in default and a hard ceiling that cannot be exceeded regardless of what the caller requests.
+
+```json
+{
+  "pagination_limits": {
+    "log_page_size": 20,
+    "examples_page_size": 5,
+    "merge_conflicts_page_size": 50
+  }
+}
+```
+
+| Field | Default | Hard Ceiling | Surface |
+|---|---|---|---|
+| `log_page_size` | `20` | `200` | `log_open` / `log_next` entries per page |
+| `examples_page_size` | `5` | `50` | `*_examples` tools examples per page |
+| `merge_conflicts_page_size` | `50` | `500` | `event_merge_inspect` conflicts per page |
+
+All fields must be **integers ≥ 1** if provided. The validator rejects values of `0` or below.
+
+### Merge conflict pagination
+
+When an `event_merge` call produces conflicts, it returns only summary counts — no inline array. Use `event_merge_inspect` to iterate through conflicts in pages:
+
+```
+event_merge         → { status: "conflict", merge_session_id, total_conflicts, pending_count }
+event_merge_inspect → { conflicts: [...], has_more, next_offset, pending_count, resolved_count }
+event_merge_resolve → { merge_session_id: "merge_next" }   (one conflict resolved, new session ID)
+event_merge_inspect (new session, offset: N) → next page
+... repeat until pending_count == 0 ...
+event_merge_commit  → { commit_id }
+```
+
+`event_merge_inspect` response shape:
+
+```json
+{
+  "merge_session_id": "merge_abc123",
+  "conflicts": [ /* page of MergeConflict objects */ ],
+  "total_conflicts": 50,
+  "pending_count": 48,
+  "resolved_count": 2,
+  "has_more": true,
+  "next_offset": 5
+}
+```
+
+---
+
+## 6. Environment Files & Substitutions (`env_sources` / `env:VAR_NAME`)
 
 To load environment variables dynamically from filesystem files, define `env_sources` at the root of your configuration:
 

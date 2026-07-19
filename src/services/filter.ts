@@ -8,7 +8,7 @@ import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
 import { JsonlSessionFilterStore, JsonlPersistentFilterStore } from "../adapters/storage/jsonl-repo";
 import { FilterStore } from "../middleware/filter/store";
 import type { TableSchema, MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
-import { clampLimit } from "../config/pagination";
+import { clampLimit, buildLimitField } from "../config/pagination";
 
 const server = new McpServer({
   name: "filter-service",
@@ -17,9 +17,9 @@ const server = new McpServer({
 
 let filterStore: FilterStore;
 let config: MiddlewareConfig;
-let paginationLimits: PaginationLimitsConfig | undefined;
 
-const filterConditionSchema = z.object({
+function registerFilterTools(paginationLimits: PaginationLimitsConfig | undefined) {
+  const filterConditionSchema = z.object({
   property: z.string().describe("The property to filter on."),
   operator: z.enum([
     "eq", "neq", "gt", "geq", "lt", "leq", "like", "not_like",
@@ -398,7 +398,7 @@ server.registerTool(
     description: "Get worked conversation transcript examples showing ideal multi-turn interaction with the stateful filter service",
     inputSchema: {
       page: z.number().optional().describe("Page number for pagination"),
-      limit: z.number().optional().describe("Limit number of examples returned")
+      limit: buildLimitField("examples_page_size", paginationLimits)
     }
   },
   async ({ page, limit }) => {
@@ -420,6 +420,7 @@ server.registerTool(
     }
   }
 );
+}
 
 async function main() {
   const workspaceRoot = process.cwd();
@@ -465,7 +466,7 @@ async function main() {
   const threshold = config.auto_compression?.filter_chain_threshold ?? 20;
   filterStore = new FilterStore(sessionFilterStore, persistentFilterStore, toolSchemas, pinnedSchemas, threshold);
 
-  paginationLimits = config.pagination_limits;
+  registerFilterTools(config.pagination_limits);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

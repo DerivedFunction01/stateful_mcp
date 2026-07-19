@@ -6,7 +6,7 @@ import { validateMiddlewareConfig } from "../config/validator";
 import { DictionaryStore } from "../middleware/dictionary/store";
 import { InMemoryConceptResolver } from "../middleware/dictionary/resolver";
 import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
-import { clampLimit } from "../config/pagination";
+import { clampLimit, buildLimitField } from "../config/pagination";
 
 const server = new McpServer({
   name: "dictionary-service",
@@ -15,9 +15,8 @@ const server = new McpServer({
 
 let dictionaryStore: DictionaryStore;
 let config: MiddlewareConfig;
-let paginationLimits: PaginationLimitsConfig | undefined;
 
-function registerAllTools(store: DictionaryStore) {
+function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLimitsConfig | undefined) {
   const workspaces = store.getWorkspaces().map((w) => w.id);
   const allowedTags = store.getAllowedTags();
   const exposeTags = store.shouldExposeTagsAsEnum();
@@ -392,8 +391,8 @@ function registerAllTools(store: DictionaryStore) {
     {
       description: "Get worked conversation transcript examples showing ideal multi-turn interaction with the dictionary service",
       inputSchema: {
-        page: z.number().optional().describe("Page number for pagination"),
-        limit: z.number().optional().describe("Limit number of examples returned")
+      page: z.number().optional().describe("Page number for pagination"),
+      limit: buildLimitField("examples_page_size", paginationLimits)
       }
     },
     async ({ page, limit }) => {
@@ -434,8 +433,7 @@ async function main() {
     } catch (_) {}
   }
 
-  paginationLimits = config.pagination_limits;
-  registerAllTools(dictionaryStore);
+  registerAllTools(dictionaryStore, config.pagination_limits);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -9,7 +9,7 @@ import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
 import { FilterStore } from "../middleware/filter/store";
 import { ObjectStore } from "../middleware/object/store";
 import type { TableSchema, PaginationLimitsConfig } from "../config/types";
-import { clampLimit } from "../config/pagination";
+import { clampLimit, buildLimitField } from "../config/pagination";
 
 const server = new McpServer({
   name: "log-service",
@@ -47,23 +47,23 @@ function verifyToken(token: string): LogPageToken {
 
 let filterStore: FilterStore;
 let objectStore: ObjectStore;
-let paginationLimits: PaginationLimitsConfig | undefined;
 
-server.registerTool(
-  "log_open",
-  {
-    description: "Start a stateful log traversal session for a filter or object",
-    inputSchema: {
-      type: z.enum(["filter", "object"]).describe("Whether to log a filter or an object history."),
-      session_id: z.string().describe("The session identifier."),
-      id_or_alias: z.string().describe("The starting ID or alias."),
-      limit: z.number().optional().describe("Max entries to return per page. Capped by pagination_limits.log_page_size (default 20, ceiling 200)."),
-      user_id: z.string().optional().describe("Optional user identifier.")
-    }
-  },
-  async ({ type, session_id, id_or_alias, limit, user_id }) => {
-    try {
-      const pageSize = clampLimit(limit, "log_page_size", paginationLimits);
+function registerLogTools(paginationLimits: PaginationLimitsConfig | undefined) {
+  server.registerTool(
+    "log_open",
+    {
+      description: "Start a stateful log traversal session for a filter or object",
+      inputSchema: {
+        type: z.enum(["filter", "object"]).describe("Whether to log a filter or an object history."),
+        session_id: z.string().describe("The session identifier."),
+        id_or_alias: z.string().describe("The starting ID or alias."),
+        limit: buildLimitField("log_page_size", paginationLimits),
+        user_id: z.string().optional().describe("Optional user identifier.")
+      }
+    },
+    async ({ type, session_id, id_or_alias, limit, user_id }) => {
+      try {
+        const pageSize = clampLimit(limit, "log_page_size", paginationLimits);
       let resolvedId = "";
       if (type === "filter") {
         resolvedId = await filterStore["resolveId"](id_or_alias, session_id);
@@ -210,7 +210,8 @@ server.registerTool(
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
     }
   }
-);
+  );
+}
 
 async function main() {
   const workspaceRoot = process.cwd();
@@ -284,7 +285,7 @@ async function main() {
     objectThreshold
   );
 
-  paginationLimits = config.pagination_limits;
+  registerLogTools(config.pagination_limits);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

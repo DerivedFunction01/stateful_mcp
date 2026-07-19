@@ -6,7 +6,8 @@ import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionEventStore, MemoryPersistentEventStore } from "../adapters/storage/memory-repo";
 import { JsonlSessionEventStore, JsonlPersistentEventStore } from "../adapters/storage/jsonl-repo";
 import { EventStore } from "../middleware/event/store";
-import type { MiddlewareConfig } from "../config/types";
+import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
+import { clampLimit, buildLimitField } from "../config/pagination";
 
 const server = new McpServer({
   name: "event-service",
@@ -16,8 +17,9 @@ const server = new McpServer({
 let eventStore: EventStore;
 let config: MiddlewareConfig;
 
-server.registerTool(
-  "event_init",
+function registerEventTools(paginationLimits: PaginationLimitsConfig | undefined) {
+  server.registerTool(
+    "event_init",
   {
     description: "Initialize a new event log DAG chain",
     inputSchema: {
@@ -104,7 +106,7 @@ server.registerTool(
 server.registerTool(
   "event_merge",
   {
-    description: "Merge multiple parallel commit streams into a target commit",
+    description: "Merge multiple parallel commit streams into a target commit. On conflict, returns summary counts only — use event_merge_inspect to page through individual conflicts.",
     inputSchema: {
       session_id: z.string().describe("The session identifier."),
       source_ids_or_aliases: z.array(z.string()).describe("List of source branches or commit IDs to merge in."),
@@ -114,6 +116,19 @@ server.registerTool(
   async ({ session_id, source_ids_or_aliases, target_id_or_alias }) => {
     try {
       const res = await eventStore.merge(session_id, source_ids_or_aliases, target_id_or_alias);
+      if (res.status === "conflict") {
+        const total = res.conflicts?.length ?? 0;
+        const pending = res.conflicts?.filter((c: any) => c.status === "pending").length ?? total;
+        return {
+          content: [{ type: "text", text: JSON.stringify({
+            status: "conflict",
+            merge_session_id: res.merge_session_id,
+            total_conflicts: total,
+            pending_count: pending,
+            resolved_count: total - pending
+          }) }]
+        };
+      }
       return { content: [{ type: "text", text: JSON.stringify(res) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
@@ -124,15 +139,33 @@ server.registerTool(
 server.registerTool(
   "event_merge_inspect",
   {
-    description: "Inspect the status of a stateful merge resolution session",
+    description: "Inspect the status of a stateful merge resolution session, paging through conflicts",
     inputSchema: {
-      merge_session_id: z.string().describe("The identifier of the merge session.")
+      merge_session_id: z.string().describe("The identifier of the merge session."),
+      offset: z.number().optional().describe("Zero-based index of the first conflict to return (default 0)."),
+      limit: buildLimitField("merge_conflicts_page_size", paginationLimits)
     }
   },
-  async ({ merge_session_id }) => {
+  async ({ merge_session_id, offset, limit }) => {
     try {
-      const info = await eventStore.mergeInspect(merge_session_id);
-      return { content: [{ type: "text", text: JSON.stringify(info, null, 2) }] };
+      const session = await eventStore.mergeInspect(merge_session_id);
+      const pageSize = clampLimit(limit, "merge_conflicts_page_size", paginationLimits);
+      const start = offset ?? 0;
+      const all = session.conflicts;
+      const page = all.slice(start, start + pageSize);
+      const nextOffset = start + pageSize < all.length ? start + pageSize : null;
+      const pendingCount = all.filter((c: any) => c.status === "pending").length;
+      return {
+        content: [{ type: "text", text: JSON.stringify({
+          merge_session_id: session.mergeSessionId,
+          conflicts: page,
+          total_conflicts: all.length,
+          pending_count: pendingCount,
+          resolved_count: all.length - pendingCount,
+          has_more: nextOffset !== null,
+          next_offset: nextOffset
+        }, null, 2) }]
+      };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
     }
@@ -251,7 +284,7 @@ server.registerTool(
     description: "Get worked conversation transcript examples showing ideal multi-turn interaction with the stateful event service",
     inputSchema: {
       page: z.number().optional().describe("Page number for pagination"),
-      limit: z.number().optional().describe("Limit number of examples returned")
+      limit: buildLimitField("examples_page_size", paginationLimits)
     }
   },
   async ({ page, limit }) => {
@@ -262,19 +295,18 @@ server.registerTool(
         "config/examples/event.md",
         workspaceRoot
       );
-      if (page !== undefined || limit !== undefined) {
-        const parts = content.split("\n\n---\n\n");
-        const p = page ?? 1;
-        const l = limit ?? 1;
-        const paginated = parts.slice((p - 1) * l, p * l);
-        content = paginated.join("\n\n---\n\n");
-      }
+      const parts = content.split("\n\n---\n\n");
+      const p = page ?? 1;
+      const l = clampLimit(limit, "examples_page_size", paginationLimits);
+      const paginated = parts.slice((p - 1) * l, p * l);
+      content = paginated.join("\n\n---\n\n");
       return { content: [{ type: "text", text: content }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
     }
   }
 );
+}
 
 async function main() {
   const workspaceRoot = process.cwd();
@@ -311,6 +343,8 @@ async function main() {
 
   const threshold = config.auto_compression?.object_chain_threshold ?? 15;
   eventStore = new EventStore(sessionStore, persistentStore, objectSchemas, threshold, validationEngines, workspaceRoot);
+
+  registerEventTools(config.pagination_limits);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

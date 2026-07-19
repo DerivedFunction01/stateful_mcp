@@ -7,7 +7,7 @@ import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "../adapte
 import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "../adapters/storage/jsonl-repo";
 import { ObjectStore } from "../middleware/object/store";
 import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
-import { clampLimit } from "../config/pagination";
+import { clampLimit, buildLimitField } from "../config/pagination";
 
 const server = new McpServer({
   name: "object-service",
@@ -16,12 +16,12 @@ const server = new McpServer({
 
 let objectStore: ObjectStore;
 let config: MiddlewareConfig;
-let paginationLimits: PaginationLimitsConfig | undefined;
 
-const pathSegmentSchema = z.union([z.string(), z.number()]);
+function registerObjectTools(paginationLimits: PaginationLimitsConfig | undefined) {
+  const pathSegmentSchema = z.union([z.string(), z.number()]);
 
-server.registerTool(
-  "object_init",
+  server.registerTool(
+    "object_init",
   {
     description: "Initialize an empty object against a schema",
     inputSchema: {
@@ -374,7 +374,7 @@ server.registerTool(
     description: "Get worked conversation transcript examples showing ideal multi-turn interaction with the stateful object service",
     inputSchema: {
       page: z.number().optional().describe("Page number for pagination"),
-      limit: z.number().optional().describe("Limit number of examples returned")
+      limit: buildLimitField("examples_page_size", paginationLimits)
     }
   },
   async ({ page, limit }) => {
@@ -396,6 +396,7 @@ server.registerTool(
     }
   }
 );
+}
 
 async function main() {
   const workspaceRoot = process.cwd();
@@ -443,7 +444,7 @@ async function main() {
     workspaceRoot
   );
 
-  paginationLimits = config.pagination_limits;
+  registerObjectTools(config.pagination_limits);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
