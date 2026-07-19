@@ -146,3 +146,191 @@ The following system-wide environment variables can be set to configure the serv
 * **`LOG_SERVICE_SECRET`** (string, optional): A 32-byte cryptographic secret used as the HMAC key to sign stateless log page tokens. If not set, a random secret is generated on startup.
 * **`WORKSPACE_ID`** (string, optional): The fallback workspace identifier for the Dictionary Service when no workspace is supplied per-request. Defaults to `"global"`.
 
+---
+
+## 9. Worked Example: Pharmacy / Retail Setup
+
+Here is a complete, copy-pasteable configuration for a pharmacy or retail store utilizing SQLite session state, Postgres persistent databases, and standard tools/schemas.
+
+### 9.1 `storage.config.json`
+```json
+{
+  "version": 1,
+  "filter_session_state": {
+    "_type": "adapter",
+    "name": "sqlite",
+    "options": { "url": "sqlite://data/filter_sessions.db" }
+  },
+  "filter_persistent_state": {
+    "global": {
+      "_type": "adapter",
+      "name": "postgres",
+      "options": { "url": "env:DATABASE_URL" }
+    },
+    "user": {
+      "_type": "adapter",
+      "name": "postgres",
+      "options": { "url": "env:DATABASE_URL" }
+    }
+  },
+  "object_session_state": {
+    "_type": "adapter",
+    "name": "sqlite",
+    "options": { "url": "sqlite://data/object_sessions.db" }
+  },
+  "object_persistent_state": {
+    "global": {
+      "_type": "adapter",
+      "name": "postgres",
+      "options": { "url": "env:DATABASE_URL" }
+    },
+    "user": {
+      "_type": "adapter",
+      "name": "postgres",
+      "options": { "url": "env:DATABASE_URL" }
+    }
+  },
+  "dictionary_state": {
+    "_type": "file",
+    "path": "config/pharmacy_dictionary.json"
+  },
+  "dictionary_resolver": {
+    "_type": "adapter",
+    "name": "memory"
+  },
+  "auto_compression": {
+    "filter_chain_threshold": 10,
+    "object_chain_threshold": 10
+  }
+}
+```
+
+### 9.2 `tools.config.json`
+```json
+{
+  "tools": {
+    "dispense_medication": {
+      "schema": {
+        "_type": "file",
+        "path": "schemas/dispense.json"
+      },
+      "translation": {
+        "_type": "file",
+        "path": "translations/dispense_postgres.json"
+      },
+      "engine": {
+        "prescriptions": {
+          "_type": "adapter",
+          "name": "postgres",
+          "options": { "url": "env:DATABASE_URL" }
+        }
+      },
+      "inspect": {
+        "expose_compiled": true
+      }
+    }
+  },
+  "object_schemas": {
+    "prescription_order": {
+      "_type": "file",
+      "path": "schemas/prescription_order.json"
+    }
+  },
+  "object_schema_limits": {
+    "max_fields_per_def": 12,
+    "max_ref_depth": 3
+  }
+}
+```
+
+### 9.3 Content of Referenced Paths
+
+Below are the contents of the files referenced in the configurations above:
+
+#### `schemas/dispense.json` (Table Schema)
+Defines target table columns, data types, and supported comparison operators.
+```json
+{
+  "table_schemas": {
+    "prescriptions": {
+      "filterable_properties": ["medication_name", "qty", "dispense_status", "physician_id"],
+      "operators": ["eq", "neq", "lt", "leq", "gt", "geq", "like"],
+      "result_shape": "json_array",
+      "max_results": 100
+    }
+  }
+}
+```
+
+#### `translations/dispense_postgres.json` (Translation Mapping)
+Translates the LLM's public field name references to PostgreSQL database representations.
+```json
+{
+  "properties": {
+    "medication_name": {
+      "internal": "rx_name"
+    },
+    "qty": {
+      "internal": "quantity",
+      "allowed_operators": ["eq", "lt", "gt"]
+    },
+    "dispense_status": {
+      "internal": "status"
+    }
+  }
+}
+```
+
+#### `schemas/prescription_order.json` (Object Validation Schema)
+Strict validation schema verifying properties and value constraints for a prescription form.
+```json
+{
+  "type": "object",
+  "required": ["patient_id", "medication", "quantity"],
+  "properties": {
+    "patient_id": { "type": "string" },
+    "medication": { "type": "string" },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "refills": {
+      "type": "integer",
+      "default": 0
+    }
+  }
+}
+```
+
+#### `config/pharmacy_dictionary.json` (Dictionary Ontology)
+Ontology coordinates translating colloquial abbreviations to standardized concept identifiers.
+```json
+{
+  "namespaces": [
+    { "id": "CLINICAL", "name": "Standard Medical Registry", "mutable": false }
+  ],
+  "concepts": [
+    {
+      "id": "CLINICAL::AMOXICILLIN",
+      "namespace": "CLINICAL",
+      "coordinate": "CLINICAL::AMOXICILLIN",
+      "description": "Amoxicillin antibiotic prescription"
+    }
+  ],
+  "expressions": [
+    {
+      "id": "expr_amox",
+      "conceptId": "CLINICAL::AMOXICILLIN",
+      "term": "amox shorthand",
+      "regexPattern": "^amox(y)?$",
+      "isCaseInsensitive": true,
+      "targetAssignment": "clinical",
+      "priorityWeight": 10,
+      "active": true
+    }
+  ]
+}
+```
+
+
+
