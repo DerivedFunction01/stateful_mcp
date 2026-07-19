@@ -36,9 +36,14 @@ This suite provides stateful abstractions for filters, objects, dictionary conce
 * [Bun](https://bun.sh) runtime (version 1.0.0 or later).
 
 ### Installation
-Clone the repository and install the dependencies:
+Clone the repository and install the Node dependencies:
 ```bash
 bun install
+```
+
+If using the Python DataFrame query engine, initialize the Python virtual environment and install its dependencies (requires `uv`):
+```bash
+bun run setup:venv
 ```
 
 ### Configuration
