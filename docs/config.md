@@ -75,17 +75,19 @@ Registers the tools the LLM can access and how they validate and compile.
           * `dataframe_name` (string, optional): View name registered in DuckDB (defaults to `"df"`).
           * `python_path` (string, optional): Python interpreter path (defaults to `"python3"`).
     * **Custom External Adapters (`@` alias)**:
-      Use `name: "@path/to/module"` to load an adapter from a workspace-relative path without needing relative import paths in your code. The `@` prefix maps to the workspace root:
+      Use `name: "@<path>"` to dynamically load an adapter module from any location. The path after `@` is resolved using these rules (in priority order):
+
+      | Path form | Interpretation |
+      |---|---|
+      | `@adapters/my-engine` | Workspace-relative (default) |
+      | `@/opt/hospital/engine` | Absolute path |
+      | `@~/projects/adapters/engine` | Home-directory relative |
+
       ```json
-      {
-        "engine": {
-          "_type": "adapter",
-          "name": "@adapters/my-custom-engine",
-          "options": { "connectionString": "env:MY_DB_URL" }
-        }
-      }
+      { "_type": "adapter", "name": "@adapters/my-engine" }
+      { "_type": "adapter", "name": "@/opt/hospital/engine" }
+      { "_type": "adapter", "name": "@~/projects/adapters/engine" }
       ```
-      `@adapters/my-custom-engine` resolves to `<workspaceRoot>/adapters/my-custom-engine.ts`.
       The module must call `registerAdapter(name, factory)` as a side-effect at the top level.
       Since `tsconfig.json` defines `@stateful-mcp/*` path aliases, the module itself also avoids relative imports:
       ```typescript

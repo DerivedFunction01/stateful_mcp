@@ -124,13 +124,26 @@ export async function resolveAdapter<T>(
   options: Record<string, unknown> = {},
   workspaceRoot?: string
 ): Promise<T> {
-  // If name starts with '@', treat it as a workspace-relative path alias.
-  // '@adapters/my-engine' → '<workspaceRoot>/adapters/my-engine'
-  // The module is expected to call registerAdapter() as a side-effect on import.
+  // If name starts with '@', resolve a path alias to dynamically load the module.
+  // Path detection rules (applied to the string after stripping '@'):
+  //   /path/to/module   → absolute path, used as-is
+  //   ~/path/to/module  → home-dir path, expanded via HOME env var
+  //   path/to/module    → workspace-relative, resolved against workspaceRoot
   if (name.startsWith("@")) {
     if (!workspaceRoot) throw new Error(`Cannot resolve path alias "${name}" without workspaceRoot`);
-    const relativePath = name.slice(1); // strip leading '@'
-    const absolutePath = path.resolve(workspaceRoot, relativePath);
+    const rawPath = name.slice(1); // strip leading '@'
+    let absolutePath: string;
+    if (rawPath.startsWith("/")) {
+      // Already absolute
+      absolutePath = rawPath;
+    } else if (rawPath.startsWith("~/")) {
+      // Home-directory relative
+      const home = process.env["HOME"] || process.env["USERPROFILE"] || "";
+      absolutePath = path.join(home, rawPath.slice(2));
+    } else {
+      // Workspace-relative (default)
+      absolutePath = path.resolve(workspaceRoot, rawPath);
+    }
     // Dynamic import triggers the module's registerAdapter side-effect
     await import(absolutePath);
   }
