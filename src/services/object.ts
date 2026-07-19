@@ -1,13 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../config/loader";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "../config/loader";
 import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "../adapters/storage/memory-repo";
 import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "../adapters/storage/jsonl-repo";
 import { ObjectStore } from "../middleware/object/store";
 import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
 import { clampLimit, buildLimitField } from "../config/pagination";
+import * as path from "path";
 
 const server = new McpServer({
   name: "object-service",
@@ -16,6 +17,7 @@ const server = new McpServer({
 
 let objectStore: ObjectStore;
 let config: MiddlewareConfig;
+let configDir: string = process.cwd();
 
 function registerObjectTools(paginationLimits: PaginationLimitsConfig | undefined) {
   const pathSegmentSchema = z.union([z.string(), z.number()]);
@@ -334,7 +336,7 @@ server.registerTool(
   },
   async () => {
     try {
-      const workspaceRoot = process.cwd();
+      const workspaceRoot = configDir;
       const content = await resolveAboutOrExamples(
         config.about_and_examples?.middleware_about,
         "config/about/middleware.md",
@@ -355,7 +357,7 @@ server.registerTool(
   },
   async () => {
     try {
-      const workspaceRoot = process.cwd();
+      const workspaceRoot = configDir;
       const content = await resolveAboutOrExamples(
         config.about_and_examples?.object_about,
         "config/about/object.md",
@@ -379,7 +381,7 @@ server.registerTool(
   },
   async ({ page, limit }) => {
     try {
-      const workspaceRoot = process.cwd();
+      const workspaceRoot = configDir;
       let content = await resolveAboutOrExamples(
         config.about_and_examples?.object_examples,
         "config/examples/object.md",
@@ -399,11 +401,10 @@ server.registerTool(
 }
 
 async function main() {
-  const workspaceRoot = process.cwd();
+  const workspaceRoot = resolveConfigDir();
+  configDir = workspaceRoot;
   config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
-
-  const path = require("path");
 
   const sessionObjectStore =
     config.object_session_state?._type === "file" && config.object_session_state.path.endsWith(".jsonl")

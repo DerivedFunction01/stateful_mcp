@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import * as crypto from "crypto";
-import { loadMiddlewareConfig, resolveSource } from "../config/loader";
+import { loadMiddlewareConfig, resolveSource, resolveConfigDir } from "../config/loader";
 import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionFilterStore, MemoryPersistentFilterStore, MemorySessionObjectStore, MemoryPersistentObjectStore } from "../adapters/storage/memory-repo";
 import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
@@ -214,7 +214,7 @@ server.registerTool(
 }
 
 async function main() {
-  const workspaceRoot = process.cwd();
+  const workspaceRoot = resolveConfigDir();
   const config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
 

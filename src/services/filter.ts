@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../config/loader";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "../config/loader";
 import { validateMiddlewareConfig } from "../config/validator";
 import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "../adapters/storage/memory-repo";
 import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
@@ -9,6 +9,7 @@ import { JsonlSessionFilterStore, JsonlPersistentFilterStore } from "../adapters
 import { FilterStore } from "../middleware/filter/store";
 import type { TableSchema, MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
 import { clampLimit, buildLimitField } from "../config/pagination";
+import * as path from "path";
 
 const server = new McpServer({
   name: "filter-service",
@@ -17,6 +18,7 @@ const server = new McpServer({
 
 let filterStore: FilterStore;
 let config: MiddlewareConfig;
+let configDir: string = process.cwd();
 
 function registerFilterTools(paginationLimits: PaginationLimitsConfig | undefined) {
   const filterConditionSchema = z.object({
@@ -358,7 +360,7 @@ server.registerTool(
   },
   async () => {
     try {
-      const workspaceRoot = process.cwd();
+      const workspaceRoot = configDir;
       const content = await resolveAboutOrExamples(
         config.about_and_examples?.middleware_about,
         "config/about/middleware.md",
@@ -379,7 +381,7 @@ server.registerTool(
   },
   async () => {
     try {
-      const workspaceRoot = process.cwd();
+      const workspaceRoot = configDir;
       const content = await resolveAboutOrExamples(
         config.about_and_examples?.filter_about,
         "config/about/filter.md",
@@ -403,7 +405,7 @@ server.registerTool(
   },
   async ({ page, limit }) => {
     try {
-      const workspaceRoot = process.cwd();
+      const workspaceRoot = configDir;
       let content = await resolveAboutOrExamples(
         config.about_and_examples?.filter_examples,
         "config/examples/filter.md",
@@ -423,11 +425,10 @@ server.registerTool(
 }
 
 async function main() {
-  const workspaceRoot = process.cwd();
+  const workspaceRoot = resolveConfigDir();
+  configDir = workspaceRoot;
   config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
-
-  const path = require("path");
 
   const getUrl = (locator: any) => {
     if (locator?._type === "adapter") return locator.options?.url?.toString();

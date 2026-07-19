@@ -1,22 +1,69 @@
 {
   "name": "stateful-mcp",
-  "module": "index.ts",
+  "version": "0.1.0",
+  "description": "Stateful MCP middleware suite: versioned filters, objects, event logs, and a terminology dictionary for LLM tooling.",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "bin": {
+    "stateful-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "config",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./loader": {
+      "types": "./dist/src/config/loader.d.ts",
+      "default": "./dist/src/config/loader.js"
+    },
+    "./types": {
+      "types": "./dist/src/config/types.d.ts",
+      "default": "./dist/src/config/types.js"
+    },
+    "./errors": {
+      "types": "./dist/src/errors/types.d.ts",
+      "default": "./dist/src/errors/types.js"
+    }
+  },
   "scripts": {
-    "setup:venv": "uv venv && uv pip install -r requirements.txt",
-    "test": "bun test.ts"
+    "build": "bun build index.ts --outfile dist/index.js --target bun --format esm && tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "test": "bun test.ts",
+    "prepublishOnly": "npm run build"
   },
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "llm",
+    "filter",
+    "stateful",
+    "middleware"
+  ],
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "typescript": "^5"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@types/pg": "^8.20.0",
     "ajv": "^8.20.0",
     "pg": "^8.22.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "duckdb": "optional — only required for the `dataframe` query engine (also needs Python 3)"
   }
 }

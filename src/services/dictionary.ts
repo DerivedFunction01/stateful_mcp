@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples } from "../config/loader";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "../config/loader";
 import { validateMiddlewareConfig } from "../config/validator";
 import { DictionaryStore } from "../middleware/dictionary/store";
 import { InMemoryConceptResolver } from "../middleware/dictionary/resolver";
@@ -15,6 +15,7 @@ const server = new McpServer({
 
 let dictionaryStore: DictionaryStore;
 let config: MiddlewareConfig;
+let configDir: string = process.cwd();
 
 function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLimitsConfig | undefined) {
   const workspaces = store.getWorkspaces().map((w) => w.id);
@@ -352,7 +353,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     },
     async () => {
       try {
-        const workspaceRoot = process.cwd();
+        const workspaceRoot = configDir;
         const content = await resolveAboutOrExamples(
           config.about_and_examples?.middleware_about,
           "config/about/middleware.md",
@@ -373,7 +374,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     },
     async () => {
       try {
-        const workspaceRoot = process.cwd();
+        const workspaceRoot = configDir;
         const content = await resolveAboutOrExamples(
           config.about_and_examples?.dictionary_about,
           "config/about/dictionary.md",
@@ -397,7 +398,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     },
     async ({ page, limit }) => {
       try {
-        const workspaceRoot = process.cwd();
+        const workspaceRoot = configDir;
         let content = await resolveAboutOrExamples(
           config.about_and_examples?.dictionary_examples,
           "config/examples/dictionary.md",
@@ -417,7 +418,8 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
 }
 
 async function main() {
-  const workspaceRoot = process.cwd();
+  const workspaceRoot = resolveConfigDir();
+  configDir = workspaceRoot;
   config = await loadMiddlewareConfig(workspaceRoot);
   validateMiddlewareConfig(config);
 

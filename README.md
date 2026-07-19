@@ -1,83 +1,98 @@
 # Stateful MCP Middleware Suite
 
-A modular, version-controlled Model Context Protocol (MCP) middleware suite designed to help LLMs manage stateful workflows efficiently. 
+A modular, version-controlled [Model Context Protocol (MCP)](https://modelcontextprotocol.io) middleware suite that helps LLMs manage stateful workflows incrementally across conversational turns — filters, objects, event logs, and a terminology dictionary — optimizing token consumption and avoiding huge payloads.
 
-This suite provides stateful abstractions for filters, objects, dictionary concepts, and event streams, allowing LLMs to build complex states incrementally across multiple conversational turns—optimizing token consumption and avoiding huge payloads.
-
----
-
-## Service Architecture
-
-```
-                       ┌─────────────────────────┐
-                       │   Dictionary Service    │
-                       │ (Concept Normalisation) │
-                       └────────────┬────────────┘
-                                    │
-       ┌────────────────────────────┼────────────────────────────┐
-       ▼                            ▼                            ▼
-┌──────────────┐             ┌──────────────┐             ┌──────────────┐
-│Filter Service│             │Object Service│             │Event Service │
-│ (VCS Queries)│             │ (VCS States) │             │ (VCS Logs)   │
-└──────────────┘             └──────────────┘             └──────────────┘
-```
-
-1. **[Filter Service](./config/about/filter.md)**: Build multi-clause database queries incrementally.
-2. **[Object Service](./config/about/object.md)**: Manage structured JSON objects (orders, SOAP notes) with stateful delta tracking and templating.
-3. **[Dictionary Service](./config/about/dictionary.md)**: Normalize clinical and business abbreviations to standardized concept identifiers before query injection.
-4. **[Event Service](./config/about/event.md)**: Model version-controlled append-only logs with branching, symmetric LCA merging, and stateful conflict resolution.
-5. **[Log Service](./src/services/log.ts)**: A stateless traversal log service using HMAC-SHA256 tokens for session-free pagination over commit parent chains.
+Each service is exposed as an MCP server over stdio and launched via the monolith router.
 
 ---
 
-## Setup & Running the Servers
+## Install
 
-### Prerequisites
-* [Bun](https://bun.sh) runtime (version 1.0.0 or later).
+```bash
+npm install -g stateful-mcp      # or: npm install stateful-mcp
+```
 
-### Installation
-Clone the repository and install the Node dependencies:
+> **Runtime:** Bun (>= 1.0) is required to run the server, because the SQLite storage adapter uses `bun:sqlite`. The Memory and PostgreSQL adapters work under any supported runtime; only the SQLite adapter needs Bun.
+
+---
+
+## Quick start
+
+```bash
+# Launch a service (reads config from ./config by default)
+SERVICE_TYPE=filter stateful-mcp
+
+# Or point at an explicit config directory
+stateful-mcp --config-dir /path/to/my-config
+SERVICE_TYPE=object stateful-mcp -c /path/to/my-config
+```
+
+The binary maps to the monolith router in `index.ts`. `SERVICE_TYPE` selects the service: `filter`, `object`, `dictionary`, `log`, or `event` (defaults to `filter`).
+
+---
+
+## Configuration
+
+Configuration lives in the **config directory** and is split by concern:
+
+| File | Purpose |
+|------|---------|
+| `config/tools.config.json` | Tool schemas, validation engines, and query backends. |
+| `config/storage.config.json` | Storage backends (memory / SQLite / PostgreSQL) for session & persistent state, auto-compression thresholds, and `pagination_limits`. |
+| `config/about.config.json` | Markdown docs served by the `*_about` / `*_examples` developer-guidance tools (optional). |
+
+### Where config is read from
+
+`loadMiddlewareConfig` resolves the config directory in this order:
+
+1. `--config-dir <path>` / `-c <path>` / `--config-dir=<path>` (CLI flag)
+2. `STATEFUL_MCP_CONFIG_DIR` (environment variable)
+3. `process.cwd()` (fallback)
+
+Ship your own `config/` and point the package at it — you do **not** rely on the publisher's demo config. A single-file `filter.config.json` (or `config.json`) at the config root is also supported.
+
+### Environment variables
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `SERVICE_TYPE` | no | Which service to start (`filter` default). |
+| `STATEFUL_MCP_CONFIG_DIR` | no | Directory containing `config/`. |
+| `LOG_SERVICE_SECRET` | no | 32-byte HMAC key for stateless `log_next` page tokens. Random if unset. |
+| `WORKSPACE_ID` | no | Fallback dictionary workspace id (default `global`). |
+
+---
+
+## Optional: Python / DataFrame query engine
+
+The `dataframe` query engine (runs DuckDB SQL over Pandas DataFrames in a Python subprocess) is **optional**. Enable it only if a tool's `engine` uses `"dataframe"`.
+
+```bash
+bun run setup:venv     # uv venv && uv pip install -r requirements.txt
+```
+
+Requires Python 3 and `uv`; installs `pandas` and `duckdb` (`requirements.txt`).
+
+---
+
+## Building from source
+
 ```bash
 bun install
+npm run build         # bundles dist/index.js (bun build) + emits .d.ts + copies assets
 ```
 
-If using the Python DataFrame query engine, initialize the Python virtual environment and install its dependencies (requires `uv`):
-```bash
-bun run setup:venv
-```
-
-### Configuration
-The middleware configuration is defined in the `config/` directory:
-* **`config/tools.config.json`**: Configures tool schemas, validation engines, and query targets.
-* **`config/storage.config.json`**: Configures memory, SQLite, or PostgreSQL backends for session and persistent storage, as well as threshold parameters for auto-compression.
-* **`config/about.config.json`**: Markdown documentation for the `*_examples` and `*_about` tools.
+`prepublishOnly` runs `npm run build`, so `npm publish` always ships a built package.
 
 ---
 
-## Running the MCP Servers
+## Services
 
-You can launch each service independently or route to them via the monolith router using the `SERVICE_TYPE` environment variable:
+1. **Filter Service** — build multi-clause database queries incrementally (VCS-style rule DAG).
+2. **Object Service** — manage structured JSON objects with stateful delta tracking and templating.
+3. **Dictionary Service** — normalize abbreviations to standardized concept identifiers.
+4. **Event Service** — version-controlled append-only logs with branching, LCA merging, and conflict resolution.
+5. **Log Service** — stateless, paginated traversal over filter/object history using HMAC-signed page tokens.
 
-```bash
-# Start the Filter Service MCP Server
-SERVICE_TYPE=filter bun index.ts
+Each service exposes `*_about` / `*_examples` developer-guidance tools. LLMs should consult them when handling complex state.
 
-# Start the Object Service MCP Server
-SERVICE_TYPE=object bun index.ts
-
-# Start the Dictionary Service MCP Server
-SERVICE_TYPE=dictionary bun index.ts
-
-# Start the Event Service MCP Server
-SERVICE_TYPE=event bun index.ts
-```
-
----
-
-## Developer Guidance Tools (`*_about` and `*_examples`)
-
-LLMs trained on stateless tool calling tend to call tools in one-shot. To prevent this, each stateful service exposes two runtime tools:
-* **`*_about`**: Returns Markdown documentation explaining the *how*, *when*, and *why* of the stateful pattern.
-* **`*_examples`**: Returns worked multi-turn conversational transcripts showing ideal interaction models (incremental updates, branching, resolving conflicts).
-
-LLMs should be instructed to check these tools during initialization or when handling complex states.
+See `docs/` for the full reference (filter, object, event, dictionary, log, config, pipeline).

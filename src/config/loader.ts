@@ -158,13 +158,42 @@ export function clearCache(): void {
 }
 
 /**
- * Loads the middleware configuration by reading and merging tools and storage configs.
+ * Resolves the directory that holds the `config/` folder.
+ *
+ * Search order (explicit overrides implicit):
+ *   1. `--config-dir <path>` / `-c <path>` / `--config-dir=<path>` CLI flag
+ *   2. `STATEFUL_MCP_CONFIG_DIR` environment variable
+ *   3. `process.cwd()` (fallback, preserved for self-hosting convenience)
  */
-export async function loadMiddlewareConfig(workspaceRoot: string): Promise<MiddlewareConfig> {
+export function resolveConfigDir(argv: string[] = process.argv.slice(2)): string {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === undefined) continue;
+    if ((arg === "--config-dir" || arg === "-c")) {
+      const next = argv[i + 1];
+      if (next !== undefined) return next;
+    }
+    if (arg.startsWith("--config-dir=")) {
+      return arg.slice("--config-dir=".length);
+    }
+  }
+  if (process.env.STATEFUL_MCP_CONFIG_DIR) {
+    return process.env.STATEFUL_MCP_CONFIG_DIR;
+  }
+  return process.cwd();
+}
+
+/**
+ * Loads the middleware configuration by reading and merging tools and storage configs.
+ * The config directory is resolved explicitly (see `resolveConfigDir`) so consumers
+ * can point the package at their own config rather than relying on cwd.
+ */
+export async function loadMiddlewareConfig(workspaceRoot?: string): Promise<MiddlewareConfig> {
+  const resolvedRoot = workspaceRoot ?? resolveConfigDir();
   // Try loading split configs if they exist, or fallback to filter.config.json / config.json
-  const toolsPath = path.join(workspaceRoot, "config", "tools.config.json");
-  const storagePath = path.join(workspaceRoot, "config", "storage.config.json");
-  const aboutPath = path.join(workspaceRoot, "config", "about.config.json");
+  const toolsPath = path.join(resolvedRoot, "config", "tools.config.json");
+  const storagePath = path.join(resolvedRoot, "config", "storage.config.json");
+  const aboutPath = path.join(resolvedRoot, "config", "about.config.json");
 
   let toolsConfig: any = {};
   let storageConfig: any = {};
@@ -175,13 +204,13 @@ export async function loadMiddlewareConfig(workspaceRoot: string): Promise<Middl
     toolsConfig = JSON.parse(rawTools);
   } catch (e) {
     // If split doesn't exist, try reading single workspace config file
-    const mainPath = path.join(workspaceRoot, "filter.config.json");
+    const mainPath = path.join(resolvedRoot, "filter.config.json");
     try {
       const rawMain = await fs.readFile(mainPath, "utf-8");
       const parsedMain = JSON.parse(rawMain);
       return substituteEnvVars(parsedMain) as MiddlewareConfig;
     } catch (e2) {
-      throw new Error(`Failed to find or parse configuration file in ${workspaceRoot}`);
+      throw new Error(`Failed to find or parse configuration file in ${resolvedRoot}`);
     }
   }
 

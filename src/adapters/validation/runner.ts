@@ -4,6 +4,8 @@
 
 import type { ResourceLocator } from "../../config/types";
 import Ajv from "ajv";
+import * as path from "path";
+import * as fs from "fs";
 
 const ajv = new Ajv({ strict: false });
 
@@ -37,8 +39,6 @@ export async function runValidationEngine(
   const type = (locator as any)._type;
 
   if (type === "file") {
-    const path = require("path");
-    const fs = require("fs");
     const filePath = path.resolve(workspaceRoot, (locator as any).path);
     if (!fs.existsSync(filePath)) {
       throw new Error(`Validation engine file not found: ${filePath}`);
