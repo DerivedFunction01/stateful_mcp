@@ -1,3 +1,4 @@
+// REFERENCE: docs/config.md
 export type ResourceLocator =
   | { _type: "adapter"; name: string; options?: Record<string, unknown> }
   | { _type: "file"; path: string; ttl_ms?: number }

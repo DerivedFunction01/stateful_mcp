@@ -4,6 +4,8 @@ import type { TableSchema, OwnerScope } from "../../config/types";
 import type { QueryEngine } from "../../adapters/engines/interfaces";
 import { ErrorCode, McpError } from "../../errors/types";
 
+// REFERENCE: docs/filter.md
+// REFERENCE: docs/pipeline.md
 export class FilterStore {
   private modifiers = new Map<string, { modId: string; filterId: string | null; columns: string[]; aggregations: any[]; createdAt: string }>();
   private views = new Map<string, { viewId: string; filterId: string; modId?: string | null; havingId?: string | null; limit?: number; offset?: number; createdAt: string }>();

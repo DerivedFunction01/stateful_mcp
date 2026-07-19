@@ -10,6 +10,7 @@ import type {
 import type { ConceptResolver, ResolveResult, ResolveResponse } from "./resolver";
 import { ErrorCode, McpError } from "../../errors/types";
 
+// REFERENCE: docs/dictionary.md
 export class DictionaryStore {
   private namespaces = new Map<string, Namespace>();
   private concepts = new Map<string, Concept>();

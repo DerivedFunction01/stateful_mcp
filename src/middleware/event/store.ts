@@ -5,6 +5,7 @@ import Ajv from "ajv";
 
 const ajv = new Ajv({ strict: false });
 
+// REFERENCE: docs/event.md
 export class EventStore {
   // Key: mergeSessionId
   private mergeSessions = new Map<string, MergeSession>();

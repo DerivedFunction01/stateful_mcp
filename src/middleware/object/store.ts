@@ -14,6 +14,7 @@ export interface ValidationResult {
   warnings: Array<{ path: (string | number)[]; message: string }>;
 }
 
+// REFERENCE: docs/object.md
 export class ObjectStore {
   constructor(
     private session: SessionObjectStore,
