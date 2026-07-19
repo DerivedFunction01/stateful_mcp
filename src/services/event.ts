@@ -294,17 +294,23 @@ async function main() {
       : new MemoryPersistentEventStore();
 
   const objectSchemas = new Map<string, any>();
+  const validationEngines = new Map<string, import("../config/types").ResourceLocator>();
   if (config.object_schemas) {
-    for (const [schemaName, locator] of Object.entries(config.object_schemas)) {
+    for (const [schemaName, entry] of Object.entries(config.object_schemas)) {
       try {
+        // Support both plain ResourceLocator and { schema, validation_engine } form
+        const locator = (entry as any).schema ?? entry;
         const schemaData = await resolveSource(locator, workspaceRoot) as any;
         objectSchemas.set(schemaName, schemaData);
+        if ((entry as any).validation_engine) {
+          validationEngines.set(schemaName, (entry as any).validation_engine);
+        }
       } catch (_) {}
     }
   }
 
   const threshold = config.auto_compression?.object_chain_threshold ?? 15;
-  eventStore = new EventStore(sessionStore, persistentStore, objectSchemas, threshold);
+  eventStore = new EventStore(sessionStore, persistentStore, objectSchemas, threshold, validationEngines, workspaceRoot);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

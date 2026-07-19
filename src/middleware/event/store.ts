@@ -1,6 +1,8 @@
 import type { SessionEventStore, PersistentEventStore } from "../../adapters/storage/interfaces";
 import type { EventCommit, EventMutation, EventRecord, MergeSession, MergeConflict } from "./types";
+import type { ResourceLocator } from "../../config/types";
 import { ErrorCode, McpError } from "../../errors/types";
+import { runValidationEngine } from "../../adapters/validation/runner";
 import Ajv from "ajv";
 
 const ajv = new Ajv({ strict: false });
@@ -14,8 +16,32 @@ export class EventStore {
     private session: SessionEventStore,
     private persistent: PersistentEventStore,
     private schemas: Map<string, any>, // Key: schemaName -> JSON Schema
-    private chainThreshold = 15
+    private chainThreshold = 15,
+    private validationEngines: Map<string, ResourceLocator> = new Map(),
+    private workspaceRoot: string = process.cwd()
   ) {}
+
+  /**
+   * Projects the full event array from commitId, then sends it to the
+   * schema's validation_engine (if configured) for external validation.
+   * Throws OBJECT_VALIDATION_FAILED if the external validator rejects.
+   */
+  private async runEventValidation(commitId: string, sessionId: string, schemaName: string): Promise<void> {
+    const extLocator = this.validationEngines.get(schemaName);
+    if (!extLocator) return;
+    const events = await this.project(commitId, sessionId);
+    const result = await runValidationEngine(
+      extLocator,
+      { serviceType: "event", schemaName, data: events },
+      this.workspaceRoot
+    );
+    if (!result.valid) {
+      throw new McpError(
+        ErrorCode.OBJECT_VALIDATION_FAILED,
+        `Event validation rejected: ${(result.errors || ["unknown reason"]).join("; ")}`
+      );
+    }
+  }
 
   private async resolveId(idOrAlias: string, sessionId: string): Promise<string> {
     const resolved = await this.session.getAlias(sessionId, idOrAlias);
@@ -112,6 +138,9 @@ export class EventStore {
 
     const newId = await this.session.create(sessionId, commitState, targetAlias);
 
+    // Run external validation engine on projected array after commit
+    await this.runEventValidation(newId, sessionId, schemaName);
+
     if (linearDepth > this.chainThreshold) {
       const compressedId = await this.compressSuffix(newId, sessionId);
       if (targetAlias) {
@@ -189,6 +218,10 @@ export class EventStore {
 
     const newId = await this.session.create(sessionId, commitState, targetAlias);
 
+    // Run external validation engine on projected array after patch commit
+    const schemaNameForPatch = await this.getSchemaName(newId, sessionId);
+    await this.runEventValidation(newId, sessionId, schemaNameForPatch);
+
     if (linearDepth > this.chainThreshold) {
       const compressedId = await this.compressSuffix(newId, sessionId);
       if (targetAlias) {
@@ -214,42 +247,46 @@ export class EventStore {
       throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Event "${eventId}" not found in current log state`);
     }
 
-    const mutationParentCommitId = await this.findLastMutationCommitId(resolvedId, eventId, sessionId);
+    const mutationParentCommitId2 = await this.findLastMutationCommitId(resolvedId, eventId, sessionId);
 
-    const mutations: EventMutation[] = [
+    const deleteMutations: EventMutation[] = [
       {
         type: "remove",
         event_id: eventId,
-        mutation_parent_ids: mutationParentCommitId ? [mutationParentCommitId] : []
+        mutation_parent_ids: mutationParentCommitId2 ? [mutationParentCommitId2] : []
       }
     ];
 
-    const linearDepth = (parent.linearDepth || 1) + 1;
-    const commitState: Omit<EventCommit, "commitId"> = {
+    const deleteLinearDepth = (parent.linearDepth || 1) + 1;
+    const deleteCommitState: Omit<EventCommit, "commitId"> = {
       sessionId,
       parentCommitId: resolvedId,
       createdAt: new Date().toISOString(),
       operation: "remove",
-      mutations,
-      linearDepth,
+      mutations: deleteMutations,
+      linearDepth: deleteLinearDepth,
       gcLock: false
     };
 
-    const isAliasInput = (await this.session.getAlias(sessionId, idOrAlias)) !== null;
-    const targetAlias = alias || (isAliasInput ? idOrAlias : undefined);
+    const deleteIsAliasInput = (await this.session.getAlias(sessionId, idOrAlias)) !== null;
+    const deleteTargetAlias = alias || (deleteIsAliasInput ? idOrAlias : undefined);
 
-    const newId = await this.session.create(sessionId, commitState, targetAlias);
+    const deleteNewId = await this.session.create(sessionId, deleteCommitState, deleteTargetAlias);
 
-    if (linearDepth > this.chainThreshold) {
-      const compressedId = await this.compressSuffix(newId, sessionId);
-      if (targetAlias) {
-        await this.session.setAlias(sessionId, targetAlias, compressedId);
-        return targetAlias;
+    // Run external validation engine on projected array after delete commit
+    const schemaNameForDelete = await this.getSchemaName(deleteNewId, sessionId);
+    await this.runEventValidation(deleteNewId, sessionId, schemaNameForDelete);
+
+    if (deleteLinearDepth > this.chainThreshold) {
+      const compressedId = await this.compressSuffix(deleteNewId, sessionId);
+      if (deleteTargetAlias) {
+        await this.session.setAlias(sessionId, deleteTargetAlias, compressedId);
+        return deleteTargetAlias;
       }
       return compressedId;
     }
 
-    return targetAlias || newId;
+    return deleteTargetAlias || deleteNewId;
   }
 
   async project(commitId: string, sessionId: string): Promise<EventRecord[]> {
@@ -611,6 +648,11 @@ export class EventStore {
     const targetAlias = isAliasInput ? session.targetCommitId : undefined;
 
     const newId = await this.session.create(sessionId, commitState, targetAlias);
+
+    // Run external validation engine on fully projected merged array
+    const mergeSchemaName = await this.getSchemaName(newId, sessionId);
+    await this.runEventValidation(newId, sessionId, mergeSchemaName);
+
     return targetAlias || newId;
   }
 

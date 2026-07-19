@@ -415,11 +415,17 @@ async function main() {
       : new MemoryPersistentObjectStore();
 
   const objectSchemas = new Map<string, any>();
+  const validationEngines = new Map<string, import("../config/types").ResourceLocator>();
   if (config.object_schemas) {
-    for (const [schemaName, locator] of Object.entries(config.object_schemas)) {
+    for (const [schemaName, entry] of Object.entries(config.object_schemas)) {
       try {
+        // Support both plain ResourceLocator and { schema, validation_engine } form
+        const locator = (entry as any).schema ?? entry;
         const schemaData = await resolveSource(locator, workspaceRoot);
         objectSchemas.set(schemaName, schemaData);
+        if ((entry as any).validation_engine) {
+          validationEngines.set(schemaName, (entry as any).validation_engine);
+        }
       } catch (_) {}
     }
   }
@@ -432,7 +438,9 @@ async function main() {
     objectSchemas,
     limits?.max_fields_per_def ?? 7,
     limits?.max_ref_depth ?? 5,
-    threshold
+    threshold,
+    validationEngines,
+    workspaceRoot
   );
 
   const transport = new StdioServerTransport();

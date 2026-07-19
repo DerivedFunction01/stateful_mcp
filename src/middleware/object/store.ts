@@ -1,8 +1,9 @@
 import type { SessionObjectStore, PersistentObjectStore, PersistedObjectState } from "../../adapters/storage/interfaces";
 import type { ObjectState, ObjectDiffResult } from "./types";
-import type { OwnerScope } from "../../config/types";
+import type { OwnerScope, ResourceLocator } from "../../config/types";
 import { ErrorCode, McpError } from "../../errors/types";
 import { resolvePathSchema } from "./schema-walker";
+import { runValidationEngine } from "../../adapters/validation/runner";
 import Ajv from "ajv";
 
 const ajv = new Ajv({ strict: false });
@@ -22,7 +23,9 @@ export class ObjectStore {
     private schemas: Map<string, any>, // name -> json schema
     private maxFields: number = 7,
     private maxDepth: number = 5,
-    private chainThreshold: number = 15
+    private chainThreshold: number = 15,
+    private validationEngines: Map<string, ResourceLocator> = new Map(),
+    private workspaceRoot: string = process.cwd()
   ) {}
 
   private async resolveId(id: string, sessionId: string): Promise<string> {
@@ -524,6 +527,21 @@ export class ObjectStore {
               });
             }
           }
+        }
+      }
+    }
+
+    // Run external validation engine if configured for this schema
+    if (missing.length === 0 && invalid.length === 0) {
+      const extLocator = this.validationEngines.get(obj.schemaName);
+      if (extLocator) {
+        const result = await runValidationEngine(
+          extLocator,
+          { serviceType: "object", schemaName: obj.schemaName, data: obj.data },
+          this.workspaceRoot
+        );
+        if (!result.valid) {
+          invalid.push(...(result.errors || ["External validation rejected"]).map((reason) => ({ path: [] as (string | number)[], reason })));
         }
       }
     }

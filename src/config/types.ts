@@ -44,7 +44,7 @@ export interface MiddlewareConfig {
     user?: ResourceLocator;   // URL may contain {userId} placeholder — substituted per-request
   };
 
-  object_schemas?: Record<string, ResourceLocator>;
+  object_schemas?: Record<string, ResourceLocator | { schema: ResourceLocator; validation_engine?: ResourceLocator }>;
 
   object_schema_limits?: {
     max_fields_per_def?: number;   // default 7

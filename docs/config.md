@@ -66,7 +66,15 @@ Registers the tools the LLM can access and how they validate and compile.
 * **`tools`** (object): Key-value pair of tool registrations.
   - **`schema`** (`ResourceLocator`): Path to JSON Schema defining table columns, operations, and constraints.
   - **`engine`** (`ResourceLocator` | object): The query/execution engine. Can be a single `ResourceLocator` or a key-value mapping table-names to resource engines.
-  - **`validation_engine`** (`ResourceLocator`, optional): Custom verification validator.
+    * **Built-in Query Engines**:
+      * `"memory-engine"`: In-memory arrays.
+      * `"sqlite"` / `"postgres"`: Relational databases.
+      * `"dataframe"`: Runs DuckDB SQL queries over Pandas DataFrames in a Python subprocess.
+        * **Options**:
+          * `source_file` (string, required): Path to CSV, Parquet, JSON, or JSONL.
+          * `dataframe_name` (string, optional): View name registered in DuckDB (defaults to `"df"`).
+          * `python_path` (string, optional): Python interpreter path (defaults to `"python3"`).
+  - **`validation_engine`** (`ResourceLocator`, optional): Custom verification validator. A reserved slot to point to an external script or schema (e.g., custom AJV options or validation rules) to enforce advanced business constraints on filter inputs. See [validation_examples.md](file:///home/denny/lu/filter/docs/validation_examples.md) for concrete examples.
   - **`inspect`**: Configuration options for runtime inspections.
     - `expose_compiled` (boolean): Exposes fully compiled SQL statements.
 
