@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { resolveConfigDir } from "./src/config/loader";
 
 const serviceType = process.env.SERVICE_TYPE || process.argv[2] || "filter";

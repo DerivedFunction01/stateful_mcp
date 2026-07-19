@@ -33,7 +33,7 @@
     }
   },
   "scripts": {
-    "build": "bun build index.ts --outfile dist/index.js --target bun --format esm && tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "build": "bun build index.ts --outfile dist/index.js --target bun --format esm && bun build src/config/loader.ts --outfile dist/src/config/loader.js --target bun --format esm && bun build src/config/types.ts --outfile dist/src/config/types.js --target bun --format esm && bun build src/errors/types.ts --outfile dist/src/errors/types.js --target bun --format esm && tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
     "test": "bun test.ts",
     "prepublishOnly": "npm run build"
   },
