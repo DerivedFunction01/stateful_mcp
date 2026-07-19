@@ -602,6 +602,13 @@ export class ObjectStore {
       throw new McpError(ErrorCode.OBJECT_NOT_FOUND, "One or both objects for diff not found");
     }
 
+    if (objA.schemaName !== objB.schemaName) {
+      throw new McpError(
+        ErrorCode.SCHEMA_MISMATCH,
+        `Cannot diff objects of different schemas: "${objA.schemaName}" vs "${objB.schemaName}"`
+      );
+    }
+
     const added: Record<string, any> = {};
     const updated: Record<string, { old: any; new: any }> = {};
     const removed: string[] = [];

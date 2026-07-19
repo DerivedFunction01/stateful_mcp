@@ -346,6 +346,59 @@ export class FilterStore {
     return rules;
   }
 
+  async diff(
+    filterIdA: string,
+    filterIdB: string,
+    sessionId: string,
+    userId?: string
+  ): Promise<{ added: FilterCondition[]; removed: FilterCondition[] }> {
+    const resolvedIdA = await this.resolveId(filterIdA, sessionId);
+    const resolvedIdB = await this.resolveId(filterIdB, sessionId);
+
+    const filterA = await this.lookup(resolvedIdA, sessionId, userId);
+    const filterB = await this.lookup(resolvedIdB, sessionId, userId);
+
+    if (!filterA || !filterB) {
+      throw new McpError(ErrorCode.FILTER_NOT_FOUND, "One or both filters for diff not found");
+    }
+
+    if (filterA.toolName !== filterB.toolName || filterA.tableName !== filterB.tableName) {
+      throw new McpError(
+        ErrorCode.SCHEMA_MISMATCH,
+        `Cannot diff filters of different schemas: "${filterA.toolName || ""}:${filterA.tableName || ""}" vs "${filterB.toolName || ""}:${filterB.tableName || ""}"`
+      );
+    }
+
+    const rulesA = await this.getFilterRules(resolvedIdA, sessionId, userId);
+    const rulesB = await this.getFilterRules(resolvedIdB, sessionId, userId);
+
+    const added: FilterCondition[] = [];
+    const removed: FilterCondition[] = [];
+
+    const serializeRule = (r: FilterCondition) => JSON.stringify({
+      property: r.property,
+      operator: r.operator,
+      value: r.value
+    });
+
+    const setA = new Set(rulesA.map(serializeRule));
+    const setB = new Set(rulesB.map(serializeRule));
+
+    for (const rule of rulesB) {
+      if (!setA.has(serializeRule(rule))) {
+        added.push(rule);
+      }
+    }
+
+    for (const rule of rulesA) {
+      if (!setB.has(serializeRule(rule))) {
+        removed.push(rule);
+      }
+    }
+
+    return { added, removed };
+  }
+
   async compress(filterId: string, sessionId: string, userId?: string): Promise<string> {
     const filter = await this.lookup(filterId, sessionId, userId);
     if (!filter) {

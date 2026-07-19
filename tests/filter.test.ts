@@ -615,4 +615,38 @@ export async function runFilterTests() {
   }
 
   console.log("✓ State aliasing, branching, and GC alias whitelists/blacklists verified successfully.");
+
+  console.log("\n🧪 Test Case 20: Filter Diff and Schema Guard");
+  const f1 = await aliasFilterStore.init(sessionIdAlias, "browse_catalog", "items");
+  const f2 = await aliasFilterStore.add(f1, [{ property: "price", operator: "gt", value: 100 }], sessionIdAlias);
+  const f3 = await aliasFilterStore.add(f2, [{ property: "category", operator: "eq", value: "apparel" }], sessionIdAlias);
+
+  // Diff f3 against f1 (f3 has added rules)
+  const diffResult = await aliasFilterStore.diff(f1, f3, sessionIdAlias);
+  if (diffResult.added.length !== 2 || diffResult.removed.length !== 0) {
+    throw new Error(`Expected 2 added rules and 0 removed rules, got: ${JSON.stringify(diffResult)}`);
+  }
+
+  // Diff f3 against f2 (f2 has one rule, f3 has two rules. Diffing f3 and f2 should show category=apparel added/removed depending on direction)
+  const diffResult2 = await aliasFilterStore.diff(f3, f2, sessionIdAlias);
+  if (diffResult2.removed.length !== 1 || diffResult2.removed[0]?.property !== "category") {
+    throw new Error(`Expected category rule to be removed when diffing f3 -> f2, got: ${JSON.stringify(diffResult2)}`);
+  }
+
+  // Schema mismatch check
+  const fSchemaA = await aliasFilterStore.init(sessionIdAlias, "browse_catalog", "items");
+
+  // Dynamically register some_other_tool to bypass registration checks during init
+  aliasFilterStore["toolSchemas"].set("some_other_tool", { items: { filterable_properties: [], operators: [], mock_dataset: [] } });
+  const fSchemaB = await aliasFilterStore.init(sessionIdAlias, "some_other_tool", "items");
+
+  try {
+    await aliasFilterStore.diff(fSchemaA, fSchemaB, sessionIdAlias);
+    throw new Error("Expected SCHEMA_MISMATCH error to be thrown");
+  } catch (err: any) {
+    if (err.code !== "SCHEMA_MISMATCH") {
+      throw new Error(`Expected SCHEMA_MISMATCH error code, got ${err.code || err.message}`);
+    }
+  }
+  console.log("✓ Filter diff and schema guard verified successfully.");
 }

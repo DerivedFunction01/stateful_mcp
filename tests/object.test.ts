@@ -309,4 +309,27 @@ export async function runObjectTests() {
   }
 
   console.log("✓ Object state aliasing, branching, and GC alias whitelists/blacklists verified successfully.");
+
+  console.log("\n🧪 Test Case 21: Object Schema Guard");
+  // Initialize two objects of different schemas (e.g. appointment vs catalog)
+  // Wait, does appointment exist? Yes, we resolved it above.
+  // Let's check what other schemas are in the schemasMap.
+  // We can just look up. Let's see what schemas are in schemasMap. We saw "appointment" is one.
+  // Is there any other schema registered? Let's check where schemasMap is initialized.
+  // Actually, we can temporarily register a second schema or just construct objects of different schemaNames.
+  const oSchemaA = await aliasObjectStore.init("appointment", sessionIdAlias);
+  
+  // We can dynamically add a dummy schema definition to aliasObjectStore's schemas Map:
+  aliasObjectStore["schemas"].set("dummy_schema", { type: "object", properties: { price: { type: "number" } } });
+  const oSchemaB = await aliasObjectStore.init("dummy_schema", sessionIdAlias);
+
+  try {
+    await aliasObjectStore.diff(oSchemaA, oSchemaB, sessionIdAlias);
+    throw new Error("Expected SCHEMA_MISMATCH error to be thrown when diffing different object schemas");
+  } catch (err: any) {
+    if (err.code !== "SCHEMA_MISMATCH") {
+      throw new Error(`Expected SCHEMA_MISMATCH error code, got ${err.code || err.message}`);
+    }
+  }
+  console.log("✓ Object schema mismatch guard verified successfully.");
 }

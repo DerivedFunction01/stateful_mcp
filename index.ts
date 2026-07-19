@@ -8,7 +8,9 @@ if (serviceType === "filter") {
   import("./src/services/object");
 } else if (serviceType === "dictionary") {
   import("./src/services/dictionary");
+} else if (serviceType === "log") {
+  import("./src/services/log");
 } else {
-  console.error(`[Error] Unknown SERVICE_TYPE: "${serviceType}". Must be: "filter", "object", or "dictionary"`);
+  console.error(`[Error] Unknown SERVICE_TYPE: "${serviceType}". Must be: "filter", "object", "dictionary", or "log"`);
   process.exit(1);
 }

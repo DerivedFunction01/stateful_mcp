@@ -275,6 +275,27 @@ server.registerTool(
 );
 
 server.registerTool(
+  "filter_diff",
+  {
+    description: "Compare two filter states in the session to find added/removed rules",
+    inputSchema: {
+      session_id: z.string().describe("The session identifier."),
+      filter_id_a: z.string().describe("The first filter state ID or alias."),
+      filter_id_b: z.string().describe("The second filter state ID or alias."),
+      user_id: z.string().optional().describe("Optional user identifier.")
+    }
+  },
+  async ({ session_id, filter_id_a, filter_id_b, user_id }) => {
+    try {
+      const diffResult = await filterStore.diff(filter_id_a, filter_id_b, session_id, user_id);
+      return { content: [{ type: "text", text: JSON.stringify(diffResult, null, 2) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
   "filter_alias",
   {
     description: "Tag an existing filter checkpoint with a new descriptive alias",

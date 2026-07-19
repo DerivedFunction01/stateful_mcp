@@ -33,6 +33,7 @@ export enum ErrorCode {
 
   // General
   INTERNAL_ERROR            = "INTERNAL_ERROR",
+  SCHEMA_MISMATCH           = "SCHEMA_MISMATCH",
 }
 
 export class McpError extends Error {
