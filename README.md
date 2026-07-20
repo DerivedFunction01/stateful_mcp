@@ -86,7 +86,26 @@ npm run build         # bundles dist/index.js (bun build) + emits .d.ts + copies
 3. **Dictionary Service** — normalize abbreviations to standardized concept identifiers.
 4. **Event Service** — version-controlled append-only logs with branching, LCA merging, and conflict resolution.
 5. **Log Service** — stateless, paginated traversal over filter/object history using HMAC-signed page tokens.
+6. **Form Service** — manage stateful interactive forms with branching logic, step validations, and back-navigation staleness tracking.
 
 Each service exposes `*_about` / `*_examples` developer-guidance tools. LLMs should consult them when handling complex state.
 
-See `docs/` for the full reference (filter, object, event, dictionary, log, config, pipeline).
+See `docs/` for the full reference (filter, object, form, event, dictionary, log, config, pipeline, browser).
+
+---
+
+## Client-Side & Browser Storage
+
+For web/frontend environments, the suite provides native client-side storage repositories:
+*   **LocalStorage**: Simple web storage for session/persistent state.
+*   **IndexedDB**: Non-blocking asynchronous store for larger state histories.
+
+See [docs/browser.md](docs/browser.md) for details on integrating client-side adapters.
+
+---
+
+## Compliance Test Suite
+
+Verify that custom third-party storage adapters strictly comply with the stateful consistency and isolation contract:
+*   Exposes `runStoreComplianceTests`, `runFormStoreComplianceTests`, `runObjectStoreComplianceTests`, and `runEventStoreComplianceTests` via `"stateful-mcp/adapters/compliance"`.
+*   Asserts uniqueness, routing, isolation, TTL, and VCS compaction correctness.
