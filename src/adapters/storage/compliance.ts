@@ -1,4 +1,7 @@
-// REFERENCE: docs/browser.md
+import { FormStore } from "../../middleware/form/store";
+import { ObjectStore } from "../../middleware/object/store";
+import { EventStore } from "../../middleware/event/store";
+import type { FormSchema } from "../../config/types";
 
 export interface ComplianceRunnerOptions {
   name: string;
@@ -141,5 +144,100 @@ export function runStoreComplianceTests(options: ComplianceRunnerOptions) {
     const taggedList = await persistentStore.findByTag("important", scope);
     const taggedIds = taggedList.map((item: any) => item.id || item.filterId || item.objectId || item.formId);
     expect(taggedIds).toContain("p-comp-1");
+  });
+}
+
+export function runFormStoreComplianceTests(options: ComplianceRunnerOptions) {
+  const { test, expect, createSessionStore, createPersistentStore } = options;
+
+  test(`${options.name} - Form Lifecycle & State Serialization`, async () => {
+    const sessionStore = await createSessionStore();
+    const persistentStore = await createPersistentStore();
+    const sessionId = "comp-form-session";
+
+    const schema: any = {
+      form_id: "intake",
+      start_question: "q1",
+      questions: {
+        q1: { text: "What is your age?", answer_type: "scale", min_value: 0, max_value: 120, required: true }
+      }
+    };
+
+    const formStore = new FormStore(sessionStore, persistentStore, new Map([["intake", schema]]));
+    const formId = await formStore.init("intake", sessionId);
+
+    const result = await formStore.answer(formId, "q1", 25, sessionId);
+    expect(result.complete).toBe(true);
+
+    const state = await sessionStore.get(sessionId, result.form_id);
+    expect(state).not.toBeNull();
+    expect(state.answers.q1).toBe(25);
+  });
+}
+
+export function runObjectStoreComplianceTests(options: ComplianceRunnerOptions) {
+  const { test, expect, createSessionStore, createPersistentStore } = options;
+
+  test(`${options.name} - Object Compaction & VCS Compression`, async () => {
+    const sessionStore = await createSessionStore();
+    const persistentStore = await createPersistentStore();
+    const sessionId = "comp-object-session";
+
+    const schemas = new Map([
+      [
+        "profile",
+        {
+          type: "object",
+          properties: { name: { type: "string" }, count: { type: "number" } }
+        }
+      ]
+    ]);
+
+    const objectStore = new ObjectStore(sessionStore, persistentStore, schemas, 7, 5, 2);
+    const objId = await objectStore.init("profile", sessionId, "my-profile", { name: "Alice", count: 1 });
+
+    const id2 = await objectStore.set(objId, ["count"], 2, sessionId);
+    const id3 = await objectStore.set(id2, ["count"], 3, sessionId);
+
+    const resolvedId = await sessionStore.getAlias(sessionId, "my-profile");
+    expect(resolvedId).not.toBeNull();
+
+    const state = await objectStore.getObject(resolvedId!, sessionId);
+    expect(state).not.toBeNull();
+    expect(state!.data.count).toBe(3);
+  });
+}
+
+export function runEventStoreComplianceTests(options: ComplianceRunnerOptions) {
+  const { test, expect, createSessionStore, createPersistentStore } = options;
+
+  test(`${options.name} - Event Commit Merging & VCS Log`, async () => {
+    const sessionStore = await createSessionStore();
+    const persistentStore = await createPersistentStore();
+    const sessionId = "comp-event-session";
+
+    const schemas = new Map([
+      [
+        "log_event",
+        {
+          type: "object",
+          properties: { msg: { type: "string" } }
+        }
+      ]
+    ]);
+
+    const eventStore = new EventStore(sessionStore, persistentStore, schemas, 15);
+    const commitId1 = await eventStore.init("log_event", sessionId, "main-branch", [
+      { msg: "initial" }
+    ]);
+
+    await eventStore.append(sessionId, commitId1, { msg: "second" }, "main-branch");
+
+    const resolvedId = await sessionStore.getAlias(sessionId, "main-branch");
+    expect(resolvedId).not.toBeNull();
+
+    const commitRecord = await sessionStore.get(sessionId, resolvedId!);
+    expect(commitRecord).not.toBeNull();
+    expect(commitRecord.mutations[0].type).toBe("add");
   });
 }

@@ -1,18 +1,36 @@
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
-import { runStoreComplianceTests } from "../src/adapters/storage/compliance";
+import {
+  runStoreComplianceTests,
+  runFormStoreComplianceTests,
+  runObjectStoreComplianceTests,
+  runEventStoreComplianceTests
+} from "../src/adapters/storage/compliance";
 
 import {
   MemorySessionFilterStore,
-  MemoryPersistentFilterStore
+  MemoryPersistentFilterStore,
+  MemorySessionFormStore,
+  MemoryPersistentFormStore,
+  MemorySessionObjectStore,
+  MemoryPersistentObjectStore,
+  MemorySessionEventStore,
+  MemoryPersistentEventStore
 } from "../src/adapters/storage/memory-repo";
 
 import {
   JsonlSessionFilterStore,
-  JsonlPersistentFilterStore
+  JsonlPersistentFilterStore,
+  JsonlSessionFormStore,
+  JsonlPersistentFormStore,
+  JsonlSessionObjectStore,
+  JsonlPersistentObjectStore,
+  JsonlSessionEventStore,
+  JsonlPersistentEventStore
 } from "../src/adapters/storage/jsonl-repo";
 
 import {
-  SqliteFilterStore
+  SqliteFilterStore,
+  SqliteFormStore
 } from "../src/adapters/storage/sqlite-repo";
 
 import {
@@ -229,6 +247,138 @@ describe("Storage Compliance Test Runner", () => {
         mockIndexedDBStore.get("states")!.clear();
         return new IndexedDbPersistentStore("test-compliance-db");
       }
+    });
+  });
+
+  // 6. Specialized Form Store Compliance
+  describe("Form Store Compliance", () => {
+    describe("Memory Form Store", () => {
+      runFormStoreComplianceTests({
+        name: "Memory Form Store",
+        test,
+        expect,
+        createSessionStore: async () => new MemorySessionFormStore(),
+        createPersistentStore: async () => new MemoryPersistentFormStore()
+      });
+    });
+
+    describe("JSONL Form Store", () => {
+      const formSess = path.resolve(__dirname, "../scratch/compliance-form-sess.jsonl");
+      const formGlob = path.resolve(__dirname, "../scratch/compliance-form-glob.jsonl");
+      afterAll(() => {
+        try {
+          if (fs.existsSync(formSess)) fs.unlinkSync(formSess);
+          if (fs.existsSync(formGlob)) fs.unlinkSync(formGlob);
+        } catch (_) {}
+      });
+      runFormStoreComplianceTests({
+        name: "JSONL Form Store",
+        test,
+        expect,
+        createSessionStore: async () => {
+          if (fs.existsSync(formSess)) fs.unlinkSync(formSess);
+          return new JsonlSessionFormStore(formSess);
+        },
+        createPersistentStore: async () => {
+          if (fs.existsSync(formGlob)) fs.unlinkSync(formGlob);
+          return new JsonlPersistentFormStore(formGlob);
+        }
+      });
+    });
+
+    describe("SQLite Form Store", () => {
+      const dbPath = path.resolve(__dirname, "../scratch/compliance-form-sqlite.db");
+      afterAll(() => {
+        try {
+          if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+        } catch (_) {}
+      });
+      runFormStoreComplianceTests({
+        name: "SQLite Form Store",
+        test,
+        expect,
+        createSessionStore: async () => {
+          if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+          return new SqliteFormStore(dbPath);
+        },
+        createPersistentStore: async () => {
+          return new SqliteFormStore(dbPath);
+        }
+      });
+    });
+  });
+
+  // 7. Specialized Object Store Compliance
+  describe("Object Store Compliance", () => {
+    describe("Memory Object Store", () => {
+      runObjectStoreComplianceTests({
+        name: "Memory Object Store",
+        test,
+        expect,
+        createSessionStore: async () => new MemorySessionObjectStore(),
+        createPersistentStore: async () => new MemoryPersistentObjectStore()
+      });
+    });
+
+    describe("JSONL Object Store", () => {
+      const objSess = path.resolve(__dirname, "../scratch/compliance-obj-sess.jsonl");
+      const objGlob = path.resolve(__dirname, "../scratch/compliance-obj-glob.jsonl");
+      afterAll(() => {
+        try {
+          if (fs.existsSync(objSess)) fs.unlinkSync(objSess);
+          if (fs.existsSync(objGlob)) fs.unlinkSync(objGlob);
+        } catch (_) {}
+      });
+      runObjectStoreComplianceTests({
+        name: "JSONL Object Store",
+        test,
+        expect,
+        createSessionStore: async () => {
+          if (fs.existsSync(objSess)) fs.unlinkSync(objSess);
+          return new JsonlSessionObjectStore(objSess);
+        },
+        createPersistentStore: async () => {
+          if (fs.existsSync(objGlob)) fs.unlinkSync(objGlob);
+          return new JsonlPersistentObjectStore(objGlob);
+        }
+      });
+    });
+  });
+
+  // 8. Specialized Event Store Compliance
+  describe("Event Store Compliance", () => {
+    describe("Memory Event Store", () => {
+      runEventStoreComplianceTests({
+        name: "Memory Event Store",
+        test,
+        expect,
+        createSessionStore: async () => new MemorySessionEventStore(),
+        createPersistentStore: async () => new MemoryPersistentEventStore()
+      });
+    });
+
+    describe("JSONL Event Store", () => {
+      const evSess = path.resolve(__dirname, "../scratch/compliance-ev-sess.jsonl");
+      const evGlob = path.resolve(__dirname, "../scratch/compliance-ev-glob.jsonl");
+      afterAll(() => {
+        try {
+          if (fs.existsSync(evSess)) fs.unlinkSync(evSess);
+          if (fs.existsSync(evGlob)) fs.unlinkSync(evGlob);
+        } catch (_) {}
+      });
+      runEventStoreComplianceTests({
+        name: "JSONL Event Store",
+        test,
+        expect,
+        createSessionStore: async () => {
+          if (fs.existsSync(evSess)) fs.unlinkSync(evSess);
+          return new JsonlSessionEventStore(evSess);
+        },
+        createPersistentStore: async () => {
+          if (fs.existsSync(evGlob)) fs.unlinkSync(evGlob);
+          return new JsonlPersistentEventStore(evGlob);
+        }
+      });
     });
   });
 });
