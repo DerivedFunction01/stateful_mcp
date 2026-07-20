@@ -147,7 +147,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "filter_save_filter",
+  "filter_save",
   {
     description: "Promote and persist a filter to user/global scope",
     inputSchema: {
