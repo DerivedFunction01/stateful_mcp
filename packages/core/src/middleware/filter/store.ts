@@ -2,7 +2,7 @@ import type { SessionFilterStore, PersistentFilterStore } from "../../adapters/s
 import type { FilterState, FilterCondition } from "./types";
 import type { TableSchema, OwnerScope } from "../../config/types";
 import type { QueryEngine } from "../../adapters/engines/interfaces";
-import { ErrorCode, McpError } from "../../errors/types";
+import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 
 // REFERENCE: docs/filter.md
 // REFERENCE: docs/pipeline.md
@@ -72,10 +72,10 @@ export class FilterStore {
     if (toolName) {
       const tables = this.toolSchemas.get(toolName);
       if (!tables) {
-        throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Tool "${toolName}" not registered`);
+        throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Tool "${toolName}" not registered`);
       }
       if (tableName && !tables[tableName]) {
-        throw new McpError(ErrorCode.FILTER_PROPERTY_INVALID, `Table "${tableName}" not in tool "${toolName}"`);
+        throw new StatefulFrameworkError(ErrorCode.FILTER_PROPERTY_INVALID, `Table "${tableName}" not in tool "${toolName}"`);
       }
     }
 
@@ -84,14 +84,14 @@ export class FilterStore {
     if (rules && schema) {
       for (const op of rules) {
         if (!schema.filterable_properties.includes(op.property)) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.FILTER_PROPERTY_INVALID,
             `"${op.property}" is not filterable on "${tableName}"`,
             { allowed: schema.filterable_properties }
           );
         }
         if (!schema.operators.includes(op.operator)) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.FILTER_OPERATOR_INVALID,
             `Operator "${op.operator}" not allowed on "${tableName}"`,
             { allowed: schema.operators }
@@ -102,14 +102,14 @@ export class FilterStore {
         const propType = this.getPropertyType(schema, op.property);
         if (propType === "number") {
           if (op.operator === "like" || op.operator === "not_like") {
-            throw new McpError(
+            throw new StatefulFrameworkError(
               ErrorCode.FILTER_OPERATOR_INVALID,
               `Operator "${op.operator}" is not allowed on numeric property "${op.property}"`
             );
           }
         } else if (propType === "string" || propType === "boolean") {
           if (op.operator === "between" || op.operator === "not_between") {
-            throw new McpError(
+            throw new StatefulFrameworkError(
               ErrorCode.FILTER_OPERATOR_INVALID,
               `Operator "${op.operator}" is not allowed on non-numeric property "${op.property}"`
             );
@@ -147,7 +147,7 @@ export class FilterStore {
     const resolvedParentId = await this.resolveId(filterId, sessionId);
     const parent = await this.lookup(resolvedParentId, sessionId, userId);
     if (!parent) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
     }
 
     const schema = this.pinnedSchemas.get(resolvedParentId);
@@ -156,14 +156,14 @@ export class FilterStore {
     if (schema) {
       for (const op of operations) {
         if (!schema.filterable_properties.includes(op.property)) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.FILTER_PROPERTY_INVALID,
             `"${op.property}" is not filterable on "${parent.tableName}"`,
             { allowed: schema.filterable_properties }
           );
         }
         if (!schema.operators.includes(op.operator)) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.FILTER_OPERATOR_INVALID,
             `Operator "${op.operator}" not allowed on "${parent.tableName}"`,
             { allowed: schema.operators }
@@ -174,14 +174,14 @@ export class FilterStore {
         const propType = this.getPropertyType(schema, op.property);
         if (propType === "number") {
           if (op.operator === "like" || op.operator === "not_like") {
-            throw new McpError(
+            throw new StatefulFrameworkError(
               ErrorCode.FILTER_OPERATOR_INVALID,
               `Operator "${op.operator}" is not allowed on numeric property "${op.property}"`
             );
           }
         } else if (propType === "string" || propType === "boolean") {
           if (op.operator === "between" || op.operator === "not_between") {
-            throw new McpError(
+            throw new StatefulFrameworkError(
               ErrorCode.FILTER_OPERATOR_INVALID,
               `Operator "${op.operator}" is not allowed on non-numeric property "${op.property}"`
             );
@@ -379,7 +379,7 @@ export class FilterStore {
   async getFilterRules(id: string, sessionId: string, userId?: string): Promise<FilterCondition[]> {
     const filter = await this.lookup(id, sessionId, userId);
     if (!filter) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${id}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Filter "${id}" not found`);
     }
     const rules = [...filter.rules];
     let parentId = filter.parentFilterId;
@@ -405,11 +405,11 @@ export class FilterStore {
     const filterB = await this.lookup(resolvedIdB, sessionId, userId);
 
     if (!filterA || !filterB) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, "One or both filters for diff not found");
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, "One or both filters for diff not found");
     }
 
     if (filterA.toolName !== filterB.toolName || filterA.tableName !== filterB.tableName) {
-      throw new McpError(
+      throw new StatefulFrameworkError(
         ErrorCode.SCHEMA_MISMATCH,
         `Cannot diff filters of different schemas: "${filterA.toolName || ""}:${filterA.tableName || ""}" vs "${filterB.toolName || ""}:${filterB.tableName || ""}"`
       );
@@ -448,10 +448,10 @@ export class FilterStore {
   async compress(filterId: string, sessionId: string, userId?: string): Promise<string> {
     const filter = await this.lookup(filterId, sessionId, userId);
     if (!filter) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
     }
     if (filter.combined_operation) {
-      throw new McpError(ErrorCode.FILTER_COMBINATION_INVALID, "Combined filters cannot be compressed");
+      throw new StatefulFrameworkError(ErrorCode.FILTER_COMBINATION_INVALID, "Combined filters cannot be compressed");
     }
 
     const flatRules = await this.getFilterRules(filterId, sessionId, userId);
@@ -482,7 +482,7 @@ export class FilterStore {
     userId?: string
   ): Promise<string> {
     if (ids.length < 2) {
-      throw new McpError(ErrorCode.FILTER_COMBINATION_INVALID, "Need at least 2 filter IDs to combine");
+      throw new StatefulFrameworkError(ErrorCode.FILTER_COMBINATION_INVALID, "Need at least 2 filter IDs to combine");
     }
 
     let boundTool: string | undefined;
@@ -491,14 +491,14 @@ export class FilterStore {
     for (const id of ids) {
       const f = await this.lookup(id, sessionId, userId);
       if (!f) {
-        throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${id}" not found`);
+        throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Filter "${id}" not found`);
       }
       if (f.toolName && f.tableName) {
         if (!boundTool) {
           boundTool = f.toolName;
           boundTable = f.tableName;
         } else if (boundTool !== f.toolName || boundTable !== f.tableName) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.FILTER_COMBINATION_INVALID,
             "Cannot combine filters targeting different tools/tables"
           );
@@ -532,20 +532,20 @@ export class FilterStore {
   ): Promise<string> {
     if (scope.level === "global") {
       if (!checkPrivilege(undefined)) {
-        throw new McpError(ErrorCode.FILTER_PRIVILEGE_DENIED, "Insufficient privilege for global scope");
+        throw new StatefulFrameworkError(ErrorCode.FILTER_PRIVILEGE_DENIED, "Insufficient privilege for global scope");
       }
     }
 
     let state = await this.session.get(sessionId, filterId);
     if (!state) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not in session`);
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not in session`);
     }
     let targetId = filterId;
     if (state.parentFilterId !== null) {
       targetId = await this.compress(filterId, sessionId, scope.level === "user" ? scope.userId : undefined);
       const compressedState = await this.session.get(sessionId, targetId);
       if (!compressedState) {
-        throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Compressed filter not found`);
+        throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Compressed filter not found`);
       }
       state = compressedState;
     }
@@ -575,7 +575,7 @@ export class FilterStore {
   ): Promise<any[]> {
     const filter = await this.lookup(filterId, sessionId, userId);
     if (!filter) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
     }
 
     if (filter.combined_operation && filter.combined_ids) {
@@ -627,11 +627,11 @@ export class FilterStore {
     }
 
     if (!filter.toolName || !filter.tableName) {
-      throw new McpError(ErrorCode.FILTER_COMBINATION_INVALID, "Filter not bound to a tool/table");
+      throw new StatefulFrameworkError(ErrorCode.FILTER_COMBINATION_INVALID, "Filter not bound to a tool/table");
     }
 
     if (!queryEngineResolver) {
-      throw new McpError(ErrorCode.INTERNAL_ERROR, "QueryEngine resolver not provided");
+      throw new StatefulFrameworkError(ErrorCode.INTERNAL_ERROR, "QueryEngine resolver not provided");
     }
 
     const engine = await queryEngineResolver(filter.toolName, filter.tableName);
@@ -679,7 +679,7 @@ export class FilterStore {
   public modifierAdd(modId: string, columns: string[], aggregations: any[]): string {
     const parent = this.modifiers.get(modId);
     if (!parent) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Modifier ID "${modId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Modifier ID "${modId}" not found`);
     }
 
     const newModId = `mod_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
@@ -726,7 +726,7 @@ export class FilterStore {
   ): Promise<string> {
     const parent = await this.lookup(filterId, sessionId, userId);
     if (!parent) {
-      throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not found`);
     }
 
     const resolvedRules = await this.getFilterRules(filterId, sessionId, userId);

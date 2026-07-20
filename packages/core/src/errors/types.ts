@@ -36,13 +36,13 @@ export enum ErrorCode {
   SCHEMA_MISMATCH           = "SCHEMA_MISMATCH",
 }
 
-export class McpError extends Error {
+export class StatefulFrameworkError extends Error {
   constructor(
     public readonly code: ErrorCode,
     message: string,
     public readonly details?: Record<string, unknown>
   ) {
     super(message);
-    this.name = "McpError";
+    this.name = "StatefulFrameworkError";
   }
 }

@@ -10,6 +10,14 @@ import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
 import { clampLimit, buildLimitField } from "../config/pagination";
 import { getFilterStore, getFormStore } from "./helper";
 import * as path from "path";
+import { fileURLToPath } from "url";
+import * as path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const localAboutDir = path.resolve(__dirname, "../about");
+const localExamplesDir = path.resolve(__dirname, "../examples");
+
 
 const server = new McpServer({
   name: "object-service",
@@ -326,7 +334,7 @@ server.registerTool(
       const workspaceRoot = configDir;
       const content = await resolveAboutOrExamples(
         config.about_and_examples?.middleware_about,
-        "config/about/middleware.md",
+        path.join(localAboutDir, "middleware.md"),
         workspaceRoot
       );
       return { content: [{ type: "text", text: content }] };
@@ -347,7 +355,7 @@ server.registerTool(
       const workspaceRoot = configDir;
       const content = await resolveAboutOrExamples(
         config.about_and_examples?.object_about,
-        "config/about/object.md",
+        path.join(localAboutDir, "object.md"),
         workspaceRoot
       );
       return { content: [{ type: "text", text: content }] };
@@ -371,7 +379,7 @@ server.registerTool(
       const workspaceRoot = configDir;
       let content = await resolveAboutOrExamples(
         config.about_and_examples?.object_examples,
-        "config/examples/object.md",
+        path.join(localExamplesDir, "object.md"),
         workspaceRoot
       );
       const parts = content.split("\n\n---\n\n");

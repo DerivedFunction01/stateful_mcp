@@ -10,6 +10,14 @@ import { FormStore } from "../middleware/form/store";
 import type { MiddlewareConfig, FormSchema, OwnerScope } from "../config/types";
 import { getFilterStore, getObjectStore } from "./helper";
 import * as path from "path";
+import { fileURLToPath } from "url";
+import * as path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const localAboutDir = path.resolve(__dirname, "../about");
+const localExamplesDir = path.resolve(__dirname, "../examples");
+
 
 const server = new McpServer({
   name: "form-service",
@@ -183,7 +191,7 @@ function registerFormTools() {
       try {
         const about = await resolveAboutOrExamples(
           config.about_and_examples?.form_about,
-          "config/about/form.md",
+          path.join(localAboutDir, "form.md"),
           configDir
         );
         return { content: [{ type: "text", text: about }] };
@@ -203,7 +211,7 @@ function registerFormTools() {
       try {
         const examples = await resolveAboutOrExamples(
           config.about_and_examples?.form_examples,
-          "config/examples/form.md",
+          path.join(localExamplesDir, "form.md"),
           configDir
         );
         return { content: [{ type: "text", text: examples }] };

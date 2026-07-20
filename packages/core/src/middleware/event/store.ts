@@ -1,7 +1,7 @@
 import type { SessionEventStore, PersistentEventStore } from "../../adapters/storage/interfaces";
 import type { EventCommit, EventMutation, EventRecord, MergeSession, MergeConflict } from "./types";
 import type { ResourceLocator, OwnerScope } from "../../config/types";
-import { ErrorCode, McpError } from "../../errors/types";
+import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import { runValidationEngine } from "../../adapters/validation/runner";
 import { validateStateReferences } from "../../adapters/validation/references";
 import Ajv from "ajv";
@@ -47,7 +47,7 @@ export class EventStore {
       this.workspaceRoot
     );
     if (!result.valid) {
-      throw new McpError(
+      throw new StatefulFrameworkError(
         ErrorCode.OBJECT_VALIDATION_FAILED,
         `Event validation rejected: ${(result.errors || ["unknown reason"]).join("; ")}`
       );
@@ -72,7 +72,7 @@ export class EventStore {
   ): Promise<string> {
     const schema = this.schemas.get(schemaName);
     if (!schema) {
-      throw new McpError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${schemaName}" not registered`);
+      throw new StatefulFrameworkError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${schemaName}" not registered`);
     }
 
     const mutations: EventMutation[] = [];
@@ -80,7 +80,7 @@ export class EventStore {
       const validate = ajv.compile(schema);
       for (const ev of initialEvents) {
         if (!validate(ev)) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.OBJECT_VALIDATION_FAILED,
             `Initial event data fails schema validation`
           );
@@ -92,7 +92,7 @@ export class EventStore {
             form: this.formStore
           });
         } catch (err: any) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.OBJECT_VALIDATION_FAILED,
             `Event references validation failed: ${err.message || err}`
           );
@@ -123,7 +123,7 @@ export class EventStore {
     const resolvedId = await this.resolveId(idOrAlias, sessionId);
     const parent = await this.session.get(sessionId, resolvedId);
     if (!parent) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Parent commit "${idOrAlias}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Parent commit "${idOrAlias}" not found`);
     }
 
     // Get the schema name by tracing parents
@@ -132,7 +132,7 @@ export class EventStore {
     if (schema) {
       const validate = ajv.compile(schema);
       if (!validate(data)) {
-        throw new McpError(ErrorCode.OBJECT_VALIDATION_FAILED, `Event data fails schema validation`);
+        throw new StatefulFrameworkError(ErrorCode.OBJECT_VALIDATION_FAILED, `Event data fails schema validation`);
       }
       try {
         await validateStateReferences(schema, data, sessionId, {
@@ -141,7 +141,7 @@ export class EventStore {
           form: this.formStore
         });
       } catch (err: any) {
-        throw new McpError(
+        throw new StatefulFrameworkError(
           ErrorCode.OBJECT_VALIDATION_FAILED,
           `Event references validation failed: ${err.message || err}`
         );
@@ -198,13 +198,13 @@ export class EventStore {
     const resolvedId = await this.resolveId(idOrAlias, sessionId);
     const parent = await this.session.get(sessionId, resolvedId);
     if (!parent) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Parent commit "${idOrAlias}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Parent commit "${idOrAlias}" not found`);
     }
 
     const currentArray = await this.project(resolvedId, sessionId);
     const targetEvent = currentArray.find((e) => e.event_id === eventId);
     if (!targetEvent) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Event "${eventId}" not found in current log state`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Event "${eventId}" not found in current log state`);
     }
 
     const updatedData: Record<string, any> = { ...targetEvent, ...patchData };
@@ -215,7 +215,7 @@ export class EventStore {
     if (schema) {
       const validate = ajv.compile(schema);
       if (!validate(updatedData)) {
-        throw new McpError(ErrorCode.OBJECT_VALIDATION_FAILED, `Patched event data fails schema validation`);
+        throw new StatefulFrameworkError(ErrorCode.OBJECT_VALIDATION_FAILED, `Patched event data fails schema validation`);
       }
     }
 
@@ -273,13 +273,13 @@ export class EventStore {
     const resolvedId = await this.resolveId(idOrAlias, sessionId);
     const parent = await this.session.get(sessionId, resolvedId);
     if (!parent) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Parent commit "${idOrAlias}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Parent commit "${idOrAlias}" not found`);
     }
 
     const currentArray = await this.project(resolvedId, sessionId);
     const targetEvent = currentArray.find((e) => e.event_id === eventId);
     if (!targetEvent) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Event "${eventId}" not found in current log state`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Event "${eventId}" not found in current log state`);
     }
 
     const mutationParentCommitId2 = await this.findLastMutationCommitId(resolvedId, eventId, sessionId);
@@ -397,7 +397,7 @@ export class EventStore {
 
   async findLCA(commitIds: string[], sessionId: string): Promise<string> {
     if (commitIds.length === 0) {
-      throw new McpError(ErrorCode.INTERNAL_ERROR, "No commit IDs specified for LCA");
+      throw new StatefulFrameworkError(ErrorCode.INTERNAL_ERROR, "No commit IDs specified for LCA");
     }
 
     // Get ancestor paths for each commit ID
@@ -414,7 +414,7 @@ export class EventStore {
     }
 
     if (paths.length === 0 || !paths[0] || paths[0].length === 0) {
-      throw new McpError(ErrorCode.INTERNAL_ERROR, "Invalid paths in LCA calculation");
+      throw new StatefulFrameworkError(ErrorCode.INTERNAL_ERROR, "Invalid paths in LCA calculation");
     }
     let lca = paths[0][0];
     const minLength = Math.min(...paths.map((p) => p.length));
@@ -553,7 +553,7 @@ export class EventStore {
   async mergeInspect(mergeSessionId: string): Promise<MergeSession> {
     const session = this.mergeSessions.get(mergeSessionId);
     if (!session) {
-      throw new McpError(ErrorCode.INTERNAL_ERROR, `Merge session "${mergeSessionId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.INTERNAL_ERROR, `Merge session "${mergeSessionId}" not found`);
     }
     return session;
   }
@@ -561,7 +561,7 @@ export class EventStore {
   async mergeResolve(mergeSessionId: string, eventId: string, resolution: any): Promise<string> {
     const parentSession = this.mergeSessions.get(mergeSessionId);
     if (!parentSession) {
-      throw new McpError(ErrorCode.INTERNAL_ERROR, `Merge session "${mergeSessionId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.INTERNAL_ERROR, `Merge session "${mergeSessionId}" not found`);
     }
 
     const updatedConflicts = parentSession.conflicts.map((c) => {
@@ -590,12 +590,12 @@ export class EventStore {
   async mergeCommit(mergeSessionId: string, sessionId: string): Promise<string> {
     const session = this.mergeSessions.get(mergeSessionId);
     if (!session) {
-      throw new McpError(ErrorCode.INTERNAL_ERROR, `Merge session "${mergeSessionId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.INTERNAL_ERROR, `Merge session "${mergeSessionId}" not found`);
     }
 
     const unresolved = session.conflicts.filter((c) => c.status === "pending");
     if (unresolved.length > 0) {
-      throw new McpError(
+      throw new StatefulFrameworkError(
         ErrorCode.INTERNAL_ERROR,
         `Cannot commit merge session: ${unresolved.length} unresolved conflicts remain`
       );
@@ -875,7 +875,7 @@ export class EventStore {
   async compress(commitId: string, sessionId: string): Promise<string> {
     const commit = await this.session.get(sessionId, commitId);
     if (!commit) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Commit "${commitId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Commit "${commitId}" not found`);
     }
     const activeEvents = await this.project(commitId, sessionId);
 
@@ -911,14 +911,14 @@ export class EventStore {
   ): Promise<string> {
     let commit = await this.session.get(sessionId, commitId);
     if (!commit) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Commit "${commitId}" not in session`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Commit "${commitId}" not in session`);
     }
     let targetId = commitId;
     if (commit.parentCommitId !== null) {
       targetId = await this.compress(commitId, sessionId);
       const compressed = await this.session.get(sessionId, targetId);
       if (!compressed) {
-        throw new McpError(ErrorCode.OBJECT_NOT_FOUND, "Compressed commit not found");
+        throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, "Compressed commit not found");
       }
       commit = compressed;
     }

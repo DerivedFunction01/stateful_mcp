@@ -1,7 +1,7 @@
 import type { SessionObjectStore, PersistentObjectStore, PersistedObjectState } from "../../adapters/storage/interfaces";
 import type { ObjectState, ObjectDiffResult } from "./types";
 import type { OwnerScope, ResourceLocator } from "../../config/types";
-import { ErrorCode, McpError } from "../../errors/types";
+import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import { resolvePathSchema } from "./schema-walker";
 import { runValidationEngine } from "../../adapters/validation/runner";
 import { validateStateReferences } from "../../adapters/validation/references";
@@ -58,21 +58,21 @@ export class ObjectStore {
   async init(schemaName: string, sessionId: string, alias?: string, data?: Record<string, any>): Promise<string> {
     const rootSchema = this.schemas.get(schemaName);
     if (!rootSchema) {
-      throw new McpError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${schemaName}" not registered`);
+      throw new StatefulFrameworkError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${schemaName}" not registered`);
     }
 
     if (data && rootSchema) {
       try {
         const validate = ajv.compile(rootSchema);
         if (!validate(data)) {
-          throw new McpError(
+          throw new StatefulFrameworkError(
             ErrorCode.OBJECT_VALIDATION_FAILED,
             `Initial data fails schema validation`
           );
         }
       } catch (err: any) {
-        if (err instanceof McpError) throw err;
-        throw new McpError(
+        if (err instanceof StatefulFrameworkError) throw err;
+        throw new StatefulFrameworkError(
           ErrorCode.OBJECT_VALIDATION_FAILED,
           `Initial data fails schema validation: ${err.message || String(err)}`
         );
@@ -98,7 +98,7 @@ export class ObjectStore {
                   await this.persistent.get(savedId, { level: "global" });
     
     if (!saved) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Saved object "${savedId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Saved object "${savedId}" not found`);
     }
 
     const newId = `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
@@ -128,7 +128,7 @@ export class ObjectStore {
     const resolvedParentId = await this.resolveId(objectId, sessionId);
     const parent = await this.lookup(resolvedParentId, sessionId, userId);
     if (!parent) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
     }
 
     // Structural consistency check
@@ -140,7 +140,7 @@ export class ObjectStore {
         try {
           const validate = ajv.compile(leafSchema);
           if (!validate(value)) {
-            throw new McpError(
+            throw new StatefulFrameworkError(
               ErrorCode.OBJECT_TYPE_MISMATCH,
               `Value at path [${path.join(",")}] fails schema validation`
             );
@@ -148,7 +148,7 @@ export class ObjectStore {
         } catch (_) {
           // Fallback to basic type check if Ajv fails to compile (e.g. missing def refs)
           if (leafSchema.type && typeof value !== leafSchema.type) {
-            throw new McpError(
+            throw new StatefulFrameworkError(
               ErrorCode.OBJECT_TYPE_MISMATCH,
               `Value at path [${path.join(",")}] is not of type "${leafSchema.type}"`
             );
@@ -347,7 +347,7 @@ export class ObjectStore {
   ): Promise<string> {
     // Cycle check: B refs A, B.ref(A, path, B, path) -> cycle.
     if (objectId === sourceObjectId) {
-      throw new McpError(ErrorCode.OBJECT_CYCLE_DETECTED, "Direct cross-field cycle detected");
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_CYCLE_DETECTED, "Direct cross-field cycle detected");
     }
 
     // Store the reference descriptor inside the object's field value as a special ref object
@@ -380,12 +380,12 @@ export class ObjectStore {
   ): Promise<string> {
     const resolvedParentId = await this.resolveId(objectId, sessionId);
     const parent = await this.lookup(resolvedParentId, sessionId, userId);
-    if (!parent) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
+    if (!parent) throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
     const dataCopy = JSON.parse(JSON.stringify(parent.data));
     const arr = this.getValueAtPath(dataCopy, path);
     if (arr !== undefined && !Array.isArray(arr)) {
-      throw new McpError(ErrorCode.OBJECT_TYPE_MISMATCH, `Field at path [${path.join(",")}] is not an array`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_TYPE_MISMATCH, `Field at path [${path.join(",")}] is not an array`);
     }
 
     const currentArr = Array.isArray(arr) ? [...arr] : [];
@@ -396,23 +396,23 @@ export class ObjectStore {
       currentArr.splice(insertIndex, 0, insertValue);
     } else if (operation === "remove") {
       if (index === undefined) {
-        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index is required for remove operation");
+        throw new StatefulFrameworkError(ErrorCode.OBJECT_PATH_INVALID, "Index is required for remove operation");
       }
       if (index < 0 || index >= currentArr.length) {
-        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index out of bounds for remove operation");
+        throw new StatefulFrameworkError(ErrorCode.OBJECT_PATH_INVALID, "Index out of bounds for remove operation");
       }
       currentArr.splice(index, 1);
     } else if (operation === "replace") {
       if (index === undefined) {
-        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index is required for replace operation");
+        throw new StatefulFrameworkError(ErrorCode.OBJECT_PATH_INVALID, "Index is required for replace operation");
       }
       if (index < 0 || index >= currentArr.length) {
-        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index out of bounds for replace operation");
+        throw new StatefulFrameworkError(ErrorCode.OBJECT_PATH_INVALID, "Index out of bounds for replace operation");
       }
       const replaceValue = value !== undefined ? value : {};
       currentArr[index] = replaceValue;
     } else {
-      throw new McpError(ErrorCode.OBJECT_PATH_INVALID, `Unsupported array operation "${operation}"`);
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_PATH_INVALID, `Unsupported array operation "${operation}"`);
     }
 
     this.setValueAtPath(dataCopy, path, currentArr);
@@ -450,7 +450,7 @@ export class ObjectStore {
   async compress(objectId: string, sessionId: string, userId?: string): Promise<string> {
     const resolvedId = await this.resolveId(objectId, sessionId);
     const obj = await this.lookup(resolvedId, sessionId, userId);
-    if (!obj) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
+    if (!obj) throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
     const compressedState: Omit<ObjectState, "objectId"> = {
       schemaName: obj.schemaName,
@@ -471,11 +471,11 @@ export class ObjectStore {
 
   async validate(objectId: string, sessionId: string, userId?: string): Promise<ValidationResult> {
     const obj = await this.lookup(objectId, sessionId, userId);
-    if (!obj) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
+    if (!obj) throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
     const rootSchema = this.schemas.get(obj.schemaName);
     if (!rootSchema) {
-      throw new McpError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${obj.schemaName}" not loaded`);
+      throw new StatefulFrameworkError(ErrorCode.SCHEMA_LOAD_FAILED, `Schema "${obj.schemaName}" not loaded`);
     }
 
     const missing: (string | number)[][] = [];
@@ -578,12 +578,12 @@ export class ObjectStore {
 
   async save(objectId: string, tags: string[], description: string, scope: OwnerScope, sessionId: string): Promise<string> {
     let obj = await this.session.get(sessionId, objectId);
-    if (!obj) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not in session`);
+    if (!obj) throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not in session`);
     let targetId = objectId;
     if (obj.parentObjectId !== null) {
       targetId = await this.compress(objectId, sessionId, scope.level === "user" ? scope.userId : undefined);
       const compressed = await this.session.get(sessionId, targetId);
-      if (!compressed) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, "Compressed object not found");
+      if (!compressed) throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, "Compressed object not found");
       obj = compressed;
     }
 
@@ -602,14 +602,14 @@ export class ObjectStore {
   async resolve(objectId: string, mode: "tool_call" | "function", sessionId: string, userId?: string): Promise<unknown> {
     const validation = await this.validate(objectId, sessionId, userId);
     if (!validation.valid) {
-      throw new McpError(
+      throw new StatefulFrameworkError(
         ErrorCode.OBJECT_VALIDATION_FAILED,
         `Object validation failed. Missing: ${JSON.stringify(validation.missing)}, Invalid: ${JSON.stringify(validation.invalid)}`
       );
     }
 
     const obj = await this.lookup(objectId, sessionId, userId);
-    if (!obj) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
+    if (!obj) throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
     // Recursively resolve references
     const resolveRefs = async (data: any): Promise<any> => {
@@ -618,7 +618,7 @@ export class ObjectStore {
           const refTarget = data.$ref;
           const targetObj = await this.lookup(refTarget.objectId, sessionId, userId);
           if (!targetObj) {
-            throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Referenced object "${refTarget.objectId}" not found`);
+            throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Referenced object "${refTarget.objectId}" not found`);
           }
           return this.getValueAtPath(targetObj.data, refTarget.path);
         }
@@ -646,7 +646,7 @@ export class ObjectStore {
 
   async inspect(objectId: string, sessionId: string, userId?: string): Promise<any> {
     const obj = await this.lookup(objectId, sessionId, userId);
-    if (!obj) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
+    if (!obj) throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
 
     const validation = await this.validate(objectId, sessionId, userId);
     return {
@@ -662,11 +662,11 @@ export class ObjectStore {
     const objA = await this.lookup(objectIdA, sessionId, userId);
     const objB = await this.lookup(objectIdB, sessionId, userId);
     if (!objA || !objB) {
-      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, "One or both objects for diff not found");
+      throw new StatefulFrameworkError(ErrorCode.OBJECT_NOT_FOUND, "One or both objects for diff not found");
     }
 
     if (objA.schemaName !== objB.schemaName) {
-      throw new McpError(
+      throw new StatefulFrameworkError(
         ErrorCode.SCHEMA_MISMATCH,
         `Cannot diff objects of different schemas: "${objA.schemaName}" vs "${objB.schemaName}"`
       );

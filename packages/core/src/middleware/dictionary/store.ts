@@ -10,7 +10,7 @@ import type {
 import type { ConceptResolver, ResolveResponse } from "./resolver";
 import type { ConceptStore, PersistentExpressionStore } from "./interfaces";
 import type { OwnerScope } from "../../config/types";
-import { ErrorCode, McpError } from "../../errors/types";
+import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import * as crypto from "crypto";
 
 export class InMemoryConceptStore implements ConceptStore {
@@ -203,7 +203,7 @@ export class DictionaryStore {
   private async verifyNamespaceMutable(namespaceCode: string): Promise<void> {
     const ns = await this.getNamespace(namespaceCode);
     if (ns && ns.isMutable === false) {
-      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Namespace "${namespaceCode}" is read-only.`);
+      throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Namespace "${namespaceCode}" is read-only.`);
     }
   }
 
@@ -215,15 +215,15 @@ export class DictionaryStore {
 
     if (exprUserId) {
       if (callerContext.user_id !== exprUserId) {
-        throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Access denied: Cannot modify another user's personal expression.");
+        throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Access denied: Cannot modify another user's personal expression.");
       }
     } else if (exprWorkspace === "global") {
       if (!callerContext.is_admin) {
-        throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Access denied: Insufficient privilege for global scope expressions.");
+        throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Access denied: Insufficient privilege for global scope expressions.");
       }
     } else {
       if (callerContext.workspace_id !== exprWorkspace) {
-        throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Access denied: Caller workspace "${callerContext.workspace_id}" does not match expression workspace "${exprWorkspace}".`);
+        throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Access denied: Caller workspace "${callerContext.workspace_id}" does not match expression workspace "${exprWorkspace}".`);
       }
     }
   }
@@ -232,7 +232,7 @@ export class DictionaryStore {
     await this.verifyNamespaceMutable(c.namespaceCode);
     const conceptId = c.id || `concept_dyn_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     if (!conceptId) {
-      throw new McpError(ErrorCode.CONCEPT_ALLOCATION_FAILED, "Failed to allocate a valid unique Concept ID.");
+      throw new StatefulFrameworkError(ErrorCode.CONCEPT_ALLOCATION_FAILED, "Failed to allocate a valid unique Concept ID.");
     }
     const newConcept: Concept = {
       ...c,
@@ -246,15 +246,15 @@ export class DictionaryStore {
   public async editConcept(id: string, updates: Partial<Concept>, callerContext?: Record<string, any>): Promise<void> {
     const concept = await this.conceptStore.getById(id);
     if (!concept) {
-      throw new McpError(ErrorCode.CONCEPT_NOT_FOUND, `Concept "${id}" not found.`);
+      throw new StatefulFrameworkError(ErrorCode.CONCEPT_NOT_FOUND, `Concept "${id}" not found.`);
     }
     await this.verifyNamespaceMutable(concept.namespaceCode);
 
     if (updates.standardCode !== undefined && updates.standardCode !== concept.standardCode) {
-      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Cannot edit a concept's standardCode coordinate identity.");
+      throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Cannot edit a concept's standardCode coordinate identity.");
     }
     if (updates.namespaceCode !== undefined && updates.namespaceCode !== concept.namespaceCode) {
-      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Cannot edit a concept's namespaceCode coordinate identity.");
+      throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, "Cannot edit a concept's namespaceCode coordinate identity.");
     }
 
     const updated = { ...concept, ...updates };
@@ -264,7 +264,7 @@ export class DictionaryStore {
   public async removeConcept(id: string, callerContext?: Record<string, any>): Promise<void> {
     const concept = await this.conceptStore.getById(id);
     if (!concept) {
-      throw new McpError(ErrorCode.CONCEPT_NOT_FOUND, `Concept "${id}" not found.`);
+      throw new StatefulFrameworkError(ErrorCode.CONCEPT_NOT_FOUND, `Concept "${id}" not found.`);
     }
     await this.verifyNamespaceMutable(concept.namespaceCode);
 
@@ -272,12 +272,12 @@ export class DictionaryStore {
     const exprs = await this.expressionStore.list(scope, true);
     const activeExprs = exprs.filter(e => e.conceptId === id && e.active);
     if (activeExprs.length > 0) {
-      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Cannot remove concept "${id}": it is referenced by active expressions.`);
+      throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Cannot remove concept "${id}": it is referenced by active expressions.`);
     }
 
     const activeRels = this.relations.filter(r => (r.conceptId === id || r.linkedId === id) && r.active);
     if (activeRels.length > 0) {
-      throw new McpError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Cannot remove concept "${id}": it is referenced by active relations.`);
+      throw new StatefulFrameworkError(ErrorCode.DICTIONARY_MUTATION_DENIED, `Cannot remove concept "${id}": it is referenced by active relations.`);
     }
 
     concept.active = false;
@@ -301,7 +301,7 @@ export class DictionaryStore {
   public async removeRelation(id: string, callerContext?: Record<string, any>): Promise<void> {
     const relation = this.relations.find(r => r.id === id);
     if (!relation) {
-      throw new McpError(ErrorCode.CONCEPT_NOT_FOUND, `Relation "${id}" not found.`);
+      throw new StatefulFrameworkError(ErrorCode.CONCEPT_NOT_FOUND, `Relation "${id}" not found.`);
     }
     const source = await this.getConcept(relation.conceptId);
     const target = await this.getConcept(relation.linkedId);
@@ -362,7 +362,7 @@ export class DictionaryStore {
   public async editExpression(id: string, updates: Partial<CustomExpression>, callerContext?: Record<string, any>): Promise<void> {
     const expr = await this.expressionStore.getById(id);
     if (!expr) {
-      throw new McpError(ErrorCode.EXPRESSION_INVALID, `Expression "${id}" not found.`);
+      throw new StatefulFrameworkError(ErrorCode.EXPRESSION_INVALID, `Expression "${id}" not found.`);
     }
 
     this.checkScopeAccess(expr.context, callerContext);

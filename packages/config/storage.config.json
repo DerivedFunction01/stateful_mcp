@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "filter_session_state": {
+    "_type": "adapter",
+    "name": "memory"
+  },
+  "filter_persistent_state": {
+    "global": {
+      "_type": "adapter",
+      "name": "memory"
+    },
+    "user": {
+      "_type": "adapter",
+      "name": "memory"
+    }
+  },
+  "object_session_state": {
+    "_type": "adapter",
+    "name": "memory"
+  },
+  "object_persistent_state": {
+    "global": {
+      "_type": "adapter",
+      "name": "memory"
+    },
+    "user": {
+      "_type": "adapter",
+      "name": "memory"
+    }
+  },
+  "dictionary_state": {
+    "_type": "adapter",
+    "name": "memory"
+  },
+  "dictionary_resolver": {
+    "_type": "adapter",
+    "name": "memory"
+  }
+}
