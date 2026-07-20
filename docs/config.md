@@ -423,5 +423,76 @@ Ontology coordinates translating colloquial abbreviations to standardized concep
 }
 ```
 
+---
+
+## 4. State References & Integrity Validation (`x-mcp-ref`)
+
+To establish dynamic referential integrity across the stateful services, properties in JSON schemas (used by Object schemas, Event payload schemas, or Form question schemas) can be configured with the custom attribute `"x-mcp-ref"`.
+
+### Allowed Values
+*   `"filter"`: Asserts that the field value points to a valid, active filter state ID or alias in the current session.
+*   `"object"`: Asserts that the field value points to a valid, active object state ID or alias in the current session.
+*   `"form"`: Asserts that the field value points to a valid, active form state ID or alias in the current session.
+
+### Schema Example
+(Note: Property/field names are completely arbitrary; validation is driven solely by the `"x-mcp-ref"` keyword.)
+```json
+{
+  "type": "object",
+  "required": ["report_title", "cohort_query", "patient_record"],
+  "properties": {
+    "report_title": { "type": "string" },
+    "cohort_query": {
+      "type": "string",
+      "x-mcp-ref": "filter"
+    },
+    "patient_record": {
+      "type": "string",
+      "x-mcp-ref": "object"
+    }
+  }
+}
+```
+
+### Runtime Validation Behavior
+During schema verification (e.g. `object_validate`, `form_answer`, or `event_log`), the validation runner:
+1. Parses the schema to locate any `"x-mcp-ref"` directives.
+2. Queries the corresponding session store (resolving aliases) to check if the state ID exists.
+3. Throws a descriptive validation error if the referenced entity is missing in the current session.
+
+---
+
+## 5. Programmatic Integration in External Tools
+
+External tools running in the same codebase environment or sharing the database/file persistence can bypass the MCP protocol entirely and interact with the stores programmatically.
+
+### Middleware Exports
+The package exports entrypoints for all middleware stores:
+*   `stateful-mcp/middleware/filter` $\rightarrow$ `FilterStore`
+*   `stateful-mcp/middleware/object` $\rightarrow$ `ObjectStore`
+*   `stateful-mcp/middleware/form` $\rightarrow$ `FormStore`
+
+### Code Example
+```typescript
+import { FilterStore } from "stateful-mcp/middleware/filter";
+import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "stateful-mcp";
+
+// 1. Initialize store programmatically
+const filterStore = new FilterStore(
+  new MemorySessionFilterStore(),
+  new MemoryPersistentFilterStore(),
+  new Map(), // toolSchemas
+  new Map(), // pinnedSchemas
+  20         // auto-compression threshold
+);
+
+// 2. Fetch active rules by ID or alias
+const filterNode = await filterStore.getFilter("my_active_alias", "session_id");
+if (filterNode) {
+  console.log("Active rules:", filterNode.rules);
+}
+```
+
+
 
 
