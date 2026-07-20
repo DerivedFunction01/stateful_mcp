@@ -43,6 +43,9 @@ export interface MiddlewareConfig {
   event_session_state?: ResourceLocator;
   event_persistent_state?: { global: ResourceLocator; user: ResourceLocator };
 
+  form_session_state?: ResourceLocator;
+  form_persistent_state?: { global: ResourceLocator; user: ResourceLocator };
+
   dictionary_state: ResourceLocator;
   dictionary_resolver: ResourceLocator;
 
@@ -65,6 +68,8 @@ export interface MiddlewareConfig {
   // but a caller's requested `limit` is never allowed to exceed it.
   pagination_limits?: PaginationLimitsConfig;
 
+  form_schemas?: Record<string, ResourceLocator | { schema: ResourceLocator }>;
+
   tools: Record<string, ToolConfig>;
 
   env_sources?: Array<ResourceLocator & { optional?: boolean }>;
@@ -82,6 +87,8 @@ export interface AboutAndExamplesConfig {
   dictionary_examples?: ResourceLocator[];
   event_about?: ResourceLocator[];
   event_examples?: ResourceLocator[];
+  form_about?: ResourceLocator[];
+  form_examples?: ResourceLocator[];
 }
 
 export interface TableSchema {
@@ -99,3 +106,35 @@ export interface ToolSchema {
   available_tables: string[];
   table_schemas: Record<string, TableSchema>;
 }
+
+export interface FormNextRule {
+  condition?: {
+    operator: string;
+    value: any;
+  };
+  target: string | null;
+}
+
+export interface FormQuestion {
+  text: string;
+  answer_type: "boolean" | "free_text" | "multiple_choice" | "scale" | "number" | "date" | "multi_select" | "ranked";
+  required?: boolean;
+  options?: string[];
+  scale?: { min: number; max: number; step?: number };
+  next?: FormNextRule[] | { default: string | null } | Record<string, string | null>;
+}
+
+export interface FormSection {
+  title: string;
+  questions: string[];
+  next?: { default: string | null } | FormNextRule[];
+}
+
+export interface FormSchema {
+  form_id: string;
+  sections?: Record<string, FormSection>;
+  questions: Record<string, FormQuestion>;
+  start_section?: string;
+  start_question: string;
+}
+

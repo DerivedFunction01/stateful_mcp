@@ -11,10 +11,14 @@ import type {
   SessionEventStore,
   PersistentEventStore,
   PersistedEventState,
+  SessionFormStore,
+  PersistentFormStore,
+  PersistedFormStateDetails,
 } from "./interfaces";
 import type { FilterState } from "../../middleware/filter/types";
 import type { ObjectState } from "../../middleware/object/types";
 import type { EventCommit } from "../../middleware/event/types";
+import type { FormState } from "../../middleware/form/types";
 import type { OwnerScope } from "../../config/types";
 
 // Helper to ensure parent directories exist
@@ -731,6 +735,240 @@ export class JsonlPersistentEventStore extends BaseJsonlStore implements Persist
     await this.init();
     const results: Array<PersistedEventState & { scope: OwnerScope }> = [];
     for (const record of this.commits.values()) {
+      if (
+        (record.scope.level === "user" && scope.level === "user" && record.scope.userId === scope.userId) ||
+        (includeGlobal && record.scope.level === "global")
+      ) {
+        results.push(record);
+      }
+    }
+    return results;
+  }
+}
+
+// ── JSONL Session Form Store ─────────────────────────────────────────────────
+export class JsonlSessionFormStore extends BaseJsonlStore implements SessionFormStore {
+  private states = new Map<string, FormState>();
+  private aliases = new Map<string, string>();
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    try {
+      if (await fileOrDirExists(this.filePath)) {
+        const raw = await fs.readFile(this.filePath, "utf-8");
+        const lines = raw.split("\n");
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const entry = JSON.parse(line);
+          if (entry.type === "state") {
+            this.states.set(entry.data.formId, entry.data);
+          } else if (entry.type === "alias") {
+            this.aliases.set(`${entry.sessionId}:${entry.alias}`, entry.targetId);
+          } else if (entry.type === "delete_alias") {
+            this.aliases.delete(`${entry.sessionId}:${entry.alias}`);
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.code !== "ENOENT") throw err;
+    }
+    this.initialized = true;
+  }
+
+  private async serializeAll(): Promise<void> {
+    const lines: string[] = [];
+    for (const state of this.states.values()) {
+      lines.push(JSON.stringify({ type: "state", data: state }));
+    }
+    for (const [key, targetId] of this.aliases.entries()) {
+      const idx = key.indexOf(":");
+      const sessionId = key.slice(0, idx);
+      const alias = key.slice(idx + 1);
+      lines.push(JSON.stringify({ type: "alias", sessionId, alias, targetId }));
+    }
+    await this.truncateAndWrite(lines);
+  }
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    await this.init();
+    return this.aliases.get(`${sessionId}:${alias}`) || null;
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    await this.init();
+    const key = `${sessionId}:${alias}`;
+    this.aliases.set(key, targetId);
+    await this.appendLine(JSON.stringify({ type: "alias", sessionId, alias, targetId }));
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    await this.init();
+    const key = `${sessionId}:${alias}`;
+    if (this.aliases.delete(key)) {
+      await this.appendLine(JSON.stringify({ type: "delete_alias", sessionId, alias }));
+    }
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    await this.init();
+    const prefix = `${sessionId}:`;
+    const results: Array<{ alias: string; targetId: string }> = [];
+    for (const [key, targetId] of this.aliases.entries()) {
+      if (key.startsWith(prefix)) {
+        results.push({ alias: key.slice(prefix.length), targetId });
+      }
+    }
+    return results;
+  }
+
+  async create(sessionId: string, state: Omit<FormState, "formId"> & { formId?: string }, alias?: string): Promise<string> {
+    await this.init();
+    const id = state.formId || `form_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const fullState: FormState = { ...state, formId: id };
+    await this.set(sessionId, id, fullState);
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+    return id;
+  }
+
+  async get(sessionId: string, id: string): Promise<FormState | null> {
+    await this.init();
+    return this.states.get(id) || null;
+  }
+
+  async set(sessionId: string, id: string, state: FormState): Promise<void> {
+    await this.init();
+    this.states.set(id, state);
+    await this.appendLine(JSON.stringify({ type: "state", data: state }));
+  }
+
+  async delete(sessionId: string, id: string): Promise<void> {
+    await this.init();
+    if (this.states.delete(id)) {
+      await this.serializeAll();
+    }
+  }
+
+  async listSession(sessionId: string): Promise<string[]> {
+    await this.init();
+    return Array.from(this.states.keys());
+  }
+
+  async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+    await this.init();
+    const ids: string[] = [];
+    for (const state of this.states.values()) {
+      if (state.parentFormId === parentId) {
+        ids.push(state.formId);
+      }
+    }
+    return ids;
+  }
+
+  async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+    await this.init();
+    if (olderThanMs === undefined) {
+      this.states.clear();
+      this.aliases.clear();
+      await this.serializeAll();
+      return;
+    }
+    const now = Date.now();
+    let changed = false;
+    for (const [id, state] of this.states.entries()) {
+      const t = Date.parse(state.timestamp);
+      if (now - t > olderThanMs) {
+        this.states.delete(id);
+        changed = true;
+      }
+    }
+    const kept = new Set(this.states.keys());
+    for (const [key, targetId] of this.aliases.entries()) {
+      if (!kept.has(targetId)) {
+        this.aliases.delete(key);
+        changed = true;
+      }
+    }
+    if (changed) {
+      await this.serializeAll();
+    }
+  }
+}
+
+// ── JSONL Persistent Form Store ──────────────────────────────────────────────
+export class JsonlPersistentFormStore extends BaseJsonlStore implements PersistentFormStore {
+  private forms = new Map<string, PersistedFormStateDetails & { scope: OwnerScope }>();
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    try {
+      if (await fileOrDirExists(this.filePath)) {
+        const raw = await fs.readFile(this.filePath, "utf-8");
+        const lines = raw.split("\n");
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const entry = JSON.parse(line);
+          if (entry.type === "persistent_state") {
+            this.forms.set(entry.id, entry.data);
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.code !== "ENOENT") throw err;
+    }
+    this.initialized = true;
+  }
+
+  private async serializeAll(): Promise<void> {
+    const lines: string[] = [];
+    for (const [id, data] of this.forms.entries()) {
+      lines.push(JSON.stringify({ type: "persistent_state", id, data }));
+    }
+    await this.truncateAndWrite(lines);
+  }
+
+  async get(id: string, scope: OwnerScope): Promise<PersistedFormStateDetails | null> {
+    await this.init();
+    const record = this.forms.get(id);
+    if (!record) return null;
+    if (record.scope.level === "global" || (scope.level === "user" && record.scope.userId === scope.userId)) {
+      return record;
+    }
+    return null;
+  }
+
+  async set(id: string, state: PersistedFormStateDetails, scope: OwnerScope): Promise<void> {
+    await this.init();
+    const data = { ...state, scope };
+    this.forms.set(id, data);
+    await this.appendLine(JSON.stringify({ type: "persistent_state", id, data }));
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    await this.init();
+    if (this.forms.delete(id)) {
+      await this.serializeAll();
+    }
+  }
+
+  async findByTag(tag: string, scope: OwnerScope): Promise<PersistedFormStateDetails[]> {
+    await this.init();
+    const results: PersistedFormStateDetails[] = [];
+    for (const record of this.forms.values()) {
+      if (record.tags.includes(tag)) {
+        if (record.scope.level === "global" || (scope.level === "user" && record.scope.userId === scope.userId)) {
+          results.push(record);
+        }
+      }
+    }
+    return results;
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
+    await this.init();
+    const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> = [];
+    for (const record of this.forms.values()) {
       if (
         (record.scope.level === "user" && scope.level === "user" && record.scope.userId === scope.userId) ||
         (includeGlobal && record.scope.level === "global")

@@ -60,6 +60,17 @@ export function validateMiddlewareConfig(config: any): asserts config is Middlew
     validateLocator(config.event_persistent_state.user, "event_persistent_state.user");
   }
 
+  if (config.form_session_state) {
+    validateLocator(config.form_session_state, "form_session_state");
+  }
+  if (config.form_persistent_state) {
+    if (typeof config.form_persistent_state !== "object") {
+      throw new Error("Validation Error: form_persistent_state must be an object.");
+    }
+    validateLocator(config.form_persistent_state.global, "form_persistent_state.global");
+    validateLocator(config.form_persistent_state.user, "form_persistent_state.user");
+  }
+
   validateLocator(config.dictionary_state, "dictionary_state");
   validateLocator(config.dictionary_resolver, "dictionary_resolver");
 
@@ -103,6 +114,25 @@ export function validateMiddlewareConfig(config: any): asserts config is Middlew
     }
   }
 
+  if (config.form_schemas) {
+    if (typeof config.form_schemas !== "object") {
+      throw new Error("Validation Error: \"form_schemas\" must be an object.");
+    }
+    for (const [schemaName, schemaObj] of Object.entries<any>(config.form_schemas)) {
+      if (!schemaObj || typeof schemaObj !== "object") {
+        throw new Error(`Validation Error: Form schema "${schemaName}" must be an object.`);
+      }
+      if (schemaObj._type) {
+        validateLocator(schemaObj, `form_schemas.${schemaName}`);
+      } else {
+        if (!schemaObj.schema) {
+          throw new Error(`Validation Error: Form schema "${schemaName}" is missing a "schema" locator.`);
+        }
+        validateLocator(schemaObj.schema, `form_schemas.${schemaName}.schema`);
+      }
+    }
+  }
+
   if (config.pagination_limits) {
     if (typeof config.pagination_limits !== "object") {
       throw new Error("Validation Error: \"pagination_limits\" must be an object.");
@@ -131,7 +161,9 @@ export function validateMiddlewareConfig(config: any): asserts config is Middlew
       "dictionary_about",
       "dictionary_examples",
       "event_about",
-      "event_examples"
+      "event_examples",
+      "form_about",
+      "form_examples"
     ];
     for (const field of fields) {
       const locators = config.about_and_examples[field];

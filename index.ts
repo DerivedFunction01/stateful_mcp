@@ -27,8 +27,11 @@ async function start(service: string): Promise<void> {
     case "event":
       await import("./src/services/event.js");
       break;
+    case "form":
+      await import("./src/services/form.js");
+      break;
     default:
-      console.error(`[Error] Unknown SERVICE_TYPE: "${service}". Must be: "filter", "object", "dictionary", "log", or "event"`);
+      console.error(`[Error] Unknown SERVICE_TYPE: "${service}". Must be: "filter", "object", "dictionary", "log", "event", or "form"`);
       process.exit(1);
   }
 }

@@ -5,7 +5,11 @@ import type {
   SessionFilterStore,
   PersistentFilterStore,
   PersistedFilterState,
+  SessionFormStore,
+  PersistentFormStore,
+  PersistedFormStateDetails,
 } from "./interfaces";
+import type { FormState } from "../../middleware/form/types";
 import { registerAdapter } from "../../config/loader";
 import * as path from "path";
 import * as fs from "fs";
@@ -385,17 +389,18 @@ export class SqliteFilterStore implements SessionFilterStore, PersistentFilterSt
     return results;
   }
 
-  async list(
-    scope: OwnerScope,
-    includeGlobal?: boolean
-  ): Promise<Array<PersistedFilterState & { scope: OwnerScope }>> {
-    const userScopeId = scope.level === "user" ? scope.userId : null;
-    
-    let queryStr = "SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = ? AND user_id = ?)";
-    const params: any[] = [scope.level, userScopeId];
-
-    if (scope.level === "user" && includeGlobal) {
-      queryStr += " OR (scope_level = 'global')";
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<Array<PersistedFilterState & { scope: OwnerScope }>> {
+    const userId = scope.level === "user" ? scope.userId : null;
+    let queryStr = "SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = 'global')";
+    const params: any[] = [];
+    if (scope.level === "user") {
+      if (includeGlobal) {
+        queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+        params.push(userId);
+      } else {
+        queryStr = "SELECT id, scope_level, user_id FROM saved_filters WHERE scope_level = 'user' AND user_id = ?";
+        params.push(userId);
+      }
     }
 
     const savedRecords = this.db.query(queryStr).all(...params) as any[];
@@ -412,6 +417,322 @@ export class SqliteFilterStore implements SessionFilterStore, PersistentFilterSt
           ...state,
           scope: recordScope
         });
+      }
+    }
+    return results;
+  }
+}
+
+// ── SQLite Form Store ────────────────────────────────────────────────────────
+export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
+  private db: Database;
+
+  constructor(dbPath: string) {
+    const dir = path.dirname(dbPath);
+    if (dir !== "." && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    this.db = new Database(dbPath);
+    this.initSchema();
+  }
+
+  private initSchema(): void {
+    this.db.run("PRAGMA journal_mode = WAL;");
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS forms (
+        form_id          TEXT PRIMARY KEY,
+        parent_form_id   TEXT NULL,
+        schema_name      TEXT NOT NULL,
+        scope_level      TEXT NOT NULL DEFAULT 'session',
+        session_id       TEXT NULL,
+        user_id          TEXT NULL,
+        created_at       TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS form_answers (
+        form_id      TEXT NOT NULL,
+        question_id  TEXT NOT NULL,
+        value        TEXT NOT NULL,
+        PRIMARY KEY(form_id, question_id),
+        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
+      );
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS form_skipped (
+        form_id      TEXT NOT NULL,
+        question_id  TEXT NOT NULL,
+        PRIMARY KEY(form_id, question_id),
+        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
+      );
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS form_stale (
+        form_id      TEXT NOT NULL,
+        question_id  TEXT NOT NULL,
+        PRIMARY KEY(form_id, question_id),
+        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
+      );
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS saved_forms (
+        id           TEXT PRIMARY KEY,
+        tags         TEXT NOT NULL,
+        description  TEXT NOT NULL,
+        scope_level  TEXT NOT NULL,
+        user_id      TEXT NULL,
+        saved_at     TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS form_session_aliases (
+        session_id  TEXT NOT NULL,
+        alias_name  TEXT NOT NULL,
+        target_id   TEXT NOT NULL,
+        PRIMARY KEY (session_id, alias_name)
+      );
+    `);
+  }
+
+  get(sessionId: string, id: string): Promise<FormState | null>;
+  get(id: string, scope: OwnerScope): Promise<PersistedFormStateDetails | null>;
+  async get(a: string, b: string | OwnerScope): Promise<any> {
+    if (typeof b === "string") {
+      return this.getSession(a, b);
+    } else {
+      return this.getPersistent(a, b);
+    }
+  }
+
+  private async getSession(sessionId: string, id: string): Promise<FormState | null> {
+    const row = this.db.query("SELECT * FROM forms WHERE form_id = ? AND session_id = ?").get(id, sessionId) as any;
+    if (!row) return null;
+    return this.loadState(row);
+  }
+
+  private async getPersistent(id: string, scope: OwnerScope): Promise<PersistedFormStateDetails | null> {
+    const row = this.db.query("SELECT * FROM forms WHERE form_id = ? AND scope_level = ?").get(
+      id,
+      scope.level
+    ) as any;
+    if (!row) return null;
+
+    const saved = this.db.query("SELECT * FROM saved_forms WHERE id = ?").get(id) as any;
+    const tags = saved ? JSON.parse(saved.tags) : [];
+    const description = saved ? saved.description : "";
+
+    const state = await this.loadState(row);
+    return {
+      ...state,
+      tags,
+      description,
+      schema_pinned_at: row.created_at
+    };
+  }
+
+  private loadState(row: any): FormState {
+    const formId = row.form_id;
+    const answersRows = this.db.query("SELECT * FROM form_answers WHERE form_id = ?").all(formId) as any[];
+    const skippedRows = this.db.query("SELECT * FROM form_skipped WHERE form_id = ?").all(formId) as any[];
+    const staleRows = this.db.query("SELECT * FROM form_stale WHERE form_id = ?").all(formId) as any[];
+
+    const answers: Record<string, any> = {};
+    for (const r of answersRows) {
+      answers[r.question_id] = JSON.parse(r.value);
+    }
+
+    const skipped = skippedRows.map(r => r.question_id);
+    
+    const stale: Record<string, boolean> = {};
+    for (const r of staleRows) {
+      stale[r.question_id] = true;
+    }
+
+    return {
+      formId,
+      parentFormId: row.parent_form_id,
+      schemaName: row.schema_name,
+      answers,
+      skipped,
+      stale,
+      timestamp: row.created_at
+    };
+  }
+
+  set(sessionId: string, id: string, state: FormState): Promise<void>;
+  set(id: string, state: PersistedFormStateDetails, scope: OwnerScope): Promise<void>;
+  async set(a: string, b: any, c?: any): Promise<void> {
+    if (c && typeof c === "object" && "level" in c) {
+      await this.setPersistent(a, b, c);
+    } else {
+      await this.setSession(a, b, c);
+    }
+  }
+
+  private async setSession(sessionId: string, id: string, state: FormState): Promise<void> {
+    this.db.transaction(() => {
+      this.db.query(`
+        INSERT OR REPLACE INTO forms (form_id, parent_form_id, schema_name, scope_level, session_id, created_at)
+        VALUES (?, ?, ?, 'session', ?, ?)
+      `).run(id, state.parentFormId, state.schemaName, sessionId, state.timestamp);
+
+      this.db.query("DELETE FROM form_answers WHERE form_id = ?").run(id);
+      for (const [qId, val] of Object.entries(state.answers)) {
+        this.db.query("INSERT INTO form_answers (form_id, question_id, value) VALUES (?, ?, ?)")
+          .run(id, qId, JSON.stringify(val));
+      }
+
+      this.db.query("DELETE FROM form_skipped WHERE form_id = ?").run(id);
+      for (const qId of state.skipped) {
+        this.db.query("INSERT INTO form_skipped (form_id, question_id) VALUES (?, ?)")
+          .run(id, qId);
+      }
+
+      this.db.query("DELETE FROM form_stale WHERE form_id = ?").run(id);
+      for (const qId of Object.keys(state.stale)) {
+        this.db.query("INSERT INTO form_stale (form_id, question_id) VALUES (?, ?)")
+          .run(id, qId);
+      }
+    })();
+  }
+
+  private async setPersistent(id: string, state: PersistedFormStateDetails, scope: OwnerScope): Promise<void> {
+    const userId = scope.level === "user" ? scope.userId : null;
+    this.db.transaction(() => {
+      this.db.query(`
+        INSERT OR REPLACE INTO forms (form_id, parent_form_id, schema_name, scope_level, user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(id, state.parentFormId, state.schemaName, scope.level, userId, state.timestamp);
+
+      this.db.query("DELETE FROM form_answers WHERE form_id = ?").run(id);
+      for (const [qId, val] of Object.entries(state.answers)) {
+        this.db.query("INSERT INTO form_answers (form_id, question_id, value) VALUES (?, ?, ?)")
+          .run(id, qId, JSON.stringify(val));
+      }
+
+      this.db.query("DELETE FROM form_skipped WHERE form_id = ?").run(id);
+      for (const qId of state.skipped) {
+        this.db.query("INSERT INTO form_skipped (form_id, question_id) VALUES (?, ?)")
+          .run(id, qId);
+      }
+
+      this.db.query("DELETE FROM form_stale WHERE form_id = ?").run(id);
+      for (const qId of Object.keys(state.stale)) {
+        this.db.query("INSERT INTO form_stale (form_id, question_id) VALUES (?, ?)")
+          .run(id, qId);
+      }
+
+      this.db.query(`
+        INSERT OR REPLACE INTO saved_forms (id, tags, description, scope_level, user_id, saved_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(id, JSON.stringify(state.tags), state.description, scope.level, userId, state.timestamp);
+    })();
+  }
+
+  async delete(sessionId: string, id: string): Promise<void>;
+  async delete(id: string, scope: OwnerScope): Promise<void>;
+  async delete(a: string, b?: any): Promise<void> {
+    const query = this.db.query("DELETE FROM forms WHERE form_id = ?");
+    query.run(a);
+    this.db.query("DELETE FROM saved_forms WHERE id = ?").run(a);
+  }
+
+  async listSession(sessionId: string): Promise<string[]> {
+    const rows = this.db.query("SELECT form_id FROM forms WHERE session_id = ? AND scope_level = 'session'").all(sessionId) as any[];
+    return rows.map(r => r.form_id);
+  }
+
+  async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+    const rows = this.db.query("SELECT form_id FROM forms WHERE session_id = ? AND parent_form_id = ?").all(sessionId, parentId) as any[];
+    return rows.map(r => r.form_id);
+  }
+
+  async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+    if (olderThanMs !== undefined) {
+      const now = Date.now();
+      const cutoff = new Date(now - olderThanMs).toISOString();
+      this.db.query("DELETE FROM forms WHERE session_id = ? AND created_at < ?").run(sessionId, cutoff);
+    } else {
+      this.db.query("DELETE FROM forms WHERE session_id = ?").run(sessionId);
+    }
+  }
+
+  async create(sessionId: string, state: Omit<FormState, "formId"> & { formId?: string }, alias?: string): Promise<string> {
+    const id = state.formId || `form_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const fullState: FormState = { ...state, formId: id };
+    await this.set(sessionId, id, fullState);
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+    return id;
+  }
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    const row = this.db.query("SELECT target_id FROM form_session_aliases WHERE session_id = ? AND alias_name = ?").get(sessionId, alias) as any;
+    return row ? row.target_id : null;
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    this.db.query("INSERT OR REPLACE INTO form_session_aliases (session_id, alias_name, target_id) VALUES (?, ?, ?)")
+      .run(sessionId, alias, targetId);
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    this.db.query("DELETE FROM form_session_aliases WHERE session_id = ? AND alias_name = ?").run(sessionId, alias);
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const rows = this.db.query("SELECT alias_name, target_id FROM form_session_aliases WHERE session_id = ?").all(sessionId) as any[];
+    return rows.map(r => ({ alias: r.alias_name, targetId: r.target_id }));
+  }
+
+  async findByTag(tag: string, scope: OwnerScope): Promise<PersistedFormStateDetails[]> {
+    const userId = scope.level === "user" ? scope.userId : null;
+    const query = scope.level === "user"
+      ? "SELECT id FROM saved_forms WHERE scope_level = 'user' AND user_id = ? AND tags LIKE ?"
+      : "SELECT id FROM saved_forms WHERE scope_level = 'global' AND tags LIKE ?";
+    
+    const params = scope.level === "user" ? [userId, `%${tag}%`] : [`%${tag}%`];
+    const rows = this.db.query(query).all(...params) as any[];
+    
+    const results: PersistedFormStateDetails[] = [];
+    for (const r of rows) {
+      const state = await this.getPersistent(r.id, scope);
+      if (state) results.push(state);
+    }
+    return results;
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
+    const userId = scope.level === "user" ? scope.userId : null;
+    let queryStr = "SELECT id, scope_level, user_id FROM saved_forms WHERE (scope_level = 'global')";
+    const params: any[] = [];
+    if (scope.level === "user") {
+      if (includeGlobal) {
+        queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+        params.push(userId);
+      } else {
+        queryStr = "SELECT id, scope_level, user_id FROM saved_forms WHERE scope_level = 'user' AND user_id = ?";
+        params.push(userId);
+      }
+    }
+
+    const savedRecords = this.db.query(queryStr).all(...params) as any[];
+    const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> = [];
+    for (const r of savedRecords) {
+      const recordScope: OwnerScope = r.scope_level === "user" 
+        ? { level: "user", userId: r.user_id } 
+        : { level: "global" };
+      const state = await this.getPersistent(r.id, recordScope);
+      if (state) {
+        results.push({ ...state, scope: recordScope });
       }
     }
     return results;

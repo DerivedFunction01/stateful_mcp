@@ -1,6 +1,7 @@
 import type { OwnerScope } from "../../config/types";
 import type { FilterState } from "../../middleware/filter/types";
 import type { ObjectState } from "../../middleware/object/types";
+import type { FormState } from "../../middleware/form/types";
 
 // Session store — keyed by (sessionId, id). TTL-cleaned.
 export interface SessionFilterStore {
@@ -100,3 +101,35 @@ export interface PersistentEventStore {
     includeGlobal?: boolean
   ): Promise<Array<PersistedEventState & { scope: OwnerScope }>>;
 }
+
+export type PersistedFormStateDetails = FormState & {
+  tags: string[];
+  description: string;
+  schema_pinned_at: string;
+};
+
+export interface SessionFormStore {
+  get(sessionId: string, id: string): Promise<FormState | null>;
+  set(sessionId: string, id: string, state: FormState): Promise<void>;
+  delete(sessionId: string, id: string): Promise<void>;
+  listSession(sessionId: string): Promise<string[]>;
+  listChildren(sessionId: string, parentId: string): Promise<string[]>;
+  expireSession(sessionId: string, olderThanMs?: number): Promise<void>;
+  create(sessionId: string, state: Omit<FormState, "formId"> & { formId?: string }, alias?: string): Promise<string>;
+  getAlias(sessionId: string, alias: string): Promise<string | null>;
+  setAlias(sessionId: string, alias: string, targetId: string): Promise<void>;
+  deleteAlias(sessionId: string, alias: string): Promise<void>;
+  listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>>;
+}
+
+export interface PersistentFormStore {
+  get(id: string, scope: OwnerScope): Promise<PersistedFormStateDetails | null>;
+  set(id: string, state: PersistedFormStateDetails, scope: OwnerScope): Promise<void>;
+  delete(id: string, scope: OwnerScope): Promise<void>;
+  findByTag(tag: string, scope: OwnerScope): Promise<PersistedFormStateDetails[]>;
+  list(
+    scope: OwnerScope,
+    includeGlobal?: boolean
+  ): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>>;
+}
+

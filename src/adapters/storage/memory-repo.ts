@@ -12,7 +12,11 @@ import type {
   SessionEventStore,
   PersistentEventStore,
   PersistedEventState,
+  SessionFormStore,
+  PersistentFormStore,
+  PersistedFormStateDetails,
 } from "./interfaces";
+import type { FormState } from "../../middleware/form/types";
 import { registerAdapter } from "../../config/loader";
 import * as crypto from "crypto";
 
@@ -472,6 +476,161 @@ export class MemoryPersistentEventStore implements PersistentEventStore {
   }
 }
 
+// ── In-Memory Session Form Store ─────────────────────────────────────────────
+export class MemorySessionFormStore implements SessionFormStore {
+  private store = new Map<string, FormState>();
+  private aliases = new Map<string, string>();
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    const key = `${sessionId}:${alias}`;
+    return this.aliases.get(key) || null;
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.set(key, targetId);
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    const key = `${sessionId}:${alias}`;
+    this.aliases.delete(key);
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const prefix = `${sessionId}:`;
+    const results: Array<{ alias: string; targetId: string }> = [];
+    for (const [key, targetId] of this.aliases.entries()) {
+      if (key.startsWith(prefix)) {
+        results.push({ alias: key.slice(prefix.length), targetId });
+      }
+    }
+    return results;
+  }
+
+  async create(sessionId: string, state: Omit<FormState, "formId"> & { formId?: string }, alias?: string): Promise<string> {
+    const id = state.formId || `form_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const fullState: FormState = { ...state, formId: id };
+    await this.set(sessionId, id, fullState);
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+    return id;
+  }
+
+  async get(sessionId: string, id: string): Promise<FormState | null> {
+    const key = `${sessionId}:${id}`;
+    return this.store.get(key) || null;
+  }
+
+  async set(sessionId: string, id: string, state: FormState): Promise<void> {
+    const key = `${sessionId}:${id}`;
+    this.store.set(key, { ...state });
+  }
+
+  async delete(sessionId: string, id: string): Promise<void> {
+    const key = `${sessionId}:${id}`;
+    this.store.delete(key);
+  }
+
+  async listSession(sessionId: string): Promise<string[]> {
+    const prefix = `${sessionId}:`;
+    const ids: string[] = [];
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        ids.push(key.slice(prefix.length));
+      }
+    }
+    return ids;
+  }
+
+  async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+    const prefix = `${sessionId}:`;
+    const ids: string[] = [];
+    for (const [key, state] of this.store.entries()) {
+      if (key.startsWith(prefix) && state.parentFormId === parentId) {
+        ids.push(state.formId);
+      }
+    }
+    return ids;
+  }
+
+  async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+    const prefix = `${sessionId}:`;
+    const now = Date.now();
+    for (const [key, state] of this.store.entries()) {
+      if (key.startsWith(prefix)) {
+        if (olderThanMs !== undefined) {
+          const t = Date.parse(state.timestamp);
+          if (now - t > olderThanMs) {
+            this.store.delete(key);
+          }
+        } else {
+          this.store.delete(key);
+        }
+      }
+    }
+    for (const key of this.aliases.keys()) {
+      if (key.startsWith(prefix)) {
+        this.aliases.delete(key);
+      }
+    }
+  }
+}
+
+// ── In-Memory Persistent Form Store ──────────────────────────────────────────
+export class MemoryPersistentFormStore implements PersistentFormStore {
+  private store = new Map<string, PersistedFormStateDetails>();
+
+  async get(id: string, scope: OwnerScope): Promise<PersistedFormStateDetails | null> {
+    const prefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const key = `${prefix}${id}`;
+    return this.store.get(key) || null;
+  }
+
+  async set(id: string, state: PersistedFormStateDetails, scope: OwnerScope): Promise<void> {
+    const prefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const key = `${prefix}${id}`;
+    this.store.set(key, { ...state });
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    const prefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const key = `${prefix}${id}`;
+    this.store.delete(key);
+  }
+
+  async findByTag(tag: string, scope: OwnerScope): Promise<PersistedFormStateDetails[]> {
+    const targetPrefix = scope.level === "user" ? `user:${scope.userId}:` : "global:global:";
+    const results: PersistedFormStateDetails[] = [];
+    for (const [key, state] of this.store.entries()) {
+      if (key.startsWith(targetPrefix) && state.tags.includes(tag)) {
+        results.push({ ...state });
+      }
+    }
+    return results;
+  }
+
+  async list(
+    scope: OwnerScope,
+    includeGlobal?: boolean
+  ): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
+    const userPrefix = `user:${scope.level === "user" ? scope.userId : ""}:`;
+    const globalPrefix = `global:global:`;
+
+    const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> = [];
+    for (const [key, state] of this.store.entries()) {
+      if (scope.level === "user" && key.startsWith(userPrefix)) {
+        results.push({ ...state, scope });
+      } else if (key.startsWith(globalPrefix)) {
+        if (scope.level === "global" || includeGlobal) {
+          results.push({ ...state, scope: { level: "global" } });
+        }
+      }
+    }
+    return results;
+  }
+}
+
 // ── Registry Registration ───────────────────────────────────────────────────
 
 registerAdapter("memory", {
@@ -483,6 +642,8 @@ registerAdapter("memory", {
       persistentObject: new MemoryPersistentObjectStore(),
       sessionEvent: new MemorySessionEventStore(),
       persistentEvent: new MemoryPersistentEventStore(),
+      sessionForm: new MemorySessionFormStore(),
+      persistentForm: new MemoryPersistentFormStore(),
     };
   }
 });
