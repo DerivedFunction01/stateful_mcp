@@ -575,7 +575,12 @@ export class LocalStorageConceptStore implements ConceptStore {
   async search(query: string, namespaceCode?: string, limit: number = 50): Promise<Concept[]> {
     const results: Concept[] = [];
     const lowerQuery = query.toLowerCase();
-    const keys = Object.keys(window.localStorage);
+    const keys: string[] = [];
+    const len = window.localStorage.length;
+    for (let i = 0; i < len; i++) {
+      const k = window.localStorage.key(i);
+      if (k) keys.push(k);
+    }
     for (const key of keys) {
       if (key.startsWith(`${this.prefix}concept:`)) {
         const raw = window.localStorage.getItem(key);
@@ -654,7 +659,12 @@ export class LocalStoragePersistentExpressionStore implements PersistentExpressi
   async list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]> {
     const results: CustomExpression[] = [];
     const scopeId = scope.level === "user" ? scope.userId : null;
-    const keys = Object.keys(window.localStorage);
+    const keys: string[] = [];
+    const len = window.localStorage.length;
+    for (let i = 0; i < len; i++) {
+      const k = window.localStorage.key(i);
+      if (k) keys.push(k);
+    }
     for (const key of keys) {
       if (key.startsWith(this.prefix)) {
         const raw = window.localStorage.getItem(key);
