@@ -42,6 +42,10 @@
     "./middleware/form": {
       "types": "./dist/src/middleware/form/store.d.ts",
       "default": "./dist/src/middleware/form/store.js"
+    },
+    "./adapters/browser-repo": {
+      "types": "./dist/src/adapters/storage/browser-repo.d.ts",
+      "default": "./dist/src/adapters/storage/browser-repo.js"
     }
   },
   "scripts": {

@@ -1,0 +1,500 @@
+// REFERENCE: docs/browser.md
+import type {
+  SessionFilterStore,
+  PersistentFilterStore,
+  SessionObjectStore,
+  PersistentObjectStore,
+  SessionFormStore,
+  PersistentFormStore
+} from "./interfaces";
+import type { OwnerScope } from "../../config/types";
+
+// Declare window types to allow compilation in Node environment without dom libs
+declare const window: any;
+
+// Helper to determine key namespaces
+function getSessionStateKey(sessionId: string, id: string): string {
+  return `stateful_mcp:session:${sessionId}:state:${id}`;
+}
+
+function getSessionAliasKey(sessionId: string, alias: string): string {
+  return `stateful_mcp:session:${sessionId}:alias:${alias}`;
+}
+
+function getPersistentStateKey(id: string, scope: OwnerScope): string {
+  const userSegment = scope.level === "user" ? `user:${scope.userId}` : "global";
+  return `stateful_mcp:persistent:${userSegment}:state:${id}`;
+}
+
+function getBrowserStorage(): any {
+  if (typeof window !== "undefined" && window.localStorage) {
+    return window.localStorage;
+  }
+  return null;
+}
+
+/**
+ * Browser LocalStorage Session Storage Adapter.
+ */
+export class LocalStorageSessionStore
+  implements SessionFilterStore, SessionObjectStore, SessionFormStore
+{
+  async get(sessionId: string, id: string): Promise<any | null> {
+    const storage = getBrowserStorage();
+    if (!storage) return null;
+    const data = storage.getItem(getSessionStateKey(sessionId, id));
+    return data ? JSON.parse(data) : null;
+  }
+
+  async create(sessionId: string, state: any, alias?: string): Promise<string> {
+    const storage = getBrowserStorage();
+    if (!storage) throw new Error("LocalStorage is not available.");
+
+    const id = state.formId !== undefined ? `form_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}` :
+               state.filterId !== undefined ? `filt_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}` :
+               state.objectId !== undefined ? `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}` :
+               `state_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+
+    const savedState = {
+      ...state,
+      formId: state.formId !== undefined ? id : undefined,
+      filterId: state.filterId !== undefined ? id : undefined,
+      objectId: state.objectId !== undefined ? id : undefined
+    };
+
+    storage.setItem(getSessionStateKey(sessionId, id), JSON.stringify(savedState));
+
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+
+    return id;
+  }
+
+  async set(sessionId: string, id: string, state: any): Promise<void> {
+    const storage = getBrowserStorage();
+    if (!storage) return;
+    storage.setItem(getSessionStateKey(sessionId, id), JSON.stringify(state));
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    const storage = getBrowserStorage();
+    if (!storage) return;
+    storage.setItem(getSessionAliasKey(sessionId, alias), targetId);
+  }
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    const storage = getBrowserStorage();
+    if (!storage) return null;
+    return storage.getItem(getSessionAliasKey(sessionId, alias));
+  }
+
+  async delete(sessionId: string, id: string): Promise<void> {
+    const storage = getBrowserStorage();
+    if (!storage) return;
+    storage.removeItem(getSessionStateKey(sessionId, id));
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    const storage = getBrowserStorage();
+    if (!storage) return;
+    storage.removeItem(getSessionAliasKey(sessionId, alias));
+  }
+
+  async listSession(sessionId: string): Promise<string[]> {
+    const storage = getBrowserStorage();
+    if (!storage) return [];
+    const prefix = `stateful_mcp:session:${sessionId}:state:`;
+    const ids: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith(prefix)) {
+        ids.push(key.replace(prefix, ""));
+      }
+    }
+    return ids;
+  }
+
+  async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+    const storage = getBrowserStorage();
+    if (!storage) return [];
+    const prefix = `stateful_mcp:session:${sessionId}:state:`;
+    const ids: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith(prefix)) {
+        const valStr = storage.getItem(key);
+        if (valStr) {
+          const val = JSON.parse(valStr);
+          if (
+            val.parentFilterId === parentId ||
+            val.parentObjectId === parentId ||
+            val.parentFormId === parentId
+          ) {
+            ids.push(key.replace(prefix, ""));
+          }
+        }
+      }
+    }
+    return ids;
+  }
+
+  async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+    // Basic client stub
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const storage = getBrowserStorage();
+    if (!storage) return [];
+    const prefix = `stateful_mcp:session:${sessionId}:alias:`;
+    const list: Array<{ alias: string; targetId: string }> = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith(prefix)) {
+        const targetId = storage.getItem(key) || "";
+        list.push({ alias: key.replace(prefix, ""), targetId });
+      }
+    }
+    return list;
+  }
+}
+
+/**
+ * Browser LocalStorage Persistent Storage Adapter.
+ */
+export class LocalStoragePersistentStore
+  implements PersistentFilterStore, PersistentObjectStore, PersistentFormStore
+{
+  async get(id: string, scope: OwnerScope): Promise<any | null> {
+    const storage = getBrowserStorage();
+    if (!storage) return null;
+    const data = storage.getItem(getPersistentStateKey(id, scope));
+    return data ? JSON.parse(data) : null;
+  }
+
+  async set(id: string, state: any, scope: OwnerScope): Promise<void> {
+    const storage = getBrowserStorage();
+    if (!storage) return;
+    storage.setItem(getPersistentStateKey(id, scope), JSON.stringify(state));
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    const storage = getBrowserStorage();
+    if (!storage) return;
+    storage.removeItem(getPersistentStateKey(id, scope));
+  }
+
+  async findByTag(tag: string, scope: OwnerScope): Promise<any[]> {
+    const list = await this.list(scope, false);
+    return list.filter((item) => item.tags && item.tags.includes(tag));
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<any[]> {
+    const storage = getBrowserStorage();
+    if (!storage) return [];
+    
+    const userSegment = scope.level === "user" ? `user:${scope.userId}` : "global";
+    const userPrefix = `stateful_mcp:persistent:${userSegment}:state:`;
+    const globalPrefix = `stateful_mcp:persistent:global:state:`;
+    
+    const results: any[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key) {
+        if (key.startsWith(userPrefix)) {
+          const val = storage.getItem(key);
+          if (val) results.push({ ...JSON.parse(val), scope });
+        } else if (includeGlobal && key.startsWith(globalPrefix)) {
+          const val = storage.getItem(key);
+          if (val) results.push({ ...JSON.parse(val), scope: { level: "global" } });
+        }
+      }
+    }
+    return results;
+  }
+}
+
+/**
+ * Browser IndexedDB Session Storage Adapter.
+ */
+export class IndexedDbSessionStore
+  implements SessionFilterStore, SessionObjectStore, SessionFormStore
+{
+  constructor(private dbName: string = "stateful_mcp") {}
+
+  private async getDB(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (typeof window === "undefined" || !window.indexedDB) {
+        reject(new Error("IndexedDB is not available in this environment."));
+        return;
+      }
+      const request = window.indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("states")) {
+          db.createObjectStore("states");
+        }
+        if (!db.objectStoreNames.contains("aliases")) {
+          db.createObjectStore("aliases");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async readKey(storeName: string, key: string): Promise<any> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, "readonly");
+      const store = tx.objectStore(storeName);
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async writeKey(storeName: string, key: string, value: any): Promise<void> {
+    const db = await this.getDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(storeName);
+      const request = store.put(value, key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async deleteKey(storeName: string, key: string): Promise<void> {
+    const db = await this.getDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(storeName);
+      const request = store.delete(key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async listAllEntries(storeName: string): Promise<{ key: string; value: any }[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, "readonly");
+      const store = tx.objectStore(storeName);
+      const reqKeys = store.getAllKeys();
+      const reqVals = store.getAll();
+      reqKeys.onsuccess = () => {
+        reqVals.onsuccess = () => {
+          const results = reqKeys.result.map((k: any, i: number) => ({
+            key: String(k),
+            value: reqVals.result[i]
+          }));
+          resolve(results);
+        };
+      };
+      reqKeys.onerror = () => reject(reqKeys.error);
+      reqVals.onerror = () => reject(reqVals.error);
+    });
+  }
+
+  async get(sessionId: string, id: string): Promise<any | null> {
+    return this.readKey("states", getSessionStateKey(sessionId, id));
+  }
+
+  async create(sessionId: string, state: any, alias?: string): Promise<string> {
+    const id = state.formId !== undefined ? `form_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}` :
+               state.filterId !== undefined ? `filt_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}` :
+               state.objectId !== undefined ? `obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}` :
+               `state_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+
+    const savedState = {
+      ...state,
+      formId: state.formId !== undefined ? id : undefined,
+      filterId: state.filterId !== undefined ? id : undefined,
+      objectId: state.objectId !== undefined ? id : undefined
+    };
+
+    await this.writeKey("states", getSessionStateKey(sessionId, id), savedState);
+
+    if (alias) {
+      await this.setAlias(sessionId, alias, id);
+    }
+
+    return id;
+  }
+
+  async set(sessionId: string, id: string, state: any): Promise<void> {
+    await this.writeKey("states", getSessionStateKey(sessionId, id), state);
+  }
+
+  async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+    await this.writeKey("aliases", getSessionAliasKey(sessionId, alias), targetId);
+  }
+
+  async getAlias(sessionId: string, alias: string): Promise<string | null> {
+    return this.readKey("aliases", getSessionAliasKey(sessionId, alias));
+  }
+
+  async delete(sessionId: string, id: string): Promise<void> {
+    await this.deleteKey("states", getSessionStateKey(sessionId, id));
+  }
+
+  async deleteAlias(sessionId: string, alias: string): Promise<void> {
+    await this.deleteKey("aliases", getSessionAliasKey(sessionId, alias));
+  }
+
+  async listSession(sessionId: string): Promise<string[]> {
+    const prefix = `stateful_mcp:session:${sessionId}:state:`;
+    const entries = await this.listAllEntries("states");
+    return entries.filter((e) => e.key.startsWith(prefix)).map((e) => e.key.replace(prefix, ""));
+  }
+
+  async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+    const prefix = `stateful_mcp:session:${sessionId}:state:`;
+    const entries = await this.listAllEntries("states");
+    const results: string[] = [];
+    for (const e of entries) {
+      if (e.key.startsWith(prefix)) {
+        const val = e.value;
+        if (
+          val.parentFilterId === parentId ||
+          val.parentObjectId === parentId ||
+          val.parentFormId === parentId
+        ) {
+          results.push(e.key.replace(prefix, ""));
+        }
+      }
+    }
+    return results;
+  }
+
+  async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+    // Client stub
+  }
+
+  async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+    const prefix = `stateful_mcp:session:${sessionId}:alias:`;
+    const entries = await this.listAllEntries("aliases");
+    return entries
+      .filter((e) => e.key.startsWith(prefix))
+      .map((e) => ({
+        alias: e.key.replace(prefix, ""),
+        targetId: String(e.value)
+      }));
+  }
+}
+
+/**
+ * Browser IndexedDB Persistent Storage Adapter.
+ */
+export class IndexedDbPersistentStore
+  implements PersistentFilterStore, PersistentObjectStore, PersistentFormStore
+{
+  constructor(private dbName: string = "stateful_mcp") {}
+
+  private async getDB(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (typeof window === "undefined" || !window.indexedDB) {
+        reject(new Error("IndexedDB is not available in this environment."));
+        return;
+      }
+      const request = window.indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("states")) {
+          db.createObjectStore("states");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async readKey(storeName: string, key: string): Promise<any> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, "readonly");
+      const store = tx.objectStore(storeName);
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async writeKey(storeName: string, key: string, value: any): Promise<void> {
+    const db = await this.getDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(storeName);
+      const request = store.put(value, key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async deleteKey(storeName: string, key: string): Promise<void> {
+    const db = await this.getDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(storeName);
+      const request = store.delete(key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async listAllEntries(storeName: string): Promise<{ key: string; value: any }[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, "readonly");
+      const store = tx.objectStore(storeName);
+      const reqKeys = store.getAllKeys();
+      const reqVals = store.getAll();
+      reqKeys.onsuccess = () => {
+        reqVals.onsuccess = () => {
+          const results = reqKeys.result.map((k: any, i: number) => ({
+            key: String(k),
+            value: reqVals.result[i]
+          }));
+          resolve(results);
+        };
+      };
+      reqKeys.onerror = () => reject(reqKeys.error);
+      reqVals.onerror = () => reject(reqVals.error);
+    });
+  }
+
+  async get(id: string, scope: OwnerScope): Promise<any | null> {
+    return this.readKey("states", getPersistentStateKey(id, scope));
+  }
+
+  async set(id: string, state: any, scope: OwnerScope): Promise<void> {
+    await this.writeKey("states", getPersistentStateKey(id, scope), state);
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    await this.deleteKey("states", getPersistentStateKey(id, scope));
+  }
+
+  async findByTag(tag: string, scope: OwnerScope): Promise<any[]> {
+    const list = await this.list(scope, false);
+    return list.filter((item) => item.tags && item.tags.includes(tag));
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<any[]> {
+    const userSegment = scope.level === "user" ? `user:${scope.userId}` : "global";
+    const userPrefix = `stateful_mcp:persistent:${userSegment}:state:`;
+    const globalPrefix = `stateful_mcp:persistent:global:state:`;
+
+    const entries = await this.listAllEntries("states");
+    const results: any[] = [];
+    for (const e of entries) {
+      if (e.key.startsWith(userPrefix)) {
+        results.push({ ...e.value, scope });
+      } else if (includeGlobal && e.key.startsWith(globalPrefix)) {
+        results.push({ ...e.value, scope: { level: "global" } });
+      }
+    }
+    return results;
+  }
+}
