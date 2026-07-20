@@ -3,12 +3,23 @@ import type { EventCommit, EventMutation, EventRecord, MergeSession, MergeConfli
 import type { ResourceLocator } from "../../config/types";
 import { ErrorCode, McpError } from "../../errors/types";
 import { runValidationEngine } from "../../adapters/validation/runner";
+import { validateStateReferences } from "../../adapters/validation/references";
 import Ajv from "ajv";
 
 const ajv = new Ajv({ strict: false });
 
 // REFERENCE: docs/event.md
 export class EventStore {
+  private filterStore?: any;
+  private objectStore?: any;
+  private formStore?: any;
+
+  public setReferences(stores: { filter?: any; object?: any; form?: any }) {
+    this.filterStore = stores.filter;
+    this.objectStore = stores.object;
+    this.formStore = stores.form;
+  }
+
   // Key: mergeSessionId
   private mergeSessions = new Map<string, MergeSession>();
 
@@ -74,6 +85,18 @@ export class EventStore {
             `Initial event data fails schema validation`
           );
         }
+        try {
+          await validateStateReferences(schema, ev, sessionId, {
+            filter: this.filterStore,
+            object: this.objectStore,
+            form: this.formStore
+          });
+        } catch (err: any) {
+          throw new McpError(
+            ErrorCode.OBJECT_VALIDATION_FAILED,
+            `Event references validation failed: ${err.message || err}`
+          );
+        }
         mutations.push({
           type: "add",
           event_id: `ev_${Math.random().toString(36).slice(2, 10)}`,
@@ -110,6 +133,18 @@ export class EventStore {
       const validate = ajv.compile(schema);
       if (!validate(data)) {
         throw new McpError(ErrorCode.OBJECT_VALIDATION_FAILED, `Event data fails schema validation`);
+      }
+      try {
+        await validateStateReferences(schema, data, sessionId, {
+          filter: this.filterStore,
+          object: this.objectStore,
+          form: this.formStore
+        });
+      } catch (err: any) {
+        throw new McpError(
+          ErrorCode.OBJECT_VALIDATION_FAILED,
+          `Event references validation failed: ${err.message || err}`
+        );
       }
     }
 

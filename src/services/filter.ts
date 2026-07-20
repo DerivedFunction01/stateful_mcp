@@ -204,12 +204,14 @@ server.registerTool(
   {
     description: "Create a modifier (GROUP BY + SELECT projection schema)",
     inputSchema: {
-      filter_id: z.string().optional().describe("Optional filter to apply modifier to")
+      filter_id: z.string().optional().describe("Optional filter to apply modifier to"),
+      columns: z.array(z.string()).optional().describe("Columns to group by"),
+      aggregations: z.array(aggregationSchema).optional().describe("Mathematical roll-ups to apply to grouped data")
     }
   },
-  async ({ filter_id }) => {
+  async ({ filter_id, columns, aggregations }) => {
     try {
-      const modId = filterStore.initModifier(filter_id);
+      const modId = filterStore.initModifier(filter_id, columns, aggregations);
       return { content: [{ type: "text", text: JSON.stringify({ mod_id: modId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };

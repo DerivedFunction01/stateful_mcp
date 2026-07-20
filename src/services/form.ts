@@ -8,6 +8,7 @@ import { JsonlSessionFormStore, JsonlPersistentFormStore } from "../adapters/sto
 import { SqliteFormStore } from "../adapters/storage/sqlite-repo";
 import { FormStore } from "../middleware/form/store";
 import type { MiddlewareConfig, FormSchema } from "../config/types";
+import { getFilterStore, getObjectStore } from "./helper";
 import * as path from "path";
 
 const server = new McpServer({
@@ -226,6 +227,10 @@ async function main() {
   }
 
   formStore = new FormStore(sessionFormStore, persistentFormStore, formSchemas);
+
+  const filterStore = getFilterStore(config, workspaceRoot);
+  const objectStore = getObjectStore(config, workspaceRoot);
+  formStore.setReferences({ filter: filterStore, object: objectStore });
 
   registerFormTools();
 

@@ -8,6 +8,7 @@ import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "../adapters
 import { ObjectStore } from "../middleware/object/store";
 import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
 import { clampLimit, buildLimitField } from "../config/pagination";
+import { getFilterStore, getFormStore } from "./helper";
 import * as path from "path";
 
 const server = new McpServer({
@@ -444,6 +445,10 @@ async function main() {
     validationEngines,
     workspaceRoot
   );
+
+  const filterStore = getFilterStore(config, workspaceRoot);
+  const formStore = getFormStore(config, workspaceRoot);
+  objectStore.setReferences({ filter: filterStore, form: formStore });
 
   registerObjectTools(config.pagination_limits);
 

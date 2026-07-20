@@ -225,6 +225,14 @@ export function validateAnswer(qDef: any, value: any): void {
 }
 
 export class FormStore {
+  private filterStore?: any;
+  private objectStore?: any;
+
+  public setReferences(stores: { filter?: any; object?: any }) {
+    this.filterStore = stores.filter;
+    this.objectStore = stores.object;
+  }
+
   constructor(
     private sessionStore: SessionFormStore,
     private persistentStore: PersistentFormStore,
@@ -290,6 +298,22 @@ export class FormStore {
     }
 
     validateAnswer(qDef, value);
+
+    if ((qDef as any)["x-mcp-ref"]) {
+      const refType = (qDef as any)["x-mcp-ref"];
+      const idOrAlias = String(value);
+      if (refType === "filter" && this.filterStore) {
+        const exists = await this.filterStore.getFilter(idOrAlias, sessionId);
+        if (!exists) {
+          throw new Error(`Invalid reference: Answer "${idOrAlias}" is not a valid filter ID in session.`);
+        }
+      } else if (refType === "object" && this.objectStore) {
+        const exists = await this.objectStore.getObject(idOrAlias, sessionId);
+        if (!exists) {
+          throw new Error(`Invalid reference: Answer "${idOrAlias}" is not a valid object ID in session.`);
+        }
+      }
+    }
 
     const answers = { ...parentState.answers, [questionId]: value };
     const skipped = parentState.skipped.filter((q: string) => q !== questionId);

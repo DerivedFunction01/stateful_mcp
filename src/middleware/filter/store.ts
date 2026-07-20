@@ -658,13 +658,13 @@ export class FilterStore {
     };
   }
 
-  public initModifier(filterId?: string | null): string {
+  public initModifier(filterId?: string | null, columns?: string[], aggregations?: any[]): string {
     const modId = `mod_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     this.modifiers.set(modId, {
       modId,
       filterId: filterId || null,
-      columns: [],
-      aggregations: [],
+      columns: columns || [],
+      aggregations: aggregations || [],
       createdAt: new Date().toISOString()
     });
     return modId;

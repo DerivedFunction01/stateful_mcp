@@ -4,6 +4,7 @@ import type { OwnerScope, ResourceLocator } from "../../config/types";
 import { ErrorCode, McpError } from "../../errors/types";
 import { resolvePathSchema } from "./schema-walker";
 import { runValidationEngine } from "../../adapters/validation/runner";
+import { validateStateReferences } from "../../adapters/validation/references";
 import Ajv from "ajv";
 
 const ajv = new Ajv({ strict: false });
@@ -17,6 +18,14 @@ export interface ValidationResult {
 
 // REFERENCE: docs/object.md
 export class ObjectStore {
+  private filterStore?: any;
+  private formStore?: any;
+
+  public setReferences(stores: { filter?: any; form?: any }) {
+    this.filterStore = stores.filter;
+    this.formStore = stores.form;
+  }
+
   constructor(
     private session: SessionObjectStore,
     private persistent: PersistentObjectStore,
@@ -543,6 +552,22 @@ export class ObjectStore {
         if (!result.valid) {
           invalid.push(...(result.errors || ["External validation rejected"]).map((reason) => ({ path: [] as (string | number)[], reason })));
         }
+      }
+    }
+
+    // Run cross-service state referential validation
+    if (missing.length === 0 && invalid.length === 0) {
+      try {
+        await validateStateReferences(rootSchema, obj.data, sessionId, {
+          filter: this.filterStore,
+          object: this,
+          form: this.formStore
+        });
+      } catch (err: any) {
+        invalid.push({
+          path: [],
+          reason: err.message || String(err)
+        });
       }
     }
 

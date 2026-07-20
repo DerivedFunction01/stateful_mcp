@@ -8,6 +8,7 @@ import { JsonlSessionEventStore, JsonlPersistentEventStore } from "../adapters/s
 import { EventStore } from "../middleware/event/store";
 import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
 import { clampLimit, buildLimitField } from "../config/pagination";
+import { getFilterStore, getObjectStore, getFormStore } from "./helper";
 import * as path from "path";
 
 const server = new McpServer({
@@ -345,6 +346,11 @@ async function main() {
 
   const threshold = config.auto_compression?.object_chain_threshold ?? 15;
   eventStore = new EventStore(sessionStore, persistentStore, objectSchemas, threshold, validationEngines, workspaceRoot);
+
+  const filterStore = getFilterStore(config, workspaceRoot);
+  const objectStore = getObjectStore(config, workspaceRoot);
+  const formStore = getFormStore(config, workspaceRoot);
+  eventStore.setReferences({ filter: filterStore, object: objectStore, form: formStore });
 
   registerEventTools(config.pagination_limits);
 
