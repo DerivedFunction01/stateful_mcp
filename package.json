@@ -30,6 +30,18 @@
     "./errors": {
       "types": "./dist/src/errors/types.d.ts",
       "default": "./dist/src/errors/types.js"
+    },
+    "./middleware/filter": {
+      "types": "./dist/src/middleware/filter/store.d.ts",
+      "default": "./dist/src/middleware/filter/store.js"
+    },
+    "./middleware/object": {
+      "types": "./dist/src/middleware/object/store.d.ts",
+      "default": "./dist/src/middleware/object/store.js"
+    },
+    "./middleware/form": {
+      "types": "./dist/src/middleware/form/store.d.ts",
+      "default": "./dist/src/middleware/form/store.js"
     }
   },
   "scripts": {

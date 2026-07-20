@@ -145,19 +145,39 @@ function registerFormTools() {
   );
 
   server.registerTool(
+    "form_about",
+    {
+      description: "Returns form service overview and strategy guidelines.",
+      inputSchema: {}
+    },
+    async () => {
+      try {
+        const about = await resolveAboutOrExamples(
+          config.about_and_examples?.form_about,
+          "config/about/form.md",
+          configDir
+        );
+        return { content: [{ type: "text", text: about }] };
+      } catch (err: any) {
+        return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
     "form_examples",
     {
-      description: "Returns form service examples configuration.",
+      description: "Returns form service worked dialogue examples.",
       inputSchema: {}
     },
     async () => {
       try {
         const examples = await resolveAboutOrExamples(
           config.about_and_examples?.form_examples,
-          "config/examples/form.json",
+          "config/examples/form.md",
           configDir
         );
-        return { content: [{ type: "text", text: JSON.stringify(examples) }] };
+        return { content: [{ type: "text", text: examples }] };
       } catch (err: any) {
         return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
       }

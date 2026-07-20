@@ -236,6 +236,11 @@ export class FormStore {
     return targetId || idOrAlias;
   }
 
+  public async getForm(formIdOrAlias: string, sessionId: string): Promise<FormState | null> {
+    const resolvedId = await this.resolveId(sessionId, formIdOrAlias);
+    return this.sessionStore.get(sessionId, resolvedId);
+  }
+
   public async init(
     schemaName: string,
     sessionId: string,
