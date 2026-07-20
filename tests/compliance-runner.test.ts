@@ -488,7 +488,7 @@ describe("Storage Compliance Test Runner", () => {
 
     describe("LocalStorage Dictionary Store", () => {
       beforeAll(() => {
-        mockLocalStorage.clear();
+        mockLocalStorage.store.clear();
       });
       runDictionaryStoreComplianceTests({
         name: "LocalStorage Dictionary Store",
@@ -501,7 +501,9 @@ describe("Storage Compliance Test Runner", () => {
 
     describe("IndexedDB Dictionary Store", () => {
       beforeAll(() => {
-        mockIndexedDB.clear();
+        mockIndexedDBStore.get("concepts")?.clear();
+        mockIndexedDBStore.get("namespaces")?.clear();
+        mockIndexedDBStore.get("expressions")?.clear();
       });
       runDictionaryStoreComplianceTests({
         name: "IndexedDB Dictionary Store",

@@ -52,6 +52,9 @@ class WrappedArrayExpressionStore implements PersistentExpressionStore {
       return false;
     });
   }
+  async getById(id: string): Promise<CustomExpression | null> {
+    return this.expressions.find(e => e.id === id) || null;
+  }
 }
 
 export type ResolutionStatus = 'FOUND' | 'PARTIAL' | 'NOT_FOUND';

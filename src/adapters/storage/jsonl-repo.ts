@@ -1128,4 +1128,9 @@ export class JsonlPersistentExpressionStore extends BaseJsonlStore implements Pe
       return false;
     });
   }
+
+  async getById(id: string): Promise<CustomExpression | null> {
+    await this.init();
+    return this.expressions.find(e => e.id === id) || null;
+  }
 }

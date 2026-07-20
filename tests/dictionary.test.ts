@@ -1,5 +1,6 @@
 import { DictionaryStore } from "../src/middleware/dictionary/store";
 import { InMemoryConceptResolver } from "../src/middleware/dictionary/resolver";
+
 export async function runDictionaryTests() {
   console.log("\n🧪 Test Case 1: Dictionary Service");
 
@@ -7,7 +8,7 @@ export async function runDictionaryTests() {
   const dictStore = new DictionaryStore(resolver);
 
   // Load sample dictionary config
-  dictStore.loadConfig({
+  await dictStore.loadConfig({
     namespaces: [
       { code: "SNOMED", isPublic: true, isExternalPrivate: false }
     ],
@@ -39,7 +40,7 @@ export async function runDictionaryTests() {
   }
 
   // Verify Concept description is loaded
-  const concept = dictStore.getConcept("c_mi");
+  const concept = await dictStore.getConcept("c_mi");
   if (!concept || concept.description !== "A blockage of blood flow to the heart muscle.") {
     throw new Error("Concept description was not loaded correctly");
   }
@@ -47,7 +48,7 @@ export async function runDictionaryTests() {
 
   // Verify allowedTargetAssignments validation
   try {
-    dictStore.addExpression({
+    await dictStore.addExpression({
       term: "unsupported assignment test",
       regexPattern: "test",
       isCaseInsensitive: true,
@@ -66,7 +67,7 @@ export async function runDictionaryTests() {
 
   // Verify workspace validation
   try {
-    dictStore.addExpression({
+    await dictStore.addExpression({
       term: "unsupported workspace test",
       regexPattern: "test",
       isCaseInsensitive: true,
@@ -88,7 +89,7 @@ export async function runDictionaryTests() {
 
   // Verify tag validation
   try {
-    dictStore.addExpression({
+    await dictStore.addExpression({
       term: "unsupported tag test",
       regexPattern: "test",
       isCaseInsensitive: true,
@@ -130,7 +131,7 @@ export async function runDictionaryTests() {
   console.log("✓ Dictionary score boosting successfully recalculated (score: " + resolvedSecond.results[0]?.score + ").");
 
   // Find expressions
-  const found = dictStore.find({ term: "heart" }, { workspace_id: "global" });
+  const found = await dictStore.find({ term: "heart" }, { workspace_id: "global" });
   if (found.length !== 1 || found[0]?.id !== "expr_1") {
     throw new Error("Dictionary find expressions failed");
   }
@@ -184,19 +185,19 @@ export async function runDictionaryTests() {
   // Test Case 3: Coordinate Resolution with Double Colons
   console.log("\n🧪 Test Case 3: Coordinate Resolution with Double Colons");
   const testStore = new DictionaryStore(new InMemoryConceptResolver());
-  testStore.loadConfig({
+  await testStore.loadConfig({
     concepts: [
       { id: "c_snomed_mi", namespaceCode: "SNOMED", standardCode: "I21.9", display: "Myocardial Infarction" }
     ]
   });
 
-  const resolvedId = testStore.resolveConceptId("SNOMED::I21.9");
+  const resolvedId = await testStore.resolveConceptId("SNOMED::I21.9");
   if (resolvedId !== "c_snomed_mi") {
     throw new Error(`Coordinate resolution with double colons failed. Expected c_snomed_mi, got: ${resolvedId}`);
   }
   console.log("✓ Successfully resolved concept by 'NAMESPACE::CODE' coordinate reference.");
 
-  const resolvedDirect = testStore.resolveConceptId("c_snomed_mi");
+  const resolvedDirect = await testStore.resolveConceptId("c_snomed_mi");
   if (resolvedDirect !== "c_snomed_mi") {
     throw new Error(`Direct concept ID resolution failed.`);
   }
@@ -205,7 +206,7 @@ export async function runDictionaryTests() {
   // Test Case 4: Namespace Mutability Constraints
   console.log("\n🧪 Test Case 4: Namespace Mutability Constraints");
   const mutStore = new DictionaryStore(new InMemoryConceptResolver());
-  mutStore.loadConfig({
+  await mutStore.loadConfig({
     namespaces: [
       { code: "SNOMED", isPublic: true, isExternalPrivate: false, isMutable: false },
       { code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }
@@ -222,7 +223,7 @@ export async function runDictionaryTests() {
 
   // Try adding concept to read-only namespace
   try {
-    mutStore.addConcept({ namespaceCode: "SNOMED", standardCode: "444", display: "Forbidden Concept" });
+    await mutStore.addConcept({ namespaceCode: "SNOMED", standardCode: "444", display: "Forbidden Concept" });
     throw new Error("Should have thrown error adding concept to read-only namespace");
   } catch (err: any) {
     if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
@@ -231,7 +232,7 @@ export async function runDictionaryTests() {
 
   // Try editing coordinate of custom concept
   try {
-    mutStore.editConcept("c_custom_1", { standardCode: "999" });
+    await mutStore.editConcept("c_custom_1", { standardCode: "999" });
     throw new Error("Should have thrown error editing coordinate identity");
   } catch (err: any) {
     if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
@@ -240,7 +241,7 @@ export async function runDictionaryTests() {
 
   // Try adding relation with read-only namespace source
   try {
-    mutStore.addRelation({ id: "rel_new", conceptId: "c_snomed_1", linkedId: "c_custom_2", relationshipType: "EQUIVALENT", active: true });
+    await mutStore.addRelation({ id: "rel_new", conceptId: "c_snomed_1", linkedId: "c_custom_2", relationshipType: "EQUIVALENT", active: true });
     throw new Error("Should have thrown error adding relation with read-only source concept");
   } catch (err: any) {
     if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
@@ -249,7 +250,7 @@ export async function runDictionaryTests() {
 
   // Try removing relation with read-only concept
   try {
-    mutStore.removeRelation("rel_snomed");
+    await mutStore.removeRelation("rel_snomed");
     throw new Error("Should have thrown error removing relation involving read-only concept");
   } catch (err: any) {
     if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
@@ -259,14 +260,14 @@ export async function runDictionaryTests() {
   // Test Case 5: Soft-delete vs Hard-delete & Dependencies
   console.log("\n🧪 Test Case 5: Soft-delete vs Hard-delete & Dependencies");
   const delStore = new DictionaryStore(new InMemoryConceptResolver());
-  delStore.loadConfig({
+  await delStore.loadConfig({
     namespaces: [{ code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }],
     concepts: [{ id: "c_1", namespaceCode: "CUSTOM", standardCode: "C1", display: "Concept 1" }],
     workspaces: [{ id: "global", name: "Global" }]
   });
 
   // Hard delete expression with no metrics
-  const expId1 = delStore.addExpression({
+  const expId1 = await delStore.addExpression({
     term: "temp term",
     regexPattern: "temp",
     isCaseInsensitive: true,
@@ -277,13 +278,13 @@ export async function runDictionaryTests() {
     context: { workspace_id: "global" }
   }, { is_admin: true });
 
-  if (delStore.getExpressions().length !== 1) throw new Error("Expression not added.");
-  delStore.removeExpression(expId1, { is_admin: true });
-  if (delStore.getExpressions().length !== 0) throw new Error("Hard delete failed for expression without metrics.");
+  if ((await delStore.getExpressions()).length !== 1) throw new Error("Expression not added.");
+  await delStore.removeExpression(expId1, { is_admin: true });
+  if ((await delStore.getExpressions()).length !== 0) throw new Error("Hard delete failed for expression without metrics.");
   console.log("✓ Successfully hard-deleted expression with no usage metrics.");
 
   // Soft delete expression with metrics
-  const expId2 = delStore.addExpression({
+  const expId2 = await delStore.addExpression({
     term: "used term",
     regexPattern: "used",
     isCaseInsensitive: true,
@@ -295,15 +296,15 @@ export async function runDictionaryTests() {
   }, { is_admin: true });
 
   delStore.recordUsage(expId2, "c_1", { workspace_id: "global" });
-  delStore.removeExpression(expId2, { is_admin: true });
-  const expressionsList = delStore.getExpressions();
+  await delStore.removeExpression(expId2, { is_admin: true });
+  const expressionsList = await delStore.getExpressions();
   if (expressionsList.length !== 1 || expressionsList[0]?.active !== false) {
     throw new Error("Soft delete failed for expression with metrics.");
   }
   console.log("✓ Successfully soft-deleted (deactivated) expression with usage metrics.");
 
   // Try removing concept with active expression
-  const expId3 = delStore.addExpression({
+  const expId3 = await delStore.addExpression({
     term: "another term",
     regexPattern: "another",
     isCaseInsensitive: true,
@@ -315,7 +316,7 @@ export async function runDictionaryTests() {
   }, { is_admin: true });
 
   try {
-    delStore.removeConcept("c_1");
+    await delStore.removeConcept("c_1");
     throw new Error("Should have prevented concept removal when active expressions exist");
   } catch (err: any) {
     if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
@@ -323,9 +324,9 @@ export async function runDictionaryTests() {
   console.log("✓ Correctly prevented concept removal when active expression references it.");
 
   // Deactivate expression and successfully remove concept (soft-delete)
-  delStore.removeExpression(expId3, { is_admin: true });
-  delStore.removeConcept("c_1");
-  if (delStore.getConcept("c_1")?.active !== false) {
+  await delStore.removeExpression(expId3, { is_admin: true });
+  await delStore.removeConcept("c_1");
+  if ((await delStore.getConcept("c_1"))?.active !== false) {
     throw new Error("Concept soft-delete failed.");
   }
   console.log("✓ Successfully soft-deleted concept after clearing referencing expressions.");
@@ -333,7 +334,7 @@ export async function runDictionaryTests() {
   // Test Case 6: Scope-Aware Write Gates & Precedence
   console.log("\n🧪 Test Case 6: Scope-Aware Write Gates & Precedence");
   const scopeStore = new DictionaryStore(new InMemoryConceptResolver());
-  scopeStore.loadConfig({
+  await scopeStore.loadConfig({
     namespaces: [{ code: "CUSTOM", isPublic: true, isExternalPrivate: false, isMutable: true }],
     concepts: [
       { id: "c_global", namespaceCode: "CUSTOM", standardCode: "G", display: "Global Concept" },
@@ -346,7 +347,7 @@ export async function runDictionaryTests() {
   // Test Scope-aware Write Gates
   // 1. Add global expression without admin privilege (should fail)
   try {
-    scopeStore.addExpression({
+    await scopeStore.addExpression({
       term: "test", regexPattern: "test", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_global",
       priorityWeight: 1, active: true,
       context: { workspace_id: "global" }
@@ -359,7 +360,7 @@ export async function runDictionaryTests() {
 
   // 2. Add workspace expression with mismatched workspace (should fail)
   try {
-    scopeStore.addExpression({
+    await scopeStore.addExpression({
       term: "test", regexPattern: "test", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_workspace",
       priorityWeight: 1, active: true,
       context: { workspace_id: "dept_cardiology" }
@@ -371,14 +372,14 @@ export async function runDictionaryTests() {
   console.log("✓ Correctly prevented caller in different workspace from creating workspace expression.");
 
   // 3. Add user expression with mismatched user (should fail)
-  const expUser = scopeStore.addExpression({
+  const expUser = await scopeStore.addExpression({
     term: "user term", regexPattern: "user", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_user",
     priorityWeight: 1, active: true,
     context: { user_id: "alice" }
   }, { user_id: "alice" });
 
   try {
-    scopeStore.editExpression(expUser, { term: "hacked" }, { user_id: "bob" });
+    await scopeStore.editExpression(expUser, { term: "hacked" }, { user_id: "bob" });
     throw new Error("Should have thrown privilege denied for user expression edit");
   } catch (err: any) {
     if (err.code !== "DICTIONARY_MUTATION_DENIED") throw err;
@@ -387,19 +388,19 @@ export async function runDictionaryTests() {
 
   // Test precedence resolution order
   // Add same term "symptom" at all three tiers pointing to different concepts
-  scopeStore.addExpression({
+  await scopeStore.addExpression({
     term: "symptom", regexPattern: "symptom", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_global",
     priorityWeight: 1, active: true,
     context: { workspace_id: "global" }
   }, { is_admin: true });
 
-  scopeStore.addExpression({
+  await scopeStore.addExpression({
     term: "symptom", regexPattern: "symptom", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_workspace",
     priorityWeight: 1, active: true,
     context: { workspace_id: "dept_cardiology" }
   }, { workspace_id: "dept_cardiology" });
 
-  scopeStore.addExpression({
+  await scopeStore.addExpression({
     term: "symptom", regexPattern: "symptom", isCaseInsensitive: true, targetAssignment: "MAIN_TERM", conceptId: "c_user",
     priorityWeight: 1, active: true,
     context: { user_id: "alice" }

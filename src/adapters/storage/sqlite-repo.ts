@@ -913,6 +913,11 @@ export class SqlitePersistentExpressionStore implements PersistentExpressionStor
     const rows = this.db.query(sql).all(...params) as any[];
     return rows.map(r => JSON.parse(r.data));
   }
+
+  async getById(id: string): Promise<CustomExpression | null> {
+    const row = this.db.query("SELECT data FROM dict_custom_expressions WHERE id = ?").get(id) as any;
+    return row ? JSON.parse(row.data) : null;
+  }
 }
 
 // Register SQLite repo adapter

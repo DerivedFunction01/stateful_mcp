@@ -672,6 +672,11 @@ export class LocalStoragePersistentExpressionStore implements PersistentExpressi
     }
     return results;
   }
+
+  async getById(id: string): Promise<CustomExpression | null> {
+    const raw = window.localStorage.getItem(this.getKey(id));
+    return raw ? JSON.parse(raw) : null;
+  }
 }
 
 export class IndexedDbConceptStore implements ConceptStore {
@@ -879,6 +884,17 @@ export class IndexedDbPersistentExpressionStore implements PersistentExpressionS
           resolve(results);
         }
       };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getById(id: string): Promise<CustomExpression | null> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("expressions", "readonly");
+      const store = tx.objectStore("expressions");
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result || null);
       request.onerror = () => reject(request.error);
     });
   }

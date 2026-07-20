@@ -43,4 +43,9 @@ export interface PersistentExpressionStore {
    * List all custom expressions visible to this scope.
    */
   list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]>;
+
+  /**
+   * Retrieve a single custom expression by ID (for permission/existence checking).
+   */
+  getById(id: string): Promise<CustomExpression | null>;
 }

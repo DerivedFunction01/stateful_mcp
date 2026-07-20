@@ -90,6 +90,10 @@ export class InMemoryPersistentExpressionStore implements PersistentExpressionSt
       return false;
     });
   }
+
+  async getById(id: string): Promise<CustomExpression | null> {
+    return this.expressions.find(e => e.id === id) || null;
+  }
 }
 
 // REFERENCE: docs/dictionary.md
@@ -356,12 +360,7 @@ export class DictionaryStore {
   }
 
   public async editExpression(id: string, updates: Partial<CustomExpression>, callerContext?: Record<string, any>): Promise<void> {
-    const scope: OwnerScope = callerContext?.user_id
-      ? { level: "user", userId: callerContext.user_id }
-      : { level: "global" };
-
-    const exprs = await this.expressionStore.list(scope, true);
-    const expr = exprs.find(e => e.id === id);
+    const expr = await this.expressionStore.getById(id);
     if (!expr) {
       throw new McpError(ErrorCode.EXPRESSION_INVALID, `Expression "${id}" not found.`);
     }
@@ -398,17 +397,16 @@ export class DictionaryStore {
   }
 
   public async removeExpression(id: string, callerContext?: Record<string, any>): Promise<boolean> {
-    const scope: OwnerScope = callerContext?.user_id
-      ? { level: "user", userId: callerContext.user_id }
-      : { level: "global" };
-
-    const exprs = await this.expressionStore.list(scope, true);
-    const expr = exprs.find(e => e.id === id);
+    const expr = await this.expressionStore.getById(id);
     if (!expr) return false;
 
     this.checkScopeAccess(expr.context, callerContext);
 
     const hasMetrics = this.metrics.some(m => m.expressionId === id && m.usageCount > 0);
+    const scope: OwnerScope = expr.context?.user_id
+      ? { level: "user", userId: expr.context.user_id }
+      : { level: "global" };
+
     if (hasMetrics) {
       expr.active = false;
       await this.expressionStore.save(expr, scope);
