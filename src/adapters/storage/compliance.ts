@@ -1,6 +1,8 @@
 import { FormStore } from "../../middleware/form/store";
 import { ObjectStore } from "../../middleware/object/store";
 import { EventStore } from "../../middleware/event/store";
+import { DictionaryStore } from "../../middleware/dictionary/store";
+import { InMemoryConceptResolver } from "../../middleware/dictionary/resolver";
 import type { FormSchema } from "../../config/types";
 
 export interface ComplianceRunnerOptions {
@@ -239,5 +241,73 @@ export function runEventStoreComplianceTests(options: ComplianceRunnerOptions) {
     const commitRecord = await sessionStore.get(sessionId, resolvedId!);
     expect(commitRecord).not.toBeNull();
     expect(commitRecord.mutations[0].type).toBe("add");
+  });
+}
+
+export function runDictionaryStoreComplianceTests(options: ComplianceRunnerOptions) {
+  const { test, expect, createSessionStore, createPersistentStore } = options;
+
+  test(`${options.name} - Dictionary Store Scoping & Resolution`, async () => {
+    const conceptStore = await createSessionStore();
+    const expressionStore = await createPersistentStore();
+
+    const ns = { code: "TEST_NS", isPublic: true, isExternalPrivate: false, isMutable: true };
+    await conceptStore.addNamespace(ns);
+
+    const c1 = { id: "c1", namespaceCode: "TEST_NS", standardCode: "100", display: "Aspirin", active: true };
+    const c2 = { id: "c2", namespaceCode: "TEST_NS", standardCode: "200", display: "Acetaminophen", active: true };
+    await conceptStore.addConcept(c1);
+    await conceptStore.addConcept(c2);
+
+    const searchResults = await conceptStore.search("asp");
+    expect(searchResults.map((c: any) => c.id)).toContain("c1");
+
+    const scopeUser1 = { level: "user" as const, userId: "u1" };
+    const scopeUser2 = { level: "user" as const, userId: "u2" };
+    const scopeGlobal = { level: "global" as const };
+
+    const exprUser1 = {
+      id: "e1",
+      term: "asa",
+      regexPattern: "asa",
+      isCaseInsensitive: true,
+      targetAssignment: "MAIN_TERM",
+      conceptId: "c1",
+      priorityWeight: 10,
+      active: true
+    };
+    const exprGlobal = {
+      id: "e2",
+      term: "paracetamol",
+      regexPattern: "paracetamol",
+      isCaseInsensitive: true,
+      targetAssignment: "MAIN_TERM",
+      conceptId: "c2",
+      priorityWeight: 5,
+      active: true
+    };
+
+    await expressionStore.save(exprUser1, scopeUser1);
+    await expressionStore.save(exprGlobal, scopeGlobal);
+
+    const listU1 = await expressionStore.list(scopeUser1, true);
+    const idsU1 = listU1.map((e: any) => e.id);
+    expect(idsU1).toContain("e1");
+    expect(idsU1).toContain("e2");
+
+    const listU2 = await expressionStore.list(scopeUser2, true);
+    const idsU2 = listU2.map((e: any) => e.id);
+    expect(idsU2).not.toContain("e1");
+    expect(idsU2).toContain("e2");
+
+    const dictResolver = new InMemoryConceptResolver();
+    const dictionaryStore = new DictionaryStore(dictResolver, conceptStore, expressionStore);
+
+    const resU1 = await dictionaryStore.resolve("asa", { user_id: "u1" });
+    expect(resU1.status).toBe("FOUND");
+    expect(resU1.results[0].conceptId).toBe("c1");
+
+    const resU2 = await dictionaryStore.resolve("asa", { user_id: "u2" });
+    expect(resU2.status).toBe("NOT_FOUND");
   });
 }

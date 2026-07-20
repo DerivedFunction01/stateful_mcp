@@ -3,7 +3,8 @@ import {
   runStoreComplianceTests,
   runFormStoreComplianceTests,
   runObjectStoreComplianceTests,
-  runEventStoreComplianceTests
+  runEventStoreComplianceTests,
+  runDictionaryStoreComplianceTests
 } from "../src/adapters/storage/compliance";
 
 import {
@@ -30,8 +31,15 @@ import {
 
 import {
   SqliteFilterStore,
-  SqliteFormStore
+  SqliteFormStore,
+  SqliteConceptStore,
+  SqlitePersistentExpressionStore
 } from "../src/adapters/storage/sqlite-repo";
+
+import {
+  InMemoryConceptStore,
+  InMemoryPersistentExpressionStore
+} from "../src/middleware/dictionary/store";
 
 import {
   LocalStorageSessionStore,
@@ -377,6 +385,40 @@ describe("Storage Compliance Test Runner", () => {
         createPersistentStore: async () => {
           if (fs.existsSync(evGlob)) fs.unlinkSync(evGlob);
           return new JsonlPersistentEventStore(evGlob);
+        }
+      });
+    });
+  });
+
+  // 9. Specialized Dictionary Store Compliance
+  describe("Dictionary Store Compliance", () => {
+    describe("Memory Dictionary Store", () => {
+      runDictionaryStoreComplianceTests({
+        name: "Memory Dictionary Store",
+        test,
+        expect,
+        createSessionStore: async () => new InMemoryConceptStore(),
+        createPersistentStore: async () => new InMemoryPersistentExpressionStore()
+      });
+    });
+
+    describe("SQLite Dictionary Store", () => {
+      const dbPath = path.resolve(__dirname, "../scratch/compliance-dict-sqlite.db");
+      afterAll(() => {
+        try {
+          if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+        } catch (_) {}
+      });
+      runDictionaryStoreComplianceTests({
+        name: "SQLite Dictionary Store",
+        test,
+        expect,
+        createSessionStore: async () => {
+          if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+          return new SqliteConceptStore(dbPath);
+        },
+        createPersistentStore: async () => {
+          return new SqlitePersistentExpressionStore(dbPath);
         }
       });
     });

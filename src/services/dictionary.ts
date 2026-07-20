@@ -48,7 +48,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     async ({ standard_code, display, namespace_code, description }) => {
       try {
         const ns = namespace_code || defaultNamespace;
-        const conceptId = store.addConcept({
+        const conceptId = await store.addConcept({
           namespaceCode: ns,
           standardCode: standard_code,
           display,
@@ -73,13 +73,13 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     },
     async ({ source_concept_ref, target_concept_ref, relationship_type }) => {
       try {
-        const sourceId = store.resolveConceptId(source_concept_ref);
+        const sourceId = await store.resolveConceptId(source_concept_ref);
         if (!sourceId) throw new Error(`Source concept reference "${source_concept_ref}" not found.`);
-        const targetId = store.resolveConceptId(target_concept_ref);
+        const targetId = await store.resolveConceptId(target_concept_ref);
         if (!targetId) throw new Error(`Target concept reference "${target_concept_ref}" not found.`);
 
         const relationId = `rel_${crypto.randomUUID().slice(0, 8)}`;
-        store.addRelation({
+        await store.addRelation({
           id: relationId,
           conceptId: sourceId,
           linkedId: targetId,
@@ -118,12 +118,12 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     async (args: any) => {
       try {
         const { term, concept_ref, target_assignment, regex_pattern, priority_weight, is_case_insensitive, tags, description, workspace_id, user_id, is_admin } = args;
-        const conceptId = store.resolveConceptId(concept_ref);
+        const conceptId = await store.resolveConceptId(concept_ref);
         if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
 
         const ws = workspace_id || store.getDefaultWorkspace();
         const callerContext = { user_id, workspace_id: ws, is_admin };
-        const entryId = store.addExpression({
+        const entryId = await store.addExpression({
           term,
           regexPattern: regex_pattern || term,
           isCaseInsensitive: is_case_insensitive !== false,
@@ -180,7 +180,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
         if (priority_weight !== undefined) updates.priorityWeight = priority_weight;
 
         if (concept_ref !== undefined) {
-          const conceptId = store.resolveConceptId(concept_ref);
+          const conceptId = await store.resolveConceptId(concept_ref);
           if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
           updates.conceptId = conceptId;
         }
@@ -196,7 +196,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
         }
 
         const callerContext = { user_id, workspace_id: ws, is_admin };
-        store.editExpression(dict_entry_id, updates, callerContext);
+        await store.editExpression(dict_entry_id, updates, callerContext);
 
         return { content: [{ type: "text" as const, text: JSON.stringify({ dict_entry_id, success: true }) }] };
       } catch (err: any) {
@@ -217,9 +217,9 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     },
     async ({ concept_ref, display, description }) => {
       try {
-        const conceptId = store.resolveConceptId(concept_ref);
+        const conceptId = await store.resolveConceptId(concept_ref);
         if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
-        store.editConcept(conceptId, { display, description });
+        await store.editConcept(conceptId, { display, description });
         return { content: [{ type: "text" as const, text: JSON.stringify({ concept_id: conceptId, success: true }) }] };
       } catch (err: any) {
         return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
@@ -237,9 +237,9 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     },
     async ({ concept_ref }) => {
       try {
-        const conceptId = store.resolveConceptId(concept_ref);
+        const conceptId = await store.resolveConceptId(concept_ref);
         if (!conceptId) throw new Error(`Concept reference "${concept_ref}" not found.`);
-        store.removeConcept(conceptId);
+        await store.removeConcept(conceptId);
         return { content: [{ type: "text" as const, text: JSON.stringify({ concept_id: conceptId, deactivated: true }) }] };
       } catch (err: any) {
         return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
@@ -257,7 +257,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
     },
     async ({ relation_id }) => {
       try {
-        store.removeRelation(relation_id);
+        await store.removeRelation(relation_id);
         return { content: [{ type: "text" as const, text: JSON.stringify({ relation_id, deactivated: true }) }] };
       } catch (err: any) {
         return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
@@ -311,7 +311,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
       try {
         const { query, tags, concept_type, workspace_id, user_id } = args;
         const ws = workspace_id || store.getDefaultWorkspace();
-        const results = store.find(
+        const results = await store.find(
           { term: query, tags: tags as string[], conceptType: concept_type },
           { workspace_id: ws, user_id }
         );
@@ -337,7 +337,7 @@ function registerAllTools(store: DictionaryStore, paginationLimits: PaginationLi
       try {
         const ws = workspace_id || store.getDefaultWorkspace();
         const callerContext = { user_id, workspace_id: ws, is_admin };
-        const removed = store.removeExpression(dict_entry_id, callerContext);
+        const removed = await store.removeExpression(dict_entry_id, callerContext);
         return { content: [{ type: "text" as const, text: JSON.stringify({ removed }) }] };
       } catch (err: any) {
         return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
@@ -430,7 +430,7 @@ async function main() {
     try {
       const dictionaryConfig = await resolveSource(config.dictionary_state, workspaceRoot) as any;
       if (dictionaryConfig) {
-        dictionaryStore.loadConfig(dictionaryConfig);
+        await dictionaryStore.loadConfig(dictionaryConfig);
       }
     } catch (_) {}
   }

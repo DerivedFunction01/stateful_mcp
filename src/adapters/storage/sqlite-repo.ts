@@ -10,6 +10,8 @@ import type {
   PersistedFormStateDetails,
 } from "./interfaces";
 import type { FormState } from "../../middleware/form/types";
+import type { ConceptStore, PersistentExpressionStore } from "../../middleware/dictionary/interfaces";
+import type { Concept, Namespace, CustomExpression } from "../../middleware/dictionary/types";
 import { registerAdapter } from "../../config/loader";
 import * as path from "path";
 import * as fs from "fs";
@@ -736,6 +738,180 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
       }
     }
     return results;
+  }
+}
+
+export class SqliteConceptStore implements ConceptStore {
+  private db: Database;
+
+  constructor(dbPath: string) {
+    const dir = path.dirname(dbPath);
+    if (dir !== "." && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    this.db = new Database(dbPath);
+    
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS dict_namespaces (
+        code TEXT PRIMARY KEY,
+        description TEXT,
+        is_public INTEGER NOT NULL,
+        is_external_private INTEGER NOT NULL,
+        is_mutable INTEGER
+      )
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS dict_concepts (
+        id TEXT PRIMARY KEY,
+        namespace_code TEXT NOT NULL,
+        standard_code TEXT NOT NULL,
+        display TEXT NOT NULL,
+        description TEXT,
+        designation_date TEXT,
+        active INTEGER NOT NULL,
+        FOREIGN KEY(namespace_code) REFERENCES dict_namespaces(code)
+      )
+    `);
+  }
+
+  async search(query: string, namespaceCode?: string, limit: number = 50): Promise<Concept[]> {
+    let sql = "SELECT * FROM dict_concepts WHERE (display LIKE ? OR id = ? OR standard_code = ? OR description LIKE ?)";
+    const params: any[] = [`%${query}%`, query, query, `%${query}%`];
+
+    if (namespaceCode) {
+      sql += " AND namespace_code = ?";
+      params.push(namespaceCode);
+    }
+
+    sql += " LIMIT ?";
+    params.push(limit);
+
+    const rows = this.db.query(sql).all(...params) as any[];
+    return rows.map(r => ({
+      id: r.id,
+      namespaceCode: r.namespace_code,
+      standardCode: r.standard_code,
+      display: r.display,
+      description: r.description || undefined,
+      designationDate: r.designation_date || undefined,
+      active: r.active === 1
+    }));
+  }
+
+  async getById(id: string): Promise<Concept | null> {
+    const r = this.db.query("SELECT * FROM dict_concepts WHERE id = ?").get(id) as any;
+    if (!r) return null;
+    return {
+      id: r.id,
+      namespaceCode: r.namespace_code,
+      standardCode: r.standard_code,
+      display: r.display,
+      description: r.description || undefined,
+      designationDate: r.designation_date || undefined,
+      active: r.active === 1
+    };
+  }
+
+  async listNamespaces(): Promise<Namespace[]> {
+    const rows = this.db.query("SELECT * FROM dict_namespaces").all() as any[];
+    return rows.map(r => ({
+      code: r.code,
+      description: r.description || undefined,
+      isPublic: r.is_public === 1,
+      isExternalPrivate: r.is_external_private === 1,
+      isMutable: r.is_mutable === 1
+    }));
+  }
+
+  async addConcept(concept: Concept): Promise<void> {
+    this.db.run(
+      `INSERT OR REPLACE INTO dict_concepts (id, namespace_code, standard_code, display, description, designation_date, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        concept.id,
+        concept.namespaceCode,
+        concept.standardCode,
+        concept.display,
+        concept.description || null,
+        concept.designationDate || null,
+        concept.active !== false ? 1 : 0
+      ]
+    );
+  }
+
+  async addNamespace(namespace: Namespace): Promise<void> {
+    this.db.run(
+      `INSERT OR REPLACE INTO dict_namespaces (code, description, is_public, is_external_private, is_mutable)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        namespace.code,
+        namespace.description || null,
+        namespace.isPublic ? 1 : 0,
+        namespace.isExternalPrivate ? 1 : 0,
+        namespace.isMutable ? 1 : 0
+      ]
+    );
+  }
+}
+
+export class SqlitePersistentExpressionStore implements PersistentExpressionStore {
+  private db: Database;
+
+  constructor(dbPath: string) {
+    const dir = path.dirname(dbPath);
+    if (dir !== "." && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    this.db = new Database(dbPath);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS dict_custom_expressions (
+        id TEXT PRIMARY KEY,
+        term TEXT NOT NULL,
+        concept_id TEXT,
+        scope_level TEXT NOT NULL,
+        scope_id TEXT,
+        data TEXT NOT NULL
+      )
+    `);
+  }
+
+  async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    this.db.run(
+      `INSERT OR REPLACE INTO dict_custom_expressions (id, term, concept_id, scope_level, scope_id, data)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        expression.id,
+        expression.term,
+        expression.conceptId || null,
+        scope.level,
+        scopeId,
+        JSON.stringify(expression)
+      ]
+    );
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    this.db.run(
+      "DELETE FROM dict_custom_expressions WHERE id = ? AND scope_level = ? AND (scope_id = ? OR scope_id IS NULL)",
+      [id, scope.level, scopeId]
+    );
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]> {
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    let sql = "SELECT * FROM dict_custom_expressions WHERE (scope_level = ? AND (scope_id = ? OR scope_id IS NULL))";
+    const params: any[] = [scope.level, scopeId];
+
+    if (includeGlobal && scope.level !== "global") {
+      sql += " OR scope_level = 'global'";
+    }
+
+    const rows = this.db.query(sql).all(...params) as any[];
+    return rows.map(r => JSON.parse(r.data));
   }
 }
 

@@ -1,4 +1,58 @@
-import type { Concept, CustomExpression, ResolutionMetric } from "./types";
+import type { Concept, CustomExpression, ResolutionMetric, Namespace } from "./types";
+import type { ConceptStore, PersistentExpressionStore } from "./interfaces";
+import type { OwnerScope } from "../../config/types";
+
+class WrappedMapConceptStore implements ConceptStore {
+  constructor(private concepts: Map<string, Concept>) {}
+  async search(query: string, namespaceCode?: string, limit: number = 50): Promise<Concept[]> {
+    const results: Concept[] = [];
+    const lowerQuery = query.toLowerCase();
+    for (const c of this.concepts.values()) {
+      if (namespaceCode && c.namespaceCode !== namespaceCode) continue;
+      if (
+        c.id.toLowerCase().includes(lowerQuery) ||
+        c.standardCode.toLowerCase().includes(lowerQuery) ||
+        c.display.toLowerCase().includes(lowerQuery) ||
+        (c.description && c.description.toLowerCase().includes(lowerQuery))
+      ) {
+        results.push(c);
+      }
+      if (results.length >= limit) break;
+    }
+    return results;
+  }
+  async getById(id: string): Promise<Concept | null> {
+    return this.concepts.get(id) || null;
+  }
+  async listNamespaces(): Promise<Namespace[]> {
+    return [];
+  }
+  async addConcept(concept: Concept): Promise<void> {
+    this.concepts.set(concept.id, concept);
+  }
+  async addNamespace(): Promise<void> {}
+}
+
+class WrappedArrayExpressionStore implements PersistentExpressionStore {
+  constructor(private expressions: CustomExpression[]) {}
+  async save(expression: CustomExpression): Promise<void> {
+    this.expressions.push(expression);
+  }
+  async delete(id: string): Promise<void> {
+    const idx = this.expressions.findIndex(e => e.id === id);
+    if (idx !== -1) this.expressions.splice(idx, 1);
+  }
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]> {
+    const userId = scope.level === "user" ? scope.userId : null;
+    return this.expressions.filter(e => {
+      const el = e.context?.scope_level || (e.context?.user_id ? "user" : "global");
+      const ei = e.context?.scope_id || e.context?.user_id;
+      if (el === scope.level && (ei === userId || !ei)) return true;
+      if (includeGlobal && el === "global") return true;
+      return false;
+    });
+  }
+}
 
 export type ResolutionStatus = 'FOUND' | 'PARTIAL' | 'NOT_FOUND';
 
@@ -26,8 +80,8 @@ export interface ResolveResult {
 export interface ConceptResolver {
   resolve(
     term: string,
-    concepts: Map<string, Concept>,
-    expressions: CustomExpression[],
+    concepts: ConceptStore | Map<string, Concept>,
+    expressions: PersistentExpressionStore | CustomExpression[],
     metrics: ResolutionMetric[],
     context?: Record<string, any>
   ): Promise<ResolveResponse>;
@@ -63,14 +117,23 @@ export class InMemoryConceptResolver implements ConceptResolver {
 
   public async resolve(
     term: string,
-    concepts: Map<string, Concept>,
-    expressions: CustomExpression[],
+    concepts: ConceptStore | Map<string, Concept>,
+    expressions: PersistentExpressionStore | CustomExpression[],
     metrics: ResolutionMetric[],
     context?: Record<string, any>
   ): Promise<ResolveResponse> {
+    const conceptStore = (concepts instanceof Map) ? new WrappedMapConceptStore(concepts) : concepts;
+    const expressionStore = Array.isArray(expressions) ? new WrappedArrayExpressionStore(expressions) : expressions;
+
     const candidates = new Map<string, { concept: Concept; score: number; matchedTerms: Set<string>; exact: boolean; maxTier: number }>();
 
-    for (const expr of expressions) {
+    const scope: OwnerScope = context?.user_id 
+      ? { level: "user", userId: context.user_id } 
+      : { level: "global" };
+
+    const exprs = await expressionStore.list(scope, true);
+
+    for (const expr of exprs) {
       if (!expr.active || !expr.conceptId) continue;
       if (!this.matchesContext(expr, context)) continue;
 
@@ -96,7 +159,7 @@ export class InMemoryConceptResolver implements ConceptResolver {
       }
 
       if (matched) {
-        const concept = concepts.get(expr.conceptId);
+        const concept = await conceptStore.getById(expr.conceptId);
         if (concept && concept.active !== false) {
           let score = expr.priorityWeight;
           const metric = metrics.find(
