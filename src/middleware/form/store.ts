@@ -629,4 +629,8 @@ export class FormStore {
       await this.getAncestors(node.parentFormId, sessionId, visited);
     }
   }
+
+  public getSchema(schemaName: string): any {
+    return this.formSchemas.get(schemaName) || null;
+  }
 }

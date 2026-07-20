@@ -721,4 +721,8 @@ export class ObjectStore {
       }
     }
   }
+
+  public getSchema(schemaName: string): any {
+    return this.schemas.get(schemaName) || null;
+  }
 }

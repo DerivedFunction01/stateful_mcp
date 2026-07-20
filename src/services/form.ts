@@ -29,13 +29,18 @@ function registerFormTools() {
         schema_name: z.string().describe("The name of the registered form schema."),
         session_id: z.string().describe("The session identifier."),
         alias: z.string().optional().describe("Optional alias to tag the initial form checkpoint."),
-        parent_form_id: z.string().optional().describe("Optional parent form state checkpoint to branch from.")
+        parent_form_id: z.string().optional().describe("Optional parent form state checkpoint to branch from."),
+        get_schema_hint: z.boolean().optional().describe("If true, returns the Form schema definition in the response to guide question flow.")
       }
     },
-    async ({ schema_name, session_id, alias, parent_form_id }) => {
+    async ({ schema_name, session_id, alias, parent_form_id, get_schema_hint }) => {
       try {
         const formId = await formStore.init(schema_name, session_id, alias, parent_form_id);
-        return { content: [{ type: "text", text: JSON.stringify({ form_id: formId }) }] };
+        const res: Record<string, any> = { form_id: formId };
+        if (get_schema_hint) {
+          res.schema_hint = formStore.getSchema(schema_name);
+        }
+        return { content: [{ type: "text", text: JSON.stringify(res) }] };
       } catch (err: any) {
         return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
       }

@@ -29,13 +29,18 @@ function registerEventTools(paginationLimits: PaginationLimitsConfig | undefined
       schema_name: z.string().describe("The name of the registered event schema definition."),
       session_id: z.string().describe("The session identifier."),
       alias: z.string().optional().describe("Optional descriptive alias to tag the initial checkpoint."),
-      data: z.array(z.record(z.string(), z.any())).optional().describe("Optional initial list of event records to pre-populate.")
+      data: z.array(z.record(z.string(), z.any())).optional().describe("Optional initial list of event records to pre-populate."),
+      get_schema_hint: z.boolean().optional().describe("If true, returns the JSON schema definition in the response to guide parameter population.")
     }
   },
-  async ({ schema_name, session_id, alias, data }) => {
+  async ({ schema_name, session_id, alias, data, get_schema_hint }) => {
     try {
       const commitId = await eventStore.init(schema_name, session_id, alias, data);
-      return { content: [{ type: "text", text: JSON.stringify({ commit_id: commitId }) }] };
+      const res: Record<string, any> = { commit_id: commitId };
+      if (get_schema_hint) {
+        res.schema_hint = eventStore.getSchema(schema_name);
+      }
+      return { content: [{ type: "text", text: JSON.stringify(res) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
     }
