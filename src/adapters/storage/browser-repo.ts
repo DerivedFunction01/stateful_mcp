@@ -8,6 +8,8 @@ import type {
   PersistentFormStore
 } from "./interfaces";
 import type { OwnerScope } from "../../config/types";
+import type { ConceptStore, PersistentExpressionStore } from "../../middleware/dictionary/interfaces";
+import type { Concept, Namespace, CustomExpression } from "../../middleware/dictionary/types";
 
 // Declare window types to allow compilation in Node environment without dom libs
 declare const window: any;
@@ -557,5 +559,327 @@ export class IndexedDbPersistentStore
       }
     }
     return results;
+  }
+}
+
+export class LocalStorageConceptStore implements ConceptStore {
+  constructor(private prefix: string = "dict_concepts:") {}
+
+  private getNamespacesKey(): string {
+    return `${this.prefix}namespaces`;
+  }
+  private getConceptKey(id: string): string {
+    return `${this.prefix}concept:${id}`;
+  }
+
+  async search(query: string, namespaceCode?: string, limit: number = 50): Promise<Concept[]> {
+    const results: Concept[] = [];
+    const lowerQuery = query.toLowerCase();
+    const keys = Object.keys(window.localStorage);
+    for (const key of keys) {
+      if (key.startsWith(`${this.prefix}concept:`)) {
+        const raw = window.localStorage.getItem(key);
+        if (raw) {
+          const c: Concept = JSON.parse(raw);
+          if (namespaceCode && c.namespaceCode !== namespaceCode) continue;
+          if (
+            c.id.toLowerCase().includes(lowerQuery) ||
+            c.standardCode.toLowerCase().includes(lowerQuery) ||
+            c.display.toLowerCase().includes(lowerQuery) ||
+            (c.description && c.description.toLowerCase().includes(lowerQuery))
+          ) {
+            results.push(c);
+          }
+          if (results.length >= limit) break;
+        }
+      }
+    }
+    return results;
+  }
+
+  async getById(id: string): Promise<Concept | null> {
+    const raw = window.localStorage.getItem(this.getConceptKey(id));
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  async listNamespaces(): Promise<Namespace[]> {
+    const raw = window.localStorage.getItem(this.getNamespacesKey());
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  async addConcept(concept: Concept): Promise<void> {
+    window.localStorage.setItem(this.getConceptKey(concept.id), JSON.stringify(concept));
+  }
+
+  async addNamespace(namespace: Namespace): Promise<void> {
+    const list = await this.listNamespaces();
+    if (!list.some(n => n.code === namespace.code)) {
+      list.push(namespace);
+      window.localStorage.setItem(this.getNamespacesKey(), JSON.stringify(list));
+    }
+  }
+}
+
+export class LocalStoragePersistentExpressionStore implements PersistentExpressionStore {
+  constructor(private prefix: string = "dict_expressions:") {}
+
+  private getKey(id: string): string {
+    return `${this.prefix}${id}`;
+  }
+
+  async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
+    const context = {
+      ...expression.context,
+      scope_level: scope.level,
+      scope_id: scope.level === "user" ? scope.userId : null
+    };
+    const saved = { ...expression, context };
+    window.localStorage.setItem(this.getKey(expression.id), JSON.stringify(saved));
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    const key = this.getKey(id);
+    const raw = window.localStorage.getItem(key);
+    if (raw) {
+      const e = JSON.parse(raw);
+      const scopeId = scope.level === "user" ? scope.userId : null;
+      const el = e.context?.scope_level;
+      const ei = e.context?.scope_id;
+      if (el === scope.level && (ei === scopeId || !ei)) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]> {
+    const results: CustomExpression[] = [];
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    const keys = Object.keys(window.localStorage);
+    for (const key of keys) {
+      if (key.startsWith(this.prefix)) {
+        const raw = window.localStorage.getItem(key);
+        if (raw) {
+          const e = JSON.parse(raw);
+          const el = e.context?.scope_level || (e.context?.user_id ? "user" : "global");
+          const ei = e.context?.scope_id || e.context?.user_id;
+          if (el === scope.level && (ei === scopeId || !ei)) {
+            results.push(e);
+          } else if (includeGlobal && el === "global") {
+            results.push(e);
+          }
+        }
+      }
+    }
+    return results;
+  }
+}
+
+export class IndexedDbConceptStore implements ConceptStore {
+  constructor(private dbName: string = "stateful_mcp_dict") {}
+
+  private async getDB(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (typeof window === "undefined" || !window.indexedDB) {
+        reject(new Error("IndexedDB is not available."));
+        return;
+      }
+      const request = window.indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("concepts")) {
+          db.createObjectStore("concepts");
+        }
+        if (!db.objectStoreNames.contains("namespaces")) {
+          db.createObjectStore("namespaces");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async search(query: string, namespaceCode?: string, limit: number = 50): Promise<Concept[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("concepts", "readonly");
+      const store = tx.objectStore("concepts");
+      const request = store.openCursor();
+      const results: Concept[] = [];
+      const lowerQuery = query.toLowerCase();
+
+      request.onsuccess = (event: any) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          const c: Concept = cursor.value;
+          let match = true;
+          if (namespaceCode && c.namespaceCode !== namespaceCode) match = false;
+          if (match) {
+            if (
+              c.id.toLowerCase().includes(lowerQuery) ||
+              c.standardCode.toLowerCase().includes(lowerQuery) ||
+              c.display.toLowerCase().includes(lowerQuery) ||
+              (c.description && c.description.toLowerCase().includes(lowerQuery))
+            ) {
+              results.push(c);
+            }
+          }
+          if (results.length < limit) {
+            cursor.continue();
+          } else {
+            resolve(results);
+          }
+        } else {
+          resolve(results);
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getById(id: string): Promise<Concept | null> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("concepts", "readonly");
+      const store = tx.objectStore("concepts");
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async listNamespaces(): Promise<Namespace[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("namespaces", "readonly");
+      const store = tx.objectStore("namespaces");
+      const request = store.openCursor();
+      const results: Namespace[] = [];
+      request.onsuccess = (event: any) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          results.push(cursor.value);
+          cursor.continue();
+        } else {
+          resolve(results);
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async addConcept(concept: Concept): Promise<void> {
+    const db = await this.getDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("concepts", "readwrite");
+      const store = tx.objectStore("concepts");
+      const request = store.put(concept, concept.id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async addNamespace(namespace: Namespace): Promise<void> {
+    const db = await this.getDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("namespaces", "readwrite");
+      const store = tx.objectStore("namespaces");
+      const request = store.put(namespace, namespace.code);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+}
+
+export class IndexedDbPersistentExpressionStore implements PersistentExpressionStore {
+  constructor(private dbName: string = "stateful_mcp_dict") {}
+
+  private async getDB(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (typeof window === "undefined" || !window.indexedDB) {
+        reject(new Error("IndexedDB is not available."));
+        return;
+      }
+      const request = window.indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("expressions")) {
+          db.createObjectStore("expressions");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
+    const db = await this.getDB();
+    const context = {
+      ...expression.context,
+      scope_level: scope.level,
+      scope_id: scope.level === "user" ? scope.userId : null
+    };
+    const saved = { ...expression, context };
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("expressions", "readwrite");
+      const store = tx.objectStore("expressions");
+      const request = store.put(saved, expression.id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    const db = await this.getDB();
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("expressions", "readwrite");
+      const store = tx.objectStore("expressions");
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const e = getReq.result;
+        if (e) {
+          const el = e.context?.scope_level;
+          const ei = e.context?.scope_id;
+          if (el === scope.level && (ei === scopeId || !ei)) {
+            const delReq = store.delete(id);
+            delReq.onsuccess = () => resolve();
+            delReq.onerror = () => reject(delReq.error);
+          } else {
+            resolve();
+          }
+        } else {
+          resolve();
+        }
+      };
+      getReq.onerror = () => reject(getReq.error);
+    });
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]> {
+    const db = await this.getDB();
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("expressions", "readonly");
+      const store = tx.objectStore("expressions");
+      const request = store.openCursor();
+      const results: CustomExpression[] = [];
+      request.onsuccess = (event: any) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          const e = cursor.value;
+          const el = e.context?.scope_level || (e.context?.user_id ? "user" : "global");
+          const ei = e.context?.scope_id || e.context?.user_id;
+          if (el === scope.level && (ei === scopeId || !ei)) {
+            results.push(e);
+          } else if (includeGlobal && el === "global") {
+            results.push(e);
+          }
+          cursor.continue();
+        } else {
+          resolve(results);
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
   }
 }

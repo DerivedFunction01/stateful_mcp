@@ -20,6 +20,8 @@ import type { ObjectState } from "../../middleware/object/types";
 import type { EventCommit } from "../../middleware/event/types";
 import type { FormState } from "../../middleware/form/types";
 import type { OwnerScope } from "../../config/types";
+import type { ConceptStore, PersistentExpressionStore } from "../../middleware/dictionary/interfaces";
+import type { Concept, Namespace, CustomExpression } from "../../middleware/dictionary/types";
 
 // Helper to ensure parent directories exist
 async function ensureDir(filePath: string): Promise<void> {
@@ -977,5 +979,153 @@ export class JsonlPersistentFormStore extends BaseJsonlStore implements Persiste
       }
     }
     return results;
+  }
+}
+
+export class JsonlConceptStore extends BaseJsonlStore implements ConceptStore {
+  private namespaces = new Map<string, Namespace>();
+  private concepts = new Map<string, Concept>();
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    try {
+      if (await fileOrDirExists(this.filePath)) {
+        const raw = await fs.readFile(this.filePath, "utf-8");
+        const lines = raw.split("\n");
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const entry = JSON.parse(line);
+          if (entry.type === "namespace") {
+            this.namespaces.set(entry.data.code, entry.data);
+          } else if (entry.type === "concept") {
+            this.concepts.set(entry.data.id, entry.data);
+          }
+        }
+      }
+    } catch (_) {}
+    this.initialized = true;
+  }
+
+  async serializeAll(): Promise<void> {
+    const lines: string[] = [];
+    for (const ns of this.namespaces.values()) {
+      lines.push(JSON.stringify({ type: "namespace", data: ns }));
+    }
+    for (const c of this.concepts.values()) {
+      lines.push(JSON.stringify({ type: "concept", data: c }));
+    }
+    await this.truncateAndWrite(lines);
+  }
+
+  async search(query: string, namespaceCode?: string, limit: number = 50): Promise<Concept[]> {
+    await this.init();
+    const results: Concept[] = [];
+    const lowerQuery = query.toLowerCase();
+    for (const c of this.concepts.values()) {
+      if (namespaceCode && c.namespaceCode !== namespaceCode) continue;
+      if (
+        c.id.toLowerCase().includes(lowerQuery) ||
+        c.standardCode.toLowerCase().includes(lowerQuery) ||
+        c.display.toLowerCase().includes(lowerQuery) ||
+        (c.description && c.description.toLowerCase().includes(lowerQuery))
+      ) {
+        results.push(c);
+      }
+      if (results.length >= limit) break;
+    }
+    return results;
+  }
+
+  async getById(id: string): Promise<Concept | null> {
+    await this.init();
+    return this.concepts.get(id) || null;
+  }
+
+  async listNamespaces(): Promise<Namespace[]> {
+    await this.init();
+    return Array.from(this.namespaces.values());
+  }
+
+  async addConcept(concept: Concept): Promise<void> {
+    await this.init();
+    this.concepts.set(concept.id, concept);
+    await this.serializeAll();
+  }
+
+  async addNamespace(namespace: Namespace): Promise<void> {
+    await this.init();
+    this.namespaces.set(namespace.code, namespace);
+    await this.serializeAll();
+  }
+}
+
+export class JsonlPersistentExpressionStore extends BaseJsonlStore implements PersistentExpressionStore {
+  private expressions: CustomExpression[] = [];
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    try {
+      if (await fileOrDirExists(this.filePath)) {
+        const raw = await fs.readFile(this.filePath, "utf-8");
+        const lines = raw.split("\n");
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const entry = JSON.parse(line);
+          if (entry.type === "expression") {
+            this.expressions.push(entry.data);
+          }
+        }
+      }
+    } catch (_) {}
+    this.initialized = true;
+  }
+
+  async serializeAll(): Promise<void> {
+    const lines = this.expressions.map(e => JSON.stringify({ type: "expression", data: e }));
+    await this.truncateAndWrite(lines);
+  }
+
+  async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
+    await this.init();
+    const context = {
+      ...expression.context,
+      scope_level: scope.level,
+      scope_id: scope.level === "user" ? scope.userId : null
+    };
+    const saved = { ...expression, context };
+    const idx = this.expressions.findIndex(e => e.id === expression.id);
+    if (idx !== -1) {
+      this.expressions[idx] = saved;
+    } else {
+      this.expressions.push(saved);
+    }
+    await this.serializeAll();
+  }
+
+  async delete(id: string, scope: OwnerScope): Promise<void> {
+    await this.init();
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    const initialLength = this.expressions.length;
+    this.expressions = this.expressions.filter(e => {
+      if (e.id !== id) return true;
+      const el = e.context?.scope_level;
+      const ei = e.context?.scope_id;
+      return !(el === scope.level && (ei === scopeId || !ei));
+    });
+    if (this.expressions.length !== initialLength) {
+      await this.serializeAll();
+    }
+  }
+
+  async list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]> {
+    await this.init();
+    const scopeId = scope.level === "user" ? scope.userId : null;
+    return this.expressions.filter(e => {
+      const el = e.context?.scope_level || (e.context?.user_id ? "user" : "global");
+      const ei = e.context?.scope_id || e.context?.user_id;
+      if (el === scope.level && (ei === scopeId || !ei)) return true;
+      if (includeGlobal && el === "global") return true;
+      return false;
+    });
   }
 }

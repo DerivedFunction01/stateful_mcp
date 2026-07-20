@@ -26,7 +26,9 @@ import {
   JsonlSessionObjectStore,
   JsonlPersistentObjectStore,
   JsonlSessionEventStore,
-  JsonlPersistentEventStore
+  JsonlPersistentEventStore,
+  JsonlConceptStore,
+  JsonlPersistentExpressionStore
 } from "../src/adapters/storage/jsonl-repo";
 
 import {
@@ -45,7 +47,11 @@ import {
   LocalStorageSessionStore,
   LocalStoragePersistentStore,
   IndexedDbSessionStore,
-  IndexedDbPersistentStore
+  IndexedDbPersistentStore,
+  LocalStorageConceptStore,
+  LocalStoragePersistentExpressionStore,
+  IndexedDbConceptStore,
+  IndexedDbPersistentExpressionStore
 } from "../src/adapters/storage/browser-repo";
 
 import * as fs from "fs";
@@ -74,6 +80,9 @@ const mockLocalStorage: any = {
 const mockIndexedDBStore = new Map<string, Map<string, any>>();
 mockIndexedDBStore.set("states", new Map());
 mockIndexedDBStore.set("aliases", new Map());
+mockIndexedDBStore.set("concepts", new Map());
+mockIndexedDBStore.set("namespaces", new Map());
+mockIndexedDBStore.set("expressions", new Map());
 
 const mockIndexedDB: any = {
   open(dbName: string) {
@@ -125,6 +134,36 @@ const mockIndexedDB: any = {
                 setTimeout(() => {
                   req.result = Array.from(storeMap.values());
                   if (req.onsuccess) req.onsuccess();
+                }, 0);
+                return req;
+              },
+              openCursor() {
+                const req: any = {};
+                const keys = Array.from(storeMap.keys());
+                const values = Array.from(storeMap.values());
+                let idx = 0;
+                setTimeout(() => {
+                  const trigger = () => {
+                    if (idx < keys.length) {
+                      req.result = {
+                        key: keys[idx],
+                        value: values[idx],
+                        continue() {
+                          idx++;
+                          trigger();
+                        }
+                      };
+                      if (req.onsuccess) {
+                        req.onsuccess({ target: { result: req.result } });
+                      }
+                    } else {
+                      req.result = null;
+                      if (req.onsuccess) {
+                        req.onsuccess({ target: { result: null } });
+                      }
+                    }
+                  };
+                  trigger();
                 }, 0);
                 return req;
               }
@@ -420,6 +459,56 @@ describe("Storage Compliance Test Runner", () => {
         createPersistentStore: async () => {
           return new SqlitePersistentExpressionStore(dbPath);
         }
+      });
+    });
+
+    describe("JSONL Dictionary Store", () => {
+      const conceptsPath = path.resolve(__dirname, "../scratch/compliance-dict-concepts.jsonl");
+      const expressionsPath = path.resolve(__dirname, "../scratch/compliance-dict-expressions.jsonl");
+      afterAll(() => {
+        try {
+          if (fs.existsSync(conceptsPath)) fs.unlinkSync(conceptsPath);
+          if (fs.existsSync(expressionsPath)) fs.unlinkSync(expressionsPath);
+        } catch (_) {}
+      });
+      runDictionaryStoreComplianceTests({
+        name: "JSONL Dictionary Store",
+        test,
+        expect,
+        createSessionStore: async () => {
+          if (fs.existsSync(conceptsPath)) fs.unlinkSync(conceptsPath);
+          return new JsonlConceptStore(conceptsPath);
+        },
+        createPersistentStore: async () => {
+          if (fs.existsSync(expressionsPath)) fs.unlinkSync(expressionsPath);
+          return new JsonlPersistentExpressionStore(expressionsPath);
+        }
+      });
+    });
+
+    describe("LocalStorage Dictionary Store", () => {
+      beforeAll(() => {
+        mockLocalStorage.clear();
+      });
+      runDictionaryStoreComplianceTests({
+        name: "LocalStorage Dictionary Store",
+        test,
+        expect,
+        createSessionStore: async () => new LocalStorageConceptStore("test_dict_concepts:"),
+        createPersistentStore: async () => new LocalStoragePersistentExpressionStore("test_dict_expressions:")
+      });
+    });
+
+    describe("IndexedDB Dictionary Store", () => {
+      beforeAll(() => {
+        mockIndexedDB.clear();
+      });
+      runDictionaryStoreComplianceTests({
+        name: "IndexedDB Dictionary Store",
+        test,
+        expect,
+        createSessionStore: async () => new IndexedDbConceptStore("test_dict_db"),
+        createPersistentStore: async () => new IndexedDbPersistentExpressionStore("test_dict_db")
       });
     });
   });
