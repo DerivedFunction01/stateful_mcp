@@ -362,6 +362,22 @@ export class ObjectStore {
   }
 
   async array_append(objectId: string, path: (string | number)[], sessionId: string, userId?: string): Promise<string> {
+    return this.array_operation(objectId, path, "insert", undefined, undefined, sessionId, userId);
+  }
+
+  async array_remove(objectId: string, path: (string | number)[], index: number, sessionId: string, userId?: string): Promise<string> {
+    return this.array_operation(objectId, path, "remove", index, undefined, sessionId, userId);
+  }
+
+  async array_operation(
+    objectId: string,
+    path: (string | number)[],
+    operation: "insert" | "remove" | "replace",
+    index: number | undefined,
+    value: any | undefined,
+    sessionId: string,
+    userId?: string
+  ): Promise<string> {
     const resolvedParentId = await this.resolveId(objectId, sessionId);
     const parent = await this.lookup(resolvedParentId, sessionId, userId);
     if (!parent) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
@@ -372,53 +388,34 @@ export class ObjectStore {
       throw new McpError(ErrorCode.OBJECT_TYPE_MISMATCH, `Field at path [${path.join(",")}] is not an array`);
     }
 
-    const newArr = Array.isArray(arr) ? [...arr, {}] : [{}];
-    this.setValueAtPath(dataCopy, path, newArr);
+    const currentArr = Array.isArray(arr) ? [...arr] : [];
 
-    const siblings = await this.session.listChildren(sessionId, resolvedParentId);
-    const linearDepth = siblings.length > 0 ? 1 : (parent.linearDepth || 1) + 1;
-
-    const state: Omit<ObjectState, "objectId"> = {
-      schemaName: parent.schemaName,
-      parentObjectId: resolvedParentId,
-      data: dataCopy,
-      createdAt: new Date().toISOString(),
-      schema_pinned_at: parent.schema_pinned_at,
-      linearDepth,
-      gcLock: false
-    };
-
-    const isAliasInput = (await this.session.getAlias(sessionId, objectId)) !== null;
-    const targetAlias = isAliasInput ? objectId : undefined;
-
-    const newId = await this.session.create(sessionId, state, targetAlias);
-
-    if (linearDepth > this.chainThreshold) {
-      const compressedId = await this.compressSuffix(newId, sessionId, userId);
-      if (targetAlias) {
-        await this.session.setAlias(sessionId, targetAlias, compressedId);
-        return targetAlias;
+    if (operation === "insert") {
+      const insertIndex = index !== undefined ? index : currentArr.length;
+      const insertValue = value !== undefined ? value : {};
+      currentArr.splice(insertIndex, 0, insertValue);
+    } else if (operation === "remove") {
+      if (index === undefined) {
+        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index is required for remove operation");
       }
-      return compressedId;
+      if (index < 0 || index >= currentArr.length) {
+        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index out of bounds for remove operation");
+      }
+      currentArr.splice(index, 1);
+    } else if (operation === "replace") {
+      if (index === undefined) {
+        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index is required for replace operation");
+      }
+      if (index < 0 || index >= currentArr.length) {
+        throw new McpError(ErrorCode.OBJECT_PATH_INVALID, "Index out of bounds for replace operation");
+      }
+      const replaceValue = value !== undefined ? value : {};
+      currentArr[index] = replaceValue;
+    } else {
+      throw new McpError(ErrorCode.OBJECT_PATH_INVALID, `Unsupported array operation "${operation}"`);
     }
 
-    return targetAlias || newId;
-  }
-
-  async array_remove(objectId: string, path: (string | number)[], index: number, sessionId: string, userId?: string): Promise<string> {
-    const resolvedParentId = await this.resolveId(objectId, sessionId);
-    const parent = await this.lookup(resolvedParentId, sessionId, userId);
-    if (!parent) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not found`);
-
-    const dataCopy = JSON.parse(JSON.stringify(parent.data));
-    const arr = this.getValueAtPath(dataCopy, path);
-    if (!Array.isArray(arr)) {
-      throw new McpError(ErrorCode.OBJECT_TYPE_MISMATCH, `Field at path [${path.join(",")}] is not an array`);
-    }
-
-    const newArr = [...arr];
-    newArr.splice(index, 1);
-    this.setValueAtPath(dataCopy, path, newArr);
+    this.setValueAtPath(dataCopy, path, currentArr);
 
     const siblings = await this.session.listChildren(sessionId, resolvedParentId);
     const linearDepth = siblings.length > 0 ? 1 : (parent.linearDepth || 1) + 1;

@@ -46,6 +46,10 @@
     "./adapters/browser-repo": {
       "types": "./dist/src/adapters/storage/browser-repo.d.ts",
       "default": "./dist/src/adapters/storage/browser-repo.js"
+    },
+    "./adapters/compliance": {
+      "types": "./dist/src/adapters/storage/compliance.d.ts",
+      "default": "./dist/src/adapters/storage/compliance.js"
     }
   },
   "scripts": {

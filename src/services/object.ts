@@ -153,41 +153,22 @@ server.registerTool(
 );
 
 server.registerTool(
-  "object_array_append",
+  "object_array_operation",
   {
-    description: "Append a new empty item to an array field",
+    description: "Perform an operation (insert, remove, replace) on an array field",
     inputSchema: {
       object_id: z.string().describe("The object ID."),
       path: z.array(pathSegmentSchema).describe("Field path to the array."),
+      operation: z.enum(["insert", "remove", "replace"]).describe("The operation to perform."),
+      index: z.number().optional().describe("Target position. Required for remove/replace; optional for insert."),
+      value: z.any().optional().describe("Value payload. Required for replace; optional for insert."),
       session_id: z.string().describe("The session identifier."),
       user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ object_id, path: fieldPath, session_id, user_id }) => {
+  async ({ object_id, path: fieldPath, operation, index, value, session_id, user_id }) => {
     try {
-      const newObjectId = await objectStore.array_append(object_id, fieldPath, session_id, user_id);
-      return { content: [{ type: "text", text: JSON.stringify({ new_object_id: newObjectId }) }] };
-    } catch (err: any) {
-      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
-    }
-  }
-);
-
-server.registerTool(
-  "object_array_remove",
-  {
-    description: "Remove an item from an array field at an index",
-    inputSchema: {
-      object_id: z.string().describe("The object ID."),
-      path: z.array(pathSegmentSchema).describe("Field path to the array."),
-      index: z.number().describe("The item index to remove."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
-    }
-  },
-  async ({ object_id, path: fieldPath, index, session_id, user_id }) => {
-    try {
-      const newObjectId = await objectStore.array_remove(object_id, fieldPath, index, session_id, user_id);
+      const newObjectId = await objectStore.array_operation(object_id, fieldPath, operation, index, value, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify({ new_object_id: newObjectId }) }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
