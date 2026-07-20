@@ -83,6 +83,15 @@ describe("Browser Storage Adapters", () => {
       const retrieved = await persistentStore.get("global-state", { level: "global" });
       expect(retrieved.val).toBe(42);
     });
+
+    test("Expire session older than threshold", async () => {
+      const state = { objectId: "", value: "hello", timestamp: new Date(Date.now() - 5000).toISOString() };
+      const id = await sessionStore.create(sessionId, state, "temp-alias");
+
+      await sessionStore.expireSession(sessionId, 1000);
+      const retrieved = await sessionStore.get(sessionId, id);
+      expect(retrieved).toBeNull();
+    });
   });
 
   describe("IndexedDB Adapters", () => {
@@ -127,6 +136,22 @@ describe("Browser Storage Adapters", () => {
                       if (req.onsuccess) req.onsuccess();
                     }, 0);
                     return req;
+                  },
+                  getAllKeys() {
+                    const req: any = {};
+                    setTimeout(() => {
+                      req.result = Array.from(storeMap.keys());
+                      if (req.onsuccess) req.onsuccess();
+                    }, 0);
+                    return req;
+                  },
+                  getAll() {
+                    const req: any = {};
+                    setTimeout(() => {
+                      req.result = Array.from(storeMap.values());
+                      if (req.onsuccess) req.onsuccess();
+                    }, 0);
+                    return req;
                   }
                 };
               }
@@ -161,6 +186,15 @@ describe("Browser Storage Adapters", () => {
 
       const retrieved = await persistentStore.get("p-state", { level: "global" });
       expect(retrieved.val).toBe(100);
+    });
+
+    test("Expire session older than threshold", async () => {
+      const state = { objectId: "", value: "idb-hello", timestamp: new Date(Date.now() - 5000).toISOString() };
+      const id = await sessionStore.create(sessionId, state, "idb-temp-alias");
+
+      await sessionStore.expireSession(sessionId, 1000);
+      const retrieved = await sessionStore.get(sessionId, id);
+      expect(retrieved).toBeNull();
     });
   });
 });

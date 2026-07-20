@@ -140,7 +140,39 @@ export class LocalStorageSessionStore
   }
 
   async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
-    // Basic client stub
+    const storage = getBrowserStorage();
+    if (!storage) return;
+    const prefix = `stateful_mcp:session:${sessionId}:state:`;
+    const aliasPrefix = `stateful_mcp:session:${sessionId}:alias:`;
+    const now = Date.now();
+    const toDelete: string[] = [];
+
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith(prefix)) {
+        if (olderThanMs !== undefined) {
+          const valStr = storage.getItem(key);
+          if (valStr) {
+            const val = JSON.parse(valStr);
+            const ts = val.createdAt || val.timestamp;
+            if (ts) {
+              const createdTime = new Date(ts).getTime();
+              if (now - createdTime > olderThanMs) {
+                toDelete.push(key);
+              }
+            }
+          }
+        } else {
+          toDelete.push(key);
+        }
+      } else if (key && key.startsWith(aliasPrefix) && olderThanMs === undefined) {
+        toDelete.push(key);
+      }
+    }
+
+    for (const key of toDelete) {
+      storage.removeItem(key);
+    }
   }
 
   async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
@@ -369,7 +401,36 @@ export class IndexedDbSessionStore
   }
 
   async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
-    // Client stub
+    const prefix = `stateful_mcp:session:${sessionId}:state:`;
+    const aliasPrefix = `stateful_mcp:session:${sessionId}:alias:`;
+    const entries = await this.listAllEntries("states");
+    const aliasEntries = await this.listAllEntries("aliases");
+    const now = Date.now();
+
+    for (const e of entries) {
+      if (e.key.startsWith(prefix)) {
+        if (olderThanMs !== undefined) {
+          const val = e.value;
+          const ts = val.createdAt || val.timestamp;
+          if (ts) {
+            const createdTime = new Date(ts).getTime();
+            if (now - createdTime > olderThanMs) {
+              await this.deleteKey("states", e.key);
+            }
+          }
+        } else {
+          await this.deleteKey("states", e.key);
+        }
+      }
+    }
+
+    if (olderThanMs === undefined) {
+      for (const e of aliasEntries) {
+        if (e.key.startsWith(aliasPrefix)) {
+          await this.deleteKey("aliases", e.key);
+        }
+      }
+    }
   }
 
   async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
