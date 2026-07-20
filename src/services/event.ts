@@ -240,6 +240,29 @@ server.registerTool(
 );
 
 server.registerTool(
+  "event_save",
+  {
+    description: "Promote and persist an event commit to user/global scope",
+    inputSchema: {
+      commit_id: z.string().describe("The event commit ID to persist."),
+      tags: z.array(z.string()).describe("Searchable tags."),
+      description: z.string().describe("Purpose description."),
+      scope: z.enum(["session", "user", "global"]).describe("Ownership level."),
+      session_id: z.string().describe("The session identifier.")
+    }
+  },
+  async ({ commit_id, tags, description, scope, session_id }) => {
+    try {
+      const ownerScope = scope === "global" ? { level: "global" as const } : { level: "user" as const, userId: "" };
+      const savedId = await eventStore.save(commit_id, tags, description, ownerScope, session_id);
+      return { content: [{ type: "text", text: JSON.stringify({ saved_id: savedId }) }] };
+    } catch (err: any) {
+      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
   "middleware_about",
   {
     description: "Get meta-documentation explaining the orchestration of all stateful middleware services",

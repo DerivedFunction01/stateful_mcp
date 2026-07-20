@@ -7,7 +7,7 @@ import { MemorySessionFormStore, MemoryPersistentFormStore } from "../adapters/s
 import { JsonlSessionFormStore, JsonlPersistentFormStore } from "../adapters/storage/jsonl-repo";
 import { SqliteFormStore } from "../adapters/storage/sqlite-repo";
 import { FormStore } from "../middleware/form/store";
-import type { MiddlewareConfig, FormSchema } from "../config/types";
+import type { MiddlewareConfig, FormSchema, OwnerScope } from "../config/types";
 import { getFilterStore, getObjectStore } from "./helper";
 import * as path from "path";
 
@@ -139,6 +139,29 @@ function registerFormTools() {
       try {
         const result = await formStore.inspect(form_id, question_id, session_id);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      } catch (err: any) {
+        return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "form_save",
+    {
+      description: "Promote and persist a form checkpoint state to user/global scope",
+      inputSchema: {
+        form_id: z.string().describe("The form checkpoint ID to persist."),
+        tags: z.array(z.string()).describe("Searchable tags."),
+        description: z.string().describe("Purpose description."),
+        scope: z.enum(["session", "user", "global"]).describe("Ownership level."),
+        session_id: z.string().describe("The session identifier.")
+      }
+    },
+    async ({ form_id, tags, description, scope, session_id }) => {
+      try {
+        const ownerScope = scope === "global" ? { level: "global" as const } : { level: "user" as const, userId: "" };
+        const savedId = await formStore.save(form_id, tags, description, ownerScope, session_id);
+        return { content: [{ type: "text", text: JSON.stringify({ saved_id: savedId }) }] };
       } catch (err: any) {
         return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
       }

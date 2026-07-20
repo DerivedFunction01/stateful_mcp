@@ -199,5 +199,24 @@ describe("Stateful Form Service", () => {
       // q_name is required. Skipping it should fail.
       expect(store.skip(res.form_id, "q_name", session)).rejects.toThrow();
     });
+
+    test("Persistent save and retrieval with auto-compression", async () => {
+      const fId = await store.init("patient_intake", session);
+      let res = await store.answer(fId, "q_name", "Jane Save", session);
+      res = await store.answer(res.form_id, "q_age", 30, session);
+
+      // res has parentFormId !== null. Saving it should auto-compress and return a new compressed ID.
+      const savedId = await store.save(res.form_id, ["tag1"], "Test Form", { level: "global" }, session);
+      expect(savedId).not.toBe(res.form_id);
+      expect(savedId.startsWith("form_comp_")).toBe(true);
+
+      // Verify we can retrieve it and it has the active answers
+      const persisted = await (store as any).persistentStore.get(savedId, { level: "global" });
+      expect(persisted).toBeDefined();
+      expect(persisted.tags).toContain("tag1");
+      expect(persisted.description).toBe("Test Form");
+      expect(persisted.answers.q_name).toBe("Jane Save");
+      expect(persisted.answers.q_age).toBe(30);
+    });
   });
 });

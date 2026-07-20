@@ -526,4 +526,107 @@ export class FormStore {
 
     return history;
   }
+
+  public async compress(formId: string, sessionId: string): Promise<string> {
+    const resolvedId = await this.resolveId(sessionId, formId);
+    const form = await this.sessionStore.get(sessionId, resolvedId);
+    if (!form) {
+      throw new Error(`Form "${formId}" not in session`);
+    }
+
+    const schema = this.formSchemas.get(form.schemaName);
+    if (!schema) {
+      throw new Error(`Form schema "${form.schemaName}" not found.`);
+    }
+
+    const nav = resolveNavigationState(schema, form.answers, form.skipped);
+
+    // Keep only active/visible answers, skipped, and stale status
+    const activeAnswers: Record<string, any> = {};
+    for (const qId of nav.visibleQuestions) {
+      if (form.answers[qId] !== undefined) {
+        activeAnswers[qId] = form.answers[qId];
+      }
+    }
+    const activeSkipped = form.skipped.filter((qId: string) => nav.visibleQuestions.includes(qId));
+    const activeStale: Record<string, boolean> = {};
+    for (const qId of nav.visibleQuestions) {
+      if (form.stale[qId]) {
+        activeStale[qId] = true;
+      }
+    }
+
+    const compressedId = `form_comp_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+    const compressedState: FormState = {
+      formId: compressedId,
+      parentFormId: null,
+      schemaName: form.schemaName,
+      answers: activeAnswers,
+      skipped: activeSkipped,
+      stale: activeStale,
+      timestamp: new Date().toISOString()
+    };
+
+    await this.sessionStore.set(sessionId, compressedId, compressedState);
+    return compressedId;
+  }
+
+  public async save(
+    formId: string,
+    tags: string[],
+    description: string,
+    scope: OwnerScope,
+    sessionId: string
+  ): Promise<string> {
+    const resolvedId = await this.resolveId(sessionId, formId);
+    let form = await this.sessionStore.get(sessionId, resolvedId);
+    if (!form) {
+      throw new Error(`Form "${formId}" not in session`);
+    }
+    let targetId = resolvedId;
+    if (form.parentFormId !== null) {
+      targetId = await this.compress(resolvedId, sessionId);
+      const compressed = await this.sessionStore.get(sessionId, targetId);
+      if (!compressed) {
+        throw new Error("Compressed form not found");
+      }
+      form = compressed;
+    }
+
+    await this.persistentStore.set(
+      targetId,
+      {
+        ...form,
+        tags,
+        description,
+        schema_pinned_at: new Date().toISOString()
+      },
+      scope
+    );
+
+    await this.lockAncestors(targetId, sessionId);
+
+    return targetId;
+  }
+
+  private async lockAncestors(formId: string, sessionId: string) {
+    const ancestors = new Set<string>();
+    await this.getAncestors(formId, sessionId, ancestors);
+    for (const id of ancestors) {
+      const node = await this.sessionStore.get(sessionId, id);
+      if (node && !(node as any).gcLock) {
+        (node as any).gcLock = true;
+        await this.sessionStore.set(sessionId, id, node);
+      }
+    }
+  }
+
+  private async getAncestors(id: string, sessionId: string, visited: Set<string>): Promise<void> {
+    const node = await this.sessionStore.get(sessionId, id);
+    if (!node) return;
+    if (node.parentFormId && !visited.has(node.parentFormId)) {
+      visited.add(node.parentFormId);
+      await this.getAncestors(node.parentFormId, sessionId, visited);
+    }
+  }
 }

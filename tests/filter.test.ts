@@ -671,4 +671,27 @@ export async function runFilterTests() {
     throw new Error(`Expected 2 rules pre-populated in filter, got: ${JSON.stringify(populatedRules)}`);
   }
   console.log("✓ Filter pre-populated initialization verified successfully.");
+
+  console.log("\n🧪 Test Case 13: Filter Persistent Saving & Auto-Compression");
+  const saveFilterId = await aliasFilterStore.init(sessionIdAlias, "browse_catalog", "items");
+  const uncompressedFilterId = await aliasFilterStore.add(saveFilterId, [{ property: "price", operator: "gt", value: 100 }], sessionIdAlias);
+
+  const savedFilterId = await aliasFilterStore.save(
+    uncompressedFilterId,
+    ["tag-filter"],
+    "Auto-compressed filter",
+    { level: "global" },
+    sessionIdAlias,
+    () => true
+  );
+
+  if (savedFilterId === uncompressedFilterId) {
+    throw new Error("Expected saving an uncompressed filter to return a new auto-compressed filter ID");
+  }
+
+  const persistedFilter = await aliasFilterStore["persistent"].get(savedFilterId, { level: "global" });
+  if (!persistedFilter || persistedFilter.parentFilterId !== null) {
+    throw new Error(`Persisted filter not found or not compressed: ${JSON.stringify(persistedFilter)}`);
+  }
+  console.log("✓ Filter persistent save with auto-compression verified successfully.");
 }

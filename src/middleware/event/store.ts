@@ -1,6 +1,6 @@
 import type { SessionEventStore, PersistentEventStore } from "../../adapters/storage/interfaces";
 import type { EventCommit, EventMutation, EventRecord, MergeSession, MergeConflict } from "./types";
-import type { ResourceLocator } from "../../config/types";
+import type { ResourceLocator, OwnerScope } from "../../config/types";
 import { ErrorCode, McpError } from "../../errors/types";
 import { runValidationEngine } from "../../adapters/validation/runner";
 import { validateStateReferences } from "../../adapters/validation/references";
@@ -870,6 +870,86 @@ export class EventStore {
     }));
 
     return { deleted_count: deletedCount, kept_count: keptCount };
+  }
+
+  async compress(commitId: string, sessionId: string): Promise<string> {
+    const commit = await this.session.get(sessionId, commitId);
+    if (!commit) {
+      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Commit "${commitId}" not found`);
+    }
+    const activeEvents = await this.project(commitId, sessionId);
+
+    const mutations: EventMutation[] = activeEvents.map((ev) => {
+      const { event_id, ...data } = ev;
+      return {
+        type: "add",
+        event_id,
+        data
+      };
+    });
+
+    const compressedCommit: Omit<EventCommit, "commitId"> & { commitId?: string } = {
+      sessionId,
+      parentCommitId: null,
+      createdAt: new Date().toISOString(),
+      operation: "add",
+      mutations,
+      linearDepth: 1,
+      gcLock: false
+    };
+
+    const newCommitId = await this.session.create(sessionId, compressedCommit);
+    return newCommitId;
+  }
+
+  async save(
+    commitId: string,
+    tags: string[],
+    description: string,
+    scope: OwnerScope,
+    sessionId: string
+  ): Promise<string> {
+    let commit = await this.session.get(sessionId, commitId);
+    if (!commit) {
+      throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Commit "${commitId}" not in session`);
+    }
+    let targetId = commitId;
+    if (commit.parentCommitId !== null) {
+      targetId = await this.compress(commitId, sessionId);
+      const compressed = await this.session.get(sessionId, targetId);
+      if (!compressed) {
+        throw new McpError(ErrorCode.OBJECT_NOT_FOUND, "Compressed commit not found");
+      }
+      commit = compressed;
+    }
+
+    const schemaName = await this.getSchemaName(targetId, sessionId);
+    await this.persistent.set(
+      targetId,
+      {
+        ...commit,
+        tags,
+        description,
+        schema_name: schemaName,
+      },
+      scope
+    );
+
+    await this.lockAncestors(targetId, sessionId);
+
+    return targetId;
+  }
+
+  private async lockAncestors(commitId: string, sessionId: string) {
+    const ancestors = new Set<string>();
+    await this.getAncestors(commitId, sessionId, ancestors);
+    for (const id of ancestors) {
+      const node = await this.session.get(sessionId, id);
+      if (node && !node.gcLock) {
+        node.gcLock = true;
+        await this.session.set(sessionId, id, node);
+      }
+    }
   }
 
   private async getAncestors(id: string, sessionId: string, visited: Set<string>): Promise<void> {

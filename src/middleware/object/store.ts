@@ -577,22 +577,26 @@ export class ObjectStore {
   }
 
   async save(objectId: string, tags: string[], description: string, scope: OwnerScope, sessionId: string): Promise<string> {
-    const obj = await this.session.get(sessionId, objectId);
+    let obj = await this.session.get(sessionId, objectId);
     if (!obj) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, `Object "${objectId}" not in session`);
+    let targetId = objectId;
     if (obj.parentObjectId !== null) {
-      throw new McpError(ErrorCode.OBJECT_SCHEMA_EXCEEDED, "Compress the object before saving");
+      targetId = await this.compress(objectId, sessionId, scope.level === "user" ? scope.userId : undefined);
+      const compressed = await this.session.get(sessionId, targetId);
+      if (!compressed) throw new McpError(ErrorCode.OBJECT_NOT_FOUND, "Compressed object not found");
+      obj = compressed;
     }
 
-    await this.persistent.set(objectId, {
+    await this.persistent.set(targetId, {
       ...obj,
       tags,
       description,
       schema_pinned_at: obj.schema_pinned_at || new Date().toISOString()
     }, scope);
 
-    await this.lockAncestors(objectId, sessionId, scope.level === "user" ? scope.userId : undefined);
+    await this.lockAncestors(targetId, sessionId, scope.level === "user" ? scope.userId : undefined);
 
-    return objectId;
+    return targetId;
   }
 
   async resolve(objectId: string, mode: "tool_call" | "function", sessionId: string, userId?: string): Promise<unknown> {

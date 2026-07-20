@@ -153,4 +153,46 @@ export async function runEventTests() {
   }
 
   console.log("✓ Suffix compression and targeted GC verified successfully.");
+
+  // ──── TEST CASE 5: Persistent Saving & Lock Ancestors ────
+  console.log("\n🧪 Test Case 5: Event Persistent Saving & Lock Ancestors");
+
+  // Save the initial commit from the first test case (initCommitId === "baseline")
+  const savedId = await eventStore.save(
+    initCommitId,
+    ["tag1"],
+    "Initial baseline",
+    { level: "global" },
+    sessionId
+  );
+
+  if (savedId !== initCommitId) {
+    throw new Error(`Expected saved ID to match commit ID, got ${savedId}`);
+  }
+
+  // Retrieve from persistent store to verify
+  const persisted = await persistentStore.get(initCommitId, { level: "global" });
+  if (!persisted || persisted.description !== "Initial baseline" || persisted.tags[0] !== "tag1") {
+    throw new Error(`Persisted state mismatch: ${JSON.stringify(persisted)}`);
+  }
+
+  // Save an uncompressed commit (t2 alias has parentCommitId !== null)
+  const savedId2 = await eventStore.save(
+    "t2",
+    ["tag2"],
+    "Patched temp observation",
+    { level: "global" },
+    sessionId
+  );
+
+  if (savedId2 === "t2") {
+    throw new Error("Expected auto-compression to produce a new commit ID");
+  }
+
+  const persisted2 = await persistentStore.get(savedId2, { level: "global" });
+  if (!persisted2 || persisted2.description !== "Patched temp observation" || persisted2.parentCommitId !== null) {
+    throw new Error(`Persisted state mismatch or not compressed: ${JSON.stringify(persisted2)}`);
+  }
+
+  console.log("✓ Event persistent saving verified successfully.");
 }

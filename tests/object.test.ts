@@ -344,4 +344,26 @@ export async function runObjectTests() {
     throw new Error(`Expected pre-populated object data to match input, got: ${JSON.stringify(populatedObj?.data)}`);
   }
   console.log("✓ Object pre-populated initialization verified successfully.");
+
+  console.log("\n🧪 Test Case 6: Object Persistent Saving & Auto-Compression");
+  const saveObjectId = await aliasObjectStore.init("appointment", sessionIdAlias);
+  const uncompressedObjectId = await aliasObjectStore.set(saveObjectId, ["title"], "Launch Ceremony", sessionIdAlias);
+
+  const savedObjectId = await aliasObjectStore.save(
+    uncompressedObjectId,
+    ["tag-object"],
+    "Auto-compressed object",
+    { level: "global" },
+    sessionIdAlias
+  );
+
+  if (savedObjectId === uncompressedObjectId) {
+    throw new Error("Expected saving an uncompressed object to return a new auto-compressed object ID");
+  }
+
+  const persistedObject = await aliasObjectStore["persistent"].get(savedObjectId, { level: "global" });
+  if (!persistedObject || persistedObject.parentObjectId !== null) {
+    throw new Error(`Persisted object not found or not compressed: ${JSON.stringify(persistedObject)}`);
+  }
+  console.log("✓ Object persistent save with auto-compression verified successfully.");
 }

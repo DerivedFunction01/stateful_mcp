@@ -536,17 +536,23 @@ export class FilterStore {
       }
     }
 
-    const state = await this.session.get(sessionId, filterId);
+    let state = await this.session.get(sessionId, filterId);
     if (!state) {
       throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Filter "${filterId}" not in session`);
     }
+    let targetId = filterId;
     if (state.parentFilterId !== null) {
-      throw new McpError(ErrorCode.FILTER_SCOPE_INVALID, "Compress the filter before saving");
+      targetId = await this.compress(filterId, sessionId, scope.level === "user" ? scope.userId : undefined);
+      const compressedState = await this.session.get(sessionId, targetId);
+      if (!compressedState) {
+        throw new McpError(ErrorCode.FILTER_NOT_FOUND, `Compressed filter not found`);
+      }
+      state = compressedState;
     }
 
-    const schema = this.pinnedSchemas.get(filterId);
+    const schema = this.pinnedSchemas.get(targetId);
     await this.persistent.set(
-      filterId,
+      targetId,
       {
         ...state,
         tags,
@@ -556,9 +562,9 @@ export class FilterStore {
       scope
     );
 
-    await this.lockAncestors(filterId, sessionId, scope.level === "user" ? scope.userId : undefined);
+    await this.lockAncestors(targetId, sessionId, scope.level === "user" ? scope.userId : undefined);
 
-    return filterId;
+    return targetId;
   }
 
   async resolveRows(
