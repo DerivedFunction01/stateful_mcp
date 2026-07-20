@@ -33,6 +33,25 @@ export function runStoreComplianceTests(options: ComplianceRunnerOptions) {
     expect(retrievedB).not.toBeNull();
   });
 
+  test(`${options.name} - Multiple Active States Isolation`, async () => {
+    const sessionStore = await createSessionStore();
+    const sessionId = "comp-isolation";
+
+    const stateA = { filterId: "", rules: [], toolName: "tool-A", createdAt: new Date().toISOString() };
+    const idA = await sessionStore.create(sessionId, stateA);
+
+    const stateB = { filterId: "", rules: [], toolName: "tool-B", createdAt: new Date().toISOString() };
+    const idB = await sessionStore.create(sessionId, stateB);
+
+    const retrievedA = await sessionStore.get(sessionId, idA);
+    const retrievedB = await sessionStore.get(sessionId, idB);
+
+    expect(retrievedA).not.toBeNull();
+    expect(retrievedB).not.toBeNull();
+    expect(retrievedA.toolName).toBe("tool-A");
+    expect(retrievedB.toolName).toBe("tool-B");
+  });
+
   test(`${options.name} - Alias Operations & Routing`, async () => {
     const sessionStore = await createSessionStore();
     const sessionId = "comp-alias";
