@@ -1,0 +1,19 @@
+{
+  "name": "@stateful-mcp/mcp-transport",
+  "version": "0.1.1",
+  "description": "MCP server delivery layer for Stateful framework",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "bun build ./src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@stateful-mcp/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

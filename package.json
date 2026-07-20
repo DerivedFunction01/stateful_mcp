@@ -1,91 +1,24 @@
 {
-  "name": "stateful-mcp",
+  "name": "stateful-mcp-monorepo",
   "version": "0.1.1",
-  "description": "Stateful MCP middleware suite: versioned filters, objects, event logs, and a terminology dictionary for LLM tooling.",
+  "private": true,
+  "description": "Stateful MCP middleware suite monorepo workspace",
   "type": "module",
   "license": "MIT",
-  "bin": {
-    "stateful-mcp": "dist/index.js"
-  },
-  "files": [
-    "dist",
-    "config",
-    "docs",
-    "README.md",
-    "LICENSE"
+  "workspaces": [
+    "packages/*"
   ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./loader": {
-      "types": "./dist/src/config/loader.d.ts",
-      "default": "./dist/src/config/loader.js"
-    },
-    "./types": {
-      "types": "./dist/src/config/types.d.ts",
-      "default": "./dist/src/config/types.js"
-    },
-    "./errors": {
-      "types": "./dist/src/errors/types.d.ts",
-      "default": "./dist/src/errors/types.js"
-    },
-    "./middleware/filter": {
-      "types": "./dist/src/middleware/filter/store.d.ts",
-      "default": "./dist/src/middleware/filter/store.js"
-    },
-    "./middleware/object": {
-      "types": "./dist/src/middleware/object/store.d.ts",
-      "default": "./dist/src/middleware/object/store.js"
-    },
-    "./middleware/form": {
-      "types": "./dist/src/middleware/form/store.d.ts",
-      "default": "./dist/src/middleware/form/store.js"
-    },
-    "./adapters/browser-repo": {
-      "types": "./dist/src/adapters/storage/browser-repo.d.ts",
-      "default": "./dist/src/adapters/storage/browser-repo.js"
-    },
-    "./adapters/compliance": {
-      "types": "./dist/src/adapters/storage/compliance.d.ts",
-      "default": "./dist/src/adapters/storage/compliance.js"
-    }
-  },
   "scripts": {
-    "build": "bun build index.ts --outfile dist/index.js --target bun --format esm && bun build src/config/loader.ts --outfile dist/src/config/loader.js --target bun --format esm && bun build src/config/types.ts --outfile dist/src/config/types.js --target bun --format esm && bun build src/errors/types.ts --outfile dist/src/errors/types.js --target bun --format esm && tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
-    "test": "bun test.ts",
-    "prepublishOnly": "npm run build",
-    "setup:venv": "uv venv && uv pip install -r requirements.txt"
+    "test": "bun --filter @stateful-mcp/core test",
+    "build": "bun --filter \"*\" build"
   },
   "engines": {
     "node": ">=18",
     "bun": ">=1.0"
   },
-  "keywords": [
-    "mcp",
-    "model-context-protocol",
-    "llm",
-    "filter",
-    "stateful",
-    "middleware"
-  ],
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^20",
-    "@types/pg": "^8.20.0",
     "typescript": "^5"
-  },
-  "dependencies": {
-    "@duckdb/node-api": "^1.5.4-r.1",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "ajv": "^8.20.0",
-    "pg": "^8.22.0"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "optionalDependencies": {
-    "duckdb": "^1.4.4"
   }
 }
