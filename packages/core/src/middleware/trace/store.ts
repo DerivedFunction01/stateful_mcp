@@ -184,21 +184,8 @@ export class TraceStore {
                 break;
               }
             }
-          } else {
-            // Infer new input slots for un-slotted traces
-            if (val !== undefined && val !== null) {
-              const slotKey = inferredInputSlots[key] ? `${step.action}_${key}` : key;
-              if (!inferredInputSlots[slotKey]) {
-                inferredInputSlots[slotKey] = {
-                  type: Array.isArray(val) ? "array" : (typeof val as any),
-                  description: `Auto-derived input slot for ${key}`,
-                  required: false,
-                  default: val
-                };
-              }
-              parameterizedArgs[key] = `$input.${slotKey}`;
-            }
           }
+          // Note: If no explicit input_slots were passed, step arguments default to hardcoded values
         }
       }
 
@@ -308,13 +295,26 @@ export class TraceStore {
       return { status: "failed", trace_id: traceId, error: `Trace "${traceId}" not found.` };
     }
 
-    // Validate required input slots
+    // Validate required input slots — pause if missing input requirements
     for (const [slotKey, slotDef] of Object.entries(trace.input_slots || {})) {
       if (slotDef.required && (inputArgs[slotKey] === undefined || inputArgs[slotKey] === null)) {
-        return {
-          status: "failed",
+        const resumeToken = `resume_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        this.pausedStates.set(resumeToken, {
+          resume_token: resumeToken,
           trace_id: traceId,
-          error: `Missing required input slot "${slotKey}".`
+          step_id: trace.start_step || trace.steps[0]?.id || "",
+          input_args: inputArgs,
+          step_results: {},
+          action_counts: {},
+          consecutive_counts: { last_action: null, count: 0 }
+        });
+        return {
+          status: "paused",
+          trace_id: traceId,
+          current_step: trace.start_step || trace.steps[0]?.id,
+          resume_token: resumeToken,
+          requires_approval: true,
+          error: `Missing required input slot "${slotKey}". Please supply parameter via trace_resume.`
         };
       }
     }
