@@ -3,7 +3,14 @@
   "version": "0.1.1",
   "description": "Administrative CLI tool for Stateful framework",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm"
+  },
   "dependencies": {
     "@stateful-mcp/core": "workspace:*"
   },

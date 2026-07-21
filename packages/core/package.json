@@ -3,11 +3,11 @@
   "version": "0.1.1",
   "description": "Stateful framework core (transport and LLM-agnostic)",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "test": "bun test.ts",
-    "build": "bun build ./src/index.ts"
+    "build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm && tsc --emitDeclarationOnly --declaration --outDir dist"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.4-r.1",
