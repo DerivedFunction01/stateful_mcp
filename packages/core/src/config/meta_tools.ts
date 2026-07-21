@@ -6,7 +6,6 @@ import { resolveSource } from "./loader";
  * and session state initialization tools that must be excluded from step recording.
  */
 export const DEFAULT_NON_RECORDABLE_SERVICE_TOOLS: readonly string[] = [
-  "state_init",
   "middleware_about",
   "filter_about",
   "filter_examples",

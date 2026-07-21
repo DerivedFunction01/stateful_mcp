@@ -212,7 +212,7 @@ describe("TraceStore Engine Tests", () => {
     expect(compiled.goal).toBe("Auto ID Macro");
   });
 
-  test("recordStep ignores trace_* meta-tools, state_init, *_about, and registered non-recordable tools", () => {
+  test("recordStep ignores trace_* meta-tools, *_about, and registered non-recordable tools, while recording state_init and domain tools", () => {
     const session_id = "rec-session-filter-meta";
     store.registerNonRecordableTool("third_party_telemetry");
     const started = store.startRecording(session_id);
@@ -225,7 +225,8 @@ describe("TraceStore Engine Tests", () => {
     store.recordStep(session_id, "trace_inspect", { trace_id: "t1" });
 
     const compiled = store.stopRecording(started.trace_id);
-    expect(compiled.steps.length).toBe(1);
-    expect(compiled.steps[0]!.action).toBe("filter_init");
+    expect(compiled.steps.length).toBe(2);
+    expect(compiled.steps[0]!.action).toBe("state_init");
+    expect(compiled.steps[1]!.action).toBe("filter_init");
   });
 });
