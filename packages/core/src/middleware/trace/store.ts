@@ -141,6 +141,7 @@ export class TraceStore {
     const updatedSteps: TraceStep[] = [];
     const stepIdMap = new Map<string, string>();
     const requiresApproval = new Set<string>();
+    const inferredInputSlots: Record<string, TraceSlot> = { ...rawForm.input_slots };
 
     for (const step of rawForm.steps) {
       const baseName = step.action;
@@ -153,9 +154,58 @@ export class TraceStore {
         requiresApproval.add(step.action);
       }
 
+      // Parameterize step argument values into input_slots
+      const parameterizedArgs: Record<string, any> = { ...step.args };
+      const hasExplicitSlots = Object.keys(rawForm.input_slots || {}).length > 0;
+
+      if (step.args) {
+        for (const [key, val] of Object.entries(step.args)) {
+          if (typeof val === "string" && val.startsWith("$")) {
+            // Already a dynamic $input or $step reference
+            continue;
+          }
+
+          if (hasExplicitSlots) {
+            // Check explicit slot target locator (step_id / action + occurrence / arg_key) first
+            for (const [slotKey, slotDef] of Object.entries(rawForm.input_slots || {})) {
+              if (slotDef.target) {
+                const t = slotDef.target;
+                const stepMatch = t.step_id ? (step.id === t.step_id || autoId === t.step_id) : true;
+                const actionMatch = t.action ? (step.action === t.action) : true;
+                const occMatch = t.occurrence ? (actionCounts[baseName] === t.occurrence) : true;
+                const keyMatch = (key === t.arg_key);
+
+                if (stepMatch && actionMatch && occMatch && keyMatch) {
+                  parameterizedArgs[key] = `$input.${slotKey}`;
+                  break;
+                }
+              } else if (val !== undefined && val !== null && (val === slotDef.default || key === slotKey || key.toLowerCase().includes(slotKey.toLowerCase()))) {
+                parameterizedArgs[key] = `$input.${slotKey}`;
+                break;
+              }
+            }
+          } else {
+            // Infer new input slots for un-slotted traces
+            if (val !== undefined && val !== null) {
+              const slotKey = inferredInputSlots[key] ? `${step.action}_${key}` : key;
+              if (!inferredInputSlots[slotKey]) {
+                inferredInputSlots[slotKey] = {
+                  type: Array.isArray(val) ? "array" : (typeof val as any),
+                  description: `Auto-derived input slot for ${key}`,
+                  required: false,
+                  default: val
+                };
+              }
+              parameterizedArgs[key] = `$input.${slotKey}`;
+            }
+          }
+        }
+      }
+
       updatedSteps.push({
         ...step,
-        id: autoId
+        id: autoId,
+        args: parameterizedArgs
       });
     }
 
@@ -187,7 +237,7 @@ export class TraceStore {
       trace_id: traceId,
       confidence_score: rawForm.confidence_score ?? 1.0,
       usage_count: rawForm.usage_count ?? 0,
-      input_slots: rawForm.input_slots ?? {},
+      input_slots: inferredInputSlots,
       capabilities: rawForm.capabilities ?? [],
       requires_approval_tools: Array.from(requiresApproval),
       steps: updatedSteps,

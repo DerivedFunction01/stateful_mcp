@@ -1,10 +1,18 @@
 import type { PipelineStep } from "../../translation/types";
 
+export interface TraceSlotTarget {
+  step_id?: string;
+  action?: string;
+  occurrence?: number; // 1-indexed call occurrence (e.g. 1 for first call, 2 for second call)
+  arg_key: string;
+}
+
 export interface TraceSlot {
   type: string;
   description: string;
   default?: any;
   required?: boolean;
+  target?: TraceSlotTarget;
 }
 
 export interface TraceCondition {

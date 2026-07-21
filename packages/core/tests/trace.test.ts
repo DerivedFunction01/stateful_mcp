@@ -229,4 +229,30 @@ describe("TraceStore Engine Tests", () => {
     expect(compiled.steps[0]!.action).toBe("state_init");
     expect(compiled.steps[1]!.action).toBe("filter_init");
   });
+
+  test("input_slots support explicit target step and occurrence locators", () => {
+    const compiled = store.recordTrace({
+      trace_id: "t_target_locators",
+      goal: "Test explicit slot targeting",
+      input_slots: {
+        first_dept: {
+          type: "string",
+          description: "Department for first filter call",
+          target: { action: "filter_add_rule", occurrence: 1, arg_key: "value" }
+        },
+        second_dept: {
+          type: "string",
+          description: "Department for second filter call",
+          target: { action: "filter_add_rule", occurrence: 2, arg_key: "value" }
+        }
+      },
+      steps: [
+        { id: "rule_1", action: "filter_add_rule", args: { field: "dept", op: "eq", value: "cardiology" } },
+        { id: "rule_2", action: "filter_add_rule", args: { field: "dept", op: "eq", value: "neurology" } }
+      ]
+    });
+
+    expect(compiled.steps[0]!.args!["value"]).toBe("$input.first_dept");
+    expect(compiled.steps[1]!.args!["value"]).toBe("$input.second_dept");
+  });
 });
