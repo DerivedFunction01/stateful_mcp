@@ -2,6 +2,7 @@ import type { SessionObjectStore, PersistentObjectStore, PersistedObjectState } 
 import type { ObjectState, ObjectDiffResult } from "./types";
 import type { OwnerScope, ResourceLocator } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
+import { eventBroker } from "../../events/broker";
 import { resolvePathSchema } from "./schema-walker";
 import { runValidationEngine } from "../../adapters/validation/runner";
 import { validateStateReferences } from "../../adapters/validation/references";
@@ -90,7 +91,18 @@ export class ObjectStore {
     };
 
     const objectId = await this.session.create(sessionId, state, alias);
-    return alias || objectId;
+    const finalId = alias || objectId;
+
+    eventBroker.emitStateChange({
+      service: "object",
+      action: "init",
+      sessionId,
+      id: finalId,
+      data: { schemaName, data: data || {} },
+      timestamp: Date.now()
+    });
+
+    return finalId;
   }
 
   async from_saved(savedId: string, sessionId: string, userId?: string): Promise<string> {
@@ -178,16 +190,26 @@ export class ObjectStore {
 
     const newId = await this.session.create(sessionId, childState, targetAlias);
 
-    if (linearDepth > this.chainThreshold) {
-      const compressedId = await this.compressSuffix(newId, sessionId, userId);
-      if (targetAlias) {
-        await this.session.setAlias(sessionId, targetAlias, compressedId);
-        return targetAlias;
-      }
-      return compressedId;
+    const resultId = linearDepth > this.chainThreshold
+      ? await this.compressSuffix(newId, sessionId, userId)
+      : newId;
+
+    if (linearDepth > this.chainThreshold && targetAlias) {
+      await this.session.setAlias(sessionId, targetAlias, resultId);
     }
 
-    return targetAlias || newId;
+    const finalId = targetAlias || resultId;
+
+    eventBroker.emitStateChange({
+      service: "object",
+      action: "set",
+      sessionId,
+      id: finalId,
+      data: { parentObjectId: resolvedParentId, path, value },
+      timestamp: Date.now()
+    });
+
+    return finalId;
   }
 
   private async getAncestors(id: string, sessionId: string, userId?: string, visited = new Set<string>()): Promise<void> {

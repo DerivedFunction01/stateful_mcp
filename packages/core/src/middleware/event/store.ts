@@ -2,6 +2,7 @@ import type { SessionEventStore, PersistentEventStore } from "../../adapters/sto
 import type { EventCommit, EventMutation, EventRecord, MergeSession, MergeConflict } from "./types";
 import type { ResourceLocator, OwnerScope } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
+import { eventBroker } from "../../events/broker";
 import { runValidationEngine } from "../../adapters/validation/runner";
 import { validateStateReferences } from "../../adapters/validation/references";
 import Ajv from "ajv";
@@ -116,7 +117,18 @@ export class EventStore {
     };
 
     const commitId = await this.session.create(sessionId, state, alias);
-    return alias || commitId;
+    const finalId = alias || commitId;
+
+    eventBroker.emitStateChange({
+      service: "event",
+      action: "init",
+      sessionId,
+      id: finalId,
+      data: { schemaName, initialEvents },
+      timestamp: Date.now()
+    });
+
+    return finalId;
   }
 
   async append(sessionId: string, idOrAlias: string, data: Record<string, any>, alias?: string): Promise<string> {
@@ -176,16 +188,26 @@ export class EventStore {
     // Run external validation engine on projected array after commit
     await this.runEventValidation(newId, sessionId, schemaName);
 
-    if (linearDepth > this.chainThreshold) {
-      const compressedId = await this.compressSuffix(newId, sessionId);
-      if (targetAlias) {
-        await this.session.setAlias(sessionId, targetAlias, compressedId);
-        return targetAlias;
-      }
-      return compressedId;
+    const resultId = linearDepth > this.chainThreshold
+      ? await this.compressSuffix(newId, sessionId)
+      : newId;
+
+    if (linearDepth > this.chainThreshold && targetAlias) {
+      await this.session.setAlias(sessionId, targetAlias, resultId);
     }
 
-    return targetAlias || newId;
+    const finalId = targetAlias || resultId;
+
+    eventBroker.emitStateChange({
+      service: "event",
+      action: "append",
+      sessionId,
+      id: finalId,
+      data: { parentCommitId: resolvedId, data },
+      timestamp: Date.now()
+    });
+
+    return finalId;
   }
 
   async patch(

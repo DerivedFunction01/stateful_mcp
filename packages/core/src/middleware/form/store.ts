@@ -1,6 +1,7 @@
 import type { FormSchema, FormNextRule, OwnerScope } from "../../config/types";
 import type { FormState, FormAnswerResult, PersistedFormState } from "./types";
 import type { SessionFormStore, PersistentFormStore } from "../../adapters/storage/interfaces";
+import { eventBroker } from "../../events/broker";
 
 export function evaluateCondition(value: any, cond: { operator: string; value: any }): boolean {
   const op = cond.operator;
@@ -271,7 +272,19 @@ export class FormStore {
       timestamp: new Date().toISOString()
     };
 
-    return this.sessionStore.create(sessionId, state, alias);
+    const formId = await this.sessionStore.create(sessionId, state, alias);
+    const finalId = alias || formId;
+
+    eventBroker.emitStateChange({
+      service: "form",
+      action: "init",
+      sessionId,
+      id: finalId,
+      data: { schemaName, parentFormId },
+      timestamp: Date.now()
+    });
+
+    return finalId;
   }
 
   public async answer(
@@ -338,6 +351,15 @@ export class FormStore {
     };
 
     const newFormId = await this.sessionStore.create(sessionId, newState, newAlias);
+
+    eventBroker.emitStateChange({
+      service: "form",
+      action: "answer",
+      sessionId,
+      id: newFormId,
+      data: { parentFormId: formId, questionId, value },
+      timestamp: Date.now()
+    });
 
     return {
       form_id: newFormId,

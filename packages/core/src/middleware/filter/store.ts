@@ -3,6 +3,7 @@ import type { FilterState, FilterCondition } from "./types";
 import type { TableSchema, OwnerScope } from "../../config/types";
 import type { QueryEngine } from "../../adapters/engines/interfaces";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
+import { eventBroker } from "../../events/broker";
 
 // REFERENCE: docs/filter.md
 // REFERENCE: docs/pipeline.md
@@ -134,6 +135,15 @@ export class FilterStore {
       this.pinnedSchemas.set(filterId, schema);
     }
 
+    eventBroker.emitStateChange({
+      service: "filter",
+      action: "init",
+      sessionId,
+      id: alias || filterId,
+      data: { rules: rules || [] },
+      timestamp: Date.now()
+    });
+
     return alias || filterId;
   }
 
@@ -212,16 +222,26 @@ export class FilterStore {
       this.pinnedSchemas.set(childId, schema);
     }
 
-    if (linearDepth > this.chainThreshold) {
-      const compressedId = await this.compressSuffix(childId, sessionId, userId);
-      if (targetAlias) {
-        await this.session.setAlias(sessionId, targetAlias, compressedId);
-        return targetAlias;
-      }
-      return compressedId;
+    const resultId = linearDepth > this.chainThreshold
+      ? await this.compressSuffix(childId, sessionId, userId)
+      : childId;
+
+    if (linearDepth > this.chainThreshold && targetAlias) {
+      await this.session.setAlias(sessionId, targetAlias, resultId);
     }
 
-    return targetAlias || childId;
+    const finalId = targetAlias || resultId;
+
+    eventBroker.emitStateChange({
+      service: "filter",
+      action: "add",
+      sessionId,
+      id: finalId,
+      data: { parentFilterId: resolvedParentId, rules: operations },
+      timestamp: Date.now()
+    });
+
+    return finalId;
   }
 
   private async getAncestors(id: string, sessionId: string, userId?: string, visited = new Set<string>()): Promise<void> {
