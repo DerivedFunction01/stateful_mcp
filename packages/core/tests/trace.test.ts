@@ -289,4 +289,48 @@ describe("TraceStore Engine Tests", () => {
     expect(compiled.input_slots?.["value"]).toBeDefined();
     expect(compiled.input_slots?.["value"]?.default).toBe("cardiology");
   });
+
+  test("refineTrace promotes literal argument to input_slot via promote_arg", () => {
+    store.recordTrace({
+      trace_id: "t_promote_arg",
+      goal: "Test promote_arg refinement",
+      steps: [
+        { id: "s1", action: "filter_add_rule", args: { field: "dept", op: "eq", value: "cardiology" } }
+      ]
+    });
+
+    const refined = store.refineTrace("t_promote_arg", {
+      action: "promote_arg",
+      step_id: "s1",
+      arg_key: "value",
+      slot_name: "target_department"
+    });
+
+    expect(refined.steps[0]!.args!["value"]).toBe("$input.target_department");
+    expect(refined.input_slots?.["target_department"]).toBeDefined();
+    expect(refined.input_slots?.["target_department"]?.default).toBe("cardiology");
+  });
+
+  test("refineTrace demotes input_slot reference back to static literal via demote_arg", () => {
+    store.recordTrace({
+      trace_id: "t_demote_arg",
+      goal: "Test demote_arg refinement",
+      input_slots: {
+        target_dept: { type: "string", description: "Target department", default: "cardiology" }
+      },
+      steps: [
+        { id: "s1", action: "filter_add_rule", args: { field: "dept", op: "eq", value: "$input.target_dept" } }
+      ]
+    });
+
+    const refined = store.refineTrace("t_demote_arg", {
+      action: "demote_arg",
+      step_id: "s1",
+      arg_key: "value",
+      literal_value: "cardiology"
+    });
+
+    expect(refined.steps[0]!.args!["value"]).toBe("cardiology");
+    expect(refined.input_slots?.["target_dept"]).toBeUndefined(); // Cleaned up unreferenced slot
+  });
 });

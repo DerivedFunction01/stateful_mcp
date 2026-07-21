@@ -610,6 +610,75 @@ export class TraceStore {
         };
         break;
       }
+      case "promote_arg": {
+        if (!delta.step_id || !delta.arg_key) {
+          throw new Error("promote_arg requires step_id and arg_key.");
+        }
+        const idx = steps.findIndex(s => s.id === delta.step_id);
+        if (idx === -1) throw new Error(`Step "${delta.step_id}" not found.`);
+        const step = steps[idx]!;
+        const currentVal = step.args?.[delta.arg_key];
+        const slotName = delta.slot_name || delta.arg_key;
+
+        const slotDef: TraceSlot = delta.slot_def || {
+          type: typeof currentVal === "string" ? "string" : typeof currentVal === "number" ? "number" : "boolean",
+          description: `Promoted input slot for ${delta.arg_key}`,
+          required: false,
+          default: typeof currentVal === "string" && currentVal.startsWith("$input.") ? undefined : currentVal
+        };
+
+        const updatedSlots = { ...(trace.input_slots || {}), [slotName]: slotDef };
+        const updatedArgs = { ...(step.args || {}), [delta.arg_key]: `$input.${slotName}` };
+        steps[idx] = { ...step, args: updatedArgs };
+
+        const updatedTrace: TraceForm = {
+          ...trace,
+          input_slots: updatedSlots,
+          steps
+        };
+        this.traces.set(traceId, updatedTrace);
+        return updatedTrace;
+      }
+      case "demote_arg": {
+        if (!delta.step_id || !delta.arg_key) {
+          throw new Error("demote_arg requires step_id and arg_key.");
+        }
+        const idx = steps.findIndex(s => s.id === delta.step_id);
+        if (idx === -1) throw new Error(`Step "${delta.step_id}" not found.`);
+        const step = steps[idx]!;
+        const currentVal = step.args?.[delta.arg_key];
+
+        let slotName: string | undefined = delta.slot_name;
+        if (!slotName && typeof currentVal === "string" && currentVal.startsWith("$input.")) {
+          slotName = currentVal.replace("$input.", "");
+        }
+
+        const fallbackVal = delta.literal_value !== undefined 
+          ? delta.literal_value 
+          : (slotName && trace.input_slots?.[slotName]?.default !== undefined ? trace.input_slots[slotName]!.default : currentVal);
+
+        const updatedArgs = { ...(step.args || {}), [delta.arg_key]: fallbackVal };
+        steps[idx] = { ...step, args: updatedArgs };
+
+        // Clean up input slot if no other step references it
+        const updatedSlots = { ...(trace.input_slots || {}) };
+        if (slotName) {
+          const isStillReferenced = steps.some(s => 
+            Object.values(s.args || {}).some(v => typeof v === "string" && v === `$input.${slotName}`)
+          );
+          if (!isStillReferenced) {
+            delete updatedSlots[slotName];
+          }
+        }
+
+        const updatedTrace: TraceForm = {
+          ...trace,
+          input_slots: updatedSlots,
+          steps
+        };
+        this.traces.set(traceId, updatedTrace);
+        return updatedTrace;
+      }
     }
 
     const updatedTrace: TraceForm = {

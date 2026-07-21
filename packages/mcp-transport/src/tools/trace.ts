@@ -109,40 +109,42 @@ function registerTraceTools() {
     {
       description: "Manage trace recording sessions (start/stop) or submit a pre-constructed trace form directly or from an ObjectStore checkpoint.",
       inputSchema: {
-        action: z.enum(["start", "stop", "submit"]).describe("Recording action: 'start' to begin session recording, 'stop' to compile & save recorded session, or 'submit' for pre-constructed trace form."),
-        trace_id: z.string().optional().describe("Trace ID (auto-generated on 'start', required on 'stop' to specify which active recording session to compile)."),
-        goal: z.string().optional().describe("Goal/intent description for the trace macro."),
-        input_slots: z.record(z.any()).optional().describe("Input slots definition."),
-        capabilities: z.array(z.string()).optional().describe("Capabilities list (for action='stop')."),
-        object_id: z.string().optional().describe("ObjectStore checkpoint ID containing the trace form definition (for action='submit')."),
-        trace: z.record(z.any()).optional().describe("Pre-constructed trace form object (for action='submit').")
+        action: z.enum(["start", "stop", "submit"]).describe("Recording action mode: 'start' to begin session recording, 'stop' to compile & save recorded session, or 'submit' for pre-constructed trace form."),
+        trace_id: z.string().optional().describe("Trace ID (auto-generated on 'start', required on 'stop')."),
+        trace: z.record(z.any()).optional().describe("TraceForm object or metadata payload (goal, input_slots, capabilities, steps)."),
+        checkpoint_id: z.string().optional().describe("ObjectStore checkpoint ID containing the TraceForm definition (for action='submit')."),
       }
     },
-    async ({ action, trace_id, goal, input_slots, capabilities, object_id, trace }, extra: any) => {
+    async ({ action, trace_id, trace, checkpoint_id, object_id }, extra: any) => {
       const sessionId = extra?._metadata?.session_id ?? "default";
+      const targetCheckpointId = checkpoint_id;
       try {
+        const goal = trace?.goal;
+        const inputSlots = trace?.input_slots;
+        const capabilities = trace?.capabilities;
+
         if (action === "start") {
-          const res = traceStore.startRecording(sessionId, trace_id, goal, input_slots as any);
+          const res = traceStore.startRecording(sessionId, trace_id, goal, inputSlots as any);
           return { content: [{ type: "text", text: JSON.stringify(res) }] };
         } else if (action === "stop") {
           if (!trace_id) {
             return { content: [{ type: "text", text: "action='stop' requires 'trace_id' specifying which active recording session to finalize." }], isError: true };
           }
-          const recorded = traceStore.stopRecording(trace_id, goal, capabilities, input_slots as any);
+          const recorded = traceStore.stopRecording(trace_id, goal, capabilities, inputSlots as any);
           return { content: [{ type: "text", text: JSON.stringify(recorded) }] };
         } else if (action === "submit") {
           let targetTraceForm = trace;
-          if (!targetTraceForm && object_id) {
+          if (!targetTraceForm && targetCheckpointId) {
             const { getObjectStore } = await import("./helper.js");
             const objectStore = getObjectStore(config, configDir);
-            const objState = await objectStore.get(object_id, sessionId);
+            const objState = await objectStore.get(targetCheckpointId, sessionId);
             if (!objState || !objState.state) {
-              return { content: [{ type: "text", text: `Object "${object_id}" not found in ObjectStore.` }], isError: true };
+              return { content: [{ type: "text", text: `Checkpoint object "${targetCheckpointId}" not found in ObjectStore.` }], isError: true };
             }
             targetTraceForm = objState.state;
           }
           if (!targetTraceForm) {
-            return { content: [{ type: "text", text: "action='submit' requires either 'trace' object or 'object_id'." }], isError: true };
+            return { content: [{ type: "text", text: "action='submit' requires either 'trace' object or 'checkpoint_id'." }], isError: true };
           }
           const recorded = traceStore.recordTrace(targetTraceForm as unknown as TraceForm);
           return { content: [{ type: "text", text: JSON.stringify(recorded) }] };
@@ -158,28 +160,34 @@ function registerTraceTools() {
   server.registerTool(
     "trace_refine",
     {
-      description: "Apply delta edits (replace_step, append_step, remove_step, swap_with_persistent) to a trace form.",
+      description: "Apply delta edits (replace_step, append_step, remove_step, swap_with_persistent, promote_arg, demote_arg) directly or from an ObjectStore checkpoint.",
       inputSchema: {
         trace_id: z.string().describe("Target trace ID."),
-        action: z.enum(["swap_with_persistent", "replace_step", "append_step", "remove_step"]).describe("Delta operation type."),
-        step_id: z.string().optional().describe("Target step ID to operate on."),
-        target_step_id: z.string().optional().describe("Target step ID after which to append."),
-        new_step: z.record(z.any()).optional().describe("New step definition."),
-        persistent_key: z.string().optional().describe("Persistent key for persistent swap."),
-        reason: z.string().optional().describe("Reason for delta refinement.")
+        delta: z.record(z.any()).optional().describe("Delta operation object containing action, step_id, arg_key, slot_name, etc."),
+        checkpoint_id: z.string().optional().describe("ObjectStore checkpoint ID containing the DeltaOperation definition."),
       }
     },
-    async ({ trace_id, action, step_id, target_step_id, new_step, persistent_key, reason }) => {
+    async ({ trace_id, delta, checkpoint_id, object_id }, extra: any) => {
+      const sessionId = extra?._metadata?.session_id ?? "default";
+      const targetCheckpointId = checkpoint_id || object_id;
       try {
-        const delta: DeltaOperation = {
-          action: action as any,
-          step_id,
-          target_step_id,
-          new_step: new_step as any,
-          persistent_key,
-          reason
-        };
-        const refined = traceStore.refineTrace(trace_id, delta);
+        let targetDelta: DeltaOperation | undefined = delta as any;
+
+        if (!targetDelta && targetCheckpointId) {
+          const { getObjectStore } = await import("./helper.js");
+          const objectStore = getObjectStore(config, configDir);
+          const objState = await objectStore.get(targetCheckpointId, sessionId);
+          if (!objState || !objState.state) {
+            return { content: [{ type: "text", text: `Checkpoint object "${targetCheckpointId}" not found in ObjectStore.` }], isError: true };
+          }
+          targetDelta = objState.state as DeltaOperation;
+        }
+
+        if (!targetDelta || !targetDelta.action) {
+          return { content: [{ type: "text", text: "trace_refine requires either 'delta' object or valid 'checkpoint_id'." }], isError: true };
+        }
+
+        const refined = traceStore.refineTrace(trace_id, targetDelta);
         return { content: [{ type: "text", text: JSON.stringify(refined) }] };
       } catch (err: any) {
         return { content: [{ type: "text", text: err.message || String(err) }], isError: true };

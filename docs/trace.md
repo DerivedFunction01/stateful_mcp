@@ -78,11 +78,15 @@ The **Trace Form Engine (`TraceStore`)** introduces **procedural execution learn
 ```typescript
 {
   "trace_id": string,
-  "action": "swap_with_persistent" | "replace_step" | "append_step" | "remove_step",
-  "step_id"?: string,          // Target step ID (for replace_step, remove_step, swap_with_persistent)
+  "action": "swap_with_persistent" | "replace_step" | "append_step" | "remove_step" | "promote_arg" | "demote_arg",
+  "step_id"?: string,          // Target step ID (for replace_step, remove_step, swap_with_persistent, promote_arg, demote_arg)
   "target_step_id"?: string,   // Target step ID after which to append (for append_step)
   "new_step"?: TraceStep,      // New step definition (for replace_step and append_step)
   "persistent_key"?: string,   // Persistent key (for swap_with_persistent)
+  "arg_key"?: string,          // Target step argument key (for promote_arg and demote_arg)
+  "slot_name"?: string,        // Input slot name (for promote_arg and demote_arg)
+  "literal_value"?: any,       // Static literal value (for demote_arg)
+  "slot_def"?: TraceSlot,      // Input slot definition schema (for promote_arg)
   "reason"?: string            // Optional refinement note
 }
 ```

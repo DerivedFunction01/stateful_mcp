@@ -150,3 +150,33 @@
   }
 }
 ```
+
+### Promoting a Step Parameter to an Input Slot (`promote_arg`)
+```json
+{
+  "tool": "trace_refine",
+  "arguments": {
+    "trace_id": "trc_9a4f21b0",
+    "action": "promote_arg",
+    "step_id": "filter_add_rule_1",
+    "arg_key": "value",
+    "slot_name": "target_dept",
+    "reason": "Promote hardcoded department value to a dynamic input slot"
+  }
+}
+```
+
+### Demoting an Input Slot Reference to a Static Literal (`demote_arg`)
+```json
+{
+  "tool": "trace_refine",
+  "arguments": {
+    "trace_id": "trc_9a4f21b0",
+    "action": "demote_arg",
+    "step_id": "filter_add_rule_1",
+    "arg_key": "value",
+    "literal_value": "cardiology",
+    "reason": "Hardcode cardiology department value into step args"
+  }
+}
+```

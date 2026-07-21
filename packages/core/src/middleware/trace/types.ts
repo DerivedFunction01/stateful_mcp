@@ -77,7 +77,7 @@ export interface TraceQueryResult {
   next_offset?: number;
 }
 
-export type DeltaActionType = "swap_with_persistent" | "replace_step" | "append_step" | "remove_step";
+export type DeltaActionType = "swap_with_persistent" | "replace_step" | "append_step" | "remove_step" | "promote_arg" | "demote_arg";
 
 export interface DeltaOperation {
   action: DeltaActionType;
@@ -86,6 +86,10 @@ export interface DeltaOperation {
   new_step?: TraceStep;
   replacement_steps?: TraceStep[];
   persistent_key?: string;
+  arg_key?: string;
+  slot_name?: string;
+  slot_def?: TraceSlot;
+  literal_value?: any;
   reason?: string;
 }
 
