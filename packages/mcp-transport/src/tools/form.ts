@@ -9,6 +9,7 @@ import { SqliteFormStore } from "@stateful-mcp/core";
 import { FormStore } from "@stateful-mcp/core";
 import type { MiddlewareConfig, FormSchema, OwnerScope } from "@stateful-mcp/core";
 import { getFilterStore, getObjectStore } from "./helper";
+import { registerStateInitTool } from "./state_init.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
@@ -267,6 +268,7 @@ async function main() {
   formStore.setReferences({ filter: filterStore, object: objectStore });
 
   registerFormTools();
+  await registerStateInitTool(server, config, workspaceRoot);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

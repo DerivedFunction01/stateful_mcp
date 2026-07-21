@@ -6,7 +6,8 @@ import { validateMiddlewareConfig } from "@stateful-mcp/core";
 import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "@stateful-mcp/core";
 import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "@stateful-mcp/core";
 import { ObjectStore } from "@stateful-mcp/core";
-import type { MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core";
+import type { TableSchema, MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core";
+import { registerStateInitTool } from "./state_init.js";
 import { clampLimit, buildLimitField } from "@stateful-mcp/core";
 import { getFilterStore, getFormStore } from "./helper";
 import * as path from "path";
@@ -438,6 +439,7 @@ async function main() {
   objectStore.setReferences({ filter: filterStore, form: formStore });
 
   registerObjectTools(config.pagination_limits);
+  await registerStateInitTool(server, config, workspaceRoot);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

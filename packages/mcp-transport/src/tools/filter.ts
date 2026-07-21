@@ -9,6 +9,7 @@ import { JsonlSessionFilterStore, JsonlPersistentFilterStore } from "@stateful-m
 import { FilterStore } from "@stateful-mcp/core";
 import type { TableSchema, MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core";
 import { clampLimit, buildLimitField } from "@stateful-mcp/core";
+import { registerStateInitTool } from "./state_init.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
@@ -476,6 +477,7 @@ async function main() {
   filterStore = new FilterStore(sessionFilterStore, persistentFilterStore, toolSchemas, pinnedSchemas, threshold);
 
   registerFilterTools(config.pagination_limits);
+  await registerStateInitTool(server, config, workspaceRoot);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

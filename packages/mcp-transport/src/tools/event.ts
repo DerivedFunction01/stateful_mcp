@@ -9,6 +9,7 @@ import { EventStore } from "@stateful-mcp/core";
 import type { MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core";
 import { clampLimit, buildLimitField } from "@stateful-mcp/core";
 import { getFilterStore, getObjectStore, getFormStore } from "./helper";
+import { registerStateInitTool } from "./state_init.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
@@ -387,6 +388,7 @@ async function main() {
   eventStore.setReferences({ filter: filterStore, object: objectStore, form: formStore });
 
   registerEventTools(config.pagination_limits);
+  await registerStateInitTool(server, config, workspaceRoot);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
