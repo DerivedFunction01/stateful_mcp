@@ -57,3 +57,14 @@ The **Trace Form Engine (`TraceStore`)** introduces **procedural execution learn
 - **Session Recording (`action="start"` / `"stop"`)**: Start recording before calling stateful tools across turns. `TraceStore` automatically tracks executed tools, parameter bindings, and auto-suffixes step IDs (`filter_init_1`, `filter_add_rule_1`).
 - **AST Conditions**: Step condition evaluation uses `@stateful-mcp/core`'s AST `get` pipeline.
 - **Safety Policy Inheritance**: Non-autonomous tools (`autonomous: false` in `tools.config.json`) automatically pause execution for approval (`trace_resume`).
+
+---
+
+## 3. Developer Integration & Auto-Recording Mechanics
+
+When building a new stateful service (e.g. `notification_service`), developers do **NOT** manually call `traceStore.recordStep()` inside every tool handler:
+
+1. **Automatic Event Interception**: Standard stateful tool handlers emit state mutation events via `eventBroker.emit("state:changed", { service, action, sessionId, data })`.
+2. **Zero-Boilerplate Auto-Recording**: `TraceStore` listens to `CoreEventBroker` globally. When an active session is recording, `TraceStore` automatically captures and formats executed steps.
+3. **Filtering Meta-Tools**: `TraceStore` checks `isRecordableTool(action)`. Meta guidance (`*_about`, `*_examples`) and trace management tools (`trace_*`) are excluded automatically via `DEFAULT_NON_RECORDABLE_SERVICE_TOOLS` (or `meta_tools.config.json`).
+
