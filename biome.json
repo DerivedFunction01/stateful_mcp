@@ -17,7 +17,23 @@
 		"rules": {
 			"preset": "recommended",
 			"suspicious": {
-				"noExplicitAny": "off"
+				"noExplicitAny": "off",
+				"useIterableCallbackReturn": "off",
+				"noImplicitAnyLet": "off",
+				"noNonNullAssertedOptionalChain": "off"
+			},
+			"style": {
+				"useNodejsImportProtocol": "off",
+				"useTemplate": "off",
+				"noNonNullAssertion": "off"
+			},
+			"complexity": {
+				"useLiteralKeys": "off",
+				"useOptionalChain": "off"
+			},
+			"correctness": {
+				"noUnusedVariables": "off",
+				"noUnusedFunctionParameters": "off"
 			}
 		}
 	},

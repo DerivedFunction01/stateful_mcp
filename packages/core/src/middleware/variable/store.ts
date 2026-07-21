@@ -8,7 +8,6 @@ import type {
 	VariableConditionRule,
 	VariableInputEntry,
 	VariableMutationEvent,
-	VariableOpType,
 	VariableService,
 	VariableStore,
 } from "./types";

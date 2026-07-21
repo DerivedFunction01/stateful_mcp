@@ -1,10 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type {
-	FormSchema,
-	MiddlewareConfig,
-	OwnerScope,
-} from "@stateful-mcp/core";
+import type { FormSchema, MiddlewareConfig } from "@stateful-mcp/core";
 import {
 	FormStore,
 	JsonlPersistentFormStore,

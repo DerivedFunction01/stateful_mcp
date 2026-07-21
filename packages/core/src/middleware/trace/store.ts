@@ -36,10 +36,7 @@ interface ActiveRecordingSession {
 	startTime: number;
 }
 
-import {
-	DEFAULT_NON_RECORDABLE_SERVICE_TOOLS,
-	NonRecordableToolsRegistry,
-} from "../../config/meta_tools";
+import { NonRecordableToolsRegistry } from "../../config/meta_tools";
 import type { ToolConfig } from "../../config/types";
 
 export class TraceStore {

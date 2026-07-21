@@ -3,7 +3,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type {
 	MiddlewareConfig,
 	PaginationLimitsConfig,
-	TableSchema,
 } from "@stateful-mcp/core";
 import {
 	buildLimitField,

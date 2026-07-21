@@ -2,9 +2,9 @@ import type {
 	PersistentFormStore,
 	SessionFormStore,
 } from "../../adapters/storage/interfaces";
-import type { FormNextRule, FormSchema, OwnerScope } from "../../config/types";
+import type { FormSchema, OwnerScope } from "../../config/types";
 import { eventBroker } from "../../events/broker";
-import type { FormAnswerResult, FormState, PersistedFormState } from "./types";
+import type { FormAnswerResult, FormState } from "./types";
 
 export function evaluateCondition(
 	value: any,
@@ -214,14 +214,14 @@ export function validateAnswer(qDef: any, value: any): void {
 			}
 			break;
 		case "number":
-			if (typeof value !== "number" || isNaN(value)) {
+			if (typeof value !== "number" || Number.isNaN(value)) {
 				throw new Error(
 					`Invalid answer: Expected number, received ${typeof value}`,
 				);
 			}
 			break;
 		case "date":
-			if (isNaN(Date.parse(String(value)))) {
+			if (Number.isNaN(Date.parse(String(value)))) {
 				throw new Error("Invalid answer: Expected a valid date string.");
 			}
 			break;
@@ -243,7 +243,7 @@ export function validateAnswer(qDef: any, value: any): void {
 			}
 			break;
 		case "scale":
-			if (typeof value !== "number" || isNaN(value)) {
+			if (typeof value !== "number" || Number.isNaN(value)) {
 				throw new Error(
 					`Invalid answer: Expected number, received ${typeof value}`,
 				);

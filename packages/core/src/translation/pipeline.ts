@@ -121,26 +121,27 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 		// Date
 		case "year": {
 			const d = new Date(args[0] as string);
-			return isNaN(d.getTime()) ? missing(null) : d.getFullYear();
+			return Number.isNaN(d.getTime()) ? missing(null) : d.getFullYear();
 		}
 		case "month": {
 			const d = new Date(args[0] as string);
-			return isNaN(d.getTime()) ? missing(null) : d.getMonth() + 1;
+			return Number.isNaN(d.getTime()) ? missing(null) : d.getMonth() + 1;
 		}
 		case "day": {
 			const d = new Date(args[0] as string);
-			return isNaN(d.getTime()) ? missing(null) : d.getDate();
+			return Number.isNaN(d.getTime()) ? missing(null) : d.getDate();
 		}
 		case "quarter": {
 			const d = new Date(args[0] as string);
-			return isNaN(d.getTime())
+			return Number.isNaN(d.getTime())
 				? missing(null)
 				: Math.ceil((d.getMonth() + 1) / 3);
 		}
 		case "date_diff": {
 			const a = new Date(args[0] as string),
 				b = new Date(args[1] as string);
-			if (isNaN(a.getTime()) || isNaN(b.getTime())) return missing(null);
+			if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()))
+				return missing(null);
 			return Math.floor((b.getTime() - a.getTime()) / 86_400_000); // days
 		}
 		// JSON / nested
@@ -172,7 +173,7 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 			if (args[0] === null || args[0] === undefined || args[0] === "")
 				return missing(null);
 			const val = Number(args[0]);
-			if (isNaN(val)) return missing(null);
+			if (Number.isNaN(val)) return missing(null);
 			const mode =
 				typeof args[1] === "string" ? args[1].toLowerCase() : "float";
 			if (mode === "int" || mode === "integer") {
@@ -183,7 +184,7 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 		case "round": {
 			if (args[0] === null || args[0] === undefined) return missing(null);
 			const val = Number(args[0]);
-			if (isNaN(val)) return missing(null);
+			if (Number.isNaN(val)) return missing(null);
 			const decimals = typeof args[1] === "number" ? args[1] : 0;
 			const factor = 10 ** decimals;
 			return Math.round(val * factor) / factor;
@@ -191,13 +192,13 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 		case "ceil": {
 			if (args[0] === null || args[0] === undefined) return missing(null);
 			const val = Number(args[0]);
-			if (isNaN(val)) return missing(null);
+			if (Number.isNaN(val)) return missing(null);
 			return Math.ceil(val);
 		}
 		case "floor": {
 			if (args[0] === null || args[0] === undefined) return missing(null);
 			const val = Number(args[0]);
-			if (isNaN(val)) return missing(null);
+			if (Number.isNaN(val)) return missing(null);
 			return Math.floor(val);
 		}
 		// String & Pattern Operations (Variadic)

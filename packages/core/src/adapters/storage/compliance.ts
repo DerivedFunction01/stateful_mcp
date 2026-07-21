@@ -1,4 +1,3 @@
-import type { FormSchema } from "../../config/types";
 import { InMemoryConceptResolver } from "../../middleware/dictionary/resolver";
 import { DictionaryStore } from "../../middleware/dictionary/store";
 import { EventStore } from "../../middleware/event/store";

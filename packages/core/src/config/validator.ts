@@ -1,4 +1,4 @@
-import type { MiddlewareConfig, ResourceLocator, ToolConfig } from "./types";
+import type { MiddlewareConfig } from "./types";
 
 function validateLocator(locator: any, context: string): void {
 	if (!locator || typeof locator !== "object") {

@@ -2,7 +2,7 @@ import * as crypto from "crypto";
 import type { OwnerScope } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import type { ConceptStore, PersistentExpressionStore } from "./interfaces";
-import type { ConceptResolver, ResolveResponse } from "./resolver";
+import type { ConceptResolver } from "./resolver";
 import type {
 	Concept,
 	ConceptRelation,

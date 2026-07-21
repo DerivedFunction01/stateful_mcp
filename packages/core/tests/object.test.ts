@@ -2,6 +2,7 @@ import {
 	MemoryPersistentObjectStore,
 	MemorySessionObjectStore,
 } from "../src/adapters/storage/memory-repo";
+import { ErrorCode } from "../src/errors/types";
 import { validateCycleFree } from "../src/middleware/object/schema-walker";
 import { ObjectStore } from "../src/middleware/object/store";
 export async function runObjectTests() {
@@ -606,4 +607,35 @@ export async function runObjectTests() {
 	console.log(
 		"✓ Object persistent save with auto-compression verified successfully.",
 	);
+
+	console.log("\n🧪 Test Case 7: Schema Limits & Cycle Detection Enforcement");
+	const oversizedSchema = {
+		$defs: {
+			root: {
+				type: "object",
+				properties: {
+					f1: { type: "string" },
+					f2: { type: "string" },
+					f3: { type: "string" },
+				},
+			},
+		},
+	};
+	try {
+		new ObjectStore(
+			objSession,
+			objPersistent,
+			new Map([["oversized", oversizedSchema]]),
+			2,
+			5,
+		);
+		throw new Error(
+			"Expected OBJECT_SCHEMA_EXCEEDED error for schema exceeding maxFields",
+		);
+	} catch (err: any) {
+		if (err.code !== ErrorCode.OBJECT_SCHEMA_EXCEEDED) {
+			throw err;
+		}
+	}
+	console.log("✓ Schema maxFields limit enforcement verified successfully.");
 }

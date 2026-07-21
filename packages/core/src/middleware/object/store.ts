@@ -1,6 +1,5 @@
 import Ajv from "ajv";
 import type {
-	PersistedObjectState,
 	PersistentObjectStore,
 	SessionObjectStore,
 } from "../../adapters/storage/interfaces";
@@ -9,7 +8,12 @@ import { runValidationEngine } from "../../adapters/validation/runner";
 import type { OwnerScope, ResourceLocator } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import { eventBroker } from "../../events/broker";
-import { resolvePathSchema } from "./schema-walker";
+import { DEFAULT_MAX_FIELDS_PER_DEF, DEFAULT_MAX_REF_DEPTH } from "./constants";
+import {
+	resolvePathSchema,
+	validateCycleFree,
+	validateFieldLimits,
+} from "./schema-walker";
 import type { ObjectDiffResult, ObjectState } from "./types";
 
 const ajv = new Ajv({ strict: false });
@@ -35,12 +39,46 @@ export class ObjectStore {
 		private session: SessionObjectStore,
 		private persistent: PersistentObjectStore,
 		private schemas: Map<string, any>, // name -> json schema
-		private maxFields: number = 7,
-		private maxDepth: number = 5,
+		private maxFields: number = DEFAULT_MAX_FIELDS_PER_DEF,
+		private maxDepth: number = DEFAULT_MAX_REF_DEPTH,
 		private chainThreshold: number = 15,
 		private validationEngines: Map<string, ResourceLocator> = new Map(),
 		private workspaceRoot: string = process.cwd(),
-	) {}
+	) {
+		this.validateAllSchemas();
+	}
+
+	public validateSchema(schemaName: string, schema: any): void {
+		if (schema?.$defs) {
+			try {
+				validateCycleFree(schema.$defs);
+			} catch (err: any) {
+				throw new StatefulFrameworkError(
+					ErrorCode.OBJECT_CYCLE_DETECTED,
+					`Schema "${schemaName}" cycle validation failed: ${err.message || String(err)}`,
+				);
+			}
+			try {
+				validateFieldLimits(schema.$defs, this.maxFields, this.maxDepth);
+			} catch (err: any) {
+				throw new StatefulFrameworkError(
+					ErrorCode.OBJECT_SCHEMA_EXCEEDED,
+					`Schema "${schemaName}" limit validation failed: ${err.message || String(err)}`,
+				);
+			}
+		}
+	}
+
+	public validateAllSchemas(): void {
+		for (const [name, schema] of this.schemas.entries()) {
+			this.validateSchema(name, schema);
+		}
+	}
+
+	public registerSchema(schemaName: string, schema: any): void {
+		this.validateSchema(schemaName, schema);
+		this.schemas.set(schemaName, schema);
+	}
 
 	private async resolveId(id: string, sessionId: string): Promise<string> {
 		const aliasTarget = await this.session.getAlias(sessionId, id);

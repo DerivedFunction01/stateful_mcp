@@ -1,4 +1,4 @@
-import type { PipelineStep, TableTranslation } from "./types";
+import type { TableTranslation } from "./types";
 
 // Validates a full TableTranslation at load time.
 // Throws Error on any violation — consistent with the fail-loud boot principle.

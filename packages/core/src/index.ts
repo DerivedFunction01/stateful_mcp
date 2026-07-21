@@ -15,6 +15,7 @@ export * from "./middleware/dictionary/store";
 export * from "./middleware/event/store";
 export * from "./middleware/filter/store";
 export * from "./middleware/form/store";
+export * from "./middleware/object/constants";
 export * from "./middleware/object/store";
 export * from "./middleware/trace/store";
 export * from "./middleware/trace/types";
