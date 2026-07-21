@@ -1,12 +1,14 @@
 import type {
   TraceForm,
   TraceStep,
+  TraceSlot,
   TraceQueryResult,
   TraceQueryResultItem,
   DeltaOperation,
   TraceExecutionResult
 } from "./types";
 import { executePipeline } from "../../translation/pipeline";
+import { eventBroker, type StateChangeEvent } from "../../events/broker";
 
 export type ToolExecutor = (action: string, args: Record<string, any>) => Promise<any>;
 
@@ -20,9 +22,116 @@ interface PausedState {
   consecutive_counts: { last_action: string | null; count: number };
 }
 
+interface ActiveRecordingSession {
+  sessionId: string;
+  traceId: string;
+  goal: string;
+  inputSlots: Record<string, TraceSlot>;
+  steps: { action: string; args: Record<string, any>; output?: any }[];
+  startTime: number;
+}
+
+import { DEFAULT_NON_RECORDABLE_SERVICE_TOOLS, NonRecordableToolsRegistry } from "../../config/meta_tools";
+
 export class TraceStore {
   private traces = new Map<string, TraceForm>();
   private pausedStates = new Map<string, PausedState>();
+  private recordingSessions = new Map<string, ActiveRecordingSession>();
+
+  private registry: NonRecordableToolsRegistry;
+
+  constructor(customNonRecordableTools: string[] = []) {
+    this.registry = new NonRecordableToolsRegistry(customNonRecordableTools);
+
+    // Listen for core eventBroker state changes to auto-record steps into active recording sessions for the matching sessionId
+    eventBroker.on("state:changed", (event: StateChangeEvent) => {
+      const fullAction = `${event.service}_${event.action}`;
+      if (this.isRecordableTool(fullAction)) {
+        for (const session of this.recordingSessions.values()) {
+          if (session.sessionId === event.sessionId) {
+            session.steps.push({ action: fullAction, args: event.data || {} });
+          }
+        }
+      }
+    });
+  }
+
+  public registerNonRecordableTool(toolName: string) {
+    this.registry.register(toolName);
+  }
+
+  public isRecordableTool(action: string): boolean {
+    return this.registry.isRecordable(action);
+  }
+
+  /**
+   * Start a recording session bound to a sessionId. Auto-generates trace_id if omitted.
+   */
+  public startRecording(
+    sessionId: string,
+    traceId?: string,
+    goal: string = "Recorded workflow macro",
+    inputSlots: Record<string, TraceSlot> = {}
+  ): { status: string; session_id: string; trace_id: string } {
+    const id = traceId || `trc_${Math.random().toString(36).slice(2, 10)}`;
+    this.recordingSessions.set(id, {
+      sessionId,
+      traceId: id,
+      goal,
+      inputSlots,
+      steps: [],
+      startTime: Date.now()
+    });
+    return { status: "recording_started", session_id: sessionId, trace_id: id };
+  }
+
+  /**
+   * Record an individual step into active recording session(s). Checks recordability rules.
+   */
+  public recordStep(sessionId: string, action: string, args: Record<string, any> = {}, output?: any, traceId?: string) {
+    if (!this.isRecordableTool(action)) return;
+
+    if (traceId && this.recordingSessions.has(traceId)) {
+      this.recordingSessions.get(traceId)!.steps.push({ action, args, output });
+    } else {
+      for (const session of this.recordingSessions.values()) {
+        if (session.sessionId === sessionId) {
+          session.steps.push({ action, args, output });
+        }
+      }
+    }
+  }
+
+  /**
+   * Stop recording for a specific traceId, parameterize arguments against input slots, and finalize the TraceForm.
+   */
+  public stopRecording(
+    traceId: string,
+    overrideGoal?: string,
+    capabilities: string[] = [],
+    overrideInputSlots?: Record<string, TraceSlot>
+  ): TraceForm {
+    const session = this.recordingSessions.get(traceId);
+    if (!session) {
+      throw new Error(`No active recording session found for trace_id "${traceId}".`);
+    }
+    this.recordingSessions.delete(traceId);
+
+    const steps: any[] = session.steps.map(s => ({
+      action: s.action,
+      args: s.args
+    }));
+
+    const rawForm: TraceForm = {
+      trace_id: session.traceId,
+      goal: overrideGoal || session.goal || "Recorded workflow macro",
+      input_slots: overrideInputSlots || session.inputSlots || {},
+      capabilities,
+      steps
+    };
+
+    return this.recordTrace(rawForm);
+  }
 
   /**
    * Record a new trace form with deterministic step naming / auto-suffixing.
@@ -71,8 +180,11 @@ export class TraceStore {
       }
     }
 
+    const traceId = rawForm.trace_id || `trc_${Math.random().toString(36).slice(2, 10)}`;
+
     const form: TraceForm = {
       ...rawForm,
+      trace_id: traceId,
       confidence_score: rawForm.confidence_score ?? 1.0,
       usage_count: rawForm.usage_count ?? 0,
       input_slots: rawForm.input_slots ?? {},

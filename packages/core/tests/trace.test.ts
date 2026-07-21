@@ -164,4 +164,50 @@ describe("TraceStore Engine Tests", () => {
     store.feedbackTrace("trace_fb", "failure");
     expect(store.inspectTrace("trace_fb")?.confidence_score).toBe(0.65);
   });
+
+  test("interactive session recording automatically captures steps and compiles TraceForm", () => {
+    const session_id = "rec-session-123";
+    const started = store.startRecording(session_id, "auto_recorded_macro", "Automated macro goal", {
+      dept: { type: "string", description: "Department name", required: true }
+    });
+
+    store.recordStep(session_id, "filter_init", { table: "patients" });
+    store.recordStep(session_id, "filter_add_rule", { field: "dept", op: "eq", value: "$input.dept" });
+
+    const compiled = store.stopRecording(started.trace_id, "Refined macro goal", ["Applies patient filter"]);
+    expect(compiled.trace_id).toBe("auto_recorded_macro");
+    expect(compiled.goal).toBe("Refined macro goal");
+    expect(compiled.steps.length).toBe(2);
+    expect(compiled.steps[0]!.id).toBe("filter_init_1");
+    expect(compiled.steps[1]!.id).toBe("filter_add_rule_1");
+  });
+
+  test("startRecording auto-generates trace_id if omitted and requires trace_id on stopRecording", () => {
+    const session_id = "rec-session-auto-id";
+    const started = store.startRecording(session_id);
+    expect(started.trace_id).toBeDefined();
+    expect(started.trace_id.startsWith("trc_")).toBe(true);
+
+    store.recordStep(session_id, "filter_init", {});
+    const compiled = store.stopRecording(started.trace_id, "Auto ID Macro");
+    expect(compiled.trace_id).toBe(started.trace_id);
+    expect(compiled.goal).toBe("Auto ID Macro");
+  });
+
+  test("recordStep ignores trace_* meta-tools, state_init, *_about, and registered non-recordable tools", () => {
+    const session_id = "rec-session-filter-meta";
+    store.registerNonRecordableTool("third_party_telemetry");
+    const started = store.startRecording(session_id);
+
+    store.recordStep(session_id, "trace_record", { action: "start" });
+    store.recordStep(session_id, "state_init", {});
+    store.recordStep(session_id, "filter_init", {});
+    store.recordStep(session_id, "filter_about", {});
+    store.recordStep(session_id, "third_party_telemetry", {});
+    store.recordStep(session_id, "trace_inspect", { trace_id: "t1" });
+
+    const compiled = store.stopRecording(started.trace_id);
+    expect(compiled.steps.length).toBe(1);
+    expect(compiled.steps[0]!.action).toBe("filter_init");
+  });
 });

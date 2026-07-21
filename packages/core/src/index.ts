@@ -2,6 +2,7 @@ export * from "./config/loader";
 export * from "./config/types";
 export * from "./config/validator";
 export * from "./config/pagination";
+export * from "./config/meta_tools";
 export * from "./errors/types";
 export * from "./middleware/filter/store";
 export * from "./middleware/object/store";

@@ -84,6 +84,7 @@ export interface MiddlewareConfig {
 
   form_schemas?: Record<string, ResourceLocator | { schema: ResourceLocator }>;
   trace_schemas?: Record<string, ResourceLocator | { schema: ResourceLocator }>;
+  meta_tools_config?: ResourceLocator;
 
   tools: Record<string, ToolConfig>;
 

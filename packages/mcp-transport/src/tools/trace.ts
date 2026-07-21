@@ -104,15 +104,48 @@ function registerTraceTools() {
   server.registerTool(
     "trace_record",
     {
-      description: "Record a newly discovered tool execution sequence as a trace form.",
+      description: "Manage trace recording sessions (start/stop) or submit a pre-constructed trace form directly or from an ObjectStore checkpoint.",
       inputSchema: {
-        trace: z.record(z.any()).describe("Trace form definition object.")
+        action: z.enum(["start", "stop", "submit"]).describe("Recording action: 'start' to begin session recording, 'stop' to compile & save recorded session, or 'submit' for pre-constructed trace form."),
+        trace_id: z.string().optional().describe("Trace ID (auto-generated on 'start', required on 'stop' to specify which active recording session to compile)."),
+        goal: z.string().optional().describe("Goal/intent description for the trace macro."),
+        input_slots: z.record(z.any()).optional().describe("Input slots definition."),
+        capabilities: z.array(z.string()).optional().describe("Capabilities list (for action='stop')."),
+        object_id: z.string().optional().describe("ObjectStore checkpoint ID containing the trace form definition (for action='submit')."),
+        trace: z.record(z.any()).optional().describe("Pre-constructed trace form object (for action='submit').")
       }
     },
-    async ({ trace }) => {
+    async ({ action, trace_id, goal, input_slots, capabilities, object_id, trace }, extra: any) => {
+      const sessionId = extra?._metadata?.session_id ?? "default";
       try {
-        const recorded = traceStore.recordTrace(trace as unknown as TraceForm);
-        return { content: [{ type: "text", text: JSON.stringify(recorded) }] };
+        if (action === "start") {
+          const res = traceStore.startRecording(sessionId, trace_id, goal, input_slots as any);
+          return { content: [{ type: "text", text: JSON.stringify(res) }] };
+        } else if (action === "stop") {
+          if (!trace_id) {
+            return { content: [{ type: "text", text: "action='stop' requires 'trace_id' specifying which active recording session to finalize." }], isError: true };
+          }
+          const recorded = traceStore.stopRecording(trace_id, goal, capabilities, input_slots as any);
+          return { content: [{ type: "text", text: JSON.stringify(recorded) }] };
+        } else if (action === "submit") {
+          let targetTraceForm = trace;
+          if (!targetTraceForm && object_id) {
+            const { getObjectStore } = await import("./helper.js");
+            const objectStore = getObjectStore(config, configDir);
+            const objState = await objectStore.get(object_id, sessionId);
+            if (!objState || !objState.state) {
+              return { content: [{ type: "text", text: `Object "${object_id}" not found in ObjectStore.` }], isError: true };
+            }
+            targetTraceForm = objState.state;
+          }
+          if (!targetTraceForm) {
+            return { content: [{ type: "text", text: "action='submit' requires either 'trace' object or 'object_id'." }], isError: true };
+          }
+          const recorded = traceStore.recordTrace(targetTraceForm as unknown as TraceForm);
+          return { content: [{ type: "text", text: JSON.stringify(recorded) }] };
+        } else {
+          return { content: [{ type: "text", text: `Unknown action "${action}". Must be "start", "stop", or "submit".` }], isError: true };
+        }
       } catch (err: any) {
         return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
       }
@@ -208,7 +241,13 @@ async function main() {
   config = loadMiddlewareConfig(configDir);
   validateMiddlewareConfig(config, configDir);
 
-  traceStore = new TraceStore();
+  let nonRecordableTools: string[] = [];
+  if (config.meta_tools_config) {
+    const { loadMetaToolsConfig } = await import("@stateful-mcp/core");
+    nonRecordableTools = await loadMetaToolsConfig(config.meta_tools_config, configDir);
+  }
+
+  traceStore = new TraceStore(nonRecordableTools);
 
   registerTraceTools();
 
