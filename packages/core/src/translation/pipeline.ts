@@ -154,18 +154,43 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
       if (isNaN(val)) return missing(null);
       return Math.floor(val);
     }
-    // String Operations
+    // String & Pattern Operations (Variadic)
     case "starts_with": {
       if (args[0] === null || args[0] === undefined) return missing(null);
-      return String(args[0]).startsWith(String(args[1] ?? ""));
+      const str = String(args[0]);
+      const prefixes = args.slice(1).map((p) => String(p ?? ""));
+      if (prefixes.length === 0) return true;
+      return prefixes.some((p) => str.startsWith(p));
     }
     case "ends_with": {
       if (args[0] === null || args[0] === undefined) return missing(null);
-      return String(args[0]).endsWith(String(args[1] ?? ""));
+      const str = String(args[0]);
+      const suffixes = args.slice(1).map((s) => String(s ?? ""));
+      if (suffixes.length === 0) return true;
+      return suffixes.some((s) => str.endsWith(s));
     }
     case "contains": {
       if (args[0] === null || args[0] === undefined) return missing(null);
-      return String(args[0]).includes(String(args[1] ?? ""));
+      let patterns = args.slice(1);
+      let matchMode = "all";
+      const lastArg = patterns[patterns.length - 1];
+      if (typeof lastArg === "string" && (lastArg.toLowerCase() === "all" || lastArg.toLowerCase() === "any")) {
+        matchMode = lastArg.toLowerCase();
+        patterns = patterns.slice(0, -1);
+      }
+      if (patterns.length === 0) return true;
+
+      const target = args[0];
+      if (Array.isArray(target)) {
+        return matchMode === "any"
+          ? patterns.some((p) => target.includes(p))
+          : patterns.every((p) => target.includes(p));
+      }
+
+      const str = String(target);
+      return matchMode === "any"
+        ? patterns.some((p) => str.includes(String(p ?? "")))
+        : patterns.every((p) => str.includes(String(p ?? "")));
     }
     case "substring": {
       if (args[0] === null || args[0] === undefined) return missing(null);

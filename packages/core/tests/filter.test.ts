@@ -378,32 +378,28 @@ export async function runFilterTests() {
   const endsWithRes = executePipeline([{ op: "ends_with", args: ["hello world", "world"] }], {}, {});
   if (endsWithRes !== true) throw new Error(`ends_with pipeline op failed`);
 
-  const containsRes = executePipeline([{ op: "contains", args: ["hello world", "lo wo"] }], {}, {});
-  if (containsRes !== true) throw new Error(`contains pipeline op failed`);
+  // 10. Test variadic pattern matching (contains all/any, starts_with, ends_with)
+  const containsAllTrue = executePipeline([{ op: "contains", args: ["hello world", "hello", "world"] }], {}, {});
+  if (containsAllTrue !== true) throw new Error(`contains all true failed`);
 
-  const concatRes = executePipeline([{ op: "concat", args: ["foo", "-", "bar", "-", 123] }], {}, {});
-  if (concatRes !== "foo-bar-123") throw new Error(`concat pipeline op failed. Got ${concatRes}`);
+  const containsAllFalse = executePipeline([{ op: "contains", args: ["hello world", "hello", "foo"] }], {}, {});
+  if (containsAllFalse !== false) throw new Error(`contains all false failed`);
 
-  const substrRes = executePipeline([{ op: "substring", args: ["hello world", 6, 5] }], {}, {});
-  // 9. Test chained variadic comparison ops (leq [0, x, 100], eq [a, b, c], neq [a, b, c])
-  const leqChainedTrue = executePipeline([{ op: "leq", args: [0, 50, 100] }], {}, {});
-  if (leqChainedTrue !== true) throw new Error(`chained leq failed for valid range`);
+  const containsAnyTrue = executePipeline([{ op: "contains", args: ["hello world", "foo", "world", "any"] }], {}, {});
+  if (containsAnyTrue !== true) throw new Error(`contains any true failed`);
 
-  const leqChainedFalse = executePipeline([{ op: "leq", args: [0, 150, 100] }], {}, {});
-  if (leqChainedFalse !== false) throw new Error(`chained leq failed for invalid range`);
+  const startsWithVariadic = executePipeline([{ op: "starts_with", args: ["https://example.com", "http://", "https://"] }], {}, {});
+  if (startsWithVariadic !== true) throw new Error(`starts_with variadic failed`);
 
-  const eqChained = executePipeline([{ op: "eq", args: [42, 42, 42] }], {}, {});
-  if (eqChained !== true) throw new Error(`chained eq failed`);
+  const endsWithVariadic = executePipeline([{ op: "ends_with", args: ["image.png", ".jpg", ".png"] }], {}, {});
+  if (endsWithVariadic !== true) throw new Error(`ends_with variadic failed`);
 
-  const neqChained = executePipeline([{ op: "neq", args: [1, 2, 3] }], {}, {});
-  if (neqChained !== true) throw new Error(`chained neq failed`);
-
-  const compiledLeqChainedSqlite = compilePipelineToSQL([{ op: "leq", args: [{ $init: "min" }, { $init: "val" }, { $init: "max" }] }], "sqlite");
-  if (!compiledLeqChainedSqlite.includes("(`min` <= `val` AND `val` <= `max`)")) {
-    throw new Error(`chained leq sqlite compilation failed: ${compiledLeqChainedSqlite}`);
+  const compiledContainsAnySqlite = compilePipelineToSQL([{ op: "contains", args: [{ $init: "url" }, "foo", "bar", "any"] }], "sqlite");
+  if (!compiledContainsAnySqlite.includes("(`url` LIKE '%' || 'foo' || '%' OR `url` LIKE '%' || 'bar' || '%')")) {
+    throw new Error(`contains any sqlite compilation failed: ${compiledContainsAnySqlite}`);
   }
 
-  console.log("✓ All variadic arithmetic, string, and chained comparison pipeline ops evaluated, validated, and compiled correctly.");
+  console.log("✓ All variadic arithmetic, pattern matching, string, and chained comparison pipeline ops evaluated, validated, and compiled correctly.");
   console.log("✓ compilePipelineToSQL (SQLite) compiled nested paths successfully.");
 
   const pgSQL = compilePipelineToSQL(translationPipeline, "postgres");

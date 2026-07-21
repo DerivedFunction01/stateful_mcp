@@ -166,21 +166,40 @@ export function compilePipelineToSQL(
       case "floor":
         lastExpr = `FLOOR(${args[0]})`;
         break;
-      case "starts_with":
-        lastExpr = dialect === "sqlite"
-          ? `(${args[0]} LIKE ${args[1]} || '%')`
-          : `(${args[0]} LIKE CONCAT(${args[1]}, '%'))`;
+      case "starts_with": {
+        const patterns = args.slice(1);
+        if (patterns.length === 0) { lastExpr = "1=1"; break; }
+        const conds = patterns.map((p) =>
+          dialect === "sqlite" ? `${args[0]} LIKE ${p} || '%'` : `${args[0]} LIKE CONCAT(${p}, '%')`
+        );
+        lastExpr = `(${conds.join(" OR ")})`;
         break;
-      case "ends_with":
-        lastExpr = dialect === "sqlite"
-          ? `(${args[0]} LIKE '%' || ${args[1]})`
-          : `(${args[0]} LIKE CONCAT('%', ${args[1]}))`;
+      }
+      case "ends_with": {
+        const patterns = args.slice(1);
+        if (patterns.length === 0) { lastExpr = "1=1"; break; }
+        const conds = patterns.map((p) =>
+          dialect === "sqlite" ? `${args[0]} LIKE '%' || ${p}` : `${args[0]} LIKE CONCAT('%', ${p})`
+        );
+        lastExpr = `(${conds.join(" OR ")})`;
         break;
-      case "contains":
-        lastExpr = dialect === "sqlite"
-          ? `(${args[0]} LIKE '%' || ${args[1]} || '%')`
-          : `(${args[0]} LIKE CONCAT('%', ${args[1]}, '%'))`;
+      }
+      case "contains": {
+        let patterns = args.slice(1);
+        let mode = "all";
+        const last = patterns[patterns.length - 1];
+        if (last === "'any'" || last === "'all'") {
+          mode = last === "'any'" ? "any" : "all";
+          patterns = patterns.slice(0, -1);
+        }
+        if (patterns.length === 0) { lastExpr = "1=1"; break; }
+        const conds = patterns.map((p) =>
+          dialect === "sqlite" ? `${args[0]} LIKE '%' || ${p} || '%'` : `${args[0]} LIKE CONCAT('%', ${p}, '%')`
+        );
+        const joiner = mode === "any" ? " OR " : " AND ";
+        lastExpr = `(${conds.join(joiner)})`;
         break;
+      }
       case "substring": {
         const start = args[1] ?? "0";
         lastExpr = dialect === "sqlite"
