@@ -86,22 +86,45 @@ The middleware compiles the final logical state into target database dialects:
 
 The following operators can be used within translation pipelines. They are categorized by family:
 
-### Arithmetic Operations
-Used to modify or combine numeric field values.
-* **`add`**: Sums two numbers. E.g. `{ "op": "add", "args": [{ "$init": "value" }, 10] }`
-* **`sub`**: Subtracts second argument from first.
-* **`mul`**: Multiplies two numbers.
-* **`div`**: Divides first argument by second.
-* **`mod`**: Modulo arithmetic (remainder).
-* **`exp`**: Exponential power ($x^y$).
+### Arithmetic Operations (Variadic)
+Used to modify or combine numeric field values across arbitrary length arrays of arguments (`args`):
+* **`add`**: Sums all arguments in `args`. E.g. `{ "op": "add", "args": [1, 2, 5, 7] }` $\rightarrow `15`.
+* **`sub`**: Sequential left-associative subtraction. E.g. `{ "op": "sub", "args": [20, 5, 3] }` $\rightarrow `12`. Single arg `[5]` $\rightarrow `-5`.
+* **`mul`**: Multiplies all arguments. E.g. `{ "op": "mul", "args": [2, 3, 4] }` $\rightarrow `24`.
+* **`div`**: Sequential left-associative division. E.g. `{ "op": "div", "args": [100, 2, 5] }` $\rightarrow `10`.
+* **`mod`**: Sequential left-associative modulo (remainder). E.g. `{ "op": "mod", "args": [100, 30, 7] }` $\rightarrow `3`.
+* **`exp`**: Sequential left-associative exponentiation ($((a^b)^c)$). E.g. `{ "op": "exp", "args": [2, 3, 2] }` $\rightarrow `64`.
+* **`round`**: Rounds number to specified decimal places (default 0). E.g. `{ "op": "round", "args": [12.3456, 2] }` $\rightarrow `12.35`.
+* **`ceil`**: Computes ceiling of a number.
+* **`floor`**: Computes floor of a number.
 
-### Comparison Operations
-Performs boolean comparisons.
-* **`lt`** ($<$), **`leq`** ($\le$), **`eq`** ($=$), **`neq`** ($\ne$), **`geq`** ($\ge$), **`gt`** ($>$).
-* E.g. `{ "op": "gt", "args": [{ "$init": "value" }, 100] }`
+### Comparison Operations (Chained Variadic)
+Performs boolean comparisons across $N \ge 2$ arguments using Lisp-style monotonic sequence checking:
+* **`lt`** ($<$): Strictly increasing sequence ($a < b < c$).
+* **`leq`** ($\le$): Monotonically non-decreasing sequence ($a \le b \le c$). E.g. `{ "op": "leq", "args": [0, { "$init": "val" }, 100] }` $\rightarrow (0 \le val \land val \le 100)$.
+* **`eq`** ($=$): All arguments equal ($a = b = c$). E.g. `{ "op": "eq", "args": [{ "$init": "x" }, { "$init": "y" }, { "$init": "z" }] }`.
+* **`neq`** ($\ne$): All arguments pairwise distinct ($a \ne b \ne c$).
+* **`geq`** ($\ge$): Monotonically non-increasing sequence ($a \ge b \ge c$).
+* **`gt`** ($>$): Strictly decreasing sequence ($a > b > c$).
+
+### Type Conversion Operations
+Casts field values into target primitive types:
+* **`to_string`**: Casts input value to string. E.g. `{ "op": "to_string", "args": [{ "$init": "id" }] }`.
+* **`to_number`**: Casts value to number with optional mode (`"float"` default, or `"int"`/`"integer"`). E.g. `{ "op": "to_number", "args": [{ "$init": "str_num" }, "int"] }`.
+
+### String & Pattern Operations
+Manipulates and searches text strings or array fields:
+* **`starts_with`**: Checks if target string starts with *any* of the provided prefix patterns. E.g. `{ "op": "starts_with", "args": [{ "$init": "url" }, "http://", "https://"] }`.
+* **`ends_with`**: Checks if target string ends with *any* of the provided suffix patterns. E.g. `{ "op": "ends_with", "args": [{ "$init": "file" }, ".jpg", ".png"] }`.
+* **`contains`**: Variadic pattern search over strings or arrays with optional `"all"` (default) or `"any"` match mode. E.g. `{ "op": "contains", "args": [{ "$init": "notes" }, "fever", "cough", "all"] }`.
+* **`substring`**: Extracts substring slice `(str, start, length?)`. E.g. `{ "op": "substring", "args": [{ "$init": "text" }, 0, 10] }`.
+* **`trim`**: Strips leading and trailing whitespace.
+* **`lower`**: Converts string to lowercase.
+* **`upper`**: Converts string to uppercase.
+* **`concat`**: Concatenates $N$ arguments into a single string. E.g. `{ "op": "concat", "args": [{ "$init": "first" }, " ", { "$init": "last" }] }`.
 
 ### Date Operations
-Parses and extracts calendar details from ISO date strings.
+Parses and extracts calendar details from ISO date strings:
 * **`year`**: Extracts year. E.g. `{ "op": "year", "args": [{ "$init": "value" }] }` (returns e.g. `2026`).
 * **`month`**: Extracts month index (`1` to `12`).
 * **`day`**: Extracts calendar day of the month (`1` to `31`).
@@ -109,7 +132,7 @@ Parses and extracts calendar details from ISO date strings.
 * **`date_diff`**: Days between two dates. E.g. `{ "op": "date_diff", "args": [{ "$init": "value" }, { "$fn": "now" }] }`
 
 ### Nested Access & JSON Operations
-Allows parsing and exploring nested JSON structures.
+Allows parsing and exploring nested JSON structures:
 * **`json_parse`**: Deserializes a raw JSON string into a structured object.
 * **`get`**: Accesses a property at a specific key path on an object.
   * E.g. `{ "op": "get", "args": [{ "$var": "parsed_object" }, "metadata", "authors", 0] }`
