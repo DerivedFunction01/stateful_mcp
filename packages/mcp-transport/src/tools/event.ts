@@ -10,6 +10,7 @@ import type { MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/cor
 import { clampLimit, buildLimitField } from "@stateful-mcp/core";
 import { getFilterStore, getObjectStore, getFormStore } from "./helper";
 import { registerStateInitTool } from "./state_init.js";
+import { registerMiddlewareAboutTool } from "./middleware_about.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
@@ -274,26 +275,6 @@ server.registerTool(
   }
 );
 
-server.registerTool(
-  "middleware_about",
-  {
-    description: "Get meta-documentation explaining the orchestration of all stateful middleware services",
-    inputSchema: {}
-  },
-  async () => {
-    try {
-      const workspaceRoot = configDir;
-      const content = await resolveAboutOrExamples(
-        config.about_and_examples?.middleware_about,
-        path.join(localAboutDir, "middleware.md"),
-        workspaceRoot
-      );
-      return { content: [{ type: "text", text: content }] };
-    } catch (err: any) {
-      return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
-    }
-  }
-);
 
 server.registerTool(
   "event_about",
@@ -388,6 +369,7 @@ async function main() {
   eventStore.setReferences({ filter: filterStore, object: objectStore, form: formStore });
 
   registerEventTools(config.pagination_limits);
+  registerMiddlewareAboutTool(server, config, workspaceRoot);
   await registerStateInitTool(server, config, workspaceRoot);
 
   const transport = new StdioServerTransport();
