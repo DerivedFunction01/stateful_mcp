@@ -2,6 +2,15 @@
   "name": "@stateful-mcp/cli",
   "version": "0.1.1",
   "description": "Administrative CLI tool for Stateful framework",
+  "keywords": [
+    "cli",
+    "admin",
+    "stateful",
+    "mcp",
+    "gc",
+    "inspect",
+    "migrate"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

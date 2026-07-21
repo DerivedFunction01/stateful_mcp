@@ -2,6 +2,18 @@
   "name": "@stateful-mcp/core",
   "version": "0.1.1",
   "description": "Stateful framework core (transport and LLM-agnostic)",
+  "keywords": [
+    "stateful",
+    "middleware",
+    "filter",
+    "version-control",
+    "vcs",
+    "object",
+    "event",
+    "form",
+    "dictionary",
+    "dag"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
