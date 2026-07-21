@@ -27,7 +27,7 @@ stateful-mcp --config-dir /path/to/my-config
 SERVICE_TYPE=object stateful-mcp -c /path/to/my-config
 ```
 
-The binary maps to the monolith router in `index.ts`. `SERVICE_TYPE` selects the service: `filter`, `object`, `dictionary`, `log`, or `event` (defaults to `filter`).
+The binary maps to the monolith router in `index.ts`. `SERVICE_TYPE` selects the service: `filter`, `object`, `dictionary`, `log`, `event`, `form`, or `trace` (defaults to `filter`).
 
 ---
 
@@ -55,7 +55,7 @@ Ship your own `config/` and point the package at it — you do **not** rely on t
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `SERVICE_TYPE` | no | Which service to start (`filter` default). |
+| `SERVICE_TYPE` | no | Which service to start (`filter` default). Options: `filter`, `object`, `dictionary`, `log`, `event`, `form`, `trace`. |
 | `STATEFUL_MCP_CONFIG_DIR` | no | Directory containing `config/`. |
 | `LOG_SERVICE_SECRET` | no | 32-byte HMAC key for stateless `log_next` page tokens. Random if unset. |
 | `WORKSPACE_ID` | no | Fallback dictionary workspace id (default `global`). |
@@ -87,10 +87,11 @@ npm run build         # bundles dist/index.js (bun build) + emits .d.ts + copies
 4. **Event Service** — version-controlled append-only logs with branching, LCA merging, and conflict resolution.
 5. **Log Service** — stateless, paginated traversal over filter/object history using HMAC-signed page tokens.
 6. **Form Service** — manage stateful interactive forms with branching logic, step validations, and back-navigation staleness tracking.
+7. **Trace Service** — procedural execution learning, macro tool execution, delta refinements, and compensation rollbacks.
 
 Each service exposes `*_about` / `*_examples` developer-guidance tools. LLMs should consult them when handling complex state.
 
-See `docs/` for the full reference (filter, object, form, event, dictionary, log, config, pipeline, browser).
+See `docs/` for the full reference (filter, object, form, trace, event, dictionary, log, config, pipeline, browser).
 
 ---
 

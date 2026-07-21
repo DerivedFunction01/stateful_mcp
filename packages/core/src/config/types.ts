@@ -10,7 +10,7 @@ export type OwnerScope =
 
 export interface StateRequirement {
   id: string;
-  type: "filter" | "object" | "form" | "event";
+  type: "filter" | "object" | "form" | "event" | "trace";
   schema?: string;
   tableName?: string;
   toolName?: string;
@@ -29,6 +29,7 @@ export interface ToolConfig {
 export interface AutoCompressionConfig {
   filter_chain_threshold?: number;
   object_chain_threshold?: number;
+  trace_chain_threshold?: number;
 }
 
 export interface PaginationLimitsConfig {
@@ -56,6 +57,9 @@ export interface MiddlewareConfig {
   form_session_state?: ResourceLocator;
   form_persistent_state?: { global: ResourceLocator; user: ResourceLocator };
 
+  trace_session_state?: ResourceLocator;
+  trace_persistent_state?: { global: ResourceLocator; user: ResourceLocator };
+
   dictionary_state: ResourceLocator;
   dictionary_resolver: ResourceLocator;
 
@@ -79,6 +83,7 @@ export interface MiddlewareConfig {
   pagination_limits?: PaginationLimitsConfig;
 
   form_schemas?: Record<string, ResourceLocator | { schema: ResourceLocator }>;
+  trace_schemas?: Record<string, ResourceLocator | { schema: ResourceLocator }>;
 
   tools: Record<string, ToolConfig>;
 
@@ -99,6 +104,8 @@ export interface AboutAndExamplesConfig {
   event_examples?: ResourceLocator[];
   form_about?: ResourceLocator[];
   form_examples?: ResourceLocator[];
+  trace_about?: ResourceLocator[];
+  trace_examples?: ResourceLocator[];
 }
 
 export interface TableSchema {

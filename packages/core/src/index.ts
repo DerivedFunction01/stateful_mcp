@@ -9,6 +9,8 @@ export * from "./middleware/form/store";
 export * from "./middleware/event/store";
 export * from "./middleware/dictionary/store";
 export * from "./middleware/dictionary/resolver";
+export * from "./middleware/trace/store";
+export * from "./middleware/trace/types";
 export * from "./adapters/storage/memory-repo";
 export * from "./adapters/storage/sqlite-repo";
 export * from "./adapters/storage/jsonl-repo";
