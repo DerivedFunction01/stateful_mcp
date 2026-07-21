@@ -62,6 +62,11 @@ export interface TraceQueryResultItem {
 
 export interface TraceQueryResult {
   matches: TraceQueryResultItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  next_offset?: number;
 }
 
 export type DeltaActionType = "swap_with_persistent" | "replace_step" | "append_step" | "remove_step";

@@ -202,7 +202,7 @@ export class TraceStore {
     return this.traces.get(traceId) || null;
   }
 
-  public queryTraces(intent: string, limit = 5): TraceQueryResult {
+  public queryTraces(intent: string, limit = 10, offset = 0): TraceQueryResult {
     const matches: TraceQueryResultItem[] = [];
     const lowerIntent = intent.toLowerCase();
 
@@ -233,7 +233,19 @@ export class TraceStore {
 
     matches.sort((a, b) => b.confidence_score - a.confidence_score);
 
-    return { matches: matches.slice(0, limit) };
+    const total = matches.length;
+    const pageItems = matches.slice(offset, offset + limit);
+    const has_more = offset + limit < total;
+    const next_offset = has_more ? offset + limit : undefined;
+
+    return {
+      matches: pageItems,
+      total,
+      limit,
+      offset,
+      has_more,
+      next_offset
+    };
   }
 
   public async executeTrace(

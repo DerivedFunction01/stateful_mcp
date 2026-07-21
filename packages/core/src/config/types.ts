@@ -39,6 +39,8 @@ export interface PaginationLimitsConfig {
   examples_page_size?: number;
   /** Max conflicts returned per page by event_merge_inspect. */
   merge_conflicts_page_size?: number;
+  /** Max matches returned per page by trace_query. */
+  trace_query_page_size?: number;
 }
 
 export interface MiddlewareConfig {

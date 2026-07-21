@@ -40,6 +40,24 @@ describe("TraceStore Engine Tests", () => {
     expect(result.matches.length).toBe(1);
     expect(result.matches[0]!.trace_id).toBe("patient_triage");
     expect(result.matches[0]!.confidence_score).toBeGreaterThan(0.5);
+    expect(result.total).toBe(1);
+    expect(result.has_more).toBe(false);
+  });
+
+  test("queryTraces supports pagination with offset and limit", () => {
+    store.recordTrace({ trace_id: "t_query_1", goal: "Query patient record 1", steps: [] });
+    store.recordTrace({ trace_id: "t_query_2", goal: "Query patient record 2", steps: [] });
+    store.recordTrace({ trace_id: "t_query_3", goal: "Query patient record 3", steps: [] });
+
+    const page1 = store.queryTraces("Query patient", 2, 0);
+    expect(page1.matches.length).toBe(2);
+    expect(page1.total).toBe(3);
+    expect(page1.has_more).toBe(true);
+    expect(page1.next_offset).toBe(2);
+
+    const page2 = store.queryTraces("Query patient", 2, page1.next_offset);
+    expect(page2.matches.length).toBe(1);
+    expect(page2.has_more).toBe(false);
   });
 
   test("executeTrace executes steps with variable bindings and AST conditions", async () => {

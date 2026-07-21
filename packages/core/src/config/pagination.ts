@@ -6,6 +6,7 @@ const SURFACES = {
   log_page_size:             { default: 20,  ceiling: 200  },
   examples_page_size:        { default: 5,   ceiling: 50   },
   merge_conflicts_page_size: { default: 50,  ceiling: 500  },
+  trace_query_page_size:     { default: 10,  ceiling: 100  },
 } as const;
 
 export type LimitKey = keyof typeof SURFACES;
@@ -60,6 +61,6 @@ export function buildLimitField(key: LimitKey, cfg: PaginationLimitsConfig | und
     .max(max)
     .optional()
     .describe(
-      `Maximum number of items to return per page. Bounded by the operator-configured pagination limit for this surface (max ${max}).`
+      `Maximum number of items to return per page.`
     );
 }

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveAboutOrExamples, resolveConfigDir } from "@stateful-mcp/core";
+import { loadMiddlewareConfig, resolveAboutOrExamples, resolveConfigDir, buildLimitField, clampLimit } from "@stateful-mcp/core";
 import { validateMiddlewareConfig } from "@stateful-mcp/core";
 import { TraceStore } from "@stateful-mcp/core";
 import type { MiddlewareConfig, TraceForm, DeltaOperation } from "@stateful-mcp/core";
@@ -29,12 +29,14 @@ function registerTraceTools() {
       description: "Search for stored execution trace forms matching an intent.",
       inputSchema: {
         intent: z.string().describe("Intent phrase describing the goal or workflow."),
-        limit: z.number().optional().describe("Maximum number of trace matches to return.")
+        limit: buildLimitField("trace_query_page_size", config?.pagination_limits),
+        offset: z.number().int().min(0).optional().default(0).describe("Zero-based pagination offset.")
       }
     },
-    async ({ intent, limit }) => {
+    async ({ intent, limit, offset }) => {
       try {
-        const res = traceStore.queryTraces(intent, limit);
+        const effectiveLimit = clampLimit(limit, "trace_query_page_size", config?.pagination_limits);
+        const res = traceStore.queryTraces(intent, effectiveLimit, offset ?? 0);
         return { content: [{ type: "text", text: JSON.stringify(res) }] };
       } catch (err: any) {
         return { content: [{ type: "text", text: err.message || String(err) }], isError: true };
