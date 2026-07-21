@@ -48,24 +48,39 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
   };
 
   switch (step.op) {
-    // Arithmetic
-    case "add": return Number(args[0]) + Number(args[1]);
-    case "sub": return Number(args[0]) - Number(args[1]);
-    case "mul": return Number(args[0]) * Number(args[1]);
-    case "div": {
-      const divisor = Number(args[1]);
-      if (divisor === 0) throw new Error("Pipeline: division by zero");
-      return Number(args[0]) / divisor;
+    // Arithmetic (Variadic Lisp-style)
+    case "add":
+      return args.reduce<number>((sum, val) => sum + Number(val), 0);
+    case "sub": {
+      if (args.length === 0) return 0;
+      if (args.length === 1) return -Number(args[0]);
+      return args.slice(1).reduce<number>((acc, val) => acc - Number(val), Number(args[0]));
     }
-    case "mod": return Number(args[0]) % Number(args[1]);
-    case "exp": return Math.pow(Number(args[0]), Number(args[1]));
-    // Comparison
-    case "lt":  return (args[0] as any) < (args[1] as any);
-    case "leq": return (args[0] as any) <= (args[1] as any);
-    case "eq":  return args[0] === args[1];
-    case "neq": return args[0] !== args[1];
-    case "geq": return (args[0] as any) >= (args[1] as any);
-    case "gt":  return (args[0] as any) > (args[1] as any);
+    case "mul":
+      return args.reduce<number>((prod, val) => prod * Number(val), 1);
+    case "div": {
+      if (args.length === 0) return 0;
+      return args.slice(1).reduce<number>((acc, val) => {
+        const divisor = Number(val);
+        if (divisor === 0) throw new Error("Pipeline: division by zero");
+        return acc / divisor;
+      }, Number(args[0]));
+    }
+    case "mod": {
+      if (args.length === 0) return 0;
+      return args.slice(1).reduce<number>((acc, val) => acc % Number(val), Number(args[0]));
+    }
+    case "exp": {
+      if (args.length === 0) return 0;
+      return args.slice(1).reduce<number>((acc, val) => Math.pow(acc, Number(val)), Number(args[0]));
+    }
+    // Comparison (Chained Variadic)
+    case "lt":  return args.every((val, i) => i === 0 || (args[i - 1] as any) < (val as any));
+    case "leq": return args.every((val, i) => i === 0 || (args[i - 1] as any) <= (val as any));
+    case "eq":  return args.every((val) => val === args[0]);
+    case "neq": return new Set(args).size === args.length;
+    case "geq": return args.every((val, i) => i === 0 || (args[i - 1] as any) >= (val as any));
+    case "gt":  return args.every((val, i) => i === 0 || (args[i - 1] as any) > (val as any));
     // Date
     case "year": {
       const d = new Date(args[0] as string);
@@ -103,6 +118,76 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
         cur = (cur as Record<string, unknown>)[segment as string];
       }
       return cur ?? missing(null);
+    }
+    // Conversion & Rounding
+    case "to_string": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      return String(args[0]);
+    }
+    case "to_number": {
+      if (args[0] === null || args[0] === undefined || args[0] === "") return missing(null);
+      const val = Number(args[0]);
+      if (isNaN(val)) return missing(null);
+      const mode = typeof args[1] === "string" ? args[1].toLowerCase() : "float";
+      if (mode === "int" || mode === "integer") {
+        return Math.trunc(val);
+      }
+      return val;
+    }
+    case "round": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      const val = Number(args[0]);
+      if (isNaN(val)) return missing(null);
+      const decimals = typeof args[1] === "number" ? args[1] : 0;
+      const factor = Math.pow(10, decimals);
+      return Math.round(val * factor) / factor;
+    }
+    case "ceil": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      const val = Number(args[0]);
+      if (isNaN(val)) return missing(null);
+      return Math.ceil(val);
+    }
+    case "floor": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      const val = Number(args[0]);
+      if (isNaN(val)) return missing(null);
+      return Math.floor(val);
+    }
+    // String Operations
+    case "starts_with": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      return String(args[0]).startsWith(String(args[1] ?? ""));
+    }
+    case "ends_with": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      return String(args[0]).endsWith(String(args[1] ?? ""));
+    }
+    case "contains": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      return String(args[0]).includes(String(args[1] ?? ""));
+    }
+    case "substring": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      const str = String(args[0]);
+      const start = Number(args[1] ?? 0);
+      const len = args[2] !== undefined ? Number(args[2]) : undefined;
+      return len !== undefined ? str.slice(start, start + len) : str.slice(start);
+    }
+    case "trim": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      return String(args[0]).trim();
+    }
+    case "lower": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      return String(args[0]).toLowerCase();
+    }
+    case "upper": {
+      if (args[0] === null || args[0] === undefined) return missing(null);
+      return String(args[0]).toUpperCase();
+    }
+    case "concat": {
+      return args.map((a) => (a === null || a === undefined ? "" : String(a))).join("");
     }
     default:
       throw new Error(`Pipeline: unsupported op "${(step as any).op}"`);

@@ -102,7 +102,7 @@ export class FilterStore {
         // Basic type-aware constraints
         const propType = this.getPropertyType(schema, op.property);
         if (propType === "number") {
-          if (op.operator === "like" || op.operator === "not_like") {
+          if (["like", "not_like", "starts_with", "ends_with", "contains"].includes(op.operator)) {
             throw new StatefulFrameworkError(
               ErrorCode.FILTER_OPERATOR_INVALID,
               `Operator "${op.operator}" is not allowed on numeric property "${op.property}"`
@@ -183,7 +183,7 @@ export class FilterStore {
         // Basic type-aware constraints
         const propType = this.getPropertyType(schema, op.property);
         if (propType === "number") {
-          if (op.operator === "like" || op.operator === "not_like") {
+          if (["like", "not_like", "starts_with", "ends_with", "contains"].includes(op.operator)) {
             throw new StatefulFrameworkError(
               ErrorCode.FILTER_OPERATOR_INVALID,
               `Operator "${op.operator}" is not allowed on numeric property "${op.property}"`

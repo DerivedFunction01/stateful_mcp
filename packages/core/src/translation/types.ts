@@ -9,7 +9,10 @@ export type OpName =
   | "lt"  | "leq" | "eq"  | "neq" | "geq" | "gt"
   | "year" | "month" | "day" | "quarter" | "date_diff"
   | "get"
-  | "json_parse";
+  | "json_parse"
+  | "to_string" | "to_number"
+  | "round" | "ceil" | "floor"
+  | "starts_with" | "ends_with" | "contains" | "substring" | "trim" | "lower" | "upper" | "concat";
 
 export interface PipelineStep {
   op: OpName;

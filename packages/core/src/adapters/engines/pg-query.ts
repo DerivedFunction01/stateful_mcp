@@ -7,6 +7,7 @@ export class PgQueryEngine implements QueryEngine {
   public supportedOpFamilies = ["comparison", "set", "sort", "aggregation"];
   public supportedOperations = [
     "eq", "neq", "gt", "geq", "lt", "leq", "like", "not_like",
+    "starts_with", "ends_with", "contains",
     "in_set", "not_in_set", "between", "not_between"
   ];
 
@@ -60,6 +61,18 @@ export class PgQueryEngine implements QueryEngine {
           return `${prop} NOT LIKE $${params.length}`;
         });
         return `(${conds.join(" AND ")})`;
+      }
+      case "starts_with": {
+        params.push(`${val}%`);
+        return `${prop} LIKE $${params.length}`;
+      }
+      case "ends_with": {
+        params.push(`%${val}`);
+        return `${prop} LIKE $${params.length}`;
+      }
+      case "contains": {
+        params.push(`%${val}%`);
+        return `${prop} LIKE $${params.length}`;
       }
       case "in_set": {
         const list = Array.isArray(val) ? val : String(val).split(",").map(s => s.trim());

@@ -328,6 +328,82 @@ export async function runFilterTests() {
   if (!sqliteSQL.includes("json_extract(json(`tags_blob`), '$.version')")) {
     throw new Error(`compilePipelineToSQL SQLite failed: ${sqliteSQL}`);
   }
+
+  // Test new conversion and rounding ops
+  // 1. to_string
+  const strRes = executePipeline([{ op: "to_string", args: [123.45] }], {}, {});
+  if (strRes !== "123.45") throw new Error(`to_string failed. Got ${strRes}`);
+
+  // 2. to_number (float & int mode)
+  const numFloatRes = executePipeline([{ op: "to_number", args: ["45.67"] }], {}, {});
+  if (numFloatRes !== 45.67) throw new Error(`to_number float failed. Got ${numFloatRes}`);
+
+  const numIntRes = executePipeline([{ op: "to_number", args: ["45.67", "int"] }], {}, {});
+  if (numIntRes !== 45) throw new Error(`to_number int failed. Got ${numIntRes}`);
+
+  // 3. round
+  const roundRes = executePipeline([{ op: "round", args: [12.3456, 2] }], {}, {});
+  if (roundRes !== 12.35) throw new Error(`round failed. Got ${roundRes}`);
+
+  // 4. ceil & floor
+  const ceilRes = executePipeline([{ op: "ceil", args: [12.1] }], {}, {});
+  if (ceilRes !== 13) throw new Error(`ceil failed. Got ${ceilRes}`);
+
+  const floorRes = executePipeline([{ op: "floor", args: [12.9] }], {}, {});
+  if (floorRes !== 12) throw new Error(`floor failed. Got ${floorRes}`);
+
+  // 6. Test variadic arithmetic ops (add [1, 2, 5, 7], mul, sub, div, mod, exp)
+  const addVariadic = executePipeline([{ op: "add", args: [1, 2, 5, 7] }], {}, {});
+  if (addVariadic !== 15) throw new Error(`add variadic failed. Got ${addVariadic}`);
+
+  const subVariadic = executePipeline([{ op: "sub", args: [20, 5, 3] }], {}, {});
+  if (subVariadic !== 12) throw new Error(`sub variadic failed. Got ${subVariadic}`);
+
+  const mulVariadic = executePipeline([{ op: "mul", args: [2, 3, 4] }], {}, {});
+  if (mulVariadic !== 24) throw new Error(`mul variadic failed. Got ${mulVariadic}`);
+
+  const divVariadic = executePipeline([{ op: "div", args: [100, 2, 5] }], {}, {});
+  if (divVariadic !== 10) throw new Error(`div variadic failed. Got ${divVariadic}`);
+
+  const modVariadic = executePipeline([{ op: "mod", args: [100, 30, 7] }], {}, {});
+  if (modVariadic !== 3) throw new Error(`mod variadic failed. Got ${modVariadic}`);
+
+  const expVariadic = executePipeline([{ op: "exp", args: [2, 3, 2] }], {}, {});
+  if (expVariadic !== 64) throw new Error(`exp variadic failed. Got ${expVariadic}`);
+
+  // 7. Test string pipeline ops
+  const startsWithRes = executePipeline([{ op: "starts_with", args: ["hello world", "hello"] }], {}, {});
+  if (startsWithRes !== true) throw new Error(`starts_with pipeline op failed`);
+
+  const endsWithRes = executePipeline([{ op: "ends_with", args: ["hello world", "world"] }], {}, {});
+  if (endsWithRes !== true) throw new Error(`ends_with pipeline op failed`);
+
+  const containsRes = executePipeline([{ op: "contains", args: ["hello world", "lo wo"] }], {}, {});
+  if (containsRes !== true) throw new Error(`contains pipeline op failed`);
+
+  const concatRes = executePipeline([{ op: "concat", args: ["foo", "-", "bar", "-", 123] }], {}, {});
+  if (concatRes !== "foo-bar-123") throw new Error(`concat pipeline op failed. Got ${concatRes}`);
+
+  const substrRes = executePipeline([{ op: "substring", args: ["hello world", 6, 5] }], {}, {});
+  // 9. Test chained variadic comparison ops (leq [0, x, 100], eq [a, b, c], neq [a, b, c])
+  const leqChainedTrue = executePipeline([{ op: "leq", args: [0, 50, 100] }], {}, {});
+  if (leqChainedTrue !== true) throw new Error(`chained leq failed for valid range`);
+
+  const leqChainedFalse = executePipeline([{ op: "leq", args: [0, 150, 100] }], {}, {});
+  if (leqChainedFalse !== false) throw new Error(`chained leq failed for invalid range`);
+
+  const eqChained = executePipeline([{ op: "eq", args: [42, 42, 42] }], {}, {});
+  if (eqChained !== true) throw new Error(`chained eq failed`);
+
+  const neqChained = executePipeline([{ op: "neq", args: [1, 2, 3] }], {}, {});
+  if (neqChained !== true) throw new Error(`chained neq failed`);
+
+  const compiledLeqChainedSqlite = compilePipelineToSQL([{ op: "leq", args: [{ $init: "min" }, { $init: "val" }, { $init: "max" }] }], "sqlite");
+  if (!compiledLeqChainedSqlite.includes("(`min` <= `val` AND `val` <= `max`)")) {
+    throw new Error(`chained leq sqlite compilation failed: ${compiledLeqChainedSqlite}`);
+  }
+
+  console.log("✓ All variadic arithmetic, string, and chained comparison pipeline ops evaluated, validated, and compiled correctly.");
   console.log("✓ compilePipelineToSQL (SQLite) compiled nested paths successfully.");
 
   const pgSQL = compilePipelineToSQL(translationPipeline, "postgres");

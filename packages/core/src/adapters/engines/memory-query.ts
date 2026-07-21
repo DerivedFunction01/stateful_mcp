@@ -74,6 +74,12 @@ export function evaluateFilter(row: any, cond: FilterCondition): boolean {
         return target.every(p => !evaluateLike(val, String(p)));
       }
       return !evaluateLike(val, String(target));
+    case "starts_with":
+      return String(val).startsWith(String(target));
+    case "ends_with":
+      return String(val).endsWith(String(target));
+    case "contains":
+      return String(val).includes(String(target));
     case "in_set":
       if (Array.isArray(target)) {
         return target
@@ -297,6 +303,7 @@ export class MemoryQueryEngine implements QueryEngine {
   public supportedOpFamilies = ["comparison", "set", "sort", "aggregation"];
   public supportedOperations = [
     "eq", "neq", "gt", "geq", "lt", "leq", "like", "not_like",
+    "starts_with", "ends_with", "contains",
     "in_set", "not_in_set", "between", "not_between"
   ];
 

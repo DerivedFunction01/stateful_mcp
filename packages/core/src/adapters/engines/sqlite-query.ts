@@ -9,6 +9,7 @@ export class SqliteQueryEngine implements QueryEngine {
   public supportedOpFamilies = ["comparison", "set", "sort", "aggregation"];
   public supportedOperations = [
     "eq", "neq", "gt", "geq", "lt", "leq", "like", "not_like",
+    "starts_with", "ends_with", "contains",
     "in_set", "not_in_set", "between", "not_between"
   ];
 
@@ -66,6 +67,18 @@ export class SqliteQueryEngine implements QueryEngine {
           return `${prop} NOT LIKE ?`;
         });
         return `(${conds.join(" AND ")})`;
+      }
+      case "starts_with": {
+        params.push(`${val}%`);
+        return `${prop} LIKE ?`;
+      }
+      case "ends_with": {
+        params.push(`%${val}`);
+        return `${prop} LIKE ?`;
+      }
+      case "contains": {
+        params.push(`%${val}%`);
+        return `${prop} LIKE ?`;
       }
       case "in_set": {
         const list = Array.isArray(val) ? val : String(val).split(",").map(s => s.trim());

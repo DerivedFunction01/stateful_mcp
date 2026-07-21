@@ -58,10 +58,12 @@ export function validateTableTranslation(
 }
 
 function opFamily(op: string): string {
-  if (["add","sub","mul","div","mod","exp"].includes(op)) return "arithmetic";
+  if (["add","sub","mul","div","mod","exp","round","ceil","floor"].includes(op)) return "arithmetic";
   if (["lt","leq","eq","neq","geq","gt"].includes(op)) return "comparison";
   if (["year","month","day","quarter","date_diff"].includes(op)) return "date";
   if (["get","json_parse"].includes(op)) return "nested_access";
+  if (["to_string","to_number"].includes(op)) return "conversion";
+  if (["starts_with","ends_with","contains","substring","trim","lower","upper","concat"].includes(op)) return "string";
   if (["explode"].includes(op)) return "explode";
   return "unknown";
 }

@@ -39,41 +39,58 @@ export function compilePipelineToSQL(
     
     switch (step.op) {
       case "add":
-        lastExpr = `(${args[0]} + ${args[1]})`;
+        lastExpr = args.length === 0 ? "0" : `(${args.join(" + ")})`;
         break;
       case "sub":
-        lastExpr = `(${args[0]} - ${args[1]})`;
+        lastExpr = args.length === 0 ? "0" : args.length === 1 ? `(-${args[0]})` : `(${args.join(" - ")})`;
         break;
       case "mul":
-        lastExpr = `(${args[0]} * ${args[1]})`;
+        lastExpr = args.length === 0 ? "1" : `(${args.join(" * ")})`;
         break;
       case "div":
-        lastExpr = `(${args[0]} / ${args[1]})`;
+        lastExpr = args.length === 0 ? "0" : `(${args.join(" / ")})`;
         break;
       case "mod":
-        lastExpr = `(${args[0]} % ${args[1]})`;
+        lastExpr = args.length === 0 ? "0" : `(${args.join(" % ")})`;
         break;
       case "exp":
-        lastExpr = `POWER(${args[0]}, ${args[1]})`;
+        lastExpr = args.length === 0 ? "0" : args.slice(1).reduce((acc, curr) => `POWER(${acc}, ${curr})`, args[0]!);
         break;
-      case "lt":
-        lastExpr = `(${args[0]} < ${args[1]})`;
+      case "lt": {
+        const conds = args.slice(1).map((val, i) => `${args[i]} < ${val}`);
+        lastExpr = conds.length === 0 ? "1=1" : `(${conds.join(" AND ")})`;
         break;
-      case "leq":
-        lastExpr = `(${args[0]} <= ${args[1]})`;
+      }
+      case "leq": {
+        const conds = args.slice(1).map((val, i) => `${args[i]} <= ${val}`);
+        lastExpr = conds.length === 0 ? "1=1" : `(${conds.join(" AND ")})`;
         break;
-      case "eq":
-        lastExpr = `(${args[0]} = ${args[1]})`;
+      }
+      case "eq": {
+        const conds = args.slice(1).map((val) => `${args[0]} = ${val}`);
+        lastExpr = conds.length === 0 ? "1=1" : `(${conds.join(" AND ")})`;
         break;
-      case "neq":
-        lastExpr = `(${args[0]} != ${args[1]})`;
+      }
+      case "neq": {
+        const conds: string[] = [];
+        for (let i = 0; i < args.length; i++) {
+          for (let j = i + 1; j < args.length; j++) {
+            conds.push(`${args[i]} != ${args[j]}`);
+          }
+        }
+        lastExpr = conds.length === 0 ? "1=1" : `(${conds.join(" AND ")})`;
         break;
-      case "geq":
-        lastExpr = `(${args[0]} >= ${args[1]})`;
+      }
+      case "geq": {
+        const conds = args.slice(1).map((val, i) => `${args[i]} >= ${val}`);
+        lastExpr = conds.length === 0 ? "1=1" : `(${conds.join(" AND ")})`;
         break;
-      case "gt":
-        lastExpr = `(${args[0]} > ${args[1]})`;
+      }
+      case "gt": {
+        const conds = args.slice(1).map((val, i) => `${args[i]} > ${val}`);
+        lastExpr = conds.length === 0 ? "1=1" : `(${conds.join(" AND ")})`;
         break;
+      }
       case "year":
         lastExpr = dialect === "sqlite"
           ? `CAST(strftime('%Y', ${args[0]}) AS INTEGER)`
@@ -128,6 +145,63 @@ export function compilePipelineToSQL(
         }
         break;
       }
+      case "to_string":
+        lastExpr = `CAST(${args[0]} AS TEXT)`;
+        break;
+      case "to_number": {
+        const mode = args[1] && (args[1] === "'int'" || args[1] === "'integer'") ? "INTEGER" : (dialect === "sqlite" ? "REAL" : "NUMERIC");
+        lastExpr = `CAST(${args[0]} AS ${mode})`;
+        break;
+      }
+      case "round": {
+        const decimals = args[1] ?? "0";
+        lastExpr = dialect === "sqlite"
+          ? `ROUND(${args[0]}, ${decimals})`
+          : `ROUND(CAST(${args[0]} AS NUMERIC), ${decimals})`;
+        break;
+      }
+      case "ceil":
+        lastExpr = dialect === "sqlite" ? `CEIL(${args[0]})` : `CEILING(${args[0]})`;
+        break;
+      case "floor":
+        lastExpr = `FLOOR(${args[0]})`;
+        break;
+      case "starts_with":
+        lastExpr = dialect === "sqlite"
+          ? `(${args[0]} LIKE ${args[1]} || '%')`
+          : `(${args[0]} LIKE CONCAT(${args[1]}, '%'))`;
+        break;
+      case "ends_with":
+        lastExpr = dialect === "sqlite"
+          ? `(${args[0]} LIKE '%' || ${args[1]})`
+          : `(${args[0]} LIKE CONCAT('%', ${args[1]}))`;
+        break;
+      case "contains":
+        lastExpr = dialect === "sqlite"
+          ? `(${args[0]} LIKE '%' || ${args[1]} || '%')`
+          : `(${args[0]} LIKE CONCAT('%', ${args[1]}, '%'))`;
+        break;
+      case "substring": {
+        const start = args[1] ?? "0";
+        lastExpr = dialect === "sqlite"
+          ? `SUBSTR(${args[0]}, (${start}) + 1${args[2] !== undefined ? `, ${args[2]}` : ""})`
+          : `SUBSTRING(${args[0]} FROM (${start}) + 1${args[2] !== undefined ? ` FOR ${args[2]}` : ""})`;
+        break;
+      }
+      case "trim":
+        lastExpr = `TRIM(${args[0]})`;
+        break;
+      case "lower":
+        lastExpr = `LOWER(${args[0]})`;
+        break;
+      case "upper":
+        lastExpr = `UPPER(${args[0]})`;
+        break;
+      case "concat":
+        lastExpr = dialect === "sqlite"
+          ? `(${args.join(" || ")})`
+          : `CONCAT(${args.join(", ")})`;
+        break;
       default:
         throw new Error(`Pipeline compiler: unsupported op "${step.op}"`);
     }
