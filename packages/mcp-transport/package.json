@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@stateful-mcp/core": "workspace:*"
+    "@stateful-mcp/core": "workspace:*",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/bun": "latest",
