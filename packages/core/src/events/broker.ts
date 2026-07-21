@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 
 export interface StateChangeEvent {
-  service: "filter" | "object" | "form" | "event";
+  service: "filter" | "object" | "form" | "event" | "variable";
   action: string;
   sessionId: string;
   id: string;
