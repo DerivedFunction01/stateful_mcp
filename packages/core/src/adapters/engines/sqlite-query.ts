@@ -9,7 +9,7 @@ export class SqliteQueryEngine implements QueryEngine {
   public supportedOpFamilies = ["comparison", "set", "sort", "aggregation"];
   public supportedOperations = [
     "eq", "neq", "gt", "geq", "lt", "leq", "like", "not_like",
-    "starts_with", "ends_with", "contains",
+    "starts_with", "ends_with", "str_contains",
     "in_set", "not_in_set", "between", "not_between"
   ];
 
@@ -76,7 +76,7 @@ export class SqliteQueryEngine implements QueryEngine {
         params.push(`%${val}`);
         return `${prop} LIKE ?`;
       }
-      case "contains": {
+      case "str_contains": {
         params.push(`%${val}%`);
         return `${prop} LIKE ?`;
       }

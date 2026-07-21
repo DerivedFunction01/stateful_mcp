@@ -91,6 +91,18 @@ export function compilePipelineToSQL(
         lastExpr = conds.length === 0 ? "1=1" : `(${conds.join(" AND ")})`;
         break;
       }
+      case "in_set": {
+        if (args.length < 2) { lastExpr = "1=0"; break; }
+        const [subject, ...members] = args;
+        lastExpr = `(${subject} IN (${members.join(", ")})`;
+        break;
+      }
+      case "not_in_set": {
+        if (args.length < 2) { lastExpr = "1=1"; break; }
+        const [subject, ...members] = args;
+        lastExpr = `(${subject} NOT IN (${members.join(", ")})`;
+        break;
+      }
       case "year":
         lastExpr = dialect === "sqlite"
           ? `CAST(strftime('%Y', ${args[0]}) AS INTEGER)`
@@ -184,7 +196,7 @@ export function compilePipelineToSQL(
         lastExpr = `(${conds.join(" OR ")})`;
         break;
       }
-      case "contains": {
+      case "str_contains": {
         let patterns = args.slice(1);
         let mode = "all";
         const last = patterns[patterns.length - 1];

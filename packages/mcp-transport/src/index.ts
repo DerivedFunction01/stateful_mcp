@@ -33,8 +33,11 @@ async function start(service: string): Promise<void> {
     case "trace":
       await import("./tools/trace.js");
       break;
+    case "variable":
+      await import("./tools/variable.js");
+      break;
     default:
-      console.error(`[Error] Unknown SERVICE_TYPE: "${service}". Must be: "filter", "object", "dictionary", "log", "event", "form", or "trace"`);
+      console.error(`[Error] Unknown SERVICE_TYPE: "${service}". Must be: "filter", "object", "dictionary", "log", "event", "form", "trace", or "variable"`);
       process.exit(1);
   }
 }

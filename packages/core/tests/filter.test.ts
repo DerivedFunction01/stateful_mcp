@@ -379,13 +379,13 @@ export async function runFilterTests() {
   if (endsWithRes !== true) throw new Error(`ends_with pipeline op failed`);
 
   // 10. Test variadic pattern matching (contains all/any, starts_with, ends_with)
-  const containsAllTrue = executePipeline([{ op: "contains", args: ["hello world", "hello", "world"] }], {}, {});
+  const containsAllTrue = executePipeline([{ op: "str_contains", args: ["hello world", "hello", "world"] }], {}, {});
   if (containsAllTrue !== true) throw new Error(`contains all true failed`);
 
-  const containsAllFalse = executePipeline([{ op: "contains", args: ["hello world", "hello", "foo"] }], {}, {});
+  const containsAllFalse = executePipeline([{ op: "str_contains", args: ["hello world", "hello", "foo"] }], {}, {});
   if (containsAllFalse !== false) throw new Error(`contains all false failed`);
 
-  const containsAnyTrue = executePipeline([{ op: "contains", args: ["hello world", "foo", "world", "any"] }], {}, {});
+  const containsAnyTrue = executePipeline([{ op: "str_contains", args: ["hello world", "foo", "world", "any"] }], {}, {});
   if (containsAnyTrue !== true) throw new Error(`contains any true failed`);
 
   const startsWithVariadic = executePipeline([{ op: "starts_with", args: ["https://example.com", "http://", "https://"] }], {}, {});
@@ -394,7 +394,7 @@ export async function runFilterTests() {
   const endsWithVariadic = executePipeline([{ op: "ends_with", args: ["image.png", ".jpg", ".png"] }], {}, {});
   if (endsWithVariadic !== true) throw new Error(`ends_with variadic failed`);
 
-  const compiledContainsAnySqlite = compilePipelineToSQL([{ op: "contains", args: [{ $init: "url" }, "foo", "bar", "any"] }], "sqlite");
+  const compiledContainsAnySqlite = compilePipelineToSQL([{ op: "str_contains", args: [{ $init: "url" }, "foo", "bar", "any"] }], "sqlite");
   if (!compiledContainsAnySqlite.includes("(`url` LIKE '%' || 'foo' || '%' OR `url` LIKE '%' || 'bar' || '%')")) {
     throw new Error(`contains any sqlite compilation failed: ${compiledContainsAnySqlite}`);
   }

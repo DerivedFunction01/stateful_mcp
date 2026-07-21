@@ -63,7 +63,7 @@ function opFamily(op: string): string {
   if (["year","month","day","quarter","date_diff"].includes(op)) return "date";
   if (["get","json_parse"].includes(op)) return "nested_access";
   if (["to_string","to_number"].includes(op)) return "conversion";
-  if (["starts_with","ends_with","contains","substring","trim","lower","upper","concat"].includes(op)) return "string";
+  if (["starts_with","ends_with","str_contains","substring","trim","lower","upper","concat"].includes(op)) return "string";
   if (["explode"].includes(op)) return "explode";
   return "unknown";
 }

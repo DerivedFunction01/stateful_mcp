@@ -7,12 +7,13 @@ export type ArgRef =
 export type OpName =
   | "add" | "sub" | "mul" | "div" | "mod" | "exp"
   | "lt"  | "leq" | "eq"  | "neq" | "geq" | "gt"
+  | "in_set" | "not_in_set"
   | "year" | "month" | "day" | "quarter" | "date_diff"
   | "get"
   | "json_parse"
   | "to_string" | "to_number"
   | "round" | "ceil" | "floor"
-  | "starts_with" | "ends_with" | "contains" | "substring" | "trim" | "lower" | "upper" | "concat";
+  | "starts_with" | "ends_with" | "str_contains" | "substring" | "trim" | "lower" | "upper" | "concat";
 
 export interface PipelineStep {
   op: OpName;

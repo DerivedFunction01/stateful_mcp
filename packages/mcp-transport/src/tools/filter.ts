@@ -32,9 +32,16 @@ function registerFilterTools(paginationLimits: PaginationLimitsConfig | undefine
   const filterConditionSchema = z.object({
   property: z.string().describe("The property to filter on."),
   operator: z.enum([
-    "eq", "neq", "gt", "geq", "lt", "leq", "like", "not_like",
-    "in_set", "not_in_set", "between", "not_between"
-  ]).describe("The comparison operator."),
+    "eq", "neq",                                          // = !=  (any type)
+    "lt", "leq", "geq", "gt",                            // < <= >= >  (numeric / date)
+    "like", "not_like",                                   // raw LIKE pattern (caller supplies %)
+    "starts_with", "ends_with", "str_contains",           // LIKE 'x%' '%x' '%x%'  (no %% needed)
+    "in_set", "not_in_set",                              // IN (...) NOT IN (...)
+    "between", "not_between"                              // BETWEEN a AND b
+  ]).describe(
+    "SQL-like filter operator. " +
+    "str_contains / starts_with / ends_with do not require %% padding — supply the plain substring."
+  ),
   value: z.any().describe("The value(s) to match.")
 });
 

@@ -88,10 +88,11 @@ npm run build         # bundles dist/index.js (bun build) + emits .d.ts + copies
 5. **Log Service** — stateless, paginated traversal over filter/object history using HMAC-signed page tokens.
 6. **Form Service** — manage stateful interactive forms with branching logic, step validations, and back-navigation staleness tracking.
 7. **Trace Service** — procedural execution learning, macro tool execution, delta refinements, and compensation rollbacks.
+8. **Variable Service** — scoped transient variable management (`{x=10, y=20}`), 2-tier namespace isolation, reactive mutation events, and AST translation compiler execution.
 
 Each service exposes `*_about` / `*_examples` developer-guidance tools. LLMs should consult them when handling complex state.
 
-See `docs/` for the full reference (filter, object, form, trace, event, dictionary, log, config, pipeline, browser).
+See `docs/` for the full reference (filter, object, form, trace, event, dictionary, log, variable, config, pipeline, browser).
 
 ---
 

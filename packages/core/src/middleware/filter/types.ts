@@ -13,7 +13,7 @@ export interface FilterCondition {
     | "not_like"
     | "starts_with"
     | "ends_with"
-    | "contains"
+    | "str_contains"
     | "in_set"
     | "not_in_set"
     | "between"

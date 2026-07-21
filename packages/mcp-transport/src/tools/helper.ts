@@ -113,3 +113,14 @@ export function getEventStore(config: MiddlewareConfig, workspaceRoot: string): 
   return new EventStore(sessionStore, persistentStore, objectSchemas, threshold, validationEngines, workspaceRoot);
 }
 
+import type { VariableService } from "@stateful-mcp/core";
+let globalVariableStore: VariableService | undefined;
+
+export function getVariableStore(): VariableService | undefined {
+  return globalVariableStore;
+}
+
+export function setVariableStore(store: VariableService): void {
+  globalVariableStore = store;
+}
+

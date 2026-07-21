@@ -4,6 +4,7 @@ import { runDictionaryTests } from "./tests/dictionary.test";
 import { runLogTests } from "./tests/log.test";
 import { runEventTests } from "./tests/event.test";
 import { runMetaTests } from "./tests/meta.test";
+import { runVariableTests } from "./tests/variable.test";
 import { eventBroker } from "./src/events/broker";
 
 async function main() {
@@ -19,6 +20,7 @@ async function main() {
     await runLogTests();
     await runEventTests();
     await runMetaTests();
+    await runVariableTests();
 
     if (capturedEvents.length === 0) {
       throw new Error("No state change events were emitted during store tests!");

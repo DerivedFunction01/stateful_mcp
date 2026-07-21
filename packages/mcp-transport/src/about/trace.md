@@ -69,11 +69,10 @@ The **Trace Form Engine (`TraceStore`)** introduces **procedural execution learn
 
 ---
 
-## 3. Developer Integration & Auto-Recording Mechanics
+## 3. Rules of Engagement & Best Practices
 
-When building a new stateful service (e.g. `notification_service`), developers do **NOT** manually call `traceStore.recordStep()` inside every tool handler:
-
-1. **Automatic Event Interception**: Standard stateful tool handlers emit state mutation events via `eventBroker.emit("state:changed", { service, action, sessionId, data })`.
-2. **Zero-Boilerplate Auto-Recording**: `TraceStore` listens to `CoreEventBroker` globally. When an active session is recording, `TraceStore` automatically captures and formats executed steps.
-3. **Filtering Meta-Tools**: `TraceStore` checks `isRecordableTool(action)`. Meta guidance (`*_about`, `*_examples`) and trace management tools (`trace_*`) are excluded automatically via `DEFAULT_NON_RECORDABLE_SERVICE_TOOLS` (or `meta_tools.config.json`).
+* **Search Existing Traces First**: Before building a workflow from scratch, call `trace_query` to check if a pre-constructed trace macro already matches the goal.
+* **Reuse & Execute**: Execute verified workflows using `trace_exec` with LLM-supplied input slot arguments rather than executing individual tool calls manually.
+* **Handle Paused Execution**: If `trace_exec` returns `status: "paused"`, yield the `resume_token` and prompt for client/human approval or missing slot parameters before calling `trace_resume`.
+* **Delta Refinements**: When modifying an existing trace, submit targeted delta operations via `trace_refine` (`replace_step`, `append_step`, `remove_step`, `promote_arg`) instead of regenerating the entire step graph.
 

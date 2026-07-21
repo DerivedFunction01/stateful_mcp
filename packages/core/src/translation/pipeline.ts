@@ -9,7 +9,7 @@ function resolveArg(
 ): unknown {
   if (arg !== null && typeof arg === "object") {
     if ("$init" in arg) return row[arg.$init] !== undefined ? row[arg.$init] : constants[arg.$init];
-    if ("$var" in arg) return vars[arg.$var];
+    if ("$var" in arg) return vars[arg.$var] !== undefined ? vars[arg.$var] : row[arg.$var];
     if ("$fn" in arg) {
       if (arg.$fn === "now") return new Date().toISOString().slice(0, 10);
       if (arg.$fn === "utc_time") return new Date().toISOString();
@@ -81,6 +81,17 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
     case "neq": return new Set(args).size === args.length;
     case "geq": return args.every((val, i) => i === 0 || (args[i - 1] as any) >= (val as any));
     case "gt":  return args.every((val, i) => i === 0 || (args[i - 1] as any) > (val as any));
+    // Set membership (args[0] = test value, args[1..] = allowed set)
+    case "in_set": {
+      if (args.length < 2) return false;
+      const [testVal, ...set] = args;
+      return set.some((member) => member === testVal);
+    }
+    case "not_in_set": {
+      if (args.length < 2) return true;
+      const [testVal, ...set] = args;
+      return set.every((member) => member !== testVal);
+    }
     // Date
     case "year": {
       const d = new Date(args[0] as string);
@@ -169,7 +180,7 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
       if (suffixes.length === 0) return true;
       return suffixes.some((s) => str.endsWith(s));
     }
-    case "contains": {
+    case "str_contains": {
       if (args[0] === null || args[0] === undefined) return missing(null);
       let patterns = args.slice(1);
       let matchMode = "all";
