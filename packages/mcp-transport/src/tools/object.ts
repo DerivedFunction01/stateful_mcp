@@ -36,13 +36,13 @@ function registerObjectTools(paginationLimits: PaginationLimitsConfig | undefine
     description: "Initialize an empty object against a schema",
     inputSchema: {
       schema_name: z.string().describe("The name of the registered schema."),
-      session_id: z.string().describe("The session identifier."),
       alias: z.string().optional().describe("Optional descriptive alias to tag the initial state."),
       data: z.record(z.string(), z.any()).optional().describe("Optional initial key-value data to populate."),
       get_schema_hint: z.boolean().optional().describe("If true, returns the JSON schema definition in the response to guide parameter population.")
     }
   },
-  async ({ schema_name, session_id, alias, data, get_schema_hint }) => {
+    async ({ schema_name, alias, data, get_schema_hint }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const objectId = await objectStore.init(schema_name, session_id, alias, data);
       const res: Record<string, any> = { object_id: objectId };
@@ -64,8 +64,6 @@ server.registerTool(
       object_id: z.string().describe("The target object version ID or alias."),
       path: z.array(pathSegmentSchema).describe("Field path (e.g. ['date_range', 'start_date'])."),
       value: z.any().describe("The field value to set."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier."),
       new_alias: z.string().optional().describe("Optional new descriptive alias to point to the mutated head, leaving the old alias at the parent checkpoint.")
     }
   },
@@ -86,11 +84,11 @@ server.registerTool(
     inputSchema: {
       object_id: z.string().describe("The target object version ID."),
       partial: z.record(z.string(), z.any()).describe("Sparse properties delta overlay."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ object_id, partial, session_id, user_id }) => {
+    async ({ object_id, partial }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const newObjectId = await objectStore.patch(object_id, partial, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify({ new_object_id: newObjectId }) }] };
@@ -109,8 +107,6 @@ server.registerTool(
       path: z.array(pathSegmentSchema).describe("The path where reference will reside."),
       source_object_id: z.string().describe("The referenced source object ID."),
       source_path: z.array(pathSegmentSchema).describe("The path in the source object to reference."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
   async ({ object_id, path: fieldPath, source_object_id, source_path, session_id, user_id }) => {
@@ -129,11 +125,11 @@ server.registerTool(
     description: "Perform recursively completeness and cross-field constraint validations",
     inputSchema: {
       object_id: z.string().describe("The target object ID to validate."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ object_id, session_id, user_id }) => {
+    async ({ object_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const result = await objectStore.validate(object_id, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
@@ -150,11 +146,11 @@ server.registerTool(
     inputSchema: {
       object_id: z.string().describe("The object ID to resolve."),
       mode: z.enum(["tool_call", "function"]).describe("Target payload format."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ object_id, mode, session_id, user_id }) => {
+    async ({ object_id, mode }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const payload = await objectStore.resolve(object_id, mode, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
@@ -174,8 +170,6 @@ server.registerTool(
       operation: z.enum(["insert", "remove", "replace"]).describe("The operation to perform."),
       index: z.number().optional().describe("Target position. Required for remove/replace; optional for insert."),
       value: z.any().optional().describe("Value payload. Required for replace; optional for insert."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
   async ({ object_id, path: fieldPath, operation, index, value, session_id, user_id }) => {
@@ -194,11 +188,11 @@ server.registerTool(
     description: "Collapse version chain into a standalone snapshot",
     inputSchema: {
       object_id: z.string().describe("The object ID to compress."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ object_id, session_id, user_id }) => {
+    async ({ object_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const compressedId = await objectStore.compress(object_id, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify({ compressed_object_id: compressedId }) }] };
@@ -217,10 +211,10 @@ server.registerTool(
       tags: z.array(z.string()).describe("Searchable tags."),
       description: z.string().describe("Purpose description."),
       scope: z.enum(["session", "user", "global"]).describe("Ownership level."),
-      session_id: z.string().describe("The session identifier.")
     }
   },
-  async ({ object_id, tags, description, scope, session_id }) => {
+    async ({ object_id, tags, description, scope }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const ownerScope = scope === "global" ? { level: "global" as const } : { level: "user" as const, userId: "" };
       const savedId = await objectStore.save(object_id, tags, description, ownerScope, session_id);
@@ -237,11 +231,11 @@ server.registerTool(
     description: "Get full inspection status of an object",
     inputSchema: {
       object_id: z.string().describe("The object ID to inspect."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ object_id, session_id, user_id }) => {
+    async ({ object_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const inspect = await objectStore.inspect(object_id, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify(inspect, null, 2) }] };
@@ -258,11 +252,11 @@ server.registerTool(
     inputSchema: {
       object_id_a: z.string().describe("Source object ID."),
       object_id_b: z.string().describe("Target object ID."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ object_id_a, object_id_b, session_id, user_id }) => {
+    async ({ object_id_a, object_id_b }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const diff = await objectStore.diff(object_id_a, object_id_b, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify(diff, null, 2) }] };
@@ -277,12 +271,12 @@ server.registerTool(
   {
     description: "Tag an existing object checkpoint with a new descriptive alias",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       id_or_alias: z.string().describe("The existing object ID or alias."),
       alias: z.string().describe("The new alias pointer name to assign.")
     }
   },
-  async ({ session_id, id_or_alias, alias }) => {
+    async ({ id_or_alias, alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const resolved = await objectStore["resolveId"](id_or_alias, session_id);
       const node = await objectStore.getObject(resolved, session_id);
@@ -302,14 +296,14 @@ server.registerTool(
   {
     description: "Prune intermediate object checkpoints in the current session that are not in the ancestry of the specified active/keep objects or active aliases",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       keep: z.array(z.string()).describe("Ancestors of these object IDs or aliases will be preserved."),
       confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty."),
       keep_aliases: z.array(z.string()).optional().describe("Whitelist: only keep these aliases (delete all others)."),
       delete_aliases: z.array(z.string()).optional().describe("Blacklist: explicitly delete these aliases.")
     }
   },
-  async ({ session_id, keep, confirm, keep_aliases, delete_aliases }) => {
+    async ({ keep, confirm, keep_aliases, delete_aliases }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       if (keep.length === 0 && !confirm) {
         throw new Error("Pruning the entire session requires confirm: true");

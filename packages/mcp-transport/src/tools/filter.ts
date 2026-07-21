@@ -50,14 +50,14 @@ server.registerTool(
   {
     description: "Initialize a new filter session",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       tool_name: z.string().optional().describe("Optional target tool for schema binding."),
       table_name: z.string().optional().describe("Optional sub-table within the tool."),
       alias: z.string().optional().describe("Optional descriptive alias to tag the initial state."),
       rules: z.array(filterConditionSchema).optional().describe("Optional initial list of filter rules to apply.")
     }
   },
-  async ({ session_id, tool_name, table_name, alias, rules }) => {
+    async ({ tool_name, table_name, alias, rules }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const filterId = await filterStore.init(session_id, tool_name, table_name, undefined, alias, rules);
       return { content: [{ type: "text", text: JSON.stringify({ filter_id: filterId }) }] };
@@ -74,12 +74,12 @@ server.registerTool(
     inputSchema: {
       filter_id: z.string().describe("The current filter state ID or alias."),
       operations: z.array(filterConditionSchema).describe("List of filter conditions to add."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier."),
       new_alias: z.string().optional().describe("Optional new descriptive alias to point to the mutated head, leaving the old alias at the parent checkpoint.")
     }
   },
-  async ({ filter_id, operations, session_id, user_id, new_alias }) => {
+    async ({ filter_id, operations, new_alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const newFilterId = await filterStore.add(filter_id, operations as any, session_id, user_id, new_alias);
       return { content: [{ type: "text", text: JSON.stringify({ new_filter_id: newFilterId }) }] };
@@ -95,11 +95,11 @@ server.registerTool(
     description: "Retrieve rules for a filter",
     inputSchema: {
       filter_id: z.string().describe("The filter ID to retrieve."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ filter_id, session_id, user_id }) => {
+    async ({ filter_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const filter = await filterStore.getFilter(filter_id, session_id, user_id);
       if (!filter) {
@@ -118,10 +118,10 @@ server.registerTool(
     description: "Compress filter rules hierarchy into a flat rule set",
     inputSchema: {
       filter_id: z.string().describe("Filter ID chain to compress."),
-      session_id: z.string().describe("The session identifier.")
     }
   },
-  async ({ filter_id, session_id }) => {
+    async ({ filter_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const compressedId = await filterStore.compress(filter_id, session_id);
       return { content: [{ type: "text", text: JSON.stringify({ compressed_filter_id: compressedId }) }] };
@@ -138,11 +138,11 @@ server.registerTool(
     inputSchema: {
       operation: z.enum(["union", "intersection", "difference", "symmetric_difference"]).describe("Set operation type."),
       ids: z.array(z.string()).describe("List of filter or view IDs to combine."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ operation, ids, session_id, user_id }) => {
+    async ({ operation, ids }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const combinedId = await filterStore.combine(operation, ids, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify({ combined_id: combinedId }) }] };
@@ -161,11 +161,11 @@ server.registerTool(
       tags: z.array(z.string()).describe("Searchable tags."),
       description: z.string().describe("Purpose description."),
       scope: z.enum(["session", "user", "global"]).describe("Ownership level."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ filter_id, tags, description, scope, session_id, user_id }) => {
+    async ({ filter_id, tags, description, scope }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const ownerScope = scope === "global" ? { level: "global" as const } : { level: "user" as const, userId: user_id || "" };
       const savedId = await filterStore.save(
@@ -275,11 +275,11 @@ server.registerTool(
       filter_id: z.string().describe("The filter ID to edit."),
       property: z.string().describe("The property matching the target rule."),
       operator: z.string().describe("The operator matching the target rule."),
-      session_id: z.string().describe("The session identifier."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ filter_id, property, operator, session_id, user_id }) => {
+    async ({ filter_id, property, operator }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const newFilterId = await filterStore.removeRule(filter_id, property, operator, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify({ new_filter_id: newFilterId }) }] };
@@ -294,13 +294,13 @@ server.registerTool(
   {
     description: "Compare two filter states in the session to find added/removed rules",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       filter_id_a: z.string().describe("The first filter state ID or alias."),
       filter_id_b: z.string().describe("The second filter state ID or alias."),
-      user_id: z.string().optional().describe("Optional user identifier.")
     }
   },
-  async ({ session_id, filter_id_a, filter_id_b, user_id }) => {
+    async ({ filter_id_a, filter_id_b }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
     try {
       const diffResult = await filterStore.diff(filter_id_a, filter_id_b, session_id, user_id);
       return { content: [{ type: "text", text: JSON.stringify(diffResult, null, 2) }] };
@@ -315,12 +315,12 @@ server.registerTool(
   {
     description: "Tag an existing filter checkpoint with a new descriptive alias",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       id_or_alias: z.string().describe("The existing filter ID or alias."),
       alias: z.string().describe("The new alias pointer name to assign.")
     }
   },
-  async ({ session_id, id_or_alias, alias }) => {
+    async ({ id_or_alias, alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const resolved = await filterStore["resolveId"](id_or_alias, session_id);
       const node = await filterStore.getFilter(resolved, session_id);
@@ -340,14 +340,14 @@ server.registerTool(
   {
     description: "Prune intermediate filter checkpoints in the current session that are not in the ancestry of the specified active/keep filters or active aliases",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       keep: z.array(z.string()).describe("Ancestors of these filter IDs or aliases will be preserved."),
       confirm: z.boolean().optional().describe("Explicit confirmation required if keep array is empty."),
       keep_aliases: z.array(z.string()).optional().describe("Whitelist: only keep these aliases (delete all others)."),
       delete_aliases: z.array(z.string()).optional().describe("Blacklist: explicitly delete these aliases.")
     }
   },
-  async ({ session_id, keep, confirm, keep_aliases, delete_aliases }) => {
+    async ({ keep, confirm, keep_aliases, delete_aliases }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       if (keep.length === 0 && !confirm) {
         throw new Error("Pruning the entire session requires confirm: true");

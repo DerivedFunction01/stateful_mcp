@@ -8,12 +8,22 @@ export type OwnerScope =
   | { level: "global" }
   | { level: "user"; userId: string };
 
+export interface StateRequirement {
+  id: string;
+  type: "filter" | "object" | "form" | "event";
+  schema?: string;
+  tableName?: string;
+  toolName?: string;
+  alias?: string;
+}
+
 export interface ToolConfig {
   schema: ResourceLocator;
   translation?: ResourceLocator;
   engine: ResourceLocator | Record<string, ResourceLocator>;  // single or per-table
   validation_engine?: ResourceLocator;
   inspect?: { expose_compiled?: boolean };
+  state_requirements?: StateRequirement[];
 }
 
 export interface AutoCompressionConfig {

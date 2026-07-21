@@ -33,13 +33,13 @@ function registerEventTools(paginationLimits: PaginationLimitsConfig | undefined
     description: "Initialize a new event log DAG chain",
     inputSchema: {
       schema_name: z.string().describe("The name of the registered event schema definition."),
-      session_id: z.string().describe("The session identifier."),
       alias: z.string().optional().describe("Optional descriptive alias to tag the initial checkpoint."),
       data: z.array(z.record(z.string(), z.any())).optional().describe("Optional initial list of event records to pre-populate."),
       get_schema_hint: z.boolean().optional().describe("If true, returns the JSON schema definition in the response to guide parameter population.")
     }
   },
-  async ({ schema_name, session_id, alias, data, get_schema_hint }) => {
+    async ({ schema_name, alias, data, get_schema_hint }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const commitId = await eventStore.init(schema_name, session_id, alias, data);
       const res: Record<string, any> = { commit_id: commitId };
@@ -58,13 +58,13 @@ server.registerTool(
   {
     description: "Append a new event instance to the log",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       id_or_alias: z.string().describe("The tip commit ID or alias being appended to."),
       data: z.record(z.string(), z.any()).describe("Event parameter values satisfying the schema."),
       alias: z.string().optional().describe("Optional alias to tag the new tip checkpoint.")
     }
   },
-  async ({ session_id, id_or_alias, data, alias }) => {
+    async ({ id_or_alias, data, alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const commitId = await eventStore.append(session_id, id_or_alias, data, alias);
       return { content: [{ type: "text", text: JSON.stringify({ commit_id: commitId }) }] };
@@ -79,14 +79,14 @@ server.registerTool(
   {
     description: "Patch an existing event instance within the log using a sparse delta",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       id_or_alias: z.string().describe("The tip commit ID or alias to patch."),
       event_id: z.string().describe("The unique event ID of the record in the array."),
       patch_data: z.record(z.string(), z.any()).describe("Sparse parameter key-value pairs to update."),
       alias: z.string().optional().describe("Optional alias to tag the new checkpoint.")
     }
   },
-  async ({ session_id, id_or_alias, event_id, patch_data, alias }) => {
+    async ({ id_or_alias, event_id, patch_data, alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const commitId = await eventStore.patch(session_id, id_or_alias, event_id, patch_data, alias);
       return { content: [{ type: "text", text: JSON.stringify({ commit_id: commitId }) }] };
@@ -101,13 +101,13 @@ server.registerTool(
   {
     description: "Delete an existing event instance within the log",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       id_or_alias: z.string().describe("The tip commit ID or alias to delete from."),
       event_id: z.string().describe("The unique event ID of the record to remove."),
       alias: z.string().optional().describe("Optional alias to tag the new checkpoint.")
     }
   },
-  async ({ session_id, id_or_alias, event_id, alias }) => {
+    async ({ id_or_alias, event_id, alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const commitId = await eventStore.delete(session_id, id_or_alias, event_id, alias);
       return { content: [{ type: "text", text: JSON.stringify({ commit_id: commitId }) }] };
@@ -122,12 +122,12 @@ server.registerTool(
   {
     description: "Merge multiple parallel commit streams into a target commit. On conflict, returns summary counts only — use event_merge_inspect to page through individual conflicts.",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       source_ids_or_aliases: z.array(z.string()).describe("List of source branches or commit IDs to merge in."),
       target_id_or_alias: z.string().describe("The target branch or commit ID receiving the merge.")
     }
   },
-  async ({ session_id, source_ids_or_aliases, target_id_or_alias }) => {
+    async ({ source_ids_or_aliases, target_id_or_alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const res = await eventStore.merge(session_id, source_ids_or_aliases, target_id_or_alias);
       if (res.status === "conflict") {
@@ -216,10 +216,10 @@ server.registerTool(
     description: "Finalize and commit a merge session after resolving all conflicts",
     inputSchema: {
       merge_session_id: z.string().describe("The resolved merge session identifier."),
-      session_id: z.string().describe("The session identifier.")
     }
   },
-  async ({ merge_session_id, session_id }) => {
+    async ({ merge_session_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const commitId = await eventStore.mergeCommit(merge_session_id, session_id);
       return { content: [{ type: "text", text: JSON.stringify({ commit_id: commitId }) }] };
@@ -234,13 +234,13 @@ server.registerTool(
   {
     description: "Run whitelisting garbage collection on event commits",
     inputSchema: {
-      session_id: z.string().describe("The session identifier."),
       keep_ids: z.array(z.string()).describe("Explicit commit IDs to whitelist."),
       whitelist_aliases: z.array(z.string()).describe("Alias whitelists."),
       blacklist_aliases: z.array(z.string()).optional().describe("Alias blacklists.")
     }
   },
-  async ({ session_id, keep_ids, whitelist_aliases, blacklist_aliases }) => {
+    async ({ keep_ids, whitelist_aliases, blacklist_aliases }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const res = await eventStore.gc(session_id, keep_ids, whitelist_aliases, blacklist_aliases);
       return { content: [{ type: "text", text: JSON.stringify(res) }] };
@@ -259,10 +259,10 @@ server.registerTool(
       tags: z.array(z.string()).describe("Searchable tags."),
       description: z.string().describe("Purpose description."),
       scope: z.enum(["session", "user", "global"]).describe("Ownership level."),
-      session_id: z.string().describe("The session identifier.")
     }
   },
-  async ({ commit_id, tags, description, scope, session_id }) => {
+    async ({ commit_id, tags, description, scope }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
     try {
       const ownerScope = scope === "global" ? { level: "global" as const } : { level: "user" as const, userId: "" };
       const savedId = await eventStore.save(commit_id, tags, description, ownerScope, session_id);

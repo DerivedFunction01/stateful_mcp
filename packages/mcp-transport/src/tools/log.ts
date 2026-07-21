@@ -55,13 +55,13 @@ function registerLogTools(paginationLimits: PaginationLimitsConfig | undefined) 
       description: "Start a stateful log traversal session for a filter or object",
       inputSchema: {
         type: z.enum(["filter", "object"]).describe("Whether to log a filter or an object history."),
-        session_id: z.string().describe("The session identifier."),
         id_or_alias: z.string().describe("The starting ID or alias."),
         limit: buildLimitField("log_page_size", paginationLimits),
-        user_id: z.string().optional().describe("Optional user identifier.")
       }
     },
-    async ({ type, session_id, id_or_alias, limit, user_id }) => {
+    async ({ type, id_or_alias, limit }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
+      const user_id = extra?._metadata?.user_id;
       try {
         const pageSize = clampLimit(limit, "log_page_size", paginationLimits);
       let resolvedId = "";

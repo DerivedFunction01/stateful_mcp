@@ -33,13 +33,13 @@ function registerFormTools() {
       description: "Initialize a new dynamic form session state against a schema.",
       inputSchema: {
         schema_name: z.string().describe("The name of the registered form schema."),
-        session_id: z.string().describe("The session identifier."),
         alias: z.string().optional().describe("Optional alias to tag the initial form checkpoint."),
         parent_form_id: z.string().optional().describe("Optional parent form state checkpoint to branch from."),
         get_schema_hint: z.boolean().optional().describe("If true, returns the Form schema definition in the response to guide question flow.")
       }
     },
-    async ({ schema_name, session_id, alias, parent_form_id, get_schema_hint }) => {
+    async ({ schema_name, alias, parent_form_id, get_schema_hint }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
       try {
         const formId = await formStore.init(schema_name, session_id, alias, parent_form_id);
         const res: Record<string, any> = { form_id: formId };
@@ -61,11 +61,11 @@ function registerFormTools() {
         form_id: z.string().describe("The form checkpoint ID or alias."),
         question_id: z.string().describe("The question ID being answered."),
         value: z.any().describe("The value for the answer."),
-        session_id: z.string().describe("The session identifier."),
         new_alias: z.string().optional().describe("Optional new alias for the newly created checkpoint.")
       }
     },
-    async ({ form_id, question_id, value, session_id, new_alias }) => {
+    async ({ form_id, question_id, value, new_alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
       try {
         const result = await formStore.answer(form_id, question_id, value, session_id, new_alias);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -82,11 +82,11 @@ function registerFormTools() {
       inputSchema: {
         form_id: z.string().describe("The form checkpoint ID or alias."),
         question_id: z.string().describe("The question ID to skip."),
-        session_id: z.string().describe("The session identifier."),
         new_alias: z.string().optional().describe("Optional new alias for the newly created checkpoint.")
       }
     },
-    async ({ form_id, question_id, session_id, new_alias }) => {
+    async ({ form_id, question_id, new_alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
       try {
         const result = await formStore.skip(form_id, question_id, session_id, new_alias);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -103,11 +103,11 @@ function registerFormTools() {
       inputSchema: {
         form_id: z.string().describe("The form checkpoint ID or alias."),
         question_id: z.string().describe("The target question ID to focus back on."),
-        session_id: z.string().describe("The session identifier."),
         new_alias: z.string().optional().describe("Optional new alias for the newly created checkpoint.")
       }
     },
-    async ({ form_id, question_id, session_id, new_alias }) => {
+    async ({ form_id, question_id, new_alias }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
       try {
         const result = await formStore.back(form_id, question_id, session_id, new_alias);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -123,10 +123,10 @@ function registerFormTools() {
       description: "Retrieve the final resolved form payload if complete.",
       inputSchema: {
         form_id: z.string().describe("The form checkpoint ID or alias."),
-        session_id: z.string().describe("The session identifier.")
       }
     },
-    async ({ form_id, session_id }) => {
+    async ({ form_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
       try {
         const result = await formStore.resolve(form_id, session_id);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -143,10 +143,10 @@ function registerFormTools() {
       inputSchema: {
         form_id: z.string().describe("The form checkpoint ID or alias."),
         question_id: z.string().optional().describe("Optional question ID to inspect history for."),
-        session_id: z.string().describe("The session identifier.")
       }
     },
-    async ({ form_id, question_id, session_id }) => {
+    async ({ form_id, question_id }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
       try {
         const result = await formStore.inspect(form_id, question_id, session_id);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -165,10 +165,10 @@ function registerFormTools() {
         tags: z.array(z.string()).describe("Searchable tags."),
         description: z.string().describe("Purpose description."),
         scope: z.enum(["session", "user", "global"]).describe("Ownership level."),
-        session_id: z.string().describe("The session identifier.")
       }
     },
-    async ({ form_id, tags, description, scope, session_id }) => {
+    async ({ form_id, tags, description, scope }, extra: any) => {
+      const session_id = extra?._metadata?.session_id ?? "default";
       try {
         const ownerScope = scope === "global" ? { level: "global" as const } : { level: "user" as const, userId: "" };
         const savedId = await formStore.save(form_id, tags, description, ownerScope, session_id);

@@ -90,3 +90,26 @@ export function getFormStore(config: MiddlewareConfig, workspaceRoot: string): F
 
   return new FormStore(sessionFormStore, persistentFormStore, formSchemas);
 }
+
+import { EventStore } from "@stateful-mcp/core";
+import { MemorySessionEventStore, MemoryPersistentEventStore } from "@stateful-mcp/core";
+import { JsonlSessionEventStore, JsonlPersistentEventStore } from "@stateful-mcp/core";
+
+export function getEventStore(config: MiddlewareConfig, workspaceRoot: string): EventStore {
+  const sessionStore =
+    config.event_session_state?._type === "file" && config.event_session_state.path.endsWith(".jsonl")
+      ? new JsonlSessionEventStore(path.resolve(workspaceRoot, config.event_session_state.path))
+      : new MemorySessionEventStore();
+
+  const persistentStore =
+    config.event_persistent_state?.global?._type === "file" && config.event_persistent_state.global.path.endsWith(".jsonl")
+      ? new JsonlPersistentEventStore(path.resolve(workspaceRoot, config.event_persistent_state.global.path))
+      : new MemoryPersistentEventStore();
+
+  const objectSchemas = new Map<string, any>();
+  const validationEngines = new Map<string, any>();
+  const threshold = config.auto_compression?.object_chain_threshold ?? 15;
+
+  return new EventStore(sessionStore, persistentStore, objectSchemas, threshold, validationEngines, workspaceRoot);
+}
+
