@@ -170,6 +170,74 @@ function registerAllTools(
 		},
 	);
 
+	server.registerTool(
+		"dictionary_get_relations",
+		{
+			description:
+				"Retrieve related concepts with support for reverse lookups, operator duality inversion, and transitive path caching.",
+			inputSchema: {
+				concept_ref: z
+					.string()
+					.describe(
+						"Concept reference (UUID or 'NAMESPACE::CODE' coordinate).",
+					),
+				direction: z
+					.enum(["forward", "reverse", "both"])
+					.optional()
+					.default("both")
+					.describe(
+						"Traversal direction: 'forward' (source->target), 'reverse' (target->source with inverted operators), or 'both'.",
+					),
+				max_depth: z
+					.number()
+					.int()
+					.min(1)
+					.max(10)
+					.optional()
+					.default(3)
+					.describe(
+						"Maximum graph recursion depth for transitive closure traversal.",
+					),
+				use_cache: z
+					.boolean()
+					.optional()
+					.default(true)
+					.describe(
+						"If true, use pre-computed transitive closure relation cache.",
+					),
+			},
+		},
+		async ({ concept_ref, direction, max_depth, use_cache }) => {
+			try {
+				const conceptId = await store.resolveConceptId(concept_ref);
+				if (!conceptId) {
+					throw new Error(`Concept reference "${concept_ref}" not found.`);
+				}
+				const related = await store.getRelatedConcepts(
+					conceptId,
+					direction,
+					max_depth,
+					use_cache,
+				);
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify({ concept_id: conceptId, related }, null, 2),
+						},
+					],
+				};
+			} catch (err: any) {
+				return {
+					content: [
+						{ type: "text" as const, text: err.message || String(err) },
+					],
+					isError: true,
+				};
+			}
+		},
+	);
+
 	const addExpressionSchema: any = {
 		term: z.string().describe("The shorthand alias or keyword."),
 		concept_ref: z

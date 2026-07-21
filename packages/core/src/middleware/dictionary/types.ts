@@ -47,6 +47,18 @@ export interface Concept {
 /** Semantic mapping relationships linking two different concepts */
 export type ConceptRelationType = "EQUIVALENT" | "NARROWER_THAN" | "WIDER_THAN";
 
+/** Traversal direction for concept relationship resolution */
+export type TraversalDirection = "forward" | "reverse" | "both";
+
+/** Invert relation type for reverse lookups */
+export function invertRelationType(
+	type: ConceptRelationType,
+): ConceptRelationType {
+	if (type === "NARROWER_THAN") return "WIDER_THAN";
+	if (type === "WIDER_THAN") return "NARROWER_THAN";
+	return "EQUIVALENT";
+}
+
 /**
  * Declares relationships between two different concepts (e.g. mapping synonyms or hierarchies).
  */
@@ -63,6 +75,28 @@ export interface ConceptRelation {
 	active: boolean;
 	/** Optional date stamp of when the relationship was designated */
 	designationDate?: string;
+}
+
+/**
+ * Transitive closure path cache entry mirroring concept_translator_cache.
+ */
+export interface ConceptRelationCacheEntry {
+	ancestorConceptId: string;
+	descendantConceptId: string;
+	linkDepth: number;
+	inferredRelationshipType: ConceptRelationType;
+	active: boolean;
+	updatedAt?: string;
+}
+
+/**
+ * Resolved related concept result detailing concept info, relationship type, direction, and graph depth.
+ */
+export interface RelatedConceptResult {
+	concept: Concept;
+	relationshipType: ConceptRelationType;
+	direction: "forward" | "reverse";
+	depth: number;
 }
 
 /** Classification defining the type of target assignment (e.g. 'MAIN_TERM' or 'METRIC') */

@@ -10,8 +10,11 @@ import type {
 } from "../../middleware/dictionary/interfaces";
 import type {
 	Concept,
+	ConceptRelation,
 	CustomExpression,
 	Namespace,
+	RelatedConceptResult,
+	TraversalDirection,
 } from "../../middleware/dictionary/types";
 import type {
 	FilterCondition,
@@ -1005,6 +1008,42 @@ export class SqliteConceptStore implements ConceptStore {
         FOREIGN KEY(namespace_code) REFERENCES dict_namespaces(code)
       )
     `);
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS dict_relations (
+        id TEXT PRIMARY KEY,
+        concept_id TEXT NOT NULL,
+        linked_id TEXT NOT NULL,
+        relationship_type TEXT NOT NULL,
+        active INTEGER NOT NULL,
+        designation_date TEXT,
+        FOREIGN KEY(concept_id) REFERENCES dict_concepts(id),
+        FOREIGN KEY(linked_id) REFERENCES dict_concepts(id)
+      )
+    `);
+
+		this.db.run(
+			`CREATE INDEX IF NOT EXISTS idx_concept_rel_forward ON dict_relations(concept_id, active)`,
+		);
+		this.db.run(
+			`CREATE INDEX IF NOT EXISTS idx_concept_rel_reverse ON dict_relations(linked_id, active)`,
+		);
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS dict_relation_cache (
+        ancestor_concept_id TEXT NOT NULL,
+        descendant_concept_id TEXT NOT NULL,
+        link_depth INTEGER NOT NULL,
+        inferred_relationship_type TEXT NOT NULL,
+        active INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(ancestor_concept_id, descendant_concept_id, inferred_relationship_type)
+      )
+    `);
+
+		this.db.run(
+			`CREATE INDEX IF NOT EXISTS idx_concept_cache_traversal ON dict_relation_cache(ancestor_concept_id, active)`,
+		);
 	}
 
 	async search(
@@ -1088,9 +1127,200 @@ export class SqliteConceptStore implements ConceptStore {
 				namespace.description || null,
 				namespace.isPublic ? 1 : 0,
 				namespace.isExternalPrivate ? 1 : 0,
-				namespace.isMutable ? 1 : 0,
+				namespace.isMutable !== false ? 1 : 0,
 			],
 		);
+	}
+
+	async addRelation(relation: ConceptRelation): Promise<void> {
+		this.db.run(
+			`INSERT OR REPLACE INTO dict_relations (id, concept_id, linked_id, relationship_type, active, designation_date)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				relation.id,
+				relation.conceptId,
+				relation.linkedId,
+				relation.relationshipType,
+				relation.active !== false ? 1 : 0,
+				relation.designationDate || null,
+			],
+		);
+		await this.invalidateRelationCache(relation.conceptId);
+		await this.invalidateRelationCache(relation.linkedId);
+	}
+
+	async invalidateRelationCache(conceptId?: string): Promise<void> {
+		if (conceptId) {
+			this.db.run(
+				`DELETE FROM dict_relation_cache WHERE ancestor_concept_id = ? OR descendant_concept_id = ?`,
+				[conceptId, conceptId],
+			);
+		} else {
+			this.db.run(`DELETE FROM dict_relation_cache`);
+		}
+	}
+
+	async getRelations(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+	): Promise<ConceptRelation[]> {
+		const sqlParts: string[] = [];
+		const params: any[] = [];
+
+		if (direction === "forward" || direction === "both") {
+			sqlParts.push(
+				`SELECT id, concept_id, linked_id, relationship_type, active, designation_date FROM dict_relations WHERE concept_id = ? AND active = 1`,
+			);
+			params.push(conceptId);
+		}
+
+		if (direction === "reverse" || direction === "both") {
+			sqlParts.push(
+				`SELECT id, concept_id, linked_id, relationship_type, active, designation_date FROM dict_relations WHERE linked_id = ? AND active = 1`,
+			);
+			params.push(conceptId);
+		}
+
+		if (sqlParts.length === 0) return [];
+		const rows = this.db
+			.query(sqlParts.join(" UNION ALL "))
+			.all(...params) as any[];
+
+		return rows.map((r) => ({
+			id: r.id,
+			conceptId: r.concept_id,
+			linkedId: r.linked_id,
+			relationshipType: r.relationship_type,
+			active: r.active === 1,
+			designationDate: r.designation_date || undefined,
+		}));
+	}
+
+	async getRelatedConcepts(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+		maxDepth = 3,
+		useCache = true,
+	): Promise<RelatedConceptResult[]> {
+		// 1. Check cache table first if useCache is enabled
+		if (useCache) {
+			const cached = this.db
+				.query(
+					`SELECT c.*, rc.link_depth, rc.inferred_relationship_type 
+           FROM dict_relation_cache rc 
+           JOIN dict_concepts c ON rc.descendant_concept_id = c.id 
+           WHERE rc.ancestor_concept_id = ? AND rc.active = 1 AND rc.link_depth <= ?`,
+				)
+				.all(conceptId, maxDepth) as any[];
+
+			if (cached.length > 0) {
+				return cached.map((r) => ({
+					concept: {
+						id: r.id,
+						namespaceCode: r.namespace_code,
+						standardCode: r.standard_code,
+						display: r.display,
+						description: r.description || undefined,
+						designationDate: r.designation_date || undefined,
+						active: r.active === 1,
+					},
+					relationshipType: r.inferred_relationship_type,
+					direction: "forward",
+					depth: r.link_depth,
+				}));
+			}
+		}
+
+		// 2. SQL Recursive CTE for Graph Traversal with Operator Inversion
+		const cteSql = `
+      WITH RECURSIVE rel_graph(target_id, relationship_type, dir, depth) AS (
+        -- Forward direct
+        SELECT linked_id, relationship_type, 'forward', 1
+        FROM dict_relations
+        WHERE concept_id = ? AND active = 1 AND (? = 'forward' OR ? = 'both')
+
+        UNION ALL
+
+        -- Reverse direct with operator inversion
+        SELECT concept_id, 
+               CASE relationship_type 
+                 WHEN 'NARROWER_THAN' THEN 'WIDER_THAN' 
+                 WHEN 'WIDER_THAN' THEN 'NARROWER_THAN' 
+                 ELSE 'EQUIVALENT' 
+               END, 
+               'reverse', 1
+        FROM dict_relations
+        WHERE linked_id = ? AND active = 1 AND (? = 'reverse' OR ? = 'both')
+
+        UNION ALL
+
+        -- Recursive forward expansion
+        SELECT r.linked_id, r.relationship_type, g.dir, g.depth + 1
+        FROM rel_graph g
+        JOIN dict_relations r ON g.target_id = r.concept_id
+        WHERE r.active = 1 AND g.depth < ? AND g.dir = 'forward'
+
+        UNION ALL
+
+        -- Recursive reverse expansion
+        SELECT r.concept_id, 
+               CASE r.relationship_type 
+                 WHEN 'NARROWER_THAN' THEN 'WIDER_THAN' 
+                 WHEN 'WIDER_THAN' THEN 'NARROWER_THAN' 
+                 ELSE 'EQUIVALENT' 
+               END, 
+               g.dir, g.depth + 1
+        FROM rel_graph g
+        JOIN dict_relations r ON g.target_id = r.linked_id
+        WHERE r.active = 1 AND g.depth < ? AND g.dir = 'reverse'
+      )
+      SELECT DISTINCT g.target_id, g.relationship_type, g.dir, g.depth, c.* 
+      FROM rel_graph g
+      JOIN dict_concepts c ON g.target_id = c.id
+      WHERE c.active = 1;
+    `;
+
+		const rows = this.db
+			.query(cteSql)
+			.all(
+				conceptId,
+				direction,
+				direction,
+				conceptId,
+				direction,
+				direction,
+				maxDepth,
+				maxDepth,
+			) as any[];
+
+		const results: RelatedConceptResult[] = rows.map((r) => ({
+			concept: {
+				id: r.id,
+				namespaceCode: r.namespace_code,
+				standardCode: r.standard_code,
+				display: r.display,
+				description: r.description || undefined,
+				designationDate: r.designation_date || undefined,
+				active: r.active === 1,
+			},
+			relationshipType: r.relationship_type,
+			direction: r.dir,
+			depth: r.depth,
+		}));
+
+		// Populate cache
+		if (useCache && results.length > 0) {
+			const now = new Date().toISOString();
+			for (const res of results) {
+				this.db.run(
+					`INSERT OR REPLACE INTO dict_relation_cache (ancestor_concept_id, descendant_concept_id, link_depth, inferred_relationship_type, active, updated_at)
+           VALUES (?, ?, ?, ?, 1, ?)`,
+					[conceptId, res.concept.id, res.depth, res.relationshipType, now],
+				);
+			}
+		}
+
+		return results;
 	}
 }
 

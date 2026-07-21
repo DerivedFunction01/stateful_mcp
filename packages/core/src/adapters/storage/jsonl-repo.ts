@@ -8,9 +8,13 @@ import type {
 } from "../../middleware/dictionary/interfaces";
 import type {
 	Concept,
+	ConceptRelation,
 	CustomExpression,
 	Namespace,
+	RelatedConceptResult,
+	TraversalDirection,
 } from "../../middleware/dictionary/types";
+import { invertRelationType } from "../../middleware/dictionary/types";
 import type { EventCommit } from "../../middleware/event/types";
 import type { FilterState } from "../../middleware/filter/types";
 import type { FormState } from "../../middleware/form/types";
@@ -1199,6 +1203,8 @@ export class JsonlPersistentFormStore
 export class JsonlConceptStore extends BaseJsonlStore implements ConceptStore {
 	private namespaces = new Map<string, Namespace>();
 	private concepts = new Map<string, Concept>();
+	private relations: ConceptRelation[] = [];
+	private pathCache = new Map<string, any[]>();
 
 	async init(): Promise<void> {
 		if (this.initialized) return;
@@ -1213,6 +1219,8 @@ export class JsonlConceptStore extends BaseJsonlStore implements ConceptStore {
 						this.namespaces.set(entry.data.code, entry.data);
 					} else if (entry.type === "concept") {
 						this.concepts.set(entry.data.id, entry.data);
+					} else if (entry.type === "relation") {
+						this.relations.push(entry.data);
 					}
 				}
 			}
@@ -1227,6 +1235,9 @@ export class JsonlConceptStore extends BaseJsonlStore implements ConceptStore {
 		}
 		for (const c of this.concepts.values()) {
 			lines.push(JSON.stringify({ type: "concept", data: c }));
+		}
+		for (const r of this.relations) {
+			lines.push(JSON.stringify({ type: "relation", data: r }));
 		}
 		await this.truncateAndWrite(lines);
 	}
@@ -1274,6 +1285,153 @@ export class JsonlConceptStore extends BaseJsonlStore implements ConceptStore {
 		await this.init();
 		this.namespaces.set(namespace.code, namespace);
 		await this.serializeAll();
+	}
+
+	async addRelation(relation: ConceptRelation): Promise<void> {
+		await this.init();
+		this.relations = this.relations.filter((r) => r.id !== relation.id);
+		this.relations.push(relation);
+		await this.invalidateRelationCache();
+		await this.serializeAll();
+	}
+
+	async invalidateRelationCache(conceptId?: string): Promise<void> {
+		if (conceptId) {
+			this.pathCache.delete(conceptId);
+		} else {
+			this.pathCache.clear();
+		}
+	}
+
+	async getRelations(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+	): Promise<ConceptRelation[]> {
+		await this.init();
+		return this.relations.filter((r) => {
+			if (!r.active) return false;
+			if (direction === "forward") return r.conceptId === conceptId;
+			if (direction === "reverse") return r.linkedId === conceptId;
+			return r.conceptId === conceptId || r.linkedId === conceptId;
+		});
+	}
+
+	async getRelatedConcepts(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+		maxDepth = 3,
+		useCache = true,
+	): Promise<RelatedConceptResult[]> {
+		await this.init();
+		const results: RelatedConceptResult[] = [];
+		const visited = new Set<string>();
+
+		const cacheKey = `${conceptId}:${direction}:${maxDepth}`;
+		if (useCache && this.pathCache.has(cacheKey)) {
+			return this.pathCache.get(cacheKey)! as RelatedConceptResult[];
+		}
+
+		const queue: Array<{
+			id: string;
+			depth: number;
+			dir: "forward" | "reverse";
+			pathRelType: any;
+		}> = [];
+
+		if (direction === "forward" || direction === "both") {
+			for (const r of this.relations) {
+				if (r.active && r.conceptId === conceptId) {
+					queue.push({
+						id: r.linkedId,
+						depth: 1,
+						dir: "forward",
+						pathRelType: r.relationshipType,
+					});
+				}
+			}
+		}
+
+		if (direction === "reverse" || direction === "both") {
+			for (const r of this.relations) {
+				if (r.active && r.linkedId === conceptId) {
+					queue.push({
+						id: r.conceptId,
+						depth: 1,
+						dir: "reverse",
+						pathRelType: invertRelationType(r.relationshipType),
+					});
+				}
+			}
+		}
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+			if (
+				visited.has(`${current.id}:${current.dir}`) ||
+				current.depth > maxDepth
+			)
+				continue;
+			visited.add(`${current.id}:${current.dir}`);
+
+			const concept = await this.getById(current.id);
+			if (concept && concept.active !== false) {
+				results.push({
+					concept,
+					relationshipType: current.pathRelType,
+					direction: current.dir,
+					depth: current.depth,
+				});
+			}
+
+			if (current.depth < maxDepth) {
+				if (current.dir === "forward") {
+					for (const r of this.relations) {
+						if (r.active && r.conceptId === current.id) {
+							const inferredType =
+								r.relationshipType === "NARROWER_THAN" ||
+								current.pathRelType === "NARROWER_THAN"
+									? "NARROWER_THAN"
+									: r.relationshipType === "WIDER_THAN" ||
+											current.pathRelType === "WIDER_THAN"
+										? "WIDER_THAN"
+										: "EQUIVALENT";
+							queue.push({
+								id: r.linkedId,
+								depth: current.depth + 1,
+								dir: "forward",
+								pathRelType: inferredType,
+							});
+						}
+					}
+				} else {
+					for (const r of this.relations) {
+						if (r.active && r.linkedId === current.id) {
+							const invType = invertRelationType(r.relationshipType);
+							const inferredType =
+								invType === "NARROWER_THAN" ||
+								current.pathRelType === "NARROWER_THAN"
+									? "NARROWER_THAN"
+									: invType === "WIDER_THAN" ||
+											current.pathRelType === "WIDER_THAN"
+										? "WIDER_THAN"
+										: "EQUIVALENT";
+							queue.push({
+								id: r.conceptId,
+								depth: current.depth + 1,
+								dir: "reverse",
+								pathRelType: inferredType,
+							});
+						}
+					}
+				}
+			}
+		}
+
+		if (useCache) {
+			this.pathCache.set(cacheKey, results);
+		}
+
+		return results;
 	}
 }
 

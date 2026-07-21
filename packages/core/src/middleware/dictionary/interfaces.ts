@@ -1,5 +1,12 @@
 import type { OwnerScope } from "../../config/types";
-import type { Concept, CustomExpression, Namespace } from "./types";
+import type {
+	Concept,
+	ConceptRelation,
+	CustomExpression,
+	Namespace,
+	RelatedConceptResult,
+	TraversalDirection,
+} from "./types";
 
 export interface ConceptStore {
 	/**
@@ -30,6 +37,34 @@ export interface ConceptStore {
 	 * Optional helper to add namespaces.
 	 */
 	addNamespace(namespace: Namespace): Promise<void>;
+
+	/**
+	 * Add or register a concept relationship link.
+	 */
+	addRelation?(relation: ConceptRelation): Promise<void>;
+
+	/**
+	 * Retrieve raw relations for a concept given a traversal direction.
+	 */
+	getRelations?(
+		conceptId: string,
+		direction?: TraversalDirection,
+	): Promise<ConceptRelation[]>;
+
+	/**
+	 * Retrieve related concepts with operator duality inversion and optional transitive path caching.
+	 */
+	getRelatedConcepts?(
+		conceptId: string,
+		direction?: TraversalDirection,
+		maxDepth?: number,
+		useCache?: boolean,
+	): Promise<RelatedConceptResult[]>;
+
+	/**
+	 * Invalidate relation transitive cache for a specific concept or all concepts.
+	 */
+	invalidateRelationCache?(conceptId?: string): Promise<void>;
 }
 
 export interface PersistentExpressionStore {

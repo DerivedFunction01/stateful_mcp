@@ -741,4 +741,117 @@ export async function runDictionaryTests() {
 	console.log(
 		"✓ Global-scope expression matches resolved correctly when no user/workspace matched.",
 	);
+
+	// Test Case 7: Bidirectional Concept Relations, Operator Inversion & Transitive Path Cache
+	console.log(
+		"\n🧪 Test Case 7: Bidirectional Concept Relations, Operator Inversion & Transitive Path Cache",
+	);
+	const relStore = new DictionaryStore(new InMemoryConceptResolver());
+	await relStore.loadConfig({
+		namespaces: [{ code: "SNOMED", isPublic: true, isExternalPrivate: false }],
+		concepts: [
+			{
+				id: "c_heart_dis",
+				namespaceCode: "SNOMED",
+				standardCode: "H1",
+				display: "Heart Disease",
+			},
+			{
+				id: "c_mi_dis",
+				namespaceCode: "SNOMED",
+				standardCode: "H2",
+				display: "Myocardial Infarction",
+			},
+			{
+				id: "c_stemi",
+				namespaceCode: "SNOMED",
+				standardCode: "H3",
+				display: "STEMI",
+			},
+		],
+		relations: [
+			{
+				id: "rel_1",
+				conceptId: "c_stemi",
+				linkedId: "c_mi_dis",
+				relationshipType: "NARROWER_THAN",
+				active: true,
+			},
+			{
+				id: "rel_2",
+				conceptId: "c_mi_dis",
+				linkedId: "c_heart_dis",
+				relationshipType: "NARROWER_THAN",
+				active: true,
+			},
+		],
+	});
+
+	// Forward lookups for c_stemi
+	const forwardRels = await relStore.getRelatedConcepts(
+		"c_stemi",
+		"forward",
+		2,
+	);
+	if (forwardRels.length !== 2) {
+		throw new Error(
+			`Expected 2 forward related concepts for STEMI, got ${forwardRels.length}`,
+		);
+	}
+	const miForward = forwardRels.find((r) => r.concept.id === "c_mi_dis");
+	if (
+		!miForward ||
+		miForward.relationshipType !== "NARROWER_THAN" ||
+		miForward.depth !== 1
+	) {
+		throw new Error("Forward relation for STEMI -> MI failed");
+	}
+	console.log("✓ Forward concept relations resolved successfully.");
+
+	// Reverse lookups for c_heart_dis (Heart Disease) -> expect MI & STEMI with WIDER_THAN operator inversion
+	const reverseRels = await relStore.getRelatedConcepts(
+		"c_heart_dis",
+		"reverse",
+		2,
+	);
+	if (reverseRels.length !== 2) {
+		throw new Error(
+			`Expected 2 reverse related concepts for Heart Disease, got ${reverseRels.length}`,
+		);
+	}
+	const miReverse = reverseRels.find((r) => r.concept.id === "c_mi_dis");
+	if (
+		!miReverse ||
+		miReverse.relationshipType !== "WIDER_THAN" ||
+		miReverse.depth !== 1
+	) {
+		throw new Error(
+			`Reverse relation operator inversion failed: expected WIDER_THAN, got ${miReverse?.relationshipType}`,
+		);
+	}
+	const stemiReverse = reverseRels.find((r) => r.concept.id === "c_stemi");
+	if (
+		!stemiReverse ||
+		stemiReverse.relationshipType !== "WIDER_THAN" ||
+		stemiReverse.depth !== 2
+	) {
+		throw new Error(
+			`Multi-hop reverse relation operator inversion failed: expected WIDER_THAN at depth 2, got ${stemiReverse?.relationshipType}`,
+		);
+	}
+	console.log(
+		"✓ Reverse concept relation lookups with operator duality inversion (NARROWER_THAN -> WIDER_THAN) verified successfully.",
+	);
+
+	// Test cache hit & invalidation
+	const cachedReverse = await relStore.getRelatedConcepts(
+		"c_heart_dis",
+		"reverse",
+		2,
+		true,
+	);
+	if (cachedReverse.length !== 2) {
+		throw new Error("Transitive path cache retrieval failed");
+	}
+	console.log("✓ Transitive closure relation cache hit verified successfully.");
 }

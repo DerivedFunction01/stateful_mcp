@@ -7,9 +7,13 @@ import type {
 } from "../../middleware/dictionary/interfaces";
 import type {
 	Concept,
+	ConceptRelation,
 	CustomExpression,
 	Namespace,
+	RelatedConceptResult,
+	TraversalDirection,
 } from "../../middleware/dictionary/types";
+import { invertRelationType } from "../../middleware/dictionary/types";
 import type {
 	PersistentFilterStore,
 	PersistentFormStore,
@@ -694,6 +698,124 @@ export class LocalStorageConceptStore implements ConceptStore {
 			);
 		}
 	}
+
+	private getRelationsKey(): string {
+		return `${this.prefix}relations`;
+	}
+
+	private async loadAllRelations(): Promise<ConceptRelation[]> {
+		const raw = window.localStorage.getItem(this.getRelationsKey());
+		return raw ? JSON.parse(raw) : [];
+	}
+
+	async addRelation(relation: ConceptRelation): Promise<void> {
+		const rels = await this.loadAllRelations();
+		const idx = rels.findIndex((r) => r.id === relation.id);
+		if (idx !== -1) rels[idx] = relation;
+		else rels.push(relation);
+		window.localStorage.setItem(this.getRelationsKey(), JSON.stringify(rels));
+	}
+
+	async getRelations(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+	): Promise<ConceptRelation[]> {
+		const rels = await this.loadAllRelations();
+		return rels.filter((r) => {
+			if (!r.active) return false;
+			if (direction === "forward") return r.conceptId === conceptId;
+			if (direction === "reverse") return r.linkedId === conceptId;
+			return r.conceptId === conceptId || r.linkedId === conceptId;
+		});
+	}
+
+	async getRelatedConcepts(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+		maxDepth = 3,
+	): Promise<RelatedConceptResult[]> {
+		const rels = await this.loadAllRelations();
+		const results: RelatedConceptResult[] = [];
+		const visited = new Set<string>();
+
+		const queue: Array<{
+			id: string;
+			depth: number;
+			dir: "forward" | "reverse";
+			pathRelType: any;
+		}> = [];
+		if (direction === "forward" || direction === "both") {
+			for (const r of rels) {
+				if (r.active && r.conceptId === conceptId) {
+					queue.push({
+						id: r.linkedId,
+						depth: 1,
+						dir: "forward",
+						pathRelType: r.relationshipType,
+					});
+				}
+			}
+		}
+		if (direction === "reverse" || direction === "both") {
+			for (const r of rels) {
+				if (r.active && r.linkedId === conceptId) {
+					queue.push({
+						id: r.conceptId,
+						depth: 1,
+						dir: "reverse",
+						pathRelType: invertRelationType(r.relationshipType),
+					});
+				}
+			}
+		}
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+			if (
+				visited.has(`${current.id}:${current.dir}`) ||
+				current.depth > maxDepth
+			)
+				continue;
+			visited.add(`${current.id}:${current.dir}`);
+
+			const concept = await this.getById(current.id);
+			if (concept && concept.active !== false) {
+				results.push({
+					concept,
+					relationshipType: current.pathRelType,
+					direction: current.dir,
+					depth: current.depth,
+				});
+			}
+
+			if (current.depth < maxDepth) {
+				if (current.dir === "forward") {
+					for (const r of rels) {
+						if (r.active && r.conceptId === current.id) {
+							queue.push({
+								id: r.linkedId,
+								depth: current.depth + 1,
+								dir: "forward",
+								pathRelType: r.relationshipType,
+							});
+						}
+					}
+				} else {
+					for (const r of rels) {
+						if (r.active && r.linkedId === current.id) {
+							queue.push({
+								id: r.conceptId,
+								depth: current.depth + 1,
+								dir: "reverse",
+								pathRelType: invertRelationType(r.relationshipType),
+							});
+						}
+					}
+				}
+			}
+		}
+		return results;
+	}
 }
 
 export class LocalStoragePersistentExpressionStore
@@ -778,7 +900,7 @@ export class IndexedDbConceptStore implements ConceptStore {
 				reject(new Error("IndexedDB is not available."));
 				return;
 			}
-			const request = window.indexedDB.open(this.dbName, 1);
+			const request = window.indexedDB.open(this.dbName, 2);
 			request.onupgradeneeded = () => {
 				const db = request.result;
 				if (!db.objectStoreNames.contains("concepts")) {
@@ -786,6 +908,11 @@ export class IndexedDbConceptStore implements ConceptStore {
 				}
 				if (!db.objectStoreNames.contains("namespaces")) {
 					db.createObjectStore("namespaces");
+				}
+				if (!db.objectStoreNames.contains("relations")) {
+					const relStore = db.createObjectStore("relations", { keyPath: "id" });
+					relStore.createIndex("by_conceptId", "conceptId", { unique: false });
+					relStore.createIndex("by_linkedId", "linkedId", { unique: false });
 				}
 			};
 			request.onsuccess = () => resolve(request.result);
@@ -869,7 +996,7 @@ export class IndexedDbConceptStore implements ConceptStore {
 
 	async addConcept(concept: Concept): Promise<void> {
 		const db = await this.getDB();
-		return new Promise<void>((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			const tx = db.transaction("concepts", "readwrite");
 			const store = tx.objectStore("concepts");
 			const request = store.put(concept, concept.id);
@@ -880,13 +1007,159 @@ export class IndexedDbConceptStore implements ConceptStore {
 
 	async addNamespace(namespace: Namespace): Promise<void> {
 		const db = await this.getDB();
-		return new Promise<void>((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			const tx = db.transaction("namespaces", "readwrite");
 			const store = tx.objectStore("namespaces");
 			const request = store.put(namespace, namespace.code);
 			request.onsuccess = () => resolve();
 			request.onerror = () => reject(request.error);
 		});
+	}
+
+	async addRelation(relation: ConceptRelation): Promise<void> {
+		const db = await this.getDB();
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction("relations", "readwrite");
+			const store = tx.objectStore("relations");
+			const request = store.put(relation);
+			request.onsuccess = () => resolve();
+			request.onerror = () => reject(request.error);
+		});
+	}
+
+	async getRelations(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+	): Promise<ConceptRelation[]> {
+		const db = await this.getDB();
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction("relations", "readonly");
+			const store = tx.objectStore("relations");
+			const results: ConceptRelation[] = [];
+
+			let pending = 0;
+			const checkDone = () => {
+				if (pending === 0) resolve(results);
+			};
+
+			if (direction === "forward" || direction === "both") {
+				pending++;
+				const index = store.index("by_conceptId");
+				const req = index.getAll(conceptId);
+				req.onsuccess = () => {
+					if (req.result) {
+						results.push(
+							...req.result.filter((r: ConceptRelation) => r.active),
+						);
+					}
+					pending--;
+					checkDone();
+				};
+				req.onerror = () => reject(req.error);
+			}
+
+			if (direction === "reverse" || direction === "both") {
+				pending++;
+				const index = store.index("by_linkedId");
+				const req = index.getAll(conceptId);
+				req.onsuccess = () => {
+					if (req.result) {
+						results.push(
+							...req.result.filter((r: ConceptRelation) => r.active),
+						);
+					}
+					pending--;
+					checkDone();
+				};
+				req.onerror = () => reject(req.error);
+			}
+
+			if (pending === 0) resolve([]);
+		});
+	}
+
+	async getRelatedConcepts(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+		maxDepth = 3,
+	): Promise<RelatedConceptResult[]> {
+		const rels = await this.getRelations(conceptId, direction);
+		const results: RelatedConceptResult[] = [];
+		const visited = new Set<string>();
+
+		const queue: Array<{
+			id: string;
+			depth: number;
+			dir: "forward" | "reverse";
+			pathRelType: any;
+		}> = [];
+
+		for (const r of rels) {
+			if (
+				r.conceptId === conceptId &&
+				(direction === "forward" || direction === "both")
+			) {
+				queue.push({
+					id: r.linkedId,
+					depth: 1,
+					dir: "forward",
+					pathRelType: r.relationshipType,
+				});
+			}
+			if (
+				r.linkedId === conceptId &&
+				(direction === "reverse" || direction === "both")
+			) {
+				queue.push({
+					id: r.conceptId,
+					depth: 1,
+					dir: "reverse",
+					pathRelType: invertRelationType(r.relationshipType),
+				});
+			}
+		}
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+			if (
+				visited.has(`${current.id}:${current.dir}`) ||
+				current.depth > maxDepth
+			)
+				continue;
+			visited.add(`${current.id}:${current.dir}`);
+
+			const concept = await this.getById(current.id);
+			if (concept && concept.active !== false) {
+				results.push({
+					concept,
+					relationshipType: current.pathRelType,
+					direction: current.dir,
+					depth: current.depth,
+				});
+			}
+
+			if (current.depth < maxDepth) {
+				const nextRels = await this.getRelations(current.id, current.dir);
+				for (const r of nextRels) {
+					if (current.dir === "forward" && r.conceptId === current.id) {
+						queue.push({
+							id: r.linkedId,
+							depth: current.depth + 1,
+							dir: "forward",
+							pathRelType: r.relationshipType,
+						});
+					} else if (current.dir === "reverse" && r.linkedId === current.id) {
+						queue.push({
+							id: r.conceptId,
+							depth: current.depth + 1,
+							dir: "reverse",
+							pathRelType: invertRelationType(r.relationshipType),
+						});
+					}
+				}
+			}
+		}
+		return results;
 	}
 }
 

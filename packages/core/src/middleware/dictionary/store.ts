@@ -6,16 +6,24 @@ import type { ConceptResolver } from "./resolver";
 import type {
 	Concept,
 	ConceptRelation,
+	ConceptRelationCacheEntry,
+	ConceptRelationType,
 	CustomExpression,
 	DictionaryConfig,
 	Namespace,
+	RelatedConceptResult,
 	ResolutionMetric,
+	TraversalDirection,
 	WorkspaceDefinition,
 } from "./types";
+import { invertRelationType } from "./types";
 
 export class InMemoryConceptStore implements ConceptStore {
 	private namespaces = new Map<string, Namespace>();
 	private concepts = new Map<string, Concept>();
+	private forwardRelations = new Map<string, ConceptRelation[]>();
+	private reverseRelations = new Map<string, ConceptRelation[]>();
+	private pathCache = new Map<string, ConceptRelationCacheEntry[]>();
 
 	async search(
 		query: string,
@@ -53,6 +61,191 @@ export class InMemoryConceptStore implements ConceptStore {
 
 	async addNamespace(namespace: Namespace): Promise<void> {
 		this.namespaces.set(namespace.code, namespace);
+	}
+
+	async addRelation(relation: ConceptRelation): Promise<void> {
+		if (!this.forwardRelations.has(relation.conceptId)) {
+			this.forwardRelations.set(relation.conceptId, []);
+		}
+		this.forwardRelations.get(relation.conceptId)!.push(relation);
+
+		if (!this.reverseRelations.has(relation.linkedId)) {
+			this.reverseRelations.set(relation.linkedId, []);
+		}
+		this.reverseRelations.get(relation.linkedId)!.push(relation);
+
+		await this.invalidateRelationCache(relation.conceptId);
+		await this.invalidateRelationCache(relation.linkedId);
+	}
+
+	async invalidateRelationCache(conceptId?: string): Promise<void> {
+		if (conceptId) {
+			this.pathCache.delete(conceptId);
+		} else {
+			this.pathCache.clear();
+		}
+	}
+
+	async getRelations(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+	): Promise<ConceptRelation[]> {
+		const results: ConceptRelation[] = [];
+		if (direction === "forward" || direction === "both") {
+			const fw = this.forwardRelations.get(conceptId) || [];
+			results.push(...fw.filter((r) => r.active));
+		}
+		if (direction === "reverse" || direction === "both") {
+			const rev = this.reverseRelations.get(conceptId) || [];
+			results.push(...rev.filter((r) => r.active));
+		}
+		return results;
+	}
+
+	async getRelatedConcepts(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+		maxDepth = 3,
+		useCache = true,
+	): Promise<RelatedConceptResult[]> {
+		const results: RelatedConceptResult[] = [];
+		const visited = new Set<string>();
+
+		// 1. Check transitive cache if enabled and searching both or forward
+		const cacheKey = `${conceptId}:${direction}:${maxDepth}`;
+		if (useCache && this.pathCache.has(cacheKey)) {
+			const cachedEntries = this.pathCache.get(cacheKey)!;
+			for (const entry of cachedEntries) {
+				const concept = await this.getById(entry.descendantConceptId);
+				if (concept && concept.active !== false) {
+					results.push({
+						concept,
+						relationshipType: entry.inferredRelationshipType,
+						direction: "forward",
+						depth: entry.linkDepth,
+					});
+				}
+			}
+			return results;
+		}
+
+		// 2. Perform graph BFS/DFS with operator duality inversion
+		const queue: Array<{
+			id: string;
+			depth: number;
+			dir: "forward" | "reverse";
+			pathRelType: ConceptRelationType;
+		}> = [];
+
+		if (direction === "forward" || direction === "both") {
+			const fw = this.forwardRelations.get(conceptId) || [];
+			for (const r of fw) {
+				if (r.active)
+					queue.push({
+						id: r.linkedId,
+						depth: 1,
+						dir: "forward",
+						pathRelType: r.relationshipType,
+					});
+			}
+		}
+
+		if (direction === "reverse" || direction === "both") {
+			const rev = this.reverseRelations.get(conceptId) || [];
+			for (const r of rev) {
+				if (r.active) {
+					queue.push({
+						id: r.conceptId,
+						depth: 1,
+						dir: "reverse",
+						pathRelType: invertRelationType(r.relationshipType),
+					});
+				}
+			}
+		}
+
+		const cacheEntries: ConceptRelationCacheEntry[] = [];
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+			if (
+				visited.has(`${current.id}:${current.dir}`) ||
+				current.depth > maxDepth
+			)
+				continue;
+			visited.add(`${current.id}:${current.dir}`);
+
+			const concept = await this.getById(current.id);
+			if (concept && concept.active !== false) {
+				results.push({
+					concept,
+					relationshipType: current.pathRelType,
+					direction: current.dir,
+					depth: current.depth,
+				});
+
+				cacheEntries.push({
+					ancestorConceptId: conceptId,
+					descendantConceptId: current.id,
+					linkDepth: current.depth,
+					inferredRelationshipType: current.pathRelType,
+					active: true,
+					updatedAt: new Date().toISOString(),
+				});
+			}
+
+			// Traverse next hop
+			if (current.depth < maxDepth) {
+				if (current.dir === "forward") {
+					const nextFw = this.forwardRelations.get(current.id) || [];
+					for (const r of nextFw) {
+						if (r.active) {
+							const inferredType =
+								r.relationshipType === "NARROWER_THAN" ||
+								current.pathRelType === "NARROWER_THAN"
+									? "NARROWER_THAN"
+									: r.relationshipType === "WIDER_THAN" ||
+											current.pathRelType === "WIDER_THAN"
+										? "WIDER_THAN"
+										: "EQUIVALENT";
+							queue.push({
+								id: r.linkedId,
+								depth: current.depth + 1,
+								dir: "forward",
+								pathRelType: inferredType,
+							});
+						}
+					}
+				} else {
+					const nextRev = this.reverseRelations.get(current.id) || [];
+					for (const r of nextRev) {
+						if (r.active) {
+							const invType = invertRelationType(r.relationshipType);
+							const inferredType =
+								invType === "NARROWER_THAN" ||
+								current.pathRelType === "NARROWER_THAN"
+									? "NARROWER_THAN"
+									: invType === "WIDER_THAN" ||
+											current.pathRelType === "WIDER_THAN"
+										? "WIDER_THAN"
+										: "EQUIVALENT";
+							queue.push({
+								id: r.conceptId,
+								depth: current.depth + 1,
+								dir: "reverse",
+								pathRelType: inferredType,
+							});
+						}
+					}
+				}
+			}
+		}
+
+		if (useCache) {
+			this.pathCache.set(cacheKey, cacheEntries);
+		}
+
+		return results;
 	}
 }
 
@@ -157,12 +350,34 @@ export class DictionaryStore {
 		}
 		if (config.relations) {
 			this.relations = [...this.relations, ...config.relations];
+			if (typeof this.conceptStore.addRelation === "function") {
+				for (const rel of config.relations) {
+					await this.conceptStore.addRelation(rel);
+				}
+			}
 		}
 		if (config.expressions) {
 			for (const expr of config.expressions) {
 				await this.addExpression(expr);
 			}
 		}
+	}
+
+	public async getRelatedConcepts(
+		conceptId: string,
+		direction: TraversalDirection = "both",
+		maxDepth = 3,
+		useCache = true,
+	): Promise<RelatedConceptResult[]> {
+		if (typeof this.conceptStore.getRelatedConcepts === "function") {
+			return this.conceptStore.getRelatedConcepts(
+				conceptId,
+				direction,
+				maxDepth,
+				useCache,
+			);
+		}
+		return [];
 	}
 
 	public shouldExposeWorkspaceAsEnum(): boolean {
@@ -364,6 +579,9 @@ export class DictionaryStore {
 		if (target) await this.verifyNamespaceMutable(target.namespaceCode);
 
 		this.relations.push(rel);
+		if (typeof this.conceptStore.addRelation === "function") {
+			await this.conceptStore.addRelation(rel);
+		}
 	}
 
 	public async removeRelation(
@@ -383,10 +601,27 @@ export class DictionaryStore {
 		if (target) await this.verifyNamespaceMutable(target.namespaceCode);
 
 		relation.active = false;
+		if (typeof this.conceptStore.invalidateRelationCache === "function") {
+			await this.conceptStore.invalidateRelationCache();
+		}
 		console.error(JSON.stringify({ event: "RELATION_DEACTIVATED", id }));
 	}
 
-	public getRelations(): ConceptRelation[] {
+	public async getRelations(
+		conceptId?: string,
+		direction: TraversalDirection = "both",
+	): Promise<ConceptRelation[]> {
+		if (conceptId && typeof this.conceptStore.getRelations === "function") {
+			return this.conceptStore.getRelations(conceptId, direction);
+		}
+		if (conceptId) {
+			return this.relations.filter((r) => {
+				if (!r.active) return false;
+				if (direction === "forward") return r.conceptId === conceptId;
+				if (direction === "reverse") return r.linkedId === conceptId;
+				return r.conceptId === conceptId || r.linkedId === conceptId;
+			});
+		}
 		return this.relations;
 	}
 
