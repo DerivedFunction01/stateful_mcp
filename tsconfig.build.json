@@ -1,22 +1,29 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "target": "ES2022",
-    "moduleDetection": "force",
-    "allowImportingTsExtensions": false,
-    "verbatimModuleSyntax": false,
-    "noEmit": false,
-    "emitDeclarationOnly": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist",
-    "rootDir": ".",
-    "types": ["node", "bun"],
-    "skipLibCheck": true,
-    "strict": true
-  },
-  "include": ["index.ts", "src/**/*.ts", "src/types/bun-shims.d.ts"],
-  "exclude": ["node_modules", "dist", "tests", "test.ts", "**/*.test.ts", "**/*.spec.ts"]
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"target": "ES2022",
+		"moduleDetection": "force",
+		"allowImportingTsExtensions": false,
+		"verbatimModuleSyntax": false,
+		"noEmit": false,
+		"emitDeclarationOnly": true,
+		"declaration": true,
+		"declarationMap": true,
+		"outDir": "dist",
+		"rootDir": ".",
+		"types": ["node", "bun"],
+		"skipLibCheck": true,
+		"strict": true
+	},
+	"include": ["index.ts", "src/**/*.ts", "src/types/bun-shims.d.ts"],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"tests",
+		"test.ts",
+		"**/*.test.ts",
+		"**/*.spec.ts"
+	]
 }

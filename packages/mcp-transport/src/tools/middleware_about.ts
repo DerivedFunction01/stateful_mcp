@@ -1,6 +1,6 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { resolveAboutOrExamples } from "@stateful-mcp/core";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { MiddlewareConfig } from "@stateful-mcp/core";
+import { resolveAboutOrExamples } from "@stateful-mcp/core";
 import * as path from "path";
 import { fileURLToPath } from "url";
 
@@ -16,27 +16,33 @@ const localAboutDir = path.resolve(__dirname, "../about");
  * Call this once per server, after all service-specific tools have been registered.
  */
 export function registerMiddlewareAboutTool(
-  server: McpServer,
-  config: MiddlewareConfig,
-  workspaceRoot: string
+	server: McpServer,
+	config: MiddlewareConfig,
+	workspaceRoot: string,
 ): void {
-  server.registerTool(
-    "middleware_about",
-    {
-      description: "Get meta-documentation explaining the orchestration of all stateful middleware services",
-      inputSchema: {}
-    },
-    async () => {
-      try {
-        const content = await resolveAboutOrExamples(
-          config.about_and_examples?.middleware_about,
-          path.join(localAboutDir, "middleware.md"),
-          workspaceRoot
-        );
-        return { content: [{ type: "text" as const, text: content }] };
-      } catch (err: any) {
-        return { content: [{ type: "text" as const, text: err.message || String(err) }], isError: true };
-      }
-    }
-  );
+	server.registerTool(
+		"middleware_about",
+		{
+			description:
+				"Get meta-documentation explaining the orchestration of all stateful middleware services",
+			inputSchema: {},
+		},
+		async () => {
+			try {
+				const content = await resolveAboutOrExamples(
+					config.about_and_examples?.middleware_about,
+					path.join(localAboutDir, "middleware.md"),
+					workspaceRoot,
+				);
+				return { content: [{ type: "text" as const, text: content }] };
+			} catch (err: any) {
+				return {
+					content: [
+						{ type: "text" as const, text: err.message || String(err) },
+					],
+					isError: true,
+				};
+			}
+		},
+	);
 }

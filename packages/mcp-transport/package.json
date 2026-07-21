@@ -1,35 +1,35 @@
 {
-  "name": "@stateful-mcp/mcp-transport",
-  "version": "0.1.2",
-  "description": "MCP server delivery layer for Stateful framework",
-  "keywords": [
-    "mcp",
-    "model-context-protocol",
-    "llm",
-    "stdio",
-    "server",
-    "stateful",
-    "middleware"
-  ],
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "src/about",
-    "src/examples"
-  ],
-  "scripts": {
-    "build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@stateful-mcp/core": "workspace:*",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/node": "^20",
-    "typescript": "^5"
-  }
+	"name": "@stateful-mcp/mcp-transport",
+	"version": "0.1.2",
+	"description": "MCP server delivery layer for Stateful framework",
+	"keywords": [
+		"mcp",
+		"model-context-protocol",
+		"llm",
+		"stdio",
+		"server",
+		"stateful",
+		"middleware"
+	],
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"src/about",
+		"src/examples"
+	],
+	"scripts": {
+		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.29.0",
+		"@stateful-mcp/core": "workspace:*",
+		"zod": "^3.22.4"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/node": "^20",
+		"typescript": "^5"
+	}
 }

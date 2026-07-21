@@ -2,16 +2,16 @@
 // Shared runtime validation engine runner.
 // Supports: remote_url (POST) and file (JSON Schema via AJV) ResourceLocators.
 
-import type { ResourceLocator } from "../../config/types";
 import Ajv from "ajv";
-import * as path from "path";
 import * as fs from "fs";
+import * as path from "path";
+import type { ResourceLocator } from "../../config/types";
 
 const ajv = new Ajv({ strict: false });
 
 export interface ExternalValidationResult {
-  valid: boolean;
-  errors?: string[];
+	valid: boolean;
+	errors?: string[];
 }
 
 /**
@@ -32,54 +32,64 @@ export interface ExternalValidationResult {
  *   }
  */
 export async function runValidationEngine(
-  locator: ResourceLocator,
-  payload: { serviceType: "object" | "event"; schemaName: string; data: any },
-  workspaceRoot: string
+	locator: ResourceLocator,
+	payload: { serviceType: "object" | "event"; schemaName: string; data: any },
+	workspaceRoot: string,
 ): Promise<ExternalValidationResult> {
-  const type = (locator as any)._type;
+	const type = (locator as any)._type;
 
-  if (type === "file") {
-    const filePath = path.resolve(workspaceRoot, (locator as any).path);
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Validation engine file not found: ${filePath}`);
-    }
-    const schema = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    const validate = ajv.compile(schema);
-    const valid = validate(payload.data) as boolean;
-    return {
-      valid,
-      errors: valid ? undefined : (validate.errors || []).map((e: any) => `${e.instancePath} ${e.message}`)
-    };
-  }
+	if (type === "file") {
+		const filePath = path.resolve(workspaceRoot, (locator as any).path);
+		if (!fs.existsSync(filePath)) {
+			throw new Error(`Validation engine file not found: ${filePath}`);
+		}
+		const schema = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+		const validate = ajv.compile(schema);
+		const valid = validate(payload.data) as boolean;
+		return {
+			valid,
+			errors: valid
+				? undefined
+				: (validate.errors || []).map(
+						(e: any) => `${e.instancePath} ${e.message}`,
+					),
+		};
+	}
 
-  if (type === "remote_url") {
-    const url = (locator as any).url as string;
-    const rawHeaders = (locator as any).headers || {};
+	if (type === "remote_url") {
+		const url = (locator as any).url as string;
+		const rawHeaders = (locator as any).headers || {};
 
-    // Substitute env: values in headers
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    for (const [key, val] of Object.entries(rawHeaders)) {
-      const v = String(val);
-      if (v.startsWith("env:")) {
-        headers[key] = process.env[v.slice(4)] || "";
-      } else {
-        headers[key] = v;
-      }
-    }
+		// Substitute env: values in headers
+		const headers: Record<string, string> = {
+			"Content-Type": "application/json",
+		};
+		for (const [key, val] of Object.entries(rawHeaders)) {
+			const v = String(val);
+			if (v.startsWith("env:")) {
+				headers[key] = process.env[v.slice(4)] || "";
+			} else {
+				headers[key] = v;
+			}
+		}
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload)
-    });
+		const response = await fetch(url, {
+			method: "POST",
+			headers,
+			body: JSON.stringify(payload),
+		});
 
-    if (!response.ok) {
-      throw new Error(`Validation engine remote call failed: HTTP ${response.status}`);
-    }
+		if (!response.ok) {
+			throw new Error(
+				`Validation engine remote call failed: HTTP ${response.status}`,
+			);
+		}
 
-    const result = (await response.json()) as ExternalValidationResult;
-    return result;
-  }
+		const result = (await response.json()) as ExternalValidationResult;
+		return result;
+	}
 
-  throw new Error(`Unsupported validation_engine _type: "${type}". Supported: "file", "remote_url"`);
+	throw new Error(
+		`Unsupported validation_engine _type: "${type}". Supported: "file", "remote_url"`,
+	);
 }

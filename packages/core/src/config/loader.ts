@@ -1,160 +1,187 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { ResourceLocator, MiddlewareConfig } from "./types";
+import type { MiddlewareConfig, ResourceLocator } from "./types";
 
 // ── Env substitution ──────────────────────────────────────────────────────────
 
 export async function loadEnvSources(
-  sources: Array<{ _type: string; path?: string; optional?: boolean }>
+	sources: Array<{ _type: string; path?: string; optional?: boolean }>,
 ): Promise<void> {
-  // Load each .env file in order; process.env always wins over file values
-  for (const src of sources) {
-    if (src._type !== "file" || !src.path) continue;
-    try {
-      const raw = await fs.readFile(src.path, "utf-8");
-      for (const line of raw.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const eq = trimmed.indexOf("=");
-        if (eq === -1) continue;
-        const key = trimmed.slice(0, eq).trim();
-        const val = trimmed.slice(eq + 1).trim();
-        if (!(key in process.env)) process.env[key] = val;  // file never overrides real env
-      }
-    } catch (err) {
-      if (!src.optional) throw new Error(`Required env file not found: ${src.path}`);
-    }
-  }
+	// Load each .env file in order; process.env always wins over file values
+	for (const src of sources) {
+		if (src._type !== "file" || !src.path) continue;
+		try {
+			const raw = await fs.readFile(src.path, "utf-8");
+			for (const line of raw.split("\n")) {
+				const trimmed = line.trim();
+				if (!trimmed || trimmed.startsWith("#")) continue;
+				const eq = trimmed.indexOf("=");
+				if (eq === -1) continue;
+				const key = trimmed.slice(0, eq).trim();
+				const val = trimmed.slice(eq + 1).trim();
+				if (!(key in process.env)) process.env[key] = val; // file never overrides real env
+			}
+		} catch (err) {
+			if (!src.optional)
+				throw new Error(`Required env file not found: ${src.path}`);
+		}
+	}
 }
 
 export function substituteEnvVars(obj: unknown): unknown {
-  // Recursively walk any JSON-serializable value and replace "env:VAR_NAME" strings
-  if (typeof obj === "string" && obj.startsWith("env:")) {
-    const key = obj.slice(4);
-    const val = process.env[key];
-    if (val === undefined) throw new Error(`Missing env variable: ${key}`);
-    return val;
-  }
-  if (Array.isArray(obj)) return obj.map(substituteEnvVars);
-  if (obj && typeof obj === "object") {
-    return Object.fromEntries(
-      Object.entries(obj).map(([k, v]) => [k, substituteEnvVars(v)])
-    );
-  }
-  return obj;
+	// Recursively walk any JSON-serializable value and replace "env:VAR_NAME" strings
+	if (typeof obj === "string" && obj.startsWith("env:")) {
+		const key = obj.slice(4);
+		const val = process.env[key];
+		if (val === undefined) throw new Error(`Missing env variable: ${key}`);
+		return val;
+	}
+	if (Array.isArray(obj)) return obj.map(substituteEnvVars);
+	if (obj && typeof obj === "object") {
+		return Object.fromEntries(
+			Object.entries(obj).map(([k, v]) => [k, substituteEnvVars(v)]),
+		);
+	}
+	return obj;
 }
 
 // ── Source resolution with TTL cache ─────────────────────────────────────────
 
-export function replacePlaceholders(str: string, context?: Record<string, string>): string {
-  if (!context) return str;
-  return str.replace(/\{([^}]+)\}/g, (match, key) => {
-    const val = context[key];
-    return val !== undefined ? encodeURIComponent(val) : match;
-  });
+export function replacePlaceholders(
+	str: string,
+	context?: Record<string, string>,
+): string {
+	if (!context) return str;
+	return str.replace(/\{([^}]+)\}/g, (match, key) => {
+		const val = context[key];
+		return val !== undefined ? encodeURIComponent(val) : match;
+	});
 }
 
-interface CacheEntry { value: unknown; resolvedAt: number }
+interface CacheEntry {
+	value: unknown;
+	resolvedAt: number;
+}
 const sourceCache = new Map<string, CacheEntry>();
 
 export async function resolveSource(
-  locator: ResourceLocator,
-  workspaceRoot: string,
-  context?: Record<string, string>
+	locator: ResourceLocator,
+	workspaceRoot: string,
+	context?: Record<string, string>,
 ): Promise<unknown> {
-  // Build cache key — include context stringification
-  const cacheKey = JSON.stringify(locator) + (context ? `:${JSON.stringify(context)}` : "");
-  const ttl = locator._type !== "adapter" ? (locator.ttl_ms ?? 0) : 0;
+	// Build cache key — include context stringification
+	const cacheKey =
+		JSON.stringify(locator) + (context ? `:${JSON.stringify(context)}` : "");
+	const ttl = locator._type !== "adapter" ? (locator.ttl_ms ?? 0) : 0;
 
-  if (ttl === 0) {
-    // Cache forever — serve from cache if present
-    const cached = sourceCache.get(cacheKey);
-    if (cached) return cached.value;
-  } else {
-    const cached = sourceCache.get(cacheKey);
-    if (cached && Date.now() - cached.resolvedAt < ttl) return cached.value;
-  }
+	if (ttl === 0) {
+		// Cache forever — serve from cache if present
+		const cached = sourceCache.get(cacheKey);
+		if (cached) return cached.value;
+	} else {
+		const cached = sourceCache.get(cacheKey);
+		if (cached && Date.now() - cached.resolvedAt < ttl) return cached.value;
+	}
 
-  let value: unknown;
+	let value: unknown;
 
-  switch (locator._type) {
-    case "adapter":
-      // Adapter resolution is not cached here — the registry handles adapter lifecycle
-      return resolveAdapter(locator.name, substituteEnvVars(locator.options ?? {}) as Record<string, unknown>, workspaceRoot);
+	switch (locator._type) {
+		case "adapter":
+			// Adapter resolution is not cached here — the registry handles adapter lifecycle
+			return resolveAdapter(
+				locator.name,
+				substituteEnvVars(locator.options ?? {}) as Record<string, unknown>,
+				workspaceRoot,
+			);
 
-    case "file": {
-      const finalPath = replacePlaceholders(locator.path, context);
-      const resolved = path.resolve(workspaceRoot, finalPath);
-      const raw = await fs.readFile(resolved, "utf-8");
-      value = substituteEnvVars(JSON.parse(raw));
-      break;
-    }
+		case "file": {
+			const finalPath = replacePlaceholders(locator.path, context);
+			const resolved = path.resolve(workspaceRoot, finalPath);
+			const raw = await fs.readFile(resolved, "utf-8");
+			value = substituteEnvVars(JSON.parse(raw));
+			break;
+		}
 
-    case "remote_url": {
-      const url = replacePlaceholders(locator.url, context);
-      const res = await fetch(url, { headers: locator.headers });
-      if (!res.ok) throw new Error(`resolveSource fetch failed: ${url} → HTTP ${res.status}`);
-      value = substituteEnvVars(await res.json());
-      break;
-    }
+		case "remote_url": {
+			const url = replacePlaceholders(locator.url, context);
+			const res = await fetch(url, { headers: locator.headers });
+			if (!res.ok)
+				throw new Error(
+					`resolveSource fetch failed: ${url} → HTTP ${res.status}`,
+				);
+			value = substituteEnvVars(await res.json());
+			break;
+		}
 
-    default:
-      throw new Error(`Unknown ResourceLocator _type: ${(locator as any)._type}`);
-  }
+		default:
+			throw new Error(
+				`Unknown ResourceLocator _type: ${(locator as any)._type}`,
+			);
+	}
 
-  sourceCache.set(cacheKey, { value, resolvedAt: Date.now() });
-  return value;
+	sourceCache.set(cacheKey, { value, resolvedAt: Date.now() });
+	return value;
 }
 
 // ── Adapter registry (defined here to avoid circular import) ─────────────────
 
 export interface AdapterFactory<T> {
-  create(options: Record<string, unknown>): Promise<T>;
+	create(options: Record<string, unknown>): Promise<T>;
 }
 
 const registry = new Map<string, AdapterFactory<unknown>>();
 
-export function registerAdapter<T>(name: string, factory: AdapterFactory<T>): void {
-  if (registry.has(name)) throw new Error(`Adapter already registered: "${name}"`);
-  registry.set(name, factory as AdapterFactory<unknown>);
+export function registerAdapter<T>(
+	name: string,
+	factory: AdapterFactory<T>,
+): void {
+	if (registry.has(name))
+		throw new Error(`Adapter already registered: "${name}"`);
+	registry.set(name, factory as AdapterFactory<unknown>);
 }
 
 export async function resolveAdapter<T>(
-  name: string,
-  options: Record<string, unknown> = {},
-  workspaceRoot?: string
+	name: string,
+	options: Record<string, unknown> = {},
+	workspaceRoot?: string,
 ): Promise<T> {
-  // If name starts with '@', resolve a path alias to dynamically load the module.
-  // Path detection rules (applied to the string after stripping '@'):
-  //   /path/to/module   → absolute path, used as-is
-  //   ~/path/to/module  → home-dir path, expanded via HOME env var
-  //   path/to/module    → workspace-relative, resolved against workspaceRoot
-  if (name.startsWith("@")) {
-    if (!workspaceRoot) throw new Error(`Cannot resolve path alias "${name}" without workspaceRoot`);
-    const rawPath = name.slice(1); // strip leading '@'
-    let absolutePath: string;
-    if (rawPath.startsWith("/")) {
-      // Already absolute
-      absolutePath = rawPath;
-    } else if (rawPath.startsWith("~/")) {
-      // Home-directory relative
-      const home = process.env["HOME"] || process.env["USERPROFILE"] || "";
-      absolutePath = path.join(home, rawPath.slice(2));
-    } else {
-      // Workspace-relative (default)
-      absolutePath = path.resolve(workspaceRoot, rawPath);
-    }
-    // Dynamic import triggers the module's registerAdapter side-effect
-    await import(absolutePath);
-  }
+	// If name starts with '@', resolve a path alias to dynamically load the module.
+	// Path detection rules (applied to the string after stripping '@'):
+	//   /path/to/module   → absolute path, used as-is
+	//   ~/path/to/module  → home-dir path, expanded via HOME env var
+	//   path/to/module    → workspace-relative, resolved against workspaceRoot
+	if (name.startsWith("@")) {
+		if (!workspaceRoot)
+			throw new Error(
+				`Cannot resolve path alias "${name}" without workspaceRoot`,
+			);
+		const rawPath = name.slice(1); // strip leading '@'
+		let absolutePath: string;
+		if (rawPath.startsWith("/")) {
+			// Already absolute
+			absolutePath = rawPath;
+		} else if (rawPath.startsWith("~/")) {
+			// Home-directory relative
+			const home = process.env["HOME"] || process.env["USERPROFILE"] || "";
+			absolutePath = path.join(home, rawPath.slice(2));
+		} else {
+			// Workspace-relative (default)
+			absolutePath = path.resolve(workspaceRoot, rawPath);
+		}
+		// Dynamic import triggers the module's registerAdapter side-effect
+		await import(absolutePath);
+	}
 
-  const factory = registry.get(name);
-  if (!factory) throw new Error(`Unregistered adapter: "${name}". Did the module call registerAdapter()?`);
-  return factory.create(options) as Promise<T>;
+	const factory = registry.get(name);
+	if (!factory)
+		throw new Error(
+			`Unregistered adapter: "${name}". Did the module call registerAdapter()?`,
+		);
+	return factory.create(options) as Promise<T>;
 }
 
 export function clearCache(): void {
-  sourceCache.clear();
+	sourceCache.clear();
 }
 
 /**
@@ -165,22 +192,24 @@ export function clearCache(): void {
  *   2. `STATEFUL_MCP_CONFIG_DIR` environment variable
  *   3. `process.cwd()` (fallback, preserved for self-hosting convenience)
  */
-export function resolveConfigDir(argv: string[] = process.argv.slice(2)): string {
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === undefined) continue;
-    if ((arg === "--config-dir" || arg === "-c")) {
-      const next = argv[i + 1];
-      if (next !== undefined) return next;
-    }
-    if (arg.startsWith("--config-dir=")) {
-      return arg.slice("--config-dir=".length);
-    }
-  }
-  if (process.env.STATEFUL_MCP_CONFIG_DIR) {
-    return process.env.STATEFUL_MCP_CONFIG_DIR;
-  }
-  return process.cwd();
+export function resolveConfigDir(
+	argv: string[] = process.argv.slice(2),
+): string {
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === undefined) continue;
+		if (arg === "--config-dir" || arg === "-c") {
+			const next = argv[i + 1];
+			if (next !== undefined) return next;
+		}
+		if (arg.startsWith("--config-dir=")) {
+			return arg.slice("--config-dir=".length);
+		}
+	}
+	if (process.env.STATEFUL_MCP_CONFIG_DIR) {
+		return process.env.STATEFUL_MCP_CONFIG_DIR;
+	}
+	return process.cwd();
 }
 
 /**
@@ -188,101 +217,110 @@ export function resolveConfigDir(argv: string[] = process.argv.slice(2)): string
  * The config directory is resolved explicitly (see `resolveConfigDir`) so consumers
  * can point the package at their own config rather than relying on cwd.
  */
-export async function loadMiddlewareConfig(workspaceRoot?: string): Promise<MiddlewareConfig> {
-  const resolvedRoot = workspaceRoot ?? resolveConfigDir();
-  // Try loading split configs if they exist, or fallback to filter.config.json / config.json
-  const toolsPath = path.join(resolvedRoot, "config", "tools.config.json");
-  const storagePath = path.join(resolvedRoot, "config", "storage.config.json");
-  const aboutPath = path.join(resolvedRoot, "config", "about.config.json");
+export async function loadMiddlewareConfig(
+	workspaceRoot?: string,
+): Promise<MiddlewareConfig> {
+	const resolvedRoot = workspaceRoot ?? resolveConfigDir();
+	// Try loading split configs if they exist, or fallback to filter.config.json / config.json
+	const toolsPath = path.join(resolvedRoot, "config", "tools.config.json");
+	const storagePath = path.join(resolvedRoot, "config", "storage.config.json");
+	const aboutPath = path.join(resolvedRoot, "config", "about.config.json");
 
-  let toolsConfig: any = {};
-  let storageConfig: any = {};
-  let aboutConfig: any = {};
+	let toolsConfig: any = {};
+	let storageConfig: any = {};
+	let aboutConfig: any = {};
 
-  try {
-    const rawTools = await fs.readFile(toolsPath, "utf-8");
-    toolsConfig = JSON.parse(rawTools);
-  } catch (e) {
-    // If split doesn't exist, try reading single workspace config file
-    const mainPath = path.join(resolvedRoot, "filter.config.json");
-    try {
-      const rawMain = await fs.readFile(mainPath, "utf-8");
-      const parsedMain = JSON.parse(rawMain);
-      return substituteEnvVars(parsedMain) as MiddlewareConfig;
-    } catch (e2) {
-      throw new Error(`Failed to find or parse configuration file in ${resolvedRoot}`);
-    }
-  }
+	try {
+		const rawTools = await fs.readFile(toolsPath, "utf-8");
+		toolsConfig = JSON.parse(rawTools);
+	} catch (e) {
+		// If split doesn't exist, try reading single workspace config file
+		const mainPath = path.join(resolvedRoot, "filter.config.json");
+		try {
+			const rawMain = await fs.readFile(mainPath, "utf-8");
+			const parsedMain = JSON.parse(rawMain);
+			return substituteEnvVars(parsedMain) as MiddlewareConfig;
+		} catch (e2) {
+			throw new Error(
+				`Failed to find or parse configuration file in ${resolvedRoot}`,
+			);
+		}
+	}
 
-  try {
-    const rawStorage = await fs.readFile(storagePath, "utf-8");
-    storageConfig = JSON.parse(rawStorage);
-  } catch (e) {
-    // Storage config is required if split layout is used
-    throw new Error(`Storage configuration not found at ${storagePath}`);
-  }
+	try {
+		const rawStorage = await fs.readFile(storagePath, "utf-8");
+		storageConfig = JSON.parse(rawStorage);
+	} catch (e) {
+		// Storage config is required if split layout is used
+		throw new Error(`Storage configuration not found at ${storagePath}`);
+	}
 
-  try {
-    const rawAbout = await fs.readFile(aboutPath, "utf-8");
-    aboutConfig = JSON.parse(rawAbout);
-  } catch (e) {
-    // About/examples config is optional; absence falls back to default docs paths.
-  }
+	try {
+		const rawAbout = await fs.readFile(aboutPath, "utf-8");
+		aboutConfig = JSON.parse(rawAbout);
+	} catch (e) {
+		// About/examples config is optional; absence falls back to default docs paths.
+	}
 
-  const merged = {
-    ...storageConfig,
-    ...aboutConfig,
-    tools: toolsConfig.tools || toolsConfig,
-  };
+	const merged = {
+		...storageConfig,
+		...aboutConfig,
+		tools: toolsConfig.tools || toolsConfig,
+	};
 
-  return substituteEnvVars(merged) as MiddlewareConfig;
+	return substituteEnvVars(merged) as MiddlewareConfig;
 }
 
 export async function resolveTextSource(
-  locator: ResourceLocator,
-  workspaceRoot: string,
-  context?: Record<string, string>
+	locator: ResourceLocator,
+	workspaceRoot: string,
+	context?: Record<string, string>,
 ): Promise<string> {
-  switch (locator._type) {
-    case "file": {
-      const finalPath = replacePlaceholders(locator.path, context);
-      const resolved = path.resolve(workspaceRoot, finalPath);
-      return await fs.readFile(resolved, "utf-8");
-    }
-    case "remote_url": {
-      const url = replacePlaceholders(locator.url, context);
-      const res = await fetch(url, { headers: locator.headers });
-      if (!res.ok) throw new Error(`resolveTextSource fetch failed: ${url} → HTTP ${res.status}`);
-      return await res.text();
-    }
-    default:
-      throw new Error(`resolveTextSource only supports file and remote_url locators for raw text reading`);
-  }
+	switch (locator._type) {
+		case "file": {
+			const finalPath = replacePlaceholders(locator.path, context);
+			const resolved = path.resolve(workspaceRoot, finalPath);
+			return await fs.readFile(resolved, "utf-8");
+		}
+		case "remote_url": {
+			const url = replacePlaceholders(locator.url, context);
+			const res = await fetch(url, { headers: locator.headers });
+			if (!res.ok)
+				throw new Error(
+					`resolveTextSource fetch failed: ${url} → HTTP ${res.status}`,
+				);
+			return await res.text();
+		}
+		default:
+			throw new Error(
+				`resolveTextSource only supports file and remote_url locators for raw text reading`,
+			);
+	}
 }
 
 export async function resolveAboutOrExamples(
-  locators: ResourceLocator[] | undefined,
-  fallbackPath: string,
-  workspaceRoot: string,
-  context?: Record<string, string>
+	locators: ResourceLocator[] | undefined,
+	fallbackPath: string,
+	workspaceRoot: string,
+	context?: Record<string, string>,
 ): Promise<string> {
-  if (!locators || locators.length === 0) {
-    try {
-      const defaultResolved = path.resolve(workspaceRoot, fallbackPath);
-      return await fs.readFile(defaultResolved, "utf-8");
-    } catch (_) {
-      return "";
-    }
-  }
+	if (!locators || locators.length === 0) {
+		try {
+			const defaultResolved = path.resolve(workspaceRoot, fallbackPath);
+			return await fs.readFile(defaultResolved, "utf-8");
+		} catch (_) {
+			return "";
+		}
+	}
 
-  const results: string[] = [];
-  for (const loc of locators) {
-    try {
-      const content = await resolveTextSource(loc, workspaceRoot, context);
-      results.push(content);
-    } catch (err: any) {
-      results.push(`[Error loading resource: ${err.message}]`);
-    }
-  }
-  return results.join("\n\n---\n\n");
+	const results: string[] = [];
+	for (const loc of locators) {
+		try {
+			const content = await resolveTextSource(loc, workspaceRoot, context);
+			results.push(content);
+		} catch (err: any) {
+			results.push(`[Error loading resource: ${err.message}]`);
+		}
+	}
+	return results.join("\n\n---\n\n");
 }

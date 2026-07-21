@@ -1,24 +1,27 @@
 {
-  "name": "stateful-mcp-monorepo",
-  "version": "0.1.1",
-  "private": true,
-  "description": "Stateful MCP middleware suite monorepo workspace",
-  "type": "module",
-  "license": "MIT",
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "test": "bun --filter @stateful-mcp/core test",
-    "build": "bun --filter \"*\" build"
-  },
-  "engines": {
-    "node": ">=18",
-    "bun": ">=1.0"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/node": "^20",
-    "typescript": "^5"
-  }
+	"name": "stateful-mcp-monorepo",
+	"version": "0.1.1",
+	"private": true,
+	"description": "Stateful MCP middleware suite monorepo workspace",
+	"type": "module",
+	"license": "MIT",
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"test": "bun --filter @stateful-mcp/core test",
+		"build": "bun --filter \"*\" build",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write ."
+	},
+	"engines": {
+		"node": ">=18",
+		"bun": ">=1.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.5",
+		"@types/bun": "latest",
+		"@types/node": "^20",
+		"typescript": "^5"
+	}
 }

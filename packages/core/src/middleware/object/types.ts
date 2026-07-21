@@ -1,16 +1,16 @@
 export interface ObjectState {
-  objectId: string;
-  schemaName: string;
-  parentObjectId?: string | null;
-  data: Record<string, any>;
-  createdAt: string;
-  schema_pinned_at?: string;
-  linearDepth?: number;
-  gcLock?: boolean;
+	objectId: string;
+	schemaName: string;
+	parentObjectId?: string | null;
+	data: Record<string, any>;
+	createdAt: string;
+	schema_pinned_at?: string;
+	linearDepth?: number;
+	gcLock?: boolean;
 }
 
 export interface ObjectDiffResult {
-  added: Record<string, any>;
-  updated: Record<string, { old: any; new: any }>;
-  removed: string[];
+	added: Record<string, any>;
+	updated: Record<string, { old: any; new: any }>;
+	removed: string[];
 }
