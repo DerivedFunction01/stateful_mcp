@@ -1,6 +1,6 @@
 {
   "name": "@stateful-mcp/mcp-transport",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP server delivery layer for Stateful framework",
   "keywords": [
     "mcp",

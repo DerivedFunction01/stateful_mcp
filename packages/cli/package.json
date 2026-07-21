@@ -1,6 +1,6 @@
 {
   "name": "@stateful-mcp/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Administrative CLI tool for Stateful framework",
   "keywords": [
     "cli",
