@@ -24,6 +24,7 @@ export interface ToolConfig {
   validation_engine?: ResourceLocator;
   inspect?: { expose_compiled?: boolean };
   state_requirements?: StateRequirement[];
+  force_parameterize?: string[];
 }
 
 export interface AutoCompressionConfig {

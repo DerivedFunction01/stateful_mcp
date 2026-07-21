@@ -32,6 +32,7 @@ interface ActiveRecordingSession {
 }
 
 import { DEFAULT_NON_RECORDABLE_SERVICE_TOOLS, NonRecordableToolsRegistry } from "../../config/meta_tools";
+import type { ToolConfig } from "../../config/types";
 
 export class TraceStore {
   private traces = new Map<string, TraceForm>();
@@ -39,9 +40,11 @@ export class TraceStore {
   private recordingSessions = new Map<string, ActiveRecordingSession>();
 
   private registry: NonRecordableToolsRegistry;
+  private toolConfigs: Record<string, ToolConfig> = {};
 
-  constructor(customNonRecordableTools: string[] = []) {
+  constructor(customNonRecordableTools: string[] = [], toolConfigs: Record<string, ToolConfig> = {}) {
     this.registry = new NonRecordableToolsRegistry(customNonRecordableTools);
+    this.toolConfigs = toolConfigs;
 
     // Listen for core eventBroker state changes to auto-record steps into active recording sessions for the matching sessionId
     eventBroker.on("state:changed", (event: StateChangeEvent) => {
@@ -157,6 +160,8 @@ export class TraceStore {
       // Parameterize step argument values into input_slots
       const parameterizedArgs: Record<string, any> = { ...step.args };
       const hasExplicitSlots = Object.keys(rawForm.input_slots || {}).length > 0;
+      const toolCfg = this.toolConfigs[step.action];
+      const forcedParams = new Set<string>(toolCfg?.force_parameterize || []);
 
       if (step.args) {
         for (const [key, val] of Object.entries(step.args)) {
@@ -165,7 +170,22 @@ export class TraceStore {
             continue;
           }
 
-          if (hasExplicitSlots) {
+          const shouldForce = forcedParams.has(key);
+
+          if (shouldForce) {
+            if (val !== undefined && val !== null) {
+              const slotKey = inferredInputSlots[key] ? `${step.action}_${key}` : key;
+              if (!inferredInputSlots[slotKey]) {
+                inferredInputSlots[slotKey] = {
+                  type: Array.isArray(val) ? "array" : (typeof val as any),
+                  description: `Forced dynamic input slot for ${key}`,
+                  required: false,
+                  default: val
+                };
+              }
+              parameterizedArgs[key] = `$input.${slotKey}`;
+            }
+          } else if (hasExplicitSlots) {
             // Check explicit slot target locator (step_id / action + occurrence / arg_key) first
             for (const [slotKey, slotDef] of Object.entries(rawForm.input_slots || {})) {
               if (slotDef.target) {
@@ -185,7 +205,6 @@ export class TraceStore {
               }
             }
           }
-          // Note: If no explicit input_slots were passed, step arguments default to hardcoded values
         }
       }
 

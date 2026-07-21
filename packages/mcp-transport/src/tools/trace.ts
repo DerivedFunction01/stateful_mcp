@@ -249,7 +249,7 @@ async function main() {
     nonRecordableTools = await loadMetaToolsConfig(config.meta_tools_config, configDir);
   }
 
-  traceStore = new TraceStore(nonRecordableTools);
+  traceStore = new TraceStore(nonRecordableTools, config.tools);
 
   registerTraceTools();
 

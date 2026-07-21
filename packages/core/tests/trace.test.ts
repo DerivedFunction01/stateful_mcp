@@ -255,4 +255,38 @@ describe("TraceStore Engine Tests", () => {
     expect(compiled.steps[0]!.args!["value"]).toBe("$input.first_dept");
     expect(compiled.steps[1]!.args!["value"]).toBe("$input.second_dept");
   });
+
+  test("force_parameterize rules defined in tool config promote specific arguments to input slots", () => {
+    const customStore = new TraceStore([], {
+      filter_add_rule: {
+        schema: { _type: "file", path: "schema.json" },
+        engine: { _type: "adapter", name: "memory" },
+        force_parameterize: ["value", "sensitive_arg"]
+      } as any
+    });
+
+    const compiled = customStore.recordTrace({
+      trace_id: "t_forced_params",
+      goal: "Test force parameterization rules",
+      steps: [
+        {
+          id: "rule_1",
+          action: "filter_add_rule",
+          args: {
+            field: "dept",
+            op: "eq",
+            value: "cardiology",
+            sensitive_arg: "secret_token",
+            other_arg: "static_literal"
+          }
+        }
+      ]
+    });
+
+    expect(compiled.steps[0]!.args!["value"]).toBe("$input.value");
+    expect(compiled.steps[0]!.args!["sensitive_arg"]).toBe("$input.sensitive_arg");
+    expect(compiled.steps[0]!.args!["other_arg"]).toBe("static_literal"); // Remains static literal
+    expect(compiled.input_slots?.["value"]).toBeDefined();
+    expect(compiled.input_slots?.["value"]?.default).toBe("cardiology");
+  });
 });
