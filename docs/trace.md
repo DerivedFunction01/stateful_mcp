@@ -12,6 +12,7 @@ The **Trace Form Engine (`TraceStore`)** introduces **procedural execution learn
 * **Missing Input Pause**: Execution automatically pauses (`status: "paused"`) with a `resume_token` if required input slots or state handles are missing, allowing the client/LLM to supply them via `trace_resume`.
 * **Transactional Compensation Rollbacks**: If a multi-step trace encounters an unhandled runtime error, completed steps are unwound in reverse (LIFO) order using configured rollback actions.
 * **Delta Refinements (`trace_refine`)**: LLMs submit targeted delta operations (`replace_step`, `append_step`, `remove_step`, `swap_with_persistent`) rather than regenerating full graph JSON.
+* **Force Parameterization Rules**: Specific sensitive or dynamic tool parameters can be configured to force promotion into input slots, preventing hardcoding in files.
 * **Paginated Query Engine**: `trace_query` supports paginated search over stored trace forms (`limit`, `offset`, `total`, `has_more`, `next_offset`).
 
 ---
@@ -134,3 +135,4 @@ Static values captured during recording are converted into dynamic slots:
 - Hardcoded user parameters (e.g. `"P-94820"`, `"cardiology"`) map to `input_slots` (`$input.patient_id`). Explicit `target` locators disambiguate multiple occurrences of identical action parameters.
 - Outputs from preceding steps map to `$step.<step_id>.<property>`.
 - Step arguments default to hardcoded literal values if explicit `input_slots` are not passed, avoiding slot explosion.
+- **Force Parameterization Rules**: If a parameter key (e.g. `value` or `patient_id`) is listed in a tool's `force_parameterize` config within `tools.config.json`, it is automatically promoted to an input slot even if no explicit `input_slots` were declared.

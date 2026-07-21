@@ -1,3 +1,4 @@
+// REFERENCE: docs/trace.md
 import type {
   TraceForm,
   TraceStep,
