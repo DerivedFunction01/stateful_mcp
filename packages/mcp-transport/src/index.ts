@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { resolveConfigDir } from "./src/config/loader";
+import { resolveConfigDir } from "@stateful-mcp/core";
 
 const serviceType = process.env.SERVICE_TYPE || process.argv[2] || "filter";
 
@@ -13,22 +13,22 @@ console.error(`[Monolith Router] Starting service: ${serviceType} (config: ${con
 async function start(service: string): Promise<void> {
   switch (service) {
     case "filter":
-      await import("./src/services/filter.js");
+      await import("./tools/filter.js");
       break;
     case "object":
-      await import("./src/services/object.js");
+      await import("./tools/object.js");
       break;
     case "dictionary":
-      await import("./src/services/dictionary.js");
+      await import("./tools/dictionary.js");
       break;
     case "log":
-      await import("./src/services/log.js");
+      await import("./tools/log.js");
       break;
     case "event":
-      await import("./src/services/event.js");
+      await import("./tools/event.js");
       break;
     case "form":
-      await import("./src/services/form.js");
+      await import("./tools/form.js");
       break;
     default:
       console.error(`[Error] Unknown SERVICE_TYPE: "${service}". Must be: "filter", "object", "dictionary", "log", "event", or "form"`);

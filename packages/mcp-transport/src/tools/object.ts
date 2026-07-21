@@ -1,17 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "../config/loader";
-import { validateMiddlewareConfig } from "../config/validator";
-import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "../adapters/storage/memory-repo";
-import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "../adapters/storage/jsonl-repo";
-import { ObjectStore } from "../middleware/object/store";
-import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
-import { clampLimit, buildLimitField } from "../config/pagination";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "@stateful-mcp/core";
+import { validateMiddlewareConfig } from "@stateful-mcp/core";
+import { MemorySessionObjectStore, MemoryPersistentObjectStore } from "@stateful-mcp/core";
+import { JsonlSessionObjectStore, JsonlPersistentObjectStore } from "@stateful-mcp/core";
+import { ObjectStore } from "@stateful-mcp/core";
+import type { MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core";
+import { clampLimit, buildLimitField } from "@stateful-mcp/core";
 import { getFilterStore, getFormStore } from "./helper";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import * as path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -412,7 +411,7 @@ async function main() {
       : new MemoryPersistentObjectStore();
 
   const objectSchemas = new Map<string, any>();
-  const validationEngines = new Map<string, import("../config/types").ResourceLocator>();
+  const validationEngines = new Map<string, import("@stateful-mcp/core").ResourceLocator>();
   if (config.object_schemas) {
     for (const [schemaName, entry] of Object.entries(config.object_schemas)) {
       try {

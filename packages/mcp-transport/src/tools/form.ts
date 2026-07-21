@@ -1,18 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "../config/loader";
-import { validateMiddlewareConfig } from "../config/validator";
-import { MemorySessionFormStore, MemoryPersistentFormStore } from "../adapters/storage/memory-repo";
-import { JsonlSessionFormStore, JsonlPersistentFormStore } from "../adapters/storage/jsonl-repo";
-import { SqliteFormStore } from "../adapters/storage/sqlite-repo";
-import { FormStore } from "../middleware/form/store";
-import type { MiddlewareConfig, FormSchema, OwnerScope } from "../config/types";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "@stateful-mcp/core";
+import { validateMiddlewareConfig } from "@stateful-mcp/core";
+import { MemorySessionFormStore, MemoryPersistentFormStore } from "@stateful-mcp/core";
+import { JsonlSessionFormStore, JsonlPersistentFormStore } from "@stateful-mcp/core";
+import { SqliteFormStore } from "@stateful-mcp/core";
+import { FormStore } from "@stateful-mcp/core";
+import type { MiddlewareConfig, FormSchema, OwnerScope } from "@stateful-mcp/core";
 import { getFilterStore, getObjectStore } from "./helper";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import * as path from "path";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const localAboutDir = path.resolve(__dirname, "../about");

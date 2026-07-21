@@ -1,18 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "../config/loader";
-import { validateMiddlewareConfig } from "../config/validator";
-import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "../adapters/storage/memory-repo";
-import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
-import { JsonlSessionFilterStore, JsonlPersistentFilterStore } from "../adapters/storage/jsonl-repo";
-import { FilterStore } from "../middleware/filter/store";
-import type { TableSchema, MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
-import { clampLimit, buildLimitField } from "../config/pagination";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "@stateful-mcp/core";
+import { validateMiddlewareConfig } from "@stateful-mcp/core";
+import { MemorySessionFilterStore, MemoryPersistentFilterStore } from "@stateful-mcp/core";
+import { SqliteFilterStore } from "@stateful-mcp/core";
+import { JsonlSessionFilterStore, JsonlPersistentFilterStore } from "@stateful-mcp/core";
+import { FilterStore } from "@stateful-mcp/core";
+import type { TableSchema, MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core";
+import { clampLimit, buildLimitField } from "@stateful-mcp/core";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import * as path from "path";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const localAboutDir = path.resolve(__dirname, "../about");

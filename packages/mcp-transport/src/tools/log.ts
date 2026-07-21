@@ -2,14 +2,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import * as crypto from "crypto";
-import { loadMiddlewareConfig, resolveSource, resolveConfigDir } from "../config/loader";
-import { validateMiddlewareConfig } from "../config/validator";
-import { MemorySessionFilterStore, MemoryPersistentFilterStore, MemorySessionObjectStore, MemoryPersistentObjectStore } from "../adapters/storage/memory-repo";
-import { SqliteFilterStore } from "../adapters/storage/sqlite-repo";
-import { FilterStore } from "../middleware/filter/store";
-import { ObjectStore } from "../middleware/object/store";
-import type { TableSchema, PaginationLimitsConfig } from "../config/types";
-import { clampLimit, buildLimitField } from "../config/pagination";
+import { loadMiddlewareConfig, resolveSource, resolveConfigDir } from "@stateful-mcp/core";
+import { validateMiddlewareConfig } from "@stateful-mcp/core";
+import { MemorySessionFilterStore, MemoryPersistentFilterStore, MemorySessionObjectStore, MemoryPersistentObjectStore } from "@stateful-mcp/core";
+import { SqliteFilterStore } from "@stateful-mcp/core";
+import { FilterStore } from "@stateful-mcp/core";
+import { ObjectStore } from "@stateful-mcp/core";
+import type { TableSchema, PaginationLimitsConfig } from "@stateful-mcp/core";
+import { clampLimit, buildLimitField } from "@stateful-mcp/core";
 
 const server = new McpServer({
   name: "log-service",

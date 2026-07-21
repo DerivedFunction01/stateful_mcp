@@ -45,3 +45,4 @@ scratch/
 
 # Anything with a dot
 .*
+temp_*/

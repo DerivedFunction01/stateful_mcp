@@ -12,7 +12,8 @@
   "dependencies": {
     "@duckdb/node-api": "^1.5.4-r.1",
     "ajv": "^8.20.0",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/bun": "latest",

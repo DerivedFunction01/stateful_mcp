@@ -1,12 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "../config/loader";
-import { validateMiddlewareConfig } from "../config/validator";
-import { DictionaryStore } from "../middleware/dictionary/store";
-import { InMemoryConceptResolver } from "../middleware/dictionary/resolver";
-import type { MiddlewareConfig, PaginationLimitsConfig } from "../config/types";
-import { clampLimit, buildLimitField } from "../config/pagination";
+import { loadMiddlewareConfig, resolveSource, resolveAboutOrExamples, resolveConfigDir } from "@stateful-mcp/core";
+import { validateMiddlewareConfig } from "@stateful-mcp/core";
+import { DictionaryStore } from "@stateful-mcp/core";
+import { InMemoryConceptResolver } from "@stateful-mcp/core";
+import type { MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core";
+import { clampLimit, buildLimitField } from "@stateful-mcp/core";
 import { fileURLToPath } from "url";
 import * as path from "path";
 
