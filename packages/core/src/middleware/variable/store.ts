@@ -2,10 +2,11 @@
 
 import { eventBroker } from "../../events/broker";
 import { executePipeline } from "../../translation/pipeline";
-import type { OpName, PipelineStep } from "../../translation/types";
+import type { ArgRef, OpName, PipelineStep } from "../../translation/types";
 import type {
 	ConditionEvaluationResult,
 	VariableConditionRule,
+	VariableInputEntry,
 	VariableMutationEvent,
 	VariableOpType,
 	VariableService,
@@ -107,6 +108,8 @@ export class VariableServiceStore implements VariableService {
 		}
 
 		eventBroker.emitStateChange({
+			id: crypto.randomUUID(),
+			timestamp: Date.now(),
 			service: "variable",
 			action: event.operation,
 			sessionId: event.sessionId,
@@ -138,9 +141,7 @@ export class VariableServiceStore implements VariableService {
 
 	async setVariables(
 		sessionId: string,
-		variables:
-			| Record<string, unknown>
-			| Array<{ key: string; value: unknown; blockInstanceId?: string }>,
+		variables: Record<string, unknown> | VariableInputEntry[],
 		blockInstanceId?: string,
 	): Promise<void> {
 		if (Array.isArray(variables)) {
@@ -307,7 +308,7 @@ export class VariableServiceStore implements VariableService {
 				]
 			: [testValue, targetVal];
 
-		const testStep: PipelineStep = { op: targetOp, args: testArgs };
+		const testStep: PipelineStep = { op: targetOp, args: testArgs as ArgRef[] };
 		const res = executePipeline([testStep], {}, {});
 		const passed = Boolean(res);
 
