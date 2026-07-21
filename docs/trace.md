@@ -54,8 +54,8 @@ The **Trace Form Engine (`TraceStore`)** introduces **procedural execution learn
     }
   }>,
   "capabilities"?: string[],  // Optional for action="stop"
-  "object_id"?: string,       // Optional ObjectStore checkpoint ID for action="submit"
-  "trace"?: {                 // Required for action="submit" if object_id is omitted
+  "checkpoint_id"?: string,   // Optional ObjectStore checkpoint ID for action="submit" (object_id is supported as alias)
+  "trace"?: {                 // Required for action="submit" if checkpoint_id is omitted
     "trace_id"?: string,
     "goal": string,
     "input_slots"?: Record<string, TraceSlot>,
@@ -78,7 +78,9 @@ The **Trace Form Engine (`TraceStore`)** introduces **procedural execution learn
 ```typescript
 {
   "trace_id": string,
-  "action": "swap_with_persistent" | "replace_step" | "append_step" | "remove_step" | "promote_arg" | "demote_arg",
+  "action"?: "swap_with_persistent" | "replace_step" | "append_step" | "remove_step" | "promote_arg" | "demote_arg", // Optional if checkpoint_id is provided
+  "checkpoint_id"?: string,   // Optional ObjectStore checkpoint ID containing DeltaOperation (object_id is supported as alias)
+  "delta"?: DeltaOperation,   // Optional inline DeltaOperation object
   "step_id"?: string,          // Target step ID (for replace_step, remove_step, swap_with_persistent, promote_arg, demote_arg)
   "target_step_id"?: string,   // Target step ID after which to append (for append_step)
   "new_step"?: TraceStep,      // New step definition (for replace_step and append_step)

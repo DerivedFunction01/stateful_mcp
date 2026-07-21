@@ -112,7 +112,7 @@
   "tool": "trace_record",
   "arguments": {
     "action": "submit",
-    "object_id": "obj_trace_checkpoint_88a"
+    "checkpoint_id": "obj_trace_checkpoint_88a"
   }
 }
 ```
