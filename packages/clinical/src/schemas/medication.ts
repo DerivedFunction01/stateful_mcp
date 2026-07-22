@@ -1,4 +1,4 @@
-import type { ClinicalDateRange, CodeableConcept, SingleMeasurement, TimePrecisionLevel } from "./shared";
+import type { ClinicalDateRange, CodeableConcept, Route, SingleMeasurement, TimePrecisionLevel } from "./shared";
 export type CadenceBaseType = "interval" | "event_anchored" | "continuous" | "one_time";
 
 export type PhysiologicalEventAnchor =
@@ -39,21 +39,6 @@ export interface MedicationFrequency {
   prnReason?: CodeableConcept;
 }
 
-export type MedicationRoute =
-  | "oral"
-  | "intravenous"
-  | "intramuscular"
-  | "subcutaneous"
-  | "topical"
-  | "inhalation"
-  | "sublingual"
-  | "rectal"
-  | "intranasal"
-  | "transdermal"
-  | "ophthalmic"
-  | "otic"
-  | "intrathecal";
-  
 export interface MedicationOrderObject {
   id: string;
   soapSection: "plan";
@@ -61,7 +46,7 @@ export interface MedicationOrderObject {
   rawTerm?: string;
   dosage?: SingleMeasurement;
   frequency?: MedicationFrequency; // Formally transitioned to a parameterized struct
-  route?: MedicationRoute;
+  route?: Route;
   quantityToDispense?: number;
   authorizedRefills: number;
   genericSubstitutionPermitted: boolean;

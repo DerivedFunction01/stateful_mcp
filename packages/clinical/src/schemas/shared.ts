@@ -128,3 +128,19 @@ export interface AnatomicalLocation {
     | "radial";
   depthIndex?: number;
 }
+
+export type Route =
+  | "oral"
+  | "intravenous"
+  | "intramuscular"
+  | "subcutaneous"
+  | "topical"
+  | "inhalation"
+  | "sublingual"
+  | "rectal"
+  | "intranasal"
+  | "transdermal"
+  | "ophthalmic"
+  | "otic"
+  | "intrathecal";
+  

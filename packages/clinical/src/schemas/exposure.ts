@@ -1,31 +1,37 @@
+import type { MedicationFrequency } from "./medication";
 import type {
   AnatomicalLocation,
   ClinicalDateRange,
   CodeableConcept,
+  Route,
   SingleMeasurement,
 } from "./shared";
+
+export type ExposureType = "general" | "chemical" | "pharmaceutical" | "biological";
 
 export interface BaseExposureEvent {
   id: string;
   soapSection: "subjective";
-  substance?: CodeableConcept;
-  deliveryMethod?: CodeableConcept;
+  exposureType: ExposureType; // Static identifier gate for rapid parsing lookups
+  substance?: CodeableConcept; // Main target compound or material description
+  route?: Route;
   dateRange?: ClinicalDateRange;
+  frequency?: MedicationFrequency;
 }
 
 export interface ChemicalSubstanceExposureEvent extends BaseExposureEvent {
+  exposureType: "chemical";
   form?: "gas" | "liquid" | "solid" | "aerosol";
-  route?: string;
 }
 
 export interface PharmaceuticalExposureEvent extends BaseExposureEvent {
+  exposureType: "pharmaceutical";
   dosage?: SingleMeasurement;
-  frequency?: CodeableConcept;
-  route?: CodeableConcept;
 }
 
 export interface BiologicalExposureEvent extends BaseExposureEvent {
-  species?: CodeableConcept;
+  exposureType: "biological";
+  species?: CodeableConcept; // Primary organism taxonomy standard (e.g., Plant or Insect ID)
   breedOrCultivar?: CodeableConcept;
   mechanism?:
     | "bite"
@@ -43,11 +49,12 @@ export interface BiologicalExposureEvent extends BaseExposureEvent {
     | "confirmed_infected_vector"
     | "suspected_unverified"
     | "low_risk_clean";
-  anatomyLocations?: AnatomicalLocation[];
-  vectorAgent?: CodeableConcept;
+  anatomyLocations?: AnatomicalLocation[]; // Targeted bite/scratch surface coordinates
+  carriedPathogen?: CodeableConcept; // Secondary microscopic infections (e.g., parasites/viruses)
 }
 
 export type ExposureEvent =
   | ChemicalSubstanceExposureEvent
   | PharmaceuticalExposureEvent
-  | BiologicalExposureEvent;
+  | BiologicalExposureEvent
+  | BaseExposureEvent;

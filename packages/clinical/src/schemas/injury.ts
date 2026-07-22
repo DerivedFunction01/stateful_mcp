@@ -1,7 +1,9 @@
+import type { OperationalDomain } from "./environment";
 import type {
   ClinicalDateRange,
   ClinicalSourceType,
   CodeableConcept,
+  ProductIdentifier,
   SingleMeasurement,
 } from "./shared";
 
@@ -43,11 +45,43 @@ export interface MechanicalInjuryObject {
     freefall?: boolean;
   };
 }
+// =====================================================================
+// REFINED BIOLOGICAL PROTECTIVE GEAR CATEGORIES
+// =====================================================================
+
+export type ImpactArmorCategory =
+  | "helmet"                     
+  | "eye_shield"                 
+  | "body_armor"                 
+  | "extremity_guards"           
+  | "gloves"                     
+  | "boots";                     
+
+export type LifeSupportEnvCategory =
+  | "respirator"                 
+  | "oxygen_system"              
+  | "thermal_layer"              
+  | "flotation_device"           
+  | "propulsion_unit"            
+  | "blanket_cover";             
+
+export type SystemsSuitCategory =
+  | "full_body_suit"             
+  | "harness_parachute"          
+  | "safety_restraint";          
+
+// Consolidated biological operational gear type vector
+export type OperationalGearCategory = 
+  | ImpactArmorCategory 
+  | LifeSupportEnvCategory 
+  | SystemsSuitCategory;
 
 export interface ProtectiveItem {
   id: string;
-  itemType: CodeableConcept;
   status: "active" | "inactive" | "damaged" | "destroyed";
+  gearCategory: OperationalGearCategory;
+  details?: ProductIdentifier;
+  operationalDomain?: OperationalDomain;
 }
 
 export interface ProtectiveEquipmentObject {

@@ -186,25 +186,3 @@ export const COORDINATE_DATUM = {
   ED50: "ED-50",
 } as const;
 
-export type CoordinateDatum =
-  (typeof COORDINATE_DATUM)[keyof typeof COORDINATE_DATUM];
-
-export const WEATHER_TYPE_LABELS: Record<
-  AmbientWeatherContext["weatherType"],
-  string
-> = {
-  clear_sunny: "Clear / Sunny",
-  partly_cloudy: "Partly Cloudy",
-  fog_mist_haze: "Fog / Mist / Haze",
-  rain: "Rain",
-  heavy_rain_flooding: "Heavy Rain / Flooding",
-  freezing_rain_ice: "Freezing Rain / Ice",
-  heatwave: "Heatwave",
-  extreme_cold_snap: "Extreme Cold Snap",
-  snow: "Snow",
-  blizzard_heavy_snow: "Blizzard / Heavy Snow",
-  thunderstorm_lightning: "Thunderstorm / Lightning",
-  wildfire_smoke_plume: "Wildfire Smoke Plume",
-  sandstorm_dust_storm: "Sandstorm / Dust Storm",
-  other: "Other",
-};
