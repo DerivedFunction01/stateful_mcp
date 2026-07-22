@@ -108,3 +108,11 @@ The clinical backend depends on 8 storage-agnostic repository interfaces defined
 An in-memory fallback implementation of all stores is provided in [memory-clinical-store.ts](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/src/store/memory-clinical-store.ts).
 
 A complete relational SQL database representation (PostgreSQL target) of these interfaces is defined in [seed/schema.sql](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/seed/schema.sql), showing exactly how they map to relational tables and schemas for external adapter integration.
+
+
+# 5. The Philosophy of "Clinical Freedom"
+The true goal of CDSL is the total separation of data structure from user expression, returning autonomy to the physician while guaranteeing clean data to the infrastructure.
+
+* **Personalization Stack**: Clinicians are no longer forced to bow to the rigid, inefficient user interfaces of host institutions. A doctor can take their personal_dictionary file from facility to facility.
+* **Two-Stage Resolution Middleware**: If Dr. A types | SOB; 4/10 | and Dr. B types | winded; 4/10 |, the translation engine resolves these high-entropy personal styles to a single hospital canonical code (e.g., ICD-10: R06.02).
+* **Interoperable Multilingualism**: Because the engine captures a normalized data state rather than flat text, a note documented using Japanese clinical abbreviations can be instantly rendered on-the-fly in English, Spanish, or a highly technical billing view using a reverse dictionary lookup.
