@@ -1,6 +1,6 @@
 {
 	"name": "@stateful-mcp/mcp-transport",
-	"version": "0.1.3",
+	"version": "0.3.0",
 	"description": "MCP server delivery layer for Stateful framework",
 	"keywords": [
 		"mcp",
@@ -24,7 +24,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"@stateful-mcp/core": "workspace:*",
+		"@stateful-mcp/core": "workspace:^",
 		"zod": "^3.22.4"
 	},
 	"devDependencies": {
