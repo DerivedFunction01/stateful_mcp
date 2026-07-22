@@ -2,6 +2,7 @@ import type { DictionaryStore } from "@stateful-mcp/core";
 import { MedicationHelper } from "../schemas/medication";
 import { ObservationHelper } from "../schemas/observation";
 import { VitalsHelper } from "../schemas/vitals";
+import { TimeHelper } from "../schemas/shared";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_EVALUATOR_RULES,
@@ -74,16 +75,18 @@ export function parseSessionVars(groups: {
 	return res;
 }
 
-const EVALUATOR_FUNCTIONS: Record<string, (groups: any) => any> = {
+const EVALUATOR_FUNCTIONS: Record<string, (groups: any, attributeRules?: AttributeParserRule[]) => any> = {
 	parseSeverity: (groups) => ObservationHelper.parseSeverity(groups),
 	parseBloodPressure: (groups) => VitalsHelper.findBloodPressure(groups),
-	parseQuantityUnit: (groups) => MedicationHelper.parseQuantityUnit(groups),
+	parseQuantityUnit: (groups, attributeRules) =>
+		MedicationHelper.parseQuantityUnit(groups, attributeRules),
 	parseSessionVars: (groups) => parseSessionVars(groups),
 };
 
 export function applyEvaluatorRules(
 	content: string,
 	rules: ParserDictionaryRule[],
+	attributeRules?: AttributeParserRule[],
 ): {
 	capturedProps: Record<string, any>;
 	contentCleaned: string;
@@ -98,9 +101,12 @@ export function applyEvaluatorRules(
 		for (const pattern of rule.regexPatterns) {
 			const regex = new RegExp(pattern, "i");
 			const match = regex.exec(content);
-			if (match && match.groups) {
-				const res = evalFn(match.groups);
-				if (res !== undefined) {
+		if (match && match.groups) {
+			const res =
+				rule.evaluatorName === "parseQuantityUnit"
+					? evalFn(match.groups, attributeRules)
+					: evalFn(match.groups);
+			if (res !== undefined) {
 					if (rule.targetField === "blood_pressure") {
 						capturedProps.systolic = res.systolic;
 						capturedProps.diastolic = res.diastolic;
@@ -190,7 +196,7 @@ export class VitalsSchemaParser implements SchemaParser {
 			capturedProps.diastolic !== undefined
 		) {
 			valueText = `${capturedProps.systolic}/${capturedProps.diacholic || capturedProps.diastolic}`;
-			unitText = capturedProps.unit || "mmHg";
+			unitText = capturedProps.unit || "";
 		}
 
 		// Resolve LOINC concept
@@ -219,18 +225,20 @@ export class VitalsSchemaParser implements SchemaParser {
 				const match = regex.exec(content);
 				if (
 					match &&
-					match.length > 1 &&
+					match.groups &&
 					conceptDefaults.defaultProperties.captureGroupMapping
 				) {
 					const mapping: string[] =
 						conceptDefaults.defaultProperties.captureGroupMapping;
 					for (let i = 0; i < mapping.length; i++) {
 						const field = mapping[i];
-						const val = match[i + 1];
-						if (field && val !== undefined) {
-							capturedProps[field] = val;
-							if (field === "value") valueText = val;
-							if (field === "unit") unitText = val;
+						if (field) {
+							const val = match.groups?.[field];
+							if (val !== undefined) {
+								capturedProps[field] = val;
+								if (field === "value") valueText = val;
+								if (field === "unit") unitText = val;
+							}
 						}
 					}
 				}
@@ -238,19 +246,6 @@ export class VitalsSchemaParser implements SchemaParser {
 		}
 
 		let defaultUnit = conceptDefaults?.defaultProperties.unit || "";
-		if (!defaultUnit) {
-			if (/temp/i.test(anchorText)) {
-				defaultUnit = "Cel";
-			} else if (/pulse|hr|heart/i.test(anchorText)) {
-				defaultUnit = "/min";
-			} else if (/bp|blood/i.test(anchorText)) {
-				defaultUnit = "mm[Hg]";
-			} else if (/spo2|sat/i.test(anchorText)) {
-				defaultUnit = "%";
-			} else if (/rr|resp/i.test(anchorText)) {
-				defaultUnit = "/min";
-			}
-		}
 
 		const parsedVal = Number.isNaN(Number(valueText))
 			? valueText
@@ -433,9 +428,16 @@ export class MedicationSchemaParser implements SchemaParser {
 		frequency = conceptDefaults?.defaultProperties.frequency || frequency;
 		duration = conceptDefaults?.defaultProperties.duration || duration;
 
-		const durationMatch = contentCleaned.toLowerCase().match(/(\d+\s*days?)/);
-		if (durationMatch) {
-			duration = durationMatch[0];
+		// Extract duration dynamically using TimeHelper to adhere to language-neutral parsing guidelines
+		const possibleDurations = contentCleaned.match(/(\d+(?:\.\d+)?\s*\S+)/g);
+		if (possibleDurations) {
+			for (const candidate of possibleDurations) {
+				const parsedTime = TimeHelper.parse(candidate, rules);
+				if (parsedTime && parsedTime.unit) {
+					duration = candidate;
+					break;
+				}
+			}
 		}
 
 		return {

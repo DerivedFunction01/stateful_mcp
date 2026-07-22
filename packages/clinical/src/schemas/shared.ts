@@ -1,4 +1,5 @@
 import type { AttributeParserRule } from "../store/interfaces";
+import { DEFAULT_ATTRIBUTE_RULES } from "../store/defaults";
 
 export interface CodeableConcept {
 	conceptId?: string;
@@ -162,97 +163,72 @@ export class MeasurementHelper {
 		attributeRules?: AttributeParserRule[],
 	): SingleMeasurement | null {
 		const trimmed = text.trim();
+		const rules = attributeRules && attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
 
-		let opPatterns = [">=", "<=", ">", "<", "~"];
-		if (attributeRules) {
-			for (const rule of attributeRules) {
-				if (
-					rule.targetField === "operator" ||
-					rule.targetField === "measurement_operator"
-				) {
-					opPatterns = [...opPatterns, ...rule.regexPatterns];
-				}
+		// 1. Gather operator rules and construct operator regex using named capture groups
+		const opRules = rules.filter(r => r.targetField === "operator" || r.targetField === "measurement_operator");
+		const opGroupPatterns: string[] = [];
+		for (const rule of opRules) {
+			const enumValue = rule.targetValue;
+			if (enumValue) {
+				const joinedPatterns = rule.regexPatterns.map(p => `(?:${p})`).join("|");
+				opGroupPatterns.push(`(?<${enumValue}>${joinedPatterns})`);
 			}
 		}
 
-		// Escape special regex chars and sort descending by length so longer patterns match first
-		const sortedPatterns = opPatterns
-			.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-			.sort((a, b) => b.length - a.length);
-
-		const opRegexStr = `^(${sortedPatterns.join("|")})?\\s*(\\d+(?:\\.\\d+)?)\\s*(.*)$`;
-		const opRegex = new RegExp(opRegexStr, "i");
-		const match = opRegex.exec(trimmed);
+		const opPart = opGroupPatterns.length > 0 ? `(?:${opGroupPatterns.join("|")})?` : "";
+		const regexStr = `^${opPart}\\s*(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<remaining>.*)$`;
+		const regex = new RegExp(regexStr, "i");
+		const match = regex.exec(trimmed);
 		if (!match) return null;
 
-		const opStr = match[1] || "";
-		const magnitudeStr = match[2];
+		const magnitudeStr = match.groups?.magnitude;
 		if (!magnitudeStr) return null;
 		const magnitude = Number.parseFloat(magnitudeStr);
-		const remaining = match[3]?.trim() || "";
+		const remaining = match.groups?.remaining?.trim() || "";
 
 		let operator: SingleMeasurement["operator"] = "eq";
 		let isApproximate = false;
 
-		// 1. Resolve operator dynamically using profile rules if present
-		let resolvedOp = false;
-		if (attributeRules) {
-			for (const rule of attributeRules) {
-				if (
-					rule.targetField === "operator" ||
-					rule.targetField === "measurement_operator"
-				) {
-					for (const pattern of rule.regexPatterns) {
-						const flags = rule.isCaseInsensitive !== false ? "i" : "";
-						const regex = new RegExp(pattern, flags);
-						if (regex.test(opStr)) {
-							if (
-								rule.targetValue === "is_approximate" ||
-								rule.targetValue === "approximate"
-							) {
-								isApproximate = true;
-							} else {
-								operator = rule.targetValue as SingleMeasurement["operator"];
-							}
-							resolvedOp = true;
-							break;
-						}
+		// Resolve operator and approximate status from matched named groups
+		if (match.groups) {
+			for (const rule of opRules) {
+				const enumValue = rule.targetValue;
+				if (enumValue && match.groups[enumValue] !== undefined) {
+					if (enumValue === "is_approximate" || enumValue === "approximate") {
+						isApproximate = true;
+					} else {
+						operator = enumValue as SingleMeasurement["operator"];
 					}
+					break;
 				}
-				if (resolvedOp) break;
 			}
 		}
 
-		// Fallback operator matching if not resolved by custom rules
-		if (!resolvedOp && opStr) {
-			if (opStr === ">") operator = "gt";
-			else if (opStr === ">=") operator = "gte";
-			else if (opStr === "<") operator = "lt";
-			else if (opStr === "<=") operator = "lte";
-			else if (opStr === "~") {
-				isApproximate = true;
-				operator = "eq";
-			}
-		}
-
-		// 2. Resolve unit dynamically using profile rules if present
+		// 2. Gather unit rules and match the remaining string
 		let resolvedUnit = "";
-		if (attributeRules && remaining) {
-			for (const rule of attributeRules) {
-				if (
-					rule.targetField === "unit" ||
-					rule.targetField === "measurement_unit"
-				) {
-					for (const pattern of rule.regexPatterns) {
-						const flags = rule.isCaseInsensitive !== false ? "i" : "";
-						const regex = new RegExp(pattern, flags);
-						if (regex.test(remaining)) {
-							resolvedUnit = rule.targetValue;
+		const unitRules = rules.filter(r => r.targetField === "unit" || r.targetField === "measurement_unit");
+		if (remaining) {
+			const unitGroupPatterns: string[] = [];
+			for (const rule of unitRules) {
+				const enumValue = rule.targetValue;
+				if (enumValue) {
+					const joinedPatterns = rule.regexPatterns.map(p => `(?:${p})`).join("|");
+					unitGroupPatterns.push(`(?<${enumValue}>${joinedPatterns})`);
+				}
+			}
+			if (unitGroupPatterns.length > 0) {
+				const unitRegex = new RegExp(`^(?:${unitGroupPatterns.join("|")})$`, "i");
+				const unitMatch = unitRegex.exec(remaining);
+				if (unitMatch && unitMatch.groups) {
+					for (const rule of unitRules) {
+						const enumValue = rule.targetValue;
+						if (enumValue && unitMatch.groups[enumValue] !== undefined) {
+							resolvedUnit = enumValue;
 							break;
 						}
 					}
 				}
-				if (resolvedUnit) break;
 			}
 		}
 
@@ -279,61 +255,45 @@ export class TimeHelper {
 		attributeRules?: AttributeParserRule[],
 	): TimeMeasurement | null {
 		const trimmed = text.trim();
-		const match = /^(\d+(?:\.\d+)?)\s*(.*)$/.exec(trimmed);
-		if (!match) return null;
+		const rules = attributeRules && attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
 
-		const magnitudeStr = match[1];
-		if (!magnitudeStr) return null;
-		const magnitude = Number.parseFloat(magnitudeStr);
-		const rawUnit = match[2]?.trim().toLowerCase() || "";
-
-		let unit: TimePrecisionLevel | undefined;
-
-		// 1. Resolve time unit dynamically using profile rules if present
-		if (attributeRules && rawUnit) {
-			for (const rule of attributeRules) {
-				if (rule.targetField === "time_unit" || rule.targetField === "unit") {
-					for (const pattern of rule.regexPatterns) {
-						const flags = rule.isCaseInsensitive !== false ? "i" : "";
-						const regex = new RegExp(pattern, flags);
-						if (regex.test(rawUnit)) {
-							unit = rule.targetValue as TimePrecisionLevel;
-							break;
-						}
-					}
-				}
-				if (unit) break;
+		// Gather time unit rules
+		const timeRules = rules.filter(r => r.targetField === "time_unit" || r.targetField === "unit");
+		const groupPatterns: string[] = [];
+		for (const rule of timeRules) {
+			const enumValue = rule.targetValue;
+			if (enumValue) {
+				const joinedPatterns = rule.regexPatterns.map(p => `(?:${p})`).join("|");
+				groupPatterns.push(`(?<${enumValue}>${joinedPatterns})`);
 			}
 		}
 
-		// Fallback language-centric time unit matching if not resolved by custom rules
-		if (!unit && rawUnit) {
-			if (rawUnit.startsWith("second") || rawUnit === "s") {
-				unit = "second";
-			} else if (
-				rawUnit.startsWith("minute") ||
-				rawUnit === "m" ||
-				rawUnit === "min"
-			) {
-				unit = "minute";
-			} else if (
-				rawUnit.startsWith("hour") ||
-				rawUnit === "h" ||
-				rawUnit === "hr"
-			) {
-				unit = "hour";
-			} else if (rawUnit.startsWith("day") || rawUnit === "d") {
-				unit = "day";
-			} else if (rawUnit.startsWith("week") || rawUnit === "w") {
-				unit = "week";
-			} else if (rawUnit.startsWith("month") || rawUnit === "mo") {
-				unit = "month";
-			} else if (
-				rawUnit.startsWith("year") ||
-				rawUnit === "y" ||
-				rawUnit === "yr"
-			) {
-				unit = "year";
+		if (groupPatterns.length === 0) {
+			const fallbackMatch = /^(?<magnitude>\d+(?:\.\d+)?)$/.exec(trimmed);
+			if (!fallbackMatch) return null;
+			return {
+				magnitude: Number.parseFloat(fallbackMatch.groups?.magnitude || "0")
+			};
+		}
+
+		const unitRegexStr = `(?:${groupPatterns.join("|")})`;
+		const fullRegexStr = `^(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>${unitRegexStr})?$`;
+		const regex = new RegExp(fullRegexStr, "i");
+		const match = regex.exec(trimmed);
+		if (!match) return null;
+
+		const magnitudeStr = match.groups?.magnitude;
+		if (!magnitudeStr) return null;
+		const magnitude = Number.parseFloat(magnitudeStr);
+
+		let unit: TimePrecisionLevel | undefined;
+		if (match.groups) {
+			for (const rule of timeRules) {
+				const enumValue = rule.targetValue;
+				if (enumValue && match.groups[enumValue] !== undefined) {
+					unit = enumValue as TimePrecisionLevel;
+					break;
+				}
 			}
 		}
 

@@ -1,3 +1,4 @@
+import type { AttributeParserRule } from "../store/interfaces";
 import type {
 	ClinicalDateRange,
 	CodeableConcept,
@@ -82,21 +83,36 @@ export interface FollowUpPlanObject {
 }
 
 export class MedicationHelper {
-	static parseQuantityUnit(groups: { quantity: string; unit: string }): {
+	static parseQuantityUnit(
+		groups: { quantity: string; unit: string },
+		attributeRules?: AttributeParserRule[],
+	): {
 		value: number;
 		unit: string;
 	} {
 		const val = Number.parseFloat(groups.quantity);
 		let unitMapped = groups.unit.toLowerCase();
-		if (
-			unitMapped === "h" ||
-			unitMapped === "hr" ||
-			unitMapped.startsWith("hour")
-		) {
-			unitMapped = "hours";
-		} else if (unitMapped === "d" || unitMapped.startsWith("day")) {
-			unitMapped = "days";
+
+		if (attributeRules && unitMapped) {
+			for (const rule of attributeRules) {
+				if (
+					rule.targetField === "unit" ||
+					rule.targetField === "time_unit" ||
+					rule.targetField === "measurement_unit"
+				) {
+					for (const pattern of rule.regexPatterns) {
+						const flags = rule.isCaseInsensitive !== false ? "i" : "";
+						const regex = new RegExp(pattern, flags);
+						if (regex.test(unitMapped)) {
+							unitMapped = rule.targetValue;
+							break;
+						}
+					}
+				}
+				if (unitMapped === rule.targetValue) break;
+			}
 		}
+
 		return { value: val, unit: unitMapped };
 	}
 }

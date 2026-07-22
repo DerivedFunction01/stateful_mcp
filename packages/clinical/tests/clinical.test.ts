@@ -253,7 +253,7 @@ describe("Clinical IDE Stateful Backend", () => {
 			anchorConceptId: "LOINC::8310-5",
 			targetSchema: "VitalsMeasurementEvent",
 			regexPatterns: [
-				"temp(?:erature)?\\s+is\\s+(\\d+(?:\\.\\d+)?)\\s*([a-zA-Z%]*)",
+				"temp(?:erature)?\\s+is\\s+(?<value>\\d+(?:\\.\\d+)?)\\s*(?<unit>[a-zA-Z%]*)",
 			],
 			defaultProperties: {
 				unit: "Cel",

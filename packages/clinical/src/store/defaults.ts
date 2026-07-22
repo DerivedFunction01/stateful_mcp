@@ -61,6 +61,90 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 		regexPatterns: ["\\bprn\\b", "\\bas needed\\b"],
 		isCaseInsensitive: true,
 	},
+	{
+		targetField: "operator",
+		targetValue: "gte",
+		regexPatterns: [">="],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "operator",
+		targetValue: "lte",
+		regexPatterns: ["<="],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "operator",
+		targetValue: "gt",
+		regexPatterns: [">"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "operator",
+		targetValue: "lt",
+		regexPatterns: ["<"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "operator",
+		targetValue: "is_approximate",
+		regexPatterns: ["~"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "unit",
+		targetValue: "Cel",
+		regexPatterns: ["Centigrade", "Celsius", "Cel", "C"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "unit",
+		targetValue: "mmHg",
+		regexPatterns: ["mmHg"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_unit",
+		targetValue: "second",
+		regexPatterns: ["\\bseconds?\\b", "\\bs\\b", "\\bsegundos?\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_unit",
+		targetValue: "minute",
+		regexPatterns: ["\\bminutes?\\b", "\\bmin\\b", "\\bminutos?\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_unit",
+		targetValue: "hour",
+		regexPatterns: ["\\bhours?\\b", "\\bhrs?\\b", "\\bh\\b", "\\bhoras?\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_unit",
+		targetValue: "day",
+		regexPatterns: ["\\bdays?\\b", "\\bd\\b", "\\bdias?\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_unit",
+		targetValue: "week",
+		regexPatterns: ["\\bweeks?\\b", "\\bw\\b", "\\bsemanas?\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_unit",
+		targetValue: "month",
+		regexPatterns: ["\\bmonths?\\b", "\\bmeses?\\b", "\\bmes\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_unit",
+		targetValue: "year",
+		regexPatterns: ["\\byears?\\b", "\\by\\b", "\\banos?\\b", "\\baños?\\b"],
+		isCaseInsensitive: true,
+	},
 ];
 
 export const DEFAULT_EVALUATOR_RULES = [
@@ -122,7 +206,7 @@ export const SEED_CONCEPT_DEFAULTS: ParserConceptDefault[] = [
 		anchorConceptId: "LOINC::8310-5",
 		targetSchema: "VitalsMeasurementEvent",
 		regexPatterns: [
-			"temp(?:erature)?\\s+is\\s+(\\d+(?:\\.\\d+)?)\\s*([a-zA-Z%]*)",
+			"temp(?:erature)?\\s+is\\s+(?<value>\\d+(?:\\.\\d+)?)\\s*(?<unit>[a-zA-Z%]*)",
 		],
 		defaultProperties: {
 			unit: "Cel",
