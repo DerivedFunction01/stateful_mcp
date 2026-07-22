@@ -7,7 +7,7 @@ import type {
   ProcedureOrderObject,
 } from "./medication";
 import type { ObservationEvent } from "./observation";
-import type { PatientContext } from "./patient";
+import type { PatientProfile } from "./patient";
 import type { PhysicalExamObject, VitalsMeasurementEvent } from "./vitals";
 import type { AlgorithmicEvaluationObject, AssessmentObject, DeviceDiagnosticObject } from "./assessment";
 
@@ -18,7 +18,7 @@ export interface SoapNote {
   updatedAt: string;
   status: "draft" | "signed";
   signedBy?: string;
-  patient: PatientContext;
+  patient: PatientProfile;
   subjective: {
     observations: ObservationEvent[];
     exposures: ExposureEvent[];
