@@ -173,8 +173,7 @@ export class ClinicalEngine {
 					soapSection: "plan",
 					medication: { conceptId: item.conceptId, display: item.display },
 					route: item.route as any,
-					cadence: { cadenceType: item.frequency } as any,
-					duration: { magnitude: 10 } as any,
+					frequency: { cadenceType: item.frequency } as any,
 				} as any);
 				currentObjId = await this.objectStore.set(
 					currentObjId,

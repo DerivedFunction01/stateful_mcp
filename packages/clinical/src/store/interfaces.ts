@@ -100,7 +100,7 @@ export interface ClinicalProseTemplate {
 	templateText: string;
 }
 
-export interface ClinicalProseTemplateStore {
+export interface IClinicalProseTemplateStore {
 	getTemplate(
 		schema: string,
 		position: "opening" | "continuing" | "closing" | "full_paragraph",

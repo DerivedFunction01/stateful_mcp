@@ -5,14 +5,26 @@ import {
 	InMemoryConceptResolver,
 	InMemoryConceptStore,
 	InMemoryPersistentExpressionStore,
+	MemoryEntityStore,
 	MemoryPersistentObjectStore,
 	MemorySessionObjectStore,
 	ObjectStore,
+	SqliteEntityStore,
 } from "@stateful-mcp/core";
 import { ClinicalEngine } from "../src/engine/clinical-engine";
 import { CANONICAL_TAGS, CdslParser } from "../src/parser/cdsl-parser";
 import type { PatientProfile } from "../src/schemas/patient";
 import { MeasurementHelper, TimeHelper } from "../src/schemas/shared";
+import {
+	ClinicalAdministrativeStore,
+	ClinicalCalibrationStore,
+	ClinicalJurisdictionalDisplayStore,
+	ClinicalParserConceptDefaultStore,
+	ClinicalParserProfileStore,
+	ClinicalProseTemplateStore,
+	ClinicalSignedSoapNoteStore,
+	ClinicalStopWordStore,
+} from "../src/store/clinical-store";
 import {
 	MemoryParserConceptDefaultStore,
 	MemorySignedSoapNoteStore,
@@ -124,20 +136,20 @@ describe("Clinical IDE Stateful Backend", () => {
 
 		// Assert Vitals mapped
 		expect(updatedNote.objective.vitals.length).toBe(1);
-		expect(updatedNote.objective.vitals[0].measurement.magnitude).toBe(38.5);
-		expect(updatedNote.objective.vitals[0].measurement.unit.display).toBe(
+		expect(updatedNote.objective.vitals[0]!.measurement.magnitude).toBe(38.5);
+		expect(updatedNote.objective.vitals[0]!.measurement.unit!.display).toBe(
 			"Cel",
 		);
 
 		// Assert Observation mapped & negated (subjective due to "denies")
 		expect(updatedNote.subjective.observations.length).toBe(1);
-		expect(updatedNote.subjective.observations[0].certainty).toBe("refuted");
-		expect(updatedNote.subjective.observations[0].status).toBe("resolved");
+		expect(updatedNote.subjective.observations[0]!.certainty).toBe("refuted");
+		expect(updatedNote.subjective.observations[0]!.status).toBe("resolved");
 
 		// Assert Medication mapped
 		expect(updatedNote.plan.medications.length).toBe(1);
-		expect(updatedNote.plan.medications[0].route).toBe("ORAL");
-		expect(updatedNote.plan.medications[0].cadence.cadenceType).toBe("QD");
+		expect(updatedNote.plan.medications[0]!.route as string).toBe("ORAL");
+		expect(updatedNote.plan.medications[0]!.frequency!.cadenceType as string).toBe("QD");
 
 		// 5. Sign the encounter SOAP note
 		const signedRecord = await engine.signEncounter(sessionId, "dr_smith_99");
@@ -394,5 +406,283 @@ describe("Clinical IDE Stateful Backend", () => {
 		);
 		expect(tempDefault).not.toBeNull();
 		expect(tempDefault?.defaultProperties.unit).toBe("Cel");
+	});
+
+	test("Unified clinical store works identically with MemoryEntityStore and SqliteEntityStore", async () => {
+		const profileSeed: any[] = [];
+		const defaultsSeed: any[] = [];
+
+		async function runClinicalTests(
+			name: string,
+			profileStore: ClinicalParserProfileStore,
+			defaultsStore: ClinicalParserConceptDefaultStore,
+			calibrationStore: ClinicalCalibrationStore,
+			templateStore: ClinicalProseTemplateStore,
+			noteStore: ClinicalSignedSoapNoteStore,
+			adminStore: ClinicalAdministrativeStore,
+			jDisplayStore: ClinicalJurisdictionalDisplayStore,
+			stopWordStore: ClinicalStopWordStore,
+		) {
+			// Wait for async seeding
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// ParserProfileStore
+			const defaultProfile = await profileStore.get("default");
+			expect(defaultProfile).not.toBeNull();
+			expect(defaultProfile?.personnelId).toBe("system");
+			expect(defaultProfile?.tagToken).toBe("#");
+			expect(defaultProfile?.schemaNamespaces).toBeDefined();
+
+			const customProfile = {
+				profileId: "custom_unified",
+				personnelId: "doc_unified",
+				tagToken: "%",
+				stateDelimiter: "||",
+				stateStartDelimiter: "|",
+				stateEndDelimiter: "|",
+				macroStartToken: "^",
+				variableStartToken: "{",
+				variableEndToken: "}",
+				isDefault: false,
+			};
+			await profileStore.set(customProfile);
+			const fetched = await profileStore.get("custom_unified");
+			expect(fetched?.personnelId).toBe("doc_unified");
+			expect(fetched?.tagToken).toBe("%");
+
+			const byPersonnel = await profileStore.getByPersonnel("system");
+			expect(byPersonnel?.profileId).toBe("default");
+
+			await profileStore.delete("custom_unified");
+			const deleted = await profileStore.get("custom_unified");
+			expect(deleted).toBeNull();
+
+			// ParserConceptDefaultStore
+			const tempDefault = await defaultsStore.get(
+				"LOINC::8310-5",
+				"VitalsMeasurementEvent",
+			);
+			expect(tempDefault).not.toBeNull();
+			expect(tempDefault?.defaultProperties.unit).toBe("Cel");
+
+			const bySchema = await defaultsStore.listBySchema(
+				"VitalsMeasurementEvent",
+			);
+			expect(bySchema.length).toBeGreaterThanOrEqual(1);
+
+			await defaultsStore.set({
+				anchorConceptId: "TEST::1",
+				targetSchema: "TestEvent",
+				regexPatterns: ["test"],
+				defaultProperties: { value: 1 },
+			});
+			const customDefault = await defaultsStore.get("TEST::1", "TestEvent");
+			expect(customDefault).not.toBeNull();
+			expect(customDefault?.defaultProperties.value).toBe(1);
+
+			// CalibrationStore
+			const excId = await calibrationStore.logException({
+				personnelId: "dr_unified",
+				rawTerm: "hypertension",
+				contextSnippet: "patient has hypertension",
+				suggestedConceptId: "SNOMED::38341003",
+			});
+			expect(excId).toBeDefined();
+
+			const pending = await calibrationStore.listPending();
+			expect(pending.length).toBeGreaterThanOrEqual(1);
+			expect(pending[0]?.rawTerm).toBe("hypertension");
+
+			const pendingForDr = await calibrationStore.listPending("dr_unified");
+			expect(pendingForDr.length).toBeGreaterThanOrEqual(1);
+
+			await calibrationStore.resolve(excId, "mapped", "SNOMED::12345");
+			const resolved = await calibrationStore.listPending();
+			const all = resolved.filter((e) => e.exceptionId === excId);
+			expect(all.length).toBe(0);
+
+			// ProseTemplateStore
+			await templateStore.setTemplate({
+				templateId: "tmpl_1",
+				targetSchema: "ObservationEvent",
+				targetConceptId: "SNOMED::29857009",
+				workspaceId: "ws_1",
+				slotPosition: "opening",
+				templateText: "Patient reports chest pain.",
+			});
+
+			const tmpl1 = await templateStore.getTemplate(
+				"ObservationEvent",
+				"opening",
+				"SNOMED::29857009",
+				"ws_1",
+			);
+			expect(tmpl1).not.toBeNull();
+			expect(tmpl1?.templateText).toBe("Patient reports chest pain.");
+
+			const tmplFallback = await templateStore.getTemplate(
+				"ObservationEvent",
+				"closing",
+				"SNOMED::29857009",
+				"ws_1",
+			);
+			expect(tmplFallback).toBeNull();
+
+			// SignedSoapNoteStore
+			await noteStore.archive({
+				noteId: "note_unified_1",
+				sessionId: "session_unified",
+				patientId: "pat_unified",
+				documentVersion: 1,
+				soapNoteJson: { status: "signed" },
+				signedBy: "dr_smith",
+			});
+
+			const note = await noteStore.get("note_unified_1");
+			expect(note).not.toBeNull();
+			expect(note?.signedBy).toBe("dr_smith");
+
+			const bySession = await noteStore.getBySession("session_unified");
+			expect(bySession?.noteId).toBe("note_unified_1");
+
+			const forPatient = await noteStore.listForPatient("pat_unified");
+			expect(forPatient.length).toBe(1);
+
+			// AdministrativeStore
+			await adminStore.setPersonnel({
+				personnelId: "pers_unified",
+				fullName: "Dr. Unified",
+				specialtyCode: "GP",
+				facilityId: "fac_unified",
+			});
+			const personnel = await adminStore.getPersonnel("pers_unified");
+			expect(personnel?.fullName).toBe("Dr. Unified");
+
+			await adminStore.setFacility({
+				facilityId: "fac_unified",
+				facilityCode: "FAC001",
+				facilityName: "Unified Hospital",
+				jurisdictionCode: "US-NY",
+			});
+			const facility = await adminStore.getFacility("fac_unified");
+			expect(facility?.facilityName).toBe("Unified Hospital");
+
+			// JurisdictionalDisplayStore
+			await jDisplayStore.setJurisdictionalDisplay({
+				conceptId: "SNOMED::29857009",
+				jurisdictionCode: "US-NY",
+				preferredDisplay: "Chest Pain",
+				fullySpecifiedName: "Chest Pain (finding)",
+			});
+			const display = await jDisplayStore.getPreferredDisplay(
+				"SNOMED::29857009",
+				"US-NY",
+			);
+			expect(display).toBe("Chest Pain");
+
+			const missingDisplay = await jDisplayStore.getPreferredDisplay(
+				"SNOMED::99999999",
+				"US-NY",
+			);
+			expect(missingDisplay).toBeNull();
+
+			// StopWordStore
+			await stopWordStore.setProfile({
+				profileId: "stop_unified",
+				personnelId: "per_unified",
+				localeFiles: [],
+				specialtyFiles: [],
+				customWords: ["patient", "history"],
+			});
+
+			const stopProfile = await stopWordStore.getProfile("per_unified");
+			expect(stopProfile).not.toBeNull();
+			expect(stopProfile?.customWords).toEqual(["patient", "history"]);
+
+			const compiled = await stopWordStore.compileStopWords("per_unified");
+			expect(compiled.size).toBe(2);
+			expect(compiled.has("patient")).toBe(true);
+
+			console.log(`  ${name}: PASSED`);
+		}
+
+		// MemoryEntityStore backend
+		const memProfileStore = new ClinicalParserProfileStore(
+			new MemoryEntityStore<any>(),
+		);
+		const memDefaultsStore = new ClinicalParserConceptDefaultStore(
+			new MemoryEntityStore<any>(),
+		);
+		const memCalibrationStore = new ClinicalCalibrationStore(
+			new MemoryEntityStore<any>(),
+		);
+		const memTemplateStore = new ClinicalProseTemplateStore(
+			new MemoryEntityStore<any>(),
+		);
+		const memNoteStore = new ClinicalSignedSoapNoteStore(
+			new MemoryEntityStore<any>(),
+		);
+		const memAdminStore = new ClinicalAdministrativeStore(
+			new MemoryEntityStore<any>(),
+			new MemoryEntityStore<any>(),
+		);
+		const memJDisplayStore = new ClinicalJurisdictionalDisplayStore(
+			new MemoryEntityStore<any>(),
+		);
+		const memStopWordStore = new ClinicalStopWordStore(
+			new MemoryEntityStore<any>(),
+		);
+
+		await runClinicalTests(
+			"MemoryEntityStore",
+			memProfileStore,
+			memDefaultsStore,
+			memCalibrationStore,
+			memTemplateStore,
+			memNoteStore,
+			memAdminStore,
+			memJDisplayStore,
+			memStopWordStore,
+		);
+
+		// SqliteEntityStore backend
+		const sqlDb = new Database(":memory:");
+		const sqlProfileStore = new ClinicalParserProfileStore(
+			new SqliteEntityStore<any>(sqlDb, "parser_syntax_profiles"),
+		);
+		const sqlDefaultsStore = new ClinicalParserConceptDefaultStore(
+			new SqliteEntityStore<any>(sqlDb, "parser_concept_defaults"),
+		);
+		const sqlCalibrationStore = new ClinicalCalibrationStore(
+			new SqliteEntityStore<any>(sqlDb, "calibration_exceptions"),
+		);
+		const sqlTemplateStore = new ClinicalProseTemplateStore(
+			new SqliteEntityStore<any>(sqlDb, "prose_templates"),
+		);
+		const sqlNoteStore = new ClinicalSignedSoapNoteStore(
+			new SqliteEntityStore<any>(sqlDb, "signed_soap_notes"),
+		);
+		const sqlAdminStore = new ClinicalAdministrativeStore(
+			new SqliteEntityStore<any>(sqlDb, "personnel"),
+			new SqliteEntityStore<any>(sqlDb, "facilities"),
+		);
+		const sqlJDisplayStore = new ClinicalJurisdictionalDisplayStore(
+			new SqliteEntityStore<any>(sqlDb, "jurisdictional_displays"),
+		);
+		const sqlStopWordStore = new ClinicalStopWordStore(
+			new SqliteEntityStore<any>(sqlDb, "stop_word_profiles"),
+		);
+
+		await runClinicalTests(
+			"SqliteEntityStore",
+			sqlProfileStore,
+			sqlDefaultsStore,
+			sqlCalibrationStore,
+			sqlTemplateStore,
+			sqlNoteStore,
+			sqlAdminStore,
+			sqlJDisplayStore,
+			sqlStopWordStore,
+		);
 	});
 });

@@ -4,8 +4,8 @@ import type {
 	CalibrationException,
 	CalibrationStore,
 	ClinicalProseTemplate,
-	ClinicalProseTemplateStore,
 	Facility,
+	IClinicalProseTemplateStore,
 	JurisdictionalDisplay,
 	JurisdictionalDisplayStore,
 	ParserConceptDefault,
@@ -93,7 +93,7 @@ export class MemoryCalibrationStore implements CalibrationStore {
 }
 
 export class MemoryClinicalProseTemplateStore
-	implements ClinicalProseTemplateStore
+	implements IClinicalProseTemplateStore
 {
 	private templates = new Map<string, ClinicalProseTemplate>();
 
