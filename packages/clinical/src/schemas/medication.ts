@@ -80,3 +80,23 @@ export interface FollowUpPlanObject {
 	followUpWindow: ClinicalDateRange;
 	instructions?: string;
 }
+
+export class MedicationHelper {
+	static parseQuantityUnit(groups: { quantity: string; unit: string }): {
+		value: number;
+		unit: string;
+	} {
+		const val = Number.parseFloat(groups.quantity);
+		let unitMapped = groups.unit.toLowerCase();
+		if (
+			unitMapped === "h" ||
+			unitMapped === "hr" ||
+			unitMapped.startsWith("hour")
+		) {
+			unitMapped = "hours";
+		} else if (unitMapped === "d" || unitMapped.startsWith("day")) {
+			unitMapped = "days";
+		}
+		return { value: val, unit: unitMapped };
+	}
+}

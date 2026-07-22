@@ -11,7 +11,10 @@ import {
 import { ClinicalEngine } from "../src/engine/clinical-engine";
 import { CANONICAL_TAGS, CdslParser } from "../src/parser/cdsl-parser";
 import type { PatientProfile } from "../src/schemas/patient";
-import { MemorySignedSoapNoteStore } from "../src/store/memory-clinical-store";
+import {
+	MemoryParserConceptDefaultStore,
+	MemorySignedSoapNoteStore,
+} from "../src/store/memory-clinical-store";
 
 describe("Clinical IDE Stateful Backend", () => {
 	test("Initialize, Parse CDSL, and Sign Encounter SOAP Note", async () => {
@@ -223,5 +226,98 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedRules[0]?.anchorText).toBe("Chest Pain");
 		expect(parsedRules[1]?.severity).toBe("severe");
 		expect(parsedRules[1]?.anchorText).toBe("Chest Pain");
+
+		// 9. Test ParserConceptDefaultStore with regex capture groups (LOINC temp)
+		const conceptDefaultsStore = new MemoryParserConceptDefaultStore();
+		await conceptDefaultsStore.set({
+			anchorConceptId: "LOINC::8310-5",
+			targetSchema: "VitalsMeasurementEvent",
+			regexPatterns: [
+				"temp(?:erature)?\\s+is\\s+(\\d+(?:\\.\\d+)?)\\s*([a-zA-Z%]*)",
+			],
+			defaultProperties: {
+				unit: "Cel",
+				captureGroupMapping: ["value", "unit"],
+			},
+		});
+
+		const defaultParser = new CdslParser(
+			dictionaryStore,
+			undefined,
+			conceptDefaultsStore,
+		);
+		const parsedDefaults = await defaultParser.parse("#vital temp is 38.2 Cel");
+		expect(parsedDefaults.length).toBe(1);
+		expect(parsedDefaults[0]?.value).toBe(38.2);
+		expect(parsedDefaults[0]?.unit).toBe("Cel");
+		expect(parsedDefaults[0]?.capturedProperties?.value).toBe("38.2");
+		expect(parsedDefaults[0]?.capturedProperties?.unit).toBe("Cel");
+
+		// 10. Test direct term tokenizer resolution (LOINC::8310-5)
+		const tokenizerProfile = {
+			profileId: "tokenizer_test",
+			personnelId: "doc_test",
+			tagToken: "#",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
+			isDefault: false,
+			termTokenizer: "::",
+		};
+		const tokenizerParser = new CdslParser(dictionaryStore, tokenizerProfile);
+		const parsedTokenizer = await tokenizerParser.parse(
+			"#vital LOINC::8310-5 38.4 Cel",
+		);
+		expect(parsedTokenizer.length).toBe(1);
+		expect(parsedTokenizer[0]?.conceptId).toBeDefined();
+		expect(parsedTokenizer[0]?.display).toBe("Body temperature");
+
+		// 11. Test tagless resolution guessing fallback
+		const parsedTagless = await defaultParser.parse(
+			"temp 37.9 Cel || Chest Pain denies || Amoxicillin daily",
+		);
+		expect(parsedTagless.length).toBe(3);
+		expect(parsedTagless[0]?.targetSchema).toBe("VitalsMeasurementEvent");
+		expect(parsedTagless[0]?.value).toBe(37.9);
+		expect(parsedTagless[1]?.targetSchema).toBe("ObservationEvent");
+		expect(parsedTagless[1]?.certainty).toBe("refuted");
+		expect(parsedTagless[2]?.targetSchema).toBe("MedicationOrderObject");
+
+		// 12. Test schemaNamespaces configuration filtering
+		const namespacesProfile = {
+			profileId: "ns_test",
+			personnelId: "doc_test",
+			tagToken: "#",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
+			isDefault: false,
+			schemaNamespaces: {
+				[CANONICAL_TAGS.OBSERVATION.toLowerCase()]: ["SNOMED"],
+				[CANONICAL_TAGS.VITALS.toLowerCase()]: ["LOINC"],
+			},
+		};
+		const namespacesParser = new CdslParser(dictionaryStore, namespacesProfile);
+		const parsedNS = await namespacesParser.parse(
+			"#observation Chest Pain denies",
+		);
+		expect(parsedNS.length).toBe(1);
+		expect(parsedNS[0]?.conceptId).toBeDefined();
+
+		// 13. Test blood pressure custom unit capture
+		const parsedBPUnit = await defaultParser.parse(
+			"#vital bp 120/80 bar || #vital bp 125/85",
+		);
+		expect(parsedBPUnit.length).toBe(2);
+		expect(parsedBPUnit[0]?.value).toBe("120/80");
+		expect(parsedBPUnit[0]?.unit).toBe("bar");
+		expect(parsedBPUnit[1]?.value).toBe("125/85");
+		expect(parsedBPUnit[1]?.unit).toBe("mmHg");
 	});
 });

@@ -29,7 +29,8 @@
 			},
 			"complexity": {
 				"useLiteralKeys": "off",
-				"useOptionalChain": "off"
+				"useOptionalChain": "off",
+				"noStaticOnlyClass": "off"
 			},
 			"correctness": {
 				"noUnusedVariables": "off",

@@ -1,5 +1,9 @@
 export * from "./engine/clinical-engine";
 export * from "./parser/cdsl-parser";
+export {
+	type SchemaParser,
+	schemaParserRegistry,
+} from "./parser/schema-parsers";
 export * from "./schemas/assessment";
 export * from "./schemas/document";
 export * from "./schemas/environment";

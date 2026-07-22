@@ -11,13 +11,50 @@ export interface ParserSyntaxProfile {
 	isDefault: boolean;
 	tagMappings?: Record<string, string>; // Maps custom tag names to canonical target schema types
 	attributeRules?: AttributeParserRule[]; // Profile-driven regex parser rules for enums/attributes
+	evaluatorRules?: ParserDictionaryRule[]; // Dynamic regex capture evaluators
+	termTokenizer?: string; // Tokenizer to parse direct database/dictionary lookup (e.g. '::')
+	commentStartToken?: string; // e.g. '//'
+	commentEndToken?: string; // e.g. ';'
+	macroPlaceholder?: string; // e.g. '[__]'
+	variableDelimiter?: string; // e.g. ','
+	startTermCodeDelimiter?: string; // e.g. '@@'
+	startTermDisplayDelimiter?: string; // e.g. '@#'
+	startTermCodeSeparator?: string; // e.g. '#'
+	startTermDelimiter?: string; // e.g. '@'
+	endTermDelimiter?: string; // e.g. ';'
+	attributeDelimiter?: string; // e.g. ','
+	isActive?: boolean;
+	schemaNamespaces?: Record<string, string[]>; // Maps schema keys or names to prioritized/allowed namespaces
+}
+
+export interface ParserDictionaryRule {
+	ruleId: string;
+	targetField: string; // e.g. 'severity', 'blood_pressure', 'quantity', 'session_vars'
+	evaluatorName: string; // e.g. 'parseSeverity', 'parseBloodPressure', 'parseQuantityUnit', 'parseSessionVars'
+	regexPatterns: string[]; // e.g. ['(?<numerator>\\d+)\\s*\\/\\s*(?<denominator>\\d+)']
 }
 
 export interface AttributeParserRule {
-	targetField: string;        // e.g. 'certainty', 'status', 'severity', 'route', 'frequency'
-	targetValue: string;        // e.g. 'refuted', 'active', 'severe', 'ORAL', 'TID'
-	regexPatterns: string[];    // e.g. ['denies', 'deny', 'no\\s+']
+	targetField: string; // e.g. 'certainty', 'status', 'severity', 'route', 'frequency'
+	targetValue: string; // e.g. 'refuted', 'active', 'severe', 'ORAL', 'TID'
+	regexPatterns: string[]; // e.g. ['denies', 'deny', 'no\\s+']
 	isCaseInsensitive?: boolean;
+}
+
+export interface ParserConceptDefault {
+	anchorConceptId: string;
+	targetSchema: string;
+	regexPatterns: string[];
+	defaultProperties: Record<string, any>;
+}
+
+export interface ParserConceptDefaultStore {
+	get(
+		anchorConceptId: string,
+		targetSchema: string,
+	): Promise<ParserConceptDefault | null>;
+	listBySchema(targetSchema: string): Promise<ParserConceptDefault[]>;
+	set(record: ParserConceptDefault): Promise<void>;
 }
 
 export interface ParserProfileStore {

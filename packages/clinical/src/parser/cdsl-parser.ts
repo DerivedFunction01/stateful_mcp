@@ -1,91 +1,16 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { ParserSyntaxProfile, AttributeParserRule } from "../store/interfaces";
+import type {
+	ParserConceptDefaultStore,
+	ParserSyntaxProfile,
+} from "../store/interfaces";
+import {
+	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
+	type ParsedItem as IMP_ParsedItem,
+	schemaParserRegistry,
+} from "./schema-parsers";
 
-export const CANONICAL_TAGS = {
-	VITALS: "VitalsMeasurementEvent",
-	OBSERVATION: "ObservationEvent",
-	MEDICATION: "MedicationOrderObject",
-} as const;
-
-export interface ParsedItem {
-	tag: string;
-	anchorText: string;
-	conceptId?: string;
-	display: string;
-	value?: number | string;
-	unit?: string;
-	severity?: string;
-	certainty?: string;
-	status?: string;
-	route?: string;
-	frequency?: string;
-	duration?: string;
-	targetSchema: string;
-	rawText: string;
-}
-
-const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
-	{
-		targetField: "certainty",
-		targetValue: "refuted",
-		regexPatterns: ["\\bdenies\\b", "\\bdeny\\b", "\\bno\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "status",
-		targetValue: "resolved",
-		regexPatterns: ["\\bdenies\\b", "\\bdeny\\b", "\\bno\\b", "\\bresolved\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "none",
-		regexPatterns: ["\\bdenies\\b", "\\bdeny\\b", "\\bno\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "severe",
-		regexPatterns: ["\\bsevere\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "mild",
-		regexPatterns: ["\\bmild\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "moderate",
-		regexPatterns: ["\\bmoderate\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "route",
-		targetValue: "INTRAVENOUS",
-		regexPatterns: ["\\bintravenous\\b", "\\biv\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "route",
-		targetValue: "INHALATION",
-		regexPatterns: ["\\binhalation\\b", "\\binhaled\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "frequency",
-		targetValue: "QD",
-		regexPatterns: ["\\bqd\\b", "\\bdaily\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "frequency",
-		targetValue: "PRN",
-		regexPatterns: ["\\bprn\\b", "\\bas needed\\b"],
-		isCaseInsensitive: true,
-	},
-];
+export const CANONICAL_TAGS = IMP_CANONICAL_TAGS;
+export type ParsedItem = IMP_ParsedItem;
 
 export class CdslParser {
 	constructor(
@@ -102,6 +27,7 @@ export class CdslParser {
 			variableEndToken: "}",
 			isDefault: true,
 		},
+		private conceptDefaultsStore?: ParserConceptDefaultStore,
 	) {}
 
 	/**
@@ -128,6 +54,92 @@ export class CdslParser {
 						items.push(parsed);
 					}
 				}
+			} else {
+				// Tagless parsing fallback: try to guess/infer target schema from the first word
+				const firstSpace = trimmed.indexOf(" ");
+				const firstWord =
+					firstSpace === -1 ? trimmed : trimmed.substring(0, firstSpace);
+
+				// Determine namespaces to search from profile config or fallback to defaults
+				let namespacesToSearch = ["LOINC", "SNOMED", "RxNorm"];
+				if (this.profile.schemaNamespaces) {
+					const allNs = new Set<string>();
+					for (const nsList of Object.values(this.profile.schemaNamespaces)) {
+						for (const ns of nsList) allNs.add(ns);
+					}
+					if (allNs.size > 0) {
+						namespacesToSearch = Array.from(allNs);
+					}
+				}
+
+				// Resolve the first word across namespaces
+				let resolvedConcept: any = null;
+				for (const ns of namespacesToSearch) {
+					const res = await this.dictionaryStore.search(firstWord, ns, 1);
+					if (res && res.length > 0 && res[0]) {
+						resolvedConcept = res[0];
+						break;
+					}
+				}
+
+				let targetSchema = "";
+				if (resolvedConcept) {
+					if (this.conceptDefaultsStore) {
+						// Guess schema based on concept default configurations
+						for (const schema of Object.values(CANONICAL_TAGS)) {
+							const defaults = await this.conceptDefaultsStore.get(
+								resolvedConcept.id,
+								schema,
+							);
+							if (defaults) {
+								targetSchema = schema;
+								break;
+							}
+						}
+					}
+
+					// If still no schema default found, guess based on namespace configuration
+					if (!targetSchema) {
+						if (this.profile.schemaNamespaces) {
+							for (const [schemaKey, nsList] of Object.entries(
+								this.profile.schemaNamespaces,
+							)) {
+								if (nsList.includes(resolvedConcept.namespaceCode)) {
+									for (const schema of Object.values(CANONICAL_TAGS)) {
+										if (
+											schema.toLowerCase() === schemaKey.toLowerCase() ||
+											schemaKey.toLowerCase().includes(schema.toLowerCase())
+										) {
+											targetSchema = schema;
+											break;
+										}
+									}
+									if (targetSchema) break;
+								}
+							}
+						}
+
+						if (!targetSchema) {
+							if (resolvedConcept.namespaceCode === "LOINC") {
+								targetSchema = CANONICAL_TAGS.VITALS;
+							} else if (resolvedConcept.namespaceCode === "RxNorm") {
+								targetSchema = CANONICAL_TAGS.MEDICATION;
+							} else {
+								targetSchema = CANONICAL_TAGS.OBSERVATION;
+							}
+						}
+					}
+				}
+
+				if (targetSchema) {
+					const parsed = await this.parseSegment(
+						this.profile.tagToken + targetSchema.toLowerCase(),
+						trimmed,
+					);
+					if (parsed) {
+						items.push(parsed);
+					}
+				}
 			}
 		}
 
@@ -149,150 +161,35 @@ export class CdslParser {
 			cleanKey = this.profile.tagMappings[cleanKey]!.toLowerCase();
 		}
 
-		// Apply profile-configured attribute rules
-		const rules = this.profile.attributeRules || DEFAULT_ATTRIBUTE_RULES;
-		const attributes: Record<string, string> = {};
-		let contentCleaned = content;
-
-		for (const rule of rules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
-				if (regex.test(content)) {
-					attributes[rule.targetField] = rule.targetValue;
+		// Find registered parser by targetSchema name or lowercase key
+		let parser = schemaParserRegistry.get(cleanKey);
+		if (!parser) {
+			// Fallback: search by canonical target schema name
+			for (const p of schemaParserRegistry.values()) {
+				if (p.targetSchema.toLowerCase() === cleanKey) {
+					parser = p;
+					break;
 				}
 			}
 		}
 
-		for (const rule of rules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
-				contentCleaned = contentCleaned.replace(regex, " ");
-			}
-		}
-		contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
+		if (parser) {
+			const allowedNamespaces =
+				this.profile.schemaNamespaces?.[cleanKey] ||
+				this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
+				undefined;
 
-		const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
-		if (wordsCleaned.length === 0) return null;
-
-		if (
-			cleanKey === CANONICAL_TAGS.VITALS.toLowerCase() ||
-			cleanKey === "vital"
-		) {
-			// e.g. temp 38.5 Cel, pulse 80, BP 120/80
-			const anchorText = wordsCleaned[0] || "";
-			const valueText = wordsCleaned[1] || "";
-			const unitText = wordsCleaned[2] || "";
-
-			// Resolve concepts
-			const resolved = await this.resolveConcept(anchorText, "LOINC");
-			const display = resolved?.display || anchorText;
-			const conceptId = resolved?.id;
-
-			// Default properties based on anchor
-			let defaultUnit = "";
-			const targetSchema = "VitalsMeasurementEvent";
-
-			if (/temp/i.test(anchorText)) {
-				defaultUnit = "Cel";
-			} else if (/pulse|hr|heart/i.test(anchorText)) {
-				defaultUnit = "/min";
-			} else if (/bp|blood/i.test(anchorText)) {
-				defaultUnit = "mm[Hg]";
-			} else if (/spo2|sat/i.test(anchorText)) {
-				defaultUnit = "%";
-			} else if (/rr|resp/i.test(anchorText)) {
-				defaultUnit = "/min";
-			}
-
-			return {
+			return await parser.parse(
 				tag,
-				anchorText,
-				conceptId,
-				display,
-				value: Number.isNaN(Number(valueText)) ? valueText : Number(valueText),
-				unit: unitText || defaultUnit,
-				targetSchema,
-				rawText: `${tag} ${content}`,
-			};
+				content,
+				this.dictionaryStore,
+				this.conceptDefaultsStore,
+				this.profile.attributeRules,
+				this.profile.evaluatorRules,
+				this.profile.termTokenizer,
+				allowedNamespaces,
+			);
 		}
-
-		if (
-			cleanKey === CANONICAL_TAGS.OBSERVATION.toLowerCase() ||
-			cleanKey === "observation" ||
-			cleanKey === "symptom"
-		) {
-			// e.g. severe chest pain, denies cough
-			const certainty = attributes.certainty || "confirmed";
-			const status = attributes.status || "active";
-			const severity = attributes.severity || "moderate";
-			const anchorText = wordsCleaned.join(" ");
-
-			const resolved = await this.resolveConcept(anchorText, "SNOMED");
-			const display = resolved?.display || anchorText;
-			const conceptId = resolved?.id;
-
-			return {
-				tag,
-				anchorText,
-				conceptId,
-				display,
-				severity,
-				certainty,
-				status,
-				targetSchema: "ObservationEvent",
-				rawText: `${tag} ${content}`,
-			};
-		}
-
-		if (
-			cleanKey === CANONICAL_TAGS.MEDICATION.toLowerCase() ||
-			cleanKey === "rx" ||
-			cleanKey === "med"
-		) {
-			// e.g. Amoxicillin oral TID 10 days
-			const anchorText = wordsCleaned[0] || "";
-			const route = attributes.route || "ORAL";
-			const frequency = attributes.frequency || "TID";
-			let duration = "10 days";
-
-			const durationMatch = contentCleaned.toLowerCase().match(/(\d+\s*days?)/);
-			if (durationMatch) {
-				duration = durationMatch[0];
-			}
-
-			const resolved = await this.resolveConcept(anchorText, "RxNorm");
-			const display = resolved?.display || anchorText;
-			const conceptId = resolved?.id;
-
-			return {
-				tag,
-				anchorText,
-				conceptId,
-				display,
-				route,
-				frequency,
-				duration,
-				status: "ACTIVE",
-				targetSchema: "MedicationOrderObject",
-				rawText: `${tag} ${content}`,
-			};
-		}
-
-		return null;
-	}
-
-	private async resolveConcept(
-		text: string,
-		namespace: string,
-	): Promise<{ id: string; display: string } | null> {
-		try {
-			const results = await this.dictionaryStore.search(text, namespace, 5);
-			if (results && results.length > 0 && results[0]) {
-				return { id: results[0].id, display: results[0].display };
-			}
-		} catch (_) {}
 		return null;
 	}
 }

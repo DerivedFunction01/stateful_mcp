@@ -39,3 +39,26 @@ export interface PhysicalExamObject {
 	status: "normal" | "abnormal" | "not_examined";
 	clinicalDescription?: string;
 }
+
+export class VitalsHelper {
+	static findBloodPressure(
+		groups: { systolic: string; diastolic: string; unit?: string },
+		defaultUnit = "mmHg",
+	): { systolic: number; diastolic: number; unit: string } {
+		return {
+			systolic: Number.parseInt(groups.systolic, 10),
+			diastolic: Number.parseInt(groups.diastolic, 10),
+			unit: groups.unit?.trim() || defaultUnit,
+		};
+	}
+
+	static getVitalsSeverity(
+		val: number,
+		normalMin: number,
+		normalMax: number,
+	): string {
+		if (val < normalMin) return "low";
+		if (val > normalMax) return "high";
+		return "normal";
+	}
+}

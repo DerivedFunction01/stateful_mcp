@@ -7,6 +7,8 @@ import type {
 	Facility,
 	JurisdictionalDisplay,
 	JurisdictionalDisplayStore,
+	ParserConceptDefault,
+	ParserConceptDefaultStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
 	Personnel,
@@ -215,5 +217,30 @@ export class MemoryStopWordStore implements StopWordStore {
 		if (!profile) return new Set<string>();
 		// Since flat files aren't physically loaded here, we union custom words and return
 		return new Set<string>(profile.customWords);
+	}
+}
+
+export class MemoryParserConceptDefaultStore
+	implements ParserConceptDefaultStore
+{
+	private defaults = new Map<string, ParserConceptDefault>();
+
+	async get(
+		anchorConceptId: string,
+		targetSchema: string,
+	): Promise<ParserConceptDefault | null> {
+		const k = `${anchorConceptId}:${targetSchema}`;
+		return this.defaults.get(k) || null;
+	}
+
+	async listBySchema(targetSchema: string): Promise<ParserConceptDefault[]> {
+		return Array.from(this.defaults.values()).filter(
+			(d) => d.targetSchema === targetSchema,
+		);
+	}
+
+	async set(record: ParserConceptDefault): Promise<void> {
+		const k = `${record.anchorConceptId}:${record.targetSchema}`;
+		this.defaults.set(k, record);
 	}
 }

@@ -31,3 +31,17 @@ export interface ObservationEvent {
 	qualifiers?: CodeableConcept[];
 	dateRange?: ClinicalDateRange;
 }
+
+export class ObservationHelper {
+	static parseSeverity(
+		groups: { numerator: string; denominator?: string },
+		config: { baseScale: number } = { baseScale: 10 },
+	): { score: number; maxScore: number; normalizedScore: number } {
+		const num = Number.parseFloat(groups.numerator);
+		const den = groups.denominator
+			? Number.parseFloat(groups.denominator)
+			: config.baseScale;
+		const normalized = (num / den) * config.baseScale;
+		return { score: num, maxScore: den, normalizedScore: normalized };
+	}
+}
