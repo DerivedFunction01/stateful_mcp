@@ -317,6 +317,14 @@ export class DictionaryStore {
 		private expressionStore: PersistentExpressionStore = new InMemoryPersistentExpressionStore(),
 	) {}
 
+	public async search(
+		query: string,
+		namespaceCode?: string,
+		limit: number = 50,
+	): Promise<Concept[]> {
+		return this.conceptStore.search(query, namespaceCode, limit);
+	}
+
 	public async loadConfig(config: DictionaryConfig): Promise<void> {
 		if (config.allowedTargetAssignments) {
 			this.allowedTargetAssignments = config.allowedTargetAssignments;

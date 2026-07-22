@@ -17,6 +17,8 @@
 		"noImplicitOverride": true,
 		"baseUrl": ".",
 		"paths": {
+			"@stateful-mcp/core": ["../core/src/index.ts"],
+			"@stateful-mcp/core/*": ["../core/src/*"],
 			"@stateful-mcp/clinical/*": ["src/*"]
 		}
 	},
