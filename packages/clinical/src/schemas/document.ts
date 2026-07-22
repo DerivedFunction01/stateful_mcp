@@ -32,6 +32,7 @@ export interface SoapNote {
     exams: PhysicalExamObject[];
     devices?: DeviceDiagnosticObject[];
     observations: ObservationEvent[];
+    environments?: EnvironmentContextObject[];
     narrative?: string;
   };
   assessment: {
