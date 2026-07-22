@@ -46,3 +46,5 @@ scratch/
 # Anything with a dot
 .*
 temp_*/
+
+playground
