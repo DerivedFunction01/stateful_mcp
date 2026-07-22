@@ -1,7 +1,6 @@
 import type {
 	ClinicalDateRange,
 	ClinicalSourceType,
-	CodeableConcept,
 	ProductIdentifier,
 	SingleMeasurement,
 } from "./shared";
