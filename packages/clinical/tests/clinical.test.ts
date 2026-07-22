@@ -149,7 +149,9 @@ describe("Clinical IDE Stateful Backend", () => {
 		// Assert Medication mapped
 		expect(updatedNote.plan.medications.length).toBe(1);
 		expect(updatedNote.plan.medications[0]!.route as string).toBe("ORAL");
-		expect(updatedNote.plan.medications[0]!.frequency!.cadenceType as string).toBe("QD");
+		expect(
+			updatedNote.plan.medications[0]!.frequency!.cadenceType as string,
+		).toBe("QD");
 
 		// 5. Sign the encounter SOAP note
 		const signedRecord = await engine.signEncounter(sessionId, "dr_smith_99");
