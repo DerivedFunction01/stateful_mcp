@@ -6,7 +6,7 @@ This package provides the core backend parsing, vocabulary anchoring, and statef
 
 ## The Philosophy: Beyond Dropdown Fatigue & Stochastic LLMs
 
-Modern EHR (Electronic Health Record) systems suffer from **dropdown fatigue**—stacking checkboxes and nested menus onto legacy databases. Conversely, generative AI/LLM transcription introduces **semantic noise, liability, and latency** due to hallucinations.
+EHR (Electronic Health Record) systems suffer from **dropdown fatigue**—stacking checkboxes and nested menus onto legacy databases. Conversely, generative AI/LLM transcription introduces **semantic noise, liability, and liability** due to hallucinations.
 
 This package implements **Clinical DSL (CDSL)**: a structured shorthand dictation grammar parsed deterministically in real time with **zero latency**.
 
@@ -44,51 +44,39 @@ Clinicians can configure the parser with a custom `ParserSyntaxProfile` containi
 * `tagToken`: Custom prefix (e.g., `$` instead of `#`).
 * `tagMappings`: Maps custom or translated tag names to the canonical schema target keys.
 * `attributeRules`: Regex patterns mapping localized terms to enums (e.g., matching `"niega"` $\rightarrow$ `certainty: "refuted"`, or `"grave"` $\rightarrow$ `severity: "severe"`).
-
-```typescript
-import { CANONICAL_TAGS, CdslParser } from "@stateful-mcp/clinical";
-
-const esProfile = {
-  profileId: "es_clinic",
-  tagToken: "$",
-  tagMappings: {
-    signos_vitales: CANONICAL_TAGS.VITALS,     // Maps $signos_vitales to VitalsMeasurementEvent
-    prescripcion: CANONICAL_TAGS.MEDICATION,   // Maps $prescripcion to MedicationOrderObject
-  },
-  attributeRules: [
-    { targetField: "certainty", targetValue: "refuted", regexPatterns: ["\\bniega\\b"] }
-  ]
-};
-
-const parser = new CdslParser(dictionaryStore, esProfile);
-```
+* `schemaNamespaces`: Maps schema keys or names to prioritized/allowed namespaces (e.g. `observation` mapped to `["SNOMED", "ICD-10"]`).
+* `termTokenizer`: Tokenizer to parse direct database/dictionary lookup (e.g., `::` mapping `LOINC::8310-5`).
 
 ---
 
-## 2. Dynamic Registry & Named Capture Group Evaluators
+## 2. Core CDSL Compiler Features
 
-To support total flexibility in parsing, the parser uses a schema-specific registry:
-1. **Dynamic Schema Routing**: The main `CdslParser` looks up the tag's target schema and delegates segment parsing to a registered `SchemaParser` factory class.
-2. **Tier 1 named capture group evaluators**: Evaluators are bound to regex patterns configured dynamically in the parser profile (`evaluatorRules`). This avoids hardcoding regexes, supporting any valid capture pattern.
-   * **Severity Evaluator (`parseSeverity`)**: Parses numeric ranges (`4/10`, `3 out of 5`) or scores (`give it a 7`), scaling values to a normalized scale.
-   * **Blood Pressure Evaluator (`parseBloodPressure`)**: Extracts systolic and diastolic pressures (`120/80`) to standard payloads.
-   * **Quantity & Unit Evaluator (`parseQuantityUnit`)**: Extracts values and maps shorthand units (e.g. `2h` $\rightarrow$ `2 hours`, `50mg` $\rightarrow$ `50 mg`).
-   * **Session Variable Evaluator (`parseSessionVars`)**: Extracts context values declared in blocks (`{ x=10, y=true }`).
+### Anchor Concepts & Entropy Reduction
+Every target schema is anchored by **one or two key parameters** ("the main term" or anchor concept). Identifying this anchor reduces the entropy of the remaining text in the segment, transforming unstructured prose into highly predictable slots:
 
-```typescript
-// Example profile dictionary mapping evaluator rules
-const customProfile = {
-  ...esProfile,
-  evaluatorRules: [
-    {
-      ruleId: "bp",
-      targetField: "blood_pressure",
-      evaluatorName: "parseBloodPressure",
-      regexPatterns: ["(?<systolic>\\d{2,3})\\s*\\/\\s*(?<diastolic>\\d{2,3})"]
-    }
-  ]
-};
-```
+1. **Vitals (`VitalsMeasurementEvent`)**
+   * **Key Parameter**: `vitalType` (the primary vital sign concept, e.g. LOINC standard code for temperature, heart rate, or blood pressure).
+   * **Entropy Resolution**: Resolving the vital sign narrows the remaining tokens down to predictable numeric quantities, intervals, and unit structures.
+2. **Observations (`ObservationEvent`)**
+   * **Key Parameter**: `concept` (the primary symptom or diagnosis, e.g. SNOMED standard code for pain, cough, or dyspnea).
+   * **Entropy Resolution**: Resolving the diagnosis reduces the remainder of the text to descriptors indicating severity scores (e.g. `4/10`), certainties (e.g. `denies`), or clinical status.
+3. **Medications (`MedicationOrderObject`)**
+   * **Key Parameter**: `medication` (the drug name/ingredient concept, e.g. RxNorm standard code for chemical substances or clinical drugs).
+   * **Entropy Resolution**: Resolving the drug ingredient limits the remaining terms to route codes, dosage measurements, and cadence/frequency directives (e.g. `oral TID`).
+
+### Tagless Fallback Schema Guessing
+When the clinician inputs dictation segments without explicit tag prefixes (e.g. `temp 38 Cel` instead of `#vital temp 38 Cel`), the parser dynamically infers the target schema. 
+
+Instead of relying on the anchor concept residing at a fixed position (like the first word), the parser queries candidate terms in the segment against the syntax profile's configured `schemaNamespaces` and `ParserConceptDefaultStore`. Once an anchor concept is resolved, its target schema is adopted to parse the rest of the low-entropy text:
+* **LOINC** $\rightarrow$ `VitalsMeasurementEvent`
+* **RxNorm** $\rightarrow$ `MedicationOrderObject`
+* **SNOMED / Custom** $\rightarrow$ `ObservationEvent`
+
+### Schema Domain Helpers
+Business logic and concept calculations reside directly in schema classes rather than parser internals:
+* **`VitalsHelper.findBloodPressure`**: Parses systolic, diastolic, and optional unit capture groups from matched evaluator rules.
+* **`ObservationHelper.parseSeverity`**: Evaluates and normalizes severity scores (e.g., `4/10` or `7 out of 10`) on a standard scale.
+* **`MedicationHelper.parseQuantityUnit`**: Resolves unit shorthand notations into standard vocabulary formats.
 
 ---
 
@@ -97,21 +85,6 @@ const customProfile = {
 The `ClinicalEngine` coordinates the parser and the stateful core services:
 * **Encounter Life Cycle**: Initializes draft notes (`initEncounter`), appends CDSL parsed events (`processCdsl`), and locks notes via electronic signature (`signEncounter`).
 * **Git-like VCS Compaction**: Mutates SOAP Note objects on sub-paths (`set`), compiling a transaction history of structural revisions.
-
-```typescript
-import { ClinicalEngine } from "@stateful-mcp/clinical";
-
-const engine = new ClinicalEngine(objectStore, dictionaryStore, signedNoteStore);
-
-// 1. Initialize encounter
-await engine.initEncounter("session_123", patientProfile);
-
-// 2. Append dictation (mutates and versions the draft)
-await engine.processCdsl("session_123", "#vital temp 38.2 || #observation denies Chest Pain");
-
-// 3. Finalize and Sign (renders the note immutable)
-const record = await engine.signEncounter("session_123", "Dr. Smith");
-```
 
 ---
 
@@ -129,15 +102,3 @@ The clinical backend depends on 8 storage-agnostic repository interfaces defined
 8. **`StopWordStore`**: Filter words compiler.
 
 An in-memory fallback implementation of all stores is provided in [memory-clinical-store.ts](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/src/store/memory-clinical-store.ts).
-
----
-
-## 5. Concepts Seed Data
-
-Seeds for standardized vocabularies are loaded from `seed/` using the loader utility:
-```typescript
-import { seedClinicalData } from "@stateful-mcp/clinical";
-
-// Loads LOINC, SNOMED-CT, RxNorm, and UCUM units into your dictionary store
-await seedClinicalData(dictionaryStore);
-```
