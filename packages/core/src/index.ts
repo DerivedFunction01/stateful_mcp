@@ -1,6 +1,7 @@
 export * from "./adapters/storage/browser-repo";
 export * from "./adapters/storage/jsonl-repo";
 export * from "./adapters/storage/memory-repo";
+export * from "./adapters/storage/opfs-repo";
 export * from "./adapters/storage/pg-repo";
 export * from "./adapters/storage/sqlite-repo";
 export * from "./config/loader";

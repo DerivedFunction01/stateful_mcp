@@ -41,6 +41,10 @@ import {
 	MemorySessionObjectStore,
 } from "../src/adapters/storage/memory-repo";
 import {
+	OpfsConceptStore,
+	OpfsPersistentExpressionStore,
+} from "../src/adapters/storage/opfs-repo";
+import {
 	SqliteConceptStore,
 	SqliteFilterStore,
 	SqliteFormStore,
@@ -540,6 +544,16 @@ describe("Storage Compliance Test Runner", () => {
 					new IndexedDbConceptStore("test_dict_db"),
 				createPersistentStore: async () =>
 					new IndexedDbPersistentExpressionStore("test_dict_db"),
+			});
+		});
+
+		describe("OPFS Dictionary Store", () => {
+			runDictionaryStoreComplianceTests({
+				name: "OPFS Dictionary Store",
+				test,
+				expect,
+				createSessionStore: async () => new OpfsConceptStore(),
+				createPersistentStore: async () => new OpfsPersistentExpressionStore(),
 			});
 		});
 	});

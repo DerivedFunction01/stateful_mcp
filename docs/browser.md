@@ -20,6 +20,15 @@ The package provides two pre-configured storage drivers optimized for browser en
     *   `IndexedDbSessionStore` (implements `SessionFilterStore`, `SessionObjectStore`, `SessionFormStore`)
     *   `IndexedDbPersistentStore` (implements `PersistentFilterStore`, `PersistentObjectStore`, `PersistentFormStore`)
 
+### OPFS SQLite (`opfs-sqlite`)
+*   **Best for**: Maximum performance ($10\times - 100\times$ faster than IndexedDB), large-scale terminology stores, complex SQL queries, and full SQLite 3 WASM engine parity in the browser.
+*   **Classes**:
+    *   `OpfsSessionFilterStore`, `OpfsPersistentFilterStore`
+    *   `OpfsSessionObjectStore`, `OpfsPersistentObjectStore`
+    *   `OpfsFormSessionStore`, `OpfsFormPersistentStore`
+    *   `OpfsConceptStore`, `OpfsPersistentExpressionStore`
+*   **Headers Required**: Server must set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` for worker `SharedArrayBuffer` / `SyncAccessHandle` access.
+
 ---
 
 ## 2. Programmatic Integration Example
