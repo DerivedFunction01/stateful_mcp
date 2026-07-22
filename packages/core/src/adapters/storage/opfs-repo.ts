@@ -611,7 +611,8 @@ export class OpfsFormPersistentStore implements PersistentFormStore {
 	): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
 		const userPrefix = `user:${scope.level === "user" ? scope.userId : ""}:`;
 		const globalPrefix = "global:global:";
-		const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> = [];
+		const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> =
+			[];
 		for (const [k, v] of this.localMap.entries()) {
 			if (scope.level === "user" && k.startsWith(userPrefix)) {
 				results.push({ ...v, scope });

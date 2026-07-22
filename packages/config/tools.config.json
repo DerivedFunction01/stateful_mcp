@@ -1,14 +1,14 @@
 {
-  "tools": {
-    "browse_catalog": {
-      "schema": {
-        "_type": "file",
-        "path": "./config/tools/browse_catalog.schema.json"
-      },
-      "engine": {
-        "_type": "adapter",
-        "name": "memory-engine"
-      }
-    }
-  }
+	"tools": {
+		"browse_catalog": {
+			"schema": {
+				"_type": "file",
+				"path": "./config/tools/browse_catalog.schema.json"
+			},
+			"engine": {
+				"_type": "adapter",
+				"name": "memory-engine"
+			}
+		}
+	}
 }

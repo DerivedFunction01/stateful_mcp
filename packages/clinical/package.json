@@ -2,7 +2,14 @@
 	"name": "@stateful-mcp/clinical",
 	"version": "0.1.0",
 	"description": "Clinical domain engines and resource loaders for Stateful framework",
-	"keywords": ["clinical", "ucum", "vitals", "observation", "stateful", "mcp"],
+	"keywords": [
+		"clinical",
+		"ucum",
+		"vitals",
+		"observation",
+		"stateful",
+		"mcp"
+	],
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

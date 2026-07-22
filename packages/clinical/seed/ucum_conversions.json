@@ -1,3354 +1,3354 @@
 {
-  "(unclassified)": {
-    "base_unit": "[G]",
-    "units": {
-      "[G]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "acceleration": {
-    "base_unit": "[g]",
-    "units": {
-      "[g]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "acidity": {
-    "base_unit": "[pH]",
-    "units": {
-      "[pH]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "action": {
-    "base_unit": "[h]",
-    "units": {
-      "[h]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "action area": {
-    "base_unit": "b",
-    "units": {
-      "b": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "amount of an allergen calibrated through in-vivo testing using the Stallergenes® method": {
-    "base_unit": "[IR]",
-    "units": {
-      "[IR]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "amplitude spectral density": {
-    "base_unit": "[m/s2/Hz^(1/2)]",
-    "units": {
-      "[m/s2/Hz^(1/2)]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "arbitrary": {
-    "base_unit": "[iU]",
-    "units": {
-      "[iU]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "biologic activity of factor Xa inhibitor (heparin)": {
-    "base_unit": "[anti'Xa'U]",
-    "units": {
-      "[anti'Xa'U]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "catalytic activity": {
-    "base_unit": "U",
-    "units": {
-      "U": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "kU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ]
-      },
-      "dU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ]
-      },
-      "cU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ]
-      },
-      "mU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      },
-      "uU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ]
-      },
-      "nU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ]
-      },
-      "pU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ]
-      },
-      "fU": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "catalytic activity concentration": {
-    "base_unit": "U/L",
-    "units": {
-      "U/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "mU/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "concentration": {
-    "base_unit": "eq/L",
-    "units": {
-      "eq/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "meq/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "dynamic viscosity": {
-    "base_unit": "P",
-    "units": {
-      "P": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "electric capacitance": {
-    "base_unit": "F",
-    "units": {
-      "F": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "electric charge": {
-    "base_unit": "C",
-    "units": {
-      "C": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[e]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1.602176634e-19
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1.602176634e-19
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "electric conductance": {
-    "base_unit": "S",
-    "units": {
-      "S": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "electric current": {
-    "base_unit": "A",
-    "units": {
-      "A": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "electric permittivity": {
-    "base_unit": "[eps_0]",
-    "units": {
-      "[eps_0]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "electric potential": {
-    "base_unit": "V",
-    "units": {
-      "V": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "electric potential level": {
-    "base_unit": "B[10.nV]",
-    "units": {
-      "B[10.nV]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "energy": {
-    "base_unit": "J",
-    "units": {
-      "J": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[Btu_39]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1059.6699999999998
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1059.6699999999998
-            ]
-          }
-        ]
-      },
-      "[Btu_59]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1054.8
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1054.8
-            ]
-          }
-        ]
-      },
-      "[Btu_60]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1054.68
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1054.68
-            ]
-          }
-        ]
-      },
-      "cal_[15]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              4.1858
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              4.1858
-            ]
-          }
-        ]
-      },
-      "cal_[20]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              4.1819
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              4.1819
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "force": {
-    "base_unit": "N",
-    "units": {
-      "N": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "fraction": {
-    "base_unit": "%",
-    "units": {
-      "%": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "homeopathic potency (Hahnemann)": {
-    "base_unit": "[hp_C]",
-    "units": {
-      "[hp_C]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[hp_M]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[hp_Q]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[hp_X]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "homeopathic potency (Korsakov)": {
-    "base_unit": "[kp_C]",
-    "units": {
-      "[kp_C]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[kp_M]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[kp_Q]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[kp_X]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "homeopathic potency (retired)": {
-    "base_unit": "[hp'_C]",
-    "units": {
-      "[hp'_C]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "inductance": {
-    "base_unit": "H",
-    "units": {
-      "H": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "ion dose": {
-    "base_unit": "R",
-    "units": {
-      "R": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "length": {
-    "base_unit": "m",
-    "units": {
-      "[in_i]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.025400000000000002
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.025400000000000002
-            ]
-          }
-        ]
-      },
-      "cm": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ]
-      },
-      "dm": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ]
-      },
-      "fm": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ]
-      },
-      "km": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ]
-      },
-      "m": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "mm": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      },
-      "um": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ]
-      },
-      "nm": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ]
-      },
-      "pm": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "level": {
-    "base_unit": "B",
-    "units": {
-      "B": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "magnetic flux density": {
-    "base_unit": "G",
-    "units": {
-      "G": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "T": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              10000
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              10000
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "magnetic permeability": {
-    "base_unit": "[mu_0]",
-    "units": {
-      "[mu_0]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "mass": {
-    "base_unit": "g",
-    "units": {
-      "[lb_av]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              453.59237
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              453.59237
-            ]
-          }
-        ]
-      },
-      "cg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ]
-      },
-      "dg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ]
-      },
-      "fg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ]
-      },
-      "g": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "kg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ]
-      },
-      "mg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      },
-      "ug": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ]
-      },
-      "ng": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ]
-      },
-      "pg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ]
-      },
-      "t": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000000
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000000
-            ]
-          }
-        ]
-      },
-      "u": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1.6605390666e-24
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1.6605390666e-24
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "mass concentration": {
-    "base_unit": "g/L",
-    "units": {}
-  },
-  "mass fraction": {
-    "base_unit": "[car_Au]",
-    "units": {
-      "[car_Au]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "number": {
-    "base_unit": "[pi]",
-    "units": {
-      "[pi]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "osmolality": {
-    "base_unit": "osm/kg",
-    "units": {
-      "osm/kg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "mosm/kg": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "osmolarity": {
-    "base_unit": "osm/L",
-    "units": {
-      "osm/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "mosm/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "power": {
-    "base_unit": "W",
-    "units": {
-      "W": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "power level": {
-    "base_unit": "B[W]",
-    "units": {
-      "B[W]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "prefix": {
-    "base_unit": "E",
-    "units": {
-      "E": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "pressure": {
-    "base_unit": "Pa",
-    "units": {
-      "m[H2O]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              9806.65
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              9806.65
-            ]
-          }
-        ]
-      },
-      "m[Hg]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              133322
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              133322
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "pressure level": {
-    "base_unit": "B[SPL]",
-    "units": {
-      "B[SPL]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "procedure defined amount of a poliomyelitis d-antigen substance": {
-    "base_unit": "[D'ag'U]",
-    "units": {
-      "[D'ag'U]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "procedure defined amount of an antigen substance": {
-    "base_unit": "[Lf]",
-    "units": {
-      "[Lf]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "procedure defined amount of the major allergen of ragweed": {
-    "base_unit": "[Amb'a'1'U]",
-    "units": {
-      "[Amb'a'1'U]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "sedimentation coefficient": {
-    "base_unit": "[S]",
-    "units": {
-      "[S]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "slope": {
-    "base_unit": "%[slope]",
-    "units": {
-      "%[slope]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "substance concentration": {
-    "base_unit": "mol/L",
-    "units": {
-      "mol/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "mmol/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      },
-      "umol/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ]
-      },
-      "nmol/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ]
-      },
-      "pmol/L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "temperature": {
-    "base_unit": "Cel",
-    "units": {
-      "Cel": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "[degF]": {
-        "to_base": [
-          {
-            "op": "sub",
-            "args": [
-              {
-                "$var": "value"
-              },
-              32
-            ],
-            "return_var": "tmp"
-          },
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "tmp"
-              },
-              5
-            ],
-            "return_var": "tmp"
-          },
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "tmp"
-              },
-              9
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              9
-            ],
-            "return_var": "tmp"
-          },
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "tmp"
-              },
-              5
-            ],
-            "return_var": "tmp"
-          },
-          {
-            "op": "add",
-            "args": [
-              {
-                "$var": "tmp"
-              },
-              32
-            ]
-          }
-        ]
-      },
-      "K": {
-        "to_base": [
-          {
-            "op": "sub",
-            "args": [
-              {
-                "$var": "value"
-              },
-              273.15
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "add",
-            "args": [
-              {
-                "$var": "value"
-              },
-              273.15
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "time": {
-    "base_unit": "s",
-    "units": {
-      "a": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              31557600
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              31557600
-            ]
-          }
-        ]
-      },
-      "cs": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ]
-      },
-      "d": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              86400
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              86400
-            ]
-          }
-        ]
-      },
-      "ds": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ]
-      },
-      "fs": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ]
-      },
-      "h": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              3600
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              3600
-            ]
-          }
-        ]
-      },
-      "ks": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ]
-      },
-      "min": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              60
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              60
-            ]
-          }
-        ]
-      },
-      "mo": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              2629800
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              2629800
-            ]
-          }
-        ]
-      },
-      "ms": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      },
-      "ns": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ]
-      },
-      "ps": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ]
-      },
-      "s": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "us": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ]
-      },
-      "wk": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              604800
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              604800
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "velocity": {
-    "base_unit": "[c]",
-    "units": {
-      "[c]": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "volume": {
-    "base_unit": "L",
-    "units": {
-      "L": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      },
-      "kL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1000
-            ]
-          }
-        ]
-      },
-      "dL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.1
-            ]
-          }
-        ]
-      },
-      "cL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.01
-            ]
-          }
-        ]
-      },
-      "mL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.001
-            ]
-          }
-        ]
-      },
-      "uL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              0.000001
-            ]
-          }
-        ]
-      },
-      "nL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-9
-            ]
-          }
-        ]
-      },
-      "pL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-12
-            ]
-          }
-        ]
-      },
-      "fL": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1e-15
-            ]
-          }
-        ]
-      },
-      "l": {
-        "to_base": [
-          {
-            "op": "mul",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ],
-        "from_base": [
-          {
-            "op": "div",
-            "args": [
-              {
-                "$var": "value"
-              },
-              1
-            ]
-          }
-        ]
-      }
-    }
-  }
+	"(unclassified)": {
+		"base_unit": "[G]",
+		"units": {
+			"[G]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"acceleration": {
+		"base_unit": "[g]",
+		"units": {
+			"[g]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"acidity": {
+		"base_unit": "[pH]",
+		"units": {
+			"[pH]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"action": {
+		"base_unit": "[h]",
+		"units": {
+			"[h]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"action area": {
+		"base_unit": "b",
+		"units": {
+			"b": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"amount of an allergen calibrated through in-vivo testing using the Stallergenes® method": {
+		"base_unit": "[IR]",
+		"units": {
+			"[IR]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"amplitude spectral density": {
+		"base_unit": "[m/s2/Hz^(1/2)]",
+		"units": {
+			"[m/s2/Hz^(1/2)]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"arbitrary": {
+		"base_unit": "[iU]",
+		"units": {
+			"[iU]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"biologic activity of factor Xa inhibitor (heparin)": {
+		"base_unit": "[anti'Xa'U]",
+		"units": {
+			"[anti'Xa'U]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"catalytic activity": {
+		"base_unit": "U",
+		"units": {
+			"U": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"kU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				]
+			},
+			"dU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				]
+			},
+			"cU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				]
+			},
+			"mU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			},
+			"uU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				]
+			},
+			"nU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				]
+			},
+			"pU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				]
+			},
+			"fU": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				]
+			}
+		}
+	},
+	"catalytic activity concentration": {
+		"base_unit": "U/L",
+		"units": {
+			"U/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"mU/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			}
+		}
+	},
+	"concentration": {
+		"base_unit": "eq/L",
+		"units": {
+			"eq/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"meq/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			}
+		}
+	},
+	"dynamic viscosity": {
+		"base_unit": "P",
+		"units": {
+			"P": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"electric capacitance": {
+		"base_unit": "F",
+		"units": {
+			"F": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"electric charge": {
+		"base_unit": "C",
+		"units": {
+			"C": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[e]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1.602176634e-19
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1.602176634e-19
+						]
+					}
+				]
+			}
+		}
+	},
+	"electric conductance": {
+		"base_unit": "S",
+		"units": {
+			"S": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"electric current": {
+		"base_unit": "A",
+		"units": {
+			"A": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"electric permittivity": {
+		"base_unit": "[eps_0]",
+		"units": {
+			"[eps_0]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"electric potential": {
+		"base_unit": "V",
+		"units": {
+			"V": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"electric potential level": {
+		"base_unit": "B[10.nV]",
+		"units": {
+			"B[10.nV]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"energy": {
+		"base_unit": "J",
+		"units": {
+			"J": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[Btu_39]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1059.6699999999998
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1059.6699999999998
+						]
+					}
+				]
+			},
+			"[Btu_59]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1054.8
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1054.8
+						]
+					}
+				]
+			},
+			"[Btu_60]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1054.68
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1054.68
+						]
+					}
+				]
+			},
+			"cal_[15]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							4.1858
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							4.1858
+						]
+					}
+				]
+			},
+			"cal_[20]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							4.1819
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							4.1819
+						]
+					}
+				]
+			}
+		}
+	},
+	"force": {
+		"base_unit": "N",
+		"units": {
+			"N": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"fraction": {
+		"base_unit": "%",
+		"units": {
+			"%": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"homeopathic potency (Hahnemann)": {
+		"base_unit": "[hp_C]",
+		"units": {
+			"[hp_C]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[hp_M]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[hp_Q]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[hp_X]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"homeopathic potency (Korsakov)": {
+		"base_unit": "[kp_C]",
+		"units": {
+			"[kp_C]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[kp_M]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[kp_Q]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[kp_X]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"homeopathic potency (retired)": {
+		"base_unit": "[hp'_C]",
+		"units": {
+			"[hp'_C]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"inductance": {
+		"base_unit": "H",
+		"units": {
+			"H": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"ion dose": {
+		"base_unit": "R",
+		"units": {
+			"R": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"length": {
+		"base_unit": "m",
+		"units": {
+			"[in_i]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.025400000000000002
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.025400000000000002
+						]
+					}
+				]
+			},
+			"cm": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				]
+			},
+			"dm": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				]
+			},
+			"fm": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				]
+			},
+			"km": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				]
+			},
+			"m": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"mm": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			},
+			"um": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				]
+			},
+			"nm": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				]
+			},
+			"pm": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				]
+			}
+		}
+	},
+	"level": {
+		"base_unit": "B",
+		"units": {
+			"B": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"magnetic flux density": {
+		"base_unit": "G",
+		"units": {
+			"G": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"T": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							10000
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							10000
+						]
+					}
+				]
+			}
+		}
+	},
+	"magnetic permeability": {
+		"base_unit": "[mu_0]",
+		"units": {
+			"[mu_0]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"mass": {
+		"base_unit": "g",
+		"units": {
+			"[lb_av]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							453.59237
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							453.59237
+						]
+					}
+				]
+			},
+			"cg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				]
+			},
+			"dg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				]
+			},
+			"fg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				]
+			},
+			"g": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"kg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				]
+			},
+			"mg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			},
+			"ug": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				]
+			},
+			"ng": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				]
+			},
+			"pg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				]
+			},
+			"t": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000000
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000000
+						]
+					}
+				]
+			},
+			"u": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1.6605390666e-24
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1.6605390666e-24
+						]
+					}
+				]
+			}
+		}
+	},
+	"mass concentration": {
+		"base_unit": "g/L",
+		"units": {}
+	},
+	"mass fraction": {
+		"base_unit": "[car_Au]",
+		"units": {
+			"[car_Au]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"number": {
+		"base_unit": "[pi]",
+		"units": {
+			"[pi]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"osmolality": {
+		"base_unit": "osm/kg",
+		"units": {
+			"osm/kg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"mosm/kg": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			}
+		}
+	},
+	"osmolarity": {
+		"base_unit": "osm/L",
+		"units": {
+			"osm/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"mosm/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			}
+		}
+	},
+	"power": {
+		"base_unit": "W",
+		"units": {
+			"W": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"power level": {
+		"base_unit": "B[W]",
+		"units": {
+			"B[W]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"prefix": {
+		"base_unit": "E",
+		"units": {
+			"E": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"pressure": {
+		"base_unit": "Pa",
+		"units": {
+			"m[H2O]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							9806.65
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							9806.65
+						]
+					}
+				]
+			},
+			"m[Hg]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							133322
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							133322
+						]
+					}
+				]
+			}
+		}
+	},
+	"pressure level": {
+		"base_unit": "B[SPL]",
+		"units": {
+			"B[SPL]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"procedure defined amount of a poliomyelitis d-antigen substance": {
+		"base_unit": "[D'ag'U]",
+		"units": {
+			"[D'ag'U]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"procedure defined amount of an antigen substance": {
+		"base_unit": "[Lf]",
+		"units": {
+			"[Lf]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"procedure defined amount of the major allergen of ragweed": {
+		"base_unit": "[Amb'a'1'U]",
+		"units": {
+			"[Amb'a'1'U]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"sedimentation coefficient": {
+		"base_unit": "[S]",
+		"units": {
+			"[S]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"slope": {
+		"base_unit": "%[slope]",
+		"units": {
+			"%[slope]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"substance concentration": {
+		"base_unit": "mol/L",
+		"units": {
+			"mol/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"mmol/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			},
+			"umol/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				]
+			},
+			"nmol/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				]
+			},
+			"pmol/L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				]
+			}
+		}
+	},
+	"temperature": {
+		"base_unit": "Cel",
+		"units": {
+			"Cel": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"[degF]": {
+				"to_base": [
+					{
+						"op": "sub",
+						"args": [
+							{
+								"$var": "value"
+							},
+							32
+						],
+						"return_var": "tmp"
+					},
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "tmp"
+							},
+							5
+						],
+						"return_var": "tmp"
+					},
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "tmp"
+							},
+							9
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							9
+						],
+						"return_var": "tmp"
+					},
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "tmp"
+							},
+							5
+						],
+						"return_var": "tmp"
+					},
+					{
+						"op": "add",
+						"args": [
+							{
+								"$var": "tmp"
+							},
+							32
+						]
+					}
+				]
+			},
+			"K": {
+				"to_base": [
+					{
+						"op": "sub",
+						"args": [
+							{
+								"$var": "value"
+							},
+							273.15
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "add",
+						"args": [
+							{
+								"$var": "value"
+							},
+							273.15
+						]
+					}
+				]
+			}
+		}
+	},
+	"time": {
+		"base_unit": "s",
+		"units": {
+			"a": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							31557600
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							31557600
+						]
+					}
+				]
+			},
+			"cs": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				]
+			},
+			"d": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							86400
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							86400
+						]
+					}
+				]
+			},
+			"ds": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				]
+			},
+			"fs": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				]
+			},
+			"h": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							3600
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							3600
+						]
+					}
+				]
+			},
+			"ks": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				]
+			},
+			"min": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							60
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							60
+						]
+					}
+				]
+			},
+			"mo": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							2629800
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							2629800
+						]
+					}
+				]
+			},
+			"ms": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			},
+			"ns": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				]
+			},
+			"ps": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				]
+			},
+			"s": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"us": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				]
+			},
+			"wk": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							604800
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							604800
+						]
+					}
+				]
+			}
+		}
+	},
+	"velocity": {
+		"base_unit": "[c]",
+		"units": {
+			"[c]": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	},
+	"volume": {
+		"base_unit": "L",
+		"units": {
+			"L": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			},
+			"kL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1000
+						]
+					}
+				]
+			},
+			"dL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.1
+						]
+					}
+				]
+			},
+			"cL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.01
+						]
+					}
+				]
+			},
+			"mL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.001
+						]
+					}
+				]
+			},
+			"uL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							0.000001
+						]
+					}
+				]
+			},
+			"nL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-9
+						]
+					}
+				]
+			},
+			"pL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-12
+						]
+					}
+				]
+			},
+			"fL": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1e-15
+						]
+					}
+				]
+			},
+			"l": {
+				"to_base": [
+					{
+						"op": "mul",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				],
+				"from_base": [
+					{
+						"op": "div",
+						"args": [
+							{
+								"$var": "value"
+							},
+							1
+						]
+					}
+				]
+			}
+		}
+	}
 }
