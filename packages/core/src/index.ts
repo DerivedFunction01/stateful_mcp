@@ -1,4 +1,6 @@
 export * from "./adapters/storage/browser-repo";
+export * from "./adapters/storage/generic-entity-store";
+export type { EntityStore } from "./adapters/storage/interfaces";
 export * from "./adapters/storage/jsonl-repo";
 export * from "./adapters/storage/memory-repo";
 export * from "./adapters/storage/opfs-repo";

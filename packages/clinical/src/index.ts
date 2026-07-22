@@ -15,5 +15,7 @@ export * from "./schemas/patient";
 export * from "./schemas/shared";
 export * from "./schemas/vitals";
 export * from "./seed/loader";
+export * from "./store/defaults";
 export * from "./store/interfaces";
 export * from "./store/memory-clinical-store";
+export * from "./store/sqlite-clinical-store";

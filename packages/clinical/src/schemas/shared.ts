@@ -1,3 +1,5 @@
+import type { AttributeParserRule } from "../store/interfaces";
+
 export interface CodeableConcept {
 	conceptId?: string;
 	display: string;
@@ -149,3 +151,195 @@ export type Route =
 	| "ophthalmic"
 	| "otic"
 	| "intrathecal";
+
+export class MeasurementHelper {
+	/**
+	 * Parses a string representing a single measurement (e.g. ">38 Cel", "~37.5 C", "50")
+	 */
+	static parse(
+		text: string,
+		defaultUnit?: string,
+		attributeRules?: AttributeParserRule[],
+	): SingleMeasurement | null {
+		const trimmed = text.trim();
+
+		let opPatterns = [">=", "<=", ">", "<", "~"];
+		if (attributeRules) {
+			for (const rule of attributeRules) {
+				if (
+					rule.targetField === "operator" ||
+					rule.targetField === "measurement_operator"
+				) {
+					opPatterns = [...opPatterns, ...rule.regexPatterns];
+				}
+			}
+		}
+
+		// Escape special regex chars and sort descending by length so longer patterns match first
+		const sortedPatterns = opPatterns
+			.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+			.sort((a, b) => b.length - a.length);
+
+		const opRegexStr = `^(${sortedPatterns.join("|")})?\\s*(\\d+(?:\\.\\d+)?)\\s*(.*)$`;
+		const opRegex = new RegExp(opRegexStr, "i");
+		const match = opRegex.exec(trimmed);
+		if (!match) return null;
+
+		const opStr = match[1] || "";
+		const magnitudeStr = match[2];
+		if (!magnitudeStr) return null;
+		const magnitude = Number.parseFloat(magnitudeStr);
+		const remaining = match[3]?.trim() || "";
+
+		let operator: SingleMeasurement["operator"] = "eq";
+		let isApproximate = false;
+
+		// 1. Resolve operator dynamically using profile rules if present
+		let resolvedOp = false;
+		if (attributeRules) {
+			for (const rule of attributeRules) {
+				if (
+					rule.targetField === "operator" ||
+					rule.targetField === "measurement_operator"
+				) {
+					for (const pattern of rule.regexPatterns) {
+						const flags = rule.isCaseInsensitive !== false ? "i" : "";
+						const regex = new RegExp(pattern, flags);
+						if (regex.test(opStr)) {
+							if (
+								rule.targetValue === "is_approximate" ||
+								rule.targetValue === "approximate"
+							) {
+								isApproximate = true;
+							} else {
+								operator = rule.targetValue as SingleMeasurement["operator"];
+							}
+							resolvedOp = true;
+							break;
+						}
+					}
+				}
+				if (resolvedOp) break;
+			}
+		}
+
+		// Fallback operator matching if not resolved by custom rules
+		if (!resolvedOp && opStr) {
+			if (opStr === ">") operator = "gt";
+			else if (opStr === ">=") operator = "gte";
+			else if (opStr === "<") operator = "lt";
+			else if (opStr === "<=") operator = "lte";
+			else if (opStr === "~") {
+				isApproximate = true;
+				operator = "eq";
+			}
+		}
+
+		// 2. Resolve unit dynamically using profile rules if present
+		let resolvedUnit = "";
+		if (attributeRules && remaining) {
+			for (const rule of attributeRules) {
+				if (
+					rule.targetField === "unit" ||
+					rule.targetField === "measurement_unit"
+				) {
+					for (const pattern of rule.regexPatterns) {
+						const flags = rule.isCaseInsensitive !== false ? "i" : "";
+						const regex = new RegExp(pattern, flags);
+						if (regex.test(remaining)) {
+							resolvedUnit = rule.targetValue;
+							break;
+						}
+					}
+				}
+				if (resolvedUnit) break;
+			}
+		}
+
+		const unitDisplay = resolvedUnit || remaining || defaultUnit;
+		const unit: CodeableConcept | undefined = unitDisplay
+			? { display: unitDisplay }
+			: undefined;
+
+		return {
+			magnitude,
+			operator,
+			is_approximate: isApproximate || undefined,
+			unit,
+		};
+	}
+}
+
+export class TimeHelper {
+	/**
+	 * Parses a duration string (e.g. "2 hours", "3 days", "30 minutes")
+	 */
+	static parse(
+		text: string,
+		attributeRules?: AttributeParserRule[],
+	): TimeMeasurement | null {
+		const trimmed = text.trim();
+		const match = /^(\d+(?:\.\d+)?)\s*(.*)$/.exec(trimmed);
+		if (!match) return null;
+
+		const magnitudeStr = match[1];
+		if (!magnitudeStr) return null;
+		const magnitude = Number.parseFloat(magnitudeStr);
+		const rawUnit = match[2]?.trim().toLowerCase() || "";
+
+		let unit: TimePrecisionLevel | undefined;
+
+		// 1. Resolve time unit dynamically using profile rules if present
+		if (attributeRules && rawUnit) {
+			for (const rule of attributeRules) {
+				if (rule.targetField === "time_unit" || rule.targetField === "unit") {
+					for (const pattern of rule.regexPatterns) {
+						const flags = rule.isCaseInsensitive !== false ? "i" : "";
+						const regex = new RegExp(pattern, flags);
+						if (regex.test(rawUnit)) {
+							unit = rule.targetValue as TimePrecisionLevel;
+							break;
+						}
+					}
+				}
+				if (unit) break;
+			}
+		}
+
+		// Fallback language-centric time unit matching if not resolved by custom rules
+		if (!unit && rawUnit) {
+			if (rawUnit.startsWith("second") || rawUnit === "s") {
+				unit = "second";
+			} else if (
+				rawUnit.startsWith("minute") ||
+				rawUnit === "m" ||
+				rawUnit === "min"
+			) {
+				unit = "minute";
+			} else if (
+				rawUnit.startsWith("hour") ||
+				rawUnit === "h" ||
+				rawUnit === "hr"
+			) {
+				unit = "hour";
+			} else if (rawUnit.startsWith("day") || rawUnit === "d") {
+				unit = "day";
+			} else if (rawUnit.startsWith("week") || rawUnit === "w") {
+				unit = "week";
+			} else if (rawUnit.startsWith("month") || rawUnit === "mo") {
+				unit = "month";
+			} else if (
+				rawUnit.startsWith("year") ||
+				rawUnit === "y" ||
+				rawUnit === "yr"
+			) {
+				unit = "year";
+			}
+		}
+
+		return {
+			magnitude,
+			unit,
+		};
+	}
+}

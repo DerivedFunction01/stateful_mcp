@@ -2,6 +2,10 @@ import type { DictionaryStore } from "@stateful-mcp/core";
 import { MedicationHelper } from "../schemas/medication";
 import { ObservationHelper } from "../schemas/observation";
 import { VitalsHelper } from "../schemas/vitals";
+import {
+	DEFAULT_ATTRIBUTE_RULES,
+	DEFAULT_EVALUATOR_RULES,
+} from "../store/defaults";
 import type {
 	AttributeParserRule,
 	ParserConceptDefault,
@@ -48,36 +52,6 @@ export interface SchemaParser {
 }
 
 export const schemaParserRegistry = new Map<string, SchemaParser>();
-
-export const DEFAULT_EVALUATOR_RULES: ParserDictionaryRule[] = [
-	{
-		ruleId: "bp",
-		targetField: "blood_pressure",
-		evaluatorName: "parseBloodPressure",
-		regexPatterns: [
-			"(?<systolic>\\d{2,3})\\s*\\/\\s*(?<diastolic>\\d{2,3})\\s*(?<unit>[a-zA-Z%\\[\\]]+)?",
-			"(?<systolic>\\d{2,3})\\s+(?<diastolic>\\d{2,3})\\s*(?<unit>[a-zA-Z%\\[\\]]+)?",
-		],
-	},
-	{
-		ruleId: "qty",
-		targetField: "quantity",
-		evaluatorName: "parseQuantityUnit",
-		regexPatterns: [
-			"(?<quantity>\\d+(?:\\.\\d+)?)\\s*(?<unit>h|hr|hours?|d|days?|mg|g|ml)",
-		],
-	},
-	{
-		ruleId: "severity_ratio",
-		targetField: "severityScore",
-		evaluatorName: "parseSeverity",
-		regexPatterns: [
-			"(?<numerator>\\d+)\\s*\\/\\s*(?<denominator>\\d+)",
-			"(?<numerator>\\d+)\\s+out\\s+of\\s+(?<denominator>\\d+)",
-			"give\\s+it\\s+a\\s+(?<numerator>\\d+)",
-		],
-	},
-];
 
 export function parseSessionVars(groups: {
 	kvPairs: string;
@@ -215,7 +189,7 @@ export class VitalsSchemaParser implements SchemaParser {
 			capturedProps.systolic !== undefined &&
 			capturedProps.diastolic !== undefined
 		) {
-			valueText = `${capturedProps.systolic}/${capturedProps.diastolic}`;
+			valueText = `${capturedProps.systolic}/${capturedProps.diacholic || capturedProps.diastolic}`;
 			unitText = capturedProps.unit || "mmHg";
 		}
 
@@ -296,69 +270,6 @@ export class VitalsSchemaParser implements SchemaParser {
 		};
 	}
 }
-
-export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
-	{
-		targetField: "certainty",
-		targetValue: "refuted",
-		regexPatterns: ["\\bdenies\\b", "\\bdeny\\b", "\\bno\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "status",
-		targetValue: "resolved",
-		regexPatterns: ["\\bdenies\\b", "\\bdeny\\b", "\\bno\\b", "\\bresolved\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "none",
-		regexPatterns: ["\\bdenies\\b", "\\bdeny\\b", "\\bno\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "severe",
-		regexPatterns: ["\\bsevere\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "mild",
-		regexPatterns: ["\\bmild\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "moderate",
-		regexPatterns: ["\\bmoderate\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "route",
-		targetValue: "INTRAVENOUS",
-		regexPatterns: ["\\bintravenous\\b", "\\biv\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "route",
-		targetValue: "INHALATION",
-		regexPatterns: ["\\binhalation\\b", "\\binhaled\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "frequency",
-		targetValue: "QD",
-		regexPatterns: ["\\bqd\\b", "\\bdaily\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "frequency",
-		targetValue: "PRN",
-		regexPatterns: ["\\bprn\\b", "\\bas needed\\b"],
-		isCaseInsensitive: true,
-	},
-];
 
 export class ObservationSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.OBSERVATION;

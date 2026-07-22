@@ -72,11 +72,15 @@ Instead of relying on the anchor concept residing at a fixed position (like the 
 * **RxNorm** $\rightarrow$ `MedicationOrderObject`
 * **SNOMED / Custom** $\rightarrow$ `ObservationEvent`
 
-### Schema Domain Helpers
-Business logic and concept calculations reside directly in schema classes rather than parser internals:
-* **`VitalsHelper.findBloodPressure`**: Parses systolic, diastolic, and optional unit capture groups from matched evaluator rules.
+### Language Neutrality & Zero-Bias Parsing
+> [!IMPORTANT]
+> **Strict Coding Guideline**: Under no circumstances should English-centric matching (e.g., hardcoded substring parsing or English regexes like `hr`, `day`, `hours`) be assumed within helper parsers. 
+> All unit translations, comparison operators (e.g., `aprox`, `alrededor de`), and enums must be resolved dynamically by consulting the parser syntax profile's `attributeRules` and `evaluatorRules`.
+
+* **`MeasurementHelper.parse`**: Dynamically compiles operator regular expressions from the profile's configuration (e.g. resolving localized operator words like `aprox` or `alrededor de` preceding a number) and resolves localized unit tokens to canonical codes using attribute rules.
+* **`TimeHelper.parse`**: Scans the syntax profile's rules to map localized unit names (e.g., Spanish `"horas"` or `"dias"`) to standard `TimePrecisionLevel` enums.
+* **`VitalsHelper.findBloodPressure`**: Resolves capture groups for systolic, diastolic, and unit parameters dynamically via matched evaluator rules.
 * **`ObservationHelper.parseSeverity`**: Evaluates and normalizes severity scores (e.g., `4/10` or `7 out of 10`) on a standard scale.
-* **`MedicationHelper.parseQuantityUnit`**: Resolves unit shorthand notations into standard vocabulary formats.
 
 ---
 
@@ -102,3 +106,5 @@ The clinical backend depends on 8 storage-agnostic repository interfaces defined
 8. **`StopWordStore`**: Filter words compiler.
 
 An in-memory fallback implementation of all stores is provided in [memory-clinical-store.ts](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/src/store/memory-clinical-store.ts).
+
+A complete relational SQL database representation (PostgreSQL target) of these interfaces is defined in [seed/schema.sql](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/seed/schema.sql), showing exactly how they map to relational tables and schemas for external adapter integration.

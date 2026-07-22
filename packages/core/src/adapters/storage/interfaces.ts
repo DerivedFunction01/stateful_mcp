@@ -175,3 +175,10 @@ export interface PersistentFormStore {
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>>;
 }
+
+export interface EntityStore<T> {
+	get(id: string): Promise<T | null>;
+	set(id: string, entity: T): Promise<void>;
+	list(): Promise<T[]>;
+	delete(id: string): Promise<void>;
+}

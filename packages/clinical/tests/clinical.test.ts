@@ -1,3 +1,4 @@
+import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import {
 	DictionaryStore,
@@ -11,10 +12,15 @@ import {
 import { ClinicalEngine } from "../src/engine/clinical-engine";
 import { CANONICAL_TAGS, CdslParser } from "../src/parser/cdsl-parser";
 import type { PatientProfile } from "../src/schemas/patient";
+import { MeasurementHelper, TimeHelper } from "../src/schemas/shared";
 import {
 	MemoryParserConceptDefaultStore,
 	MemorySignedSoapNoteStore,
 } from "../src/store/memory-clinical-store";
+import {
+	SqliteParserConceptDefaultStore,
+	SqliteParserProfileStore,
+} from "../src/store/sqlite-clinical-store";
 
 describe("Clinical IDE Stateful Backend", () => {
 	test("Initialize, Parse CDSL, and Sign Encounter SOAP Note", async () => {
@@ -319,5 +325,74 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedBPUnit[0]?.unit).toBe("bar");
 		expect(parsedBPUnit[1]?.value).toBe("125/85");
 		expect(parsedBPUnit[1]?.unit).toBe("mmHg");
+
+		// 14. Test MeasurementHelper and TimeHelper sub-parsing
+		const parsedMeasure = MeasurementHelper.parse(">=38.5 Cel");
+		expect(parsedMeasure?.magnitude).toBe(38.5);
+		expect(parsedMeasure?.operator).toBe("gte");
+		expect(parsedMeasure?.unit?.display).toBe("Cel");
+
+		const parsedMeasureApprox = MeasurementHelper.parse("~37 C");
+		expect(parsedMeasureApprox?.magnitude).toBe(37);
+		expect(parsedMeasureApprox?.is_approximate).toBe(true);
+
+		const parsedTime = TimeHelper.parse("3 hours");
+		expect(parsedTime?.magnitude).toBe(3);
+		expect(parsedTime?.unit).toBe("hour");
+
+		// 15. Test language-neutral dynamic attribute rule translations for helpers
+		const customRules = [
+			{
+				targetField: "unit",
+				targetValue: "Cel",
+				regexPatterns: ["centigrados", "grados", "c"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "time_unit",
+				targetValue: "hour",
+				regexPatterns: ["horas?", "hrs?"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "operator",
+				targetValue: "is_approximate",
+				regexPatterns: ["alrededor de", "aprox"],
+				isCaseInsensitive: true,
+			},
+		];
+
+		const parsedMeasureES = MeasurementHelper.parse(
+			"aprox 38 grados",
+			undefined,
+			customRules,
+		);
+		expect(parsedMeasureES?.magnitude).toBe(38);
+		expect(parsedMeasureES?.is_approximate).toBe(true);
+		expect(parsedMeasureES?.unit?.display).toBe("Cel");
+
+		const parsedTimeES = TimeHelper.parse("5 horas", customRules);
+		expect(parsedTimeES?.magnitude).toBe(5);
+		expect(parsedTimeES?.unit).toBe("hour");
+
+		// 16. Test generic SQLite entity store clinical adapters
+		const testDb = new Database(":memory:");
+		const sqliteProfileStore = new SqliteParserProfileStore(testDb);
+		const sqliteDefaultsStore = new SqliteParserConceptDefaultStore(testDb);
+
+		// Wait slightly to ensure asynchronous seeding runs
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		const systemProfile = await sqliteProfileStore.get("default");
+		expect(systemProfile).not.toBeNull();
+		expect(systemProfile?.personnelId).toBe("system");
+		expect(systemProfile?.tagToken).toBe("#");
+
+		const tempDefault = await sqliteDefaultsStore.get(
+			"LOINC::8310-5",
+			"VitalsMeasurementEvent",
+		);
+		expect(tempDefault).not.toBeNull();
+		expect(tempDefault?.defaultProperties.unit).toBe("Cel");
 	});
 });
