@@ -4,11 +4,11 @@ import type {
   ClinicalSourceType,
   CodeableConcept,
   SingleMeasurement,
+  ProductIdentifier, // Integrated from shared primitives
 } from "./shared";
 
 export interface AlgorithmicHypothesis {
   concept?: CodeableConcept;
-  probability?: number;
   scoreValue?: SingleMeasurement;
   category?: string;
 }
@@ -26,8 +26,8 @@ export interface AlgorithmicEvaluationObject {
   algorithm: CodeableConcept;
   sourceRegistry?: string;
   mechanismDescription?: string;
-  inputConcepts?: string[];
-  triggeringConceptIds?: string[];
+  inputConcepts?: CodeableConcept[];      // Upgraded to preserve mapping boundaries
+  triggeringConcepts?: CodeableConcept[];  // Upgraded to preserve mapping boundaries
   hypothesesAndOutputs: AlgorithmicHypothesis[];
   severityTier?:
     | "critical_hard_stop"
@@ -36,20 +36,20 @@ export interface AlgorithmicEvaluationObject {
   overrideStatus?: {
     isOverridden: boolean;
     justificationText?: string;
-    clinicianId?: string;
+    clinicianId?: string; // Foreign key mapping token string
   };
 }
 
 export interface DeviceDiagnosticObject {
   id: string;
   soapSection: "objective";
-  modality: CodeableConcept;
+  modality: CodeableConcept; // Structured LOINC / DICOM tracking standard
   dicomReference?: string;
-  interpretation?: string;
+  interpretation?: string;  // High-entropy textual summary overview
   findings: CodeableConcept[];
   algorithmicEvaluations?: AlgorithmicEvaluationObject[];
   anatomyLocations?: AnatomicalLocation[];
-  productDetails?: CodeableConcept;
+  productDetails?: ProductIdentifier; // Aligned with shared component specifications
   sourceType: ClinicalSourceType;
   dateRange?: ClinicalDateRange;
 }
@@ -57,7 +57,7 @@ export interface DeviceDiagnosticObject {
 export interface AssessmentObject {
   id: string;
   soapSection: "assessment";
-  primaryDiagnosis: CodeableConcept;
+  primaryDiagnosis: CodeableConcept; // Normalized disease concept (ICD-10 / SNOMED-CT)
   isHypothesis: boolean;
   differentialRank?: number;
   acuityLevel?:
