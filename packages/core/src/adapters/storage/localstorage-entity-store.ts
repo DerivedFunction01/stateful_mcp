@@ -2,7 +2,15 @@ import type { EntityStore } from "./interfaces";
 
 declare const window: any;
 
-function getBrowserStorage(): Storage | null {
+interface BrowserStorage {
+	length: number;
+	getItem(key: string): string | null;
+	setItem(key: string, value: string): void;
+	removeItem(key: string): void;
+	key(index: number): string | null;
+}
+
+function getBrowserStorage(): BrowserStorage | null {
 	if (typeof window !== "undefined" && window.localStorage) {
 		return window.localStorage;
 	}

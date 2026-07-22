@@ -5,7 +5,9 @@ import {
 	JsonlSessionEventStore,
 	JsonlSessionFilterStore,
 	JsonlSessionObjectStore,
-} from "../src/adapters/storage/jsonl-repo";
+	JsonlEntityStore,
+	PgEntityStore,
+} from "../src";
 
 const TEST_DIR = path.resolve(process.cwd(), "temp_test_jsonl");
 
@@ -150,5 +152,76 @@ describe("JSONL Persistent Storage Adapters", () => {
 
 		const alias = await store2.getAlias("session_3", "tip");
 		expect(alias).toBe(commitId);
+	});
+
+	test("JsonlEntityStore - generic CRUD and rehydration", async () => {
+		const filePath = path.join(TEST_DIR, "generic_entity_store.jsonl");
+		const store = new JsonlEntityStore<{ name: string; age: number }>(filePath);
+
+		// Test set & get
+		await store.set("user_1", { name: "Alice", age: 30 });
+		const val1 = await store.get("user_1");
+		expect(val1).toEqual({ name: "Alice", age: 30 });
+
+		// Test list
+		await store.set("user_2", { name: "Bob", age: 25 });
+		const list1 = await store.list();
+		expect(list1.length).toBe(2);
+		expect(list1).toContainEqual({ name: "Alice", age: 30 });
+		expect(list1).toContainEqual({ name: "Bob", age: 25 });
+
+		// Test rehydration
+		const store2 = new JsonlEntityStore<{ name: string; age: number }>(filePath);
+		const val2 = await store2.get("user_1");
+		expect(val2).toEqual({ name: "Alice", age: 30 });
+
+		// Test delete
+		await store2.delete("user_1");
+		const val3 = await store2.get("user_1");
+		expect(val3).toBeNull();
+		const list2 = await store2.list();
+		expect(list2.length).toBe(1);
+	});
+
+	test("PgEntityStore - generic CRUD using mocked PG Pool", async () => {
+		const queries: Array<{ sql: string; params?: any[] }> = [];
+		const mockRows: any[] = [];
+
+		const mockPool: any = {
+			async connect() {
+				return {
+					async query(sql: string, params?: any[]) {
+						queries.push({ sql, params });
+						return { rows: mockRows };
+					},
+					release() {},
+				};
+			},
+			async query(sql: string, params?: any[]) {
+				queries.push({ sql, params });
+				return { rows: mockRows };
+			},
+		};
+
+		const store = new PgEntityStore<{ id: string; name: string }>(mockPool, "test_entities");
+
+		// Test set
+		await store.set("entity_1", { id: "entity_1", name: "Entity One" });
+		expect(queries.some(q => q.sql.includes("INSERT INTO test_entities"))).toBe(true);
+
+		// Test get
+		mockRows.push({ data: { id: "entity_1", name: "Entity One" } });
+		const entity = await store.get("entity_1");
+		expect(entity).toEqual({ id: "entity_1", name: "Entity One" });
+		expect(queries.some(q => q.sql.includes("SELECT data FROM test_entities WHERE id = $1"))).toBe(true);
+
+		// Test list
+		const list = await store.list();
+		expect(list.length).toBe(1);
+		expect(queries.some(q => q.sql.includes("SELECT data FROM test_entities"))).toBe(true);
+
+		// Test delete
+		await store.delete("entity_1");
+		expect(queries.some(q => q.sql.includes("DELETE FROM test_entities WHERE id = $1"))).toBe(true);
 	});
 });
