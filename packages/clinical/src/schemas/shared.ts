@@ -153,30 +153,25 @@ export type Route =
 	| "otic"
 	| "intrathecal";
 
+export interface MeasurementToken {
+	operator?: string;
+	magnitude: number;
+	rawUnit?: string;
+	isApproximate?: boolean;
+}
+
 export class MeasurementHelper {
-	/**
-	 * Parses a string representing a single measurement (e.g. ">38 Cel", "~37.5 C", "50")
-	 */
-	static parse(
+	static tokenizeMeasurement(
 		text: string,
-		defaultUnit?: string,
-		attributeRules?: AttributeParserRule[],
-	): SingleMeasurement | null {
+		opPatterns: string[],
+		unitRules?: AttributeParserRule[],
+	): MeasurementToken | null {
 		const trimmed = text.trim();
-		const rules = attributeRules && attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
+		const sortedPatterns = opPatterns
+			.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+			.sort((a, b) => b.length - a.length);
 
-		// 1. Gather operator rules and construct operator regex using named capture groups
-		const opRules = rules.filter(r => r.targetField === "operator" || r.targetField === "measurement_operator");
-		const opGroupPatterns: string[] = [];
-		for (const rule of opRules) {
-			const enumValue = rule.targetValue;
-			if (enumValue) {
-				const joinedPatterns = rule.regexPatterns.map(p => `(?:${p})`).join("|");
-				opGroupPatterns.push(`(?<${enumValue}>${joinedPatterns})`);
-			}
-		}
-
-		const opPart = opGroupPatterns.length > 0 ? `(?:${opGroupPatterns.join("|")})?` : "";
+		const opPart = sortedPatterns.length > 0 ? `(?:(?<operator>${sortedPatterns.join("|")}))?` : "";
 		const regexStr = `^${opPart}\\s*(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<remaining>.*)$`;
 		const regex = new RegExp(regexStr, "i");
 		const match = regex.exec(trimmed);
@@ -187,118 +182,147 @@ export class MeasurementHelper {
 		const magnitude = Number.parseFloat(magnitudeStr);
 		const remaining = match.groups?.remaining?.trim() || "";
 
-		let operator: SingleMeasurement["operator"] = "eq";
+		const rawOp = match.groups?.operator || "";
+		let operator: string | undefined;
 		let isApproximate = false;
 
-		// Resolve operator and approximate status from matched named groups
-		if (match.groups) {
+		if (rawOp) {
+			const rules = unitRules || DEFAULT_ATTRIBUTE_RULES;
+			const opRules = rules.filter(r => r.targetField === "operator" || r.targetField === "measurement_operator");
+			let resolved = false;
 			for (const rule of opRules) {
-				const enumValue = rule.targetValue;
-				if (enumValue && match.groups[enumValue] !== undefined) {
-					if (enumValue === "is_approximate" || enumValue === "approximate") {
-						isApproximate = true;
-					} else {
-						operator = enumValue as SingleMeasurement["operator"];
-					}
-					break;
-				}
-			}
-		}
-
-		// 2. Gather unit rules and match the remaining string
-		let resolvedUnit = "";
-		const unitRules = rules.filter(r => r.targetField === "unit" || r.targetField === "measurement_unit");
-		if (remaining) {
-			const unitGroupPatterns: string[] = [];
-			for (const rule of unitRules) {
-				const enumValue = rule.targetValue;
-				if (enumValue) {
-					const joinedPatterns = rule.regexPatterns.map(p => `(?:${p})`).join("|");
-					unitGroupPatterns.push(`(?<${enumValue}>${joinedPatterns})`);
-				}
-			}
-			if (unitGroupPatterns.length > 0) {
-				const unitRegex = new RegExp(`^(?:${unitGroupPatterns.join("|")})$`, "i");
-				const unitMatch = unitRegex.exec(remaining);
-				if (unitMatch && unitMatch.groups) {
-					for (const rule of unitRules) {
-						const enumValue = rule.targetValue;
-						if (enumValue && unitMatch.groups[enumValue] !== undefined) {
-							resolvedUnit = enumValue;
-							break;
+				for (const pattern of rule.regexPatterns) {
+					const flags = rule.isCaseInsensitive !== false ? "i" : "";
+					const regex = new RegExp(pattern, flags);
+					if (regex.test(rawOp)) {
+						if (rule.targetValue === "is_approximate" || rule.targetValue === "approximate") {
+							isApproximate = true;
+						} else {
+							operator = rule.targetValue;
 						}
+						resolved = true;
+						break;
 					}
 				}
+				if (resolved) break;
 			}
 		}
-
-		const unitDisplay = resolvedUnit || remaining || defaultUnit;
-		const unit: CodeableConcept | undefined = unitDisplay
-			? { display: unitDisplay }
-			: undefined;
 
 		return {
 			magnitude,
 			operator,
-			is_approximate: isApproximate || undefined,
+			isApproximate: isApproximate || undefined,
+			rawUnit: remaining || undefined,
+		};
+	}
+
+	static resolveUnit(
+		unitDisplay: string,
+		unitRules?: AttributeParserRule[],
+	): string {
+		const rules = unitRules && unitRules.length > 0 ? unitRules : DEFAULT_ATTRIBUTE_RULES;
+		const matchingRules = rules.filter(r => r.targetField === "unit" || r.targetField === "measurement_unit");
+		for (const rule of matchingRules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = new RegExp(pattern, flags);
+				if (regex.test(unitDisplay)) {
+					return rule.targetValue;
+				}
+			}
+		}
+		return unitDisplay;
+	}
+
+	static parse(
+		text: string,
+		defaultUnit?: string,
+		attributeRules?: AttributeParserRule[],
+	): SingleMeasurement | null {
+		const rules = attributeRules && attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
+		const opRules = rules.filter(r => r.targetField === "operator" || r.targetField === "measurement_operator");
+		const opPatterns = opRules.flatMap(r => r.regexPatterns);
+
+		const token = MeasurementHelper.tokenizeMeasurement(text, opPatterns, rules);
+		if (!token) return null;
+
+		let resolvedUnit = "";
+		if (token.rawUnit) {
+			resolvedUnit = MeasurementHelper.resolveUnit(token.rawUnit, rules);
+		}
+		const unitDisplay = resolvedUnit || defaultUnit;
+		const unit: CodeableConcept | undefined = unitDisplay
+			? { display: unitDisplay }
+			: undefined;
+
+		let operator: SingleMeasurement["operator"] = "eq";
+		if (token.operator === "gt" || token.operator === "gte" || token.operator === "lt" || token.operator === "lte" || token.operator === "eq") {
+			operator = token.operator;
+		}
+
+		return {
+			magnitude: token.magnitude,
+			operator,
+			is_approximate: token.isApproximate || undefined,
 			unit,
 		};
 	}
 }
 
+export interface TimeToken {
+	magnitude: number;
+	rawUnit?: string;
+}
+
 export class TimeHelper {
-	/**
-	 * Parses a duration string (e.g. "2 hours", "3 days", "30 minutes")
-	 */
-	static parse(
-		text: string,
-		attributeRules?: AttributeParserRule[],
-	): TimeMeasurement | null {
+	static tokenizeTime(text: string): TimeToken | null {
 		const trimmed = text.trim();
-		const rules = attributeRules && attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
-
-		// Gather time unit rules
-		const timeRules = rules.filter(r => r.targetField === "time_unit" || r.targetField === "unit");
-		const groupPatterns: string[] = [];
-		for (const rule of timeRules) {
-			const enumValue = rule.targetValue;
-			if (enumValue) {
-				const joinedPatterns = rule.regexPatterns.map(p => `(?:${p})`).join("|");
-				groupPatterns.push(`(?<${enumValue}>${joinedPatterns})`);
-			}
-		}
-
-		if (groupPatterns.length === 0) {
-			const fallbackMatch = /^(?<magnitude>\d+(?:\.\d+)?)$/.exec(trimmed);
-			if (!fallbackMatch) return null;
-			return {
-				magnitude: Number.parseFloat(fallbackMatch.groups?.magnitude || "0")
-			};
-		}
-
-		const unitRegexStr = `(?:${groupPatterns.join("|")})`;
-		const fullRegexStr = `^(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>${unitRegexStr})?$`;
-		const regex = new RegExp(fullRegexStr, "i");
-		const match = regex.exec(trimmed);
+		const match = /^(?<magnitude>\d+(?:\.\d+)?)\s*(?<rawUnit>.*)$/.exec(trimmed);
 		if (!match) return null;
 
 		const magnitudeStr = match.groups?.magnitude;
 		if (!magnitudeStr) return null;
 		const magnitude = Number.parseFloat(magnitudeStr);
-
-		let unit: TimePrecisionLevel | undefined;
-		if (match.groups) {
-			for (const rule of timeRules) {
-				const enumValue = rule.targetValue;
-				if (enumValue && match.groups[enumValue] !== undefined) {
-					unit = enumValue as TimePrecisionLevel;
-					break;
-				}
-			}
-		}
+		const rawUnit = match.groups?.rawUnit?.trim() || "";
 
 		return {
 			magnitude,
+			rawUnit: rawUnit || undefined,
+		};
+	}
+
+	static resolveTimeUnit(
+		rawUnit: string,
+		timeUnitRules?: AttributeParserRule[],
+	): TimePrecisionLevel | undefined {
+		const rules = timeUnitRules && timeUnitRules.length > 0 ? timeUnitRules : DEFAULT_ATTRIBUTE_RULES;
+		const matchingRules = rules.filter(r => r.targetField === "time_unit" || r.targetField === "unit");
+		for (const rule of matchingRules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = new RegExp(pattern, flags);
+				if (regex.test(rawUnit)) {
+					return rule.targetValue as TimePrecisionLevel;
+				}
+			}
+		}
+		return undefined;
+	}
+
+	static parse(
+		text: string,
+		attributeRules?: AttributeParserRule[],
+	): TimeMeasurement | null {
+		const token = TimeHelper.tokenizeTime(text);
+		if (!token) return null;
+
+		let unit: TimePrecisionLevel | undefined;
+		if (token.rawUnit) {
+			unit = TimeHelper.resolveTimeUnit(token.rawUnit, attributeRules);
+		}
+
+		return {
+			magnitude: token.magnitude,
 			unit,
 		};
 	}

@@ -14,19 +14,19 @@ This package implements **Clinical DSL (CDSL)**: a structured shorthand dictatio
                         [ Raw Text: "#vital temp is 38.5 Cel" ]
                                      │
                                      ▼
-                     ┌──────────────────────────────┐
-                     │   Identify Anchor Main Term  │ ──► Resolves "temp" to LOINC:8310-5
-                     └──────────────┬───────────────┘
-                                    │
-                                    ▼
-                     ┌──────────────────────────────┐
-                     │   Extract Numeric Quantity   │ ──► Matches "38.2"
-                     └──────────────┬───────────────┘
-                                    │
-                                    ▼
-                     ┌──────────────────────────────┐
-                     │   Auto-Fill Schema Defaults  │ ──► Propagates unit = "Cel",
-                     └──────────────────────────────┘     target_schema = "VitalsMeasurementEvent"
+                 ┌──────────────────────────────┐
+                 │   Identify Anchor Main Term  │ ──► Resolves "temp" to LOINC:8310-5
+                 └──────────────┬───────────────┘
+                                │
+                                ▼
+                 ┌──────────────────────────────┐
+                 │   Extract Numeric Quantity   │ ──► Matches "38.2"
+                 └──────────────┬───────────────┘
+                                │
+                                ▼
+                 ┌──────────────────────────────┐
+                 │   Auto-Fill Schema Defaults  │ ──► Propagates unit = "Cel",
+                 └──────────────────────────────┘     target_schema = "VitalsMeasurementEvent"
 ```
 
 ---
@@ -39,54 +39,26 @@ CDSL tags route dictation segments to specific strongly-typed schemas based on a
 * **Observations (`ObservationEvent`)**: `#observation denies chest pain` or `#symptom cough severe`
 * **Medications (`MedicationOrderObject`)**: `#med Amoxicillin oral TID 10 days`
 
-### Zero-Bias Internationalization (i18n) & Custom Aliases
-Clinicians can configure the parser with a custom `ParserSyntaxProfile` containing:
-* `tagToken`: Custom prefix (e.g., `$` instead of `#`).
-* `tagMappings`: Maps custom or translated tag names to the canonical schema target keys.
-* `attributeRules`: Regex patterns mapping localized terms to enums (e.g., matching `"niega"` $\rightarrow$ `certainty: "refuted"`, or `"grave"` $\rightarrow$ `severity: "severe"`).
-* `schemaNamespaces`: Maps schema keys or names to prioritized/allowed namespaces (e.g. `observation` mapped to `["SNOMED", "ICD-10"]`).
-* `termTokenizer`: Tokenizer to parse direct database/dictionary lookup (e.g., `::` mapping `LOINC::8310-5`).
+Clinicians can configure the parser with a custom `ParserSyntaxProfile` containing multilingual tag aliases, localized attribute mappings, and namespace priorities.
 
 ---
 
-## 2. Core CDSL Compiler Features
+## 2. Anchor Concepts & Entropy Reduction
 
-### Anchor Concepts & Entropy Reduction
-Every target schema is anchored by **one or two key parameters** ("the main term" or anchor concept). Identifying this anchor reduces the entropy of the remaining text in the segment, transforming unstructured prose into highly predictable slots:
+Every target schema is anchored by **one or two key parameters** ("the main term"). Resolving this anchor narrows the remaining tokens into predictable slots:
 
-1. **Vitals (`VitalsMeasurementEvent`)**
-   * **Key Parameter**: `vitalType` (the primary vital sign concept, e.g. LOINC standard code for temperature, heart rate, or blood pressure).
-   * **Entropy Resolution**: Resolving the vital sign narrows the remaining tokens down to predictable numeric quantities, intervals, and unit structures.
-2. **Observations (`ObservationEvent`)**
-   * **Key Parameter**: `concept` (the primary symptom or diagnosis, e.g. SNOMED standard code for pain, cough, or dyspnea).
-   * **Entropy Resolution**: Resolving the diagnosis reduces the remainder of the text to descriptors indicating severity scores (e.g. `4/10`), certainties (e.g. `denies`), or clinical status.
-3. **Medications (`MedicationOrderObject`)**
-   * **Key Parameter**: `medication` (the drug name/ingredient concept, e.g. RxNorm standard code for chemical substances or clinical drugs).
-   * **Entropy Resolution**: Resolving the drug ingredient limits the remaining terms to route codes, dosage measurements, and cadence/frequency directives (e.g. `oral TID`).
+1. **Vitals**: `vitalType` (e.g. LOINC code for temperature, heart rate)
+2. **Observations**: `concept` (e.g. SNOMED code for pain, cough)
+3. **Medications**: `medication` (e.g. RxNorm code for drug ingredient)
 
-### Tagless Fallback Schema Guessing
-When the clinician inputs dictation segments without explicit tag prefixes (e.g. `temp 38 Cel` instead of `#vital temp 38 Cel`), the parser dynamically infers the target schema. 
-
-Instead of relying on the anchor concept residing at a fixed position (like the first word), the parser queries candidate terms in the segment against the syntax profile's configured `schemaNamespaces` and `ParserConceptDefaultStore`. Once an anchor concept is resolved, its target schema is adopted to parse the rest of the low-entropy text:
-* **LOINC** $\rightarrow$ `VitalsMeasurementEvent`
-* **RxNorm** $\rightarrow$ `MedicationOrderObject`
-* **SNOMED / Custom** $\rightarrow$ `ObservationEvent`
-
-### Language Neutrality & Zero-Bias Parsing
-> [!IMPORTANT]
-> **Strict Coding Guideline**: Under no circumstances should English-centric matching (e.g., hardcoded substring parsing or English regexes like `hr`, `day`, `hours`) be assumed within helper parsers. 
-> All unit translations, comparison operators (e.g., `aprox`, `alrededor de`), and enums must be resolved dynamically by consulting the parser syntax profile's `attributeRules` and `evaluatorRules`.
-
-* **`MeasurementHelper.parse`**: Dynamically compiles operator regular expressions from the profile's configuration (e.g. resolving localized operator words like `aprox` or `alrededor de` preceding a number) and resolves localized unit tokens to canonical codes using attribute rules.
-* **`TimeHelper.parse`**: Scans the syntax profile's rules to map localized unit names (e.g., Spanish `"horas"` or `"dias"`) to standard `TimePrecisionLevel` enums.
-* **`VitalsHelper.findBloodPressure`**: Resolves capture groups for systolic, diastolic, and unit parameters dynamically via matched evaluator rules.
-* **`ObservationHelper.parseSeverity`**: Evaluates and normalizes severity scores (e.g., `4/10` or `7 out of 10`) on a standard scale.
+When clinicians omit explicit tags (e.g. `temp 38 Cel` instead of `#vital temp 38 Cel`), the parser dynamically infers the target schema by querying candidate terms against configured namespaces and concept defaults.
 
 ---
 
 ## 3. Stateful Clinical Engine (`ClinicalEngine`)
 
-The `ClinicalEngine` coordinates the parser and the stateful core services:
+The `ClinicalEngine` coordinates the parser and stateful core services:
+
 * **Encounter Life Cycle**: Initializes draft notes (`initEncounter`), appends CDSL parsed events (`processCdsl`), and locks notes via electronic signature (`signEncounter`).
 * **Git-like VCS Compaction**: Mutates SOAP Note objects on sub-paths (`set`), compiling a transaction history of structural revisions.
 
@@ -109,10 +81,16 @@ An in-memory fallback implementation of all stores is provided in [memory-clinic
 
 A complete relational SQL database representation (PostgreSQL target) of these interfaces is defined in [seed/schema.sql](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/seed/schema.sql), showing exactly how they map to relational tables and schemas for external adapter integration.
 
+---
 
-# 5. The Philosophy of "Clinical Freedom"
+## 5. The Philosophy of "Clinical Freedom"
+
 The true goal of CDSL is the total separation of data structure from user expression, returning autonomy to the physician while guaranteeing clean data to the infrastructure.
 
 * **Personalization Stack**: Clinicians are no longer forced to bow to the rigid, inefficient user interfaces of host institutions. A doctor can take their personal_dictionary file from facility to facility.
-* **Two-Stage Resolution Middleware**: If Dr. A types | SOB; 4/10 | and Dr. B types | winded; 4/10 |, the translation engine resolves these high-entropy personal styles to a single hospital canonical code (e.g., ICD-10: R06.02).
+* **Two-Stage Resolution Middleware**: If Dr. A types `| SOB; 4/10 |` and Dr. B types `| winded; 4/10 |`, the translation engine resolves these high-entropy personal styles to a single hospital canonical code (e.g., ICD-10: R06.02).
 * **Interoperable Multilingualism**: Because the engine captures a normalized data state rather than flat text, a note documented using Japanese clinical abbreviations can be instantly rendered on-the-fly in English, Spanish, or a highly technical billing view using a reverse dictionary lookup.
+
+---
+
+For implementation architecture, coding rules, and the separation of concerns plan, see [DEVELOPMENT.md](DEVELOPMENT.md).

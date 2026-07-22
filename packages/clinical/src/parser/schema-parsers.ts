@@ -1,7 +1,7 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import { MedicationHelper } from "../schemas/medication";
-import { ObservationHelper } from "../schemas/observation";
-import { VitalsHelper } from "../schemas/vitals";
+import { MedicationHelper, MedicationTokenizer } from "../schemas/medication";
+import { ObservationHelper, ObservationTokenizer } from "../schemas/observation";
+import { VitalsHelper, VitalsTokenizer } from "../schemas/vitals";
 import { TimeHelper } from "../schemas/shared";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
@@ -75,63 +75,9 @@ export function parseSessionVars(groups: {
 	return res;
 }
 
-const EVALUATOR_FUNCTIONS: Record<string, (groups: any, attributeRules?: AttributeParserRule[]) => any> = {
-	parseSeverity: (groups) => ObservationHelper.parseSeverity(groups),
-	parseBloodPressure: (groups) => VitalsHelper.findBloodPressure(groups),
-	parseQuantityUnit: (groups, attributeRules) =>
-		MedicationHelper.parseQuantityUnit(groups, attributeRules),
+const EVALUATOR_FUNCTIONS: Record<string, (groups: any) => any> = {
 	parseSessionVars: (groups) => parseSessionVars(groups),
 };
-
-export function applyEvaluatorRules(
-	content: string,
-	rules: ParserDictionaryRule[],
-	attributeRules?: AttributeParserRule[],
-): {
-	capturedProps: Record<string, any>;
-	contentCleaned: string;
-} {
-	const capturedProps: Record<string, any> = {};
-	let contentCleaned = content;
-
-	for (const rule of rules) {
-		const evalFn = EVALUATOR_FUNCTIONS[rule.evaluatorName];
-		if (!evalFn) continue;
-
-		for (const pattern of rule.regexPatterns) {
-			const regex = new RegExp(pattern, "i");
-			const match = regex.exec(content);
-		if (match && match.groups) {
-			const res =
-				rule.evaluatorName === "parseQuantityUnit"
-					? evalFn(match.groups, attributeRules)
-					: evalFn(match.groups);
-			if (res !== undefined) {
-					if (rule.targetField === "blood_pressure") {
-						capturedProps.systolic = res.systolic;
-						capturedProps.diastolic = res.diastolic;
-						capturedProps.unit = res.unit;
-					} else if (rule.targetField === "quantity") {
-						capturedProps.quantity = res.value;
-						capturedProps.unit = res.unit;
-					} else {
-						capturedProps[rule.targetField] = res;
-					}
-				}
-			}
-		}
-	}
-
-	for (const rule of rules) {
-		for (const pattern of rule.regexPatterns) {
-			const regex = new RegExp(pattern, "i");
-			contentCleaned = contentCleaned.replace(regex, " ");
-		}
-	}
-	contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
-
-	return { capturedProps, contentCleaned };
-}
 
 export async function resolveConceptHelper(
 	text: string,
@@ -179,35 +125,37 @@ export class VitalsSchemaParser implements SchemaParser {
 		allowedNamespaces?: string[],
 	): Promise<ParsedItem | null> {
 		const rules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
-		const { capturedProps, contentCleaned } = applyEvaluatorRules(
-			content,
-			rules,
-		);
+		const token = VitalsTokenizer.tokenize(content, rules);
+		if (!token.anchorText) return null;
 
-		const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
-		if (wordsCleaned.length === 0) return null;
+		const capturedProps: Record<string, any> = {};
+		if (token.systolic !== undefined && token.diastolic !== undefined) {
+			const bp = VitalsHelper.buildBloodPressure(token.systolic, token.diastolic, token.bloodPressureUnit);
+			capturedProps.systolic = bp.systolic;
+			capturedProps.diastolic = bp.diastolic;
+			capturedProps.unit = bp.unit;
+		}
+		if (token.value !== undefined) {
+			capturedProps.quantity = token.value;
+			if (token.unit) capturedProps.unit = token.unit;
+		}
 
-		const anchorText = wordsCleaned[0] || "";
-		let valueText = wordsCleaned[1] || "";
-		let unitText = wordsCleaned[2] || "";
-
-		if (
-			capturedProps.systolic !== undefined &&
-			capturedProps.diastolic !== undefined
-		) {
-			valueText = `${capturedProps.systolic}/${capturedProps.diacholic || capturedProps.diastolic}`;
-			unitText = capturedProps.unit || "";
+		let valueText = token.value !== undefined ? String(token.value) : "";
+		let unitText = token.unit || "";
+		if (token.systolic !== undefined && token.diastolic !== undefined) {
+			valueText = `${token.systolic}/${token.diastolic}`;
+			unitText = token.bloodPressureUnit || "mmHg";
 		}
 
 		// Resolve LOINC concept
 		const resolved = await resolveConceptHelper(
-			anchorText,
+			token.anchorText,
 			"LOINC",
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
 		);
-		const display = resolved?.display || anchorText;
+		const display = resolved?.display || token.anchorText;
 		const conceptId = resolved?.id;
 
 		let conceptDefaults: ParserConceptDefault | null = null;
@@ -245,15 +193,14 @@ export class VitalsSchemaParser implements SchemaParser {
 			}
 		}
 
-		let defaultUnit = conceptDefaults?.defaultProperties.unit || "";
-
+		const defaultUnit = conceptDefaults?.defaultProperties.unit || "";
 		const parsedVal = Number.isNaN(Number(valueText))
 			? valueText
 			: Number(valueText);
 
 		return {
 			tag,
-			anchorText,
+			anchorText: token.anchorText,
 			conceptId,
 			display,
 			value: parsedVal,
@@ -279,50 +226,25 @@ export class ObservationSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 	): Promise<ParsedItem | null> {
-		const rules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
+		const attrRules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
 		const evalRules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
-		const { capturedProps, contentCleaned: evalContentCleaned } =
-			applyEvaluatorRules(content, evalRules);
 
-		const attributes: Record<string, string> = {};
-		let contentCleaned = evalContentCleaned;
+		const token = ObservationTokenizer.tokenize(content, attrRules, evalRules);
+		if (!token.anchorText) return null;
 
-		for (const rule of rules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
-				if (regex.test(evalContentCleaned)) {
-					attributes[rule.targetField] = rule.targetValue;
-				}
-			}
-		}
-
-		for (const rule of rules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
-				contentCleaned = contentCleaned.replace(regex, " ");
-			}
-		}
-		contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
-
-		const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
-		if (wordsCleaned.length === 0) return null;
-
-		const certainty = attributes.certainty || "confirmed";
-		const status = attributes.status || "active";
-		const severity = attributes.severity || "moderate";
-		const anchorText = wordsCleaned.join(" ");
+		const certainty = token.certainty || "confirmed";
+		const status = token.status || "active";
+		const severity = token.severity || "moderate";
 
 		// Resolve SNOMED concept
 		const resolved = await resolveConceptHelper(
-			anchorText,
+			token.anchorText,
 			"SNOMED",
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
 		);
-		const display = resolved?.display || anchorText;
+		const display = resolved?.display || token.anchorText;
 		const conceptId = resolved?.id;
 
 		// Check custom defaults
@@ -340,9 +262,14 @@ export class ObservationSchemaParser implements SchemaParser {
 			conceptDefaults?.defaultProperties.certainty || certainty;
 		const defaultStatus = conceptDefaults?.defaultProperties.status || status;
 
+		const capturedProperties: Record<string, any> = {};
+		if (token.severityScore) {
+			capturedProperties.severityScore = token.severityScore;
+		}
+
 		return {
 			tag,
-			anchorText,
+			anchorText: token.anchorText,
 			conceptId,
 			display,
 			severity: defaultSeverity,
@@ -351,7 +278,7 @@ export class ObservationSchemaParser implements SchemaParser {
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:
-				Object.keys(capturedProps).length > 0 ? capturedProps : undefined,
+				Object.keys(capturedProperties).length > 0 ? capturedProperties : undefined,
 		};
 	}
 }
@@ -369,50 +296,25 @@ export class MedicationSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 	): Promise<ParsedItem | null> {
-		const rules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
+		const attrRules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
 		const evalRules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
-		const { capturedProps, contentCleaned: evalContentCleaned } =
-			applyEvaluatorRules(content, evalRules);
 
-		const attributes: Record<string, string> = {};
-		let contentCleaned = evalContentCleaned;
+		const token = MedicationTokenizer.tokenize(content, attrRules, evalRules);
+		if (!token.anchorText) return null;
 
-		for (const rule of rules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
-				if (regex.test(evalContentCleaned)) {
-					attributes[rule.targetField] = rule.targetValue;
-				}
-			}
-		}
-
-		for (const rule of rules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
-				contentCleaned = contentCleaned.replace(regex, " ");
-			}
-		}
-		contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
-
-		const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
-		if (wordsCleaned.length === 0) return null;
-
-		const anchorText = wordsCleaned[0] || "";
-		let route = attributes.route || "ORAL";
-		let frequency = attributes.frequency || "TID";
+		let route = token.route || "ORAL";
+		let frequency = token.frequency || "TID";
 		let duration = "10 days";
 
 		// Resolve RxNorm concept
 		const resolved = await resolveConceptHelper(
-			anchorText,
+			token.anchorText,
 			"RxNorm",
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
 		);
-		const display = resolved?.display || anchorText;
+		const display = resolved?.display || token.anchorText;
 		const conceptId = resolved?.id;
 
 		// Check custom defaults
@@ -428,11 +330,10 @@ export class MedicationSchemaParser implements SchemaParser {
 		frequency = conceptDefaults?.defaultProperties.frequency || frequency;
 		duration = conceptDefaults?.defaultProperties.duration || duration;
 
-		// Extract duration dynamically using TimeHelper to adhere to language-neutral parsing guidelines
-		const possibleDurations = contentCleaned.match(/(\d+(?:\.\d+)?\s*\S+)/g);
+		const possibleDurations = content.match(/(\d+(?:\.\d+)?\s*\S+)/g);
 		if (possibleDurations) {
 			for (const candidate of possibleDurations) {
-				const parsedTime = TimeHelper.parse(candidate, rules);
+				const parsedTime = TimeHelper.parse(candidate, attrRules);
 				if (parsedTime && parsedTime.unit) {
 					duration = candidate;
 					break;
@@ -440,9 +341,17 @@ export class MedicationSchemaParser implements SchemaParser {
 			}
 		}
 
+		const capturedProperties: Record<string, any> = {};
+		if (token.quantity !== undefined) {
+			capturedProperties.quantity = token.quantity;
+			if (token.quantityUnit) {
+				capturedProperties.unit = token.quantityUnit;
+			}
+		}
+
 		return {
 			tag,
-			anchorText,
+			anchorText: token.anchorText,
 			conceptId,
 			display,
 			route,
@@ -452,7 +361,7 @@ export class MedicationSchemaParser implements SchemaParser {
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:
-				Object.keys(capturedProps).length > 0 ? capturedProps : undefined,
+				Object.keys(capturedProperties).length > 0 ? capturedProperties : undefined,
 		};
 	}
 }
