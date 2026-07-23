@@ -1,17 +1,17 @@
-import { QuantityTokenizer, TimeHelper } from "./measurement-helper";
 import type {
 	ClinicalDateRange,
+	DayOfWeek,
 	TemporalBoundary,
 	TimeInterval,
 	TimePrecisionLevel,
-	DayOfWeek,
 } from "../../schemas/time";
-import { FrequencyHelper } from "./frequency-helper";
 import { DEFAULT_ATTRIBUTE_RULES } from "../../store/defaults";
 import type {
 	AttributeParserRule,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import { FrequencyHelper } from "./frequency-helper";
+import { TimeHelper } from "./measurement-helper";
 
 export interface ClinicalDateRangeToken {
 	anchorText: string;
@@ -52,36 +52,65 @@ export class ClinicalDateRangeTokenizer {
 		let workingText = cleaned;
 
 		// 1. Parse Exclusions first
-		const exclusion = this.parseExclusion(workingText, attributeRules);
+		const exclusion = ClinicalDateRangeTokenizer.parseExclusion(
+			workingText,
+			attributeRules,
+		);
 		if (exclusion) {
 			token.baseText = exclusion.baseText;
 			token.exclusionText = exclusion.exclusionText;
-			token.baseRepeat = this.parseRepeat(exclusion.baseText, attributeRules, evaluatorRules) ?? undefined;
-			token.exclusionRepeat = this.parseRepeat(exclusion.exclusionText, attributeRules, evaluatorRules) ?? undefined;
+			token.baseRepeat =
+				ClinicalDateRangeTokenizer.parseRepeat(
+					exclusion.baseText,
+					attributeRules,
+					evaluatorRules,
+				) ?? undefined;
+			token.exclusionRepeat =
+				ClinicalDateRangeTokenizer.parseRepeat(
+					exclusion.exclusionText,
+					attributeRules,
+					evaluatorRules,
+				) ?? undefined;
 			workingText = exclusion.baseText;
 		}
 
 		// 2. Parse and strip Cadence
-		const repeatMatch = this.findRepeatMatch(workingText, attributeRules, evaluatorRules);
+		const repeatMatch = ClinicalDateRangeTokenizer.findRepeatMatch(
+			workingText,
+			attributeRules,
+			evaluatorRules,
+		);
 		if (repeatMatch) {
 			token.repeat = repeatMatch.repeat;
 			workingText = workingText.replace(repeatMatch.matchedText, "").trim();
 		}
 
 		// 3. Parse and strip Relative Estimate
-		const relativeMatch = this.findRelativeEstimateMatch(workingText, attributeRules);
+		const relativeMatch = ClinicalDateRangeTokenizer.findRelativeEstimateMatch(
+			workingText,
+			attributeRules,
+		);
 		if (relativeMatch) {
 			token.relativeEstimate = relativeMatch.estimate;
 			workingText = workingText.replace(relativeMatch.matchedText, "").trim();
 		}
 
 		// 4. Parse Boundaries
-		const boundaries = this.parseBoundaries(workingText, attributeRules);
+		const boundaries = ClinicalDateRangeTokenizer.parseBoundaries(
+			workingText,
+			attributeRules,
+		);
 		if (boundaries) {
 			token.startText = boundaries.startText;
 			token.endText = boundaries.endText;
-			token.startPrecision = this.resolvePrecision(boundaries.startText, attributeRules);
-			token.endPrecision = this.resolvePrecision(boundaries.endText, attributeRules);
+			token.startPrecision = ClinicalDateRangeTokenizer.resolvePrecision(
+				boundaries.startText,
+				attributeRules,
+			);
+			token.endPrecision = ClinicalDateRangeTokenizer.resolvePrecision(
+				boundaries.endText,
+				attributeRules,
+			);
 		}
 
 		const hasContent =
@@ -123,9 +152,16 @@ export class ClinicalDateRangeTokenizer {
 							}
 							if (resolvedUnit) {
 								const times = rawMult ? parseFloat(rawMult) : 1;
-								if (rule.ruleId === "freq_times" && resolvedUnit === "day" && times > 1) {
+								if (
+									rule.ruleId === "freq_times" &&
+									resolvedUnit === "day" &&
+									times > 1
+								) {
 									return {
-										repeat: { multiplier: Math.round(24 / times), level: "hour" },
+										repeat: {
+											multiplier: Math.round(24 / times),
+											level: "hour",
+										},
 										matchedText: match[0],
 									};
 								} else if (rule.ruleId === "freq_times") {
@@ -146,7 +182,10 @@ export class ClinicalDateRangeTokenizer {
 			}
 		}
 
-		const dailyRules = this.getAttributeRulesByTarget("time_repeat_daily", attributeRules);
+		const dailyRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"time_repeat_daily",
+			attributeRules,
+		);
 		for (const rule of dailyRules) {
 			for (const pattern of rule.regexPatterns) {
 				const regex = new RegExp(pattern, "i");
@@ -160,7 +199,10 @@ export class ClinicalDateRangeTokenizer {
 			}
 		}
 
-		const shorthandRules = this.getAttributeRulesByTarget("frequency_shorthand", attributeRules);
+		const shorthandRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"frequency_shorthand",
+			attributeRules,
+		);
 		for (const rule of shorthandRules) {
 			for (const pattern of rule.regexPatterns) {
 				const regex = new RegExp(pattern, "i");
@@ -199,15 +241,26 @@ export class ClinicalDateRangeTokenizer {
 
 		// Strip relative markers so they don't trigger lookahead checks
 		let textWithoutMarkers = text;
-		const markerRules = this.getAttributeRulesByTarget("time_relative_marker", attributeRules);
+		const markerRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"time_relative_marker",
+			attributeRules,
+		);
 		for (const rule of markerRules) {
 			for (const pattern of rule.regexPatterns) {
-				textWithoutMarkers = textWithoutMarkers.replace(new RegExp(pattern, "gi"), "").trim();
+				textWithoutMarkers = textWithoutMarkers
+					.replace(new RegExp(pattern, "gi"), "")
+					.trim();
 			}
 		}
 
-		const unitRules = this.getAttributeRulesByTarget("time_unit", attributeRules);
-		const resolvedUnit = this.resolveUnitFromRules(textWithoutMarkers, unitRules);
+		const unitRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"time_unit",
+			attributeRules,
+		);
+		const resolvedUnit = ClinicalDateRangeTokenizer.resolveUnitFromRules(
+			textWithoutMarkers,
+			unitRules,
+		);
 		if (!resolvedUnit) return null;
 
 		let direction: "retrospective" | "prospective" | undefined;
@@ -226,13 +279,16 @@ export class ClinicalDateRangeTokenizer {
 		}
 
 		if (direction) {
-			const unitRule = unitRules.find(r => r.targetValue === resolvedUnit);
+			const unitRule = unitRules.find((r) => r.targetValue === resolvedUnit);
 			if (unitRule) {
 				for (const pattern of unitRule.regexPatterns) {
 					const cleanPattern = pattern.replace(/\(\?!.*?\)/g, "");
 					const prospectivePattern = `(?:${matchedMarkerText})\\s*\\d+(?:\\.\\d+)?\\s*(?:${cleanPattern})`;
 					const retrospectivePattern = `\\d+(?:\\.\\d+)?\\s*(?:${cleanPattern})\\s*(?:${matchedMarkerText})`;
-					const match = new RegExp(`${prospectivePattern}|${retrospectivePattern}`, "i").exec(text);
+					const match = new RegExp(
+						`${prospectivePattern}|${retrospectivePattern}`,
+						"i",
+					).exec(text);
 					if (match) {
 						return {
 							estimate: {
@@ -254,7 +310,7 @@ export class ClinicalDateRangeTokenizer {
 		text: string,
 		attributeRules: AttributeParserRule[] = [],
 	): { startText: string; endText: string } | null {
-		const markerRules = this.getAttributeRulesByTarget(
+		const markerRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
 			"time_boundary_marker",
 			attributeRules,
 		);
@@ -278,7 +334,7 @@ export class ClinicalDateRangeTokenizer {
 		text: string,
 		attributeRules: AttributeParserRule[] = [],
 	): { baseText: string; exclusionText: string } | null {
-		const markerRules = this.getAttributeRulesByTarget(
+		const markerRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
 			"time_exclusion_marker",
 			attributeRules,
 		);
@@ -288,7 +344,9 @@ export class ClinicalDateRangeTokenizer {
 				const match = regex.exec(text);
 				if (match?.index !== undefined) {
 					const baseText = text.slice(0, match.index).trim();
-					const exclusionText = text.slice(match.index + match[0].length).trim();
+					const exclusionText = text
+						.slice(match.index + match[0].length)
+						.trim();
 					if (baseText && exclusionText) {
 						return { baseText, exclusionText };
 					}
@@ -303,7 +361,11 @@ export class ClinicalDateRangeTokenizer {
 		attributeRules: AttributeParserRule[],
 		evaluatorRules: ParserDictionaryRule[],
 	): TimeInterval["repeat"] | null {
-		const frequency = FrequencyHelper.parse(text, attributeRules, evaluatorRules);
+		const frequency = FrequencyHelper.parse(
+			text,
+			attributeRules,
+			evaluatorRules,
+		);
 		if (frequency?.interval) {
 			return {
 				multiplier: frequency.interval.multiplier,
@@ -311,7 +373,10 @@ export class ClinicalDateRangeTokenizer {
 			};
 		}
 
-		const dailyRules = this.getAttributeRulesByTarget("time_repeat_daily", attributeRules);
+		const dailyRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"time_repeat_daily",
+			attributeRules,
+		);
 		for (const rule of dailyRules) {
 			for (const pattern of rule.regexPatterns) {
 				if (new RegExp(pattern, "i").test(text)) {
@@ -321,7 +386,10 @@ export class ClinicalDateRangeTokenizer {
 		}
 
 		// Fallback to resolving precision directly (e.g. "Sundays" -> level: "sunday")
-		const precision = this.resolvePrecision(text, attributeRules);
+		const precision = ClinicalDateRangeTokenizer.resolvePrecision(
+			text,
+			attributeRules,
+		);
 		if (precision) {
 			return { multiplier: 1, level: precision };
 		}
@@ -352,8 +420,11 @@ export class ClinicalDateRangeTokenizer {
 		targetField: string,
 		attributeRules: AttributeParserRule[] = [],
 	): AttributeParserRule[] {
-		const rules = attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
-		return rules.filter((rule: AttributeParserRule) => rule.targetField === targetField);
+		const rules =
+			attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
+		return rules.filter(
+			(rule: AttributeParserRule) => rule.targetField === targetField,
+		);
 	}
 
 	private static resolveUnitFromRules(
@@ -386,9 +457,12 @@ export class ClinicalDateRangeHelper {
 		// Resolve start boundaries
 		let startBoundary: TemporalBoundary | undefined;
 		if (token.startPrecision && token.startText) {
-			const now = TimeHelper.getCurrentTimestamp(token.startPrecision, seedTime);
+			const now = TimeHelper.getCurrentTimestamp(
+				token.startPrecision,
+				seedTime,
+			);
 			startBoundary = {
-				assertedTimestampUtc: this.shiftToBoundary(
+				assertedTimestampUtc: ClinicalDateRangeHelper.shiftToBoundary(
 					now.assertedTimestampUtc,
 					token.startPrecision,
 					false,
@@ -402,7 +476,7 @@ export class ClinicalDateRangeHelper {
 		if (token.endPrecision && token.endText) {
 			const now = TimeHelper.getCurrentTimestamp(token.endPrecision, seedTime);
 			endBoundary = {
-				assertedTimestampUtc: this.shiftToBoundary(
+				assertedTimestampUtc: ClinicalDateRangeHelper.shiftToBoundary(
 					now.assertedTimestampUtc,
 					token.endPrecision,
 					true,

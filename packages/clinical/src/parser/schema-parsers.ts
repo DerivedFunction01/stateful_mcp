@@ -193,5 +193,8 @@ schemaParserRegistry.set(
 	CANONICAL_TAGS.MEDICATION.toLowerCase(),
 	new MedicationSchemaParser(),
 );
-schemaParserRegistry.set("clinicaldaterange", new ClinicalDateRangeSchemaParser());
+schemaParserRegistry.set(
+	"clinicaldaterange",
+	new ClinicalDateRangeSchemaParser(),
+);
 schemaParserRegistry.set("time", new ClinicalDateRangeSchemaParser());

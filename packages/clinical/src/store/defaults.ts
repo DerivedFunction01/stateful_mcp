@@ -1,4 +1,8 @@
-import type { ParserConceptDefault, ParserSyntaxProfile, AttributeParserRule } from "./interfaces";
+import type {
+	AttributeParserRule,
+	ParserConceptDefault,
+	ParserSyntaxProfile,
+} from "./interfaces";
 
 export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
@@ -328,7 +332,12 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
 		targetField: "time_unit",
 		targetValue: "wednesday",
-		regexPatterns: ["\\bwednesdays?\\b", "\\bwed\\b", "\\bmiercoles\\b", "\\bmiércoles\\b"],
+		regexPatterns: [
+			"\\bwednesdays?\\b",
+			"\\bwed\\b",
+			"\\bmiercoles\\b",
+			"\\bmiércoles\\b",
+		],
 		isCaseInsensitive: true,
 	},
 	{
@@ -346,7 +355,12 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
 		targetField: "time_unit",
 		targetValue: "saturday",
-		regexPatterns: ["\\bsaturdays?\\b", "\\bsat\\b", "\\bsabado\\b", "\\bsábado\\b"],
+		regexPatterns: [
+			"\\bsaturdays?\\b",
+			"\\bsat\\b",
+			"\\bsabado\\b",
+			"\\bsábado\\b",
+		],
 		isCaseInsensitive: true,
 	},
 	{
@@ -435,7 +449,12 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
 		targetField: "time_exclusion_marker",
 		targetValue: "except",
-		regexPatterns: ["\\bexcept\\b", "\\bexcluding\\b", "\\bexcepto\\b", "\\bmenos\\b"],
+		regexPatterns: [
+			"\\bexcept\\b",
+			"\\bexcluding\\b",
+			"\\bexcepto\\b",
+			"\\bmenos\\b",
+		],
 		isCaseInsensitive: true,
 	},
 	// Time Repeat Daily Rules
@@ -558,29 +577,7 @@ export const SEED_CONCEPT_DEFAULTS: ParserConceptDefault[] = [
 	},
 ];
 
-import type {
-	MassUnit,
-	VolumeUnit,
-	LengthUnit,
-	TemperatureUnit,
-	PressureUnit,
-	CountUnit,
-	ScoreUnit,
-	MassConcentrationUnit,
-	SubstanceConcentrationUnit,
-	EnergyUnit,
-	ForceUnit,
-	OsmolalityUnit,
-	OsmolarityUnit,
-	CatalyticActivityUnit,
-	FractionUnit,
-	ElectricPotentialUnit,
-	ElectricCurrentUnit,
-	PowerUnit,
-	VelocityUnit,
-	AccelerationUnit,
-	AllowedUnit,
-} from "../schemas/measurement";
+import type { AllowedUnit } from "../schemas/measurement";
 
 export const UNIT_DISPLAY_MAP: Record<AllowedUnit, string> = {
 	// Mass

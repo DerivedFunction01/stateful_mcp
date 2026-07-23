@@ -39,21 +39,97 @@ export type MeasurementUnitAnchor =
 	| PhysiologicalUnitAnchor
 	| EngineeringUnitAnchor;
 
-export type MassUnit = "kg" | "g" | "mg" | "mcg" | "ug" | "ng" | "pg" | "lb" | "oz" | "t" | "ton";
-export type VolumeUnit = "l" | "L" | "dL" | "dl" | "ml" | "mL" | "ul" | "uL" | "fl_oz" | "tsp" | "tbsp" | "qt" | "pt" | "gal" | "cc" | "cup" | "pint" | "quart" | "gallon";
-export type LengthUnit = "km" | "m" | "cm" | "mm" | "um" | "nm" | "in" | "ft" | "[in_i]" | "[ft_i]" | "yd" | "mi";
+export type MassUnit =
+	| "kg"
+	| "g"
+	| "mg"
+	| "mcg"
+	| "ug"
+	| "ng"
+	| "pg"
+	| "lb"
+	| "oz"
+	| "t"
+	| "ton";
+export type VolumeUnit =
+	| "l"
+	| "L"
+	| "dL"
+	| "dl"
+	| "ml"
+	| "mL"
+	| "ul"
+	| "uL"
+	| "fl_oz"
+	| "tsp"
+	| "tbsp"
+	| "qt"
+	| "pt"
+	| "gal"
+	| "cc"
+	| "cup"
+	| "pint"
+	| "quart"
+	| "gallon";
+export type LengthUnit =
+	| "km"
+	| "m"
+	| "cm"
+	| "mm"
+	| "um"
+	| "nm"
+	| "in"
+	| "ft"
+	| "[in_i]"
+	| "[ft_i]"
+	| "yd"
+	| "mi";
 
 export type TemperatureUnit = "Celsius" | "Fahrenheit" | "Kelvin";
 export type PressureUnit = "mmHg" | "bar" | "atm" | "Pa" | "kPa" | "psi";
-export type CountUnit = "1" | "count" | "cells" | "elements" | "copies" | "IU" | "U" | "IU/mL" | "U/mL" | "tablet" | "capsule" | "puff" | "spray" | "drop" | "dose" | "pill" | "vial" | "patch" | "caplet" | "sachet" | "/min" | "breaths_per_min" | "beats_per_min";
+export type CountUnit =
+	| "1"
+	| "count"
+	| "cells"
+	| "elements"
+	| "copies"
+	| "IU"
+	| "U"
+	| "IU/mL"
+	| "U/mL"
+	| "tablet"
+	| "capsule"
+	| "puff"
+	| "spray"
+	| "drop"
+	| "dose"
+	| "pill"
+	| "vial"
+	| "patch"
+	| "caplet"
+	| "sachet"
+	| "/min"
+	| "breaths_per_min"
+	| "beats_per_min";
 export type ScoreUnit = "%" | "percent" | "score" | "points" | "ratio" | "MET";
 
 type ConcMassUnit = "g" | "mg" | "mcg" | "ug" | "ng" | "pg";
 type ConcVolumeUnit = "l" | "L" | "dL" | "ml" | "mL" | "ul" | "uL";
-export type MassConcentrationUnit = `${ConcMassUnit}/${ConcVolumeUnit}` | "mg/mL" | "mg/dL" | "mcg/mL" | "g/L" | "g/dL";
+export type MassConcentrationUnit =
+	| `${ConcMassUnit}/${ConcVolumeUnit}`
+	| "mg/mL"
+	| "mg/dL"
+	| "mcg/mL"
+	| "g/L"
+	| "g/dL";
 
-export type SubstanceConcentrationUnit = "mol/L" | "mmol/L" | "umol/L" | "nmol/L" | "mEq/L";
-export type EnergyUnit = "cal" | "kcal" | "J" | "kJ" | "kWh"
+export type SubstanceConcentrationUnit =
+	| "mol/L"
+	| "mmol/L"
+	| "umol/L"
+	| "nmol/L"
+	| "mEq/L";
+export type EnergyUnit = "cal" | "kcal" | "J" | "kJ" | "kWh";
 export type ForceUnit = "N" | "kN" | "mN" | "kgf" | "lbf";
 export type OsmolalityUnit = "Osm/kg" | "mOsm/kg";
 export type OsmolarityUnit = "Osm/L" | "mOsm/L";
@@ -101,7 +177,10 @@ export interface SingleMeasurement {
 	is_approximate?: boolean;
 }
 
-export type MeasurementOperator = NonNullable<SingleMeasurement["operator"]> | "is_approximate" | "approximate";
+export type MeasurementOperator =
+	| NonNullable<SingleMeasurement["operator"]>
+	| "is_approximate"
+	| "approximate";
 
 /**
  * Extends SingleMeasurement by locking in a physical-dimension anchor.

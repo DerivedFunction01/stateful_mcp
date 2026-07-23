@@ -73,11 +73,11 @@ export class MedicationTokenizer {
 			}
 		}
 
-	contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
-	const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
-	const anchorText = contentCleaned.trim();
+		contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
+		const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
+		const anchorText = contentCleaned.trim();
 
-	return {
+		return {
 			anchorText,
 			route: attributes.route,
 			quantity: capturedProps.quantity,

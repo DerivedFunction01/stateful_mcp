@@ -1,7 +1,20 @@
-import type { AllowedUnit, MeasurementUnitAnchor, SingleMeasurement, MeasurementOperator } from "../schemas/measurement";
+import type {
+	AllowedUnit,
+	MeasurementOperator,
+	MeasurementUnitAnchor,
+} from "../schemas/measurement";
+import type {
+	FrequencyShorthand,
+	PhysiologicalEventAnchor,
+} from "../schemas/medication";
+import type {
+	Certainty,
+	Route,
+	SeverityLevel,
+	Status,
+	StringifiedBoolean,
+} from "../schemas/shared";
 import type { TimePrecisionLevel } from "../schemas/time";
-import type { Certainty, Status, Route, SeverityLevel, StringifiedBoolean } from "../schemas/shared";
-import type { PhysiologicalEventAnchor, FrequencyShorthand } from "../schemas/medication";
 
 export interface ParserSyntaxProfile {
 	profileId: string;
@@ -43,18 +56,62 @@ export interface ParserDictionaryRule {
 export type AttributeRuleMapping =
 	| { targetField: "certainty"; targetValue: Certainty; unitAnchor?: undefined }
 	| { targetField: "status"; targetValue: Status; unitAnchor?: undefined }
-	| { targetField: "severity"; targetValue: SeverityLevel; unitAnchor?: undefined }
+	| {
+			targetField: "severity";
+			targetValue: SeverityLevel;
+			unitAnchor?: undefined;
+	  }
 	| { targetField: "route"; targetValue: Route; unitAnchor?: undefined }
-	| { targetField: "frequency_prn"; targetValue: StringifiedBoolean; unitAnchor?: undefined }
-	| { targetField: "frequency_event_anchor"; targetValue: PhysiologicalEventAnchor; unitAnchor?: undefined }
-	| { targetField: "frequency_shorthand"; targetValue: FrequencyShorthand; unitAnchor?: undefined }
-	| { targetField: "operator" | "measurement_operator"; targetValue: MeasurementOperator; unitAnchor?: undefined }
-	| { targetField: "unit" | "measurement_unit"; targetValue: AllowedUnit; unitAnchor?: MeasurementUnitAnchor }
-	| { targetField: "time_unit"; targetValue: TimePrecisionLevel; unitAnchor?: undefined }
-	| { targetField: "time_relative_marker"; targetValue: "retrospective" | "prospective"; unitAnchor?: undefined }
-	| { targetField: "time_boundary_marker"; targetValue: "to"; unitAnchor?: undefined }
-	| { targetField: "time_exclusion_marker"; targetValue: "except"; unitAnchor?: undefined }
-	| { targetField: "time_repeat_daily"; targetValue: "daily"; unitAnchor?: undefined };
+	| {
+			targetField: "frequency_prn";
+			targetValue: StringifiedBoolean;
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "frequency_event_anchor";
+			targetValue: PhysiologicalEventAnchor;
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "frequency_shorthand";
+			targetValue: FrequencyShorthand;
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "operator" | "measurement_operator";
+			targetValue: MeasurementOperator;
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "unit" | "measurement_unit";
+			targetValue: AllowedUnit;
+			unitAnchor?: MeasurementUnitAnchor;
+	  }
+	| {
+			targetField: "time_unit";
+			targetValue: TimePrecisionLevel;
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "time_relative_marker";
+			targetValue: "retrospective" | "prospective";
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "time_boundary_marker";
+			targetValue: "to";
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "time_exclusion_marker";
+			targetValue: "except";
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "time_repeat_daily";
+			targetValue: "daily";
+			unitAnchor?: undefined;
+	  };
 
 export type AttributeParserRule = AttributeRuleMapping & {
 	regexPatterns: string[];

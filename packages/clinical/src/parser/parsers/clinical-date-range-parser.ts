@@ -13,10 +13,10 @@ import {
 	ClinicalDateRangeHelper,
 	ClinicalDateRangeTokenizer,
 } from "../helpers/clinical-date-range-helper";
-import {
-	type ParsedItem,
-	type PreparsedContext,
-	type SchemaParser,
+import type {
+	ParsedItem,
+	PreparsedContext,
+	SchemaParser,
 } from "../schema-parsers";
 
 interface ParsedClinicalDateRangeResult {
@@ -48,7 +48,11 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		const cleaned = content.trim();
 		if (!cleaned) return null;
 
-		const token = ClinicalDateRangeTokenizer.tokenize(cleaned, attrRules, evalRules);
+		const token = ClinicalDateRangeTokenizer.tokenize(
+			cleaned,
+			attrRules,
+			evalRules,
+		);
 		if (!token) return null;
 
 		const dateRange = ClinicalDateRangeHelper.build(token);

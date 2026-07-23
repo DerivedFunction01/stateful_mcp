@@ -16,11 +16,7 @@ export type PartOfDay =
 	| "night"
 	| "midnight";
 
-export type Season =
-	| "spring"
-	| "summer"
-	| "autumn"
-	| "winter";
+export type Season = "spring" | "summer" | "autumn" | "winter";
 
 export type TimePrecisionLevel =
 	| "second"

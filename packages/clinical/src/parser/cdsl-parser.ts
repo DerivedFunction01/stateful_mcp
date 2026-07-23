@@ -7,7 +7,11 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import { FrequencyHelper } from "./helpers/frequency-helper";
-import { MeasurementHelper, TimeHelper, QuantityTokenizer } from "./helpers/measurement-helper";
+import {
+	MeasurementHelper,
+	QuantityTokenizer,
+	TimeHelper,
+} from "./helpers/measurement-helper";
 import {
 	type BaseParsedItem as IMP_BaseParsedItem,
 	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
@@ -16,7 +20,6 @@ import {
 	type ParsedObservationItem as IMP_ParsedObservationItem,
 	type ParsedVitalsItem as IMP_ParsedVitalsItem,
 	type PreparsedContext,
-	resolveMultiConceptHelper,
 	type SchemaParser,
 	schemaParserRegistry,
 } from "./schema-parsers";
@@ -100,7 +103,10 @@ export class CdslParser {
 						stopWordCount++;
 					}
 				}
-				if (words.length > 0 && stopWordCount / words.length > (this.profile.stopWordThreshold ?? 0.6)) {
+				if (
+					words.length > 0 &&
+					stopWordCount / words.length > (this.profile.stopWordThreshold ?? 0.6)
+				) {
 					continue;
 				}
 			}
@@ -120,7 +126,7 @@ export class CdslParser {
 						token,
 						undefined,
 						this.profile.attributeRules,
-				  ) as any)
+					) as any)
 				: null;
 			const timeSpan = token
 				? TimeHelper.parse(token, this.profile.attributeRules)
@@ -195,9 +201,8 @@ export class CdslParser {
 			// Dispatch selected parsers against the full span
 			for (const parser of parsersToRun) {
 				const allowedNamespaces =
-					this.profile.schemaNamespaces?.[
-						parser.targetSchema.toLowerCase()
-					] || undefined;
+					this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
+					undefined;
 
 				const parsed = await parser.parse(
 					tag,
@@ -224,4 +229,3 @@ export class CdslParser {
 		return items;
 	}
 }
-

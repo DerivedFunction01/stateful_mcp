@@ -10,7 +10,10 @@ import type {
 	TimeMeasurement,
 	TimePrecisionLevel,
 } from "../../schemas/time";
-import { DEFAULT_ATTRIBUTE_RULES, UNIT_DISPLAY_MAP } from "../../store/defaults";
+import {
+	DEFAULT_ATTRIBUTE_RULES,
+	UNIT_DISPLAY_MAP,
+} from "../../store/defaults";
 import type { AttributeParserRule } from "../../store/interfaces";
 
 const ALLOWED_UNITS_SET = new Set(Object.keys(UNIT_DISPLAY_MAP));
@@ -228,14 +231,8 @@ export class MeasurementHelper {
 			: undefined;
 
 		let operator: SingleMeasurement["operator"] = "eq";
-		if (
-			token.operator === "gt" ||
-			token.operator === "gte" ||
-			token.operator === "lt" ||
-			token.operator === "lte" ||
-			token.operator === "eq"
-		) {
-			operator = token.operator;
+		if (token.operator) {
+			operator = token.operator as TimeMeasurement["operator"];
 		}
 
 		const base: SingleMeasurement = {
@@ -289,14 +286,8 @@ export class TimeHelper {
 		if (!resolved) return null;
 
 		let operator: TimeMeasurement["operator"] = "eq";
-		if (
-			token.operator === "gt" ||
-			token.operator === "gte" ||
-			token.operator === "lt" ||
-			token.operator === "lte" ||
-			token.operator === "eq"
-		) {
-			operator = token.operator;
+		if (token.operator) {
+			operator = token.operator as TimeMeasurement["operator"];
 		}
 
 		const base: TimeMeasurement = {
@@ -312,9 +303,12 @@ export class TimeHelper {
 		precisionLevel: TimePrecisionLevel = "second",
 		seedTime?: Date | string | number,
 	): TemporalBoundary {
-		const referenceTime = seedTime === undefined ? new Date() : new Date(seedTime);
+		const referenceTime =
+			seedTime === undefined ? new Date() : new Date(seedTime);
 		if (Number.isNaN(referenceTime.getTime())) {
-			throw new Error("Invalid seedTime provided to TimeHelper.getCurrentTimestamp");
+			throw new Error(
+				"Invalid seedTime provided to TimeHelper.getCurrentTimestamp",
+			);
 		}
 
 		return {

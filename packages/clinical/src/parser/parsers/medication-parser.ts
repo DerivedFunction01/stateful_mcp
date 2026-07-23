@@ -11,7 +11,7 @@ import type {
 	ParserDictionaryRule,
 } from "../../store/interfaces";
 import { FrequencyHelper } from "../helpers/frequency-helper";
-import { TimeHelper, QuantityTokenizer } from "../helpers/measurement-helper";
+import { QuantityTokenizer, TimeHelper } from "../helpers/measurement-helper";
 import { MedicationTokenizer } from "../helpers/medication-helper";
 import {
 	CANONICAL_TAGS,
@@ -94,8 +94,14 @@ export class MedicationSchemaParser implements SchemaParser {
 			);
 			const opPatterns = opRules.flatMap((r) => r.regexPatterns);
 			for (const candidate of possibleDurations) {
-				const timeToken = QuantityTokenizer.tokenize(candidate, opPatterns, attrRules);
-				const parsedTime = timeToken ? TimeHelper.parse(timeToken, attrRules) : null;
+				const timeToken = QuantityTokenizer.tokenize(
+					candidate,
+					opPatterns,
+					attrRules,
+				);
+				const parsedTime = timeToken
+					? TimeHelper.parse(timeToken, attrRules)
+					: null;
 				if (parsedTime && parsedTime.unit) {
 					duration = candidate;
 					break;

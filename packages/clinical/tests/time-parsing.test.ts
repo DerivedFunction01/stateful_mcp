@@ -39,11 +39,23 @@ describe("ClinicalDateRange parsing", () => {
 	});
 
 	test("parses absolute start and end bounds", async () => {
-		const bounded = await parser.parse("#time", "from Monday to Wednesday", store);
-		expect(bounded?.dateRange?.time?.startDatetime?.precisionLevel).toBe("monday");
-		expect(bounded?.dateRange?.time?.endDatetime?.precisionLevel).toBe("wednesday");
-		expect(bounded?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toMatch(/T00:00:00Z$/);
-		expect(bounded?.dateRange?.time?.endDatetime?.assertedTimestampUtc).toMatch(/T23:59:59Z$/);
+		const bounded = await parser.parse(
+			"#time",
+			"from Monday to Wednesday",
+			store,
+		);
+		expect(bounded?.dateRange?.time?.startDatetime?.precisionLevel).toBe(
+			"monday",
+		);
+		expect(bounded?.dateRange?.time?.endDatetime?.precisionLevel).toBe(
+			"wednesday",
+		);
+		expect(
+			bounded?.dateRange?.time?.startDatetime?.assertedTimestampUtc,
+		).toMatch(/T00:00:00Z$/);
+		expect(bounded?.dateRange?.time?.endDatetime?.assertedTimestampUtc).toMatch(
+			/T23:59:59Z$/,
+		);
 	});
 
 	test("parses exclusions alongside the base schedule", async () => {
@@ -70,7 +82,11 @@ describe("ClinicalDateRange parsing", () => {
 			multiplier: 8,
 			level: "hour",
 		});
-		expect(parsed?.dateRange?.time?.startDatetime?.precisionLevel).toBe("monday");
-		expect(parsed?.dateRange?.time?.endDatetime?.precisionLevel).toBe("wednesday");
+		expect(parsed?.dateRange?.time?.startDatetime?.precisionLevel).toBe(
+			"monday",
+		);
+		expect(parsed?.dateRange?.time?.endDatetime?.precisionLevel).toBe(
+			"wednesday",
+		);
 	});
 });

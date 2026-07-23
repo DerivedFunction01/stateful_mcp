@@ -6,7 +6,10 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
-import { QuantityHelper, QuantityTokenizer } from "../helpers/measurement-helper";
+import {
+	QuantityHelper,
+	QuantityTokenizer,
+} from "../helpers/measurement-helper";
 import { VitalsHelper, VitalsTokenizer } from "../helpers/vitals-helper";
 import {
 	CANONICAL_TAGS,

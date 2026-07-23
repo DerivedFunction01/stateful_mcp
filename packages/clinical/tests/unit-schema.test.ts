@@ -1,17 +1,28 @@
 import { describe, expect, test } from "bun:test";
+import {
+	MeasurementHelper,
+	QuantityTokenizer,
+	TimeHelper,
+} from "../src/parser/helpers/measurement-helper";
 import type {
 	MassMeasurement,
 	TemperatureMeasurement,
-	PressureMeasurement,
 } from "../src/schemas/measurement";
-import { MeasurementHelper, QuantityTokenizer, TimeHelper } from "../src/parser/helpers/measurement-helper";
 import { DEFAULT_ATTRIBUTE_RULES } from "../src/store/defaults";
 import type { AttributeParserRule } from "../src/store/interfaces";
 
 describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 	test("should parse MassMeasurement correctly using parseAs", () => {
-		const token = QuantityTokenizer.tokenize("50 milligram", [], DEFAULT_ATTRIBUTE_RULES);
-		const parsed = MeasurementHelper.parseAs<MassMeasurement>(token!, "mass", DEFAULT_ATTRIBUTE_RULES);
+		const token = QuantityTokenizer.tokenize(
+			"50 milligram",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
+		const parsed = MeasurementHelper.parseAs<MassMeasurement>(
+			token!,
+			"mass",
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		expect(parsed).not.toBeNull();
 		expect(parsed!.unitAnchor).toBe("mass");
 		expect(parsed!.magnitude).toBe(50);
@@ -19,8 +30,16 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 	});
 
 	test("should parse TemperatureMeasurement correctly using parseAs", () => {
-		const token = QuantityTokenizer.tokenize("37.5 Celsius", [], DEFAULT_ATTRIBUTE_RULES);
-		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(token!, "temperature", DEFAULT_ATTRIBUTE_RULES);
+		const token = QuantityTokenizer.tokenize(
+			"37.5 Celsius",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
+		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(
+			token!,
+			"temperature",
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		expect(parsed).not.toBeNull();
 		expect(parsed!.unitAnchor).toBe("temperature");
 		expect(parsed!.magnitude).toBe(37.5);
@@ -29,8 +48,16 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 
 	test("should return null when parsing mismatching unit anchor", () => {
 		// 120 mmHg is pressure, not temperature
-		const token = QuantityTokenizer.tokenize("120 mmHg", [], DEFAULT_ATTRIBUTE_RULES);
-		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(token!, "temperature", DEFAULT_ATTRIBUTE_RULES);
+		const token = QuantityTokenizer.tokenize(
+			"120 mmHg",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
+		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(
+			token!,
+			"temperature",
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		expect(parsed).toBeNull();
 	});
 
@@ -39,14 +66,14 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 		const mass: MassMeasurement = {
 			magnitude: 10,
 			unitAnchor: "mass",
-			unit: { display: "kg" }
+			unit: { display: "kg" },
 		};
 		expect(mass.unit!.display).toBe("kg");
 
 		const temp: TemperatureMeasurement = {
 			magnitude: 37,
 			unitAnchor: "temperature",
-			unit: { display: "Celsius" }
+			unit: { display: "Celsius" },
 		};
 		expect(temp.unit!.display).toBe("Celsius");
 	});
@@ -99,13 +126,21 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 
 	test("should use negative lookahead to prevent time unit durations from matching relative offset indicators", () => {
 		// "3 weeks" should match the time_unit "week"
-		const token1 = QuantityTokenizer.tokenize("3 weeks", [], DEFAULT_ATTRIBUTE_RULES);
+		const token1 = QuantityTokenizer.tokenize(
+			"3 weeks",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		const parsed1 = TimeHelper.parse(token1!, DEFAULT_ATTRIBUTE_RULES);
 		expect(parsed1).not.toBeNull();
 		expect(parsed1!.unit).toBe("week");
 
 		// "3 weeks ago" contains "weeks" but has "ago", so it should NOT match the base time_unit rule
-		const token2 = QuantityTokenizer.tokenize("3 weeks ago", [], DEFAULT_ATTRIBUTE_RULES);
+		const token2 = QuantityTokenizer.tokenize(
+			"3 weeks ago",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		const parsed2 = TimeHelper.parse(token2!, DEFAULT_ATTRIBUTE_RULES);
 		expect(parsed2).toBeNull();
 	});
