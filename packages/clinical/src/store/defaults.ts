@@ -127,7 +127,7 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 	},
 	{
 		targetField: "unit",
-		targetValue: "Cel",
+		targetValue: "Celsius",
 		regexPatterns: ["Centigrade", "Celsius", "Cel", "C"],
 		isCaseInsensitive: true,
 		unitAnchor: "temperature",
@@ -371,7 +371,7 @@ export const SEED_CONCEPT_DEFAULTS: ParserConceptDefault[] = [
 			"temp(?:erature)?\\s+is\\s+(?<value>\\d+(?:\\.\\d+)?)\\s*(?<unit>[a-zA-Z%]*)",
 		],
 		defaultProperties: {
-			unit: "Cel",
+			unit: "Celsius",
 			captureGroupMapping: ["value", "unit"],
 		},
 	},
@@ -392,3 +392,239 @@ export const SEED_CONCEPT_DEFAULTS: ParserConceptDefault[] = [
 		},
 	},
 ];
+
+import type {
+	MassUnit,
+	VolumeUnit,
+	LengthUnit,
+	TemperatureUnit,
+	PressureUnit,
+	CountUnit,
+	ScoreUnit,
+	MassConcentrationUnit,
+	SubstanceConcentrationUnit,
+	EnergyUnit,
+	ForceUnit,
+	OsmolalityUnit,
+	OsmolarityUnit,
+	CatalyticActivityUnit,
+	FractionUnit,
+	ElectricPotentialUnit,
+	ElectricCurrentUnit,
+	PowerUnit,
+	VelocityUnit,
+	AccelerationUnit,
+} from "../schemas/measurement";
+
+export type AllowedUnit =
+	| MassUnit
+	| VolumeUnit
+	| LengthUnit
+	| TemperatureUnit
+	| PressureUnit
+	| CountUnit
+	| ScoreUnit
+	| MassConcentrationUnit
+	| SubstanceConcentrationUnit
+	| EnergyUnit
+	| ForceUnit
+	| OsmolalityUnit
+	| OsmolarityUnit
+	| CatalyticActivityUnit
+	| FractionUnit
+	| ElectricPotentialUnit
+	| ElectricCurrentUnit
+	| PowerUnit
+	| VelocityUnit
+	| AccelerationUnit;
+
+export const UNIT_DISPLAY_MAP: Record<AllowedUnit, string> = {
+	// Mass
+	kg: "kg",
+	g: "g",
+	mg: "mg",
+	mcg: "mcg",
+	ug: "mcg",
+	ng: "ng",
+	pg: "pg",
+	lb: "lb",
+	oz: "oz",
+	t: "t",
+	ton: "ton",
+
+	// Volume
+	l: "L",
+	L: "L",
+	dL: "dL",
+	dl: "dL",
+	ml: "mL",
+	mL: "mL",
+	ul: "uL",
+	uL: "uL",
+	fl_oz: "fl oz",
+	tsp: "tsp",
+	tbsp: "tbsp",
+	qt: "qt",
+	pt: "pt",
+	gal: "gal",
+	cc: "cc",
+	cup: "cup",
+	pint: "pint",
+	quart: "quart",
+	gallon: "gallon",
+
+	// Length
+	km: "km",
+	m: "m",
+	cm: "cm",
+	mm: "mm",
+	um: "um",
+	nm: "nm",
+	in: "in",
+	ft: "ft",
+	"[in_i]": "in",
+	"[ft_i]": "ft",
+	yd: "yd",
+	mi: "mi",
+
+	// Temperature
+	Celsius: "Celsius",
+	Fahrenheit: "Fahrenheit",
+	Kelvin: "Kelvin",
+
+	// Pressure
+	mmHg: "mmHg",
+	bar: "bar",
+	atm: "atm",
+	Pa: "Pa",
+	kPa: "kPa",
+	psi: "psi",
+
+	// Count
+	"1": "1",
+	count: "count",
+	cells: "cells",
+	elements: "elements",
+	copies: "copies",
+	IU: "IU",
+	U: "U",
+	"IU/mL": "IU/mL",
+	"U/mL": "U/mL",
+	tablet: "tablet",
+	capsule: "capsule",
+	puff: "puff",
+	spray: "spray",
+	drop: "drop",
+	dose: "dose",
+	pill: "pill",
+	vial: "vial",
+	patch: "patch",
+	caplet: "caplet",
+	sachet: "sachet",
+	"/min": "/min",
+
+	// Score
+	"%": "%",
+	percent: "%",
+	score: "score",
+	points: "points",
+	ratio: "ratio",
+
+	// Mass Concentration permutations
+	"g/l": "g/L",
+	"g/L": "g/L",
+	"g/dL": "g/dL",
+	"g/ml": "g/mL",
+	"g/mL": "g/mL",
+	"g/ul": "g/uL",
+	"g/uL": "g/uL",
+	"mg/l": "mg/L",
+	"mg/L": "mg/L",
+	"mg/dL": "mg/dL",
+	"mg/ml": "mg/mL",
+	"mg/mL": "mg/mL",
+	"mg/ul": "mg/uL",
+	"mg/uL": "mg/uL",
+	"mcg/l": "mcg/L",
+	"mcg/L": "mcg/L",
+	"mcg/dL": "mcg/dL",
+	"mcg/ml": "mcg/mL",
+	"mcg/mL": "mcg/mL",
+	"mcg/ul": "mcg/uL",
+	"mcg/uL": "mcg/uL",
+	"ug/l": "ug/L",
+	"ug/L": "ug/L",
+	"ug/dL": "ug/dL",
+	"ug/ml": "ug/mL",
+	"ug/mL": "ug/mL",
+	"ug/ul": "ug/uL",
+	"ug/uL": "ug/uL",
+	"ng/l": "ng/L",
+	"ng/L": "ng/L",
+	"ng/dL": "ng/dL",
+	"ng/ml": "ng/mL",
+	"ng/mL": "ng/mL",
+	"ng/ul": "ng/uL",
+	"ng/uL": "ng/uL",
+	"pg/l": "pg/L",
+	"pg/L": "pg/L",
+	"pg/dL": "pg/dL",
+	"pg/ml": "pg/mL",
+	"pg/mL": "pg/mL",
+	"pg/ul": "pg/uL",
+	"pg/uL": "pg/uL",
+
+	// Substance Concentration
+	"mol/L": "mol/L",
+	"mmol/L": "mmol/L",
+	"umol/L": "umol/L",
+	"nmol/L": "nmol/L",
+	"mEq/L": "mEq/L",
+
+	// Energy
+	cal: "cal",
+	kcal: "kcal",
+	J: "J",
+	kJ: "kJ",
+	kWh: "kWh",
+
+	// Force
+	N: "N",
+	kN: "kN",
+	mN: "mN",
+	kgf: "kgf",
+	lbf: "lbf",
+
+	// Osmolality / Osmolarity
+	"Osm/kg": "Osm/kg",
+	"mOsm/kg": "mOsm/kg",
+	"Osm/L": "Osm/L",
+	"mOsm/L": "mOsm/L",
+
+	// Catalytic Activity
+	kat: "kat",
+	mkat: "mkat",
+	ukat: "ukat",
+	nkat: "nkat",
+
+	// Fraction
+	fraction: "fraction",
+
+	// Electric Potential, Current, Power
+	V: "V",
+	mV: "mV",
+	uV: "uV",
+	A: "A",
+	mA: "mA",
+	uA: "uA",
+	W: "W",
+	mW: "mW",
+	kW: "kW",
+
+	// Velocity / Acceleration
+	"m/s": "m/s",
+	"cm/s": "cm/s",
+	"km/h": "km/h",
+	mph: "mph",
+	"m/s2": "m/s²",
+};

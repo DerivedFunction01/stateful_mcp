@@ -209,6 +209,6 @@ describe("CdslParser Ensemble NER tests", () => {
 		const vitalsResult = results[0] as ParsedVitalsItem;
 		expect(vitalsResult.targetSchema).toBe("VitalsMeasurementEvent");
 		expect(vitalsResult.value).toBe(38.5);
-		expect(vitalsResult.unit).toBe("Cel");
+		expect(vitalsResult.unit).toBe("Celsius");
 	});
 });

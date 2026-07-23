@@ -3,6 +3,7 @@ import type {
 	MeasurementUnitAnchor,
 	SingleMeasurement,
 } from "../../schemas/measurement";
+import { isBoundedMeasurement } from "../../schemas/measurement";
 import type { CodeableConcept } from "../../schemas/shared";
 import type {
 	TemporalBoundary,
@@ -225,6 +226,19 @@ export class MeasurementHelper {
 			return { ...base, unitAnchor: resolved.unitAnchor } as BoundedMeasurement;
 		}
 		return base;
+	}
+
+	static parseAs<T extends BoundedMeasurement>(
+		text: string,
+		anchor: T["unitAnchor"],
+		attributeRules?: AttributeParserRule[],
+	): T | null {
+		const parsed = MeasurementHelper.parse(text, undefined, attributeRules);
+		if (!parsed) return null;
+		if (isBoundedMeasurement(parsed) && parsed.unitAnchor === anchor) {
+			return parsed as unknown as T;
+		}
+		return null;
 	}
 }
 
