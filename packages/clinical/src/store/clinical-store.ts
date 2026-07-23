@@ -15,6 +15,7 @@ import type {
 	Personnel,
 	SignedSoapNoteRecord,
 	SignedSoapNoteStore,
+	StopWordContext,
 	StopWordProfile,
 	StopWordStore,
 } from "./interfaces";
@@ -271,5 +272,24 @@ export class ClinicalStopWordStore implements StopWordStore {
 		const profile = await this.getProfile(personnelId);
 		if (!profile) return new Set<string>();
 		return new Set<string>(profile.customWords);
+	}
+
+	async compileStopWordsForContext(
+		context: StopWordContext,
+	): Promise<Set<string>> {
+		const profile = await this.getProfile(context.personnelId);
+		if (!profile) return new Set<string>();
+
+		const words = new Set<string>();
+
+		// Union all custom words from the profile
+		for (const w of profile.customWords) {
+			words.add(w.toLowerCase().trim());
+		}
+
+		// Future: locale-specific word lists from localeFiles matching context.locale
+		// Future: specialty-specific word lists from specialtyFiles matching context.specialtyId
+
+		return words;
 	}
 }

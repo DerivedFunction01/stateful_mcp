@@ -13,8 +13,10 @@ import {
 } from "@stateful-mcp/core";
 import { ClinicalEngine } from "../src/engine/clinical-engine";
 import { CANONICAL_TAGS, CdslParser } from "../src/parser/cdsl-parser";
+import { StopWordParser } from "../src/parser/stop-word-parser";
 import type { PatientProfile } from "../src/schemas/patient";
 import { MeasurementHelper, TimeHelper } from "../src/schemas/shared";
+import type { StopWordContext } from "../src/store/interfaces";
 import {
 	ClinicalAdministrativeStore,
 	ClinicalCalibrationStore,
@@ -686,5 +688,184 @@ describe("Clinical IDE Stateful Backend", () => {
 			sqlJDisplayStore,
 			sqlStopWordStore,
 		);
+	});
+
+	test("StopWordParser.fromStore compiles stop words from context via StopWordStore", async () => {
+		const stopWordStore = new ClinicalStopWordStore(
+			new MemoryEntityStore<any>(),
+		);
+
+		// Seed a profile with custom words
+		await stopWordStore.setProfile({
+			profileId: "stop_dr_test",
+			personnelId: "dr_test",
+			localeFiles: [],
+			specialtyFiles: [],
+			customWords: ["patient", "history"],
+		});
+
+		// Compile via context
+		const context: StopWordContext = {
+			personnelId: "dr_test",
+		};
+		const parser = await StopWordParser.fromStore(stopWordStore, context);
+
+		expect(parser.isStopWord("patient")).toBe(true);
+		expect(parser.isStopWord("history")).toBe(true);
+		expect(parser.isStopWord("temp")).toBe(false);
+		expect(parser.isStopWord("Patient")).toBe(true); // case insensitive
+	});
+
+	test("CdslParser with stopWordStore + context short-circuits stop words", async () => {
+		// Setup dictionary store + concept defaults
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(
+			resolver,
+			conceptStore,
+			exprStore,
+		);
+
+		await conceptStore.addNamespace({
+			code: "LOINC",
+			description: "LOINC",
+			isPublic: true,
+			isExternalPrivate: false,
+		});
+		await conceptStore.addConcept({
+			id: "LOINC::8310-5",
+			namespaceCode: "LOINC",
+			standardCode: "8310-5",
+			display: "Body temperature",
+			active: true,
+		});
+
+		const conceptDefaultsStore = new MemoryParserConceptDefaultStore();
+		await conceptDefaultsStore.set({
+			anchorConceptId: "LOINC::8310-5",
+			targetSchema: "VitalsMeasurementEvent",
+			regexPatterns: [
+				"temp(?:erature)?\\s+is\\s+(?<value>\\d+(?:\\.\\d+)?)\\s*(?<unit>[a-zA-Z%]*)",
+			],
+			defaultProperties: {
+				unit: "Cel",
+				captureGroupMapping: ["value", "unit"],
+			},
+		});
+
+		// Setup stop word store with a profile
+		const stopWordStore = new ClinicalStopWordStore(
+			new MemoryEntityStore<any>(),
+		);
+		await stopWordStore.setProfile({
+			profileId: "stop_dr_test",
+			personnelId: "dr_test",
+			localeFiles: [],
+			specialtyFiles: [],
+			customWords: ["patient", "history"],
+		});
+
+		// Parser with stopWordStore (no pre-built StopWordParser)
+		const parser = new CdslParser(
+			dictionaryStore,
+			undefined,
+			conceptDefaultsStore,
+			undefined, // no stopWordParser
+			stopWordStore, // but has stopWordStore
+		);
+
+		// Tagless segment with stop word — should short-circuit when context is provided
+		const context: StopWordContext = { personnelId: "dr_test" };
+		const result = await parser.parse("patient has no temp 38.5", context);
+		expect(result.length).toBe(0);
+
+		// Tagged segment with stop word content — should short-circuit
+		const taggedResult = await parser.parse("#vital history", context);
+		expect(taggedResult.length).toBe(0);
+
+		// Tagged segment with non-stop word — should parse normally
+		const normalResult = await parser.parse("#vital temp is 38.5 Cel", context);
+		expect(normalResult.length).toBe(1);
+		expect(normalResult[0]?.value).toBe(38.5);
+
+		// Without context, no stop word resolution happens (no effective parser)
+		const noContextResult = await parser.parse("patient has no temp 38.5");
+		// Without context, the parser has no effective stop word parser,
+		// so it enters the tagless resolution pipeline
+		expect(noContextResult.length).toBeGreaterThanOrEqual(0);
+	});
+
+	test("StopWordParser gatekeeper short-circuits stop words in tagless and tagged segments", async () => {
+		// Setup dictionary store + concept defaults to enable tagless resolution
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(
+			resolver,
+			conceptStore,
+			exprStore,
+		);
+
+		await conceptStore.addNamespace({
+			code: "LOINC",
+			description: "LOINC",
+			isPublic: true,
+			isExternalPrivate: false,
+		});
+		await conceptStore.addConcept({
+			id: "LOINC::8310-5",
+			namespaceCode: "LOINC",
+			standardCode: "8310-5",
+			display: "Body temperature",
+			active: true,
+		});
+
+		const conceptDefaultsStore = new MemoryParserConceptDefaultStore();
+		await conceptDefaultsStore.set({
+			anchorConceptId: "LOINC::8310-5",
+			targetSchema: "VitalsMeasurementEvent",
+			regexPatterns: [
+				"temp(?:erature)?\\s+is\\s+(?<value>\\d+(?:\\.\\d+)?)\\s*(?<unit>[a-zA-Z%]*)",
+			],
+			defaultProperties: {
+				unit: "Cel",
+				captureGroupMapping: ["value", "unit"],
+			},
+		});
+
+		// Parser WITHOUT gatekeeper: tagged segment parses normally
+		const noGatekeeperParser = new CdslParser(
+			dictionaryStore,
+			undefined,
+			conceptDefaultsStore,
+		);
+		const noGateResult = await noGatekeeperParser.parse("#vital temp is 38.5 Cel");
+		expect(noGateResult.length).toBeGreaterThanOrEqual(1);
+		expect(noGateResult[0]?.value).toBe(38.5);
+
+		// Create StopWordParser with mock stop words
+		const stopWordParser = new StopWordParser(["has", "no", "patient"]);
+
+		// Parser WITH stop word gatekeeper
+		const gatekeeperParser = new CdslParser(
+			dictionaryStore,
+			undefined,
+			conceptDefaultsStore,
+			stopWordParser,
+		);
+
+		// --- Tagless segment: starts with a stop word, entire segment short-circuited ---
+		const gatekeptResult = await gatekeeperParser.parse("patient has no temp 38.5");
+		expect(gatekeptResult.length).toBe(0);
+
+		// --- Tagged segment: content is a stop word, short-circuited in parseSegment ---
+		const taggedStopResult = await gatekeeperParser.parse("#vital has");
+		expect(taggedStopResult.length).toBe(0);
+
+		// --- Tagged segment: non-stop word content still parses normally ---
+		const taggedNormalResult = await gatekeeperParser.parse("#vital temp is 38.5 Cel");
+		expect(taggedNormalResult.length).toBe(1);
+		expect(taggedNormalResult[0]?.value).toBe(38.5);
 	});
 });

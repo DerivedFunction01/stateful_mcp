@@ -15,6 +15,7 @@ import type {
 	Personnel,
 	SignedSoapNoteRecord,
 	SignedSoapNoteStore,
+	StopWordContext,
 	StopWordProfile,
 	StopWordStore,
 } from "./interfaces";
@@ -224,6 +225,19 @@ export class MemoryStopWordStore implements StopWordStore {
 		if (!profile) return new Set<string>();
 		// Since flat files aren't physically loaded here, we union custom words and return
 		return new Set<string>(profile.customWords);
+	}
+
+	async compileStopWordsForContext(
+		context: StopWordContext,
+	): Promise<Set<string>> {
+		const profile = await this.getProfile(context.personnelId);
+		if (!profile) return new Set<string>();
+
+		const words = new Set<string>();
+		for (const w of profile.customWords) {
+			words.add(w.toLowerCase().trim());
+		}
+		return words;
 	}
 }
 

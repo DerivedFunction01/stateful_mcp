@@ -2,7 +2,10 @@ import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
 	ParserConceptDefaultStore,
 	ParserSyntaxProfile,
+	StopWordContext,
+	StopWordStore,
 } from "../store/interfaces";
+import { StopWordParser } from "./stop-word-parser";
 import {
 	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
 	type ParsedItem as IMP_ParsedItem,
@@ -13,6 +16,9 @@ export const CANONICAL_TAGS = IMP_CANONICAL_TAGS;
 export type ParsedItem = IMP_ParsedItem;
 
 export class CdslParser {
+	private stopWordParser: StopWordParser | undefined;
+	private stopWordStore: StopWordStore | undefined;
+
 	constructor(
 		private dictionaryStore: DictionaryStore,
 		private profile: ParserSyntaxProfile = {
@@ -28,12 +34,36 @@ export class CdslParser {
 			isDefault: true,
 		},
 		private conceptDefaultsStore?: ParserConceptDefaultStore,
-	) {}
+		stopWordParser?: StopWordParser,
+		stopWordStore?: StopWordStore,
+	) {
+		this.stopWordParser = stopWordParser;
+		this.stopWordStore = stopWordStore;
+	}
 
 	/**
 	 * Parses a clinical dictation stream and extracts mapped schemas.
 	 */
-	async parse(text: string): Promise<ParsedItem[]> {
+	async parse(
+		text: string,
+		context?: StopWordContext,
+	): Promise<ParsedItem[]> {
+		// Resolve effective StopWordParser from store + context if not already set
+		const effectiveStopWordParser = this.stopWordParser;
+		if (!effectiveStopWordParser && this.stopWordStore && context) {
+			const dynamicParser = await StopWordParser.fromStore(
+				this.stopWordStore,
+				context,
+			);
+			return this.parseWithStopWordParser(text, dynamicParser);
+		}
+		return this.parseWithStopWordParser(text, effectiveStopWordParser);
+	}
+
+	private async parseWithStopWordParser(
+		text: string,
+		effectiveStopWordParser: StopWordParser | undefined,
+	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
 		const segments = text.split(this.profile.stateDelimiter);
 
@@ -49,7 +79,7 @@ export class CdslParser {
 				const content =
 					tagEndIndex === -1 ? "" : trimmed.substring(tagEndIndex).trim();
 				if (tag && content) {
-					const parsed = await this.parseSegment(tag, content);
+					const parsed = await this.parseSegment(tag, content, effectiveStopWordParser);
 					if (parsed) {
 						items.push(parsed);
 					}
@@ -59,6 +89,10 @@ export class CdslParser {
 				const firstSpace = trimmed.indexOf(" ");
 				const firstWord =
 					firstSpace === -1 ? trimmed : trimmed.substring(0, firstSpace);
+
+				if (effectiveStopWordParser?.isStopWord(firstWord)) {
+					continue;
+				}
 
 				// Determine namespaces to search from profile config or fallback to defaults
 				let namespacesToSearch = ["LOINC", "SNOMED", "RxNorm"];
@@ -135,6 +169,7 @@ export class CdslParser {
 					const parsed = await this.parseSegment(
 						this.profile.tagToken + targetSchema.toLowerCase(),
 						trimmed,
+						effectiveStopWordParser,
 					);
 					if (parsed) {
 						items.push(parsed);
@@ -149,7 +184,11 @@ export class CdslParser {
 	private async parseSegment(
 		tag: string,
 		content: string,
+		effectiveStopWordParser?: StopWordParser,
 	): Promise<ParsedItem | null> {
+		if (effectiveStopWordParser?.isStopWord(content)) {
+			return null;
+		}
 		// Strip the tag token (e.g. '#' or '$') to find the tag key
 		const tagToken = this.profile.tagToken;
 		let cleanKey = tag.startsWith(tagToken)

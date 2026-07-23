@@ -163,6 +163,13 @@ export interface JurisdictionalDisplayStore {
 	setJurisdictionalDisplay(display: JurisdictionalDisplay): Promise<void>;
 }
 
+export interface StopWordContext {
+	personnelId: string;
+	locale?: string;
+	specialtyId?: string;
+	facilityId?: string;
+}
+
 export interface StopWordProfile {
 	profileId: string;
 	personnelId: string;
@@ -175,4 +182,7 @@ export interface StopWordStore {
 	getProfile(personnelId: string): Promise<StopWordProfile | null>;
 	setProfile(profile: StopWordProfile): Promise<void>;
 	compileStopWords(personnelId: string): Promise<Set<string>>;
+	compileStopWordsForContext(
+		context: StopWordContext,
+	): Promise<Set<string>>;
 }

@@ -6,6 +6,8 @@ import type {
 	CalibrationStore,
 	SignedSoapNoteRecord,
 	SignedSoapNoteStore,
+	StopWordContext,
+	StopWordStore,
 } from "../store/interfaces";
 
 export class ClinicalEngine {
@@ -16,8 +18,15 @@ export class ClinicalEngine {
 		dictionaryStore: DictionaryStore,
 		private signedNoteStore: SignedSoapNoteStore,
 		private calibrationStore?: CalibrationStore,
+		stopWordStore?: StopWordStore,
 	) {
-		this.parser = new CdslParser(dictionaryStore);
+		this.parser = new CdslParser(
+			dictionaryStore,
+			undefined,
+			undefined,
+			undefined,
+			stopWordStore,
+		);
 	}
 
 	/**
@@ -26,6 +35,7 @@ export class ClinicalEngine {
 	async initEncounter(
 		sessionId: string,
 		patient: PatientProfile,
+		context?: StopWordContext,
 	): Promise<string> {
 		// Define the base SOAP note schema rules
 		const schema = {
