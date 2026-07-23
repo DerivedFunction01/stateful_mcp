@@ -1,5 +1,6 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { MedicationFrequency } from "../../schemas/medication";
+import { resolveSchemaDefault } from "../../store/default-strategy";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_EVALUATOR_RULES,
@@ -81,9 +82,33 @@ export class MedicationSchemaParser implements SchemaParser {
 			);
 		}
 
-		route = conceptDefaults?.defaultProperties.route || route;
-		frequency = conceptDefaults?.defaultProperties.frequency || frequency;
-		duration = conceptDefaults?.defaultProperties.duration || duration;
+		route =
+			conceptDefaults?.defaultProperties.route ||
+			resolveSchemaDefault<string>(
+				this.targetSchema,
+				"route",
+				preparsedContext?.profile,
+				{ rawText: content, parsedPartial: { route } },
+			) ||
+			route;
+		frequency =
+			conceptDefaults?.defaultProperties.frequency ||
+			resolveSchemaDefault<MedicationFrequency>(
+				this.targetSchema,
+				"frequency",
+				preparsedContext?.profile,
+				{ rawText: content, parsedPartial: { frequency } },
+			) ||
+			frequency;
+		duration =
+			conceptDefaults?.defaultProperties.duration ||
+			resolveSchemaDefault<string>(
+				this.targetSchema,
+				"duration",
+				preparsedContext?.profile,
+				{ rawText: content, parsedPartial: { duration } },
+			) ||
+			duration;
 
 		const possibleDurations = content.match(/(\d+(?:\.\d+)?\s*\S+)/g);
 		if (possibleDurations) {

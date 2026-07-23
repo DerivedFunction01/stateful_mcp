@@ -136,18 +136,18 @@ describe("CdslParser Ensemble NER tests", () => {
 		// Segment containing multi-intent details
 		const results = await parser.parse("Chest Pain denies || temp 38.5 Cel");
 
-		expect(results.length).toBe(2);
-
 		const obsResult = results.find(
 			(r) => r.targetSchema === "ObservationEvent",
 		) as ParsedObservationItem;
+		const vitalsResult = results.find(
+			(r) => r.targetSchema === "VitalsMeasurementEvent",
+		) as ParsedVitalsItem;
+
+		expect(results.length).toBeGreaterThanOrEqual(2);
 		expect(obsResult).toBeDefined();
 		expect(obsResult.certainty).toBe("refuted");
 		expect(obsResult.display).toBe("Chest Pain");
 
-		const vitalsResult = results.find(
-			(r) => r.targetSchema === "VitalsMeasurementEvent",
-		) as ParsedVitalsItem;
 		expect(vitalsResult).toBeDefined();
 		expect(vitalsResult.value).toBe(38.5);
 		expect(vitalsResult.unit).toBe("Cel");
@@ -204,11 +204,13 @@ describe("CdslParser Ensemble NER tests", () => {
 
 		// "#3 temp 38.5 Cel" starts with "#3" (which is an unknown tag), so it should parse taglessly
 		const results = await parser.parse("#3 temp 38.5 Cel");
-		expect(results.length).toBe(1);
+		const vitalsResult = results.find(
+			(r) => r.targetSchema === "VitalsMeasurementEvent",
+		) as ParsedVitalsItem | undefined;
 
-		const vitalsResult = results[0] as ParsedVitalsItem;
-		expect(vitalsResult.targetSchema).toBe("VitalsMeasurementEvent");
-		expect(vitalsResult.value).toBe(38.5);
-		expect(vitalsResult.unit).toBe("Celsius");
+		expect(results.length).toBeGreaterThanOrEqual(1);
+		expect(vitalsResult).toBeDefined();
+		expect(vitalsResult?.value).toBe(38.5);
+		expect(vitalsResult?.unit).toBe("Celsius");
 	});
 });

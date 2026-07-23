@@ -3,6 +3,7 @@ import type {
 	AttributeParserRule,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
+	ParserSyntaxProfile,
 } from "../store/interfaces";
 import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
 import { MedicationSchemaParser } from "./parsers/medication-parser";
@@ -58,6 +59,8 @@ export interface PreparsedContext {
 	timeSpan?: TimeMeasurement | null;
 	frequency?: MedicationFrequency | null;
 	attributes?: Record<string, string>;
+	parsedPartial?: Record<string, any>;
+	profile?: Pick<ParserSyntaxProfile, "schemaDefaults" | "defaultsStrategy">;
 }
 
 export interface ScoredParseResult {

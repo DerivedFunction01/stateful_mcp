@@ -153,17 +153,29 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 	});
 
 	test("should tokenize quantities with position-independent operators and units", () => {
-		const approxPrefix = QuantityTokenizer.tokenize("approx 30 mm", [], DEFAULT_ATTRIBUTE_RULES);
+		const approxPrefix = QuantityTokenizer.tokenize(
+			"approx 30 mm",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		expect(approxPrefix?.magnitude).toBe(30);
 		expect(approxPrefix?.isApproximate).toBe(true);
 		expect(approxPrefix?.rawUnit).toBe("mm");
 
-		const approxSuffix = QuantityTokenizer.tokenize("30 mm approximately", [], DEFAULT_ATTRIBUTE_RULES);
+		const approxSuffix = QuantityTokenizer.tokenize(
+			"30 mm approximately",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		expect(approxSuffix?.magnitude).toBe(30);
 		expect(approxSuffix?.isApproximate).toBe(true);
 		expect(approxSuffix?.rawUnit).toBe("mm");
 
-		const approxJapanese = QuantityTokenizer.tokenize("30 mm 程度", [], DEFAULT_ATTRIBUTE_RULES);
+		const approxJapanese = QuantityTokenizer.tokenize(
+			"30 mm 程度",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		expect(approxJapanese?.magnitude).toBe(30);
 		expect(approxJapanese?.isApproximate).toBe(true);
 		expect(approxJapanese?.rawUnit).toBe("mm");
@@ -173,7 +185,11 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 		expect(rtl?.operator).toBe("lt");
 		expect(rtl?.rawUnit).toBeUndefined();
 
-		const chinese = QuantityTokenizer.tokenize("大约30毫米", [], DEFAULT_ATTRIBUTE_RULES);
+		const chinese = QuantityTokenizer.tokenize(
+			"大约30毫米",
+			[],
+			DEFAULT_ATTRIBUTE_RULES,
+		);
 		expect(chinese?.magnitude).toBe(30);
 		expect(chinese?.isApproximate).toBe(true);
 		expect(chinese?.rawUnit).toBe("毫米");

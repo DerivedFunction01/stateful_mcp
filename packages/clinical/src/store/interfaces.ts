@@ -44,6 +44,8 @@ export interface ParserSyntaxProfile {
 	isActive?: boolean;
 	schemaNamespaces?: Record<string, string[]>; // Maps schema keys or names to prioritized/allowed namespaces
 	stopWordThreshold?: number; // Ratio (0.0–1.0) of stop words above which a tagless segment is treated as conversational narrative and skipped. Default: 0.6
+	schemaDefaults?: Record<string, Record<string, any>>;
+	defaultsStrategy?: string;
 }
 
 export interface ParserDictionaryRule {

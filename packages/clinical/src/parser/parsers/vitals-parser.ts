@@ -1,4 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import { resolveSchemaDefault } from "../../store/default-strategy";
 import { DEFAULT_EVALUATOR_RULES } from "../../store/defaults";
 import type {
 	AttributeParserRule,
@@ -118,19 +119,28 @@ export class VitalsSchemaParser implements SchemaParser {
 		}
 
 		const defaultUnit = conceptDefaults?.defaultProperties.unit || "";
+		const fallbackUnit =
+			resolveSchemaDefault<string>(
+				this.targetSchema,
+				"unit",
+				preparsedContext?.profile,
+				{ rawText: content, parsedPartial: { unit: unitText || defaultUnit } },
+			) ||
+			unitText ||
+			defaultUnit;
 		const parsedVal = Number.isNaN(Number(valueText))
 			? valueText
 			: Number(valueText);
 
-		const finalUnit = unitText || defaultUnit;
+		const finalUnit = fallbackUnit;
 		let unitAnchor: string | undefined;
 		if (finalUnit) {
-			const resolvedUnit = QuantityTokenizer.resolveUnit(
+			const unitResolution = QuantityTokenizer.resolveUnit(
 				finalUnit,
 				attributeRules,
 			);
-			if (resolvedUnit && QuantityHelper.isPhysicalResolved(resolvedUnit)) {
-				unitAnchor = resolvedUnit.unitAnchor;
+			if (unitResolution && QuantityHelper.isPhysicalResolved(unitResolution)) {
+				unitAnchor = unitResolution.unitAnchor;
 			}
 		}
 

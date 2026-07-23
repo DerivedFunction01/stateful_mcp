@@ -1,4 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import { resolveSchemaDefault } from "../../store/default-strategy";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_EVALUATOR_RULES,
@@ -49,9 +50,30 @@ export class ObservationSchemaParser implements SchemaParser {
 		}
 		if (!token || !token.anchorText) return null;
 
-		const certainty = token.certainty || "confirmed";
-		const status = token.status || "active";
-		const severity = token.severity || "moderate";
+		const certainty = token.certainty;
+		const status = token.status;
+		const severity = token.severity;
+		const resolvedCertainty =
+			resolveSchemaDefault<string>(
+				this.targetSchema,
+				"certainty",
+				preparsedContext?.profile,
+				{ rawText: content, parsedPartial: { certainty, status, severity } },
+			) || certainty;
+		const resolvedStatus =
+			resolveSchemaDefault<string>(
+				this.targetSchema,
+				"status",
+				preparsedContext?.profile,
+				{ rawText: content, parsedPartial: { certainty, status, severity } },
+			) || status;
+		const resolvedSeverity =
+			resolveSchemaDefault<string>(
+				this.targetSchema,
+				"severity",
+				preparsedContext?.profile,
+				{ rawText: content, parsedPartial: { certainty, status, severity } },
+			) || severity;
 
 		// Resolve concept
 		const resolved = await resolveConceptHelper(
@@ -88,9 +110,9 @@ export class ObservationSchemaParser implements SchemaParser {
 			anchorText: token.anchorText,
 			conceptId,
 			display,
-			severity: defaultSeverity,
-			certainty: defaultCertainty,
-			status: defaultStatus,
+			severity: defaultSeverity || resolvedSeverity,
+			certainty: defaultCertainty || resolvedCertainty,
+			status: defaultStatus || resolvedStatus,
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:

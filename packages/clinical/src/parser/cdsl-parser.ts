@@ -162,6 +162,7 @@ export class CdslParser {
 				timeSpan,
 				frequency,
 				attributes,
+				profile: this.profile,
 			};
 
 			// Resolve tag to a schema parser

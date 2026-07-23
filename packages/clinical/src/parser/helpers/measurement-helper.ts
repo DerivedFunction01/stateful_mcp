@@ -76,8 +76,14 @@ export class QuantityTokenizer {
 		let isApproximate = false;
 		let rawUnit: string | undefined;
 
-		const strippedPrefix = this.stripOperator(prefix, operatorRules);
-		const strippedSuffix = this.stripOperator(suffix, operatorRules);
+		const strippedPrefix = QuantityTokenizer.stripOperator(
+			prefix,
+			operatorRules,
+		);
+		const strippedSuffix = QuantityTokenizer.stripOperator(
+			suffix,
+			operatorRules,
+		);
 		if (strippedPrefix.operator) {
 			operator = strippedPrefix.operator;
 		}
@@ -96,7 +102,10 @@ export class QuantityTokenizer {
 			{ text: strippedSuffix.segment, source: "suffix" },
 		]) {
 			if (!candidate.text) continue;
-			const resolvedUnit = this.resolveUnit(candidate.text, unitRules);
+			const resolvedUnit = QuantityTokenizer.resolveUnit(
+				candidate.text,
+				unitRules,
+			);
 			if (resolvedUnit) {
 				rawUnit = candidate.text.trim();
 				break;
@@ -144,7 +153,6 @@ export class QuantityTokenizer {
 			isApproximate: isApproximate || undefined,
 		};
 	}
-
 
 	static parseImplicitGroups(
 		groups: Record<string, string>,
