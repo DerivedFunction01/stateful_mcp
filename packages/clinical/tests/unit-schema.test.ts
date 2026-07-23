@@ -72,4 +72,28 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 		const parsed2 = MeasurementHelper.parse(token2!, undefined, customRules);
 		expect(parsed2?.unit?.display).not.toBe("mg");
 	});
+
+	test("should respect rule priority when matching units", () => {
+		const customRules: AttributeParserRule[] = [
+			{
+				targetField: "unit",
+				targetValue: "mg",
+				regexPatterns: ["mg"],
+				unitAnchor: "mass",
+				priority: 2,
+			},
+			{
+				targetField: "unit",
+				targetValue: "g",
+				regexPatterns: ["g"],
+				unitAnchor: "mass",
+				priority: 5, // Higher priority wins!
+			},
+		];
+		// "mg" matches both "mg" and "g". Since "g" rule has higher priority, it wins and resolves to "g".
+		const token = QuantityTokenizer.tokenize("10 mg", [], customRules);
+		const parsed = MeasurementHelper.parse(token!, undefined, customRules);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.unit?.display).toBe("g");
+	});
 });

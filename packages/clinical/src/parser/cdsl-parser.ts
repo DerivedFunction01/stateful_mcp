@@ -133,13 +133,19 @@ export class CdslParser {
 
 			// Pre-extract standard localized attributes (e.g. certainty, severity, route)
 			const attributes: Record<string, string> = {};
-			const rules = this.profile.attributeRules || [];
+			const rules = [...(this.profile.attributeRules || [])].sort((a, b) => {
+				const pA = a.priority ?? 1;
+				const pB = b.priority ?? 1;
+				return pB - pA;
+			});
 			for (const rule of rules) {
 				for (const pattern of rule.regexPatterns) {
 					const flags = rule.isCaseInsensitive !== false ? "i" : "";
 					const regex = new RegExp(pattern, flags);
 					if (regex.test(content)) {
-						attributes[rule.targetField] = rule.targetValue;
+						if (attributes[rule.targetField] === undefined) {
+							attributes[rule.targetField] = rule.targetValue;
+						}
 					}
 				}
 			}

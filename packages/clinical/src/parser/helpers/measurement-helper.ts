@@ -150,7 +150,12 @@ export class QuantityTokenizer {
 				r.targetField === "measurement_unit" ||
 				r.targetField === "time_unit",
 		);
-		for (const rule of matchingRules) {
+		const sortedRules = [...matchingRules].sort((a, b) => {
+			const pA = a.priority ?? 1;
+			const pB = b.priority ?? 1;
+			return pB - pA;
+		});
+		for (const rule of sortedRules) {
 			for (const pattern of rule.regexPatterns) {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
 				// Check blacklist patterns first
