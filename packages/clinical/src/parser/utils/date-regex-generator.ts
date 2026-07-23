@@ -23,6 +23,11 @@ export interface DateTimeFormatConfig {
 	};
 }
 
+export interface DatePatternResult {
+	pattern: string;
+	groupNames: string[];
+}
+
 function compressToRange(digits: (string | number | undefined)[]): string {
 	const validDigits = digits.filter(
 		(d): d is string | number => d !== undefined,
@@ -57,7 +62,7 @@ export function buildDatePatternString(
 	tokens: DateTimeToken[],
 	separators: string[],
 	options: DateTimeFormatConfig["options"] = {},
-): string {
+): DatePatternResult {
 	if (separators.length !== Math.max(0, tokens.length - 1)) {
 		throw new Error(
 			"The number of separators must be exactly equal to tokens.length - 1",
@@ -160,7 +165,7 @@ export function buildDatePatternString(
 	const startAnchor = exact ? "^" : "\\b";
 	const endAnchor = exact ? "$" : "\\b";
 
-	return `${startAnchor}${assembled}${endAnchor}`;
+	return { pattern: `${startAnchor}${assembled}${endAnchor}`, groupNames: Array.from(nameCounts.keys()) };
 }
 
 export function buildMonthNameMap(

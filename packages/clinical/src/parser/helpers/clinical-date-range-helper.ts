@@ -17,6 +17,7 @@ import {
 } from "../utils/date-regex-generator";
 import { FrequencyHelper } from "./frequency-helper";
 import { TimeHelper } from "./measurement-helper";
+import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
 
 export interface ClinicalDateRangeToken {
 	anchorText: string;
@@ -34,8 +35,14 @@ export interface ClinicalDateRangeToken {
 	// Exclusions
 	baseText?: string;
 	baseRepeat?: TimeInterval["repeat"];
+	baseStartCalendarDate?: Date;
+	baseEndCalendarDate?: Date;
 	exclusionText?: string;
 	exclusionRepeat?: TimeInterval["repeat"];
+	exclusionStartCalendarDate?: Date;
+	exclusionEndCalendarDate?: Date;
+	listCalendarDates?: Date[];
+	exclusionListCalendarDates?: Date[];
 }
 
 interface RepeatMatchResult {
@@ -60,6 +67,29 @@ export class ClinicalDateRangeTokenizer {
 		const token: ClinicalDateRangeToken = { anchorText: cleaned };
 		let workingText = cleaned;
 
+		const rangeMatch = ClinicalDateRangeTokenizer.parseNamedDateRange(
+			workingText,
+			attributeRules,
+		);
+		if (rangeMatch) {
+			token.startCalendarDate = rangeMatch.startDate;
+			token.endCalendarDate = rangeMatch.endDate;
+			token.calendarPrecision = rangeMatch.precision;
+			token.startText = rangeMatch.startText;
+			token.endText = rangeMatch.endText;
+			workingText = rangeMatch.remainingText;
+		}
+
+		const listMatch = ClinicalDateRangeTokenizer.parseNamedDateList(
+			workingText,
+			attributeRules,
+		);
+		if (listMatch) {
+			token.listCalendarDates = listMatch.dates;
+			token.calendarPrecision = listMatch.precision;
+			workingText = listMatch.remainingText;
+		}
+
 		// 1. Parse Exclusions first
 		const exclusion = ClinicalDateRangeTokenizer.parseExclusion(
 			workingText,
@@ -68,6 +98,41 @@ export class ClinicalDateRangeTokenizer {
 		if (exclusion) {
 			token.baseText = exclusion.baseText;
 			token.exclusionText = exclusion.exclusionText;
+			const baseCalendar = ClinicalDateRangeTokenizer.parseCalendarBoundary(
+				exclusion.baseText,
+				attributeRules,
+			);
+			if (baseCalendar) {
+				token.baseStartCalendarDate = baseCalendar.startDate;
+				token.baseEndCalendarDate = baseCalendar.endDate;
+				token.calendarPrecision = baseCalendar.precision;
+			}
+			const exclusionCalendar = ClinicalDateRangeTokenizer.parseCalendarBoundary(
+				exclusion.exclusionText,
+				attributeRules,
+			);
+			if (exclusionCalendar) {
+				token.exclusionStartCalendarDate = exclusionCalendar.startDate;
+				token.exclusionEndCalendarDate = exclusionCalendar.endDate;
+				token.calendarPrecision = exclusionCalendar.precision;
+			}
+			const exclusionRange = ClinicalDateRangeTokenizer.parseNamedDateRange(
+				exclusion.exclusionText,
+				attributeRules,
+			);
+			if (exclusionRange) {
+				token.exclusionStartCalendarDate = exclusionRange.startDate;
+				token.exclusionEndCalendarDate = exclusionRange.endDate;
+				token.calendarPrecision = exclusionRange.precision;
+			}
+			const exclusionList = ClinicalDateRangeTokenizer.parseNamedDateList(
+				exclusion.exclusionText,
+				attributeRules,
+			);
+			if (exclusionList) {
+				token.exclusionListCalendarDates = exclusionList.dates;
+				token.calendarPrecision = exclusionList.precision;
+			}
 			token.baseRepeat =
 				ClinicalDateRangeTokenizer.parseRepeat(
 					exclusion.baseText,
@@ -147,7 +212,14 @@ export class ClinicalDateRangeTokenizer {
 			token.startCalendarDate ||
 			token.endCalendarDate ||
 			token.baseRepeat ||
-			token.exclusionRepeat;
+			token.exclusionRepeat ||
+			token.baseStartCalendarDate ||
+			token.baseEndCalendarDate ||
+			token.exclusionStartCalendarDate ||
+			token.exclusionEndCalendarDate ||
+			(token.listCalendarDates && token.listCalendarDates.length > 0) ||
+			(token.exclusionListCalendarDates &&
+				token.exclusionListCalendarDates.length > 0);
 
 		return hasContent ? token : null;
 	}
@@ -231,6 +303,15 @@ export class ClinicalDateRangeTokenizer {
 		groups: Record<string, string | undefined>,
 		rule: AttributeParserRule,
 	): Date | undefined {
+		try {
+			validateNamedGroups(groups, rule.namedGroupContract);
+		} catch (e) {
+			if (e instanceof NamedGroupContractError) {
+				return undefined;
+			}
+			throw e;
+		}
+
 		let year = groups.yyyy ? Number(groups.yyyy) : undefined;
 		const yy = groups.yy ? Number(groups.yy) : undefined;
 		let month = groups.mm ? Number(groups.mm) : undefined;
@@ -503,6 +584,119 @@ export class ClinicalDateRangeTokenizer {
 		return null;
 	}
 
+	private static parseNamedDateRange(
+		text: string,
+		attributeRules: AttributeParserRule[] = [],
+	): {
+		startText: string;
+		endText: string;
+		startDate?: Date;
+		endDate?: Date;
+		precision?: TimePrecisionLevel;
+		remainingText: string;
+	} | null {
+		const rangeRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"calendar_date_range",
+			attributeRules,
+		);
+		for (const rule of rangeRules) {
+			for (const pattern of rule.regexPatterns) {
+				const regex = getCompiledRegex(pattern, "gi");
+				const match = regex.exec(text);
+				if (!match?.groups) continue;
+				try {
+					validateNamedGroups(match.groups, rule.namedGroupContract);
+				} catch (e) {
+					if (e instanceof NamedGroupContractError) continue;
+					throw e;
+				}
+				const dates = ClinicalDateRangeTokenizer.extractCalendarDatesFromText(
+					match[0],
+					attributeRules,
+				);
+				const startDate = dates[0];
+				const endDate = dates[1];
+				if (!startDate || !endDate) continue;
+				return {
+					startText: match.groups.start || dates[0]?.toISOString() || match[0],
+					endText: match.groups.end || dates[1]?.toISOString() || match[0],
+					startDate,
+					endDate,
+					precision: "day",
+					remainingText: text.replace(match[0], "").trim(),
+				};
+			}
+		}
+		return null;
+	}
+
+	private static parseNamedDateList(
+		text: string,
+		attributeRules: AttributeParserRule[] = [],
+	): {
+		dates: Date[];
+		precision?: TimePrecisionLevel;
+		remainingText: string;
+	} | null {
+		const listRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"calendar_date_list",
+			attributeRules,
+		);
+		for (const rule of listRules) {
+			for (const pattern of rule.regexPatterns) {
+				const regex = getCompiledRegex(pattern, "gi");
+				const match = regex.exec(text);
+				if (!match?.groups) continue;
+				try {
+					validateNamedGroups(match.groups, rule.namedGroupContract);
+				} catch (e) {
+					if (e instanceof NamedGroupContractError) continue;
+					throw e;
+				}
+				const listText = match.groups.dates || match.groups.list;
+				if (!listText) continue;
+				const dates =
+					ClinicalDateRangeTokenizer.extractCalendarDatesFromText(
+						listText,
+						attributeRules,
+					);
+				if (dates.length === 0) continue;
+				return {
+					dates,
+					precision: "day",
+					remainingText: text.replace(match[0], "").trim(),
+				};
+			}
+		}
+		return null;
+	}
+
+	private static extractCalendarDatesFromText(
+		text: string,
+		attributeRules: AttributeParserRule[] = [],
+	): Date[] {
+		const calendarRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"calendar_date",
+			attributeRules,
+		);
+		const dates: Date[] = [];
+		for (const rule of calendarRules) {
+			for (const pattern of rule.regexPatterns) {
+				const regex = compileDateRegex(pattern);
+				for (let match = regex.exec(text); match !== null; match = regex.exec(text)) {
+					if (!match.groups) continue;
+					const date = ClinicalDateRangeTokenizer.resolveCalendarDate(
+						match.groups,
+						rule,
+					);
+					if (date) dates.push(date);
+					if (match.index === regex.lastIndex) regex.lastIndex++;
+				}
+			}
+		}
+		return dates;
+	}
+
 	private static parseExclusion(
 		text: string,
 		attributeRules: AttributeParserRule[] = [],
@@ -625,14 +819,12 @@ export class ClinicalDateRangeHelper {
 	): ClinicalDateRange | null {
 		const base: ClinicalDateRange = {};
 
+		const toIso = (d: Date, precision: TimePrecisionLevel): TemporalBoundary => ({
+			assertedTimestampUtc: d.toISOString().replace(/\.\d+Z$/, "Z"),
+			precisionLevel: precision,
+		});
+
 		if (token.startCalendarDate || token.endCalendarDate) {
-			const toIso = (
-				d: Date,
-				precision: TimePrecisionLevel,
-			): TemporalBoundary => ({
-				assertedTimestampUtc: d.toISOString().replace(/\.\d+Z$/, "Z"),
-				precisionLevel: precision,
-			});
 			base.time = {};
 			if (token.startCalendarDate) {
 				base.time.startDatetime = toIso(
@@ -646,7 +838,6 @@ export class ClinicalDateRangeHelper {
 					token.calendarPrecision ?? "day",
 				);
 			}
-			return Object.keys(base).length > 0 ? base : null;
 		}
 
 		if (token.relativeEstimate) {
@@ -699,6 +890,38 @@ export class ClinicalDateRangeHelper {
 				},
 			];
 		}
+		if (token.baseStartCalendarDate || token.baseEndCalendarDate) {
+			base.includedDatetimes = [
+				{
+					time: {
+						...(token.baseStartCalendarDate
+							? {
+									startDatetime: toIso(
+										token.baseStartCalendarDate,
+										token.calendarPrecision ?? "day",
+									),
+								}
+							: {}),
+						...(token.baseEndCalendarDate
+							? {
+									endDatetime: toIso(
+										token.baseEndCalendarDate,
+										token.calendarPrecision ?? "day",
+									),
+								}
+							: {}),
+					},
+					description: token.baseText,
+				},
+			];
+		}
+		if (token.listCalendarDates && token.listCalendarDates.length > 0) {
+			base.includedDatetimes = token.listCalendarDates.map((date) => ({
+				time: {
+					startDatetime: toIso(date, token.calendarPrecision ?? "day"),
+				},
+			}));
+		}
 
 		if (token.exclusionRepeat) {
 			base.excludedDatetimes = [
@@ -707,6 +930,41 @@ export class ClinicalDateRangeHelper {
 					description: token.exclusionText,
 				},
 			];
+		}
+		if (token.exclusionStartCalendarDate || token.exclusionEndCalendarDate) {
+			base.excludedDatetimes = [
+				{
+					time: {
+						...(token.exclusionStartCalendarDate
+							? {
+									startDatetime: toIso(
+										token.exclusionStartCalendarDate,
+										token.calendarPrecision ?? "day",
+									),
+								}
+							: {}),
+						...(token.exclusionEndCalendarDate
+							? {
+									endDatetime: toIso(
+										token.exclusionEndCalendarDate,
+										token.calendarPrecision ?? "day",
+									),
+								}
+							: {}),
+					},
+					description: token.exclusionText,
+				},
+			];
+		}
+		if (
+			token.exclusionListCalendarDates &&
+			token.exclusionListCalendarDates.length > 0
+		) {
+			base.excludedDatetimes = token.exclusionListCalendarDates.map((date) => ({
+				time: {
+					startDatetime: toIso(date, token.calendarPrecision ?? "day"),
+				},
+			}));
 		}
 
 		return Object.keys(base).length > 0 ? base : null;

@@ -9,6 +9,7 @@ import type {
 	ParserDictionaryRule,
 } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
+import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
 
 export class FrequencyHelper {
 	static resolveShorthandInterval(
@@ -109,6 +110,12 @@ export class FrequencyHelper {
 					const regex = getCompiledRegex(pattern, "i");
 					const match = regex.exec(textLower);
 					if (match && match.groups) {
+						try {
+							validateNamedGroups(match.groups, rule.namedGroupContract);
+						} catch (e) {
+							if (e instanceof NamedGroupContractError) continue;
+							throw e;
+						}
 						const rawMult = match.groups.multiplier;
 						const rawUnit = match.groups.unit;
 
@@ -118,7 +125,9 @@ export class FrequencyHelper {
 							for (const attrRule of attributeRules) {
 								if (attrRule.targetField === "time_unit") {
 									for (const pat of attrRule.regexPatterns) {
-										if (getCompiledRegex(pat, "i").test(rawUnit)) {
+										const hasNamedGroups = /\(\?<[^>]+>/.test(pat);
+										const testStr = hasNamedGroups ? `0 ${rawUnit}` : rawUnit;
+										if (getCompiledRegex(pat, "i").test(testStr)) {
 											resolvedUnit = attrRule.targetValue as TimePrecisionLevel;
 											break;
 										}

@@ -16,6 +16,8 @@ import {
 } from "../../store/defaults";
 import type { AttributeParserRule } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
+import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
+import type { NamedGroupContract } from "../../store/interfaces";
 
 const ALLOWED_UNITS_SET = new Set(Object.keys(UNIT_DISPLAY_MAP));
 
@@ -64,6 +66,12 @@ export class QuantityTokenizer {
 					match = regex.exec(trimmed)
 				) {
 					const groups = match.groups || {};
+					try {
+						validateNamedGroups(groups, rule.namedGroupContract);
+					} catch (e) {
+						if (e instanceof NamedGroupContractError) continue;
+						throw e;
+					}
 					const magStr =
 						groups.magnitude || groups.quantity || groups.value || match[0];
 					const magnitude = Number.parseFloat(magStr);
@@ -109,7 +117,15 @@ export class QuantityTokenizer {
 
 	static parseImplicitGroups(
 		groups: Record<string, string>,
+		contract?: NamedGroupContract,
 	): QuantityCandidate | null {
+		try {
+			validateNamedGroups(groups, contract);
+		} catch (e) {
+			if (e instanceof NamedGroupContractError) return null;
+			throw e;
+		}
+
 		const rawUnit = groups.unit || groups.rawUnit;
 		const magStr = groups.magnitude || groups.quantity || groups.value;
 		if (rawUnit && magStr) {

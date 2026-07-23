@@ -1,5 +1,6 @@
 import type { ParserDictionaryRule } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
+import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
 
 export interface VitalsToken {
 	anchorText: string;
@@ -23,6 +24,12 @@ export class VitalsTokenizer {
 				const regex = getCompiledRegex(pattern, "i");
 				const match = regex.exec(content);
 				if (match && match.groups) {
+					try {
+						validateNamedGroups(match.groups, rule.namedGroupContract);
+					} catch (e) {
+						if (e instanceof NamedGroupContractError) continue;
+						throw e;
+					}
 					if (rule.targetField === "blood_pressure") {
 						const systolicStr = match.groups.systolic;
 						const diastolicStr = match.groups.diastolic;

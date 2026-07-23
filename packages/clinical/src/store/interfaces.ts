@@ -80,6 +80,7 @@ export interface ParserDictionaryRule {
 	targetField: string; // e.g. 'severity', 'blood_pressure', 'quantity', 'session_vars'
 	evaluatorName: string; // e.g. 'parseSeverity', 'parseBloodPressure', 'parseQuantityUnit', 'parseSessionVars'
 	regexPatterns: string[]; // e.g. ['(?<numerator>\\d+)\\s*\\/\\s*(?<denominator>\\d+)']
+	namedGroupContract?: NamedGroupContract;
 }
 
 export type AttributeRuleMapping =
@@ -175,6 +176,7 @@ export type AttributeParserRule = AttributeRuleMapping & {
 	calendarTokens?: DateTimeToken[];
 	calendarSeparators?: string[];
 	monthNames?: string[];
+	namedGroupContract?: NamedGroupContract;
 };
 
 export type DateTimeToken =
@@ -198,6 +200,12 @@ export interface DateTimeFormatConfig {
 		exact?: boolean;
 		monthNames?: string[];
 	};
+}
+
+export interface NamedGroupContract {
+	required?: string[];
+	allowed?: string[];
+	disallowed?: string[];
 }
 
 export interface ParserConceptDefault {

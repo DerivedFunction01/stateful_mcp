@@ -6,6 +6,7 @@ import { buildNumericPatternString } from "../parser/utils/numeric-regex-generat
 import type {
 	AttributeParserRule,
 	NumericFieldFormatOptions,
+	NamedGroupContract,
 	ParserConceptDefault,
 	ParserSyntaxProfile,
 } from "./interfaces";
@@ -13,18 +14,27 @@ import type {
 export function buildCalendarDateRules(
 	formats: DateTimeFormatConfig[],
 ): AttributeParserRule[] {
-	return formats.map((format, idx) => ({
-		targetField: "calendar_date" as const,
-		targetValue: "calendar_date" as const,
-		regexPatterns: [
-			buildDatePatternString(format.tokens, format.separators, format.options),
-		],
-		isCaseInsensitive: true,
-		priority: 100,
-		calendarTokens: format.tokens,
-		calendarSeparators: format.separators,
-		monthNames: format.options?.monthNames,
-	}));
+	return formats.map((format, idx) => {
+		const datePattern = buildDatePatternString(
+			format.tokens,
+			format.separators,
+			format.options,
+		);
+		return {
+			targetField: "calendar_date" as const,
+			targetValue: "calendar_date" as const,
+			regexPatterns: [datePattern.pattern],
+			isCaseInsensitive: true,
+			priority: 100,
+			calendarTokens: format.tokens,
+			calendarSeparators: format.separators,
+			monthNames: format.options?.monthNames,
+			namedGroupContract: {
+				required: datePattern.groupNames,
+				allowed: datePattern.groupNames,
+			},
+		};
+	});
 }
 
 export function buildNumericFieldRules(
@@ -289,6 +299,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			">=",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "operator"],
+			allowed: ["magnitude", "operator"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "operator",
@@ -298,6 +312,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"<=",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "operator"],
+			allowed: ["magnitude", "operator"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "operator",
@@ -307,6 +325,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			">",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "operator"],
+			allowed: ["magnitude", "operator"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "operator",
@@ -316,6 +338,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"<",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "operator"],
+			allowed: ["magnitude", "operator"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "operator",
@@ -329,6 +355,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"~",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "is_approximate"],
+			allowed: ["magnitude", "is_approximate"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -338,6 +368,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "temperature",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -345,6 +379,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		regexPatterns: ["\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>mmHg)\\b"],
 		isCaseInsensitive: true,
 		unitAnchor: "pressure",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	// ── Mass (solid dosage) ─────────────────────────────────────────────
 	{
@@ -356,6 +394,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "mass",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -366,6 +408,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: false,
 		unitAnchor: "mass",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -376,6 +422,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "mass",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -387,6 +437,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "mass",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	// ── Mass concentration (liquid dosage) ──────────────────────────────
 	{
@@ -397,6 +451,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: false,
 		unitAnchor: "mass_concentration",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -406,6 +464,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: false,
 		unitAnchor: "mass_concentration",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -415,6 +477,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: false,
 		unitAnchor: "mass_concentration",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	// ── Length / distance ───────────────────────────────────────────────
 	{
@@ -426,6 +492,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "length",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -436,6 +506,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "length",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -446,6 +520,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: false,
 		unitAnchor: "length",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -455,6 +533,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "length",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "unit",
@@ -464,6 +546,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		],
 		isCaseInsensitive: true,
 		unitAnchor: "length",
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	// ── Count / rate ────────────────────────────────────────────────────
 	{
@@ -494,6 +580,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>segundos?)\\b(?!\\s*ago)",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "time_unit",
@@ -503,6 +593,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>minutos?)\\b(?!\\s*ago)",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "time_unit",
@@ -512,6 +606,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>horas?)\\b(?!\\s*ago)",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "time_unit",
@@ -522,6 +620,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>dias?)\\b(?!\\s*ago)",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "time_unit",
@@ -532,6 +634,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>semanas?)\\b(?!\\s*ago)",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "time_unit",
@@ -542,6 +648,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>mes)\\b(?!\\s*ago)",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		targetField: "time_unit",
@@ -553,6 +663,10 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>años?)\\b(?!\\s*ago)",
 		],
 		isCaseInsensitive: true,
+		namedGroupContract: {
+			required: ["magnitude", "unit"],
+			allowed: ["magnitude", "unit"],
+		} as NamedGroupContract,
 	},
 	// Days of the Week
 	{
@@ -713,6 +827,10 @@ export const DEFAULT_EVALUATOR_RULES = [
 			"(?<systolic>\\d{2,3})\\s*\\/\\s*(?<diastolic>\\d{2,3})\\s*(?<unit>[a-zA-Z%\\[\\]]+)?",
 			"(?<systolic>\\d{2,3})\\s+(?<diastolic>\\d{2,3})\\s*(?<unit>[a-zA-Z%\\[\\]]+)?",
 		],
+		namedGroupContract: {
+			required: ["systolic", "diastolic"],
+			allowed: ["systolic", "diastolic", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		ruleId: "qty",
@@ -721,6 +839,10 @@ export const DEFAULT_EVALUATOR_RULES = [
 		regexPatterns: [
 			`${NUMERIC_PATTERN_QUANTITY}\\s*(?<unit>h|hr|hours?|d|days?|mg|g|ml)`,
 		],
+		namedGroupContract: {
+			required: ["quantity", "unit"],
+			allowed: ["quantity", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		ruleId: "severity_ratio",
@@ -731,6 +853,10 @@ export const DEFAULT_EVALUATOR_RULES = [
 			`${NUMERIC_PATTERN_NUMERATOR}\\s+out\\s+of\\s+${NUMERIC_PATTERN_DENOMINATOR}`,
 			`give\\s+it\\s+a\\s+${NUMERIC_PATTERN_NUMERATOR}`,
 		],
+		namedGroupContract: {
+			required: ["numerator", "denominator"],
+			allowed: ["numerator", "denominator"],
+		} as NamedGroupContract,
 	},
 	{
 		ruleId: "freq_every",
@@ -739,6 +865,10 @@ export const DEFAULT_EVALUATOR_RULES = [
 		regexPatterns: [
 			`(?:every|cada)\\s+${NUMERIC_PATTERN_DECIMAL({ groupName: "multiplier" })}\\s*(?<unit>\\S+)`,
 		],
+		namedGroupContract: {
+			required: ["multiplier", "unit"],
+			allowed: ["multiplier", "unit"],
+		} as NamedGroupContract,
 	},
 	{
 		ruleId: "freq_times",
@@ -747,6 +877,10 @@ export const DEFAULT_EVALUATOR_RULES = [
 		regexPatterns: [
 			`${NUMERIC_PATTERN_DECIMAL({ groupName: "multiplier" })}\\s*(?:times|veces)?\\s*(?:per|al|a\\s+la)\\s*(?<unit>\\S+)`,
 		],
+		namedGroupContract: {
+			required: ["multiplier", "unit"],
+			allowed: ["multiplier", "unit"],
+		} as NamedGroupContract,
 	},
 ];
 

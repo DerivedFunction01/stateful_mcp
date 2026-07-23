@@ -3,6 +3,7 @@ import type {
 	ParserDictionaryRule,
 } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
+import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
 
 export interface MedicationToken {
 	anchorText: string;
@@ -26,6 +27,12 @@ export class MedicationTokenizer {
 				const regex = getCompiledRegex(pattern, "i");
 				const match = regex.exec(content);
 				if (match && match.groups) {
+					try {
+						validateNamedGroups(match.groups, rule.namedGroupContract);
+					} catch (e) {
+						if (e instanceof NamedGroupContractError) continue;
+						throw e;
+					}
 					if (rule.targetField === "quantity") {
 						const qtyStr = match.groups.quantity;
 						const unitStr = match.groups.unit;

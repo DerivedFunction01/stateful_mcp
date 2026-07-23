@@ -13,6 +13,28 @@ const expandedRules = [
 	...buildCalendarDateRules(DEFAULT_CALENDAR_DATE_FORMATS),
 ];
 
+const rangeListRules = [
+	...expandedRules,
+	{
+		targetField: "calendar_date_range",
+		targetValue: "calendar_date_range",
+		regexPatterns: [
+			"(?<start>\\d{2}\\/\\d{2}\\/\\d{4})\\s*(?:to|until|through|hasta|a)\\s*(?<end>\\d{2}\\/\\d{2}\\/\\d{4})",
+		],
+		isCaseInsensitive: true,
+		priority: 110,
+	},
+	{
+		targetField: "calendar_date_list",
+		targetValue: "calendar_date_list",
+		regexPatterns: [
+			"(?<dates>\\b(?:\\d{1,2}\\/\\d{1,2}\\/\\d{4}|\\d{4}-\\d{2}-\\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}, \\d{4})(?:\\s*,\\s*(?:\\d{1,2}\\/\\d{1,2}\\/\\d{4}|\\d{4}-\\d{2}-\\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}, \\d{4}))+)\\b",
+		],
+		isCaseInsensitive: true,
+		priority: 109,
+	},
+];
+
 const parser = new ClinicalDateRangeSchemaParser();
 const store = {
 	resolve: async () => null,
@@ -84,6 +106,29 @@ describe("ClinicalDateRange parsing", () => {
 		});
 	});
 
+	test("parses exact calendar exclusions alongside the base schedule", async () => {
+		const parsed = await parser.parse(
+			"#time",
+			"daily except January 15, 2026",
+			store,
+			undefined,
+			expandedRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
+		expect(parsed?.dateRange?.includedDatetimes).toHaveLength(1);
+		expect(parsed?.dateRange?.excludedDatetimes).toHaveLength(1);
+		expect(parsed?.dateRange?.includedDatetimes?.[0]?.time?.repeat).toEqual({
+			multiplier: 1,
+			level: "day",
+		});
+		expect(parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime)
+			.toBeDefined();
+		expect(
+			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime
+				?.assertedTimestampUtc,
+		).toBe("2026-01-15T00:00:00Z");
+	});
+
 	test("combines repeat cadence and bounds in a single time range", async () => {
 		const parsed = await parser.parse(
 			"#time",
@@ -100,6 +145,35 @@ describe("ClinicalDateRange parsing", () => {
 		expect(parsed?.dateRange?.time?.endDatetime?.precisionLevel).toBe(
 			"wednesday",
 		);
+	});
+
+	test("fills the date range object with repeat, calendar boundaries, and exact exclusions", async () => {
+		const parsed = await parser.parse(
+			"#time",
+			"every 8 hours from Monday to Wednesday except January 15, 2026",
+			store,
+			undefined,
+			expandedRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
+		expect(parsed?.dateRange?.time?.repeat).toEqual({
+			multiplier: 8,
+			level: "hour",
+		});
+		expect(parsed?.dateRange?.time?.startDatetime?.precisionLevel).toBe(
+			"monday",
+		);
+		expect(parsed?.dateRange?.time?.endDatetime?.precisionLevel).toBe(
+			"wednesday",
+		);
+		expect(parsed?.dateRange?.includedDatetimes).toHaveLength(1);
+		expect(parsed?.dateRange?.excludedDatetimes).toHaveLength(1);
+		expect(parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime)
+			.toBeDefined();
+		expect(
+			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime
+				?.assertedTimestampUtc,
+		).toBe("2026-01-15T00:00:00Z");
 	});
 });
 
@@ -245,6 +319,41 @@ describe("ClinicalDateRange calendar date parsing", () => {
 		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
 			"2023-01-15T14:30:00Z",
 		);
+	});
+
+	test("parses named-group date ranges without relying on hardcoded boundary order", async () => {
+		const result = await parser.parse(
+			"#time",
+			"01/15/2026 to 01/20/2026",
+			store,
+			undefined,
+			rangeListRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
+		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
+			"2026-01-15T00:00:00Z",
+		);
+		expect(result?.dateRange?.time?.endDatetime?.assertedTimestampUtc).toBe(
+			"2026-01-20T00:00:00Z",
+		);
+	});
+
+	test("parses named-group date lists into included datetimes", async () => {
+		const result = await parser.parse(
+			"#time",
+			"January 15, 2026, January 20, 2026, January 22, 2026",
+			store,
+			undefined,
+			rangeListRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
+		expect(result?.dateRange?.includedDatetimes).toHaveLength(3);
+		expect(result?.dateRange?.includedDatetimes?.[0]?.time?.startDatetime?.assertedTimestampUtc)
+			.toBe("2026-01-15T00:00:00Z");
+		expect(result?.dateRange?.includedDatetimes?.[1]?.time?.startDatetime?.assertedTimestampUtc)
+			.toBe("2026-01-20T00:00:00Z");
+		expect(result?.dateRange?.includedDatetimes?.[2]?.time?.startDatetime?.assertedTimestampUtc)
+			.toBe("2026-01-22T00:00:00Z");
 	});
 });
 
