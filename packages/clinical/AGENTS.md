@@ -18,11 +18,11 @@ This document covers the implementation architecture, hard coding rules, and sep
 4. **No fixed ordering assumptions**: Parsers must not assume that markers appear before or after the target phrase in a fixed language-specific order. Marker detection must be driven by rules that can match across locales and phrase structures, because the profile is responsible for imposing order on otherwise noisy clinical text.
 
 ### 1.3 Layer Boundaries
-1. **CDSL tokenizer** produces only `CdslToken[]`. It must not apply regex evaluation rules.
-2. **Schema tokenizers** consume raw strings + rules. They must not query `DictionaryStore` or `ParserConceptDefaultStore`.
-3. **Schema parsers** consume tokens + stores. They must not contain inline `applyEvaluatorRules` loops.
-4. **Helpers** accept structured data (`groups`, `token` objects). They must not execute regex exec loops.
-5. **Schema helpers must remain locale-agnostic**: Any helper that handles units, dates, times, exclusions, or relative markers must resolve semantic meaning from rules and not from hardcoded language literals.
+1. **CdslParser** splits raw text by `profile.stateDelimiter`, extracts `(tag, content)` pairs, gates narrative segments via `StopWordParser`, builds `PreparsedContext` directly, and dispatches to schema parsers. It must not execute regex evaluation loops against raw segment text.
+2. **Schema tokenizers** consume raw strings + rules/evaluatorRules and return plain token objects. They must not query `DictionaryStore` or `ParserConceptDefaultStore`.
+3. **Schema parsers** consume tokens + stores + preparsedContext. They must not contain inline input-extraction loops; the only permitted inline regex is concept-default capture-group mapping against the original raw text.
+4. **Helpers and tokenizers** accept structured token data or raw strings + rules. They may execute regex exec loops over rule patterns, but every semantic value (unit, operator, temporal marker, exclusion) must be resolved from rule match results, not from hardcoded substring checks or hardcoded regex literals outside the rule configuration.
+5. **Schema helpers and tokenizers must remain locale-agnostic**: Any component handling units, dates, times, exclusions, or relative markers must resolve semantic meaning from `attributeRules` / `evaluatorRules` and not from hardcoded language literals.
 
 ### 1.4 Review Checklist
 Before merging parser changes, confirm that:

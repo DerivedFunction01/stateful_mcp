@@ -507,6 +507,7 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 		isDefault: true,
 		termTokenizer: "::",
 		isActive: true,
+		stopWordThreshold: 0.6,
 		attributeRules: DEFAULT_ATTRIBUTE_RULES,
 		evaluatorRules: DEFAULT_EVALUATOR_RULES,
 		schemaNamespaces: {

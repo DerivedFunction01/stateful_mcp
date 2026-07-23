@@ -100,7 +100,7 @@ export class CdslParser {
 						stopWordCount++;
 					}
 				}
-				if (words.length > 0 && stopWordCount / words.length > 0.6) {
+				if (words.length > 0 && stopWordCount / words.length > (this.profile.stopWordThreshold ?? 0.6)) {
 					continue;
 				}
 			}

@@ -59,8 +59,8 @@ When clinicians write notes without explicit tag prefixes (e.g., `temp 38.5 Cel 
                  │                                       │
                  ▼                                       ▼
     ┌─────────────────────────┐             ┌─────────────────────────┐
-    │  Stop Word Gatekeeper   │             │  Stop Word Gatekeeper   │
-    │  (Skip if >60% stops)   │             │  (Skip if >60% stops)   │
+     │  Stop Word Gatekeeper   │             │  Stop Word Gatekeeper   │
+     │  (Skip if >threshold%) │             │  (Skip if >threshold%) │
     └────────────┬────────────┘             └────────────┬────────────┘
                  │                                       │
                  ▼                                       ▼
@@ -81,7 +81,7 @@ When clinicians write notes without explicit tag prefixes (e.g., `temp 38.5 Cel 
         [ VitalsMeasurement ]                     [ ObservationEvent ]
 ```
 
-1. **Stop Word Gatekeeper**: Checks if a segment consists of more than 60% stop words; if so, it is classified as a conversational narrative and skipped.
+1. **Stop Word Gatekeeper**: Checks if a segment consists of more than `profile.stopWordThreshold` stop words (default 0.6 / 60%); if so, it is classified as a conversational narrative and skipped.
 2. **Shared `PreparsedContext`**: Sub-parsers (Measurement, Time, Frequency, Attributes) parse the text once, caching results to prevent redundant processing.
 3. **Concept Resolution**: Resolves target vocabularies first against the full segment (preserving multi-word terms like `"Chest Pain"`), falling back to individual token matching.
 4. **Parallel Pipeline Dispatch & Scorer**: For each resolved candidate, virtual schema pipelines run concurrently. The parser evaluates the returned records against a `completenessScore` (counting populated fields) and compiles all high-confidence winners.

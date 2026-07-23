@@ -30,6 +30,7 @@ export interface ParserSyntaxProfile {
 	attributeDelimiter?: string; // e.g. ','
 	isActive?: boolean;
 	schemaNamespaces?: Record<string, string[]>; // Maps schema keys or names to prioritized/allowed namespaces
+	stopWordThreshold?: number; // Ratio (0.0–1.0) of stop words above which a tagless segment is treated as conversational narrative and skipped. Default: 0.6
 }
 
 export interface ParserDictionaryRule {
