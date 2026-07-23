@@ -152,11 +152,7 @@ export class ClinicalDateRangeTokenizer {
 							}
 							if (resolvedUnit) {
 								const times = rawMult ? parseFloat(rawMult) : 1;
-								if (
-									rule.ruleId === "freq_times" &&
-									resolvedUnit === "day" &&
-									times > 1
-								) {
+								if (FrequencyHelper.isHighFrequencyDayConversion(rule.ruleId, resolvedUnit, times)) {
 									return {
 										repeat: {
 											multiplier: Math.round(24 / times),
@@ -210,15 +206,10 @@ export class ClinicalDateRangeTokenizer {
 				if (match) {
 					let multiplier = 1;
 					let level: TimePrecisionLevel = "day";
-					if (rule.targetValue === "BID") {
-						multiplier = 12;
-						level = "hour";
-					} else if (rule.targetValue === "TID") {
-						multiplier = 8;
-						level = "hour";
-					} else if (rule.targetValue === "QID") {
-						multiplier = 6;
-						level = "hour";
+					const resolved = FrequencyHelper.resolveShorthandInterval(rule.targetValue);
+					if (resolved) {
+						multiplier = resolved.multiplier;
+						level = resolved.level;
 					}
 					return {
 						repeat: { multiplier, level },

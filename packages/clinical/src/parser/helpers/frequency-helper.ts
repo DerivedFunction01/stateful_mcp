@@ -10,6 +10,31 @@ import type {
 } from "../../store/interfaces";
 
 export class FrequencyHelper {
+	static resolveShorthandInterval(
+		shorthand: string,
+	): { multiplier: number; level: TimePrecisionLevel } | null {
+		switch (shorthand) {
+			case "BID":
+				return { multiplier: 12, level: "hour" };
+			case "TID":
+				return { multiplier: 8, level: "hour" };
+			case "QID":
+				return { multiplier: 6, level: "hour" };
+			case "QD":
+				return { multiplier: 1, level: "day" };
+			default:
+				return null;
+		}
+	}
+
+	static isHighFrequencyDayConversion(
+		ruleId: string,
+		resolvedUnit: TimePrecisionLevel,
+		times: number,
+	): boolean {
+		return ruleId === "freq_times" && resolvedUnit === "day" && times > 1;
+	}
+
 	static parse(
 		text: string,
 		attributeRules: AttributeParserRule[],
@@ -55,21 +80,12 @@ export class FrequencyHelper {
 						let multiplier = 1;
 						let unit: TimePrecisionLevel = "day";
 
-						if (rule.targetValue === "BID") {
-							// Twice daily maps to interval every 12 hours
-							multiplier = 12;
-							unit = "hour";
-						} else if (rule.targetValue === "TID") {
-							// Three times daily maps to interval every 8 hours
-							multiplier = 8;
-							unit = "hour";
-						} else if (rule.targetValue === "QID") {
-							multiplier = 6;
-							unit = "hour";
-						} else {
-							// QD maps to multiplier 1 day
-							multiplier = 1;
-							unit = "day";
+						if (rule.targetValue === "BID" || rule.targetValue === "TID" || rule.targetValue === "QID" || rule.targetValue === "QD") {
+							const resolved = FrequencyHelper.resolveShorthandInterval(rule.targetValue);
+							if (resolved) {
+								multiplier = resolved.multiplier;
+								unit = resolved.level;
+							}
 						}
 
 						interval = { multiplier, unit };
@@ -106,19 +122,13 @@ export class FrequencyHelper {
 							if (resolvedUnit) {
 								const times = rawMult ? parseFloat(rawMult) : 1;
 
-								// Handle high-frequency "X times per day" conversion (e.g. 3 times per day -> 24 / 3 = every 8 hours)
-								if (
-									rule.ruleId === "freq_times" &&
-									resolvedUnit === "day" &&
-									times > 1
-								) {
+								if (FrequencyHelper.isHighFrequencyDayConversion(rule.ruleId, resolvedUnit, times)) {
 									cadenceType = "interval";
 									interval = {
 										multiplier: Math.round(24 / times),
 										unit: "hour",
 									};
 								} else if (rule.ruleId === "freq_times") {
-									// Low-frequency rates: map to rate directly
 									cadenceType = "interval";
 									rate = {
 										times,
