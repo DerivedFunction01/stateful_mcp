@@ -1,4 +1,7 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import type { BoundedMeasurement } from "../schemas/measurement";
+import type { MedicationFrequency } from "../schemas/medication";
+import type { TimeMeasurement } from "../schemas/time";
 import type {
 	AttributeParserRule,
 	ParserConceptDefaultStore,
@@ -40,8 +43,6 @@ export interface ParsedObservationItem extends BaseParsedItem {
 	status?: string;
 }
 
-import type { MedicationFrequency } from "../schemas/medication";
-
 export interface ParsedMedicationItem extends BaseParsedItem {
 	targetSchema: "MedicationOrderObject";
 	route?: string;
@@ -50,8 +51,16 @@ export interface ParsedMedicationItem extends BaseParsedItem {
 	status?: string;
 }
 
-import type { BoundedMeasurement } from "../schemas/measurement";
-import type { TimeMeasurement } from "../schemas/time";
+export interface ParsedClinicalDateRangeItem extends BaseParsedItem {
+	targetSchema: "ClinicalDateRange";
+	dateRange: import("../schemas/time").ClinicalDateRange;
+}
+
+export type ParsedItem =
+	| ParsedVitalsItem
+	| ParsedObservationItem
+	| ParsedMedicationItem
+	| ParsedClinicalDateRangeItem;
 
 export interface PreparsedContext {
 	rawText: string;
@@ -68,11 +77,6 @@ export interface ScoredParseResult {
 	completenessScore: number;
 	unitAnchorCoherence: boolean;
 }
-
-export type ParsedItem =
-	| ParsedVitalsItem
-	| ParsedObservationItem
-	| ParsedMedicationItem;
 
 export interface SchemaParser {
 	targetSchema: string;

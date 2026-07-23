@@ -1,8 +1,63 @@
+import {
+	buildDatePatternString,
+	type DateTimeFormatConfig,
+} from "../parser/utils/date-regex-generator";
 import type {
 	AttributeParserRule,
 	ParserConceptDefault,
 	ParserSyntaxProfile,
 } from "./interfaces";
+
+export function buildCalendarDateRules(
+	formats: DateTimeFormatConfig[],
+): AttributeParserRule[] {
+	return formats.map((format, idx) => ({
+		targetField: "calendar_date" as const,
+		targetValue: "calendar_date" as const,
+		regexPatterns: [
+			buildDatePatternString(format.tokens, format.separators, format.options),
+		],
+		isCaseInsensitive: true,
+		priority: 100,
+		calendarTokens: format.tokens,
+		calendarSeparators: format.separators,
+		monthNames: format.options?.monthNames,
+	}));
+}
+
+export const DEFAULT_CALENDAR_DATE_FORMATS: DateTimeFormatConfig[] = [
+	{
+		tokens: ["MM", "DD", "YYYY"],
+		separators: ["/", "/"],
+		options: { is24Hour: false },
+	},
+	{
+		tokens: ["YYYY", "MM", "DD"],
+		separators: ["-", "-"],
+		options: { is24Hour: false },
+	},
+	{
+		tokens: ["MM_name", "DD", "YYYY"],
+		separators: [" ", ", "],
+		options: {
+			is24Hour: false,
+			monthNames: [
+				"January",
+				"February",
+				"March",
+				"April",
+				"May",
+				"June",
+				"July",
+				"August",
+				"September",
+				"October",
+				"November",
+				"December",
+			],
+		},
+	},
+];
 
 export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
@@ -542,6 +597,7 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 		termTokenizer: "::",
 		isActive: true,
 		stopWordThreshold: 0.6,
+		calendarDateFormats: DEFAULT_CALENDAR_DATE_FORMATS,
 		attributeRules: DEFAULT_ATTRIBUTE_RULES,
 		evaluatorRules: DEFAULT_EVALUATOR_RULES,
 		schemaNamespaces: {

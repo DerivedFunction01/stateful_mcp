@@ -46,6 +46,7 @@ export interface ParserSyntaxProfile {
 	stopWordThreshold?: number; // Ratio (0.0–1.0) of stop words above which a tagless segment is treated as conversational narrative and skipped. Default: 0.6
 	schemaDefaults?: Record<string, Record<string, any>>;
 	defaultsStrategy?: string;
+	calendarDateFormats?: DateTimeFormatConfig[];
 }
 
 export interface ParserDictionaryRule {
@@ -56,6 +57,11 @@ export interface ParserDictionaryRule {
 }
 
 export type AttributeRuleMapping =
+	| {
+			targetField: "calendar_date";
+			targetValue: "calendar_date";
+			unitAnchor?: undefined;
+	  }
 	| { targetField: "certainty"; targetValue: Certainty; unitAnchor?: undefined }
 	| { targetField: "status"; targetValue: Status; unitAnchor?: undefined }
 	| {
@@ -120,7 +126,33 @@ export type AttributeParserRule = AttributeRuleMapping & {
 	isCaseInsensitive?: boolean;
 	blacklistPatterns?: string[];
 	priority?: number;
+	calendarTokens?: DateTimeToken[];
+	calendarSeparators?: string[];
+	monthNames?: string[];
 };
+
+export type DateTimeToken =
+	| "YYYY"
+	| "YY"
+	| "MM"
+	| "MM_name"
+	| "DD"
+	| "HH"
+	| "min"
+	| "SS"
+	| "ampm"
+	| "tz";
+
+export interface DateTimeFormatConfig {
+	tokens: DateTimeToken[];
+	separators: string[];
+	options?: {
+		centuryDecades?: Record<string, string>;
+		is24Hour?: boolean;
+		exact?: boolean;
+		monthNames?: string[];
+	};
+}
 
 export interface ParserConceptDefault {
 	anchorConceptId: string;

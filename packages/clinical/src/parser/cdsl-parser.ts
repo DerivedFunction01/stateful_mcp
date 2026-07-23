@@ -1,5 +1,8 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import { SEED_PARSER_PROFILES } from "../store/defaults";
+import {
+	buildCalendarDateRules,
+	SEED_PARSER_PROFILES,
+} from "../store/defaults";
 import type {
 	ParserConceptDefaultStore,
 	ParserSyntaxProfile,
@@ -36,6 +39,7 @@ export type ParsedMedicationItem = IMP_ParsedMedicationItem;
 export class CdslParser {
 	private stopWordParser: StopWordParser | undefined;
 	private stopWordStore: StopWordStore | undefined;
+	private attributeRules: import("../store/interfaces").AttributeParserRule[];
 
 	constructor(
 		private dictionaryStore: DictionaryStore,
@@ -48,6 +52,16 @@ export class CdslParser {
 	) {
 		this.stopWordParser = stopWordParser;
 		this.stopWordStore = stopWordStore;
+		this.attributeRules = [
+			...(this.profile.attributeRules || []),
+			...(this.profile.calendarDateFormats
+				? buildCalendarDateRules(this.profile.calendarDateFormats)
+				: []),
+		];
+	}
+
+	private getEffectiveAttributeRules(): import("../store/interfaces").AttributeParserRule[] {
+		return this.attributeRules;
 	}
 
 	/**
@@ -113,7 +127,7 @@ export class CdslParser {
 			}
 
 			// Always build preparsedContext from content
-			const attrRules = this.profile.attributeRules || [];
+			const attrRules = this.getEffectiveAttributeRules();
 			const opRules = attrRules.filter(
 				(r) =>
 					r.targetField === "operator" ||
@@ -126,21 +140,21 @@ export class CdslParser {
 				? (MeasurementHelper.parse(
 						token,
 						undefined,
-						this.profile.attributeRules,
+						this.getEffectiveAttributeRules(),
 					) as any)
 				: null;
 			const timeSpan = token
-				? TimeHelper.parse(token, this.profile.attributeRules)
+				? TimeHelper.parse(token, this.getEffectiveAttributeRules())
 				: null;
 			const frequency = FrequencyHelper.parse(
 				content,
-				this.profile.attributeRules || [],
+				this.getEffectiveAttributeRules() || [],
 				this.profile.evaluatorRules || [],
 			);
 
 			// Pre-extract standard localized attributes (e.g. certainty, severity, route)
 			const attributes: Record<string, string> = {};
-			const rules = [...(this.profile.attributeRules || [])].sort((a, b) => {
+			const rules = [...this.getEffectiveAttributeRules()].sort((a, b) => {
 				const pA = a.priority ?? 1;
 				const pB = b.priority ?? 1;
 				return pB - pA;
@@ -211,7 +225,7 @@ export class CdslParser {
 					content,
 					this.dictionaryStore,
 					this.conceptDefaultsStore,
-					this.profile.attributeRules,
+					this.getEffectiveAttributeRules(),
 					this.profile.evaluatorRules,
 					this.profile.termTokenizer,
 					allowedNamespaces,

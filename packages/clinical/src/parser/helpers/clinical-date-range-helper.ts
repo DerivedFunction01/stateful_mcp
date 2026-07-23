@@ -11,6 +11,10 @@ import type {
 	ParserDictionaryRule,
 } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
+import {
+	buildMonthNameMap,
+	compileDateRegex,
+} from "../utils/date-regex-generator";
 import { FrequencyHelper } from "./frequency-helper";
 import { TimeHelper } from "./measurement-helper";
 
@@ -23,6 +27,10 @@ export interface ClinicalDateRangeToken {
 	startPrecision?: TimePrecisionLevel;
 	endText?: string;
 	endPrecision?: TimePrecisionLevel;
+	// Calendar dates
+	startCalendarDate?: Date;
+	endCalendarDate?: Date;
+	calendarPrecision?: TimePrecisionLevel;
 	// Exclusions
 	baseText?: string;
 	baseRepeat?: TimeInterval["repeat"];
@@ -86,7 +94,24 @@ export class ClinicalDateRangeTokenizer {
 			workingText = workingText.replace(repeatMatch.matchedText, "").trim();
 		}
 
-		// 3. Parse and strip Relative Estimate
+		// 3. Parse Calendar Dates
+		const calendar = ClinicalDateRangeTokenizer.parseCalendarBoundary(
+			workingText,
+			attributeRules,
+		);
+		if (calendar) {
+			token.startCalendarDate = calendar.startDate;
+			token.endCalendarDate = calendar.endDate;
+			token.calendarPrecision = calendar.precision;
+			if (calendar.startText) token.startText = calendar.startText;
+			if (calendar.endText) token.endText = calendar.endText;
+			workingText = workingText.replace(calendar.startText || "", "").trim();
+			if (calendar.endText) {
+				workingText = workingText.replace(calendar.endText, "").trim();
+			}
+		}
+
+		// 4. Parse and strip Relative Estimate
 		const relativeMatch = ClinicalDateRangeTokenizer.findRelativeEstimateMatch(
 			workingText,
 			attributeRules,
@@ -96,7 +121,7 @@ export class ClinicalDateRangeTokenizer {
 			workingText = workingText.replace(relativeMatch.matchedText, "").trim();
 		}
 
-		// 4. Parse Boundaries
+		// 5. Parse Boundaries
 		const boundaries = ClinicalDateRangeTokenizer.parseBoundaries(
 			workingText,
 			attributeRules,
@@ -119,10 +144,150 @@ export class ClinicalDateRangeTokenizer {
 			token.repeat ||
 			token.startPrecision ||
 			token.endPrecision ||
+			token.startCalendarDate ||
+			token.endCalendarDate ||
 			token.baseRepeat ||
 			token.exclusionRepeat;
 
 		return hasContent ? token : null;
+	}
+
+	private static parseCalendarBoundary(
+		text: string,
+		attributeRules: AttributeParserRule[] = [],
+	): {
+		startText?: string;
+		endText?: string;
+		startDate?: Date;
+		endDate?: Date;
+		precision?: TimePrecisionLevel;
+	} | null {
+		const calendarRules = ClinicalDateRangeTokenizer.getAttributeRulesByTarget(
+			"calendar_date",
+			attributeRules,
+		);
+		if (calendarRules.length === 0) return null;
+
+		for (const rule of calendarRules) {
+			for (const pattern of rule.regexPatterns) {
+				const regex = compileDateRegex(pattern);
+				const match = regex.exec(text);
+				if (!match || !match.groups) continue;
+
+				const date = ClinicalDateRangeTokenizer.resolveCalendarDate(
+					match.groups,
+					rule,
+				);
+				if (!date) continue;
+
+				const precision = ClinicalDateRangeTokenizer.inferCalendarPrecision(
+					rule.calendarTokens || [],
+				);
+				const matchedText = match[0];
+
+				if (rule.calendarTokens?.includes("MM_name") && text.includes(",")) {
+					const parts = text.split(",");
+					if (parts.length >= 2) {
+						const startMatch = regex.exec(parts[0] + ",");
+						const startDate = startMatch
+							? ClinicalDateRangeTokenizer.resolveCalendarDate(
+									startMatch.groups || {},
+									rule,
+								)
+							: date;
+						const endMatch = regex.exec(parts[1]);
+						const endDate = endMatch
+							? ClinicalDateRangeTokenizer.resolveCalendarDate(
+									endMatch.groups || {},
+									rule,
+								)
+							: undefined;
+						if (startDate || endDate) {
+							return {
+								startText: startMatch ? startMatch[0] : matchedText,
+								endText: endMatch ? endMatch[0] : undefined,
+								startDate: startDate || date,
+								endDate,
+								precision,
+							};
+						}
+					}
+				}
+
+				return {
+					startText: matchedText,
+					startDate: date,
+					precision,
+				};
+			}
+		}
+
+		return null;
+	}
+
+	private static resolveCalendarDate(
+		groups: Record<string, string | undefined>,
+		rule: AttributeParserRule,
+	): Date | undefined {
+		let year = groups.yyyy ? Number(groups.yyyy) : undefined;
+		const yy = groups.yy ? Number(groups.yy) : undefined;
+		let month = groups.mm ? Number(groups.mm) : undefined;
+		const day = groups.dd ? Number(groups.dd) : undefined;
+		const hh = groups.hh ? Number(groups.hh) : undefined;
+		const min = groups.min ? Number(groups.min) : undefined;
+		const ss = groups.ss ? Number(groups.ss) : undefined;
+		const ampm = groups.ampm;
+
+		if (year === undefined && yy !== undefined) {
+			year = yy < 70 ? 2000 + yy : 1900 + yy;
+		}
+
+		if (groups.mm_name) {
+			const monthNames = rule.monthNames || [];
+			const monthMap = buildMonthNameMap(monthNames);
+			const mapped = monthMap[groups.mm_name.toLowerCase()];
+			if (mapped === undefined) return undefined;
+			month = mapped;
+		}
+
+		if (year === undefined || month === undefined || day === undefined) {
+			return undefined;
+		}
+
+		if (month < 1 || month > 12 || day < 1 || day > 31) return undefined;
+
+		const date = new Date(Date.UTC(year, month - 1, day));
+		if (
+			date.getUTCFullYear() !== year ||
+			date.getUTCMonth() !== month - 1 ||
+			date.getUTCDate() !== day
+		) {
+			return undefined;
+		}
+
+		if (hh !== undefined) {
+			let hours = hh;
+			if (ampm) {
+				const lower = ampm.toLowerCase();
+				if (lower === "pm" && hours < 12) hours += 12;
+				if (lower === "am" && hours === 12) hours = 0;
+			}
+			date.setUTCHours(hours, min ?? 0, ss ?? 0, 0);
+		}
+
+		return date;
+	}
+
+	private static inferCalendarPrecision(
+		tokens: AttributeParserRule["calendarTokens"] = [],
+	): TimePrecisionLevel {
+		if (tokens.includes("SS")) return "second";
+		if (tokens.includes("min")) return "minute";
+		if (tokens.includes("HH") || tokens.includes("ampm")) return "hour";
+		if (tokens.includes("DD")) return "day";
+		if (tokens.includes("MM") || tokens.includes("MM_name")) return "month";
+		if (tokens.includes("YYYY") || tokens.includes("YY")) return "year";
+		return "day";
 	}
 
 	private static findRepeatMatch(
@@ -449,6 +614,30 @@ export class ClinicalDateRangeHelper {
 		seedTime?: Date | string | number,
 	): ClinicalDateRange | null {
 		const base: ClinicalDateRange = {};
+
+		if (token.startCalendarDate || token.endCalendarDate) {
+			const toIso = (
+				d: Date,
+				precision: TimePrecisionLevel,
+			): TemporalBoundary => ({
+				assertedTimestampUtc: d.toISOString().replace(/\.\d+Z$/, "Z"),
+				precisionLevel: precision,
+			});
+			base.time = {};
+			if (token.startCalendarDate) {
+				base.time.startDatetime = toIso(
+					token.startCalendarDate,
+					token.calendarPrecision ?? "day",
+				);
+			}
+			if (token.endCalendarDate) {
+				base.time.endDatetime = toIso(
+					token.endCalendarDate,
+					token.calendarPrecision ?? "day",
+				);
+			}
+			return Object.keys(base).length > 0 ? base : null;
+		}
 
 		if (token.relativeEstimate) {
 			base.relativeEstimate = token.relativeEstimate;
