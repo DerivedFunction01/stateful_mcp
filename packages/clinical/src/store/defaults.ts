@@ -56,15 +56,39 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 		isCaseInsensitive: true,
 	},
 	{
-		targetField: "frequency",
-		targetValue: "QD",
-		regexPatterns: ["\\bqd\\b", "\\bdaily\\b"],
+		targetField: "frequency_prn",
+		targetValue: "true",
+		regexPatterns: ["\\bprn\\b", "\\bas\\s+needed\\b", "\\bpor\\s+razón\\s+necesaria\\b"],
 		isCaseInsensitive: true,
 	},
 	{
-		targetField: "frequency",
-		targetValue: "PRN",
-		regexPatterns: ["\\bprn\\b", "\\bas needed\\b"],
+		targetField: "frequency_event_anchor",
+		targetValue: "before_meal",
+		regexPatterns: ["\\bbefore\\s+meals?\\b", "\\bantes\\s+de\\s+comer\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "frequency_event_anchor",
+		targetValue: "after_meal",
+		regexPatterns: ["\\bafter\\s+meals?\\b", "\\bdespués\\s+de\\s+comer\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "frequency_shorthand",
+		targetValue: "QD",
+		regexPatterns: ["\\bqd\\b", "\\bdaily\\b", "\\bdiario\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "frequency_shorthand",
+		targetValue: "BID",
+		regexPatterns: ["\\bbid\\b", "\\btwice\\s+daily\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "frequency_shorthand",
+		targetValue: "TID",
+		regexPatterns: ["\\btid\\b", "\\bthree\\s+times\\s+daily\\b"],
 		isCaseInsensitive: true,
 	},
 	{
@@ -278,6 +302,22 @@ export const DEFAULT_EVALUATOR_RULES = [
 			"give\\s+it\\s+a\\s+(?<numerator>\\d+)",
 		],
 	},
+	{
+		ruleId: "freq_every",
+		targetField: "frequency_details",
+		evaluatorName: "parseFrequencyEvery",
+		regexPatterns: [
+			"(?:every|cada)\\s+(?<multiplier>\\d+(?:\\.\\d+)?)\\s*(?<unit>\\S+)",
+		],
+	},
+	{
+		ruleId: "freq_times",
+		targetField: "frequency_details",
+		evaluatorName: "parseFrequencyTimes",
+		regexPatterns: [
+			"(?<multiplier>\\d+(?:\\.\\d+)?)\\s*(?:times|veces)?\\s*(?:per|al|a\\s+la)\\s*(?<unit>\\S+)",
+		],
+	},
 ];
 
 export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
@@ -300,6 +340,16 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 			vitalsmeasurementevent: ["LOINC"],
 			observationevent: ["SNOMED"],
 			medicationorderobject: ["RxNorm"],
+		},
+		tagMappings: {
+			vital: "VitalsMeasurementEvent",
+			vitalsmeasurementevent: "VitalsMeasurementEvent",
+			observation: "ObservationEvent",
+			symptom: "ObservationEvent",
+			observationevent: "ObservationEvent",
+			rx: "MedicationOrderObject",
+			med: "MedicationOrderObject",
+			medicationorderobject: "MedicationOrderObject",
 		},
 	},
 ];

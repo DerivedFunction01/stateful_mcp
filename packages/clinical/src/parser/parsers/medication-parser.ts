@@ -1,5 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import { MedicationTokenizer } from "../helpers/medication-helper";
+import { MedicationHelper, MedicationTokenizer } from "../helpers/medication-helper";
 import { TimeHelper } from "../helpers/measurement-helper";
 import {
 	CANONICAL_TAGS,
@@ -8,13 +8,19 @@ import {
 	type SchemaParser,
 	resolveConceptHelper,
 } from "../schema-parsers";
-import { DEFAULT_ATTRIBUTE_RULES, DEFAULT_EVALUATOR_RULES } from "../../store/defaults";
+import {
+	DEFAULT_ATTRIBUTE_RULES,
+	DEFAULT_EVALUATOR_RULES,
+} from "../../store/defaults";
 import type {
 	AttributeParserRule,
 	ParserConceptDefault,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+
+import { FrequencyHelper } from "../helpers/frequency-helper";
+import type { MedicationFrequency } from "../../schemas/medication";
 
 export class MedicationSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.MEDICATION;
@@ -36,10 +42,10 @@ export class MedicationSchemaParser implements SchemaParser {
 		if (!token.anchorText) return null;
 
 		let route = token.route;
-		let frequency = token.frequency;
+		let frequency: MedicationFrequency | undefined = FrequencyHelper.parse(content, attrRules, evalRules) || undefined;
 		let duration: string | undefined;
 
-		// Resolve RxNorm concept
+		// Resolve concept
 		const resolved = await resolveConceptHelper(
 			token.anchorText,
 			dictionaryStore,

@@ -39,10 +39,12 @@ export interface ParsedObservationItem extends BaseParsedItem {
 	status?: string;
 }
 
+import type { MedicationFrequency } from "../schemas/medication";
+
 export interface ParsedMedicationItem extends BaseParsedItem {
 	targetSchema: "MedicationOrderObject";
 	route?: string;
-	frequency?: string;
+	frequency?: MedicationFrequency;
 	duration?: string;
 	status?: string;
 }
@@ -119,11 +121,6 @@ export async function resolveConceptHelper(
 }
 
 // Register default parsers
-schemaParserRegistry.set("vital", new VitalsSchemaParser());
-schemaParserRegistry.set("vitalsmeasurementevent", new VitalsSchemaParser());
-schemaParserRegistry.set("observation", new ObservationSchemaParser());
-schemaParserRegistry.set("symptom", new ObservationSchemaParser());
-schemaParserRegistry.set("observationevent", new ObservationSchemaParser());
-schemaParserRegistry.set("rx", new MedicationSchemaParser());
-schemaParserRegistry.set("med", new MedicationSchemaParser());
-schemaParserRegistry.set("medicationorderobject", new MedicationSchemaParser());
+schemaParserRegistry.set(CANONICAL_TAGS.VITALS.toLowerCase(), new VitalsSchemaParser());
+schemaParserRegistry.set(CANONICAL_TAGS.OBSERVATION.toLowerCase(), new ObservationSchemaParser());
+schemaParserRegistry.set(CANONICAL_TAGS.MEDICATION.toLowerCase(), new MedicationSchemaParser());

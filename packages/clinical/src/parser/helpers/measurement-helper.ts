@@ -9,6 +9,7 @@ import type {
 import type {
 	TimeMeasurement,
 	TimePrecisionLevel,
+	TemporalBoundary,
 } from "../../schemas/time";
 
 export interface MeasurementToken {
@@ -191,6 +192,13 @@ export class TimeHelper {
 		return {
 			magnitude: token.magnitude,
 			unit,
+		};
+	}
+
+	static getCurrentTimestamp(precisionLevel: TimePrecisionLevel = "second"): TemporalBoundary {
+		return {
+			assertedTimestampUtc: new Date().toISOString(),
+			precisionLevel,
 		};
 	}
 }

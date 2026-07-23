@@ -22,6 +22,8 @@ import {
 import { StopWordParser } from "../src/parser/stop-word-parser";
 import type { PatientProfile } from "../src/schemas/patient";
 import { MeasurementHelper, TimeHelper } from "../src/parser/helpers/measurement-helper";
+import { FrequencyHelper } from "../src/parser/helpers/frequency-helper";
+import { DEFAULT_EVALUATOR_RULES } from "../src/store/defaults";
 import type { StopWordContext } from "../src/store/interfaces";
 import {
 	ClinicalAdministrativeStore,
@@ -42,9 +44,247 @@ import {
 	SqliteParserProfileStore,
 } from "../src/store/sqlite-clinical-store";
 
+// ---------------------------------------------------------------------------
+// Localized seed map — single source of truth for language-agnostic testing
+// ---------------------------------------------------------------------------
+const LOCALIZED_SEEDS = {
+	en: {
+		tagToken: "#",
+		tagMappings: {
+			vital: CANONICAL_TAGS.VITALS,
+			observation: CANONICAL_TAGS.OBSERVATION,
+			rx: CANONICAL_TAGS.MEDICATION,
+		},
+		concepts: {
+			temp: { id: "LOINC::8310-5", display: "Body temperature" },
+			chestPain: { id: "SNOMED::29857009", display: "Chest pain" },
+			amoxicillin: { id: "RxNorm::723", display: "Amoxicillin" },
+		},
+		cdsl: "#vital temp 38.5 Cel || #observation denies chest pain || #rx Amoxicillin oral daily 10 days",
+		negationTerm: "denies",
+		oralTerm: "oral",
+		dailyTerm: "daily",
+		attributeRules: [
+			{
+				targetField: "certainty",
+				targetValue: "refuted",
+				regexPatterns: ["\\bdenies\\b", "\\bno\\s+presenta\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "status",
+				targetValue: "resolved",
+				regexPatterns: ["\\bdenies\\b", "\\bno\\s+presenta\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "severity",
+				targetValue: "severe",
+				regexPatterns: ["\\bsevere\\b", "\\bgrave\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "route",
+				targetValue: "oral",
+				regexPatterns: ["\\boral\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "frequency_shorthand",
+				targetValue: "QD",
+				regexPatterns: ["\\bdaily\\b"],
+				isCaseInsensitive: true,
+			},
+		],
+	},
+	es: {
+		tagToken: "$",
+		tagMappings: {
+			vital: CANONICAL_TAGS.VITALS,
+			observacion: CANONICAL_TAGS.OBSERVATION,
+			receta: CANONICAL_TAGS.MEDICATION,
+		},
+		concepts: {
+			temp: { id: "LOINC::8310-5", display: "Temperatura corporal" },
+			chestPain: { id: "SNOMED::29857009", display: "Dolor de pecho" },
+			amoxicillin: { id: "RxNorm::723", display: "Amoxicilina" },
+		},
+		cdsl: "$vital temp 38.5 Cel || $observacion niega dolor de pecho || $receta Amoxicilina oral diario 10 days",
+		negationTerm: "niega",
+		oralTerm: "oral",
+		dailyTerm: "diario",
+		attributeRules: [
+			{
+				targetField: "certainty",
+				targetValue: "refuted",
+				regexPatterns: ["\\bniega\\b", "\\bno\\s+presenta\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "status",
+				targetValue: "resolved",
+				regexPatterns: ["\\bniega\\b", "\\bno\\s+presenta\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "severity",
+				targetValue: "severe",
+				regexPatterns: ["\\bgrave\\b", "\\bsevero\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "route",
+				targetValue: "oral",
+				regexPatterns: ["\\boral\\b"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "frequency_shorthand",
+				targetValue: "QD",
+				regexPatterns: ["\\bdiario\\b"],
+				isCaseInsensitive: true,
+			},
+		],
+	},
+} as const;
+
+type LanguageSeed = (typeof LOCALIZED_SEEDS)[keyof typeof LOCALIZED_SEEDS];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+async function seedNamespaces(conceptStore: InMemoryConceptStore) {
+	await conceptStore.addNamespace({
+		code: "LOINC",
+		description: "LOINC",
+		isPublic: true,
+		isExternalPrivate: false,
+	});
+	await conceptStore.addNamespace({
+		code: "SNOMED",
+		description: "SNOMED",
+		isPublic: true,
+		isExternalPrivate: false,
+	});
+	await conceptStore.addNamespace({
+		code: "RxNorm",
+		description: "RxNorm",
+		isPublic: true,
+		isExternalPrivate: false,
+	});
+}
+
+async function seedConcepts(
+	conceptStore: InMemoryConceptStore,
+	lang: LanguageSeed,
+) {
+	const c = lang.concepts;
+	await conceptStore.addConcept({
+		id: c.temp.id,
+		namespaceCode: "LOINC",
+		standardCode: "8310-5",
+		display: c.temp.display,
+		description: "temp",
+		active: true,
+	});
+	await conceptStore.addConcept({
+		id: c.chestPain.id,
+		namespaceCode: "SNOMED",
+		standardCode: "29857009",
+		display: c.chestPain.display,
+		active: true,
+	});
+	await conceptStore.addConcept({
+		id: c.amoxicillin.id,
+		namespaceCode: "RxNorm",
+		standardCode: "723",
+		display: c.amoxicillin.display,
+		active: true,
+	});
+}
+
+function makeLocalizedProfile(lang: LanguageSeed, profileOverrides?: any) {
+	return {
+		profileId: `localized_${lang.tagToken}`,
+		personnelId: `doc_${lang.tagToken}`,
+		tagToken: lang.tagToken,
+		stateDelimiter: "||",
+		stateStartDelimiter: "|",
+		stateEndDelimiter: "|",
+		macroStartToken: "^",
+		variableStartToken: "{",
+		variableEndToken: "}",
+		isDefault: false,
+		tagMappings: lang.tagMappings,
+		attributeRules: lang.attributeRules,
+		schemaNamespaces: {
+			vitalsmeasurementevent: ["LOINC"],
+			observationevent: ["SNOMED"],
+			medicationorderobject: ["RxNorm"],
+		},
+		evaluatorRules: DEFAULT_EVALUATOR_RULES,
+		...profileOverrides,
+	};
+}
+
+// (createLocalizedEngine helper is no longer needed for the main test,
+//  but kept for reference; can be removed in a future cleanup)
+async function createLocalizedEngine(
+	lang: LanguageSeed,
+	options?: { conceptDefaultsStore?: MemoryParserConceptDefaultStore },
+) {
+	const sessionObjStore = new MemorySessionObjectStore();
+	const persistentObjStore = new MemoryPersistentObjectStore();
+	const objectStore = new ObjectStore(
+		sessionObjStore,
+		persistentObjStore,
+		new Map(),
+	);
+
+	const resolver = new InMemoryConceptResolver();
+	const conceptStore = new InMemoryConceptStore();
+	const exprStore = new InMemoryPersistentExpressionStore();
+	const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+	await seedNamespaces(conceptStore);
+	await seedConcepts(conceptStore, lang);
+
+	const signedNoteStore = new MemorySignedSoapNoteStore();
+	const engine = new ClinicalEngine(objectStore, dictionaryStore, signedNoteStore);
+
+	const patient: PatientProfile = {
+		id: "pat_998",
+		mrn: "MRN-00129",
+		name: { primaryOrSurname: "Doe", givenNames: ["John"] },
+		administrativeGender: "male",
+		status: "active",
+		originationDate: {
+			assertedTimestampUtc: "1980-05-12T00:00:00Z",
+			precisionLevel: "day",
+		},
+		isOriginationEstimated: false,
+		biologicalProfile: { organismType: "human" },
+	};
+
+	return {
+		objectStore,
+		dictionaryStore,
+		engine,
+		conceptStore,
+		signedNoteStore,
+		patient,
+	};
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 describe("Clinical IDE Stateful Backend", () => {
-	test("Initialize, Parse CDSL, and Sign Encounter SOAP Note", async () => {
-		// 1. Setup core stateful services
+	// ── Parameterized localized test: runs for every language ─────────
+	// All languages run through the same engine to avoid Ajv schema
+	// re-registration conflicts (Ajv caches compiled schemas by $id globally).
+	test("Parameterized localized languages resolve identically (en + es)", async () => {
+		// Create a single engine shared across languages
 		const sessionObjStore = new MemorySessionObjectStore();
 		const persistentObjStore = new MemoryPersistentObjectStore();
 		const objectStore = new ObjectStore(
@@ -56,64 +296,18 @@ describe("Clinical IDE Stateful Backend", () => {
 		const resolver = new InMemoryConceptResolver();
 		const conceptStore = new InMemoryConceptStore();
 		const exprStore = new InMemoryPersistentExpressionStore();
-		const dictionaryStore = new DictionaryStore(
-			resolver,
-			conceptStore,
-			exprStore,
-		);
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
 
-		// Seed a few concepts manually for testing
-		await conceptStore.addNamespace({
-			code: "LOINC",
-			description: "LOINC",
-			isPublic: true,
-			isExternalPrivate: false,
-		});
-		await conceptStore.addNamespace({
-			code: "SNOMED",
-			description: "SNOMED",
-			isPublic: true,
-			isExternalPrivate: false,
-		});
-		await conceptStore.addNamespace({
-			code: "RxNorm",
-			description: "RxNorm",
-			isPublic: true,
-			isExternalPrivate: false,
-		});
+		await seedNamespaces(conceptStore);
+		// Seed ALL language concepts into the single store
+		for (const lang of Object.values(LOCALIZED_SEEDS)) {
+			await seedConcepts(conceptStore, lang);
+		}
 
-		await conceptStore.addConcept({
-			id: "LOINC::8310-5",
-			namespaceCode: "LOINC",
-			standardCode: "8310-5",
-			display: "Body temperature",
-			active: true,
-		});
-		await conceptStore.addConcept({
-			id: "SNOMED::29857009",
-			namespaceCode: "SNOMED",
-			standardCode: "29857009",
-			display: "Chest pain",
-			active: true,
-		});
-		await conceptStore.addConcept({
-			id: "RxNorm::723",
-			namespaceCode: "RxNorm",
-			standardCode: "723",
-			display: "Amoxicillin",
-			active: true,
-		});
-
-		// 2. Setup clinical stores and engine
 		const signedNoteStore = new MemorySignedSoapNoteStore();
-		const engine = new ClinicalEngine(
-			objectStore,
-			dictionaryStore,
-			signedNoteStore,
-		);
+		const engine = new ClinicalEngine(objectStore, dictionaryStore, signedNoteStore);
 
-		const sessionId = "session_enc_123";
-		const patient: PatientProfile = {
+		const basePatient: PatientProfile = {
 			id: "pat_998",
 			mrn: "MRN-00129",
 			name: { primaryOrSurname: "Doe", givenNames: ["John"] },
@@ -127,59 +321,97 @@ describe("Clinical IDE Stateful Backend", () => {
 			biologicalProfile: { organismType: "human" },
 		};
 
-		// 3. Initialize encounter
-		const noteId = await engine.initEncounter(sessionId, patient);
-		expect(noteId).toBeDefined();
+		for (const [langCode, lang] of Object.entries(LOCALIZED_SEEDS)) {
+			const sessionId = `session_enc_${langCode}`;
 
-		// Check initial state
-		const noteObj = await objectStore.getObject("active_note", sessionId);
-		expect(noteObj).not.toBeNull();
-		expect(noteObj?.data.status).toBe("draft");
-		expect(noteObj?.data.patient.name.primaryOrSurname).toBe("Doe");
+			// Setup localized engine/stores for this language to ensure the correct syntax profile is active
+			const sessionObjStore = new MemorySessionObjectStore();
+			const persistentObjStore = new MemoryPersistentObjectStore();
+			const objectStore = new ObjectStore(
+				sessionObjStore,
+				persistentObjStore,
+				new Map(),
+			);
 
-		// 4. Process CDSL input stream
-		const cdslInput =
-			"#vital temp 38.5 Cel || #observation denies Chest Pain || #rx Amoxicillin oral daily 10 days";
-		const updatedNote = await engine.processCdsl(sessionId, cdslInput);
+			const resolver = new InMemoryConceptResolver();
+			const conceptStore = new InMemoryConceptStore();
+			const exprStore = new InMemoryPersistentExpressionStore();
+			const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
 
-		// Assert Vitals mapped
-		expect(updatedNote.objective.vitals.length).toBe(1);
-		expect(updatedNote.objective.vitals[0]!.measurement.magnitude).toBe(38.5);
-		expect(updatedNote.objective.vitals[0]!.measurement.unit!.display).toBe(
-			"Cel",
-		);
+			await seedNamespaces(conceptStore);
+			await seedConcepts(conceptStore, lang);
 
-		// Assert Observation mapped & negated (subjective due to "denies")
-		expect(updatedNote.subjective.observations.length).toBe(1);
-		expect(updatedNote.subjective.observations[0]!.certainty).toBe("refuted");
-		expect(updatedNote.subjective.observations[0]!.status).toBe("resolved");
+			const profile = makeLocalizedProfile(lang);
+			const signedNoteStore = new MemorySignedSoapNoteStore();
+			// Instantiate the engine with the localized profile
+			const engine = new ClinicalEngine(objectStore, dictionaryStore, signedNoteStore);
+			// We override the internal parser instance to use the localized profile settings
+			(engine as any).parser = new CdslParser(dictionaryStore, profile);
 
-		// Assert Medication mapped
-		expect(updatedNote.plan.medications.length).toBe(1);
-		expect(updatedNote.plan.medications[0]!.route as string).toBe("ORAL");
-		expect(
-			updatedNote.plan.medications[0]!.frequency!.cadenceType as string,
-		).toBe("QD");
+			// Initialize encounter
+			const noteId = await engine.initEncounter(sessionId, basePatient);
+			expect(noteId).toBeDefined();
 
-		// 5. Sign the encounter SOAP note
-		const signedRecord = await engine.signEncounter(sessionId, "dr_smith_99");
-		expect(signedRecord.noteId).toBe(noteId);
-		expect(signedRecord.signedBy).toBe("dr_smith_99");
+			const noteObj = await objectStore.getObject("active_note", sessionId);
+			expect(noteObj).not.toBeNull();
+			expect(noteObj?.data.status).toBe("draft");
+			expect(noteObj?.data.patient.name.primaryOrSurname).toBe("Doe");
 
-		// Verify note is locked in session
-		const signedNoteObj = await objectStore.getObject("active_note", sessionId);
-		expect(signedNoteObj?.data.status).toBe("signed");
+			// Process localized CDSL
+			const updatedNote = await engine.processCdsl(sessionId, lang.cdsl);
 
-		// Attempting to modify signed note should throw
-		expect(engine.processCdsl(sessionId, "#vital temp 37.0")).rejects.toThrow();
+			// Assert Vitals mapped
+			expect(updatedNote.objective.vitals.length).toBe(1);
+			expect(updatedNote.objective.vitals[0]!.measurement.magnitude).toBe(38.5);
+			expect(updatedNote.objective.vitals[0]!.measurement.unit!.display).toBe(
+				"Cel",
+			);
 
-		// Verify note is archived in signedNoteStore
-		const archivedRecord = await signedNoteStore.get(noteId);
-		expect(archivedRecord).not.toBeNull();
-		expect(archivedRecord?.signedBy).toBe("dr_smith_99");
-		expect(archivedRecord?.soapNoteJson.status).toBe("signed");
+			// Assert Observation mapped & negated
+			expect(updatedNote.subjective.observations.length).toBe(1);
+			expect(updatedNote.subjective.observations[0]!.certainty).toBe("refuted");
+			expect(updatedNote.subjective.observations[0]!.status).toBe("resolved");
 
-		// 6. Test custom tagToken profile & canonical interface names
+			// Assert Medication mapped
+			expect(updatedNote.plan.medications.length).toBe(1);
+			expect(updatedNote.plan.medications[0]!.route as string).toBe("oral");
+			expect(updatedNote.plan.medications[0]!.frequency?.cadenceType).toBe("interval");
+			expect(updatedNote.plan.medications[0]!.frequency?.interval?.multiplier).toBe(1);
+			expect(updatedNote.plan.medications[0]!.frequency?.interval?.unit).toBe("day");
+			expect(updatedNote.plan.medications[0]!.frequency?.isPrn).toBe(false);
+
+			// Sign encounter
+			const signedRecord = await engine.signEncounter(sessionId, "dr_smith_99");
+			expect(signedRecord.noteId).toBe(noteId);
+			expect(signedRecord.signedBy).toBe("dr_smith_99");
+
+			const signedNoteObj = await objectStore.getObject(
+				"active_note",
+				sessionId,
+			);
+			expect(signedNoteObj?.data.status).toBe("signed");
+
+			expect(
+				engine.processCdsl(sessionId, `${lang.tagToken}vital temp 37.0`),
+			).rejects.toThrow();
+
+			const archivedRecord = await signedNoteStore.get(noteId);
+			expect(archivedRecord).not.toBeNull();
+			expect(archivedRecord?.signedBy).toBe("dr_smith_99");
+			expect(archivedRecord?.soapNoteJson.status).toBe("signed");
+		}
+	});
+
+	// ── Custom tagToken profile & canonical interface names ──────────
+	test("Custom tagToken profile & canonical interface names", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
 		const customProfile = {
 			profileId: "custom_dollars",
 			personnelId: "doc_123",
@@ -191,6 +423,10 @@ describe("Clinical IDE Stateful Backend", () => {
 			variableStartToken: "{",
 			variableEndToken: "}",
 			isDefault: false,
+			tagMappings: {
+				vital: CANONICAL_TAGS.VITALS,
+				vitalsmeasurementevent: CANONICAL_TAGS.VITALS,
+			},
 		};
 		const customParser = new CdslParser(dictionaryStore, customProfile);
 		const parsedCustom = await customParser.parse(
@@ -199,8 +435,18 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedCustom.length).toBe(2);
 		expect((parsedCustom[0] as ParsedVitalsItem)?.value).toBe(39.1);
 		expect((parsedCustom[1] as ParsedVitalsItem)?.value).toBe(90);
+	});
 
-		// 7. Test custom tagMappings (internationalization/localization)
+	// ── Custom tagMappings (internationalization) ───────────────────
+	test("Custom tagMappings (i18n spanish tag aliases)", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
 		const i18nProfile = {
 			profileId: "es_clinic",
 			personnelId: "doc_es",
@@ -225,11 +471,32 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedI18n[0]?.targetSchema).toBe("VitalsMeasurementEvent");
 		expect((parsedI18n[0] as ParsedVitalsItem)?.value).toBe(38.8);
 		expect(parsedI18n[1]?.targetSchema).toBe("MedicationOrderObject");
+	});
 
-		// 8. Test custom attributeRules (e.g. Spanish observation attributes)
-		const customI18nProfile = {
-			...i18nProfile,
+	// ── Custom attributeRules (localized negation/severity) ──────────
+	test("Custom attributeRules for localized negation/severity", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
+		const spanishAttrProfile = {
 			profileId: "es_clinic_attributes",
+			personnelId: "doc_es",
+			tagToken: "$",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
+			isDefault: false,
+			tagMappings: {
+				observation: CANONICAL_TAGS.OBSERVATION,
+			},
 			attributeRules: [
 				{
 					targetField: "certainty",
@@ -245,7 +512,7 @@ describe("Clinical IDE Stateful Backend", () => {
 				},
 			],
 		};
-		const ruleParser = new CdslParser(dictionaryStore, customI18nProfile);
+		const ruleParser = new CdslParser(dictionaryStore, spanishAttrProfile);
 		const parsedRules = await ruleParser.parse(
 			"$observation niega Chest Pain || $observation grave Chest Pain",
 		);
@@ -254,8 +521,18 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedRules[0]?.anchorText).toBe("Chest Pain");
 		expect((parsedRules[1] as ParsedObservationItem)?.severity).toBe("severe");
 		expect(parsedRules[1]?.anchorText).toBe("Chest Pain");
+	});
 
-		// 9. Test ParserConceptDefaultStore with regex capture groups (LOINC temp)
+	// ── ParserConceptDefaultStore with regex capture groups ──────────
+	test("ParserConceptDefaultStore with regex capture groups", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
 		const conceptDefaultsStore = new MemoryParserConceptDefaultStore();
 		await conceptDefaultsStore.set({
 			anchorConceptId: "LOINC::8310-5",
@@ -280,8 +557,18 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect((parsedDefaults[0] as ParsedVitalsItem)?.unit).toBe("Cel");
 		expect(parsedDefaults[0]?.capturedProperties?.value).toBe("38.2");
 		expect(parsedDefaults[0]?.capturedProperties?.unit).toBe("Cel");
+	});
 
-		// 10. Test direct term tokenizer resolution (LOINC::8310-5)
+	// ── Direct term tokenizer resolution (LOINC::8310-5) ─────────────
+	test("Direct term tokenizer resolution (LOINC::8310-5)", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
 		const tokenizerProfile = {
 			profileId: "tokenizer_test",
 			personnelId: "doc_test",
@@ -294,6 +581,9 @@ describe("Clinical IDE Stateful Backend", () => {
 			variableEndToken: "}",
 			isDefault: false,
 			termTokenizer: "::",
+			tagMappings: {
+				vital: CANONICAL_TAGS.VITALS,
+			},
 		};
 		const tokenizerParser = new CdslParser(dictionaryStore, tokenizerProfile);
 		const parsedTokenizer = await tokenizerParser.parse(
@@ -302,8 +592,36 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedTokenizer.length).toBe(1);
 		expect(parsedTokenizer[0]?.conceptId).toBeDefined();
 		expect(parsedTokenizer[0]?.display).toBe("Body temperature");
+	});
 
-		// 11. Test tagless resolution guessing fallback
+	// ── Tagless resolution guessing fallback ─────────────────────────
+	test("Tagless resolution guessing fallback", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
+		const conceptDefaultsStore = new MemoryParserConceptDefaultStore();
+		await conceptDefaultsStore.set({
+			anchorConceptId: "LOINC::8310-5",
+			targetSchema: "VitalsMeasurementEvent",
+			regexPatterns: [
+				"temp(?:erature)?\\s+is\\s+(?<value>\\d+(?:\\.\\d+)?)\\s*(?<unit>[a-zA-Z%]*)",
+			],
+			defaultProperties: {
+				unit: "Cel",
+				captureGroupMapping: ["value", "unit"],
+			},
+		});
+
+		const defaultParser = new CdslParser(
+			dictionaryStore,
+			undefined,
+			conceptDefaultsStore,
+		);
 		const parsedTagless = await defaultParser.parse(
 			"temp 37.9 Cel || Chest Pain denies || Amoxicillin daily",
 		);
@@ -313,8 +631,18 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedTagless[1]?.targetSchema).toBe("ObservationEvent");
 		expect((parsedTagless[1] as ParsedObservationItem)?.certainty).toBe("refuted");
 		expect(parsedTagless[2]?.targetSchema).toBe("MedicationOrderObject");
+	});
 
-		// 12. Test schemaNamespaces configuration filtering
+	// ── schemaNamespaces configuration filtering ─────────────────────
+	test("schemaNamespaces configuration filtering", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
 		const namespacesProfile = {
 			profileId: "ns_test",
 			personnelId: "doc_test",
@@ -330,6 +658,9 @@ describe("Clinical IDE Stateful Backend", () => {
 				[CANONICAL_TAGS.OBSERVATION.toLowerCase()]: ["SNOMED"],
 				[CANONICAL_TAGS.VITALS.toLowerCase()]: ["LOINC"],
 			},
+			tagMappings: {
+				observation: CANONICAL_TAGS.OBSERVATION,
+			},
 		};
 		const namespacesParser = new CdslParser(dictionaryStore, namespacesProfile);
 		const parsedNS = await namespacesParser.parse(
@@ -337,8 +668,19 @@ describe("Clinical IDE Stateful Backend", () => {
 		);
 		expect(parsedNS.length).toBe(1);
 		expect(parsedNS[0]?.conceptId).toBeDefined();
+	});
 
-		// 13. Test blood pressure custom unit capture
+	// ── Blood pressure custom unit capture ───────────────────────────
+	test("Blood pressure custom unit capture", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
+
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
+
+		const defaultParser = new CdslParser(dictionaryStore);
 		const parsedBPUnit = await defaultParser.parse(
 			"#vital bp 120/80 bar || #vital bp 125/85",
 		);
@@ -347,8 +689,10 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect((parsedBPUnit[0] as ParsedVitalsItem)?.unit).toBe("bar");
 		expect((parsedBPUnit[1] as ParsedVitalsItem)?.value).toBe("125/85");
 		expect((parsedBPUnit[1] as ParsedVitalsItem)?.unit).toBe("mmHg");
+	});
 
-		// 14. Test MeasurementHelper and TimeHelper sub-parsing
+	// ── MeasurementHelper and TimeHelper sub-parsing ─────────────────
+	test("MeasurementHelper and TimeHelper sub-parsing", async () => {
 		const parsedMeasure = MeasurementHelper.parse(">=38.5 Cel");
 		expect(parsedMeasure?.magnitude).toBe(38.5);
 		expect(parsedMeasure?.operator).toBe("gte");
@@ -362,7 +706,45 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parsedTime?.magnitude).toBe(3);
 		expect(parsedTime?.unit).toBe("hour");
 
-		// 15. Test language-neutral dynamic attribute rule translations for helpers
+		// FrequencyHelper rate sub-parsing
+		const freqRules = [
+			{
+				targetField: "time_unit",
+				targetValue: "year",
+				regexPatterns: ["years?", "años?", "año"],
+				isCaseInsensitive: true,
+			},
+			{
+				targetField: "time_unit",
+				targetValue: "week",
+				regexPatterns: ["weeks?", "semanas?", "semana"],
+				isCaseInsensitive: true,
+			}
+		];
+		const evalRules = [
+			{
+				ruleId: "freq_times",
+				targetField: "frequency_details",
+				evaluatorName: "parseFrequencyTimes",
+				regexPatterns: [
+					"(?<multiplier>\\d+(?:\\.\\d+)?)\\s*(?:times|veces)?\\s*(?:per|al|a\\s+la|por)\\s*(?<unit>\\S+)",
+				],
+			}
+		];
+
+		const parsedRateYear = FrequencyHelper.parse("150 times per year", freqRules, evalRules);
+		expect(parsedRateYear?.cadenceType).toBe("interval");
+		expect(parsedRateYear?.rate?.times).toBe(150);
+		expect(parsedRateYear?.rate?.period).toBe("year");
+
+		const parsedRateWeek = FrequencyHelper.parse("3 veces por semana", freqRules, evalRules);
+		expect(parsedRateWeek?.cadenceType).toBe("interval");
+		expect(parsedRateWeek?.rate?.times).toBe(3);
+		expect(parsedRateWeek?.rate?.period).toBe("week");
+	});
+
+	// ── Language-neutral dynamic attribute rule translations for helpers
+	test("Language-neutral dynamic attribute rules for MeasurementHelper and TimeHelper", async () => {
 		const customRules = [
 			{
 				targetField: "unit",
@@ -396,13 +778,14 @@ describe("Clinical IDE Stateful Backend", () => {
 		const parsedTimeES = TimeHelper.parse("5 horas", customRules);
 		expect(parsedTimeES?.magnitude).toBe(5);
 		expect(parsedTimeES?.unit).toBe("hour");
+	});
 
-		// 16. Test generic SQLite entity store clinical adapters
+	// ── Generic SQLite entity store clinical adapters ────────────────
+	test("Generic SQLite entity store clinical adapters", async () => {
 		const testDb = new Database(":memory:");
 		const sqliteProfileStore = new SqliteParserProfileStore(testDb);
 		const sqliteDefaultsStore = new SqliteParserConceptDefaultStore(testDb);
 
-		// Wait slightly to ensure asynchronous seeding runs
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		const systemProfile = await sqliteProfileStore.get("default");
@@ -418,10 +801,8 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(tempDefault?.defaultProperties.unit).toBe("Cel");
 	});
 
+	// ── Unified clinical store: MemoryEntityStore vs SqliteEntityStore
 	test("Unified clinical store works identically with MemoryEntityStore and SqliteEntityStore", async () => {
-		const profileSeed: any[] = [];
-		const defaultsSeed: any[] = [];
-
 		async function runClinicalTests(
 			name: string,
 			profileStore: ClinicalParserProfileStore,
@@ -433,7 +814,6 @@ describe("Clinical IDE Stateful Backend", () => {
 			jDisplayStore: ClinicalJurisdictionalDisplayStore,
 			stopWordStore: ClinicalStopWordStore,
 		) {
-			// Wait for async seeding
 			await new Promise((resolve) => setTimeout(resolve, 50));
 
 			// ParserProfileStore
@@ -696,12 +1076,12 @@ describe("Clinical IDE Stateful Backend", () => {
 		);
 	});
 
+	// ── StopWordParser.fromStore compiles stop words from context ────
 	test("StopWordParser.fromStore compiles stop words from context via StopWordStore", async () => {
 		const stopWordStore = new ClinicalStopWordStore(
 			new MemoryEntityStore<any>(),
 		);
 
-		// Seed a profile with custom words
 		await stopWordStore.setProfile({
 			profileId: "stop_dr_test",
 			personnelId: "dr_test",
@@ -710,7 +1090,6 @@ describe("Clinical IDE Stateful Backend", () => {
 			customWords: ["patient", "history"],
 		});
 
-		// Compile via context
 		const context: StopWordContext = {
 			personnelId: "dr_test",
 		};
@@ -719,33 +1098,18 @@ describe("Clinical IDE Stateful Backend", () => {
 		expect(parser.isStopWord("patient")).toBe(true);
 		expect(parser.isStopWord("history")).toBe(true);
 		expect(parser.isStopWord("temp")).toBe(false);
-		expect(parser.isStopWord("Patient")).toBe(true); // case insensitive
+		expect(parser.isStopWord("Patient")).toBe(true);
 	});
 
+	// ── CdslParser with stopWordStore + context ──────────────────────
 	test("CdslParser with stopWordStore + context short-circuits stop words", async () => {
-		// Setup dictionary store + concept defaults
 		const resolver = new InMemoryConceptResolver();
 		const conceptStore = new InMemoryConceptStore();
 		const exprStore = new InMemoryPersistentExpressionStore();
-		const dictionaryStore = new DictionaryStore(
-			resolver,
-			conceptStore,
-			exprStore,
-		);
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
 
-		await conceptStore.addNamespace({
-			code: "LOINC",
-			description: "LOINC",
-			isPublic: true,
-			isExternalPrivate: false,
-		});
-		await conceptStore.addConcept({
-			id: "LOINC::8310-5",
-			namespaceCode: "LOINC",
-			standardCode: "8310-5",
-			display: "Body temperature",
-			active: true,
-		});
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
 
 		const conceptDefaultsStore = new MemoryParserConceptDefaultStore();
 		await conceptDefaultsStore.set({
@@ -760,7 +1124,6 @@ describe("Clinical IDE Stateful Backend", () => {
 			},
 		});
 
-		// Setup stop word store with a profile
 		const stopWordStore = new ClinicalStopWordStore(
 			new MemoryEntityStore<any>(),
 		);
@@ -772,60 +1135,38 @@ describe("Clinical IDE Stateful Backend", () => {
 			customWords: ["patient", "history"],
 		});
 
-		// Parser with stopWordStore (no pre-built StopWordParser)
 		const parser = new CdslParser(
 			dictionaryStore,
 			undefined,
 			conceptDefaultsStore,
-			undefined, // no stopWordParser
-			stopWordStore, // but has stopWordStore
+			undefined,
+			stopWordStore,
 		);
 
-		// Tagless segment with stop word — should short-circuit when context is provided
 		const context: StopWordContext = { personnelId: "dr_test" };
 		const result = await parser.parse("patient has no temp 38.5", context);
 		expect(result.length).toBe(0);
 
-		// Tagged segment with stop word content — should short-circuit
 		const taggedResult = await parser.parse("#vital history", context);
 		expect(taggedResult.length).toBe(0);
 
-		// Tagged segment with non-stop word — should parse normally
 		const normalResult = await parser.parse("#vital temp is 38.5 Cel", context);
 		expect(normalResult.length).toBe(1);
 		expect((normalResult[0] as ParsedVitalsItem)?.value).toBe(38.5);
 
-		// Without context, no stop word resolution happens (no effective parser)
 		const noContextResult = await parser.parse("patient has no temp 38.5");
-		// Without context, the parser has no effective stop word parser,
-		// so it enters the tagless resolution pipeline
 		expect(noContextResult.length).toBeGreaterThanOrEqual(0);
 	});
 
+	// ── StopWordParser gatekeeper short-circuits stop words ──────────
 	test("StopWordParser gatekeeper short-circuits stop words in tagless and tagged segments", async () => {
-		// Setup dictionary store + concept defaults to enable tagless resolution
 		const resolver = new InMemoryConceptResolver();
 		const conceptStore = new InMemoryConceptStore();
 		const exprStore = new InMemoryPersistentExpressionStore();
-		const dictionaryStore = new DictionaryStore(
-			resolver,
-			conceptStore,
-			exprStore,
-		);
+		const dictionaryStore = new DictionaryStore(resolver, conceptStore, exprStore);
 
-		await conceptStore.addNamespace({
-			code: "LOINC",
-			description: "LOINC",
-			isPublic: true,
-			isExternalPrivate: false,
-		});
-		await conceptStore.addConcept({
-			id: "LOINC::8310-5",
-			namespaceCode: "LOINC",
-			standardCode: "8310-5",
-			display: "Body temperature",
-			active: true,
-		});
+		await seedNamespaces(conceptStore);
+		await seedConcepts(conceptStore, LOCALIZED_SEEDS.en);
 
 		const conceptDefaultsStore = new MemoryParserConceptDefaultStore();
 		await conceptDefaultsStore.set({
@@ -840,20 +1181,19 @@ describe("Clinical IDE Stateful Backend", () => {
 			},
 		});
 
-		// Parser WITHOUT gatekeeper: tagged segment parses normally
 		const noGatekeeperParser = new CdslParser(
 			dictionaryStore,
 			undefined,
 			conceptDefaultsStore,
 		);
-		const noGateResult = await noGatekeeperParser.parse("#vital temp is 38.5 Cel");
+		const noGateResult = await noGatekeeperParser.parse(
+			"#vital temp is 38.5 Cel",
+		);
 		expect(noGateResult.length).toBeGreaterThanOrEqual(1);
 		expect((noGateResult[0] as ParsedVitalsItem)?.value).toBe(38.5);
 
-		// Create StopWordParser with mock stop words
 		const stopWordParser = new StopWordParser(["has", "no", "patient"]);
 
-		// Parser WITH stop word gatekeeper
 		const gatekeeperParser = new CdslParser(
 			dictionaryStore,
 			undefined,
@@ -861,16 +1201,17 @@ describe("Clinical IDE Stateful Backend", () => {
 			stopWordParser,
 		);
 
-		// --- Tagless segment: starts with a stop word, entire segment short-circuited ---
-		const gatekeptResult = await gatekeeperParser.parse("patient has no temp 38.5");
+		const gatekeptResult = await gatekeeperParser.parse(
+			"patient has no temp 38.5",
+		);
 		expect(gatekeptResult.length).toBe(0);
 
-		// --- Tagged segment: content is a stop word, short-circuited in parseSegment ---
 		const taggedStopResult = await gatekeeperParser.parse("#vital has");
 		expect(taggedStopResult.length).toBe(0);
 
-		// --- Tagged segment: non-stop word content still parses normally ---
-		const taggedNormalResult = await gatekeeperParser.parse("#vital temp is 38.5 Cel");
+		const taggedNormalResult = await gatekeeperParser.parse(
+			"#vital temp is 38.5 Cel",
+		);
 		expect(taggedNormalResult.length).toBe(1);
 		expect((taggedNormalResult[0] as ParsedVitalsItem)?.value).toBe(38.5);
 	});

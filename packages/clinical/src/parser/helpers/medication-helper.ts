@@ -3,7 +3,6 @@ import type { AttributeParserRule, ParserDictionaryRule } from "../../store/inte
 export interface MedicationToken {
 	anchorText: string;
 	route?: string;
-	frequency?: string;
 	duration?: string;
 	quantity?: number;
 	quantityUnit?: string;
@@ -73,7 +72,6 @@ export class MedicationTokenizer {
 		return {
 			anchorText,
 			route: attributes.route,
-			frequency: attributes.frequency,
 			quantity: capturedProps.quantity,
 			quantityUnit: capturedProps.quantityUnit,
 		};

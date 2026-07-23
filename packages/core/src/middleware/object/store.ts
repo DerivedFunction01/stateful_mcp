@@ -126,9 +126,10 @@ export class ObjectStore {
 			try {
 				const validate = ajv.compile(rootSchema);
 				if (!validate(data)) {
+					const errorMsg = ajv.errorsText(validate.errors);
 					throw new StatefulFrameworkError(
 						ErrorCode.OBJECT_VALIDATION_FAILED,
-						`Initial data fails schema validation`,
+						`Initial data fails schema validation: ${errorMsg}`,
 					);
 				}
 			} catch (err: any) {

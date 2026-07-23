@@ -1,14 +1,14 @@
 import type { DictionaryStore, ObjectStore } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
+import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { SoapNote } from "../schemas/document";
 import type { PatientProfile } from "../schemas/patient";
 import type {
-	CountMeasurement,
-	DistanceMeasurement,
-	MeasurementUnitAnchor,
-	PressureMeasurement,
-	TemperatureMeasurement,
-} from "../schemas/shared";
+	ParsedVitalsItem,
+	ParsedObservationItem,
+	ParsedMedicationItem,
+} from "../parser/schema-parsers";
+import type { TemporalBoundary } from "../schemas/time";
 import type {
 	CalibrationStore,
 	SignedSoapNoteRecord,
@@ -46,13 +46,12 @@ export class ClinicalEngine {
 	): Promise<string> {
 		// Define the base SOAP note schema rules
 		const schema = {
-			$id: "SoapNote",
 			type: "object",
 			properties: {
 				id: { type: "string" },
 				title: { type: "string" },
-				createdAt: { type: "string" },
-				updatedAt: { type: "string" },
+				createdAt: { type: "object" },
+				updatedAt: { type: "object" },
 				status: { type: "string", enum: ["draft", "signed"] },
 				signedBy: { type: "string" },
 				patient: { type: "object" },
@@ -64,15 +63,23 @@ export class ClinicalEngine {
 			required: ["id", "status", "patient"],
 		};
 
-		// Register template schema in ObjectStore
-		this.objectStore.registerSchema("SoapNote", schema);
+		// Register template schema in ObjectStore if not already registered
+		const storeAny = this.objectStore as any;
+		if (!storeAny.hasSchema?.("SoapNote") && !storeAny.schemas?.has("SoapNote")) {
+			try {
+				this.objectStore.registerSchema("SoapNote", schema);
+			} catch (_) {
+				// Fallback in case schema is registered under the hood
+			}
+		}
 
 		const noteId = `note_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+		const now = TimeHelper.getCurrentTimestamp();
 		const note: SoapNote = {
 			id: noteId,
 			title: `Encounter Note - ${patient.name.primaryOrSurname}`,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
+			createdAt: now,
+			updatedAt: now,
 			status: "draft",
 			patient,
 			subjective: { observations: [], exposures: [], injuries: [] },
@@ -118,19 +125,20 @@ export class ClinicalEngine {
 				});
 			}
 
-			// Route items to their respective SOAP Note properties
-			const tagClean = item.tag.toLowerCase();
+			// Route items to their respective SOAP Note properties using targetSchema names dynamically
+			const schemaClean = item.targetSchema.toLowerCase();
 
-			if (tagClean === "#vital") {
+			if (schemaClean === "vitalsmeasurementevent") {
+				const vitalsItem = item as ParsedVitalsItem;
 				const vitals = [...(note.objective?.vitals || [])];
-				const unit = item.unit || "";
+				const unit = vitalsItem.unit || "";
 					
 				vitals.push({
 					id: `vit_${crypto.randomUUID().slice(0, 8)}`,
 					soapSection: "objective",
-					concept: { conceptId: item.conceptId, display: item.display },
+					concept: { conceptId: vitalsItem.conceptId, display: vitalsItem.display },
 					measurement: {
-						magnitude: Number(item.value || 0),
+						magnitude: Number(vitalsItem.value || 0),
 						unit: { display: unit },
 					},
 				} as any);
@@ -140,8 +148,9 @@ export class ClinicalEngine {
 					vitals,
 					sessionId,
 				);
-			} else if (tagClean === "#observation" || tagClean === "#symptom") {
-				const isNegated = item.certainty === "refuted";
+			} else if (schemaClean === "observationevent") {
+				const obsItem = item as ParsedObservationItem;
+				const isNegated = obsItem.certainty === "refuted";
 				const section = isNegated ? "subjective" : "objective";
 
 				if (section === "subjective") {
@@ -149,11 +158,11 @@ export class ClinicalEngine {
 					obs.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
 						soapSection: "subjective",
-						concept: { conceptId: item.conceptId, display: item.display },
-						rawTerm: item.anchorText,
+						concept: { conceptId: obsItem.conceptId, display: obsItem.display },
+						rawTerm: obsItem.anchorText,
 						sourceType: "patient_reported",
-						certainty: item.certainty as any,
-						status: item.status as any,
+						certainty: obsItem.certainty as any,
+						status: obsItem.status as any,
 						severity: { score: 0, maxScore: 0, normalizedScore: 0 },
 						duration: { magnitude: 1 },
 						trajectory: "stable",
@@ -169,11 +178,11 @@ export class ClinicalEngine {
 					obs.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
 						soapSection: "objective",
-						concept: { conceptId: item.conceptId, display: item.display },
-						rawTerm: item.anchorText,
+						concept: { conceptId: obsItem.conceptId, display: obsItem.display },
+						rawTerm: obsItem.anchorText,
 						sourceType: "clinician_observed",
-						certainty: item.certainty as any,
-						status: item.status as any,
+						certainty: obsItem.certainty as any,
+						status: obsItem.status as any,
 						severity: { score: 0, maxScore: 0, normalizedScore: 0 },
 						duration: { magnitude: 1 },
 						trajectory: "stable",
@@ -185,14 +194,15 @@ export class ClinicalEngine {
 						sessionId,
 					);
 				}
-			} else if (tagClean === "#rx" || tagClean === "#med") {
+			} else if (schemaClean === "medicationorderobject") {
+				const medItem = item as ParsedMedicationItem;
 				const meds = [...(note.plan?.medications || [])];
 				meds.push({
 					id: `med_${crypto.randomUUID().slice(0, 8)}`,
 					soapSection: "plan",
-					medication: { conceptId: item.conceptId, display: item.display },
-					route: item.route as any,
-					frequency: { cadenceType: item.frequency } as any,
+					medication: { conceptId: medItem.conceptId, display: medItem.display },
+					route: medItem.route as any,
+					frequency: medItem.frequency,
 				} as any);
 				currentObjId = await this.objectStore.set(
 					currentObjId,
@@ -203,10 +213,11 @@ export class ClinicalEngine {
 			}
 		}
 
+		const updatedAt = TimeHelper.getCurrentTimestamp();
 		currentObjId = await this.objectStore.set(
 			currentObjId,
 			["updatedAt"],
-			new Date().toISOString(),
+			updatedAt,
 			sessionId,
 		);
 
@@ -249,10 +260,11 @@ export class ClinicalEngine {
 			signedBy,
 			sessionId,
 		);
+		const updatedAt = TimeHelper.getCurrentTimestamp();
 		currentObjId = await this.objectStore.set(
 			currentObjId,
 			["updatedAt"],
-			new Date().toISOString(),
+			updatedAt,
 			sessionId,
 		);
 

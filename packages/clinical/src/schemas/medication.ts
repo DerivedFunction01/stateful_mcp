@@ -32,6 +32,15 @@ export interface MedicationFrequency {
 	};
 
 	/**
+	 * Represents rates (e.g., 3 times per week, 150 times per year).
+	 * Populated when frequency is dictated as repetitions over a duration period.
+	 */
+	rate?: {
+		times: number;
+		period: TimePrecisionLevel;
+	};
+
+	/**
 	 * Tied to biological/physiological circadian rhythms rather than wall-clock time.
 	 * Populated exclusively when cadenceType === "event_anchored".
 	 */
