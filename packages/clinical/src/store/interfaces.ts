@@ -39,6 +39,15 @@ export interface AttributeParserRule {
 	targetValue: string; // e.g. 'refuted', 'active', 'severe', 'ORAL', 'TID'
 	regexPatterns: string[]; // e.g. ['denies', 'deny', 'no\\s+']
 	isCaseInsensitive?: boolean;
+	/**
+	 * When targetField is "unit" or "measurement_unit", declares the physical-dimension
+	 * anchor of the matched unit string (e.g. "temperature", "pressure", "mass",
+	 * "mass_concentration", "length", "number").
+	 * When present, MeasurementHelper.parse() will promote its return value from a bare
+	 * SingleMeasurement to a fully-anchored BoundedMeasurement.
+	 * Typed as string to avoid a circular import with schemas/shared.ts.
+	 */
+	unitAnchor?: string;
 }
 
 export interface ParserConceptDefault {

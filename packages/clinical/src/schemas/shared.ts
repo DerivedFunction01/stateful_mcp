@@ -117,6 +117,14 @@ export interface ScoreMeasurement extends BoundedMeasurement {
 }
 
 /**
+ * Type guard: narrows a SingleMeasurement to BoundedMeasurement when a
+ * physical-dimension anchor was resolved during parsing.
+ */
+export function isBoundedMeasurement(m: SingleMeasurement): m is BoundedMeasurement {
+	return "unitAnchor" in m && (m as BoundedMeasurement).unitAnchor !== undefined;
+}
+
+/**
  * Extends SingleMeasurement but overrides `unit` with a chronological precision level
  * instead of a CodeableConcept — keeping it in the hierarchy while remaining incompatible
  * with physical-dimension anchored types.
@@ -302,7 +310,7 @@ export class MeasurementHelper {
 	static resolveUnit(
 		unitDisplay: string,
 		unitRules?: AttributeParserRule[],
-	): string {
+	): { display: string; unitAnchor?: MeasurementUnitAnchor } {
 		const rules = unitRules && unitRules.length > 0 ? unitRules : DEFAULT_ATTRIBUTE_RULES;
 		const matchingRules = rules.filter(r => r.targetField === "unit" || r.targetField === "measurement_unit");
 		for (const rule of matchingRules) {
@@ -310,18 +318,21 @@ export class MeasurementHelper {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
 				const regex = new RegExp(pattern, flags);
 				if (regex.test(unitDisplay)) {
-					return rule.targetValue;
+					return {
+						display: rule.targetValue,
+						unitAnchor: rule.unitAnchor as MeasurementUnitAnchor | undefined,
+					};
 				}
 			}
 		}
-		return unitDisplay;
+		return { display: unitDisplay };
 	}
 
 	static parse(
 		text: string,
 		defaultUnit?: string,
 		attributeRules?: AttributeParserRule[],
-	): SingleMeasurement | null {
+	): BoundedMeasurement | SingleMeasurement | null {
 		const rules = attributeRules && attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
 		const opRules = rules.filter(r => r.targetField === "operator" || r.targetField === "measurement_operator");
 		const opPatterns = opRules.flatMap(r => r.regexPatterns);
@@ -329,11 +340,11 @@ export class MeasurementHelper {
 		const token = MeasurementHelper.tokenizeMeasurement(text, opPatterns, rules);
 		if (!token) return null;
 
-		let resolvedUnit = "";
+		let resolved: { display: string; unitAnchor?: MeasurementUnitAnchor } | undefined;
 		if (token.rawUnit) {
-			resolvedUnit = MeasurementHelper.resolveUnit(token.rawUnit, rules);
+			resolved = MeasurementHelper.resolveUnit(token.rawUnit, rules);
 		}
-		const unitDisplay = resolvedUnit || defaultUnit;
+		const unitDisplay = resolved?.display || defaultUnit;
 		const unit: CodeableConcept | undefined = unitDisplay
 			? { display: unitDisplay }
 			: undefined;
@@ -343,12 +354,18 @@ export class MeasurementHelper {
 			operator = token.operator;
 		}
 
-		return {
+		const base: SingleMeasurement = {
 			magnitude: token.magnitude,
 			operator,
 			is_approximate: token.isApproximate || undefined,
 			unit,
 		};
+
+		// Promote to BoundedMeasurement when the unit rule carried a dimension anchor.
+		if (resolved?.unitAnchor) {
+			return { ...base, unitAnchor: resolved.unitAnchor } as BoundedMeasurement;
+		}
+		return base;
 	}
 }
 
