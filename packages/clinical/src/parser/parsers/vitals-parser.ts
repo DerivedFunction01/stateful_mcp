@@ -6,7 +6,7 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
-import { MeasurementHelper } from "../helpers/measurement-helper";
+import { QuantityHelper } from "../helpers/measurement-helper";
 import { VitalsHelper, VitalsTokenizer } from "../helpers/vitals-helper";
 import {
 	CANONICAL_TAGS,
@@ -122,11 +122,13 @@ export class VitalsSchemaParser implements SchemaParser {
 		const finalUnit = unitText || defaultUnit;
 		let unitAnchor: string | undefined;
 		if (finalUnit) {
-			const resolvedUnit = MeasurementHelper.resolveUnit(
+			const resolvedUnit = QuantityHelper.resolveUnit(
 				finalUnit,
 				attributeRules,
 			);
-			unitAnchor = resolvedUnit.unitAnchor;
+			if (resolvedUnit && QuantityHelper.isPhysicalResolved(resolvedUnit)) {
+				unitAnchor = resolvedUnit.unitAnchor;
+			}
 		}
 
 		return {

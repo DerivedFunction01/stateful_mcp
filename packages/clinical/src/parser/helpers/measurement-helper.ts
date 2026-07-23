@@ -12,21 +12,40 @@ import type {
 import { DEFAULT_ATTRIBUTE_RULES } from "../../store/defaults";
 import type { AttributeParserRule } from "../../store/interfaces";
 
-export interface MeasurementToken {
-	operator?: string;
+export interface QuantityToken {
 	magnitude: number;
 	rawUnit?: string;
+	operator?: string;
 	isApproximate?: boolean;
 }
 
-export class MeasurementHelper {
-	static tokenizeMeasurement(
+export interface PhysicalResolved {
+	display: string;
+	unitAnchor: MeasurementUnitAnchor;
+}
+
+export interface TimeResolved {
+	display: TimePrecisionLevel;
+}
+
+export type ResolvedUnit = PhysicalResolved | TimeResolved;
+
+export class QuantityHelper {
+	static isPhysicalResolved(u: ResolvedUnit): u is PhysicalResolved {
+		return "unitAnchor" in u;
+	}
+
+	static isTimeResolved(u: ResolvedUnit): u is TimeResolved {
+		return !("unitAnchor" in u);
+	}
+
+	static scan(
 		text: string,
-		opPatterns: string[],
-		unitRules?: AttributeParserRule[],
-	): MeasurementToken | null {
+		opPatterns?: string[],
+		rules?: AttributeParserRule[],
+	): QuantityToken | null {
 		const trimmed = text.trim();
-		const sortedPatterns = opPatterns
+		const sortedPatterns = (opPatterns || [])
 			.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
 			.sort((a, b) => b.length - a.length);
 
@@ -64,8 +83,7 @@ export class MeasurementHelper {
 		let isApproximate = false;
 
 		if (rawOp) {
-			const rules = unitRules || DEFAULT_ATTRIBUTE_RULES;
-			const opRules = rules.filter(
+			const opRules = (rules || DEFAULT_ATTRIBUTE_RULES).filter(
 				(r) =>
 					r.targetField === "operator" ||
 					r.targetField === "measurement_operator",
@@ -74,8 +92,8 @@ export class MeasurementHelper {
 			for (const rule of opRules) {
 				for (const pattern of rule.regexPatterns) {
 					const flags = rule.isCaseInsensitive !== false ? "i" : "";
-					const regex = new RegExp(pattern, flags);
-					if (regex.test(rawOp)) {
+					const re = new RegExp(pattern, flags);
+					if (re.test(rawOp)) {
 						if (
 							rule.targetValue === "is_approximate" ||
 							rule.targetValue === "approximate"
@@ -101,27 +119,58 @@ export class MeasurementHelper {
 	}
 
 	static resolveUnit(
-		unitDisplay: string,
-		unitRules?: AttributeParserRule[],
-	): { display: string; unitAnchor?: MeasurementUnitAnchor } {
-		const rules =
-			unitRules && unitRules.length > 0 ? unitRules : DEFAULT_ATTRIBUTE_RULES;
-		const matchingRules = rules.filter(
-			(r) => r.targetField === "unit" || r.targetField === "measurement_unit",
+		rawUnit: string,
+		rules?: AttributeParserRule[],
+	): ResolvedUnit | undefined {
+		const appliedRules =
+			rules && rules.length > 0 ? rules : DEFAULT_ATTRIBUTE_RULES;
+		const matchingRules = appliedRules.filter(
+			(r) =>
+				r.targetField === "unit" ||
+				r.targetField === "measurement_unit" ||
+				r.targetField === "time_unit",
 		);
 		for (const rule of matchingRules) {
 			for (const pattern of rule.regexPatterns) {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
 				const regex = new RegExp(pattern, flags);
-				if (regex.test(unitDisplay)) {
-					return {
-						display: rule.targetValue,
-						unitAnchor: rule.unitAnchor as MeasurementUnitAnchor | undefined,
-					};
+				if (regex.test(rawUnit)) {
+					if (rule.unitAnchor) {
+						return {
+							display: rule.targetValue,
+							unitAnchor: rule.unitAnchor as MeasurementUnitAnchor,
+						};
+					}
+					return { display: rule.targetValue as TimePrecisionLevel };
 				}
 			}
 		}
-		return { display: unitDisplay };
+		return undefined;
+	}
+}
+
+export interface MeasurementToken {
+	operator?: string;
+	magnitude: number;
+	rawUnit?: string;
+	isApproximate?: boolean;
+}
+
+export class MeasurementHelper {
+	static tokenizeMeasurement(
+		text: string,
+		opPatterns: string[],
+		unitRules?: AttributeParserRule[],
+	): MeasurementToken | null {
+		const rules = unitRules;
+		const token = QuantityHelper.scan(text, opPatterns, rules);
+		if (!token) return null;
+		return {
+			operator: token.operator,
+			magnitude: token.magnitude,
+			rawUnit: token.rawUnit,
+			isApproximate: token.isApproximate,
+		};
 	}
 
 	static parse(
@@ -140,18 +189,14 @@ export class MeasurementHelper {
 		);
 		const opPatterns = opRules.flatMap((r) => r.regexPatterns);
 
-		const token = MeasurementHelper.tokenizeMeasurement(
-			text,
-			opPatterns,
-			rules,
-		);
+		const token = QuantityHelper.scan(text, opPatterns, rules);
 		if (!token) return null;
 
-		let resolved:
-			| { display: string; unitAnchor?: MeasurementUnitAnchor }
-			| undefined;
+		let resolved: PhysicalResolved | undefined;
 		if (token.rawUnit) {
-			resolved = MeasurementHelper.resolveUnit(token.rawUnit, rules);
+			resolved = QuantityHelper.resolveUnit(token.rawUnit, rules) as
+				| PhysicalResolved
+				| undefined;
 		}
 		const unitDisplay = resolved?.display || defaultUnit;
 		const unit: CodeableConcept | undefined = unitDisplay
@@ -176,7 +221,6 @@ export class MeasurementHelper {
 			unit,
 		};
 
-		// Promote to BoundedMeasurement when the unit rule carried a dimension anchor.
 		if (resolved?.unitAnchor) {
 			return { ...base, unitAnchor: resolved.unitAnchor } as BoundedMeasurement;
 		}
@@ -213,45 +257,50 @@ export class TimeHelper {
 		return null;
 	}
 
-	static resolveTimeUnit(
-		rawUnit: string,
-		timeUnitRules?: AttributeParserRule[],
-	): TimePrecisionLevel | undefined {
-		const rules =
-			timeUnitRules && timeUnitRules.length > 0
-				? timeUnitRules
-				: DEFAULT_ATTRIBUTE_RULES;
-		const matchingRules = rules.filter(
-			(r) => r.targetField === "time_unit" || r.targetField === "unit",
-		);
-		for (const rule of matchingRules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
-				if (regex.test(rawUnit)) {
-					return rule.targetValue as TimePrecisionLevel;
-				}
-			}
-		}
-		return undefined;
-	}
-
 	static parse(
 		text: string,
 		attributeRules?: AttributeParserRule[],
 	): TimeMeasurement | null {
-		const token = TimeHelper.tokenizeTime(text);
+		const rules =
+			attributeRules && attributeRules.length > 0
+				? attributeRules
+				: DEFAULT_ATTRIBUTE_RULES;
+		const opRules = rules.filter(
+			(r) =>
+				r.targetField === "operator" ||
+				r.targetField === "measurement_operator",
+		);
+		const opPatterns = opRules.flatMap((r) => r.regexPatterns);
+
+		const token = QuantityHelper.scan(text, opPatterns, rules);
 		if (!token) return null;
 
-		let unit: TimePrecisionLevel | undefined;
+		let resolved: TimeResolved | undefined;
 		if (token.rawUnit) {
-			unit = TimeHelper.resolveTimeUnit(token.rawUnit, attributeRules);
+			resolved = QuantityHelper.resolveUnit(token.rawUnit, rules) as
+				| TimeResolved
+				| undefined;
+		}
+		if (!resolved) return null;
+
+		let operator: TimeMeasurement["operator"] = "eq";
+		if (
+			token.operator === "gt" ||
+			token.operator === "gte" ||
+			token.operator === "lt" ||
+			token.operator === "lte" ||
+			token.operator === "eq"
+		) {
+			operator = token.operator;
 		}
 
-		return {
+		const base: TimeMeasurement = {
 			magnitude: token.magnitude,
-			unit,
+			operator,
+			is_approximate: token.isApproximate || undefined,
+			unit: resolved.display,
 		};
+		return base;
 	}
 
 	static getCurrentTimestamp(
