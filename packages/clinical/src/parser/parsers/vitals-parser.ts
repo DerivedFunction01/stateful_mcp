@@ -17,6 +17,7 @@ import {
 import { VitalsHelper, VitalsTokenizer } from "../helpers/vitals-helper";
 import {
 	CANONICAL_TAGS,
+	type ParsedCandidateEnvelope,
 	type ParsedItem,
 	type ParsedVitalsItem,
 	type PreparsedContext,
@@ -26,6 +27,31 @@ import {
 
 export class VitalsSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.VITALS;
+
+	async preview(
+		tag: string,
+		content: string,
+		dictionaryStore: DictionaryStore,
+		conceptDefaultsStore?: ParserConceptDefaultStore,
+		attributeRules?: AttributeParserRule[],
+		evaluatorRules?: ParserDictionaryRule[],
+		termTokenizer?: string,
+		allowedNamespaces?: string[],
+		preparsedContext?: PreparsedContext,
+	): Promise<ParsedCandidateEnvelope<ParsedItem>> {
+		const parsed = await this.parse(
+			tag,
+			content,
+			dictionaryStore,
+			conceptDefaultsStore,
+			attributeRules,
+			evaluatorRules,
+			termTokenizer,
+			allowedNamespaces,
+			preparsedContext,
+		);
+		return makePreviewEnvelope(parsed);
+	}
 
 	async parse(
 		tag: string,
@@ -177,4 +203,13 @@ export class VitalsSchemaParser implements SchemaParser {
 				Object.keys(capturedProps).length > 0 ? capturedProps : undefined,
 		} as ParsedVitalsItem;
 	}
+}
+
+function makePreviewEnvelope(
+	parsed: ParsedItem | null,
+): ParsedCandidateEnvelope<ParsedItem> {
+	return {
+		deterministic: parsed ? [parsed] : [],
+		learned: parsed ? [parsed] : [],
+	};
 }

@@ -94,6 +94,35 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 }
 
 describe("CdslParser Ensemble NER tests", () => {
+	test("preview returns schema envelopes for observation, medication, and time", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(
+			resolver,
+			conceptStore,
+			exprStore,
+		);
+
+		await seedTestConcepts(dictionaryStore);
+
+		const parser = new CdslParser(dictionaryStore);
+		const previews = await parser.preview(
+			"#ObservationEvent Chest Pain denies || #MedicationOrderObject Amoxicillin 50 mg for 7 days || #time 3 weeks ago",
+		);
+
+		expect(previews.length).toBeGreaterThanOrEqual(3);
+		expect(previews.some((p) => p.targetSchema === "ObservationEvent")).toBe(
+			true,
+		);
+		expect(
+			previews.some((p) => p.targetSchema === "MedicationOrderObject"),
+		).toBe(true);
+		expect(previews.some((p) => p.targetSchema === "ClinicalDateRange")).toBe(
+			true,
+		);
+	});
+
 	test("Ambiguous segment resolved to multiple items (multi-intent)", async () => {
 		const resolver = new InMemoryConceptResolver();
 		const conceptStore = new InMemoryConceptStore();

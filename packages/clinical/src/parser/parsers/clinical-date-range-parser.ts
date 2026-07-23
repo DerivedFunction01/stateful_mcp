@@ -14,6 +14,7 @@ import {
 	ClinicalDateRangeTokenizer,
 } from "../helpers/clinical-date-range-helper";
 import type {
+	ParsedCandidateEnvelope,
 	ParsedItem,
 	PreparsedContext,
 	SchemaParser,
@@ -31,6 +32,31 @@ interface ParsedClinicalDateRangeResult {
 
 export class ClinicalDateRangeSchemaParser implements SchemaParser {
 	targetSchema = "ClinicalDateRange";
+
+	async preview(
+		tag: string,
+		content: string,
+		dictionaryStore: DictionaryStore,
+		conceptDefaultsStore?: ParserConceptDefaultStore,
+		attributeRules?: AttributeParserRule[],
+		evaluatorRules?: ParserDictionaryRule[],
+		termTokenizer?: string,
+		allowedNamespaces?: string[],
+		preparsedContext?: PreparsedContext,
+	): Promise<ParsedCandidateEnvelope<ParsedItem>> {
+		const parsed = await this.parse(
+			tag,
+			content,
+			dictionaryStore,
+			conceptDefaultsStore,
+			attributeRules,
+			evaluatorRules,
+			termTokenizer,
+			allowedNamespaces,
+			preparsedContext,
+		);
+		return makePreviewEnvelope(parsed);
+	}
 
 	async parse(
 		tag: string,
@@ -69,4 +95,13 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 
 		return result as ParsedItem;
 	}
+}
+
+function makePreviewEnvelope(
+	parsed: ParsedItem | null,
+): ParsedCandidateEnvelope<ParsedItem> {
+	return {
+		deterministic: parsed ? [parsed] : [],
+		learned: parsed ? [parsed] : [],
+	};
 }
