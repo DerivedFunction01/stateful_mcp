@@ -1,3 +1,8 @@
+import type { AllowedUnit, MeasurementUnitAnchor, SingleMeasurement, MeasurementOperator } from "../schemas/measurement";
+import type { TimePrecisionLevel } from "../schemas/time";
+import type { Certainty, Status, Route, SeverityLevel, StringifiedBoolean } from "../schemas/shared";
+import type { PhysiologicalEventAnchor, FrequencyShorthand } from "../schemas/medication";
+
 export interface ParserSyntaxProfile {
 	profileId: string;
 	personnelId: string;
@@ -34,13 +39,22 @@ export interface ParserDictionaryRule {
 	regexPatterns: string[]; // e.g. ['(?<numerator>\\d+)\\s*\\/\\s*(?<denominator>\\d+)']
 }
 
-export interface AttributeParserRule {
-	targetField: string; // e.g. 'certainty', 'status', 'severity', 'route', 'frequency'
-	targetValue: string; // e.g. 'refuted', 'active', 'severe', 'ORAL', 'TID'
-	regexPatterns: string[]; // e.g. ['denies', 'deny', 'no\\s+']
+export type AttributeRuleMapping =
+	| { targetField: "certainty"; targetValue: Certainty; unitAnchor?: undefined }
+	| { targetField: "status"; targetValue: Status; unitAnchor?: undefined }
+	| { targetField: "severity"; targetValue: SeverityLevel; unitAnchor?: undefined }
+	| { targetField: "route"; targetValue: Route; unitAnchor?: undefined }
+	| { targetField: "frequency_prn"; targetValue: StringifiedBoolean; unitAnchor?: undefined }
+	| { targetField: "frequency_event_anchor"; targetValue: PhysiologicalEventAnchor; unitAnchor?: undefined }
+	| { targetField: "frequency_shorthand"; targetValue: FrequencyShorthand; unitAnchor?: undefined }
+	| { targetField: "operator" | "measurement_operator"; targetValue: MeasurementOperator; unitAnchor?: undefined }
+	| { targetField: "unit" | "measurement_unit"; targetValue: AllowedUnit; unitAnchor?: MeasurementUnitAnchor }
+	| { targetField: "time_unit"; targetValue: TimePrecisionLevel; unitAnchor?: undefined };
+
+export type AttributeParserRule = AttributeRuleMapping & {
+	regexPatterns: string[];
 	isCaseInsensitive?: boolean;
-	unitAnchor?: string;
-}
+};
 
 export interface ParserConceptDefault {
 	anchorConceptId: string;

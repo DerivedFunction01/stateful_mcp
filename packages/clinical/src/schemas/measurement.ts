@@ -45,8 +45,8 @@ export type LengthUnit = "km" | "m" | "cm" | "mm" | "um" | "nm" | "in" | "ft" | 
 
 export type TemperatureUnit = "Celsius" | "Fahrenheit" | "Kelvin";
 export type PressureUnit = "mmHg" | "bar" | "atm" | "Pa" | "kPa" | "psi";
-export type CountUnit = "1" | "count" | "cells" | "elements" | "copies" | "IU" | "U" | "IU/mL" | "U/mL" | "tablet" | "capsule" | "puff" | "spray" | "drop" | "dose" | "pill" | "vial" | "patch" | "caplet" | "sachet" | "/min";
-export type ScoreUnit = "%" | "percent" | "score" | "points" | "ratio";
+export type CountUnit = "1" | "count" | "cells" | "elements" | "copies" | "IU" | "U" | "IU/mL" | "U/mL" | "tablet" | "capsule" | "puff" | "spray" | "drop" | "dose" | "pill" | "vial" | "patch" | "caplet" | "sachet" | "/min" | "breaths_per_min" | "beats_per_min";
+export type ScoreUnit = "%" | "percent" | "score" | "points" | "ratio" | "MET";
 
 type ConcMassUnit = "g" | "mg" | "mcg" | "ug" | "ng" | "pg";
 type ConcVolumeUnit = "l" | "L" | "dL" | "ml" | "mL" | "ul" | "uL";
@@ -65,6 +65,28 @@ export type PowerUnit = "W" | "mW" | "kW";
 export type VelocityUnit = "m/s" | "cm/s" | "km/h" | "mph";
 export type AccelerationUnit = "m/s2" | "g";
 
+export type AllowedUnit =
+	| MassUnit
+	| VolumeUnit
+	| LengthUnit
+	| TemperatureUnit
+	| PressureUnit
+	| CountUnit
+	| ScoreUnit
+	| MassConcentrationUnit
+	| SubstanceConcentrationUnit
+	| EnergyUnit
+	| ForceUnit
+	| OsmolalityUnit
+	| OsmolarityUnit
+	| CatalyticActivityUnit
+	| FractionUnit
+	| ElectricPotentialUnit
+	| ElectricCurrentUnit
+	| PowerUnit
+	| VelocityUnit
+	| AccelerationUnit;
+
 /**
  * Root of the measurement hierarchy.
  * Carries the raw numeric value plus optional operator, approximation flag,
@@ -78,6 +100,8 @@ export interface SingleMeasurement {
 	operator?: "eq" | "gt" | "gte" | "lt" | "lte";
 	is_approximate?: boolean;
 }
+
+export type MeasurementOperator = NonNullable<SingleMeasurement["operator"]> | "is_approximate" | "approximate";
 
 /**
  * Extends SingleMeasurement by locking in a physical-dimension anchor.

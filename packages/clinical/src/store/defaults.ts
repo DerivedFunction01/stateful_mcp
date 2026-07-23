@@ -1,6 +1,6 @@
-import type { ParserConceptDefault, ParserSyntaxProfile } from "./interfaces";
+import type { ParserConceptDefault, ParserSyntaxProfile, AttributeParserRule } from "./interfaces";
 
-export const DEFAULT_ATTRIBUTE_RULES = [
+export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
 		targetField: "certainty",
 		targetValue: "refuted",
@@ -39,19 +39,19 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 	},
 	{
 		targetField: "route",
-		targetValue: "ORAL",
+		targetValue: "oral",
 		regexPatterns: ["\\boral\\b", "\\bpo\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "route",
-		targetValue: "INTRAVENOUS",
+		targetValue: "intravenous",
 		regexPatterns: ["\\bintravenous\\b", "\\biv\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "route",
-		targetValue: "INHALATION",
+		targetValue: "inhalation",
 		regexPatterns: ["\\binhalation\\b", "\\binhaled\\b"],
 		isCaseInsensitive: true,
 	},
@@ -222,7 +222,7 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 	// ── Count / rate ────────────────────────────────────────────────────
 	{
 		targetField: "unit",
-		targetValue: "/min",
+		targetValue: "breaths_per_min",
 		regexPatterns: [
 			"\\/min\\b",
 			"\\bper\\s+minute\\b",
@@ -234,7 +234,7 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 	},
 	{
 		targetField: "unit",
-		targetValue: "/min",
+		targetValue: "beats_per_min",
 		regexPatterns: ["\\bbeats?\\s+per\\s+minute\\b"],
 		isCaseInsensitive: true,
 		unitAnchor: "number",
@@ -414,29 +414,8 @@ import type {
 	PowerUnit,
 	VelocityUnit,
 	AccelerationUnit,
+	AllowedUnit,
 } from "../schemas/measurement";
-
-export type AllowedUnit =
-	| MassUnit
-	| VolumeUnit
-	| LengthUnit
-	| TemperatureUnit
-	| PressureUnit
-	| CountUnit
-	| ScoreUnit
-	| MassConcentrationUnit
-	| SubstanceConcentrationUnit
-	| EnergyUnit
-	| ForceUnit
-	| OsmolalityUnit
-	| OsmolarityUnit
-	| CatalyticActivityUnit
-	| FractionUnit
-	| ElectricPotentialUnit
-	| ElectricCurrentUnit
-	| PowerUnit
-	| VelocityUnit
-	| AccelerationUnit;
 
 export const UNIT_DISPLAY_MAP: Record<AllowedUnit, string> = {
 	// Mass
@@ -522,6 +501,8 @@ export const UNIT_DISPLAY_MAP: Record<AllowedUnit, string> = {
 	caplet: "caplet",
 	sachet: "sachet",
 	"/min": "/min",
+	breaths_per_min: "bpm",
+	beats_per_min: "bpm",
 
 	// Score
 	"%": "%",
@@ -529,6 +510,7 @@ export const UNIT_DISPLAY_MAP: Record<AllowedUnit, string> = {
 	score: "score",
 	points: "points",
 	ratio: "ratio",
+	MET: "MET",
 
 	// Mass Concentration permutations
 	"g/l": "g/L",

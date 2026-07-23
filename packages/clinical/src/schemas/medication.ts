@@ -15,6 +15,8 @@ export type PhysiologicalEventAnchor =
 	| "after_meal"
 	| "before_sleep";
 
+export type FrequencyShorthand = "QD" | "BID" | "TID" | "QID";
+
 export interface MedicationFrequency {
 	cadenceType: CadenceBaseType;
 
