@@ -316,43 +316,43 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
 		targetField: "time_unit",
 		targetValue: "monday",
-		regexPatterns: ["\\bmonday\\b", "\\bmon\\b", "\\blunes\\b"],
+		regexPatterns: ["\\bmondays?\\b", "\\bmon\\b", "\\blunes\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "time_unit",
 		targetValue: "tuesday",
-		regexPatterns: ["\\btuesday\\b", "\\btue\\b", "\\bmartes\\b"],
+		regexPatterns: ["\\btuesdays?\\b", "\\btue\\b", "\\bmartes\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "time_unit",
 		targetValue: "wednesday",
-		regexPatterns: ["\\bwednesday\\b", "\\bwed\\b", "\\bmiercoles\\b", "\\bmiércoles\\b"],
+		regexPatterns: ["\\bwednesdays?\\b", "\\bwed\\b", "\\bmiercoles\\b", "\\bmiércoles\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "time_unit",
 		targetValue: "thursday",
-		regexPatterns: ["\\bthursday\\b", "\\bthu\\b", "\\bjueves\\b"],
+		regexPatterns: ["\\bthursdays?\\b", "\\bthu\\b", "\\bjueves\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "time_unit",
 		targetValue: "friday",
-		regexPatterns: ["\\bfriday\\b", "\\bfri\\b", "\\bviernes\\b"],
+		regexPatterns: ["\\bfridays?\\b", "\\bfri\\b", "\\bviernes\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "time_unit",
 		targetValue: "saturday",
-		regexPatterns: ["\\bsaturday\\b", "\\bsat\\b", "\\bsabado\\b", "\\bsábado\\b"],
+		regexPatterns: ["\\bsaturdays?\\b", "\\bsat\\b", "\\bsabado\\b", "\\bsábado\\b"],
 		isCaseInsensitive: true,
 	},
 	{
 		targetField: "time_unit",
 		targetValue: "sunday",
-		regexPatterns: ["\\bsunday\\b", "\\bsun\\b", "\\bdomingo\\b"],
+		regexPatterns: ["\\bsundays?\\b", "\\bsun\\b", "\\bdomingo\\b"],
 		isCaseInsensitive: true,
 	},
 	// Parts of the Day
@@ -409,6 +409,40 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		targetField: "time_unit",
 		targetValue: "winter",
 		regexPatterns: ["\\bwinter\\b", "\\binvierno\\b"],
+		isCaseInsensitive: true,
+	},
+	// Time Relative Markers
+	{
+		targetField: "time_relative_marker",
+		targetValue: "retrospective",
+		regexPatterns: ["\\bago\\b", "\\bpast\\b", "\\bhace\\b", "\\bantes\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "time_relative_marker",
+		targetValue: "prospective",
+		regexPatterns: ["\\bin\\b", "\\bdentro\\s+de\\b"],
+		isCaseInsensitive: true,
+	},
+	// Time Boundary Markers
+	{
+		targetField: "time_boundary_marker",
+		targetValue: "to",
+		regexPatterns: ["\\bto\\b", "\\buntil\\b", "\\bhasta\\b"],
+		isCaseInsensitive: true,
+	},
+	// Time Exclusion Markers
+	{
+		targetField: "time_exclusion_marker",
+		targetValue: "except",
+		regexPatterns: ["\\bexcept\\b", "\\bexcluding\\b", "\\bexcepto\\b", "\\bmenos\\b"],
+		isCaseInsensitive: true,
+	},
+	// Time Repeat Daily Rules
+	{
+		targetField: "time_repeat_daily",
+		targetValue: "daily",
+		regexPatterns: ["\\bdaily\\b", "\\bdiariamente\\b", "\\bdiario\\b"],
 		isCaseInsensitive: true,
 	},
 ];

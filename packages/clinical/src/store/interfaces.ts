@@ -49,7 +49,11 @@ export type AttributeRuleMapping =
 	| { targetField: "frequency_shorthand"; targetValue: FrequencyShorthand; unitAnchor?: undefined }
 	| { targetField: "operator" | "measurement_operator"; targetValue: MeasurementOperator; unitAnchor?: undefined }
 	| { targetField: "unit" | "measurement_unit"; targetValue: AllowedUnit; unitAnchor?: MeasurementUnitAnchor }
-	| { targetField: "time_unit"; targetValue: TimePrecisionLevel; unitAnchor?: undefined };
+	| { targetField: "time_unit"; targetValue: TimePrecisionLevel; unitAnchor?: undefined }
+	| { targetField: "time_relative_marker"; targetValue: "retrospective" | "prospective"; unitAnchor?: undefined }
+	| { targetField: "time_boundary_marker"; targetValue: "to"; unitAnchor?: undefined }
+	| { targetField: "time_exclusion_marker"; targetValue: "except"; unitAnchor?: undefined }
+	| { targetField: "time_repeat_daily"; targetValue: "daily"; unitAnchor?: undefined };
 
 export type AttributeParserRule = AttributeRuleMapping & {
 	regexPatterns: string[];

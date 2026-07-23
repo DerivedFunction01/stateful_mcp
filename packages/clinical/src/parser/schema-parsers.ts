@@ -4,6 +4,7 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../store/interfaces";
+import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
 import { MedicationSchemaParser } from "./parsers/medication-parser";
 import { ObservationSchemaParser } from "./parsers/observation-parser";
 import { VitalsSchemaParser } from "./parsers/vitals-parser";
@@ -192,3 +193,5 @@ schemaParserRegistry.set(
 	CANONICAL_TAGS.MEDICATION.toLowerCase(),
 	new MedicationSchemaParser(),
 );
+schemaParserRegistry.set("clinicaldaterange", new ClinicalDateRangeSchemaParser());
+schemaParserRegistry.set("time", new ClinicalDateRangeSchemaParser());

@@ -5,6 +5,7 @@ export {
 	schemaParserRegistry,
 } from "./parser/schema-parsers";
 export * from "./parser/stop-word-parser";
+export * from "./parser/parsers/clinical-date-range-parser";
 export * from "./schemas/assessment";
 export * from "./schemas/document";
 export * from "./schemas/environment";
