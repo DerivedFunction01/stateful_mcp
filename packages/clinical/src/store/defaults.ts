@@ -126,7 +126,15 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
 		targetField: "operator",
 		targetValue: "is_approximate",
-		regexPatterns: ["~"],
+		regexPatterns: [
+			"~",
+			"\\bapprox(?:imate|imately)?\\b",
+			"\\baprox(?:imate|imately)?\\b",
+			"\\bapproximately\\b",
+			"\\baproximadamente\\b",
+			"大约",
+			"程度",
+		],
 		isCaseInsensitive: true,
 	},
 	{
@@ -195,6 +203,13 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		unitAnchor: "mass_concentration",
 	},
 	// ── Length / distance ───────────────────────────────────────────────
+	{
+		targetField: "unit",
+		targetValue: "mm",
+		regexPatterns: ["\\bmm\\b", "毫米"],
+		isCaseInsensitive: true,
+		unitAnchor: "length",
+	},
 	{
 		targetField: "unit",
 		targetValue: "cm",

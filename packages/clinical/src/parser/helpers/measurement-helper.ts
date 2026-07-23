@@ -43,68 +43,63 @@ export class QuantityTokenizer {
 		rules?: AttributeParserRule[],
 	): QuantityToken | null {
 		const trimmed = text.trim();
-		const sortedPatterns = (opPatterns || [])
-			.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-			.sort((a, b) => b.length - a.length);
+		const magnitudeMatch = /\d+(?:\.\d+)?/.exec(trimmed);
+		if (!magnitudeMatch) return null;
 
-		const opPart =
-			sortedPatterns.length > 0
-				? `(?:(?<operator>${sortedPatterns.join("|")}))?`
-				: "";
-
-		const regexStr = `${opPart}\\s*(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<remaining>.*)`;
-		const regex = new RegExp(regexStr, "i");
-
-		let match = regex.exec(trimmed);
-		if (!match) {
-			const numberRegex = /\d+(?:\.\d+)?/g;
-			let numMatch;
-			while ((numMatch = numberRegex.exec(trimmed)) !== null) {
-				const candidate = trimmed.substring(numMatch.index);
-				const innerMatch = regex.exec(candidate);
-				if (innerMatch) {
-					match = innerMatch;
-					break;
-				}
-			}
-		}
-
-		if (!match) return null;
-
-		const magnitudeStr = match.groups?.magnitude;
-		if (!magnitudeStr) return null;
+		const magnitudeStr = magnitudeMatch[0];
 		const magnitude = Number.parseFloat(magnitudeStr);
-		const remaining = match.groups?.remaining?.trim() || "";
+		const magnitudeIndex = magnitudeMatch.index;
+		const prefix = trimmed.slice(0, magnitudeIndex).trim();
+		const suffix = trimmed.slice(magnitudeIndex + magnitudeStr.length).trim();
 
-		const rawOp = match.groups?.operator || "";
+		const effectiveRules = rules || DEFAULT_ATTRIBUTE_RULES;
+		const operatorRules: AttributeParserRule[] = [
+			...(opPatterns || []).map((pattern) => ({
+				targetField: "operator" as const,
+				targetValue: "lt" as const,
+				regexPatterns: [pattern],
+			})),
+			...effectiveRules.filter(
+				(rule) =>
+					rule.targetField === "operator" ||
+					rule.targetField === "measurement_operator",
+			),
+		];
+		const unitRules = effectiveRules.filter(
+			(rule) =>
+				rule.targetField === "unit" ||
+				rule.targetField === "measurement_unit" ||
+				rule.targetField === "time_unit",
+		);
+
 		let operator: string | undefined;
 		let isApproximate = false;
+		let rawUnit: string | undefined;
 
-		if (rawOp) {
-			const opRules = (rules || DEFAULT_ATTRIBUTE_RULES).filter(
-				(r) =>
-					r.targetField === "operator" ||
-					r.targetField === "measurement_operator",
-			);
-			let resolved = false;
-			for (const rule of opRules) {
-				for (const pattern of rule.regexPatterns) {
-					const flags = rule.isCaseInsensitive !== false ? "i" : "";
-					const re = new RegExp(pattern, flags);
-					if (re.test(rawOp)) {
-						if (
-							rule.targetValue === "is_approximate" ||
-							rule.targetValue === "approximate"
-						) {
-							isApproximate = true;
-						} else {
-							operator = rule.targetValue;
-						}
-						resolved = true;
-						break;
-					}
-				}
-				if (resolved) break;
+		const strippedPrefix = this.stripOperator(prefix, operatorRules);
+		const strippedSuffix = this.stripOperator(suffix, operatorRules);
+		if (strippedPrefix.operator) {
+			operator = strippedPrefix.operator;
+		}
+		if (strippedPrefix.isApproximate) {
+			isApproximate = true;
+		}
+		if (strippedSuffix.operator) {
+			operator = strippedSuffix.operator;
+		}
+		if (strippedSuffix.isApproximate) {
+			isApproximate = true;
+		}
+
+		for (const candidate of [
+			{ text: strippedPrefix.segment, source: "prefix" },
+			{ text: strippedSuffix.segment, source: "suffix" },
+		]) {
+			if (!candidate.text) continue;
+			const resolvedUnit = this.resolveUnit(candidate.text, unitRules);
+			if (resolvedUnit) {
+				rawUnit = candidate.text.trim();
+				break;
 			}
 		}
 
@@ -112,9 +107,44 @@ export class QuantityTokenizer {
 			magnitude,
 			operator,
 			isApproximate: isApproximate || undefined,
-			rawUnit: remaining || undefined,
+			rawUnit: rawUnit || undefined,
 		};
 	}
+
+	private static stripOperator(
+		text: string,
+		rules: AttributeParserRule[],
+	): { segment: string; operator?: string; isApproximate?: boolean } {
+		let remaining = text.trim();
+		let operator: string | undefined;
+		let isApproximate = false;
+		for (const rule of rules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = new RegExp(pattern, flags);
+				const match = regex.exec(remaining);
+				if (match?.[0]) {
+					remaining = remaining.replace(match[0], "").trim();
+					if (
+						rule.targetValue === "is_approximate" ||
+						rule.targetValue === "approximate"
+					) {
+						isApproximate = true;
+					} else {
+						operator = rule.targetValue;
+					}
+					break;
+				}
+			}
+			if (operator || isApproximate) break;
+		}
+		return {
+			segment: remaining,
+			operator,
+			isApproximate: isApproximate || undefined,
+		};
+	}
+
 
 	static parseImplicitGroups(
 		groups: Record<string, string>,
