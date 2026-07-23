@@ -4,11 +4,13 @@ import type {
 	TemperatureMeasurement,
 	PressureMeasurement,
 } from "../src/schemas/measurement";
-import { MeasurementHelper } from "../src/parser/helpers/measurement-helper";
+import { MeasurementHelper, QuantityTokenizer } from "../src/parser/helpers/measurement-helper";
+import { DEFAULT_ATTRIBUTE_RULES } from "../src/store/defaults";
 
 describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 	test("should parse MassMeasurement correctly using parseAs", () => {
-		const parsed = MeasurementHelper.parseAs<MassMeasurement>("50 milligram", "mass");
+		const token = QuantityTokenizer.tokenize("50 milligram", [], DEFAULT_ATTRIBUTE_RULES);
+		const parsed = MeasurementHelper.parseAs<MassMeasurement>(token!, "mass", DEFAULT_ATTRIBUTE_RULES);
 		expect(parsed).not.toBeNull();
 		expect(parsed!.unitAnchor).toBe("mass");
 		expect(parsed!.magnitude).toBe(50);
@@ -16,7 +18,8 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 	});
 
 	test("should parse TemperatureMeasurement correctly using parseAs", () => {
-		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>("37.5 Celsius", "temperature");
+		const token = QuantityTokenizer.tokenize("37.5 Celsius", [], DEFAULT_ATTRIBUTE_RULES);
+		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(token!, "temperature", DEFAULT_ATTRIBUTE_RULES);
 		expect(parsed).not.toBeNull();
 		expect(parsed!.unitAnchor).toBe("temperature");
 		expect(parsed!.magnitude).toBe(37.5);
@@ -25,7 +28,8 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 
 	test("should return null when parsing mismatching unit anchor", () => {
 		// 120 mmHg is pressure, not temperature
-		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>("120 mmHg", "temperature");
+		const token = QuantityTokenizer.tokenize("120 mmHg", [], DEFAULT_ATTRIBUTE_RULES);
+		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(token!, "temperature", DEFAULT_ATTRIBUTE_RULES);
 		expect(parsed).toBeNull();
 	});
 

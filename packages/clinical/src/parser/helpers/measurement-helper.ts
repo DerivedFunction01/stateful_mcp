@@ -10,8 +10,10 @@ import type {
 	TimeMeasurement,
 	TimePrecisionLevel,
 } from "../../schemas/time";
-import { DEFAULT_ATTRIBUTE_RULES } from "../../store/defaults";
+import { DEFAULT_ATTRIBUTE_RULES, UNIT_DISPLAY_MAP } from "../../store/defaults";
 import type { AttributeParserRule } from "../../store/interfaces";
+
+const ALLOWED_UNITS_SET = new Set(Object.keys(UNIT_DISPLAY_MAP));
 
 export interface QuantityToken {
 	magnitude: number;
@@ -31,16 +33,8 @@ export interface TimeResolved {
 
 export type ResolvedUnit = PhysicalResolved | TimeResolved;
 
-export class QuantityHelper {
-	static isPhysicalResolved(u: ResolvedUnit): u is PhysicalResolved {
-		return "unitAnchor" in u;
-	}
-
-	static isTimeResolved(u: ResolvedUnit): u is TimeResolved {
-		return !("unitAnchor" in u);
-	}
-
-	static scan(
+export class QuantityTokenizer {
+	static tokenize(
 		text: string,
 		opPatterns?: string[],
 		rules?: AttributeParserRule[],
@@ -119,6 +113,31 @@ export class QuantityHelper {
 		};
 	}
 
+	static parseImplicitGroups(
+		groups: Record<string, string>,
+	): QuantityToken | null {
+		const rawUnit = groups.unit || groups.rawUnit;
+		const magStr = groups.magnitude || groups.quantity || groups.value;
+		if (rawUnit && magStr) {
+			const magnitude = Number.parseFloat(magStr);
+			if (!Number.isNaN(magnitude)) {
+				return { magnitude, rawUnit };
+			}
+		}
+
+		// Pattern 2: Implicit Unit Named-Group Capture
+		for (const [groupName, value] of Object.entries(groups)) {
+			if (value && ALLOWED_UNITS_SET.has(groupName)) {
+				const magnitude = Number.parseFloat(value);
+				if (!Number.isNaN(magnitude)) {
+					return { magnitude, rawUnit: groupName };
+				}
+			}
+		}
+
+		return null;
+	}
+
 	static resolveUnit(
 		rawUnit: string,
 		rules?: AttributeParserRule[],
@@ -150,6 +169,16 @@ export class QuantityHelper {
 	}
 }
 
+export class QuantityHelper {
+	static isPhysicalResolved(u: ResolvedUnit): u is PhysicalResolved {
+		return "unitAnchor" in u;
+	}
+
+	static isTimeResolved(u: ResolvedUnit): u is TimeResolved {
+		return !("unitAnchor" in u);
+	}
+}
+
 export interface MeasurementToken {
 	operator?: string;
 	magnitude: number;
@@ -158,24 +187,8 @@ export interface MeasurementToken {
 }
 
 export class MeasurementHelper {
-	static tokenizeMeasurement(
-		text: string,
-		opPatterns: string[],
-		unitRules?: AttributeParserRule[],
-	): MeasurementToken | null {
-		const rules = unitRules;
-		const token = QuantityHelper.scan(text, opPatterns, rules);
-		if (!token) return null;
-		return {
-			operator: token.operator,
-			magnitude: token.magnitude,
-			rawUnit: token.rawUnit,
-			isApproximate: token.isApproximate,
-		};
-	}
-
 	static parse(
-		text: string,
+		token: QuantityToken,
 		defaultUnit?: string,
 		attributeRules?: AttributeParserRule[],
 	): BoundedMeasurement | SingleMeasurement | null {
@@ -183,19 +196,10 @@ export class MeasurementHelper {
 			attributeRules && attributeRules.length > 0
 				? attributeRules
 				: DEFAULT_ATTRIBUTE_RULES;
-		const opRules = rules.filter(
-			(r) =>
-				r.targetField === "operator" ||
-				r.targetField === "measurement_operator",
-		);
-		const opPatterns = opRules.flatMap((r) => r.regexPatterns);
-
-		const token = QuantityHelper.scan(text, opPatterns, rules);
-		if (!token) return null;
 
 		let resolved: PhysicalResolved | undefined;
 		if (token.rawUnit) {
-			resolved = QuantityHelper.resolveUnit(token.rawUnit, rules) as
+			resolved = QuantityTokenizer.resolveUnit(token.rawUnit, rules) as
 				| PhysicalResolved
 				| undefined;
 		}
@@ -229,11 +233,11 @@ export class MeasurementHelper {
 	}
 
 	static parseAs<T extends BoundedMeasurement>(
-		text: string,
+		token: QuantityToken,
 		anchor: T["unitAnchor"],
 		attributeRules?: AttributeParserRule[],
 	): T | null {
-		const parsed = MeasurementHelper.parse(text, undefined, attributeRules);
+		const parsed = MeasurementHelper.parse(token, undefined, attributeRules);
 		if (!parsed) return null;
 		if (isBoundedMeasurement(parsed) && parsed.unitAnchor === anchor) {
 			return parsed as unknown as T;
@@ -248,50 +252,18 @@ export interface TimeToken {
 }
 
 export class TimeHelper {
-	static tokenizeTime(text: string): TimeToken | null {
-		const trimmed = text.trim();
-		const numberRegex = /\d+(?:\.\d+)?/g;
-		let numMatch;
-		while ((numMatch = numberRegex.exec(trimmed)) !== null) {
-			const candidate = trimmed.substring(numMatch.index);
-			const match = /^(?<magnitude>\d+(?:\.\d+)?)\s*(?<rawUnit>.*)$/.exec(
-				candidate,
-			);
-			if (match) {
-				const magnitudeStr = match.groups?.magnitude;
-				if (!magnitudeStr) continue;
-				const magnitude = Number.parseFloat(magnitudeStr);
-				const rawUnit = match.groups?.rawUnit?.trim() || "";
-				return {
-					magnitude,
-					rawUnit: rawUnit || undefined,
-				};
-			}
-		}
-		return null;
-	}
-
 	static parse(
-		text: string,
+		token: QuantityToken,
 		attributeRules?: AttributeParserRule[],
 	): TimeMeasurement | null {
 		const rules =
 			attributeRules && attributeRules.length > 0
 				? attributeRules
 				: DEFAULT_ATTRIBUTE_RULES;
-		const opRules = rules.filter(
-			(r) =>
-				r.targetField === "operator" ||
-				r.targetField === "measurement_operator",
-		);
-		const opPatterns = opRules.flatMap((r) => r.regexPatterns);
-
-		const token = QuantityHelper.scan(text, opPatterns, rules);
-		if (!token) return null;
 
 		let resolved: TimeResolved | undefined;
 		if (token.rawUnit) {
-			resolved = QuantityHelper.resolveUnit(token.rawUnit, rules) as
+			resolved = QuantityTokenizer.resolveUnit(token.rawUnit, rules) as
 				| TimeResolved
 				| undefined;
 		}

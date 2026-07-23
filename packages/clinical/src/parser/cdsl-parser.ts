@@ -7,7 +7,7 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import { FrequencyHelper } from "./helpers/frequency-helper";
-import { MeasurementHelper, TimeHelper } from "./helpers/measurement-helper";
+import { MeasurementHelper, TimeHelper, QuantityTokenizer } from "./helpers/measurement-helper";
 import {
 	type BaseParsedItem as IMP_BaseParsedItem,
 	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
@@ -106,12 +106,25 @@ export class CdslParser {
 			}
 
 			// Always build preparsedContext from content
-			const measurement = MeasurementHelper.parse(
-				content,
-				undefined,
-				this.profile.attributeRules,
-			) as any;
-			const timeSpan = TimeHelper.parse(content, this.profile.attributeRules);
+			const attrRules = this.profile.attributeRules || [];
+			const opRules = attrRules.filter(
+				(r) =>
+					r.targetField === "operator" ||
+					r.targetField === "measurement_operator",
+			);
+			const opPatterns = opRules.flatMap((r) => r.regexPatterns);
+			const token = QuantityTokenizer.tokenize(content, opPatterns, attrRules);
+
+			const measurement = token
+				? (MeasurementHelper.parse(
+						token,
+						undefined,
+						this.profile.attributeRules,
+				  ) as any)
+				: null;
+			const timeSpan = token
+				? TimeHelper.parse(token, this.profile.attributeRules)
+				: null;
 			const frequency = FrequencyHelper.parse(
 				content,
 				this.profile.attributeRules || [],
