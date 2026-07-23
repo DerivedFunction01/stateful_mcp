@@ -2,10 +2,10 @@ import { afterAll, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
 import {
+	JsonlEntityStore,
 	JsonlSessionEventStore,
 	JsonlSessionFilterStore,
 	JsonlSessionObjectStore,
-	JsonlEntityStore,
 	PgEntityStore,
 } from "../src";
 
@@ -171,7 +171,9 @@ describe("JSONL Persistent Storage Adapters", () => {
 		expect(list1).toContainEqual({ name: "Bob", age: 25 });
 
 		// Test rehydration
-		const store2 = new JsonlEntityStore<{ name: string; age: number }>(filePath);
+		const store2 = new JsonlEntityStore<{ name: string; age: number }>(
+			filePath,
+		);
 		const val2 = await store2.get("user_1");
 		expect(val2).toEqual({ name: "Alice", age: 30 });
 
@@ -203,25 +205,40 @@ describe("JSONL Persistent Storage Adapters", () => {
 			},
 		};
 
-		const store = new PgEntityStore<{ id: string; name: string }>(mockPool, "test_entities");
+		const store = new PgEntityStore<{ id: string; name: string }>(
+			mockPool,
+			"test_entities",
+		);
 
 		// Test set
 		await store.set("entity_1", { id: "entity_1", name: "Entity One" });
-		expect(queries.some(q => q.sql.includes("INSERT INTO test_entities"))).toBe(true);
+		expect(
+			queries.some((q) => q.sql.includes("INSERT INTO test_entities")),
+		).toBe(true);
 
 		// Test get
 		mockRows.push({ data: { id: "entity_1", name: "Entity One" } });
 		const entity = await store.get("entity_1");
 		expect(entity).toEqual({ id: "entity_1", name: "Entity One" });
-		expect(queries.some(q => q.sql.includes("SELECT data FROM test_entities WHERE id = $1"))).toBe(true);
+		expect(
+			queries.some((q) =>
+				q.sql.includes("SELECT data FROM test_entities WHERE id = $1"),
+			),
+		).toBe(true);
 
 		// Test list
 		const list = await store.list();
 		expect(list.length).toBe(1);
-		expect(queries.some(q => q.sql.includes("SELECT data FROM test_entities"))).toBe(true);
+		expect(
+			queries.some((q) => q.sql.includes("SELECT data FROM test_entities")),
+		).toBe(true);
 
 		// Test delete
 		await store.delete("entity_1");
-		expect(queries.some(q => q.sql.includes("DELETE FROM test_entities WHERE id = $1"))).toBe(true);
+		expect(
+			queries.some((q) =>
+				q.sql.includes("DELETE FROM test_entities WHERE id = $1"),
+			),
+		).toBe(true);
 	});
 });

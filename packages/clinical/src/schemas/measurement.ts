@@ -1,40 +1,43 @@
 import type { CodeableConcept } from "./shared";
 
 export type TerrestrialUnitAnchor =
-  | "length"
-  | "mass"
-  | "time"
-  | "temperature"
-  | "velocity"
-  | "acceleration"
-  | "volume"
-  | "area"
-  | "force"
-  | "pressure"
-  | "energy";
+	| "length"
+	| "mass"
+	| "time"
+	| "temperature"
+	| "velocity"
+	| "acceleration"
+	| "volume"
+	| "area"
+	| "force"
+	| "pressure"
+	| "energy";
 
 export type PhysiologicalUnitAnchor =
-  | "concentration"
-  | "mass_concentration"
-  | "substance_concentration"
-  | "mass_fraction"
-  | "fraction"
-  | "osmolality"
-  | "osmolarity"
-  | "catalytic_activity"
-  | "number"
-  | "arbitrary";
+	| "concentration"
+	| "mass_concentration"
+	| "substance_concentration"
+	| "mass_fraction"
+	| "fraction"
+	| "osmolality"
+	| "osmolarity"
+	| "catalytic_activity"
+	| "number"
+	| "arbitrary";
 
 export type EngineeringUnitAnchor =
-  | "dynamic_viscosity"
-  | "power"
-  | "power_level"
-  | "pressure_level"
-  | "electric_current"
-  | "electric_potential"
-  | "magnetic_flux_density";
+	| "dynamic_viscosity"
+	| "power"
+	| "power_level"
+	| "pressure_level"
+	| "electric_current"
+	| "electric_potential"
+	| "magnetic_flux_density";
 
-export type MeasurementUnitAnchor = TerrestrialUnitAnchor | PhysiologicalUnitAnchor | EngineeringUnitAnchor;
+export type MeasurementUnitAnchor =
+	| TerrestrialUnitAnchor
+	| PhysiologicalUnitAnchor
+	| EngineeringUnitAnchor;
 
 /**
  * Root of the measurement hierarchy.
@@ -55,31 +58,31 @@ export interface SingleMeasurement {
  * Every domain-specific measurement sub-interface extends this.
  */
 export interface BoundedMeasurement extends SingleMeasurement {
-  unitAnchor: MeasurementUnitAnchor;
+	unitAnchor: MeasurementUnitAnchor;
 }
 
 export interface TemperatureMeasurement extends BoundedMeasurement {
-  unitAnchor: "temperature";
+	unitAnchor: "temperature";
 }
 
 export interface PressureMeasurement extends BoundedMeasurement {
-  unitAnchor: "pressure";
+	unitAnchor: "pressure";
 }
 
 export interface CountMeasurement extends BoundedMeasurement {
-  unitAnchor: "number";
+	unitAnchor: "number";
 }
 
 export interface DistanceMeasurement extends BoundedMeasurement {
-  unitAnchor: "length";
+	unitAnchor: "length";
 }
 
 export interface MassMeasurement extends BoundedMeasurement {
-  unitAnchor: "mass";
+	unitAnchor: "mass";
 }
 
 export interface MassConcentrationMeasurement extends BoundedMeasurement {
-  unitAnchor: "mass_concentration";
+	unitAnchor: "mass_concentration";
 }
 
 /** Covers all pharmaceutical dosage forms: solid mass (mg, g) or liquid concentration (mg/mL). */
@@ -87,13 +90,17 @@ export type DosageMeasurement = MassMeasurement | MassConcentrationMeasurement;
 
 /** Dimensionless score or ratio produced by an algorithmic evaluation. */
 export interface ScoreMeasurement extends BoundedMeasurement {
-  unitAnchor: "arbitrary";
+	unitAnchor: "arbitrary";
 }
 
 /**
  * Type guard: narrows a SingleMeasurement to BoundedMeasurement when a
  * physical-dimension anchor was resolved during parsing.
  */
-export function isBoundedMeasurement(m: SingleMeasurement): m is BoundedMeasurement {
-	return "unitAnchor" in m && (m as BoundedMeasurement).unitAnchor !== undefined;
+export function isBoundedMeasurement(
+	m: SingleMeasurement,
+): m is BoundedMeasurement {
+	return (
+		"unitAnchor" in m && (m as BoundedMeasurement).unitAnchor !== undefined
+	);
 }

@@ -1,21 +1,26 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import { SEED_PARSER_PROFILES } from "../store/defaults";
 import type {
 	ParserConceptDefaultStore,
 	ParserSyntaxProfile,
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import { SEED_PARSER_PROFILES } from "../store/defaults";
-import { StopWordParser } from "./stop-word-parser";
+import { FrequencyHelper } from "./helpers/frequency-helper";
+import { MeasurementHelper, TimeHelper } from "./helpers/measurement-helper";
 import {
+	type BaseParsedItem as IMP_BaseParsedItem,
 	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
 	type ParsedItem as IMP_ParsedItem,
-	type BaseParsedItem as IMP_BaseParsedItem,
-	type ParsedVitalsItem as IMP_ParsedVitalsItem,
-	type ParsedObservationItem as IMP_ParsedObservationItem,
 	type ParsedMedicationItem as IMP_ParsedMedicationItem,
+	type ParsedObservationItem as IMP_ParsedObservationItem,
+	type ParsedVitalsItem as IMP_ParsedVitalsItem,
+	type PreparsedContext,
+	resolveMultiConceptHelper,
+	type ScoredParseResult,
 	schemaParserRegistry,
 } from "./schema-parsers";
+import { StopWordParser } from "./stop-word-parser";
 
 export const CANONICAL_TAGS = IMP_CANONICAL_TAGS;
 export type ParsedItem = IMP_ParsedItem;
@@ -31,7 +36,7 @@ export class CdslParser {
 	constructor(
 		private dictionaryStore: DictionaryStore,
 		private profile: ParserSyntaxProfile = SEED_PARSER_PROFILES.find(
-			(p) => p.profileId === "default"
+			(p) => p.profileId === "default",
 		)!,
 		private conceptDefaultsStore?: ParserConceptDefaultStore,
 		stopWordParser?: StopWordParser,
@@ -44,10 +49,7 @@ export class CdslParser {
 	/**
 	 * Parses a clinical dictation stream and extracts mapped schemas.
 	 */
-	async parse(
-		text: string,
-		context?: StopWordContext,
-	): Promise<ParsedItem[]> {
+	async parse(text: string, context?: StopWordContext): Promise<ParsedItem[]> {
 		// Resolve effective StopWordParser from store + context if not already set
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -66,6 +68,7 @@ export class CdslParser {
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
 		const segments = text.split(this.profile.stateDelimiter);
+		const seenFinal = new Set<string>();
 
 		for (const segment of segments) {
 			const trimmed = segment.trim();
@@ -79,24 +82,67 @@ export class CdslParser {
 				const content =
 					tagEndIndex === -1 ? "" : trimmed.substring(tagEndIndex).trim();
 				if (tag && content) {
-					const parsed = await this.parseSegment(tag, content, effectiveStopWordParser);
+					const parsed = await this.parseSegment(
+						tag,
+						content,
+						undefined,
+						effectiveStopWordParser,
+					);
 					if (parsed) {
 						items.push(parsed);
 					}
 				}
 			} else {
-				// Tagless parsing fallback: try to guess/infer target schema from the first word
-				const firstSpace = trimmed.indexOf(" ");
-				const firstWord =
-					firstSpace === -1 ? trimmed : trimmed.substring(0, firstSpace);
-
-				if (effectiveStopWordParser?.isStopWord(firstWord)) {
-					continue;
+				// Stop Word Conversational Narrative Gatekeeper
+				// If a segment contains mostly stop words, treat it as narrative and skip entity parsing.
+				if (effectiveStopWordParser) {
+					const words = trimmed.split(/\s+/).filter(Boolean);
+					let stopWordCount = 0;
+					for (const w of words) {
+						if (effectiveStopWordParser.isStopWord(w)) {
+							stopWordCount++;
+						}
+					}
+					if (words.length > 0 && stopWordCount / words.length > 0.6) {
+						continue;
+					}
 				}
 
+				// Build the shared PreparsedContext (run sub-parsers only once)
+				const measurement = MeasurementHelper.parse(
+					trimmed,
+					undefined,
+					this.profile.attributeRules,
+				) as any;
+				const timeSpan = TimeHelper.parse(trimmed, this.profile.attributeRules);
+				const frequency = FrequencyHelper.parse(
+					trimmed,
+					this.profile.attributeRules || [],
+					this.profile.evaluatorRules || [],
+				);
+
+				// Pre-extract standard localized attributes (e.g. certainty, severity, route)
+				const attributes: Record<string, string> = {};
+				const rules = this.profile.attributeRules || [];
+				for (const rule of rules) {
+					for (const pattern of rule.regexPatterns) {
+						const flags = rule.isCaseInsensitive !== false ? "i" : "";
+						const regex = new RegExp(pattern, flags);
+						if (regex.test(trimmed)) {
+							attributes[rule.targetField] = rule.targetValue;
+						}
+					}
+				}
+
+				const preparsedContext: PreparsedContext = {
+					rawText: trimmed,
+					measurement,
+					timeSpan,
+					frequency,
+					attributes,
+				};
+
 				// Collect namespaces from the profile's schemaNamespaces configuration.
-				// No defaults are assumed here; if the profile does not define any,
-				// tagless resolution will not find any namespaces to search.
 				const namespacesToSearch: string[] = [];
 				if (this.profile.schemaNamespaces) {
 					const allNs = new Set<string>();
@@ -106,73 +152,155 @@ export class CdslParser {
 					namespacesToSearch.push(...Array.from(allNs));
 				}
 
-				// Resolve the first word across namespaces
-				let resolvedConcept: any = null;
-				for (const ns of namespacesToSearch) {
-					const res = await this.dictionaryStore.search(firstWord, ns, 1);
-					if (res && res.length > 0 && res[0]) {
-						resolvedConcept = res[0];
-						break;
+				// Profile-driven matching: match segment tokens using dictionary/namespaces
+				// 1. Try to match the full trimmed segment as a unified concept
+				const candidates: any[] = [];
+				const fullCandidates = await resolveMultiConceptHelper(
+					trimmed,
+					this.dictionaryStore,
+					this.profile.termTokenizer,
+					namespacesToSearch,
+				);
+				if (fullCandidates && fullCandidates.length > 0) {
+					candidates.push(...fullCandidates);
+				}
+
+				// 2. If no full match, fall back to individual token words matching
+				if (candidates.length === 0) {
+					const tokenWords = trimmed
+						.split(/[\s,.;:!?||]+/)
+						.filter(
+							(w) =>
+								w &&
+								(!effectiveStopWordParser ||
+									!effectiveStopWordParser.isStopWord(w)),
+						);
+					for (const word of tokenWords) {
+						const wordCandidates = await resolveMultiConceptHelper(
+							word,
+							this.dictionaryStore,
+							this.profile.termTokenizer,
+							namespacesToSearch,
+						);
+						if (wordCandidates) {
+							candidates.push(...wordCandidates);
+						}
 					}
 				}
 
-				let targetSchema = "";
-				if (resolvedConcept) {
-					if (this.conceptDefaultsStore) {
-						// Guess schema based on concept default configurations
-						for (const schema of Object.values(CANONICAL_TAGS)) {
-							const defaults = await this.conceptDefaultsStore.get(
-								resolvedConcept.id,
-								schema,
-							);
-							if (defaults) {
-								targetSchema = schema;
-								break;
-							}
-						}
-					}
+				// Deduplicate concept candidates
+				const seenConceptIds = new Set<string>();
+				const uniqueCandidates = candidates.filter((c) => {
+					if (seenConceptIds.has(c.conceptId)) return false;
+					seenConceptIds.add(c.conceptId);
+					return true;
+				});
 
-					// If still no schema default found, guess based on namespace configuration
-					if (!targetSchema) {
-						if (this.profile.schemaNamespaces) {
-							for (const [schemaKey, nsList] of Object.entries(
-								this.profile.schemaNamespaces,
-							)) {
-								if (nsList.includes(resolvedConcept.namespaceCode)) {
-									for (const schema of Object.values(CANONICAL_TAGS)) {
-										if (
-											schema.toLowerCase() === schemaKey.toLowerCase() ||
-											schemaKey.toLowerCase().includes(schema.toLowerCase())
-										) {
-											targetSchema = schema;
-											break;
-										}
+				// Dispatch candidates in parallel to all pipelines
+				const parsedList: ScoredParseResult[] = [];
+				for (const candidate of uniqueCandidates) {
+					const parsers = Array.from(schemaParserRegistry.values());
+					const candidateList: ScoredParseResult[] = [];
+
+					for (const parser of parsers) {
+						const cleanKey = parser.targetSchema.toLowerCase();
+						const allowedNamespaces =
+							this.profile.schemaNamespaces?.[cleanKey] || undefined;
+
+						// Skip running parser if the candidate resolved namespace is not in this parser's allowedNamespaces
+						if (
+							allowedNamespaces &&
+							!allowedNamespaces.includes(candidate.namespace)
+						) {
+							continue;
+						}
+
+						// Execute virtual parse pipeline
+						const parsed = await parser.parse(
+							"",
+							trimmed,
+							this.dictionaryStore,
+							this.conceptDefaultsStore,
+							this.profile.attributeRules,
+							this.profile.evaluatorRules,
+							this.profile.termTokenizer,
+							allowedNamespaces,
+							preparsedContext,
+						);
+
+						if (parsed && parsed.conceptId) {
+							// Compute completeness score: count of non-null populated fields
+							let completenessScore = 0;
+							let unitAnchorCoherence = false;
+
+							if (parsed.targetSchema === CANONICAL_TAGS.VITALS) {
+								const v = parsed as ParsedVitalsItem;
+								if (v.value !== undefined) completenessScore++;
+								if (v.unit) completenessScore++;
+								if (v.unitAnchor) {
+									completenessScore++;
+									// Check unit anchor coherence (e.g. temperature -> temp)
+									if (
+										v.unitAnchor === "temperature" &&
+										candidate.display.toLowerCase().includes("temp")
+									) {
+										unitAnchorCoherence = true;
 									}
-									if (targetSchema) break;
 								}
+							} else if (parsed.targetSchema === CANONICAL_TAGS.OBSERVATION) {
+								const o = parsed as ParsedObservationItem;
+								if (o.certainty) completenessScore++;
+								if (o.status) completenessScore++;
+								if (o.severity) completenessScore++;
+							} else if (parsed.targetSchema === CANONICAL_TAGS.MEDICATION) {
+								const m = parsed as ParsedMedicationItem;
+								if (m.route) completenessScore++;
+								if (m.frequency) completenessScore++;
+								if (m.duration) completenessScore++;
 							}
-						}
 
-						if (!targetSchema) {
-							if (resolvedConcept.namespaceCode === "LOINC") {
-								targetSchema = CANONICAL_TAGS.VITALS;
-							} else if (resolvedConcept.namespaceCode === "RxNorm") {
-								targetSchema = CANONICAL_TAGS.MEDICATION;
-							} else {
-								targetSchema = CANONICAL_TAGS.OBSERVATION;
+							candidateList.push({
+								parsedItem: parsed,
+								completenessScore,
+								unitAnchorCoherence,
+							});
+						}
+					}
+
+					// Filter out extremely low confidence candidate results, select winning schemas
+					if (candidateList.length > 0) {
+						// Sort by completeness score, tiebreaking by unitAnchorCoherence
+						candidateList.sort((a, b) => {
+							if (b.completenessScore !== a.completenessScore) {
+								return b.completenessScore - a.completenessScore;
 							}
+							if (b.unitAnchorCoherence !== a.unitAnchorCoherence) {
+								return (
+									(b.unitAnchorCoherence ? 1 : 0) -
+									(a.unitAnchorCoherence ? 1 : 0)
+								);
+							}
+							return 0;
+						});
+
+						// Support multi-match: allow all high completeness candidate schemas to compile (e.g. completenessScore >= 1)
+						const topScore = candidateList[0]?.completenessScore || 0;
+						const winners = candidateList.filter(
+							(c) =>
+								c.completenessScore === topScore || c.completenessScore >= 1,
+						);
+						for (const w of winners) {
+							parsedList.push(w);
 						}
 					}
 				}
 
-				if (targetSchema) {
-					const parsed = await this.parseSegment(
-						this.profile.tagToken + targetSchema.toLowerCase(),
-						trimmed,
-						effectiveStopWordParser,
-					);
-					if (parsed) {
-						items.push(parsed);
+				// Deduplicate final parsed items by schema + conceptId
+				for (const r of parsedList) {
+					const key = `${r.parsedItem.targetSchema}:${r.parsedItem.conceptId}`;
+					if (!seenFinal.has(key)) {
+						seenFinal.add(key);
+						items.push(r.parsedItem);
 					}
 				}
 			}
@@ -184,6 +312,7 @@ export class CdslParser {
 	private async parseSegment(
 		tag: string,
 		content: string,
+		preparsedContext?: PreparsedContext,
 		effectiveStopWordParser?: StopWordParser,
 	): Promise<ParsedItem | null> {
 		if (effectiveStopWordParser?.isStopWord(content)) {
@@ -227,6 +356,7 @@ export class CdslParser {
 				this.profile.evaluatorRules,
 				this.profile.termTokenizer,
 				allowedNamespaces,
+				preparsedContext,
 			);
 		}
 		return null;

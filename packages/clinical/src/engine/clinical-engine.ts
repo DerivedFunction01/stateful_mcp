@@ -1,14 +1,13 @@
 import type { DictionaryStore, ObjectStore } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
+import type {
+	ParsedMedicationItem,
+	ParsedObservationItem,
+	ParsedVitalsItem,
+} from "../parser/schema-parsers";
 import type { SoapNote } from "../schemas/document";
 import type { PatientProfile } from "../schemas/patient";
-import type {
-	ParsedVitalsItem,
-	ParsedObservationItem,
-	ParsedMedicationItem,
-} from "../parser/schema-parsers";
-import type { TemporalBoundary } from "../schemas/time";
 import type {
 	CalibrationStore,
 	SignedSoapNoteRecord,
@@ -65,7 +64,10 @@ export class ClinicalEngine {
 
 		// Register template schema in ObjectStore if not already registered
 		const storeAny = this.objectStore as any;
-		if (!storeAny.hasSchema?.("SoapNote") && !storeAny.schemas?.has("SoapNote")) {
+		if (
+			!storeAny.hasSchema?.("SoapNote") &&
+			!storeAny.schemas?.has("SoapNote")
+		) {
 			try {
 				this.objectStore.registerSchema("SoapNote", schema);
 			} catch (_) {
@@ -132,11 +134,14 @@ export class ClinicalEngine {
 				const vitalsItem = item as ParsedVitalsItem;
 				const vitals = [...(note.objective?.vitals || [])];
 				const unit = vitalsItem.unit || "";
-					
+
 				vitals.push({
 					id: `vit_${crypto.randomUUID().slice(0, 8)}`,
 					soapSection: "objective",
-					concept: { conceptId: vitalsItem.conceptId, display: vitalsItem.display },
+					concept: {
+						conceptId: vitalsItem.conceptId,
+						display: vitalsItem.display,
+					},
 					measurement: {
 						magnitude: Number(vitalsItem.value || 0),
 						unit: { display: unit },
@@ -200,7 +205,10 @@ export class ClinicalEngine {
 				meds.push({
 					id: `med_${crypto.randomUUID().slice(0, 8)}`,
 					soapSection: "plan",
-					medication: { conceptId: medItem.conceptId, display: medItem.display },
+					medication: {
+						conceptId: medItem.conceptId,
+						display: medItem.display,
+					},
 					route: medItem.route as any,
 					frequency: medItem.frequency,
 				} as any);

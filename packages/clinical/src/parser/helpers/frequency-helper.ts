@@ -1,6 +1,13 @@
-import type { MedicationFrequency, CadenceBaseType, PhysiologicalEventAnchor } from "../../schemas/medication";
+import type {
+	CadenceBaseType,
+	MedicationFrequency,
+	PhysiologicalEventAnchor,
+} from "../../schemas/medication";
 import type { TimePrecisionLevel } from "../../schemas/time";
-import type { AttributeParserRule, ParserDictionaryRule } from "../../store/interfaces";
+import type {
+	AttributeParserRule,
+	ParserDictionaryRule,
+} from "../../store/interfaces";
 
 export class FrequencyHelper {
 	static parse(
@@ -98,9 +105,13 @@ export class FrequencyHelper {
 
 							if (resolvedUnit) {
 								const times = rawMult ? parseFloat(rawMult) : 1;
-								
+
 								// Handle high-frequency "X times per day" conversion (e.g. 3 times per day -> 24 / 3 = every 8 hours)
-								if (rule.ruleId === "freq_times" && resolvedUnit === "day" && times > 1) {
+								if (
+									rule.ruleId === "freq_times" &&
+									resolvedUnit === "day" &&
+									times > 1
+								) {
 									cadenceType = "interval";
 									interval = {
 										multiplier: Math.round(24 / times),

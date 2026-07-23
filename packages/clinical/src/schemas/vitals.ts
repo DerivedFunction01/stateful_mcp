@@ -1,13 +1,13 @@
 import type {
-	AnatomicalLocation,
-	ClinicalSourceType,
-	CodeableConcept,
-} from "./shared";
-import type {
 	CountMeasurement,
 	PressureMeasurement,
 	TemperatureMeasurement,
 } from "./measurement";
+import type {
+	AnatomicalLocation,
+	ClinicalSourceType,
+	CodeableConcept,
+} from "./shared";
 import type { ClinicalDateRange } from "./time";
 
 export interface VitalsMeasurementEvent {

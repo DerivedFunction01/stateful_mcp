@@ -1,9 +1,6 @@
-import type {
-	CodeableConcept,
-	Route,
-} from "./shared";
 import type { DosageMeasurement } from "./measurement";
-import type { TimePrecisionLevel, ClinicalDateRange } from "./time";
+import type { CodeableConcept, Route } from "./shared";
+import type { ClinicalDateRange, TimePrecisionLevel } from "./time";
 
 export type CadenceBaseType =
 	| "interval"

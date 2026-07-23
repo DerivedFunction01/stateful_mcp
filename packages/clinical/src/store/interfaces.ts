@@ -1,5 +1,3 @@
-import type { BoundedMeasurement, SingleMeasurement } from "../schemas/measurement";
-
 export interface ParserSyntaxProfile {
 	profileId: string;
 	personnelId: string;
@@ -185,7 +183,5 @@ export interface StopWordStore {
 	getProfile(personnelId: string): Promise<StopWordProfile | null>;
 	setProfile(profile: StopWordProfile): Promise<void>;
 	compileStopWords(personnelId: string): Promise<Set<string>>;
-	compileStopWordsForContext(
-		context: StopWordContext,
-	): Promise<Set<string>>;
+	compileStopWordsForContext(context: StopWordContext): Promise<Set<string>>;
 }

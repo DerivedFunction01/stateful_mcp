@@ -1,12 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import { ObservationHelper, ObservationTokenizer } from "../helpers/observation-helper";
-import {
-	CANONICAL_TAGS,
-	type ParsedItem,
-	type ParsedObservationItem,
-	type SchemaParser,
-	resolveConceptHelper,
-} from "../schema-parsers";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_EVALUATOR_RULES,
@@ -17,6 +9,15 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import { ObservationTokenizer } from "../helpers/observation-helper";
+import {
+	CANONICAL_TAGS,
+	type ParsedItem,
+	type ParsedObservationItem,
+	type PreparsedContext,
+	resolveConceptHelper,
+	type SchemaParser,
+} from "../schema-parsers";
 
 export class ObservationSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.OBSERVATION;
@@ -30,12 +31,23 @@ export class ObservationSchemaParser implements SchemaParser {
 		evaluatorRules?: ParserDictionaryRule[],
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
+		preparsedContext?: PreparsedContext,
 	): Promise<ParsedItem | null> {
 		const attrRules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
 		const evalRules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
 
-		const token = ObservationTokenizer.tokenize(content, attrRules, evalRules);
-		if (!token.anchorText) return null;
+		let token: any = null;
+		if (preparsedContext?.attributes) {
+			token = {
+				anchorText: content.trim().split(/\s+/)[0] || "",
+				certainty: preparsedContext.attributes.certainty,
+				status: preparsedContext.attributes.status,
+				severity: preparsedContext.attributes.severity,
+			};
+		} else {
+			token = ObservationTokenizer.tokenize(content, attrRules, evalRules);
+		}
+		if (!token || !token.anchorText) return null;
 
 		const certainty = token.certainty || "confirmed";
 		const status = token.status || "active";
@@ -82,7 +94,9 @@ export class ObservationSchemaParser implements SchemaParser {
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:
-				Object.keys(capturedProperties).length > 0 ? capturedProperties : undefined,
+				Object.keys(capturedProperties).length > 0
+					? capturedProperties
+					: undefined,
 		} as ParsedObservationItem;
 	}
 }

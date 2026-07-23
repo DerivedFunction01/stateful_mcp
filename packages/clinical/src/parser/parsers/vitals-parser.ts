@@ -1,13 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import { VitalsHelper, VitalsTokenizer } from "../helpers/vitals-helper";
-import { MeasurementHelper } from "../helpers/measurement-helper";
-import {
-	CANONICAL_TAGS,
-	type ParsedItem,
-	type ParsedVitalsItem,
-	type SchemaParser,
-	resolveConceptHelper,
-} from "../schema-parsers";
 import { DEFAULT_EVALUATOR_RULES } from "../../store/defaults";
 import type {
 	AttributeParserRule,
@@ -15,6 +6,16 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import { MeasurementHelper } from "../helpers/measurement-helper";
+import { VitalsHelper, VitalsTokenizer } from "../helpers/vitals-helper";
+import {
+	CANONICAL_TAGS,
+	type ParsedItem,
+	type ParsedVitalsItem,
+	type PreparsedContext,
+	resolveConceptHelper,
+	type SchemaParser,
+} from "../schema-parsers";
 
 export class VitalsSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.VITALS;
@@ -28,14 +29,30 @@ export class VitalsSchemaParser implements SchemaParser {
 		evaluatorRules?: ParserDictionaryRule[],
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
+		preparsedContext?: PreparsedContext,
 	): Promise<ParsedItem | null> {
 		const rules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
-		const token = VitalsTokenizer.tokenize(content, rules);
-		if (!token.anchorText) return null;
+
+		let token: any = null;
+		if (preparsedContext?.measurement) {
+			const m = preparsedContext.measurement;
+			token = {
+				anchorText: content.trim().split(/\s+/)[0] || "",
+				value: m.magnitude,
+				unit: m.unit?.display,
+			};
+		} else {
+			token = VitalsTokenizer.tokenize(content, rules);
+		}
+		if (!token || !token.anchorText) return null;
 
 		const capturedProps: Record<string, any> = {};
 		if (token.systolic !== undefined && token.diastolic !== undefined) {
-			const bp = VitalsHelper.buildBloodPressure(token.systolic, token.diastolic, token.bloodPressureUnit);
+			const bp = VitalsHelper.buildBloodPressure(
+				token.systolic,
+				token.diastolic,
+				token.bloodPressureUnit,
+			);
 			capturedProps.systolic = bp.systolic;
 			capturedProps.diastolic = bp.diastolic;
 			capturedProps.unit = bp.unit;
@@ -105,7 +122,10 @@ export class VitalsSchemaParser implements SchemaParser {
 		const finalUnit = unitText || defaultUnit;
 		let unitAnchor: string | undefined;
 		if (finalUnit) {
-			const resolvedUnit = MeasurementHelper.resolveUnit(finalUnit, attributeRules);
+			const resolvedUnit = MeasurementHelper.resolveUnit(
+				finalUnit,
+				attributeRules,
+			);
 			unitAnchor = resolvedUnit.unitAnchor;
 		}
 

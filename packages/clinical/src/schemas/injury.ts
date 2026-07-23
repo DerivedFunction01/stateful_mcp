@@ -1,10 +1,10 @@
 import type { OperationalDomain } from "./environment";
+import type { DistanceMeasurement } from "./measurement";
 import type {
 	ClinicalSourceType,
 	CodeableConcept,
 	ProductIdentifier,
 } from "./shared";
-import type { DistanceMeasurement } from "./measurement";
 import type { ClinicalDateRange } from "./time";
 
 export interface MechanicalInjuryObject {

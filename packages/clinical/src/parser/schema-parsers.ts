@@ -1,13 +1,12 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
-	ParserConceptDefault,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../store/interfaces";
-import { VitalsSchemaParser } from "./parsers/vitals-parser";
-import { ObservationSchemaParser } from "./parsers/observation-parser";
 import { MedicationSchemaParser } from "./parsers/medication-parser";
+import { ObservationSchemaParser } from "./parsers/observation-parser";
+import { VitalsSchemaParser } from "./parsers/vitals-parser";
 
 export const CANONICAL_TAGS = {
 	VITALS: "VitalsMeasurementEvent",
@@ -49,7 +48,27 @@ export interface ParsedMedicationItem extends BaseParsedItem {
 	status?: string;
 }
 
-export type ParsedItem = ParsedVitalsItem | ParsedObservationItem | ParsedMedicationItem;
+import type { BoundedMeasurement } from "../schemas/measurement";
+import type { TimeMeasurement } from "../schemas/time";
+
+export interface PreparsedContext {
+	rawText: string;
+	measurement?: BoundedMeasurement | null;
+	timeSpan?: TimeMeasurement | null;
+	frequency?: MedicationFrequency | null;
+	attributes?: Record<string, string>;
+}
+
+export interface ScoredParseResult {
+	parsedItem: ParsedItem;
+	completenessScore: number;
+	unitAnchorCoherence: boolean;
+}
+
+export type ParsedItem =
+	| ParsedVitalsItem
+	| ParsedObservationItem
+	| ParsedMedicationItem;
 
 export interface SchemaParser {
 	targetSchema: string;
@@ -62,6 +81,7 @@ export interface SchemaParser {
 		evaluatorRules?: ParserDictionaryRule[],
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
+		preparsedContext?: PreparsedContext,
 	): Promise<ParsedItem | null>;
 }
 
@@ -92,35 +112,84 @@ const EVALUATOR_FUNCTIONS: Record<string, (groups: any) => any> = {
 	parseSessionVars: (groups) => parseSessionVars(groups),
 };
 
+export interface ConceptCandidate {
+	conceptId: string;
+	display: string;
+	namespace: string;
+}
+
 export async function resolveConceptHelper(
 	text: string,
 	dictionaryStore: DictionaryStore,
 	termTokenizer?: string,
 	allowedNamespaces?: string[],
 ): Promise<{ id: string; display: string } | null> {
+	const candidates = await resolveMultiConceptHelper(
+		text,
+		dictionaryStore,
+		termTokenizer,
+		allowedNamespaces,
+	);
+	const first = candidates[0];
+	return first ? { id: first.conceptId, display: first.display } : null;
+}
+
+export async function resolveMultiConceptHelper(
+	text: string,
+	dictionaryStore: DictionaryStore,
+	termTokenizer?: string,
+	allowedNamespaces?: string[],
+): Promise<ConceptCandidate[]> {
+	const candidates: ConceptCandidate[] = [];
 	const tokenizer = termTokenizer || "::";
+
 	if (text.includes(tokenizer)) {
 		const idx = text.indexOf(tokenizer);
 		const ns = text.slice(0, idx).trim();
 		const code = text.slice(idx + tokenizer.length).trim();
-		const results = await dictionaryStore.search(code, ns, 1);
-		if (results && results.length > 0 && results[0]) {
-			return { id: results[0].id, display: results[0].display };
+		const results = await dictionaryStore.search(code, ns, 5);
+		if (results) {
+			for (const r of results) {
+				if (r) {
+					candidates.push({
+						conceptId: r.id,
+						display: r.display,
+						namespace: ns,
+					});
+				}
+			}
 		}
 	}
 
 	if (allowedNamespaces && allowedNamespaces.length > 0) {
 		for (const ns of allowedNamespaces) {
-			const results = await dictionaryStore.search(text, ns, 1);
-			if (results && results.length > 0 && results[0]) {
-				return { id: results[0].id, display: results[0].display };
+			const results = await dictionaryStore.search(text, ns, 5);
+			if (results) {
+				for (const r of results) {
+					if (r) {
+						candidates.push({
+							conceptId: r.id,
+							display: r.display,
+							namespace: ns,
+						});
+					}
+				}
 			}
 		}
 	}
-	return null;
+	return candidates;
 }
 
 // Register default parsers
-schemaParserRegistry.set(CANONICAL_TAGS.VITALS.toLowerCase(), new VitalsSchemaParser());
-schemaParserRegistry.set(CANONICAL_TAGS.OBSERVATION.toLowerCase(), new ObservationSchemaParser());
-schemaParserRegistry.set(CANONICAL_TAGS.MEDICATION.toLowerCase(), new MedicationSchemaParser());
+schemaParserRegistry.set(
+	CANONICAL_TAGS.VITALS.toLowerCase(),
+	new VitalsSchemaParser(),
+);
+schemaParserRegistry.set(
+	CANONICAL_TAGS.OBSERVATION.toLowerCase(),
+	new ObservationSchemaParser(),
+);
+schemaParserRegistry.set(
+	CANONICAL_TAGS.MEDICATION.toLowerCase(),
+	new MedicationSchemaParser(),
+);

@@ -1,4 +1,7 @@
-import type { AttributeParserRule, ParserDictionaryRule } from "../../store/interfaces";
+import type {
+	AttributeParserRule,
+	ParserDictionaryRule,
+} from "../../store/interfaces";
 
 export interface MedicationToken {
 	anchorText: string;
@@ -30,7 +33,12 @@ export class MedicationTokenizer {
 							if (!Number.isNaN(quantity)) {
 								capturedProps.quantity = quantity;
 								if (unitStr) {
-									capturedProps.quantityUnit = MedicationHelper.normalizeQuantityUnit(quantity, unitStr, attributeRules);
+									capturedProps.quantityUnit =
+										MedicationHelper.normalizeQuantityUnit(
+											quantity,
+											unitStr,
+											attributeRules,
+										);
 								}
 							}
 						}

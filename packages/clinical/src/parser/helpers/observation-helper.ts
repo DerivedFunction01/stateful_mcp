@@ -1,4 +1,7 @@
-import type { AttributeParserRule, ParserDictionaryRule } from "../../store/interfaces";
+import type {
+	AttributeParserRule,
+	ParserDictionaryRule,
+} from "../../store/interfaces";
 
 export interface ObservationToken {
 	anchorText: string;

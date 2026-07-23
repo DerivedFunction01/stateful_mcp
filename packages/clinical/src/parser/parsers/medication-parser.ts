@@ -1,13 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import { MedicationHelper, MedicationTokenizer } from "../helpers/medication-helper";
-import { TimeHelper } from "../helpers/measurement-helper";
-import {
-	CANONICAL_TAGS,
-	type ParsedItem,
-	type ParsedMedicationItem,
-	type SchemaParser,
-	resolveConceptHelper,
-} from "../schema-parsers";
+import type { MedicationFrequency } from "../../schemas/medication";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_EVALUATOR_RULES,
@@ -18,9 +10,17 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
-
 import { FrequencyHelper } from "../helpers/frequency-helper";
-import type { MedicationFrequency } from "../../schemas/medication";
+import { TimeHelper } from "../helpers/measurement-helper";
+import { MedicationTokenizer } from "../helpers/medication-helper";
+import {
+	CANONICAL_TAGS,
+	type ParsedItem,
+	type ParsedMedicationItem,
+	type PreparsedContext,
+	resolveConceptHelper,
+	type SchemaParser,
+} from "../schema-parsers";
 
 export class MedicationSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.MEDICATION;
@@ -34,16 +34,33 @@ export class MedicationSchemaParser implements SchemaParser {
 		evaluatorRules?: ParserDictionaryRule[],
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
+		preparsedContext?: PreparsedContext,
 	): Promise<ParsedItem | null> {
 		const attrRules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
 		const evalRules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
 
-		const token = MedicationTokenizer.tokenize(content, attrRules, evalRules);
-		if (!token.anchorText) return null;
+		let token: any = null;
+		if (preparsedContext?.attributes) {
+			token = {
+				anchorText: content.trim().split(/\s+/)[0] || "",
+				route: preparsedContext.attributes.route,
+				duration: preparsedContext.timeSpan
+					? String(preparsedContext.timeSpan.magnitude) +
+						" " +
+						(preparsedContext.timeSpan.unit || "")
+					: undefined,
+			};
+		} else {
+			token = MedicationTokenizer.tokenize(content, attrRules, evalRules);
+		}
+		if (!token || !token.anchorText) return null;
 
 		let route = token.route;
-		let frequency: MedicationFrequency | undefined = FrequencyHelper.parse(content, attrRules, evalRules) || undefined;
-		let duration: string | undefined;
+		let frequency: MedicationFrequency | undefined =
+			preparsedContext?.frequency ||
+			FrequencyHelper.parse(content, attrRules, evalRules) ||
+			undefined;
+		let duration: string | undefined = token.duration;
 
 		// Resolve concept
 		const resolved = await resolveConceptHelper(
@@ -98,7 +115,9 @@ export class MedicationSchemaParser implements SchemaParser {
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:
-				Object.keys(capturedProperties).length > 0 ? capturedProperties : undefined,
+				Object.keys(capturedProperties).length > 0
+					? capturedProperties
+					: undefined,
 		} as ParsedMedicationItem;
 	}
 }

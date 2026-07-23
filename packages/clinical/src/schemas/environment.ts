@@ -1,13 +1,9 @@
 import type {
-	ClinicalSourceType,
-	CodeableConcept,
-	ProductIdentifier,
-} from "./shared";
-import type {
 	DistanceMeasurement,
 	PressureMeasurement,
 	TemperatureMeasurement,
 } from "./measurement";
+import type { ClinicalSourceType, ProductIdentifier } from "./shared";
 import type { ClinicalDateRange } from "./time";
 
 // =====================================================================

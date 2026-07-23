@@ -1,10 +1,6 @@
-import type { MedicationFrequency } from "./medication";
-import type {
-	AnatomicalLocation,
-	CodeableConcept,
-	Route,
-} from "./shared";
 import type { DosageMeasurement } from "./measurement";
+import type { MedicationFrequency } from "./medication";
+import type { AnatomicalLocation, CodeableConcept, Route } from "./shared";
 import type { ClinicalDateRange } from "./time";
 
 export type ExposureType =

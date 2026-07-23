@@ -58,7 +58,11 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 	{
 		targetField: "frequency_prn",
 		targetValue: "true",
-		regexPatterns: ["\\bprn\\b", "\\bas\\s+needed\\b", "\\bpor\\s+razón\\s+necesaria\\b"],
+		regexPatterns: [
+			"\\bprn\\b",
+			"\\bas\\s+needed\\b",
+			"\\bpor\\s+razón\\s+necesaria\\b",
+		],
 		isCaseInsensitive: true,
 	},
 	{
@@ -219,7 +223,12 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 	{
 		targetField: "unit",
 		targetValue: "/min",
-		regexPatterns: ["\\/min\\b", "\\bper\\s+minute\\b", "\\bbpm\\b", "\\bbreaths?\\/min\\b"],
+		regexPatterns: [
+			"\\/min\\b",
+			"\\bper\\s+minute\\b",
+			"\\bbpm\\b",
+			"\\bbreaths?\\/min\\b",
+		],
 		isCaseInsensitive: true,
 		unitAnchor: "number",
 	},

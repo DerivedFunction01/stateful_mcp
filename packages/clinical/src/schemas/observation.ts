@@ -4,8 +4,7 @@ import type {
 	CodeableConcept,
 	Status,
 } from "./shared";
-import type { TimeMeasurement } from "./time";
-import type { ClinicalDateRange } from "./time";
+import type { ClinicalDateRange, TimeMeasurement } from "./time";
 
 export interface ObservationEvent {
 	id: string;

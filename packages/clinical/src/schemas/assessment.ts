@@ -1,10 +1,10 @@
+import type { ScoreMeasurement } from "./measurement";
 import type {
 	AnatomicalLocation,
 	ClinicalSourceType,
 	CodeableConcept,
 	ProductIdentifier, // Integrated from shared primitives
 } from "./shared";
-import type { ScoreMeasurement } from "./measurement";
 import type { ClinicalDateRange } from "./time";
 
 export interface AlgorithmicHypothesis {
