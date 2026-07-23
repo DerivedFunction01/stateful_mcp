@@ -6,6 +6,7 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
+import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import {
 	MeasurementHelper,
@@ -147,7 +148,7 @@ export class CdslParser {
 			for (const rule of rules) {
 				for (const pattern of rule.regexPatterns) {
 					const flags = rule.isCaseInsensitive !== false ? "i" : "";
-					const regex = new RegExp(pattern, flags);
+					const regex = getCompiledRegex(pattern, flags);
 					if (regex.test(content)) {
 						if (attributes[rule.targetField] === undefined) {
 							attributes[rule.targetField] = rule.targetValue;

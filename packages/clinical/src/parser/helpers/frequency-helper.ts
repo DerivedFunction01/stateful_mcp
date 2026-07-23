@@ -8,6 +8,7 @@ import type {
 	AttributeParserRule,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import { getCompiledRegex } from "../_compiled-regex";
 
 export class FrequencyHelper {
 	static resolveShorthandInterval(
@@ -52,7 +53,7 @@ export class FrequencyHelper {
 		for (const rule of attributeRules) {
 			if (rule.targetField === "frequency_prn") {
 				for (const pattern of rule.regexPatterns) {
-					if (new RegExp(pattern, "i").test(textLower)) {
+					if (getCompiledRegex(pattern, "i").test(textLower)) {
 						isPrn = rule.targetValue === "true";
 					}
 				}
@@ -63,7 +64,7 @@ export class FrequencyHelper {
 		for (const rule of attributeRules) {
 			if (rule.targetField === "frequency_event_anchor") {
 				for (const pattern of rule.regexPatterns) {
-					if (new RegExp(pattern, "i").test(textLower)) {
+					if (getCompiledRegex(pattern, "i").test(textLower)) {
 						eventAnchor = rule.targetValue as PhysiologicalEventAnchor;
 						cadenceType = "event_anchored";
 					}
@@ -75,7 +76,7 @@ export class FrequencyHelper {
 		for (const rule of attributeRules) {
 			if (rule.targetField === "frequency_shorthand") {
 				for (const pattern of rule.regexPatterns) {
-					if (new RegExp(pattern, "i").test(textLower)) {
+					if (getCompiledRegex(pattern, "i").test(textLower)) {
 						cadenceType = "interval";
 						let multiplier = 1;
 						let unit: TimePrecisionLevel = "day";
@@ -105,7 +106,7 @@ export class FrequencyHelper {
 		for (const rule of evaluatorRules) {
 			if (rule.targetField === "frequency_details") {
 				for (const pattern of rule.regexPatterns) {
-					const regex = new RegExp(pattern, "i");
+					const regex = getCompiledRegex(pattern, "i");
 					const match = regex.exec(textLower);
 					if (match && match.groups) {
 						const rawMult = match.groups.multiplier;
@@ -117,7 +118,7 @@ export class FrequencyHelper {
 							for (const attrRule of attributeRules) {
 								if (attrRule.targetField === "time_unit") {
 									for (const pat of attrRule.regexPatterns) {
-										if (new RegExp(pat, "i").test(rawUnit)) {
+										if (getCompiledRegex(pat, "i").test(rawUnit)) {
 											resolvedUnit = attrRule.targetValue as TimePrecisionLevel;
 											break;
 										}

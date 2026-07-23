@@ -2,6 +2,7 @@ import type {
 	AttributeParserRule,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import { getCompiledRegex } from "../_compiled-regex";
 
 export interface ObservationToken {
 	anchorText: string;
@@ -22,7 +23,7 @@ export class ObservationTokenizer {
 
 		for (const rule of evaluatorRules) {
 			for (const pattern of rule.regexPatterns) {
-				const regex = new RegExp(pattern, "i");
+				const regex = getCompiledRegex(pattern, "i");
 				const match = regex.exec(content);
 				if (match && match.groups) {
 					if (rule.targetField === "severityScore") {
@@ -40,7 +41,7 @@ export class ObservationTokenizer {
 
 		for (const rule of evaluatorRules) {
 			for (const pattern of rule.regexPatterns) {
-				const regex = new RegExp(pattern, "i");
+				const regex = getCompiledRegex(pattern, "i");
 				contentCleaned = contentCleaned.replace(regex, " ");
 			}
 		}
@@ -49,7 +50,7 @@ export class ObservationTokenizer {
 		for (const rule of attributeRules) {
 			for (const pattern of rule.regexPatterns) {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
+				const regex = getCompiledRegex(pattern, flags);
 				if (regex.test(contentCleaned)) {
 					attributes[rule.targetField] = rule.targetValue;
 				}
@@ -59,7 +60,7 @@ export class ObservationTokenizer {
 		for (const rule of attributeRules) {
 			for (const pattern of rule.regexPatterns) {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
+				const regex = getCompiledRegex(pattern, flags);
 				contentCleaned = contentCleaned.replace(regex, " ");
 			}
 		}

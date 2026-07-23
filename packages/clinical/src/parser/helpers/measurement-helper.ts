@@ -15,6 +15,7 @@ import {
 	UNIT_DISPLAY_MAP,
 } from "../../store/defaults";
 import type { AttributeParserRule } from "../../store/interfaces";
+import { getCompiledRegex } from "../_compiled-regex";
 
 const ALLOWED_UNITS_SET = new Set(Object.keys(UNIT_DISPLAY_MAP));
 
@@ -130,7 +131,7 @@ export class QuantityTokenizer {
 		for (const rule of rules) {
 			for (const pattern of rule.regexPatterns) {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = new RegExp(pattern, flags);
+				const regex = getCompiledRegex(pattern, flags);
 				const match = regex.exec(remaining);
 				if (match?.[0]) {
 					remaining = remaining.replace(match[0], "").trim();
@@ -203,7 +204,7 @@ export class QuantityTokenizer {
 				if (rule.blacklistPatterns) {
 					let isBlacklisted = false;
 					for (const bp of rule.blacklistPatterns) {
-						const reBlacklist = new RegExp(bp, flags);
+						const reBlacklist = getCompiledRegex(bp, flags);
 						if (reBlacklist.test(rawUnit)) {
 							isBlacklisted = true;
 							break;
@@ -213,7 +214,7 @@ export class QuantityTokenizer {
 						continue;
 					}
 				}
-				const regex = new RegExp(pattern, flags);
+				const regex = getCompiledRegex(pattern, flags);
 				if (regex.test(rawUnit)) {
 					if (rule.unitAnchor) {
 						return {

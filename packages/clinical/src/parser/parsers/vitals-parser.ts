@@ -7,6 +7,7 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import { getCompiledRegex } from "../_compiled-regex";
 import {
 	QuantityHelper,
 	QuantityTokenizer,
@@ -94,7 +95,7 @@ export class VitalsSchemaParser implements SchemaParser {
 		// Apply regex capture groups from defaults if defined
 		if (conceptDefaults?.regexPatterns) {
 			for (const pattern of conceptDefaults.regexPatterns) {
-				const regex = new RegExp(pattern, "i");
+				const regex = getCompiledRegex(pattern, "i");
 				const match = regex.exec(content);
 				if (
 					match &&

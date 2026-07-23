@@ -1,4 +1,5 @@
 import type { ParserDictionaryRule } from "../../store/interfaces";
+import { getCompiledRegex } from "../_compiled-regex";
 
 export interface VitalsToken {
 	anchorText: string;
@@ -19,7 +20,7 @@ export class VitalsTokenizer {
 
 		for (const rule of evaluatorRules) {
 			for (const pattern of rule.regexPatterns) {
-				const regex = new RegExp(pattern, "i");
+				const regex = getCompiledRegex(pattern, "i");
 				const match = regex.exec(content);
 				if (match && match.groups) {
 					if (rule.targetField === "blood_pressure") {
@@ -52,7 +53,7 @@ export class VitalsTokenizer {
 
 		for (const rule of evaluatorRules) {
 			for (const pattern of rule.regexPatterns) {
-				const regex = new RegExp(pattern, "i");
+				const regex = getCompiledRegex(pattern, "i");
 				contentCleaned = contentCleaned.replace(regex, " ");
 			}
 		}
