@@ -80,8 +80,15 @@ export class FrequencyHelper {
 						let multiplier = 1;
 						let unit: TimePrecisionLevel = "day";
 
-						if (rule.targetValue === "BID" || rule.targetValue === "TID" || rule.targetValue === "QID" || rule.targetValue === "QD") {
-							const resolved = FrequencyHelper.resolveShorthandInterval(rule.targetValue);
+						if (
+							rule.targetValue === "BID" ||
+							rule.targetValue === "TID" ||
+							rule.targetValue === "QID" ||
+							rule.targetValue === "QD"
+						) {
+							const resolved = FrequencyHelper.resolveShorthandInterval(
+								rule.targetValue,
+							);
 							if (resolved) {
 								multiplier = resolved.multiplier;
 								unit = resolved.level;
@@ -122,7 +129,13 @@ export class FrequencyHelper {
 							if (resolvedUnit) {
 								const times = rawMult ? parseFloat(rawMult) : 1;
 
-								if (FrequencyHelper.isHighFrequencyDayConversion(rule.ruleId, resolvedUnit, times)) {
+								if (
+									FrequencyHelper.isHighFrequencyDayConversion(
+										rule.ruleId,
+										resolvedUnit,
+										times,
+									)
+								) {
 									cadenceType = "interval";
 									interval = {
 										multiplier: Math.round(24 / times),

@@ -152,7 +152,13 @@ export class ClinicalDateRangeTokenizer {
 							}
 							if (resolvedUnit) {
 								const times = rawMult ? parseFloat(rawMult) : 1;
-								if (FrequencyHelper.isHighFrequencyDayConversion(rule.ruleId, resolvedUnit, times)) {
+								if (
+									FrequencyHelper.isHighFrequencyDayConversion(
+										rule.ruleId,
+										resolvedUnit,
+										times,
+									)
+								) {
 									return {
 										repeat: {
 											multiplier: Math.round(24 / times),
@@ -206,7 +212,9 @@ export class ClinicalDateRangeTokenizer {
 				if (match) {
 					let multiplier = 1;
 					let level: TimePrecisionLevel = "day";
-					const resolved = FrequencyHelper.resolveShorthandInterval(rule.targetValue);
+					const resolved = FrequencyHelper.resolveShorthandInterval(
+						rule.targetValue,
+					);
 					if (resolved) {
 						multiplier = resolved.multiplier;
 						level = resolved.level;
