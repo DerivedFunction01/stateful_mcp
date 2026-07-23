@@ -10,6 +10,7 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
+import type { ParsedCellHistoryStore } from "../store/parsed-cell-store";
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";
@@ -20,6 +21,7 @@ import {
 	type ParsedMedicationItem as IMP_ParsedMedicationItem,
 	type ParsedObservationItem as IMP_ParsedObservationItem,
 	type ParsedVitalsItem as IMP_ParsedVitalsItem,
+	type ParserPreviewResult,
 	type PreparsedContext,
 	type SchemaParser,
 	schemaParserRegistry,
@@ -64,6 +66,26 @@ export class CdslParser {
 		return this.attributeRules;
 	}
 
+	async preview(
+		text: string,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParserPreviewResult[]> {
+		const effectiveStopWordParser = this.stopWordParser;
+		if (!effectiveStopWordParser && this.stopWordStore && context) {
+			const dynamicParser = await StopWordParser.fromStore(
+				this.stopWordStore,
+				context,
+			);
+			return this.previewWithStopWordParser(text, dynamicParser, historyStore);
+		}
+		return this.previewWithStopWordParser(
+			text,
+			effectiveStopWordParser,
+			historyStore,
+		);
+	}
+
 	/**
 	 * Parses a clinical dictation stream and extracts mapped schemas.
 	 */
@@ -78,6 +100,155 @@ export class CdslParser {
 			return this.parseWithStopWordParser(text, dynamicParser);
 		}
 		return this.parseWithStopWordParser(text, effectiveStopWordParser);
+	}
+
+	private async previewWithStopWordParser(
+		text: string,
+		effectiveStopWordParser: StopWordParser | undefined,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParserPreviewResult[]> {
+		const results: ParserPreviewResult[] = [];
+		const segments = text.split(this.profile.stateDelimiter);
+
+		for (const segment of segments) {
+			const trimmed = segment.trim();
+			if (!trimmed) continue;
+
+			let tag = "";
+			let content = trimmed;
+			if (trimmed.startsWith(this.profile.tagToken)) {
+				const tagEndIndex = trimmed.indexOf(" ");
+				if (tagEndIndex !== -1) {
+					tag = trimmed.substring(0, tagEndIndex);
+					content = trimmed.substring(tagEndIndex).trim();
+				} else {
+					content = "";
+				}
+			}
+			if (!content) continue;
+
+			if (!tag && effectiveStopWordParser) {
+				const words = content.split(/\s+/).filter(Boolean);
+				let stopWordCount = 0;
+				for (const w of words) {
+					if (effectiveStopWordParser.isStopWord(w)) {
+						stopWordCount++;
+					}
+				}
+				if (
+					words.length > 0 &&
+					stopWordCount / words.length > (this.profile.stopWordThreshold ?? 0.6)
+				) {
+					continue;
+				}
+			}
+
+			const attrRules = this.getEffectiveAttributeRules();
+			const candidates = QuantityTokenizer.tokenize(content, attrRules);
+			const frequency = FrequencyHelper.parse(
+				content,
+				this.getEffectiveAttributeRules() || [],
+				this.profile.evaluatorRules || [],
+			);
+			const attributes: Record<string, string> = {};
+			const rules = [...this.getEffectiveAttributeRules()].sort((a, b) => {
+				const pA = a.priority ?? 1;
+				const pB = b.priority ?? 1;
+				return pB - pA;
+			});
+			for (const rule of rules) {
+				for (const pattern of rule.regexPatterns) {
+					const flags = rule.isCaseInsensitive !== false ? "i" : "";
+					const regex = getCompiledRegex(pattern, flags);
+					if (regex.test(content)) {
+						if (attributes[rule.targetField] === undefined) {
+							attributes[rule.targetField] = rule.targetValue;
+						}
+					}
+				}
+			}
+			const preparsedContext: PreparsedContext = {
+				rawText: content,
+				measurement: candidates,
+				timeSpan: candidates,
+				frequency,
+				attributes,
+				profile: this.profile,
+			};
+
+			let mappedParser: SchemaParser | undefined;
+			if (tag) {
+				const tagToken = this.profile.tagToken;
+				let cleanKey = tag.startsWith(tagToken)
+					? tag.substring(tagToken.length).toLowerCase()
+					: tag.toLowerCase();
+				if (this.profile.tagMappings && this.profile.tagMappings[cleanKey]) {
+					cleanKey = this.profile.tagMappings[cleanKey]!.toLowerCase();
+				}
+				mappedParser = schemaParserRegistry.get(cleanKey);
+				if (!mappedParser) {
+					for (const p of schemaParserRegistry.values()) {
+						if (p.targetSchema.toLowerCase() === cleanKey) {
+							mappedParser = p;
+							break;
+						}
+					}
+				}
+			}
+
+			const parsersToRun: SchemaParser[] = [];
+			if (mappedParser) {
+				parsersToRun.push(mappedParser);
+			} else {
+				for (const p of Array.from(schemaParserRegistry.values())) {
+					parsersToRun.push(p);
+				}
+			}
+
+			for (const parser of parsersToRun) {
+				const allowedNamespaces =
+					this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
+					undefined;
+				if (parser.preview) {
+					const preview = await parser.preview(
+						tag,
+						content,
+						this.dictionaryStore,
+						this.conceptDefaultsStore,
+						this.getEffectiveAttributeRules(),
+						this.profile.evaluatorRules,
+						this.profile.termTokenizer,
+						allowedNamespaces,
+						preparsedContext,
+						historyStore,
+					);
+					results.push({
+						targetSchema: parser.targetSchema,
+						deterministic: preview.deterministic,
+						learned: preview.learned,
+					});
+				} else {
+					const parsed = await parser.parse(
+						tag,
+						content,
+						this.dictionaryStore,
+						this.conceptDefaultsStore,
+						this.getEffectiveAttributeRules(),
+						this.profile.evaluatorRules,
+						this.profile.termTokenizer,
+						allowedNamespaces,
+						preparsedContext,
+					);
+					results.push({
+						targetSchema: parser.targetSchema,
+						deterministic: parsed ? [parsed] : [],
+						learned: parsed ? [parsed] : [],
+					});
+				}
+			}
+		}
+
+		return results;
 	}
 
 	private async parseWithStopWordParser(

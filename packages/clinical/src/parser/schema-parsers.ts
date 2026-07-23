@@ -86,6 +86,17 @@ export interface ScoredParseResult {
 	unitAnchorCoherence: boolean;
 }
 
+export interface ParsedCandidateEnvelope<TCandidate = ParsedItem> {
+	deterministic: TCandidate[];
+	learned: TCandidate[];
+}
+
+export interface ParserPreviewResult<TCandidate = ParsedItem> {
+	targetSchema: string;
+	deterministic: TCandidate[];
+	learned: TCandidate[];
+}
+
 export interface SchemaParser {
 	targetSchema: string;
 	parse(
@@ -99,6 +110,18 @@ export interface SchemaParser {
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
 	): Promise<ParsedItem | null>;
+	preview?(
+		tag: string,
+		content: string,
+		dictionaryStore: DictionaryStore,
+		conceptDefaultsStore?: ParserConceptDefaultStore,
+		attributeRules?: AttributeParserRule[],
+		evaluatorRules?: ParserDictionaryRule[],
+		termTokenizer?: string,
+		allowedNamespaces?: string[],
+		preparsedContext?: PreparsedContext,
+		historyStore?: import("../store/parsed-cell-store").ParsedCellHistoryStore,
+	): Promise<ParsedCandidateEnvelope>;
 }
 
 export const schemaParserRegistry = new Map<string, SchemaParser>();

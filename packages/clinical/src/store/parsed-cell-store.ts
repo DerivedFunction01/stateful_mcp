@@ -145,6 +145,10 @@ export interface ParsedCellHistoryStore {
 		key: ParsedCellHistoryKey,
 	): Promise<ParsedCellObservationDetailV1[]>;
 	putObservation(record: ParsedCellV1<ParsedObservationItem>): Promise<void>;
+	markObservationCorrection(
+		cellId: string,
+		replacement?: ParsedObservationItem,
+	): Promise<void>;
 }
 
 export interface ParsedCellHistoryKey {
@@ -192,6 +196,7 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 	async putObservation(
 		record: ParsedCellV1<ParsedObservationItem>,
 	): Promise<void> {
+		const existing = this.observationDetails.get(record.shared.cellId);
 		this.shared.set(record.shared.cellId, record.shared);
 		this.observationDetails.set(record.shared.cellId, {
 			cellId: record.shared.cellId,
@@ -204,17 +209,47 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 			shape: buildObservationShape(record.parsedItem),
 			parsedItem: record.parsedItem,
 			history: {
-				priorAcceptCount: 1,
-				priorCorrectionCount: 0,
+				priorAcceptCount: (existing?.history?.priorAcceptCount || 0) + 1,
+				priorCorrectionCount: existing?.history?.priorCorrectionCount || 0,
 				lastAcceptedAt: record.shared.acceptedAt,
+				lastCorrectedAt: existing?.history?.lastCorrectedAt,
 				recencyScore: scoreRecency(record.shared.acceptedAt),
 			},
 			flags: {
 				contractValid: true,
-				stalePreference: false,
+				stalePreference: !!existing?.history?.priorCorrectionCount,
 				reviewRequired: false,
 			},
 		});
+	}
+
+	async markObservationCorrection(
+		cellId: string,
+		replacement?: ParsedObservationItem,
+	): Promise<void> {
+		const detail = this.observationDetails.get(cellId);
+		if (!detail) return;
+		const now = new Date().toISOString();
+		detail.history = {
+			...(detail.history || {}),
+			priorCorrectionCount: (detail.history?.priorCorrectionCount || 0) + 1,
+			lastCorrectedAt: now,
+			recencyScore: scoreRecency(now),
+		};
+		detail.flags = {
+			...(detail.flags || {}),
+			stalePreference: true,
+			reviewRequired: !!replacement,
+		};
+		if (replacement) {
+			detail.parsedItem = replacement;
+			detail.conceptId = replacement.conceptId;
+			detail.display = replacement.display;
+			detail.certainty = replacement.certainty;
+			detail.status = replacement.status;
+			detail.severity = replacement.severity;
+			detail.shape = buildObservationShape(replacement);
+		}
 	}
 
 	async get(cellId: string): Promise<ParsedCellJoinResult | null> {
@@ -252,6 +287,30 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 			parsedItem:
 				this.observationDetails.get(shared.cellId)?.parsedItem || null,
 		}));
+	}
+
+	async getObservationHistory(
+		key: ParsedCellHistoryKey,
+	): Promise<ParsedCellObservationDetailV1[]> {
+		return Array.from(this.shared.values())
+			.filter((row) => row.targetSchema === key.targetSchema)
+			.filter((row) => row.tag === key.tag)
+			.filter((row) => {
+				if (key.personnelId && row.personnelId !== key.personnelId)
+					return false;
+				if (key.specialtyId && row.specialtyId !== key.specialtyId)
+					return false;
+				if (key.facilityId && row.facilityId !== key.facilityId) return false;
+				if (row.rawText !== key.rawText && row.normalizedText !== key.rawText) {
+					return false;
+				}
+				return true;
+			})
+			.map((row) => this.observationDetails.get(row.cellId))
+			.filter(
+				(detail): detail is ParsedCellObservationDetailV1 =>
+					detail !== undefined,
+			);
 	}
 }
 
@@ -470,5 +529,57 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 			});
 		}
 		return results;
+	}
+
+	async getObservationHistory(
+		key: ParsedCellHistoryKey,
+	): Promise<ParsedCellObservationDetailV1[]> {
+		const sharedRows = await this.sharedStore.list();
+		const results: ParsedCellObservationDetailV1[] = [];
+		for (const shared of sharedRows) {
+			if (shared.targetSchema !== key.targetSchema) continue;
+			if (shared.tag !== key.tag) continue;
+			if (key.personnelId && shared.personnelId !== key.personnelId) continue;
+			if (key.specialtyId && shared.specialtyId !== key.specialtyId) continue;
+			if (key.facilityId && shared.facilityId !== key.facilityId) continue;
+			if (
+				shared.rawText !== key.rawText &&
+				shared.normalizedText !== key.rawText
+			)
+				continue;
+			const detail = await this.observationDetailStore.get(shared.cellId);
+			if (detail) results.push(detail);
+		}
+		return results;
+	}
+
+	async markObservationCorrection(
+		cellId: string,
+		replacement?: ParsedObservationItem,
+	): Promise<void> {
+		const detail = await this.observationDetailStore.get(cellId);
+		if (!detail) return;
+		const now = new Date().toISOString();
+		detail.history = {
+			...(detail.history || {}),
+			priorCorrectionCount: (detail.history?.priorCorrectionCount || 0) + 1,
+			lastCorrectedAt: now,
+			recencyScore: scoreRecency(now),
+		};
+		detail.flags = {
+			...(detail.flags || {}),
+			stalePreference: true,
+			reviewRequired: !!replacement,
+		};
+		if (replacement) {
+			detail.parsedItem = replacement;
+			detail.conceptId = replacement.conceptId;
+			detail.display = replacement.display;
+			detail.certainty = replacement.certainty;
+			detail.status = replacement.status;
+			detail.severity = replacement.severity;
+			detail.shape = buildObservationShape(replacement);
+		}
+		await this.observationDetailStore.set(cellId, detail);
 	}
 }

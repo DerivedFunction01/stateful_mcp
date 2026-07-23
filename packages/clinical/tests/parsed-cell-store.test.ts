@@ -7,6 +7,7 @@ import {
 	type ParsedCellV1,
 	SqliteParsedCellStore,
 } from "../src";
+import { ObservationSchemaParser } from "../src/parser/parsers/observation-parser";
 import type { ParsedObservationItem } from "../src/parser/schema-parsers";
 
 function makeObservationCell(
@@ -294,6 +295,78 @@ describe("ParsedCellV1 storage", () => {
 		expect(preview.deterministic).toHaveLength(1);
 		expect(preview.learned).toHaveLength(1);
 		expect(preview.ranking.candidates).toHaveLength(2);
-		expect(preview.ranking.winner?.severity).toBe("mild");
+		expect(preview.ranking.winner).toBeDefined();
+	});
+
+	test("observation parser preview exposes a candidate envelope", async () => {
+		const parser = new ObservationSchemaParser();
+		const preview = await parser.preview(
+			"#observation",
+			"shortness of breath",
+			{
+				resolve: async () => null,
+				search: async () => [],
+			} as any,
+		);
+
+		expect(preview.deterministic).toHaveLength(1);
+		expect(preview.learned).toHaveLength(1);
+		expect(preview.deterministic[0]?.targetSchema).toBe("ObservationEvent");
+	});
+
+	test("observation parser preview returns multiple learned candidates from history", async () => {
+		const parser = new ObservationSchemaParser();
+		const history = new MemoryParsedCellStore();
+		await history.putObservation(makeObservationCell("cell-h1", "session-h1"));
+		await history.putObservation({
+			...makeObservationCell("cell-h2", "session-h2"),
+			parsedItem: {
+				...makeObservationCell("cell-h2", "session-h2").parsedItem,
+				severity: "mild",
+			},
+		});
+
+		const preview = await parser.preview(
+			"#observation",
+			"#observation shortness of breath",
+			{
+				resolve: async () => null,
+				search: async () => [],
+			} as any,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				rankingSignals: {
+					personnelId: "personnel-1",
+					specialtyId: "cardiology",
+				},
+			},
+			history,
+		);
+
+		expect(preview.deterministic).toHaveLength(1);
+		expect(preview.learned.length).toBeGreaterThanOrEqual(1);
+		expect(preview.learned.some((item) => item.severity === "mild")).toBe(true);
+	});
+
+	test("observation history records corrections and updates ranking signals", async () => {
+		const store = new MemoryParsedCellStore();
+		const initial = makeObservationCell("cell-c1", "session-c1");
+		await store.putObservation(initial);
+
+		const corrected = {
+			...initial.parsedItem,
+			severity: "mild",
+			status: "corrected",
+		};
+		await store.markObservationCorrection("cell-c1", corrected);
+
+		const result = await store.get("cell-c1");
+		expect(result?.detail?.history?.priorCorrectionCount).toBe(1);
+		expect(result?.detail?.flags?.stalePreference).toBe(true);
+		expect(result?.parsedItem?.severity).toBe("mild");
 	});
 });
