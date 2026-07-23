@@ -12,6 +12,7 @@ import type {
 	ParserDictionaryRule,
 } from "../../store/interfaces";
 import { MedicationTokenizer } from "../helpers/medication-helper";
+import { QuantityHelper, QuantityTokenizer } from "../helpers/measurement-helper";
 import {
 	CANONICAL_TAGS,
 	type ParsedItem,
@@ -41,9 +42,14 @@ export class MedicationSchemaParser implements SchemaParser {
 		let token: any = null;
 		if (preparsedContext?.attributes) {
 			const durationCandidates = preparsedContext.timeSpan || [];
-			const durationCandidate = durationCandidates.find(
-				(c) => c.rawUnit && c.magnitude,
-			);
+			const durationCandidate = durationCandidates.find((candidate) => {
+				if (!candidate.rawUnit || !candidate.magnitude) return false;
+				const resolved = QuantityTokenizer.resolveUnit(
+					candidate.rawUnit,
+					attrRules,
+				);
+				return resolved !== undefined && QuantityHelper.isTimeResolved(resolved);
+			});
 			token = {
 				anchorText: content.trim(),
 				route: preparsedContext.attributes.route,
@@ -110,9 +116,14 @@ export class MedicationSchemaParser implements SchemaParser {
 			duration;
 
 		if (!duration && preparsedContext?.timeSpan) {
-			const durationCandidate = preparsedContext.timeSpan.find(
-				(c) => c.rawUnit && c.magnitude,
-			);
+			const durationCandidate = preparsedContext.timeSpan.find((candidate) => {
+				if (!candidate.rawUnit || !candidate.magnitude) return false;
+				const resolved = QuantityTokenizer.resolveUnit(
+					candidate.rawUnit,
+					attrRules,
+				);
+				return resolved !== undefined && QuantityHelper.isTimeResolved(resolved);
+			});
 			if (durationCandidate) {
 				duration =
 					String(durationCandidate.magnitude) +

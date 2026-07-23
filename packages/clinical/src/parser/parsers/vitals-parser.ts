@@ -44,7 +44,10 @@ export class VitalsSchemaParser implements SchemaParser {
 			preparsedContext?.measurement &&
 			preparsedContext.measurement.length > 0
 		) {
-			const m = preparsedContext.measurement[0];
+			const m = preparsedContext.measurement.find((candidate) => {
+				return MeasurementHelper.parse(candidate, undefined, attributeRules)
+					?.unitAnchor !== undefined;
+			});
 			if (!m) return null;
 			const parsedMeasurement = MeasurementHelper.parse(
 				m,

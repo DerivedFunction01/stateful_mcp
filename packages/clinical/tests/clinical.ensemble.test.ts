@@ -9,6 +9,7 @@ import {
 import { CdslParser } from "../src/parser/cdsl-parser";
 import type {
 	ParsedObservationItem,
+	ParsedMedicationItem,
 	ParsedVitalsItem,
 } from "../src/parser/schema-parsers";
 import { StopWordParser } from "../src/parser/stop-word-parser";
@@ -210,6 +211,57 @@ describe("CdslParser Ensemble NER tests", () => {
 		) as ParsedVitalsItem | undefined;
 
 		expect(results.length).toBeGreaterThanOrEqual(1);
+		expect(vitalsResult).toBeDefined();
+		expect(vitalsResult?.value).toBe(38.5);
+		expect(vitalsResult?.unit).toBe("Celsius");
+	});
+
+	test("Medication duration is selected from the time candidate bag, not the first numeric match", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(
+			resolver,
+			conceptStore,
+			exprStore,
+		);
+
+		await seedTestConcepts(dictionaryStore);
+
+		const parser = new CdslParser(dictionaryStore);
+		const results = await parser.parse(
+			"#MedicationOrderObject Amoxicillin 50 mg for 7 days",
+		);
+		const medResult = results.find(
+			(r) => r.targetSchema === "MedicationOrderObject",
+		) as ParsedMedicationItem | undefined;
+
+		expect(medResult).toBeDefined();
+		expect(medResult?.duration).toBe("7 days");
+		expect(medResult?.display).toBe("Amoxicillin");
+		expect(medResult?.capturedProperties?.unit).toBeUndefined();
+	});
+
+	test("Vitals selection ignores a later time-span candidate and keeps the physical measurement", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(
+			resolver,
+			conceptStore,
+			exprStore,
+		);
+
+		await seedTestConcepts(dictionaryStore);
+
+		const parser = new CdslParser(dictionaryStore);
+		const results = await parser.parse(
+			"#VitalsMeasurementEvent temp 38.5 Cel for 7 days",
+		);
+		const vitalsResult = results.find(
+			(r) => r.targetSchema === "VitalsMeasurementEvent",
+		) as ParsedVitalsItem | undefined;
+
 		expect(vitalsResult).toBeDefined();
 		expect(vitalsResult?.value).toBe(38.5);
 		expect(vitalsResult?.unit).toBe("Celsius");
