@@ -1,8 +1,11 @@
 import type {
 	ClinicalDateRange,
 	ClinicalSourceType,
+	CodeableConcept,
+	DistanceMeasurement,
+	PressureMeasurement,
 	ProductIdentifier,
-	SingleMeasurement,
+	TemperatureMeasurement,
 } from "./shared";
 
 // =====================================================================
@@ -129,14 +132,14 @@ export interface SpatialCoordinateContext extends BaseEnvironmentContext {
 	coordinateAlpha: number; // Latitude / Right Ascension
 	coordinateBeta: number; // Longitude / Declination
 	coordinateGamma?: number; // Terrestrial Altitude / Deep Space Radial vector
-	uncertaintyRadius?: SingleMeasurement;
+	uncertaintyRadius?: DistanceMeasurement;
 }
 
 export interface AmbientWeatherContext extends BaseEnvironmentContext {
 	contextType: "weather";
-	temperature?: SingleMeasurement;
+	temperature?: TemperatureMeasurement;
 	relativeHumidityPct?: number;
-	barometricPressure?: SingleMeasurement;
+	barometricPressure?: PressureMeasurement;
 	airQualityIndexAqi?: number;
 	particulateMatter25?: number;
 	weatherType: WeatherCondition;
@@ -178,25 +181,25 @@ export interface LandTerrainContext extends BaseTerrainContext {
 		| "military"
 		| "fortified"
 		| "none";
-	elevation?: SingleMeasurement;
+	elevation?: DistanceMeasurement;
 }
 
 export interface WaterTerrainContext extends BaseTerrainContext {
 	operationalDomain: "water";
 	terrain: AquaticTerrain;
-	submersionDepth?: SingleMeasurement;
+	submersionDepth?: DistanceMeasurement;
 }
 
 export interface AirTerrainContext extends BaseTerrainContext {
 	operationalDomain: "air";
 	terrain: AtmosphericTerrain;
-	elevation?: SingleMeasurement;
+	elevation?: DistanceMeasurement;
 }
 
 export interface SpaceTerrainContext extends BaseTerrainContext {
 	operationalDomain: "space";
 	terrain: CelestialSpaceTerrain;
-	orbitalAltitude?: SingleMeasurement;
+	orbitalAltitude?: DistanceMeasurement;
 }
 
 export type StructuralTerrainContext =

@@ -1,0 +1,53 @@
+(unclassified)
+acceleration
+acidity
+action
+action area
+amount of an allergen calibrated through in-vivo testing using the Stallergenes® method
+amplitude spectral density
+arbitrary
+biologic activity of factor Xa inhibitor (heparin)
+catalytic activity
+catalytic activity concentration
+concentration
+dynamic viscosity
+electric capacitance
+electric charge
+electric conductance
+electric current
+electric permittivity
+electric potential
+electric potential level
+energy
+force
+fraction
+homeopathic potency (Hahnemann)
+homeopathic potency (Korsakov)
+homeopathic potency (retired)
+inductance
+ion dose
+length
+level
+magnetic flux density
+magnetic permeability
+mass
+mass concentration
+mass fraction
+number
+osmolality
+osmolarity
+power
+power level
+prefix
+pressure
+pressure level
+procedure defined amount of a poliomyelitis d-antigen substance
+procedure defined amount of an antigen substance
+procedure defined amount of the major allergen of ragweed
+sedimentation coefficient
+slope
+substance concentration
+temperature
+time
+velocity
+volume

@@ -3,6 +3,13 @@ import { CdslParser } from "../parser/cdsl-parser";
 import type { SoapNote } from "../schemas/document";
 import type { PatientProfile } from "../schemas/patient";
 import type {
+	CountMeasurement,
+	DistanceMeasurement,
+	MeasurementUnitAnchor,
+	PressureMeasurement,
+	TemperatureMeasurement,
+} from "../schemas/shared";
+import type {
 	CalibrationStore,
 	SignedSoapNoteRecord,
 	SignedSoapNoteStore,
@@ -116,13 +123,15 @@ export class ClinicalEngine {
 
 			if (tagClean === "#vital") {
 				const vitals = [...(note.objective?.vitals || [])];
+				const unit = item.unit || "";
+					
 				vitals.push({
 					id: `vit_${crypto.randomUUID().slice(0, 8)}`,
 					soapSection: "objective",
 					concept: { conceptId: item.conceptId, display: item.display },
 					measurement: {
 						magnitude: Number(item.value || 0),
-						unit: { display: item.unit || "" },
+						unit: { display: unit },
 					},
 				} as any);
 				currentObjId = await this.objectStore.set(

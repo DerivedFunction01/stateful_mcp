@@ -27,6 +27,7 @@ export interface ParsedItem {
 	display: string;
 	value?: number | string;
 	unit?: string;
+	unitAnchor?: string;
 	severity?: string;
 	certainty?: string;
 	status?: string;
@@ -198,13 +199,24 @@ export class VitalsSchemaParser implements SchemaParser {
 			? valueText
 			: Number(valueText);
 
+		const finalUnit = unitText || defaultUnit;
+		let unitAnchor: string | undefined;
+		if (finalUnit === "Cel" || finalUnit === "F") {
+			unitAnchor = "temperature";
+		} else if (finalUnit === "mmHg" || finalUnit === "bar" || finalUnit === "mm[Hg]") {
+			unitAnchor = "pressure";
+		} else if (finalUnit === "/min" || finalUnit === "%") {
+			unitAnchor = "number";
+		}
+
 		return {
 			tag,
 			anchorText: token.anchorText,
 			conceptId,
 			display,
 			value: parsedVal,
-			unit: unitText || defaultUnit,
+			unit: finalUnit,
+			unitAnchor,
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:

@@ -4,7 +4,9 @@ import type {
 	ClinicalDateRange,
 	ClinicalSourceType,
 	CodeableConcept,
-	SingleMeasurement,
+	CountMeasurement,
+	PressureMeasurement,
+	TemperatureMeasurement,
 } from "./shared";
 
 export interface VitalsMeasurementEvent {
@@ -12,10 +14,10 @@ export interface VitalsMeasurementEvent {
 	soapSection: "objective";
 	vitalType: CodeableConcept;
 	rawTerm: string;
-	measurement: SingleMeasurement;
+	measurement: TemperatureMeasurement | PressureMeasurement | CountMeasurement;
 	bloodPressureDetails?: {
-		systolic: SingleMeasurement;
-		diastolic: SingleMeasurement;
+		systolic: PressureMeasurement;
+		diastolic: PressureMeasurement;
 	};
 	anatomyLocations?: AnatomicalLocation[];
 	sourceType?: ClinicalSourceType;

@@ -3,8 +3,8 @@ import type {
 	AnatomicalLocation,
 	ClinicalDateRange,
 	CodeableConcept,
+	DosageMeasurement,
 	Route,
-	SingleMeasurement,
 } from "./shared";
 
 export type ExposureType =
@@ -30,7 +30,7 @@ export interface ChemicalSubstanceExposureEvent extends BaseExposureEvent {
 
 export interface PharmaceuticalExposureEvent extends BaseExposureEvent {
 	exposureType: "pharmaceutical";
-	dosage?: SingleMeasurement;
+	dosage?: DosageMeasurement;
 }
 
 export interface BiologicalExposureEvent extends BaseExposureEvent {

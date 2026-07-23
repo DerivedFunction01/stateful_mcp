@@ -4,12 +4,12 @@ import type {
 	ClinicalSourceType,
 	CodeableConcept,
 	ProductIdentifier, // Integrated from shared primitives
-	SingleMeasurement,
+	ScoreMeasurement,
 } from "./shared";
 
 export interface AlgorithmicHypothesis {
 	concept?: CodeableConcept;
-	scoreValue?: SingleMeasurement;
+	scoreValue?: ScoreMeasurement;
 	category?: string;
 }
 

@@ -3,8 +3,8 @@ import type {
 	ClinicalDateRange,
 	ClinicalSourceType,
 	CodeableConcept,
+	DistanceMeasurement,
 	ProductIdentifier,
-	SingleMeasurement,
 } from "./shared";
 
 export interface MechanicalInjuryObject {
@@ -24,7 +24,7 @@ export interface MechanicalInjuryObject {
 		firearmOrOrdnance?: CodeableConcept;
 		caliber?: CodeableConcept;
 		projectileType?: string;
-		estimatedStandoffDistance?: SingleMeasurement;
+		estimatedStandoffDistance?: DistanceMeasurement;
 		armorPenetrationStatus?:
 			| "defeated_by_armor"
 			| "penetrated_armor"
@@ -36,11 +36,11 @@ export interface MechanicalInjuryObject {
 			| "secondary_shrapnel"
 			| "tertiary_impact"
 			| "quaternary_burn_chemical";
-		detonationStandoffDistance?: SingleMeasurement;
+		detonationStandoffDistance?: DistanceMeasurement;
 		enclosedSpace?: boolean;
 	};
 	fallProfile?: {
-		fallHeight: SingleMeasurement;
+		fallHeight: DistanceMeasurement;
 		impactSurface?: string;
 		freefall?: boolean;
 	};

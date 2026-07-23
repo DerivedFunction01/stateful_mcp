@@ -2,8 +2,8 @@ import type { AttributeParserRule, ParserDictionaryRule } from "../store/interfa
 import type {
 	ClinicalDateRange,
 	CodeableConcept,
+	DosageMeasurement,
 	Route,
-	SingleMeasurement,
 	TimePrecisionLevel,
 } from "./shared";
 export type CadenceBaseType =
@@ -55,7 +55,7 @@ export interface MedicationOrderObject {
 	soapSection: "plan";
 	medication: CodeableConcept;
 	rawTerm?: string;
-	dosage?: SingleMeasurement;
+	dosage?: DosageMeasurement;
 	frequency?: MedicationFrequency; // Formally transitioned to a parameterized struct
 	route?: Route;
 	quantityToDispense?: number;
