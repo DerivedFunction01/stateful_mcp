@@ -11,7 +11,6 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
-import { FrequencyHelper } from "../helpers/frequency-helper";
 import { QuantityTokenizer, TimeHelper } from "../helpers/measurement-helper";
 import { MedicationTokenizer } from "../helpers/medication-helper";
 import {
@@ -56,11 +55,8 @@ export class MedicationSchemaParser implements SchemaParser {
 		}
 		if (!token || !token.anchorText) return null;
 
-		let route = token.route;
-		let frequency: MedicationFrequency | undefined =
-			preparsedContext?.frequency ||
-			FrequencyHelper.parse(content, attrRules, evalRules) ||
-			undefined;
+		const route = token.route;
+		const frequency = preparsedContext?.frequency;
 		let duration: string | undefined = token.duration;
 
 		// Resolve concept

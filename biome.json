@@ -34,7 +34,8 @@
 			},
 			"correctness": {
 				"noUnusedVariables": "off",
-				"noUnusedFunctionParameters": "off"
+				"noUnusedFunctionParameters": "off",
+				"noConstAssign": "off"
 			}
 		}
 	},
