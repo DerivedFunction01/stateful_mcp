@@ -5,6 +5,7 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
+import { SEED_PARSER_PROFILES } from "../store/defaults";
 import { StopWordParser } from "./stop-word-parser";
 import {
 	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
@@ -21,18 +22,9 @@ export class CdslParser {
 
 	constructor(
 		private dictionaryStore: DictionaryStore,
-		private profile: ParserSyntaxProfile = {
-			profileId: "default",
-			personnelId: "system",
-			tagToken: "#",
-			stateDelimiter: "||",
-			stateStartDelimiter: "|",
-			stateEndDelimiter: "|",
-			macroStartToken: "^",
-			variableStartToken: "{",
-			variableEndToken: "}",
-			isDefault: true,
-		},
+		private profile: ParserSyntaxProfile = SEED_PARSER_PROFILES.find(
+			(p) => p.profileId === "default"
+		)!,
 		private conceptDefaultsStore?: ParserConceptDefaultStore,
 		stopWordParser?: StopWordParser,
 		stopWordStore?: StopWordStore,
@@ -94,16 +86,16 @@ export class CdslParser {
 					continue;
 				}
 
-				// Determine namespaces to search from profile config or fallback to defaults
-				let namespacesToSearch = ["LOINC", "SNOMED", "RxNorm"];
+				// Collect namespaces from the profile's schemaNamespaces configuration.
+				// No defaults are assumed here; if the profile does not define any,
+				// tagless resolution will not find any namespaces to search.
+				const namespacesToSearch: string[] = [];
 				if (this.profile.schemaNamespaces) {
 					const allNs = new Set<string>();
 					for (const nsList of Object.values(this.profile.schemaNamespaces)) {
 						for (const ns of nsList) allNs.add(ns);
 					}
-					if (allNs.size > 0) {
-						namespacesToSearch = Array.from(allNs);
-					}
+					namespacesToSearch.push(...Array.from(allNs));
 				}
 
 				// Resolve the first word across namespaces
