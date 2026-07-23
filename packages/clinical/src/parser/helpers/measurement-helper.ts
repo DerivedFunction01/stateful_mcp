@@ -58,21 +58,21 @@ export class QuantityTokenizer {
 				const baseFlags = rule.isCaseInsensitive !== false ? "i" : "";
 				const flags = baseFlags ? `${baseFlags}g` : "g";
 				const regex = getCompiledRegex(pattern, flags);
-				let match;
-				while ((match = regex.exec(trimmed)) !== null) {
+				for (
+					let match = regex.exec(trimmed);
+					match !== null;
+					match = regex.exec(trimmed)
+				) {
 					const groups = match.groups || {};
 					const magStr =
-						groups.magnitude ||
-						groups.quantity ||
-						groups.value ||
-						match[0];
+						groups.magnitude || groups.quantity || groups.value || match[0];
 					const magnitude = Number.parseFloat(magStr);
 					if (Number.isNaN(magnitude)) continue;
 
 					const rawUnit = groups.unit || groups.rawUnit;
 					const operator = groups.operator;
 					const isApproximate =
-						groups.is_approximate === true ||
+						groups.is_approximate === "true" ||
 						rule.targetValue === "is_approximate" ||
 						rule.targetValue === "approximate";
 
@@ -105,40 +105,6 @@ export class QuantityTokenizer {
 		}
 
 		return candidates;
-	}
-
-	private static stripOperator(
-		text: string,
-		rules: AttributeParserRule[],
-	): { segment: string; operator?: string; isApproximate?: boolean } {
-		let remaining = text.trim();
-		let operator: string | undefined;
-		let isApproximate = false;
-		for (const rule of rules) {
-			for (const pattern of rule.regexPatterns) {
-				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				const regex = getCompiledRegex(pattern, flags);
-				const match = regex.exec(remaining);
-				if (match?.[0]) {
-					remaining = remaining.replace(match[0], "").trim();
-					if (
-						rule.targetValue === "is_approximate" ||
-						rule.targetValue === "approximate"
-					) {
-						isApproximate = true;
-					} else {
-						operator = rule.targetValue;
-					}
-					break;
-				}
-			}
-			if (operator || isApproximate) break;
-		}
-		return {
-			segment: remaining,
-			operator,
-			isApproximate: isApproximate || undefined,
-		};
 	}
 
 	static parseImplicitGroups(

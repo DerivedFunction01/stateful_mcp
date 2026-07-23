@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type CustomExpression,
 	DictionaryStore,
 	InMemoryConceptResolver,
 	InMemoryConceptStore,

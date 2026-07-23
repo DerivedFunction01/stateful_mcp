@@ -342,9 +342,7 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{
 		targetField: "unit",
 		targetValue: "mmHg",
-		regexPatterns: [
-			"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>mmHg)\\b",
-		],
+		regexPatterns: ["\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>mmHg)\\b"],
 		isCaseInsensitive: true,
 		unitAnchor: "pressure",
 	},

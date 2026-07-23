@@ -12,11 +12,7 @@ import type {
 } from "../store/interfaces";
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
-import {
-	MeasurementHelper,
-	QuantityTokenizer,
-	TimeHelper,
-} from "./helpers/measurement-helper";
+import { QuantityTokenizer } from "./helpers/measurement-helper";
 import {
 	type BaseParsedItem as IMP_BaseParsedItem,
 	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
@@ -132,10 +128,7 @@ export class CdslParser {
 
 			// Always build preparsedContext from content
 			const attrRules = this.getEffectiveAttributeRules();
-			const candidates = QuantityTokenizer.tokenize(
-				content,
-				attrRules,
-			);
+			const candidates = QuantityTokenizer.tokenize(content, attrRules);
 			const frequency = FrequencyHelper.parse(
 				content,
 				this.getEffectiveAttributeRules() || [],

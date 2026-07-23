@@ -93,13 +93,8 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 			},
 		];
 		// mg rule matches "10 mg"; g rule does not match inside "mg" (word boundary)
-		const priorityCandidates = QuantityTokenizer.tokenize(
-			"10 mg",
-			customRules,
-		);
-		const mgCandidate = priorityCandidates.find(
-			(c) => c.rawUnit === "mg",
-		);
+		const priorityCandidates = QuantityTokenizer.tokenize("10 mg", customRules);
+		const mgCandidate = priorityCandidates.find((c) => c.rawUnit === "mg");
 		expect(mgCandidate).toBeDefined();
 		expect(mgCandidate!.magnitude).toBe(10);
 	});
@@ -157,7 +152,9 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 			"30 mm 程度",
 			DEFAULT_ATTRIBUTE_RULES,
 		);
-		const approxJapaneseMagnitude = approxJapanese.find((c) => c.magnitude === 30);
+		const approxJapaneseMagnitude = approxJapanese.find(
+			(c) => c.magnitude === 30,
+		);
 		expect(approxJapaneseMagnitude?.magnitude).toBe(30);
 		expect(approxJapaneseMagnitude?.isApproximate).toBe(true);
 		expect(approxJapanese.some((c) => c.rawUnit === "mm")).toBe(true);

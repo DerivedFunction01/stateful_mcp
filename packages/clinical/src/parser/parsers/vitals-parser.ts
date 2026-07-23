@@ -40,8 +40,12 @@ export class VitalsSchemaParser implements SchemaParser {
 		const rules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
 
 		let token: any = null;
-		if (preparsedContext?.measurement && preparsedContext.measurement.length > 0) {
+		if (
+			preparsedContext?.measurement &&
+			preparsedContext.measurement.length > 0
+		) {
 			const m = preparsedContext.measurement[0];
+			if (!m) return null;
 			const parsedMeasurement = MeasurementHelper.parse(
 				m,
 				undefined,
