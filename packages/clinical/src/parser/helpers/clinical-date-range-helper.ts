@@ -188,14 +188,16 @@ export class ClinicalDateRangeTokenizer {
 				if (rule.calendarTokens?.includes("MM_name") && text.includes(",")) {
 					const parts = text.split(",");
 					if (parts.length >= 2) {
-						const startMatch = regex.exec(parts[0] + ",");
+						const startText = parts[0] + ",";
+						const endText = parts[1]!;
+						const startMatch = regex.exec(startText);
 						const startDate = startMatch
 							? ClinicalDateRangeTokenizer.resolveCalendarDate(
 									startMatch.groups || {},
 									rule,
 								)
 							: date;
-						const endMatch = regex.exec(parts[1]);
+						const endMatch = regex.exec(endText);
 						const endDate = endMatch
 							? ClinicalDateRangeTokenizer.resolveCalendarDate(
 									endMatch.groups || {},

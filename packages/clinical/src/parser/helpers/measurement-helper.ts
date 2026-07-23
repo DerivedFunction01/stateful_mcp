@@ -62,6 +62,13 @@ export class QuantityTokenizer {
 					const regex = getCompiledRegex(pattern, flags);
 					const match = regex.exec(trimmed);
 					if (match && match[0]) {
+						const start = match.index;
+						const end = start + match[0].length;
+						const before = trimmed[start - 1];
+						const after = trimmed[end];
+						if (/\d/.test(before ?? "") || /\d/.test(after ?? "")) {
+							continue;
+						}
 						magnitudeStr = match[0];
 						magnitudeMatch = match;
 						break;
@@ -78,7 +85,7 @@ export class QuantityTokenizer {
 		}
 
 		const magnitude = Number.parseFloat(magnitudeStr);
-		const magnitudeIndex = magnitudeMatch.index;
+		const magnitudeIndex = magnitudeMatch?.index ?? 0;
 		const prefix = trimmed.slice(0, magnitudeIndex).trim();
 		const suffix = trimmed.slice(magnitudeIndex + magnitudeStr.length).trim();
 

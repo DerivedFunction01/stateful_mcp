@@ -139,9 +139,18 @@ export class CdslParser {
 			);
 			const opPatterns = opRules.flatMap((r) => r.regexPatterns);
 			const numericRules = attrRules.filter(
-				(r) => r.targetField === "numeric_value",
+				(r) =>
+					r.targetField === "severity_score" ||
+					r.targetField === "pain_score" ||
+					r.targetField === "percentage" ||
+					r.targetField === "measurement_value",
 			);
-			const token = QuantityTokenizer.tokenize(content, opPatterns, attrRules, numericRules);
+			const token = QuantityTokenizer.tokenize(
+				content,
+				opPatterns,
+				attrRules,
+				numericRules,
+			);
 
 			const measurement = token
 				? (MeasurementHelper.parse(

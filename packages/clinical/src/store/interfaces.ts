@@ -50,6 +50,12 @@ export interface ParserSyntaxProfile {
 	numericFieldFormats?: NumericFieldFormatOptions[];
 }
 
+export type NumericValueTarget =
+	| "severity_score"
+	| "pain_score"
+	| "percentage"
+	| "measurement_value";
+
 export interface NumericFieldFormatOptions {
 	integerDigits?: number;
 	decimalDigits?: number;
@@ -64,7 +70,7 @@ export interface NumericFieldFormatOptions {
 	negativeStyle?: "sign" | "parens" | "both";
 	groupName?: string;
 	wrap?: boolean;
-	targetField?: string;
+	targetField?: NumericValueTarget;
 	targetSchema?: string;
 	priority?: number;
 }
@@ -80,6 +86,26 @@ export type AttributeRuleMapping =
 	| {
 			targetField: "calendar_date";
 			targetValue: "calendar_date";
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "severity_score";
+			targetValue: "number";
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "pain_score";
+			targetValue: "number";
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "percentage";
+			targetValue: "number";
+			unitAnchor?: undefined;
+	  }
+	| {
+			targetField: "measurement_value";
+			targetValue: "number";
 			unitAnchor?: undefined;
 	  }
 	| { targetField: "certainty"; targetValue: Certainty; unitAnchor?: undefined }

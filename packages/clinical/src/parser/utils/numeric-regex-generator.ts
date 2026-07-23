@@ -1,23 +1,7 @@
+import type { NumericFieldFormatOptions } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
 
-export interface NumericFieldFormatOptions {
-	integerDigits?: number;
-	decimalDigits?: number;
-	thousandsSeparator?: string;
-	decimalPoint?: string;
-	allowNegative?: boolean;
-	exact?: boolean;
-	leadingMin?: number;
-	leadingMax?: number;
-	currencySymbols?: string[];
-	currencyPosition?: "prefix" | "suffix";
-	negativeStyle?: "sign" | "parens" | "both";
-	groupName?: string;
-	wrap?: boolean;
-	targetField?: string;
-	targetSchema?: string;
-	priority?: number;
-}
+export type { NumericFieldFormatOptions };
 
 function escapeRegExp(str: string): string {
 	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -31,9 +15,7 @@ function resolveDecimalDigits(
 	return undefined;
 }
 
-function resolveAllowNegative(
-	options: NumericFieldFormatOptions,
-): boolean {
+function resolveAllowNegative(options: NumericFieldFormatOptions): boolean {
 	if (options.allowNegative !== undefined) return options.allowNegative;
 	return options.integerDigits === undefined;
 }
@@ -119,8 +101,7 @@ export function buildNumericPatternString(
 	let prefixPart = "";
 	if (hasCurrency && currencyIsPrefix) {
 		if (resolvedAllowNegative) {
-			const wantSign =
-				negativeStyle === "sign" || negativeStyle === "both";
+			const wantSign = negativeStyle === "sign" || negativeStyle === "both";
 			if (wantSign) {
 				prefixPart = `(?:-?${curUnit}|${curCore}-)?`;
 			} else {
@@ -166,9 +147,6 @@ export function buildNumericPatternString(
 	return finalPattern || "";
 }
 
-export function compileNumericRegex(
-	pattern: string,
-	flags = "gi",
-): RegExp {
+export function compileNumericRegex(pattern: string, flags = "gi"): RegExp {
 	return getCompiledRegex(pattern, flags);
 }

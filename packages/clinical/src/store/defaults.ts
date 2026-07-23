@@ -1,7 +1,11 @@
-import { buildDatePatternString, type DateTimeFormatConfig } from "../parser/utils/date-regex-generator";
-import { buildNumericPatternString, type NumericFieldFormatOptions } from "../parser/utils/numeric-regex-generator";
+import {
+	buildDatePatternString,
+	type DateTimeFormatConfig,
+} from "../parser/utils/date-regex-generator";
+import { buildNumericPatternString } from "../parser/utils/numeric-regex-generator";
 import type {
 	AttributeParserRule,
+	NumericFieldFormatOptions,
 	ParserConceptDefault,
 	ParserSyntaxProfile,
 } from "./interfaces";
@@ -26,13 +30,19 @@ export function buildCalendarDateRules(
 export function buildNumericFieldRules(
 	formats: NumericFieldFormatOptions[],
 ): AttributeParserRule[] {
-	return formats
+	const validFormats = formats.filter(
+		(
+			f,
+		): f is Required<Pick<NumericFieldFormatOptions, "targetField">> &
+			NumericFieldFormatOptions => f.targetField !== undefined,
+	);
+	return validFormats
 		.map((format) => ({
-			targetField: "numeric_value" as const,
-			targetValue: format.targetField || "numeric_value",
+			targetField: format.targetField,
+			targetValue: "number" as const,
 			regexPatterns: [buildNumericPatternString(format)],
 			isCaseInsensitive: true,
-			priority: format.priority ?? 10,
+			priority: format.priority ?? 1,
 			integerDigits: format.integerDigits,
 			decimalDigits: format.decimalDigits,
 			allowNegative: format.allowNegative,
@@ -40,20 +50,23 @@ export function buildNumericFieldRules(
 			leadingMax: format.leadingMax,
 			targetSchema: format.targetSchema,
 		}))
-		.sort((a, b) => (b.priority ?? 10) - (a.priority ?? 10));
+		.sort((a, b) => (b.priority ?? 1) - (a.priority ?? 1));
 }
 
-export const NUMERIC_PATTERN_INTEGER = (options: {
-	groupName?: string;
-	wrap?: boolean;
-	allowNegative?: boolean;
-	leadingMin?: number;
-	leadingMax?: number;
-} = {}): string =>
+export const NUMERIC_PATTERN_INTEGER = (
+	options: {
+		groupName?: string;
+		wrap?: boolean;
+		allowNegative?: boolean;
+		leadingMin?: number;
+		leadingMax?: number;
+	} = {},
+): string =>
 	buildNumericPatternString({
-		integerDigits: options.leadingMin !== undefined && options.leadingMax !== undefined
-			? undefined
-			: undefined,
+		integerDigits:
+			options.leadingMin !== undefined && options.leadingMax !== undefined
+				? undefined
+				: undefined,
 		decimalDigits: 0,
 		allowNegative: options.allowNegative ?? false,
 		exact: false,
@@ -63,15 +76,17 @@ export const NUMERIC_PATTERN_INTEGER = (options: {
 		wrap: options.wrap ?? true,
 	});
 
-export const NUMERIC_PATTERN_DECIMAL = (options: {
-	groupName?: string;
-	wrap?: boolean;
-	integerDigits?: number;
-	decimalDigits?: number;
-	allowNegative?: boolean;
-	leadingMin?: number;
-	leadingMax?: number;
-} = {}): string =>
+export const NUMERIC_PATTERN_DECIMAL = (
+	options: {
+		groupName?: string;
+		wrap?: boolean;
+		integerDigits?: number;
+		decimalDigits?: number;
+		allowNegative?: boolean;
+		leadingMin?: number;
+		leadingMax?: number;
+	} = {},
+): string =>
 	buildNumericPatternString({
 		integerDigits: options.integerDigits,
 		decimalDigits: options.decimalDigits ?? undefined,
@@ -710,7 +725,6 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 		isActive: true,
 		stopWordThreshold: 0.6,
 		calendarDateFormats: DEFAULT_CALENDAR_DATE_FORMATS,
-		numericFieldFormats: [NUMERIC_FIELD_SEVERITY_0_10],
 		attributeRules: DEFAULT_ATTRIBUTE_RULES,
 		evaluatorRules: DEFAULT_EVALUATOR_RULES,
 		schemaNamespaces: {
