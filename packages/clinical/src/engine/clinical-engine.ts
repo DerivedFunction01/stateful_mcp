@@ -15,6 +15,7 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
+import type { ParsedCellStore, ParsedCellV1 } from "../store/parsed-cell-store";
 
 export class ClinicalEngine {
 	private parser: CdslParser;
@@ -24,6 +25,7 @@ export class ClinicalEngine {
 		dictionaryStore: DictionaryStore,
 		private signedNoteStore: SignedSoapNoteStore,
 		private calibrationStore?: CalibrationStore,
+		private parsedCellStore?: ParsedCellStore,
 		stopWordStore?: StopWordStore,
 	) {
 		this.parser = new CdslParser(
@@ -118,6 +120,31 @@ export class ClinicalEngine {
 		let currentObjId = "active_note";
 
 		for (const item of parsedItems) {
+			if (this.parsedCellStore && item.targetSchema === "ObservationEvent") {
+				const cellId = `cell_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+				const now = new Date().toISOString();
+				const parsedCell: ParsedCellV1<ParsedObservationItem> = {
+					shared: {
+						cellId,
+						sessionId,
+						personnelId: "system",
+						tag: item.tag,
+						targetSchema: item.targetSchema,
+						rawText: item.rawText,
+						normalizedText: item.anchorText,
+						anchorText: item.anchorText,
+						parserVersion: "phase2",
+						contractVersion: "v1",
+						sourceKind: "direct_contract",
+						outcome: "accepted",
+						acceptedAt: now,
+						createdAt: now,
+						updatedAt: now,
+					},
+					parsedItem: item,
+				};
+				await this.parsedCellStore.putObservation(parsedCell);
+			}
 			// Log calibration if concept is not found
 			if (!item.conceptId && this.calibrationStore) {
 				await this.calibrationStore.logException({

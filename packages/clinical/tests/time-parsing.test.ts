@@ -121,8 +121,9 @@ describe("ClinicalDateRange parsing", () => {
 			multiplier: 1,
 			level: "day",
 		});
-		expect(parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime)
-			.toBeDefined();
+		expect(
+			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime,
+		).toBeDefined();
 		expect(
 			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime
 				?.assertedTimestampUtc,
@@ -168,8 +169,9 @@ describe("ClinicalDateRange parsing", () => {
 		);
 		expect(parsed?.dateRange?.includedDatetimes).toHaveLength(1);
 		expect(parsed?.dateRange?.excludedDatetimes).toHaveLength(1);
-		expect(parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime)
-			.toBeDefined();
+		expect(
+			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime,
+		).toBeDefined();
 		expect(
 			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime
 				?.assertedTimestampUtc,
@@ -348,12 +350,18 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			DEFAULT_EVALUATOR_RULES,
 		);
 		expect(result?.dateRange?.includedDatetimes).toHaveLength(3);
-		expect(result?.dateRange?.includedDatetimes?.[0]?.time?.startDatetime?.assertedTimestampUtc)
-			.toBe("2026-01-15T00:00:00Z");
-		expect(result?.dateRange?.includedDatetimes?.[1]?.time?.startDatetime?.assertedTimestampUtc)
-			.toBe("2026-01-20T00:00:00Z");
-		expect(result?.dateRange?.includedDatetimes?.[2]?.time?.startDatetime?.assertedTimestampUtc)
-			.toBe("2026-01-22T00:00:00Z");
+		expect(
+			result?.dateRange?.includedDatetimes?.[0]?.time?.startDatetime
+				?.assertedTimestampUtc,
+		).toBe("2026-01-15T00:00:00Z");
+		expect(
+			result?.dateRange?.includedDatetimes?.[1]?.time?.startDatetime
+				?.assertedTimestampUtc,
+		).toBe("2026-01-20T00:00:00Z");
+		expect(
+			result?.dateRange?.includedDatetimes?.[2]?.time?.startDatetime
+				?.assertedTimestampUtc,
+		).toBe("2026-01-22T00:00:00Z");
 	});
 });
 

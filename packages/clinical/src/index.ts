@@ -23,4 +23,5 @@ export * from "./store/clinical-store";
 export * from "./store/defaults";
 export * from "./store/interfaces";
 export * from "./store/memory-clinical-store";
+export * from "./store/parsed-cell-store";
 export * from "./store/sqlite-clinical-store";

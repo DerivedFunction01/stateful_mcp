@@ -11,8 +11,11 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import {
+	QuantityHelper,
+	QuantityTokenizer,
+} from "../helpers/measurement-helper";
 import { MedicationTokenizer } from "../helpers/medication-helper";
-import { QuantityHelper, QuantityTokenizer } from "../helpers/measurement-helper";
 import {
 	CANONICAL_TAGS,
 	type ParsedItem,
@@ -48,7 +51,9 @@ export class MedicationSchemaParser implements SchemaParser {
 					candidate.rawUnit,
 					attrRules,
 				);
-				return resolved !== undefined && QuantityHelper.isTimeResolved(resolved);
+				return (
+					resolved !== undefined && QuantityHelper.isTimeResolved(resolved)
+				);
 			});
 			token = {
 				anchorText: content.trim(),
@@ -122,7 +127,9 @@ export class MedicationSchemaParser implements SchemaParser {
 					candidate.rawUnit,
 					attrRules,
 				);
-				return resolved !== undefined && QuantityHelper.isTimeResolved(resolved);
+				return (
+					resolved !== undefined && QuantityHelper.isTimeResolved(resolved)
+				);
 			});
 			if (durationCandidate) {
 				duration =

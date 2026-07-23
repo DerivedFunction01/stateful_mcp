@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { getCompiledRegex } from "../src/parser/_compiled-regex";
+import { ClinicalDateRangeTokenizer } from "../src/parser/helpers/clinical-date-range-helper";
+import { FrequencyHelper } from "../src/parser/helpers/frequency-helper";
+import { QuantityTokenizer } from "../src/parser/helpers/measurement-helper";
+import { MedicationTokenizer } from "../src/parser/helpers/medication-helper";
+import { ObservationTokenizer } from "../src/parser/helpers/observation-helper";
+import { VitalsTokenizer } from "../src/parser/helpers/vitals-helper";
 import {
 	buildCalendarDateRules,
 	DEFAULT_ATTRIBUTE_RULES,
@@ -6,13 +13,6 @@ import {
 	DEFAULT_EVALUATOR_RULES,
 } from "../src/store/defaults";
 import type { AttributeParserRule } from "../src/store/interfaces";
-import { ClinicalDateRangeTokenizer } from "../src/parser/helpers/clinical-date-range-helper";
-import { QuantityTokenizer } from "../src/parser/helpers/measurement-helper";
-import { ObservationTokenizer } from "../src/parser/helpers/observation-helper";
-import { VitalsTokenizer } from "../src/parser/helpers/vitals-helper";
-import { MedicationTokenizer } from "../src/parser/helpers/medication-helper";
-import { FrequencyHelper } from "../src/parser/helpers/frequency-helper";
-import { getCompiledRegex } from "../src/parser/_compiled-regex";
 
 describe("Named Group Contract Enforcement", () => {
 	const calendarRules = buildCalendarDateRules(DEFAULT_CALENDAR_DATE_FORMATS);
@@ -39,7 +39,9 @@ describe("Named Group Contract Enforcement", () => {
 				DEFAULT_EVALUATOR_RULES,
 			);
 			expect(result?.startCalendarDate).toBeDefined();
-			expect(result?.startCalendarDate?.toISOString()).toBe("2023-01-15T00:00:00.000Z");
+			expect(result?.startCalendarDate?.toISOString()).toBe(
+				"2023-01-15T00:00:00.000Z",
+			);
 		});
 
 		test("rejects match with unknown extra named groups", () => {
@@ -136,7 +138,9 @@ describe("Named Group Contract Enforcement", () => {
 	});
 
 	describe("observation severity ratio evaluator", () => {
-		const ratioRule = DEFAULT_EVALUATOR_RULES.find((r) => r.ruleId === "severity_ratio");
+		const ratioRule = DEFAULT_EVALUATOR_RULES.find(
+			(r) => r.ruleId === "severity_ratio",
+		);
 		test("ObservationTokenizer accepts valid numerator/denominator", () => {
 			if (!ratioRule) return;
 			const token = ObservationTokenizer.tokenize(
@@ -153,9 +157,7 @@ describe("Named Group Contract Enforcement", () => {
 			if (!ratioRule) return;
 			const poisonedRule = {
 				...ratioRule,
-				regexPatterns: [
-					"(?<numerator>\\d+)/(?<denominator>\\d+)(?<junk>.*)",
-				],
+				regexPatterns: ["(?<numerator>\\d+)/(?<denominator>\\d+)(?<junk>.*)"],
 				namedGroupContract: {
 					required: ["numerator", "denominator"],
 					allowed: ["numerator", "denominator"],
@@ -192,7 +194,9 @@ describe("Named Group Contract Enforcement", () => {
 					allowed: ["systolic", "diastolic", "unit"],
 				},
 			};
-			const token = VitalsTokenizer.tokenize("120/80 mmHg junk", [poisonedRule]);
+			const token = VitalsTokenizer.tokenize("120/80 mmHg junk", [
+				poisonedRule,
+			]);
 			expect(token.systolic).toBeUndefined();
 			expect(token.diastolic).toBeUndefined();
 		});
@@ -236,7 +240,9 @@ describe("Named Group Contract Enforcement", () => {
 
 	describe("frequency helper evaluator", () => {
 		test("FrequencyHelper.parse accepts valid every X hours match", () => {
-			const freqRule = DEFAULT_EVALUATOR_RULES.find((r) => r.ruleId === "freq_every");
+			const freqRule = DEFAULT_EVALUATOR_RULES.find(
+				(r) => r.ruleId === "freq_every",
+			);
 			if (!freqRule) return;
 			const result = FrequencyHelper.parse(
 				"every 8 hours",
@@ -248,7 +254,9 @@ describe("Named Group Contract Enforcement", () => {
 		});
 
 		test("FrequencyHelper.parse rejects match with disallowed extra group", () => {
-			const freqRule = DEFAULT_EVALUATOR_RULES.find((r) => r.ruleId === "freq_every");
+			const freqRule = DEFAULT_EVALUATOR_RULES.find(
+				(r) => r.ruleId === "freq_every",
+			);
 			if (!freqRule) return;
 			const poisonedRule = {
 				...freqRule,

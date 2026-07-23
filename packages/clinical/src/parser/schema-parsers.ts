@@ -63,12 +63,21 @@ export type ParsedItem =
 
 export interface PreparsedContext {
 	rawText: string;
+	normalizedText?: string;
 	measurement: QuantityCandidate[];
 	timeSpan: QuantityCandidate[];
 	frequency?: MedicationFrequency | null;
 	attributes: Record<string, string>;
 	parsedPartial?: Record<string, any>;
 	profile?: Pick<ParserSyntaxProfile, "schemaDefaults" | "defaultsStrategy">;
+	rankingSignals?: {
+		personnelId?: string;
+		specialtyId?: string;
+		facilityId?: string;
+		tag?: string;
+		targetSchema?: string;
+		exactDiscriminators?: Record<string, string>;
+	};
 }
 
 export interface ScoredParseResult {

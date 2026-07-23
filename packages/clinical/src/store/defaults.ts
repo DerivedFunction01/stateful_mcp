@@ -5,8 +5,8 @@ import {
 import { buildNumericPatternString } from "../parser/utils/numeric-regex-generator";
 import type {
 	AttributeParserRule,
-	NumericFieldFormatOptions,
 	NamedGroupContract,
+	NumericFieldFormatOptions,
 	ParserConceptDefault,
 	ParserSyntaxProfile,
 } from "./interfaces";

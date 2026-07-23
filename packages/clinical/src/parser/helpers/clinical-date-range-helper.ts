@@ -15,9 +15,12 @@ import {
 	buildMonthNameMap,
 	compileDateRegex,
 } from "../utils/date-regex-generator";
+import {
+	NamedGroupContractError,
+	validateNamedGroups,
+} from "../utils/named-group-validator";
 import { FrequencyHelper } from "./frequency-helper";
 import { TimeHelper } from "./measurement-helper";
-import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
 
 export interface ClinicalDateRangeToken {
 	anchorText: string;
@@ -107,10 +110,11 @@ export class ClinicalDateRangeTokenizer {
 				token.baseEndCalendarDate = baseCalendar.endDate;
 				token.calendarPrecision = baseCalendar.precision;
 			}
-			const exclusionCalendar = ClinicalDateRangeTokenizer.parseCalendarBoundary(
-				exclusion.exclusionText,
-				attributeRules,
-			);
+			const exclusionCalendar =
+				ClinicalDateRangeTokenizer.parseCalendarBoundary(
+					exclusion.exclusionText,
+					attributeRules,
+				);
 			if (exclusionCalendar) {
 				token.exclusionStartCalendarDate = exclusionCalendar.startDate;
 				token.exclusionEndCalendarDate = exclusionCalendar.endDate;
@@ -655,11 +659,10 @@ export class ClinicalDateRangeTokenizer {
 				}
 				const listText = match.groups.dates || match.groups.list;
 				if (!listText) continue;
-				const dates =
-					ClinicalDateRangeTokenizer.extractCalendarDatesFromText(
-						listText,
-						attributeRules,
-					);
+				const dates = ClinicalDateRangeTokenizer.extractCalendarDatesFromText(
+					listText,
+					attributeRules,
+				);
 				if (dates.length === 0) continue;
 				return {
 					dates,
@@ -683,7 +686,11 @@ export class ClinicalDateRangeTokenizer {
 		for (const rule of calendarRules) {
 			for (const pattern of rule.regexPatterns) {
 				const regex = compileDateRegex(pattern);
-				for (let match = regex.exec(text); match !== null; match = regex.exec(text)) {
+				for (
+					let match = regex.exec(text);
+					match !== null;
+					match = regex.exec(text)
+				) {
 					if (!match.groups) continue;
 					const date = ClinicalDateRangeTokenizer.resolveCalendarDate(
 						match.groups,
@@ -819,7 +826,10 @@ export class ClinicalDateRangeHelper {
 	): ClinicalDateRange | null {
 		const base: ClinicalDateRange = {};
 
-		const toIso = (d: Date, precision: TimePrecisionLevel): TemporalBoundary => ({
+		const toIso = (
+			d: Date,
+			precision: TimePrecisionLevel,
+		): TemporalBoundary => ({
 			assertedTimestampUtc: d.toISOString().replace(/\.\d+Z$/, "Z"),
 			precisionLevel: precision,
 		});

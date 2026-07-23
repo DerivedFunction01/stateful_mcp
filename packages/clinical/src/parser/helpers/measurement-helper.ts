@@ -14,10 +14,15 @@ import {
 	DEFAULT_ATTRIBUTE_RULES,
 	UNIT_DISPLAY_MAP,
 } from "../../store/defaults";
-import type { AttributeParserRule } from "../../store/interfaces";
+import type {
+	AttributeParserRule,
+	NamedGroupContract,
+} from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
-import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
-import type { NamedGroupContract } from "../../store/interfaces";
+import {
+	NamedGroupContractError,
+	validateNamedGroups,
+} from "../utils/named-group-validator";
 
 const ALLOWED_UNITS_SET = new Set(Object.keys(UNIT_DISPLAY_MAP));
 

@@ -8,8 +8,8 @@ import {
 } from "@stateful-mcp/core";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import type {
-	ParsedObservationItem,
 	ParsedMedicationItem,
+	ParsedObservationItem,
 	ParsedVitalsItem,
 } from "../src/parser/schema-parsers";
 import { StopWordParser } from "../src/parser/stop-word-parser";

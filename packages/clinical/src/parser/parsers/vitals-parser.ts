@@ -1,4 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import { isBoundedMeasurement } from "../../schemas/measurement";
 import { resolveSchemaDefault } from "../../store/default-strategy";
 import { DEFAULT_EVALUATOR_RULES } from "../../store/defaults";
 import type {
@@ -45,8 +46,12 @@ export class VitalsSchemaParser implements SchemaParser {
 			preparsedContext.measurement.length > 0
 		) {
 			const m = preparsedContext.measurement.find((candidate) => {
-				return MeasurementHelper.parse(candidate, undefined, attributeRules)
-					?.unitAnchor !== undefined;
+				const parsed = MeasurementHelper.parse(
+					candidate,
+					undefined,
+					attributeRules,
+				);
+				return parsed !== null && isBoundedMeasurement(parsed);
 			});
 			if (!m) return null;
 			const parsedMeasurement = MeasurementHelper.parse(

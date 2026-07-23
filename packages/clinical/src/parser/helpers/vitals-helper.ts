@@ -1,6 +1,9 @@
 import type { ParserDictionaryRule } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
-import { NamedGroupContractError, validateNamedGroups } from "../utils/named-group-validator";
+import {
+	NamedGroupContractError,
+	validateNamedGroups,
+} from "../utils/named-group-validator";
 
 export interface VitalsToken {
 	anchorText: string;

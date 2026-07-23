@@ -165,7 +165,10 @@ export function buildDatePatternString(
 	const startAnchor = exact ? "^" : "\\b";
 	const endAnchor = exact ? "$" : "\\b";
 
-	return { pattern: `${startAnchor}${assembled}${endAnchor}`, groupNames: Array.from(nameCounts.keys()) };
+	return {
+		pattern: `${startAnchor}${assembled}${endAnchor}`,
+		groupNames: Array.from(nameCounts.keys()),
+	};
 }
 
 export function buildMonthNameMap(
