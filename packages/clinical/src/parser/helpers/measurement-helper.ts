@@ -310,9 +310,15 @@ export class TimeHelper {
 
 	static getCurrentTimestamp(
 		precisionLevel: TimePrecisionLevel = "second",
+		seedTime?: Date | string | number,
 	): TemporalBoundary {
+		const referenceTime = seedTime === undefined ? new Date() : new Date(seedTime);
+		if (Number.isNaN(referenceTime.getTime())) {
+			throw new Error("Invalid seedTime provided to TimeHelper.getCurrentTimestamp");
+		}
+
 		return {
-			assertedTimestampUtc: new Date().toISOString(),
+			assertedTimestampUtc: referenceTime.toISOString(),
 			precisionLevel,
 		};
 	}

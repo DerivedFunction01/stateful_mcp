@@ -1,17 +1,40 @@
 import type { SingleMeasurement } from "./measurement";
 
+export type DayOfWeek =
+	| "monday"
+	| "tuesday"
+	| "wednesday"
+	| "thursday"
+	| "friday"
+	| "saturday"
+	| "sunday";
+
+export type PartOfDay =
+	| "morning"
+	| "afternoon"
+	| "evening"
+	| "night"
+	| "midnight";
+
+export type Season =
+	| "spring"
+	| "summer"
+	| "autumn"
+	| "winter";
+
 export type TimePrecisionLevel =
 	| "second"
 	| "minute"
 	| "hour"
-	| "morning_afternoon_evening"
 	| "day"
-	| "day_of_week"
 	| "week"
 	| "month"
 	| "quarter"
 	| "year"
-	| "decade";
+	| "decade"
+	| DayOfWeek
+	| PartOfDay
+	| Season;
 
 /**
  * Extends SingleMeasurement but overrides `unit` with a chronological precision level

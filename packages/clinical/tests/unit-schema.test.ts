@@ -4,7 +4,7 @@ import type {
 	TemperatureMeasurement,
 	PressureMeasurement,
 } from "../src/schemas/measurement";
-import { MeasurementHelper, QuantityTokenizer } from "../src/parser/helpers/measurement-helper";
+import { MeasurementHelper, QuantityTokenizer, TimeHelper } from "../src/parser/helpers/measurement-helper";
 import { DEFAULT_ATTRIBUTE_RULES } from "../src/store/defaults";
 import type { AttributeParserRule } from "../src/store/interfaces";
 
@@ -95,5 +95,25 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 		const parsed = MeasurementHelper.parse(token!, undefined, customRules);
 		expect(parsed).not.toBeNull();
 		expect(parsed!.unit?.display).toBe("g");
+	});
+
+	test("should use negative lookahead to prevent time unit durations from matching relative offset indicators", () => {
+		// "3 weeks" should match the time_unit "week"
+		const token1 = QuantityTokenizer.tokenize("3 weeks", [], DEFAULT_ATTRIBUTE_RULES);
+		const parsed1 = TimeHelper.parse(token1!, DEFAULT_ATTRIBUTE_RULES);
+		expect(parsed1).not.toBeNull();
+		expect(parsed1!.unit).toBe("week");
+
+		// "3 weeks ago" contains "weeks" but has "ago", so it should NOT match the base time_unit rule
+		const token2 = QuantityTokenizer.tokenize("3 weeks ago", [], DEFAULT_ATTRIBUTE_RULES);
+		const parsed2 = TimeHelper.parse(token2!, DEFAULT_ATTRIBUTE_RULES);
+		expect(parsed2).toBeNull();
+	});
+
+	test("should allow a deterministic seed time for current timestamp generation", () => {
+		const fixedTime = new Date("2024-01-02T03:04:05.000Z");
+		const boundary = TimeHelper.getCurrentTimestamp("second", fixedTime);
+		expect(boundary.assertedTimestampUtc).toBe("2024-01-02T03:04:05.000Z");
+		expect(boundary.precisionLevel).toBe("second");
 	});
 });
