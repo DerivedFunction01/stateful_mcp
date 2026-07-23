@@ -39,7 +39,7 @@ export class ObservationSchemaParser implements SchemaParser {
 		let token: any = null;
 		if (preparsedContext?.attributes) {
 			token = {
-				anchorText: content.trim().split(/\s+/)[0] || "",
+				anchorText: content.trim(),
 				certainty: preparsedContext.attributes.certainty,
 				status: preparsedContext.attributes.status,
 				severity: preparsedContext.attributes.severity,

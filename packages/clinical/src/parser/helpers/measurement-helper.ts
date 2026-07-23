@@ -34,9 +34,24 @@ export class MeasurementHelper {
 			sortedPatterns.length > 0
 				? `(?:(?<operator>${sortedPatterns.join("|")}))?`
 				: "";
-		const regexStr = `^${opPart}\\s*(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<remaining>.*)$`;
+
+		const regexStr = `${opPart}\\s*(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<remaining>.*)`;
 		const regex = new RegExp(regexStr, "i");
-		const match = regex.exec(trimmed);
+
+		let match = regex.exec(trimmed);
+		if (!match) {
+			const numberRegex = /\d+(?:\.\d+)?/g;
+			let numMatch;
+			while ((numMatch = numberRegex.exec(trimmed)) !== null) {
+				const candidate = trimmed.substring(numMatch.index);
+				const innerMatch = regex.exec(candidate);
+				if (innerMatch) {
+					match = innerMatch;
+					break;
+				}
+			}
+		}
+
 		if (!match) return null;
 
 		const magnitudeStr = match.groups?.magnitude;
@@ -177,20 +192,25 @@ export interface TimeToken {
 export class TimeHelper {
 	static tokenizeTime(text: string): TimeToken | null {
 		const trimmed = text.trim();
-		const match = /^(?<magnitude>\d+(?:\.\d+)?)\s*(?<rawUnit>.*)$/.exec(
-			trimmed,
-		);
-		if (!match) return null;
-
-		const magnitudeStr = match.groups?.magnitude;
-		if (!magnitudeStr) return null;
-		const magnitude = Number.parseFloat(magnitudeStr);
-		const rawUnit = match.groups?.rawUnit?.trim() || "";
-
-		return {
-			magnitude,
-			rawUnit: rawUnit || undefined,
-		};
+		const numberRegex = /\d+(?:\.\d+)?/g;
+		let numMatch;
+		while ((numMatch = numberRegex.exec(trimmed)) !== null) {
+			const candidate = trimmed.substring(numMatch.index);
+			const match = /^(?<magnitude>\d+(?:\.\d+)?)\s*(?<rawUnit>.*)$/.exec(
+				candidate,
+			);
+			if (match) {
+				const magnitudeStr = match.groups?.magnitude;
+				if (!magnitudeStr) continue;
+				const magnitude = Number.parseFloat(magnitudeStr);
+				const rawUnit = match.groups?.rawUnit?.trim() || "";
+				return {
+					magnitude,
+					rawUnit: rawUnit || undefined,
+				};
+			}
+		}
+		return null;
 	}
 
 	static resolveTimeUnit(

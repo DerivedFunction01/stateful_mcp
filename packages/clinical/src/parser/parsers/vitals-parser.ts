@@ -37,7 +37,7 @@ export class VitalsSchemaParser implements SchemaParser {
 		if (preparsedContext?.measurement) {
 			const m = preparsedContext.measurement;
 			token = {
-				anchorText: content.trim().split(/\s+/)[0] || "",
+				anchorText: content.trim(),
 				value: m.magnitude,
 				unit: m.unit?.display,
 			};

@@ -12,27 +12,28 @@ import type {
 } from "../src/parser/schema-parsers";
 import { StopWordParser } from "../src/parser/stop-word-parser";
 
-async function seedTestConcepts(store: InMemoryConceptStore) {
-	await store.addNamespace({
+async function seedTestConcepts(dictionaryStore: DictionaryStore) {
+	const conceptStore = dictionaryStore["conceptStore"];
+	await conceptStore.addNamespace({
 		code: "LOINC",
 		description: "LOINC",
 		isPublic: true,
 		isExternalPrivate: false,
 	});
-	await store.addNamespace({
+	await conceptStore.addNamespace({
 		code: "SNOMED",
 		description: "SNOMED",
 		isPublic: true,
 		isExternalPrivate: false,
 	});
-	await store.addNamespace({
+	await conceptStore.addNamespace({
 		code: "RxNorm",
 		description: "RxNorm",
 		isPublic: true,
 		isExternalPrivate: false,
 	});
 
-	await store.addConcept({
+	await conceptStore.addConcept({
 		id: "LOINC::8310-5",
 		standardCode: "8310-5",
 		display: "Temperature",
@@ -40,20 +41,54 @@ async function seedTestConcepts(store: InMemoryConceptStore) {
 		description: "temp",
 		active: true,
 	});
-	await store.addConcept({
+	await conceptStore.addConcept({
 		id: "SNOMED::29857009",
 		standardCode: "29857009",
 		display: "Chest Pain",
 		namespaceCode: "SNOMED",
 		active: true,
 	});
-	await store.addConcept({
+	await conceptStore.addConcept({
 		id: "RxNorm::723",
 		standardCode: "723",
 		display: "Amoxicillin",
 		namespaceCode: "RxNorm",
 		active: true,
 	});
+
+	const expressions: CustomExpression[] = [
+		{
+			term: "temp",
+			regexPattern: "temp",
+			isCaseInsensitive: true,
+			targetAssignment: "MAIN_TERM",
+			conceptId: "LOINC::8310-5",
+			priorityWeight: 1,
+			active: true,
+		},
+		{
+			term: "Chest Pain",
+			regexPattern: "\\bchest pain\\b",
+			isCaseInsensitive: true,
+			targetAssignment: "MAIN_TERM",
+			conceptId: "SNOMED::29857009",
+			priorityWeight: 1,
+			active: true,
+		},
+		{
+			term: "Amoxicillin",
+			regexPattern: "\\bamoxicillin\\b",
+			isCaseInsensitive: true,
+			targetAssignment: "MAIN_TERM",
+			conceptId: "RxNorm::723",
+			priorityWeight: 1,
+			active: true,
+		},
+	];
+
+	for (const expr of expressions) {
+		await dictionaryStore.addExpression(expr);
+	}
 }
 
 describe("CdslParser Ensemble NER tests", () => {
@@ -67,7 +102,7 @@ describe("CdslParser Ensemble NER tests", () => {
 			exprStore,
 		);
 
-		await seedTestConcepts(conceptStore);
+		await seedTestConcepts(dictionaryStore);
 
 		const profile = {
 			profileId: "ensemble_test",
@@ -128,7 +163,7 @@ describe("CdslParser Ensemble NER tests", () => {
 			exprStore,
 		);
 
-		await seedTestConcepts(conceptStore);
+		await seedTestConcepts(dictionaryStore);
 
 		const stopWordParser = new StopWordParser([
 			"discussed",
@@ -151,5 +186,29 @@ describe("CdslParser Ensemble NER tests", () => {
 			"discussed details with patient regarding the case",
 		);
 		expect(results.length).toBe(0);
+	});
+
+	test("Segments starting with unknown tag prefixes fall back to tagless parsing", async () => {
+		const resolver = new InMemoryConceptResolver();
+		const conceptStore = new InMemoryConceptStore();
+		const exprStore = new InMemoryPersistentExpressionStore();
+		const dictionaryStore = new DictionaryStore(
+			resolver,
+			conceptStore,
+			exprStore,
+		);
+
+		await seedTestConcepts(dictionaryStore);
+
+		const parser = new CdslParser(dictionaryStore);
+
+		// "#3 temp 38.5 Cel" starts with "#3" (which is an unknown tag), so it should parse taglessly
+		const results = await parser.parse("#3 temp 38.5 Cel");
+		expect(results.length).toBe(1);
+
+		const vitalsResult = results[0] as ParsedVitalsItem;
+		expect(vitalsResult.targetSchema).toBe("VitalsMeasurementEvent");
+		expect(vitalsResult.value).toBe(38.5);
+		expect(vitalsResult.unit).toBe("Cel");
 	});
 });

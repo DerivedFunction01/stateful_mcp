@@ -64,11 +64,11 @@ export class ObservationTokenizer {
 			}
 		}
 
-		contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
-		const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
-		const anchorText = wordsCleaned.join(" ");
+	contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
+	const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
+	const anchorText = contentCleaned.trim();
 
-		return {
+	return {
 			anchorText,
 			certainty: attributes.certainty,
 			status: attributes.status,

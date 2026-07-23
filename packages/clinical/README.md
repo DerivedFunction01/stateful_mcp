@@ -41,17 +41,50 @@ CDSL tags route dictation segments to specific strongly-typed schemas based on a
 
 Clinicians can configure the parser with a custom `ParserSyntaxProfile` containing multilingual tag aliases, localized attribute mappings, and namespace priorities.
 
----
+## 2. Parallel Dispatch Ensemble NER Flow (Tagless Resolution)
 
-## 2. Anchor Concepts & Entropy Reduction
+When clinicians write notes without explicit tag prefixes (e.g., `temp 38.5 Cel || Chest Pain denies`), the engine executes a parallel-dispatched tagless routing flow:
 
-Every target schema is anchored by **one or two key parameters** ("the main term"). Resolving this anchor narrows the remaining tokens into predictable slots:
+```
+                  [ Raw Segment: "temp 38.5 Cel || Chest Pain denies" ]
+                                      │
+                                      ▼
+                      ┌──────────────────────────────┐
+                      │    Split State Delimiter     │ ──► ["temp 38.5 Cel", "Chest Pain denies"]
+                      └──────────────┬───────────────┘
+                                     │
+                 ┌───────────────────┴───────────────────┐
+                 ▼                                       ▼
+       [ "temp 38.5 Cel" ]                     [ "Chest Pain denies" ]
+                 │                                       │
+                 ▼                                       ▼
+    ┌─────────────────────────┐             ┌─────────────────────────┐
+    │  Stop Word Gatekeeper   │             │  Stop Word Gatekeeper   │
+    │  (Skip if >60% stops)   │             │  (Skip if >60% stops)   │
+    └────────────┬────────────┘             └────────────┬────────────┘
+                 │                                       │
+                 ▼                                       ▼
+    ┌─────────────────────────┐             ┌─────────────────────────┐
+    │    PreparsedContext     │             │    PreparsedContext     │
+    │ (Parse unit, val, time) │             │ (Parse unit, val, time) │
+    └────────────┬────────────┘             └────────────┬────────────┘
+                 │                                       │
+                 ▼                                       ▼
+    ┌─────────────────────────┐             ┌─────────────────────────┐
+    │  Concept Resolution &   │             │  Concept Resolution &   │
+    │  Parallel Pipeline run  │             │  Parallel Pipeline run  │
+    │ ──► LOINC::8310-5       │             │ ──► SNOMED::29857009    │
+    │ ──► Vitals: score 3     │             │ ──► Observation: score 3│
+    └────────────┬────────────┘             └────────────┬────────────┘
+                 │                                       │
+                 ▼                                       ▼
+        [ VitalsMeasurement ]                     [ ObservationEvent ]
+```
 
-1. **Vitals**: `vitalType` (e.g. LOINC code for temperature, heart rate)
-2. **Observations**: `concept` (e.g. SNOMED code for pain, cough)
-3. **Medications**: `medication` (e.g. RxNorm code for drug ingredient)
-
-When clinicians omit explicit tags (e.g. `temp 38 Cel` instead of `#vital temp 38 Cel`), the parser dynamically infers the target schema by querying candidate terms against configured namespaces and concept defaults.
+1. **Stop Word Gatekeeper**: Checks if a segment consists of more than 60% stop words; if so, it is classified as a conversational narrative and skipped.
+2. **Shared `PreparsedContext`**: Sub-parsers (Measurement, Time, Frequency, Attributes) parse the text once, caching results to prevent redundant processing.
+3. **Concept Resolution**: Resolves target vocabularies first against the full segment (preserving multi-word terms like `"Chest Pain"`), falling back to individual token matching.
+4. **Parallel Pipeline Dispatch & Scorer**: For each resolved candidate, virtual schema pipelines run concurrently. The parser evaluates the returned records against a `completenessScore` (counting populated fields) and compiles all high-confidence winners.
 
 ---
 

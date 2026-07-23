@@ -56,24 +56,27 @@ export class VitalsTokenizer {
 				contentCleaned = contentCleaned.replace(regex, " ");
 			}
 		}
-		contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
+	contentCleaned = contentCleaned.replace(/\s+/g, " ").trim();
 
-		const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
-		const anchorText = wordsCleaned[0] || "";
+	const wordsCleaned = contentCleaned.split(/\s+/).filter(Boolean);
+	const anchorText = contentCleaned.trim();
 
-		let value = capturedProps.value;
-		let unit = capturedProps.unit;
+	let value = capturedProps.value;
+	let unit = capturedProps.unit;
 
-		if (value === undefined && wordsCleaned.length >= 2) {
-			const rawVal = wordsCleaned[1];
-			if (rawVal) {
-				const val = Number.parseFloat(rawVal);
-				if (!Number.isNaN(val)) {
-					value = val;
-					unit = wordsCleaned[2];
+	if (value === undefined) {
+		for (const w of wordsCleaned) {
+			const val = Number.parseFloat(w);
+			if (!Number.isNaN(val)) {
+				value = val;
+				const idx = wordsCleaned.indexOf(w);
+				if (idx !== -1 && wordsCleaned[idx + 1]) {
+					unit = wordsCleaned[idx + 1];
 				}
+				break;
 			}
 		}
+	}
 
 		return {
 			anchorText,

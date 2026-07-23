@@ -161,22 +161,21 @@ export async function resolveMultiConceptHelper(
 		}
 	}
 
-	if (allowedNamespaces && allowedNamespaces.length > 0) {
-		for (const ns of allowedNamespaces) {
-			const results = await dictionaryStore.search(text, ns, 5);
-			if (results) {
-				for (const r of results) {
-					if (r) {
-						candidates.push({
-							conceptId: r.id,
-							display: r.display,
-							namespace: ns,
-						});
-					}
-				}
+	const resolved = await dictionaryStore.resolve(text);
+	if (resolved && resolved.results) {
+		for (const agg of resolved.results) {
+			const ns = agg.concept.namespaceCode;
+			if (allowedNamespaces && allowedNamespaces.length > 0) {
+				if (!allowedNamespaces.includes(ns)) continue;
 			}
+			candidates.push({
+				conceptId: agg.conceptId,
+				display: agg.concept.display,
+				namespace: ns,
+			});
 		}
 	}
+
 	return candidates;
 }
 
