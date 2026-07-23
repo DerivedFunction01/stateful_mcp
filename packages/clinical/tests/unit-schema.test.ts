@@ -6,6 +6,7 @@ import type {
 } from "../src/schemas/measurement";
 import { MeasurementHelper, QuantityTokenizer } from "../src/parser/helpers/measurement-helper";
 import { DEFAULT_ATTRIBUTE_RULES } from "../src/store/defaults";
+import type { AttributeParserRule } from "../src/store/interfaces";
 
 describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 	test("should parse MassMeasurement correctly using parseAs", () => {
@@ -48,5 +49,27 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 			unit: { display: "Celsius" }
 		};
 		expect(temp.unit!.display).toBe("Celsius");
+	});
+
+	test("should respect blacklistPatterns to avoid matching blacklisted units", () => {
+		const customRules: AttributeParserRule[] = [
+			{
+				targetField: "unit",
+				targetValue: "mg",
+				regexPatterns: ["mg"],
+				blacklistPatterns: ["mcg", "mg/dL"],
+				unitAnchor: "mass",
+			},
+		];
+		// "mg" should match
+		const token1 = QuantityTokenizer.tokenize("10 mg", [], customRules);
+		const parsed1 = MeasurementHelper.parse(token1!, undefined, customRules);
+		expect(parsed1).not.toBeNull();
+		expect(parsed1!.unit?.display).toBe("mg");
+
+		// "mg/dL" contains "mg" but is blacklisted, so it should NOT match the mg rule
+		const token2 = QuantityTokenizer.tokenize("10 mg/dL", [], customRules);
+		const parsed2 = MeasurementHelper.parse(token2!, undefined, customRules);
+		expect(parsed2?.unit?.display).not.toBe("mg");
 	});
 });

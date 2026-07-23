@@ -153,6 +153,20 @@ export class QuantityTokenizer {
 		for (const rule of matchingRules) {
 			for (const pattern of rule.regexPatterns) {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				// Check blacklist patterns first
+				if (rule.blacklistPatterns) {
+					let isBlacklisted = false;
+					for (const bp of rule.blacklistPatterns) {
+						const reBlacklist = new RegExp(bp, flags);
+						if (reBlacklist.test(rawUnit)) {
+							isBlacklisted = true;
+							break;
+						}
+					}
+					if (isBlacklisted) {
+						continue;
+					}
+				}
 				const regex = new RegExp(pattern, flags);
 				if (regex.test(rawUnit)) {
 					if (rule.unitAnchor) {

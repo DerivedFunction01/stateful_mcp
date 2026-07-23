@@ -54,6 +54,7 @@ export type AttributeRuleMapping =
 export type AttributeParserRule = AttributeRuleMapping & {
 	regexPatterns: string[];
 	isCaseInsensitive?: boolean;
+	blacklistPatterns?: string[];
 };
 
 export interface ParserConceptDefault {
