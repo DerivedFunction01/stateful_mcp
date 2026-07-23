@@ -1,12 +1,14 @@
 import type {
-	ClinicalDateRange,
 	ClinicalSourceType,
 	CodeableConcept,
+	ProductIdentifier,
+} from "./shared";
+import type {
 	DistanceMeasurement,
 	PressureMeasurement,
-	ProductIdentifier,
 	TemperatureMeasurement,
-} from "./shared";
+} from "./measurement";
+import type { ClinicalDateRange } from "./time";
 
 // =====================================================================
 // 1. HARD COMPILER ENUMS BOUNDED BY PHYSICS & STANDARDS

@@ -1,4 +1,5 @@
-import type { BaseAgent, CodeableConcept, TemporalBoundary } from "./shared";
+import type { BaseAgent, CodeableConcept } from "./shared";
+import type { TemporalBoundary } from "./time";
 export type AdministrativeGender =
 	| "male"
 	| "female"

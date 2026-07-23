@@ -12,14 +12,14 @@ import type {
 import type { MedicationOrderObject, ProcedureOrderObject } from "./medication";
 import type { ObservationEvent } from "./observation";
 import type { PatientProfile } from "./patient";
-import type { ClinicalDateRange } from "./shared";
+import type { ClinicalDateRange, TemporalBoundary } from "./time";
 import type { PhysicalExamObject, VitalsMeasurementEvent } from "./vitals";
 
 export interface SoapNote {
 	id: string;
 	title: string;
-	createdAt: string;
-	updatedAt: string;
+	createdAt: TemporalBoundary;
+	updatedAt: TemporalBoundary;
 	status: "draft" | "signed";
 	signedBy?: string;
 	patient: PatientProfile;

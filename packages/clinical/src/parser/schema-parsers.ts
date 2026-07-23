@@ -1,8 +1,8 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import { MedicationHelper, MedicationTokenizer } from "../schemas/medication";
-import { ObservationHelper, ObservationTokenizer } from "../schemas/observation";
-import { VitalsHelper, VitalsTokenizer } from "../schemas/vitals";
-import { TimeHelper } from "../schemas/shared";
+import { MedicationHelper, MedicationTokenizer } from "./helpers/medication-helper";
+import { ObservationHelper, ObservationTokenizer } from "./helpers/observation-helper";
+import { VitalsHelper, VitalsTokenizer } from "./helpers/vitals-helper";
+import { MeasurementHelper, TimeHelper } from "./helpers/measurement-helper";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_EVALUATOR_RULES,
@@ -20,24 +20,39 @@ export const CANONICAL_TAGS = {
 	MEDICATION: "MedicationOrderObject",
 } as const;
 
-export interface ParsedItem {
+export interface BaseParsedItem {
 	tag: string;
 	anchorText: string;
 	conceptId?: string;
 	display: string;
-	value?: number | string;
-	unit?: string;
-	unitAnchor?: string;
-	severity?: string;
-	certainty?: string;
-	status?: string;
-	route?: string;
-	frequency?: string;
-	duration?: string;
 	targetSchema: string;
 	rawText: string;
 	capturedProperties?: Record<string, any>;
 }
+
+export interface ParsedVitalsItem extends BaseParsedItem {
+	targetSchema: "VitalsMeasurementEvent";
+	value?: number | string;
+	unit?: string;
+	unitAnchor?: string;
+}
+
+export interface ParsedObservationItem extends BaseParsedItem {
+	targetSchema: "ObservationEvent";
+	severity?: string;
+	certainty?: string;
+	status?: string;
+}
+
+export interface ParsedMedicationItem extends BaseParsedItem {
+	targetSchema: "MedicationOrderObject";
+	route?: string;
+	frequency?: string;
+	duration?: string;
+	status?: string;
+}
+
+export type ParsedItem = ParsedVitalsItem | ParsedObservationItem | ParsedMedicationItem;
 
 export interface SchemaParser {
 	targetSchema: string;
@@ -82,7 +97,6 @@ const EVALUATOR_FUNCTIONS: Record<string, (groups: any) => any> = {
 
 export async function resolveConceptHelper(
 	text: string,
-	defaultNamespace: string,
 	dictionaryStore: DictionaryStore,
 	termTokenizer?: string,
 	allowedNamespaces?: string[],
@@ -98,15 +112,12 @@ export async function resolveConceptHelper(
 		}
 	}
 
-	const namespaces =
-		allowedNamespaces && allowedNamespaces.length > 0
-			? allowedNamespaces
-			: [defaultNamespace];
-
-	for (const ns of namespaces) {
-		const results = await dictionaryStore.search(text, ns, 1);
-		if (results && results.length > 0 && results[0]) {
-			return { id: results[0].id, display: results[0].display };
+	if (allowedNamespaces && allowedNamespaces.length > 0) {
+		for (const ns of allowedNamespaces) {
+			const results = await dictionaryStore.search(text, ns, 1);
+			if (results && results.length > 0 && results[0]) {
+				return { id: results[0].id, display: results[0].display };
+			}
 		}
 	}
 	return null;
@@ -148,10 +159,9 @@ export class VitalsSchemaParser implements SchemaParser {
 			unitText = token.bloodPressureUnit || "mmHg";
 		}
 
-		// Resolve LOINC concept
+		// Resolve concept
 		const resolved = await resolveConceptHelper(
 			token.anchorText,
-			"LOINC",
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
@@ -201,12 +211,9 @@ export class VitalsSchemaParser implements SchemaParser {
 
 		const finalUnit = unitText || defaultUnit;
 		let unitAnchor: string | undefined;
-		if (finalUnit === "Cel" || finalUnit === "F") {
-			unitAnchor = "temperature";
-		} else if (finalUnit === "mmHg" || finalUnit === "bar" || finalUnit === "mm[Hg]") {
-			unitAnchor = "pressure";
-		} else if (finalUnit === "/min" || finalUnit === "%") {
-			unitAnchor = "number";
+		if (finalUnit) {
+			const resolvedUnit = MeasurementHelper.resolveUnit(finalUnit, attributeRules);
+			unitAnchor = resolvedUnit.unitAnchor;
 		}
 
 		return {
@@ -221,7 +228,7 @@ export class VitalsSchemaParser implements SchemaParser {
 			rawText: `${tag} ${content}`,
 			capturedProperties:
 				Object.keys(capturedProps).length > 0 ? capturedProps : undefined,
-		};
+		} as ParsedVitalsItem;
 	}
 }
 
@@ -248,10 +255,9 @@ export class ObservationSchemaParser implements SchemaParser {
 		const status = token.status || "active";
 		const severity = token.severity || "moderate";
 
-		// Resolve SNOMED concept
+		// Resolve concept
 		const resolved = await resolveConceptHelper(
 			token.anchorText,
-			"SNOMED",
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
@@ -291,7 +297,7 @@ export class ObservationSchemaParser implements SchemaParser {
 			rawText: `${tag} ${content}`,
 			capturedProperties:
 				Object.keys(capturedProperties).length > 0 ? capturedProperties : undefined,
-		};
+		} as ParsedObservationItem;
 	}
 }
 
@@ -314,14 +320,13 @@ export class MedicationSchemaParser implements SchemaParser {
 		const token = MedicationTokenizer.tokenize(content, attrRules, evalRules);
 		if (!token.anchorText) return null;
 
-		let route = token.route || "ORAL";
-		let frequency = token.frequency || "TID";
-		let duration = "10 days";
+		let route = token.route;
+		let frequency = token.frequency;
+		let duration: string | undefined;
 
 		// Resolve RxNorm concept
 		const resolved = await resolveConceptHelper(
 			token.anchorText,
-			"RxNorm",
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
@@ -369,12 +374,11 @@ export class MedicationSchemaParser implements SchemaParser {
 			route,
 			frequency,
 			duration,
-			status: "ACTIVE",
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:
 				Object.keys(capturedProperties).length > 0 ? capturedProperties : undefined,
-		};
+		} as ParsedMedicationItem;
 	}
 }
 

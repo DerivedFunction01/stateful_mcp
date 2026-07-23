@@ -39,6 +39,12 @@ export const DEFAULT_ATTRIBUTE_RULES = [
 	},
 	{
 		targetField: "route",
+		targetValue: "ORAL",
+		regexPatterns: ["\\boral\\b", "\\bpo\\b"],
+		isCaseInsensitive: true,
+	},
+	{
+		targetField: "route",
 		targetValue: "INTRAVENOUS",
 		regexPatterns: ["\\bintravenous\\b", "\\biv\\b"],
 		isCaseInsensitive: true,

@@ -15,6 +15,8 @@ export * from "./schemas/observation";
 export * from "./schemas/patient";
 export * from "./schemas/shared";
 export * from "./schemas/vitals";
+export * from "./schemas/measurement";
+export * from "./schemas/time";
 export * from "./seed/loader";
 export * from "./store/clinical-store";
 export * from "./store/defaults";

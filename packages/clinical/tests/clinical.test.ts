@@ -12,10 +12,16 @@ import {
 	SqliteEntityStore,
 } from "@stateful-mcp/core";
 import { ClinicalEngine } from "../src/engine/clinical-engine";
-import { CANONICAL_TAGS, CdslParser } from "../src/parser/cdsl-parser";
+import {
+	CANONICAL_TAGS,
+	CdslParser,
+	type ParsedVitalsItem,
+	type ParsedObservationItem,
+	type ParsedMedicationItem,
+} from "../src/parser/cdsl-parser";
 import { StopWordParser } from "../src/parser/stop-word-parser";
 import type { PatientProfile } from "../src/schemas/patient";
-import { MeasurementHelper, TimeHelper } from "../src/schemas/shared";
+import { MeasurementHelper, TimeHelper } from "../src/parser/helpers/measurement-helper";
 import type { StopWordContext } from "../src/store/interfaces";
 import {
 	ClinicalAdministrativeStore,
@@ -191,8 +197,8 @@ describe("Clinical IDE Stateful Backend", () => {
 			"$vital temp 39.1 Cel || $vitalsmeasurementevent pulse 90 /min",
 		);
 		expect(parsedCustom.length).toBe(2);
-		expect(parsedCustom[0]?.value).toBe(39.1);
-		expect(parsedCustom[1]?.value).toBe(90);
+		expect((parsedCustom[0] as ParsedVitalsItem)?.value).toBe(39.1);
+		expect((parsedCustom[1] as ParsedVitalsItem)?.value).toBe(90);
 
 		// 7. Test custom tagMappings (internationalization/localization)
 		const i18nProfile = {
@@ -217,7 +223,7 @@ describe("Clinical IDE Stateful Backend", () => {
 		);
 		expect(parsedI18n.length).toBe(2);
 		expect(parsedI18n[0]?.targetSchema).toBe("VitalsMeasurementEvent");
-		expect(parsedI18n[0]?.value).toBe(38.8);
+		expect((parsedI18n[0] as ParsedVitalsItem)?.value).toBe(38.8);
 		expect(parsedI18n[1]?.targetSchema).toBe("MedicationOrderObject");
 
 		// 8. Test custom attributeRules (e.g. Spanish observation attributes)
@@ -244,9 +250,9 @@ describe("Clinical IDE Stateful Backend", () => {
 			"$observation niega Chest Pain || $observation grave Chest Pain",
 		);
 		expect(parsedRules.length).toBe(2);
-		expect(parsedRules[0]?.certainty).toBe("refuted");
+		expect((parsedRules[0] as ParsedObservationItem)?.certainty).toBe("refuted");
 		expect(parsedRules[0]?.anchorText).toBe("Chest Pain");
-		expect(parsedRules[1]?.severity).toBe("severe");
+		expect((parsedRules[1] as ParsedObservationItem)?.severity).toBe("severe");
 		expect(parsedRules[1]?.anchorText).toBe("Chest Pain");
 
 		// 9. Test ParserConceptDefaultStore with regex capture groups (LOINC temp)
@@ -270,8 +276,8 @@ describe("Clinical IDE Stateful Backend", () => {
 		);
 		const parsedDefaults = await defaultParser.parse("#vital temp is 38.2 Cel");
 		expect(parsedDefaults.length).toBe(1);
-		expect(parsedDefaults[0]?.value).toBe(38.2);
-		expect(parsedDefaults[0]?.unit).toBe("Cel");
+		expect((parsedDefaults[0] as ParsedVitalsItem)?.value).toBe(38.2);
+		expect((parsedDefaults[0] as ParsedVitalsItem)?.unit).toBe("Cel");
 		expect(parsedDefaults[0]?.capturedProperties?.value).toBe("38.2");
 		expect(parsedDefaults[0]?.capturedProperties?.unit).toBe("Cel");
 
@@ -303,9 +309,9 @@ describe("Clinical IDE Stateful Backend", () => {
 		);
 		expect(parsedTagless.length).toBe(3);
 		expect(parsedTagless[0]?.targetSchema).toBe("VitalsMeasurementEvent");
-		expect(parsedTagless[0]?.value).toBe(37.9);
+		expect((parsedTagless[0] as ParsedVitalsItem)?.value).toBe(37.9);
 		expect(parsedTagless[1]?.targetSchema).toBe("ObservationEvent");
-		expect(parsedTagless[1]?.certainty).toBe("refuted");
+		expect((parsedTagless[1] as ParsedObservationItem)?.certainty).toBe("refuted");
 		expect(parsedTagless[2]?.targetSchema).toBe("MedicationOrderObject");
 
 		// 12. Test schemaNamespaces configuration filtering
@@ -337,10 +343,10 @@ describe("Clinical IDE Stateful Backend", () => {
 			"#vital bp 120/80 bar || #vital bp 125/85",
 		);
 		expect(parsedBPUnit.length).toBe(2);
-		expect(parsedBPUnit[0]?.value).toBe("120/80");
-		expect(parsedBPUnit[0]?.unit).toBe("bar");
-		expect(parsedBPUnit[1]?.value).toBe("125/85");
-		expect(parsedBPUnit[1]?.unit).toBe("mmHg");
+		expect((parsedBPUnit[0] as ParsedVitalsItem)?.value).toBe("120/80");
+		expect((parsedBPUnit[0] as ParsedVitalsItem)?.unit).toBe("bar");
+		expect((parsedBPUnit[1] as ParsedVitalsItem)?.value).toBe("125/85");
+		expect((parsedBPUnit[1] as ParsedVitalsItem)?.unit).toBe("mmHg");
 
 		// 14. Test MeasurementHelper and TimeHelper sub-parsing
 		const parsedMeasure = MeasurementHelper.parse(">=38.5 Cel");
@@ -787,7 +793,7 @@ describe("Clinical IDE Stateful Backend", () => {
 		// Tagged segment with non-stop word — should parse normally
 		const normalResult = await parser.parse("#vital temp is 38.5 Cel", context);
 		expect(normalResult.length).toBe(1);
-		expect(normalResult[0]?.value).toBe(38.5);
+		expect((normalResult[0] as ParsedVitalsItem)?.value).toBe(38.5);
 
 		// Without context, no stop word resolution happens (no effective parser)
 		const noContextResult = await parser.parse("patient has no temp 38.5");
@@ -842,7 +848,7 @@ describe("Clinical IDE Stateful Backend", () => {
 		);
 		const noGateResult = await noGatekeeperParser.parse("#vital temp is 38.5 Cel");
 		expect(noGateResult.length).toBeGreaterThanOrEqual(1);
-		expect(noGateResult[0]?.value).toBe(38.5);
+		expect((noGateResult[0] as ParsedVitalsItem)?.value).toBe(38.5);
 
 		// Create StopWordParser with mock stop words
 		const stopWordParser = new StopWordParser(["has", "no", "patient"]);
@@ -866,6 +872,6 @@ describe("Clinical IDE Stateful Backend", () => {
 		// --- Tagged segment: non-stop word content still parses normally ---
 		const taggedNormalResult = await gatekeeperParser.parse("#vital temp is 38.5 Cel");
 		expect(taggedNormalResult.length).toBe(1);
-		expect(taggedNormalResult[0]?.value).toBe(38.5);
+		expect((taggedNormalResult[0] as ParsedVitalsItem)?.value).toBe(38.5);
 	});
 });

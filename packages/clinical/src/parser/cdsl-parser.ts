@@ -10,11 +10,19 @@ import { StopWordParser } from "./stop-word-parser";
 import {
 	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
 	type ParsedItem as IMP_ParsedItem,
+	type BaseParsedItem as IMP_BaseParsedItem,
+	type ParsedVitalsItem as IMP_ParsedVitalsItem,
+	type ParsedObservationItem as IMP_ParsedObservationItem,
+	type ParsedMedicationItem as IMP_ParsedMedicationItem,
 	schemaParserRegistry,
 } from "./schema-parsers";
 
 export const CANONICAL_TAGS = IMP_CANONICAL_TAGS;
 export type ParsedItem = IMP_ParsedItem;
+export type BaseParsedItem = IMP_BaseParsedItem;
+export type ParsedVitalsItem = IMP_ParsedVitalsItem;
+export type ParsedObservationItem = IMP_ParsedObservationItem;
+export type ParsedMedicationItem = IMP_ParsedMedicationItem;
 
 export class CdslParser {
 	private stopWordParser: StopWordParser | undefined;
