@@ -41,13 +41,17 @@ export class MedicationSchemaParser implements SchemaParser {
 
 		let token: any = null;
 		if (preparsedContext?.attributes) {
+			const durationCandidates = preparsedContext.timeSpan || [];
+			const durationCandidate = durationCandidates.find(
+				(c) => c.rawUnit && c.magnitude,
+			);
 			token = {
 				anchorText: content.trim(),
 				route: preparsedContext.attributes.route,
-				duration: preparsedContext.timeSpan
-					? String(preparsedContext.timeSpan.magnitude) +
+				duration: durationCandidate
+					? String(durationCandidate.magnitude) +
 						" " +
-						(preparsedContext.timeSpan.unit || "")
+						(durationCandidate.rawUnit || "")
 					: undefined,
 			};
 		} else {
@@ -55,8 +59,8 @@ export class MedicationSchemaParser implements SchemaParser {
 		}
 		if (!token || !token.anchorText) return null;
 
-		const route = token.route;
-		const frequency = preparsedContext?.frequency;
+		let route = token.route;
+		let frequency = preparsedContext?.frequency;
 		let duration: string | undefined = token.duration;
 
 		// Resolve concept
@@ -106,27 +110,15 @@ export class MedicationSchemaParser implements SchemaParser {
 			) ||
 			duration;
 
-		const possibleDurations = content.match(/(\d+(?:\.\d+)?\s*\S+)/g);
-		if (possibleDurations) {
-			const opRules = attrRules.filter(
-				(r) =>
-					r.targetField === "operator" ||
-					r.targetField === "measurement_operator",
+		if (!duration && preparsedContext?.timeSpan) {
+			const durationCandidate = preparsedContext.timeSpan.find(
+				(c) => c.rawUnit && c.magnitude,
 			);
-			const opPatterns = opRules.flatMap((r) => r.regexPatterns);
-			for (const candidate of possibleDurations) {
-				const timeToken = QuantityTokenizer.tokenize(
-					candidate,
-					opPatterns,
-					attrRules,
-				);
-				const parsedTime = timeToken
-					? TimeHelper.parse(timeToken, attrRules)
-					: null;
-				if (parsedTime && parsedTime.unit) {
-					duration = candidate;
-					break;
-				}
+			if (durationCandidate) {
+				duration =
+					String(durationCandidate.magnitude) +
+					" " +
+					(durationCandidate.rawUnit || "");
 			}
 		}
 

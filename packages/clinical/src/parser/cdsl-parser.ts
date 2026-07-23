@@ -132,36 +132,10 @@ export class CdslParser {
 
 			// Always build preparsedContext from content
 			const attrRules = this.getEffectiveAttributeRules();
-			const opRules = attrRules.filter(
-				(r) =>
-					r.targetField === "operator" ||
-					r.targetField === "measurement_operator",
-			);
-			const opPatterns = opRules.flatMap((r) => r.regexPatterns);
-			const numericRules = attrRules.filter(
-				(r) =>
-					r.targetField === "severity_score" ||
-					r.targetField === "pain_score" ||
-					r.targetField === "percentage" ||
-					r.targetField === "measurement_value",
-			);
-			const token = QuantityTokenizer.tokenize(
+			const candidates = QuantityTokenizer.tokenize(
 				content,
-				opPatterns,
 				attrRules,
-				numericRules,
 			);
-
-			const measurement = token
-				? (MeasurementHelper.parse(
-						token,
-						undefined,
-						this.getEffectiveAttributeRules(),
-					) as any)
-				: null;
-			const timeSpan = token
-				? TimeHelper.parse(token, this.getEffectiveAttributeRules())
-				: null;
 			const frequency = FrequencyHelper.parse(
 				content,
 				this.getEffectiveAttributeRules() || [],
@@ -189,8 +163,8 @@ export class CdslParser {
 
 			const preparsedContext: PreparsedContext = {
 				rawText: content,
-				measurement,
-				timeSpan,
+				measurement: candidates,
+				timeSpan: candidates,
 				frequency,
 				attributes,
 				profile: this.profile,

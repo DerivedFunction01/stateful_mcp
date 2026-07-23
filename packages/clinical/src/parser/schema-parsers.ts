@@ -1,3 +1,4 @@
+import type { QuantityCandidate } from "../parser/helpers/measurement-helper";
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { BoundedMeasurement } from "../schemas/measurement";
 import type { MedicationFrequency } from "../schemas/medication";
@@ -64,10 +65,10 @@ export type ParsedItem =
 
 export interface PreparsedContext {
 	rawText: string;
-	measurement?: BoundedMeasurement | null;
-	timeSpan?: TimeMeasurement | null;
+	measurement: QuantityCandidate[];
+	timeSpan: QuantityCandidate[];
 	frequency?: MedicationFrequency | null;
-	attributes?: Record<string, string>;
+	attributes: Record<string, string>;
 	parsedPartial?: Record<string, any>;
 	profile?: Pick<ParserSyntaxProfile, "schemaDefaults" | "defaultsStrategy">;
 }

@@ -26,6 +26,12 @@ export interface QuantityToken {
 	isApproximate?: boolean;
 }
 
+export interface QuantityCandidate extends QuantityToken {
+	tokenStart: number;
+	tokenEnd: number;
+	sourceRule?: AttributeParserRule;
+}
+
 export interface PhysicalResolved {
 	display: string;
 	unitAnchor: MeasurementUnitAnchor;
@@ -40,120 +46,65 @@ export type ResolvedUnit = PhysicalResolved | TimeResolved;
 export class QuantityTokenizer {
 	static tokenize(
 		text: string,
-		opPatterns?: string[],
 		rules?: AttributeParserRule[],
-		numericRules?: AttributeParserRule[],
-	): QuantityToken | null {
+	): QuantityCandidate[] {
 		const trimmed = text.trim();
 		const effectiveRules = rules || DEFAULT_ATTRIBUTE_RULES;
+		const candidates: QuantityCandidate[] = [];
+		const seen = new Set<string>();
 
-		let magnitudeMatch: RegExpExecArray | null = null;
-		let magnitudeStr: string | undefined;
+		for (const rule of effectiveRules) {
+			for (const pattern of rule.regexPatterns) {
+				const baseFlags = rule.isCaseInsensitive !== false ? "i" : "";
+				const flags = baseFlags ? `${baseFlags}g` : "g";
+				const regex = getCompiledRegex(pattern, flags);
+				let match;
+				while ((match = regex.exec(trimmed)) !== null) {
+					const groups = match.groups || {};
+					const magStr =
+						groups.magnitude ||
+						groups.quantity ||
+						groups.value ||
+						match[0];
+					const magnitude = Number.parseFloat(magStr);
+					if (Number.isNaN(magnitude)) continue;
 
-		if (numericRules && numericRules.length > 0) {
-			const sortedNumeric = [...numericRules].sort((a, b) => {
-				const pA = a.priority ?? 10;
-				const pB = b.priority ?? 10;
-				return pB - pA;
-			});
-			for (const rule of sortedNumeric) {
-				for (const pattern of rule.regexPatterns) {
-					const flags = rule.isCaseInsensitive !== false ? "i" : "";
-					const regex = getCompiledRegex(pattern, flags);
-					const match = regex.exec(trimmed);
-					if (match && match[0]) {
-						const start = match.index;
-						const end = start + match[0].length;
-						const before = trimmed[start - 1];
-						const after = trimmed[end];
-						if (/\d/.test(before ?? "") || /\d/.test(after ?? "")) {
-							continue;
+					const rawUnit = groups.unit || groups.rawUnit;
+					const operator = groups.operator;
+					const isApproximate =
+						groups.is_approximate === true ||
+						rule.targetValue === "is_approximate" ||
+						rule.targetValue === "approximate";
+
+					const start = match.index;
+					const end = start + match[0].length;
+					const dedupKey = `${start}-${end}-${magnitude}-${rawUnit || ""}-${operator || ""}`;
+					if (seen.has(dedupKey)) {
+						if (match.index === regex.lastIndex) {
+							regex.lastIndex++;
 						}
-						magnitudeStr = match[0];
-						magnitudeMatch = match;
-						break;
+						continue;
+					}
+					seen.add(dedupKey);
+
+					candidates.push({
+						magnitude,
+						rawUnit: rawUnit || undefined,
+						operator: operator || undefined,
+						isApproximate: isApproximate || undefined,
+						tokenStart: start,
+						tokenEnd: end,
+						sourceRule: rule,
+					});
+
+					if (match.index === regex.lastIndex) {
+						regex.lastIndex++;
 					}
 				}
-				if (magnitudeStr) break;
 			}
 		}
 
-		if (!magnitudeStr) {
-			magnitudeMatch = /\d+(?:\.\d+)?/.exec(trimmed);
-			if (!magnitudeMatch) return null;
-			magnitudeStr = magnitudeMatch[0];
-		}
-
-		const magnitude = Number.parseFloat(magnitudeStr);
-		const magnitudeIndex = magnitudeMatch?.index ?? 0;
-		const prefix = trimmed.slice(0, magnitudeIndex).trim();
-		const suffix = trimmed.slice(magnitudeIndex + magnitudeStr.length).trim();
-
-		const operatorRules: AttributeParserRule[] = [
-			...(opPatterns || []).map((pattern) => ({
-				targetField: "operator" as const,
-				targetValue: "lt" as const,
-				regexPatterns: [pattern],
-			})),
-			...effectiveRules.filter(
-				(rule) =>
-					rule.targetField === "operator" ||
-					rule.targetField === "measurement_operator",
-			),
-		];
-		const unitRules = effectiveRules.filter(
-			(rule) =>
-				rule.targetField === "unit" ||
-				rule.targetField === "measurement_unit" ||
-				rule.targetField === "time_unit",
-		);
-
-		let operator: string | undefined;
-		let isApproximate = false;
-		let rawUnit: string | undefined;
-
-		const strippedPrefix = QuantityTokenizer.stripOperator(
-			prefix,
-			operatorRules,
-		);
-		const strippedSuffix = QuantityTokenizer.stripOperator(
-			suffix,
-			operatorRules,
-		);
-		if (strippedPrefix.operator) {
-			operator = strippedPrefix.operator;
-		}
-		if (strippedPrefix.isApproximate) {
-			isApproximate = true;
-		}
-		if (strippedSuffix.operator) {
-			operator = strippedSuffix.operator;
-		}
-		if (strippedSuffix.isApproximate) {
-			isApproximate = true;
-		}
-
-		for (const candidate of [
-			{ text: strippedPrefix.segment, source: "prefix" },
-			{ text: strippedSuffix.segment, source: "suffix" },
-		]) {
-			if (!candidate.text) continue;
-			const resolvedUnit = QuantityTokenizer.resolveUnit(
-				candidate.text,
-				unitRules,
-			);
-			if (resolvedUnit) {
-				rawUnit = candidate.text.trim();
-				break;
-			}
-		}
-
-		return {
-			magnitude,
-			operator,
-			isApproximate: isApproximate || undefined,
-			rawUnit: rawUnit || undefined,
-		};
+		return candidates;
 	}
 
 	private static stripOperator(
@@ -192,22 +143,21 @@ export class QuantityTokenizer {
 
 	static parseImplicitGroups(
 		groups: Record<string, string>,
-	): QuantityToken | null {
+	): QuantityCandidate | null {
 		const rawUnit = groups.unit || groups.rawUnit;
 		const magStr = groups.magnitude || groups.quantity || groups.value;
 		if (rawUnit && magStr) {
 			const magnitude = Number.parseFloat(magStr);
 			if (!Number.isNaN(magnitude)) {
-				return { magnitude, rawUnit };
+				return { magnitude, rawUnit, tokenStart: 0, tokenEnd: 0 };
 			}
 		}
 
-		// Pattern 2: Implicit Unit Named-Group Capture
 		for (const [groupName, value] of Object.entries(groups)) {
 			if (value && ALLOWED_UNITS_SET.has(groupName)) {
 				const magnitude = Number.parseFloat(value);
 				if (!Number.isNaN(magnitude)) {
-					return { magnitude, rawUnit: groupName };
+					return { magnitude, rawUnit: groupName, tokenStart: 0, tokenEnd: 0 };
 				}
 			}
 		}
@@ -235,7 +185,6 @@ export class QuantityTokenizer {
 		for (const rule of sortedRules) {
 			for (const pattern of rule.regexPatterns) {
 				const flags = rule.isCaseInsensitive !== false ? "i" : "";
-				// Check blacklist patterns first
 				if (rule.blacklistPatterns) {
 					let isBlacklisted = false;
 					for (const bp of rule.blacklistPatterns) {
@@ -250,7 +199,19 @@ export class QuantityTokenizer {
 					}
 				}
 				const regex = getCompiledRegex(pattern, flags);
-				if (regex.test(rawUnit)) {
+				const hasNamedGroups = /\(\?<[^>]+>/.test(pattern);
+				let matched = false;
+				if (hasNamedGroups) {
+					regex.lastIndex = 0;
+					const testStr = `0 ${rawUnit}`;
+					const match = regex.exec(testStr);
+					regex.lastIndex = 0;
+					matched = !!match;
+				} else {
+					regex.lastIndex = 0;
+					matched = regex.test(rawUnit);
+				}
+				if (matched) {
 					if (rule.unitAnchor) {
 						return {
 							display: rule.targetValue,
@@ -284,7 +245,7 @@ export interface MeasurementToken {
 
 export class MeasurementHelper {
 	static parse(
-		token: QuantityToken,
+		token: QuantityCandidate,
 		defaultUnit?: string,
 		attributeRules?: AttributeParserRule[],
 	): BoundedMeasurement | SingleMeasurement | null {
@@ -323,7 +284,7 @@ export class MeasurementHelper {
 	}
 
 	static parseAs<T extends BoundedMeasurement>(
-		token: QuantityToken,
+		token: QuantityCandidate,
 		anchor: T["unitAnchor"],
 		attributeRules?: AttributeParserRule[],
 	): T | null {
@@ -343,7 +304,7 @@ export interface TimeToken {
 
 export class TimeHelper {
 	static parse(
-		token: QuantityToken,
+		token: QuantityCandidate,
 		attributeRules?: AttributeParserRule[],
 	): TimeMeasurement | null {
 		const rules =

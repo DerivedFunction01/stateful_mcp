@@ -9,6 +9,7 @@ import type {
 } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
 import {
+	MeasurementHelper,
 	QuantityHelper,
 	QuantityTokenizer,
 } from "../helpers/measurement-helper";
@@ -39,12 +40,17 @@ export class VitalsSchemaParser implements SchemaParser {
 		const rules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
 
 		let token: any = null;
-		if (preparsedContext?.measurement) {
-			const m = preparsedContext.measurement;
+		if (preparsedContext?.measurement && preparsedContext.measurement.length > 0) {
+			const m = preparsedContext.measurement[0];
+			const parsedMeasurement = MeasurementHelper.parse(
+				m,
+				undefined,
+				attributeRules,
+			);
 			token = {
 				anchorText: content.trim(),
 				value: m.magnitude,
-				unit: m.unit?.display,
+				unit: parsedMeasurement?.unit?.display || m.rawUnit,
 			};
 		} else {
 			token = VitalsTokenizer.tokenize(content, rules);

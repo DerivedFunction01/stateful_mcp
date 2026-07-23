@@ -310,7 +310,9 @@ export class ClinicalDateRangeTokenizer {
 							for (const attrRule of attributeRules) {
 								if (attrRule.targetField === "time_unit") {
 									for (const pat of attrRule.regexPatterns) {
-										if (getCompiledRegex(pat, "i").test(rawUnit)) {
+										const hasNamedGroups = /\(\?<[^>]+>/.test(pat);
+										const testStr = hasNamedGroups ? `0 ${rawUnit}` : rawUnit;
+										if (getCompiledRegex(pat, "i").test(testStr)) {
 											resolvedUnit = attrRule.targetValue as TimePrecisionLevel;
 											break;
 										}
@@ -449,7 +451,11 @@ export class ClinicalDateRangeTokenizer {
 			const unitRule = unitRules.find((r) => r.targetValue === resolvedUnit);
 			if (unitRule) {
 				for (const pattern of unitRule.regexPatterns) {
-					const cleanPattern = pattern.replace(/\(\?!.*?\)/g, "");
+					let cleanPattern = pattern.replace(/\(\?!.*?\)/g, "");
+					const unitGroupMatch = cleanPattern.match(/\(\?<unit>([^)]+)\)/);
+					if (unitGroupMatch) {
+						cleanPattern = `\\b${unitGroupMatch[1]}\\b`;
+					}
 					const prospectivePattern = `(?:${matchedMarkerText})\\s*\\d+(?:\\.\\d+)?\\s*(?:${cleanPattern})`;
 					const retrospectivePattern = `\\d+(?:\\.\\d+)?\\s*(?:${cleanPattern})\\s*(?:${matchedMarkerText})`;
 					const match = getCompiledRegex(
@@ -575,7 +581,9 @@ export class ClinicalDateRangeTokenizer {
 		for (const rule of timeUnitRules) {
 			for (const pattern of rule.regexPatterns) {
 				const regex = getCompiledRegex(pattern, "i");
-				if (regex.test(normalized)) {
+				const hasNamedGroups = /\(\?<[^>]+>/.test(pattern);
+				const testStr = hasNamedGroups ? `0 ${normalized}` : normalized;
+				if (regex.test(testStr)) {
 					return rule.targetValue as TimePrecisionLevel;
 				}
 			}
