@@ -42,18 +42,46 @@ export class QuantityTokenizer {
 		text: string,
 		opPatterns?: string[],
 		rules?: AttributeParserRule[],
+		numericRules?: AttributeParserRule[],
 	): QuantityToken | null {
 		const trimmed = text.trim();
-		const magnitudeMatch = /\d+(?:\.\d+)?/.exec(trimmed);
-		if (!magnitudeMatch) return null;
+		const effectiveRules = rules || DEFAULT_ATTRIBUTE_RULES;
 
-		const magnitudeStr = magnitudeMatch[0];
+		let magnitudeMatch: RegExpExecArray | null = null;
+		let magnitudeStr: string | undefined;
+
+		if (numericRules && numericRules.length > 0) {
+			const sortedNumeric = [...numericRules].sort((a, b) => {
+				const pA = a.priority ?? 10;
+				const pB = b.priority ?? 10;
+				return pB - pA;
+			});
+			for (const rule of sortedNumeric) {
+				for (const pattern of rule.regexPatterns) {
+					const flags = rule.isCaseInsensitive !== false ? "i" : "";
+					const regex = getCompiledRegex(pattern, flags);
+					const match = regex.exec(trimmed);
+					if (match && match[0]) {
+						magnitudeStr = match[0];
+						magnitudeMatch = match;
+						break;
+					}
+				}
+				if (magnitudeStr) break;
+			}
+		}
+
+		if (!magnitudeStr) {
+			magnitudeMatch = /\d+(?:\.\d+)?/.exec(trimmed);
+			if (!magnitudeMatch) return null;
+			magnitudeStr = magnitudeMatch[0];
+		}
+
 		const magnitude = Number.parseFloat(magnitudeStr);
 		const magnitudeIndex = magnitudeMatch.index;
 		const prefix = trimmed.slice(0, magnitudeIndex).trim();
 		const suffix = trimmed.slice(magnitudeIndex + magnitudeStr.length).trim();
 
-		const effectiveRules = rules || DEFAULT_ATTRIBUTE_RULES;
 		const operatorRules: AttributeParserRule[] = [
 			...(opPatterns || []).map((pattern) => ({
 				targetField: "operator" as const,

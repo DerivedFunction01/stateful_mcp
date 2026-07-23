@@ -1,6 +1,7 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import {
 	buildCalendarDateRules,
+	buildNumericFieldRules,
 	SEED_PARSER_PROFILES,
 } from "../store/defaults";
 import type {
@@ -56,6 +57,9 @@ export class CdslParser {
 			...(this.profile.attributeRules || []),
 			...(this.profile.calendarDateFormats
 				? buildCalendarDateRules(this.profile.calendarDateFormats)
+				: []),
+			...(this.profile.numericFieldFormats
+				? buildNumericFieldRules(this.profile.numericFieldFormats)
 				: []),
 		];
 	}
@@ -134,7 +138,10 @@ export class CdslParser {
 					r.targetField === "measurement_operator",
 			);
 			const opPatterns = opRules.flatMap((r) => r.regexPatterns);
-			const token = QuantityTokenizer.tokenize(content, opPatterns, attrRules);
+			const numericRules = attrRules.filter(
+				(r) => r.targetField === "numeric_value",
+			);
+			const token = QuantityTokenizer.tokenize(content, opPatterns, attrRules, numericRules);
 
 			const measurement = token
 				? (MeasurementHelper.parse(

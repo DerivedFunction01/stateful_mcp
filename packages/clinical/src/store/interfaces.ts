@@ -47,6 +47,26 @@ export interface ParserSyntaxProfile {
 	schemaDefaults?: Record<string, Record<string, any>>;
 	defaultsStrategy?: string;
 	calendarDateFormats?: DateTimeFormatConfig[];
+	numericFieldFormats?: NumericFieldFormatOptions[];
+}
+
+export interface NumericFieldFormatOptions {
+	integerDigits?: number;
+	decimalDigits?: number;
+	thousandsSeparator?: string;
+	decimalPoint?: string;
+	allowNegative?: boolean;
+	exact?: boolean;
+	leadingMin?: number;
+	leadingMax?: number;
+	currencySymbols?: string[];
+	currencyPosition?: "prefix" | "suffix";
+	negativeStyle?: "sign" | "parens" | "both";
+	groupName?: string;
+	wrap?: boolean;
+	targetField?: string;
+	targetSchema?: string;
+	priority?: number;
 }
 
 export interface ParserDictionaryRule {

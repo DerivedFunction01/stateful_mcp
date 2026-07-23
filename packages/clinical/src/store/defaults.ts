@@ -1,7 +1,5 @@
-import {
-	buildDatePatternString,
-	type DateTimeFormatConfig,
-} from "../parser/utils/date-regex-generator";
+import { buildDatePatternString, type DateTimeFormatConfig } from "../parser/utils/date-regex-generator";
+import { buildNumericPatternString, type NumericFieldFormatOptions } from "../parser/utils/numeric-regex-generator";
 import type {
 	AttributeParserRule,
 	ParserConceptDefault,
@@ -24,6 +22,120 @@ export function buildCalendarDateRules(
 		monthNames: format.options?.monthNames,
 	}));
 }
+
+export function buildNumericFieldRules(
+	formats: NumericFieldFormatOptions[],
+): AttributeParserRule[] {
+	return formats
+		.map((format) => ({
+			targetField: "numeric_value" as const,
+			targetValue: format.targetField || "numeric_value",
+			regexPatterns: [buildNumericPatternString(format)],
+			isCaseInsensitive: true,
+			priority: format.priority ?? 10,
+			integerDigits: format.integerDigits,
+			decimalDigits: format.decimalDigits,
+			allowNegative: format.allowNegative,
+			leadingMin: format.leadingMin,
+			leadingMax: format.leadingMax,
+			targetSchema: format.targetSchema,
+		}))
+		.sort((a, b) => (b.priority ?? 10) - (a.priority ?? 10));
+}
+
+export const NUMERIC_PATTERN_INTEGER = (options: {
+	groupName?: string;
+	wrap?: boolean;
+	allowNegative?: boolean;
+	leadingMin?: number;
+	leadingMax?: number;
+} = {}): string =>
+	buildNumericPatternString({
+		integerDigits: options.leadingMin !== undefined && options.leadingMax !== undefined
+			? undefined
+			: undefined,
+		decimalDigits: 0,
+		allowNegative: options.allowNegative ?? false,
+		exact: false,
+		leadingMin: options.leadingMin,
+		leadingMax: options.leadingMax,
+		groupName: options.groupName,
+		wrap: options.wrap ?? true,
+	});
+
+export const NUMERIC_PATTERN_DECIMAL = (options: {
+	groupName?: string;
+	wrap?: boolean;
+	integerDigits?: number;
+	decimalDigits?: number;
+	allowNegative?: boolean;
+	leadingMin?: number;
+	leadingMax?: number;
+} = {}): string =>
+	buildNumericPatternString({
+		integerDigits: options.integerDigits,
+		decimalDigits: options.decimalDigits ?? undefined,
+		allowNegative: options.allowNegative ?? false,
+		exact: false,
+		leadingMin: options.leadingMin,
+		leadingMax: options.leadingMax,
+		groupName: options.groupName,
+		wrap: options.wrap ?? true,
+	});
+
+export const NUMERIC_PATTERN_SEVERITY_0_10 = buildNumericPatternString({
+	integerDigits: 1,
+	decimalDigits: 0,
+	allowNegative: false,
+	leadingMin: 0,
+	leadingMax: 1,
+	groupName: "severity",
+	wrap: true,
+});
+
+export const NUMERIC_PATTERN_PERCENTAGE_0_100 = buildNumericPatternString({
+	integerDigits: 3,
+	decimalDigits: 0,
+	allowNegative: false,
+	leadingMin: 0,
+	leadingMax: 1,
+	groupName: "percentage",
+	wrap: true,
+});
+
+export const NUMERIC_PATTERN_NUMERATOR = buildNumericPatternString({
+	integerDigits: undefined,
+	decimalDigits: 0,
+	allowNegative: false,
+	groupName: "numerator",
+	wrap: true,
+});
+
+export const NUMERIC_PATTERN_DENOMINATOR = buildNumericPatternString({
+	integerDigits: undefined,
+	decimalDigits: 0,
+	allowNegative: false,
+	groupName: "denominator",
+	wrap: true,
+});
+
+export const NUMERIC_PATTERN_QUANTITY = buildNumericPatternString({
+	integerDigits: undefined,
+	decimalDigits: undefined,
+	allowNegative: false,
+	groupName: "quantity",
+	wrap: true,
+});
+
+export const NUMERIC_FIELD_SEVERITY_0_10: NumericFieldFormatOptions = {
+	integerDigits: 1,
+	decimalDigits: 0,
+	allowNegative: false,
+	leadingMin: 0,
+	leadingMax: 1,
+	targetField: "severity_score",
+	priority: 10,
+};
 
 export const DEFAULT_CALENDAR_DATE_FORMATS: DateTimeFormatConfig[] = [
 	{
@@ -551,7 +663,7 @@ export const DEFAULT_EVALUATOR_RULES = [
 		targetField: "quantity",
 		evaluatorName: "parseQuantityUnit",
 		regexPatterns: [
-			"(?<quantity>\\d+(?:\\.\\d+)?)\\s*(?<unit>h|hr|hours?|d|days?|mg|g|ml)",
+			`${NUMERIC_PATTERN_QUANTITY}\\s*(?<unit>h|hr|hours?|d|days?|mg|g|ml)`,
 		],
 	},
 	{
@@ -559,9 +671,9 @@ export const DEFAULT_EVALUATOR_RULES = [
 		targetField: "severityScore",
 		evaluatorName: "parseSeverity",
 		regexPatterns: [
-			"(?<numerator>\\d+)\\s*\\/\\s*(?<denominator>\\d+)",
-			"(?<numerator>\\d+)\\s+out\\s+of\\s+(?<denominator>\\d+)",
-			"give\\s+it\\s+a\\s+(?<numerator>\\d+)",
+			`${NUMERIC_PATTERN_NUMERATOR}\\s*\\/\\s*${NUMERIC_PATTERN_DENOMINATOR}`,
+			`${NUMERIC_PATTERN_NUMERATOR}\\s+out\\s+of\\s+${NUMERIC_PATTERN_DENOMINATOR}`,
+			`give\\s+it\\s+a\\s+${NUMERIC_PATTERN_NUMERATOR}`,
 		],
 	},
 	{
@@ -569,7 +681,7 @@ export const DEFAULT_EVALUATOR_RULES = [
 		targetField: "frequency_details",
 		evaluatorName: "parseFrequencyEvery",
 		regexPatterns: [
-			"(?:every|cada)\\s+(?<multiplier>\\d+(?:\\.\\d+)?)\\s*(?<unit>\\S+)",
+			`(?:every|cada)\\s+${NUMERIC_PATTERN_DECIMAL({ groupName: "multiplier" })}\\s*(?<unit>\\S+)`,
 		],
 	},
 	{
@@ -577,7 +689,7 @@ export const DEFAULT_EVALUATOR_RULES = [
 		targetField: "frequency_details",
 		evaluatorName: "parseFrequencyTimes",
 		regexPatterns: [
-			"(?<multiplier>\\d+(?:\\.\\d+)?)\\s*(?:times|veces)?\\s*(?:per|al|a\\s+la)\\s*(?<unit>\\S+)",
+			`${NUMERIC_PATTERN_DECIMAL({ groupName: "multiplier" })}\\s*(?:times|veces)?\\s*(?:per|al|a\\s+la)\\s*(?<unit>\\S+)`,
 		],
 	},
 ];
@@ -598,6 +710,7 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 		isActive: true,
 		stopWordThreshold: 0.6,
 		calendarDateFormats: DEFAULT_CALENDAR_DATE_FORMATS,
+		numericFieldFormats: [NUMERIC_FIELD_SEVERITY_0_10],
 		attributeRules: DEFAULT_ATTRIBUTE_RULES,
 		evaluatorRules: DEFAULT_EVALUATOR_RULES,
 		schemaNamespaces: {
