@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { registerAdapter } from "../../config/loader";
 import type { OwnerScope } from "../../config/types";
 import type {
 	ConceptStore,
@@ -1519,3 +1520,21 @@ export class JsonlPersistentExpressionStore
 		return this.expressions.find((e) => e.id === id) || null;
 	}
 }
+
+registerAdapter("jsonl", {
+	create: async (options) => {
+		const filePath = String(options.path || "./data.jsonl");
+		return {
+			sessionFilter: new JsonlSessionFilterStore(filePath),
+			persistentFilter: new JsonlPersistentFilterStore(filePath),
+			sessionObject: new JsonlSessionObjectStore(filePath),
+			persistentObject: new JsonlPersistentObjectStore(filePath),
+			sessionEvent: new JsonlSessionEventStore(filePath),
+			persistentEvent: new JsonlPersistentEventStore(filePath),
+			sessionForm: new JsonlSessionFormStore(filePath),
+			persistentForm: new JsonlPersistentFormStore(filePath),
+			conceptStore: new JsonlConceptStore(filePath),
+			persistentExpressionStore: new JsonlPersistentExpressionStore(filePath),
+		};
+	},
+});
