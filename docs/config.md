@@ -10,12 +10,23 @@ Every state, schema, or configuration file reference in the middleware is specif
 
 ### Fields
 * **`_type`** (string, required): The locator type. Must be `"adapter"`, `"file"`, or `"remote_url"`.
-* **`name`** (string): The registration name of the storage adapter (required when `_type === "adapter"`). Examples: `"memory"`, `"sqlite"`, `"postgres"`.
-* **`options`** (object): Adapter-specific option parameters (e.g. database URLs).
+* **`name`** (string): The registration name of the storage adapter (required when `_type === "adapter"`). Examples: `"memory"`, `"sqlite"`, `"pg"`, `"duckdb"`, `"jsonl"`, `"opfs-sqlite"`.
+* **`options`** (object): Adapter-specific option parameters. See adapter-specific options below.
 * **`path`** (string): Absolute or relative filesystem path to a file (required when `_type === "file"`).
 * **`url`** (string): Remote HTTP URL (required when `_type === "remote_url"`). Supports `{userId}` substitutions.
 * **`ttl_ms`** (number): Time-to-live caching interval in milliseconds.
 * **`headers`** (object): HTTP headers to supply during fetch operations (when `_type === "remote_url"`).
+
+#### Adapter-specific options
+
+| Adapter | Options |
+|---|---|
+| `"memory"` | `seed` (optional): Initial in-memory data. |
+| `"sqlite"` | `path` (optional): Database file path (default `"./sqlite.db"`). `dbName` (optional): Named database within the file. |
+| `"opfs-sqlite"` | `dbName` (optional): Named database. `workerScriptUrl` (optional): Path to the OPFS worker script. |
+| `"pg"` | `connection` (optional): Connection string. `connectionString` (optional): Alias for `connection`. |
+| `"duckdb"` | `path` (optional): Database file path (default `"./duckdb.db"`). `connectionString` (optional): Alternative connection string. |
+| `"jsonl"` | `path` (required): Path to the JSONL data file. |
 
 #### Examples
 ```json
@@ -76,8 +87,8 @@ Registers the tools the LLM can access and how they validate and compile.
   - **`engine`** (`ResourceLocator` | object): The query/execution engine. Can be a single `ResourceLocator` or a key-value mapping table-names to resource engines.
     * **Built-in Query Engines**:
       * `"memory-engine"`: In-memory arrays.
-      * `"sqlite"` / `"postgres"`: Relational databases.
-      * `"duckdb"`: Runs DuckDB SQL queries natively over CSV, Parquet, or JSONL files.
+      * `"sqlite-engine"` / `"pg-engine"`: Relational databases.
+      * `"duckdb-engine"`: Runs DuckDB SQL queries natively over CSV, Parquet, or JSONL files.
         * **Options**:
           * `source_file` (string, required): Path to CSV, Parquet, JSON, or JSONL.
           * `dataframe_name` (string, optional): View name registered in DuckDB (defaults to `"df"`).
@@ -221,7 +232,7 @@ In `tools.config.json`, you can define an optional `translation` engine to prepr
     "search_orders": {
       "schema": { "_type": "file", "path": "schemas/orders.json" },
       "translation": { "_type": "file", "path": "translations/postgres_map.json" },
-      "engine": { "_type": "adapter", "name": "postgres" }
+      "engine": { "_type": "adapter", "name": "pg-engine" }
     }
   }
 }
@@ -255,12 +266,12 @@ Here is a complete, copy-pasteable configuration for a pharmacy or retail store 
   "filter_persistent_state": {
     "global": {
       "_type": "adapter",
-      "name": "postgres",
+      "name": "pg",
       "options": { "url": "env:DATABASE_URL" }
     },
     "user": {
       "_type": "adapter",
-      "name": "postgres",
+      "name": "pg",
       "options": { "url": "env:DATABASE_URL" }
     }
   },
@@ -272,12 +283,12 @@ Here is a complete, copy-pasteable configuration for a pharmacy or retail store 
   "object_persistent_state": {
     "global": {
       "_type": "adapter",
-      "name": "postgres",
+      "name": "pg",
       "options": { "url": "env:DATABASE_URL" }
     },
     "user": {
       "_type": "adapter",
-      "name": "postgres",
+      "name": "pg",
       "options": { "url": "env:DATABASE_URL" }
     }
   },
@@ -312,7 +323,7 @@ Here is a complete, copy-pasteable configuration for a pharmacy or retail store 
       "engine": {
         "prescriptions": {
           "_type": "adapter",
-          "name": "postgres",
+          "name": "pg",
           "options": { "url": "env:DATABASE_URL" }
         }
       },
