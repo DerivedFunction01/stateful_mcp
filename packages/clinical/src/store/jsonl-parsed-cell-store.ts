@@ -1,5 +1,5 @@
-import type { ParsedObservationItem } from "../parser/schema-parsers";
 import { JsonlEntityStore } from "@stateful-mcp/core";
+import type { ParsedObservationItem } from "../parser/schema-parsers";
 import type {
 	ParsedCellHistoryKey,
 	ParsedCellJoinResult,
@@ -7,7 +7,6 @@ import type {
 	ParsedCellStore,
 	ParsedCellV1,
 	ParsedCellV1Shared,
-	ParsedCellWeightedHistoryCandidate,
 } from "./parsed-cell-store";
 import { buildObservationShape, scoreRecency } from "./parsed-cell-store";
 
@@ -87,6 +86,36 @@ export class JsonlParsedCellStore implements ParsedCellStore {
 		return results;
 	}
 
+	async markObservationCorrection(
+		cellId: string,
+		replacement?: ParsedObservationItem,
+	): Promise<void> {
+		const detail = await this.detailStore.get(cellId);
+		if (!detail) return;
+		const now = new Date().toISOString();
+		detail.history = {
+			...(detail.history || {}),
+			priorCorrectionCount: (detail.history?.priorCorrectionCount || 0) + 1,
+			lastCorrectedAt: now,
+			recencyScore: scoreRecency(now),
+		};
+		detail.flags = {
+			...(detail.flags || {}),
+			stalePreference: true,
+			reviewRequired: !!replacement,
+		};
+		if (replacement) {
+			detail.parsedItem = replacement;
+			detail.conceptId = replacement.conceptId;
+			detail.display = replacement.display;
+			detail.certainty = replacement.certainty;
+			detail.status = replacement.status;
+			detail.severity = replacement.severity;
+			detail.shape = buildObservationShape(replacement);
+		}
+		await this.detailStore.set(cellId, detail);
+	}
+
 	async getObservationHistory(
 		key: ParsedCellHistoryKey,
 	): Promise<ParsedCellObservationDetailV1[]> {
@@ -126,7 +155,10 @@ export class JsonlParsedCellStore implements ParsedCellStore {
 			if (key.personnelId && shared.personnelId !== key.personnelId) continue;
 			if (key.specialtyId && shared.specialtyId !== key.specialtyId) continue;
 			if (key.facilityId && shared.facilityId !== key.facilityId) continue;
-			if (shared.rawText !== key.rawText && shared.normalizedText !== key.rawText)
+			if (
+				shared.rawText !== key.rawText &&
+				shared.normalizedText !== key.rawText
+			)
 				continue;
 			const detail = await this.detailStore.get(shared.cellId);
 			if (detail) results.push(detail);

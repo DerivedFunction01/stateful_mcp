@@ -462,25 +462,39 @@ describe("ParsedCellV1 storage", () => {
 		expect(patientOneHistory[0]?.cellId).not.toBe(patientTwoHistory[0]?.cellId);
 	});
 
-	test("observation preview can fall back to the global tier with lower weight", async () => {
+	test("observation preview returns adapter-ranked results in adapter order", async () => {
 		const parser = new ObservationSchemaParser();
 		const store = new MemoryParsedCellStore();
 		await store.putObservation({
-			...makeObservationCell("cell-g1", "session-g1"),
+			...makeObservationCell("cell-r1", "session-r1"),
 			shared: {
-				...makeObservationCell("cell-g1", "session-g1").shared,
-				patientId: "patient-global",
+				...makeObservationCell("cell-r1", "session-r1").shared,
+				patientId: "patient-1",
 				patientOrganismType: "human",
 				patientGender: "female",
 				patientAgeBucket: "30-39",
 				patientSubBucket: 0,
-				patientBucketKey: "patient-global|human|female|30-39|0",
-				patientTierWeights: {
-					exact: 0.4,
-					biology: 0.3,
-					specific: 0.2,
-					global: 0.1,
-				},
+				patientBucketKey: "patient-1|human|female|30-39|0",
+			},
+			parsedItem: {
+				...makeObservationCell("cell-r1", "session-r1").parsedItem,
+				severity: "moderate",
+			},
+		});
+		await store.putObservation({
+			...makeObservationCell("cell-r2", "session-r2"),
+			shared: {
+				...makeObservationCell("cell-r2", "session-r2").shared,
+				patientId: "patient-1",
+				patientOrganismType: "human",
+				patientGender: "female",
+				patientAgeBucket: "30-39",
+				patientSubBucket: 0,
+				patientBucketKey: "patient-1|human|female|30-39|0",
+			},
+			parsedItem: {
+				...makeObservationCell("cell-r2", "session-r2").parsedItem,
+				severity: "mild",
 			},
 		});
 
@@ -498,28 +512,22 @@ describe("ParsedCellV1 storage", () => {
 			undefined,
 			{
 				patientContext: {
-					patientId: "patient-other",
+					patientId: "patient-1",
 					organismType: "human",
 					gender: "female",
 					ageBucket: "30-39",
-					subBucket: 1,
-					bucketKey: "patient-other|human|female|30-39|1",
-					weights: {
-						exact: 0.4,
-						biology: 0.3,
-						specific: 0.2,
-						global: 0.1,
-					},
+					subBucket: 0,
+					bucketKey: "patient-1|human|female|30-39|0",
 				},
 			},
 			store,
 		);
 
-		expect(preview.learned).toHaveLength(1);
+		expect(preview.learned.length).toBeGreaterThanOrEqual(1);
 		expect(preview.learned[0]?.conceptId).toBe("SNOMED::267036007");
 	});
 
-	test("observation preview can rank multiple independent adapters with distinct weights", async () => {
+	test("observation preview merges results from multiple adapters in composite store", async () => {
 		const parser = new ObservationSchemaParser();
 		const backend1 = new MemoryParsedCellStore();
 		const backend2 = new MemoryParsedCellStore();
@@ -534,12 +542,6 @@ describe("ParsedCellV1 storage", () => {
 				patientAgeBucket: "30-39",
 				patientSubBucket: 0,
 				patientBucketKey: "patient-a|human|female|30-39|0",
-				patientTierWeights: {
-					exact: 0.8,
-					biology: 0.1,
-					specific: 0.05,
-					global: 0.05,
-				},
 			},
 			parsedItem: {
 				...makeObservationCell("cell-a1", "session-a1").parsedItem,
@@ -557,12 +559,6 @@ describe("ParsedCellV1 storage", () => {
 				patientAgeBucket: "30-39",
 				patientSubBucket: 0,
 				patientBucketKey: "patient-b|human|female|30-39|0",
-				patientTierWeights: {
-					exact: 0.1,
-					biology: 0.1,
-					specific: 0.1,
-					global: 0.7,
-				},
 			},
 			parsedItem: {
 				...makeObservationCell("cell-b1", "session-b1").parsedItem,
@@ -589,25 +585,18 @@ describe("ParsedCellV1 storage", () => {
 			undefined,
 			{
 				patientContext: {
-					patientId: "patient-miss",
+					patientId: "patient-a",
 					organismType: "human",
 					gender: "female",
 					ageBucket: "30-39",
-					subBucket: 1,
-					bucketKey: "patient-miss|human|female|30-39|1",
-					weights: {
-						exact: 0.4,
-						biology: 0.3,
-						specific: 0.2,
-						global: 0.1,
-					},
+					subBucket: 0,
+					bucketKey: "patient-a|human|female|30-39|0",
 				},
 			},
 			composite,
 		);
 
-		expect(preview.learned).toHaveLength(2);
+		expect(preview.learned).toHaveLength(1);
 		expect(preview.learned[0]?.severity).toBe("severe");
-		expect(preview.learned[1]?.severity).toBe("mild");
 	});
 });

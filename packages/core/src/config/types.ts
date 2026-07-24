@@ -32,7 +32,11 @@ export interface JsonlAdapterOptions {
 export type AdapterLocator =
 	| { _type: "adapter"; name: "memory"; options?: MemoryAdapterOptions }
 	| { _type: "adapter"; name: "sqlite"; options?: SqliteAdapterOptions }
-	| { _type: "adapter"; name: "opfs-sqlite"; options?: OpfsSqliteAdapterOptions }
+	| {
+			_type: "adapter";
+			name: "opfs-sqlite";
+			options?: OpfsSqliteAdapterOptions;
+	  }
 	| { _type: "adapter"; name: "pg"; options?: PgAdapterOptions }
 	| { _type: "adapter"; name: "duckdb"; options?: DuckDbAdapterOptions }
 	| { _type: "adapter"; name: "jsonl"; options?: JsonlAdapterOptions }

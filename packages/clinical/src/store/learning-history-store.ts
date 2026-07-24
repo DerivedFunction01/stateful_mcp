@@ -1,19 +1,22 @@
-import type { ParsedCellHistoryAdapter, ParsedCellHistoryStore } from "./parsed-cell-store";
-import { CompositeParsedCellHistoryStore } from "./parsed-cell-store";
 import {
-	getClinicalAdapterConfigs,
-	type ClinicalStorageAdapterRegistry,
 	type ClinicalStorageAdapterConfig,
+	type ClinicalStorageAdapterRegistry,
+	getClinicalAdapterConfigs,
 } from "./adapter-config";
 import { resolveParsedCellStoreLocator } from "./learning-backend-resolver";
+import type {
+	ParsedCellHistoryAdapter,
+	ParsedCellHistoryStore,
+} from "./parsed-cell-store";
+import { CompositeParsedCellHistoryStore } from "./parsed-cell-store";
 
-function pickStore(config: ClinicalStorageAdapterConfig): ParsedCellHistoryStore {
+function pickStore(
+	config: ClinicalStorageAdapterConfig,
+): ParsedCellHistoryStore {
 	for (const locator of [config.primary, ...(config.fallbacks || [])]) {
 		try {
 			return resolveParsedCellStoreLocator(locator);
-		} catch {
-			continue;
-		}
+		} catch {}
 	}
 	throw new Error(`No usable learning backend found for group ${config.group}`);
 }

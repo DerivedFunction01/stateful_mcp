@@ -23,17 +23,11 @@ function scoreExpression(dialect: ParsedCellSqlDialect): string {
 	return `(${recency} + (${acceptCount} * 0.2) + (${contract}) - (${correctionCount} * 0.15))`;
 }
 
-function placeholder(
-	dialect: ParsedCellSqlDialect,
-	index: number,
-): string {
+function placeholder(dialect: ParsedCellSqlDialect, index: number): string {
 	return dialect === "postgres" ? `$${index}` : "?";
 }
 
-function jsonField(
-	dialect: ParsedCellSqlDialect,
-	field: string,
-): string {
+function jsonField(dialect: ParsedCellSqlDialect, field: string): string {
 	if (dialect === "postgres") {
 		return `shared.data::jsonb ->> '${field}'`;
 	}
@@ -43,10 +37,7 @@ function jsonField(
 	return `json_extract(shared.data, '$.${field}')`;
 }
 
-function detailJsonField(
-	dialect: ParsedCellSqlDialect,
-	field: string,
-): string {
+function detailJsonField(dialect: ParsedCellSqlDialect, field: string): string {
 	if (dialect === "postgres") {
 		return `detail.data::jsonb ->> '${field}'`;
 	}

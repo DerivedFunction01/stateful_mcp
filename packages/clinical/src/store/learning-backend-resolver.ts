@@ -5,19 +5,27 @@ import { MemoryParsedCellStore } from "./parsed-cell-store";
 import { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
 
 // 1. Define clean type guards
-export function isMemoryAdapter(locator: AdapterLocator): locator is Extract<AdapterLocator, { name: "memory" }> {
+export function isMemoryAdapter(
+	locator: AdapterLocator,
+): locator is Extract<AdapterLocator, { name: "memory" }> {
 	return locator.name === "memory";
 }
 
-export function isSqliteAdapter(locator: AdapterLocator): locator is Extract<AdapterLocator, { name: "sqlite" }> {
+export function isSqliteAdapter(
+	locator: AdapterLocator,
+): locator is Extract<AdapterLocator, { name: "sqlite" }> {
 	return locator.name === "sqlite";
 }
 
-export function isJsonlAdapter(locator: AdapterLocator): locator is Extract<AdapterLocator, { name: "jsonl" }> {
+export function isJsonlAdapter(
+	locator: AdapterLocator,
+): locator is Extract<AdapterLocator, { name: "jsonl" }> {
 	return locator.name === "jsonl";
 }
 
-export function isOpfsSqliteAdapter(locator: AdapterLocator): locator is Extract<AdapterLocator, { name: "opfs-sqlite" }> {
+export function isOpfsSqliteAdapter(
+	locator: AdapterLocator,
+): locator is Extract<AdapterLocator, { name: "opfs-sqlite" }> {
 	return locator.name === "opfs-sqlite";
 }
 
@@ -26,7 +34,9 @@ export function resolveParsedCellStoreLocator(
 	locator: ResourceLocator,
 ): MemoryParsedCellStore | SqliteParsedCellStore | JsonlParsedCellStore {
 	if (locator._type !== "adapter") {
-		throw new Error(`Unsupported clinical learning locator type: ${locator._type}`);
+		throw new Error(
+			`Unsupported clinical learning locator type: ${locator._type}`,
+		);
 	}
 
 	// Inside each if-block, 'locator' narrows perfectly to the exact type

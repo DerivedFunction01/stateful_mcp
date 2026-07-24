@@ -13,8 +13,6 @@ import type {
 import type {
 	ParsedCellHistoryKey,
 	ParsedCellHistoryStore,
-	ParsedCellObservationDetailV1,
-	ParsedCellWeightedHistoryStore,
 } from "../../store/parsed-cell-store";
 import { ObservationTokenizer } from "../helpers/observation-helper";
 import {
@@ -53,51 +51,7 @@ export class ObservationSchemaParser implements SchemaParser {
 			allowedNamespaces,
 			preparsedContext,
 		);
-		const historyCandidates = historyStore
-			? await this.getTieredHistoryCandidates(
-					tag,
-					content,
-					preparsedContext,
-					historyStore,
-				)
-			: [];
-		const learned = historyCandidates.map(
-			(entry) => entry.candidate.parsedItem,
-		);
-
-		return {
-			deterministic: deterministic
-				? [deterministic as ParsedObservationItem]
-				: [],
-			learned:
-				learned.length > 0
-					? learned
-					: deterministic
-						? [deterministic as ParsedObservationItem]
-						: [],
-		};
-	}
-
-	private async getTieredHistoryCandidates(
-		tag: string,
-		content: string,
-		preparsedContext: PreparsedContext | undefined,
-		historyStore: ParsedCellHistoryStore,
-	): Promise<
-		Array<{
-			candidate: ParsedCellObservationDetailV1;
-			tier: "exact" | "biology" | "specific" | "global" | "adapter";
-			weight: number;
-		}>
-	> {
-		const patientContext = preparsedContext?.patientContext;
-		const weights = patientContext?.weights || {
-			exact: 0.4,
-			biology: 0.3,
-			specific: 0.2,
-			global: 0.1,
-		};
-		const exactKey: ParsedCellHistoryKey = {
+		const key: ParsedCellHistoryKey = {
 			patientId: preparsedContext?.patientContext?.patientId,
 			patientOrganismType: preparsedContext?.patientContext?.organismType,
 			patientGender: preparsedContext?.patientContext?.gender,
@@ -112,97 +66,24 @@ export class ObservationSchemaParser implements SchemaParser {
 			targetSchema: this.targetSchema,
 			rawText: content,
 		};
-		const biologyKey: ParsedCellHistoryKey = {
-			...exactKey,
-			patientBucketKey: undefined,
-			patientSubBucket: undefined,
+		const historyRows = historyStore
+			? await historyStore.getObservationHistory(key)
+			: [];
+		const learned = historyRows
+			.map((row) => row.parsedItem)
+			.filter((item): item is ParsedObservationItem => item !== null);
+
+		return {
+			deterministic: deterministic
+				? [deterministic as ParsedObservationItem]
+				: [],
+			learned:
+				learned.length > 0
+					? learned
+					: deterministic
+						? [deterministic as ParsedObservationItem]
+						: [],
 		};
-		const specificKey: ParsedCellHistoryKey = {
-			...biologyKey,
-			personnelId: undefined,
-			specialtyId: undefined,
-			facilityId: undefined,
-		};
-		const globalKey: ParsedCellHistoryKey = {
-			tag,
-			targetSchema: this.targetSchema,
-			rawText: content,
-		};
-
-		const tiers = [
-			{
-				key: exactKey,
-				tier: "exact" as const,
-				weight: weights.exact,
-			},
-			{
-				key: biologyKey,
-				tier: "biology" as const,
-				weight: weights.biology,
-			},
-			{
-				key: specificKey,
-				tier: "specific" as const,
-				weight: weights.specific,
-			},
-			{
-				key: globalKey,
-				tier: "global" as const,
-				weight: weights.global,
-			},
-		];
-
-		const historyRows = await this.readWeightedCandidates(
-			tiers,
-			exactKey,
-			historyStore,
-		);
-		const deduped = new Map<string, (typeof historyRows)[number]>();
-		for (const row of historyRows) {
-			const existing = deduped.get(row.candidate.cellId);
-			if (!existing || existing.weight < row.weight) {
-				deduped.set(row.candidate.cellId, row);
-			}
-		}
-		return Array.from(deduped.values());
-	}
-
-	private async readWeightedCandidates(
-		tiers: Array<{
-			key: ParsedCellHistoryKey;
-			tier: "exact" | "biology" | "specific" | "global";
-			weight: number;
-		}>,
-		exactKey: ParsedCellHistoryKey,
-		historyStore: ParsedCellHistoryStore,
-	): Promise<
-		Array<{
-			candidate: ParsedCellObservationDetailV1;
-			tier: "exact" | "biology" | "specific" | "global" | "adapter";
-			weight: number;
-		}>
-	> {
-		const weightedStore =
-			historyStore as unknown as ParsedCellWeightedHistoryStore;
-		if (typeof weightedStore.getWeightedObservationHistory === "function") {
-			const candidates =
-				await weightedStore.getWeightedObservationHistory(exactKey);
-			return candidates.map((entry) => ({
-				candidate: entry.candidate,
-				tier: "adapter" as const,
-				weight: entry.weight,
-			}));
-		}
-
-		const historyRows = (
-			await Promise.all(
-				tiers.map(async (tier) => {
-					const rows = await historyStore.getObservationHistory(tier.key);
-					return rows.map((candidate) => ({ candidate, ...tier }));
-				}),
-			)
-		).flat();
-		return historyRows;
 	}
 
 	async parse(

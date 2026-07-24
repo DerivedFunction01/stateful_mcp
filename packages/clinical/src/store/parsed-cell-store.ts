@@ -136,9 +136,7 @@ export class CompositeParsedCellHistoryStore
 	): Promise<ParsedCellWeightedHistoryCandidate[]> {
 		const results = await Promise.all(
 			this.adapters.map(async (adapter) => {
-				const rows = await adapter.store.getObservationHistory(
-					stripPatientFields(key),
-				);
+				const rows = await adapter.store.getObservationHistory(key);
 				return rows.map((candidate) => ({
 					candidate,
 					adapterId: adapter.adapterId,
@@ -175,17 +173,6 @@ export class CompositeParsedCellHistoryStore
 			),
 		);
 	}
-}
-
-function stripPatientFields(key: ParsedCellHistoryKey): ParsedCellHistoryKey {
-	return {
-		tag: key.tag,
-		targetSchema: key.targetSchema,
-		rawText: key.rawText,
-		personnelId: key.personnelId,
-		specialtyId: key.specialtyId,
-		facilityId: key.facilityId,
-	};
 }
 
 export interface ParsedCellHistoryKey {
@@ -385,4 +372,3 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 			);
 	}
 }
-

@@ -1,9 +1,20 @@
-import { SqliteEntityStore, type SqlQueryStore } from "@stateful-mcp/core";
 import type Database from "bun:sqlite";
+import { SqliteEntityStore, type SqlQueryStore } from "@stateful-mcp/core";
 import type { ParsedObservationItem } from "../parser/schema-parsers";
-import { type ParsedCellStore, type ParsedCellV1Shared, type ParsedCellObservationDetailV1, type ParsedCellV1, scoreRecency, type ParsedCellJoinResult, type ParsedCellHistoryKey, buildObservationShape } from "./parsed-cell-store";
-import { compileParsedCellObservationHistoryQuery, type ParsedCellSqlDialect } from "./sql/parsed-cell-query-compiler";
-
+import {
+	buildObservationShape,
+	type ParsedCellHistoryKey,
+	type ParsedCellJoinResult,
+	type ParsedCellObservationDetailV1,
+	type ParsedCellStore,
+	type ParsedCellV1,
+	type ParsedCellV1Shared,
+	scoreRecency,
+} from "./parsed-cell-store";
+import {
+	compileParsedCellObservationHistoryQuery,
+	type ParsedCellSqlDialect,
+} from "./sql/parsed-cell-query-compiler";
 
 export class SqliteParsedCellStore implements ParsedCellStore {
 	private sharedStore: SqliteEntityStore<ParsedCellV1Shared>;
@@ -14,23 +25,23 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 	constructor(
 		db: Database,
 		sharedTable = "parsed_cell_v1_shared",
-		observationDetailTable = "parsed_cell_v1_observation_detail"
+		observationDetailTable = "parsed_cell_v1_observation_detail",
 	) {
 		this.sharedTable = sharedTable;
 		this.observationDetailTable = observationDetailTable;
 		this.sharedStore = new SqliteEntityStore<ParsedCellV1Shared>(
 			db,
-			sharedTable
+			sharedTable,
 		);
 		this.observationDetailStore =
 			new SqliteEntityStore<ParsedCellObservationDetailV1>(
 				db,
-				observationDetailTable
+				observationDetailTable,
 			);
 	}
 
 	async putObservation(
-		record: ParsedCellV1<ParsedObservationItem>
+		record: ParsedCellV1<ParsedObservationItem>,
 	): Promise<void> {
 		await this.sharedStore.set(record.shared.cellId, record.shared);
 		await this.observationDetailStore.set(record.shared.cellId, {
@@ -87,7 +98,7 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 	}
 
 	async listObservationPilots(
-		sessionId?: string
+		sessionId?: string,
 	): Promise<ParsedCellJoinResult<ParsedObservationItem>[]> {
 		const sharedRows = await this.sharedStore.list();
 		const results: ParsedCellJoinResult<ParsedObservationItem>[] = [];
@@ -105,30 +116,31 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 	}
 
 	async getObservationHistory(
-		key: ParsedCellHistoryKey
+		key: ParsedCellHistoryKey,
 	): Promise<ParsedCellObservationDetailV1[]> {
 		const { sql, params } = compileParsedCellObservationHistoryQuery(
 			{
 				tableName: this.sharedTable,
 				detailTableName: this.observationDetailTable,
 				key,
+				scope: "scoped",
 				limit: 50,
 			},
-			"sqlite" satisfies ParsedCellSqlDialect
+			"sqlite" satisfies ParsedCellSqlDialect,
 		);
 		const queryStore = this.sharedStore as unknown as SqlQueryStore;
-		const rows = await queryStore.query<{ detail_data: string; ranking_score: number; }>(
-			sql,
-			params
-		);
+		const rows = await queryStore.query<{
+			detail_data: string;
+			ranking_score: number;
+		}>(sql, params);
 		return rows.map(
-			(row) => JSON.parse(row.detail_data) as ParsedCellObservationDetailV1
+			(row) => JSON.parse(row.detail_data) as ParsedCellObservationDetailV1,
 		);
 	}
 
 	async markObservationCorrection(
 		cellId: string,
-		replacement?: ParsedObservationItem
+		replacement?: ParsedObservationItem,
 	): Promise<void> {
 		const detail = await this.observationDetailStore.get(cellId);
 		if (!detail) return;
