@@ -1,13 +1,60 @@
 // REFERENCE: docs/config.md
-export type ResourceLocator =
-	| { _type: "adapter"; name: string; options?: Record<string, unknown> }
-	| { _type: "file"; path: string; ttl_ms?: number }
-	| {
-			_type: "remote_url";
-			url: string;
-			ttl_ms?: number;
-			headers?: Record<string, string>;
-	  };
+// 1. Define base adapter options interfaces
+export interface MemoryAdapterOptions {
+	seed?: unknown;
+}
+
+export interface SqliteAdapterOptions {
+	path?: string;
+	dbName?: string;
+}
+
+export interface OpfsSqliteAdapterOptions {
+	dbName?: string;
+	workerScriptUrl?: string;
+}
+
+export interface PgAdapterOptions {
+	connection?: string;
+	connectionString?: string;
+}
+
+export interface DuckDbAdapterOptions {
+	path?: string;
+	connectionString?: string;
+}
+
+export interface JsonlAdapterOptions {
+	path: string;
+}
+
+// 2. Map each specific adapter name to its exact options payload
+export type AdapterLocator =
+	| { _type: "adapter"; name: "memory"; options?: MemoryAdapterOptions }
+	| { _type: "adapter"; name: "sqlite"; options?: SqliteAdapterOptions }
+	| { _type: "adapter"; name: "opfs-sqlite"; options?: OpfsSqliteAdapterOptions }
+	| { _type: "adapter"; name: "pg"; options?: PgAdapterOptions }
+	| { _type: "adapter"; name: "duckdb"; options?: DuckDbAdapterOptions }
+	| { _type: "adapter"; name: "jsonl"; options?: JsonlAdapterOptions }
+	// Fallback for custom string adapters so it stays extensible
+	| { _type: "adapter"; name: string & {}; options?: Record<string, unknown> };
+
+// 3. Define the other distinct resource types
+export interface FileLocator {
+	_type: "file";
+	path: string;
+	ttl_ms?: number;
+}
+
+export interface RemoteUrlLocator {
+	_type: "remote_url";
+	url: string;
+	ttl_ms?: number;
+	headers?: Record<string, string>;
+}
+
+// 4. Combine them into the final clean union
+export type ResourceLocator = AdapterLocator | FileLocator | RemoteUrlLocator;
 
 export type OwnerScope =
 	| { level: "global" }
