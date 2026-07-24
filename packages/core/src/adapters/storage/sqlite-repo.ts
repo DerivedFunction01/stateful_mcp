@@ -16,26 +16,26 @@ import type {
 	RelatedConceptResult,
 	TraversalDirection,
 } from "../../middleware/dictionary/types";
+import type { EventCommit } from "../../middleware/event/types";
 import type {
 	FilterCondition,
 	FilterState,
 } from "../../middleware/filter/types";
 import type { FormState } from "../../middleware/form/types";
 import type { ObjectState } from "../../middleware/object/types";
-import type { EventCommit } from "../../middleware/event/types";
 import type {
+	PersistedEventState,
 	PersistedFilterState,
 	PersistedFormStateDetails,
 	PersistedObjectState,
-	PersistedEventState,
+	PersistentEventStore,
 	PersistentFilterStore,
 	PersistentFormStore,
 	PersistentObjectStore,
-	PersistentEventStore,
+	SessionEventStore,
 	SessionFilterStore,
 	SessionFormStore,
 	SessionObjectStore,
-	SessionEventStore,
 } from "./interfaces";
 
 export class SqliteFilterStore
@@ -1674,22 +1674,16 @@ export class SqliteObjectStore
 		this.db.run(
 			`INSERT OR REPLACE INTO saved_objects (id, tags, description, scope_level, user_id)
       VALUES (?, ?, ?, ?, ?)`,
-			[
-				id,
-				JSON.stringify(state.tags),
-				state.description,
-				scope.level,
-				scopeId,
-			],
+			[id, JSON.stringify(state.tags), state.description, scope.level, scopeId],
 		);
 	}
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
 		this.db.run("DELETE FROM saved_objects WHERE id = ?", [id]);
-		this.db.run(
-			"DELETE FROM objects WHERE object_id = ? AND scope_level = ?",
-			[id, scope.level],
-		);
+		this.db.run("DELETE FROM objects WHERE object_id = ? AND scope_level = ?", [
+			id,
+			scope.level,
+		]);
 	}
 
 	// ─── Additional Interface Methods ──────────────────────────────────
@@ -1997,7 +1991,10 @@ export class SqliteEventStore
 		);
 	}
 
-	private async deleteSession(sessionId: string, commitId: string): Promise<void> {
+	private async deleteSession(
+		sessionId: string,
+		commitId: string,
+	): Promise<void> {
 		this.db.run(
 			"DELETE FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
 			[sessionId, commitId],
@@ -2108,12 +2105,15 @@ export class SqliteEventStore
 		);
 	}
 
-	private async deletePersistent(commitId: string, scope: OwnerScope): Promise<void> {
+	private async deletePersistent(
+		commitId: string,
+		scope: OwnerScope,
+	): Promise<void> {
 		this.db.run("DELETE FROM saved_events WHERE id = ?", [commitId]);
-		this.db.run(
-			"DELETE FROM events WHERE commit_id = ? AND scope_level = ?",
-			[commitId, scope.level],
-		);
+		this.db.run("DELETE FROM events WHERE commit_id = ? AND scope_level = ?", [
+			commitId,
+			scope.level,
+		]);
 	}
 
 	// ─── Additional Interface Methods ──────────────────────────────────

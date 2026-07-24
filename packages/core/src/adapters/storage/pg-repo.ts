@@ -3,27 +3,6 @@ import { Pool } from "pg";
 import { registerAdapter } from "../../config/loader";
 import type { OwnerScope } from "../../config/types";
 import type {
-	FilterCondition,
-	FilterState,
-} from "../../middleware/filter/types";
-import type { FormState } from "../../middleware/form/types";
-import type { ObjectState } from "../../middleware/object/types";
-import type { EventCommit } from "../../middleware/event/types";
-import type {
-	PersistedFilterState,
-	PersistedFormStateDetails,
-	PersistedObjectState,
-	PersistedEventState,
-	PersistentFilterStore,
-	PersistentFormStore,
-	PersistentObjectStore,
-	PersistentEventStore,
-	SessionFilterStore,
-	SessionFormStore,
-	SessionObjectStore,
-	SessionEventStore,
-} from "./interfaces";
-import type {
 	ConceptStore,
 	PersistentExpressionStore,
 } from "../../middleware/dictionary/interfaces";
@@ -35,6 +14,27 @@ import type {
 	RelatedConceptResult,
 	TraversalDirection,
 } from "../../middleware/dictionary/types";
+import type { EventCommit } from "../../middleware/event/types";
+import type {
+	FilterCondition,
+	FilterState,
+} from "../../middleware/filter/types";
+import type { FormState } from "../../middleware/form/types";
+import type { ObjectState } from "../../middleware/object/types";
+import type {
+	PersistedEventState,
+	PersistedFilterState,
+	PersistedFormStateDetails,
+	PersistedObjectState,
+	PersistentEventStore,
+	PersistentFilterStore,
+	PersistentFormStore,
+	PersistentObjectStore,
+	SessionEventStore,
+	SessionFilterStore,
+	SessionFormStore,
+	SessionObjectStore,
+} from "./interfaces";
 
 export class PgFilterStore
 	implements SessionFilterStore, PersistentFilterStore
@@ -1015,9 +1015,7 @@ export class PgObjectStore
 
 // ── PG Event Store ────────────────────────────────────────────
 
-export class PgEventStore
-	implements SessionEventStore, PersistentEventStore
-{
+export class PgEventStore implements SessionEventStore, PersistentEventStore {
 	private pool: Pool;
 
 	constructor(connectionString: string) {
@@ -1249,7 +1247,10 @@ export class PgEventStore
 		}
 	}
 
-	private async deleteSession(sessionId: string, commitId: string): Promise<void> {
+	private async deleteSession(
+		sessionId: string,
+		commitId: string,
+	): Promise<void> {
 		const client = await this.pool.connect();
 		try {
 			await client.query("BEGIN;");
@@ -1387,7 +1388,10 @@ export class PgEventStore
 		}
 	}
 
-	private async deletePersistent(commitId: string, scope: OwnerScope): Promise<void> {
+	private async deletePersistent(
+		commitId: string,
+		scope: OwnerScope,
+	): Promise<void> {
 		const client = await this.pool.connect();
 		try {
 			await client.query("BEGIN;");
@@ -1506,9 +1510,7 @@ export class PgEventStore
 
 // ── PG Form Store ─────────────────────────────────────────────
 
-export class PgFormStore
-	implements SessionFormStore, PersistentFormStore
-{
+export class PgFormStore implements SessionFormStore, PersistentFormStore {
 	private pool: Pool;
 
 	constructor(connectionString: string) {
@@ -1718,13 +1720,7 @@ export class PgFormStore
           scope_level=EXCLUDED.scope_level,
           session_id=EXCLUDED.session_id,
           created_at=EXCLUDED.created_at`,
-				[
-					id,
-					state.parentFormId,
-					state.schemaName,
-					sessionId,
-					state.timestamp,
-				],
+				[id, state.parentFormId, state.schemaName, sessionId, state.timestamp],
 			);
 
 			await client.query("DELETE FROM form_answers WHERE form_id = $1", [id]);
@@ -1875,10 +1871,9 @@ export class PgFormStore
 					[sessionId, cutoff],
 				);
 			} else {
-				await client.query(
-					"DELETE FROM forms WHERE session_id = $1",
-					[sessionId],
-				);
+				await client.query("DELETE FROM forms WHERE session_id = $1", [
+					sessionId,
+				]);
 			}
 			await client.query("COMMIT;");
 		} catch (err) {
@@ -2096,12 +2091,7 @@ export class PgConceptStore implements ConceptStore {
 	): Promise<Concept[]> {
 		let sql =
 			"SELECT * FROM dict_concepts WHERE (display ILIKE $1 OR id = $2 OR standard_code = $3 OR description ILIKE $4)";
-		const params: any[] = [
-			`%${query}%`,
-			query,
-			query,
-			`%${query}%`,
-		];
+		const params: any[] = [`%${query}%`, query, query, `%${query}%`];
 
 		if (namespaceCode) {
 			sql += " AND namespace_code = $5";
@@ -2250,10 +2240,7 @@ export class PgConceptStore implements ConceptStore {
 		}
 
 		if (sqlParts.length === 0) return [];
-		const res = await this.pool.query(
-			sqlParts.join(" UNION ALL "),
-			params,
-		);
+		const res = await this.pool.query(sqlParts.join(" UNION ALL "), params);
 
 		return res.rows.map((r: any) => ({
 			id: r.id,
@@ -2384,13 +2371,7 @@ export class PgConceptStore implements ConceptStore {
             inferred_relationship_type=EXCLUDED.inferred_relationship_type,
             active=EXCLUDED.active,
             updated_at=EXCLUDED.updated_at`,
-					[
-						conceptId,
-						res.concept.id,
-						res.depth,
-						res.relationshipType,
-						now,
-					],
+					[conceptId, res.concept.id, res.depth, res.relationshipType, now],
 				);
 			}
 		}
@@ -2401,9 +2382,7 @@ export class PgConceptStore implements ConceptStore {
 
 // ── PG Persistent Expression Store ────────────────────────────
 
-export class PgPersistentExpressionStore
-	implements PersistentExpressionStore
-{
+export class PgPersistentExpressionStore implements PersistentExpressionStore {
 	private pool: Pool;
 
 	constructor(connectionString: string) {
