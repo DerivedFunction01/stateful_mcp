@@ -20,7 +20,11 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import type { ParsedCellStore, ParsedCellV1 } from "../store/parsed-cell-store";
+import type {
+	ParsedCellHistoryStore,
+	ParsedCellStore,
+	ParsedCellV1,
+} from "../store/parsed-cell-store";
 
 export class ClinicalEngine {
 	private parser: CdslParser;
@@ -168,10 +172,23 @@ export class ClinicalEngine {
 
 		const note = activeObj.data as SoapNote;
 		const patientBucket = buildPatientLearningBucket(note.patient);
-		const parsedItems = await this.parser.parse(dictation, {
-			personnelId: "system",
-			patientContext: patientBucket,
-		});
+		const historyStore = this.parsedCellStore as
+			| ParsedCellHistoryStore
+			| undefined;
+
+		const parsedItems = historyStore
+			? await this.parser.parseWithHistory(
+					dictation,
+					{
+						personnelId: "system",
+						patientContext: patientBucket,
+					},
+					historyStore,
+				)
+			: await this.parser.parse(dictation, {
+					personnelId: "system",
+					patientContext: patientBucket,
+				});
 
 		let currentObjId = "active_note";
 

@@ -145,6 +145,32 @@ export class CdslParser {
 		return this.parseWithStopWordParser(text, effectiveStopWordParser, context);
 	}
 
+	async parseWithHistory(
+		text: string,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParsedItem[]> {
+		const effectiveStopWordParser = this.stopWordParser;
+		if (!effectiveStopWordParser && this.stopWordStore && context) {
+			const dynamicParser = await StopWordParser.fromStore(
+				this.stopWordStore,
+				context,
+			);
+			return this.parseWithStopWordParser(
+				text,
+				dynamicParser,
+				context,
+				historyStore,
+			);
+		}
+		return this.parseWithStopWordParser(
+			text,
+			effectiveStopWordParser,
+			context,
+			historyStore,
+		);
+	}
+
 	private async previewWithStopWordParser(
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
@@ -300,6 +326,7 @@ export class CdslParser {
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
 		const segments = text.split(this.profile.stateDelimiter);
@@ -420,8 +447,23 @@ export class CdslParser {
 				const allowedNamespaces =
 					this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
 					undefined;
+				const parsed = historyStore && parser.preview
+					? await parser.preview(
+							tag,
+							content,
+							this.dictionaryStore,
+							this.conceptDefaultsStore,
+							this.getEffectiveAttributeRules(),
+							this.profile.evaluatorRules,
+							this.profile.termTokenizer,
+							allowedNamespaces,
+							preparsedContext,
+							historyStore,
+						)
+					: undefined;
 
-				const parsed = await parser.parse(
+				const learnedCandidate = parsed?.learned[0] || parsed?.deterministic[0];
+				const deterministic = await parser.parse(
 					tag,
 					content,
 					this.dictionaryStore,
@@ -432,12 +474,13 @@ export class CdslParser {
 					allowedNamespaces,
 					preparsedContext,
 				);
+				const finalItem = learnedCandidate || deterministic;
 
-				if (parsed && parsed.conceptId) {
-					const key = `${parsed.targetSchema}:${parsed.conceptId}`;
+				if (finalItem && finalItem.conceptId) {
+					const key = `${finalItem.targetSchema}:${finalItem.conceptId}`;
 					if (!seenFinal.has(key)) {
 						seenFinal.add(key);
-						items.push(parsed);
+						items.push(finalItem);
 					}
 				}
 			}
