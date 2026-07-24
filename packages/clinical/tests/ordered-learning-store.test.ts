@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { OrderedLearningRanker } from "../src/store/ordered-learning-ranking";
 import {
 	buildSequenceSignature,
 	extractAdjacentPairs,
@@ -623,5 +624,111 @@ describe("scoreSequenceSignature", () => {
 
 	it("should return 0 for empty history", () => {
 		expect(scoreSequenceSignature("a->b", [])).toBe(0);
+	});
+});
+
+// ── OrderedLearningRanker tests ──────────────────────────────────────────────
+
+describe("OrderedLearningRanker", () => {
+	it("should return null when history is empty", async () => {
+		const store = new MemoryOrderedLearningStore();
+		const ranker = new OrderedLearningRanker();
+
+		const result = await ranker.rankCandidate(store, {
+			key: makeKey(),
+			candidateTokens: [
+				{ kind: "tag", key: "#observation", index: 0 },
+				{ kind: "field", key: "severity", index: 1 },
+			],
+		});
+
+		expect(result).toBeNull();
+	});
+
+	it("should return a ranked candidate with combined score", async () => {
+		const store = new MemoryOrderedLearningStore();
+		await store.putOrderedObservation(makeInput());
+
+		const ranker = new OrderedLearningRanker();
+		const result = await ranker.rankCandidate(store, {
+			key: makeKey(),
+			candidateTokens: [
+				{ kind: "tag", key: "#observation", index: 0 },
+				{ kind: "concept", key: "SNOMED::267036007", index: 1 },
+				{ kind: "field", key: "severity", value: "mild", index: 2 },
+				{ kind: "field", key: "duration", value: "2 days", index: 3 },
+			],
+		});
+
+		expect(result).not.toBeNull();
+		expect(result!.combinedScore).toBeGreaterThanOrEqual(0);
+		expect(result!.combinedScore).toBeLessThanOrEqual(1);
+		expect(result!.signals.adjacentPairScore).toBeGreaterThanOrEqual(0);
+		expect(result!.signals.relationScore).toBeGreaterThanOrEqual(0);
+		expect(result!.signals.sequenceSignatureScore).toBeGreaterThanOrEqual(0);
+	});
+
+	it("should reward matching adjacent pairs", async () => {
+		const store = new MemoryOrderedLearningStore();
+		await store.putOrderedObservation(makeInput());
+
+		const ranker = new OrderedLearningRanker();
+		const result = await ranker.rankCandidate(store, {
+			key: makeKey(),
+			candidateTokens: [
+				{ kind: "tag", key: "#observation", index: 0 },
+				{ kind: "concept", key: "SNOMED::267036007", index: 1 },
+				{ kind: "field", key: "severity", value: "mild", index: 2 },
+				{ kind: "field", key: "duration", value: "2 days", index: 3 },
+			],
+		});
+
+		expect(result).not.toBeNull();
+		expect(result!.signals.adjacentPairScore).toBeGreaterThan(0);
+	});
+
+	it("should penalize reordered tokens", async () => {
+		const store = new MemoryOrderedLearningStore();
+		await store.putOrderedObservation(makeInput());
+
+		const ranker = new OrderedLearningRanker();
+		const result = await ranker.rankCandidate(store, {
+			key: makeKey(),
+			candidateTokens: [
+				{ kind: "field", key: "unknown_a", index: 0 },
+				{ kind: "field", key: "unknown_b", index: 1 },
+				{ kind: "field", key: "unknown_c", index: 2 },
+				{ kind: "field", key: "unknown_d", index: 3 },
+			],
+		});
+
+		expect(result).not.toBeNull();
+		expect(result!.signals.adjacentPairScore).toBe(0);
+		expect(result!.signals.sequenceSignatureScore).toBe(0);
+	});
+
+	it("should use custom weights when provided", async () => {
+		const store = new MemoryOrderedLearningStore();
+		await store.putOrderedObservation(makeInput());
+
+		const ranker = new OrderedLearningRanker({
+			adjacentWeight: 1,
+			relationWeight: 0,
+			sequenceWeight: 0,
+		});
+		const result = await ranker.rankCandidate(store, {
+			key: makeKey(),
+			candidateTokens: [
+				{ kind: "tag", key: "#observation", index: 0 },
+				{ kind: "concept", key: "SNOMED::267036007", index: 1 },
+				{ kind: "field", key: "severity", value: "mild", index: 2 },
+				{ kind: "field", key: "duration", value: "2 days", index: 3 },
+			],
+		});
+
+		expect(result).not.toBeNull();
+		expect(result!.combinedScore).toBeCloseTo(
+			result!.signals.adjacentPairScore,
+		);
 	});
 });

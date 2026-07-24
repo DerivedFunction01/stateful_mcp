@@ -16,6 +16,7 @@ export interface OrderedLearningRankedCandidate {
 	candidate: OrderedLearningRecord;
 	signals: OrderedLearningRankingSignal;
 	combinedScore: number;
+	adapterId?: string;
 }
 
 // ── Feature Extraction ───────────────────────────────────────────────────────
