@@ -7,13 +7,13 @@ import {
 	InMemoryPersistentExpressionStore,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../src/parser/cdsl-parser";
-import { SEED_PARSER_PROFILES } from "../src/store/defaults";
 import type {
 	ParsedMedicationItem,
 	ParsedObservationItem,
 	ParsedVitalsItem,
 } from "../src/parser/schema-parsers";
 import { StopWordParser } from "../src/parser/stop-word-parser";
+import { SEED_PARSER_PROFILES } from "../src/store/defaults";
 
 async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 	const conceptStore = dictionaryStore["conceptStore"];
@@ -107,7 +107,10 @@ describe("CdslParser Ensemble NER tests", () => {
 
 		await seedTestConcepts(dictionaryStore);
 
-		const parser = new CdslParser(dictionaryStore, SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!);
+		const parser = new CdslParser(
+			dictionaryStore,
+			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		);
 		const previews = await parser.preview(
 			"#ObservationEvent Chest Pain denies || #MedicationOrderObject Amoxicillin 50 mg for 7 days || #time 3 weeks ago",
 		);
@@ -232,7 +235,10 @@ describe("CdslParser Ensemble NER tests", () => {
 
 		await seedTestConcepts(dictionaryStore);
 
-		const parser = new CdslParser(dictionaryStore, SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!);
+		const parser = new CdslParser(
+			dictionaryStore,
+			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		);
 
 		// "#3 temp 38.5 Cel" starts with "#3" (which is an unknown tag), so it should parse taglessly
 		const results = await parser.parse("#3 temp 38.5 Cel");
@@ -258,7 +264,10 @@ describe("CdslParser Ensemble NER tests", () => {
 
 		await seedTestConcepts(dictionaryStore);
 
-		const parser = new CdslParser(dictionaryStore, SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!);
+		const parser = new CdslParser(
+			dictionaryStore,
+			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		);
 		const results = await parser.parse(
 			"#MedicationOrderObject Amoxicillin 50 mg for 7 days",
 		);
@@ -284,7 +293,10 @@ describe("CdslParser Ensemble NER tests", () => {
 
 		await seedTestConcepts(dictionaryStore);
 
-		const parser = new CdslParser(dictionaryStore, SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!);
+		const parser = new CdslParser(
+			dictionaryStore,
+			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		);
 		const results = await parser.parse(
 			"#VitalsMeasurementEvent temp 38.5 Cel for 7 days",
 		);

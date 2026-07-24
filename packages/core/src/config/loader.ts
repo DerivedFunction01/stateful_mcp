@@ -45,9 +45,7 @@ export function substituteEnvVars(obj: unknown): unknown {
 	return obj;
 }
 
-export async function readJsonConfigFile<T>(
-	filePath: string,
-): Promise<T> {
+export async function readJsonConfigFile<T>(filePath: string): Promise<T> {
 	const raw = await fs.readFile(filePath, "utf-8");
 	return substituteEnvVars(JSON.parse(raw)) as T;
 }

@@ -6,15 +6,15 @@
  * `loadJsonConfigCandidates<T>()`, `resolveSource()`, and `resolveAdapter()`.
  */
 
-import * as path from "path";
 import {
 	loadJsonConfigCandidates,
 	readJsonConfigFile,
 	resolveConfigDir,
 } from "@stateful-mcp/core";
+import * as path from "path";
 import type { ClinicalStoreConfig } from "./clinical-config";
-import { createClinicalRuntime } from "./clinical-runtime";
 import type { ClinicalRuntime } from "./clinical-runtime";
+import { createClinicalRuntime } from "./clinical-runtime";
 
 /**
  * Loads a ClinicalStoreConfig from a config directory.
@@ -30,11 +30,15 @@ export async function loadClinicalStoreConfig(
 	const resolvedRoot = dir ?? resolveConfigDir();
 
 	const candidates = [
-		{ path: path.join(resolvedRoot, "config", "clinical.config.json"), optional: true },
+		{
+			path: path.join(resolvedRoot, "config", "clinical.config.json"),
+			optional: true,
+		},
 		{ path: path.join(resolvedRoot, "clinical.config.json"), optional: true },
 	];
 
-	const loaded = await loadJsonConfigCandidates<ClinicalStoreConfig>(candidates);
+	const loaded =
+		await loadJsonConfigCandidates<ClinicalStoreConfig>(candidates);
 	if (loaded) return loaded;
 
 	// Fall back to default in-memory config

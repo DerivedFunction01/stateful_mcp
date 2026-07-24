@@ -1,7 +1,10 @@
 import type { EntityStore } from "@stateful-mcp/core";
-import type {
-	ClinicalStoreConfig,
-} from "./clinical-config";
+import {
+	type ClinicalStorageAdapterConfig,
+	type ClinicalStorageAdapterRegistry,
+	getClinicalAdapterConfigs,
+} from "./adapter-config";
+import type { ClinicalStoreConfig } from "./clinical-config";
 import {
 	ClinicalParserConceptDefaultStore,
 	ClinicalParserProfileStore,
@@ -12,15 +15,10 @@ import type {
 	ParserProfileStore,
 	ParserSyntaxProfile,
 } from "./interfaces";
-import { getClinicalAdapterConfigs } from "./adapter-config";
-import {
-	type ClinicalStorageAdapterConfig,
-	type ClinicalStorageAdapterRegistry,
-} from "./adapter-config";
+import type { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
 import { resolveParsedCellStoreLocator } from "./learning-backend-resolver";
 import type { MemoryParsedCellStore } from "./parsed-cell-store";
 import type { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
-import type { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -29,7 +27,13 @@ export interface ClinicalRuntimeParserStores {
 	conceptDefaults: ParserConceptDefaultStore;
 }
 
-export type ParsedCellStore =
+/**
+ * Union of adapter-resolved parsed cell store types.
+ *
+ * Renamed from `ParsedCellStore` to avoid collision with the
+ * `ParsedCellStore` interface in parsed-cell-store.ts.
+ */
+export type ResolvedParsedCellStore =
 	| MemoryParsedCellStore
 	| SqliteParsedCellStore
 	| JsonlParsedCellStore;
@@ -37,7 +41,7 @@ export type ParsedCellStore =
 export interface ClinicalRuntime {
 	config: ClinicalStoreConfig;
 	parserStores: ClinicalRuntimeParserStores;
-	learningStores: ParsedCellStore[];
+	learningStores: ResolvedParsedCellStore[];
 }
 
 // ── Factory functions ────────────────────────────────────────────────────────
@@ -70,9 +74,7 @@ export function buildClinicalParserStores(
  * Resolves each implemented learning adapter into a ParsedCellStore
  * using the existing learning-backend-resolver registry.
  */
-function buildLearningStores(
-	config: ClinicalStoreConfig,
-): ParsedCellStore[] {
+function buildLearningStores(config: ClinicalStoreConfig): ResolvedParsedCellStore[] {
 	const adapters = getClinicalAdapterConfigs("learning", {
 		learning: config.domains.learning.defaultAdapters,
 	} as unknown as ClinicalStorageAdapterRegistry);
@@ -124,8 +126,7 @@ export function createClinicalRuntime(
 					get: async (key: string) => {
 						// key format is "anchorConceptId:targetSchema"
 						const record = config.seeds.conceptDefaults.find(
-							(d) =>
-								`${d.anchorConceptId}:${d.targetSchema}` === key,
+							(d) => `${d.anchorConceptId}:${d.targetSchema}` === key,
 						);
 						return record ?? null;
 					},

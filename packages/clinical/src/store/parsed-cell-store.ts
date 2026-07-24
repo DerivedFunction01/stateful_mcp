@@ -277,7 +277,7 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 			reviewRequired: !!replacement,
 		};
 		if (replacement) {
-		detail.parsedItem = replacement;
+			detail.parsedItem = replacement;
 			detail.conceptId = replacement.conceptId;
 			detail.display = replacement.display;
 			detail.certainty = replacement.certainty;

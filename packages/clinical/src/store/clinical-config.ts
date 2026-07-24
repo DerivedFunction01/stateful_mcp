@@ -1,11 +1,4 @@
 import type { ResourceLocator } from "@stateful-mcp/core";
-import type {
-	AttributeParserRule,
-	DateTimeFormatConfig,
-	ParserConceptDefault,
-	ParserDictionaryRule,
-	ParserSyntaxProfile,
-} from "./interfaces";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_CALENDAR_DATE_FORMATS,
@@ -13,6 +6,13 @@ import {
 	SEED_CONCEPT_DEFAULTS,
 	SEED_PARSER_PROFILES,
 } from "./defaults";
+import type {
+	AttributeParserRule,
+	DateTimeFormatConfig,
+	ParserConceptDefault,
+	ParserDictionaryRule,
+	ParserSyntaxProfile,
+} from "./interfaces";
 
 export type ClinicalStoreDomain =
 	| "learning"
@@ -147,8 +147,7 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 		soap_note: {
 			group: "soap_note",
 			implemented: true,
-			description:
-				"Durable SOAP note/document storage and retrieval backends.",
+			description: "Durable SOAP note/document storage and retrieval backends.",
 			defaultAdapters: [],
 		},
 		patient_store: {

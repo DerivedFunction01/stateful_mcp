@@ -87,7 +87,7 @@ export class CdslParser {
 		if (!profile) {
 			throw new Error(
 				`CdslParser.create: parser profile "${profileId}" not found in store. ` +
-				`Ensure the profile is seeded in the clinical config.`,
+					`Ensure the profile is seeded in the clinical config.`,
 			);
 		}
 		return new CdslParser(

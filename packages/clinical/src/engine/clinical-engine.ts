@@ -1,5 +1,4 @@
 import type { DictionaryStore, ObjectStore } from "@stateful-mcp/core";
-import type { ParserSyntaxProfile, ParserProfileStore } from "../store/interfaces";
 import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type {
@@ -14,6 +13,8 @@ import {
 } from "../schemas/patient";
 import type {
 	CalibrationStore,
+	ParserProfileStore,
+	ParserSyntaxProfile,
 	SignedSoapNoteRecord,
 	SignedSoapNoteStore,
 	StopWordContext,
