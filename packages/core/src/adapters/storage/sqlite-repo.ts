@@ -21,13 +21,21 @@ import type {
 	FilterState,
 } from "../../middleware/filter/types";
 import type { FormState } from "../../middleware/form/types";
+import type { ObjectState } from "../../middleware/object/types";
+import type { EventCommit } from "../../middleware/event/types";
 import type {
 	PersistedFilterState,
 	PersistedFormStateDetails,
+	PersistedObjectState,
+	PersistedEventState,
 	PersistentFilterStore,
 	PersistentFormStore,
+	PersistentObjectStore,
+	PersistentEventStore,
 	SessionFilterStore,
 	SessionFormStore,
+	SessionObjectStore,
+	SessionEventStore,
 } from "./interfaces";
 
 export class SqliteFilterStore
@@ -1397,10 +1405,828 @@ export class SqlitePersistentExpressionStore
 	}
 }
 
+// ── SQLite Object Store ──────────────────────────────────────────────
+
+export class SqliteObjectStore
+	implements SessionObjectStore, PersistentObjectStore
+{
+	private db: Database;
+
+	constructor(dbPath: string) {
+		const dir = path.dirname(dbPath);
+		if (dir !== "." && !fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+
+		this.db = new Database(dbPath);
+		this.initSchema();
+	}
+
+	private initSchema(): void {
+		this.db.run("PRAGMA journal_mode = WAL;");
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS objects (
+        object_id         TEXT PRIMARY KEY,
+        schema_name       TEXT NOT NULL,
+        parent_object_id  TEXT NULL,
+        scope_level       TEXT NOT NULL DEFAULT 'session',
+        session_id        TEXT NULL,
+        user_id           TEXT NULL,
+        data              TEXT NOT NULL,
+        created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+        schema_pinned_at  TEXT NULL
+      );
+    `);
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS saved_objects (
+        id           TEXT PRIMARY KEY,
+        tags         TEXT NOT NULL,
+        description  TEXT NOT NULL,
+        scope_level  TEXT NOT NULL,
+        user_id      TEXT NULL,
+        saved_at     TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS object_session_aliases (
+        session_id  TEXT NOT NULL,
+        alias_name  TEXT NOT NULL,
+        target_id   TEXT NOT NULL,
+        PRIMARY KEY (session_id, alias_name)
+      );
+    `);
+	}
+
+	// ─── Overloaded get ────────────────────────────────────────────────
+
+	get(sessionId: string, id: string): Promise<ObjectState | null>;
+	get(id: string, scope: OwnerScope): Promise<PersistedObjectState | null>;
+	async get(a: string, b: string | OwnerScope): Promise<any> {
+		if (typeof b === "string") {
+			return this.getSession(a, b);
+		} else {
+			return this.getPersistent(a, b);
+		}
+	}
+
+	// ─── Overloaded set ────────────────────────────────────────────────
+
+	set(sessionId: string, id: string, state: ObjectState): Promise<void>;
+	set(
+		id: string,
+		state: PersistedObjectState,
+		scope: OwnerScope,
+	): Promise<void>;
+	async set(a: string, b: any, c?: any): Promise<void> {
+		if (c && typeof c === "object" && "level" in c) {
+			return this.setPersistent(a, b, c);
+		} else {
+			return this.setSession(a, b, c);
+		}
+	}
+
+	// ─── Overloaded delete ─────────────────────────────────────────────
+
+	delete(sessionId: string, id: string): Promise<void>;
+	delete(id: string, scope: OwnerScope): Promise<void>;
+	async delete(a: string, b: string | OwnerScope): Promise<void> {
+		if (typeof b === "string") {
+			return this.deleteSession(a, b);
+		} else {
+			return this.deletePersistent(a, b);
+		}
+	}
+
+	async getAlias(sessionId: string, alias: string): Promise<string | null> {
+		const row = this.db
+			.query(
+				"SELECT target_id FROM object_session_aliases WHERE session_id = ? AND alias_name = ?",
+			)
+			.get(sessionId, alias) as any;
+		return row ? row.target_id : null;
+	}
+
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
+		this.db.run(
+			`INSERT INTO object_session_aliases (session_id, alias_name, target_id)
+        VALUES (?, ?, ?)
+        ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
+			[sessionId, alias, targetId],
+		);
+	}
+
+	async deleteAlias(sessionId: string, alias: string): Promise<void> {
+		this.db.run(
+			"DELETE FROM object_session_aliases WHERE session_id = ? AND alias_name = ?",
+			[sessionId, alias],
+		);
+	}
+
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
+		const rows = this.db
+			.query(
+				"SELECT alias_name, target_id FROM object_session_aliases WHERE session_id = ?",
+			)
+			.all(sessionId) as any[];
+		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
+	}
+
+	async create(
+		sessionId: string,
+		state: Omit<ObjectState, "objectId"> & { objectId?: string },
+		alias?: string,
+	): Promise<string> {
+		const id =
+			state.objectId ||
+			`obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+		const fullState: ObjectState = { ...state, objectId: id };
+		await this.set(sessionId, id, fullState);
+		if (alias) {
+			await this.setAlias(sessionId, alias, id);
+		}
+		return id;
+	}
+
+	// ─── Internal Session Operations ───────────────────────────────────
+
+	private async getSession(
+		sessionId: string,
+		id: string,
+	): Promise<ObjectState | null> {
+		const row = this.db
+			.query(
+				"SELECT * FROM objects WHERE session_id = ? AND object_id = ? AND scope_level = 'session'",
+			)
+			.get(sessionId, id) as any;
+
+		if (!row) return null;
+		return this.loadState(row);
+	}
+
+	private async setSession(
+		sessionId: string,
+		id: string,
+		state: ObjectState,
+	): Promise<void> {
+		const dataStr = JSON.stringify(state.data);
+		const schemaPinnedAt = state.schema_pinned_at || null;
+
+		this.db.run(
+			`INSERT OR REPLACE INTO objects (object_id, schema_name, parent_object_id, scope_level, session_id, data, created_at, schema_pinned_at)
+      VALUES (?, ?, ?, 'session', ?, ?, ?, ?)`,
+			[
+				id,
+				state.schemaName,
+				state.parentObjectId || null,
+				sessionId,
+				dataStr,
+				state.createdAt,
+				schemaPinnedAt,
+			],
+		);
+	}
+
+	private async deleteSession(sessionId: string, id: string): Promise<void> {
+		this.db.run(
+			"DELETE FROM objects WHERE session_id = ? AND object_id = ? AND scope_level = 'session'",
+			[sessionId, id],
+		);
+	}
+
+	private loadState(row: any): ObjectState {
+		return {
+			objectId: row.object_id,
+			schemaName: row.schema_name,
+			parentObjectId: row.parent_object_id,
+			data: JSON.parse(row.data),
+			createdAt: row.created_at,
+			schema_pinned_at: row.schema_pinned_at || undefined,
+			linearDepth: row.linear_depth || undefined,
+			gcLock: row.gc_lock === 1,
+		};
+	}
+
+	// ─── Internal Persistent Operations ────────────────────────────────
+
+	private async getPersistent(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedObjectState | null> {
+		const scopeId = scope.level === "user" ? scope.userId : null;
+
+		const saved = this.db
+			.query(
+				"SELECT * FROM saved_objects WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			)
+			.get(id, scope.level, scopeId) as any;
+
+		if (!saved) return null;
+
+		const row = this.db
+			.query(
+				"SELECT * FROM objects WHERE object_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			)
+			.get(id, scope.level, scopeId) as any;
+
+		if (!row) return null;
+
+		return {
+			...this.loadState(row),
+			tags: JSON.parse(saved.tags),
+			description: saved.description,
+			schema_pinned_at: row.schema_pinned_at || "",
+		};
+	}
+
+	private async setPersistent(
+		id: string,
+		state: PersistedObjectState,
+		scope: OwnerScope,
+	): Promise<void> {
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const dataStr = JSON.stringify(state.data);
+		const schemaPinnedAt = state.schema_pinned_at || "";
+
+		this.db.run(
+			`INSERT OR REPLACE INTO objects (object_id, schema_name, parent_object_id, scope_level, user_id, data, created_at, schema_pinned_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				id,
+				state.schemaName,
+				state.parentObjectId || null,
+				scope.level,
+				scopeId,
+				dataStr,
+				state.createdAt,
+				schemaPinnedAt,
+			],
+		);
+
+		this.db.run(
+			`INSERT OR REPLACE INTO saved_objects (id, tags, description, scope_level, user_id)
+      VALUES (?, ?, ?, ?, ?)`,
+			[
+				id,
+				JSON.stringify(state.tags),
+				state.description,
+				scope.level,
+				scopeId,
+			],
+		);
+	}
+
+	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
+		this.db.run("DELETE FROM saved_objects WHERE id = ?", [id]);
+		this.db.run(
+			"DELETE FROM objects WHERE object_id = ? AND scope_level = ?",
+			[id, scope.level],
+		);
+	}
+
+	// ─── Additional Interface Methods ──────────────────────────────────
+
+	async listSession(sessionId: string): Promise<string[]> {
+		const rows = this.db
+			.query(
+				"SELECT object_id FROM objects WHERE session_id = ? AND scope_level = 'session'",
+			)
+			.all(sessionId) as any[];
+		return rows.map((r) => r.object_id);
+	}
+
+	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+		const rows = this.db
+			.query(
+				"SELECT object_id FROM objects WHERE session_id = ? AND parent_object_id = ? AND scope_level = 'session'",
+			)
+			.all(sessionId, parentId) as any[];
+		return rows.map((r) => r.object_id);
+	}
+
+	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+		if (olderThanMs !== undefined) {
+			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
+			this.db
+				.query(
+					"DELETE FROM objects WHERE session_id = ? AND scope_level = 'session' AND created_at < ?",
+				)
+				.run(sessionId, olderThanDate);
+		} else {
+			this.db.run(
+				"DELETE FROM objects WHERE session_id = ? AND scope_level = 'session'",
+				[sessionId],
+			);
+		}
+	}
+
+	async findByTag(
+		tag: string,
+		scope: OwnerScope,
+	): Promise<PersistedObjectState[]> {
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const allSaved = this.db
+			.query(
+				"SELECT * FROM saved_objects WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			)
+			.all(scope.level, scopeId) as any[];
+
+		const results: PersistedObjectState[] = [];
+		for (const saved of allSaved) {
+			const tags: string[] = JSON.parse(saved.tags);
+			if (tags.includes(tag)) {
+				const fullState = await this.getPersistent(saved.id, scope);
+				if (fullState) results.push(fullState);
+			}
+		}
+		return results;
+	}
+
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedObjectState & { scope: OwnerScope }>> {
+		const userId = scope.level === "user" ? scope.userId : null;
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+				params.push(userId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_objects WHERE scope_level = 'user' AND user_id = ?";
+				params.push(userId);
+			}
+		}
+
+		const savedRecords = this.db.query(queryStr).all(...params) as any[];
+
+		const results: Array<PersistedObjectState & { scope: OwnerScope }> = [];
+		for (const r of savedRecords) {
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: r.user_id }
+					: { level: "global" };
+
+			const state = await this.getPersistent(r.id, recordScope);
+			if (state) {
+				results.push({
+					...state,
+					scope: recordScope,
+				});
+			}
+		}
+		return results;
+	}
+}
+
+// ── SQLite Event Store ────────────────────────────────────────────────
+
+export class SqliteEventStore
+	implements SessionEventStore, PersistentEventStore
+{
+	private db: Database;
+
+	constructor(dbPath: string) {
+		const dir = path.dirname(dbPath);
+		if (dir !== "." && !fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+
+		this.db = new Database(dbPath);
+		this.initSchema();
+	}
+
+	private initSchema(): void {
+		this.db.run("PRAGMA journal_mode = WAL;");
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS events (
+        commit_id         TEXT PRIMARY KEY,
+        session_id        TEXT NULL,
+        parent_commit_id  TEXT NULL,
+        scope_level       TEXT NOT NULL DEFAULT 'session',
+        user_id           TEXT NULL,
+        operation         TEXT NOT NULL,
+        mutations         TEXT NOT NULL,
+        created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+        linear_depth      INTEGER NOT NULL DEFAULT 0,
+        gc_lock           INTEGER NOT NULL DEFAULT 0,
+        merge_source_commit_ids TEXT NULL,
+        merge_accepted_ids TEXT NULL,
+        merge_rejected_ids TEXT NULL,
+        schema_name       TEXT NOT NULL
+      );
+    `);
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS saved_events (
+        id           TEXT PRIMARY KEY,
+        tags         TEXT NOT NULL,
+        description  TEXT NOT NULL,
+        scope_level  TEXT NOT NULL,
+        user_id      TEXT NULL,
+        saved_at     TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS event_session_aliases (
+        session_id  TEXT NOT NULL,
+        alias_name  TEXT NOT NULL,
+        target_id   TEXT NOT NULL,
+        PRIMARY KEY (session_id, alias_name)
+      );
+    `);
+	}
+
+	// ─── Overloaded get ────────────────────────────────────────────────
+
+	get(sessionId: string, commitId: string): Promise<EventCommit | null>;
+	get(commitId: string, scope: OwnerScope): Promise<PersistedEventState | null>;
+	async get(a: string, b: string | OwnerScope): Promise<any> {
+		if (typeof b === "string") {
+			return this.getSession(a, b);
+		} else {
+			return this.getPersistent(a, b);
+		}
+	}
+
+	// ─── Overloaded set ────────────────────────────────────────────────
+
+	set(sessionId: string, commitId: string, state: EventCommit): Promise<void>;
+	set(
+		commitId: string,
+		state: PersistedEventState,
+		scope: OwnerScope,
+	): Promise<void>;
+	async set(a: string, b: any, c?: any): Promise<void> {
+		if (c && typeof c === "object" && "level" in c) {
+			return this.setPersistent(a, b, c);
+		} else {
+			return this.setSession(a, b, c);
+		}
+	}
+
+	// ─── Overloaded delete ─────────────────────────────────────────────
+
+	delete(sessionId: string, commitId: string): Promise<void>;
+	delete(commitId: string, scope: OwnerScope): Promise<void>;
+	async delete(a: string, b: string | OwnerScope): Promise<void> {
+		if (typeof b === "string") {
+			return this.deleteSession(a, b);
+		} else {
+			return this.deletePersistent(a, b);
+		}
+	}
+
+	async getAlias(sessionId: string, alias: string): Promise<string | null> {
+		const row = this.db
+			.query(
+				"SELECT target_id FROM event_session_aliases WHERE session_id = ? AND alias_name = ?",
+			)
+			.get(sessionId, alias) as any;
+		return row ? row.target_id : null;
+	}
+
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
+		this.db.run(
+			`INSERT INTO event_session_aliases (session_id, alias_name, target_id)
+        VALUES (?, ?, ?)
+        ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
+			[sessionId, alias, targetId],
+		);
+	}
+
+	async deleteAlias(sessionId: string, alias: string): Promise<void> {
+		this.db.run(
+			"DELETE FROM event_session_aliases WHERE session_id = ? AND alias_name = ?",
+			[sessionId, alias],
+		);
+	}
+
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
+		const rows = this.db
+			.query(
+				"SELECT alias_name, target_id FROM event_session_aliases WHERE session_id = ?",
+			)
+			.all(sessionId) as any[];
+		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
+	}
+
+	async create(
+		sessionId: string,
+		state: Omit<EventCommit, "commitId"> & { commitId?: string },
+		alias?: string,
+	): Promise<string> {
+		const commitId =
+			state.commitId ||
+			`commit_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+		const fullState: EventCommit = { ...state, commitId };
+		await this.set(sessionId, commitId, fullState);
+		if (alias) {
+			await this.setAlias(sessionId, alias, commitId);
+		}
+		return commitId;
+	}
+
+	// ─── Internal Session Operations ───────────────────────────────────
+
+	private async getSession(
+		sessionId: string,
+		commitId: string,
+	): Promise<EventCommit | null> {
+		const row = this.db
+			.query(
+				"SELECT * FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
+			)
+			.get(sessionId, commitId) as any;
+
+		if (!row) return null;
+		return this.loadState(row);
+	}
+
+	private async setSession(
+		sessionId: string,
+		commitId: string,
+		state: EventCommit,
+	): Promise<void> {
+		const mutationsStr = JSON.stringify(state.mutations);
+		const mergeSourceIds = state.mergeSourceCommitIds
+			? JSON.stringify(state.mergeSourceCommitIds)
+			: null;
+		const mergeAcceptedIds = state.mergeAcceptedIds
+			? JSON.stringify(state.mergeAcceptedIds)
+			: null;
+		const mergeRejectedIds = state.mergeRejectedIds
+			? JSON.stringify(state.mergeRejectedIds)
+			: null;
+
+		this.db.run(
+			`INSERT OR REPLACE INTO events (commit_id, session_id, parent_commit_id, scope_level, operation, mutations, created_at, linear_depth, gc_lock, merge_source_commit_ids, merge_accepted_ids, merge_rejected_ids)
+      VALUES (?, ?, ?, 'session', ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				commitId,
+				sessionId,
+				state.parentCommitId || null,
+				state.operation,
+				mutationsStr,
+				state.createdAt,
+				state.linearDepth || 0,
+				state.gcLock ? 1 : 0,
+				mergeSourceIds,
+				mergeAcceptedIds,
+				mergeRejectedIds,
+			],
+		);
+	}
+
+	private async deleteSession(sessionId: string, commitId: string): Promise<void> {
+		this.db.run(
+			"DELETE FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
+			[sessionId, commitId],
+		);
+	}
+
+	private loadState(row: any): EventCommit {
+		return {
+			commitId: row.commit_id,
+			sessionId: row.session_id,
+			parentCommitId: row.parent_commit_id,
+			createdAt: row.created_at,
+			operation: row.operation,
+			mutations: JSON.parse(row.mutations),
+			linearDepth: row.linear_depth || 0,
+			gcLock: row.gc_lock === 1,
+			mergeSourceCommitIds: row.merge_source_commit_ids
+				? JSON.parse(row.merge_source_commit_ids)
+				: undefined,
+			mergeAcceptedIds: row.merge_accepted_ids
+				? JSON.parse(row.merge_accepted_ids)
+				: undefined,
+			mergeRejectedIds: row.merge_rejected_ids
+				? JSON.parse(row.merge_rejected_ids)
+				: undefined,
+		};
+	}
+
+	// ─── Internal Persistent Operations ────────────────────────────────
+
+	private async getPersistent(
+		commitId: string,
+		scope: OwnerScope,
+	): Promise<PersistedEventState | null> {
+		const scopeId = scope.level === "user" ? scope.userId : null;
+
+		const saved = this.db
+			.query(
+				"SELECT * FROM saved_events WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			)
+			.get(commitId, scope.level, scopeId) as any;
+
+		if (!saved) return null;
+
+		const row = this.db
+			.query(
+				"SELECT * FROM events WHERE commit_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			)
+			.get(commitId, scope.level, scopeId) as any;
+
+		if (!row) return null;
+
+		return {
+			...this.loadState(row),
+			tags: JSON.parse(saved.tags),
+			description: saved.description,
+			schema_name: row.schema_name,
+		};
+	}
+
+	private async setPersistent(
+		commitId: string,
+		state: PersistedEventState,
+		scope: OwnerScope,
+	): Promise<void> {
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const mutationsStr = JSON.stringify(state.mutations);
+		const mergeSourceIds = state.mergeSourceCommitIds
+			? JSON.stringify(state.mergeSourceCommitIds)
+			: null;
+		const mergeAcceptedIds = state.mergeAcceptedIds
+			? JSON.stringify(state.mergeAcceptedIds)
+			: null;
+		const mergeRejectedIds = state.mergeRejectedIds
+			? JSON.stringify(state.mergeRejectedIds)
+			: null;
+
+		this.db.run(
+			`INSERT OR REPLACE INTO events (commit_id, scope_level, user_id, parent_commit_id, operation, mutations, created_at, linear_depth, gc_lock, merge_source_commit_ids, merge_accepted_ids, merge_rejected_ids, schema_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				commitId,
+				scope.level,
+				scopeId,
+				state.parentCommitId || null,
+				state.operation,
+				mutationsStr,
+				state.createdAt,
+				state.linearDepth || 0,
+				state.gcLock ? 1 : 0,
+				mergeSourceIds,
+				mergeAcceptedIds,
+				mergeRejectedIds,
+				state.schema_name,
+			],
+		);
+
+		this.db.run(
+			`INSERT OR REPLACE INTO saved_events (id, tags, description, scope_level, user_id)
+      VALUES (?, ?, ?, ?, ?)`,
+			[
+				commitId,
+				JSON.stringify(state.tags),
+				state.description,
+				scope.level,
+				scopeId,
+			],
+		);
+	}
+
+	private async deletePersistent(commitId: string, scope: OwnerScope): Promise<void> {
+		this.db.run("DELETE FROM saved_events WHERE id = ?", [commitId]);
+		this.db.run(
+			"DELETE FROM events WHERE commit_id = ? AND scope_level = ?",
+			[commitId, scope.level],
+		);
+	}
+
+	// ─── Additional Interface Methods ──────────────────────────────────
+
+	async listSession(sessionId: string): Promise<string[]> {
+		const rows = this.db
+			.query(
+				"SELECT commit_id FROM events WHERE session_id = ? AND scope_level = 'session'",
+			)
+			.all(sessionId) as any[];
+		return rows.map((r) => r.commit_id);
+	}
+
+	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+		const rows = this.db
+			.query(
+				"SELECT commit_id FROM events WHERE session_id = ? AND parent_commit_id = ? AND scope_level = 'session'",
+			)
+			.all(sessionId, parentId) as any[];
+		return rows.map((r) => r.commit_id);
+	}
+
+	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+		if (olderThanMs !== undefined) {
+			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
+			this.db
+				.query(
+					"DELETE FROM events WHERE session_id = ? AND scope_level = 'session' AND created_at < ?",
+				)
+				.run(sessionId, olderThanDate);
+		} else {
+			this.db.run(
+				"DELETE FROM events WHERE session_id = ? AND scope_level = 'session'",
+				[sessionId],
+			);
+		}
+	}
+
+	async findByTag(
+		tag: string,
+		scope: OwnerScope,
+	): Promise<PersistedEventState[]> {
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const allSaved = this.db
+			.query(
+				"SELECT * FROM saved_events WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			)
+			.all(scope.level, scopeId) as any[];
+
+		const results: PersistedEventState[] = [];
+		for (const saved of allSaved) {
+			const tags: string[] = JSON.parse(saved.tags);
+			if (tags.includes(tag)) {
+				const fullState = await this.getPersistent(saved.id, scope);
+				if (fullState) results.push(fullState);
+			}
+		}
+		return results;
+	}
+
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedEventState & { scope: OwnerScope }>> {
+		const userId = scope.level === "user" ? scope.userId : null;
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+				params.push(userId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_events WHERE scope_level = 'user' AND user_id = ?";
+				params.push(userId);
+			}
+		}
+
+		const savedRecords = this.db.query(queryStr).all(...params) as any[];
+
+		const results: Array<PersistedEventState & { scope: OwnerScope }> = [];
+		for (const r of savedRecords) {
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: r.user_id }
+					: { level: "global" };
+
+			const state = await this.getPersistent(r.id, recordScope);
+			if (state) {
+				results.push({
+					...state,
+					scope: recordScope,
+				});
+			}
+		}
+		return results;
+	}
+}
+
 // Register SQLite repo adapter
 registerAdapter("sqlite", {
 	create: async (options) => {
 		const dbPath = String(options.path || "./sqlite.db");
-		return new SqliteFilterStore(dbPath);
+		return {
+			sessionFilter: new SqliteFilterStore(dbPath),
+			persistentFilter: new SqliteFilterStore(dbPath),
+			sessionObject: new SqliteObjectStore(dbPath),
+			persistentObject: new SqliteObjectStore(dbPath),
+			sessionEvent: new SqliteEventStore(dbPath),
+			persistentEvent: new SqliteEventStore(dbPath),
+			sessionForm: new SqliteFormStore(dbPath),
+			persistentForm: new SqliteFormStore(dbPath),
+		};
 	},
 });

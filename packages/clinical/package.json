@@ -21,7 +21,9 @@
 		"test": "bun test.ts"
 	},
 	"dependencies": {
-		"@stateful-mcp/core": "workspace:^"
+		"@duckdb/node-api": "^1.5.4-r.1",
+		"@stateful-mcp/core": "workspace:^",
+		"@sqlite.org/sqlite-wasm": "latest"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
