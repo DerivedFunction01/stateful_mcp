@@ -1,11 +1,11 @@
-import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { SqliteOrderedLearningStore } from "../../src/store/sqlite-ordered-learning-store";
+import { describe, expect, test } from "bun:test";
 import { OrderedLearningRanker } from "../../src/store/ordered-learning-ranking";
 import type {
 	OrderedLearningHistoryKey,
 	OrderedLearningRecordInput,
 } from "../../src/store/ordered-learning-store";
+import { SqliteOrderedLearningStore } from "../../src/store/sqlite-ordered-learning-store";
 
 function makeRecordInput(
 	cellId: string,
