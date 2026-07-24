@@ -1288,16 +1288,13 @@ export class DuckDbObjectStore
 				],
 			);
 
-			await this.conn.run(
-				SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_OBJECT!.sql,
-				[
-					id,
-					JSON.stringify(state.tags),
-					state.description,
-					scope.level,
-					scopeId,
-				],
-			);
+			await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_OBJECT!.sql, [
+				id,
+				JSON.stringify(state.tags),
+				state.description,
+				scope.level,
+				scopeId,
+			]);
 
 			await this.conn.run("COMMIT");
 		} catch (err) {
@@ -1655,16 +1652,13 @@ export class DuckDbEventStore
 				],
 			);
 
-			await this.conn.run(
-				SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_EVENT!.sql,
-				[
-					commitId,
-					JSON.stringify(state.tags),
-					state.description,
-					scope.level,
-					scopeId,
-				],
-			);
+			await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_EVENT!.sql, [
+				commitId,
+				JSON.stringify(state.tags),
+				state.description,
+				scope.level,
+				scopeId,
+			]);
 
 			await this.conn.run("COMMIT");
 		} catch (err) {
