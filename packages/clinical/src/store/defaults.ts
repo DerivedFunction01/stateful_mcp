@@ -1,3 +1,13 @@
+/**
+ * TEST/FIXTURE DEFAULTS ONLY.
+ *
+ * This module is intentionally for prototype tests, mock fixtures, and local
+ * bootstrap data. It is not the runtime source of truth.
+ *
+ * Production and long-lived clinical behavior should load from config-backed
+ * stores/adapters instead of importing these values directly.
+ */
+
 import {
 	buildDatePatternString,
 	type DateTimeFormatConfig,

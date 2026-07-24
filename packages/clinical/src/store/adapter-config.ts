@@ -1,81 +1,25 @@
-import type { ResourceLocator } from "@stateful-mcp/core";
+import {
+	DEFAULT_CLINICAL_STORE_CONFIG,
+	type ClinicalStoreBackendConfig,
+	type ClinicalStoreDomain,
+} from "./clinical-config";
 
-export type ClinicalAdapterGroup =
-	| "learning"
-	| "dictionary"
-	| "parser"
-	| "soap_note"
-	| "patient_store";
+export type ClinicalAdapterGroup = ClinicalStoreDomain;
 
-export interface ClinicalStorageAdapterConfig {
-	group: ClinicalAdapterGroup;
-	primary: ResourceLocator;
-	fallbacks?: ResourceLocator[];
-}
+export interface ClinicalStorageAdapterConfig extends ClinicalStoreBackendConfig {}
 
-export type ClinicalStorageAdapterRegistry = Record<
-	ClinicalAdapterGroup,
-	ClinicalStorageAdapterConfig[]
->;
+export type ClinicalStorageAdapterRegistry = {
+	[K in ClinicalStoreDomain]: ClinicalStorageAdapterConfig[];
+};
+export type ClinicalDomainConfig = typeof DEFAULT_CLINICAL_STORE_CONFIG.domains;
 
 export const DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY: ClinicalStorageAdapterRegistry =
-	{
-		learning: [
-			{
-				group: "learning",
-				primary: {
-					_type: "adapter",
-					name: "sqlite",
-					options: {
-						path: "./clinical-learning.sqlite",
-					},
-				},
-				fallbacks: [
-					{
-						_type: "adapter",
-						name: "memory",
-						options: {
-							seed: [],
-						},
-					},
-				],
-			},
-			{
-				group: "learning",
-				primary: {
-					_type: "adapter",
-					name: "opfs-sqlite",
-					options: {
-						dbName: "clinical-learning-opfs.sqlite3",
-					},
-				},
-			},
-			{
-				group: "learning",
-				primary: {
-					_type: "adapter",
-					name: "jsonl",
-					options: {
-						path: "./clinical-learning.jsonl",
-					},
-				},
-			},
-			{
-				group: "learning",
-				primary: {
-					_type: "adapter",
-					name: "memory",
-					options: {
-						seed: [],
-					},
-				},
-			},
-		],
-		dictionary: [],
-		parser: [],
-		soap_note: [],
-		patient_store: [],
-	};
+	Object.fromEntries(
+		Object.entries(DEFAULT_CLINICAL_STORE_CONFIG.domains).map(([key, value]) => [
+			key,
+			value.defaultAdapters,
+		]),
+	) as ClinicalStorageAdapterRegistry;
 
 export function getClinicalAdapterConfigs(
 	group: ClinicalAdapterGroup,
@@ -83,3 +27,5 @@ export function getClinicalAdapterConfigs(
 ): ClinicalStorageAdapterConfig[] {
 	return registry[group] || [];
 }
+
+export { DEFAULT_CLINICAL_STORE_CONFIG };
