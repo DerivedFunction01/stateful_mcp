@@ -16,6 +16,7 @@ import type {
 
 export type ClinicalStoreDomain =
 	| "learning"
+	| "ordered_learning"
 	| "dictionary"
 	| "parser"
 	| "soap_note"
@@ -149,6 +150,26 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 			implemented: true,
 			description: "Durable SOAP note/document storage and retrieval backends.",
 			defaultAdapters: [],
+		},
+		ordered_learning: {
+			group: "ordered_learning",
+			implemented: true,
+			description:
+				"Order-aware learning store for resolved token sequences. Captures and retrieves ordered parse tokens for sequence-based ranking.",
+			defaultAdapters: [
+				{
+					group: "ordered_learning",
+					capabilities: ["read", "write", "query", "rank", "learn"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
 		},
 		patient_store: {
 			group: "patient_store",

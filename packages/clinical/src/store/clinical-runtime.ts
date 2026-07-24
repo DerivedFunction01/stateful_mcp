@@ -16,7 +16,11 @@ import type {
 	ParserSyntaxProfile,
 } from "./interfaces";
 import type { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
-import { resolveParsedCellStoreLocator } from "./learning-backend-resolver";
+import {
+	resolveOrderedLearningStoreLocator,
+	resolveParsedCellStoreLocator,
+} from "./learning-backend-resolver";
+import type { MemoryOrderedLearningStore } from "./ordered-learning-store";
 import type { MemoryParsedCellStore } from "./parsed-cell-store";
 import type { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
 
@@ -38,10 +42,13 @@ export type ResolvedParsedCellStore =
 	| SqliteParsedCellStore
 	| JsonlParsedCellStore;
 
+export type ResolvedOrderedLearningStore = MemoryOrderedLearningStore;
+
 export interface ClinicalRuntime {
 	config: ClinicalStoreConfig;
 	parserStores: ClinicalRuntimeParserStores;
 	learningStores: ResolvedParsedCellStore[];
+	orderAwareStores: ResolvedOrderedLearningStore[];
 }
 
 // ── Factory functions ────────────────────────────────────────────────────────
@@ -74,6 +81,18 @@ export function buildClinicalParserStores(
  * Resolves each implemented learning adapter into a ParsedCellStore
  * using the existing learning-backend-resolver registry.
  */
+function buildOrderedLearningStores(
+	config: ClinicalStoreConfig,
+): ResolvedOrderedLearningStore[] {
+	const adapters = getClinicalAdapterConfigs("ordered_learning", {
+		ordered_learning: config.domains.ordered_learning.defaultAdapters,
+	} as unknown as ClinicalStorageAdapterRegistry);
+
+	return adapters
+		.filter((a) => a.implemented !== false && a.primary)
+		.map((a) => resolveOrderedLearningStoreLocator(a.primary));
+}
+
 function buildLearningStores(config: ClinicalStoreConfig): ResolvedParsedCellStore[] {
 	const adapters = getClinicalAdapterConfigs("learning", {
 		learning: config.domains.learning.defaultAdapters,
@@ -142,5 +161,6 @@ export function createClinicalRuntime(
 			),
 		},
 		learningStores: buildLearningStores(config),
+		orderAwareStores: buildOrderedLearningStores(config),
 	};
 }

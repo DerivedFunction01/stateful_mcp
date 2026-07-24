@@ -27,6 +27,7 @@ export * from "./store/clinical-store";
 export * from "./store/defaults";
 export * from "./store/interfaces";
 export * from "./store/learning-history-store";
+export * from "./store/ordered-learning-store";
 export * from "./store/memory-clinical-store";
 export * from "./store/parsed-cell-ranking";
 export * from "./store/parsed-cell-ranking-types";

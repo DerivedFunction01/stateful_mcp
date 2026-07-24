@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import type { ResourceLocator } from "@stateful-mcp/core";
 import { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
+import { MemoryOrderedLearningStore } from "./ordered-learning-store";
 import { MemoryParsedCellStore } from "./parsed-cell-store";
 import { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
 
@@ -47,4 +48,23 @@ export function resolveParsedCellStoreLocator(
 	}
 
 	throw new Error(`Unsupported clinical learning adapter: ${locator.name}`);
+}
+
+export function resolveOrderedLearningStoreLocator(
+	locator: ResourceLocator,
+): MemoryOrderedLearningStore {
+	if (locator._type !== "adapter") {
+		throw new Error(
+			`Unsupported ordered learning locator type: ${locator._type}`,
+		);
+	}
+
+	if (locator.name === "memory") {
+		return new MemoryOrderedLearningStore();
+	}
+
+	// sqlite, duckdb, postgres adapters will be added in Phase 2 (SQL adapter plan)
+	throw new Error(
+		`Unsupported ordered learning adapter: ${locator.name}. Only "memory" is implemented in Phase 1.`,
+	);
 }
