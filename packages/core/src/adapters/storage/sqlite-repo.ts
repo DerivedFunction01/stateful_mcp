@@ -2229,6 +2229,8 @@ registerAdapter("sqlite", {
 			persistentEvent: new SqliteEventStore(dbPath),
 			sessionForm: new SqliteFormStore(dbPath),
 			persistentForm: new SqliteFormStore(dbPath),
+			conceptStore: new SqliteConceptStore(dbPath),
+			persistentExpressionStore: new SqlitePersistentExpressionStore(dbPath),
 		};
 	},
 });
