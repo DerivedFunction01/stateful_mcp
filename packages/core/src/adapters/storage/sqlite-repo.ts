@@ -356,7 +356,9 @@ export class SqliteFilterStore
 			combined_ids: row.combined_ids ? JSON.parse(row.combined_ids) : null,
 			tags: JSON.parse(saved.tags),
 			description: saved.description,
-			schema_snapshot: row.schema_snapshot ? JSON.parse(row.schema_snapshot) : "{}",
+			schema_snapshot: row.schema_snapshot
+				? JSON.parse(row.schema_snapshot)
+				: "{}",
 		};
 	}
 

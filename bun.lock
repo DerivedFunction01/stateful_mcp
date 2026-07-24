@@ -14,8 +14,22 @@
     },
     "packages/cli": {
       "name": "@stateful-mcp/cli",
-      "version": "0.1.3",
+      "version": "0.3.0",
       "dependencies": {
+        "@stateful-mcp/core": "workspace:^",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/node": "^20",
+        "typescript": "^5",
+      },
+    },
+    "packages/clinical": {
+      "name": "@stateful-mcp/clinical",
+      "version": "0.1.0",
+      "dependencies": {
+        "@duckdb/node-api": "^1.5.4-r.1",
+        "@sqlite.org/sqlite-wasm": "latest",
         "@stateful-mcp/core": "workspace:^",
       },
       "devDependencies": {
@@ -26,9 +40,9 @@
     },
     "packages/core": {
       "name": "@stateful-mcp/core",
-      "version": "0.1.3",
+      "version": "0.3.0",
       "dependencies": {
-        "@duckdb/node-api": "^1.5.4-r.1",
+        "@duckdb/node-api": "^1.5.5-r.1",
         "@sqlite.org/sqlite-wasm": "latest",
         "ajv": "^8.20.0",
         "pg": "^8.22.0",
@@ -46,7 +60,7 @@
     },
     "packages/mcp-transport": {
       "name": "@stateful-mcp/mcp-transport",
-      "version": "0.1.3",
+      "version": "0.3.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.29.0",
         "@stateful-mcp/core": "workspace:^",
@@ -163,6 +177,8 @@
     "@sqlite.org/sqlite-wasm": ["@sqlite.org/sqlite-wasm@3.53.0-build1", "", {}, "sha512-PfWPWN2n+/37doa8oh2/oUXk4OOsRYZsxc1W1sDXIGb/Pu5Yrb+f2eyYpgQMGITVX7HVgxhs9P18Rc6I97ym/g=="],
 
     "@stateful-mcp/cli": ["@stateful-mcp/cli@workspace:packages/cli"],
+
+    "@stateful-mcp/clinical": ["@stateful-mcp/clinical@workspace:packages/clinical"],
 
     "@stateful-mcp/core": ["@stateful-mcp/core@workspace:packages/core"],
 
@@ -678,6 +694,8 @@
 
     "@modelcontextprotocol/sdk/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
+    "@stateful-mcp/core/@duckdb/node-api": ["@duckdb/node-api@1.5.5-r.1", "", { "dependencies": { "@duckdb/node-bindings": "1.5.5-r.1" } }, "sha512-1eF3lV9PaaWzA4f4Rbd3GTGXt3aOsoU5aOVi8RXcbbx07YuAs4aoICcrFDBdesYX4ZiDfWeqIfxIJHYGIiwfwg=="],
+
     "@types/pg/@types/node": ["@types/node@26.1.1", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw=="],
 
     "accepts/negotiator": ["negotiator@1.0.0", "", {}, "sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg=="],
@@ -732,6 +750,8 @@
 
     "type-is/content-type": ["content-type@2.0.0", "", {}, "sha512-j/O/d7GcZCyNl7/hwZAb606rzqkyvaDctLmckbxLzHvFBzTJHuGEdodATcP3yIRoDrLHkIATJuvzbFlp/ki2cQ=="],
 
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings": ["@duckdb/node-bindings@1.5.5-r.1", "", { "dependencies": { "detect-libc": "^2.1.2" }, "optionalDependencies": { "@duckdb/node-bindings-darwin-arm64": "1.5.5-r.1", "@duckdb/node-bindings-darwin-x64": "1.5.5-r.1", "@duckdb/node-bindings-linux-arm64": "1.5.5-r.1", "@duckdb/node-bindings-linux-arm64-musl": "1.5.5-r.1", "@duckdb/node-bindings-linux-x64": "1.5.5-r.1", "@duckdb/node-bindings-linux-x64-musl": "1.5.5-r.1", "@duckdb/node-bindings-win32-arm64": "1.5.5-r.1", "@duckdb/node-bindings-win32-x64": "1.5.5-r.1" } }, "sha512-5thbXfoBUcB5Wxou6DkXpnKmXTgj0IA6cLY0YFfsLI4VRdZV0gWsMMziXi26qWzgrn7H/HP35czkKVc+jvaT0g=="],
+
     "@types/pg/@types/node/undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
 
     "bun-types/@types/node/undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
@@ -777,6 +797,22 @@
     "read-yaml-file/js-yaml/argparse": ["argparse@1.0.10", "", { "dependencies": { "sprintf-js": "~1.0.2" } }, "sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg=="],
 
     "ssri/minipass/yallist": ["yallist@4.0.0", "", {}, "sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-darwin-arm64": ["@duckdb/node-bindings-darwin-arm64@1.5.5-r.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-knLjoyxwt1aBpRqxrbIbVdDCI+uMhTe8C+2KVncz4OLgI3KsqgeYIYy8Uee+5dvSSs84BOHMIKLuBhzutBX1bw=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-darwin-x64": ["@duckdb/node-bindings-darwin-x64@1.5.5-r.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-FOSlP2K15L6xkzqjUlEeJLIhFqahm14zVQ5Lcf953ww1MpE/GNysvIC6DyJWlPI2rL9Oez0sIMpE3Uj6G7oXvw=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-linux-arm64": ["@duckdb/node-bindings-linux-arm64@1.5.5-r.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-ITkwQ/0SvyeOGdGMiMGKGiID8IgwWPLI0DDqcr1DND1QfiwP4OuGYxNHosWaNFS1z7LEbjN18GZtRcwmYCVH/w=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-linux-arm64-musl": ["@duckdb/node-bindings-linux-arm64-musl@1.5.5-r.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-6GwbW28aK9LQNOSn5S/NS79Ak8TXtAFVGLp1+0td2mt5l21ge6smDcjm9IOgi8O+aSZUHEDQhHvCdFYOjAFvSA=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-linux-x64": ["@duckdb/node-bindings-linux-x64@1.5.5-r.1", "", { "os": "linux", "cpu": "x64" }, "sha512-zuhH2VduUs1N//Tch+M5Y3RYUd5rNiafnBJpsz0z7eQ/x/8WRDVuMleSRPYdkvHTbllAGc/8ZUjC4FvqScxwoA=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-linux-x64-musl": ["@duckdb/node-bindings-linux-x64-musl@1.5.5-r.1", "", { "os": "linux", "cpu": "x64" }, "sha512-NI6wpYx+mzTwfBNGIrEBn04Je/m34SYLLrZy7yAg5U8W+9HZ2N7j2Rem64Bte4Nl7E93385Z22kHpbOExyYFRA=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-win32-arm64": ["@duckdb/node-bindings-win32-arm64@1.5.5-r.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-+7w5Q24HZEqLMtVn+agNAxtzxo2gmaaBWK3RfwCgsQFfl00lP8D6hNnOJnUnHVObvqdWw3CzTkYsOQKDY8+a/A=="],
+
+    "@stateful-mcp/core/@duckdb/node-api/@duckdb/node-bindings/@duckdb/node-bindings-win32-x64": ["@duckdb/node-bindings-win32-x64@1.5.5-r.1", "", { "os": "win32", "cpu": "x64" }, "sha512-7KAdShoWQz7YXKvUneIu9ujxIVCSSA6pJ5QSZBDkNUCW+7RBLV/aH2Uy3K0Vl04reaFedaS3aewfstX2SQS5XQ=="],
 
     "cacache/glob/minimatch/brace-expansion": ["brace-expansion@2.1.2", "", { "dependencies": { "balanced-match": "^1.0.0" } }, "sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA=="],
 

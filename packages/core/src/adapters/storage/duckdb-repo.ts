@@ -1,3 +1,4 @@
+import { DuckDBInstance } from "@duckdb/node-api";
 import * as crypto from "crypto";
 import { registerAdapter } from "../../config/loader";
 import type { OwnerScope } from "../../config/types";
@@ -8,11 +9,8 @@ import type {
 import type {
 	Concept,
 	ConceptRelation,
-	ConceptRelationType,
 	CustomExpression,
 	Namespace,
-	RelatedConceptResult,
-	TraversalDirection,
 } from "../../middleware/dictionary/types";
 import type { EventCommit } from "../../middleware/event/types";
 import type {
@@ -35,10 +33,13 @@ import type {
 	SessionFormStore,
 	SessionObjectStore,
 } from "./interfaces";
-import { DuckDBInstance } from "@duckdb/node-api";
 
-async function getConnection(dbPath: string): Promise<import("@duckdb/node-api").DuckDBConnection> {
-	const instance = await DuckDBInstance.create(dbPath, { allow_unsigned_extensions: "true" });
+async function getConnection(
+	dbPath: string,
+): Promise<import("@duckdb/node-api").DuckDBConnection> {
+	const instance = await DuckDBInstance.create(dbPath, {
+		allow_unsigned_extensions: "true",
+	});
 	return await instance.connect();
 }
 
@@ -107,8 +108,12 @@ export class DuckDbFilterStore
       )
     `);
 
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_filters_session ON filters(session_id, scope_level)");
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_filters_scope ON filters(scope_level, user_id)");
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_filters_session ON filters(session_id, scope_level)",
+		);
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_filters_scope ON filters(scope_level, user_id)",
+		);
 	}
 
 	get(sessionId: string, id: string): Promise<FilterState | null>;
@@ -121,7 +126,11 @@ export class DuckDbFilterStore
 	}
 
 	set(sessionId: string, id: string, state: FilterState): Promise<void>;
-	set(id: string, state: PersistedFilterState, scope: OwnerScope): Promise<void>;
+	set(
+		id: string,
+		state: PersistedFilterState,
+		scope: OwnerScope,
+	): Promise<void>;
 	async set(a: string, b: any, c?: any): Promise<void> {
 		if (c && typeof c === "object" && "level" in c) {
 			return this.setPersistent(a, b, c);
@@ -147,7 +156,11 @@ export class DuckDbFilterStore
 		return rows.length > 0 ? String(rows[0]!.target_id) : null;
 	}
 
-	async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
 		await this.conn.run(
 			`INSERT INTO session_aliases (session_id, alias_name, target_id)
        VALUES (?, ?, ?)
@@ -163,13 +176,18 @@ export class DuckDbFilterStore
 		);
 	}
 
-	async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
-		return rows.map((r) => ({ alias: String(r.alias_name), targetId: String(r.target_id) }));
+		return rows.map((r) => ({
+			alias: String(r.alias_name),
+			targetId: String(r.target_id),
+		}));
 	}
 
 	async create(
@@ -186,7 +204,10 @@ export class DuckDbFilterStore
 		return id;
 	}
 
-	private async getSession(sessionId: string, id: string): Promise<FilterState | null> {
+	private async getSession(
+		sessionId: string,
+		id: string,
+	): Promise<FilterState | null> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM filters WHERE session_id = ? AND filter_id = ? AND scope_level = 'session'",
 			[sessionId, id],
@@ -211,17 +232,31 @@ export class DuckDbFilterStore
 			toolName: row.tool_name ? String(row.tool_name) : undefined,
 			tableName: row.table_name ? String(row.table_name) : undefined,
 			rules,
-			parentFilterId: row.parent_filter_id ? String(row.parent_filter_id) : null,
+			parentFilterId: row.parent_filter_id
+				? String(row.parent_filter_id)
+				: null,
 			createdAt: String(row.created_at),
 			combined_operation: row.combined_operation as any,
-			combined_ids: row.combined_ids ? JSON.parse(String(row.combined_ids)) : null,
-			schema_snapshot: row.schema_snapshot ? JSON.parse(String(row.schema_snapshot)) : null,
+			combined_ids: row.combined_ids
+				? JSON.parse(String(row.combined_ids))
+				: null,
+			schema_snapshot: row.schema_snapshot
+				? JSON.parse(String(row.schema_snapshot))
+				: null,
 		};
 	}
 
-	private async setSession(sessionId: string, id: string, state: FilterState): Promise<void> {
-		const combinedIdsStr = state.combined_ids ? JSON.stringify(state.combined_ids) : null;
-		const schemaSnapshotStr = state.schema_snapshot ? JSON.stringify(state.schema_snapshot) : null;
+	private async setSession(
+		sessionId: string,
+		id: string,
+		state: FilterState,
+	): Promise<void> {
+		const combinedIdsStr = state.combined_ids
+			? JSON.stringify(state.combined_ids)
+			: null;
+		const schemaSnapshotStr = state.schema_snapshot
+			? JSON.stringify(state.schema_snapshot)
+			: null;
 
 		await this.conn.run("BEGIN");
 		try {
@@ -280,7 +315,10 @@ export class DuckDbFilterStore
 		}
 	}
 
-	private async getPersistent(id: string, scope: OwnerScope): Promise<PersistedFilterState | null> {
+	private async getPersistent(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedFilterState | null> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const savedReader = await this.conn.runAndReadAll(
@@ -315,19 +353,31 @@ export class DuckDbFilterStore
 			toolName: row.tool_name ? String(row.tool_name) : undefined,
 			tableName: row.table_name ? String(row.table_name) : undefined,
 			rules,
-			parentFilterId: row.parent_filter_id ? String(row.parent_filter_id) : null,
+			parentFilterId: row.parent_filter_id
+				? String(row.parent_filter_id)
+				: null,
 			createdAt: String(row.created_at),
 			combined_operation: row.combined_operation as any,
-			combined_ids: row.combined_ids ? JSON.parse(String(row.combined_ids)) : null,
+			combined_ids: row.combined_ids
+				? JSON.parse(String(row.combined_ids))
+				: null,
 			tags: JSON.parse(String(saved.tags)),
 			description: String(saved.description),
-			schema_snapshot: row.schema_snapshot ? JSON.parse(String(row.schema_snapshot)) : "{}",
+			schema_snapshot: row.schema_snapshot
+				? JSON.parse(String(row.schema_snapshot))
+				: "{}",
 		};
 	}
 
-	private async setPersistent(id: string, state: PersistedFilterState, scope: OwnerScope): Promise<void> {
+	private async setPersistent(
+		id: string,
+		state: PersistedFilterState,
+		scope: OwnerScope,
+	): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		const combinedIdsStr = state.combined_ids ? JSON.stringify(state.combined_ids) : null;
+		const combinedIdsStr = state.combined_ids
+			? JSON.stringify(state.combined_ids)
+			: null;
 
 		await this.conn.run("BEGIN");
 		try {
@@ -374,7 +424,13 @@ export class DuckDbFilterStore
            description=excluded.description,
            scope_level=excluded.scope_level,
            user_id=excluded.user_id`,
-				[id, JSON.stringify(state.tags), state.description, scope.level, scopeId],
+				[
+					id,
+					JSON.stringify(state.tags),
+					state.description,
+					scope.level,
+					scopeId,
+				],
 			);
 
 			await this.conn.run("COMMIT");
@@ -400,7 +456,10 @@ export class DuckDbFilterStore
 		}
 	}
 
-	async findByTag(tag: string, scope: OwnerScope): Promise<PersistedFilterState[]> {
+	async findByTag(
+		tag: string,
+		scope: OwnerScope,
+	): Promise<PersistedFilterState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM saved_filters WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
@@ -418,16 +477,21 @@ export class DuckDbFilterStore
 		return results;
 	}
 
-	async list(scope: OwnerScope, includeGlobal?: boolean): Promise<Array<PersistedFilterState & { scope: OwnerScope }>> {
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedFilterState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr = "SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = 'global')";
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = 'global')";
 		const params: any[] = [];
 		if (scope.level === "user") {
 			if (includeGlobal) {
 				queryStr += " OR (scope_level = ? AND user_id = ?)";
 				params.push(scope.level, userId);
 			} else {
-				queryStr = "SELECT id, scope_level, user_id FROM saved_filters WHERE scope_level = ? AND user_id = ?";
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_filters WHERE scope_level = ? AND user_id = ?";
 				params.push(scope.level, userId);
 			}
 		}
@@ -436,9 +500,10 @@ export class DuckDbFilterStore
 		const savedRecords = reader.getRowObjectsJS();
 		const results: Array<PersistedFilterState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
-			const recordScope: OwnerScope = r.scope_level === "user"
-				? { level: "user", userId: String(r.user_id) }
-				: { level: "global" };
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: String(r.user_id) }
+					: { level: "global" };
 			const state = await this.getPersistent(String(r.id), recordScope);
 			if (state) {
 				results.push({ ...state, scope: recordScope });
@@ -473,7 +538,10 @@ export class DuckDbFilterStore
 				[sessionId, cutoff],
 			);
 		} else {
-			await this.conn.run("DELETE FROM filters WHERE session_id = ? AND scope_level = 'session'", [sessionId]);
+			await this.conn.run(
+				"DELETE FROM filters WHERE session_id = ? AND scope_level = 'session'",
+				[sessionId],
+			);
 		}
 	}
 }
@@ -538,7 +606,9 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
         saved_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_forms_session ON forms(session_id, scope_level)");
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_forms_session ON forms(session_id, scope_level)",
+		);
 	}
 
 	get(sessionId: string, id: string): Promise<FormState | null>;
@@ -551,7 +621,11 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 	}
 
 	set(sessionId: string, id: string, state: FormState): Promise<void>;
-	set(id: string, state: PersistedFormStateDetails, scope: OwnerScope): Promise<void>;
+	set(
+		id: string,
+		state: PersistedFormStateDetails,
+		scope: OwnerScope,
+	): Promise<void>;
 	async set(a: string, b: any, c?: any): Promise<void> {
 		if (c && typeof c === "object" && "level" in c) {
 			await this.setPersistent(a, b, c);
@@ -579,7 +653,11 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		return rows.length > 0 ? String(rows[0]!.target_id) : null;
 	}
 
-	async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
 		await this.conn.run(
 			`INSERT INTO session_aliases (session_id, alias_name, target_id)
        VALUES (?, ?, ?)
@@ -595,13 +673,18 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		);
 	}
 
-	async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
-		return rows.map((r) => ({ alias: String(r.alias_name), targetId: String(r.target_id) }));
+		return rows.map((r) => ({
+			alias: String(r.alias_name),
+			targetId: String(r.target_id),
+		}));
 	}
 
 	async create(
@@ -618,7 +701,10 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		return id;
 	}
 
-	private async getSession(sessionId: string, id: string): Promise<FormState | null> {
+	private async getSession(
+		sessionId: string,
+		id: string,
+	): Promise<FormState | null> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM forms WHERE form_id = ? AND session_id = ?",
 			[id, sessionId],
@@ -628,7 +714,10 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		return this.loadState(rows[0]!);
 	}
 
-	private async getPersistent(id: string, scope: OwnerScope): Promise<PersistedFormStateDetails | null> {
+	private async getPersistent(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedFormStateDetails | null> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM forms WHERE form_id = ? AND scope_level = ?",
 			[id, scope.level],
@@ -637,7 +726,10 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		if (rows.length === 0) return null;
 		const formRow = rows[0]!;
 
-		const savedReader = await this.conn.runAndReadAll("SELECT * FROM saved_forms WHERE id = ?", [id]);
+		const savedReader = await this.conn.runAndReadAll(
+			"SELECT * FROM saved_forms WHERE id = ?",
+			[id],
+		);
 		const savedRows = savedReader.getRowObjectsJS();
 		const saved = savedRows[0];
 		const tags = saved ? JSON.parse(String(saved.tags)) : [];
@@ -669,7 +761,9 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 			"SELECT question_id FROM form_skipped WHERE form_id = ?",
 			[formId],
 		);
-		const skipped = skippedReader.getRowObjectsJS().map((r) => String(r.question_id));
+		const skipped = skippedReader
+			.getRowObjectsJS()
+			.map((r) => String(r.question_id));
 
 		const staleReader = await this.conn.runAndReadAll(
 			"SELECT question_id FROM form_stale WHERE form_id = ?",
@@ -692,7 +786,11 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		};
 	}
 
-	private async setSession(sessionId: string, id: string, state: FormState): Promise<void> {
+	private async setSession(
+		sessionId: string,
+		id: string,
+		state: FormState,
+	): Promise<void> {
 		await this.conn.run("BEGIN");
 		try {
 			await this.conn.run(
@@ -738,7 +836,11 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		}
 	}
 
-	private async setPersistent(id: string, state: PersistedFormStateDetails, scope: OwnerScope): Promise<void> {
+	private async setPersistent(
+		id: string,
+		state: PersistedFormStateDetails,
+		scope: OwnerScope,
+	): Promise<void> {
 		const userId = scope.level === "user" ? scope.userId : null;
 		await this.conn.run("BEGIN");
 		try {
@@ -751,7 +853,14 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
            scope_level=excluded.scope_level,
            user_id=excluded.user_id,
            created_at=excluded.created_at`,
-				[id, state.parentFormId, state.schemaName, scope.level, userId, state.timestamp],
+				[
+					id,
+					state.parentFormId,
+					state.schemaName,
+					scope.level,
+					userId,
+					state.timestamp,
+				],
 			);
 
 			await this.conn.run("DELETE FROM form_answers WHERE form_id = ?", [id]);
@@ -787,7 +896,14 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
            scope_level=excluded.scope_level,
            user_id=excluded.user_id,
            saved_at=excluded.saved_at`,
-				[id, JSON.stringify(state.tags), state.description, scope.level, userId, state.timestamp],
+				[
+					id,
+					JSON.stringify(state.tags),
+					state.description,
+					scope.level,
+					userId,
+					state.timestamp,
+				],
 			);
 
 			await this.conn.run("COMMIT");
@@ -797,7 +913,10 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		}
 	}
 
-	async findByTag(tag: string, scope: OwnerScope): Promise<PersistedFormStateDetails[]> {
+	async findByTag(
+		tag: string,
+		scope: OwnerScope,
+	): Promise<PersistedFormStateDetails[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM saved_forms WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
@@ -815,27 +934,34 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		return results;
 	}
 
-	async list(scope: OwnerScope, includeGlobal?: boolean): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr = "SELECT id, scope_level, user_id FROM saved_forms WHERE (scope_level = 'global')";
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_forms WHERE (scope_level = 'global')";
 		const params: any[] = [];
 		if (scope.level === "user") {
 			if (includeGlobal) {
 				queryStr += " OR (scope_level = ? AND user_id = ?)";
 				params.push(scope.level, userId);
 			} else {
-				queryStr = "SELECT id, scope_level, user_id FROM saved_forms WHERE scope_level = ? AND user_id = ?";
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_forms WHERE scope_level = ? AND user_id = ?";
 				params.push(scope.level, userId);
 			}
 		}
 
 		const reader = await this.conn.runAndReadAll(queryStr, params);
 		const savedRecords = reader.getRowObjectsJS();
-		const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> = [];
+		const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> =
+			[];
 		for (const r of savedRecords) {
-			const recordScope: OwnerScope = r.scope_level === "user"
-				? { level: "user", userId: String(r.user_id) }
-				: { level: "global" };
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: String(r.user_id) }
+					: { level: "global" };
 			const state = await this.getPersistent(String(r.id), recordScope);
 			if (state) {
 				results.push({ ...state, scope: recordScope });
@@ -870,7 +996,9 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 				[sessionId, cutoff],
 			);
 		} else {
-			await this.conn.run("DELETE FROM forms WHERE session_id = ?", [sessionId]);
+			await this.conn.run("DELETE FROM forms WHERE session_id = ?", [
+				sessionId,
+			]);
 		}
 	}
 }
@@ -922,8 +1050,12 @@ export class DuckDbConceptStore implements ConceptStore {
         FOREIGN KEY(linked_id) REFERENCES dict_concepts(id)
       )
     `);
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_dict_rel_forward ON dict_relations(concept_id, active)");
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_dict_rel_reverse ON dict_relations(linked_id, active)");
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_dict_rel_forward ON dict_relations(concept_id, active)",
+		);
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_dict_rel_reverse ON dict_relations(linked_id, active)",
+		);
 		await this.conn.run(`
       CREATE TABLE IF NOT EXISTS dict_relation_cache (
         ancestor_concept_id TEXT NOT NULL,
@@ -935,11 +1067,18 @@ export class DuckDbConceptStore implements ConceptStore {
         PRIMARY KEY(ancestor_concept_id, descendant_concept_id, inferred_relationship_type)
       )
     `);
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_dict_cache_traversal ON dict_relation_cache(ancestor_concept_id, active)");
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_dict_cache_traversal ON dict_relation_cache(ancestor_concept_id, active)",
+		);
 	}
 
-	async search(query: string, namespaceCode?: string, limit: number = 50): Promise<Concept[]> {
-		let sql = "SELECT * FROM dict_concepts WHERE (display ILIKE ? OR id = ? OR standard_code = ? OR description ILIKE ?)";
+	async search(
+		query: string,
+		namespaceCode?: string,
+		limit: number = 50,
+	): Promise<Concept[]> {
+		let sql =
+			"SELECT * FROM dict_concepts WHERE (display ILIKE ? OR id = ? OR standard_code = ? OR description ILIKE ?)";
 		const params: any[] = [`%${query}%`, query, query, `%${query}%`];
 		if (namespaceCode) {
 			sql += " AND namespace_code = ?";
@@ -956,13 +1095,18 @@ export class DuckDbConceptStore implements ConceptStore {
 			standardCode: String(r.standard_code),
 			display: String(r.display),
 			description: r.description ? String(r.description) : undefined,
-			designationDate: r.designation_date ? String(r.designation_date) : undefined,
+			designationDate: r.designation_date
+				? String(r.designation_date)
+				: undefined,
 			active: Boolean(r.active),
 		}));
 	}
 
 	async getById(id: string): Promise<Concept | null> {
-		const reader = await this.conn.runAndReadAll("SELECT * FROM dict_concepts WHERE id = ?", [id]);
+		const reader = await this.conn.runAndReadAll(
+			"SELECT * FROM dict_concepts WHERE id = ?",
+			[id],
+		);
 		const rows = reader.getRowObjectsJS();
 		if (rows.length === 0) return null;
 		const r = rows[0]!;
@@ -972,13 +1116,17 @@ export class DuckDbConceptStore implements ConceptStore {
 			standardCode: String(r.standard_code),
 			display: String(r.display),
 			description: r.description ? String(r.description) : undefined,
-			designationDate: r.designation_date ? String(r.designation_date) : undefined,
+			designationDate: r.designation_date
+				? String(r.designation_date)
+				: undefined,
 			active: Boolean(r.active),
 		};
 	}
 
 	async listNamespaces(): Promise<Namespace[]> {
-		const reader = await this.conn.runAndReadAll("SELECT * FROM dict_namespaces");
+		const reader = await this.conn.runAndReadAll(
+			"SELECT * FROM dict_namespaces",
+		);
 		const rows = reader.getRowObjectsJS();
 		return rows.map((r: any) => ({
 			code: String(r.code),
@@ -1055,7 +1203,9 @@ export class DuckDbConceptStore implements ConceptStore {
 
 // ── DuckDB Persistent Expression Store ───────────────────────────
 
-export class DuckDbPersistentExpressionStore implements PersistentExpressionStore {
+export class DuckDbPersistentExpressionStore
+	implements PersistentExpressionStore
+{
 	private conn!: import("@duckdb/node-api").DuckDBConnection;
 	private dbPath: string;
 
@@ -1090,7 +1240,14 @@ export class DuckDbPersistentExpressionStore implements PersistentExpressionStor
          scope_level=excluded.scope_level,
          scope_id=excluded.scope_id,
          data=excluded.data`,
-			[expression.id, expression.term, expression.conceptId || null, scope.level, scopeId, JSON.stringify(expression)],
+			[
+				expression.id,
+				expression.term,
+				expression.conceptId || null,
+				scope.level,
+				scopeId,
+				JSON.stringify(expression),
+			],
 		);
 	}
 
@@ -1102,9 +1259,13 @@ export class DuckDbPersistentExpressionStore implements PersistentExpressionStor
 		);
 	}
 
-	async list(scope: OwnerScope, includeGlobal?: boolean): Promise<CustomExpression[]> {
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<CustomExpression[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		let sql = "SELECT data FROM dict_custom_expressions WHERE (scope_level = ? AND (scope_id = ? OR scope_id IS NULL))";
+		let sql =
+			"SELECT data FROM dict_custom_expressions WHERE (scope_level = ? AND (scope_id = ? OR scope_id IS NULL))";
 		const params: any[] = [scope.level, scopeId];
 		if (includeGlobal && scope.level !== "global") {
 			sql += " OR scope_level = 'global'";
@@ -1115,7 +1276,10 @@ export class DuckDbPersistentExpressionStore implements PersistentExpressionStor
 	}
 
 	async getById(id: string): Promise<CustomExpression | null> {
-		const reader = await this.conn.runAndReadAll("SELECT data FROM dict_custom_expressions WHERE id = ?", [id]);
+		const reader = await this.conn.runAndReadAll(
+			"SELECT data FROM dict_custom_expressions WHERE id = ?",
+			[id],
+		);
 		const rows = reader.getRowObjectsJS();
 		if (rows.length === 0) return null;
 		return JSON.parse(String(rows[0]!.data));
@@ -1163,8 +1327,12 @@ export class DuckDbObjectStore
         saved_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_objects_session ON objects(session_id, scope_level)");
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_objects_scope ON objects(scope_level, user_id)");
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_objects_session ON objects(session_id, scope_level)",
+		);
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_objects_scope ON objects(scope_level, user_id)",
+		);
 	}
 
 	get(sessionId: string, id: string): Promise<ObjectState | null>;
@@ -1177,7 +1345,11 @@ export class DuckDbObjectStore
 	}
 
 	set(sessionId: string, id: string, state: ObjectState): Promise<void>;
-	set(id: string, state: PersistedObjectState, scope: OwnerScope): Promise<void>;
+	set(
+		id: string,
+		state: PersistedObjectState,
+		scope: OwnerScope,
+	): Promise<void>;
 	async set(a: string, b: any, c?: any): Promise<void> {
 		if (c && typeof c === "object" && "level" in c) {
 			return this.setPersistent(a, b, c);
@@ -1203,7 +1375,11 @@ export class DuckDbObjectStore
 		return rows.length > 0 ? String(rows[0]!.target_id) : null;
 	}
 
-	async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
 		await this.conn.run(
 			`INSERT INTO session_aliases (session_id, alias_name, target_id)
        VALUES (?, ?, ?)
@@ -1219,13 +1395,18 @@ export class DuckDbObjectStore
 		);
 	}
 
-	async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
-		return rows.map((r) => ({ alias: String(r.alias_name), targetId: String(r.target_id) }));
+		return rows.map((r) => ({
+			alias: String(r.alias_name),
+			targetId: String(r.target_id),
+		}));
 	}
 
 	async create(
@@ -1242,7 +1423,10 @@ export class DuckDbObjectStore
 		return id;
 	}
 
-	private async getSession(sessionId: string, id: string): Promise<ObjectState | null> {
+	private async getSession(
+		sessionId: string,
+		id: string,
+	): Promise<ObjectState | null> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM objects WHERE session_id = ? AND object_id = ? AND scope_level = 'session'",
 			[sessionId, id],
@@ -1256,16 +1440,24 @@ export class DuckDbObjectStore
 		return {
 			objectId: String(row.object_id),
 			schemaName: String(row.schema_name),
-			parentObjectId: row.parent_object_id ? String(row.parent_object_id) : null,
+			parentObjectId: row.parent_object_id
+				? String(row.parent_object_id)
+				: null,
 			data: JSON.parse(String(row.data)),
 			createdAt: String(row.created_at),
-			schema_pinned_at: row.schema_pinned_at ? String(row.schema_pinned_at) : undefined,
+			schema_pinned_at: row.schema_pinned_at
+				? String(row.schema_pinned_at)
+				: undefined,
 			linearDepth: row.linear_depth ? Number(row.linear_depth) : undefined,
 			gcLock: Boolean(row.gc_lock),
 		};
 	}
 
-	private async setSession(sessionId: string, id: string, state: ObjectState): Promise<void> {
+	private async setSession(
+		sessionId: string,
+		id: string,
+		state: ObjectState,
+	): Promise<void> {
 		const dataStr = JSON.stringify(state.data);
 		await this.conn.run(
 			`INSERT INTO objects (object_id, schema_name, parent_object_id, scope_level, session_id, data, created_at, schema_pinned_at)
@@ -1278,7 +1470,15 @@ export class DuckDbObjectStore
          data=excluded.data,
          created_at=excluded.created_at,
          schema_pinned_at=excluded.schema_pinned_at`,
-			[id, state.schemaName, state.parentObjectId || null, sessionId, dataStr, state.createdAt, state.schema_pinned_at || null],
+			[
+				id,
+				state.schemaName,
+				state.parentObjectId || null,
+				sessionId,
+				dataStr,
+				state.createdAt,
+				state.schema_pinned_at || null,
+			],
 		);
 	}
 
@@ -1289,7 +1489,10 @@ export class DuckDbObjectStore
 		);
 	}
 
-	private async getPersistent(id: string, scope: OwnerScope): Promise<PersistedObjectState | null> {
+	private async getPersistent(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedObjectState | null> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const savedReader = await this.conn.runAndReadAll(
@@ -1312,11 +1515,17 @@ export class DuckDbObjectStore
 			...this.loadState(row),
 			tags: JSON.parse(String(saved.tags)),
 			description: String(saved.description),
-			schema_pinned_at: row.schema_pinned_at ? String(row.schema_pinned_at) : "",
+			schema_pinned_at: row.schema_pinned_at
+				? String(row.schema_pinned_at)
+				: "",
 		};
 	}
 
-	private async setPersistent(id: string, state: PersistedObjectState, scope: OwnerScope): Promise<void> {
+	private async setPersistent(
+		id: string,
+		state: PersistedObjectState,
+		scope: OwnerScope,
+	): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const dataStr = JSON.stringify(state.data);
 
@@ -1333,7 +1542,16 @@ export class DuckDbObjectStore
            data=excluded.data,
            created_at=excluded.created_at,
            schema_pinned_at=excluded.schema_pinned_at`,
-				[id, state.schemaName, state.parentObjectId || null, scope.level, scopeId, dataStr, state.createdAt, state.schema_pinned_at || null],
+				[
+					id,
+					state.schemaName,
+					state.parentObjectId || null,
+					scope.level,
+					scopeId,
+					dataStr,
+					state.createdAt,
+					state.schema_pinned_at || null,
+				],
 			);
 
 			await this.conn.run(
@@ -1344,7 +1562,13 @@ export class DuckDbObjectStore
            description=excluded.description,
            scope_level=excluded.scope_level,
            user_id=excluded.user_id`,
-				[id, JSON.stringify(state.tags), state.description, scope.level, scopeId],
+				[
+					id,
+					JSON.stringify(state.tags),
+					state.description,
+					scope.level,
+					scopeId,
+				],
 			);
 
 			await this.conn.run("COMMIT");
@@ -1356,10 +1580,16 @@ export class DuckDbObjectStore
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
 		await this.conn.run("DELETE FROM saved_objects WHERE id = ?", [id]);
-		await this.conn.run("DELETE FROM objects WHERE object_id = ? AND scope_level = ?", [id, scope.level]);
+		await this.conn.run(
+			"DELETE FROM objects WHERE object_id = ? AND scope_level = ?",
+			[id, scope.level],
+		);
 	}
 
-	async findByTag(tag: string, scope: OwnerScope): Promise<PersistedObjectState[]> {
+	async findByTag(
+		tag: string,
+		scope: OwnerScope,
+	): Promise<PersistedObjectState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM saved_objects WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
@@ -1377,16 +1607,21 @@ export class DuckDbObjectStore
 		return results;
 	}
 
-	async list(scope: OwnerScope, includeGlobal?: boolean): Promise<Array<PersistedObjectState & { scope: OwnerScope }>> {
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedObjectState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr = "SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = 'global')";
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = 'global')";
 		const params: any[] = [];
 		if (scope.level === "user") {
 			if (includeGlobal) {
 				queryStr += " OR (scope_level = ? AND user_id = ?)";
 				params.push(scope.level, userId);
 			} else {
-				queryStr = "SELECT id, scope_level, user_id FROM saved_objects WHERE scope_level = ? AND user_id = ?";
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_objects WHERE scope_level = ? AND user_id = ?";
 				params.push(scope.level, userId);
 			}
 		}
@@ -1395,9 +1630,10 @@ export class DuckDbObjectStore
 		const savedRecords = reader.getRowObjectsJS();
 		const results: Array<PersistedObjectState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
-			const recordScope: OwnerScope = r.scope_level === "user"
-				? { level: "user", userId: String(r.user_id) }
-				: { level: "global" };
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: String(r.user_id) }
+					: { level: "global" };
 			const state = await this.getPersistent(String(r.id), recordScope);
 			if (state) {
 				results.push({ ...state, scope: recordScope });
@@ -1432,7 +1668,10 @@ export class DuckDbObjectStore
 				[sessionId, cutoff],
 			);
 		} else {
-			await this.conn.run("DELETE FROM objects WHERE session_id = ? AND scope_level = 'session'", [sessionId]);
+			await this.conn.run(
+				"DELETE FROM objects WHERE session_id = ? AND scope_level = 'session'",
+				[sessionId],
+			);
 		}
 	}
 }
@@ -1481,8 +1720,12 @@ export class DuckDbEventStore
         saved_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, scope_level)");
-		await this.conn.run("CREATE INDEX IF NOT EXISTS idx_events_scope ON events(scope_level, user_id)");
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, scope_level)",
+		);
+		await this.conn.run(
+			"CREATE INDEX IF NOT EXISTS idx_events_scope ON events(scope_level, user_id)",
+		);
 	}
 
 	get(sessionId: string, commitId: string): Promise<EventCommit | null>;
@@ -1495,7 +1738,11 @@ export class DuckDbEventStore
 	}
 
 	set(sessionId: string, commitId: string, state: EventCommit): Promise<void>;
-	set(commitId: string, state: PersistedEventState, scope: OwnerScope): Promise<void>;
+	set(
+		commitId: string,
+		state: PersistedEventState,
+		scope: OwnerScope,
+	): Promise<void>;
 	async set(a: string, b: any, c?: any): Promise<void> {
 		if (c && typeof c === "object" && "level" in c) {
 			return this.setPersistent(a, b, c);
@@ -1521,7 +1768,11 @@ export class DuckDbEventStore
 		return rows.length > 0 ? String(rows[0]!.target_id) : null;
 	}
 
-	async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
 		await this.conn.run(
 			`INSERT INTO session_aliases (session_id, alias_name, target_id)
        VALUES (?, ?, ?)
@@ -1537,13 +1788,18 @@ export class DuckDbEventStore
 		);
 	}
 
-	async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
-		return rows.map((r) => ({ alias: String(r.alias_name), targetId: String(r.target_id) }));
+		return rows.map((r) => ({
+			alias: String(r.alias_name),
+			targetId: String(r.target_id),
+		}));
 	}
 
 	async create(
@@ -1560,7 +1816,10 @@ export class DuckDbEventStore
 		return id;
 	}
 
-	private async getSession(sessionId: string, commitId: string): Promise<EventCommit | null> {
+	private async getSession(
+		sessionId: string,
+		commitId: string,
+	): Promise<EventCommit | null> {
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
 			[sessionId, commitId],
@@ -1575,23 +1834,41 @@ export class DuckDbEventStore
 		return {
 			commitId: String(row.commit_id),
 			sessionId: String(row.session_id),
-			parentCommitId: row.parent_commit_id ? String(row.parent_commit_id) : null,
+			parentCommitId: row.parent_commit_id
+				? String(row.parent_commit_id)
+				: null,
 			createdAt: String(row.created_at),
 			operation: row.operation as "add" | "update" | "remove" | "merge",
 			mutations: JSON.parse(String(row.mutations)),
 			linearDepth: row.linear_depth ? Number(row.linear_depth) : 0,
 			gcLock: Boolean(row.gc_lock),
-			mergeSourceCommitIds: row.merge_source_commit_ids ? JSON.parse(String(row.merge_source_commit_ids)) : undefined,
-			mergeAcceptedIds: row.merge_accepted_ids ? JSON.parse(String(row.merge_accepted_ids)) : undefined,
-			mergeRejectedIds: row.merge_rejected_ids ? JSON.parse(String(row.merge_rejected_ids)) : undefined,
+			mergeSourceCommitIds: row.merge_source_commit_ids
+				? JSON.parse(String(row.merge_source_commit_ids))
+				: undefined,
+			mergeAcceptedIds: row.merge_accepted_ids
+				? JSON.parse(String(row.merge_accepted_ids))
+				: undefined,
+			mergeRejectedIds: row.merge_rejected_ids
+				? JSON.parse(String(row.merge_rejected_ids))
+				: undefined,
 		};
 	}
 
-	private async setSession(sessionId: string, commitId: string, state: EventCommit): Promise<void> {
+	private async setSession(
+		sessionId: string,
+		commitId: string,
+		state: EventCommit,
+	): Promise<void> {
 		const mutationsStr = JSON.stringify(state.mutations);
-		const mergeSourceIds = state.mergeSourceCommitIds ? JSON.stringify(state.mergeSourceCommitIds) : null;
-		const mergeAcceptedIds = state.mergeAcceptedIds ? JSON.stringify(state.mergeAcceptedIds) : null;
-		const mergeRejectedIds = state.mergeRejectedIds ? JSON.stringify(state.mergeRejectedIds) : null;
+		const mergeSourceIds = state.mergeSourceCommitIds
+			? JSON.stringify(state.mergeSourceCommitIds)
+			: null;
+		const mergeAcceptedIds = state.mergeAcceptedIds
+			? JSON.stringify(state.mergeAcceptedIds)
+			: null;
+		const mergeRejectedIds = state.mergeRejectedIds
+			? JSON.stringify(state.mergeRejectedIds)
+			: null;
 
 		await this.conn.run(
 			`INSERT INTO events (commit_id, session_id, parent_commit_id, scope_level, operation, mutations, created_at, linear_depth, gc_lock, merge_source_commit_ids, merge_accepted_ids, merge_rejected_ids)
@@ -1624,14 +1901,20 @@ export class DuckDbEventStore
 		);
 	}
 
-	private async deleteSession(sessionId: string, commitId: string): Promise<void> {
+	private async deleteSession(
+		sessionId: string,
+		commitId: string,
+	): Promise<void> {
 		await this.conn.run(
 			"DELETE FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
 			[sessionId, commitId],
 		);
 	}
 
-	private async getPersistent(commitId: string, scope: OwnerScope): Promise<PersistedEventState | null> {
+	private async getPersistent(
+		commitId: string,
+		scope: OwnerScope,
+	): Promise<PersistedEventState | null> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const savedReader = await this.conn.runAndReadAll(
@@ -1658,12 +1941,22 @@ export class DuckDbEventStore
 		};
 	}
 
-	private async setPersistent(commitId: string, state: PersistedEventState, scope: OwnerScope): Promise<void> {
+	private async setPersistent(
+		commitId: string,
+		state: PersistedEventState,
+		scope: OwnerScope,
+	): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const mutationsStr = JSON.stringify(state.mutations);
-		const mergeSourceIds = state.mergeSourceCommitIds ? JSON.stringify(state.mergeSourceCommitIds) : null;
-		const mergeAcceptedIds = state.mergeAcceptedIds ? JSON.stringify(state.mergeAcceptedIds) : null;
-		const mergeRejectedIds = state.mergeRejectedIds ? JSON.stringify(state.mergeRejectedIds) : null;
+		const mergeSourceIds = state.mergeSourceCommitIds
+			? JSON.stringify(state.mergeSourceCommitIds)
+			: null;
+		const mergeAcceptedIds = state.mergeAcceptedIds
+			? JSON.stringify(state.mergeAcceptedIds)
+			: null;
+		const mergeRejectedIds = state.mergeRejectedIds
+			? JSON.stringify(state.mergeRejectedIds)
+			: null;
 
 		await this.conn.run("BEGIN");
 		try {
@@ -1708,7 +2001,13 @@ export class DuckDbEventStore
            description=excluded.description,
            scope_level=excluded.scope_level,
            user_id=excluded.user_id`,
-				[commitId, JSON.stringify(state.tags), state.description, scope.level, scopeId],
+				[
+					commitId,
+					JSON.stringify(state.tags),
+					state.description,
+					scope.level,
+					scopeId,
+				],
 			);
 
 			await this.conn.run("COMMIT");
@@ -1718,12 +2017,21 @@ export class DuckDbEventStore
 		}
 	}
 
-	private async deletePersistent(commitId: string, scope: OwnerScope): Promise<void> {
+	private async deletePersistent(
+		commitId: string,
+		scope: OwnerScope,
+	): Promise<void> {
 		await this.conn.run("DELETE FROM saved_events WHERE id = ?", [commitId]);
-		await this.conn.run("DELETE FROM events WHERE commit_id = ? AND scope_level = ?", [commitId, scope.level]);
+		await this.conn.run(
+			"DELETE FROM events WHERE commit_id = ? AND scope_level = ?",
+			[commitId, scope.level],
+		);
 	}
 
-	async findByTag(tag: string, scope: OwnerScope): Promise<PersistedEventState[]> {
+	async findByTag(
+		tag: string,
+		scope: OwnerScope,
+	): Promise<PersistedEventState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
 			"SELECT * FROM saved_events WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
@@ -1741,16 +2049,21 @@ export class DuckDbEventStore
 		return results;
 	}
 
-	async list(scope: OwnerScope, includeGlobal?: boolean): Promise<Array<PersistedEventState & { scope: OwnerScope }>> {
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedEventState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr = "SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = 'global')";
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = 'global')";
 		const params: any[] = [];
 		if (scope.level === "user") {
 			if (includeGlobal) {
 				queryStr += " OR (scope_level = ? AND user_id = ?)";
 				params.push(scope.level, userId);
 			} else {
-				queryStr = "SELECT id, scope_level, user_id FROM saved_events WHERE scope_level = ? AND user_id = ?";
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_events WHERE scope_level = ? AND user_id = ?";
 				params.push(scope.level, userId);
 			}
 		}
@@ -1759,9 +2072,10 @@ export class DuckDbEventStore
 		const savedRecords = reader.getRowObjectsJS();
 		const results: Array<PersistedEventState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
-			const recordScope: OwnerScope = r.scope_level === "user"
-				? { level: "user", userId: String(r.user_id) }
-				: { level: "global" };
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: String(r.user_id) }
+					: { level: "global" };
 			const state = await this.getPersistent(String(r.id), recordScope);
 			if (state) {
 				results.push({ ...state, scope: recordScope });
@@ -1796,7 +2110,10 @@ export class DuckDbEventStore
 				[sessionId, cutoff],
 			);
 		} else {
-			await this.conn.run("DELETE FROM events WHERE session_id = ? AND scope_level = 'session'", [sessionId]);
+			await this.conn.run(
+				"DELETE FROM events WHERE session_id = ? AND scope_level = 'session'",
+				[sessionId],
+			);
 		}
 	}
 }
