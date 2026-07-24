@@ -64,7 +64,7 @@ Ship your own `config/` and point the package at it — you do **not** rely on t
 
 ## Optional: Native DataFrame query engine
 
-The `dataframe` query engine runs DuckDB SQL natively over CSV, Parquet, or JSONL files.
+The `duckdb` query engine runs DuckDB SQL natively over CSV, Parquet, or JSONL files.
 
 ---
 

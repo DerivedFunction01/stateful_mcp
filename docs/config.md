@@ -77,7 +77,7 @@ Registers the tools the LLM can access and how they validate and compile.
     * **Built-in Query Engines**:
       * `"memory-engine"`: In-memory arrays.
       * `"sqlite"` / `"postgres"`: Relational databases.
-      * `"dataframe"`: Runs DuckDB SQL queries natively over CSV, Parquet, or JSONL files.
+      * `"duckdb"`: Runs DuckDB SQL queries natively over CSV, Parquet, or JSONL files.
         * **Options**:
           * `source_file` (string, required): Path to CSV, Parquet, JSON, or JSONL.
           * `dataframe_name` (string, optional): View name registered in DuckDB (defaults to `"df"`).
