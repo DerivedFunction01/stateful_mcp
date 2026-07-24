@@ -12,6 +12,24 @@ export interface OrderedLearningToken {
 	index: number;
 }
 
+export type OrderedLearningRelationType =
+	| "before"
+	| "after"
+	| "adjacent"
+	| "near"
+	| "far";
+
+export interface OrderedLearningRelation {
+	cellId: string;
+	fromKey: string;
+	toKey: string;
+	fromKind: OrderedLearningTokenKind;
+	toKind: OrderedLearningTokenKind;
+	relationType: OrderedLearningRelationType;
+	tokenGap: number;
+	normalizedGap: number;
+}
+
 export interface OrderedLearningRecord {
 	cellId: string;
 	soapNoteId?: string;
@@ -30,6 +48,7 @@ export interface OrderedLearningRecord {
 	facilityId?: string;
 	featureBag?: Record<string, string | number | boolean | null>;
 	orderedTokens: OrderedLearningToken[];
+	relations?: OrderedLearningRelation[];
 	parsedItem: ParsedObservationItem;
 	history?: {
 		priorAcceptCount?: number;
@@ -90,6 +109,12 @@ export interface OrderedLearningHistoryKey {
 /** Maximum number of ordered tokens to store per record. */
 export const MAX_ORDERED_TOKENS = 512;
 
+/** Tokens within this gap are considered "adjacent". */
+export const ADJACENT_GAP_THRESHOLD = 1;
+
+/** Tokens within this gap (exclusive of adjacent) are considered "near". */
+export const NEAR_GAP_THRESHOLD = 5;
+
 // ── Store Interface ──────────────────────────────────────────────────────────
 
 export interface OrderedLearningStore {
@@ -101,6 +126,144 @@ export interface OrderedLearningStore {
 		cellId: string,
 		replacement?: OrderedLearningRecordInput["parsedItem"],
 	): Promise<void>;
+}
+
+// ── Feature Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Derives pairwise relative-distance relations from an ordered token sequence.
+ *
+ * For each pair of tokens (i, j) where i < j, produces a relation describing
+ * their relative position. Uses exact token gap to classify as:
+ * - adjacent (gap === 1)
+ * - near (gap <= NEAR_GAP_THRESHOLD)
+ * - far (gap > NEAR_GAP_THRESHOLD)
+ *
+ * Also includes a "before" relation for every pair and an "after" relation
+ * for the reverse direction, so the full pairwise matrix is available.
+ */
+export function buildOrderedRelations(
+	tokens: OrderedLearningToken[],
+	cellId: string,
+): OrderedLearningRelation[] {
+	const relations: OrderedLearningRelation[] = [];
+	const length = tokens.length;
+	if (length < 2) return relations;
+
+	for (let i = 0; i < length; i++) {
+		const fromToken = tokens[i]!;
+		for (let j = i + 1; j < length; j++) {
+			const toToken = tokens[j]!;
+			const gap = j - i;
+			const normalizedGap = length > 1 ? gap / (length - 1) : 1;
+			let relationType: OrderedLearningRelationType;
+
+			if (gap <= ADJACENT_GAP_THRESHOLD) {
+				relationType = "adjacent";
+			} else if (gap <= NEAR_GAP_THRESHOLD) {
+				relationType = "near";
+			} else {
+				relationType = "far";
+			}
+
+			// before: from i to j
+			relations.push({
+				cellId,
+				fromKey: fromToken.key,
+				toKey: toToken.key,
+				fromKind: fromToken.kind,
+				toKind: toToken.kind,
+				relationType,
+				tokenGap: gap,
+				normalizedGap,
+			});
+
+			// after: from j to i
+			relations.push({
+				cellId,
+				fromKey: toToken.key,
+				toKey: fromToken.key,
+				fromKind: toToken.kind,
+				toKind: fromToken.kind,
+				relationType: "after",
+				tokenGap: gap,
+				normalizedGap,
+			});
+		}
+	}
+
+	return relations;
+}
+
+// ── Composite Store ──────────────────────────────────────────────────────────
+
+export interface OrderedLearningStoreAdapter {
+	adapterId: string;
+	weight: number;
+	store: OrderedLearningStore;
+}
+
+export interface OrderedLearningWeightedCandidate {
+	candidate: OrderedLearningRecord;
+	adapterId: string;
+	weight: number;
+}
+
+export interface OrderedLearningWeightedStore {
+	getWeightedOrderedObservationHistory(
+		key: OrderedLearningHistoryKey,
+	): Promise<OrderedLearningWeightedCandidate[]>;
+}
+
+export class CompositeOrderedLearningStore
+	implements OrderedLearningStore, OrderedLearningWeightedStore
+{
+	constructor(private adapters: OrderedLearningStoreAdapter[]) {}
+
+	async getWeightedOrderedObservationHistory(
+		key: OrderedLearningHistoryKey,
+	): Promise<OrderedLearningWeightedCandidate[]> {
+		const results = await Promise.all(
+			this.adapters.map(async (adapter) => {
+				const rows = await adapter.store.getOrderedObservationHistory(key);
+				return rows.map((candidate) => ({
+					candidate,
+					adapterId: adapter.adapterId,
+					weight: adapter.weight,
+				}));
+			}),
+		);
+		return results.flat();
+	}
+
+	async getOrderedObservationHistory(
+		key: OrderedLearningHistoryKey,
+	): Promise<OrderedLearningRecord[]> {
+		return (await this.getWeightedOrderedObservationHistory(key)).map(
+			(entry) => entry.candidate,
+		);
+	}
+
+	async putOrderedObservation(
+		record: OrderedLearningRecordInput,
+	): Promise<void> {
+		await Promise.all(
+			this.adapters.map((adapter) =>
+				adapter.store.putOrderedObservation(record),
+			),
+		);
+	}
+
+	async markOrderedObservationCorrection(
+		cellId: string,
+		replacement?: OrderedLearningRecordInput["parsedItem"],
+	): Promise<void> {
+		await Promise.all(
+			this.adapters.map((adapter) =>
+				adapter.store.markOrderedObservationCorrection(cellId, replacement),
+			),
+		);
+	}
 }
 
 // ── Memory Implementation ────────────────────────────────────────────────────
@@ -157,11 +320,17 @@ export class MemoryOrderedLearningStore implements OrderedLearningStore {
 			);
 	}
 
-	async putOrderedObservation(record: OrderedLearningRecordInput): Promise<void> {
+	async putOrderedObservation(
+		record: OrderedLearningRecordInput,
+	): Promise<void> {
 		const existing = this.records.get(record.shared.cellId);
 		const now = new Date().toISOString();
 
 		const orderedTokens = record.orderedTokens.slice(0, MAX_ORDERED_TOKENS);
+		const relations = buildOrderedRelations(
+			orderedTokens,
+			record.shared.cellId,
+		);
 
 		const full: OrderedLearningRecord = {
 			cellId: record.shared.cellId,
@@ -180,6 +349,7 @@ export class MemoryOrderedLearningStore implements OrderedLearningStore {
 			specialtyId: record.shared.specialtyId,
 			facilityId: record.shared.facilityId,
 			orderedTokens,
+			relations,
 			parsedItem: record.parsedItem,
 			history: {
 				priorAcceptCount: (existing?.history?.priorAcceptCount || 0) + 1,

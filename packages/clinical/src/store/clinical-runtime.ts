@@ -1,6 +1,5 @@
 import type { EntityStore } from "@stateful-mcp/core";
 import {
-	type ClinicalStorageAdapterConfig,
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
 } from "./adapter-config";
@@ -93,7 +92,9 @@ function buildOrderedLearningStores(
 		.map((a) => resolveOrderedLearningStoreLocator(a.primary));
 }
 
-function buildLearningStores(config: ClinicalStoreConfig): ResolvedParsedCellStore[] {
+function buildLearningStores(
+	config: ClinicalStoreConfig,
+): ResolvedParsedCellStore[] {
 	const adapters = getClinicalAdapterConfigs("learning", {
 		learning: config.domains.learning.defaultAdapters,
 	} as unknown as ClinicalStorageAdapterRegistry);

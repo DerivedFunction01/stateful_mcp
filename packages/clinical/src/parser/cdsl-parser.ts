@@ -447,20 +447,21 @@ export class CdslParser {
 				const allowedNamespaces =
 					this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
 					undefined;
-				const parsed = historyStore && parser.preview
-					? await parser.preview(
-							tag,
-							content,
-							this.dictionaryStore,
-							this.conceptDefaultsStore,
-							this.getEffectiveAttributeRules(),
-							this.profile.evaluatorRules,
-							this.profile.termTokenizer,
-							allowedNamespaces,
-							preparsedContext,
-							historyStore,
-						)
-					: undefined;
+				const parsed =
+					historyStore && parser.preview
+						? await parser.preview(
+								tag,
+								content,
+								this.dictionaryStore,
+								this.conceptDefaultsStore,
+								this.getEffectiveAttributeRules(),
+								this.profile.evaluatorRules,
+								this.profile.termTokenizer,
+								allowedNamespaces,
+								preparsedContext,
+								historyStore,
+							)
+						: undefined;
 
 				const learnedCandidate = parsed?.learned[0] || parsed?.deterministic[0];
 				const deterministic = await parser.parse(
