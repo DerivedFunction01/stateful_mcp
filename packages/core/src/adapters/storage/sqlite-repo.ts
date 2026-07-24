@@ -37,7 +37,7 @@ import type {
 	SessionFormStore,
 	SessionObjectStore,
 } from "./interfaces";
-import * as S from "./sqlite-schema";
+import { SCHEMA } from "./store-schema";
 
 export class SqliteFilterStore
 	implements SessionFilterStore, PersistentFilterStore
@@ -55,13 +55,13 @@ export class SqliteFilterStore
 	}
 
 	private initSchema(): void {
-		this.db.run(S.PRAGMA_WAL);
-		this.db.run(S.DDL_FILTERS);
-		this.db.run(S.DDL_FILTER_RULES);
-		this.db.run(S.DDL_SAVED_FILTERS);
-		this.db.run(S.DDL_SESSION_ALIASES);
-		this.db.run(S.IDX_FILTERS_SESSION);
-		this.db.run(S.IDX_FILTERS_SCOPE);
+		this.db.run(SCHEMA.sqlite.pragma);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_FILTERS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_FILTER_RULES!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_SAVED_FILTERS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_SESSION_ALIASES!.sql);
+		this.db.run(SCHEMA.sqlite.ddlIndexes.IDX_FILTERS_SESSION!.sql);
+		this.db.run(SCHEMA.sqlite.ddlIndexes.IDX_FILTERS_SCOPE!.sql);
 	}
 
 	// ─── Overloaded get ────────────────────────────────────────────────────────
@@ -105,7 +105,9 @@ export class SqliteFilterStore
 	}
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
-		const row = this.db.query(S.SQL_GET_ALIAS).get(sessionId, alias) as any;
+		const row = this.db
+			.query(SCHEMA.sqlite.selects.SQL_GET_ALIAS!.sql)
+			.get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
 
@@ -114,17 +116,26 @@ export class SqliteFilterStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db.run(S.SQL_UPSERT_ALIAS, [sessionId, alias, targetId]);
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db.run(S.SQL_DELETE_ALIAS, [sessionId, alias]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
-		const rows = this.db.query(S.SQL_LIST_ALIASES).all(sessionId) as any[];
+		const rows = this.db
+			.query(SCHEMA.sqlite.selects.SQL_LIST_ALIASES!.sql)
+			.all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
 
@@ -149,12 +160,14 @@ export class SqliteFilterStore
 		id: string,
 	): Promise<FilterState | null> {
 		const row = this.db
-			.query(S.SQL_SELECT_FILTER_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_SESSION!.sql)
 			.get(sessionId, id) as any;
 
 		if (!row) return null;
 
-		const rulesRows = this.db.query(S.SQL_SELECT_FILTER_RULES).all(id) as any[];
+		const rulesRows = this.db
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_RULES!.sql)
+			.all(id) as any[];
 
 		const rules: FilterCondition[] = rulesRows.map((r) => ({
 			property: r.property,
@@ -190,7 +203,7 @@ export class SqliteFilterStore
 			: null;
 
 		const runTx = this.db.transaction(() => {
-			this.db.run(S.SQL_UPSERT_FILTER, [
+			this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_FILTER!.sql, [
 				id,
 				state.toolName || null,
 				state.tableName || null,
@@ -203,9 +216,9 @@ export class SqliteFilterStore
 				schemaSnapshotStr,
 			]);
 
-			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
 			state.rules.forEach((rule, idx) => {
-				this.db.run(S.SQL_INSERT_FILTER_RULE, [
+				this.db.run(SCHEMA.sqlite.inserts.SQL_INSERT_FILTER_RULE!.sql, [
 					id,
 					rule.property,
 					rule.operator,
@@ -220,8 +233,11 @@ export class SqliteFilterStore
 
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
 		const runTx = this.db.transaction(() => {
-			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
-			this.db.run(S.SQL_DELETE_FILTER_SESSION, [sessionId, id]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_SESSION!.sql, [
+				sessionId,
+				id,
+			]);
 		});
 		runTx();
 	}
@@ -235,18 +251,20 @@ export class SqliteFilterStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const saved = this.db
-			.query(S.SQL_SELECT_SAVED_FILTER)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_FILTER!.sql)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!saved) return null;
 
 		const row = this.db
-			.query(S.SQL_SELECT_FILTER_PERSISTENT)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_PERSISTENT!.sql)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!row) return null;
 
-		const rulesRows = this.db.query(S.SQL_SELECT_FILTER_RULES).all(id) as any[];
+		const rulesRows = this.db
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_RULES!.sql)
+			.all(id) as any[];
 
 		const rules: FilterCondition[] = rulesRows.map((r) => ({
 			property: r.property,
@@ -282,7 +300,7 @@ export class SqliteFilterStore
 			: null;
 
 		const runTx = this.db.transaction(() => {
-			this.db.run(S.SQL_UPSERT_FILTER, [
+			this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_FILTER!.sql, [
 				id,
 				state.toolName || null,
 				state.tableName || null,
@@ -295,9 +313,9 @@ export class SqliteFilterStore
 				state.schema_snapshot,
 			]);
 
-			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
 			state.rules.forEach((rule, idx) => {
-				this.db.run(S.SQL_INSERT_FILTER_RULE, [
+				this.db.run(SCHEMA.sqlite.inserts.SQL_INSERT_FILTER_RULE!.sql, [
 					id,
 					rule.property,
 					rule.operator,
@@ -306,7 +324,7 @@ export class SqliteFilterStore
 				]);
 			});
 
-			this.db.run(S.SQL_UPSERT_SAVED_FILTER, [
+			this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_SAVED_FILTER!.sql, [
 				id,
 				JSON.stringify(state.tags),
 				state.description,
@@ -320,9 +338,12 @@ export class SqliteFilterStore
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
 		const runTx = this.db.transaction(() => {
-			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
-			this.db.run(S.SQL_DELETE_SAVED_FILTER, [id]);
-			this.db.run(S.SQL_DELETE_FILTER_PERSISTENT, [id, scope.level]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_FILTER!.sql, [id]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_PERSISTENT!.sql, [
+				id,
+				scope.level,
+			]);
 		});
 		runTx();
 	}
@@ -331,14 +352,14 @@ export class SqliteFilterStore
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_FILTERS_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_FILTERS_SESSION!.sql)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.filter_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_FILTERS_CHILDREN)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_FILTERS_CHILDREN!.sql)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.filter_id);
 	}
@@ -347,20 +368,29 @@ export class SqliteFilterStore
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
 			const rows = this.db
-				.query(S.SQL_EXPIRE_FILTERS_SESSION_FIND)
+				.query(SCHEMA.sqlite.selects.SQL_EXPIRE_FILTERS_SESSION_FIND!.sql)
 				.all(sessionId, olderThanDate) as any[];
 
 			const runTx = this.db.transaction(() => {
 				rows.forEach((r) => {
-					this.db.run(S.SQL_DELETE_FILTER_RULES, [r.filter_id]);
-					this.db.run(S.SQL_DELETE_FILTER_BY_ID, [r.filter_id]);
+					this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+						r.filter_id,
+					]);
+					this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_BY_ID!.sql, [
+						r.filter_id,
+					]);
 				});
 			});
 			runTx();
 		} else {
 			const runTx = this.db.transaction(() => {
-				this.db.run(S.SQL_DELETE_FILTER_RULES_BY_SESSION, [sessionId]);
-				this.db.run(S.SQL_DELETE_FILTERS_BY_SESSION, [sessionId]);
+				this.db.run(
+					SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES_BY_SESSION!.sql,
+					[sessionId],
+				);
+				this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_FILTERS_BY_SESSION!.sql, [
+					sessionId,
+				]);
 			});
 			runTx();
 		}
@@ -372,7 +402,7 @@ export class SqliteFilterStore
 	): Promise<PersistedFilterState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const allSaved = this.db
-			.query(S.SQL_SELECT_SAVED_FILTERS_BY_SCOPE)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_FILTERS_BY_SCOPE!.sql)
 			.all(scope.level, scopeId) as any[];
 
 		const results: PersistedFilterState[] = [];
@@ -441,13 +471,13 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	}
 
 	private initSchema(): void {
-		this.db.run(S.PRAGMA_WAL);
-		this.db.run(S.DDL_FORMS);
-		this.db.run(S.DDL_FORM_ANSWERS);
-		this.db.run(S.DDL_FORM_SKIPPED);
-		this.db.run(S.DDL_FORM_STALE);
-		this.db.run(S.DDL_SAVED_FORMS);
-		this.db.run(S.DDL_FORM_SESSION_ALIASES);
+		this.db.run(SCHEMA.sqlite.pragma);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_FORMS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_FORM_ANSWERS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_FORM_SKIPPED!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_FORM_STALE!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_SAVED_FORMS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_FORM_SESSION_ALIASES!.sql);
 	}
 
 	get(sessionId: string, id: string): Promise<FormState | null>;
@@ -465,7 +495,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		id: string,
 	): Promise<FormState | null> {
 		const row = this.db
-			.query(S.SQL_SELECT_FORM_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FORM_SESSION!.sql)
 			.get(id, sessionId) as any;
 		if (!row) return null;
 		return this.loadState(row);
@@ -476,11 +506,13 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		scope: OwnerScope,
 	): Promise<PersistedFormStateDetails | null> {
 		const row = this.db
-			.query(S.SQL_SELECT_FORM_PERSISTENT)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FORM_PERSISTENT!.sql)
 			.get(id, scope.level) as any;
 		if (!row) return null;
 
-		const saved = this.db.query(S.SQL_SELECT_SAVED_FORM).get(id) as any;
+		const saved = this.db
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_FORM!.sql)
+			.get(id) as any;
 		const tags = saved ? JSON.parse(saved.tags) : [];
 		const description = saved ? saved.description : "";
 
@@ -496,13 +528,13 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	private loadState(row: any): FormState {
 		const formId = row.form_id;
 		const answersRows = this.db
-			.query(S.SQL_SELECT_FORM_ANSWERS)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FORM_ANSWERS!.sql)
 			.all(formId) as any[];
 		const skippedRows = this.db
-			.query(S.SQL_SELECT_FORM_SKIPPED)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FORM_SKIPPED!.sql)
 			.all(formId) as any[];
 		const staleRows = this.db
-			.query(S.SQL_SELECT_FORM_STALE)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_FORM_STALE!.sql)
 			.all(formId) as any[];
 
 		const answers: Record<string, any> = {};
@@ -549,7 +581,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	): Promise<void> {
 		this.db.transaction(() => {
 			this.db
-				.query(S.SQL_UPSERT_FORM_SESSION)
+				.query(SCHEMA.sqlite.inserts.SQL_UPSERT_FORM_SESSION!.sql)
 				.run(
 					id,
 					state.parentFormId,
@@ -558,21 +590,25 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 					state.timestamp,
 				);
 
-			this.db.query(S.SQL_DELETE_FORM_ANSWERS).run(id);
+			this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ANSWERS!.sql).run(id);
 			for (const [qId, val] of Object.entries(state.answers)) {
 				this.db
-					.query(S.SQL_INSERT_FORM_ANSWER)
+					.query(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_ANSWER!.sql)
 					.run(id, qId, JSON.stringify(val));
 			}
 
-			this.db.query(S.SQL_DELETE_FORM_SKIPPED).run(id);
+			this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_SKIPPED!.sql).run(id);
 			for (const qId of state.skipped) {
-				this.db.query(S.SQL_INSERT_FORM_SKIPPED).run(id, qId);
+				this.db
+					.query(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_SKIPPED!.sql)
+					.run(id, qId);
 			}
 
-			this.db.query(S.SQL_DELETE_FORM_STALE).run(id);
+			this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_STALE!.sql).run(id);
 			for (const qId of Object.keys(state.stale)) {
-				this.db.query(S.SQL_INSERT_FORM_STALE).run(id, qId);
+				this.db
+					.query(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_STALE!.sql)
+					.run(id, qId);
 			}
 		})();
 	}
@@ -585,7 +621,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		const userId = scope.level === "user" ? scope.userId : null;
 		this.db.transaction(() => {
 			this.db
-				.query(S.SQL_UPSERT_FORM_PERSISTENT)
+				.query(SCHEMA.sqlite.inserts.SQL_UPSERT_FORM_PERSISTENT!.sql)
 				.run(
 					id,
 					state.parentFormId,
@@ -595,25 +631,29 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 					state.timestamp,
 				);
 
-			this.db.query(S.SQL_DELETE_FORM_ANSWERS).run(id);
+			this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ANSWERS!.sql).run(id);
 			for (const [qId, val] of Object.entries(state.answers)) {
 				this.db
-					.query(S.SQL_INSERT_FORM_ANSWER)
+					.query(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_ANSWER!.sql)
 					.run(id, qId, JSON.stringify(val));
 			}
 
-			this.db.query(S.SQL_DELETE_FORM_SKIPPED).run(id);
+			this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_SKIPPED!.sql).run(id);
 			for (const qId of state.skipped) {
-				this.db.query(S.SQL_INSERT_FORM_SKIPPED).run(id, qId);
+				this.db
+					.query(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_SKIPPED!.sql)
+					.run(id, qId);
 			}
 
-			this.db.query(S.SQL_DELETE_FORM_STALE).run(id);
+			this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_STALE!.sql).run(id);
 			for (const qId of Object.keys(state.stale)) {
-				this.db.query(S.SQL_INSERT_FORM_STALE).run(id, qId);
+				this.db
+					.query(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_STALE!.sql)
+					.run(id, qId);
 			}
 
 			this.db
-				.query(S.SQL_UPSERT_SAVED_FORM)
+				.query(SCHEMA.sqlite.inserts.SQL_UPSERT_SAVED_FORM!.sql)
 				.run(
 					id,
 					JSON.stringify(state.tags),
@@ -628,23 +668,23 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	async delete(sessionId: string, id: string): Promise<void>;
 	async delete(id: string, scope: OwnerScope): Promise<void>;
 	async delete(a: string, b?: any): Promise<void> {
-		this.db.query(S.SQL_DELETE_FORM_ANSWERS).run(a);
-		this.db.query(S.SQL_DELETE_FORM_SKIPPED).run(a);
-		this.db.query(S.SQL_DELETE_FORM_STALE).run(a);
-		this.db.query(S.SQL_DELETE_FORM).run(a);
-		this.db.query(S.SQL_DELETE_SAVED_FORM).run(a);
+		this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ANSWERS!.sql).run(a);
+		this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_SKIPPED!.sql).run(a);
+		this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_STALE!.sql).run(a);
+		this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM!.sql).run(a);
+		this.db.query(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_FORM!.sql).run(a);
 	}
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_FORMS_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_FORMS_SESSION!.sql)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.form_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_FORMS_CHILDREN)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_FORMS_CHILDREN!.sql)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.form_id);
 	}
@@ -653,9 +693,13 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		if (olderThanMs !== undefined) {
 			const now = Date.now();
 			const cutoff = new Date(now - olderThanMs).toISOString();
-			this.db.query(S.SQL_EXPIRE_FORMS_BY_SESSION_AGE).run(sessionId, cutoff);
+			this.db
+				.query(SCHEMA.sqlite.deletes.SQL_EXPIRE_FORMS_BY_SESSION_AGE!.sql)
+				.run(sessionId, cutoff);
 		} else {
-			this.db.query(S.SQL_EXPIRE_FORMS_BY_SESSION).run(sessionId);
+			this.db
+				.query(SCHEMA.sqlite.deletes.SQL_EXPIRE_FORMS_BY_SESSION!.sql)
+				.run(sessionId);
 		}
 	}
 	async create(
@@ -676,7 +720,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const row = this.db
-			.query(S.SQL_GET_FORM_ALIAS)
+			.query(SCHEMA.sqlite.selects.SQL_GET_FORM_ALIAS!.sql)
 			.get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
@@ -686,17 +730,23 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db.query(S.SQL_UPSERT_FORM_ALIAS).run(sessionId, alias, targetId);
+		this.db
+			.query(SCHEMA.sqlite.inserts.SQL_UPSERT_FORM_ALIAS!.sql)
+			.run(sessionId, alias, targetId);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db.query(S.SQL_DELETE_FORM_ALIAS).run(sessionId, alias);
+		this.db
+			.query(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ALIAS!.sql)
+			.run(sessionId, alias);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
-		const rows = this.db.query(S.SQL_LIST_FORM_ALIASES).all(sessionId) as any[];
+		const rows = this.db
+			.query(SCHEMA.sqlite.selects.SQL_LIST_FORM_ALIASES!.sql)
+			.all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
 
@@ -767,13 +817,13 @@ export class SqliteConceptStore implements ConceptStore {
 		}
 		this.db = new Database(dbPath);
 
-		this.db.run(S.DDL_DICT_NAMESPACES);
-		this.db.run(S.DDL_DICT_CONCEPTS);
-		this.db.run(S.DDL_DICT_RELATIONS);
-		this.db.run(S.IDX_CONCEPT_REL_FORWARD);
-		this.db.run(S.IDX_CONCEPT_REL_REVERSE);
-		this.db.run(S.DDL_DICT_RELATION_CACHE);
-		this.db.run(S.IDX_CONCEPT_CACHE_TRAVERSAL);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_DICT_NAMESPACES!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_DICT_CONCEPTS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_DICT_RELATIONS!.sql);
+		this.db.run(SCHEMA.sqlite.ddlIndexes.IDX_CONCEPT_REL_FORWARD!.sql);
+		this.db.run(SCHEMA.sqlite.ddlIndexes.IDX_CONCEPT_REL_REVERSE!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_DICT_RELATION_CACHE!.sql);
+		this.db.run(SCHEMA.sqlite.ddlIndexes.IDX_CONCEPT_CACHE_TRAVERSAL!.sql);
 	}
 
 	async search(
@@ -806,7 +856,9 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async getById(id: string): Promise<Concept | null> {
-		const r = this.db.query(S.SQL_SELECT_DICT_CONCEPT_BY_ID).get(id) as any;
+		const r = this.db
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_DICT_CONCEPT_BY_ID!.sql)
+			.get(id) as any;
 		if (!r) return null;
 		return {
 			id: r.id,
@@ -820,7 +872,9 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async listNamespaces(): Promise<Namespace[]> {
-		const rows = this.db.query(S.SQL_SELECT_DICT_NAMESPACES).all() as any[];
+		const rows = this.db
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_DICT_NAMESPACES!.sql)
+			.all() as any[];
 		return rows.map((r) => ({
 			code: r.code,
 			description: r.description || undefined,
@@ -831,7 +885,7 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async addConcept(concept: Concept): Promise<void> {
-		this.db.run(S.SQL_UPSERT_DICT_CONCEPT, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_DICT_CONCEPT!.sql, [
 			concept.id,
 			concept.namespaceCode,
 			concept.standardCode,
@@ -843,7 +897,7 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async addNamespace(namespace: Namespace): Promise<void> {
-		this.db.run(S.SQL_UPSERT_DICT_NAMESPACE, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_DICT_NAMESPACE!.sql, [
 			namespace.code,
 			namespace.description || null,
 			namespace.isPublic ? 1 : 0,
@@ -853,7 +907,7 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async addRelation(relation: ConceptRelation): Promise<void> {
-		this.db.run(S.SQL_UPSERT_DICT_RELATION, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_DICT_RELATION!.sql, [
 			relation.id,
 			relation.conceptId,
 			relation.linkedId,
@@ -867,9 +921,12 @@ export class SqliteConceptStore implements ConceptStore {
 
 	async invalidateRelationCache(conceptId?: string): Promise<void> {
 		if (conceptId) {
-			this.db.run(S.SQL_DELETE_DICT_RELATION_CACHE_FOR, [conceptId, conceptId]);
+			this.db.run(
+				SCHEMA.sqlite.deletes.SQL_DELETE_DICT_RELATION_CACHE_FOR!.sql,
+				[conceptId, conceptId],
+			);
 		} else {
-			this.db.run(S.SQL_DELETE_DICT_RELATION_CACHE);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_DICT_RELATION_CACHE!.sql);
 		}
 	}
 
@@ -881,12 +938,16 @@ export class SqliteConceptStore implements ConceptStore {
 		const params: any[] = [];
 
 		if (direction === "forward" || direction === "both") {
-			sqlParts.push(S.SQL_SELECT_DICT_RELATIONS_FORWARD);
+			sqlParts.push(
+				SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATIONS_FORWARD!.sql,
+			);
 			params.push(conceptId);
 		}
 
 		if (direction === "reverse" || direction === "both") {
-			sqlParts.push(S.SQL_SELECT_DICT_RELATIONS_REVERSE);
+			sqlParts.push(
+				SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATIONS_REVERSE!.sql,
+			);
 			params.push(conceptId);
 		}
 
@@ -914,7 +975,7 @@ export class SqliteConceptStore implements ConceptStore {
 		// 1. Check cache table first if useCache is enabled
 		if (useCache) {
 			const cached = this.db
-				.query(S.SQL_SELECT_DICT_CACHE_RELATED)
+				.query(SCHEMA.sqlite.selects.SQL_SELECT_DICT_CACHE_RELATED!.sql)
 				.all(conceptId, maxDepth) as any[];
 
 			if (cached.length > 0) {
@@ -937,7 +998,7 @@ export class SqliteConceptStore implements ConceptStore {
 
 		// 2. SQL Recursive CTE for Graph Traversal with Operator Inversion
 		const rows = this.db
-			.query(S.CTE_DICT_RELATED_CONCEPTS)
+			.query(SCHEMA.sqlite.raw.CTE_DICT_RELATED_CONCEPTS!)
 			.all(
 				conceptId,
 				direction,
@@ -968,7 +1029,7 @@ export class SqliteConceptStore implements ConceptStore {
 		if (useCache && results.length > 0) {
 			const now = new Date().toISOString();
 			for (const res of results) {
-				this.db.run(S.SQL_UPSERT_DICT_RELATION_CACHE, [
+				this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_DICT_RELATION_CACHE!.sql, [
 					conceptId,
 					res.concept.id,
 					res.depth,
@@ -994,12 +1055,12 @@ export class SqlitePersistentExpressionStore
 		}
 		this.db = new Database(dbPath);
 
-		this.db.run(S.DDL_DICT_CUSTOM_EXPRESSIONS);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_DICT_CUSTOM_EXPRESSIONS!.sql);
 	}
 
 	async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		this.db.run(S.SQL_UPSERT_DICT_EXPRESSION, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_DICT_EXPRESSION!.sql, [
 			expression.id,
 			expression.term,
 			expression.conceptId || null,
@@ -1011,7 +1072,11 @@ export class SqlitePersistentExpressionStore
 
 	async delete(id: string, scope: OwnerScope): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		this.db.run(S.SQL_DELETE_DICT_EXPRESSION, [id, scope.level, scopeId]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_DICT_EXPRESSION!.sql, [
+			id,
+			scope.level,
+			scopeId,
+		]);
 	}
 
 	async list(
@@ -1032,7 +1097,9 @@ export class SqlitePersistentExpressionStore
 	}
 
 	async getById(id: string): Promise<CustomExpression | null> {
-		const row = this.db.query(S.SQL_SELECT_DICT_EXPRESSION_DATA).get(id) as any;
+		const row = this.db
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_DICT_EXPRESSION_DATA!.sql)
+			.get(id) as any;
 		return row ? JSON.parse(row.data) : null;
 	}
 }
@@ -1055,10 +1122,10 @@ export class SqliteObjectStore
 	}
 
 	private initSchema(): void {
-		this.db.run(S.PRAGMA_WAL);
-		this.db.run(S.DDL_OBJECTS);
-		this.db.run(S.DDL_SAVED_OBJECTS);
-		this.db.run(S.DDL_OBJECT_SESSION_ALIASES);
+		this.db.run(SCHEMA.sqlite.pragma);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_OBJECTS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_SAVED_OBJECTS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_OBJECT_SESSION_ALIASES!.sql);
 	}
 
 	// ─── Overloaded get ────────────────────────────────────────────────
@@ -1103,7 +1170,7 @@ export class SqliteObjectStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const row = this.db
-			.query(S.SQL_GET_OBJECT_ALIAS)
+			.query(SCHEMA.sqlite.selects.SQL_GET_OBJECT_ALIAS!.sql)
 			.get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
@@ -1113,18 +1180,25 @@ export class SqliteObjectStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db.run(S.SQL_UPSERT_OBJECT_ALIAS, [sessionId, alias, targetId]);
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db.run(S.SQL_DELETE_OBJECT_ALIAS, [sessionId, alias]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const rows = this.db
-			.query(S.SQL_LIST_OBJECT_ALIASES)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_OBJECT_ALIASES!.sql)
 			.all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
@@ -1152,7 +1226,7 @@ export class SqliteObjectStore
 		id: string,
 	): Promise<ObjectState | null> {
 		const row = this.db
-			.query(S.SQL_SELECT_OBJECT_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_OBJECT_SESSION!.sql)
 			.get(sessionId, id) as any;
 
 		if (!row) return null;
@@ -1167,7 +1241,7 @@ export class SqliteObjectStore
 		const dataStr = JSON.stringify(state.data);
 		const schemaPinnedAt = state.schema_pinned_at || null;
 
-		this.db.run(S.SQL_UPSERT_OBJECT_SESSION, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_OBJECT_SESSION!.sql, [
 			id,
 			state.schemaName,
 			state.parentObjectId || null,
@@ -1179,7 +1253,10 @@ export class SqliteObjectStore
 	}
 
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
-		this.db.run(S.SQL_DELETE_OBJECT_SESSION, [sessionId, id]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_SESSION!.sql, [
+			sessionId,
+			id,
+		]);
 	}
 
 	private loadState(row: any): ObjectState {
@@ -1204,13 +1281,13 @@ export class SqliteObjectStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const saved = this.db
-			.query(S.SQL_SELECT_SAVED_OBJECT)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_OBJECT!.sql)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!saved) return null;
 
 		const row = this.db
-			.query(S.SQL_SELECT_OBJECT_PERSISTENT)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_OBJECT_PERSISTENT!.sql)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!row) return null;
@@ -1232,7 +1309,7 @@ export class SqliteObjectStore
 		const dataStr = JSON.stringify(state.data);
 		const schemaPinnedAt = state.schema_pinned_at || "";
 
-		this.db.run(S.SQL_UPSERT_OBJECT_PERSISTENT, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_OBJECT_PERSISTENT!.sql, [
 			id,
 			state.schemaName,
 			state.parentObjectId || null,
@@ -1243,7 +1320,7 @@ export class SqliteObjectStore
 			schemaPinnedAt,
 		]);
 
-		this.db.run(S.SQL_UPSERT_SAVED_OBJECT, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_SAVED_OBJECT!.sql, [
 			id,
 			JSON.stringify(state.tags),
 			state.description,
@@ -1253,22 +1330,25 @@ export class SqliteObjectStore
 	}
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
-		this.db.run(S.SQL_DELETE_SAVED_OBJECT, [id]);
-		this.db.run(S.SQL_DELETE_OBJECT_PERSISTENT, [id, scope.level]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_OBJECT!.sql, [id]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_PERSISTENT!.sql, [
+			id,
+			scope.level,
+		]);
 	}
 
 	// ─── Additional Interface Methods ──────────────────────────────────
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_OBJECTS_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_OBJECTS_SESSION!.sql)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.object_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_OBJECTS_CHILDREN)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_OBJECTS_CHILDREN!.sql)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.object_id);
 	}
@@ -1277,10 +1357,12 @@ export class SqliteObjectStore
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
 			this.db
-				.query(S.SQL_EXPIRE_OBJECTS_SESSION_AGE)
+				.query(SCHEMA.sqlite.deletes.SQL_EXPIRE_OBJECTS_SESSION_AGE!.sql)
 				.run(sessionId, olderThanDate);
 		} else {
-			this.db.run(S.SQL_EXPIRE_OBJECTS_SESSION, [sessionId]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_EXPIRE_OBJECTS_SESSION!.sql, [
+				sessionId,
+			]);
 		}
 	}
 
@@ -1290,7 +1372,7 @@ export class SqliteObjectStore
 	): Promise<PersistedObjectState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const allSaved = this.db
-			.query(S.SQL_SELECT_SAVED_OBJECTS_BY_SCOPE)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_OBJECTS_BY_SCOPE!.sql)
 			.all(scope.level, scopeId) as any[];
 
 		const results: PersistedObjectState[] = [];
@@ -1362,10 +1444,10 @@ export class SqliteEventStore
 	}
 
 	private initSchema(): void {
-		this.db.run(S.PRAGMA_WAL);
-		this.db.run(S.DDL_EVENTS);
-		this.db.run(S.DDL_SAVED_EVENTS);
-		this.db.run(S.DDL_EVENT_SESSION_ALIASES);
+		this.db.run(SCHEMA.sqlite.pragma);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_EVENTS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_SAVED_EVENTS!.sql);
+		this.db.run(SCHEMA.sqlite.ddl.DDL_EVENT_SESSION_ALIASES!.sql);
 	}
 
 	// ─── Overloaded get ────────────────────────────────────────────────
@@ -1410,7 +1492,7 @@ export class SqliteEventStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const row = this.db
-			.query(S.SQL_GET_EVENT_ALIAS)
+			.query(SCHEMA.sqlite.selects.SQL_GET_EVENT_ALIAS!.sql)
 			.get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
@@ -1420,18 +1502,25 @@ export class SqliteEventStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db.run(S.SQL_UPSERT_EVENT_ALIAS, [sessionId, alias, targetId]);
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_EVENT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db.run(S.SQL_DELETE_EVENT_ALIAS, [sessionId, alias]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const rows = this.db
-			.query(S.SQL_LIST_EVENT_ALIASES)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_EVENT_ALIASES!.sql)
 			.all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
@@ -1459,7 +1548,7 @@ export class SqliteEventStore
 		commitId: string,
 	): Promise<EventCommit | null> {
 		const row = this.db
-			.query(S.SQL_SELECT_EVENT_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_EVENT_SESSION!.sql)
 			.get(sessionId, commitId) as any;
 
 		if (!row) return null;
@@ -1482,7 +1571,7 @@ export class SqliteEventStore
 			? JSON.stringify(state.mergeRejectedIds)
 			: null;
 
-		this.db.run(S.SQL_UPSERT_EVENT_SESSION, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_EVENT_SESSION!.sql, [
 			commitId,
 			sessionId,
 			state.parentCommitId || null,
@@ -1501,7 +1590,10 @@ export class SqliteEventStore
 		sessionId: string,
 		commitId: string,
 	): Promise<void> {
-		this.db.run(S.SQL_DELETE_EVENT_SESSION, [sessionId, commitId]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_SESSION!.sql, [
+			sessionId,
+			commitId,
+		]);
 	}
 
 	private loadState(row: any): EventCommit {
@@ -1535,13 +1627,13 @@ export class SqliteEventStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const saved = this.db
-			.query(S.SQL_SELECT_SAVED_EVENT)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_EVENT!.sql)
 			.get(commitId, scope.level, scopeId) as any;
 
 		if (!saved) return null;
 
 		const row = this.db
-			.query(S.SQL_SELECT_EVENT_PERSISTENT)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_EVENT_PERSISTENT!.sql)
 			.get(commitId, scope.level, scopeId) as any;
 
 		if (!row) return null;
@@ -1571,7 +1663,7 @@ export class SqliteEventStore
 			? JSON.stringify(state.mergeRejectedIds)
 			: null;
 
-		this.db.run(S.SQL_UPSERT_EVENT_PERSISTENT, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_EVENT_PERSISTENT!.sql, [
 			commitId,
 			scope.level,
 			scopeId,
@@ -1587,7 +1679,7 @@ export class SqliteEventStore
 			state.schema_name,
 		]);
 
-		this.db.run(S.SQL_UPSERT_SAVED_EVENT, [
+		this.db.run(SCHEMA.sqlite.inserts.SQL_UPSERT_SAVED_EVENT!.sql, [
 			commitId,
 			JSON.stringify(state.tags),
 			state.description,
@@ -1600,22 +1692,25 @@ export class SqliteEventStore
 		commitId: string,
 		scope: OwnerScope,
 	): Promise<void> {
-		this.db.run(S.SQL_DELETE_SAVED_EVENT, [commitId]);
-		this.db.run(S.SQL_DELETE_EVENT_PERSISTENT, [commitId, scope.level]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_EVENT!.sql, [commitId]);
+		this.db.run(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_PERSISTENT!.sql, [
+			commitId,
+			scope.level,
+		]);
 	}
 
 	// ─── Additional Interface Methods ──────────────────────────────────
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_EVENTS_SESSION)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_EVENTS_SESSION!.sql)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.commit_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(S.SQL_LIST_EVENTS_CHILDREN)
+			.query(SCHEMA.sqlite.selects.SQL_LIST_EVENTS_CHILDREN!.sql)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.commit_id);
 	}
@@ -1624,10 +1719,12 @@ export class SqliteEventStore
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
 			this.db
-				.query(S.SQL_EXPIRE_EVENTS_SESSION_AGE)
+				.query(SCHEMA.sqlite.deletes.SQL_EXPIRE_EVENTS_SESSION_AGE!.sql)
 				.run(sessionId, olderThanDate);
 		} else {
-			this.db.run(S.SQL_EXPIRE_EVENTS_SESSION, [sessionId]);
+			this.db.run(SCHEMA.sqlite.deletes.SQL_EXPIRE_EVENTS_SESSION!.sql, [
+				sessionId,
+			]);
 		}
 	}
 
@@ -1637,7 +1734,7 @@ export class SqliteEventStore
 	): Promise<PersistedEventState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const allSaved = this.db
-			.query(S.SQL_SELECT_SAVED_EVENTS_BY_SCOPE)
+			.query(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_EVENTS_BY_SCOPE!.sql)
 			.all(scope.level, scopeId) as any[];
 
 		const results: PersistedEventState[] = [];

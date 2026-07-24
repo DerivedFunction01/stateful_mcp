@@ -65,6 +65,8 @@ export type QueryCondition =
 			values?: any[];
 			/** Used to generate a specific number of placeholders for IN clauses without binding values */
 			placeholderCount?: number;
+			/** Raw SQL literal for the right-hand side — caller is responsible for quoting/escaping */
+			raw?: string;
 	  };
 
 export interface QueryField {
@@ -149,10 +151,11 @@ export interface SelectQuery {
 export interface InsertQuery {
 	table: string;
 	values?: Record<string, any> | Record<string, any>[];
-	columns?: string[]; // Use this to generate a prepared statement without bound values
+	columns?: string[];
+	columnLiterals?: Record<string, string>;
 	returning?: string[];
-	onConflict?: "ignore" | "replace";
-	conflictColumns?: string[]; // Required for 'replace' in Postgres/DuckDB
+	onConflict?: "ignore" | "replace" | string;
+	conflictColumns?: string[];
 }
 
 export interface UpdateQuery {
@@ -229,6 +232,20 @@ export class QueryCompiler {
 		}
 		// SQLite fallback
 		return `json_extract(${quotedCol}, '$.${jsonPath}')`;
+	}
+
+	/** Convert a JavaScript value into a SQL literal expression for inline embedding. */
+	private formatLiteral(value: any): string {
+		if (value === null || value === undefined) {
+			return "NULL";
+		}
+		if (typeof value === "number" || typeof value === "boolean") {
+			return String(value);
+		}
+		if (typeof value === "string") {
+			return `'${value.replace(/'/g, "''")}'`;
+		}
+		return `'${String(value).replace(/'/g, "''")}'`;
 	}
 
 	private columnSqlType(col: ColumnDef): string {
@@ -370,7 +387,9 @@ export class QueryCompiler {
 
 		// Determine the right side of the expression
 		let rhs = "";
-		if (hasValue) {
+		if ("raw" in cond && cond.raw !== undefined) {
+			rhs = cond.raw;
+		} else if (hasValue) {
 			rhs = ctx.addParam(cond.value);
 		} else if (hasValues) {
 			rhs = `(${cond.values!.map((v) => ctx.addParam(v)).join(", ")})`;
@@ -557,7 +576,9 @@ export class QueryCompiler {
 			}
 			activeColumns = query.columns;
 			quotedCols = query.columns.map((c) => this.quoteIdent(c)).join(", ");
-			const placeholders = query.columns.map(() => ctx.nextPlaceholder());
+			const placeholders = query.columns.map(
+				(c) => query.columnLiterals?.[c] ?? ctx.nextPlaceholder(),
+			);
 			valueStrings = [`(${placeholders.join(", ")})`];
 		} else {
 			throw new Error("InsertQuery requires either 'values' or 'columns'");
