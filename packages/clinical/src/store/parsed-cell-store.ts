@@ -8,6 +8,7 @@ export type ParsedCellOutcome = "accepted" | "rejected" | "corrected";
 
 export interface ParsedCellV1Shared {
 	cellId: string;
+	soapNoteId?: string;
 	sessionId?: string;
 	patientId?: string;
 	patientOrganismType?: string;
@@ -56,6 +57,7 @@ export interface ParsedCellV1ObservedShape {
 
 export interface ParsedCellObservationDetailV1 {
 	cellId: string;
+	soapNoteId?: string;
 	conceptId?: string;
 	display: string;
 	certainty?: string;
@@ -176,6 +178,7 @@ export class CompositeParsedCellHistoryStore
 }
 
 export interface ParsedCellHistoryKey {
+	soapNoteId?: string;
 	patientId?: string;
 	patientOrganismType?: string;
 	patientGender?: string;
@@ -231,6 +234,7 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 		this.shared.set(record.shared.cellId, record.shared);
 		this.observationDetails.set(record.shared.cellId, {
 			cellId: record.shared.cellId,
+			soapNoteId: record.shared.soapNoteId,
 			conceptId: record.parsedItem.conceptId,
 			display: record.parsedItem.display,
 			certainty: record.parsedItem.certainty,
@@ -273,7 +277,7 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 			reviewRequired: !!replacement,
 		};
 		if (replacement) {
-			detail.parsedItem = replacement;
+		detail.parsedItem = replacement;
 			detail.conceptId = replacement.conceptId;
 			detail.display = replacement.display;
 			detail.certainty = replacement.certainty;

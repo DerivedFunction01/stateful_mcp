@@ -72,6 +72,7 @@ export function compileParsedCellObservationHistoryQuery(
 	const params: unknown[] = [key.targetSchema, key.tag];
 
 	if (plan.scope === "scoped") {
+		appendEquals(dialect, clauses, params, "soapNoteId", key.soapNoteId);
 		appendEquals(dialect, clauses, params, "patientId", key.patientId);
 		appendEquals(
 			dialect,

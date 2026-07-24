@@ -29,6 +29,7 @@ export class JsonlParsedCellStore implements ParsedCellStore {
 		await this.sharedStore.set(record.shared.cellId, record.shared);
 		await this.detailStore.set(record.shared.cellId, {
 			cellId: record.shared.cellId,
+			soapNoteId: record.shared.soapNoteId,
 			conceptId: record.parsedItem.conceptId,
 			display: record.parsedItem.display,
 			certainty: record.parsedItem.certainty,

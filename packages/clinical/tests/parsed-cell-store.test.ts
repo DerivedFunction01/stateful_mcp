@@ -123,6 +123,21 @@ describe("ParsedCellV1 storage", () => {
 		expect(scopedRows[0]?.cellId).toBe("cell-scope-a");
 	});
 
+	test("soap note id is preserved on parsed cell records", async () => {
+		const store = new MemoryParsedCellStore();
+		await store.putObservation({
+			...makeObservationCell("cell-note-1", "session-note-1"),
+			shared: {
+				...makeObservationCell("cell-note-1", "session-note-1").shared,
+				soapNoteId: "note-123",
+			},
+		});
+
+		const result = await store.get("cell-note-1");
+		expect(result?.shared.soapNoteId).toBe("note-123");
+		expect(result?.detail?.soapNoteId).toBe("note-123");
+	});
+
 	test("observation ranker favors exact slot matches and recency", async () => {
 		const ranker = new ObservationPreferenceRanker();
 		const candidate = {

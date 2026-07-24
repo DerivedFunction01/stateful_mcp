@@ -18,7 +18,8 @@ import {
 
 function isScopedHistoryKey(key: ParsedCellHistoryKey): boolean {
 	return Boolean(
-		key.patientId ||
+		key.soapNoteId ||
+			key.patientId ||
 			key.patientOrganismType ||
 			key.patientGender ||
 			key.patientAgeBucket ||
@@ -61,6 +62,7 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 		await this.sharedStore.set(record.shared.cellId, record.shared);
 		await this.observationDetailStore.set(record.shared.cellId, {
 			cellId: record.shared.cellId,
+			soapNoteId: record.shared.soapNoteId,
 			conceptId: record.parsedItem.conceptId,
 			display: record.parsedItem.display,
 			certainty: record.parsedItem.certainty,
