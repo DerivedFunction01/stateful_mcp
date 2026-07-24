@@ -1,3 +1,7 @@
+import * as crypto from "crypto";
+import * as path from "path";
+import * as fs from "fs";
+import { Database } from "bun:sqlite";
 import { registerAdapter } from "../../config/loader";
 import type { OwnerScope } from "../../config/types";
 import type {
@@ -12,148 +16,218 @@ import type {
 	RelatedConceptResult,
 	TraversalDirection,
 } from "../../middleware/dictionary/types";
-import { invertRelationType } from "../../middleware/dictionary/types";
-import type { FilterState } from "../../middleware/filter/types";
+import type { EventCommit } from "../../middleware/event/types";
+import type {
+	FilterCondition,
+	FilterState,
+} from "../../middleware/filter/types";
 import type { FormState } from "../../middleware/form/types";
 import type { ObjectState } from "../../middleware/object/types";
 import type {
+	PersistedEventState,
 	PersistedFilterState,
 	PersistedFormStateDetails,
 	PersistedObjectState,
+	PersistentEventStore,
 	PersistentFilterStore,
 	PersistentFormStore,
 	PersistentObjectStore,
+	SessionEventStore,
 	SessionFilterStore,
 	SessionFormStore,
 	SessionObjectStore,
 } from "./interfaces";
+import * as S from "./sqlite-schema";
 
 /**
- * OPFS Worker Client RPC Bridge
- * Communicates with Web Worker / Worker thread hosting OPFS SQLite WASM instance.
- * Falls back gracefully to in-memory database simulation if OPFS Worker is not supported.
+ * OPFS SQLite Bridge
+ * Uses @sqlite.org/sqlite-wasm sqlite3Worker1Promiser when available (browser),
+ * falls back to bun:sqlite when Worker is unavailable (Node.js/Bun).
  */
-export class OpfsWorkerBridge {
-	private worker?: Worker;
-	private pendingRequests = new Map<
-		string,
-		{ resolve: (val: any) => void; reject: (err: any) => void }
-	>();
-	private idCounter = 0;
-	private initialized = false;
+export class OpfsDb {
+	private promiser: any = null;
+	private dbId: any = null;
+	private ready = false;
+	private fallback = false;
+	private sqlite: Database | null = null;
 
 	constructor(
 		private dbName: string = "stateful_mcp_opfs.sqlite3",
-		workerScriptUrl?: string,
-	) {
-		if (typeof globalThis !== "undefined" && typeof Worker !== "undefined") {
-			try {
-				if (workerScriptUrl) {
-					this.worker = new Worker(workerScriptUrl, { type: "module" });
-				} else {
-					// Inline fallback worker Blob
-					const workerCode = `
-						self.onmessage = async (e) => {
-							const { id, action, payload } = e.data;
-							if (action === 'init') {
-								self.postMessage({ id, status: 'ok', result: true });
-							} else if (action === 'query') {
-								self.postMessage({ id, status: 'ok', result: [] });
-							} else {
-								self.postMessage({ id, status: 'ok', result: null });
-							}
-						};
-					`;
-					const blob = new Blob([workerCode], {
-						type: "application/javascript",
-					});
-					this.worker = new Worker(URL.createObjectURL(blob));
-				}
+		private workerUrl?: string,
+	) {}
 
-				this.worker.onmessage = (e: MessageEvent) => {
-					const { id, status, result, error } = e.data;
-					const req = this.pendingRequests.get(id);
-					if (req) {
-						this.pendingRequests.delete(id);
-						if (status === "ok") {
-							req.resolve(result);
-						} else {
-							req.reject(new Error(error || "OPFS Worker Error"));
-						}
-					}
-				};
-			} catch (_) {}
+	async open(): Promise<void> {
+		if (typeof Worker === "undefined") {
+			this.fallback = true;
+			const dir = path.dirname(this.dbName);
+			if (dir !== "." && !fs.existsSync(dir)) {
+				fs.mkdirSync(dir, { recursive: true });
+			}
+			this.sqlite = new Database(this.dbName);
+			this.sqlite.run("PRAGMA journal_mode = WAL;");
+			return;
+		}
+		try {
+			const { sqlite3Worker1Promiser } = await import(
+				"@sqlite.org/sqlite-wasm"
+			);
+			const workerScript =
+				this.workerUrl ||
+				new URL(
+					"node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3-worker1.mjs",
+					import.meta.url,
+				).href;
+			const worker = new Worker(workerScript, { type: "module" });
+			this.promiser = await sqlite3Worker1Promiser.v2({ worker });
+			const result = await this.promiser("open", { filename: this.dbName });
+			this.dbId = result.dbId;
+			this.ready = true;
+		} catch {
+			this.fallback = true;
+			const dir = path.dirname(this.dbName);
+			if (dir !== "." && !fs.existsSync(dir)) {
+				fs.mkdirSync(dir, { recursive: true });
+			}
+			this.sqlite = new Database(this.dbName);
+			this.sqlite.run("PRAGMA journal_mode = WAL;");
 		}
 	}
 
-	async request<T = any>(action: string, payload: any = {}): Promise<T> {
-		if (!this.worker) return null as unknown as T;
-		const id = `opfs_${++this.idCounter}`;
-		return new Promise<T>((resolve, reject) => {
-			this.pendingRequests.set(id, { resolve, reject });
-			this.worker!.postMessage({ id, action, payload });
-		});
-	}
-
-	async query<T = Record<string, unknown>>(
+async exec(
 		sql: string,
-		params: readonly unknown[] = [],
-	): Promise<T[]> {
-		const result = await this.request<T[]>("query", { sql, params });
-		return result ?? [];
+		params?: readonly unknown[],
+	): Promise<{ changes?: number; lastInsertRowId?: bigint }> {
+		if (this.sqlite) {
+			const result = (params ? this.sqlite.run(sql, params as any) : this.sqlite.run(sql)) as any;
+			return { changes: result.changes, lastInsertRowId: result.lastInsertRowid };
+		}
+		if (!this.ready) await this.open();
+		if (this.promiser) {
+			const result = await this.promiser("exec", {
+				sql, bind: params as any,
+				rowMode: "object" as const, returnValue: "resultRows" as const,
+			});
+			return {
+				changes: (result as any).changeCount as number,
+				lastInsertRowId: (result as any).lastInsertRowId as bigint | undefined,
+			};
+		}
+		return {};
 	}
 
-	async init(): Promise<void> {
-		if (this.initialized) return;
-		await this.request("init", { dbName: this.dbName });
-		this.initialized = true;
+	async query<T = Record<string, any>>(
+		sql: string,
+		params?: readonly unknown[],
+	): Promise<T[]> {
+		if (this.sqlite) {
+			try {
+				return (params ? this.sqlite.query(sql).all(...(params as any[])) : this.sqlite.query(sql).all()) as T[];
+			} catch {
+				if (params) this.sqlite.run(sql, params as any);
+				else this.sqlite.run(sql);
+				return [];
+			}
+		}
+		if (!this.ready) await this.open();
+		if (this.promiser) {
+			const result = await this.promiser("exec", {
+				sql, bind: params as any,
+				rowMode: "object" as const, returnValue: "resultRows" as const,
+			});
+			return ((result as any).resultRows || []) as T[];
+		}
+		return [];
+	}
+
+	async get<T = Record<string, any>>(
+		sql: string,
+		params?: readonly unknown[],
+	): Promise<T | null> {
+		if (this.sqlite) {
+			const row = params ? this.sqlite.query(sql).get(...(params as any[])) : this.sqlite.query(sql).get();
+			return (row ?? null) as T | null;
+		}
+		const rows = await this.query<T>(sql, params);
+		return rows.length > 0 ? (rows[0] ?? null) : null;
+	}
+
+	async close(): Promise<void> {
+		if (this.promiser) {
+			await this.promiser("close", {});
+		}
+		this.sqlite?.close();
+	}
+
+	isFallback(): boolean {
+		return this.fallback;
 	}
 }
 
-// ── OPFS Filter Stores ────────────────────────────────────────────────────────
+// ── OPFS Filter Store ─────────────────────────────────────────────────────────
 
-export class OpfsSessionFilterStore implements SessionFilterStore {
-	private localMap = new Map<string, FilterState>();
-	private aliases = new Map<string, string>();
-	private bridge: OpfsWorkerBridge;
+export class OpfsFilterStore
+	implements SessionFilterStore, PersistentFilterStore
+{
+	private db: OpfsDb;
+	private initDone = false;
 
-	constructor(dbName = "stateful_mcp_filter.sqlite3") {
-		this.bridge = new OpfsWorkerBridge(dbName);
-		this.bridge.init().catch(() => {});
+	constructor(db: OpfsDb) {
+		this.db = db;
 	}
 
-	private getScopeKey(sessionId: string, id: string): string {
-		return `${sessionId}:${id}`;
+	private async ensureInit(): Promise<void> {
+		if (this.initDone) return;
+		await this.db.exec(S.PRAGMA_WAL);
+		await this.db.exec(S.DDL_FILTERS);
+		await this.db.exec(S.DDL_FILTER_RULES);
+		await this.db.exec(S.DDL_SAVED_FILTERS);
+		await this.db.exec(S.DDL_SESSION_ALIASES);
+		await this.db.exec(S.IDX_FILTERS_SESSION);
+		await this.db.exec(S.IDX_FILTERS_SCOPE);
+		this.initDone = true;
 	}
 
-	async get(sessionId: string, id: string): Promise<FilterState | null> {
-		const aliasTarget = await this.getAlias(sessionId, id);
-		const targetId = aliasTarget || id;
-		return this.localMap.get(this.getScopeKey(sessionId, targetId)) || null;
-	}
-
-	async create(
-		sessionId: string,
-		state: Omit<FilterState, "filterId"> & { filterId?: string },
-		alias?: string,
-	): Promise<string> {
-		const id =
-			state.filterId ||
-			`flt_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-		const fullState: FilterState = { ...state, filterId: id };
-		await this.set(sessionId, id, fullState);
-		if (alias) {
-			await this.setAlias(sessionId, alias, id);
+	get(sessionId: string, id: string): Promise<FilterState | null>;
+	get(id: string, scope: OwnerScope): Promise<PersistedFilterState | null>;
+	async get(a: string, b: string | OwnerScope): Promise<any> {
+		if (typeof b === "string") {
+			return this.getSession(a, b);
+		} else {
+			return this.getPersistent(a, b);
 		}
-		return id;
 	}
 
-	async set(sessionId: string, id: string, state: FilterState): Promise<void> {
-		this.localMap.set(this.getScopeKey(sessionId, id), state);
+	set(sessionId: string, id: string, state: FilterState): Promise<void>;
+	set(
+		id: string,
+		state: PersistedFilterState,
+		scope: OwnerScope,
+	): Promise<void>;
+	async set(a: string, b: any, c?: any): Promise<void> {
+		if (c && typeof c === "object" && "level" in c) {
+			return this.setPersistent(a, b, c);
+		} else {
+			return this.setSession(a, b, c);
+		}
 	}
 
-	async delete(sessionId: string, id: string): Promise<void> {
-		this.localMap.delete(this.getScopeKey(sessionId, id));
+	delete(sessionId: string, id: string): Promise<void>;
+	delete(id: string, scope: OwnerScope): Promise<void>;
+	async delete(a: string, b: string | OwnerScope): Promise<void> {
+		if (typeof b === "string") {
+			return this.deleteSession(a, b);
+		} else {
+			return this.deletePersistent(a, b);
+		}
+	}
+
+	async getAlias(sessionId: string, alias: string): Promise<string | null> {
+		await this.ensureInit();
+		const row = await this.db.get<{ target_id: string }>(S.SQL_GET_ALIAS, [
+			sessionId,
+			alias,
+		]);
+		return row ? row.target_id : null;
 	}
 
 	async setAlias(
@@ -161,109 +235,266 @@ export class OpfsSessionFilterStore implements SessionFilterStore {
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.aliases.set(this.getScopeKey(sessionId, alias), targetId);
-	}
-
-	async getAlias(sessionId: string, alias: string): Promise<string | null> {
-		return this.aliases.get(this.getScopeKey(sessionId, alias)) || null;
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_ALIAS, [sessionId, alias, targetId]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.aliases.delete(this.getScopeKey(sessionId, alias));
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_ALIAS, [sessionId, alias]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
-		const prefix = `${sessionId}:`;
-		const results: Array<{ alias: string; targetId: string }> = [];
-		for (const [key, targetId] of this.aliases.entries()) {
-			if (key.startsWith(prefix)) {
-				results.push({ alias: key.slice(prefix.length), targetId });
-			}
-		}
-		return results;
+		await this.ensureInit();
+		const rows = await this.db.query<{ alias_name: string; target_id: string }>(
+			S.SQL_LIST_ALIASES,
+			[sessionId],
+		);
+		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
 
-	async listSession(sessionId: string): Promise<string[]> {
-		const prefix = `${sessionId}:`;
-		const results: string[] = [];
-		for (const key of this.localMap.keys()) {
-			if (key.startsWith(prefix)) {
-				results.push(key.slice(prefix.length));
-			}
+	async create(
+		sessionId: string,
+		state: Omit<FilterState, "filterId"> & { filterId?: string },
+		alias?: string,
+	): Promise<string> {
+		const id = `filter_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+		const fullState: FilterState = { ...state, filterId: id };
+		await this.setSession(sessionId, id, fullState);
+		if (alias) {
+			await this.setAlias(sessionId, alias, id);
 		}
-		return results;
+		return id;
 	}
 
-	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
-		const prefix = `${sessionId}:`;
-		const results: string[] = [];
-		for (const [key, state] of this.localMap.entries()) {
-			if (key.startsWith(prefix) && state.parentFilterId === parentId) {
-				results.push(state.filterId);
-			}
-		}
-		return results;
+	private async getSession(
+		sessionId: string,
+		id: string,
+	): Promise<FilterState | null> {
+		await this.ensureInit();
+		const row = await this.db.get<any>(S.SQL_SELECT_FILTER_SESSION, [
+			sessionId,
+			id,
+		]);
+		if (!row) return null;
+
+		const rulesRows = await this.db.query<any>(S.SQL_SELECT_FILTER_RULES, [id]);
+		const rules: FilterCondition[] = rulesRows.map((r: any) => ({
+			property: r.property,
+			operator: r.operator as any,
+			value: JSON.parse(r.value),
+		}));
+
+		return {
+			filterId: row.filter_id,
+			toolName: row.tool_name || undefined,
+			tableName: row.table_name || undefined,
+			rules,
+			parentFilterId: row.parent_filter_id,
+			createdAt: row.created_at,
+			combined_operation: row.combined_operation as any,
+			combined_ids: row.combined_ids ? JSON.parse(row.combined_ids) : null,
+			schema_snapshot: row.schema_snapshot
+				? JSON.parse(row.schema_snapshot)
+				: null,
+		};
 	}
 
-	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
-		const prefix = `${sessionId}:`;
-		const now = Date.now();
-		for (const [key, state] of this.localMap.entries()) {
-			if (key.startsWith(prefix)) {
-				if (olderThanMs !== undefined) {
-					const t = Date.parse(state.createdAt);
-					if (now - t > olderThanMs) {
-						this.localMap.delete(key);
-					}
-				} else {
-					this.localMap.delete(key);
-				}
-			}
-		}
-		for (const key of this.aliases.keys()) {
-			if (key.startsWith(prefix)) {
-				this.aliases.delete(key);
-			}
+	private async setSession(
+		sessionId: string,
+		id: string,
+		state: FilterState,
+	): Promise<void> {
+		await this.ensureInit();
+		const combinedIdsStr = state.combined_ids
+			? JSON.stringify(state.combined_ids)
+			: null;
+		const schemaSnapshotStr = state.schema_snapshot
+			? JSON.stringify(state.schema_snapshot)
+			: null;
+
+		await this.db.exec(S.SQL_UPSERT_FILTER, [
+			id,
+			state.toolName || null,
+			state.tableName || null,
+			state.parentFilterId || null,
+			"session",
+			sessionId,
+			null,
+			state.combined_operation || null,
+			combinedIdsStr,
+			schemaSnapshotStr,
+		]);
+
+		await this.db.exec(S.SQL_DELETE_FILTER_RULES, [id]);
+		for (const [idx, rule] of state.rules.entries()) {
+			await this.db.exec(S.SQL_INSERT_FILTER_RULE, [
+				id,
+				rule.property,
+				rule.operator,
+				JSON.stringify(rule.value),
+				idx,
+			]);
 		}
 	}
-}
 
-export class OpfsPersistentFilterStore implements PersistentFilterStore {
-	private localMap = new Map<string, PersistedFilterState>();
+	private async deleteSession(sessionId: string, id: string): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_FILTER_RULES, [id]);
+		await this.db.exec(S.SQL_DELETE_FILTER_SESSION, [sessionId, id]);
+	}
 
-	async set(
+	private async getPersistent(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedFilterState | null> {
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+
+		const saved = await this.db.get<any>(S.SQL_SELECT_SAVED_FILTER, [
+			id,
+			scope.level,
+			scopeId,
+		]);
+		if (!saved) return null;
+
+		const row = await this.db.get<any>(S.SQL_SELECT_FILTER_PERSISTENT, [
+			id,
+			scope.level,
+			scopeId,
+		]);
+		if (!row) return null;
+
+		const rulesRows = await this.db.query<any>(S.SQL_SELECT_FILTER_RULES, [id]);
+		const rules: FilterCondition[] = rulesRows.map((r: any) => ({
+			property: r.property,
+			operator: r.operator as any,
+			value: JSON.parse(r.value),
+		}));
+
+		return {
+			filterId: row.filter_id,
+			toolName: row.tool_name || undefined,
+			tableName: row.table_name || undefined,
+			rules,
+			parentFilterId: row.parent_filter_id,
+			createdAt: row.created_at,
+			combined_operation: row.combined_operation as any,
+			combined_ids: row.combined_ids ? JSON.parse(row.combined_ids) : null,
+			tags: JSON.parse(saved.tags),
+			description: saved.description,
+			schema_snapshot: row.schema_snapshot
+				? JSON.parse(row.schema_snapshot)
+				: "{}",
+		};
+	}
+
+	private async setPersistent(
 		id: string,
 		state: PersistedFilterState,
 		scope: OwnerScope,
 	): Promise<void> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		this.localMap.set(key, state);
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const combinedIdsStr = state.combined_ids
+			? JSON.stringify(state.combined_ids)
+			: null;
+
+		await this.db.exec(S.SQL_UPSERT_FILTER, [
+			id,
+			state.toolName || null,
+			state.tableName || null,
+			state.parentFilterId || null,
+			scope.level,
+			null,
+			scopeId,
+			state.combined_operation || null,
+			combinedIdsStr,
+			state.schema_snapshot,
+		]);
+
+		await this.db.exec(S.SQL_DELETE_FILTER_RULES, [id]);
+		for (const [idx, rule] of state.rules.entries()) {
+			await this.db.exec(S.SQL_INSERT_FILTER_RULE, [
+				id,
+				rule.property,
+				rule.operator,
+				JSON.stringify(rule.value),
+				idx,
+			]);
+		}
+
+		await this.db.exec(S.SQL_UPSERT_SAVED_FILTER, [
+			id,
+			JSON.stringify(state.tags),
+			state.description,
+			scope.level,
+			scopeId,
+		]);
 	}
 
-	async get(
-		id: string,
-		scope: OwnerScope,
-	): Promise<PersistedFilterState | null> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		return this.localMap.get(key) || null;
+	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_FILTER_RULES, [id]);
+		await this.db.exec(S.SQL_DELETE_SAVED_FILTER, [id]);
+		await this.db.exec(S.SQL_DELETE_FILTER_PERSISTENT, [id, scope.level]);
 	}
 
-	async delete(id: string, scope: OwnerScope): Promise<void> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		this.localMap.delete(key);
+	async listSession(sessionId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ filter_id: string }>(
+			S.SQL_LIST_FILTERS_SESSION,
+			[sessionId],
+		);
+		return rows.map((r) => r.filter_id);
+	}
+
+	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ filter_id: string }>(
+			S.SQL_LIST_FILTERS_CHILDREN,
+			[sessionId, parentId],
+		);
+		return rows.map((r) => r.filter_id);
+	}
+
+	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+		await this.ensureInit();
+		if (olderThanMs !== undefined) {
+			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
+			const rows = await this.db.query<{ filter_id: string }>(
+				S.SQL_EXPIRE_FILTERS_SESSION_FIND,
+				[sessionId, olderThanDate],
+			);
+			for (const r of rows) {
+				await this.db.exec(S.SQL_DELETE_FILTER_RULES, [r.filter_id]);
+				await this.db.exec(S.SQL_DELETE_FILTER_BY_ID, [r.filter_id]);
+			}
+		} else {
+			await this.db.exec(S.SQL_DELETE_FILTER_RULES_BY_SESSION, [sessionId]);
+			await this.db.exec(S.SQL_DELETE_FILTERS_BY_SESSION, [sessionId]);
+		}
 	}
 
 	async findByTag(
 		tag: string,
 		scope: OwnerScope,
 	): Promise<PersistedFilterState[]> {
-		const prefix = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:`;
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const allSaved = await this.db.query<any>(
+			S.SQL_SELECT_SAVED_FILTERS_BY_SCOPE,
+			[scope.level, scopeId],
+		);
+
 		const results: PersistedFilterState[] = [];
-		for (const [k, v] of this.localMap.entries()) {
-			if (k.startsWith(prefix) && v.tags.includes(tag)) {
-				results.push(v);
+		for (const saved of allSaved) {
+			const tags: string[] = JSON.parse(saved.tags);
+			if (tags.includes(tag)) {
+				const fullState = await this.getPersistent(saved.id, scope);
+				if (fullState) results.push(fullState);
 			}
 		}
 		return results;
@@ -273,36 +504,117 @@ export class OpfsPersistentFilterStore implements PersistentFilterStore {
 		scope: OwnerScope,
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFilterState & { scope: OwnerScope }>> {
-		const userPrefix = `user:${scope.level === "user" ? scope.userId : ""}:`;
-		const globalPrefix = "global:global:";
+		await this.ensureInit();
+		const userId = scope.level === "user" ? scope.userId : null;
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+				params.push(userId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_filters WHERE scope_level = 'user' AND user_id = ?";
+				params.push(userId);
+			}
+		}
+
+		const savedRecords = await this.db.query<any>(queryStr, params);
 		const results: Array<PersistedFilterState & { scope: OwnerScope }> = [];
-		for (const [k, v] of this.localMap.entries()) {
-			if (scope.level === "user" && k.startsWith(userPrefix)) {
-				results.push({ ...v, scope });
-			} else if (k.startsWith(globalPrefix)) {
-				if (scope.level === "global" || includeGlobal) {
-					results.push({ ...v, scope: { level: "global" } });
-				}
+		for (const r of savedRecords) {
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: r.user_id }
+					: { level: "global" };
+			const state = await this.getPersistent(r.id, recordScope);
+			if (state) {
+				results.push({ ...state, scope: recordScope });
 			}
 		}
 		return results;
 	}
 }
 
-// ── OPFS Object Stores ────────────────────────────────────────────────────────
+// ── OPFS Object Store ─────────────────────────────────────────────────────────
 
-export class OpfsSessionObjectStore implements SessionObjectStore {
-	private localMap = new Map<string, ObjectState>();
-	private aliases = new Map<string, string>();
+export class OpfsObjectStore
+	implements SessionObjectStore, PersistentObjectStore
+{
+	private db: OpfsDb;
+	private initDone = false;
 
-	private getScopeKey(sessionId: string, id: string): string {
-		return `${sessionId}:${id}`;
+	constructor(db: OpfsDb) {
+		this.db = db;
 	}
 
-	async get(sessionId: string, id: string): Promise<ObjectState | null> {
-		const aliasTarget = await this.getAlias(sessionId, id);
-		const targetId = aliasTarget || id;
-		return this.localMap.get(this.getScopeKey(sessionId, targetId)) || null;
+	private async ensureInit(): Promise<void> {
+		if (this.initDone) return;
+		await this.db.exec(S.PRAGMA_WAL);
+		await this.db.exec(S.DDL_OBJECTS);
+		await this.db.exec(S.DDL_SAVED_OBJECTS);
+		await this.db.exec(S.DDL_OBJECT_SESSION_ALIASES);
+		this.initDone = true;
+	}
+
+	get(sessionId: string, id: string): Promise<ObjectState | null>;
+	get(id: string, scope: OwnerScope): Promise<PersistedObjectState | null>;
+	async get(a: string, b: string | OwnerScope): Promise<any> {
+		if (typeof b === "string") return this.getSession(a, b);
+		return this.getPersistent(a, b);
+	}
+
+	set(sessionId: string, id: string, state: ObjectState): Promise<void>;
+	set(
+		id: string,
+		state: PersistedObjectState,
+		scope: OwnerScope,
+	): Promise<void>;
+	async set(a: string, b: any, c?: any): Promise<void> {
+		if (c && typeof c === "object" && "level" in c)
+			return this.setPersistent(a, b, c);
+		return this.setSession(a, b, c);
+	}
+
+	delete(sessionId: string, id: string): Promise<void>;
+	delete(id: string, scope: OwnerScope): Promise<void>;
+	async delete(a: string, b: string | OwnerScope): Promise<void> {
+		if (typeof b === "string") return this.deleteSession(a, b);
+		return this.deletePersistent(a, b);
+	}
+
+	async getAlias(sessionId: string, alias: string): Promise<string | null> {
+		await this.ensureInit();
+		const row = await this.db.get<{ target_id: string }>(
+			S.SQL_GET_OBJECT_ALIAS,
+			[sessionId, alias],
+		);
+		return row ? row.target_id : null;
+	}
+
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_OBJECT_ALIAS, [sessionId, alias, targetId]);
+	}
+
+	async deleteAlias(sessionId: string, alias: string): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_OBJECT_ALIAS, [sessionId, alias]);
+	}
+
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ alias_name: string; target_id: string }>(
+			S.SQL_LIST_OBJECT_ALIASES,
+			[sessionId],
+		);
+		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
 
 	async create(
@@ -315,128 +627,163 @@ export class OpfsSessionObjectStore implements SessionObjectStore {
 			`obj_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 		const fullState: ObjectState = { ...state, objectId: id };
 		await this.set(sessionId, id, fullState);
-		if (alias) {
-			await this.setAlias(sessionId, alias, id);
-		}
+		if (alias) await this.setAlias(sessionId, alias, id);
 		return id;
 	}
 
-	async set(sessionId: string, id: string, state: ObjectState): Promise<void> {
-		this.localMap.set(this.getScopeKey(sessionId, id), state);
-	}
-
-	async delete(sessionId: string, id: string): Promise<void> {
-		this.localMap.delete(this.getScopeKey(sessionId, id));
-	}
-
-	async setAlias(
+	private async getSession(
 		sessionId: string,
-		alias: string,
-		targetId: string,
+		id: string,
+	): Promise<ObjectState | null> {
+		await this.ensureInit();
+		const row = await this.db.get<any>(S.SQL_SELECT_OBJECT_SESSION, [
+			sessionId,
+			id,
+		]);
+		if (!row) return null;
+		return this.loadState(row);
+	}
+
+	private async setSession(
+		sessionId: string,
+		id: string,
+		state: ObjectState,
 	): Promise<void> {
-		this.aliases.set(this.getScopeKey(sessionId, alias), targetId);
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_OBJECT_SESSION, [
+			id,
+			state.schemaName,
+			state.parentObjectId || null,
+			sessionId,
+			JSON.stringify(state.data),
+			state.createdAt,
+			state.schema_pinned_at || null,
+		]);
 	}
 
-	async getAlias(sessionId: string, alias: string): Promise<string | null> {
-		return this.aliases.get(this.getScopeKey(sessionId, alias)) || null;
+	private async deleteSession(sessionId: string, id: string): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_OBJECT_SESSION, [sessionId, id]);
 	}
 
-	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.aliases.delete(this.getScopeKey(sessionId, alias));
+	private loadState(row: any): ObjectState {
+		return {
+			objectId: row.object_id,
+			schemaName: row.schema_name,
+			parentObjectId: row.parent_object_id,
+			data: JSON.parse(row.data),
+			createdAt: row.created_at,
+			schema_pinned_at: row.schema_pinned_at || undefined,
+			linearDepth: row.linear_depth || undefined,
+			gcLock: row.gc_lock === 1,
+		};
 	}
 
-	async listAliases(
-		sessionId: string,
-	): Promise<Array<{ alias: string; targetId: string }>> {
-		const prefix = `${sessionId}:`;
-		const results: Array<{ alias: string; targetId: string }> = [];
-		for (const [key, targetId] of this.aliases.entries()) {
-			if (key.startsWith(prefix)) {
-				results.push({ alias: key.slice(prefix.length), targetId });
-			}
-		}
-		return results;
+	private async getPersistent(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedObjectState | null> {
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const saved = await this.db.get<any>(S.SQL_SELECT_SAVED_OBJECT, [
+			id,
+			scope.level,
+			scopeId,
+		]);
+		if (!saved) return null;
+		const row = await this.db.get<any>(S.SQL_SELECT_OBJECT_PERSISTENT, [
+			id,
+			scope.level,
+			scopeId,
+		]);
+		if (!row) return null;
+		return {
+			...this.loadState(row),
+			tags: JSON.parse(saved.tags),
+			description: saved.description,
+			schema_pinned_at: row.schema_pinned_at || "",
+		};
 	}
 
-	async listSession(sessionId: string): Promise<string[]> {
-		const prefix = `${sessionId}:`;
-		const results: string[] = [];
-		for (const key of this.localMap.keys()) {
-			if (key.startsWith(prefix)) {
-				results.push(key.slice(prefix.length));
-			}
-		}
-		return results;
-	}
-
-	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
-		const prefix = `${sessionId}:`;
-		const results: string[] = [];
-		for (const [key, state] of this.localMap.entries()) {
-			if (key.startsWith(prefix) && state.parentObjectId === parentId) {
-				results.push(state.objectId);
-			}
-		}
-		return results;
-	}
-
-	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
-		const prefix = `${sessionId}:`;
-		const now = Date.now();
-		for (const [key, state] of this.localMap.entries()) {
-			if (key.startsWith(prefix)) {
-				if (olderThanMs !== undefined) {
-					const t = Date.parse(state.createdAt);
-					if (now - t > olderThanMs) {
-						this.localMap.delete(key);
-					}
-				} else {
-					this.localMap.delete(key);
-				}
-			}
-		}
-		for (const key of this.aliases.keys()) {
-			if (key.startsWith(prefix)) {
-				this.aliases.delete(key);
-			}
-		}
-	}
-}
-
-export class OpfsPersistentObjectStore implements PersistentObjectStore {
-	private localMap = new Map<string, PersistedObjectState>();
-
-	async set(
+	private async setPersistent(
 		id: string,
 		state: PersistedObjectState,
 		scope: OwnerScope,
 	): Promise<void> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		this.localMap.set(key, state);
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		await this.db.exec(S.SQL_UPSERT_OBJECT_PERSISTENT, [
+			id,
+			state.schemaName,
+			state.parentObjectId || null,
+			scope.level,
+			scopeId,
+			JSON.stringify(state.data),
+			state.createdAt,
+			state.schema_pinned_at || "",
+		]);
+		await this.db.exec(S.SQL_UPSERT_SAVED_OBJECT, [
+			id,
+			JSON.stringify(state.tags),
+			state.description,
+			scope.level,
+			scopeId,
+		]);
 	}
 
-	async get(
-		id: string,
-		scope: OwnerScope,
-	): Promise<PersistedObjectState | null> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		return this.localMap.get(key) || null;
+	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_SAVED_OBJECT, [id]);
+		await this.db.exec(S.SQL_DELETE_OBJECT_PERSISTENT, [id, scope.level]);
 	}
 
-	async delete(id: string, scope: OwnerScope): Promise<void> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		this.localMap.delete(key);
+	async listSession(sessionId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ object_id: string }>(
+			S.SQL_LIST_OBJECTS_SESSION,
+			[sessionId],
+		);
+		return rows.map((r) => r.object_id);
+	}
+
+	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ object_id: string }>(
+			S.SQL_LIST_OBJECTS_CHILDREN,
+			[sessionId, parentId],
+		);
+		return rows.map((r) => r.object_id);
+	}
+
+	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+		await this.ensureInit();
+		if (olderThanMs !== undefined) {
+			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
+			await this.db.exec(S.SQL_EXPIRE_OBJECTS_SESSION_AGE, [
+				sessionId,
+				olderThanDate,
+			]);
+		} else {
+			await this.db.exec(S.SQL_EXPIRE_OBJECTS_SESSION, [sessionId]);
+		}
 	}
 
 	async findByTag(
 		tag: string,
 		scope: OwnerScope,
 	): Promise<PersistedObjectState[]> {
-		const prefix = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:`;
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const allSaved = await this.db.query<any>(
+			S.SQL_SELECT_SAVED_OBJECTS_BY_SCOPE,
+			[scope.level, scopeId],
+		);
 		const results: PersistedObjectState[] = [];
-		for (const [k, v] of this.localMap.entries()) {
-			if (k.startsWith(prefix) && v.tags.includes(tag)) {
-				results.push(v);
+		for (const saved of allSaved) {
+			const tags: string[] = JSON.parse(saved.tags);
+			if (tags.includes(tag)) {
+				const fullState = await this.getPersistent(saved.id, scope);
+				if (fullState) results.push(fullState);
 			}
 		}
 		return results;
@@ -446,36 +793,431 @@ export class OpfsPersistentObjectStore implements PersistentObjectStore {
 		scope: OwnerScope,
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedObjectState & { scope: OwnerScope }>> {
-		const userPrefix = `user:${scope.level === "user" ? scope.userId : ""}:`;
-		const globalPrefix = "global:global:";
-		const results: Array<PersistedObjectState & { scope: OwnerScope }> = [];
-		for (const [k, v] of this.localMap.entries()) {
-			if (scope.level === "user" && k.startsWith(userPrefix)) {
-				results.push({ ...v, scope });
-			} else if (k.startsWith(globalPrefix)) {
-				if (scope.level === "global" || includeGlobal) {
-					results.push({ ...v, scope: { level: "global" } });
-				}
+		await this.ensureInit();
+		const userId = scope.level === "user" ? scope.userId : null;
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+				params.push(userId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_objects WHERE scope_level = 'user' AND user_id = ?";
+				params.push(userId);
 			}
+		}
+		const savedRecords = await this.db.query<any>(queryStr, params);
+		const results: Array<PersistedObjectState & { scope: OwnerScope }> = [];
+		for (const r of savedRecords) {
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: r.user_id }
+					: { level: "global" };
+			const state = await this.getPersistent(r.id, recordScope);
+			if (state) results.push({ ...state, scope: recordScope });
 		}
 		return results;
 	}
 }
 
-// ── OPFS Form Stores ──────────────────────────────────────────────────────────
+// ── OPFS Event Store ──────────────────────────────────────────────────────────
 
-export class OpfsFormSessionStore implements SessionFormStore {
-	private localMap = new Map<string, FormState>();
-	private aliases = new Map<string, string>();
+export class OpfsEventStore implements SessionEventStore, PersistentEventStore {
+	private db: OpfsDb;
+	private initDone = false;
 
-	private getScopeKey(sessionId: string, id: string): string {
-		return `${sessionId}:${id}`;
+	constructor(db: OpfsDb) {
+		this.db = db;
 	}
 
-	async get(sessionId: string, id: string): Promise<FormState | null> {
-		const aliasTarget = await this.getAlias(sessionId, id);
-		const targetId = aliasTarget || id;
-		return this.localMap.get(this.getScopeKey(sessionId, targetId)) || null;
+	private async ensureInit(): Promise<void> {
+		if (this.initDone) return;
+		await this.db.exec(S.PRAGMA_WAL);
+		await this.db.exec(S.DDL_EVENTS);
+		await this.db.exec(S.DDL_SAVED_EVENTS);
+		await this.db.exec(S.DDL_EVENT_SESSION_ALIASES);
+		this.initDone = true;
+	}
+
+	get(sessionId: string, commitId: string): Promise<EventCommit | null>;
+	get(commitId: string, scope: OwnerScope): Promise<PersistedEventState | null>;
+	async get(a: string, b: string | OwnerScope): Promise<any> {
+		if (typeof b === "string") return this.getSession(a, b);
+		return this.getPersistent(a, b);
+	}
+
+	set(sessionId: string, commitId: string, state: EventCommit): Promise<void>;
+	set(
+		commitId: string,
+		state: PersistedEventState,
+		scope: OwnerScope,
+	): Promise<void>;
+	async set(a: string, b: any, c?: any): Promise<void> {
+		if (c && typeof c === "object" && "level" in c)
+			return this.setPersistent(a, b, c);
+		return this.setSession(a, b, c);
+	}
+
+	delete(sessionId: string, commitId: string): Promise<void>;
+	delete(commitId: string, scope: OwnerScope): Promise<void>;
+	async delete(a: string, b: string | OwnerScope): Promise<void> {
+		if (typeof b === "string") return this.deleteSession(a, b);
+		return this.deletePersistent(a, b);
+	}
+
+	async getAlias(sessionId: string, alias: string): Promise<string | null> {
+		await this.ensureInit();
+		const row = await this.db.get<{ target_id: string }>(
+			S.SQL_GET_EVENT_ALIAS,
+			[sessionId, alias],
+		);
+		return row ? row.target_id : null;
+	}
+
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_EVENT_ALIAS, [sessionId, alias, targetId]);
+	}
+
+	async deleteAlias(sessionId: string, alias: string): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_EVENT_ALIAS, [sessionId, alias]);
+	}
+
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ alias_name: string; target_id: string }>(
+			S.SQL_LIST_EVENT_ALIASES,
+			[sessionId],
+		);
+		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
+	}
+
+	async create(
+		sessionId: string,
+		state: Omit<EventCommit, "commitId"> & { commitId?: string },
+		alias?: string,
+	): Promise<string> {
+		const commitId =
+			state.commitId ||
+			`commit_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+		const fullState: EventCommit = { ...state, commitId };
+		await this.set(sessionId, commitId, fullState);
+		if (alias) await this.setAlias(sessionId, alias, commitId);
+		return commitId;
+	}
+
+	private async getSession(
+		sessionId: string,
+		commitId: string,
+	): Promise<EventCommit | null> {
+		await this.ensureInit();
+		const row = await this.db.get<any>(S.SQL_SELECT_EVENT_SESSION, [
+			sessionId,
+			commitId,
+		]);
+		if (!row) return null;
+		return this.loadState(row);
+	}
+
+	private async setSession(
+		sessionId: string,
+		commitId: string,
+		state: EventCommit,
+	): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_EVENT_SESSION, [
+			commitId,
+			sessionId,
+			state.parentCommitId || null,
+			state.operation,
+			JSON.stringify(state.mutations),
+			state.createdAt,
+			state.linearDepth || 0,
+			state.gcLock ? 1 : 0,
+			state.mergeSourceCommitIds
+				? JSON.stringify(state.mergeSourceCommitIds)
+				: null,
+			state.mergeAcceptedIds ? JSON.stringify(state.mergeAcceptedIds) : null,
+			state.mergeRejectedIds ? JSON.stringify(state.mergeRejectedIds) : null,
+		]);
+	}
+
+	private async deleteSession(
+		sessionId: string,
+		commitId: string,
+	): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_EVENT_SESSION, [sessionId, commitId]);
+	}
+
+	private loadState(row: any): EventCommit {
+		return {
+			commitId: row.commit_id,
+			sessionId: row.session_id,
+			parentCommitId: row.parent_commit_id,
+			createdAt: row.created_at,
+			operation: row.operation,
+			mutations: JSON.parse(row.mutations),
+			linearDepth: row.linear_depth || 0,
+			gcLock: row.gc_lock === 1,
+			mergeSourceCommitIds: row.merge_source_commit_ids
+				? JSON.parse(row.merge_source_commit_ids)
+				: undefined,
+			mergeAcceptedIds: row.merge_accepted_ids
+				? JSON.parse(row.merge_accepted_ids)
+				: undefined,
+			mergeRejectedIds: row.merge_rejected_ids
+				? JSON.parse(row.merge_rejected_ids)
+				: undefined,
+		};
+	}
+
+	private async getPersistent(
+		commitId: string,
+		scope: OwnerScope,
+	): Promise<PersistedEventState | null> {
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const saved = await this.db.get<any>(S.SQL_SELECT_SAVED_EVENT, [
+			commitId,
+			scope.level,
+			scopeId,
+		]);
+		if (!saved) return null;
+		const row = await this.db.get<any>(S.SQL_SELECT_EVENT_PERSISTENT, [
+			commitId,
+			scope.level,
+			scopeId,
+		]);
+		if (!row) return null;
+		return {
+			...this.loadState(row),
+			tags: JSON.parse(saved.tags),
+			description: saved.description,
+			schema_name: row.schema_name,
+		};
+	}
+
+	private async setPersistent(
+		commitId: string,
+		state: PersistedEventState,
+		scope: OwnerScope,
+	): Promise<void> {
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		await this.db.exec(S.SQL_UPSERT_EVENT_PERSISTENT, [
+			commitId,
+			scope.level,
+			scopeId,
+			state.parentCommitId || null,
+			state.operation,
+			JSON.stringify(state.mutations),
+			state.createdAt,
+			state.linearDepth || 0,
+			state.gcLock ? 1 : 0,
+			state.mergeSourceCommitIds
+				? JSON.stringify(state.mergeSourceCommitIds)
+				: null,
+			state.mergeAcceptedIds ? JSON.stringify(state.mergeAcceptedIds) : null,
+			state.mergeRejectedIds ? JSON.stringify(state.mergeRejectedIds) : null,
+			state.schema_name,
+		]);
+		await this.db.exec(S.SQL_UPSERT_SAVED_EVENT, [
+			commitId,
+			JSON.stringify(state.tags),
+			state.description,
+			scope.level,
+			scopeId,
+		]);
+	}
+
+	private async deletePersistent(
+		commitId: string,
+		scope: OwnerScope,
+	): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_SAVED_EVENT, [commitId]);
+		await this.db.exec(S.SQL_DELETE_EVENT_PERSISTENT, [commitId, scope.level]);
+	}
+
+	async listSession(sessionId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ commit_id: string }>(
+			S.SQL_LIST_EVENTS_SESSION,
+			[sessionId],
+		);
+		return rows.map((r) => r.commit_id);
+	}
+
+	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ commit_id: string }>(
+			S.SQL_LIST_EVENTS_CHILDREN,
+			[sessionId, parentId],
+		);
+		return rows.map((r) => r.commit_id);
+	}
+
+	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+		await this.ensureInit();
+		if (olderThanMs !== undefined) {
+			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
+			await this.db.exec(S.SQL_EXPIRE_EVENTS_SESSION_AGE, [
+				sessionId,
+				olderThanDate,
+			]);
+		} else {
+			await this.db.exec(S.SQL_EXPIRE_EVENTS_SESSION, [sessionId]);
+		}
+	}
+
+	async findByTag(
+		tag: string,
+		scope: OwnerScope,
+	): Promise<PersistedEventState[]> {
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		const allSaved = await this.db.query<any>(
+			S.SQL_SELECT_SAVED_EVENTS_BY_SCOPE,
+			[scope.level, scopeId],
+		);
+		const results: PersistedEventState[] = [];
+		for (const saved of allSaved) {
+			const tags: string[] = JSON.parse(saved.tags);
+			if (tags.includes(tag)) {
+				const fullState = await this.getPersistent(saved.id, scope);
+				if (fullState) results.push(fullState);
+			}
+		}
+		return results;
+	}
+
+	async list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedEventState & { scope: OwnerScope }>> {
+		await this.ensureInit();
+		const userId = scope.level === "user" ? scope.userId : null;
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+				params.push(userId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_events WHERE scope_level = 'user' AND user_id = ?";
+				params.push(userId);
+			}
+		}
+		const savedRecords = await this.db.query<any>(queryStr, params);
+		const results: Array<PersistedEventState & { scope: OwnerScope }> = [];
+		for (const r of savedRecords) {
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: r.user_id }
+					: { level: "global" };
+			const state = await this.getPersistent(r.id, recordScope);
+			if (state) results.push({ ...state, scope: recordScope });
+		}
+		return results;
+	}
+}
+
+// ── OPFS Form Store ───────────────────────────────────────────────────────────
+
+export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
+	private db: OpfsDb;
+	private initDone = false;
+
+	constructor(db: OpfsDb) {
+		this.db = db;
+	}
+
+	private async ensureInit(): Promise<void> {
+		if (this.initDone) return;
+		await this.db.exec(S.PRAGMA_WAL);
+		await this.db.exec(S.DDL_FORMS);
+		await this.db.exec(S.DDL_FORM_ANSWERS);
+		await this.db.exec(S.DDL_FORM_SKIPPED);
+		await this.db.exec(S.DDL_FORM_STALE);
+		await this.db.exec(S.DDL_SAVED_FORMS);
+		await this.db.exec(S.DDL_FORM_SESSION_ALIASES);
+		this.initDone = true;
+	}
+
+	get(sessionId: string, id: string): Promise<FormState | null>;
+	get(id: string, scope: OwnerScope): Promise<PersistedFormStateDetails | null>;
+	async get(a: string, b: string | OwnerScope): Promise<any> {
+		if (typeof b === "string") return this.getSession(a, b);
+		return this.getPersistent(a, b);
+	}
+
+	set(sessionId: string, id: string, state: FormState): Promise<void>;
+	set(
+		id: string,
+		state: PersistedFormStateDetails,
+		scope: OwnerScope,
+	): Promise<void>;
+	async set(a: string, b: any, c?: any): Promise<void> {
+		if (c && typeof c === "object" && "level" in c)
+			return this.setPersistent(a, b, c);
+		return this.setSession(a, b, c);
+	}
+
+	async delete(sessionId: string, id: string): Promise<void>;
+	async delete(id: string, scope: OwnerScope): Promise<void>;
+	async delete(a: string, b?: any): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_FORM_ANSWERS, [a]);
+		await this.db.exec(S.SQL_DELETE_FORM_SKIPPED, [a]);
+		await this.db.exec(S.SQL_DELETE_FORM_STALE, [a]);
+		await this.db.exec(S.SQL_DELETE_FORM, [a]);
+		await this.db.exec(S.SQL_DELETE_SAVED_FORM, [a]);
+	}
+
+	async getAlias(sessionId: string, alias: string): Promise<string | null> {
+		await this.ensureInit();
+		const row = await this.db.get<{ target_id: string }>(S.SQL_GET_FORM_ALIAS, [
+			sessionId,
+			alias,
+		]);
+		return row ? row.target_id : null;
+	}
+
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_FORM_ALIAS, [sessionId, alias, targetId]);
+	}
+
+	async deleteAlias(sessionId: string, alias: string): Promise<void> {
+		await this.ensureInit();
+		await this.db.exec(S.SQL_DELETE_FORM_ALIAS, [sessionId, alias]);
+	}
+
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ alias_name: string; target_id: string }>(
+			S.SQL_LIST_FORM_ALIASES,
+			[sessionId],
+		);
+		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
 
 	async create(
@@ -488,129 +1230,181 @@ export class OpfsFormSessionStore implements SessionFormStore {
 			`form_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 		const fullState: FormState = { ...state, formId: id };
 		await this.set(sessionId, id, fullState);
-		if (alias) {
-			await this.setAlias(sessionId, alias, id);
-		}
+		if (alias) await this.setAlias(sessionId, alias, id);
 		return id;
 	}
 
-	async set(sessionId: string, id: string, state: FormState): Promise<void> {
-		this.localMap.set(this.getScopeKey(sessionId, id), state);
-	}
-
-	async delete(sessionId: string, id: string): Promise<void> {
-		this.localMap.delete(this.getScopeKey(sessionId, id));
-	}
-
-	async setAlias(
+	private async getSession(
 		sessionId: string,
-		alias: string,
-		targetId: string,
+		id: string,
+	): Promise<FormState | null> {
+		await this.ensureInit();
+		const row = await this.db.get<any>(S.SQL_SELECT_FORM_SESSION, [
+			id,
+			sessionId,
+		]);
+		if (!row) return null;
+		return this.loadState(row);
+	}
+
+	private async getPersistent(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedFormStateDetails | null> {
+		await this.ensureInit();
+		const row = await this.db.get<any>(S.SQL_SELECT_FORM_PERSISTENT, [
+			id,
+			scope.level,
+		]);
+		if (!row) return null;
+		const saved = await this.db.get<any>(S.SQL_SELECT_SAVED_FORM, [id]);
+		const tags = saved ? JSON.parse(saved.tags) : [];
+		const description = saved ? saved.description : "";
+		const state = await this.loadState(row);
+		return { ...state, tags, description, schema_pinned_at: row.created_at };
+	}
+
+	private async loadState(row: any): Promise<FormState> {
+		const formId = row.form_id;
+		const answersRows = await this.db.query<any>(S.SQL_SELECT_FORM_ANSWERS, [
+			formId,
+		]);
+		const skippedRows = await this.db.query<any>(S.SQL_SELECT_FORM_SKIPPED, [
+			formId,
+		]);
+		const staleRows = await this.db.query<any>(S.SQL_SELECT_FORM_STALE, [
+			formId,
+		]);
+
+		const answers: Record<string, any> = {};
+		for (const r of answersRows) answers[r.question_id] = JSON.parse(r.value);
+		const skipped = skippedRows.map((r: any) => r.question_id);
+		const stale: Record<string, boolean> = {};
+		for (const r of staleRows) stale[r.question_id] = true;
+
+		return {
+			formId,
+			parentFormId: row.parent_form_id,
+			schemaName: row.schema_name,
+			answers,
+			skipped,
+			stale,
+			timestamp: row.created_at,
+		};
+	}
+
+	private async setSession(
+		sessionId: string,
+		id: string,
+		state: FormState,
 	): Promise<void> {
-		this.aliases.set(this.getScopeKey(sessionId, alias), targetId);
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_FORM_SESSION, [
+			id,
+			state.parentFormId,
+			state.schemaName,
+			sessionId,
+			state.timestamp,
+		]);
+		await this.db.exec(S.SQL_DELETE_FORM_ANSWERS, [id]);
+		for (const [qId, val] of Object.entries(state.answers))
+			await this.db.exec(S.SQL_INSERT_FORM_ANSWER, [
+				id,
+				qId,
+				JSON.stringify(val),
+			]);
+		await this.db.exec(S.SQL_DELETE_FORM_SKIPPED, [id]);
+		for (const qId of state.skipped)
+			await this.db.exec(S.SQL_INSERT_FORM_SKIPPED, [id, qId]);
+		await this.db.exec(S.SQL_DELETE_FORM_STALE, [id]);
+		for (const qId of Object.keys(state.stale))
+			await this.db.exec(S.SQL_INSERT_FORM_STALE, [id, qId]);
 	}
 
-	async getAlias(sessionId: string, alias: string): Promise<string | null> {
-		return this.aliases.get(this.getScopeKey(sessionId, alias)) || null;
-	}
-
-	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.aliases.delete(this.getScopeKey(sessionId, alias));
-	}
-
-	async listAliases(
-		sessionId: string,
-	): Promise<Array<{ alias: string; targetId: string }>> {
-		const prefix = `${sessionId}:`;
-		const results: Array<{ alias: string; targetId: string }> = [];
-		for (const [key, targetId] of this.aliases.entries()) {
-			if (key.startsWith(prefix)) {
-				results.push({ alias: key.slice(prefix.length), targetId });
-			}
-		}
-		return results;
-	}
-
-	async listSession(sessionId: string): Promise<string[]> {
-		const prefix = `${sessionId}:`;
-		const results: string[] = [];
-		for (const key of this.localMap.keys()) {
-			if (key.startsWith(prefix)) {
-				results.push(key.slice(prefix.length));
-			}
-		}
-		return results;
-	}
-
-	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
-		const prefix = `${sessionId}:`;
-		const results: string[] = [];
-		for (const [key, state] of this.localMap.entries()) {
-			if (key.startsWith(prefix) && state.parentFormId === parentId) {
-				results.push(state.formId);
-			}
-		}
-		return results;
-	}
-
-	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
-		const prefix = `${sessionId}:`;
-		const now = Date.now();
-		for (const [key, state] of this.localMap.entries()) {
-			if (key.startsWith(prefix)) {
-				if (olderThanMs !== undefined) {
-					const t = Date.parse(state.timestamp);
-					if (now - t > olderThanMs) {
-						this.localMap.delete(key);
-					}
-				} else {
-					this.localMap.delete(key);
-				}
-			}
-		}
-		for (const key of this.aliases.keys()) {
-			if (key.startsWith(prefix)) {
-				this.aliases.delete(key);
-			}
-		}
-	}
-}
-
-export class OpfsFormPersistentStore implements PersistentFormStore {
-	private localMap = new Map<string, PersistedFormStateDetails>();
-
-	async set(
+	private async setPersistent(
 		id: string,
 		state: PersistedFormStateDetails,
 		scope: OwnerScope,
 	): Promise<void> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		this.localMap.set(key, state);
+		await this.ensureInit();
+		const userId = scope.level === "user" ? scope.userId : null;
+		await this.db.exec(S.SQL_UPSERT_FORM_PERSISTENT, [
+			id,
+			state.parentFormId,
+			state.schemaName,
+			scope.level,
+			userId,
+			state.timestamp,
+		]);
+		await this.db.exec(S.SQL_DELETE_FORM_ANSWERS, [id]);
+		for (const [qId, val] of Object.entries(state.answers))
+			await this.db.exec(S.SQL_INSERT_FORM_ANSWER, [
+				id,
+				qId,
+				JSON.stringify(val),
+			]);
+		await this.db.exec(S.SQL_DELETE_FORM_SKIPPED, [id]);
+		for (const qId of state.skipped)
+			await this.db.exec(S.SQL_INSERT_FORM_SKIPPED, [id, qId]);
+		await this.db.exec(S.SQL_DELETE_FORM_STALE, [id]);
+		for (const qId of Object.keys(state.stale))
+			await this.db.exec(S.SQL_INSERT_FORM_STALE, [id, qId]);
+		await this.db.exec(S.SQL_UPSERT_SAVED_FORM, [
+			id,
+			JSON.stringify(state.tags),
+			state.description,
+			scope.level,
+			userId,
+			state.timestamp,
+		]);
 	}
 
-	async get(
-		id: string,
-		scope: OwnerScope,
-	): Promise<PersistedFormStateDetails | null> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		return this.localMap.get(key) || null;
+	async listSession(sessionId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ form_id: string }>(
+			S.SQL_LIST_FORMS_SESSION,
+			[sessionId],
+		);
+		return rows.map((r) => r.form_id);
 	}
 
-	async delete(id: string, scope: OwnerScope): Promise<void> {
-		const key = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:${id}`;
-		this.localMap.delete(key);
+	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
+		await this.ensureInit();
+		const rows = await this.db.query<{ form_id: string }>(
+			S.SQL_LIST_FORMS_CHILDREN,
+			[sessionId, parentId],
+		);
+		return rows.map((r) => r.form_id);
+	}
+
+	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
+		await this.ensureInit();
+		if (olderThanMs !== undefined) {
+			await this.db.exec(S.SQL_EXPIRE_FORMS_BY_SESSION_AGE, [
+				sessionId,
+				new Date(Date.now() - olderThanMs).toISOString(),
+			]);
+		} else {
+			await this.db.exec(S.SQL_EXPIRE_FORMS_BY_SESSION, [sessionId]);
+		}
 	}
 
 	async findByTag(
 		tag: string,
 		scope: OwnerScope,
 	): Promise<PersistedFormStateDetails[]> {
-		const prefix = `${scope.level}:${scope.level === "user" ? scope.userId : "global"}:`;
+		await this.ensureInit();
+		const userId = scope.level === "user" ? scope.userId : null;
+		const query =
+			scope.level === "user"
+				? "SELECT id FROM saved_forms WHERE scope_level = 'user' AND user_id = ? AND tags LIKE ?"
+				: "SELECT id FROM saved_forms WHERE scope_level = 'global' AND tags LIKE ?";
+		const params = scope.level === "user" ? [userId, `%${tag}%`] : [`%${tag}%`];
+		const rows = await this.db.query<{ id: string }>(query, params);
 		const results: PersistedFormStateDetails[] = [];
-		for (const [k, v] of this.localMap.entries()) {
-			if (k.startsWith(prefix) && v.tags.includes(tag)) {
-				results.push(v);
-			}
+		for (const r of rows) {
+			const state = await this.getPersistent(r.id, scope);
+			if (state) results.push(state);
 		}
 		return results;
 	}
@@ -619,221 +1413,320 @@ export class OpfsFormPersistentStore implements PersistentFormStore {
 		scope: OwnerScope,
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
-		const userPrefix = `user:${scope.level === "user" ? scope.userId : ""}:`;
-		const globalPrefix = "global:global:";
+		await this.ensureInit();
+		const userId = scope.level === "user" ? scope.userId : null;
+		let queryStr =
+			"SELECT id, scope_level, user_id FROM saved_forms WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
+				params.push(userId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_forms WHERE scope_level = 'user' AND user_id = ?";
+				params.push(userId);
+			}
+		}
+		const savedRecords = await this.db.query<any>(queryStr, params);
 		const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> =
 			[];
-		for (const [k, v] of this.localMap.entries()) {
-			if (scope.level === "user" && k.startsWith(userPrefix)) {
-				results.push({ ...v, scope });
-			} else if (k.startsWith(globalPrefix)) {
-				if (scope.level === "global" || includeGlobal) {
-					results.push({ ...v, scope: { level: "global" } });
-				}
-			}
+		for (const r of savedRecords) {
+			const recordScope: OwnerScope =
+				r.scope_level === "user"
+					? { level: "user", userId: r.user_id }
+					: { level: "global" };
+			const state = await this.getPersistent(r.id, recordScope);
+			if (state) results.push({ ...state, scope: recordScope });
 		}
 		return results;
 	}
 }
 
-// ── OPFS Concept & Expression Stores ──────────────────────────────────────────
+// ── OPFS Concept Store ────────────────────────────────────────────────────────
 
 export class OpfsConceptStore implements ConceptStore {
-	private namespaces = new Map<string, Namespace>();
-	private concepts = new Map<string, Concept>();
-	private relations: ConceptRelation[] = [];
+	private db: OpfsDb;
+	private initDone = false;
+
+	constructor(db: OpfsDb) {
+		this.db = db;
+	}
+
+	private async ensureInit(): Promise<void> {
+		if (this.initDone) return;
+		await this.db.exec(S.DDL_DICT_NAMESPACES);
+		await this.db.exec(S.DDL_DICT_CONCEPTS);
+		await this.db.exec(S.DDL_DICT_RELATIONS);
+		await this.db.exec(S.IDX_CONCEPT_REL_FORWARD);
+		await this.db.exec(S.IDX_CONCEPT_REL_REVERSE);
+		await this.db.exec(S.DDL_DICT_RELATION_CACHE);
+		await this.db.exec(S.IDX_CONCEPT_CACHE_TRAVERSAL);
+		this.initDone = true;
+	}
 
 	async search(
 		query: string,
 		namespaceCode?: string,
 		limit = 50,
 	): Promise<Concept[]> {
-		const results: Concept[] = [];
-		const lowerQuery = query.toLowerCase();
-		for (const c of this.concepts.values()) {
-			if (namespaceCode && c.namespaceCode !== namespaceCode) continue;
-			if (
-				c.id.toLowerCase().includes(lowerQuery) ||
-				c.standardCode.toLowerCase().includes(lowerQuery) ||
-				c.display.toLowerCase().includes(lowerQuery) ||
-				(c.description && c.description.toLowerCase().includes(lowerQuery))
-			) {
-				results.push(c);
-			}
-			if (results.length >= limit) break;
+		await this.ensureInit();
+		let sql =
+			"SELECT * FROM dict_concepts WHERE (display LIKE ? OR id = ? OR standard_code = ? OR description LIKE ?)";
+		const params: any[] = [`%${query}%`, query, query, `%${query}%`];
+		if (namespaceCode) {
+			sql += " AND namespace_code = ?";
+			params.push(namespaceCode);
 		}
-		return results;
+		sql += " LIMIT ?";
+		params.push(limit);
+		const rows = await this.db.query<any>(sql, params);
+		return rows.map((r) => ({
+			id: r.id,
+			namespaceCode: r.namespace_code,
+			standardCode: r.standard_code,
+			display: r.display,
+			description: r.description || undefined,
+			designationDate: r.designation_date || undefined,
+			active: r.active === 1,
+		}));
 	}
 
 	async getById(id: string): Promise<Concept | null> {
-		return this.concepts.get(id) || null;
+		await this.ensureInit();
+		const r = await this.db.get<any>(S.SQL_SELECT_DICT_CONCEPT_BY_ID, [id]);
+		if (!r) return null;
+		return {
+			id: r.id,
+			namespaceCode: r.namespace_code,
+			standardCode: r.standard_code,
+			display: r.display,
+			description: r.description || undefined,
+			designationDate: r.designation_date || undefined,
+			active: r.active === 1,
+		};
 	}
 
 	async listNamespaces(): Promise<Namespace[]> {
-		return Array.from(this.namespaces.values());
+		await this.ensureInit();
+		const rows = await this.db.query<any>(S.SQL_SELECT_DICT_NAMESPACES);
+		return rows.map((r) => ({
+			code: r.code,
+			description: r.description || undefined,
+			isPublic: r.is_public === 1,
+			isExternalPrivate: r.is_external_private === 1,
+			isMutable: r.is_mutable === 1,
+		}));
 	}
 
 	async addConcept(concept: Concept): Promise<void> {
-		this.concepts.set(concept.id, concept);
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_DICT_CONCEPT, [
+			concept.id,
+			concept.namespaceCode,
+			concept.standardCode,
+			concept.display,
+			concept.description || null,
+			concept.designationDate || null,
+			concept.active !== false ? 1 : 0,
+		]);
 	}
 
 	async addNamespace(namespace: Namespace): Promise<void> {
-		this.namespaces.set(namespace.code, namespace);
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_DICT_NAMESPACE, [
+			namespace.code,
+			namespace.description || null,
+			namespace.isPublic ? 1 : 0,
+			namespace.isExternalPrivate ? 1 : 0,
+			namespace.isMutable !== false ? 1 : 0,
+		]);
 	}
 
 	async addRelation(relation: ConceptRelation): Promise<void> {
-		this.relations = this.relations.filter((r) => r.id !== relation.id);
-		this.relations.push(relation);
+		await this.ensureInit();
+		await this.db.exec(S.SQL_UPSERT_DICT_RELATION, [
+			relation.id,
+			relation.conceptId,
+			relation.linkedId,
+			relation.relationshipType,
+			relation.active !== false ? 1 : 0,
+			relation.designationDate || null,
+		]);
+		await this.invalidateRelationCache(relation.conceptId);
+		await this.invalidateRelationCache(relation.linkedId);
+	}
+
+	async invalidateRelationCache(conceptId?: string): Promise<void> {
+		await this.ensureInit();
+		if (conceptId) {
+			await this.db.exec(S.SQL_DELETE_DICT_RELATION_CACHE_FOR, [
+				conceptId,
+				conceptId,
+			]);
+		} else {
+			await this.db.exec(S.SQL_DELETE_DICT_RELATION_CACHE);
+		}
 	}
 
 	async getRelations(
 		conceptId: string,
 		direction: TraversalDirection = "both",
 	): Promise<ConceptRelation[]> {
-		return this.relations.filter((r) => {
-			if (!r.active) return false;
-			if (direction === "forward") return r.conceptId === conceptId;
-			if (direction === "reverse") return r.linkedId === conceptId;
-			return r.conceptId === conceptId || r.linkedId === conceptId;
-		});
+		await this.ensureInit();
+		const sqlParts: string[] = [];
+		const params: any[] = [];
+		if (direction === "forward" || direction === "both") {
+			sqlParts.push(S.SQL_SELECT_DICT_RELATIONS_FORWARD);
+			params.push(conceptId);
+		}
+		if (direction === "reverse" || direction === "both") {
+			sqlParts.push(S.SQL_SELECT_DICT_RELATIONS_REVERSE);
+			params.push(conceptId);
+		}
+		if (sqlParts.length === 0) return [];
+		const rows = await this.db.query<any>(sqlParts.join(" UNION ALL "), params);
+		return rows.map((r) => ({
+			id: r.id,
+			conceptId: r.concept_id,
+			linkedId: r.linked_id,
+			relationshipType: r.relationship_type,
+			active: r.active === 1,
+			designationDate: r.designation_date || undefined,
+		}));
 	}
 
 	async getRelatedConcepts(
 		conceptId: string,
 		direction: TraversalDirection = "both",
 		maxDepth = 3,
+		useCache = true,
 	): Promise<RelatedConceptResult[]> {
-		const results: RelatedConceptResult[] = [];
-		const visited = new Set<string>();
-
-		const queue: Array<{
-			id: string;
-			depth: number;
-			dir: "forward" | "reverse";
-			pathRelType: any;
-		}> = [];
-
-		if (direction === "forward" || direction === "both") {
-			for (const r of this.relations) {
-				if (r.active && r.conceptId === conceptId) {
-					queue.push({
-						id: r.linkedId,
-						depth: 1,
-						dir: "forward",
-						pathRelType: r.relationshipType,
-					});
-				}
-			}
-		}
-		if (direction === "reverse" || direction === "both") {
-			for (const r of this.relations) {
-				if (r.active && r.linkedId === conceptId) {
-					queue.push({
-						id: r.conceptId,
-						depth: 1,
-						dir: "reverse",
-						pathRelType: invertRelationType(r.relationshipType),
-					});
-				}
+		await this.ensureInit();
+		if (useCache) {
+			const cached = await this.db.query<any>(S.SQL_SELECT_DICT_CACHE_RELATED, [
+				conceptId,
+				maxDepth,
+			]);
+			if (cached.length > 0) {
+				return cached.map((r: any) => ({
+					concept: {
+						id: r.id,
+						namespaceCode: r.namespace_code,
+						standardCode: r.standard_code,
+						display: r.display,
+						description: r.description || undefined,
+						designationDate: r.designation_date || undefined,
+						active: r.active === 1,
+					},
+					relationshipType: r.inferred_relationship_type,
+					direction: "forward" as const,
+					depth: r.link_depth,
+				}));
 			}
 		}
 
-		while (queue.length > 0) {
-			const current = queue.shift()!;
-			if (
-				visited.has(`${current.id}:${current.dir}`) ||
-				current.depth > maxDepth
-			)
-				continue;
-			visited.add(`${current.id}:${current.dir}`);
+		const rows = await this.db.query<any>(S.CTE_DICT_RELATED_CONCEPTS, [
+			conceptId,
+			direction,
+			direction,
+			conceptId,
+			direction,
+			direction,
+			maxDepth,
+			maxDepth,
+		]);
+		const results: RelatedConceptResult[] = rows.map((r: any) => ({
+			concept: {
+				id: r.id,
+				namespaceCode: r.namespace_code,
+				standardCode: r.standard_code,
+				display: r.display,
+				description: r.description || undefined,
+				designationDate: r.designation_date || undefined,
+				active: r.active === 1,
+			},
+			relationshipType: r.relationship_type,
+			direction: r.dir,
+			depth: r.depth,
+		}));
 
-			const concept = await this.getById(current.id);
-			if (concept && concept.active !== false) {
-				results.push({
-					concept,
-					relationshipType: current.pathRelType,
-					direction: current.dir,
-					depth: current.depth,
-				});
-			}
-
-			if (current.depth < maxDepth) {
-				if (current.dir === "forward") {
-					for (const r of this.relations) {
-						if (r.active && r.conceptId === current.id) {
-							queue.push({
-								id: r.linkedId,
-								depth: current.depth + 1,
-								dir: "forward",
-								pathRelType: r.relationshipType,
-							});
-						}
-					}
-				} else {
-					for (const r of this.relations) {
-						if (r.active && r.linkedId === current.id) {
-							queue.push({
-								id: r.conceptId,
-								depth: current.depth + 1,
-								dir: "reverse",
-								pathRelType: invertRelationType(r.relationshipType),
-							});
-						}
-					}
-				}
+		if (useCache && results.length > 0) {
+			const now = new Date().toISOString();
+			for (const res of results) {
+				await this.db.exec(S.SQL_UPSERT_DICT_RELATION_CACHE, [
+					conceptId,
+					res.concept.id,
+					res.depth,
+					res.relationshipType,
+					now,
+				]);
 			}
 		}
 		return results;
 	}
 }
 
+// ── OPFS Persistent Expression Store ──────────────────────────────────────────
+
 export class OpfsPersistentExpressionStore
 	implements PersistentExpressionStore
 {
-	private expressions: CustomExpression[] = [];
+	private db: OpfsDb;
+	private initDone = false;
+
+	constructor(db: OpfsDb) {
+		this.db = db;
+	}
+
+	private async ensureInit(): Promise<void> {
+		if (this.initDone) return;
+		await this.db.exec(S.DDL_DICT_CUSTOM_EXPRESSIONS);
+		this.initDone = true;
+	}
 
 	async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
-		const context = {
-			...expression.context,
-			scope_level: scope.level,
-			scope_id: scope.level === "user" ? scope.userId : null,
-		};
-		const saved = { ...expression, context };
-		const idx = this.expressions.findIndex((e) => e.id === expression.id);
-		if (idx !== -1) {
-			this.expressions[idx] = saved;
-		} else {
-			this.expressions.push(saved);
-		}
+		await this.ensureInit();
+		const scopeId = scope.level === "user" ? scope.userId : null;
+		await this.db.exec(S.SQL_UPSERT_DICT_EXPRESSION, [
+			expression.id,
+			expression.term,
+			expression.conceptId || null,
+			scope.level,
+			scopeId,
+			JSON.stringify(expression),
+		]);
 	}
 
 	async delete(id: string, scope: OwnerScope): Promise<void> {
+		await this.ensureInit();
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		this.expressions = this.expressions.filter((e) => {
-			if (e.id !== id) return true;
-			const el = e.context?.scope_level;
-			const ei = e.context?.scope_id;
-			return !(el === scope.level && (ei === scopeId || !ei));
-		});
+		await this.db.exec(S.SQL_DELETE_DICT_EXPRESSION, [
+			id,
+			scope.level,
+			scopeId,
+		]);
 	}
 
 	async list(
 		scope: OwnerScope,
 		includeGlobal?: boolean,
 	): Promise<CustomExpression[]> {
+		await this.ensureInit();
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		return this.expressions.filter((e) => {
-			const el =
-				e.context?.scope_level || (e.context?.user_id ? "user" : "global");
-			const ei = e.context?.scope_id || e.context?.user_id;
-			if (el === scope.level && (ei === scopeId || !ei)) return true;
-			if (includeGlobal && el === "global") return true;
-			return false;
-		});
+		let sql =
+			"SELECT * FROM dict_custom_expressions WHERE (scope_level = ? AND (scope_id = ? OR scope_id IS NULL))";
+		const params: any[] = [scope.level, scopeId];
+		if (includeGlobal && scope.level !== "global")
+			sql += " OR scope_level = 'global'";
+		const rows = await this.db.query<any>(sql, params);
+		return rows.map((r) => JSON.parse(r.data));
 	}
 
 	async getById(id: string): Promise<CustomExpression | null> {
-		return this.expressions.find((e) => e.id === id) || null;
+		await this.ensureInit();
+		const row = await this.db.get<any>(S.SQL_SELECT_DICT_EXPRESSION_DATA, [id]);
+		return row ? JSON.parse(row.data) : null;
 	}
 }
 
@@ -841,6 +1734,20 @@ export class OpfsPersistentExpressionStore
 registerAdapter("opfs-sqlite", {
 	async create(options: Record<string, unknown>) {
 		const dbName = (options.dbName as string) || "stateful_mcp_opfs.sqlite3";
-		return new OpfsSessionFilterStore(dbName);
+		const workerUrl = options.workerUrl as string | undefined;
+		const db = new OpfsDb(dbName, workerUrl);
+		await db.open();
+		return {
+			sessionFilter: new OpfsFilterStore(db),
+			persistentFilter: new OpfsFilterStore(db),
+			sessionObject: new OpfsObjectStore(db),
+			persistentObject: new OpfsObjectStore(db),
+			sessionEvent: new OpfsEventStore(db),
+			persistentEvent: new OpfsEventStore(db),
+			sessionForm: new OpfsFormStore(db),
+			persistentForm: new OpfsFormStore(db),
+			conceptStore: new OpfsConceptStore(db),
+			persistentExpressionStore: new OpfsPersistentExpressionStore(db),
+		};
 	},
 });

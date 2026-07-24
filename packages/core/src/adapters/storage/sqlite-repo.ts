@@ -37,6 +37,7 @@ import type {
 	SessionFormStore,
 	SessionObjectStore,
 } from "./interfaces";
+import * as S from "./sqlite-schema";
 
 export class SqliteFilterStore
 	implements SessionFilterStore, PersistentFilterStore
@@ -54,63 +55,13 @@ export class SqliteFilterStore
 	}
 
 	private initSchema(): void {
-		this.db.run("PRAGMA journal_mode = WAL;");
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS filters (
-        filter_id         TEXT PRIMARY KEY,
-        tool_name         TEXT NULL,
-        table_name        TEXT NULL,
-        parent_filter_id  TEXT NULL,
-        scope_level       TEXT NOT NULL DEFAULT 'session',
-        session_id        TEXT NULL,
-        user_id           TEXT NULL,
-        combined_operation TEXT NULL,
-        combined_ids      TEXT NULL,
-        schema_snapshot   TEXT NULL,
-        created_at        TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS filter_rules (
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        filter_id    TEXT NOT NULL,
-        property     TEXT NOT NULL,
-        operator     TEXT NOT NULL,
-        value        TEXT NOT NULL,
-        index_order  INTEGER NOT NULL,
-        UNIQUE(filter_id, index_order),
-        FOREIGN KEY(filter_id) REFERENCES filters(filter_id) ON DELETE CASCADE
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS saved_filters (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS session_aliases (
-        session_id  TEXT NOT NULL,
-        alias_name  TEXT NOT NULL,
-        target_id   TEXT NOT NULL,
-        PRIMARY KEY (session_id, alias_name)
-      );
-    `);
-
-		this.db.run(
-			"CREATE INDEX IF NOT EXISTS idx_filters_session ON filters(session_id, scope_level);",
-		);
-		this.db.run(
-			"CREATE INDEX IF NOT EXISTS idx_filters_scope ON filters(scope_level, user_id);",
-		);
+		this.db.run(S.PRAGMA_WAL);
+		this.db.run(S.DDL_FILTERS);
+		this.db.run(S.DDL_FILTER_RULES);
+		this.db.run(S.DDL_SAVED_FILTERS);
+		this.db.run(S.DDL_SESSION_ALIASES);
+		this.db.run(S.IDX_FILTERS_SESSION);
+		this.db.run(S.IDX_FILTERS_SCOPE);
 	}
 
 	// ─── Overloaded get ────────────────────────────────────────────────────────
@@ -154,11 +105,7 @@ export class SqliteFilterStore
 	}
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
-		const row = this.db
-			.query(
-				"SELECT target_id FROM session_aliases WHERE session_id = ? AND alias_name = ?",
-			)
-			.get(sessionId, alias) as any;
+		const row = this.db.query(S.SQL_GET_ALIAS).get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
 
@@ -167,29 +114,17 @@ export class SqliteFilterStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db.run(
-			`INSERT INTO session_aliases (session_id, alias_name, target_id)
-       VALUES (?, ?, ?)
-       ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
-			[sessionId, alias, targetId],
-		);
+		this.db.run(S.SQL_UPSERT_ALIAS, [sessionId, alias, targetId]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db.run(
-			"DELETE FROM session_aliases WHERE session_id = ? AND alias_name = ?",
-			[sessionId, alias],
-		);
+		this.db.run(S.SQL_DELETE_ALIAS, [sessionId, alias]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
-		const rows = this.db
-			.query(
-				"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
-			)
-			.all(sessionId) as any[];
+		const rows = this.db.query(S.SQL_LIST_ALIASES).all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
 
@@ -214,18 +149,12 @@ export class SqliteFilterStore
 		id: string,
 	): Promise<FilterState | null> {
 		const row = this.db
-			.query(
-				"SELECT * FROM filters WHERE session_id = ? AND filter_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_SELECT_FILTER_SESSION)
 			.get(sessionId, id) as any;
 
 		if (!row) return null;
 
-		const rulesRows = this.db
-			.query(
-				"SELECT property, operator, value FROM filter_rules WHERE filter_id = ? ORDER BY index_order ASC",
-			)
-			.all(id) as any[];
+		const rulesRows = this.db.query(S.SQL_SELECT_FILTER_RULES).all(id) as any[];
 
 		const rules: FilterCondition[] = rulesRows.map((r) => ({
 			property: r.property,
@@ -261,37 +190,28 @@ export class SqliteFilterStore
 			: null;
 
 		const runTx = this.db.transaction(() => {
-			this.db.run(
-				`INSERT INTO filters (filter_id, tool_name, table_name, parent_filter_id, scope_level, session_id, user_id, combined_operation, combined_ids, schema_snapshot)
-         VALUES (?, ?, ?, ?, 'session', ?, NULL, ?, ?, ?)
-         ON CONFLICT(filter_id) DO UPDATE SET
-           tool_name=excluded.tool_name,
-           table_name=excluded.table_name,
-           parent_filter_id=excluded.parent_filter_id,
-           scope_level=excluded.scope_level,
-           session_id=excluded.session_id,
-           user_id=excluded.user_id,
-           combined_operation=excluded.combined_operation,
-           combined_ids=excluded.combined_ids,
-           schema_snapshot=excluded.schema_snapshot`,
-				[
-					id,
-					state.toolName || null,
-					state.tableName || null,
-					state.parentFilterId || null,
-					sessionId,
-					state.combined_operation || null,
-					combinedIdsStr,
-					schemaSnapshotStr,
-				],
-			);
+			this.db.run(S.SQL_UPSERT_FILTER, [
+				id,
+				state.toolName || null,
+				state.tableName || null,
+				state.parentFilterId || null,
+				"session",
+				sessionId,
+				null,
+				state.combined_operation || null,
+				combinedIdsStr,
+				schemaSnapshotStr,
+			]);
 
-			this.db.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
+			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
 			state.rules.forEach((rule, idx) => {
-				this.db.run(
-					"INSERT INTO filter_rules (filter_id, property, operator, value, index_order) VALUES (?, ?, ?, ?, ?)",
-					[id, rule.property, rule.operator, JSON.stringify(rule.value), idx],
-				);
+				this.db.run(S.SQL_INSERT_FILTER_RULE, [
+					id,
+					rule.property,
+					rule.operator,
+					JSON.stringify(rule.value),
+					idx,
+				]);
 			});
 		});
 
@@ -300,11 +220,8 @@ export class SqliteFilterStore
 
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
 		const runTx = this.db.transaction(() => {
-			this.db.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
-			this.db.run(
-				"DELETE FROM filters WHERE session_id = ? AND filter_id = ? AND scope_level = 'session'",
-				[sessionId, id],
-			);
+			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
+			this.db.run(S.SQL_DELETE_FILTER_SESSION, [sessionId, id]);
 		});
 		runTx();
 	}
@@ -318,26 +235,18 @@ export class SqliteFilterStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const saved = this.db
-			.query(
-				"SELECT * FROM saved_filters WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_SAVED_FILTER)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!saved) return null;
 
 		const row = this.db
-			.query(
-				"SELECT * FROM filters WHERE filter_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_FILTER_PERSISTENT)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!row) return null;
 
-		const rulesRows = this.db
-			.query(
-				"SELECT property, operator, value FROM filter_rules WHERE filter_id = ? ORDER BY index_order ASC",
-			)
-			.all(id) as any[];
+		const rulesRows = this.db.query(S.SQL_SELECT_FILTER_RULES).all(id) as any[];
 
 		const rules: FilterCondition[] = rulesRows.map((r) => ({
 			property: r.property,
@@ -373,56 +282,37 @@ export class SqliteFilterStore
 			: null;
 
 		const runTx = this.db.transaction(() => {
-			this.db.run(
-				`INSERT INTO filters (filter_id, tool_name, table_name, parent_filter_id, scope_level, session_id, user_id, combined_operation, combined_ids, schema_snapshot)
-         VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
-         ON CONFLICT(filter_id) DO UPDATE SET
-           tool_name=excluded.tool_name,
-           table_name=excluded.table_name,
-           parent_filter_id=excluded.parent_filter_id,
-           scope_level=excluded.scope_level,
-           session_id=excluded.session_id,
-           user_id=excluded.user_id,
-           combined_operation=excluded.combined_operation,
-           combined_ids=excluded.combined_ids,
-           schema_snapshot=excluded.schema_snapshot`,
-				[
-					id,
-					state.toolName || null,
-					state.tableName || null,
-					state.parentFilterId || null,
-					scope.level,
-					scopeId,
-					state.combined_operation || null,
-					combinedIdsStr,
-					state.schema_snapshot,
-				],
-			);
+			this.db.run(S.SQL_UPSERT_FILTER, [
+				id,
+				state.toolName || null,
+				state.tableName || null,
+				state.parentFilterId || null,
+				scope.level,
+				null,
+				scopeId,
+				state.combined_operation || null,
+				combinedIdsStr,
+				state.schema_snapshot,
+			]);
 
-			this.db.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
+			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
 			state.rules.forEach((rule, idx) => {
-				this.db.run(
-					"INSERT INTO filter_rules (filter_id, property, operator, value, index_order) VALUES (?, ?, ?, ?, ?)",
-					[id, rule.property, rule.operator, JSON.stringify(rule.value), idx],
-				);
+				this.db.run(S.SQL_INSERT_FILTER_RULE, [
+					id,
+					rule.property,
+					rule.operator,
+					JSON.stringify(rule.value),
+					idx,
+				]);
 			});
 
-			this.db.run(
-				`INSERT INTO saved_filters (id, tags, description, scope_level, user_id)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           tags=excluded.tags,
-           description=excluded.description,
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id`,
-				[
-					id,
-					JSON.stringify(state.tags),
-					state.description,
-					scope.level,
-					scopeId,
-				],
-			);
+			this.db.run(S.SQL_UPSERT_SAVED_FILTER, [
+				id,
+				JSON.stringify(state.tags),
+				state.description,
+				scope.level,
+				scopeId,
+			]);
 		});
 
 		runTx();
@@ -430,12 +320,9 @@ export class SqliteFilterStore
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
 		const runTx = this.db.transaction(() => {
-			this.db.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
-			this.db.run("DELETE FROM saved_filters WHERE id = ?", [id]);
-			this.db.run(
-				"DELETE FROM filters WHERE filter_id = ? AND scope_level = ?",
-				[id, scope.level],
-			);
+			this.db.run(S.SQL_DELETE_FILTER_RULES, [id]);
+			this.db.run(S.SQL_DELETE_SAVED_FILTER, [id]);
+			this.db.run(S.SQL_DELETE_FILTER_PERSISTENT, [id, scope.level]);
 		});
 		runTx();
 	}
@@ -444,18 +331,14 @@ export class SqliteFilterStore
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT filter_id FROM filters WHERE session_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_LIST_FILTERS_SESSION)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.filter_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT filter_id FROM filters WHERE session_id = ? AND parent_filter_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_LIST_FILTERS_CHILDREN)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.filter_id);
 	}
@@ -464,30 +347,20 @@ export class SqliteFilterStore
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
 			const rows = this.db
-				.query(
-					"SELECT filter_id FROM filters WHERE session_id = ? AND scope_level = 'session' AND created_at < ?",
-				)
+				.query(S.SQL_EXPIRE_FILTERS_SESSION_FIND)
 				.all(sessionId, olderThanDate) as any[];
 
 			const runTx = this.db.transaction(() => {
 				rows.forEach((r) => {
-					this.db.run("DELETE FROM filter_rules WHERE filter_id = ?", [
-						r.filter_id,
-					]);
-					this.db.run("DELETE FROM filters WHERE filter_id = ?", [r.filter_id]);
+					this.db.run(S.SQL_DELETE_FILTER_RULES, [r.filter_id]);
+					this.db.run(S.SQL_DELETE_FILTER_BY_ID, [r.filter_id]);
 				});
 			});
 			runTx();
 		} else {
 			const runTx = this.db.transaction(() => {
-				this.db.run(
-					"DELETE FROM filter_rules WHERE filter_id IN (SELECT filter_id FROM filters WHERE session_id = ?)",
-					[sessionId],
-				);
-				this.db.run(
-					"DELETE FROM filters WHERE session_id = ? AND scope_level = 'session'",
-					[sessionId],
-				);
+				this.db.run(S.SQL_DELETE_FILTER_RULES_BY_SESSION, [sessionId]);
+				this.db.run(S.SQL_DELETE_FILTERS_BY_SESSION, [sessionId]);
 			});
 			runTx();
 		}
@@ -499,9 +372,7 @@ export class SqliteFilterStore
 	): Promise<PersistedFilterState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const allSaved = this.db
-			.query(
-				"SELECT * FROM saved_filters WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_SAVED_FILTERS_BY_SCOPE)
 			.all(scope.level, scopeId) as any[];
 
 		const results: PersistedFilterState[] = [];
@@ -570,67 +441,13 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	}
 
 	private initSchema(): void {
-		this.db.run("PRAGMA journal_mode = WAL;");
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS forms (
-        form_id          TEXT PRIMARY KEY,
-        parent_form_id   TEXT NULL,
-        schema_name      TEXT NOT NULL,
-        scope_level      TEXT NOT NULL DEFAULT 'session',
-        session_id       TEXT NULL,
-        user_id          TEXT NULL,
-        created_at       TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS form_answers (
-        form_id      TEXT NOT NULL,
-        question_id  TEXT NOT NULL,
-        value        TEXT NOT NULL,
-        PRIMARY KEY(form_id, question_id),
-        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS form_skipped (
-        form_id      TEXT NOT NULL,
-        question_id  TEXT NOT NULL,
-        PRIMARY KEY(form_id, question_id),
-        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS form_stale (
-        form_id      TEXT NOT NULL,
-        question_id  TEXT NOT NULL,
-        PRIMARY KEY(form_id, question_id),
-        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS saved_forms (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS form_session_aliases (
-        session_id  TEXT NOT NULL,
-        alias_name  TEXT NOT NULL,
-        target_id   TEXT NOT NULL,
-        PRIMARY KEY (session_id, alias_name)
-      );
-    `);
+		this.db.run(S.PRAGMA_WAL);
+		this.db.run(S.DDL_FORMS);
+		this.db.run(S.DDL_FORM_ANSWERS);
+		this.db.run(S.DDL_FORM_SKIPPED);
+		this.db.run(S.DDL_FORM_STALE);
+		this.db.run(S.DDL_SAVED_FORMS);
+		this.db.run(S.DDL_FORM_SESSION_ALIASES);
 	}
 
 	get(sessionId: string, id: string): Promise<FormState | null>;
@@ -648,7 +465,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		id: string,
 	): Promise<FormState | null> {
 		const row = this.db
-			.query("SELECT * FROM forms WHERE form_id = ? AND session_id = ?")
+			.query(S.SQL_SELECT_FORM_SESSION)
 			.get(id, sessionId) as any;
 		if (!row) return null;
 		return this.loadState(row);
@@ -659,13 +476,11 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		scope: OwnerScope,
 	): Promise<PersistedFormStateDetails | null> {
 		const row = this.db
-			.query("SELECT * FROM forms WHERE form_id = ? AND scope_level = ?")
+			.query(S.SQL_SELECT_FORM_PERSISTENT)
 			.get(id, scope.level) as any;
 		if (!row) return null;
 
-		const saved = this.db
-			.query("SELECT * FROM saved_forms WHERE id = ?")
-			.get(id) as any;
+		const saved = this.db.query(S.SQL_SELECT_SAVED_FORM).get(id) as any;
 		const tags = saved ? JSON.parse(saved.tags) : [];
 		const description = saved ? saved.description : "";
 
@@ -681,13 +496,13 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	private loadState(row: any): FormState {
 		const formId = row.form_id;
 		const answersRows = this.db
-			.query("SELECT * FROM form_answers WHERE form_id = ?")
+			.query(S.SQL_SELECT_FORM_ANSWERS)
 			.all(formId) as any[];
 		const skippedRows = this.db
-			.query("SELECT * FROM form_skipped WHERE form_id = ?")
+			.query(S.SQL_SELECT_FORM_SKIPPED)
 			.all(formId) as any[];
 		const staleRows = this.db
-			.query("SELECT * FROM form_stale WHERE form_id = ?")
+			.query(S.SQL_SELECT_FORM_STALE)
 			.all(formId) as any[];
 
 		const answers: Record<string, any> = {};
@@ -734,10 +549,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	): Promise<void> {
 		this.db.transaction(() => {
 			this.db
-				.query(`
-        INSERT OR REPLACE INTO forms (form_id, parent_form_id, schema_name, scope_level, session_id, created_at)
-        VALUES (?, ?, ?, 'session', ?, ?)
-      `)
+				.query(S.SQL_UPSERT_FORM_SESSION)
 				.run(
 					id,
 					state.parentFormId,
@@ -746,29 +558,21 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 					state.timestamp,
 				);
 
-			this.db.query("DELETE FROM form_answers WHERE form_id = ?").run(id);
+			this.db.query(S.SQL_DELETE_FORM_ANSWERS).run(id);
 			for (const [qId, val] of Object.entries(state.answers)) {
 				this.db
-					.query(
-						"INSERT INTO form_answers (form_id, question_id, value) VALUES (?, ?, ?)",
-					)
+					.query(S.SQL_INSERT_FORM_ANSWER)
 					.run(id, qId, JSON.stringify(val));
 			}
 
-			this.db.query("DELETE FROM form_skipped WHERE form_id = ?").run(id);
+			this.db.query(S.SQL_DELETE_FORM_SKIPPED).run(id);
 			for (const qId of state.skipped) {
-				this.db
-					.query(
-						"INSERT INTO form_skipped (form_id, question_id) VALUES (?, ?)",
-					)
-					.run(id, qId);
+				this.db.query(S.SQL_INSERT_FORM_SKIPPED).run(id, qId);
 			}
 
-			this.db.query("DELETE FROM form_stale WHERE form_id = ?").run(id);
+			this.db.query(S.SQL_DELETE_FORM_STALE).run(id);
 			for (const qId of Object.keys(state.stale)) {
-				this.db
-					.query("INSERT INTO form_stale (form_id, question_id) VALUES (?, ?)")
-					.run(id, qId);
+				this.db.query(S.SQL_INSERT_FORM_STALE).run(id, qId);
 			}
 		})();
 	}
@@ -781,10 +585,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		const userId = scope.level === "user" ? scope.userId : null;
 		this.db.transaction(() => {
 			this.db
-				.query(`
-        INSERT OR REPLACE INTO forms (form_id, parent_form_id, schema_name, scope_level, user_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `)
+				.query(S.SQL_UPSERT_FORM_PERSISTENT)
 				.run(
 					id,
 					state.parentFormId,
@@ -794,36 +595,25 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 					state.timestamp,
 				);
 
-			this.db.query("DELETE FROM form_answers WHERE form_id = ?").run(id);
+			this.db.query(S.SQL_DELETE_FORM_ANSWERS).run(id);
 			for (const [qId, val] of Object.entries(state.answers)) {
 				this.db
-					.query(
-						"INSERT INTO form_answers (form_id, question_id, value) VALUES (?, ?, ?)",
-					)
+					.query(S.SQL_INSERT_FORM_ANSWER)
 					.run(id, qId, JSON.stringify(val));
 			}
 
-			this.db.query("DELETE FROM form_skipped WHERE form_id = ?").run(id);
+			this.db.query(S.SQL_DELETE_FORM_SKIPPED).run(id);
 			for (const qId of state.skipped) {
-				this.db
-					.query(
-						"INSERT INTO form_skipped (form_id, question_id) VALUES (?, ?)",
-					)
-					.run(id, qId);
+				this.db.query(S.SQL_INSERT_FORM_SKIPPED).run(id, qId);
 			}
 
-			this.db.query("DELETE FROM form_stale WHERE form_id = ?").run(id);
+			this.db.query(S.SQL_DELETE_FORM_STALE).run(id);
 			for (const qId of Object.keys(state.stale)) {
-				this.db
-					.query("INSERT INTO form_stale (form_id, question_id) VALUES (?, ?)")
-					.run(id, qId);
+				this.db.query(S.SQL_INSERT_FORM_STALE).run(id, qId);
 			}
 
 			this.db
-				.query(`
-        INSERT OR REPLACE INTO saved_forms (id, tags, description, scope_level, user_id, saved_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `)
+				.query(S.SQL_UPSERT_SAVED_FORM)
 				.run(
 					id,
 					JSON.stringify(state.tags),
@@ -838,27 +628,23 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	async delete(sessionId: string, id: string): Promise<void>;
 	async delete(id: string, scope: OwnerScope): Promise<void>;
 	async delete(a: string, b?: any): Promise<void> {
-		this.db.query("DELETE FROM form_answers WHERE form_id = ?").run(a);
-		this.db.query("DELETE FROM form_skipped WHERE form_id = ?").run(a);
-		this.db.query("DELETE FROM form_stale WHERE form_id = ?").run(a);
-		this.db.query("DELETE FROM forms WHERE form_id = ?").run(a);
-		this.db.query("DELETE FROM saved_forms WHERE id = ?").run(a);
+		this.db.query(S.SQL_DELETE_FORM_ANSWERS).run(a);
+		this.db.query(S.SQL_DELETE_FORM_SKIPPED).run(a);
+		this.db.query(S.SQL_DELETE_FORM_STALE).run(a);
+		this.db.query(S.SQL_DELETE_FORM).run(a);
+		this.db.query(S.SQL_DELETE_SAVED_FORM).run(a);
 	}
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT form_id FROM forms WHERE session_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_LIST_FORMS_SESSION)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.form_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT form_id FROM forms WHERE session_id = ? AND parent_form_id = ?",
-			)
+			.query(S.SQL_LIST_FORMS_CHILDREN)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.form_id);
 	}
@@ -867,14 +653,11 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		if (olderThanMs !== undefined) {
 			const now = Date.now();
 			const cutoff = new Date(now - olderThanMs).toISOString();
-			this.db
-				.query("DELETE FROM forms WHERE session_id = ? AND created_at < ?")
-				.run(sessionId, cutoff);
+			this.db.query(S.SQL_EXPIRE_FORMS_BY_SESSION_AGE).run(sessionId, cutoff);
 		} else {
-			this.db.query("DELETE FROM forms WHERE session_id = ?").run(sessionId);
+			this.db.query(S.SQL_EXPIRE_FORMS_BY_SESSION).run(sessionId);
 		}
 	}
-
 	async create(
 		sessionId: string,
 		state: Omit<FormState, "formId"> & { formId?: string },
@@ -893,9 +676,7 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const row = this.db
-			.query(
-				"SELECT target_id FROM form_session_aliases WHERE session_id = ? AND alias_name = ?",
-			)
+			.query(S.SQL_GET_FORM_ALIAS)
 			.get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
@@ -905,29 +686,17 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db
-			.query(
-				"INSERT OR REPLACE INTO form_session_aliases (session_id, alias_name, target_id) VALUES (?, ?, ?)",
-			)
-			.run(sessionId, alias, targetId);
+		this.db.query(S.SQL_UPSERT_FORM_ALIAS).run(sessionId, alias, targetId);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db
-			.query(
-				"DELETE FROM form_session_aliases WHERE session_id = ? AND alias_name = ?",
-			)
-			.run(sessionId, alias);
+		this.db.query(S.SQL_DELETE_FORM_ALIAS).run(sessionId, alias);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
-		const rows = this.db
-			.query(
-				"SELECT alias_name, target_id FROM form_session_aliases WHERE session_id = ?",
-			)
-			.all(sessionId) as any[];
+		const rows = this.db.query(S.SQL_LIST_FORM_ALIASES).all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
 
@@ -998,64 +767,13 @@ export class SqliteConceptStore implements ConceptStore {
 		}
 		this.db = new Database(dbPath);
 
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS dict_namespaces (
-        code TEXT PRIMARY KEY,
-        description TEXT,
-        is_public INTEGER NOT NULL,
-        is_external_private INTEGER NOT NULL,
-        is_mutable INTEGER
-      )
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS dict_concepts (
-        id TEXT PRIMARY KEY,
-        namespace_code TEXT NOT NULL,
-        standard_code TEXT NOT NULL,
-        display TEXT NOT NULL,
-        description TEXT,
-        designation_date TEXT,
-        active INTEGER NOT NULL,
-        FOREIGN KEY(namespace_code) REFERENCES dict_namespaces(code)
-      )
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS dict_relations (
-        id TEXT PRIMARY KEY,
-        concept_id TEXT NOT NULL,
-        linked_id TEXT NOT NULL,
-        relationship_type TEXT NOT NULL,
-        active INTEGER NOT NULL,
-        designation_date TEXT,
-        FOREIGN KEY(concept_id) REFERENCES dict_concepts(id),
-        FOREIGN KEY(linked_id) REFERENCES dict_concepts(id)
-      )
-    `);
-
-		this.db.run(
-			`CREATE INDEX IF NOT EXISTS idx_concept_rel_forward ON dict_relations(concept_id, active)`,
-		);
-		this.db.run(
-			`CREATE INDEX IF NOT EXISTS idx_concept_rel_reverse ON dict_relations(linked_id, active)`,
-		);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS dict_relation_cache (
-        ancestor_concept_id TEXT NOT NULL,
-        descendant_concept_id TEXT NOT NULL,
-        link_depth INTEGER NOT NULL,
-        inferred_relationship_type TEXT NOT NULL,
-        active INTEGER NOT NULL,
-        updated_at TEXT NOT NULL,
-        PRIMARY KEY(ancestor_concept_id, descendant_concept_id, inferred_relationship_type)
-      )
-    `);
-
-		this.db.run(
-			`CREATE INDEX IF NOT EXISTS idx_concept_cache_traversal ON dict_relation_cache(ancestor_concept_id, active)`,
-		);
+		this.db.run(S.DDL_DICT_NAMESPACES);
+		this.db.run(S.DDL_DICT_CONCEPTS);
+		this.db.run(S.DDL_DICT_RELATIONS);
+		this.db.run(S.IDX_CONCEPT_REL_FORWARD);
+		this.db.run(S.IDX_CONCEPT_REL_REVERSE);
+		this.db.run(S.DDL_DICT_RELATION_CACHE);
+		this.db.run(S.IDX_CONCEPT_CACHE_TRAVERSAL);
 	}
 
 	async search(
@@ -1088,9 +806,7 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async getById(id: string): Promise<Concept | null> {
-		const r = this.db
-			.query("SELECT * FROM dict_concepts WHERE id = ?")
-			.get(id) as any;
+		const r = this.db.query(S.SQL_SELECT_DICT_CONCEPT_BY_ID).get(id) as any;
 		if (!r) return null;
 		return {
 			id: r.id,
@@ -1104,7 +820,7 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async listNamespaces(): Promise<Namespace[]> {
-		const rows = this.db.query("SELECT * FROM dict_namespaces").all() as any[];
+		const rows = this.db.query(S.SQL_SELECT_DICT_NAMESPACES).all() as any[];
 		return rows.map((r) => ({
 			code: r.code,
 			description: r.description || undefined,
@@ -1115,60 +831,45 @@ export class SqliteConceptStore implements ConceptStore {
 	}
 
 	async addConcept(concept: Concept): Promise<void> {
-		this.db.run(
-			`INSERT OR REPLACE INTO dict_concepts (id, namespace_code, standard_code, display, description, designation_date, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			[
-				concept.id,
-				concept.namespaceCode,
-				concept.standardCode,
-				concept.display,
-				concept.description || null,
-				concept.designationDate || null,
-				concept.active !== false ? 1 : 0,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_DICT_CONCEPT, [
+			concept.id,
+			concept.namespaceCode,
+			concept.standardCode,
+			concept.display,
+			concept.description || null,
+			concept.designationDate || null,
+			concept.active !== false ? 1 : 0,
+		]);
 	}
 
 	async addNamespace(namespace: Namespace): Promise<void> {
-		this.db.run(
-			`INSERT OR REPLACE INTO dict_namespaces (code, description, is_public, is_external_private, is_mutable)
-       VALUES (?, ?, ?, ?, ?)`,
-			[
-				namespace.code,
-				namespace.description || null,
-				namespace.isPublic ? 1 : 0,
-				namespace.isExternalPrivate ? 1 : 0,
-				namespace.isMutable !== false ? 1 : 0,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_DICT_NAMESPACE, [
+			namespace.code,
+			namespace.description || null,
+			namespace.isPublic ? 1 : 0,
+			namespace.isExternalPrivate ? 1 : 0,
+			namespace.isMutable !== false ? 1 : 0,
+		]);
 	}
 
 	async addRelation(relation: ConceptRelation): Promise<void> {
-		this.db.run(
-			`INSERT OR REPLACE INTO dict_relations (id, concept_id, linked_id, relationship_type, active, designation_date)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-			[
-				relation.id,
-				relation.conceptId,
-				relation.linkedId,
-				relation.relationshipType,
-				relation.active !== false ? 1 : 0,
-				relation.designationDate || null,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_DICT_RELATION, [
+			relation.id,
+			relation.conceptId,
+			relation.linkedId,
+			relation.relationshipType,
+			relation.active !== false ? 1 : 0,
+			relation.designationDate || null,
+		]);
 		await this.invalidateRelationCache(relation.conceptId);
 		await this.invalidateRelationCache(relation.linkedId);
 	}
 
 	async invalidateRelationCache(conceptId?: string): Promise<void> {
 		if (conceptId) {
-			this.db.run(
-				`DELETE FROM dict_relation_cache WHERE ancestor_concept_id = ? OR descendant_concept_id = ?`,
-				[conceptId, conceptId],
-			);
+			this.db.run(S.SQL_DELETE_DICT_RELATION_CACHE_FOR, [conceptId, conceptId]);
 		} else {
-			this.db.run(`DELETE FROM dict_relation_cache`);
+			this.db.run(S.SQL_DELETE_DICT_RELATION_CACHE);
 		}
 	}
 
@@ -1180,16 +881,12 @@ export class SqliteConceptStore implements ConceptStore {
 		const params: any[] = [];
 
 		if (direction === "forward" || direction === "both") {
-			sqlParts.push(
-				`SELECT id, concept_id, linked_id, relationship_type, active, designation_date FROM dict_relations WHERE concept_id = ? AND active = 1`,
-			);
+			sqlParts.push(S.SQL_SELECT_DICT_RELATIONS_FORWARD);
 			params.push(conceptId);
 		}
 
 		if (direction === "reverse" || direction === "both") {
-			sqlParts.push(
-				`SELECT id, concept_id, linked_id, relationship_type, active, designation_date FROM dict_relations WHERE linked_id = ? AND active = 1`,
-			);
+			sqlParts.push(S.SQL_SELECT_DICT_RELATIONS_REVERSE);
 			params.push(conceptId);
 		}
 
@@ -1217,12 +914,7 @@ export class SqliteConceptStore implements ConceptStore {
 		// 1. Check cache table first if useCache is enabled
 		if (useCache) {
 			const cached = this.db
-				.query(
-					`SELECT c.*, rc.link_depth, rc.inferred_relationship_type 
-           FROM dict_relation_cache rc 
-           JOIN dict_concepts c ON rc.descendant_concept_id = c.id 
-           WHERE rc.ancestor_concept_id = ? AND rc.active = 1 AND rc.link_depth <= ?`,
-				)
+				.query(S.SQL_SELECT_DICT_CACHE_RELATED)
 				.all(conceptId, maxDepth) as any[];
 
 			if (cached.length > 0) {
@@ -1244,56 +936,8 @@ export class SqliteConceptStore implements ConceptStore {
 		}
 
 		// 2. SQL Recursive CTE for Graph Traversal with Operator Inversion
-		const cteSql = `
-      WITH RECURSIVE rel_graph(target_id, relationship_type, dir, depth) AS (
-        -- Forward direct
-        SELECT linked_id, relationship_type, 'forward', 1
-        FROM dict_relations
-        WHERE concept_id = ? AND active = 1 AND (? = 'forward' OR ? = 'both')
-
-        UNION ALL
-
-        -- Reverse direct with operator inversion
-        SELECT concept_id, 
-               CASE relationship_type 
-                 WHEN 'NARROWER_THAN' THEN 'WIDER_THAN' 
-                 WHEN 'WIDER_THAN' THEN 'NARROWER_THAN' 
-                 ELSE 'EQUIVALENT' 
-               END, 
-               'reverse', 1
-        FROM dict_relations
-        WHERE linked_id = ? AND active = 1 AND (? = 'reverse' OR ? = 'both')
-
-        UNION ALL
-
-        -- Recursive forward expansion
-        SELECT r.linked_id, r.relationship_type, g.dir, g.depth + 1
-        FROM rel_graph g
-        JOIN dict_relations r ON g.target_id = r.concept_id
-        WHERE r.active = 1 AND g.depth < ? AND g.dir = 'forward'
-
-        UNION ALL
-
-        -- Recursive reverse expansion
-        SELECT r.concept_id, 
-               CASE r.relationship_type 
-                 WHEN 'NARROWER_THAN' THEN 'WIDER_THAN' 
-                 WHEN 'WIDER_THAN' THEN 'NARROWER_THAN' 
-                 ELSE 'EQUIVALENT' 
-               END, 
-               g.dir, g.depth + 1
-        FROM rel_graph g
-        JOIN dict_relations r ON g.target_id = r.linked_id
-        WHERE r.active = 1 AND g.depth < ? AND g.dir = 'reverse'
-      )
-      SELECT DISTINCT g.target_id, g.relationship_type, g.dir, g.depth, c.* 
-      FROM rel_graph g
-      JOIN dict_concepts c ON g.target_id = c.id
-      WHERE c.active = 1;
-    `;
-
 		const rows = this.db
-			.query(cteSql)
+			.query(S.CTE_DICT_RELATED_CONCEPTS)
 			.all(
 				conceptId,
 				direction,
@@ -1324,11 +968,13 @@ export class SqliteConceptStore implements ConceptStore {
 		if (useCache && results.length > 0) {
 			const now = new Date().toISOString();
 			for (const res of results) {
-				this.db.run(
-					`INSERT OR REPLACE INTO dict_relation_cache (ancestor_concept_id, descendant_concept_id, link_depth, inferred_relationship_type, active, updated_at)
-           VALUES (?, ?, ?, ?, 1, ?)`,
-					[conceptId, res.concept.id, res.depth, res.relationshipType, now],
-				);
+				this.db.run(S.SQL_UPSERT_DICT_RELATION_CACHE, [
+					conceptId,
+					res.concept.id,
+					res.depth,
+					res.relationshipType,
+					now,
+				]);
 			}
 		}
 
@@ -1348,40 +994,24 @@ export class SqlitePersistentExpressionStore
 		}
 		this.db = new Database(dbPath);
 
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS dict_custom_expressions (
-        id TEXT PRIMARY KEY,
-        term TEXT NOT NULL,
-        concept_id TEXT,
-        scope_level TEXT NOT NULL,
-        scope_id TEXT,
-        data TEXT NOT NULL
-      )
-    `);
+		this.db.run(S.DDL_DICT_CUSTOM_EXPRESSIONS);
 	}
 
 	async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		this.db.run(
-			`INSERT OR REPLACE INTO dict_custom_expressions (id, term, concept_id, scope_level, scope_id, data)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-			[
-				expression.id,
-				expression.term,
-				expression.conceptId || null,
-				scope.level,
-				scopeId,
-				JSON.stringify(expression),
-			],
-		);
+		this.db.run(S.SQL_UPSERT_DICT_EXPRESSION, [
+			expression.id,
+			expression.term,
+			expression.conceptId || null,
+			scope.level,
+			scopeId,
+			JSON.stringify(expression),
+		]);
 	}
 
 	async delete(id: string, scope: OwnerScope): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		this.db.run(
-			"DELETE FROM dict_custom_expressions WHERE id = ? AND scope_level = ? AND (scope_id = ? OR scope_id IS NULL)",
-			[id, scope.level, scopeId],
-		);
+		this.db.run(S.SQL_DELETE_DICT_EXPRESSION, [id, scope.level, scopeId]);
 	}
 
 	async list(
@@ -1402,9 +1032,7 @@ export class SqlitePersistentExpressionStore
 	}
 
 	async getById(id: string): Promise<CustomExpression | null> {
-		const row = this.db
-			.query("SELECT data FROM dict_custom_expressions WHERE id = ?")
-			.get(id) as any;
+		const row = this.db.query(S.SQL_SELECT_DICT_EXPRESSION_DATA).get(id) as any;
 		return row ? JSON.parse(row.data) : null;
 	}
 }
@@ -1427,41 +1055,10 @@ export class SqliteObjectStore
 	}
 
 	private initSchema(): void {
-		this.db.run("PRAGMA journal_mode = WAL;");
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS objects (
-        object_id         TEXT PRIMARY KEY,
-        schema_name       TEXT NOT NULL,
-        parent_object_id  TEXT NULL,
-        scope_level       TEXT NOT NULL DEFAULT 'session',
-        session_id        TEXT NULL,
-        user_id           TEXT NULL,
-        data              TEXT NOT NULL,
-        created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
-        schema_pinned_at  TEXT NULL
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS saved_objects (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS object_session_aliases (
-        session_id  TEXT NOT NULL,
-        alias_name  TEXT NOT NULL,
-        target_id   TEXT NOT NULL,
-        PRIMARY KEY (session_id, alias_name)
-      );
-    `);
+		this.db.run(S.PRAGMA_WAL);
+		this.db.run(S.DDL_OBJECTS);
+		this.db.run(S.DDL_SAVED_OBJECTS);
+		this.db.run(S.DDL_OBJECT_SESSION_ALIASES);
 	}
 
 	// ─── Overloaded get ────────────────────────────────────────────────
@@ -1506,9 +1103,7 @@ export class SqliteObjectStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const row = this.db
-			.query(
-				"SELECT target_id FROM object_session_aliases WHERE session_id = ? AND alias_name = ?",
-			)
+			.query(S.SQL_GET_OBJECT_ALIAS)
 			.get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
@@ -1518,28 +1113,18 @@ export class SqliteObjectStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db.run(
-			`INSERT INTO object_session_aliases (session_id, alias_name, target_id)
-        VALUES (?, ?, ?)
-        ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
-			[sessionId, alias, targetId],
-		);
+		this.db.run(S.SQL_UPSERT_OBJECT_ALIAS, [sessionId, alias, targetId]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db.run(
-			"DELETE FROM object_session_aliases WHERE session_id = ? AND alias_name = ?",
-			[sessionId, alias],
-		);
+		this.db.run(S.SQL_DELETE_OBJECT_ALIAS, [sessionId, alias]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const rows = this.db
-			.query(
-				"SELECT alias_name, target_id FROM object_session_aliases WHERE session_id = ?",
-			)
+			.query(S.SQL_LIST_OBJECT_ALIASES)
 			.all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
@@ -1567,9 +1152,7 @@ export class SqliteObjectStore
 		id: string,
 	): Promise<ObjectState | null> {
 		const row = this.db
-			.query(
-				"SELECT * FROM objects WHERE session_id = ? AND object_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_SELECT_OBJECT_SESSION)
 			.get(sessionId, id) as any;
 
 		if (!row) return null;
@@ -1584,26 +1167,19 @@ export class SqliteObjectStore
 		const dataStr = JSON.stringify(state.data);
 		const schemaPinnedAt = state.schema_pinned_at || null;
 
-		this.db.run(
-			`INSERT OR REPLACE INTO objects (object_id, schema_name, parent_object_id, scope_level, session_id, data, created_at, schema_pinned_at)
-      VALUES (?, ?, ?, 'session', ?, ?, ?, ?)`,
-			[
-				id,
-				state.schemaName,
-				state.parentObjectId || null,
-				sessionId,
-				dataStr,
-				state.createdAt,
-				schemaPinnedAt,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_OBJECT_SESSION, [
+			id,
+			state.schemaName,
+			state.parentObjectId || null,
+			sessionId,
+			dataStr,
+			state.createdAt,
+			schemaPinnedAt,
+		]);
 	}
 
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
-		this.db.run(
-			"DELETE FROM objects WHERE session_id = ? AND object_id = ? AND scope_level = 'session'",
-			[sessionId, id],
-		);
+		this.db.run(S.SQL_DELETE_OBJECT_SESSION, [sessionId, id]);
 	}
 
 	private loadState(row: any): ObjectState {
@@ -1628,17 +1204,13 @@ export class SqliteObjectStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const saved = this.db
-			.query(
-				"SELECT * FROM saved_objects WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_SAVED_OBJECT)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!saved) return null;
 
 		const row = this.db
-			.query(
-				"SELECT * FROM objects WHERE object_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_OBJECT_PERSISTENT)
 			.get(id, scope.level, scopeId) as any;
 
 		if (!row) return null;
@@ -1660,52 +1232,43 @@ export class SqliteObjectStore
 		const dataStr = JSON.stringify(state.data);
 		const schemaPinnedAt = state.schema_pinned_at || "";
 
-		this.db.run(
-			`INSERT OR REPLACE INTO objects (object_id, schema_name, parent_object_id, scope_level, user_id, data, created_at, schema_pinned_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[
-				id,
-				state.schemaName,
-				state.parentObjectId || null,
-				scope.level,
-				scopeId,
-				dataStr,
-				state.createdAt,
-				schemaPinnedAt,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_OBJECT_PERSISTENT, [
+			id,
+			state.schemaName,
+			state.parentObjectId || null,
+			scope.level,
+			scopeId,
+			dataStr,
+			state.createdAt,
+			schemaPinnedAt,
+		]);
 
-		this.db.run(
-			`INSERT OR REPLACE INTO saved_objects (id, tags, description, scope_level, user_id)
-      VALUES (?, ?, ?, ?, ?)`,
-			[id, JSON.stringify(state.tags), state.description, scope.level, scopeId],
-		);
+		this.db.run(S.SQL_UPSERT_SAVED_OBJECT, [
+			id,
+			JSON.stringify(state.tags),
+			state.description,
+			scope.level,
+			scopeId,
+		]);
 	}
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
-		this.db.run("DELETE FROM saved_objects WHERE id = ?", [id]);
-		this.db.run("DELETE FROM objects WHERE object_id = ? AND scope_level = ?", [
-			id,
-			scope.level,
-		]);
+		this.db.run(S.SQL_DELETE_SAVED_OBJECT, [id]);
+		this.db.run(S.SQL_DELETE_OBJECT_PERSISTENT, [id, scope.level]);
 	}
 
 	// ─── Additional Interface Methods ──────────────────────────────────
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT object_id FROM objects WHERE session_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_LIST_OBJECTS_SESSION)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.object_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT object_id FROM objects WHERE session_id = ? AND parent_object_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_LIST_OBJECTS_CHILDREN)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.object_id);
 	}
@@ -1714,15 +1277,10 @@ export class SqliteObjectStore
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
 			this.db
-				.query(
-					"DELETE FROM objects WHERE session_id = ? AND scope_level = 'session' AND created_at < ?",
-				)
+				.query(S.SQL_EXPIRE_OBJECTS_SESSION_AGE)
 				.run(sessionId, olderThanDate);
 		} else {
-			this.db.run(
-				"DELETE FROM objects WHERE session_id = ? AND scope_level = 'session'",
-				[sessionId],
-			);
+			this.db.run(S.SQL_EXPIRE_OBJECTS_SESSION, [sessionId]);
 		}
 	}
 
@@ -1732,9 +1290,7 @@ export class SqliteObjectStore
 	): Promise<PersistedObjectState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const allSaved = this.db
-			.query(
-				"SELECT * FROM saved_objects WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_SAVED_OBJECTS_BY_SCOPE)
 			.all(scope.level, scopeId) as any[];
 
 		const results: PersistedObjectState[] = [];
@@ -1806,46 +1362,10 @@ export class SqliteEventStore
 	}
 
 	private initSchema(): void {
-		this.db.run("PRAGMA journal_mode = WAL;");
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS events (
-        commit_id         TEXT PRIMARY KEY,
-        session_id        TEXT NULL,
-        parent_commit_id  TEXT NULL,
-        scope_level       TEXT NOT NULL DEFAULT 'session',
-        user_id           TEXT NULL,
-        operation         TEXT NOT NULL,
-        mutations         TEXT NOT NULL,
-        created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
-        linear_depth      INTEGER NOT NULL DEFAULT 0,
-        gc_lock           INTEGER NOT NULL DEFAULT 0,
-        merge_source_commit_ids TEXT NULL,
-        merge_accepted_ids TEXT NULL,
-        merge_rejected_ids TEXT NULL,
-        schema_name       TEXT NOT NULL
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS saved_events (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-		this.db.run(`
-      CREATE TABLE IF NOT EXISTS event_session_aliases (
-        session_id  TEXT NOT NULL,
-        alias_name  TEXT NOT NULL,
-        target_id   TEXT NOT NULL,
-        PRIMARY KEY (session_id, alias_name)
-      );
-    `);
+		this.db.run(S.PRAGMA_WAL);
+		this.db.run(S.DDL_EVENTS);
+		this.db.run(S.DDL_SAVED_EVENTS);
+		this.db.run(S.DDL_EVENT_SESSION_ALIASES);
 	}
 
 	// ─── Overloaded get ────────────────────────────────────────────────
@@ -1890,9 +1410,7 @@ export class SqliteEventStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const row = this.db
-			.query(
-				"SELECT target_id FROM event_session_aliases WHERE session_id = ? AND alias_name = ?",
-			)
+			.query(S.SQL_GET_EVENT_ALIAS)
 			.get(sessionId, alias) as any;
 		return row ? row.target_id : null;
 	}
@@ -1902,28 +1420,18 @@ export class SqliteEventStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		this.db.run(
-			`INSERT INTO event_session_aliases (session_id, alias_name, target_id)
-        VALUES (?, ?, ?)
-        ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
-			[sessionId, alias, targetId],
-		);
+		this.db.run(S.SQL_UPSERT_EVENT_ALIAS, [sessionId, alias, targetId]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		this.db.run(
-			"DELETE FROM event_session_aliases WHERE session_id = ? AND alias_name = ?",
-			[sessionId, alias],
-		);
+		this.db.run(S.SQL_DELETE_EVENT_ALIAS, [sessionId, alias]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const rows = this.db
-			.query(
-				"SELECT alias_name, target_id FROM event_session_aliases WHERE session_id = ?",
-			)
+			.query(S.SQL_LIST_EVENT_ALIASES)
 			.all(sessionId) as any[];
 		return rows.map((r) => ({ alias: r.alias_name, targetId: r.target_id }));
 	}
@@ -1951,9 +1459,7 @@ export class SqliteEventStore
 		commitId: string,
 	): Promise<EventCommit | null> {
 		const row = this.db
-			.query(
-				"SELECT * FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_SELECT_EVENT_SESSION)
 			.get(sessionId, commitId) as any;
 
 		if (!row) return null;
@@ -1976,33 +1482,26 @@ export class SqliteEventStore
 			? JSON.stringify(state.mergeRejectedIds)
 			: null;
 
-		this.db.run(
-			`INSERT OR REPLACE INTO events (commit_id, session_id, parent_commit_id, scope_level, operation, mutations, created_at, linear_depth, gc_lock, merge_source_commit_ids, merge_accepted_ids, merge_rejected_ids)
-      VALUES (?, ?, ?, 'session', ?, ?, ?, ?, ?, ?, ?, ?)`,
-			[
-				commitId,
-				sessionId,
-				state.parentCommitId || null,
-				state.operation,
-				mutationsStr,
-				state.createdAt,
-				state.linearDepth || 0,
-				state.gcLock ? 1 : 0,
-				mergeSourceIds,
-				mergeAcceptedIds,
-				mergeRejectedIds,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_EVENT_SESSION, [
+			commitId,
+			sessionId,
+			state.parentCommitId || null,
+			state.operation,
+			mutationsStr,
+			state.createdAt,
+			state.linearDepth || 0,
+			state.gcLock ? 1 : 0,
+			mergeSourceIds,
+			mergeAcceptedIds,
+			mergeRejectedIds,
+		]);
 	}
 
 	private async deleteSession(
 		sessionId: string,
 		commitId: string,
 	): Promise<void> {
-		this.db.run(
-			"DELETE FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
-			[sessionId, commitId],
-		);
+		this.db.run(S.SQL_DELETE_EVENT_SESSION, [sessionId, commitId]);
 	}
 
 	private loadState(row: any): EventCommit {
@@ -2036,17 +1535,13 @@ export class SqliteEventStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const saved = this.db
-			.query(
-				"SELECT * FROM saved_events WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_SAVED_EVENT)
 			.get(commitId, scope.level, scopeId) as any;
 
 		if (!saved) return null;
 
 		const row = this.db
-			.query(
-				"SELECT * FROM events WHERE commit_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_EVENT_PERSISTENT)
 			.get(commitId, scope.level, scopeId) as any;
 
 		if (!row) return null;
@@ -2076,66 +1571,51 @@ export class SqliteEventStore
 			? JSON.stringify(state.mergeRejectedIds)
 			: null;
 
-		this.db.run(
-			`INSERT OR REPLACE INTO events (commit_id, scope_level, user_id, parent_commit_id, operation, mutations, created_at, linear_depth, gc_lock, merge_source_commit_ids, merge_accepted_ids, merge_rejected_ids, schema_name)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			[
-				commitId,
-				scope.level,
-				scopeId,
-				state.parentCommitId || null,
-				state.operation,
-				mutationsStr,
-				state.createdAt,
-				state.linearDepth || 0,
-				state.gcLock ? 1 : 0,
-				mergeSourceIds,
-				mergeAcceptedIds,
-				mergeRejectedIds,
-				state.schema_name,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_EVENT_PERSISTENT, [
+			commitId,
+			scope.level,
+			scopeId,
+			state.parentCommitId || null,
+			state.operation,
+			mutationsStr,
+			state.createdAt,
+			state.linearDepth || 0,
+			state.gcLock ? 1 : 0,
+			mergeSourceIds,
+			mergeAcceptedIds,
+			mergeRejectedIds,
+			state.schema_name,
+		]);
 
-		this.db.run(
-			`INSERT OR REPLACE INTO saved_events (id, tags, description, scope_level, user_id)
-      VALUES (?, ?, ?, ?, ?)`,
-			[
-				commitId,
-				JSON.stringify(state.tags),
-				state.description,
-				scope.level,
-				scopeId,
-			],
-		);
+		this.db.run(S.SQL_UPSERT_SAVED_EVENT, [
+			commitId,
+			JSON.stringify(state.tags),
+			state.description,
+			scope.level,
+			scopeId,
+		]);
 	}
 
 	private async deletePersistent(
 		commitId: string,
 		scope: OwnerScope,
 	): Promise<void> {
-		this.db.run("DELETE FROM saved_events WHERE id = ?", [commitId]);
-		this.db.run("DELETE FROM events WHERE commit_id = ? AND scope_level = ?", [
-			commitId,
-			scope.level,
-		]);
+		this.db.run(S.SQL_DELETE_SAVED_EVENT, [commitId]);
+		this.db.run(S.SQL_DELETE_EVENT_PERSISTENT, [commitId, scope.level]);
 	}
 
 	// ─── Additional Interface Methods ──────────────────────────────────
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT commit_id FROM events WHERE session_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_LIST_EVENTS_SESSION)
 			.all(sessionId) as any[];
 		return rows.map((r) => r.commit_id);
 	}
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const rows = this.db
-			.query(
-				"SELECT commit_id FROM events WHERE session_id = ? AND parent_commit_id = ? AND scope_level = 'session'",
-			)
+			.query(S.SQL_LIST_EVENTS_CHILDREN)
 			.all(sessionId, parentId) as any[];
 		return rows.map((r) => r.commit_id);
 	}
@@ -2144,15 +1624,10 @@ export class SqliteEventStore
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
 			this.db
-				.query(
-					"DELETE FROM events WHERE session_id = ? AND scope_level = 'session' AND created_at < ?",
-				)
+				.query(S.SQL_EXPIRE_EVENTS_SESSION_AGE)
 				.run(sessionId, olderThanDate);
 		} else {
-			this.db.run(
-				"DELETE FROM events WHERE session_id = ? AND scope_level = 'session'",
-				[sessionId],
-			);
+			this.db.run(S.SQL_EXPIRE_EVENTS_SESSION, [sessionId]);
 		}
 	}
 
@@ -2162,9 +1637,7 @@ export class SqliteEventStore
 	): Promise<PersistedEventState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const allSaved = this.db
-			.query(
-				"SELECT * FROM saved_events WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
-			)
+			.query(S.SQL_SELECT_SAVED_EVENTS_BY_SCOPE)
 			.all(scope.level, scopeId) as any[];
 
 		const results: PersistedEventState[] = [];

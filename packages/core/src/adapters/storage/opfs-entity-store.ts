@@ -1,70 +1,57 @@
 import type { EntityStore, SqlQueryStore } from "./interfaces";
-import type { OpfsWorkerBridge } from "./opfs-repo";
+import type { OpfsDb } from "./opfs-repo";
 
 export class OpfsEntityStore<T> implements EntityStore<T>, SqlQueryStore {
-	private map = new Map<string, T>();
+	private initDone = false;
 
 	constructor(
-		private bridge: OpfsWorkerBridge,
+		private db: OpfsDb,
 		private tableName: string,
-	) {
-		this.bridge.init().catch(() => {});
-	}
+	) {}
 
-	private scoped(id: string): string {
-		return `${this.tableName}:${id}`;
+	private async ensureInit(): Promise<void> {
+		if (this.initDone) return;
+		await this.db.exec(
+			`CREATE TABLE IF NOT EXISTS ${this.tableName} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`,
+		);
+		this.initDone = true;
 	}
 
 	async get(id: string): Promise<T | null> {
-		const key = this.scoped(id);
-		const local = this.map.get(key);
-		const remote = await this.bridge.request<{ data: string } | null>("get", {
-			tableName: this.tableName,
-			id,
-		});
-		if (remote && remote.data) {
-			const parsed = JSON.parse(remote.data) as T;
-			this.map.set(key, parsed);
-			return parsed;
-		}
-		return local ?? null;
+		await this.ensureInit();
+		const row = await this.db.get<{ data: string }>(
+			`SELECT data FROM ${this.tableName} WHERE id = ?`,
+			[id],
+		);
+		return row ? (JSON.parse(row.data) as T) : null;
 	}
 
 	async set(id: string, entity: T): Promise<void> {
-		const key = this.scoped(id);
-		this.map.set(key, entity);
-		await this.bridge.request("set", {
-			tableName: this.tableName,
-			id,
-			data: JSON.stringify(entity),
-		});
+		await this.ensureInit();
+		await this.db.exec(
+			`INSERT OR REPLACE INTO ${this.tableName} (id, data) VALUES (?, ?)`,
+			[id, JSON.stringify(entity)],
+		);
 	}
 
 	async list(): Promise<T[]> {
-		const remote = await this.bridge.request<{ data: string }[] | null>(
-			"list",
-			{
-				tableName: this.tableName,
-			},
+		await this.ensureInit();
+		const rows = await this.db.query<{ data: string }>(
+			`SELECT data FROM ${this.tableName}`,
 		);
-		if (remote && remote.length > 0) {
-			return remote.map((r) => JSON.parse(r.data) as T);
-		}
-		return Array.from(this.map.values());
+		return rows.map((r) => JSON.parse(r.data) as T);
 	}
 
 	async delete(id: string): Promise<void> {
-		this.map.delete(this.scoped(id));
-		await this.bridge.request("delete", {
-			tableName: this.tableName,
-			id,
-		});
+		await this.ensureInit();
+		await this.db.exec(`DELETE FROM ${this.tableName} WHERE id = ?`, [id]);
 	}
 
 	async query<TQuery = Record<string, unknown>>(
 		sql: string,
 		params: readonly unknown[] = [],
 	): Promise<TQuery[]> {
-		return this.bridge.query<TQuery>(sql, params);
+		await this.ensureInit();
+		return this.db.query<TQuery>(sql, params);
 	}
 }

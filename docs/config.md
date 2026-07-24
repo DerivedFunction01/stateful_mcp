@@ -22,8 +22,8 @@ Every state, schema, or configuration file reference in the middleware is specif
 | Adapter | Options |
 |---|---|
 | `"memory"` | `seed` (optional): Initial in-memory data. |
-| `"sqlite"` | `path` (optional): Database file path (default `"./sqlite.db"`). `dbName` (optional): Named database within the file. |
-| `"opfs-sqlite"` | `dbName` (optional): Named database. `workerScriptUrl` (optional): Path to the OPFS worker script. |
+| `"sqlite"` | `path` (optional): Database file path (default `"./sqlite.db"`). |
+| `"opfs-sqlite"` | `dbName` (optional): Named database file (default `"stateful_mcp_opfs.sqlite3"`). `workerUrl` (optional): Path to the OPFS SQLite worker script. Falls back to bun:sqlite if Worker unavailable (Node.js). |
 | `"pg"` | `connection` (optional): Connection string. `connectionString` (optional): Alias for `connection`. |
 | `"duckdb"` | `path` (optional): Database file path (default `"./duckdb.db"`). `connectionString` (optional): Alternative connection string. |
 | `"jsonl"` | `path` (required): Path to the JSONL data file. |
