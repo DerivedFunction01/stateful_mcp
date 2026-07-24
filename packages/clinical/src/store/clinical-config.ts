@@ -162,12 +162,36 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 					capabilities: ["read", "write", "query", "rank", "learn"],
 					primary: {
 						_type: "adapter",
+						name: "sqlite",
+						options: {
+							path: "./clinical-learning.sqlite",
+						},
+					},
+					implemented: true,
+				},
+				{
+					group: "ordered_learning",
+					capabilities: ["read", "write", "query", "rank", "learn"],
+					primary: {
+						_type: "adapter",
 						name: "memory",
 						options: {
 							seed: [],
 						},
 					},
 					implemented: true,
+				},
+				{
+					group: "ordered_learning",
+					capabilities: ["read", "write", "query", "rank", "learn"],
+					primary: {
+						_type: "adapter",
+						name: "jsonl",
+						options: {
+							path: "./clinical-learning.jsonl",
+						},
+					},
+					implemented: false,
 				},
 			],
 		},
