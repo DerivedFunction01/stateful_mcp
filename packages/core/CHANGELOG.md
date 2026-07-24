@@ -1,5 +1,11 @@
 # @stateful-mcp/core
 
+## 0.4.0
+
+### Minor Changes
+
+- Extended adapters
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@stateful-mcp/clinical",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Clinical domain engines and resource loaders for Stateful framework",
 	"keywords": [
 		"clinical",

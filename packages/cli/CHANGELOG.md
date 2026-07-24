@@ -1,5 +1,16 @@
 # @stateful-mcp/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- Extended adapters
+
+### Patch Changes
+
+- Updated dependencies
+  - @stateful-mcp/core@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
