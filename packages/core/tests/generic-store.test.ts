@@ -1,12 +1,19 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { FILTER_CONFIG, OBJECT_CONFIG, persistentScopeStrategy } from "../src/adapters/storage/store-config";
 import type { StorageBackend } from "../src/adapters/storage/backend";
-import type { StoreConfig } from "../src/adapters/storage/store-config";
-import type { OwnerScope } from "../src/config/types";
+import {
+	GenericPersistentStore,
+	GenericSessionStore,
+} from "../src/adapters/storage/generic-store";
 import type { PersistedFilterState } from "../src/adapters/storage/interfaces";
-import { GenericSessionStore, GenericPersistentStore } from "../src/adapters/storage/generic-store";
+import type { StoreConfig } from "../src/adapters/storage/store-config";
+import {
+	FILTER_CONFIG,
+	OBJECT_CONFIG,
+	persistentScopeStrategy,
+} from "../src/adapters/storage/store-config";
+import type { OwnerScope } from "../src/config/types";
 import type { FilterState } from "../src/middleware/filter/types";
 
 const TEST_DIR = path.resolve(process.cwd(), "temp_test_generic_store");
@@ -76,7 +83,10 @@ class TestPersistentStore extends GenericPersistentStore<PersistedFilterState> {
 		this.config = config;
 	}
 
-	async get(id: string, scope: OwnerScope): Promise<PersistedFilterState | null> {
+	async get(
+		id: string,
+		scope: OwnerScope,
+	): Promise<PersistedFilterState | null> {
 		const rows = await this.backend.query(
 			`SELECT * FROM ${this.config.tableName} WHERE filter_id = ? AND scope_level = ?`,
 			[id, scope.level],
@@ -84,7 +94,11 @@ class TestPersistentStore extends GenericPersistentStore<PersistedFilterState> {
 		return rows[0] ?? null;
 	}
 
-	async set(id: string, state: PersistedFilterState, scope: OwnerScope): Promise<void> {
+	async set(
+		id: string,
+		state: PersistedFilterState,
+		scope: OwnerScope,
+	): Promise<void> {
 		await this.backend.exec(
 			`INSERT INTO ${this.config.tableName} (filter_id, scope_level) VALUES (?, ?)`,
 			[id, scope.level],
@@ -124,7 +138,9 @@ function createMockBackend(): StorageBackend {
 			if (insertMatch) {
 				const table = insertMatch[1]!;
 				const colMatch = sql.match(/\(([^)]+)\)/);
-				const cols = colMatch ? colMatch[1]!.split(",").map((c) => c.trim()) : [];
+				const cols = colMatch
+					? colMatch[1]!.split(",").map((c) => c.trim())
+					: [];
 				const row: any = {};
 				cols.forEach((col, i) => {
 					row[col] = params[i];
@@ -137,7 +153,9 @@ function createMockBackend(): StorageBackend {
 			if (simpleInsertMatch && !insertMatch) {
 				const table = simpleInsertMatch[1]!;
 				const colMatch = sql.match(/\(([^)]+)\)/);
-				const cols = colMatch ? colMatch[1]!.split(",").map((c) => c.trim()) : [];
+				const cols = colMatch
+					? colMatch[1]!.split(",").map((c) => c.trim())
+					: [];
 				const row: any = {};
 				cols.forEach((col, i) => {
 					row[col] = params[i];
@@ -172,15 +190,27 @@ function createMockBackend(): StorageBackend {
 
 			for (const row of map.values()) {
 				if (sql.includes("session_id = ?") && sql.includes("filter_id = ?")) {
-					if (String(row.session_id) === String(params[0]) && String(row.filter_id) === String(params[1])) {
+					if (
+						String(row.session_id) === String(params[0]) &&
+						String(row.filter_id) === String(params[1])
+					) {
 						results.push(row);
 					}
-				} else if (sql.includes("session_id = ?") && sql.includes("scope_level = 'session'")) {
+				} else if (
+					sql.includes("session_id = ?") &&
+					sql.includes("scope_level = 'session'")
+				) {
 					if (String(row.session_id) === String(params[0])) {
 						results.push(row);
 					}
-				} else if (sql.includes("filter_id = ?") && sql.includes("scope_level = ?")) {
-					if (String(row.filter_id) === String(params[0]) && String(row.scope_level) === String(params[1])) {
+				} else if (
+					sql.includes("filter_id = ?") &&
+					sql.includes("scope_level = ?")
+				) {
+					if (
+						String(row.filter_id) === String(params[0]) &&
+						String(row.scope_level) === String(params[1])
+					) {
 						results.push(row);
 					}
 				} else if (sql.includes("scope_level = ?")) {
@@ -265,7 +295,10 @@ describe("GenericSessionStore", () => {
 	});
 
 	test("getAlias should return null when no alias table configured", async () => {
-		const store = new TestSessionStore(backend, { ...FILTER_CONFIG, aliasTable: undefined });
+		const store = new TestSessionStore(backend, {
+			...FILTER_CONFIG,
+			aliasTable: undefined,
+		});
 		const result = await store.getAlias("sess-1", "missing");
 		expect(result).toBeNull();
 	});
@@ -293,17 +326,28 @@ describe("GenericPersistentStore", () => {
 
 	beforeAll(() => {
 		const backend = createMockBackend();
-		persistentStore = new TestPersistentStore(backend, PERSISTENT_FILTER_CONFIG);
+		persistentStore = new TestPersistentStore(
+			backend,
+			PERSISTENT_FILTER_CONFIG,
+		);
 	});
 
 	test("findByTag should filter by tag from list results", async () => {
 		const backend = createMockBackend();
 
-		await backend.exec("INSERT INTO filters (filter_id, scope_level, tags) VALUES (?, ?, ?)", ["f1", "global", '["important"]']);
-		await backend.exec("INSERT INTO filters (filter_id, scope_level, tags) VALUES (?, ?, ?)", ["f2", "global", '["draft"]']);
+		await backend.exec(
+			"INSERT INTO filters (filter_id, scope_level, tags) VALUES (?, ?, ?)",
+			["f1", "global", '["important"]'],
+		);
+		await backend.exec(
+			"INSERT INTO filters (filter_id, scope_level, tags) VALUES (?, ?, ?)",
+			["f2", "global", '["draft"]'],
+		);
 
 		const store = new TestPersistentStore(backend, PERSISTENT_FILTER_CONFIG);
-		const results = await store.findByTag("important", { level: "global" } as OwnerScope);
+		const results = await store.findByTag("important", {
+			level: "global",
+		} as OwnerScope);
 
 		expect(results).toHaveLength(1);
 		expect((results[0] as any).tags).toContain("important");
@@ -312,9 +356,18 @@ describe("GenericPersistentStore", () => {
 	test("list should filter by user scope", async () => {
 		const backend = createMockBackend();
 
-		await backend.exec("INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)", ["f1", "user", "user-1"]);
-		await backend.exec("INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)", ["f2", "user", "user-2"]);
-		await backend.exec("INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)", ["f3", "global", null]);
+		await backend.exec(
+			"INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)",
+			["f1", "user", "user-1"],
+		);
+		await backend.exec(
+			"INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)",
+			["f2", "user", "user-2"],
+		);
+		await backend.exec(
+			"INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)",
+			["f3", "global", null],
+		);
 
 		const store = new TestPersistentStore(backend, PERSISTENT_FILTER_CONFIG);
 		const results = await store.list({ level: "user", userId: "user-1" }, true);
@@ -326,11 +379,20 @@ describe("GenericPersistentStore", () => {
 	test("list should exclude global when includeGlobal is false", async () => {
 		const backend = createMockBackend();
 
-		await backend.exec("INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)", ["f1", "user", "user-1"]);
-		await backend.exec("INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)", ["f3", "global", null]);
+		await backend.exec(
+			"INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)",
+			["f1", "user", "user-1"],
+		);
+		await backend.exec(
+			"INSERT INTO filters (filter_id, scope_level, user_id) VALUES (?, ?, ?)",
+			["f3", "global", null],
+		);
 
 		const store = new TestPersistentStore(backend, PERSISTENT_FILTER_CONFIG);
-		const results = await store.list({ level: "user", userId: "user-1" }, false);
+		const results = await store.list(
+			{ level: "user", userId: "user-1" },
+			false,
+		);
 
 		expect(results).toHaveLength(1);
 		expect(results[0]?.scope?.level).toBe("user");

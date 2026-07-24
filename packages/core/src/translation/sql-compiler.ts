@@ -23,6 +23,7 @@ export type FilterOp =
 	| "not_in_set"
 	| "between"
 	| "not_between"
+	| "json_contains"
 	| "is_null"
 	| "is_not_null";
 
@@ -458,6 +459,15 @@ export class QueryCompiler {
 				return `${col} IS NULL`;
 			case "is_not_null":
 				return `${col} IS NOT NULL`;
+			case "json_contains": {
+				if (this.dialect === "postgres") {
+					return `${col}::jsonb @> ${ctx.addParam(JSON.stringify([cond.value]))}::jsonb`;
+				}
+				// SQLite/DuckDB: no native array-containment operator, but json_each gives
+				// real correctness (safer than LIKE, which could false-positive on
+				// JSON-escaped characters inside tag strings).
+				return `EXISTS (SELECT 1 FROM json_each(${col}) WHERE value = ${ctx.addParam(cond.value)})`;
+			}
 			default:
 				throw new Error(`Unsupported filter op: ${(cond as any).op}`);
 		}

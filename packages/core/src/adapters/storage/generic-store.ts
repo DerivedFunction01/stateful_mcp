@@ -17,7 +17,7 @@
 
 import type { OwnerScope } from "../../config/types";
 import type { StorageBackend } from "./backend";
-import type { ScopeStrategy, StoreConfig } from "./store-config";
+import type { StoreConfig } from "./store-config";
 
 /**
  * Base class for generic session stores.
@@ -78,7 +78,11 @@ export abstract class GenericSessionStore<TState> {
 		return rows[0]?.target_id ?? null;
 	}
 
-	async setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
 		if (!this.config.aliasTable) return;
 		await this.backend.exec(
 			`INSERT OR REPLACE INTO ${this.config.aliasTable} (session_id, alias_name, target_id) VALUES (?, ?, ?)`,
@@ -94,7 +98,9 @@ export abstract class GenericSessionStore<TState> {
 		);
 	}
 
-	async listAliases(sessionId: string): Promise<Array<{ alias: string; targetId: string }>> {
+	async listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>> {
 		if (!this.config.aliasTable) return [];
 		const rows = await this.backend.query(
 			`SELECT alias_name, target_id FROM ${this.config.aliasTable} WHERE session_id = ?`,
@@ -126,7 +132,10 @@ export abstract class GenericPersistentStore<TState> {
 		scope: OwnerScope,
 		includeGlobal?: boolean,
 	): Promise<Array<TState & { scope: OwnerScope }>> {
-		const all = await this.backend.query(`SELECT * FROM ${this.config.tableName}`, []);
+		const all = await this.backend.query(
+			`SELECT * FROM ${this.config.tableName}`,
+			[],
+		);
 		const results: Array<TState & { scope: OwnerScope }> = [];
 
 		for (const row of all) {
