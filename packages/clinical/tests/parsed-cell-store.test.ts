@@ -1,16 +1,16 @@
 import Database from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import {
-	CompositeParsedCellHistoryStore,
 	buildLearningHistoryStore,
-	MemoryParsedCellStore,
 	type ClinicalStorageAdapterRegistry,
+	CompositeParsedCellHistoryStore,
+	MemoryParsedCellStore,
 	type ParsedCellV1,
 	SqliteParsedCellStore,
 } from "../src";
-import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../src/store/adapter-config";
 import { ObservationSchemaParser } from "../src/parser/parsers/observation-parser";
 import type { ParsedObservationItem } from "../src/parser/schema-parsers";
+import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../src/store/adapter-config";
 import { ObservationPreferenceRanker } from "../src/store/parsed-cell-ranking";
 import type { ParsedCellPreferenceMode } from "../src/store/parsed-cell-ranking-types";
 
@@ -678,7 +678,9 @@ describe("ParsedCellV1 storage", () => {
 		};
 
 		const store = buildLearningHistoryStore(registry);
-		await store.putObservation(makeObservationCell("cell-builder-1", "session-x"));
+		await store.putObservation(
+			makeObservationCell("cell-builder-1", "session-x"),
+		);
 		const rows = await store.getObservationHistory({
 			tag: "#observation",
 			targetSchema: "ObservationEvent",
