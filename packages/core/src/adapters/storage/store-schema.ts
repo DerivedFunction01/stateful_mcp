@@ -62,7 +62,7 @@ const TABLES = {
 			{ name: "schema_snapshot", type: "text", nullable: true },
 			{
 				name: "created_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -103,7 +103,7 @@ const TABLES = {
 			{ name: "user_id", type: "text", nullable: true },
 			{
 				name: "saved_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -136,7 +136,7 @@ const TABLES = {
 			{ name: "user_id", type: "text", nullable: true },
 			{
 				name: "created_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -199,7 +199,7 @@ const TABLES = {
 			{ name: "user_id", type: "text", nullable: true },
 			{
 				name: "saved_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -233,7 +233,7 @@ const TABLES = {
 			{ name: "data", type: "text", nullable: false },
 			{
 				name: "created_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -251,7 +251,7 @@ const TABLES = {
 			{ name: "user_id", type: "text", nullable: true },
 			{
 				name: "saved_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -285,7 +285,7 @@ const TABLES = {
 			{ name: "mutations", type: "text", nullable: false },
 			{
 				name: "created_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -297,7 +297,7 @@ const TABLES = {
 			},
 			{
 				name: "gc_lock",
-				type: "int",
+				type: "bool",
 				nullable: false,
 				default: 0,
 			},
@@ -318,7 +318,7 @@ const TABLES = {
 			{ name: "user_id", type: "text", nullable: true },
 			{
 				name: "saved_at",
-				type: "text",
+				type: "timestamp",
 				nullable: true,
 				defaultRaw: "CURRENT_TIMESTAMP",
 			},
@@ -340,9 +340,9 @@ const TABLES = {
 		columns: [
 			{ name: "code", type: "text", primaryKey: true },
 			{ name: "description", type: "text", nullable: true },
-			{ name: "is_public", type: "int", nullable: false },
-			{ name: "is_external_private", type: "int", nullable: false },
-			{ name: "is_mutable", type: "int", nullable: true },
+			{ name: "is_public", type: "bool", nullable: false },
+			{ name: "is_external_private", type: "bool", nullable: false },
+			{ name: "is_mutable", type: "bool", nullable: true },
 		],
 	},
 	DDL_DICT_CONCEPTS: {
@@ -354,8 +354,8 @@ const TABLES = {
 			{ name: "standard_code", type: "text", nullable: false },
 			{ name: "display", type: "text", nullable: false },
 			{ name: "description", type: "text", nullable: true },
-			{ name: "designation_date", type: "text", nullable: true },
-			{ name: "active", type: "int", nullable: false },
+			{ name: "designation_date", type: "timestamp", nullable: true },
+			{ name: "active", type: "bool", nullable: false },
 			{
 				name: "namespace_code_fk",
 				type: "text",
@@ -372,8 +372,8 @@ const TABLES = {
 			{ name: "concept_id", type: "text", nullable: false },
 			{ name: "linked_id", type: "text", nullable: false },
 			{ name: "relationship_type", type: "text", nullable: false },
-			{ name: "active", type: "int", nullable: false },
-			{ name: "designation_date", type: "text", nullable: true },
+			{ name: "active", type: "bool", nullable: false },
+			{ name: "designation_date", type: "timestamp", nullable: true },
 			{
 				name: "concept_id_fk",
 				type: "text",
@@ -396,7 +396,7 @@ const TABLES = {
 			{ name: "descendant_concept_id", type: "text", nullable: false },
 			{ name: "link_depth", type: "int", nullable: false },
 			{ name: "inferred_relationship_type", type: "text", nullable: false },
-			{ name: "active", type: "int", nullable: false },
+			{ name: "active", type: "bool", nullable: false },
 			{ name: "updated_at", type: "text", nullable: false },
 		],
 		primaryKey: [
@@ -446,6 +446,31 @@ const INDEXES = {
 		table: "dict_relation_cache",
 		name: "idx_concept_cache_traversal",
 		columns: ["ancestor_concept_id", "active"],
+	},
+	IDX_FORMS_SESSION: {
+		table: "forms",
+		name: "idx_forms_session",
+		columns: ["session_id", "scope_level"],
+	},
+	IDX_OBJECTS_SESSION: {
+		table: "objects",
+		name: "idx_objects_session",
+		columns: ["session_id", "scope_level"],
+	},
+	IDX_OBJECTS_SCOPE: {
+		table: "objects",
+		name: "idx_objects_scope",
+		columns: ["scope_level", "user_id"],
+	},
+	IDX_EVENTS_SESSION: {
+		table: "events",
+		name: "idx_events_session",
+		columns: ["session_id", "scope_level"],
+	},
+	IDX_EVENTS_SCOPE: {
+		table: "events",
+		name: "idx_events_scope",
+		columns: ["scope_level", "user_id"],
 	},
 };
 
@@ -949,6 +974,187 @@ const SELECTS: Record<string, SelectQuery> = {
 			},
 		],
 	},
+	SQL_SELECT_SAVED_FORMS_BY_SCOPE: {
+		table: "saved_forms",
+		select: [{ column: "*", raw: "*" }],
+		where: [
+			{ column: "scope_level", op: "eq" },
+			{
+				OR: [
+					{ column: "user_id", op: "eq" },
+					{ column: "user_id", op: "is_null" },
+				],
+			},
+		],
+	},
+	SQL_LIST_SAVED_FILTERS_GLOBAL: {
+		table: "saved_filters",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [{ column: "scope_level", op: "eq", raw: "'global'" }],
+	},
+	SQL_LIST_SAVED_FILTERS_USER: {
+		table: "saved_filters",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{ column: "scope_level", op: "eq", raw: "'user'" },
+			{ column: "user_id", op: "eq" },
+		],
+	},
+	SQL_LIST_SAVED_FILTERS_ALL: {
+		table: "saved_filters",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{
+				OR: [
+					{ column: "scope_level", op: "eq", raw: "'global'" },
+					{
+						AND: [
+							{ column: "scope_level", op: "eq", raw: "'user'" },
+							{ column: "user_id", op: "eq" },
+						],
+					},
+				],
+			},
+		],
+	},
+	SQL_LIST_SAVED_FORMS_GLOBAL: {
+		table: "saved_forms",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [{ column: "scope_level", op: "eq", raw: "'global'" }],
+	},
+	SQL_LIST_SAVED_FORMS_USER: {
+		table: "saved_forms",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{ column: "scope_level", op: "eq", raw: "'user'" },
+			{ column: "user_id", op: "eq" },
+		],
+	},
+	SQL_LIST_SAVED_FORMS_ALL: {
+		table: "saved_forms",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{
+				OR: [
+					{ column: "scope_level", op: "eq", raw: "'global'" },
+					{
+						AND: [
+							{ column: "scope_level", op: "eq", raw: "'user'" },
+							{ column: "user_id", op: "eq" },
+						],
+					},
+				],
+			},
+		],
+	},
+	SQL_LIST_SAVED_OBJECTS_GLOBAL: {
+		table: "saved_objects",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [{ column: "scope_level", op: "eq", raw: "'global'" }],
+	},
+	SQL_LIST_SAVED_OBJECTS_USER: {
+		table: "saved_objects",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{ column: "scope_level", op: "eq", raw: "'user'" },
+			{ column: "user_id", op: "eq" },
+		],
+	},
+	SQL_LIST_SAVED_OBJECTS_ALL: {
+		table: "saved_objects",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{
+				OR: [
+					{ column: "scope_level", op: "eq", raw: "'global'" },
+					{
+						AND: [
+							{ column: "scope_level", op: "eq", raw: "'user'" },
+							{ column: "user_id", op: "eq" },
+						],
+					},
+				],
+			},
+		],
+	},
+	SQL_LIST_SAVED_EVENTS_GLOBAL: {
+		table: "saved_events",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [{ column: "scope_level", op: "eq", raw: "'global'" }],
+	},
+	SQL_LIST_SAVED_EVENTS_USER: {
+		table: "saved_events",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{ column: "scope_level", op: "eq", raw: "'user'" },
+			{ column: "user_id", op: "eq" },
+		],
+	},
+	SQL_LIST_SAVED_EVENTS_ALL: {
+		table: "saved_events",
+		select: [
+			{ column: "id" },
+			{ column: "scope_level" },
+			{ column: "user_id" },
+		],
+		where: [
+			{
+				OR: [
+					{ column: "scope_level", op: "eq", raw: "'global'" },
+					{
+						AND: [
+							{ column: "scope_level", op: "eq", raw: "'user'" },
+							{ column: "user_id", op: "eq" },
+						],
+					},
+				],
+			},
+		],
+	},
 	SQL_GET_EVENT_ALIAS: {
 		table: "event_session_aliases",
 		select: [{ column: "target_id" }],
@@ -1082,6 +1288,74 @@ const SELECTS: Record<string, SelectQuery> = {
 		select: [{ column: "data" }],
 		where: [{ column: "id", op: "eq" }],
 	},
+	SQL_SEARCH_DICT_CONCEPTS: {
+		table: "dict_concepts",
+		select: [{ column: "*", raw: "*" }],
+		where: [
+			{
+				OR: [
+					{ column: "display", op: "ilike" },
+					{ column: "id", op: "eq" },
+					{ column: "standard_code", op: "eq" },
+					{ column: "description", op: "ilike" },
+				],
+			},
+		],
+		orderBy: [{ column: "display", direction: "ASC" }],
+		limit: 50,
+	},
+	SQL_SEARCH_DICT_CONCEPTS_BY_NAMESPACE: {
+		table: "dict_concepts",
+		select: [{ column: "*", raw: "*" }],
+		where: [
+			{
+				OR: [
+					{ column: "display", op: "ilike" },
+					{ column: "id", op: "eq" },
+					{ column: "standard_code", op: "eq" },
+					{ column: "description", op: "ilike" },
+				],
+			},
+			{ column: "namespace_code", op: "eq" },
+		],
+		orderBy: [{ column: "display", direction: "ASC" }],
+		limit: 50,
+	},
+	SQL_SELECT_DICT_EXPRESSION_USER: {
+		table: "dict_custom_expressions",
+		select: [{ column: "data" }],
+		where: [
+			{ column: "scope_level", op: "eq" },
+			{
+				OR: [
+					{ column: "scope_id", op: "eq" },
+					{ column: "scope_id", op: "is_null" },
+				],
+			},
+		],
+	},
+	SQL_SELECT_DICT_EXPRESSION_ALL: {
+		table: "dict_custom_expressions",
+		select: [{ column: "data" }],
+		where: [
+			{
+				OR: [
+					{
+						AND: [
+							{ column: "scope_level", op: "eq" },
+							{
+								OR: [
+									{ column: "scope_id", op: "eq" },
+									{ column: "scope_id", op: "is_null" },
+								],
+							},
+						],
+					},
+					{ column: "scope_level", op: "eq", raw: "'global'" },
+				],
+			},
+		],
+	},
 };
 
 // ─── Deletes ──────────────────────────────────────────────────────────────────
@@ -1136,6 +1410,14 @@ const DELETES: Record<string, DeleteQuery> = {
 		where: [
 			{ column: "session_id", op: "eq" },
 			{ column: "scope_level", op: "eq", raw: "'session'" },
+		],
+	},
+	SQL_EXPIRE_FILTERS_SESSION_AGE: {
+		table: "filters",
+		where: [
+			{ column: "session_id", op: "eq" },
+			{ column: "scope_level", op: "eq", raw: "'session'" },
+			{ column: "created_at", op: "lt" },
 		],
 	},
 	SQL_DELETE_FORM_ANSWERS: {

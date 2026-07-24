@@ -251,11 +251,17 @@ export class QueryCompiler {
 			case "real":
 				return this.dialect === "postgres" ? "DOUBLE PRECISION" : "REAL";
 			case "bool":
-				return this.dialect === "postgres" ? "BOOLEAN" : "INTEGER";
+				return this.dialect === "postgres"
+					? "BOOLEAN"
+					: this.dialect === "duckdb"
+						? "BOOLEAN"
+						: "INTEGER";
 			case "timestamp":
 				return this.dialect === "postgres"
 					? "TIMESTAMP WITH TIME ZONE"
-					: "TEXT";
+					: this.dialect === "duckdb"
+						? "TIMESTAMP"
+						: "TEXT";
 			case "blob":
 				return this.dialect === "postgres" ? "BYTEA" : "BLOB";
 			default:

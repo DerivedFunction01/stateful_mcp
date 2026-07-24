@@ -43,6 +43,8 @@ async function getConnection(
 	return await instance.connect();
 }
 
+import { SCHEMA } from "./store-schema";
+
 // ── DuckDB Filter Store ──────────────────────────────────────────
 
 export class DuckDbFilterStore
@@ -59,61 +61,16 @@ export class DuckDbFilterStore
 	private async initSchema(): Promise<void> {
 		this.conn = await getConnection(this.dbPath);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS filters (
-        filter_id         TEXT PRIMARY KEY,
-        tool_name         TEXT NULL,
-        table_name        TEXT NULL,
-        parent_filter_id  TEXT NULL,
-        scope_level       TEXT NOT NULL DEFAULT 'session',
-        session_id        TEXT NULL,
-        user_id           TEXT NULL,
-        combined_operation TEXT NULL,
-        combined_ids      TEXT NULL,
-        schema_snapshot   TEXT NULL,
-        created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_FILTERS!.sql);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS filter_rules (
-        id           INTEGER PRIMARY KEY,
-        filter_id    TEXT NOT NULL,
-        property     TEXT NOT NULL,
-        operator     TEXT NOT NULL,
-        value        TEXT NOT NULL,
-        index_order  INTEGER NOT NULL,
-        UNIQUE(filter_id, index_order),
-        FOREIGN KEY(filter_id) REFERENCES filters(filter_id) ON DELETE CASCADE
-      )
-    `);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_FILTER_RULES!.sql);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS saved_filters (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_SAVED_FILTERS!.sql);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS session_aliases (
-        session_id  TEXT NOT NULL,
-        alias_name  TEXT NOT NULL,
-        target_id   TEXT NOT NULL,
-        PRIMARY KEY (session_id, alias_name)
-      )
-    `);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_SESSION_ALIASES!.sql);
 
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_filters_session ON filters(session_id, scope_level)",
-		);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_filters_scope ON filters(scope_level, user_id)",
-		);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_FILTERS_SESSION!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_FILTERS_SCOPE!.sql);
 	}
 
 	get(sessionId: string, id: string): Promise<FilterState | null>;
@@ -149,7 +106,7 @@ export class DuckDbFilterStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT target_id FROM session_aliases WHERE session_id = ? AND alias_name = ?",
+			SCHEMA.duckdb.selects.SQL_GET_ALIAS!.sql,
 			[sessionId, alias],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -161,26 +118,25 @@ export class DuckDbFilterStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		await this.conn.run(
-			`INSERT INTO session_aliases (session_id, alias_name, target_id)
-       VALUES (?, ?, ?)
-       ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
-			[sessionId, alias, targetId],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		await this.conn.run(
-			"DELETE FROM session_aliases WHERE session_id = ? AND alias_name = ?",
-			[sessionId, alias],
-		);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
+			SCHEMA.duckdb.selects.SQL_LIST_ALIASES!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -209,7 +165,7 @@ export class DuckDbFilterStore
 		id: string,
 	): Promise<FilterState | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM filters WHERE session_id = ? AND filter_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_SELECT_FILTER_SESSION!.sql,
 			[sessionId, id],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -217,7 +173,7 @@ export class DuckDbFilterStore
 		const row = rows[0]!;
 
 		const rulesReader = await this.conn.runAndReadAll(
-			"SELECT property, operator, value FROM filter_rules WHERE filter_id = ? ORDER BY index_order ASC",
+			SCHEMA.duckdb.selects.SQL_SELECT_FILTER_RULES!.sql,
 			[id],
 		);
 		const rulesRows = rulesReader.getRowObjectsJS();
@@ -260,38 +216,29 @@ export class DuckDbFilterStore
 
 		await this.conn.run("BEGIN");
 		try {
-			await this.conn.run(
-				`INSERT INTO filters (filter_id, tool_name, table_name, parent_filter_id, scope_level, session_id, user_id, combined_operation, combined_ids, schema_snapshot)
-         VALUES (?, ?, ?, ?, 'session', ?, NULL, ?, ?, ?)
-         ON CONFLICT(filter_id) DO UPDATE SET
-           tool_name=excluded.tool_name,
-           table_name=excluded.table_name,
-           parent_filter_id=excluded.parent_filter_id,
-           scope_level=excluded.scope_level,
-           session_id=excluded.session_id,
-           user_id=excluded.user_id,
-           combined_operation=excluded.combined_operation,
-           combined_ids=excluded.combined_ids,
-           schema_snapshot=excluded.schema_snapshot`,
-				[
-					id,
-					state.toolName || null,
-					state.tableName || null,
-					state.parentFilterId || null,
-					sessionId,
-					state.combined_operation || null,
-					combinedIdsStr,
-					schemaSnapshotStr,
-				],
-			);
+			await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_FILTER!.sql, [
+				id,
+				state.toolName || null,
+				state.tableName || null,
+				state.parentFilterId || null,
+				sessionId,
+				state.combined_operation || null,
+				combinedIdsStr,
+				schemaSnapshotStr,
+			]);
 
-			await this.conn.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+				id,
+			]);
 			for (let i = 0; i < state.rules.length; i++) {
 				const rule = state.rules[i]!;
-				await this.conn.run(
-					"INSERT INTO filter_rules (filter_id, property, operator, value, index_order) VALUES (?, ?, ?, ?, ?)",
-					[id, rule.property, rule.operator, JSON.stringify(rule.value), i],
-				);
+				await this.conn.run(SCHEMA.duckdb.inserts.SQL_INSERT_FILTER_RULE!.sql, [
+					id,
+					rule.property,
+					rule.operator,
+					JSON.stringify(rule.value),
+					i,
+				]);
 			}
 			await this.conn.run("COMMIT");
 		} catch (err) {
@@ -303,9 +250,11 @@ export class DuckDbFilterStore
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
 		await this.conn.run("BEGIN");
 		try {
-			await this.conn.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+				id,
+			]);
 			await this.conn.run(
-				"DELETE FROM filters WHERE session_id = ? AND filter_id = ? AND scope_level = 'session'",
+				SCHEMA.duckdb.deletes.SQL_DELETE_FILTER_SESSION!.sql,
 				[sessionId, id],
 			);
 			await this.conn.run("COMMIT");
@@ -322,7 +271,7 @@ export class DuckDbFilterStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const savedReader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_filters WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_FILTER!.sql,
 			[id, scope.level, scopeId],
 		);
 		const savedRows = savedReader.getRowObjectsJS();
@@ -330,7 +279,7 @@ export class DuckDbFilterStore
 		const saved = savedRows[0]!;
 
 		const filterReader = await this.conn.runAndReadAll(
-			"SELECT * FROM filters WHERE filter_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_FILTER_PERSISTENT!.sql,
 			[id, scope.level, scopeId],
 		);
 		const filterRows = filterReader.getRowObjectsJS();
@@ -338,7 +287,7 @@ export class DuckDbFilterStore
 		const row = filterRows[0]!;
 
 		const rulesReader = await this.conn.runAndReadAll(
-			"SELECT property, operator, value FROM filter_rules WHERE filter_id = ? ORDER BY index_order ASC",
+			SCHEMA.duckdb.selects.SQL_SELECT_FILTER_RULES!.sql,
 			[id],
 		);
 		const rulesRows = rulesReader.getRowObjectsJS();
@@ -381,57 +330,39 @@ export class DuckDbFilterStore
 
 		await this.conn.run("BEGIN");
 		try {
-			await this.conn.run(
-				`INSERT INTO filters (filter_id, tool_name, table_name, parent_filter_id, scope_level, session_id, user_id, combined_operation, combined_ids, schema_snapshot)
-         VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
-         ON CONFLICT(filter_id) DO UPDATE SET
-           tool_name=excluded.tool_name,
-           table_name=excluded.table_name,
-           parent_filter_id=excluded.parent_filter_id,
-           scope_level=excluded.scope_level,
-           session_id=excluded.session_id,
-           user_id=excluded.user_id,
-           combined_operation=excluded.combined_operation,
-           combined_ids=excluded.combined_ids,
-           schema_snapshot=excluded.schema_snapshot`,
-				[
-					id,
-					state.toolName || null,
-					state.tableName || null,
-					state.parentFilterId || null,
-					scope.level,
-					scopeId,
-					state.combined_operation || null,
-					combinedIdsStr,
-					state.schema_snapshot,
-				],
-			);
+			await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_FILTER!.sql, [
+				id,
+				state.toolName || null,
+				state.tableName || null,
+				state.parentFilterId || null,
+				scope.level,
+				scopeId,
+				state.combined_operation || null,
+				combinedIdsStr,
+				state.schema_snapshot,
+			]);
 
-			await this.conn.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+				id,
+			]);
 			for (let i = 0; i < state.rules.length; i++) {
 				const rule = state.rules[i]!;
-				await this.conn.run(
-					"INSERT INTO filter_rules (filter_id, property, operator, value, index_order) VALUES (?, ?, ?, ?, ?)",
-					[id, rule.property, rule.operator, JSON.stringify(rule.value), i],
-				);
+				await this.conn.run(SCHEMA.duckdb.inserts.SQL_INSERT_FILTER_RULE!.sql, [
+					id,
+					rule.property,
+					rule.operator,
+					JSON.stringify(rule.value),
+					i,
+				]);
 			}
 
-			await this.conn.run(
-				`INSERT INTO saved_filters (id, tags, description, scope_level, user_id)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           tags=excluded.tags,
-           description=excluded.description,
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id`,
-				[
-					id,
-					JSON.stringify(state.tags),
-					state.description,
-					scope.level,
-					scopeId,
-				],
-			);
+			await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_FILTER!.sql, [
+				id,
+				JSON.stringify(state.tags),
+				state.description,
+				scope.level,
+				scopeId,
+			]);
 
 			await this.conn.run("COMMIT");
 		} catch (err) {
@@ -443,10 +374,14 @@ export class DuckDbFilterStore
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
 		await this.conn.run("BEGIN");
 		try {
-			await this.conn.run("DELETE FROM filter_rules WHERE filter_id = ?", [id]);
-			await this.conn.run("DELETE FROM saved_filters WHERE id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+				id,
+			]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_SAVED_FILTER!.sql, [
+				id,
+			]);
 			await this.conn.run(
-				"DELETE FROM filters WHERE filter_id = ? AND scope_level = ?",
+				SCHEMA.duckdb.deletes.SQL_DELETE_FILTER_PERSISTENT!.sql,
 				[id, scope.level],
 			);
 			await this.conn.run("COMMIT");
@@ -462,7 +397,7 @@ export class DuckDbFilterStore
 	): Promise<PersistedFilterState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_filters WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_FILTERS_BY_SCOPE!.sql,
 			[scope.level, scopeId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -482,21 +417,14 @@ export class DuckDbFilterStore
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFilterState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = ? AND user_id = ?)";
-				params.push(scope.level, userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_filters WHERE scope_level = ? AND user_id = ?";
-				params.push(scope.level, userId);
-			}
-		}
-
-		const reader = await this.conn.runAndReadAll(queryStr, params);
+		const reader = await this.conn.runAndReadAll(
+			scope.level === "global"
+				? SCHEMA.duckdb.selects.SQL_LIST_SAVED_FILTERS_GLOBAL!.sql
+				: includeGlobal
+					? SCHEMA.duckdb.selects.SQL_LIST_SAVED_FILTERS_ALL!.sql
+					: SCHEMA.duckdb.selects.SQL_LIST_SAVED_FILTERS_USER!.sql,
+			scope.level === "user" ? [scope.level, userId] : [],
+		);
 		const savedRecords = reader.getRowObjectsJS();
 		const results: Array<PersistedFilterState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
@@ -514,7 +442,7 @@ export class DuckDbFilterStore
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT filter_id FROM filters WHERE session_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_LIST_FILTERS_SESSION!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -523,7 +451,7 @@ export class DuckDbFilterStore
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT filter_id FROM filters WHERE session_id = ? AND parent_filter_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_LIST_FILTERS_CHILDREN!.sql,
 			[sessionId, parentId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -534,12 +462,12 @@ export class DuckDbFilterStore
 		if (olderThanMs !== undefined) {
 			const cutoff = new Date(Date.now() - olderThanMs).toISOString();
 			await this.conn.run(
-				"DELETE FROM filters WHERE session_id = ? AND created_at < ? AND scope_level = 'session'",
+				SCHEMA.duckdb.deletes.SQL_EXPIRE_FILTERS_SESSION_AGE!.sql,
 				[sessionId, cutoff],
 			);
 		} else {
 			await this.conn.run(
-				"DELETE FROM filters WHERE session_id = ? AND scope_level = 'session'",
+				SCHEMA.duckdb.deletes.SQL_DELETE_FILTERS_BY_SESSION!.sql,
 				[sessionId],
 			);
 		}
@@ -560,55 +488,12 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 	private async initSchema(): Promise<void> {
 		this.conn = await getConnection(this.dbPath);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS forms (
-        form_id         TEXT PRIMARY KEY,
-        parent_form_id  TEXT NULL,
-        schema_name     TEXT NOT NULL,
-        scope_level     TEXT NOT NULL DEFAULT 'session',
-        session_id      TEXT NULL,
-        user_id         TEXT NULL,
-        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS form_answers (
-        form_id     TEXT NOT NULL,
-        question_id TEXT NOT NULL,
-        value       TEXT NOT NULL,
-        PRIMARY KEY (form_id, question_id),
-        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS form_skipped (
-        form_id     TEXT NOT NULL,
-        question_id TEXT NOT NULL,
-        PRIMARY KEY (form_id, question_id),
-        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS form_stale (
-        form_id     TEXT NOT NULL,
-        question_id TEXT NOT NULL,
-        PRIMARY KEY (form_id, question_id),
-        FOREIGN KEY(form_id) REFERENCES forms(form_id) ON DELETE CASCADE
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS saved_forms (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_forms_session ON forms(session_id, scope_level)",
-		);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_FORMS!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_FORM_ANSWERS!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_FORM_SKIPPED!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_FORM_STALE!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_SAVED_FORMS!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_FORMS_SESSION!.sql);
 	}
 
 	get(sessionId: string, id: string): Promise<FormState | null>;
@@ -637,16 +522,20 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 	async delete(sessionId: string, id: string): Promise<void>;
 	async delete(id: string, scope: OwnerScope): Promise<void>;
 	async delete(a: string, b?: any): Promise<void> {
-		await this.conn.run("DELETE FROM form_answers WHERE form_id = ?", [a]);
-		await this.conn.run("DELETE FROM form_skipped WHERE form_id = ?", [a]);
-		await this.conn.run("DELETE FROM form_stale WHERE form_id = ?", [a]);
-		await this.conn.run("DELETE FROM forms WHERE form_id = ?", [a]);
-		await this.conn.run("DELETE FROM saved_forms WHERE id = ?", [a]);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_ANSWERS!.sql, [
+			a,
+		]);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_SKIPPED!.sql, [
+			a,
+		]);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_STALE!.sql, [a]);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM!.sql, [a]);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_SAVED_FORM!.sql, [a]);
 	}
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT target_id FROM session_aliases WHERE session_id = ? AND alias_name = ?",
+			SCHEMA.duckdb.selects.SQL_GET_FORM_ALIAS!.sql,
 			[sessionId, alias],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -658,26 +547,25 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		await this.conn.run(
-			`INSERT INTO session_aliases (session_id, alias_name, target_id)
-       VALUES (?, ?, ?)
-       ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
-			[sessionId, alias, targetId],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_FORM_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		await this.conn.run(
-			"DELETE FROM session_aliases WHERE session_id = ? AND alias_name = ?",
-			[sessionId, alias],
-		);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
+			SCHEMA.duckdb.selects.SQL_LIST_FORM_ALIASES!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -706,7 +594,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		id: string,
 	): Promise<FormState | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM forms WHERE form_id = ? AND session_id = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_FORM_SESSION!.sql,
 			[id, sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -719,7 +607,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		scope: OwnerScope,
 	): Promise<PersistedFormStateDetails | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM forms WHERE form_id = ? AND scope_level = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_FORM_PERSISTENT!.sql,
 			[id, scope.level],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -727,7 +615,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		const formRow = rows[0]!;
 
 		const savedReader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_forms WHERE id = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_FORM!.sql,
 			[id],
 		);
 		const savedRows = savedReader.getRowObjectsJS();
@@ -748,7 +636,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		const formId = String(row.form_id);
 
 		const answersReader = await this.conn.runAndReadAll(
-			"SELECT * FROM form_answers WHERE form_id = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_FORM_ANSWERS!.sql,
 			[formId],
 		);
 		const answersRows = answersReader.getRowObjectsJS();
@@ -758,7 +646,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		}
 
 		const skippedReader = await this.conn.runAndReadAll(
-			"SELECT question_id FROM form_skipped WHERE form_id = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_FORM_SKIPPED!.sql,
 			[formId],
 		);
 		const skipped = skippedReader
@@ -766,7 +654,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 			.map((r) => String(r.question_id));
 
 		const staleReader = await this.conn.runAndReadAll(
-			"SELECT question_id FROM form_stale WHERE form_id = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_FORM_STALE!.sql,
 			[formId],
 		);
 		const staleRows = staleReader.getRowObjectsJS();
@@ -793,40 +681,43 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 	): Promise<void> {
 		await this.conn.run("BEGIN");
 		try {
-			await this.conn.run(
-				`INSERT INTO forms (form_id, parent_form_id, schema_name, scope_level, session_id, created_at)
-         VALUES (?, ?, ?, 'session', ?, ?)
-         ON CONFLICT(form_id) DO UPDATE SET
-           parent_form_id=excluded.parent_form_id,
-           schema_name=excluded.schema_name,
-           scope_level=excluded.scope_level,
-           session_id=excluded.session_id,
-           created_at=excluded.created_at`,
-				[id, state.parentFormId, state.schemaName, sessionId, state.timestamp],
-			);
+			await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_FORM_SESSION!.sql, [
+				id,
+				state.parentFormId,
+				state.schemaName,
+				sessionId,
+				state.timestamp,
+			]);
 
-			await this.conn.run("DELETE FROM form_answers WHERE form_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_ANSWERS!.sql, [
+				id,
+			]);
 			for (const [qId, val] of Object.entries(state.answers)) {
-				await this.conn.run(
-					"INSERT INTO form_answers (form_id, question_id, value) VALUES (?, ?, ?)",
-					[id, qId, JSON.stringify(val)],
-				);
+				await this.conn.run(SCHEMA.duckdb.inserts.SQL_INSERT_FORM_ANSWER!.sql, [
+					id,
+					qId,
+					JSON.stringify(val),
+				]);
 			}
 
-			await this.conn.run("DELETE FROM form_skipped WHERE form_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_SKIPPED!.sql, [
+				id,
+			]);
 			for (const qId of state.skipped) {
 				await this.conn.run(
-					"INSERT INTO form_skipped (form_id, question_id) VALUES (?, ?)",
+					SCHEMA.duckdb.inserts.SQL_INSERT_FORM_SKIPPED!.sql,
 					[id, qId],
 				);
 			}
 
-			await this.conn.run("DELETE FROM form_stale WHERE form_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_STALE!.sql, [
+				id,
+			]);
 			for (const qId of Object.keys(state.stale)) {
-				await this.conn.run(
-					"INSERT INTO form_stale (form_id, question_id) VALUES (?, ?)",
-					[id, qId],
-				);
+				await this.conn.run(SCHEMA.duckdb.inserts.SQL_INSERT_FORM_STALE!.sql, [
+					id,
+					qId,
+				]);
 			}
 
 			await this.conn.run("COMMIT");
@@ -845,14 +736,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		await this.conn.run("BEGIN");
 		try {
 			await this.conn.run(
-				`INSERT INTO forms (form_id, parent_form_id, schema_name, scope_level, user_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(form_id) DO UPDATE SET
-           parent_form_id=excluded.parent_form_id,
-           schema_name=excluded.schema_name,
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id,
-           created_at=excluded.created_at`,
+				SCHEMA.duckdb.inserts.SQL_UPSERT_FORM_PERSISTENT!.sql,
 				[
 					id,
 					state.parentFormId,
@@ -863,48 +747,45 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 				],
 			);
 
-			await this.conn.run("DELETE FROM form_answers WHERE form_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_ANSWERS!.sql, [
+				id,
+			]);
 			for (const [qId, val] of Object.entries(state.answers)) {
-				await this.conn.run(
-					"INSERT INTO form_answers (form_id, question_id, value) VALUES (?, ?, ?)",
-					[id, qId, JSON.stringify(val)],
-				);
+				await this.conn.run(SCHEMA.duckdb.inserts.SQL_INSERT_FORM_ANSWER!.sql, [
+					id,
+					qId,
+					JSON.stringify(val),
+				]);
 			}
 
-			await this.conn.run("DELETE FROM form_skipped WHERE form_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_SKIPPED!.sql, [
+				id,
+			]);
 			for (const qId of state.skipped) {
 				await this.conn.run(
-					"INSERT INTO form_skipped (form_id, question_id) VALUES (?, ?)",
+					SCHEMA.duckdb.inserts.SQL_INSERT_FORM_SKIPPED!.sql,
 					[id, qId],
 				);
 			}
 
-			await this.conn.run("DELETE FROM form_stale WHERE form_id = ?", [id]);
+			await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_FORM_STALE!.sql, [
+				id,
+			]);
 			for (const qId of Object.keys(state.stale)) {
-				await this.conn.run(
-					"INSERT INTO form_stale (form_id, question_id) VALUES (?, ?)",
-					[id, qId],
-				);
+				await this.conn.run(SCHEMA.duckdb.inserts.SQL_INSERT_FORM_STALE!.sql, [
+					id,
+					qId,
+				]);
 			}
 
-			await this.conn.run(
-				`INSERT INTO saved_forms (id, tags, description, scope_level, user_id, saved_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           tags=excluded.tags,
-           description=excluded.description,
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id,
-           saved_at=excluded.saved_at`,
-				[
-					id,
-					JSON.stringify(state.tags),
-					state.description,
-					scope.level,
-					userId,
-					state.timestamp,
-				],
-			);
+			await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_FORM!.sql, [
+				id,
+				JSON.stringify(state.tags),
+				state.description,
+				scope.level,
+				userId,
+				state.timestamp,
+			]);
 
 			await this.conn.run("COMMIT");
 		} catch (err) {
@@ -919,7 +800,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 	): Promise<PersistedFormStateDetails[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_forms WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_FORMS_BY_SCOPE!.sql,
 			[scope.level, scopeId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -939,21 +820,14 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_forms WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = ? AND user_id = ?)";
-				params.push(scope.level, userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_forms WHERE scope_level = ? AND user_id = ?";
-				params.push(scope.level, userId);
-			}
-		}
-
-		const reader = await this.conn.runAndReadAll(queryStr, params);
+		const reader = await this.conn.runAndReadAll(
+			scope.level === "global"
+				? SCHEMA.duckdb.selects.SQL_LIST_SAVED_FORMS_GLOBAL!.sql
+				: includeGlobal
+					? SCHEMA.duckdb.selects.SQL_LIST_SAVED_FORMS_ALL!.sql
+					: SCHEMA.duckdb.selects.SQL_LIST_SAVED_FORMS_USER!.sql,
+			scope.level === "user" ? [scope.level, userId] : [],
+		);
 		const savedRecords = reader.getRowObjectsJS();
 		const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> =
 			[];
@@ -972,7 +846,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT form_id FROM forms WHERE session_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_LIST_FORMS_SESSION!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -981,7 +855,7 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT form_id FROM forms WHERE session_id = ? AND parent_form_id = ?",
+			SCHEMA.duckdb.selects.SQL_LIST_FORMS_CHILDREN!.sql,
 			[sessionId, parentId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -992,13 +866,14 @@ export class DuckDbFormStore implements SessionFormStore, PersistentFormStore {
 		if (olderThanMs !== undefined) {
 			const cutoff = new Date(Date.now() - olderThanMs).toISOString();
 			await this.conn.run(
-				"DELETE FROM forms WHERE session_id = ? AND created_at < ?",
+				SCHEMA.duckdb.deletes.SQL_EXPIRE_FORMS_BY_SESSION_AGE!.sql,
 				[sessionId, cutoff],
 			);
 		} else {
-			await this.conn.run("DELETE FROM forms WHERE session_id = ?", [
-				sessionId,
-			]);
+			await this.conn.run(
+				SCHEMA.duckdb.deletes.SQL_EXPIRE_FORMS_BY_SESSION!.sql,
+				[sessionId],
+			);
 		}
 	}
 }
@@ -1017,58 +892,14 @@ export class DuckDbConceptStore implements ConceptStore {
 	private async initSchema(): Promise<void> {
 		this.conn = await getConnection(this.dbPath);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS dict_namespaces (
-        code TEXT PRIMARY KEY,
-        description TEXT,
-        is_public BOOLEAN NOT NULL,
-        is_external_private BOOLEAN NOT NULL,
-        is_mutable BOOLEAN
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS dict_concepts (
-        id TEXT PRIMARY KEY,
-        namespace_code TEXT NOT NULL,
-        standard_code TEXT NOT NULL,
-        display TEXT NOT NULL,
-        description TEXT,
-        designation_date TIMESTAMP,
-        active BOOLEAN NOT NULL,
-        FOREIGN KEY(namespace_code) REFERENCES dict_namespaces(code)
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS dict_relations (
-        id TEXT PRIMARY KEY,
-        concept_id TEXT NOT NULL,
-        linked_id TEXT NOT NULL,
-        relationship_type TEXT NOT NULL,
-        active BOOLEAN NOT NULL,
-        designation_date TIMESTAMP,
-        FOREIGN KEY(concept_id) REFERENCES dict_concepts(id),
-        FOREIGN KEY(linked_id) REFERENCES dict_concepts(id)
-      )
-    `);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_DICT_NAMESPACES!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_DICT_CONCEPTS!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_DICT_RELATIONS!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_CONCEPT_REL_FORWARD!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_CONCEPT_REL_REVERSE!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_DICT_RELATION_CACHE!.sql);
 		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_dict_rel_forward ON dict_relations(concept_id, active)",
-		);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_dict_rel_reverse ON dict_relations(linked_id, active)",
-		);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS dict_relation_cache (
-        ancestor_concept_id TEXT NOT NULL,
-        descendant_concept_id TEXT NOT NULL,
-        link_depth INTEGER NOT NULL,
-        inferred_relationship_type TEXT NOT NULL,
-        active BOOLEAN NOT NULL,
-        updated_at TIMESTAMP NOT NULL,
-        PRIMARY KEY(ancestor_concept_id, descendant_concept_id, inferred_relationship_type)
-      )
-    `);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_dict_cache_traversal ON dict_relation_cache(ancestor_concept_id, active)",
+			SCHEMA.duckdb.ddlIndexes.IDX_CONCEPT_CACHE_TRAVERSAL!.sql,
 		);
 	}
 
@@ -1077,17 +908,18 @@ export class DuckDbConceptStore implements ConceptStore {
 		namespaceCode?: string,
 		limit: number = 50,
 	): Promise<Concept[]> {
-		let sql =
-			"SELECT * FROM dict_concepts WHERE (display ILIKE ? OR id = ? OR standard_code = ? OR description ILIKE ?)";
-		const params: any[] = [`%${query}%`, query, query, `%${query}%`];
-		if (namespaceCode) {
-			sql += " AND namespace_code = ?";
-			params.push(namespaceCode);
-		}
-		sql += " LIMIT ?";
-		params.push(limit);
-
-		const reader = await this.conn.runAndReadAll(sql, params);
+		const reader = await this.conn.runAndReadAll(
+			namespaceCode
+				? SCHEMA.duckdb.selects.SQL_SEARCH_DICT_CONCEPTS_BY_NAMESPACE!.sql
+				: SCHEMA.duckdb.selects.SQL_SEARCH_DICT_CONCEPTS!.sql,
+			[
+				`%${query}%`,
+				query,
+				query,
+				`%${query}%`,
+				...(namespaceCode ? [namespaceCode] : []),
+			],
+		);
 		const rows = reader.getRowObjectsJS();
 		return rows.map((r: any) => ({
 			id: String(r.id),
@@ -1104,7 +936,7 @@ export class DuckDbConceptStore implements ConceptStore {
 
 	async getById(id: string): Promise<Concept | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM dict_concepts WHERE id = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_DICT_CONCEPT_BY_ID!.sql,
 			[id],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1125,7 +957,7 @@ export class DuckDbConceptStore implements ConceptStore {
 
 	async listNamespaces(): Promise<Namespace[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM dict_namespaces",
+			SCHEMA.duckdb.selects.SQL_SELECT_DICT_NAMESPACES!.sql,
 		);
 		const rows = reader.getRowObjectsJS();
 		return rows.map((r: any) => ({
@@ -1138,66 +970,36 @@ export class DuckDbConceptStore implements ConceptStore {
 	}
 
 	async addConcept(concept: Concept): Promise<void> {
-		await this.conn.run(
-			`INSERT INTO dict_concepts (id, namespace_code, standard_code, display, description, designation_date, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         namespace_code=excluded.namespace_code,
-         standard_code=excluded.standard_code,
-         display=excluded.display,
-         description=excluded.description,
-         designation_date=excluded.designation_date,
-         active=excluded.active`,
-			[
-				concept.id,
-				concept.namespaceCode,
-				concept.standardCode,
-				concept.display,
-				concept.description || null,
-				concept.designationDate || null,
-				concept.active !== false,
-			],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_DICT_CONCEPT!.sql, [
+			concept.id,
+			concept.namespaceCode,
+			concept.standardCode,
+			concept.display,
+			concept.description || null,
+			concept.designationDate || null,
+			concept.active !== false,
+		]);
 	}
 
 	async addNamespace(namespace: Namespace): Promise<void> {
-		await this.conn.run(
-			`INSERT INTO dict_namespaces (code, description, is_public, is_external_private, is_mutable)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(code) DO UPDATE SET
-         description=excluded.description,
-         is_public=excluded.is_public,
-         is_external_private=excluded.is_external_private,
-         is_mutable=excluded.is_mutable`,
-			[
-				namespace.code,
-				namespace.description || null,
-				namespace.isPublic,
-				namespace.isExternalPrivate,
-				namespace.isMutable !== false,
-			],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_DICT_NAMESPACE!.sql, [
+			namespace.code,
+			namespace.description || null,
+			namespace.isPublic,
+			namespace.isExternalPrivate,
+			namespace.isMutable !== false,
+		]);
 	}
 
 	async addRelation(relation: ConceptRelation): Promise<void> {
-		await this.conn.run(
-			`INSERT INTO dict_relations (id, concept_id, linked_id, relationship_type, active, designation_date)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         concept_id=excluded.concept_id,
-         linked_id=excluded.linked_id,
-         relationship_type=excluded.relationship_type,
-         active=excluded.active,
-         designation_date=excluded.designation_date`,
-			[
-				relation.id,
-				relation.conceptId,
-				relation.linkedId,
-				relation.relationshipType,
-				relation.active !== false,
-				relation.designationDate || null,
-			],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_DICT_RELATION!.sql, [
+			relation.id,
+			relation.conceptId,
+			relation.linkedId,
+			relation.relationshipType,
+			relation.active !== false,
+			relation.designationDate || null,
+		]);
 	}
 }
 
@@ -1217,46 +1019,28 @@ export class DuckDbPersistentExpressionStore
 	private async initSchema(): Promise<void> {
 		this.conn = await getConnection(this.dbPath);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS dict_custom_expressions (
-        id TEXT PRIMARY KEY,
-        term TEXT NOT NULL,
-        concept_id TEXT,
-        scope_level TEXT NOT NULL,
-        scope_id TEXT,
-        data TEXT NOT NULL
-      )
-    `);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_DICT_CUSTOM_EXPRESSIONS!.sql);
 	}
 
 	async save(expression: CustomExpression, scope: OwnerScope): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		await this.conn.run(
-			`INSERT INTO dict_custom_expressions (id, term, concept_id, scope_level, scope_id, data)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         term=excluded.term,
-         concept_id=excluded.concept_id,
-         scope_level=excluded.scope_level,
-         scope_id=excluded.scope_id,
-         data=excluded.data`,
-			[
-				expression.id,
-				expression.term,
-				expression.conceptId || null,
-				scope.level,
-				scopeId,
-				JSON.stringify(expression),
-			],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_DICT_EXPRESSION!.sql, [
+			expression.id,
+			expression.term,
+			expression.conceptId || null,
+			scope.level,
+			scopeId,
+			JSON.stringify(expression),
+		]);
 	}
 
 	async delete(id: string, scope: OwnerScope): Promise<void> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		await this.conn.run(
-			"DELETE FROM dict_custom_expressions WHERE id = ? AND scope_level = ? AND (scope_id = ? OR scope_id IS NULL)",
-			[id, scope.level, scopeId],
-		);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_DICT_EXPRESSION!.sql, [
+			id,
+			scope.level,
+			scopeId,
+		]);
 	}
 
 	async list(
@@ -1264,20 +1048,19 @@ export class DuckDbPersistentExpressionStore
 		includeGlobal?: boolean,
 	): Promise<CustomExpression[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		let sql =
-			"SELECT data FROM dict_custom_expressions WHERE (scope_level = ? AND (scope_id = ? OR scope_id IS NULL))";
-		const params: any[] = [scope.level, scopeId];
-		if (includeGlobal && scope.level !== "global") {
-			sql += " OR scope_level = 'global'";
-		}
-		const reader = await this.conn.runAndReadAll(sql, params);
+		const reader = await this.conn.runAndReadAll(
+			scope.level === "global" || !includeGlobal
+				? SCHEMA.duckdb.selects.SQL_SELECT_DICT_EXPRESSION_USER!.sql
+				: SCHEMA.duckdb.selects.SQL_SELECT_DICT_EXPRESSION_ALL!.sql,
+			[scope.level, scopeId],
+		);
 		const rows = reader.getRowObjectsJS();
 		return rows.map((r: any) => JSON.parse(String(r.data)));
 	}
 
 	async getById(id: string): Promise<CustomExpression | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT data FROM dict_custom_expressions WHERE id = ?",
+			SCHEMA.duckdb.selects.SQL_SELECT_DICT_EXPRESSION_DATA!.sql,
 			[id],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1302,37 +1085,10 @@ export class DuckDbObjectStore
 	private async initSchema(): Promise<void> {
 		this.conn = await getConnection(this.dbPath);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS objects (
-        object_id        TEXT PRIMARY KEY,
-        schema_name      TEXT NOT NULL,
-        parent_object_id TEXT NULL,
-        scope_level      TEXT NOT NULL DEFAULT 'session',
-        session_id       TEXT NULL,
-        user_id          TEXT NULL,
-        data             TEXT NOT NULL,
-        created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        schema_pinned_at TEXT NULL,
-        linear_depth     INTEGER DEFAULT 0,
-        gc_lock          BOOLEAN DEFAULT 0
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS saved_objects (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_objects_session ON objects(session_id, scope_level)",
-		);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_objects_scope ON objects(scope_level, user_id)",
-		);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_OBJECTS!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_SAVED_OBJECTS!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_OBJECTS_SESSION!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_OBJECTS_SCOPE!.sql);
 	}
 
 	get(sessionId: string, id: string): Promise<ObjectState | null>;
@@ -1368,7 +1124,7 @@ export class DuckDbObjectStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT target_id FROM session_aliases WHERE session_id = ? AND alias_name = ?",
+			SCHEMA.duckdb.selects.SQL_GET_OBJECT_ALIAS!.sql,
 			[sessionId, alias],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1380,26 +1136,25 @@ export class DuckDbObjectStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		await this.conn.run(
-			`INSERT INTO session_aliases (session_id, alias_name, target_id)
-       VALUES (?, ?, ?)
-       ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
-			[sessionId, alias, targetId],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		await this.conn.run(
-			"DELETE FROM session_aliases WHERE session_id = ? AND alias_name = ?",
-			[sessionId, alias],
-		);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
+			SCHEMA.duckdb.selects.SQL_LIST_OBJECT_ALIASES!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1428,7 +1183,7 @@ export class DuckDbObjectStore
 		id: string,
 	): Promise<ObjectState | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM objects WHERE session_id = ? AND object_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_SELECT_OBJECT_SESSION!.sql,
 			[sessionId, id],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1459,34 +1214,22 @@ export class DuckDbObjectStore
 		state: ObjectState,
 	): Promise<void> {
 		const dataStr = JSON.stringify(state.data);
-		await this.conn.run(
-			`INSERT INTO objects (object_id, schema_name, parent_object_id, scope_level, session_id, data, created_at, schema_pinned_at)
-       VALUES (?, ?, ?, 'session', ?, ?, ?, ?)
-       ON CONFLICT(object_id) DO UPDATE SET
-         schema_name=excluded.schema_name,
-         parent_object_id=excluded.parent_object_id,
-         scope_level=excluded.scope_level,
-         session_id=excluded.session_id,
-         data=excluded.data,
-         created_at=excluded.created_at,
-         schema_pinned_at=excluded.schema_pinned_at`,
-			[
-				id,
-				state.schemaName,
-				state.parentObjectId || null,
-				sessionId,
-				dataStr,
-				state.createdAt,
-				state.schema_pinned_at || null,
-			],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_OBJECT_SESSION!.sql, [
+			id,
+			state.schemaName,
+			state.parentObjectId || null,
+			sessionId,
+			dataStr,
+			state.createdAt,
+			state.schema_pinned_at || null,
+		]);
 	}
 
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
-		await this.conn.run(
-			"DELETE FROM objects WHERE session_id = ? AND object_id = ? AND scope_level = 'session'",
-			[sessionId, id],
-		);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_OBJECT_SESSION!.sql, [
+			sessionId,
+			id,
+		]);
 	}
 
 	private async getPersistent(
@@ -1496,7 +1239,7 @@ export class DuckDbObjectStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const savedReader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_objects WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_OBJECT!.sql,
 			[id, scope.level, scopeId],
 		);
 		const savedRows = savedReader.getRowObjectsJS();
@@ -1504,7 +1247,7 @@ export class DuckDbObjectStore
 		const saved = savedRows[0]!;
 
 		const objReader = await this.conn.runAndReadAll(
-			"SELECT * FROM objects WHERE object_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_OBJECT_PERSISTENT!.sql,
 			[id, scope.level, scopeId],
 		);
 		const objRows = objReader.getRowObjectsJS();
@@ -1532,16 +1275,7 @@ export class DuckDbObjectStore
 		await this.conn.run("BEGIN");
 		try {
 			await this.conn.run(
-				`INSERT INTO objects (object_id, schema_name, parent_object_id, scope_level, user_id, data, created_at, schema_pinned_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(object_id) DO UPDATE SET
-           schema_name=excluded.schema_name,
-           parent_object_id=excluded.parent_object_id,
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id,
-           data=excluded.data,
-           created_at=excluded.created_at,
-           schema_pinned_at=excluded.schema_pinned_at`,
+				SCHEMA.duckdb.inserts.SQL_UPSERT_OBJECT_PERSISTENT!.sql,
 				[
 					id,
 					state.schemaName,
@@ -1555,13 +1289,7 @@ export class DuckDbObjectStore
 			);
 
 			await this.conn.run(
-				`INSERT INTO saved_objects (id, tags, description, scope_level, user_id)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           tags=excluded.tags,
-           description=excluded.description,
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id`,
+				SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_OBJECT!.sql,
 				[
 					id,
 					JSON.stringify(state.tags),
@@ -1579,9 +1307,11 @@ export class DuckDbObjectStore
 	}
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
-		await this.conn.run("DELETE FROM saved_objects WHERE id = ?", [id]);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_SAVED_OBJECT!.sql, [
+			id,
+		]);
 		await this.conn.run(
-			"DELETE FROM objects WHERE object_id = ? AND scope_level = ?",
+			SCHEMA.duckdb.deletes.SQL_DELETE_OBJECT_PERSISTENT!.sql,
 			[id, scope.level],
 		);
 	}
@@ -1592,7 +1322,7 @@ export class DuckDbObjectStore
 	): Promise<PersistedObjectState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_objects WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_OBJECTS_BY_SCOPE!.sql,
 			[scope.level, scopeId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1612,21 +1342,14 @@ export class DuckDbObjectStore
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedObjectState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = ? AND user_id = ?)";
-				params.push(scope.level, userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_objects WHERE scope_level = ? AND user_id = ?";
-				params.push(scope.level, userId);
-			}
-		}
-
-		const reader = await this.conn.runAndReadAll(queryStr, params);
+		const reader = await this.conn.runAndReadAll(
+			scope.level === "global"
+				? SCHEMA.duckdb.selects.SQL_LIST_SAVED_OBJECTS_GLOBAL!.sql
+				: includeGlobal
+					? SCHEMA.duckdb.selects.SQL_LIST_SAVED_OBJECTS_ALL!.sql
+					: SCHEMA.duckdb.selects.SQL_LIST_SAVED_OBJECTS_USER!.sql,
+			scope.level === "user" ? [scope.level, userId] : [],
+		);
 		const savedRecords = reader.getRowObjectsJS();
 		const results: Array<PersistedObjectState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
@@ -1644,7 +1367,7 @@ export class DuckDbObjectStore
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT object_id FROM objects WHERE session_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_LIST_OBJECTS_SESSION!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1653,7 +1376,7 @@ export class DuckDbObjectStore
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT object_id FROM objects WHERE session_id = ? AND parent_object_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_LIST_OBJECTS_CHILDREN!.sql,
 			[sessionId, parentId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1664,12 +1387,12 @@ export class DuckDbObjectStore
 		if (olderThanMs !== undefined) {
 			const cutoff = new Date(Date.now() - olderThanMs).toISOString();
 			await this.conn.run(
-				"DELETE FROM objects WHERE session_id = ? AND created_at < ? AND scope_level = 'session'",
+				SCHEMA.duckdb.deletes.SQL_EXPIRE_OBJECTS_SESSION_AGE!.sql,
 				[sessionId, cutoff],
 			);
 		} else {
 			await this.conn.run(
-				"DELETE FROM objects WHERE session_id = ? AND scope_level = 'session'",
+				SCHEMA.duckdb.deletes.SQL_EXPIRE_OBJECTS_SESSION!.sql,
 				[sessionId],
 			);
 		}
@@ -1692,40 +1415,10 @@ export class DuckDbEventStore
 	private async initSchema(): Promise<void> {
 		this.conn = await getConnection(this.dbPath);
 
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS events (
-        commit_id              TEXT PRIMARY KEY,
-        session_id             TEXT NULL,
-        parent_commit_id       TEXT NULL,
-        scope_level            TEXT NOT NULL DEFAULT 'session',
-        user_id                TEXT NULL,
-        operation              TEXT NOT NULL,
-        mutations              TEXT NOT NULL,
-        created_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        linear_depth           INTEGER DEFAULT 0,
-        gc_lock                BOOLEAN DEFAULT 0,
-        merge_source_commit_ids TEXT NULL,
-        merge_accepted_ids     TEXT NULL,
-        merge_rejected_ids     TEXT NULL,
-        schema_name            TEXT NULL
-      )
-    `);
-		await this.conn.run(`
-      CREATE TABLE IF NOT EXISTS saved_events (
-        id           TEXT PRIMARY KEY,
-        tags         TEXT NOT NULL,
-        description  TEXT NOT NULL,
-        scope_level  TEXT NOT NULL,
-        user_id      TEXT NULL,
-        saved_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, scope_level)",
-		);
-		await this.conn.run(
-			"CREATE INDEX IF NOT EXISTS idx_events_scope ON events(scope_level, user_id)",
-		);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_EVENTS!.sql);
+		this.conn.run(SCHEMA.duckdb.ddl.DDL_SAVED_EVENTS!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_EVENTS_SESSION!.sql);
+		await this.conn.run(SCHEMA.duckdb.ddlIndexes.IDX_EVENTS_SCOPE!.sql);
 	}
 
 	get(sessionId: string, commitId: string): Promise<EventCommit | null>;
@@ -1761,7 +1454,7 @@ export class DuckDbEventStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT target_id FROM session_aliases WHERE session_id = ? AND alias_name = ?",
+			SCHEMA.duckdb.selects.SQL_GET_OBJECT_ALIAS!.sql,
 			[sessionId, alias],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1773,26 +1466,25 @@ export class DuckDbEventStore
 		alias: string,
 		targetId: string,
 	): Promise<void> {
-		await this.conn.run(
-			`INSERT INTO session_aliases (session_id, alias_name, target_id)
-       VALUES (?, ?, ?)
-       ON CONFLICT(session_id, alias_name) DO UPDATE SET target_id=excluded.target_id`,
-			[sessionId, alias, targetId],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
-		await this.conn.run(
-			"DELETE FROM session_aliases WHERE session_id = ? AND alias_name = ?",
-			[sessionId, alias],
-		);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
 		sessionId: string,
 	): Promise<Array<{ alias: string; targetId: string }>> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT alias_name, target_id FROM session_aliases WHERE session_id = ?",
+			SCHEMA.duckdb.selects.SQL_LIST_OBJECT_ALIASES!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1821,7 +1513,7 @@ export class DuckDbEventStore
 		commitId: string,
 	): Promise<EventCommit | null> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_SELECT_EVENT_SESSION!.sql,
 			[sessionId, commitId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -1870,45 +1562,29 @@ export class DuckDbEventStore
 			? JSON.stringify(state.mergeRejectedIds)
 			: null;
 
-		await this.conn.run(
-			`INSERT INTO events (commit_id, session_id, parent_commit_id, scope_level, operation, mutations, created_at, linear_depth, gc_lock, merge_source_commit_ids, merge_accepted_ids, merge_rejected_ids)
-       VALUES (?, ?, ?, 'session', ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(commit_id) DO UPDATE SET
-         session_id=excluded.session_id,
-         parent_commit_id=excluded.parent_commit_id,
-         scope_level=excluded.scope_level,
-         operation=excluded.operation,
-         mutations=excluded.mutations,
-         created_at=excluded.created_at,
-         linear_depth=excluded.linear_depth,
-         gc_lock=excluded.gc_lock,
-         merge_source_commit_ids=excluded.merge_source_commit_ids,
-         merge_accepted_ids=excluded.merge_accepted_ids,
-         merge_rejected_ids=excluded.merge_rejected_ids`,
-			[
-				commitId,
-				sessionId,
-				state.parentCommitId,
-				state.operation,
-				mutationsStr,
-				state.createdAt,
-				state.linearDepth,
-				state.gcLock,
-				mergeSourceIds,
-				mergeAcceptedIds,
-				mergeRejectedIds,
-			],
-		);
+		await this.conn.run(SCHEMA.duckdb.inserts.SQL_UPSERT_EVENT_SESSION!.sql, [
+			commitId,
+			sessionId,
+			state.parentCommitId,
+			state.operation,
+			mutationsStr,
+			state.createdAt,
+			state.linearDepth,
+			state.gcLock,
+			mergeSourceIds,
+			mergeAcceptedIds,
+			mergeRejectedIds,
+		]);
 	}
 
 	private async deleteSession(
 		sessionId: string,
 		commitId: string,
 	): Promise<void> {
-		await this.conn.run(
-			"DELETE FROM events WHERE session_id = ? AND commit_id = ? AND scope_level = 'session'",
-			[sessionId, commitId],
-		);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_EVENT_SESSION!.sql, [
+			sessionId,
+			commitId,
+		]);
 	}
 
 	private async getPersistent(
@@ -1918,7 +1594,7 @@ export class DuckDbEventStore
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
 		const savedReader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_events WHERE id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_EVENT!.sql,
 			[commitId, scope.level, scopeId],
 		);
 		const savedRows = savedReader.getRowObjectsJS();
@@ -1926,7 +1602,7 @@ export class DuckDbEventStore
 		const saved = savedRows[0]!;
 
 		const eventReader = await this.conn.runAndReadAll(
-			"SELECT * FROM events WHERE commit_id = ? AND scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_EVENT_PERSISTENT!.sql,
 			[commitId, scope.level, scopeId],
 		);
 		const eventRows = eventReader.getRowObjectsJS();
@@ -2021,9 +1697,11 @@ export class DuckDbEventStore
 		commitId: string,
 		scope: OwnerScope,
 	): Promise<void> {
-		await this.conn.run("DELETE FROM saved_events WHERE id = ?", [commitId]);
+		await this.conn.run(SCHEMA.duckdb.deletes.SQL_DELETE_SAVED_EVENT!.sql, [
+			commitId,
+		]);
 		await this.conn.run(
-			"DELETE FROM events WHERE commit_id = ? AND scope_level = ?",
+			SCHEMA.duckdb.deletes.SQL_DELETE_EVENT_PERSISTENT!.sql,
 			[commitId, scope.level],
 		);
 	}
@@ -2034,7 +1712,7 @@ export class DuckDbEventStore
 	): Promise<PersistedEventState[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
 		const reader = await this.conn.runAndReadAll(
-			"SELECT * FROM saved_events WHERE scope_level = ? AND (user_id = ? OR user_id IS NULL)",
+			SCHEMA.duckdb.selects.SQL_SELECT_SAVED_EVENTS_BY_SCOPE!.sql,
 			[scope.level, scopeId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -2054,21 +1732,14 @@ export class DuckDbEventStore
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedEventState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = ? AND user_id = ?)";
-				params.push(scope.level, userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_events WHERE scope_level = ? AND user_id = ?";
-				params.push(scope.level, userId);
-			}
-		}
-
-		const reader = await this.conn.runAndReadAll(queryStr, params);
+		const reader = await this.conn.runAndReadAll(
+			scope.level === "global"
+				? SCHEMA.duckdb.selects.SQL_LIST_SAVED_EVENTS_GLOBAL!.sql
+				: includeGlobal
+					? SCHEMA.duckdb.selects.SQL_LIST_SAVED_EVENTS_ALL!.sql
+					: SCHEMA.duckdb.selects.SQL_LIST_SAVED_EVENTS_USER!.sql,
+			scope.level === "user" ? [scope.level, userId] : [],
+		);
 		const savedRecords = reader.getRowObjectsJS();
 		const results: Array<PersistedEventState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
@@ -2086,7 +1757,7 @@ export class DuckDbEventStore
 
 	async listSession(sessionId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT commit_id FROM events WHERE session_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_LIST_EVENTS_SESSION!.sql,
 			[sessionId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -2095,7 +1766,7 @@ export class DuckDbEventStore
 
 	async listChildren(sessionId: string, parentId: string): Promise<string[]> {
 		const reader = await this.conn.runAndReadAll(
-			"SELECT commit_id FROM events WHERE session_id = ? AND parent_commit_id = ? AND scope_level = 'session'",
+			SCHEMA.duckdb.selects.SQL_LIST_EVENTS_CHILDREN!.sql,
 			[sessionId, parentId],
 		);
 		const rows = reader.getRowObjectsJS();
@@ -2106,12 +1777,12 @@ export class DuckDbEventStore
 		if (olderThanMs !== undefined) {
 			const cutoff = new Date(Date.now() - olderThanMs).toISOString();
 			await this.conn.run(
-				"DELETE FROM events WHERE session_id = ? AND created_at < ? AND scope_level = 'session'",
+				SCHEMA.duckdb.deletes.SQL_EXPIRE_EVENTS_SESSION_AGE!.sql,
 				[sessionId, cutoff],
 			);
 		} else {
 			await this.conn.run(
-				"DELETE FROM events WHERE session_id = ? AND scope_level = 'session'",
+				SCHEMA.duckdb.deletes.SQL_EXPIRE_EVENTS_SESSION!.sql,
 				[sessionId],
 			);
 		}

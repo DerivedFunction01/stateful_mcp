@@ -565,10 +565,10 @@ describe("SCHEMA multi-dialect", () => {
 		expect(compiled).toContain('"tags" TEXT NOT NULL');
 	});
 
-	test("postgres uses TEXT for text-based timestamps (matching sqlite-schema convention)", () => {
+	test("postgres uses TIMESTAMP WITH TIME ZONE for text-based timestamps", () => {
 		const compiled = normalize(SCHEMA.postgres.ddl.DDL_FILTERS!.sql);
 		expect(compiled).toContain(
-			'"created_at" TEXT NULL DEFAULT CURRENT_TIMESTAMP',
+			'"created_at" TIMESTAMP WITH TIME ZONE NULL DEFAULT CURRENT_TIMESTAMP',
 		);
 	});
 

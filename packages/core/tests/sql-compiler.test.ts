@@ -63,7 +63,7 @@ describe("QueryCompiler - compileCreateTable", () => {
 		expect(sql).toContain('"combined_ids" TEXT NULL');
 		expect(sql).toContain('"schema_snapshot" TEXT NULL');
 		expect(sql).toContain(
-			'"created_at" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+			'"created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP',
 		);
 	});
 

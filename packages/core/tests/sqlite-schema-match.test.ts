@@ -475,11 +475,13 @@ describe("duckdb-repo DDL matching", () => {
 			],
 		});
 		const norm = normalize(sql);
-		// duckdb-repo uses TEXT for everything
+		// duckdb now uses TIMESTAMP for timestamp types
 		expect(norm).toContain('"filter_id" TEXT PRIMARY KEY');
 		expect(norm).toContain('"combined_ids" TEXT');
 		expect(norm).toContain('"schema_snapshot" TEXT');
-		expect(norm).toContain('"created_at" TEXT');
+		expect(norm).toContain(
+			'"created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP',
+		);
 	});
 
 	test("duckdb filter_rules integer PK", () => {
