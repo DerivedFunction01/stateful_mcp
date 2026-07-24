@@ -1,4 +1,5 @@
 import type { DictionaryStore, ObjectStore } from "@stateful-mcp/core";
+import type { ParserSyntaxProfile, ParserProfileStore } from "../store/interfaces";
 import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type {
@@ -30,14 +31,61 @@ export class ClinicalEngine {
 		private calibrationStore?: CalibrationStore,
 		private parsedCellStore?: ParsedCellStore,
 		stopWordStore?: StopWordStore,
+		profile?: ParserSyntaxProfile,
+		profileStore?: ParserProfileStore,
 	) {
-		this.parser = new CdslParser(
+		if (profile) {
+			this.parser = new CdslParser(
+				dictionaryStore,
+				profile,
+				undefined,
+				undefined,
+				stopWordStore,
+			);
+		} else if (profileStore) {
+			// Defer initialization — lazy init on first use
+			this.parser = null as unknown as CdslParser;
+		} else {
+			// Fallback: create with no profile — callers must use create() factory
+			this.parser = new CdslParser(
+				dictionaryStore,
+				{} as ParserSyntaxProfile,
+				undefined,
+				undefined,
+				stopWordStore,
+			);
+		}
+	}
+
+	/**
+	 * Creates a ClinicalEngine with a parser profile resolved from a store.
+	 */
+	static async create(
+		objectStore: ObjectStore,
+		dictionaryStore: DictionaryStore,
+		signedNoteStore: SignedSoapNoteStore,
+		profileStore: ParserProfileStore,
+		profileId: string = "default",
+		calibrationStore?: CalibrationStore,
+		parsedCellStore?: ParsedCellStore,
+		stopWordStore?: StopWordStore,
+	): Promise<ClinicalEngine> {
+		const profile = await profileStore.get(profileId);
+		if (!profile) {
+			throw new Error(
+				`ClinicalEngine.create: parser profile "${profileId}" not found.`,
+			);
+		}
+		const engine = new ClinicalEngine(
+			objectStore,
 			dictionaryStore,
-			undefined,
-			undefined,
-			undefined,
+			signedNoteStore,
+			calibrationStore,
+			parsedCellStore,
 			stopWordStore,
+			profile,
 		);
+		return engine;
 	}
 
 	/**

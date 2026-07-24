@@ -1,4 +1,11 @@
 import type { ResourceLocator } from "@stateful-mcp/core";
+import type {
+	AttributeParserRule,
+	DateTimeFormatConfig,
+	ParserConceptDefault,
+	ParserDictionaryRule,
+	ParserSyntaxProfile,
+} from "./interfaces";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_CALENDAR_DATE_FORMATS,
@@ -46,11 +53,11 @@ export interface ClinicalStoreConfig {
 	version: 1;
 	domains: Record<ClinicalStoreDomain, ClinicalStoreDomainConfig>;
 	seeds: {
-		parserProfiles: typeof SEED_PARSER_PROFILES;
-		conceptDefaults: typeof SEED_CONCEPT_DEFAULTS;
-		calendarDateFormats: typeof DEFAULT_CALENDAR_DATE_FORMATS;
-		attributeRules: typeof DEFAULT_ATTRIBUTE_RULES;
-		evaluatorRules: typeof DEFAULT_EVALUATOR_RULES;
+		parserProfiles: ParserSyntaxProfile[];
+		conceptDefaults: ParserConceptDefault[];
+		calendarDateFormats: DateTimeFormatConfig[];
+		attributeRules: AttributeParserRule[];
+		evaluatorRules: ParserDictionaryRule[];
 	};
 	extensions?: Record<string, unknown>;
 }

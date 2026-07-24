@@ -12,12 +12,41 @@ import type {
 	ParserProfileStore,
 	ParserSyntaxProfile,
 } from "./interfaces";
+import { getClinicalAdapterConfigs } from "./adapter-config";
+import {
+	type ClinicalStorageAdapterConfig,
+	type ClinicalStorageAdapterRegistry,
+} from "./adapter-config";
+import { resolveParsedCellStoreLocator } from "./learning-backend-resolver";
+import type { MemoryParsedCellStore } from "./parsed-cell-store";
+import type { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
+import type { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
+
+// ── Public types ─────────────────────────────────────────────────────────────
 
 export interface ClinicalRuntimeParserStores {
 	profiles: ParserProfileStore;
 	conceptDefaults: ParserConceptDefaultStore;
 }
 
+export type ParsedCellStore =
+	| MemoryParsedCellStore
+	| SqliteParsedCellStore
+	| JsonlParsedCellStore;
+
+export interface ClinicalRuntime {
+	config: ClinicalStoreConfig;
+	parserStores: ClinicalRuntimeParserStores;
+	learningStores: ParsedCellStore[];
+}
+
+// ── Factory functions ────────────────────────────────────────────────────────
+
+/**
+ * Builds parser stores from config seeds + injected EntityStores.
+ *
+ * Kept for backward compatibility with existing consumers.
+ */
 export function buildClinicalParserStores(
 	config: ClinicalStoreConfig,
 	profileEntityStore: EntityStore<ParserSyntaxProfile>,
@@ -35,3 +64,82 @@ export function buildClinicalParserStores(
 	};
 }
 
+/**
+ * Builds learning stores from config adapter definitions.
+ *
+ * Resolves each implemented learning adapter into a ParsedCellStore
+ * using the existing learning-backend-resolver registry.
+ */
+function buildLearningStores(
+	config: ClinicalStoreConfig,
+): ParsedCellStore[] {
+	const adapters = getClinicalAdapterConfigs("learning", {
+		learning: config.domains.learning.defaultAdapters,
+	} as unknown as ClinicalStorageAdapterRegistry);
+
+	return adapters
+		.filter((a) => a.implemented !== false && a.primary)
+		.map((a) => resolveParsedCellStoreLocator(a.primary));
+}
+
+/**
+ * Creates a complete ClinicalRuntime from a ClinicalStoreConfig.
+ *
+ * This is the primary entrypoint for config-backed runtime construction.
+ * Learning stores are composed from the adapter registry (preserving current
+ * behavior). Parser profile and concept-default stores are seeded from config.
+ *
+ * Note: Currently returns learning stores and parser stores directly.
+ * In the future, dictionary, expression, and patient stores will be added
+ * by extending the config registry, not by reshaping this contract.
+ */
+export function createClinicalRuntime(
+	config: ClinicalStoreConfig,
+): ClinicalRuntime {
+	return {
+		config,
+		parserStores: {
+			profiles: new ClinicalParserProfileStore(
+				// In-memory entity store seeded from config
+				// (in production, this would come from an adapter resolver)
+				{
+					get: async (id: string) => {
+						const profile = config.seeds.parserProfiles.find(
+							(p) => p.profileId === id,
+						);
+						return profile ?? null;
+					},
+					list: async () => [...config.seeds.parserProfiles],
+					set: async (_id: string, _value: ParserSyntaxProfile) => {
+						// no-op for now — production would delegate to an adapter
+					},
+					delete: async (_id: string) => {
+						// no-op for now
+					},
+				} as EntityStore<ParserSyntaxProfile>,
+				config.seeds.parserProfiles,
+			),
+			conceptDefaults: new ClinicalParserConceptDefaultStore(
+				{
+					get: async (key: string) => {
+						// key format is "anchorConceptId:targetSchema"
+						const record = config.seeds.conceptDefaults.find(
+							(d) =>
+								`${d.anchorConceptId}:${d.targetSchema}` === key,
+						);
+						return record ?? null;
+					},
+					list: async () => [...config.seeds.conceptDefaults],
+					set: async (_key: string, _value: ParserConceptDefault) => {
+						// no-op for now
+					},
+					delete: async (_key: string) => {
+						// no-op for now
+					},
+				} as EntityStore<ParserConceptDefault>,
+				config.seeds.conceptDefaults,
+			),
+		},
+		learningStores: buildLearningStores(config),
+	};
+}

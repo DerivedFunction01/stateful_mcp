@@ -2,10 +2,10 @@ import type { DictionaryStore } from "@stateful-mcp/core";
 import {
 	buildCalendarDateRules,
 	buildNumericFieldRules,
-	SEED_PARSER_PROFILES,
 } from "../store/defaults";
 import type {
 	ParserConceptDefaultStore,
+	ParserProfileStore,
 	ParserSyntaxProfile,
 	StopWordContext,
 	StopWordStore,
@@ -43,9 +43,7 @@ export class CdslParser {
 
 	constructor(
 		private dictionaryStore: DictionaryStore,
-		private profile: ParserSyntaxProfile = SEED_PARSER_PROFILES.find(
-			(p) => p.profileId === "default",
-		)!,
+		private profile: ParserSyntaxProfile,
 		private conceptDefaultsStore?: ParserConceptDefaultStore,
 		stopWordParser?: StopWordParser,
 		stopWordStore?: StopWordStore,
@@ -61,6 +59,44 @@ export class CdslParser {
 				? buildNumericFieldRules(this.profile.numericFieldFormats)
 				: []),
 		];
+	}
+
+	/**
+	 * Creates a CdslParser by resolving a parser profile from a store.
+	 *
+	 * This is the config-backed factory — it resolves the profile from a
+	 * ParserProfileStore (which may be seeded from config) rather than
+	 * falling back to a hardcoded seed constant.
+	 *
+	 * @param dictionaryStore - Dictionary store for concept resolution
+	 * @param profileStore - Store to resolve the parser profile from
+	 * @param profileId - The profile ID to resolve (defaults to "default")
+	 * @param conceptDefaultsStore - Optional concept default store
+	 * @param stopWordParser - Optional pre-configured stop word parser
+	 * @param stopWordStore - Optional stop word store for dynamic resolution
+	 */
+	static async create(
+		dictionaryStore: DictionaryStore,
+		profileStore: ParserProfileStore,
+		profileId: string = "default",
+		conceptDefaultsStore?: ParserConceptDefaultStore,
+		stopWordParser?: StopWordParser,
+		stopWordStore?: StopWordStore,
+	): Promise<CdslParser> {
+		const profile = await profileStore.get(profileId);
+		if (!profile) {
+			throw new Error(
+				`CdslParser.create: parser profile "${profileId}" not found in store. ` +
+				`Ensure the profile is seeded in the clinical config.`,
+			);
+		}
+		return new CdslParser(
+			dictionaryStore,
+			profile,
+			conceptDefaultsStore,
+			stopWordParser,
+			stopWordStore,
+		);
 	}
 
 	private getEffectiveAttributeRules(): import("../store/interfaces").AttributeParserRule[] {
