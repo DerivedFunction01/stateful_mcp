@@ -234,20 +234,6 @@ export class QueryCompiler {
 		return `json_extract(${quotedCol}, '$.${jsonPath}')`;
 	}
 
-	/** Convert a JavaScript value into a SQL literal expression for inline embedding. */
-	private formatLiteral(value: any): string {
-		if (value === null || value === undefined) {
-			return "NULL";
-		}
-		if (typeof value === "number" || typeof value === "boolean") {
-			return String(value);
-		}
-		if (typeof value === "string") {
-			return `'${value.replace(/'/g, "''")}'`;
-		}
-		return `'${String(value).replace(/'/g, "''")}'`;
-	}
-
 	private columnSqlType(col: ColumnDef): string {
 		if (col.autoIncrement) {
 			return this.dialect === "postgres" ? "SERIAL" : "INTEGER";

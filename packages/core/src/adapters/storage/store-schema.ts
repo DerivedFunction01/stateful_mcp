@@ -1,9 +1,7 @@
 import {
 	type CompiledQuery,
-	type CreateIndexQuery,
 	type CreateTableQuery,
 	type DeleteQuery,
-	type InsertQuery,
 	QueryCompiler,
 	type SelectQuery,
 	type SqlDialect,

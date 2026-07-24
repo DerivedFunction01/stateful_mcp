@@ -400,7 +400,7 @@ describe("SCHEMA.sqlite selects match sqlite-schema.ts", () => {
 			SCHEMA.sqlite.selects.SQL_SELECT_FILTER_SESSION!.sql,
 		);
 		expect(compiled).toContain('SELECT * FROM "filters"');
-		expect(compiled).toContain('"scope_level" = \'session\'');
+		expect(compiled).toContain("\"scope_level\" = 'session'");
 	});
 
 	test("SQL_SELECT_FILTER_RULES", () => {
@@ -473,7 +473,7 @@ describe("SCHEMA.sqlite deletes match sqlite-schema.ts", () => {
 			SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_SESSION!.sql,
 		);
 		expect(compiled).toContain('DELETE FROM "filters"');
-		expect(compiled).toContain('"scope_level" = \'session\'');
+		expect(compiled).toContain("\"scope_level\" = 'session'");
 	});
 
 	test("SQL_DELETE_SAVED_FILTER", () => {
@@ -509,7 +509,7 @@ describe("SCHEMA.sqlite deletes match sqlite-schema.ts", () => {
 			SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_SESSION!.sql,
 		);
 		expect(compiled).toContain('DELETE FROM "objects"');
-		expect(compiled).toContain('"scope_level" = \'session\'');
+		expect(compiled).toContain("\"scope_level\" = 'session'");
 	});
 
 	test("SQL_DELETE_EVENT_SESSION", () => {
@@ -517,7 +517,7 @@ describe("SCHEMA.sqlite deletes match sqlite-schema.ts", () => {
 			SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_SESSION!.sql,
 		);
 		expect(compiled).toContain('DELETE FROM "events"');
-		expect(compiled).toContain('"scope_level" = \'session\'');
+		expect(compiled).toContain("\"scope_level\" = 'session'");
 	});
 
 	test("SQL_DELETE_DICT_RELATION_CACHE", () => {

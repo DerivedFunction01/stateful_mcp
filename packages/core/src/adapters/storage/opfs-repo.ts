@@ -238,10 +238,10 @@ export class OpfsFilterStore
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		await this.ensureInit();
-		const row = await this.db.get<{ target_id: string }>(SCHEMA.sqlite.selects.SQL_GET_ALIAS!.sql, [
-			sessionId,
-			alias,
-		]);
+		const row = await this.db.get<{ target_id: string }>(
+			SCHEMA.sqlite.selects.SQL_GET_ALIAS!.sql,
+			[sessionId, alias],
+		);
 		return row ? row.target_id : null;
 	}
 
@@ -251,12 +251,19 @@ export class OpfsFilterStore
 		targetId: string,
 	): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_ALIAS!.sql, [sessionId, alias, targetId]);
+		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_ALIAS!.sql, [sessionId, alias]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
@@ -289,13 +296,16 @@ export class OpfsFilterStore
 		id: string,
 	): Promise<FilterState | null> {
 		await this.ensureInit();
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_SESSION!.sql, [
-			sessionId,
-			id,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FILTER_SESSION!.sql,
+			[sessionId, id],
+		);
 		if (!row) return null;
 
-		const rulesRows = await this.db.query<any>(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_RULES!.sql, [id]);
+		const rulesRows = await this.db.query<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FILTER_RULES!.sql,
+			[id],
+		);
 		const rules: FilterCondition[] = rulesRows.map((r: any) => ({
 			property: r.property,
 			operator: r.operator as any,
@@ -343,7 +353,9 @@ export class OpfsFilterStore
 			schemaSnapshotStr,
 		]);
 
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+			id,
+		]);
 		for (const [idx, rule] of state.rules.entries()) {
 			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FILTER_RULE!.sql, [
 				id,
@@ -357,8 +369,13 @@ export class OpfsFilterStore
 
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_SESSION!.sql, [sessionId, id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+			id,
+		]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_SESSION!.sql, [
+			sessionId,
+			id,
+		]);
 	}
 
 	private async getPersistent(
@@ -368,21 +385,22 @@ export class OpfsFilterStore
 		await this.ensureInit();
 		const scopeId = scope.level === "user" ? scope.userId : null;
 
-		const saved = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_FILTER!.sql, [
-			id,
-			scope.level,
-			scopeId,
-		]);
+		const saved = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_SAVED_FILTER!.sql,
+			[id, scope.level, scopeId],
+		);
 		if (!saved) return null;
 
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_PERSISTENT!.sql, [
-			id,
-			scope.level,
-			scopeId,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FILTER_PERSISTENT!.sql,
+			[id, scope.level, scopeId],
+		);
 		if (!row) return null;
 
-		const rulesRows = await this.db.query<any>(SCHEMA.sqlite.selects.SQL_SELECT_FILTER_RULES!.sql, [id]);
+		const rulesRows = await this.db.query<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FILTER_RULES!.sql,
+			[id],
+		);
 		const rules: FilterCondition[] = rulesRows.map((r: any) => ({
 			property: r.property,
 			operator: r.operator as any,
@@ -430,7 +448,9 @@ export class OpfsFilterStore
 			state.schema_snapshot,
 		]);
 
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+			id,
+		]);
 		for (const [idx, rule] of state.rules.entries()) {
 			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FILTER_RULE!.sql, [
 				id,
@@ -452,9 +472,16 @@ export class OpfsFilterStore
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [id]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_FILTER!.sql, [id]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_PERSISTENT!.sql, [id, scope.level]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+			id,
+		]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_FILTER!.sql, [
+			id,
+		]);
+		await this.db.exec(
+			SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_PERSISTENT!.sql,
+			[id, scope.level],
+		);
 	}
 
 	async listSession(sessionId: string): Promise<string[]> {
@@ -484,12 +511,22 @@ export class OpfsFilterStore
 				[sessionId, olderThanDate],
 			);
 			for (const r of rows) {
-				await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [r.filter_id]);
-				await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_BY_ID!.sql, [r.filter_id]);
+				await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES!.sql, [
+					r.filter_id,
+				]);
+				await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_BY_ID!.sql, [
+					r.filter_id,
+				]);
 			}
 		} else {
-			await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES_BY_SESSION!.sql, [sessionId]);
-			await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FILTERS_BY_SESSION!.sql, [sessionId]);
+			await this.db.exec(
+				SCHEMA.sqlite.deletes.SQL_DELETE_FILTER_RULES_BY_SESSION!.sql,
+				[sessionId],
+			);
+			await this.db.exec(
+				SCHEMA.sqlite.deletes.SQL_DELETE_FILTERS_BY_SESSION!.sql,
+				[sessionId],
+			);
 		}
 	}
 
@@ -613,12 +650,19 @@ export class OpfsObjectStore
 		targetId: string,
 	): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_OBJECT_ALIAS!.sql, [sessionId, alias, targetId]);
+		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_ALIAS!.sql, [sessionId, alias]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
@@ -651,10 +695,10 @@ export class OpfsObjectStore
 		id: string,
 	): Promise<ObjectState | null> {
 		await this.ensureInit();
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_OBJECT_SESSION!.sql, [
-			sessionId,
-			id,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_OBJECT_SESSION!.sql,
+			[sessionId, id],
+		);
 		if (!row) return null;
 		return this.loadState(row);
 	}
@@ -678,7 +722,10 @@ export class OpfsObjectStore
 
 	private async deleteSession(sessionId: string, id: string): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_SESSION!.sql, [sessionId, id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_SESSION!.sql, [
+			sessionId,
+			id,
+		]);
 	}
 
 	private loadState(row: any): ObjectState {
@@ -700,17 +747,15 @@ export class OpfsObjectStore
 	): Promise<PersistedObjectState | null> {
 		await this.ensureInit();
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		const saved = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_OBJECT!.sql, [
-			id,
-			scope.level,
-			scopeId,
-		]);
+		const saved = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_SAVED_OBJECT!.sql,
+			[id, scope.level, scopeId],
+		);
 		if (!saved) return null;
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_OBJECT_PERSISTENT!.sql, [
-			id,
-			scope.level,
-			scopeId,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_OBJECT_PERSISTENT!.sql,
+			[id, scope.level, scopeId],
+		);
 		if (!row) return null;
 		return {
 			...this.loadState(row),
@@ -727,16 +772,19 @@ export class OpfsObjectStore
 	): Promise<void> {
 		await this.ensureInit();
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_OBJECT_PERSISTENT!.sql, [
-			id,
-			state.schemaName,
-			state.parentObjectId || null,
-			scope.level,
-			scopeId,
-			JSON.stringify(state.data),
-			state.createdAt,
-			state.schema_pinned_at || "",
-		]);
+		await this.db.exec(
+			SCHEMA.sqlite.inserts.SQL_UPSERT_OBJECT_PERSISTENT!.sql,
+			[
+				id,
+				state.schemaName,
+				state.parentObjectId || null,
+				scope.level,
+				scopeId,
+				JSON.stringify(state.data),
+				state.createdAt,
+				state.schema_pinned_at || "",
+			],
+		);
 		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_SAVED_OBJECT!.sql, [
 			id,
 			JSON.stringify(state.tags),
@@ -748,8 +796,13 @@ export class OpfsObjectStore
 
 	private async deletePersistent(id: string, scope: OwnerScope): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_OBJECT!.sql, [id]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_PERSISTENT!.sql, [id, scope.level]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_OBJECT!.sql, [
+			id,
+		]);
+		await this.db.exec(
+			SCHEMA.sqlite.deletes.SQL_DELETE_OBJECT_PERSISTENT!.sql,
+			[id, scope.level],
+		);
 	}
 
 	async listSession(sessionId: string): Promise<string[]> {
@@ -774,12 +827,15 @@ export class OpfsObjectStore
 		await this.ensureInit();
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
-			await this.db.exec(SCHEMA.sqlite.selects.SQL_EXPIRE_OBJECTS_SESSION_AGE!.sql, [
-				sessionId,
-				olderThanDate,
-			]);
+			await this.db.exec(
+				SCHEMA.sqlite.selects.SQL_EXPIRE_OBJECTS_SESSION_AGE!.sql,
+				[sessionId, olderThanDate],
+			);
 		} else {
-			await this.db.exec(SCHEMA.sqlite.selects.SQL_EXPIRE_OBJECTS_SESSION!.sql, [sessionId]);
+			await this.db.exec(
+				SCHEMA.sqlite.selects.SQL_EXPIRE_OBJECTS_SESSION!.sql,
+				[sessionId],
+			);
 		}
 	}
 
@@ -897,12 +953,19 @@ export class OpfsEventStore implements SessionEventStore, PersistentEventStore {
 		targetId: string,
 	): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_EVENT_ALIAS!.sql, [sessionId, alias, targetId]);
+		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_EVENT_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_ALIAS!.sql, [sessionId, alias]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
@@ -935,10 +998,10 @@ export class OpfsEventStore implements SessionEventStore, PersistentEventStore {
 		commitId: string,
 	): Promise<EventCommit | null> {
 		await this.ensureInit();
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_EVENT_SESSION!.sql, [
-			sessionId,
-			commitId,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_EVENT_SESSION!.sql,
+			[sessionId, commitId],
+		);
 		if (!row) return null;
 		return this.loadState(row);
 	}
@@ -971,7 +1034,10 @@ export class OpfsEventStore implements SessionEventStore, PersistentEventStore {
 		commitId: string,
 	): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_SESSION!.sql, [sessionId, commitId]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_SESSION!.sql, [
+			sessionId,
+			commitId,
+		]);
 	}
 
 	private loadState(row: any): EventCommit {
@@ -1002,17 +1068,15 @@ export class OpfsEventStore implements SessionEventStore, PersistentEventStore {
 	): Promise<PersistedEventState | null> {
 		await this.ensureInit();
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		const saved = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_EVENT!.sql, [
-			commitId,
-			scope.level,
-			scopeId,
-		]);
+		const saved = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_SAVED_EVENT!.sql,
+			[commitId, scope.level, scopeId],
+		);
 		if (!saved) return null;
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_EVENT_PERSISTENT!.sql, [
-			commitId,
-			scope.level,
-			scopeId,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_EVENT_PERSISTENT!.sql,
+			[commitId, scope.level, scopeId],
+		);
 		if (!row) return null;
 		return {
 			...this.loadState(row),
@@ -1060,8 +1124,13 @@ export class OpfsEventStore implements SessionEventStore, PersistentEventStore {
 		scope: OwnerScope,
 	): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_EVENT!.sql, [commitId]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_PERSISTENT!.sql, [commitId, scope.level]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_SAVED_EVENT!.sql, [
+			commitId,
+		]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_EVENT_PERSISTENT!.sql, [
+			commitId,
+			scope.level,
+		]);
 	}
 
 	async listSession(sessionId: string): Promise<string[]> {
@@ -1086,12 +1155,14 @@ export class OpfsEventStore implements SessionEventStore, PersistentEventStore {
 		await this.ensureInit();
 		if (olderThanMs !== undefined) {
 			const olderThanDate = new Date(Date.now() - olderThanMs).toISOString();
-			await this.db.exec(SCHEMA.sqlite.selects.SQL_EXPIRE_EVENTS_SESSION_AGE!.sql, [
-				sessionId,
-				olderThanDate,
-			]);
+			await this.db.exec(
+				SCHEMA.sqlite.selects.SQL_EXPIRE_EVENTS_SESSION_AGE!.sql,
+				[sessionId, olderThanDate],
+			);
 		} else {
-			await this.db.exec(SCHEMA.sqlite.selects.SQL_EXPIRE_EVENTS_SESSION!.sql, [sessionId]);
+			await this.db.exec(SCHEMA.sqlite.selects.SQL_EXPIRE_EVENTS_SESSION!.sql, [
+				sessionId,
+			]);
 		}
 	}
 
@@ -1203,10 +1274,10 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 
 	async getAlias(sessionId: string, alias: string): Promise<string | null> {
 		await this.ensureInit();
-		const row = await this.db.get<{ target_id: string }>(SCHEMA.sqlite.selects.SQL_GET_FORM_ALIAS!.sql, [
-			sessionId,
-			alias,
-		]);
+		const row = await this.db.get<{ target_id: string }>(
+			SCHEMA.sqlite.selects.SQL_GET_FORM_ALIAS!.sql,
+			[sessionId, alias],
+		);
 		return row ? row.target_id : null;
 	}
 
@@ -1216,12 +1287,19 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 		targetId: string,
 	): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_FORM_ALIAS!.sql, [sessionId, alias, targetId]);
+		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_FORM_ALIAS!.sql, [
+			sessionId,
+			alias,
+			targetId,
+		]);
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
 		await this.ensureInit();
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ALIAS!.sql, [sessionId, alias]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ALIAS!.sql, [
+			sessionId,
+			alias,
+		]);
 	}
 
 	async listAliases(
@@ -1254,10 +1332,10 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 		id: string,
 	): Promise<FormState | null> {
 		await this.ensureInit();
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_FORM_SESSION!.sql, [
-			id,
-			sessionId,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FORM_SESSION!.sql,
+			[id, sessionId],
+		);
 		if (!row) return null;
 		return this.loadState(row);
 	}
@@ -1267,12 +1345,15 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 		scope: OwnerScope,
 	): Promise<PersistedFormStateDetails | null> {
 		await this.ensureInit();
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_FORM_PERSISTENT!.sql, [
-			id,
-			scope.level,
-		]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FORM_PERSISTENT!.sql,
+			[id, scope.level],
+		);
 		if (!row) return null;
-		const saved = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_SAVED_FORM!.sql, [id]);
+		const saved = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_SAVED_FORM!.sql,
+			[id],
+		);
 		const tags = saved ? JSON.parse(saved.tags) : [];
 		const description = saved ? saved.description : "";
 		const state = await this.loadState(row);
@@ -1281,15 +1362,18 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 
 	private async loadState(row: any): Promise<FormState> {
 		const formId = row.form_id;
-		const answersRows = await this.db.query<any>(SCHEMA.sqlite.selects.SQL_SELECT_FORM_ANSWERS!.sql, [
-			formId,
-		]);
-		const skippedRows = await this.db.query<any>(SCHEMA.sqlite.selects.SQL_SELECT_FORM_SKIPPED!.sql, [
-			formId,
-		]);
-		const staleRows = await this.db.query<any>(SCHEMA.sqlite.selects.SQL_SELECT_FORM_STALE!.sql, [
-			formId,
-		]);
+		const answersRows = await this.db.query<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FORM_ANSWERS!.sql,
+			[formId],
+		);
+		const skippedRows = await this.db.query<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FORM_SKIPPED!.sql,
+			[formId],
+		);
+		const staleRows = await this.db.query<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_FORM_STALE!.sql,
+			[formId],
+		);
 
 		const answers: Record<string, any> = {};
 		for (const r of answersRows) answers[r.question_id] = JSON.parse(r.value);
@@ -1321,19 +1405,29 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 			sessionId,
 			state.timestamp,
 		]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ANSWERS!.sql, [id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ANSWERS!.sql, [
+			id,
+		]);
 		for (const [qId, val] of Object.entries(state.answers))
 			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_ANSWER!.sql, [
 				id,
 				qId,
 				JSON.stringify(val),
 			]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_SKIPPED!.sql, [id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_SKIPPED!.sql, [
+			id,
+		]);
 		for (const qId of state.skipped)
-			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_SKIPPED!.sql, [id, qId]);
+			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_SKIPPED!.sql, [
+				id,
+				qId,
+			]);
 		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_STALE!.sql, [id]);
 		for (const qId of Object.keys(state.stale))
-			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_STALE!.sql, [id, qId]);
+			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_STALE!.sql, [
+				id,
+				qId,
+			]);
 	}
 
 	private async setPersistent(
@@ -1351,19 +1445,29 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 			userId,
 			state.timestamp,
 		]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ANSWERS!.sql, [id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_ANSWERS!.sql, [
+			id,
+		]);
 		for (const [qId, val] of Object.entries(state.answers))
 			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_ANSWER!.sql, [
 				id,
 				qId,
 				JSON.stringify(val),
 			]);
-		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_SKIPPED!.sql, [id]);
+		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_SKIPPED!.sql, [
+			id,
+		]);
 		for (const qId of state.skipped)
-			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_SKIPPED!.sql, [id, qId]);
+			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_SKIPPED!.sql, [
+				id,
+				qId,
+			]);
 		await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_FORM_STALE!.sql, [id]);
 		for (const qId of Object.keys(state.stale))
-			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_STALE!.sql, [id, qId]);
+			await this.db.exec(SCHEMA.sqlite.inserts.SQL_INSERT_FORM_STALE!.sql, [
+				id,
+				qId,
+			]);
 		await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_SAVED_FORM!.sql, [
 			id,
 			JSON.stringify(state.tags),
@@ -1395,12 +1499,15 @@ export class OpfsFormStore implements SessionFormStore, PersistentFormStore {
 	async expireSession(sessionId: string, olderThanMs?: number): Promise<void> {
 		await this.ensureInit();
 		if (olderThanMs !== undefined) {
-			await this.db.exec(SCHEMA.sqlite.selects.SQL_EXPIRE_FORMS_BY_SESSION_AGE!.sql, [
-				sessionId,
-				new Date(Date.now() - olderThanMs).toISOString(),
-			]);
+			await this.db.exec(
+				SCHEMA.sqlite.selects.SQL_EXPIRE_FORMS_BY_SESSION_AGE!.sql,
+				[sessionId, new Date(Date.now() - olderThanMs).toISOString()],
+			);
 		} else {
-			await this.db.exec(SCHEMA.sqlite.selects.SQL_EXPIRE_FORMS_BY_SESSION!.sql, [sessionId]);
+			await this.db.exec(
+				SCHEMA.sqlite.selects.SQL_EXPIRE_FORMS_BY_SESSION!.sql,
+				[sessionId],
+			);
 		}
 	}
 
@@ -1476,7 +1583,9 @@ export class OpfsConceptStore implements ConceptStore {
 		await this.db.exec(SCHEMA.sqlite.ddlIndexes.IDX_CONCEPT_REL_FORWARD!.sql);
 		await this.db.exec(SCHEMA.sqlite.ddlIndexes.IDX_CONCEPT_REL_REVERSE!.sql);
 		await this.db.exec(SCHEMA.sqlite.ddl.DDL_DICT_RELATION_CACHE!.sql);
-		await this.db.exec(SCHEMA.sqlite.ddlIndexes.IDX_CONCEPT_CACHE_TRAVERSAL!.sql);
+		await this.db.exec(
+			SCHEMA.sqlite.ddlIndexes.IDX_CONCEPT_CACHE_TRAVERSAL!.sql,
+		);
 		this.initDone = true;
 	}
 
@@ -1509,7 +1618,10 @@ export class OpfsConceptStore implements ConceptStore {
 
 	async getById(id: string): Promise<Concept | null> {
 		await this.ensureInit();
-		const r = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_DICT_CONCEPT_BY_ID!.sql, [id]);
+		const r = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_DICT_CONCEPT_BY_ID!.sql,
+			[id],
+		);
 		if (!r) return null;
 		return {
 			id: r.id,
@@ -1524,7 +1636,9 @@ export class OpfsConceptStore implements ConceptStore {
 
 	async listNamespaces(): Promise<Namespace[]> {
 		await this.ensureInit();
-		const rows = await this.db.query<any>(SCHEMA.sqlite.selects.SQL_SELECT_DICT_NAMESPACES!.sql);
+		const rows = await this.db.query<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_DICT_NAMESPACES!.sql,
+		);
 		return rows.map((r) => ({
 			code: r.code,
 			description: r.description || undefined,
@@ -1575,12 +1689,14 @@ export class OpfsConceptStore implements ConceptStore {
 	async invalidateRelationCache(conceptId?: string): Promise<void> {
 		await this.ensureInit();
 		if (conceptId) {
-			await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_DICT_RELATION_CACHE_FOR!.sql, [
-				conceptId,
-				conceptId,
-			]);
+			await this.db.exec(
+				SCHEMA.sqlite.deletes.SQL_DELETE_DICT_RELATION_CACHE_FOR!.sql,
+				[conceptId, conceptId],
+			);
 		} else {
-			await this.db.exec(SCHEMA.sqlite.deletes.SQL_DELETE_DICT_RELATION_CACHE!.sql);
+			await this.db.exec(
+				SCHEMA.sqlite.deletes.SQL_DELETE_DICT_RELATION_CACHE!.sql,
+			);
 		}
 	}
 
@@ -1592,11 +1708,15 @@ export class OpfsConceptStore implements ConceptStore {
 		const sqlParts: string[] = [];
 		const params: any[] = [];
 		if (direction === "forward" || direction === "both") {
-			sqlParts.push(SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATIONS_FORWARD!.sql);
+			sqlParts.push(
+				SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATIONS_FORWARD!.sql,
+			);
 			params.push(conceptId);
 		}
 		if (direction === "reverse" || direction === "both") {
-			sqlParts.push(SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATIONS_REVERSE!.sql);
+			sqlParts.push(
+				SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATIONS_REVERSE!.sql,
+			);
 			params.push(conceptId);
 		}
 		if (sqlParts.length === 0) return [];
@@ -1619,10 +1739,10 @@ export class OpfsConceptStore implements ConceptStore {
 	): Promise<RelatedConceptResult[]> {
 		await this.ensureInit();
 		if (useCache) {
-			const cached = await this.db.query<any>(SCHEMA.sqlite.selects.SQL_SELECT_DICT_CACHE_RELATED!.sql, [
-				conceptId,
-				maxDepth,
-			]);
+			const cached = await this.db.query<any>(
+				SCHEMA.sqlite.selects.SQL_SELECT_DICT_CACHE_RELATED!.sql,
+				[conceptId, maxDepth],
+			);
 			if (cached.length > 0) {
 				return cached.map((r: any) => ({
 					concept: {
@@ -1641,16 +1761,19 @@ export class OpfsConceptStore implements ConceptStore {
 			}
 		}
 
-		const rows = await this.db.query<any>(SCHEMA.sqlite.raw.CTE_DICT_RELATED_CONCEPTS!, [
-			conceptId,
-			direction,
-			direction,
-			conceptId,
-			direction,
-			direction,
-			maxDepth,
-			maxDepth,
-		]);
+		const rows = await this.db.query<any>(
+			SCHEMA.sqlite.raw.CTE_DICT_RELATED_CONCEPTS!,
+			[
+				conceptId,
+				direction,
+				direction,
+				conceptId,
+				direction,
+				direction,
+				maxDepth,
+				maxDepth,
+			],
+		);
 		const results: RelatedConceptResult[] = rows.map((r: any) => ({
 			concept: {
 				id: r.id,
@@ -1669,13 +1792,10 @@ export class OpfsConceptStore implements ConceptStore {
 		if (useCache && results.length > 0) {
 			const now = new Date().toISOString();
 			for (const res of results) {
-				await this.db.exec(SCHEMA.sqlite.inserts.SQL_UPSERT_DICT_RELATION_CACHE!.sql, [
-					conceptId,
-					res.concept.id,
-					res.depth,
-					res.relationshipType,
-					now,
-				]);
+				await this.db.exec(
+					SCHEMA.sqlite.inserts.SQL_UPSERT_DICT_RELATION_CACHE!.sql,
+					[conceptId, res.concept.id, res.depth, res.relationshipType, now],
+				);
 			}
 		}
 		return results;
@@ -1740,7 +1860,10 @@ export class OpfsPersistentExpressionStore
 
 	async getById(id: string): Promise<CustomExpression | null> {
 		await this.ensureInit();
-		const row = await this.db.get<any>(SCHEMA.sqlite.selects.SQL_SELECT_DICT_EXPRESSION_DATA!.sql, [id]);
+		const row = await this.db.get<any>(
+			SCHEMA.sqlite.selects.SQL_SELECT_DICT_EXPRESSION_DATA!.sql,
+			[id],
+		);
 		return row ? JSON.parse(row.data) : null;
 	}
 }
