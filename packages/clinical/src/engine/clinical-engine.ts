@@ -20,11 +20,73 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
+import { OrderedLearningRanker } from "../store/ordered-learning-ranking";
+import type { OrderedLearningRankedCandidate } from "../store/ordered-learning-ranking-types";
+import {
+	MAX_ORDERED_TOKENS,
+	type OrderedLearningHistoryKey,
+	type OrderedLearningStore,
+	type OrderedLearningToken,
+} from "../store/ordered-learning-store";
 import type {
 	ParsedCellHistoryStore,
 	ParsedCellStore,
 	ParsedCellV1,
 } from "../store/parsed-cell-store";
+
+// ── Order-Aware Projection ───────────────────────────────────────────────────
+
+export interface OrderAwareProjection {
+	storeId: string;
+	rankedCandidate: OrderedLearningRankedCandidate | null;
+}
+
+/**
+ * Builds an ordered token sequence from a parsed observation item.
+ * Produces tokens for tag, concept, and each resolved field slot.
+ */
+export function buildOrderedTokens(
+	item: ParsedObservationItem,
+	startIndex: number = 0,
+): OrderedLearningToken[] {
+	const tokens: OrderedLearningToken[] = [];
+	let idx = startIndex;
+
+	// tag
+	tokens.push({ kind: "tag", key: item.tag, index: idx++ });
+
+	// concept
+	if (item.conceptId) {
+		tokens.push({
+			kind: "concept",
+			key: item.conceptId,
+			value: item.display,
+			index: idx++,
+		});
+	}
+
+	// resolved fields
+	const fieldKeys: Array<keyof ParsedObservationItem> = [
+		"severity",
+		"certainty",
+		"status",
+	];
+	for (const key of fieldKeys) {
+		const val = item[key];
+		if (val !== undefined && val !== null) {
+			tokens.push({
+				kind: "field",
+				key,
+				value: String(val),
+				index: idx++,
+			});
+		}
+	}
+
+	return tokens.slice(0, MAX_ORDERED_TOKENS);
+}
+
+// ── Engine ───────────────────────────────────────────────────────────────────
 
 export class ClinicalEngine {
 	private parser: CdslParser;
@@ -38,6 +100,7 @@ export class ClinicalEngine {
 		stopWordStore?: StopWordStore,
 		profile?: ParserSyntaxProfile,
 		profileStore?: ParserProfileStore,
+		private orderAwareStore?: OrderedLearningStore,
 	) {
 		if (profile) {
 			this.parser = new CdslParser(
@@ -74,6 +137,7 @@ export class ClinicalEngine {
 		calibrationStore?: CalibrationStore,
 		parsedCellStore?: ParsedCellStore,
 		stopWordStore?: StopWordStore,
+		orderAwareStore?: OrderedLearningStore,
 	): Promise<ClinicalEngine> {
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
@@ -89,6 +153,8 @@ export class ClinicalEngine {
 			parsedCellStore,
 			stopWordStore,
 			profile,
+			undefined,
+			orderAwareStore,
 		);
 		return engine;
 	}
@@ -225,6 +291,31 @@ export class ClinicalEngine {
 					parsedItem: item,
 				};
 				await this.parsedCellStore.putObservation(parsedCell);
+
+				// Persist ordered tokens to the order-aware store
+				if (this.orderAwareStore) {
+					const orderedTokens = buildOrderedTokens(item);
+					await this.orderAwareStore.putOrderedObservation({
+						shared: {
+							cellId,
+							soapNoteId: note.id,
+							tag: item.tag,
+							targetSchema: item.targetSchema,
+							rawText: item.rawText,
+							patientId: patientBucket.patientId,
+							patientOrganismType: patientBucket.organismType,
+							patientGender: patientBucket.gender,
+							patientAgeBucket: patientBucket.ageBucket,
+							patientSpeciesBucket: patientBucket.speciesBucket,
+							patientSubBucket: patientBucket.subBucket,
+							patientBucketKey: patientBucket.bucketKey,
+							personnelId: "system",
+							acceptedAt: now,
+						},
+						parsedItem: item,
+						orderedTokens,
+					});
+				}
 			}
 			// Log calibration if concept is not found
 			if (!item.conceptId && this.calibrationStore) {
@@ -342,6 +433,30 @@ export class ClinicalEngine {
 			sessionId,
 		);
 		return updatedObj!.data as SoapNote;
+	}
+
+	/**
+	 * Computes the order-aware ranking projection for a given observation parse.
+	 * Returns null if no order-aware store is configured or history is empty.
+	 */
+	async getOrderAwareProjection(
+		key: OrderedLearningHistoryKey,
+		candidateTokens: OrderedLearningToken[],
+		storeId: string = "default",
+	): Promise<OrderAwareProjection | null> {
+		if (!this.orderAwareStore) return null;
+
+		const ranker = new OrderedLearningRanker();
+		const rankedCandidate = await ranker.rankCandidate(
+			this.orderAwareStore,
+			{ key, candidateTokens },
+			{ adapterId: storeId },
+		);
+
+		return {
+			storeId,
+			rankedCandidate,
+		};
 	}
 
 	/**

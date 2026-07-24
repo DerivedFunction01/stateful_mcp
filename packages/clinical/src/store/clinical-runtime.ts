@@ -21,6 +21,7 @@ import {
 } from "./learning-backend-resolver";
 import type { MemoryOrderedLearningStore } from "./ordered-learning-store";
 import type { MemoryParsedCellStore } from "./parsed-cell-store";
+import type { SqliteOrderedLearningStore } from "./sqlite-ordered-learning-store";
 import type { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -41,7 +42,9 @@ export type ResolvedParsedCellStore =
 	| SqliteParsedCellStore
 	| JsonlParsedCellStore;
 
-export type ResolvedOrderedLearningStore = MemoryOrderedLearningStore;
+export type ResolvedOrderedLearningStore =
+	| MemoryOrderedLearningStore
+	| SqliteOrderedLearningStore;
 
 export interface ClinicalRuntime {
 	config: ClinicalStoreConfig;

@@ -35,4 +35,5 @@ export * from "./store/parsed-cell-ranking";
 export * from "./store/parsed-cell-ranking-types";
 export * from "./store/parsed-cell-store";
 export * from "./store/sqlite-clinical-store";
+export * from "./store/sqlite-ordered-learning-store";
 export * from "./store/sqlite-parsed-cell-store";

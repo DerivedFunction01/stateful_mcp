@@ -3,6 +3,7 @@ import type { ResourceLocator } from "@stateful-mcp/core";
 import { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
 import { MemoryOrderedLearningStore } from "./ordered-learning-store";
 import { MemoryParsedCellStore } from "./parsed-cell-store";
+import { SqliteOrderedLearningStore } from "./sqlite-ordered-learning-store";
 import { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
 
 function readStringOption(
@@ -52,7 +53,7 @@ export function resolveParsedCellStoreLocator(
 
 export function resolveOrderedLearningStoreLocator(
 	locator: ResourceLocator,
-): MemoryOrderedLearningStore {
+): MemoryOrderedLearningStore | SqliteOrderedLearningStore {
 	if (locator._type !== "adapter") {
 		throw new Error(
 			`Unsupported ordered learning locator type: ${locator._type}`,
@@ -63,8 +64,15 @@ export function resolveOrderedLearningStoreLocator(
 		return new MemoryOrderedLearningStore();
 	}
 
-	// sqlite, duckdb, postgres adapters will be added in Phase 2 (SQL adapter plan)
+	if (locator.name === "sqlite") {
+		const dbPath =
+			readStringOption(locator, "path", "") ||
+			readStringOption(locator, "dbName", "") ||
+			"./clinical-learning.sqlite";
+		return new SqliteOrderedLearningStore(new Database(dbPath));
+	}
+
 	throw new Error(
-		`Unsupported ordered learning adapter: ${locator.name}. Only "memory" is implemented in Phase 1.`,
+		`Unsupported ordered learning adapter: ${locator.name}. Only "memory" and "sqlite" are implemented.`,
 	);
 }
