@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { QueryCompiler, SqlDialect } from "../src/translation/sql-compiler";
+import {
+	QueryCompiler,
+	type SqlDialect,
+} from "../src/translation/sql-compiler";
 
 function qc(dialect: SqlDialect) {
 	return new QueryCompiler(dialect);
@@ -14,7 +17,12 @@ describe("QueryCompiler - compileCreateTable", () => {
 			{ name: "tool_name", type: "text" as const, nullable: true },
 			{ name: "table_name", type: "text" as const, nullable: true },
 			{ name: "parent_filter_id", type: "text" as const, nullable: true },
-			{ name: "scope_level", type: "text" as const, nullable: false, default: "session" },
+			{
+				name: "scope_level",
+				type: "text" as const,
+				nullable: false,
+				default: "session",
+			},
 			{ name: "session_id", type: "text" as const, nullable: true },
 			{ name: "user_id", type: "text" as const, nullable: true },
 			{ name: "combined_operation", type: "text" as const, nullable: true },
@@ -26,39 +34,55 @@ describe("QueryCompiler - compileCreateTable", () => {
 
 	test("sqlite filters table", () => {
 		const { sql } = qc("sqlite").compileCreateTable(filtersDdl);
-		expect(sql).toContain("CREATE TABLE IF NOT EXISTS \"filters\"");
+		expect(sql).toContain('CREATE TABLE IF NOT EXISTS "filters"');
 		expect(sql).toContain('"filter_id" TEXT PRIMARY KEY');
 		expect(sql).toContain('"combined_ids" TEXT NULL');
 		expect(sql).toContain('"schema_snapshot" TEXT NULL');
-		expect(sql).toContain('"created_at" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP');
+		expect(sql).toContain(
+			'"created_at" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+		);
 		expect(sql).toContain('"tool_name" TEXT NULL');
 		expect(sql).toContain(`'session'`);
 	});
 
 	test("postgres filters table", () => {
 		const { sql } = qc("postgres").compileCreateTable(filtersDdl);
-		expect(sql).toContain("CREATE TABLE IF NOT EXISTS \"filters\"");
+		expect(sql).toContain('CREATE TABLE IF NOT EXISTS "filters"');
 		expect(sql).toContain('"filter_id" TEXT PRIMARY KEY');
 		expect(sql).toContain('"combined_ids" JSONB NULL');
 		expect(sql).toContain('"schema_snapshot" JSONB NULL');
-		expect(sql).toContain('"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP');
+		expect(sql).toContain(
+			'"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP',
+		);
 	});
 
 	test("duckdb filters table", () => {
 		const { sql } = qc("duckdb").compileCreateTable(filtersDdl);
-		expect(sql).toContain("CREATE TABLE IF NOT EXISTS \"filters\"");
+		expect(sql).toContain('CREATE TABLE IF NOT EXISTS "filters"');
 		expect(sql).toContain('"filter_id" TEXT PRIMARY KEY');
 		expect(sql).toContain('"combined_ids" TEXT NULL');
 		expect(sql).toContain('"schema_snapshot" TEXT NULL');
-		expect(sql).toContain('"created_at" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP');
+		expect(sql).toContain(
+			'"created_at" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+		);
 	});
 
 	const filterRulesDdl = {
 		table: "filter_rules",
 		ifNotExists: true,
 		columns: [
-			{ name: "id", type: "int" as const, autoIncrement: true, primaryKey: true },
-			{ name: "filter_id", type: "text" as const, nullable: false, raw: "REFERENCES \"filters\"(\"filter_id\") ON DELETE CASCADE" },
+			{
+				name: "id",
+				type: "int" as const,
+				autoIncrement: true,
+				primaryKey: true,
+			},
+			{
+				name: "filter_id",
+				type: "text" as const,
+				nullable: false,
+				raw: 'REFERENCES "filters"("filter_id") ON DELETE CASCADE',
+			},
 			{ name: "property", type: "text" as const, nullable: false },
 			{ name: "operator", type: "text" as const, nullable: false },
 			{ name: "value", type: "text" as const, nullable: false },
@@ -70,19 +94,19 @@ describe("QueryCompiler - compileCreateTable", () => {
 	test("sqlite filter_rules with autoincrement", () => {
 		const { sql } = qc("sqlite").compileCreateTable(filterRulesDdl);
 		expect(sql).toContain('"id" INTEGER PRIMARY KEY AUTOINCREMENT');
-		expect(sql).toContain("UNIQUE (\"filter_id\", \"index_order\")");
+		expect(sql).toContain('UNIQUE ("filter_id", "index_order")');
 	});
 
 	test("postgres filter_rules serial primary key", () => {
 		const { sql } = qc("postgres").compileCreateTable(filterRulesDdl);
 		expect(sql).toContain('"id" SERIAL PRIMARY KEY');
-		expect(sql).toContain("UNIQUE (\"filter_id\", \"index_order\")");
+		expect(sql).toContain('UNIQUE ("filter_id", "index_order")');
 	});
 
 	test("duckdb filter_rules", () => {
 		const { sql } = qc("duckdb").compileCreateTable(filterRulesDdl);
 		expect(sql).toContain('"id" INTEGER PRIMARY KEY');
-		expect(sql).toContain("UNIQUE (\"filter_id\", \"index_order\")");
+		expect(sql).toContain('UNIQUE ("filter_id", "index_order")');
 	});
 });
 
@@ -93,7 +117,9 @@ describe("QueryCompiler - compileCreateIndex", () => {
 			name: "idx_filters_session",
 			columns: ["session_id", "scope_level"],
 		});
-		expect(sql).toBe('CREATE INDEX IF NOT EXISTS "idx_filters_session" ON "filters" ("session_id", "scope_level");');
+		expect(sql).toBe(
+			'CREATE INDEX IF NOT EXISTS "idx_filters_session" ON "filters" ("session_id", "scope_level");',
+		);
 	});
 
 	test("pg index with different name", () => {
@@ -102,7 +128,9 @@ describe("QueryCompiler - compileCreateIndex", () => {
 			name: "idx_pg_filters_session",
 			columns: ["session_id", "scope_level"],
 		});
-		expect(sql).toBe('CREATE INDEX IF NOT EXISTS "idx_pg_filters_session" ON "filters" ("session_id", "scope_level");');
+		expect(sql).toBe(
+			'CREATE INDEX IF NOT EXISTS "idx_pg_filters_session" ON "filters" ("session_id", "scope_level");',
+		);
 	});
 
 	test("index with WHERE clause (partial index)", () => {
@@ -144,7 +172,7 @@ describe("QueryCompiler - compileInsert", () => {
 			onConflict: "replace",
 			conflictColumns: ["filter_id"],
 		});
-		expect(sql).toContain("INSERT OR REPLACE INTO \"filters\"");
+		expect(sql).toContain('INSERT OR REPLACE INTO "filters"');
 	});
 
 	test("upsert with onConflict replace (postgres)", () => {
@@ -155,7 +183,7 @@ describe("QueryCompiler - compileInsert", () => {
 			conflictColumns: ["filter_id"],
 		});
 		expect(sql).toContain('INSERT INTO "filters"');
-		expect(sql).toContain("ON CONFLICT (\"filter_id\") DO UPDATE SET");
+		expect(sql).toContain('ON CONFLICT ("filter_id") DO UPDATE SET');
 		expect(sql).toContain('"tool_name" = EXCLUDED."tool_name"');
 	});
 
@@ -168,7 +196,7 @@ describe("QueryCompiler - compileInsert", () => {
 		});
 		// DuckDB uses ON CONFLICT pattern with excluded.* (lowercase)
 		expect(sql).toContain('INSERT INTO "filters"');
-		expect(sql).toContain("ON CONFLICT (\"filter_id\") DO UPDATE SET");
+		expect(sql).toContain('ON CONFLICT ("filter_id") DO UPDATE SET');
 		expect(sql).toContain('"tool_name" = EXCLUDED."tool_name"');
 	});
 
@@ -217,7 +245,7 @@ describe("QueryCompiler - compileSelect", () => {
 			table: "objects",
 			select: [{ column: "data", jsonPath: "cellId", alias: "cid" }],
 		});
-		expect(sql).toContain("json_extract(\"data\", '$.cellId') AS \"cid\"");
+		expect(sql).toContain('json_extract("data", \'$.cellId\') AS "cid"');
 	});
 
 	test("select with json path (postgres)", () => {
@@ -225,7 +253,7 @@ describe("QueryCompiler - compileSelect", () => {
 			table: "objects",
 			select: [{ column: "data", jsonPath: "cellId", alias: "cid" }],
 		});
-		expect(sql).toContain("\"data\"::jsonb ->> 'cellId' AS \"cid\"");
+		expect(sql).toContain('"data"::jsonb ->> \'cellId\' AS "cid"');
 	});
 
 	test("select with json path (duckdb)", () => {
@@ -233,21 +261,32 @@ describe("QueryCompiler - compileSelect", () => {
 			table: "objects",
 			select: [{ column: "data", jsonPath: "cellId", alias: "cid" }],
 		});
-		expect(sql).toContain("json_extract_string(\"data\", '$.cellId') AS \"cid\"");
+		expect(sql).toContain('json_extract_string("data", \'$.cellId\') AS "cid"');
 	});
 
 	test("select with nested json path (postgres)", () => {
 		const { sql } = qc("postgres").compileSelect({
 			table: "objects",
-			select: [{ column: "data", jsonPath: "history.priorAcceptCount", alias: "acceptCount" }],
+			select: [
+				{
+					column: "data",
+					jsonPath: "history.priorAcceptCount",
+					alias: "acceptCount",
+				},
+			],
 		});
-		expect(sql).toContain("\"data\"::jsonb #>> '{history,priorAcceptCount}' AS \"acceptCount\"");
+		expect(sql).toContain(
+			'"data"::jsonb #>> \'{history,priorAcceptCount}\' AS "acceptCount"',
+		);
 	});
 
 	test("select with aggregation", () => {
 		const { sql } = qc("sqlite").compileSelect({
 			table: "filter_rules",
-			select: [{ column: "filter_id" }, { column: "filter_id", agg: "count" as const, alias: "cnt" }],
+			select: [
+				{ column: "filter_id" },
+				{ column: "filter_id", agg: "count" as const, alias: "cnt" },
+			],
 			groupBy: ["filter_id"],
 		});
 		expect(sql).toContain('COUNT("filter_id") AS "cnt"');
@@ -257,7 +296,13 @@ describe("QueryCompiler - compileSelect", () => {
 	test("select with order by", () => {
 		const { sql } = qc("sqlite").compileSelect({
 			table: "objects",
-			orderBy: [{ column: "created_at", direction: "DESC" as const, nulls: "LAST" as const }],
+			orderBy: [
+				{
+					column: "created_at",
+					direction: "DESC" as const,
+					nulls: "LAST" as const,
+				},
+			],
 		});
 		expect(sql).toContain('ORDER BY "created_at" DESC NULLS LAST');
 	});
@@ -278,7 +323,10 @@ describe("QueryCompiler - compileUpdate", () => {
 		const { sql, params } = qc("sqlite").compileUpdate({
 			table: "session_aliases",
 			set: { target_id: "new_target" },
-			where: [{ column: "session_id", op: "eq" as const, value: "s1" }, { column: "alias_name", op: "eq" as const, value: "a" }],
+			where: [
+				{ column: "session_id", op: "eq" as const, value: "s1" },
+				{ column: "alias_name", op: "eq" as const, value: "a" },
+			],
 		});
 		expect(sql).toContain('UPDATE "session_aliases"');
 		expect(sql).toContain('SET "target_id" = ?');
@@ -301,7 +349,10 @@ describe("QueryCompiler - compileDelete", () => {
 	test("delete with where", () => {
 		const { sql, params } = qc("sqlite").compileDelete({
 			table: "session_aliases",
-			where: [{ column: "session_id", op: "eq" as const, value: "s1" }, { column: "alias_name", op: "eq" as const, value: "a" }],
+			where: [
+				{ column: "session_id", op: "eq" as const, value: "s1" },
+				{ column: "alias_name", op: "eq" as const, value: "a" },
+			],
 		});
 		expect(sql).toContain('DELETE FROM "session_aliases"');
 		expect(sql).toContain('WHERE ("session_id" = ? AND "alias_name" = ?)');
@@ -320,7 +371,9 @@ describe("QueryCompiler - compileDelete", () => {
 
 describe("QueryCompiler - wrapInTransaction", () => {
 	test("wraps string query", () => {
-		const wrapped = qc("sqlite").wrapInTransaction("CREATE TABLE t (a TEXT);\nCREATE TABLE t2 (b TEXT);");
+		const wrapped = qc("sqlite").wrapInTransaction(
+			"CREATE TABLE t (a TEXT);\nCREATE TABLE t2 (b TEXT);",
+		);
 		expect(wrapped).toContain("BEGIN;");
 		expect(wrapped).toContain("COMMIT;");
 		expect(wrapped).toContain("CREATE TABLE t (a TEXT)");
@@ -337,7 +390,7 @@ describe("QueryCompiler - compileInsert upsert edge cases", () => {
 			conflictColumns: ["id"],
 		});
 		// No non-key columns to update, fallback to DO NOTHING
-		expect(sql).toContain("ON CONFLICT (\"id\") DO NOTHING");
+		expect(sql).toContain('ON CONFLICT ("id") DO NOTHING');
 	});
 
 	test("upsert columns-only (no values)", () => {
@@ -347,7 +400,7 @@ describe("QueryCompiler - compileInsert upsert edge cases", () => {
 			onConflict: "replace",
 			conflictColumns: ["filter_id"],
 		});
-		expect(sql).toContain("ON CONFLICT (\"filter_id\") DO UPDATE SET");
+		expect(sql).toContain('ON CONFLICT ("filter_id") DO UPDATE SET');
 		expect(sql).toContain('"tool_name" = EXCLUDED."tool_name"');
 		expect(sql).toContain('"table_name" = EXCLUDED."table_name"');
 	});
@@ -364,17 +417,23 @@ describe("QueryCompiler - compileSelect filters pattern", () => {
 				{ column: "scope_level", op: "eq" as const, value: "session" },
 			],
 		});
-		expect(sql).toContain("WHERE (\"session_id\" = ? AND \"filter_id\" = ? AND \"scope_level\" = ?)");
+		expect(sql).toContain(
+			'WHERE ("session_id" = ? AND "filter_id" = ? AND "scope_level" = ?)',
+		);
 		expect(params).toEqual(["s1", "f1", "session"]);
 	});
 
 	test("select with OR condition", () => {
 		const { sql } = qc("sqlite").compileSelect({
 			table: "filters",
-			where: [{ OR: [
-				{ column: "scope_level", op: "eq" as const, value: "session" },
-				{ column: "scope_level", op: "eq" as const, value: "global" },
-			]}],
+			where: [
+				{
+					OR: [
+						{ column: "scope_level", op: "eq" as const, value: "session" },
+						{ column: "scope_level", op: "eq" as const, value: "global" },
+					],
+				},
+			],
 		});
 		expect(sql).toContain('WHERE (("scope_level" = ? OR "scope_level" = ?))');
 	});

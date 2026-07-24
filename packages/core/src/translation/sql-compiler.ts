@@ -46,7 +46,6 @@ export type SqlFunctionOp =
 	| "upper"
 	| "concat";
 
-
 /**
  * Recursive condition tree allowing for deep nesting.
  * Arrays at the root are treated as implicit ANDs.
@@ -82,7 +81,7 @@ export type QuerySort = {
 	jsonPath?: string;
 	direction: "ASC" | "DESC";
 	nulls?: "FIRST" | "LAST";
-}
+};
 
 export type ColumnType =
 	| "id" // short text primary key
@@ -251,7 +250,9 @@ export class QueryCompiler {
 			case "bool":
 				return this.dialect === "postgres" ? "BOOLEAN" : "INTEGER";
 			case "timestamp":
-				return this.dialect === "postgres" ? "TIMESTAMP WITH TIME ZONE" : "TEXT";
+				return this.dialect === "postgres"
+					? "TIMESTAMP WITH TIME ZONE"
+					: "TEXT";
 			case "blob":
 				return this.dialect === "postgres" ? "BYTEA" : "BLOB";
 			default:
@@ -300,16 +301,19 @@ export class QueryCompiler {
 		}
 
 		if (query.primaryKey && query.primaryKey.length > 0) {
-			lines.push(`PRIMARY KEY (${query.primaryKey.map(c => this.quoteIdent(c)).join(", ")})`);
+			lines.push(
+				`PRIMARY KEY (${query.primaryKey.map((c) => this.quoteIdent(c)).join(", ")})`,
+			);
 		}
 
 		for (const uniq of query.uniques ?? []) {
-			lines.push(`UNIQUE (${uniq.map(c => this.quoteIdent(c)).join(", ")})`);
+			lines.push(`UNIQUE (${uniq.map((c) => this.quoteIdent(c)).join(", ")})`);
 		}
 
 		for (const fk of query.foreignKeys ?? []) {
-			let line = `FOREIGN KEY (${fk.columns.map(c => this.quoteIdent(c)).join(", ")}) ` +
-			           `REFERENCES ${this.quoteIdent(fk.refTable)} (${fk.refColumns.map(c => this.quoteIdent(c)).join(", ")})`;
+			let line =
+				`FOREIGN KEY (${fk.columns.map((c) => this.quoteIdent(c)).join(", ")}) ` +
+				`REFERENCES ${this.quoteIdent(fk.refTable)} (${fk.refColumns.map((c) => this.quoteIdent(c)).join(", ")})`;
 			if (fk.onDelete) line += ` ON DELETE ${fk.onDelete}`;
 			if (fk.onUpdate) line += ` ON UPDATE ${fk.onUpdate}`;
 			lines.push(line);
@@ -329,11 +333,13 @@ export class QueryCompiler {
 		const uniqueStr = query.unique ? "UNIQUE " : "";
 		const ifNotExists = query.ifNotExists !== false ? "IF NOT EXISTS " : "";
 		const usingStr = query.using ? ` USING ${query.using}` : "";
-		
+
 		// If a column specifies raw function mappings (e.g. `(data->>'tag')`), leave it unquoted
-		const cols = query.columns.map(c => 
-			c.startsWith("(") || c.includes(" ") ? c : this.quoteIdent(c)
-		).join(", ");
+		const cols = query.columns
+			.map((c) =>
+				c.startsWith("(") || c.includes(" ") ? c : this.quoteIdent(c),
+			)
+			.join(", ");
 
 		let sql = `CREATE ${uniqueStr}INDEX ${ifNotExists}${this.quoteIdent(query.name)} ON ${this.quoteIdent(query.table)}${usingStr} (${cols})`;
 
@@ -361,16 +367,18 @@ export class QueryCompiler {
 		const col = this.formatColumn(cond.column, cond.jsonPath);
 		const hasValue = "value" in cond && cond.value !== undefined;
 		const hasValues = "values" in cond && cond.values !== undefined;
-		
+
 		// Determine the right side of the expression
 		let rhs = "";
 		if (hasValue) {
 			rhs = ctx.addParam(cond.value);
 		} else if (hasValues) {
-			rhs = `(${cond.values!.map(v => ctx.addParam(v)).join(", ")})`;
+			rhs = `(${cond.values!.map((v) => ctx.addParam(v)).join(", ")})`;
 		} else if (cond.placeholderCount) {
 			// e.g., IN (?, ?, ?) when passing just the structure
-			const placeholders = Array.from({ length: cond.placeholderCount }, () => ctx.nextPlaceholder());
+			const placeholders = Array.from({ length: cond.placeholderCount }, () =>
+				ctx.nextPlaceholder(),
+			);
 			rhs = `(${placeholders.join(", ")})`;
 		} else if (cond.op !== "is_null" && cond.op !== "is_not_null") {
 			// Prepared statement positional placeholder logic
@@ -395,9 +403,13 @@ export class QueryCompiler {
 			case "not_like":
 				return `${col} NOT LIKE ${rhs}`;
 			case "ilike":
-				return this.dialect === "sqlite" ? `${col} LIKE ${rhs}` : `${col} ILIKE ${rhs}`;
+				return this.dialect === "sqlite"
+					? `${col} LIKE ${rhs}`
+					: `${col} ILIKE ${rhs}`;
 			case "not_ilike":
-				return this.dialect === "sqlite" ? `${col} NOT LIKE ${rhs}` : `${col} NOT ILIKE ${rhs}`;
+				return this.dialect === "sqlite"
+					? `${col} NOT LIKE ${rhs}`
+					: `${col} NOT ILIKE ${rhs}`;
 			case "starts_with":
 				return `${col} LIKE ${hasValue ? ctx.addParam(`${cond.value}%`) : `CONCAT(${rhs}, '%')`}`;
 			case "ends_with":
@@ -408,19 +420,29 @@ export class QueryCompiler {
 				return `${col} IN ${rhs}`;
 			case "not_in_set":
 				return `${col} NOT IN ${rhs}`;
-			case "between":
+			case "between": {
 				if (hasValues && cond.values!.length === 2) {
 					// Pre-bound: BETWEEN ? AND ?
 					return `${col} BETWEEN ${rhs}`; // Note: rhs here is `(?, ?)` which is invalid syntax for BETWEEN, handled properly below
 				}
 				// Standard explicit placeholder usage for BETWEEN
-				const b1 = hasValues ? ctx.addParam(cond.values![0]) : ctx.nextPlaceholder();
-				const b2 = hasValues ? ctx.addParam(cond.values![1]) : ctx.nextPlaceholder();
+				const b1 = hasValues
+					? ctx.addParam(cond.values![0])
+					: ctx.nextPlaceholder();
+				const b2 = hasValues
+					? ctx.addParam(cond.values![1])
+					: ctx.nextPlaceholder();
 				return `${col} BETWEEN ${b1} AND ${b2}`;
-			case "not_between":
-				const nb1 = hasValues ? ctx.addParam(cond.values![0]) : ctx.nextPlaceholder();
-				const nb2 = hasValues ? ctx.addParam(cond.values![1]) : ctx.nextPlaceholder();
+			}
+			case "not_between": {
+				const nb1 = hasValues
+					? ctx.addParam(cond.values![0])
+					: ctx.nextPlaceholder();
+				const nb2 = hasValues
+					? ctx.addParam(cond.values![1])
+					: ctx.nextPlaceholder();
 				return `${col} NOT BETWEEN ${nb1} AND ${nb2}`;
+			}
 			case "is_null":
 				return `${col} IS NULL`;
 			case "is_not_null":
@@ -430,7 +452,10 @@ export class QueryCompiler {
 		}
 	}
 
-	private compileWhereBlock(conditions: QueryCondition[] | undefined, ctx: CompilerContext): string {
+	private compileWhereBlock(
+		conditions: QueryCondition[] | undefined,
+		ctx: CompilerContext,
+	): string {
 		if (!conditions || conditions.length === 0) return "";
 		const combined: QueryCondition = { AND: conditions };
 		return `\nWHERE ${this.compileCondition(combined, ctx)}`;
@@ -497,12 +522,13 @@ export class QueryCompiler {
 		return { sql: sql + ";", params: ctx.params };
 	}
 
-	private getKeysAndValues(
-		data: Record<string, any> | Record<string, any>[]
-	): { columns: string[]; rows: any[][] } {
+	private getKeysAndValues(data: Record<string, any> | Record<string, any>[]): {
+		columns: string[];
+		rows: any[][];
+	} {
 		const arrayData = Array.isArray(data) ? data : [data];
 		if (arrayData.length === 0) return { columns: [], rows: [] };
-		
+
 		const columns = Object.keys(arrayData[0]);
 		const rows = arrayData.map((item) => columns.map((col) => item[col]));
 		return { columns, rows };
@@ -520,7 +546,7 @@ export class QueryCompiler {
 				throw new Error("InsertQuery requires at least one value column");
 			}
 			activeColumns = columns;
-			quotedCols = columns.map(c => this.quoteIdent(c)).join(", ");
+			quotedCols = columns.map((c) => this.quoteIdent(c)).join(", ");
 			valueStrings = rows.map((rowVals) => {
 				const placeholders = rowVals.map((val) => ctx.addParam(val));
 				return `(${placeholders.join(", ")})`;
@@ -530,7 +556,7 @@ export class QueryCompiler {
 				throw new Error("InsertQuery requires at least one column");
 			}
 			activeColumns = query.columns;
-			quotedCols = query.columns.map(c => this.quoteIdent(c)).join(", ");
+			quotedCols = query.columns.map((c) => this.quoteIdent(c)).join(", ");
 			const placeholders = query.columns.map(() => ctx.nextPlaceholder());
 			valueStrings = [`(${placeholders.join(", ")})`];
 		} else {
@@ -550,16 +576,24 @@ export class QueryCompiler {
 			if (this.dialect === "sqlite") {
 				insertKeyword = "INSERT OR REPLACE";
 			} else {
-				// Postgres / DuckDB explicit replace resolution mapping 
+				// Postgres / DuckDB explicit replace resolution mapping
 				if (!query.conflictColumns || query.conflictColumns.length === 0) {
-					throw new Error("InsertQuery with onConflict='replace' requires 'conflictColumns' for Postgres/DuckDB");
+					throw new Error(
+						"InsertQuery with onConflict='replace' requires 'conflictColumns' for Postgres/DuckDB",
+					);
 				}
-				const conflictCols = query.conflictColumns.map(c => this.quoteIdent(c)).join(", ");
-				const updateCols = activeColumns.filter((c) => !query.conflictColumns!.includes(c));
+				const conflictCols = query.conflictColumns
+					.map((c) => this.quoteIdent(c))
+					.join(", ");
+				const updateCols = activeColumns.filter(
+					(c) => !query.conflictColumns!.includes(c),
+				);
 
 				if (updateCols.length > 0) {
 					const setClause = updateCols
-						.map((c) => `${this.quoteIdent(c)} = EXCLUDED.${this.quoteIdent(c)}`)
+						.map(
+							(c) => `${this.quoteIdent(c)} = EXCLUDED.${this.quoteIdent(c)}`,
+						)
 						.join(",\n  ");
 					onConflictClause = `ON CONFLICT (${conflictCols}) DO UPDATE SET\n  ${setClause}`;
 				} else {
@@ -575,7 +609,7 @@ export class QueryCompiler {
 		}
 
 		if (query.returning && query.returning.length > 0) {
-			sql += `\nRETURNING ${query.returning.map(c => this.quoteIdent(c)).join(", ")}`;
+			sql += `\nRETURNING ${query.returning.map((c) => this.quoteIdent(c)).join(", ")}`;
 		}
 
 		return { sql: sql + ";", params: ctx.params };
@@ -587,16 +621,18 @@ export class QueryCompiler {
 
 		if (query.set) {
 			const setKeys = Object.keys(query.set);
-			if (setKeys.length === 0) throw new Error("UpdateQuery requires at least one field to set");
-			
+			if (setKeys.length === 0)
+				throw new Error("UpdateQuery requires at least one field to set");
+
 			const setClauses = setKeys.map((key) => {
 				const valPlaceholder = ctx.addParam(query.set![key]);
 				return `${this.quoteIdent(key)} = ${valPlaceholder}`;
 			});
 			sql += setClauses.join(", ");
 		} else if (query.setColumns) {
-			if (query.setColumns.length === 0) throw new Error("UpdateQuery requires at least one setColumn");
-			
+			if (query.setColumns.length === 0)
+				throw new Error("UpdateQuery requires at least one setColumn");
+
 			const setClauses = query.setColumns.map((key) => {
 				return `${this.quoteIdent(key)} = ${ctx.nextPlaceholder()}`;
 			});
@@ -608,7 +644,7 @@ export class QueryCompiler {
 		sql += this.compileWhereBlock(query.where, ctx);
 
 		if (query.returning && query.returning.length > 0) {
-			sql += `\nRETURNING ${query.returning.map(c => this.quoteIdent(c)).join(", ")}`;
+			sql += `\nRETURNING ${query.returning.map((c) => this.quoteIdent(c)).join(", ")}`;
 		}
 
 		return { sql: sql + ";", params: ctx.params };
@@ -619,7 +655,7 @@ export class QueryCompiler {
 		let sql = `DELETE FROM ${this.quoteIdent(query.table)}`;
 		sql += this.compileWhereBlock(query.where, ctx);
 		if (query.returning && query.returning.length > 0) {
-			sql += `\nRETURNING ${query.returning.map(c => this.quoteIdent(c)).join(", ")}`;
+			sql += `\nRETURNING ${query.returning.map((c) => this.quoteIdent(c)).join(", ")}`;
 		}
 		return { sql: sql + ";", params: ctx.params };
 	}
@@ -630,13 +666,15 @@ export class QueryCompiler {
 	 */
 	public wrapInTransaction(query: string): string;
 	public wrapInTransaction(query: CompiledQuery): CompiledQuery;
-	public wrapInTransaction(query: string | CompiledQuery): string | CompiledQuery {
+	public wrapInTransaction(
+		query: string | CompiledQuery,
+	): string | CompiledQuery {
 		if (typeof query === "string") {
 			return `BEGIN;\n${query.trim()}\nCOMMIT;`;
 		}
 		return {
 			sql: `BEGIN;\n${query.sql.trim()}\nCOMMIT;`,
-			params: query.params
+			params: query.params,
 		};
 	}
 
@@ -657,8 +695,8 @@ export class QueryCompiler {
 	 */
 	public compileDDLBatch(queries: (string | CompiledQuery)[]): string {
 		return queries
-			.map(q => (typeof q === "string" ? q : q.sql).trim())
-			.filter(q => q.length > 0)
+			.map((q) => (typeof q === "string" ? q : q.sql).trim())
+			.filter((q) => q.length > 0)
 			.join("\n\n");
 	}
 
@@ -674,7 +712,10 @@ export class QueryCompiler {
 	 * Compiles scalar pipeline functions across SQLite, Postgres, and DuckDB.
 	 * Assumes arguments are already properly escaped/bound strings (e.g. "?", "$1", or literal strings/numbers).
 	 */
-	public compileScalarExpression(op: SqlFunctionOp | string, args: string[]): string {
+	public compileScalarExpression(
+		op: SqlFunctionOp | string,
+		args: string[],
+	): string {
 		const arg0 = args[0] || "NULL";
 
 		switch (op) {
@@ -727,7 +768,7 @@ export class QueryCompiler {
 				const conds = patterns.map((p) =>
 					this.dialect === "sqlite"
 						? `${arg0} LIKE ${p} || '%'`
-						: `${arg0} LIKE CONCAT(${p}, '%')`
+						: `${arg0} LIKE CONCAT(${p}, '%')`,
 				);
 				return `(${conds.join(" OR ")})`;
 			}
@@ -737,7 +778,7 @@ export class QueryCompiler {
 				const conds = patterns.map((p) =>
 					this.dialect === "sqlite"
 						? `${arg0} LIKE '%' || ${p}`
-						: `${arg0} LIKE CONCAT('%', ${p})`
+						: `${arg0} LIKE CONCAT('%', ${p})`,
 				);
 				return `(${conds.join(" OR ")})`;
 			}
@@ -753,7 +794,7 @@ export class QueryCompiler {
 				const conds = patterns.map((p) =>
 					this.dialect === "sqlite"
 						? `${arg0} LIKE '%' || ${p} || '%'`
-						: `${arg0} LIKE CONCAT('%', ${p}, '%')`
+						: `${arg0} LIKE CONCAT('%', ${p}, '%')`,
 				);
 				const joiner = mode === "any" ? " OR " : " AND ";
 				return `(${conds.join(joiner)})`;
