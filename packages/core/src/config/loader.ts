@@ -45,6 +45,26 @@ export function substituteEnvVars(obj: unknown): unknown {
 	return obj;
 }
 
+export async function readJsonConfigFile<T>(
+	filePath: string,
+): Promise<T> {
+	const raw = await fs.readFile(filePath, "utf-8");
+	return substituteEnvVars(JSON.parse(raw)) as T;
+}
+
+export async function loadJsonConfigCandidates<T>(
+	candidates: Array<{ path: string; optional?: boolean }>,
+): Promise<T | null> {
+	for (const candidate of candidates) {
+		try {
+			return await readJsonConfigFile<T>(candidate.path);
+		} catch (err) {
+			if (!candidate.optional) throw err;
+		}
+	}
+	return null;
+}
+
 // ── Source resolution with TTL cache ─────────────────────────────────────────
 
 export function replacePlaceholders(
@@ -231,15 +251,12 @@ export async function loadMiddlewareConfig(
 	let aboutConfig: any = {};
 
 	try {
-		const rawTools = await fs.readFile(toolsPath, "utf-8");
-		toolsConfig = JSON.parse(rawTools);
+		toolsConfig = await readJsonConfigFile<any>(toolsPath);
 	} catch (e) {
 		// If split doesn't exist, try reading single workspace config file
 		const mainPath = path.join(resolvedRoot, "filter.config.json");
 		try {
-			const rawMain = await fs.readFile(mainPath, "utf-8");
-			const parsedMain = JSON.parse(rawMain);
-			return substituteEnvVars(parsedMain) as MiddlewareConfig;
+			return await readJsonConfigFile<MiddlewareConfig>(mainPath);
 		} catch (e2) {
 			throw new Error(
 				`Failed to find or parse configuration file in ${resolvedRoot}`,
@@ -248,16 +265,14 @@ export async function loadMiddlewareConfig(
 	}
 
 	try {
-		const rawStorage = await fs.readFile(storagePath, "utf-8");
-		storageConfig = JSON.parse(rawStorage);
+		storageConfig = await readJsonConfigFile<any>(storagePath);
 	} catch (e) {
 		// Storage config is required if split layout is used
 		throw new Error(`Storage configuration not found at ${storagePath}`);
 	}
 
 	try {
-		const rawAbout = await fs.readFile(aboutPath, "utf-8");
-		aboutConfig = JSON.parse(rawAbout);
+		aboutConfig = await readJsonConfigFile<any>(aboutPath);
 	} catch (e) {
 		// About/examples config is optional; absence falls back to default docs paths.
 	}

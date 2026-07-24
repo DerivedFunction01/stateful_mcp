@@ -1,5 +1,4 @@
 import type { EntityStore } from "@stateful-mcp/core";
-import { SEED_CONCEPT_DEFAULTS, SEED_PARSER_PROFILES } from "./defaults";
 import type {
 	AdministrativeStore,
 	CalibrationException,
@@ -21,14 +20,18 @@ import type {
 } from "./interfaces";
 
 export class ClinicalParserProfileStore implements ParserProfileStore {
-	constructor(private store: EntityStore<ParserSyntaxProfile>) {
+	constructor(
+		private store: EntityStore<ParserSyntaxProfile>,
+		private seedProfiles: ParserSyntaxProfile[] = [],
+	) {
 		void this.seed();
 	}
 
 	private async seed(): Promise<void> {
+		if (this.seedProfiles.length === 0) return;
 		const list = await this.store.list();
 		if (list.length === 0) {
-			for (const profile of SEED_PARSER_PROFILES) {
+			for (const profile of this.seedProfiles) {
 				await this.store.set(profile.profileId, profile);
 			}
 		}
@@ -57,14 +60,18 @@ export class ClinicalParserProfileStore implements ParserProfileStore {
 export class ClinicalParserConceptDefaultStore
 	implements ParserConceptDefaultStore
 {
-	constructor(private store: EntityStore<ParserConceptDefault>) {
+	constructor(
+		private store: EntityStore<ParserConceptDefault>,
+		private seedDefaults: ParserConceptDefault[] = [],
+	) {
 		void this.seed();
 	}
 
 	private async seed(): Promise<void> {
+		if (this.seedDefaults.length === 0) return;
 		const list = await this.store.list();
 		if (list.length === 0) {
-			for (const record of SEED_CONCEPT_DEFAULTS) {
+			for (const record of this.seedDefaults) {
 				const key = `${record.anchorConceptId}:${record.targetSchema}`;
 				await this.store.set(key, record);
 			}

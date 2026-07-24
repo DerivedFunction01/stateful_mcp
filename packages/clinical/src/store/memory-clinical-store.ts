@@ -1,4 +1,3 @@
-import { SEED_CONCEPT_DEFAULTS, SEED_PARSER_PROFILES } from "./defaults";
 import type {
 	AdministrativeStore,
 	CalibrationException,
@@ -23,8 +22,8 @@ import type {
 export class MemoryParserProfileStore implements ParserProfileStore {
 	private profiles = new Map<string, ParserSyntaxProfile>();
 
-	constructor() {
-		for (const profile of SEED_PARSER_PROFILES) {
+	constructor(seedProfiles: ParserSyntaxProfile[] = []) {
+		for (const profile of seedProfiles) {
 			this.profiles.set(profile.profileId, profile);
 		}
 	}
@@ -246,8 +245,8 @@ export class MemoryParserConceptDefaultStore
 {
 	private defaults = new Map<string, ParserConceptDefault>();
 
-	constructor() {
-		for (const record of SEED_CONCEPT_DEFAULTS) {
+	constructor(seedDefaults: ParserConceptDefault[] = []) {
+		for (const record of seedDefaults) {
 			const k = `${record.anchorConceptId}:${record.targetSchema}`;
 			this.defaults.set(k, record);
 		}

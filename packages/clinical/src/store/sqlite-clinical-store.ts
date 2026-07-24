@@ -1,6 +1,5 @@
 import type { Database } from "bun:sqlite";
 import { SqliteEntityStore } from "@stateful-mcp/core";
-import { SEED_CONCEPT_DEFAULTS, SEED_PARSER_PROFILES } from "./defaults";
 import type {
 	ParserConceptDefault,
 	ParserConceptDefaultStore,
@@ -11,7 +10,11 @@ import type {
 export class SqliteParserProfileStore implements ParserProfileStore {
 	private entityStore: SqliteEntityStore<ParserSyntaxProfile>;
 
-	constructor(db: Database, tableName = "parser_syntax_profiles") {
+	constructor(
+		db: Database,
+		tableName = "parser_syntax_profiles",
+		seedProfiles: ParserSyntaxProfile[] = [],
+	) {
 		this.entityStore = new SqliteEntityStore<ParserSyntaxProfile>(
 			db,
 			tableName,
@@ -20,7 +23,7 @@ export class SqliteParserProfileStore implements ParserProfileStore {
 		// Seed database if it's empty
 		this.list().then((list) => {
 			if (list.length === 0) {
-				for (const profile of SEED_PARSER_PROFILES) {
+				for (const profile of seedProfiles) {
 					this.set(profile);
 				}
 			}
@@ -59,7 +62,11 @@ export class SqliteParserConceptDefaultStore
 {
 	private entityStore: SqliteEntityStore<ParserConceptDefault>;
 
-	constructor(db: Database, tableName = "parser_concept_defaults") {
+	constructor(
+		db: Database,
+		tableName = "parser_concept_defaults",
+		seedDefaults: ParserConceptDefault[] = [],
+	) {
 		this.entityStore = new SqliteEntityStore<ParserConceptDefault>(
 			db,
 			tableName,
@@ -68,7 +75,7 @@ export class SqliteParserConceptDefaultStore
 		// Seed database if it's empty
 		this.entityStore.list().then((list) => {
 			if (list.length === 0) {
-				for (const record of SEED_CONCEPT_DEFAULTS) {
+				for (const record of seedDefaults) {
 					this.set(record);
 				}
 			}

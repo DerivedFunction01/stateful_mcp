@@ -2,6 +2,7 @@ import type { ResourceLocator } from "@stateful-mcp/core";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_CALENDAR_DATE_FORMATS,
+	DEFAULT_EVALUATOR_RULES,
 	SEED_CONCEPT_DEFAULTS,
 	SEED_PARSER_PROFILES,
 } from "./defaults";
@@ -49,6 +50,7 @@ export interface ClinicalStoreConfig {
 		conceptDefaults: typeof SEED_CONCEPT_DEFAULTS;
 		calendarDateFormats: typeof DEFAULT_CALENDAR_DATE_FORMATS;
 		attributeRules: typeof DEFAULT_ATTRIBUTE_RULES;
+		evaluatorRules: typeof DEFAULT_EVALUATOR_RULES;
 	};
 	extensions?: Record<string, unknown>;
 }
@@ -155,6 +157,7 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 		conceptDefaults: SEED_CONCEPT_DEFAULTS,
 		calendarDateFormats: DEFAULT_CALENDAR_DATE_FORMATS,
 		attributeRules: DEFAULT_ATTRIBUTE_RULES,
+		evaluatorRules: DEFAULT_EVALUATOR_RULES,
 	},
 	extensions: {},
 };
