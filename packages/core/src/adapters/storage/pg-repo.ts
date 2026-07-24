@@ -358,9 +358,7 @@ export class PgFilterStore
 			combined_ids: row.combined_ids,
 			tags: saved.tags,
 			description: saved.description,
-			schema_snapshot: row.schema_snapshot
-				? JSON.stringify(row.schema_snapshot)
-				: "{}",
+			schema_snapshot: row.schema_snapshot || "{}",
 		};
 	}
 
@@ -534,11 +532,17 @@ export class PgFilterStore
 		const userScopeId = scope.level === "user" ? scope.userId : null;
 
 		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = $1 AND user_id = $2)";
-		const params: any[] = [scope.level, userScopeId];
-
-		if (scope.level === "user" && includeGlobal) {
-			queryStr += " OR (scope_level = 'global')";
+			"SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = $1 AND user_id = $2)";
+				params.push(scope.level, userScopeId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_filters WHERE scope_level = $1 AND user_id = $2";
+				params.push(scope.level, userScopeId);
+			}
 		}
 
 		const res = await this.pool.query(queryStr, params);
@@ -985,11 +989,17 @@ export class PgObjectStore
 		const userScopeId = scope.level === "user" ? scope.userId : null;
 
 		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = $1 AND user_id = $2)";
-		const params: any[] = [scope.level, userScopeId];
-
-		if (scope.level === "user" && includeGlobal) {
-			queryStr += " OR (scope_level = 'global')";
+			"SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = $1 AND user_id = $2)";
+				params.push(scope.level, userScopeId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_objects WHERE scope_level = $1 AND user_id = $2";
+				params.push(scope.level, userScopeId);
+			}
 		}
 
 		const res = await this.pool.query(queryStr, params);
@@ -1480,11 +1490,17 @@ export class PgEventStore implements SessionEventStore, PersistentEventStore {
 		const userScopeId = scope.level === "user" ? scope.userId : null;
 
 		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = $1 AND user_id = $2)";
-		const params: any[] = [scope.level, userScopeId];
-
-		if (scope.level === "user" && includeGlobal) {
-			queryStr += " OR (scope_level = 'global')";
+			"SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = 'global')";
+		const params: any[] = [];
+		if (scope.level === "user") {
+			if (includeGlobal) {
+				queryStr += " OR (scope_level = $1 AND user_id = $2)";
+				params.push(scope.level, userScopeId);
+			} else {
+				queryStr =
+					"SELECT id, scope_level, user_id FROM saved_events WHERE scope_level = $1 AND user_id = $2";
+				params.push(scope.level, userScopeId);
+			}
 		}
 
 		const res = await this.pool.query(queryStr, params);
@@ -1840,6 +1856,9 @@ export class PgFormStore implements SessionFormStore, PersistentFormStore {
 	async delete(sessionId: string, id: string): Promise<void>;
 	async delete(id: string, scope: OwnerScope): Promise<void>;
 	async delete(a: string, b?: any): Promise<void> {
+		await this.pool.query("DELETE FROM form_answers WHERE form_id = $1", [a]);
+		await this.pool.query("DELETE FROM form_skipped WHERE form_id = $1", [a]);
+		await this.pool.query("DELETE FROM form_stale WHERE form_id = $1", [a]);
 		await this.pool.query("DELETE FROM forms WHERE form_id = $1", [a]);
 		await this.pool.query("DELETE FROM saved_forms WHERE id = $1", [a]);
 	}

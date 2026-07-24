@@ -356,7 +356,7 @@ export class SqliteFilterStore
 			combined_ids: row.combined_ids ? JSON.parse(row.combined_ids) : null,
 			tags: JSON.parse(saved.tags),
 			description: saved.description,
-			schema_snapshot: row.schema_snapshot || "{}",
+			schema_snapshot: row.schema_snapshot ? JSON.parse(row.schema_snapshot) : "{}",
 		};
 	}
 
@@ -836,8 +836,10 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 	async delete(sessionId: string, id: string): Promise<void>;
 	async delete(id: string, scope: OwnerScope): Promise<void>;
 	async delete(a: string, b?: any): Promise<void> {
-		const query = this.db.query("DELETE FROM forms WHERE form_id = ?");
-		query.run(a);
+		this.db.query("DELETE FROM form_answers WHERE form_id = ?").run(a);
+		this.db.query("DELETE FROM form_skipped WHERE form_id = ?").run(a);
+		this.db.query("DELETE FROM form_stale WHERE form_id = ?").run(a);
+		this.db.query("DELETE FROM forms WHERE form_id = ?").run(a);
 		this.db.query("DELETE FROM saved_forms WHERE id = ?").run(a);
 	}
 
