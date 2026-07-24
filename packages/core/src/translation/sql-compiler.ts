@@ -26,6 +26,27 @@ export type FilterOp =
 	| "is_null"
 	| "is_not_null";
 
+export type SqlFunctionOp =
+	| "year"
+	| "month"
+	| "day"
+	| "quarter"
+	| "date_diff"
+	| "to_string"
+	| "to_number"
+	| "round"
+	| "ceil"
+	| "floor"
+	| "starts_with"
+	| "ends_with"
+	| "str_contains"
+	| "substring"
+	| "trim"
+	| "lower"
+	| "upper"
+	| "concat";
+
+
 /**
  * Recursive condition tree allowing for deep nesting.
  * Arrays at the root are treated as implicit ANDs.
@@ -147,6 +168,11 @@ export interface DeleteQuery {
 	table: string;
 	where?: QueryCondition[];
 	returning?: string[];
+}
+
+export interface PragmaQuery {
+	pragma: string;
+	value?: string;
 }
 
 /**
@@ -588,6 +614,16 @@ export class QueryCompiler {
 		return { sql: sql + ";", params: ctx.params };
 	}
 
+	public compileDelete(query: DeleteQuery): CompiledQuery {
+		const ctx = new CompilerContext(this.dialect);
+		let sql = `DELETE FROM ${this.quoteIdent(query.table)}`;
+		sql += this.compileWhereBlock(query.where, ctx);
+		if (query.returning && query.returning.length > 0) {
+			sql += `\nRETURNING ${query.returning.map(c => this.quoteIdent(c)).join(", ")}`;
+		}
+		return { sql: sql + ";", params: ctx.params };
+	}
+
 	/**
 	 * Wraps a pre-compiled SQL string or CompiledQuery in a transaction block.
 	 * (BEGIN ... COMMIT)
@@ -633,5 +669,113 @@ export class QueryCompiler {
 	 */
 	public compileReplace(query: Omit<InsertQuery, "onConflict">): CompiledQuery {
 		return this.compileInsert({ ...query, onConflict: "replace" });
+	}
+	/**
+	 * Compiles scalar pipeline functions across SQLite, Postgres, and DuckDB.
+	 * Assumes arguments are already properly escaped/bound strings (e.g. "?", "$1", or literal strings/numbers).
+	 */
+	public compileScalarExpression(op: SqlFunctionOp | string, args: string[]): string {
+		const arg0 = args[0] || "NULL";
+
+		switch (op) {
+			case "year":
+				return this.dialect === "sqlite"
+					? `CAST(strftime('%Y', ${arg0}) AS INTEGER)`
+					: `EXTRACT(YEAR FROM CAST(${arg0} AS TIMESTAMP))`;
+			case "month":
+				return this.dialect === "sqlite"
+					? `CAST(strftime('%m', ${arg0}) AS INTEGER)`
+					: `EXTRACT(MONTH FROM CAST(${arg0} AS TIMESTAMP))`;
+			case "day":
+				return this.dialect === "sqlite"
+					? `CAST(strftime('%d', ${arg0}) AS INTEGER)`
+					: `EXTRACT(DAY FROM CAST(${arg0} AS TIMESTAMP))`;
+			case "quarter":
+				return this.dialect === "sqlite"
+					? `CAST((strftime('%m', ${arg0}) + 2) / 3 AS INTEGER)`
+					: `EXTRACT(QUARTER FROM CAST(${arg0} AS TIMESTAMP))`;
+			case "date_diff": {
+				const arg1 = args[1] || "NULL";
+				return this.dialect === "sqlite"
+					? `(julianday(${arg1}) - julianday(${arg0}))`
+					: `DATE_PART('day', CAST(${arg1} AS TIMESTAMP) - CAST(${arg0} AS TIMESTAMP))`;
+			}
+			case "to_string":
+				return `CAST(${arg0} AS TEXT)`;
+			case "to_number": {
+				const mode =
+					args[1] && (args[1] === "'int'" || args[1] === "'integer'")
+						? "INTEGER"
+						: this.dialect === "sqlite"
+							? "REAL"
+							: "NUMERIC";
+				return `CAST(${arg0} AS ${mode})`;
+			}
+			case "round": {
+				const decimals = args[1] ?? "0";
+				return this.dialect === "sqlite"
+					? `ROUND(${arg0}, ${decimals})`
+					: `ROUND(CAST(${arg0} AS NUMERIC), ${decimals})`;
+			}
+			case "ceil":
+				return this.dialect === "sqlite" ? `CEIL(${arg0})` : `CEILING(${arg0})`;
+			case "floor":
+				return `FLOOR(${arg0})`;
+			case "starts_with": {
+				const patterns = args.slice(1);
+				if (patterns.length === 0) return "1=1";
+				const conds = patterns.map((p) =>
+					this.dialect === "sqlite"
+						? `${arg0} LIKE ${p} || '%'`
+						: `${arg0} LIKE CONCAT(${p}, '%')`
+				);
+				return `(${conds.join(" OR ")})`;
+			}
+			case "ends_with": {
+				const patterns = args.slice(1);
+				if (patterns.length === 0) return "1=1";
+				const conds = patterns.map((p) =>
+					this.dialect === "sqlite"
+						? `${arg0} LIKE '%' || ${p}`
+						: `${arg0} LIKE CONCAT('%', ${p})`
+				);
+				return `(${conds.join(" OR ")})`;
+			}
+			case "str_contains": {
+				let patterns = args.slice(1);
+				let mode = "all";
+				const last = patterns[patterns.length - 1];
+				if (last === "'any'" || last === "'all'") {
+					mode = last === "'any'" ? "any" : "all";
+					patterns = patterns.slice(0, -1);
+				}
+				if (patterns.length === 0) return "1=1";
+				const conds = patterns.map((p) =>
+					this.dialect === "sqlite"
+						? `${arg0} LIKE '%' || ${p} || '%'`
+						: `${arg0} LIKE CONCAT('%', ${p}, '%')`
+				);
+				const joiner = mode === "any" ? " OR " : " AND ";
+				return `(${conds.join(joiner)})`;
+			}
+			case "substring": {
+				const start = args[1] ?? "0";
+				return this.dialect === "sqlite"
+					? `SUBSTR(${arg0}, (${start}) + 1${args[2] !== undefined ? `, ${args[2]}` : ""})`
+					: `SUBSTRING(${arg0} FROM (${start}) + 1${args[2] !== undefined ? ` FOR ${args[2]}` : ""})`;
+			}
+			case "trim":
+				return `TRIM(${arg0})`;
+			case "lower":
+				return `LOWER(${arg0})`;
+			case "upper":
+				return `UPPER(${arg0})`;
+			case "concat":
+				return this.dialect === "sqlite"
+					? `(${args.join(" || ")})`
+					: `CONCAT(${args.join(", ")})`;
+			default:
+				throw new Error(`Pipeline compiler: unsupported op "${op}"`);
+		}
 	}
 }
