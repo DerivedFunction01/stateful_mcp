@@ -1,7 +1,7 @@
-import * as crypto from "crypto";
-import * as path from "path";
-import * as fs from "fs";
 import { Database } from "bun:sqlite";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import { registerAdapter } from "../../config/loader";
 import type { OwnerScope } from "../../config/types";
 import type {
@@ -93,19 +93,26 @@ export class OpfsDb {
 		}
 	}
 
-async exec(
+	async exec(
 		sql: string,
 		params?: readonly unknown[],
 	): Promise<{ changes?: number; lastInsertRowId?: bigint }> {
 		if (this.sqlite) {
-			const result = (params ? this.sqlite.run(sql, params as any) : this.sqlite.run(sql)) as any;
-			return { changes: result.changes, lastInsertRowId: result.lastInsertRowid };
+			const result = (
+				params ? this.sqlite.run(sql, params as any) : this.sqlite.run(sql)
+			) as any;
+			return {
+				changes: result.changes,
+				lastInsertRowId: result.lastInsertRowid,
+			};
 		}
 		if (!this.ready) await this.open();
 		if (this.promiser) {
 			const result = await this.promiser("exec", {
-				sql, bind: params as any,
-				rowMode: "object" as const, returnValue: "resultRows" as const,
+				sql,
+				bind: params as any,
+				rowMode: "object" as const,
+				returnValue: "resultRows" as const,
 			});
 			return {
 				changes: (result as any).changeCount as number,
@@ -121,7 +128,11 @@ async exec(
 	): Promise<T[]> {
 		if (this.sqlite) {
 			try {
-				return (params ? this.sqlite.query(sql).all(...(params as any[])) : this.sqlite.query(sql).all()) as T[];
+				return (
+					params
+						? this.sqlite.query(sql).all(...(params as any[]))
+						: this.sqlite.query(sql).all()
+				) as T[];
 			} catch {
 				if (params) this.sqlite.run(sql, params as any);
 				else this.sqlite.run(sql);
@@ -131,8 +142,10 @@ async exec(
 		if (!this.ready) await this.open();
 		if (this.promiser) {
 			const result = await this.promiser("exec", {
-				sql, bind: params as any,
-				rowMode: "object" as const, returnValue: "resultRows" as const,
+				sql,
+				bind: params as any,
+				rowMode: "object" as const,
+				returnValue: "resultRows" as const,
 			});
 			return ((result as any).resultRows || []) as T[];
 		}
@@ -144,7 +157,9 @@ async exec(
 		params?: readonly unknown[],
 	): Promise<T | null> {
 		if (this.sqlite) {
-			const row = params ? this.sqlite.query(sql).get(...(params as any[])) : this.sqlite.query(sql).get();
+			const row = params
+				? this.sqlite.query(sql).get(...(params as any[]))
+				: this.sqlite.query(sql).get();
 			return (row ?? null) as T | null;
 		}
 		const rows = await this.query<T>(sql, params);

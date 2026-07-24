@@ -550,13 +550,16 @@ describe("Storage Compliance Test Runner", () => {
 
 		describe("OPFS Dictionary Store", () => {
 			const opfsDb = new OpfsDb(":memory:");
-			beforeAll(async () => { await opfsDb.open(); });
+			beforeAll(async () => {
+				await opfsDb.open();
+			});
 			runDictionaryStoreComplianceTests({
 				name: "OPFS Dictionary Store",
 				test,
 				expect,
 				createSessionStore: async () => new OpfsConceptStore(opfsDb),
-				createPersistentStore: async () => new OpfsPersistentExpressionStore(opfsDb),
+				createPersistentStore: async () =>
+					new OpfsPersistentExpressionStore(opfsDb),
 			});
 		});
 	});
