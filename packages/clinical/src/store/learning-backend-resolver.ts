@@ -1,35 +1,20 @@
 import { Database } from "bun:sqlite";
-import type { AdapterLocator, ResourceLocator } from "@stateful-mcp/core";
+import type { ResourceLocator } from "@stateful-mcp/core";
 import { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
 import { MemoryParsedCellStore } from "./parsed-cell-store";
 import { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
 
-// 1. Define clean type guards
-export function isMemoryAdapter(
-	locator: AdapterLocator,
-): locator is Extract<AdapterLocator, { name: "memory" }> {
-	return locator.name === "memory";
+function readStringOption(
+	locator: ResourceLocator,
+	key: "path" | "dbName",
+	fallback: string,
+): string {
+	if (locator._type !== "adapter") return fallback;
+	const options = locator.options as Record<string, unknown> | undefined;
+	const value = options?.[key];
+	return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
-export function isSqliteAdapter(
-	locator: AdapterLocator,
-): locator is Extract<AdapterLocator, { name: "sqlite" }> {
-	return locator.name === "sqlite";
-}
-
-export function isJsonlAdapter(
-	locator: AdapterLocator,
-): locator is Extract<AdapterLocator, { name: "jsonl" }> {
-	return locator.name === "jsonl";
-}
-
-export function isOpfsSqliteAdapter(
-	locator: AdapterLocator,
-): locator is Extract<AdapterLocator, { name: "opfs-sqlite" }> {
-	return locator.name === "opfs-sqlite";
-}
-
-// 2. Use them inside the resolver
 export function resolveParsedCellStoreLocator(
 	locator: ResourceLocator,
 ): MemoryParsedCellStore | SqliteParsedCellStore | JsonlParsedCellStore {
@@ -39,22 +24,25 @@ export function resolveParsedCellStoreLocator(
 		);
 	}
 
-	// Inside each if-block, 'locator' narrows perfectly to the exact type
-	if (isMemoryAdapter(locator)) {
+	if (locator.name === "memory") {
 		return new MemoryParsedCellStore();
 	}
 
-	if (isSqliteAdapter(locator)) {
-		const dbPath = locator.options?.path ?? "./clinical-learning.sqlite";
+	if (locator.name === "sqlite") {
+		const dbPath =
+			readStringOption(locator, "path", "") ||
+			readStringOption(locator, "dbName", "") ||
+			"./clinical-learning.sqlite";
 		return new SqliteParsedCellStore(new Database(dbPath));
 	}
 
-	if (isJsonlAdapter(locator)) {
-		const basePath = locator.options?.path ?? "./clinical-learning.jsonl";
+	if (locator.name === "jsonl") {
+		const basePath =
+			readStringOption(locator, "path", "") || "./clinical-learning.jsonl";
 		return new JsonlParsedCellStore(basePath);
 	}
 
-	if (isOpfsSqliteAdapter(locator)) {
+	if (locator.name === "opfs-sqlite") {
 		return new MemoryParsedCellStore();
 	}
 

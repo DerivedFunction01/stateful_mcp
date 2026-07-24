@@ -2,10 +2,13 @@ import Database from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import {
 	CompositeParsedCellHistoryStore,
+	buildLearningHistoryStore,
 	MemoryParsedCellStore,
+	type ClinicalStorageAdapterRegistry,
 	type ParsedCellV1,
 	SqliteParsedCellStore,
 } from "../src";
+import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../src/store/adapter-config";
 import { ObservationSchemaParser } from "../src/parser/parsers/observation-parser";
 import type { ParsedObservationItem } from "../src/parser/schema-parsers";
 import { ObservationPreferenceRanker } from "../src/store/parsed-cell-ranking";
@@ -67,6 +70,57 @@ describe("ParsedCellV1 storage", () => {
 		expect(pilotRows).toHaveLength(1);
 		expect(pilotRows[0]?.shared.cellId).toBe("cell-2");
 		expect(pilotRows[0]?.parsedItem?.display).toBe("Dyspnea");
+	});
+
+	test("sqlite history stays scoped when patient context is present and global when it is not", async () => {
+		const db = new Database(":memory:");
+		const store = new SqliteParsedCellStore(db);
+
+		await store.putObservation({
+			...makeObservationCell("cell-scope-a", "session-scope-a"),
+			shared: {
+				...makeObservationCell("cell-scope-a", "session-scope-a").shared,
+				patientId: "patient-a",
+				patientOrganismType: "human",
+				patientGender: "female",
+				patientAgeBucket: "30-39",
+				patientSubBucket: 0,
+				patientBucketKey: "patient-a|human|female|30-39|0",
+			},
+		});
+		await store.putObservation({
+			...makeObservationCell("cell-scope-b", "session-scope-b"),
+			shared: {
+				...makeObservationCell("cell-scope-b", "session-scope-b").shared,
+				patientId: "patient-b",
+				patientOrganismType: "human",
+				patientGender: "female",
+				patientAgeBucket: "30-39",
+				patientSubBucket: 0,
+				patientBucketKey: "patient-b|human|female|30-39|0",
+			},
+		});
+
+		const globalRows = await store.getObservationHistory({
+			tag: "#observation",
+			targetSchema: "ObservationEvent",
+			rawText: "#observation shortness of breath",
+		});
+		const scopedRows = await store.getObservationHistory({
+			tag: "#observation",
+			targetSchema: "ObservationEvent",
+			rawText: "#observation shortness of breath",
+			patientId: "patient-a",
+			patientOrganismType: "human",
+			patientGender: "female",
+			patientAgeBucket: "30-39",
+			patientSubBucket: 0,
+			patientBucketKey: "patient-a|human|female|30-39|0",
+		});
+
+		expect(globalRows).toHaveLength(2);
+		expect(scopedRows).toHaveLength(1);
+		expect(scopedRows[0]?.cellId).toBe("cell-scope-a");
 	});
 
 	test("observation ranker favors exact slot matches and recency", async () => {
@@ -598,5 +652,40 @@ describe("ParsedCellV1 storage", () => {
 
 		expect(preview.learned).toHaveLength(1);
 		expect(preview.learned[0]?.severity).toBe("severe");
+	});
+
+	test("learning history builder composes the configured learning backends", async () => {
+		const registry: ClinicalStorageAdapterRegistry = {
+			...DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY,
+			learning: [
+				{
+					group: "learning",
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: { seed: [] },
+					},
+				},
+				{
+					group: "learning",
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: { seed: [] },
+					},
+				},
+			],
+		};
+
+		const store = buildLearningHistoryStore(registry);
+		await store.putObservation(makeObservationCell("cell-builder-1", "session-x"));
+		const rows = await store.getObservationHistory({
+			tag: "#observation",
+			targetSchema: "ObservationEvent",
+			rawText: "#observation shortness of breath",
+		});
+
+		expect(rows).toHaveLength(2);
+		expect(rows[0]?.cellId).toBe("cell-builder-1");
 	});
 });

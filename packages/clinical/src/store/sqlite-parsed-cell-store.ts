@@ -16,6 +16,21 @@ import {
 	type ParsedCellSqlDialect,
 } from "./sql/parsed-cell-query-compiler";
 
+function isScopedHistoryKey(key: ParsedCellHistoryKey): boolean {
+	return Boolean(
+		key.patientId ||
+			key.patientOrganismType ||
+			key.patientGender ||
+			key.patientAgeBucket ||
+			key.patientSpeciesBucket ||
+			key.patientSubBucket !== undefined ||
+			key.patientBucketKey ||
+			key.personnelId ||
+			key.specialtyId ||
+			key.facilityId,
+	);
+}
+
 export class SqliteParsedCellStore implements ParsedCellStore {
 	private sharedStore: SqliteEntityStore<ParsedCellV1Shared>;
 	private observationDetailStore: SqliteEntityStore<ParsedCellObservationDetailV1>;
@@ -123,7 +138,7 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 				tableName: this.sharedTable,
 				detailTableName: this.observationDetailTable,
 				key,
-				scope: "scoped",
+				scope: isScopedHistoryKey(key) ? "scoped" : "global",
 				limit: 50,
 			},
 			"sqlite" satisfies ParsedCellSqlDialect,

@@ -30,7 +30,5 @@ export function buildLearningHistoryStore(
 		weight: 1 / Math.max(1, configs.length),
 		store: pickStore(config),
 	}));
-	return adapters.length > 1
-		? new CompositeParsedCellHistoryStore(adapters)
-		: adapters[0]?.store || new CompositeParsedCellHistoryStore([]);
+	return new CompositeParsedCellHistoryStore(adapters);
 }

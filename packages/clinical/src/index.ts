@@ -22,6 +22,7 @@ export * from "./seed/loader";
 export * from "./store/adapter-config";
 export * from "./store/clinical-store";
 export * from "./store/defaults";
+export * from "./store/learning-history-store";
 export * from "./store/interfaces";
 export * from "./store/memory-clinical-store";
 export * from "./store/parsed-cell-ranking";
