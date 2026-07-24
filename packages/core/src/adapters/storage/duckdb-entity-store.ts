@@ -1,7 +1,7 @@
 import type { DuckDBConnection } from "@duckdb/node-api";
-import type { EntityStore } from "./interfaces";
+import type { EntityStore, SqlQueryStore } from "./interfaces";
 
-export class DuckDbEntityStore<T> implements EntityStore<T> {
+export class DuckDbEntityStore<T> implements EntityStore<T>, SqlQueryStore {
 	constructor(
 		private connection: DuckDBConnection,
 		private tableName: string,
@@ -61,5 +61,16 @@ export class DuckDbEntityStore<T> implements EntityStore<T> {
 		);
 		await stmt.bind([id]);
 		await stmt.run();
+	}
+
+	async query<TQuery = Record<string, unknown>>(
+		sql: string,
+		params: readonly unknown[] = [],
+	): Promise<TQuery[]> {
+		const stmt = await this.connection.prepare(sql);
+		await stmt.bind([...params] as any[]);
+		const reader = await stmt.run();
+		const rows = await reader.getRows();
+		return rows.map((row) => row as unknown as TQuery);
 	}
 }

@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { EntityStore } from "./interfaces";
+import type { EntityStore, SqlQueryStore } from "./interfaces";
 
 export class MemoryEntityStore<T> implements EntityStore<T> {
 	private map = new Map<string, T>();
@@ -21,7 +21,7 @@ export class MemoryEntityStore<T> implements EntityStore<T> {
 	}
 }
 
-export class SqliteEntityStore<T> implements EntityStore<T> {
+export class SqliteEntityStore<T> implements EntityStore<T>, SqlQueryStore {
 	constructor(
 		private db: Database,
 		private tableName: string,
@@ -63,5 +63,13 @@ export class SqliteEntityStore<T> implements EntityStore<T> {
 
 	async delete(id: string): Promise<void> {
 		this.db.run(`DELETE FROM ${this.tableName} WHERE id = ?`, [id]);
+	}
+
+	async query<TQuery = Record<string, unknown>>(
+		sql: string,
+		params: readonly unknown[] = [],
+	): Promise<TQuery[]> {
+		const rows = this.db.query(sql).all(...(params as any[])) as TQuery[];
+		return rows;
 	}
 }

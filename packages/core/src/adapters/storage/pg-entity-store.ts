@@ -1,7 +1,7 @@
 import { Pool } from "pg";
-import type { EntityStore } from "./interfaces";
+import type { EntityStore, SqlQueryStore } from "./interfaces";
 
-export class PgEntityStore<T> implements EntityStore<T> {
+export class PgEntityStore<T> implements EntityStore<T>, SqlQueryStore {
 	private pool: Pool;
 	private initialized = false;
 	private initPromise: Promise<void> | null = null;
@@ -70,5 +70,14 @@ export class PgEntityStore<T> implements EntityStore<T> {
 	async delete(id: string): Promise<void> {
 		await this.init();
 		await this.pool.query(`DELETE FROM ${this.tableName} WHERE id = $1`, [id]);
+	}
+
+	async query<TQuery = Record<string, unknown>>(
+		sql: string,
+		params: readonly unknown[] = [],
+	): Promise<TQuery[]> {
+		await this.init();
+		const res = await this.pool.query(sql, params as unknown[]);
+		return res.rows as TQuery[];
 	}
 }

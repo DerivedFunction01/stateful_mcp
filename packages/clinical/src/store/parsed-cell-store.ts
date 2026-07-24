@@ -1,9 +1,11 @@
 import type { Database } from "bun:sqlite";
+import type { SqlQueryStore } from "@stateful-mcp/core";
 import { SqliteEntityStore } from "@stateful-mcp/core";
 import type {
 	ParsedItem,
 	ParsedObservationItem,
 } from "../parser/schema-parsers";
+import { compileParsedCellObservationHistoryQuery } from "./sql/parsed-cell-query-compiler";
 
 export type ParsedCellSourceKind = "direct_contract" | "fallback" | "heuristic";
 export type ParsedCellOutcome = "accepted" | "rejected" | "corrected";
@@ -18,6 +20,12 @@ export interface ParsedCellV1Shared {
 	patientSpeciesBucket?: string;
 	patientSubBucket?: number;
 	patientBucketKey?: string;
+	patientTierWeights?: {
+		exact: number;
+		biology: number;
+		specific: number;
+		global: number;
+	};
 	personnelId?: string;
 	specialtyId?: string;
 	facilityId?: string;
@@ -93,67 +101,6 @@ export interface ParsedCellJoinResult<
 	parsedItem: TParsedItem | null;
 }
 
-export interface ParsedCellRankerContext {
-	tag: string;
-	targetSchema: string;
-	patientId?: string;
-	patientOrganismType?: string;
-	patientGender?: string;
-	patientAgeBucket?: string;
-	patientSpeciesBucket?: string;
-	patientSubBucket?: number;
-	patientBucketKey?: string;
-	personnelId?: string;
-	specialtyId?: string;
-	facilityId?: string;
-	rawText: string;
-	anchorText: string;
-	candidateTokens: ParsedCellCandidateTokenV1[];
-	sharedShape: ParsedCellV1ObservedShape;
-	history?: ParsedCellObservationDetailV1["history"];
-}
-
-export interface ParsedCellRankerScore {
-	score: number;
-	reason?: string;
-}
-
-export type ParsedCellPreferenceMode = "deterministic" | "learned" | "dual";
-
-export interface ParsedCellPreferenceProjection<TCandidate = unknown> {
-	mode: ParsedCellPreferenceMode;
-	deterministic: TCandidate | null;
-	learned: TCandidate | null;
-	winner: TCandidate | null;
-	deterministicScore?: ParsedCellRankerScore;
-	learnedScore?: ParsedCellRankerScore;
-}
-
-export interface ParsedCellPreferenceCandidate<TCandidate = unknown> {
-	candidate: TCandidate;
-	score: ParsedCellRankerScore;
-	source: "deterministic" | "learned";
-}
-
-export interface ParsedCellPreferenceRanking<TCandidate = unknown> {
-	mode: ParsedCellPreferenceMode;
-	candidates: ParsedCellPreferenceCandidate<TCandidate>[];
-	winner: TCandidate | null;
-}
-
-export interface ParsedCellPreview<TCandidate = unknown> {
-	deterministic: TCandidate[];
-	learned: TCandidate[];
-	ranking: ParsedCellPreferenceRanking<TCandidate>;
-}
-
-export interface ParsedCellRanker<TCandidate = unknown> {
-	score(
-		candidate: TCandidate,
-		context: ParsedCellRankerContext,
-	): Promise<ParsedCellRankerScore> | ParsedCellRankerScore;
-}
-
 export interface ParsedCellHistoryStore {
 	getObservationHistory(
 		key: ParsedCellHistoryKey,
@@ -163,6 +110,86 @@ export interface ParsedCellHistoryStore {
 		cellId: string,
 		replacement?: ParsedObservationItem,
 	): Promise<void>;
+}
+
+export interface ParsedCellHistoryAdapter {
+	adapterId: string;
+	weight: number;
+	store: ParsedCellHistoryStore;
+}
+
+export interface ParsedCellWeightedHistoryCandidate {
+	candidate: ParsedCellObservationDetailV1;
+	adapterId: string;
+	weight: number;
+}
+
+export interface ParsedCellWeightedHistoryStore {
+	getWeightedObservationHistory(
+		key: ParsedCellHistoryKey,
+	): Promise<ParsedCellWeightedHistoryCandidate[]>;
+}
+
+export class CompositeParsedCellHistoryStore
+	implements ParsedCellHistoryStore, ParsedCellWeightedHistoryStore
+{
+	constructor(private adapters: ParsedCellHistoryAdapter[]) {}
+
+	async getWeightedObservationHistory(
+		key: ParsedCellHistoryKey,
+	): Promise<ParsedCellWeightedHistoryCandidate[]> {
+		const results = await Promise.all(
+			this.adapters.map(async (adapter) => {
+				const rows = await adapter.store.getObservationHistory(
+					stripPatientFields(key),
+				);
+				return rows.map((candidate) => ({
+					candidate,
+					adapterId: adapter.adapterId,
+					weight: adapter.weight,
+				}));
+			}),
+		);
+		return results.flat();
+	}
+
+	async getObservationHistory(
+		key: ParsedCellHistoryKey,
+	): Promise<ParsedCellObservationDetailV1[]> {
+		return (await this.getWeightedObservationHistory(key)).map(
+			(entry) => entry.candidate,
+		);
+	}
+
+	async putObservation(
+		record: ParsedCellV1<ParsedObservationItem>,
+	): Promise<void> {
+		await Promise.all(
+			this.adapters.map((adapter) => adapter.store.putObservation(record)),
+		);
+	}
+
+	async markObservationCorrection(
+		cellId: string,
+		replacement?: ParsedObservationItem,
+	): Promise<void> {
+		await Promise.all(
+			this.adapters.map((adapter) =>
+				adapter.store.markObservationCorrection(cellId, replacement),
+			),
+		);
+	}
+}
+
+function stripPatientFields(key: ParsedCellHistoryKey): ParsedCellHistoryKey {
+	return {
+		tag: key.tag,
+		targetSchema: key.targetSchema,
+		rawText: key.rawText,
+		personnelId: key.personnelId,
+		specialtyId: key.specialtyId,
+		facilityId: key.facilityId,
+	};
 }
 
 export interface ParsedCellHistoryKey {
@@ -363,139 +390,6 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 	}
 }
 
-export class ObservationPreferenceRanker
-	implements ParsedCellRanker<ParsedCellObservationDetailV1>
-{
-	score(
-		candidate: ParsedCellObservationDetailV1,
-		context: ParsedCellRankerContext,
-	): ParsedCellRankerScore {
-		const sharedSlots = context.sharedShape.slots;
-		const candidateSlots = candidate.shape.slots;
-		let score = 0;
-		const reasons: string[] = [];
-
-		for (const key of ["conceptId", "severity", "certainty", "status"]) {
-			if (sharedSlots[key] && candidateSlots[key] === sharedSlots[key]) {
-				score += 3;
-				reasons.push(`exact-${key}`);
-			}
-		}
-
-		if (candidate.history?.recencyScore) {
-			score += candidate.history.recencyScore;
-			reasons.push("recency");
-		}
-
-		if (candidate.history?.priorAcceptCount) {
-			score += Math.min(candidate.history.priorAcceptCount, 5) * 0.2;
-			reasons.push("history");
-		}
-
-		if (candidate.flags?.contractValid) {
-			score += 1;
-			reasons.push("contract");
-		}
-
-		return { score, reason: reasons.join(",") || "baseline" };
-	}
-
-	choose(
-		deterministic: ParsedCellObservationDetailV1 | null,
-		learned: ParsedCellObservationDetailV1 | null,
-		context: ParsedCellRankerContext,
-		mode: ParsedCellPreferenceMode = "dual",
-	): ParsedCellPreferenceProjection<ParsedCellObservationDetailV1> {
-		const deterministicScore = deterministic
-			? this.score(deterministic, context)
-			: undefined;
-		const learnedScore = learned ? this.score(learned, context) : undefined;
-		let winner: ParsedCellObservationDetailV1 | null = null;
-
-		if (mode === "deterministic") {
-			winner = deterministic;
-		} else if (mode === "learned") {
-			winner = learned;
-		} else if ((learnedScore?.score || 0) >= (deterministicScore?.score || 0)) {
-			winner = learned;
-		} else {
-			winner = deterministic;
-		}
-
-		return {
-			mode,
-			deterministic,
-			learned,
-			winner,
-			deterministicScore,
-			learnedScore,
-		};
-	}
-
-	rankMany(
-		candidates: Array<{
-			candidate: ParsedCellObservationDetailV1;
-			source: "deterministic" | "learned";
-		}>,
-		context: ParsedCellRankerContext,
-		mode: ParsedCellPreferenceMode = "dual",
-	): ParsedCellPreferenceRanking<ParsedCellObservationDetailV1> {
-		const scored = candidates
-			.map((entry) => ({
-				candidate: entry.candidate,
-				score: this.score(entry.candidate, context),
-				source: entry.source,
-			}))
-			.sort((a, b) => b.score.score - a.score.score);
-
-		if (mode === "deterministic") {
-			const deterministic = scored.find(
-				(row) => row.source === "deterministic",
-			);
-			return {
-				mode,
-				candidates: deterministic ? [deterministic] : [],
-				winner: deterministic?.candidate || null,
-			};
-		}
-
-		if (mode === "learned") {
-			const learned = scored.find((row) => row.source === "learned");
-			return {
-				mode,
-				candidates: learned ? [learned] : [],
-				winner: learned?.candidate || null,
-			};
-		}
-
-		return {
-			mode,
-			candidates: scored,
-			winner: scored[0]?.candidate || null,
-		};
-	}
-
-	previewMany(
-		candidates: Array<{
-			candidate: ParsedCellObservationDetailV1;
-			source: "deterministic" | "learned";
-		}>,
-		context: ParsedCellRankerContext,
-		mode: ParsedCellPreferenceMode = "dual",
-	): ParsedCellPreview<ParsedCellObservationDetailV1> {
-		const ranking = this.rankMany(candidates, context, mode);
-		return {
-			deterministic: candidates
-				.filter((entry) => entry.source === "deterministic")
-				.map((entry) => entry.candidate),
-			learned: candidates
-				.filter((entry) => entry.source === "learned")
-				.map((entry) => entry.candidate),
-			ranking,
-		};
-	}
-}
-
 export class SqliteParsedCellStore implements ParsedCellStore {
 	private sharedStore: SqliteEntityStore<ParsedCellV1Shared>;
 	private observationDetailStore: SqliteEntityStore<ParsedCellObservationDetailV1>;
@@ -583,51 +477,23 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 	async getObservationHistory(
 		key: ParsedCellHistoryKey,
 	): Promise<ParsedCellObservationDetailV1[]> {
-		const sharedRows = await this.sharedStore.list();
-		const results: ParsedCellObservationDetailV1[] = [];
-		for (const shared of sharedRows) {
-			if (shared.targetSchema !== key.targetSchema) continue;
-			if (shared.tag !== key.tag) continue;
-			if (key.patientId && shared.patientId !== key.patientId) continue;
-			if (
-				key.patientOrganismType &&
-				shared.patientOrganismType !== key.patientOrganismType
-			)
-				continue;
-			if (key.patientGender && shared.patientGender !== key.patientGender)
-				continue;
-			if (
-				key.patientAgeBucket &&
-				shared.patientAgeBucket !== key.patientAgeBucket
-			)
-				continue;
-			if (
-				key.patientSpeciesBucket &&
-				shared.patientSpeciesBucket !== key.patientSpeciesBucket
-			)
-				continue;
-			if (
-				key.patientSubBucket !== undefined &&
-				shared.patientSubBucket !== key.patientSubBucket
-			)
-				continue;
-			if (
-				key.patientBucketKey &&
-				shared.patientBucketKey !== key.patientBucketKey
-			)
-				continue;
-			if (key.personnelId && shared.personnelId !== key.personnelId) continue;
-			if (key.specialtyId && shared.specialtyId !== key.specialtyId) continue;
-			if (key.facilityId && shared.facilityId !== key.facilityId) continue;
-			if (
-				shared.rawText !== key.rawText &&
-				shared.normalizedText !== key.rawText
-			)
-				continue;
-			const detail = await this.observationDetailStore.get(shared.cellId);
-			if (detail) results.push(detail);
-		}
-		return results;
+		const { sql, params } = compileParsedCellObservationHistoryQuery(
+			key,
+			"parsed_cell_v1_shared",
+		);
+		const queryStore = this.sharedStore as unknown as SqlQueryStore;
+		const rows = await queryStore.query<{ data: string }>(sql, params);
+		const sharedRows = rows.map(
+			(row) => JSON.parse(row.data) as ParsedCellV1Shared,
+		);
+		const details = await Promise.all(
+			sharedRows.map((shared) =>
+				this.observationDetailStore.get(shared.cellId),
+			),
+		);
+		return details.filter(
+			(detail): detail is ParsedCellObservationDetailV1 => detail !== null,
+		);
 	}
 
 	async markObservationCorrection(

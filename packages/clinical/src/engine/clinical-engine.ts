@@ -141,6 +141,7 @@ export class ClinicalEngine {
 						patientSpeciesBucket: patientBucket.speciesBucket,
 						patientSubBucket: patientBucket.subBucket,
 						patientBucketKey: patientBucket.bucketKey,
+						patientTierWeights: patientBucket.weights,
 						personnelId: "system",
 						tag: item.tag,
 						targetSchema: item.targetSchema,

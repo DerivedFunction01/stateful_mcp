@@ -1,7 +1,7 @@
-import type { EntityStore } from "./interfaces";
+import type { EntityStore, SqlQueryStore } from "./interfaces";
 import type { OpfsWorkerBridge } from "./opfs-repo";
 
-export class OpfsEntityStore<T> implements EntityStore<T> {
+export class OpfsEntityStore<T> implements EntityStore<T>, SqlQueryStore {
 	private map = new Map<string, T>();
 
 	constructor(
@@ -59,5 +59,12 @@ export class OpfsEntityStore<T> implements EntityStore<T> {
 			tableName: this.tableName,
 			id,
 		});
+	}
+
+	async query<TQuery = Record<string, unknown>>(
+		sql: string,
+		params: readonly unknown[] = [],
+	): Promise<TQuery[]> {
+		return this.bridge.query<TQuery>(sql, params);
 	}
 }

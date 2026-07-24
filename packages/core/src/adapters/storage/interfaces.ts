@@ -182,3 +182,14 @@ export interface EntityStore<T> {
 	list(): Promise<T[]>;
 	delete(id: string): Promise<void>;
 }
+
+export interface SqlQueryResultRow {
+	[key: string]: unknown;
+}
+
+export interface SqlQueryStore {
+	query<T = SqlQueryResultRow>(
+		sql: string,
+		params?: readonly unknown[],
+	): Promise<T[]>;
+}

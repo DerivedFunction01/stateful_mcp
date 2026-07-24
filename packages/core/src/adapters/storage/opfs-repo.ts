@@ -57,6 +57,8 @@ export class OpfsWorkerBridge {
 							const { id, action, payload } = e.data;
 							if (action === 'init') {
 								self.postMessage({ id, status: 'ok', result: true });
+							} else if (action === 'query') {
+								self.postMessage({ id, status: 'ok', result: [] });
 							} else {
 								self.postMessage({ id, status: 'ok', result: null });
 							}
@@ -91,6 +93,14 @@ export class OpfsWorkerBridge {
 			this.pendingRequests.set(id, { resolve, reject });
 			this.worker!.postMessage({ id, action, payload });
 		});
+	}
+
+	async query<T = Record<string, unknown>>(
+		sql: string,
+		params: readonly unknown[] = [],
+	): Promise<T[]> {
+		const result = await this.request<T[]>("query", { sql, params });
+		return result ?? [];
 	}
 
 	async init(): Promise<void> {
