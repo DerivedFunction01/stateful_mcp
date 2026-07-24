@@ -7,6 +7,7 @@ import type {
 	FrequencyShorthand,
 	PhysiologicalEventAnchor,
 } from "../schemas/medication";
+import type { PatientLearningBucket } from "../schemas/patient";
 import type {
 	Certainty,
 	Route,
@@ -48,6 +49,10 @@ export interface ParserSyntaxProfile {
 	defaultsStrategy?: string;
 	calendarDateFormats?: DateTimeFormatConfig[];
 	numericFieldFormats?: NumericFieldFormatOptions[];
+}
+
+export interface PatientLearningContext extends PatientLearningBucket {
+	facilityId?: string;
 }
 
 export type NumericValueTarget =
@@ -335,6 +340,7 @@ export interface StopWordContext {
 	locale?: string;
 	specialtyId?: string;
 	facilityId?: string;
+	patientContext?: PatientLearningContext;
 }
 
 export interface StopWordProfile {

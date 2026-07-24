@@ -93,6 +93,13 @@ export class ObservationSchemaParser implements SchemaParser {
 		historyStore: ParsedCellHistoryStore,
 	): Promise<ParsedCellObservationDetailV1[]> {
 		const key: ParsedCellHistoryKey = {
+			patientId: preparsedContext?.patientContext?.patientId,
+			patientOrganismType: preparsedContext?.patientContext?.organismType,
+			patientGender: preparsedContext?.patientContext?.gender,
+			patientAgeBucket: preparsedContext?.patientContext?.ageBucket,
+			patientSpeciesBucket: preparsedContext?.patientContext?.speciesBucket,
+			patientSubBucket: preparsedContext?.patientContext?.subBucket,
+			patientBucketKey: preparsedContext?.patientContext?.bucketKey,
 			personnelId: preparsedContext?.rankingSignals?.personnelId,
 			specialtyId: preparsedContext?.rankingSignals?.specialtyId,
 			facilityId: preparsedContext?.rankingSignals?.facilityId,

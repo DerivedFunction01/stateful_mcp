@@ -23,6 +23,7 @@ import {
 	type ParsedVitalsItem as IMP_ParsedVitalsItem,
 	type ParserPreviewResult,
 	type PreparsedContext,
+	type RankingSignal,
 	type SchemaParser,
 	schemaParserRegistry,
 } from "./schema-parsers";
@@ -77,11 +78,17 @@ export class CdslParser {
 				this.stopWordStore,
 				context,
 			);
-			return this.previewWithStopWordParser(text, dynamicParser, historyStore);
+			return this.previewWithStopWordParser(
+				text,
+				dynamicParser,
+				context,
+				historyStore,
+			);
 		}
 		return this.previewWithStopWordParser(
 			text,
 			effectiveStopWordParser,
+			context,
 			historyStore,
 		);
 	}
@@ -97,14 +104,15 @@ export class CdslParser {
 				this.stopWordStore,
 				context,
 			);
-			return this.parseWithStopWordParser(text, dynamicParser);
+			return this.parseWithStopWordParser(text, dynamicParser, context);
 		}
-		return this.parseWithStopWordParser(text, effectiveStopWordParser);
+		return this.parseWithStopWordParser(text, effectiveStopWordParser, context);
 	}
 
 	private async previewWithStopWordParser(
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
+		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParserPreviewResult[]> {
 		const results: ParserPreviewResult[] = [];
@@ -174,6 +182,7 @@ export class CdslParser {
 				frequency,
 				attributes,
 				profile: this.profile,
+				rankingSignals: buildRankingSignals(context, tag),
 			};
 
 			let mappedParser: SchemaParser | undefined;
@@ -254,6 +263,7 @@ export class CdslParser {
 	private async parseWithStopWordParser(
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
+		context?: StopWordContext,
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
 		const segments = text.split(this.profile.stateDelimiter);
@@ -332,6 +342,7 @@ export class CdslParser {
 				frequency,
 				attributes,
 				profile: this.profile,
+				rankingSignals: buildRankingSignals(context, tag),
 			};
 
 			// Resolve tag to a schema parser
@@ -398,4 +409,25 @@ export class CdslParser {
 
 		return items;
 	}
+}
+
+function buildRankingSignals(
+	context: StopWordContext | undefined,
+	tag: string,
+): RankingSignal | undefined {
+	if (!context) return undefined;
+	const patientContext = context.patientContext;
+	return {
+		personnelId: context.personnelId,
+		specialtyId: context.specialtyId,
+		facilityId: context.facilityId,
+		patientId: patientContext?.patientId,
+		organismType: patientContext?.organismType,
+		gender: patientContext?.gender,
+		ageBucket: patientContext?.ageBucket,
+		speciesBucket: patientContext?.speciesBucket,
+		subBucket: patientContext?.subBucket,
+		bucketKey: patientContext?.bucketKey,
+		tag,
+	};
 }

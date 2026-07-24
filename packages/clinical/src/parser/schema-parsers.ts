@@ -6,6 +6,7 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
+	PatientLearningContext,
 } from "../store/interfaces";
 import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
 import { MedicationSchemaParser } from "./parsers/medication-parser";
@@ -70,14 +71,8 @@ export interface PreparsedContext {
 	attributes: Record<string, string>;
 	parsedPartial?: Record<string, any>;
 	profile?: Pick<ParserSyntaxProfile, "schemaDefaults" | "defaultsStrategy">;
-	rankingSignals?: {
-		personnelId?: string;
-		specialtyId?: string;
-		facilityId?: string;
-		tag?: string;
-		targetSchema?: string;
-		exactDiscriminators?: Record<string, string>;
-	};
+	rankingSignals?: RankingSignal;
+	patientContext?: PatientLearningContext;
 }
 
 export interface ScoredParseResult {
@@ -89,6 +84,33 @@ export interface ScoredParseResult {
 export interface ParsedCandidateEnvelope<TCandidate = ParsedItem> {
 	deterministic: TCandidate[];
 	learned: TCandidate[];
+}
+
+export interface ParsedCandidate<TPayload = unknown> {
+	schema: string;
+	tag: string;
+	anchorText: string;
+	payload: TPayload;
+	tokens?: QuantityCandidate[];
+	attributes?: Record<string, string>;
+	exactDiscriminators?: Record<string, string>;
+}
+
+export interface RankingSignal {
+	personnelId?: string;
+	specialtyId?: string;
+	facilityId?: string;
+	patientId?: string;
+	organismType?: string;
+	gender?: string;
+	ageBucket?: string;
+	speciesBucket?: string;
+	subBucket?: number;
+	bucketKey?: string;
+	workspaceId?: string;
+	tag?: string;
+	targetSchema?: string;
+	exactDiscriminators?: Record<string, string>;
 }
 
 export interface ParserPreviewResult<TCandidate = ParsedItem> {

@@ -7,7 +7,10 @@ import type {
 	ParsedVitalsItem,
 } from "../parser/schema-parsers";
 import type { SoapNote } from "../schemas/document";
-import type { PatientProfile } from "../schemas/patient";
+import {
+	buildPatientLearningBucket,
+	type PatientProfile,
+} from "../schemas/patient";
 import type {
 	CalibrationStore,
 	SignedSoapNoteRecord,
@@ -114,8 +117,12 @@ export class ClinicalEngine {
 			throw new Error("Cannot modify a signed SOAP note.");
 		}
 
-		const note = activeObj.data as SoapNote;
-		const parsedItems = await this.parser.parse(dictation);
+			const note = activeObj.data as SoapNote;
+			const patientBucket = buildPatientLearningBucket(note.patient);
+			const parsedItems = await this.parser.parse(dictation, {
+				personnelId: "system",
+				patientContext: patientBucket,
+			});
 
 		let currentObjId = "active_note";
 
@@ -127,6 +134,13 @@ export class ClinicalEngine {
 					shared: {
 						cellId,
 						sessionId,
+						patientId: patientBucket.patientId,
+						patientOrganismType: patientBucket.organismType,
+						patientGender: patientBucket.gender,
+						patientAgeBucket: patientBucket.ageBucket,
+						patientSpeciesBucket: patientBucket.speciesBucket,
+						patientSubBucket: patientBucket.subBucket,
+						patientBucketKey: patientBucket.bucketKey,
 						personnelId: "system",
 						tag: item.tag,
 						targetSchema: item.targetSchema,

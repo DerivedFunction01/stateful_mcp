@@ -369,4 +369,35 @@ describe("ParsedCellV1 storage", () => {
 		expect(result?.detail?.flags?.stalePreference).toBe(true);
 		expect(result?.parsedItem?.severity).toBe("mild");
 	});
+
+	test("observation history stays isolated by personnel and specialty", async () => {
+		const store = new MemoryParsedCellStore();
+		await store.putObservation(makeObservationCell("cell-i1", "session-i1"));
+		await store.putObservation({
+			...makeObservationCell("cell-i2", "session-i2"),
+			shared: {
+				...makeObservationCell("cell-i2", "session-i2").shared,
+				personnelId: "personnel-2",
+			},
+		});
+
+		const exactMatch = await store.getObservationHistory({
+			personnelId: "personnel-1",
+			specialtyId: "cardiology",
+			tag: "#observation",
+			targetSchema: "ObservationEvent",
+			rawText: "#observation shortness of breath",
+		});
+		const mismatchedPersonnel = await store.getObservationHistory({
+			personnelId: "personnel-2",
+			specialtyId: "cardiology",
+			tag: "#observation",
+			targetSchema: "ObservationEvent",
+			rawText: "#observation shortness of breath",
+		});
+
+		expect(exactMatch).toHaveLength(1);
+		expect(mismatchedPersonnel).toHaveLength(1);
+		expect(exactMatch[0]?.cellId).not.toBe(mismatchedPersonnel[0]?.cellId);
+	});
 });

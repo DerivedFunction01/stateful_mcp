@@ -11,6 +11,13 @@ export type ParsedCellOutcome = "accepted" | "rejected" | "corrected";
 export interface ParsedCellV1Shared {
 	cellId: string;
 	sessionId?: string;
+	patientId?: string;
+	patientOrganismType?: string;
+	patientGender?: string;
+	patientAgeBucket?: string;
+	patientSpeciesBucket?: string;
+	patientSubBucket?: number;
+	patientBucketKey?: string;
 	personnelId?: string;
 	specialtyId?: string;
 	facilityId?: string;
@@ -89,6 +96,13 @@ export interface ParsedCellJoinResult<
 export interface ParsedCellRankerContext {
 	tag: string;
 	targetSchema: string;
+	patientId?: string;
+	patientOrganismType?: string;
+	patientGender?: string;
+	patientAgeBucket?: string;
+	patientSpeciesBucket?: string;
+	patientSubBucket?: number;
+	patientBucketKey?: string;
 	personnelId?: string;
 	specialtyId?: string;
 	facilityId?: string;
@@ -152,6 +166,13 @@ export interface ParsedCellHistoryStore {
 }
 
 export interface ParsedCellHistoryKey {
+	patientId?: string;
+	patientOrganismType?: string;
+	patientGender?: string;
+	patientAgeBucket?: string;
+	patientSpeciesBucket?: string;
+	patientSubBucket?: number;
+	patientBucketKey?: string;
 	personnelId?: string;
 	specialtyId?: string;
 	facilityId?: string;
@@ -296,6 +317,34 @@ export class MemoryParsedCellStore implements ParsedCellStore {
 			.filter((row) => row.targetSchema === key.targetSchema)
 			.filter((row) => row.tag === key.tag)
 			.filter((row) => {
+				if (key.patientId && row.patientId !== key.patientId) return false;
+				if (
+					key.patientOrganismType &&
+					row.patientOrganismType !== key.patientOrganismType
+				)
+					return false;
+				if (key.patientGender && row.patientGender !== key.patientGender)
+					return false;
+				if (
+					key.patientAgeBucket &&
+					row.patientAgeBucket !== key.patientAgeBucket
+				)
+					return false;
+				if (
+					key.patientSpeciesBucket &&
+					row.patientSpeciesBucket !== key.patientSpeciesBucket
+				)
+					return false;
+				if (
+					key.patientSubBucket !== undefined &&
+					row.patientSubBucket !== key.patientSubBucket
+				)
+					return false;
+				if (
+					key.patientBucketKey &&
+					row.patientBucketKey !== key.patientBucketKey
+				)
+					return false;
 				if (key.personnelId && row.personnelId !== key.personnelId)
 					return false;
 				if (key.specialtyId && row.specialtyId !== key.specialtyId)
@@ -539,6 +588,34 @@ export class SqliteParsedCellStore implements ParsedCellStore {
 		for (const shared of sharedRows) {
 			if (shared.targetSchema !== key.targetSchema) continue;
 			if (shared.tag !== key.tag) continue;
+			if (key.patientId && shared.patientId !== key.patientId) continue;
+			if (
+				key.patientOrganismType &&
+				shared.patientOrganismType !== key.patientOrganismType
+			)
+				continue;
+			if (key.patientGender && shared.patientGender !== key.patientGender)
+				continue;
+			if (
+				key.patientAgeBucket &&
+				shared.patientAgeBucket !== key.patientAgeBucket
+			)
+				continue;
+			if (
+				key.patientSpeciesBucket &&
+				shared.patientSpeciesBucket !== key.patientSpeciesBucket
+			)
+				continue;
+			if (
+				key.patientSubBucket !== undefined &&
+				shared.patientSubBucket !== key.patientSubBucket
+			)
+				continue;
+			if (
+				key.patientBucketKey &&
+				shared.patientBucketKey !== key.patientBucketKey
+			)
+				continue;
 			if (key.personnelId && shared.personnelId !== key.personnelId) continue;
 			if (key.specialtyId && shared.specialtyId !== key.specialtyId) continue;
 			if (key.facilityId && shared.facilityId !== key.facilityId) continue;
