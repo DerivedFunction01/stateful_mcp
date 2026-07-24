@@ -1637,21 +1637,7 @@ export class DuckDbEventStore
 		await this.conn.run("BEGIN");
 		try {
 			await this.conn.run(
-				`INSERT INTO events (commit_id, scope_level, user_id, parent_commit_id, operation, mutations, created_at, linear_depth, gc_lock, merge_source_commit_ids, merge_accepted_ids, merge_rejected_ids, schema_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(commit_id) DO UPDATE SET
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id,
-           parent_commit_id=excluded.parent_commit_id,
-           operation=excluded.operation,
-           mutations=excluded.mutations,
-           created_at=excluded.created_at,
-           linear_depth=excluded.linear_depth,
-           gc_lock=excluded.gc_lock,
-           merge_source_commit_ids=excluded.merge_source_commit_ids,
-           merge_accepted_ids=excluded.merge_accepted_ids,
-           merge_rejected_ids=excluded.merge_rejected_ids,
-           schema_name=excluded.schema_name`,
+				SCHEMA.duckdb.inserts.SQL_UPSERT_EVENT_PERSISTENT!.sql,
 				[
 					commitId,
 					scope.level,
@@ -1670,13 +1656,7 @@ export class DuckDbEventStore
 			);
 
 			await this.conn.run(
-				`INSERT INTO saved_events (id, tags, description, scope_level, user_id)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           tags=excluded.tags,
-           description=excluded.description,
-           scope_level=excluded.scope_level,
-           user_id=excluded.user_id`,
+				SCHEMA.duckdb.inserts.SQL_UPSERT_SAVED_EVENT!.sql,
 				[
 					commitId,
 					JSON.stringify(state.tags),

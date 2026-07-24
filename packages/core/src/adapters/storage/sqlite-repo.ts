@@ -421,21 +421,15 @@ export class SqliteFilterStore
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFilterState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_filters WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
-				params.push(userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_filters WHERE scope_level = 'user' AND user_id = ?";
-				params.push(userId);
-			}
-		}
-
-		const savedRecords = this.db.query(queryStr).all(...params) as any[];
+		const savedRecords = this.db
+			.query(
+				scope.level === "global"
+					? SCHEMA.sqlite.selects.SQL_LIST_SAVED_FILTERS_GLOBAL!.sql
+					: includeGlobal
+						? SCHEMA.sqlite.selects.SQL_LIST_SAVED_FILTERS_ALL!.sql
+						: SCHEMA.sqlite.selects.SQL_LIST_SAVED_FILTERS_USER!.sql,
+			)
+			.all(...(scope.level === "user" ? [scope.level, userId] : [])) as any[];
 
 		const results: Array<PersistedFilterState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
@@ -776,21 +770,15 @@ export class SqliteFormStore implements SessionFormStore, PersistentFormStore {
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_forms WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
-				params.push(userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_forms WHERE scope_level = 'user' AND user_id = ?";
-				params.push(userId);
-			}
-		}
-
-		const savedRecords = this.db.query(queryStr).all(...params) as any[];
+		const savedRecords = this.db
+			.query(
+				scope.level === "global"
+					? SCHEMA.sqlite.selects.SQL_LIST_SAVED_FORMS_GLOBAL!.sql
+					: includeGlobal
+						? SCHEMA.sqlite.selects.SQL_LIST_SAVED_FORMS_ALL!.sql
+						: SCHEMA.sqlite.selects.SQL_LIST_SAVED_FORMS_USER!.sql,
+			)
+			.all(...(scope.level === "user" ? [scope.level, userId] : [])) as any[];
 		const results: Array<PersistedFormStateDetails & { scope: OwnerScope }> =
 			[];
 		for (const r of savedRecords) {
@@ -831,19 +819,19 @@ export class SqliteConceptStore implements ConceptStore {
 		namespaceCode?: string,
 		limit: number = 50,
 	): Promise<Concept[]> {
-		let sql =
-			"SELECT * FROM dict_concepts WHERE (display LIKE ? OR id = ? OR standard_code = ? OR description LIKE ?)";
-		const params: any[] = [`%${query}%`, query, query, `%${query}%`];
-
-		if (namespaceCode) {
-			sql += " AND namespace_code = ?";
-			params.push(namespaceCode);
-		}
-
-		sql += " LIMIT ?";
-		params.push(limit);
-
-		const rows = this.db.query(sql).all(...params) as any[];
+		const rows = this.db
+			.query(
+				namespaceCode
+					? SCHEMA.sqlite.selects.SQL_SEARCH_DICT_CONCEPTS_BY_NAMESPACE!.sql
+					: SCHEMA.sqlite.selects.SQL_SEARCH_DICT_CONCEPTS!.sql,
+			)
+			.all(
+				`%${query}%`,
+				query,
+				query,
+				`%${query}%`,
+				...(namespaceCode ? [namespaceCode] : []),
+			) as any[];
 		return rows.map((r) => ({
 			id: r.id,
 			namespaceCode: r.namespace_code,
@@ -1084,15 +1072,13 @@ export class SqlitePersistentExpressionStore
 		includeGlobal?: boolean,
 	): Promise<CustomExpression[]> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
-		let sql =
-			"SELECT * FROM dict_custom_expressions WHERE (scope_level = ? AND (scope_id = ? OR scope_id IS NULL))";
-		const params: any[] = [scope.level, scopeId];
-
-		if (includeGlobal && scope.level !== "global") {
-			sql += " OR scope_level = 'global'";
-		}
-
-		const rows = this.db.query(sql).all(...params) as any[];
+		const rows = this.db
+			.query(
+				scope.level === "global" || !includeGlobal
+					? SCHEMA.sqlite.selects.SQL_SELECT_DICT_EXPRESSION_USER!.sql
+					: SCHEMA.sqlite.selects.SQL_SELECT_DICT_EXPRESSION_ALL!.sql,
+			)
+			.all(scope.level, scopeId) as any[];
 		return rows.map((r) => JSON.parse(r.data));
 	}
 
@@ -1391,21 +1377,15 @@ export class SqliteObjectStore
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedObjectState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_objects WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
-				params.push(userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_objects WHERE scope_level = 'user' AND user_id = ?";
-				params.push(userId);
-			}
-		}
-
-		const savedRecords = this.db.query(queryStr).all(...params) as any[];
+		const savedRecords = this.db
+			.query(
+				scope.level === "global"
+					? SCHEMA.sqlite.selects.SQL_LIST_SAVED_OBJECTS_GLOBAL!.sql
+					: includeGlobal
+						? SCHEMA.sqlite.selects.SQL_LIST_SAVED_OBJECTS_ALL!.sql
+						: SCHEMA.sqlite.selects.SQL_LIST_SAVED_OBJECTS_USER!.sql,
+			)
+			.all(...(scope.level === "user" ? [scope.level, userId] : [])) as any[];
 
 		const results: Array<PersistedObjectState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
@@ -1753,21 +1733,15 @@ export class SqliteEventStore
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedEventState & { scope: OwnerScope }>> {
 		const userId = scope.level === "user" ? scope.userId : null;
-		let queryStr =
-			"SELECT id, scope_level, user_id FROM saved_events WHERE (scope_level = 'global')";
-		const params: any[] = [];
-		if (scope.level === "user") {
-			if (includeGlobal) {
-				queryStr += " OR (scope_level = 'user' AND user_id = ?)";
-				params.push(userId);
-			} else {
-				queryStr =
-					"SELECT id, scope_level, user_id FROM saved_events WHERE scope_level = 'user' AND user_id = ?";
-				params.push(userId);
-			}
-		}
-
-		const savedRecords = this.db.query(queryStr).all(...params) as any[];
+		const savedRecords = this.db
+			.query(
+				scope.level === "global"
+					? SCHEMA.sqlite.selects.SQL_LIST_SAVED_EVENTS_GLOBAL!.sql
+					: includeGlobal
+						? SCHEMA.sqlite.selects.SQL_LIST_SAVED_EVENTS_ALL!.sql
+						: SCHEMA.sqlite.selects.SQL_LIST_SAVED_EVENTS_USER!.sql,
+			)
+			.all(...(scope.level === "user" ? [scope.level, userId] : [])) as any[];
 
 		const results: Array<PersistedEventState & { scope: OwnerScope }> = [];
 		for (const r of savedRecords) {
