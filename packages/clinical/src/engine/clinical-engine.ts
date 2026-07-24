@@ -117,12 +117,12 @@ export class ClinicalEngine {
 			throw new Error("Cannot modify a signed SOAP note.");
 		}
 
-			const note = activeObj.data as SoapNote;
-			const patientBucket = buildPatientLearningBucket(note.patient);
-			const parsedItems = await this.parser.parse(dictation, {
-				personnelId: "system",
-				patientContext: patientBucket,
-			});
+		const note = activeObj.data as SoapNote;
+		const patientBucket = buildPatientLearningBucket(note.patient);
+		const parsedItems = await this.parser.parse(dictation, {
+			personnelId: "system",
+			patientContext: patientBucket,
+		});
 
 		let currentObjId = "active_note";
 

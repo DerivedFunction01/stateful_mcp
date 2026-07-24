@@ -91,6 +91,12 @@ export interface PatientLearningBucket {
 	speciesBucket?: string;
 	subBucket: number;
 	bucketKey: string;
+	weights: {
+		exact: number;
+		biology: number;
+		specific: number;
+		global: number;
+	};
 }
 
 function getYearBucket(years: number): string {
@@ -115,9 +121,80 @@ function stableHash(text: string): number {
 	return Math.abs(hash);
 }
 
+function normalizeWeights(
+	weights: Record<"exact" | "biology" | "specific" | "global", number>,
+	maxWeight = 0.8,
+): PatientLearningBucket["weights"] {
+	const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
+	if (total <= 0) {
+		return {
+			exact: 0.25,
+			biology: 0.25,
+			specific: 0.25,
+			global: 0.25,
+		};
+	}
+
+	const normalized = Object.fromEntries(
+		Object.entries(weights).map(([key, value]) => [key, value / total]),
+	) as PatientLearningBucket["weights"];
+
+	const cappedEntries = Object.entries(normalized).map(([key, value]) => [
+		key,
+		Math.min(value, maxWeight),
+	]);
+	let cappedTotal = cappedEntries.reduce(
+		(sum, [, value]) => sum + (value as number),
+		0,
+	);
+
+	if (cappedTotal <= 0) {
+		return {
+			exact: 0.25,
+			biology: 0.25,
+			specific: 0.25,
+			global: 0.25,
+		};
+	}
+
+	const adjusted = Object.fromEntries(
+		cappedEntries.map(([key, value]) => [key, (value as number) / cappedTotal]),
+	) as PatientLearningBucket["weights"];
+
+	const maxEntry = Object.entries(adjusted).reduce(
+		(best, entry) => (entry[1] > best[1] ? entry : best),
+		["exact", adjusted.exact] as [string, number],
+	);
+	if (maxEntry[1] > maxWeight + 1e-9) {
+		return normalizeWeights(
+			{
+				exact: adjusted.exact,
+				biology: adjusted.biology,
+				specific: adjusted.specific,
+				global: adjusted.global,
+			},
+			maxWeight,
+		);
+	}
+
+	cappedTotal = Object.values(adjusted).reduce((sum, value) => sum + value, 0);
+	if (Math.abs(cappedTotal - 1) > 1e-9) {
+		const scale = 1 / cappedTotal;
+		return {
+			exact: adjusted.exact * scale,
+			biology: adjusted.biology * scale,
+			specific: adjusted.specific * scale,
+			global: adjusted.global * scale,
+		};
+	}
+
+	return adjusted;
+}
+
 export function buildPatientLearningBucket(
 	patient: PatientProfile,
 	subBuckets = 4,
+	maxTierWeight = 0.8,
 	now = new Date(),
 ): PatientLearningBucket {
 	const organismType = patient.biologicalProfile.organismType;
@@ -156,6 +233,15 @@ export function buildPatientLearningBucket(
 		ageBucket,
 		String(subBucket),
 	].join("|");
+	const weights = normalizeWeights(
+		{
+			exact: 0.4,
+			biology: 0.3,
+			specific: 0.2,
+			global: 0.1,
+		},
+		maxTierWeight,
+	);
 	return {
 		patientId: patient.id,
 		organismType,
@@ -164,5 +250,6 @@ export function buildPatientLearningBucket(
 		speciesBucket,
 		subBucket,
 		bucketKey,
+		weights,
 	};
 }

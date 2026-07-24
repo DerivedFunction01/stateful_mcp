@@ -400,4 +400,64 @@ describe("ParsedCellV1 storage", () => {
 		expect(mismatchedPersonnel).toHaveLength(1);
 		expect(exactMatch[0]?.cellId).not.toBe(mismatchedPersonnel[0]?.cellId);
 	});
+
+	test("observation history stays isolated by patient bucket", async () => {
+		const store = new MemoryParsedCellStore();
+		const bucketA = "patient-1|human|female|30-39|0";
+		const bucketB = "patient-2|human|female|30-39|1";
+
+		await store.putObservation({
+			...makeObservationCell("cell-p1", "session-p1"),
+			shared: {
+				...makeObservationCell("cell-p1", "session-p1").shared,
+				patientId: "patient-1",
+				patientOrganismType: "human",
+				patientGender: "female",
+				patientAgeBucket: "30-39",
+				patientSubBucket: 0,
+				patientBucketKey: bucketA,
+			},
+		});
+		await store.putObservation({
+			...makeObservationCell("cell-p2", "session-p2"),
+			shared: {
+				...makeObservationCell("cell-p2", "session-p2").shared,
+				patientId: "patient-2",
+				patientOrganismType: "human",
+				patientGender: "female",
+				patientAgeBucket: "30-39",
+				patientSubBucket: 1,
+				patientBucketKey: bucketB,
+			},
+		});
+
+		const patientOneHistory = await store.getObservationHistory({
+			patientId: "patient-1",
+			patientOrganismType: "human",
+			patientGender: "female",
+			patientAgeBucket: "30-39",
+			patientSubBucket: 0,
+			patientBucketKey: bucketA,
+			tag: "#observation",
+			targetSchema: "ObservationEvent",
+			rawText: "#observation shortness of breath",
+		});
+		const patientTwoHistory = await store.getObservationHistory({
+			patientId: "patient-2",
+			patientOrganismType: "human",
+			patientGender: "female",
+			patientAgeBucket: "30-39",
+			patientSubBucket: 1,
+			patientBucketKey: bucketB,
+			tag: "#observation",
+			targetSchema: "ObservationEvent",
+			rawText: "#observation shortness of breath",
+		});
+
+		expect(patientOneHistory).toHaveLength(1);
+		expect(patientTwoHistory).toHaveLength(1);
+		expect(patientOneHistory[0]?.cellId).toBe("cell-p1");
+		expect(patientTwoHistory[0]?.cellId).toBe("cell-p2");
+		expect(patientOneHistory[0]?.cellId).not.toBe(patientTwoHistory[0]?.cellId);
+	});
 });
