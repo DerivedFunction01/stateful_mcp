@@ -1,5 +1,6 @@
 export * from "./adapters/storage/browser-repo";
 export * from "./adapters/storage/duckdb-entity-store";
+export * from "./adapters/storage/duckdb-repo";
 export * from "./adapters/storage/generic-entity-store";
 export * from "./adapters/storage/indexeddb-entity-store";
 export type { EntityStore, SqlQueryStore } from "./adapters/storage/interfaces";

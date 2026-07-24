@@ -283,7 +283,7 @@ export class DataFrameQueryEngine implements QueryEngine {
 }
 
 // Register dataframe engine adapter
-registerAdapter("duckdb", {
+registerAdapter("duckdb-engine", {
 	create: async (options) => {
 		const sourceFile = path.resolve(process.cwd(), String(options.source_file));
 		const dataframeName = String(options.dataframe_name || "df");
