@@ -50,10 +50,11 @@ function objectStoreApi(storeMap: Map<string, any>) {
 			}, 0);
 			return req;
 		},
-		put(value: any, key: string) {
+		put(value: any, key?: string) {
 			const req: any = {};
 			setTimeout(() => {
-				storeMap.set(key, value);
+				const actualKey = key ?? value?.id ?? value?.key;
+				storeMap.set(actualKey, value);
 				if (req.onsuccess) req.onsuccess();
 			}, 0);
 			return req;
@@ -81,6 +82,23 @@ function objectStoreApi(storeMap: Map<string, any>) {
 				if (req.onsuccess) req.onsuccess();
 			}, 0);
 			return req;
+		},
+		index(_name: string) {
+			return {
+				getAll(sessionId?: string) {
+					const req: any = {};
+					setTimeout(() => {
+						const all = Array.from(storeMap.values());
+						if (sessionId) {
+							req.result = all.filter((v: any) => v.sessionId === sessionId);
+						} else {
+							req.result = all;
+						}
+						if (req.onsuccess) req.onsuccess();
+					}, 0);
+					return req;
+				},
+			};
 		},
 		openCursor() {
 			const req: any = {};
@@ -131,11 +149,15 @@ export const mockIndexedDB: IDBFactory & {
 			},
 			transaction(storeName: string, _mode: string) {
 				const storeMap = mockIndexedDBStore.get(storeName)!;
-				return {
+				const tx: any = {
 					objectStore() {
 						return objectStoreApi(storeMap);
 					},
 				};
+				setTimeout(() => {
+					if (tx.oncomplete) tx.oncomplete();
+				}, 0);
+				return tx;
 			},
 		};
 		const request: any = { result: dbResult };

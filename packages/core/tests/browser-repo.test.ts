@@ -53,7 +53,7 @@ describe("Browser Storage Adapters", () => {
 			const state = {
 				objectId: "",
 				value: "hello",
-				timestamp: new Date(Date.now() - 5000).toISOString(),
+				createdAt: new Date(Date.now() - 5000).toISOString(),
 			};
 			const id = await sessionStore.create(sessionId, state, "temp-alias");
 
@@ -106,7 +106,7 @@ describe("Browser Storage Adapters", () => {
 			const state = {
 				objectId: "",
 				value: "idb-hello",
-				timestamp: new Date(Date.now() - 5000).toISOString(),
+				createdAt: new Date(Date.now() - 5000).toISOString(),
 			};
 			const id = await sessionStore.create(sessionId, state, "idb-temp-alias");
 

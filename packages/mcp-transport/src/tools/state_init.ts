@@ -1,11 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type {
-	EventStore,
-	FilterStore,
-	FormStore,
-	ObjectStore,
-} from "@stateful-mcp/core";
 import type { MiddlewareConfig } from "@stateful-mcp/core/src/config/types";
+import type { EventStore } from "@stateful-mcp/core/src/middleware/event/store";
+import type { FilterStore } from "@stateful-mcp/core/src/middleware/filter/store";
+import type { FormStore } from "@stateful-mcp/core/src/middleware/form/store";
+import type { ObjectStore } from "@stateful-mcp/core/src/middleware/object/store";
 import { z } from "zod";
 import {
 	getEventStore,

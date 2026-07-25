@@ -1,23 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type { PaginationLimitsConfig, TableSchema } from "@stateful-mcp/core";
 import {
 	buildLimitField,
 	clampLimit,
-	FilterStore,
+	type FilterStore,
 	loadMiddlewareConfig,
-	MemoryPersistentFilterStore,
-	MemoryPersistentObjectStore,
-	MemorySessionFilterStore,
-	MemorySessionObjectStore,
-	ObjectStore,
+	type ObjectStore,
 	resolveConfigDir,
-	resolveSource,
-	SqliteFilterStore,
 	validateMiddlewareConfig,
 } from "@stateful-mcp/core";
+import type { PaginationLimitsConfig } from "@stateful-mcp/core/src/config/types";
 import * as crypto from "crypto";
 import { z } from "zod";
+import { getFilterStore, getObjectStore } from "./helper";
 
 const server = new McpServer({
 	name: "log-service",
@@ -307,85 +302,10 @@ async function main() {
 	const config = await loadMiddlewareConfig(workspaceRoot);
 	validateMiddlewareConfig(config);
 
-	const getUrl = (locator: any) => {
-		if (locator?._type === "adapter") return locator.options?.url?.toString();
-		return undefined;
-	};
-
-	const sessUrl = getUrl(config.filter_session_state) as string | undefined;
-	const sessionFilterStore =
-		sessUrl && sessUrl.startsWith("sqlite://")
-			? new SqliteFilterStore(sessUrl.replace("sqlite://", ""))
-			: new MemorySessionFilterStore();
-
-	const globUrl = getUrl(config.filter_persistent_state?.global) as
-		| string
-		| undefined;
-	const persistentFilterStore =
-		globUrl && globUrl.startsWith("sqlite://")
-			? new SqliteFilterStore(globUrl.replace("sqlite://", ""))
-			: new MemoryPersistentFilterStore();
-
-	const toolSchemas = new Map<string, Record<string, TableSchema>>();
-	const pinnedSchemas = new Map<string, TableSchema>();
-
-	if (config.tools) {
-		for (const [toolName, toolConfig] of Object.entries(config.tools)) {
-			try {
-				const schemaData = (await resolveSource(
-					toolConfig.schema,
-					workspaceRoot,
-				)) as any;
-				if (schemaData && schemaData.table_schemas) {
-					toolSchemas.set(toolName, schemaData.table_schemas);
-				}
-			} catch (_) {}
-		}
-	}
-
-	const threshold = config.auto_compression?.filter_chain_threshold ?? 20;
-	filterStore = new FilterStore(
-		sessionFilterStore,
-		persistentFilterStore,
-		toolSchemas,
-		pinnedSchemas,
-		threshold,
-	);
-
-	const sessionObjectStore = new MemorySessionObjectStore();
-	const persistentObjectStore = new MemoryPersistentObjectStore();
-	const objectSchemas = new Map<string, any>();
-	if (config.object_schemas) {
-		for (const [schemaName, locator] of Object.entries(config.object_schemas)) {
-			try {
-				const schemaLocator = "schema" in locator ? locator.schema : locator;
-				const schemaData = (await resolveSource(
-					schemaLocator,
-					workspaceRoot,
-				)) as any;
-				if (schemaData) {
-					if ("schema" in locator && locator.validation_engine) {
-						schemaData.validation_engine = await resolveSource(
-							locator.validation_engine,
-							workspaceRoot,
-						);
-					}
-					objectSchemas.set(schemaName, schemaData);
-				}
-			} catch (_) {}
-		}
-	}
-
-	const limits = config.object_schema_limits;
-	const objectThreshold = config.auto_compression?.object_chain_threshold ?? 15;
-	objectStore = new ObjectStore(
-		sessionObjectStore,
-		persistentObjectStore,
-		objectSchemas,
-		limits?.max_fields_per_def ?? 7,
-		limits?.max_ref_depth ?? 5,
-		objectThreshold,
-	);
+	[filterStore, objectStore] = await Promise.all([
+		getFilterStore(config, workspaceRoot),
+		getObjectStore(config, workspaceRoot),
+	]);
 
 	registerLogTools(config.pagination_limits);
 
