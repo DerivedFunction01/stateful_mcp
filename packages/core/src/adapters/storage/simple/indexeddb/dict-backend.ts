@@ -160,9 +160,7 @@ export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 	}
 }
 
-export class IndexedDbExpressionStoreBackend
-	implements ExpressionStoreBackend
-{
+export class IndexedDbExpressionStoreBackend implements ExpressionStoreBackend {
 	constructor(private dbName: string = "stateful_mcp_dict") {}
 
 	private async getDB(): Promise<IDBDatabase> {

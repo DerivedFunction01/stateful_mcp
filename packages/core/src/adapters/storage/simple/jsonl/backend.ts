@@ -1,8 +1,8 @@
 import * as fs from "fs/promises";
 import type { OwnerScope } from "../../../../config/types";
+import { JsonlWal } from "../../generic/JsonlWal";
 import type { KvBackend } from "../kv-backend";
 import { persistentKey } from "../kv-backend";
-import { JsonlWal } from "./shared";
 
 export class JsonlKvBackend implements KvBackend {
 	private sessionStates = new Map<
@@ -33,10 +33,7 @@ export class JsonlKvBackend implements KvBackend {
 			this.sessionWal = new JsonlWal(this.sessionFilePath, walOptions);
 		}
 		if (this.persistentFilePath) {
-			this.persistentWal = new JsonlWal(
-				this.persistentFilePath,
-				walOptions,
-			);
+			this.persistentWal = new JsonlWal(this.persistentFilePath, walOptions);
 		}
 	}
 
@@ -84,9 +81,7 @@ export class JsonlKvBackend implements KvBackend {
 							entry.targetId,
 						);
 					} else if (entry.type === "delete_alias") {
-						this.aliases.delete(
-							`${entry.sessionId}:${entry.alias}`,
-						);
+						this.aliases.delete(`${entry.sessionId}:${entry.alias}`);
 					}
 				}
 			} catch (err: any) {
@@ -119,19 +114,14 @@ export class JsonlKvBackend implements KvBackend {
 	private async loadPersistent(): Promise<void> {
 		if (!this.persistentFilePath) return;
 
-		const dataExists = await this.fileOrDirExists(
-			this.persistentFilePath,
-		);
+		const dataExists = await this.fileOrDirExists(this.persistentFilePath);
 		const walExists = this.persistentWal
 			? await this.fileOrDirExists(this.persistentWal.walPath)
 			: false;
 
 		if (dataExists) {
 			try {
-				const raw = await fs.readFile(
-					this.persistentFilePath,
-					"utf-8",
-				);
+				const raw = await fs.readFile(this.persistentFilePath, "utf-8");
 				for (const line of raw.split("\n")) {
 					if (!line.trim()) continue;
 					const entry = JSON.parse(line);
@@ -149,10 +139,7 @@ export class JsonlKvBackend implements KvBackend {
 
 		if (walExists && this.persistentWal) {
 			for await (const entry of this.persistentWal.replay() as any) {
-				if (
-					entry.operation === "set" &&
-					entry.type === "persistent_state"
-				) {
+				if (entry.operation === "set" && entry.type === "persistent_state") {
 					this.persistentStates.set(entry.id, {
 						value: entry.data.value,
 						scope: entry.data.scope,
@@ -259,9 +246,7 @@ export class JsonlKvBackend implements KvBackend {
 		if (!this.sessionFilePath || !this.sessionWal) return;
 		const lines: string[] = [];
 		for (const [id, { value, sessionId }] of this.sessionStates.entries()) {
-			lines.push(
-				JSON.stringify({ type: "state", id, sessionId, data: value }),
-			);
+			lines.push(JSON.stringify({ type: "state", id, sessionId, data: value }));
 		}
 		for (const [key, targetId] of this.aliases.entries()) {
 			const colon = key.indexOf(":");
@@ -344,8 +329,7 @@ export class JsonlKvBackend implements KvBackend {
 	): Promise<Record<string, any> | null> {
 		for (const [key, entry] of this.persistentStates.entries()) {
 			if (key === id) {
-				if (entry.scope.level === "global")
-					return Promise.resolve(entry.value);
+				if (entry.scope.level === "global") return Promise.resolve(entry.value);
 				if (scope.level === "user" && entry.scope?.userId === scope.userId)
 					return Promise.resolve(entry.value);
 			}
@@ -363,10 +347,7 @@ export class JsonlKvBackend implements KvBackend {
 		await this.save();
 	}
 
-	async deletePersistentState(
-		id: string,
-		scope: OwnerScope,
-	): Promise<void> {
+	async deletePersistentState(id: string, scope: OwnerScope): Promise<void> {
 		this.deletedPersistentStates.add(persistentKey(id, scope));
 		this.persistentStates.delete(persistentKey(id, scope));
 		await this.save();
@@ -386,9 +367,7 @@ export class JsonlKvBackend implements KvBackend {
 	}
 
 	getAlias(sessionId: string, alias: string): Promise<string | null> {
-		return Promise.resolve(
-			this.aliases.get(`${sessionId}:${alias}`) ?? null,
-		);
+		return Promise.resolve(this.aliases.get(`${sessionId}:${alias}`) ?? null);
 	}
 
 	async setAlias(

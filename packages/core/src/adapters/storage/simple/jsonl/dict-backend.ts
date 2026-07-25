@@ -1,17 +1,16 @@
 import * as fs from "fs/promises";
-import * as path from "path";
 import type {
 	Concept,
 	ConceptRelation,
 	CustomExpression,
 	Namespace,
 } from "../../../../middleware/dictionary/types";
+import { JsonlWal } from "../../generic/JsonlWal";
 import type {
 	ConceptStoreBackend,
 	DictDelta,
 	ExpressionStoreBackend,
 } from "../dict-backend";
-import { JsonlWal } from "./shared";
 
 async function fileOrDirExists(filePath: string): Promise<boolean> {
 	try {
@@ -112,9 +111,7 @@ export class JsonlConceptStoreBackend implements ConceptStoreBackend {
 			}
 		} else if (delta.kind === "relation") {
 			if (delta.op === "set" && delta.data) {
-				const idx = this.cacheRelations.findIndex(
-					(r) => r.id === delta.id,
-				);
+				const idx = this.cacheRelations.findIndex((r) => r.id === delta.id);
 				if (idx !== -1) {
 					this.cacheRelations[idx] = delta.data as ConceptRelation;
 				} else {
@@ -202,9 +199,7 @@ export class JsonlExpressionStoreBackend implements ExpressionStoreBackend {
 	private applyDelta(delta: DictDelta): void {
 		if (delta.kind !== "expression") return;
 		if (delta.op === "set" && delta.data) {
-			const idx = this.cacheExpressions.findIndex(
-				(e) => e.id === delta.id,
-			);
+			const idx = this.cacheExpressions.findIndex((e) => e.id === delta.id);
 			if (idx !== -1) {
 				this.cacheExpressions[idx] = delta.data as CustomExpression;
 			} else {

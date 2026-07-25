@@ -1,9 +1,13 @@
-export * from "./adapters/storage/duckdb-entity-store";
+export * from "./adapters/storage/generic/JsonlWal";
+export * from "./adapters/storage/generic/kv/IndexedDbKvBackend";
+export * from "./adapters/storage/generic/kv/JsonlKvBackend";
+export * from "./adapters/storage/generic/kv/KvBackend";
+export * from "./adapters/storage/generic/kv/LocalStorageKvBackend";
+export * from "./adapters/storage/generic/kv/MemoryKvBackend";
+export * from "./adapters/storage/generic/SqlExecutor";
 export * from "./adapters/storage/generic-entity-store";
-export * from "./adapters/storage/indexeddb-entity-store";
 export type { EntityStore, SqlQueryStore } from "./adapters/storage/interfaces";
 export * from "./adapters/storage/jsonl-entity-store";
-export * from "./adapters/storage/localstorage-entity-store";
 export * from "./adapters/storage/shared/unified-repo";
 export * from "./adapters/storage/simple/factories";
 export * from "./config/loader";

@@ -15,8 +15,8 @@ import type {
 import { invertRelationType } from "../../../middleware/dictionary/types";
 import type {
 	ConceptStoreBackend,
-	ExpressionStoreBackend,
 	DictDelta,
+	ExpressionStoreBackend,
 } from "./dict-backend";
 
 export class SimpleConceptStore implements ConceptStore {

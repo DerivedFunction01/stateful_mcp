@@ -36,9 +36,7 @@ export class JsonlWal {
 		this.walEntries++;
 		this.walBytes += Buffer.byteLength(line, "utf-8");
 		this.writeTail = this.writeTail
-			.then(() =>
-				fs.mkdir(path.dirname(this.walPath), { recursive: true }),
-			)
+			.then(() => fs.mkdir(path.dirname(this.walPath), { recursive: true }))
 			.then(() => fs.appendFile(this.walPath, line, "utf-8"));
 		return this.writeTail;
 	}
@@ -61,8 +59,7 @@ export class JsonlWal {
 
 	async reconcile(canonical: string[]): Promise<void> {
 		await fs.mkdir(path.dirname(this.dataFilePath), { recursive: true });
-		const content =
-			canonical.join("\n") + (canonical.length > 0 ? "\n" : "");
+		const content = canonical.join("\n") + (canonical.length > 0 ? "\n" : "");
 		await fs.writeFile(this.dataFilePath, content, "utf-8");
 		await fs.writeFile(this.walPath, "", "utf-8");
 		this.walEntries = 0;
