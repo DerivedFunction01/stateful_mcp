@@ -4,7 +4,7 @@ import {
 	IndexedDbSessionStore,
 	LocalStoragePersistentStore,
 	LocalStorageSessionStore,
-} from "../src/adapters/storage/browser-repo";
+} from "../src/adapters/storage/old/browser-repo";
 import { installBrowserMocks } from "../src/adapters/storage/shared/test-mocks";
 
 describe("Browser Storage Adapters", () => {

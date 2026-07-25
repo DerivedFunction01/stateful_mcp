@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+	createMemoryConceptStore,
+	createMemoryExpressionStore,
 	DictionaryStore,
 	InMemoryConceptResolver,
-	InMemoryConceptStore,
-	InMemoryPersistentExpressionStore,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import type { ParsedObservationItem } from "../src/parser/schema-parsers";
@@ -51,8 +51,8 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 describe("default resolution strategy", () => {
 	test("uses profile schema defaults before global fallbacks", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
@@ -111,8 +111,8 @@ describe("default resolution strategy", () => {
 		);
 
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,

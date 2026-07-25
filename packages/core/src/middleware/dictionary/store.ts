@@ -1,8 +1,8 @@
-import {
-	InMemoryConceptStore,
-	InMemoryPersistentExpressionStore,
-} from "@stateful-mcp/core/adapters/storage/InMemoryConceptStore";
 import * as crypto from "crypto";
+import {
+	createMemoryConceptStore,
+	createMemoryExpressionStore,
+} from "../../adapters/storage/simple/factories";
 import type { OwnerScope } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import type { ConceptStore, PersistentExpressionStore } from "./interfaces";
@@ -33,8 +33,8 @@ export class DictionaryStore {
 
 	constructor(
 		private resolver: ConceptResolver,
-		private conceptStore: ConceptStore = new InMemoryConceptStore(),
-		private expressionStore: PersistentExpressionStore = new InMemoryPersistentExpressionStore(),
+		private conceptStore: ConceptStore = createMemoryConceptStore(),
+		private expressionStore: PersistentExpressionStore = createMemoryExpressionStore(),
 	) {}
 
 	public async search(

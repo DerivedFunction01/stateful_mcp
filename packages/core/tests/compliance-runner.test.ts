@@ -141,14 +141,14 @@ describe("Storage Compliance Test Runner", () => {
 					createSessionStore: async () => {
 						clearMockLocalStorage();
 						const { LocalStorageSessionStore } = await import(
-							"../src/adapters/storage/browser-repo"
+							"../src/adapters/storage/old/browser-repo"
 						);
 						return new LocalStorageSessionStore();
 					},
 					createPersistentStore: async () => {
 						clearMockLocalStorage();
 						const { LocalStoragePersistentStore } = await import(
-							"../src/adapters/storage/browser-repo"
+							"../src/adapters/storage/old/browser-repo"
 						);
 						return new LocalStoragePersistentStore();
 					},
@@ -160,14 +160,14 @@ describe("Storage Compliance Test Runner", () => {
 					createSessionStore: async () => {
 						clearMockIndexedDB("states", "aliases");
 						const { IndexedDbSessionStore } = await import(
-							"../src/adapters/storage/browser-repo"
+							"../src/adapters/storage/old/browser-repo"
 						);
 						return new IndexedDbSessionStore("test-compliance-db");
 					},
 					createPersistentStore: async () => {
 						clearMockIndexedDB("states");
 						const { IndexedDbPersistentStore } = await import(
-							"../src/adapters/storage/browser-repo"
+							"../src/adapters/storage/old/browser-repo"
 						);
 						return new IndexedDbPersistentStore("test-compliance-db");
 					},

@@ -184,7 +184,7 @@ export function getEventStore(
 	);
 }
 
-import type { VariableService } from "@stateful-mcp/core";
+import type { VariableService } from "@stateful-mcp/core/src/middleware/variable/types";
 
 let globalVariableStore: VariableService | undefined;
 

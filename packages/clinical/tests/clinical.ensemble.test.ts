@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type CustomExpression,
+	createMemoryConceptStore,
+	createMemoryExpressionStore,
 	DictionaryStore,
 	InMemoryConceptResolver,
-	InMemoryConceptStore,
-	InMemoryPersistentExpressionStore,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import type {
@@ -97,8 +97,8 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 describe("CdslParser Ensemble NER tests", () => {
 	test("preview returns schema envelopes for observation, medication, and time", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
@@ -129,8 +129,8 @@ describe("CdslParser Ensemble NER tests", () => {
 
 	test("Ambiguous segment resolved to multiple items (multi-intent)", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
@@ -190,8 +190,8 @@ describe("CdslParser Ensemble NER tests", () => {
 
 	test("Conversational narratives are ignored by stop-word gatekeeper", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
@@ -225,8 +225,8 @@ describe("CdslParser Ensemble NER tests", () => {
 
 	test("Segments starting with unknown tag prefixes fall back to tagless parsing", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
@@ -254,8 +254,8 @@ describe("CdslParser Ensemble NER tests", () => {
 
 	test("Medication duration is selected from the time candidate bag, not the first numeric match", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
@@ -283,8 +283,8 @@ describe("CdslParser Ensemble NER tests", () => {
 
 	test("Vitals selection ignores a later time-span candidate and keeps the physical measurement", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = new InMemoryConceptStore();
-		const exprStore = new InMemoryPersistentExpressionStore();
+		const conceptStore = createMemoryConceptStore;
+		const exprStore = createMemoryExpressionStore;
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
