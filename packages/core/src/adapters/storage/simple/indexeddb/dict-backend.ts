@@ -3,7 +3,7 @@ type IDBOpenDBRequest = any;
 type IDBDatabase = any;
 type IDBTransaction = any;
 type IDBObjectStore = any;
-type IDBRequest = any;
+type IDBRequest<T = any> = any;
 type IDBCursor = any;
 type IDBFactory = any;
 type IDBIndex = any;
@@ -14,6 +14,7 @@ import type {
 } from "../../../../middleware/dictionary/types";
 import type {
 	ConceptStoreBackend,
+	DictDelta,
 	ExpressionStoreBackend,
 } from "../dict-backend";
 
@@ -42,6 +43,13 @@ async function openDb(
 	});
 }
 
+function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
+	return new Promise((resolve, reject) => {
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+}
+
 export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 	constructor(private dbName: string = "stateful_mcp_dict") {}
 
@@ -54,9 +62,15 @@ export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 				db.createObjectStore("namespaces");
 			}
 			if (!db.objectStoreNames.contains("relations")) {
-				const relStore = db.createObjectStore("relations", { keyPath: "id" });
-				relStore.createIndex("by_conceptId", "conceptId", { unique: false });
-				relStore.createIndex("by_linkedId", "linkedId", { unique: false });
+				const relStore = db.createObjectStore("relations", {
+					keyPath: "id",
+				});
+				relStore.createIndex("by_conceptId", "conceptId", {
+					unique: false,
+				});
+				relStore.createIndex("by_linkedId", "linkedId", {
+					unique: false,
+				});
 			}
 		});
 	}
@@ -107,30 +121,37 @@ export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 		});
 	}
 
-	async save(
-		concepts: Map<string, any>,
-		namespaces: Map<string, any>,
-		relations: ConceptRelation[],
-	): Promise<void> {
+	async saveDelta(deltas: DictDelta[]): Promise<void> {
 		const db = await this.getDB();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(
 				["concepts", "namespaces", "relations"],
 				"readwrite",
 			);
+			const conceptStore = tx.objectStore("concepts");
+			const nsStore = tx.objectStore("namespaces");
+			const relStore = tx.objectStore("relations");
 
-			tx.objectStore("concepts").clear();
-			tx.objectStore("namespaces").clear();
-			tx.objectStore("relations").clear();
-
-			for (const c of concepts.values()) {
-				tx.objectStore("concepts").put(c, c.id);
-			}
-			for (const ns of namespaces.values()) {
-				tx.objectStore("namespaces").put(ns, ns.code);
-			}
-			for (const r of relations) {
-				tx.objectStore("relations").put(r, r.id);
+			for (const delta of deltas) {
+				if (delta.kind === "concept") {
+					if (delta.op === "set" && delta.data) {
+						conceptStore.put(delta.data, delta.id);
+					} else {
+						conceptStore.delete(delta.id);
+					}
+				} else if (delta.kind === "namespace") {
+					if (delta.op === "set" && delta.data) {
+						nsStore.put(delta.data, delta.id);
+					} else {
+						nsStore.delete(delta.id);
+					}
+				} else if (delta.kind === "relation") {
+					if (delta.op === "set" && delta.data) {
+						relStore.put(delta.data);
+					} else {
+						relStore.delete(delta.id);
+					}
+				}
 			}
 
 			tx.oncomplete = () => resolve();
@@ -139,7 +160,9 @@ export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 	}
 }
 
-export class IndexedDbExpressionStoreBackend implements ExpressionStoreBackend {
+export class IndexedDbExpressionStoreBackend
+	implements ExpressionStoreBackend
+{
 	constructor(private dbName: string = "stateful_mcp_dict") {}
 
 	private async getDB(): Promise<IDBDatabase> {
@@ -165,16 +188,19 @@ export class IndexedDbExpressionStoreBackend implements ExpressionStoreBackend {
 		});
 	}
 
-	async save(expressions: CustomExpression[]): Promise<void> {
+	async saveDelta(deltas: DictDelta[]): Promise<void> {
 		const db = await this.getDB();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction("expressions", "readwrite");
 			const store = tx.objectStore("expressions");
 
-			store.clear();
-
-			for (const e of expressions) {
-				store.put(e, e.id);
+			for (const delta of deltas) {
+				if (delta.kind !== "expression") continue;
+				if (delta.op === "set" && delta.data) {
+					store.put(delta.data);
+				} else {
+					store.delete(delta.id);
+				}
 			}
 
 			tx.oncomplete = () => resolve();

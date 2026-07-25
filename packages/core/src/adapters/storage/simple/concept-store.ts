@@ -16,10 +16,15 @@ import { invertRelationType } from "../../../middleware/dictionary/types";
 import type {
 	ConceptStoreBackend,
 	ExpressionStoreBackend,
+	DictDelta,
 } from "./dict-backend";
 
 export class SimpleConceptStore implements ConceptStore {
 	constructor(private backend: ConceptStoreBackend) {}
+
+	private dirtyConcepts = new Set<string>();
+	private dirtyNamespaces = new Set<string>();
+	private dirtyRelations = new Set<string>();
 
 	async load(): Promise<void> {
 		await this.backend.load(this.concepts, this.namespaces, this.relations);
@@ -27,7 +32,34 @@ export class SimpleConceptStore implements ConceptStore {
 	}
 
 	async save(): Promise<void> {
-		await this.backend.save(this.concepts, this.namespaces, this.relations);
+		const deltas: DictDelta[] = [];
+
+		for (const id of this.dirtyConcepts) {
+			const concept = this.concepts.get(id);
+			if (concept) {
+				deltas.push({ kind: "concept", op: "set", id, data: concept });
+			}
+		}
+		for (const code of this.dirtyNamespaces) {
+			const ns = this.namespaces.get(code);
+			if (ns) {
+				deltas.push({ kind: "namespace", op: "set", id: code, data: ns });
+			}
+		}
+		for (const id of this.dirtyRelations) {
+			const rel = this.relations.find((r) => r.id === id);
+			if (rel) {
+				deltas.push({ kind: "relation", op: "set", id, data: rel });
+			}
+		}
+
+		if (deltas.length > 0) {
+			await this.backend.saveDelta(deltas);
+		}
+
+		this.dirtyConcepts.clear();
+		this.dirtyNamespaces.clear();
+		this.dirtyRelations.clear();
 	}
 
 	private rebuildIndexes(): void {
@@ -85,15 +117,21 @@ export class SimpleConceptStore implements ConceptStore {
 
 	async addConcept(concept: Concept): Promise<void> {
 		this.concepts.set(concept.id, concept);
+		this.dirtyConcepts.add(concept.id);
 	}
 
 	async addNamespace(namespace: Namespace): Promise<void> {
 		this.namespaces.set(namespace.code, namespace);
+		this.dirtyNamespaces.add(namespace.code);
 	}
 
 	async addRelation(relation: ConceptRelation): Promise<void> {
-		this.relations = this.relations.filter((r) => r.id !== relation.id);
+		const existing = this.relations.findIndex((r) => r.id === relation.id);
+		if (existing !== -1) {
+			this.relations.splice(existing, 1);
+		}
 		this.relations.push(relation);
+		this.dirtyRelations.add(relation.id);
 
 		this.rebuildIndexes();
 		await this.invalidateRelationCache(relation.conceptId);
@@ -273,12 +311,32 @@ export class SimplePersistentExpressionStore
 {
 	constructor(private backend: ExpressionStoreBackend) {}
 
+	private dirtyExpressions = new Set<string>();
+	private deletedExpressions = new Set<string>();
+
 	async load(): Promise<void> {
 		await this.backend.load(this.expressions);
 	}
 
 	async flush(): Promise<void> {
-		await this.backend.save(this.expressions);
+		const deltas: DictDelta[] = [];
+
+		for (const id of this.dirtyExpressions) {
+			const expr = this.expressions.find((e) => e.id === id);
+			if (expr) {
+				deltas.push({ kind: "expression", op: "set", id, data: expr });
+			}
+		}
+		for (const id of this.deletedExpressions) {
+			deltas.push({ kind: "expression", op: "delete", id });
+		}
+
+		if (deltas.length > 0) {
+			await this.backend.saveDelta(deltas);
+		}
+
+		this.dirtyExpressions.clear();
+		this.deletedExpressions.clear();
 	}
 
 	protected expressions: CustomExpression[] = [];
@@ -299,6 +357,7 @@ export class SimplePersistentExpressionStore
 		} else {
 			this.expressions.push(saved);
 		}
+		this.dirtyExpressions.add(expression.id);
 	}
 
 	async delete(
@@ -312,6 +371,8 @@ export class SimplePersistentExpressionStore
 			const ei = e.context?.scope_id;
 			return !(el === scope.level && (ei === scopeId || !ei));
 		});
+		this.dirtyExpressions.delete(id);
+		this.deletedExpressions.add(id);
 	}
 
 	async list(

@@ -1,7 +1,8 @@
 import * as fs from "fs/promises";
-import * as path from "path";
 import type { OwnerScope } from "../../../../config/types";
 import type { KvBackend } from "../kv-backend";
+import { persistentKey } from "../kv-backend";
+import { JsonlWal } from "./shared";
 
 export class JsonlKvBackend implements KvBackend {
 	private sessionStates = new Map<
@@ -13,14 +14,30 @@ export class JsonlKvBackend implements KvBackend {
 		{ value: Record<string, any>; scope: OwnerScope }
 	>();
 	private aliases = new Map<string, string>();
+	private dirtySessionStates = new Set<string>();
+	private deletedSessionStates = new Set<string>();
+	private dirtyPersistentStates = new Set<string>();
+	private deletedPersistentStates = new Set<string>();
+	private dirtyAliases = new Set<string>();
+	private deletedAliases = new Set<string>();
+
+	private sessionWal?: JsonlWal;
+	private persistentWal?: JsonlWal;
 
 	constructor(
 		private sessionFilePath?: string,
 		private persistentFilePath?: string,
-	) {}
-
-	private async ensureDir(filePath: string): Promise<void> {
-		await fs.mkdir(path.dirname(filePath), { recursive: true });
+		walOptions?: { maxWalEntries?: number; maxWalBytes?: number },
+	) {
+		if (this.sessionFilePath) {
+			this.sessionWal = new JsonlWal(this.sessionFilePath, walOptions);
+		}
+		if (this.persistentFilePath) {
+			this.persistentWal = new JsonlWal(
+				this.persistentFilePath,
+				walOptions,
+			);
+		}
 	}
 
 	private async fileOrDirExists(filePath: string): Promise<boolean> {
@@ -44,8 +61,14 @@ export class JsonlKvBackend implements KvBackend {
 
 	private async loadSessions(): Promise<void> {
 		if (!this.sessionFilePath) return;
-		try {
-			if (await this.fileOrDirExists(this.sessionFilePath)) {
+
+		const dataExists = await this.fileOrDirExists(this.sessionFilePath);
+		const walExists = this.sessionWal
+			? await this.fileOrDirExists(this.sessionWal.walPath)
+			: false;
+
+		if (dataExists) {
+			try {
 				const raw = await fs.readFile(this.sessionFilePath, "utf-8");
 				for (const line of raw.split("\n")) {
 					if (!line.trim()) continue;
@@ -61,20 +84,54 @@ export class JsonlKvBackend implements KvBackend {
 							entry.targetId,
 						);
 					} else if (entry.type === "delete_alias") {
-						this.aliases.delete(`${entry.sessionId}:${entry.alias}`);
+						this.aliases.delete(
+							`${entry.sessionId}:${entry.alias}`,
+						);
+					}
+				}
+			} catch (err: any) {
+				if (err.code !== "ENOENT") throw err;
+			}
+		}
+
+		if (walExists && this.sessionWal) {
+			for await (const entry of this.sessionWal.replay() as any) {
+				if (entry.operation === "set") {
+					if (entry.type === "session_state") {
+						this.sessionStates.set(entry.id, {
+							value: entry.data.value,
+							sessionId: entry.data.sessionId,
+						});
+					} else if (entry.type === "alias") {
+						this.aliases.set(entry.id, entry.data.targetId);
+					}
+				} else if (entry.operation === "delete") {
+					if (entry.type === "session_state") {
+						this.sessionStates.delete(entry.id);
+					} else if (entry.type === "alias") {
+						this.aliases.delete(entry.id);
 					}
 				}
 			}
-		} catch (err: any) {
-			if (err.code !== "ENOENT") throw err;
 		}
 	}
 
 	private async loadPersistent(): Promise<void> {
 		if (!this.persistentFilePath) return;
-		try {
-			if (await this.fileOrDirExists(this.persistentFilePath)) {
-				const raw = await fs.readFile(this.persistentFilePath, "utf-8");
+
+		const dataExists = await this.fileOrDirExists(
+			this.persistentFilePath,
+		);
+		const walExists = this.persistentWal
+			? await this.fileOrDirExists(this.persistentWal.walPath)
+			: false;
+
+		if (dataExists) {
+			try {
+				const raw = await fs.readFile(
+					this.persistentFilePath,
+					"utf-8",
+				);
 				for (const line of raw.split("\n")) {
 					if (!line.trim()) continue;
 					const entry = JSON.parse(line);
@@ -85,17 +142,126 @@ export class JsonlKvBackend implements KvBackend {
 						});
 					}
 				}
+			} catch (err: any) {
+				if (err.code !== "ENOENT") throw err;
 			}
-		} catch (err: any) {
-			if (err.code !== "ENOENT") throw err;
+		}
+
+		if (walExists && this.persistentWal) {
+			for await (const entry of this.persistentWal.replay() as any) {
+				if (
+					entry.operation === "set" &&
+					entry.type === "persistent_state"
+				) {
+					this.persistentStates.set(entry.id, {
+						value: entry.data.value,
+						scope: entry.data.scope,
+					});
+				} else if (
+					entry.operation === "delete" &&
+					entry.type === "persistent_state"
+				) {
+					this.persistentStates.delete(entry.id);
+				}
+			}
 		}
 	}
 
 	private async saveSessions(): Promise<void> {
-		if (!this.sessionFilePath) return;
+		if (!this.sessionFilePath || !this.sessionWal) return;
+
+		for (const id of this.dirtySessionStates) {
+			const entry = this.sessionStates.get(id);
+			if (entry) {
+				await this.sessionWal.append({
+					operation: "set",
+					type: "session_state",
+					id,
+					data: {
+						sessionId: entry.sessionId,
+						value: entry.value,
+					},
+				});
+			}
+		}
+		for (const id of this.deletedSessionStates) {
+			await this.sessionWal.append({
+				operation: "delete",
+				type: "session_state",
+				id,
+			});
+		}
+		for (const key of this.dirtyAliases) {
+			const targetId = this.aliases.get(key);
+			if (targetId !== undefined) {
+				await this.sessionWal.append({
+					operation: "set",
+					type: "alias",
+					id: key,
+					data: { targetId },
+				});
+			}
+		}
+		for (const id of this.deletedAliases) {
+			await this.sessionWal.append({
+				operation: "delete",
+				type: "alias",
+				id,
+			});
+		}
+
+		if (this.sessionWal.exceedsThresholds()) {
+			await this.compactSessions();
+		}
+
+		this.dirtySessionStates.clear();
+		this.deletedSessionStates.clear();
+		this.dirtyAliases.clear();
+		this.deletedAliases.clear();
+	}
+
+	private async savePersistent(): Promise<void> {
+		if (!this.persistentFilePath || !this.persistentWal) return;
+
+		for (const id of this.dirtyPersistentStates) {
+			const entry = this.persistentStates.get(id);
+			if (entry) {
+				await this.persistentWal.append({
+					operation: "set",
+					type: "persistent_state",
+					id,
+					data: { scope: entry.scope, value: entry.value },
+				});
+			}
+		}
+		for (const id of this.deletedPersistentStates) {
+			await this.persistentWal.append({
+				operation: "delete",
+				type: "persistent_state",
+				id,
+			});
+		}
+
+		if (this.persistentWal.exceedsThresholds()) {
+			await this.compactPersistent();
+		}
+
+		this.dirtyPersistentStates.clear();
+		this.deletedPersistentStates.clear();
+	}
+
+	async compact(): Promise<void> {
+		await this.compactSessions();
+		await this.compactPersistent();
+	}
+
+	private async compactSessions(): Promise<void> {
+		if (!this.sessionFilePath || !this.sessionWal) return;
 		const lines: string[] = [];
 		for (const [id, { value, sessionId }] of this.sessionStates.entries()) {
-			lines.push(JSON.stringify({ type: "state", id, sessionId, data: value }));
+			lines.push(
+				JSON.stringify({ type: "state", id, sessionId, data: value }),
+			);
 		}
 		for (const [key, targetId] of this.aliases.entries()) {
 			const colon = key.indexOf(":");
@@ -108,11 +274,11 @@ export class JsonlKvBackend implements KvBackend {
 				}),
 			);
 		}
-		await this.truncateAndWrite(this.sessionFilePath, lines);
+		await this.sessionWal.reconcile(lines);
 	}
 
-	private async savePersistent(): Promise<void> {
-		if (!this.persistentFilePath) return;
+	private async compactPersistent(): Promise<void> {
+		if (!this.persistentFilePath || !this.persistentWal) return;
 		const lines: string[] = [];
 		for (const [id, { value, scope }] of this.persistentStates.entries()) {
 			lines.push(
@@ -123,19 +289,7 @@ export class JsonlKvBackend implements KvBackend {
 				}),
 			);
 		}
-		await this.truncateAndWrite(this.persistentFilePath, lines);
-	}
-
-	private async truncateAndWrite(
-		filePath: string,
-		lines: string[],
-	): Promise<void> {
-		await this.ensureDir(filePath);
-		await fs.writeFile(
-			filePath,
-			lines.join("\n") + (lines.length > 0 ? "\n" : ""),
-			"utf-8",
-		);
+		await this.persistentWal.reconcile(lines);
 	}
 
 	getSessionState(
@@ -152,11 +306,13 @@ export class JsonlKvBackend implements KvBackend {
 		value: Record<string, any>,
 	): Promise<void> {
 		this.sessionStates.set(id, { value, sessionId });
+		this.dirtySessionStates.add(id);
 		await this.save();
 	}
 
 	async deleteSessionState(sessionId: string, id: string): Promise<void> {
 		this.sessionStates.delete(id);
+		this.deletedSessionStates.add(id);
 		await this.save();
 	}
 
@@ -188,7 +344,8 @@ export class JsonlKvBackend implements KvBackend {
 	): Promise<Record<string, any> | null> {
 		for (const [key, entry] of this.persistentStates.entries()) {
 			if (key === id) {
-				if (entry.scope.level === "global") return Promise.resolve(entry.value);
+				if (entry.scope.level === "global")
+					return Promise.resolve(entry.value);
 				if (scope.level === "user" && entry.scope?.userId === scope.userId)
 					return Promise.resolve(entry.value);
 			}
@@ -202,11 +359,16 @@ export class JsonlKvBackend implements KvBackend {
 		value: Record<string, any>,
 	): Promise<void> {
 		this.persistentStates.set(id, { value, scope });
+		this.dirtyPersistentStates.add(id);
 		await this.save();
 	}
 
-	async deletePersistentState(id: string, scope: OwnerScope): Promise<void> {
-		this.persistentStates.delete(id);
+	async deletePersistentState(
+		id: string,
+		scope: OwnerScope,
+	): Promise<void> {
+		this.deletedPersistentStates.add(persistentKey(id, scope));
+		this.persistentStates.delete(persistentKey(id, scope));
 		await this.save();
 	}
 
@@ -224,7 +386,9 @@ export class JsonlKvBackend implements KvBackend {
 	}
 
 	getAlias(sessionId: string, alias: string): Promise<string | null> {
-		return Promise.resolve(this.aliases.get(`${sessionId}:${alias}`) ?? null);
+		return Promise.resolve(
+			this.aliases.get(`${sessionId}:${alias}`) ?? null,
+		);
 	}
 
 	async setAlias(
@@ -233,11 +397,13 @@ export class JsonlKvBackend implements KvBackend {
 		targetId: string,
 	): Promise<void> {
 		this.aliases.set(`${sessionId}:${alias}`, targetId);
+		this.dirtyAliases.add(`${sessionId}:${alias}`);
 		await this.save();
 	}
 
 	async deleteAlias(sessionId: string, alias: string): Promise<void> {
 		this.aliases.delete(`${sessionId}:${alias}`);
+		this.deletedAliases.add(`${sessionId}:${alias}`);
 		await this.save();
 	}
 

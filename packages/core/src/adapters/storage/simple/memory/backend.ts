@@ -12,12 +12,24 @@ export class MemoryKvBackend implements KvBackend {
 	private sessionStates = new Map<string, Record<string, any>>();
 	private persistentStates = new Map<string, Record<string, any>>();
 	private aliases = new Map<string, string>();
+	private dirtySessionStates = new Set<string>();
+	private deletedSessionStates = new Set<string>();
+	private dirtyPersistentStates = new Set<string>();
+	private deletedPersistentStates = new Set<string>();
+	private dirtyAliases = new Set<string>();
+	private deletedAliases = new Set<string>();
 
 	load(): Promise<void> {
 		return Promise.resolve();
 	}
 
 	save(): Promise<void> {
+		this.dirtySessionStates.clear();
+		this.deletedSessionStates.clear();
+		this.dirtyPersistentStates.clear();
+		this.deletedPersistentStates.clear();
+		this.dirtyAliases.clear();
+		this.deletedAliases.clear();
 		return Promise.resolve();
 	}
 
@@ -36,11 +48,13 @@ export class MemoryKvBackend implements KvBackend {
 		value: Record<string, any>,
 	): Promise<void> {
 		this.sessionStates.set(sessionKey(sessionId, id), value);
+		this.dirtySessionStates.add(sessionKey(sessionId, id));
 		return Promise.resolve();
 	}
 
 	deleteSessionState(sessionId: string, id: string): Promise<void> {
 		this.sessionStates.delete(sessionKey(sessionId, id));
+		this.deletedSessionStates.add(sessionKey(sessionId, id));
 		return Promise.resolve();
 	}
 
@@ -80,12 +94,16 @@ export class MemoryKvBackend implements KvBackend {
 		scope: OwnerScope,
 		value: Record<string, any>,
 	): Promise<void> {
-		this.persistentStates.set(persistentKey(id, scope), value);
+		const key = persistentKey(id, scope);
+		this.persistentStates.set(key, value);
+		this.dirtyPersistentStates.add(key);
 		return Promise.resolve();
 	}
 
 	deletePersistentState(id: string, scope: OwnerScope): Promise<void> {
-		this.persistentStates.delete(persistentKey(id, scope));
+		const key = persistentKey(id, scope);
+		this.persistentStates.delete(key);
+		this.deletedPersistentStates.add(key);
 		return Promise.resolve();
 	}
 
@@ -116,11 +134,13 @@ export class MemoryKvBackend implements KvBackend {
 
 	setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
 		this.aliases.set(aliasKey(sessionId, alias), targetId);
+		this.dirtyAliases.add(aliasKey(sessionId, alias));
 		return Promise.resolve();
 	}
 
 	deleteAlias(sessionId: string, alias: string): Promise<void> {
 		this.aliases.delete(aliasKey(sessionId, alias));
+		this.deletedAliases.add(aliasKey(sessionId, alias));
 		return Promise.resolve();
 	}
 

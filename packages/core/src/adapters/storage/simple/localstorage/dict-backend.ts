@@ -7,6 +7,7 @@ import type {
 } from "../../../../middleware/dictionary/types";
 import type {
 	ConceptStoreBackend,
+	DictDelta,
 	ExpressionStoreBackend,
 } from "../dict-backend";
 
@@ -17,9 +18,9 @@ function getBrowserStorage(): Storage | null {
 	return null;
 }
 
-const CONCEPT_PREFIX = "dict_concepts:";
-const NAMESPACES_KEY = "dict_namespaces";
-const RELATIONS_KEY = "dict_relations";
+const CONCEPT_PREFIX = "dict_concept:";
+const NAMESPACE_PREFIX = "dict_namespace:";
+const RELATION_PREFIX = "dict_relation:";
 
 export class LocalStorageConceptStoreBackend implements ConceptStoreBackend {
 	async load(
@@ -39,48 +40,51 @@ export class LocalStorageConceptStoreBackend implements ConceptStoreBackend {
 			if (key.startsWith(CONCEPT_PREFIX)) {
 				const c = JSON.parse(raw);
 				concepts.set(c.id, c);
-			} else if (key === NAMESPACES_KEY) {
-				for (const ns of JSON.parse(raw)) {
-					namespaces.set(ns.code, ns);
-				}
-			} else if (key === RELATIONS_KEY) {
-				relations.push(...JSON.parse(raw));
+			} else if (key.startsWith(NAMESPACE_PREFIX)) {
+				const ns = JSON.parse(raw);
+				namespaces.set(ns.code, ns);
+			} else if (key.startsWith(RELATION_PREFIX)) {
+				relations.push(JSON.parse(raw));
 			}
 		}
 	}
 
-	async save(
-		concepts: Map<string, any>,
-		namespaces: Map<string, any>,
-		relations: ConceptRelation[],
-	): Promise<void> {
+	async saveDelta(deltas: DictDelta[]): Promise<void> {
 		const storage = getBrowserStorage();
 		if (!storage) return;
 
-		for (let i = storage.length - 1; i >= 0; i--) {
-			const key = storage.key(i);
-			if (
-				key &&
-				(key.startsWith(CONCEPT_PREFIX) ||
-					key === NAMESPACES_KEY ||
-					key === RELATIONS_KEY)
-			) {
-				storage.removeItem(key);
+		for (const delta of deltas) {
+			if (delta.op === "set" && delta.data) {
+				if (delta.kind === "concept") {
+					storage.setItem(
+						CONCEPT_PREFIX + delta.id,
+						JSON.stringify(delta.data),
+					);
+				} else if (delta.kind === "namespace") {
+					storage.setItem(
+						NAMESPACE_PREFIX + delta.id,
+						JSON.stringify(delta.data),
+					);
+				} else if (delta.kind === "relation") {
+					storage.setItem(
+						RELATION_PREFIX + delta.id,
+						JSON.stringify(delta.data),
+					);
+				}
+			} else if (delta.op === "delete") {
+				if (delta.kind === "concept") {
+					storage.removeItem(CONCEPT_PREFIX + delta.id);
+				} else if (delta.kind === "namespace") {
+					storage.removeItem(NAMESPACE_PREFIX + delta.id);
+				} else if (delta.kind === "relation") {
+					storage.removeItem(RELATION_PREFIX + delta.id);
+				}
 			}
 		}
-
-		for (const c of concepts.values()) {
-			storage.setItem(CONCEPT_PREFIX + c.id, JSON.stringify(c));
-		}
-		storage.setItem(
-			NAMESPACES_KEY,
-			JSON.stringify(Array.from(namespaces.values())),
-		);
-		storage.setItem(RELATIONS_KEY, JSON.stringify(relations));
 	}
 }
 
-const EXPRESSION_PREFIX = "dict_expressions:";
+const EXPRESSION_PREFIX = "dict_expression:";
 
 export class LocalStorageExpressionStoreBackend
 	implements ExpressionStoreBackend
@@ -98,19 +102,20 @@ export class LocalStorageExpressionStoreBackend
 		}
 	}
 
-	async save(expressions: CustomExpression[]): Promise<void> {
+	async saveDelta(deltas: DictDelta[]): Promise<void> {
 		const storage = getBrowserStorage();
 		if (!storage) return;
 
-		for (let i = storage.length - 1; i >= 0; i--) {
-			const key = storage.key(i);
-			if (key && key.startsWith(EXPRESSION_PREFIX)) {
-				storage.removeItem(key);
+		for (const delta of deltas) {
+			if (delta.kind !== "expression") continue;
+			if (delta.op === "set" && delta.data) {
+				storage.setItem(
+					EXPRESSION_PREFIX + delta.id,
+					JSON.stringify(delta.data),
+				);
+			} else if (delta.op === "delete") {
+				storage.removeItem(EXPRESSION_PREFIX + delta.id);
 			}
-		}
-
-		for (const e of expressions) {
-			storage.setItem(EXPRESSION_PREFIX + e.id, JSON.stringify(e));
 		}
 	}
 }
