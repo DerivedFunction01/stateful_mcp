@@ -182,4 +182,5 @@ export const formEntityConfigs: Record<SqlDialect, EntityConfig<any, any>> = {
 	sqlite: makeFormEntityConfig("sqlite"),
 	postgres: makeFormEntityConfig("postgres"),
 	duckdb: makeFormEntityConfig("duckdb"),
+	opfs: makeFormEntityConfig("sqlite"),
 };

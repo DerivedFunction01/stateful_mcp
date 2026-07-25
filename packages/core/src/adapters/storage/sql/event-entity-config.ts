@@ -143,4 +143,5 @@ export const eventEntityConfigs: Record<SqlDialect, EntityConfig<any, any>> = {
 	sqlite: makeEventEntityConfig("sqlite"),
 	postgres: makeEventEntityConfig("postgres"),
 	duckdb: makeEventEntityConfig("duckdb"),
+	opfs: makeEventEntityConfig("sqlite"),
 };

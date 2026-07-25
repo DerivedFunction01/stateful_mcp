@@ -26,7 +26,7 @@ import {
 } from "./factories";
 
 export interface BackendSpec {
-	type: "sqlite" | "postgres" | "duckdb" | "memory" | "jsonl";
+	type: "sqlite" | "postgres" | "duckdb" | "opfs" | "memory" | "jsonl";
 	target: string;
 }
 
@@ -82,6 +82,7 @@ function sameBackend(
 function dialectFor(type: string): SqlDialect {
 	switch (type) {
 		case "sqlite":
+		case "opfs":
 			return "sqlite";
 		case "postgres":
 			return "postgres";
@@ -332,6 +333,32 @@ export function registerSqlAdapters(): void {
 				},
 				concept: { type: "duckdb", target: dbPath },
 				expression: { type: "duckdb", target: dbPath },
+			});
+		},
+	});
+
+	registerAdapter("opfs", {
+		create: async (options: Record<string, unknown>) => {
+			const dbPath = String(options.path || options.dbName || "./opfs.sqlite3");
+			return createRepo({
+				filter: {
+					session: { type: "opfs", target: dbPath },
+					persistent: { type: "opfs", target: dbPath },
+				},
+				form: {
+					session: { type: "opfs", target: dbPath },
+					persistent: { type: "opfs", target: dbPath },
+				},
+				object: {
+					session: { type: "opfs", target: dbPath },
+					persistent: { type: "opfs", target: dbPath },
+				},
+				event: {
+					session: { type: "opfs", target: dbPath },
+					persistent: { type: "opfs", target: dbPath },
+				},
+				concept: { type: "opfs", target: dbPath },
+				expression: { type: "opfs", target: dbPath },
 			});
 		},
 	});

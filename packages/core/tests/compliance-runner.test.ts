@@ -45,11 +45,6 @@ import {
 	MemorySessionObjectStore,
 } from "../src/adapters/storage/memory-repo";
 import {
-	OpfsConceptStore,
-	OpfsDb,
-	OpfsPersistentExpressionStore,
-} from "../src/adapters/storage/opfs-repo";
-import {
 	createConceptStore,
 	createExpressionStore,
 	createFilterStore,
@@ -549,17 +544,13 @@ describe("Storage Compliance Test Runner", () => {
 		});
 
 		describe("OPFS Dictionary Store", () => {
-			const opfsDb = new OpfsDb(":memory:");
-			beforeAll(async () => {
-				await opfsDb.open();
-			});
 			runDictionaryStoreComplianceTests({
 				name: "OPFS Dictionary Store",
 				test,
 				expect,
-				createSessionStore: async () => new OpfsConceptStore(opfsDb),
+				createSessionStore: async () => createConceptStore("opfs", ":memory:"),
 				createPersistentStore: async () =>
-					new OpfsPersistentExpressionStore(opfsDb),
+					createExpressionStore("opfs", ":memory:"),
 			});
 		});
 	});

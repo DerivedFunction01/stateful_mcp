@@ -5,13 +5,14 @@ import {
 	QueryCompiler,
 	type SqlDialect,
 } from "../../../translation/sql-compiler";
+import { OpfsDb } from "./opfs-backend";
 
 export interface SqlStatement {
 	sql: string;
 	params: any[];
 }
 
-type NativeConn = Database | Pool | DuckDBConnection;
+type NativeConn = Database | Pool | DuckDBConnection | OpfsDb;
 
 export class SqlBackend {
 	public readonly compiler: QueryCompiler;
@@ -47,6 +48,11 @@ export class SqlBackend {
 					"postgres",
 					new Pool({ connectionString: target }),
 				);
+			case "opfs": {
+				const opfsDb = new OpfsDb(target);
+				await opfsDb.open();
+				return new SqlBackend("opfs", opfsDb);
+			}
 			default: {
 				const _exhaustive: never = dialect;
 				throw new Error(`Unhandled dialect: ${_exhaustive}`);
@@ -64,6 +70,9 @@ export class SqlBackend {
 				return;
 			case "postgres":
 				await (this.conn as Pool).query(sql, params);
+				return;
+			case "opfs":
+				await (this.conn as OpfsDb).exec(sql, params);
 				return;
 		}
 	}
@@ -85,6 +94,10 @@ export class SqlBackend {
 			case "postgres": {
 				const res = await (this.conn as Pool).query(sql, params);
 				return res.rows.map((r: any) => this.coercePgRow(r));
+			}
+			case "opfs": {
+				const rows = await (this.conn as OpfsDb).query(sql, params);
+				return rows as Record<string, any>[];
 			}
 		}
 	}
@@ -134,6 +147,19 @@ export class SqlBackend {
 					throw e;
 				} finally {
 					client.release();
+				}
+				return;
+			}
+			case "opfs": {
+				const opfs = this.conn as OpfsDb;
+				await opfs.exec("BEGIN IMMEDIATE");
+				try {
+					for (const { sql, params } of statements)
+						await opfs.exec(sql, params);
+					await opfs.exec("COMMIT");
+				} catch (e) {
+					await opfs.exec("ROLLBACK");
+					throw e;
 				}
 				return;
 			}

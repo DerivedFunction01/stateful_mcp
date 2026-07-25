@@ -101,4 +101,5 @@ export const objectEntityConfigs: Record<SqlDialect, EntityConfig<any, any>> = {
 	sqlite: makeObjectEntityConfig("sqlite"),
 	postgres: makeObjectEntityConfig("postgres"),
 	duckdb: makeObjectEntityConfig("duckdb"),
+	opfs: makeObjectEntityConfig("sqlite"),
 };

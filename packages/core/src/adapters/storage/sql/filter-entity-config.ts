@@ -137,4 +137,5 @@ export const filterEntityConfigs: Record<SqlDialect, EntityConfig<any, any>> = {
 	sqlite: makeFilterEntityConfig("sqlite"),
 	postgres: makeFilterEntityConfig("postgres"),
 	duckdb: makeFilterEntityConfig("duckdb"),
+	opfs: makeFilterEntityConfig("sqlite"),
 };

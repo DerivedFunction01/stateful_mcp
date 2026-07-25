@@ -1627,6 +1627,7 @@ export const SCHEMA = {
 	sqlite: compileAll("sqlite"),
 	postgres: compileAll("postgres"),
 	duckdb: compileAll("duckdb"),
+	opfs: compileAll("sqlite"),
 };
 
 export type Dialect = keyof typeof SCHEMA;

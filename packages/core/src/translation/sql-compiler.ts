@@ -1,4 +1,4 @@
-export type SqlDialect = "sqlite" | "postgres" | "duckdb";
+export type SqlDialect = "sqlite" | "postgres" | "duckdb" | "opfs";
 
 export interface CompiledQuery {
 	sql: string;
