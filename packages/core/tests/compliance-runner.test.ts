@@ -1,4 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+	InMemoryConceptStore,
+	InMemoryPersistentExpressionStore,
+} from "@stateful-mcp/core/adapters/storage/InMemoryConceptStore";
 import * as fs from "fs";
 import * as path from "path";
 import {
@@ -51,10 +55,6 @@ import {
 	createFilterStore,
 	createFormStore,
 } from "../src/adapters/storage/sql/factories";
-import {
-	InMemoryConceptStore,
-	InMemoryPersistentExpressionStore,
-} from "../src/middleware/dictionary/store";
 
 // Mock global browser variables for browser store tests
 const mockLocalStorage: any = {
