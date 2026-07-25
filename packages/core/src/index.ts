@@ -7,7 +7,7 @@ export * from "./adapters/storage/jsonl-entity-store";
 export * from "./adapters/storage/jsonl-repo";
 export * from "./adapters/storage/localstorage-entity-store";
 export * from "./adapters/storage/memory-repo";
-export * from "./adapters/storage/sql/sql-repo";
+export * from "./adapters/storage/old/sql-repo";
 export * from "./config/loader";
 export * from "./config/meta_tools";
 export * from "./config/pagination";
