@@ -433,7 +433,7 @@ export class EventStore {
 
 	async project(commitId: string, sessionId: string): Promise<EventRecord[]> {
 		const commits: EventCommit[] = [];
-		let currentId: string | null = commitId;
+		let currentId: string | null = await this.resolveId(commitId, sessionId);
 
 		while (currentId) {
 			const commit = await this.session.get(sessionId, currentId);

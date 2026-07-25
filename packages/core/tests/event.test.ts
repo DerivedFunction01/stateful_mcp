@@ -1,7 +1,4 @@
-import {
-	MemoryPersistentEventStore,
-	MemorySessionEventStore,
-} from "../src/adapters/storage/memory-repo";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
 import { EventStore } from "../src/middleware/event/store";
 
 export async function runEventTests() {
@@ -18,8 +15,11 @@ export async function runEventTests() {
 		},
 	});
 
-	const sessionStore = new MemorySessionEventStore();
-	const persistentStore = new MemoryPersistentEventStore();
+	const eventAdapter = await createRepo({
+		event: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
+	const sessionStore = eventAdapter.sessionEvent!;
+	const persistentStore = eventAdapter.persistentEvent!;
 	const eventStore = new EventStore(sessionStore, persistentStore, schemas, 3);
 
 	const sessionId = "event_test_session_1";
@@ -129,9 +129,12 @@ export async function runEventTests() {
 	console.log("\n🧪 Test Case 3: N-Way Merge Conflict Resolution");
 
 	// Reset store with large threshold to prevent auto-compression during merge test
+	const mergeAdapter = await createRepo({
+		event: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
 	const mergeStore = new EventStore(
-		new MemorySessionEventStore(),
-		new MemoryPersistentEventStore(),
+		mergeAdapter.sessionEvent!,
+		mergeAdapter.persistentEvent!,
 		schemas,
 		99,
 	);
@@ -215,9 +218,12 @@ export async function runEventTests() {
 	// ──── TEST CASE 4: Squash Auto-Compression & GC ────
 	console.log("\n🧪 Test Case 4: Squash Auto-Compression & GC");
 
+	const gcAdapter = await createRepo({
+		event: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
 	const gcStore = new EventStore(
-		new MemorySessionEventStore(),
-		new MemoryPersistentEventStore(),
+		gcAdapter.sessionEvent!,
+		gcAdapter.persistentEvent!,
 		schemas,
 		3,
 	);

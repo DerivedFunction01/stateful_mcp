@@ -7,9 +7,11 @@ export class SimpleRepoStore<Session, Persistent> {
 	get(sessionId: string, id: string): Promise<Session | null>;
 	get(id: string, scope: OwnerScope): Promise<Persistent | null>;
 	async get(a: string, b: string | OwnerScope): Promise<any> {
-		return typeof b === "string"
-			? this.store.getSession(a, b)
-			: this.store.getPersistent(a, b);
+		if (typeof b === "string") {
+			const resolved = await this.getAlias(a, b);
+			return this.store.getSession(a, resolved || b);
+		}
+		return this.store.getPersistent(a, b);
 	}
 
 	set(sessionId: string, id: string, state: Session): Promise<void>;

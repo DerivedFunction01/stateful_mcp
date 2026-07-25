@@ -1,10 +1,5 @@
 import * as crypto from "crypto";
-import {
-	MemoryPersistentFilterStore,
-	MemoryPersistentObjectStore,
-	MemorySessionFilterStore,
-	MemorySessionObjectStore,
-} from "../src/adapters/storage/memory-repo";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
 import type { TableSchema } from "../src/config/types";
 import { FilterStore } from "../src/middleware/filter/store";
 import { ObjectStore } from "../src/middleware/object/store";
@@ -47,8 +42,12 @@ function verifyToken(token: string): LogPageToken {
 export async function runLogTests() {
 	console.log("\n🚀 Starting Stateful Log Service tests...\n");
 
-	const sessionFilterStore = new MemorySessionFilterStore();
-	const persistentFilterStore = new MemoryPersistentFilterStore();
+	const logAdapter = await createRepo({
+		filter: { session: { type: "memory" }, persistent: { type: "memory" } },
+		object: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
+	const sessionFilterStore = logAdapter.sessionFilter!;
+	const persistentFilterStore = logAdapter.persistentFilter!;
 	const toolSchemas = new Map<string, Record<string, TableSchema>>();
 	toolSchemas.set("browse_catalog", {
 		items: {
@@ -66,8 +65,8 @@ export async function runLogTests() {
 		10,
 	);
 
-	const sessionObjectStore = new MemorySessionObjectStore();
-	const persistentObjectStore = new MemoryPersistentObjectStore();
+	const sessionObjectStore = logAdapter.sessionObject!;
+	const persistentObjectStore = logAdapter.persistentObject!;
 	const objectSchemas = new Map<string, any>();
 	objectSchemas.set("appointment", {
 		type: "object",

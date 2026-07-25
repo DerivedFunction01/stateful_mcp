@@ -3,10 +3,7 @@ import * as path from "path";
 import { MemoryQueryEngine } from "../src/adapters/engines/memory-query";
 import { PgQueryEngine } from "../src/adapters/engines/pg-query";
 import { SqliteQueryEngine } from "../src/adapters/engines/sqlite-query";
-import {
-	MemoryPersistentFilterStore,
-	MemorySessionFilterStore,
-} from "../src/adapters/storage/memory-repo";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
 import { createFilterStore } from "../src/adapters/storage/sql/factories";
 import { loadMiddlewareConfig } from "../src/config/loader";
 import type { TableSchema } from "../src/config/types";
@@ -87,8 +84,11 @@ export async function runFilterTests() {
 
 	// ─── TEST CASE 2: Memory Storage Repositories ───
 	console.log("\n🧪 Test Case 2: Memory Storage Repositories");
-	const sessionStore = new MemorySessionFilterStore();
-	const persistentStore = new MemoryPersistentFilterStore();
+	const memoryAdapter = await createRepo({
+		filter: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
+	const sessionStore = memoryAdapter.sessionFilter!;
+	const persistentStore = memoryAdapter.persistentFilter!;
 
 	const mockFilterState = {
 		filterId: "f1",
@@ -796,9 +796,12 @@ export async function runFilterTests() {
 	console.log("\n🧪 Test Case 9: Filter Store GC and Auto-Compression");
 
 	// Create store with chain threshold = 3
+	const gcAdapter = await createRepo({
+		filter: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
 	const gcFilterStore = new FilterStore(
-		new MemorySessionFilterStore(),
-		new MemoryPersistentFilterStore(),
+		gcAdapter.sessionFilter!,
+		gcAdapter.persistentFilter!,
 		toolSchemas,
 		new Map<string, TableSchema>(),
 		3,
@@ -940,9 +943,12 @@ export async function runFilterTests() {
 
 	console.log("\n🧪 Test Case 10: Filter State Aliasing and Pruning");
 
+	const aliasAdapter = await createRepo({
+		filter: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
 	const aliasFilterStore = new FilterStore(
-		new MemorySessionFilterStore(),
-		new MemoryPersistentFilterStore(),
+		aliasAdapter.sessionFilter!,
+		aliasAdapter.persistentFilter!,
 		toolSchemas,
 		new Map<string, TableSchema>(),
 		5,

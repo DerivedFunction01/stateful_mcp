@@ -1,7 +1,4 @@
-import {
-	MemoryPersistentObjectStore,
-	MemorySessionObjectStore,
-} from "../src/adapters/storage/memory-repo";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
 import { ErrorCode } from "../src/errors/types";
 import { validateCycleFree } from "../src/middleware/object/schema-walker";
 import { ObjectStore } from "../src/middleware/object/store";
@@ -66,8 +63,11 @@ export async function runObjectTests() {
 	const schemasMap = new Map<string, any>();
 	schemasMap.set("appointment", appointmentSchema);
 
-	const objSession = new MemorySessionObjectStore();
-	const objPersistent = new MemoryPersistentObjectStore();
+	const objAdapter = await createRepo({
+		object: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
+	const objSession = objAdapter.sessionObject!;
+	const objPersistent = objAdapter.persistentObject!;
 	const objectStore = new ObjectStore(objSession, objPersistent, schemasMap);
 
 	// Initialize and write properties
@@ -224,9 +224,12 @@ export async function runObjectTests() {
 	console.log("\n🧪 Test Case 2: Object Store GC and Auto-Compression");
 
 	// Create store with chain threshold = 3
+	const gcAdapter = await createRepo({
+		object: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
 	const gcObjectStore = new ObjectStore(
-		new MemorySessionObjectStore(),
-		new MemoryPersistentObjectStore(),
+		gcAdapter.sessionObject!,
+		gcAdapter.persistentObject!,
 		schemasMap,
 		7,
 		5,
@@ -365,9 +368,12 @@ export async function runObjectTests() {
 
 	console.log("\n🧪 Test Case 3: Object State Aliasing and Pruning");
 
+	const aliasAdapter = await createRepo({
+		object: { session: { type: "memory" }, persistent: { type: "memory" } },
+	});
 	const aliasObjectStore = new ObjectStore(
-		new MemorySessionObjectStore(),
-		new MemoryPersistentObjectStore(),
+		aliasAdapter.sessionObject!,
+		aliasAdapter.persistentObject!,
 		schemasMap,
 		7,
 		5,

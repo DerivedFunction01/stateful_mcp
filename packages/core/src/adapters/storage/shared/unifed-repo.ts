@@ -1,18 +1,45 @@
 import { registerAdapter } from "@stateful-mcp/core/config/loader";
-import type { ConceptStore, PersistentExpressionStore } from "@stateful-mcp/core/middleware/dictionary/interfaces";
-import type { SessionFilterStore, PersistentFilterStore, SessionObjectStore, PersistentObjectStore, SessionEventStore, PersistentEventStore, SessionFormStore, PersistentFormStore } from "../interfaces";
-import type { ConceptStoreBackend, ExpressionStoreBackend } from "../simple/dict-backend";
-import { IndexedDbConceptStoreBackend, IndexedDbExpressionStoreBackend } from "../simple/indexeddb/dict-backend";
-import { JsonlKvBackend } from "../simple/jsonl/backend";
-import { JsonlConceptStoreBackend, JsonlExpressionStoreBackend } from "../simple/jsonl/dict-backend";
-import type { KvBackend } from "../simple/kv-backend";
-import { LocalStorageConceptStoreBackend, LocalStorageExpressionStoreBackend } from "../simple/localstorage/dict-backend";
-import { MemoryKvBackend } from "../simple/memory/backend";
-import { MemoryConceptStoreBackend, MemoryExpressionStoreBackend } from "../simple/memory/dict-backend";
-import { SqlBackend } from "../sql/backend";
-import * as kvFactories from "../simple/factories";
-import * as sqlFactories from "../sql/factories";
+import type {
+	ConceptStore,
+	PersistentExpressionStore,
+} from "@stateful-mcp/core/middleware/dictionary/interfaces";
 import type { SqlDialect } from "@stateful-mcp/core/translation/sql-compiler";
+import type {
+	PersistentEventStore,
+	PersistentFilterStore,
+	PersistentFormStore,
+	PersistentObjectStore,
+	SessionEventStore,
+	SessionFilterStore,
+	SessionFormStore,
+	SessionObjectStore,
+} from "../interfaces";
+import type {
+	ConceptStoreBackend,
+	ExpressionStoreBackend,
+} from "../simple/dict-backend";
+import * as kvFactories from "../simple/factories";
+import {
+	IndexedDbConceptStoreBackend,
+	IndexedDbExpressionStoreBackend,
+} from "../simple/indexeddb/dict-backend";
+import { JsonlKvBackend } from "../simple/jsonl/backend";
+import {
+	JsonlConceptStoreBackend,
+	JsonlExpressionStoreBackend,
+} from "../simple/jsonl/dict-backend";
+import type { KvBackend } from "../simple/kv-backend";
+import {
+	LocalStorageConceptStoreBackend,
+	LocalStorageExpressionStoreBackend,
+} from "../simple/localstorage/dict-backend";
+import { MemoryKvBackend } from "../simple/memory/backend";
+import {
+	MemoryConceptStoreBackend,
+	MemoryExpressionStoreBackend,
+} from "../simple/memory/dict-backend";
+import { SqlBackend } from "../sql/backend";
+import * as sqlFactories from "../sql/factories";
 
 export type BackendType =
 	| "sqlite"
@@ -100,21 +127,20 @@ function dialectFor(type: string): SqlDialect {
 
 function buildKvBackend(type: string, target?: string): KvBackend {
 	switch (type) {
-		case "memory":
-			return new MemoryKvBackend();
 		case "jsonl": {
 			const sessionPath = target ? `${target}-session.jsonl` : undefined;
 			const persistentPath = target ? `${target}-persistent.jsonl` : undefined;
 			return new JsonlKvBackend(sessionPath, persistentPath);
 		}
-		case "localstorage":
-		case "indexeddb":
 		default:
 			return new MemoryKvBackend();
 	}
 }
 
-function buildConceptBackend(type: string, target?: string): ConceptStoreBackend {
+function buildConceptBackend(
+	type: string,
+	target?: string,
+): ConceptStoreBackend {
 	switch (type) {
 		case "memory":
 			return new MemoryConceptStoreBackend();
@@ -154,7 +180,12 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 
 	// Helper to resolve generic pair configuration (form, filter, object, event)
 	const resolvePair = async <T>(
-		configSection: { session?: BackendSpec | BackendSpec[]; persistent?: BackendSpec | BackendSpec[] } | undefined,
+		configSection:
+			| {
+					session?: BackendSpec | BackendSpec[];
+					persistent?: BackendSpec | BackendSpec[];
+			  }
+			| undefined,
 		sqlFactory: Function,
 		kvFactory: Function,
 	): Promise<{ session?: T; persistent?: T }> => {
@@ -165,10 +196,17 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 		const result: { session?: T; persistent?: T } = {};
 
 		// Case 1: Shared Backend
-		if (sessionSpec && persistentSpec && sameBackend(sessionSpec, persistentSpec)) {
+		if (
+			sessionSpec &&
+			persistentSpec &&
+			sameBackend(sessionSpec, persistentSpec)
+		) {
 			if (isSql(sessionSpec.type)) {
 				const dialect = dialectFor(sessionSpec.type);
-				const backend = await SqlBackend.connect(dialect, sessionSpec.target || "");
+				const backend = await SqlBackend.connect(
+					dialect,
+					sessionSpec.target || "",
+				);
 				const store = await sqlFactory(dialect, sessionSpec.target, backend);
 				result.session = store;
 				result.persistent = store;
@@ -197,7 +235,10 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 				const dialect = dialectFor(persistentSpec.type);
 				result.persistent = await sqlFactory(dialect, persistentSpec.target);
 			} else {
-				const backend = buildKvBackend(persistentSpec.type, persistentSpec.target);
+				const backend = buildKvBackend(
+					persistentSpec.type,
+					persistentSpec.target,
+				);
 				result.persistent = await kvFactory(backend);
 			}
 		}
@@ -206,7 +247,9 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	};
 
 	// 1. Resolve Data Stores
-	const filterStores = await resolvePair<SessionFilterStore & PersistentFilterStore>(
+	const filterStores = await resolvePair<
+		SessionFilterStore & PersistentFilterStore
+	>(
 		config.filter,
 		sqlFactories.createFilterStore,
 		kvFactories.createFilterStore,
@@ -222,7 +265,9 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	adapter.sessionForm = formStores.session;
 	adapter.persistentForm = formStores.persistent;
 
-	const objectStores = await resolvePair<SessionObjectStore & PersistentObjectStore>(
+	const objectStores = await resolvePair<
+		SessionObjectStore & PersistentObjectStore
+	>(
 		config.object,
 		sqlFactories.createObjectStore,
 		kvFactories.createObjectStore,
@@ -230,11 +275,9 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	adapter.sessionObject = objectStores.session;
 	adapter.persistentObject = objectStores.persistent;
 
-	const eventStores = await resolvePair<SessionEventStore & PersistentEventStore>(
-		config.event,
-		sqlFactories.createEventStore,
-		kvFactories.createEventStore,
-	);
+	const eventStores = await resolvePair<
+		SessionEventStore & PersistentEventStore
+	>(config.event, sqlFactories.createEventStore, kvFactories.createEventStore);
 	adapter.sessionEvent = eventStores.session;
 	adapter.persistentEvent = eventStores.persistent;
 
@@ -243,7 +286,10 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	if (conceptSpec) {
 		if (isSql(conceptSpec.type)) {
 			const dialect = dialectFor(conceptSpec.type);
-			adapter.conceptStore = await sqlFactories.createConceptStore(dialect, conceptSpec.target!);
+			adapter.conceptStore = await sqlFactories.createConceptStore(
+				dialect,
+				conceptSpec.target!,
+			);
 		} else {
 			const backend = buildConceptBackend(conceptSpec.type, conceptSpec.target);
 			adapter.conceptStore = kvFactories.createConceptStore(backend);
@@ -254,10 +300,18 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	if (expressionSpec) {
 		if (isSql(expressionSpec.type)) {
 			const dialect = dialectFor(expressionSpec.type);
-			adapter.persistentExpressionStore = await sqlFactories.createExpressionStore(dialect, expressionSpec.target!);
+			adapter.persistentExpressionStore =
+				await sqlFactories.createExpressionStore(
+					dialect,
+					expressionSpec.target!,
+				);
 		} else {
-			const backend = buildExpressionBackend(expressionSpec.type, expressionSpec.target);
-			adapter.persistentExpressionStore = kvFactories.createExpressionStore(backend);
+			const backend = buildExpressionBackend(
+				expressionSpec.type,
+				expressionSpec.target,
+			);
+			adapter.persistentExpressionStore =
+				kvFactories.createExpressionStore(backend);
 		}
 	}
 

@@ -30,7 +30,8 @@
 			"complexity": {
 				"useLiteralKeys": "off",
 				"useOptionalChain": "off",
-				"noStaticOnlyClass": "off"
+				"noStaticOnlyClass": "off",
+				"noBannedTypes": "off"
 			},
 			"correctness": {
 				"noUnusedVariables": "off",
