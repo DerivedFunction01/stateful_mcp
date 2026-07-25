@@ -9,9 +9,10 @@ import { GenericSimpleEntityStore } from "./entity-store";
 import { objectSimpleEntityConfig } from "./object-entity-config";
 import { SimpleRepoStore } from "./simple-repo-store";
 
-export function createObjectStore(
+export async function createObjectStore(
 	backend: KvBackend,
-): SessionObjectStore & PersistentObjectStore {
+): Promise<SessionObjectStore & PersistentObjectStore> {
+	await backend.load();
 	return new SimpleRepoStore(
 		new GenericSimpleEntityStore<ObjectState, PersistedObjectState>(
 			backend,

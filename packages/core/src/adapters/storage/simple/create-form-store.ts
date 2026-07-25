@@ -9,9 +9,10 @@ import { GenericSimpleEntityStore } from "./entity-store";
 import { formSimpleEntityConfig } from "./form-entity-config";
 import { SimpleRepoStore } from "./simple-repo-store";
 
-export function createFormStore(
+export async function createFormStore(
 	backend: KvBackend,
-): SessionFormStore & PersistentFormStore {
+): Promise<SessionFormStore & PersistentFormStore> {
+	await backend.load();
 	return new SimpleRepoStore(
 		new GenericSimpleEntityStore<FormState, PersistedFormStateDetails>(
 			backend,

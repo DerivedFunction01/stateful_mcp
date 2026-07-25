@@ -9,9 +9,10 @@ import { GenericSimpleEntityStore } from "./entity-store";
 import { filterSimpleEntityConfig } from "./filter-entity-config";
 import { SimpleRepoStore } from "./simple-repo-store";
 
-export function createFilterStore(
+export async function createFilterStore(
 	backend: KvBackend,
-): SessionFilterStore & PersistentFilterStore {
+): Promise<SessionFilterStore & PersistentFilterStore> {
+	await backend.load();
 	return new SimpleRepoStore(
 		new GenericSimpleEntityStore<FilterState, PersistedFilterState>(
 			backend,

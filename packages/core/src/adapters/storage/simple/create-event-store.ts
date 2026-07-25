@@ -9,9 +9,10 @@ import { GenericSimpleEntityStore } from "./entity-store";
 import { eventSimpleEntityConfig } from "./event-entity-config";
 import { SimpleRepoStore } from "./simple-repo-store";
 
-export function createEventStore(
+export async function createEventStore(
 	backend: KvBackend,
-): SessionEventStore & PersistentEventStore {
+): Promise<SessionEventStore & PersistentEventStore> {
+	await backend.load();
 	return new SimpleRepoStore(
 		new GenericSimpleEntityStore<EventCommit, PersistedEventState>(
 			backend,
