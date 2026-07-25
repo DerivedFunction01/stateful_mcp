@@ -3,7 +3,7 @@ import type { ObjectState } from "../../../middleware/object/types";
 import type { PersistedObjectState } from "../interfaces";
 import { SqlBackend } from "./backend";
 import { GenericSqlEntityStore } from "./entity-store";
-import { objectEntityConfig, objectDdlKeys } from "./object-entity-config";
+import { objectEntityConfigs, objectDdlKeys } from "./object-entity-config";
 import { initSchema } from "./init-schema";
 import { SqlRepoStore } from "./sql-repo-store";
 
@@ -15,7 +15,7 @@ export async function createObjectStore(
   await initSchema(backend, objectDdlKeys);
   const store = new GenericSqlEntityStore<ObjectState, PersistedObjectState>(
     backend,
-    objectEntityConfig,
+    objectEntityConfigs[dialect],
   );
   return new SqlRepoStore(store);
 }

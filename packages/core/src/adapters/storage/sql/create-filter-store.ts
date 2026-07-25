@@ -7,7 +7,7 @@ import type {
 } from "../interfaces";
 import { SqlBackend } from "./backend";
 import { GenericSqlEntityStore } from "./entity-store";
-import { filterEntityConfig, filterDdlKeys } from "./filter-entity-config";
+import { filterEntityConfigs, filterDdlKeys } from "./filter-entity-config";
 import { initSchema } from "./init-schema";
 import { SqlRepoStore } from "./sql-repo-store";
 
@@ -19,7 +19,7 @@ export async function createFilterStore(
   await initSchema(backend, filterDdlKeys);
   const store = new GenericSqlEntityStore<FilterState, PersistedFilterState>(
     backend,
-    filterEntityConfig,
+    filterEntityConfigs[dialect],
   );
   return new SqlRepoStore(store);
 }
