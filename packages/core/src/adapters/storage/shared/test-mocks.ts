@@ -31,6 +31,8 @@ function initStores() {
 		"concepts",
 		"namespaces",
 		"expressions",
+		"sessionStates",
+		"persistentStates",
 	]) {
 		if (!mockIndexedDBStore.has(name)) {
 			mockIndexedDBStore.set(name, new Map());
@@ -138,6 +140,7 @@ export const mockIndexedDB: IDBFactory & {
 		};
 		const request: any = { result: dbResult };
 		setTimeout(() => {
+			if (request.onupgradeneeded) request.onupgradeneeded();
 			if (request.onsuccess) request.onsuccess();
 		}, 0);
 		return request;

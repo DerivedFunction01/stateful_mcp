@@ -19,6 +19,7 @@ import type {
 	ExpressionStoreBackend,
 } from "../simple/dict-backend";
 import * as kvFactories from "../simple/factories";
+import { IndexedDbKvBackend } from "../simple/indexeddb/backend";
 import {
 	IndexedDbConceptStoreBackend,
 	IndexedDbExpressionStoreBackend,
@@ -131,6 +132,8 @@ function buildKvBackend(type: string, target?: string): KvBackend {
 			const persistentPath = target ? `${target}-persistent.jsonl` : undefined;
 			return new JsonlKvBackend(sessionPath, persistentPath);
 		}
+		case "indexeddb":
+			return new IndexedDbKvBackend(target || "stateful_mcp_kv");
 		default:
 			return new MemoryKvBackend();
 	}
