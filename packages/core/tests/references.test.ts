@@ -1,12 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import {
-	MemoryPersistentFilterStore,
-	MemoryPersistentFormStore,
-	MemoryPersistentObjectStore,
-	MemorySessionFilterStore,
-	MemorySessionFormStore,
-	MemorySessionObjectStore,
-} from "../src/adapters/storage/memory-repo";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
 import type { FormSchema } from "../src/config/types";
 import { FilterStore } from "../src/middleware/filter/store";
 import { FormStore } from "../src/middleware/form/store";
@@ -18,10 +11,25 @@ describe("Cross-Service Referential Integrity", () => {
 	let formStore: FormStore;
 	const session = "ref-session-1";
 
-	beforeAll(() => {
+	beforeAll(async () => {
+		const adapter = await createRepo({
+			filter: {
+				session: { type: "memory" },
+				persistent: { type: "memory" },
+			},
+			object: {
+				session: { type: "memory" },
+				persistent: { type: "memory" },
+			},
+			form: {
+				session: { type: "memory" },
+				persistent: { type: "memory" },
+			},
+		});
+
 		filterStore = new FilterStore(
-			new MemorySessionFilterStore(),
-			new MemoryPersistentFilterStore(),
+			adapter.sessionFilter!,
+			adapter.persistentFilter!,
 			new Map(),
 			new Map(),
 			20,
@@ -42,8 +50,8 @@ describe("Cross-Service Referential Integrity", () => {
 		]);
 
 		objectStore = new ObjectStore(
-			new MemorySessionObjectStore(),
-			new MemoryPersistentObjectStore(),
+			adapter.sessionObject!,
+			adapter.persistentObject!,
 			objectSchemas,
 		);
 
@@ -61,8 +69,8 @@ describe("Cross-Service Referential Integrity", () => {
 		};
 
 		formStore = new FormStore(
-			new MemorySessionFormStore(),
-			new MemoryPersistentFormStore(),
+			adapter.sessionForm!,
+			adapter.persistentForm!,
 			new Map([["intake_form", formSchema]]),
 		);
 

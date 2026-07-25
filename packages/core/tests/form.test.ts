@@ -1,15 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
-import {
-	JsonlPersistentFormStore,
-	JsonlSessionFormStore,
-} from "../src/adapters/storage/jsonl-repo";
-import {
-	MemoryPersistentFormStore,
-	MemorySessionFormStore,
-} from "../src/adapters/storage/memory-repo";
-import { createFormStore } from "../src/adapters/storage/sql/factories";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
 import type { FormSchema } from "../src/config/types";
 import { FormStore } from "../src/middleware/form/store";
 
@@ -107,38 +99,64 @@ describe("Stateful Form Service", () => {
 	describe.each([
 		[
 			"Memory Store",
-			() =>
-				new FormStore(
-					new MemorySessionFormStore(),
-					new MemoryPersistentFormStore(),
-					schemas,
-				),
+			async () => {
+				const adapter = await createRepo({
+					form: {
+						session: { type: "memory" },
+						persistent: { type: "memory" },
+					},
+				});
+				return {
+					store: new FormStore(
+						adapter.sessionForm!,
+						adapter.persistentForm!,
+						schemas,
+					),
+					persistent: adapter.persistentForm!,
+				};
+			},
 		],
 		[
 			"JSONL Store",
-			() =>
-				new FormStore(
-					new JsonlSessionFormStore(JSONL_SESSION),
-					new JsonlPersistentFormStore(JSONL_PERSISTENT),
-					schemas,
-				),
+			async () => {
+				const adapter = await createRepo({
+					form: {
+						session: { type: "jsonl", target: JSONL_SESSION },
+						persistent: { type: "jsonl", target: JSONL_PERSISTENT },
+					},
+				});
+				return {
+					store: new FormStore(
+						adapter.sessionForm!,
+						adapter.persistentForm!,
+						schemas,
+					),
+					persistent: adapter.persistentForm!,
+				};
+			},
 		],
 		[
 			"SQLite Store",
-			async () =>
-				new FormStore(
-					await createFormStore("sqlite", SQLITE_DB),
-					await createFormStore("sqlite", SQLITE_DB),
-					schemas,
-				),
+			async () => {
+				const adapter = await createRepo({
+					form: {
+						session: { type: "sqlite", target: SQLITE_DB },
+						persistent: { type: "sqlite", target: SQLITE_DB },
+					},
+				});
+				return {
+					store: new FormStore(
+						adapter.sessionForm!,
+						adapter.persistentForm!,
+						schemas,
+					),
+					persistent: adapter.persistentForm!,
+				};
+			},
 		],
-	])("%s", (_title, createStore) => {
-		let store: FormStore;
+	])("%s", async (_title, createStore) => {
+		const { store, persistent } = await createStore();
 		const session = "test-session";
-
-		beforeAll(async () => {
-			store = await createStore();
-		});
 
 		test("Initialize form and answer linear flow", async () => {
 			const fId = await store.init("patient_intake", session);
@@ -266,7 +284,7 @@ describe("Stateful Form Service", () => {
 			expect(savedId.startsWith("form_comp_")).toBe(true);
 
 			// Verify we can retrieve it and it has the active answers
-			const persisted = await (store as any).persistentStore.get(savedId, {
+			const persisted = await persistent.get(savedId, {
 				level: "global",
 			});
 			expect(persisted).toBeDefined();

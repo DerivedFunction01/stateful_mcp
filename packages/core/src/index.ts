@@ -1,13 +1,11 @@
-export * from "./adapters/storage/browser-repo";
 export * from "./adapters/storage/duckdb-entity-store";
 export * from "./adapters/storage/generic-entity-store";
 export * from "./adapters/storage/indexeddb-entity-store";
 export type { EntityStore, SqlQueryStore } from "./adapters/storage/interfaces";
 export * from "./adapters/storage/jsonl-entity-store";
-export * from "./adapters/storage/jsonl-repo";
 export * from "./adapters/storage/localstorage-entity-store";
-export * from "./adapters/storage/memory-repo";
 export * from "./adapters/storage/old/sql-repo";
+export * from "./adapters/storage/shared/unifed-repo";
 export * from "./config/loader";
 export * from "./config/meta_tools";
 export * from "./config/pagination";

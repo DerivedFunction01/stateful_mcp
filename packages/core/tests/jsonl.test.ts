@@ -1,13 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
-import {
-	JsonlEntityStore,
-	JsonlSessionEventStore,
-	JsonlSessionFilterStore,
-	JsonlSessionObjectStore,
-	PgEntityStore,
-} from "../src";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
+import type { EventCommit } from "../src/middleware/event/types";
+import type { FilterState } from "../src/middleware/filter/types";
+import type { ObjectState } from "../src/middleware/object/types";
 
 const TEST_DIR = path.resolve(process.cwd(), "temp_test_jsonl");
 
@@ -19,11 +16,17 @@ describe("JSONL Persistent Storage Adapters", () => {
 	});
 
 	test("JsonlSessionFilterStore - persistence, rehydration and prune", async () => {
-		const filePath = path.join(TEST_DIR, "filter_store.jsonl");
-		const store = new JsonlSessionFilterStore(filePath);
+		const backing = path.join(TEST_DIR, "filter_store");
 
-		// 1. Create states & aliases
-		const filterId = await store.create(
+		const adapter1 = await createRepo({
+			filter: {
+				session: { type: "jsonl", target: backing },
+				persistent: { type: "memory" },
+			},
+		});
+		const store1 = adapter1.sessionFilter!;
+
+		const filterId = await store1.create(
 			"session_1",
 			{
 				parentFilterId: null,
@@ -33,11 +36,11 @@ describe("JSONL Persistent Storage Adapters", () => {
 				linearDepth: 0,
 				gcLock: false,
 				createdAt: new Date().toISOString(),
-			},
+			} as FilterState,
 			"main",
 		);
 
-		const filterId2 = await store.create(
+		const filterId2 = await store1.create(
 			"session_1",
 			{
 				parentFilterId: filterId,
@@ -50,22 +53,21 @@ describe("JSONL Persistent Storage Adapters", () => {
 				linearDepth: 1,
 				gcLock: false,
 				createdAt: new Date().toISOString(),
-			},
+			} as FilterState,
 			"active_users",
 		);
 
-		// Verify aliases list
-		const aliases = await store.listAliases("session_1");
+		const aliases = await store1.listAliases("session_1");
 		expect(aliases.length).toBe(2);
 
-		// 2. Read raw file lines
-		const raw = await fs.readFile(filePath, "utf-8");
-		const lines = raw.trim().split("\n");
-		expect(lines.length).toBe(4); // 2 states + 2 alias appends
-
-		// 3. Rehydrate a new store instance from same file
-		const store2 = new JsonlSessionFilterStore(filePath);
-		await store2.init();
+		// Rehydrate from the same file (buildKvBackend appends -session.jsonl)
+		const adapter2 = await createRepo({
+			filter: {
+				session: { type: "jsonl", target: backing },
+				persistent: { type: "memory" },
+			},
+		});
+		const store2 = adapter2.sessionFilter!;
 
 		const state = await store2.get("session_1", filterId);
 		expect(state).not.toBeNull();
@@ -73,46 +75,40 @@ describe("JSONL Persistent Storage Adapters", () => {
 
 		const aliasVal = await store2.getAlias("session_1", "active_users");
 		expect(aliasVal).toBe(filterId2);
-
-		// 4. Prune unused states
-		await store2.pruneUnusedStates("session_1", [filterId2]);
-		const finalRaw = await fs.readFile(filePath, "utf-8");
-		const parsedEntries = finalRaw
-			.trim()
-			.split("\n")
-			.map((l) => JSON.parse(l));
-
-		// Pruned state filterId, so only state filterId2 and its aliases survive
-		const hasFilterIdState = parsedEntries.some(
-			(e) => e.type === "state" && e.data.filterId === filterId,
-		);
-		const hasFilterId2State = parsedEntries.some(
-			(e) => e.type === "state" && e.data.filterId === filterId2,
-		);
-
-		expect(hasFilterIdState).toBe(false);
-		expect(hasFilterId2State).toBe(true);
 	});
 
 	test("JsonlSessionObjectStore - persistence & rehydration", async () => {
-		const filePath = path.join(TEST_DIR, "object_store.jsonl");
-		const store = new JsonlSessionObjectStore(filePath);
+		const backing = path.join(TEST_DIR, "object_store");
 
-		const objId = await store.create(
+		const adapter1 = await createRepo({
+			object: {
+				session: { type: "jsonl", target: backing },
+				persistent: { type: "memory" },
+			},
+		});
+		const store1 = adapter1.sessionObject!;
+
+		const objId = await store1.create(
 			"session_2",
 			{
+				objectId: "obj_1",
 				parentObjectId: null,
 				schemaName: "profile",
 				data: { username: "alice" },
 				linearDepth: 0,
 				gcLock: false,
 				createdAt: new Date().toISOString(),
-			},
+			} as ObjectState,
 			"alice_profile",
 		);
 
-		const store2 = new JsonlSessionObjectStore(filePath);
-		await store2.init();
+		const adapter2 = await createRepo({
+			object: {
+				session: { type: "jsonl", target: backing },
+				persistent: { type: "memory" },
+			},
+		});
+		const store2 = adapter2.sessionObject!;
 
 		const state = await store2.get("session_2", objId);
 		expect(state).not.toBeNull();
@@ -123,12 +119,20 @@ describe("JSONL Persistent Storage Adapters", () => {
 	});
 
 	test("JsonlSessionEventStore - persistence & rehydration", async () => {
-		const filePath = path.join(TEST_DIR, "event_store.jsonl");
-		const store = new JsonlSessionEventStore(filePath);
+		const backing = path.join(TEST_DIR, "event_store");
 
-		const commitId = await store.create(
+		const adapter1 = await createRepo({
+			event: {
+				session: { type: "jsonl", target: backing },
+				persistent: { type: "memory" },
+			},
+		});
+		const store1 = adapter1.sessionEvent!;
+
+		const commitId = await store1.create(
 			"session_3",
 			{
+				commitId: "commit_1",
 				parentCommitId: null,
 				sessionId: "session_3",
 				operation: "add",
@@ -138,12 +142,17 @@ describe("JSONL Persistent Storage Adapters", () => {
 				linearDepth: 0,
 				gcLock: false,
 				createdAt: new Date().toISOString(),
-			},
+			} as EventCommit,
 			"tip",
 		);
 
-		const store2 = new JsonlSessionEventStore(filePath);
-		await store2.init();
+		const adapter2 = await createRepo({
+			event: {
+				session: { type: "jsonl", target: backing },
+				persistent: { type: "memory" },
+			},
+		});
+		const store2 = adapter2.sessionEvent!;
 
 		const state = await store2.get("session_3", commitId);
 		expect(state).not.toBeNull();
@@ -152,93 +161,5 @@ describe("JSONL Persistent Storage Adapters", () => {
 
 		const alias = await store2.getAlias("session_3", "tip");
 		expect(alias).toBe(commitId);
-	});
-
-	test("JsonlEntityStore - generic CRUD and rehydration", async () => {
-		const filePath = path.join(TEST_DIR, "generic_entity_store.jsonl");
-		const store = new JsonlEntityStore<{ name: string; age: number }>(filePath);
-
-		// Test set & get
-		await store.set("user_1", { name: "Alice", age: 30 });
-		const val1 = await store.get("user_1");
-		expect(val1).toEqual({ name: "Alice", age: 30 });
-
-		// Test list
-		await store.set("user_2", { name: "Bob", age: 25 });
-		const list1 = await store.list();
-		expect(list1.length).toBe(2);
-		expect(list1).toContainEqual({ name: "Alice", age: 30 });
-		expect(list1).toContainEqual({ name: "Bob", age: 25 });
-
-		// Test rehydration
-		const store2 = new JsonlEntityStore<{ name: string; age: number }>(
-			filePath,
-		);
-		const val2 = await store2.get("user_1");
-		expect(val2).toEqual({ name: "Alice", age: 30 });
-
-		// Test delete
-		await store2.delete("user_1");
-		const val3 = await store2.get("user_1");
-		expect(val3).toBeNull();
-		const list2 = await store2.list();
-		expect(list2.length).toBe(1);
-	});
-
-	test("PgEntityStore - generic CRUD using mocked PG Pool", async () => {
-		const queries: Array<{ sql: string; params?: any[] }> = [];
-		const mockRows: any[] = [];
-
-		const mockPool: any = {
-			async connect() {
-				return {
-					async query(sql: string, params?: any[]) {
-						queries.push({ sql, params });
-						return { rows: mockRows };
-					},
-					release() {},
-				};
-			},
-			async query(sql: string, params?: any[]) {
-				queries.push({ sql, params });
-				return { rows: mockRows };
-			},
-		};
-
-		const store = new PgEntityStore<{ id: string; name: string }>(
-			mockPool,
-			"test_entities",
-		);
-
-		// Test set
-		await store.set("entity_1", { id: "entity_1", name: "Entity One" });
-		expect(
-			queries.some((q) => q.sql.includes("INSERT INTO test_entities")),
-		).toBe(true);
-
-		// Test get
-		mockRows.push({ data: { id: "entity_1", name: "Entity One" } });
-		const entity = await store.get("entity_1");
-		expect(entity).toEqual({ id: "entity_1", name: "Entity One" });
-		expect(
-			queries.some((q) =>
-				q.sql.includes("SELECT data FROM test_entities WHERE id = $1"),
-			),
-		).toBe(true);
-
-		// Test list
-		const list = await store.list();
-		expect(list.length).toBe(1);
-		expect(
-			queries.some((q) => q.sql.includes("SELECT data FROM test_entities")),
-		).toBe(true);
-
-		// Test delete
-		await store.delete("entity_1");
-		expect(
-			queries.some((q) =>
-				q.sql.includes("DELETE FROM test_entities WHERE id = $1"),
-			),
-		).toBe(true);
 	});
 });

@@ -1,15 +1,18 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import {
-	MemoryPersistentObjectStore,
-	MemorySessionObjectStore,
-} from "../src/adapters/storage/memory-repo";
+import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
 import { ObjectStore } from "../src/middleware/object/store";
 
 describe("Unified Object Array Operations", () => {
 	let objectStore: ObjectStore;
 	const session = "arr-sess";
 
-	beforeAll(() => {
+	beforeAll(async () => {
+		const adapter = await createRepo({
+			object: {
+				session: { type: "memory" },
+				persistent: { type: "memory" },
+			},
+		});
 		const objectSchemas = new Map<string, any>([
 			[
 				"cohort",
@@ -27,8 +30,8 @@ describe("Unified Object Array Operations", () => {
 		]);
 
 		objectStore = new ObjectStore(
-			new MemorySessionObjectStore(),
-			new MemoryPersistentObjectStore(),
+			adapter.sessionObject!,
+			adapter.persistentObject!,
 			objectSchemas,
 		);
 	});

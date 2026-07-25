@@ -38,7 +38,6 @@ import {
 	MemoryConceptStoreBackend,
 	MemoryExpressionStoreBackend,
 } from "../simple/memory/dict-backend";
-import { SqlBackend } from "../sql/backend";
 import * as sqlFactories from "../sql/factories";
 
 export type BackendType =
@@ -203,11 +202,7 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 		) {
 			if (isSql(sessionSpec.type)) {
 				const dialect = dialectFor(sessionSpec.type);
-				const backend = await SqlBackend.connect(
-					dialect,
-					sessionSpec.target || "",
-				);
-				const store = await sqlFactory(dialect, sessionSpec.target, backend);
+				const store = await sqlFactory(dialect, sessionSpec.target || "");
 				result.session = store;
 				result.persistent = store;
 			} else {

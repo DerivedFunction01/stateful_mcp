@@ -1,20 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import {
-	InMemoryConceptStore,
-	InMemoryPersistentExpressionStore,
-} from "@stateful-mcp/core/adapters/storage/InMemoryConceptStore";
 import * as fs from "fs";
 import * as path from "path";
-import {
-	IndexedDbConceptStore,
-	IndexedDbPersistentExpressionStore,
-	IndexedDbPersistentStore,
-	IndexedDbSessionStore,
-	LocalStorageConceptStore,
-	LocalStoragePersistentExpressionStore,
-	LocalStoragePersistentStore,
-	LocalStorageSessionStore,
-} from "../src/adapters/storage/browser-repo";
 import {
 	runDictionaryStoreComplianceTests,
 	runEventStoreComplianceTests,
@@ -23,535 +9,480 @@ import {
 	runStoreComplianceTests,
 } from "../src/adapters/storage/compliance";
 import {
-	JsonlConceptStore,
-	JsonlPersistentEventStore,
-	JsonlPersistentExpressionStore,
-	JsonlPersistentFilterStore,
-	JsonlPersistentFormStore,
-	JsonlPersistentObjectStore,
-	JsonlSessionEventStore,
-	JsonlSessionFilterStore,
-	JsonlSessionFormStore,
-	JsonlSessionObjectStore,
-} from "../src/adapters/storage/jsonl-repo";
+	clearMockIndexedDB,
+	clearMockLocalStorage,
+	installBrowserMocks,
+} from "../src/adapters/storage/shared/test-mocks";
 import {
-	MemoryPersistentEventStore,
-	MemoryPersistentFilterStore,
-	MemoryPersistentFormStore,
-	MemoryPersistentObjectStore,
-	MemorySessionEventStore,
-	MemorySessionFilterStore,
-	MemorySessionFormStore,
-	MemorySessionObjectStore,
-} from "../src/adapters/storage/memory-repo";
-import {
-	createConceptStore,
-	createExpressionStore,
-	createFilterStore,
-	createFormStore,
-} from "../src/adapters/storage/sql/factories";
+	type BackendType,
+	createRepo,
+	type RepoAdapter,
+} from "../src/adapters/storage/shared/unifed-repo";
 
-// Mock global browser variables for browser store tests
-const mockLocalStorage: any = {
-	store: new Map<string, string>(),
-	getItem(key: string) {
-		return this.store.get(key) || null;
-	},
-	setItem(key: string, value: string) {
-		this.store.set(key, value);
-	},
-	removeItem(key: string) {
-		this.store.delete(key);
-	},
-	key(index: number) {
-		return Array.from(this.store.keys())[index] || null;
-	},
-	get length() {
-		return this.store.size;
-	},
+type StoreSection = "filter" | "form" | "object" | "event";
+
+const sectionStoreKeys: Record<
+	StoreSection,
+	[keyof RepoAdapter, keyof RepoAdapter]
+> = {
+	filter: ["sessionFilter", "persistentFilter"],
+	form: ["sessionForm", "persistentForm"],
+	object: ["sessionObject", "persistentObject"],
+	event: ["sessionEvent", "persistentEvent"],
 };
 
-const mockIndexedDBStore = new Map<string, Map<string, any>>();
-mockIndexedDBStore.set("states", new Map());
-mockIndexedDBStore.set("aliases", new Map());
-mockIndexedDBStore.set("concepts", new Map());
-mockIndexedDBStore.set("namespaces", new Map());
-mockIndexedDBStore.set("expressions", new Map());
+function makePairFactories(
+	section: StoreSection,
+	type: BackendType,
+	target?: string,
+): {
+	createSessionStore: () => Promise<any>;
+	createPersistentStore: () => Promise<any>;
+} {
+	const [sessionKey, persistentKey] = sectionStoreKeys[section];
+	return {
+		createSessionStore: async () => {
+			const adapter = await createRepo({
+				[section]: { session: { type, target }, persistent: { type, target } },
+			});
+			return adapter[sessionKey];
+		},
+		createPersistentStore: async () => {
+			const adapter = await createRepo({
+				[section]: { session: { type, target }, persistent: { type, target } },
+			});
+			return adapter[persistentKey];
+		},
+	};
+}
 
-const mockIndexedDB: any = {
-	open(dbName: string) {
-		const dbResult = {
-			objectStoreNames: {
-				contains(name: string) {
-					return true;
-				},
-			},
-			transaction(storeName: string, mode: string) {
-				const storeMap = mockIndexedDBStore.get(storeName)!;
-				return {
-					objectStore() {
-						return {
-							get(key: string) {
-								const req: any = {};
-								setTimeout(() => {
-									req.result = storeMap.get(key);
-									if (req.onsuccess) req.onsuccess();
-								}, 0);
-								return req;
-							},
-							put(value: any, key: string) {
-								const req: any = {};
-								setTimeout(() => {
-									storeMap.set(key, value);
-									if (req.onsuccess) req.onsuccess();
-								}, 0);
-								return req;
-							},
-							delete(key: string) {
-								const req: any = {};
-								setTimeout(() => {
-									storeMap.delete(key);
-									if (req.onsuccess) req.onsuccess();
-								}, 0);
-								return req;
-							},
-							getAllKeys() {
-								const req: any = {};
-								setTimeout(() => {
-									req.result = Array.from(storeMap.keys());
-									if (req.onsuccess) req.onsuccess();
-								}, 0);
-								return req;
-							},
-							getAll() {
-								const req: any = {};
-								setTimeout(() => {
-									req.result = Array.from(storeMap.values());
-									if (req.onsuccess) req.onsuccess();
-								}, 0);
-								return req;
-							},
-							openCursor() {
-								const req: any = {};
-								const keys = Array.from(storeMap.keys());
-								const values = Array.from(storeMap.values());
-								let idx = 0;
-								setTimeout(() => {
-									const trigger = () => {
-										if (idx < keys.length) {
-											req.result = {
-												key: keys[idx],
-												value: values[idx],
-												continue() {
-													idx++;
-													trigger();
-												},
-											};
-											if (req.onsuccess) {
-												req.onsuccess({ target: { result: req.result } });
-											}
-										} else {
-											req.result = null;
-											if (req.onsuccess) {
-												req.onsuccess({ target: { result: null } });
-											}
-										}
-									};
-									trigger();
-								}, 0);
-								return req;
-							},
-						};
-					},
-				};
-			},
-		};
-		const request: any = {
-			result: dbResult,
-		};
-		setTimeout(() => {
-			if (request.onsuccess) request.onsuccess();
-		}, 0);
-		return request;
-	},
-};
+function makeDictFactories(
+	type: BackendType,
+	target?: string,
+): {
+	createSessionStore: () => Promise<any>;
+	createPersistentStore: () => Promise<any>;
+} {
+	return {
+		createSessionStore: async () => {
+			const adapter = await createRepo({ concept: { type, target } });
+			return adapter.conceptStore;
+		},
+		createPersistentStore: async () => {
+			const adapter = await createRepo({ expression: { type, target } });
+			return adapter.persistentExpressionStore;
+		},
+	};
+}
 
 describe("Storage Compliance Test Runner", () => {
 	beforeAll(() => {
-		(globalThis as any).window = {
-			localStorage: mockLocalStorage,
-			indexedDB: mockIndexedDB,
-		};
+		installBrowserMocks();
 	});
 
-	// 1. Memory Repo Compliance
-	describe("Memory Store", () => {
-		runStoreComplianceTests({
-			name: "Memory Store",
-			test,
-			expect,
-			createSessionStore: async () => new MemorySessionFilterStore(),
-			createPersistentStore: async () => new MemoryPersistentFilterStore(),
-		});
-	});
+	// 1. Filter Store Compliance
+	describe("Filter Store Compliance", () => {
+		const jsonlTmpDir = path.resolve(__dirname, "../scratch/compliance-jsonl");
+		const jsonlSessPath = path.join(jsonlTmpDir, "session.jsonl");
+		const jsonlGlobPath = path.join(jsonlTmpDir, "global.jsonl");
+		const sqliteTmpDir = path.resolve(
+			__dirname,
+			"../scratch/compliance-sqlite",
+		);
+		const sqliteDbPath = path.join(sqliteTmpDir, "test.db");
 
-	// 2. JSONL Repo Compliance
-	describe("JSONL Store", () => {
-		const tmpDir = path.resolve(__dirname, "../scratch/compliance-jsonl");
-		if (!fs.existsSync(tmpDir)) {
-			fs.mkdirSync(tmpDir, { recursive: true });
+		const backends: {
+			name: string;
+			factories: {
+				createSessionStore: () => Promise<any>;
+				createPersistentStore: () => Promise<any>;
+			};
+			setup?: () => void;
+			cleanup?: () => void;
+		}[] = [
+			{
+				name: "Memory Store",
+				factories: makePairFactories("filter", "memory"),
+			},
+			{
+				name: "JSONL Store",
+				factories: makePairFactories("filter", "jsonl", jsonlSessPath),
+				setup: () => {
+					if (!fs.existsSync(jsonlTmpDir))
+						fs.mkdirSync(jsonlTmpDir, { recursive: true });
+					if (fs.existsSync(jsonlSessPath)) fs.unlinkSync(jsonlSessPath);
+					if (fs.existsSync(jsonlGlobPath)) fs.unlinkSync(jsonlGlobPath);
+				},
+				cleanup: () => {
+					try {
+						if (fs.existsSync(jsonlSessPath)) fs.unlinkSync(jsonlSessPath);
+						if (fs.existsSync(jsonlGlobPath)) fs.unlinkSync(jsonlGlobPath);
+						if (fs.existsSync(jsonlTmpDir)) fs.rmdirSync(jsonlTmpDir);
+					} catch (_) {}
+				},
+			},
+			{
+				name: "SQLite Store",
+				factories: makePairFactories("filter", "sqlite", sqliteDbPath),
+				setup: () => {
+					if (!fs.existsSync(sqliteTmpDir))
+						fs.mkdirSync(sqliteTmpDir, { recursive: true });
+					if (fs.existsSync(sqliteDbPath)) fs.unlinkSync(sqliteDbPath);
+				},
+				cleanup: () => {
+					try {
+						if (fs.existsSync(sqliteDbPath)) fs.unlinkSync(sqliteDbPath);
+					} catch (_) {}
+				},
+			},
+			{
+				name: "LocalStorage Store",
+				factories: {
+					createSessionStore: async () => {
+						clearMockLocalStorage();
+						const { LocalStorageSessionStore } = await import(
+							"../src/adapters/storage/browser-repo"
+						);
+						return new LocalStorageSessionStore();
+					},
+					createPersistentStore: async () => {
+						clearMockLocalStorage();
+						const { LocalStoragePersistentStore } = await import(
+							"../src/adapters/storage/browser-repo"
+						);
+						return new LocalStoragePersistentStore();
+					},
+				},
+			},
+			{
+				name: "IndexedDB Store",
+				factories: {
+					createSessionStore: async () => {
+						clearMockIndexedDB("states", "aliases");
+						const { IndexedDbSessionStore } = await import(
+							"../src/adapters/storage/browser-repo"
+						);
+						return new IndexedDbSessionStore("test-compliance-db");
+					},
+					createPersistentStore: async () => {
+						clearMockIndexedDB("states");
+						const { IndexedDbPersistentStore } = await import(
+							"../src/adapters/storage/browser-repo"
+						);
+						return new IndexedDbPersistentStore("test-compliance-db");
+					},
+				},
+			},
+		];
+
+		for (const backend of backends) {
+			describe(backend.name, () => {
+				if (backend.setup) beforeAll(backend.setup);
+				if (backend.cleanup) afterAll(backend.cleanup);
+				runStoreComplianceTests({
+					name: backend.name,
+					test,
+					expect,
+					...backend.factories,
+				});
+			});
 		}
-		const sessPath = path.join(tmpDir, "session.jsonl");
-		const globPath = path.join(tmpDir, "global.jsonl");
-
-		afterAll(() => {
-			try {
-				if (fs.existsSync(sessPath)) fs.unlinkSync(sessPath);
-				if (fs.existsSync(globPath)) fs.unlinkSync(globPath);
-				if (fs.existsSync(tmpDir)) fs.rmdirSync(tmpDir);
-			} catch (_) {}
-		});
-
-		runStoreComplianceTests({
-			name: "JSONL Store",
-			test,
-			expect,
-			createSessionStore: async () => {
-				if (fs.existsSync(sessPath)) fs.unlinkSync(sessPath);
-				return new JsonlSessionFilterStore(sessPath);
-			},
-			createPersistentStore: async () => {
-				if (fs.existsSync(globPath)) fs.unlinkSync(globPath);
-				return new JsonlPersistentFilterStore(globPath);
-			},
-		});
 	});
 
-	// 3. SQLite Repo Compliance
-	describe("SQLite Store", () => {
-		const tmpDir = path.resolve(__dirname, "../scratch/compliance-sqlite");
-		if (!fs.existsSync(tmpDir)) {
-			fs.mkdirSync(tmpDir, { recursive: true });
-		}
-		const dbPath = path.join(tmpDir, "test.db");
-
-		afterAll(() => {
-			try {
-				if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-				if (fs.existsSync(tmpDir)) fs.rmdirSync(tmpDir);
-			} catch (_) {}
-		});
-
-		runStoreComplianceTests({
-			name: "SQLite Store",
-			test,
-			expect,
-			createSessionStore: async () => {
-				if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-				return createFilterStore("sqlite", dbPath);
-			},
-			createPersistentStore: async () => {
-				return createFilterStore("sqlite", dbPath);
-			},
-		});
-	});
-
-	// 4. LocalStorage Repo Compliance
-	describe("LocalStorage Store", () => {
-		runStoreComplianceTests({
-			name: "LocalStorage Store",
-			test,
-			expect,
-			createSessionStore: async () => {
-				mockLocalStorage.store.clear();
-				return new LocalStorageSessionStore();
-			},
-			createPersistentStore: async () => {
-				mockLocalStorage.store.clear();
-				return new LocalStoragePersistentStore();
-			},
-		});
-	});
-
-	// 5. IndexedDB Repo Compliance
-	describe("IndexedDB Store", () => {
-		runStoreComplianceTests({
-			name: "IndexedDB Store",
-			test,
-			expect,
-			createSessionStore: async () => {
-				mockIndexedDBStore.get("states")!.clear();
-				mockIndexedDBStore.get("aliases")!.clear();
-				return new IndexedDbSessionStore("test-compliance-db");
-			},
-			createPersistentStore: async () => {
-				mockIndexedDBStore.get("states")!.clear();
-				return new IndexedDbPersistentStore("test-compliance-db");
-			},
-		});
-	});
-
-	// 6. Specialized Form Store Compliance
+	// 2. Form Store Compliance
 	describe("Form Store Compliance", () => {
-		describe("Memory Form Store", () => {
-			runFormStoreComplianceTests({
+		const formSessPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-form-sess.jsonl",
+		);
+		const formGlobPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-form-glob.jsonl",
+		);
+		const formSqlitePath = path.resolve(
+			__dirname,
+			"../scratch/compliance-form-sqlite.db",
+		);
+
+		const backends: {
+			name: string;
+			factories: {
+				createSessionStore: () => Promise<any>;
+				createPersistentStore: () => Promise<any>;
+			};
+			setup?: () => void;
+			cleanup?: () => void;
+		}[] = [
+			{
 				name: "Memory Form Store",
-				test,
-				expect,
-				createSessionStore: async () => new MemorySessionFormStore(),
-				createPersistentStore: async () => new MemoryPersistentFormStore(),
-			});
-		});
-
-		describe("JSONL Form Store", () => {
-			const formSess = path.resolve(
-				__dirname,
-				"../scratch/compliance-form-sess.jsonl",
-			);
-			const formGlob = path.resolve(
-				__dirname,
-				"../scratch/compliance-form-glob.jsonl",
-			);
-			afterAll(() => {
-				try {
-					if (fs.existsSync(formSess)) fs.unlinkSync(formSess);
-					if (fs.existsSync(formGlob)) fs.unlinkSync(formGlob);
-				} catch (_) {}
-			});
-			runFormStoreComplianceTests({
+				factories: makePairFactories("form", "memory"),
+			},
+			{
 				name: "JSONL Form Store",
-				test,
-				expect,
-				createSessionStore: async () => {
-					if (fs.existsSync(formSess)) fs.unlinkSync(formSess);
-					return new JsonlSessionFormStore(formSess);
+				factories: makePairFactories("form", "jsonl", formSessPath),
+				setup: () => {
+					if (fs.existsSync(formSessPath)) fs.unlinkSync(formSessPath);
+					if (fs.existsSync(formGlobPath)) fs.unlinkSync(formGlobPath);
 				},
-				createPersistentStore: async () => {
-					if (fs.existsSync(formGlob)) fs.unlinkSync(formGlob);
-					return new JsonlPersistentFormStore(formGlob);
+				cleanup: () => {
+					try {
+						if (fs.existsSync(formSessPath)) fs.unlinkSync(formSessPath);
+						if (fs.existsSync(formGlobPath)) fs.unlinkSync(formGlobPath);
+					} catch (_) {}
 				},
-			});
-		});
-
-		describe("SQLite Form Store", () => {
-			const dbPath = path.resolve(
-				__dirname,
-				"../scratch/compliance-form-sqlite.db",
-			);
-			afterAll(() => {
-				try {
-					if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-				} catch (_) {}
-			});
-			runFormStoreComplianceTests({
+			},
+			{
 				name: "SQLite Form Store",
-				test,
-				expect,
-				createSessionStore: async () => {
-					if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-					return createFormStore("sqlite", dbPath);
+				factories: makePairFactories("form", "sqlite", formSqlitePath),
+				setup: () => {
+					const dir = path.dirname(formSqlitePath);
+					if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+					if (fs.existsSync(formSqlitePath)) fs.unlinkSync(formSqlitePath);
 				},
-				createPersistentStore: async () => {
-					return createFormStore("sqlite", dbPath);
+				cleanup: () => {
+					try {
+						if (fs.existsSync(formSqlitePath)) fs.unlinkSync(formSqlitePath);
+					} catch (_) {}
 				},
+			},
+		];
+
+		for (const backend of backends) {
+			describe(backend.name, () => {
+				if (backend.setup) beforeAll(backend.setup);
+				if (backend.cleanup) afterAll(backend.cleanup);
+				runFormStoreComplianceTests({
+					name: backend.name,
+					test,
+					expect,
+					...backend.factories,
+				});
 			});
-		});
+		}
 	});
 
-	// 7. Specialized Object Store Compliance
+	// 3. Object Store Compliance
 	describe("Object Store Compliance", () => {
-		describe("Memory Object Store", () => {
-			runObjectStoreComplianceTests({
+		const objSessPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-obj-sess.jsonl",
+		);
+		const objGlobPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-obj-glob.jsonl",
+		);
+
+		const backends: {
+			name: string;
+			factories: {
+				createSessionStore: () => Promise<any>;
+				createPersistentStore: () => Promise<any>;
+			};
+			setup?: () => void;
+			cleanup?: () => void;
+		}[] = [
+			{
 				name: "Memory Object Store",
-				test,
-				expect,
-				createSessionStore: async () => new MemorySessionObjectStore(),
-				createPersistentStore: async () => new MemoryPersistentObjectStore(),
-			});
-		});
-
-		describe("JSONL Object Store", () => {
-			const objSess = path.resolve(
-				__dirname,
-				"../scratch/compliance-obj-sess.jsonl",
-			);
-			const objGlob = path.resolve(
-				__dirname,
-				"../scratch/compliance-obj-glob.jsonl",
-			);
-			afterAll(() => {
-				try {
-					if (fs.existsSync(objSess)) fs.unlinkSync(objSess);
-					if (fs.existsSync(objGlob)) fs.unlinkSync(objGlob);
-				} catch (_) {}
-			});
-			runObjectStoreComplianceTests({
+				factories: makePairFactories("object", "memory"),
+			},
+			{
 				name: "JSONL Object Store",
-				test,
-				expect,
-				createSessionStore: async () => {
-					if (fs.existsSync(objSess)) fs.unlinkSync(objSess);
-					return new JsonlSessionObjectStore(objSess);
+				factories: makePairFactories("object", "jsonl", objSessPath),
+				setup: () => {
+					if (fs.existsSync(objSessPath)) fs.unlinkSync(objSessPath);
+					if (fs.existsSync(objGlobPath)) fs.unlinkSync(objGlobPath);
 				},
-				createPersistentStore: async () => {
-					if (fs.existsSync(objGlob)) fs.unlinkSync(objGlob);
-					return new JsonlPersistentObjectStore(objGlob);
+				cleanup: () => {
+					try {
+						if (fs.existsSync(objSessPath)) fs.unlinkSync(objSessPath);
+						if (fs.existsSync(objGlobPath)) fs.unlinkSync(objGlobPath);
+					} catch (_) {}
 				},
+			},
+		];
+
+		for (const backend of backends) {
+			describe(backend.name, () => {
+				if (backend.setup) beforeAll(backend.setup);
+				if (backend.cleanup) afterAll(backend.cleanup);
+				runObjectStoreComplianceTests({
+					name: backend.name,
+					test,
+					expect,
+					...backend.factories,
+				});
 			});
-		});
+		}
 	});
 
-	// 8. Specialized Event Store Compliance
+	// 4. Event Store Compliance
 	describe("Event Store Compliance", () => {
-		describe("Memory Event Store", () => {
-			runEventStoreComplianceTests({
-				name: "Memory Event Store",
-				test,
-				expect,
-				createSessionStore: async () => new MemorySessionEventStore(),
-				createPersistentStore: async () => new MemoryPersistentEventStore(),
-			});
-		});
+		const evSessPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-ev-sess.jsonl",
+		);
+		const evGlobPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-ev-glob.jsonl",
+		);
 
-		describe("JSONL Event Store", () => {
-			const evSess = path.resolve(
-				__dirname,
-				"../scratch/compliance-ev-sess.jsonl",
-			);
-			const evGlob = path.resolve(
-				__dirname,
-				"../scratch/compliance-ev-glob.jsonl",
-			);
-			afterAll(() => {
-				try {
-					if (fs.existsSync(evSess)) fs.unlinkSync(evSess);
-					if (fs.existsSync(evGlob)) fs.unlinkSync(evGlob);
-				} catch (_) {}
-			});
-			runEventStoreComplianceTests({
+		const backends: {
+			name: string;
+			factories: {
+				createSessionStore: () => Promise<any>;
+				createPersistentStore: () => Promise<any>;
+			};
+			setup?: () => void;
+			cleanup?: () => void;
+		}[] = [
+			{
+				name: "Memory Event Store",
+				factories: makePairFactories("event", "memory"),
+			},
+			{
 				name: "JSONL Event Store",
-				test,
-				expect,
-				createSessionStore: async () => {
-					if (fs.existsSync(evSess)) fs.unlinkSync(evSess);
-					return new JsonlSessionEventStore(evSess);
+				factories: makePairFactories("event", "jsonl", evSessPath),
+				setup: () => {
+					if (fs.existsSync(evSessPath)) fs.unlinkSync(evSessPath);
+					if (fs.existsSync(evGlobPath)) fs.unlinkSync(evGlobPath);
 				},
-				createPersistentStore: async () => {
-					if (fs.existsSync(evGlob)) fs.unlinkSync(evGlob);
-					return new JsonlPersistentEventStore(evGlob);
+				cleanup: () => {
+					try {
+						if (fs.existsSync(evSessPath)) fs.unlinkSync(evSessPath);
+						if (fs.existsSync(evGlobPath)) fs.unlinkSync(evGlobPath);
+					} catch (_) {}
 				},
+			},
+		];
+
+		for (const backend of backends) {
+			describe(backend.name, () => {
+				if (backend.setup) beforeAll(backend.setup);
+				if (backend.cleanup) afterAll(backend.cleanup);
+				runEventStoreComplianceTests({
+					name: backend.name,
+					test,
+					expect,
+					...backend.factories,
+				});
 			});
-		});
+		}
 	});
 
-	// 9. Specialized Dictionary Store Compliance
+	// 5. Dictionary Store Compliance
 	describe("Dictionary Store Compliance", () => {
-		describe("Memory Dictionary Store", () => {
-			runDictionaryStoreComplianceTests({
+		const dictSqlitePath = path.resolve(
+			__dirname,
+			"../scratch/compliance-dict-sqlite.db",
+		);
+		const dictConceptsPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-dict-concepts.jsonl",
+		);
+		const dictExpressionsPath = path.resolve(
+			__dirname,
+			"../scratch/compliance-dict-expressions.jsonl",
+		);
+
+		const backends: {
+			name: string;
+			factories: {
+				createSessionStore: () => Promise<any>;
+				createPersistentStore: () => Promise<any>;
+			};
+			setup?: () => void;
+			cleanup?: () => void;
+		}[] = [
+			{
 				name: "Memory Dictionary Store",
-				test,
-				expect,
-				createSessionStore: async () => new InMemoryConceptStore(),
-				createPersistentStore: async () =>
-					new InMemoryPersistentExpressionStore(),
-			});
-		});
-
-		describe("SQLite Dictionary Store", () => {
-			const dbPath = path.resolve(
-				__dirname,
-				"../scratch/compliance-dict-sqlite.db",
-			);
-			afterAll(() => {
-				try {
-					if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-				} catch (_) {}
-			});
-			runDictionaryStoreComplianceTests({
+				factories: makeDictFactories("memory"),
+			},
+			{
 				name: "SQLite Dictionary Store",
-				test,
-				expect,
-				createSessionStore: async () => {
-					if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-					return createConceptStore("sqlite", dbPath);
+				factories: makeDictFactories("sqlite", dictSqlitePath),
+				setup: () => {
+					const dir = path.dirname(dictSqlitePath);
+					if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+					if (fs.existsSync(dictSqlitePath)) fs.unlinkSync(dictSqlitePath);
 				},
-				createPersistentStore: async () => {
-					return createExpressionStore("sqlite", dbPath);
+				cleanup: () => {
+					try {
+						if (fs.existsSync(dictSqlitePath)) fs.unlinkSync(dictSqlitePath);
+					} catch (_) {}
 				},
-			});
-		});
-
-		describe("JSONL Dictionary Store", () => {
-			const conceptsPath = path.resolve(
-				__dirname,
-				"../scratch/compliance-dict-concepts.jsonl",
-			);
-			const expressionsPath = path.resolve(
-				__dirname,
-				"../scratch/compliance-dict-expressions.jsonl",
-			);
-			afterAll(() => {
-				try {
-					if (fs.existsSync(conceptsPath)) fs.unlinkSync(conceptsPath);
-					if (fs.existsSync(expressionsPath)) fs.unlinkSync(expressionsPath);
-				} catch (_) {}
-			});
-			runDictionaryStoreComplianceTests({
+			},
+			{
 				name: "JSONL Dictionary Store",
-				test,
-				expect,
-				createSessionStore: async () => {
-					if (fs.existsSync(conceptsPath)) fs.unlinkSync(conceptsPath);
-					return new JsonlConceptStore(conceptsPath);
+				factories: makeDictFactories("jsonl", dictConceptsPath),
+				setup: () => {
+					const dir = path.dirname(dictConceptsPath);
+					if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+					if (fs.existsSync(dictConceptsPath)) fs.unlinkSync(dictConceptsPath);
+					if (fs.existsSync(dictExpressionsPath))
+						fs.unlinkSync(dictExpressionsPath);
 				},
-				createPersistentStore: async () => {
-					if (fs.existsSync(expressionsPath)) fs.unlinkSync(expressionsPath);
-					return new JsonlPersistentExpressionStore(expressionsPath);
+				cleanup: () => {
+					try {
+						if (fs.existsSync(dictConceptsPath))
+							fs.unlinkSync(dictConceptsPath);
+						if (fs.existsSync(dictExpressionsPath))
+							fs.unlinkSync(dictExpressionsPath);
+					} catch (_) {}
 				},
-			});
-		});
-
-		describe("LocalStorage Dictionary Store", () => {
-			beforeAll(() => {
-				mockLocalStorage.store.clear();
-			});
-			runDictionaryStoreComplianceTests({
+			},
+			{
 				name: "LocalStorage Dictionary Store",
-				test,
-				expect,
-				createSessionStore: async () =>
-					new LocalStorageConceptStore("test_dict_concepts:"),
-				createPersistentStore: async () =>
-					new LocalStoragePersistentExpressionStore("test_dict_expressions:"),
-			});
-		});
-
-		describe("IndexedDB Dictionary Store", () => {
-			beforeAll(() => {
-				mockIndexedDBStore.get("concepts")?.clear();
-				mockIndexedDBStore.get("namespaces")?.clear();
-				mockIndexedDBStore.get("expressions")?.clear();
-			});
-			runDictionaryStoreComplianceTests({
+				factories: {
+					createSessionStore: async () => {
+						clearMockLocalStorage();
+						const adapter = await createRepo({
+							concept: { type: "localstorage" },
+						});
+						return adapter.conceptStore;
+					},
+					createPersistentStore: async () => {
+						const adapter = await createRepo({
+							expression: { type: "localstorage" },
+						});
+						return adapter.persistentExpressionStore;
+					},
+				},
+			},
+			{
 				name: "IndexedDB Dictionary Store",
-				test,
-				expect,
-				createSessionStore: async () =>
-					new IndexedDbConceptStore("test_dict_db"),
-				createPersistentStore: async () =>
-					new IndexedDbPersistentExpressionStore("test_dict_db"),
-			});
-		});
-
-		describe("OPFS Dictionary Store", () => {
-			runDictionaryStoreComplianceTests({
+				factories: {
+					createSessionStore: async () => {
+						clearMockIndexedDB("concepts", "namespaces");
+						const adapter = await createRepo({
+							concept: { type: "indexeddb", target: "test_dict_db" },
+						});
+						return adapter.conceptStore;
+					},
+					createPersistentStore: async () => {
+						const adapter = await createRepo({
+							expression: { type: "indexeddb", target: "test_dict_db" },
+						});
+						return adapter.persistentExpressionStore;
+					},
+				},
+			},
+			{
 				name: "OPFS Dictionary Store",
-				test,
-				expect,
-				createSessionStore: async () => createConceptStore("opfs", ":memory:"),
-				createPersistentStore: async () =>
-					createExpressionStore("opfs", ":memory:"),
+				factories: makeDictFactories("opfs", ":memory:"),
+			},
+		];
+
+		for (const backend of backends) {
+			describe(backend.name, () => {
+				if (backend.setup) beforeAll(backend.setup);
+				if (backend.cleanup) afterAll(backend.cleanup);
+				runDictionaryStoreComplianceTests({
+					name: backend.name,
+					test,
+					expect,
+					...backend.factories,
+				});
 			});
-		});
+		}
 	});
 });

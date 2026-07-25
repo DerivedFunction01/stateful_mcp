@@ -51,15 +51,10 @@ export class JsonlKvBackend implements KvBackend {
 					if (!line.trim()) continue;
 					const entry = JSON.parse(line);
 					if (entry.type === "state") {
-						this.sessionStates.set(
-							entry.data[
-								Object.keys(entry.data).find((k) => k.endsWith("Id")) || "id"
-							],
-							{
-								value: entry.data,
-								sessionId: entry.sessionId || "",
-							},
-						);
+						this.sessionStates.set(entry.id, {
+							value: entry.data,
+							sessionId: entry.sessionId || "",
+						});
 					} else if (entry.type === "alias") {
 						this.aliases.set(
 							`${entry.sessionId}:${entry.alias}`,
@@ -100,7 +95,7 @@ export class JsonlKvBackend implements KvBackend {
 		if (!this.sessionFilePath) return;
 		const lines: string[] = [];
 		for (const [id, { value, sessionId }] of this.sessionStates.entries()) {
-			lines.push(JSON.stringify({ type: "state", sessionId, data: value }));
+			lines.push(JSON.stringify({ type: "state", id, sessionId, data: value }));
 		}
 		for (const [key, targetId] of this.aliases.entries()) {
 			const colon = key.indexOf(":");
@@ -151,18 +146,18 @@ export class JsonlKvBackend implements KvBackend {
 		return Promise.resolve(found?.value ?? null);
 	}
 
-	setSessionState(
+	async setSessionState(
 		sessionId: string,
 		id: string,
 		value: Record<string, any>,
 	): Promise<void> {
 		this.sessionStates.set(id, { value, sessionId });
-		return Promise.resolve();
+		await this.save();
 	}
 
-	deleteSessionState(sessionId: string, id: string): Promise<void> {
+	async deleteSessionState(sessionId: string, id: string): Promise<void> {
 		this.sessionStates.delete(id);
-		return Promise.resolve();
+		await this.save();
 	}
 
 	async listSessionIds(sessionId: string): Promise<string[]> {
@@ -201,18 +196,18 @@ export class JsonlKvBackend implements KvBackend {
 		return Promise.resolve(null);
 	}
 
-	setPersistentState(
+	async setPersistentState(
 		id: string,
 		scope: OwnerScope,
 		value: Record<string, any>,
 	): Promise<void> {
 		this.persistentStates.set(id, { value, scope });
-		return Promise.resolve();
+		await this.save();
 	}
 
-	deletePersistentState(id: string, scope: OwnerScope): Promise<void> {
+	async deletePersistentState(id: string, scope: OwnerScope): Promise<void> {
 		this.persistentStates.delete(id);
-		return Promise.resolve();
+		await this.save();
 	}
 
 	async *scanPersistentStates(
@@ -232,14 +227,18 @@ export class JsonlKvBackend implements KvBackend {
 		return Promise.resolve(this.aliases.get(`${sessionId}:${alias}`) ?? null);
 	}
 
-	setAlias(sessionId: string, alias: string, targetId: string): Promise<void> {
+	async setAlias(
+		sessionId: string,
+		alias: string,
+		targetId: string,
+	): Promise<void> {
 		this.aliases.set(`${sessionId}:${alias}`, targetId);
-		return Promise.resolve();
+		await this.save();
 	}
 
-	deleteAlias(sessionId: string, alias: string): Promise<void> {
+	async deleteAlias(sessionId: string, alias: string): Promise<void> {
 		this.aliases.delete(`${sessionId}:${alias}`);
-		return Promise.resolve();
+		await this.save();
 	}
 
 	async listAliases(

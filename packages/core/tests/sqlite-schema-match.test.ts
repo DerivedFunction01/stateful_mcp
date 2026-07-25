@@ -393,7 +393,7 @@ describe("sqlite-schema SQL statement match", () => {
 	});
 });
 
-describe("pg-repo DDL matching", () => {
+describe("postgres DDL matching", () => {
 	test("pg filters table types", () => {
 		const pgQc = new QueryCompiler("postgres");
 		const { sql } = pgQc.compileCreateTable({
@@ -461,7 +461,7 @@ describe("pg-repo DDL matching", () => {
 	});
 });
 
-describe("duckdb-repo DDL matching", () => {
+describe("duckdb DDL matching", () => {
 	test("duckdb filters table types", () => {
 		const dkQc = new QueryCompiler("duckdb");
 		const { sql } = dkQc.compileCreateTable({

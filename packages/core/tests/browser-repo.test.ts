@@ -5,58 +5,11 @@ import {
 	LocalStoragePersistentStore,
 	LocalStorageSessionStore,
 } from "../src/adapters/storage/browser-repo";
-
-// Mock global window and storage
-const mockLocalStorage: any = {
-	store: new Map<string, string>(),
-	getItem(key: string) {
-		return this.store.get(key) || null;
-	},
-	setItem(key: string, value: string) {
-		this.store.set(key, value);
-	},
-	removeItem(key: string) {
-		this.store.delete(key);
-	},
-	key(index: number) {
-		return Array.from(this.store.keys())[index] || null;
-	},
-	get length() {
-		return this.store.size;
-	},
-};
-
-const mockIndexedDBStore = new Map<string, Map<string, any>>();
-mockIndexedDBStore.set("states", new Map());
-mockIndexedDBStore.set("aliases", new Map());
-
-const mockIndexedDB: any = {
-	open(dbName: string) {
-		const request: any = {
-			result: {
-				objectStoreNames: {
-					contains(name: string) {
-						return mockIndexedDBStore.has(name);
-					},
-				},
-				createObjectStore(name: string) {
-					mockIndexedDBStore.set(name, new Map());
-				},
-			},
-		};
-		setTimeout(() => {
-			if (request.onsuccess) request.onsuccess();
-		}, 0);
-		return request;
-	},
-};
+import { installBrowserMocks } from "../src/adapters/storage/shared/test-mocks";
 
 describe("Browser Storage Adapters", () => {
 	beforeAll(() => {
-		(globalThis as any).window = {
-			localStorage: mockLocalStorage,
-			indexedDB: mockIndexedDB,
-		};
+		installBrowserMocks();
 	});
 
 	describe("LocalStorage Adapters", () => {
@@ -104,75 +57,6 @@ describe("Browser Storage Adapters", () => {
 		const sessionStore = new IndexedDbSessionStore("test-db");
 		const persistentStore = new IndexedDbPersistentStore("test-db");
 		const sessionId = "sess-idb";
-
-		// Set up mock window.indexedDB transaction behavior
-		beforeAll(() => {
-			(globalThis as any).window.indexedDB.open = (dbName: string) => {
-				const dbResult = {
-					objectStoreNames: {
-						contains(name: string) {
-							return true;
-						},
-					},
-					transaction(storeName: string, mode: string) {
-						const storeMap = mockIndexedDBStore.get(storeName)!;
-						return {
-							objectStore() {
-								return {
-									get(key: string) {
-										const req: any = {};
-										setTimeout(() => {
-											req.result = storeMap.get(key);
-											if (req.onsuccess) req.onsuccess();
-										}, 0);
-										return req;
-									},
-									put(value: any, key: string) {
-										const req: any = {};
-										setTimeout(() => {
-											storeMap.set(key, value);
-											if (req.onsuccess) req.onsuccess();
-										}, 0);
-										return req;
-									},
-									delete(key: string) {
-										const req: any = {};
-										setTimeout(() => {
-											storeMap.delete(key);
-											if (req.onsuccess) req.onsuccess();
-										}, 0);
-										return req;
-									},
-									getAllKeys() {
-										const req: any = {};
-										setTimeout(() => {
-											req.result = Array.from(storeMap.keys());
-											if (req.onsuccess) req.onsuccess();
-										}, 0);
-										return req;
-									},
-									getAll() {
-										const req: any = {};
-										setTimeout(() => {
-											req.result = Array.from(storeMap.values());
-											if (req.onsuccess) req.onsuccess();
-										}, 0);
-										return req;
-									},
-								};
-							},
-						};
-					},
-				};
-				const request: any = {
-					result: dbResult,
-				};
-				setTimeout(() => {
-					if (request.onsuccess) request.onsuccess();
-				}, 0);
-				return request;
-			};
-		});
 
 		test("Create and read session state", async () => {
 			const state = { objectId: "", value: "idb-hello" };

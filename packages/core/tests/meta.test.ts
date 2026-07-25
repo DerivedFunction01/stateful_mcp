@@ -12,7 +12,7 @@ export async function runMetaTests() {
 	console.log("🧪 Test Case 1: Fallback to Packaged Defaults");
 	const middlewareAbout = await resolveAboutOrExamples(
 		undefined,
-		"config/about/middleware.md",
+		"packages/core/config/about/middleware.md",
 		workspaceRoot,
 	);
 
