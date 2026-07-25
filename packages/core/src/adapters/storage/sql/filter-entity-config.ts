@@ -1,135 +1,139 @@
 import type { FilterCondition } from "../../../middleware/filter/types";
-import type { PersistedFilterState } from "../interfaces";
-import type { EntityConfig } from "./entity-config";
 import type { SqlDialect } from "../../../translation/sql-compiler";
+import type { EntityConfig } from "./entity-config";
 
 export const filterDdlKeys = {
-  ddl: ["DDL_FILTERS", "DDL_FILTER_RULES", "DDL_SAVED_FILTERS", "DDL_SESSION_ALIASES"],
-  ddlIndexes: ["IDX_FILTERS_SESSION", "IDX_FILTERS_SCOPE"],
+	ddl: [
+		"DDL_FILTERS",
+		"DDL_FILTER_RULES",
+		"DDL_SAVED_FILTERS",
+		"DDL_SESSION_ALIASES",
+	],
+	ddlIndexes: ["IDX_FILTERS_SESSION", "IDX_FILTERS_SCOPE"],
 };
 
 function makeFilterRulesChild(dialect: SqlDialect) {
-  return {
-    table: "filter_rules",
-    parentIdColumn: "filter_id",
-    orderColumn: "index_order",
-    stateField: "rules" as const,
-    toRow: (rule: FilterCondition, index: number, parentId: string) => ({
-      filter_id: parentId,
-      property: rule.property,
-      operator: rule.operator,
-      value: dialect === "postgres" ? rule.value : JSON.stringify(rule.value),
-      index_order: index,
-    }),
-    fromRow: (row: Record<string, any>) => ({
-      property: row.property,
-      operator: row.operator,
-      value: dialect === "postgres" ? row.value : JSON.parse(row.value),
-    }),
-  };
+	return {
+		table: "filter_rules",
+		parentIdColumn: "filter_id",
+		orderColumn: "index_order",
+		stateField: "rules" as const,
+		toRow: (rule: FilterCondition, index: number, parentId: string) => ({
+			filter_id: parentId,
+			property: rule.property,
+			operator: rule.operator,
+			value: dialect === "postgres" ? rule.value : JSON.stringify(rule.value),
+			index_order: index,
+		}),
+		fromRow: (row: Record<string, any>) => ({
+			property: row.property,
+			operator: row.operator,
+			value: dialect === "postgres" ? row.value : JSON.parse(row.value),
+		}),
+	};
 }
 
 function makeFilterEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
-  const isPg = dialect === "postgres";
-  const isDuck = dialect === "duckdb";
+	const isPg = dialect === "postgres";
+	const isDuck = dialect === "duckdb";
 
-  const jsonParse = (v: any) => {
-    if (v === null || v === undefined) return null;
-    if (isDuck) return JSON.parse(String(v));
-    return JSON.parse(v);
-  };
+	const jsonParse = (v: any) => {
+		if (v === null || v === undefined) return null;
+		if (isDuck) return JSON.parse(String(v));
+		return JSON.parse(v);
+	};
 
-  const jsonStringify = (v: any) => {
-    if (v === null || v === undefined) return null;
-    if (isPg) return v;
-    return JSON.stringify(v);
-  };
+	const jsonStringify = (v: any) => {
+		if (v === null || v === undefined) return null;
+		if (isPg) return v;
+		return JSON.stringify(v);
+	};
 
-  return {
-    idPrefix: "filter_",
-    idField: "filter_id",
-    parentIdColumn: "parent_filter_id",
-    sessionTable: "filters",
-    savedTable: "saved_filters",
-    aliasTable: "session_aliases",
+	return {
+		idPrefix: "filter_",
+		idField: "filter_id",
+		parentIdColumn: "parent_filter_id",
+		sessionTable: "filters",
+		savedTable: "saved_filters",
+		aliasTable: "session_aliases",
 
-    sessionToRow: (id: string, sessionId: string, state: any) => ({
-      filter_id: id,
-      tool_name: state.toolName || null,
-      table_name: state.tableName || null,
-      parent_filter_id: state.parentFilterId || null,
-      scope_level: "session",
-      session_id: sessionId,
-      user_id: null,
-      combined_operation: state.combined_operation || null,
-      combined_ids: jsonStringify(state.combined_ids),
-      schema_snapshot: jsonStringify(state.schema_snapshot),
-    }),
+		sessionToRow: (id: string, sessionId: string, state: any) => ({
+			filter_id: id,
+			tool_name: state.toolName || null,
+			table_name: state.tableName || null,
+			parent_filter_id: state.parentFilterId || null,
+			scope_level: "session",
+			session_id: sessionId,
+			user_id: null,
+			combined_operation: state.combined_operation || null,
+			combined_ids: jsonStringify(state.combined_ids),
+			schema_snapshot: jsonStringify(state.schema_snapshot),
+		}),
 
-    rowToSession: (row: Record<string, any>) => ({
-      filterId: row.filter_id,
-      toolName: row.tool_name || undefined,
-      tableName: row.table_name || undefined,
-      rules: [] as FilterCondition[],
-      parentFilterId: row.parent_filter_id,
-      createdAt: row.created_at,
-      combined_operation: row.combined_operation || undefined,
-      combined_ids: jsonParse(row.combined_ids),
-      schema_snapshot: jsonParse(row.schema_snapshot),
-    }),
+		rowToSession: (row: Record<string, any>) => ({
+			filterId: row.filter_id,
+			toolName: row.tool_name || undefined,
+			tableName: row.table_name || undefined,
+			rules: [] as FilterCondition[],
+			parentFilterId: row.parent_filter_id,
+			createdAt: row.created_at,
+			combined_operation: row.combined_operation || undefined,
+			combined_ids: jsonParse(row.combined_ids),
+			schema_snapshot: jsonParse(row.schema_snapshot),
+		}),
 
-    persistentToRow: (
-      id: string,
-      scope: { level: string; userId?: string | null },
-      state: any,
-    ) => ({
-      filter_id: id,
-      tool_name: state.toolName || null,
-      table_name: state.tableName || null,
-      parent_filter_id: state.parentFilterId || null,
-      scope_level: scope.level,
-      session_id: null,
-      user_id: scope.level === "user" ? scope.userId : null,
-      combined_operation: state.combined_operation || null,
-      combined_ids: jsonStringify(state.combined_ids),
-      schema_snapshot: state.schema_snapshot,
-    }),
+		persistentToRow: (
+			id: string,
+			scope: { level: string; userId?: string | null },
+			state: any,
+		) => ({
+			filter_id: id,
+			tool_name: state.toolName || null,
+			table_name: state.tableName || null,
+			parent_filter_id: state.parentFilterId || null,
+			scope_level: scope.level,
+			session_id: null,
+			user_id: scope.level === "user" ? scope.userId : null,
+			combined_operation: state.combined_operation || null,
+			combined_ids: jsonStringify(state.combined_ids),
+			schema_snapshot: state.schema_snapshot,
+		}),
 
-    rowToPersistent: (
-      row: Record<string, any>,
-      savedRow: Record<string, any> | null,
-    ) => ({
-      filterId: row.filter_id,
-      toolName: row.tool_name || undefined,
-      tableName: row.table_name || undefined,
-      rules: [] as FilterCondition[],
-      parentFilterId: row.parent_filter_id,
-      createdAt: row.created_at,
-      combined_operation: row.combined_operation || undefined,
-      combined_ids: jsonParse(row.combined_ids),
-      tags: isPg ? savedRow!.tags : jsonParse(savedRow!.tags),
-      description: savedRow!.description,
-      schema_snapshot: jsonParse(row.schema_snapshot) ?? "{}",
-    }),
+		rowToPersistent: (
+			row: Record<string, any>,
+			savedRow: Record<string, any> | null,
+		) => ({
+			filterId: row.filter_id,
+			toolName: row.tool_name || undefined,
+			tableName: row.table_name || undefined,
+			rules: [] as FilterCondition[],
+			parentFilterId: row.parent_filter_id,
+			createdAt: row.created_at,
+			combined_operation: row.combined_operation || undefined,
+			combined_ids: jsonParse(row.combined_ids),
+			tags: isPg ? savedRow!.tags : jsonParse(savedRow!.tags),
+			description: savedRow!.description,
+			schema_snapshot: jsonParse(row.schema_snapshot) ?? "{}",
+		}),
 
-    savedToRow: (
-      id: string,
-      scope: { level: string; userId?: string | null },
-      state: any,
-    ) => ({
-      id,
-      tags: isPg ? state.tags : JSON.stringify(state.tags),
-      description: state.description,
-      scope_level: scope.level,
-      user_id: scope.level === "user" ? scope.userId : null,
-    }),
+		savedToRow: (
+			id: string,
+			scope: { level: string; userId?: string | null },
+			state: any,
+		) => ({
+			id,
+			tags: isPg ? state.tags : JSON.stringify(state.tags),
+			description: state.description,
+			scope_level: scope.level,
+			user_id: scope.level === "user" ? scope.userId : null,
+		}),
 
-    children: [makeFilterRulesChild(dialect)],
-  };
+		children: [makeFilterRulesChild(dialect)],
+	};
 }
 
 export const filterEntityConfigs: Record<SqlDialect, EntityConfig<any, any>> = {
-  sqlite: makeFilterEntityConfig("sqlite"),
-  postgres: makeFilterEntityConfig("postgres"),
-  duckdb: makeFilterEntityConfig("duckdb"),
+	sqlite: makeFilterEntityConfig("sqlite"),
+	postgres: makeFilterEntityConfig("postgres"),
+	duckdb: makeFilterEntityConfig("duckdb"),
 };

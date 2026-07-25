@@ -1,8 +1,8 @@
 import type { OwnerScope } from "../../../config/types";
-import type { GenericSqlEntityStore } from "./entity-store";
+import type { GenericSimpleEntityStore } from "./entity-store";
 
-export class SqlRepoStore<Session, Persistent> {
-	constructor(private store: GenericSqlEntityStore<Session, Persistent>) {}
+export class SimpleRepoStore<Session, Persistent> {
+	constructor(private store: GenericSimpleEntityStore<Session, Persistent>) {}
 
 	get(sessionId: string, id: string): Promise<Session | null>;
 	get(id: string, scope: OwnerScope): Promise<Persistent | null>;
