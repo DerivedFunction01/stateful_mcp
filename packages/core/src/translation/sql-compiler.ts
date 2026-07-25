@@ -220,9 +220,14 @@ export interface PragmaQuery {
  */
 class CompilerContext {
 	public params: any[] = [];
-	private paramIndex = 1;
+	private paramIndex: number;
 
-	constructor(private dialect: SqlDialect) {}
+	constructor(
+		private dialect: SqlDialect,
+		paramOffset = 1,
+	) {
+		this.paramIndex = paramOffset;
+	}
 
 	/** Adds a parameter and returns its placeholder string (e.g. $1 or ?) */
 	public addParam(value: any): string {
@@ -642,8 +647,11 @@ export class QueryCompiler {
 		return sql;
 	}
 
-	public compileSelect(query: SelectQuery): CompiledQuery {
-		const ctx = new CompilerContext(this.dialect);
+	public compileSelect(
+		query: SelectQuery,
+		paramOffset?: number,
+	): CompiledQuery {
+		const ctx = new CompilerContext(this.dialect, paramOffset);
 		const sql = this.compileSelectInternal(query, ctx);
 		return { sql: sql + ";", params: ctx.params };
 	}
@@ -660,8 +668,11 @@ export class QueryCompiler {
 		return { columns, rows };
 	}
 
-	public compileInsert(query: InsertQuery): CompiledQuery {
-		const ctx = new CompilerContext(this.dialect);
+	public compileInsert(
+		query: InsertQuery,
+		paramOffset?: number,
+	): CompiledQuery {
+		const ctx = new CompilerContext(this.dialect, paramOffset);
 		let quotedCols = "";
 		let valueStrings: string[] = [];
 		let activeColumns: string[] = [];
@@ -743,8 +754,11 @@ export class QueryCompiler {
 		return { sql: sql + ";", params: ctx.params };
 	}
 
-	public compileUpdate(query: UpdateQuery): CompiledQuery {
-		const ctx = new CompilerContext(this.dialect);
+	public compileUpdate(
+		query: UpdateQuery,
+		paramOffset?: number,
+	): CompiledQuery {
+		const ctx = new CompilerContext(this.dialect, paramOffset);
 		let sql = `UPDATE ${this.quoteIdent(query.table)}\nSET `;
 
 		if (query.set) {
@@ -778,8 +792,11 @@ export class QueryCompiler {
 		return { sql: sql + ";", params: ctx.params };
 	}
 
-	public compileDelete(query: DeleteQuery): CompiledQuery {
-		const ctx = new CompilerContext(this.dialect);
+	public compileDelete(
+		query: DeleteQuery,
+		paramOffset?: number,
+	): CompiledQuery {
+		const ctx = new CompilerContext(this.dialect, paramOffset);
 		let sql = `DELETE FROM ${this.quoteIdent(query.table)}`;
 		sql += this.compileWhereBlock(query.where, ctx);
 		if (query.returning && query.returning.length > 0) {
