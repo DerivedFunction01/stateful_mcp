@@ -287,11 +287,14 @@ describe("Stateful Form Service", () => {
 			const persisted = await persistent.get(savedId, {
 				level: "global",
 			});
+
 			expect(persisted).toBeDefined();
-			expect(persisted.tags).toContain("tag1");
-			expect(persisted.description).toBe("Test Form");
-			expect(persisted.answers.q_name).toBe("Jane Save");
-			expect(persisted.answers.q_age).toBe(30);
+
+			// Use the non-null assertion operator (!)
+			expect(persisted!.tags).toContain("tag1");
+			expect(persisted!.description).toBe("Test Form");
+			expect(persisted!.answers.q_name).toBe("Jane Save");
+			expect(persisted!.answers.q_age).toBe(30);
 		});
 	});
 });

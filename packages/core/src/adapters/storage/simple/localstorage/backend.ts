@@ -1,5 +1,6 @@
 declare const window: any;
 type Storage = any;
+
 import type { OwnerScope } from "@stateful-mcp/core/config/types";
 import type { KvBackend } from "../kv-backend";
 

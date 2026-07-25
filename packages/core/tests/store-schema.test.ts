@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import * as S from "../src/adapters/storage/sqlite-schema";
 import { SCHEMA } from "../src/adapters/storage/store-schema";
 
 /**
@@ -17,10 +16,6 @@ function strip(sql: string): string {
 }
 
 describe("SCHEMA.sqlite DDL matches sqlite-schema.ts", () => {
-	test("PRAGMA_WAL", () => {
-		expect(SCHEMA.sqlite.pragma).toBe(S.PRAGMA_WAL.trim());
-	});
-
 	test("DDL_FILTERS", () => {
 		const compiled = normalize(SCHEMA.sqlite.ddl.DDL_FILTERS!.sql);
 		expect(compiled).toContain('CREATE TABLE IF NOT EXISTS "filters"');

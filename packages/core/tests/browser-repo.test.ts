@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { installBrowserMocks } from "../src/adapters/storage/shared/test-mocks";
 import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 
@@ -15,7 +15,10 @@ describe("Browser Storage Adapters", () => {
 			const adapter = await createRepo({
 				filter: {
 					session: { type: "localstorage", target: "browser-local-session" },
-					persistent: { type: "localstorage", target: "browser-local-persistent" },
+					persistent: {
+						type: "localstorage",
+						target: "browser-local-persistent",
+					},
 				},
 			});
 			sessionStore = adapter.sessionFilter;

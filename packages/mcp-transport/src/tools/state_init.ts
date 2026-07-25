@@ -3,16 +3,16 @@ import type {
 	EventStore,
 	FilterStore,
 	FormStore,
-	MiddlewareConfig,
 	ObjectStore,
 } from "@stateful-mcp/core";
+import type { MiddlewareConfig } from "@stateful-mcp/core/src/config/types";
 import { z } from "zod";
 import {
 	getEventStore,
 	getFilterStore,
 	getFormStore,
 	getObjectStore,
-} from "./helper.js";
+} from "./helper";
 
 /** Required store types inferred from all tool state_requirements across the config. */
 type StoreType = "filter" | "object" | "form" | "event";
