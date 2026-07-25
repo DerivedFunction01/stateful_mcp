@@ -251,12 +251,12 @@ export class QueryCompiler {
 	constructor(private dialect: SqlDialect = "sqlite") {}
 
 	/** Safe identifier quoting (ANSI standard double quotes) */
-	private quoteIdent(ident: string): string {
+	public quoteIdent(ident: string): string {
 		return `"${ident.replace(/"/g, '""')}"`;
 	}
 
 	/** Helper to extract JSON paths consistently across dialects */
-	private formatColumn(
+	public formatColumn(
 		colName: string,
 		jsonPath?: string,
 		table?: string,
@@ -283,7 +283,7 @@ export class QueryCompiler {
 		return `json_extract(${quotedCol}, '$.${jsonPath}')`;
 	}
 
-	private columnSqlType(col: ColumnDef): string {
+	public columnSqlType(col: ColumnDef): string {
 		if (col.autoIncrement) {
 			return this.dialect === "postgres" ? "SERIAL" : "INTEGER";
 		}
@@ -318,7 +318,7 @@ export class QueryCompiler {
 		}
 	}
 
-	private columnDefaultSql(col: ColumnDef): string {
+	public columnDefaultSql(col: ColumnDef): string {
 		if (col.defaultRaw !== undefined) {
 			return ` DEFAULT ${col.defaultRaw}`;
 		}
