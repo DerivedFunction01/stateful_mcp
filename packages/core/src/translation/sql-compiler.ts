@@ -55,8 +55,13 @@ export type QueryCondition =
 	| { AND: QueryCondition[] }
 	| { OR: QueryCondition[] }
 	| { NOT: QueryCondition }
+	/** True if the (correlated) subquery returns any rows */
+	| { EXISTS: SelectQuery }
+	| { NOT_EXISTS: SelectQuery }
 	| {
 			column: string;
+			/** Optional table/alias qualifier, e.g. "u" for `"u"."id"` — needed for joins */
+			table?: string;
 			/** Optional JSON path to extract, e.g., 'field' or 'nested.field' */
 			jsonPath?: string;
 			op: FilterOp;
@@ -68,23 +73,52 @@ export type QueryCondition =
 			placeholderCount?: number;
 			/** Raw SQL literal for the right-hand side — caller is responsible for quoting/escaping */
 			raw?: string;
+			/**
+			 * Correlated or uncorrelated subquery for the right-hand side.
+			 * Works with any comparison op (scalar subquery) or with in_set/not_in_set
+			 * (`col IN (SELECT ...)`). Takes precedence over value/values/placeholderCount.
+			 */
+			subquery?: SelectQuery;
 	  };
 
 export interface QueryField {
 	column?: string;
+	/** Optional table/alias qualifier, e.g. "u" for `"u"."id"` — needed for joins */
+	table?: string;
 	/** Optional JSON path to extract */
 	jsonPath?: string;
 	raw?: string; // Arbitrary SQL string for the projection (e.g., "1")
+	/** Scalar subquery projected as a column, e.g. `(SELECT ...) AS total` */
+	subquery?: SelectQuery;
 	alias?: string;
 	agg?: "count" | "sum" | "avg" | "min" | "max" | "count_distinct";
 }
 export type QuerySort = {
 	column: string;
+	/** Optional table/alias qualifier */
+	table?: string;
 	/** Optional JSON path to extract */
 	jsonPath?: string;
 	direction: "ASC" | "DESC";
 	nulls?: "FIRST" | "LAST";
 };
+
+/**
+ * A FROM/JOIN target: either a plain table name, or a derived table
+ * (subquery) that must be aliased, e.g. `(SELECT ...) AS sub`.
+ */
+export type TableRef = string | { query: SelectQuery; alias: string };
+
+export type JoinType = "inner" | "left" | "right" | "full" | "cross";
+
+export interface JoinClause {
+	type: JoinType;
+	table: TableRef;
+	/** Alias for a plain-table join target, e.g. JOIN orders AS o. Ignored for derived tables (they carry their own alias). */
+	alias?: string;
+	/** Join condition(s), implicit AND. Required for all join types except "cross". */
+	on?: QueryCondition[];
+}
 
 export type ColumnType =
 	| "id" // short text primary key
@@ -139,10 +173,13 @@ export interface CreateIndexQuery {
 }
 
 export interface SelectQuery {
-	table: string;
+	table: TableRef;
+	/** Alias for the main FROM target. Ignored (subquery carries its own alias) when `table` is a derived table. */
+	alias?: string;
 	select?: QueryField[]; // Defaults to ['*'] if empty
+	joins?: JoinClause[];
 	where?: QueryCondition[]; // Top level array is treated as implicit AND
-	groupBy?: (string | { column: string; jsonPath?: string })[];
+	groupBy?: (string | { column: string; table?: string; jsonPath?: string })[];
 	having?: QueryCondition[];
 	orderBy?: QuerySort[];
 	limit?: number;
@@ -214,10 +251,16 @@ export class QueryCompiler {
 	}
 
 	/** Helper to extract JSON paths consistently across dialects */
-	private formatColumn(colName: string, jsonPath?: string): string {
-		if (!jsonPath) return this.quoteIdent(colName);
+	private formatColumn(
+		colName: string,
+		jsonPath?: string,
+		table?: string,
+	): string {
+		const prefix = table ? `${this.quoteIdent(table)}.` : "";
 
-		const quotedCol = this.quoteIdent(colName);
+		if (!jsonPath) return `${prefix}${this.quoteIdent(colName)}`;
+
+		const quotedCol = `${prefix}${this.quoteIdent(colName)}`;
 
 		if (this.dialect === "postgres") {
 			// If the path has dots (e.g., "history.priorAcceptCount"),
@@ -372,9 +415,15 @@ export class QueryCompiler {
 		if ("NOT" in cond) {
 			return `NOT (${this.compileCondition(cond.NOT, ctx)})`;
 		}
+		if ("EXISTS" in cond) {
+			return `EXISTS (${this.compileSelectInternal(cond.EXISTS, ctx)})`;
+		}
+		if ("NOT_EXISTS" in cond) {
+			return `NOT EXISTS (${this.compileSelectInternal(cond.NOT_EXISTS, ctx)})`;
+		}
 
 		// Base condition
-		const col = this.formatColumn(cond.column, cond.jsonPath);
+		const col = this.formatColumn(cond.column, cond.jsonPath, cond.table);
 		const hasValue = "value" in cond && cond.value !== undefined;
 		const hasValues = "values" in cond && cond.values !== undefined;
 
@@ -382,6 +431,8 @@ export class QueryCompiler {
 		let rhs = "";
 		if ("raw" in cond && cond.raw !== undefined) {
 			rhs = cond.raw;
+		} else if ("subquery" in cond && cond.subquery !== undefined) {
+			rhs = `(${this.compileSelectInternal(cond.subquery, ctx)})`;
 		} else if (hasValue && cond.op !== "json_contains") {
 			rhs = ctx.addParam(cond.value);
 		} else if (hasValues) {
@@ -482,15 +533,40 @@ export class QueryCompiler {
 		return `\nWHERE ${this.compileCondition(combined, ctx)}`;
 	}
 
-	public compileSelect(query: SelectQuery): CompiledQuery {
-		const ctx = new CompilerContext(this.dialect);
+	/** Renders a FROM/JOIN target: a plain (optionally aliased) table, or a parenthesized, aliased derived table. */
+	private compileTableRef(
+		ref: TableRef,
+		ctx: CompilerContext,
+		alias?: string,
+	): string {
+		if (typeof ref === "string") {
+			const base = this.quoteIdent(ref);
+			return alias ? `${base} AS ${this.quoteIdent(alias)}` : base;
+		}
+		const inner = this.compileSelectInternal(ref.query, ctx);
+		return `(${inner}) AS ${this.quoteIdent(ref.alias)}`;
+	}
+
+	/**
+	 * Compiles a SELECT into a bare SQL string (no trailing ";") against a
+	 * caller-supplied CompilerContext, so nested subqueries share one
+	 * consistent, correctly-numbered parameter sequence with the outer query.
+	 */
+	private compileSelectInternal(
+		query: SelectQuery,
+		ctx: CompilerContext,
+	): string {
 		let sql = "SELECT ";
 
 		if (!query.select || query.select.length === 0) {
 			sql += "*";
 		} else {
 			const fields = query.select.map((f) => {
-				let expr = f.raw ? f.raw : this.formatColumn(f.column!, f.jsonPath);
+				let expr = f.subquery
+					? `(${this.compileSelectInternal(f.subquery, ctx)})`
+					: f.raw
+						? f.raw
+						: this.formatColumn(f.column!, f.jsonPath, f.table);
 				if (f.agg) {
 					if (f.agg === "count_distinct") {
 						expr = `COUNT(DISTINCT ${expr})`;
@@ -506,13 +582,36 @@ export class QueryCompiler {
 			sql += fields.join(", ");
 		}
 
-		sql += `\nFROM ${this.quoteIdent(query.table)}`;
+		sql += `\nFROM ${this.compileTableRef(query.table, ctx, query.alias)}`;
+
+		if (query.joins && query.joins.length > 0) {
+			const joinKeyword: Record<JoinType, string> = {
+				inner: "INNER JOIN",
+				left: "LEFT JOIN",
+				right: "RIGHT JOIN",
+				full: "FULL JOIN",
+				cross: "CROSS JOIN",
+			};
+			for (const j of query.joins) {
+				sql += `\n${joinKeyword[j.type]} ${this.compileTableRef(j.table, ctx, j.alias)}`;
+				if (j.type !== "cross") {
+					if (!j.on || j.on.length === 0) {
+						throw new Error(
+							`JoinClause of type "${j.type}" requires at least one 'on' condition`,
+						);
+					}
+					const combined: QueryCondition = { AND: j.on };
+					sql += ` ON ${this.compileCondition(combined, ctx)}`;
+				}
+			}
+		}
+
 		sql += this.compileWhereBlock(query.where, ctx);
 
 		if (query.groupBy && query.groupBy.length > 0) {
 			const groupings = query.groupBy.map((c) => {
 				if (typeof c === "string") return this.quoteIdent(c);
-				return this.formatColumn(c.column, c.jsonPath);
+				return this.formatColumn(c.column, c.jsonPath, c.table);
 			});
 			sql += `\nGROUP BY ${groupings.join(", ")}`;
 		}
@@ -524,7 +623,7 @@ export class QueryCompiler {
 
 		if (query.orderBy && query.orderBy.length > 0) {
 			const sorts = query.orderBy.map((s) => {
-				let sortStr = `${this.formatColumn(s.column, s.jsonPath)} ${s.direction}`;
+				let sortStr = `${this.formatColumn(s.column, s.jsonPath, s.table)} ${s.direction}`;
 				if (s.nulls) {
 					sortStr += ` NULLS ${s.nulls}`;
 				}
@@ -540,6 +639,12 @@ export class QueryCompiler {
 			sql += `\nOFFSET ${query.offset}`;
 		}
 
+		return sql;
+	}
+
+	public compileSelect(query: SelectQuery): CompiledQuery {
+		const ctx = new CompilerContext(this.dialect);
+		const sql = this.compileSelectInternal(query, ctx);
 		return { sql: sql + ";", params: ctx.params };
 	}
 
