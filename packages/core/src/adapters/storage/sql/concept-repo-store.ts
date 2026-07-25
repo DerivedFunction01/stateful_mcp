@@ -33,8 +33,8 @@ export class ConceptRepoStore implements ConceptStore {
 			? schema.selects.SQL_SEARCH_DICT_CONCEPTS_BY_NAMESPACE!.sql
 			: schema.selects.SQL_SEARCH_DICT_CONCEPTS!.sql;
 		const params = namespaceCode
-			? [`%${query}%`, query, query, `%${query}%`, namespaceCode, limit]
-			: [`%${query}%`, query, query, `%${query}%`, limit];
+			? [`%${query}%`, query, query, `%${query}%`, namespaceCode]
+			: [`%${query}%`, query, query, `%${query}%`];
 		const rows = await this.backend.query(sql, params);
 		return rows.map(rowToConcept);
 	}

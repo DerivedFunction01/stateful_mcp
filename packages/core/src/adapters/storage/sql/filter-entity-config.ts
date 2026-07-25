@@ -39,6 +39,7 @@ function makeFilterEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 
 	const jsonParse = (v: any) => {
 		if (v === null || v === undefined) return null;
+		if (typeof v === "string" && v === "") return null;
 		if (isDuck) return JSON.parse(String(v));
 		return JSON.parse(v);
 	};

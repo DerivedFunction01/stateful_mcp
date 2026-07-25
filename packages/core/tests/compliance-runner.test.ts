@@ -46,11 +46,11 @@ import {
 	OpfsPersistentExpressionStore,
 } from "../src/adapters/storage/opfs-repo";
 import {
-	SqliteConceptStore,
-	SqliteFilterStore,
-	SqliteFormStore,
-	SqlitePersistentExpressionStore,
-} from "../src/adapters/storage/sqlite-repo";
+	createConceptStore,
+	createExpressionStore,
+	createFilterStore,
+	createFormStore,
+} from "../src/adapters/storage/sql/factories";
 import {
 	InMemoryConceptStore,
 	InMemoryPersistentExpressionStore,
@@ -253,10 +253,10 @@ describe("Storage Compliance Test Runner", () => {
 			expect,
 			createSessionStore: async () => {
 				if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-				return new SqliteFilterStore(dbPath);
+				return createFilterStore("sqlite", dbPath);
 			},
 			createPersistentStore: async () => {
-				return new SqliteFilterStore(dbPath);
+				return createFilterStore("sqlite", dbPath);
 			},
 		});
 	});
@@ -354,10 +354,10 @@ describe("Storage Compliance Test Runner", () => {
 				expect,
 				createSessionStore: async () => {
 					if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-					return new SqliteFormStore(dbPath);
+					return createFormStore("sqlite", dbPath);
 				},
 				createPersistentStore: async () => {
-					return new SqliteFormStore(dbPath);
+					return createFormStore("sqlite", dbPath);
 				},
 			});
 		});
@@ -478,10 +478,10 @@ describe("Storage Compliance Test Runner", () => {
 				expect,
 				createSessionStore: async () => {
 					if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-					return new SqliteConceptStore(dbPath);
+					return createConceptStore("sqlite", dbPath);
 				},
 				createPersistentStore: async () => {
-					return new SqlitePersistentExpressionStore(dbPath);
+					return createExpressionStore("sqlite", dbPath);
 				},
 			});
 		});

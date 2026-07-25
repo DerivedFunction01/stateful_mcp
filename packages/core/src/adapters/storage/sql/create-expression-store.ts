@@ -8,8 +8,9 @@ import { initSchema } from "./init-schema";
 export async function createExpressionStore(
 	dialect: SqlDialect,
 	target: string,
+	backend?: SqlBackend,
 ): Promise<PersistentExpressionStore> {
-	const backend = await SqlBackend.connect(dialect, target);
-	await initSchema(backend, expressionDdlKeys);
-	return new ExpressionRepoStore(backend);
+	const be = backend ?? (await SqlBackend.connect(dialect, target));
+	if (!backend) await initSchema(be, expressionDdlKeys);
+	return new ExpressionRepoStore(be);
 }

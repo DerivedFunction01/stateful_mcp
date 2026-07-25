@@ -8,8 +8,9 @@ import { initSchema } from "./init-schema";
 export async function createConceptStore(
 	dialect: SqlDialect,
 	target: string,
+	backend?: SqlBackend,
 ): Promise<ConceptStore> {
-	const backend = await SqlBackend.connect(dialect, target);
-	await initSchema(backend, conceptDdlKeys);
-	return new ConceptRepoStore(backend);
+	const be = backend ?? (await SqlBackend.connect(dialect, target));
+	if (!backend) await initSchema(be, conceptDdlKeys);
+	return new ConceptRepoStore(be);
 }

@@ -9,7 +9,7 @@ import {
 	MemoryPersistentFormStore,
 	MemorySessionFormStore,
 } from "../src/adapters/storage/memory-repo";
-import { SqliteFormStore } from "../src/adapters/storage/sqlite-repo";
+import { createFormStore } from "../src/adapters/storage/sql/factories";
 import type { FormSchema } from "../src/config/types";
 import { FormStore } from "../src/middleware/form/store";
 
@@ -125,10 +125,10 @@ describe("Stateful Form Service", () => {
 		],
 		[
 			"SQLite Store",
-			() =>
+			async () =>
 				new FormStore(
-					new SqliteFormStore(SQLITE_DB),
-					new SqliteFormStore(SQLITE_DB),
+					await createFormStore("sqlite", SQLITE_DB),
+					await createFormStore("sqlite", SQLITE_DB),
 					schemas,
 				),
 		],
@@ -136,8 +136,8 @@ describe("Stateful Form Service", () => {
 		let store: FormStore;
 		const session = "test-session";
 
-		beforeAll(() => {
-			store = createStore();
+		beforeAll(async () => {
+			store = await createStore();
 		});
 
 		test("Initialize form and answer linear flow", async () => {

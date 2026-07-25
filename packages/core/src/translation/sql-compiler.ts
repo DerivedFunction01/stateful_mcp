@@ -382,7 +382,7 @@ export class QueryCompiler {
 		let rhs = "";
 		if ("raw" in cond && cond.raw !== undefined) {
 			rhs = cond.raw;
-		} else if (hasValue) {
+		} else if (hasValue && cond.op !== "json_contains") {
 			rhs = ctx.addParam(cond.value);
 		} else if (hasValues) {
 			rhs = `(${cond.values!.map((v) => ctx.addParam(v)).join(", ")})`;

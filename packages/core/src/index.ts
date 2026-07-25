@@ -1,6 +1,5 @@
 export * from "./adapters/storage/browser-repo";
 export * from "./adapters/storage/duckdb-entity-store";
-export * from "./adapters/storage/duckdb-repo";
 export * from "./adapters/storage/generic-entity-store";
 export * from "./adapters/storage/indexeddb-entity-store";
 export type { EntityStore, SqlQueryStore } from "./adapters/storage/interfaces";
@@ -11,8 +10,7 @@ export * from "./adapters/storage/memory-repo";
 export * from "./adapters/storage/opfs-entity-store";
 export * from "./adapters/storage/opfs-repo";
 export * from "./adapters/storage/pg-entity-store";
-export * from "./adapters/storage/pg-repo";
-export * from "./adapters/storage/sqlite-repo";
+export * from "./adapters/storage/sql/sql-repo";
 export * from "./config/loader";
 export * from "./config/meta_tools";
 export * from "./config/pagination";

@@ -7,7 +7,7 @@ import {
 	MemoryPersistentFilterStore,
 	MemorySessionFilterStore,
 } from "../src/adapters/storage/memory-repo";
-import { SqliteFilterStore } from "../src/adapters/storage/sqlite-repo";
+import { createFilterStore } from "../src/adapters/storage/sql/factories";
 import { loadMiddlewareConfig } from "../src/config/loader";
 import type { TableSchema } from "../src/config/types";
 import { validateMiddlewareConfig } from "../src/config/validator";
@@ -361,7 +361,7 @@ export async function runFilterTests() {
 	}
 	console.log("✓ SQLite Query Engine executed and filtered correctly.");
 
-	const sqliteStore = new SqliteFilterStore(":memory:");
+	const sqliteStore = await createFilterStore("sqlite", ":memory:");
 	await sqliteStore.set("sess_sql", "f_sql", {
 		filterId: "f_sql",
 		rules: [{ property: "price", operator: "lt", value: 100 }],

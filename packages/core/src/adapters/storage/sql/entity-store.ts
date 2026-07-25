@@ -167,7 +167,12 @@ export class GenericSqlEntityStore<Session, Persistent> {
 			where: [
 				{ column: "id", op: "eq", value: id },
 				{ column: "scope_level", op: "eq", value: scope.level },
-				{ column: "user_id", op: "eq", value: scopeId },
+				{
+					OR: [
+						{ column: "user_id", op: "eq", value: scopeId },
+						{ column: "user_id", op: "is_null" },
+					],
+				},
 			],
 		});
 		const savedRow = await this.backend.queryOne(savedSel.sql, savedSel.params);
@@ -418,7 +423,12 @@ export class GenericSqlEntityStore<Session, Persistent> {
 			});
 			statements.push({ sql: del.sql, params: del.params });
 
-			const items: any[] = (state as any)[child.stateField] ?? [];
+			const rawItems = (state as any)[child.stateField] ?? [];
+			const items: any[] = child.fromState
+				? child.fromState(rawItems)
+				: Array.isArray(rawItems)
+					? rawItems
+					: Object.values(rawItems);
 			for (let i = 0; i < items.length; i++) {
 				const ins = this.backend.compiler.compileInsert({
 					table: child.table,

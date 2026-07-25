@@ -14,12 +14,29 @@ import { SqlRepoStore } from "./sql-repo-store";
 export async function createFilterStore(
 	dialect: SqlDialect,
 	target: string,
+	backend?: SqlBackend,
 ): Promise<SessionFilterStore & PersistentFilterStore> {
-	const backend = await SqlBackend.connect(dialect, target);
-	await initSchema(backend, filterDdlKeys);
+	const be = backend ?? (await SqlBackend.connect(dialect, target));
+	if (!backend) await initSchema(be, filterDdlKeys);
 	const store = new GenericSqlEntityStore<FilterState, PersistedFilterState>(
-		backend,
+		be,
 		filterEntityConfigs[dialect],
 	);
 	return new SqlRepoStore(store);
+}
+
+export async function createSessionFilterStore(
+	dialect: SqlDialect,
+	target: string,
+	backend?: SqlBackend,
+): Promise<SessionFilterStore> {
+	return createFilterStore(dialect, target, backend);
+}
+
+export async function createPersistentFilterStore(
+	dialect: SqlDialect,
+	target: string,
+	backend?: SqlBackend,
+): Promise<PersistentFilterStore> {
+	return createFilterStore(dialect, target, backend);
 }

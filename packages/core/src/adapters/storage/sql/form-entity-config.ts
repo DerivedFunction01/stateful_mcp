@@ -32,6 +32,20 @@ function makeFormAnswersChild(dialect: SqlDialect) {
 			question_id: row.question_id,
 			value: dialect === "postgres" ? row.value : JSON.parse(row.value),
 		}),
+		toState: (items: Array<{ question_id: string; value: any }>) => {
+			const out: Record<string, any> = {};
+			for (const item of items) {
+				out[item.question_id] = item.value;
+			}
+			return out;
+		},
+		fromState: (state: any) => {
+			const out: Array<{ question_id: string; value: any }> = [];
+			for (const [question_id, value] of Object.entries(state ?? {})) {
+				out.push({ question_id, value });
+			}
+			return out;
+		},
 	};
 }
 
@@ -49,25 +63,27 @@ function makeFormSkippedChild(_dialect: SqlDialect) {
 	};
 }
 
-function makeFormStaleChild(dialect: SqlDialect) {
+function makeFormStaleChild(_dialect: SqlDialect) {
 	return {
 		table: "form_stale",
 		parentIdColumn: "form_id",
 		orderColumn: "question_id",
 		stateField: "stale" as const,
-		toRow: (
-			child: { question_id: string; value: boolean },
-			_index: number,
-			parentId: string,
-		) => ({
+		toRow: (child: string, _index: number, parentId: string) => ({
 			form_id: parentId,
-			question_id: child.question_id,
-			value: child.value ? 1 : 0,
+			question_id: child,
 		}),
-		fromRow: (row: Record<string, any>) => ({
-			question_id: row.question_id,
-			value: row.value === 1,
-		}),
+		fromRow: (_row: Record<string, any>) => _row.question_id,
+		toState: (items: string[]) => {
+			const out: Record<string, boolean> = {};
+			for (const question_id of items) {
+				out[question_id] = true;
+			}
+			return out;
+		},
+		fromState: (state: any) => {
+			return Object.keys(state ?? {}).filter((k) => Boolean(state[k]));
+		},
 	};
 }
 
