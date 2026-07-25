@@ -338,7 +338,10 @@ export class GenericSqlEntityStore<Session, Persistent> {
           : undefined,
       });
       const rows = await this.backend.query(csel.sql, csel.params);
-      (state as any)[child.stateField] = rows.map(child.fromRow);
+      const items = rows.map(child.fromRow);
+      (state as any)[child.stateField] = child.toState
+        ? child.toState(items)
+        : items;
     }
     return state;
   }
@@ -357,7 +360,10 @@ export class GenericSqlEntityStore<Session, Persistent> {
           : undefined,
       });
       const rows = await this.backend.query(csel.sql, csel.params);
-      (state as any)[child.stateField] = rows.map(child.fromRow);
+      const items = rows.map(child.fromRow);
+      (state as any)[child.stateField] = child.toState
+        ? child.toState(items)
+        : items;
     }
     return state;
   }

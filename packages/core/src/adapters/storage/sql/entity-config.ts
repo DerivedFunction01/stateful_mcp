@@ -5,6 +5,7 @@ export interface ChildTableConfig<Child> {
   stateField: string;
   toRow: (child: Child, index: number, parentId: string) => Record<string, any>;
   fromRow: (row: Record<string, any>) => Child;
+  toState?: (items: Child[]) => any;
 }
 
 export interface EntityConfig<Session, Persistent> {
