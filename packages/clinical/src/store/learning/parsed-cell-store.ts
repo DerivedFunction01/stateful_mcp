@@ -192,6 +192,7 @@ export interface ParsedCellHistoryKey {
 	tag: string;
 	targetSchema: string;
 	rawText: string;
+	normalizedText?: string;
 }
 
 export function buildObservationShape(

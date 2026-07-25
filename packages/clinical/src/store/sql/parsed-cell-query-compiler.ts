@@ -1,3 +1,4 @@
+import { QueryCompiler, type QueryCondition } from "@stateful-mcp/core";
 import type { ParsedCellHistoryKey } from "../learning/parsed-cell-store";
 
 export type ParsedCellSqlDialect = "sqlite" | "postgres" | "duckdb";
@@ -139,4 +140,124 @@ export function compileParsedCellObservationHistoryQuery(
 		`,
 		params,
 	};
+}
+
+// ── : Core sql-compiler implementation ─────────────────────────────────
+
+export class ParsedCellSqlCompiler {
+	private readonly dialect: ParsedCellSqlDialect;
+	private readonly compiler: QueryCompiler;
+
+	private static readonly SCOPED_FIELDS = [
+		"soapNoteId",
+		"patientId",
+		"patientOrganismType",
+		"patientGender",
+		"patientAgeBucket",
+		"patientSpeciesBucket",
+		"patientSubBucket",
+		"patientBucketKey",
+		"personnelId",
+		"specialtyId",
+		"facilityId",
+	] as const;
+
+	constructor(dialect: ParsedCellSqlDialect = "sqlite") {
+		this.dialect = dialect;
+		this.compiler = new QueryCompiler(dialect);
+	}
+
+	/**
+	 * Composes the parsed cell observation history SELECT via QueryCompiler AST.
+	 */
+	public compileObservationHistoryQuery(
+		plan: ParsedCellHistoryPlan,
+		paramOffset?: number,
+	): ParsedCellHistoryQuery {
+		const scoreExpr = scoreExpression(this.dialect);
+
+		const where: QueryCondition[] = [
+			{
+				column: "data",
+				jsonPath: "targetSchema",
+				table: "shared",
+				op: "eq" as const,
+				value: plan.key.targetSchema,
+			},
+			{
+				column: "data",
+				jsonPath: "tag",
+				table: "shared",
+				op: "eq" as const,
+				value: plan.key.tag,
+			},
+		];
+
+		if (plan.scope === "scoped") {
+			for (const field of ParsedCellSqlCompiler.SCOPED_FIELDS) {
+				const val = plan.key[field];
+				if (val !== undefined && val !== null) {
+					where.push({
+						column: "data",
+						jsonPath: field,
+						table: "shared",
+						op: "eq" as const,
+						value: val,
+					});
+				}
+			}
+		}
+
+		const rawOrNormalized: QueryCondition = {
+			OR: [
+				{
+					column: "data",
+					jsonPath: "rawText",
+					table: "shared",
+					op: "eq" as const,
+					value: plan.key.rawText,
+				},
+				{
+					column: "data",
+					jsonPath: "normalizedText" as const,
+					table: "shared",
+					op: "eq" as const,
+					value: plan.key.rawText,
+				},
+			],
+		};
+
+		const joinCondition = {
+			column: "data",
+			jsonPath: "cellId",
+			table: "detail",
+			op: "eq" as const,
+			raw: this.compiler.formatColumn("data", "cellId", "shared"),
+		};
+
+		const compiled = this.compiler.compileSelect(
+			{
+				table: plan.tableName,
+				alias: "shared",
+				select: [
+					{ column: "data", table: "detail", alias: "detail_data" },
+					{ raw: scoreExpr, alias: "ranking_score" },
+				],
+				joins: [
+					{
+						type: "inner",
+						table: plan.detailTableName,
+						alias: "detail",
+						on: [joinCondition],
+					},
+				],
+				where: [...where, rawOrNormalized],
+				orderBy: [{ column: "ranking_score", direction: "DESC" }],
+				limit: plan.limit,
+			},
+			paramOffset,
+		);
+
+		return { sql: compiled.sql, params: compiled.params };
+	}
 }

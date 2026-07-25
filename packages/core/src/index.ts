@@ -28,3 +28,4 @@ export * from "./middleware/trace/store";
 export * from "./middleware/trace/types";
 export * from "./middleware/variable/store";
 export * from "./middleware/variable/types";
+export * from "./translation/sql-compiler";
