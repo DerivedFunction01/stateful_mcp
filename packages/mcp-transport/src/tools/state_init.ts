@@ -66,10 +66,10 @@ export async function registerStateInitTool(
 	// Instantiate all four store types unconditionally — any of them may be
 	// referenced by a tool's state_requirements regardless of which server
 	// module is currently running.
-	const filterStore: FilterStore = getFilterStore(config, workspaceRoot);
-	const objectStore: ObjectStore = getObjectStore(config, workspaceRoot);
-	const formStore: FormStore = getFormStore(config, workspaceRoot);
-	const eventStore: EventStore = getEventStore(config, workspaceRoot);
+	const filterStore: FilterStore = await getFilterStore(config, workspaceRoot);
+	const objectStore: ObjectStore = await getObjectStore(config, workspaceRoot);
+	const formStore: FormStore = await getFormStore(config, workspaceRoot);
+	const eventStore: EventStore = await getEventStore(config, workspaceRoot);
 
 	// ── Startup health probe ─────────────────────────────────────────────────────
 	// Determine which store types are actually needed by this config's tools.

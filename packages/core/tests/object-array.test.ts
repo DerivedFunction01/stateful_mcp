@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
+import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 import { ObjectStore } from "../src/middleware/object/store";
 
 describe("Unified Object Array Operations", () => {

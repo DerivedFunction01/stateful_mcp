@@ -1,11 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import {
-	IndexedDbPersistentStore,
-	IndexedDbSessionStore,
-	LocalStoragePersistentStore,
-	LocalStorageSessionStore,
-} from "../src/adapters/storage/old/browser-repo";
 import { installBrowserMocks } from "../src/adapters/storage/shared/test-mocks";
+import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 
 describe("Browser Storage Adapters", () => {
 	beforeAll(() => {
@@ -13,8 +8,20 @@ describe("Browser Storage Adapters", () => {
 	});
 
 	describe("LocalStorage Adapters", () => {
-		const sessionStore = new LocalStorageSessionStore();
-		const persistentStore = new LocalStoragePersistentStore();
+		let sessionStore: any;
+		let persistentStore: any;
+
+		beforeEach(async () => {
+			const adapter = await createRepo({
+				filter: {
+					session: { type: "localstorage", target: "browser-local-session" },
+					persistent: { type: "localstorage", target: "browser-local-persistent" },
+				},
+			});
+			sessionStore = adapter.sessionFilter;
+			persistentStore = adapter.persistentFilter;
+		});
+
 		const sessionId = "sess-local";
 
 		test("Create and read session state", async () => {
@@ -54,8 +61,20 @@ describe("Browser Storage Adapters", () => {
 	});
 
 	describe("IndexedDB Adapters", () => {
-		const sessionStore = new IndexedDbSessionStore("test-db");
-		const persistentStore = new IndexedDbPersistentStore("test-db");
+		let sessionStore: any;
+		let persistentStore: any;
+
+		beforeEach(async () => {
+			const adapter = await createRepo({
+				filter: {
+					session: { type: "indexeddb", target: "test-db" },
+					persistent: { type: "indexeddb", target: "test-db" },
+				},
+			});
+			sessionStore = adapter.sessionFilter;
+			persistentStore = adapter.persistentFilter;
+		});
+
 		const sessionId = "sess-idb";
 
 		test("Create and read session state", async () => {

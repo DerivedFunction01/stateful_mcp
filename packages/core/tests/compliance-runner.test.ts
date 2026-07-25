@@ -17,7 +17,7 @@ import {
 	type BackendType,
 	createRepo,
 	type RepoAdapter,
-} from "../src/adapters/storage/shared/unifed-repo";
+} from "../src/adapters/storage/shared/unified-repo";
 
 type StoreSection = "filter" | "form" | "object" | "event";
 
@@ -140,17 +140,23 @@ describe("Storage Compliance Test Runner", () => {
 				factories: {
 					createSessionStore: async () => {
 						clearMockLocalStorage();
-						const { LocalStorageSessionStore } = await import(
-							"../src/adapters/storage/old/browser-repo"
-						);
-						return new LocalStorageSessionStore();
+						const adapter = await createRepo({
+							filter: {
+								session: { type: "localstorage" },
+								persistent: { type: "localstorage" },
+							},
+						});
+						return adapter.sessionFilter;
 					},
 					createPersistentStore: async () => {
 						clearMockLocalStorage();
-						const { LocalStoragePersistentStore } = await import(
-							"../src/adapters/storage/old/browser-repo"
-						);
-						return new LocalStoragePersistentStore();
+						const adapter = await createRepo({
+							filter: {
+								session: { type: "localstorage" },
+								persistent: { type: "localstorage" },
+							},
+						});
+						return adapter.persistentFilter;
 					},
 				},
 			},
@@ -159,17 +165,23 @@ describe("Storage Compliance Test Runner", () => {
 				factories: {
 					createSessionStore: async () => {
 						clearMockIndexedDB("states", "aliases");
-						const { IndexedDbSessionStore } = await import(
-							"../src/adapters/storage/old/browser-repo"
-						);
-						return new IndexedDbSessionStore("test-compliance-db");
+						const adapter = await createRepo({
+							filter: {
+								session: { type: "indexeddb", target: "test-compliance-db" },
+								persistent: { type: "indexeddb", target: "test-compliance-db" },
+							},
+						});
+						return adapter.sessionFilter;
 					},
 					createPersistentStore: async () => {
 						clearMockIndexedDB("states");
-						const { IndexedDbPersistentStore } = await import(
-							"../src/adapters/storage/old/browser-repo"
-						);
-						return new IndexedDbPersistentStore("test-compliance-db");
+						const adapter = await createRepo({
+							filter: {
+								session: { type: "indexeddb", target: "test-compliance-db" },
+								persistent: { type: "indexeddb", target: "test-compliance-db" },
+							},
+						});
+						return adapter.persistentFilter;
 					},
 				},
 			},

@@ -1,182 +1,197 @@
+import {
+	createRepo,
+	EventStore,
+	FilterStore,
+	FormStore,
+	ObjectStore,
+	resolveSource,
+} from "@stateful-mcp/core";
+import type {
+	BackendSpec,
+	RepoConfig,
+} from "@stateful-mcp/core/src/adapters/storage/shared/unified-repo";
 import type {
 	FormSchema,
 	MiddlewareConfig,
 	TableSchema,
-} from "@stateful-mcp/core";
-import {
-	FilterStore,
-	FormStore,
-	JsonlPersistentFilterStore,
-	JsonlPersistentFormStore,
-	JsonlPersistentObjectStore,
-	JsonlSessionFilterStore,
-	JsonlSessionFormStore,
-	JsonlSessionObjectStore,
-	MemoryPersistentFilterStore,
-	MemoryPersistentFormStore,
-	MemoryPersistentObjectStore,
-	MemorySessionFilterStore,
-	MemorySessionFormStore,
-	MemorySessionObjectStore,
-	ObjectStore,
-	SqliteFilterStore,
-	SqliteFormStore,
-} from "@stateful-mcp/core";
+} from "@stateful-mcp/core/src/config/types";
 import * as path from "path";
 
-const getUrl = (locator: any) => {
-	if (locator?._type === "adapter") return locator.options?.url?.toString();
-	return undefined;
-};
+function toBackendSpec(locator: any, workspaceRoot: string): BackendSpec {
+	if (!locator) return { type: "memory" };
+	if (locator._type === "file" && locator.path?.endsWith(".jsonl"))
+		return { type: "jsonl", target: path.resolve(workspaceRoot, locator.path) };
+	if (locator._type === "adapter") {
+		const url = locator.options?.url?.toString();
+		if (url?.startsWith("sqlite://"))
+			return { type: "sqlite", target: url.replace("sqlite://", "") };
+	}
+	return { type: "memory" };
+}
 
-export function getFilterStore(
+function toRepoConfig(
 	config: MiddlewareConfig,
 	workspaceRoot: string,
-): FilterStore {
-	const sessUrl = getUrl(config.filter_session_state);
-	const sessionFilterStore =
-		config.filter_session_state?._type === "file" &&
-		config.filter_session_state.path.endsWith(".jsonl")
-			? new JsonlSessionFilterStore(
-					path.resolve(workspaceRoot, config.filter_session_state.path),
-				)
-			: sessUrl && sessUrl.startsWith("sqlite://")
-				? new SqliteFilterStore(sessUrl.replace("sqlite://", ""))
-				: new MemorySessionFilterStore();
+): RepoConfig {
+	return {
+		filter: {
+			session: toBackendSpec(config.filter_session_state, workspaceRoot),
+			persistent: toBackendSpec(
+				config.filter_persistent_state?.global,
+				workspaceRoot,
+			),
+		},
+		form: {
+			session: toBackendSpec(config.form_session_state, workspaceRoot),
+			persistent: toBackendSpec(
+				config.form_persistent_state?.global,
+				workspaceRoot,
+			),
+		},
+		object: {
+			session: toBackendSpec(config.object_session_state, workspaceRoot),
+			persistent: toBackendSpec(
+				config.object_persistent_state?.global,
+				workspaceRoot,
+			),
+		},
+		event: {
+			session: toBackendSpec(config.event_session_state, workspaceRoot),
+			persistent: toBackendSpec(
+				config.event_persistent_state?.global,
+				workspaceRoot,
+			),
+		},
+	};
+}
 
-	const globUrl = getUrl(config.filter_persistent_state?.global);
-	const persistentFilterStore =
-		config.filter_persistent_state?.global?._type === "file" &&
-		config.filter_persistent_state.global.path.endsWith(".jsonl")
-			? new JsonlPersistentFilterStore(
-					path.resolve(
-						workspaceRoot,
-						config.filter_persistent_state.global.path,
-					),
-				)
-			: globUrl && globUrl.startsWith("sqlite://")
-				? new SqliteFilterStore(globUrl.replace("sqlite://", ""))
-				: new MemoryPersistentFilterStore();
+export async function getFilterStore(
+	config: MiddlewareConfig,
+	workspaceRoot: string,
+): Promise<FilterStore> {
+	const adapter = await createRepo(toRepoConfig(config, workspaceRoot));
 
 	const toolSchemas = new Map<string, Record<string, TableSchema>>();
+	if (config.tools) {
+		for (const [toolName, toolConfig] of Object.entries(config.tools)) {
+			try {
+				const schemaData = (await resolveSource(
+					toolConfig.schema,
+					workspaceRoot,
+				)) as any;
+				if (schemaData && schemaData.table_schemas) {
+					toolSchemas.set(toolName, schemaData.table_schemas);
+				}
+			} catch (_) {}
+		}
+	}
+
 	const pinnedSchemas = new Map<string, TableSchema>();
 	const threshold = config.auto_compression?.filter_chain_threshold ?? 20;
 
 	return new FilterStore(
-		sessionFilterStore,
-		persistentFilterStore,
+		adapter.sessionFilter!,
+		adapter.persistentFilter!,
 		toolSchemas,
 		pinnedSchemas,
 		threshold,
 	);
 }
 
-export function getObjectStore(
+export async function getObjectStore(
 	config: MiddlewareConfig,
 	workspaceRoot: string,
-): ObjectStore {
-	const sessionObjectStore =
-		config.object_session_state?._type === "file" &&
-		config.object_session_state.path.endsWith(".jsonl")
-			? new JsonlSessionObjectStore(
-					path.resolve(workspaceRoot, config.object_session_state.path),
-				)
-			: new MemorySessionObjectStore();
-
-	const persistentObjectStore =
-		config.object_persistent_state?.global?._type === "file" &&
-		config.object_persistent_state.global.path.endsWith(".jsonl")
-			? new JsonlPersistentObjectStore(
-					path.resolve(
-						workspaceRoot,
-						config.object_persistent_state.global.path,
-					),
-				)
-			: new MemoryPersistentObjectStore();
+): Promise<ObjectStore> {
+	const adapter = await createRepo(toRepoConfig(config, workspaceRoot));
 
 	const objectSchemas = new Map<string, any>();
+	const validationEngines = new Map<string, any>();
+	if (config.object_schemas) {
+		for (const [schemaName, entry] of Object.entries(config.object_schemas)) {
+			try {
+				const locator = (entry as any).schema ?? entry;
+				const schemaData = await resolveSource(locator, workspaceRoot);
+				objectSchemas.set(schemaName, schemaData);
+				if ((entry as any).validation_engine) {
+					validationEngines.set(schemaName, (entry as any).validation_engine);
+				}
+			} catch (_) {}
+		}
+	}
+
 	const limits = config.object_schema_limits;
 	const threshold = config.auto_compression?.object_chain_threshold ?? 15;
 
 	return new ObjectStore(
-		sessionObjectStore,
-		persistentObjectStore,
+		adapter.sessionObject!,
+		adapter.persistentObject!,
 		objectSchemas,
 		limits?.max_fields_per_def ?? 7,
 		limits?.max_ref_depth ?? 5,
 		threshold,
+		validationEngines,
+		workspaceRoot,
 	);
 }
 
-export function getFormStore(
+export async function getFormStore(
 	config: MiddlewareConfig,
 	workspaceRoot: string,
-): FormStore {
-	const sessUrl = getUrl(config.form_session_state);
-	const sessionFormStore =
-		config.form_session_state?._type === "file" &&
-		config.form_session_state.path.endsWith(".jsonl")
-			? new JsonlSessionFormStore(
-					path.resolve(workspaceRoot, config.form_session_state.path),
-				)
-			: sessUrl && sessUrl.startsWith("sqlite://")
-				? new SqliteFormStore(sessUrl.replace("sqlite://", ""))
-				: new MemorySessionFormStore();
-
-	const globUrl = getUrl(config.form_persistent_state?.global);
-	const persistentFormStore =
-		config.form_persistent_state?.global?._type === "file" &&
-		config.form_persistent_state.global.path.endsWith(".jsonl")
-			? new JsonlPersistentFormStore(
-					path.resolve(workspaceRoot, config.form_persistent_state.global.path),
-				)
-			: globUrl && globUrl.startsWith("sqlite://")
-				? new SqliteFormStore(globUrl.replace("sqlite://", ""))
-				: new MemoryPersistentFormStore();
+): Promise<FormStore> {
+	const adapter = await createRepo(toRepoConfig(config, workspaceRoot));
 
 	const formSchemas = new Map<string, FormSchema>();
+	if (config.form_schemas) {
+		for (const [schemaName, entry] of Object.entries(config.form_schemas)) {
+			try {
+				const locator = (entry as any).schema ?? entry;
+				const schema = (await resolveSource(
+					locator,
+					workspaceRoot,
+				)) as FormSchema;
+				formSchemas.set(schemaName, schema);
+			} catch (err: any) {
+				console.error(
+					`Failed to load form schema "${schemaName}":`,
+					err.message || err,
+				);
+			}
+		}
+	}
 
-	return new FormStore(sessionFormStore, persistentFormStore, formSchemas);
+	return new FormStore(
+		adapter.sessionForm!,
+		adapter.persistentForm!,
+		formSchemas,
+	);
 }
 
-import {
-	EventStore,
-	JsonlPersistentEventStore,
-	JsonlSessionEventStore,
-	MemoryPersistentEventStore,
-	MemorySessionEventStore,
-} from "@stateful-mcp/core";
-
-export function getEventStore(
+export async function getEventStore(
 	config: MiddlewareConfig,
 	workspaceRoot: string,
-): EventStore {
-	const sessionStore =
-		config.event_session_state?._type === "file" &&
-		config.event_session_state.path.endsWith(".jsonl")
-			? new JsonlSessionEventStore(
-					path.resolve(workspaceRoot, config.event_session_state.path),
-				)
-			: new MemorySessionEventStore();
-
-	const persistentStore =
-		config.event_persistent_state?.global?._type === "file" &&
-		config.event_persistent_state.global.path.endsWith(".jsonl")
-			? new JsonlPersistentEventStore(
-					path.resolve(
-						workspaceRoot,
-						config.event_persistent_state.global.path,
-					),
-				)
-			: new MemoryPersistentEventStore();
+): Promise<EventStore> {
+	const adapter = await createRepo(toRepoConfig(config, workspaceRoot));
 
 	const objectSchemas = new Map<string, any>();
 	const validationEngines = new Map<string, any>();
+	if (config.object_schemas) {
+		for (const [schemaName, entry] of Object.entries(config.object_schemas)) {
+			try {
+				const locator = (entry as any).schema ?? entry;
+				const schemaData = (await resolveSource(locator, workspaceRoot)) as any;
+				objectSchemas.set(schemaName, schemaData);
+				if ((entry as any).validation_engine) {
+					validationEngines.set(schemaName, (entry as any).validation_engine);
+				}
+			} catch (_) {}
+		}
+	}
+
 	const threshold = config.auto_compression?.object_chain_threshold ?? 15;
 
 	return new EventStore(
-		sessionStore,
-		persistentStore,
+		adapter.sessionEvent!,
+		adapter.persistentEvent!,
 		objectSchemas,
 		threshold,
 		validationEngines,

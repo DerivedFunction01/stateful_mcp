@@ -3,26 +3,20 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type {
 	MiddlewareConfig,
 	PaginationLimitsConfig,
-	TableSchema,
 } from "@stateful-mcp/core";
 import {
 	buildLimitField,
 	clampLimit,
-	FilterStore,
-	JsonlPersistentFilterStore,
-	JsonlSessionFilterStore,
+	type FilterStore,
 	loadMiddlewareConfig,
-	MemoryPersistentFilterStore,
-	MemorySessionFilterStore,
 	resolveAboutOrExamples,
 	resolveConfigDir,
-	resolveSource,
-	SqliteFilterStore,
 	validateMiddlewareConfig,
 } from "@stateful-mcp/core";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
+import { getFilterStore } from "./helper";
 import { registerMiddlewareAboutTool } from "./middleware_about.js";
 import { registerStateInitTool } from "./state_init.js";
 
@@ -704,60 +698,7 @@ async function main() {
 	config = await loadMiddlewareConfig(workspaceRoot);
 	validateMiddlewareConfig(config);
 
-	const getUrl = (locator: any) => {
-		if (locator?._type === "adapter") return locator.options?.url?.toString();
-		return undefined;
-	};
-
-	const sessUrl = getUrl(config.filter_session_state);
-	const sessionFilterStore =
-		config.filter_session_state?._type === "file" &&
-		config.filter_session_state.path.endsWith(".jsonl")
-			? new JsonlSessionFilterStore(
-					path.resolve(workspaceRoot, config.filter_session_state.path),
-				)
-			: sessUrl && sessUrl.startsWith("sqlite://")
-				? new SqliteFilterStore(sessUrl.replace("sqlite://", ""))
-				: new MemorySessionFilterStore();
-
-	const globUrl = getUrl(config.filter_persistent_state?.global);
-	const persistentFilterStore =
-		config.filter_persistent_state?.global?._type === "file" &&
-		config.filter_persistent_state.global.path.endsWith(".jsonl")
-			? new JsonlPersistentFilterStore(
-					path.resolve(
-						workspaceRoot,
-						config.filter_persistent_state.global.path,
-					),
-				)
-			: globUrl && globUrl.startsWith("sqlite://")
-				? new SqliteFilterStore(globUrl.replace("sqlite://", ""))
-				: new MemoryPersistentFilterStore();
-
-	const toolSchemas = new Map<string, Record<string, TableSchema>>();
-	if (config.tools) {
-		for (const [toolName, toolConfig] of Object.entries(config.tools)) {
-			try {
-				const schemaData = (await resolveSource(
-					toolConfig.schema,
-					workspaceRoot,
-				)) as any;
-				if (schemaData && schemaData.table_schemas) {
-					toolSchemas.set(toolName, schemaData.table_schemas);
-				}
-			} catch (_) {}
-		}
-	}
-
-	const pinnedSchemas = new Map<string, TableSchema>();
-	const threshold = config.auto_compression?.filter_chain_threshold ?? 20;
-	filterStore = new FilterStore(
-		sessionFilterStore,
-		persistentFilterStore,
-		toolSchemas,
-		pinnedSchemas,
-		threshold,
-	);
+	filterStore = await getFilterStore(config, workspaceRoot);
 
 	registerFilterTools(config.pagination_limits);
 	registerMiddlewareAboutTool(server, config, workspaceRoot);

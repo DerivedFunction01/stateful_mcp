@@ -7,21 +7,21 @@ import type {
 import {
 	buildLimitField,
 	clampLimit,
-	EventStore,
-	JsonlPersistentEventStore,
-	JsonlSessionEventStore,
+	type EventStore,
 	loadMiddlewareConfig,
-	MemoryPersistentEventStore,
-	MemorySessionEventStore,
 	resolveAboutOrExamples,
 	resolveConfigDir,
-	resolveSource,
 	validateMiddlewareConfig,
 } from "@stateful-mcp/core";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
-import { getFilterStore, getFormStore, getObjectStore } from "./helper";
+import {
+	getEventStore,
+	getFilterStore,
+	getFormStore,
+	getObjectStore,
+} from "./helper";
 import { registerMiddlewareAboutTool } from "./middleware_about.js";
 import { registerStateInitTool } from "./state_init.js";
 
@@ -557,57 +557,13 @@ async function main() {
 	config = await loadMiddlewareConfig(workspaceRoot);
 	validateMiddlewareConfig(config);
 
-	const sessionStore =
-		config.event_session_state?._type === "file" &&
-		config.event_session_state.path.endsWith(".jsonl")
-			? new JsonlSessionEventStore(
-					path.resolve(workspaceRoot, config.event_session_state.path),
-				)
-			: new MemorySessionEventStore();
+	eventStore = await getEventStore(config, workspaceRoot);
 
-	const persistentStore =
-		config.event_persistent_state?.global?._type === "file" &&
-		config.event_persistent_state.global.path.endsWith(".jsonl")
-			? new JsonlPersistentEventStore(
-					path.resolve(
-						workspaceRoot,
-						config.event_persistent_state.global.path,
-					),
-				)
-			: new MemoryPersistentEventStore();
-
-	const objectSchemas = new Map<string, any>();
-	const validationEngines = new Map<
-		string,
-		import("@stateful-mcp/core").ResourceLocator
-	>();
-	if (config.object_schemas) {
-		for (const [schemaName, entry] of Object.entries(config.object_schemas)) {
-			try {
-				// Support both plain ResourceLocator and { schema, validation_engine } form
-				const locator = (entry as any).schema ?? entry;
-				const schemaData = (await resolveSource(locator, workspaceRoot)) as any;
-				objectSchemas.set(schemaName, schemaData);
-				if ((entry as any).validation_engine) {
-					validationEngines.set(schemaName, (entry as any).validation_engine);
-				}
-			} catch (_) {}
-		}
-	}
-
-	const threshold = config.auto_compression?.object_chain_threshold ?? 15;
-	eventStore = new EventStore(
-		sessionStore,
-		persistentStore,
-		objectSchemas,
-		threshold,
-		validationEngines,
-		workspaceRoot,
-	);
-
-	const filterStore = getFilterStore(config, workspaceRoot);
-	const objectStore = getObjectStore(config, workspaceRoot);
-	const formStore = getFormStore(config, workspaceRoot);
+	const [filterStore, objectStore, formStore] = await Promise.all([
+		getFilterStore(config, workspaceRoot),
+		getObjectStore(config, workspaceRoot),
+		getFormStore(config, workspaceRoot),
+	]);
 	eventStore.setReferences({
 		filter: filterStore,
 		object: objectStore,

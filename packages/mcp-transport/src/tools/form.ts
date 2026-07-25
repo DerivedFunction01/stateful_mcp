@@ -1,23 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type { FormSchema, MiddlewareConfig } from "@stateful-mcp/core";
 import {
-	FormStore,
-	JsonlPersistentFormStore,
-	JsonlSessionFormStore,
+	type FormStore,
 	loadMiddlewareConfig,
-	MemoryPersistentFormStore,
-	MemorySessionFormStore,
 	resolveAboutOrExamples,
 	resolveConfigDir,
-	resolveSource,
-	SqliteFormStore,
 	validateMiddlewareConfig,
 } from "@stateful-mcp/core";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
-import { getFilterStore, getObjectStore } from "./helper";
+import { getFilterStore, getFormStore, getObjectStore } from "./helper";
 import { registerStateInitTool } from "./state_init.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -337,53 +330,12 @@ async function main() {
 	config = await loadMiddlewareConfig(workspaceRoot);
 	validateMiddlewareConfig(config);
 
-	const getUrl = (locator: any) => {
-		if (locator?._type === "adapter") return locator.options?.url?.toString();
-		return undefined;
-	};
+	formStore = await getFormStore(config, workspaceRoot);
 
-	const sessUrl = getUrl(config.form_session_state);
-	const sessionFormStore =
-		config.form_session_state?._type === "file" &&
-		config.form_session_state.path.endsWith(".jsonl")
-			? new JsonlSessionFormStore(
-					path.resolve(workspaceRoot, config.form_session_state.path),
-				)
-			: sessUrl && sessUrl.startsWith("sqlite://")
-				? new SqliteFormStore(sessUrl.replace("sqlite://", ""))
-				: new MemorySessionFormStore();
-
-	const globUrl = getUrl(config.form_persistent_state?.global);
-	const persistentFormStore =
-		config.form_persistent_state?.global?._type === "file" &&
-		config.form_persistent_state.global.path.endsWith(".jsonl")
-			? new JsonlPersistentFormStore(
-					path.resolve(workspaceRoot, config.form_persistent_state.global.path),
-				)
-			: globUrl && globUrl.startsWith("sqlite://")
-				? new SqliteFormStore(globUrl.replace("sqlite://", ""))
-				: new MemoryPersistentFormStore();
-
-	const formSchemas = new Map<string, FormSchema>();
-	if (config.form_schemas) {
-		for (const [schemaName, entry] of Object.entries(config.form_schemas)) {
-			try {
-				const locator = (entry as any).schema ?? entry;
-				const schema = (await resolveSource(locator, configDir)) as FormSchema;
-				formSchemas.set(schemaName, schema);
-			} catch (err: any) {
-				console.error(
-					`Failed to load form schema "${schemaName}":`,
-					err.message || err,
-				);
-			}
-		}
-	}
-
-	formStore = new FormStore(sessionFormStore, persistentFormStore, formSchemas);
-
-	const filterStore = getFilterStore(config, workspaceRoot);
-	const objectStore = getObjectStore(config, workspaceRoot);
+	const [filterStore, objectStore] = await Promise.all([
+		getFilterStore(config, workspaceRoot),
+		getObjectStore(config, workspaceRoot),
+	]);
 	formStore.setReferences({ filter: filterStore, object: objectStore });
 
 	registerFormTools();

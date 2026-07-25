@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
+import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 import type { EventCommit } from "../src/middleware/event/types";
 import type { FilterState } from "../src/middleware/filter/types";
 import type { ObjectState } from "../src/middleware/object/types";

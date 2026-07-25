@@ -1,4 +1,4 @@
-import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
+import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 import { EventStore } from "../src/middleware/event/store";
 
 export async function runEventTests() {

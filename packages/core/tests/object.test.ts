@@ -1,4 +1,4 @@
-import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
+import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 import { ErrorCode } from "../src/errors/types";
 import { validateCycleFree } from "../src/middleware/object/schema-walker";
 import { ObjectStore } from "../src/middleware/object/store";

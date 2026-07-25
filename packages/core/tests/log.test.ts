@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
+import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 import type { TableSchema } from "../src/config/types";
 import { FilterStore } from "../src/middleware/filter/store";
 import { ObjectStore } from "../src/middleware/object/store";

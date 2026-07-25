@@ -3,7 +3,7 @@ import * as path from "path";
 import { MemoryQueryEngine } from "../src/adapters/engines/memory-query";
 import { PgQueryEngine } from "../src/adapters/engines/pg-query";
 import { SqliteQueryEngine } from "../src/adapters/engines/sqlite-query";
-import { createRepo } from "../src/adapters/storage/shared/unifed-repo";
+import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 import { createFilterStore } from "../src/adapters/storage/sql/factories";
 import { loadMiddlewareConfig } from "../src/config/loader";
 import type { TableSchema } from "../src/config/types";
