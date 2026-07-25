@@ -453,6 +453,11 @@ export class TraceStore {
 			};
 		}
 
+		// Cache trace in memory for resumeTrace lookups
+		if (!this.traces.has(traceId)) {
+			this.traces.set(traceId, trace);
+		}
+
 		// Validate required input slots — pause if missing input requirements
 		for (const [slotKey, slotDef] of Object.entries(trace.input_slots || {})) {
 			if (
