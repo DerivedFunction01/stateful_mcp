@@ -408,7 +408,7 @@ export class QueryCompiler {
 		return { sql: sql + ";", params: [] };
 	}
 
-	private compileCondition(cond: QueryCondition, ctx: CompilerContext): string {
+	public compileCondition(cond: QueryCondition, ctx: CompilerContext): string {
 		if ("AND" in cond) {
 			if (cond.AND.length === 0) return "1=1";
 			return `(${cond.AND.map((c) => this.compileCondition(c, ctx)).join(" AND ")})`;
@@ -529,7 +529,7 @@ export class QueryCompiler {
 		}
 	}
 
-	private compileWhereBlock(
+	public compileWhereBlock(
 		conditions: QueryCondition[] | undefined,
 		ctx: CompilerContext,
 	): string {
@@ -539,7 +539,7 @@ export class QueryCompiler {
 	}
 
 	/** Renders a FROM/JOIN target: a plain (optionally aliased) table, or a parenthesized, aliased derived table. */
-	private compileTableRef(
+	public compileTableRef(
 		ref: TableRef,
 		ctx: CompilerContext,
 		alias?: string,
