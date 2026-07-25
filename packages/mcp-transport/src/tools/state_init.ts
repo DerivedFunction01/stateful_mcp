@@ -4,14 +4,18 @@ import type {
 	FilterStore,
 	FormStore,
 	ObjectStore,
+	TraceStore,
 } from "@stateful-mcp/core";
 import type { MiddlewareConfig } from "@stateful-mcp/core/src/config/types";
+import type { VariableService } from "@stateful-mcp/core/src/middleware/variable/types";
 import { z } from "zod";
 import {
 	getEventStore,
 	getFilterStore,
 	getFormStore,
 	getObjectStore,
+	getTraceStore,
+	getVariableStoreStore,
 } from "./helper";
 
 /** Required store types inferred from all tool state_requirements across the config. */
@@ -70,6 +74,11 @@ export async function registerStateInitTool(
 	const objectStore: ObjectStore = await getObjectStore(config, workspaceRoot);
 	const formStore: FormStore = await getFormStore(config, workspaceRoot);
 	const eventStore: EventStore = await getEventStore(config, workspaceRoot);
+	const traceStore: TraceStore = await getTraceStore(config, workspaceRoot);
+	const variableService: VariableService = await getVariableStoreStore(
+		config,
+		workspaceRoot,
+	);
 
 	// ── Startup health probe ─────────────────────────────────────────────────────
 	// Determine which store types are actually needed by this config's tools.
@@ -103,6 +112,11 @@ export async function registerStateInitTool(
 		if (needed.has("event")) {
 			results.event = await probeStore(() =>
 				eventStore.getCommit(probeSession, probeSession),
+			);
+		}
+		if (needed.has("trace")) {
+			results.trace = await probeStore(() =>
+				traceStore.inspectTrace(probeSession, probeSession),
 			);
 		}
 
@@ -290,6 +304,10 @@ export async function registerStateInitTool(
 				if (type === "event") {
 					const s = await eventStore.getCommit(alias, sid);
 					return s?.commitId ?? null;
+				}
+				if (type === "trace") {
+					const s = await traceStore.inspectTrace(alias, sid);
+					return s?.trace_id ?? null;
 				}
 				return null;
 			}

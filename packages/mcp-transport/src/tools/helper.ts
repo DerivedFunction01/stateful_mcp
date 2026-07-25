@@ -5,6 +5,8 @@ import {
 	FormStore,
 	ObjectStore,
 	resolveSource,
+	TraceStore,
+	VariableServiceStore,
 } from "@stateful-mcp/core";
 import type {
 	BackendSpec,
@@ -59,6 +61,20 @@ function toRepoConfig(
 			session: toBackendSpec(config.event_session_state, workspaceRoot),
 			persistent: toBackendSpec(
 				config.event_persistent_state?.global,
+				workspaceRoot,
+			),
+		},
+		trace: {
+			session: toBackendSpec(config.trace_session_state, workspaceRoot),
+			persistent: toBackendSpec(
+				config.trace_persistent_state?.global,
+				workspaceRoot,
+			),
+		},
+		variable: {
+			session: toBackendSpec(config.variable_session_state, workspaceRoot),
+			persistent: toBackendSpec(
+				config.variable_persistent_state?.global,
 				workspaceRoot,
 			),
 		},
@@ -209,4 +225,39 @@ export function getVariableStore(): VariableService | undefined {
 
 export function setVariableStore(store: VariableService): void {
 	globalVariableStore = store;
+}
+
+export async function getTraceStore(
+	config: MiddlewareConfig,
+	workspaceRoot: string,
+): Promise<TraceStore> {
+	const adapter = await createRepo(toRepoConfig(config, workspaceRoot));
+
+	// Register non-recordable tools from meta_tools_config if available
+	let nonRecordableTools: string[] = [];
+	if (config.meta_tools_config) {
+		const { loadMetaToolsConfig } = await import("@stateful-mcp/core");
+		nonRecordableTools = await loadMetaToolsConfig(
+			config.meta_tools_config,
+			workspaceRoot,
+		);
+	}
+
+	return new TraceStore(nonRecordableTools, config.tools, {
+		sessionStore: adapter.sessionTrace,
+		persistentStore: adapter.persistentTrace,
+	});
+}
+
+export async function getVariableStoreStore(
+	config: MiddlewareConfig,
+	workspaceRoot: string,
+): Promise<VariableService> {
+	const adapter = await createRepo(toRepoConfig(config, workspaceRoot));
+	const persistentStore = adapter.persistentVariable;
+	const store = new VariableServiceStore(undefined, {
+		...(persistentStore ? { persistentStore } : {}),
+	});
+	globalVariableStore = store;
+	return store;
 }

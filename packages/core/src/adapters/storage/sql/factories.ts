@@ -20,3 +20,13 @@ export {
 	createPersistentObjectStore,
 	createSessionObjectStore,
 } from "./create-object-store";
+export {
+	createPersistentTraceStore,
+	createSessionTraceStore,
+	createTraceStore,
+} from "./create-trace-store";
+export {
+	createPersistentVariableStore,
+	createSessionVariableStore,
+	createVariableStore,
+} from "./create-variable-store";

@@ -35,14 +35,14 @@ describe("TraceStore Engine Tests", () => {
 		expect(recorded.usage_count).toBe(0);
 	});
 
-	test("queryTraces finds matching trace by intent fuzzy search", () => {
+	test("queryTraces finds matching trace by intent fuzzy search", async () => {
 		store.recordTrace({
 			trace_id: "patient_triage",
 			goal: "Triage patient clinical data and assign department filter",
 			steps: [{ id: "s1", action: "triage" }],
 		});
 
-		const result = store.queryTraces("triage patient data");
+		const result = await store.queryTraces("triage patient data");
 		expect(result.matches.length).toBe(1);
 		expect(result.matches[0]!.trace_id).toBe("patient_triage");
 		expect(result.matches[0]!.confidence_score).toBeGreaterThan(0.5);
@@ -50,7 +50,7 @@ describe("TraceStore Engine Tests", () => {
 		expect(result.has_more).toBe(false);
 	});
 
-	test("queryTraces supports pagination with offset and limit", () => {
+	test("queryTraces supports pagination with offset and limit", async () => {
 		store.recordTrace({
 			trace_id: "t_query_1",
 			goal: "Query patient record 1",
@@ -67,13 +67,17 @@ describe("TraceStore Engine Tests", () => {
 			steps: [],
 		});
 
-		const page1 = store.queryTraces("Query patient", 2, 0);
+		const page1 = await store.queryTraces("Query patient", 2, 0);
 		expect(page1.matches.length).toBe(2);
 		expect(page1.total).toBe(3);
 		expect(page1.has_more).toBe(true);
 		expect(page1.next_offset).toBe(2);
 
-		const page2 = store.queryTraces("Query patient", 2, page1.next_offset);
+		const page2 = await store.queryTraces(
+			"Query patient",
+			2,
+			page1.next_offset,
+		);
 		expect(page2.matches.length).toBe(1);
 		expect(page2.has_more).toBe(false);
 	});
@@ -169,7 +173,7 @@ describe("TraceStore Engine Tests", () => {
 		expect(resumed.output).toEqual({ transfer_id: "TX-999" });
 	});
 
-	test("refineTrace delta operations (replace_step, append_step, remove_step, swap_with_persistent)", () => {
+	test("refineTrace delta operations (replace_step, append_step, remove_step, swap_with_persistent)", async () => {
 		store.recordTrace({
 			trace_id: "workflow_v1",
 			goal: "Editable workflow",
@@ -181,35 +185,35 @@ describe("TraceStore Engine Tests", () => {
 		});
 
 		// Replace step
-		store.refineTrace("workflow_v1", {
+		await store.refineTrace("workflow_v1", {
 			action: "replace_step",
 			step_id: "step_2",
 			new_step: { id: "step_2", action: "custom_process" },
 		});
 
-		let inspected = store.inspectTrace("workflow_v1");
+		let inspected = await store.inspectTrace("workflow_v1");
 		expect(inspected?.steps[1]!.action).toBe("custom_process");
 
 		// Remove step
-		store.refineTrace("workflow_v1", {
+		await store.refineTrace("workflow_v1", {
 			action: "remove_step",
 			step_id: "step_1",
 		});
-		inspected = store.inspectTrace("workflow_v1");
+		inspected = await store.inspectTrace("workflow_v1");
 		expect(inspected?.steps.length).toBe(2);
 		expect(inspected?.steps[0]!.id).toBe("step_2");
 
 		// Swap with persistent
-		store.refineTrace("workflow_v1", {
+		await store.refineTrace("workflow_v1", {
 			action: "swap_with_persistent",
 			step_id: "step_2",
 			persistent_key: "cached_process_v1",
 		});
-		inspected = store.inspectTrace("workflow_v1");
+		inspected = await store.inspectTrace("workflow_v1");
 		expect(inspected?.steps[0]!.action).toBe("load_persistent");
 	});
 
-	test("feedbackTrace updates confidence scores", () => {
+	test("feedbackTrace updates confidence scores", async () => {
 		store.recordTrace({
 			trace_id: "trace_fb",
 			goal: "Feedback trace",
@@ -217,11 +221,11 @@ describe("TraceStore Engine Tests", () => {
 			steps: [{ id: "s1", action: "noop" }],
 		});
 
-		store.feedbackTrace("trace_fb", "success");
-		expect(store.inspectTrace("trace_fb")?.confidence_score).toBe(0.85);
+		await store.feedbackTrace("trace_fb", "success");
+		expect((await store.inspectTrace("trace_fb"))?.confidence_score).toBe(0.85);
 
-		store.feedbackTrace("trace_fb", "failure");
-		expect(store.inspectTrace("trace_fb")?.confidence_score).toBe(0.65);
+		await store.feedbackTrace("trace_fb", "failure");
+		expect((await store.inspectTrace("trace_fb"))?.confidence_score).toBe(0.65);
 	});
 
 	test("interactive session recording automatically captures steps and compiles TraceForm", () => {
@@ -366,7 +370,7 @@ describe("TraceStore Engine Tests", () => {
 		expect(compiled.input_slots?.["value"]?.default).toBe("cardiology");
 	});
 
-	test("refineTrace promotes literal argument to input_slot via promote_arg", () => {
+	test("refineTrace promotes literal argument to input_slot via promote_arg", async () => {
 		store.recordTrace({
 			trace_id: "t_promote_arg",
 			goal: "Test promote_arg refinement",
@@ -379,7 +383,7 @@ describe("TraceStore Engine Tests", () => {
 			],
 		});
 
-		const refined = store.refineTrace("t_promote_arg", {
+		const refined = await store.refineTrace("t_promote_arg", {
 			action: "promote_arg",
 			step_id: "s1",
 			arg_key: "value",
@@ -393,7 +397,7 @@ describe("TraceStore Engine Tests", () => {
 		);
 	});
 
-	test("refineTrace demotes input_slot reference back to static literal via demote_arg", () => {
+	test("refineTrace demotes input_slot reference back to static literal via demote_arg", async () => {
 		store.recordTrace({
 			trace_id: "t_demote_arg",
 			goal: "Test demote_arg refinement",
@@ -413,7 +417,7 @@ describe("TraceStore Engine Tests", () => {
 			],
 		});
 
-		const refined = store.refineTrace("t_demote_arg", {
+		const refined = await store.refineTrace("t_demote_arg", {
 			action: "demote_arg",
 			step_id: "s1",
 			arg_key: "value",

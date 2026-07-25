@@ -12,6 +12,8 @@ export {
 export { createFilterStore } from "./create-filter-store";
 export { createFormStore } from "./create-form-store";
 export { createObjectStore } from "./create-object-store";
+export { createTraceStore } from "./create-trace-store";
+export { createVariableStore } from "./create-variable-store";
 export {
 	createIndexedDbConceptStore,
 	createIndexedDbExpressionStore,

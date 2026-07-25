@@ -1,5 +1,6 @@
 // REFERENCE: docs/variable.md
 
+import type { PersistentVariableStore } from "../../adapters/storage/interfaces";
 import { eventBroker } from "../../events/broker";
 import { executePipeline } from "../../translation/pipeline";
 import type { ArgRef, OpName, PipelineStep } from "../../translation/types";
@@ -85,13 +86,40 @@ export class MemoryVariableStore implements VariableStore {
 
 export class VariableServiceStore implements VariableService {
 	private store: VariableStore;
+	private persistentStore?: PersistentVariableStore;
 	private listeners = new Map<
 		string,
 		Set<(event: VariableMutationEvent) => void>
 	>();
 
-	constructor(store?: VariableStore) {
+	constructor(
+		store?: VariableStore,
+		opts?: { persistentStore?: PersistentVariableStore },
+	) {
 		this.store = store || new MemoryVariableStore();
+		this.persistentStore = opts?.persistentStore;
+	}
+
+	async savePersistent(
+		sessionId: string,
+		key: string,
+		value: unknown,
+		scope: { level: "global" } | { level: "user"; userId: string },
+	): Promise<void> {
+		if (this.persistentStore) {
+			await this.persistentStore.set(key, value, scope);
+		}
+	}
+
+	async loadPersistent(
+		sessionId: string,
+		key: string,
+		scope: { level: "global" } | { level: "user"; userId: string },
+	): Promise<unknown> {
+		if (this.persistentStore) {
+			return this.persistentStore.get(key, scope);
+		}
+		return undefined;
 	}
 
 	private notifyListeners(event: VariableMutationEvent): void {

@@ -119,6 +119,12 @@ export interface MiddlewareConfig {
 	trace_session_state?: ResourceLocator;
 	trace_persistent_state?: { global: ResourceLocator; user: ResourceLocator };
 
+	variable_session_state?: ResourceLocator;
+	variable_persistent_state?: {
+		global: ResourceLocator;
+		user: ResourceLocator;
+	};
+
 	dictionary_state: ResourceLocator;
 	dictionary_resolver: ResourceLocator;
 

@@ -56,6 +56,7 @@ export interface TraceForm {
 	requires_approval_tools?: string[];
 	steps: TraceStep[];
 	start_step?: string;
+	createdAt?: string;
 }
 
 export interface TraceQueryResultItem {

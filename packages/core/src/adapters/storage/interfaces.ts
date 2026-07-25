@@ -2,6 +2,7 @@ import type { OwnerScope } from "../../config/types";
 import type { FilterState } from "../../middleware/filter/types";
 import type { FormState } from "../../middleware/form/types";
 import type { ObjectState } from "../../middleware/object/types";
+import type { TraceForm } from "../../middleware/trace/types";
 
 // Session store — keyed by (sessionId, id). TTL-cleaned.
 export interface SessionFilterStore {
@@ -174,6 +175,87 @@ export interface PersistentFormStore {
 		scope: OwnerScope,
 		includeGlobal?: boolean,
 	): Promise<Array<PersistedFormStateDetails & { scope: OwnerScope }>>;
+}
+
+// Trace storage interfaces
+export interface SessionTraceStore {
+	get(sessionId: string, traceId: string): Promise<TraceForm | null>;
+	set(sessionId: string, traceId: string, state: TraceForm): Promise<void>;
+	delete(sessionId: string, traceId: string): Promise<void>;
+	listSession(sessionId: string): Promise<string[]>;
+	expireSession(sessionId: string, olderThanMs?: number): Promise<void>;
+	create(
+		sessionId: string,
+		state: Omit<TraceForm, "trace_id"> & { trace_id?: string },
+		alias?: string,
+	): Promise<string>;
+	getAlias(sessionId: string, alias: string): Promise<string | null>;
+	setAlias(sessionId: string, alias: string, targetId: string): Promise<void>;
+	deleteAlias(sessionId: string, alias: string): Promise<void>;
+	listAliases(
+		sessionId: string,
+	): Promise<Array<{ alias: string; targetId: string }>>;
+}
+
+export type PersistedTraceState = TraceForm & {
+	tags: string[];
+	description: string;
+	schema_pinned_at: string;
+};
+
+export interface PersistentTraceStore {
+	get(traceId: string, scope: OwnerScope): Promise<PersistedTraceState | null>;
+	set(
+		traceId: string,
+		state: PersistedTraceState,
+		scope: OwnerScope,
+	): Promise<void>;
+	delete(traceId: string, scope: OwnerScope): Promise<void>;
+	findByTag(tag: string, scope: OwnerScope): Promise<PersistedTraceState[]>;
+	list(
+		scope: OwnerScope,
+		includeGlobal?: boolean,
+	): Promise<Array<PersistedTraceState & { scope: OwnerScope }>>;
+}
+
+// Variable storage interfaces
+export interface SessionVariableStore {
+	get(
+		sessionId: string,
+		key: string,
+		blockInstanceId?: string,
+	): Promise<unknown>;
+	set(
+		sessionId: string,
+		key: string,
+		value: unknown,
+		blockInstanceId?: string,
+	): Promise<void>;
+	delete(
+		sessionId: string,
+		key: string,
+		blockInstanceId?: string,
+	): Promise<void>;
+	listSession(sessionId: string): Promise<string[]>;
+	expireSession(sessionId: string, olderThanMs?: number): Promise<void>;
+	saveBatch(
+		sessionId: string,
+		variables: Record<string, unknown>,
+		blockInstanceId?: string,
+	): Promise<void>;
+	loadScope(
+		sessionId: string,
+		blockInstanceId?: string,
+	): Promise<Record<string, unknown>>;
+	clear(sessionId: string, blockInstanceId?: string): Promise<void>;
+}
+
+export interface PersistentVariableStore {
+	get(key: string, scope: OwnerScope): Promise<unknown>;
+	set(key: string, value: unknown, scope: OwnerScope): Promise<void>;
+	delete(key: string, scope: OwnerScope): Promise<void>;
+	findByTag(tag: string, scope: OwnerScope): Promise<unknown[]>;
+	list(scope: OwnerScope, includeGlobal?: boolean): Promise<unknown[]>;
 }
 
 export interface EntityStore<T> {

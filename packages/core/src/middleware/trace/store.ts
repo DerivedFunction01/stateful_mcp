@@ -1,5 +1,9 @@
 // REFERENCE: docs/trace.md
 
+import type {
+	PersistentTraceStore,
+	SessionTraceStore,
+} from "../../adapters/storage/interfaces";
 import { eventBroker, type StateChangeEvent } from "../../events/broker";
 import { executePipeline } from "../../translation/pipeline";
 import type {
@@ -47,12 +51,21 @@ export class TraceStore {
 	private registry: NonRecordableToolsRegistry;
 	private toolConfigs: Record<string, ToolConfig> = {};
 
+	private sessionStore?: SessionTraceStore;
+	private persistentStore?: PersistentTraceStore;
+
 	constructor(
 		customNonRecordableTools: string[] = [],
 		toolConfigs: Record<string, ToolConfig> = {},
+		opts?: {
+			sessionStore?: SessionTraceStore;
+			persistentStore?: PersistentTraceStore;
+		},
 	) {
 		this.registry = new NonRecordableToolsRegistry(customNonRecordableTools);
 		this.toolConfigs = toolConfigs;
+		this.sessionStore = opts?.sessionStore;
+		this.persistentStore = opts?.persistentStore;
 
 		// Listen for core eventBroker state changes to auto-record steps into active recording sessions for the matching sessionId
 		eventBroker.on("state:changed", (event: StateChangeEvent) => {
@@ -285,18 +298,78 @@ export class TraceStore {
 		};
 
 		this.traces.set(form.trace_id, form);
+
+		// Persist to session store if available
+		if (this.sessionStore) {
+			this.sessionStore.set("__default__", form.trace_id, form).catch(() => {});
+		}
+
 		return form;
 	}
 
-	public inspectTrace(traceId: string): TraceForm | null {
+	public async inspectTrace(
+		traceId: string,
+		sessionId?: string,
+	): Promise<TraceForm | null> {
+		// Check session store first
+		if (this.sessionStore && sessionId) {
+			const fromSession = await this.sessionStore.get(sessionId, traceId);
+			if (fromSession) return fromSession;
+		}
+
+		// Check persistent store
+		if (this.persistentStore) {
+			const fromPersistent = await this.persistentStore.get(traceId, {
+				level: "global",
+			});
+			if (fromPersistent) return fromPersistent;
+		}
+
+		// Fall back to in-memory map
 		return this.traces.get(traceId) || null;
 	}
 
-	public queryTraces(intent: string, limit = 10, offset = 0): TraceQueryResult {
+	public async queryTraces(
+		intent: string,
+		limit = 10,
+		offset = 0,
+		sessionId?: string,
+	): Promise<TraceQueryResult> {
+		const allTraces: TraceForm[] = [];
+
+		// Gather from in-memory map
+		for (const trace of this.traces.values()) {
+			allTraces.push(trace);
+		}
+
+		// Gather from session store
+		if (this.sessionStore && sessionId) {
+			const ids = await this.sessionStore.listSession(sessionId);
+			for (const tid of ids) {
+				if (!this.traces.has(tid)) {
+					const t = await this.sessionStore.get(sessionId, tid);
+					if (t) allTraces.push(t);
+				}
+			}
+		}
+
+		// Gather from persistent store
+		if (this.persistentStore) {
+			const persisted = await this.persistentStore.list({ level: "global" });
+			for (const p of persisted) {
+				if (!this.traces.has(p.trace_id)) {
+					const t = await this.persistentStore.get(p.trace_id, {
+						level: "global",
+					});
+					if (t) allTraces.push(t);
+				}
+			}
+		}
+
 		const matches: TraceQueryResultItem[] = [];
 		const lowerIntent = intent.toLowerCase();
 
-		for (const trace of this.traces.values()) {
+		for (const trace of allTraces) {
 			let score = 0;
 			if (trace.goal.toLowerCase().includes(lowerIntent)) {
 				score += 0.8;
@@ -342,12 +415,36 @@ export class TraceStore {
 		};
 	}
 
+	// Look up a trace from in-memory, session store, or persistent store
+	private async findTrace(
+		traceId: string,
+		sessionId?: string,
+	): Promise<TraceForm | null> {
+		const fromMem = this.traces.get(traceId);
+		if (fromMem) return fromMem;
+
+		if (this.sessionStore && sessionId) {
+			const fromSession = await this.sessionStore.get(sessionId, traceId);
+			if (fromSession) return fromSession;
+		}
+
+		if (this.persistentStore) {
+			const fromPersistent = await this.persistentStore.get(traceId, {
+				level: "global",
+			});
+			if (fromPersistent) return fromPersistent;
+		}
+
+		return null;
+	}
+
 	public async executeTrace(
 		traceId: string,
 		inputArgs: Record<string, any>,
 		toolExecutor?: ToolExecutor,
+		sessionId?: string,
 	): Promise<TraceExecutionResult> {
-		const trace = this.traces.get(traceId);
+		const trace = await this.findTrace(traceId, sessionId);
 		if (!trace) {
 			return {
 				status: "failed",
@@ -678,10 +775,35 @@ export class TraceStore {
 		};
 	}
 
-	public refineTrace(traceId: string, delta: DeltaOperation): TraceForm {
-		const trace = this.traces.get(traceId);
+	// Persist a trace to the session store if configured
+	private async persistTrace(
+		traceId: string,
+		traceForm: TraceForm,
+		sessionId?: string,
+	): Promise<void> {
+		this.traces.set(traceId, traceForm);
+		if (this.sessionStore && sessionId) {
+			await this.sessionStore.set(sessionId, traceId, traceForm);
+		}
+	}
+
+	public async refineTrace(
+		traceId: string,
+		delta: DeltaOperation,
+		sessionId?: string,
+	): Promise<TraceForm> {
+		const memTrace = this.traces.get(traceId);
+		let isFromStore = false;
+
+		const trace = memTrace ?? (await this.findTrace(traceId, sessionId));
 		if (!trace) {
 			throw new Error(`Trace "${traceId}" not found for refinement.`);
+		}
+
+		if (!memTrace) {
+			// Loaded from store — cache in memory
+			this.traces.set(traceId, trace);
+			isFromStore = true;
 		}
 
 		const steps = [...trace.steps];
@@ -778,7 +900,7 @@ export class TraceStore {
 					input_slots: updatedSlots,
 					steps,
 				};
-				this.traces.set(traceId, updatedTrace);
+				await this.persistTrace(traceId, updatedTrace, sessionId);
 				return updatedTrace;
 			}
 			case "demote_arg": {
@@ -830,7 +952,7 @@ export class TraceStore {
 					input_slots: updatedSlots,
 					steps,
 				};
-				this.traces.set(traceId, updatedTrace);
+				await this.persistTrace(traceId, updatedTrace, sessionId);
 				return updatedTrace;
 			}
 		}
@@ -840,16 +962,22 @@ export class TraceStore {
 			steps,
 		};
 
-		this.traces.set(traceId, updatedTrace);
+		await this.persistTrace(traceId, updatedTrace, sessionId);
 		return updatedTrace;
 	}
 
-	public feedbackTrace(
+	public async feedbackTrace(
 		traceId: string,
 		outcome: "success" | "failure",
-	): TraceForm {
-		const trace = this.traces.get(traceId);
+		sessionId?: string,
+	): Promise<TraceForm> {
+		const memTrace = this.traces.get(traceId);
+		const trace = memTrace ?? (await this.findTrace(traceId, sessionId));
 		if (!trace) throw new Error(`Trace "${traceId}" not found.`);
+
+		if (!memTrace) {
+			this.traces.set(traceId, trace);
+		}
 
 		const currentScore = trace.confidence_score ?? 1.0;
 		const newScore =
@@ -859,6 +987,12 @@ export class TraceStore {
 
 		trace.confidence_score = Number(newScore.toFixed(2));
 		this.traces.set(traceId, trace);
+
+		// Sync back to session store
+		if (this.sessionStore && sessionId) {
+			this.sessionStore.set(sessionId, traceId, trace).catch(() => {});
+		}
+
 		return trace;
 	}
 

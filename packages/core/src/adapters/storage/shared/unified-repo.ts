@@ -9,10 +9,14 @@ import type {
 	PersistentFilterStore,
 	PersistentFormStore,
 	PersistentObjectStore,
+	PersistentTraceStore,
+	PersistentVariableStore,
 	SessionEventStore,
 	SessionFilterStore,
 	SessionFormStore,
 	SessionObjectStore,
+	SessionTraceStore,
+	SessionVariableStore,
 } from "../interfaces";
 import type {
 	ConceptStoreBackend,
@@ -73,6 +77,14 @@ export interface RepoConfig {
 		session?: BackendSpec | BackendSpec[];
 		persistent?: BackendSpec | BackendSpec[];
 	};
+	trace?: {
+		session?: BackendSpec | BackendSpec[];
+		persistent?: BackendSpec | BackendSpec[];
+	};
+	variable?: {
+		session?: BackendSpec | BackendSpec[];
+		persistent?: BackendSpec | BackendSpec[];
+	};
 	concept?: BackendSpec | BackendSpec[];
 	expression?: BackendSpec | BackendSpec[];
 }
@@ -86,6 +98,10 @@ export interface RepoAdapter {
 	persistentEvent?: PersistentEventStore;
 	sessionForm?: SessionFormStore;
 	persistentForm?: PersistentFormStore;
+	sessionTrace?: SessionTraceStore;
+	persistentTrace?: PersistentTraceStore;
+	sessionVariable?: SessionVariableStore;
+	persistentVariable?: PersistentVariableStore;
 	conceptStore?: ConceptStore;
 	persistentExpressionStore?: PersistentExpressionStore;
 }
@@ -279,6 +295,22 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	adapter.sessionEvent = eventStores.session;
 	adapter.persistentEvent = eventStores.persistent;
 
+	const traceStores = await resolvePair<
+		SessionTraceStore & PersistentTraceStore
+	>(config.trace, sqlFactories.createTraceStore, kvFactories.createTraceStore);
+	adapter.sessionTrace = traceStores.session;
+	adapter.persistentTrace = traceStores.persistent;
+
+	const variableStores = await resolvePair<
+		SessionVariableStore & PersistentVariableStore
+	>(
+		config.variable,
+		sqlFactories.createVariableStore,
+		kvFactories.createVariableStore,
+	);
+	adapter.sessionVariable = variableStores.session;
+	adapter.persistentVariable = variableStores.persistent;
+
 	// 2. Resolve Dictionary/Concept Stores
 	const conceptSpec = normalize(config.concept);
 	if (conceptSpec) {
@@ -384,6 +416,8 @@ function buildConfig(type: BackendType, target?: string): RepoConfig {
 		form: { session: spec, persistent: spec },
 		object: { session: spec, persistent: spec },
 		event: { session: spec, persistent: spec },
+		trace: { session: spec, persistent: spec },
+		variable: { session: spec, persistent: spec },
 		concept: spec,
 		expression: spec,
 	};
