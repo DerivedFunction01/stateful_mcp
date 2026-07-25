@@ -51,8 +51,8 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 describe("default resolution strategy", () => {
 	test("uses profile schema defaults before global fallbacks", async () => {
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = createMemoryConceptStore;
-		const exprStore = createMemoryExpressionStore;
+		const conceptStore = createMemoryConceptStore();
+		const exprStore = createMemoryExpressionStore();
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
@@ -111,8 +111,8 @@ describe("default resolution strategy", () => {
 		);
 
 		const resolver = new InMemoryConceptResolver();
-		const conceptStore = createMemoryConceptStore;
-		const exprStore = createMemoryExpressionStore;
+		const conceptStore = createMemoryConceptStore();
+		const exprStore = createMemoryExpressionStore();
 		const dictionaryStore = new DictionaryStore(
 			resolver,
 			conceptStore,
