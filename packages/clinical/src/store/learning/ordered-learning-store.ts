@@ -1,4 +1,4 @@
-import type { ParsedObservationItem } from "../parser/schema-parsers";
+import type { ParsedObservationItem } from "../../parser/schema-parsers";
 import { scoreRecency } from "./parsed-cell-store";
 
 // ── Types ────────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import {
 	type ClinicalStorageAdapterConfig,
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
-} from "./adapter-config";
+} from "../adapter-config";
 import { resolveParsedCellStoreLocator } from "./learning-backend-resolver";
 import type {
 	ParsedCellHistoryAdapter,

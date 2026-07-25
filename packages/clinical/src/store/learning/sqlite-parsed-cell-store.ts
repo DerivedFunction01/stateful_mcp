@@ -1,6 +1,10 @@
 import type Database from "bun:sqlite";
 import { SqliteEntityStore, type SqlQueryStore } from "@stateful-mcp/core";
-import type { ParsedObservationItem } from "../parser/schema-parsers";
+import type { ParsedObservationItem } from "../../parser/schema-parsers";
+import {
+	compileParsedCellObservationHistoryQuery,
+	type ParsedCellSqlDialect,
+} from "../sql/parsed-cell-query-compiler";
 import {
 	buildObservationShape,
 	type ParsedCellHistoryKey,
@@ -11,10 +15,6 @@ import {
 	type ParsedCellV1Shared,
 	scoreRecency,
 } from "./parsed-cell-store";
-import {
-	compileParsedCellObservationHistoryQuery,
-	type ParsedCellSqlDialect,
-} from "./sql/parsed-cell-query-compiler";
 
 function isScopedHistoryKey(key: ParsedCellHistoryKey): boolean {
 	return Boolean(

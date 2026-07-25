@@ -1,5 +1,13 @@
 import { Database } from "bun:sqlite";
-import type { ParsedObservationItem } from "../parser/schema-parsers";
+import type { ParsedObservationItem } from "../../parser/schema-parsers";
+import {
+	compileOrderedLearningCorrectionQuery,
+	compileOrderedLearningHistoryQuery,
+	compileOrderedLearningInsertQuery,
+	getOrderedLearningIndexDDL,
+	getOrderedLearningTableDDL,
+	type OrderedLearningInsertPlan,
+} from "../sql/ordered-learning-query-compiler";
 import {
 	buildOrderedRelations,
 	MAX_ORDERED_TOKENS,
@@ -10,14 +18,6 @@ import {
 	type OrderedLearningToken,
 } from "./ordered-learning-store";
 import { scoreRecency } from "./parsed-cell-store";
-import {
-	compileOrderedLearningCorrectionQuery,
-	compileOrderedLearningHistoryQuery,
-	compileOrderedLearningInsertQuery,
-	getOrderedLearningIndexDDL,
-	getOrderedLearningTableDDL,
-	type OrderedLearningInsertPlan,
-} from "./sql/ordered-learning-query-compiler";
 
 // ── Table name ───────────────────────────────────────────────────────────────
 

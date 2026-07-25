@@ -20,19 +20,19 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import { OrderedLearningRanker } from "../store/ordered-learning-ranking";
-import type { OrderedLearningRankedCandidate } from "../store/ordered-learning-ranking-types";
+import { OrderedLearningRanker } from "../store/learning/ordered-learning-ranking";
+import type { OrderedLearningRankedCandidate } from "../store/learning/ordered-learning-ranking-types";
 import {
 	MAX_ORDERED_TOKENS,
 	type OrderedLearningHistoryKey,
 	type OrderedLearningStore,
 	type OrderedLearningToken,
-} from "../store/ordered-learning-store";
+} from "../store/learning/ordered-learning-store";
 import type {
 	ParsedCellHistoryStore,
 	ParsedCellStore,
 	ParsedCellV1,
-} from "../store/parsed-cell-store";
+} from "../store/learning/parsed-cell-store";
 
 // ── Order-Aware Projection ───────────────────────────────────────────────────
 

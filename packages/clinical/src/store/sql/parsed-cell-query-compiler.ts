@@ -1,4 +1,4 @@
-import type { ParsedCellHistoryKey } from "../parsed-cell-store";
+import type { ParsedCellHistoryKey } from "../learning/parsed-cell-store";
 
 export type ParsedCellSqlDialect = "sqlite" | "postgres" | "duckdb";
 

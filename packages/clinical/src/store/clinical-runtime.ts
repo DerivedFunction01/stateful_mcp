@@ -14,15 +14,15 @@ import type {
 	ParserProfileStore,
 	ParserSyntaxProfile,
 } from "./interfaces";
-import type { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
+import type { JsonlParsedCellStore } from "./learning/jsonl-parsed-cell-store";
 import {
 	resolveOrderedLearningStoreLocator,
 	resolveParsedCellStoreLocator,
-} from "./learning-backend-resolver";
-import type { MemoryOrderedLearningStore } from "./ordered-learning-store";
-import type { MemoryParsedCellStore } from "./parsed-cell-store";
-import type { SqliteOrderedLearningStore } from "./sqlite-ordered-learning-store";
-import type { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
+} from "./learning/learning-backend-resolver";
+import type { MemoryOrderedLearningStore } from "./learning/ordered-learning-store";
+import type { MemoryParsedCellStore } from "./learning/parsed-cell-store";
+import type { SqliteOrderedLearningStore } from "./learning/sqlite-ordered-learning-store";
+import type { SqliteParsedCellStore } from "./learning/sqlite-parsed-cell-store";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

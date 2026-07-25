@@ -1,5 +1,5 @@
 import { JsonlEntityStore } from "@stateful-mcp/core";
-import type { ParsedObservationItem } from "../parser/schema-parsers";
+import type { ParsedObservationItem } from "../../parser/schema-parsers";
 import type {
 	ParsedCellHistoryKey,
 	ParsedCellJoinResult,

@@ -1,4 +1,4 @@
-import type { OrderedLearningHistoryKey } from "../ordered-learning-store";
+import type { OrderedLearningHistoryKey } from "../learning/ordered-learning-store";
 
 export type OrderedLearningSqlDialect = "sqlite" | "postgres" | "duckdb";
 

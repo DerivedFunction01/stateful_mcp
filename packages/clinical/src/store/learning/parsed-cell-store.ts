@@ -1,7 +1,7 @@
 import type {
 	ParsedItem,
 	ParsedObservationItem,
-} from "../parser/schema-parsers";
+} from "../../parser/schema-parsers";
 
 export type ParsedCellSourceKind = "direct_contract" | "fallback" | "heuristic";
 export type ParsedCellOutcome = "accepted" | "rejected" | "corrected";
