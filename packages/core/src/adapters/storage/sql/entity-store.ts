@@ -133,13 +133,14 @@ export class GenericSqlEntityStore<Session, Persistent> {
 		} else {
 			const statements: SqlStatement[] = [];
 			for (const child of this.config.children ?? []) {
+				const ph = this.backend.dialect === "postgres" ? "$1" : "?";
 				const del = this.backend.compiler.compileDelete({
 					table: child.table,
 					where: [
 						{
 							column: child.parentIdColumn,
 							op: "in_set",
-							raw: `(SELECT ${this.config.idField} FROM ${this.config.sessionTable} WHERE session_id = ? AND scope_level = 'session')`,
+							raw: `(SELECT ${this.config.idField} FROM ${this.config.sessionTable} WHERE session_id = ${ph} AND scope_level = 'session')`,
 						},
 					],
 				});
@@ -162,18 +163,10 @@ export class GenericSqlEntityStore<Session, Persistent> {
 		scope: { level: string; userId?: string | null },
 	): Promise<Persistent | null> {
 		const scopeId = scope.level === "user" ? scope.userId : null;
+		const scopeConditions = this.scopeConditions(scope);
 		const savedSel = this.backend.compiler.compileSelect({
 			table: this.config.savedTable,
-			where: [
-				{ column: "id", op: "eq", value: id },
-				{ column: "scope_level", op: "eq", value: scope.level },
-				{
-					OR: [
-						{ column: "user_id", op: "eq", value: scopeId },
-						{ column: "user_id", op: "is_null" },
-					],
-				},
-			],
+			where: [{ column: "id", op: "eq", value: id }, ...scopeConditions],
 		});
 		const savedRow = await this.backend.queryOne(savedSel.sql, savedSel.params);
 		if (!savedRow) return null;
@@ -182,13 +175,7 @@ export class GenericSqlEntityStore<Session, Persistent> {
 			table: this.config.sessionTable,
 			where: [
 				{ column: this.config.idField, op: "eq", value: id },
-				{ column: "scope_level", op: "eq", value: scope.level },
-				{
-					OR: [
-						{ column: "user_id", op: "eq", value: scopeId },
-						{ column: "user_id", op: "is_null" },
-					],
-				},
+				...scopeConditions,
 			],
 		});
 		const row = await this.backend.queryOne(sel.sql, sel.params);
@@ -460,7 +447,7 @@ export class GenericSqlEntityStore<Session, Persistent> {
 		if (scope.level === "global") {
 			conditions.push({ column: "scope_level", op: "eq", raw: "'global'" });
 		} else {
-			if (includeGlobal) {
+			if (includeGlobal !== false) {
 				conditions.push({
 					OR: [
 						{ column: "scope_level", op: "eq", raw: "'global'" },
@@ -480,5 +467,27 @@ export class GenericSqlEntityStore<Session, Persistent> {
 			}
 		}
 		return conditions;
+	}
+
+	private scopeConditions(scope: {
+		level: string;
+		userId?: string | null;
+	}): QueryCondition[] {
+		if (scope.level === "global") {
+			return [{ column: "scope_level", op: "eq", raw: "'global'" }];
+		}
+		return [
+			{
+				OR: [
+					{ column: "scope_level", op: "eq", raw: "'global'" },
+					{
+						AND: [
+							{ column: "scope_level", op: "eq", value: "user" },
+							{ column: "user_id", op: "eq", value: scope.userId ?? null },
+						],
+					},
+				],
+			},
+		];
 	}
 }

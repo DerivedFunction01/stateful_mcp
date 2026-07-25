@@ -4,8 +4,8 @@ import type {
 	PersistentObjectStore,
 	SessionObjectStore,
 } from "../interfaces";
-import type { KvBackend } from "./backend";
 import { GenericSimpleEntityStore } from "./entity-store";
+import type { KvBackend } from "./kv-backend";
 import { objectSimpleEntityConfig } from "./object-entity-config";
 import { SimpleRepoStore } from "./simple-repo-store";
 

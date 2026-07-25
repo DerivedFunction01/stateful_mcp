@@ -4,9 +4,9 @@ import type {
 	PersistentEventStore,
 	SessionEventStore,
 } from "../interfaces";
-import type { KvBackend } from "./backend";
 import { GenericSimpleEntityStore } from "./entity-store";
 import { eventSimpleEntityConfig } from "./event-entity-config";
+import type { KvBackend } from "./kv-backend";
 import { SimpleRepoStore } from "./simple-repo-store";
 
 export async function createEventStore(

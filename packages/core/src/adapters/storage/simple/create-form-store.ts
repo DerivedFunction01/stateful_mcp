@@ -4,9 +4,9 @@ import type {
 	PersistentFormStore,
 	SessionFormStore,
 } from "../interfaces";
-import type { KvBackend } from "./backend";
 import { GenericSimpleEntityStore } from "./entity-store";
 import { formSimpleEntityConfig } from "./form-entity-config";
+import type { KvBackend } from "./kv-backend";
 import { SimpleRepoStore } from "./simple-repo-store";
 
 export async function createFormStore(

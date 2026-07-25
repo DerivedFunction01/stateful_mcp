@@ -1,7 +1,7 @@
 import * as crypto from "crypto";
 import type { OwnerScope } from "../../../config/types";
-import type { KvBackend } from "./backend";
 import type { SimpleEntityConfig } from "./entity-config";
+import type { KvBackend } from "./kv-backend";
 
 export class GenericSimpleEntityStore<Session, Persistent> {
 	constructor(
