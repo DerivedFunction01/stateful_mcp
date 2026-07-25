@@ -1,9 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {
+	EventStore,
+	FilterStore,
+	FormStore,
+	ObjectStore,
+} from "@stateful-mcp/core";
 import type { MiddlewareConfig } from "@stateful-mcp/core/src/config/types";
-import type { EventStore } from "@stateful-mcp/core/src/middleware/event/store";
-import type { FilterStore } from "@stateful-mcp/core/src/middleware/filter/store";
-import type { FormStore } from "@stateful-mcp/core/src/middleware/form/store";
-import type { ObjectStore } from "@stateful-mcp/core/src/middleware/object/store";
 import { z } from "zod";
 import {
 	getEventStore,
@@ -13,7 +15,7 @@ import {
 } from "./helper";
 
 /** Required store types inferred from all tool state_requirements across the config. */
-type StoreType = "filter" | "object" | "form" | "event";
+type StoreType = "filter" | "object" | "form" | "event" | "trace";
 
 /**
  * Probe a store with a no-op lookup. Returns true if responsive, false on any throw.
@@ -80,6 +82,7 @@ export async function registerStateInitTool(
 			object: true,
 			form: true,
 			event: true,
+			trace: true,
 		};
 
 		if (needed.has("filter")) {
@@ -176,7 +179,8 @@ export async function registerStateInitTool(
 					objects: Record<string, string>;
 					forms: Record<string, string>;
 					events: Record<string, string>;
-				} = { filters: {}, objects: {}, forms: {}, events: {} };
+					traces: Record<string, string>;
+				} = { filters: {}, objects: {}, forms: {}, events: {}, traces: {} };
 
 				for (const req of requirements) {
 					const baseAlias = req.alias;
@@ -299,11 +303,13 @@ function bucket(
 		objects: Record<string, string>;
 		forms: Record<string, string>;
 		events: Record<string, string>;
+		traces: Record<string, string>;
 	},
 	type: string,
 ): Record<string, string> {
 	if (type === "filter") return results.filters;
 	if (type === "object") return results.objects;
 	if (type === "form") return results.forms;
-	return results.events;
+	if (type === "event") return results.events;
+	return results.traces;
 }
