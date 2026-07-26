@@ -7,7 +7,7 @@ import {
 	type OrderedLearningStore,
 	scoreRecency,
 } from "../interfaces";
-import { buildOrderedRelations } from "../ordered-learning-store";
+import { buildOrderedRelations } from "./helpers";
 
 export class KvOrderedLearningStore implements OrderedLearningStore {
 	constructor(private backend: KvBackend) {}

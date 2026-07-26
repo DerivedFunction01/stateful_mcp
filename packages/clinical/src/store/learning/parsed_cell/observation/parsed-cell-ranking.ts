@@ -1,4 +1,4 @@
-import type { ParsedCellObservationDetail } from "./interfaces";
+import type { ParsedCellObservationDetail } from "../../interfaces";
 import type {
 	ParsedCellPreferenceMode,
 	ParsedCellPreferenceProjection,
@@ -7,7 +7,7 @@ import type {
 	ParsedCellRanker,
 	ParsedCellRankerContext,
 	ParsedCellRankerScore,
-} from "./parsed_cell/parsed-cell-ranking-types";
+} from "../parsed-cell-ranking-types";
 
 export class ObservationPreferenceRanker
 	implements ParsedCellRanker<ParsedCellObservationDetail>

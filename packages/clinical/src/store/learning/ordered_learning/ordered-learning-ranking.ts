@@ -1,11 +1,9 @@
 import type {
 	OrderedLearningHistoryKey,
 	OrderedLearningStore,
-} from "../ordered-learning-store";
-import {
-	buildOrderedRelations,
-	type OrderedLearningToken,
-} from "../ordered-learning-store";
+	OrderedLearningToken,
+} from "../interfaces";
+import { buildOrderedRelations } from "./helpers";
 import type { OrderedLearningRankedCandidate } from "./ordered-learning-ranking-types";
 import {
 	buildSequenceSignature,
