@@ -79,25 +79,29 @@ export class SqlBackend {
 
 	async query(sql: string, params: any[] = []): Promise<Record<string, any>[]> {
 		switch (this.dialect) {
-			case "sqlite":
-				return (this.conn as Database).query(sql).all(...params) as Record<
-					string,
-					any
-				>[];
+			case "sqlite": {
+				const db = this.conn as Database;
+				return db
+					.query(sql)
+					.all(...params)
+					.map((r: any) => this.normalizeJsonValues(r));
+			}
+			case "opfs": {
+				const rows = await (this.conn as OpfsDb).query(sql, params);
+				return rows.map((r: any) => this.normalizeJsonValues(r));
+			}
 			case "duckdb": {
 				const reader = await (this.conn as DuckDBConnection).runAndReadAll(
 					sql,
 					params,
 				);
-				return reader.getRowObjectsJS().map((r: any) => this.coerceDuckRow(r));
+				return reader
+					.getRowObjectsJS()
+					.map((r: any) => this.normalizeJsonValues(r));
 			}
 			case "postgres": {
 				const res = await (this.conn as Pool).query(sql, params);
-				return res.rows.map((r: any) => this.coercePgRow(r));
-			}
-			case "opfs": {
-				const rows = await (this.conn as OpfsDb).query(sql, params);
-				return rows as Record<string, any>[];
+				return res.rows.map((r: any) => this.normalizeJsonValues(r));
 			}
 		}
 	}
@@ -172,33 +176,31 @@ export class SqlBackend {
 		}
 	}
 
-	private coerceDuckRow(row: Record<string, any>): Record<string, any> {
+	private normalizeJsonValues(row: Record<string, any>): Record<string, any> {
 		const out: Record<string, any> = {};
 		for (const [k, v] of Object.entries(row)) {
 			if (v === null || v === undefined) {
 				out[k] = v;
-			} else if (
-				typeof v === "string" ||
-				typeof v === "number" ||
-				typeof v === "boolean"
-			) {
+			} else if (typeof v === "string") {
+				const trimmed = v.trim();
+				if (
+					(trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+					(trimmed.startsWith("[") && trimmed.endsWith("]"))
+				) {
+					try {
+						out[k] = JSON.parse(trimmed);
+					} catch {
+						out[k] = v;
+					}
+				} else {
+					out[k] = v;
+				}
+			} else if (typeof v === "number" || typeof v === "boolean") {
 				out[k] = v;
 			} else if (v instanceof Date) {
 				out[k] = v.toISOString();
 			} else {
-				out[k] = String(v);
-			}
-		}
-		return out;
-	}
-
-	private coercePgRow(row: Record<string, any>): Record<string, any> {
-		const out: Record<string, any> = {};
-		for (const [k, v] of Object.entries(row)) {
-			if (v instanceof Date) {
-				out[k] = v.toISOString();
-			} else {
-				out[k] = v;
+				out[k] = JSON.parse(JSON.stringify(v));
 			}
 		}
 		return out;

@@ -11,7 +11,7 @@ export const traceDdlKeys = {
 	ddlIndexes: ["IDX_TRACES_SESSION", "IDX_TRACES_SCOPE"],
 };
 
-function makeTraceStepChild(dialect: SqlDialect) {
+function makeTraceStepChild(_dialect: SqlDialect) {
 	return {
 		table: "trace_steps",
 		parentIdColumn: "trace_id",
@@ -36,44 +36,48 @@ function makeTraceStepChild(dialect: SqlDialect) {
 		fromRow: (row: Record<string, any>) => ({
 			id: row.step_id,
 			action: row.action,
-			args: row.args ? JSON.parse(row.args) : undefined,
-			output_bindings: row.output_bindings
-				? JSON.parse(row.output_bindings)
-				: undefined,
-			conditions: row.conditions ? JSON.parse(row.conditions) : undefined,
+			args: typeof row.args === "string" ? JSON.parse(row.args) : row.args,
+			output_bindings:
+				typeof row.output_bindings === "string"
+					? JSON.parse(row.output_bindings)
+					: row.output_bindings,
+			conditions:
+				typeof row.conditions === "string"
+					? JSON.parse(row.conditions)
+					: row.conditions,
 			default_target: row.default_target || undefined,
 			autonomous:
 				row.autonomous === 1 ? true : row.autonomous === 0 ? false : undefined,
-			execution_limits: row.execution_limits
-				? JSON.parse(row.execution_limits)
-				: undefined,
-			transactional: row.transactional
-				? JSON.parse(row.transactional)
-				: undefined,
-			success_criteria: row.success_criteria
-				? JSON.parse(row.success_criteria)
-				: undefined,
-			error_targets: row.error_targets
-				? JSON.parse(row.error_targets)
-				: undefined,
+			execution_limits:
+				typeof row.execution_limits === "string"
+					? JSON.parse(row.execution_limits)
+					: row.execution_limits,
+			transactional:
+				typeof row.transactional === "string"
+					? JSON.parse(row.transactional)
+					: row.transactional,
+			success_criteria:
+				typeof row.success_criteria === "string"
+					? JSON.parse(row.success_criteria)
+					: row.success_criteria,
+			error_targets:
+				typeof row.error_targets === "string"
+					? JSON.parse(row.error_targets)
+					: row.error_targets,
 		}),
 	};
 }
 
-function makeTraceEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
-	const isPg = dialect === "postgres";
-	const isDuck = dialect === "duckdb";
-
+function makeTraceEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 	const jsonParse = (v: any) => {
 		if (v === null || v === undefined) return null;
 		if (typeof v === "string" && v === "") return null;
-		if (isDuck) return JSON.parse(String(v));
+		if (typeof v !== "string") return v;
 		return JSON.parse(v);
 	};
 
 	const jsonStringify = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isPg) return v;
 		return JSON.stringify(v);
 	};
 
@@ -150,7 +154,7 @@ function makeTraceEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 				jsonParse(row.requires_approval_tools) || undefined,
 			start_step: row.start_step || undefined,
 			steps: [] as any[],
-			tags: isPg ? savedRow!.tags : jsonParse(savedRow!.tags),
+			tags: jsonParse(savedRow!.tags),
 			description: savedRow!.description,
 			schema_pinned_at: savedRow!.schema_pinned_at || "",
 		}),
@@ -161,14 +165,14 @@ function makeTraceEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			state: any,
 		) => ({
 			id,
-			tags: isPg ? state.tags : JSON.stringify(state.tags),
+			tags: JSON.stringify(state.tags),
 			description: state.description,
 			schema_pinned_at: state.schema_pinned_at || "",
 			scope_level: scope.level,
 			user_id: scope.level === "user" ? scope.userId : null,
 		}),
 
-		children: [makeTraceStepChild(dialect)],
+		children: [makeTraceStepChild(_dialect)],
 	};
 }
 

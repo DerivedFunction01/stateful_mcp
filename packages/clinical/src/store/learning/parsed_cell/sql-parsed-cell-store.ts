@@ -89,7 +89,7 @@ export class SqlParsedCellStore
 		const rows = await this.executor.query(query.sql, query.params);
 		if (rows.length === 0) return null;
 
-		const shared: ParsedCellShared = JSON.parse(rows[0]!.data);
+		const shared: ParsedCellShared = rows[0]!.data;
 		const detailQuery = this.queryCompiler.compileGetQuery(
 			cellId,
 			this.detailTable,
@@ -99,9 +99,7 @@ export class SqlParsedCellStore
 			detailQuery.params,
 		);
 		const detail =
-			detailRows.length > 0
-				? (JSON.parse(detailRows[0]!.data) as ParsedCellDetail)
-				: null;
+			detailRows.length > 0 ? (detailRows[0]!.data as ParsedCellDetail) : null;
 
 		return { shared, detail, parsedItem: detail?.parsedItem || null };
 	}
@@ -115,7 +113,7 @@ export class SqlParsedCellStore
 		const results: ParsedCellLookup[] = [];
 
 		for (const row of rows) {
-			const shared: ParsedCellShared = JSON.parse(row.data);
+			const shared: ParsedCellShared = row.data;
 			if (shared.sessionId !== sessionId) continue;
 			if (targetSchema && shared.targetSchema !== targetSchema) continue;
 
@@ -124,8 +122,7 @@ export class SqlParsedCellStore
 				this.detailTable,
 			);
 			const dr = await this.executor.query(dq.sql, dq.params);
-			const detail =
-				dr.length > 0 ? (JSON.parse(dr[0]!.data) as ParsedCellDetail) : null;
+			const detail = dr.length > 0 ? (dr[0]!.data as ParsedCellDetail) : null;
 			results.push({ shared, detail, parsedItem: detail?.parsedItem || null });
 		}
 		return results;
@@ -141,7 +138,7 @@ export class SqlParsedCellStore
 		const results: ParsedCellLookup[] = [];
 
 		for (const row of rows) {
-			const shared: ParsedCellShared = JSON.parse(row.data);
+			const shared: ParsedCellShared = row.data;
 			if (sessionId && shared.sessionId !== sessionId) continue;
 
 			const dq = this.queryCompiler.compileGetQuery(
@@ -149,8 +146,7 @@ export class SqlParsedCellStore
 				this.detailTable,
 			);
 			const dr = await this.executor.query(dq.sql, dq.params);
-			const detail =
-				dr.length > 0 ? (JSON.parse(dr[0]!.data) as ParsedCellDetail) : null;
+			const detail = dr.length > 0 ? (dr[0]!.data as ParsedCellDetail) : null;
 			results.push({ shared, detail, parsedItem: detail?.parsedItem || null });
 		}
 		return results;
@@ -165,7 +161,7 @@ export class SqlParsedCellStore
 		const rows = await this.executor.query(dq.sql, dq.params);
 		if (rows.length === 0) return;
 
-		const detail = JSON.parse(rows[0]!.data) as any;
+		const detail = rows[0]!.data as any;
 		const now = new Date().toISOString();
 		detail.history = {
 			...(detail.history || {}),
@@ -207,7 +203,7 @@ export class SqlParsedCellStore
 			limit: 50,
 		});
 		const rows = await this.executor.query(sql, params);
-		return rows.map((row) => JSON.parse(row.detail_data) as TDetail);
+		return rows.map((row) => row.detail_data as TDetail);
 	}
 
 	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellDetail[]> {

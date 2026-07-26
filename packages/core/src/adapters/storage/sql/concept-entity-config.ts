@@ -105,5 +105,5 @@ export function expressionToRow(
 }
 
 export function rowToExpression(row: Record<string, any>): any {
-	return JSON.parse(row.data);
+	return typeof row.data === "string" ? JSON.parse(row.data) : row.data;
 }

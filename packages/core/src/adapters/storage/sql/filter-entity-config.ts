@@ -12,7 +12,7 @@ export const filterDdlKeys = {
 	ddlIndexes: ["IDX_FILTERS_SESSION", "IDX_FILTERS_SCOPE"],
 };
 
-function makeFilterRulesChild(dialect: SqlDialect) {
+function makeFilterRulesChild(_dialect: SqlDialect) {
 	return {
 		table: "filter_rules",
 		parentIdColumn: "filter_id",
@@ -22,31 +22,27 @@ function makeFilterRulesChild(dialect: SqlDialect) {
 			filter_id: parentId,
 			property: rule.property,
 			operator: rule.operator,
-			value: dialect === "postgres" ? rule.value : JSON.stringify(rule.value),
+			value: JSON.stringify(rule.value),
 			index_order: index,
 		}),
 		fromRow: (row: Record<string, any>) => ({
 			property: row.property,
 			operator: row.operator,
-			value: dialect === "postgres" ? row.value : JSON.parse(row.value),
+			value: typeof row.value === "string" ? JSON.parse(row.value) : row.value,
 		}),
 	};
 }
 
-function makeFilterEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
-	const isPg = dialect === "postgres";
-	const isDuck = dialect === "duckdb";
-
+function makeFilterEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 	const jsonParse = (v: any) => {
 		if (v === null || v === undefined) return null;
 		if (typeof v === "string" && v === "") return null;
-		if (isDuck) return JSON.parse(String(v));
+		if (typeof v !== "string") return v;
 		return JSON.parse(v);
 	};
 
 	const jsonStringify = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isPg) return v;
 		return JSON.stringify(v);
 	};
 
@@ -97,7 +93,7 @@ function makeFilterEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			user_id: scope.level === "user" ? scope.userId : null,
 			combined_operation: state.combined_operation || null,
 			combined_ids: jsonStringify(state.combined_ids),
-			schema_snapshot: state.schema_snapshot,
+			schema_snapshot: jsonStringify(state.schema_snapshot),
 		}),
 
 		rowToPersistent: (
@@ -112,7 +108,7 @@ function makeFilterEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			createdAt: row.created_at,
 			combined_operation: row.combined_operation || undefined,
 			combined_ids: jsonParse(row.combined_ids),
-			tags: isPg ? savedRow!.tags : jsonParse(savedRow!.tags),
+			tags: jsonParse(savedRow!.tags),
 			description: savedRow!.description,
 			schema_snapshot: jsonParse(row.schema_snapshot) ?? "{}",
 		}),
@@ -123,13 +119,13 @@ function makeFilterEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			state: any,
 		) => ({
 			id,
-			tags: isPg ? state.tags : JSON.stringify(state.tags),
+			tags: JSON.stringify(state.tags),
 			description: state.description,
 			scope_level: scope.level,
 			user_id: scope.level === "user" ? scope.userId : null,
 		}),
 
-		children: [makeFilterRulesChild(dialect)],
+		children: [makeFilterRulesChild(_dialect)],
 	};
 }
 

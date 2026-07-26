@@ -6,19 +6,16 @@ export const eventDdlKeys = {
 	ddlIndexes: ["IDX_EVENTS_SESSION"],
 };
 
-function makeEventEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
-	const isPg = dialect === "postgres";
-	const isDuck = dialect === "duckdb";
-
+function makeEventEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 	const jsonParse = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isDuck) return JSON.parse(String(v));
+		if (typeof v === "string" && v === "") return null;
+		if (typeof v !== "string") return v;
 		return JSON.parse(v);
 	};
 
 	const jsonStringify = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isPg) return v;
 		return JSON.stringify(v);
 	};
 
@@ -80,6 +77,7 @@ function makeEventEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 		) => ({
 			commit_id: id,
 			scope_level: scope.level,
+			session_id: null,
 			user_id: scope.level === "user" ? scope.userId : null,
 			parent_commit_id: state.parentCommitId || null,
 			operation: state.operation,
@@ -121,7 +119,7 @@ function makeEventEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 				? jsonParse(row.merge_rejected_ids)
 				: undefined,
 			schema_name: row.schema_name,
-			tags: isPg ? savedRow!.tags : jsonParse(savedRow!.tags),
+			tags: jsonParse(savedRow!.tags),
 			description: savedRow!.description,
 		}),
 
@@ -131,7 +129,7 @@ function makeEventEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			state: any,
 		) => ({
 			id,
-			tags: isPg ? state.tags : JSON.stringify(state.tags),
+			tags: JSON.stringify(state.tags),
 			description: state.description,
 			scope_level: scope.level,
 			user_id: scope.level === "user" ? scope.userId : null,

@@ -13,7 +13,7 @@ export const formDdlKeys = {
 	ddlIndexes: ["IDX_FORMS_SESSION"],
 };
 
-function makeFormAnswersChild(dialect: SqlDialect) {
+function makeFormAnswersChild(_dialect: SqlDialect) {
 	return {
 		table: "form_answers",
 		parentIdColumn: "form_id",
@@ -26,11 +26,11 @@ function makeFormAnswersChild(dialect: SqlDialect) {
 		) => ({
 			form_id: parentId,
 			question_id: child.question_id,
-			value: dialect === "postgres" ? child.value : JSON.stringify(child.value),
+			value: JSON.stringify(child.value),
 		}),
 		fromRow: (row: Record<string, any>) => ({
 			question_id: row.question_id,
-			value: dialect === "postgres" ? row.value : JSON.parse(row.value),
+			value: typeof row.value === "string" ? JSON.parse(row.value) : row.value,
 		}),
 		toState: (items: Array<{ question_id: string; value: any }>) => {
 			const out: Record<string, any> = {};
@@ -87,18 +87,15 @@ function makeFormStaleChild(_dialect: SqlDialect) {
 	};
 }
 
-function makeFormEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
-	const isPg = dialect === "postgres";
-
+function makeFormEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 	const jsonParse = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isPg) return v;
+		if (typeof v !== "string") return v;
 		return JSON.parse(v);
 	};
 
 	const jsonStringify = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isPg) return v;
 		return JSON.stringify(v);
 	};
 
@@ -153,7 +150,7 @@ function makeFormEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			skipped: [] as string[],
 			stale: {} as Record<string, boolean>,
 			timestamp: row.created_at,
-			tags: isPg ? savedRow!.tags : JSON.parse(savedRow!.tags),
+			tags: jsonParse(savedRow!.tags),
 			description: savedRow!.description,
 			schema_pinned_at: row.created_at,
 		}),
@@ -164,16 +161,16 @@ function makeFormEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			state: any,
 		) => ({
 			id,
-			tags: isPg ? state.tags : JSON.stringify(state.tags),
+			tags: JSON.stringify(state.tags),
 			description: state.description,
 			scope_level: scope.level,
 			user_id: scope.level === "user" ? scope.userId : null,
 		}),
 
 		children: [
-			makeFormAnswersChild(dialect),
-			makeFormSkippedChild(dialect),
-			makeFormStaleChild(dialect),
+			makeFormAnswersChild(_dialect),
+			makeFormSkippedChild(_dialect),
+			makeFormStaleChild(_dialect),
 		],
 	};
 }

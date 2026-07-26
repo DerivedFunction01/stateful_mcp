@@ -152,13 +152,6 @@ export class SqlOrderedLearningStore implements OrderedLearningStore {
 	}
 
 	private rowToRecord(row: Record<string, unknown>): OrderedLearningRecord {
-		const orderedTokens: OrderedLearningToken[] = this.parseJson(
-			row.orderedTokens,
-			[],
-		);
-		const relations = this.parseJson(row.relations, []);
-		const parsedItem = this.parseJson(row.parsedItem, {});
-
 		return {
 			cellId: row.cellId as string,
 			soapNoteId: (row.soapNoteId as string) || undefined,
@@ -177,9 +170,9 @@ export class SqlOrderedLearningStore implements OrderedLearningStore {
 			personnelId: (row.personnelId as string) || undefined,
 			specialtyId: (row.specialtyId as string) || undefined,
 			facilityId: (row.facilityId as string) || undefined,
-			orderedTokens,
-			relations,
-			parsedItem: parsedItem as ParsedObservationItem,
+			orderedTokens: row.orderedTokens as OrderedLearningToken[],
+			relations: row.relations as any[],
+			parsedItem: row.parsedItem as ParsedObservationItem,
 			history: {
 				priorAcceptCount: row.priorAcceptCount
 					? Number(row.priorAcceptCount)
@@ -192,21 +185,10 @@ export class SqlOrderedLearningStore implements OrderedLearningStore {
 				recencyScore: row.recencyScore ? Number(row.recencyScore) : undefined,
 			},
 			flags: {
-				contractValid: row.contractValid === 1,
-				stalePreference: row.stalePreference === 1,
-				reviewRequired: row.reviewRequired === 1,
+				contractValid: Boolean(row.contractValid),
+				stalePreference: Boolean(row.stalePreference),
+				reviewRequired: Boolean(row.reviewRequired),
 			},
 		};
-	}
-
-	private parseJson<T>(value: unknown, fallback: T): T {
-		if (typeof value === "string") {
-			try {
-				return JSON.parse(value) as T;
-			} catch {
-				return fallback;
-			}
-		}
-		return fallback;
 	}
 }

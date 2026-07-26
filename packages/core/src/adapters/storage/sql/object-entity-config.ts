@@ -6,19 +6,15 @@ export const objectDdlKeys = {
 	ddlIndexes: ["IDX_OBJECTS_SESSION"],
 };
 
-function makeObjectEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
-	const isPg = dialect === "postgres";
-	const isDuck = dialect === "duckdb";
-
+function makeObjectEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 	const jsonParse = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isDuck) return JSON.parse(String(v));
+		if (typeof v !== "string") return v;
 		return JSON.parse(v);
 	};
 
 	const jsonStringify = (v: any) => {
 		if (v === null || v === undefined) return null;
-		if (isPg) return v;
 		return JSON.stringify(v);
 	};
 
@@ -77,7 +73,7 @@ function makeObjectEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			data: jsonParse(row.data),
 			createdAt: row.created_at,
 			schema_pinned_at: row.schema_pinned_at || "",
-			tags: isPg ? savedRow!.tags : jsonParse(savedRow!.tags),
+			tags: jsonParse(savedRow!.tags),
 			description: savedRow!.description,
 			linearDepth: row.linear_depth || undefined,
 			gcLock: row.gc_lock === 1,
@@ -89,7 +85,7 @@ function makeObjectEntityConfig(dialect: SqlDialect): EntityConfig<any, any> {
 			state: any,
 		) => ({
 			id,
-			tags: isPg ? state.tags : JSON.stringify(state.tags),
+			tags: JSON.stringify(state.tags),
 			description: state.description,
 			scope_level: scope.level,
 			user_id: scope.level === "user" ? scope.userId : null,
