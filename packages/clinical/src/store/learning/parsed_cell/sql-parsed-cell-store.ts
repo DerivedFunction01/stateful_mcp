@@ -195,7 +195,7 @@ export class SqlParsedCellStore
 		targetSchema: TDetail["targetSchema"],
 		key: ParsedCellHistoryKey,
 	): Promise<TDetail[]> {
-		const { sql, params } = this.queryCompiler.compileObservationHistoryQuery({
+		const { sql, params } = this.queryCompiler.compileHistoryQuery({
 			tableName: this.sharedTable,
 			detailTableName: this.detailTable,
 			key,

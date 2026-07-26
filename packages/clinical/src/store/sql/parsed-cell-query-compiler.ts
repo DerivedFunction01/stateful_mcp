@@ -126,7 +126,7 @@ export class ParsedCellSqlCompiler {
 	/**
 	 * Composes the parsed cell observation history SELECT via QueryCompiler AST.
 	 */
-	public compileObservationHistoryQuery(
+	public compileHistoryQuery(
 		plan: ParsedCellHistoryPlan,
 		paramOffset?: number,
 	): ParsedCellHistoryQuery {
