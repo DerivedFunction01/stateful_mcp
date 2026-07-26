@@ -1,11 +1,3 @@
-import type { OrderedLearningRankedCandidate } from "./ordered-learning-ranking-types";
-import {
-	buildSequenceSignature,
-	extractAdjacentPairs,
-	scoreAdjacentPairs,
-	scoreRelations,
-	scoreSequenceSignature,
-} from "./ordered-learning-ranking-types";
 import type {
 	OrderedLearningHistoryKey,
 	OrderedLearningStore,
@@ -14,6 +6,14 @@ import {
 	buildOrderedRelations,
 	type OrderedLearningToken,
 } from "../ordered-learning-store";
+import type { OrderedLearningRankedCandidate } from "./ordered-learning-ranking-types";
+import {
+	buildSequenceSignature,
+	extractAdjacentPairs,
+	scoreAdjacentPairs,
+	scoreRelations,
+	scoreSequenceSignature,
+} from "./ordered-learning-ranking-types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
