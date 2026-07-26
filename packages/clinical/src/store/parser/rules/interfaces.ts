@@ -1,9 +1,11 @@
 import type { AttributeParserRule, ParserDictionaryRule } from "../interfaces";
 
+export type StoredAttributeRule = AttributeParserRule & { ruleId: string };
+
 export interface ParserAttributeRuleStore {
-	get(ruleId: string): Promise<AttributeParserRule | null>;
-	list(): Promise<AttributeParserRule[]>;
-	set(rule: AttributeParserRule): Promise<void>;
+	get(ruleId: string): Promise<StoredAttributeRule | null>;
+	list(): Promise<StoredAttributeRule[]>;
+	set(rule: StoredAttributeRule): Promise<void>;
 	delete(ruleId: string): Promise<void>;
 }
 

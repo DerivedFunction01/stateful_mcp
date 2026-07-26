@@ -9,7 +9,7 @@ export class ReferenceQueryCompiler {
 	private readonly dialect: SqlDialect;
 	private readonly compiler: QueryCompiler;
 
-	constructor(dialect: SqlDialect = "sqlite") {
+	constructor(dialect: SqlDialect = "postgres") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}
@@ -57,7 +57,6 @@ export class ReferenceQueryCompiler {
 		table: string,
 	): CompiledQuery {
 		const conflictColumns = this.dialect === "sqlite" ? undefined : ["tagId"];
-
 		return this.compiler.compileInsert({
 			table,
 			values: row,
@@ -98,13 +97,11 @@ export class ReferenceQueryCompiler {
 				},
 			],
 		});
-
 		const idx = this.compiler.compileCreateIndex({
 			table,
 			name: `idx_${table}_jurisdiction`,
 			columns: ["jurisdictionId"],
 		});
-
 		return [mainDDL, idx];
 	}
 
@@ -146,12 +143,27 @@ export class ReferenceQueryCompiler {
 			this.dialect === "sqlite"
 				? undefined
 				: ["conceptId", "jurisdictionId", "source"];
-
 		return this.compiler.compileInsert({
 			table,
 			values: row,
 			onConflict: "replace",
 			conflictColumns,
+		});
+	}
+
+	public compileDeleteJurisdictionalDisplay(
+		conceptId: string,
+		jurisdictionId: string,
+		source: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [
+				{ column: "conceptId", op: "eq", value: conceptId },
+				{ column: "jurisdictionId", op: "eq", value: jurisdictionId },
+				{ column: "source", op: "eq", value: source },
+			],
 		});
 	}
 
@@ -209,12 +221,21 @@ export class ReferenceQueryCompiler {
 	): CompiledQuery {
 		const conflictColumns =
 			this.dialect === "sqlite" ? undefined : ["profileId"];
-
 		return this.compiler.compileInsert({
 			table,
 			values: row,
 			onConflict: "replace",
 			conflictColumns,
+		});
+	}
+
+	public compileDeleteStopWordProfile(
+		profileId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [{ column: "profileId", op: "eq", value: profileId }],
 		});
 	}
 
@@ -249,13 +270,11 @@ export class ReferenceQueryCompiler {
 				},
 			],
 		});
-
 		const idx = this.compiler.compileCreateIndex({
 			table,
 			name: `idx_${table}_schema_concept`,
 			columns: ["targetSchema", "targetConceptId"],
 		});
-
 		return [mainDDL, idx];
 	}
 
@@ -309,12 +328,159 @@ export class ReferenceQueryCompiler {
 	): CompiledQuery {
 		const conflictColumns =
 			this.dialect === "sqlite" ? undefined : ["templateId"];
-
 		return this.compiler.compileInsert({
 			table,
 			values: row,
 			onConflict: "replace",
 			conflictColumns,
+		});
+	}
+
+	public compileDeleteClinicalProseTemplate(
+		templateId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [{ column: "templateId", op: "eq", value: templateId }],
+		});
+	}
+
+	// ── Calibration Exceptions ──────────────────────────────────────────────────
+
+	public compileGetCalibrationException(
+		exceptionId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "exceptionId", op: "eq", value: exceptionId }],
+		});
+	}
+
+	public compileListCalibrationExceptions(
+		table: string,
+		where?: QueryCondition[],
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where,
+			orderBy: [{ column: "createdAt", direction: "DESC" }],
+		});
+	}
+
+	public compileInsertCalibrationException(
+		row: Record<string, unknown>,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileInsert({
+			table,
+			values: row,
+		});
+	}
+
+	public compileUpdateCalibrationException(
+		exceptionId: string,
+		set: Record<string, unknown>,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileUpdate({
+			table,
+			set,
+			where: [{ column: "exceptionId", op: "eq", value: exceptionId }],
+		});
+	}
+
+	public compileDeleteCalibrationException(
+		exceptionId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [{ column: "exceptionId", op: "eq", value: exceptionId }],
+		});
+	}
+
+	// ── Personnel ───────────────────────────────────────────────────────────────
+
+	public compileGetPersonnel(
+		personnelId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "personnelId", op: "eq", value: personnelId }],
+		});
+	}
+
+	public compileListPersonnel(table: string): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			orderBy: [{ column: "personnelId", direction: "ASC" }],
+		});
+	}
+
+	public compileUpsertPersonnel(
+		row: Record<string, unknown>,
+		table: string,
+	): CompiledQuery {
+		const conflictColumns =
+			this.dialect === "sqlite" ? undefined : ["personnelId"];
+		return this.compiler.compileInsert({
+			table,
+			values: row,
+			onConflict: "replace",
+			conflictColumns,
+		});
+	}
+
+	public compileDeletePersonnel(
+		personnelId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [{ column: "personnelId", op: "eq", value: personnelId }],
+		});
+	}
+
+	// ── Facilities ──────────────────────────────────────────────────────────────
+
+	public compileGetFacility(facilityId: string, table: string): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "facilityId", op: "eq", value: facilityId }],
+		});
+	}
+
+	public compileListFacilities(table: string): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			orderBy: [{ column: "facilityId", direction: "ASC" }],
+		});
+	}
+
+	public compileUpsertFacility(
+		row: Record<string, unknown>,
+		table: string,
+	): CompiledQuery {
+		const conflictColumns =
+			this.dialect === "sqlite" ? undefined : ["facilityId"];
+		return this.compiler.compileInsert({
+			table,
+			values: row,
+			onConflict: "replace",
+			conflictColumns,
+		});
+	}
+
+	public compileDeleteFacility(
+		facilityId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [{ column: "facilityId", op: "eq", value: facilityId }],
 		});
 	}
 }

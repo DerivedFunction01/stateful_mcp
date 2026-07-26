@@ -101,4 +101,18 @@ export class ConceptDefaultQueryCompiler {
 			conflictColumns,
 		});
 	}
+
+	public compileDeleteQuery(
+		anchorConceptId: string,
+		targetSchema: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [
+				{ column: "anchorConceptId", op: "eq", value: anchorConceptId },
+				{ column: "targetSchema", op: "eq", value: targetSchema },
+			],
+		});
+	}
 }

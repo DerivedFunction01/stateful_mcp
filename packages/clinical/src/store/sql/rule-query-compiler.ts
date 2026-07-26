@@ -14,6 +14,53 @@ export class RuleQueryCompiler {
 		this.compiler = new QueryCompiler(dialect);
 	}
 
+	public getEvaluatorTableDDL(table: string): CompiledQuery {
+		return this.compiler.compileCreateTable({
+			table,
+			ifNotExists: true,
+			columns: [
+				{ name: "ruleId", type: "TEXT", primaryKey: true },
+				{ name: "targetField", type: "TEXT", nullable: false },
+				{ name: "evaluatorName", type: "TEXT", nullable: false },
+				{
+					name: "regexPatterns",
+					type: "json",
+					nullable: false,
+					default: "[]",
+				},
+				{ name: "namedGroupContract", type: "json" },
+			],
+		});
+	}
+
+	public getEvaluatorBindingTableDDL(table: string): CompiledQuery {
+		return this.compiler.compileCreateTable({
+			table,
+			ifNotExists: true,
+			primaryKey: ["profileId", "ruleId"],
+			columns: [
+				{ name: "profileId", type: "TEXT", nullable: false },
+				{ name: "ruleId", type: "TEXT", nullable: false },
+			],
+			foreignKeys: [
+				{
+					columns: ["profileId"],
+					refTable: "parser_profiles",
+					refColumns: ["profileId"],
+					onDelete: "CASCADE",
+				},
+			],
+		});
+	}
+
+	public getEvaluatorBindingIndexDDL(table: string): CompiledQuery {
+		return this.compiler.compileCreateIndex({
+			table,
+			name: `idx_${table}_profile`,
+			columns: ["profileId"],
+		});
+	}
+
 	public getTableDDL(table: string): CompiledQuery[] {
 		const attributeRulesTable = table;
 		const evaluatorRulesTable = `${table}_evaluator`;
