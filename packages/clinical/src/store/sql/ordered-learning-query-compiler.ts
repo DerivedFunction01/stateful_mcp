@@ -418,6 +418,70 @@ export class OrderedLearningSqlCompiler {
 		this.compiler = new QueryCompiler(dialect);
 	}
 
+	public getTableDDL(table: string): CompiledQuery {
+		const createDDL = this.compiler.compileCreateTable({
+			table: table,
+			columns: [
+				{ name: "cellId", type: "TEXT", primaryKey: true },
+				{ name: "soapNoteId", type: "TEXT" },
+				{ name: "tag", type: "TEXT", nullable: false },
+				{ name: "targetSchema", type: "TEXT", nullable: false },
+				{ name: "rawText", type: "TEXT", nullable: false },
+				{ name: "patientId", type: "TEXT" },
+				{ name: "patientOrganismType", type: "TEXT" },
+				{ name: "patientGender", type: "TEXT" },
+				{ name: "patientAgeBucket", type: "TEXT" },
+				{ name: "patientSpeciesBucket", type: "TEXT" },
+				{ name: "patientSubBucket", type: "INTEGER" },
+				{ name: "patientBucketKey", type: "TEXT" },
+				{ name: "personnelId", type: "TEXT" },
+				{ name: "specialtyId", type: "TEXT" },
+				{ name: "facilityId", type: "TEXT" },
+				{
+					name: "orderedTokens",
+					type: "TEXT",
+					nullable: false,
+					default: "'[]'",
+				},
+				{ name: "relations", type: "TEXT", nullable: false, default: "'[]'" },
+				{ name: "parsedItem", type: "TEXT", nullable: false, default: "'{}'" },
+				{
+					name: "priorAcceptCount",
+					type: "INTEGER",
+					nullable: false,
+					default: "1",
+				},
+				{
+					name: "priorCorrectionCount",
+					type: "INTEGER",
+					nullable: false,
+					default: "0",
+				},
+				{ name: "lastAcceptedAt", type: "TEXT" },
+				{ name: "lastCorrectedAt", type: "TEXT" },
+				{ name: "recencyScore", type: "REAL", nullable: false, default: "0" },
+				{
+					name: "contractValid",
+					type: "INTEGER",
+					nullable: false,
+					default: "1",
+				},
+				{
+					name: "stalePreference",
+					type: "INTEGER",
+					nullable: false,
+					default: "0",
+				},
+				{
+					name: "reviewRequired",
+					type: "INTEGER",
+					nullable: false,
+					default: "0",
+				},
+			],
+		});
+		return createDDL;
+	}
 	/**
 	 * Composes the history SELECT via the core QueryCompiler AST.
 	 * Uses structured WHERE + ORDER BY; only the flat-table column names

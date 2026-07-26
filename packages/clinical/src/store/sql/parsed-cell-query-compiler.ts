@@ -1,4 +1,8 @@
-import { QueryCompiler, type QueryCondition } from "@stateful-mcp/core";
+import {
+	type CompiledQuery,
+	QueryCompiler,
+	type QueryCondition,
+} from "@stateful-mcp/core";
 import type { ParsedCellHistoryKey } from "../learning/parsed-cell-store";
 
 export type ParsedCellSqlDialect = "sqlite" | "postgres" | "duckdb";
@@ -147,6 +151,8 @@ export function compileParsedCellObservationHistoryQuery(
 export class ParsedCellSqlCompiler {
 	private readonly dialect: ParsedCellSqlDialect;
 	private readonly compiler: QueryCompiler;
+	private readonly sharedTable: string;
+	private readonly detailTable: string;
 
 	private static readonly SCOPED_FIELDS = [
 		"soapNoteId",
@@ -162,9 +168,66 @@ export class ParsedCellSqlCompiler {
 		"facilityId",
 	] as const;
 
-	constructor(dialect: ParsedCellSqlDialect = "sqlite") {
+	constructor(
+		dialect: ParsedCellSqlDialect = "sqlite",
+		sharedTable: string,
+		detailTable: string,
+	) {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
+		this.sharedTable = sharedTable;
+		this.detailTable = detailTable;
+	}
+
+	public compileCreateTables(): CompiledQuery[] {
+		const tables: CompiledQuery[] = [];
+		for (const table of [this.sharedTable, this.detailTable]) {
+			tables.push(
+				this.compiler.compileCreateTable({
+					table,
+					columns: [
+						{ name: "cellId", type: "TEXT", primaryKey: true },
+						{ name: "data", type: "TEXT", nullable: false },
+					],
+				}),
+			);
+		}
+
+		return tables;
+	}
+
+	/**
+	 * Compiles a SELECT query to find a record by its unique cellId.
+	 */
+	public compileGetQuery(cellId: string, targetTable: string) {
+		return this.compiler.compileSelect({
+			table: targetTable,
+			where: [{ column: "cellId", op: "eq", value: cellId }],
+		});
+	}
+
+	/**
+	 * Compiles a SELECT query to list all shared records.
+	 */
+	public compileListSharedQuery() {
+		return this.compiler.compileSelect({ table: this.sharedTable });
+	}
+
+	/**
+	 * Compiles a SELECT query filtered by targetSchema.
+	 */
+	public compileListByTargetSchemaQuery(targetSchema: string) {
+		return this.compiler.compileSelect({
+			table: this.sharedTable,
+			where: [
+				{
+					column: "data",
+					jsonPath: "targetSchema",
+					op: "eq",
+					value: targetSchema,
+				},
+			],
+		});
 	}
 
 	/**

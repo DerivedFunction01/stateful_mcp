@@ -1,7 +1,7 @@
 import type {
-	ParsedCellObservationDetailV1,
-	ParsedCellV1ObservedShape,
-} from "./parsed-cell-store";
+	ParsedCellObservationDetail,
+	ParsedCellObservedShape,
+} from "../interfaces";
 
 export interface ParsedCellRankerContext {
 	tag: string;
@@ -19,8 +19,8 @@ export interface ParsedCellRankerContext {
 	rawText: string;
 	anchorText: string;
 	candidateTokens: unknown[];
-	sharedShape: ParsedCellV1ObservedShape;
-	history?: ParsedCellObservationDetailV1["history"];
+	sharedShape: ParsedCellObservedShape;
+	history?: ParsedCellObservationDetail["history"];
 }
 
 export interface ParsedCellRankerScore {

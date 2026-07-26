@@ -1,3 +1,4 @@
+import type { ParsedCellObservationDetail } from "./interfaces";
 import type {
 	ParsedCellPreferenceMode,
 	ParsedCellPreferenceProjection,
@@ -6,14 +7,13 @@ import type {
 	ParsedCellRanker,
 	ParsedCellRankerContext,
 	ParsedCellRankerScore,
-} from "./parsed-cell-ranking-types";
-import type { ParsedCellObservationDetailV1 } from "./parsed-cell-store";
+} from "./parsed_cell/parsed-cell-ranking-types";
 
 export class ObservationPreferenceRanker
-	implements ParsedCellRanker<ParsedCellObservationDetailV1>
+	implements ParsedCellRanker<ParsedCellObservationDetail>
 {
 	score(
-		candidate: ParsedCellObservationDetailV1,
+		candidate: ParsedCellObservationDetail,
 		context: ParsedCellRankerContext,
 	): ParsedCellRankerScore {
 		const sharedSlots = context.sharedShape.slots;
@@ -47,16 +47,16 @@ export class ObservationPreferenceRanker
 	}
 
 	choose(
-		deterministic: ParsedCellObservationDetailV1 | null,
-		learned: ParsedCellObservationDetailV1 | null,
+		deterministic: ParsedCellObservationDetail | null,
+		learned: ParsedCellObservationDetail | null,
 		context: ParsedCellRankerContext,
 		mode: ParsedCellPreferenceMode = "dual",
-	): ParsedCellPreferenceProjection<ParsedCellObservationDetailV1> {
+	): ParsedCellPreferenceProjection<ParsedCellObservationDetail> {
 		const deterministicScore = deterministic
 			? this.score(deterministic, context)
 			: undefined;
 		const learnedScore = learned ? this.score(learned, context) : undefined;
-		let winner: ParsedCellObservationDetailV1 | null = null;
+		let winner: ParsedCellObservationDetail | null = null;
 
 		if (mode === "deterministic") {
 			winner = deterministic;
@@ -80,12 +80,12 @@ export class ObservationPreferenceRanker
 
 	rankMany(
 		candidates: Array<{
-			candidate: ParsedCellObservationDetailV1;
+			candidate: ParsedCellObservationDetail;
 			source: "deterministic" | "learned";
 		}>,
 		context: ParsedCellRankerContext,
 		mode: ParsedCellPreferenceMode = "dual",
-	): ParsedCellPreferenceRanking<ParsedCellObservationDetailV1> {
+	): ParsedCellPreferenceRanking<ParsedCellObservationDetail> {
 		const scored = candidates
 			.map((entry) => ({
 				candidate: entry.candidate,
@@ -123,12 +123,12 @@ export class ObservationPreferenceRanker
 
 	previewMany(
 		candidates: Array<{
-			candidate: ParsedCellObservationDetailV1;
+			candidate: ParsedCellObservationDetail;
 			source: "deterministic" | "learned";
 		}>,
 		context: ParsedCellRankerContext,
 		mode: ParsedCellPreferenceMode = "dual",
-	): ParsedCellPreview<ParsedCellObservationDetailV1> {
+	): ParsedCellPreview<ParsedCellObservationDetail> {
 		const ranking = this.rankMany(candidates, context, mode);
 		return {
 			deterministic: candidates

@@ -7,8 +7,8 @@ import { resolveParsedCellStoreLocator } from "./learning-backend-resolver";
 import type {
 	ParsedCellHistoryAdapter,
 	ParsedCellHistoryStore,
-} from "./parsed-cell-store";
-import { CompositeParsedCellHistoryStore } from "./parsed-cell-store";
+} from "./parsed_cell/history-store";
+import { CompositeParsedCellHistoryStore } from "./parsed_cell/history-store";
 
 function pickStore(
 	config: ClinicalStorageAdapterConfig,

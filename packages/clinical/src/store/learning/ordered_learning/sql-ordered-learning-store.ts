@@ -1,64 +1,73 @@
-import { Database } from "bun:sqlite";
-import type { ParsedObservationItem } from "../../parser/schema-parsers";
+import type { SqlExecutor } from "@stateful-mcp/core";
+import type { ParsedObservationItem } from "../../../parser/schema-parsers";
 import {
-	compileOrderedLearningCorrectionQuery,
-	compileOrderedLearningHistoryQuery,
-	compileOrderedLearningInsertQuery,
-	getOrderedLearningIndexDDL,
-	getOrderedLearningTableDDL,
 	type OrderedLearningInsertPlan,
-} from "../sql/ordered-learning-query-compiler";
-import {
-	buildOrderedRelations,
-	MAX_ORDERED_TOKENS,
-	type OrderedLearningHistoryKey,
-	type OrderedLearningRecord,
-	type OrderedLearningRecordInput,
-	type OrderedLearningStore,
-	type OrderedLearningToken,
-} from "./ordered-learning-store";
-import { scoreRecency } from "./parsed-cell-store";
-
-// ── Table name ───────────────────────────────────────────────────────────────
+	OrderedLearningSqlCompiler,
+	type OrderedLearningSqlDialect,
+} from "../../sql/ordered-learning-query-compiler";
+import type {
+	OrderedLearningHistoryKey,
+	OrderedLearningRecord,
+	OrderedLearningRecordInput,
+	OrderedLearningStore,
+	OrderedLearningToken,
+} from "../interfaces";
+import { MAX_ORDERED_TOKENS, scoreRecency } from "../interfaces";
+import { buildOrderedRelations } from "./helpers";
 
 const DEFAULT_TABLE = "ordered_learning_records";
 
-// ── SQLite Implementation ────────────────────────────────────────────────────
-
-export class SqliteOrderedLearningStore implements OrderedLearningStore {
-	private db: Database;
+export class SqlOrderedLearningStore implements OrderedLearningStore {
+	private compiler: OrderedLearningSqlCompiler;
+	private dialect: OrderedLearningSqlDialect;
 	private table: string;
+	private executor: SqlExecutor;
 
-	constructor(db?: Database, table: string = DEFAULT_TABLE) {
-		this.db = db ?? new Database(":memory:");
+	constructor(
+		dialect: OrderedLearningSqlDialect,
+		executor: SqlExecutor,
+		table: string = DEFAULT_TABLE,
+	) {
+		this.dialect = dialect;
+		this.executor = executor;
+		this.compiler = new OrderedLearningSqlCompiler(this.dialect);
 		this.table = table;
 		this.ensureTable();
 	}
 
-	private ensureTable(): void {
-		this.db.run(getOrderedLearningTableDDL(this.table));
-		for (const ddl of getOrderedLearningIndexDDL(this.table)) {
-			this.db.run(ddl);
+	private async ensureTable(): Promise<void> {
+		await this.executor.exec(this.compiler.getTableDDL(this.table).sql);
+
+		// Indexes
+		const indexes = this.compiler.getIndexDDL(this.table);
+		for (const idx of indexes) {
+			await this.executor.exec(idx.sql, idx.params);
 		}
 	}
 
 	async getHistory(
 		key: OrderedLearningHistoryKey,
 	): Promise<OrderedLearningRecord[]> {
-		const { sql, params } = compileOrderedLearningHistoryQuery(
-			{ table: this.table, key },
-			"sqlite",
-		);
-		const stmt = this.db.query(sql);
-		const rows = stmt.all(...(params as any)) as Array<Record<string, unknown>>;
+		const { sql, params } = this.compiler.compileHistoryQuery({
+			table: this.table,
+			key,
+		});
+		const rows = await this.executor.query(sql, params);
 		return rows.map((row) => this.rowToRecord(row));
 	}
 
 	async putRecord(record: OrderedLearningRecordInput): Promise<void> {
+		const c = this.executor.compiler;
 		const now = new Date().toISOString();
-		const existing = this.db
-			.query(`SELECT * FROM ${this.table} WHERE cellId = ?`)
-			.get(record.shared.cellId) as Record<string, unknown> | null;
+		const existingQuery = c.compileSelect({
+			table: this.table,
+			where: [{ column: "cellId", op: "eq", value: record.shared.cellId }],
+		});
+		const existingRows = await this.executor.query(
+			existingQuery.sql,
+			existingQuery.params,
+		);
+		const existing = existingRows[0] ?? null;
 
 		const priorAcceptCount = existing
 			? (Number(existing.priorAcceptCount) || 0) + 1
@@ -106,41 +115,40 @@ export class SqliteOrderedLearningStore implements OrderedLearningStore {
 			reviewRequired: 0,
 		};
 
-		const { sql, params } = compileOrderedLearningInsertQuery(
-			insertPlan,
-			"sqlite",
-		);
-		this.db.query(sql).run(...(params as any));
+		const { sql, params } = this.compiler.compileInsertQuery(insertPlan);
+		await this.executor.exec(sql, params);
 	}
 
 	async markCorrection(
 		cellId: string,
 		replacement?: OrderedLearningRecordInput["parsedItem"],
 	): Promise<void> {
-		const existing = this.db
-			.query(`SELECT * FROM ${this.table} WHERE cellId = ?`)
-			.get(cellId) as Record<string, unknown> | null;
+		const c = this.executor.compiler;
+		const existingQuery = c.compileSelect({
+			table: this.table,
+			where: [{ column: "cellId", op: "eq", value: cellId }],
+		});
+		const existingRows = await this.executor.query(
+			existingQuery.sql,
+			existingQuery.params,
+		);
+		const existing = existingRows[0] ?? null;
 		if (!existing) return;
 
 		const now = new Date().toISOString();
 		const priorCorrectionCount =
 			(Number(existing.priorCorrectionCount) || 0) + 1;
 
-		const { sql, params } = compileOrderedLearningCorrectionQuery(
-			{
-				table: this.table,
-				cellId,
-				priorCorrectionCount,
-				lastCorrectedAt: now,
-				recencyScore: scoreRecency(now),
-				parsedItemJson: replacement ? JSON.stringify(replacement) : null,
-			},
-			"sqlite",
-		);
-		this.db.query(sql).run(...(params as any));
+		const { sql, params } = this.compiler.compileCorrectionQuery({
+			table: this.table,
+			cellId,
+			priorCorrectionCount,
+			lastCorrectedAt: now,
+			recencyScore: scoreRecency(now),
+			parsedItemJson: replacement ? JSON.stringify(replacement) : null,
+		});
+		await this.executor.exec(sql, params);
 	}
-
-	// ── Helpers ──────────────────────────────────────────────────────────────
 
 	private rowToRecord(row: Record<string, unknown>): OrderedLearningRecord {
 		const orderedTokens: OrderedLearningToken[] = this.parseJson(

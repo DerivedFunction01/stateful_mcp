@@ -61,7 +61,7 @@ export class OrderedLearningRanker {
 		context: OrderedLearningRankerContext,
 		options: OrderedLearningRankerOptions = {},
 	): Promise<OrderedLearningRankedCandidate | null> {
-		const history = await store.getOrderedObservationHistory(context.key);
+		const history = await store.getHistory(context.key);
 		if (history.length === 0) return null;
 
 		const adapterId = options.adapterId ?? "default";

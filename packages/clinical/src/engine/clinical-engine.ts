@@ -295,7 +295,7 @@ export class ClinicalEngine {
 				// Persist ordered tokens to the order-aware store
 				if (this.orderAwareStore) {
 					const orderedTokens = buildOrderedTokens(item);
-					await this.orderAwareStore.putOrderedObservation({
+					await this.orderAwareStore.putRecord({
 						shared: {
 							cellId,
 							soapNoteId: note.id,

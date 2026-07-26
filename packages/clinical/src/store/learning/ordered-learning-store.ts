@@ -118,11 +118,9 @@ export const NEAR_GAP_THRESHOLD = 5;
 // ── Store Interface ──────────────────────────────────────────────────────────
 
 export interface OrderedLearningStore {
-	getOrderedObservationHistory(
-		key: OrderedLearningHistoryKey,
-	): Promise<OrderedLearningRecord[]>;
-	putOrderedObservation(record: OrderedLearningRecordInput): Promise<void>;
-	markOrderedObservationCorrection(
+	getHistory(key: OrderedLearningHistoryKey): Promise<OrderedLearningRecord[]>;
+	putRecord(record: OrderedLearningRecordInput): Promise<void>;
+	markCorrection(
 		cellId: string,
 		replacement?: OrderedLearningRecordInput["parsedItem"],
 	): Promise<void>;
@@ -225,7 +223,7 @@ export class CompositeOrderedLearningStore
 	): Promise<OrderedLearningWeightedCandidate[]> {
 		const results = await Promise.all(
 			this.adapters.map(async (adapter) => {
-				const rows = await adapter.store.getOrderedObservationHistory(key);
+				const rows = await adapter.store.getHistory(key);
 				return rows.map((candidate) => ({
 					candidate,
 					adapterId: adapter.adapterId,
@@ -236,7 +234,7 @@ export class CompositeOrderedLearningStore
 		return results.flat();
 	}
 
-	async getOrderedObservationHistory(
+	async getHistory(
 		key: OrderedLearningHistoryKey,
 	): Promise<OrderedLearningRecord[]> {
 		return (await this.getWeightedOrderedObservationHistory(key)).map(
@@ -244,23 +242,19 @@ export class CompositeOrderedLearningStore
 		);
 	}
 
-	async putOrderedObservation(
-		record: OrderedLearningRecordInput,
-	): Promise<void> {
+	async putRecord(record: OrderedLearningRecordInput): Promise<void> {
 		await Promise.all(
-			this.adapters.map((adapter) =>
-				adapter.store.putOrderedObservation(record),
-			),
+			this.adapters.map((adapter) => adapter.store.putRecord(record)),
 		);
 	}
 
-	async markOrderedObservationCorrection(
+	async markCorrection(
 		cellId: string,
 		replacement?: OrderedLearningRecordInput["parsedItem"],
 	): Promise<void> {
 		await Promise.all(
 			this.adapters.map((adapter) =>
-				adapter.store.markOrderedObservationCorrection(cellId, replacement),
+				adapter.store.markCorrection(cellId, replacement),
 			),
 		);
 	}
@@ -271,7 +265,7 @@ export class CompositeOrderedLearningStore
 export class MemoryOrderedLearningStore implements OrderedLearningStore {
 	private records = new Map<string, OrderedLearningRecord>();
 
-	async getOrderedObservationHistory(
+	async getHistory(
 		key: OrderedLearningHistoryKey,
 	): Promise<OrderedLearningRecord[]> {
 		return Array.from(this.records.values())
@@ -320,9 +314,7 @@ export class MemoryOrderedLearningStore implements OrderedLearningStore {
 			);
 	}
 
-	async putOrderedObservation(
-		record: OrderedLearningRecordInput,
-	): Promise<void> {
+	async putRecord(record: OrderedLearningRecordInput): Promise<void> {
 		const existing = this.records.get(record.shared.cellId);
 		const now = new Date().toISOString();
 
@@ -368,7 +360,7 @@ export class MemoryOrderedLearningStore implements OrderedLearningStore {
 		this.records.set(record.shared.cellId, full);
 	}
 
-	async markOrderedObservationCorrection(
+	async markCorrection(
 		cellId: string,
 		replacement?: OrderedLearningRecordInput["parsedItem"],
 	): Promise<void> {
