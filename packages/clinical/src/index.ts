@@ -37,5 +37,4 @@ export * from "./store/learning/parsed_cell/kv-parsed-cell-store";
 export * from "./store/learning/parsed_cell/observation/parsed-cell-ranking";
 export * from "./store/learning/parsed_cell/parsed-cell-ranking-types";
 export * from "./store/learning/parsed_cell/sql-parsed-cell-store";
-export * from "./store/memory-clinical-store";
 export * from "./store/sqlite-clinical-store";
