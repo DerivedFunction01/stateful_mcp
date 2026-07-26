@@ -5,14 +5,14 @@ import {
 	type ClinicalStorageAdapterRegistry,
 	CompositeParsedCellHistoryStore,
 	MemoryParsedCellStore,
+	type ParsedCellPreferenceMode,
 	type ParsedCellV1,
 	SqliteParsedCellStore,
 } from "../src";
 import { ObservationSchemaParser } from "../src/parser/parsers/observation-parser";
 import type { ParsedObservationItem } from "../src/parser/schema-parsers";
 import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../src/store/adapter-config";
-import { ObservationPreferenceRanker } from "../src/store/parsed-cell-ranking";
-import type { ParsedCellPreferenceMode } from "../src/store/parsed-cell-ranking-types";
+import { ObservationPreferenceRanker } from "../src/store/learning/parsed-cell-ranking";
 
 function makeObservationCell(
 	cellId: string,

@@ -1,11 +1,11 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { OrderedLearningRanker } from "../../src/store/ordered-learning-ranking";
+import { OrderedLearningRanker } from "../../src/store/learning/ordered-learning-ranking";
 import type {
 	OrderedLearningHistoryKey,
 	OrderedLearningRecordInput,
-} from "../../src/store/ordered-learning-store";
-import { SqliteOrderedLearningStore } from "../../src/store/sqlite-ordered-learning-store";
+} from "../../src/store/learning/ordered-learning-store";
+import { SqliteOrderedLearningStore } from "../../src/store/learning/sqlite-ordered-learning-store";
 
 function makeRecordInput(
 	cellId: string,
@@ -55,14 +55,14 @@ describe("SqliteOrderedLearningStore", () => {
 		const store = new SqliteOrderedLearningStore(db);
 		const input = makeRecordInput("cell_001");
 
-		await store.putOrderedObservation(input);
+		await store.putRecord(input);
 
 		const key: OrderedLearningHistoryKey = {
 			tag: "pain",
 			targetSchema: "ObservationEvent",
 			rawText: "severe pain in left knee",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(1);
 		expect(results[0].cellId).toBe("cell_001");
 		expect(results[0].orderedTokens.length).toBe(3);
@@ -79,7 +79,7 @@ describe("SqliteOrderedLearningStore", () => {
 			targetSchema: "ObservationEvent",
 			rawText: "nothing",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(0);
 	});
 
@@ -87,8 +87,8 @@ describe("SqliteOrderedLearningStore", () => {
 		const db = new Database(":memory:");
 		const store = new SqliteOrderedLearningStore(db);
 
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
-		await store.putOrderedObservation(
+		await store.putRecord(makeRecordInput("cell_001"));
+		await store.putRecord(
 			makeRecordInput("cell_002", { patientId: "pat_002" }),
 		);
 
@@ -98,7 +98,7 @@ describe("SqliteOrderedLearningStore", () => {
 			rawText: "severe pain in left knee",
 			patientId: "pat_001",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(1);
 		expect(results[0].cellId).toBe("cell_001");
 	});
@@ -107,8 +107,8 @@ describe("SqliteOrderedLearningStore", () => {
 		const db = new Database(":memory:");
 		const store = new SqliteOrderedLearningStore(db);
 
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
-		await store.putOrderedObservation(
+		await store.putRecord(makeRecordInput("cell_001"));
+		await store.putRecord(
 			makeRecordInput("cell_002", { personnelId: "dr_jones" }),
 		);
 
@@ -118,7 +118,7 @@ describe("SqliteOrderedLearningStore", () => {
 			rawText: "severe pain in left knee",
 			personnelId: "dr_smith",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(1);
 		expect(results[0].cellId).toBe("cell_001");
 	});
@@ -127,15 +127,15 @@ describe("SqliteOrderedLearningStore", () => {
 		const db = new Database(":memory:");
 		const store = new SqliteOrderedLearningStore(db);
 
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
+		await store.putRecord(makeRecordInput("cell_001"));
+		await store.putRecord(makeRecordInput("cell_001"));
 
 		const key: OrderedLearningHistoryKey = {
 			tag: "pain",
 			targetSchema: "ObservationEvent",
 			rawText: "severe pain in left knee",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(1);
 		expect(results[0].history?.priorAcceptCount).toBe(2);
 	});
@@ -144,15 +144,15 @@ describe("SqliteOrderedLearningStore", () => {
 		const db = new Database(":memory:");
 		const store = new SqliteOrderedLearningStore(db);
 
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
-		await store.markOrderedObservationCorrection("cell_001");
+		await store.putRecord(makeRecordInput("cell_001"));
+		await store.markCorrection("cell_001");
 
 		const key: OrderedLearningHistoryKey = {
 			tag: "pain",
 			targetSchema: "ObservationEvent",
 			rawText: "severe pain in left knee",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(1);
 		expect(results[0].history?.priorCorrectionCount).toBe(1);
 		expect(results[0].flags?.stalePreference).toBe(true);
@@ -162,8 +162,8 @@ describe("SqliteOrderedLearningStore", () => {
 		const db = new Database(":memory:");
 		const store = new SqliteOrderedLearningStore(db);
 
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
-		await store.markOrderedObservationCorrection("cell_001", {
+		await store.putRecord(makeRecordInput("cell_001"));
+		await store.markCorrection("cell_001", {
 			tag: "ache",
 			targetSchema: "ObservationEvent",
 			conceptId: "22253000",
@@ -177,16 +177,16 @@ describe("SqliteOrderedLearningStore", () => {
 			targetSchema: "ObservationEvent",
 			rawText: "severe pain in left knee",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(1);
 		expect(results[0].history?.priorCorrectionCount).toBe(1);
 		expect(results[0].flags?.reviewRequired).toBe(true);
 	});
 
-	test("should not fail on markOrderedObservationCorrection for unknown cellId", async () => {
+	test("should not fail on markCorrection for unknown cellId", async () => {
 		const db = new Database(":memory:");
 		const store = new SqliteOrderedLearningStore(db);
-		await store.markOrderedObservationCorrection("nonexistent");
+		await store.markCorrection("nonexistent");
 		// Should not throw
 	});
 
@@ -194,14 +194,14 @@ describe("SqliteOrderedLearningStore", () => {
 		const db = new Database(":memory:");
 		const store = new SqliteOrderedLearningStore(db);
 
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
+		await store.putRecord(makeRecordInput("cell_001"));
 
 		const key: OrderedLearningHistoryKey = {
 			tag: "pain",
 			targetSchema: "ObservationEvent",
 			rawText: "severe pain in left knee",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(1);
 		expect(results[0].relations?.length).toBeGreaterThan(0);
 	});
@@ -211,12 +211,12 @@ describe("SqliteOrderedLearningStore", () => {
 		const store = new SqliteOrderedLearningStore(db);
 
 		// Insert with different timestamps
-		await store.putOrderedObservation(
+		await store.putRecord(
 			makeRecordInput("cell_old", {
 				acceptedAt: "2024-01-01T00:00:00Z",
 			}),
 		);
-		await store.putOrderedObservation(
+		await store.putRecord(
 			makeRecordInput("cell_new", {
 				acceptedAt: "2026-07-24T00:00:00Z",
 			}),
@@ -227,7 +227,7 @@ describe("SqliteOrderedLearningStore", () => {
 			targetSchema: "ObservationEvent",
 			rawText: "severe pain in left knee",
 		};
-		const results = await store.getOrderedObservationHistory(key);
+		const results = await store.getHistory(key);
 		expect(results.length).toBe(2);
 		expect(results[0].cellId).toBe("cell_new");
 		expect(results[1].cellId).toBe("cell_old");
@@ -238,7 +238,7 @@ describe("SqliteOrderedLearningStore", () => {
 		const store = new SqliteOrderedLearningStore(db);
 
 		// Insert history
-		await store.putOrderedObservation(makeRecordInput("cell_001"));
+		await store.putRecord(makeRecordInput("cell_001"));
 
 		// Rank a candidate
 		const ranker = new OrderedLearningRanker();

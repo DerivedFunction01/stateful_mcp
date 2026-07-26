@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { OrderedLearningRanker } from "../src/store/ordered-learning-ranking";
+import { OrderedLearningRanker } from "../src/";
 import {
 	buildSequenceSignature,
 	extractAdjacentPairs,
 	scoreAdjacentPairs,
 	scoreRelations,
 	scoreSequenceSignature,
-} from "../src/store/ordered-learning-ranking-types";
+} from "../src/store/learning/ordered-learning-ranking-types";
 import {
 	buildOrderedRelations,
 	CompositeOrderedLearningStore,
@@ -17,7 +17,7 @@ import {
 	type OrderedLearningRecordInput,
 	type OrderedLearningStoreAdapter,
 	type OrderedLearningToken,
-} from "../src/store/ordered-learning-store";
+} from "../src/store/learning/ordered-learning-store";
 
 function makeInput(
 	overrides?: Partial<OrderedLearningRecordInput>,
@@ -73,9 +73,9 @@ describe("MemoryOrderedLearningStore", () => {
 	it("should store and retrieve an ordered observation", async () => {
 		const store = new MemoryOrderedLearningStore();
 		const input = makeInput();
-		await store.putOrderedObservation(input);
+		await store.putRecord(input);
 
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].cellId).toBe("cell_001");
 		expect(results[0].orderedTokens).toHaveLength(4);
@@ -87,15 +87,15 @@ describe("MemoryOrderedLearningStore", () => {
 
 	it("should return empty array when no records match", async () => {
 		const store = new MemoryOrderedLearningStore();
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(0);
 	});
 
 	it("should filter by patientId", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
-		const results = await store.getOrderedObservationHistory(
+		const results = await store.getHistory(
 			makeKey({ patientId: "pat_999" }),
 		);
 		expect(results).toHaveLength(0);
@@ -103,9 +103,9 @@ describe("MemoryOrderedLearningStore", () => {
 
 	it("should filter by personnelId", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
-		const results = await store.getOrderedObservationHistory(
+		const results = await store.getHistory(
 			makeKey({ personnelId: "dr_jones" }),
 		);
 		expect(results).toHaveLength(0);
@@ -113,9 +113,9 @@ describe("MemoryOrderedLearningStore", () => {
 
 	it("should filter by rawText", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
-		const results = await store.getOrderedObservationHistory(
+		const results = await store.getHistory(
 			makeKey({ rawText: "different text" }),
 		);
 		expect(results).toHaveLength(0);
@@ -123,20 +123,20 @@ describe("MemoryOrderedLearningStore", () => {
 
 	it("should increment priorAcceptCount on repeated puts", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
+		await store.putRecord(makeInput());
 
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].history?.priorAcceptCount).toBe(2);
 	});
 
 	it("should mark correction and update flags", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
-		await store.markOrderedObservationCorrection("cell_001");
-		const results = await store.getOrderedObservationHistory(makeKey());
+		await store.markCorrection("cell_001");
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].history?.priorCorrectionCount).toBe(1);
 		expect(results[0].flags?.stalePreference).toBe(true);
@@ -145,9 +145,9 @@ describe("MemoryOrderedLearningStore", () => {
 
 	it("should mark correction with replacement and set reviewRequired", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
-		await store.markOrderedObservationCorrection("cell_001", {
+		await store.markCorrection("cell_001", {
 			tag: "#observation",
 			anchorText: "severe dyspnea for 3 days",
 			conceptId: "SNOMED::267036007",
@@ -156,7 +156,7 @@ describe("MemoryOrderedLearningStore", () => {
 			targetSchema: "ObservationEvent",
 			rawText: "#observation severe dyspnea for 3 days",
 		});
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].history?.priorCorrectionCount).toBe(1);
 		expect(results[0].flags?.reviewRequired).toBe(true);
@@ -174,9 +174,9 @@ describe("MemoryOrderedLearningStore", () => {
 				index: i,
 			}),
 		);
-		await store.putOrderedObservation(makeInput({ orderedTokens: manyTokens }));
+		await store.putRecord(makeInput({ orderedTokens: manyTokens }));
 
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].orderedTokens).toHaveLength(MAX_ORDERED_TOKENS);
 	});
@@ -185,7 +185,7 @@ describe("MemoryOrderedLearningStore", () => {
 		const store = new MemoryOrderedLearningStore();
 		const oldDate = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
-		await store.putOrderedObservation(
+		await store.putRecord(
 			makeInput({
 				shared: {
 					cellId: "cell_old",
@@ -199,7 +199,7 @@ describe("MemoryOrderedLearningStore", () => {
 				},
 			}),
 		);
-		await store.putOrderedObservation(
+		await store.putRecord(
 			makeInput({
 				shared: {
 					cellId: "cell_new",
@@ -214,15 +214,15 @@ describe("MemoryOrderedLearningStore", () => {
 			}),
 		);
 
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(2);
 		expect(results[0].cellId).toBe("cell_new");
 		expect(results[1].cellId).toBe("cell_old");
 	});
 
-	it("should not fail on markOrderedObservationCorrection for unknown cellId", async () => {
+	it("should not fail on markCorrection for unknown cellId", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.markOrderedObservationCorrection("nonexistent");
+		await store.markCorrection("nonexistent");
 		expect(true).toBe(true);
 	});
 
@@ -237,9 +237,9 @@ describe("MemoryOrderedLearningStore", () => {
 			patientSubBucket: 1,
 			patientBucketKey: "human:adult:male",
 		};
-		await store.putOrderedObservation(input);
+		await store.putRecord(input);
 
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].patientAgeBucket).toBe("adult");
 		expect(results[0].patientGender).toBe("male");
@@ -250,9 +250,9 @@ describe("MemoryOrderedLearningStore", () => {
 
 	it("should derive pairwise relations on put", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].relations).toBeDefined();
 		// 4 tokens => 6 pairs => 12 relations (before + after for each)
@@ -261,13 +261,13 @@ describe("MemoryOrderedLearningStore", () => {
 
 	it("should have empty relations for single token", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(
+		await store.putRecord(
 			makeInput({
 				orderedTokens: [{ kind: "tag", key: "#observation", index: 0 }],
 			}),
 		);
 
-		const results = await store.getOrderedObservationHistory(makeKey());
+		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(1);
 		expect(results[0].relations).toHaveLength(0);
 	});
@@ -384,12 +384,12 @@ describe("CompositeOrderedLearningStore", () => {
 		const store1 = new MemoryOrderedLearningStore();
 		const store2 = new MemoryOrderedLearningStore();
 
-		await store1.putOrderedObservation(
+		await store1.putRecord(
 			makeInput({
 				shared: { ...makeInput().shared, cellId: "cell_a" },
 			}),
 		);
-		await store2.putOrderedObservation(
+		await store2.putRecord(
 			makeInput({
 				shared: { ...makeInput().shared, cellId: "cell_b" },
 			}),
@@ -401,7 +401,7 @@ describe("CompositeOrderedLearningStore", () => {
 		];
 		const composite = new CompositeOrderedLearningStore(adapters);
 
-		const results = await composite.getOrderedObservationHistory(makeKey());
+		const results = await composite.getHistory(makeKey());
 		expect(results).toHaveLength(2);
 		const cellIds = results.map((r) => r.cellId).sort();
 		expect(cellIds).toEqual(["cell_a", "cell_b"]);
@@ -409,7 +409,7 @@ describe("CompositeOrderedLearningStore", () => {
 
 	it("should return weighted candidates", async () => {
 		const store1 = new MemoryOrderedLearningStore();
-		await store1.putOrderedObservation(makeInput());
+		await store1.putRecord(makeInput());
 
 		const adapters: OrderedLearningStoreAdapter[] = [
 			{ adapterId: "mem1", weight: 0.7, store: store1 },
@@ -424,7 +424,7 @@ describe("CompositeOrderedLearningStore", () => {
 		expect(weighted[0].weight).toBe(0.7);
 	});
 
-	it("should fan out putOrderedObservation to all adapters", async () => {
+	it("should fan out putRecord to all adapters", async () => {
 		const store1 = new MemoryOrderedLearningStore();
 		const store2 = new MemoryOrderedLearningStore();
 
@@ -434,20 +434,20 @@ describe("CompositeOrderedLearningStore", () => {
 		];
 		const composite = new CompositeOrderedLearningStore(adapters);
 
-		await composite.putOrderedObservation(makeInput());
+		await composite.putRecord(makeInput());
 
-		const results1 = await store1.getOrderedObservationHistory(makeKey());
-		const results2 = await store2.getOrderedObservationHistory(makeKey());
+		const results1 = await store1.getHistory(makeKey());
+		const results2 = await store2.getHistory(makeKey());
 		expect(results1).toHaveLength(1);
 		expect(results2).toHaveLength(1);
 	});
 
-	it("should fan out markOrderedObservationCorrection to all adapters", async () => {
+	it("should fan out markCorrection to all adapters", async () => {
 		const store1 = new MemoryOrderedLearningStore();
 		const store2 = new MemoryOrderedLearningStore();
 
-		await store1.putOrderedObservation(makeInput());
-		await store2.putOrderedObservation(makeInput());
+		await store1.putRecord(makeInput());
+		await store2.putRecord(makeInput());
 
 		const adapters: OrderedLearningStoreAdapter[] = [
 			{ adapterId: "mem1", weight: 0.5, store: store1 },
@@ -455,24 +455,24 @@ describe("CompositeOrderedLearningStore", () => {
 		];
 		const composite = new CompositeOrderedLearningStore(adapters);
 
-		await composite.markOrderedObservationCorrection("cell_001");
+		await composite.markCorrection("cell_001");
 
-		const results1 = await store1.getOrderedObservationHistory(makeKey());
-		const results2 = await store2.getOrderedObservationHistory(makeKey());
+		const results1 = await store1.getHistory(makeKey());
+		const results2 = await store2.getHistory(makeKey());
 		expect(results1[0].history?.priorCorrectionCount).toBe(1);
 		expect(results2[0].history?.priorCorrectionCount).toBe(1);
 	});
 
 	it("should return empty when no adapters match", async () => {
 		const store1 = new MemoryOrderedLearningStore();
-		await store1.putOrderedObservation(makeInput());
+		await store1.putRecord(makeInput());
 
 		const adapters: OrderedLearningStoreAdapter[] = [
 			{ adapterId: "mem1", weight: 1, store: store1 },
 		];
 		const composite = new CompositeOrderedLearningStore(adapters);
 
-		const results = await composite.getOrderedObservationHistory(
+		const results = await composite.getHistory(
 			makeKey({ patientId: "nonexistent" }),
 		);
 		expect(results).toHaveLength(0);
@@ -647,7 +647,7 @@ describe("OrderedLearningRanker", () => {
 
 	it("should return a ranked candidate with combined score", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker();
 		const result = await ranker.rankCandidate(store, {
@@ -670,7 +670,7 @@ describe("OrderedLearningRanker", () => {
 
 	it("should reward matching adjacent pairs", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker();
 		const result = await ranker.rankCandidate(store, {
@@ -689,7 +689,7 @@ describe("OrderedLearningRanker", () => {
 
 	it("should penalize reordered tokens", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker();
 		const result = await ranker.rankCandidate(store, {
@@ -709,7 +709,7 @@ describe("OrderedLearningRanker", () => {
 
 	it("should use custom weights when provided", async () => {
 		const store = new MemoryOrderedLearningStore();
-		await store.putOrderedObservation(makeInput());
+		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker({
 			adjacentWeight: 1,
