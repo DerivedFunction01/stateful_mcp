@@ -9,11 +9,11 @@ import {
 import type {
 	OrderedLearningHistoryKey,
 	OrderedLearningStore,
-} from "./ordered-learning-store";
+} from "../ordered-learning-store";
 import {
 	buildOrderedRelations,
 	type OrderedLearningToken,
-} from "./ordered-learning-store";
+} from "../ordered-learning-store";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

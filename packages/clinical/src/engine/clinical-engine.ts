@@ -20,8 +20,8 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import { OrderedLearningRanker } from "../store/learning/ordered-learning-ranking";
-import type { OrderedLearningRankedCandidate } from "../store/learning/ordered-learning-ranking-types";
+import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
+import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
 import {
 	MAX_ORDERED_TOKENS,
 	type OrderedLearningHistoryKey,

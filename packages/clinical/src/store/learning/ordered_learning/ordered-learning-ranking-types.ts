@@ -2,7 +2,7 @@ import type {
 	OrderedLearningRecord,
 	OrderedLearningRelation,
 	OrderedLearningToken,
-} from "./ordered-learning-store";
+} from "../ordered-learning-store";
 
 // ── Ranking Signal Types ─────────────────────────────────────────────────────
 
