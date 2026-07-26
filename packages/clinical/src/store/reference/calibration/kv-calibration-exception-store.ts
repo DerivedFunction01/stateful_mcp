@@ -4,9 +4,7 @@ import type {
 	CalibrationExceptionStore,
 } from "./interfaces";
 
-export class KvCalibrationExceptionStore
-	implements CalibrationExceptionStore
-{
+export class KvCalibrationExceptionStore implements CalibrationExceptionStore {
 	private readonly prefix = "calibrationException:";
 	private readonly counterKey = "calibrationException:counter";
 

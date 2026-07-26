@@ -145,6 +145,140 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 				"Parser profile, concept default, and rule resolution backends.",
 			defaultAdapters: [],
 		},
+		parser_profiles: {
+			group: "parser_profiles",
+			implemented: true,
+			description: "Parser profile and profile-tag backends.",
+			defaultAdapters: [
+				{
+					group: "parser_profiles",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
+		parser_rules: {
+			group: "parser_rules",
+			implemented: true,
+			description: "Parser attribute rules, evaluator rules, and bindings.",
+			defaultAdapters: [
+				{
+					group: "parser_rules",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
+		reference: {
+			group: "reference",
+			implemented: true,
+			description:
+				"Shared reference data: tags, jurisdictional displays, stop word profiles, prose templates.",
+			defaultAdapters: [
+				{
+					group: "reference",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
+		concept_defaults: {
+			group: "concept_defaults",
+			implemented: true,
+			description: "Concept defaults tied to the dictionary backend config.",
+			defaultAdapters: [
+				{
+					group: "concept_defaults",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
+		calibration: {
+			group: "calibration",
+			implemented: true,
+			description: "Calibration exception store.",
+			defaultAdapters: [
+				{
+					group: "calibration",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
+		personnel: {
+			group: "personnel",
+			implemented: true,
+			description: "Personnel store.",
+			defaultAdapters: [
+				{
+					group: "personnel",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
+		facilities: {
+			group: "facilities",
+			implemented: true,
+			description: "Facility store.",
+			defaultAdapters: [
+				{
+					group: "facilities",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
 		soap_note: {
 			group: "soap_note",
 			implemented: true,

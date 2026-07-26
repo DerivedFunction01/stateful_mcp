@@ -1,19 +1,8 @@
-import type { EntityStore } from "@stateful-mcp/core";
 import {
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
 } from "./adapter-config";
 import type { ClinicalStoreConfig } from "./clinical-config";
-import {
-	ClinicalParserConceptDefaultStore,
-	ClinicalParserProfileStore,
-} from "./clinical-store";
-import type {
-	ParserConceptDefault,
-	ParserConceptDefaultStore,
-	ParserProfileStore,
-	ParserSyntaxProfile,
-} from "./interfaces";
 import {
 	resolveOrderedLearningStoreLocator,
 	resolveParsedCellStoreLocator,
@@ -22,12 +11,52 @@ import type { KvOrderedLearningStore } from "./learning/ordered_learning/kv-orde
 import type { SqlOrderedLearningStore } from "./learning/ordered_learning/sql-ordered-learning-store";
 import type { KvParsedCellStore } from "./learning/parsed_cell/kv-parsed-cell-store";
 import type { SqlParsedCellStore } from "./learning/parsed_cell/sql-parsed-cell-store";
+import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "./parser/concept_defaults/interfaces";
+import {
+	resolveCalibrationExceptionStore,
+	resolveConceptDefaultStore,
+	resolveFacilityStore,
+	resolveParserProfileStores,
+	resolveParserRuleStores,
+	resolvePersonnelStore,
+	resolveReferenceStores,
+} from "./parser/parser-backend-resolver";
+import { DefaultParserProfileComposer } from "./parser/parser-composer";
+import type {
+	ParserProfileCoreStore,
+	ProfileTagStore,
+} from "./parser/profiles/interfaces";
+import type {
+	ParserAttributeRuleStore,
+	ParserEvaluatorRuleStore,
+	ParserProfileEvaluatorBindingStore,
+	ParserProfileRuleBindingStore,
+} from "./parser/rules/interfaces";
+import type { TagStore } from "./parser/tags/interfaces";
+import type { CalibrationExceptionStore } from "./reference/calibration/interfaces";
+import type { FacilityStore } from "./reference/facilities/interfaces";
+import type { JurisdictionalDisplayStore } from "./reference/jurisdictional-displays/interfaces";
+import type { PersonnelStore } from "./reference/personnel/interfaces";
+import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
+import type { StopWordProfileStore } from "./reference/stop-words/interfaces";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
 export interface ClinicalRuntimeParserStores {
-	profiles: ParserProfileStore;
-	conceptDefaults: ParserConceptDefaultStore;
+	profiles: ParserProfileCoreStore;
+	profileTags: ProfileTagStore;
+	attributeRules: ParserAttributeRuleStore;
+	evaluatorRules: ParserEvaluatorRuleStore;
+	attributeBindings: ParserProfileRuleBindingStore;
+	evaluatorBindings: ParserProfileEvaluatorBindingStore;
+	tags: TagStore;
+	conceptDefaults: NewParserConceptDefaultStore;
+	jurisdictionalDisplays: JurisdictionalDisplayStore;
+	stopWordProfiles: StopWordProfileStore;
+	proseTemplates: ClinicalProseTemplateStore;
+	calibration: CalibrationExceptionStore;
+	personnel: PersonnelStore;
+	facilities: FacilityStore;
 }
 
 export type ResolvedParsedCellStore = KvParsedCellStore | SqlParsedCellStore;
@@ -43,22 +72,59 @@ export interface ClinicalRuntime {
 	orderAwareStores: ResolvedOrderedLearningStore[];
 }
 
-// ── Factory functions ────────────────────────────────────────────────────────
+// ── Factory using decomposed stores ──────────────────────────────────────────
 
-export function buildClinicalParserStores(
+export async function createClinicalRuntime(
 	config: ClinicalStoreConfig,
-	profileEntityStore: EntityStore<ParserSyntaxProfile>,
-	conceptDefaultEntityStore: EntityStore<ParserConceptDefault>,
-): ClinicalRuntimeParserStores {
+): Promise<ClinicalRuntime> {
+	const [
+		profiles,
+		rules,
+		refs,
+		conceptDefaults,
+		calibration,
+		personnel,
+		facilities,
+	] = await Promise.all([
+		resolveParserProfileStores(config),
+		resolveParserRuleStores(config),
+		resolveReferenceStores(config),
+		resolveConceptDefaultStore(config),
+		resolveCalibrationExceptionStore(config),
+		resolvePersonnelStore(config),
+		resolveFacilityStore(config),
+	]);
+
+	const composer = new DefaultParserProfileComposer(
+		profiles.core,
+		profiles.tags,
+		refs.tags,
+		rules.attributeRules,
+		rules.evaluatorRules,
+		rules.attributeBindings,
+		rules.evaluatorBindings,
+	);
+
 	return {
-		profiles: new ClinicalParserProfileStore(
-			profileEntityStore,
-			config.seeds.parserProfiles,
-		),
-		conceptDefaults: new ClinicalParserConceptDefaultStore(
-			conceptDefaultEntityStore,
-			config.seeds.conceptDefaults,
-		),
+		config,
+		parserStores: {
+			profiles: profiles.core,
+			profileTags: profiles.tags,
+			attributeRules: rules.attributeRules,
+			evaluatorRules: rules.evaluatorRules,
+			attributeBindings: rules.attributeBindings,
+			evaluatorBindings: rules.evaluatorBindings,
+			tags: refs.tags,
+			conceptDefaults,
+			jurisdictionalDisplays: refs.jurisdictionalDisplays,
+			stopWordProfiles: refs.stopWordProfiles,
+			proseTemplates: refs.proseTemplates,
+			calibration,
+			personnel,
+			facilities,
+		},
+		learningStores: await buildLearningStores(config),
+		orderAwareStores: await buildOrderedLearningStores(config),
 	};
 }
 
@@ -88,44 +154,4 @@ async function buildLearningStores(
 			.filter((a) => a.implemented !== false && a.primary)
 			.map((a) => resolveParsedCellStoreLocator(a.primary)),
 	);
-}
-
-export async function createClinicalRuntime(
-	config: ClinicalStoreConfig,
-): Promise<ClinicalRuntime> {
-	return {
-		config,
-		parserStores: {
-			profiles: new ClinicalParserProfileStore(
-				{
-					get: async (id: string) => {
-						const profile = config.seeds.parserProfiles.find(
-							(p) => p.profileId === id,
-						);
-						return profile ?? null;
-					},
-					list: async () => [...config.seeds.parserProfiles],
-					set: async (_id: string, _value: ParserSyntaxProfile) => {},
-					delete: async (_id: string) => {},
-				} as EntityStore<ParserSyntaxProfile>,
-				config.seeds.parserProfiles,
-			),
-			conceptDefaults: new ClinicalParserConceptDefaultStore(
-				{
-					get: async (key: string) => {
-						const record = config.seeds.conceptDefaults.find(
-							(d) => `${d.anchorConceptId}:${d.targetSchema}` === key,
-						);
-						return record ?? null;
-					},
-					list: async () => [...config.seeds.conceptDefaults],
-					set: async (_key: string, _value: ParserConceptDefault) => {},
-					delete: async (_key: string) => {},
-				} as EntityStore<ParserConceptDefault>,
-				config.seeds.conceptDefaults,
-			),
-		},
-		learningStores: await buildLearningStores(config),
-		orderAwareStores: await buildOrderedLearningStores(config),
-	};
 }

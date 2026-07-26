@@ -1,7 +1,9 @@
 import type { KvBackend } from "@stateful-mcp/core";
 import type { ParserProfileRuleBindingStore } from "./interfaces";
 
-export class KvProfileRuleBindingStore implements ParserProfileRuleBindingStore {
+export class KvProfileRuleBindingStore
+	implements ParserProfileRuleBindingStore
+{
 	private readonly prefix = "profileRuleBinding:";
 
 	constructor(private readonly backend: KvBackend) {}

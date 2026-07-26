@@ -257,21 +257,3 @@ export interface PersistentVariableStore {
 	findByTag(tag: string, scope: OwnerScope): Promise<unknown[]>;
 	list(scope: OwnerScope, includeGlobal?: boolean): Promise<unknown[]>;
 }
-
-export interface EntityStore<T> {
-	get(id: string): Promise<T | null>;
-	set(id: string, entity: T): Promise<void>;
-	list(): Promise<T[]>;
-	delete(id: string): Promise<void>;
-}
-
-export interface SqlQueryResultRow {
-	[key: string]: unknown;
-}
-
-export interface SqlQueryStore {
-	query<T = SqlQueryResultRow>(
-		sql: string,
-		params?: readonly unknown[],
-	): Promise<T[]>;
-}
