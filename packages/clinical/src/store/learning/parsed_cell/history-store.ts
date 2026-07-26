@@ -1,48 +1,48 @@
-import type {
-	ParsedCellHistoryKey,
-	ParsedCellObservationDetail,
-	ParsedCellObservedShape,
-} from "../interfaces";
+import type { ParsedCellDetail, ParsedCellHistoryKey } from "../interfaces";
 
-// ── History Store (Observation-specific) ──────────────────────────────────────
+// ── Generic History Store ─────────────────────────────────────────────────────
 
-export interface ParsedCellHistoryStore {
-	getObservationHistory(
-		key: ParsedCellHistoryKey,
-	): Promise<ParsedCellObservationDetail[]>;
-	putObservation(record: any): Promise<void>;
-	markObservationCorrection(cellId: string, replacement?: any): Promise<void>;
+export interface ParsedCellHistoryStore<TDetail extends ParsedCellDetail> {
+	getHistory(key: ParsedCellHistoryKey): Promise<TDetail[]>;
+	putRecord(record: any): Promise<void>;
+	markCorrection(cellId: string, replacement?: any): Promise<void>;
 }
 
-export interface ParsedCellHistoryAdapter {
+export interface ParsedCellHistoryAdapter<TDetail extends ParsedCellDetail> {
 	adapterId: string;
 	weight: number;
-	store: ParsedCellHistoryStore;
+	store: ParsedCellHistoryStore<TDetail>;
 }
 
-export interface ParsedCellWeightedHistoryCandidate {
-	candidate: ParsedCellObservationDetail;
+export interface ParsedCellWeightedHistoryCandidate<
+	TDetail extends ParsedCellDetail,
+> {
+	candidate: TDetail;
 	adapterId: string;
 	weight: number;
 }
 
-export interface ParsedCellWeightedHistoryStore {
-	getWeightedObservationHistory(
+export interface ParsedCellWeightedHistoryStore<
+	TDetail extends ParsedCellDetail,
+> {
+	getWeightedHistory(
 		key: ParsedCellHistoryKey,
-	): Promise<ParsedCellWeightedHistoryCandidate[]>;
+	): Promise<ParsedCellWeightedHistoryCandidate<TDetail>[]>;
 }
 
-export class CompositeParsedCellHistoryStore
-	implements ParsedCellHistoryStore, ParsedCellWeightedHistoryStore
+export class CompositeParsedCellHistoryStore<TDetail extends ParsedCellDetail>
+	implements
+		ParsedCellHistoryStore<TDetail>,
+		ParsedCellWeightedHistoryStore<TDetail>
 {
-	constructor(private adapters: ParsedCellHistoryAdapter[]) {}
+	constructor(private adapters: ParsedCellHistoryAdapter<TDetail>[]) {}
 
-	async getWeightedObservationHistory(
+	async getWeightedHistory(
 		key: ParsedCellHistoryKey,
-	): Promise<ParsedCellWeightedHistoryCandidate[]> {
+	): Promise<ParsedCellWeightedHistoryCandidate<TDetail>[]> {
 		const results = await Promise.all(
 			this.adapters.map(async (adapter) => {
-				const rows = await adapter.store.getObservationHistory(key);
+				const rows = await adapter.store.getHistory(key);
 				return rows.map((candidate) => ({
 					candidate,
 					adapterId: adapter.adapterId,
@@ -53,42 +53,21 @@ export class CompositeParsedCellHistoryStore
 		return results.flat();
 	}
 
-	async getObservationHistory(
-		key: ParsedCellHistoryKey,
-	): Promise<ParsedCellObservationDetail[]> {
-		return (await this.getWeightedObservationHistory(key)).map(
-			(entry) => entry.candidate,
-		);
+	async getHistory(key: ParsedCellHistoryKey): Promise<TDetail[]> {
+		return (await this.getWeightedHistory(key)).map((entry) => entry.candidate);
 	}
 
-	async putObservation(record: any): Promise<void> {
+	async putRecord(record: any): Promise<void> {
 		await Promise.all(
-			this.adapters.map((adapter) => adapter.store.putObservation(record)),
+			this.adapters.map((adapter) => adapter.store.putRecord(record)),
 		);
 	}
 
-	async markObservationCorrection(
-		cellId: string,
-		replacement?: any,
-	): Promise<void> {
+	async markCorrection(cellId: string, replacement?: any): Promise<void> {
 		await Promise.all(
 			this.adapters.map((adapter) =>
-				adapter.store.markObservationCorrection(cellId, replacement),
+				adapter.store.markCorrection(cellId, replacement),
 			),
 		);
 	}
-}
-
-// ── Observation Shape Builder ─────────────────────────────────────────────────
-
-export function buildObservationShape(item: any): ParsedCellObservedShape {
-	return {
-		schema: item.targetSchema,
-		slots: {
-			conceptId: item.conceptId,
-			severity: item.severity,
-			certainty: item.certainty,
-			status: item.status,
-		},
-	};
 }

@@ -52,6 +52,7 @@ export class SqlOrderedLearningStore implements OrderedLearningStore {
 			table: this.table,
 			key,
 		});
+
 		const rows = await this.executor.query(sql, params);
 		return rows.map((row) => this.rowToRecord(row));
 	}

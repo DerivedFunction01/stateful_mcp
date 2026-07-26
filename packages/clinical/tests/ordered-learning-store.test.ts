@@ -1,23 +1,24 @@
 import { describe, expect, it } from "bun:test";
-import { OrderedLearningRanker } from "../src/";
+import { MemoryKvBackend } from "@stateful-mcp/core";
+import {
+	MAX_ORDERED_TOKENS,
+	NEAR_GAP_THRESHOLD,
+	type OrderedLearningHistoryKey,
+	type OrderedLearningRecordInput,
+	type OrderedLearningStoreAdapter,
+	type OrderedLearningToken,
+} from "../src/store/learning/interfaces";
+import { CompositeOrderedLearningStore } from "../src/store/learning/ordered_learning/composite-store";
+import { buildOrderedRelations } from "../src/store/learning/ordered_learning/helpers";
+import { KvOrderedLearningStore } from "../src/store/learning/ordered_learning/kv-ordered-learning-store";
+import { OrderedLearningRanker } from "../src/store/learning/ordered_learning/ordered-learning-ranking";
 import {
 	buildSequenceSignature,
 	extractAdjacentPairs,
 	scoreAdjacentPairs,
 	scoreRelations,
 	scoreSequenceSignature,
-} from "../src/store/learning/ordered-learning-ranking-types";
-import {
-	buildOrderedRelations,
-	CompositeOrderedLearningStore,
-	MAX_ORDERED_TOKENS,
-	MemoryOrderedLearningStore,
-	NEAR_GAP_THRESHOLD,
-	type OrderedLearningHistoryKey,
-	type OrderedLearningRecordInput,
-	type OrderedLearningStoreAdapter,
-	type OrderedLearningToken,
-} from "../src/store/learning/ordered-learning-store";
+} from "../src/store/learning/ordered_learning/ordered-learning-ranking-types";
 
 function makeInput(
 	overrides?: Partial<OrderedLearningRecordInput>,
@@ -71,7 +72,7 @@ function makeKey(
 
 describe("MemoryOrderedLearningStore", () => {
 	it("should store and retrieve an ordered observation", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		const input = makeInput();
 		await store.putRecord(input);
 
@@ -86,13 +87,13 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should return empty array when no records match", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		const results = await store.getHistory(makeKey());
 		expect(results).toHaveLength(0);
 	});
 
 	it("should filter by patientId", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const results = await store.getHistory(makeKey({ patientId: "pat_999" }));
@@ -100,7 +101,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should filter by personnelId", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const results = await store.getHistory(
@@ -110,7 +111,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should filter by rawText", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const results = await store.getHistory(
@@ -120,7 +121,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should increment priorAcceptCount on repeated puts", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 		await store.putRecord(makeInput());
 
@@ -130,7 +131,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should mark correction and update flags", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		await store.markCorrection("cell_001");
@@ -142,7 +143,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should mark correction with replacement and set reviewRequired", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		await store.markCorrection("cell_001", {
@@ -162,7 +163,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should bound ordered tokens to MAX_ORDERED_TOKENS", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		const manyTokens: OrderedLearningToken[] = Array.from(
 			{ length: MAX_ORDERED_TOKENS + 100 },
 			(_, i) => ({
@@ -180,7 +181,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should sort results by recencyScore descending", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		const oldDate = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
 		await store.putRecord(
@@ -219,13 +220,13 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should not fail on markCorrection for unknown cellId", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.markCorrection("nonexistent");
 		expect(true).toBe(true);
 	});
 
 	it("should store featureBag when provided", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		const input = makeInput();
 		input.shared = {
 			...input.shared,
@@ -247,7 +248,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should derive pairwise relations on put", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const results = await store.getHistory(makeKey());
@@ -258,7 +259,7 @@ describe("MemoryOrderedLearningStore", () => {
 	});
 
 	it("should have empty relations for single token", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(
 			makeInput({
 				orderedTokens: [{ kind: "tag", key: "#observation", index: 0 }],
@@ -379,8 +380,8 @@ describe("buildOrderedRelations", () => {
 
 describe("CompositeOrderedLearningStore", () => {
 	it("should merge results from multiple adapters", async () => {
-		const store1 = new MemoryOrderedLearningStore();
-		const store2 = new MemoryOrderedLearningStore();
+		const store1 = new KvOrderedLearningStore(new MemoryKvBackend());
+		const store2 = new KvOrderedLearningStore(new MemoryKvBackend());
 
 		await store1.putRecord(
 			makeInput({
@@ -406,7 +407,7 @@ describe("CompositeOrderedLearningStore", () => {
 	});
 
 	it("should return weighted candidates", async () => {
-		const store1 = new MemoryOrderedLearningStore();
+		const store1 = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store1.putRecord(makeInput());
 
 		const adapters: OrderedLearningStoreAdapter[] = [
@@ -414,17 +415,15 @@ describe("CompositeOrderedLearningStore", () => {
 		];
 		const composite = new CompositeOrderedLearningStore(adapters);
 
-		const weighted = await composite.getWeightedOrderedObservationHistory(
-			makeKey(),
-		);
+		const weighted = await composite.getWeightedOrderedHistory(makeKey());
 		expect(weighted).toHaveLength(1);
 		expect(weighted[0].adapterId).toBe("mem1");
 		expect(weighted[0].weight).toBe(0.7);
 	});
 
 	it("should fan out putRecord to all adapters", async () => {
-		const store1 = new MemoryOrderedLearningStore();
-		const store2 = new MemoryOrderedLearningStore();
+		const store1 = new KvOrderedLearningStore(new MemoryKvBackend());
+		const store2 = new KvOrderedLearningStore(new MemoryKvBackend());
 
 		const adapters: OrderedLearningStoreAdapter[] = [
 			{ adapterId: "mem1", weight: 0.5, store: store1 },
@@ -441,8 +440,8 @@ describe("CompositeOrderedLearningStore", () => {
 	});
 
 	it("should fan out markCorrection to all adapters", async () => {
-		const store1 = new MemoryOrderedLearningStore();
-		const store2 = new MemoryOrderedLearningStore();
+		const store1 = new KvOrderedLearningStore(new MemoryKvBackend());
+		const store2 = new KvOrderedLearningStore(new MemoryKvBackend());
 
 		await store1.putRecord(makeInput());
 		await store2.putRecord(makeInput());
@@ -462,7 +461,7 @@ describe("CompositeOrderedLearningStore", () => {
 	});
 
 	it("should return empty when no adapters match", async () => {
-		const store1 = new MemoryOrderedLearningStore();
+		const store1 = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store1.putRecord(makeInput());
 
 		const adapters: OrderedLearningStoreAdapter[] = [
@@ -629,7 +628,7 @@ describe("scoreSequenceSignature", () => {
 
 describe("OrderedLearningRanker", () => {
 	it("should return null when history is empty", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		const ranker = new OrderedLearningRanker();
 
 		const result = await ranker.rankCandidate(store, {
@@ -644,7 +643,7 @@ describe("OrderedLearningRanker", () => {
 	});
 
 	it("should return a ranked candidate with combined score", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker();
@@ -667,7 +666,7 @@ describe("OrderedLearningRanker", () => {
 	});
 
 	it("should reward matching adjacent pairs", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker();
@@ -686,7 +685,7 @@ describe("OrderedLearningRanker", () => {
 	});
 
 	it("should penalize reordered tokens", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker();
@@ -706,7 +705,7 @@ describe("OrderedLearningRanker", () => {
 	});
 
 	it("should use custom weights when provided", async () => {
-		const store = new MemoryOrderedLearningStore();
+		const store = new KvOrderedLearningStore(new MemoryKvBackend());
 		await store.putRecord(makeInput());
 
 		const ranker = new OrderedLearningRanker({

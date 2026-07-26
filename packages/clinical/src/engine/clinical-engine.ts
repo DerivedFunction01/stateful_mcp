@@ -21,7 +21,7 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type {
-	ParsedCellHistoryStore,
+	ParsedCellDetail,
 	ParsedCellRecord,
 	ParsedCellStore,
 } from "../store/learning/interfaces";
@@ -34,7 +34,8 @@ import {
 } from "../store/learning/interfaces";
 import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
-import { buildObservationShape } from "../store/learning/parsed_cell/history-store";
+import type { ParsedCellHistoryStore } from "../store/learning/parsed_cell/history-store";
+import { buildObservationShape } from "../store/learning/parsed_cell/observation/shape";
 
 // ── Order-Aware Projection ───────────────────────────────────────────────────
 
@@ -241,7 +242,7 @@ export class ClinicalEngine {
 		const note = activeObj.data as SoapNote;
 		const patientBucket = buildPatientLearningBucket(note.patient);
 		const historyStore = this.parsedCellStore as
-			| ParsedCellHistoryStore
+			| ParsedCellHistoryStore<ParsedCellDetail>
 			| undefined;
 
 		const parsedItems = historyStore
@@ -292,6 +293,7 @@ export class ClinicalEngine {
 					},
 					detail: {
 						cellId,
+						targetSchema: item.targetSchema,
 						soapNoteId: note.id,
 						conceptId: item.conceptId,
 						display: item.display,

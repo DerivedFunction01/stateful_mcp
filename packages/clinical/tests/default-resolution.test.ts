@@ -5,6 +5,7 @@ import {
 	DictionaryStore,
 	InMemoryConceptResolver,
 } from "@stateful-mcp/core";
+import type { CustomExpression } from "@stateful-mcp/core/src/middleware/dictionary/types";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import type { ParsedObservationItem } from "../src/parser/schema-parsers";
 import {
@@ -40,6 +41,7 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 			conceptId: "SNOMED::29857009",
 			priorityWeight: 1,
 			active: true,
+			id: "1",
 		},
 	];
 

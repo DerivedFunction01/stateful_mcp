@@ -11,10 +11,6 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
-import {
-	QuantityHelper,
-	QuantityTokenizer,
-} from "../helpers/measurement-helper";
 import { MedicationTokenizer } from "../helpers/medication-helper";
 import {
 	CANONICAL_TAGS,
@@ -70,25 +66,9 @@ export class MedicationSchemaParser implements SchemaParser {
 
 		let token: any = null;
 		if (preparsedContext?.attributes) {
-			const durationCandidates = preparsedContext.timeSpan || [];
-			const durationCandidate = durationCandidates.find((candidate) => {
-				if (!candidate.rawUnit || !candidate.magnitude) return false;
-				const resolved = QuantityTokenizer.resolveUnit(
-					candidate.rawUnit,
-					attrRules,
-				);
-				return (
-					resolved !== undefined && QuantityHelper.isTimeResolved(resolved)
-				);
-			});
 			token = {
 				anchorText: content.trim(),
 				route: preparsedContext.attributes.route,
-				duration: durationCandidate
-					? String(durationCandidate.magnitude) +
-						" " +
-						(durationCandidate.rawUnit || "")
-					: undefined,
 			};
 		} else {
 			token = MedicationTokenizer.tokenize(content, attrRules, evalRules);
@@ -97,7 +77,6 @@ export class MedicationSchemaParser implements SchemaParser {
 
 		let route = token.route;
 		let frequency = preparsedContext?.frequency;
-		let duration: string | undefined = token.duration;
 
 		// Resolve concept
 		const resolved = await resolveConceptHelper(
@@ -136,34 +115,6 @@ export class MedicationSchemaParser implements SchemaParser {
 				{ rawText: content, parsedPartial: { frequency } },
 			) ||
 			frequency;
-		duration =
-			conceptDefaults?.defaultProperties.duration ||
-			resolveSchemaDefault<string>(
-				this.targetSchema,
-				"duration",
-				preparsedContext?.profile,
-				{ rawText: content, parsedPartial: { duration } },
-			) ||
-			duration;
-
-		if (!duration && preparsedContext?.timeSpan) {
-			const durationCandidate = preparsedContext.timeSpan.find((candidate) => {
-				if (!candidate.rawUnit || !candidate.magnitude) return false;
-				const resolved = QuantityTokenizer.resolveUnit(
-					candidate.rawUnit,
-					attrRules,
-				);
-				return (
-					resolved !== undefined && QuantityHelper.isTimeResolved(resolved)
-				);
-			});
-			if (durationCandidate) {
-				duration =
-					String(durationCandidate.magnitude) +
-					" " +
-					(durationCandidate.rawUnit || "");
-			}
-		}
 
 		const capturedProperties: Record<string, any> = {};
 		if (token.quantity !== undefined) {
@@ -180,7 +131,6 @@ export class MedicationSchemaParser implements SchemaParser {
 			display,
 			route,
 			frequency,
-			duration,
 			targetSchema: this.targetSchema,
 			rawText: `${tag} ${content}`,
 			capturedProperties:

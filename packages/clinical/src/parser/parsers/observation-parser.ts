@@ -12,8 +12,9 @@ import type {
 } from "../../store/interfaces";
 import type {
 	ParsedCellHistoryKey,
-	ParsedCellHistoryStore,
-} from "../../store/learning/parsed_cell/history-store";
+	ParsedCellObservationDetail,
+} from "../../store/learning/interfaces";
+import type { ParsedCellHistoryStore } from "../../store/learning/parsed_cell/history-store";
 import { ObservationTokenizer } from "../helpers/observation-helper";
 import {
 	CANONICAL_TAGS,
@@ -38,7 +39,7 @@ export class ObservationSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-		historyStore?: ParsedCellHistoryStore,
+		historyStore?: ParsedCellHistoryStore<ParsedCellObservationDetail>,
 	): Promise<ParsedCandidateEnvelope<ParsedObservationItem>> {
 		const deterministic = await this.parse(
 			tag,
@@ -66,9 +67,7 @@ export class ObservationSchemaParser implements SchemaParser {
 			targetSchema: this.targetSchema,
 			rawText: content,
 		};
-		const historyRows = historyStore
-			? await historyStore.getObservationHistory(key)
-			: [];
+		const historyRows = historyStore ? await historyStore.getHistory(key) : [];
 		const learned = historyRows
 			.map((row) => row.parsedItem)
 			.filter((item): item is ParsedObservationItem => item !== null);

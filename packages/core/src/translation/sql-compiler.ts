@@ -343,9 +343,9 @@ export class QueryCompiler {
 				} else {
 					line += " PRIMARY KEY";
 				}
-			} else if (!col.nullable) {
+			} else if (col.nullable !== undefined && !col.nullable) {
 				line += " NOT NULL";
-			} else {
+			} else if (col.nullable === true) {
 				line += " NULL";
 			}
 
@@ -688,7 +688,8 @@ export class QueryCompiler {
 				const placeholders = rowVals.map((val) => ctx.addParam(val));
 				return `(${placeholders.join(", ")})`;
 			});
-		} else if (query.columns) {
+		}
+		if (query.columns) {
 			if (query.columns.length === 0) {
 				throw new Error("InsertQuery requires at least one column");
 			}
@@ -698,7 +699,8 @@ export class QueryCompiler {
 				(c) => query.columnLiterals?.[c] ?? ctx.nextPlaceholder(),
 			);
 			valueStrings = [`(${placeholders.join(", ")})`];
-		} else {
+		}
+		if (!query.columns && !query.values) {
 			throw new Error("InsertQuery requires either 'values' or 'columns'");
 		}
 

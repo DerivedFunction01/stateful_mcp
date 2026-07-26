@@ -8,6 +8,7 @@ import type {
 	ParserSyntaxProfile,
 	PatientLearningContext,
 } from "../store/interfaces";
+import type { ParsedCellDetail } from "../store/learning/interfaces";
 import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
 import { MedicationSchemaParser } from "./parsers/medication-parser";
 import { ObservationSchemaParser } from "./parsers/observation-parser";
@@ -47,8 +48,6 @@ export interface ParsedMedicationItem extends BaseParsedItem {
 	targetSchema: "MedicationOrderObject";
 	route?: string;
 	frequency?: MedicationFrequency;
-	duration?: string;
-	status?: string;
 }
 
 export interface ParsedClinicalDateRangeItem extends BaseParsedItem {
@@ -142,7 +141,7 @@ export interface SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-		historyStore?: import("../store/learning/parsed_cell/history-store").ParsedCellHistoryStore,
+		historyStore?: import("../store/learning/parsed_cell/history-store").ParsedCellHistoryStore<ParsedCellDetail>,
 	): Promise<ParsedCandidateEnvelope>;
 }
 

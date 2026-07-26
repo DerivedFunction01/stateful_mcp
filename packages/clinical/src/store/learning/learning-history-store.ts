@@ -3,6 +3,7 @@ import {
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
 } from "../adapter-config";
+import type { ParsedCellDetail } from "./interfaces";
 import { resolveParsedCellStoreLocator } from "./learning-backend-resolver";
 import type {
 	ParsedCellHistoryAdapter,
@@ -12,7 +13,7 @@ import { CompositeParsedCellHistoryStore } from "./parsed_cell/history-store";
 
 async function pickStore(
 	config: ClinicalStorageAdapterConfig,
-): Promise<ParsedCellHistoryStore> {
+): Promise<ParsedCellHistoryStore<ParsedCellDetail>> {
 	for (const locator of [config.primary, ...(config.fallbacks || [])]) {
 		try {
 			return await resolveParsedCellStoreLocator(locator);
@@ -23,14 +24,15 @@ async function pickStore(
 
 export async function buildLearningHistoryStore(
 	registry: ClinicalStorageAdapterRegistry,
-): Promise<ParsedCellHistoryStore> {
+): Promise<ParsedCellHistoryStore<ParsedCellDetail>> {
 	const configs = getClinicalAdapterConfigs("learning", registry);
-	const adapters: ParsedCellHistoryAdapter[] = await Promise.all(
-		configs.map(async (config, index) => ({
-			adapterId: `${config.group}:${index}`,
-			weight: 1 / Math.max(1, configs.length),
-			store: await pickStore(config),
-		})),
-	);
-	return new CompositeParsedCellHistoryStore(adapters);
+	const adapters: ParsedCellHistoryAdapter<ParsedCellDetail>[] =
+		await Promise.all(
+			configs.map(async (config, index) => ({
+				adapterId: `${config.group}:${index}`,
+				weight: 1 / Math.max(1, configs.length),
+				store: await pickStore(config),
+			})),
+		);
+	return new CompositeParsedCellHistoryStore<ParsedCellDetail>(adapters);
 }

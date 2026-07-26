@@ -1,4 +1,9 @@
-import type { ParsedObservationItem } from "../../parser/schema-parsers";
+import type {
+	ParsedMedicationItem,
+	ParsedObservationItem,
+	ParsedVitalsItem,
+} from "../../parser/schema-parsers";
+import type { MedicationFrequency } from "../../schemas/medication";
 
 // ── Base ──────────────────────────────────────────────────────────────────────
 
@@ -60,9 +65,32 @@ export interface ParsedCellObservedShape {
 	slots: Record<string, any>;
 }
 
+// ── Shared Detail Sub-types ───────────────────────────────────────────────────
+
+export interface ParsedCellHistory {
+	priorAcceptCount?: number;
+	priorCorrectionCount?: number;
+	lastAcceptedAt?: string;
+	lastCorrectedAt?: string;
+	recencyScore?: number;
+}
+
+export interface ParsedCellFlags {
+	contractValid?: boolean;
+	stalePreference?: boolean;
+	reviewRequired?: boolean;
+}
+
+export interface ParsedCellProvenance {
+	parserPath?: string;
+	matchedRegexes?: string[];
+	conceptHit?: string;
+}
+
 // ── Schema-Specific Detail Types ──────────────────────────────────────────────
 
 export interface ParsedCellObservationDetail {
+	targetSchema: "ObservationEvent";
 	cellId: string;
 	soapNoteId?: string;
 	conceptId?: string;
@@ -70,51 +98,74 @@ export interface ParsedCellObservationDetail {
 	certainty?: string;
 	status?: string;
 	severity?: string;
-	candidateTokens: ParsedCellCandidateToken[];
+	candidateTokens?: ParsedCellCandidateToken[];
 	contextTokens?: string[];
 	shape: ParsedCellObservedShape;
 	parsedItem: ParsedObservationItem;
-	provenance?: {
-		parserPath?: string;
-		matchedRegexes?: string[];
-		conceptHit?: string;
-	};
-	history?: {
-		priorAcceptCount?: number;
-		priorCorrectionCount?: number;
-		lastAcceptedAt?: string;
-		lastCorrectedAt?: string;
-		recencyScore?: number;
-	};
-	flags?: {
-		contractValid?: boolean;
-		stalePreference?: boolean;
-		reviewRequired?: boolean;
-	};
+	provenance?: ParsedCellProvenance;
+	history?: ParsedCellHistory;
+	flags?: ParsedCellFlags;
+	// Future learning-system fields:
+	rawTerm?: string;
+	sourceType?: string;
+	duration?: string;
+	trajectory?: string;
+	qualifiers?: string[];
 }
 
 export interface ParsedCellVitalsDetail {
+	targetSchema: "VitalsMeasurementEvent";
 	cellId: string;
-	shape: any;
-	history: any;
-	flags: any;
-	parsedItem: any;
+	soapNoteId?: string;
+	conceptId?: string;
+	display: string;
+	value?: number | string;
+	unit?: string;
+	unitAnchor?: string;
+	candidateTokens?: ParsedCellCandidateToken[];
+	contextTokens?: string[];
+	shape: ParsedCellObservedShape;
+	parsedItem: ParsedVitalsItem;
+	provenance?: ParsedCellProvenance;
+	history?: ParsedCellHistory;
+	flags?: ParsedCellFlags;
+	// Future learning-system fields:
+	rawTerm?: string;
+	sourceType?: string;
+	bloodPressureDetails?: { systolic: number; diastolic: number; unit?: string };
+	anatomyLocations?: string[];
 }
 
 export interface ParsedCellMedicationDetail {
+	targetSchema: "MedicationOrderObject";
 	cellId: string;
-	shape: any;
-	history: any;
-	flags: any;
-	parsedItem: any;
+	soapNoteId?: string;
+	conceptId?: string;
+	display: string;
+	route?: string;
+	frequency?: MedicationFrequency;
+	candidateTokens?: ParsedCellCandidateToken[];
+	contextTokens?: string[];
+	shape: ParsedCellObservedShape;
+	parsedItem: ParsedMedicationItem;
+	provenance?: ParsedCellProvenance;
+	history?: ParsedCellHistory;
+	flags?: ParsedCellFlags;
+	// Future learning-system fields:
+	rawTerm?: string;
+	dosage?: any;
+	quantityToDispense?: number;
+	authorizedRefills?: number;
+	genericSubstitutionPermitted?: boolean;
+	targetIndication?: string;
 }
 
 // ── Discriminated Union ───────────────────────────────────────────────────────
 
 export type ParsedCellDetail =
-	| ({ targetSchema: "ObservationEvent" } & ParsedCellObservationDetail)
-	| ({ targetSchema: "VitalsMeasurementEvent" } & ParsedCellVitalsDetail)
-	| ({ targetSchema: "MedicationOrderObject" } & ParsedCellMedicationDetail);
+	| ParsedCellObservationDetail
+	| ParsedCellVitalsDetail
+	| ParsedCellMedicationDetail;
 
 // ── Generic Wrappers ──────────────────────────────────────────────────────────
 

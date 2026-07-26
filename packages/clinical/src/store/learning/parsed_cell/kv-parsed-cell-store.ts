@@ -8,10 +8,13 @@ import type {
 	ParsedItem,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
+import type { ParsedCellHistoryStore } from "./history-store";
 
 // ── KvBackend-based ParsedCellStore ───────────────────────────────────────────
 
-export class KvParsedCellStore implements ParsedCellStore {
+export class KvParsedCellStore
+	implements ParsedCellStore, ParsedCellHistoryStore<ParsedCellDetail>
+{
 	constructor(private backend: KvBackend) {}
 
 	async putRecord(record: ParsedCellRecord<ParsedItem>): Promise<void> {
@@ -30,7 +33,7 @@ export class KvParsedCellStore implements ParsedCellStore {
 		return {
 			shared: shared as any,
 			detail: (detail as any) || null,
-			parsedItem: null,
+			parsedItem: (detail as any)?.parsedItem || null,
 		};
 	}
 
@@ -156,5 +159,9 @@ export class KvParsedCellStore implements ParsedCellStore {
 		return matches.sort(
 			(a, b) => (b.history?.recencyScore || 0) - (a.history?.recencyScore || 0),
 		);
+	}
+
+	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellDetail[]> {
+		return this.getHistoryBySchema(key.targetSchema as any, key);
 	}
 }

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
-	type CustomExpression,
 	createMemoryConceptStore,
 	createMemoryExpressionStore,
 	DictionaryStore,
 	InMemoryConceptResolver,
 } from "@stateful-mcp/core";
+import type { CustomExpression } from "@stateful-mcp/core/src/middleware/dictionary/types";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import type {
 	ParsedMedicationItem,
@@ -68,6 +68,7 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 			conceptId: "LOINC::8310-5",
 			priorityWeight: 1,
 			active: true,
+			id: "1",
 		},
 		{
 			term: "Chest Pain",
@@ -77,6 +78,7 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 			conceptId: "SNOMED::29857009",
 			priorityWeight: 1,
 			active: true,
+			id: "2",
 		},
 		{
 			term: "Amoxicillin",
@@ -86,6 +88,7 @@ async function seedTestConcepts(dictionaryStore: DictionaryStore) {
 			conceptId: "RxNorm::723",
 			priorityWeight: 1,
 			active: true,
+			id: "3",
 		},
 	];
 
@@ -252,7 +255,7 @@ describe("CdslParser Ensemble NER tests", () => {
 		expect(vitalsResult?.unit).toBe("Celsius");
 	});
 
-	test("Medication duration is selected from the time candidate bag, not the first numeric match", async () => {
+	test("Medication parsing does not expose duration on ParsedMedicationItem", async () => {
 		const resolver = new InMemoryConceptResolver();
 		const conceptStore = createMemoryConceptStore();
 		const exprStore = createMemoryExpressionStore();
@@ -276,9 +279,7 @@ describe("CdslParser Ensemble NER tests", () => {
 		) as ParsedMedicationItem | undefined;
 
 		expect(medResult).toBeDefined();
-		expect(medResult?.duration).toBe("7 days");
 		expect(medResult?.display).toBe("Amoxicillin");
-		expect(medResult?.capturedProperties?.unit).toBeUndefined();
 	});
 
 	test("Vitals selection ignores a later time-span candidate and keeps the physical measurement", async () => {

@@ -1,11 +1,11 @@
-import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { OrderedLearningRanker } from "../../src/store/learning/ordered-learning-ranking";
+import { SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import type {
 	OrderedLearningHistoryKey,
 	OrderedLearningRecordInput,
-} from "../../src/store/learning/ordered-learning-store";
-import { SqliteOrderedLearningStore } from "../../src/store/learning/sqlite-ordered-learning-store";
+} from "../../src/store/learning/interfaces";
+import { OrderedLearningRanker } from "../../src/store/learning/ordered_learning/ordered-learning-ranking";
+import { SqlOrderedLearningStore } from "../../src/store/learning/ordered_learning/sql-ordered-learning-store";
 
 function makeRecordInput(
 	cellId: string,
@@ -51,8 +51,10 @@ function makeRecordInput(
 
 describe("SqliteOrderedLearningStore", () => {
 	test("should store and retrieve an ordered observation", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 		const input = makeRecordInput("cell_001");
 
 		await store.putRecord(input);
@@ -71,8 +73,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should return empty array when no records match", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		const key: OrderedLearningHistoryKey = {
 			tag: "nonexistent",
@@ -84,8 +88,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should filter by patientId", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		await store.putRecord(makeRecordInput("cell_001"));
 		await store.putRecord(
@@ -104,8 +110,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should filter by personnelId", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		await store.putRecord(makeRecordInput("cell_001"));
 		await store.putRecord(
@@ -124,8 +132,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should increment priorAcceptCount on repeated puts", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		await store.putRecord(makeRecordInput("cell_001"));
 		await store.putRecord(makeRecordInput("cell_001"));
@@ -141,8 +151,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should mark correction and update flags", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		await store.putRecord(makeRecordInput("cell_001"));
 		await store.markCorrection("cell_001");
@@ -159,8 +171,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should mark correction with replacement and set reviewRequired", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		await store.putRecord(makeRecordInput("cell_001"));
 		await store.markCorrection("cell_001", {
@@ -184,15 +198,19 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should not fail on markCorrection for unknown cellId", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 		await store.markCorrection("nonexistent");
 		// Should not throw
 	});
 
 	test("should derive pairwise relations on put", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		await store.putRecord(makeRecordInput("cell_001"));
 
@@ -207,8 +225,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should sort results by recencyScore descending", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		// Insert with different timestamps
 		await store.putRecord(
@@ -234,8 +254,10 @@ describe("SqliteOrderedLearningStore", () => {
 	});
 
 	test("should support ranking via OrderedLearningRanker", async () => {
-		const db = new Database(":memory:");
-		const store = new SqliteOrderedLearningStore(db);
+		const store = new SqlOrderedLearningStore(
+			"sqlite",
+			new SqlExecutor(await SqlBackend.connect("sqlite", ":memory:")),
+		);
 
 		// Insert history
 		await store.putRecord(makeRecordInput("cell_001"));

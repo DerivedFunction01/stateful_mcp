@@ -13,7 +13,8 @@ import type {
 	ParsedCellStore,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
-import { buildObservationShape } from "./history-store";
+import type { ParsedCellHistoryStore } from "./history-store";
+import { buildObservationShape } from "./observation/shape";
 
 function isScopedHistoryKey(key: ParsedCellHistoryKey): boolean {
 	return Boolean(
@@ -34,7 +35,9 @@ function isScopedHistoryKey(key: ParsedCellHistoryKey): boolean {
 const SHARED_TABLE = "parsed_cell_shared";
 const DETAIL_TABLE = "parsed_cell_detail";
 
-export class SqlParsedCellStore implements ParsedCellStore {
+export class SqlParsedCellStore
+	implements ParsedCellStore, ParsedCellHistoryStore<ParsedCellDetail>
+{
 	private queryCompiler: ParsedCellSqlCompiler;
 	private dialect: ParsedCellSqlDialect;
 	private sharedTable: string;
@@ -61,7 +64,7 @@ export class SqlParsedCellStore implements ParsedCellStore {
 
 	private async ensureTables(): Promise<void> {
 		for (const query of this.queryCompiler.compileCreateTables()) {
-			await this.executor.exec(query.sql, query.params);
+			await this.executor.exec(query.sql);
 		}
 	}
 
@@ -205,5 +208,9 @@ export class SqlParsedCellStore implements ParsedCellStore {
 		});
 		const rows = await this.executor.query(sql, params);
 		return rows.map((row) => JSON.parse(row.detail_data) as TDetail);
+	}
+
+	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellDetail[]> {
+		return this.getHistoryBySchema(key.targetSchema as any, key);
 	}
 }

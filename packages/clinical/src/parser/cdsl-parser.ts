@@ -10,6 +10,7 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
+import type { ParsedCellDetail } from "../store/learning/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/parsed_cell/history-store";
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
@@ -106,7 +107,7 @@ export class CdslParser {
 	async preview(
 		text: string,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore,
+		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
 	): Promise<ParserPreviewResult[]> {
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -148,7 +149,7 @@ export class CdslParser {
 	async parseWithHistory(
 		text: string,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore,
+		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
 	): Promise<ParsedItem[]> {
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -175,7 +176,7 @@ export class CdslParser {
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore,
+		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
 	): Promise<ParserPreviewResult[]> {
 		const results: ParserPreviewResult[] = [];
 		const segments = text.split(this.profile.stateDelimiter);
@@ -326,7 +327,7 @@ export class CdslParser {
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore,
+		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
 		const segments = text.split(this.profile.stateDelimiter);

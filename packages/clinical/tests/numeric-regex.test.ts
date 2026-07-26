@@ -129,12 +129,12 @@ describe("buildNumericFieldRules", () => {
 
 	test("sorts rules by priority descending", () => {
 		const formats: NumericFieldFormatOptions[] = [
-			{ targetField: "low" as any, priority: 1 },
-			{ targetField: "high" as any, priority: 10 },
+			{ targetField: "unit" as any, priority: 1 },
+			{ targetField: "status" as any, priority: 10 },
 		];
 		const rules = buildNumericFieldRules(formats);
-		expect(rules[0]?.targetField).toBe("high");
-		expect(rules[1]?.targetField).toBe("low");
+		expect(rules[0]?.targetField).toBe("status");
+		expect(rules[1]?.targetField).toBe("unit");
 		expect(rules[0]?.targetValue).toBe("number");
 	});
 });
