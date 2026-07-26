@@ -10,6 +10,7 @@ export type { EntityStore, SqlQueryStore } from "./adapters/storage/interfaces";
 export * from "./adapters/storage/jsonl-entity-store";
 export * from "./adapters/storage/shared/unified-repo";
 export * from "./adapters/storage/simple/factories";
+export * from "./adapters/storage/sql/backend";
 export * from "./config/loader";
 export * from "./config/meta_tools";
 export * from "./config/pagination";

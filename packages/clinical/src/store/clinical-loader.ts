@@ -70,8 +70,8 @@ export async function buildClinicalRuntime(
  * Factory that accepts a config object directly (no file I/O).
  * Useful for tests and programmatic usage.
  */
-export function buildClinicalRuntimeFromConfig(
+export async function buildClinicalRuntimeFromConfig(
 	config: ClinicalStoreConfig,
-): ClinicalRuntime {
+): Promise<ClinicalRuntime> {
 	return createClinicalRuntime(config);
 }

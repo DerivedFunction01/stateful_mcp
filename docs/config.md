@@ -10,7 +10,7 @@ Every state, schema, or configuration file reference in the middleware is specif
 
 ### Fields
 * **`_type`** (string, required): The locator type. Must be `"adapter"`, `"file"`, or `"remote_url"`.
-* **`name`** (string): The registration name of the storage adapter (required when `_type === "adapter"`). Examples: `"memory"`, `"sqlite"`, `"pg"`, `"duckdb"`, `"jsonl"`, `"opfs-sqlite"`.
+* **`name`** (string): The registration name of the storage adapter (required when `_type === "adapter"`). Examples: `"memory"`, `"sqlite"`, `"pg"`, `"duckdb"`, `"jsonl"`, `"opfs"`.
 * **`options`** (object): Adapter-specific option parameters. See adapter-specific options below.
 * **`path`** (string): Absolute or relative filesystem path to a file (required when `_type === "file"`).
 * **`url`** (string): Remote HTTP URL (required when `_type === "remote_url"`). Supports `{userId}` substitutions.
@@ -23,7 +23,7 @@ Every state, schema, or configuration file reference in the middleware is specif
 |---|---|
 | `"memory"` | `seed` (optional): Initial in-memory data. |
 | `"sqlite"` | `path` (optional): Database file path (default `"./sqlite.db"`). |
-| `"opfs-sqlite"` | `dbName` (optional): Named database file (default `"stateful_mcp_opfs.sqlite3"`). `workerUrl` (optional): Path to the OPFS SQLite worker script. Falls back to bun:sqlite if Worker unavailable (Node.js). |
+| `"opfs"` | `dbName` (optional): Named database file (default `"stateful_mcp_opfs.sqlite3"`). `workerUrl` (optional): Path to the OPFS SQLite worker script. Falls back to bun:sqlite if Worker unavailable (Node.js). |
 | `"pg"` | `connection` (optional): Connection string. `connectionString` (optional): Alias for `connection`. |
 | `"duckdb"` | `path` (optional): Database file path (default `"./duckdb.db"`). `connectionString` (optional): Alternative connection string. |
 | `"jsonl"` | `path` (required): Path to the JSONL data file. |

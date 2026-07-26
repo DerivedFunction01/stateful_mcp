@@ -10,7 +10,7 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import type { ParsedCellHistoryStore } from "../store/learning/parsed-cell-store";
+import type { ParsedCellHistoryStore } from "../store/learning/parsed_cell/history-store";
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";

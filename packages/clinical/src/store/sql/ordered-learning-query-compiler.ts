@@ -3,7 +3,7 @@ import {
 	QueryCompiler,
 	type QueryCondition,
 } from "@stateful-mcp/core";
-import type { OrderedLearningHistoryKey } from "../learning/ordered-learning-store";
+import type { OrderedLearningHistoryKey } from "../learning/interfaces";
 
 export type OrderedLearningSqlDialect = "sqlite" | "postgres" | "duckdb";
 

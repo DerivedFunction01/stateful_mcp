@@ -3,7 +3,7 @@ import {
 	QueryCompiler,
 	type QueryCondition,
 } from "@stateful-mcp/core";
-import type { ParsedCellHistoryKey } from "../learning/parsed-cell-store";
+import type { ParsedCellHistoryKey } from "../learning/interfaces";
 
 export type ParsedCellSqlDialect = "sqlite" | "postgres" | "duckdb";
 

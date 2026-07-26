@@ -20,19 +20,21 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
-import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
+import type {
+	ParsedCellHistoryStore,
+	ParsedCellRecord,
+	ParsedCellStore,
+} from "../store/learning/interfaces";
 import {
 	MAX_ORDERED_TOKENS,
 	type OrderedLearningHistoryKey,
 	type OrderedLearningStore,
 	type OrderedLearningToken,
-} from "../store/learning/ordered-learning-store";
-import type {
-	ParsedCellHistoryStore,
-	ParsedCellStore,
-	ParsedCellV1,
-} from "../store/learning/parsed-cell-store";
+	scoreRecency,
+} from "../store/learning/interfaces";
+import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
+import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
+import { buildObservationShape } from "../store/learning/parsed_cell/history-store";
 
 // ── Order-Aware Projection ───────────────────────────────────────────────────
 
@@ -262,7 +264,7 @@ export class ClinicalEngine {
 			if (this.parsedCellStore && item.targetSchema === "ObservationEvent") {
 				const cellId = `cell_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 				const now = new Date().toISOString();
-				const parsedCell: ParsedCellV1<ParsedObservationItem> = {
+				const parsedCell: ParsedCellRecord<ParsedObservationItem> = {
 					shared: {
 						cellId,
 						sessionId,
@@ -288,9 +290,29 @@ export class ClinicalEngine {
 						createdAt: now,
 						updatedAt: now,
 					},
+					detail: {
+						cellId,
+						soapNoteId: note.id,
+						conceptId: item.conceptId,
+						display: item.display,
+						candidateTokens: [],
+						shape: buildObservationShape(item),
+						parsedItem: item,
+						history: {
+							priorAcceptCount: 1,
+							priorCorrectionCount: 0,
+							lastAcceptedAt: now,
+							recencyScore: scoreRecency(now),
+						},
+						flags: {
+							contractValid: true,
+							stalePreference: false,
+							reviewRequired: false,
+						},
+					},
 					parsedItem: item,
 				};
-				await this.parsedCellStore.putObservation(parsedCell);
+				await this.parsedCellStore.putRecord(parsedCell);
 
 				// Persist ordered tokens to the order-aware store
 				if (this.orderAwareStore) {

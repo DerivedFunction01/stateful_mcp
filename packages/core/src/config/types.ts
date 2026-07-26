@@ -34,7 +34,7 @@ export type AdapterLocator =
 	| { _type: "adapter"; name: "sqlite"; options?: SqliteAdapterOptions }
 	| {
 			_type: "adapter";
-			name: "opfs-sqlite";
+			name: "opfs";
 			options?: OpfsSqliteAdapterOptions;
 	  }
 	| { _type: "adapter"; name: "pg"; options?: PgAdapterOptions }

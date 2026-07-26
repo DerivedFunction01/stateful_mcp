@@ -1,10 +1,16 @@
-import { Database } from "bun:sqlite";
 import type { ResourceLocator } from "@stateful-mcp/core";
-import { JsonlParsedCellStore } from "./jsonl-parsed-cell-store";
-import { MemoryOrderedLearningStore } from "./ordered-learning-store";
-import { MemoryParsedCellStore } from "./parsed-cell-store";
-import { SqliteOrderedLearningStore } from "./sqlite-ordered-learning-store";
-import { SqliteParsedCellStore } from "./sqlite-parsed-cell-store";
+import {
+	JsonlKvBackend,
+	MemoryKvBackend,
+	SqlBackend,
+	SqlExecutor,
+} from "@stateful-mcp/core";
+import type { OrderedLearningSqlDialect } from "../sql/ordered-learning-query-compiler";
+import type { ParsedCellSqlDialect } from "../sql/parsed-cell-query-compiler";
+import { KvOrderedLearningStore } from "./ordered_learning/kv-ordered-learning-store";
+import { SqlOrderedLearningStore } from "./ordered_learning/sql-ordered-learning-store";
+import { KvParsedCellStore } from "./parsed_cell/kv-parsed-cell-store";
+import { SqlParsedCellStore } from "./parsed_cell/sql-parsed-cell-store";
 
 function readStringOption(
 	locator: ResourceLocator,
@@ -17,9 +23,9 @@ function readStringOption(
 	return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
-export function resolveParsedCellStoreLocator(
+export async function resolveParsedCellStoreLocator(
 	locator: ResourceLocator,
-): MemoryParsedCellStore | SqliteParsedCellStore | JsonlParsedCellStore {
+): Promise<KvParsedCellStore | SqlParsedCellStore> {
 	if (locator._type !== "adapter") {
 		throw new Error(
 			`Unsupported clinical learning locator type: ${locator._type}`,
@@ -27,7 +33,7 @@ export function resolveParsedCellStoreLocator(
 	}
 
 	if (locator.name === "memory") {
-		return new MemoryParsedCellStore();
+		return new KvParsedCellStore(new MemoryKvBackend());
 	}
 
 	if (locator.name === "sqlite") {
@@ -35,25 +41,31 @@ export function resolveParsedCellStoreLocator(
 			readStringOption(locator, "path", "") ||
 			readStringOption(locator, "dbName", "") ||
 			"./clinical-learning.sqlite";
-		return new SqliteParsedCellStore(new Database(dbPath));
+		const backend = await SqlBackend.connect("sqlite", dbPath);
+		return new SqlParsedCellStore(
+			"sqlite" as ParsedCellSqlDialect,
+			new SqlExecutor(backend),
+		);
 	}
 
 	if (locator.name === "jsonl") {
 		const basePath =
 			readStringOption(locator, "path", "") || "./clinical-learning.jsonl";
-		return new JsonlParsedCellStore(basePath);
+		return new KvParsedCellStore(
+			new JsonlKvBackend({ dataFilePath: basePath }),
+		);
 	}
 
-	if (locator.name === "opfs-sqlite") {
-		return new MemoryParsedCellStore();
+	if (locator.name === "opfs") {
+		return new KvParsedCellStore(new MemoryKvBackend());
 	}
 
 	throw new Error(`Unsupported clinical learning adapter: ${locator.name}`);
 }
 
-export function resolveOrderedLearningStoreLocator(
+export async function resolveOrderedLearningStoreLocator(
 	locator: ResourceLocator,
-): MemoryOrderedLearningStore | SqliteOrderedLearningStore {
+): Promise<KvOrderedLearningStore | SqlOrderedLearningStore> {
 	if (locator._type !== "adapter") {
 		throw new Error(
 			`Unsupported ordered learning locator type: ${locator._type}`,
@@ -61,7 +73,7 @@ export function resolveOrderedLearningStoreLocator(
 	}
 
 	if (locator.name === "memory") {
-		return new MemoryOrderedLearningStore();
+		return new KvOrderedLearningStore(new MemoryKvBackend());
 	}
 
 	if (locator.name === "sqlite") {
@@ -69,7 +81,11 @@ export function resolveOrderedLearningStoreLocator(
 			readStringOption(locator, "path", "") ||
 			readStringOption(locator, "dbName", "") ||
 			"./clinical-learning.sqlite";
-		return new SqliteOrderedLearningStore(new Database(dbPath));
+		const backend = await SqlBackend.connect("sqlite", dbPath);
+		return new SqlOrderedLearningStore(
+			"sqlite" as OrderedLearningSqlDialect,
+			new SqlExecutor(backend),
+		);
 	}
 
 	throw new Error(

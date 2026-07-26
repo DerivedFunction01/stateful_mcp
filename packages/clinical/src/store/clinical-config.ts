@@ -98,7 +98,7 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 					capabilities: ["read", "write", "query", "rank", "learn"],
 					primary: {
 						_type: "adapter",
-						name: "opfs-sqlite",
+						name: "opfs",
 						options: {
 							dbName: "clinical-learning-opfs.sqlite3",
 						},

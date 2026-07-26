@@ -142,7 +142,7 @@ export interface SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-		historyStore?: import("../store/learning/parsed-cell-store").ParsedCellHistoryStore,
+		historyStore?: import("../store/learning/parsed_cell/history-store").ParsedCellHistoryStore,
 	): Promise<ParsedCandidateEnvelope>;
 }
 

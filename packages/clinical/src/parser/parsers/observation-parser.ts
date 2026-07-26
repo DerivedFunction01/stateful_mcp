@@ -13,7 +13,7 @@ import type {
 import type {
 	ParsedCellHistoryKey,
 	ParsedCellHistoryStore,
-} from "../../store/learning/parsed-cell-store";
+} from "../../store/learning/parsed_cell/history-store";
 import { ObservationTokenizer } from "../helpers/observation-helper";
 import {
 	CANONICAL_TAGS,
