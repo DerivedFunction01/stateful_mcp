@@ -1,15 +1,13 @@
-// ── KvBackend-based OrderedLearningStore ──────────────────────────────────────
-
 import type { KvBackend } from "@stateful-mcp/core";
 import {
-	buildOrderedRelations,
 	MAX_ORDERED_TOKENS,
 	type OrderedLearningHistoryKey,
 	type OrderedLearningRecord,
 	type OrderedLearningRecordInput,
 	type OrderedLearningStore,
-} from "../ordered-learning-store";
-import { scoreRecency } from "../parsed-cell-store";
+	scoreRecency,
+} from "../interfaces";
+import { buildOrderedRelations } from "../ordered-learning-store";
 
 export class KvOrderedLearningStore implements OrderedLearningStore {
 	constructor(private backend: KvBackend) {}

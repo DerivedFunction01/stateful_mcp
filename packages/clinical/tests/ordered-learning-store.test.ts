@@ -95,9 +95,7 @@ describe("MemoryOrderedLearningStore", () => {
 		const store = new MemoryOrderedLearningStore();
 		await store.putRecord(makeInput());
 
-		const results = await store.getHistory(
-			makeKey({ patientId: "pat_999" }),
-		);
+		const results = await store.getHistory(makeKey({ patientId: "pat_999" }));
 		expect(results).toHaveLength(0);
 	});
 
