@@ -110,7 +110,7 @@ The clinical backend depends on 8 storage-agnostic repository interfaces defined
 7. **`JurisdictionalDisplayStore`**: Preferred display names by region.
 8. **`StopWordStore`**: Filter words compiler.
 
-An in-memory fallback implementation of all stores is provided in [memory-clinical-store.ts](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/src/store/memory-clinical-store.ts).
+An in-memory fallback implementation of all stores is provided via `KvBackend`-based stores in `store/parser/` and `store/reference/`.
 
 A complete relational SQL database representation (PostgreSQL target) of these interfaces is defined in [seed/schema.sql](file:///home/denny/lu/prototype/stateful_mcp/packages/clinical/seed/schema.sql), showing exactly how they map to relational tables and schemas for external adapter integration.
 
