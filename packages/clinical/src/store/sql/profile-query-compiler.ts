@@ -9,7 +9,7 @@ export class ProfileQueryCompiler {
 	private readonly dialect: SqlDialect;
 	private readonly compiler: QueryCompiler;
 
-	constructor(dialect: SqlDialect = "postgres") {
+	constructor(dialect: SqlDialect = "sqlite") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}
@@ -19,90 +19,90 @@ export class ProfileQueryCompiler {
 			table,
 			ifNotExists: true,
 			columns: [
-				{ name: "profile_id", type: "TEXT", primaryKey: true },
-				{ name: "personnel_id", type: "TEXT", nullable: false },
+				{ name: "profileId", type: "TEXT", primaryKey: true },
+				{ name: "personnelId", type: "TEXT", nullable: false },
 				{
-					name: "is_default",
+					name: "isDefault",
 					type: "int",
 					nullable: false,
 					default: 0,
 				},
 				{
-					name: "is_active",
+					name: "isActive",
 					type: "int",
 					nullable: false,
 					default: 1,
 				},
-				{ name: "tag_token", type: "TEXT", nullable: false, default: "#" },
+				{ name: "tagToken", type: "TEXT", nullable: false, default: "#" },
 				{
-					name: "state_delimiter",
+					name: "stateDelimiter",
 					type: "TEXT",
 					nullable: false,
 					default: "||",
 				},
 				{
-					name: "state_start_delimiter",
+					name: "stateStartDelimiter",
 					type: "TEXT",
 					nullable: false,
 					default: "|",
 				},
 				{
-					name: "state_end_delimiter",
+					name: "stateEndDelimiter",
 					type: "TEXT",
 					nullable: false,
 					default: "|",
 				},
 				{
-					name: "macro_start_token",
+					name: "macroStartToken",
 					type: "TEXT",
 					nullable: false,
 					default: "^",
 				},
 				{
-					name: "variable_start_token",
+					name: "variableStartToken",
 					type: "TEXT",
 					nullable: false,
 					default: "{",
 				},
 				{
-					name: "variable_end_token",
+					name: "variableEndToken",
 					type: "TEXT",
 					nullable: false,
 					default: "}",
 				},
-				{ name: "comment_start_token", type: "TEXT" },
-				{ name: "comment_end_token", type: "TEXT" },
-				{ name: "macro_placeholder", type: "TEXT" },
-				{ name: "variable_delimiter", type: "TEXT" },
-				{ name: "start_term_code_delimiter", type: "TEXT" },
-				{ name: "start_term_display_delimiter", type: "TEXT" },
-				{ name: "start_term_code_separator", type: "TEXT" },
-				{ name: "start_term_delimiter", type: "TEXT" },
-				{ name: "end_term_delimiter", type: "TEXT" },
-				{ name: "attribute_delimiter", type: "TEXT" },
-				{ name: "term_tokenizer", type: "TEXT" },
-				{ name: "stop_word_threshold", type: "REAL" },
-				{ name: "defaults_strategy", type: "TEXT" },
+				{ name: "commentStartToken", type: "TEXT" },
+				{ name: "commentEndToken", type: "TEXT" },
+				{ name: "macroPlaceholder", type: "TEXT" },
+				{ name: "variableDelimiter", type: "TEXT" },
+				{ name: "startTermCodeDelimiter", type: "TEXT" },
+				{ name: "startTermDisplayDelimiter", type: "TEXT" },
+				{ name: "startTermCodeSeparator", type: "TEXT" },
+				{ name: "startTermDelimiter", type: "TEXT" },
+				{ name: "endTermDelimiter", type: "TEXT" },
+				{ name: "attributeDelimiter", type: "TEXT" },
+				{ name: "termTokenizer", type: "TEXT" },
+				{ name: "stopWordThreshold", type: "REAL" },
+				{ name: "defaultsStrategy", type: "TEXT" },
 				{ name: "metadata", type: "json" },
 			],
-			uniques: [["personnel_id"]],
-			checks: ["is_active IN (0, 1)", "is_default IN (0, 1)"],
+			uniques: [["personnelId"]],
+			checks: ["isActive IN (0, 1)", "isDefault IN (0, 1)"],
 		});
 
 		const tagsTable = `${table}_tags`;
 		const tagsDDL = this.compiler.compileCreateTable({
 			table: tagsTable,
 			ifNotExists: true,
-			primaryKey: ["profile_id", "tag_id"],
+			primaryKey: ["profileId", "tagId"],
 			columns: [
-				{ name: "profile_id", type: "TEXT", nullable: false },
-				{ name: "tag_id", type: "TEXT", nullable: false },
+				{ name: "profileId", type: "TEXT", nullable: false },
+				{ name: "tagId", type: "TEXT", nullable: false },
 			],
 			foreignKeys: [
 				{
-					columns: ["profile_id"],
+					columns: ["profileId"],
 					refTable: table,
-					refColumns: ["profile_id"],
+					refColumns: ["profileId"],
 					onDelete: "CASCADE",
 				},
 			],
@@ -116,8 +116,8 @@ export class ProfileQueryCompiler {
 			this.compiler.compileCreateIndex({
 				table,
 				name: `idx_${table}_personnel_active`,
-				columns: ["personnel_id"],
-				where: "is_active = 1",
+				columns: ["personnelId"],
+				where: "isActive = 1",
 			}),
 		];
 	}
@@ -125,7 +125,7 @@ export class ProfileQueryCompiler {
 	public compileGetQuery(profileId: string, table: string): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			where: [{ column: "profile_id", op: "eq", value: profileId }],
+			where: [{ column: "profileId", op: "eq", value: profileId }],
 		});
 	}
 
@@ -136,7 +136,7 @@ export class ProfileQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where,
-			orderBy: [{ column: "profile_id", direction: "ASC" }],
+			orderBy: [{ column: "profileId", direction: "ASC" }],
 		});
 	}
 
@@ -145,7 +145,7 @@ export class ProfileQueryCompiler {
 		table: string,
 	): CompiledQuery {
 		const conflictColumns =
-			this.dialect === "sqlite" ? undefined : ["profile_id"];
+			this.dialect === "sqlite" ? undefined : ["profileId"];
 
 		return this.compiler.compileInsert({
 			table,
@@ -158,7 +158,7 @@ export class ProfileQueryCompiler {
 	public compileDeleteQuery(profileId: string, table: string): CompiledQuery {
 		return this.compiler.compileDelete({
 			table,
-			where: [{ column: "profile_id", op: "eq", value: profileId }],
+			where: [{ column: "profileId", op: "eq", value: profileId }],
 		});
 	}
 
@@ -169,11 +169,11 @@ export class ProfileQueryCompiler {
 	): CompiledQuery {
 		const tagsTable = `${table}_tags`;
 		const conflictColumns =
-			this.dialect === "sqlite" ? undefined : ["profile_id", "tag_id"];
+			this.dialect === "sqlite" ? undefined : ["profileId", "tagId"];
 
 		return this.compiler.compileInsert({
 			table: tagsTable,
-			values: { profile_id: profileId, tag_id: tagId },
+			values: { profileId: profileId, tagId: tagId },
 			onConflict: "replace",
 			conflictColumns,
 		});
@@ -188,8 +188,8 @@ export class ProfileQueryCompiler {
 		return this.compiler.compileDelete({
 			table: tagsTable,
 			where: [
-				{ column: "profile_id", op: "eq", value: profileId },
-				{ column: "tag_id", op: "eq", value: tagId },
+				{ column: "profileId", op: "eq", value: profileId },
+				{ column: "tagId", op: "eq", value: tagId },
 			],
 		});
 	}
@@ -201,8 +201,8 @@ export class ProfileQueryCompiler {
 		const tagsTable = `${table}_tags`;
 		return this.compiler.compileSelect({
 			table: tagsTable,
-			where: [{ column: "profile_id", op: "eq", value: profileId }],
-			orderBy: [{ column: "tag_id", direction: "ASC" }],
+			where: [{ column: "profileId", op: "eq", value: profileId }],
+			orderBy: [{ column: "tagId", direction: "ASC" }],
 		});
 	}
 }

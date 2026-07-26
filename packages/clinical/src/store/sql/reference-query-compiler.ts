@@ -9,7 +9,7 @@ export class ReferenceQueryCompiler {
 	private readonly dialect: SqlDialect;
 	private readonly compiler: QueryCompiler;
 
-	constructor(dialect: SqlDialect = "postgres") {
+	constructor(dialect: SqlDialect = "sqlite") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}
@@ -21,9 +21,9 @@ export class ReferenceQueryCompiler {
 			table,
 			ifNotExists: true,
 			columns: [
-				{ name: "tag_id", type: "TEXT", primaryKey: true },
-				{ name: "tag_name", type: "TEXT", nullable: false, unique: true },
-				{ name: "tag_blob", type: "json", nullable: false, default: "{}" },
+				{ name: "tagId", type: "TEXT", primaryKey: true },
+				{ name: "tagName", type: "TEXT", nullable: false, unique: true },
+				{ name: "tagBlob", type: "json", nullable: false, default: "{}" },
 				{
 					name: "source",
 					type: "TEXT",
@@ -37,7 +37,7 @@ export class ReferenceQueryCompiler {
 	public compileGetTag(tagId: string, table: string): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			where: [{ column: "tag_id", op: "eq", value: tagId }],
+			where: [{ column: "tagId", op: "eq", value: tagId }],
 		});
 	}
 
@@ -48,7 +48,7 @@ export class ReferenceQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where,
-			orderBy: [{ column: "tag_name", direction: "ASC" }],
+			orderBy: [{ column: "tagName", direction: "ASC" }],
 		});
 	}
 
@@ -56,7 +56,7 @@ export class ReferenceQueryCompiler {
 		row: Record<string, unknown>,
 		table: string,
 	): CompiledQuery {
-		const conflictColumns = this.dialect === "sqlite" ? undefined : ["tag_id"];
+		const conflictColumns = this.dialect === "sqlite" ? undefined : ["tagId"];
 
 		return this.compiler.compileInsert({
 			table,
@@ -69,7 +69,7 @@ export class ReferenceQueryCompiler {
 	public compileDeleteTag(tagId: string, table: string): CompiledQuery {
 		return this.compiler.compileDelete({
 			table,
-			where: [{ column: "tag_id", op: "eq", value: tagId }],
+			where: [{ column: "tagId", op: "eq", value: tagId }],
 		});
 	}
 
@@ -79,17 +79,17 @@ export class ReferenceQueryCompiler {
 		const mainDDL = this.compiler.compileCreateTable({
 			table,
 			ifNotExists: true,
-			primaryKey: ["concept_id", "jurisdiction_id", "source"],
+			primaryKey: ["conceptId", "jurisdictionId", "source"],
 			columns: [
-				{ name: "concept_id", type: "TEXT", nullable: false },
+				{ name: "conceptId", type: "TEXT", nullable: false },
 				{
-					name: "jurisdiction_id",
+					name: "jurisdictionId",
 					type: "TEXT",
 					nullable: false,
-					raw: "REFERENCES jurisdictions(jurisdiction_id)",
+					raw: "REFERENCES jurisdictions(jurisdictionId)",
 				},
-				{ name: "preferred_display", type: "TEXT", nullable: false },
-				{ name: "fully_specified_name", type: "TEXT", nullable: false },
+				{ name: "preferredDisplay", type: "TEXT", nullable: false },
+				{ name: "fullySpecifiedName", type: "TEXT", nullable: false },
 				{
 					name: "source",
 					type: "TEXT",
@@ -102,7 +102,7 @@ export class ReferenceQueryCompiler {
 		const idx = this.compiler.compileCreateIndex({
 			table,
 			name: `idx_${table}_jurisdiction`,
-			columns: ["jurisdiction_id"],
+			columns: ["jurisdictionId"],
 		});
 
 		return [mainDDL, idx];
@@ -117,8 +117,8 @@ export class ReferenceQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where: [
-				{ column: "concept_id", op: "eq", value: conceptId },
-				{ column: "jurisdiction_id", op: "eq", value: jurisdictionId },
+				{ column: "conceptId", op: "eq", value: conceptId },
+				{ column: "jurisdictionId", op: "eq", value: jurisdictionId },
 				{ column: "source", op: "eq", value: source },
 			],
 		});
@@ -132,8 +132,8 @@ export class ReferenceQueryCompiler {
 			table,
 			where,
 			orderBy: [
-				{ column: "jurisdiction_id", direction: "ASC" },
-				{ column: "concept_id", direction: "ASC" },
+				{ column: "jurisdictionId", direction: "ASC" },
+				{ column: "conceptId", direction: "ASC" },
 			],
 		});
 	}
@@ -145,7 +145,7 @@ export class ReferenceQueryCompiler {
 		const conflictColumns =
 			this.dialect === "sqlite"
 				? undefined
-				: ["concept_id", "jurisdiction_id", "source"];
+				: ["conceptId", "jurisdictionId", "source"];
 
 		return this.compiler.compileInsert({
 			table,
@@ -162,16 +162,16 @@ export class ReferenceQueryCompiler {
 			table,
 			ifNotExists: true,
 			columns: [
-				{ name: "profile_id", type: "TEXT", primaryKey: true },
+				{ name: "profileId", type: "TEXT", primaryKey: true },
 				{
-					name: "personnel_id",
+					name: "personnelId",
 					type: "TEXT",
 					nullable: false,
-					raw: "REFERENCES personnel(personnel_id)",
+					raw: "REFERENCES personnel(personnelId)",
 				},
-				{ name: "locale_files", type: "json" },
-				{ name: "specialty_files", type: "json" },
-				{ name: "custom_words", type: "json" },
+				{ name: "localeFiles", type: "json" },
+				{ name: "specialtyFiles", type: "json" },
+				{ name: "customWords", type: "json" },
 				{
 					name: "source",
 					type: "TEXT",
@@ -188,7 +188,7 @@ export class ReferenceQueryCompiler {
 	): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			where: [{ column: "profile_id", op: "eq", value: profileId }],
+			where: [{ column: "profileId", op: "eq", value: profileId }],
 		});
 	}
 
@@ -199,7 +199,7 @@ export class ReferenceQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where,
-			orderBy: [{ column: "profile_id", direction: "ASC" }],
+			orderBy: [{ column: "profileId", direction: "ASC" }],
 		});
 	}
 
@@ -208,7 +208,7 @@ export class ReferenceQueryCompiler {
 		table: string,
 	): CompiledQuery {
 		const conflictColumns =
-			this.dialect === "sqlite" ? undefined : ["profile_id"];
+			this.dialect === "sqlite" ? undefined : ["profileId"];
 
 		return this.compiler.compileInsert({
 			table,
@@ -225,22 +225,22 @@ export class ReferenceQueryCompiler {
 			table,
 			ifNotExists: true,
 			columns: [
-				{ name: "template_id", type: "TEXT", primaryKey: true },
-				{ name: "parent_template_id", type: "TEXT" },
-				{ name: "target_schema", type: "TEXT", nullable: false },
-				{ name: "target_concept_id", type: "TEXT" },
-				{ name: "workspace_id", type: "TEXT" },
+				{ name: "templateId", type: "TEXT", primaryKey: true },
+				{ name: "parentTemplateId", type: "TEXT" },
+				{ name: "targetSchema", type: "TEXT", nullable: false },
+				{ name: "targetConceptId", type: "TEXT" },
+				{ name: "workspaceId", type: "TEXT" },
 				{
-					name: "specialty_id",
+					name: "specialtyId",
 					type: "TEXT",
-					raw: "REFERENCES specialties(specialty_id)",
+					raw: "REFERENCES specialties(specialtyId)",
 				},
 				{
-					name: "slot_position",
+					name: "slotPosition",
 					type: "TEXT",
 					nullable: false,
 				},
-				{ name: "template_text", type: "TEXT", nullable: false },
+				{ name: "templateText", type: "TEXT", nullable: false },
 				{
 					name: "source",
 					type: "TEXT",
@@ -253,7 +253,7 @@ export class ReferenceQueryCompiler {
 		const idx = this.compiler.compileCreateIndex({
 			table,
 			name: `idx_${table}_schema_concept`,
-			columns: ["target_schema", "target_concept_id"],
+			columns: ["targetSchema", "targetConceptId"],
 		});
 
 		return [mainDDL, idx];
@@ -267,24 +267,24 @@ export class ReferenceQueryCompiler {
 		table: string = "clinical_prose_templates",
 	): CompiledQuery {
 		const where: QueryCondition[] = [
-			{ column: "target_schema", op: "eq", value: schema },
-			{ column: "slot_position", op: "eq", value: position },
+			{ column: "targetSchema", op: "eq", value: schema },
+			{ column: "slotPosition", op: "eq", value: position },
 		];
 
 		if (conceptId) {
-			where.push({ column: "target_concept_id", op: "eq", value: conceptId });
+			where.push({ column: "targetConceptId", op: "eq", value: conceptId });
 		} else {
-			where.push({ column: "target_concept_id", op: "is_null" });
+			where.push({ column: "targetConceptId", op: "is_null" });
 		}
 
 		if (workspaceId) {
-			where.push({ column: "workspace_id", op: "eq", value: workspaceId });
+			where.push({ column: "workspaceId", op: "eq", value: workspaceId });
 		}
 
 		return this.compiler.compileSelect({
 			table,
 			where,
-			orderBy: [{ column: "template_id", direction: "ASC" }],
+			orderBy: [{ column: "templateId", direction: "ASC" }],
 			limit: 1,
 		});
 	}
@@ -297,8 +297,8 @@ export class ReferenceQueryCompiler {
 			table,
 			where,
 			orderBy: [
-				{ column: "target_schema", direction: "ASC" },
-				{ column: "slot_position", direction: "ASC" },
+				{ column: "targetSchema", direction: "ASC" },
+				{ column: "slotPosition", direction: "ASC" },
 			],
 		});
 	}
@@ -308,7 +308,7 @@ export class ReferenceQueryCompiler {
 		table: string,
 	): CompiledQuery {
 		const conflictColumns =
-			this.dialect === "sqlite" ? undefined : ["template_id"];
+			this.dialect === "sqlite" ? undefined : ["templateId"];
 
 		return this.compiler.compileInsert({
 			table,

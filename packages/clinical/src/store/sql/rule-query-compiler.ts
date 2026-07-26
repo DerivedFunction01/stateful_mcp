@@ -9,7 +9,7 @@ export class RuleQueryCompiler {
 	private readonly dialect: SqlDialect;
 	private readonly compiler: QueryCompiler;
 
-	constructor(dialect: SqlDialect = "postgres") {
+	constructor(dialect: SqlDialect = "sqlite") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}
@@ -22,43 +22,43 @@ export class RuleQueryCompiler {
 			table: attributeRulesTable,
 			ifNotExists: true,
 			columns: [
-				{ name: "rule_id", type: "TEXT", primaryKey: true },
-				{ name: "target_field", type: "TEXT", nullable: false },
-				{ name: "target_value", type: "TEXT", nullable: false },
-				{ name: "unit_anchor", type: "TEXT" },
+				{ name: "ruleId", type: "TEXT", primaryKey: true },
+				{ name: "targetField", type: "TEXT", nullable: false },
+				{ name: "targetValue", type: "TEXT", nullable: false },
+				{ name: "unitAnchor", type: "TEXT" },
 				{
-					name: "regex_patterns",
+					name: "regexPatterns",
 					type: "json",
 					nullable: false,
 					default: "[]",
 				},
 				{
-					name: "is_case_insensitive",
+					name: "isCaseInsensitive",
 					type: "int",
 					nullable: false,
 					default: 0,
 				},
-				{ name: "blacklist_patterns", type: "json" },
+				{ name: "blacklistPatterns", type: "json" },
 				{ name: "metadata", type: "json" },
-				{ name: "named_group_contract", type: "json" },
+				{ name: "namedGroupContract", type: "json" },
 			],
-			checks: ["is_case_insensitive IN (0, 1)"],
+			checks: ["isCaseInsensitive IN (0, 1)"],
 		});
 
 		const evaluatorRulesDDL = this.compiler.compileCreateTable({
 			table: evaluatorRulesTable,
 			ifNotExists: true,
 			columns: [
-				{ name: "rule_id", type: "TEXT", primaryKey: true },
-				{ name: "target_field", type: "TEXT", nullable: false },
-				{ name: "evaluator_name", type: "TEXT", nullable: false },
+				{ name: "ruleId", type: "TEXT", primaryKey: true },
+				{ name: "targetField", type: "TEXT", nullable: false },
+				{ name: "evaluatorName", type: "TEXT", nullable: false },
 				{
-					name: "regex_patterns",
+					name: "regexPatterns",
 					type: "json",
 					nullable: false,
 					default: "[]",
 				},
-				{ name: "named_group_contract", type: "json" },
+				{ name: "namedGroupContract", type: "json" },
 			],
 		});
 
@@ -70,7 +70,7 @@ export class RuleQueryCompiler {
 			this.compiler.compileCreateIndex({
 				table: profileBindingsTable,
 				name: `idx_${profileBindingsTable}_profile`,
-				columns: ["profile_id"],
+				columns: ["profileId"],
 			}),
 		];
 	}
@@ -78,7 +78,7 @@ export class RuleQueryCompiler {
 	public compileGetAttributeRule(ruleId: string, table: string): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			where: [{ column: "rule_id", op: "eq", value: ruleId }],
+			where: [{ column: "ruleId", op: "eq", value: ruleId }],
 		});
 	}
 
@@ -89,7 +89,7 @@ export class RuleQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where,
-			orderBy: [{ column: "rule_id", direction: "ASC" }],
+			orderBy: [{ column: "ruleId", direction: "ASC" }],
 		});
 	}
 
@@ -97,7 +97,7 @@ export class RuleQueryCompiler {
 		row: Record<string, unknown>,
 		table: string,
 	): CompiledQuery {
-		const conflictColumns = this.dialect === "sqlite" ? undefined : ["rule_id"];
+		const conflictColumns = this.dialect === "sqlite" ? undefined : ["ruleId"];
 
 		return this.compiler.compileInsert({
 			table,
@@ -113,14 +113,14 @@ export class RuleQueryCompiler {
 	): CompiledQuery {
 		return this.compiler.compileDelete({
 			table,
-			where: [{ column: "rule_id", op: "eq", value: ruleId }],
+			where: [{ column: "ruleId", op: "eq", value: ruleId }],
 		});
 	}
 
 	public compileGetEvaluatorRule(ruleId: string, table: string): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			where: [{ column: "rule_id", op: "eq", value: ruleId }],
+			where: [{ column: "ruleId", op: "eq", value: ruleId }],
 		});
 	}
 
@@ -131,7 +131,7 @@ export class RuleQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where,
-			orderBy: [{ column: "rule_id", direction: "ASC" }],
+			orderBy: [{ column: "ruleId", direction: "ASC" }],
 		});
 	}
 
@@ -139,7 +139,7 @@ export class RuleQueryCompiler {
 		row: Record<string, unknown>,
 		table: string,
 	): CompiledQuery {
-		const conflictColumns = this.dialect === "sqlite" ? undefined : ["rule_id"];
+		const conflictColumns = this.dialect === "sqlite" ? undefined : ["ruleId"];
 
 		return this.compiler.compileInsert({
 			table,
@@ -155,7 +155,7 @@ export class RuleQueryCompiler {
 	): CompiledQuery {
 		return this.compiler.compileDelete({
 			table,
-			where: [{ column: "rule_id", op: "eq", value: ruleId }],
+			where: [{ column: "ruleId", op: "eq", value: ruleId }],
 		});
 	}
 
@@ -166,13 +166,13 @@ export class RuleQueryCompiler {
 		bindingsTable: string,
 	): CompiledQuery {
 		const conflictColumns =
-			this.dialect === "sqlite" ? undefined : ["profile_id", "rule_id"];
+			this.dialect === "sqlite" ? undefined : ["profileId", "ruleId"];
 
 		return this.compiler.compileInsert({
 			table: bindingsTable,
 			values: {
-				profile_id: profileId,
-				rule_id: ruleId,
+				profileId: profileId,
+				ruleId: ruleId,
 				priority,
 			},
 			onConflict: "replace",
@@ -188,8 +188,8 @@ export class RuleQueryCompiler {
 		return this.compiler.compileDelete({
 			table: bindingsTable,
 			where: [
-				{ column: "profile_id", op: "eq", value: profileId },
-				{ column: "rule_id", op: "eq", value: ruleId },
+				{ column: "profileId", op: "eq", value: profileId },
+				{ column: "ruleId", op: "eq", value: ruleId },
 			],
 		});
 	}
@@ -200,7 +200,7 @@ export class RuleQueryCompiler {
 	): CompiledQuery {
 		return this.compiler.compileSelect({
 			table: bindingsTable,
-			where: [{ column: "profile_id", op: "eq", value: profileId }],
+			where: [{ column: "profileId", op: "eq", value: profileId }],
 			orderBy: [{ column: "priority", direction: "ASC" }],
 		});
 	}
@@ -211,11 +211,11 @@ export class RuleQueryCompiler {
 		evalBindingsTable: string,
 	): CompiledQuery {
 		const conflictColumns =
-			this.dialect === "sqlite" ? undefined : ["profile_id", "rule_id"];
+			this.dialect === "sqlite" ? undefined : ["profileId", "ruleId"];
 
 		return this.compiler.compileInsert({
 			table: evalBindingsTable,
-			values: { profile_id: profileId, rule_id: ruleId },
+			values: { profileId: profileId, ruleId: ruleId },
 			onConflict: "replace",
 			conflictColumns,
 		});
@@ -229,8 +229,8 @@ export class RuleQueryCompiler {
 		return this.compiler.compileDelete({
 			table: evalBindingsTable,
 			where: [
-				{ column: "profile_id", op: "eq", value: profileId },
-				{ column: "rule_id", op: "eq", value: ruleId },
+				{ column: "profileId", op: "eq", value: profileId },
+				{ column: "ruleId", op: "eq", value: ruleId },
 			],
 		});
 	}
@@ -241,8 +241,8 @@ export class RuleQueryCompiler {
 	): CompiledQuery {
 		return this.compiler.compileSelect({
 			table: evalBindingsTable,
-			where: [{ column: "profile_id", op: "eq", value: profileId }],
-			orderBy: [{ column: "rule_id", direction: "ASC" }],
+			where: [{ column: "profileId", op: "eq", value: profileId }],
+			orderBy: [{ column: "ruleId", direction: "ASC" }],
 		});
 	}
 }

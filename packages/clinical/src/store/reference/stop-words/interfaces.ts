@@ -1,0 +1,8 @@
+import type { StopWordProfile } from "../../parser/interfaces";
+
+export interface StopWordProfileStore {
+	get(profileId: string): Promise<StopWordProfile | null>;
+	list(): Promise<StopWordProfile[]>;
+	set(profile: StopWordProfile): Promise<void>;
+	delete(profileId: string): Promise<void>;
+}

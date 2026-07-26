@@ -9,7 +9,7 @@ export class ConceptDefaultQueryCompiler {
 	private readonly dialect: SqlDialect;
 	private readonly compiler: QueryCompiler;
 
-	constructor(dialect: SqlDialect = "postgres") {
+	constructor(dialect: SqlDialect = "sqlite") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}
@@ -18,18 +18,18 @@ export class ConceptDefaultQueryCompiler {
 		const mainDDL = this.compiler.compileCreateTable({
 			table,
 			ifNotExists: true,
-			primaryKey: ["anchor_concept_id", "target_schema"],
+			primaryKey: ["anchorConceptId", "targetSchema"],
 			columns: [
-				{ name: "anchor_concept_id", type: "TEXT", nullable: false },
-				{ name: "target_schema", type: "TEXT", nullable: false },
+				{ name: "anchorConceptId", type: "TEXT", nullable: false },
+				{ name: "targetSchema", type: "TEXT", nullable: false },
 				{
-					name: "regex_patterns",
+					name: "regexPatterns",
 					type: "json",
 					nullable: false,
 					default: "[]",
 				},
 				{
-					name: "default_properties",
+					name: "defaultProperties",
 					type: "json",
 					nullable: false,
 					default: "{}",
@@ -40,7 +40,7 @@ export class ConceptDefaultQueryCompiler {
 		const idx = this.compiler.compileCreateIndex({
 			table,
 			name: `idx_${table}_schema`,
-			columns: ["target_schema"],
+			columns: ["targetSchema"],
 		});
 
 		return [mainDDL, idx];
@@ -54,8 +54,8 @@ export class ConceptDefaultQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where: [
-				{ column: "anchor_concept_id", op: "eq", value: anchorConceptId },
-				{ column: "target_schema", op: "eq", value: targetSchema },
+				{ column: "anchorConceptId", op: "eq", value: anchorConceptId },
+				{ column: "targetSchema", op: "eq", value: targetSchema },
 			],
 		});
 	}
@@ -66,8 +66,8 @@ export class ConceptDefaultQueryCompiler {
 	): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			where: [{ column: "target_schema", op: "eq", value: targetSchema }],
-			orderBy: [{ column: "anchor_concept_id", direction: "ASC" }],
+			where: [{ column: "targetSchema", op: "eq", value: targetSchema }],
+			orderBy: [{ column: "anchorConceptId", direction: "ASC" }],
 		});
 	}
 
@@ -79,8 +79,8 @@ export class ConceptDefaultQueryCompiler {
 			table,
 			where,
 			orderBy: [
-				{ column: "anchor_concept_id", direction: "ASC" },
-				{ column: "target_schema", direction: "ASC" },
+				{ column: "anchorConceptId", direction: "ASC" },
+				{ column: "targetSchema", direction: "ASC" },
 			],
 		});
 	}
@@ -92,7 +92,7 @@ export class ConceptDefaultQueryCompiler {
 		const conflictColumns =
 			this.dialect === "sqlite"
 				? undefined
-				: ["anchor_concept_id", "target_schema"];
+				: ["anchorConceptId", "targetSchema"];
 
 		return this.compiler.compileInsert({
 			table,
