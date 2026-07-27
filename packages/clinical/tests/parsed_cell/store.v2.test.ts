@@ -8,10 +8,7 @@ import {
 } from "../../src/store/adapter-config";
 import type { ParsedCellRecord } from "../../src/store/learning/interfaces.v2";
 import { buildLearningHistoryStore } from "../../src/store/learning/learning-history-store.v2";
-import {
-	CompositeParsedCellHistoryStore,
-	type ParsedCellHistoryAdapter,
-} from "../../src/store/learning/parsed_cell/history-store.v2";
+import { CompositeParsedCellHistoryStore } from "../../src/store/learning/parsed_cell/history-store.v2";
 import { KvParsedCellStore } from "../../src/store/learning/parsed_cell/kv-parsed-cell-store.v2";
 import { SqlParsedCellStore } from "../../src/store/learning/parsed_cell/sql-parsed-cell-store.v2";
 

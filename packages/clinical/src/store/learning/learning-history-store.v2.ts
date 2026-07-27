@@ -10,7 +10,6 @@ import {
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
 } from "../adapter-config";
-import type { ParsedCellHistoryKey, ParsedCellRecord } from "./interfaces.v2";
 import type {
 	ParsedCellHistoryAdapter,
 	ParsedCellHistoryStore,
