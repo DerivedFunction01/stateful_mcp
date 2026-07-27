@@ -20,7 +20,8 @@
 				"noExplicitAny": "off",
 				"useIterableCallbackReturn": "off",
 				"noImplicitAnyLet": "off",
-				"noNonNullAssertedOptionalChain": "off"
+				"noNonNullAssertedOptionalChain": "off",
+				"noThenProperty": "off"
 			},
 			"style": {
 				"useNodejsImportProtocol": "off",

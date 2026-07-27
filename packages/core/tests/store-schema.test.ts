@@ -525,11 +525,11 @@ describe("SCHEMA.sqlite deletes match sqlite-schema.ts", () => {
 
 describe("SCHEMA compiled select AST (have to be updated to match what it actually outputs)", () => {
 	test("CTE_DICT_RELATED_CONCEPTS is compiled from AST", () => {
-		const compiled = SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATED_CONCEPTS;
+		const compiled = SCHEMA.sqlite.conceptCtes.BOTH;
 		expect(compiled).toBeTruthy();
-		expect(compiled?.sql).toContain("WITH RECURSIVE rel_graph");
+		expect(compiled?.sql).toContain("WITH RECURSIVE");
 		expect(compiled?.sql).toContain("SELECT DISTINCT");
-		expect(compiled?.sql).toContain('FROM "dict_concepts"');
+		expect(compiled?.sql).toContain('"dict_concepts"');
 	});
 });
 

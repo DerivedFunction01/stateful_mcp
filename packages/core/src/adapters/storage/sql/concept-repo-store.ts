@@ -155,19 +155,19 @@ export class ConceptRepoStore implements ConceptStore {
 			}
 		}
 
-		const rows = await this.backend.query(
-			schema.raw.CTE_DICT_RELATED_CONCEPTS!,
-			[
-				conceptId,
-				direction,
-				direction,
-				conceptId,
-				direction,
-				direction,
-				maxDepth,
-				maxDepth,
-			],
-		);
+		const cteKey =
+			direction === "forward"
+				? "FORWARD"
+				: direction === "reverse"
+					? "REVERSE"
+					: "BOTH";
+		const cte = schema.conceptCtes[cteKey]!;
+		const params: any[] =
+			direction === "both"
+				? [conceptId, conceptId, maxDepth, maxDepth]
+				: [conceptId, maxDepth];
+
+		const rows = await this.backend.query(cte.sql, params);
 
 		const results: RelatedConceptResult[] = rows.map((r: any) => ({
 			concept: rowToConcept(r),

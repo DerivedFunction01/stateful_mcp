@@ -1,10 +1,12 @@
 import {
 	type CompiledQuery,
+	type CompoundOperation,
 	type CreateTableQuery,
 	type DeleteQuery,
 	QueryCompiler,
 	type SelectQuery,
 	type SqlDialect,
+	type SqlExpression,
 } from "../../translation/sql-compiler";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -34,7 +36,12 @@ function compileAll(dialect: SqlDialect) {
 		deletes: Object.fromEntries(
 			Object.entries(DELETES).map(([name, q]) => [name, qc.compileDelete(q)]),
 		) as Record<string, CompiledQuery>,
-		raw: RAW_SQL as Record<string, string>,
+		conceptCtes: Object.fromEntries(
+			Object.entries(CTE_DICT_RELATED_CONCEPTS).map(([name, q]) => [
+				name,
+				qc.compileSelect(q),
+			]),
+		) as Record<string, CompiledQuery>,
 	};
 }
 
@@ -1499,6 +1506,11 @@ const SELECTS: Record<string, SelectQuery> = {
 			},
 		],
 	},
+	SQL_SELECT_DICT_RELATED_CONCEPTS: {
+		with: [],
+		recursive: true,
+		table: "rel_graph",
+	} as SelectQuery,
 };
 
 // ─── Deletes ──────────────────────────────────────────────────────────────────
@@ -1712,56 +1724,210 @@ const DELETES: Record<string, DeleteQuery> = {
 	},
 };
 
-// ─── Raw SQL (complex queries that can't be expressed via AST) ────────────────
+export class ConceptGraphBuilder {
+	/**
+	 * Reusable Expression: Uses RAW strings for hardcoded logic.
+	 * This prevents the compiler from generating ? parameters for static SQL syntax.
+	 */
+	private static invertRelationship(table?: string): SqlExpression {
+		return {
+			case: [
+				{
+					when: {
+						column: "relationship_type",
+						table,
+						op: "eq",
+						raw: "'NARROWER_THAN'",
+					},
+					then: { raw: "'WIDER_THAN'" },
+				},
+				{
+					when: {
+						column: "relationship_type",
+						table,
+						op: "eq",
+						raw: "'WIDER_THAN'",
+					},
+					then: { raw: "'NARROWER_THAN'" },
+				},
+			],
+			else: { raw: "'EQUIVALENT'" },
+		};
+	}
 
-const RAW_SQL: Record<string, string> = {
-	CTE_DICT_RELATED_CONCEPTS: `
-      WITH RECURSIVE rel_graph(target_id, relationship_type, dir, depth) AS (
-        -- Forward direct
-        SELECT linked_id, relationship_type, 'forward', 1
-        FROM dict_relations
-        WHERE concept_id = ? AND active = 1 AND (? = 'forward' OR ? = 'both')
+	public static build(
+		targetConceptId: string,
+		direction: "forward" | "reverse" | "both",
+		maxDepth: number,
+	): SelectQuery {
+		// --- Base Queries (Depth = 1) ---
 
-        UNION ALL
+		const forwardDirect: SelectQuery = {
+			table: "dict_relations",
+			select: [
+				{ column: "linked_id", alias: "target_id" },
+				{ column: "relationship_type" },
+				{ raw: "'forward'", alias: "dir" },
+				{ raw: "1", alias: "depth" },
+			],
+			where: [
+				{ column: "concept_id", op: "eq", value: targetConceptId }, // Parameterized
+				{ column: "active", op: "eq", raw: "1" }, // Raw literal
+			],
+		};
 
-        -- Reverse direct with operator inversion
-        SELECT concept_id, 
-               CASE relationship_type 
-                 WHEN 'NARROWER_THAN' THEN 'WIDER_THAN' 
-                 WHEN 'WIDER_THAN' THEN 'NARROWER_THAN' 
-                 ELSE 'EQUIVALENT' 
-               END, 
-               'reverse', 1
-        FROM dict_relations
-        WHERE linked_id = ? AND active = 1 AND (? = 'reverse' OR ? = 'both')
+		const reverseDirect: SelectQuery = {
+			table: "dict_relations",
+			select: [
+				{ column: "concept_id", alias: "target_id" }, // Important: alias this so it matches!
+				{ expr: ConceptGraphBuilder.invertRelationship() },
+				{ raw: "'reverse'", alias: "dir" },
+				{ raw: "1", alias: "depth" },
+			],
+			where: [
+				{ column: "linked_id", op: "eq", value: targetConceptId }, // Parameterized
+				{ column: "active", op: "eq", raw: "1" }, // Raw literal
+			],
+		};
 
-        UNION ALL
+		// --- Recursive Queries (Depth > 1) ---
 
-        -- Recursive forward expansion
-        SELECT r.linked_id, r.relationship_type, g.dir, g.depth + 1
-        FROM rel_graph g
-        JOIN dict_relations r ON g.target_id = r.concept_id
-        WHERE r.active = 1 AND g.depth < ? AND g.dir = 'forward'
+		const recursiveForward: SelectQuery = {
+			table: "rel_graph",
+			alias: "g",
+			select: [
+				{ column: "linked_id", table: "r" },
+				{ column: "relationship_type", table: "r" },
+				{ column: "dir", table: "g" },
+				{
+					expr: {
+						func: "add",
+						args: [{ column: "depth", table: "g" }, { raw: "1" }],
+					},
+				}, // Raw math addition
+			],
+			joins: [
+				{
+					type: "inner",
+					table: "dict_relations",
+					alias: "r",
+					on: [
+						{
+							column: "target_id",
+							table: "g",
+							op: "eq",
+							raw: '"r"."concept_id"',
+						},
+					],
+				},
+			],
+			where: [
+				{ column: "active", table: "r", op: "eq", raw: "1" }, // Raw literal
+				{ column: "depth", table: "g", op: "lt", value: maxDepth }, // Parameterized
+				{ column: "dir", table: "g", op: "eq", raw: "'forward'" }, // Raw literal string
+			],
+		};
 
-        UNION ALL
+		const recursiveReverse: SelectQuery = {
+			table: "rel_graph",
+			alias: "g",
+			select: [
+				{ column: "concept_id", table: "r" },
+				{ expr: ConceptGraphBuilder.invertRelationship("r") },
+				{ column: "dir", table: "g" },
+				{
+					expr: {
+						func: "add",
+						args: [{ column: "depth", table: "g" }, { raw: "1" }],
+					},
+				},
+			],
+			joins: [
+				{
+					type: "inner",
+					table: "dict_relations",
+					alias: "r",
+					on: [
+						{
+							column: "target_id",
+							table: "g",
+							op: "eq",
+							raw: '"r"."linked_id"',
+						},
+					],
+				},
+			],
+			where: [
+				{ column: "active", table: "r", op: "eq", raw: "1" },
+				{ column: "depth", table: "g", op: "lt", value: maxDepth },
+				{ column: "dir", table: "g", op: "eq", raw: "'reverse'" },
+			],
+		};
 
-        -- Recursive reverse expansion
-        SELECT r.concept_id, 
-               CASE r.relationship_type 
-                 WHEN 'NARROWER_THAN' THEN 'WIDER_THAN' 
-                 WHEN 'WIDER_THAN' THEN 'NARROWER_THAN' 
-                 ELSE 'EQUIVALENT' 
-               END, 
-               g.dir, g.depth + 1
-        FROM rel_graph g
-        JOIN dict_relations r ON g.target_id = r.linked_id
-        WHERE r.active = 1 AND g.depth < ? AND g.dir = 'reverse'
-      )
-      SELECT DISTINCT g.target_id, g.relationship_type, g.dir, g.depth, c.* 
-      FROM rel_graph g
-      JOIN dict_concepts c ON g.target_id = c.id
-      WHERE c.active = 1;
-    `.trim(),
+		// --- AST Branching based on requested direction ---
+
+		const ops: CompoundOperation[] = [];
+		let baseCteQuery: SelectQuery;
+
+		// We only inject the UNION blocks that are actually required
+		if (direction === "forward") {
+			baseCteQuery = forwardDirect;
+			ops.push({ operator: "UNION ALL", query: recursiveForward });
+		} else if (direction === "reverse") {
+			baseCteQuery = reverseDirect;
+			ops.push({ operator: "UNION ALL", query: recursiveReverse });
+		} else {
+			// "both"
+			baseCteQuery = forwardDirect;
+			ops.push({ operator: "UNION ALL", query: reverseDirect });
+			ops.push({ operator: "UNION ALL", query: recursiveForward });
+			ops.push({ operator: "UNION ALL", query: recursiveReverse });
+		}
+
+		if (ops.length > 0) {
+			baseCteQuery.compoundOps = ops;
+		}
+
+		// --- Final Result Query ---
+		return {
+			distinct: true,
+			recursive: true,
+			with: [
+				{
+					alias: "rel_graph",
+					query: baseCteQuery,
+				},
+			],
+			table: "rel_graph",
+			alias: "g",
+			select: [
+				{ column: "target_id", table: "g" },
+				{ column: "relationship_type", table: "g" },
+				{ column: "dir", table: "g" },
+				{ column: "depth", table: "g" },
+				{ raw: "c.*" },
+			],
+			joins: [
+				{
+					type: "inner",
+					table: "dict_concepts",
+					alias: "c",
+					on: [{ column: "target_id", table: "g", op: "eq", raw: '"c"."id"' }],
+				},
+			],
+			where: [
+				{ column: "active", table: "c", op: "eq", raw: "1" }, // Raw literal
+			],
+		};
+	}
+}
+
+// ─── Recursive CTE builders (direction-specific) ─────────────────────────
+
+export const CTE_DICT_RELATED_CONCEPTS: Record<string, SelectQuery> = {
+	BOTH: ConceptGraphBuilder.build("", "both", 3),
+	FORWARD: ConceptGraphBuilder.build("", "forward", 3),
+	REVERSE: ConceptGraphBuilder.build("", "reverse", 3),
 };
 
 // ─── Pre-compiled SCHEMA ──────────────────────────────────────────────────────
