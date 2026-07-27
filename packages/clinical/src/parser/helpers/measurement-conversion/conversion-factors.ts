@@ -16,7 +16,10 @@ import type { MeasurementUnitAnchor } from "../../../schemas/measurement";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** A conversion expressed as a single multiply/divide factor. */
-export function factor(f: number): { toBase: (v: number) => number; fromBase: (v: number) => number } {
+export function factor(f: number): {
+	toBase: (v: number) => number;
+	fromBase: (v: number) => number;
+} {
 	return {
 		toBase: (v: number) => v * f,
 		fromBase: (v: number) => v / f,
@@ -41,7 +44,7 @@ export function fnc(
 /** Canonical base: metre (m) */
 export const LENGTH_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	km: factor(1_000),
-	m: factor(1),          // already base
+	m: factor(1), // already base
 	cm: factor(1 / 100),
 	mm: factor(1 / 1_000),
 	um: factor(1 / 1_000_000),
@@ -56,7 +59,7 @@ export const LENGTH_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 
 /** Canonical base: kilogram (kg) */
 export const MASS_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
-	kg: factor(1),         // already base
+	kg: factor(1), // already base
 	g: factor(1 / 1_000),
 	mg: factor(1 / 1_000_000),
 	mcg: factor(1 / 1_000_000_000),
@@ -65,7 +68,7 @@ export const MASS_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	pg: factor(1 / 1_000_000_000_000_000),
 	lb: factor(0.45359237),
 	oz: factor(0.028349523125),
-	t: factor(1_000),       // metric tonne
+	t: factor(1_000), // metric tonne
 	ton: factor(907.18474), // short ton (US)
 };
 
@@ -82,16 +85,16 @@ export const TIME_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	hour: factor(1 / 24),
 	day: factor(1),
 	week: factor(7),
-	month: factor(30.436875),  // 1 solar month ≈ 30.436875 days
+	month: factor(30.436875), // 1 solar month ≈ 30.436875 days
 	quarter: factor(91.310625), // 3 solar months
-	year: factor(365.2425),    // 1 solar year  ≈ 365.2425 days
+	year: factor(365.2425), // 1 solar year  ≈ 365.2425 days
 	decade: factor(3_652.425), // 10 solar years
 };
 
 /** Canonical base: Kelvin (K) */
 export const TEMPERATURE_CONVERSIONS: Record<string, ReturnType<typeof fnc>> = {
 	Kelvin: fnc(
-		(v) => v,          // already base
+		(v) => v, // already base
 		(v) => v,
 	),
 	Celsius: fnc(
@@ -106,7 +109,7 @@ export const TEMPERATURE_CONVERSIONS: Record<string, ReturnType<typeof fnc>> = {
 
 /** Canonical base: pascal (Pa) */
 export const PRESSURE_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
-	Pa: factor(1),           // already base
+	Pa: factor(1), // already base
 	kPa: factor(1_000),
 	mmHg: factor(133.322387415), // 1 mmHg = 133.322 Pa (standard)
 	bar: factor(100_000),
@@ -124,7 +127,7 @@ export const VOLUME_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	ml: factor(1 / 1_000),
 	uL: factor(1 / 1_000_000),
 	ul: factor(1 / 1_000_000),
-	cc: factor(1 / 1_000),       // 1 cc ≡ 1 mL
+	cc: factor(1 / 1_000), // 1 cc ≡ 1 mL
 	fl_oz: factor(0.0295735295625), // US fl oz
 	tsp: factor(0.00492892159375),
 	tbsp: factor(0.01478676478125),
@@ -143,7 +146,7 @@ export const ENERGY_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	kJ: factor(1_000),
 	cal: factor(4.184),
 	kcal: factor(4_184),
-	kWh: factor(3_600_000),     // 1 kWh = 3.6 MJ
+	kWh: factor(3_600_000), // 1 kWh = 3.6 MJ
 };
 
 /** Canonical base: newton (N) */
@@ -151,7 +154,7 @@ export const FORCE_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	N: factor(1),
 	kN: factor(1_000),
 	mN: factor(1 / 1_000),
-	kgf: factor(9.80665),       // standard gravity
+	kgf: factor(9.80665), // standard gravity
 	lbf: factor(4.4482216152605),
 };
 
@@ -164,10 +167,13 @@ export const VELOCITY_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 };
 
 /** Canonical base: m/s² */
-export const ACCELERATION_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const ACCELERATION_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	"m/s2": factor(1),
 	"m/s²": factor(1),
-	g: factor(9.80665),          // standard gravity
+	g: factor(9.80665), // standard gravity
 };
 
 /** Canonical base: count (dimensionless) — identity. */
@@ -178,7 +184,7 @@ export const NUMBER_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	copies: factor(1),
 	IU: factor(1),
 	U: factor(1),
-	"IU/mL": factor(1),          // concentration rate stored as-is
+	"IU/mL": factor(1), // concentration rate stored as-is
 	"U/mL": factor(1),
 	tablet: factor(1),
 	capsule: factor(1),
@@ -194,18 +200,21 @@ export const NUMBER_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 };
 
 /** Canonical base: kg/m³ (derived — stored as g/L → 1 g/L = 1 kg/m³) */
-export const MASS_CONCENTRATION_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
-	"g/L": factor(1),             // 1 g/L ≡ 1 kg/m³
+export const MASS_CONCENTRATION_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
+	"g/L": factor(1), // 1 g/L ≡ 1 kg/m³
 	"g/l": factor(1),
-	"g/dL": factor(10),           // 1 g/dL = 10 g/L
+	"g/dL": factor(10), // 1 g/dL = 10 g/L
 	"g/mL": factor(1_000),
 	"g/ml": factor(1_000),
 	"g/uL": factor(1_000_000),
 	"g/ul": factor(1_000_000),
-	"mg/L": factor(1 / 1_000),    // 1 mg/L = 0.001 kg/m³
+	"mg/L": factor(1 / 1_000), // 1 mg/L = 0.001 kg/m³
 	"mg/l": factor(1 / 1_000),
-	"mg/dL": factor(1 / 100),     // 1 mg/dL = 0.01 g/L
-	"mg/mL": factor(1),           // 1 mg/mL = 1 g/L
+	"mg/dL": factor(1 / 100), // 1 mg/dL = 0.01 g/L
+	"mg/mL": factor(1), // 1 mg/mL = 1 g/L
 	"mg/ml": factor(1),
 	"mg/uL": factor(1_000),
 	"mg/ul": factor(1_000),
@@ -240,33 +249,45 @@ export const MASS_CONCENTRATION_CONVERSIONS: Record<string, ReturnType<typeof fa
 };
 
 /** Canonical base: mol/L */
-export const SUBSTANCE_CONCENTRATION_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const SUBSTANCE_CONCENTRATION_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	"mol/L": factor(1),
 	"mmol/L": factor(1 / 1_000),
 	"umol/L": factor(1 / 1_000_000),
 	"nmol/L": factor(1 / 1_000_000_000),
-	"mEq/L": factor(1),            // mEq/L is equivalent to mmol/L for monovalent ions
+	"mEq/L": factor(1), // mEq/L is equivalent to mmol/L for monovalent ions
 };
 
 /** Canonical base: Osm/kg */
-export const OSMOLALITY_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const OSMOLALITY_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	"Osm/kg": factor(1),
 	"mOsm/kg": factor(1 / 1_000),
 };
 
 /** Canonical base: Osm/L */
-export const OSMOLARITY_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const OSMOLARITY_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	"Osm/L": factor(1),
 	"mOsm/L": factor(1 / 1_000),
 };
 
 /** Canonical base: katal (kat) */
-export const CATALYTIC_ACTIVITY_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const CATALYTIC_ACTIVITY_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	kat: factor(1),
 	mkat: factor(1 / 1_000),
 	ukat: factor(1 / 1_000_000),
 	nkat: factor(1 / 1_000_000_000),
-	U: factor(1 / 60_000_000),       // 1 U = 1 µmol/min ≈ 1.667×10⁻⁸ kat
+	U: factor(1 / 60_000_000), // 1 U = 1 µmol/min ≈ 1.667×10⁻⁸ kat
 };
 
 /** Canonical base: ratio (0–1) */
@@ -278,14 +299,20 @@ export const FRACTION_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 };
 
 /** Canonical base: volt (V) */
-export const ELECTRIC_POTENTIAL_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const ELECTRIC_POTENTIAL_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	V: factor(1),
 	mV: factor(1 / 1_000),
 	uV: factor(1 / 1_000_000),
 };
 
 /** Canonical base: ampere (A) */
-export const ELECTRIC_CURRENT_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const ELECTRIC_CURRENT_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	A: factor(1),
 	mA: factor(1 / 1_000),
 	uA: factor(1 / 1_000_000),
@@ -299,7 +326,10 @@ export const POWER_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 };
 
 /** Canonical base: dimensionless (score, points, etc.) — identity. */
-export const ARBITRARY_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
+export const ARBITRARY_CONVERSIONS: Record<
+	string,
+	ReturnType<typeof factor>
+> = {
 	"%": factor(1),
 	percent: factor(1),
 	score: factor(1),
@@ -312,7 +342,10 @@ export const ARBITRARY_CONVERSIONS: Record<string, ReturnType<typeof factor>> = 
 // Aggregate lookup — maps each anchor to its conversion table
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ConversionTable = Record<string, { toBase: (v: number) => number; fromBase: (v: number) => number }>;
+export type ConversionTable = Record<
+	string,
+	{ toBase: (v: number) => number; fromBase: (v: number) => number }
+>;
 
 type AnchorMap = Partial<Record<MeasurementUnitAnchor, ConversionTable>>;
 

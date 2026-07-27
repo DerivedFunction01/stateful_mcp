@@ -12,7 +12,7 @@
  */
 
 import type { MeasurementUnitAnchor } from "../../../schemas/measurement";
-import { ANCHOR_TO_CONVERSIONS, type ConversionTable } from "./conversion-factors";
+import { ANCHOR_TO_CONVERSIONS } from "./conversion-factors";
 
 export interface ConversionEntry {
 	fromUnit: string;
@@ -22,7 +22,10 @@ export interface ConversionEntry {
 
 export class UnitConversionRegistry {
 	/** Maps anchor → (unit → ConversionEntry) */
-	private readonly anchors: Map<MeasurementUnitAnchor, Map<string, ConversionEntry>> = new Map();
+	private readonly anchors: Map<
+		MeasurementUnitAnchor,
+		Map<string, ConversionEntry>
+	> = new Map();
 
 	/**
 	 * Pre-populate the registry from the static conversion tables.
