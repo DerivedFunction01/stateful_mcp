@@ -1,32 +1,4 @@
-export type MeasurementUnitAnchor =
-	| "length"
-	| "mass"
-	| "time"
-	| "temperature"
-	| "velocity"
-	| "acceleration"
-	| "volume"
-	| "area"
-	| "force"
-	| "pressure"
-	| "energy"
-	| "concentration"
-	| "mass_concentration"
-	| "substance_concentration"
-	| "mass_fraction"
-	| "fraction"
-	| "osmolality"
-	| "osmolarity"
-	| "catalytic_activity"
-	| "number"
-	| "arbitrary"
-	| "dynamic_viscosity"
-	| "power"
-	| "power_level"
-	| "pressure_level"
-	| "electric_current"
-	| "electric_potential"
-	| "magnetic_flux_density";
+import type { MeasurementUnitAnchor } from "../../../schemas/measurement";
 
 export interface ConversionEntry {
 	fromUnit: string;
