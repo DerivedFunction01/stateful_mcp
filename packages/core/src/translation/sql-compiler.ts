@@ -118,6 +118,10 @@ export interface QueryField {
 		| "stddev_pop" // Population Standard Deviation
 		| "var_samp" // Sample Variance
 		| "var_pop"; // Population Variance
+	over?: {
+		partitionBy?: string[];
+		orderBy?: QuerySort[];
+	};
 }
 export type QuerySort = {
 	column: string;
@@ -523,10 +527,9 @@ export class QueryCompiler {
 		const hasValue = "value" in cond && cond.value !== undefined;
 		const hasValues = "values" in cond && cond.values !== undefined;
 
+		// Determine the right side of the expression
 		let rhs = "";
-		if ("rhsExpr" in cond && cond.rhsExpr) {
-			rhs = this.compileExpression(cond.rhsExpr, ctx);
-		} else if ("raw" in cond && cond.raw !== undefined) {
+		if ("raw" in cond && cond.raw !== undefined) {
 			rhs = cond.raw;
 		} else if ("subquery" in cond && cond.subquery !== undefined) {
 			rhs = `(${this.compileSelectInternal(cond.subquery, ctx)})`;
@@ -534,24 +537,37 @@ export class QueryCompiler {
 			hasValue &&
 			["starts_with", "ends_with", "str_contains"].includes(cond.op)
 		) {
-			// Treat the string manipulation values as the bound payload directly
 			if (cond.op === "starts_with") rhs = ctx.addParam(`${cond.value}%`);
 			if (cond.op === "ends_with") rhs = ctx.addParam(`%${cond.value}`);
 			if (cond.op === "str_contains") rhs = ctx.addParam(`%${cond.value}%`);
 		} else if (hasValue && cond.op !== "json_contains") {
 			rhs = ctx.addParam(cond.value);
-		} else if (hasValues) {
+		} else if (
+			hasValues &&
+			cond.op !== "between" &&
+			cond.op !== "not_between"
+		) {
+			// Let IN and NOT IN process arrays automatically, but skip BETWEEN
 			rhs = `(${cond.values!.map((v) => ctx.addParam(v)).join(", ")})`;
-		} else if (cond.placeholderCount) {
+		} else if (
+			cond.placeholderCount &&
+			cond.op !== "between" &&
+			cond.op !== "not_between"
+		) {
 			const placeholders = Array.from({ length: cond.placeholderCount }, () =>
 				ctx.nextPlaceholder(),
 			);
 			rhs = `(${placeholders.join(", ")})`;
 		} else if (
-			cond.op !== "is_null" &&
-			cond.op !== "is_not_null" &&
-			cond.op !== "json_contains"
+			![
+				"is_null",
+				"is_not_null",
+				"json_contains",
+				"between",
+				"not_between",
+			].includes(cond.op)
 		) {
+			// Skip pre-generating placeholders for ops that handle their own formatting
 			rhs = ctx.nextPlaceholder();
 		}
 
@@ -725,6 +741,13 @@ export class QueryCompiler {
 				}
 				if (f.alias) {
 					expr += ` AS ${this.quoteIdent(f.alias)}`;
+				}
+				if (f.over) {
+					const partition = f.over.partitionBy
+						? `PARTITION BY ${f.over.partitionBy.join(", ")}`
+						: "";
+					const order = f.over.orderBy ? `ORDER BY ...` : "";
+					expr += ` OVER (${partition} ${order})`;
 				}
 				return expr;
 			});
