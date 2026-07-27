@@ -171,8 +171,10 @@ export class MedicationSchemaParser implements SchemaParser {
 			frequency,
 		};
 		if (token.quantity !== undefined) {
-			extractedData.quantity = token.quantity;
-			if (token.quantityUnit) extractedData.quantityUnit = token.quantityUnit;
+			extractedData.dosage = {
+				magnitude: token.quantity,
+				unit: token.quantityUnit ? { display: token.quantityUnit } : undefined,
+			};
 		}
 
 		return {

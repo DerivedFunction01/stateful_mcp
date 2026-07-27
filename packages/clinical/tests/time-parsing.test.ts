@@ -44,14 +44,14 @@ const store = {
 describe("ClinicalDateRange parsing", () => {
 	test("parses retrospective and prospective relative estimates", async () => {
 		const retrospective = await parser.parse("#time", "3 weeks ago", store);
-		expect(retrospective?.dateRange?.relativeEstimate).toEqual({
+		expect(retrospective?.extractedData?.relativeEstimate).toEqual({
 			direction: "retrospective",
 			firstValue: 3,
 			precisionUnit: "week",
 		});
 
 		const prospective = await parser.parse("#time", "in 2 hours", store);
-		expect(prospective?.dateRange?.relativeEstimate).toEqual({
+		expect(prospective?.extractedData?.relativeEstimate).toEqual({
 			direction: "prospective",
 			firstValue: 2,
 			precisionUnit: "hour",
@@ -60,13 +60,13 @@ describe("ClinicalDateRange parsing", () => {
 
 	test("parses recurring cadence and shorthand schedules", async () => {
 		const cadence = await parser.parse("#time", "every 8 hours", store);
-		expect(cadence?.dateRange?.time?.repeat).toEqual({
+		expect(cadence?.extractedData?.time?.repeat).toEqual({
 			multiplier: 8,
 			level: "hour",
 		});
 
 		const daily = await parser.parse("#time", "daily", store);
-		expect(daily?.dateRange?.time?.repeat).toEqual({
+		expect(daily?.extractedData?.time?.repeat).toEqual({
 			multiplier: 1,
 			level: "day",
 		});
@@ -78,32 +78,36 @@ describe("ClinicalDateRange parsing", () => {
 			"from Monday to Wednesday",
 			store,
 		);
-		expect(bounded?.dateRange?.time?.startDatetime?.precisionLevel).toBe(
+		expect(bounded?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
 			"monday",
 		);
-		expect(bounded?.dateRange?.time?.endDatetime?.precisionLevel).toBe(
+		expect(bounded?.extractedData?.time?.endDatetime?.precisionLevel).toBe(
 			"wednesday",
 		);
 		expect(
-			bounded?.dateRange?.time?.startDatetime?.assertedTimestampUtc,
+			bounded?.extractedData?.time?.startDatetime?.assertedTimestampUtc,
 		).toMatch(/T00:00:00Z$/);
-		expect(bounded?.dateRange?.time?.endDatetime?.assertedTimestampUtc).toMatch(
-			/T23:59:59Z$/,
-		);
+		expect(
+			bounded?.extractedData?.time?.endDatetime?.assertedTimestampUtc,
+		).toMatch(/T23:59:59Z$/);
 	});
 
 	test("parses exclusions alongside the base schedule", async () => {
 		const parsed = await parser.parse("#time", "daily except Sundays", store);
-		expect(parsed?.dateRange?.includedDatetimes).toHaveLength(1);
-		expect(parsed?.dateRange?.excludedDatetimes).toHaveLength(1);
-		expect(parsed?.dateRange?.includedDatetimes?.[0]?.time?.repeat).toEqual({
-			multiplier: 1,
-			level: "day",
-		});
-		expect(parsed?.dateRange?.excludedDatetimes?.[0]?.time?.repeat).toEqual({
-			multiplier: 1,
-			level: "sunday",
-		});
+		expect(parsed?.extractedData?.includedDatetimes).toHaveLength(1);
+		expect(parsed?.extractedData?.excludedDatetimes).toHaveLength(1);
+		expect(parsed?.extractedData?.includedDatetimes?.[0]?.time?.repeat).toEqual(
+			{
+				multiplier: 1,
+				level: "day",
+			},
+		);
+		expect(parsed?.extractedData?.excludedDatetimes?.[0]?.time?.repeat).toEqual(
+			{
+				multiplier: 1,
+				level: "sunday",
+			},
+		);
 	});
 
 	test("parses exact calendar exclusions alongside the base schedule", async () => {
@@ -115,17 +119,19 @@ describe("ClinicalDateRange parsing", () => {
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(parsed?.dateRange?.includedDatetimes).toHaveLength(1);
-		expect(parsed?.dateRange?.excludedDatetimes).toHaveLength(1);
-		expect(parsed?.dateRange?.includedDatetimes?.[0]?.time?.repeat).toEqual({
-			multiplier: 1,
-			level: "day",
-		});
+		expect(parsed?.extractedData?.includedDatetimes).toHaveLength(1);
+		expect(parsed?.extractedData?.excludedDatetimes).toHaveLength(1);
+		expect(parsed?.extractedData?.includedDatetimes?.[0]?.time?.repeat).toEqual(
+			{
+				multiplier: 1,
+				level: "day",
+			},
+		);
 		expect(
-			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime,
+			parsed?.extractedData?.excludedDatetimes?.[0]?.time?.startDatetime,
 		).toBeDefined();
 		expect(
-			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime
+			parsed?.extractedData?.excludedDatetimes?.[0]?.time?.startDatetime
 				?.assertedTimestampUtc,
 		).toBe("2026-01-15T00:00:00Z");
 	});
@@ -136,14 +142,14 @@ describe("ClinicalDateRange parsing", () => {
 			"every 8 hours from Monday to Wednesday",
 			store,
 		);
-		expect(parsed?.dateRange?.time?.repeat).toEqual({
+		expect(parsed?.extractedData?.time?.repeat).toEqual({
 			multiplier: 8,
 			level: "hour",
 		});
-		expect(parsed?.dateRange?.time?.startDatetime?.precisionLevel).toBe(
+		expect(parsed?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
 			"monday",
 		);
-		expect(parsed?.dateRange?.time?.endDatetime?.precisionLevel).toBe(
+		expect(parsed?.extractedData?.time?.endDatetime?.precisionLevel).toBe(
 			"wednesday",
 		);
 	});
@@ -157,23 +163,23 @@ describe("ClinicalDateRange parsing", () => {
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(parsed?.dateRange?.time?.repeat).toEqual({
+		expect(parsed?.extractedData?.time?.repeat).toEqual({
 			multiplier: 8,
 			level: "hour",
 		});
-		expect(parsed?.dateRange?.time?.startDatetime?.precisionLevel).toBe(
+		expect(parsed?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
 			"monday",
 		);
-		expect(parsed?.dateRange?.time?.endDatetime?.precisionLevel).toBe(
+		expect(parsed?.extractedData?.time?.endDatetime?.precisionLevel).toBe(
 			"wednesday",
 		);
-		expect(parsed?.dateRange?.includedDatetimes).toHaveLength(1);
-		expect(parsed?.dateRange?.excludedDatetimes).toHaveLength(1);
+		expect(parsed?.extractedData?.includedDatetimes).toHaveLength(1);
+		expect(parsed?.extractedData?.excludedDatetimes).toHaveLength(1);
 		expect(
-			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime,
+			parsed?.extractedData?.excludedDatetimes?.[0]?.time?.startDatetime,
 		).toBeDefined();
 		expect(
-			parsed?.dateRange?.excludedDatetimes?.[0]?.time?.startDatetime
+			parsed?.extractedData?.excludedDatetimes?.[0]?.time?.startDatetime
 				?.assertedTimestampUtc,
 		).toBe("2026-01-15T00:00:00Z");
 	});
@@ -189,11 +195,13 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.time?.startDatetime).toBeDefined();
-		expect(result?.dateRange?.time?.startDatetime?.precisionLevel).toBe("day");
-		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
-			"2023-01-15T00:00:00Z",
+		expect(result?.extractedData?.time?.startDatetime).toBeDefined();
+		expect(result?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
+			"day",
 		);
+		expect(
+			result?.extractedData?.time?.startDatetime?.assertedTimestampUtc,
+		).toBe("2023-01-15T00:00:00Z");
 	});
 
 	test("parses YYYY-MM-DD format", async () => {
@@ -205,11 +213,13 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.time?.startDatetime).toBeDefined();
-		expect(result?.dateRange?.time?.startDatetime?.precisionLevel).toBe("day");
-		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
-			"2023-01-15T00:00:00Z",
+		expect(result?.extractedData?.time?.startDatetime).toBeDefined();
+		expect(result?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
+			"day",
 		);
+		expect(
+			result?.extractedData?.time?.startDatetime?.assertedTimestampUtc,
+		).toBe("2023-01-15T00:00:00Z");
 	});
 
 	test("parses MM_name DD, YYYY format with English month names", async () => {
@@ -221,11 +231,13 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.time?.startDatetime).toBeDefined();
-		expect(result?.dateRange?.time?.startDatetime?.precisionLevel).toBe("day");
-		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
-			"2023-01-15T00:00:00Z",
+		expect(result?.extractedData?.time?.startDatetime).toBeDefined();
+		expect(result?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
+			"day",
 		);
+		expect(
+			result?.extractedData?.time?.startDatetime?.assertedTimestampUtc,
+		).toBe("2023-01-15T00:00:00Z");
 	});
 
 	test("parses Spanish month names when profile overrides monthNames", async () => {
@@ -264,11 +276,13 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			spanishRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.time?.startDatetime).toBeDefined();
-		expect(result?.dateRange?.time?.startDatetime?.precisionLevel).toBe("day");
-		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
-			"2023-01-15T00:00:00Z",
+		expect(result?.extractedData?.time?.startDatetime).toBeDefined();
+		expect(result?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
+			"day",
 		);
+		expect(
+			result?.extractedData?.time?.startDatetime?.assertedTimestampUtc,
+		).toBe("2023-01-15T00:00:00Z");
 	});
 
 	test("does not resolve MM_name without monthNames in config", async () => {
@@ -291,7 +305,7 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			noMonthNameRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.time?.startDatetime).toBeUndefined();
+		expect(result?.extractedData?.time?.startDatetime).toBeUndefined();
 	});
 
 	test("parses calendar dates with time components", async () => {
@@ -314,13 +328,13 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			timeRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.time?.startDatetime).toBeDefined();
-		expect(result?.dateRange?.time?.startDatetime?.precisionLevel).toBe(
+		expect(result?.extractedData?.time?.startDatetime).toBeDefined();
+		expect(result?.extractedData?.time?.startDatetime?.precisionLevel).toBe(
 			"minute",
 		);
-		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
-			"2023-01-15T14:30:00Z",
-		);
+		expect(
+			result?.extractedData?.time?.startDatetime?.assertedTimestampUtc,
+		).toBe("2023-01-15T14:30:00Z");
 	});
 
 	test("parses named-group date ranges without relying on hardcoded boundary order", async () => {
@@ -332,10 +346,10 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			rangeListRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.time?.startDatetime?.assertedTimestampUtc).toBe(
-			"2026-01-15T00:00:00Z",
-		);
-		expect(result?.dateRange?.time?.endDatetime?.assertedTimestampUtc).toBe(
+		expect(
+			result?.extractedData?.time?.startDatetime?.assertedTimestampUtc,
+		).toBe("2026-01-15T00:00:00Z");
+		expect(result?.extractedData?.time?.endDatetime?.assertedTimestampUtc).toBe(
 			"2026-01-20T00:00:00Z",
 		);
 	});
@@ -349,17 +363,17 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			rangeListRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
-		expect(result?.dateRange?.includedDatetimes).toHaveLength(3);
+		expect(result?.extractedData?.includedDatetimes).toHaveLength(3);
 		expect(
-			result?.dateRange?.includedDatetimes?.[0]?.time?.startDatetime
+			result?.extractedData?.includedDatetimes?.[0]?.time?.startDatetime
 				?.assertedTimestampUtc,
 		).toBe("2026-01-15T00:00:00Z");
 		expect(
-			result?.dateRange?.includedDatetimes?.[1]?.time?.startDatetime
+			result?.extractedData?.includedDatetimes?.[1]?.time?.startDatetime
 				?.assertedTimestampUtc,
 		).toBe("2026-01-20T00:00:00Z");
 		expect(
-			result?.dateRange?.includedDatetimes?.[2]?.time?.startDatetime
+			result?.extractedData?.includedDatetimes?.[2]?.time?.startDatetime
 				?.assertedTimestampUtc,
 		).toBe("2026-01-22T00:00:00Z");
 	});

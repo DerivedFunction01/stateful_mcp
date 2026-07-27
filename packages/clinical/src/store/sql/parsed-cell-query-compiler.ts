@@ -12,7 +12,6 @@ import type {
 } from "../learning/parsed_cell/parsed-cell-record-transform";
 import { buildColumnSpecs } from "../learning/parsed_cell/parsed-cell-record-transform";
 
-
 export interface ParsedCellHistoryPlan {
 	detailTableName: string;
 	sharedTableName: string;

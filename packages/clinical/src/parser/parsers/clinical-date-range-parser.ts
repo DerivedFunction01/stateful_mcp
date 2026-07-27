@@ -75,9 +75,7 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		if (!dateRange) return null;
 
 		const attributes: Record<string, any> = {};
-		const extractedData: Record<string, any> = {
-			dateRange,
-		};
+		const extractedData = (dateRange || {}) as Record<string, any>;
 
 		return {
 			targetSchema: this.targetSchema,

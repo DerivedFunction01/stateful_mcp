@@ -33,6 +33,10 @@ export class CdslParser {
 	private stopWordStore: StopWordStore | undefined;
 	private attributeRules: import("../store/interfaces").AttributeParserRule[];
 
+	private static readonly SCHEMAS_WITHOUT_CONCEPT = new Set([
+		"ClinicalDateRange",
+	]);
+
 	constructor(
 		private dictionaryStore: DictionaryStore,
 		private profile: ParserSyntaxProfile,
@@ -469,11 +473,16 @@ export class CdslParser {
 				);
 				const finalItem = learnedCandidate || deterministic;
 
-				if (finalItem && finalItem.concept.length > 0) {
-					const key = `${finalItem.targetSchema}:${finalItem.concept[0]?.conceptId ?? ""}`;
-					if (!seenFinal.has(key)) {
-						seenFinal.add(key);
-						items.push(finalItem);
+				if (finalItem) {
+					const requiresConcept = !CdslParser.SCHEMAS_WITHOUT_CONCEPT.has(
+						finalItem.targetSchema,
+					);
+					if (!requiresConcept || finalItem.concept.length > 0) {
+						const key = `${finalItem.targetSchema}:${finalItem.concept[0]?.conceptId ?? ""}`;
+						if (!seenFinal.has(key)) {
+							seenFinal.add(key);
+							items.push(finalItem);
+						}
 					}
 				}
 			}

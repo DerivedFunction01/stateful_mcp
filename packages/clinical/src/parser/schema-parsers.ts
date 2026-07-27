@@ -10,12 +10,16 @@ import type {
 	PatientLearningContext,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
+import { MedicationSchemaParser } from "./parsers/medication-parser";
+import { ObservationSchemaParser } from "./parsers/observation-parser";
+import { VitalsSchemaParser } from "./parsers/vitals-parser";
 
 export const CANONICAL_TAGS = {
 	VITALS: "VitalsMeasurementEvent",
 	OBSERVATION: "ObservationEvent",
 	MEDICATION: "MedicationOrderObject",
-	CLINCICAL_DATE_RANGE: "ClinicalDateRange",
+	CLINICAL_DATE_RANGE: "ClinicalDateRange",
 } as const;
 
 export type DeepPartial<T> = T extends object
@@ -146,8 +150,6 @@ export interface SchemaParser {
 	): Promise<ParsedCandidateEnvelope>;
 }
 
-export const schemaParserRegistry = new Map<string, SchemaParser>();
-
 export function parseSessionVars(groups: {
 	kvPairs: string;
 }): Record<string, any> {
@@ -237,4 +239,9 @@ export async function resolveMultiConceptHelper(
 }
 
 // V2 parser registry populated when v2 schema parsers are implemented
-export const schemaParserRegistryV2 = new Map<string, SchemaParser>();
+export const schemaParserRegistry = new Map<string, SchemaParser>([
+	[CANONICAL_TAGS.OBSERVATION, new ObservationSchemaParser()],
+	[CANONICAL_TAGS.MEDICATION, new MedicationSchemaParser()],
+	[CANONICAL_TAGS.VITALS, new VitalsSchemaParser()],
+	[CANONICAL_TAGS.CLINICAL_DATE_RANGE, new ClinicalDateRangeSchemaParser()],
+]);

@@ -236,14 +236,23 @@ export class VitalsSchemaParser implements SchemaParser {
 			}
 		}
 
-		const extractedData: Record<string, any> = {
-			value: parsedVal,
-			unit: finalUnit,
+		const measurement: Record<string, any> = {
+			magnitude: parsedVal,
+			unit: { display: finalUnit },
 			unitAnchor,
 		};
+		const extractedData: Record<string, any> = { measurement };
 		if (token.systolic !== undefined && token.diastolic !== undefined) {
-			extractedData.systolic = capturedProps.systolic;
-			extractedData.diastolic = capturedProps.diastolic;
+			extractedData.bloodPressureDetails = {
+				systolic: {
+					magnitude: capturedProps.systolic,
+					unit: { display: capturedProps.unit },
+				},
+				diastolic: {
+					magnitude: capturedProps.diastolic,
+					unit: { display: capturedProps.unit },
+				},
+			};
 		}
 
 		return {

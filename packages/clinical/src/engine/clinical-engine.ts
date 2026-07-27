@@ -354,7 +354,9 @@ export class ClinicalEngine {
 						display: vitConcept?.display,
 					},
 					measurement: {
-						magnitude: Number(vitalsItem.extractedData?.measurement?.magnitude || 0),
+						magnitude: Number(
+							vitalsItem.extractedData?.measurement?.magnitude || 0,
+						),
 						unit: { display: unit },
 					},
 				} as any);
@@ -375,7 +377,10 @@ export class ClinicalEngine {
 					obs.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
 						soapSection: "subjective",
-						concept: { conceptId: obsConcept?.conceptId, display: obsConcept?.display },
+						concept: {
+							conceptId: obsConcept?.conceptId,
+							display: obsConcept?.display,
+						},
 						rawTerm: obsItem.tag,
 						sourceType: "patient_reported",
 						certainty: obsItem.extractedData?.certainty as any,
@@ -395,7 +400,10 @@ export class ClinicalEngine {
 					obs.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
 						soapSection: "objective",
-						concept: { conceptId: obsConcept?.conceptId, display: obsConcept?.display },
+						concept: {
+							conceptId: obsConcept?.conceptId,
+							display: obsConcept?.display,
+						},
 						rawTerm: obsItem.tag,
 						sourceType: "clinician_observed",
 						certainty: obsItem.extractedData?.certainty as any,
