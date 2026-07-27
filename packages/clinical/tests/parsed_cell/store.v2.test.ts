@@ -2,10 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import type { ParsedObservationItem } from "../../src/parser/schema-parsers";
 import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
-import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../../src/seed/adapter-config";
-import type { ClinicalStorageAdapterRegistry } from "../../src/store/adapter-types";
 import type { ParsedCellRecord } from "../../src/store/learning/interfaces";
-import { buildLearningHistoryStore } from "../../src/store/learning/learning-history-store";
 import { CompositeParsedCellHistoryStore } from "../../src/store/learning/parsed_cell/history-store";
 import { KvParsedCellStore } from "../../src/store/learning/parsed_cell/kv-parsed-cell-store";
 import { SqlParsedCellStore } from "../../src/store/learning/parsed_cell/sql-parsed-cell-store";
@@ -223,41 +220,6 @@ describe("ParsedCell v2 storage", () => {
 		expect(history).toHaveLength(2);
 		expect(history[0]?.shared.cellId).toBe("cell-comp");
 		expect(history[1]?.shared.cellId).toBe("cell-comp");
-	});
-
-	test("buildLearningHistoryStore composes configured backends", async () => {
-		const registry: ClinicalStorageAdapterRegistry = {
-			...DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY,
-			learning: [
-				{
-					group: "learning",
-					primary: {
-						_type: "adapter",
-						name: "memory",
-						options: { seed: [] },
-					},
-				},
-				{
-					group: "learning",
-					primary: {
-						_type: "adapter",
-						name: "memory",
-						options: { seed: [] },
-					},
-				},
-			],
-		};
-
-		const store = await buildLearningHistoryStore(registry);
-		await store.putRecord(makeObservationCell("cell-builder-1", "session-x"));
-		const rows = await store.getHistory({
-			tag: CANONICAL_TAGS.OBSERVATION,
-			targetSchema: CANONICAL_TAGS.OBSERVATION,
-			rawText: "temperature 101F",
-		});
-
-		expect(rows).toHaveLength(2);
-		expect(rows[0]?.shared.cellId).toBe("cell-builder-1");
 	});
 
 	test("v2 sql store listByTargetSchema filters correctly", async () => {

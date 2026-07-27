@@ -6,7 +6,6 @@
  *  - SQLite store put/list round-trip
  *  - Patient-scoped history isolation
  *  - CompositeParsedCellHistoryStore fan-out
- *  - buildLearningHistoryStore integration
  *  - ObservationSchemaParser.preview() returning learned candidates from history
  *
  * All field access uses v2 patterns:
@@ -29,10 +28,7 @@ import {
 	observationRouter,
 } from "../src/parser/field-registry/observation";
 import { GenericSchemaParser } from "../src/parser/generic-schema-parser";
-import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../src/seed/adapter-config";
-import type { ClinicalStorageAdapterRegistry } from "../src/store/adapter-types";
 import type { ParsedCellRecord } from "../src/store/learning/interfaces";
-import { buildLearningHistoryStore } from "../src/store/learning/learning-history-store";
 import { CompositeParsedCellHistoryStore } from "../src/store/learning/parsed_cell/history-store";
 import { KvParsedCellStore } from "../src/store/learning/parsed_cell/kv-parsed-cell-store";
 import { SqlParsedCellStore } from "../src/store/learning/parsed_cell/sql-parsed-cell-store";
@@ -285,33 +281,5 @@ describe("ParsedCell v2 store (replacement)", () => {
 		expect(
 			(preview.learned[0] as ParsedObservationItem)?.concept[0]?.conceptId,
 		).toBe("SNOMED::267036007");
-	});
-
-	test("buildLearningHistoryStore composes configured backends", async () => {
-		const registry: ClinicalStorageAdapterRegistry = {
-			...DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY,
-			learning: [
-				{
-					group: "learning",
-					primary: { _type: "adapter", name: "memory", options: { seed: [] } },
-				},
-				{
-					group: "learning",
-					primary: { _type: "adapter", name: "memory", options: { seed: [] } },
-				},
-			],
-		};
-
-		const store = await buildLearningHistoryStore(registry);
-		await store.putRecord(makeObservationCell("cell-builder-1", "session-x"));
-		const rows = await store.getHistory({
-			tag: CANONICAL_TAGS.OBSERVATION,
-			targetSchema: CANONICAL_TAGS.OBSERVATION,
-			rawText: "#observation shortness of breath",
-		});
-
-		expect(rows).toHaveLength(2);
-		// v2: use shared.cellId, not detail.cellId
-		expect(rows[0]?.shared.cellId).toBe("cell-builder-1");
 	});
 });

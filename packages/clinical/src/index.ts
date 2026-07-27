@@ -35,7 +35,6 @@ export * from "./store/clinical-config";
 export * from "./store/clinical-loader";
 export * from "./store/clinical-runtime";
 export * from "./store/interfaces";
-export * from "./store/learning/learning-history-store";
 export * from "./store/learning/ordered_learning/composite-store";
 export * from "./store/learning/ordered_learning/kv-ordered-learning-store";
 export * from "./store/learning/ordered_learning/ordered-learning-ranking";
