@@ -1,3 +1,5 @@
+import type { ColumnDef } from "@stateful-mcp/core";
+import { inferSqlType } from "@stateful-mcp/core";
 import type { ParsedItem } from "../../../../parser/schema-parsers";
 import {
 	type ParsedCellRecordTransform,
@@ -11,31 +13,44 @@ const indexes: TransformIndexSpec[] = [
 	{ columns: ["direction"], unique: false },
 ];
 
+const dateRangeTemplate: ParsedItem = {
+	targetSchema: "ClinicalDateRange",
+	attributes: {},
+	concept: [],
+	rawText: "past 2 weeks",
+	tag: "ClinicalDateRange",
+	extractedData: {
+		direction: "past",
+		lower: {
+			bound: { isInclusive: true, precision: "day" },
+			calendarDate: { year: 2024, month: 7, day: 13 },
+		},
+		upper: {
+			bound: { isInclusive: true, precision: "day" },
+			calendarDate: { year: 2024, month: 7, day: 27 },
+		},
+		time: {
+			assertedTimestampUtc: "2024-07-27T00:00:00Z",
+			precisionLevel: "day",
+		},
+	},
+};
+
+const dateRangeColumnSpecs = (() => {
+	const flat = flattenParsedItem(dateRangeTemplate);
+	delete flat.time;
+	delete flat.includedDatetimes;
+	delete flat.excludedDatetimes;
+	return Object.entries(flat).map(([name, value]) => ({
+		name,
+		type: inferSqlType(value),
+	}));
+})();
+
 const transform: ParsedCellRecordTransform = {
 	targetSchema: "ClinicalDateRange",
 	template(): ParsedItem {
-		return {
-			targetSchema: "ClinicalDateRange",
-			attributes: {},
-			concept: [],
-			rawText: "past 2 weeks",
-			tag: "ClinicalDateRange",
-			extractedData: {
-				direction: "past",
-				lower: {
-					bound: { isInclusive: true, precision: "day" },
-					calendarDate: { year: 2024, month: 7, day: 13 },
-				},
-				upper: {
-					bound: { isInclusive: true, precision: "day" },
-					calendarDate: { year: 2024, month: 7, day: 27 },
-				},
-				time: {
-					assertedTimestampUtc: "2024-07-27T00:00:00Z",
-					precisionLevel: "day",
-				},
-			},
-		};
+		return dateRangeTemplate;
 	},
 	flatten(parsedItem) {
 		const flat = flattenParsedItem(parsedItem as ParsedItem);
@@ -47,6 +62,7 @@ const transform: ParsedCellRecordTransform = {
 		return flat;
 	},
 	indexes,
+	columnSpecs: dateRangeColumnSpecs,
 };
 
 registerTransform(transform);

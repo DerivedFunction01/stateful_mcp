@@ -319,4 +319,37 @@ describe("ParsedCellSqlCompilerV2", () => {
 		expect(result.sql).toContain(`"shared".*`);
 		expect(result.sql).toContain(`"detail".*`);
 	});
+
+	test("buildMergedColumns passes ColumnDef fields through from columnSpecs", () => {
+		const transformWithSpecs: ParsedCellRecordTransform = {
+			targetSchema: "ObservationEventWithSpecs",
+			template(): import("../../src/parser/schema-parsers").ParsedItem {
+				return {
+					targetSchema: "ObservationEventWithSpecs",
+					attributes: {},
+					concept: [{ conceptId: "LOINC::8310-5", display: "Temperature" }],
+					rawText: "temperature 101F",
+					tag: "ObservationEventWithSpecs",
+					extractedData: { certainty: "confirmed" },
+				};
+			},
+			flatten(parsedItem) {
+				return { certainty: "confirmed" };
+			},
+			columnSpecs: [
+				{ name: "certainty", type: "text", primaryKey: true, nullable: false, default: "unknown" },
+				{ name: "custom_flag", type: "bool", defaultRaw: "1", unique: true, check: "custom_flag IN (0,1)", raw: "REFERENCES other(id)" },
+			],
+		};
+
+		const result = compiler.compileCreateDetailTable("parsed_cell_observation_with_specs", transformWithSpecs);
+
+		expect(result.sql).toContain(`"certainty" TEXT`);
+		expect(result.sql).toContain(`DEFAULT 'unknown'`);
+		expect(result.sql).toContain(`PRIMARY KEY`);
+		expect(result.sql).toContain(`"custom_flag"`);
+		expect(result.sql).toContain(`UNIQUE`);
+		expect(result.sql).toContain(`CHECK (custom_flag IN (0,1))`);
+		expect(result.sql).toContain(`REFERENCES other(id)`);
+	});
 });

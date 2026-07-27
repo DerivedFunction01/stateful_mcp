@@ -4,13 +4,13 @@ import {
 	QueryCompiler,
 	type QueryCondition,
 	type SelectQuery,
+	inferSqlType,
 } from "@stateful-mcp/core";
 import type { ParsedCellHistoryKey } from "../learning/interfaces";
 import type {
 	ParsedCellRecordTransform,
 	TransformIndexSpec,
 } from "../learning/parsed_cell/parsed-cell-record-transform";
-import { buildColumnSpecs } from "../learning/parsed_cell/parsed-cell-record-transform";
 
 export interface ParsedCellHistoryPlan {
 	detailTableName: string;
@@ -377,7 +377,15 @@ export class ParsedCellSqlCompilerV2 {
 }
 
 function buildMergedColumns(transform: ParsedCellRecordTransform): ColumnDef[] {
-	const flatColumns = buildColumnSpecs(transform);
+	const flatColumns: ColumnDef[] = transform.columnSpecs
+		? transform.columnSpecs
+		: Object.entries(transform.flatten(transform.template())).map(
+				([path, value]) => ({
+					name: path,
+					type: inferSqlType(value),
+					nullable: true,
+				}),
+			);
 	const seen = new Set<string>();
 	const result: ColumnDef[] = [];
 
@@ -393,18 +401,24 @@ function buildMergedColumns(transform: ParsedCellRecordTransform): ColumnDef[] {
 	}
 
 	for (const col of flatColumns) {
-		if (seen.has(col.path)) continue;
-		seen.add(col.path);
+		if (seen.has(col.name)) continue;
+		seen.add(col.name);
 
-		const rawDefault =
-			col.default === false ? "0" : col.default === true ? "1" : undefined;
+		const rawDefault = typeof col.default === "boolean"
+			? (col.default ? "1" : "0")
+			: undefined;
 
 		result.push({
-			name: col.path,
-			type: col.sqlType,
+			name: col.name,
+			type: col.type,
 			nullable: col.nullable ?? true,
 			default: rawDefault !== undefined ? undefined : (col.default ?? null),
-			defaultRaw: rawDefault,
+			defaultRaw: rawDefault ?? col.defaultRaw,
+			primaryKey: col.primaryKey,
+			unique: col.unique,
+			check: col.check,
+			raw: col.raw,
+			autoIncrement: col.autoIncrement,
 		} as ColumnDef);
 	}
 

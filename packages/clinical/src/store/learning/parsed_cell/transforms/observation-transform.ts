@@ -1,3 +1,5 @@
+import type { ColumnDef } from "@stateful-mcp/core";
+import { inferSqlType } from "@stateful-mcp/core";
 import type { ParsedItem } from "../../../../parser/schema-parsers";
 import {
 	type ParsedCellRecordTransform,
@@ -11,29 +13,42 @@ const indexes: TransformIndexSpec[] = [
 	{ columns: ["conceptId"], unique: false },
 ];
 
+const observationTemplate: ParsedItem = {
+	targetSchema: "ObservationEvent",
+	attributes: {},
+	concept: [{ conceptId: "LOINC::8310-5", display: "Temperature" }],
+	rawText: "temperature 101F",
+	tag: "ObservationEvent",
+	extractedData: {
+		certainty: "confirmed",
+		status: "present",
+		severity: { score: 3.2, maxScore: 5.5, normalizedScore: 0.6 },
+		duration: {
+			magnitude: 2.3,
+			unit: "days",
+			operator: "eq",
+			is_approximate: false,
+		},
+		trajectory: "worsening",
+		qualifiers: [{ conceptId: "SNOMED::246072003", display: "Fever" }],
+	},
+};
+
+const observationColumnSpecs = (() => {
+	const flat = flattenParsedItem(observationTemplate);
+	delete flat.id;
+	delete flat.rawTerm;
+	delete flat.dateRange;
+	return Object.entries(flat).map(([name, value]) => ({
+		name,
+		type: inferSqlType(value),
+	}));
+})();
+
 const transform: ParsedCellRecordTransform = {
 	targetSchema: "ObservationEvent",
 	template(): ParsedItem {
-		return {
-			targetSchema: "ObservationEvent",
-			attributes: {},
-			concept: [{ conceptId: "LOINC::8310-5", display: "Temperature" }],
-			rawText: "temperature 101F",
-			tag: "ObservationEvent",
-			extractedData: {
-				certainty: "confirmed",
-				status: "present",
-				severity: { score: 3, maxScore: 5, normalizedScore: 0.6 },
-				duration: {
-					magnitude: 2,
-					unit: "days",
-					operator: "eq",
-					is_approximate: false,
-				},
-				trajectory: "worsening",
-				qualifiers: [{ conceptId: "SNOMED::246072003", display: "Fever" }],
-			},
-		};
+		return observationTemplate;
 	},
 	flatten(parsedItem) {
 		const flat = flattenParsedItem(parsedItem as ParsedItem);
@@ -45,6 +60,7 @@ const transform: ParsedCellRecordTransform = {
 		return flat;
 	},
 	indexes,
+	columnSpecs: observationColumnSpecs,
 };
 
 registerTransform(transform);
