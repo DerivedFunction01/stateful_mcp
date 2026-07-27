@@ -404,20 +404,23 @@ class CompilerContext {
 	}
 }
 
-export function inferSqlType(value: unknown, override?: ColumnType): ColumnType {
-    if (override) return override;
+export function inferSqlType(
+	value: unknown,
+	override?: ColumnType,
+): ColumnType {
+	if (override) return override;
 
-    if (typeof value === "number") {
-        return Number.isInteger(value) ? "int" : "real";
-    }
-    if (typeof value === "boolean") return "bool";
-    if (typeof value === "string") {
-        return "text";
-    }
-    if (Array.isArray(value) || (value !== null && typeof value === "object")) {
-        return "json";
-    }
-    return "text";
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? "int" : "real";
+	}
+	if (typeof value === "boolean") return "bool";
+	if (typeof value === "string") {
+		return "text";
+	}
+	if (Array.isArray(value) || (value !== null && typeof value === "object")) {
+		return "json";
+	}
+	return "text";
 }
 
 /**
@@ -500,7 +503,7 @@ export class QueryCompiler {
 		// SQLite fallback
 		return `json_extract(${quotedCol}, '$.${jsonPath}')`;
 	}
-	
+
 	public columnSqlType(col: ColumnDef): string {
 		if (col.autoIncrement) {
 			return this.dialect === "postgres" ? "SERIAL" : "INTEGER";

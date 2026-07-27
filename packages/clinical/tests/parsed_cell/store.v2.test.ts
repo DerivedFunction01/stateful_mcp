@@ -284,9 +284,7 @@ describe("ParsedCell v2 storage", () => {
 			},
 		};
 
-		await store.putRecord(
-			makeObservationCell("cell-match", "session-rank"),
-		);
+		await store.putRecord(makeObservationCell("cell-match", "session-rank"));
 		await store.putRecord({
 			...makeObservationCell("cell-mismatch", "session-rank"),
 			parsedItem: nonMatchingItem,
