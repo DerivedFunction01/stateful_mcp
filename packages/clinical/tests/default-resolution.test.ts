@@ -8,11 +8,11 @@ import {
 import type { CustomExpression } from "@stateful-mcp/core/src/middleware/dictionary/types";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import type { ParsedObservationItem } from "../src/parser/schema-parsers";
+import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 import {
 	type DefaultResolutionStrategy,
 	registerDefaultResolutionStrategy,
 } from "../src/store/default-strategy";
-import { SEED_PARSER_PROFILES } from "../src/store/defaults";
 import type { ParserSyntaxProfile } from "../src/store/interfaces";
 
 async function seedTestConcepts(dictionaryStore: DictionaryStore) {

@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import type { DictionaryStore } from "@stateful-mcp/core";
 import { ClinicalDateRangeSchemaParser } from "../src/parser/parsers/clinical-date-range-parser";
 import {
-	buildCalendarDateRules,
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_CALENDAR_DATE_FORMATS,
 	DEFAULT_EVALUATOR_RULES,
-} from "../src/store/defaults";
+} from "../src/seed/defaults";
+import { buildCalendarDateRules } from "../src/store/rules-builder";
 
 const expandedRules = [
 	...DEFAULT_ATTRIBUTE_RULES,
@@ -43,14 +43,28 @@ const store = {
 
 describe("ClinicalDateRange parsing", () => {
 	test("parses retrospective and prospective relative estimates", async () => {
-		const retrospective = await parser.parse("#time", "3 weeks ago", store, undefined, expandedRules, DEFAULT_EVALUATOR_RULES);
+		const retrospective = await parser.parse(
+			"#time",
+			"3 weeks ago",
+			store,
+			undefined,
+			expandedRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
 		expect(retrospective?.extractedData?.relativeEstimate).toEqual({
 			direction: "retrospective",
 			firstValue: 3,
 			precisionUnit: "week",
 		});
 
-		const prospective = await parser.parse("#time", "in 2 hours", store, undefined, expandedRules, DEFAULT_EVALUATOR_RULES);
+		const prospective = await parser.parse(
+			"#time",
+			"in 2 hours",
+			store,
+			undefined,
+			expandedRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
 		expect(prospective?.extractedData?.relativeEstimate).toEqual({
 			direction: "prospective",
 			firstValue: 2,
@@ -59,13 +73,27 @@ describe("ClinicalDateRange parsing", () => {
 	});
 
 	test("parses recurring cadence and shorthand schedules", async () => {
-		const cadence = await parser.parse("#time", "every 8 hours", store, undefined, expandedRules, DEFAULT_EVALUATOR_RULES);
+		const cadence = await parser.parse(
+			"#time",
+			"every 8 hours",
+			store,
+			undefined,
+			expandedRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
 		expect(cadence?.extractedData?.time?.repeat).toEqual({
 			multiplier: 8,
 			level: "hour",
 		});
 
-		const daily = await parser.parse("#time", "daily", store, undefined, expandedRules, DEFAULT_EVALUATOR_RULES);
+		const daily = await parser.parse(
+			"#time",
+			"daily",
+			store,
+			undefined,
+			expandedRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
 		expect(daily?.extractedData?.time?.repeat).toEqual({
 			multiplier: 1,
 			level: "day",
@@ -96,7 +124,14 @@ describe("ClinicalDateRange parsing", () => {
 	});
 
 	test("parses exclusions alongside the base schedule", async () => {
-		const parsed = await parser.parse("#time", "daily except Sundays", store, undefined, expandedRules, DEFAULT_EVALUATOR_RULES);
+		const parsed = await parser.parse(
+			"#time",
+			"daily except Sundays",
+			store,
+			undefined,
+			expandedRules,
+			DEFAULT_EVALUATOR_RULES,
+		);
 		expect(parsed?.extractedData?.includedDatetimes).toHaveLength(1);
 		expect(parsed?.extractedData?.excludedDatetimes).toHaveLength(1);
 		expect(parsed?.extractedData?.includedDatetimes?.[0]?.time?.repeat).toEqual(

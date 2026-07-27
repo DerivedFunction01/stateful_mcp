@@ -1,7 +1,6 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import { isBoundedMeasurement } from "../../schemas/measurement";
 import { resolveSchemaDefault } from "../../store/default-strategy";
-import { DEFAULT_EVALUATOR_RULES } from "../../store/defaults";
 import type {
 	AttributeParserRule,
 	ParserConceptDefault,
@@ -102,7 +101,7 @@ export class VitalsSchemaParser implements SchemaParser {
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
 	): Promise<ParsedItemUnion | null> {
-		const rules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
+		const rules = evaluatorRules || [];
 
 		let token: any = null;
 		if (

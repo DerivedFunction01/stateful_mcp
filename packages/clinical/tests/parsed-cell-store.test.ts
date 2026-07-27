@@ -24,10 +24,8 @@ import "../src/store/learning/parsed_cell/transforms/vitals-transform";
 import "../src/store/learning/parsed_cell/transforms/medication-transform";
 import "../src/store/learning/parsed_cell/transforms/clinical-date-range-transform";
 import { ObservationSchemaParser } from "../src/parser/parsers/observation-parser";
-import {
-	type ClinicalStorageAdapterRegistry,
-	DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY,
-} from "../src/store/adapter-config";
+import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../src/seed/adapter-config";
+import type { ClinicalStorageAdapterRegistry } from "../src/store/adapter-types";
 import type { ParsedCellRecord } from "../src/store/learning/interfaces";
 import { buildLearningHistoryStore } from "../src/store/learning/learning-history-store";
 import { CompositeParsedCellHistoryStore } from "../src/store/learning/parsed_cell/history-store";

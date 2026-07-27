@@ -1,9 +1,5 @@
 import type { PatientLearningBucket } from "../schemas/patient";
-import type {
-	Certainty,
-	Route,
-	Status,
-} from "../schemas/shared";
+import type { Certainty, Route, Status } from "../schemas/shared";
 
 export interface ParserSyntaxProfile {
 	profileId: string;

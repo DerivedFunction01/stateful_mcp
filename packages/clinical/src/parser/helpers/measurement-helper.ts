@@ -10,7 +10,6 @@ import type {
 	TimeMeasurement,
 	TimePrecisionLevel,
 } from "../../schemas/time";
-import { UNIT_DISPLAY_MAP } from "../../store/defaults";
 import type {
 	AttributeParserRule,
 	NamedGroupContract,
@@ -22,7 +21,7 @@ import {
 } from "../utils/named-group-validator";
 import { computeValueInBase } from "./measurement-conversion";
 
-const ALLOWED_UNITS_SET = new Set(Object.keys(UNIT_DISPLAY_MAP));
+const ALLOWED_UNITS_SET = new Set<string>();
 
 export interface QuantityToken {
 	magnitude: number;

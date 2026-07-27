@@ -7,12 +7,12 @@ import { MedicationTokenizer } from "../src/parser/helpers/medication-helper";
 import { ObservationTokenizer } from "../src/parser/helpers/observation-helper";
 import { VitalsTokenizer } from "../src/parser/helpers/vitals-helper";
 import {
-	buildCalendarDateRules,
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_CALENDAR_DATE_FORMATS,
 	DEFAULT_EVALUATOR_RULES,
-} from "../src/store/defaults";
+} from "../src/seed/defaults";
 import type { AttributeParserRule } from "../src/store/interfaces";
+import { buildCalendarDateRules } from "../src/store/rules-builder";
 
 describe("Named Group Contract Enforcement", () => {
 	const calendarRules = buildCalendarDateRules(DEFAULT_CALENDAR_DATE_FORMATS);

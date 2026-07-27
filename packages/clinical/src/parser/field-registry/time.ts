@@ -1,9 +1,16 @@
-import type { AttributeParserRule, FieldMappingRule, SchemaParserConfig } from "../../store/interfaces";
 import type { ClinicalDateRange } from "../../schemas/time";
-import { FieldResolverEngine } from "../field-resolver-engine";
+import type {
+	AttributeParserRule,
+	FieldMappingRule,
+	SchemaParserConfig,
+} from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
+import { FieldResolverEngine } from "../field-resolver-engine";
 
-function resolveTimeUnit(rawUnit: string, attributeRules: AttributeParserRule[]): string {
+function resolveTimeUnit(
+	rawUnit: string,
+	attributeRules: AttributeParserRule[],
+): string {
 	const timeUnitRules = attributeRules.filter(
 		(rule) => rule.targetField === "time_unit",
 	);
@@ -19,7 +26,9 @@ function resolveTimeUnit(rawUnit: string, attributeRules: AttributeParserRule[])
 	return rawUnit;
 }
 
-export function createDateRangeFieldRegistry(attributeRules: AttributeParserRule[]): FieldMappingRule[] {
+export function createDateRangeFieldRegistry(
+	attributeRules: AttributeParserRule[],
+): FieldMappingRule[] {
 	return [
 		{
 			sourceKey: "frequency_details",

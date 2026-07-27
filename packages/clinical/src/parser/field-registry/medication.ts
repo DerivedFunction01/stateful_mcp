@@ -1,8 +1,15 @@
-import type { AttributeParserRule, FieldMappingRule, SchemaParserConfig } from "../../store/interfaces";
 import type { MedicationOrderObject } from "../../schemas/medication";
+import type {
+	AttributeParserRule,
+	FieldMappingRule,
+	SchemaParserConfig,
+} from "../../store/interfaces";
 import { FieldResolverEngine } from "../field-resolver-engine";
 
-function resolveUnit(rawUnit: string, attributeRules: AttributeParserRule[]): string {
+function resolveUnit(
+	rawUnit: string,
+	attributeRules: AttributeParserRule[],
+): string {
 	let mapped = rawUnit.toLowerCase();
 	const rules = attributeRules.filter(
 		(r) =>
@@ -24,7 +31,9 @@ function resolveUnit(rawUnit: string, attributeRules: AttributeParserRule[]): st
 	return mapped;
 }
 
-export function createMedicationFieldRegistry(attributeRules: AttributeParserRule[]): FieldMappingRule[] {
+export function createMedicationFieldRegistry(
+	attributeRules: AttributeParserRule[],
+): FieldMappingRule[] {
 	return [
 		{
 			sourceKey: "route",
@@ -41,7 +50,9 @@ export function createMedicationFieldRegistry(attributeRules: AttributeParserRul
 				const quantity = Number.parseFloat(qtyStr);
 				if (Number.isNaN(quantity)) return undefined;
 				const unitStr = rawGroups?.unit;
-				const quantityUnit = unitStr ? resolveUnit(unitStr, attributeRules) : undefined;
+				const quantityUnit = unitStr
+					? resolveUnit(unitStr, attributeRules)
+					: undefined;
 				return {
 					magnitude: quantity,
 					unit: quantityUnit ? { display: quantityUnit } : undefined,

@@ -8,7 +8,7 @@ import type {
 	MassMeasurement,
 	TemperatureMeasurement,
 } from "../src/schemas/measurement";
-import { DEFAULT_ATTRIBUTE_RULES } from "../src/store/defaults";
+import { DEFAULT_ATTRIBUTE_RULES } from "../src/seed/defaults";
 import type { AttributeParserRule } from "../src/store/interfaces";
 
 describe("Strongly-Typed Measurement Units & parseAs Helper", () => {

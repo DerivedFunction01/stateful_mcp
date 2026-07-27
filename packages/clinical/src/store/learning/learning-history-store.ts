@@ -9,7 +9,7 @@ import {
 	type ClinicalStorageAdapterConfig,
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
-} from "../adapter-config";
+} from "../adapter-types";
 import type {
 	ParsedCellHistoryAdapter,
 	ParsedCellHistoryStore,

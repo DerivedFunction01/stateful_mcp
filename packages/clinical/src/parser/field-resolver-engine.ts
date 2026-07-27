@@ -1,5 +1,5 @@
-import type { FieldMappingRule, NamedGroupContract } from "../store/interfaces";
 import { resolveSchemaDefault } from "../store/default-strategy";
+import type { FieldMappingRule, NamedGroupContract } from "../store/interfaces";
 
 export interface DefaultResolutionContext {
 	rawText?: string;

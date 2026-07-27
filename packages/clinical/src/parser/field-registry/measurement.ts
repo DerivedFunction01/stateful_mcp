@@ -1,7 +1,14 @@
-import type { AttributeParserRule, FieldMappingRule, SchemaParserConfig } from "../../store/interfaces";
+import type {
+	AttributeParserRule,
+	FieldMappingRule,
+	SchemaParserConfig,
+} from "../../store/interfaces";
 import { FieldResolverEngine } from "../field-resolver-engine";
 
-function resolveUnitAnchor(rawUnit: string, attributeRules: AttributeParserRule[]): string | undefined {
+function resolveUnitAnchor(
+	rawUnit: string,
+	attributeRules: AttributeParserRule[],
+): string | undefined {
 	const rules = attributeRules.filter(
 		(r) => r.targetField === "unit" && r.unitAnchor !== undefined,
 	);
@@ -17,7 +24,9 @@ function resolveUnitAnchor(rawUnit: string, attributeRules: AttributeParserRule[
 	return undefined;
 }
 
-export function createMeasurementFieldRegistry(attributeRules: AttributeParserRule[]): FieldMappingRule[] {
+export function createMeasurementFieldRegistry(
+	attributeRules: AttributeParserRule[],
+): FieldMappingRule[] {
 	return [
 		{
 			sourceKey: "magnitude",

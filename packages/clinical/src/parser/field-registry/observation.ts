@@ -1,5 +1,8 @@
-import type { FieldMappingRule, SchemaParserConfig } from "../../store/interfaces";
 import type { ObservationEvent } from "../../schemas/observation";
+import type {
+	FieldMappingRule,
+	SchemaParserConfig,
+} from "../../store/interfaces";
 import { FieldResolverEngine } from "../field-resolver-engine";
 
 export const observationFieldRegistry: FieldMappingRule[] = [
@@ -30,12 +33,14 @@ export const observationFieldRegistry: FieldMappingRule[] = [
 			const num = Number.parseFloat(numStr);
 
 			// Priority: explicit denominator in text > concept default max score
-			let den = rawGroups?.denominator !== undefined
-				? Number.parseFloat(rawGroups.denominator)
-				: undefined;
+			let den =
+				rawGroups?.denominator !== undefined
+					? Number.parseFloat(rawGroups.denominator)
+					: undefined;
 
 			if (den === undefined && conceptDefaults) {
-				const conceptMax = (conceptDefaults as any).defaultProperties?.severity_max_score;
+				const conceptMax = (conceptDefaults as any).defaultProperties
+					?.severity_max_score;
 				if (conceptMax !== undefined) {
 					den = Number(conceptMax);
 				}
@@ -43,7 +48,7 @@ export const observationFieldRegistry: FieldMappingRule[] = [
 
 			if (den === undefined) {
 				// Find the next power of 10 greater than or equal to num (minimum scale of 10)
-				const inferredMax = Math.pow(10, Math.max(1, Math.ceil(Math.log10(num || 1))));
+				const inferredMax = 10 ** Math.max(1, Math.ceil(Math.log10(num || 1)));
 
 				return {
 					score: num,

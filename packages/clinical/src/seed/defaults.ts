@@ -9,7 +9,7 @@
  *
  * For runtime usage:
  *   - Use `clinical-loader.ts` → `buildClinicalRuntime()` to resolve config
- *   - Use `clinical-config.ts` → `DEFAULT_CLINICAL_STORE_CONFIG` for defaults
+ *   - Use `../seed/clinical-config.ts` → `DEFAULT_CLINICAL_STORE_CONFIG` for defaults
  *   - Use `CdslParser.create()` to resolve profiles from store, not seed arrays
  *
  * Existing direct imports are allowed only in test files and/or legacy
@@ -27,59 +27,7 @@ import type {
 	NumericFieldFormatOptions,
 	ParserConceptDefault,
 	ParserSyntaxProfile,
-} from "./interfaces";
-
-export function buildCalendarDateRules(
-	formats: DateTimeFormatConfig[],
-): AttributeParserRule[] {
-	return formats.map((format, idx) => {
-		const datePattern = buildDatePatternString(
-			format.tokens,
-			format.separators,
-			format.options,
-		);
-		return {
-			targetField: "calendar_date" as const,
-			targetValue: "calendar_date" as const,
-			regexPatterns: [datePattern.pattern],
-			isCaseInsensitive: true,
-			priority: 100,
-			calendarTokens: format.tokens,
-			calendarSeparators: format.separators,
-			monthNames: format.options?.monthNames,
-			namedGroupContract: {
-				required: datePattern.groupNames,
-				allowed: datePattern.groupNames,
-			},
-		};
-	});
-}
-
-export function buildNumericFieldRules(
-	formats: NumericFieldFormatOptions[],
-): AttributeParserRule[] {
-	const validFormats = formats.filter(
-		(
-			f,
-		): f is Required<Pick<NumericFieldFormatOptions, "targetField">> &
-			NumericFieldFormatOptions => f.targetField !== undefined,
-	);
-	return validFormats
-		.map((format) => ({
-			targetField: format.targetField,
-			targetValue: "number" as const,
-			regexPatterns: [buildNumericPatternString(format)],
-			isCaseInsensitive: true,
-			priority: format.priority ?? 1,
-			integerDigits: format.integerDigits,
-			decimalDigits: format.decimalDigits,
-			allowNegative: format.allowNegative,
-			leadingMin: format.leadingMin,
-			leadingMax: format.leadingMax,
-			targetSchema: format.targetSchema,
-		}))
-		.sort((a, b) => (b.priority ?? 1) - (a.priority ?? 1));
-}
+} from "../store/interfaces";
 
 export const NUMERIC_PATTERN_INTEGER = (
 	options: {

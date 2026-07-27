@@ -2,10 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import type { ParsedObservationItem } from "../../src/parser/schema-parsers";
 import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
-import {
-	type ClinicalStorageAdapterRegistry,
-	DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY,
-} from "../../src/store/adapter-config";
+import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../../src/seed/adapter-config";
+import type { ClinicalStorageAdapterRegistry } from "../../src/store/adapter-types";
 import type { ParsedCellRecord } from "../../src/store/learning/interfaces";
 import { buildLearningHistoryStore } from "../../src/store/learning/learning-history-store";
 import { CompositeParsedCellHistoryStore } from "../../src/store/learning/parsed_cell/history-store";

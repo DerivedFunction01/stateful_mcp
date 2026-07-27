@@ -1,8 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import {
-	buildCalendarDateRules,
-	buildNumericFieldRules,
-} from "../store/defaults";
 import type {
 	ParserConceptDefaultStore,
 	ParserProfileStore,
@@ -11,6 +7,10 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import {
+	buildCalendarDateRules,
+	buildNumericFieldRules,
+} from "../store/rules-builder";
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";

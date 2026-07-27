@@ -1,8 +1,15 @@
-import type { AttributeParserRule, FieldMappingRule, SchemaParserConfig } from "../../store/interfaces";
 import type { VitalsMeasurementEvent } from "../../schemas/vitals";
+import type {
+	AttributeParserRule,
+	FieldMappingRule,
+	SchemaParserConfig,
+} from "../../store/interfaces";
 import { FieldResolverEngine } from "../field-resolver-engine";
 
-function resolveUnit(rawUnit: string, attributeRules: AttributeParserRule[]): string {
+function resolveUnit(
+	rawUnit: string,
+	attributeRules: AttributeParserRule[],
+): string {
 	let mapped = rawUnit.toLowerCase();
 	const rules = attributeRules.filter(
 		(r) =>
@@ -24,7 +31,9 @@ function resolveUnit(rawUnit: string, attributeRules: AttributeParserRule[]): st
 	return mapped;
 }
 
-export function createVitalsFieldRegistry(attributeRules: AttributeParserRule[]): FieldMappingRule[] {
+export function createVitalsFieldRegistry(
+	attributeRules: AttributeParserRule[],
+): FieldMappingRule[] {
 	return [
 		{
 			sourceKey: "blood_pressure",
@@ -52,7 +61,9 @@ export function createVitalsFieldRegistry(attributeRules: AttributeParserRule[])
 				const magnitude = Number.parseFloat(quantityStr);
 				if (Number.isNaN(magnitude)) return undefined;
 				const unitStr = rawGroups?.unit;
-				const display = unitStr ? resolveUnit(unitStr, attributeRules) : undefined;
+				const display = unitStr
+					? resolveUnit(unitStr, attributeRules)
+					: undefined;
 				return {
 					magnitude,
 					unit: display ? { display } : undefined,

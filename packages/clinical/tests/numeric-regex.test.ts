@@ -6,14 +6,14 @@ import {
 	type NumericFieldFormatOptions,
 } from "../src/parser/utils/numeric-regex-generator";
 import {
-	buildNumericFieldRules,
 	NUMERIC_FIELD_SEVERITY_0_10,
 	NUMERIC_PATTERN_DENOMINATOR,
 	NUMERIC_PATTERN_NUMERATOR,
 	NUMERIC_PATTERN_PERCENTAGE_0_100,
 	NUMERIC_PATTERN_QUANTITY,
 	NUMERIC_PATTERN_SEVERITY_0_10,
-} from "../src/store/defaults";
+} from "../src/seed/defaults";
+import { buildNumericFieldRules } from "../src/store/rules-builder";
 
 describe("buildNumericPatternString", () => {
 	test("returns default unbounded numeric pattern", () => {

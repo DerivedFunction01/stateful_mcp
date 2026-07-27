@@ -42,7 +42,9 @@ export async function loadClinicalStoreConfig(
 	if (loaded) return loaded;
 
 	// Fall back to default in-memory config
-	const { DEFAULT_CLINICAL_STORE_CONFIG } = await import("./clinical-config");
+	const { DEFAULT_CLINICAL_STORE_CONFIG } = await import(
+		"../seed/clinical-seed-config"
+	);
 	return DEFAULT_CLINICAL_STORE_CONFIG;
 }
 

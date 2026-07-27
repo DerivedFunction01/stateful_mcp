@@ -18,7 +18,7 @@ import type {
 } from "../src/parser/schema-parsers";
 import { schemaParserRegistry } from "../src/parser/schema-parsers";
 import { StopWordParser } from "../src/parser/stop-word-parser";
-import { SEED_PARSER_PROFILES } from "../src/store/defaults";
+import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 
 // Register all schema parsers into the global registry used by CdslParser.
 // parsers don't self-register; the consumer is responsible.
