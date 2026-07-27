@@ -293,3 +293,85 @@ export interface ParsedCellHistoryStore {
 	putRecord(record: ParsedCellRecord): Promise<void>;
 	markCorrection(cellId: string, replacement?: ParsedItem): Promise<void>;
 }
+
+// ── Ranker Types (v2) ───────────────────────────────────────────────────────────
+
+export interface ParsedCellRankerContext {
+	tag: string;
+	targetSchema: string;
+	patientId?: string;
+	patientOrganismType?: string;
+	patientGender?: string;
+	patientAgeBucket?: string;
+	patientSpeciesBucket?: string;
+	patientSubBucket?: number;
+	patientBucketKey?: string;
+	personnelId?: string;
+	specialtyId?: string;
+	facilityId?: string;
+	rawText: string;
+	history: ParsedCellRecord[];
+}
+
+export interface ParsedCellRankerScore {
+	score: number;
+	reason?: string;
+}
+
+export type ParsedCellPreferenceMode = "deterministic" | "learned" | "dual";
+
+export interface ParsedCellPreferenceProjection<TCandidate = ParsedCellRecord> {
+	mode: ParsedCellPreferenceMode;
+	deterministic: TCandidate | null;
+	learned: TCandidate | null;
+	winner: TCandidate | null;
+	deterministicScore?: ParsedCellRankerScore;
+	learnedScore?: ParsedCellRankerScore;
+}
+
+export interface ParsedCellPreferenceCandidate<TCandidate = ParsedCellRecord> {
+	candidate: TCandidate;
+	score: ParsedCellRankerScore;
+	source: "deterministic" | "learned";
+}
+
+export interface ParsedCellPreferenceRanking<TCandidate = ParsedCellRecord> {
+	mode: ParsedCellPreferenceMode;
+	candidates: ParsedCellPreferenceCandidate<TCandidate>[];
+	winner: TCandidate | null;
+}
+
+export interface ParsedCellPreview<TCandidate = ParsedCellRecord> {
+	deterministic: TCandidate[];
+	learned: TCandidate[];
+	ranking: ParsedCellPreferenceRanking<TCandidate>;
+}
+
+export interface ParsedCellRanker<TCandidate = ParsedCellRecord> {
+	score(
+		candidate: TCandidate,
+		context: ParsedCellRankerContext,
+	): ParsedCellRankerScore;
+	choose(
+		deterministic: TCandidate | null,
+		learned: TCandidate | null,
+		context: ParsedCellRankerContext,
+		mode?: ParsedCellPreferenceMode,
+	): ParsedCellPreferenceProjection<TCandidate>;
+	rankMany(
+		candidates: Array<{
+			candidate: TCandidate;
+			source: "deterministic" | "learned";
+		}>,
+		context: ParsedCellRankerContext,
+		mode?: ParsedCellPreferenceMode,
+	): ParsedCellPreferenceRanking<TCandidate>;
+	previewMany(
+		candidates: Array<{
+			candidate: TCandidate;
+			source: "deterministic" | "learned";
+		}>,
+		context: ParsedCellRankerContext,
+		mode?: ParsedCellPreferenceMode,
+	): ParsedCellPreview<TCandidate>;
+}

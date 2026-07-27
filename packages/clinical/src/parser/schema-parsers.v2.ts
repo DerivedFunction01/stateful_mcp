@@ -30,6 +30,7 @@ export interface ParsedItem {
 	concept: CodeableConcept[];
 	rawText: string;
 	tag: string;
+	extractedData: Record<string, any>;
 }
 
 export interface ParsedVitalsItem extends ParsedItem {
