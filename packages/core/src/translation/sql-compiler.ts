@@ -132,19 +132,24 @@ export interface QueryField {
 		| "var_pop" // Population Variance
 		| "mse" // Mean Squared Error
 		| "rmse" // Root Mean Square Error
-		| "mae"; // Mean Absolute Error
+		| "mae" // Mean Absolute Error
+		| "range" // MAX(x) - MIN(x)
+		| "median" // Middle value
+		| "mode"; // Most frequent value
 	over?: {
 		partitionBy?: string[];
 		orderBy?: QuerySort[];
 	};
 }
 export type QuerySort = {
-	column: string;
+	column?: string;
 	/** Optional table/alias qualifier */
 	table?: string;
-	raw?: string; // Add this to allow sorting by aliased expressions like "ranking_score"
+	raw?: string; 
 	/** Optional JSON path to extract */
 	jsonPath?: string;
+	expr?: SqlExpression; 
+	agg?: string;         
 	direction: "ASC" | "DESC";
 	nulls?: "FIRST" | "LAST";
 };
@@ -218,6 +223,16 @@ export interface CreateIndexQuery {
 	where?: string; // e.g., raw SQL for a partial index "status = 'active'"
 }
 
+export type QueryGroupBy = 
+	| string // Shorthand for a simple column name
+	| {
+			column?: string;
+			table?: string;
+			jsonPath?: string;
+			expr?: SqlExpression; // <-- ADD THIS to group by functions/math
+			raw?: string;         // <-- ADD THIS to group by positional aliases (e.g. "1")
+	  };
+
 export interface SelectQuery {
 	with?: CTE[];
 	recursive?: boolean; // For WITH RECURSIVE
@@ -227,7 +242,7 @@ export interface SelectQuery {
 	select?: QueryField[]; // Defaults to ['*'] if empty
 	joins?: JoinClause[];
 	where?: QueryCondition[]; // Top level array is treated as implicit AND
-	groupBy?: (string | { column: string; table?: string; jsonPath?: string })[];
+	groupBy?: QueryGroupBy[];
 	having?: QueryCondition[];
 	orderBy?: QuerySort[];
 	limit?: number;
@@ -281,6 +296,47 @@ export interface AlterTableQuery {
 		| { action: "drop_column"; name: string; ifExists?: boolean }
 		| { action: "drop_constraint"; name: string; cascade?: boolean }
 	)[];
+}
+export interface CreateViewQuery {
+	name: string;
+	ifNotExists?: boolean; // Supported natively in modern SQLite/Postgres/DuckDB
+	columns?: string[];    // Optional explicit column aliases for the view
+	query: SelectQuery;    // The underlying SELECT query
+}
+
+export interface DropViewQuery {
+	name: string;
+	ifExists?: boolean;    // Defaults to true
+}
+
+export type ExplainableQuery = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery;
+
+export interface ExplainQuery {
+	query: ExplainableQuery;
+	analyze?: boolean; // EXPLAIN ANALYZE (Postgres/DuckDB) or EXPLAIN QUERY PLAN (SQLite)
+	verbose?: boolean;
+}
+export type TriggerTiming = "BEFORE" | "AFTER" | "INSTEAD OF";
+export type TriggerEvent = "INSERT" | "UPDATE" | "DELETE" | "UPDATE OF";
+
+export type TriggerStatement = InsertQuery | UpdateQuery | string;
+
+export interface CreateTriggerQuery {
+	name: string;
+	ifNotExists?: boolean;
+	timing: TriggerTiming;
+	events: TriggerEvent[];
+	updateColumns?: string[];
+	table: string;
+	forEachRow?: boolean;
+	whenCondition?: QueryCondition; 
+	body: TriggerStatement[];     
+}
+
+export interface DropTriggerQuery {
+	name: string;
+	table?: string;           // Required by SQLite syntax: DROP TRIGGER table.name
+	ifExists?: boolean;
 }
 
 /**
@@ -730,10 +786,129 @@ export class QueryCompiler {
 				return `SQRT(AVG((${expr}) * (${expr})))`;
 			case "mae":
 				return `AVG(ABS(${expr}))`;
+			case "range":
+				return `(MAX(${expr}) - MIN(${expr}))`;
+			case "median":
+				if (this.dialect === "postgres") {
+					// Postgres requires ordered-set aggregate syntax for median
+					return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${expr})`;
+				}
+				// DuckDB supports MEDIAN() natively. 
+				// SQLite does NOT support median natively; this assumes a math extension is loaded.
+				return `MEDIAN(${expr})`;
+				
+			case "mode":
+				if (this.dialect === "postgres") {
+					return `MODE() WITHIN GROUP (ORDER BY ${expr})`;
+				}
+				// DuckDB supports MODE() natively.
+				// SQLite assumes an extension is loaded.
+				return `MODE(${expr})`;
 			default:
 				// COUNT, SUM, AVG, MIN, MAX
 				return `${agg.toUpperCase()}(${expr})`;
 		}
+	}
+	private compileSort(s: QuerySort, ctx: CompilerContext): string {
+		let baseExpr = s.expr
+			? this.compileExpression(s.expr, ctx)
+			: s.raw
+				? s.raw
+				: this.formatColumn(s.column!, s.jsonPath, s.table);
+
+		if (s.agg) {
+			baseExpr = this.compileAggregate(s.agg, baseExpr);
+		}
+
+		let sortStr = `${baseExpr} ${s.direction}`;
+		if (s.nulls) {
+			sortStr += ` NULLS ${s.nulls}`;
+		}
+		return sortStr;
+	}
+	/**
+	 * Compiles a single field in the SELECT array.
+	 * Intercepts unsupported aggregations (like Mode in SQLite) and rewrites 
+	 * the AST into a correlated subquery on the fly.
+	 */
+	private compileSelectField(
+		f: QueryField,
+		ctx: CompilerContext,
+		currentQuery: SelectQuery
+	): string {
+		const isSqLite = this.dialect === "sqlite" || this.dialect === "opfs";
+
+		// ------------------------------------------------------------------
+		// AST LOWERING: Dynamically rewrite MODE() into a Correlated Subquery for SQLite
+		// ------------------------------------------------------------------
+		if (f.agg === "mode" && f.column && isSqLite) {
+			// 1. Figure out the outer table name/alias for correlation
+			const outerTable = currentQuery.alias || (typeof currentQuery.table === "string" ? currentQuery.table : "");
+			
+			// 2. Build correlation WHERE clauses based on the outer query's GROUP BY
+			const correlationWhere: QueryCondition[] = currentQuery.groupBy?.map(gb => {
+				const gbCol = typeof gb === "string" ? gb : gb.column; 
+				if (!gbCol) {
+					throw new Error("SQLite MODE() AST rewriting currently requires standard column-based GROUP BYs.");
+				}
+				return {
+					column: gbCol,
+					table: "inner_mode",
+					op: "eq",
+					raw: `"${outerTable}"."${gbCol}"` 
+				};
+			}) || [];
+
+			// 3. Construct the in-memory AST for the mode calculation
+			const modeAst: SelectQuery = {
+				table: currentQuery.table, 
+				alias: `inner_${outerTable}`,
+				select: [{ column: f.column }],
+				where: [
+					{ column: f.column, op: "is_not_null" },
+					...correlationWhere 
+				],
+				groupBy: [f.column],
+				orderBy: [{ column: f.column, agg: "count", direction: "DESC" }],
+				limit: 1
+			};
+
+			// 4. Compile the generated AST using our existing recursive engine!
+			const subSql = `(${this.compileSelectInternal(modeAst, ctx)})`;
+			return f.alias ? `${subSql} AS ${this.quoteIdent(f.alias)}` : subSql;
+		}
+
+		// ------------------------------------------------------------------
+		// Standard Field Compilation (Postgres/DuckDB, or non-mode fields)
+		// ------------------------------------------------------------------
+		let expr = f.expr
+			? this.compileExpression(f.expr, ctx)
+			: f.subquery
+				? `(${this.compileSelectInternal(f.subquery, ctx)})`
+				: f.raw
+					? f.raw
+					: this.formatColumn(f.column!, f.jsonPath, f.table);
+
+		if (f.agg) {
+			expr = this.compileAggregate(f.agg, expr);
+		}
+		if (f.alias) {
+			expr += ` AS ${this.quoteIdent(f.alias)}`;
+		}
+		if (f.over) {
+			const partition = f.over.partitionBy && f.over.partitionBy.length > 0
+				? `PARTITION BY ${f.over.partitionBy.map(p => this.quoteIdent(p)).join(", ")}`
+				: "";
+				
+			const order = f.over.orderBy && f.over.orderBy.length > 0 
+				? `ORDER BY ${f.over.orderBy.map((s) => this.compileSort(s, ctx)).join(", ")}` 
+				: "";
+				
+			const overBody = [partition, order].filter(Boolean).join(" ");
+			expr += ` OVER (${overBody})`;
+		}
+		
+		return expr;
 	}
 
 	/**
@@ -763,29 +938,8 @@ export class QueryCompiler {
 		if (!query.select || query.select.length === 0) {
 			sql += "*";
 		} else {
-			const fields = query.select.map((f) => {
-				let expr = f.expr
-					? this.compileExpression(f.expr, ctx)
-					: f.subquery
-						? `(${this.compileSelectInternal(f.subquery, ctx)})`
-						: f.raw
-							? f.raw
-							: this.formatColumn(f.column!, f.jsonPath, f.table);
-				if (f.agg) {
-					expr = this.compileAggregate(f.agg, expr);
-				}
-				if (f.alias) {
-					expr += ` AS ${this.quoteIdent(f.alias)}`;
-				}
-				if (f.over) {
-					const partition = f.over.partitionBy
-						? `PARTITION BY ${f.over.partitionBy.join(", ")}`
-						: "";
-					const order = f.over.orderBy ? `ORDER BY ...` : "";
-					expr += ` OVER (${partition} ${order})`;
-				}
-				return expr;
-			});
+			// We now pass `query` into a dedicated helper to allow AST lowering
+			const fields = query.select.map((f) => this.compileSelectField(f, ctx, query));
 			sql += fields.join(", ");
 		}
 
@@ -816,9 +970,11 @@ export class QueryCompiler {
 		sql += this.compileWhereBlock(query.where, ctx);
 
 		if (query.groupBy && query.groupBy.length > 0) {
-			const groupings = query.groupBy.map((c) => {
-				if (typeof c === "string") return this.quoteIdent(c);
-				return this.formatColumn(c.column, c.jsonPath, c.table);
+			const groupings = query.groupBy.map((g) => {
+				if (typeof g === "string") return this.quoteIdent(g);
+				if (g.expr) return this.compileExpression(g.expr, ctx);
+				if (g.raw) return g.raw;
+				return this.formatColumn(g.column!, g.jsonPath, g.table);
 			});
 			sql += `\nGROUP BY ${groupings.join(", ")}`;
 		}
@@ -829,13 +985,7 @@ export class QueryCompiler {
 		}
 
 		if (query.orderBy && query.orderBy.length > 0) {
-			const sorts = query.orderBy.map((s) => {
-				let sortStr = `${this.formatColumn(s.column, s.jsonPath, s.table)} ${s.direction}`;
-				if (s.nulls) {
-					sortStr += ` NULLS ${s.nulls}`;
-				}
-				return sortStr;
-			});
+			const sorts = query.orderBy.map((s) => this.compileSort(s, ctx));
 			sql += `\nORDER BY ${sorts.join(", ")}`;
 		}
 
@@ -1267,5 +1417,173 @@ export class QueryCompiler {
 
 		// Return either a single statement or join a multi-action batch
 		return { sql: sqlStatements.join("\n"), params: [] };
+	}
+	public compileCreateView(query: CreateViewQuery): CompiledQuery {
+		const ctx = new CompilerContext(this.dialect);
+		
+		// 1. Compile the underlying select query using the shared context 
+		// (supports parameters if the view's query contains them)
+		const selectSql = this.compileSelectInternal(query.query, ctx);
+
+		const ifNotExists = query.ifNotExists !== false ? "IF NOT EXISTS " : "";
+		const viewName = this.quoteIdent(query.name);
+		
+		// Optional explicit column naming e.g., CREATE VIEW v (col1, col2) AS ...
+		const columnsClause = query.columns && query.columns.length > 0
+			? ` (${query.columns.map(c => this.quoteIdent(c)).join(", ")})`
+			: "";
+
+		const sql = `CREATE VIEW ${ifNotExists}${viewName}${columnsClause} AS\n${selectSql};`;
+
+		return { sql, params: ctx.params };
+	}
+
+	public compileDropView(query: DropViewQuery): CompiledQuery {
+		const ifExists = query.ifExists !== false ? "IF EXISTS " : "";
+		const sql = `DROP VIEW ${ifExists}${this.quoteIdent(query.name)};`;
+		return { sql, params: [] };
+	}
+
+	public compileExplain(query: ExplainQuery): CompiledQuery {
+		let compiled: CompiledQuery;
+
+		// 1. Delegate to the appropriate internal/public compiler based on query type
+		if ("table" in query.query && "select" in query.query) {
+			compiled = this.compileSelect(query.query as SelectQuery);
+		} else if ("table" in query.query && "values" in query.query || "columns" in query.query) {
+			compiled = this.compileInsert(query.query as InsertQuery);
+		} else if ("table" in query.query && ("set" in query.query || "setColumns" in query.query)) {
+			compiled = this.compileUpdate(query.query as UpdateQuery);
+		} else if ("table" in query.query) {
+			compiled = this.compileDelete(query.query as DeleteQuery);
+		} else {
+			throw new Error("Unsupported query type for EXPLAIN");
+		}
+
+		// 2. Determine dialect-specific explain syntax
+		let explainPrefix = "EXPLAIN";
+		if (query.analyze) {
+			if (this.dialect === "sqlite" || this.dialect === "opfs") {
+				// SQLite uses a specific PRAGMA or query plan modifier, but standard EXPLAIN QUERY PLAN is preferred
+				explainPrefix = "EXPLAIN QUERY PLAN";
+			} else {
+				explainPrefix = "EXPLAIN ANALYZE";
+			}
+		}
+
+		if (query.verbose && (this.dialect === "postgres" || this.dialect === "duckdb")) {
+			explainPrefix += " VERBOSE";
+		}
+
+		// 3. Prepend the explain prefix to the compiled SQL string
+		return {
+			sql: `${explainPrefix} ${compiled.sql}`,
+			params: compiled.params // Preserves parameter bindings!
+		};
+	}
+
+	public compileRollback(savepointName?: string): string {
+		return savepointName 
+			? `ROLLBACK TO SAVEPOINT ${this.quoteIdent(savepointName)};` 
+			: "ROLLBACK;";
+	}
+
+	public compileSavepoint(name: string): string {
+		return `SAVEPOINT ${this.quoteIdent(name)};`;
+	}
+
+	public compileReleaseSavepoint(name: string): string {
+		return `RELEASE SAVEPOINT ${this.quoteIdent(name)};`;
+	}
+
+	public compileCreateTrigger(query: CreateTriggerQuery): CompiledQuery {
+		const triggerName = this.quoteIdent(query.name);
+		const tableName = this.quoteIdent(query.table);
+		const timing = query.timing;
+		const ctx = new CompilerContext(this.dialect);
+
+		// 1. Format events
+		const eventStrs = query.events.map(ev => {
+			if (ev === "UPDATE OF" && query.updateColumns && query.updateColumns.length > 0) {
+				return `UPDATE OF ${query.updateColumns.map(c => this.quoteIdent(c)).join(", ")}`;
+			}
+			return ev;
+		});
+		const eventsClause = eventStrs.join(" OR ");
+
+		const rowClause = query.forEachRow !== false ? "FOR EACH ROW" : "";
+		
+		// 2. Compile AST WHEN condition if present
+		const whenClause = query.whenCondition 
+			? ` WHEN (${this.compileCondition(query.whenCondition, ctx)})` 
+			: "";
+
+		// 3. Compile body statements (supporting AST DML or raw strings)
+		const compiledBodyStmts = query.body.map(stmt => {
+			if (typeof stmt === "string") {
+				return stmt.endsWith(";") ? stmt : `${stmt};`;
+			}
+			// If it's an InsertQuery or UpdateQuery, use our existing compilers!
+			if ("table" in stmt && "values" in stmt || "columns" in stmt) {
+				return this.compileInsert(stmt).sql;
+			}
+			if ("table" in stmt && "set" in stmt) {
+				return this.compileUpdate(stmt).sql;
+			}
+			throw new Error("Invalid trigger statement in body AST");
+		});
+
+		const bodySql = compiledBodyStmts.join("\n  ");
+
+		if (this.dialect === "postgres") {
+			const funcName = this.quoteIdent(`${query.name}_func`);
+			const sql = `
+CREATE OR REPLACE FUNCTION ${funcName}()
+RETURNS TRIGGER AS $$
+BEGIN
+  ${bodySql}
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER ${triggerName}
+  ${timing} ${eventsClause} ON ${tableName}
+  ${rowClause}${whenClause}
+  EXECUTE FUNCTION ${funcName}();`.trim();
+
+			return { sql: sql + ";", params: [] };
+		} 
+
+		// SQLite / DuckDB
+		const ifNotExists = query.ifNotExists !== false && (this.dialect === "sqlite" || this.dialect === "opfs") 
+			? "IF NOT EXISTS " 
+			: "";
+
+		const sql = `
+CREATE TRIGGER ${ifNotExists}${triggerName}
+  ${timing} ${eventsClause} ON ${tableName}
+  ${rowClause}${whenClause}
+BEGIN
+  ${bodySql}
+END;`.trim();
+
+		return { sql: sql + ";", params: [] };
+	}
+
+	public compileDropTrigger(query: DropTriggerQuery): CompiledQuery {
+		const ifExists = query.ifExists !== false ? "IF EXISTS " : "";
+		let sql = "";
+
+		if (this.dialect === "sqlite" || this.dialect === "opfs") {
+			// SQLite syntax: DROP TRIGGER [IF EXISTS] [table.]trigger-name
+			const tablePrefix = query.table ? `${this.quoteIdent(query.table)}.` : "";
+			sql = `DROP TRIGGER ${ifExists}${tablePrefix}${this.quoteIdent(query.name)};`;
+		} else {
+			// Postgres/DuckDB syntax: DROP TRIGGER [IF EXISTS] name ON table [CASCADE]
+			const onTable = query.table ? ` ON ${this.quoteIdent(query.table)}` : "";
+			sql = `DROP TRIGGER ${ifExists}${this.quoteIdent(query.name)}${onTable};`;
+		}
+
+		return { sql, params: [] };
 	}
 }
