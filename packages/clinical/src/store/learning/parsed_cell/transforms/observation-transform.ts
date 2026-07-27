@@ -1,4 +1,3 @@
-import type { ColumnDef } from "@stateful-mcp/core";
 import { inferSqlType } from "@stateful-mcp/core";
 import type { ParsedItem } from "../../../../parser/schema-parsers";
 import {

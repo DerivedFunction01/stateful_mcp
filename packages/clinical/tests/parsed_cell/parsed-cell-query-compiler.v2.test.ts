@@ -337,12 +337,28 @@ describe("ParsedCellSqlCompilerV2", () => {
 				return { certainty: "confirmed" };
 			},
 			columnSpecs: [
-				{ name: "certainty", type: "text", primaryKey: true, nullable: false, default: "unknown" },
-				{ name: "custom_flag", type: "bool", defaultRaw: "1", unique: true, check: "custom_flag IN (0,1)", raw: "REFERENCES other(id)" },
+				{
+					name: "certainty",
+					type: "text",
+					primaryKey: true,
+					nullable: false,
+					default: "unknown",
+				},
+				{
+					name: "custom_flag",
+					type: "bool",
+					defaultRaw: "1",
+					unique: true,
+					check: "custom_flag IN (0,1)",
+					raw: "REFERENCES other(id)",
+				},
 			],
 		};
 
-		const result = compiler.compileCreateDetailTable("parsed_cell_observation_with_specs", transformWithSpecs);
+		const result = compiler.compileCreateDetailTable(
+			"parsed_cell_observation_with_specs",
+			transformWithSpecs,
+		);
 
 		expect(result.sql).toContain(`"certainty" TEXT`);
 		expect(result.sql).toContain(`DEFAULT 'unknown'`);
@@ -351,5 +367,41 @@ describe("ParsedCellSqlCompilerV2", () => {
 		expect(result.sql).toContain(`UNIQUE`);
 		expect(result.sql).toContain(`CHECK (custom_flag IN (0,1))`);
 		expect(result.sql).toContain(`REFERENCES other(id)`);
+	});
+
+	test("compileCreateDetailTable renders json columnSpecs as JSON in postgres", () => {
+		const compiler = new ParsedCellSqlCompilerV2("postgres");
+		const transformWithJson: ParsedCellRecordTransform = {
+			targetSchema: "ObservationEventWithJson",
+			template(): import("../../src/parser/schema-parsers").ParsedItem {
+				return {
+					targetSchema: "ObservationEventWithJson",
+					attributes: {},
+					concept: [{ conceptId: "LOINC::8310-5", display: "Temperature" }],
+					rawText: "temperature 101F",
+					tag: "ObservationEventWithJson",
+					extractedData: {
+						qualifiers: [{ conceptId: "SNOMED::246072003", display: "Fever" }],
+					},
+				};
+			},
+			flatten(parsedItem) {
+				return {
+					qualifiers: { conceptId: ["SNOMED::246072003"], display: ["Fever"] },
+				};
+			},
+			columnSpecs: [
+				{ name: "qualifiers.conceptId", type: "json" },
+				{ name: "qualifiers.display", type: "json" },
+			],
+		};
+
+		const result = compiler.compileCreateDetailTable(
+			"parsed_cell_observation_json",
+			transformWithJson,
+		);
+
+		expect(result.sql).toContain(`"qualifiers.conceptId" JSON`);
+		expect(result.sql).toContain(`"qualifiers.display" JSON`);
 	});
 });

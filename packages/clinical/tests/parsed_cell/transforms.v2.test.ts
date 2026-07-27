@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ColumnDef, ParsedObservationItem } from "../../src/parser/schema-parsers";
+import type { ParsedObservationItem } from "../../src/parser/schema-parsers";
 import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
 import { getTransformForSchema } from "../../src/store/learning/parsed_cell/parsed-cell-record-transform";
 
@@ -7,6 +7,7 @@ import "../../src/store/learning/parsed_cell/transforms/observation-transform";
 import "../../src/store/learning/parsed_cell/transforms/vitals-transform";
 import "../../src/store/learning/parsed_cell/transforms/medication-transform";
 import "../../src/store/learning/parsed_cell/transforms/clinical-date-range-transform";
+import type { ColumnDef } from "packages/core/src/translation/sql-compiler";
 
 function buildObservationItem(
 	overrides: Partial<ParsedObservationItem> = {},
@@ -25,6 +26,7 @@ function buildObservationItem(
 			sourceType: "clinician_observed",
 			certainty: "confirmed",
 			status: "present",
+			level: ["mild", "okay"],
 			severity: {
 				score: 3,
 				maxScore: 5,
@@ -46,7 +48,7 @@ function buildObservationItem(
 			},
 			...overrides,
 		},
-	} as ParsedObservationItem;
+	} as unknown as ParsedObservationItem;
 }
 
 describe("observation-transform", () => {
@@ -105,6 +107,44 @@ describe("observation-transform", () => {
 		for (const key of Object.keys(flat)) {
 			expect(specNames.has(key)).toBe(true);
 		}
+	});
+
+	it("transposes uniform object arrays into parallel array columns", () => {
+		const item = buildObservationItem();
+		const flat = transform!.flatten(item);
+
+		expect(flat["qualifiers.conceptId"]).toEqual(["SNOMED::246072003"]);
+		expect(flat["qualifiers.display"]).toEqual(["Fever"]);
+		expect(Array.isArray(flat["qualifiers.conceptId"])).toBe(true);
+		expect(Array.isArray(flat["qualifiers.display"])).toBe(true);
+	});
+
+	it("keeps primitive arrays as single JSON column", () => {
+		const item = buildObservationItem({
+			extractedData: {
+				...buildObservationItem().extractedData,
+			},
+		} as any);
+		const flat = transform!.flatten(item);
+
+		expect(flat.level).toEqual(["mild", "okay"]);
+		expect(Array.isArray(flat.level)).toBe(true);
+	});
+
+	it("skips mixed-shape arrays", () => {
+		const item = buildObservationItem({
+			extractedData: {
+				...buildObservationItem().extractedData,
+				mixed: [
+					{ conceptId: "A" } as any,
+					{ display: "Only display" } as any,
+				] as any,
+			},
+		} as any);
+		const flat = transform!.flatten(item);
+
+		expect(flat.mixed).toBeUndefined();
+		expect(flat["mixed.conceptId"]).toBeUndefined();
 	});
 });
 

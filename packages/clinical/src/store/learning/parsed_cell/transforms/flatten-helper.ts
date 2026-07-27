@@ -13,7 +13,55 @@ function flattenObject(
 		const value = obj[key];
 		const path = prefix ? `${prefix}.${key}` : key;
 
-		if (isPlainObject(value)) {
+		if (Array.isArray(value)) {
+			if (value.length === 0) continue;
+
+			const first = value[0];
+			if (isPlainObject(first) && value.every((item) => isPlainObject(item))) {
+				const keySets = value
+					.map((item) =>
+						Object.keys(item as Record<string, unknown>)
+							.sort()
+							.join(","),
+					)
+					.filter((kset) => kset.length > 0);
+
+				if (
+					keySets.length > 0 &&
+					keySets.every((kset) => kset === keySets[0])
+				) {
+					const subObj: Record<string, unknown[]> = {};
+					for (const item of value) {
+						if (item && typeof item === "object") {
+							const record = item as Record<string, unknown>;
+
+							for (const subKey of Object.keys(record)) {
+								if (!subObj[subKey]) {
+									subObj[subKey] = [];
+								}
+								const targetArray = subObj[subKey];
+								targetArray.push(record[subKey]);
+							}
+						}
+					}
+					for (const [subKey, subValue] of Object.entries(subObj)) {
+						const subPath = `${path}.${subKey}`;
+						if (isPlainObject(subValue)) {
+							flattenObject(
+								subValue as Record<string, unknown>,
+								subPath,
+								result,
+							);
+						} else if (subValue !== undefined && subValue !== null) {
+							result[subPath] = subValue;
+						}
+					}
+					continue;
+				}
+			}
+
+			result[path] = value;
+		} else if (isPlainObject(value)) {
 			flattenObject(value, path, result);
 		} else if (value !== undefined && value !== null) {
 			result[path] = value;

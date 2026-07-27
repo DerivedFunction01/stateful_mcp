@@ -1,10 +1,10 @@
 import type { ColumnDef, SqlDialect } from "@stateful-mcp/core";
 import {
 	type CompiledQuery,
+	inferSqlType,
 	QueryCompiler,
 	type QueryCondition,
 	type SelectQuery,
-	inferSqlType,
 } from "@stateful-mcp/core";
 import type { ParsedCellHistoryKey } from "../learning/interfaces";
 import type {
@@ -404,9 +404,8 @@ function buildMergedColumns(transform: ParsedCellRecordTransform): ColumnDef[] {
 		if (seen.has(col.name)) continue;
 		seen.add(col.name);
 
-		const rawDefault = typeof col.default === "boolean"
-			? (col.default ? "1" : "0")
-			: undefined;
+		const rawDefault =
+			typeof col.default === "boolean" ? (col.default ? "1" : "0") : undefined;
 
 		result.push({
 			name: col.name,
