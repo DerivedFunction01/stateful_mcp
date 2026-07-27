@@ -1,39 +1,51 @@
 import type { KvBackend } from "@stateful-mcp/core";
+import type { ParsedItem } from "../../../parser/schema-parsers";
 import type {
-	ParsedCellDetail,
 	ParsedCellHistoryKey,
 	ParsedCellLookup,
 	ParsedCellRecord,
 	ParsedCellStore,
-	ParsedItem,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
 import type { ParsedCellHistoryStore } from "./history-store";
 
-// ── KvBackend-based ParsedCellStore ───────────────────────────────────────────
-
 export class KvParsedCellStore
-	implements ParsedCellStore, ParsedCellHistoryStore<ParsedCellDetail>
+	implements ParsedCellStore, ParsedCellHistoryStore
 {
 	constructor(private backend: KvBackend) {}
 
-	async putRecord(record: ParsedCellRecord<ParsedItem>): Promise<void> {
+	async putRecord(record: ParsedCellRecord): Promise<void> {
 		const id = record.shared.cellId;
 		await this.backend.set(`shared:${id}`, record.shared);
-		await this.backend.set(`detail:${id}`, record.detail);
+		await this.backend.set(`detail:${id}`, {
+			parsedItem: record.parsedItem,
+			learningMetadata: record.learningMetadata,
+		});
 		await this.backend.save();
 	}
 
 	async get(cellId: string): Promise<ParsedCellLookup | null> {
 		const data = await this.backend.load();
 		const shared = data[`shared:${cellId}`];
-		const detail = data[`detail:${cellId}`];
+		const detail = data[`detail:${cellId}`] as
+			| {
+					parsedItem: ParsedItem;
+					learningMetadata: ParsedCellRecord["learningMetadata"];
+			  }
+			| undefined;
 
 		if (!shared) return null;
+
+		const parsedItem = detail?.parsedItem || null;
+		const learningMetadata = detail?.learningMetadata || {
+			history: {},
+			flags: {},
+		};
+
 		return {
-			shared: shared as any,
-			detail: (detail as any) || null,
-			parsedItem: (detail as any)?.parsedItem || null,
+			shared: shared as ParsedCellRecord["shared"],
+			parsedItem,
+			learningMetadata,
 		};
 	}
 
@@ -46,13 +58,23 @@ export class KvParsedCellStore
 
 		for (const [key, val] of Object.entries(data)) {
 			if (key.startsWith("shared:")) {
-				const shared = val as any;
+				const shared = val as ParsedCellRecord["shared"];
 				if (
 					shared.sessionId === sessionId &&
 					(!targetSchema || shared.targetSchema === targetSchema)
 				) {
-					const detail = data[`detail:${shared.cellId}`] as any;
-					results.push({ shared, detail, parsedItem: null });
+					const detail = data[`detail:${shared.cellId}`] as
+						| {
+								parsedItem: ParsedItem;
+								learningMetadata: ParsedCellRecord["learningMetadata"];
+						  }
+						| undefined;
+					const parsedItem = detail?.parsedItem || null;
+					const learningMetadata = detail?.learningMetadata || {
+						history: {},
+						flags: {},
+					};
+					results.push({ shared, parsedItem, learningMetadata });
 				}
 			}
 		}
@@ -68,13 +90,23 @@ export class KvParsedCellStore
 
 		for (const [key, val] of Object.entries(data)) {
 			if (key.startsWith("shared:")) {
-				const shared = val as any;
+				const shared = val as ParsedCellRecord["shared"];
 				if (
 					shared.targetSchema === targetSchema &&
 					(!sessionId || shared.sessionId === sessionId)
 				) {
-					const detail = data[`detail:${shared.cellId}`] as any;
-					results.push({ shared, detail, parsedItem: null });
+					const detail = data[`detail:${shared.cellId}`] as
+						| {
+								parsedItem: ParsedItem;
+								learningMetadata: ParsedCellRecord["learningMetadata"];
+						  }
+						| undefined;
+					const parsedItem = detail?.parsedItem || null;
+					const learningMetadata = detail?.learningMetadata || {
+						history: {},
+						flags: {},
+					};
+					results.push({ shared, parsedItem, learningMetadata });
 				}
 			}
 		}
@@ -86,20 +118,29 @@ export class KvParsedCellStore
 		replacement?: ParsedItem,
 	): Promise<void> {
 		const data = await this.backend.load();
-		const detail = data[`detail:${cellId}`] as any;
+		const detail = data[`detail:${cellId}`] as
+			| {
+					parsedItem: ParsedItem;
+					learningMetadata: ParsedCellRecord["learningMetadata"];
+			  }
+			| undefined;
 		if (!detail) return;
 
 		const now = new Date().toISOString();
-		detail.history = {
-			...(detail.history || {}),
-			priorCorrectionCount: (detail.history?.priorCorrectionCount || 0) + 1,
-			lastCorrectedAt: now,
-			recencyScore: scoreRecency(now),
-		};
-		detail.flags = {
-			...(detail.flags || {}),
-			stalePreference: true,
-			reviewRequired: !!replacement,
+		detail.learningMetadata = {
+			...detail.learningMetadata,
+			history: {
+				...(detail.learningMetadata?.history || {}),
+				priorCorrectionCount:
+					(detail.learningMetadata?.history?.priorCorrectionCount || 0) + 1,
+				lastCorrectedAt: now,
+				recencyScore: scoreRecency(now),
+			},
+			flags: {
+				...(detail.learningMetadata?.flags || {}),
+				stalePreference: true,
+				reviewRequired: !!replacement,
+			},
 		};
 		if (replacement) {
 			detail.parsedItem = replacement;
@@ -109,21 +150,20 @@ export class KvParsedCellStore
 		await this.backend.save();
 	}
 
-	async getHistoryBySchema<TDetail extends ParsedCellDetail>(
-		targetSchema: TDetail["targetSchema"],
+	async getHistoryBySchema(
+		targetSchema: string,
 		key: ParsedCellHistoryKey,
-	): Promise<TDetail[]> {
+	): Promise<ParsedCellRecord[]> {
 		const data = await this.backend.load();
-		const matches: TDetail[] = [];
+		const matches: ParsedCellRecord[] = [];
 
 		for (const [k, val] of Object.entries(data)) {
 			if (k.startsWith("shared:")) {
-				const shared = val as any;
+				const shared = val as ParsedCellRecord["shared"];
 
 				if (shared.targetSchema !== targetSchema) continue;
 				if (shared.tag !== key.tag) continue;
 
-				// Define all exact-match keys to check in a loop
 				const exactMatchKeys = [
 					"patientId",
 					"patientOrganismType",
@@ -137,13 +177,11 @@ export class KvParsedCellStore
 					"facilityId",
 				] as const;
 
-				// If any key exists on `key` and doesn't match `shared`, skip
 				const hasMismatch = exactMatchKeys.some(
 					(kName) => key[kName] !== undefined && shared[kName] !== key[kName],
 				);
 				if (hasMismatch) continue;
 
-				// Special condition for text matching
 				if (
 					shared.rawText !== key.rawText &&
 					shared.normalizedText !== key.rawText
@@ -151,17 +189,30 @@ export class KvParsedCellStore
 					continue;
 				}
 
-				const detail = data[`detail:${shared.cellId}`] as TDetail | undefined;
-				if (detail) matches.push(detail);
+				const detail = data[`detail:${shared.cellId}`] as
+					| {
+							parsedItem: ParsedItem;
+							learningMetadata: ParsedCellRecord["learningMetadata"];
+					  }
+					| undefined;
+				if (detail) {
+					matches.push({
+						shared,
+						parsedItem: detail.parsedItem,
+						learningMetadata: detail.learningMetadata,
+					});
+				}
 			}
 		}
 
 		return matches.sort(
-			(a, b) => (b.history?.recencyScore || 0) - (a.history?.recencyScore || 0),
+			(a, b) =>
+				(b.learningMetadata.history?.recencyScore || 0) -
+				(a.learningMetadata.history?.recencyScore || 0),
 		);
 	}
 
-	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellDetail[]> {
-		return this.getHistoryBySchema(key.targetSchema as any, key);
+	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]> {
+		return this.getHistoryBySchema(key.targetSchema, key);
 	}
 }

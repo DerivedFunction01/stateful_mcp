@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ParsedObservationItem } from "../../src/parser/schema-parsers.v2";
-import { CANONICAL_TAGS } from "../../src/parser/schema-parsers.v2";
+import type { ParsedObservationItem } from "../../src/parser/schema-parsers";
+import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
 import { getTransformForSchema } from "../../src/store/learning/parsed_cell/parsed-cell-record-transform";
 
 import "../../src/store/learning/parsed_cell/transforms/observation-transform";

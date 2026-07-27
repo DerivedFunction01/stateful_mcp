@@ -10,19 +10,13 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import type { ParsedCellDetail } from "../store/learning/interfaces";
-import type { ParsedCellHistoryStore } from "../store/learning/parsed_cell/history-store";
+import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";
 import {
-	type BaseParsedItem as IMP_BaseParsedItem,
-	CANONICAL_TAGS as IMP_CANONICAL_TAGS,
-	type ParsedItem as IMP_ParsedItem,
-	type ParsedMedicationItem as IMP_ParsedMedicationItem,
-	type ParsedObservationItem as IMP_ParsedObservationItem,
-	type ParsedVitalsItem as IMP_ParsedVitalsItem,
-	type ParserPreviewResult,
+	type ParsedCandidateEnvelope,
+	type ParsedItem,
 	type PreparsedContext,
 	type RankingSignal,
 	type SchemaParser,
@@ -30,12 +24,9 @@ import {
 } from "./schema-parsers";
 import { StopWordParser } from "./stop-word-parser";
 
-export const CANONICAL_TAGS = IMP_CANONICAL_TAGS;
-export type ParsedItem = IMP_ParsedItem;
-export type BaseParsedItem = IMP_BaseParsedItem;
-export type ParsedVitalsItem = IMP_ParsedVitalsItem;
-export type ParsedObservationItem = IMP_ParsedObservationItem;
-export type ParsedMedicationItem = IMP_ParsedMedicationItem;
+interface ParserPreviewResult extends ParsedCandidateEnvelope {
+	targetSchema: string;
+}
 
 export class CdslParser {
 	private stopWordParser: StopWordParser | undefined;
@@ -107,7 +98,7 @@ export class CdslParser {
 	async preview(
 		text: string,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
+		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParserPreviewResult[]> {
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -149,7 +140,7 @@ export class CdslParser {
 	async parseWithHistory(
 		text: string,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
+		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParsedItem[]> {
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -176,7 +167,7 @@ export class CdslParser {
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
+		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParserPreviewResult[]> {
 		const results: ParserPreviewResult[] = [];
 		const segments = text.split(this.profile.stateDelimiter);
@@ -327,7 +318,7 @@ export class CdslParser {
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
-		historyStore?: ParsedCellHistoryStore<ParsedCellDetail>,
+		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
 		const segments = text.split(this.profile.stateDelimiter);
@@ -478,8 +469,8 @@ export class CdslParser {
 				);
 				const finalItem = learnedCandidate || deterministic;
 
-				if (finalItem && finalItem.conceptId) {
-					const key = `${finalItem.targetSchema}:${finalItem.conceptId}`;
+				if (finalItem && finalItem.concept.length > 0) {
+					const key = `${finalItem.targetSchema}:${finalItem.concept[0]?.conceptId ?? ""}`;
 					if (!seenFinal.has(key)) {
 						seenFinal.add(key);
 						items.push(finalItem);

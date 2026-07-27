@@ -1,4 +1,4 @@
-import type { ParsedItem } from "../../../../parser/schema-parsers.v2";
+import type { ParsedItem } from "../../../../parser/schema-parsers";
 import {
 	type ParsedCellRecordTransform,
 	registerTransform,

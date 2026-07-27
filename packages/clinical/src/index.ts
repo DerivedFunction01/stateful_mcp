@@ -33,6 +33,4 @@ export * from "./store/learning/ordered_learning/ordered-learning-ranking-types"
 export * from "./store/learning/ordered_learning/sql-ordered-learning-store";
 export * from "./store/learning/parsed_cell/history-store";
 export * from "./store/learning/parsed_cell/kv-parsed-cell-store";
-export * from "./store/learning/parsed_cell/observation/parsed-cell-ranking";
-export * from "./store/learning/parsed_cell/parsed-cell-ranking-types";
 export * from "./store/learning/parsed_cell/sql-parsed-cell-store";

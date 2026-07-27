@@ -1,15 +1,6 @@
-import type {
-	ParsedMedicationItem,
-	ParsedObservationItem,
-	ParsedVitalsItem,
-} from "../../parser/schema-parsers";
-import type { MedicationFrequency } from "../../schemas/medication";
+import type { ParsedItem } from "../../parser/schema-parsers";
 
 // ── Base ──────────────────────────────────────────────────────────────────────
-
-export interface ParsedItem {
-	targetSchema: string;
-}
 
 export type ParsedCellSourceKind = "direct_contract" | "fallback" | "heuristic";
 export type ParsedCellOutcome = "accepted" | "rejected" | "corrected";
@@ -60,13 +51,6 @@ export interface ParsedCellCandidateToken {
 	sourceRule?: string;
 }
 
-export interface ParsedCellObservedShape {
-	schema: string;
-	slots: Record<string, any>;
-}
-
-// ── Shared Detail Sub-types ───────────────────────────────────────────────────
-
 export interface ParsedCellHistory {
 	priorAcceptCount?: number;
 	priorCorrectionCount?: number;
@@ -87,98 +71,30 @@ export interface ParsedCellProvenance {
 	conceptHit?: string;
 }
 
-// ── Schema-Specific Detail Types ──────────────────────────────────────────────
+// ── Unified Record Types ──────────────────────────────────────────────────────
 
-export interface ParsedCellObservationDetail {
-	targetSchema: "ObservationEvent";
-	cellId: string;
-	soapNoteId?: string;
-	conceptId?: string;
-	display: string;
-	certainty?: string;
-	status?: string;
-	severity?: string;
-	candidateTokens?: ParsedCellCandidateToken[];
-	contextTokens?: string[];
-	shape: ParsedCellObservedShape;
-	parsedItem: ParsedObservationItem;
-	provenance?: ParsedCellProvenance;
-	history?: ParsedCellHistory;
-	flags?: ParsedCellFlags;
-	// Future learning-system fields:
-	rawTerm?: string;
-	sourceType?: string;
-	duration?: string;
-	trajectory?: string;
-	qualifiers?: string[];
-}
-
-export interface ParsedCellVitalsDetail {
-	targetSchema: "VitalsMeasurementEvent";
-	cellId: string;
-	soapNoteId?: string;
-	conceptId?: string;
-	display: string;
-	value?: number | string;
-	unit?: string;
-	unitAnchor?: string;
-	candidateTokens?: ParsedCellCandidateToken[];
-	contextTokens?: string[];
-	shape: ParsedCellObservedShape;
-	parsedItem: ParsedVitalsItem;
-	provenance?: ParsedCellProvenance;
-	history?: ParsedCellHistory;
-	flags?: ParsedCellFlags;
-	// Future learning-system fields:
-	rawTerm?: string;
-	sourceType?: string;
-	bloodPressureDetails?: { systolic: number; diastolic: number; unit?: string };
-	anatomyLocations?: string[];
-}
-
-export interface ParsedCellMedicationDetail {
-	targetSchema: "MedicationOrderObject";
-	cellId: string;
-	soapNoteId?: string;
-	conceptId?: string;
-	display: string;
-	route?: string;
-	frequency?: MedicationFrequency;
-	candidateTokens?: ParsedCellCandidateToken[];
-	contextTokens?: string[];
-	shape: ParsedCellObservedShape;
-	parsedItem: ParsedMedicationItem;
-	provenance?: ParsedCellProvenance;
-	history?: ParsedCellHistory;
-	flags?: ParsedCellFlags;
-	// Future learning-system fields:
-	rawTerm?: string;
-	dosage?: any;
-	quantityToDispense?: number;
-	authorizedRefills?: number;
-	genericSubstitutionPermitted?: boolean;
-	targetIndication?: string;
-}
-
-// ── Discriminated Union ───────────────────────────────────────────────────────
-
-export type ParsedCellDetail =
-	| ParsedCellObservationDetail
-	| ParsedCellVitalsDetail
-	| ParsedCellMedicationDetail;
-
-// ── Generic Wrappers ──────────────────────────────────────────────────────────
-
-export interface ParsedCellRecord<TParsedItem extends ParsedItem = ParsedItem> {
+export interface ParsedCellRecord {
 	shared: ParsedCellShared;
-	detail: ParsedCellDetail;
-	parsedItem: TParsedItem;
+	parsedItem: ParsedItem;
+	learningMetadata: {
+		history: ParsedCellHistory;
+		flags: ParsedCellFlags;
+		provenance?: ParsedCellProvenance;
+		candidateTokens?: ParsedCellCandidateToken[];
+		contextTokens?: string[];
+	};
 }
 
-export interface ParsedCellLookup<TParsedItem extends ParsedItem = ParsedItem> {
+export interface ParsedCellLookup {
 	shared: ParsedCellShared;
-	detail: ParsedCellDetail | null;
-	parsedItem: TParsedItem | null;
+	parsedItem: ParsedItem | null;
+	learningMetadata: {
+		history: ParsedCellHistory;
+		flags: ParsedCellFlags;
+		provenance?: ParsedCellProvenance;
+		candidateTokens?: ParsedCellCandidateToken[];
+		contextTokens?: string[];
+	};
 }
 
 // ── History Query Key ─────────────────────────────────────────────────────────
@@ -204,7 +120,7 @@ export interface ParsedCellHistoryKey {
 // ── ParsedCellStore ───────────────────────────────────────────────────────────
 
 export interface ParsedCellStore {
-	putRecord(record: ParsedCellRecord<ParsedItem>): Promise<void>;
+	putRecord(record: ParsedCellRecord): Promise<void>;
 	get(cellId: string): Promise<ParsedCellLookup | null>;
 	listBySession(
 		sessionId: string,
@@ -216,10 +132,10 @@ export interface ParsedCellStore {
 	): Promise<ParsedCellLookup[]>;
 	markCorrection(cellId: string, replacement?: ParsedItem): Promise<void>;
 
-	getHistoryBySchema<TDetail extends ParsedCellDetail>(
-		targetSchema: TDetail["targetSchema"],
+	getHistoryBySchema(
+		targetSchema: string,
 		key: ParsedCellHistoryKey,
-	): Promise<TDetail[]>;
+	): Promise<ParsedCellRecord[]>;
 }
 
 // ── Generic Helpers ─────────────────────────────────────────────────────────────
@@ -278,7 +194,7 @@ export interface OrderedLearningRecord {
 	featureBag?: Record<string, string | number | boolean | null>;
 	orderedTokens: OrderedLearningToken[];
 	relations?: OrderedLearningRelation[];
-	parsedItem: ParsedObservationItem;
+	parsedItem: ParsedItem;
 	history?: {
 		priorAcceptCount?: number;
 		priorCorrectionCount?: number;
@@ -312,7 +228,7 @@ export interface OrderedLearningRecordInput {
 		facilityId?: string;
 		acceptedAt?: string;
 	};
-	parsedItem: ParsedObservationItem;
+	parsedItem: ParsedItem;
 	orderedTokens: OrderedLearningToken[];
 }
 
@@ -368,4 +284,94 @@ export interface OrderedLearningWeightedStore {
 	getWeightedOrderedHistory(
 		key: OrderedLearningHistoryKey,
 	): Promise<OrderedLearningWeightedCandidate[]>;
+}
+
+// ── History Store (v2) ────────────────────────────────────────────────────────
+
+export interface ParsedCellHistoryStore {
+	getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]>;
+	putRecord(record: ParsedCellRecord): Promise<void>;
+	markCorrection(cellId: string, replacement?: ParsedItem): Promise<void>;
+}
+
+// ── Ranker Types (v2) ───────────────────────────────────────────────────────────
+
+export interface ParsedCellRankerContext {
+	tag: string;
+	targetSchema: string;
+	patientId?: string;
+	patientOrganismType?: string;
+	patientGender?: string;
+	patientAgeBucket?: string;
+	patientSpeciesBucket?: string;
+	patientSubBucket?: number;
+	patientBucketKey?: string;
+	personnelId?: string;
+	specialtyId?: string;
+	facilityId?: string;
+	rawText: string;
+	history: ParsedCellRecord[];
+}
+
+export interface ParsedCellRankerScore {
+	score: number;
+	reason?: string;
+}
+
+export type ParsedCellPreferenceMode = "deterministic" | "learned" | "dual";
+
+export interface ParsedCellPreferenceProjection<TCandidate = ParsedCellRecord> {
+	mode: ParsedCellPreferenceMode;
+	deterministic: TCandidate | null;
+	learned: TCandidate | null;
+	winner: TCandidate | null;
+	deterministicScore?: ParsedCellRankerScore;
+	learnedScore?: ParsedCellRankerScore;
+}
+
+export interface ParsedCellPreferenceCandidate<TCandidate = ParsedCellRecord> {
+	candidate: TCandidate;
+	score: ParsedCellRankerScore;
+	source: "deterministic" | "learned";
+}
+
+export interface ParsedCellPreferenceRanking<TCandidate = ParsedCellRecord> {
+	mode: ParsedCellPreferenceMode;
+	candidates: ParsedCellPreferenceCandidate<TCandidate>[];
+	winner: TCandidate | null;
+}
+
+export interface ParsedCellPreview<TCandidate = ParsedCellRecord> {
+	deterministic: TCandidate[];
+	learned: TCandidate[];
+	ranking: ParsedCellPreferenceRanking<TCandidate>;
+}
+
+export interface ParsedCellRanker<TCandidate = ParsedCellRecord> {
+	score(
+		candidate: TCandidate,
+		context: ParsedCellRankerContext,
+	): ParsedCellRankerScore;
+	choose(
+		deterministic: TCandidate | null,
+		learned: TCandidate | null,
+		context: ParsedCellRankerContext,
+		mode?: ParsedCellPreferenceMode,
+	): ParsedCellPreferenceProjection<TCandidate>;
+	rankMany(
+		candidates: Array<{
+			candidate: TCandidate;
+			source: "deterministic" | "learned";
+		}>,
+		context: ParsedCellRankerContext,
+		mode?: ParsedCellPreferenceMode,
+	): ParsedCellPreferenceRanking<TCandidate>;
+	previewMany(
+		candidates: Array<{
+			candidate: TCandidate;
+			source: "deterministic" | "learned";
+		}>,
+		context: ParsedCellRankerContext,
+		mode?: ParsedCellPreferenceMode,
+	): ParsedCellPreview<TCandidate>;
 }

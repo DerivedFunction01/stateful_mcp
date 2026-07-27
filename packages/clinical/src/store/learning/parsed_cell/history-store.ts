@@ -1,45 +1,37 @@
-import type { ParsedCellDetail, ParsedCellHistoryKey } from "../interfaces";
+import type {
+	ParsedCellHistoryKey,
+	ParsedCellHistoryStore,
+	ParsedCellRecord,
+} from "../interfaces";
 
-// ── Generic History Store ─────────────────────────────────────────────────────
+export type { ParsedCellHistoryStore } from "../interfaces";
 
-export interface ParsedCellHistoryStore<TDetail extends ParsedCellDetail> {
-	getHistory(key: ParsedCellHistoryKey): Promise<TDetail[]>;
-	putRecord(record: any): Promise<void>;
-	markCorrection(cellId: string, replacement?: any): Promise<void>;
-}
-
-export interface ParsedCellHistoryAdapter<TDetail extends ParsedCellDetail> {
-	adapterId: string;
-	weight: number;
-	store: ParsedCellHistoryStore<TDetail>;
-}
-
-export interface ParsedCellWeightedHistoryCandidate<
-	TDetail extends ParsedCellDetail,
-> {
-	candidate: TDetail;
+export interface ParsedCellWeightedHistoryCandidate {
+	candidate: ParsedCellRecord;
 	adapterId: string;
 	weight: number;
 }
 
-export interface ParsedCellWeightedHistoryStore<
-	TDetail extends ParsedCellDetail,
-> {
+export interface ParsedCellWeightedHistoryStore {
 	getWeightedHistory(
 		key: ParsedCellHistoryKey,
-	): Promise<ParsedCellWeightedHistoryCandidate<TDetail>[]>;
+	): Promise<ParsedCellWeightedHistoryCandidate[]>;
 }
 
-export class CompositeParsedCellHistoryStore<TDetail extends ParsedCellDetail>
-	implements
-		ParsedCellHistoryStore<TDetail>,
-		ParsedCellWeightedHistoryStore<TDetail>
+export interface ParsedCellHistoryAdapter {
+	adapterId: string;
+	weight: number;
+	store: ParsedCellHistoryStore;
+}
+
+export class CompositeParsedCellHistoryStore
+	implements ParsedCellHistoryStore, ParsedCellWeightedHistoryStore
 {
-	constructor(private adapters: ParsedCellHistoryAdapter<TDetail>[]) {}
+	constructor(private adapters: ParsedCellHistoryAdapter[]) {}
 
 	async getWeightedHistory(
 		key: ParsedCellHistoryKey,
-	): Promise<ParsedCellWeightedHistoryCandidate<TDetail>[]> {
+	): Promise<ParsedCellWeightedHistoryCandidate[]> {
 		const results = await Promise.all(
 			this.adapters.map(async (adapter) => {
 				const rows = await adapter.store.getHistory(key);
@@ -53,17 +45,20 @@ export class CompositeParsedCellHistoryStore<TDetail extends ParsedCellDetail>
 		return results.flat();
 	}
 
-	async getHistory(key: ParsedCellHistoryKey): Promise<TDetail[]> {
+	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]> {
 		return (await this.getWeightedHistory(key)).map((entry) => entry.candidate);
 	}
 
-	async putRecord(record: any): Promise<void> {
+	async putRecord(record: ParsedCellRecord): Promise<void> {
 		await Promise.all(
 			this.adapters.map((adapter) => adapter.store.putRecord(record)),
 		);
 	}
 
-	async markCorrection(cellId: string, replacement?: any): Promise<void> {
+	async markCorrection(
+		cellId: string,
+		replacement?: ParsedCellRecord["parsedItem"],
+	): Promise<void> {
 		await Promise.all(
 			this.adapters.map((adapter) =>
 				adapter.store.markCorrection(cellId, replacement),

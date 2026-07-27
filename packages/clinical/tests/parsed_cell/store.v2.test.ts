@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
-import type { ParsedObservationItem } from "../../src/parser/schema-parsers.v2";
-import { CANONICAL_TAGS } from "../../src/parser/schema-parsers.v2";
+import type { ParsedObservationItem } from "../../src/parser/schema-parsers";
+import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
 import {
 	type ClinicalStorageAdapterRegistry,
 	DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY,
 } from "../../src/store/adapter-config";
-import type { ParsedCellRecord } from "../../src/store/learning/interfaces.v2";
-import { buildLearningHistoryStore } from "../../src/store/learning/learning-history-store.v2";
-import { CompositeParsedCellHistoryStore } from "../../src/store/learning/parsed_cell/history-store.v2";
-import { KvParsedCellStore } from "../../src/store/learning/parsed_cell/kv-parsed-cell-store.v2";
-import { SqlParsedCellStore } from "../../src/store/learning/parsed_cell/sql-parsed-cell-store.v2";
+import type { ParsedCellRecord } from "../../src/store/learning/interfaces";
+import { buildLearningHistoryStore } from "../../src/store/learning/learning-history-store";
+import { CompositeParsedCellHistoryStore } from "../../src/store/learning/parsed_cell/history-store";
+import { KvParsedCellStore } from "../../src/store/learning/parsed_cell/kv-parsed-cell-store";
+import { SqlParsedCellStore } from "../../src/store/learning/parsed_cell/sql-parsed-cell-store";
 
 function makeObservationItem(): ParsedObservationItem {
 	return {

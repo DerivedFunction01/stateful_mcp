@@ -1,6 +1,7 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { QuantityCandidate } from "../parser/helpers/measurement-helper";
 import type { MedicationFrequency } from "../schemas/medication";
+import type { CodeableConcept } from "../schemas/shared";
 import type {
 	AttributeParserRule,
 	ParserConceptDefaultStore,
@@ -8,11 +9,7 @@ import type {
 	ParserSyntaxProfile,
 	PatientLearningContext,
 } from "../store/interfaces";
-import type { ParsedCellDetail } from "../store/learning/interfaces";
-import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
-import { MedicationSchemaParser } from "./parsers/medication-parser";
-import { ObservationSchemaParser } from "./parsers/observation-parser";
-import { VitalsSchemaParser } from "./parsers/vitals-parser";
+import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
 
 export const CANONICAL_TAGS = {
 	VITALS: "VitalsMeasurementEvent",
@@ -21,47 +18,46 @@ export const CANONICAL_TAGS = {
 	CLINCICAL_DATE_RANGE: "ClinicalDateRange",
 } as const;
 
-export interface BaseParsedItem {
-	tag: string;
-	anchorText: string;
-	conceptId?: string;
-	display: string;
+export type DeepPartial<T> = T extends object
+	? {
+			[P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+		}
+	: T;
+
+export interface ParsedItem {
 	targetSchema: string;
+	attributes: Record<string, any>;
+	concept: CodeableConcept[];
 	rawText: string;
-	capturedProperties?: Record<string, any>;
+	tag: string;
+	extractedData: Record<string, any>;
 }
 
-export interface ParsedVitalsItem extends BaseParsedItem {
+export interface ParsedVitalsItem extends ParsedItem {
 	targetSchema: "VitalsMeasurementEvent";
-	value?: number | string;
-	unit?: string;
-	unitAnchor?: string;
+	extractedData: DeepPartial<
+		import("../schemas/vitals").VitalsMeasurementEvent
+	>;
 }
 
-export interface ParsedObservationItem extends BaseParsedItem {
+export interface ParsedObservationItem extends ParsedItem {
 	targetSchema: "ObservationEvent";
-	severity?: string;
-	certainty?: string;
-	status?: string;
+	extractedData: DeepPartial<import("../schemas/observation").ObservationEvent>;
 }
 
-export interface ParsedMedicationItem extends BaseParsedItem {
+export interface ParsedMedicationItem extends ParsedItem {
 	targetSchema: "MedicationOrderObject";
-	route?: string;
-	frequency?: MedicationFrequency;
-	dosage?: string;
-	quantityToDispense?: number;
-	authorizedRefills?: number;
-	genericSubstitutionPermitted?: string;
-	targetIndication?: string;
+	extractedData: DeepPartial<
+		import("../schemas/medication").MedicationOrderObject
+	>;
 }
 
-export interface ParsedClinicalDateRangeItem extends BaseParsedItem {
+export interface ParsedClinicalDateRangeItem extends ParsedItem {
 	targetSchema: "ClinicalDateRange";
-	dateRange: import("../schemas/time").ClinicalDateRange;
+	extractedData: DeepPartial<import("../schemas/time").ClinicalDateRange>;
 }
 
-export type ParsedItem =
+export type ParsedItemUnion =
 	| ParsedVitalsItem
 	| ParsedObservationItem
 	| ParsedMedicationItem
@@ -81,12 +77,12 @@ export interface PreparsedContext {
 }
 
 export interface ScoredParseResult {
-	parsedItem: ParsedItem;
+	parsedItem: ParsedItemUnion;
 	completenessScore: number;
 	unitAnchorCoherence: boolean;
 }
 
-export interface ParsedCandidateEnvelope<TCandidate = ParsedItem> {
+export interface ParsedCandidateEnvelope<TCandidate = ParsedItemUnion> {
 	deterministic: TCandidate[];
 	learned: TCandidate[];
 }
@@ -94,7 +90,6 @@ export interface ParsedCandidateEnvelope<TCandidate = ParsedItem> {
 export interface ParsedCandidate<TPayload = unknown> {
 	schema: string;
 	tag: string;
-	anchorText: string;
 	payload: TPayload;
 	tokens?: QuantityCandidate[];
 	attributes?: Record<string, string>;
@@ -118,7 +113,7 @@ export interface RankingSignal {
 	exactDiscriminators?: Record<string, string>;
 }
 
-export interface ParserPreviewResult<TCandidate = ParsedItem> {
+export interface ParserPreviewResult<TCandidate = ParsedItemUnion> {
 	targetSchema: string;
 	deterministic: TCandidate[];
 	learned: TCandidate[];
@@ -136,7 +131,7 @@ export interface SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-	): Promise<ParsedItem | null>;
+	): Promise<ParsedItemUnion | null>;
 	preview?(
 		tag: string,
 		content: string,
@@ -147,7 +142,7 @@ export interface SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-		historyStore?: import("../store/learning/parsed_cell/history-store").ParsedCellHistoryStore<ParsedCellDetail>,
+		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParsedCandidateEnvelope>;
 }
 
@@ -181,7 +176,6 @@ const EVALUATOR_FUNCTIONS: Record<string, (groups: any) => any> = {
 export interface ConceptCandidate {
 	conceptId: string;
 	display: string;
-	namespace: string;
 }
 
 export async function resolveConceptHelper(
@@ -189,15 +183,14 @@ export async function resolveConceptHelper(
 	dictionaryStore: DictionaryStore,
 	termTokenizer?: string,
 	allowedNamespaces?: string[],
-): Promise<{ id: string; display: string } | null> {
+): Promise<CodeableConcept[]> {
 	const candidates = await resolveMultiConceptHelper(
 		text,
 		dictionaryStore,
 		termTokenizer,
 		allowedNamespaces,
 	);
-	const first = candidates[0];
-	return first ? { id: first.conceptId, display: first.display } : null;
+	return candidates;
 }
 
 export async function resolveMultiConceptHelper(
@@ -205,8 +198,8 @@ export async function resolveMultiConceptHelper(
 	dictionaryStore: DictionaryStore,
 	termTokenizer?: string,
 	allowedNamespaces?: string[],
-): Promise<ConceptCandidate[]> {
-	const candidates: ConceptCandidate[] = [];
+): Promise<CodeableConcept[]> {
+	const candidates: CodeableConcept[] = [];
 	const tokenizer = termTokenizer || "::";
 
 	if (text.includes(tokenizer)) {
@@ -218,9 +211,8 @@ export async function resolveMultiConceptHelper(
 			for (const r of results) {
 				if (r) {
 					candidates.push({
-						conceptId: r.id,
+						conceptId: `${r.namespaceCode}::${r.standardCode}`,
 						display: r.display,
-						namespace: ns,
 					});
 				}
 			}
@@ -235,9 +227,8 @@ export async function resolveMultiConceptHelper(
 				if (!allowedNamespaces.includes(ns)) continue;
 			}
 			candidates.push({
-				conceptId: agg.conceptId,
+				conceptId: `${ns}::${agg.concept.standardCode}`,
 				display: agg.concept.display,
-				namespace: ns,
 			});
 		}
 	}
@@ -245,20 +236,5 @@ export async function resolveMultiConceptHelper(
 	return candidates;
 }
 
-// Register default parsers
-schemaParserRegistry.set(
-	CANONICAL_TAGS.VITALS.toLowerCase(),
-	new VitalsSchemaParser(),
-);
-schemaParserRegistry.set(
-	CANONICAL_TAGS.OBSERVATION.toLowerCase(),
-	new ObservationSchemaParser(),
-);
-schemaParserRegistry.set(
-	CANONICAL_TAGS.MEDICATION.toLowerCase(),
-	new MedicationSchemaParser(),
-);
-schemaParserRegistry.set(
-	CANONICAL_TAGS.CLINCICAL_DATE_RANGE,
-	new ClinicalDateRangeSchemaParser(),
-);
+// V2 parser registry populated when v2 schema parsers are implemented
+export const schemaParserRegistryV2 = new Map<string, SchemaParser>();

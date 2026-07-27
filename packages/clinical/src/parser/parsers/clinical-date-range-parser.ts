@@ -1,5 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { ClinicalDateRange } from "../../schemas/time";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_EVALUATOR_RULES,
@@ -15,20 +14,11 @@ import {
 } from "../helpers/clinical-date-range-helper";
 import type {
 	ParsedCandidateEnvelope,
-	ParsedItem,
+	ParsedClinicalDateRangeItem,
+	ParsedItemUnion,
 	PreparsedContext,
 	SchemaParser,
 } from "../schema-parsers";
-
-interface ParsedClinicalDateRangeResult {
-	tag: string;
-	anchorText: string;
-	dateRange: ClinicalDateRange;
-	conceptId?: string;
-	display: string;
-	targetSchema: string;
-	rawText: string;
-}
 
 export class ClinicalDateRangeSchemaParser implements SchemaParser {
 	targetSchema = "ClinicalDateRange";
@@ -43,7 +33,7 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-	): Promise<ParsedCandidateEnvelope<ParsedItem>> {
+	): Promise<ParsedCandidateEnvelope> {
 		const parsed = await this.parse(
 			tag,
 			content,
@@ -68,7 +58,7 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-	): Promise<ParsedItem | null> {
+	): Promise<ParsedItemUnion | null> {
 		const attrRules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
 		const evalRules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
 		const cleaned = content.trim();
@@ -84,22 +74,25 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		const dateRange = ClinicalDateRangeHelper.build(token);
 		if (!dateRange) return null;
 
-		const result: ParsedClinicalDateRangeResult = {
-			tag,
-			anchorText: cleaned,
+		const attributes: Record<string, any> = {};
+		const extractedData: Record<string, any> = {
 			dateRange,
-			display: cleaned,
-			targetSchema: this.targetSchema,
-			rawText: `${tag} ${cleaned}`,
 		};
 
-		return result as ParsedItem;
+		return {
+			targetSchema: this.targetSchema,
+			attributes,
+			concept: [],
+			rawText: `${tag} ${cleaned}`,
+			tag,
+			extractedData,
+		} as ParsedClinicalDateRangeItem;
 	}
 }
 
 function makePreviewEnvelope(
-	parsed: ParsedItem | null,
-): ParsedCandidateEnvelope<ParsedItem> {
+	parsed: ParsedItemUnion | null,
+): ParsedCandidateEnvelope {
 	return {
 		deterministic: parsed ? [parsed] : [],
 		learned: parsed ? [parsed] : [],

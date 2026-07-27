@@ -10,16 +10,12 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
-import type {
-	ParsedCellHistoryKey,
-	ParsedCellObservationDetail,
-} from "../../store/learning/interfaces";
-import type { ParsedCellHistoryStore } from "../../store/learning/parsed_cell/history-store";
+import type { ParsedCellHistoryStore } from "../../store/learning/interfaces";
 import { ObservationTokenizer } from "../helpers/observation-helper";
 import {
 	CANONICAL_TAGS,
 	type ParsedCandidateEnvelope,
-	type ParsedItem,
+	type ParsedItemUnion,
 	type ParsedObservationItem,
 	type PreparsedContext,
 	resolveConceptHelper,
@@ -39,8 +35,8 @@ export class ObservationSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-		historyStore?: ParsedCellHistoryStore<ParsedCellObservationDetail>,
-	): Promise<ParsedCandidateEnvelope<ParsedObservationItem>> {
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParsedCandidateEnvelope> {
 		const deterministic = await this.parse(
 			tag,
 			content,
@@ -52,7 +48,7 @@ export class ObservationSchemaParser implements SchemaParser {
 			allowedNamespaces,
 			preparsedContext,
 		);
-		const key: ParsedCellHistoryKey = {
+		const key = {
 			patientId: preparsedContext?.patientContext?.patientId,
 			patientOrganismType: preparsedContext?.patientContext?.organismType,
 			patientGender: preparsedContext?.patientContext?.gender,
@@ -70,7 +66,10 @@ export class ObservationSchemaParser implements SchemaParser {
 		const historyRows = historyStore ? await historyStore.getHistory(key) : [];
 		const learned = historyRows
 			.map((row) => row.parsedItem)
-			.filter((item): item is ParsedObservationItem => item !== null);
+			.filter(
+				(item): item is ParsedObservationItem =>
+					item !== null && item.targetSchema === "ObservationEvent",
+			);
 
 		return {
 			deterministic: deterministic
@@ -95,7 +94,7 @@ export class ObservationSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-	): Promise<ParsedItem | null> {
+	): Promise<ParsedItemUnion | null> {
 		const attrRules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
 		const evalRules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
 
@@ -137,19 +136,19 @@ export class ObservationSchemaParser implements SchemaParser {
 				{ rawText: content, parsedPartial: { certainty, status, severity } },
 			) || severity;
 
-		const resolved = await resolveConceptHelper(
+		const concept = await resolveConceptHelper(
 			token.anchorText,
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
 		);
-		const display = resolved?.display || token.anchorText;
-		const conceptId = resolved?.id;
+		const display = concept[0]?.display || token.anchorText;
 
 		let conceptDefaults: ParserConceptDefault | null = null;
-		if (conceptId && conceptDefaultsStore) {
+		const firstConcept = concept[0];
+		if (firstConcept?.conceptId && conceptDefaultsStore) {
 			conceptDefaults = await conceptDefaultsStore.get(
-				conceptId,
+				firstConcept.conceptId,
 				this.targetSchema,
 			);
 		}
@@ -160,25 +159,25 @@ export class ObservationSchemaParser implements SchemaParser {
 			conceptDefaults?.defaultProperties.certainty || certainty;
 		const defaultStatus = conceptDefaults?.defaultProperties.status || status;
 
-		const capturedProperties: Record<string, any> = {};
-		if (token.severityScore) {
-			capturedProperties.severityScore = token.severityScore;
-		}
+		const attributes: Record<string, any> = {};
+		if (certainty) attributes.certainty = certainty;
+		if (status) attributes.status = status;
+		if (severity) attributes.severity = severity;
+		if (token.severityScore) attributes.severityScore = token.severityScore;
 
-		return {
-			tag,
-			anchorText: token.anchorText,
-			conceptId,
-			display,
-			severity: defaultSeverity || resolvedSeverity,
+		const extractedData: Record<string, any> = {
 			certainty: defaultCertainty || resolvedCertainty,
 			status: defaultStatus || resolvedStatus,
+			severity: defaultSeverity || resolvedSeverity,
+		};
+
+		return {
 			targetSchema: this.targetSchema,
+			attributes,
+			concept,
 			rawText: `${tag} ${content}`,
-			capturedProperties:
-				Object.keys(capturedProperties).length > 0
-					? capturedProperties
-					: undefined,
+			tag,
+			extractedData,
 		} as ParsedObservationItem;
 	}
 }

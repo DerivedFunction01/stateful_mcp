@@ -1,4 +1,4 @@
-import type { ParsedItem } from "../../../../parser/schema-parsers.v2";
+import type { ParsedItem } from "../../../../parser/schema-parsers";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);

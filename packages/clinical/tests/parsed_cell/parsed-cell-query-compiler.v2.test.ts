@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CANONICAL_TAGS } from "../../src/parser/schema-parsers.v2";
+import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
 import {
 	type ParsedCellRecordTransform,
 	registerTransform,
@@ -11,11 +11,11 @@ import {
 	ParsedCellSqlCompilerV2,
 	rehydrateParsedShared,
 	resolveDetailTable,
-} from "../../src/store/sql/parsed-cell-query-compiler.v2";
+} from "../../src/store/sql/parsed-cell-query-compiler";
 
 const observationTransform: ParsedCellRecordTransform = {
 	targetSchema: CANONICAL_TAGS.OBSERVATION,
-	template(): import("../../src/parser/schema-parsers.v2").ParsedItem {
+	template(): import("../../src/parser/schema-parsers").ParsedItem {
 		return {
 			targetSchema: CANONICAL_TAGS.OBSERVATION,
 			attributes: {},

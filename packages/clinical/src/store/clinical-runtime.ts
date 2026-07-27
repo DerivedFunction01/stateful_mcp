@@ -3,14 +3,8 @@ import {
 	getClinicalAdapterConfigs,
 } from "./adapter-config";
 import type { ClinicalStoreConfig } from "./clinical-config";
-import {
-	resolveOrderedLearningStoreLocator,
-	resolveParsedCellStoreLocator,
-} from "./learning/learning-backend-resolver";
-import type { KvOrderedLearningStore } from "./learning/ordered_learning/kv-ordered-learning-store";
-import type { SqlOrderedLearningStore } from "./learning/ordered_learning/sql-ordered-learning-store";
-import type { KvParsedCellStore } from "./learning/parsed_cell/kv-parsed-cell-store";
-import type { SqlParsedCellStore } from "./learning/parsed_cell/sql-parsed-cell-store";
+import type { ParsedCellStore } from "./learning/interfaces";
+import { resolveParsedCellStoreLocatorV2 } from "./learning/learning-backend-resolver";
 import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "./parser/concept_defaults/interfaces";
 import {
 	resolveCalibrationExceptionStore,
@@ -59,17 +53,10 @@ export interface ClinicalRuntimeParserStores {
 	facilities: FacilityStore;
 }
 
-export type ResolvedParsedCellStore = KvParsedCellStore | SqlParsedCellStore;
-
-export type ResolvedOrderedLearningStore =
-	| KvOrderedLearningStore
-	| SqlOrderedLearningStore;
-
 export interface ClinicalRuntime {
 	config: ClinicalStoreConfig;
 	parserStores: ClinicalRuntimeParserStores;
-	learningStores: ResolvedParsedCellStore[];
-	orderAwareStores: ResolvedOrderedLearningStore[];
+	learningStores: ParsedCellStore[];
 }
 
 // ── Factory using decomposed stores ──────────────────────────────────────────
@@ -124,27 +111,12 @@ export async function createClinicalRuntime(
 			facilities,
 		},
 		learningStores: await buildLearningStores(config),
-		orderAwareStores: await buildOrderedLearningStores(config),
 	};
-}
-
-async function buildOrderedLearningStores(
-	config: ClinicalStoreConfig,
-): Promise<ResolvedOrderedLearningStore[]> {
-	const adapters = getClinicalAdapterConfigs("ordered_learning", {
-		ordered_learning: config.domains.ordered_learning.defaultAdapters,
-	} as unknown as ClinicalStorageAdapterRegistry);
-
-	return await Promise.all(
-		adapters
-			.filter((a) => a.implemented !== false && a.primary)
-			.map((a) => resolveOrderedLearningStoreLocator(a.primary)),
-	);
 }
 
 async function buildLearningStores(
 	config: ClinicalStoreConfig,
-): Promise<ResolvedParsedCellStore[]> {
+): Promise<ParsedCellStore[]> {
 	const adapters = getClinicalAdapterConfigs("learning", {
 		learning: config.domains.learning.defaultAdapters,
 	} as unknown as ClinicalStorageAdapterRegistry);
@@ -152,6 +124,6 @@ async function buildLearningStores(
 	return await Promise.all(
 		adapters
 			.filter((a) => a.implemented !== false && a.primary)
-			.map((a) => resolveParsedCellStoreLocator(a.primary)),
+			.map((a) => resolveParsedCellStoreLocatorV2(a.primary)),
 	);
 }

@@ -2,6 +2,7 @@ import type { DictionaryStore, ObjectStore } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type {
+	ParsedItem,
 	ParsedMedicationItem,
 	ParsedObservationItem,
 	ParsedVitalsItem,
@@ -21,7 +22,7 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type {
-	ParsedCellDetail,
+	ParsedCellHistoryStore,
 	ParsedCellRecord,
 	ParsedCellStore,
 } from "../store/learning/interfaces";
@@ -34,8 +35,6 @@ import {
 } from "../store/learning/interfaces";
 import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
-import type { ParsedCellHistoryStore } from "../store/learning/parsed_cell/history-store";
-import { buildObservationShape } from "../store/learning/parsed_cell/observation/shape";
 
 // ── Order-Aware Projection ───────────────────────────────────────────────────
 
@@ -45,11 +44,11 @@ export interface OrderAwareProjection {
 }
 
 /**
- * Builds an ordered token sequence from a parsed observation item.
- * Produces tokens for tag, concept, and each resolved field slot.
+ * Builds an ordered token sequence from any parsed item.
+ * Produces tokens for tag, concept, and each scalar field in extractedData.
  */
 export function buildOrderedTokens(
-	item: ParsedObservationItem,
+	item: ParsedItem,
 	startIndex: number = 0,
 ): OrderedLearningToken[] {
 	const tokens: OrderedLearningToken[] = [];
@@ -59,24 +58,20 @@ export function buildOrderedTokens(
 	tokens.push({ kind: "tag", key: item.tag, index: idx++ });
 
 	// concept
-	if (item.conceptId) {
+	if (item.concept[0]?.conceptId) {
 		tokens.push({
 			kind: "concept",
-			key: item.conceptId,
-			value: item.display,
+			key: item.concept[0].conceptId,
+			value: item.concept[0].display,
 			index: idx++,
 		});
 	}
 
-	// resolved fields
-	const fieldKeys: Array<keyof ParsedObservationItem> = [
-		"severity",
-		"certainty",
-		"status",
-	];
-	for (const key of fieldKeys) {
-		const val = item[key];
-		if (val !== undefined && val !== null) {
+	// all scalar fields present in extractedData
+	const extracted = item.extractedData ?? {};
+	for (const key of Object.keys(extracted)) {
+		const val = extracted[key];
+		if (val !== undefined && val !== null && typeof val !== "object") {
 			tokens.push({
 				kind: "field",
 				key,
@@ -242,7 +237,7 @@ export class ClinicalEngine {
 		const note = activeObj.data as SoapNote;
 		const patientBucket = buildPatientLearningBucket(note.patient);
 		const historyStore = this.parsedCellStore as
-			| ParsedCellHistoryStore<ParsedCellDetail>
+			| ParsedCellHistoryStore
 			| undefined;
 
 		const parsedItems = historyStore
@@ -262,10 +257,10 @@ export class ClinicalEngine {
 		let currentObjId = "active_note";
 
 		for (const item of parsedItems) {
-			if (this.parsedCellStore && item.targetSchema === "ObservationEvent") {
+			if (this.parsedCellStore) {
 				const cellId = `cell_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 				const now = new Date().toISOString();
-				const parsedCell: ParsedCellRecord<ParsedObservationItem> = {
+				const parsedCell: ParsedCellRecord = {
 					shared: {
 						cellId,
 						sessionId,
@@ -281,8 +276,7 @@ export class ClinicalEngine {
 						tag: item.tag,
 						targetSchema: item.targetSchema,
 						rawText: item.rawText,
-						normalizedText: item.anchorText,
-						anchorText: item.anchorText,
+						anchorText: item.tag,
 						parserVersion: "phase2",
 						contractVersion: "v1",
 						sourceKind: "direct_contract",
@@ -291,15 +285,8 @@ export class ClinicalEngine {
 						createdAt: now,
 						updatedAt: now,
 					},
-					detail: {
-						cellId,
-						targetSchema: item.targetSchema,
-						soapNoteId: note.id,
-						conceptId: item.conceptId,
-						display: item.display,
-						candidateTokens: [],
-						shape: buildObservationShape(item),
-						parsedItem: item,
+					parsedItem: item,
+					learningMetadata: {
 						history: {
 							priorAcceptCount: 1,
 							priorCorrectionCount: 0,
@@ -311,8 +298,8 @@ export class ClinicalEngine {
 							stalePreference: false,
 							reviewRequired: false,
 						},
+						candidateTokens: [],
 					},
-					parsedItem: item,
 				};
 				await this.parsedCellStore.putRecord(parsedCell);
 
@@ -342,10 +329,10 @@ export class ClinicalEngine {
 				}
 			}
 			// Log calibration if concept is not found
-			if (!item.conceptId && this.calibrationStore) {
+			if (!item.concept[0]?.conceptId && this.calibrationStore) {
 				await this.calibrationStore.logException({
 					personnelId: "system",
-					rawTerm: item.anchorText,
+					rawTerm: item.tag,
 					contextSnippet: item.rawText,
 				});
 			}
@@ -356,17 +343,18 @@ export class ClinicalEngine {
 			if (schemaClean === "vitalsmeasurementevent") {
 				const vitalsItem = item as ParsedVitalsItem;
 				const vitals = [...(note.objective?.vitals || [])];
-				const unit = vitalsItem.unit || "";
+				const unit = vitalsItem.extractedData?.measurement?.unit?.display || "";
+				const vitConcept = vitalsItem.concept[0];
 
 				vitals.push({
 					id: `vit_${crypto.randomUUID().slice(0, 8)}`,
 					soapSection: "objective",
 					concept: {
-						conceptId: vitalsItem.conceptId,
-						display: vitalsItem.display,
+						conceptId: vitConcept?.conceptId,
+						display: vitConcept?.display,
 					},
 					measurement: {
-						magnitude: Number(vitalsItem.value || 0),
+						magnitude: Number(vitalsItem.extractedData?.measurement?.magnitude || 0),
 						unit: { display: unit },
 					},
 				} as any);
@@ -378,7 +366,8 @@ export class ClinicalEngine {
 				);
 			} else if (schemaClean === "observationevent") {
 				const obsItem = item as ParsedObservationItem;
-				const isNegated = obsItem.certainty === "refuted";
+				const obsConcept = obsItem.concept[0];
+				const isNegated = obsItem.extractedData?.certainty === "refuted";
 				const section = isNegated ? "subjective" : "objective";
 
 				if (section === "subjective") {
@@ -386,15 +375,15 @@ export class ClinicalEngine {
 					obs.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
 						soapSection: "subjective",
-						concept: { conceptId: obsItem.conceptId, display: obsItem.display },
-						rawTerm: obsItem.anchorText,
+						concept: { conceptId: obsConcept?.conceptId, display: obsConcept?.display },
+						rawTerm: obsItem.tag,
 						sourceType: "patient_reported",
-						certainty: obsItem.certainty as any,
-						status: obsItem.status as any,
+						certainty: obsItem.extractedData?.certainty as any,
+						status: obsItem.extractedData?.status as any,
 						severity: { score: 0, maxScore: 0, normalizedScore: 0 },
 						duration: { magnitude: 1 },
 						trajectory: "stable",
-					});
+					} as any);
 					currentObjId = await this.objectStore.set(
 						currentObjId,
 						["subjective", "observations"],
@@ -406,15 +395,15 @@ export class ClinicalEngine {
 					obs.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
 						soapSection: "objective",
-						concept: { conceptId: obsItem.conceptId, display: obsItem.display },
-						rawTerm: obsItem.anchorText,
+						concept: { conceptId: obsConcept?.conceptId, display: obsConcept?.display },
+						rawTerm: obsItem.tag,
 						sourceType: "clinician_observed",
-						certainty: obsItem.certainty as any,
-						status: obsItem.status as any,
+						certainty: obsItem.extractedData?.certainty as any,
+						status: obsItem.extractedData?.status as any,
 						severity: { score: 0, maxScore: 0, normalizedScore: 0 },
 						duration: { magnitude: 1 },
 						trajectory: "stable",
-					});
+					} as any);
 					currentObjId = await this.objectStore.set(
 						currentObjId,
 						["objective", "observations"],
@@ -424,16 +413,17 @@ export class ClinicalEngine {
 				}
 			} else if (schemaClean === "medicationorderobject") {
 				const medItem = item as ParsedMedicationItem;
+				const medConcept = medItem.concept[0];
 				const meds = [...(note.plan?.medications || [])];
 				meds.push({
 					id: `med_${crypto.randomUUID().slice(0, 8)}`,
 					soapSection: "plan",
 					medication: {
-						conceptId: medItem.conceptId,
-						display: medItem.display,
+						conceptId: medConcept?.conceptId,
+						display: medConcept?.display,
 					},
-					route: medItem.route as any,
-					frequency: medItem.frequency,
+					route: medItem.extractedData?.route as any,
+					frequency: medItem.extractedData?.frequency,
 				} as any);
 				currentObjId = await this.objectStore.set(
 					currentObjId,

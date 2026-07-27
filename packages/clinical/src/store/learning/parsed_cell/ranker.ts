@@ -7,7 +7,7 @@ import type {
 	ParsedCellRankerContext,
 	ParsedCellRankerScore,
 	ParsedCellRecord,
-} from "../interfaces.v2";
+} from "../interfaces";
 import { getTransformForSchema } from "./parsed-cell-record-transform";
 
 const DEFAULT_WEIGHT = 1.0;

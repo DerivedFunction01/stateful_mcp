@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import type {
 	ParsedObservationItem,
 	ParsedVitalsItem,
-} from "../../src/parser/schema-parsers.v2";
-import { CANONICAL_TAGS } from "../../src/parser/schema-parsers.v2";
-import type { ParsedCellRecord } from "../../src/store/learning/interfaces.v2";
-import { GenericPreferenceRanker } from "../../src/store/learning/parsed_cell/ranker.v2";
+} from "../../src/parser/schema-parsers";
+import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
+import type { ParsedCellRecord } from "../../src/store/learning/interfaces";
+import { GenericPreferenceRanker } from "../../src/store/learning/parsed_cell/ranker";
 
 import "../../src/store/learning/parsed_cell/transforms/observation-transform";
 import "../../src/store/learning/parsed_cell/transforms/vitals-transform";

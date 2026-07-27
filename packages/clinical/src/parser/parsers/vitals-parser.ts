@@ -8,14 +8,7 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
-import type {
-	ParsedCellHistoryKey,
-	ParsedCellVitalsDetail,
-} from "../../store/learning/interfaces";
-import type { ParsedCellHistoryStore } from "../../store/learning/parsed_cell/history-store";
-import type { ParsedCellRankerContext } from "../../store/learning/parsed_cell/parsed-cell-ranking-types";
-import { VitalsPreferenceRanker } from "../../store/learning/parsed_cell/vitals/parsed-cell-ranking";
-import { buildVitalsShape } from "../../store/learning/parsed_cell/vitals/shape";
+import type { ParsedCellHistoryStore } from "../../store/learning/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
 import {
 	MeasurementHelper,
@@ -26,7 +19,7 @@ import { VitalsHelper, VitalsTokenizer } from "../helpers/vitals-helper";
 import {
 	CANONICAL_TAGS,
 	type ParsedCandidateEnvelope,
-	type ParsedItem,
+	type ParsedItemUnion,
 	type ParsedVitalsItem,
 	type PreparsedContext,
 	resolveConceptHelper,
@@ -35,8 +28,6 @@ import {
 
 export class VitalsSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.VITALS;
-	private readonly ranker: VitalsPreferenceRanker =
-		new VitalsPreferenceRanker();
 
 	async preview(
 		tag: string,
@@ -48,8 +39,8 @@ export class VitalsSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-		historyStore?: ParsedCellHistoryStore<ParsedCellVitalsDetail>,
-	): Promise<ParsedCandidateEnvelope<ParsedItem>> {
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParsedCandidateEnvelope> {
 		const deterministic = await this.parse(
 			tag,
 			content,
@@ -61,7 +52,7 @@ export class VitalsSchemaParser implements SchemaParser {
 			allowedNamespaces,
 			preparsedContext,
 		);
-		const key: ParsedCellHistoryKey = {
+		const key = {
 			patientId: preparsedContext?.patientContext?.patientId,
 			patientOrganismType: preparsedContext?.patientContext?.organismType,
 			patientGender: preparsedContext?.patientContext?.gender,
@@ -79,41 +70,24 @@ export class VitalsSchemaParser implements SchemaParser {
 		const historyRows = historyStore ? await historyStore.getHistory(key) : [];
 		const learned = historyRows
 			.map((row) => row.parsedItem)
-			.filter((item): item is ParsedVitalsItem => item !== null);
+			.filter(
+				(item): item is ParsedVitalsItem =>
+					item !== null && item.targetSchema === "VitalsMeasurementEvent",
+			);
 
 		const vitalsDeterministic =
 			deterministic?.targetSchema === "VitalsMeasurementEvent"
 				? (deterministic as ParsedVitalsItem)
 				: null;
-		const context = this.buildRankerContext(
-			preparsedContext,
-			content,
-			vitalsDeterministic,
-		);
-
-		const deterministicDetail = vitalsDeterministic
-			? this.toVitalsDetail(vitalsDeterministic)
-			: null;
-		const learnedDetails = learned
-			.map((item) => this.toVitalsDetail(item))
-			.filter((d): d is ParsedCellVitalsDetail => d !== null);
-
-		const projection = this.ranker.choose(
-			deterministicDetail,
-			learnedDetails[0] ?? null,
-			context,
-			"dual",
-		);
 
 		return {
-			deterministic: projection.deterministic
-				? [projection.deterministic.parsedItem]
-				: [],
-			learned: projection.learned
-				? [projection.learned.parsedItem]
-				: projection.deterministic
-					? [projection.deterministic.parsedItem]
-					: [],
+			deterministic: vitalsDeterministic ? [vitalsDeterministic] : [],
+			learned:
+				learned.length > 0
+					? learned
+					: vitalsDeterministic
+						? [vitalsDeterministic]
+						: [],
 		};
 	}
 
@@ -127,7 +101,7 @@ export class VitalsSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
-	): Promise<ParsedItem | null> {
+	): Promise<ParsedItemUnion | null> {
 		const rules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
 
 		let token: any = null;
@@ -153,13 +127,18 @@ export class VitalsSchemaParser implements SchemaParser {
 				anchorText: content.trim(),
 				value: m.magnitude,
 				unit: parsedMeasurement?.unit?.display || m.rawUnit,
+				systolic: undefined,
+				diastolic: undefined,
+				bloodPressureUnit: undefined,
 			};
 		} else {
 			token = VitalsTokenizer.tokenize(content, rules);
 		}
 		if (!token || !token.anchorText) return null;
 
+		const attributes: Record<string, any> = {};
 		const capturedProps: Record<string, any> = {};
+
 		if (token.systolic !== undefined && token.diastolic !== undefined) {
 			const bp = VitalsHelper.buildBloodPressure(
 				token.systolic,
@@ -169,10 +148,15 @@ export class VitalsSchemaParser implements SchemaParser {
 			capturedProps.systolic = bp.systolic;
 			capturedProps.diastolic = bp.diastolic;
 			capturedProps.unit = bp.unit;
+			attributes.systolic = bp.systolic;
+			attributes.diastolic = bp.diastolic;
+			attributes.unit = bp.unit;
 		}
 		if (token.value !== undefined) {
 			capturedProps.quantity = token.value;
 			if (token.unit) capturedProps.unit = token.unit;
+			attributes.quantity = token.value;
+			if (token.unit) attributes.unit = token.unit;
 		}
 
 		let valueText = token.value !== undefined ? String(token.value) : "";
@@ -182,25 +166,23 @@ export class VitalsSchemaParser implements SchemaParser {
 			unitText = token.bloodPressureUnit || "mmHg";
 		}
 
-		// Resolve concept
-		const resolved = await resolveConceptHelper(
+		const concept = await resolveConceptHelper(
 			token.anchorText,
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
 		);
-		const display = resolved?.display || token.anchorText;
-		const conceptId = resolved?.id;
+		const display = concept[0]?.display || token.anchorText;
 
 		let conceptDefaults: ParserConceptDefault | null = null;
-		if (conceptId && conceptDefaultsStore) {
+		const firstConcept = concept[0];
+		if (firstConcept?.conceptId && conceptDefaultsStore) {
 			conceptDefaults = await conceptDefaultsStore.get(
-				conceptId,
+				firstConcept.conceptId,
 				this.targetSchema,
 			);
 		}
 
-		// Apply regex capture groups from defaults if defined
 		if (conceptDefaults?.regexPatterns) {
 			for (const pattern of conceptDefaults.regexPatterns) {
 				const regex = getCompiledRegex(pattern, "i");
@@ -218,6 +200,7 @@ export class VitalsSchemaParser implements SchemaParser {
 							const val = match.groups?.[field];
 							if (val !== undefined) {
 								capturedProps[field] = val;
+								attributes[field] = val;
 								if (field === "value") valueText = val;
 								if (field === "unit") unitText = val;
 							}
@@ -253,61 +236,23 @@ export class VitalsSchemaParser implements SchemaParser {
 			}
 		}
 
-		return {
-			tag,
-			anchorText: token.anchorText,
-			conceptId,
-			display,
+		const extractedData: Record<string, any> = {
 			value: parsedVal,
 			unit: finalUnit,
 			unitAnchor,
+		};
+		if (token.systolic !== undefined && token.diastolic !== undefined) {
+			extractedData.systolic = capturedProps.systolic;
+			extractedData.diastolic = capturedProps.diastolic;
+		}
+
+		return {
 			targetSchema: this.targetSchema,
+			attributes,
+			concept,
 			rawText: `${tag} ${content}`,
-			capturedProperties:
-				Object.keys(capturedProps).length > 0 ? capturedProps : undefined,
+			tag,
+			extractedData,
 		} as ParsedVitalsItem;
-	}
-
-	private toVitalsDetail(
-		item: ParsedVitalsItem,
-	): ParsedCellVitalsDetail | null {
-		const shape = buildVitalsShape(item);
-		return {
-			targetSchema: "VitalsMeasurementEvent",
-			cellId: "",
-			conceptId: item.conceptId,
-			display: item.display,
-			candidateTokens: [],
-			shape,
-			parsedItem: item,
-		};
-	}
-
-	private buildRankerContext(
-		preparsedContext: PreparsedContext | undefined,
-		content: string,
-		deterministic: ParsedVitalsItem | null,
-	): ParsedCellRankerContext {
-		const shape = deterministic
-			? buildVitalsShape(deterministic)
-			: { schema: "VitalsMeasurementEvent" as const, slots: {} };
-		return {
-			tag: preparsedContext?.rankingSignals?.tag || this.targetSchema,
-			targetSchema: this.targetSchema,
-			patientId: preparsedContext?.patientContext?.patientId,
-			patientOrganismType: preparsedContext?.patientContext?.organismType,
-			patientGender: preparsedContext?.patientContext?.gender,
-			patientAgeBucket: preparsedContext?.patientContext?.ageBucket,
-			patientSpeciesBucket: preparsedContext?.patientContext?.speciesBucket,
-			patientSubBucket: preparsedContext?.patientContext?.subBucket,
-			patientBucketKey: preparsedContext?.patientContext?.bucketKey,
-			personnelId: preparsedContext?.rankingSignals?.personnelId,
-			specialtyId: preparsedContext?.rankingSignals?.specialtyId,
-			facilityId: preparsedContext?.rankingSignals?.facilityId,
-			rawText: content,
-			anchorText: content,
-			candidateTokens: [],
-			sharedShape: shape,
-		};
 	}
 }
