@@ -3,11 +3,13 @@ import type { ParsedItem } from "../../../parser/schema-parsers";
 import type {
 	ParsedCellHistoryKey,
 	ParsedCellLookup,
+	ParsedCellRankerContext,
 	ParsedCellRecord,
 	ParsedCellStore,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
 import type { ParsedCellHistoryStore } from "./history-store";
+import { GenericPreferenceRanker } from "./ranker";
 
 export class KvParsedCellStore
 	implements ParsedCellStore, ParsedCellHistoryStore
@@ -210,6 +212,40 @@ export class KvParsedCellStore
 				(b.learningMetadata.history?.recencyScore || 0) -
 				(a.learningMetadata.history?.recencyScore || 0),
 		);
+	}
+
+	async rankHistoryBySchema(
+		targetSchema: string,
+		key: ParsedCellHistoryKey,
+		candidate: ParsedItem,
+	): Promise<
+		Array<ParsedCellRecord & { rankScore: number; rankReason: string }>
+	> {
+		const history = await this.getHistoryBySchema(targetSchema, key);
+		const context: ParsedCellRankerContext = {
+			tag: key.tag,
+			targetSchema,
+			rawText: key.rawText,
+			history,
+			patientId: key.patientId,
+			patientOrganismType: key.patientOrganismType,
+			patientGender: key.patientGender,
+			patientAgeBucket: key.patientAgeBucket,
+			patientSpeciesBucket: key.patientSpeciesBucket,
+			patientSubBucket: key.patientSubBucket,
+			patientBucketKey: key.patientBucketKey,
+			personnelId: key.personnelId,
+			specialtyId: key.specialtyId,
+			facilityId: key.facilityId,
+		};
+
+		const ranker = new GenericPreferenceRanker();
+		return history
+			.map((record) => {
+				const { score, reason } = ranker.score(record, context);
+				return { ...record, rankScore: score, rankReason: reason ?? "" };
+			})
+			.sort((a, b) => b.rankScore - a.rankScore);
 	}
 
 	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]> {

@@ -7,6 +7,11 @@ import { CompositeParsedCellHistoryStore } from "../../src/store/learning/parsed
 import { KvParsedCellStore } from "../../src/store/learning/parsed_cell/kv-parsed-cell-store";
 import { SqlParsedCellStore } from "../../src/store/learning/parsed_cell/sql-parsed-cell-store";
 
+import "../../src/store/learning/parsed_cell/transforms/observation-transform";
+import "../../src/store/learning/parsed_cell/transforms/vitals-transform";
+import "../../src/store/learning/parsed_cell/transforms/medication-transform";
+import "../../src/store/learning/parsed_cell/transforms/clinical-date-range-transform";
+
 function makeObservationItem(): ParsedObservationItem {
 	return {
 		targetSchema: CANONICAL_TAGS.OBSERVATION,
@@ -254,5 +259,54 @@ describe("ParsedCell v2 storage", () => {
 		const result = await store.get("cell-no-replace");
 		expect(result?.learningMetadata.flags?.reviewRequired).toBe(false);
 		expect(result?.learningMetadata.flags?.stalePreference).toBe(true);
+	});
+
+	test("memory store rankHistoryBySchema scores and sorts by relevance", async () => {
+		const store = memoryStore();
+
+		const matchingItem: ParsedObservationItem = {
+			...makeObservationItem(),
+			extractedData: {
+				certainty: "confirmed",
+				status: "present",
+				severity: { score: 3, maxScore: 5, normalizedScore: 0.6 },
+				trajectory: "worsening",
+			},
+		};
+
+		const nonMatchingItem: ParsedObservationItem = {
+			...makeObservationItem(),
+			extractedData: {
+				certainty: "ruled_out",
+				status: "absent",
+				severity: { score: 5, maxScore: 5, normalizedScore: 1 },
+				trajectory: "stable",
+			},
+		};
+
+		await store.putRecord(
+			makeObservationCell("cell-match", "session-rank"),
+		);
+		await store.putRecord({
+			...makeObservationCell("cell-mismatch", "session-rank"),
+			parsedItem: nonMatchingItem,
+		});
+
+		const ranked = await store.rankHistoryBySchema(
+			CANONICAL_TAGS.OBSERVATION,
+			{
+				tag: CANONICAL_TAGS.OBSERVATION,
+				targetSchema: CANONICAL_TAGS.OBSERVATION,
+				rawText: "temperature 101F",
+			},
+			matchingItem,
+		);
+
+		expect(ranked).toHaveLength(2);
+		expect(ranked[0]?.shared.cellId).toBe("cell-match");
+		expect(ranked[0]?.rankScore).toBeGreaterThan(0);
+		expect(typeof ranked[0]?.rankReason).toBe("string");
+		expect(ranked[1]?.shared.cellId).toBe("cell-mismatch");
+		expect(ranked[1]!.rankScore).toBeLessThanOrEqual(ranked[0]!.rankScore);
 	});
 });
