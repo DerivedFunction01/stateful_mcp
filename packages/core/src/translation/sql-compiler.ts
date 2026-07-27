@@ -47,10 +47,23 @@ export type SqlFunctionOp =
 	| "upper"
 	| "concat";
 
+export interface CaseWhen {
+	when: QueryCondition;
+	then: SqlExpression;
+}
 /**
  * Recursive condition tree allowing for deep nesting.
  * Arrays at the root are treated as implicit ANDs.
  */
+
+export type SqlExpression =
+	| { column: string; table?: string; jsonPath?: string }
+	| { value: any }
+	| { func: SqlFunctionOp | string; args: SqlExpression[] }
+	| { raw: string }
+	| { subquery: SelectQuery }
+	| { case: CaseWhen[]; else?: SqlExpression }; // <-- ADD THIS
+
 export type QueryCondition =
 	| { AND: QueryCondition[] }
 	| { OR: QueryCondition[] }
@@ -64,6 +77,8 @@ export type QueryCondition =
 			table?: string;
 			/** Optional JSON path to extract, e.g., 'field' or 'nested.field' */
 			jsonPath?: string;
+			expr?: SqlExpression; // (overrides column if present)
+			rhsExpr?: SqlExpression; // (overrides raw/value/values/placeholderCount if present)
 			op: FilterOp;
 			/** Pass value to bind it. Omit to just output the positional placeholder. */
 			value?: any;
@@ -90,13 +105,25 @@ export interface QueryField {
 	raw?: string; // Arbitrary SQL string for the projection (e.g., "1")
 	/** Scalar subquery projected as a column, e.g. `(SELECT ...) AS total` */
 	subquery?: SelectQuery;
+	expr?: SqlExpression;
 	alias?: string;
-	agg?: "count" | "sum" | "avg" | "min" | "max" | "count_distinct";
+	agg?:
+		| "count"
+		| "sum"
+		| "avg"
+		| "min"
+		| "max"
+		| "count_distinct"
+		| "stddev_samp" // Sample Standard Deviation
+		| "stddev_pop" // Population Standard Deviation
+		| "var_samp" // Sample Variance
+		| "var_pop"; // Population Variance
 }
 export type QuerySort = {
 	column: string;
 	/** Optional table/alias qualifier */
 	table?: string;
+	raw?: string; // Add this to allow sorting by aliased expressions like "ranking_score"
 	/** Optional JSON path to extract */
 	jsonPath?: string;
 	direction: "ASC" | "DESC";
@@ -214,6 +241,26 @@ export interface PragmaQuery {
 	pragma: string;
 	value?: string;
 }
+export interface DropTableQuery {
+	table: string;
+	ifExists?: boolean; // Defaults to true
+	cascade?: boolean; // PostgreSQL specific option
+}
+
+export interface DropIndexQuery {
+	name: string;
+	table?: string; // Required by SQLite/DuckDB syntax models
+	ifExists?: boolean; // Defaults to true
+}
+
+export interface AlterTableQuery {
+	table: string;
+	actions: (
+		| { action: "add_column"; column: ColumnDef }
+		| { action: "drop_column"; name: string; ifExists?: boolean }
+		| { action: "drop_constraint"; name: string; cascade?: boolean }
+	)[];
+}
 
 /**
  * Helper class to track positional parameters recursively during AST traversal.
@@ -249,6 +296,48 @@ class CompilerContext {
  */
 export class QueryCompiler {
 	constructor(private dialect: SqlDialect = "sqlite") {}
+	public compileExpression(expr: SqlExpression, ctx: CompilerContext): string {
+		if ("func" in expr) {
+			// 1. Recursively compile all arguments first
+			const compiledArgs = expr.args.map((arg) =>
+				this.compileExpression(arg, ctx),
+			);
+			// 2. Pass the evaluated strings to your existing pipeline compiler
+			return this.compileScalarExpression(expr.func, compiledArgs);
+		}
+		if ("value" in expr) {
+			return ctx.addParam(expr.value);
+		}
+		if ("column" in expr) {
+			return this.formatColumn(expr.column, expr.jsonPath, expr.table);
+		}
+		if ("subquery" in expr) {
+			return `(${this.compileSelectInternal(expr.subquery, ctx)})`;
+		}
+		if ("raw" in expr) {
+			return expr.raw;
+		}
+		if ("case" in expr) {
+			if (!expr.case || expr.case.length === 0) {
+				throw new Error("Case expression must have at least one 'when' clause");
+			}
+			
+			const whenClauses = expr.case.map((c) => {
+				const condStr = this.compileCondition(c.when, ctx);
+				const thenStr = this.compileExpression(c.then, ctx);
+				return `WHEN ${condStr} THEN ${thenStr}`;
+			});
+
+			const elseClause = expr.else 
+				? ` ELSE ${this.compileExpression(expr.else, ctx)}` 
+				: "";
+
+			// Wrapping in parentheses prevents operator precedence issues 
+			// when embedded inside complex math or function arguments
+			return `(CASE ${whenClauses.join(" ")}${elseClause} END)`;
+		}
+		throw new Error("Invalid SQL Expression node");
+	}
 
 	/** Safe identifier quoting (ANSI standard double quotes) */
 	public quoteIdent(ident: string): string {
@@ -428,28 +517,41 @@ export class QueryCompiler {
 		}
 
 		// Base condition
-		const col = this.formatColumn(cond.column, cond.jsonPath, cond.table);
+		const col = cond.expr
+			? this.compileExpression(cond.expr, ctx)
+			: this.formatColumn(cond.column!, cond.jsonPath, cond.table);
 		const hasValue = "value" in cond && cond.value !== undefined;
 		const hasValues = "values" in cond && cond.values !== undefined;
 
-		// Determine the right side of the expression
 		let rhs = "";
-		if ("raw" in cond && cond.raw !== undefined) {
+		if ("rhsExpr" in cond && cond.rhsExpr) {
+			rhs = this.compileExpression(cond.rhsExpr, ctx);
+		} else if ("raw" in cond && cond.raw !== undefined) {
 			rhs = cond.raw;
 		} else if ("subquery" in cond && cond.subquery !== undefined) {
 			rhs = `(${this.compileSelectInternal(cond.subquery, ctx)})`;
+		} else if (
+			hasValue &&
+			["starts_with", "ends_with", "str_contains"].includes(cond.op)
+		) {
+			// Treat the string manipulation values as the bound payload directly
+			if (cond.op === "starts_with") rhs = ctx.addParam(`${cond.value}%`);
+			if (cond.op === "ends_with") rhs = ctx.addParam(`%${cond.value}`);
+			if (cond.op === "str_contains") rhs = ctx.addParam(`%${cond.value}%`);
 		} else if (hasValue && cond.op !== "json_contains") {
 			rhs = ctx.addParam(cond.value);
 		} else if (hasValues) {
 			rhs = `(${cond.values!.map((v) => ctx.addParam(v)).join(", ")})`;
 		} else if (cond.placeholderCount) {
-			// e.g., IN (?, ?, ?) when passing just the structure
 			const placeholders = Array.from({ length: cond.placeholderCount }, () =>
 				ctx.nextPlaceholder(),
 			);
 			rhs = `(${placeholders.join(", ")})`;
-		} else if (cond.op !== "is_null" && cond.op !== "is_not_null") {
-			// Prepared statement positional placeholder logic
+		} else if (
+			cond.op !== "is_null" &&
+			cond.op !== "is_not_null" &&
+			cond.op !== "json_contains"
+		) {
 			rhs = ctx.nextPlaceholder();
 		}
 
@@ -479,21 +581,25 @@ export class QueryCompiler {
 					? `${col} NOT LIKE ${rhs}`
 					: `${col} NOT ILIKE ${rhs}`;
 			case "starts_with":
-				return `${col} LIKE ${hasValue ? ctx.addParam(`${cond.value}%`) : `CONCAT(${rhs}, '%')`}`;
+				if (hasValue) return `${col} LIKE ${rhs}`;
+				return this.dialect === "sqlite"
+					? `${col} LIKE ${rhs} || '%'`
+					: `${col} LIKE CONCAT(${rhs}, '%')`;
 			case "ends_with":
-				return `${col} LIKE ${hasValue ? ctx.addParam(`%${cond.value}`) : `CONCAT('%', ${rhs})`}`;
+				if (hasValue) return `${col} LIKE ${rhs}`;
+				return this.dialect === "sqlite"
+					? `${col} LIKE '%' || ${rhs}`
+					: `${col} LIKE CONCAT('%', ${rhs})`;
 			case "str_contains":
-				return `${col} LIKE ${hasValue ? ctx.addParam(`%${cond.value}%`) : `CONCAT('%', ${rhs}, '%')`}`;
+				if (hasValue) return `${col} LIKE ${rhs}`;
+				return this.dialect === "sqlite"
+					? `${col} LIKE '%' || ${rhs} || '%'`
+					: `${col} LIKE CONCAT('%', ${rhs}, '%')`;
 			case "in_set":
 				return `${col} IN ${rhs}`;
 			case "not_in_set":
 				return `${col} NOT IN ${rhs}`;
 			case "between": {
-				if (hasValues && cond.values!.length === 2) {
-					// Pre-bound: BETWEEN ? AND ?
-					return `${col} BETWEEN ${rhs}`; // Note: rhs here is `(?, ?)` which is invalid syntax for BETWEEN, handled properly below
-				}
-				// Standard explicit placeholder usage for BETWEEN
 				const b1 = hasValues
 					? ctx.addParam(cond.values![0])
 					: ctx.nextPlaceholder();
@@ -552,6 +658,46 @@ export class QueryCompiler {
 		return `(${inner}) AS ${this.quoteIdent(ref.alias)}`;
 	}
 
+	public compileAggregate(agg: string, expr: string): string {
+		if (agg === "count_distinct") return `COUNT(DISTINCT ${expr})`;
+
+		const isSqLite = this.dialect === "sqlite" || this.dialect === "opfs";
+
+		switch (agg) {
+			case "stddev_samp":
+				if (isSqLite) {
+					// Algebraic sample standard deviation inline
+					return `CASE WHEN COUNT(${expr}) > 1 THEN SQRT((SUM(${expr} * ${expr}) - (SUM(${expr}) * SUM(${expr}) * 1.0) / COUNT(${expr})) / (COUNT(${expr}) - 1)) ELSE NULL END`;
+				}
+				return `STDDEV_SAMP(${expr})`;
+
+			case "stddev_pop":
+				if (isSqLite) {
+					// Algebraic population standard deviation inline
+					return `CASE WHEN COUNT(${expr}) > 0 THEN SQRT((SUM(${expr} * ${expr}) - (SUM(${expr}) * SUM(${expr}) * 1.0) / COUNT(${expr})) / COUNT(${expr})) ELSE NULL END`;
+				}
+				return `STDDEV_POP(${expr})`;
+
+			case "var_samp":
+				if (isSqLite) {
+					// Algebraic sample variance inline
+					return `CASE WHEN COUNT(${expr}) > 1 THEN (SUM(${expr} * ${expr}) - (SUM(${expr}) * SUM(${expr}) * 1.0) / COUNT(${expr})) / (COUNT(${expr}) - 1) ELSE NULL END`;
+				}
+				return `VAR_SAMP(${expr})`;
+
+			case "var_pop":
+				if (isSqLite) {
+					// Algebraic population variance inline
+					return `CASE WHEN COUNT(${expr}) > 0 THEN (SUM(${expr} * ${expr}) - (SUM(${expr}) * SUM(${expr}) * 1.0) / COUNT(${expr})) / COUNT(${expr}) ELSE NULL END`;
+				}
+				return `VAR_POP(${expr})`;
+
+			default:
+				// COUNT, SUM, AVG, MIN, MAX
+				return `${agg.toUpperCase()}(${expr})`;
+		}
+	}
+
 	/**
 	 * Compiles a SELECT into a bare SQL string (no trailing ";") against a
 	 * caller-supplied CompilerContext, so nested subqueries share one
@@ -567,17 +713,15 @@ export class QueryCompiler {
 			sql += "*";
 		} else {
 			const fields = query.select.map((f) => {
-				let expr = f.subquery
-					? `(${this.compileSelectInternal(f.subquery, ctx)})`
-					: f.raw
-						? f.raw
-						: this.formatColumn(f.column!, f.jsonPath, f.table);
+				let expr = f.expr
+					? this.compileExpression(f.expr, ctx)
+					: f.subquery
+						? `(${this.compileSelectInternal(f.subquery, ctx)})`
+						: f.raw
+							? f.raw
+							: this.formatColumn(f.column!, f.jsonPath, f.table);
 				if (f.agg) {
-					if (f.agg === "count_distinct") {
-						expr = `COUNT(DISTINCT ${expr})`;
-					} else {
-						expr = `${f.agg.toUpperCase()}(${expr})`;
-					}
+					expr = this.compileAggregate(f.agg, expr);
 				}
 				if (f.alias) {
 					expr += ` AS ${this.quoteIdent(f.alias)}`;
@@ -965,5 +1109,78 @@ export class QueryCompiler {
 			default:
 				throw new Error(`Pipeline compiler: unsupported op "${op}"`);
 		}
+	}
+
+	public compileDropTable(query: DropTableQuery): CompiledQuery {
+		const ifExists = query.ifExists !== false ? "IF EXISTS " : "";
+		const cascade =
+			query.cascade && this.dialect === "postgres" ? " CASCADE" : "";
+
+		const sql = `DROP TABLE ${ifExists}${this.quoteIdent(query.table)}${cascade};`;
+		return { sql, params: [] };
+	}
+
+	public compileDropIndex(query: DropIndexQuery): CompiledQuery {
+		const ifExists = query.ifExists !== false ? "IF EXISTS " : "";
+
+		let sql = "";
+		if (this.dialect === "postgres" || this.dialect === "duckdb") {
+			// Postgres/DuckDB drop indexes globally within schemas
+			sql = `DROP INDEX ${ifExists}${this.quoteIdent(query.name)};`;
+		} else {
+			// SQLite requires table qualification or standard namespace targeting
+			const tablePrefix = query.table ? `${this.quoteIdent(query.table)}.` : "";
+			sql = `DROP INDEX ${ifExists}${tablePrefix}${this.quoteIdent(query.name)};`;
+		}
+
+		return { sql, params: [] };
+	}
+
+	public compileAlterTable(query: AlterTableQuery): CompiledQuery {
+		const sqlStatements: string[] = [];
+		const tableIdent = this.quoteIdent(query.table);
+
+		for (const act of query.actions) {
+			if (act.action === "add_column") {
+				let colSql = `${this.quoteIdent(act.column.name)} ${this.columnSqlType(act.column)}`;
+
+				if (act.column.nullable !== undefined && !act.column.nullable) {
+					// Note: SQLite has rigid restrictions against adding NOT NULL columns without defaults
+					colSql += " NOT NULL";
+				}
+				colSql += this.columnDefaultSql(act.column);
+				if (act.column.unique) colSql += " UNIQUE";
+				if (act.column.check) colSql += ` CHECK (${act.column.check})`;
+				if (act.column.raw) colSql += ` ${act.column.raw}`;
+
+				sqlStatements.push(`ALTER TABLE ${tableIdent} ADD COLUMN ${colSql};`);
+			} else if (act.action === "drop_column") {
+				if (this.dialect === "sqlite") {
+					// SQLite (since v3.35.0) supports basic DROP COLUMN syntax
+					sqlStatements.push(
+						`ALTER TABLE ${tableIdent} DROP COLUMN ${this.quoteIdent(act.name)};`,
+					);
+				} else {
+					const ifExists = act.ifExists ? "IF EXISTS " : "";
+					sqlStatements.push(
+						`ALTER TABLE ${tableIdent} DROP COLUMN ${ifExists}${this.quoteIdent(act.name)};`,
+					);
+				}
+			} else if (act.action === "drop_constraint") {
+				if (this.dialect === "sqlite") {
+					throw new Error(
+						"SQLite does not natively support ALTER TABLE DROP CONSTRAINT. You must recreate the table structure.",
+					);
+				}
+				const cascade =
+					act.cascade && this.dialect === "postgres" ? " CASCADE" : "";
+				sqlStatements.push(
+					`ALTER TABLE ${tableIdent} DROP CONSTRAINT ${this.quoteIdent(act.name)}${cascade};`,
+				);
+			}
+		}
+
+		// Return either a single statement or join a multi-action batch
+		return { sql: sqlStatements.join("\n"), params: [] };
 	}
 }
