@@ -185,9 +185,15 @@ export type MeasurementOperator =
 /**
  * Extends SingleMeasurement by locking in a physical-dimension anchor.
  * Every domain-specific measurement sub-interface extends this.
+ *
+ * `valueInBase` is an optional canonical value in the metric base unit
+ * (e.g. metres for length, pascals for pressure, kelvin for temperature).
+ * It is computed at parse time by the measurement-conversion system and
+ * cached alongside the original `magnitude` and `unit` for display.
  */
 export interface BoundedMeasurement extends SingleMeasurement {
 	unitAnchor: MeasurementUnitAnchor;
+	valueInBase?: number;
 }
 
 export interface TemperatureMeasurement extends BoundedMeasurement {

@@ -23,6 +23,7 @@ import {
 	NamedGroupContractError,
 	validateNamedGroups,
 } from "../utils/named-group-validator";
+import { computeValueInBase } from "./measurement-conversion";
 
 const ALLOWED_UNITS_SET = new Set(Object.keys(UNIT_DISPLAY_MAP));
 
@@ -265,7 +266,18 @@ export class MeasurementHelper {
 		};
 
 		if (resolved?.unitAnchor) {
-			return { ...base, unitAnchor: resolved.unitAnchor } as BoundedMeasurement;
+			const conversion = resolved?.display
+				? computeValueInBase(
+						resolved.unitAnchor,
+						resolved.display,
+						token.magnitude,
+					)
+				: undefined;
+			return {
+				...base,
+				unitAnchor: resolved.unitAnchor,
+				valueInBase: conversion,
+			} as BoundedMeasurement;
 		}
 		return base;
 	}
