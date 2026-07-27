@@ -84,7 +84,7 @@ export type QueryCondition =
 	| { EXISTS: SelectQuery }
 	| { NOT_EXISTS: SelectQuery }
 	| {
-			column: string;
+			column?: string;
 			/** Optional table/alias qualifier, e.g. "u" for `"u"."id"` — needed for joins */
 			table?: string;
 			/** Optional JSON path to extract, e.g., 'field' or 'nested.field' */
@@ -233,6 +233,19 @@ export type QueryGroupBy =
 			raw?: string; // <-- ADD THIS to group by positional aliases (e.g. "1")
 	  };
 
+export type SetOperator =
+	| "UNION"
+	| "UNION ALL"
+	| "INTERSECT"
+	| "INTERSECT ALL"
+	| "EXCEPT"
+	| "EXCEPT ALL";
+
+export interface CompoundOperation {
+	operator: SetOperator;
+	query: SelectQuery;
+}
+
 export interface SelectQuery {
 	with?: CTE[];
 	recursive?: boolean; // For WITH RECURSIVE
@@ -240,11 +253,13 @@ export interface SelectQuery {
 	/** Alias for the main FROM target. Ignored (subquery carries its own alias) when `table` is a derived table. */
 	alias?: string;
 	select?: QueryField[]; // Defaults to ['*'] if empty
+	distinct?: boolean;
 	joins?: JoinClause[];
 	where?: QueryCondition[]; // Top level array is treated as implicit AND
 	groupBy?: QueryGroupBy[];
 	having?: QueryCondition[];
 	orderBy?: QuerySort[];
+	compoundOps?: CompoundOperation[];
 	limit?: number;
 	offset?: number;
 }
@@ -623,7 +638,9 @@ export class QueryCompiler {
 
 		// Determine the right side of the expression
 		let rhs = "";
-		if ("raw" in cond && cond.raw !== undefined) {
+		if ("rhsExpr" in cond && cond.rhsExpr !== undefined) {
+			rhs = this.compileExpression(cond.rhsExpr, ctx);
+		} else if ("raw" in cond && cond.raw !== undefined) {
 			rhs = cond.raw;
 		} else if ("subquery" in cond && cond.subquery !== undefined) {
 			rhs = `(${this.compileSelectInternal(cond.subquery, ctx)})`;
@@ -960,6 +977,8 @@ export class QueryCompiler {
 		// Begin standard SELECT compilation
 		sql += "SELECT ";
 
+		if (query.distinct) sql += "DISTINCT ";
+
 		if (!query.select || query.select.length === 0) {
 			sql += "*";
 		} else {
@@ -1009,6 +1028,12 @@ export class QueryCompiler {
 		if (query.having && query.having.length > 0) {
 			const combined: QueryCondition = { AND: query.having };
 			sql += `\nHAVING ${this.compileCondition(combined, ctx)}`;
+		}
+		if (query.compoundOps && query.compoundOps.length > 0) {
+			for (const op of query.compoundOps) {
+				const chainedSql = this.compileSelectInternal(op.query, ctx);
+				sql += `\n${op.operator}\n${chainedSql}`;
+			}
 		}
 
 		if (query.orderBy && query.orderBy.length > 0) {

@@ -523,12 +523,13 @@ describe("SCHEMA.sqlite deletes match sqlite-schema.ts", () => {
 	});
 });
 
-describe("SCHEMA raw SQL", () => {
-	test("CTE_DICT_RELATED_CONCEPTS is present", () => {
-		expect(SCHEMA.sqlite.raw.CTE_DICT_RELATED_CONCEPTS).toBeTruthy();
-		expect(SCHEMA.sqlite.raw.CTE_DICT_RELATED_CONCEPTS).toContain(
-			"WITH RECURSIVE rel_graph",
-		);
+describe("SCHEMA compiled select AST (have to be updated to match what it actually outputs)", () => {
+	test("CTE_DICT_RELATED_CONCEPTS is compiled from AST", () => {
+		const compiled = SCHEMA.sqlite.selects.SQL_SELECT_DICT_RELATED_CONCEPTS;
+		expect(compiled).toBeTruthy();
+		expect(compiled?.sql).toContain("WITH RECURSIVE rel_graph");
+		expect(compiled?.sql).toContain("SELECT DISTINCT");
+		expect(compiled?.sql).toContain('FROM "dict_concepts"');
 	});
 });
 
