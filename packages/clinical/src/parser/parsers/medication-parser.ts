@@ -11,6 +11,14 @@ import type {
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import type {
+	ParsedCellHistoryKey,
+	ParsedCellMedicationDetail,
+} from "../../store/learning/interfaces";
+import type { ParsedCellHistoryStore } from "../../store/learning/parsed_cell/history-store";
+import { MedicationPreferenceRanker } from "../../store/learning/parsed_cell/medication/parsed-cell-ranking";
+import { buildMedicationShape } from "../../store/learning/parsed_cell/medication/shape";
+import type { ParsedCellRankerContext } from "../../store/learning/parsed_cell/parsed-cell-ranking-types";
 import { MedicationTokenizer } from "../helpers/medication-helper";
 import {
 	CANONICAL_TAGS,
@@ -24,6 +32,8 @@ import {
 
 export class MedicationSchemaParser implements SchemaParser {
 	targetSchema = CANONICAL_TAGS.MEDICATION;
+	private readonly ranker: MedicationPreferenceRanker =
+		new MedicationPreferenceRanker();
 
 	async preview(
 		tag: string,
@@ -35,8 +45,9 @@ export class MedicationSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
+		historyStore?: ParsedCellHistoryStore<ParsedCellMedicationDetail>,
 	): Promise<ParsedCandidateEnvelope<ParsedItem>> {
-		const parsed = await this.parse(
+		const deterministic = await this.parse(
 			tag,
 			content,
 			dictionaryStore,
@@ -47,7 +58,60 @@ export class MedicationSchemaParser implements SchemaParser {
 			allowedNamespaces,
 			preparsedContext,
 		);
-		return makePreviewEnvelope(parsed);
+		const key: ParsedCellHistoryKey = {
+			patientId: preparsedContext?.patientContext?.patientId,
+			patientOrganismType: preparsedContext?.patientContext?.organismType,
+			patientGender: preparsedContext?.patientContext?.gender,
+			patientAgeBucket: preparsedContext?.patientContext?.ageBucket,
+			patientSpeciesBucket: preparsedContext?.patientContext?.speciesBucket,
+			patientSubBucket: preparsedContext?.patientContext?.subBucket,
+			patientBucketKey: preparsedContext?.patientContext?.bucketKey,
+			personnelId: preparsedContext?.rankingSignals?.personnelId,
+			specialtyId: preparsedContext?.rankingSignals?.specialtyId,
+			facilityId: preparsedContext?.rankingSignals?.facilityId,
+			tag,
+			targetSchema: this.targetSchema,
+			rawText: content,
+		};
+		const historyRows = historyStore ? await historyStore.getHistory(key) : [];
+		const learned = historyRows
+			.map((row) => row.parsedItem)
+			.filter((item): item is ParsedMedicationItem => item !== null);
+
+		const medDeterministic =
+			deterministic?.targetSchema === "MedicationOrderObject"
+				? (deterministic as ParsedMedicationItem)
+				: null;
+		const context = this.buildRankerContext(
+			preparsedContext,
+			content,
+			medDeterministic,
+		);
+
+		const deterministicDetail = medDeterministic
+			? this.toMedicationDetail(medDeterministic)
+			: null;
+		const learnedDetails = learned
+			.map((item) => this.toMedicationDetail(item))
+			.filter((d): d is ParsedCellMedicationDetail => d !== null);
+
+		const projection = this.ranker.choose(
+			deterministicDetail,
+			learnedDetails[0] ?? null,
+			context,
+			"dual",
+		);
+
+		return {
+			deterministic: projection.deterministic
+				? [projection.deterministic.parsedItem]
+				: [],
+			learned: projection.learned
+				? [projection.learned.parsedItem]
+				: projection.deterministic
+					? [projection.deterministic.parsedItem]
+					: [],
+		};
 	}
 
 	async parse(
@@ -139,13 +203,47 @@ export class MedicationSchemaParser implements SchemaParser {
 					: undefined,
 		} as ParsedMedicationItem;
 	}
-}
 
-function makePreviewEnvelope(
-	parsed: ParsedItem | null,
-): ParsedCandidateEnvelope<ParsedItem> {
-	return {
-		deterministic: parsed ? [parsed] : [],
-		learned: parsed ? [parsed] : [],
-	};
+	private toMedicationDetail(
+		item: ParsedMedicationItem,
+	): ParsedCellMedicationDetail | null {
+		const shape = buildMedicationShape(item);
+		return {
+			targetSchema: "MedicationOrderObject",
+			cellId: "",
+			conceptId: item.conceptId,
+			display: item.display,
+			candidateTokens: [],
+			shape,
+			parsedItem: item,
+		};
+	}
+
+	private buildRankerContext(
+		preparsedContext: PreparsedContext | undefined,
+		content: string,
+		deterministic: ParsedMedicationItem | null,
+	): ParsedCellRankerContext {
+		const shape = deterministic
+			? buildMedicationShape(deterministic)
+			: { schema: "MedicationOrderObject" as const, slots: {} };
+		return {
+			tag: preparsedContext?.rankingSignals?.tag || this.targetSchema,
+			targetSchema: this.targetSchema,
+			patientId: preparsedContext?.patientContext?.patientId,
+			patientOrganismType: preparsedContext?.patientContext?.organismType,
+			patientGender: preparsedContext?.patientContext?.gender,
+			patientAgeBucket: preparsedContext?.patientContext?.ageBucket,
+			patientSpeciesBucket: preparsedContext?.patientContext?.speciesBucket,
+			patientSubBucket: preparsedContext?.patientContext?.subBucket,
+			patientBucketKey: preparsedContext?.patientContext?.bucketKey,
+			personnelId: preparsedContext?.rankingSignals?.personnelId,
+			specialtyId: preparsedContext?.rankingSignals?.specialtyId,
+			facilityId: preparsedContext?.rankingSignals?.facilityId,
+			rawText: content,
+			anchorText: content,
+			candidateTokens: [],
+			sharedShape: shape,
+		};
+	}
 }

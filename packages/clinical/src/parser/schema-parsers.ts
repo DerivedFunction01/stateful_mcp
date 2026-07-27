@@ -18,6 +18,7 @@ export const CANONICAL_TAGS = {
 	VITALS: "VitalsMeasurementEvent",
 	OBSERVATION: "ObservationEvent",
 	MEDICATION: "MedicationOrderObject",
+	CLINCICAL_DATE_RANGE: "ClinicalDateRange",
 } as const;
 
 export interface BaseParsedItem {
@@ -48,6 +49,11 @@ export interface ParsedMedicationItem extends BaseParsedItem {
 	targetSchema: "MedicationOrderObject";
 	route?: string;
 	frequency?: MedicationFrequency;
+	dosage?: string;
+	quantityToDispense?: number;
+	authorizedRefills?: number;
+	genericSubstitutionPermitted?: string;
+	targetIndication?: string;
 }
 
 export interface ParsedClinicalDateRangeItem extends BaseParsedItem {
@@ -253,7 +259,6 @@ schemaParserRegistry.set(
 	new MedicationSchemaParser(),
 );
 schemaParserRegistry.set(
-	"clinicaldaterange",
+	CANONICAL_TAGS.CLINCICAL_DATE_RANGE,
 	new ClinicalDateRangeSchemaParser(),
 );
-schemaParserRegistry.set("time", new ClinicalDateRangeSchemaParser());
