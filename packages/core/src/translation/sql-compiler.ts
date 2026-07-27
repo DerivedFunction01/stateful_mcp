@@ -45,11 +45,23 @@ export type SqlFunctionOp =
 	| "trim"
 	| "lower"
 	| "upper"
-	| "concat";
+	| "concat"
+	| "abs"
+	| "add"
+	| "subtract"
+	| "multiply"
+	| "divide"
+	| "power"
+	| "sqrt"
+	| "modulo";
 
 export interface CaseWhen {
 	when: QueryCondition;
 	then: SqlExpression;
+}
+export interface CTE {
+	alias: string;
+	query: SelectQuery;
 }
 /**
  * Recursive condition tree allowing for deep nesting.
@@ -117,7 +129,10 @@ export interface QueryField {
 		| "stddev_samp" // Sample Standard Deviation
 		| "stddev_pop" // Population Standard Deviation
 		| "var_samp" // Sample Variance
-		| "var_pop"; // Population Variance
+		| "var_pop" // Population Variance
+		| "mse" // Mean Squared Error
+		| "rmse" // Root Mean Square Error
+		| "mae"; // Mean Absolute Error
 	over?: {
 		partitionBy?: string[];
 		orderBy?: QuerySort[];
@@ -204,6 +219,8 @@ export interface CreateIndexQuery {
 }
 
 export interface SelectQuery {
+	with?: CTE[];
+	recursive?: boolean; // For WITH RECURSIVE
 	table: TableRef;
 	/** Alias for the main FROM target. Ignored (subquery carries its own alias) when `table` is a derived table. */
 	alias?: string;
@@ -707,7 +724,12 @@ export class QueryCompiler {
 					return `CASE WHEN COUNT(${expr}) > 0 THEN (SUM(${expr} * ${expr}) - (SUM(${expr}) * SUM(${expr}) * 1.0) / COUNT(${expr})) / COUNT(${expr}) ELSE NULL END`;
 				}
 				return `VAR_POP(${expr})`;
-
+			case "mse":
+				return `AVG((${expr}) * (${expr}))`;
+			case "rmse":
+				return `SQRT(AVG((${expr}) * (${expr})))`;
+			case "mae":
+				return `AVG(ABS(${expr}))`;
 			default:
 				// COUNT, SUM, AVG, MIN, MAX
 				return `${agg.toUpperCase()}(${expr})`;
@@ -723,7 +745,20 @@ export class QueryCompiler {
 		query: SelectQuery,
 		ctx: CompilerContext,
 	): string {
-		let sql = "SELECT ";
+		let sql = "";
+
+		// 1. Compile the WITH clause if it exists
+		if (query.with && query.with.length > 0) {
+			const recursiveStr = query.recursive ? "RECURSIVE " : "";
+			const cteStrings = query.with.map((cte) => {
+				const cteQuery = this.compileSelectInternal(cte.query, ctx);
+				return `${this.quoteIdent(cte.alias)} AS (\n  ${cteQuery}\n)`;
+			});
+			sql += `WITH ${recursiveStr}${cteStrings.join(",\n")}\n`;
+		}
+
+		// Begin standard SELECT compilation
+		sql += "SELECT ";
 
 		if (!query.select || query.select.length === 0) {
 			sql += "*";
@@ -1131,6 +1166,31 @@ export class QueryCompiler {
 					: `CONCAT(${args.join(", ")})`;
 			case "coalesce":
 				return `COALESCE(${args.join(", ")})`;
+			case "abs":
+				return `ABS(${args[0] || "0"})`;
+			case "add":
+				return `(${args.join(" + ")})`;
+			case "subtract":
+				return `(${args.join(" - ")})`;
+			case "multiply":
+				return `(${args.join(" * ")})`;
+			case "divide":
+				return `(${args.join(" / ")})`;
+			case "power":
+				// If standard 2-argument Lisp-like array: args[0] is base, args[1] is exponent.
+				// We use reduceRight so `power(2, 3, 2)` mathematically evaluates as 2^(3^2)
+				return args.reduceRight((exponent, base) => {
+					// Optimization: if squaring, use safer/faster multiplication
+					if (exponent === "2" || exponent === "'2'") {
+						return `((${base}) * (${base}))`;
+					}
+					// Otherwise, wrap in standard SQL function
+					return `POWER(${base}, ${exponent})`;
+				});
+			case "sqrt":
+				return `SQRT(${args[0]})`;
+			case "modulo":
+				return `(${args.join(" % ")})`;
 			default:
 				throw new Error(`Pipeline compiler: unsupported op "${op}"`);
 		}
