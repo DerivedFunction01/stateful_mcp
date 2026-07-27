@@ -1,0 +1,505 @@
+import type { DictionaryStore } from "@stateful-mcp/core";
+import {
+	buildCalendarDateRules,
+	buildNumericFieldRules,
+} from "../store/defaults";
+import type {
+	ParserConceptDefaultStore,
+	ParserProfileStore,
+	ParserSyntaxProfile,
+	StopWordContext,
+	StopWordStore,
+} from "../store/interfaces";
+import type { ParsedCellHistoryStore } from "../store/learning/interfaces.v2";
+import { getCompiledRegex } from "./_compiled-regex";
+import { FrequencyHelper } from "./helpers/frequency-helper";
+import { QuantityTokenizer } from "./helpers/measurement-helper";
+import {
+	type ParsedCandidateEnvelope,
+	type ParsedItem,
+	type PreparsedContext,
+	type RankingSignal,
+	type SchemaParser,
+	schemaParserRegistry,
+} from "./schema-parsers.v2";
+import { StopWordParser } from "./stop-word-parser";
+
+interface ParserPreviewResult extends ParsedCandidateEnvelope {
+	targetSchema: string;
+}
+
+export class CdslParser {
+	private stopWordParser: StopWordParser | undefined;
+	private stopWordStore: StopWordStore | undefined;
+	private attributeRules: import("../store/interfaces").AttributeParserRule[];
+
+	constructor(
+		private dictionaryStore: DictionaryStore,
+		private profile: ParserSyntaxProfile,
+		private conceptDefaultsStore?: ParserConceptDefaultStore,
+		stopWordParser?: StopWordParser,
+		stopWordStore?: StopWordStore,
+	) {
+		this.stopWordParser = stopWordParser;
+		this.stopWordStore = stopWordStore;
+		this.attributeRules = [
+			...(this.profile.attributeRules || []),
+			...(this.profile.calendarDateFormats
+				? buildCalendarDateRules(this.profile.calendarDateFormats)
+				: []),
+			...(this.profile.numericFieldFormats
+				? buildNumericFieldRules(this.profile.numericFieldFormats)
+				: []),
+		];
+	}
+
+	/**
+	 * Creates a CdslParser by resolving a parser profile from a store.
+	 *
+	 * This is the config-backed factory — it resolves the profile from a
+	 * ParserProfileStore (which may be seeded from config) rather than
+	 * falling back to a hardcoded seed constant.
+	 *
+	 * @param dictionaryStore - Dictionary store for concept resolution
+	 * @param profileStore - Store to resolve the parser profile from
+	 * @param profileId - The profile ID to resolve (defaults to "default")
+	 * @param conceptDefaultsStore - Optional concept default store
+	 * @param stopWordParser - Optional pre-configured stop word parser
+	 * @param stopWordStore - Optional stop word store for dynamic resolution
+	 */
+	static async create(
+		dictionaryStore: DictionaryStore,
+		profileStore: ParserProfileStore,
+		profileId: string = "default",
+		conceptDefaultsStore?: ParserConceptDefaultStore,
+		stopWordParser?: StopWordParser,
+		stopWordStore?: StopWordStore,
+	): Promise<CdslParser> {
+		const profile = await profileStore.get(profileId);
+		if (!profile) {
+			throw new Error(
+				`CdslParser.create: parser profile "${profileId}" not found in store. ` +
+					`Ensure the profile is seeded in the clinical config.`,
+			);
+		}
+		return new CdslParser(
+			dictionaryStore,
+			profile,
+			conceptDefaultsStore,
+			stopWordParser,
+			stopWordStore,
+		);
+	}
+
+	private getEffectiveAttributeRules(): import("../store/interfaces").AttributeParserRule[] {
+		return this.attributeRules;
+	}
+
+	async preview(
+		text: string,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParserPreviewResult[]> {
+		const effectiveStopWordParser = this.stopWordParser;
+		if (!effectiveStopWordParser && this.stopWordStore && context) {
+			const dynamicParser = await StopWordParser.fromStore(
+				this.stopWordStore,
+				context,
+			);
+			return this.previewWithStopWordParser(
+				text,
+				dynamicParser,
+				context,
+				historyStore,
+			);
+		}
+		return this.previewWithStopWordParser(
+			text,
+			effectiveStopWordParser,
+			context,
+			historyStore,
+		);
+	}
+
+	/**
+	 * Parses a clinical dictation stream and extracts mapped schemas.
+	 */
+	async parse(text: string, context?: StopWordContext): Promise<ParsedItem[]> {
+		// Resolve effective StopWordParser from store + context if not already set
+		const effectiveStopWordParser = this.stopWordParser;
+		if (!effectiveStopWordParser && this.stopWordStore && context) {
+			const dynamicParser = await StopWordParser.fromStore(
+				this.stopWordStore,
+				context,
+			);
+			return this.parseWithStopWordParser(text, dynamicParser, context);
+		}
+		return this.parseWithStopWordParser(text, effectiveStopWordParser, context);
+	}
+
+	async parseWithHistory(
+		text: string,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParsedItem[]> {
+		const effectiveStopWordParser = this.stopWordParser;
+		if (!effectiveStopWordParser && this.stopWordStore && context) {
+			const dynamicParser = await StopWordParser.fromStore(
+				this.stopWordStore,
+				context,
+			);
+			return this.parseWithStopWordParser(
+				text,
+				dynamicParser,
+				context,
+				historyStore,
+			);
+		}
+		return this.parseWithStopWordParser(
+			text,
+			effectiveStopWordParser,
+			context,
+			historyStore,
+		);
+	}
+
+	private async previewWithStopWordParser(
+		text: string,
+		effectiveStopWordParser: StopWordParser | undefined,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParserPreviewResult[]> {
+		const results: ParserPreviewResult[] = [];
+		const segments = text.split(this.profile.stateDelimiter);
+
+		for (const segment of segments) {
+			const trimmed = segment.trim();
+			if (!trimmed) continue;
+
+			let tag = "";
+			let content = trimmed;
+			if (trimmed.startsWith(this.profile.tagToken)) {
+				const tagEndIndex = trimmed.indexOf(" ");
+				if (tagEndIndex !== -1) {
+					tag = trimmed.substring(0, tagEndIndex);
+					content = trimmed.substring(tagEndIndex).trim();
+				} else {
+					content = "";
+				}
+			}
+			if (!content) continue;
+
+			if (!tag && effectiveStopWordParser) {
+				const words = content.split(/\s+/).filter(Boolean);
+				let stopWordCount = 0;
+				for (const w of words) {
+					if (effectiveStopWordParser.isStopWord(w)) {
+						stopWordCount++;
+					}
+				}
+				if (
+					words.length > 0 &&
+					stopWordCount / words.length > (this.profile.stopWordThreshold ?? 0.6)
+				) {
+					continue;
+				}
+			}
+
+			const attrRules = this.getEffectiveAttributeRules();
+			const candidates = QuantityTokenizer.tokenize(content, attrRules);
+			const frequency = FrequencyHelper.parse(
+				content,
+				this.getEffectiveAttributeRules() || [],
+				this.profile.evaluatorRules || [],
+			);
+			const attributes: Record<string, string> = {};
+			const rules = [...this.getEffectiveAttributeRules()].sort((a, b) => {
+				const pA = a.priority ?? 1;
+				const pB = b.priority ?? 1;
+				return pB - pA;
+			});
+			for (const rule of rules) {
+				for (const pattern of rule.regexPatterns) {
+					const flags = rule.isCaseInsensitive !== false ? "i" : "";
+					const regex = getCompiledRegex(pattern, flags);
+					if (regex.test(content)) {
+						if (attributes[rule.targetField] === undefined) {
+							attributes[rule.targetField] = rule.targetValue;
+						}
+					}
+				}
+			}
+			const preparsedContext: PreparsedContext = {
+				rawText: content,
+				measurement: candidates,
+				timeSpan: candidates,
+				frequency,
+				attributes,
+				profile: this.profile,
+				rankingSignals: buildRankingSignals(context, tag),
+			};
+
+			let mappedParser: SchemaParser | undefined;
+			if (tag) {
+				const tagToken = this.profile.tagToken;
+				let cleanKey = tag.startsWith(tagToken)
+					? tag.substring(tagToken.length).toLowerCase()
+					: tag.toLowerCase();
+				if (this.profile.tagMappings && this.profile.tagMappings[cleanKey]) {
+					cleanKey = this.profile.tagMappings[cleanKey]!.toLowerCase();
+				}
+				mappedParser = schemaParserRegistry.get(cleanKey);
+				if (!mappedParser) {
+					for (const p of schemaParserRegistry.values()) {
+						if (p.targetSchema.toLowerCase() === cleanKey) {
+							mappedParser = p;
+							break;
+						}
+					}
+				}
+			}
+
+			const parsersToRun: SchemaParser[] = [];
+			if (mappedParser) {
+				parsersToRun.push(mappedParser);
+			} else {
+				for (const p of Array.from(schemaParserRegistry.values())) {
+					parsersToRun.push(p);
+				}
+			}
+
+			for (const parser of parsersToRun) {
+				const allowedNamespaces =
+					this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
+					undefined;
+				if (parser.preview) {
+					const preview = await parser.preview(
+						tag,
+						content,
+						this.dictionaryStore,
+						this.conceptDefaultsStore,
+						this.getEffectiveAttributeRules(),
+						this.profile.evaluatorRules,
+						this.profile.termTokenizer,
+						allowedNamespaces,
+						preparsedContext,
+						historyStore,
+					);
+					results.push({
+						targetSchema: parser.targetSchema,
+						deterministic: preview.deterministic,
+						learned: preview.learned,
+					});
+				} else {
+					const parsed = await parser.parse(
+						tag,
+						content,
+						this.dictionaryStore,
+						this.conceptDefaultsStore,
+						this.getEffectiveAttributeRules(),
+						this.profile.evaluatorRules,
+						this.profile.termTokenizer,
+						allowedNamespaces,
+						preparsedContext,
+					);
+					results.push({
+						targetSchema: parser.targetSchema,
+						deterministic: parsed ? [parsed] : [],
+						learned: parsed ? [parsed] : [],
+					});
+				}
+			}
+		}
+
+		return results;
+	}
+
+	private async parseWithStopWordParser(
+		text: string,
+		effectiveStopWordParser: StopWordParser | undefined,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParsedItem[]> {
+		const items: ParsedItem[] = [];
+		const segments = text.split(this.profile.stateDelimiter);
+		const seenFinal = new Set<string>();
+
+		for (const segment of segments) {
+			const trimmed = segment.trim();
+			if (!trimmed) continue;
+
+			// Unify: for every segment, split tag from content using the profile's
+			// tag token. Tag extraction happens regardless of tag status.
+			let tag = "";
+			let content = trimmed;
+			if (trimmed.startsWith(this.profile.tagToken)) {
+				const tagEndIndex = trimmed.indexOf(" ");
+				if (tagEndIndex !== -1) {
+					tag = trimmed.substring(0, tagEndIndex);
+					content = trimmed.substring(tagEndIndex).trim();
+				} else {
+					content = "";
+				}
+			}
+			if (!content) continue;
+
+			// Stop Word Conversational Narrative Gatekeeper
+			// If a tagless segment contains mostly stop words, treat it as narrative
+			// and skip entity parsing. Known-tag segments are not gated here.
+			if (!tag && effectiveStopWordParser) {
+				const words = content.split(/\s+/).filter(Boolean);
+				let stopWordCount = 0;
+				for (const w of words) {
+					if (effectiveStopWordParser.isStopWord(w)) {
+						stopWordCount++;
+					}
+				}
+				if (
+					words.length > 0 &&
+					stopWordCount / words.length > (this.profile.stopWordThreshold ?? 0.6)
+				) {
+					continue;
+				}
+			}
+
+			// Always build preparsedContext from content
+			const attrRules = this.getEffectiveAttributeRules();
+			const candidates = QuantityTokenizer.tokenize(content, attrRules);
+			const frequency = FrequencyHelper.parse(
+				content,
+				this.getEffectiveAttributeRules() || [],
+				this.profile.evaluatorRules || [],
+			);
+
+			// Pre-extract standard localized attributes (e.g. certainty, severity, route)
+			const attributes: Record<string, string> = {};
+			const rules = [...this.getEffectiveAttributeRules()].sort((a, b) => {
+				const pA = a.priority ?? 1;
+				const pB = b.priority ?? 1;
+				return pB - pA;
+			});
+			for (const rule of rules) {
+				for (const pattern of rule.regexPatterns) {
+					const flags = rule.isCaseInsensitive !== false ? "i" : "";
+					const regex = getCompiledRegex(pattern, flags);
+					if (regex.test(content)) {
+						if (attributes[rule.targetField] === undefined) {
+							attributes[rule.targetField] = rule.targetValue;
+						}
+					}
+				}
+			}
+
+			const preparsedContext: PreparsedContext = {
+				rawText: content,
+				measurement: candidates,
+				timeSpan: candidates,
+				frequency,
+				attributes,
+				profile: this.profile,
+				rankingSignals: buildRankingSignals(context, tag),
+			};
+
+			// Resolve tag to a schema parser
+			let mappedParser: SchemaParser | undefined;
+			if (tag) {
+				const tagToken = this.profile.tagToken;
+				let cleanKey = tag.startsWith(tagToken)
+					? tag.substring(tagToken.length).toLowerCase()
+					: tag.toLowerCase();
+
+				if (this.profile.tagMappings && this.profile.tagMappings[cleanKey]) {
+					cleanKey = this.profile.tagMappings[cleanKey]!.toLowerCase();
+				}
+
+				mappedParser = schemaParserRegistry.get(cleanKey);
+				if (!mappedParser) {
+					for (const p of schemaParserRegistry.values()) {
+						if (p.targetSchema.toLowerCase() === cleanKey) {
+							mappedParser = p;
+							break;
+						}
+					}
+				}
+			}
+
+			// Determine which parsers to run
+			const parsersToRun: SchemaParser[] = [];
+			if (mappedParser) {
+				parsersToRun.push(mappedParser);
+			} else {
+				// Unknown tag or tagless: run all parsers allowed by the profile
+				for (const p of Array.from(schemaParserRegistry.values())) {
+					parsersToRun.push(p);
+				}
+			}
+
+			// Dispatch selected parsers against the full span
+			for (const parser of parsersToRun) {
+				const allowedNamespaces =
+					this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
+					undefined;
+				const parsed =
+					historyStore && parser.preview
+						? await parser.preview(
+								tag,
+								content,
+								this.dictionaryStore,
+								this.conceptDefaultsStore,
+								this.getEffectiveAttributeRules(),
+								this.profile.evaluatorRules,
+								this.profile.termTokenizer,
+								allowedNamespaces,
+								preparsedContext,
+								historyStore,
+							)
+						: undefined;
+
+				const learnedCandidate = parsed?.learned[0] || parsed?.deterministic[0];
+				const deterministic = await parser.parse(
+					tag,
+					content,
+					this.dictionaryStore,
+					this.conceptDefaultsStore,
+					this.getEffectiveAttributeRules(),
+					this.profile.evaluatorRules,
+					this.profile.termTokenizer,
+					allowedNamespaces,
+					preparsedContext,
+				);
+				const finalItem = learnedCandidate || deterministic;
+
+				if (finalItem && finalItem.concept.length > 0) {
+					const key = `${finalItem.targetSchema}:${finalItem.concept[0]?.conceptId ?? ""}`;
+					if (!seenFinal.has(key)) {
+						seenFinal.add(key);
+						items.push(finalItem);
+					}
+				}
+			}
+		}
+
+		return items;
+	}
+}
+
+function buildRankingSignals(
+	context: StopWordContext | undefined,
+	tag: string,
+): RankingSignal | undefined {
+	if (!context) return undefined;
+	const patientContext = context.patientContext;
+	return {
+		personnelId: context.personnelId,
+		specialtyId: context.specialtyId,
+		facilityId: context.facilityId,
+		patientId: patientContext?.patientId,
+		organismType: patientContext?.organismType,
+		gender: patientContext?.gender,
+		ageBucket: patientContext?.ageBucket,
+		speciesBucket: patientContext?.speciesBucket,
+		subBucket: patientContext?.subBucket,
+		bucketKey: patientContext?.bucketKey,
+		tag,
+	};
+}
