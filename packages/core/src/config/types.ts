@@ -27,10 +27,23 @@ export interface DuckDbAdapterOptions {
 export interface JsonlAdapterOptions {
 	path: string;
 }
+export interface IndexedDbAdapterOptions {
+	dbName?: string;
+}
+export interface LocalStorageAdapterOptions {
+	prefix?: string;
+}
 
 // 2. Map each specific adapter name to its exact options payload
 export type AdapterLocator =
 	| { _type: "adapter"; name: "memory"; options?: MemoryAdapterOptions }
+	| { _type: "adapter"; name: "indexeddb"; options?: IndexedDbAdapterOptions }
+	| {
+			_type: "adapter";
+			name: "localstorage";
+			options?: LocalStorageAdapterOptions;
+	  }
+	| { _type: "adapter"; name: "jsonl"; options?: JsonlAdapterOptions }
 	| { _type: "adapter"; name: "sqlite"; options?: SqliteAdapterOptions }
 	| {
 			_type: "adapter";

@@ -1,8 +1,7 @@
-import type { SqlExecutor } from "@stateful-mcp/core";
+import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { ParsedItem } from "../../../parser/schema-parsers";
 import {
 	ParsedCellSqlCompiler,
-	type ParsedCellSqlDialect,
 } from "../../sql/parsed-cell-query-compiler";
 import type {
 	ParsedCellDetail,
@@ -39,13 +38,13 @@ export class SqlParsedCellStore
 	implements ParsedCellStore, ParsedCellHistoryStore<ParsedCellDetail>
 {
 	private queryCompiler: ParsedCellSqlCompiler;
-	private dialect: ParsedCellSqlDialect;
+	private dialect: SqlDialect;
 	private sharedTable: string;
 	private detailTable: string;
 	private executor: SqlExecutor;
 
 	constructor(
-		dialect: ParsedCellSqlDialect,
+		dialect: SqlDialect,
 		executor: SqlExecutor,
 		sharedTable = SHARED_TABLE,
 		detailTable = DETAIL_TABLE,

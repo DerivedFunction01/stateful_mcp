@@ -1,4 +1,4 @@
-import type { ColumnDef } from "@stateful-mcp/core";
+import type { ColumnDef, SqlDialect } from "@stateful-mcp/core";
 import {
 	type CompiledQuery,
 	QueryCompiler,
@@ -12,7 +12,6 @@ import type {
 } from "../learning/parsed_cell/parsed-cell-record-transform";
 import { buildColumnSpecs } from "../learning/parsed_cell/parsed-cell-record-transform";
 
-export type ParsedCellSqlDialect = "sqlite" | "postgres" | "duckdb";
 
 export interface ParsedCellHistoryPlan {
 	detailTableName: string;
@@ -163,7 +162,7 @@ export class ParsedCellSqlCompilerV2 {
 	] as const;
 	dialect: string;
 
-	constructor(dialect: ParsedCellSqlDialect = "sqlite") {
+	constructor(dialect: SqlDialect = "sqlite") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}

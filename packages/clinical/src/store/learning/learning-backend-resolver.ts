@@ -1,4 +1,4 @@
-import type { ResourceLocator } from "@stateful-mcp/core";
+import type { ResourceLocator, SqlDialect } from "@stateful-mcp/core";
 import {
 	JsonlKvBackend,
 	MemoryKvBackend,
@@ -6,7 +6,6 @@ import {
 	SqlExecutor,
 } from "@stateful-mcp/core";
 import type { OrderedLearningSqlDialect } from "../sql/ordered-learning-query-compiler";
-import type { ParsedCellSqlDialect } from "../sql/parsed-cell-query-compiler";
 import { KvOrderedLearningStore } from "./ordered_learning/kv-ordered-learning-store";
 import { SqlOrderedLearningStore } from "./ordered_learning/sql-ordered-learning-store";
 import { KvParsedCellStore } from "./parsed_cell/kv-parsed-cell-store";
@@ -43,7 +42,7 @@ export async function resolveParsedCellStoreLocator(
 			"./clinical-learning.sqlite";
 		const backend = await SqlBackend.connect("sqlite", dbPath);
 		return new SqlParsedCellStore(
-			"sqlite" as ParsedCellSqlDialect,
+			"sqlite" as SqlDialect,
 			new SqlExecutor(backend),
 		);
 	}

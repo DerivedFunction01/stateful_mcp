@@ -2,10 +2,9 @@ import {
 	type CompiledQuery,
 	QueryCompiler,
 	type QueryCondition,
+	type SqlDialect,
 } from "@stateful-mcp/core";
 import type { ParsedCellHistoryKey } from "../learning/interfaces";
-
-export type ParsedCellSqlDialect = "sqlite" | "postgres" | "duckdb";
 
 export interface ParsedCellHistoryPlan {
 	tableName: string;
@@ -20,7 +19,7 @@ export interface ParsedCellHistoryQuery {
 	params: unknown[];
 }
 
-function scoreExpression(dialect: ParsedCellSqlDialect): string {
+function scoreExpression(dialect: SqlDialect): string {
 	const acceptCount = `CAST(COALESCE(${detailJsonField(dialect, "history.priorAcceptCount")}, 0) AS REAL)`;
 	const correctionCount = `CAST(COALESCE(${detailJsonField(dialect, "history.priorCorrectionCount")}, 0) AS REAL)`;
 	const recency = `CAST(COALESCE(${detailJsonField(dialect, "history.recencyScore")}, 0) AS REAL)`;
@@ -28,7 +27,7 @@ function scoreExpression(dialect: ParsedCellSqlDialect): string {
 	return `(${recency} + (${acceptCount} * 0.2) + (${contract}) - (${correctionCount} * 0.15))`;
 }
 
-function detailJsonField(dialect: ParsedCellSqlDialect, field: string): string {
+function detailJsonField(dialect: SqlDialect, field: string): string {
 	if (dialect === "postgres") {
 		return `detail.data::jsonb ->> '${field}'`;
 	}
@@ -41,7 +40,7 @@ function detailJsonField(dialect: ParsedCellSqlDialect, field: string): string {
 // ── : Core sql-compiler implementation ─────────────────────────────────
 
 export class ParsedCellSqlCompiler {
-	private readonly dialect: ParsedCellSqlDialect;
+	private readonly dialect: SqlDialect;
 	private readonly compiler: QueryCompiler;
 	private readonly sharedTable: string;
 	private readonly detailTable: string;
@@ -61,7 +60,7 @@ export class ParsedCellSqlCompiler {
 	] as const;
 
 	constructor(
-		dialect: ParsedCellSqlDialect = "sqlite",
+		dialect: SqlDialect = "sqlite",
 		sharedTable: string,
 		detailTable: string,
 	) {
