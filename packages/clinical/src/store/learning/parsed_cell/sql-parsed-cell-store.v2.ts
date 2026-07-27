@@ -1,14 +1,17 @@
 import type { SqlExecutor } from "@stateful-mcp/core";
 import type { ParsedItem } from "../../../parser/schema-parsers.v2";
 import {
+	extractSharedValues,
 	ParsedCellSqlCompilerV2,
 	type ParsedCellSqlDialect,
+	rehydrateParsedShared,
 	resolveDetailTable,
 } from "../../sql/parsed-cell-query-compiler.v2";
 import type {
 	ParsedCellHistoryKey,
 	ParsedCellLookup,
 	ParsedCellRecord,
+	ParsedCellShared,
 	ParsedCellStore,
 } from "../interfaces.v2";
 import { scoreRecency } from "../interfaces.v2";
@@ -58,23 +61,18 @@ export class SqlParsedCellStore
 	}
 
 	private async ensureSharedTable(): Promise<void> {
-		const c = this.executor.compiler;
-		await this.executor.exec(
-			c.compileCreateTable({
-				table: this.sharedTable,
-				ifNotExists: true,
-				columns: [
-					{ name: "cellId", type: "TEXT", primaryKey: true },
-					{ name: "data", type: "TEXT", nullable: false },
-				],
-			}).sql,
-		);
+		const createQ = this.compiler.compileCreateSharedTable();
+		await this.executor.exec(createQ.sql);
+
+		const indexQueries = this.compiler.compileSharedIndexes();
+		for (const idxQ of indexQueries) {
+			await this.executor.exec(idxQ.sql);
+		}
 	}
 
 	private async ensureDetailTable(targetSchema: string): Promise<void> {
 		const detailTable = this.resolveDetailTable(targetSchema);
 		const transform = getTransformForSchema(targetSchema);
-		const c = this.executor.compiler;
 
 		const createTableQ = this.compiler.compileCreateDetailTable(
 			detailTable,
@@ -110,7 +108,6 @@ export class SqlParsedCellStore
 	}
 
 	async putRecord(record: ParsedCellRecord): Promise<void> {
-		const c = this.executor.compiler;
 		const id = record.shared.cellId;
 		const targetSchema = record.parsedItem.targetSchema;
 		const detailTable = this.resolveDetailTable(targetSchema);
@@ -118,11 +115,10 @@ export class SqlParsedCellStore
 
 		await this.ensureDetailTable(targetSchema);
 
-		const sharedQ = c.compileReplace({
-			table: this.sharedTable,
-			values: [{ cellId: id, data: JSON.stringify(record.shared) }],
-		});
-		await this.executor.exec(sharedQ.sql, sharedQ.params);
+		const sharedInsertQ = this.compiler.compileSharedInsert(
+			extractSharedValues(record.shared as unknown as Record<string, any>),
+		);
+		await this.executor.exec(sharedInsertQ.sql, sharedInsertQ.params);
 
 		const flatValues = transform ? flattenParsedItem(record.parsedItem) : {};
 
@@ -149,23 +145,23 @@ export class SqlParsedCellStore
 	}
 
 	async get(cellId: string): Promise<ParsedCellLookup | null> {
-		const sharedResult = await this.executor.query(
-			`SELECT * FROM ${this.sharedTable} WHERE "cellId" = ?`,
-			[cellId],
-		);
+		const sharedQ = this.executor.compiler.compileSelect({
+			table: this.sharedTable,
+			where: [{ column: "cellId", op: "eq", value: cellId }],
+		});
+		const sharedResult = await this.executor.query(sharedQ.sql, sharedQ.params);
 		if (sharedResult.length === 0) return null;
 
-		const shared = parseJsonField(
-			sharedResult[0]!.data,
-		) as ParsedCellRecord["shared"];
+		const shared = rehydrateParsedShared(sharedResult[0]!) as ParsedCellShared;
 		const targetSchema = shared.targetSchema;
 		const detailTable = this.resolveDetailTable(targetSchema);
 		const transform = getTransformForSchema(targetSchema);
 
-		const detailRows = await this.executor.query(
-			`SELECT * FROM ${detailTable} WHERE "cellId" = ?`,
-			[cellId],
-		);
+		const detailQ = this.executor.compiler.compileSelect({
+			table: detailTable,
+			where: [{ column: "cellId", op: "eq", value: cellId }],
+		});
+		const detailRows = await this.executor.query(detailQ.sql, detailQ.params);
 
 		const detailRow = detailRows[0] || null;
 		const parsedItem = detailRow
@@ -182,25 +178,24 @@ export class SqlParsedCellStore
 		sessionId: string,
 		targetSchema?: string,
 	): Promise<ParsedCellLookup[]> {
-		const sharedQuery = this.executor.compiler.compileSelect({
+		const sharedQ = this.executor.compiler.compileSelect({
 			table: this.sharedTable,
-			where: [
-				{ column: "data", jsonPath: "sessionId", op: "eq", value: sessionId },
-			],
+			where: [{ column: "sessionId", op: "eq", value: sessionId }],
 		});
-		const rows = await this.executor.query(sharedQuery.sql, sharedQuery.params);
+		const sharedRows = await this.executor.query(sharedQ.sql, sharedQ.params);
 		const results: ParsedCellLookup[] = [];
 
-		for (const row of rows) {
-			const shared = parseJsonField(row.data) as ParsedCellRecord["shared"];
+		for (const row of sharedRows) {
+			const shared = rehydrateParsedShared(row) as ParsedCellShared;
 			if (targetSchema && shared.targetSchema !== targetSchema) continue;
 
 			const detailTable = this.resolveDetailTable(shared.targetSchema);
 			const transform = getTransformForSchema(shared.targetSchema);
-			const detailRows = await this.executor.query(
-				`SELECT * FROM ${detailTable} WHERE "cellId" = ?`,
-				[shared.cellId],
-			);
+			const detailQ = this.executor.compiler.compileSelect({
+				table: detailTable,
+				where: [{ column: "cellId", op: "eq", value: shared.cellId }],
+			});
+			const detailRows = await this.executor.query(detailQ.sql, detailQ.params);
 			const detailRow = detailRows[0] || null;
 
 			results.push({
@@ -220,30 +215,24 @@ export class SqlParsedCellStore
 		targetSchema: string,
 		sessionId?: string,
 	): Promise<ParsedCellLookup[]> {
-		const sharedQuery = this.executor.compiler.compileSelect({
+		const sharedQ = this.executor.compiler.compileSelect({
 			table: this.sharedTable,
-			where: [
-				{
-					column: "data",
-					jsonPath: "targetSchema",
-					op: "eq",
-					value: targetSchema,
-				},
-			],
+			where: [{ column: "targetSchema", op: "eq", value: targetSchema }],
 		});
-		const rows = await this.executor.query(sharedQuery.sql, sharedQuery.params);
+		const sharedRows = await this.executor.query(sharedQ.sql, sharedQ.params);
 		const results: ParsedCellLookup[] = [];
 
-		for (const row of rows) {
-			const shared = parseJsonField(row.data) as ParsedCellRecord["shared"];
+		for (const row of sharedRows) {
+			const shared = rehydrateParsedShared(row) as ParsedCellShared;
 			if (sessionId && shared.sessionId !== sessionId) continue;
 
 			const detailTable = this.resolveDetailTable(targetSchema);
 			const transform = getTransformForSchema(targetSchema);
-			const detailRows = await this.executor.query(
-				`SELECT * FROM ${detailTable} WHERE "cellId" = ?`,
-				[shared.cellId],
-			);
+			const detailQ = this.executor.compiler.compileSelect({
+				table: detailTable,
+				where: [{ column: "cellId", op: "eq", value: shared.cellId }],
+			});
+			const detailRows = await this.executor.query(detailQ.sql, detailQ.params);
 			const detailRow = detailRows[0] || null;
 
 			results.push({
@@ -263,23 +252,23 @@ export class SqlParsedCellStore
 		cellId: string,
 		replacement?: ParsedItem,
 	): Promise<void> {
-		const sharedResult = await this.executor.query(
-			`SELECT data FROM ${this.sharedTable} WHERE "cellId" = ?`,
-			[cellId],
-		);
+		const sharedQ = this.executor.compiler.compileSelect({
+			table: this.sharedTable,
+			where: [{ column: "cellId", op: "eq", value: cellId }],
+		});
+		const sharedResult = await this.executor.query(sharedQ.sql, sharedQ.params);
 		if (sharedResult.length === 0) return;
 
-		const shared = JSON.parse(
-			sharedResult[0]!.data,
-		) as ParsedCellRecord["shared"];
+		const shared = rehydrateParsedShared(sharedResult[0]!) as ParsedCellShared;
 		const detailTable = this.resolveDetailTable(shared.targetSchema);
 		await this.ensureDetailTable(shared.targetSchema);
 		const now = new Date().toISOString();
 
-		const detailRows = await this.executor.query(
-			`SELECT * FROM ${detailTable} WHERE "cellId" = ?`,
-			[cellId],
-		);
+		const detailQ = this.executor.compiler.compileSelect({
+			table: detailTable,
+			where: [{ column: "cellId", op: "eq", value: cellId }],
+		});
+		const detailRows = await this.executor.query(detailQ.sql, detailQ.params);
 		const existing = detailRows[0] || null;
 		const priorCorrectionCount = existing
 			? (Number(existing.priorCorrectionCount) || 0) + 1
@@ -330,19 +319,8 @@ export class SqlParsedCellStore
 	}
 }
 
-function parseJsonField(value: unknown): any {
-	if (typeof value === "string") {
-		return JSON.parse(value);
-	}
-	if (typeof value === "object" && value !== null) {
-		return value as any;
-	}
-	return {};
-}
-
 function reconstructRecordFromRow(row: Record<string, any>): ParsedCellRecord {
-	const sharedData = parseJsonField(row.shared_data);
-	const shared = sharedData as ParsedCellRecord["shared"];
+	const shared = rehydrateParsedShared(row) as ParsedCellShared;
 	const transform = getTransformForSchema(shared.targetSchema);
 	const parsedItem = rehydrateParsedItem(row, transform);
 	const learningMetadata = rehydrateLearningMetadata(row);
@@ -377,7 +355,13 @@ function rehydrateParsedItem(
 	} as ParsedItem);
 
 	for (const key of Object.keys(row)) {
-		if (key === "cellId" || key === "shared_data" || key === "data") continue;
+		if (
+			key === "cellId" ||
+			key === "shared_data" ||
+			key === "data" ||
+			isSharedColumn(key)
+		)
+			continue;
 		flat[key] = row[key];
 	}
 
@@ -400,6 +384,38 @@ function rehydrateParsedItem(
 		tag: "",
 		extractedData,
 	};
+}
+
+function isSharedColumn(key: string): boolean {
+	return [
+		"targetSchema",
+		"tag",
+		"rawText",
+		"normalizedText",
+		"sessionId",
+		"soapNoteId",
+		"patientId",
+		"patientOrganismType",
+		"patientGender",
+		"patientAgeBucket",
+		"patientSpeciesBucket",
+		"patientSubBucket",
+		"patientBucketKey",
+		"patientTierWeights",
+		"personnelId",
+		"specialtyId",
+		"facilityId",
+		"workspaceId",
+		"anchorText",
+		"parserVersion",
+		"contractVersion",
+		"sourceKind",
+		"outcome",
+		"replacedByCellId",
+		"acceptedAt",
+		"createdAt",
+		"updatedAt",
+	].includes(key);
 }
 
 function setNestedValue(

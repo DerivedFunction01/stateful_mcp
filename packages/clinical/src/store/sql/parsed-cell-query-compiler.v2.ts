@@ -51,6 +51,43 @@ const DEFAULT_SCORING_COLUMNS: {
 	{ name: "reviewRequired", sqlType: "int", default: 0, nullable: false },
 ];
 
+const SHARED_TABLE_COLUMNS: ColumnDef[] = [
+	{ name: "cellId", type: "TEXT", nullable: false, primaryKey: true },
+	{ name: "targetSchema", type: "TEXT", nullable: false },
+	{ name: "tag", type: "TEXT", nullable: false },
+	{ name: "rawText", type: "TEXT", nullable: false },
+	{ name: "normalizedText", type: "TEXT", nullable: true },
+	{ name: "sessionId", type: "TEXT", nullable: true },
+	{ name: "soapNoteId", type: "TEXT", nullable: true },
+	{ name: "patientId", type: "TEXT", nullable: true },
+	{ name: "patientOrganismType", type: "TEXT", nullable: true },
+	{ name: "patientGender", type: "TEXT", nullable: true },
+	{ name: "patientAgeBucket", type: "TEXT", nullable: true },
+	{ name: "patientSpeciesBucket", type: "TEXT", nullable: true },
+	{ name: "patientSubBucket", type: "INTEGER", nullable: true },
+	{ name: "patientBucketKey", type: "TEXT", nullable: true },
+	{ name: "patientTierWeights", type: "TEXT", nullable: true },
+	{ name: "personnelId", type: "TEXT", nullable: true },
+	{ name: "specialtyId", type: "TEXT", nullable: true },
+	{ name: "facilityId", type: "TEXT", nullable: true },
+	{ name: "workspaceId", type: "TEXT", nullable: true },
+	{ name: "anchorText", type: "TEXT", nullable: true },
+	{ name: "parserVersion", type: "TEXT", nullable: true },
+	{ name: "contractVersion", type: "TEXT", nullable: true },
+	{ name: "sourceKind", type: "TEXT", nullable: true },
+	{ name: "outcome", type: "TEXT", nullable: true },
+	{ name: "replacedByCellId", type: "TEXT", nullable: true },
+	{ name: "acceptedAt", type: "TEXT", nullable: true },
+	{ name: "createdAt", type: "TEXT", nullable: false },
+	{ name: "updatedAt", type: "TEXT", nullable: false },
+];
+
+const SHARED_INDEXES: { columns: string[]; name?: string }[] = [
+	{ columns: ["targetSchema", "tag", "rawText"], name: "idx_shared_lookup" },
+	{ columns: ["patientId", "targetSchema"], name: "idx_shared_patient" },
+	{ columns: ["sessionId"], name: "idx_shared_session" },
+];
+
 const DETAIL_TABLE_BY_SCHEMA: Record<string, string> = {
 	ObservationEvent: "parsed_cell_observation_detail",
 	VitalsMeasurementEvent: "parsed_cell_vitals_detail",
@@ -69,8 +106,47 @@ export function autoIndexName(table: string, columns: string[]): string {
 	return `idx_${table}_${columns.join("_")}`;
 }
 
+export function extractSharedValues(
+	shared: Record<string, any>,
+): Record<string, any> {
+	const values: Record<string, any> = {};
+	for (const col of SHARED_TABLE_COLUMNS) {
+		const name = col.name;
+		if (name === "cellId") {
+			values.cellId = shared.cellId;
+		} else if (name === "patientTierWeights") {
+			const v = shared[name];
+			values[name] = v !== undefined ? JSON.stringify(v) : null;
+		} else {
+			values[name] = shared[name] ?? null;
+		}
+	}
+	return values;
+}
+
+export function rehydrateParsedShared(
+	row: Record<string, any>,
+): Record<string, any> {
+	const shared: Record<string, any> = {};
+	for (const col of SHARED_TABLE_COLUMNS) {
+		const name = col.name;
+		const val = row[name];
+		if (name === "patientTierWeights" && typeof val === "string") {
+			try {
+				shared[name] = JSON.parse(val);
+			} catch {
+				shared[name] = null;
+			}
+		} else {
+			shared[name] = val ?? undefined;
+		}
+	}
+	return shared as any;
+}
+
 export class ParsedCellSqlCompilerV2 {
 	private readonly compiler: QueryCompiler;
+	private detailColumnCache = new Map<string, ColumnDef[]>();
 
 	private static readonly SCOPED_FIELDS = [
 		"soapNoteId",
@@ -85,17 +161,50 @@ export class ParsedCellSqlCompilerV2 {
 		"specialtyId",
 		"facilityId",
 	] as const;
+	dialect: string;
 
 	constructor(dialect: ParsedCellSqlDialect = "sqlite") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}
 
+	public compileCreateSharedTable(): CompiledQuery {
+		return this.compiler.compileCreateTable({
+			table: "parsed_cell_shared",
+			ifNotExists: true,
+			columns: SHARED_TABLE_COLUMNS,
+		});
+	}
+
+	public compileSharedIndexes(): CompiledQuery[] {
+		return SHARED_INDEXES.map((spec) =>
+			this.compiler.compileCreateIndex({
+				table: "parsed_cell_shared",
+				name: spec.name || autoIndexName("parsed_cell_shared", spec.columns),
+				columns: spec.columns,
+				ifNotExists: true,
+			}),
+		);
+	}
+
+	public compileSharedInsert(values: Record<string, any>): CompiledQuery {
+		const columnNames = SHARED_TABLE_COLUMNS.map((col) => col.name);
+		const row = Object.fromEntries(
+			columnNames.map((name) => [name, values[name] ?? null]),
+		);
+		return this.compiler.compileInsert({
+			table: "parsed_cell_shared",
+			values: [row],
+			columns: columnNames,
+			onConflict: "replace",
+		});
+	}
+
 	public compileCreateDetailTable(
 		detailTableName: string,
 		transform: ParsedCellRecordTransform,
 	): CompiledQuery {
-		const columns = buildMergedColumns(transform);
+		const columns = this.getMergedColumns(transform);
 		return this.compiler.compileCreateTable({
 			table: detailTableName,
 			ifNotExists: true,
@@ -127,7 +236,7 @@ export class ParsedCellSqlCompilerV2 {
 		transform: ParsedCellRecordTransform,
 		values: Record<string, any>,
 	): CompiledQuery {
-		const columns = buildMergedColumns(transform);
+		const columns = this.getMergedColumns(transform);
 		const columnNames = columns.map((col) => col.name);
 		const row = Object.fromEntries(
 			columnNames.map((name) => [name, values[name] ?? null]),
@@ -152,12 +261,16 @@ export class ParsedCellSqlCompilerV2 {
 		});
 	}
 
-	public compileScoringExpression(alias = "ranking_score"): {
+	public compileScoringExpression(
+		alias = "ranking_score",
+		weightAccept = 0.2,
+		weightCorrection = 0.15,
+	): {
 		raw: string;
 		alias: string;
 	} {
 		return {
-			raw: `("recencyScore" + ("priorAcceptCount" * :weightAccept) + (CASE WHEN "contractValid" IN (1,'true','1') THEN 1 ELSE 0 END) - ("priorCorrectionCount" * :weightCorrection))`,
+			raw: `("recencyScore" + ("priorAcceptCount" * ${weightAccept}) + (CASE WHEN "contractValid" IN (1,'true','1') THEN 1 ELSE 0 END) - ("priorCorrectionCount" * ${weightCorrection}))`,
 			alias,
 		};
 	}
@@ -171,15 +284,13 @@ export class ParsedCellSqlCompilerV2 {
 
 		const where: QueryCondition[] = [
 			{
-				column: "data",
-				jsonPath: "targetSchema",
+				column: "targetSchema",
 				table: "shared",
 				op: "eq",
 				value: plan.key.targetSchema,
 			},
 			{
-				column: "data",
-				jsonPath: "tag",
+				column: "tag",
 				table: "shared",
 				op: "eq",
 				value: plan.key.tag,
@@ -191,8 +302,7 @@ export class ParsedCellSqlCompilerV2 {
 				const val = plan.key[field];
 				if (val !== undefined && val !== null) {
 					where.push({
-						column: "data",
-						jsonPath: field,
+						column: field,
 						table: "shared",
 						op: "eq",
 						value: val,
@@ -204,15 +314,13 @@ export class ParsedCellSqlCompilerV2 {
 		const rawOrNormalized: QueryCondition = {
 			OR: [
 				{
-					column: "data",
-					jsonPath: "rawText",
+					column: "rawText",
 					table: "shared",
 					op: "eq",
 					value: plan.key.rawText,
 				},
 				{
-					column: "data",
-					jsonPath: "normalizedText",
+					column: "normalizedText",
 					table: "shared",
 					op: "eq",
 					value: plan.key.rawText,
@@ -224,11 +332,11 @@ export class ParsedCellSqlCompilerV2 {
 			column: "cellId",
 			table: "detail",
 			op: "eq" as const,
-			raw: this.compiler.formatColumn("data", "cellId", "shared"),
+			raw: `"shared"."cellId"`,
 		};
 
 		const select: SelectQuery["select"] = [
-			{ column: "data", table: "shared", alias: "shared_data" },
+			{ raw: `"shared".*` },
 			{ raw: `"detail".*` },
 			{
 				raw: `("recencyScore" + ("priorAcceptCount" * ${weightAccept}) + (CASE WHEN "contractValid" IN (1,'true','1') THEN 1 ELSE 0 END) - ("priorCorrectionCount" * ${weightCorrection}))`,
@@ -257,6 +365,16 @@ export class ParsedCellSqlCompilerV2 {
 		);
 
 		return { sql: compiled.sql, params: compiled.params };
+	}
+
+	private getMergedColumns(transform: ParsedCellRecordTransform): ColumnDef[] {
+		const cacheKey = transform.targetSchema;
+		const cached = this.detailColumnCache.get(cacheKey);
+		if (cached) return cached;
+
+		const columns = buildMergedColumns(transform);
+		this.detailColumnCache.set(cacheKey, columns);
+		return columns;
 	}
 }
 

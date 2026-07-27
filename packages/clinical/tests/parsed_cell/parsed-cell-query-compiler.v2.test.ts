@@ -7,7 +7,9 @@ import {
 import { flattenParsedItem } from "../../src/store/learning/parsed_cell/transforms/flatten-helper";
 import {
 	autoIndexName,
+	extractSharedValues,
 	ParsedCellSqlCompilerV2,
+	rehydrateParsedShared,
 	resolveDetailTable,
 } from "../../src/store/sql/parsed-cell-query-compiler.v2";
 
@@ -160,8 +162,8 @@ describe("ParsedCellSqlCompilerV2", () => {
 	test("compileScoringExpression returns flat-column expression with weights", () => {
 		const result = compiler.compileScoringExpression();
 		expect(result.raw).toContain(`"recencyScore"`);
-		expect(result.raw).toContain(`"priorAcceptCount" * :weightAccept`);
-		expect(result.raw).toContain(`"priorCorrectionCount" * :weightCorrection`);
+		expect(result.raw).toContain(`"priorAcceptCount" * 0.2`);
+		expect(result.raw).toContain(`"priorCorrectionCount" * 0.15`);
 		expect(result.raw).toContain(`"contractValid"`);
 		expect(result.alias).toBe("ranking_score");
 	});
@@ -184,5 +186,137 @@ describe("ParsedCellSqlCompilerV2", () => {
 		expect(result.sql).toContain(`"recencyScore" + ("priorAcceptCount" * 0.2)`);
 		expect(result.sql).toContain(`ORDER BY "ranking_score" DESC`);
 		expect(result.sql).toContain(`LIMIT 50`);
+	});
+
+	test("compileCreateSharedTable emits DDL with all ParsedCellShared fields", () => {
+		const result = compiler.compileCreateSharedTable();
+		expect(result.sql).toContain("CREATE TABLE IF NOT EXISTS");
+		expect(result.sql).toContain(`"parsed_cell_shared"`);
+		expect(result.sql).toContain(`"cellId" TEXT PRIMARY KEY`);
+		expect(result.sql).toContain(`"targetSchema" TEXT NOT NULL`);
+		expect(result.sql).toContain(`"tag" TEXT NOT NULL`);
+		expect(result.sql).toContain(`"rawText" TEXT NOT NULL`);
+		expect(result.sql).toContain(`"patientId" TEXT`);
+		expect(result.sql).toContain(`"patientSubBucket" INTEGER`);
+		expect(result.sql).toContain(`"patientTierWeights" TEXT`);
+		expect(result.sql).toContain(`"createdAt" TEXT NOT NULL`);
+	});
+
+	test("compileSharedIndexes emits indexes for lookup, patient, and session", () => {
+		const results = compiler.compileSharedIndexes();
+		expect(results).toHaveLength(3);
+		expect(results[0]!.sql).toContain("idx_shared_lookup");
+		expect(results[0]!.sql).toContain(`"targetSchema"`);
+		expect(results[0]!.sql).toContain(`"tag"`);
+		expect(results[0]!.sql).toContain(`"rawText"`);
+		expect(results[1]!.sql).toContain("idx_shared_patient");
+		expect(results[2]!.sql).toContain("idx_shared_session");
+	});
+
+	test("compileSharedInsert emits INSERT with all shared columns", () => {
+		const values = extractSharedValues({
+			cellId: "cell-shared-1",
+			targetSchema: "ObservationEvent",
+			tag: "ObservationEvent",
+			rawText: "temperature 101F",
+			normalizedText: "temp 101F",
+			sessionId: "session-1",
+			patientId: "patient-a",
+			patientTierWeights: {
+				exact: 1,
+				biology: 0.8,
+				specific: 0.5,
+				global: 0.2,
+			},
+			anchorText: "temperature",
+			parserVersion: "1.0",
+			contractVersion: "1.0",
+			sourceKind: "dictated",
+			outcome: "accepted",
+			createdAt: "2024-01-01T00:00:00Z",
+			updatedAt: "2024-01-01T00:00:00Z",
+		});
+
+		const result = compiler.compileSharedInsert(values);
+		expect(result.sql).toContain(`INSERT OR REPLACE INTO "parsed_cell_shared"`);
+		expect(result.sql).toContain(`"cellId"`);
+		expect(result.sql).toContain(`"targetSchema"`);
+		expect(result.sql).toContain(`"patientTierWeights"`);
+		expect(result.params).toContain("cell-shared-1");
+		expect(result.params).toContain("ObservationEvent");
+		expect(result.params).toContain("patient-a");
+		const tierWeightIdx = result.sql.indexOf("patientTierWeights");
+		expect(tierWeightIdx).toBeGreaterThan(0);
+	});
+
+	test("extractSharedValues flattens ParsedCellShared including patientTierWeights as JSON", () => {
+		const values = extractSharedValues({
+			cellId: "c1",
+			targetSchema: "ObservationEvent",
+			tag: "ObservationEvent",
+			rawText: "test",
+			anchorText: "test",
+			parserVersion: "1",
+			contractVersion: "1",
+			sourceKind: "dictated",
+			outcome: "accepted",
+			createdAt: "2024-01-01T00:00:00Z",
+			updatedAt: "2024-01-01T00:00:00Z",
+			patientTierWeights: {
+				exact: 1,
+				biology: 0.8,
+				specific: 0.5,
+				global: 0.2,
+			},
+		});
+		expect(values.patientTierWeights).toBe(
+			'{"exact":1,"biology":0.8,"specific":0.5,"global":0.2}',
+		);
+	});
+
+	test("rehydrateParsedShared reconstructs ParsedCellShared including patientTierWeights JSON parsing", () => {
+		const row = {
+			cellId: "c1",
+			targetSchema: "ObservationEvent",
+			tag: "ObservationEvent",
+			rawText: "test",
+			patientTierWeights:
+				'{"exact":1,"biology":0.8,"specific":0.5,"global":0.2}',
+			createdAt: "2024-01-01T00:00:00Z",
+			updatedAt: "2024-01-01T00:00:00Z",
+		};
+		const shared = rehydrateParsedShared(row);
+		expect(shared.cellId).toBe("c1");
+		expect(shared.patientTierWeights).toEqual({
+			exact: 1,
+			biology: 0.8,
+			specific: 0.5,
+			global: 0.2,
+		});
+	});
+
+	test("compileHistoryQuery uses flat-column WHERE (no json_extract)", () => {
+		const result = compiler.compileHistoryQuery({
+			detailTableName: detailTable,
+			sharedTableName: "parsed_cell_shared",
+			key: {
+				tag: CANONICAL_TAGS.OBSERVATION,
+				targetSchema: CANONICAL_TAGS.OBSERVATION,
+				rawText: "temperature 101F",
+				patientId: "patient-a",
+			},
+			scope: "scoped",
+			limit: 50,
+		});
+
+		expect(result.sql).not.toContain("json_extract");
+		expect(result.sql).toContain(`"shared"."targetSchema"`);
+		expect(result.sql).toContain(`"shared"."tag"`);
+		expect(result.sql).toContain(`"shared"."rawText"`);
+		expect(result.sql).toContain(`"shared"."normalizedText"`);
+		expect(result.sql).toContain(`"shared"."patientId"`);
+		expect(result.sql).toContain(`"detail"."cellId" = "shared"."cellId"`);
+		expect(result.sql).toContain(`"shared".*`);
+		expect(result.sql).toContain(`"detail".*`);
 	});
 });
