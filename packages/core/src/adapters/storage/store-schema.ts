@@ -421,7 +421,7 @@ const TABLES = {
 			{ name: "concept_id", type: "text", nullable: true },
 			{ name: "scope_level", type: "text", nullable: false },
 			{ name: "scope_id", type: "text", nullable: true },
-			{ name: "data", type: "text", nullable: false },
+			{ name: "data", type: "json", nullable: false },
 		],
 	},
 	DDL_TRACES: {
