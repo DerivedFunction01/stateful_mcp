@@ -1,4 +1,3 @@
-import type { ClinicalDateRange } from "../../schemas/time";
 import type {
 	AttributeParserRule,
 	FieldMappingRule,

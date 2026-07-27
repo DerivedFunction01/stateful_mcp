@@ -1,4 +1,3 @@
-import type { VitalsMeasurementEvent } from "../../schemas/vitals";
 import type {
 	AttributeParserRule,
 	FieldMappingRule,
@@ -55,7 +54,7 @@ export function createVitalsFieldRegistry(
 		{
 			sourceKey: "quantity",
 			targetField: "measurement",
-			compute: (_slots, _conceptDefaults, rawGroups) => {
+			compute: (slots, _conceptDefaults, rawGroups) => {
 				const quantityStr = rawGroups?.quantity;
 				if (!quantityStr) return undefined;
 				const magnitude = Number.parseFloat(quantityStr);

@@ -170,9 +170,12 @@ describe("ClinicalEngine ensemble (v2)", () => {
 				},
 				{
 					targetField: "unit",
-					targetValue: "Cel",
-					regexPatterns: ["Cel", "C"],
+					targetValue: "Celsius",
+					regexPatterns: [
+						"\\b(?<magnitude>\\d+(?:\\.\\d+)?)\\s*(?<unit>Cel)\\b",
+					],
 					isCaseInsensitive: true,
+					unitAnchor: "temperature",
 				},
 			],
 		};

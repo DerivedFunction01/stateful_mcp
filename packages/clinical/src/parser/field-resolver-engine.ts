@@ -1,5 +1,5 @@
 import { resolveSchemaDefault } from "../store/default-strategy";
-import type { FieldMappingRule, NamedGroupContract } from "../store/interfaces";
+import type { FieldMappingRule } from "../store/interfaces";
 
 export interface DefaultResolutionContext {
 	rawText?: string;
@@ -36,6 +36,11 @@ export class FieldResolverEngine {
 				value = rawGroups;
 			} else if (slots[rule.sourceKey] !== undefined) {
 				value = slots[rule.sourceKey];
+				if (rule.valueMap && rule.valueMap[value as string] !== undefined) {
+					value = rule.valueMap[value as string];
+				}
+			} else if (slots.attributes?.[rule.sourceKey] !== undefined) {
+				value = slots.attributes[rule.sourceKey];
 				if (rule.valueMap && rule.valueMap[value as string] !== undefined) {
 					value = rule.valueMap[value as string];
 				}
