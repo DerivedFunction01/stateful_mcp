@@ -228,30 +228,6 @@ export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 		isCaseInsensitive: true,
 	},
 	{
-		targetField: "severity",
-		targetValue: "none",
-		regexPatterns: ["\\bdenies\\b", "\\bdeny\\b", "\\bno\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "severe",
-		regexPatterns: ["\\bsevere\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "mild",
-		regexPatterns: ["\\bmild\\b"],
-		isCaseInsensitive: true,
-	},
-	{
-		targetField: "severity",
-		targetValue: "moderate",
-		regexPatterns: ["\\bmoderate\\b"],
-		isCaseInsensitive: true,
-	},
-	{
 		targetField: "route",
 		targetValue: "oral",
 		regexPatterns: ["\\boral\\b", "\\bpo\\b"],

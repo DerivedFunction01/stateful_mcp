@@ -94,6 +94,4 @@ export type Route =
 	| "otic"
 	| "intrathecal";
 
-export type SeverityLevel = "none" | "severe" | "mild" | "moderate";
-
 export type StringifiedBoolean = "true" | "false";

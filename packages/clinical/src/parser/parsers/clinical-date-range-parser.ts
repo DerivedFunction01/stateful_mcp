@@ -1,8 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import {
-	DEFAULT_ATTRIBUTE_RULES,
-	DEFAULT_EVALUATOR_RULES,
-} from "../../store/defaults";
 import type {
 	AttributeParserRule,
 	ParserConceptDefaultStore,
@@ -59,8 +55,8 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
 	): Promise<ParsedItemUnion | null> {
-		const attrRules = attributeRules || DEFAULT_ATTRIBUTE_RULES;
-		const evalRules = evaluatorRules || DEFAULT_EVALUATOR_RULES;
+		const attrRules = attributeRules || [];
+		const evalRules = evaluatorRules || [];
 		const cleaned = content.trim();
 		if (!cleaned) return null;
 

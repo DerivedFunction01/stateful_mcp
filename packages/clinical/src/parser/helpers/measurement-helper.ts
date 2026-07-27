@@ -10,10 +10,7 @@ import type {
 	TimeMeasurement,
 	TimePrecisionLevel,
 } from "../../schemas/time";
-import {
-	DEFAULT_ATTRIBUTE_RULES,
-	UNIT_DISPLAY_MAP,
-} from "../../store/defaults";
+import { UNIT_DISPLAY_MAP } from "../../store/defaults";
 import type {
 	AttributeParserRule,
 	NamedGroupContract,
@@ -57,7 +54,7 @@ export class QuantityTokenizer {
 		rules?: AttributeParserRule[],
 	): QuantityCandidate[] {
 		const trimmed = text.trim();
-		const effectiveRules = rules || DEFAULT_ATTRIBUTE_RULES;
+		const effectiveRules = rules || [];
 		const candidates: QuantityCandidate[] = [];
 		const seen = new Set<string>();
 
@@ -157,8 +154,7 @@ export class QuantityTokenizer {
 		rawUnit: string,
 		rules?: AttributeParserRule[],
 	): ResolvedUnit | undefined {
-		const appliedRules =
-			rules && rules.length > 0 ? rules : DEFAULT_ATTRIBUTE_RULES;
+		const appliedRules = rules || [];
 		const matchingRules = appliedRules.filter(
 			(r) =>
 				r.targetField === "unit" ||
@@ -237,10 +233,7 @@ export class MeasurementHelper {
 		defaultUnit?: string,
 		attributeRules?: AttributeParserRule[],
 	): BoundedMeasurement | SingleMeasurement | null {
-		const rules =
-			attributeRules && attributeRules.length > 0
-				? attributeRules
-				: DEFAULT_ATTRIBUTE_RULES;
+		const rules = attributeRules || [];
 
 		let resolved: PhysicalResolved | undefined;
 		if (token.rawUnit) {
@@ -306,10 +299,7 @@ export class TimeHelper {
 		token: QuantityCandidate,
 		attributeRules?: AttributeParserRule[],
 	): TimeMeasurement | null {
-		const rules =
-			attributeRules && attributeRules.length > 0
-				? attributeRules
-				: DEFAULT_ATTRIBUTE_RULES;
+		const rules = attributeRules || [];
 
 		let resolved: TimeResolved | undefined;
 		if (token.rawUnit) {

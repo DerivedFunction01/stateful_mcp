@@ -5,7 +5,6 @@ import type {
 	TimeInterval,
 	TimePrecisionLevel,
 } from "../../schemas/time";
-import { DEFAULT_ATTRIBUTE_RULES } from "../../store/defaults";
 import type {
 	AttributeParserRule,
 	ParserDictionaryRule,
@@ -796,9 +795,7 @@ export class ClinicalDateRangeTokenizer {
 		targetField: string,
 		attributeRules: AttributeParserRule[] = [],
 	): AttributeParserRule[] {
-		const rules =
-			attributeRules.length > 0 ? attributeRules : DEFAULT_ATTRIBUTE_RULES;
-		return rules.filter(
+		return attributeRules.filter(
 			(rule: AttributeParserRule) => rule.targetField === targetField,
 		);
 	}

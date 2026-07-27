@@ -1,21 +1,9 @@
-import type {
-	AllowedUnit,
-	MeasurementOperator,
-	MeasurementUnitAnchor,
-} from "../schemas/measurement";
-import type {
-	FrequencyShorthand,
-	PhysiologicalEventAnchor,
-} from "../schemas/medication";
 import type { PatientLearningBucket } from "../schemas/patient";
 import type {
 	Certainty,
 	Route,
-	SeverityLevel,
 	Status,
-	StringifiedBoolean,
 } from "../schemas/shared";
-import type { TimePrecisionLevel } from "../schemas/time";
 
 export interface ParserSyntaxProfile {
 	profileId: string;
@@ -88,92 +76,9 @@ export interface ParserDictionaryRule {
 	namedGroupContract?: NamedGroupContract;
 }
 
-export type AttributeRuleMapping =
-	| {
-			targetField: "calendar_date";
-			targetValue: "calendar_date";
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "severity_score";
-			targetValue: "number";
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "pain_score";
-			targetValue: "number";
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "percentage";
-			targetValue: "number";
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "measurement_value";
-			targetValue: "number";
-			unitAnchor?: undefined;
-	  }
-	| { targetField: "certainty"; targetValue: Certainty; unitAnchor?: undefined }
-	| { targetField: "status"; targetValue: Status; unitAnchor?: undefined }
-	| {
-			targetField: "severity";
-			targetValue: SeverityLevel;
-			unitAnchor?: undefined;
-	  }
-	| { targetField: "route"; targetValue: Route; unitAnchor?: undefined }
-	| {
-			targetField: "frequency_prn";
-			targetValue: StringifiedBoolean;
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "frequency_event_anchor";
-			targetValue: PhysiologicalEventAnchor;
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "frequency_shorthand";
-			targetValue: FrequencyShorthand;
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "operator" | "measurement_operator";
-			targetValue: MeasurementOperator;
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "unit" | "measurement_unit";
-			targetValue: AllowedUnit;
-			unitAnchor?: MeasurementUnitAnchor;
-	  }
-	| {
-			targetField: "time_unit";
-			targetValue: TimePrecisionLevel;
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "time_relative_marker";
-			targetValue: "retrospective" | "prospective";
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "time_boundary_marker";
-			targetValue: "to";
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "time_exclusion_marker";
-			targetValue: "except";
-			unitAnchor?: undefined;
-	  }
-	| {
-			targetField: "time_repeat_daily";
-			targetValue: "daily";
-			unitAnchor?: undefined;
-	  };
-
-export type AttributeParserRule = AttributeRuleMapping & {
+export type AttributeParserRule = {
+	targetField: string;
+	targetValue: string;
 	regexPatterns: string[];
 	isCaseInsensitive?: boolean;
 	blacklistPatterns?: string[];
@@ -182,7 +87,23 @@ export type AttributeParserRule = AttributeRuleMapping & {
 	calendarSeparators?: string[];
 	monthNames?: string[];
 	namedGroupContract?: NamedGroupContract;
+	unitAnchor?: string;
+	targetSchema?: string;
 };
+
+export interface FieldMappingRule<TSchema extends string = string> {
+	sourceKey: string;
+	targetField?: TSchema;
+	namedGroupContract?: NamedGroupContract;
+	valueMap?: Record<string, string | number | boolean>;
+	conceptDefaultPath?: (string | number)[];
+	schemaDefaultField?: string;
+	compute?: (
+		slots: Record<string, any>,
+		conceptDefaults: any,
+		rawGroups?: Record<string, string | undefined>,
+	) => unknown;
+}
 
 export type DateTimeToken =
 	| "YYYY"
@@ -333,6 +254,12 @@ export interface JurisdictionalDisplayStore {
 		jurisdictionCode: string,
 	): Promise<string | null>;
 	setJurisdictionalDisplay(display: JurisdictionalDisplay): Promise<void>;
+}
+
+export interface SchemaParserConfig {
+	schema: string;
+	targetSchema: string;
+	preparsedContextKeys?: string[];
 }
 
 export interface StopWordContext {
