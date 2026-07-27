@@ -23,7 +23,12 @@ import "../src/store/learning/parsed_cell/transforms/observation-transform";
 import "../src/store/learning/parsed_cell/transforms/vitals-transform";
 import "../src/store/learning/parsed_cell/transforms/medication-transform";
 import "../src/store/learning/parsed_cell/transforms/clinical-date-range-transform";
-import { ObservationSchemaParser } from "../src/parser/parsers/observation-parser";
+import {
+	createObservationFieldRegistry,
+	observationConfig,
+	observationRouter,
+} from "../src/parser/field-registry/observation";
+import { GenericSchemaParser } from "../src/parser/generic-schema-parser";
 import { DEFAULT_CLINICAL_STORAGE_ADAPTER_REGISTRY } from "../src/seed/adapter-config";
 import type { ClinicalStorageAdapterRegistry } from "../src/store/adapter-types";
 import type { ParsedCellRecord } from "../src/store/learning/interfaces";
@@ -196,7 +201,12 @@ describe("ParsedCell v2 store (replacement)", () => {
 	});
 
 	test("observation preview returns learned candidates from history (v2)", async () => {
-		const parser = new ObservationSchemaParser();
+		const parser = new GenericSchemaParser("ObservationEvent", {
+			targetSchema: "ObservationEvent",
+			createRegistry: createObservationFieldRegistry,
+			router: observationRouter,
+			preparsedContextKeys: observationConfig.preparsedContextKeys,
+		});
 		const backend1 = memoryStore();
 		const backend2 = memoryStore();
 

@@ -10,10 +10,23 @@ import type {
 	PatientLearningContext,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import {
+	createMedicationFieldRegistry,
+	medicationConfig,
+	medicationRouter,
+} from "./field-registry/medication";
+import {
+	createObservationFieldRegistry,
+	observationConfig,
+	observationRouter,
+} from "./field-registry/observation";
+import {
+	createVitalsFieldRegistry,
+	vitalsConfig,
+	vitalsRouter,
+} from "./field-registry/vitals";
+import { GenericSchemaParser } from "./generic-schema-parser";
 import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
-import { MedicationSchemaParser } from "./parsers/medication-parser";
-import { ObservationSchemaParser } from "./parsers/observation-parser";
-import { VitalsSchemaParser } from "./parsers/vitals-parser";
 
 export const CANONICAL_TAGS = {
 	VITALS: "VitalsMeasurementEvent",
@@ -238,10 +251,33 @@ export async function resolveMultiConceptHelper(
 	return candidates;
 }
 
-// V2 parser registry populated when v2 schema parsers are implemented
 export const schemaParserRegistry = new Map<string, SchemaParser>([
-	[CANONICAL_TAGS.OBSERVATION, new ObservationSchemaParser()],
-	[CANONICAL_TAGS.MEDICATION, new MedicationSchemaParser()],
-	[CANONICAL_TAGS.VITALS, new VitalsSchemaParser()],
+	[
+		CANONICAL_TAGS.OBSERVATION,
+		new GenericSchemaParser("ObservationEvent", {
+			targetSchema: "ObservationEvent",
+			createRegistry: createObservationFieldRegistry,
+			router: observationRouter,
+			preparsedContextKeys: observationConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.MEDICATION,
+		new GenericSchemaParser("MedicationOrderObject", {
+			targetSchema: "MedicationOrderObject",
+			createRegistry: createMedicationFieldRegistry,
+			router: medicationRouter,
+			preparsedContextKeys: medicationConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.VITALS,
+		new GenericSchemaParser("VitalsMeasurementEvent", {
+			targetSchema: "VitalsMeasurementEvent",
+			createRegistry: createVitalsFieldRegistry,
+			router: vitalsRouter,
+			preparsedContextKeys: vitalsConfig.preparsedContextKeys,
+		}),
+	],
 	[CANONICAL_TAGS.CLINICAL_DATE_RANGE, new ClinicalDateRangeSchemaParser()],
 ]);

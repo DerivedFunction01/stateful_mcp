@@ -22,9 +22,7 @@ import {
 	type SchemaParser,
 	schemaParserRegistry,
 } from "./schema-parsers";
-import { schemaParserRegistryV2 } from "./schema-parsers.v2";
 import { StopWordParser } from "./stop-word-parser";
-import { V2_ENABLED } from "./v2-toggle";
 
 interface ParserPreviewResult extends ParsedCandidateEnvelope {
 	targetSchema: string;
@@ -254,12 +252,9 @@ export class CdslParser {
 				if (this.profile.tagMappings && this.profile.tagMappings[cleanKey]) {
 					cleanKey = this.profile.tagMappings[cleanKey]!.toLowerCase();
 				}
-				const activeRegistry = V2_ENABLED
-					? schemaParserRegistryV2
-					: schemaParserRegistry;
-				mappedParser = activeRegistry.get(cleanKey);
+				mappedParser = schemaParserRegistry.get(cleanKey);
 				if (!mappedParser) {
-					for (const p of activeRegistry.values()) {
+					for (const p of schemaParserRegistry.values()) {
 						if (p.targetSchema.toLowerCase() === cleanKey) {
 							mappedParser = p;
 							break;
@@ -268,14 +263,11 @@ export class CdslParser {
 				}
 			}
 
-			const activeRegistry = V2_ENABLED
-				? schemaParserRegistryV2
-				: schemaParserRegistry;
 			const parsersToRun: SchemaParser[] = [];
 			if (mappedParser) {
 				parsersToRun.push(mappedParser);
 			} else {
-				for (const p of Array.from(activeRegistry.values())) {
+				for (const p of Array.from(schemaParserRegistry.values())) {
 					parsersToRun.push(p);
 				}
 			}
@@ -414,9 +406,6 @@ export class CdslParser {
 
 			// Resolve tag to a schema parser
 			let mappedParser: SchemaParser | undefined;
-			const activeRegistry = V2_ENABLED
-				? schemaParserRegistryV2
-				: schemaParserRegistry;
 
 			if (tag) {
 				const tagToken = this.profile.tagToken;
@@ -428,9 +417,9 @@ export class CdslParser {
 					cleanKey = this.profile.tagMappings[cleanKey]!.toLowerCase();
 				}
 
-				mappedParser = activeRegistry.get(cleanKey);
+				mappedParser = schemaParserRegistry.get(cleanKey);
 				if (!mappedParser) {
-					for (const p of activeRegistry.values()) {
+					for (const p of schemaParserRegistry.values()) {
 						if (p.targetSchema.toLowerCase() === cleanKey) {
 							mappedParser = p;
 							break;
@@ -445,7 +434,7 @@ export class CdslParser {
 				parsersToRun.push(mappedParser);
 			} else {
 				// Unknown tag or tagless: run all parsers allowed by the profile
-				for (const p of Array.from(activeRegistry.values())) {
+				for (const p of Array.from(schemaParserRegistry.values())) {
 					parsersToRun.push(p);
 				}
 			}

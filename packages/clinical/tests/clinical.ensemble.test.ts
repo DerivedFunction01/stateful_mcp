@@ -8,9 +8,6 @@ import {
 import type { CustomExpression } from "@stateful-mcp/core/src/middleware/dictionary/types";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import { ClinicalDateRangeSchemaParser } from "../src/parser/parsers/clinical-date-range-parser";
-import { MedicationSchemaParser } from "../src/parser/parsers/medication-parser";
-import { ObservationSchemaParser } from "../src/parser/parsers/observation-parser";
-import { VitalsSchemaParser } from "../src/parser/parsers/vitals-parser";
 import type {
 	ParsedMedicationItem,
 	ParsedObservationItem,
@@ -22,9 +19,6 @@ import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 
 // Register all schema parsers into the global registry used by CdslParser.
 // parsers don't self-register; the consumer is responsible.
-schemaParserRegistry.set("vitalsmeasurementevent", new VitalsSchemaParser());
-schemaParserRegistry.set("observationevent", new ObservationSchemaParser());
-schemaParserRegistry.set("medicationorderobject", new MedicationSchemaParser());
 schemaParserRegistry.set(
 	"clinicaldaterange",
 	new ClinicalDateRangeSchemaParser(),

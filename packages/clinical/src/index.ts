@@ -1,5 +1,13 @@
 export * from "./engine/clinical-engine";
 export * from "./parser/cdsl-parser";
+export * from "./parser/field-registry/measurement";
+export * from "./parser/field-registry/medication";
+export * from "./parser/field-registry/observation";
+export * from "./parser/field-registry/time";
+export * from "./parser/field-registry/vitals";
+export * from "./parser/field-resolver-engine";
+export * from "./parser/generic-schema-parser";
+export * from "./parser/generic-tokenizer";
 export * from "./parser/parsers/clinical-date-range-parser";
 export {
 	type SchemaParser,
