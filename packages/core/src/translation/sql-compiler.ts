@@ -321,18 +321,18 @@ export class QueryCompiler {
 			if (!expr.case || expr.case.length === 0) {
 				throw new Error("Case expression must have at least one 'when' clause");
 			}
-			
+
 			const whenClauses = expr.case.map((c) => {
 				const condStr = this.compileCondition(c.when, ctx);
 				const thenStr = this.compileExpression(c.then, ctx);
 				return `WHEN ${condStr} THEN ${thenStr}`;
 			});
 
-			const elseClause = expr.else 
-				? ` ELSE ${this.compileExpression(expr.else, ctx)}` 
+			const elseClause = expr.else
+				? ` ELSE ${this.compileExpression(expr.else, ctx)}`
 				: "";
 
-			// Wrapping in parentheses prevents operator precedence issues 
+			// Wrapping in parentheses prevents operator precedence issues
 			// when embedded inside complex math or function arguments
 			return `(CASE ${whenClauses.join(" ")}${elseClause} END)`;
 		}
@@ -1106,6 +1106,8 @@ export class QueryCompiler {
 				return this.dialect === "sqlite"
 					? `(${args.join(" || ")})`
 					: `CONCAT(${args.join(", ")})`;
+			case "coalesce":
+				return `COALESCE(${args.join(", ")})`;
 			default:
 				throw new Error(`Pipeline compiler: unsupported op "${op}"`);
 		}
