@@ -9,7 +9,6 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
-import { ProseParser } from "./prose-parser";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import {
 	buildCalendarDateRules,
@@ -18,6 +17,7 @@ import {
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";
+import { ProseParser } from "./prose-parser";
 import {
 	type ParsedCandidateEnvelope,
 	type ParsedItem,
@@ -594,7 +594,8 @@ export class CdslParser {
 			this.profile,
 		);
 
-		const { parsedItems, consumedRanges, remnantSegments } = await proseParser.parse(text);
+		const { parsedItems, consumedRanges, remnantSegments } =
+			await proseParser.parse(text);
 
 		// Construct remaining text by blanking out consumed ranges to preserve index positions
 		let remainingText = text;
@@ -607,7 +608,11 @@ export class CdslParser {
 
 		const remnants: ParsedItem[] = [];
 		for (const rem of remnantSegments) {
-			const parsedRemnants = await this.parseRemnantSegment(rem, context, historyStore);
+			const parsedRemnants = await this.parseRemnantSegment(
+				rem,
+				context,
+				historyStore,
+			);
 			remnants.push(...parsedRemnants);
 		}
 
@@ -701,7 +706,9 @@ export class CdslParser {
 		}
 
 		for (const parser of parsersToRun) {
-			const defaultNamespace = this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] || undefined;
+			const defaultNamespace =
+				this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
+				undefined;
 			const concepts = resolvedConcepts.filter((c) => {
 				if (!c.conceptId) return false;
 				if (!defaultNamespace) return true;

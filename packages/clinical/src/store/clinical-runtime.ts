@@ -31,9 +31,9 @@ import type { CalibrationExceptionStore } from "./reference/calibration/interfac
 import type { FacilityStore } from "./reference/facilities/interfaces";
 import type { JurisdictionalDisplayStore } from "./reference/jurisdictional-displays/interfaces";
 import type { PersonnelStore } from "./reference/personnel/interfaces";
+import type { ProseParserTemplateStore } from "./reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
 import type { StopWordProfileStore } from "./reference/stop-words/interfaces";
-import type { ProseParserTemplateStore } from "./reference/prose-parser-templates/interfaces";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

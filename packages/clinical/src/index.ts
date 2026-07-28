@@ -10,6 +10,7 @@ export * from "./parser/field-resolver-engine";
 export * from "./parser/generic-schema-parser";
 export * from "./parser/generic-tokenizer";
 export * from "./parser/parsers/clinical-date-range-parser";
+export * from "./parser/prose-parser";
 export {
 	type SchemaParser,
 	schemaParserRegistry,
@@ -24,6 +25,7 @@ export * from "./schemas/measurement";
 export * from "./schemas/medication";
 export * from "./schemas/observation";
 export * from "./schemas/patient";
+export * from "./schemas/prose-template";
 export * from "./schemas/shared";
 export * from "./schemas/time";
 export * from "./schemas/vitals";
@@ -44,8 +46,6 @@ export * from "./store/learning/ordered_learning/sql-ordered-learning-store";
 export * from "./store/learning/parsed_cell/history-store";
 export * from "./store/learning/parsed_cell/kv-parsed-cell-store";
 export * from "./store/learning/parsed_cell/sql-parsed-cell-store";
-export * from "./parser/prose-parser";
-export * from "./schemas/prose-template";
 export * from "./store/reference/prose-parser-templates/interfaces";
 export * from "./store/reference/prose-parser-templates/kv-prose-parser-template-store";
 export * from "./store/reference/prose-parser-templates/sql-prose-parser-template-store";

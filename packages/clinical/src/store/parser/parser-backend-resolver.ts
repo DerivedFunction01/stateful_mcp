@@ -14,10 +14,10 @@ import { KvJurisdictionalDisplayStore } from "../reference/jurisdictional-displa
 import { SqlJurisdictionalDisplayStore } from "../reference/jurisdictional-displays/sql-jurisdictional-display-store";
 import { KvPersonnelStore } from "../reference/personnel/kv-personnel-store";
 import { SqlPersonnelStore } from "../reference/personnel/sql-personnel-store";
-import { KvClinicalProseTemplateStore } from "../reference/prose-templates/kv-clinical-prose-template-store";
-import { SqlClinicalProseTemplateStore } from "../reference/prose-templates/sql-clinical-prose-template-store";
 import { KvProseParserTemplateStore } from "../reference/prose-parser-templates/kv-prose-parser-template-store";
 import { SqlProseTemplateStore } from "../reference/prose-parser-templates/sql-prose-parser-template-store";
+import { KvClinicalProseTemplateStore } from "../reference/prose-templates/kv-clinical-prose-template-store";
+import { SqlClinicalProseTemplateStore } from "../reference/prose-templates/sql-clinical-prose-template-store";
 import { KvStopWordProfileStore } from "../reference/stop-words/kv-stop-word-profile-store";
 import { SqlStopWordProfileStore } from "../reference/stop-words/sql-stop-word-profile-store";
 import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-store";
