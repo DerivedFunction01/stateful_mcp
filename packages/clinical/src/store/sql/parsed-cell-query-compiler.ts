@@ -1,10 +1,13 @@
-import type { ColumnDef, SqlDialect } from "@stateful-mcp/core";
+import type { ColumnDef, ColumnType, SqlDialect } from "@stateful-mcp/core";
 import {
 	type CompiledQuery,
+	type CTE,
 	inferSqlType,
 	QueryCompiler,
 	type QueryCondition,
+	type QueryField,
 	type SelectQuery,
+	type SqlExpression,
 } from "@stateful-mcp/core";
 import type { ParsedCellHistoryKey } from "../learning/interfaces";
 import type {
@@ -362,6 +365,381 @@ export class ParsedCellSqlCompilerV2 {
 			undefined,
 		);
 
+		return { sql: compiled.sql, params: compiled.params };
+	}
+
+	public compileRankedHistoryQuery(opts: {
+		detailTable: string;
+		sharedTable: string;
+		key: ParsedCellHistoryKey;
+		scope: "scoped" | "global";
+		columns: Array<{ name: string; type: ColumnType; weight: number }>;
+		candidateValues: Record<string, any>;
+		limit?: number;
+	}): ParsedCellHistoryQuery {
+		const {
+			detailTable,
+			sharedTable,
+			key,
+			scope,
+			columns,
+			candidateValues,
+			limit,
+		} = opts;
+
+		const scopedFilters: QueryCondition[] =
+			scope === "scoped"
+				? ParsedCellSqlCompilerV2.SCOPED_FIELDS.map((field) => ({
+						column: field,
+						table: "s",
+						op: "eq" as const,
+						value: (key as any)[field],
+					})).filter((cond) => cond.value !== undefined && cond.value !== null)
+				: [];
+
+		const continuous = columns.filter((c) =>
+			["int", "real", "timestamp"].includes(c.type),
+		);
+
+		const statsSelect: QueryField[] = [];
+		const statsAliases: string[] = [];
+
+		for (const col of continuous) {
+			const safe = col.name.replace(/\./g, "_");
+			statsSelect.push(
+				{ column: col.name, table: "f", agg: "avg", alias: `${safe}_mean` },
+				{
+					column: col.name,
+					table: "f",
+					agg: "stddev_samp",
+					alias: `${safe}_stddev`,
+				},
+			);
+			statsAliases.push(`${safe}_mean`, `${safe}_stddev`);
+		}
+
+		const filteredCte: CTE = {
+			alias: "filtered",
+			query: {
+				table: detailTable,
+				alias: "h",
+				joins: [
+					{
+						type: "inner",
+						table: sharedTable,
+						alias: "s",
+						on: [
+							{
+								column: "cellId",
+								table: "h",
+								op: "eq",
+								raw: '"s"."cellId"',
+							},
+						],
+					},
+				],
+				where: [
+					{
+						column: "targetSchema",
+						table: "s",
+						op: "eq",
+						value: key.targetSchema,
+					},
+					{
+						column: "tag",
+						table: "s",
+						op: "eq",
+						value: key.tag,
+					},
+					...scopedFilters,
+				],
+			},
+		};
+
+		const ctes: CTE[] = [filteredCte];
+		if (statsSelect.length > 0) {
+			ctes.push({
+				alias: "history_stats",
+				query: {
+					table: "filtered",
+					alias: "f",
+					select: statsSelect,
+				},
+			});
+		}
+
+		const scoreTerms: SqlExpression[] = [];
+
+		for (const col of columns) {
+			const safe = col.name.replace(/\./g, "_");
+			const weightExpr: SqlExpression = { raw: String(col.weight) };
+
+			let matchExpr: SqlExpression;
+
+			if (["text", "id", "uuid", "json"].includes(col.type)) {
+				matchExpr = {
+					case: [
+						{
+							when: {
+								column: col.name,
+								table: "f",
+								op: "eq",
+								value: candidateValues[col.name],
+							},
+							then: { value: 1 },
+						},
+					],
+					else: { value: 0 },
+				};
+			} else if (col.type === "bool") {
+				matchExpr = {
+					case: [
+						{
+							when: {
+								column: col.name,
+								table: "f",
+								op: "is_not_distinct_from",
+								value: candidateValues[col.name],
+							},
+							then: { value: 1 },
+						},
+					],
+					else: { value: 0 },
+				};
+			} else if (["int", "real"].includes(col.type)) {
+				const hasStats = statsAliases.includes(`${safe}_stddev`);
+				if (hasStats) {
+					matchExpr = {
+						case: [
+							{
+								when: {
+									OR: [
+										{
+											column: `${safe}_stddev`,
+											table: "stats",
+											op: "is_null",
+										},
+										{
+											column: `${safe}_stddev`,
+											table: "stats",
+											op: "eq",
+											value: 0,
+										},
+									],
+								},
+								then: {
+									case: [
+										{
+											when: {
+												column: col.name,
+												table: "f",
+												op: "eq",
+												value: candidateValues[col.name],
+											},
+											then: { value: 1 },
+										},
+									],
+									else: { value: 0 },
+								},
+							},
+						],
+						else: {
+							func: "divide",
+							args: [
+								{ value: 1 },
+								{
+									func: "add",
+									args: [
+										{ value: 1 },
+										{
+											func: "divide",
+											args: [
+												{
+													func: "abs",
+													args: [
+														{
+															func: "subtract",
+															args: [
+																{ column: col.name, table: "f" },
+																{ column: `${safe}_mean`, table: "stats" },
+															],
+														},
+													],
+												},
+												{ column: `${safe}_stddev`, table: "stats" },
+											],
+										},
+									],
+								},
+							],
+						},
+					};
+				} else {
+					matchExpr = {
+						case: [
+							{
+								when: {
+									column: col.name,
+									table: "f",
+									op: "eq",
+									value: candidateValues[col.name],
+								},
+								then: { value: 1 },
+							},
+						],
+						else: { value: 0 },
+					};
+				}
+			} else if (col.type === "timestamp") {
+				const hasStats = statsAliases.includes(`${safe}_stddev`);
+				if (hasStats) {
+					matchExpr = {
+						case: [
+							{
+								when: {
+									OR: [
+										{
+											column: `${safe}_stddev`,
+											table: "stats",
+											op: "is_null",
+										},
+										{
+											column: `${safe}_stddev`,
+											table: "stats",
+											op: "eq",
+											value: 0,
+										},
+									],
+								},
+								then: {
+									case: [
+										{
+											when: {
+												column: col.name,
+												table: "f",
+												op: "eq",
+												value: candidateValues[col.name],
+											},
+											then: { value: 1 },
+										},
+									],
+									else: { value: 0 },
+								},
+							},
+						],
+						else: {
+							func: "divide",
+							args: [
+								{ value: 1 },
+								{
+									func: "add",
+									args: [
+										{ value: 1 },
+										{
+											func: "divide",
+											args: [
+												{
+													func: "abs",
+													args: [
+														{
+															func: "subtract",
+															args: [
+																{
+																	func: "epoch",
+																	args: [
+																		{
+																			column: col.name,
+																			table: "f",
+																		},
+																	],
+																},
+																{ column: `${safe}_mean`, table: "stats" },
+															],
+														},
+													],
+												},
+												{ column: `${safe}_stddev`, table: "stats" },
+											],
+										},
+									],
+								},
+							],
+						},
+					};
+				} else {
+					matchExpr = {
+						case: [
+							{
+								when: {
+									column: col.name,
+									table: "f",
+									op: "eq",
+									value: candidateValues[col.name],
+								},
+								then: { value: 1 },
+							},
+						],
+						else: { value: 0 },
+					};
+				}
+			} else if (col.type === "blob") {
+				matchExpr = {
+					case: [
+						{
+							when: {
+								column: col.name,
+								table: "f",
+								op: "is_not_distinct_from",
+								value: candidateValues[col.name],
+							},
+							then: { value: 1 },
+						},
+					],
+					else: { value: 0 },
+				};
+			} else {
+				matchExpr = {
+					case: [
+						{
+							when: {
+								column: col.name,
+								table: "f",
+								op: "eq",
+								value: candidateValues[col.name],
+							},
+							then: { value: 1 },
+						},
+					],
+					else: { value: 0 },
+				};
+			}
+
+			scoreTerms.push({
+				func: "multiply",
+				args: [weightExpr, matchExpr],
+			});
+		}
+
+		const mainQuery: SelectQuery = {
+			with: ctes.length > 0 ? ctes : undefined,
+			table: "filtered",
+			alias: "f",
+			joins:
+				statsSelect.length > 0
+					? [{ type: "cross", table: "history_stats", alias: "stats" }]
+					: undefined,
+			select: [
+				{ raw: '"f".*' },
+				{
+					alias: "rank_score",
+					expr: { func: "add", args: scoreTerms },
+				},
+			],
+			orderBy: [{ column: "rank_score", direction: "DESC" }],
+			limit,
+		};
+
+		const compiled = this.compiler.compileSelect(mainQuery, undefined);
 		return { sql: compiled.sql, params: compiled.params };
 	}
 

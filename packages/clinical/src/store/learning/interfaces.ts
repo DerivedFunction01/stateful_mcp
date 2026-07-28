@@ -292,6 +292,13 @@ export interface ParsedCellHistoryStore {
 	getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]>;
 	putRecord(record: ParsedCellRecord): Promise<void>;
 	markCorrection(cellId: string, replacement?: ParsedItem): Promise<void>;
+	rankHistoryBySchema(
+		targetSchema: string,
+		key: ParsedCellHistoryKey,
+		candidate: ParsedItem,
+	): Promise<
+		Array<ParsedCellRecord & { rankScore: number; rankReason: string }>
+	>;
 }
 
 // ── Ranker Types (v2) ───────────────────────────────────────────────────────────

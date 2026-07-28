@@ -65,4 +65,20 @@ export class CompositeParsedCellHistoryStore
 			),
 		);
 	}
+
+	async rankHistoryBySchema(
+		targetSchema: string,
+		key: ParsedCellHistoryKey,
+		candidate: ParsedCellRecord["parsedItem"],
+	): Promise<
+		Array<ParsedCellRecord & { rankScore: number; rankReason: string }>
+	> {
+		const allCandidates = await this.getWeightedHistory(key);
+		const combined = allCandidates.map((entry) => ({
+			...entry.candidate,
+			rankScore: 0,
+			rankReason: `adapter:${entry.adapterId}`,
+		}));
+		return combined.sort((a, b) => (b.rankScore || 0) - (a.rankScore || 0));
+	}
 }

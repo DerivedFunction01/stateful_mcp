@@ -1,4 +1,4 @@
-import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
+import type { ColumnType, SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { ParsedItem } from "../../../parser/schema-parsers";
 import {
 	extractSharedValues,
@@ -311,6 +311,53 @@ export class SqlParsedCellStore
 		});
 		const rows = await this.executor.query(sql, params);
 		return rows.map((row) => reconstructRecordFromRow(row));
+	}
+
+	async rankHistoryBySchema(
+		targetSchema: string,
+		key: ParsedCellHistoryKey,
+		candidate: ParsedItem,
+	): Promise<
+		Array<ParsedCellRecord & { rankScore: number; rankReason: string }>
+	> {
+		const detailTable = this.resolveDetailTable(targetSchema);
+		const transform = getTransformForSchema(targetSchema);
+
+		const flatValues = transform
+			? flattenParsedItem(candidate)
+			: Object.fromEntries(
+					Object.keys(candidate.extractedData || {}).map((k) => [
+						k,
+						(candidate.extractedData as any)?.[k],
+					]),
+				);
+
+		const columns = (transform?.columnSpecs || []).map((col) => ({
+			name: col.name,
+			type: col.type as ColumnType,
+			weight: 1,
+		}));
+
+		const candidateValues: Record<string, any> = {};
+		for (const col of columns) {
+			candidateValues[col.name] = flatValues[col.name];
+		}
+
+		const { sql, params } = this.compiler.compileRankedHistoryQuery({
+			detailTable,
+			sharedTable: this.sharedTable,
+			key,
+			scope: isScopedHistoryKey(key) ? "scoped" : "global",
+			columns,
+			candidateValues,
+		});
+
+		const rows = await this.executor.query(sql, params);
+		return rows.map((row) => ({
+			...reconstructRecordFromRow(row),
+			rankScore: Number(row.rank_score) || 0,
+			rankReason: "",
+		}));
 	}
 
 	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]> {

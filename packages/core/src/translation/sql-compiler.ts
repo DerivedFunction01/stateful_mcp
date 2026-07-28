@@ -25,7 +25,9 @@ export type FilterOp =
 	| "not_between"
 	| "json_contains"
 	| "is_null"
-	| "is_not_null";
+	| "is_not_null"
+	| "is_distinct_from"
+	| "is_not_distinct_from";
 
 export type SqlFunctionOp =
 	| "year"
@@ -428,7 +430,12 @@ export function inferSqlType(
  * Unified SQL AST Compiler supporting SQLite, Postgres, and DuckDB.
  */
 export class QueryCompiler {
-	constructor(private dialect: SqlDialect = "sqlite") {}
+	constructor(private dialect: SqlDialect = "sqlite") {
+		// If it is opfs, turn it to sqlite for simplicity
+		if (this.dialect === "opfs") {
+			this.dialect = "sqlite";
+		}
+	}
 	public compileExpression(expr: SqlExpression, ctx: CompilerContext): string {
 		if ("func" in expr) {
 			// 1. Recursively compile all arguments first
@@ -777,6 +784,21 @@ export class QueryCompiler {
 				// JSON-escaped characters inside tag strings).
 				return `EXISTS (SELECT 1 FROM json_each(${col}) WHERE value = ${ctx.addParam(cond.value)})`;
 			}
+			case "is_not_distinct_from":
+				// SQLite uses `IS` for null-safe equality
+				if (this.dialect === "sqlite") {
+					return `${col} IS ${rhs}`;
+				}
+				// Postgres and DuckDB use standard ANSI syntax
+				return `${col} IS NOT DISTINCT FROM ${rhs}`;
+
+			case "is_distinct_from":
+				// SQLite uses `IS NOT` for null-safe inequality
+				if (this.dialect === "sqlite") {
+					return `${col} IS NOT ${rhs}`;
+				}
+				// Postgres and DuckDB
+				return `${col} IS DISTINCT FROM ${rhs}`;
 			default:
 				throw new Error(`Unsupported filter op: ${(cond as any).op}`);
 		}
@@ -808,7 +830,7 @@ export class QueryCompiler {
 	public compileAggregate(agg: string, expr: string): string {
 		if (agg === "count_distinct") return `COUNT(DISTINCT ${expr})`;
 
-		const isSqLite = this.dialect === "sqlite" || this.dialect === "opfs";
+		const isSqLite = this.dialect === "sqlite";
 
 		switch (agg) {
 			case "stddev_samp":
@@ -894,7 +916,7 @@ export class QueryCompiler {
 		ctx: CompilerContext,
 		currentQuery: SelectQuery,
 	): string {
-		const isSqLite = this.dialect === "sqlite" || this.dialect === "opfs";
+		const isSqLite = this.dialect === "sqlite";
 
 		// ------------------------------------------------------------------
 		// AST LOWERING: Dynamically rewrite MODE() into a Correlated Subquery for SQLite
@@ -1546,7 +1568,7 @@ export class QueryCompiler {
 		// 2. Determine dialect-specific explain syntax
 		let explainPrefix = "EXPLAIN";
 		if (query.analyze) {
-			if (this.dialect === "sqlite" || this.dialect === "opfs") {
+			if (this.dialect === "sqlite") {
 				// SQLite uses a specific PRAGMA or query plan modifier, but standard EXPLAIN QUERY PLAN is preferred
 				explainPrefix = "EXPLAIN QUERY PLAN";
 			} else {
@@ -1646,8 +1668,7 @@ CREATE TRIGGER ${triggerName}
 
 		// SQLite / DuckDB
 		const ifNotExists =
-			query.ifNotExists !== false &&
-			(this.dialect === "sqlite" || this.dialect === "opfs")
+			query.ifNotExists !== false && this.dialect === "sqlite"
 				? "IF NOT EXISTS "
 				: "";
 
@@ -1666,7 +1687,7 @@ END;`.trim();
 		const ifExists = query.ifExists !== false ? "IF EXISTS " : "";
 		let sql = "";
 
-		if (this.dialect === "sqlite" || this.dialect === "opfs") {
+		if (this.dialect === "sqlite") {
 			// SQLite syntax: DROP TRIGGER [IF EXISTS] [table.]trigger-name
 			const tablePrefix = query.table ? `${this.quoteIdent(query.table)}.` : "";
 			sql = `DROP TRIGGER ${ifExists}${tablePrefix}${this.quoteIdent(query.name)};`;
@@ -1680,7 +1701,7 @@ END;`.trim();
 	}
 
 	public compileTruncate(query: TruncateQuery): CompiledQuery {
-		const isSqLite = this.dialect === "sqlite" || this.dialect === "opfs";
+		const isSqLite = this.dialect === "sqlite";
 		const tableName = this.quoteIdent(query.table);
 
 		// SQLite fallback: SQLite doesn't have TRUNCATE; DELETE FROM is the safe, native equivalent.
