@@ -8,10 +8,12 @@ import {
 	JsonlKvBackend,
 	LocalStorageKvBackend,
 	MemoryKvBackend,
+	readStringOption,
+	resolveDbPath,
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
-import { readStringOption, resolveDbPath } from "../sql/resolve-db-path";
+
 import type { ParsedCellStore } from "./interfaces";
 import { KvBackendFieldWeightStore } from "./parsed_cell/field-weight-store";
 import { KvParsedCellStore } from "./parsed_cell/kv-parsed-cell-store";
