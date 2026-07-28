@@ -59,6 +59,35 @@ export function createMedicationFieldRegistry(
 			},
 		},
 		{
+			sourceKey: "quantity_to_dispense",
+			targetField: "quantityToDispense",
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const str = rawGroups?.quantity_to_dispense;
+				if (!str) return undefined;
+				const num = Number.parseInt(str, 10);
+				return Number.isNaN(num) ? undefined : num;
+			},
+		},
+		{
+			sourceKey: "authorized_refills",
+			targetField: "authorizedRefills",
+			schemaDefaultField: "authorizedRefills",
+			conceptDefaultPath: ["authorizedRefills"],
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const str = rawGroups?.authorized_refills;
+				if (!str) return undefined;
+				const num = Number.parseInt(str, 10);
+				return Number.isNaN(num) ? undefined : num;
+			},
+		},
+		{
+			sourceKey: "generic_substitution",
+			targetField: "genericSubstitutionPermitted",
+			schemaDefaultField: "genericSubstitutionPermitted",
+			conceptDefaultPath: ["genericSubstitutionPermitted"],
+			valueMap: { true: true, false: false },
+		},
+		{
 			sourceKey: "frequency_prn",
 			targetField: "frequency.isPrn",
 			valueMap: { true: true },

@@ -45,6 +45,16 @@ export function createMeasurementFieldRegistry(
 			targetField: "is_approximate",
 		},
 		{
+			sourceKey: "num_data_points",
+			targetField: "num_data_points",
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const str = rawGroups?.num_data_points;
+				if (!str) return undefined;
+				const num = Number.parseInt(str, 1);
+				return Number.isNaN(num) ? undefined : num;
+			},
+		},
+		{
 			sourceKey: "unit",
 			targetField: "unitAnchor",
 			compute: (_slots, _conceptDefaults, rawGroups) => {

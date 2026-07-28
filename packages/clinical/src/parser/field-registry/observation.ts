@@ -26,11 +26,7 @@ export function createObservationFieldRegistry(
 			targetField: "severity",
 			schemaDefaultField: "severity",
 			conceptDefaultPath: ["severity"],
-		},
-		{
-			sourceKey: "severity",
-			targetField: "severity",
-			compute: (slots, conceptDefaults, rawGroups) => {
+			compute: (_slots, conceptDefaults, rawGroups) => {
 				const numStr = rawGroups?.numerator;
 				if (!numStr) return undefined;
 				const num = Number.parseFloat(numStr);
@@ -64,6 +60,12 @@ export function createObservationFieldRegistry(
 					normalizedScore: (num / den) * 10,
 				};
 			},
+		},
+		{
+			sourceKey: "trajectory",
+			targetField: "trajectory",
+			schemaDefaultField: "trajectory",
+			conceptDefaultPath: ["trajectory"],
 		},
 	];
 }
