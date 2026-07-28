@@ -43,7 +43,7 @@ export const assessmentRouter = (
 };
 
 export const assessmentConfig: SchemaParserConfig = {
-	schema: "AssessmentObject",
-	targetSchema: "AssessmentObject",
+	schema: "PrimaryDiagnosisEntry",
+	targetSchema: "PrimaryDiagnosisEntry",
 	preparsedContextKeys: [],
 };

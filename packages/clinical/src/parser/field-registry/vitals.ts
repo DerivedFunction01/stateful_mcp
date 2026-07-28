@@ -36,19 +36,26 @@ export function createVitalsFieldRegistry(
 	return [
 		{
 			sourceKey: "blood_pressure",
-			targetField: "bloodPressureDetails",
+			targetField: "systolic",
 			compute: (_slots, _conceptDefaults, rawGroups) => {
 				const systolicStr = rawGroups?.systolic;
-				const diastolicStr = rawGroups?.diastolic;
-				if (!systolicStr || !diastolicStr) return undefined;
+				if (!systolicStr) return undefined;
 				const systolic = Number.parseInt(systolicStr, 10);
-				const diastolic = Number.parseInt(diastolicStr, 10);
-				if (Number.isNaN(systolic) || Number.isNaN(diastolic)) return undefined;
+				if (Number.isNaN(systolic)) return undefined;
 				const unit = rawGroups?.unit?.trim() || "mmHg";
-				return {
-					systolic: { magnitude: systolic, unit: { display: unit } },
-					diastolic: { magnitude: diastolic, unit: { display: unit } },
-				};
+				return { magnitude: systolic, unit: { display: unit } };
+			},
+		},
+		{
+			sourceKey: "blood_pressure",
+			targetField: "diastolic",
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const diastolicStr = rawGroups?.diastolic;
+				if (!diastolicStr) return undefined;
+				const diastolic = Number.parseInt(diastolicStr, 10);
+				if (Number.isNaN(diastolic)) return undefined;
+				const unit = rawGroups?.unit?.trim() || "mmHg";
+				return { magnitude: diastolic, unit: { display: unit } };
 			},
 		},
 		{
