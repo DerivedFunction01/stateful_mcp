@@ -21,6 +21,8 @@ export type OpName =
 	| "gt"
 	| "in_set"
 	| "not_in_set"
+	| "and"
+	| "or"
 	| "year"
 	| "month"
 	| "day"

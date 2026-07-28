@@ -283,6 +283,18 @@ export function compilePipelineToSQL(
 						? `(${args.join(" || ")})`
 						: `CONCAT(${args.join(", ")})`;
 				break;
+			case "and":
+				lastExpr =
+					dialect === "sqlite"
+						? `(${args.join(" AND ")})`
+						: `AND(${args.join(", ")})`;
+				break;
+			case "or":
+				lastExpr =
+					dialect === "sqlite"
+						? `(${args.join(" OR ")})`
+						: `OR(${args.join(", ")})`;
+				break;
 			default:
 				throw new Error(`Pipeline compiler: unsupported op "${step.op}"`);
 		}

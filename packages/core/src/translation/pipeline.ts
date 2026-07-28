@@ -107,6 +107,11 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 			return args.every(
 				(val, i) => i === 0 || (args[i - 1] as any) > (val as any),
 			);
+		// Boolean
+		case "and":
+			return args.every((v) => Boolean(v));
+		case "or":
+			return args.some((v) => Boolean(v));
 		// Set membership (args[0] = test value, args[1..] = allowed set)
 		case "in_set": {
 			if (args.length < 2) return false;
