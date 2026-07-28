@@ -1,5 +1,11 @@
 # @stateful-mcp/core
 
+## 0.5.0
+
+### Minor Changes
+
+- Updates and optimizations
+
 ## 0.4.0
 
 ### Minor Changes

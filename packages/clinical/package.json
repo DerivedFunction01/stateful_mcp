@@ -1,6 +1,6 @@
 {
 	"name": "@stateful-mcp/clinical",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Clinical domain engines and resource loaders for Stateful framework",
 	"keywords": [
 		"clinical",
@@ -22,7 +22,7 @@
 	},
 	"dependencies": {
 		"@duckdb/node-api": "^1.5.4-r.1",
-		"@stateful-mcp/core": "workspace:^",
+		"@stateful-mcp/core": "^0.5.0",
 		"@sqlite.org/sqlite-wasm": "latest"
 	},
 	"devDependencies": {

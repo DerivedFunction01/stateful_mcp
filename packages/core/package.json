@@ -1,6 +1,6 @@
 {
 	"name": "@stateful-mcp/core",
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"description": "Stateful framework core (transport and LLM-agnostic)",
 	"keywords": [
 		"stateful",
@@ -19,7 +19,8 @@
 	"types": "./dist/index.d.ts",
 	"scripts": {
 		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' && tsc --emitDeclarationOnly --declaration --outDir dist",
-		"check": "tsc --noEmit"
+		"check": "tsc --noEmit",
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@duckdb/node-api": "^1.5.5-r.1",

@@ -1,5 +1,16 @@
 # @stateful-mcp/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- Updates and optimizations
+
+### Patch Changes
+
+- Updated dependencies
+  - @stateful-mcp/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
