@@ -28,6 +28,6 @@ export interface ObservationEvent {
 		| "fluctuating"
 		| "unknown";
 	qualifiers?: CodeableConcept[];
-	anatomy?: AnatomicalLocation;
+	anatomyLocations?: AnatomicalLocation[];
 	dateRange?: ClinicalDateRange;
 }
