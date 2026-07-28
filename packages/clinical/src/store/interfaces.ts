@@ -290,6 +290,7 @@ export interface StopWordContext {
 	specialtyId?: string;
 	facilityId?: string;
 	patientContext?: PatientLearningContext;
+	workspaceId?: string;
 }
 
 export interface StopWordProfile {

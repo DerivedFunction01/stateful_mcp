@@ -78,7 +78,9 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 			}
 		}
 
-		const calendarRules = attrRules.filter((rule) => rule.targetField === "calendar_date");
+		const calendarRules = attrRules.filter(
+			(rule) => rule.targetField === "calendar_date",
+		);
 		for (const rule of calendarRules) {
 			for (const pattern of rule.regexPatterns) {
 				try {
@@ -86,11 +88,17 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 					const rawRegex = getCompiledRegex(pattern, "i");
 					const globalRegex = new RegExp(
 						rawRegex.source,
-						rawRegex.flags.includes("g") ? rawRegex.flags : rawRegex.flags + "g"
+						rawRegex.flags.includes("g")
+							? rawRegex.flags
+							: rawRegex.flags + "g",
 					);
-					let match: RegExpExecArray | null;
-					while ((match = globalRegex.exec(cleaned)) !== null) {
-						spans.push({ start: match.index, end: match.index + match[0].length });
+					let match = globalRegex.exec(cleaned);
+					while (match !== null) {
+						spans.push({
+							start: match.index,
+							end: match.index + match[0].length,
+						});
+						match = globalRegex.exec(cleaned);
 					}
 				} catch {
 					// Fallback if regex fails to compile
@@ -119,12 +127,23 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		const results: ParsedClinicalDateRangeItem[] = [];
 
 		// First tokenize the whole string to see if it represents a single unified range/list/exclusion
-		const unsplitToken = ClinicalDateRangeTokenizer.tokenize(cleaned, attrRules, evalRules);
+		const unsplitToken = ClinicalDateRangeTokenizer.tokenize(
+			cleaned,
+			attrRules,
+			evalRules,
+		);
 		let shouldSplit = true;
 		if (unsplitToken) {
-			const hasList = unsplitToken.listCalendarDates && unsplitToken.listCalendarDates.length > 1;
-			const hasRange = unsplitToken.startCalendarDate && unsplitToken.endCalendarDate;
-			const hasExclusion = !!(unsplitToken.baseRepeat || unsplitToken.exclusionRepeat || unsplitToken.baseStartCalendarDate);
+			const hasList =
+				unsplitToken.listCalendarDates &&
+				unsplitToken.listCalendarDates.length > 1;
+			const hasRange =
+				unsplitToken.startCalendarDate && unsplitToken.endCalendarDate;
+			const hasExclusion = !!(
+				unsplitToken.baseRepeat ||
+				unsplitToken.exclusionRepeat ||
+				unsplitToken.baseStartCalendarDate
+			);
 			if (hasList || hasRange || hasExclusion) {
 				shouldSplit = false;
 			}
@@ -136,8 +155,14 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 			const tempItems: ParsedClinicalDateRangeItem[] = [];
 
 			for (let i = 0; i < mergedSpans.length; i++) {
-				const start = i === 0 ? 0 : Math.floor((mergedSpans[i - 1]!.end + mergedSpans[i]!.start) / 2);
-				const end = i === mergedSpans.length - 1 ? cleaned.length : Math.floor((mergedSpans[i]!.end + mergedSpans[i + 1]!.start) / 2);
+				const start =
+					i === 0
+						? 0
+						: Math.floor((mergedSpans[i - 1]!.end + mergedSpans[i]!.start) / 2);
+				const end =
+					i === mergedSpans.length - 1
+						? cleaned.length
+						: Math.floor((mergedSpans[i]!.end + mergedSpans[i + 1]!.start) / 2);
 				const segment = cleaned.slice(start, end).trim();
 
 				if (!segment) {
@@ -145,7 +170,11 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 					break;
 				}
 
-				const token = ClinicalDateRangeTokenizer.tokenize(segment, attrRules, evalRules);
+				const token = ClinicalDateRangeTokenizer.tokenize(
+					segment,
+					attrRules,
+					evalRules,
+				);
 				if (token) {
 					const dateRange = ClinicalDateRangeHelper.build(token);
 					if (dateRange) {
@@ -195,7 +224,7 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 function makePreviewEnvelope(
 	parsed: ParsedItemUnion | ParsedItemUnion[] | null,
 ): ParsedCandidateEnvelope {
-	const parsedArr = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+	const parsedArr = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
 	return {
 		deterministic: parsedArr,
 		learned: parsedArr,

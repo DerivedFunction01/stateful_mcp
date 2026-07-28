@@ -1,3 +1,4 @@
+import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import {
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
@@ -14,6 +15,7 @@ import {
 	resolveParserRuleStores,
 	resolvePersonnelStore,
 	resolveReferenceStores,
+	resolveSharedFieldAnchorStore,
 } from "./parser/parser-backend-resolver";
 import { DefaultParserProfileComposer } from "./parser/parser-composer";
 import type {
@@ -53,6 +55,7 @@ export interface ClinicalRuntimeParserStores {
 	calibration: CalibrationExceptionStore;
 	personnel: PersonnelStore;
 	facilities: FacilityStore;
+	sharedFieldAnchors: SharedFieldAnchorStore;
 }
 
 export interface ClinicalRuntime {
@@ -74,6 +77,7 @@ export async function createClinicalRuntime(
 		calibration,
 		personnel,
 		facilities,
+		sharedFieldAnchors,
 	] = await Promise.all([
 		resolveParserProfileStores(config),
 		resolveParserRuleStores(config),
@@ -82,6 +86,7 @@ export async function createClinicalRuntime(
 		resolveCalibrationExceptionStore(config),
 		resolvePersonnelStore(config),
 		resolveFacilityStore(config),
+		resolveSharedFieldAnchorStore(config),
 	]);
 
 	const composer = new DefaultParserProfileComposer(
@@ -112,6 +117,7 @@ export async function createClinicalRuntime(
 			calibration,
 			personnel,
 			facilities,
+			sharedFieldAnchors,
 		},
 		learningStores: await buildLearningStores(config),
 	};

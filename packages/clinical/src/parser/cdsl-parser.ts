@@ -1,4 +1,4 @@
-import type { DictionaryStore } from "@stateful-mcp/core";
+import { type DictionaryStore, executePipeline } from "@stateful-mcp/core";
 import type {
 	ConceptFieldRule,
 	ConceptFieldStore,
@@ -15,6 +15,7 @@ import {
 	buildNumericFieldRules,
 } from "../store/rules-builder";
 import { getCompiledRegex } from "./_compiled-regex";
+import type { SharedFieldAnchorStore } from "./field-shared/shared-field-anchor";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";
 import { ProseParser } from "./prose-parser";
@@ -50,6 +51,7 @@ export class CdslParser {
 		stopWordStore?: StopWordStore,
 		private conceptFieldStore?: ConceptFieldStore,
 		private proseTemplateStore?: ProseParserTemplateStore,
+		private sharedFieldAnchorStore?: SharedFieldAnchorStore,
 	) {
 		this.stopWordParser = stopWordParser;
 		this.stopWordStore = stopWordStore;
@@ -79,6 +81,7 @@ export class CdslParser {
 	 * @param stopWordStore - Optional stop word store for dynamic resolution
 	 * @param conceptFieldStore - Optional concept field store
 	 * @param proseTemplateStore - Optional prose parser template store
+	 * @param sharedFieldAnchorStore - Optional shared field anchor store
 	 */
 	static async create(
 		dictionaryStore: DictionaryStore,
@@ -89,6 +92,7 @@ export class CdslParser {
 		stopWordStore?: StopWordStore,
 		conceptFieldStore?: ConceptFieldStore,
 		proseTemplateStore?: ProseParserTemplateStore,
+		sharedFieldAnchorStore?: SharedFieldAnchorStore,
 	): Promise<CdslParser> {
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
@@ -105,6 +109,7 @@ export class CdslParser {
 			stopWordStore,
 			conceptFieldStore,
 			proseTemplateStore,
+			sharedFieldAnchorStore,
 		);
 	}
 
@@ -335,7 +340,11 @@ export class CdslParser {
 						allowedNamespaces,
 						preparsedContext,
 					);
-					const parsedArr = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+					const parsedArr = Array.isArray(parsed)
+						? parsed
+						: parsed
+							? [parsed]
+							: [];
 					results.push({
 						targetSchema: parser.targetSchema,
 						deterministic: parsedArr,
@@ -571,6 +580,187 @@ export class CdslParser {
 						}
 					}
 				}
+			}
+		}
+
+		// 3. Post-parse shared field anchoring enrichment pass
+		if (this.sharedFieldAnchorStore) {
+			try {
+				const globalRules = await this.sharedFieldAnchorStore.listForContext(
+					{},
+				);
+				const contextRules = await this.sharedFieldAnchorStore.listForContext({
+					workspaceId: context?.workspaceId,
+					personnelId: context?.personnelId || this.profile.personnelId,
+				});
+
+				const rulesMap = new Map<
+					string,
+					import("./field-shared/shared-field-anchor").SharedFieldAnchorRule
+				>();
+				for (const r of globalRules) {
+					rulesMap.set(r.targetSchema, r);
+				}
+				for (const r of contextRules) {
+					rulesMap.set(r.targetSchema, r);
+				}
+
+				let lastIdx = 0;
+				const itemOffsets = items.map((item) => {
+					let idx = text.indexOf(item.rawText, lastIdx);
+					if (idx === -1) {
+						idx = text.indexOf(item.rawText);
+					}
+					if (idx !== -1) {
+						lastIdx = idx + item.rawText.length;
+					}
+					return {
+						item,
+						start: idx !== -1 ? idx : 0,
+						end: idx !== -1 ? idx + item.rawText.length : 0,
+					};
+				});
+
+				const anchoredCandidates = new Set<any>();
+
+				for (let tIdx = 0; tIdx < items.length; tIdx++) {
+					const targetItem = items[tIdx]!;
+					const rule = rulesMap.get(targetItem.targetSchema);
+					if (!rule) continue;
+
+					const targetOffset = itemOffsets[tIdx]!;
+
+					for (const anchor of rule.anchors) {
+						let bestCandidate: (typeof items)[0] | null = null;
+						let bestScore = -1;
+
+						for (let cIdx = 0; cIdx < items.length; cIdx++) {
+							if (cIdx === tIdx) continue;
+							const candidateItem = items[cIdx]!;
+							if (candidateItem.targetSchema !== anchor.source) continue;
+
+							const candidateOffset = itemOffsets[cIdx]!;
+							const isLeft = cIdx < tIdx;
+							const itemDistance = Math.abs(tIdx - cIdx);
+
+							const distanceConfig = anchor.distance || {};
+							if (
+								isLeft &&
+								distanceConfig.maxLeft !== undefined &&
+								itemDistance > distanceConfig.maxLeft
+							) {
+								continue;
+							}
+							if (
+								!isLeft &&
+								distanceConfig.maxRight !== undefined &&
+								itemDistance > distanceConfig.maxRight
+							) {
+								continue;
+							}
+
+							const gapStart = isLeft ? candidateOffset.end : targetOffset.end;
+							const gapEnd = isLeft
+								? targetOffset.start
+								: candidateOffset.start;
+							const gapText =
+								gapStart < gapEnd ? text.slice(gapStart, gapEnd) : "";
+
+							const charDistance = gapText.length;
+							let wordDistance = 0;
+							if (distanceConfig.unit === "words") {
+								const words = gapText.split(/\s+/).filter(Boolean);
+								wordDistance = effectiveStopWordParser
+									? words.filter((w) => !effectiveStopWordParser.isStopWord(w))
+											.length
+									: words.length;
+							}
+
+							if (distanceConfig.unit === "chars") {
+								if (
+									isLeft &&
+									distanceConfig.maxLeft !== undefined &&
+									charDistance > distanceConfig.maxLeft
+								)
+									continue;
+								if (
+									!isLeft &&
+									distanceConfig.maxRight !== undefined &&
+									charDistance > distanceConfig.maxRight
+								)
+									continue;
+							} else if (distanceConfig.unit === "words") {
+								if (
+									isLeft &&
+									distanceConfig.maxLeft !== undefined &&
+									wordDistance > distanceConfig.maxLeft
+								)
+									continue;
+								if (
+									!isLeft &&
+									distanceConfig.maxRight !== undefined &&
+									wordDistance > distanceConfig.maxRight
+								)
+									continue;
+							}
+
+							if (anchor.anchorPattern) {
+								const flags =
+									anchor.anchorPatternCaseInsensitive !== false ? "i" : "";
+								const regex = new RegExp(anchor.anchorPattern, flags);
+								if (!regex.test(gapText)) {
+									continue;
+								}
+							}
+
+							if (anchor.condition && anchor.condition.pipeline) {
+								const pass = executePipeline(
+									anchor.condition.pipeline,
+									{
+										source: candidateItem.extractedData,
+										target: targetItem.extractedData,
+										gapText,
+									},
+									{},
+								);
+								if (!pass) {
+									continue;
+								}
+							}
+
+							const unitFactor =
+								distanceConfig.unit === "chars"
+									? charDistance
+									: distanceConfig.unit === "words"
+										? wordDistance
+										: itemDistance;
+							const distanceScore = 1000 - unitFactor;
+							if (distanceScore > bestScore) {
+								bestScore = distanceScore;
+								bestCandidate = candidateItem;
+							}
+						}
+
+						if (bestCandidate) {
+							const pathParts = anchor.targetField.split(".");
+							let current = targetItem.extractedData;
+							for (let i = 0; i < pathParts.length - 1; i++) {
+								const part = pathParts[i]!;
+								if (!current[part]) {
+									current[part] = {};
+								}
+								current = current[part];
+							}
+							const lastPart = pathParts[pathParts.length - 1]!;
+							current[lastPart] = bestCandidate.extractedData;
+							anchoredCandidates.add(bestCandidate);
+						}
+					}
+				}
+
+				return items.filter((item) => !anchoredCandidates.has(item));
+			} catch (e) {
+				console.error("Shared field anchoring failed:", e);
 			}
 		}
 

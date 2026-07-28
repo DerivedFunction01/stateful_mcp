@@ -7,6 +7,7 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
+import type { SharedFieldAnchorStore } from "../../parser/field-shared/shared-field-anchor";
 import type { ClinicalStoreConfig } from "../clinical-config";
 import { KvCalibrationExceptionStore } from "../reference/calibration/kv-calibration-exception-store";
 import { SqlCalibrationExceptionStore } from "../reference/calibration/sql-calibration-exception-store";
@@ -22,6 +23,8 @@ import { KvClinicalProseTemplateStore } from "../reference/prose-templates/kv-cl
 import { SqlClinicalProseTemplateStore } from "../reference/prose-templates/sql-clinical-prose-template-store";
 import { KvStopWordProfileStore } from "../reference/stop-words/kv-stop-word-profile-store";
 import { SqlStopWordProfileStore } from "../reference/stop-words/sql-stop-word-profile-store";
+import { KvSharedFieldAnchorStore } from "./anchors/kv-shared-field-anchor-store";
+import { SqlSharedFieldAnchorStore } from "./anchors/sql-shared-field-anchor-store";
 import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-store";
 import { SqlConceptDefaultStore } from "./concept_defaults/sql-concept-default-store";
 import { KvConceptFieldStore } from "./concept_fields/kv-concept-field-store";
@@ -327,6 +330,47 @@ export async function resolveConceptFieldStore(
 
 	throw new Error(
 		`Unsupported concept field adapter: ${(locator as any).name ?? locator._type}`,
+	);
+}
+
+// ── Shared Field Anchors ─────────────────────────────────────────────────────
+
+export async function resolveSharedFieldAnchorStore(
+	config: ClinicalStoreConfig,
+): Promise<SharedFieldAnchorStore> {
+	const locator = getPrimaryLocator(config, "shared_field_anchors");
+
+	if (locator._type === "adapter" && locator.name === "memory") {
+		return new KvSharedFieldAnchorStore(new MemoryKvBackend());
+	}
+
+	if (
+		locator._type === "adapter" &&
+		(locator.name === "sqlite" ||
+			locator.name === "pg" ||
+			locator.name === "duckdb" ||
+			locator.name === "opfs")
+	) {
+		const dialect = mapDialect(locator.name);
+		const backend = await SqlBackend.connect(
+			dialect,
+			resolveDbPath(locator, dialect),
+		);
+		const executor = new SqlExecutor(backend);
+		return new SqlSharedFieldAnchorStore(dialect, executor);
+	}
+
+	if (locator._type === "adapter" && locator.name === "jsonl") {
+		const basePath =
+			readStringOption(locator, "path", "") ||
+			"./clinical-shared-field-anchors.jsonl";
+		return new KvSharedFieldAnchorStore(
+			new JsonlKvBackend({ dataFilePath: basePath }),
+		);
+	}
+
+	throw new Error(
+		`Unsupported shared field anchor adapter: ${(locator as any).name ?? locator._type}`,
 	);
 }
 

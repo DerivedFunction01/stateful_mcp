@@ -90,6 +90,25 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 				"Parser profile, concept default, and rule resolution backends.",
 			defaultAdapters: [],
 		},
+		shared_field_anchors: {
+			group: "shared_field_anchors",
+			implemented: true,
+			description: "Post-parse shared field anchor rules.",
+			defaultAdapters: [
+				{
+					group: "shared_field_anchors",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
 		parser_profiles: {
 			group: "parser_profiles",
 			implemented: true,
