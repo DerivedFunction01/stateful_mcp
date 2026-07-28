@@ -198,9 +198,9 @@ export const medicationRegistryTests: FieldRegistryTestBlock = {
 					frequency_shorthand: { frequency_shorthand: "BID" },
 				},
 			},
-			matchKeys: ["frequency.interval"],
+			matchKeys: ["frequency"],
 			expected: {
-				"frequency.interval": { multiplier: 12, unit: "hour" },
+				frequency: { interval: { multiplier: 12, unit: "hour" } },
 			},
 		},
 		{
@@ -210,9 +210,9 @@ export const medicationRegistryTests: FieldRegistryTestBlock = {
 					frequency_shorthand: { frequency_shorthand: "TID" },
 				},
 			},
-			matchKeys: ["frequency.interval"],
+			matchKeys: ["frequency"],
 			expected: {
-				"frequency.interval": { multiplier: 8, unit: "hour" },
+				frequency: { interval: { multiplier: 8, unit: "hour" } },
 			},
 		},
 		{

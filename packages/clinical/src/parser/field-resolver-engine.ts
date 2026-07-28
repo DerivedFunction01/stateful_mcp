@@ -66,7 +66,24 @@ export class FieldResolverEngine {
 			}
 
 			if (value !== undefined && value !== null) {
-				extractedData[targetField] = value;
+				if (targetField.includes(".")) {
+					const parts = targetField.split(".");
+					let current = extractedData;
+					for (let i = 0; i < parts.length - 1; i++) {
+						const part = parts[i]!;
+						if (
+							current[part] === undefined ||
+							current[part] === null ||
+							typeof current[part] !== "object"
+						) {
+							current[part] = {};
+						}
+						current = current[part];
+					}
+					current[parts[parts.length - 1]!] = value;
+				} else {
+					extractedData[targetField] = value;
+				}
 			}
 		}
 
