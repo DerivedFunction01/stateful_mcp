@@ -1,3 +1,7 @@
+export * from "./adapters/engines/interfaces";
+export * from "./adapters/engines/kv-query";
+export * from "./adapters/engines/resolver";
+export * from "./adapters/engines/sql-query";
 export * from "./adapters/storage/generic/JsonlWal";
 export * from "./adapters/storage/generic/kv/IndexedDbKvBackend";
 export * from "./adapters/storage/generic/kv/JsonlKvBackend";

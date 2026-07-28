@@ -1,9 +1,10 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { MemoryQueryEngine } from "../src/adapters/engines/memory-query";
-import { PgQueryEngine } from "../src/adapters/engines/pg-query";
-import { SqliteQueryEngine } from "../src/adapters/engines/sqlite-query";
+import { KvQueryEngine } from "../src/adapters/engines/kv-query";
+import { SqlQueryEngine } from "../src/adapters/engines/sql-query";
+import { MemoryKvBackend } from "../src/adapters/storage/generic/kv/MemoryKvBackend";
 import { createRepo } from "../src/adapters/storage/shared/unified-repo";
+import { SqlBackend } from "../src/adapters/storage/sql/backend";
 import { createFilterStore } from "../src/adapters/storage/sql/factories";
 import { loadMiddlewareConfig } from "../src/config/loader";
 import type { TableSchema } from "../src/config/types";
@@ -129,7 +130,9 @@ export async function runFilterTests() {
 		{ id: 3, name: "Laptop", price: 1000, category: "electronics" },
 	];
 
-	const engine = new MemoryQueryEngine({ items: sampleItems });
+	const kvBackend = new MemoryKvBackend();
+	await kvBackend.set("items", sampleItems);
+	const engine = new KvQueryEngine(kvBackend);
 	const queryResult = await engine.execute("items", {
 		filters: [
 			{ property: "category", operator: "eq", value: "apparel" },
@@ -313,17 +316,18 @@ export async function runFilterTests() {
 	// ─── TEST CASE 5: Relational SQL Adapters ───
 	console.log("\n🧪 Test Case 5: Relational SQL Adapters");
 
-	const sqliteEngine = new SqliteQueryEngine(":memory:");
-	sqliteEngine["db"].run(
+	const sqliteBackend = await SqlBackend.connect("sqlite", ":memory:");
+	const sqliteEngine = new SqlQueryEngine(sqliteBackend);
+	sqliteBackend.query(
 		"CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, price REAL, category TEXT)",
 	);
-	sqliteEngine["db"].run(
+	sqliteBackend.query(
 		"INSERT INTO items (name, price, category) VALUES ('Socks', 10, 'apparel')",
 	);
-	sqliteEngine["db"].run(
+	sqliteBackend.query(
 		"INSERT INTO items (name, price, category) VALUES ('Shoes', 80, 'apparel')",
 	);
-	sqliteEngine["db"].run(
+	sqliteBackend.query(
 		"INSERT INTO items (name, price, category) VALUES ('Laptop', 1000, 'electronics')",
 	);
 
@@ -335,12 +339,12 @@ export async function runFilterTests() {
 	});
 
 	if (
-		!compiled.sql.includes("WHERE `category` = ? AND `price` > ?") ||
+		!compiled.sql.includes('WHERE ("category" = ? AND "price" > ?)') ||
 		compiled.params[0] !== "apparel" ||
 		compiled.params[1] !== 15
 	) {
 		throw new Error(
-			`SqliteQueryEngine compilation failed: ${JSON.stringify(compiled)}`,
+			`SqlQueryEngine compilation failed: ${JSON.stringify(compiled)}`,
 		);
 	}
 	console.log("✓ SQLite Query Compiler output parameterized query correctly.");
@@ -399,7 +403,11 @@ export async function runFilterTests() {
 	}
 	console.log("✓ SqliteFilterStore persistent storage works.");
 
-	const pgEngine = new PgQueryEngine("postgresql://localhost:5432/postgres");
+	const pgBackend = await SqlBackend.connect(
+		"postgres",
+		"postgresql://localhost:5432/postgres",
+	);
+	const pgEngine = new SqlQueryEngine(pgBackend);
 	const pgCompiled = pgEngine.compile("items", {
 		filters: [
 			{ property: "category", operator: "eq", value: "apparel" },
@@ -407,12 +415,12 @@ export async function runFilterTests() {
 		],
 	});
 	if (
-		!pgCompiled.sql.includes('WHERE "category" = $1 AND "price" > $2') ||
+		!pgCompiled.sql.includes('WHERE ("category" = $1 AND "price" > $2)') ||
 		pgCompiled.params[0] !== "apparel" ||
 		pgCompiled.params[1] !== 15
 	) {
 		throw new Error(
-			`PgQueryEngine compilation failed: ${JSON.stringify(pgCompiled)}`,
+			`SqlQueryEngine (Postgres) compilation failed: ${JSON.stringify(pgCompiled)}`,
 		);
 	}
 	console.log(
@@ -649,14 +657,14 @@ export async function runFilterTests() {
 		"\n🧪 Test Case 7: Explicit Wildcards and Array Support in Query Engines",
 	);
 
-	// 1. In-Memory Engine
-	const memEngine = new MemoryQueryEngine({
-		items: [
-			{ id: 1, name: "Socks", category: "apparel" },
-			{ id: 2, name: "Shoes", category: "apparel" },
-			{ id: 3, name: "Laptop", category: "electronics" },
-		],
-	});
+	// 1. KV Memory Engine
+	const memKvBackend = new MemoryKvBackend();
+	await memKvBackend.set("items", [
+		{ id: 1, name: "Socks", category: "apparel" },
+		{ id: 2, name: "Shoes", category: "apparel" },
+		{ id: 3, name: "Laptop", category: "electronics" },
+	]);
+	const memEngine = new KvQueryEngine(memKvBackend);
 
 	// Prefix match
 	const resPrefix = await memEngine.execute("items", {
@@ -696,17 +704,18 @@ export async function runFilterTests() {
 	);
 
 	// 2. SQLite Engine
-	const sqlEngine = new SqliteQueryEngine(":memory:");
-	sqlEngine["db"].run(
+	const sqlBackend = await SqlBackend.connect("sqlite", ":memory:");
+	const sqlEngine = new SqlQueryEngine(sqlBackend);
+	await sqlBackend.query(
 		"CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, category TEXT)",
 	);
-	sqlEngine["db"].run(
+	await sqlBackend.query(
 		"INSERT INTO items (name, category) VALUES ('Socks', 'apparel')",
 	);
-	sqlEngine["db"].run(
+	await sqlBackend.query(
 		"INSERT INTO items (name, category) VALUES ('Shoes', 'apparel')",
 	);
-	sqlEngine["db"].run(
+	await sqlBackend.query(
 		"INSERT INTO items (name, category) VALUES ('Laptop', 'electronics')",
 	);
 
@@ -715,7 +724,7 @@ export async function runFilterTests() {
 		filters: [{ property: "name", operator: "like", value: ["%oc%", "%ho%"] }],
 	});
 	if (
-		!sqliteCompiled.sql.includes("(`name` LIKE ? OR `name` LIKE ?)") ||
+		!sqliteCompiled.sql.includes('("name" LIKE ? OR "name" LIKE ?)') ||
 		sqliteCompiled.params[0] !== "%oc%" ||
 		sqliteCompiled.params[1] !== "%ho%"
 	) {
@@ -736,7 +745,11 @@ export async function runFilterTests() {
 	);
 
 	// 3. PostgreSQL Engine compiler check
-	const pgEngine2 = new PgQueryEngine("postgresql://localhost:5432/postgres");
+	const pgBackend2 = await SqlBackend.connect(
+		"postgres",
+		"postgresql://localhost:5432/postgres",
+	);
+	const pgEngine2 = new SqlQueryEngine(pgBackend2);
 	const pgCompiled2 = pgEngine2.compile("items", {
 		filters: [{ property: "name", operator: "like", value: ["%oc%", "%ho%"] }],
 	});
@@ -765,13 +778,10 @@ export async function runFilterTests() {
 	};
 	await fs.writeFile(testDataPath, JSON.stringify(testData, null, 2));
 
-	const { resolveAdapter } = require("../src/config/loader");
-	const resourceEngine: any = await resolveAdapter("memory-engine", {
-		data: {
-			_type: "file",
-			path: "./config/test_resource_data.json",
-		},
-	});
+	const resourceData = JSON.parse(await fs.readFile(testDataPath, "utf-8"));
+	const resourceKvBackend = new MemoryKvBackend();
+	await resourceKvBackend.set("items", resourceData.items);
+	const resourceEngine = new KvQueryEngine(resourceKvBackend);
 
 	const resourceResults = await resourceEngine.execute("items", {
 		filters: [{ property: "name", operator: "eq", value: "ResourceBook" }],
