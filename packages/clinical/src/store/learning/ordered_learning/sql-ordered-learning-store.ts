@@ -1,9 +1,8 @@
-import type { SqlExecutor } from "@stateful-mcp/core";
+import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { ParsedObservationItem } from "../../../parser/schema-parsers";
 import {
 	type OrderedLearningInsertPlan,
 	OrderedLearningSqlCompiler,
-	type OrderedLearningSqlDialect,
 } from "../../sql/ordered-learning-query-compiler";
 import type {
 	OrderedLearningHistoryKey,
@@ -19,12 +18,12 @@ const DEFAULT_TABLE = "ordered_learning_records";
 
 export class SqlOrderedLearningStore implements OrderedLearningStore {
 	private compiler: OrderedLearningSqlCompiler;
-	private dialect: OrderedLearningSqlDialect;
+	private dialect: SqlDialect;
 	private table: string;
 	private executor: SqlExecutor;
 
 	constructor(
-		dialect: OrderedLearningSqlDialect,
+		dialect: SqlDialect,
 		executor: SqlExecutor,
 		table: string = DEFAULT_TABLE,
 	) {

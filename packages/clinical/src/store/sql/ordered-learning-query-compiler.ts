@@ -2,10 +2,9 @@ import {
 	type CompiledQuery,
 	QueryCompiler,
 	type QueryCondition,
+	type SqlDialect,
 } from "@stateful-mcp/core";
 import type { OrderedLearningHistoryKey } from "../learning/interfaces";
-
-export type OrderedLearningSqlDialect = "sqlite" | "postgres" | "duckdb";
 
 export interface OrderedLearningHistoryPlan {
 	table: string;
@@ -57,7 +56,7 @@ export interface OrderedLearningQuery {
 }
 
 export class OrderedLearningSqlCompiler {
-	private readonly dialect: OrderedLearningSqlDialect;
+	private readonly dialect: SqlDialect;
 	private readonly compiler: QueryCompiler;
 
 	private static readonly OPTIONAL_FIELDS = [
@@ -103,7 +102,7 @@ export class OrderedLearningSqlCompiler {
 		"reviewRequired",
 	] as const;
 
-	constructor(dialect: OrderedLearningSqlDialect = "sqlite") {
+	constructor(dialect: SqlDialect = "sqlite") {
 		this.dialect = dialect;
 		this.compiler = new QueryCompiler(dialect);
 	}
