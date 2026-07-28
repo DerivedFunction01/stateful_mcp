@@ -33,6 +33,7 @@ export type SqlFunctionOp =
 	| "day"
 	| "quarter"
 	| "date_diff"
+	| "epoch"
 	| "to_string"
 	| "to_number"
 	| "round"
@@ -1311,6 +1312,10 @@ export class QueryCompiler {
 					? `(julianday(${arg1}) - julianday(${arg0}))`
 					: `DATE_PART('day', CAST(${arg1} AS TIMESTAMP) - CAST(${arg0} AS TIMESTAMP))`;
 			}
+			case "epoch":
+				return this.dialect === "sqlite"
+					? `CAST(strftime('%s', ${arg0}) AS INTEGER)`
+					: `EXTRACT(EPOCH FROM ${arg0})`;
 			case "to_string":
 				return `CAST(${arg0} AS TEXT)`;
 			case "to_number": {
