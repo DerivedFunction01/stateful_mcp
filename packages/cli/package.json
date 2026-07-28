@@ -21,7 +21,7 @@
 		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm"
 	},
 	"dependencies": {
-		"@stateful-mcp/core": "^0.5.0"
+		"@stateful-mcp/core": "workspace:^"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

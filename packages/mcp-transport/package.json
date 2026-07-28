@@ -25,7 +25,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.30.0",
-		"@stateful-mcp/core": "^0.5.0",
+		"@stateful-mcp/core": "workspace:^",
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {
