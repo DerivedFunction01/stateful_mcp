@@ -18,7 +18,7 @@
 	],
 	"scripts": {
 		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' && tsc --emitDeclarationOnly --declaration --outDir dist",
-		"test": "bun test.ts"
+		"check": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@duckdb/node-api": "^1.5.4-r.1",

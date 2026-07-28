@@ -18,8 +18,8 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"scripts": {
-		"test": "bun test.ts",
-		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' && tsc --emitDeclarationOnly --declaration --outDir dist"
+		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' && tsc --emitDeclarationOnly --declaration --outDir dist",
+		"check": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@duckdb/node-api": "^1.5.5-r.1",
