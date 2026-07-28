@@ -7,8 +7,30 @@ import { buildTestToken } from "../src/parser/field-registry/test-types";
 // Add new imports here when a new field-registry file is created.
 
 import { assessmentRegistryTests } from "../src/parser/field-registry/assessment";
+import {
+	deviceDiagnosticObjectRegistryTests,
+	labPanelResultRegistryTests,
+} from "../src/parser/field-registry/diagnostic";
+import { environmentRegistryTests } from "../src/parser/field-registry/environment";
+import { exposureRegistryTests } from "../src/parser/field-registry/exposure";
+import {
+	allergyRegistryTests,
+	reportedMedicationRegistryTests,
+	socialHistoryRegistryTests,
+} from "../src/parser/field-registry/history";
+import {
+	mechanicalInjuryRegistryTests,
+	protectiveEquipmentRegistryTests,
+} from "../src/parser/field-registry/injury";
 import { medicationRegistryTests } from "../src/parser/field-registry/medication";
 import { observationRegistryTests } from "../src/parser/field-registry/observation";
+import { patientRegistryTests } from "../src/parser/field-registry/patient";
+import {
+	interventionOrderRegistryTests,
+	investigationOrderRegistryTests,
+	referralOrderRegistryTests,
+	safetyNettingPlanRegistryTests,
+} from "../src/parser/field-registry/plan";
 import { vitalsRegistryTests } from "../src/parser/field-registry/vitals";
 
 // ── Generic test runner ───────────────────────────────────────────────────────
@@ -50,4 +72,18 @@ describe("Field Registry", () => {
 	runRegistryTestBlock(observationRegistryTests);
 	runRegistryTestBlock(medicationRegistryTests);
 	runRegistryTestBlock(assessmentRegistryTests);
+	runRegistryTestBlock(allergyRegistryTests);
+	runRegistryTestBlock(socialHistoryRegistryTests);
+	runRegistryTestBlock(reportedMedicationRegistryTests);
+	runRegistryTestBlock(investigationOrderRegistryTests);
+	runRegistryTestBlock(referralOrderRegistryTests);
+	runRegistryTestBlock(interventionOrderRegistryTests);
+	runRegistryTestBlock(safetyNettingPlanRegistryTests);
+	runRegistryTestBlock(exposureRegistryTests);
+	runRegistryTestBlock(mechanicalInjuryRegistryTests);
+	runRegistryTestBlock(protectiveEquipmentRegistryTests);
+	runRegistryTestBlock(labPanelResultRegistryTests);
+	runRegistryTestBlock(deviceDiagnosticObjectRegistryTests);
+	runRegistryTestBlock(environmentRegistryTests);
+	runRegistryTestBlock(patientRegistryTests);
 });

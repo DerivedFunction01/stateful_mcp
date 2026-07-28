@@ -10,6 +10,17 @@ export function createObservationFieldRegistry(
 ): FieldMappingRule[] {
 	return [
 		{
+			sourceKey: "concept",
+			targetField: "concept",
+			conceptDefaultPath: ["concept"],
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const raw = rawGroups?.concept;
+				if (!raw) return undefined;
+				if (Array.isArray(raw)) return raw[0];
+				return raw;
+			},
+		},
+		{
 			sourceKey: "certainty",
 			targetField: "certainty",
 			schemaDefaultField: "certainty",
@@ -66,6 +77,22 @@ export function createObservationFieldRegistry(
 			targetField: "trajectory",
 			schemaDefaultField: "trajectory",
 			conceptDefaultPath: ["trajectory"],
+		},
+		{
+			sourceKey: "anchorText",
+			targetField: "rawTerm",
+		},
+		{
+			sourceKey: "source_type",
+			targetField: "sourceType",
+			schemaDefaultField: "sourceType",
+			conceptDefaultPath: ["sourceType"],
+		},
+		{
+			sourceKey: "date_range",
+			targetField: "dateRange",
+			schemaDefaultField: "dateRange",
+			conceptDefaultPath: ["dateRange"],
 		},
 	];
 }
@@ -159,8 +186,7 @@ export const observationRegistryTests: FieldRegistryTestBlock = {
 			},
 		},
 		{
-			description:
-				"severity: uses conceptDefault denominator when present",
+			description: "severity: uses conceptDefault denominator when present",
 			input: {
 				namedGroups: {
 					severity: { numerator: "6" },

@@ -17,6 +17,35 @@ import {
 	createAssessmentFieldRegistry,
 } from "./field-registry/assessment";
 import {
+	createDiagnosticFieldRegistry,
+	deviceDiagnosticObjectConfig,
+	diagnosticRouter,
+	labPanelResultConfig,
+} from "./field-registry/diagnostic";
+import {
+	createEnvironmentFieldRegistry,
+	environmentConfig,
+	environmentRouter,
+} from "./field-registry/environment";
+import {
+	createExposureFieldRegistry,
+	exposureConfig,
+	exposureRouter,
+} from "./field-registry/exposure";
+import {
+	allergyConfig,
+	createHistoryFieldRegistry,
+	historyRouter,
+	reportedMedicationConfig,
+	socialHistoryConfig,
+} from "./field-registry/history";
+import {
+	createInjuryFieldRegistry,
+	injuryRouter,
+	mechanicalInjuryConfig,
+	protectiveEquipmentConfig,
+} from "./field-registry/injury";
+import {
 	createMedicationFieldRegistry,
 	medicationConfig,
 	medicationRouter,
@@ -26,6 +55,19 @@ import {
 	observationConfig,
 	observationRouter,
 } from "./field-registry/observation";
+import {
+	createPatientFieldRegistry,
+	patientConfig,
+	patientRouter,
+} from "./field-registry/patient";
+import {
+	createPlanFieldRegistry,
+	interventionOrderConfig,
+	investigationOrderConfig,
+	planRouter,
+	referralOrderConfig,
+	safetyNettingPlanConfig,
+} from "./field-registry/plan";
 import {
 	createVitalsFieldRegistry,
 	vitalsConfig,
@@ -39,7 +81,21 @@ export const CANONICAL_TAGS = {
 	OBSERVATION: "ObservationEvent",
 	MEDICATION: "MedicationOrderObject",
 	CLINICAL_DATE_RANGE: "ClinicalDateRange",
-	ASSESSMENT: "AssessmentObject",
+	ASSESSMENT: "PrimaryDiagnosisEntry",
+	ALLERGY: "AllergyEntry",
+	SOCIAL_HISTORY: "SocialHistoryEntry",
+	REPORTED_MEDICATION: "ReportedMedicationEntry",
+	INVESTIGATION_ORDER: "InvestigationOrderObject",
+	REFERRAL_ORDER: "ReferralOrderObject",
+	INTERVENTION_ORDER: "InterventionOrderObject",
+	SAFETY_NETTING_PLAN: "SafetyNettingPlan",
+	EXPOSURE: "ExposureEvent",
+	MECHANICAL_INJURY: "MechanicalInjuryObject",
+	PROTECTIVE_EQUIPMENT: "ProtectiveEquipmentObject",
+	LAB_PANEL_RESULT: "LabPanelResult",
+	DEVICE_DIAGNOSTIC_OBJECT: "DeviceDiagnosticObject",
+	ENVIRONMENT_CONTEXT_OBJECT: "EnvironmentContextObject",
+	PATIENT_PROFILE: "PatientProfile",
 } as const;
 
 export type DeepPartial<T> = T extends object
@@ -294,11 +350,148 @@ export const schemaParserRegistry = new Map<string, SchemaParser>([
 	[CANONICAL_TAGS.CLINICAL_DATE_RANGE, new ClinicalDateRangeSchemaParser()],
 	[
 		CANONICAL_TAGS.ASSESSMENT,
-		new GenericSchemaParser("AssessmentObject", {
-			targetSchema: "AssessmentObject",
+		new GenericSchemaParser("PrimaryDiagnosisEntry", {
+			targetSchema: "PrimaryDiagnosisEntry",
 			createRegistry: createAssessmentFieldRegistry,
 			router: assessmentRouter,
 			preparsedContextKeys: assessmentConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.ALLERGY,
+		new GenericSchemaParser("AllergyEntry", {
+			targetSchema: "AllergyEntry",
+			createRegistry: (attrRules) =>
+				createHistoryFieldRegistry("AllergyEntry", attrRules),
+			router: historyRouter,
+			preparsedContextKeys: allergyConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.SOCIAL_HISTORY,
+		new GenericSchemaParser("SocialHistoryEntry", {
+			targetSchema: "SocialHistoryEntry",
+			createRegistry: (attrRules) =>
+				createHistoryFieldRegistry("SocialHistoryEntry", attrRules),
+			router: historyRouter,
+			preparsedContextKeys: socialHistoryConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.REPORTED_MEDICATION,
+		new GenericSchemaParser("ReportedMedicationEntry", {
+			targetSchema: "ReportedMedicationEntry",
+			createRegistry: (attrRules) =>
+				createHistoryFieldRegistry("ReportedMedicationEntry", attrRules),
+			router: historyRouter,
+			preparsedContextKeys: reportedMedicationConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.INVESTIGATION_ORDER,
+		new GenericSchemaParser("InvestigationOrderObject", {
+			targetSchema: "InvestigationOrderObject",
+			createRegistry: (attrRules) =>
+				createPlanFieldRegistry("InvestigationOrderObject", attrRules),
+			router: planRouter,
+			preparsedContextKeys: investigationOrderConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.REFERRAL_ORDER,
+		new GenericSchemaParser("ReferralOrderObject", {
+			targetSchema: "ReferralOrderObject",
+			createRegistry: (attrRules) =>
+				createPlanFieldRegistry("ReferralOrderObject", attrRules),
+			router: planRouter,
+			preparsedContextKeys: referralOrderConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.INTERVENTION_ORDER,
+		new GenericSchemaParser("InterventionOrderObject", {
+			targetSchema: "InterventionOrderObject",
+			createRegistry: (attrRules) =>
+				createPlanFieldRegistry("InterventionOrderObject", attrRules),
+			router: planRouter,
+			preparsedContextKeys: interventionOrderConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.SAFETY_NETTING_PLAN,
+		new GenericSchemaParser("SafetyNettingPlan", {
+			targetSchema: "SafetyNettingPlan",
+			createRegistry: (attrRules) =>
+				createPlanFieldRegistry("SafetyNettingPlan", attrRules),
+			router: planRouter,
+			preparsedContextKeys: safetyNettingPlanConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.EXPOSURE,
+		new GenericSchemaParser("ExposureEvent", {
+			targetSchema: "ExposureEvent",
+			createRegistry: createExposureFieldRegistry,
+			router: exposureRouter,
+			preparsedContextKeys: exposureConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.MECHANICAL_INJURY,
+		new GenericSchemaParser("MechanicalInjuryObject", {
+			targetSchema: "MechanicalInjuryObject",
+			createRegistry: (attrRules) =>
+				createInjuryFieldRegistry("MechanicalInjuryObject", attrRules),
+			router: injuryRouter,
+			preparsedContextKeys: mechanicalInjuryConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.PROTECTIVE_EQUIPMENT,
+		new GenericSchemaParser("ProtectiveEquipmentObject", {
+			targetSchema: "ProtectiveEquipmentObject",
+			createRegistry: (attrRules) =>
+				createInjuryFieldRegistry("ProtectiveEquipmentObject", attrRules),
+			router: injuryRouter,
+			preparsedContextKeys: protectiveEquipmentConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.LAB_PANEL_RESULT,
+		new GenericSchemaParser("LabPanelResult", {
+			targetSchema: "LabPanelResult",
+			createRegistry: (attrRules) =>
+				createDiagnosticFieldRegistry("LabPanelResult", attrRules),
+			router: diagnosticRouter,
+			preparsedContextKeys: labPanelResultConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.DEVICE_DIAGNOSTIC_OBJECT,
+		new GenericSchemaParser("DeviceDiagnosticObject", {
+			targetSchema: "DeviceDiagnosticObject",
+			createRegistry: (attrRules) =>
+				createDiagnosticFieldRegistry("DeviceDiagnosticObject", attrRules),
+			router: diagnosticRouter,
+			preparsedContextKeys: deviceDiagnosticObjectConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.ENVIRONMENT_CONTEXT_OBJECT,
+		new GenericSchemaParser("EnvironmentContextObject", {
+			targetSchema: "EnvironmentContextObject",
+			createRegistry: createEnvironmentFieldRegistry,
+			router: environmentRouter,
+			preparsedContextKeys: environmentConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.PATIENT_PROFILE,
+		new GenericSchemaParser("PatientProfile", {
+			targetSchema: "PatientProfile",
+			createRegistry: createPatientFieldRegistry,
+			router: patientRouter,
+			preparsedContextKeys: patientConfig.preparsedContextKeys,
 		}),
 	],
 ]);

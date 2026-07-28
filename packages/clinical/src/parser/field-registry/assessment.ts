@@ -6,9 +6,37 @@ import type {
 import { FieldResolverEngine } from "../field-resolver-engine";
 
 export function createAssessmentFieldRegistry(
-	_attributeRules: AttributeParserRule[] = [],
+	attributeRules: AttributeParserRule[] = [],
 ): FieldMappingRule[] {
-	return [];
+	return [
+		{
+			sourceKey: "diagnosis",
+			targetField: "diagnosis",
+			conceptDefaultPath: ["diagnosis"],
+		},
+		{
+			sourceKey: "acuity_level",
+			targetField: "acuityLevel",
+			schemaDefaultField: "acuityLevel",
+			conceptDefaultPath: ["acuityLevel"],
+		},
+		{
+			sourceKey: "comorbidities",
+			targetField: "comorbidities",
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const raw = rawGroups?.comorbidities;
+				if (!raw) return undefined;
+				if (Array.isArray(raw)) return raw;
+				return [raw];
+			},
+		},
+		{
+			sourceKey: "date_range",
+			targetField: "dateRange",
+			schemaDefaultField: "dateRange",
+			conceptDefaultPath: ["dateRange"],
+		},
+	];
 }
 
 export const assessmentRouter = (
@@ -29,9 +57,9 @@ export const assessmentRouter = (
 	);
 
 	if (unmatched && unmatched.length > 0) {
-		if (!conceptFields?.primaryDiagnosis) {
-			if (!extractedData.primaryDiagnosis) {
-				extractedData.primaryDiagnosis = unmatched[0];
+		if (!conceptFields?.diagnosis) {
+			if (!extractedData.diagnosis) {
+				extractedData.diagnosis = unmatched[0];
 			}
 		}
 		if (unmatched.length > 1) {
@@ -57,14 +85,14 @@ export const assessmentRegistryTests: FieldRegistryTestBlock = {
 	router: assessmentRouter,
 	cases: [
 		{
-			description: "unmatched: first concept becomes primaryDiagnosis",
+			description: "unmatched: first concept becomes diagnosis",
 			input: {
 				namedGroups: {},
 				unmatched: [{ conceptId: "SNOMED::233604007", display: "Pneumonia" }],
 			},
-			matchKeys: ["primaryDiagnosis"],
+			matchKeys: ["diagnosis"],
 			expected: {
-				primaryDiagnosis: {
+				diagnosis: {
 					conceptId: "SNOMED::233604007",
 					display: "Pneumonia",
 				},
@@ -80,9 +108,9 @@ export const assessmentRegistryTests: FieldRegistryTestBlock = {
 					{ conceptId: "SNOMED::386661006", display: "Fever" },
 				],
 			},
-			matchKeys: ["primaryDiagnosis", "supportingConcepts"],
+			matchKeys: ["diagnosis", "supportingConcepts"],
 			expected: {
-				primaryDiagnosis: {
+				diagnosis: {
 					conceptId: "SNOMED::233604007",
 					display: "Pneumonia",
 				},
@@ -94,21 +122,20 @@ export const assessmentRegistryTests: FieldRegistryTestBlock = {
 		},
 		{
 			description:
-				"conceptFields guard: does not overwrite primaryDiagnosis when already set",
+				"conceptFields guard: does not overwrite diagnosis when already set",
 			input: {
 				namedGroups: {},
 				unmatched: [{ conceptId: "SNOMED::233604007", display: "Pneumonia" }],
 				conceptFields: {
-					primaryDiagnosis: {
+					diagnosis: {
 						conceptId: "SNOMED::195967001",
 						display: "Asthma",
 					},
 				},
 			},
-			matchKeys: ["primaryDiagnosis"],
+			matchKeys: ["diagnosis"],
 			expected: {
-				// conceptFields guard means the unmatched concept is NOT applied
-				primaryDiagnosis: undefined,
+				diagnosis: undefined,
 			},
 		},
 	],

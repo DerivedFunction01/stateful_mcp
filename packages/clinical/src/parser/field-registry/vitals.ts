@@ -3,36 +3,52 @@ import type {
 	FieldMappingRule,
 	SchemaParserConfig,
 } from "../../store/interfaces";
-import { FieldResolverEngine } from "../field-resolver-engine";
-
-function resolveUnit(
-	rawUnit: string,
-	attributeRules: AttributeParserRule[],
-): string {
-	let mapped = rawUnit.toLowerCase();
-	const rules = attributeRules.filter(
-		(r) =>
-			r.targetField === "unit" ||
-			r.targetField === "time_unit" ||
-			r.targetField === "measurement_unit",
-	);
-	for (const rule of rules) {
-		for (const pattern of rule.regexPatterns) {
-			const flags = rule.isCaseInsensitive !== false ? "i" : "";
-			const regex = new RegExp(pattern, flags);
-			if (regex.test(mapped)) {
-				mapped = rule.targetValue;
-				break;
-			}
-		}
-		if (mapped !== rawUnit.toLowerCase()) break;
-	}
-	return mapped;
-}
+import {
+	buildMeasurement,
+	FieldResolverEngine,
+} from "../field-resolver-engine";
 
 export function createVitalsFieldRegistry(
 	attributeRules: AttributeParserRule[],
 ): FieldMappingRule[] {
+	function resolveUnitAnchor(rawUnit: string): string | undefined {
+		const rules = attributeRules.filter(
+			(r) => r.targetField === "unit" && r.unitAnchor !== undefined,
+		);
+		for (const rule of rules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = new RegExp(pattern, flags);
+				if (regex.test(rawUnit)) {
+					return rule.unitAnchor;
+				}
+			}
+		}
+		return undefined;
+	}
+
+	function resolveUnit(rawUnit: string): string {
+		let mapped = rawUnit.toLowerCase();
+		const rules = attributeRules.filter(
+			(r) =>
+				r.targetField === "unit" ||
+				r.targetField === "time_unit" ||
+				r.targetField === "measurement_unit",
+		);
+		for (const rule of rules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = new RegExp(pattern, flags);
+				if (regex.test(mapped)) {
+					mapped = rule.targetValue;
+					break;
+				}
+			}
+			if (mapped !== rawUnit.toLowerCase()) break;
+		}
+		return mapped;
+	}
+
 	return [
 		{
 			sourceKey: "blood_pressure",
@@ -61,24 +77,22 @@ export function createVitalsFieldRegistry(
 		{
 			sourceKey: "quantity",
 			targetField: "measurement",
-			compute: (slots, _conceptDefaults, rawGroups) => {
-				const quantityStr = rawGroups?.quantity;
-				if (!quantityStr) return undefined;
-				const magnitude = Number.parseFloat(quantityStr);
-				if (Number.isNaN(magnitude)) return undefined;
-				const unitStr = rawGroups?.unit;
-				const display = unitStr
-					? resolveUnit(unitStr, attributeRules)
-					: undefined;
-				return {
-					magnitude,
-					unit: display ? { display } : undefined,
-				};
-			},
+			compute: (_slots, _conceptDefaults, rawGroups) =>
+				buildMeasurement(rawGroups || {}, resolveUnit, resolveUnitAnchor),
 		},
 		{
 			sourceKey: "unit",
 			targetField: "measurement.unit",
+		},
+		{
+			sourceKey: "anchorText",
+			targetField: "rawTerm",
+		},
+		{
+			sourceKey: "source_type",
+			targetField: "sourceType",
+			schemaDefaultField: "sourceType",
+			conceptDefaultPath: ["sourceType"],
 		},
 	];
 }
@@ -100,7 +114,6 @@ export const vitalsRouter = (
 		profile,
 	);
 
-	// Schema-specific fallback for unmatched concepts
 	if (unmatched && unmatched.length > 0) {
 		if (!conceptFields?.vitalType) {
 			if (!extractedData.vitalType) {

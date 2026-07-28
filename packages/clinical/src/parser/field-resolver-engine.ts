@@ -10,6 +10,30 @@ export interface DefaultResolutionContext {
 	};
 }
 
+export function buildMeasurement(
+	rawGroups: Record<string, string | undefined>,
+	resolveUnit?: (raw: string) => string,
+	resolveUnitAnchor?: (raw: string) => string | undefined,
+	magnitudeSourceKey = "quantity",
+	unitKey = "unit",
+):
+	| { magnitude: number; unit?: { display: string }; unitAnchor?: string }
+	| undefined {
+	const qtyStr = rawGroups?.[magnitudeSourceKey];
+	if (!qtyStr) return undefined;
+	const magnitude = Number.parseFloat(qtyStr);
+	if (Number.isNaN(magnitude)) return undefined;
+	const unitStr = rawGroups?.[unitKey];
+	const unitAnchor =
+		unitStr && resolveUnitAnchor ? resolveUnitAnchor(unitStr) : undefined;
+	const display = unitStr
+		? resolveUnit
+			? resolveUnit(unitStr)
+			: unitStr.toLowerCase()
+		: undefined;
+	return { magnitude, unitAnchor, unit: display ? { display } : undefined };
+}
+
 export class FieldResolverEngine {
 	static transform<
 		TSchema extends string,

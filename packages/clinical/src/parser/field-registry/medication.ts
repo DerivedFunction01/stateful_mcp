@@ -3,36 +3,52 @@ import type {
 	FieldMappingRule,
 	SchemaParserConfig,
 } from "../../store/interfaces";
-import { FieldResolverEngine } from "../field-resolver-engine";
-
-function resolveUnit(
-	rawUnit: string,
-	attributeRules: AttributeParserRule[],
-): string {
-	let mapped = rawUnit.toLowerCase();
-	const rules = attributeRules.filter(
-		(r) =>
-			r.targetField === "unit" ||
-			r.targetField === "time_unit" ||
-			r.targetField === "measurement_unit",
-	);
-	for (const rule of rules) {
-		for (const pattern of rule.regexPatterns) {
-			const flags = rule.isCaseInsensitive !== false ? "i" : "";
-			const regex = new RegExp(pattern, flags);
-			if (regex.test(mapped)) {
-				mapped = rule.targetValue;
-				break;
-			}
-		}
-		if (mapped !== rawUnit.toLowerCase()) break;
-	}
-	return mapped;
-}
+import {
+	buildMeasurement,
+	FieldResolverEngine,
+} from "../field-resolver-engine";
 
 export function createMedicationFieldRegistry(
 	attributeRules: AttributeParserRule[],
 ): FieldMappingRule[] {
+	function resolveUnitAnchor(rawUnit: string): string | undefined {
+		const rules = attributeRules.filter(
+			(r) => r.targetField === "unit" && r.unitAnchor !== undefined,
+		);
+		for (const rule of rules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = new RegExp(pattern, flags);
+				if (regex.test(rawUnit)) {
+					return rule.unitAnchor;
+				}
+			}
+		}
+		return undefined;
+	}
+
+	function resolveUnit(rawUnit: string): string {
+		let mapped = rawUnit.toLowerCase();
+		const rules = attributeRules.filter(
+			(r) =>
+				r.targetField === "unit" ||
+				r.targetField === "time_unit" ||
+				r.targetField === "measurement_unit",
+		);
+		for (const rule of rules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = new RegExp(pattern, flags);
+				if (regex.test(mapped)) {
+					mapped = rule.targetValue;
+					break;
+				}
+			}
+			if (mapped !== rawUnit.toLowerCase()) break;
+		}
+		return mapped;
+	}
+
 	return [
 		{
 			sourceKey: "route",
@@ -43,20 +59,8 @@ export function createMedicationFieldRegistry(
 		{
 			sourceKey: "quantity",
 			targetField: "dosage",
-			compute: (_slots, _conceptDefaults, rawGroups) => {
-				const qtyStr = rawGroups?.quantity;
-				if (!qtyStr) return undefined;
-				const quantity = Number.parseFloat(qtyStr);
-				if (Number.isNaN(quantity)) return undefined;
-				const unitStr = rawGroups?.unit;
-				const quantityUnit = unitStr
-					? resolveUnit(unitStr, attributeRules)
-					: undefined;
-				return {
-					magnitude: quantity,
-					unit: quantityUnit ? { display: quantityUnit } : undefined,
-				};
-			},
+			compute: (_slots, _conceptDefaults, rawGroups) =>
+				buildMeasurement(rawGroups || {}, resolveUnit, resolveUnitAnchor),
 		},
 		{
 			sourceKey: "quantity_to_dispense",
@@ -123,7 +127,7 @@ export function createMedicationFieldRegistry(
 				const rawMult = rawGroups?.multiplier;
 				const rawUnit = rawGroups?.unit;
 				if (!rawUnit) return undefined;
-				const resolvedUnit = resolveUnit(rawUnit, attributeRules) as
+				const resolvedUnit = resolveUnit(rawUnit) as
 					| "second"
 					| "minute"
 					| "hour"
@@ -136,6 +140,16 @@ export function createMedicationFieldRegistry(
 				const times = rawMult ? Number.parseFloat(rawMult) : 1;
 				return { times, period: resolvedUnit };
 			},
+		},
+		{
+			sourceKey: "anchorText",
+			targetField: "rawTerm",
+		},
+		{
+			sourceKey: "source_type",
+			targetField: "sourceType",
+			schemaDefaultField: "sourceType",
+			conceptDefaultPath: ["sourceType"],
 		},
 	];
 }
@@ -157,7 +171,6 @@ export const medicationRouter = (
 		profile,
 	);
 
-	// Schema-specific fallback for unmatched concepts
 	if (unmatched && unmatched.length > 0) {
 		if (!conceptFields?.medication) {
 			if (!extractedData.medication) {
