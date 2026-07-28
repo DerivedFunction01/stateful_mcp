@@ -73,8 +73,8 @@ function createSocialHistoryFieldRegistry(
 		},
 
 		{
-			sourceKey: "anchorText",
-			targetField: "notes",
+			sourceKey: "historical_notes",
+			targetField: "historical_notes",
 		},
 	];
 }
@@ -273,12 +273,12 @@ export const socialHistoryRegistryTests: FieldRegistryTestBlock = {
 			expected: { status: "current" },
 		},
 		{
-			description: "notes: falls back to anchorText",
+			description: "historical_notes: from slot directly",
 			input: {
-				slots: { anchorText: "quit 2 years ago" },
+				slots: { historical_notes: "quit 2 years ago" },
 			},
-			matchKeys: ["notes"],
-			expected: { notes: "quit 2 years ago" },
+			matchKeys: ["historical_notes"],
+			expected: { historical_notes: "quit 2 years ago" },
 		},
 	],
 };

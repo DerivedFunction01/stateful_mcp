@@ -145,7 +145,7 @@ function createSafetyNettingPlanRegistry(
 			},
 		},
 		{
-			sourceKey: "anchorText",
+			sourceKey: "returnPrecautions",
 			targetField: "returnPrecautions",
 		},
 		{
@@ -365,9 +365,9 @@ export const safetyNettingPlanRegistryTests: FieldRegistryTestBlock = {
 			},
 		},
 		{
-			description: "returnPrecautions: falls back to anchorText",
+			description: "returnPrecautions: from slot directly",
 			input: {
-				slots: { anchorText: "Call if fever persists beyond 48 hours" },
+				slots: { returnPrecautions: "Call if fever persists beyond 48 hours" },
 			},
 			matchKeys: ["returnPrecautions"],
 			expected: { returnPrecautions: "Call if fever persists beyond 48 hours" },
