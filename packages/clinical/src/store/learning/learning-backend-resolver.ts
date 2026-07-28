@@ -11,21 +11,11 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
+import { readStringOption, resolveDbPath } from "../sql/resolve-db-path";
 import type { ParsedCellStore } from "./interfaces";
 import { KvBackendFieldWeightStore } from "./parsed_cell/field-weight-store";
 import { KvParsedCellStore } from "./parsed_cell/kv-parsed-cell-store";
 import { SqlParsedCellStore } from "./parsed_cell/sql-parsed-cell-store";
-
-function readStringOption(
-	locator: ResourceLocator,
-	key: "path" | "dbName" | "connectionString" | "prefix",
-	fallback: string,
-): string {
-	if (locator._type !== "adapter") return fallback;
-	const options = locator.options as Record<string, unknown> | undefined;
-	const value = options?.[key];
-	return typeof value === "string" && value.length > 0 ? value : fallback;
-}
 
 async function resolveKvBackendFromLocator(
 	locator: ResourceLocator,
@@ -78,20 +68,13 @@ export async function resolveParsedCellStoreLocatorV2(
 	const name = locator.name;
 
 	if (["sqlite", "duckdb", "postgres", "opfs"].includes(name)) {
-		let connectionTarget = "";
-
-		if (name === "sqlite" || name === "duckdb") {
-			connectionTarget =
-				readStringOption(locator, "path", "") ||
-				readStringOption(locator, "dbName", "") ||
-				`./clinical-learning.${name === "duckdb" ? "duckdb" : "sqlite"}`;
-		} else if (name === "postgres") {
-			connectionTarget = readStringOption(
-				locator,
-				"connectionString",
-				"postgres://localhost:5432/clinical_learning",
-			);
-		}
+		const connectionTarget = resolveDbPath(
+			locator,
+			name as SqlDialect,
+			name === "postgres"
+				? "postgres://localhost:5432/clinical_learning"
+				: `./clinical-learning.${name === "duckdb" ? "duckdb" : "sqlite"}`,
+		);
 
 		const backend = await SqlBackend.connect(
 			name as SqlDialect,

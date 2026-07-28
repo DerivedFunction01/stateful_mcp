@@ -373,7 +373,11 @@ export function registerAdapters(): void {
 	registerAdapter("duckdb", {
 		create: async (options: Record<string, unknown>) => {
 			const dbPath = String(options.path || "./duckdb.db");
-			return createRepo(buildConfig("duckdb", dbPath));
+			const targetConfig = {
+				path: dbPath,
+				schema: options.schema || options.views || options.tables || undefined,
+			};
+			return createRepo(buildConfig("duckdb", JSON.stringify(targetConfig)));
 		},
 	});
 

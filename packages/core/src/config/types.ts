@@ -22,6 +22,9 @@ export interface PgAdapterOptions {
 export interface DuckDbAdapterOptions {
 	path?: string;
 	connectionString?: string;
+	schema?: Record<string, string>;
+	views?: Record<string, string>;
+	tables?: Record<string, string>;
 }
 
 export interface JsonlAdapterOptions {

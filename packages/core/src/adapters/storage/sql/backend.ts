@@ -38,10 +38,41 @@ export class SqlBackend {
 				return new SqlBackend("sqlite", new Database(target));
 			}
 			case "duckdb": {
-				const instance = await DuckDBInstance.create(target, {
+				let dbPath = target;
+				let schema: Record<string, string> | undefined;
+
+				if (target.trim().startsWith("{")) {
+					try {
+						const parsed = JSON.parse(target);
+						dbPath = parsed.path || ":memory:";
+						schema = parsed.schema;
+					} catch (_) {}
+				}
+
+				const instance = await DuckDBInstance.create(dbPath, {
 					allow_unsigned_extensions: "true",
 				});
-				return new SqlBackend("duckdb", await instance.connect());
+				const connection = await instance.connect();
+				const backend = new SqlBackend("duckdb", connection);
+
+				if (schema) {
+					for (const [tableName, filePath] of Object.entries(schema)) {
+						const ext = filePath.toLowerCase();
+						let query = "";
+						if (ext.endsWith(".parquet")) {
+							query = `CREATE OR REPLACE VIEW "${tableName}" AS SELECT * FROM read_parquet('${filePath}')`;
+						} else if (ext.endsWith(".jsonl") || ext.endsWith(".json")) {
+							query = `CREATE OR REPLACE VIEW "${tableName}" AS SELECT * FROM read_json_auto('${filePath}')`;
+						} else if (ext.endsWith(".csv")) {
+							query = `CREATE OR REPLACE VIEW "${tableName}" AS SELECT * FROM read_csv_auto('${filePath}')`;
+						} else {
+							query = `CREATE OR REPLACE VIEW "${tableName}" AS SELECT * FROM '${filePath}'`;
+						}
+						await connection.run(query);
+					}
+				}
+
+				return backend;
 			}
 			case "postgres":
 				return new SqlBackend(
@@ -197,6 +228,8 @@ export class SqlBackend {
 				}
 			} else if (typeof v === "number" || typeof v === "boolean") {
 				out[k] = v;
+			} else if (typeof v === "bigint") {
+				out[k] = Number(v);
 			} else if (v instanceof Date) {
 				out[k] = v.toISOString();
 			} else {

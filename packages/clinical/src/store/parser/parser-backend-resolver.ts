@@ -2,6 +2,8 @@ import type { ResourceLocator, SqlDialect } from "@stateful-mcp/core";
 import {
 	JsonlKvBackend,
 	MemoryKvBackend,
+	readStringOption,
+	resolveDbPath,
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
@@ -38,17 +40,6 @@ import { SqlProfileEvaluatorBindingStore } from "./rules/sql-profile-evaluator-b
 import { SqlProfileRuleBindingStore } from "./rules/sql-profile-rule-binding-store";
 import { KvTagStore } from "./tags/kv-tag-store";
 import { SqlTagStore } from "./tags/sql-tag-store";
-
-function readStringOption(
-	locator: ResourceLocator,
-	key: "path" | "dbName" | "connectionString" | "connection",
-	fallback: string,
-): string {
-	if (locator._type !== "adapter") return fallback;
-	const options = locator.options as Record<string, unknown> | undefined;
-	const value = options?.[key];
-	return typeof value === "string" && value.length > 0 ? value : fallback;
-}
 
 function getPrimaryLocator(
 	config: ClinicalStoreConfig,
@@ -102,11 +93,7 @@ export async function resolveParserProfileStores(
 			locator.name === "opfs")
 	) {
 		const dialect = mapDialect(locator.name);
-		const dbPath =
-			readStringOption(locator, "path", "") ||
-			readStringOption(locator, "dbName", "") ||
-			readStringOption(locator, "connectionString", "") ||
-			"./clinical-parser.sqlite";
+		const dbPath = resolveDbPath(locator, dialect, "./clinical-parser.sqlite");
 		const backend = await SqlBackend.connect(dialect, dbPath);
 		const executor = new SqlExecutor(backend);
 		return {
@@ -162,11 +149,7 @@ export async function resolveParserRuleStores(
 			locator.name === "opfs")
 	) {
 		const dialect = mapDialect(locator.name);
-		const dbPath =
-			readStringOption(locator, "path", "") ||
-			readStringOption(locator, "dbName", "") ||
-			readStringOption(locator, "connectionString", "") ||
-			"./clinical-parser.sqlite";
+		const dbPath = resolveDbPath(locator, dialect, "./clinical-parser.sqlite");
 		const backend = await SqlBackend.connect(dialect, dbPath);
 		const executor = new SqlExecutor(backend);
 		return {
@@ -228,11 +211,11 @@ export async function resolveReferenceStores(
 			locator.name === "opfs")
 	) {
 		const dialect = mapDialect(locator.name);
-		const dbPath =
-			readStringOption(locator, "path", "") ||
-			readStringOption(locator, "dbName", "") ||
-			readStringOption(locator, "connectionString", "") ||
-			"./clinical-reference.sqlite";
+		const dbPath = resolveDbPath(
+			locator,
+			dialect,
+			"./clinical-reference.sqlite",
+		);
 		const backend = await SqlBackend.connect(dialect, dbPath);
 		const executor = new SqlExecutor(backend);
 		return {
@@ -344,21 +327,6 @@ export async function resolveConceptFieldStore(
 
 	throw new Error(
 		`Unsupported concept field adapter: ${(locator as any).name ?? locator._type}`,
-	);
-}
-
-function resolveDbPath(locator: ResourceLocator, dialect: SqlDialect): string {
-	if (dialect === "postgres") {
-		return (
-			readStringOption(locator, "connectionString", "") ||
-			readStringOption(locator, "connection", "") ||
-			"./clinical.sqlite"
-		);
-	}
-	return (
-		readStringOption(locator, "path", "") ||
-		readStringOption(locator, "dbName", "") ||
-		"./clinical.sqlite"
 	);
 }
 

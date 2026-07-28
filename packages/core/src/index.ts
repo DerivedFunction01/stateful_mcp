@@ -8,6 +8,7 @@ export * from "./adapters/storage/generic/SqlExecutor";
 export * from "./adapters/storage/shared/unified-repo";
 export * from "./adapters/storage/simple/factories";
 export * from "./adapters/storage/sql/backend";
+export * from "./adapters/storage/sql/resolve-db-path";
 export * from "./config/loader";
 export * from "./config/meta_tools";
 export * from "./config/pagination";
