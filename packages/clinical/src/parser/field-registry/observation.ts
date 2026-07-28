@@ -28,8 +28,8 @@ export function createObservationFieldRegistry(
 			conceptDefaultPath: ["severity"],
 		},
 		{
-			sourceKey: "severityScore",
-			targetField: "severityScore",
+			sourceKey: "severity",
+			targetField: "severity",
 			compute: (slots, conceptDefaults, rawGroups) => {
 				const numStr = rawGroups?.numerator;
 				if (!numStr) return undefined;
@@ -132,44 +132,44 @@ export const observationRegistryTests: FieldRegistryTestBlock = {
 		},
 		{
 			description:
-				"severityScore: computes score/maxScore/normalizedScore from numerator and denominator",
+				"severity: computes score/maxScore/normalizedScore from numerator and denominator",
 			input: {
 				namedGroups: {
-					severityScore: { numerator: "7", denominator: "10" },
+					severity: { numerator: "7", denominator: "10" },
 				},
 			},
-			matchKeys: ["severityScore"],
+			matchKeys: ["severity"],
 			expected: {
-				severityScore: { score: 7, maxScore: 10, normalizedScore: 7 },
+				severity: { score: 7, maxScore: 10, normalizedScore: 7 },
 			},
 		},
 		{
-			description: "severityScore: infers maxScore when no denominator given",
+			description: "severity: infers maxScore when no denominator given",
 			input: {
 				namedGroups: {
-					severityScore: { numerator: "7" },
+					severity: { numerator: "7" },
 				},
 			},
-			matchKeys: ["severityScore"],
+			matchKeys: ["severity"],
 			expected: {
 				// inferredMax = 10^ceil(log10(7)) = 10
-				severityScore: { score: 7, maxScore: 10, normalizedScore: 7 },
+				severity: { score: 7, maxScore: 10, normalizedScore: 7 },
 			},
 		},
 		{
 			description:
-				"severityScore: uses conceptDefault denominator when present",
+				"severity: uses conceptDefault denominator when present",
 			input: {
 				namedGroups: {
-					severityScore: { numerator: "6" },
+					severity: { numerator: "6" },
 				},
 				conceptDefaults: {
 					defaultProperties: { severity_max_score: "20" },
 				},
 			},
-			matchKeys: ["severityScore"],
+			matchKeys: ["severity"],
 			expected: {
-				severityScore: { score: 6, maxScore: 20, normalizedScore: 3 },
+				severity: { score: 6, maxScore: 20, normalizedScore: 3 },
 			},
 		},
 		{

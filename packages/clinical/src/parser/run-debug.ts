@@ -23,7 +23,7 @@ const mockAttributeRules = [
 		regexPatterns: ["3 days ago"],
 	},
 	{
-		targetField: "severityScore",
+		targetField: "severity",
 		targetValue: { score: 8, maxScore: 10 },
 		regexPatterns: ["8/10"],
 	},

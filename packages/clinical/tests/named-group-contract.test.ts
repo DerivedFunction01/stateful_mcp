@@ -146,9 +146,9 @@ describe("Named Group Contract Enforcement", () => {
 				DEFAULT_ATTRIBUTE_RULES,
 				[ratioRule],
 			);
-			expect(token.namedGroups.severityScore).toBeDefined();
-			expect(token.namedGroups.severityScore?.numerator).toBe("7");
-			expect(token.namedGroups.severityScore?.denominator).toBe("10");
+			expect(token.namedGroups.severity).toBeDefined();
+			expect(token.namedGroups.severity?.numerator).toBe("7");
+			expect(token.namedGroups.severity?.denominator).toBe("10");
 		});
 
 		test("GenericTokenizer rejects ratio with extra group", () => {
@@ -164,7 +164,7 @@ describe("Named Group Contract Enforcement", () => {
 			const token = GenericTokenizer.tokenize("7/10", DEFAULT_ATTRIBUTE_RULES, [
 				poisonedRule,
 			]);
-			expect(token.namedGroups.severityScore).toBeUndefined();
+			expect(token.namedGroups.severity).toBeUndefined();
 		});
 	});
 

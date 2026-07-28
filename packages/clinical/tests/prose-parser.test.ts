@@ -186,7 +186,7 @@ const mockAttributeRules: AttributeParserRule[] = [
 		priority: 10,
 	},
 	{
-		targetField: "severityScore",
+		targetField: "severity",
 		targetValue: { score: 8, maxScore: 10 },
 		regexPatterns: ["8/10"],
 		priority: 10,
@@ -248,7 +248,7 @@ describe("ProseParser - Structured Clinical Templates", () => {
 				{
 					slotName: "severity",
 					slotType: "attribute",
-					ruleRef: "severityScore",
+					ruleRef: "severity",
 					anchorPattern: "rated as an? (?<severity>[^\\.]+)",
 					linkTo: { parentSlot: "chief_complaint", relation: "qualifier" },
 				},

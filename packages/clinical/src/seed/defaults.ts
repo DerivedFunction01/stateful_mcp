@@ -789,7 +789,7 @@ export const DEFAULT_EVALUATOR_RULES = [
 	},
 	{
 		ruleId: "severity_ratio",
-		targetField: "severityScore",
+		targetField: "severity",
 		evaluatorName: "parseSeverity",
 		regexPatterns: [
 			`${NUMERIC_PATTERN_NUMERATOR}\\s*\\/\\s*${NUMERIC_PATTERN_DENOMINATOR}`,

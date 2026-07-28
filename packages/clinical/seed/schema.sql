@@ -78,7 +78,7 @@ CREATE TABLE parser_attribute_rule_patterns (
 CREATE TABLE parser_dictionary_rules (
     rule_id VARCHAR(50) PRIMARY KEY,
     profile_id VARCHAR(50) REFERENCES parser_syntax_profiles(profile_id) ON DELETE CASCADE,
-    target_field VARCHAR(50) NOT NULL, -- e.g. 'blood_pressure', 'quantity', 'severityScore'
+    target_field VARCHAR(50) NOT NULL, -- e.g. 'blood_pressure', 'quantity', 'severity'
     evaluator_name VARCHAR(100) NOT NULL -- e.g. 'parseBloodPressure', 'parseQuantityUnit'
 );
 
