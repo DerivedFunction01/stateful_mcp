@@ -1,4 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import type { CodeableConcept } from "../../schemas/shared";
 import type {
 	AttributeParserRule,
 	ConceptFieldStore,
@@ -6,12 +7,17 @@ import type {
 	ParserDictionaryRule,
 } from "../../store/interfaces";
 import type { ParsedCellHistoryStore } from "../../store/learning/interfaces";
-import type { CodeableConcept } from "../../schemas/shared";
-import type { ParsedCandidateEnvelope, ParsedClinicalDateRangeItem, ParsedItemUnion, PreparsedContext, SchemaParser } from "../schema-parsers";
 import {
 	ClinicalDateRangeHelper,
 	ClinicalDateRangeTokenizer,
 } from "../helpers/clinical-date-range-helper";
+import type {
+	ParsedCandidateEnvelope,
+	ParsedClinicalDateRangeItem,
+	ParsedItemUnion,
+	PreparsedContext,
+	SchemaParser,
+} from "../schema-parsers";
 
 export class ClinicalDateRangeSchemaParser implements SchemaParser {
 	targetSchema = "ClinicalDateRange";

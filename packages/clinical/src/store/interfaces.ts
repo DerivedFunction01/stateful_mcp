@@ -147,7 +147,6 @@ export interface ParserConceptDefaultStore {
 	delete(anchorConceptId: string, targetSchema: string): Promise<void>;
 }
 
-
 export interface ConceptFieldRule {
 	ruleId: string;
 	conceptId: string;
@@ -171,7 +170,6 @@ export interface ConceptFieldStore {
 		fieldPath: string,
 	): Promise<void>;
 }
-
 
 export interface ParserProfileStore {
 	get(profileId: string): Promise<ParserSyntaxProfile | null>;

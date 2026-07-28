@@ -20,9 +20,8 @@ export interface BaseExposureEvent {
 		allergic?: boolean;
 		intolerant?: boolean;
 		adverse_reaction?: boolean;
-	}
+	};
 }
-
 
 export interface ChemicalSubstanceExposureEvent extends BaseExposureEvent {
 	exposureType: "chemical";
@@ -31,7 +30,11 @@ export interface ChemicalSubstanceExposureEvent extends BaseExposureEvent {
 
 export interface PharmaceuticalExposureEvent extends BaseExposureEvent {
 	exposureType: "pharmaceutical";
-	complianceStatus: "adherent" | "non_adherent" | "intermittent" | "discontinued";
+	complianceStatus:
+		| "adherent"
+		| "non_adherent"
+		| "intermittent"
+		| "discontinued";
 	dosage?: DosageMeasurement;
 }
 

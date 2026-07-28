@@ -104,12 +104,7 @@ function registerObjectTools(
 					),
 			},
 		},
-		async ({
-			object_id,
-			path: fieldPath,
-			value,
-			new_alias,
-		}, extra: any) => {
+		async ({ object_id, path: fieldPath, value, new_alias }, extra: any) => {
 			const session_id = extra?._metadata?.session_id ?? "default";
 			const user_id = extra?._metadata?.user_id;
 			try {
@@ -193,12 +188,10 @@ function registerObjectTools(
 					.describe("The path in the source object to reference."),
 			},
 		},
-		async ({
-			object_id,
-			path: fieldPath,
-			source_object_id,
-			source_path,
-		}, extra: any) => {
+		async (
+			{ object_id, path: fieldPath, source_object_id, source_path },
+			extra: any,
+		) => {
 			const session_id = extra?._metadata?.session_id ?? "default";
 			const user_id = extra?._metadata?.user_id;
 			try {
@@ -316,13 +309,10 @@ function registerObjectTools(
 					),
 			},
 		},
-		async ({
-			object_id,
-			path: fieldPath,
-			operation,
-			index,
-			value,
-		}, extra: any) => {
+		async (
+			{ object_id, path: fieldPath, operation, index, value },
+			extra: any,
+		) => {
 			const session_id = extra?._metadata?.session_id ?? "default";
 			const user_id = extra?._metadata?.user_id;
 			try {

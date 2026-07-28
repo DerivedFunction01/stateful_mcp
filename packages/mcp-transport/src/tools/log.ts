@@ -74,7 +74,14 @@ function registerLogTools(
 				limit: buildLimitField("log_page_size", paginationLimits),
 			},
 		},
-		async ({ type, id_or_alias, limit }: { type: "filter" | "object"; id_or_alias: string; limit?: number }, extra: any) => {
+		async (
+			{
+				type,
+				id_or_alias,
+				limit,
+			}: { type: "filter" | "object"; id_or_alias: string; limit?: number },
+			extra: any,
+		) => {
 			const session_id = extra?._metadata?.session_id ?? "default";
 			const user_id = extra?._metadata?.user_id;
 			try {

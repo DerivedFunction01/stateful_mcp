@@ -21,8 +21,8 @@ import {
 	type ParsedItem,
 	type PreparsedContext,
 	type RankingSignal,
-	type SchemaParser,
 	resolveMultiConceptHelper,
+	type SchemaParser,
 	schemaParserRegistry,
 } from "./schema-parsers";
 import { StopWordParser } from "./stop-word-parser";
@@ -463,13 +463,8 @@ export class CdslParser {
 					conceptFieldRules.map((r) => r.targetSchema),
 				);
 				for (const schema of matchedSchemas) {
-					for (const p of Array.from(
-						schemaParserRegistry.values(),
-					)) {
-						if (
-							p.targetSchema.toLowerCase() ===
-							schema.toLowerCase()
-					) {
+					for (const p of Array.from(schemaParserRegistry.values())) {
+						if (p.targetSchema.toLowerCase() === schema.toLowerCase()) {
 							conceptMatchedParsers.push(p);
 						}
 					}

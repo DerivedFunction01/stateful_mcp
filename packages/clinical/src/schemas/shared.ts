@@ -106,4 +106,3 @@ export type OrganSystem =
 	| "dermatological"
 	| "psychiatric"
 	| "genitourinary";
-

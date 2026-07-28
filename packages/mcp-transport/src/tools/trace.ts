@@ -1,9 +1,20 @@
 // REFERENCE: docs/trace.md
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { buildLimitField, clampLimit, loadMiddlewareConfig, resolveAboutOrExamples, resolveConfigDir, TraceStore, validateMiddlewareConfig } from "@stateful-mcp/core";
+import {
+	buildLimitField,
+	clampLimit,
+	loadMiddlewareConfig,
+	resolveAboutOrExamples,
+	resolveConfigDir,
+	TraceStore,
+	validateMiddlewareConfig,
+} from "@stateful-mcp/core";
 import type { MiddlewareConfig } from "@stateful-mcp/core/src/config/types.js";
-import type { TraceForm, DeltaOperation } from "@stateful-mcp/core/src/middleware/trace/types.js";
+import type {
+	DeltaOperation,
+	TraceForm,
+} from "@stateful-mcp/core/src/middleware/trace/types.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
@@ -45,7 +56,15 @@ function registerTraceTools() {
 					.describe("Zero-based pagination offset."),
 			},
 		},
-		async ({ intent, limit, offset }: { intent: string; limit?: number; offset?: number }) => {
+		async ({
+			intent,
+			limit,
+			offset,
+		}: {
+			intent: string;
+			limit?: number;
+			offset?: number;
+		}) => {
 			try {
 				const effectiveLimit = clampLimit(
 					limit,
@@ -70,9 +89,9 @@ function registerTraceTools() {
 				"Execute a trace form end-to-end with LLM-supplied input slot arguments.",
 			inputSchema: {
 				trace_id: z.string().describe("ID of the trace to execute."),
-			args: z
-				.record(z.string(), z.any())
-				.describe("Input slot arguments supplied for trace execution."),
+				args: z
+					.record(z.string(), z.any())
+					.describe("Input slot arguments supplied for trace execution."),
 			},
 		},
 		async ({ trace_id, args }) => {
@@ -160,12 +179,12 @@ function registerTraceTools() {
 					.describe(
 						"Trace ID (auto-generated on 'start', required on 'stop').",
 					),
-			trace: z
-				.record(z.string(), z.any())
-				.optional()
-				.describe(
-					"TraceForm object or metadata payload (goal, input_slots, capabilities, steps).",
-				),
+				trace: z
+					.record(z.string(), z.any())
+					.optional()
+					.describe(
+						"TraceForm object or metadata payload (goal, input_slots, capabilities, steps).",
+					),
 				checkpoint_id: z
 					.string()
 					.optional()
@@ -174,10 +193,7 @@ function registerTraceTools() {
 					),
 			},
 		},
-		async (
-			{ action, trace_id, trace, checkpoint_id },
-			extra: any,
-		) => {
+		async ({ action, trace_id, trace, checkpoint_id }, extra: any) => {
 			const sessionId = extra?._metadata?.session_id ?? "default";
 			const targetCheckpointId = checkpoint_id;
 			try {
@@ -218,7 +234,7 @@ function registerTraceTools() {
 					let targetTraceForm = trace;
 					if (!targetTraceForm && targetCheckpointId) {
 						const { getObjectStore } = await import("./helper.js");
-					const objectStore = await getObjectStore(config, configDir);
+						const objectStore = await getObjectStore(config, configDir);
 						const objState = await objectStore.getObject(
 							targetCheckpointId,
 							sessionId,
@@ -280,12 +296,12 @@ function registerTraceTools() {
 				"Apply delta edits (replace_step, append_step, remove_step, swap_with_persistent, promote_arg, demote_arg) directly or from an ObjectStore checkpoint.",
 			inputSchema: {
 				trace_id: z.string().describe("Target trace ID."),
-			delta: z
-				.record(z.string(), z.any())
-				.optional()
-				.describe(
-					"Delta operation object containing action, step_id, arg_key, slot_name, etc.",
-				),
+				delta: z
+					.record(z.string(), z.any())
+					.optional()
+					.describe(
+						"Delta operation object containing action, step_id, arg_key, slot_name, etc.",
+					),
 				checkpoint_id: z
 					.string()
 					.optional()
@@ -303,7 +319,10 @@ function registerTraceTools() {
 				if (!targetDelta && targetCheckpointId) {
 					const { getObjectStore } = await import("./helper.js");
 					const objectStore = await getObjectStore(config, configDir);
-					const objState = await objectStore.getObject(targetCheckpointId, sessionId);
+					const objState = await objectStore.getObject(
+						targetCheckpointId,
+						sessionId,
+					);
 					if (!objState || !objState.data) {
 						return {
 							content: [

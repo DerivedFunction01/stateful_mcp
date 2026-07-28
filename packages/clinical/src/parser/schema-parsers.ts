@@ -12,9 +12,9 @@ import type {
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
 import {
-	createAssessmentFieldRegistry,
 	assessmentConfig,
 	assessmentRouter,
+	createAssessmentFieldRegistry,
 } from "./field-registry/assessment";
 import {
 	createMedicationFieldRegistry,

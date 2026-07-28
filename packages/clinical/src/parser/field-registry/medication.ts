@@ -148,3 +148,101 @@ export const medicationConfig: SchemaParserConfig = {
 	targetSchema: "MedicationOrderObject",
 	preparsedContextKeys: ["frequency", "measurement", "attributes"],
 };
+
+// ── Optional test block (consumed by field-registry.test.ts) ─────────────────
+
+import type { FieldRegistryTestBlock } from "./test-types";
+
+export const medicationRegistryTests: FieldRegistryTestBlock = {
+	schema: "MedicationOrderObject",
+	router: medicationRouter,
+	cases: [
+		{
+			description: "route: reads route from slot directly",
+			input: {
+				slots: { route: { conceptId: "SNOMED::26643006", display: "Oral" } },
+			},
+			matchKeys: ["route"],
+			expected: {
+				route: { conceptId: "SNOMED::26643006", display: "Oral" },
+			},
+		},
+		{
+			description: "dosage: computes dosage from quantity and unit",
+			input: {
+				namedGroups: {
+					quantity: { quantity: "500", unit: "mg" },
+				},
+			},
+			matchKeys: ["dosage"],
+			expected: {
+				dosage: { magnitude: 500, unit: { display: "mg" } },
+			},
+		},
+		{
+			description: "dosage: produces dosage without unit when absent",
+			input: {
+				namedGroups: {
+					quantity: { quantity: "250" },
+				},
+			},
+			matchKeys: ["dosage"],
+			expected: {
+				dosage: { magnitude: 250, unit: undefined },
+			},
+		},
+		{
+			description: "frequency_shorthand: BID maps to 12-hour interval",
+			input: {
+				namedGroups: {
+					frequency_shorthand: { frequency_shorthand: "BID" },
+				},
+			},
+			matchKeys: ["frequency.interval"],
+			expected: {
+				"frequency.interval": { multiplier: 12, unit: "hour" },
+			},
+		},
+		{
+			description: "frequency_shorthand: TID maps to 8-hour interval",
+			input: {
+				namedGroups: {
+					frequency_shorthand: { frequency_shorthand: "TID" },
+				},
+			},
+			matchKeys: ["frequency.interval"],
+			expected: {
+				"frequency.interval": { multiplier: 8, unit: "hour" },
+			},
+		},
+		{
+			description: "unmatched: first concept becomes medication field",
+			input: {
+				namedGroups: {},
+				unmatched: [{ conceptId: "RxNorm::723", display: "Amoxicillin" }],
+			},
+			matchKeys: ["medication"],
+			expected: {
+				medication: { conceptId: "RxNorm::723", display: "Amoxicillin" },
+			},
+		},
+		{
+			description: "unmatched: second concept becomes targetIndication",
+			input: {
+				namedGroups: {},
+				unmatched: [
+					{ conceptId: "RxNorm::723", display: "Amoxicillin" },
+					{ conceptId: "SNOMED::40275004", display: "Contact dermatitis" },
+				],
+			},
+			matchKeys: ["medication", "targetIndication"],
+			expected: {
+				medication: { conceptId: "RxNorm::723", display: "Amoxicillin" },
+				targetIndication: {
+					conceptId: "SNOMED::40275004",
+					display: "Contact dermatitis",
+				},
+			},
+		},
+	],
+};

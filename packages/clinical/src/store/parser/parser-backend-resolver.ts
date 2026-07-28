@@ -300,7 +300,6 @@ export async function resolveConceptDefaultStore(
 	);
 }
 
-
 // ── Concept field routing rules ──────────────────────────────────────────────
 
 export async function resolveConceptFieldStore(

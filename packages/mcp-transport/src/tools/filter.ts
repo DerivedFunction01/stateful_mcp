@@ -10,13 +10,16 @@ import {
 	resolveConfigDir,
 	validateMiddlewareConfig,
 } from "@stateful-mcp/core";
+import type {
+	MiddlewareConfig,
+	PaginationLimitsConfig,
+} from "@stateful-mcp/core/src/config/types.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { getFilterStore } from "./helper";
 import { registerMiddlewareAboutTool } from "./middleware_about.js";
 import { registerStateInitTool } from "./state_init.js";
-import type { MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core/src/config/types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -78,7 +78,6 @@ export interface PatientProfile {
 	biologicalProfile: BaseAgent & SubjectBiologicalAttributes;
 }
 
-
 export interface PatientLearningBucket {
 	patientId: string;
 	organismType: "human" | "animal" | "plant" | string;

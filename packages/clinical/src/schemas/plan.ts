@@ -7,12 +7,12 @@ import type { ClinicalDateRange } from "./time";
 // =====================================================================
 
 export interface BaseOrderObject {
-id: string;
-procedure: CodeableConcept;
-rawTerm?: string;
-priority: "routine" | "urgent" | "stat";
-reason?: CodeableConcept;
-dateRange?: ClinicalDateRange;
+	id: string;
+	procedure: CodeableConcept;
+	rawTerm?: string;
+	priority: "routine" | "urgent" | "stat";
+	reason?: CodeableConcept;
+	dateRange?: ClinicalDateRange;
 }
 
 // =====================================================================
@@ -21,10 +21,10 @@ dateRange?: ClinicalDateRange;
 // =====================================================================
 
 export interface InvestigationOrderObject extends BaseOrderObject {
-investigationType: "laboratory" | "imaging";
-specimenType?: CodeableConcept; // e.g. venous blood, urine
-panelCode?: CodeableConcept; // e.g. LOINC::24320-4 Basic Metabolic Panel
-laterality?: "left" | "right" | "bilateral";
+	investigationType: "laboratory" | "imaging";
+	specimenType?: CodeableConcept; // e.g. venous blood, urine
+	panelCode?: CodeableConcept; // e.g. LOINC::24320-4 Basic Metabolic Panel
+	laterality?: "left" | "right" | "bilateral";
 }
 
 // =====================================================================
@@ -35,10 +35,10 @@ laterality?: "left" | "right" | "bilateral";
 export type ReferralUrgency = "routine" | "urgent" | "emergent";
 
 export interface ReferralOrderObject extends BaseOrderObject {
-specialistDiscipline: CodeableConcept; // e.g. Cardiology, Neurology
-referralUrgency: ReferralUrgency;
-clinicalQuestion?: string; // Specific question for the consultant
-routingNotes?: string; // Facility or provider routing instructions
+	specialistDiscipline: CodeableConcept; // e.g. Cardiology, Neurology
+	referralUrgency: ReferralUrgency;
+	clinicalQuestion?: string; // Specific question for the consultant
+	routingNotes?: string; // Facility or provider routing instructions
 }
 
 // =====================================================================
@@ -47,16 +47,16 @@ routingNotes?: string; // Facility or provider routing instructions
 // =====================================================================
 
 export type AnesthesiaType =
-| "general"
-| "regional"
-| "local"
-| "sedation"
-| "none";
+	| "general"
+	| "regional"
+	| "local"
+	| "sedation"
+	| "none";
 
 export interface InterventionOrderObject extends BaseOrderObject {
-procedureLocation?: CodeableConcept; // e.g. operating room, bedside, clinic
-anesthesiaType?: AnesthesiaType;
-schedulingWindow?: ClinicalDateRange;
+	procedureLocation?: CodeableConcept; // e.g. operating room, bedside, clinic
+	anesthesiaType?: AnesthesiaType;
+	schedulingWindow?: ClinicalDateRange;
 }
 
 // =====================================================================
@@ -65,35 +65,35 @@ schedulingWindow?: ClinicalDateRange;
 // =====================================================================
 
 export type EscalationPath =
-| "emergency_department"
-| "urgent_care"
-| "call_provider"
-| "telehealth";
+	| "emergency_department"
+	| "urgent_care"
+	| "call_provider"
+	| "telehealth";
 
 export interface SafetyNettingPlan {
-/**
- * Explicit alarm symptoms the patient should watch for.
- * Coded concepts (e.g. SNOMED::230145002 Difficulty breathing).
- */
-redFlagSymptoms: CodeableConcept[];
+	/**
+	 * Explicit alarm symptoms the patient should watch for.
+	 * Coded concepts (e.g. SNOMED::230145002 Difficulty breathing).
+	 */
+	redFlagSymptoms: CodeableConcept[];
 
-/**
- * Narrative return precautions — patient-facing instructions.
- */
-returnPrecautions: string;
+	/**
+	 * Narrative return precautions — patient-facing instructions.
+	 */
+	returnPrecautions: string;
 
-/**
- * The expected follow-up window for this encounter.
- */
-followUpWindow: ClinicalDateRange;
+	/**
+	 * The expected follow-up window for this encounter.
+	 */
+	followUpWindow: ClinicalDateRange;
 
-/**
- * Specific conditions or symptom changes that should accelerate the follow-up.
- */
-followUpTriggers?: CodeableConcept[];
+	/**
+	 * Specific conditions or symptom changes that should accelerate the follow-up.
+	 */
+	followUpTriggers?: CodeableConcept[];
 
-/**
- * The recommended escalation path if red flags occur.
- */
-escalationPath?: EscalationPath;
+	/**
+	 * The recommended escalation path if red flags occur.
+	 */
+	escalationPath?: EscalationPath;
 }

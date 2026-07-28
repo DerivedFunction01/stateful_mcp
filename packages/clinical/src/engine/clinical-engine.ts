@@ -233,7 +233,12 @@ export class ClinicalEngine {
 			},
 			objective: { vitalSigns: [], physicalExamination: [] },
 			assessment: { differentialDiagnoses: [] },
-			plan: { prescriptions: [], investigations: [], referrals: [], interventions: [] },
+			plan: {
+				prescriptions: [],
+				investigations: [],
+				referrals: [],
+				interventions: [],
+			},
 			cells: [],
 		};
 
@@ -397,7 +402,9 @@ export class ClinicalEngine {
 				const section = isNegated ? "subjective" : "objective";
 
 				if (section === "subjective") {
-					const events = [...(note.subjective?.historyOfPresentIllness?.events || [])];
+					const events = [
+						...(note.subjective?.historyOfPresentIllness?.events || []),
+					];
 					events.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
 						concept: {

@@ -17,10 +17,11 @@ export class KvConceptFieldRuleBindingStore
 		ruleId: string,
 		priority: number,
 	): Promise<void> {
-		await this.backend.set(
-			this.bindingKey(profileId, ruleId),
-			{ profileId, ruleId, priority },
-		);
+		await this.backend.set(this.bindingKey(profileId, ruleId), {
+			profileId,
+			ruleId,
+			priority,
+		});
 		await this.backend.save();
 	}
 

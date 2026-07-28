@@ -100,7 +100,9 @@ export class ConceptFieldQueryCompiler {
 		table: string,
 	): CompiledQuery {
 		const conflictColumns =
-			this.dialect === "sqlite" ? undefined : ["conceptId", "targetSchema", "fieldPath"];
+			this.dialect === "sqlite"
+				? undefined
+				: ["conceptId", "targetSchema", "fieldPath"];
 
 		return this.compiler.compileInsert({
 			table,

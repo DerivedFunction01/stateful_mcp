@@ -105,3 +105,98 @@ export const observationConfig: SchemaParserConfig = {
 	targetSchema: "ObservationEvent",
 	preparsedContextKeys: ["measurement", "frequency", "attributes"],
 };
+
+// ── Optional test block (consumed by field-registry.test.ts) ─────────────────
+
+import type { FieldRegistryTestBlock } from "./test-types";
+
+export const observationRegistryTests: FieldRegistryTestBlock = {
+	schema: "ObservationEvent",
+	router: observationRouter,
+	cases: [
+		{
+			description: "certainty: reads certainty from slot directly",
+			input: {
+				slots: { certainty: "confirmed" },
+			},
+			matchKeys: ["certainty"],
+			expected: { certainty: "confirmed" },
+		},
+		{
+			description: "status: reads status from slot directly",
+			input: {
+				slots: { status: "present" },
+			},
+			matchKeys: ["status"],
+			expected: { status: "present" },
+		},
+		{
+			description:
+				"severityScore: computes score/maxScore/normalizedScore from numerator and denominator",
+			input: {
+				namedGroups: {
+					severityScore: { numerator: "7", denominator: "10" },
+				},
+			},
+			matchKeys: ["severityScore"],
+			expected: {
+				severityScore: { score: 7, maxScore: 10, normalizedScore: 7 },
+			},
+		},
+		{
+			description: "severityScore: infers maxScore when no denominator given",
+			input: {
+				namedGroups: {
+					severityScore: { numerator: "7" },
+				},
+			},
+			matchKeys: ["severityScore"],
+			expected: {
+				// inferredMax = 10^ceil(log10(7)) = 10
+				severityScore: { score: 7, maxScore: 10, normalizedScore: 7 },
+			},
+		},
+		{
+			description:
+				"severityScore: uses conceptDefault denominator when present",
+			input: {
+				namedGroups: {
+					severityScore: { numerator: "6" },
+				},
+				conceptDefaults: {
+					defaultProperties: { severity_max_score: "20" },
+				},
+			},
+			matchKeys: ["severityScore"],
+			expected: {
+				severityScore: { score: 6, maxScore: 20, normalizedScore: 3 },
+			},
+		},
+		{
+			description: "unmatched: first concept becomes concept field",
+			input: {
+				namedGroups: {},
+				unmatched: [{ conceptId: "SNOMED::386661006", display: "Fever" }],
+			},
+			matchKeys: ["concept"],
+			expected: {
+				concept: { conceptId: "SNOMED::386661006", display: "Fever" },
+			},
+		},
+		{
+			description: "unmatched: additional concepts become qualifiers",
+			input: {
+				namedGroups: {},
+				unmatched: [
+					{ conceptId: "SNOMED::386661006", display: "Fever" },
+					{ conceptId: "SNOMED::255604002", display: "Mild" },
+				],
+			},
+			matchKeys: ["concept", "qualifiers"],
+			expected: {
+				concept: { conceptId: "SNOMED::386661006", display: "Fever" },
+				qualifiers: [{ conceptId: "SNOMED::255604002", display: "Mild" }],
+			},
+		},
+	],
+};

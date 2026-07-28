@@ -1,14 +1,13 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import type { CodeableConcept } from "../schemas/shared";
 import type {
 	AttributeParserRule,
 	ConceptFieldStore,
-	ParserConceptDefault,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
-import type { CodeableConcept } from "../schemas/shared";
 import { GenericTokenizer } from "./generic-tokenizer";
 import type {
 	ParsedCandidateEnvelope,
@@ -142,44 +141,43 @@ export class GenericSchemaParser {
 
 		if (!token || !token.anchorText) return null;
 
-		const concept = concepts || (await resolveConceptHelper(
-			token.anchorText,
-			dictionaryStore,
-			termTokenizer,
-			allowedNamespaces,
-		));
+		const concept =
+			concepts ||
+			(await resolveConceptHelper(
+				token.anchorText,
+				dictionaryStore,
+				termTokenizer,
+				allowedNamespaces,
+			));
 
 		const conceptFields: Record<string, CodeableConcept[]> = {};
 		const unmatched: CodeableConcept[] = [];
 
 		if (conceptFieldStore && concept.length > 0) {
-			const rules = await conceptFieldStore.listBySchema(
-				this.targetSchema,
-			);
-			const ruleMap = new Map(
-				rules.map((r) => [r.conceptId, r]),
-			);
-		for (const c of concept) {
-			if (!c.conceptId) {
-				unmatched.push(c);
-				continue;
+			const rules = await conceptFieldStore.listBySchema(this.targetSchema);
+			const ruleMap = new Map(rules.map((r) => [r.conceptId, r]));
+			for (const c of concept) {
+				if (!c.conceptId) {
+					unmatched.push(c);
+					continue;
+				}
+				const rule = ruleMap.get(c.conceptId);
+				if (rule) {
+					const field = rule.fieldPath;
+					if (!conceptFields[field]) {
+						conceptFields[field] = [];
+					}
+					conceptFields[field].push(c);
+				} else {
+					unmatched.push(c);
+				}
 			}
-			const rule = ruleMap.get(c.conceptId);
-			if (rule) {
-				const field = rule.fieldPath;
-				const arr = conceptFields[field] || (conceptFields[field] = []);
-				arr.push(c);
-			} else {
-				unmatched.push(c);
-			}
-		}
 		} else {
 			unmatched.push(...concept);
 		}
 
 		let conceptDefaults: Record<string, any> | null = null;
-		const primaryConcept =
-			conceptFields.concept?.[0] || unmatched[0];
+		const primaryConcept = conceptFields.concept?.[0] || unmatched[0];
 		if (primaryConcept?.conceptId && conceptDefaultsStore) {
 			const defaults = await conceptDefaultsStore.get(
 				primaryConcept.conceptId,

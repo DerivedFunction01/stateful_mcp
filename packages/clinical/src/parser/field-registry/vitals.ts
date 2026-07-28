@@ -120,3 +120,105 @@ export const vitalsConfig: SchemaParserConfig = {
 	targetSchema: "VitalsMeasurementEvent",
 	preparsedContextKeys: ["measurement", "attributes"],
 };
+
+// ── Optional test block (consumed by field-registry.test.ts) ─────────────────
+
+import type { FieldRegistryTestBlock } from "./test-types";
+
+export const vitalsRegistryTests: FieldRegistryTestBlock = {
+	schema: "VitalsMeasurementEvent",
+	router: vitalsRouter,
+	cases: [
+		{
+			description: "blood_pressure: produces top-level systolic and diastolic",
+			input: {
+				namedGroups: {
+					blood_pressure: { systolic: "120", diastolic: "80", unit: "mmHg" },
+				},
+			},
+			expected: {
+				systolic: { magnitude: 120, unit: { display: "mmHg" } },
+				diastolic: { magnitude: 80, unit: { display: "mmHg" } },
+			},
+		},
+		{
+			description: "blood_pressure: defaults unit to mmHg when not captured",
+			input: {
+				namedGroups: {
+					blood_pressure: { systolic: "118", diastolic: "76" },
+				},
+			},
+			expected: {
+				systolic: { magnitude: 118, unit: { display: "mmHg" } },
+				diastolic: { magnitude: 76, unit: { display: "mmHg" } },
+			},
+		},
+		{
+			description: "blood_pressure: missing diastolic produces only systolic",
+			input: {
+				namedGroups: {
+					blood_pressure: { systolic: "120" },
+				},
+			},
+			matchKeys: ["systolic", "diastolic"],
+			expected: {
+				systolic: { magnitude: 120, unit: { display: "mmHg" } },
+				diastolic: undefined,
+			},
+		},
+		{
+			description:
+				"quantity: produces measurement object with magnitude and unit",
+			input: {
+				namedGroups: {
+					quantity: { quantity: "37.5", unit: "C" },
+				},
+			},
+			matchKeys: ["measurement"],
+			expected: {
+				measurement: { magnitude: 37.5, unit: { display: "c" } },
+			},
+		},
+		{
+			description:
+				"quantity: produces measurement without unit when unit absent",
+			input: {
+				namedGroups: {
+					quantity: { quantity: "98" },
+				},
+			},
+			matchKeys: ["measurement"],
+			expected: {
+				measurement: { magnitude: 98, unit: undefined },
+			},
+		},
+		{
+			description: "unmatched: first concept becomes vitalType fallback",
+			input: {
+				namedGroups: {},
+				unmatched: [{ conceptId: "LOINC::8310-5", display: "Temperature" }],
+			},
+			matchKeys: ["vitalType"],
+			expected: {
+				vitalType: { conceptId: "LOINC::8310-5", display: "Temperature" },
+			},
+		},
+		{
+			description: "unmatched: additional concepts become anatomyLocations",
+			input: {
+				namedGroups: {},
+				unmatched: [
+					{ conceptId: "LOINC::8310-5", display: "Temperature" },
+					{ conceptId: "SNOMED::368209003", display: "Right arm" },
+				],
+			},
+			matchKeys: ["vitalType", "anatomyLocations"],
+			expected: {
+				vitalType: { conceptId: "LOINC::8310-5", display: "Temperature" },
+				anatomyLocations: [
+					{ conceptId: "SNOMED::368209003", display: "Right arm" },
+				],
+			},
+		},
+	],
+};

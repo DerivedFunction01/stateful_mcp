@@ -5,7 +5,6 @@ import {
 	resolveAboutOrExamples,
 	resolveConfigDir,
 	type VariableInputEntry,
-	type VariableService,
 	VariableServiceStore,
 } from "@stateful-mcp/core";
 import * as path from "path";

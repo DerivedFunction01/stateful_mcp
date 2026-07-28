@@ -36,13 +36,17 @@ export class DefaultParserProfileComposer implements ParserProfileComposer {
 		const profile = await this.profiles.get(profileId);
 		if (!profile) return null;
 
-		const [profileTagIds, attributeBindingsList, evaluatorBindingsList, conceptFieldBindingsList] =
-			await Promise.all([
-				this.tags.getProfileTags(profileId),
-				this.attributeBindings.listBindings(profileId),
-				this.evaluatorBindings.listBindings(profileId),
-				this.conceptFieldBindings?.listBindings(profileId) ?? Promise.resolve([]),
-			]);
+		const [
+			profileTagIds,
+			attributeBindingsList,
+			evaluatorBindingsList,
+			conceptFieldBindingsList,
+		] = await Promise.all([
+			this.tags.getProfileTags(profileId),
+			this.attributeBindings.listBindings(profileId),
+			this.evaluatorBindings.listBindings(profileId),
+			this.conceptFieldBindings?.listBindings(profileId) ?? Promise.resolve([]),
+		]);
 
 		const tagRecords = await this.resolveTags(profileTagIds);
 		const resolvedAttributeRules = await this.resolveAttributeRules(
