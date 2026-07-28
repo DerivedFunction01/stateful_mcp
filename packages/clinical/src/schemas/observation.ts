@@ -37,7 +37,7 @@ export interface ExclusionEvent {
 	id: string;
 	soapSection: "subjective" | "objective"; // Tightly scoped to where exclusions happen
 	exclusionType: "review_of_systems" | "symptom_group" | "allergy_class" | "medical_history";
-	
+	rawTerm: string;
 	// The structural anchor (e.g., "Constitutional", "Respiratory", "Beta-Lactam Antibiotics")
 	categoryContext: CodeableConcept; 
 	
