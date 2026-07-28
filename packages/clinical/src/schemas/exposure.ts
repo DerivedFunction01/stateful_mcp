@@ -17,6 +17,11 @@ export interface BaseExposureEvent {
 	route?: Route;
 	dateRange?: ClinicalDateRange;
 	frequency?: MedicationFrequency;
+	side_effects?: {
+		allergic?: boolean;
+		intolerant?: boolean;
+		adverse_reaction?: boolean;
+	}
 }
 
 export interface ChemicalSubstanceExposureEvent extends BaseExposureEvent {
@@ -26,6 +31,7 @@ export interface ChemicalSubstanceExposureEvent extends BaseExposureEvent {
 
 export interface PharmaceuticalExposureEvent extends BaseExposureEvent {
 	exposureType: "pharmaceutical";
+	complianceStatus: "adherent" | "non_adherent" | "intermittent" | "discontinued";
 	dosage?: DosageMeasurement;
 }
 
