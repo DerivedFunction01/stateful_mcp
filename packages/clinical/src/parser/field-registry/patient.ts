@@ -24,16 +24,10 @@ export function createPatientFieldRegistry(
 			conceptDefaultPath: ["administrativeGender"],
 		},
 		{
-			sourceKey: "status",
-			targetField: "status",
-			schemaDefaultField: "status",
-			conceptDefaultPath: ["status"],
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "originationDate",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
+			sourceKey: "lifecycle",
+			targetField: "lifecycle",
+			schemaDefaultField: "lifecycle",
+			conceptDefaultPath: ["lifecycle"],
 		},
 		{
 			sourceKey: "is_origination_estimated",
@@ -108,12 +102,12 @@ export const patientRegistryTests: FieldRegistryTestBlock = {
 			expected: { administrativeGender: "male" },
 		},
 		{
-			description: "status: from slot directly",
+			description: "lifecycle: from slot directly",
 			input: {
-				slots: { status: "active" },
+				slots: { lifecycle: "active" },
 			},
-			matchKeys: ["status"],
-			expected: { status: "active" },
+			matchKeys: ["lifecycle"],
+			expected: { lifecycle: "active" },
 		},
 	],
 };

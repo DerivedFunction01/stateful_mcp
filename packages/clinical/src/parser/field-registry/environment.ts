@@ -15,18 +15,7 @@ export function createEnvironmentFieldRegistry(
 			schemaDefaultField: "contextType",
 			conceptDefaultPath: ["contextType"],
 		},
-		{
-			sourceKey: "source_type",
-			targetField: "sourceType",
-			schemaDefaultField: "sourceType",
-			conceptDefaultPath: ["sourceType"],
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
+
 		// GeopoliticalLocationContext
 		{
 			sourceKey: "country_code",

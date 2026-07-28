@@ -72,28 +72,6 @@ export function createObservationFieldRegistry(
 				};
 			},
 		},
-		{
-			sourceKey: "trajectory",
-			targetField: "trajectory",
-			schemaDefaultField: "trajectory",
-			conceptDefaultPath: ["trajectory"],
-		},
-		{
-			sourceKey: "anchorText",
-			targetField: "rawTerm",
-		},
-		{
-			sourceKey: "source_type",
-			targetField: "sourceType",
-			schemaDefaultField: "sourceType",
-			conceptDefaultPath: ["sourceType"],
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
 	];
 }
 

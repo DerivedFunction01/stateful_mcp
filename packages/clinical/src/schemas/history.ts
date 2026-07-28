@@ -23,7 +23,7 @@ export interface AllergyEntry {
 	id: string;
 	substance: CodeableConcept; // The allergen (drug, food, environmental, etc.)
 	reactionType?: CodeableConcept[]; // e.g. anaphylaxis, urticaria, angioedema
-	severity?: AllergySeverity;
+	allergySeverity?: AllergySeverity;
 	verificationStatus: AllergyVerificationStatus;
 	onsetDateRange?: ClinicalDateRange;
 }

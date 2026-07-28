@@ -34,7 +34,7 @@ function createAllergyFieldRegistry(
 		},
 		{
 			sourceKey: "allergy_severity",
-			targetField: "severity",
+			targetField: "allergySeverity",
 			schemaDefaultField: "severity",
 			conceptDefaultPath: ["severity"],
 		},
@@ -43,12 +43,6 @@ function createAllergyFieldRegistry(
 			targetField: "verificationStatus",
 			schemaDefaultField: "verificationStatus",
 			conceptDefaultPath: ["verificationStatus"],
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "onsetDateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
 		},
 	];
 }
@@ -77,12 +71,7 @@ function createSocialHistoryFieldRegistry(
 			sourceKey: "quantity",
 			targetField: "quantity",
 		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
+
 		{
 			sourceKey: "anchorText",
 			targetField: "notes",
@@ -128,18 +117,6 @@ function createReportedMedicationFieldRegistry(
 			targetField: "complianceStatus",
 			schemaDefaultField: "complianceStatus",
 			conceptDefaultPath: ["complianceStatus"],
-		},
-		{
-			sourceKey: "source_type",
-			targetField: "sourceType",
-			schemaDefaultField: "sourceType",
-			conceptDefaultPath: ["sourceType"],
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
 		},
 	];
 }

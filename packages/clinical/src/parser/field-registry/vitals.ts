@@ -84,16 +84,6 @@ export function createVitalsFieldRegistry(
 			sourceKey: "unit",
 			targetField: "measurement.unit",
 		},
-		{
-			sourceKey: "anchorText",
-			targetField: "rawTerm",
-		},
-		{
-			sourceKey: "source_type",
-			targetField: "sourceType",
-			schemaDefaultField: "sourceType",
-			conceptDefaultPath: ["sourceType"],
-		},
 	];
 }
 

@@ -62,7 +62,7 @@ export interface PatientProfile {
 	 */
 	name: LegalName;
 	administrativeGender: AdministrativeGender;
-	status: SubjectLifecycleStatus;
+	lifecycle: SubjectLifecycleStatus;
 
 	/**
 	 * Bounded Origination Matrix

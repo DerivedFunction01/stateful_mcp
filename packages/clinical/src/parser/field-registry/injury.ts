@@ -41,12 +41,6 @@ function createMechanicalInjuryFieldRegistry(
 				return Array.isArray(raw) ? raw[0] : raw;
 			},
 		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
 	];
 }
 
@@ -69,12 +63,6 @@ function createProtectiveEquipmentFieldRegistry(
 			targetField: "effectiveness",
 			schemaDefaultField: "effectiveness",
 			conceptDefaultPath: ["effectiveness"],
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
 		},
 	];
 }

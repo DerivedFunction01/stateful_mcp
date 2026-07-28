@@ -19,16 +19,6 @@ function createLabPanelResultFieldRegistry(
 			targetField: "specimenType",
 			conceptDefaultPath: ["specimenType"],
 		},
-		{
-			sourceKey: "date_range",
-			targetField: "collectionTime",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
-		{
-			sourceKey: "anchorText",
-			targetField: "rawTerm",
-		},
 	];
 }
 
@@ -44,16 +34,6 @@ function createDeviceDiagnosticObjectFieldRegistry(
 		{
 			sourceKey: "interpretation",
 			targetField: "interpretation",
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
-		{
-			sourceKey: "anchorText",
-			targetField: "rawTerm",
 		},
 	];
 }

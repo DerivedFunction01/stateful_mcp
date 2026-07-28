@@ -20,10 +20,6 @@ function createBaseOrderRegistry(
 			},
 		},
 		{
-			sourceKey: "anchorText",
-			targetField: "rawTerm",
-		},
-		{
 			sourceKey: "priority",
 			targetField: "priority",
 			schemaDefaultField: "priority",
@@ -38,12 +34,6 @@ function createBaseOrderRegistry(
 				if (!raw) return undefined;
 				return Array.isArray(raw) ? raw[0] : raw;
 			},
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
 		},
 	];
 }
@@ -136,12 +126,6 @@ function createInterventionOrderRegistry(
 			schemaDefaultField: "anesthesiaType",
 			conceptDefaultPath: ["anesthesiaType"],
 		},
-		{
-			sourceKey: "date_range",
-			targetField: "schedulingWindow",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
 	];
 }
 
@@ -163,12 +147,6 @@ function createSafetyNettingPlanRegistry(
 		{
 			sourceKey: "anchorText",
 			targetField: "returnPrecautions",
-		},
-		{
-			sourceKey: "date_range",
-			targetField: "followUpWindow",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
 		},
 		{
 			sourceKey: "follow_up_triggers",

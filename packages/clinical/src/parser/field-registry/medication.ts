@@ -141,16 +141,6 @@ export function createMedicationFieldRegistry(
 				return { times, period: resolvedUnit };
 			},
 		},
-		{
-			sourceKey: "anchorText",
-			targetField: "rawTerm",
-		},
-		{
-			sourceKey: "source_type",
-			targetField: "sourceType",
-			schemaDefaultField: "sourceType",
-			conceptDefaultPath: ["sourceType"],
-		},
 	];
 }
 

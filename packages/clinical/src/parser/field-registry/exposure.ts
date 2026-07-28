@@ -33,12 +33,7 @@ export function createExposureFieldRegistry(
 			targetField: "route",
 			conceptDefaultPath: ["route"],
 		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
+
 		{
 			sourceKey: "frequency_details",
 			targetField: "frequency.interval",

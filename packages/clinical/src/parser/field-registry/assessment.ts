@@ -30,12 +30,6 @@ export function createAssessmentFieldRegistry(
 				return [raw];
 			},
 		},
-		{
-			sourceKey: "date_range",
-			targetField: "dateRange",
-			schemaDefaultField: "dateRange",
-			conceptDefaultPath: ["dateRange"],
-		},
 	];
 }
 
