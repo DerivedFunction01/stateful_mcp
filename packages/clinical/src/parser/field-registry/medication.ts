@@ -117,14 +117,31 @@ export const medicationRouter = (
 	targetSchema: string,
 	profile: any,
 	attributeRules?: AttributeParserRule[],
-) =>
-	FieldResolverEngine.transform(
+	conceptFields?: Record<string, any>,
+	unmatched?: any[],
+) => {
+	const extractedData = FieldResolverEngine.transform(
 		createMedicationFieldRegistry(attributeRules || []),
 		token,
 		conceptDefaults,
 		targetSchema,
 		profile,
 	);
+
+	// Schema-specific fallback for unmatched concepts
+	if (unmatched && unmatched.length > 0) {
+		if (!conceptFields?.medication) {
+			if (!extractedData.medication) {
+				extractedData.medication = unmatched[0];
+			}
+		}
+		if (unmatched.length > 1) {
+			extractedData.targetIndication = unmatched[1];
+		}
+	}
+
+	return extractedData;
+};
 
 export const medicationConfig: SchemaParserConfig = {
 	schema: "MedicationOrderObject",

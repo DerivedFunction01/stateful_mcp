@@ -86,6 +86,7 @@ export class GenericPreferenceRanker
 {
 	private fieldWeights: Map<string, number>;
 	private weightsLoaded = false;
+	adjustmentRate: number;
 
 	constructor(
 		private readonly fieldWeightStore?: FieldWeightStore,

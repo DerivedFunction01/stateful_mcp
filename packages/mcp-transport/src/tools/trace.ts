@@ -1,20 +1,9 @@
 // REFERENCE: docs/trace.md
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type {
-	DeltaOperation,
-	MiddlewareConfig,
-	TraceForm,
-} from "@stateful-mcp/core";
-import {
-	buildLimitField,
-	clampLimit,
-	loadMiddlewareConfig,
-	resolveAboutOrExamples,
-	resolveConfigDir,
-	TraceStore,
-	validateMiddlewareConfig,
-} from "@stateful-mcp/core";
+import { buildLimitField, clampLimit, loadMiddlewareConfig, resolveAboutOrExamples, resolveConfigDir, TraceStore, validateMiddlewareConfig } from "@stateful-mcp/core";
+import type { MiddlewareConfig } from "@stateful-mcp/core/src/config/types.js";
+import type { TraceForm, DeltaOperation } from "@stateful-mcp/core/src/middleware/trace/types.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
@@ -425,8 +414,8 @@ function registerTraceTools() {
 }
 
 async function main() {
-	configDir = resolveConfigDir();
-	config = loadMiddlewareConfig(configDir);
+	configDir = await resolveConfigDir();
+	config = await loadMiddlewareConfig(configDir);
 	validateMiddlewareConfig(config, configDir);
 
 	let nonRecordableTools: string[] = [];

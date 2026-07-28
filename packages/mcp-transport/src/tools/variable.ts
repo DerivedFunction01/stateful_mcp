@@ -69,7 +69,7 @@ const BLOCK_ID = z
 // ---------------------------------------------------------------------------
 
 export function registerVariableTools(server: McpServer) {
-	let variableService: VariableService = getSharedVariableStore();
+	let variableService = getSharedVariableStore();
 	if (!variableService) {
 		variableService = new VariableServiceStore(new MemoryVariableStore());
 		setSharedVariableStore(variableService);
@@ -344,7 +344,7 @@ export function registerVariableTools(server: McpServer) {
 		async () => {
 			try {
 				const configDir = resolveConfigDir(undefined);
-				const config = loadMiddlewareConfig(configDir);
+				const config = await loadMiddlewareConfig(configDir);
 				const text = await resolveAboutOrExamples(
 					config.about_and_examples?.variable_about,
 					localAboutDir,
@@ -369,8 +369,8 @@ export function registerVariableTools(server: McpServer) {
 		},
 		async () => {
 			try {
-				const configDir = resolveConfigDir(undefined);
-				const config = loadMiddlewareConfig(configDir);
+				const workspaceRoot = resolveConfigDir();
+				const config = await loadMiddlewareConfig(workspaceRoot);
 				const text = await resolveAboutOrExamples(
 					config.about_and_examples?.variable_examples,
 					localExamplesDir,

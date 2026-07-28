@@ -1,12 +1,14 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
+	ConceptFieldStore,
 	ParserConceptDefault,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import type { CodeableConcept } from "../schemas/shared";
 import { GenericTokenizer } from "./generic-tokenizer";
 import type {
 	ParsedCandidateEnvelope,
@@ -26,6 +28,8 @@ export interface GenericSchemaParserConfig {
 		targetSchema: string,
 		profile: any,
 		attributeRules?: AttributeParserRule[],
+		conceptFields?: Record<string, CodeableConcept[]>,
+		unmatched?: CodeableConcept[],
 	) => Record<string, any>;
 	preparsedContextKeys?: string[];
 }
@@ -51,6 +55,8 @@ export class GenericSchemaParser {
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
 		historyStore?: ParsedCellHistoryStore,
+		conceptFieldStore?: ConceptFieldStore,
+		concepts?: CodeableConcept[],
 	): Promise<ParsedCandidateEnvelope> {
 		const deterministic = await this.parse(
 			tag,
@@ -62,6 +68,8 @@ export class GenericSchemaParser {
 			termTokenizer,
 			allowedNamespaces,
 			preparsedContext,
+			conceptFieldStore,
+			concepts,
 		);
 
 		const key = {
@@ -105,6 +113,8 @@ export class GenericSchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
+		conceptFieldStore?: ConceptFieldStore,
+		concepts?: CodeableConcept[],
 	): Promise<ParsedItemUnion | null> {
 		const attrRules = attributeRules || [];
 		const evalRules = evaluatorRules || [];
@@ -132,20 +142,52 @@ export class GenericSchemaParser {
 
 		if (!token || !token.anchorText) return null;
 
-		const concept = await resolveConceptHelper(
+		const concept = concepts || (await resolveConceptHelper(
 			token.anchorText,
 			dictionaryStore,
 			termTokenizer,
 			allowedNamespaces,
-		);
+		));
 
-		let conceptDefaults: ParserConceptDefault | null = null;
-		const firstConcept = concept[0];
-		if (firstConcept?.conceptId && conceptDefaultsStore) {
-			conceptDefaults = await conceptDefaultsStore.get(
-				firstConcept.conceptId,
+		const conceptFields: Record<string, CodeableConcept[]> = {};
+		const unmatched: CodeableConcept[] = [];
+
+		if (conceptFieldStore && concept.length > 0) {
+			const rules = await conceptFieldStore.listBySchema(
 				this.targetSchema,
 			);
+			const ruleMap = new Map(
+				rules.map((r) => [r.conceptId, r]),
+			);
+		for (const c of concept) {
+			if (!c.conceptId) {
+				unmatched.push(c);
+				continue;
+			}
+			const rule = ruleMap.get(c.conceptId);
+			if (rule) {
+				const field = rule.fieldPath;
+				const arr = conceptFields[field] || (conceptFields[field] = []);
+				arr.push(c);
+			} else {
+				unmatched.push(c);
+			}
+		}
+		} else {
+			unmatched.push(...concept);
+		}
+
+		let conceptDefaults: Record<string, any> | null = null;
+		const primaryConcept =
+			conceptFields.concept?.[0] || unmatched[0];
+		if (primaryConcept?.conceptId && conceptDefaultsStore) {
+			const defaults = await conceptDefaultsStore.get(
+				primaryConcept.conceptId,
+				this.targetSchema,
+			);
+			if (defaults) {
+				conceptDefaults = defaults.defaultProperties;
+			}
 		}
 
 		const profile = preparsedContext?.profile as
@@ -159,6 +201,8 @@ export class GenericSchemaParser {
 			this.targetSchema,
 			profile,
 			attrRules,
+			conceptFields,
+			unmatched,
 		);
 
 		const attributes: Record<string, any> = {};
@@ -173,10 +217,12 @@ export class GenericSchemaParser {
 		return {
 			targetSchema: this.targetSchema,
 			attributes,
-			concept,
+			concept: unmatched.length > 0 ? [unmatched[0]] : [],
 			rawText: `${tag} ${content}`,
 			tag,
 			extractedData,
+			conceptFields:
+				Object.keys(conceptFields).length > 0 ? conceptFields : undefined,
 		} as ParsedItemUnion;
 	}
 

@@ -14,6 +14,7 @@ import {
 } from "../schemas/patient";
 import type {
 	CalibrationStore,
+	ConceptFieldStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
 	SignedSoapNoteRecord,
@@ -99,6 +100,7 @@ export class ClinicalEngine {
 		profile?: ParserSyntaxProfile,
 		profileStore?: ParserProfileStore,
 		private orderAwareStore?: OrderedLearningStore,
+		private conceptFieldStore?: ConceptFieldStore,
 	) {
 		if (profile) {
 			this.parser = new CdslParser(
@@ -107,6 +109,7 @@ export class ClinicalEngine {
 				undefined,
 				undefined,
 				stopWordStore,
+				this.conceptFieldStore,
 			);
 		} else if (profileStore) {
 			// Defer initialization — lazy init on first use
@@ -119,6 +122,7 @@ export class ClinicalEngine {
 				undefined,
 				undefined,
 				stopWordStore,
+				this.conceptFieldStore,
 			);
 		}
 	}
@@ -136,6 +140,7 @@ export class ClinicalEngine {
 		parsedCellStore?: ParsedCellStore,
 		stopWordStore?: StopWordStore,
 		orderAwareStore?: OrderedLearningStore,
+		conceptFieldStore?: ConceptFieldStore,
 	): Promise<ClinicalEngine> {
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
@@ -153,6 +158,7 @@ export class ClinicalEngine {
 			profile,
 			undefined,
 			orderAwareStore,
+			conceptFieldStore,
 		);
 		return engine;
 	}

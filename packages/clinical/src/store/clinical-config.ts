@@ -1,6 +1,7 @@
 import type { ResourceLocator } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
+	ConceptFieldRule,
 	DateTimeFormatConfig,
 	ParserConceptDefault,
 	ParserDictionaryRule,
@@ -14,6 +15,7 @@ export type ClinicalStoreDomain =
 	| "parser"
 	| "soap_note"
 	| "patient_store"
+	| "concept_fields"
 	| (string & {});
 
 export type ClinicalStoreCapability =
@@ -50,6 +52,7 @@ export interface ClinicalStoreConfig {
 	seeds: {
 		parserProfiles: ParserSyntaxProfile[];
 		conceptDefaults: ParserConceptDefault[];
+		conceptFieldRules: ConceptFieldRule[];
 		calendarDateFormats: DateTimeFormatConfig[];
 		attributeRules: AttributeParserRule[];
 		evaluatorRules: ParserDictionaryRule[];

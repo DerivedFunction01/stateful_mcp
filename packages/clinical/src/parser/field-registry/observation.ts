@@ -74,14 +74,31 @@ export const observationRouter = (
 	targetSchema: string,
 	profile: any,
 	attributeRules?: AttributeParserRule[],
-) =>
-	FieldResolverEngine.transform(
+	conceptFields?: Record<string, any>,
+	unmatched?: any[],
+) => {
+	const extractedData = FieldResolverEngine.transform(
 		createObservationFieldRegistry(attributeRules),
 		token,
 		conceptDefaults,
 		targetSchema,
 		profile,
 	);
+
+	// Schema-specific fallback for unmatched concepts
+	if (unmatched && unmatched.length > 0) {
+		if (!conceptFields?.concept) {
+			if (!extractedData.concept) {
+				extractedData.concept = unmatched[0];
+			}
+		}
+		if (unmatched.length > 1) {
+			extractedData.qualifiers = unmatched.slice(1);
+		}
+	}
+
+	return extractedData;
+};
 
 export const observationConfig: SchemaParserConfig = {
 	schema: "ObservationEvent",

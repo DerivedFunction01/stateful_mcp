@@ -4,12 +4,18 @@ import type { MedicationFrequency } from "../schemas/medication";
 import type { CodeableConcept } from "../schemas/shared";
 import type {
 	AttributeParserRule,
+	ConceptFieldStore,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 	PatientLearningContext,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import {
+	createAssessmentFieldRegistry,
+	assessmentConfig,
+	assessmentRouter,
+} from "./field-registry/assessment";
 import {
 	createMedicationFieldRegistry,
 	medicationConfig,
@@ -33,6 +39,7 @@ export const CANONICAL_TAGS = {
 	OBSERVATION: "ObservationEvent",
 	MEDICATION: "MedicationOrderObject",
 	CLINICAL_DATE_RANGE: "ClinicalDateRange",
+	ASSESSMENT: "AssessmentObject",
 } as const;
 
 export type DeepPartial<T> = T extends object
@@ -48,6 +55,7 @@ export interface ParsedItem {
 	rawText: string;
 	tag: string;
 	extractedData: Record<string, any>;
+	conceptFields?: Record<string, CodeableConcept[]>;
 }
 
 export interface ParsedVitalsItem extends ParsedItem {
@@ -148,6 +156,8 @@ export interface SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
+		conceptFieldStore?: ConceptFieldStore,
+		concepts?: CodeableConcept[],
 	): Promise<ParsedItemUnion | null>;
 	preview?(
 		tag: string,
@@ -160,6 +170,8 @@ export interface SchemaParser {
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
 		historyStore?: ParsedCellHistoryStore,
+		conceptFieldStore?: ConceptFieldStore,
+		concepts?: CodeableConcept[],
 	): Promise<ParsedCandidateEnvelope>;
 }
 
@@ -280,4 +292,13 @@ export const schemaParserRegistry = new Map<string, SchemaParser>([
 		}),
 	],
 	[CANONICAL_TAGS.CLINICAL_DATE_RANGE, new ClinicalDateRangeSchemaParser()],
+	[
+		CANONICAL_TAGS.ASSESSMENT,
+		new GenericSchemaParser("AssessmentObject", {
+			targetSchema: "AssessmentObject",
+			createRegistry: createAssessmentFieldRegistry,
+			router: assessmentRouter,
+			preparsedContextKeys: assessmentConfig.preparsedContextKeys,
+		}),
+	],
 ]);

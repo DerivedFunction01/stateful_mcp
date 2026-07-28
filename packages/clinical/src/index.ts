@@ -1,5 +1,6 @@
 export * from "./engine/clinical-engine";
 export * from "./parser/cdsl-parser";
+export * from "./parser/field-registry/assessment";
 export * from "./parser/field-registry/measurement";
 export * from "./parser/field-registry/medication";
 export * from "./parser/field-registry/observation";

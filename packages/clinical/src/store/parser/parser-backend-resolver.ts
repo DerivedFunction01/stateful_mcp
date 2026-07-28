@@ -20,6 +20,8 @@ import { KvStopWordProfileStore } from "../reference/stop-words/kv-stop-word-pro
 import { SqlStopWordProfileStore } from "../reference/stop-words/sql-stop-word-profile-store";
 import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-store";
 import { SqlConceptDefaultStore } from "./concept_defaults/sql-concept-default-store";
+import { KvConceptFieldStore } from "./concept_fields/kv-concept-field-store";
+import { SqlConceptFieldStore } from "./concept_fields/sql-concept-field-store";
 import { KvParserProfileStore } from "./profiles/kv-parser-profile-store";
 import { KvProfileTagStore } from "./profiles/kv-profile-tag-store";
 import { SqlParserProfileStore } from "./profiles/sql-parser-profile-store";
@@ -295,6 +297,48 @@ export async function resolveConceptDefaultStore(
 
 	throw new Error(
 		`Unsupported concept default adapter: ${(locator as any).name ?? locator._type}`,
+	);
+}
+
+
+// ── Concept field routing rules ──────────────────────────────────────────────
+
+export async function resolveConceptFieldStore(
+	config: ClinicalStoreConfig,
+): Promise<KvConceptFieldStore | SqlConceptFieldStore> {
+	const locator = getPrimaryLocator(config, "concept_fields");
+
+	if (locator._type === "adapter" && locator.name === "memory") {
+		return new KvConceptFieldStore(new MemoryKvBackend());
+	}
+
+	if (
+		locator._type === "adapter" &&
+		(locator.name === "sqlite" ||
+			locator.name === "pg" ||
+			locator.name === "duckdb" ||
+			locator.name === "opfs")
+	) {
+		const dialect = mapDialect(locator.name);
+		const backend = await SqlBackend.connect(
+			dialect,
+			resolveDbPath(locator, dialect),
+		);
+		const executor = new SqlExecutor(backend);
+		return new SqlConceptFieldStore(dialect, executor);
+	}
+
+	if (locator._type === "adapter" && locator.name === "jsonl") {
+		const basePath =
+			readStringOption(locator, "path", "") ||
+			"./clinical-concept-fields.jsonl";
+		return new KvConceptFieldStore(
+			new JsonlKvBackend({ dataFilePath: basePath }),
+		);
+	}
+
+	throw new Error(
+		`Unsupported concept field adapter: ${(locator as any).name ?? locator._type}`,
 	);
 }
 

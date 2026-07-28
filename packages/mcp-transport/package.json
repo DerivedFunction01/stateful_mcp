@@ -20,7 +20,7 @@
 		"src/examples"
 	],
 	"scripts": {
-		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm"
+		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node'"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",

@@ -20,6 +20,6 @@
 			"@stateful-mcp/core/*": ["src/*"]
 		}
 	},
-	"include": ["src/**/*", "tests/**/*", "scratch/scratch", "scratch/inspect.ts"],
-	"exclude": ["node_modules", "dist"]
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "scratch/**", "tests/**"]
 }

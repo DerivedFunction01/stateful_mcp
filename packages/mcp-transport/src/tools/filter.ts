@@ -1,9 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type {
-	MiddlewareConfig,
-	PaginationLimitsConfig,
-} from "@stateful-mcp/core";
+
 import {
 	buildLimitField,
 	clampLimit,
@@ -19,6 +16,7 @@ import { z } from "zod";
 import { getFilterStore } from "./helper";
 import { registerMiddlewareAboutTool } from "./middleware_about.js";
 import { registerStateInitTool } from "./state_init.js";
+import type { MiddlewareConfig, PaginationLimitsConfig } from "@stateful-mcp/core/src/config/types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

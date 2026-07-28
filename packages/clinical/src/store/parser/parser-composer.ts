@@ -8,6 +8,7 @@ import type {
 	ProfileTagStore,
 } from "./profiles/interfaces";
 import type {
+	ConceptFieldRuleBindingStore,
 	ParserAttributeRuleStore,
 	ParserEvaluatorRuleStore,
 	ParserProfileEvaluatorBindingStore,
@@ -28,17 +29,19 @@ export class DefaultParserProfileComposer implements ParserProfileComposer {
 		private readonly evaluatorRules: ParserEvaluatorRuleStore,
 		private readonly attributeBindings: ParserProfileRuleBindingStore,
 		private readonly evaluatorBindings: ParserProfileEvaluatorBindingStore,
+		private readonly conceptFieldBindings?: ConceptFieldRuleBindingStore,
 	) {}
 
 	async getFullProfile(profileId: string): Promise<ParserSyntaxProfile | null> {
 		const profile = await this.profiles.get(profileId);
 		if (!profile) return null;
 
-		const [profileTagIds, attributeBindingsList, evaluatorBindingsList] =
+		const [profileTagIds, attributeBindingsList, evaluatorBindingsList, conceptFieldBindingsList] =
 			await Promise.all([
 				this.tags.getProfileTags(profileId),
 				this.attributeBindings.listBindings(profileId),
 				this.evaluatorBindings.listBindings(profileId),
+				this.conceptFieldBindings?.listBindings(profileId) ?? Promise.resolve([]),
 			]);
 
 		const tagRecords = await this.resolveTags(profileTagIds);

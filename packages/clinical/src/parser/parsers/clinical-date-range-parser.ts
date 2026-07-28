@@ -1,20 +1,17 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
+	ConceptFieldStore,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
+import type { ParsedCellHistoryStore } from "../../store/learning/interfaces";
+import type { CodeableConcept } from "../../schemas/shared";
+import type { ParsedCandidateEnvelope, ParsedClinicalDateRangeItem, ParsedItemUnion, PreparsedContext, SchemaParser } from "../schema-parsers";
 import {
 	ClinicalDateRangeHelper,
 	ClinicalDateRangeTokenizer,
 } from "../helpers/clinical-date-range-helper";
-import type {
-	ParsedCandidateEnvelope,
-	ParsedClinicalDateRangeItem,
-	ParsedItemUnion,
-	PreparsedContext,
-	SchemaParser,
-} from "../schema-parsers";
 
 export class ClinicalDateRangeSchemaParser implements SchemaParser {
 	targetSchema = "ClinicalDateRange";
@@ -29,6 +26,9 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
+		historyStore?: ParsedCellHistoryStore,
+		conceptFieldStore?: ConceptFieldStore,
+		concepts?: CodeableConcept[],
 	): Promise<ParsedCandidateEnvelope> {
 		const parsed = await this.parse(
 			tag,
@@ -54,6 +54,8 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		termTokenizer?: string,
 		allowedNamespaces?: string[],
 		preparsedContext?: PreparsedContext,
+		conceptFieldStore?: ConceptFieldStore,
+		concepts?: CodeableConcept[],
 	): Promise<ParsedItemUnion | null> {
 		const attrRules = attributeRules || [];
 		const evalRules = evaluatorRules || [];

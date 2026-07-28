@@ -189,6 +189,10 @@ export interface AboutAndExamplesConfig {
 	form_examples?: ResourceLocator[];
 	trace_about?: ResourceLocator[];
 	trace_examples?: ResourceLocator[];
+	variable_about?: ResourceLocator[];
+	variable_examples?: ResourceLocator[];
+	log_about?: ResourceLocator[];
+	log_examples?: ResourceLocator[];
 }
 
 export interface TableSchema {

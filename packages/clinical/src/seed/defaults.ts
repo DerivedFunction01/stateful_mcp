@@ -27,6 +27,7 @@ import type {
 	NumericFieldFormatOptions,
 	ParserConceptDefault,
 	ParserSyntaxProfile,
+	ConceptFieldRule,
 } from "../store/interfaces";
 
 export const NUMERIC_PATTERN_INTEGER = (
@@ -889,6 +890,28 @@ export const SEED_CONCEPT_DEFAULTS: ParserConceptDefault[] = [
 		defaultProperties: {
 			unit: "/min",
 		},
+	},
+];
+
+
+export const SEED_CONCEPT_FIELD_RULES: ConceptFieldRule[] = [
+	{
+		ruleId: "dyspnea-primary-obs",
+		conceptId: "SNOMED::267036007",
+		targetSchema: "ObservationEvent",
+		fieldPath: "concept",
+	},
+	{
+		ruleId: "fever-qualifier-obs",
+		conceptId: "SNOMED::386661006",
+		targetSchema: "ObservationEvent",
+		fieldPath: "qualifiers",
+	},
+	{
+		ruleId: "fever-vitaltype-vitals",
+		conceptId: "SNOMED::386661006",
+		targetSchema: "VitalsMeasurementEvent",
+		fieldPath: "vitalType",
 	},
 ];
 

@@ -1,5 +1,7 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
+	ConceptFieldRule,
+	ConceptFieldStore,
 	ParserConceptDefaultStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
@@ -20,6 +22,7 @@ import {
 	type PreparsedContext,
 	type RankingSignal,
 	type SchemaParser,
+	resolveMultiConceptHelper,
 	schemaParserRegistry,
 } from "./schema-parsers";
 import { StopWordParser } from "./stop-word-parser";
@@ -43,6 +46,7 @@ export class CdslParser {
 		private conceptDefaultsStore?: ParserConceptDefaultStore,
 		stopWordParser?: StopWordParser,
 		stopWordStore?: StopWordStore,
+		private conceptFieldStore?: ConceptFieldStore,
 	) {
 		this.stopWordParser = stopWordParser;
 		this.stopWordStore = stopWordStore;
@@ -78,6 +82,7 @@ export class CdslParser {
 		conceptDefaultsStore?: ParserConceptDefaultStore,
 		stopWordParser?: StopWordParser,
 		stopWordStore?: StopWordStore,
+		conceptFieldStore?: ConceptFieldStore,
 	): Promise<CdslParser> {
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
@@ -92,6 +97,7 @@ export class CdslParser {
 			conceptDefaultsStore,
 			stopWordParser,
 			stopWordStore,
+			conceptFieldStore,
 		);
 	}
 
@@ -404,6 +410,28 @@ export class CdslParser {
 				rankingSignals: buildRankingSignals(context, tag),
 			};
 
+			// Resolve concepts for concept-driven dispatch
+			const resolvedConcepts = await resolveMultiConceptHelper(
+				content,
+				this.dictionaryStore,
+				this.profile.termTokenizer,
+				undefined,
+			);
+
+			// Look up ConceptFieldRule[] for resolved conceptIds
+			const conceptFieldRules: ConceptFieldRule[] = [];
+			if (this.conceptFieldStore && resolvedConcepts.length > 0) {
+				const allRules = await this.conceptFieldStore.list();
+				const matchedConceptIds = new Set(
+					resolvedConcepts.map((c) => c.conceptId),
+				);
+				for (const rule of allRules) {
+					if (matchedConceptIds.has(rule.conceptId)) {
+						conceptFieldRules.push(rule);
+					}
+				}
+			}
+
 			// Resolve tag to a schema parser
 			let mappedParser: SchemaParser | undefined;
 
@@ -428,12 +456,36 @@ export class CdslParser {
 				}
 			}
 
-			// Determine which parsers to run
+			// Build parsersToRun from tag + concept routing
+			const conceptMatchedParsers: SchemaParser[] = [];
+			if (conceptFieldRules.length > 0) {
+				const matchedSchemas = new Set(
+					conceptFieldRules.map((r) => r.targetSchema),
+				);
+				for (const schema of matchedSchemas) {
+					for (const p of Array.from(
+						schemaParserRegistry.values(),
+					)) {
+						if (
+							p.targetSchema.toLowerCase() ===
+							schema.toLowerCase()
+					) {
+							conceptMatchedParsers.push(p);
+						}
+					}
+				}
+			}
+
 			const parsersToRun: SchemaParser[] = [];
 			if (mappedParser) {
 				parsersToRun.push(mappedParser);
-			} else {
-				// Unknown tag or tagless: run all parsers allowed by the profile
+			}
+			for (const p of conceptMatchedParsers) {
+				if (!parsersToRun.includes(p)) {
+					parsersToRun.push(p);
+				}
+			}
+			if (parsersToRun.length === 0) {
 				for (const p of Array.from(schemaParserRegistry.values())) {
 					parsersToRun.push(p);
 				}
