@@ -97,3 +97,25 @@ export interface SafetyNettingPlan {
 	 */
 	escalationPath?: EscalationPath;
 }
+
+export interface MilitaryPlanExtension {
+    // The formal administrative status of the service member
+    disposition: 
+        | "return_to_duty" 
+        | "sick_in_quarters"  // Ordered to stay in their barracks/bunk (typically 24-72 hrs)
+        | "light_duty"        // Can work, but with physical constraints
+        | "limited_duty"      // Long-term medically restricted profile
+        | "medevac_requested" // Transfer to a higher echelon of care
+        | "admitted_to_mtf";  // Hospitalized at a Military Treatment Facility
+    
+    // The specific physical limitations profile 
+    dutyLimitations?: {
+        running?: boolean;
+		cycling?: boolean;
+		swimming?: boolean;
+        max_lifting_lbs?: number;
+        body_armor_or_helmet?: boolean;
+        weapon_handling?: boolean;
+        profile_duration_days?: number;
+    };
+}
