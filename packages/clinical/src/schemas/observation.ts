@@ -9,7 +9,6 @@ import type { ClinicalDateRange, TimeMeasurement } from "./time";
 
 export interface ObservationEvent {
 	id: string;
-	soapSection: "subjective" | "objective" | "assessment";
 	concept: CodeableConcept;
 	rawTerm: string;
 	sourceType: ClinicalSourceType;

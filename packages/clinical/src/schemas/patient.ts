@@ -76,12 +76,8 @@ export interface PatientProfile {
 	 * Uses a type-safe union to switch fields seamlessly between human, animal, and plant profiles
 	 */
 	biologicalProfile: BaseAgent & SubjectBiologicalAttributes;
-
-	/**
-	 * Clinical Safety Lanes
-	 */
-	allergies?: CodeableConcept[]; // Explicit clinical allergy concept nodes
 }
+
 
 export interface PatientLearningBucket {
 	patientId: string;

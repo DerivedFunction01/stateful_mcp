@@ -95,3 +95,15 @@ export type Route =
 	| "intrathecal";
 
 export type StringifiedBoolean = "true" | "false";
+
+export type OrganSystem =
+	| "heent"
+	| "cardiovascular"
+	| "respiratory"
+	| "gastrointestinal_abdominal"
+	| "musculoskeletal"
+	| "neurological"
+	| "dermatological"
+	| "psychiatric"
+	| "genitourinary";
+

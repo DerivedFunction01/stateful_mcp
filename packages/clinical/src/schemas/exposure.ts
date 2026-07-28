@@ -11,7 +11,6 @@ export type ExposureType =
 
 export interface BaseExposureEvent {
 	id: string;
-	soapSection: "subjective";
 	exposureType: ExposureType; // Static identifier gate for rapid parsing lookups
 	substance?: CodeableConcept; // Main target compound or material description
 	route?: Route;
@@ -23,6 +22,7 @@ export interface BaseExposureEvent {
 		adverse_reaction?: boolean;
 	}
 }
+
 
 export interface ChemicalSubstanceExposureEvent extends BaseExposureEvent {
 	exposureType: "chemical";

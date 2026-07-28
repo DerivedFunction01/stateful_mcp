@@ -212,10 +212,28 @@ export class ClinicalEngine {
 			updatedAt: now,
 			status: "draft",
 			patient,
-			subjective: { observations: [], exposures: [], injuries: [] },
-			objective: { vitals: [], exams: [], observations: [] },
-			assessment: { diagnoses: [], observations: [] },
-			plan: { medications: [], procedures: [] },
+			subjective: {
+				presentingComplaint: {
+					id: `pc_${noteId.slice(0, 8)}`,
+					concept: { display: "" },
+					rawTerm: "",
+					sourceType: "patient_reported",
+					severity: { score: 0, maxScore: 0, normalizedScore: 0 },
+					duration: { magnitude: 0 },
+					trajectory: "unknown",
+				},
+				historyOfPresentIllness: { events: [] },
+				patientHistories: {
+					pastMedicalHistory: [],
+					currentMedications: [],
+					allergies: [],
+				},
+				exposures: [],
+				injuries: [],
+			},
+			objective: { vitalSigns: [], physicalExamination: [] },
+			assessment: { differentialDiagnoses: [] },
+			plan: { prescriptions: [], investigations: [], referrals: [], interventions: [] },
 			cells: [],
 		};
 
@@ -348,17 +366,17 @@ export class ClinicalEngine {
 
 			if (schemaClean === "vitalsmeasurementevent") {
 				const vitalsItem = item as ParsedVitalsItem;
-				const vitals = [...(note.objective?.vitals || [])];
+				const vitalSigns = [...(note.objective?.vitalSigns || [])];
 				const unit = vitalsItem.extractedData?.measurement?.unit?.display || "";
 				const vitConcept = vitalsItem.concept[0];
 
-				vitals.push({
+				vitalSigns.push({
 					id: `vit_${crypto.randomUUID().slice(0, 8)}`,
-					soapSection: "objective",
-					concept: {
+					vitalType: {
 						conceptId: vitConcept?.conceptId,
 						display: vitConcept?.display,
 					},
+					rawTerm: vitalsItem.rawText ?? "",
 					measurement: {
 						magnitude: Number(
 							vitalsItem.extractedData?.measurement?.magnitude || 0,
@@ -368,8 +386,8 @@ export class ClinicalEngine {
 				} as any);
 				currentObjId = await this.objectStore.set(
 					currentObjId,
-					["objective", "vitals"],
-					vitals,
+					["objective", "vitalSigns"],
+					vitalSigns,
 					sessionId,
 				);
 			} else if (schemaClean === "observationevent") {
@@ -379,10 +397,9 @@ export class ClinicalEngine {
 				const section = isNegated ? "subjective" : "objective";
 
 				if (section === "subjective") {
-					const obs = [...(note.subjective?.observations || [])];
-					obs.push({
+					const events = [...(note.subjective?.historyOfPresentIllness?.events || [])];
+					events.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
-						soapSection: "subjective",
 						concept: {
 							conceptId: obsConcept?.conceptId,
 							display: obsConcept?.display,
@@ -397,15 +414,14 @@ export class ClinicalEngine {
 					} as any);
 					currentObjId = await this.objectStore.set(
 						currentObjId,
-						["subjective", "observations"],
-						obs,
+						["subjective", "historyOfPresentIllness", "events"],
+						events,
 						sessionId,
 					);
 				} else {
-					const obs = [...(note.objective?.observations || [])];
+					const obs = [...(note.objective?.clinicalObservations || [])];
 					obs.push({
 						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
-						soapSection: "objective",
 						concept: {
 							conceptId: obsConcept?.conceptId,
 							display: obsConcept?.display,
@@ -420,7 +436,7 @@ export class ClinicalEngine {
 					} as any);
 					currentObjId = await this.objectStore.set(
 						currentObjId,
-						["objective", "observations"],
+						["objective", "clinicalObservations"],
 						obs,
 						sessionId,
 					);
@@ -428,10 +444,9 @@ export class ClinicalEngine {
 			} else if (schemaClean === "medicationorderobject") {
 				const medItem = item as ParsedMedicationItem;
 				const medConcept = medItem.concept[0];
-				const meds = [...(note.plan?.medications || [])];
-				meds.push({
+				const prescriptions = [...(note.plan?.prescriptions || [])];
+				prescriptions.push({
 					id: `med_${crypto.randomUUID().slice(0, 8)}`,
-					soapSection: "plan",
 					medication: {
 						conceptId: medConcept?.conceptId,
 						display: medConcept?.display,
@@ -441,8 +456,8 @@ export class ClinicalEngine {
 				} as any);
 				currentObjId = await this.objectStore.set(
 					currentObjId,
-					["plan", "medications"],
-					meds,
+					["plan", "prescriptions"],
+					prescriptions,
 					sessionId,
 				);
 			}

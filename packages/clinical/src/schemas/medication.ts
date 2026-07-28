@@ -59,7 +59,6 @@ export interface MedicationFrequency {
 
 export interface MedicationOrderObject {
 	id: string;
-	soapSection: "plan";
 	medication: CodeableConcept;
 	rawTerm?: string;
 	dosage?: DosageMeasurement;
@@ -70,21 +69,4 @@ export interface MedicationOrderObject {
 	genericSubstitutionPermitted: boolean;
 	targetIndication?: CodeableConcept;
 	dateRange?: ClinicalDateRange;
-}
-
-export interface ProcedureOrderObject {
-	id: string;
-	soapSection: "plan";
-	orderCategory: "laboratory" | "imaging" | "referral" | "intervention";
-	procedure: CodeableConcept;
-	rawTerm?: string;
-	priority: "routine" | "urgent" | "stat";
-	reason?: CodeableConcept;
-}
-
-export interface FollowUpPlanObject {
-	id: string;
-	soapSection: "plan";
-	followUpWindow: ClinicalDateRange;
-	instructions?: string;
 }
