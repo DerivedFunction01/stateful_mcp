@@ -23,7 +23,7 @@ let config: MiddlewareConfig;
 let configDir: string = process.cwd();
 
 function registerTraceTools() {
-	server.registerTool(
+	(server as any).registerTool(
 		"trace_query",
 		{
 			description:
@@ -45,7 +45,7 @@ function registerTraceTools() {
 					.describe("Zero-based pagination offset."),
 			},
 		},
-		async ({ intent, limit, offset }) => {
+		async ({ intent, limit, offset }: { intent: string; limit?: number; offset?: number }) => {
 			try {
 				const effectiveLimit = clampLimit(
 					limit,
@@ -70,9 +70,9 @@ function registerTraceTools() {
 				"Execute a trace form end-to-end with LLM-supplied input slot arguments.",
 			inputSchema: {
 				trace_id: z.string().describe("ID of the trace to execute."),
-				args: z
-					.record(z.any())
-					.describe("Input slot arguments supplied for trace execution."),
+			args: z
+				.record(z.string(), z.any())
+				.describe("Input slot arguments supplied for trace execution."),
 			},
 		},
 		async ({ trace_id, args }) => {
@@ -160,12 +160,12 @@ function registerTraceTools() {
 					.describe(
 						"Trace ID (auto-generated on 'start', required on 'stop').",
 					),
-				trace: z
-					.record(z.any())
-					.optional()
-					.describe(
-						"TraceForm object or metadata payload (goal, input_slots, capabilities, steps).",
-					),
+			trace: z
+				.record(z.string(), z.any())
+				.optional()
+				.describe(
+					"TraceForm object or metadata payload (goal, input_slots, capabilities, steps).",
+				),
 				checkpoint_id: z
 					.string()
 					.optional()
@@ -175,7 +175,7 @@ function registerTraceTools() {
 			},
 		},
 		async (
-			{ action, trace_id, trace, checkpoint_id, object_id },
+			{ action, trace_id, trace, checkpoint_id },
 			extra: any,
 		) => {
 			const sessionId = extra?._metadata?.session_id ?? "default";
@@ -218,12 +218,12 @@ function registerTraceTools() {
 					let targetTraceForm = trace;
 					if (!targetTraceForm && targetCheckpointId) {
 						const { getObjectStore } = await import("./helper.js");
-						const objectStore = getObjectStore(config, configDir);
-						const objState = await objectStore.get(
+					const objectStore = await getObjectStore(config, configDir);
+						const objState = await objectStore.getObject(
 							targetCheckpointId,
 							sessionId,
 						);
-						if (!objState || !objState.state) {
+						if (!objState || !objState.data) {
 							return {
 								content: [
 									{
@@ -234,7 +234,7 @@ function registerTraceTools() {
 								isError: true,
 							};
 						}
-						targetTraceForm = objState.state;
+						targetTraceForm = objState.data;
 					}
 					if (!targetTraceForm) {
 						return {
@@ -280,12 +280,12 @@ function registerTraceTools() {
 				"Apply delta edits (replace_step, append_step, remove_step, swap_with_persistent, promote_arg, demote_arg) directly or from an ObjectStore checkpoint.",
 			inputSchema: {
 				trace_id: z.string().describe("Target trace ID."),
-				delta: z
-					.record(z.any())
-					.optional()
-					.describe(
-						"Delta operation object containing action, step_id, arg_key, slot_name, etc.",
-					),
+			delta: z
+				.record(z.string(), z.any())
+				.optional()
+				.describe(
+					"Delta operation object containing action, step_id, arg_key, slot_name, etc.",
+				),
 				checkpoint_id: z
 					.string()
 					.optional()
@@ -294,17 +294,17 @@ function registerTraceTools() {
 					),
 			},
 		},
-		async ({ trace_id, delta, checkpoint_id, object_id }, extra: any) => {
+		async ({ trace_id, delta, checkpoint_id }, extra: any) => {
 			const sessionId = extra?._metadata?.session_id ?? "default";
-			const targetCheckpointId = checkpoint_id || object_id;
+			const targetCheckpointId = checkpoint_id;
 			try {
 				let targetDelta: DeltaOperation | undefined = delta as any;
 
 				if (!targetDelta && targetCheckpointId) {
 					const { getObjectStore } = await import("./helper.js");
-					const objectStore = getObjectStore(config, configDir);
-					const objState = await objectStore.get(targetCheckpointId, sessionId);
-					if (!objState || !objState.state) {
+					const objectStore = await getObjectStore(config, configDir);
+					const objState = await objectStore.getObject(targetCheckpointId, sessionId);
+					if (!objState || !objState.data) {
 						return {
 							content: [
 								{
@@ -315,7 +315,7 @@ function registerTraceTools() {
 							isError: true,
 						};
 					}
-					targetDelta = objState.state as DeltaOperation;
+					targetDelta = objState.data as DeltaOperation;
 				}
 
 				if (!targetDelta || !targetDelta.action) {
@@ -416,7 +416,7 @@ function registerTraceTools() {
 async function main() {
 	configDir = await resolveConfigDir();
 	config = await loadMiddlewareConfig(configDir);
-	validateMiddlewareConfig(config, configDir);
+	validateMiddlewareConfig(config);
 
 	let nonRecordableTools: string[] = [];
 	if (config.meta_tools_config) {

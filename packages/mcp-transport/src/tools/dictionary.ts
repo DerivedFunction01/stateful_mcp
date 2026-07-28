@@ -723,7 +723,7 @@ function registerAllTools(
 		},
 	);
 
-	server.registerTool(
+	(server as any).registerTool(
 		"dictionary_examples",
 		{
 			description:
@@ -733,7 +733,7 @@ function registerAllTools(
 				limit: buildLimitField("examples_page_size", paginationLimits),
 			},
 		},
-		async ({ page, limit }) => {
+		async ({ page, limit }: { page?: number; limit?: number }) => {
 			try {
 				const workspaceRoot = configDir;
 				let content = await resolveAboutOrExamples(

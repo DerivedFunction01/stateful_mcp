@@ -268,7 +268,7 @@ function registerEventTools(
 		},
 	);
 
-	server.registerTool(
+	(server as any).registerTool(
 		"event_merge_inspect",
 		{
 			description:
@@ -286,7 +286,7 @@ function registerEventTools(
 				limit: buildLimitField("merge_conflicts_page_size", paginationLimits),
 			},
 		},
-		async ({ merge_session_id, offset, limit }) => {
+		async ({ merge_session_id, offset, limit }: { merge_session_id: string; offset?: number; limit?: number }) => {
 			try {
 				const session = await eventStore.mergeInspect(merge_session_id);
 				const pageSize = clampLimit(
@@ -517,7 +517,7 @@ function registerEventTools(
 		},
 	);
 
-	server.registerTool(
+	(server as any).registerTool(
 		"event_examples",
 		{
 			description:
@@ -527,7 +527,7 @@ function registerEventTools(
 				limit: buildLimitField("examples_page_size", paginationLimits),
 			},
 		},
-		async ({ page, limit }) => {
+		async ({ page, limit }: { page?: number; limit?: number }) => {
 			try {
 				const workspaceRoot = configDir;
 				let content = await resolveAboutOrExamples(

@@ -108,10 +108,10 @@ function registerObjectTools(
 			object_id,
 			path: fieldPath,
 			value,
-			session_id,
-			user_id,
 			new_alias,
-		}) => {
+		}, extra: any) => {
+			const session_id = extra?._metadata?.session_id ?? "default";
+			const user_id = extra?._metadata?.user_id;
 			try {
 				const newObjectId = await objectStore.set(
 					object_id,
@@ -198,9 +198,9 @@ function registerObjectTools(
 			path: fieldPath,
 			source_object_id,
 			source_path,
-			session_id,
-			user_id,
-		}) => {
+		}, extra: any) => {
+			const session_id = extra?._metadata?.session_id ?? "default";
+			const user_id = extra?._metadata?.user_id;
 			try {
 				const newObjectId = await objectStore.ref(
 					object_id,
@@ -322,9 +322,9 @@ function registerObjectTools(
 			operation,
 			index,
 			value,
-			session_id,
-			user_id,
-		}) => {
+		}, extra: any) => {
+			const session_id = extra?._metadata?.session_id ?? "default";
+			const user_id = extra?._metadata?.user_id;
 			try {
 				const newObjectId = await objectStore.array_operation(
 					object_id,
@@ -602,7 +602,7 @@ function registerObjectTools(
 		},
 	);
 
-	server.registerTool(
+	(server as any).registerTool(
 		"object_examples",
 		{
 			description:
@@ -612,7 +612,7 @@ function registerObjectTools(
 				limit: buildLimitField("examples_page_size", paginationLimits),
 			},
 		},
-		async ({ page, limit }) => {
+		async ({ page, limit }: { page?: number; limit?: number }) => {
 			try {
 				const workspaceRoot = configDir;
 				let content = await resolveAboutOrExamples(

@@ -7,6 +7,7 @@ import {
 	resolveConfigDir,
 	validateMiddlewareConfig,
 } from "@stateful-mcp/core";
+import type { MiddlewareConfig } from "@stateful-mcp/core/src/config/types.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";

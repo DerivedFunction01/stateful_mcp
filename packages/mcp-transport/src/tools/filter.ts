@@ -656,7 +656,7 @@ function registerFilterTools(
 		},
 	);
 
-	server.registerTool(
+	(server as any).registerTool(
 		"filter_examples",
 		{
 			description:
@@ -666,7 +666,7 @@ function registerFilterTools(
 				limit: buildLimitField("examples_page_size", paginationLimits),
 			},
 		},
-		async ({ page, limit }) => {
+		async ({ page, limit }: { page?: number; limit?: number }) => {
 			try {
 				const workspaceRoot = configDir;
 				let content = await resolveAboutOrExamples(
