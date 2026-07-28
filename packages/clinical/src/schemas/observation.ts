@@ -1,4 +1,5 @@
 import type {
+	AnatomicalLocation,
 	Certainty,
 	ClinicalSourceType,
 	CodeableConcept,
@@ -28,5 +29,6 @@ export interface ObservationEvent {
 		| "fluctuating"
 		| "unknown";
 	qualifiers?: CodeableConcept[];
+	anatomy?: AnatomicalLocation;
 	dateRange?: ClinicalDateRange;
 }
