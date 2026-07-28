@@ -12,6 +12,7 @@ import {
 	SqlExecutor,
 } from "@stateful-mcp/core";
 import type { ParsedCellStore } from "./interfaces";
+import { KvBackendFieldWeightStore } from "./parsed_cell/field-weight-store";
 import { KvParsedCellStore } from "./parsed_cell/kv-parsed-cell-store";
 import { SqlParsedCellStore } from "./parsed_cell/sql-parsed-cell-store";
 
@@ -26,8 +27,48 @@ function readStringOption(
 	return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
+async function resolveKvBackendFromLocator(
+	locator: ResourceLocator,
+): Promise<KvBackend> {
+	if (locator._type !== "adapter") {
+		throw new Error(
+			`Unsupported clinical learning locator type for weights: ${locator._type}`,
+		);
+	}
+	const name = locator.name;
+	switch (name) {
+		case "jsonl": {
+			const basePath = readStringOption(
+				locator,
+				"path",
+				"./clinical-learning-weights.jsonl",
+			);
+			return new JsonlKvBackend({ dataFilePath: basePath });
+		}
+		case "indexeddb": {
+			const dbName = readStringOption(
+				locator,
+				"dbName",
+				"clinical-learning-weights-db",
+			);
+			return new IndexedDbKvBackend({ dbName });
+		}
+		case "localstorage": {
+			const prefix = readStringOption(
+				locator,
+				"prefix",
+				"clinical-learning-weights",
+			);
+			return new LocalStorageKvBackend({ prefix });
+		}
+		default:
+			return new MemoryKvBackend();
+	}
+}
+
 export async function resolveParsedCellStoreLocatorV2(
 	locator: ResourceLocator,
+	weightsLocator?: ResourceLocator,
 ): Promise<ParsedCellStore> {
 	if (locator._type !== "adapter") {
 		throw new Error(
@@ -35,7 +76,7 @@ export async function resolveParsedCellStoreLocatorV2(
 		);
 	}
 	const name = locator.name;
-	// 1. Handle SQL Backends
+
 	if (["sqlite", "duckdb", "postgres", "opfs"].includes(name)) {
 		let connectionTarget = "";
 
@@ -56,45 +97,33 @@ export async function resolveParsedCellStoreLocatorV2(
 			name as SqlDialect,
 			connectionTarget,
 		);
-		return new SqlParsedCellStore(name as SqlDialect, new SqlExecutor(backend));
+
+		const fieldWeightStore = weightsLocator
+			? new KvBackendFieldWeightStore(
+					await resolveKvBackendFromLocator(weightsLocator),
+				)
+			: undefined;
+
+		return new SqlParsedCellStore(
+			name as SqlDialect,
+			new SqlExecutor(backend),
+			undefined,
+			undefined,
+			fieldWeightStore,
+		);
 	}
 
-	// 2. Handle Key-Value (KV) Backends
 	if (["memory", "jsonl", "indexeddb", "localstorage"].includes(name)) {
-		let kvBackend: KvBackend;
+		const kvBackend = await resolveKvBackendFromLocator(locator);
 
-		switch (locator.name) {
-			case "jsonl": {
-				const basePath = readStringOption(
-					locator,
-					"path",
-					"./clinical-learning.jsonl",
-				);
-				kvBackend = new JsonlKvBackend({ dataFilePath: basePath });
-				break;
-			}
-			case "indexeddb": {
-				const dbName = readStringOption(
-					locator,
-					"dbName",
-					"clinical-learning-db",
-				);
-				kvBackend = new IndexedDbKvBackend({ dbName });
-				break;
-			}
-			case "localstorage": {
-				const prefix = readStringOption(locator, "prefix", "clinical-learning");
-				kvBackend = new LocalStorageKvBackend({ prefix });
-				break;
-			}
-			default:
-				// Fallback or explicit memory setup
-				kvBackend = new MemoryKvBackend();
-				break;
-		}
+		const fieldWeightStore = weightsLocator
+			? new KvBackendFieldWeightStore(
+					await resolveKvBackendFromLocator(weightsLocator),
+				)
+			: new KvBackendFieldWeightStore(kvBackend);
 
-		return new KvParsedCellStore(kvBackend);
+		return new KvParsedCellStore(kvBackend, fieldWeightStore);
 	}
 
-	throw new Error(`Unsupported clinical learning adapter: ${locator.name}`);
+	throw new Error(`Unsupported clinical learning adapter: ${name}`);
 }

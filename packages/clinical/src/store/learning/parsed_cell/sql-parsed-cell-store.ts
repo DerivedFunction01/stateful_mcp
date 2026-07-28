@@ -14,9 +14,33 @@ import type {
 	ParsedCellStore,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
+import type { FieldWeightStore } from "./field-weight-store";
 import type { ParsedCellHistoryStore } from "./history-store";
 import { getTransformForSchema } from "./parsed-cell-record-transform";
 import { flattenParsedItem } from "./transforms/flatten-helper";
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function collectLeafPaths(
+	obj: Record<string, unknown>,
+	prefix = "",
+	result: Map<string, unknown> = new Map(),
+): Map<string, unknown> {
+	for (const key of Object.keys(obj)) {
+		const value = obj[key];
+		const path = prefix ? `${prefix}.${key}` : key;
+
+		if (isPlainObject(value)) {
+			collectLeafPaths(value, path, result);
+		} else if (value !== undefined && value !== null) {
+			result.set(path, value);
+		}
+	}
+
+	return result;
+}
 
 function isScopedHistoryKey(key: ParsedCellHistoryKey): boolean {
 	return Boolean(
@@ -44,17 +68,20 @@ export class SqlParsedCellStore
 	private sharedTable: string;
 	private executor: SqlExecutor;
 	private detailTableMap: Record<string, string>;
+	private fieldWeightStore?: FieldWeightStore;
 
 	constructor(
 		dialect: SqlDialect,
 		executor: SqlExecutor,
 		sharedTable = SHARED_TABLE,
 		detailTableMap?: Record<string, string>,
+		fieldWeightStore?: FieldWeightStore,
 	) {
 		this.dialect = dialect;
 		this.executor = executor;
 		this.sharedTable = sharedTable;
 		this.detailTableMap = detailTableMap || {};
+		this.fieldWeightStore = fieldWeightStore;
 		this.compiler = new ParsedCellSqlCompilerV2(this.dialect);
 		this.ensureSharedTable();
 	}
@@ -332,10 +359,14 @@ export class SqlParsedCellStore
 					]),
 				);
 
+		const schemaWeights = this.fieldWeightStore
+			? await this.fieldWeightStore.getWeightsForSchema(targetSchema)
+			: {};
+
 		const columns = (transform?.columnSpecs || []).map((col) => ({
 			name: col.name,
 			type: col.type as ColumnType,
-			weight: 1,
+			weight: schemaWeights[col.name] ?? 1,
 		}));
 
 		const candidateValues: Record<string, any> = {};
@@ -358,6 +389,56 @@ export class SqlParsedCellStore
 			rankScore: Number(row.rank_score) || 0,
 			rankReason: "",
 		}));
+	}
+
+	async adjustWeights(
+		candidate: ParsedItem,
+		key: ParsedCellHistoryKey,
+		accepted: boolean,
+	): Promise<void> {
+		if (!this.fieldWeightStore) return;
+
+		const transform = getTransformForSchema(key.targetSchema);
+		if (!transform) return;
+
+		const history = await this.getHistoryBySchema(key.targetSchema, key);
+
+		const candidateFlat = flattenParsedItem(candidate);
+		const candidateLeaves = collectLeafPaths(candidateFlat);
+
+		let bestHistory: ParsedCellRecord | undefined;
+		let bestScore = -Infinity;
+
+		for (const historyRecord of history) {
+			const rankResult = await this.rankHistoryBySchema(
+				key.targetSchema,
+				key,
+				candidate,
+			);
+			const scored = rankResult.find(
+				(r) => r.shared.cellId === historyRecord.shared.cellId,
+			);
+			const score = scored?.rankScore ?? 0;
+			if (score > bestScore) {
+				bestScore = score;
+				bestHistory = historyRecord;
+			}
+		}
+
+		if (!bestHistory) return;
+
+		const historyFlat = flattenParsedItem(bestHistory.parsedItem);
+		const historyLeaves = collectLeafPaths(historyFlat);
+
+		for (const [path] of candidateLeaves) {
+			if (historyLeaves.has(path)) {
+				await this.fieldWeightStore.adjustWeight(
+					key.targetSchema,
+					path,
+					accepted ? 0.1 : -0.1,
+				);
+			}
+		}
 	}
 
 	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]> {

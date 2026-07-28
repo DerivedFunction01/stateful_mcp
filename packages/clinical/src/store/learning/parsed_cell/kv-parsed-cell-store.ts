@@ -8,13 +8,36 @@ import type {
 	ParsedCellStore,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
+import type { FieldWeightStore } from "./field-weight-store";
+import { KvBackendFieldWeightStore } from "./field-weight-store";
 import type { ParsedCellHistoryStore } from "./history-store";
 import { GenericPreferenceRanker } from "./ranker";
+
+function compositeHistoryScore(history?: {
+	recencyScore?: number;
+	priorAcceptCount?: number;
+	priorCorrectionCount?: number;
+	contractValid?: boolean;
+}): number {
+	const recency = history?.recencyScore ?? 0;
+	const accepts = history?.priorAcceptCount ?? 0;
+	const corrections = history?.priorCorrectionCount ?? 0;
+	const contract = history?.contractValid ? 1 : 0;
+	return recency + accepts * 0.2 + contract - corrections * 0.15;
+}
 
 export class KvParsedCellStore
 	implements ParsedCellStore, ParsedCellHistoryStore
 {
-	constructor(private backend: KvBackend) {}
+	private readonly fieldWeightStore: FieldWeightStore;
+
+	constructor(
+		private backend: KvBackend,
+		fieldWeightStore?: FieldWeightStore,
+	) {
+		this.fieldWeightStore =
+			fieldWeightStore || new KvBackendFieldWeightStore(backend);
+	}
 
 	async putRecord(record: ParsedCellRecord): Promise<void> {
 		const id = record.shared.cellId;
@@ -207,11 +230,11 @@ export class KvParsedCellStore
 			}
 		}
 
-		return matches.sort(
-			(a, b) =>
-				(b.learningMetadata.history?.recencyScore || 0) -
-				(a.learningMetadata.history?.recencyScore || 0),
-		);
+		return matches.sort((a, b) => {
+			const scoreA = compositeHistoryScore(a.learningMetadata.history);
+			const scoreB = compositeHistoryScore(b.learningMetadata.history);
+			return scoreB - scoreA;
+		});
 	}
 
 	async rankHistoryBySchema(
@@ -239,13 +262,47 @@ export class KvParsedCellStore
 			facilityId: key.facilityId,
 		};
 
-		const ranker = new GenericPreferenceRanker();
+		const ranker = new GenericPreferenceRanker(this.fieldWeightStore);
+		await ranker.loadWeights(targetSchema);
 		return history
 			.map((record) => {
 				const { score, reason } = ranker.score(record, context);
 				return { ...record, rankScore: score, rankReason: reason ?? "" };
 			})
 			.sort((a, b) => b.rankScore - a.rankScore);
+	}
+
+	async adjustWeights(
+		candidate: ParsedItem,
+		key: ParsedCellHistoryKey,
+		accepted: boolean,
+	): Promise<void> {
+		const history = await this.getHistoryBySchema(key.targetSchema, key);
+		const context: ParsedCellRankerContext = {
+			tag: key.tag,
+			targetSchema: key.targetSchema,
+			rawText: key.rawText,
+			history,
+			patientId: key.patientId,
+			patientOrganismType: key.patientOrganismType,
+			patientGender: key.patientGender,
+			patientAgeBucket: key.patientAgeBucket,
+			patientSpeciesBucket: key.patientSpeciesBucket,
+			patientSubBucket: key.patientSubBucket,
+			patientBucketKey: key.patientBucketKey,
+			personnelId: key.personnelId,
+			specialtyId: key.specialtyId,
+			facilityId: key.facilityId,
+		};
+
+		const ranker = new GenericPreferenceRanker(this.fieldWeightStore);
+		await ranker.loadWeights(key.targetSchema);
+		const record: ParsedCellRecord = {
+			shared: {} as ParsedCellRecord["shared"],
+			parsedItem: candidate,
+			learningMetadata: { history: {}, flags: {} },
+		};
+		await ranker.adjustWeights(record, context, accepted);
 	}
 
 	async getHistory(key: ParsedCellHistoryKey): Promise<ParsedCellRecord[]> {

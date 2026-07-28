@@ -5,12 +5,49 @@ import type {
 } from "../../src/parser/schema-parsers";
 import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
 import type { ParsedCellRecord } from "../../src/store/learning/interfaces";
+import type { FieldWeightStore } from "../../src/store/learning/parsed_cell/field-weight-store";
 import { GenericPreferenceRanker } from "../../src/store/learning/parsed_cell/ranker";
 
 import "../../src/store/learning/parsed_cell/transforms/observation-transform";
 import "../../src/store/learning/parsed_cell/transforms/vitals-transform";
 import "../../src/store/learning/parsed_cell/transforms/medication-transform";
 import "../../src/store/learning/parsed_cell/transforms/clinical-date-range-transform";
+
+class MockFieldWeightStore implements FieldWeightStore {
+	private weights: Record<string, Record<string, number>> = {};
+
+	async getWeight(targetSchema: string, field: string): Promise<number> {
+		return this.weights[targetSchema]?.[field] ?? 1.0;
+	}
+
+	async setWeight(
+		targetSchema: string,
+		field: string,
+		weight: number,
+	): Promise<void> {
+		this.weights[targetSchema] ??= {};
+		this.weights[targetSchema]![field] = weight;
+	}
+
+	async adjustWeight(
+		targetSchema: string,
+		field: string,
+		delta: number,
+	): Promise<void> {
+		this.weights[targetSchema] ??= {};
+		const current = this.weights[targetSchema]![field] ?? 1.0;
+		this.weights[targetSchema]![field] = Math.min(
+			5.0,
+			Math.max(0.1, current + delta),
+		);
+	}
+
+	async getWeightsForSchema(
+		targetSchema: string,
+	): Promise<Record<string, number>> {
+		return this.weights[targetSchema] ?? {};
+	}
+}
 
 function buildShared(
 	overrides: Record<string, unknown> = {},
@@ -314,8 +351,8 @@ describe("GenericPreferenceRanker", () => {
 		expect(result.reason).not.toContain("rawTerm");
 	});
 
-	it("adjustWeights increases on acceptance", () => {
-		const ranker = new GenericPreferenceRanker();
+	it("adjustWeights increases on acceptance", async () => {
+		const ranker = new GenericPreferenceRanker(new MockFieldWeightStore());
 		const candidate = buildObservationRecord();
 		const history = [
 			buildObservationRecord({
@@ -333,13 +370,13 @@ describe("GenericPreferenceRanker", () => {
 		];
 
 		const context = buildContext(history);
-		ranker.adjustWeights(candidate, context, true);
+		await ranker.adjustWeights(candidate, context, true);
 		const weights = ranker.getFieldWeights();
 		expect(weights.certainty).toBeGreaterThan(1.0);
 	});
 
-	it("adjustWeights decreases on rejection", () => {
-		const ranker = new GenericPreferenceRanker();
+	it("adjustWeights decreases on rejection", async () => {
+		const ranker = new GenericPreferenceRanker(new MockFieldWeightStore());
 		const candidate = buildObservationRecord();
 		const history = [
 			buildObservationRecord({
@@ -357,7 +394,7 @@ describe("GenericPreferenceRanker", () => {
 		];
 
 		const context = buildContext(history);
-		ranker.adjustWeights(candidate, context, false);
+		await ranker.adjustWeights(candidate, context, false);
 		const weights = ranker.getFieldWeights();
 		expect(weights.certainty).toBeLessThan(1.0);
 	});

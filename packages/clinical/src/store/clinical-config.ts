@@ -31,6 +31,7 @@ export interface ClinicalStoreBackendConfig {
 	group: ClinicalStoreDomain;
 	capabilities?: ClinicalStoreCapability[];
 	primary: ResourceLocator;
+	weights?: ResourceLocator;
 	fallbacks?: ResourceLocator[];
 	implemented?: boolean;
 	metadata?: Record<string, unknown>;

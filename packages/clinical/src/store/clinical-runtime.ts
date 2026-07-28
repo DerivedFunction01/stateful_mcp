@@ -124,6 +124,6 @@ async function buildLearningStores(
 	return await Promise.all(
 		adapters
 			.filter((a) => a.implemented !== false && a.primary)
-			.map((a) => resolveParsedCellStoreLocatorV2(a.primary)),
+			.map((a) => resolveParsedCellStoreLocatorV2(a.primary, a.weights)),
 	);
 }
