@@ -281,6 +281,7 @@ export interface SchemaParserConfig {
 	schema: string;
 	targetSchema: string;
 	preparsedContextKeys?: string[];
+	sharedFieldAnchors?: import("../parser/field-shared/shared-field-anchor").SharedFieldAnchor[];
 }
 
 export interface StopWordContext {

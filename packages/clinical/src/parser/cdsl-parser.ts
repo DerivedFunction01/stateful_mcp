@@ -335,10 +335,11 @@ export class CdslParser {
 						allowedNamespaces,
 						preparsedContext,
 					);
+					const parsedArr = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
 					results.push({
 						targetSchema: parser.targetSchema,
-						deterministic: parsed ? [parsed] : [],
-						learned: parsed ? [parsed] : [],
+						deterministic: parsedArr,
+						learned: parsedArr,
 					});
 				}
 			}
@@ -556,14 +557,17 @@ export class CdslParser {
 				const finalItem = learnedCandidate || deterministic;
 
 				if (finalItem) {
-					const requiresConcept = !CdslParser.SCHEMAS_WITHOUT_CONCEPT.has(
-						finalItem.targetSchema,
-					);
-					if (!requiresConcept || finalItem.concept.length > 0) {
-						const key = `${finalItem.targetSchema}:${finalItem.concept[0]?.conceptId ?? ""}`;
-						if (!seenFinal.has(key)) {
-							seenFinal.add(key);
-							items.push(finalItem);
+					const finalItems = Array.isArray(finalItem) ? finalItem : [finalItem];
+					for (const item of finalItems) {
+						const requiresConcept = !CdslParser.SCHEMAS_WITHOUT_CONCEPT.has(
+							item.targetSchema,
+						);
+						if (!requiresConcept || item.concept.length > 0) {
+							const key = `${item.targetSchema}:${item.concept[0]?.conceptId ?? ""}:${JSON.stringify(item.extractedData)}`;
+							if (!seenFinal.has(key)) {
+								seenFinal.add(key);
+								items.push(item);
+							}
 						}
 					}
 				}
@@ -735,11 +739,14 @@ export class CdslParser {
 			);
 
 			if (result) {
-				result.extractedData = {
-					...result.extractedData,
-					...overrides,
-				};
-				items.push(result);
+				const results = Array.isArray(result) ? result : [result];
+				for (const res of results) {
+					res.extractedData = {
+						...res.extractedData,
+						...overrides,
+					};
+					items.push(res);
+				}
 			}
 		}
 

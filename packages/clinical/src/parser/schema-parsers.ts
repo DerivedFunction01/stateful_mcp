@@ -214,7 +214,7 @@ export interface SchemaParser {
 		preparsedContext?: PreparsedContext,
 		conceptFieldStore?: ConceptFieldStore,
 		concepts?: CodeableConcept[],
-	): Promise<ParsedItemUnion | null>;
+	): Promise<ParsedItemUnion | ParsedItemUnion[] | null>;
 	preview?(
 		tag: string,
 		content: string,
