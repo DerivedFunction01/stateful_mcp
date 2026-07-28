@@ -33,6 +33,7 @@ import type { JurisdictionalDisplayStore } from "./reference/jurisdictional-disp
 import type { PersonnelStore } from "./reference/personnel/interfaces";
 import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
 import type { StopWordProfileStore } from "./reference/stop-words/interfaces";
+import type { ProseParserTemplateStore } from "./reference/prose-parser-templates/interfaces";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ export interface ClinicalRuntimeParserStores {
 	jurisdictionalDisplays: JurisdictionalDisplayStore;
 	stopWordProfiles: StopWordProfileStore;
 	proseTemplates: ClinicalProseTemplateStore;
+	proseParserTemplates: ProseParserTemplateStore;
 	calibration: CalibrationExceptionStore;
 	personnel: PersonnelStore;
 	facilities: FacilityStore;
@@ -106,6 +108,7 @@ export async function createClinicalRuntime(
 			jurisdictionalDisplays: refs.jurisdictionalDisplays,
 			stopWordProfiles: refs.stopWordProfiles,
 			proseTemplates: refs.proseTemplates,
+			proseParserTemplates: refs.proseParserTemplates,
 			calibration,
 			personnel,
 			facilities,

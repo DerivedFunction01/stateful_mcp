@@ -44,3 +44,8 @@ export * from "./store/learning/ordered_learning/sql-ordered-learning-store";
 export * from "./store/learning/parsed_cell/history-store";
 export * from "./store/learning/parsed_cell/kv-parsed-cell-store";
 export * from "./store/learning/parsed_cell/sql-parsed-cell-store";
+export * from "./parser/prose-parser";
+export * from "./schemas/prose-template";
+export * from "./store/reference/prose-parser-templates/interfaces";
+export * from "./store/reference/prose-parser-templates/kv-prose-parser-template-store";
+export * from "./store/reference/prose-parser-templates/sql-prose-parser-template-store";

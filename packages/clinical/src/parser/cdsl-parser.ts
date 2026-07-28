@@ -9,6 +9,8 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import { ProseParser } from "./prose-parser";
+import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import {
 	buildCalendarDateRules,
 	buildNumericFieldRules,
@@ -47,6 +49,7 @@ export class CdslParser {
 		stopWordParser?: StopWordParser,
 		stopWordStore?: StopWordStore,
 		private conceptFieldStore?: ConceptFieldStore,
+		private proseTemplateStore?: ProseParserTemplateStore,
 	) {
 		this.stopWordParser = stopWordParser;
 		this.stopWordStore = stopWordStore;
@@ -74,6 +77,8 @@ export class CdslParser {
 	 * @param conceptDefaultsStore - Optional concept default store
 	 * @param stopWordParser - Optional pre-configured stop word parser
 	 * @param stopWordStore - Optional stop word store for dynamic resolution
+	 * @param conceptFieldStore - Optional concept field store
+	 * @param proseTemplateStore - Optional prose parser template store
 	 */
 	static async create(
 		dictionaryStore: DictionaryStore,
@@ -83,6 +88,7 @@ export class CdslParser {
 		stopWordParser?: StopWordParser,
 		stopWordStore?: StopWordStore,
 		conceptFieldStore?: ConceptFieldStore,
+		proseTemplateStore?: ProseParserTemplateStore,
 	): Promise<CdslParser> {
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
@@ -98,6 +104,7 @@ export class CdslParser {
 			stopWordParser,
 			stopWordStore,
 			conceptFieldStore,
+			proseTemplateStore,
 		);
 	}
 
@@ -180,7 +187,23 @@ export class CdslParser {
 		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParserPreviewResult[]> {
 		const results: ParserPreviewResult[] = [];
-		const segments = text.split(this.profile.stateDelimiter);
+
+		// 1. Run ProseParser if template store is configured
+		const { proseItems, remainingText, remnants } = await this.runProseParser(
+			text,
+			context,
+			historyStore,
+		);
+		for (const item of [...proseItems, ...remnants]) {
+			results.push({
+				targetSchema: item.targetSchema,
+				deterministic: [item as any],
+				learned: [item as any],
+			});
+		}
+
+		// 2. Parse remaining segments
+		const segments = remainingText.split(this.profile.stateDelimiter);
 
 		for (const segment of segments) {
 			const trimmed = segment.trim();
@@ -331,7 +354,18 @@ export class CdslParser {
 		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
-		const segments = text.split(this.profile.stateDelimiter);
+
+		// 1. Run ProseParser if template store is configured
+		const { proseItems, remainingText, remnants } = await this.runProseParser(
+			text,
+			context,
+			historyStore,
+		);
+		items.push(...proseItems);
+		items.push(...remnants);
+
+		// 2. Parse remaining segments
+		const segments = remainingText.split(this.profile.stateDelimiter);
 		const seenFinal = new Set<string>();
 
 		for (const segment of segments) {
@@ -537,6 +571,182 @@ export class CdslParser {
 		}
 
 		return items;
+	}
+
+	private async runProseParser(
+		text: string,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<{
+		proseItems: ParsedItem[];
+		remainingText: string;
+		remnants: ParsedItem[];
+	}> {
+		if (!this.proseTemplateStore) {
+			return { proseItems: [], remainingText: text, remnants: [] };
+		}
+
+		const proseParser = new ProseParser(
+			this.dictionaryStore,
+			this.conceptFieldStore || (undefined as any),
+			this.getEffectiveAttributeRules(),
+			this.proseTemplateStore,
+			this.profile,
+		);
+
+		const { parsedItems, consumedRanges, remnantSegments } = await proseParser.parse(text);
+
+		// Construct remaining text by blanking out consumed ranges to preserve index positions
+		let remainingText = text;
+		for (const range of [...consumedRanges].reverse()) {
+			remainingText =
+				remainingText.substring(0, range.start) +
+				" ".repeat(range.end - range.start) +
+				remainingText.substring(range.end);
+		}
+
+		const remnants: ParsedItem[] = [];
+		for (const rem of remnantSegments) {
+			const parsedRemnants = await this.parseRemnantSegment(rem, context, historyStore);
+			remnants.push(...parsedRemnants);
+		}
+
+		return { proseItems: parsedItems, remainingText, remnants };
+	}
+
+	private async parseRemnantSegment(
+		remnant: {
+			text: string;
+			remnantContext?: {
+				targetSchema?: string;
+				itemOverrides?: Record<string, any>;
+				parentSlotLink?: string;
+			};
+		},
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+	): Promise<ParsedItem[]> {
+		const content = remnant.text.trim();
+		if (!content) return [];
+
+		const forcedSchema = remnant.remnantContext?.targetSchema;
+		const overrides = remnant.remnantContext?.itemOverrides || {};
+
+		const attrRules = this.getEffectiveAttributeRules();
+		const candidates = QuantityTokenizer.tokenize(content, attrRules);
+		const frequency = FrequencyHelper.parse(
+			content,
+			this.getEffectiveAttributeRules() || [],
+			this.profile.evaluatorRules || [],
+		);
+
+		const attributes: Record<string, string> = { ...overrides };
+		const rules = [...this.getEffectiveAttributeRules()].sort((a, b) => {
+			const pA = a.priority ?? 1;
+			const pB = b.priority ?? 1;
+			return pB - pA;
+		});
+		for (const rule of rules) {
+			for (const pattern of rule.regexPatterns) {
+				const flags = rule.isCaseInsensitive !== false ? "i" : "";
+				const regex = getCompiledRegex(pattern, flags);
+				if (regex.test(content)) {
+					if (attributes[rule.targetField] === undefined) {
+						attributes[rule.targetField] = rule.targetValue;
+					}
+				}
+			}
+		}
+
+		const preparsedContext: PreparsedContext = {
+			rawText: content,
+			measurement: candidates,
+			timeSpan: candidates,
+			frequency,
+			attributes,
+			profile: this.profile,
+			rankingSignals: buildRankingSignals(context, ""),
+		};
+
+		const allowedNamespaces = forcedSchema
+			? this.profile.schemaNamespaces?.[forcedSchema.toLowerCase()] || undefined
+			: undefined;
+
+		const resolvedConcepts = await resolveMultiConceptHelper(
+			content,
+			this.dictionaryStore,
+			this.profile.termTokenizer,
+			allowedNamespaces,
+		);
+
+		const items: ParsedItem[] = [];
+		const parsersToRun: SchemaParser[] = [];
+
+		if (forcedSchema) {
+			const parser = schemaParserRegistry.get(forcedSchema.toLowerCase());
+			if (parser) {
+				parsersToRun.push(parser);
+			} else {
+				for (const p of schemaParserRegistry.values()) {
+					if (p.targetSchema.toLowerCase() === forcedSchema.toLowerCase()) {
+						parsersToRun.push(p);
+						break;
+					}
+				}
+			}
+		} else {
+			for (const p of schemaParserRegistry.values()) {
+				parsersToRun.push(p);
+			}
+		}
+
+		for (const parser of parsersToRun) {
+			const defaultNamespace = this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] || undefined;
+			const concepts = resolvedConcepts.filter((c) => {
+				if (!c.conceptId) return false;
+				if (!defaultNamespace) return true;
+				const ns = c.conceptId.split("::")[0];
+				return ns ? defaultNamespace.includes(ns) : false;
+			});
+
+			if (concepts.length === 0 && resolvedConcepts.length > 0) {
+				concepts.push(...resolvedConcepts);
+			}
+
+			const result = await parser.parse(
+				"",
+				content,
+				this.dictionaryStore,
+				this.conceptDefaultsStore,
+				this.getEffectiveAttributeRules(),
+				this.profile.evaluatorRules,
+				this.profile.termTokenizer,
+				defaultNamespace,
+				preparsedContext,
+				this.conceptFieldStore,
+				concepts,
+			);
+
+			if (result) {
+				result.extractedData = {
+					...result.extractedData,
+					...overrides,
+				};
+				items.push(result);
+			}
+		}
+
+		const seenFinal = new Set<string>();
+		const deduped: ParsedItem[] = [];
+		for (const item of items) {
+			const key = JSON.stringify(item.extractedData);
+			if (!seenFinal.has(key)) {
+				seenFinal.add(key);
+				deduped.push(item);
+			}
+		}
+
+		return deduped;
 	}
 }
 
