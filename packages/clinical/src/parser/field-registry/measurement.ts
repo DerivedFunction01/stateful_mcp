@@ -50,7 +50,7 @@ export function createMeasurementFieldRegistry(
 			compute: (_slots, _conceptDefaults, rawGroups) => {
 				const str = rawGroups?.num_data_points;
 				if (!str) return undefined;
-				const num = Number.parseInt(str, 1);
+				const num = Number.parseInt(str, 10);
 				return Number.isNaN(num) ? undefined : num;
 			},
 		},
