@@ -22,7 +22,7 @@ export class KvClinicalProseTemplateStore
 
 	async get(
 		schema: string,
-		position: string,
+		position: "opening" | "continuing" | "closing" | "full_paragraph",
 		conceptId?: string,
 		workspaceId?: string,
 	): Promise<ClinicalProseTemplate | null> {
@@ -37,6 +37,28 @@ export class KvClinicalProseTemplateStore
 			return t;
 		}
 		return null;
+	}
+
+	async getById(templateId: string): Promise<ClinicalProseTemplate | null> {
+		const data = await this.backend.load();
+		const entries = Object.values(data) as ClinicalProseTemplate[];
+		for (const t of entries) {
+			if (t.templateId === templateId) return t;
+		}
+		return null;
+	}
+
+	async listBySchema(
+		schema: string,
+		position?: "opening" | "continuing" | "closing" | "full_paragraph",
+	): Promise<ClinicalProseTemplate[]> {
+		const data = await this.backend.load();
+		const entries = Object.values(data) as ClinicalProseTemplate[];
+		return entries.filter((t) => {
+			if (t.targetSchema !== schema) return false;
+			if (position && t.slotPosition !== position) return false;
+			return true;
+		});
 	}
 
 	async list(): Promise<ClinicalProseTemplate[]> {

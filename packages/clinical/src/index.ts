@@ -24,6 +24,7 @@ export {
 	schemaParserRegistry,
 } from "./parser/schema-parsers";
 export * from "./parser/stop-word-parser";
+export * from "./renderer/prose-renderer";
 export * from "./schemas/assessment";
 export * from "./schemas/document";
 export * from "./schemas/environment";

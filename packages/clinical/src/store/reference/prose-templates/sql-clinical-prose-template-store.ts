@@ -31,7 +31,7 @@ export class SqlClinicalProseTemplateStore
 
 	async get(
 		schema: string,
-		position: string,
+		position: "opening" | "continuing" | "closing" | "full_paragraph",
 		conceptId?: string,
 		workspaceId?: string,
 	): Promise<ClinicalProseTemplate | null> {
@@ -44,6 +44,29 @@ export class SqlClinicalProseTemplateStore
 		);
 		const row = await this.executor.queryOne(sql, params);
 		return row ? this.rowToTemplate(row) : null;
+	}
+
+	async getById(templateId: string): Promise<ClinicalProseTemplate | null> {
+		const { sql, params } = this.compiler.compileGetClinicalProseTemplateById(
+			templateId,
+			this.table,
+		);
+		const row = await this.executor.queryOne(sql, params);
+		return row ? this.rowToTemplate(row) : null;
+	}
+
+	async listBySchema(
+		schema: string,
+		position?: "opening" | "continuing" | "closing" | "full_paragraph",
+	): Promise<ClinicalProseTemplate[]> {
+		const { sql, params } =
+			this.compiler.compileListClinicalProseTemplatesBySchema(
+				schema,
+				position,
+				this.table,
+			);
+		const rows = await this.executor.query(sql, params);
+		return rows.map((r) => this.rowToTemplate(r));
 	}
 
 	async list(): Promise<ClinicalProseTemplate[]> {
@@ -82,6 +105,7 @@ export class SqlClinicalProseTemplateStore
 			specialtyId: template.specialtyId ?? null,
 			slotPosition: template.slotPosition,
 			templateText: template.templateText,
+			slotsBlob: JSON.stringify(template.slots || {}),
 			source: "local",
 		};
 	}
@@ -96,6 +120,7 @@ export class SqlClinicalProseTemplateStore
 				| "closing"
 				| "full_paragraph",
 			templateText: row.templateText as string,
+			slots: JSON.parse(row.slotsBlob || "{}"),
 		};
 		if (row.parentTemplateId != null)
 			t.parentTemplateId = row.parentTemplateId as string;

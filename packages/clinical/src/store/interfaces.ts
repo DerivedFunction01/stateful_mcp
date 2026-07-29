@@ -203,6 +203,29 @@ export interface CalibrationStore {
 	): Promise<void>;
 }
 
+import type { PipelineStep } from "@stateful-mcp/core";
+
+export interface SlotCondition {
+	pipeline: PipelineStep[];
+}
+
+export interface OutputProseSlot {
+	sourcePath: string;
+	format?: string;
+	fallback?: string;
+	conditionalDelegates?: {
+		delegateTemplateId: string;
+		conditions: SlotCondition;
+	}[];
+	defaultDelegateTemplateId?: string;
+	listOptions?: {
+		delimiter: string;
+		lastDelimiter?: string;
+	};
+	conditions?: SlotCondition;
+	transform?: { pipeline: PipelineStep[] };
+}
+
 export interface ClinicalProseTemplate {
 	templateId: string;
 	parentTemplateId?: string;
@@ -212,16 +235,7 @@ export interface ClinicalProseTemplate {
 	specialtyId?: string;
 	slotPosition: "opening" | "continuing" | "closing" | "full_paragraph";
 	templateText: string;
-}
-
-export interface IClinicalProseTemplateStore {
-	getTemplate(
-		schema: string,
-		position: "opening" | "continuing" | "closing" | "full_paragraph",
-		conceptId?: string,
-		workspaceId?: string,
-	): Promise<ClinicalProseTemplate | null>;
-	setTemplate(template: ClinicalProseTemplate): Promise<void>;
+	slots: Record<string, OutputProseSlot>;
 }
 
 export interface SignedSoapNoteRecord {

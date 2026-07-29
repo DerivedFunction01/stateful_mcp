@@ -332,6 +332,7 @@ export class ReferenceQueryCompiler {
 					nullable: false,
 				},
 				{ name: "templateText", type: "text", nullable: false },
+				{ name: "slotsBlob", type: "json", nullable: false },
 				{
 					name: "source",
 					type: "text",
@@ -375,6 +376,35 @@ export class ReferenceQueryCompiler {
 			where,
 			orderBy: [{ column: "templateId", direction: "ASC" }],
 			limit: 1,
+		});
+	}
+
+	public compileGetClinicalProseTemplateById(
+		templateId: string,
+		table: string = "clinical_prose_templates",
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "templateId", op: "eq", value: templateId }],
+			limit: 1,
+		});
+	}
+
+	public compileListClinicalProseTemplatesBySchema(
+		schema: string,
+		position?: string,
+		table: string = "clinical_prose_templates",
+	): CompiledQuery {
+		const where: QueryCondition[] = [
+			{ column: "targetSchema", op: "eq", value: schema },
+		];
+		if (position) {
+			where.push({ column: "slotPosition", op: "eq", value: position });
+		}
+		return this.compiler.compileSelect({
+			table,
+			where,
+			orderBy: [{ column: "templateId", direction: "ASC" }],
 		});
 	}
 
