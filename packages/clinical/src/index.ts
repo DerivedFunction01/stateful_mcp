@@ -33,7 +33,6 @@ export * from "./schemas/measurement";
 export * from "./schemas/medication";
 export * from "./schemas/observation";
 export * from "./schemas/patient";
-export * from "./schemas/prose-template";
 export * from "./schemas/shared";
 export * from "./schemas/time";
 export * from "./schemas/vitals";
@@ -58,6 +57,7 @@ export * from "./store/parser/anchors/kv-shared-field-anchor-store";
 export * from "./store/parser/anchors/sql-shared-field-anchor-store";
 export * from "./store/reference/prose-parser-templates/interfaces";
 export * from "./store/reference/prose-parser-templates/kv-prose-parser-template-store";
+export * from "./store/reference/prose-parser-templates/prose-template";
 export * from "./store/reference/prose-parser-templates/sql-prose-parser-template-store";
 
 // Auto-register default parsed cell transforms

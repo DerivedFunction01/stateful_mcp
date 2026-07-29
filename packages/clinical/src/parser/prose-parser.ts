@@ -1,11 +1,14 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { ProseSlot, ProseTemplate } from "../schemas/prose-template";
 import type {
 	AttributeParserRule,
 	ConceptFieldStore,
 	ParserSyntaxProfile,
 } from "../store/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
+import type {
+	ProseSlot,
+	ProseTemplate,
+} from "../store/reference/prose-parser-templates/prose-template";
 import { getCompiledRegex } from "./_compiled-regex";
 import { type ParsedItem, resolveConceptHelper } from "./schema-parsers";
 

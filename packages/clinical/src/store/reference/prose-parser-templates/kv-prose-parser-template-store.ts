@@ -1,6 +1,6 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { ProseTemplate } from "../../../schemas/prose-template";
 import type { ProseParserTemplateStore } from "./interfaces";
+import type { ProseTemplate } from "./prose-template";
 
 export class KvProseParserTemplateStore implements ProseParserTemplateStore {
 	private readonly prefix = "proseParserTemplate:";

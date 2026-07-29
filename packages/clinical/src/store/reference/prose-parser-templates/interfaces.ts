@@ -1,4 +1,4 @@
-import type { ProseTemplate } from "../../../schemas/prose-template";
+import type { ProseTemplate } from "./prose-template";
 
 export interface ProseParserTemplateStore {
 	get(templateId: string): Promise<ProseTemplate | null>;

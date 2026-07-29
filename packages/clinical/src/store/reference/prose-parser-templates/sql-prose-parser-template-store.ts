@@ -1,7 +1,7 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import type { ProseTemplate } from "../../../schemas/prose-template";
 import { ReferenceQueryCompiler } from "../../sql/reference-query-compiler";
 import type { ProseParserTemplateStore } from "./interfaces";
+import type { ProseTemplate } from "./prose-template";
 
 export class SqlProseTemplateStore implements ProseParserTemplateStore {
 	private readonly compiler: ReferenceQueryCompiler;
