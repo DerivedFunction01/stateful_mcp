@@ -1,4 +1,10 @@
-import { type DictionaryStore, executePipeline } from "@stateful-mcp/core";
+import {
+	type DictionaryStore,
+	executePipeline,
+	MemoryVariableStore,
+	type VariableService,
+	VariableServiceStore,
+} from "@stateful-mcp/core";
 import type {
 	ConceptFieldRule,
 	ConceptFieldStore,
@@ -31,6 +37,7 @@ import {
 	schemaParserRegistry,
 } from "./schema-parsers";
 import { StopWordParser } from "./stop-word-parser";
+import { CdslVariableParser } from "./variable-parser";
 
 interface ParserPreviewResult extends ParsedCandidateEnvelope {
 	targetSchema: string;
@@ -55,6 +62,7 @@ export class CdslParser {
 		private proseTemplateStore?: ProseParserTemplateStore,
 		private sharedFieldAnchorStore?: SharedFieldAnchorStore,
 		private macroStore?: ParserMacroStore,
+		private variableService?: VariableService,
 	) {
 		this.stopWordParser = stopWordParser;
 		this.stopWordStore = stopWordStore;
@@ -123,6 +131,22 @@ export class CdslParser {
 		return this.attributeRules;
 	}
 
+	private async applyVariables(
+		text: string,
+		context?: StopWordContext,
+	): Promise<string> {
+		const sessionId = (context as any)?.sessionId || "default_session";
+		const service =
+			this.variableService ||
+			new VariableServiceStore(new MemoryVariableStore());
+		return CdslVariableParser.parseAndApply(
+			text,
+			service,
+			sessionId,
+			this.profile,
+		);
+	}
+
 	private async expandMacros(text: string): Promise<string> {
 		if (!this.macroStore) return text;
 		return MacroExpander.expand(text, this.macroStore, this.profile);
@@ -133,7 +157,8 @@ export class CdslParser {
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParserPreviewResult[]> {
-		const expanded = await this.expandMacros(text);
+		const cleanText = await this.applyVariables(text, context);
+		const expanded = await this.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
@@ -159,7 +184,8 @@ export class CdslParser {
 	 * Parses a clinical dictation stream and extracts mapped schemas.
 	 */
 	async parse(text: string, context?: StopWordContext): Promise<ParsedItem[]> {
-		const expanded = await this.expandMacros(text);
+		const cleanText = await this.applyVariables(text, context);
+		const expanded = await this.expandMacros(cleanText);
 		// Resolve effective StopWordParser from store + context if not already set
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -181,7 +207,8 @@ export class CdslParser {
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParsedItem[]> {
-		const expanded = await this.expandMacros(text);
+		const cleanText = await this.applyVariables(text, context);
+		const expanded = await this.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
