@@ -341,10 +341,7 @@ describe("ProseTemplateSuggester", () => {
 		});
 		expect(results).toHaveLength(1);
 		const hints = results[0]!.nextHints ?? [];
-		expect(hints.map((h) => h.slotName).sort()).toEqual([
-			"slot_b",
-			"slot_c",
-		]);
+		expect(hints.map((h) => h.slotName).sort()).toEqual(["slot_b", "slot_c"]);
 	});
 
 	it("excludes slots from nextHints when conditions.pipeline returns false", async () => {
@@ -364,9 +361,7 @@ describe("ProseTemplateSuggester", () => {
 						slotType: "attribute",
 						triggerPattern: "severe",
 						conditions: {
-							pipeline: [
-								{ op: "eq", args: [{ $var: "pain_level" }, 8] },
-							],
+							pipeline: [{ op: "eq", args: [{ $var: "pain_level" }, 8] }],
 						},
 					}),
 				],
@@ -399,9 +394,7 @@ describe("ProseTemplateSuggester", () => {
 						slotType: "attribute",
 						triggerPattern: "severe",
 						conditions: {
-							pipeline: [
-								{ op: "eq", args: [{ $var: "pain_level" }, 8] },
-							],
+							pipeline: [{ op: "eq", args: [{ $var: "pain_level" }, 8] }],
 						},
 					}),
 				],
@@ -478,12 +471,7 @@ describe("ProseTemplateSuggester", () => {
 		expect(results).toHaveLength(1);
 		const hints = results[0]!.nextHints ?? [];
 		const ranked = hints.map((h) => h.slotName);
-		expect(ranked).toEqual([
-			"trig_link",
-			"supp_link",
-			"child_a",
-			"sibling_a",
-		]);
+		expect(ranked).toEqual(["trig_link", "supp_link", "child_a", "sibling_a"]);
 	});
 
 	it("stop-word gate suppresses suggestion when cursor is on a stop word", async () => {

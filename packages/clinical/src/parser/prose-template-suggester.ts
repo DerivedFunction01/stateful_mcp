@@ -1,12 +1,14 @@
+import { executePipeline } from "@stateful-mcp/core";
 import type { StopWordStore } from "../store/interfaces";
-import type { AutocompleteSuggestion, Relation } from "../store/reference/auto-complete/interfaces";
+import type {
+	AutocompleteSuggestion,
+	Relation,
+} from "../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import type {
 	ProseSlot,
-	ProseSlotType,
 	ProseTemplate,
 } from "../store/reference/prose-parser-templates/prose-template";
-import { executePipeline } from "@stateful-mcp/core";
 
 interface SuggestionContext {
 	personnelId: string;
@@ -93,7 +95,11 @@ export class ProseTemplateSuggester {
 					candidate.slot.targetSchema ?? candidate.template.targetSchema,
 				targetConceptId: (candidate.template as any).targetConceptId,
 				rankScore: this.clampRank(candidate.rankScore),
-				nextHints: this.buildNextHints(candidate.template, candidate.slot, context),
+				nextHints: this.buildNextHints(
+					candidate.template,
+					candidate.slot,
+					context,
+				),
 			};
 		});
 	}
@@ -157,7 +163,10 @@ export class ProseTemplateSuggester {
 		};
 
 		const addHint = (
-			hints: Map<string, NonNullable<AutocompleteSuggestion["nextHints"]>[number]>,
+			hints: Map<
+				string,
+				NonNullable<AutocompleteSuggestion["nextHints"]>[number]
+			>,
 			slot: ProseSlot,
 			rankScore: number,
 			relation?: Relation,
@@ -198,8 +207,7 @@ export class ProseTemplateSuggester {
 		for (const slot of template.slots) {
 			if (slot.linkTo?.parentSlot === matchedSlot.slotName) {
 				const relation = slot.linkTo.relation;
-				const rank =
-					0.5 + (relationPriority[relation] ?? 0) * 0.1;
+				const rank = 0.5 + (relationPriority[relation] ?? 0) * 0.1;
 				addHint(hints, slot, rank, relation);
 			}
 		}

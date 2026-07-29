@@ -382,3 +382,68 @@ export interface ParsedCellRanker<TCandidate = ParsedCellRecord> {
 		mode?: ParsedCellPreferenceMode,
 	): ParsedCellPreview<TCandidate>;
 }
+
+// ── Autocomplete Transition Store ───────────────────────────────────────────
+
+export interface AutocompleteTransitionKey {
+	personnelId: string;
+	templateId: string;
+	fromSlot: string;
+	toSlot: string;
+	featureKey: string;
+	featureValue?: string;
+}
+
+export interface AutocompleteTransitionRecord {
+	personnelId: string;
+	templateId: string;
+	fromSlot: string;
+	toSlot: string;
+	featureKey: string;
+	featureValue: string | null;
+	numericalValue: number | null;
+	selectionCount: number;
+	lastUpdatedAt: string;
+}
+
+export interface AutocompleteTransitionInsertPlan {
+	table: string;
+	personnelId: string;
+	templateId: string;
+	fromSlot: string;
+	toSlot: string;
+	featureKey: string;
+	featureValue: string | null;
+	numericalValue: number | null;
+	selectionCount: number;
+	lastUpdatedAt: string;
+}
+
+export interface AutocompleteTransitionDecayedAggregatePlan {
+	table: string;
+	personnelId: string;
+	templateId: string;
+	fromSlot: string;
+	halfLifeDays: number;
+}
+
+export interface AutocompleteTransitionContinuousAggregatePlan {
+	table: string;
+	personnelId: string;
+	templateId: string;
+	fromSlot: string;
+	featureKey: string;
+}
+
+export interface AutocompleteTransitionStore {
+	increment(plan: AutocompleteTransitionInsertPlan): Promise<void>;
+	getByFromSlot(
+		key: AutocompleteTransitionKey,
+	): Promise<AutocompleteTransitionRecord[]>;
+	getDecayedAggregate(
+		plan: AutocompleteTransitionDecayedAggregatePlan,
+	): Promise<Record<string, number>>;
+	getContinuousAggregate(
+		plan: AutocompleteTransitionContinuousAggregatePlan,
+	): Promise<Record<string, { mu: number; sigmaSq: number }>>;
+}

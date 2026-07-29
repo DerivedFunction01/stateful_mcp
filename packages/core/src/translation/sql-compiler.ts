@@ -273,7 +273,14 @@ export interface InsertQuery {
 	columns?: string[];
 	columnLiterals?: Record<string, string>;
 	returning?: string[];
-	onConflict?: "ignore" | "replace" | string;
+	onConflict?:
+		| "ignore"
+		| "replace"
+		| string
+		| {
+				conflictColumns: string[];
+				update?: Record<string, SqlExpression>;
+		  };
 	conflictColumns?: string[];
 }
 
@@ -1187,6 +1194,23 @@ export class QueryCompiler {
 					onConflictClause = `ON CONFLICT (${conflictCols}) DO NOTHING`; // Fallback if no non-key cols exist
 				}
 			}
+		} else if (query.onConflict && typeof query.onConflict === "object") {
+			const conflictCols = query.onConflict.conflictColumns
+				.map((c) => this.quoteIdent(c))
+				.join(", ");
+
+			if (query.onConflict.update) {
+				const setClauses: string[] = [];
+				for (const [colName, expr] of Object.entries(query.onConflict.update)) {
+					const exprStr = this.compileExpression(expr, ctx);
+					setClauses.push(`${this.quoteIdent(colName)} = ${exprStr}`);
+				}
+				onConflictClause = `ON CONFLICT (${conflictCols}) DO UPDATE SET ${setClauses.join(", ")}`;
+			} else {
+				onConflictClause = `ON CONFLICT (${conflictCols}) DO NOTHING`;
+			}
+		} else if (typeof query.onConflict === "string") {
+			onConflictClause = query.onConflict;
 		}
 
 		let sql = `${insertKeyword} INTO ${this.quoteIdent(query.table)} (${quotedCols})\nVALUES ${valueStrings.join(", ")}`;

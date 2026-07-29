@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import { AutocompleteSessionStateMapper } from "../src/parser/utils/autocomplete-state-mapper";
 import { ProseTemplateSuggester } from "../src/parser/prose-template-suggester";
 import type { ParsedItem } from "../src/parser/schema-parsers";
+import { AutocompleteSessionStateMapper } from "../src/parser/utils/autocomplete-state-mapper";
 import type { ProseTemplate } from "../src/store/reference/prose-parser-templates/prose-template";
 
 describe("Autocomplete Bridge State Mapper Integration", () => {
@@ -35,9 +35,7 @@ describe("Autocomplete Bridge State Mapper Integration", () => {
 					targetSchema: "ObservationEvent",
 					fieldPath: "radiation",
 					conditions: {
-						pipeline: [
-							{ op: "eq", args: [{ $var: "symptom" }, "Chest Pain"] },
-						],
+						pipeline: [{ op: "eq", args: [{ $var: "symptom" }, "Chest Pain"] }],
 					},
 				},
 			],
@@ -81,7 +79,9 @@ describe("Autocomplete Bridge State Mapper Integration", () => {
 		});
 		expect(resultsWithChestPain).toHaveLength(1);
 		const hintsWithChestPain = resultsWithChestPain[0]!.nextHints ?? [];
-		expect(hintsWithChestPain.find((h) => h.slotName === "radiation")).toBeDefined();
+		expect(
+			hintsWithChestPain.find((h) => h.slotName === "radiation"),
+		).toBeDefined();
 
 		// Test B: If symptom is Headache, radiation hint is gated out
 		const resultsWithHeadache = await suggester.suggest("presents with pain", {
@@ -90,6 +90,8 @@ describe("Autocomplete Bridge State Mapper Integration", () => {
 		});
 		expect(resultsWithHeadache).toHaveLength(1);
 		const hintsWithHeadache = resultsWithHeadache[0]!.nextHints ?? [];
-		expect(hintsWithHeadache.find((h) => h.slotName === "radiation")).toBeUndefined();
+		expect(
+			hintsWithHeadache.find((h) => h.slotName === "radiation"),
+		).toBeUndefined();
 	});
 });

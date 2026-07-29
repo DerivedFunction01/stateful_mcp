@@ -1,5 +1,5 @@
-import type { ParsedItem } from "../schema-parsers";
 import type { ProseTemplate } from "../../store/reference/prose-parser-templates/prose-template";
+import type { ParsedItem } from "../schema-parsers";
 
 export class AutocompleteSessionStateMapper {
 	/**
@@ -21,9 +21,11 @@ export class AutocompleteSessionStateMapper {
 
 			// If fieldPath is specified, extract value from item.extractedData
 			if (slot.fieldPath) {
-				const value = slot.fieldPath === "concept" 
-					? (matchedItem.concept?.[0]?.display ?? matchedItem.extractedData[slot.fieldPath])
-					: matchedItem.extractedData[slot.fieldPath];
+				const value =
+					slot.fieldPath === "concept"
+						? (matchedItem.concept?.[0]?.display ??
+							matchedItem.extractedData[slot.fieldPath])
+						: matchedItem.extractedData[slot.fieldPath];
 				if (value !== undefined && value !== null) {
 					filledSlots[slot.slotName] = value;
 				}
