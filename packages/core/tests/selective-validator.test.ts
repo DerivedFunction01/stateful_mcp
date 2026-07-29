@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { createRepo } from "../src/adapters/storage/shared/unified-repo";
 import {
+	CompositeEvaluatorStore,
 	type EvaluatorRule,
 	type EvaluatorStore,
 	type EvaluatorTrigger,
 	type EventValidationResult,
-	CompositeEvaluatorStore,
 } from "../src/middleware/event/evaluator-types";
 import { SelectiveValidatorRouter } from "../src/middleware/event/selective-validator-router";
 import { EventStore } from "../src/middleware/event/store";
@@ -194,9 +194,14 @@ describe("Selective Validation Integration inside EventStore", () => {
 				projectedState: EventRecord[],
 				mutations: EventMutation[],
 			): Promise<EventValidationResult> {
-				const invalid = projectedState.some((r) => (r as any).name === "RestrictedDrug");
+				const invalid = projectedState.some(
+					(r) => (r as any).name === "RestrictedDrug",
+				);
 				if (invalid) {
-					return { valid: false, errors: ["RestrictedDrug is not allowed in this session"] };
+					return {
+						valid: false,
+						errors: ["RestrictedDrug is not allowed in this session"],
+					};
 				}
 				return { valid: true, errors: [] };
 			}

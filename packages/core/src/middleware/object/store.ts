@@ -247,8 +247,13 @@ export class ObjectStore {
 			}
 		}
 
-		const newData = JSON.parse(JSON.stringify(parent.data));
-		this.setValueAtPath(newData, path, value);
+		let newData: any;
+		if (path.length === 0) {
+			newData = value;
+		} else {
+			newData = JSON.parse(JSON.stringify(parent.data));
+			this.setValueAtPath(newData, path, value);
+		}
 
 		const siblings = await this.session.listChildren(
 			sessionId,

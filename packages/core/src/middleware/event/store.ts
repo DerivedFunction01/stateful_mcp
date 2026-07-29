@@ -205,7 +205,7 @@ export class EventStore {
 			if (!validate(data)) {
 				throw new StatefulFrameworkError(
 					ErrorCode.OBJECT_VALIDATION_FAILED,
-					`Event data fails schema validation`,
+					`Event data fails schema validation: ${JSON.stringify(validate.errors)}`,
 				);
 			}
 			try {
@@ -736,9 +736,10 @@ export class EventStore {
 			};
 		}
 
-		// Clean merge! Apply all mutations
+		// Clean merge! Apply all mutations from incoming branches
 		const cleanMutations: EventMutation[] = [];
-		for (const [_, mutMap] of branchMutations.entries()) {
+		for (const [tip, mutMap] of branchMutations.entries()) {
+			if (tip === resolvedTarget) continue;
 			for (const mut of mutMap.values()) {
 				cleanMutations.push(mut);
 			}
@@ -916,8 +917,9 @@ export class EventStore {
 			}
 		}
 
-		// Apply all non-conflicting mutations
+		// Apply all non-conflicting mutations from incoming branches
 		for (const [tip, mutMap] of branchMutations.entries()) {
+			if (tip === session.targetCommitId) continue;
 			for (const [eventId, mut] of mutMap.entries()) {
 				if (!processedConflicting.has(eventId)) {
 					resolvedMutations.push(mut);
@@ -1316,5 +1318,14 @@ export class EventStore {
 
 	public getSchema(schemaName: string): any {
 		return this.schemas.get(schemaName) || null;
+	}
+
+	async setAlias(
+		idOrAlias: string,
+		aliasName: string,
+		sessionId: string,
+	): Promise<void> {
+		const resolvedId = await this.resolveId(idOrAlias, sessionId);
+		await this.session.setAlias(sessionId, aliasName, resolvedId);
 	}
 }

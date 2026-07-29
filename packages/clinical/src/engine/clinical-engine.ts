@@ -1,4 +1,9 @@
-import type { DictionaryStore, ObjectStore } from "@stateful-mcp/core";
+import type {
+	DictionaryStore,
+	EventStore,
+	EvaluatorStore,
+	ObjectStore,
+} from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type {
@@ -402,6 +407,7 @@ export class ClinicalEngine {
 
 	constructor(
 		private objectStore: ObjectStore,
+		private eventStore: EventStore,
 		dictionaryStore: DictionaryStore,
 		private signedNoteStore: SignedSoapNoteStore,
 		private calibrationStore?: CalibrationStore,
@@ -411,6 +417,7 @@ export class ClinicalEngine {
 		profileStore?: ParserProfileStore,
 		private orderAwareStore?: OrderedLearningStore,
 		private conceptFieldStore?: ConceptFieldStore,
+		private evaluatorStore?: EvaluatorStore,
 	) {
 		if (profile) {
 			this.parser = new CdslParser(
@@ -442,6 +449,7 @@ export class ClinicalEngine {
 	 */
 	static async create(
 		objectStore: ObjectStore,
+		eventStore: EventStore,
 		dictionaryStore: DictionaryStore,
 		signedNoteStore: SignedSoapNoteStore,
 		profileStore: ParserProfileStore,
@@ -451,6 +459,7 @@ export class ClinicalEngine {
 		stopWordStore?: StopWordStore,
 		orderAwareStore?: OrderedLearningStore,
 		conceptFieldStore?: ConceptFieldStore,
+		evaluatorStore?: EvaluatorStore,
 	): Promise<ClinicalEngine> {
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
@@ -460,6 +469,7 @@ export class ClinicalEngine {
 		}
 		const engine = new ClinicalEngine(
 			objectStore,
+			eventStore,
 			dictionaryStore,
 			signedNoteStore,
 			calibrationStore,
@@ -469,6 +479,7 @@ export class ClinicalEngine {
 			undefined,
 			orderAwareStore,
 			conceptFieldStore,
+			evaluatorStore,
 		);
 		return engine;
 	}
@@ -554,6 +565,18 @@ export class ClinicalEngine {
 
 		// Create in Object Store
 		await this.objectStore.init("SoapNote", sessionId, "active_note", note);
+
+		// Initialize EventStore session tip at the same alias
+		try {
+			const eventStoreAny = this.eventStore as any;
+			if (eventStoreAny.schemas && !eventStoreAny.schemas.has("clinical_events")) {
+				eventStoreAny.schemas.set("clinical_events", { type: "object" });
+			}
+			await this.eventStore.init("clinical_events", sessionId, "active_note", []);
+		} catch (_) {
+			// Fail-safe if already initialized in event store
+		}
+
 		return noteId;
 	}
 
@@ -703,45 +726,20 @@ export class ClinicalEngine {
 					};
 				}
 
-				const path = routing.getPath(item);
-				const isCollection = routing.isCollection !== false;
+				// Append event to EventStore under the active_note tip
+				const eventData = {
+					targetSchema: item.targetSchema,
+					...mergedData,
+				};
+				const newCommitId = await this.eventStore.append(
+					sessionId,
+					"active_note",
+					eventData,
+					"active_note",
+				);
 
-				if (isCollection) {
-					const currentArray =
-						(path.reduce(
-							(obj: any, key) => obj?.[key],
-							note as any,
-						) as any[]) || [];
-					const updatedArray = [...currentArray, mergedData];
-
-					currentObjId = await this.objectStore.set(
-						currentObjId,
-						path,
-						updatedArray,
-						sessionId,
-					);
-
-					// Keep local copy of note in sync
-					let temp: any = note;
-					for (let i = 0; i < path.length - 1; i++) {
-						temp = temp[path[i]!];
-					}
-					temp[path[path.length - 1]!] = updatedArray;
-				} else {
-					currentObjId = await this.objectStore.set(
-						currentObjId,
-						path,
-						mergedData,
-						sessionId,
-					);
-
-					// Keep local copy of note in sync
-					let temp: any = note;
-					for (let i = 0; i < path.length - 1; i++) {
-						temp = temp[path[i]!];
-					}
-					temp[path[path.length - 1]!] = mergedData;
-				}
+				// Reconcile/project the updated EventStore tip back to the SOAP ObjectStore read-model
+				await this.reconcileEventStateToObjectStore(newCommitId, sessionId);
 			}
 		}
 
@@ -803,6 +801,22 @@ export class ClinicalEngine {
 			throw new Error("Note is already signed.");
 		}
 
+		// Run EvaluatorStore validation rules if configured
+		if (this.evaluatorStore) {
+			const note = activeObj.data as SoapNote;
+			const projectedState = this.projectSoapNoteToEventRecords(note);
+
+			const rules = await this.evaluatorStore.getRules("soap_note");
+			for (const rule of rules) {
+				const result = await rule.evaluate(projectedState, [], sessionId);
+				if (!result.valid) {
+					throw new Error(
+						`Encounter signing rejected by clinical safety rule "${rule.ruleId}": ${result.errors.join("; ")}`,
+					);
+				}
+			}
+		}
+
 		let currentObjId = "active_note";
 		currentObjId = await this.objectStore.set(
 			currentObjId,
@@ -843,5 +857,121 @@ export class ClinicalEngine {
 		// Archive to SignedSoapNoteStore
 		await this.signedNoteStore.archive(record);
 		return record;
+	}
+
+	private projectSoapNoteToEventRecords(note: SoapNote): any[] {
+		const projectedState: any[] = [];
+
+		for (const [configKey, config] of Object.entries(SOAP_ROUTING_CONFIGS)) {
+			const path = config.getPath({} as any);
+			let val: any = note;
+			for (const segment of path) {
+				val = val?.[segment];
+			}
+
+			if (!val) continue;
+
+			if (config.isCollection !== false && Array.isArray(val)) {
+				for (const item of val) {
+					projectedState.push({
+						event_id:
+							item.id ||
+							`${config.idPrefix}_${Math.random().toString(36).slice(2, 10)}`,
+						targetSchema: configKey,
+						...item,
+					});
+				}
+			} else if (typeof val === "object") {
+				projectedState.push({
+					event_id:
+						val.id ||
+						`${config.idPrefix}_${Math.random().toString(36).slice(2, 10)}`,
+					targetSchema: configKey,
+					...val,
+				});
+			}
+		}
+
+		return projectedState;
+	}
+
+	private projectEventRecordsToSoapNote(records: any[], baseNote: SoapNote): SoapNote {
+		const note: SoapNote = JSON.parse(JSON.stringify(baseNote));
+
+		// Dynamically clear all target paths from baseNote to avoid duplicates
+		for (const config of Object.values(SOAP_ROUTING_CONFIGS)) {
+			const path = config.getPath({} as any) as string[];
+			let current: any = note;
+			for (let i = 0; i < path.length - 1; i++) {
+				const key = path[i]!;
+				if (current && typeof current === "object") {
+					if (!current[key]) current[key] = {};
+					current = current[key];
+				}
+			}
+			if (current && typeof current === "object") {
+				const finalKey = path[path.length - 1]!;
+				current[finalKey] = config.isCollection !== false ? [] : undefined;
+			}
+		}
+
+		for (const record of records) {
+			const schemaKey = (record.targetSchema || "").toLowerCase();
+			const config = SOAP_ROUTING_CONFIGS[schemaKey];
+			if (!config) continue;
+
+			const path = config.getPath({} as any) as string[];
+
+			const cleanData = { ...record };
+			delete cleanData.event_id;
+			delete cleanData.targetSchema;
+
+			if (config.isCollection !== false) {
+				let current: any = note;
+				for (let i = 0; i < path.length - 1; i++) {
+					const key = path[i]!;
+					if (!current[key]) {
+						current[key] = {};
+					}
+					current = current[key];
+				}
+				const arrayKey = path[path.length - 1]!;
+				if (!Array.isArray(current[arrayKey])) {
+					current[arrayKey] = [];
+				}
+				current[arrayKey].push({
+					id: record.event_id,
+					...cleanData,
+				});
+			} else {
+				let current: any = note;
+				for (let i = 0; i < path.length - 1; i++) {
+					const key = path[i]!;
+					if (!current[key]) {
+						current[key] = {};
+					}
+					current = current[key];
+				}
+				const finalKey = path[path.length - 1]!;
+				current[finalKey] = {
+					id: record.event_id,
+					...cleanData,
+				};
+			}
+		}
+
+		return note;
+	}
+
+	async reconcileEventStateToObjectStore(commitId: string, sessionId: string): Promise<string> {
+		const activeObj = await this.objectStore.getObject("active_note", sessionId);
+		if (!activeObj) {
+			throw new Error("No active encounter note session found.");
+		}
+
+		const records = await this.eventStore.project(commitId, sessionId);
+		const updatedNote = this.projectEventRecordsToSoapNote(records, activeObj.data as SoapNote);
+		await this.objectStore.set("active_note", [], updatedNote, sessionId);
+		return commitId;
 	}
 }
