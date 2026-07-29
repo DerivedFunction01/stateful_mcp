@@ -5,6 +5,9 @@ export interface SharedFieldAnchorDistance {
 	maxRight?: number;
 	unit?: "items" | "words" | "chars";
 	skipStopWords?: boolean;
+	crossBoundaries?: boolean;
+	boundaryDelimiterOverride?: string;
+	boundaryTransitionalWords?: string[];
 }
 
 export interface SharedFieldAnchorCondition {

@@ -187,19 +187,20 @@ export class CdslParser {
 	async parse(text: string, context?: StopWordContext): Promise<ParsedItem[]> {
 		const cleanText = await this.applyVariables(text, context);
 		const expanded = await this.expandMacros(cleanText);
-		// Resolve effective StopWordParser from store + context if not already set
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
 				this.stopWordStore,
 				context,
 			);
-			return this.parseWithStopWordParser(expanded, dynamicParser, context);
+			return this.parseWithStopWordParser(expanded, dynamicParser, context, undefined, expanded);
 		}
 		return this.parseWithStopWordParser(
 			expanded,
 			effectiveStopWordParser,
 			context,
+			undefined,
+			expanded,
 		);
 	}
 
@@ -221,6 +222,7 @@ export class CdslParser {
 				dynamicParser,
 				context,
 				historyStore,
+				expanded,
 			);
 		}
 		return this.parseWithStopWordParser(
@@ -228,6 +230,7 @@ export class CdslParser {
 			effectiveStopWordParser,
 			context,
 			historyStore,
+			expanded,
 		);
 	}
 
@@ -412,8 +415,10 @@ export class CdslParser {
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
+		originalFullText?: string,
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
+		const fullOriginalText = originalFullText || text;
 
 		// 1. Run ProseParser if template store is configured
 		const { proseItems, remainingText, remnants } = await this.runProseParser(
@@ -618,7 +623,6 @@ export class CdslParser {
 					preparsedContext,
 				});
 				const finalItem = learnedCandidate || deterministic;
-
 				if (finalItem) {
 					const finalItems = Array.isArray(finalItem) ? finalItem : [finalItem];
 					for (const item of finalItems) {
@@ -626,7 +630,8 @@ export class CdslParser {
 							item.targetSchema,
 						);
 						if (!requiresConcept || item.concept.length > 0) {
-							const key = `${item.targetSchema}:${item.concept[0]?.conceptId ?? ""}:${JSON.stringify(item.extractedData)}`;
+							// De-duplicate using segment-level index offset to allow duplicate concepts across distinct sentences
+							const key = `${item.targetSchema}:${item.concept[0]?.conceptId ?? ""}:${JSON.stringify(item.extractedData)}:segment_${items.length}`;
 							if (!seenFinal.has(key)) {
 								seenFinal.add(key);
 								items.push(item);
@@ -661,17 +666,27 @@ export class CdslParser {
 
 				let lastIdx = 0;
 				const itemOffsets = items.map((item) => {
-					let idx = text.indexOf(item.rawText, lastIdx);
+					// Strip tags and trim to find the actual parsed content text within fullOriginalText
+					const cleanTextMatch = item.rawText.replace(new RegExp(`^${item.tag}\\s*`), "").trim();
+					let idx = fullOriginalText.indexOf(cleanTextMatch, lastIdx);
 					if (idx === -1) {
-						idx = text.indexOf(item.rawText);
+						idx = fullOriginalText.indexOf(cleanTextMatch);
 					}
+					if (idx === -1) {
+						// Fallback to exact rawText match
+						idx = fullOriginalText.indexOf(item.rawText, lastIdx);
+					}
+					if (idx === -1) {
+						idx = fullOriginalText.indexOf(item.rawText);
+					}
+					const matchedLen = idx !== -1 ? (fullOriginalText.includes(cleanTextMatch) ? cleanTextMatch.length : item.rawText.length) : 0;
 					if (idx !== -1) {
-						lastIdx = idx + item.rawText.length;
+						lastIdx = idx + matchedLen;
 					}
 					return {
 						item,
 						start: idx !== -1 ? idx : 0,
-						end: idx !== -1 ? idx + item.rawText.length : 0,
+						end: idx !== -1 ? idx + matchedLen : 0,
 					};
 				});
 
@@ -764,6 +779,40 @@ export class CdslParser {
 								const regex = new RegExp(anchor.anchorPattern, flags);
 								if (!regex.test(gapText)) {
 									continue;
+								}
+							}
+
+							// Delimiter boundary check
+							const crossBoundaries = distanceConfig.crossBoundaries ?? false;
+							if (!crossBoundaries) {
+								const delimPattern = distanceConfig.boundaryDelimiterOverride !== undefined
+									? distanceConfig.boundaryDelimiterOverride
+									: this.profile.boundaryDelimiter;
+
+								if (delimPattern) {
+									const delimRegex = new RegExp(delimPattern);
+									// Evaluate boundaries in the original text between start and end index instead of segment-split gapText
+									const fullGapText = fullOriginalText.slice(gapStart, gapEnd);
+									if (delimRegex.test(fullGapText)) {
+										// Crossed a boundary! Check transitional words
+										const transitions = distanceConfig.boundaryTransitionalWords
+											? distanceConfig.boundaryTransitionalWords
+											: this.profile.transitionalWords;
+										let hasTransition = false;
+										if (transitions && transitions.length > 0) {
+											// Check if any transitional word is present in the gap text
+											for (const tWord of transitions) {
+												const tRegex = new RegExp(`\\b${tWord}\\b`, "i");
+												if (tRegex.test(fullGapText)) {
+													hasTransition = true;
+													break;
+												}
+											}
+										}
+										if (!hasTransition) {
+											continue;
+										}
+									}
 								}
 							}
 

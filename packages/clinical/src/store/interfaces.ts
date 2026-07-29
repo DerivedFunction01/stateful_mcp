@@ -36,6 +36,8 @@ export interface ParserSyntaxProfile {
 	defaultsStrategy?: string;
 	calendarDateFormats?: DateTimeFormatConfig[];
 	numericFieldFormats?: NumericFieldFormatOptions[];
+	boundaryDelimiter?: string;
+	transitionalWords?: string[];
 }
 
 export interface PatientLearningContext extends PatientLearningBucket {

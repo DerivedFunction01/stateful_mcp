@@ -142,6 +142,13 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			profileId: "test-anchoring-profile",
 			personnelId: "test-user",
 			isDefault: true,
+			tagToken: "#",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
 		};
 
 		const kvBackend = new MemoryKvBackend();
@@ -183,7 +190,8 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 		// The dateRange item should be filtered out from the main return because it is anchored
 		expect(parsed.length).toBe(1);
 
-		const obs = parsed[0];
+		const obs = parsed[0]!;
+		expect(obs).toBeDefined();
 		expect(obs.targetSchema).toBe("ObservationEvent");
 		expect(obs.extractedData.dateRange).toBeDefined();
 		expect(obs.extractedData.dateRange.relativeEstimate).toBeDefined();
@@ -199,6 +207,13 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			profileId: "test-anchoring-profile",
 			personnelId: "test-user",
 			isDefault: true,
+			tagToken: "#",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
 		};
 
 		const kvBackend = new MemoryKvBackend();
@@ -243,6 +258,7 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 		const obs = parsed.find(
 			(item) => item.targetSchema === "ObservationEvent",
 		)!;
+		expect(obs).toBeDefined();
 		expect(obs.extractedData.dateRange).toBeUndefined();
 	});
 
@@ -256,6 +272,13 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			profileId: "test-anchoring-profile",
 			personnelId: "test-user",
 			isDefault: true,
+			tagToken: "#",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
 		};
 
 		const kvBackend = new MemoryKvBackend();
@@ -307,7 +330,7 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			"#observation fever || #clinicaldaterange 3 weeks ago",
 		);
 		expect(parsedPast.length).toBe(1);
-		expect(parsedPast[0].extractedData.dateRange).toBeDefined();
+		expect(parsedPast[0]!.extractedData.dateRange).toBeDefined();
 
 		// Test 2: future date -> should NOT anchor
 		const parsedFuture = await parser.parse(
@@ -317,6 +340,89 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 		const obsFuture = parsedFuture.find(
 			(item) => item.targetSchema === "ObservationEvent",
 		)!;
+		expect(obsFuture).toBeDefined();
 		expect(obsFuture.extractedData.dateRange).toBeUndefined();
 	});
+
+	test("respects sentence boundaries and does not cross periods by default", async () => {
+		const ds = makeDictionaryStore();
+		await seedTestConcepts(ds);
+
+		const profile: ParserSyntaxProfile = {
+			...(SEED_PARSER_PROFILES.find((p) => p.profileId === "default") ??
+				SEED_PARSER_PROFILES[0]),
+			profileId: "test-boundary-profile",
+			personnelId: "test-user",
+			isDefault: true,
+			boundaryDelimiter: "\\.",
+			transitionalWords: ["also", "and", "then"],
+			tagToken: "#",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
+		};
+
+		const kvBackend = new MemoryKvBackend();
+		const anchorStore = new KvSharedFieldAnchorStore(kvBackend);
+
+		// Rule: Map ClinicalDateRange to ObservationEvent.dateRange
+		await anchorStore.set({
+			ruleId: "obs-date-boundary",
+			targetSchema: "ObservationEvent",
+			anchors: [
+				{
+					source: "ClinicalDateRange",
+					targetField: "dateRange",
+					relation: "duration",
+					distance: {
+						maxLeft: 5,
+						maxRight: 5,
+						unit: "words",
+						// crossBoundaries: false is default
+					},
+				},
+			],
+		});
+
+		const parser = new CdslParser(
+			ds,
+			profile,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			anchorStore,
+		);
+
+		// Sentence structure:
+		// "Person has fever. Since yesterday, also have fever."
+		const parsed = await parser.parse(
+			"#observation fever || . || #clinicaldaterange 1 day ago || #observation fever",
+		);
+		// Note: The input has "fever. || 1 day ago". The gap text is ". || 1 day ago".
+		// We want the delimiter to match "\.\s+[A-Z]" so we need:
+		// "#observation fever. || #clinicaldaterange 1 day ago" -> gap is ". || #clinicaldaterange 1 day ago"
+		// The tag "#clinicaldaterange" starts with a non-capital letter, so let's adjust the test boundary regex or the test string so it matches.
+		// Let's modify the profile boundaryDelimiter in this test to match "fever." followed by split separators.
+		// Actually, let's use:
+		// boundaryDelimiter: "\\." (just a period) to make it language and capitalization independent.
+		// That is much simpler and more robust!
+
+		// Let's inspect the parsed items
+		expect(parsed.length).toBe(2); // The anchored dateRange item should be filtered out
+
+		const firstFever = parsed[0]!;
+		const secondFever = parsed[1]!;
+
+		expect(firstFever).toBeDefined();
+		expect(secondFever).toBeDefined();
+
+		expect(firstFever.extractedData.dateRange).toBeUndefined();
+		expect(secondFever.extractedData.dateRange).toBeDefined();
+	});
 });
+
