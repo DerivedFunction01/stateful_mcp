@@ -4,9 +4,9 @@ export interface ParserSyntaxProfile {
 	profileId: string;
 	personnelId: string;
 	tagToken: string; // e.g. '#'
-	stateDelimiter: string; // e.g. '||'
-	stateStartDelimiter: string; // e.g. '|'
-	stateEndDelimiter: string; // e.g. '|'
+	stateDelimiter: string; // e.g. '||' (full cell split)
+	stateStartDelimiter: string; // e.g. '|' (split different objects within that cell, semi-hard boundary)
+	stateEndDelimiter: string; // e.g. '|' 
 	macroStartToken: string; // e.g. '^'
 	variableStartToken: string; // e.g. '{'
 	variableEndToken: string; // e.g. '}'

@@ -184,6 +184,14 @@ export class CdslParser {
 	/**
 	 * Parses a clinical dictation stream and extracts mapped schemas.
 	 */
+	private getSegmentSplitRegex(): RegExp {
+		const parts = [this.profile.stateDelimiter.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")];
+		if (this.profile.boundaryDelimiter) {
+			parts.push(this.profile.boundaryDelimiter);
+		}
+		return new RegExp(parts.join("|"));
+	}
+
 	async parse(text: string, context?: StopWordContext): Promise<ParsedItem[]> {
 		const cleanText = await this.applyVariables(text, context);
 		const expanded = await this.expandMacros(cleanText);
@@ -257,7 +265,7 @@ export class CdslParser {
 		}
 
 		// 2. Parse remaining segments
-		const segments = remainingText.split(this.profile.stateDelimiter);
+		const segments = remainingText.split(this.getSegmentSplitRegex());
 
 		for (const segment of segments) {
 			const trimmed = segment.trim();
@@ -430,7 +438,7 @@ export class CdslParser {
 		items.push(...remnants);
 
 		// 2. Parse remaining segments
-		const segments = remainingText.split(this.profile.stateDelimiter);
+		const segments = remainingText.split(this.getSegmentSplitRegex());
 		const seenFinal = new Set<string>();
 
 		for (const segment of segments) {

@@ -398,22 +398,18 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			anchorStore,
 		);
 
-		// Sentence structure:
-		// "Person has fever. Since yesterday, also have fever."
+		// Sentence structure with soft boundaries (periods) instead of hard || delimiters:
+		// "Person has fever. Clinical date range 1 day ago. Also have fever."
+		// The period after "fever" is a soft boundary — the date range and second
+		// fever are in separate segments. The "also" transition word in the gap
+		// between the date range and the second fever allows the anchor to cross
+		// the boundary, while the gap between the first fever and the date range
+		// has no transitional word so the anchor is blocked.
 		const parsed = await parser.parse(
-			"#observation fever || . || #clinicaldaterange 1 day ago || #observation fever",
+			"#observation fever. #clinicaldaterange 1 day ago. also #observation fever",
 		);
-		// Note: The input has "fever. || 1 day ago". The gap text is ". || 1 day ago".
-		// We want the delimiter to match "\.\s+[A-Z]" so we need:
-		// "#observation fever. || #clinicaldaterange 1 day ago" -> gap is ". || #clinicaldaterange 1 day ago"
-		// The tag "#clinicaldaterange" starts with a non-capital letter, so let's adjust the test boundary regex or the test string so it matches.
-		// Let's modify the profile boundaryDelimiter in this test to match "fever." followed by split separators.
-		// Actually, let's use:
-		// boundaryDelimiter: "\\." (just a period) to make it language and capitalization independent.
-		// That is much simpler and more robust!
 
-		// Let's inspect the parsed items
-		expect(parsed.length).toBe(2); // The anchored dateRange item should be filtered out
+		expect(parsed.length).toBe(2); // The anchored dateRange item is filtered out
 
 		const firstFever = parsed[0]!;
 		const secondFever = parsed[1]!;
