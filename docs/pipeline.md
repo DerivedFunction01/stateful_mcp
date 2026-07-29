@@ -116,7 +116,7 @@ Casts field values into target primitive types:
 Manipulates and searches text strings or array fields:
 * **`starts_with`**: Checks if target string starts with *any* of the provided prefix patterns. E.g. `{ "op": "starts_with", "args": [{ "$init": "url" }, "http://", "https://"] }`.
 * **`ends_with`**: Checks if target string ends with *any* of the provided suffix patterns. E.g. `{ "op": "ends_with", "args": [{ "$init": "file" }, ".jpg", ".png"] }`.
-* **`contains`**: Variadic pattern search over strings or arrays with optional `"all"` (default) or `"any"` match mode. E.g. `{ "op": "contains", "args": [{ "$init": "notes" }, "fever", "cough", "all"] }`.
+* **`str_contains`**: Variadic pattern search over strings or arrays with optional `"all"` (default) or `"any"` match mode. E.g. `{ "op": "str_contains", "args": [{ "$init": "notes" }, "fever", "cough", "all"] }`.
 * **`substring`**: Extracts substring slice `(str, start, length?)`. E.g. `{ "op": "substring", "args": [{ "$init": "text" }, 0, 10] }`.
 * **`trim`**: Strips leading and trailing whitespace.
 * **`lower`**: Converts string to lowercase.

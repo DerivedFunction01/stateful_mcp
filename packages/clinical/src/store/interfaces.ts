@@ -1,3 +1,4 @@
+import type { SharedFieldAnchor } from "../parser/field-shared/shared-field-anchor";
 import type { PatientLearningBucket } from "../schemas/patient";
 
 export interface ParserSyntaxProfile {
@@ -315,7 +316,7 @@ export interface SchemaParserConfig {
 	schema: string;
 	targetSchema: string;
 	preparsedContextKeys?: string[];
-	sharedFieldAnchors?: import("../parser/field-shared/shared-field-anchor").SharedFieldAnchor[];
+	sharedFieldAnchors?: SharedFieldAnchor[];
 }
 
 export interface StopWordContext {

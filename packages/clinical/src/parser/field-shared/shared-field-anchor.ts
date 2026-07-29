@@ -1,3 +1,4 @@
+import type { Relation } from "@stateful-mcp/clinical/store/reference/auto-complete/interfaces";
 import type { PipelineStep } from "@stateful-mcp/core";
 
 export interface SharedFieldAnchorDistance {
@@ -17,7 +18,7 @@ export interface SharedFieldAnchorCondition {
 export interface SharedFieldAnchor {
 	source: string;
 	targetField: string;
-	relation: "duration" | "qualifier" | "trigger" | "supporting";
+	relation: Relation;
 	distance?: SharedFieldAnchorDistance;
 	anchorPattern?: string;
 	anchorPatternCaseInsensitive?: boolean;

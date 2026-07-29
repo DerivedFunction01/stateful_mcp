@@ -1,7 +1,13 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { QuantityCandidate } from "../parser/helpers/measurement-helper";
-import type { MedicationFrequency } from "../schemas/medication";
+import type {
+	MedicationFrequency,
+	MedicationOrderObject,
+} from "../schemas/medication";
+import type { ObservationEvent } from "../schemas/observation";
 import type { CodeableConcept } from "../schemas/shared";
+import type { ClinicalDateRange } from "../schemas/time";
+import type { VitalsMeasurementEvent } from "../schemas/vitals";
 import type {
 	AttributeParserRule,
 	ConceptFieldStore,
@@ -116,26 +122,22 @@ export interface ParsedItem {
 
 export interface ParsedVitalsItem extends ParsedItem {
 	targetSchema: "VitalsMeasurementEvent";
-	extractedData: DeepPartial<
-		import("../schemas/vitals").VitalsMeasurementEvent
-	>;
+	extractedData: DeepPartial<VitalsMeasurementEvent>;
 }
 
 export interface ParsedObservationItem extends ParsedItem {
 	targetSchema: "ObservationEvent";
-	extractedData: DeepPartial<import("../schemas/observation").ObservationEvent>;
+	extractedData: DeepPartial<ObservationEvent>;
 }
 
 export interface ParsedMedicationItem extends ParsedItem {
 	targetSchema: "MedicationOrderObject";
-	extractedData: DeepPartial<
-		import("../schemas/medication").MedicationOrderObject
-	>;
+	extractedData: DeepPartial<MedicationOrderObject>;
 }
 
 export interface ParsedClinicalDateRangeItem extends ParsedItem {
 	targetSchema: "ClinicalDateRange";
-	extractedData: DeepPartial<import("../schemas/time").ClinicalDateRange>;
+	extractedData: DeepPartial<ClinicalDateRange>;
 }
 
 export type ParsedItemUnion =

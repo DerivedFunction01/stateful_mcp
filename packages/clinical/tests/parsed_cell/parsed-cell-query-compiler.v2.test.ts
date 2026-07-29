@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { CANONICAL_TAGS } from "../../src/parser/schema-parsers";
+import {
+	CANONICAL_TAGS,
+	type ParsedItem,
+} from "../../src/parser/schema-parsers";
 import {
 	type ParsedCellRecordTransform,
 	registerTransform,
@@ -15,7 +18,7 @@ import {
 
 const observationTransform: ParsedCellRecordTransform = {
 	targetSchema: CANONICAL_TAGS.OBSERVATION,
-	template(): import("../../src/parser/schema-parsers").ParsedItem {
+	template(): ParsedItem {
 		return {
 			targetSchema: CANONICAL_TAGS.OBSERVATION,
 			attributes: {},
@@ -323,7 +326,7 @@ describe("ParsedCellSqlCompilerV2", () => {
 	test("buildMergedColumns passes ColumnDef fields through from columnSpecs", () => {
 		const transformWithSpecs: ParsedCellRecordTransform = {
 			targetSchema: "ObservationEventWithSpecs",
-			template(): import("../../src/parser/schema-parsers").ParsedItem {
+			template(): ParsedItem {
 				return {
 					targetSchema: "ObservationEventWithSpecs",
 					attributes: {},

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DictionaryStore } from "@stateful-mcp/core";
+import { getCompiledRegex } from "../src/parser/_compiled-regex";
 import { ClinicalDateRangeSchemaParser } from "../src/parser/parsers/clinical-date-range-parser";
 import {
 	DEFAULT_ATTRIBUTE_RULES,
@@ -422,8 +423,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 
 describe("ClinicalDateRange memoization", () => {
 	test("calendar_date rules hit memoized regex cache after first parse", async () => {
-		const { getCompiledRegex } = await import("../src/parser/_compiled-regex");
-
 		const calendarRules = expandedRules.filter(
 			(r) => r.targetField === "calendar_date",
 		);

@@ -1,9 +1,10 @@
 import type { ClinicalProseTemplate } from "../../interfaces";
+import type { Position } from "../auto-complete/interfaces";
 
 export interface ClinicalProseTemplateStore {
 	get(
 		schema: string,
-		position: "opening" | "continuing" | "closing" | "full_paragraph",
+		position: Position,
 		conceptId?: string,
 		workspaceId?: string,
 	): Promise<ClinicalProseTemplate | null>;

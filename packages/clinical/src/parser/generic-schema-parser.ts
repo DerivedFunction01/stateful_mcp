@@ -3,6 +3,7 @@ import type { CodeableConcept } from "../schemas/shared";
 import type {
 	AttributeParserRule,
 	ConceptFieldStore,
+	FieldMappingRule,
 	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
@@ -19,9 +20,7 @@ import { resolveConceptHelper } from "./schema-parsers";
 
 export interface GenericSchemaParserConfig {
 	targetSchema: string;
-	createRegistry: (
-		attributeRules: AttributeParserRule[],
-	) => import("../store/interfaces").FieldMappingRule[];
+	createRegistry: (attributeRules: AttributeParserRule[]) => FieldMappingRule[];
 	router: (
 		token: Record<string, any>,
 		conceptDefaults: Record<string, any> | null,

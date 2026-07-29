@@ -78,6 +78,7 @@ export class SqlProseTemplateStore implements ProseParserTemplateStore {
 			remnantContextBlob: template.remnantContext
 				? JSON.stringify(template.remnantContext)
 				: null,
+			suggestTextBlob: template.suggestText ?? null,
 			source: "local",
 		};
 	}
@@ -103,6 +104,9 @@ export class SqlProseTemplateStore implements ProseParserTemplateStore {
 		}
 		if (row.maxItems != null) {
 			t.maxItems = Number(row.maxItems);
+		}
+		if (row.suggestTextBlob != null) {
+			t.suggestText = row.suggestTextBlob as string;
 		}
 		if (remnantContext != null) {
 			t.remnantContext = remnantContext;

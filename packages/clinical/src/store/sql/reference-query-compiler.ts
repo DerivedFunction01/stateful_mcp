@@ -327,6 +327,7 @@ export class ReferenceQueryCompiler {
 				{ name: "maxItems", type: "INTEGER" },
 				{ name: "slotsBlob", type: "json", nullable: false },
 				{ name: "remnantContextBlob", type: "json" },
+				{ name: "suggestTextBlob", type: "text" },
 				{
 					name: "source",
 					type: "text",

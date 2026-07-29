@@ -6,6 +6,7 @@ import {
 	VariableServiceStore,
 } from "@stateful-mcp/core";
 import type {
+	AttributeParserRule,
 	ConceptFieldRule,
 	ConceptFieldStore,
 	ParserConceptDefaultStore,
@@ -16,17 +17,22 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import {
 	buildCalendarDateRules,
 	buildNumericFieldRules,
 } from "../store/rules-builder";
 import { getCompiledRegex } from "./_compiled-regex";
-import type { SharedFieldAnchorStore } from "./field-shared/shared-field-anchor";
+import type {
+	SharedFieldAnchorRule,
+	SharedFieldAnchorStore,
+} from "./field-shared/shared-field-anchor";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";
 import { MacroExpander } from "./macro-expander";
 import { ProseParser } from "./prose-parser";
+import { ProseTemplateSuggester } from "./prose-template-suggester";
 import {
 	type ParsedCandidateEnvelope,
 	type ParsedItem,
@@ -46,7 +52,7 @@ interface ParserPreviewResult extends ParsedCandidateEnvelope {
 export class CdslParser {
 	private stopWordParser: StopWordParser | undefined;
 	private stopWordStore: StopWordStore | undefined;
-	private attributeRules: import("../store/interfaces").AttributeParserRule[];
+	private attributeRules: AttributeParserRule[];
 
 	private static readonly SCHEMAS_WITHOUT_CONCEPT = new Set([
 		"ClinicalDateRange",
@@ -127,7 +133,7 @@ export class CdslParser {
 		);
 	}
 
-	private getEffectiveAttributeRules(): import("../store/interfaces").AttributeParserRule[] {
+	private getEffectiveAttributeRules(): AttributeParserRule[] {
 		return this.attributeRules;
 	}
 
@@ -151,6 +157,23 @@ export class CdslParser {
 	private async expandMacros(text: string): Promise<string> {
 		if (!this.macroStore) return text;
 		return MacroExpander.expand(text, this.macroStore, this.profile);
+	}
+
+	async suggestAutocomplete(
+		partialText: string,
+		context: StopWordContext,
+	): Promise<AutocompleteSuggestion[]> {
+		if (!this.proseTemplateStore) return [];
+		const suggester = new ProseTemplateSuggester(
+			this.proseTemplateStore,
+			this.stopWordStore,
+		);
+		return suggester.suggest(partialText, {
+			personnelId: context.personnelId,
+			workspaceId: context.workspaceId,
+			specialtyId: context.specialtyId,
+			locale: context.locale,
+		});
 	}
 
 	async preview(
@@ -669,10 +692,7 @@ export class CdslParser {
 					personnelId: context?.personnelId || this.profile.personnelId,
 				});
 
-				const rulesMap = new Map<
-					string,
-					import("./field-shared/shared-field-anchor").SharedFieldAnchorRule
-				>();
+				const rulesMap = new Map<string, SharedFieldAnchorRule>();
 				for (const r of globalRules) {
 					rulesMap.set(r.targetSchema, r);
 				}

@@ -22,7 +22,7 @@ While static memory repositories store snapshots, `VariableService` manages tran
 
 ```typescript
 export interface VariableConditionRule {
-  op: OpName;           // e.g. "leq", "lt", "eq", "neq", "geq", "gt", "contains", "starts_with", "ends_with"
+  op: OpName;           // e.g. "leq", "lt", "eq", "neq", "geq", "gt", "str_contains", "starts_with", "ends_with"
   targetValue: unknown; // e.g. 20
 }
 
