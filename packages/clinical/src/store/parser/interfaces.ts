@@ -9,4 +9,7 @@ export type {
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 	StopWordProfile,
+	StopWordStore,
+	StopWordWordListRecord,
+	StopWordWordListStore,
 } from "../interfaces";

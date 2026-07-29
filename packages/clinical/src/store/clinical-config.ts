@@ -56,6 +56,14 @@ export interface ClinicalStoreConfig {
 		calendarDateFormats: DateTimeFormatConfig[];
 		attributeRules: AttributeParserRule[];
 		evaluatorRules: ParserDictionaryRule[];
+		stopWordLists: Array<{ id: string; words: string[] }>;
+		stopWordProfiles: Array<{
+			profileId: string;
+			personnelId: string;
+			wordListIds: string[];
+			excludedWords: string[];
+			additionalWords: string[];
+		}>;
 	};
 	extensions?: Record<string, unknown>;
 }

@@ -30,7 +30,18 @@ export class SqlStopWordProfileStore implements StopWordProfileStore {
 			this.table,
 		);
 		const row = await this.executor.queryOne(sql, params);
-		return row ? this.rowToProfile(row) : null;
+		if (row) return this.rowToProfile(row);
+
+		const { sql: sqlByPersonnel, params: paramsByPersonnel } =
+			this.compiler.compileGetStopWordProfileByPersonnelId(
+				profileId,
+				this.table,
+			);
+		const rowByPersonnel = await this.executor.queryOne(
+			sqlByPersonnel,
+			paramsByPersonnel,
+		);
+		return rowByPersonnel ? this.rowToProfile(rowByPersonnel) : null;
 	}
 
 	async list(): Promise<StopWordProfile[]> {
@@ -64,6 +75,9 @@ export class SqlStopWordProfileStore implements StopWordProfileStore {
 			localeFiles: JSON.stringify(profile.localeFiles),
 			specialtyFiles: JSON.stringify(profile.specialtyFiles),
 			customWords: JSON.stringify(profile.customWords),
+			wordListIds: JSON.stringify(profile.wordListIds),
+			excludedWords: JSON.stringify(profile.excludedWords),
+			additionalWords: JSON.stringify(profile.additionalWords),
 			source: "local",
 		};
 	}
@@ -75,6 +89,9 @@ export class SqlStopWordProfileStore implements StopWordProfileStore {
 			localeFiles: (row.localeFiles as string[]) || [],
 			specialtyFiles: (row.specialtyFiles as string[]) || [],
 			customWords: (row.customWords as string[]) || [],
+			wordListIds: (row.wordListIds as string[]) || [],
+			excludedWords: (row.excludedWords as string[]) || [],
+			additionalWords: (row.additionalWords as string[]) || [],
 		};
 	}
 }

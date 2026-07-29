@@ -1,7 +1,25 @@
+/**
+ * TEST/FIXTURE DEFAULTS ONLY — NOT FOR RUNTIME USE.
+ *
+ * ⚠️  This module is intentionally for prototype tests, mock fixtures, and
+ *    local bootstrap data only. It is NOT the runtime source of truth.
+ *
+ * Production and long-lived clinical behavior MUST load from config-backed
+ * stores/adapters instead of importing these values directly.
+ *
+ * For runtime usage:
+ *   - Use `clinical-loader.ts` → `buildClinicalRuntime()` to resolve config
+ *   - Use `CdslParser.create()` to resolve profiles from store, not seed arrays
+ *
+ * Existing direct imports are allowed only in test files and/or legacy
+ * code paths that have not yet migrated to config-backed injection.
+ */
 import {
 	DEFAULT_ATTRIBUTE_RULES,
 	DEFAULT_CALENDAR_DATE_FORMATS,
 	DEFAULT_EVALUATOR_RULES,
+	DEFAULT_STOP_WORD_LISTS,
+	DEFAULT_STOP_WORD_PROFILES,
 	SEED_CONCEPT_DEFAULTS,
 	SEED_CONCEPT_FIELD_RULES,
 	SEED_PARSER_PROFILES,
@@ -327,6 +345,8 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 		calendarDateFormats: DEFAULT_CALENDAR_DATE_FORMATS,
 		attributeRules: DEFAULT_ATTRIBUTE_RULES,
 		evaluatorRules: DEFAULT_EVALUATOR_RULES,
+		stopWordLists: DEFAULT_STOP_WORD_LISTS,
+		stopWordProfiles: DEFAULT_STOP_WORD_PROFILES,
 	},
 	extensions: {},
 };

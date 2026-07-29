@@ -10,7 +10,12 @@ export class KvStopWordProfileStore implements StopWordProfileStore {
 	async get(profileId: string): Promise<StopWordProfile | null> {
 		const data = await this.backend.load();
 		const value = data[this.prefix + profileId];
-		return (value as StopWordProfile | undefined) ?? null;
+		if (value) return value as StopWordProfile;
+
+		const match = Object.values(data).find(
+			(p) => (p as StopWordProfile).personnelId === profileId,
+		);
+		return (match as StopWordProfile | undefined) ?? null;
 	}
 
 	async list(): Promise<StopWordProfile[]> {

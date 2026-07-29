@@ -6,7 +6,7 @@ export interface ParserSyntaxProfile {
 	tagToken: string; // e.g. '#'
 	stateDelimiter: string; // e.g. '||' (full cell split)
 	stateStartDelimiter: string; // e.g. '|' (split different objects within that cell, semi-hard boundary)
-	stateEndDelimiter: string; // e.g. '|' 
+	stateEndDelimiter: string; // e.g. '|'
 	macroStartToken: string; // e.g. '^'
 	variableStartToken: string; // e.g. '{'
 	variableEndToken: string; // e.g. '}'
@@ -333,11 +333,27 @@ export interface StopWordProfile {
 	localeFiles: string[];
 	specialtyFiles: string[];
 	customWords: string[];
+	wordListIds: string[];
+	excludedWords: string[];
+	additionalWords: string[];
+}
+
+export interface StopWordWordListRecord {
+	id: string;
+	words: string[];
 }
 
 export interface StopWordStore {
 	getProfile(personnelId: string): Promise<StopWordProfile | null>;
 	setProfile(profile: StopWordProfile): Promise<void>;
+	deleteProfile(personnelId: string): Promise<void>;
 	compileStopWords(personnelId: string): Promise<Set<string>>;
 	compileStopWordsForContext(context: StopWordContext): Promise<Set<string>>;
+}
+
+export interface StopWordWordListStore {
+	get(id: string): Promise<string[] | null>;
+	list(): Promise<StopWordWordListRecord[]>;
+	set(id: string, words: string[]): Promise<void>;
+	delete(id: string): Promise<void>;
 }

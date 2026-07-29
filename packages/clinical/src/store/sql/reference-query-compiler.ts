@@ -184,6 +184,9 @@ export class ReferenceQueryCompiler {
 				{ name: "localeFiles", type: "json" },
 				{ name: "specialtyFiles", type: "json" },
 				{ name: "customWords", type: "json" },
+				{ name: "wordListIds", type: "json" },
+				{ name: "excludedWords", type: "json" },
+				{ name: "additionalWords", type: "json" },
 				{
 					name: "source",
 					type: "text",
@@ -201,6 +204,16 @@ export class ReferenceQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where: [{ column: "profileId", op: "eq", value: profileId }],
+		});
+	}
+
+	public compileGetStopWordProfileByPersonnelId(
+		personnelId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "personnelId", op: "eq", value: personnelId }],
 		});
 	}
 
@@ -236,6 +249,66 @@ export class ReferenceQueryCompiler {
 		return this.compiler.compileDelete({
 			table,
 			where: [{ column: "profileId", op: "eq", value: profileId }],
+		});
+	}
+
+	// ── Stop Word Word Lists ─────────────────────────────────────────────────────
+
+	public getStopWordWordListsTableDDL(table: string): CompiledQuery {
+		return this.compiler.compileCreateTable({
+			table,
+			ifNotExists: true,
+			columns: [
+				{ name: "id", type: "text", primaryKey: true },
+				{ name: "words", type: "json", nullable: false },
+				{
+					name: "source",
+					type: "text",
+					nullable: false,
+					default: "local",
+				},
+			],
+		});
+	}
+
+	public compileGetStopWordWordList(id: string, table: string): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "id", op: "eq", value: id }],
+		});
+	}
+
+	public compileListStopWordWordLists(
+		table: string,
+		where?: QueryCondition[],
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where,
+			orderBy: [{ column: "id", direction: "ASC" }],
+		});
+	}
+
+	public compileUpsertStopWordWordList(
+		row: Record<string, unknown>,
+		table: string,
+	): CompiledQuery {
+		const conflictColumns = this.dialect === "sqlite" ? undefined : ["id"];
+		return this.compiler.compileInsert({
+			table,
+			values: row,
+			onConflict: "replace",
+			conflictColumns,
+		});
+	}
+
+	public compileDeleteStopWordWordList(
+		id: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileDelete({
+			table,
+			where: [{ column: "id", op: "eq", value: id }],
 		});
 	}
 

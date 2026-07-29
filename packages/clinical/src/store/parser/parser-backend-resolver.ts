@@ -22,7 +22,9 @@ import { SqlProseTemplateStore } from "../reference/prose-parser-templates/sql-p
 import { KvClinicalProseTemplateStore } from "../reference/prose-templates/kv-clinical-prose-template-store";
 import { SqlClinicalProseTemplateStore } from "../reference/prose-templates/sql-clinical-prose-template-store";
 import { KvStopWordProfileStore } from "../reference/stop-words/kv-stop-word-profile-store";
+import { KvStopWordWordListStore } from "../reference/stop-words/kv-stop-word-word-list-store";
 import { SqlStopWordProfileStore } from "../reference/stop-words/sql-stop-word-profile-store";
+import { SqlStopWordWordListStore } from "../reference/stop-words/sql-stop-word-word-list-store";
 import { KvSharedFieldAnchorStore } from "./anchors/kv-shared-field-anchor-store";
 import { SqlSharedFieldAnchorStore } from "./anchors/sql-shared-field-anchor-store";
 import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-store";
@@ -248,6 +250,46 @@ export async function resolveReferenceStores(
 
 	throw new Error(
 		`Unsupported reference adapter: ${(locator as any).name ?? locator._type}`,
+	);
+}
+
+export async function resolveStopWordWordListStore(
+	config: ClinicalStoreConfig,
+): Promise<KvStopWordWordListStore | SqlStopWordWordListStore> {
+	const locator = getPrimaryLocator(config, "reference");
+
+	if (locator._type === "adapter" && locator.name === "memory") {
+		return new KvStopWordWordListStore(new MemoryKvBackend());
+	}
+
+	if (
+		locator._type === "adapter" &&
+		(locator.name === "sqlite" ||
+			locator.name === "pg" ||
+			locator.name === "duckdb" ||
+			locator.name === "opfs")
+	) {
+		const dialect = mapDialect(locator.name);
+		const dbPath = resolveDbPath(
+			locator,
+			dialect,
+			"./clinical-reference.sqlite",
+		);
+		const backend = await SqlBackend.connect(dialect, dbPath);
+		const executor = new SqlExecutor(backend);
+		return new SqlStopWordWordListStore(dialect, executor);
+	}
+
+	if (locator._type === "adapter" && locator.name === "jsonl") {
+		const basePath =
+			readStringOption(locator, "path", "") || "./clinical-reference.jsonl";
+		return new KvStopWordWordListStore(
+			new JsonlKvBackend({ dataFilePath: basePath }),
+		);
+	}
+
+	throw new Error(
+		`Unsupported reference adapter for word lists: ${(locator as any).name ?? locator._type}`,
 	);
 }
 

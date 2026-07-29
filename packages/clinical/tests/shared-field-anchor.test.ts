@@ -421,4 +421,3 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 		expect(secondFever.extractedData.dateRange).toBeDefined();
 	});
 });
-

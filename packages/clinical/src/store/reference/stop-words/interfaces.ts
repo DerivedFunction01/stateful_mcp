@@ -1,4 +1,16 @@
-import type { StopWordProfile } from "../../parser/interfaces";
+import type {
+	StopWordProfile,
+	StopWordStore,
+	StopWordWordListRecord,
+	StopWordWordListStore,
+} from "../../interfaces";
+
+export type {
+	StopWordProfile,
+	StopWordStore,
+	StopWordWordListRecord,
+	StopWordWordListStore,
+};
 
 export interface StopWordProfileStore {
 	get(profileId: string): Promise<StopWordProfile | null>;

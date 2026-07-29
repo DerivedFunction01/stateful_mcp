@@ -185,7 +185,9 @@ export class CdslParser {
 	 * Parses a clinical dictation stream and extracts mapped schemas.
 	 */
 	private getSegmentSplitRegex(): RegExp {
-		const parts = [this.profile.stateDelimiter.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")];
+		const parts = [
+			this.profile.stateDelimiter.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"),
+		];
 		if (this.profile.boundaryDelimiter) {
 			parts.push(this.profile.boundaryDelimiter);
 		}
@@ -201,7 +203,13 @@ export class CdslParser {
 				this.stopWordStore,
 				context,
 			);
-			return this.parseWithStopWordParser(expanded, dynamicParser, context, undefined, expanded);
+			return this.parseWithStopWordParser(
+				expanded,
+				dynamicParser,
+				context,
+				undefined,
+				expanded,
+			);
 		}
 		return this.parseWithStopWordParser(
 			expanded,
@@ -675,7 +683,9 @@ export class CdslParser {
 				let lastIdx = 0;
 				const itemOffsets = items.map((item) => {
 					// Strip tags and trim to find the actual parsed content text within fullOriginalText
-					const cleanTextMatch = item.rawText.replace(new RegExp(`^${item.tag}\\s*`), "").trim();
+					const cleanTextMatch = item.rawText
+						.replace(new RegExp(`^${item.tag}\\s*`), "")
+						.trim();
 					let idx = fullOriginalText.indexOf(cleanTextMatch, lastIdx);
 					if (idx === -1) {
 						idx = fullOriginalText.indexOf(cleanTextMatch);
@@ -687,7 +697,12 @@ export class CdslParser {
 					if (idx === -1) {
 						idx = fullOriginalText.indexOf(item.rawText);
 					}
-					const matchedLen = idx !== -1 ? (fullOriginalText.includes(cleanTextMatch) ? cleanTextMatch.length : item.rawText.length) : 0;
+					const matchedLen =
+						idx !== -1
+							? fullOriginalText.includes(cleanTextMatch)
+								? cleanTextMatch.length
+								: item.rawText.length
+							: 0;
 					if (idx !== -1) {
 						lastIdx = idx + matchedLen;
 					}
@@ -793,9 +808,10 @@ export class CdslParser {
 							// Delimiter boundary check
 							const crossBoundaries = distanceConfig.crossBoundaries ?? false;
 							if (!crossBoundaries) {
-								const delimPattern = distanceConfig.boundaryDelimiterOverride !== undefined
-									? distanceConfig.boundaryDelimiterOverride
-									: this.profile.boundaryDelimiter;
+								const delimPattern =
+									distanceConfig.boundaryDelimiterOverride !== undefined
+										? distanceConfig.boundaryDelimiterOverride
+										: this.profile.boundaryDelimiter;
 
 								if (delimPattern) {
 									const delimRegex = new RegExp(delimPattern);

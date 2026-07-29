@@ -16,6 +16,7 @@ import {
 	resolvePersonnelStore,
 	resolveReferenceStores,
 	resolveSharedFieldAnchorStore,
+	resolveStopWordWordListStore,
 } from "./parser/parser-backend-resolver";
 import { DefaultParserProfileComposer } from "./parser/parser-composer";
 import type {
@@ -35,7 +36,8 @@ import type { JurisdictionalDisplayStore } from "./reference/jurisdictional-disp
 import type { PersonnelStore } from "./reference/personnel/interfaces";
 import type { ProseParserTemplateStore } from "./reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
-import type { StopWordProfileStore } from "./reference/stop-words/interfaces";
+import { DefaultStopWordStore } from "./reference/stop-words/default-stop-word-store";
+import type { StopWordStore } from "./reference/stop-words/interfaces";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -49,7 +51,7 @@ export interface ClinicalRuntimeParserStores {
 	tags: TagStore;
 	conceptDefaults: NewParserConceptDefaultStore;
 	jurisdictionalDisplays: JurisdictionalDisplayStore;
-	stopWordProfiles: StopWordProfileStore;
+	stopWordProfiles: StopWordStore;
 	proseTemplates: ClinicalProseTemplateStore;
 	proseParserTemplates: ProseParserTemplateStore;
 	calibration: CalibrationExceptionStore;
@@ -78,6 +80,7 @@ export async function createClinicalRuntime(
 		personnel,
 		facilities,
 		sharedFieldAnchors,
+		stopWordWordLists,
 	] = await Promise.all([
 		resolveParserProfileStores(config),
 		resolveParserRuleStores(config),
@@ -87,6 +90,7 @@ export async function createClinicalRuntime(
 		resolvePersonnelStore(config),
 		resolveFacilityStore(config),
 		resolveSharedFieldAnchorStore(config),
+		resolveStopWordWordListStore(config),
 	]);
 
 	const composer = new DefaultParserProfileComposer(
@@ -97,6 +101,11 @@ export async function createClinicalRuntime(
 		rules.evaluatorRules,
 		rules.attributeBindings,
 		rules.evaluatorBindings,
+	);
+
+	const stopWordStore = new DefaultStopWordStore(
+		refs.stopWordProfiles as any,
+		stopWordWordLists,
 	);
 
 	return {
@@ -111,7 +120,7 @@ export async function createClinicalRuntime(
 			tags: refs.tags,
 			conceptDefaults,
 			jurisdictionalDisplays: refs.jurisdictionalDisplays,
-			stopWordProfiles: refs.stopWordProfiles,
+			stopWordProfiles: stopWordStore,
 			proseTemplates: refs.proseTemplates,
 			proseParserTemplates: refs.proseParserTemplates,
 			calibration,
