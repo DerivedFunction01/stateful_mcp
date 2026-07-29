@@ -915,7 +915,7 @@ export class ClinicalEngine {
 		records: any[],
 		baseNote: SoapNote,
 	): SoapNote {
-		const note: SoapNote = JSON.parse(JSON.stringify(baseNote));
+		const note: SoapNote = structuredClone(baseNote);
 
 		// Dynamically clear all target paths from baseNote to avoid duplicates
 		for (const config of Object.values(SOAP_ROUTING_CONFIGS)) {

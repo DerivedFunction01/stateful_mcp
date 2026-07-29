@@ -12,7 +12,7 @@ export class ProseRenderer {
 	 * Explicitly maps slot positions to their target SoapNote narrative fields.
 	 */
 	static render(note: SoapNote, templates: ClinicalProseTemplate[]): SoapNote {
-		const resultNote = JSON.parse(JSON.stringify(note)) as SoapNote;
+		const resultNote = structuredClone(note);
 
 		// 1. subjective.historyOfPresentIllness.narrative (opening)
 		const hpiEvents =
