@@ -14,8 +14,7 @@ import {
 } from "../helpers/clinical-date-range-helper";
 import type {
 	ParsedCandidateEnvelope,
-	ParsedClinicalDateRangeItem,
-	ParsedItemUnion,
+	ParsedItem,
 	PreparsedContext,
 	SchemaParser,
 	SchemaParserOptions,
@@ -73,7 +72,7 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		_preparsedContext?: PreparsedContext,
 		_conceptFieldStore?: ConceptFieldStore,
 		_concepts?: CodeableConcept[],
-	): Promise<ParsedItemUnion | ParsedItemUnion[] | null> {
+	): Promise<ParsedItem | ParsedItem[] | null> {
 		let options: SchemaParserOptions;
 		if (typeof _tagOrOptions === "object" && _tagOrOptions !== null) {
 			options = _tagOrOptions;
@@ -163,7 +162,7 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 			}
 		}
 
-		const results: ParsedClinicalDateRangeItem[] = [];
+		const results: ParsedItem[] = [];
 
 		// First tokenize the whole string to see if it represents a single unified range/list/exclusion
 		const unsplitToken = ClinicalDateRangeTokenizer.tokenize(
@@ -191,7 +190,7 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		// 2. If we found multiple disjoint spans and should split, try to split at the midpoints
 		if (shouldSplit && mergedSpans.length > 1) {
 			let allValid = true;
-			const tempItems: ParsedClinicalDateRangeItem[] = [];
+			const tempItems: ParsedItem[] = [];
 
 			for (let i = 0; i < mergedSpans.length; i++) {
 				const start =
@@ -256,12 +255,12 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 			rawText: `${tag} ${cleaned}`,
 			tag,
 			extractedData,
-		} as ParsedClinicalDateRangeItem;
+		} as ParsedItem;
 	}
 }
 
 function makePreviewEnvelope(
-	parsed: ParsedItemUnion | ParsedItemUnion[] | null,
+	parsed: ParsedItem | ParsedItem[] | null,
 ): ParsedCandidateEnvelope {
 	const parsedArr = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
 	return {

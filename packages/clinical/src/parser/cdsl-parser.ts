@@ -37,7 +37,6 @@ import { ProseTemplateSuggester } from "./prose-template-suggester";
 import {
 	type ParsedCandidateEnvelope,
 	type ParsedItem,
-	type ParsedItemUnion,
 	type RankingSignal,
 	resolveMultiConceptHelper,
 	type SchemaParser,
@@ -405,7 +404,7 @@ export class CdslParser {
 			);
 			if (!state) continue;
 
-			const candidateItems: ParsedItemUnion[] = [];
+			const candidateItems: ParsedItem[] = [];
 			// Dispatch selected parsers against the full span
 			for (const parser of state.parsersToRun) {
 				const allowedNamespaces =
@@ -458,7 +457,7 @@ export class CdslParser {
 					this.weightStore,
 					historyStore as any,
 				);
-				const scored: { item: ParsedItemUnion; score: number }[] = [];
+				const scored: { item: ParsedItem; score: number }[] = [];
 				for (const item of candidateItems) {
 					const res = await confidenceScorer.scoreCandidate(item, {
 						tag: state.tag || "",
@@ -874,25 +873,4 @@ export class CdslParser {
 
 		return deduped;
 	}
-}
-
-function buildRankingSignals(
-	context: StopWordContext | undefined,
-	tag: string,
-): RankingSignal | undefined {
-	if (!context) return undefined;
-	const patientContext = context.patientContext;
-	return {
-		personnelId: context.personnelId,
-		specialtyId: context.specialtyId,
-		facilityId: context.facilityId,
-		patientId: patientContext?.patientId,
-		organismType: patientContext?.organismType,
-		gender: patientContext?.gender,
-		ageBucket: patientContext?.ageBucket,
-		speciesBucket: patientContext?.speciesBucket,
-		subBucket: patientContext?.subBucket,
-		bucketKey: patientContext?.bucketKey,
-		tag,
-	};
 }

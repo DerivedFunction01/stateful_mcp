@@ -104,12 +104,6 @@ export const CANONICAL_TAGS = {
 	PATIENT_PROFILE: "PatientProfile",
 } as const;
 
-export type DeepPartial<T> = T extends object
-	? {
-			[P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-		}
-	: T;
-
 export interface ParsedItem {
 	targetSchema: string;
 	attributes: Record<string, any>;
@@ -119,32 +113,6 @@ export interface ParsedItem {
 	extractedData: Record<string, any>;
 	conceptFields?: Record<string, CodeableConcept[]>;
 }
-
-export interface ParsedVitalsItem extends ParsedItem {
-	targetSchema: "VitalsMeasurementEvent";
-	extractedData: DeepPartial<VitalsMeasurementEvent>;
-}
-
-export interface ParsedObservationItem extends ParsedItem {
-	targetSchema: "ObservationEvent";
-	extractedData: DeepPartial<ObservationEvent>;
-}
-
-export interface ParsedMedicationItem extends ParsedItem {
-	targetSchema: "MedicationOrderObject";
-	extractedData: DeepPartial<MedicationOrderObject>;
-}
-
-export interface ParsedClinicalDateRangeItem extends ParsedItem {
-	targetSchema: "ClinicalDateRange";
-	extractedData: DeepPartial<ClinicalDateRange>;
-}
-
-export type ParsedItemUnion =
-	| ParsedVitalsItem
-	| ParsedObservationItem
-	| ParsedMedicationItem
-	| ParsedClinicalDateRangeItem;
 
 export interface PreparsedContext {
 	rawText: string;
@@ -160,12 +128,12 @@ export interface PreparsedContext {
 }
 
 export interface ScoredParseResult {
-	parsedItem: ParsedItemUnion;
+	parsedItem: ParsedItem;
 	completenessScore: number;
 	unitAnchorCoherence: boolean;
 }
 
-export interface ParsedCandidateEnvelope<TCandidate = ParsedItemUnion> {
+export interface ParsedCandidateEnvelope<TCandidate = ParsedItem> {
 	deterministic: TCandidate[];
 	learned: TCandidate[];
 }
@@ -196,7 +164,7 @@ export interface RankingSignal {
 	exactDiscriminators?: Record<string, string>;
 }
 
-export interface ParserPreviewResult<TCandidate = ParsedItemUnion> {
+export interface ParserPreviewResult<TCandidate = ParsedItem> {
 	targetSchema: string;
 	deterministic: TCandidate[];
 	learned: TCandidate[];
@@ -221,7 +189,7 @@ export interface SchemaParser {
 	targetSchema: string;
 	parse(
 		options: SchemaParserOptions,
-	): Promise<ParsedItemUnion | ParsedItemUnion[] | null>;
+	): Promise<ParsedItem | ParsedItem[] | null>;
 	preview?(options: SchemaParserOptions): Promise<ParsedCandidateEnvelope>;
 }
 

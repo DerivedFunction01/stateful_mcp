@@ -12,7 +12,7 @@ import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
 import { GenericTokenizer } from "./generic-tokenizer";
 import type {
 	ParsedCandidateEnvelope,
-	ParsedItemUnion,
+	ParsedItem,
 	PreparsedContext,
 	SchemaParserOptions,
 } from "./schema-parsers";
@@ -106,7 +106,7 @@ export class GenericSchemaParser {
 		const learned = historyRows
 			.map((row) => row.parsedItem)
 			.filter(
-				(item): item is ParsedItemUnion =>
+				(item): item is ParsedItem =>
 					item !== null && item.targetSchema === this.targetSchema,
 			);
 
@@ -129,7 +129,7 @@ export class GenericSchemaParser {
 		_preparsedContext?: PreparsedContext,
 		_conceptFieldStore?: ConceptFieldStore,
 		_concepts?: CodeableConcept[],
-	): Promise<ParsedItemUnion | null> {
+	): Promise<ParsedItem | null> {
 		let options: SchemaParserOptions;
 		if (typeof _tagOrOptions === "object" && _tagOrOptions !== null) {
 			options = _tagOrOptions;
@@ -267,7 +267,7 @@ export class GenericSchemaParser {
 			extractedData,
 			conceptFields:
 				Object.keys(conceptFields).length > 0 ? conceptFields : undefined,
-		} as ParsedItemUnion;
+		} as ParsedItem;
 	}
 
 	private buildTokenFromPreparsedContext(

@@ -8,8 +8,6 @@ import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type {
 	ParsedItem,
-	ParsedMedicationItem,
-	ParsedVitalsItem,
 } from "../parser/schema-parsers";
 import type { SoapNote } from "../schemas/document";
 import {
@@ -144,7 +142,7 @@ const SOAP_ROUTING_CONFIGS: Record<
 		getPath: () => ["objective", "vitalSigns"],
 		mapFields: (item) => {
 			const concept = item.concept[0];
-			const vitItem = item as ParsedVitalsItem;
+			const vitItem = item;
 			return {
 				vitalType: concept
 					? { conceptId: concept.conceptId, display: concept.display }
@@ -187,7 +185,7 @@ const SOAP_ROUTING_CONFIGS: Record<
 		getPath: () => ["plan", "prescriptions"],
 		mapFields: (item) => {
 			const concept = item.concept[0];
-			const medItem = item as ParsedMedicationItem;
+			const medItem = item;
 			return {
 				medication: concept
 					? { conceptId: concept.conceptId, display: concept.display }

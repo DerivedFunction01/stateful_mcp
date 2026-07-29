@@ -1,5 +1,5 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import type { ParsedObservationItem } from "../../../parser/schema-parsers";
+import type { ParsedItem } from "../../../parser/schema-parsers";
 import {
 	type OrderedLearningInsertPlan,
 	OrderedLearningSqlCompiler,
@@ -171,7 +171,7 @@ export class SqlOrderedLearningStore implements OrderedLearningStore {
 			facilityId: (row.facilityId as string) || undefined,
 			orderedTokens: row.orderedTokens as OrderedLearningToken[],
 			relations: row.relations as any[],
-			parsedItem: row.parsedItem as ParsedObservationItem,
+			parsedItem: row.parsedItem as ParsedItem,
 			history: {
 				priorAcceptCount: row.priorAcceptCount
 					? Number(row.priorAcceptCount)
