@@ -1,16 +1,19 @@
 import type { StopWordStore } from "../store/interfaces";
-import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
+import type { AutocompleteSuggestion, Relation } from "../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import type {
 	ProseSlot,
+	ProseSlotType,
 	ProseTemplate,
 } from "../store/reference/prose-parser-templates/prose-template";
+import { executePipeline } from "@stateful-mcp/core";
 
 interface SuggestionContext {
 	personnelId: string;
 	workspaceId?: string;
 	specialtyId?: string;
 	locale?: string;
+	filledSlots?: Record<string, unknown>;
 }
 
 function isStopWordForPartial(word: string, stopWords: Set<string>): boolean {
@@ -90,7 +93,7 @@ export class ProseTemplateSuggester {
 					candidate.slot.targetSchema ?? candidate.template.targetSchema,
 				targetConceptId: (candidate.template as any).targetConceptId,
 				rankScore: this.clampRank(candidate.rankScore),
-				nextHints: this.buildNextHints(candidate.template, candidate.slot),
+				nextHints: this.buildNextHints(candidate.template, candidate.slot, context),
 			};
 		});
 	}
@@ -132,7 +135,75 @@ export class ProseTemplateSuggester {
 	private buildNextHints(
 		template: ProseTemplate,
 		matchedSlot: ProseSlot,
+		context: SuggestionContext,
 	): AutocompleteSuggestion["nextHints"] {
-		return [];
+		const filledSlots = context.filledSlots ?? {};
+		const relationPriority: Record<Relation, number> = {
+			trigger: 3,
+			duration: 2,
+			qualifier: 1,
+			supporting: 0,
+		};
+
+		const passesConditions = (slot: ProseSlot): boolean => {
+			const pipeline = slot.conditions?.pipeline;
+			if (!pipeline) return true;
+			try {
+				const result = executePipeline(pipeline, filledSlots, {});
+				return result !== false;
+			} catch {
+				return false;
+			}
+		};
+
+		const addHint = (
+			hints: Map<string, NonNullable<AutocompleteSuggestion["nextHints"]>[number]>,
+			slot: ProseSlot,
+			rankScore: number,
+			relation?: Relation,
+		): void => {
+			if (!passesConditions(slot)) return;
+			const key = slot.slotName;
+			const insertText = slot.suggestText ?? slot.triggerPattern ?? "";
+			hints.set(key, {
+				slotName: slot.slotName,
+				triggerPattern: slot.triggerPattern ?? "",
+				insertText,
+				cursorOffset: insertText.length,
+				rankScore,
+				relation,
+				slotType: slot.slotType,
+			});
+		};
+
+		const hints = new Map<
+			string,
+			NonNullable<AutocompleteSuggestion["nextHints"]>[number]
+		>();
+
+		// Sibling slots (every other slot in the template except the matched one).
+		for (const slot of template.slots) {
+			if (slot.slotName !== matchedSlot.slotName) {
+				addHint(hints, slot, 0.2);
+			}
+		}
+
+		// Child slots (slots defined inside the matched slot's sub-template).
+		const childSlots = matchedSlot.subTemplate?.slots ?? [];
+		for (const slot of childSlots) {
+			addHint(hints, slot, 0.3);
+		}
+
+		// Linked slots (slots that reference the matched slot as their parent).
+		for (const slot of template.slots) {
+			if (slot.linkTo?.parentSlot === matchedSlot.slotName) {
+				const relation = slot.linkTo.relation;
+				const rank =
+					0.5 + (relationPriority[relation] ?? 0) * 0.1;
+				addHint(hints, slot, rank, relation);
+			}
+		}
+
+		return Array.from(hints.values()).sort((a, b) => b.rankScore - a.rankScore);
 	}
 }

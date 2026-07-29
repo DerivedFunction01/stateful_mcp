@@ -231,6 +231,261 @@ describe("ProseTemplateSuggester", () => {
 		expect(results[0]!.nextHints).toEqual([]);
 	});
 
+	it("resolves linked slots as nextHints with relation", async () => {
+		const store = makeKvTemplateStore();
+		const suggester = new ProseTemplateSuggester(store);
+		await store.set(
+			makeTemplate({
+				templateId: "tpl_linked",
+				slots: [
+					slotWithTrigger({
+						slotName: "chief_complaint",
+						triggerPattern: "presents with",
+						suggestText: "presents with ",
+					}),
+					slotWithTrigger({
+						slotName: "qualifier_severity",
+						slotType: "attribute",
+						triggerPattern: "severe",
+						linkTo: {
+							parentSlot: "chief_complaint",
+							relation: "qualifier",
+						},
+					}),
+					slotWithTrigger({
+						slotName: "duration_length",
+						slotType: "concept",
+						triggerPattern: "for",
+						linkTo: {
+							parentSlot: "chief_complaint",
+							relation: "duration",
+						},
+					}),
+				],
+			}),
+		);
+
+		const results = await suggester.suggest("presents with sharp", {
+			personnelId: "user1",
+		});
+		expect(results).toHaveLength(1);
+		const hints = results[0]!.nextHints ?? [];
+
+		const relations = hints.map((h) => h.relation);
+		expect(relations).toContain("qualifier");
+		expect(relations).toContain("duration");
+
+		const durationHint = hints.find((h) => h.relation === "duration")!;
+		const qualifierHint = hints.find((h) => h.relation === "qualifier")!;
+		expect(durationHint.rankScore).toBeGreaterThan(qualifierHint.rankScore);
+	});
+
+	it("resolves child slots from subTemplate as nextHints", async () => {
+		const store = makeKvTemplateStore();
+		const suggester = new ProseTemplateSuggester(store);
+		await store.set(
+			makeTemplate({
+				templateId: "tpl_child",
+				slots: [
+					slotWithTrigger({
+						slotName: "chief_complaint",
+						triggerPattern: "presents with",
+						suggestText: "presents with ",
+						subTemplate: {
+							textGroup: "details",
+							slots: [
+								{
+									slotName: "child_attr",
+									slotType: "attribute",
+									anchorPattern: ".+",
+									triggerPattern: "severe",
+								},
+							],
+						},
+					}),
+				],
+			}),
+		);
+
+		const results = await suggester.suggest("presents with sharp", {
+			personnelId: "user1",
+		});
+		expect(results).toHaveLength(1);
+		const hints = results[0]!.nextHints ?? [];
+		const childHint = hints.find((h) => h.slotName === "child_attr");
+		expect(childHint).toBeDefined();
+		expect(childHint!.slotType).toBe("attribute");
+		expect(childHint!.triggerPattern).toBe("severe");
+	});
+
+	it("resolves unfilled sibling slots as nextHints", async () => {
+		const store = makeKvTemplateStore();
+		const suggester = new ProseTemplateSuggester(store);
+		await store.set(
+			makeTemplate({
+				templateId: "tpl_siblings",
+				slots: [
+					slotWithTrigger({ slotName: "slot_a", triggerPattern: "alpha" }),
+					slotWithTrigger({
+						slotName: "slot_b",
+						slotType: "attribute",
+						triggerPattern: "beta",
+					}),
+					slotWithTrigger({ slotName: "slot_c", triggerPattern: "gamma" }),
+				],
+			}),
+		);
+
+		const results = await suggester.suggest("alpha", {
+			personnelId: "user1",
+		});
+		expect(results).toHaveLength(1);
+		const hints = results[0]!.nextHints ?? [];
+		expect(hints.map((h) => h.slotName).sort()).toEqual([
+			"slot_b",
+			"slot_c",
+		]);
+	});
+
+	it("excludes slots from nextHints when conditions.pipeline returns false", async () => {
+		const store = makeKvTemplateStore();
+		const suggester = new ProseTemplateSuggester(store);
+		await store.set(
+			makeTemplate({
+				templateId: "tpl_cond",
+				slots: [
+					slotWithTrigger({
+						slotName: "chief_complaint",
+						triggerPattern: "presents with",
+						suggestText: "presents with ",
+					}),
+					slotWithTrigger({
+						slotName: "severe_slot",
+						slotType: "attribute",
+						triggerPattern: "severe",
+						conditions: {
+							pipeline: [
+								{ op: "eq", args: [{ $var: "pain_level" }, 8] },
+							],
+						},
+					}),
+				],
+			}),
+		);
+
+		const results = await suggester.suggest("presents with sharp", {
+			personnelId: "user1",
+			filledSlots: { pain_level: 5 },
+		});
+		expect(results).toHaveLength(1);
+		const hints = results[0]!.nextHints ?? [];
+		expect(hints.find((h) => h.slotName === "severe_slot")).toBeUndefined();
+	});
+
+	it("includes slots when conditions.pipeline returns true", async () => {
+		const store = makeKvTemplateStore();
+		const suggester = new ProseTemplateSuggester(store);
+		await store.set(
+			makeTemplate({
+				templateId: "tpl_cond_pass",
+				slots: [
+					slotWithTrigger({
+						slotName: "chief_complaint",
+						triggerPattern: "presents with",
+						suggestText: "presents with ",
+					}),
+					slotWithTrigger({
+						slotName: "severe_slot",
+						slotType: "attribute",
+						triggerPattern: "severe",
+						conditions: {
+							pipeline: [
+								{ op: "eq", args: [{ $var: "pain_level" }, 8] },
+							],
+						},
+					}),
+				],
+			}),
+		);
+
+		const results = await suggester.suggest("presents with sharp", {
+			personnelId: "user1",
+			filledSlots: { pain_level: 8 },
+		});
+		expect(results).toHaveLength(1);
+		const hints = results[0]!.nextHints ?? [];
+		expect(hints.find((h) => h.slotName === "severe_slot")).toBeDefined();
+	});
+
+	it("sorts nextHints by tier and relation priority", async () => {
+		const store = makeKvTemplateStore();
+		const suggester = new ProseTemplateSuggester(store);
+		await store.set(
+			makeTemplate({
+				templateId: "tpl_rank",
+				slots: [
+					{
+						slotName: "chief_complaint",
+						slotType: "concept",
+						anchorPattern: ".+",
+						triggerPattern: "presents with",
+						suggestText: "presents with ",
+						subTemplate: {
+							textGroup: "details",
+							slots: [
+								{
+									slotName: "child_a",
+									slotType: "sub_section",
+									anchorPattern: ".+",
+									triggerPattern: "child_a",
+								},
+							],
+						},
+					},
+					{
+						slotName: "sibling_a",
+						slotType: "concept",
+						anchorPattern: ".+",
+						triggerPattern: "sibling_a",
+					},
+					{
+						slotName: "supp_link",
+						slotType: "concept",
+						anchorPattern: ".+",
+						triggerPattern: "supporting",
+						linkTo: {
+							parentSlot: "chief_complaint",
+							relation: "supporting",
+						},
+					},
+					{
+						slotName: "trig_link",
+						slotType: "concept",
+						anchorPattern: ".+",
+						triggerPattern: "trigger_me",
+						linkTo: {
+							parentSlot: "chief_complaint",
+							relation: "trigger",
+						},
+					},
+				],
+			}),
+		);
+
+		const results = await suggester.suggest("presents with sharp", {
+			personnelId: "user1",
+		});
+		expect(results).toHaveLength(1);
+		const hints = results[0]!.nextHints ?? [];
+		const ranked = hints.map((h) => h.slotName);
+		expect(ranked).toEqual([
+			"trig_link",
+			"supp_link",
+			"child_a",
+			"sibling_a",
+		]);
+	});
+
 	it("stop-word gate suppresses suggestion when cursor is on a stop word", async () => {
 		const store = makeKvTemplateStore();
 		const wordStore = makeKvStopWordStore();
