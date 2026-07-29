@@ -4,7 +4,6 @@ import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type {
 	ParsedItem,
 	ParsedMedicationItem,
-	ParsedObservationItem,
 	ParsedVitalsItem,
 } from "../parser/schema-parsers";
 import type { SoapNote } from "../schemas/document";
@@ -36,6 +35,7 @@ import {
 } from "../store/learning/interfaces";
 import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
+import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";
 
 // ── Order-Aware Projection ───────────────────────────────────────────────────
 
@@ -84,6 +84,316 @@ export function buildOrderedTokens(
 
 	return tokens.slice(0, MAX_ORDERED_TOKENS);
 }
+
+// ── Helper functions for dynamic schema mapping ─────────────────────────────────
+
+function createEmptyShapeFromTemplate(templateObj: any): any {
+	if (templateObj === null || templateObj === undefined) return undefined;
+	if (Array.isArray(templateObj)) return [];
+	if (typeof templateObj === "object") {
+		const empty: any = {};
+		for (const key of Object.keys(templateObj)) {
+			const val = templateObj[key];
+			if (typeof val === "object" && val !== null) {
+				empty[key] = createEmptyShapeFromTemplate(val);
+			} else {
+				empty[key] = undefined;
+			}
+		}
+		return empty;
+	}
+	return undefined;
+}
+
+function fillDefaults(obj: any, defaults: any): any {
+	if (obj === null || obj === undefined) return defaults;
+	if (typeof obj !== "object" || Array.isArray(obj)) return obj;
+	const result = { ...obj };
+	for (const key of Object.keys(defaults)) {
+		if (result[key] === undefined || result[key] === null) {
+			result[key] = defaults[key];
+		} else if (
+			typeof result[key] === "object" &&
+			typeof defaults[key] === "object" &&
+			defaults[key] !== null
+		) {
+			result[key] = fillDefaults(result[key], defaults[key]);
+		}
+	}
+	return result;
+}
+
+const SOAP_ROUTING_CONFIGS: Record<
+	string,
+	{
+		idPrefix: string;
+		getPath: (item: ParsedItem) => string[];
+		mapFields: (item: ParsedItem) => Record<string, any>;
+		defaultFallbacks?: Record<string, any>;
+		isCollection?: boolean;
+	}
+> = {
+	vitalsmeasurementevent: {
+		idPrefix: "vit",
+		getPath: () => ["objective", "vitalSigns"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			const vitItem = item as ParsedVitalsItem;
+			return {
+				vitalType: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: vitItem.rawText ?? "",
+				measurement: {
+					magnitude: Number(vitItem.extractedData?.measurement?.magnitude || 0),
+					unit: {
+						display: vitItem.extractedData?.measurement?.unit?.display || "",
+					},
+				},
+			};
+		},
+	},
+	observationevent: {
+		idPrefix: "obs",
+		getPath: (item) =>
+			item.extractedData?.certainty === "refuted"
+				? ["subjective", "historyOfPresentIllness", "events"]
+				: ["objective", "clinicalObservations"],
+		defaultFallbacks: {
+			severity: { score: 0, maxScore: 0, normalizedScore: 0 },
+			duration: { magnitude: 1 },
+			trajectory: "stable",
+		},
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			const isNegated = item.extractedData?.certainty === "refuted";
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+				sourceType: isNegated ? "patient_reported" : "clinician_observed",
+			};
+		},
+	},
+	medicationorderobject: {
+		idPrefix: "med",
+		getPath: () => ["plan", "prescriptions"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			const medItem = item as ParsedMedicationItem;
+			return {
+				medication: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				route: medItem.extractedData?.route,
+				frequency: medItem.extractedData?.frequency,
+			};
+		},
+	},
+	primarydiagnosisentry: {
+		idPrefix: "dx",
+		getPath: () => ["assessment", "primaryDiagnosis"],
+		isCollection: false,
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	differentialdiagnosisentry: {
+		idPrefix: "diff",
+		getPath: () => ["assessment", "differentialDiagnoses"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	algorithmicevaluationobject: {
+		idPrefix: "alg",
+		getPath: () => ["assessment", "algorithmicEvaluations"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	allergyentry: {
+		idPrefix: "all",
+		getPath: () => ["subjective", "patientHistories", "allergies"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	socialhistoryentry: {
+		idPrefix: "soc",
+		getPath: () => ["subjective", "patientHistories", "socialHistory"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	reportedmedicationentry: {
+		idPrefix: "histmed",
+		getPath: () => ["subjective", "patientHistories", "currentMedications"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				medication: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	exposureevent: {
+		idPrefix: "exp",
+		getPath: () => ["subjective", "exposures"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				agent: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	mechanicalinjuryobject: {
+		idPrefix: "inj",
+		getPath: () => ["subjective", "injuries"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	environmentcontextobject: {
+		idPrefix: "env",
+		getPath: (item) => {
+			const type = String(item.extractedData?.contextType || "").toLowerCase();
+			return type === "workplace" || type === "travel"
+				? ["subjective", "environments"]
+				: ["objective", "environments"];
+		},
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	protectiveequipmentobject: {
+		idPrefix: "ppe",
+		getPath: () => ["subjective", "protectiveEquipment"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	physicalexamobject: {
+		idPrefix: "pe",
+		getPath: () => ["objective", "physicalExamination"],
+		mapFields: (item) => ({ rawTerm: item.tag }),
+	},
+	labpanelresult: {
+		idPrefix: "lab",
+		getPath: () => ["objective", "labResults"],
+		mapFields: (item) => ({ rawTerm: item.tag }),
+	},
+	devicediagnosticobject: {
+		idPrefix: "img",
+		getPath: () => ["objective", "imagingResults"],
+		mapFields: (item) => ({ rawTerm: item.tag }),
+	},
+	investigationorderobject: {
+		idPrefix: "inv",
+		getPath: () => ["plan", "investigations"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	referralorderobject: {
+		idPrefix: "ref",
+		getPath: () => ["plan", "referrals"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	interventionorderobject: {
+		idPrefix: "int",
+		getPath: () => ["plan", "interventions"],
+		mapFields: (item) => {
+			const concept = item.concept[0];
+			return {
+				concept: concept
+					? { conceptId: concept.conceptId, display: concept.display }
+					: undefined,
+				rawTerm: item.tag,
+			};
+		},
+	},
+	safetynettingplan: {
+		idPrefix: "safe",
+		getPath: () => ["plan", "safetyNetting"],
+		isCollection: false,
+		mapFields: (item) => ({ rawTerm: item.tag }),
+	},
+	militaryplanextension: {
+		idPrefix: "mil",
+		getPath: () => ["plan", "militaryPlan"],
+		isCollection: false,
+		mapFields: (item) => ({ rawTerm: item.tag }),
+	},
+};
 
 // ── Engine ───────────────────────────────────────────────────────────────────
 
@@ -368,105 +678,70 @@ export class ClinicalEngine {
 
 			// Route items to their respective SOAP Note properties using targetSchema names dynamically
 			const schemaClean = item.targetSchema.toLowerCase();
+			const routing = SOAP_ROUTING_CONFIGS[schemaClean];
+			if (routing) {
+				const transform = getTransformForSchema(item.targetSchema);
+				const fallbackDefaults = routing.defaultFallbacks || {};
+				const parsedData = item.extractedData || {};
+				const mappedFields = routing.mapFields(item);
 
-			if (schemaClean === "vitalsmeasurementevent") {
-				const vitalsItem = item as ParsedVitalsItem;
-				const vitalSigns = [...(note.objective?.vitalSigns || [])];
-				const unit = vitalsItem.extractedData?.measurement?.unit?.display || "";
-				const vitConcept = vitalsItem.concept[0];
-
-				vitalSigns.push({
-					id: `vit_${crypto.randomUUID().slice(0, 8)}`,
-					vitalType: {
-						conceptId: vitConcept?.conceptId,
-						display: vitConcept?.display,
-					},
-					rawTerm: vitalsItem.rawText ?? "",
-					measurement: {
-						magnitude: Number(
-							vitalsItem.extractedData?.measurement?.magnitude || 0,
-						),
-						unit: { display: unit },
-					},
-				} as any);
-				currentObjId = await this.objectStore.set(
-					currentObjId,
-					["objective", "vitalSigns"],
-					vitalSigns,
-					sessionId,
-				);
-			} else if (schemaClean === "observationevent") {
-				const obsItem = item as ParsedObservationItem;
-				const obsConcept = obsItem.concept[0];
-				const isNegated = obsItem.extractedData?.certainty === "refuted";
-				const section = isNegated ? "subjective" : "objective";
-
-				if (section === "subjective") {
-					const events = [
-						...(note.subjective?.historyOfPresentIllness?.events || []),
-					];
-					events.push({
-						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
-						concept: {
-							conceptId: obsConcept?.conceptId,
-							display: obsConcept?.display,
-						},
-						rawTerm: obsItem.tag,
-						sourceType: "patient_reported",
-						certainty: obsItem.extractedData?.certainty as any,
-						status: obsItem.extractedData?.status as any,
-						severity: { score: 0, maxScore: 0, normalizedScore: 0 },
-						duration: { magnitude: 1 },
-						trajectory: "stable",
-					} as any);
-					currentObjId = await this.objectStore.set(
-						currentObjId,
-						["subjective", "historyOfPresentIllness", "events"],
-						events,
-						sessionId,
+				let mergedData: any;
+				if (transform) {
+					const cleanShape = createEmptyShapeFromTemplate(
+						transform.template().extractedData,
 					);
+					mergedData = {
+						id: `${routing.idPrefix}_${crypto.randomUUID().slice(0, 8)}`,
+						...fillDefaults({ ...cleanShape, ...parsedData }, fallbackDefaults),
+						...mappedFields,
+					};
 				} else {
-					const obs = [...(note.objective?.clinicalObservations || [])];
-					obs.push({
-						id: `obs_${crypto.randomUUID().slice(0, 8)}`,
-						concept: {
-							conceptId: obsConcept?.conceptId,
-							display: obsConcept?.display,
-						},
-						rawTerm: obsItem.tag,
-						sourceType: "clinician_observed",
-						certainty: obsItem.extractedData?.certainty as any,
-						status: obsItem.extractedData?.status as any,
-						severity: { score: 0, maxScore: 0, normalizedScore: 0 },
-						duration: { magnitude: 1 },
-						trajectory: "stable",
-					} as any);
+					mergedData = {
+						id: `${routing.idPrefix}_${crypto.randomUUID().slice(0, 8)}`,
+						...parsedData,
+						...mappedFields,
+					};
+				}
+
+				const path = routing.getPath(item);
+				const isCollection = routing.isCollection !== false;
+
+				if (isCollection) {
+					const currentArray =
+						(path.reduce(
+							(obj: any, key) => obj?.[key],
+							note as any,
+						) as any[]) || [];
+					const updatedArray = [...currentArray, mergedData];
+
 					currentObjId = await this.objectStore.set(
 						currentObjId,
-						["objective", "clinicalObservations"],
-						obs,
+						path,
+						updatedArray,
 						sessionId,
 					);
+
+					// Keep local copy of note in sync
+					let temp: any = note;
+					for (let i = 0; i < path.length - 1; i++) {
+						temp = temp[path[i]!];
+					}
+					temp[path[path.length - 1]!] = updatedArray;
+				} else {
+					currentObjId = await this.objectStore.set(
+						currentObjId,
+						path,
+						mergedData,
+						sessionId,
+					);
+
+					// Keep local copy of note in sync
+					let temp: any = note;
+					for (let i = 0; i < path.length - 1; i++) {
+						temp = temp[path[i]!];
+					}
+					temp[path[path.length - 1]!] = mergedData;
 				}
-			} else if (schemaClean === "medicationorderobject") {
-				const medItem = item as ParsedMedicationItem;
-				const medConcept = medItem.concept[0];
-				const prescriptions = [...(note.plan?.prescriptions || [])];
-				prescriptions.push({
-					id: `med_${crypto.randomUUID().slice(0, 8)}`,
-					medication: {
-						conceptId: medConcept?.conceptId,
-						display: medConcept?.display,
-					},
-					route: medItem.extractedData?.route as any,
-					frequency: medItem.extractedData?.frequency,
-				} as any);
-				currentObjId = await this.objectStore.set(
-					currentObjId,
-					["plan", "prescriptions"],
-					prescriptions,
-					sessionId,
-				);
 			}
 		}
 

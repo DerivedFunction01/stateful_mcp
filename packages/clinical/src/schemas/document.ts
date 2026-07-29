@@ -17,6 +17,7 @@ import type { PatientProfile } from "./patient";
 import type {
 	InterventionOrderObject,
 	InvestigationOrderObject,
+	MilitaryPlanExtension,
 	ReferralOrderObject,
 	SafetyNettingPlan,
 } from "./plan";
@@ -174,6 +175,7 @@ export interface SoapNote {
 		 * follow-up window, and escalation pathway.
 		 */
 		safetyNetting?: SafetyNettingPlan;
+		militaryPlan?: MilitaryPlanExtension;
 
 		narrative?: string;
 	};

@@ -59,3 +59,14 @@ export * from "./store/parser/anchors/sql-shared-field-anchor-store";
 export * from "./store/reference/prose-parser-templates/interfaces";
 export * from "./store/reference/prose-parser-templates/kv-prose-parser-template-store";
 export * from "./store/reference/prose-parser-templates/sql-prose-parser-template-store";
+
+// Auto-register default parsed cell transforms
+import "./store/learning/parsed_cell/transforms/observation-transform";
+import "./store/learning/parsed_cell/transforms/vitals-transform";
+import "./store/learning/parsed_cell/transforms/medication-transform";
+import "./store/learning/parsed_cell/transforms/clinical-date-range-transform";
+import "./store/learning/parsed_cell/transforms/assessment-transforms";
+import "./store/learning/parsed_cell/transforms/history-transforms";
+import "./store/learning/parsed_cell/transforms/exposure-injury-transforms";
+import "./store/learning/parsed_cell/transforms/diagnostic-transforms";
+import "./store/learning/parsed_cell/transforms/plan-transforms";
