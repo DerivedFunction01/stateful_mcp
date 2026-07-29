@@ -15,6 +15,7 @@ export interface ParserSyntaxProfile {
 	macroArgEndToken?: string;
 	macroArgDelimiter?: string;
 	tagMappings?: Record<string, string>; // Maps custom tag names to canonical target schema types
+	commandMappings?: Record<string, "set" | "assert" | "eval">; // Maps custom command verbs to canonical verbs
 	attributeRules?: AttributeParserRule[]; // Profile-driven regex parser rules for enums/attributes
 	evaluatorRules?: ParserDictionaryRule[]; // Dynamic regex capture evaluators
 	termTokenizer?: string; // Tokenizer to parse direct database/dictionary lookup (e.g. '::')

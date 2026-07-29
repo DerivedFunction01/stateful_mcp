@@ -262,14 +262,18 @@ export class CdslParser {
 
 			let tag = "";
 			let content = trimmed;
-			if (trimmed.startsWith(this.profile.tagToken)) {
-				const tagEndIndex = trimmed.indexOf(" ");
-				if (tagEndIndex !== -1) {
-					tag = trimmed.substring(0, tagEndIndex);
-					content = trimmed.substring(tagEndIndex).trim();
-				} else {
-					content = "";
-				}
+			const escTagToken = this.profile.tagToken.replace(
+				/[-/\\^$*+?.()|[\]{}]/g,
+				"\\$&",
+			);
+			const tagRegex = new RegExp(
+				`(?:\\s|^)(${escTagToken}[a-zA-Z0-9_-]+)(?:\\s|$)`,
+			);
+			const tagMatch = content.match(tagRegex);
+			if (tagMatch) {
+				tag = tagMatch[1] ?? "";
+				content = content.replace(tagMatch[0], " ").trim();
+				content = content.replace(/\s+/g, " ");
 			}
 			if (!content) continue;
 
@@ -432,14 +436,18 @@ export class CdslParser {
 			// tag token. Tag extraction happens regardless of tag status.
 			let tag = "";
 			let content = trimmed;
-			if (trimmed.startsWith(this.profile.tagToken)) {
-				const tagEndIndex = trimmed.indexOf(" ");
-				if (tagEndIndex !== -1) {
-					tag = trimmed.substring(0, tagEndIndex);
-					content = trimmed.substring(tagEndIndex).trim();
-				} else {
-					content = "";
-				}
+			const escTagToken = this.profile.tagToken.replace(
+				/[-/\\^$*+?.()|[\]{}]/g,
+				"\\$&",
+			);
+			const tagRegex = new RegExp(
+				`(?:\\s|^)(${escTagToken}[a-zA-Z0-9_-]+)(?:\\s|$)`,
+			);
+			const tagMatch = content.match(tagRegex);
+			if (tagMatch) {
+				tag = tagMatch[1] ?? "";
+				content = content.replace(tagMatch[0], " ").trim();
+				content = content.replace(/\s+/g, " ");
 			}
 			if (!content) continue;
 

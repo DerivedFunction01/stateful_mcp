@@ -73,6 +73,8 @@ export class SqlParserProfileStore implements ParserProfileCoreStore {
 			meta.calendarDateFormats = profile.calendarDateFormats;
 		if (profile.numericFieldFormats)
 			meta.numericFieldFormats = profile.numericFieldFormats;
+		if (profile.tagMappings) meta.tagMappings = profile.tagMappings;
+		if (profile.commandMappings) meta.commandMappings = profile.commandMappings;
 
 		return {
 			profileId: profile.profileId,
@@ -173,6 +175,13 @@ export class SqlParserProfileStore implements ParserProfileCoreStore {
 			if (meta.numericFieldFormats != null)
 				profile.numericFieldFormats =
 					meta.numericFieldFormats as NumericFieldFormatOptions[];
+			if (meta.tagMappings != null)
+				profile.tagMappings = meta.tagMappings as Record<string, string>;
+			if (meta.commandMappings != null)
+				profile.commandMappings = meta.commandMappings as Record<
+					string,
+					"set" | "assert" | "eval"
+				>;
 		}
 
 		return profile;
