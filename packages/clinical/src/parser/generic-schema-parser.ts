@@ -101,7 +101,9 @@ export class GenericSchemaParser {
 			rawText: contentVal,
 		};
 
-		const historyRows = historyStoreVal ? await historyStoreVal.getHistory(key) : [];
+		const historyRows = historyStoreVal
+			? await historyStoreVal.getHistory(key)
+			: [];
 		const learned = historyRows
 			.map((row) => row.parsedItem)
 			.filter(

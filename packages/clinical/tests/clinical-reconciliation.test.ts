@@ -3,14 +3,14 @@ import {
 	createMemoryConceptStore,
 	createMemoryExpressionStore,
 	DictionaryStore,
+	EventStore,
 	InMemoryConceptResolver,
 	ObjectStore,
-	EventStore,
 } from "@stateful-mcp/core";
 import { createRepo } from "@stateful-mcp/core/src/adapters/storage/shared/unified-repo";
 import { ClinicalEngine } from "../src/engine/clinical-engine";
-import type { SignedSoapNoteRecord } from "../src/store/interfaces";
 import type { SoapNote } from "../src/schemas/document";
+import type { SignedSoapNoteRecord } from "../src/store/interfaces";
 
 describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", () => {
 	it("should dynamically reconcile event log to stateful ObjectStore, and support git-like branching/merging", async () => {
@@ -27,7 +27,12 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 
 		// Seed patient concept
 		const conceptStore = (dictionaryStore as any)["conceptStore"];
-		await conceptStore.addNamespace({ code: "SNOMED", description: "SNOMED", isPublic: true, isExternalPrivate: false });
+		await conceptStore.addNamespace({
+			code: "SNOMED",
+			description: "SNOMED",
+			isPublic: true,
+			isExternalPrivate: false,
+		});
 		await conceptStore.addConcept({
 			id: "SNOMED::116154003",
 			standardCode: "116154003",
@@ -80,7 +85,10 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 			name: { primaryOrSurname: "Smith", givenNames: ["John"] },
 			administrativeGender: "male",
 			lifecycle: "active",
-			originationDate: { assertedTimestampUtc: "1985-05-15T00:00:00Z", precisionLevel: "day" },
+			originationDate: {
+				assertedTimestampUtc: "1985-05-15T00:00:00Z",
+				precisionLevel: "day",
+			},
 			isOriginationEstimated: false,
 			biologicalProfile: {
 				id: "bio-123",
@@ -151,9 +159,13 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 			["assessment_branch"],
 			"active_note",
 		);
-		const mergedTip = mergeResult.status === "clean"
-			? mergeResult.commit_id!
-			: await eventStore.mergeCommit(mergeResult.merge_session_id!, sessionId);
+		const mergedTip =
+			mergeResult.status === "clean"
+				? mergeResult.commit_id!
+				: await eventStore.mergeCommit(
+						mergeResult.merge_session_id!,
+						sessionId,
+					);
 
 		// 7. Reconcile final merged state back to SOAP ObjectStore
 		await clinicalEngine.reconcileEventStateToObjectStore(mergedTip, sessionId);
@@ -166,6 +178,8 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 		expect(noteFinal.objective.vitalSigns[0].measurement.magnitude).toBe(120);
 		expect(noteFinal.objective.vitalSigns[1].measurement.magnitude).toBe(72);
 		expect(noteFinal.objective.clinicalObservations).toHaveLength(1);
-		expect((noteFinal.objective.clinicalObservations[0] as any).certainty).toBe("confirmed");
+		expect((noteFinal.objective.clinicalObservations[0] as any).certainty).toBe(
+			"confirmed",
+		);
 	});
 });

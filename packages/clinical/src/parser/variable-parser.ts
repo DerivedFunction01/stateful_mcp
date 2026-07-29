@@ -1,9 +1,10 @@
-import type { VariableService } from "@stateful-mcp/core";
+import type { DictionaryStore, VariableService } from "@stateful-mcp/core";
 import { executePipeline } from "@stateful-mcp/core/src/translation/pipeline";
 import type {
 	OpName,
 	PipelineStep,
 } from "@stateful-mcp/core/src/translation/types";
+import { resolveConceptHelper } from "./schema-parsers";
 
 export class CdslVariableParser {
 	/**
@@ -19,7 +20,10 @@ export class CdslVariableParser {
 			variableStartToken: string;
 			variableEndToken: string;
 			variableDelimiter?: string;
+			startTermDelimiter?: string;
+			termTokenizer?: string;
 		},
+		dictionaryStore?: DictionaryStore,
 	): Promise<string> {
 		const startTok = profile.variableStartToken || "{";
 		const endTok = profile.variableEndToken || "}";
@@ -57,9 +61,17 @@ export class CdslVariableParser {
 
 					const op: OpName =
 						opStr === "->" || opStr === "in_set" ? "in_set" : "not_in_set";
-					const setValues = setStr
-						.split(",")
-						.map((v) => CdslVariableParser.parseValue(v.trim()));
+					const setValues = await Promise.all(
+						setStr
+							.split(",")
+							.map((v) =>
+								CdslVariableParser.resolveValue(
+									v.trim(),
+									profile,
+									dictionaryStore,
+								),
+							),
+					);
 
 					const currentVal = await CdslVariableParser.shadowGetVariable(
 						variableService,
@@ -67,11 +79,23 @@ export class CdslVariableParser {
 						key,
 						blockName,
 					);
-					const testStep: PipelineStep = {
-						op,
-						args: [currentVal as any, ...(setValues as any[])],
-					};
-					const passed = Boolean(executePipeline([testStep], {}, {}));
+
+					let passed = false;
+					if (CdslVariableParser.isConcept(currentVal)) {
+						const matched = setValues.some(
+							(v) =>
+								CdslVariableParser.isConcept(v) &&
+								v.conceptId === currentVal.conceptId,
+						);
+						passed = op === "in_set" ? matched : !matched;
+					} else {
+						const testStep: PipelineStep = {
+							op,
+							args: [currentVal as any, ...(setValues as any[])],
+						};
+						passed = Boolean(executePipeline([testStep], {}, {}));
+					}
+
 					if (!passed) {
 						throw new Error(
 							`Variable assertion failed: expected ${key} ${opStr} {${setStr}}, but current value is ${currentVal}`,
@@ -90,7 +114,11 @@ export class CdslVariableParser {
 					const valStr = assertMatch[3]!.trim();
 
 					const op = CdslVariableParser.mapOperator(opStr);
-					const expectedValue = CdslVariableParser.parseValue(valStr);
+					const expectedValue = await CdslVariableParser.resolveValue(
+						valStr,
+						profile,
+						dictionaryStore,
+					);
 
 					const currentVal = await CdslVariableParser.shadowGetVariable(
 						variableService,
@@ -98,11 +126,23 @@ export class CdslVariableParser {
 						key,
 						blockName,
 					);
-					const testStep: PipelineStep = {
-						op,
-						args: [currentVal as any, expectedValue as any],
-					};
-					const passed = Boolean(executePipeline([testStep], {}, {}));
+
+					let passed = false;
+					if (
+						(op === "eq" || op === "neq") &&
+						CdslVariableParser.isConcept(currentVal) &&
+						CdslVariableParser.isConcept(expectedValue)
+					) {
+						const eq = currentVal.conceptId === expectedValue.conceptId;
+						passed = op === "eq" ? eq : !eq;
+					} else {
+						const testStep: PipelineStep = {
+							op,
+							args: [currentVal as any, expectedValue as any],
+						};
+						passed = Boolean(executePipeline([testStep], {}, {}));
+					}
+
 					if (!passed) {
 						throw new Error(
 							`Variable assertion failed: expected ${key} ${opStr} ${valStr}, but current value is ${currentVal}`,
@@ -116,7 +156,11 @@ export class CdslVariableParser {
 				if (assignMatch) {
 					const key = assignMatch[1]!;
 					const valStr = assignMatch[2]!.trim();
-					const value = CdslVariableParser.parseValue(valStr);
+					const value = await CdslVariableParser.resolveValue(
+						valStr,
+						profile,
+						dictionaryStore,
+					);
 
 					// Assignments are strictly committed locally to the active session/branch scope
 					await variableService.setVariable(sessionId, key, value, blockName);
@@ -127,6 +171,16 @@ export class CdslVariableParser {
 		}
 
 		return cleanText;
+	}
+
+	private static isConcept(
+		val: unknown,
+	): val is { conceptId: string; display: string } {
+		return (
+			typeof val === "object" &&
+			val !== null &&
+			typeof (val as any).conceptId === "string"
+		);
 	}
 
 	/**
@@ -149,6 +203,39 @@ export class CdslVariableParser {
 			currentSessionId = currentSessionId.substring(0, slashIndex);
 		}
 		return undefined;
+	}
+
+	private static async resolveValue(
+		valStr: string,
+		profile: {
+			startTermDelimiter?: string;
+			termTokenizer?: string;
+		},
+		dictionaryStore?: DictionaryStore,
+	): Promise<unknown> {
+		const parsedVal = CdslVariableParser.parseValue(valStr);
+		const startTermDelim = profile.startTermDelimiter || "@";
+		const tokenizer = profile.termTokenizer || "::";
+
+		const isConceptRef =
+			typeof parsedVal === "string" &&
+			(parsedVal.startsWith(startTermDelim) || parsedVal.includes(tokenizer));
+
+		if (isConceptRef && typeof parsedVal === "string" && dictionaryStore) {
+			let lookupText = parsedVal;
+			if (lookupText.startsWith(startTermDelim)) {
+				lookupText = lookupText.slice(startTermDelim.length).trim();
+			}
+			const resolved = await resolveConceptHelper(
+				lookupText,
+				dictionaryStore,
+				profile.termTokenizer,
+			);
+			if (resolved && resolved.length > 0) {
+				return resolved[0];
+			}
+		}
+		return parsedVal;
 	}
 
 	private static mapOperator(op: string): OpName {

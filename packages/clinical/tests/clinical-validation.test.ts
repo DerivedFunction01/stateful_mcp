@@ -3,17 +3,17 @@ import {
 	createMemoryConceptStore,
 	createMemoryExpressionStore,
 	DictionaryStore,
+	EventStore,
 	InMemoryConceptResolver,
 	ObjectStore,
-	EventStore,
 } from "@stateful-mcp/core";
+import { createRepo } from "@stateful-mcp/core/src/adapters/storage/shared/unified-repo";
 import type {
 	EvaluatorRule,
 	EvaluatorStore,
 	EvaluatorTrigger,
 	EventValidationResult,
 } from "@stateful-mcp/core/src/middleware/event/evaluator-types";
-import { createRepo } from "@stateful-mcp/core/src/adapters/storage/shared/unified-repo";
 import { ClinicalEngine } from "../src/engine/clinical-engine";
 import type { SignedSoapNoteRecord } from "../src/store/interfaces";
 
@@ -29,9 +29,14 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 			mutations: any[],
 		): Promise<EventValidationResult> {
 			// Reject if systolic BP > 300
-			const invalid = projectedState.some((r) => r.measurement?.magnitude > 300);
+			const invalid = projectedState.some(
+				(r) => r.measurement?.magnitude > 300,
+			);
 			if (invalid) {
-				return { valid: false, errors: ["Systolic blood pressure cannot exceed 300 mmHg"] };
+				return {
+					valid: false,
+					errors: ["Systolic blood pressure cannot exceed 300 mmHg"],
+				};
 			}
 			return { valid: true, errors: [] };
 		}
@@ -60,7 +65,12 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 
 		// Seed a patient concept/expression
 		const conceptStore = (dictionaryStore as any)["conceptStore"];
-		await conceptStore.addNamespace({ code: "SNOMED", description: "SNOMED", isPublic: true, isExternalPrivate: false });
+		await conceptStore.addNamespace({
+			code: "SNOMED",
+			description: "SNOMED",
+			isPublic: true,
+			isExternalPrivate: false,
+		});
 		await conceptStore.addConcept({
 			id: "SNOMED::116154003",
 			standardCode: "116154003",
@@ -113,7 +123,10 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 			name: { primaryOrSurname: "Doe", givenNames: ["Jane"] },
 			administrativeGender: "female",
 			lifecycle: "active",
-			originationDate: { assertedTimestampUtc: "1990-01-01T00:00:00Z", precisionLevel: "day" },
+			originationDate: {
+				assertedTimestampUtc: "1990-01-01T00:00:00Z",
+				precisionLevel: "day",
+			},
 			isOriginationEstimated: false,
 			biologicalProfile: {
 				id: "bio-1",
@@ -136,7 +149,12 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 				},
 			],
 		};
-		await objectStore.set("active_note", ["objective"], updatedNote.objective, sessionId);
+		await objectStore.set(
+			"active_note",
+			["objective"],
+			updatedNote.objective,
+			sessionId,
+		);
 
 		// 2. Attempt to sign the encounter: should throw validation rejected error
 		expect(
@@ -145,10 +163,18 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 
 		// 3. Fix the systolic vital reading to 120 mmHg
 		updatedNote.objective.vitalSigns[0].measurement.magnitude = 120;
-		await objectStore.set("active_note", ["objective"], updatedNote.objective, sessionId);
+		await objectStore.set(
+			"active_note",
+			["objective"],
+			updatedNote.objective,
+			sessionId,
+		);
 
 		// 4. Try signing again: should succeed
-		const signedRecord = await clinicalEngine.signEncounter(sessionId, "Dr. House");
+		const signedRecord = await clinicalEngine.signEncounter(
+			sessionId,
+			"Dr. House",
+		);
 		expect(signedRecord.signedBy).toBe("Dr. House");
 	});
 });

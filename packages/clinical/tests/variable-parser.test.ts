@@ -251,4 +251,128 @@ describe("CdslParser Integration with CdslVariableParser", () => {
 			parser.parse("{age > 40} #ObservationEvent Chest Pain"),
 		).toThrow("Variable assertion failed");
 	});
+
+	it("should parse and resolve clinical concepts during variable assignment", async () => {
+		const ds = new DictionaryStore(
+			new InMemoryConceptResolver(),
+			createMemoryConceptStore(),
+			createMemoryExpressionStore(),
+		);
+
+		const conceptStore = (ds as any)["conceptStore"];
+		await conceptStore.addNamespace({
+			code: "SNOMED",
+			description: "SNOMED",
+			isPublic: true,
+			isExternalPrivate: false,
+		});
+		await conceptStore.addConcept({
+			id: "SNOMED::29857009",
+			standardCode: "29857009",
+			display: "Chest Pain",
+			namespaceCode: "SNOMED",
+			active: true,
+		});
+
+		await ds.addExpression({
+			term: "Chest Pain",
+			regexPattern: "\\bchest pain\\b",
+			isCaseInsensitive: true,
+			targetAssignment: "MAIN_TERM",
+			conceptId: "SNOMED::29857009",
+			priorityWeight: 1,
+			active: true,
+			id: "chest-pain-exp",
+		});
+
+		const store = new MemoryVariableStore();
+		const service = new VariableServiceStore(store);
+
+		const parser = new CdslParser(
+			ds,
+			mockProfile,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			service,
+		);
+
+		await parser.parse("{prob_concept = @Chest Pain}");
+		const val = await service.getVariable("default_session", "prob_concept");
+		expect(val).toBeDefined();
+		expect((val as any)?.display).toBe("Chest Pain");
+		expect((val as any)?.conceptId).toBe("SNOMED::29857009");
+	});
+
+	it("should evaluate synonym concept variables as equal if they map to the same concept", async () => {
+		const ds = new DictionaryStore(
+			new InMemoryConceptResolver(),
+			createMemoryConceptStore(),
+			createMemoryExpressionStore(),
+		);
+
+		const conceptStore = (ds as any)["conceptStore"];
+		await conceptStore.addNamespace({
+			code: "SNOMED",
+			description: "SNOMED",
+			isPublic: true,
+			isExternalPrivate: false,
+		});
+		await conceptStore.addConcept({
+			id: "SNOMED::29857009",
+			standardCode: "29857009",
+			display: "Chest Pain",
+			namespaceCode: "SNOMED",
+			active: true,
+		});
+
+		// User A expression mapping
+		await ds.addExpression({
+			term: "Chest Pain",
+			regexPattern: "\\bchest pain\\b",
+			isCaseInsensitive: true,
+			targetAssignment: "MAIN_TERM",
+			conceptId: "SNOMED::29857009",
+			priorityWeight: 1,
+			active: true,
+			id: "chest-pain-exp-a",
+		});
+
+		// User B synonym expression mapping ("angina pectoris" mapping to same SNOMED ID)
+		await ds.addExpression({
+			term: "Angina Pectoris",
+			regexPattern: "\\bangina pectoris\\b",
+			isCaseInsensitive: true,
+			targetAssignment: "MAIN_TERM",
+			conceptId: "SNOMED::29857009",
+			priorityWeight: 1,
+			active: true,
+			id: "chest-pain-exp-b",
+		});
+
+		const store = new MemoryVariableStore();
+		const service = new VariableServiceStore(store);
+
+		const parser = new CdslParser(
+			ds,
+			mockProfile,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			service,
+		);
+
+		// User A sets variable with one phrase, User B asserts variable with another phrase
+		await parser.parse("{prob_concept = @Chest Pain}");
+		const cleanText = await parser.parse("{prob_concept == @Angina Pectoris}");
+		expect(cleanText.length).toBe(0);
+	});
 });

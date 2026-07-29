@@ -144,6 +144,7 @@ export class CdslParser {
 			service,
 			sessionId,
 			this.profile,
+			this.dictionaryStore,
 		);
 	}
 

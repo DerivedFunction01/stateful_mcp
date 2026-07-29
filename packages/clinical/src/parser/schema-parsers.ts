@@ -217,7 +217,9 @@ export interface SchemaParserOptions {
 
 export interface SchemaParser {
 	targetSchema: string;
-	parse(options: SchemaParserOptions): Promise<ParsedItemUnion | ParsedItemUnion[] | null>;
+	parse(
+		options: SchemaParserOptions,
+	): Promise<ParsedItemUnion | ParsedItemUnion[] | null>;
 	preview?(options: SchemaParserOptions): Promise<ParsedCandidateEnvelope>;
 }
 

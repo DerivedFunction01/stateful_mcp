@@ -1,7 +1,7 @@
 import type {
 	DictionaryStore,
-	EventStore,
 	EvaluatorStore,
+	EventStore,
 	ObjectStore,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
@@ -577,10 +577,18 @@ export class ClinicalEngine {
 		// Initialize EventStore session tip at the same alias
 		try {
 			const eventStoreAny = this.eventStore as any;
-			if (eventStoreAny.schemas && !eventStoreAny.schemas.has("clinical_events")) {
+			if (
+				eventStoreAny.schemas &&
+				!eventStoreAny.schemas.has("clinical_events")
+			) {
 				eventStoreAny.schemas.set("clinical_events", { type: "object" });
 			}
-			await this.eventStore.init("clinical_events", sessionId, "active_note", []);
+			await this.eventStore.init(
+				"clinical_events",
+				sessionId,
+				"active_note",
+				[],
+			);
 		} catch (_) {
 			// Fail-safe if already initialized in event store
 		}
@@ -903,7 +911,10 @@ export class ClinicalEngine {
 		return projectedState;
 	}
 
-	private projectEventRecordsToSoapNote(records: any[], baseNote: SoapNote): SoapNote {
+	private projectEventRecordsToSoapNote(
+		records: any[],
+		baseNote: SoapNote,
+	): SoapNote {
 		const note: SoapNote = JSON.parse(JSON.stringify(baseNote));
 
 		// Dynamically clear all target paths from baseNote to avoid duplicates
@@ -971,14 +982,23 @@ export class ClinicalEngine {
 		return note;
 	}
 
-	async reconcileEventStateToObjectStore(commitId: string, sessionId: string): Promise<string> {
-		const activeObj = await this.objectStore.getObject("active_note", sessionId);
+	async reconcileEventStateToObjectStore(
+		commitId: string,
+		sessionId: string,
+	): Promise<string> {
+		const activeObj = await this.objectStore.getObject(
+			"active_note",
+			sessionId,
+		);
 		if (!activeObj) {
 			throw new Error("No active encounter note session found.");
 		}
 
 		const records = await this.eventStore.project(commitId, sessionId);
-		const updatedNote = this.projectEventRecordsToSoapNote(records, activeObj.data as SoapNote);
+		const updatedNote = this.projectEventRecordsToSoapNote(
+			records,
+			activeObj.data as SoapNote,
+		);
 		await this.objectStore.set("active_note", [], updatedNote, sessionId);
 		return commitId;
 	}
