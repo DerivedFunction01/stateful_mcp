@@ -11,6 +11,22 @@
 
 import type { MeasurementUnitAnchor } from "../../../schemas/measurement";
 
+/**
+ * Normalizes a measurement magnitude to its canonical base unit.
+ * Returns null if the anchor or unit is unrecognized.
+ */
+export function normalizeMeasurementValue(
+	anchor: MeasurementUnitAnchor,
+	unit: string,
+	magnitude: number,
+): number | null {
+	const table = ANCHOR_TO_CONVERSIONS[anchor];
+	if (!table) return null;
+	const conversion = table[unit];
+	if (!conversion) return null;
+	return conversion.toBase(magnitude);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper types
 // ─────────────────────────────────────────────────────────────────────────────

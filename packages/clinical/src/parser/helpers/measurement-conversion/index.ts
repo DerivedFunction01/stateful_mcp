@@ -15,6 +15,9 @@
 import type { MeasurementUnitAnchor } from "../../../schemas/measurement";
 import { getDefaultConversionRegistry } from "./registry";
 
+export { ANCHOR_TO_CONVERSIONS, normalizeMeasurementValue } from "./conversion-factors";
+export { UnitConversionRegistry, getDefaultConversionRegistry, type ConversionEntry } from "./registry";
+
 /**
  * Compute the canonical base-unit value for a measurement.
  *
