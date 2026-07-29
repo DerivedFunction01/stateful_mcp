@@ -385,6 +385,12 @@ export interface ParsedCellRanker<TCandidate = ParsedCellRecord> {
 
 // ── Autocomplete Transition Store ───────────────────────────────────────────
 
+export interface AutocompleteFeature {
+	key: string;
+	value: string | null;
+	numericalValue: number | null;
+}
+
 export interface AutocompleteTransitionKey {
 	personnelId: string;
 	templateId: string;
