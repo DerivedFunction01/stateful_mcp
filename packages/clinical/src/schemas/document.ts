@@ -174,7 +174,7 @@ export interface SoapNote {
 		 * Safety netting: patient red flags, return precautions,
 		 * follow-up window, and escalation pathway.
 		 */
-		safetyNetting?: SafetyNettingPlan;
+		safetyNetting?: SafetyNettingPlan[];
 		militaryPlan?: MilitaryPlanExtension;
 
 		narrative?: string;
