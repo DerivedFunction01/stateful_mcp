@@ -17,6 +17,7 @@ export class SqlAutocompleteTransitionStore
 	private compiler: AutocompleteTransitionQueryCompiler;
 	private table: string;
 	private executor: SqlExecutor;
+	dialect: SqlDialect;
 
 	constructor(
 		dialect: SqlDialect,
