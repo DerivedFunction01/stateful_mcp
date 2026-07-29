@@ -38,6 +38,7 @@ import {
 	type OrderedLearningToken,
 	scoreRecency,
 } from "../store/learning/interfaces";
+import type { AutocompleteTransitionStore } from "../store/learning/interfaces";
 import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
 import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";
@@ -413,6 +414,7 @@ export interface ClinicalEngineConfig {
 	profile?: ParserSyntaxProfile;
 	profileStore?: ParserProfileStore;
 	orderAwareStore?: OrderedLearningStore;
+	autocompleteTransitionStore?: AutocompleteTransitionStore;
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 }
@@ -425,6 +427,7 @@ export class ClinicalEngine {
 	private calibrationStore?: CalibrationStore;
 	private parsedCellStore?: ParsedCellStore;
 	private orderAwareStore?: OrderedLearningStore;
+	private autocompleteTransitionStore?: AutocompleteTransitionStore;
 	private conceptFieldStore?: ConceptFieldStore;
 	private evaluatorStore?: EvaluatorStore;
 
@@ -435,6 +438,7 @@ export class ClinicalEngine {
 		this.calibrationStore = config.calibrationStore;
 		this.parsedCellStore = config.parsedCellStore;
 		this.orderAwareStore = config.orderAwareStore;
+		this.autocompleteTransitionStore = config.autocompleteTransitionStore;
 		this.conceptFieldStore = config.conceptFieldStore;
 		this.evaluatorStore = config.evaluatorStore;
 

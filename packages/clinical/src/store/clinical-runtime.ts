@@ -5,6 +5,8 @@ import {
 } from "./adapter-types";
 import type { ClinicalStoreConfig } from "./clinical-config";
 import type { ParsedCellStore } from "./learning/interfaces";
+import { resolveAutocompleteTransitionStoreLocator } from "./learning/autocomplete-resolver";
+import { resolveOrderedLearningStoreLocator } from "./learning/ordered-learning-resolver";
 import { resolveParsedCellStoreLocatorV2 } from "./learning/learning-backend-resolver";
 import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "./parser/concept_defaults/interfaces";
 import {
@@ -38,6 +40,8 @@ import type { ProseParserTemplateStore } from "./reference/prose-parser-template
 import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
 import { DefaultStopWordStore } from "./reference/stop-words/default-stop-word-store";
 import type { StopWordStore } from "./reference/stop-words/interfaces";
+import type { AutocompleteTransitionStore } from "./learning/interfaces";
+import type { OrderedLearningStore } from "./learning/interfaces";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -64,6 +68,8 @@ export interface ClinicalRuntime {
 	config: ClinicalStoreConfig;
 	parserStores: ClinicalRuntimeParserStores;
 	learningStores: ParsedCellStore[];
+	orderedLearningStores: OrderedLearningStore[];
+	autocompleteTransitionStores: AutocompleteTransitionStore[];
 }
 
 // ── Factory using decomposed stores ──────────────────────────────────────────
@@ -81,6 +87,8 @@ export async function createClinicalRuntime(
 		facilities,
 		sharedFieldAnchors,
 		stopWordWordLists,
+		orderedLearningStores,
+		autocompleteTransitionStores,
 	] = await Promise.all([
 		resolveParserProfileStores(config),
 		resolveParserRuleStores(config),
@@ -91,6 +99,8 @@ export async function createClinicalRuntime(
 		resolveFacilityStore(config),
 		resolveSharedFieldAnchorStore(config),
 		resolveStopWordWordListStore(config),
+		buildOrderedLearningStores(config),
+		buildAutocompleteTransitionStores(config),
 	]);
 
 	const composer = new DefaultParserProfileComposer(
@@ -129,6 +139,8 @@ export async function createClinicalRuntime(
 			sharedFieldAnchors,
 		},
 		learningStores: await buildLearningStores(config),
+		orderedLearningStores,
+		autocompleteTransitionStores,
 	};
 }
 
@@ -143,5 +155,33 @@ async function buildLearningStores(
 		adapters
 			.filter((a) => a.implemented !== false && a.primary)
 			.map((a) => resolveParsedCellStoreLocatorV2(a.primary, a.weights)),
+	);
+}
+
+async function buildOrderedLearningStores(
+	config: ClinicalStoreConfig,
+): Promise<OrderedLearningStore[]> {
+	const adapters = getClinicalAdapterConfigs("ordered_learning", {
+		ordered_learning: config.domains.ordered_learning.defaultAdapters,
+	} as unknown as ClinicalStorageAdapterRegistry);
+
+	return await Promise.all(
+		adapters
+			.filter((a) => a.implemented !== false && a.primary)
+			.map((a) => resolveOrderedLearningStoreLocator(a.primary)),
+	);
+}
+
+async function buildAutocompleteTransitionStores(
+	config: ClinicalStoreConfig,
+): Promise<AutocompleteTransitionStore[]> {
+	const adapters = getClinicalAdapterConfigs("autocomplete", {
+		autocomplete: config.domains.autocomplete.defaultAdapters,
+	} as unknown as ClinicalStorageAdapterRegistry);
+
+	return await Promise.all(
+		adapters
+			.filter((a) => a.implemented !== false && a.primary)
+			.map((a) => resolveAutocompleteTransitionStoreLocator(a.primary)),
 	);
 }

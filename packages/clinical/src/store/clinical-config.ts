@@ -11,6 +11,7 @@ import type {
 export type ClinicalStoreDomain =
 	| "learning"
 	| "ordered_learning"
+	| "autocomplete"
 	| "dictionary"
 	| "parser"
 	| "soap_note"

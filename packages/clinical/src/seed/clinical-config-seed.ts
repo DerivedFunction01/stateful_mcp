@@ -299,7 +299,7 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 						_type: "adapter",
 						name: "sqlite",
 						options: {
-							path: "./clinical-learning.sqlite",
+							path: "./clinical-ordered-learning.sqlite",
 						},
 					},
 					implemented: true,
@@ -323,7 +323,51 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 						_type: "adapter",
 						name: "jsonl",
 						options: {
-							path: "./clinical-learning.jsonl",
+							path: "./clinical-ordered-learning.jsonl",
+						},
+					},
+					implemented: false,
+				},
+			],
+		},
+		autocomplete: {
+			group: "autocomplete",
+			implemented: true,
+			description:
+				"Autocomplete transition store for slot-to-slot navigation patterns. Tracks form field transitions with decayed and continuous aggregates.",
+			defaultAdapters: [
+				{
+					group: "autocomplete",
+					capabilities: ["read", "write", "query", "rank", "learn"],
+					primary: {
+						_type: "adapter",
+						name: "sqlite",
+						options: {
+							path: "./clinical-autocomplete.sqlite",
+						},
+					},
+					implemented: true,
+				},
+				{
+					group: "autocomplete",
+					capabilities: ["read", "write", "query", "rank", "learn"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+				{
+					group: "autocomplete",
+					capabilities: ["read", "write", "query", "rank", "learn"],
+					primary: {
+						_type: "adapter",
+						name: "jsonl",
+						options: {
+							path: "./clinical-autocomplete.jsonl",
 						},
 					},
 					implemented: false,
