@@ -12,9 +12,9 @@ import type {
 	ParsedCellRecord,
 	ParsedCellShared,
 	ParsedCellStore,
+	SystemWeightStore,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
-import type { FieldWeightStore } from "./field-weight-store";
 import type { ParsedCellHistoryStore } from "./history-store";
 import { getTransformForSchema } from "./parsed-cell-record-transform";
 import { flattenParsedItem } from "./transforms/flatten-helper";
@@ -68,20 +68,20 @@ export class SqlParsedCellStore
 	private sharedTable: string;
 	private executor: SqlExecutor;
 	private detailTableMap: Record<string, string>;
-	private fieldWeightStore?: FieldWeightStore;
+	private weightStore?: SystemWeightStore;
 
 	constructor(
 		dialect: SqlDialect,
 		executor: SqlExecutor,
 		sharedTable = SHARED_TABLE,
 		detailTableMap?: Record<string, string>,
-		fieldWeightStore?: FieldWeightStore,
+		weightStore?: SystemWeightStore,
 	) {
 		this.dialect = dialect;
 		this.executor = executor;
 		this.sharedTable = sharedTable;
 		this.detailTableMap = detailTableMap || {};
-		this.fieldWeightStore = fieldWeightStore;
+		this.weightStore = weightStore;
 		this.compiler = new ParsedCellSqlCompilerV2(this.dialect);
 		this.ensureSharedTable();
 	}
@@ -359,8 +359,11 @@ export class SqlParsedCellStore
 					]),
 				);
 
-		const schemaWeights = this.fieldWeightStore
-			? await this.fieldWeightStore.getWeightsForSchema(targetSchema)
+		const schemaWeights = this.weightStore
+			? await this.weightStore.getWeightsForCategory(
+					"field_weights",
+					targetSchema,
+				)
 			: {};
 
 		const columns = (transform?.columnSpecs || []).map((col) => ({
@@ -396,7 +399,7 @@ export class SqlParsedCellStore
 		key: ParsedCellHistoryKey,
 		accepted: boolean,
 	): Promise<void> {
-		if (!this.fieldWeightStore) return;
+		if (!this.weightStore) return;
 
 		const transform = getTransformForSchema(key.targetSchema);
 		if (!transform) return;
@@ -432,10 +435,11 @@ export class SqlParsedCellStore
 
 		for (const [path] of candidateLeaves) {
 			if (historyLeaves.has(path)) {
-				await this.fieldWeightStore.adjustWeight(
+				await this.weightStore.adjustWeight(
+					"field_weights",
 					key.targetSchema,
-					path,
 					accepted ? 0.1 : -0.1,
+					path,
 				);
 			}
 		}

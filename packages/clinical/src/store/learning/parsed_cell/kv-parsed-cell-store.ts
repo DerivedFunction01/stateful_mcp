@@ -6,10 +6,10 @@ import type {
 	ParsedCellRankerContext,
 	ParsedCellRecord,
 	ParsedCellStore,
+	SystemWeightStore,
 } from "../interfaces";
 import { scoreRecency } from "../interfaces";
-import type { FieldWeightStore } from "./field-weight-store";
-import { KvBackendFieldWeightStore } from "./field-weight-store";
+import { KvBackendSystemWeightStore } from "./field-weight-store";
 import type { ParsedCellHistoryStore } from "./history-store";
 import { GenericPreferenceRanker } from "./ranker";
 
@@ -29,14 +29,13 @@ function compositeHistoryScore(history?: {
 export class KvParsedCellStore
 	implements ParsedCellStore, ParsedCellHistoryStore
 {
-	private readonly fieldWeightStore: FieldWeightStore;
+	private readonly weightStore: SystemWeightStore;
 
 	constructor(
 		private backend: KvBackend,
-		fieldWeightStore?: FieldWeightStore,
+		weightStore?: SystemWeightStore,
 	) {
-		this.fieldWeightStore =
-			fieldWeightStore || new KvBackendFieldWeightStore(backend);
+		this.weightStore = weightStore || new KvBackendSystemWeightStore(backend);
 	}
 
 	async putRecord(record: ParsedCellRecord): Promise<void> {
@@ -262,7 +261,7 @@ export class KvParsedCellStore
 			facilityId: key.facilityId,
 		};
 
-		const ranker = new GenericPreferenceRanker(this.fieldWeightStore);
+		const ranker = new GenericPreferenceRanker(this.weightStore);
 		await ranker.loadWeights(targetSchema);
 		return history
 			.map((record) => {
@@ -295,7 +294,7 @@ export class KvParsedCellStore
 			facilityId: key.facilityId,
 		};
 
-		const ranker = new GenericPreferenceRanker(this.fieldWeightStore);
+		const ranker = new GenericPreferenceRanker(this.weightStore);
 		await ranker.loadWeights(key.targetSchema);
 		const record: ParsedCellRecord = {
 			shared: {} as ParsedCellRecord["shared"],

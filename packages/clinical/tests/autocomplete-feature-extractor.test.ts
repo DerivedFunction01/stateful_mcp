@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
 	extractConceptFeature,
+	extractFeatures,
 	extractMeasurementFeature,
 	extractObjectFeatures,
 	extractTermFeatures,
-	extractFeatures,
 } from "../src/parser/helpers/autocomplete-feature-extractor";
 
 describe("Autocomplete Feature Extractors", () => {
@@ -43,11 +43,15 @@ describe("Autocomplete Feature Extractors", () => {
 			route: "oral",
 			dosage: "50mg",
 			concept: [{ conceptId: "123" }], // ignored
-			anchor: "temp",                  // ignored
+			anchor: "temp", // ignored
 		});
 		expect(f).toHaveLength(2);
-		expect(f.some((x) => x.key === "obj_key:route" && x.value === "oral")).toBe(true);
-		expect(f.some((x) => x.key === "obj_key:dosage" && x.value === "50mg")).toBe(true);
+		expect(f.some((x) => x.key === "obj_key:route" && x.value === "oral")).toBe(
+			true,
+		);
+		expect(
+			f.some((x) => x.key === "obj_key:dosage" && x.value === "50mg"),
+		).toBe(true);
 	});
 
 	test("extractTermFeatures filters stop words and splits tokens", () => {
@@ -76,9 +80,18 @@ describe("Autocomplete Feature Extractors", () => {
 		// 2. Measurement: temperature (37 Celsius = 310.15 Kelvin)
 		// 3. Obj_key: status = active
 		// 4. Term: fever, chills (with is filtered out)
-		expect(f.some((x) => x.key === "concept" && x.value === "SNOMED::123")).toBe(true);
-		expect(f.some((x) => x.key === "measurement:temperature" && x.numericalValue === 310.15)).toBe(true);
-		expect(f.some((x) => x.key === "obj_key:status" && x.value === "active")).toBe(true);
+		expect(
+			f.some((x) => x.key === "concept" && x.value === "SNOMED::123"),
+		).toBe(true);
+		expect(
+			f.some(
+				(x) =>
+					x.key === "measurement:temperature" && x.numericalValue === 310.15,
+			),
+		).toBe(true);
+		expect(
+			f.some((x) => x.key === "obj_key:status" && x.value === "active"),
+		).toBe(true);
 		expect(f.some((x) => x.key === "term" && x.value === "fever")).toBe(true);
 		expect(f.some((x) => x.key === "term" && x.value === "chills")).toBe(true);
 	});

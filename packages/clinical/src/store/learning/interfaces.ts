@@ -453,3 +453,50 @@ export interface AutocompleteTransitionStore {
 		plan: AutocompleteTransitionContinuousAggregatePlan,
 	): Promise<Record<string, { mu: number; sigmaSq: number }>>;
 }
+
+export interface SystemWeightStore {
+	getWeight(category: string, key: string, subKey?: string): Promise<number>;
+	setWeight(
+		category: string,
+		key: string,
+		value: number,
+		subKey?: string,
+	): Promise<void>;
+	adjustWeight(
+		category: string,
+		key: string,
+		delta: number,
+		subKey?: string,
+	): Promise<void>;
+	getWeightsForCategory(
+		category: string,
+		key: string,
+	): Promise<Record<string, number>>;
+}
+
+export interface ParseScorerWeights {
+	completenessWeight: number;
+	conceptWeight: number;
+	typeWeight: number;
+	historyWeight: number;
+}
+
+export interface ParseConfidenceScoreBreakdown {
+	completeness: number;
+	conceptCoherence: number;
+	typeCoherence: number;
+	historicalPreference: number;
+}
+
+export interface ScoredParsedItem {
+	parsedItem: ParsedItem;
+	confidenceScore: number;
+	breakdown: ParseConfidenceScoreBreakdown;
+}
+
+export interface ClinicalParseConfidenceScorer {
+	scoreCandidate(
+		candidate: ParsedItem,
+		context: ParsedCellRankerContext,
+	): Promise<ScoredParsedItem>;
+}

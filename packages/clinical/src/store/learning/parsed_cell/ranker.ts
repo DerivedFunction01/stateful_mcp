@@ -7,6 +7,7 @@ import type {
 	ParsedCellRankerContext,
 	ParsedCellRankerScore,
 	ParsedCellRecord,
+	SystemWeightStore,
 } from "../interfaces";
 import type { FieldWeightStore } from "./field-weight-store";
 import { getTransformForSchema } from "./parsed-cell-record-transform";
@@ -84,16 +85,38 @@ function compareLeafValues(
 export class GenericPreferenceRanker
 	implements ParsedCellRanker<ParsedCellRecord>
 {
+	private readonly weightStore?: SystemWeightStore;
 	private fieldWeights: Map<string, number>;
 	private weightsLoaded = false;
 	adjustmentRate: number;
 
 	constructor(
-		private readonly fieldWeightStore?: FieldWeightStore,
+		weightStore?: SystemWeightStore | FieldWeightStore,
 		options?: { fieldWeights?: Record<string, number> },
 	) {
 		this.adjustmentRate = ADJUSTMENT_RATE;
 		this.fieldWeights = new Map();
+
+		if (weightStore) {
+			if ("getWeightsForCategory" in weightStore) {
+				this.weightStore = weightStore;
+			} else {
+				this.weightStore = {
+					getWeight: async (cat, key, subKey) => {
+						return weightStore.getWeight(key, subKey ?? "");
+					},
+					setWeight: async (cat, key, value, subKey) => {
+						return weightStore.setWeight(key, subKey ?? "", value);
+					},
+					adjustWeight: async (cat, key, delta, subKey) => {
+						return weightStore.adjustWeight(key, subKey ?? "", delta);
+					},
+					getWeightsForCategory: async (cat, key) => {
+						return weightStore.getWeightsForSchema(key);
+					},
+				};
+			}
+		}
 
 		if (options?.fieldWeights) {
 			for (const [path, weight] of Object.entries(options.fieldWeights)) {
@@ -110,12 +133,14 @@ export class GenericPreferenceRanker
 	}
 
 	async loadWeights(targetSchema: string): Promise<void> {
-		if (!this.fieldWeightStore) {
+		if (!this.weightStore) {
 			this.weightsLoaded = true;
 			return;
 		}
-		const weights =
-			await this.fieldWeightStore.getWeightsForSchema(targetSchema);
+		const weights = await this.weightStore.getWeightsForCategory(
+			"field_weights",
+			targetSchema,
+		);
 		this.fieldWeights = new Map(Object.entries(weights));
 		this.weightsLoaded = true;
 	}
@@ -288,7 +313,7 @@ export class GenericPreferenceRanker
 		context: ParsedCellRankerContext,
 		accepted: boolean,
 	): Promise<void> {
-		if (!this.fieldWeightStore) return;
+		if (!this.weightStore) return;
 
 		const transform = getTransformForSchema(context.targetSchema);
 		if (!transform) return;
@@ -317,10 +342,11 @@ export class GenericPreferenceRanker
 
 		for (const [path] of candidateLeaves) {
 			if (historyLeaves.has(path)) {
-				await this.fieldWeightStore.adjustWeight(
+				await this.weightStore.adjustWeight(
+					"field_weights",
 					context.targetSchema,
-					path,
 					accepted ? ADJUSTMENT_RATE : -ADJUSTMENT_RATE,
+					path,
 				);
 			}
 		}

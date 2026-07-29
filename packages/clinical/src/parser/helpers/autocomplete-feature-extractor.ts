@@ -1,7 +1,6 @@
-import type { AutocompleteFeature } from "../../store/learning/interfaces";
-import type { CodeableConcept } from "../../schemas/shared";
-import { computeValueInBase } from "./measurement-conversion";
 import type { MeasurementUnitAnchor } from "../../schemas/measurement";
+import type { AutocompleteFeature } from "../../store/learning/interfaces";
+import { computeValueInBase } from "./measurement-conversion";
 
 /**
  * Helper to extract Concept features.
@@ -48,7 +47,9 @@ export function extractConceptFeature(value: unknown): AutocompleteFeature[] {
  * Helper to extract Measurement features.
  * Format: key="measurement:<anchor>", numericalValue=<baseConvertedValue>
  */
-export function extractMeasurementFeature(value: unknown): AutocompleteFeature[] {
+export function extractMeasurementFeature(
+	value: unknown,
+): AutocompleteFeature[] {
 	if (!value || typeof value !== "object") return [];
 	const valObj = value as Record<string, any>;
 
@@ -87,7 +88,12 @@ export function extractObjectFeatures(value: unknown): AutocompleteFeature[] {
 
 	for (const [k, v] of Object.entries(valObj)) {
 		// skip standard keys or sub-objects/arrays
-		if (k === "concept" || k === "anchor" || k === "unit" || k === "magnitude") {
+		if (
+			k === "concept" ||
+			k === "anchor" ||
+			k === "unit" ||
+			k === "magnitude"
+		) {
 			continue;
 		}
 		if (v !== null && typeof v !== "object") {
@@ -152,7 +158,10 @@ export function extractFeatures(
 	// 4. String term token features
 	if (typeof value === "string") {
 		features.push(...extractTermFeatures(value, stopWords));
-	} else if (typeof value === "object" && typeof (value as any).rawText === "string") {
+	} else if (
+		typeof value === "object" &&
+		typeof (value as any).rawText === "string"
+	) {
 		features.push(...extractTermFeatures((value as any).rawText, stopWords));
 	}
 

@@ -16,7 +16,11 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import type {
+	ParsedCellHistoryStore,
+	SystemWeightStore,
+} from "../store/learning/interfaces";
+import { GenericConfidenceScorer } from "../store/learning/parsed_cell/confidence-scorer";
 import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import {
@@ -36,6 +40,7 @@ import { ProseTemplateSuggester } from "./prose-template-suggester";
 import {
 	type ParsedCandidateEnvelope,
 	type ParsedItem,
+	type ParsedItemUnion,
 	type PreparsedContext,
 	type RankingSignal,
 	resolveMultiConceptHelper,
@@ -69,6 +74,7 @@ export class CdslParser {
 		private sharedFieldAnchorStore?: SharedFieldAnchorStore,
 		private macroStore?: ParserMacroStore,
 		private variableService?: VariableService,
+		private weightStore?: SystemWeightStore,
 	) {
 		this.stopWordParser = stopWordParser;
 		this.stopWordStore = stopWordStore;
@@ -628,6 +634,7 @@ export class CdslParser {
 				}
 			}
 
+			const candidateItems: ParsedItemUnion[] = [];
 			// Dispatch selected parsers against the full span
 			for (const parser of parsersToRun) {
 				const allowedNamespaces =
@@ -669,13 +676,40 @@ export class CdslParser {
 							item.targetSchema,
 						);
 						if (!requiresConcept || item.concept.length > 0) {
-							// De-duplicate using segment-level index offset to allow duplicate concepts across distinct sentences
-							const key = `${item.targetSchema}:${item.concept[0]?.conceptId ?? ""}:${JSON.stringify(item.extractedData)}:segment_${items.length}`;
-							if (!seenFinal.has(key)) {
-								seenFinal.add(key);
-								items.push(item);
-							}
+							candidateItems.push(item);
 						}
+					}
+				}
+			}
+
+			if (candidateItems.length > 0) {
+				const confidenceScorer = new GenericConfidenceScorer(
+					this.weightStore,
+					historyStore as any,
+				);
+				const scored: { item: ParsedItemUnion; score: number }[] = [];
+				for (const item of candidateItems) {
+					const res = await confidenceScorer.scoreCandidate(item, {
+						tag: tag || "",
+						targetSchema: item.targetSchema,
+						rawText: content,
+						history: [],
+					});
+					scored.push({ item, score: res.confidenceScore });
+				}
+
+				scored.sort((a, b) => b.score - a.score);
+
+				const threshold = 0.5;
+				const winners = scored.filter((s) => s.score >= threshold);
+				const finalWinners = winners.length > 0 ? winners : scored.slice(0, 1);
+
+				for (const win of finalWinners) {
+					const item = win.item;
+					const key = `${item.targetSchema}:${item.concept[0]?.conceptId ?? ""}:${JSON.stringify(item.extractedData)}:segment_${items.length}`;
+					if (!seenFinal.has(key)) {
+						seenFinal.add(key);
+						items.push(item);
 					}
 				}
 			}

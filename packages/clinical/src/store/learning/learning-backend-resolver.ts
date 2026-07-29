@@ -15,7 +15,7 @@ import {
 } from "@stateful-mcp/core";
 
 import type { ParsedCellStore } from "./interfaces";
-import { KvBackendFieldWeightStore } from "./parsed_cell/field-weight-store";
+import { KvBackendSystemWeightStore } from "./parsed_cell/field-weight-store";
 import { KvParsedCellStore } from "./parsed_cell/kv-parsed-cell-store";
 import { SqlParsedCellStore } from "./parsed_cell/sql-parsed-cell-store";
 
@@ -83,8 +83,8 @@ export async function resolveParsedCellStoreLocatorV2(
 			connectionTarget,
 		);
 
-		const fieldWeightStore = weightsLocator
-			? new KvBackendFieldWeightStore(
+		const weightStore = weightsLocator
+			? new KvBackendSystemWeightStore(
 					await resolveKvBackendFromLocator(weightsLocator),
 				)
 			: undefined;
@@ -94,20 +94,20 @@ export async function resolveParsedCellStoreLocatorV2(
 			new SqlExecutor(backend),
 			undefined,
 			undefined,
-			fieldWeightStore,
+			weightStore,
 		);
 	}
 
 	if (["memory", "jsonl", "indexeddb", "localstorage"].includes(name)) {
 		const kvBackend = await resolveKvBackendFromLocator(locator);
 
-		const fieldWeightStore = weightsLocator
-			? new KvBackendFieldWeightStore(
+		const weightStore = weightsLocator
+			? new KvBackendSystemWeightStore(
 					await resolveKvBackendFromLocator(weightsLocator),
 				)
-			: new KvBackendFieldWeightStore(kvBackend);
+			: new KvBackendSystemWeightStore(kvBackend);
 
-		return new KvParsedCellStore(kvBackend, fieldWeightStore);
+		return new KvParsedCellStore(kvBackend, weightStore);
 	}
 
 	throw new Error(`Unsupported clinical learning adapter: ${name}`);
