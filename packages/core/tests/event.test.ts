@@ -1,4 +1,5 @@
 import { createRepo } from "../src/adapters/storage/shared/unified-repo";
+import { eventBroker } from "../src/events/broker";
 import { EventStore } from "../src/middleware/event/store";
 
 export async function runEventTests() {
@@ -23,6 +24,14 @@ export async function runEventTests() {
 	const eventStore = new EventStore(sessionStore, persistentStore, schemas, 3);
 
 	const sessionId = "event_test_session_1";
+
+	// Capture state change events for assertion
+	const capturedEvents: any[] = [];
+	eventBroker.on("state:changed", (ev) => {
+		if (ev.sessionId === sessionId) {
+			capturedEvents.push(ev);
+		}
+	});
 
 	// ──── TEST CASE 1: Event Schema Validation & Initialization ────
 	console.log("🧪 Test Case 1: Event Schema Validation & Initialization");
@@ -121,6 +130,38 @@ export async function runEventTests() {
 			`Expected Temp event to be removed, projected array: ${JSON.stringify(array)}`,
 		);
 	}
+	// Assert eventBroker captured correct state changes
+	const appendEvent = capturedEvents.find((e) => e.action === "append");
+	if (
+		!appendEvent ||
+		!appendEvent.data?.eventId ||
+		appendEvent.data.mutations[0]?.type !== "add"
+	) {
+		throw new Error(
+			`Expected append state change event with details, got: ${JSON.stringify(appendEvent)}`,
+		);
+	}
+	const patchEvent = capturedEvents.find((e) => e.action === "patch");
+	if (
+		!patchEvent ||
+		patchEvent.data?.eventId !== tempEvent.event_id ||
+		patchEvent.data.mutations[0]?.type !== "update"
+	) {
+		throw new Error(
+			`Expected patch state change event with details, got: ${JSON.stringify(patchEvent)}`,
+		);
+	}
+	const deleteEvent = capturedEvents.find((e) => e.action === "delete");
+	if (
+		!deleteEvent ||
+		deleteEvent.data?.eventId !== tempEvent.event_id ||
+		deleteEvent.data.mutations[0]?.type !== "remove"
+	) {
+		throw new Error(
+			`Expected delete state change event with details, got: ${JSON.stringify(deleteEvent)}`,
+		);
+	}
+
 	console.log(
 		"✓ Add, patch, and delete projection operations verified successfully.",
 	);

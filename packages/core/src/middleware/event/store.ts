@@ -8,6 +8,8 @@ import { runValidationEngine } from "../../adapters/validation/runner";
 import type { OwnerScope, ResourceLocator } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import { eventBroker } from "../../events/broker";
+import type { EvaluatorStore } from "./evaluator-types";
+import { SelectiveValidatorRouter } from "./selective-validator-router";
 import type {
 	EventCommit,
 	EventMutation,
@@ -40,6 +42,7 @@ export class EventStore {
 		private chainThreshold = 15,
 		private validationEngines: Map<string, ResourceLocator> = new Map(),
 		private workspaceRoot: string = process.cwd(),
+		private evaluatorStore?: EvaluatorStore,
 	) {}
 
 	/**
@@ -65,6 +68,32 @@ export class EventStore {
 				ErrorCode.OBJECT_VALIDATION_FAILED,
 				`Event validation rejected: ${(result.errors || ["unknown reason"]).join("; ")}`,
 			);
+		}
+	}
+
+	private async validateMutations(
+		schemaName: string,
+		projectedState: EventRecord[],
+		mutations: EventMutation[],
+		sessionId: string,
+	): Promise<void> {
+		if (!this.evaluatorStore) return;
+
+		const rules = await this.evaluatorStore.getRules(schemaName);
+		for (const rule of rules) {
+			if (SelectiveValidatorRouter.shouldTrigger(rule.trigger, mutations)) {
+				const result = await rule.evaluate(
+					projectedState,
+					mutations,
+					sessionId,
+				);
+				if (!result.valid) {
+					throw new StatefulFrameworkError(
+						ErrorCode.OBJECT_VALIDATION_FAILED,
+						`Validation rule "${rule.ruleId}" rejected the mutation: ${result.errors.join("; ")}`,
+					);
+				}
+			}
 		}
 	}
 
@@ -202,6 +231,16 @@ export class EventStore {
 			},
 		];
 
+		// Pre-commit validation of mutations against the hypothetical projected state
+		const currentArray = await this.project(resolvedId, sessionId);
+		const hypotheticalState = [...currentArray, { event_id, ...data }];
+		await this.validateMutations(
+			schemaName,
+			hypotheticalState,
+			mutations,
+			sessionId,
+		);
+
 		const linearDepth = (parent.linearDepth || 1) + 1;
 		const commitState: Omit<EventCommit, "commitId"> = {
 			sessionId,
@@ -242,7 +281,7 @@ export class EventStore {
 			action: "append",
 			sessionId,
 			id: finalId,
-			data: { parentCommitId: resolvedId, data },
+			data: { parentCommitId: resolvedId, eventId: event_id, data, mutations },
 			timestamp: Date.now(),
 		});
 
@@ -313,6 +352,17 @@ export class EventStore {
 			},
 		];
 
+		// Pre-commit validation of mutations against the hypothetical projected state
+		const hypotheticalState = currentArray.map((e) =>
+			e.event_id === eventId ? { ...e, ...patchData } : e,
+		);
+		await this.validateMutations(
+			schemaName,
+			hypotheticalState,
+			mutations,
+			sessionId,
+		);
+
 		const linearDepth = (parent.linearDepth || 1) + 1;
 		const commitState: Omit<EventCommit, "commitId"> = {
 			sessionId,
@@ -338,16 +388,27 @@ export class EventStore {
 		const schemaNameForPatch = await this.getSchemaName(newId, sessionId);
 		await this.runEventValidation(newId, sessionId, schemaNameForPatch);
 
-		if (linearDepth > this.chainThreshold) {
-			const compressedId = await this.compressSuffix(newId, sessionId);
-			if (targetAlias) {
-				await this.session.setAlias(sessionId, targetAlias, compressedId);
-				return targetAlias;
-			}
-			return compressedId;
+		const finalId =
+			linearDepth > this.chainThreshold
+				? await this.compressSuffix(newId, sessionId)
+				: newId;
+
+		if (linearDepth > this.chainThreshold && targetAlias) {
+			await this.session.setAlias(sessionId, targetAlias, finalId);
 		}
 
-		return targetAlias || newId;
+		const resultId = targetAlias || finalId;
+
+		eventBroker.emitStateChange({
+			service: "event",
+			action: "patch",
+			sessionId,
+			id: resultId,
+			data: { parentCommitId: resolvedId, eventId, patchData, mutations },
+			timestamp: Date.now(),
+		});
+
+		return resultId;
 	}
 
 	async delete(
@@ -390,6 +451,18 @@ export class EventStore {
 			},
 		];
 
+		const schemaNameForDelete = await this.getSchemaName(resolvedId, sessionId);
+		// Pre-commit validation of mutations against the hypothetical projected state
+		const hypotheticalState = currentArray.filter(
+			(e) => e.event_id !== eventId,
+		);
+		await this.validateMutations(
+			schemaNameForDelete,
+			hypotheticalState,
+			deleteMutations,
+			sessionId,
+		);
+
 		const deleteLinearDepth = (parent.linearDepth || 1) + 1;
 		const deleteCommitState: Omit<EventCommit, "commitId"> = {
 			sessionId,
@@ -413,22 +486,29 @@ export class EventStore {
 		);
 
 		// Run external validation engine on projected array after delete commit
-		const schemaNameForDelete = await this.getSchemaName(
-			deleteNewId,
-			sessionId,
-		);
 		await this.runEventValidation(deleteNewId, sessionId, schemaNameForDelete);
 
-		if (deleteLinearDepth > this.chainThreshold) {
-			const compressedId = await this.compressSuffix(deleteNewId, sessionId);
-			if (deleteTargetAlias) {
-				await this.session.setAlias(sessionId, deleteTargetAlias, compressedId);
-				return deleteTargetAlias;
-			}
-			return compressedId;
+		const finalId =
+			deleteLinearDepth > this.chainThreshold
+				? await this.compressSuffix(deleteNewId, sessionId)
+				: deleteNewId;
+
+		if (deleteLinearDepth > this.chainThreshold && deleteTargetAlias) {
+			await this.session.setAlias(sessionId, deleteTargetAlias, finalId);
 		}
 
-		return deleteTargetAlias || deleteNewId;
+		const resultId = deleteTargetAlias || finalId;
+
+		eventBroker.emitStateChange({
+			service: "event",
+			action: "delete",
+			sessionId,
+			id: resultId,
+			data: { parentCommitId: resolvedId, eventId, mutations: deleteMutations },
+			timestamp: Date.now(),
+		});
+
+		return resultId;
 	}
 
 	async project(commitId: string, sessionId: string): Promise<EventRecord[]> {
@@ -864,6 +944,43 @@ export class EventStore {
 			gcLock: false,
 		};
 
+		const mergeSchemaName = await this.getSchemaName(
+			session.targetCommitId,
+			sessionId,
+		);
+		// Pre-commit validation of mutations against the hypothetical projected state
+		const currentArray = await this.project(session.targetCommitId, sessionId);
+		const hypotheticalState = [...currentArray];
+		for (const mut of resolvedMutations) {
+			if (mut.type === "add") {
+				hypotheticalState.push({ event_id: mut.event_id, ...mut.data });
+			} else if (mut.type === "update") {
+				const idx = hypotheticalState.findIndex(
+					(e) => e.event_id === mut.event_id,
+				);
+				if (idx !== -1) {
+					hypotheticalState[idx] = {
+						...hypotheticalState[idx],
+						...mut.data,
+						event_id: mut.event_id,
+					} as EventRecord;
+				}
+			} else if (mut.type === "remove") {
+				const idx = hypotheticalState.findIndex(
+					(e) => e.event_id === mut.event_id,
+				);
+				if (idx !== -1) {
+					hypotheticalState.splice(idx, 1);
+				}
+			}
+		}
+		await this.validateMutations(
+			mergeSchemaName,
+			hypotheticalState,
+			resolvedMutations,
+			sessionId,
+		);
+
 		const isAliasInput =
 			(await this.session.getAlias(sessionId, session.targetCommitId)) !== null;
 		const targetAlias = isAliasInput ? session.targetCommitId : undefined;
@@ -875,7 +992,6 @@ export class EventStore {
 		);
 
 		// Run external validation engine on fully projected merged array
-		const mergeSchemaName = await this.getSchemaName(newId, sessionId);
 		await this.runEventValidation(newId, sessionId, mergeSchemaName);
 
 		return targetAlias || newId;
