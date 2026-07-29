@@ -17,6 +17,7 @@ export * from "./parser/field-resolver-engine";
 export * from "./parser/field-shared/shared-field-anchor";
 export * from "./parser/generic-schema-parser";
 export * from "./parser/generic-tokenizer";
+export * from "./parser/macro-expander";
 export * from "./parser/parsers/clinical-date-range-parser";
 export * from "./parser/prose-parser";
 export {

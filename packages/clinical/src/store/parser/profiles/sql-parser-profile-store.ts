@@ -90,6 +90,9 @@ export class SqlParserProfileStore implements ParserProfileCoreStore {
 			commentEndToken: profile.commentEndToken ?? null,
 			macroPlaceholder: profile.macroPlaceholder ?? null,
 			variableDelimiter: profile.variableDelimiter ?? null,
+			macroArgStartToken: profile.macroArgStartToken ?? null,
+			macroArgEndToken: profile.macroArgEndToken ?? null,
+			macroArgDelimiter: profile.macroArgDelimiter ?? null,
 			startTermCodeDelimiter: profile.startTermCodeDelimiter ?? null,
 			startTermDisplayDelimiter: profile.startTermDisplayDelimiter ?? null,
 			startTermCodeSeparator: profile.startTermCodeSeparator ?? null,
@@ -126,6 +129,12 @@ export class SqlParserProfileStore implements ParserProfileCoreStore {
 			profile.macroPlaceholder = row.macroPlaceholder as string;
 		if (row.variableDelimiter != null)
 			profile.variableDelimiter = row.variableDelimiter as string;
+		if (row.macroArgStartToken != null)
+			profile.macroArgStartToken = row.macroArgStartToken as string;
+		if (row.macroArgEndToken != null)
+			profile.macroArgEndToken = row.macroArgEndToken as string;
+		if (row.macroArgDelimiter != null)
+			profile.macroArgDelimiter = row.macroArgDelimiter as string;
 		if (row.startTermCodeDelimiter != null)
 			profile.startTermCodeDelimiter = row.startTermCodeDelimiter as string;
 		if (row.startTermDisplayDelimiter != null)

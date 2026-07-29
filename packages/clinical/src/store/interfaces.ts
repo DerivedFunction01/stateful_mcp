@@ -11,6 +11,9 @@ export interface ParserSyntaxProfile {
 	variableStartToken: string; // e.g. '{'
 	variableEndToken: string; // e.g. '}'
 	isDefault: boolean;
+	macroArgStartToken?: string;
+	macroArgEndToken?: string;
+	macroArgDelimiter?: string;
 	tagMappings?: Record<string, string>; // Maps custom tag names to canonical target schema types
 	attributeRules?: AttributeParserRule[]; // Profile-driven regex parser rules for enums/attributes
 	evaluatorRules?: ParserDictionaryRule[]; // Dynamic regex capture evaluators
@@ -236,6 +239,20 @@ export interface ClinicalProseTemplate {
 	slotPosition: "opening" | "continuing" | "closing" | "full_paragraph";
 	templateText: string;
 	slots: Record<string, OutputProseSlot>;
+}
+
+export interface ParserMacro {
+	macroId: string;
+	macroName: string;
+	macroTemplate: string;
+	personnelId?: string;
+}
+
+export interface ParserMacroStore {
+	get(macroName: string): Promise<ParserMacro | null>;
+	list(): Promise<ParserMacro[]>;
+	set(macro: ParserMacro): Promise<void>;
+	delete(macroId: string): Promise<void>;
 }
 
 export interface SignedSoapNoteRecord {

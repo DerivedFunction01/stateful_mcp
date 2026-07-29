@@ -3,6 +3,7 @@ import type {
 	ConceptFieldRule,
 	ConceptFieldStore,
 	ParserConceptDefaultStore,
+	ParserMacroStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
 	StopWordContext,
@@ -18,6 +19,7 @@ import { getCompiledRegex } from "./_compiled-regex";
 import type { SharedFieldAnchorStore } from "./field-shared/shared-field-anchor";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import { QuantityTokenizer } from "./helpers/measurement-helper";
+import { MacroExpander } from "./macro-expander";
 import { ProseParser } from "./prose-parser";
 import {
 	type ParsedCandidateEnvelope,
@@ -52,6 +54,7 @@ export class CdslParser {
 		private conceptFieldStore?: ConceptFieldStore,
 		private proseTemplateStore?: ProseParserTemplateStore,
 		private sharedFieldAnchorStore?: SharedFieldAnchorStore,
+		private macroStore?: ParserMacroStore,
 	) {
 		this.stopWordParser = stopWordParser;
 		this.stopWordStore = stopWordStore;
@@ -82,6 +85,7 @@ export class CdslParser {
 	 * @param conceptFieldStore - Optional concept field store
 	 * @param proseTemplateStore - Optional prose parser template store
 	 * @param sharedFieldAnchorStore - Optional shared field anchor store
+	 * @param macroStore - Optional macro store for macro expansion
 	 */
 	static async create(
 		dictionaryStore: DictionaryStore,
@@ -93,6 +97,7 @@ export class CdslParser {
 		conceptFieldStore?: ConceptFieldStore,
 		proseTemplateStore?: ProseParserTemplateStore,
 		sharedFieldAnchorStore?: SharedFieldAnchorStore,
+		macroStore?: ParserMacroStore,
 	): Promise<CdslParser> {
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
@@ -110,6 +115,7 @@ export class CdslParser {
 			conceptFieldStore,
 			proseTemplateStore,
 			sharedFieldAnchorStore,
+			macroStore,
 		);
 	}
 
@@ -117,11 +123,17 @@ export class CdslParser {
 		return this.attributeRules;
 	}
 
+	private async expandMacros(text: string): Promise<string> {
+		if (!this.macroStore) return text;
+		return MacroExpander.expand(text, this.macroStore, this.profile);
+	}
+
 	async preview(
 		text: string,
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParserPreviewResult[]> {
+		const expanded = await this.expandMacros(text);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
@@ -129,14 +141,14 @@ export class CdslParser {
 				context,
 			);
 			return this.previewWithStopWordParser(
-				text,
+				expanded,
 				dynamicParser,
 				context,
 				historyStore,
 			);
 		}
 		return this.previewWithStopWordParser(
-			text,
+			expanded,
 			effectiveStopWordParser,
 			context,
 			historyStore,
@@ -147,6 +159,7 @@ export class CdslParser {
 	 * Parses a clinical dictation stream and extracts mapped schemas.
 	 */
 	async parse(text: string, context?: StopWordContext): Promise<ParsedItem[]> {
+		const expanded = await this.expandMacros(text);
 		// Resolve effective StopWordParser from store + context if not already set
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -154,9 +167,13 @@ export class CdslParser {
 				this.stopWordStore,
 				context,
 			);
-			return this.parseWithStopWordParser(text, dynamicParser, context);
+			return this.parseWithStopWordParser(expanded, dynamicParser, context);
 		}
-		return this.parseWithStopWordParser(text, effectiveStopWordParser, context);
+		return this.parseWithStopWordParser(
+			expanded,
+			effectiveStopWordParser,
+			context,
+		);
 	}
 
 	async parseWithHistory(
@@ -164,6 +181,7 @@ export class CdslParser {
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
 	): Promise<ParsedItem[]> {
+		const expanded = await this.expandMacros(text);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
@@ -171,14 +189,14 @@ export class CdslParser {
 				context,
 			);
 			return this.parseWithStopWordParser(
-				text,
+				expanded,
 				dynamicParser,
 				context,
 				historyStore,
 			);
 		}
 		return this.parseWithStopWordParser(
-			text,
+			expanded,
 			effectiveStopWordParser,
 			context,
 			historyStore,
