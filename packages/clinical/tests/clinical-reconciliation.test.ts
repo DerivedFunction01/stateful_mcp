@@ -58,18 +58,18 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 		);
 
 		const eventSchemas = new Map<string, any>();
-		const eventStore = new EventStore(
-			coreAdapter.sessionEvent!,
-			coreAdapter.persistentEvent!,
-			eventSchemas,
-		);
+		const eventStore = new EventStore({
+			session: coreAdapter.sessionEvent!,
+			persistent: coreAdapter.persistentEvent!,
+			schemas: eventSchemas,
+		});
 
-		const clinicalEngine = new ClinicalEngine(
+		const clinicalEngine = new ClinicalEngine({
 			objectStore,
 			eventStore,
 			dictionaryStore,
-			mockSignedStore,
-		);
+			signedNoteStore: mockSignedStore,
+		});
 
 		const sessionId = "reconciliation_session_1";
 

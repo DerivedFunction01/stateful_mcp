@@ -91,27 +91,20 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 			schemasMap,
 		);
 
-		const eventStore = new EventStore(
-			coreAdapter.sessionEvent!,
-			coreAdapter.persistentEvent!,
-			schemasMap,
-		);
+		const eventStore = new EventStore({
+			session: coreAdapter.sessionEvent!,
+			persistent: coreAdapter.persistentEvent!,
+			schemas: schemasMap,
+		});
 
 		const evaluatorStore = new MockClinicalEvaluatorStore();
-		const clinicalEngine = new ClinicalEngine(
+		const clinicalEngine = new ClinicalEngine({
 			objectStore,
 			eventStore,
 			dictionaryStore,
-			mockSignedStore,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
+			signedNoteStore: mockSignedStore,
 			evaluatorStore,
-		);
+		});
 
 		const sessionId = "session_safety_check_1";
 		await clinicalEngine.initEncounter(sessionId, {

@@ -18,52 +18,91 @@ import type {
 	ParsedItemUnion,
 	PreparsedContext,
 	SchemaParser,
+	SchemaParserOptions,
 } from "../schema-parsers";
 
 export class ClinicalDateRangeSchemaParser implements SchemaParser {
 	targetSchema = "ClinicalDateRange" as const;
 
 	async preview(
-		tag: string,
-		content: string,
-		dictionaryStore: DictionaryStore,
-		conceptDefaultsStore?: ParserConceptDefaultStore,
-		attributeRules?: AttributeParserRule[],
-		evaluatorRules?: ParserDictionaryRule[],
-		termTokenizer?: string,
-		allowedNamespaces?: string[],
-		preparsedContext?: PreparsedContext,
-		historyStore?: ParsedCellHistoryStore,
-		conceptFieldStore?: ConceptFieldStore,
-		concepts?: CodeableConcept[],
+		_tagOrOptions: string | SchemaParserOptions,
+		_content?: string,
+		_dictionaryStore?: DictionaryStore,
+		_conceptDefaultsStore?: ParserConceptDefaultStore,
+		_attributeRules?: AttributeParserRule[],
+		_evaluatorRules?: ParserDictionaryRule[],
+		_termTokenizer?: string,
+		_allowedNamespaces?: string[],
+		_preparsedContext?: PreparsedContext,
+		_historyStore?: ParsedCellHistoryStore,
+		_conceptFieldStore?: ConceptFieldStore,
+		_concepts?: CodeableConcept[],
 	): Promise<ParsedCandidateEnvelope> {
-		const parsed = await this.parse(
-			tag,
-			content,
-			dictionaryStore,
-			conceptDefaultsStore,
-			attributeRules,
-			evaluatorRules,
-			termTokenizer,
-			allowedNamespaces,
-			preparsedContext,
-		);
+		let options: SchemaParserOptions;
+		if (typeof _tagOrOptions === "object" && _tagOrOptions !== null) {
+			options = _tagOrOptions;
+		} else {
+			options = {
+				tag: _tagOrOptions,
+				content: _content!,
+				dictionaryStore: _dictionaryStore!,
+				conceptDefaultsStore: _conceptDefaultsStore,
+				attributeRules: _attributeRules,
+				evaluatorRules: _evaluatorRules,
+				termTokenizer: _termTokenizer,
+				allowedNamespaces: _allowedNamespaces,
+				preparsedContext: _preparsedContext,
+				historyStore: _historyStore,
+				conceptFieldStore: _conceptFieldStore,
+				concepts: _concepts,
+			};
+		}
+		const parsed = await this.parse(options);
 		return makePreviewEnvelope(parsed);
 	}
 
 	async parse(
-		tag: string,
-		content: string,
-		dictionaryStore: DictionaryStore,
-		conceptDefaultsStore?: ParserConceptDefaultStore,
-		attributeRules?: AttributeParserRule[],
-		evaluatorRules?: ParserDictionaryRule[],
-		termTokenizer?: string,
-		allowedNamespaces?: string[],
-		preparsedContext?: PreparsedContext,
-		conceptFieldStore?: ConceptFieldStore,
-		concepts?: CodeableConcept[],
+		_tagOrOptions: string | SchemaParserOptions,
+		_content?: string,
+		_dictionaryStore?: DictionaryStore,
+		_conceptDefaultsStore?: ParserConceptDefaultStore,
+		_attributeRules?: AttributeParserRule[],
+		_evaluatorRules?: ParserDictionaryRule[],
+		_termTokenizer?: string,
+		_allowedNamespaces?: string[],
+		_preparsedContext?: PreparsedContext,
+		_conceptFieldStore?: ConceptFieldStore,
+		_concepts?: CodeableConcept[],
 	): Promise<ParsedItemUnion | ParsedItemUnion[] | null> {
+		let options: SchemaParserOptions;
+		if (typeof _tagOrOptions === "object" && _tagOrOptions !== null) {
+			options = _tagOrOptions;
+		} else {
+			options = {
+				tag: _tagOrOptions,
+				content: _content!,
+				dictionaryStore: _dictionaryStore!,
+				conceptDefaultsStore: _conceptDefaultsStore,
+				attributeRules: _attributeRules,
+				evaluatorRules: _evaluatorRules,
+				termTokenizer: _termTokenizer,
+				allowedNamespaces: _allowedNamespaces,
+				preparsedContext: _preparsedContext,
+				conceptFieldStore: _conceptFieldStore,
+				concepts: _concepts,
+			};
+		}
+		const tag = options.tag;
+		const content = options.content;
+		const dictionaryStore = options.dictionaryStore;
+		const conceptDefaultsStore = options.conceptDefaultsStore;
+		const attributeRules = options.attributeRules;
+		const evaluatorRules = options.evaluatorRules;
+		const termTokenizer = options.termTokenizer;
+		const allowedNamespaces = options.allowedNamespaces;
+		const preparsedContext = options.preparsedContext;
+		const conceptFieldStore = options.conceptFieldStore;
+		const concepts = options.concepts;
 		const attrRules = attributeRules || [];
 		const evalRules = evaluatorRules || [];
 		const cleaned = content.trim();

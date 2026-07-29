@@ -13,6 +13,7 @@ import type {
 	ParsedCandidateEnvelope,
 	ParsedItemUnion,
 	PreparsedContext,
+	SchemaParserOptions,
 } from "./schema-parsers";
 import { resolveConceptHelper } from "./schema-parsers";
 
@@ -44,50 +45,63 @@ export class GenericSchemaParser {
 	}
 
 	async preview(
-		tag: string,
-		content: string,
-		dictionaryStore: DictionaryStore,
-		conceptDefaultsStore?: ParserConceptDefaultStore,
-		attributeRules?: AttributeParserRule[],
-		evaluatorRules?: ParserDictionaryRule[],
-		termTokenizer?: string,
-		allowedNamespaces?: string[],
-		preparsedContext?: PreparsedContext,
-		historyStore?: ParsedCellHistoryStore,
-		conceptFieldStore?: ConceptFieldStore,
-		concepts?: CodeableConcept[],
+		_tagOrOptions: string | SchemaParserOptions,
+		_content?: string,
+		_dictionaryStore?: DictionaryStore,
+		_conceptDefaultsStore?: ParserConceptDefaultStore,
+		_attributeRules?: AttributeParserRule[],
+		_evaluatorRules?: ParserDictionaryRule[],
+		_termTokenizer?: string,
+		_allowedNamespaces?: string[],
+		_preparsedContext?: PreparsedContext,
+		_historyStore?: ParsedCellHistoryStore,
+		_conceptFieldStore?: ConceptFieldStore,
+		_concepts?: CodeableConcept[],
 	): Promise<ParsedCandidateEnvelope> {
-		const deterministic = await this.parse(
-			tag,
-			content,
-			dictionaryStore,
-			conceptDefaultsStore,
-			attributeRules,
-			evaluatorRules,
-			termTokenizer,
-			allowedNamespaces,
-			preparsedContext,
-			conceptFieldStore,
-			concepts,
-		);
+		let options: SchemaParserOptions;
+		if (typeof _tagOrOptions === "object" && _tagOrOptions !== null) {
+			options = _tagOrOptions;
+		} else {
+			options = {
+				tag: _tagOrOptions,
+				content: _content!,
+				dictionaryStore: _dictionaryStore!,
+				conceptDefaultsStore: _conceptDefaultsStore,
+				attributeRules: _attributeRules,
+				evaluatorRules: _evaluatorRules,
+				termTokenizer: _termTokenizer,
+				allowedNamespaces: _allowedNamespaces,
+				preparsedContext: _preparsedContext,
+				historyStore: _historyStore,
+				conceptFieldStore: _conceptFieldStore,
+				concepts: _concepts,
+			};
+		}
+
+		const tag = options.tag;
+		const contentVal = options.content;
+		const preparsedContextVal = options.preparsedContext;
+		const historyStoreVal = options.historyStore;
+
+		const deterministic = await this.parse(options);
 
 		const key = {
-			patientId: preparsedContext?.patientContext?.patientId,
-			patientOrganismType: preparsedContext?.patientContext?.organismType,
-			patientGender: preparsedContext?.patientContext?.gender,
-			patientAgeBucket: preparsedContext?.patientContext?.ageBucket,
-			patientSpeciesBucket: preparsedContext?.patientContext?.speciesBucket,
-			patientSubBucket: preparsedContext?.patientContext?.subBucket,
-			patientBucketKey: preparsedContext?.patientContext?.bucketKey,
-			personnelId: preparsedContext?.rankingSignals?.personnelId,
-			specialtyId: preparsedContext?.rankingSignals?.specialtyId,
-			facilityId: preparsedContext?.rankingSignals?.facilityId,
+			patientId: preparsedContextVal?.patientContext?.patientId,
+			patientOrganismType: preparsedContextVal?.patientContext?.organismType,
+			patientGender: preparsedContextVal?.patientContext?.gender,
+			patientAgeBucket: preparsedContextVal?.patientContext?.ageBucket,
+			patientSpeciesBucket: preparsedContextVal?.patientContext?.speciesBucket,
+			patientSubBucket: preparsedContextVal?.patientContext?.subBucket,
+			patientBucketKey: preparsedContextVal?.patientContext?.bucketKey,
+			personnelId: preparsedContextVal?.rankingSignals?.personnelId,
+			specialtyId: preparsedContextVal?.rankingSignals?.specialtyId,
+			facilityId: preparsedContextVal?.rankingSignals?.facilityId,
 			tag,
 			targetSchema: this.targetSchema,
-			rawText: content,
+			rawText: contentVal,
 		};
 
-		const historyRows = historyStore ? await historyStore.getHistory(key) : [];
+		const historyRows = historyStoreVal ? await historyStoreVal.getHistory(key) : [];
 		const learned = historyRows
 			.map((row) => row.parsedItem)
 			.filter(
@@ -103,18 +117,49 @@ export class GenericSchemaParser {
 	}
 
 	async parse(
-		tag: string,
-		content: string,
-		dictionaryStore: DictionaryStore,
-		conceptDefaultsStore?: ParserConceptDefaultStore,
-		attributeRules?: AttributeParserRule[],
-		evaluatorRules?: ParserDictionaryRule[],
-		termTokenizer?: string,
-		allowedNamespaces?: string[],
-		preparsedContext?: PreparsedContext,
-		conceptFieldStore?: ConceptFieldStore,
-		concepts?: CodeableConcept[],
+		_tagOrOptions: string | SchemaParserOptions,
+		_content?: string,
+		_dictionaryStore?: DictionaryStore,
+		_conceptDefaultsStore?: ParserConceptDefaultStore,
+		_attributeRules?: AttributeParserRule[],
+		_evaluatorRules?: ParserDictionaryRule[],
+		_termTokenizer?: string,
+		_allowedNamespaces?: string[],
+		_preparsedContext?: PreparsedContext,
+		_conceptFieldStore?: ConceptFieldStore,
+		_concepts?: CodeableConcept[],
 	): Promise<ParsedItemUnion | null> {
+		let options: SchemaParserOptions;
+		if (typeof _tagOrOptions === "object" && _tagOrOptions !== null) {
+			options = _tagOrOptions;
+		} else {
+			options = {
+				tag: _tagOrOptions,
+				content: _content!,
+				dictionaryStore: _dictionaryStore!,
+				conceptDefaultsStore: _conceptDefaultsStore,
+				attributeRules: _attributeRules,
+				evaluatorRules: _evaluatorRules,
+				termTokenizer: _termTokenizer,
+				allowedNamespaces: _allowedNamespaces,
+				preparsedContext: _preparsedContext,
+				conceptFieldStore: _conceptFieldStore,
+				concepts: _concepts,
+			};
+		}
+
+		const tag = options.tag;
+		const content = options.content;
+		const dictionaryStore = options.dictionaryStore;
+		const conceptDefaultsStore = options.conceptDefaultsStore;
+		const attributeRules = options.attributeRules;
+		const evaluatorRules = options.evaluatorRules;
+		const termTokenizer = options.termTokenizer;
+		const allowedNamespaces = options.allowedNamespaces;
+		const preparsedContext = options.preparsedContext;
+		const conceptFieldStore = options.conceptFieldStore;
+		const concepts = options.concepts;
+
 		const attrRules = attributeRules || [];
 		const evalRules = evaluatorRules || [];
 

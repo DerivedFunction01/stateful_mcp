@@ -21,7 +21,12 @@ export async function runEventTests() {
 	});
 	const sessionStore = eventAdapter.sessionEvent!;
 	const persistentStore = eventAdapter.persistentEvent!;
-	const eventStore = new EventStore(sessionStore, persistentStore, schemas, 3);
+	const eventStore = new EventStore({
+		session: sessionStore,
+		persistent: persistentStore,
+		schemas,
+		chainThreshold: 3,
+	});
 
 	const sessionId = "event_test_session_1";
 
@@ -173,12 +178,12 @@ export async function runEventTests() {
 	const mergeAdapter = await createRepo({
 		event: { session: { type: "memory" }, persistent: { type: "memory" } },
 	});
-	const mergeStore = new EventStore(
-		mergeAdapter.sessionEvent!,
-		mergeAdapter.persistentEvent!,
+	const mergeStore = new EventStore({
+		session: mergeAdapter.sessionEvent!,
+		persistent: mergeAdapter.persistentEvent!,
 		schemas,
-		99,
-	);
+		chainThreshold: 99,
+	});
 	const sessionMerge = "merge_session_1";
 
 	// Create baseline
@@ -262,12 +267,12 @@ export async function runEventTests() {
 	const gcAdapter = await createRepo({
 		event: { session: { type: "memory" }, persistent: { type: "memory" } },
 	});
-	const gcStore = new EventStore(
-		gcAdapter.sessionEvent!,
-		gcAdapter.persistentEvent!,
+	const gcStore = new EventStore({
+		session: gcAdapter.sessionEvent!,
+		persistent: gcAdapter.persistentEvent!,
 		schemas,
-		3,
-	);
+		chainThreshold: 3,
+	});
 	const gcSessionId = "gc_event_session";
 
 	const root = await gcStore.init("observation", gcSessionId, "dev_baseline", [

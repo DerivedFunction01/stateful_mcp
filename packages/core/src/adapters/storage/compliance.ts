@@ -299,12 +299,12 @@ export function runEventStoreComplianceTests(options: ComplianceRunnerOptions) {
 			],
 		]);
 
-		const eventStore = new EventStore(
-			sessionStore,
-			persistentStore,
+		const eventStore = new EventStore({
+			session: sessionStore,
+			persistent: persistentStore,
 			schemas,
-			15,
-		);
+			chainThreshold: 15,
+		});
 		const commitId1 = await eventStore.init(
 			"log_event",
 			sessionId,

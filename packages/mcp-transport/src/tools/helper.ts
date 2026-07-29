@@ -205,14 +205,14 @@ export async function getEventStore(
 
 	const threshold = config.auto_compression?.object_chain_threshold ?? 15;
 
-	return new EventStore(
-		adapter.sessionEvent!,
-		adapter.persistentEvent!,
-		objectSchemas,
-		threshold,
+	return new EventStore({
+		session: adapter.sessionEvent!,
+		persistent: adapter.persistentEvent!,
+		schemas: objectSchemas,
+		chainThreshold: threshold,
 		validationEngines,
 		workspaceRoot,
-	);
+	});
 }
 
 import type { VariableService } from "@stateful-mcp/core/src/middleware/variable/types";

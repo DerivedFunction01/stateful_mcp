@@ -200,35 +200,25 @@ export interface ParserPreviewResult<TCandidate = ParsedItemUnion> {
 	learned: TCandidate[];
 }
 
+export interface SchemaParserOptions {
+	tag: string;
+	content: string;
+	dictionaryStore: DictionaryStore;
+	conceptDefaultsStore?: ParserConceptDefaultStore;
+	attributeRules?: AttributeParserRule[];
+	evaluatorRules?: ParserDictionaryRule[];
+	termTokenizer?: string;
+	allowedNamespaces?: string[];
+	preparsedContext?: PreparsedContext;
+	historyStore?: ParsedCellHistoryStore;
+	conceptFieldStore?: ConceptFieldStore;
+	concepts?: CodeableConcept[];
+}
+
 export interface SchemaParser {
 	targetSchema: string;
-	parse(
-		tag: string,
-		content: string,
-		dictionaryStore: DictionaryStore,
-		conceptDefaultsStore?: ParserConceptDefaultStore,
-		attributeRules?: AttributeParserRule[],
-		evaluatorRules?: ParserDictionaryRule[],
-		termTokenizer?: string,
-		allowedNamespaces?: string[],
-		preparsedContext?: PreparsedContext,
-		conceptFieldStore?: ConceptFieldStore,
-		concepts?: CodeableConcept[],
-	): Promise<ParsedItemUnion | ParsedItemUnion[] | null>;
-	preview?(
-		tag: string,
-		content: string,
-		dictionaryStore: DictionaryStore,
-		conceptDefaultsStore?: ParserConceptDefaultStore,
-		attributeRules?: AttributeParserRule[],
-		evaluatorRules?: ParserDictionaryRule[],
-		termTokenizer?: string,
-		allowedNamespaces?: string[],
-		preparsedContext?: PreparsedContext,
-		historyStore?: ParsedCellHistoryStore,
-		conceptFieldStore?: ConceptFieldStore,
-		concepts?: CodeableConcept[],
-	): Promise<ParsedCandidateEnvelope>;
+	parse(options: SchemaParserOptions): Promise<ParsedItemUnion | ParsedItemUnion[] | null>;
+	preview?(options: SchemaParserOptions): Promise<ParsedCandidateEnvelope>;
 }
 
 export function parseSessionVars(groups: {

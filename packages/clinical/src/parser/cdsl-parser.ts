@@ -356,35 +356,35 @@ export class CdslParser {
 					this.profile.schemaNamespaces?.[parser.targetSchema.toLowerCase()] ||
 					undefined;
 				if (parser.preview) {
-					const preview = await parser.preview(
+					const preview = await parser.preview({
 						tag,
 						content,
-						this.dictionaryStore,
-						this.conceptDefaultsStore,
-						this.getEffectiveAttributeRules(),
-						this.profile.evaluatorRules,
-						this.profile.termTokenizer,
+						dictionaryStore: this.dictionaryStore,
+						conceptDefaultsStore: this.conceptDefaultsStore,
+						attributeRules: this.getEffectiveAttributeRules(),
+						evaluatorRules: this.profile.evaluatorRules,
+						termTokenizer: this.profile.termTokenizer,
 						allowedNamespaces,
 						preparsedContext,
 						historyStore,
-					);
+					});
 					results.push({
 						targetSchema: parser.targetSchema,
 						deterministic: preview.deterministic,
 						learned: preview.learned,
 					});
 				} else {
-					const parsed = await parser.parse(
+					const parsed = await parser.parse({
 						tag,
 						content,
-						this.dictionaryStore,
-						this.conceptDefaultsStore,
-						this.getEffectiveAttributeRules(),
-						this.profile.evaluatorRules,
-						this.profile.termTokenizer,
+						dictionaryStore: this.dictionaryStore,
+						conceptDefaultsStore: this.conceptDefaultsStore,
+						attributeRules: this.getEffectiveAttributeRules(),
+						evaluatorRules: this.profile.evaluatorRules,
+						termTokenizer: this.profile.termTokenizer,
 						allowedNamespaces,
 						preparsedContext,
-					);
+					});
 					const parsedArr = Array.isArray(parsed)
 						? parsed
 						: parsed
@@ -582,32 +582,32 @@ export class CdslParser {
 					undefined;
 				const parsed =
 					historyStore && parser.preview
-						? await parser.preview(
+						? await parser.preview({
 								tag,
 								content,
-								this.dictionaryStore,
-								this.conceptDefaultsStore,
-								this.getEffectiveAttributeRules(),
-								this.profile.evaluatorRules,
-								this.profile.termTokenizer,
+								dictionaryStore: this.dictionaryStore,
+								conceptDefaultsStore: this.conceptDefaultsStore,
+								attributeRules: this.getEffectiveAttributeRules(),
+								evaluatorRules: this.profile.evaluatorRules,
+								termTokenizer: this.profile.termTokenizer,
 								allowedNamespaces,
 								preparsedContext,
 								historyStore,
-							)
+							})
 						: undefined;
 
 				const learnedCandidate = parsed?.learned[0] || parsed?.deterministic[0];
-				const deterministic = await parser.parse(
+				const deterministic = await parser.parse({
 					tag,
 					content,
-					this.dictionaryStore,
-					this.conceptDefaultsStore,
-					this.getEffectiveAttributeRules(),
-					this.profile.evaluatorRules,
-					this.profile.termTokenizer,
+					dictionaryStore: this.dictionaryStore,
+					conceptDefaultsStore: this.conceptDefaultsStore,
+					attributeRules: this.getEffectiveAttributeRules(),
+					evaluatorRules: this.profile.evaluatorRules,
+					termTokenizer: this.profile.termTokenizer,
 					allowedNamespaces,
 					preparsedContext,
-				);
+				});
 				const finalItem = learnedCandidate || deterministic;
 
 				if (finalItem) {
@@ -959,19 +959,19 @@ export class CdslParser {
 				concepts.push(...resolvedConcepts);
 			}
 
-			const result = await parser.parse(
-				"",
+			const result = await parser.parse({
+				tag: "",
 				content,
-				this.dictionaryStore,
-				this.conceptDefaultsStore,
-				this.getEffectiveAttributeRules(),
-				this.profile.evaluatorRules,
-				this.profile.termTokenizer,
-				defaultNamespace,
+				dictionaryStore: this.dictionaryStore,
+				conceptDefaultsStore: this.conceptDefaultsStore,
+				attributeRules: this.getEffectiveAttributeRules(),
+				evaluatorRules: this.profile.evaluatorRules,
+				termTokenizer: this.profile.termTokenizer,
+				allowedNamespaces: defaultNamespace,
 				preparsedContext,
-				this.conceptFieldStore,
+				conceptFieldStore: this.conceptFieldStore,
 				concepts,
-			);
+			});
 
 			if (result) {
 				const results = Array.isArray(result) ? result : [result];

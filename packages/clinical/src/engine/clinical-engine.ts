@@ -402,23 +402,47 @@ const SOAP_ROUTING_CONFIGS: Record<
 
 // ── Engine ───────────────────────────────────────────────────────────────────
 
+export interface ClinicalEngineConfig {
+	objectStore: ObjectStore;
+	eventStore: EventStore;
+	dictionaryStore: DictionaryStore;
+	signedNoteStore: SignedSoapNoteStore;
+	calibrationStore?: CalibrationStore;
+	parsedCellStore?: ParsedCellStore;
+	stopWordStore?: StopWordStore;
+	profile?: ParserSyntaxProfile;
+	profileStore?: ParserProfileStore;
+	orderAwareStore?: OrderedLearningStore;
+	conceptFieldStore?: ConceptFieldStore;
+	evaluatorStore?: EvaluatorStore;
+}
+
 export class ClinicalEngine {
 	private parser: CdslParser;
+	private objectStore: ObjectStore;
+	private eventStore: EventStore;
+	private signedNoteStore: SignedSoapNoteStore;
+	private calibrationStore?: CalibrationStore;
+	private parsedCellStore?: ParsedCellStore;
+	private orderAwareStore?: OrderedLearningStore;
+	private conceptFieldStore?: ConceptFieldStore;
+	private evaluatorStore?: EvaluatorStore;
 
-	constructor(
-		private objectStore: ObjectStore,
-		private eventStore: EventStore,
-		dictionaryStore: DictionaryStore,
-		private signedNoteStore: SignedSoapNoteStore,
-		private calibrationStore?: CalibrationStore,
-		private parsedCellStore?: ParsedCellStore,
-		stopWordStore?: StopWordStore,
-		profile?: ParserSyntaxProfile,
-		profileStore?: ParserProfileStore,
-		private orderAwareStore?: OrderedLearningStore,
-		private conceptFieldStore?: ConceptFieldStore,
-		private evaluatorStore?: EvaluatorStore,
-	) {
+	constructor(config: ClinicalEngineConfig) {
+		this.objectStore = config.objectStore;
+		this.eventStore = config.eventStore;
+		this.signedNoteStore = config.signedNoteStore;
+		this.calibrationStore = config.calibrationStore;
+		this.parsedCellStore = config.parsedCellStore;
+		this.orderAwareStore = config.orderAwareStore;
+		this.conceptFieldStore = config.conceptFieldStore;
+		this.evaluatorStore = config.evaluatorStore;
+
+		const dictionaryStore = config.dictionaryStore;
+		const stopWordStore = config.stopWordStore;
+		const profile = config.profile;
+		const profileStore = config.profileStore;
+
 		if (profile) {
 			this.parser = new CdslParser(
 				dictionaryStore,
@@ -448,39 +472,23 @@ export class ClinicalEngine {
 	 * Creates a ClinicalEngine with a parser profile resolved from a store.
 	 */
 	static async create(
-		objectStore: ObjectStore,
-		eventStore: EventStore,
-		dictionaryStore: DictionaryStore,
-		signedNoteStore: SignedSoapNoteStore,
-		profileStore: ParserProfileStore,
-		profileId: string = "default",
-		calibrationStore?: CalibrationStore,
-		parsedCellStore?: ParsedCellStore,
-		stopWordStore?: StopWordStore,
-		orderAwareStore?: OrderedLearningStore,
-		conceptFieldStore?: ConceptFieldStore,
-		evaluatorStore?: EvaluatorStore,
+		config: ClinicalEngineConfig & { profileId?: string },
 	): Promise<ClinicalEngine> {
+		const profileStore = config.profileStore;
+		if (!profileStore) {
+			throw new Error("ClinicalEngine.create requires a profileStore.");
+		}
+		const profileId = config.profileId ?? "default";
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
 			throw new Error(
 				`ClinicalEngine.create: parser profile "${profileId}" not found.`,
 			);
 		}
-		const engine = new ClinicalEngine(
-			objectStore,
-			eventStore,
-			dictionaryStore,
-			signedNoteStore,
-			calibrationStore,
-			parsedCellStore,
-			stopWordStore,
+		const engine = new ClinicalEngine({
+			...config,
 			profile,
-			undefined,
-			orderAwareStore,
-			conceptFieldStore,
-			evaluatorStore,
-		);
+		});
 		return engine;
 	}
 

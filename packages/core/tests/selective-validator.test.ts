@@ -115,15 +115,13 @@ describe("Selective Validation Integration inside EventStore", () => {
 		const adapter = await createRepo({
 			event: { session: { type: "memory" }, persistent: { type: "memory" } },
 		});
-		const eventStore = new EventStore(
-			adapter.sessionEvent!,
-			adapter.persistentEvent!,
+		const eventStore = new EventStore({
+			session: adapter.sessionEvent!,
+			persistent: adapter.persistentEvent!,
 			schemas,
-			10,
-			undefined,
-			undefined,
-			new MockEvaluatorStore(),
-		);
+			chainThreshold: 10,
+			evaluatorStore: new MockEvaluatorStore(),
+		});
 
 		const sessionId = "session_valid_test";
 
@@ -156,15 +154,13 @@ describe("Selective Validation Integration inside EventStore", () => {
 		const adapter = await createRepo({
 			event: { session: { type: "memory" }, persistent: { type: "memory" } },
 		});
-		const eventStore = new EventStore(
-			adapter.sessionEvent!,
-			adapter.persistentEvent!,
+		const eventStore = new EventStore({
+			session: adapter.sessionEvent!,
+			persistent: adapter.persistentEvent!,
 			schemas,
-			10,
-			undefined,
-			undefined,
-			new MockEvaluatorStore(),
-		);
+			chainThreshold: 10,
+			evaluatorStore: new MockEvaluatorStore(),
+		});
 
 		const sessionId = "session_skip_test";
 		await eventStore.init("vitals", sessionId, "base", [
@@ -221,15 +217,13 @@ describe("Selective Validation Integration inside EventStore", () => {
 		const adapter = await createRepo({
 			event: { session: { type: "memory" }, persistent: { type: "memory" } },
 		});
-		const eventStore = new EventStore(
-			adapter.sessionEvent!,
-			adapter.persistentEvent!,
+		const eventStore = new EventStore({
+			session: adapter.sessionEvent!,
+			persistent: adapter.persistentEvent!,
 			schemas,
-			10,
-			undefined,
-			undefined,
-			compositeStore,
-		);
+			chainThreshold: 10,
+			evaluatorStore: compositeStore,
+		});
 
 		const sessionId = "session_composite_test";
 		await eventStore.init("vitals", sessionId, "base", [

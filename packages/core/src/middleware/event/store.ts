@@ -20,6 +20,16 @@ import type {
 
 const ajv = new Ajv({ strict: false });
 
+export interface EventStoreConfig {
+	session: SessionEventStore;
+	persistent: PersistentEventStore;
+	schemas: Map<string, any>;
+	chainThreshold?: number;
+	validationEngines?: Map<string, ResourceLocator>;
+	workspaceRoot?: string;
+	evaluatorStore?: EvaluatorStore;
+}
+
 // REFERENCE: docs/event.md
 export class EventStore {
 	private filterStore?: any;
@@ -32,18 +42,26 @@ export class EventStore {
 		this.formStore = stores.form;
 	}
 
+	private session: SessionEventStore;
+	private persistent: PersistentEventStore;
+	public schemas: Map<string, any>;
+	private chainThreshold: number;
+	private validationEngines: Map<string, ResourceLocator>;
+	private workspaceRoot: string;
+	private evaluatorStore?: EvaluatorStore;
+
 	// Key: mergeSessionId
 	private mergeSessions = new Map<string, MergeSession>();
 
-	constructor(
-		private session: SessionEventStore,
-		private persistent: PersistentEventStore,
-		private schemas: Map<string, any>, // Key: schemaName -> JSON Schema
-		private chainThreshold = 15,
-		private validationEngines: Map<string, ResourceLocator> = new Map(),
-		private workspaceRoot: string = process.cwd(),
-		private evaluatorStore?: EvaluatorStore,
-	) {}
+	constructor(config: EventStoreConfig) {
+		this.session = config.session;
+		this.persistent = config.persistent;
+		this.schemas = config.schemas;
+		this.chainThreshold = config.chainThreshold ?? 15;
+		this.validationEngines = config.validationEngines ?? new Map();
+		this.workspaceRoot = config.workspaceRoot ?? process.cwd();
+		this.evaluatorStore = config.evaluatorStore;
+	}
 
 	/**
 	 * Projects the full event array from commitId, then sends it to the
