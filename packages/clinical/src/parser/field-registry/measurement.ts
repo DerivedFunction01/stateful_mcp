@@ -63,6 +63,10 @@ export function createMeasurementFieldRegistry(
 				return resolveUnitAnchor(rawUnit, attributeRules);
 			},
 		},
+		{
+			sourceKey: "statistics",
+			targetField: "statistics",
+		},
 	];
 }
 

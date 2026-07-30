@@ -305,6 +305,9 @@ export class GenericSchemaParser {
 						quantity: best.magnitude.toString(),
 						unit: best.rawUnit || undefined,
 					};
+					if (best.statistics) {
+						token.namedGroups.statistics = best.statistics;
+					}
 				}
 			}
 		}

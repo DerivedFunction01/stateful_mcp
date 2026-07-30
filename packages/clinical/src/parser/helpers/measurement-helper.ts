@@ -2,6 +2,7 @@ import type {
 	BoundedMeasurement,
 	MeasurementUnitAnchor,
 	SingleMeasurement,
+	Statistics,
 } from "../../schemas/measurement";
 import { isBoundedMeasurement } from "../../schemas/measurement";
 import type { CodeableConcept } from "../../schemas/shared";
@@ -28,6 +29,7 @@ export interface QuantityToken {
 	rawUnit?: string;
 	operator?: string;
 	isApproximate?: boolean;
+	statistics?: Statistics;
 }
 
 export interface QuantityCandidate extends QuantityToken {
@@ -46,6 +48,26 @@ export interface TimeResolved {
 }
 
 export type ResolvedUnit = PhysicalResolved | TimeResolved;
+
+const STATISTICS_PREFIX = "statistics_";
+
+function extractStatistics(
+	groups: Record<string, string | undefined>,
+): Statistics | undefined {
+	const stats: Statistics = {};
+	let found = false;
+	for (const [key, value] of Object.entries(groups)) {
+		if (key.startsWith(STATISTICS_PREFIX) && value !== undefined) {
+			const statType = key.slice(STATISTICS_PREFIX.length) as keyof Statistics;
+			const num = Number.parseFloat(value);
+			if (!Number.isNaN(num)) {
+				stats[statType] = num;
+				found = true;
+			}
+		}
+	}
+	return found ? stats : undefined;
+}
 
 export class QuantityTokenizer {
 	static tokenize(
@@ -86,6 +108,8 @@ export class QuantityTokenizer {
 						rule.targetValue === "is_approximate" ||
 						rule.targetValue === "approximate";
 
+					const statistics = extractStatistics(groups);
+
 					const start = match.index;
 					const end = start + match[0].length;
 					const dedupKey = `${start}-${end}-${magnitude}-${rawUnit || ""}-${operator || ""}`;
@@ -102,6 +126,7 @@ export class QuantityTokenizer {
 						rawUnit: rawUnit || undefined,
 						operator: operator || undefined,
 						isApproximate: isApproximate || undefined,
+						statistics,
 						tokenStart: start,
 						tokenEnd: end,
 						sourceRule: rule,
@@ -255,6 +280,7 @@ export class MeasurementHelper {
 			operator,
 			is_approximate: token.isApproximate || undefined,
 			unit,
+			statistics: token.statistics,
 		};
 
 		if (resolved?.unitAnchor) {

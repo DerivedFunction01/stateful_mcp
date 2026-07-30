@@ -163,8 +163,20 @@ export type AllowedUnit =
 	| AccelerationUnit;
 
 export interface Statistics {
-	magnitude: number;
-	type: "min" | "max" | "mean" | "stdev" | "stdev_pop" | "variance" | "numerator" | "denominator" | "range" | "rmse" | "mae" | "mse" | "median" | "margin_of_err";	
+	min?: number;
+	max?: number;
+	mean?: number;
+	stdev?: number;
+	stdev_pop?: number;
+	variance?: number;
+	numerator?: number;
+	denominator?: number;
+	range?: number;
+	rmse?: number;
+	mae?: number;
+	mse?: number;
+	median?: number;
+	margin_of_err?: number;	
 }
 
 /**
@@ -179,7 +191,7 @@ export interface SingleMeasurement {
 	num_data_points?: number;
 	operator?: "eq" | "gt" | "gte" | "lt" | "lte";
 	is_approximate?: boolean;
-	statistics?: Statistics[];
+	statistics?: Statistics;
 }
 
 /**
