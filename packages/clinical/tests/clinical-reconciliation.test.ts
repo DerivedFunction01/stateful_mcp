@@ -96,7 +96,7 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 			} as any,
 		});
 
-		// 3. Append events to active_note branch
+		// 3. Append events to active note branch
 		// Vital sign event
 		const commit1 = await eventStore.append(
 			sessionId,
