@@ -580,7 +580,7 @@ export class ClinicalEngine {
 		};
 
 		// Create in Object Store
-		await this.objectStore.init("SoapNote", sessionId, "active_note", note);
+		await this.objectStore.init("SoapNote", sessionId, sessionId, note);
 
 		// Initialize EventStore session tip at the same alias
 		try {
@@ -591,12 +591,7 @@ export class ClinicalEngine {
 			) {
 				eventStoreAny.schemas.set("clinical_events", { type: "object" });
 			}
-			await this.eventStore.init(
-				"clinical_events",
-				sessionId,
-				"active_note",
-				[],
-			);
+			await this.eventStore.init("clinical_events", sessionId, sessionId, []);
 		} catch (_) {
 			// Fail-safe if already initialized in event store
 		}
@@ -608,10 +603,7 @@ export class ClinicalEngine {
 	 * Parses CDSL clinical dictation and dynamically compiles it into the active SOAP note.
 	 */
 	async processCdsl(sessionId: string, dictation: string): Promise<SoapNote> {
-		const activeObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const activeObj = await this.objectStore.getObject(sessionId, sessionId);
 		if (!activeObj) {
 			throw new Error("No active encounter note session found.");
 		}
@@ -640,7 +632,7 @@ export class ClinicalEngine {
 					patientContext: patientBucket,
 				});
 
-		let currentObjId = "active_note";
+		let currentObjId = sessionId;
 
 		for (const item of parsedItems) {
 			if (this.parsedCellStore) {
@@ -750,16 +742,16 @@ export class ClinicalEngine {
 					};
 				}
 
-				// Append event to EventStore under the active_note tip
+				// Append event to EventStore under the session tip
 				const eventData = {
 					targetSchema: item.targetSchema,
 					...mergedData,
 				};
 				const newCommitId = await this.eventStore.append(
 					sessionId,
-					"active_note",
+					sessionId,
 					eventData,
-					"active_note",
+					sessionId,
 				);
 
 				// Reconcile/project the updated EventStore tip back to the SOAP ObjectStore read-model
@@ -775,10 +767,7 @@ export class ClinicalEngine {
 			sessionId,
 		);
 
-		const updatedObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const updatedObj = await this.objectStore.getObject(sessionId, sessionId);
 		return updatedObj!.data as SoapNote;
 	}
 
@@ -813,10 +802,7 @@ export class ClinicalEngine {
 		sessionId: string,
 		signedBy: string,
 	): Promise<SignedSoapNoteRecord> {
-		const activeObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const activeObj = await this.objectStore.getObject(sessionId, sessionId);
 		if (!activeObj) {
 			throw new Error("No active encounter note session found.");
 		}
@@ -841,7 +827,7 @@ export class ClinicalEngine {
 			}
 		}
 
-		let currentObjId = "active_note";
+		let currentObjId = sessionId;
 		currentObjId = await this.objectStore.set(
 			currentObjId,
 			["status"],
@@ -862,10 +848,7 @@ export class ClinicalEngine {
 			sessionId,
 		);
 
-		const signedObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const signedObj = await this.objectStore.getObject(sessionId, sessionId);
 		const note = signedObj!.data as SoapNote;
 
 		const record: SignedSoapNoteRecord = {
@@ -889,10 +872,7 @@ export class ClinicalEngine {
 	 * Rendering is a computed view — the structured note in the store is unchanged.
 	 */
 	async renderNote(sessionId: string): Promise<SoapNote | null> {
-		const activeObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const activeObj = await this.objectStore.getObject(sessionId, sessionId);
 		if (!activeObj) return null;
 
 		const note = activeObj.data as SoapNote;
@@ -1016,10 +996,7 @@ export class ClinicalEngine {
 		commitId: string,
 		sessionId: string,
 	): Promise<string> {
-		const activeObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const activeObj = await this.objectStore.getObject(sessionId, sessionId);
 		if (!activeObj) {
 			throw new Error("No active encounter note session found.");
 		}
@@ -1029,7 +1006,7 @@ export class ClinicalEngine {
 			records,
 			activeObj.data as SoapNote,
 		);
-		await this.objectStore.set("active_note", [], updatedNote, sessionId);
+		await this.objectStore.set(sessionId, [], updatedNote, sessionId);
 		return commitId;
 	}
 
@@ -1053,10 +1030,7 @@ export class ClinicalEngine {
 		}
 
 		// Retrieve latest commit to serve as snapshot boundary
-		const activeObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const activeObj = await this.objectStore.getObject(sessionId, sessionId);
 		if (!activeObj) {
 			throw new Error("No active SOAP Note found for session");
 		}
@@ -1118,7 +1092,7 @@ export class ClinicalEngine {
 
 		// Sync pointer up from parent store first (pull vitals/objectives as globalFacts)
 		const parentNoteObj = await this.objectStore.getObject(
-			"active_note",
+			sessionId,
 			sessionId,
 		);
 		if (parentNoteObj) {
@@ -1201,7 +1175,7 @@ export class ClinicalEngine {
 		}
 
 		// Perform Event Append Flow back to core note event store
-		let currentCommitId = "active_note";
+		let currentCommitId = sessionId;
 
 		// 1. Promote winning primary diagnosis
 		currentCommitId = await this.eventStore.append(
@@ -1217,7 +1191,7 @@ export class ClinicalEngine {
 					supportingConcepts: winningBranch.supportingConcepts,
 				},
 			},
-			"active_note",
+			sessionId,
 		);
 
 		// 2. Append all ruled out/dead branch entries to differentials
@@ -1239,7 +1213,7 @@ export class ClinicalEngine {
 							status: "ruled_out",
 						},
 					},
-					"active_note",
+					sessionId,
 				);
 			}
 		}
@@ -1247,10 +1221,7 @@ export class ClinicalEngine {
 		// Reconcile modifications back to the object store read-model
 		await this.reconcileEventStateToObjectStore(currentCommitId, sessionId);
 
-		const updatedObj = await this.objectStore.getObject(
-			"active_note",
-			sessionId,
-		);
+		const updatedObj = await this.objectStore.getObject(sessionId, sessionId);
 		return updatedObj!.data as SoapNote;
 	}
 }

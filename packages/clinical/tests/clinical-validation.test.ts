@@ -135,7 +135,7 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 		});
 
 		// 1. Append vital sign with systolic BP = 320 mmHg
-		const activeObj = await objectStore.getObject("active_note", sessionId);
+		const activeObj = await objectStore.getObject(sessionId, sessionId);
 		expect(activeObj).toBeDefined();
 
 		// Mutate the active note structure to add an invalid vital sign (systolic: 320)
@@ -150,7 +150,7 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 			],
 		};
 		await objectStore.set(
-			"active_note",
+			sessionId,
 			["objective"],
 			updatedNote.objective,
 			sessionId,
@@ -164,7 +164,7 @@ describe("ClinicalEngine Safety Validation Integration", () => {
 		// 3. Fix the systolic vital reading to 120 mmHg
 		updatedNote.objective.vitalSigns[0].measurement.magnitude = 120;
 		await objectStore.set(
-			"active_note",
+			sessionId,
 			["objective"],
 			updatedNote.objective,
 			sessionId,

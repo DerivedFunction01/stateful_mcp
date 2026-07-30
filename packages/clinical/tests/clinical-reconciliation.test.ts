@@ -100,18 +100,18 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 		// Vital sign event
 		const commit1 = await eventStore.append(
 			sessionId,
-			"active_note",
+			sessionId,
 			{
 				targetSchema: "vitalsmeasurementevent",
 				vitalType: { display: "Systolic BP" },
 				measurement: { magnitude: 120, unit: { display: "mmHg" } },
 			},
-			"active_note",
+			sessionId,
 		);
 
 		// Reconcile and check that ObjectStore has systolic BP
 		await clinicalEngine.reconcileEventStateToObjectStore(commit1, sessionId);
-		const noteObj1 = await objectStore.getObject("active_note", sessionId);
+		const noteObj1 = await objectStore.getObject(sessionId, sessionId);
 		expect(noteObj1).toBeDefined();
 		const note1 = noteObj1!.data as SoapNote;
 		expect(note1.objective.vitalSigns).toHaveLength(1);
@@ -119,7 +119,7 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 
 		// 4. Branch off to do separate clinical assessment (Branch: assessment_branch)
 		// Point new branch to current tip
-		await eventStore.setAlias("active_note", "assessment_branch", sessionId);
+		await eventStore.setAlias(sessionId, "assessment_branch", sessionId);
 
 		// Add observation to the assessment branch
 		await eventStore.append(
@@ -133,31 +133,31 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 			"assessment_branch",
 		);
 
-		// 5. Meanwhile, main branch (active_note) gets updated with another vital
+		// 5. Meanwhile, main branch gets updated with another vital
 		const commit3 = await eventStore.append(
 			sessionId,
-			"active_note",
+			sessionId,
 			{
 				targetSchema: "vitalsmeasurementevent",
 				vitalType: { display: "Heart Rate" },
 				measurement: { magnitude: 72, unit: { display: "bpm" } },
 			},
-			"active_note",
+			sessionId,
 		);
 
 		// Reconcile main branch tip to verify heart rate is present, but observation is NOT
 		await clinicalEngine.reconcileEventStateToObjectStore(commit3, sessionId);
-		const noteObjMain = await objectStore.getObject("active_note", sessionId);
+		const noteObjMain = await objectStore.getObject(sessionId, sessionId);
 		expect(noteObjMain).toBeDefined();
 		const noteMain = noteObjMain!.data as SoapNote;
 		expect(noteMain.objective.vitalSigns).toHaveLength(2);
 		expect(noteMain.subjective.historyOfPresentIllness.events).toHaveLength(0); // Cough is on branch
 
-		// 6. Merge "assessment_branch" back to "active_note"
+		// 6. Merge "assessment_branch" back to main branch
 		const mergeResult = await eventStore.merge(
 			sessionId,
 			["assessment_branch"],
-			"active_note",
+			sessionId,
 		);
 		const mergedTip =
 			mergeResult.status === "clean"
@@ -169,7 +169,7 @@ describe("ClinicalEngine EventStore-to-ObjectStore Reconciliation & Merging", ()
 
 		// 7. Reconcile final merged state back to SOAP ObjectStore
 		await clinicalEngine.reconcileEventStateToObjectStore(mergedTip, sessionId);
-		const noteObjFinal = await objectStore.getObject("active_note", sessionId);
+		const noteObjFinal = await objectStore.getObject(sessionId, sessionId);
 		expect(noteObjFinal).toBeDefined();
 		const noteFinal = noteObjFinal!.data as SoapNote;
 
