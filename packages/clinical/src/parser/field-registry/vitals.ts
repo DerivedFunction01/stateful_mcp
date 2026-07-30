@@ -428,14 +428,14 @@ const vitalsVariantTestCases = [
 export const bloodPressureRegistryTests: FieldRegistryTestBlock = {
 	schema: "BloodPressureVitalEvent",
 	router: vitalsRouter,
-	cases: vitalsVariantTestCases[0].input
+	cases: vitalsVariantTestCases[0]!.input
 		? [
 				{
 					description:
 						"BloodPressureVitalEvent: category fixed + vitalType from unmatched + systolic/diastolic from bp",
-					input: vitalsVariantTestCases[0].input,
-					matchKeys: vitalsVariantTestCases[0].matchKeys,
-					expected: vitalsVariantTestCases[0].expected,
+					input: vitalsVariantTestCases[0]!.input,
+					matchKeys: vitalsVariantTestCases[0]!.matchKeys,
+					expected: vitalsVariantTestCases[0]!.expected,
 				},
 			]
 		: [],
@@ -448,9 +448,9 @@ export const temperatureRegistryTests: FieldRegistryTestBlock = {
 		{
 			description:
 				"TemperatureVitalEvent: category fixed + vitalType from unmatched + measurement from quantity",
-			input: vitalsVariantTestCases[1].input,
-			matchKeys: vitalsVariantTestCases[1].matchKeys,
-			expected: vitalsVariantTestCases[1].expected,
+			input: vitalsVariantTestCases[1]!.input,
+			matchKeys: vitalsVariantTestCases[1]!.matchKeys,
+			expected: vitalsVariantTestCases[1]!.expected,
 		},
 	],
 };
@@ -462,9 +462,9 @@ export const heartRateRegistryTests: FieldRegistryTestBlock = {
 		{
 			description:
 				"HeartRateVitalEvent: category fixed + vitalType from unmatched + measurement from quantity",
-			input: vitalsVariantTestCases[2].input,
-			matchKeys: vitalsVariantTestCases[2].matchKeys,
-			expected: vitalsVariantTestCases[2].expected,
+			input: vitalsVariantTestCases[2]!.input,
+			matchKeys: vitalsVariantTestCases[2]!.matchKeys,
+			expected: vitalsVariantTestCases[2]!.expected,
 		},
 	],
 };
@@ -476,9 +476,9 @@ export const respiratoryRateRegistryTests: FieldRegistryTestBlock = {
 		{
 			description:
 				"RespiratoryRateVitalEvent: category fixed + vitalType from unmatched + measurement from quantity",
-			input: vitalsVariantTestCases[3].input,
-			matchKeys: vitalsVariantTestCases[3].matchKeys,
-			expected: vitalsVariantTestCases[3].expected,
+			input: vitalsVariantTestCases[3]!.input,
+			matchKeys: vitalsVariantTestCases[3]!.matchKeys,
+			expected: vitalsVariantTestCases[3]!.expected,
 		},
 	],
 };
@@ -490,9 +490,9 @@ export const oxygenSaturationRegistryTests: FieldRegistryTestBlock = {
 		{
 			description:
 				"OxygenSaturationVitalEvent: category fixed + vitalType from unmatched + measurement from quantity",
-			input: vitalsVariantTestCases[4].input,
-			matchKeys: vitalsVariantTestCases[4].matchKeys,
-			expected: vitalsVariantTestCases[4].expected,
+			input: vitalsVariantTestCases[4]!.input,
+			matchKeys: vitalsVariantTestCases[4]!.matchKeys,
+			expected: vitalsVariantTestCases[4]!.expected,
 		},
 	],
 };
@@ -504,9 +504,9 @@ export const weightRegistryTests: FieldRegistryTestBlock = {
 		{
 			description:
 				"WeightVitalEvent: category fixed + vitalType from unmatched + measurement from quantity",
-			input: vitalsVariantTestCases[5].input,
-			matchKeys: vitalsVariantTestCases[5].matchKeys,
-			expected: vitalsVariantTestCases[5].expected,
+			input: vitalsVariantTestCases[5]!.input,
+			matchKeys: vitalsVariantTestCases[5]!.matchKeys,
+			expected: vitalsVariantTestCases[5]!.expected,
 		},
 	],
 };
@@ -518,9 +518,9 @@ export const heightRegistryTests: FieldRegistryTestBlock = {
 		{
 			description:
 				"HeightVitalEvent: category fixed + vitalType from unmatched + measurement from quantity",
-			input: vitalsVariantTestCases[6].input,
-			matchKeys: vitalsVariantTestCases[6].matchKeys,
-			expected: vitalsVariantTestCases[6].expected,
+			input: vitalsVariantTestCases[6]!.input,
+			matchKeys: vitalsVariantTestCases[6]!.matchKeys,
+			expected: vitalsVariantTestCases[6]!.expected,
 		},
 	],
 };

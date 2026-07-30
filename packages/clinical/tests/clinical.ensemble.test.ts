@@ -174,7 +174,10 @@ describe("ClinicalEngine ensemble (v2)", () => {
 			],
 		};
 
-		const parser = new CdslParser({ dictionaryStore: ds, profile: profile as any });
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: profile as any,
+		});
 		const results = await parser.parse("Chest Pain denies || temp 38.5 Cel");
 
 		const obsResult = results.find(

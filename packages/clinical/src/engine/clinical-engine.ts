@@ -23,7 +23,6 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
-import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 import type {
 	AutocompleteTransitionStore,
 	ParsedCellHistoryStore,
@@ -40,6 +39,7 @@ import {
 import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
 import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";
+import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 
 // ── Order-Aware Projection ───────────────────────────────────────────────────
 

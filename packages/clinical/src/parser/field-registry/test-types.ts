@@ -13,7 +13,7 @@ export interface FieldRegistryTestInput {
 	 * Example — quantity (vitals):
 	 *   namedGroups: { quantity: { quantity: "37.5", unit: "C" } }
 	 */
-	namedGroups?: Record<string, Record<string, string | undefined>>;
+	namedGroups?: Record<string, any>;
 
 	/**
 	 * Direct slot values on the token (fallback path in the engine).

@@ -69,7 +69,11 @@ async function resolveStoreWithFactory(
 	defaultFilename: string,
 	factories: {
 		memory: (backend: MemoryKvBackend) => any;
-		sql: (dialect: SqlDialect, executor: SqlExecutor, backend: SqlBackend) => any;
+		sql: (
+			dialect: SqlDialect,
+			executor: SqlExecutor,
+			backend: SqlBackend,
+		) => any;
 		jsonl: (backend: JsonlKvBackend) => any;
 	},
 	sharedSqlBackend?: SqlBackend,
@@ -77,7 +81,9 @@ async function resolveStoreWithFactory(
 	const locator = getPrimaryLocator(config, group);
 
 	if (locator._type !== "adapter") {
-		throw new Error(`Unsupported store locator type: ${locator._type} for group: ${group}`);
+		throw new Error(
+			`Unsupported store locator type: ${locator._type} for group: ${group}`,
+		);
 	}
 
 	switch (locator.name) {
@@ -91,7 +97,10 @@ async function resolveStoreWithFactory(
 			const dialect = mapDialect(locator.name);
 			const backend =
 				sharedSqlBackend ??
-				(await SqlBackend.connect(dialect, resolveDbPath(locator, dialect, defaultFilename)));
+				(await SqlBackend.connect(
+					dialect,
+					resolveDbPath(locator, dialect, defaultFilename),
+				));
 			const executor = new SqlExecutor(backend);
 			return factories.sql(dialect, executor, backend);
 		}
@@ -101,7 +110,9 @@ async function resolveStoreWithFactory(
 			return factories.jsonl(backend);
 		}
 		default:
-			throw new Error(`Unsupported ${group} adapter: ${(locator as any).name ?? locator._type}`);
+			throw new Error(
+				`Unsupported ${group} adapter: ${(locator as any).name ?? locator._type}`,
+			);
 	}
 }
 
@@ -113,20 +124,25 @@ export async function resolveParserProfileStores(
 	core: KvParserProfileStore | SqlParserProfileStore;
 	tags: KvProfileTagStore | SqlProfileTagStore;
 }> {
-	return resolveStoreWithFactory(config, "parser_profiles", "./clinical-parser.sqlite", {
-		memory: (backend) => ({
-			core: new KvParserProfileStore(backend),
-			tags: new KvProfileTagStore(backend),
-		}),
-		sql: (dialect, executor) => ({
-			core: new SqlParserProfileStore(dialect, executor),
-			tags: new SqlProfileTagStore(dialect, executor),
-		}),
-		jsonl: (backend) => ({
-			core: new KvParserProfileStore(backend),
-			tags: new KvProfileTagStore(backend),
-		}),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"parser_profiles",
+		"./clinical-parser.sqlite",
+		{
+			memory: (backend) => ({
+				core: new KvParserProfileStore(backend),
+				tags: new KvProfileTagStore(backend),
+			}),
+			sql: (dialect, executor) => ({
+				core: new SqlParserProfileStore(dialect, executor),
+				tags: new SqlProfileTagStore(dialect, executor),
+			}),
+			jsonl: (backend) => ({
+				core: new KvParserProfileStore(backend),
+				tags: new KvProfileTagStore(backend),
+			}),
+		},
+	);
 }
 
 // ── Rules + bindings ─────────────────────────────────────────────────
@@ -141,26 +157,34 @@ export async function resolveParserRuleStores(
 		| KvProfileEvaluatorBindingStore
 		| SqlProfileEvaluatorBindingStore;
 }> {
-	return resolveStoreWithFactory(config, "parser_rules", "./clinical-parser.sqlite", {
-		memory: (backend) => ({
-			attributeRules: new KvParserAttributeRuleStore(backend),
-			evaluatorRules: new KvParserEvaluatorRuleStore(backend),
-			attributeBindings: new KvProfileRuleBindingStore(backend),
-			evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		}),
-		sql: (dialect, executor) => ({
-			attributeRules: new SqlParserAttributeRuleStore(dialect, executor),
-			evaluatorRules: new SqlParserEvaluatorRuleStore(dialect, executor),
-			attributeBindings: new SqlProfileRuleBindingStore(dialect, executor),
-			evaluatorBindings: new SqlProfileEvaluatorBindingStore(dialect, executor),
-		}),
-		jsonl: (backend) => ({
-			attributeRules: new KvParserAttributeRuleStore(backend),
-			evaluatorRules: new KvParserEvaluatorRuleStore(backend),
-			attributeBindings: new KvProfileRuleBindingStore(backend),
-			evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		}),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"parser_rules",
+		"./clinical-parser.sqlite",
+		{
+			memory: (backend) => ({
+				attributeRules: new KvParserAttributeRuleStore(backend),
+				evaluatorRules: new KvParserEvaluatorRuleStore(backend),
+				attributeBindings: new KvProfileRuleBindingStore(backend),
+				evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
+			}),
+			sql: (dialect, executor) => ({
+				attributeRules: new SqlParserAttributeRuleStore(dialect, executor),
+				evaluatorRules: new SqlParserEvaluatorRuleStore(dialect, executor),
+				attributeBindings: new SqlProfileRuleBindingStore(dialect, executor),
+				evaluatorBindings: new SqlProfileEvaluatorBindingStore(
+					dialect,
+					executor,
+				),
+			}),
+			jsonl: (backend) => ({
+				attributeRules: new KvParserAttributeRuleStore(backend),
+				evaluatorRules: new KvParserEvaluatorRuleStore(backend),
+				attributeBindings: new KvProfileRuleBindingStore(backend),
+				evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
+			}),
+		},
+	);
 }
 
 // ── Reference data ───────────────────────────────────────────────────
@@ -176,39 +200,53 @@ export async function resolveReferenceStores(
 	proseTemplates: KvClinicalProseTemplateStore | SqlClinicalProseTemplateStore;
 	proseParserTemplates: KvProseParserTemplateStore | SqlProseTemplateStore;
 }> {
-	return resolveStoreWithFactory(config, "reference", "./clinical-reference.sqlite", {
-		memory: (backend) => ({
-			tags: new KvTagStore(backend),
-			jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
-			stopWordProfiles: new KvStopWordProfileStore(backend),
-			proseTemplates: new KvClinicalProseTemplateStore(backend),
-			proseParserTemplates: new KvProseParserTemplateStore(backend),
-		}),
-		sql: (dialect, executor) => ({
-			tags: new SqlTagStore(dialect, executor),
-			jurisdictionalDisplays: new SqlJurisdictionalDisplayStore(dialect, executor),
-			stopWordProfiles: new SqlStopWordProfileStore(dialect, executor),
-			proseTemplates: new SqlClinicalProseTemplateStore(dialect, executor),
-			proseParserTemplates: new SqlProseTemplateStore(dialect, executor),
-		}),
-		jsonl: (backend) => ({
-			tags: new KvTagStore(backend),
-			jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
-			stopWordProfiles: new KvStopWordProfileStore(backend),
-			proseTemplates: new KvClinicalProseTemplateStore(backend),
-			proseParserTemplates: new KvProseParserTemplateStore(backend),
-		}),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"reference",
+		"./clinical-reference.sqlite",
+		{
+			memory: (backend) => ({
+				tags: new KvTagStore(backend),
+				jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
+				stopWordProfiles: new KvStopWordProfileStore(backend),
+				proseTemplates: new KvClinicalProseTemplateStore(backend),
+				proseParserTemplates: new KvProseParserTemplateStore(backend),
+			}),
+			sql: (dialect, executor) => ({
+				tags: new SqlTagStore(dialect, executor),
+				jurisdictionalDisplays: new SqlJurisdictionalDisplayStore(
+					dialect,
+					executor,
+				),
+				stopWordProfiles: new SqlStopWordProfileStore(dialect, executor),
+				proseTemplates: new SqlClinicalProseTemplateStore(dialect, executor),
+				proseParserTemplates: new SqlProseTemplateStore(dialect, executor),
+			}),
+			jsonl: (backend) => ({
+				tags: new KvTagStore(backend),
+				jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
+				stopWordProfiles: new KvStopWordProfileStore(backend),
+				proseTemplates: new KvClinicalProseTemplateStore(backend),
+				proseParserTemplates: new KvProseParserTemplateStore(backend),
+			}),
+		},
+	);
 }
 
 export async function resolveStopWordWordListStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvStopWordWordListStore | SqlStopWordWordListStore> {
-	return resolveStoreWithFactory(config, "reference", "./clinical-reference.sqlite", {
-		memory: (backend) => new KvStopWordWordListStore(backend),
-		sql: (dialect, executor) => new SqlStopWordWordListStore(dialect, executor),
-		jsonl: (backend) => new KvStopWordWordListStore(backend),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"reference",
+		"./clinical-reference.sqlite",
+		{
+			memory: (backend) => new KvStopWordWordListStore(backend),
+			sql: (dialect, executor) =>
+				new SqlStopWordWordListStore(dialect, executor),
+			jsonl: (backend) => new KvStopWordWordListStore(backend),
+		},
+	);
 }
 
 // ── Concept defaults ─────────────────────────────────────────────────────────
@@ -235,11 +273,16 @@ export async function resolveConceptDefaultStore(
 export async function resolveConceptFieldStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvConceptFieldStore | SqlConceptFieldStore> {
-	return resolveStoreWithFactory(config, "concept_fields", "./clinical.sqlite", {
-		memory: (backend) => new KvConceptFieldStore(backend),
-		sql: (dialect, executor) => new SqlConceptFieldStore(dialect, executor),
-		jsonl: (backend) => new KvConceptFieldStore(backend),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"concept_fields",
+		"./clinical.sqlite",
+		{
+			memory: (backend) => new KvConceptFieldStore(backend),
+			sql: (dialect, executor) => new SqlConceptFieldStore(dialect, executor),
+			jsonl: (backend) => new KvConceptFieldStore(backend),
+		},
+	);
 }
 
 // ── Shared Field Anchors ─────────────────────────────────────────────
@@ -247,11 +290,17 @@ export async function resolveConceptFieldStore(
 export async function resolveSharedFieldAnchorStore(
 	config: ClinicalStoreConfig,
 ): Promise<SharedFieldAnchorStore> {
-	return resolveStoreWithFactory(config, "shared_field_anchors", "./clinical.sqlite", {
-		memory: (backend) => new KvSharedFieldAnchorStore(backend),
-		sql: (dialect, executor) => new SqlSharedFieldAnchorStore(dialect, executor),
-		jsonl: (backend) => new KvSharedFieldAnchorStore(backend),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"shared_field_anchors",
+		"./clinical.sqlite",
+		{
+			memory: (backend) => new KvSharedFieldAnchorStore(backend),
+			sql: (dialect, executor) =>
+				new SqlSharedFieldAnchorStore(dialect, executor),
+			jsonl: (backend) => new KvSharedFieldAnchorStore(backend),
+		},
+	);
 }
 
 // ── Calibration exceptions ───────────────────────────────────────────
@@ -261,7 +310,8 @@ export async function resolveCalibrationExceptionStore(
 ): Promise<KvCalibrationExceptionStore | SqlCalibrationExceptionStore> {
 	return resolveStoreWithFactory(config, "calibration", "./clinical.sqlite", {
 		memory: (backend) => new KvCalibrationExceptionStore(backend),
-		sql: (dialect, executor) => new SqlCalibrationExceptionStore(dialect, executor),
+		sql: (dialect, executor) =>
+			new SqlCalibrationExceptionStore(dialect, executor),
 		jsonl: (backend) => new KvCalibrationExceptionStore(backend),
 	});
 }
@@ -271,11 +321,16 @@ export async function resolveCalibrationExceptionStore(
 export async function resolveMacroStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvParserMacroStore | SqlParserMacroStore> {
-	return resolveStoreWithFactory(config, "parser_macros", "./clinical-parser.sqlite", {
-		memory: (backend) => new KvParserMacroStore(backend),
-		sql: (dialect, executor) => new SqlParserMacroStore(executor),
-		jsonl: (backend) => new KvParserMacroStore(backend),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"parser_macros",
+		"./clinical-parser.sqlite",
+		{
+			memory: (backend) => new KvParserMacroStore(backend),
+			sql: (dialect, executor) => new SqlParserMacroStore(executor),
+			jsonl: (backend) => new KvParserMacroStore(backend),
+		},
+	);
 }
 
 // ── Personnel ────────────────────────────────────────────────────────

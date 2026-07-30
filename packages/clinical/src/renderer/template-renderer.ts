@@ -1,5 +1,9 @@
 import { executePipeline } from "@stateful-mcp/core/src/translation/pipeline";
-import type { ClinicalProseTemplate, OutputProseSlot, SlotCondition } from "../store/interfaces";
+import type {
+	ClinicalProseTemplate,
+	OutputProseSlot,
+	SlotCondition,
+} from "../store/interfaces";
 
 export class TemplateRenderer {
 	static renderTemplate(
@@ -33,7 +37,10 @@ export class TemplateRenderer {
 				continue;
 			}
 
-			const resolvedData = TemplateRenderer.resolvePath(context, slot.sourcePath);
+			const resolvedData = TemplateRenderer.resolvePath(
+				context,
+				slot.sourcePath,
+			);
 			if (resolvedData === undefined || resolvedData === null) {
 				output = output.replace(`{${token}}`, slot.fallback || "");
 				continue;
@@ -152,10 +159,7 @@ export class TemplateRenderer {
 		return current;
 	}
 
-	static evaluateCondition(
-		condition: SlotCondition,
-		context: any,
-	): boolean {
+	static evaluateCondition(condition: SlotCondition, context: any): boolean {
 		const row =
 			typeof context === "object" && context !== null
 				? context

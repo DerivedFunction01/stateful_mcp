@@ -69,7 +69,12 @@ export class ProseRenderer {
 		templates: ClinicalProseTemplate[],
 		visited: Set<string>,
 	): string {
-		return TemplateRenderer.renderTemplate(template, context, templates, visited);
+		return TemplateRenderer.renderTemplate(
+			template,
+			context,
+			templates,
+			visited,
+		);
 	}
 
 	private static renderSection(
