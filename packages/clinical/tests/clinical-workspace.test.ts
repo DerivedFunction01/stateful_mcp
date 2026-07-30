@@ -1,23 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { createRepo, EventStore, ObjectStore } from "@stateful-mcp/core";
 import { ClinicalEngine } from "../src/engine/clinical-engine";
+import { WorkspaceStore } from "../src/engine/workspace-store";
 import type { EpistemicWorkspace } from "../src/schemas/epistemic";
-import type { EpistemicWorkspaceStore } from "../src/store/interfaces";
-
-class MockWorkspaceStore implements EpistemicWorkspaceStore {
-	private store = new Map<string, EpistemicWorkspace>();
-	async getWorkspace(id: string) {
-		return this.store.get(id) || null;
-	}
-	async saveWorkspace(workspace: EpistemicWorkspace) {
-		this.store.set(workspace.id, workspace);
-	}
-	async listWorkspacesForNote(noteId: string) {
-		return Array.from(this.store.values()).filter(
-			(w) => w.sourceSoapNoteId === noteId,
-		);
-	}
-}
 
 describe("Clinical Epistemic Workspace Lifecycle", () => {
 	test("Initializes, updates, and completes workspace", async () => {
@@ -38,7 +23,7 @@ describe("Clinical Epistemic Workspace Lifecycle", () => {
 			schemas: new Map<string, any>(),
 		});
 
-		const workspaceStore = new MockWorkspaceStore();
+		const workspaceStore = new WorkspaceStore(objectStore, eventStore);
 
 		const engine = new ClinicalEngine({
 			objectStore,
@@ -73,7 +58,7 @@ describe("Clinical Epistemic Workspace Lifecycle", () => {
 
 		expect(workspaceId).toBeDefined();
 
-		const workspace = await workspaceStore.getWorkspace(workspaceId);
+		const workspace = await workspaceStore.get(sessionId, workspaceId);
 		expect(workspace).not.toBeNull();
 		expect(workspace!.branches.length).toBe(2);
 		expect(workspace!.activeBranchId).toBe(workspace!.branches[0]!.id);

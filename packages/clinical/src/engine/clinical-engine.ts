@@ -403,14 +403,14 @@ const SOAP_ROUTING_CONFIGS: Record<
 
 import type { ClinicalBranch, EpistemicWorkspace } from "../schemas/epistemic";
 import type { CodeableConcept } from "../schemas/shared";
-import type { EpistemicWorkspaceStore } from "../store/interfaces";
+import { WorkspaceStore } from "./workspace-store";
 
 export interface ClinicalEngineConfig {
 	objectStore: ObjectStore;
 	eventStore: EventStore;
 	dictionaryStore: DictionaryStore;
 	signedNoteStore: SignedSoapNoteStore;
-	workspaceStore?: EpistemicWorkspaceStore;
+	workspaceStore?: WorkspaceStore;
 	calibrationStore?: CalibrationStore;
 	parsedCellStore?: ParsedCellStore;
 	stopWordStore?: StopWordStore;
@@ -428,7 +428,7 @@ export class ClinicalEngine {
 	private objectStore: ObjectStore;
 	private eventStore: EventStore;
 	private signedNoteStore: SignedSoapNoteStore;
-	private workspaceStore?: EpistemicWorkspaceStore;
+	private workspaceStore?: WorkspaceStore;
 	private calibrationStore?: CalibrationStore;
 	private parsedCellStore?: ParsedCellStore;
 	private orderAwareStore?: OrderedLearningStore;
@@ -1062,53 +1062,17 @@ export class ClinicalEngine {
 		candidateConcepts: CodeableConcept[],
 		alias?: string,
 	): Promise<string> {
-		const effectiveAlias = alias ?? sessionId;
 		if (!this.workspaceStore) {
 			throw new Error(
 				"workspaceStore is not configured in ClinicalEngineConfig",
 			);
 		}
-
-		// Retrieve latest commit to serve as snapshot boundary
-		const activeObj = await this.objectStore.getObject(
-			effectiveAlias,
+		return this.workspaceStore.init(
 			sessionId,
+			soapNoteId,
+			candidateConcepts,
+			alias,
 		);
-		if (!activeObj) {
-			throw new Error("No active SOAP Note found for session");
-		}
-
-		// Use the session ID or current commit ID as pointer target
-		const linkedSourceEventId = sessionId;
-		const workspaceId = `work_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-
-		const branches: ClinicalBranch[] = candidateConcepts.map(
-			(concept, idx) => ({
-				id: `branch_${workspaceId}_${idx}`,
-				parentId: null,
-				name: concept.display || "Hypothesis Branch",
-				hypothesisConcept: concept,
-				status: idx === 0 ? "active" : "suspended",
-				supportingConcepts: [],
-				refutingConcepts: [],
-				createdAt: {
-					assertedTimestampUtc: new Date().toISOString(),
-					precisionLevel: "second",
-				},
-			}),
-		);
-
-		const workspace: EpistemicWorkspace = {
-			id: workspaceId,
-			sourceSoapNoteId: soapNoteId,
-			linkedSourceEventId,
-			branches,
-			activeBranchId: branches[0]?.id || "",
-			globalFacts: [],
-		};
-
-		await this.workspaceStore.saveWorkspace(workspace);
-		return workspaceId;
 	}
 
 	async processWorkspaceDictation(
@@ -1118,82 +1082,16 @@ export class ClinicalEngine {
 		dictation: string,
 		alias?: string,
 	): Promise<EpistemicWorkspace> {
-		const effectiveAlias = alias ?? sessionId;
 		if (!this.workspaceStore) {
 			throw new Error("workspaceStore is not configured");
 		}
-
-		const workspace = await this.workspaceStore.getWorkspace(workspaceId);
-		if (!workspace) {
-			throw new Error(`Epistemic workspace ${workspaceId} not found`);
-		}
-
-		// Switch active branch before processing
-		const targetBranch = workspace.branches.find((b) => b.id === branchId);
-		if (!targetBranch) {
-			throw new Error(`Branch ${branchId} not found in workspace`);
-		}
-		workspace.activeBranchId = branchId;
-
-		// Sync pointer up from parent store first (pull vitals/objectives as globalFacts)
-		const parentNoteObj = await this.objectStore.getObject(
-			effectiveAlias,
+		return this.workspaceStore.process(
 			sessionId,
+			workspaceId,
+			branchId,
+			dictation,
+			alias,
 		);
-		if (parentNoteObj) {
-			const note = parentNoteObj.data as SoapNote;
-			workspace.globalFacts = [
-				...((note.objective?.vitalSigns || []) as unknown as Array<
-					Record<string, unknown>
-				>),
-				...((note.objective?.clinicalObservations || []) as unknown as Array<
-					Record<string, unknown>
-				>),
-			];
-		}
-
-		// Parse the incoming dictation segment
-		await this.lazyInitParser();
-
-		const noteObj = parentNoteObj
-			? (parentNoteObj.data as SoapNote)
-			: undefined;
-		const patientBucket = noteObj
-			? buildPatientLearningBucket(noteObj.patient)
-			: undefined;
-		const items = await this.parser.parse(dictation, {
-			personnelId: "system",
-			patientContext: patientBucket,
-		});
-
-		const activeBranch = workspace.branches.find(
-			(b) => b.id === workspace.activeBranchId,
-		);
-		if (activeBranch && items.length > 0) {
-			for (const item of items) {
-				const schemaClean = item.targetSchema.toLowerCase();
-				// If global/objective tag mapping is matched, it updates globalFacts instead
-				if (
-					schemaClean === "vitalsmeasurementevent" ||
-					(schemaClean === "observationevent" &&
-						item.extractedData?.certainty !== "refuted")
-				) {
-					workspace.globalFacts.push(
-						item as unknown as Record<string, unknown>,
-					);
-				} else {
-					// Local evidence parsing additions
-					if (item.extractedData?.certainty === "refuted") {
-						activeBranch.refutingConcepts.push(...(item.concept || []));
-					} else {
-						activeBranch.supportingConcepts.push(...(item.concept || []));
-					}
-				}
-			}
-		}
-
-		await this.workspaceStore.saveWorkspace(workspace);
-		return workspace;
 	}
 
 	async completeAssessmentWorkspace(
@@ -1202,72 +1100,17 @@ export class ClinicalEngine {
 		winningBranchId: string,
 		alias?: string,
 	): Promise<SoapNote> {
-		const effectiveAlias = alias ?? sessionId;
 		if (!this.workspaceStore) {
 			throw new Error("workspaceStore is not configured");
 		}
-
-		const workspace = await this.workspaceStore.getWorkspace(workspaceId);
-		if (!workspace) {
-			throw new Error(`Epistemic workspace ${workspaceId} not found`);
-		}
-
-		const winningBranch = workspace.branches.find(
-			(b) => b.id === winningBranchId,
-		);
-		if (!winningBranch) {
-			throw new Error(
-				`Winning branch ${winningBranchId} not found in workspace`,
-			);
-		}
-
-		// Perform Event Append Flow back to core note event store
-		let currentCommitId = effectiveAlias;
-
-		// 1. Promote winning primary diagnosis
-		currentCommitId = await this.eventStore.append(
+		const effectiveAlias = alias ?? sessionId;
+		const tipCommitId = await this.workspaceStore.complete(
 			sessionId,
-			currentCommitId,
-			{
-				targetSchema: "PrimaryDiagnosisEntry",
-				tag: "PrimaryDiagnosisEntry",
-				concept: [winningBranch.hypothesisConcept],
-				rawText: `Confirmed via workspace branching: ${winningBranch.name}`,
-				extractedData: {
-					acuityLevel: "acute",
-					supportingConcepts: winningBranch.supportingConcepts,
-				},
-			},
-			effectiveAlias,
+			workspaceId,
+			winningBranchId,
+			alias,
 		);
-
-		// 2. Append all ruled out/dead branch entries to differentials
-		for (const branch of workspace.branches) {
-			if (branch.id !== winningBranchId) {
-				currentCommitId = await this.eventStore.append(
-					sessionId,
-					currentCommitId,
-					{
-						targetSchema: "DifferentialDiagnosisEntry",
-						tag: "DifferentialDiagnosisEntry",
-						concept: [branch.hypothesisConcept],
-						rawText: `Ruled out via workspace branching: ${branch.name}`,
-						extractedData: {
-							rank: 2,
-							confidence: "refuted",
-							supportingConcepts: branch.supportingConcepts,
-							refutingConcepts: branch.refutingConcepts,
-							status: "ruled_out",
-						},
-					},
-					effectiveAlias,
-				);
-			}
-		}
-
-		// Reconcile modifications back to the object store read-model
-		await this.reconcileEventStateToObjectStore(currentCommitId, sessionId);
-
+		await this.reconcileEventStateToObjectStore(tipCommitId, sessionId);
 		const updatedObj = await this.objectStore.getObject(
 			effectiveAlias,
 			sessionId,
