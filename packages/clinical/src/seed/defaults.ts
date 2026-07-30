@@ -979,7 +979,6 @@ export const UNIT_DISPLAY_MAP: Record<AllowedUnit, string> = {
 	psi: "psi",
 
 	// Count
-	"1": "1",
 	count: "count",
 	cells: "cells",
 	elements: "elements",
@@ -1009,7 +1008,6 @@ export const UNIT_DISPLAY_MAP: Record<AllowedUnit, string> = {
 	score: "score",
 	points: "points",
 	ratio: "ratio",
-	MET: "MET",
 
 	// Mass Concentration permutations
 	"g/l": "g/L",

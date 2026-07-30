@@ -308,7 +308,6 @@ export const CATALYTIC_ACTIVITY_CONVERSIONS: Record<
 
 /** Canonical base: ratio (0–1) */
 export const FRACTION_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
-	"1": factor(1),
 	fraction: factor(1),
 	ratio: factor(1),
 	"%": factor(1 / 100),
@@ -351,7 +350,6 @@ export const ARBITRARY_CONVERSIONS: Record<
 	score: factor(1),
 	points: factor(1),
 	ratio: factor(1),
-	MET: factor(1),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
