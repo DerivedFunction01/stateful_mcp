@@ -75,7 +75,7 @@ describe("default resolution strategy (v2)", () => {
 			defaultsStrategy: "StaticSchemaDefaults",
 		};
 
-		const parser = new CdslParser(ds, profile);
+		const parser = new CdslParser({ dictionaryStore: ds, profile });
 		const parsed = await parser.parse("#observation fever");
 		const observation = parsed.find(
 			(item) => item.targetSchema === "ObservationEvent",
@@ -122,7 +122,7 @@ describe("default resolution strategy (v2)", () => {
 			defaultsStrategy: "MockDynamicStrategy",
 		};
 
-		const parser = new CdslParser(ds, profile);
+		const parser = new CdslParser({ dictionaryStore: ds, profile });
 
 		const feverParsed = await parser.parse("#observation fever");
 		const feverObservation = feverParsed.find(

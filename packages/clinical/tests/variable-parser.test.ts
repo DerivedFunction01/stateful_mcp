@@ -196,18 +196,11 @@ describe("CdslParser Integration with CdslVariableParser", () => {
 		const store = new MemoryVariableStore();
 		const service = new VariableServiceStore(store);
 
-		const parser = new CdslParser(
-			ds,
-			mockProfile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			service,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: mockProfile,
+			variableService: service,
+		});
 
 		// Initialize variable value, then run input containing an assertion check on it alongside parsed clinical note text
 		await service.setVariable("default_session", "age", 45);
@@ -233,18 +226,11 @@ describe("CdslParser Integration with CdslVariableParser", () => {
 		const store = new MemoryVariableStore();
 		const service = new VariableServiceStore(store);
 
-		const parser = new CdslParser(
-			ds,
-			mockProfile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			service,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: mockProfile,
+			variableService: service,
+		});
 
 		await service.setVariable("default_session", "age", 30);
 		expect(() =>
@@ -288,18 +274,11 @@ describe("CdslParser Integration with CdslVariableParser", () => {
 		const store = new MemoryVariableStore();
 		const service = new VariableServiceStore(store);
 
-		const parser = new CdslParser(
-			ds,
-			mockProfile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			service,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: mockProfile,
+			variableService: service,
+		});
 
 		await parser.parse("{prob_concept = @Chest Pain}");
 		const val = await service.getVariable("default_session", "prob_concept");
@@ -357,18 +336,11 @@ describe("CdslParser Integration with CdslVariableParser", () => {
 		const store = new MemoryVariableStore();
 		const service = new VariableServiceStore(store);
 
-		const parser = new CdslParser(
-			ds,
-			mockProfile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			service,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: mockProfile,
+			variableService: service,
+		});
 
 		// User A sets variable with one phrase, User B asserts variable with another phrase
 		await parser.parse("{prob_concept = @Chest Pain}");
@@ -488,18 +460,11 @@ describe("CdslParser Integration with CdslVariableParser", () => {
 		const store = new MemoryVariableStore();
 		const service = new VariableServiceStore(store);
 
-		const parser = new CdslParser(
-			ds,
-			mockProfile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			service,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: mockProfile,
+			variableService: service,
+		});
 
 		// "/unknown" is not a command, so it should fall through and get parsed as "Chest Pain"
 		const results = await parser.parse("/unknown #ObservationEvent Chest Pain");
@@ -549,18 +514,11 @@ describe("CdslParser Integration with CdslVariableParser", () => {
 		const store = new MemoryVariableStore();
 		const service = new VariableServiceStore(store);
 
-		const parser = new CdslParser(
-			ds,
-			mockProfile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			service,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: mockProfile,
+			variableService: service,
+		});
 
 		// Tag at the end of the note line (trailing / RTL style)
 		const results = await parser.parse("Chest Pain #ObservationEvent");

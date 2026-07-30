@@ -76,18 +76,11 @@ describe("CdslParser.suggestAutocomplete integration", () => {
 		};
 		await templateStore.set(cardioTemplate);
 
-		const parser = new CdslParser(
-			ds,
-			profile!,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			templateStore,
-			undefined,
-			undefined,
-			undefined,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: profile!,
+			proseTemplateStore: templateStore,
+		});
 
 		const results = await parser.suggestAutocomplete("Pt presents with sharp", {
 			personnelId: "user1",
@@ -105,15 +98,10 @@ describe("CdslParser.suggestAutocomplete integration", () => {
 		await seedTestConcepts(ds);
 
 		const profile = SEED_PARSER_PROFILES.find((p) => p.profileId === "default");
-		const parser = new CdslParser(
-			ds,
-			profile!,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined, // no template store
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: profile!,
+		});
 
 		const results = await parser.suggestAutocomplete("Pt presents with sharp", {
 			personnelId: "user1",

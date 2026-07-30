@@ -48,9 +48,32 @@ interface ParserPreviewResult extends ParsedCandidateEnvelope {
 	targetSchema: string;
 }
 
+export interface CdslParserOptions {
+	dictionaryStore: DictionaryStore;
+	profile: ParserSyntaxProfile;
+	conceptDefaultsStore?: ParserConceptDefaultStore;
+	stopWordParser?: StopWordParser;
+	stopWordStore?: StopWordStore;
+	conceptFieldStore?: ConceptFieldStore;
+	proseTemplateStore?: ProseParserTemplateStore;
+	sharedFieldAnchorStore?: SharedFieldAnchorStore;
+	macroStore?: ParserMacroStore;
+	variableService?: VariableService;
+	weightStore?: SystemWeightStore;
+}
+
 export class CdslParser {
+	private dictionaryStore: DictionaryStore;
+	private profile: ParserSyntaxProfile;
+	private conceptDefaultsStore?: ParserConceptDefaultStore;
 	private stopWordParser: StopWordParser | undefined;
 	private stopWordStore: StopWordStore | undefined;
+	private conceptFieldStore?: ConceptFieldStore;
+	private proseTemplateStore?: ProseParserTemplateStore;
+	private sharedFieldAnchorStore?: SharedFieldAnchorStore;
+	private macroStore?: ParserMacroStore;
+	private variableService?: VariableService;
+	private weightStore?: SystemWeightStore;
 	private attributeRules: AttributeParserRule[];
 	private segmentProcessor: SegmentProcessor;
 
@@ -58,21 +81,18 @@ export class CdslParser {
 		"ClinicalDateRange",
 	]);
 
-	constructor(
-		private dictionaryStore: DictionaryStore,
-		private profile: ParserSyntaxProfile,
-		private conceptDefaultsStore?: ParserConceptDefaultStore,
-		stopWordParser?: StopWordParser,
-		stopWordStore?: StopWordStore,
-		private conceptFieldStore?: ConceptFieldStore,
-		private proseTemplateStore?: ProseParserTemplateStore,
-		private sharedFieldAnchorStore?: SharedFieldAnchorStore,
-		private macroStore?: ParserMacroStore,
-		private variableService?: VariableService,
-		private weightStore?: SystemWeightStore,
-	) {
-		this.stopWordParser = stopWordParser;
-		this.stopWordStore = stopWordStore;
+	constructor(options: CdslParserOptions) {
+		this.dictionaryStore = options.dictionaryStore;
+		this.profile = options.profile;
+		this.conceptDefaultsStore = options.conceptDefaultsStore;
+		this.stopWordParser = options.stopWordParser;
+		this.stopWordStore = options.stopWordStore;
+		this.conceptFieldStore = options.conceptFieldStore;
+		this.proseTemplateStore = options.proseTemplateStore;
+		this.sharedFieldAnchorStore = options.sharedFieldAnchorStore;
+		this.macroStore = options.macroStore;
+		this.variableService = options.variableService;
+		this.weightStore = options.weightStore;
 		this.attributeRules = [
 			...(this.profile.attributeRules || []),
 			...(this.profile.calendarDateFormats
@@ -97,29 +117,30 @@ export class CdslParser {
 	 * ParserProfileStore (which may be seeded from config) rather than
 	 * falling back to a hardcoded seed constant.
 	 *
-	 * @param dictionaryStore - Dictionary store for concept resolution
-	 * @param profileStore - Store to resolve the parser profile from
-	 * @param profileId - The profile ID to resolve (defaults to "default")
-	 * @param conceptDefaultsStore - Optional concept default store
-	 * @param stopWordParser - Optional pre-configured stop word parser
-	 * @param stopWordStore - Optional stop word store for dynamic resolution
-	 * @param conceptFieldStore - Optional concept field store
-	 * @param proseTemplateStore - Optional prose parser template store
-	 * @param sharedFieldAnchorStore - Optional shared field anchor store
-	 * @param macroStore - Optional macro store for macro expansion
+	 * @param options - Parser configuration options
+	 * @param options.dictionaryStore - Dictionary store for concept resolution
+	 * @param options.profileStore - Store to resolve the parser profile from
+	 * @param options.profileId - The profile ID to resolve (defaults to "default")
+	 * @param options.conceptDefaultsStore - Optional concept default store
+	 * @param options.stopWordParser - Optional pre-configured stop word parser
+	 * @param options.stopWordStore - Optional stop word store for dynamic resolution
+	 * @param options.conceptFieldStore - Optional concept field store
+	 * @param options.proseTemplateStore - Optional prose parser template store
+	 * @param options.sharedFieldAnchorStore - Optional shared field anchor store
+	 * @param options.macroStore - Optional macro store for macro expansion
 	 */
 	static async create(
-		dictionaryStore: DictionaryStore,
-		profileStore: ParserProfileStore,
-		profileId: string = "default",
-		conceptDefaultsStore?: ParserConceptDefaultStore,
-		stopWordParser?: StopWordParser,
-		stopWordStore?: StopWordStore,
-		conceptFieldStore?: ConceptFieldStore,
-		proseTemplateStore?: ProseParserTemplateStore,
-		sharedFieldAnchorStore?: SharedFieldAnchorStore,
-		macroStore?: ParserMacroStore,
+		options: CdslParserOptions & {
+			profileStore: ParserProfileStore;
+			profileId?: string;
+		},
 	): Promise<CdslParser> {
+		const {
+			dictionaryStore,
+			profileStore,
+			profileId = "default",
+			...rest
+		} = options;
 		const profile = await profileStore.get(profileId);
 		if (!profile) {
 			throw new Error(
@@ -127,17 +148,7 @@ export class CdslParser {
 					`Ensure the profile is seeded in the clinical config.`,
 			);
 		}
-		return new CdslParser(
-			dictionaryStore,
-			profile,
-			conceptDefaultsStore,
-			stopWordParser,
-			stopWordStore,
-			conceptFieldStore,
-			proseTemplateStore,
-			sharedFieldAnchorStore,
-			macroStore,
-		);
+		return new CdslParser({ ...rest, dictionaryStore, profile });
 	}
 
 	private getEffectiveAttributeRules(): AttributeParserRule[] {

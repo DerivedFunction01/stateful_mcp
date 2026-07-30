@@ -171,16 +171,11 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			],
 		});
 
-		const parser = new CdslParser(
-			ds,
+		const parser = new CdslParser({
+			dictionaryStore: ds,
 			profile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			anchorStore,
-		);
+			sharedFieldAnchorStore: anchorStore,
+		});
 
 		// Parse observation + date range
 		const parsed = await parser.parse(
@@ -236,16 +231,11 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			],
 		});
 
-		const parser = new CdslParser(
-			ds,
+		const parser = new CdslParser({
+			dictionaryStore: ds,
 			profile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			anchorStore,
-		);
+			sharedFieldAnchorStore: anchorStore,
+		});
 
 		// gap contains "||", not "for"
 		const parsed = await parser.parse(
@@ -314,16 +304,11 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			],
 		});
 
-		const parser = new CdslParser(
-			ds,
+		const parser = new CdslParser({
+			dictionaryStore: ds,
 			profile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			anchorStore,
-		);
+			sharedFieldAnchorStore: anchorStore,
+		});
 
 		// Test 1: past date -> should anchor
 		const parsedPast = await parser.parse(
@@ -387,16 +372,11 @@ describe("CdslParser Shared Field Anchoring Enrichment", () => {
 			],
 		});
 
-		const parser = new CdslParser(
-			ds,
+		const parser = new CdslParser({
+			dictionaryStore: ds,
 			profile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			anchorStore,
-		);
+			sharedFieldAnchorStore: anchorStore,
+		});
 
 		// Sentence structure with soft boundaries (periods) instead of hard || delimiters:
 		// "Person has fever. Clinical date range 1 day ago. Also have fever."

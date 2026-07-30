@@ -204,17 +204,11 @@ describe("CdslParser Integration with MacroExpander", () => {
 			macroTemplate: "#ObservationEvent Chest Pain denies", // Renders refuted observation
 		});
 
-		const parser = new CdslParser(
-			ds,
-			mockProfile,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: mockProfile,
 			macroStore,
-		);
+		});
 		const results = await parser.parse("^severe_sob");
 
 		expect(results.length).toBe(1);

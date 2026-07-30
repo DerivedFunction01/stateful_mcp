@@ -120,10 +120,10 @@ describe("ClinicalEngine ensemble (v2)", () => {
 	test("parser dispatches to multiple schemas from a single dictation", async () => {
 		const ds = makeDictionaryStore();
 		await seedTestConcepts(ds);
-		const parser = new CdslParser(
-			ds,
-			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		});
 
 		const results = await parser.parse(
 			"#VitalsMeasurementEvent temp 38.5 Cel || #ObservationEvent Chest Pain || #ClinicalDateRange in 3 days",
@@ -174,7 +174,7 @@ describe("ClinicalEngine ensemble (v2)", () => {
 			],
 		};
 
-		const parser = new CdslParser(ds, profile as any);
+		const parser = new CdslParser({ dictionaryStore: ds, profile: profile as any });
 		const results = await parser.parse("Chest Pain denies || temp 38.5 Cel");
 
 		const obsResult = results.find(
@@ -210,13 +210,11 @@ describe("ClinicalEngine ensemble (v2)", () => {
 			"the",
 			"case",
 		]);
-		const parser = new CdslParser(
-			ds,
-			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
-			undefined,
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
 			stopWordParser,
-			undefined,
-		);
+		});
 
 		const results = await parser.parse(
 			"discussed details with patient regarding the case",
@@ -227,10 +225,10 @@ describe("ClinicalEngine ensemble (v2)", () => {
 	test("segments starting with unknown tag prefixes fall back to tagless parsing", async () => {
 		const ds = makeDictionaryStore();
 		await seedTestConcepts(ds);
-		const parser = new CdslParser(
-			ds,
-			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		});
 
 		// "#3 temp 38.5 Cel" — "#3" is not a known schema tag, should parse taglessly
 		const results = await parser.parse("#3 temp 38.5 Cel");
@@ -247,10 +245,10 @@ describe("ClinicalEngine ensemble (v2)", () => {
 	test("medication parse resolves concept via concept[] array (v2)", async () => {
 		const ds = makeDictionaryStore();
 		await seedTestConcepts(ds);
-		const parser = new CdslParser(
-			ds,
-			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		});
 
 		const results = await parser.parse(
 			"#MedicationOrderObject Amoxicillin 50 mg for 7 days",
@@ -267,10 +265,10 @@ describe("ClinicalEngine ensemble (v2)", () => {
 	test("vitals selection keeps physical measurement magnitude, ignores time-span candidate", async () => {
 		const ds = makeDictionaryStore();
 		await seedTestConcepts(ds);
-		const parser = new CdslParser(
-			ds,
-			SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
-		);
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!,
+		});
 
 		const results = await parser.parse(
 			"#VitalsMeasurementEvent temp 38.5 Cel for 7 days",

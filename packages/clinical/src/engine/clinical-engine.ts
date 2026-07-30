@@ -449,27 +449,23 @@ export class ClinicalEngine {
 		const profileStore = config.profileStore;
 
 		if (profile) {
-			this.parser = new CdslParser(
+			this.parser = new CdslParser({
 				dictionaryStore,
 				profile,
-				undefined,
-				undefined,
+				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
-				this.conceptFieldStore,
-			);
+			});
 		} else if (profileStore) {
 			// Defer initialization — lazy init on first use
 			this.parser = null as unknown as CdslParser;
 		} else {
 			// Fallback: create with no profile — callers must use create() factory
-			this.parser = new CdslParser(
+			this.parser = new CdslParser({
 				dictionaryStore,
-				{} as ParserSyntaxProfile,
-				undefined,
-				undefined,
+				profile: {} as ParserSyntaxProfile,
+				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
-				this.conceptFieldStore,
-			);
+			});
 		}
 	}
 
