@@ -259,6 +259,8 @@ export interface ParserMacroStore {
 	delete(macroId: string): Promise<void>;
 }
 
+import type { EpistemicWorkspace } from "../schemas/epistemic";
+
 export interface SignedSoapNoteRecord {
 	noteId: string;
 	sessionId: string;
@@ -274,6 +276,12 @@ export interface SignedSoapNoteStore {
 	get(noteId: string): Promise<SignedSoapNoteRecord | null>;
 	getBySession(sessionId: string): Promise<SignedSoapNoteRecord | null>;
 	listForPatient(patientId: string): Promise<SignedSoapNoteRecord[]>;
+}
+
+export interface EpistemicWorkspaceStore {
+	getWorkspace(workspaceId: string): Promise<EpistemicWorkspace | null>;
+	saveWorkspace(workspace: EpistemicWorkspace): Promise<void>;
+	listWorkspacesForNote(soapNoteId: string): Promise<EpistemicWorkspace[]>;
 }
 
 export interface Personnel {

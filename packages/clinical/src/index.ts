@@ -30,6 +30,7 @@ export * from "./renderer/template-renderer";
 export * from "./schemas/assessment";
 export * from "./schemas/document";
 export * from "./schemas/environment";
+export * from "./schemas/epistemic";
 export * from "./schemas/exposure";
 export * from "./schemas/injury";
 export * from "./schemas/measurement";

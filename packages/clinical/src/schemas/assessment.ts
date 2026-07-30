@@ -88,4 +88,5 @@ export interface DifferentialDiagnosisEntry {
 	relatedMedications?: CodeableConcept[];
 	anatomyLocations?: AnatomicalLocation[];
 	dateRange?: ClinicalDateRange;
+	status?: "active" | "ruled_out" | "abandoned";
 }
