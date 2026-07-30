@@ -162,6 +162,11 @@ export type AllowedUnit =
 	| VelocityUnit
 	| AccelerationUnit;
 
+export interface Statistics {
+	magnitude: number;
+	type: "min" | "max" | "mean" | "stdev" | "variance" | "numerator" | "denominator" | "range" | "rmse" | "mae" | "mse" | "median" | "margin_of_err";	
+}
+
 /**
  * Root of the measurement hierarchy.
  * Carries the raw numeric value plus optional operator, approximation flag,
@@ -174,12 +179,8 @@ export interface SingleMeasurement {
 	num_data_points?: number;
 	operator?: "eq" | "gt" | "gte" | "lt" | "lte";
 	is_approximate?: boolean;
+	statistics?: Statistics[];
 }
-
-export type MeasurementOperator =
-	| NonNullable<SingleMeasurement["operator"]>
-	| "is_approximate"
-	| "approximate";
 
 /**
  * Extends SingleMeasurement by locking in a physical-dimension anchor.
