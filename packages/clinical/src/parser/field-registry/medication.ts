@@ -120,27 +120,6 @@ export function createMedicationFieldRegistry(
 				}
 			},
 		},
-		{
-			sourceKey: "frequency_details",
-			targetField: "frequency.details",
-			compute: (_slots, _conceptDefaults, rawGroups) => {
-				const rawMult = rawGroups?.multiplier;
-				const rawUnit = rawGroups?.unit;
-				if (!rawUnit) return undefined;
-				const resolvedUnit = resolveUnit(rawUnit) as
-					| "second"
-					| "minute"
-					| "hour"
-					| "day"
-					| "week"
-					| "month"
-					| "year"
-					| undefined;
-				if (!resolvedUnit) return undefined;
-				const times = rawMult ? Number.parseFloat(rawMult) : 1;
-				return { times, period: resolvedUnit };
-			},
-		},
 	];
 }
 

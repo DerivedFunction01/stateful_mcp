@@ -13,10 +13,9 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
-
-import type { AutocompleteTransitionStore } from "./interfaces";
 import { KvAutocompleteTransitionStore } from "./autocomplete/kv-autocomplete-transition-store";
 import { SqlAutocompleteTransitionStore } from "./autocomplete/sql-autocomplete-transition-store";
+import type { AutocompleteTransitionStore } from "./interfaces";
 
 async function resolveKvBackendFromLocator(
 	locator: ResourceLocator,

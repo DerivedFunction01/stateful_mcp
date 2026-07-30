@@ -19,6 +19,10 @@ function createLabPanelResultFieldRegistry(
 			targetField: "specimenType",
 			conceptDefaultPath: ["specimenType"],
 		},
+		{
+			sourceKey: "notes",
+			targetField: "notes",
+		},
 	];
 }
 
@@ -32,8 +36,54 @@ function createDeviceDiagnosticObjectFieldRegistry(
 			conceptDefaultPath: ["modality"],
 		},
 		{
+			sourceKey: "dicom_reference",
+			targetField: "dicomReference",
+			conceptDefaultPath: ["dicomReference"],
+		},
+		{
 			sourceKey: "interpretation",
 			targetField: "interpretation",
+		},
+		{
+			sourceKey: "anatomy",
+			targetField: "anatomyLocations",
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const raw = rawGroups?.anatomy;
+				if (!raw) return undefined;
+				if (Array.isArray(raw)) return raw;
+				return [raw];
+			},
+		},
+	];
+}
+
+function createPhysicalExamFieldRegistry(
+	_attributeRules: AttributeParserRule[] = [],
+): FieldMappingRule[] {
+	return [
+		{
+			sourceKey: "organ_system",
+			targetField: "organSystem",
+			schemaDefaultField: "organSystem",
+		},
+		{
+			sourceKey: "findings",
+			targetField: "findings",
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const raw = rawGroups?.findings;
+				if (!raw) return undefined;
+				if (Array.isArray(raw)) return raw;
+				return [raw];
+			},
+		},
+		{
+			sourceKey: "system_impression",
+			targetField: "systemImpression",
+			schemaDefaultField: "systemImpression",
+		},
+		{
+			sourceKey: "notes",
+			targetField: "notes",
 		},
 	];
 }
@@ -47,6 +97,8 @@ export function createDiagnosticFieldRegistry(
 			return createLabPanelResultFieldRegistry(_attributeRules);
 		case "DeviceDiagnosticObject":
 			return createDeviceDiagnosticObjectFieldRegistry(_attributeRules);
+		case "PhysicalExamObject":
+			return createPhysicalExamFieldRegistry(_attributeRules);
 		default:
 			return [];
 	}
@@ -108,6 +160,12 @@ export const labPanelResultConfig: SchemaParserConfig = {
 export const deviceDiagnosticObjectConfig: SchemaParserConfig = {
 	schema: "DeviceDiagnosticObject",
 	targetSchema: "DeviceDiagnosticObject",
+	preparsedContextKeys: [],
+};
+
+export const physicalExamObjectConfig: SchemaParserConfig = {
+	schema: "PhysicalExamObject",
+	targetSchema: "PhysicalExamObject",
 	preparsedContextKeys: [],
 };
 
@@ -179,6 +237,37 @@ export const deviceDiagnosticObjectRegistryTests: FieldRegistryTestBlock = {
 			},
 			matchKeys: ["interpretation"],
 			expected: { interpretation: "No acute findings" },
+		},
+	],
+};
+
+export const physicalExamObjectRegistryTests: FieldRegistryTestBlock = {
+	schema: "PhysicalExamObject",
+	router: diagnosticRouter,
+	cases: [
+		{
+			description: "organSystem: from slot directly",
+			input: {
+				slots: { organ_system: "respiratory" },
+			},
+			matchKeys: ["organSystem"],
+			expected: { organSystem: "respiratory" },
+		},
+		{
+			description: "systemImpression: from slot directly",
+			input: {
+				slots: { system_impression: "normal" },
+			},
+			matchKeys: ["systemImpression"],
+			expected: { systemImpression: "normal" },
+		},
+		{
+			description: "notes: from slot directly",
+			input: {
+				slots: { notes: "lungs clear" },
+			},
+			matchKeys: ["notes"],
+			expected: { notes: "lungs clear" },
 		},
 	],
 };

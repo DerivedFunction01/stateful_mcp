@@ -11,35 +11,14 @@ function createMechanicalInjuryFieldRegistry(
 	return [
 		{
 			sourceKey: "injury_type",
-			targetField: "injuryType",
-			conceptDefaultPath: ["injuryType"],
-		},
-		{
-			sourceKey: "body_region",
-			targetField: "bodyRegion",
-			conceptDefaultPath: ["bodyRegion"],
+			targetField: "energyTransferMechanism",
+			conceptDefaultPath: ["energyTransferMechanism"],
 		},
 		{
 			sourceKey: "laterality",
 			targetField: "laterality",
 			schemaDefaultField: "laterality",
 			conceptDefaultPath: ["laterality"],
-		},
-		{
-			sourceKey: "severity",
-			targetField: "severity",
-			schemaDefaultField: "severity",
-			conceptDefaultPath: ["severity"],
-		},
-		{
-			sourceKey: "cause",
-			targetField: "cause",
-			conceptDefaultPath: ["cause"],
-			compute: (_slots, _conceptDefaults, rawGroups) => {
-				const raw = rawGroups?.cause;
-				if (!raw) return undefined;
-				return Array.isArray(raw) ? raw[0] : raw;
-			},
 		},
 	];
 }
@@ -50,19 +29,9 @@ function createProtectiveEquipmentFieldRegistry(
 	return [
 		{
 			sourceKey: "equipment_type",
-			targetField: "equipmentType",
-			conceptDefaultPath: ["equipmentType"],
-		},
-		{
-			sourceKey: "body_region",
-			targetField: "bodyRegion",
-			conceptDefaultPath: ["bodyRegion"],
-		},
-		{
-			sourceKey: "effectiveness",
-			targetField: "effectiveness",
-			schemaDefaultField: "effectiveness",
-			conceptDefaultPath: ["effectiveness"],
+			targetField: "equipmentStatus",
+			schemaDefaultField: "equipmentStatus",
+			conceptDefaultPath: ["equipmentStatus"],
 		},
 	];
 }
@@ -105,13 +74,16 @@ export const injuryRouter = (
 	if (unmatched && unmatched.length > 0) {
 		switch (targetSchema) {
 			case "MechanicalInjuryObject":
-				if (!conceptFields?.injuryType && !extractedData.injuryType) {
-					extractedData.injuryType = unmatched[0];
+				if (
+					!conceptFields?.energyTransferMechanism &&
+					!extractedData.energyTransferMechanism
+				) {
+					extractedData.energyTransferMechanism = unmatched[0];
 				}
 				break;
 			case "ProtectiveEquipmentObject":
-				if (!conceptFields?.equipmentType && !extractedData.equipmentType) {
-					extractedData.equipmentType = unmatched[0];
+				if (!conceptFields?.equipmentStatus && !extractedData.equipmentStatus) {
+					extractedData.equipmentStatus = unmatched[0];
 				}
 				break;
 		}
@@ -141,7 +113,7 @@ export const mechanicalInjuryRegistryTests: FieldRegistryTestBlock = {
 	router: injuryRouter,
 	cases: [
 		{
-			description: "injuryType: from slot directly",
+			description: "energyTransferMechanism: from slot directly",
 			input: {
 				slots: {
 					injury_type: {
@@ -150,9 +122,9 @@ export const mechanicalInjuryRegistryTests: FieldRegistryTestBlock = {
 					},
 				},
 			},
-			matchKeys: ["injuryType"],
+			matchKeys: ["energyTransferMechanism"],
 			expected: {
-				injuryType: {
+				energyTransferMechanism: {
 					conceptId: "SNOMED::41776006",
 					display: "Laceration",
 				},
@@ -174,7 +146,7 @@ export const protectiveEquipmentRegistryTests: FieldRegistryTestBlock = {
 	router: injuryRouter,
 	cases: [
 		{
-			description: "equipmentType: from slot directly",
+			description: "equipmentStatus: from slot directly",
 			input: {
 				slots: {
 					equipment_type: {
@@ -183,21 +155,13 @@ export const protectiveEquipmentRegistryTests: FieldRegistryTestBlock = {
 					},
 				},
 			},
-			matchKeys: ["equipmentType"],
+			matchKeys: ["equipmentStatus"],
 			expected: {
-				equipmentType: {
+				equipmentStatus: {
 					conceptId: "SNOMED::59037007",
 					display: "Helmet",
 				},
 			},
-		},
-		{
-			description: "effectiveness: from slot directly",
-			input: {
-				slots: { effectiveness: "effective" },
-			},
-			matchKeys: ["effectiveness"],
-			expected: { effectiveness: "effective" },
 		},
 	],
 };

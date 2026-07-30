@@ -21,10 +21,19 @@ const invTemplate: ParsedItem = {
 	rawText: "order CBC with diff",
 	tag: "InvestigationOrderObject",
 	extractedData: {
-		concept: { conceptId: "LOINC::57021-8", display: "CBC with Differential" },
-		category: "lab",
+		procedure: {
+			conceptId: "LOINC::57021-8",
+			display: "CBC with Differential",
+		},
 		priority: "routine",
-		status: "ordered",
+		investigationType: "laboratory",
+		specimenType: { conceptId: "SNOMED::119303003", display: "Venous blood" },
+		panelCode: {
+			conceptId: "LOINC::57021-8",
+			display: "CBC with Differential",
+		},
+		reason: { conceptId: "SNOMED::267036007", display: "Shortness of breath" },
+		rawTerm: "order CBC with diff",
 	},
 };
 
@@ -75,13 +84,20 @@ const refTemplate: ParsedItem = {
 	rawText: "refer to pulmonology",
 	tag: "ReferralOrderObject",
 	extractedData: {
-		concept: {
+		procedure: {
 			conceptId: "SNOMED::309343006",
 			display: "Referral to Pulmonologist",
 		},
-		specialty: "pulmonology",
-		urgency: "routine",
-		reason: "refractory asthma exacerbation",
+		priority: "routine",
+		specialistDiscipline: {
+			conceptId: "SNOMED::394838009",
+			display: "Cardiology",
+		},
+		referralUrgency: "routine",
+		reason: { conceptId: "SNOMED::195967001", display: "Asthma" },
+		clinicalQuestion: "Evaluate for allergic bronchopulmonary aspergillosis",
+		routingNotes: "Dr. Smith, Pulmonology Clinic",
+		rawTerm: "refer to pulmonology",
 	},
 };
 
@@ -130,10 +146,18 @@ const intTemplate: ParsedItem = {
 	rawText: "albuterol nebulizer treatment",
 	tag: "InterventionOrderObject",
 	extractedData: {
-		concept: { conceptId: "SNOMED::229308006", display: "Nebulizer therapy" },
-		interventionType: "procedure",
-		status: "ordered",
-		instructions: "Administer 2.5mg via nebulizerSTAT",
+		procedure: {
+			conceptId: "SNOMED::229308006",
+			display: "Nebulizer therapy",
+		},
+		priority: "urgent",
+		reason: { conceptId: "SNOMED::267036007", display: "Shortness of breath" },
+		procedureLocation: {
+			conceptId: "SNOMED::225794009",
+			display: "Emergency room",
+		},
+		anesthesiaType: "none",
+		rawTerm: "albuterol nebulizer treatment",
 	},
 };
 

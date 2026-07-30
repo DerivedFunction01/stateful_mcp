@@ -20,9 +20,17 @@ const medicationTemplate: ParsedItem = {
 	tag: "MedicationOrderObject",
 	extractedData: {
 		medication: { conceptId: "RxNorm::723", display: "Amoxicillin" },
-		route: { conceptId: "SNOMED::26643006", display: "Oral" },
+		route: "oral",
 		frequency: { text: "TID", interval: { magnitude: 3.2, unit: "day" } },
 		dosage: { text: "500mg", dose: 500.5, unit: "mg" },
+		quantityToDispense: 30.5,
+		authorizedRefills: 2.5,
+		genericSubstitutionPermitted: true,
+		targetIndication: {
+			conceptId: "SNOMED::40275004",
+			display: "Contact dermatitis",
+		},
+		rawTerm: "amoxicillin 500mg TID",
 	},
 };
 

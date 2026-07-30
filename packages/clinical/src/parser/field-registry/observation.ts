@@ -72,6 +72,12 @@ export function createObservationFieldRegistry(
 				};
 			},
 		},
+		{
+			sourceKey: "trajectory",
+			targetField: "trajectory",
+			schemaDefaultField: "trajectory",
+			conceptDefaultPath: ["trajectory"],
+		},
 	];
 }
 

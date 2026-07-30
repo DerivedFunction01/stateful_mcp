@@ -1,4 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import type { QuantityCandidate } from "../parser/helpers/measurement-helper";
 import type { CodeableConcept } from "../schemas/shared";
 import type {
 	AttributeParserRule,
@@ -171,6 +172,7 @@ export class GenericSchemaParser {
 				content,
 				preparsedContext,
 				attrRules,
+				this.config.preparsedContextKeys,
 			);
 		} else {
 			const genericToken = GenericTokenizer.tokenize(
@@ -274,6 +276,7 @@ export class GenericSchemaParser {
 		content: string,
 		preparsedContext: PreparsedContext,
 		attributeRules: AttributeParserRule[],
+		preparsedContextKeys?: string[],
 	): Record<string, any> {
 		const token: Record<string, any> = {
 			anchorText: content.trim(),
@@ -281,30 +284,44 @@ export class GenericSchemaParser {
 			attributes: preparsedContext.attributes || {},
 		};
 
-		if (
-			preparsedContext.measurement &&
-			preparsedContext.measurement.length > 0
-		) {
-			const best = preparsedContext.measurement[0];
-			if (best) {
-				token.namedGroups.quantity = {
-					quantity: best.magnitude.toString(),
-					unit: best.rawUnit || undefined,
-				};
+		const keys = preparsedContextKeys || [];
+
+		if (keys.includes("measurement")) {
+			const allCandidates: QuantityCandidate[] = [];
+			if (preparsedContext.candidates) {
+				for (const bucket of Object.values(preparsedContext.candidates)) {
+					allCandidates.push(...bucket);
+				}
+			}
+			if (preparsedContext.looseCandidates) {
+				allCandidates.push(...preparsedContext.looseCandidates);
+			}
+			allCandidates.sort((a, b) => a.tokenStart - b.tokenStart);
+
+			if (allCandidates.length > 0) {
+				const best = allCandidates[0];
+				if (best) {
+					token.namedGroups.quantity = {
+						quantity: best.magnitude.toString(),
+						unit: best.rawUnit || undefined,
+					};
+				}
 			}
 		}
 
-		if (preparsedContext.timeSpan && preparsedContext.timeSpan.length > 0) {
-			const best = preparsedContext.timeSpan[0];
-			if (best) {
-				token.namedGroups.time = {
-					multiplier: best.magnitude.toString(),
-					unit: best.rawUnit || undefined,
-				};
+		if (keys.includes("timeSpan")) {
+			if (preparsedContext.timeCandidates.length > 0) {
+				const best = preparsedContext.timeCandidates[0];
+				if (best) {
+					token.namedGroups.time = {
+						multiplier: best.magnitude.toString(),
+						unit: best.rawUnit || undefined,
+					};
+				}
 			}
 		}
 
-		if (preparsedContext.frequency) {
+		if (keys.includes("frequency") && preparsedContext.frequency) {
 			const freq = preparsedContext.frequency;
 			if (freq.isPrn) {
 				token.attributes.frequency_prn = "true";

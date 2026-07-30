@@ -11,7 +11,7 @@ import { flattenParsedItem } from "./flatten-helper";
 
 const peIndexes: TransformIndexSpec[] = [
 	{ columns: ["recencyScore"], unique: false },
-	{ columns: ["system"], unique: false },
+	{ columns: ["organSystem"], unique: false },
 ];
 
 const peTemplate: ParsedItem = {
@@ -21,16 +21,19 @@ const peTemplate: ParsedItem = {
 	rawText: "clear to auscultation bilaterally",
 	tag: "PhysicalExamObject",
 	extractedData: {
-		system: "respiratory",
+		organSystem: "respiratory",
 		findings: [
 			{
 				finding: {
 					conceptId: "SNOMED::301252002",
 					display: "Clear breath sounds",
 				},
-				isNormal: true,
+				status: "normal",
 			},
 		],
+		systemImpression: "normal",
+		notes: "",
+		rawTerm: "clear to auscultation bilaterally",
 	},
 };
 
@@ -81,18 +84,24 @@ const labTemplate: ParsedItem = {
 	rawText: "CMP panel normal",
 	tag: "LabPanelResult",
 	extractedData: {
-		panelName: "CMP",
-		specimenType: "blood",
+		panelName: {
+			conceptId: "LOINC::24323-8",
+			display: "Comprehensive Metabolic Panel",
+		},
+		specimenType: { conceptId: "SNOMED::119303003", display: "Venous blood" },
 		analytes: [
 			{
-				analyte: { conceptId: "LOINC::2951-2", display: "Sodium" },
-				// Float value 140.5 to infer FLOAT/REAL type for lab analyte values
-				value: 140.5,
-				unit: "mmol/L",
-				referenceRange: { low: 135.5, high: 145.5 },
-				interpretation: "normal",
+				name: { conceptId: "LOINC::2951-2", display: "Sodium" },
+				value: { magnitude: 140.5, unit: { display: "mmol/L" } },
+				referenceRange: {
+					low: { magnitude: 135.5, unit: { display: "mmol/L" } },
+					high: { magnitude: 145.5, unit: { display: "mmol/L" } },
+				},
+				interpretationFlag: "normal",
 			},
 		],
+		sourceType: "clinician_observed",
+		notes: "",
 	},
 };
 
@@ -141,11 +150,26 @@ const diagnosticTemplate: ParsedItem = {
 	rawText: "chest xray clear",
 	tag: "DeviceDiagnosticObject",
 	extractedData: {
-		modality: "XRAY",
-		bodySite: "chest",
+		modality: { conceptId: "DICOM::DX", display: "Chest X-Ray 2 Views" },
+		dicomReference: "1.2.840.10008.5.1.4.1.1.1",
 		interpretation: "normal",
-		dicomStudyUid: "1.2.840.10008.5.1.4.1.1.1",
-		findings: ["no focal consolidation", "heart size normal"],
+		findings: [
+			{
+				conceptId: "SNOMED::260373001",
+				display: "No focal consolidation",
+			},
+			{ conceptId: "SNOMED::301122000", display: "Normal heart size" },
+		],
+		anatomyLocations: [
+			{
+				anatomy: {
+					conceptId: "SNOMED::51185008",
+					display: "Chest",
+				},
+			},
+		],
+		productDetails: {},
+		sourceType: "clinician_observed",
 	},
 };
 

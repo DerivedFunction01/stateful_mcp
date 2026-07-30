@@ -35,52 +35,61 @@ export interface VitalsMeasurementEvent {
  */
 export interface BloodPressureVitalEvent
 	extends Omit<VitalsMeasurementEvent, "measurement"> {
-	category: "blood_pressure"
+	category: "blood_pressure";
 	vitalType: CodeableConcept; // Should reference LOINC::55284-4 or equivalent
 	systolic: PressureMeasurement;
 	diastolic: PressureMeasurement;
 	meanArterialPressure?: PressureMeasurement;
 }
 
-
 /**
  * Heart Rate (Pulse) — strictly enforces a CountMeasurement anchored by frequency units.
  */
-export interface HeartRateVitalEvent extends Omit<VitalsMeasurementEvent, "measurement"> {
-	category: "pulse"
+export interface HeartRateVitalEvent
+	extends Omit<VitalsMeasurementEvent, "measurement"> {
+	category: "pulse";
 	vitalType: CodeableConcept; // e.g., LOINC::8867-4 (Heart rate)
 	measurement: CountMeasurement & {
-		unit?: Omit<CodeableConcept, "display"> & { display: "/min" | "beats_per_min" };
+		unit?: Omit<CodeableConcept, "display"> & {
+			display: "/min" | "beats_per_min";
+		};
 	};
 }
 
 /**
  * Respiratory Rate — strictly enforces a CountMeasurement anchored by breath units.
  */
-export interface RespiratoryRateVitalEvent extends Omit<VitalsMeasurementEvent, "measurement"> {
-	category: "respiration"
+export interface RespiratoryRateVitalEvent
+	extends Omit<VitalsMeasurementEvent, "measurement"> {
+	category: "respiration";
 	vitalType: CodeableConcept; // e.g., LOINC::9279-1 (Respiratory rate)
 	measurement: CountMeasurement & {
-		unit?: Omit<CodeableConcept, "display"> & { display: "/min" | "breaths_per_min" };
+		unit?: Omit<CodeableConcept, "display"> & {
+			display: "/min" | "breaths_per_min";
+		};
 	};
 }
 
 /**
  * Oxygen Saturation (SpO2) — guarantees fractional/percentage bounds.
  */
-export interface OxygenSaturationVitalEvent extends Omit<VitalsMeasurementEvent, "measurement"> {
-	category: "oxygen_saturation"
+export interface OxygenSaturationVitalEvent
+	extends Omit<VitalsMeasurementEvent, "measurement"> {
+	category: "oxygen_saturation";
 	vitalType: CodeableConcept; // e.g., LOINC::2708-6 (Oxygen saturation in Arterial blood by Pulse oximetry)
 	measurement: FractionMeasurement & {
-		unit?: Omit<CodeableConcept, "display"> & { display: "%" | "percent" | "fraction" | "ratio" };
+		unit?: Omit<CodeableConcept, "display"> & {
+			display: "%" | "percent" | "fraction" | "ratio";
+		};
 	};
 }
 
 /**
  * Body Temperature — strictly enforces thermal primitives.
  */
-export interface TemperatureVitalEvent extends Omit<VitalsMeasurementEvent, "measurement"> {
-	category: "temperature"
+export interface TemperatureVitalEvent
+	extends Omit<VitalsMeasurementEvent, "measurement"> {
+	category: "temperature";
 	vitalType: CodeableConcept; // e.g., LOINC::8310-5 (Body temperature)
 	measurement: TemperatureMeasurement;
 }
@@ -88,8 +97,9 @@ export interface TemperatureVitalEvent extends Omit<VitalsMeasurementEvent, "mea
 /**
  * Body Weight — mapped to mass configurations.
  */
-export interface WeightVitalEvent extends Omit<VitalsMeasurementEvent, "measurement"> {
-	category: "weight"
+export interface WeightVitalEvent
+	extends Omit<VitalsMeasurementEvent, "measurement"> {
+	category: "weight";
 	vitalType: CodeableConcept; // e.g., LOINC::29463-7 (Body weight)
 	measurement: MassMeasurement;
 }
@@ -97,8 +107,9 @@ export interface WeightVitalEvent extends Omit<VitalsMeasurementEvent, "measurem
 /**
  * Body Height / Length — mapped to spatial distance configurations.
  */
-export interface HeightVitalEvent extends Omit<VitalsMeasurementEvent, "measurement"> {
-	category: "height"
+export interface HeightVitalEvent
+	extends Omit<VitalsMeasurementEvent, "measurement"> {
+	category: "height";
 	vitalType: CodeableConcept; // e.g., LOINC::8302-2 (Body height)
 	measurement: DistanceMeasurement;
 }

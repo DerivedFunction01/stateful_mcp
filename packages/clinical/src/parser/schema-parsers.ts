@@ -1,13 +1,7 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { QuantityCandidate } from "../parser/helpers/measurement-helper";
-import type {
-	MedicationFrequency,
-	MedicationOrderObject,
-} from "../schemas/medication";
-import type { ObservationEvent } from "../schemas/observation";
+import type { MedicationFrequency } from "../schemas/medication";
 import type { CodeableConcept } from "../schemas/shared";
-import type { ClinicalDateRange } from "../schemas/time";
-import type { VitalsMeasurementEvent } from "../schemas/vitals";
 import type {
 	AttributeParserRule,
 	ConceptFieldStore,
@@ -18,15 +12,18 @@ import type {
 } from "../store/interfaces";
 import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
 import {
+	algorithmicEvaluationConfig,
 	assessmentConfig,
 	assessmentRouter,
 	createAssessmentFieldRegistry,
+	differentialDiagnosisConfig,
 } from "./field-registry/assessment";
 import {
 	createDiagnosticFieldRegistry,
 	deviceDiagnosticObjectConfig,
 	diagnosticRouter,
 	labPanelResultConfig,
+	physicalExamObjectConfig,
 } from "./field-registry/diagnostic";
 import {
 	createEnvironmentFieldRegistry,
@@ -70,14 +67,22 @@ import {
 	createPlanFieldRegistry,
 	interventionOrderConfig,
 	investigationOrderConfig,
+	militaryPlanExtensionConfig,
 	planRouter,
 	referralOrderConfig,
 	safetyNettingPlanConfig,
 } from "./field-registry/plan";
 import {
+	bpVitalConfig,
 	createVitalsFieldRegistry,
+	heightVitalConfig,
+	hrVitalConfig,
+	o2VitalConfig,
+	rrVitalConfig,
+	tempVitalConfig,
 	vitalsConfig,
 	vitalsRouter,
+	weightVitalConfig,
 } from "./field-registry/vitals";
 import { GenericSchemaParser } from "./generic-schema-parser";
 import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
@@ -102,6 +107,17 @@ export const CANONICAL_TAGS = {
 	DEVICE_DIAGNOSTIC_OBJECT: "DeviceDiagnosticObject",
 	ENVIRONMENT_CONTEXT_OBJECT: "EnvironmentContextObject",
 	PATIENT_PROFILE: "PatientProfile",
+	DIFFERENTIAL_DIAGNOSIS: "DifferentialDiagnosisEntry",
+	ALGORITHMIC_EVALUATION: "AlgorithmicEvaluationObject",
+	PHYSICAL_EXAM: "PhysicalExamObject",
+	MILITARY_PLAN_EXTENSION: "MilitaryPlanExtension",
+	BLOOD_PRESSURE: "BloodPressureVitalEvent",
+	TEMPERATURE: "TemperatureVitalEvent",
+	HEART_RATE: "HeartRateVitalEvent",
+	RESPIRATORY_RATE: "RespiratoryRateVitalEvent",
+	OXYGEN_SATURATION: "OxygenSaturationVitalEvent",
+	WEIGHT: "WeightVitalEvent",
+	HEIGHT: "HeightVitalEvent",
 } as const;
 
 export interface ParsedItem {
@@ -117,8 +133,9 @@ export interface ParsedItem {
 export interface PreparsedContext {
 	rawText: string;
 	normalizedText?: string;
-	measurement: QuantityCandidate[];
-	timeSpan: QuantityCandidate[];
+	candidates: Record<string, QuantityCandidate[]>;
+	looseCandidates: QuantityCandidate[];
+	timeCandidates: QuantityCandidate[];
 	frequency?: MedicationFrequency | null;
 	attributes: Record<string, string>;
 	parsedPartial?: Record<string, any>;
@@ -304,7 +321,8 @@ export const schemaParserRegistry = new Map<string, SchemaParser>([
 		CANONICAL_TAGS.VITALS,
 		new GenericSchemaParser("VitalsMeasurementEvent", {
 			targetSchema: "VitalsMeasurementEvent",
-			createRegistry: createVitalsFieldRegistry,
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("VitalsMeasurementEvent", attrRules),
 			router: vitalsRouter,
 			preparsedContextKeys: vitalsConfig.preparsedContextKeys,
 		}),
@@ -314,7 +332,8 @@ export const schemaParserRegistry = new Map<string, SchemaParser>([
 		CANONICAL_TAGS.ASSESSMENT,
 		new GenericSchemaParser("PrimaryDiagnosisEntry", {
 			targetSchema: "PrimaryDiagnosisEntry",
-			createRegistry: createAssessmentFieldRegistry,
+			createRegistry: (attrRules) =>
+				createAssessmentFieldRegistry("PrimaryDiagnosisEntry", attrRules),
 			router: assessmentRouter,
 			preparsedContextKeys: assessmentConfig.preparsedContextKeys,
 		}),
@@ -454,6 +473,120 @@ export const schemaParserRegistry = new Map<string, SchemaParser>([
 			createRegistry: createPatientFieldRegistry,
 			router: patientRouter,
 			preparsedContextKeys: patientConfig.preparsedContextKeys,
+		}),
+	],
+
+	// ── Complex nested items ──
+	[
+		CANONICAL_TAGS.DIFFERENTIAL_DIAGNOSIS,
+		new GenericSchemaParser("DifferentialDiagnosisEntry", {
+			targetSchema: "DifferentialDiagnosisEntry",
+			createRegistry: (attrRules) =>
+				createAssessmentFieldRegistry("DifferentialDiagnosisEntry", attrRules),
+			router: assessmentRouter,
+			preparsedContextKeys: differentialDiagnosisConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.ALGORITHMIC_EVALUATION,
+		new GenericSchemaParser("AlgorithmicEvaluationObject", {
+			targetSchema: "AlgorithmicEvaluationObject",
+			createRegistry: (attrRules) =>
+				createAssessmentFieldRegistry("AlgorithmicEvaluationObject", attrRules),
+			router: assessmentRouter,
+			preparsedContextKeys: algorithmicEvaluationConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.PHYSICAL_EXAM,
+		new GenericSchemaParser("PhysicalExamObject", {
+			targetSchema: "PhysicalExamObject",
+			createRegistry: (attrRules) =>
+				createDiagnosticFieldRegistry("PhysicalExamObject", attrRules),
+			router: diagnosticRouter,
+			preparsedContextKeys: physicalExamObjectConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.MILITARY_PLAN_EXTENSION,
+		new GenericSchemaParser("MilitaryPlanExtension", {
+			targetSchema: "MilitaryPlanExtension",
+			createRegistry: (attrRules) =>
+				createPlanFieldRegistry("MilitaryPlanExtension", attrRules),
+			router: planRouter,
+			preparsedContextKeys: militaryPlanExtensionConfig.preparsedContextKeys,
+		}),
+	],
+
+	// ── Vitals discriminated variants ──
+	[
+		CANONICAL_TAGS.BLOOD_PRESSURE,
+		new GenericSchemaParser("BloodPressureVitalEvent", {
+			targetSchema: "BloodPressureVitalEvent",
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("BloodPressureVitalEvent", attrRules),
+			router: vitalsRouter,
+			preparsedContextKeys: bpVitalConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.TEMPERATURE,
+		new GenericSchemaParser("TemperatureVitalEvent", {
+			targetSchema: "TemperatureVitalEvent",
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("TemperatureVitalEvent", attrRules),
+			router: vitalsRouter,
+			preparsedContextKeys: tempVitalConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.HEART_RATE,
+		new GenericSchemaParser("HeartRateVitalEvent", {
+			targetSchema: "HeartRateVitalEvent",
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("HeartRateVitalEvent", attrRules),
+			router: vitalsRouter,
+			preparsedContextKeys: hrVitalConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.RESPIRATORY_RATE,
+		new GenericSchemaParser("RespiratoryRateVitalEvent", {
+			targetSchema: "RespiratoryRateVitalEvent",
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("RespiratoryRateVitalEvent", attrRules),
+			router: vitalsRouter,
+			preparsedContextKeys: rrVitalConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.OXYGEN_SATURATION,
+		new GenericSchemaParser("OxygenSaturationVitalEvent", {
+			targetSchema: "OxygenSaturationVitalEvent",
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("OxygenSaturationVitalEvent", attrRules),
+			router: vitalsRouter,
+			preparsedContextKeys: o2VitalConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.WEIGHT,
+		new GenericSchemaParser("WeightVitalEvent", {
+			targetSchema: "WeightVitalEvent",
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("WeightVitalEvent", attrRules),
+			router: vitalsRouter,
+			preparsedContextKeys: weightVitalConfig.preparsedContextKeys,
+		}),
+	],
+	[
+		CANONICAL_TAGS.HEIGHT,
+		new GenericSchemaParser("HeightVitalEvent", {
+			targetSchema: "HeightVitalEvent",
+			createRegistry: (attrRules) =>
+				createVitalsFieldRegistry("HeightVitalEvent", attrRules),
+			router: vitalsRouter,
+			preparsedContextKeys: heightVitalConfig.preparsedContextKeys,
 		}),
 	],
 ]);

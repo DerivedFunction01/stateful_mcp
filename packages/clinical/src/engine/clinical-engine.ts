@@ -6,9 +6,7 @@ import type {
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
-import type {
-	ParsedItem,
-} from "../parser/schema-parsers";
+import type { ParsedItem } from "../parser/schema-parsers";
 import type { SoapNote } from "../schemas/document";
 import {
 	buildPatientLearningBucket,
@@ -25,6 +23,7 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type {
+	AutocompleteTransitionStore,
 	ParsedCellHistoryStore,
 	ParsedCellRecord,
 	ParsedCellStore,
@@ -36,7 +35,6 @@ import {
 	type OrderedLearningToken,
 	scoreRecency,
 } from "../store/learning/interfaces";
-import type { AutocompleteTransitionStore } from "../store/learning/interfaces";
 import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
 import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";

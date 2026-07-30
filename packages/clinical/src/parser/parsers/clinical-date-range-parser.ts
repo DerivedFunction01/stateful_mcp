@@ -110,8 +110,8 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		// 1. Gather all date-like spans (time spans from preparsedContext and calendar dates from attributeRules)
 		const spans: { start: number; end: number }[] = [];
 
-		if (preparsedContext?.timeSpan) {
-			for (const c of preparsedContext.timeSpan) {
+		if (preparsedContext?.timeCandidates) {
+			for (const c of preparsedContext.timeCandidates) {
 				spans.push({ start: c.tokenStart, end: c.tokenEnd });
 			}
 		}

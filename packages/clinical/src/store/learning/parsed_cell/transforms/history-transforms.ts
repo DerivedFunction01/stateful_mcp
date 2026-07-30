@@ -22,17 +22,10 @@ const allergyTemplate: ParsedItem = {
 	rawText: "allergy to penicillin",
 	tag: "AllergyEntry",
 	extractedData: {
-		concept: { conceptId: "RxNorm::70618", display: "Penicillin" },
-		category: "medication",
-		criticality: "high",
-		clinicalStatus: "active",
+		substance: { conceptId: "RxNorm::70618", display: "Penicillin" },
+		reactionType: [{ conceptId: "SNOMED::247472004", display: "Hives" }],
+		allergySeverity: "severe",
 		verificationStatus: "confirmed",
-		reaction: [
-			{
-				manifestation: [{ conceptId: "SNOMED::247472004", display: "Hives" }],
-				severity: "severe",
-			},
-		],
 	},
 };
 
@@ -81,10 +74,10 @@ const socialTemplate: ParsedItem = {
 	rawText: "tobacco use 1 pack per day",
 	tag: "SocialHistoryEntry",
 	extractedData: {
-		concept: { conceptId: "SNOMED::77176002", display: "Smoker" },
-		category: "tobacco_use",
+		category: { conceptId: "SNOMED::77176002", display: "Smoker" },
 		status: "current",
-		quantity: { magnitude: 1, unit: "pack/day" },
+		quantity: "1 pack per day",
+		notes: "tobacco use 1 pack per day",
 	},
 };
 

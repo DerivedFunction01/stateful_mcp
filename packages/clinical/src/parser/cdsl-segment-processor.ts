@@ -9,7 +9,10 @@ import type {
 } from "../store/interfaces";
 import { getCompiledRegex } from "./_compiled-regex";
 import { FrequencyHelper } from "./helpers/frequency-helper";
-import { QuantityTokenizer } from "./helpers/measurement-helper";
+import {
+	type QuantityCandidate,
+	QuantityTokenizer,
+} from "./helpers/measurement-helper";
 import {
 	type PreparsedContext,
 	type RankingSignal,
@@ -158,10 +161,29 @@ export class SegmentProcessor {
 			}
 		}
 
+		const candidatesByAnchor: Record<string, QuantityCandidate[]> = {};
+		const looseCandidates: QuantityCandidate[] = [];
+		const timeCandidates: QuantityCandidate[] = [];
+
+		for (const candidate of candidates) {
+			const unitAnchor = candidate.sourceRule?.unitAnchor;
+			if (unitAnchor) {
+				if (!candidatesByAnchor[unitAnchor]) {
+					candidatesByAnchor[unitAnchor] = [];
+				}
+				candidatesByAnchor[unitAnchor].push(candidate);
+			} else if (candidate.sourceRule?.targetField === "time_unit") {
+				timeCandidates.push(candidate);
+			} else {
+				looseCandidates.push(candidate);
+			}
+		}
+
 		return {
 			rawText: content,
-			measurement: candidates,
-			timeSpan: candidates,
+			candidates: candidatesByAnchor,
+			looseCandidates,
+			timeCandidates,
 			frequency,
 			attributes,
 			profile: this.profile,

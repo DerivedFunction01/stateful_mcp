@@ -30,6 +30,8 @@ const observationTemplate: ParsedItem = {
 		},
 		trajectory: "worsening",
 		qualifiers: [{ conceptId: "SNOMED::246072003", display: "Fever" }],
+		anatomyLocations: [],
+		sourceType: "patient_reported",
 	},
 };
 

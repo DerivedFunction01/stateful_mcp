@@ -6,10 +6,15 @@ import { buildTestToken } from "../src/parser/field-registry/test-types";
 // Each registry exports an optional `registryTests: FieldRegistryTestBlock`.
 // Add new imports here when a new field-registry file is created.
 
-import { assessmentRegistryTests } from "../src/parser/field-registry/assessment";
+import {
+	algorithmicEvaluationRegistryTests,
+	assessmentRegistryTests,
+	differentialDiagnosisRegistryTests,
+} from "../src/parser/field-registry/assessment";
 import {
 	deviceDiagnosticObjectRegistryTests,
 	labPanelResultRegistryTests,
+	physicalExamObjectRegistryTests,
 } from "../src/parser/field-registry/diagnostic";
 import { environmentRegistryTests } from "../src/parser/field-registry/environment";
 import { exposureRegistryTests } from "../src/parser/field-registry/exposure";
@@ -28,10 +33,20 @@ import { patientRegistryTests } from "../src/parser/field-registry/patient";
 import {
 	interventionOrderRegistryTests,
 	investigationOrderRegistryTests,
+	militaryPlanExtensionRegistryTests,
 	referralOrderRegistryTests,
 	safetyNettingPlanRegistryTests,
 } from "../src/parser/field-registry/plan";
-import { vitalsRegistryTests } from "../src/parser/field-registry/vitals";
+import {
+	bloodPressureRegistryTests,
+	heartRateRegistryTests,
+	heightRegistryTests,
+	oxygenSaturationRegistryTests,
+	respiratoryRateRegistryTests,
+	temperatureRegistryTests,
+	vitalsRegistryTests,
+	weightRegistryTests,
+} from "../src/parser/field-registry/vitals";
 
 // ── Generic test runner ───────────────────────────────────────────────────────
 
@@ -86,4 +101,17 @@ describe("Field Registry", () => {
 	runRegistryTestBlock(deviceDiagnosticObjectRegistryTests);
 	runRegistryTestBlock(environmentRegistryTests);
 	runRegistryTestBlock(patientRegistryTests);
+
+	// New test blocks
+	runRegistryTestBlock(differentialDiagnosisRegistryTests);
+	runRegistryTestBlock(algorithmicEvaluationRegistryTests);
+	runRegistryTestBlock(physicalExamObjectRegistryTests);
+	runRegistryTestBlock(militaryPlanExtensionRegistryTests);
+	runRegistryTestBlock(bloodPressureRegistryTests);
+	runRegistryTestBlock(temperatureRegistryTests);
+	runRegistryTestBlock(heartRateRegistryTests);
+	runRegistryTestBlock(respiratoryRateRegistryTests);
+	runRegistryTestBlock(oxygenSaturationRegistryTests);
+	runRegistryTestBlock(weightRegistryTests);
+	runRegistryTestBlock(heightRegistryTests);
 });

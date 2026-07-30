@@ -95,13 +95,13 @@ describe("CdslVariableParser", () => {
 		expect(res).toBe("");
 	});
 
-	it("should support set-membership check (-> or in_set)", async () => {
+	it("should support set-membership check (->)", async () => {
 		const store = new MemoryVariableStore();
 		const service = new VariableServiceStore(store);
 		await service.setVariable("session-5", "status", "active");
 
 		const text =
-			"{status -> {active, pending}, status not_in_set {completed, cancelled}}";
+			"{status -> {active, pending}, status !-> {completed, cancelled}}";
 		const cleanText = await CdslVariableParser.parseAndApply(
 			text,
 			service,

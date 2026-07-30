@@ -37,7 +37,6 @@ import { ProseTemplateSuggester } from "./prose-template-suggester";
 import {
 	type ParsedCandidateEnvelope,
 	type ParsedItem,
-	type RankingSignal,
 	resolveMultiConceptHelper,
 	type SchemaParser,
 	schemaParserRegistry,

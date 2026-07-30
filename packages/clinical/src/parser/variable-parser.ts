@@ -142,9 +142,9 @@ export class CdslVariableParser {
 		profile: any,
 		dictionaryStore?: DictionaryStore,
 	): Promise<void> {
-		// 1. Match Set-Membership Assertion: e.g. "x -> {1, 2, 3}" or "x in_set {A, B}"
+		// 1. Match Set-Membership Assertion: e.g. "x -> {1, 2, 3}" or "x !-> {A, B}"
 		const setMatch = stmt.match(
-			/^\s*([a-zA-Z0-9_-]+)\s*(->|!->|in_set|not_in_set)\s*\{([^}]+)\}\s*$/,
+			/^\s*([a-zA-Z0-9_-]+)\s*(->|!->)\s*\{([^}]+)\}\s*$/,
 		);
 		if (setMatch) {
 			const key = setMatch[1]!;
@@ -194,7 +194,7 @@ export class CdslVariableParser {
 
 		// 2. Try matching Standard Assertion: e.g. "z > 5", "age >= 18"
 		const assertMatch = stmt.match(
-			/^\s*([a-zA-Z0-9_-]+)\s*(>=|<=|>|<|!=|==|neq|geq|leq|gt|lt)\s*(.+)$/,
+			/^\s*([a-zA-Z0-9_-]+)\s*(>=|<=|>|<|!=|==)\s*(.+)$/,
 		);
 		if (assertMatch) {
 			const key = assertMatch[1]!;

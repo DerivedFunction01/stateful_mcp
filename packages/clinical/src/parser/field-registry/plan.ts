@@ -167,6 +167,22 @@ function createSafetyNettingPlanRegistry(
 	];
 }
 
+function createMilitaryPlanFieldRegistry(
+	_attributeRules: AttributeParserRule[] = [],
+): FieldMappingRule[] {
+	return [
+		{
+			sourceKey: "disposition",
+			targetField: "disposition",
+			schemaDefaultField: "disposition",
+		},
+		{
+			sourceKey: "duty_limitations",
+			targetField: "dutyLimitations",
+		},
+	];
+}
+
 export function createPlanFieldRegistry(
 	schema: string,
 	attributeRules: AttributeParserRule[] = [],
@@ -180,6 +196,8 @@ export function createPlanFieldRegistry(
 			return createInterventionOrderRegistry(attributeRules);
 		case "SafetyNettingPlan":
 			return createSafetyNettingPlanRegistry(attributeRules);
+		case "MilitaryPlanExtension":
+			return createMilitaryPlanFieldRegistry(attributeRules);
 		default:
 			return [];
 	}
@@ -244,6 +262,12 @@ export const interventionOrderConfig: SchemaParserConfig = {
 export const safetyNettingPlanConfig: SchemaParserConfig = {
 	schema: "SafetyNettingPlan",
 	targetSchema: "SafetyNettingPlan",
+	preparsedContextKeys: [],
+};
+
+export const militaryPlanExtensionConfig: SchemaParserConfig = {
+	schema: "MilitaryPlanExtension",
+	targetSchema: "MilitaryPlanExtension",
 	preparsedContextKeys: [],
 };
 
@@ -371,6 +395,43 @@ export const safetyNettingPlanRegistryTests: FieldRegistryTestBlock = {
 			},
 			matchKeys: ["returnPrecautions"],
 			expected: { returnPrecautions: "Call if fever persists beyond 48 hours" },
+		},
+	],
+};
+
+export const militaryPlanExtensionRegistryTests: FieldRegistryTestBlock = {
+	schema: "MilitaryPlanExtension",
+	router: planRouter,
+	cases: [
+		{
+			description: "disposition: from slot directly",
+			input: {
+				slots: { disposition: "light_duty" },
+			},
+			matchKeys: ["disposition"],
+			expected: { disposition: "light_duty" },
+		},
+		{
+			description: "dutyLimitations: nested object from slot",
+			input: {
+				slots: {
+					duty_limitations: {
+						running: false,
+						cycling: true,
+						swimming: true,
+						max_lifting_lbs: 25.5,
+					},
+				},
+			},
+			matchKeys: ["dutyLimitations"],
+			expected: {
+				dutyLimitations: {
+					running: false,
+					cycling: true,
+					swimming: true,
+					max_lifting_lbs: 25.5,
+				},
+			},
 		},
 	],
 };
