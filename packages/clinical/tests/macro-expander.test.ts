@@ -4,18 +4,17 @@ import {
 	createMemoryExpressionStore,
 	DictionaryStore,
 	InMemoryConceptResolver,
+	MemoryKvBackend,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../src/parser/cdsl-parser";
-import {
-	InMemoryParserMacroStore,
-	MacroExpander,
-} from "../src/parser/macro-expander";
+import { MacroExpander } from "../src/parser/macro-expander";
+import { KvParserMacroStore } from "../src/store/parser/macros/kv-macro-store";
 
 describe("MacroExpander", () => {
 	const defaultProfile = { macroStartToken: "^" };
 
 	it("should expand a simple macro without arguments", async () => {
-		const store = new InMemoryParserMacroStore();
+		const store = new KvParserMacroStore(new MemoryKvBackend());
 		await store.set({
 			macroId: "m1",
 			macroName: "fever_macro",
@@ -31,7 +30,7 @@ describe("MacroExpander", () => {
 	});
 
 	it("should expand a macro with arguments substituted into $1, $2", async () => {
-		const store = new InMemoryParserMacroStore();
+		const store = new KvParserMacroStore(new MemoryKvBackend());
 		await store.set({
 			macroId: "m2",
 			macroName: "sob_macro",
@@ -49,7 +48,7 @@ describe("MacroExpander", () => {
 	});
 
 	it("should support nested recursive macro expansions", async () => {
-		const store = new InMemoryParserMacroStore();
+		const store = new KvParserMacroStore(new MemoryKvBackend());
 		await store.set({
 			macroId: "child",
 			macroName: "child_macro",
@@ -70,7 +69,7 @@ describe("MacroExpander", () => {
 	});
 
 	it("should support passing a macro call as an argument to another macro", async () => {
-		const store = new InMemoryParserMacroStore();
+		const store = new KvParserMacroStore(new MemoryKvBackend());
 		await store.set({
 			macroId: "child",
 			macroName: "child_macro",
@@ -91,7 +90,7 @@ describe("MacroExpander", () => {
 	});
 
 	it("should support custom macro delimiters (e.g. brace or pipe syntax)", async () => {
-		const store = new InMemoryParserMacroStore();
+		const store = new KvParserMacroStore(new MemoryKvBackend());
 		await store.set({
 			macroId: "m3",
 			macroName: "sob_custom",
@@ -128,7 +127,7 @@ describe("MacroExpander", () => {
 	});
 
 	it("should throw an error on infinite recursion circular macros", async () => {
-		const store = new InMemoryParserMacroStore();
+		const store = new KvParserMacroStore(new MemoryKvBackend());
 		await store.set({
 			macroId: "loop1",
 			macroName: "loop_a",
@@ -198,7 +197,7 @@ describe("CdslParser Integration with MacroExpander", () => {
 			id: "chest-pain-exp",
 		});
 
-		const macroStore = new InMemoryParserMacroStore();
+		const macroStore = new KvParserMacroStore(new MemoryKvBackend());
 		await macroStore.set({
 			macroId: "m-sob",
 			macroName: "severe_sob",

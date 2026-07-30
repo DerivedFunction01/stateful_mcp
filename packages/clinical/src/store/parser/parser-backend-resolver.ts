@@ -31,6 +31,8 @@ import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-sto
 import { SqlConceptDefaultStore } from "./concept_defaults/sql-concept-default-store";
 import { KvConceptFieldStore } from "./concept_fields/kv-concept-field-store";
 import { SqlConceptFieldStore } from "./concept_fields/sql-concept-field-store";
+import { KvParserMacroStore } from "./macros/kv-macro-store";
+import { SqlParserMacroStore } from "./macros/sql-macro-store";
 import { KvParserProfileStore } from "./profiles/kv-parser-profile-store";
 import { KvProfileTagStore } from "./profiles/kv-profile-tag-store";
 import { SqlParserProfileStore } from "./profiles/sql-parser-profile-store";
@@ -452,6 +454,43 @@ export async function resolveCalibrationExceptionStore(
 
 	throw new Error(
 		`Unsupported calibration adapter: ${(locator as any).name ?? locator._type}`,
+	);
+}
+
+// ── Macros ───────────────────────────────────────────────────────────────────
+
+export async function resolveMacroStore(
+	config: ClinicalStoreConfig,
+): Promise<KvParserMacroStore | SqlParserMacroStore> {
+	const locator = getPrimaryLocator(config, "parser_macros");
+
+	if (locator._type === "adapter" && locator.name === "memory") {
+		return new KvParserMacroStore(new MemoryKvBackend());
+	}
+
+	if (
+		locator._type === "adapter" &&
+		(locator.name === "sqlite" ||
+			locator.name === "pg" ||
+			locator.name === "duckdb" ||
+			locator.name === "opfs")
+	) {
+		const dialect = mapDialect(locator.name);
+		const dbPath = resolveDbPath(locator, dialect, "./clinical-parser.sqlite");
+		const backend = await SqlBackend.connect(dialect, dbPath);
+		return new SqlParserMacroStore(new SqlExecutor(backend));
+	}
+
+	if (locator._type === "adapter" && locator.name === "jsonl") {
+		const basePath =
+			readStringOption(locator, "path", "") || "./clinical-parser-macros.jsonl";
+		return new KvParserMacroStore(
+			new JsonlKvBackend({ dataFilePath: basePath }),
+		);
+	}
+
+	throw new Error(
+		`Unsupported macro adapter: ${(locator as any).name ?? locator._type}`,
 	);
 }
 

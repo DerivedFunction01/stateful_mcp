@@ -4,6 +4,7 @@ import {
 	getClinicalAdapterConfigs,
 } from "./adapter-types";
 import type { ClinicalStoreConfig } from "./clinical-config";
+import type { ParserMacroStore } from "./interfaces";
 import { resolveAutocompleteTransitionStoreLocator } from "./learning/autocomplete-resolver";
 import type {
 	AutocompleteTransitionStore,
@@ -17,6 +18,7 @@ import {
 	resolveCalibrationExceptionStore,
 	resolveConceptDefaultStore,
 	resolveFacilityStore,
+	resolveMacroStore,
 	resolveParserProfileStores,
 	resolveParserRuleStores,
 	resolvePersonnelStore,
@@ -64,6 +66,7 @@ export interface ClinicalRuntimeParserStores {
 	personnel: PersonnelStore;
 	facilities: FacilityStore;
 	sharedFieldAnchors: SharedFieldAnchorStore;
+	macros: ParserMacroStore;
 }
 
 export interface ClinicalRuntime {
@@ -89,6 +92,7 @@ export async function createClinicalRuntime(
 		facilities,
 		sharedFieldAnchors,
 		stopWordWordLists,
+		macros,
 		orderedLearningStores,
 		autocompleteTransitionStores,
 	] = await Promise.all([
@@ -101,6 +105,7 @@ export async function createClinicalRuntime(
 		resolveFacilityStore(config),
 		resolveSharedFieldAnchorStore(config),
 		resolveStopWordWordListStore(config),
+		resolveMacroStore(config),
 		buildOrderedLearningStores(config),
 		buildAutocompleteTransitionStores(config),
 	]);
@@ -139,6 +144,7 @@ export async function createClinicalRuntime(
 			personnel,
 			facilities,
 			sharedFieldAnchors,
+			macros,
 		},
 		learningStores: await buildLearningStores(config),
 		orderedLearningStores,

@@ -1,29 +1,4 @@
-import type { ParserMacro, ParserMacroStore } from "../store/interfaces";
-
-export class InMemoryParserMacroStore implements ParserMacroStore {
-	private readonly macros = new Map<string, ParserMacro>();
-
-	async get(macroName: string): Promise<ParserMacro | null> {
-		return this.macros.get(macroName) ?? null;
-	}
-
-	async list(): Promise<ParserMacro[]> {
-		return Array.from(this.macros.values());
-	}
-
-	async set(macro: ParserMacro): Promise<void> {
-		this.macros.set(macro.macroName, macro);
-	}
-
-	async delete(macroId: string): Promise<void> {
-		for (const [name, m] of this.macros.entries()) {
-			if (m.macroId === macroId) {
-				this.macros.delete(name);
-				break;
-			}
-		}
-	}
-}
+import type { ParserMacroStore } from "../store/interfaces";
 
 export class MacroExpander {
 	/**

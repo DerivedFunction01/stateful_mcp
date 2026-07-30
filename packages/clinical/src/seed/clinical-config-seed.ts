@@ -146,6 +146,25 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 				},
 			],
 		},
+		parser_macros: {
+			group: "parser_macros",
+			implemented: true,
+			description: "Parser macro definition and expansion backends.",
+			defaultAdapters: [
+				{
+					group: "parser_macros",
+					capabilities: ["read", "write"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
 		parser_rules: {
 			group: "parser_rules",
 			implemented: true,

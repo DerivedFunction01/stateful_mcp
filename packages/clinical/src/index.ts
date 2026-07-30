@@ -17,7 +17,6 @@ export * from "./parser/field-resolver-engine";
 export * from "./parser/field-shared/shared-field-anchor";
 export * from "./parser/generic-schema-parser";
 export * from "./parser/generic-tokenizer";
-export * from "./parser/macro-expander";
 export * from "./parser/parsers/clinical-date-range-parser";
 export * from "./parser/prose-parser";
 export {
@@ -58,6 +57,8 @@ export * from "./store/learning/parsed_cell/kv-parsed-cell-store";
 export * from "./store/learning/parsed_cell/sql-parsed-cell-store";
 export * from "./store/parser/anchors/kv-shared-field-anchor-store";
 export * from "./store/parser/anchors/sql-shared-field-anchor-store";
+export * from "./store/parser/macros/kv-macro-store";
+export * from "./store/parser/macros/sql-macro-store";
 export * from "./store/reference/prose-parser-templates/interfaces";
 export * from "./store/reference/prose-parser-templates/kv-prose-parser-template-store";
 export * from "./store/reference/prose-parser-templates/prose-template";
