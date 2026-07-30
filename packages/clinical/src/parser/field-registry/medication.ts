@@ -63,6 +63,12 @@ export function createMedicationFieldRegistry(
 				buildMeasurement(rawGroups || {}, resolveUnit, resolveUnitAnchor),
 		},
 		{
+			sourceKey: "count",
+			targetField: "count",
+			compute: (_slots, _conceptDefaults, rawGroups) =>
+				buildMeasurement(rawGroups || {}),
+		},
+		{
 			sourceKey: "quantity_to_dispense",
 			targetField: "quantityToDispense",
 			compute: (_slots, _conceptDefaults, rawGroups) => {

@@ -23,6 +23,7 @@ const medicationTemplate: ParsedItem = {
 		route: "oral",
 		frequency: { text: "TID", interval: { magnitude: 3.2, unit: "day" } },
 		dosage: { text: "500mg", dose: 500.5, unit: "mg" },
+		count: { magnitude: 2, unit: { display: "tablet" } },
 		quantityToDispense: 30.5,
 		authorizedRefills: 2.5,
 		genericSubstitutionPermitted: true,

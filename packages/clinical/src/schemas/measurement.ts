@@ -176,7 +176,7 @@ export interface Statistics {
 	mae?: number;
 	mse?: number;
 	median?: number;
-	margin_of_err?: number;	
+	margin_of_err?: number;
 }
 
 /**

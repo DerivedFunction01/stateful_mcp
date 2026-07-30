@@ -1,4 +1,4 @@
-import type { DosageMeasurement } from "./measurement";
+import type { CountMeasurement, DosageMeasurement } from "./measurement";
 import type { CodeableConcept, Route } from "./shared";
 import type { ClinicalDateRange, TimePrecisionLevel } from "./time";
 
@@ -62,6 +62,7 @@ export interface MedicationOrderObject {
 	medication: CodeableConcept;
 	rawTerm?: string;
 	dosage?: DosageMeasurement;
+	count?: CountMeasurement;
 	frequency?: MedicationFrequency; // Formally transitioned to a parameterized struct
 	route?: Route;
 	quantityToDispense?: number;

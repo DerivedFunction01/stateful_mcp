@@ -1,4 +1,4 @@
-import type { DosageMeasurement } from "./measurement";
+import type { DosageMeasurement, SingleMeasurement } from "./measurement";
 import type { MedicationFrequency } from "./medication";
 import type { ClinicalSourceType, CodeableConcept } from "./shared";
 import type { ClinicalDateRange } from "./time";
@@ -53,6 +53,7 @@ export interface ReportedMedicationEntry {
 	id: string;
 	medication: CodeableConcept;
 	dosage?: DosageMeasurement;
+	count?: SingleMeasurement;
 	frequency?: MedicationFrequency;
 	complianceStatus:
 		| "adherent"

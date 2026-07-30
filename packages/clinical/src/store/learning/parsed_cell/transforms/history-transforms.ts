@@ -135,6 +135,7 @@ const reportedMedTemplate: ParsedItem = {
 		status: "active",
 		adherence: "always",
 		dosage: { text: "10mg", dose: 10, unit: "mg" },
+		count: { magnitude: 1, unit: { display: "tablet" } },
 	},
 };
 

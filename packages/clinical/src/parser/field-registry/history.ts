@@ -100,6 +100,12 @@ function createReportedMedicationFieldRegistry(
 				buildMeasurement(rawGroups || {}),
 		},
 		{
+			sourceKey: "count",
+			targetField: "count",
+			compute: (_slots, _conceptDefaults, rawGroups) =>
+				buildMeasurement(rawGroups || {}),
+		},
+		{
 			sourceKey: "frequency_details",
 			targetField: "frequency.details",
 		},

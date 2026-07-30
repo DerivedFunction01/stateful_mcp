@@ -77,6 +77,12 @@ export function createExposureFieldRegistry(
 				buildMeasurement(rawGroups || {}),
 		},
 		{
+			sourceKey: "count",
+			targetField: "count",
+			compute: (_slots, _conceptDefaults, rawGroups) =>
+				buildMeasurement(rawGroups || {}),
+		},
+		{
 			sourceKey: "compliance_status",
 			targetField: "complianceStatus",
 			schemaDefaultField: "complianceStatus",

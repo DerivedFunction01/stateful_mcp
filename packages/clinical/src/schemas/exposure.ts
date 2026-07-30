@@ -1,4 +1,4 @@
-import type { DosageMeasurement } from "./measurement";
+import type { DosageMeasurement, SingleMeasurement } from "./measurement";
 import type { MedicationFrequency } from "./medication";
 import type { AnatomicalLocation, CodeableConcept, Route } from "./shared";
 import type { ClinicalDateRange } from "./time";
@@ -36,6 +36,7 @@ export interface PharmaceuticalExposureEvent extends BaseExposureEvent {
 		| "intermittent"
 		| "discontinued";
 	dosage?: DosageMeasurement;
+	count?: SingleMeasurement;
 }
 
 export interface BiologicalExposureEvent extends BaseExposureEvent {
