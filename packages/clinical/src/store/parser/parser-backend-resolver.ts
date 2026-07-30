@@ -63,6 +63,48 @@ function mapDialect(adapterName: string): SqlDialect {
 	return adapterName as SqlDialect;
 }
 
+async function resolveStoreWithFactory(
+	config: ClinicalStoreConfig,
+	group: string,
+	defaultFilename: string,
+	factories: {
+		memory: (backend: MemoryKvBackend) => any;
+		sql: (dialect: SqlDialect, executor: SqlExecutor, backend: SqlBackend) => any;
+		jsonl: (backend: JsonlKvBackend) => any;
+	},
+	sharedSqlBackend?: SqlBackend,
+): Promise<any> {
+	const locator = getPrimaryLocator(config, group);
+
+	if (locator._type !== "adapter") {
+		throw new Error(`Unsupported store locator type: ${locator._type} for group: ${group}`);
+	}
+
+	switch (locator.name) {
+		case "memory": {
+			return factories.memory(new MemoryKvBackend());
+		}
+		case "sqlite":
+		case "postgres":
+		case "duckdb":
+		case "opfs": {
+			const dialect = mapDialect(locator.name);
+			const backend =
+				sharedSqlBackend ??
+				(await SqlBackend.connect(dialect, resolveDbPath(locator, dialect, defaultFilename)));
+			const executor = new SqlExecutor(backend);
+			return factories.sql(dialect, executor, backend);
+		}
+		case "jsonl": {
+			const basePath = readStringOption(locator, "path", "") || defaultFilename;
+			const backend = new JsonlKvBackend({ dataFilePath: basePath });
+			return factories.jsonl(backend);
+		}
+		default:
+			throw new Error(`Unsupported ${group} adapter: ${(locator as any).name ?? locator._type}`);
+	}
+}
+
 // ── Profiles + tags ──────────────────────────────────────────────────────────
 
 export async function resolveParserProfileStores(
@@ -71,49 +113,23 @@ export async function resolveParserProfileStores(
 	core: KvParserProfileStore | SqlParserProfileStore;
 	tags: KvProfileTagStore | SqlProfileTagStore;
 }> {
-	const locator = getPrimaryLocator(config, "parser_profiles");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		const backend = new MemoryKvBackend();
-		return {
+	return resolveStoreWithFactory(config, "parser_profiles", "./clinical-parser.sqlite", {
+		memory: (backend) => ({
 			core: new KvParserProfileStore(backend),
 			tags: new KvProfileTagStore(backend),
-		};
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const dbPath = resolveDbPath(locator, dialect, "./clinical-parser.sqlite");
-		const backend = await SqlBackend.connect(dialect, dbPath);
-		const executor = new SqlExecutor(backend);
-		return {
+		}),
+		sql: (dialect, executor) => ({
 			core: new SqlParserProfileStore(dialect, executor),
 			tags: new SqlProfileTagStore(dialect, executor),
-		};
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-parser.jsonl";
-		const backend = new JsonlKvBackend({ dataFilePath: basePath });
-		return {
+		}),
+		jsonl: (backend) => ({
 			core: new KvParserProfileStore(backend),
 			tags: new KvProfileTagStore(backend),
-		};
-	}
-
-	throw new Error(
-		`Unsupported parser profile adapter: ${(locator as any).name ?? locator._type}`,
-	);
+		}),
+	});
 }
 
-// ── Rules + bindings ─────────────────────────────────────────────────────────
+// ── Rules + bindings ─────────────────────────────────────────────────
 
 export async function resolveParserRuleStores(
 	config: ClinicalStoreConfig,
@@ -125,55 +141,29 @@ export async function resolveParserRuleStores(
 		| KvProfileEvaluatorBindingStore
 		| SqlProfileEvaluatorBindingStore;
 }> {
-	const locator = getPrimaryLocator(config, "parser_rules");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		const backend = new MemoryKvBackend();
-		return {
+	return resolveStoreWithFactory(config, "parser_rules", "./clinical-parser.sqlite", {
+		memory: (backend) => ({
 			attributeRules: new KvParserAttributeRuleStore(backend),
 			evaluatorRules: new KvParserEvaluatorRuleStore(backend),
 			attributeBindings: new KvProfileRuleBindingStore(backend),
 			evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		};
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const dbPath = resolveDbPath(locator, dialect, "./clinical-parser.sqlite");
-		const backend = await SqlBackend.connect(dialect, dbPath);
-		const executor = new SqlExecutor(backend);
-		return {
+		}),
+		sql: (dialect, executor) => ({
 			attributeRules: new SqlParserAttributeRuleStore(dialect, executor),
 			evaluatorRules: new SqlParserEvaluatorRuleStore(dialect, executor),
 			attributeBindings: new SqlProfileRuleBindingStore(dialect, executor),
 			evaluatorBindings: new SqlProfileEvaluatorBindingStore(dialect, executor),
-		};
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-parser.jsonl";
-		const backend = new JsonlKvBackend({ dataFilePath: basePath });
-		return {
+		}),
+		jsonl: (backend) => ({
 			attributeRules: new KvParserAttributeRuleStore(backend),
 			evaluatorRules: new KvParserEvaluatorRuleStore(backend),
 			attributeBindings: new KvProfileRuleBindingStore(backend),
 			evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		};
-	}
-
-	throw new Error(
-		`Unsupported parser rule adapter: ${(locator as any).name ?? locator._type}`,
-	);
+		}),
+	});
 }
 
-// ── Reference data ───────────────────────────────────────────────────────────
+// ── Reference data ───────────────────────────────────────────────────
 
 export async function resolveReferenceStores(
 	config: ClinicalStoreConfig,
@@ -186,102 +176,39 @@ export async function resolveReferenceStores(
 	proseTemplates: KvClinicalProseTemplateStore | SqlClinicalProseTemplateStore;
 	proseParserTemplates: KvProseParserTemplateStore | SqlProseTemplateStore;
 }> {
-	const locator = getPrimaryLocator(config, "reference");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		const backend = new MemoryKvBackend();
-		return {
+	return resolveStoreWithFactory(config, "reference", "./clinical-reference.sqlite", {
+		memory: (backend) => ({
 			tags: new KvTagStore(backend),
 			jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
 			stopWordProfiles: new KvStopWordProfileStore(backend),
 			proseTemplates: new KvClinicalProseTemplateStore(backend),
 			proseParserTemplates: new KvProseParserTemplateStore(backend),
-		};
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const dbPath = resolveDbPath(
-			locator,
-			dialect,
-			"./clinical-reference.sqlite",
-		);
-		const backend = await SqlBackend.connect(dialect, dbPath);
-		const executor = new SqlExecutor(backend);
-		return {
+		}),
+		sql: (dialect, executor) => ({
 			tags: new SqlTagStore(dialect, executor),
-			jurisdictionalDisplays: new SqlJurisdictionalDisplayStore(
-				dialect,
-				executor,
-			),
+			jurisdictionalDisplays: new SqlJurisdictionalDisplayStore(dialect, executor),
 			stopWordProfiles: new SqlStopWordProfileStore(dialect, executor),
 			proseTemplates: new SqlClinicalProseTemplateStore(dialect, executor),
 			proseParserTemplates: new SqlProseTemplateStore(dialect, executor),
-		};
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-reference.jsonl";
-		const backend = new JsonlKvBackend({ dataFilePath: basePath });
-		return {
+		}),
+		jsonl: (backend) => ({
 			tags: new KvTagStore(backend),
 			jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
 			stopWordProfiles: new KvStopWordProfileStore(backend),
 			proseTemplates: new KvClinicalProseTemplateStore(backend),
 			proseParserTemplates: new KvProseParserTemplateStore(backend),
-		};
-	}
-
-	throw new Error(
-		`Unsupported reference adapter: ${(locator as any).name ?? locator._type}`,
-	);
+		}),
+	});
 }
 
 export async function resolveStopWordWordListStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvStopWordWordListStore | SqlStopWordWordListStore> {
-	const locator = getPrimaryLocator(config, "reference");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvStopWordWordListStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const dbPath = resolveDbPath(
-			locator,
-			dialect,
-			"./clinical-reference.sqlite",
-		);
-		const backend = await SqlBackend.connect(dialect, dbPath);
-		const executor = new SqlExecutor(backend);
-		return new SqlStopWordWordListStore(dialect, executor);
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-reference.jsonl";
-		return new KvStopWordWordListStore(
-			new JsonlKvBackend({ dataFilePath: basePath }),
-		);
-	}
-
-	throw new Error(
-		`Unsupported reference adapter for word lists: ${(locator as any).name ?? locator._type}`,
-	);
+	return resolveStoreWithFactory(config, "reference", "./clinical-reference.sqlite", {
+		memory: (backend) => new KvStopWordWordListStore(backend),
+		sql: (dialect, executor) => new SqlStopWordWordListStore(dialect, executor),
+		jsonl: (backend) => new KvStopWordWordListStore(backend),
+	});
 }
 
 // ── Concept defaults ─────────────────────────────────────────────────────────
@@ -290,269 +217,87 @@ export async function resolveConceptDefaultStore(
 	config: ClinicalStoreConfig,
 	sharedSqlBackend?: SqlBackend,
 ): Promise<KvConceptDefaultStore | SqlConceptDefaultStore> {
-	const locator = getPrimaryLocator(config, "concept_defaults");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvConceptDefaultStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const backend =
-			sharedSqlBackend ??
-			(await SqlBackend.connect(dialect, resolveDbPath(locator, dialect)));
-		const executor = new SqlExecutor(backend);
-		return new SqlConceptDefaultStore(dialect, executor);
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") ||
-			"./clinical-concept-defaults.jsonl";
-		return new KvConceptDefaultStore(
-			new JsonlKvBackend({ dataFilePath: basePath }),
-		);
-	}
-
-	throw new Error(
-		`Unsupported concept default adapter: ${(locator as any).name ?? locator._type}`,
+	return resolveStoreWithFactory(
+		config,
+		"concept_defaults",
+		"./clinical.sqlite",
+		{
+			memory: (backend) => new KvConceptDefaultStore(backend),
+			sql: (dialect, executor) => new SqlConceptDefaultStore(dialect, executor),
+			jsonl: (backend) => new KvConceptDefaultStore(backend),
+		},
+		sharedSqlBackend,
 	);
 }
 
-// ── Concept field routing rules ──────────────────────────────────────────────
+// ── Concept field routing rules ──────────────────────────────────────
 
 export async function resolveConceptFieldStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvConceptFieldStore | SqlConceptFieldStore> {
-	const locator = getPrimaryLocator(config, "concept_fields");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvConceptFieldStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const backend = await SqlBackend.connect(
-			dialect,
-			resolveDbPath(locator, dialect),
-		);
-		const executor = new SqlExecutor(backend);
-		return new SqlConceptFieldStore(dialect, executor);
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") ||
-			"./clinical-concept-fields.jsonl";
-		return new KvConceptFieldStore(
-			new JsonlKvBackend({ dataFilePath: basePath }),
-		);
-	}
-
-	throw new Error(
-		`Unsupported concept field adapter: ${(locator as any).name ?? locator._type}`,
-	);
+	return resolveStoreWithFactory(config, "concept_fields", "./clinical.sqlite", {
+		memory: (backend) => new KvConceptFieldStore(backend),
+		sql: (dialect, executor) => new SqlConceptFieldStore(dialect, executor),
+		jsonl: (backend) => new KvConceptFieldStore(backend),
+	});
 }
 
-// ── Shared Field Anchors ─────────────────────────────────────────────────────
+// ── Shared Field Anchors ─────────────────────────────────────────────
 
 export async function resolveSharedFieldAnchorStore(
 	config: ClinicalStoreConfig,
 ): Promise<SharedFieldAnchorStore> {
-	const locator = getPrimaryLocator(config, "shared_field_anchors");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvSharedFieldAnchorStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const backend = await SqlBackend.connect(
-			dialect,
-			resolveDbPath(locator, dialect),
-		);
-		const executor = new SqlExecutor(backend);
-		return new SqlSharedFieldAnchorStore(dialect, executor);
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") ||
-			"./clinical-shared-field-anchors.jsonl";
-		return new KvSharedFieldAnchorStore(
-			new JsonlKvBackend({ dataFilePath: basePath }),
-		);
-	}
-
-	throw new Error(
-		`Unsupported shared field anchor adapter: ${(locator as any).name ?? locator._type}`,
-	);
+	return resolveStoreWithFactory(config, "shared_field_anchors", "./clinical.sqlite", {
+		memory: (backend) => new KvSharedFieldAnchorStore(backend),
+		sql: (dialect, executor) => new SqlSharedFieldAnchorStore(dialect, executor),
+		jsonl: (backend) => new KvSharedFieldAnchorStore(backend),
+	});
 }
 
-// ── Calibration exceptions ───────────────────────────────────────────────────
+// ── Calibration exceptions ───────────────────────────────────────────
 
 export async function resolveCalibrationExceptionStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvCalibrationExceptionStore | SqlCalibrationExceptionStore> {
-	const locator = getPrimaryLocator(config, "calibration");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvCalibrationExceptionStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const backend = await SqlBackend.connect(
-			dialect,
-			resolveDbPath(locator, dialect),
-		);
-		return new SqlCalibrationExceptionStore(dialect, new SqlExecutor(backend));
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-calibration.jsonl";
-		return new KvCalibrationExceptionStore(
-			new JsonlKvBackend({ dataFilePath: basePath }),
-		);
-	}
-
-	throw new Error(
-		`Unsupported calibration adapter: ${(locator as any).name ?? locator._type}`,
-	);
+	return resolveStoreWithFactory(config, "calibration", "./clinical.sqlite", {
+		memory: (backend) => new KvCalibrationExceptionStore(backend),
+		sql: (dialect, executor) => new SqlCalibrationExceptionStore(dialect, executor),
+		jsonl: (backend) => new KvCalibrationExceptionStore(backend),
+	});
 }
 
-// ── Macros ───────────────────────────────────────────────────────────────────
+// ── Macros ───────────────────────────────────────────────────────────
 
 export async function resolveMacroStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvParserMacroStore | SqlParserMacroStore> {
-	const locator = getPrimaryLocator(config, "parser_macros");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvParserMacroStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const dbPath = resolveDbPath(locator, dialect, "./clinical-parser.sqlite");
-		const backend = await SqlBackend.connect(dialect, dbPath);
-		return new SqlParserMacroStore(new SqlExecutor(backend));
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-parser-macros.jsonl";
-		return new KvParserMacroStore(
-			new JsonlKvBackend({ dataFilePath: basePath }),
-		);
-	}
-
-	throw new Error(
-		`Unsupported macro adapter: ${(locator as any).name ?? locator._type}`,
-	);
+	return resolveStoreWithFactory(config, "parser_macros", "./clinical-parser.sqlite", {
+		memory: (backend) => new KvParserMacroStore(backend),
+		sql: (dialect, executor) => new SqlParserMacroStore(executor),
+		jsonl: (backend) => new KvParserMacroStore(backend),
+	});
 }
 
-// ── Personnel ────────────────────────────────────────────────────────────────
+// ── Personnel ────────────────────────────────────────────────────────
 
 export async function resolvePersonnelStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvPersonnelStore | SqlPersonnelStore> {
-	const locator = getPrimaryLocator(config, "personnel");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvPersonnelStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const backend = await SqlBackend.connect(
-			dialect,
-			resolveDbPath(locator, dialect),
-		);
-		return new SqlPersonnelStore(dialect, new SqlExecutor(backend));
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-personnel.jsonl";
-		return new KvPersonnelStore(new JsonlKvBackend({ dataFilePath: basePath }));
-	}
-
-	throw new Error(
-		`Unsupported personnel adapter: ${(locator as any).name ?? locator._type}`,
-	);
+	return resolveStoreWithFactory(config, "personnel", "./clinical.sqlite", {
+		memory: (backend) => new KvPersonnelStore(backend),
+		sql: (dialect, executor) => new SqlPersonnelStore(dialect, executor),
+		jsonl: (backend) => new KvPersonnelStore(backend),
+	});
 }
 
-// ── Facilities ───────────────────────────────────────────────────────────────
+// ── Facilities ───────────────────────────────────────────────────────
 
 export async function resolveFacilityStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvFacilityStore | SqlFacilityStore> {
-	const locator = getPrimaryLocator(config, "facilities");
-
-	if (locator._type === "adapter" && locator.name === "memory") {
-		return new KvFacilityStore(new MemoryKvBackend());
-	}
-
-	if (
-		locator._type === "adapter" &&
-		(locator.name === "sqlite" ||
-			locator.name === "postgres" ||
-			locator.name === "duckdb" ||
-			locator.name === "opfs")
-	) {
-		const dialect = mapDialect(locator.name);
-		const backend = await SqlBackend.connect(
-			dialect,
-			resolveDbPath(locator, dialect),
-		);
-		return new SqlFacilityStore(dialect, new SqlExecutor(backend));
-	}
-
-	if (locator._type === "adapter" && locator.name === "jsonl") {
-		const basePath =
-			readStringOption(locator, "path", "") || "./clinical-facilities.jsonl";
-		return new KvFacilityStore(new JsonlKvBackend({ dataFilePath: basePath }));
-	}
-
-	throw new Error(
-		`Unsupported facility adapter: ${(locator as any).name ?? locator._type}`,
-	);
+	return resolveStoreWithFactory(config, "facilities", "./clinical.sqlite", {
+		memory: (backend) => new KvFacilityStore(backend),
+		sql: (dialect, executor) => new SqlFacilityStore(dialect, executor),
+		jsonl: (backend) => new KvFacilityStore(backend),
+	});
 }
