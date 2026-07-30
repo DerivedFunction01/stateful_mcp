@@ -53,7 +53,7 @@ export type AdapterLocator =
 			name: "opfs";
 			options?: OpfsSqliteAdapterOptions;
 	  }
-	| { _type: "adapter"; name: "pg"; options?: PgAdapterOptions }
+	| { _type: "adapter"; name: "postgres"; options?: PgAdapterOptions }
 	| { _type: "adapter"; name: "duckdb"; options?: DuckDbAdapterOptions }
 	| { _type: "adapter"; name: "jsonl"; options?: JsonlAdapterOptions }
 	// Fallback for custom string adapters so it stays extensible

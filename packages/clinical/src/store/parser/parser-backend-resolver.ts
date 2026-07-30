@@ -60,18 +60,7 @@ function getPrimaryLocator(
 }
 
 function mapDialect(adapterName: string): SqlDialect {
-	switch (adapterName) {
-		case "sqlite":
-			return "sqlite";
-		case "pg":
-			return "postgres";
-		case "duckdb":
-			return "duckdb";
-		case "opfs":
-			return "opfs";
-		default:
-			return "sqlite";
-	}
+	return adapterName as SqlDialect;
 }
 
 // ── Profiles + tags ──────────────────────────────────────────────────────────
@@ -95,7 +84,7 @@ export async function resolveParserProfileStores(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -151,7 +140,7 @@ export async function resolveParserRuleStores(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -213,7 +202,7 @@ export async function resolveReferenceStores(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -267,7 +256,7 @@ export async function resolveStopWordWordListStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -310,7 +299,7 @@ export async function resolveConceptDefaultStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -350,7 +339,7 @@ export async function resolveConceptFieldStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -391,7 +380,7 @@ export async function resolveSharedFieldAnchorStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -432,7 +421,7 @@ export async function resolveCalibrationExceptionStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -471,7 +460,7 @@ export async function resolveMacroStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -508,7 +497,7 @@ export async function resolvePersonnelStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
@@ -545,7 +534,7 @@ export async function resolveFacilityStore(
 	if (
 		locator._type === "adapter" &&
 		(locator.name === "sqlite" ||
-			locator.name === "pg" ||
+			locator.name === "postgres" ||
 			locator.name === "duckdb" ||
 			locator.name === "opfs")
 	) {
