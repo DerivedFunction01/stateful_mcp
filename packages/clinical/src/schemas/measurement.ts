@@ -164,7 +164,7 @@ export type AllowedUnit =
 
 export interface Statistics {
 	magnitude: number;
-	type: "min" | "max" | "mean" | "stdev" | "variance" | "numerator" | "denominator" | "range" | "rmse" | "mae" | "mse" | "median" | "margin_of_err";	
+	type: "min" | "max" | "mean" | "stdev" | "stdev_pop" | "variance" | "numerator" | "denominator" | "range" | "rmse" | "mae" | "mse" | "median" | "margin_of_err";	
 }
 
 /**
