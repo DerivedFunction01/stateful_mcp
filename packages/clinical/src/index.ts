@@ -26,6 +26,7 @@ export {
 export * from "./parser/stop-word-parser";
 export * from "./parser/variable-parser";
 export * from "./renderer/prose-renderer";
+export * from "./renderer/template-renderer";
 export * from "./schemas/assessment";
 export * from "./schemas/document";
 export * from "./schemas/environment";

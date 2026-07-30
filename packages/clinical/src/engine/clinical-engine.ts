@@ -7,6 +7,7 @@ import type {
 import { CdslParser } from "../parser/cdsl-parser";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { ParsedItem } from "../parser/schema-parsers";
+import { ProseRenderer } from "../renderer/prose-renderer";
 import type { SoapNote } from "../schemas/document";
 import {
 	buildPatientLearningBucket,
@@ -22,6 +23,7 @@ import type {
 	StopWordContext,
 	StopWordStore,
 } from "../store/interfaces";
+import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 import type {
 	AutocompleteTransitionStore,
 	ParsedCellHistoryStore,
@@ -413,6 +415,7 @@ export interface ClinicalEngineConfig {
 	autocompleteTransitionStore?: AutocompleteTransitionStore;
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
+	proseTemplateStore?: ClinicalProseTemplateStore;
 }
 
 export class ClinicalEngine {
@@ -426,6 +429,7 @@ export class ClinicalEngine {
 	private autocompleteTransitionStore?: AutocompleteTransitionStore;
 	private conceptFieldStore?: ConceptFieldStore;
 	private evaluatorStore?: EvaluatorStore;
+	private proseTemplateStore?: ClinicalProseTemplateStore;
 
 	constructor(config: ClinicalEngineConfig) {
 		this.objectStore = config.objectStore;
@@ -437,6 +441,7 @@ export class ClinicalEngine {
 		this.autocompleteTransitionStore = config.autocompleteTransitionStore;
 		this.conceptFieldStore = config.conceptFieldStore;
 		this.evaluatorStore = config.evaluatorStore;
+		this.proseTemplateStore = config.proseTemplateStore;
 
 		const dictionaryStore = config.dictionaryStore;
 		const stopWordStore = config.stopWordStore;
@@ -873,6 +878,28 @@ export class ClinicalEngine {
 		// Archive to SignedSoapNoteStore
 		await this.signedNoteStore.archive(record);
 		return record;
+	}
+
+	/**
+	 * Renders a SOAP note's narrative fields using prose templates.
+	 * Returns the rendered note without persisting to the store.
+	 * Rendering is a computed view — the structured note in the store is unchanged.
+	 */
+	async renderNote(sessionId: string): Promise<SoapNote | null> {
+		const activeObj = await this.objectStore.getObject(
+			"active_note",
+			sessionId,
+		);
+		if (!activeObj) return null;
+
+		const note = activeObj.data as SoapNote;
+
+		if (this.proseTemplateStore) {
+			const templates = await this.proseTemplateStore.list();
+			return ProseRenderer.render(note, templates);
+		}
+
+		return ProseRenderer.render(note, []);
 	}
 
 	private projectSoapNoteToEventRecords(note: SoapNote): any[] {
