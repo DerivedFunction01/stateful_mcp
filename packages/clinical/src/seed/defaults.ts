@@ -907,7 +907,9 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 			observationevent: ["SNOMED"],
 			medicationorderobject: ["RxNorm"],
 		},
-		tagMappings: {
+		 tagMappings: {
+			workspace: "WorkspaceCommand",
+			ws: "WorkspaceCommand",
 			vital: "VitalsMeasurementEvent",
 			vitalsmeasurementevent: "VitalsMeasurementEvent",
 			observation: "ObservationEvent",
@@ -916,6 +918,15 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 			rx: "MedicationOrderObject",
 			med: "MedicationOrderObject",
 			medicationorderobject: "MedicationOrderObject",
+		},
+		workspaceCommandMappings: {
+			branch: "branch",
+			rule_out: "rule_out",
+			confirm: "confirm",
+			suspend: "suspend",
+			re_activate: "re_activate",
+			elevate: "elevate",
+			close: "close",
 		},
 	},
 ];

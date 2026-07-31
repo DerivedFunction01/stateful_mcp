@@ -48,6 +48,7 @@ export * from "./seed/defaults";
 export * from "./seed/loader";
 export * from "./session/cell";
 export * from "./session/cell-processor";
+export * from "./session/workspace-command-parser";
 export * from "./store/adapter-types";
 export * from "./store/cell/cell-backend-resolver";
 export * from "./store/cell/kv-cell-store";

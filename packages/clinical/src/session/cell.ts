@@ -80,6 +80,8 @@ export interface Cell {
 	rawInput: string;
 	routing: CellRoutingTarget;
 	parsedOutput: import("../parser/schema-parsers").ParsedItem[] | null;
+	workspaceCommands?: import("../engine/workspace-store").WorkspaceCommand[];
+	workspaceCommandWarnings?: import("../engine/workspace-store").WorkspaceCommandWarning[];
 	workspaceId?: string;
 	status: CellStatus;
 	errorMessage?: string;

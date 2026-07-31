@@ -12,6 +12,7 @@ export interface ClinicalBranch {
 	id: string;
 	parentId: string | null;
 	name: string;
+	commandAlias?: string;
 	hypothesisConcept: CodeableConcept;
 	status: BranchLifecycleState;
 	supportingConcepts: CodeableConcept[];
@@ -27,4 +28,5 @@ export interface EpistemicWorkspace {
 	branches: ClinicalBranch[];
 	activeBranchId: string;
 	globalFacts: Array<Record<string, unknown>>;
+	closeRequested?: boolean;
 }

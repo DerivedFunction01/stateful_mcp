@@ -1193,6 +1193,7 @@ export class ClinicalEngine {
 			workspaceId,
 			branchId,
 			dictation,
+			undefined,
 			alias,
 		);
 	}

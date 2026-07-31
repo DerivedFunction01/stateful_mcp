@@ -9,6 +9,7 @@ import type { SoapSection } from "../schemas/shared";
 import type { CellStore } from "../store/interfaces";
 import type { Cell } from "./cell";
 import { CELL_ERROR_MESSAGES, CellError } from "./cell";
+import { WorkspaceCommandParser } from "./workspace-command-parser";
 
 export interface PreprocessResult {
 	cleanedText: string;
@@ -109,6 +110,11 @@ export class CellProcessor {
 		}
 
 		const { cleanedText } = await this.preprocess(cell);
+		const commandResult = this.parser
+			? new WorkspaceCommandParser().parseCell(cleanedText, this.parser.getProfile())
+			: { remainingText: cleanedText, commands: [], warnings: [] };
+		cell.workspaceCommands = commandResult.commands;
+		cell.workspaceCommandWarnings = commandResult.warnings;
 
 		// Handle narrative mode: directly write rawInput to the targeted SoapNote field
 		if (cell.mode === "narrative") {
@@ -161,12 +167,13 @@ export class CellProcessor {
 
 		switch (cell.routing.scope) {
 			case "global": {
+				if (commandResult.commands.length) cell.workspaceCommandWarnings = [...commandResult.warnings, ...commandResult.commands.map(() => "NO_WORKSPACE_CONTEXT" as const)];
 				cell.parsedOutput = null;
 				cell.status = "parsing";
 				try {
 					const note = await this.engine.processCdsl(
 						cell.sessionId,
-						cleanedText,
+						commandResult.remainingText,
 						effectiveAlias,
 					);
 					cell.status = "committed";
@@ -221,7 +228,8 @@ export class CellProcessor {
 						cell.sessionId,
 						cell.workspaceId,
 						cell.routing.branchId,
-						cleanedText,
+						commandResult.remainingText,
+						commandResult.commands,
 					);
 					cell.status = "committed";
 					cell.lockedAt = new Date().toISOString();
@@ -280,6 +288,11 @@ export class CellProcessor {
 		}
 
 		const { cleanedText } = await this.preprocess(cell);
+		const commandResult = typeof (this.parser as any).getProfile === "function"
+			? new WorkspaceCommandParser().parseCell(cleanedText, this.parser.getProfile())
+			: { remainingText: cleanedText, commands: [], warnings: [] };
+		cell.workspaceCommands = commandResult.commands;
+		cell.workspaceCommandWarnings = commandResult.warnings;
 
 		// Resolve parent context before processing
 		const parentError = await this.resolveParentContext(cell);
@@ -288,7 +301,7 @@ export class CellProcessor {
 		cell.parsedOutput = null;
 		cell.status = "parsing";
 		try {
-			const parsed = await this.parser.parse(cleanedText, undefined, {
+			const parsed = await this.parser.parse(commandResult.remainingText, undefined, {
 				targetSchema: cell.routing.targetSchema ?? undefined,
 				resolvedSection: cell.routing.resolvedSection ?? undefined,
 			});
