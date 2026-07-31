@@ -21,6 +21,23 @@ import { KvClinicalProseTemplateStore } from "../src/store/reference/prose-templ
 import { KvStopWordProfileStore } from "../src/store/reference/stop-words/kv-stop-word-profile-store";
 import { KvStopWordWordListStore } from "../src/store/reference/stop-words/kv-stop-word-word-list-store";
 
+function makeMockDictionaryStore() {
+	const expressions: any[] = [];
+	const relations: any[] = [];
+	return {
+		addExpression: async (expr: any) => {
+			expressions.push(expr);
+			return expr.id;
+		},
+		addRelation: async (rel: any) => {
+			relations.push(rel);
+		},
+		getExpressions: async () => expressions,
+		getRelations: async () => relations,
+		getAllowedTargetAssignments: () => undefined,
+	};
+}
+
 function makeMockStores(): ClinicalRuntimeParserStores {
 	const backend = new MemoryKvBackend();
 	return {
@@ -43,6 +60,7 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		facilities: new KvFacilityStore(backend),
 		jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
 		macros: new KvParserMacroStore(backend),
+		dictionaryStore: makeMockDictionaryStore(),
 	};
 }
 

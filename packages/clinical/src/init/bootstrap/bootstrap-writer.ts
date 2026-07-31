@@ -7,6 +7,8 @@ import { ClinicalInitSeedDiagnosticCode } from "../types";
 import {
 	normalizeAttributeRule,
 	normalizeConceptDefault,
+	normalizeConceptRelation,
+	normalizeDictionaryExpression,
 	normalizeEvaluatorRule,
 	normalizeFacility,
 	normalizeFieldRule,
@@ -46,6 +48,7 @@ function inc(
 type KindHandler = (
 	stores: BootstrapStores,
 	record: ClinicalInitSeedLoadedRecord,
+	diagnostics: ClinicalInitDiagnostic[],
 ) => Promise<void>;
 
 const kindHandlers: Map<ClinicalInitSeedKind, KindHandler> = new Map();
@@ -141,6 +144,36 @@ registerHandler("macro", async (stores, record) => {
 	await stores.macros.set(macro);
 });
 
+registerHandler(
+	"dictionary_expression",
+	async (stores, record, diagnostics) => {
+		const warnings: Array<{ message: string; path?: string }> = [];
+		const expression = normalizeDictionaryExpression(
+			record,
+			warnings,
+			stores.dictionaryStore.getAllowedTargetAssignments?.(),
+		);
+		for (const warning of warnings) {
+			diagnostics.push({
+				severity: "warning",
+				code: ClinicalInitSeedDiagnosticCode.DICTIONARY_EXPRESSION_WARNING,
+				message: warning.message,
+				phase: "bootstrap",
+				recordId: record.recordId,
+				path: warning.path,
+			});
+		}
+		if (!expression) return;
+		await stores.dictionaryStore.addExpression(expression);
+	},
+);
+
+registerHandler("concept_relation", async (stores, record) => {
+	const relation = normalizeConceptRelation(record);
+	if (!relation) return;
+	await stores.dictionaryStore.addRelation(relation);
+});
+
 export async function bootstrapClinicalStores(
 	stores: BootstrapStores,
 	records: ClinicalInitSeedLoadedRecord[],
@@ -152,7 +185,6 @@ export async function bootstrapClinicalStores(
 		recordsWritten: {},
 		recordsSkipped: {},
 	};
-
 	for (const record of records) {
 		const handler = kindHandlers.get(record.kind);
 		if (!handler) {
@@ -178,7 +210,7 @@ export async function bootstrapClinicalStores(
 		}
 
 		try {
-			await handler(stores, record);
+			await handler(stores, record, result.diagnostics);
 			inc(result.recordsWritten, record.kind);
 		} catch (e) {
 			inc(result.recordsSkipped, record.kind);
@@ -283,6 +315,22 @@ async function isStoreEmpty(
 				(payload?.macroName as string) ?? record.recordId,
 			);
 			return existing === null;
+		}
+		case "dictionary_expression": {
+			const payload = record.payload;
+			const expressions = await stores.dictionaryStore.getExpressions();
+			return !expressions.some(
+				(expression) =>
+					expression.term === payload.term &&
+					expression.conceptId === payload.conceptId,
+			);
+		}
+		case "concept_relation": {
+			const relationId =
+				(typeof record.payload.id === "string" && record.payload.id) ||
+				record.recordId;
+			const relations = await stores.dictionaryStore.getRelations();
+			return !relations.some((relation) => relation.id === relationId);
 		}
 		default:
 			return true;

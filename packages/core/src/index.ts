@@ -22,6 +22,7 @@ export * from "./errors/types";
 export * from "./events/broker";
 export * from "./middleware/dictionary/resolver";
 export * from "./middleware/dictionary/store";
+export * from "./middleware/dictionary/types";
 export * from "./middleware/event/evaluator-types";
 export * from "./middleware/event/selective-validator-router";
 export * from "./middleware/event/store";

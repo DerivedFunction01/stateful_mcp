@@ -1,3 +1,4 @@
+import type { DictionaryStore } from "@stateful-mcp/core";
 import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import {
 	type ClinicalStorageAdapterRegistry,
@@ -55,6 +56,7 @@ import type {
 // ── Public types ─────────────────────────────────────────────────────
 
 export interface ClinicalRuntimeParserStores {
+	dictionaryStore?: DictionaryStore;
 	profiles: ParserProfileCoreStore;
 	profileTags: ProfileTagStore;
 	attributeRules: ParserAttributeRuleStore;

@@ -21,7 +21,8 @@
 				"useIterableCallbackReturn": "off",
 				"noImplicitAnyLet": "off",
 				"noNonNullAssertedOptionalChain": "off",
-				"noThenProperty": "off"
+				"noThenProperty": "off",
+				"noControlCharactersInRegex": "off"
 			},
 			"style": {
 				"useNodejsImportProtocol": "off",

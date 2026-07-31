@@ -52,6 +52,14 @@ export const STARTER_CLINICAL_INIT_MANIFEST: ClinicalInitSeedManifest = {
 			load: async () => (await import("./modules/reference-data")).records,
 		},
 		{
+			moduleId: "starter.vocabulary",
+			version: 1,
+			requires: ["starter.profile"],
+			kinds: ["dictionary_expression", "concept_relation"],
+			format: "typed",
+			load: async () => (await import("./modules/vocabulary")).records,
+		},
+		{
 			moduleId: "starter.variations",
 			version: 1,
 			requires: ["starter.profile", "starter.temporal"],
@@ -120,6 +128,8 @@ export function validateClinicalInitSeedManifest(
 		"facility",
 		"jurisdictional_display",
 		"macro",
+		"dictionary_expression",
+		"concept_relation",
 	];
 
 	for (const module of manifest.modules) {

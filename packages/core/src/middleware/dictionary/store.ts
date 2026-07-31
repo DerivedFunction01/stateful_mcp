@@ -139,6 +139,10 @@ export class DictionaryStore {
 		return this.allowedTags || [];
 	}
 
+	public getAllowedTargetAssignments(): string[] | undefined {
+		return this.allowedTargetAssignments;
+	}
+
 	public shouldExposeTagsAsEnum(): boolean {
 		return this.exposeTagsAsEnum;
 	}

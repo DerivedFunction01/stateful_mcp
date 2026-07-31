@@ -37,12 +37,16 @@ export async function validateBootstrapReadiness(
 	const hasProseParserTemplates =
 		(await stores.proseParserTemplates.listAll()).length > 0;
 	const hasConceptFields = (await stores.conceptFields.list()).length > 0;
+	const hasDictionaryExpressions = stores.dictionaryStore
+		? (await stores.dictionaryStore.getExpressions()).length > 0
+		: false;
 
 	if (
 		!hasProseTemplates ||
 		!hasProseParserTemplates ||
 		!hasConceptFields ||
-		sharedAnchors.length === 0
+		sharedAnchors.length === 0 ||
+		!hasDictionaryExpressions
 	) {
 		return "degraded";
 	}

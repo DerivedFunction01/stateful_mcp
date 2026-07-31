@@ -20,6 +20,8 @@ export type ClinicalInitSeedKind =
 	| "facility"
 	| "jurisdictional_display"
 	| "macro"
+	| "dictionary_expression"
+	| "concept_relation"
 	| "variation_group";
 
 export interface ClinicalInitSeedRecord {
