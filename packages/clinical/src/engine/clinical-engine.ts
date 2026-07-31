@@ -423,6 +423,7 @@ export interface ClinicalEngineConfig {
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
 	commandSuggester?: CommandAutocompleteSuggester;
+	personnelId?: string;
 }
 
 export class ClinicalEngine {
@@ -439,13 +440,18 @@ export class ClinicalEngine {
 	private evaluatorStore?: EvaluatorStore;
 	private proseTemplateStore?: ClinicalProseTemplateStore;
 	private commandSuggester?: CommandAutocompleteSuggester;
+	private personnelId: string;
 
 	constructor(config: ClinicalEngineConfig) {
 		this.commandSuggester = config.commandSuggester;
 		this.objectStore = config.objectStore;
 		this.eventStore = config.eventStore;
 		this.signedNoteStore = config.signedNoteStore;
+		this.personnelId = config.personnelId ?? "system";
 		this.workspaceStore = config.workspaceStore;
+		if (this.workspaceStore) {
+			(this.workspaceStore as any).personnelId = this.personnelId;
+		}
 		this.calibrationStore = config.calibrationStore;
 		this.parsedCellStore = config.parsedCellStore;
 		this.orderAwareStore = config.orderAwareStore;
@@ -673,13 +679,13 @@ export class ClinicalEngine {
 			? await this.parser.parseWithHistory(
 					textToParse,
 					{
-						personnelId: "system",
+						personnelId: this.personnelId,
 						patientContext: patientBucket,
 					},
 					historyStore,
 				)
 			: await this.parser.parse(textToParse, {
-					personnelId: "system",
+					personnelId: this.personnelId,
 					patientContext: patientBucket,
 				});
 
@@ -701,7 +707,7 @@ export class ClinicalEngine {
 						patientSubBucket: patientBucket.subBucket,
 						patientBucketKey: patientBucket.bucketKey,
 						patientTierWeights: patientBucket.weights,
-						personnelId: "system",
+						personnelId: this.personnelId,
 						tag: item.tag,
 						targetSchema: item.targetSchema,
 						rawText: item.rawText,
@@ -749,7 +755,7 @@ export class ClinicalEngine {
 							patientSpeciesBucket: patientBucket.speciesBucket,
 							patientSubBucket: patientBucket.subBucket,
 							patientBucketKey: patientBucket.bucketKey,
-							personnelId: "system",
+							personnelId: this.personnelId,
 							acceptedAt: now,
 						},
 						parsedItem: item,
@@ -760,7 +766,7 @@ export class ClinicalEngine {
 			// Log calibration if concept is not found
 			if (!item.concept[0]?.conceptId && this.calibrationStore) {
 				await this.calibrationStore.logException({
-					personnelId: "system",
+					personnelId: this.personnelId,
 					rawTerm: item.tag,
 					contextSnippet: item.rawText,
 				});

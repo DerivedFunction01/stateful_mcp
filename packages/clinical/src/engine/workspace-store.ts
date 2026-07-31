@@ -14,6 +14,7 @@ export class WorkspaceStore {
 		private objectStore: ObjectStore,
 		private eventStore: EventStore,
 		private parser?: CdslParser,
+		private personnelId: string = "system",
 	) {}
 
 	async init(
@@ -188,7 +189,7 @@ export class WorkspaceStore {
 			? buildPatientLearningBucket(noteObj.patient)
 			: undefined;
 		const items = await this.parser.parse(dictation, {
-			personnelId: "system",
+			personnelId: this.personnelId,
 			patientContext: patientBucket,
 		});
 
