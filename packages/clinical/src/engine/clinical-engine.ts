@@ -17,6 +17,7 @@ import {
 import type {
 	CalibrationStore,
 	ConceptFieldStore,
+	ParserMacroStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
 	SignedSoapNoteRecord,
@@ -29,6 +30,7 @@ import type {
 	ParsedCellHistoryStore,
 	ParsedCellRecord,
 	ParsedCellStore,
+	SystemWeightStore,
 } from "../store/learning/interfaces";
 import {
 	MAX_ORDERED_TOKENS,
@@ -40,6 +42,8 @@ import {
 import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
 import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";
+import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
+import type { TagStore } from "../store/parser/tags/interfaces";
 import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 
 // ── Order-Aware Projection ───────────────────────────────────────────────────
@@ -419,6 +423,10 @@ export interface ClinicalEngineConfig {
 	profileStore?: ParserProfileStore;
 	orderAwareStore?: OrderedLearningStore;
 	autocompleteTransitionStore?: AutocompleteTransitionStore;
+	weightStore?: SystemWeightStore;
+	tagStore?: TagStore;
+	profileTagStore?: ProfileTagStore;
+	macroStore?: ParserMacroStore;
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
@@ -471,6 +479,11 @@ export class ClinicalEngine {
 				profile,
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
+				weightStore: config.weightStore,
+				autocompleteTransitionStore: config.autocompleteTransitionStore,
+				tagStore: config.tagStore,
+				profileTagStore: config.profileTagStore,
+				macroStore: config.macroStore,
 				commandSuggester: this.commandSuggester,
 			});
 		} else if (profileStore) {
@@ -483,6 +496,11 @@ export class ClinicalEngine {
 				profile: {} as ParserSyntaxProfile,
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
+				weightStore: config.weightStore,
+				autocompleteTransitionStore: config.autocompleteTransitionStore,
+				tagStore: config.tagStore,
+				profileTagStore: config.profileTagStore,
+				macroStore: config.macroStore,
 				commandSuggester: this.commandSuggester,
 			});
 		}

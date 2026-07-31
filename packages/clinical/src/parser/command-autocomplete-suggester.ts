@@ -12,6 +12,7 @@ import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
 import type { TagRecord, TagStore } from "../store/parser/tags/interfaces";
 import { parseTagMetadata } from "../store/parser/tags/interfaces";
 import type {
+	AutocompleteSelection,
 	CommandAutocompleteContext,
 	CommandAutocompleteSuggestion,
 } from "../store/reference/auto-complete/command-autocomplete-interfaces";
@@ -413,6 +414,18 @@ export class CommandAutocompleteSuggester {
 			lastUpdatedAt: new Date().toISOString(),
 		};
 		await this.transitionStore.increment(plan);
+	}
+
+	async recordSelection(selection: AutocompleteSelection): Promise<void> {
+		if (selection.kind === "tag") {
+			await this.recordTagSelection(
+				selection.value,
+				selection.targetSchema,
+				selection.context,
+			);
+			return;
+		}
+		await this.recordMacroSelection(selection.value, selection.context);
 	}
 
 	/**

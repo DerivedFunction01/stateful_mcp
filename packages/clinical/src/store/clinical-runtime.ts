@@ -75,6 +75,7 @@ export interface ClinicalRuntime {
 	learningStores: ParsedCellStore[];
 	orderedLearningStores: OrderedLearningStore[];
 	autocompleteTransitionStores: AutocompleteTransitionStore[];
+	autocompleteTransitionStore?: AutocompleteTransitionStore;
 }
 
 // ── Factory using decomposed stores ──────────────────────────────────────────
@@ -149,6 +150,7 @@ export async function createClinicalRuntime(
 		learningStores: await buildLearningStores(config),
 		orderedLearningStores,
 		autocompleteTransitionStores,
+		autocompleteTransitionStore: autocompleteTransitionStores[0],
 	};
 }
 

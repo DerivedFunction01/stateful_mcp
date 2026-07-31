@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { CdslParser } from "../src/parser/cdsl-parser";
 import { CommandAutocompleteSuggester } from "../src/parser/command-autocomplete-suggester";
 import type {
 	ParserMacro,
@@ -687,6 +688,47 @@ describe("CommandAutocompleteSuggester", () => {
 		});
 	});
 
+	describe("recordSelection", () => {
+		it("delegates explicit tag and macro selections", async () => {
+			const transitionStore = new InMemoryAutocompleteTransitionStore();
+			const suggester = new CommandAutocompleteSuggester(
+				new InMemoryTagStore(),
+				new InMemoryProfileTagStore(),
+				TEST_PROFILE,
+				transitionStore,
+			);
+			const context = {
+				recentTargetSchemas: ["ObservationEvent"],
+				personnelId: "test-user",
+			};
+
+			await suggester.recordSelection({
+				kind: "tag",
+				value: "v1",
+				targetSchema: "VitalsMeasurementEvent",
+				context,
+			});
+			await suggester.recordSelection({
+				kind: "macro",
+				value: "vitals",
+				context,
+			});
+
+			const records = await transitionStore.getByFromSlot({
+				personnelId: "test-user",
+				templateId: "command",
+				fromSlot: "ObservationEvent",
+				toSlot: "",
+				featureKey: "command_tag",
+			});
+			expect(records).toHaveLength(2);
+			expect(records.map((record) => record.featureKey).sort()).toEqual([
+				"command_macro",
+				"command_tag",
+			]);
+		});
+	});
+
 	describe("suggestTerms", () => {
 		it("returns empty when no dictionary store is configured", async () => {
 			const suggester = new CommandAutocompleteSuggester(
@@ -844,5 +886,26 @@ describe("CommandAutocompleteSuggester", () => {
 			const results = await suggester.suggest("/cmd", "/");
 			expect(results).toHaveLength(0);
 		});
+	});
+});
+
+describe("CdslParser command autocomplete wiring", () => {
+	it("creates the command suggester from injected tag stores", async () => {
+		const tagStore = new InMemoryTagStore();
+		await tagStore.set(makeTag("v1", "vital"));
+
+		const parser = new CdslParser({
+			dictionaryStore: {} as any,
+			profile: TEST_PROFILE,
+			tagStore,
+			profileTagStore: new InMemoryProfileTagStore(),
+		});
+
+		const suggestions = await parser.suggestAutocomplete("#v", {
+			personnelId: "test-user",
+		} as any);
+
+		expect(suggestions[0]?.slotName).toBe("vital");
+		expect(suggestions[0]?.targetSchema).toBe("VitalsMeasurementEvent");
 	});
 });

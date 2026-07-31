@@ -14,10 +14,13 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type {
+	AutocompleteTransitionStore,
 	ParsedCellHistoryStore,
 	SystemWeightStore,
 } from "../store/learning/interfaces";
 import { GenericConfidenceScorer } from "../store/learning/parsed_cell/confidence-scorer";
+import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
+import type { TagStore } from "../store/parser/tags/interfaces";
 import type {
 	CommandAutocompleteContext,
 	CommandAutocompleteSuggestion,
@@ -29,7 +32,7 @@ import {
 	buildNumericFieldRules,
 } from "../store/rules-builder";
 import { SegmentProcessor } from "./cdsl-segment-processor";
-import type { CommandAutocompleteSuggester } from "./command-autocomplete-suggester";
+import { CommandAutocompleteSuggester } from "./command-autocomplete-suggester";
 import type {
 	SharedFieldAnchorRule,
 	SharedFieldAnchorStore,
@@ -62,6 +65,9 @@ export interface CdslParserOptions {
 	macroStore?: ParserMacroStore;
 	variableService?: VariableService;
 	weightStore?: SystemWeightStore;
+	autocompleteTransitionStore?: AutocompleteTransitionStore;
+	tagStore?: TagStore;
+	profileTagStore?: ProfileTagStore;
 	commandSuggester?: CommandAutocompleteSuggester;
 }
 
@@ -77,6 +83,7 @@ export class CdslParser {
 	private macroStore?: ParserMacroStore;
 	private variableService?: VariableService;
 	private weightStore?: SystemWeightStore;
+	private autocompleteTransitionStore?: AutocompleteTransitionStore;
 	private commandSuggester?: CommandAutocompleteSuggester;
 	private attributeRules: AttributeParserRule[];
 	private segmentProcessor: SegmentProcessor;
@@ -101,7 +108,20 @@ export class CdslParser {
 		this.macroStore = options.macroStore;
 		this.variableService = options.variableService;
 		this.weightStore = options.weightStore;
-		this.commandSuggester = options.commandSuggester;
+		this.autocompleteTransitionStore = options.autocompleteTransitionStore;
+		this.commandSuggester =
+			options.commandSuggester ??
+			(options.tagStore && options.profileTagStore
+				? new CommandAutocompleteSuggester(
+						options.tagStore,
+						options.profileTagStore,
+						this.profile,
+						this.autocompleteTransitionStore,
+						this.weightStore,
+						this.macroStore,
+						this.dictionaryStore,
+					)
+				: undefined);
 		this.attributeRules = [
 			...(this.profile.attributeRules || []),
 			...(this.profile.calendarDateFormats

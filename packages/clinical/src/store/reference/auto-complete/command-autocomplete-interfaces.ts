@@ -45,6 +45,18 @@ export interface CommandAutocompleteContext {
 	personnelId?: string;
 }
 
+export interface AutocompleteSelectionContext {
+	personnelId?: string;
+	recentTargetSchemas?: string[];
+}
+
+export interface AutocompleteSelection {
+	kind: "tag" | "macro";
+	value: string;
+	targetSchema?: string;
+	context?: AutocompleteSelectionContext;
+}
+
 /**
  * Options bag for the extended `CdslParser.suggestAutocomplete()`.
  */
