@@ -278,12 +278,6 @@ export interface SignedSoapNoteStore {
 	listForPatient(patientId: string): Promise<SignedSoapNoteRecord[]>;
 }
 
-export interface EpistemicWorkspaceStore {
-	getWorkspace(workspaceId: string): Promise<EpistemicWorkspace | null>;
-	saveWorkspace(workspace: EpistemicWorkspace): Promise<void>;
-	listWorkspacesForNote(soapNoteId: string): Promise<EpistemicWorkspace[]>;
-}
-
 export interface Personnel {
 	personnelId: string;
 	fullName: string;
