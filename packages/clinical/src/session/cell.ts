@@ -41,10 +41,10 @@ export enum CellError {
 	BRANCH_LOCAL_REQUIRES_WORKSPACE_ID = "BRANCH_LOCAL_REQUIRES_WORKSPACE_ID",
 	WORKSPACE_STORE_NOT_CONFIGURED = "WORKSPACE_STORE_NOT_CONFIGURED",
 	PARSER_NOT_CONFIGURED = "PARSER_NOT_CONFIGURED",
-	NARRATIVE_PIPELINE_NOT_IMPLEMENTED = "NARRATIVE_PIPELINE_NOT_IMPLEMENTED",
 	JS_SCRIPT_NOT_IMPLEMENTED = "JS_SCRIPT_NOT_IMPLEMENTED",
 	PARENT_CELL_NOT_FOUND = "PARENT_CELL_NOT_FOUND",
 	LINK_TARGET_NOT_FOUND = "LINK_TARGET_NOT_FOUND",
+	NARRATIVE_TARGET_REQUIRED = "NARRATIVE_TARGET_REQUIRED",
 }
 
 export const CELL_ERROR_MESSAGES: Record<CellError, string> = {
@@ -58,11 +58,10 @@ export const CELL_ERROR_MESSAGES: Record<CellError, string> = {
 		"branch_local cells require workspaceId and branchId",
 	[CellError.WORKSPACE_STORE_NOT_CONFIGURED]: "WorkspaceStore not configured",
 	[CellError.PARSER_NOT_CONFIGURED]: "CdslParser not configured",
-	[CellError.NARRATIVE_PIPELINE_NOT_IMPLEMENTED]:
-		"narrative pipeline not yet implemented",
 	[CellError.JS_SCRIPT_NOT_IMPLEMENTED]: "js_script mode not implemented",
 	[CellError.PARENT_CELL_NOT_FOUND]: "parent cell not found",
 	[CellError.LINK_TARGET_NOT_FOUND]: "link target not found",
+	[CellError.NARRATIVE_TARGET_REQUIRED]: "narrative cells require narrativeTarget",
 };
 
 export interface Cell {
@@ -80,5 +79,6 @@ export interface Cell {
 	metadata?: Record<string, unknown>;
 	parentCellId?: string;
 	linkTarget?: CellLinkTarget;
+	narrativeTarget?: string; // dot-separated SoapNote field path, e.g. "subjective.historyOfPresentIllness.narrative"
 	context: CellContext;
 }

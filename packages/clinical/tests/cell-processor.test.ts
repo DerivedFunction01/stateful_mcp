@@ -5,6 +5,7 @@ import type { SoapNote } from "../src/schemas/document";
 import type { Cell } from "../src/session/cell";
 import { CellError } from "../src/session/cell";
 import { CellProcessor } from "../src/session/cell-processor";
+import type { ParsedItem } from "../src/parser/schema-parsers";
 
 function makeCell(overrides: Partial<Cell> = {}): Cell {
 	return {
@@ -135,6 +136,87 @@ describe("CellProcessor", () => {
 			expect(result.error?.message).toBe("parse failure");
 			expect(result.cell.lockedAt).toBeUndefined();
 		});
+
+		test("execute: narrative cell sets field on SoapNote", async () => {
+			const mockNote = {
+				id: "note_1",
+				title: "Test",
+				status: "draft",
+				patient: { id: "p1" } as any,
+				subjective: { historyOfPresentIllness: { narrative: "" } },
+				objective: {},
+				assessment: {},
+				plan: {},
+			} as unknown as SoapNote;
+
+			const engine = {
+				setSoapNoteField: async (
+					_sessionId: string,
+					fieldPath: string,
+					value: string,
+					_alias?: string,
+				): Promise<SoapNote> => {
+					// Simulate setting the field on the note
+					const parts = fieldPath.split(".");
+					let current: any = mockNote;
+					for (let i = 0; i < parts.length - 1; i++) {
+						const key = parts[i]!;
+						if (!current[key]) current[key] = {};
+						current = current[key];
+					}
+					current[parts[parts.length - 1]!] = value;
+					return mockNote;
+				},
+			} as unknown as ClinicalEngine;
+
+			const processor = new CellProcessor(engine);
+			const cell = makeCell({
+				mode: "narrative",
+				rawInput: "Patient reports chest pain for 3 days",
+				narrativeTarget: "subjective.historyOfPresentIllness.narrative",
+			});
+			const result = await processor.execute(cell);
+
+			expect(result.cell.status).toBe("committed");
+			expect(result.cell.lockedAt).toBeDefined();
+			expect(result.cell.metadata?.sourceType).toBe("narrative");
+			expect(result.cell.parsedOutput).toBeNull();
+			expect(result.soapNote).toBeDefined();
+			expect(result.error).toBeUndefined();
+		});
+
+		test("execute: narrative cell without narrativeTarget returns error", async () => {
+			const engine = {} as unknown as ClinicalEngine;
+			const processor = new CellProcessor(engine);
+			const cell = makeCell({
+				mode: "narrative",
+				rawInput: "Some narrative text",
+			});
+			const result = await processor.execute(cell);
+
+			expect(result.cell.status).toBe("error");
+			expect(result.error?.code).toBe(CellError.NARRATIVE_TARGET_REQUIRED);
+			expect(result.cell.lockedAt).toBeUndefined();
+		});
+
+		test("execute: narrative cell propagates engine errors", async () => {
+			const engine = {
+				setSoapNoteField: async (): Promise<SoapNote> => {
+					throw new Error("engine failure");
+				},
+			} as unknown as ClinicalEngine;
+
+			const processor = new CellProcessor(engine);
+			const cell = makeCell({
+				mode: "narrative",
+				rawInput: "Some text",
+				narrativeTarget: "plan.narrative",
+			});
+			const result = await processor.execute(cell);
+
+			expect(result.cell.status).toBe("error");
+			expect(result.cell.lockedAt).toBeUndefined();
+		});
 	});
 
 	describe("preview", () => {
@@ -193,6 +275,22 @@ describe("CellProcessor", () => {
 
 			expect(result.error?.code).toBe(CellError.CELL_IS_DELETED);
 			expect(result.cell.status).toBe("deleted");
+		});
+
+		test("preview: narrative cell returns error", async () => {
+			const processor = new CellProcessor({
+				renderNote: async () => null,
+			} as unknown as ClinicalEngine);
+			const cell = makeCell({
+				mode: "narrative",
+				rawInput: "Some narrative text",
+				narrativeTarget: "plan.narrative",
+			});
+			const result = await processor.preview(cell);
+
+			expect(result.error).toBeDefined();
+			expect(result.error?.message).toBe("preview not available for narrative cells");
+			expect(result.cell.status).toBe("draft");
 		});
 	});
 

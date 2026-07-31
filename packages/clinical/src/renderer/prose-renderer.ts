@@ -41,7 +41,7 @@ export class ProseRenderer {
 			"closing",
 		);
 		if (resultNote.assessment) {
-			resultNote.assessment.clinicalImpression =
+			resultNote.assessment.narrative =
 				assessmentNarrative || undefined;
 		}
 

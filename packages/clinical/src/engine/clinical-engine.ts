@@ -929,6 +929,41 @@ export class ClinicalEngine {
 	}
 
 	/**
+	 * Deep-set a field on the SoapNote object by dot-separated path.
+	 * Creates intermediate objects if they don't exist.
+	 * Used by narrative cells that target free-text fields directly.
+	 */
+	async setSoapNoteField(
+		sessionId: string,
+		fieldPath: string,
+		value: any,
+		alias?: string,
+	): Promise<SoapNote> {
+		const effectiveAlias = alias ?? sessionId;
+		const obj = await this.objectStore.getObject(effectiveAlias, sessionId);
+		if (!obj) throw new Error("No active encounter note session found.");
+
+		const note = obj.data as SoapNote;
+		const parts = fieldPath.split(".");
+
+		// Navigate, creating intermediate objects as needed
+		let current: any = note;
+		for (let i = 0; i < parts.length - 1; i++) {
+			const key = parts[i]!;
+			if (current[key] === undefined || current[key] === null) {
+				current[key] = {};
+			}
+			current = current[key];
+		}
+
+		const lastKey = parts[parts.length - 1]!;
+		current[lastKey] = value;
+
+		await this.objectStore.set(effectiveAlias, [], note, sessionId);
+		return note;
+	}
+
+	/**
 	 * Renders a SOAP note's narrative fields using prose templates.
 	 * Returns the rendered note without persisting to the store.
 	 * Rendering is a computed view — the structured note in the store is unchanged.

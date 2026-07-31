@@ -37,6 +37,36 @@ export class CellProcessor {
 			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
 		}
 
+		// Handle narrative mode: directly write rawInput to the targeted SoapNote field
+		if (cell.mode === "narrative") {
+			if (!cell.narrativeTarget) {
+				cell.status = "error";
+				cell.errorMessage = CELL_ERROR_MESSAGES[CellError.NARRATIVE_TARGET_REQUIRED];
+				await this.saveCell(cell);
+				return { cell, error: this.cellError(CellError.NARRATIVE_TARGET_REQUIRED) };
+			}
+			cell.parsedOutput = null;
+			cell.metadata = { ...cell.metadata, sourceType: "narrative" };
+			try {
+				const effectiveAlias = alias ?? cell.sessionId;
+				const note = await this.engine.setSoapNoteField(
+					cell.sessionId,
+					cell.narrativeTarget,
+					cell.rawInput,
+					effectiveAlias,
+				);
+				cell.status = "committed";
+				cell.lockedAt = new Date().toISOString();
+				await this.saveCell(cell);
+				return { cell, soapNote: note };
+			} catch (err) {
+				cell.status = "error";
+				cell.errorMessage = err instanceof Error ? err.message : String(err);
+				await this.saveCell(cell);
+				return { cell, error: { code: CellError.PARSER_NOT_CONFIGURED, message: cell.errorMessage } };
+			}
+		}
+
 		// Resolve parent context before processing
 		const parentError = await this.resolveParentContext(cell);
 		if (parentError) return parentError;
@@ -149,6 +179,11 @@ export class CellProcessor {
 		}
 		if (cell.status === "deleted") {
 			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
+		}
+
+		// Narrative cells have no preview — rawInput is written directly to the targeted field
+		if (cell.mode === "narrative") {
+			return { cell, error: { code: CellError.PARSER_NOT_CONFIGURED, message: "preview not available for narrative cells" } };
 		}
 
 		if (!this.parser) {

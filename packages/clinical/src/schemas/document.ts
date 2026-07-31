@@ -143,7 +143,7 @@ export interface SoapNote {
 		/**
 		 * Free-text clinical impression tying together the assessment rationale.
 		 */
-		clinicalImpression?: string;
+		narrative?: string;
 	};
 
 	// ── PLAN ───────────────────────────────────────────────────────────
