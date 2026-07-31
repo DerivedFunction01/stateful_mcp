@@ -1,5 +1,6 @@
 import type { KvBackend } from "@stateful-mcp/core";
 import type { ClinicalProseTemplate } from "../../parser/interfaces";
+import type { Position } from "../auto-complete/interfaces";
 import type { ClinicalProseTemplateStore } from "./interfaces";
 
 export class KvClinicalProseTemplateStore
@@ -22,7 +23,7 @@ export class KvClinicalProseTemplateStore
 
 	async get(
 		schema: string,
-		position: "opening" | "continuing" | "closing" | "full_paragraph",
+		position: Position,
 		conceptId?: string,
 		workspaceId?: string,
 	): Promise<ClinicalProseTemplate | null> {
@@ -50,7 +51,7 @@ export class KvClinicalProseTemplateStore
 
 	async listBySchema(
 		schema: string,
-		position?: "opening" | "continuing" | "closing" | "full_paragraph",
+		position?: Position,
 	): Promise<ClinicalProseTemplate[]> {
 		const data = await this.backend.load();
 		const entries = Object.values(data) as ClinicalProseTemplate[];

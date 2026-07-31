@@ -1,5 +1,5 @@
-import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 import type { ParserConceptDefault } from "../../../store/interfaces";
+import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeConceptDefault(
 	record: ClinicalInitSeedLoadedRecord,

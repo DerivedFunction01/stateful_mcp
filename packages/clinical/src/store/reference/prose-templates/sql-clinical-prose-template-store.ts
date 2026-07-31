@@ -1,6 +1,7 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { ClinicalProseTemplate } from "../../parser/interfaces";
 import { ReferenceQueryCompiler } from "../../sql/reference-query-compiler";
+import type { Position } from "../auto-complete/interfaces";
 import type { ClinicalProseTemplateStore } from "./interfaces";
 
 export class SqlClinicalProseTemplateStore
@@ -31,7 +32,7 @@ export class SqlClinicalProseTemplateStore
 
 	async get(
 		schema: string,
-		position: "opening" | "continuing" | "closing" | "full_paragraph",
+		position: Position,
 		conceptId?: string,
 		workspaceId?: string,
 	): Promise<ClinicalProseTemplate | null> {
@@ -57,7 +58,7 @@ export class SqlClinicalProseTemplateStore
 
 	async listBySchema(
 		schema: string,
-		position?: "opening" | "continuing" | "closing" | "full_paragraph",
+		position?: Position,
 	): Promise<ClinicalProseTemplate[]> {
 		const { sql, params } =
 			this.compiler.compileListClinicalProseTemplatesBySchema(
@@ -114,11 +115,7 @@ export class SqlClinicalProseTemplateStore
 		const t: ClinicalProseTemplate = {
 			templateId: row.templateId as string,
 			targetSchema: row.targetSchema as string,
-			slotPosition: row.slotPosition as
-				| "opening"
-				| "continuing"
-				| "closing"
-				| "full_paragraph",
+			slotPosition: row.slotPosition as Position,
 			templateText: row.templateText as string,
 			slots: JSON.parse(row.slotsBlob || "{}"),
 		};

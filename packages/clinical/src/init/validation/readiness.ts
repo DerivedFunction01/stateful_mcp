@@ -1,6 +1,10 @@
 import type { ClinicalRuntimeParserStores } from "../../store/clinical-runtime";
 
-export type BootstrapReadiness = "not-checked" | "bootstrap-ready" | "full-ready" | "degraded";
+export type BootstrapReadiness =
+	| "not-checked"
+	| "bootstrap-ready"
+	| "full-ready"
+	| "degraded";
 
 export async function validateBootstrapReadiness(
 	stores: ClinicalRuntimeParserStores,
@@ -10,13 +14,19 @@ export async function validateBootstrapReadiness(
 
 	const activeProfile = profiles[0]!;
 
-	const attributeBindings = await stores.attributeBindings.listBindings(activeProfile.profileId);
+	const attributeBindings = await stores.attributeBindings.listBindings(
+		activeProfile.profileId,
+	);
 	if (attributeBindings.length === 0) return "degraded";
 
-	const evaluatorBindings = await stores.evaluatorBindings.listBindings(activeProfile.profileId);
+	const evaluatorBindings = await stores.evaluatorBindings.listBindings(
+		activeProfile.profileId,
+	);
 	if (evaluatorBindings.length === 0) return "degraded";
 
-	const profileTags = await stores.profileTags.getProfileTags(activeProfile.profileId);
+	const profileTags = await stores.profileTags.getProfileTags(
+		activeProfile.profileId,
+	);
 	if (profileTags.length === 0) return "degraded";
 
 	const conceptDefaults = await stores.conceptDefaults.list();

@@ -1,18 +1,16 @@
-import type { ClinicalInitSeedLoadedRecord } from "./seed/record";
 import type { ClinicalStoreConfig } from "../store/clinical-config";
-import type { ClinicalInitConfig, ClinicalInitReport, ClinicalInitDiagnostic } from "./types";
-import {
-	resolveClinicalInitConfig,
-} from "./config/defaults";
+import { bootstrapClinicalStores } from "./bootstrap/bootstrap-writer";
+import { resolveClinicalInitConfig } from "./config/defaults";
 import { validateClinicalInitConfig } from "./config/validation";
 import {
-	STARTER_CLINICAL_INIT_MANIFEST,
 	loadClinicalInitSeedModules,
+	resolveVariations,
+	STARTER_CLINICAL_INIT_MANIFEST,
 	validateClinicalInitSeedManifest,
 	validateLoadedVariations,
-	resolveVariations,
 } from "./seed/manifest";
-import { bootstrapClinicalStores } from "./bootstrap/bootstrap-writer";
+import type { ClinicalInitSeedLoadedRecord } from "./seed/record";
+import type { ClinicalInitDiagnostic, ClinicalInitReport } from "./types";
 import { validateBootstrapReadiness } from "./validation/readiness";
 
 export async function initializeClinicalRuntime(

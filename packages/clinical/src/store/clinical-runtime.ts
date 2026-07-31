@@ -14,6 +14,7 @@ import type {
 import { resolveParsedCellStoreLocatorV2 } from "./learning/learning-backend-resolver";
 import { resolveOrderedLearningStoreLocator } from "./learning/ordered-learning-resolver";
 import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "./parser/concept_defaults/interfaces";
+import type { ConceptFieldStore } from "./parser/concept_fields/interfaces";
 import {
 	resolveCalibrationExceptionStore,
 	resolveConceptDefaultStore,
@@ -46,9 +47,10 @@ import type { PersonnelStore } from "./reference/personnel/interfaces";
 import type { ProseParserTemplateStore } from "./reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
 import { DefaultStopWordStore } from "./reference/stop-words/default-stop-word-store";
-import type { StopWordStore } from "./reference/stop-words/interfaces";
-import type { StopWordWordListStore } from "./reference/stop-words/interfaces";
-import type { ConceptFieldStore } from "./parser/concept_fields/interfaces";
+import type {
+	StopWordStore,
+	StopWordWordListStore,
+} from "./reference/stop-words/interfaces";
 
 // ── Public types ─────────────────────────────────────────────────────
 

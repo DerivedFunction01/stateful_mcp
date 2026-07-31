@@ -3,6 +3,7 @@ import type { SoapNote } from "../schemas/document";
 import type { CodeableConcept } from "../schemas/shared";
 import type { Cell, CellContext, CellMode, CellStatus } from "../session/cell";
 import type { ClinicalProseTemplate } from "../store/interfaces";
+import type { Position } from "../store/reference/auto-complete/interfaces";
 import { TemplateRenderer } from "./template-renderer";
 
 // ── Cell Rendering Types ─────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export class ProseRenderer {
 			resultNote,
 			hpiEvents,
 			templates,
-			"opening",
+			"opening" as Position,
 		);
 		if (resultNote.subjective?.historyOfPresentIllness) {
 			resultNote.subjective.historyOfPresentIllness.narrative =
@@ -292,7 +293,7 @@ export class ProseRenderer {
 		rootNote: SoapNote,
 		items: any[],
 		templates: ClinicalProseTemplate[],
-		position: "opening" | "continuing" | "closing" | "full_paragraph",
+		position: Position,
 	): string {
 		const matchedTemplates = templates.filter(
 			(t) => t.slotPosition === position,

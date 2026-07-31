@@ -1,5 +1,5 @@
-import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 import type { StoredAttributeRule } from "../../../store/parser/rules/interfaces";
+import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeAttributeRule(
 	record: ClinicalInitSeedLoadedRecord,

@@ -1,8 +1,8 @@
-export { normalizeProfile } from "./profile";
 export { normalizeAttributeRule } from "./attribute-rule";
+export { normalizeConceptDefault } from "./concept-default";
 export { normalizeEvaluatorRule } from "./evaluator-rule";
 export { normalizeFieldRule } from "./field-rule";
-export { normalizeConceptDefault } from "./concept-default";
+export { normalizeProfile } from "./profile";
 export { normalizeProseRule } from "./prose-rule";
 export { normalizeSharedAnchor } from "./shared-anchor";
 export { normalizeStopWordList } from "./stop-word-list";

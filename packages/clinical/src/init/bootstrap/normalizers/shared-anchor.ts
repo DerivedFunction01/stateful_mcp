@@ -1,5 +1,5 @@
-import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 import type { SharedFieldAnchorRule } from "../../../parser/field-shared/shared-field-anchor";
+import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeSharedAnchor(
 	record: ClinicalInitSeedLoadedRecord,

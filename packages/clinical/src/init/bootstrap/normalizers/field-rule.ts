@@ -1,5 +1,5 @@
-import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 import type { ConceptFieldRule } from "../../../store/interfaces";
+import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeFieldRule(
 	record: ClinicalInitSeedLoadedRecord,

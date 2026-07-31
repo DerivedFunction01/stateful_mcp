@@ -1,44 +1,37 @@
 import { describe, expect, it } from "bun:test";
-import {
-	initializeClinicalRuntime,
-} from "../src/init/orchestrator";
-import {
-	bootstrapClinicalStores,
-} from "../src/init/bootstrap/bootstrap-writer";
-import {
-	validateBootstrapReadiness,
-} from "../src/init/validation/readiness";
-import {
-	STARTER_CLINICAL_INIT_MANIFEST,
-	loadClinicalInitSeedModules,
-	resolveVariations,
-	validateClinicalInitSeedManifest,
-	validateLoadedVariations,
-} from "../src/init/seed/manifest";
+import { MemoryKvBackend } from "@stateful-mcp/core";
+import { bootstrapClinicalStores } from "../src/init/bootstrap/bootstrap-writer";
 import {
 	resolveClinicalInitConfig,
 	validateClinicalInitConfig,
 } from "../src/init/config";
-import type { ClinicalStoreConfig } from "../src/store/clinical-config";
+import { initializeClinicalRuntime } from "../src/init/orchestrator";
+import {
+	loadClinicalInitSeedModules,
+	resolveVariations,
+	STARTER_CLINICAL_INIT_MANIFEST,
+	validateClinicalInitSeedManifest,
+	validateLoadedVariations,
+} from "../src/init/seed/manifest";
 import type { ClinicalInitConfig } from "../src/init/types";
-import type { ClinicalInitReport } from "../src/init/types";
+import { validateBootstrapReadiness } from "../src/init/validation/readiness";
+import type { ClinicalStoreConfig } from "../src/store/clinical-config";
 import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime";
+import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
+import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
+import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
+import { KvParserMacroStore } from "../src/store/parser/macros/kv-macro-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
 import { KvProfileTagStore } from "../src/store/parser/profiles/kv-profile-tag-store";
 import { KvParserAttributeRuleStore } from "../src/store/parser/rules/kv-parser-attribute-rule-store";
 import { KvParserEvaluatorRuleStore } from "../src/store/parser/rules/kv-parser-evaluator-rule-store";
-import { KvProfileRuleBindingStore } from "../src/store/parser/rules/kv-profile-rule-binding-store";
 import { KvProfileEvaluatorBindingStore } from "../src/store/parser/rules/kv-profile-evaluator-binding-store";
+import { KvProfileRuleBindingStore } from "../src/store/parser/rules/kv-profile-rule-binding-store";
 import { KvTagStore } from "../src/store/parser/tags/kv-tag-store";
-import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
-import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
-import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
+import { KvProseParserTemplateStore } from "../src/store/reference/prose-parser-templates/kv-prose-parser-template-store";
+import { KvClinicalProseTemplateStore } from "../src/store/reference/prose-templates/kv-clinical-prose-template-store";
 import { KvStopWordProfileStore } from "../src/store/reference/stop-words/kv-stop-word-profile-store";
 import { KvStopWordWordListStore } from "../src/store/reference/stop-words/kv-stop-word-word-list-store";
-import { KvClinicalProseTemplateStore } from "../src/store/reference/prose-templates/kv-clinical-prose-template-store";
-import { KvProseParserTemplateStore } from "../src/store/reference/prose-parser-templates/kv-prose-parser-template-store";
-import { KvParserMacroStore } from "../src/store/parser/macros/kv-macro-store";
-import { MemoryKvBackend } from "@stateful-mcp/core";
 
 function makeMockStores(): ClinicalRuntimeParserStores {
 	const backend = new MemoryKvBackend();
@@ -173,9 +166,19 @@ describe("validateBootstrapReadiness", () => {
 			boundaryDelimiter: "",
 			transitionalWords: [],
 		});
-		await stores.attributeBindings.bind("starter.default", "starter.attribute-rules", 1);
-		await stores.evaluatorBindings.bind("starter.default", "starter.evaluator-rules", 1);
-		await stores.profileTags.setProfileTags("starter.default", ["tag.observation"]);
+		await stores.attributeBindings.bind(
+			"starter.default",
+			"starter.attribute-rules",
+			1,
+		);
+		await stores.evaluatorBindings.bind(
+			"starter.default",
+			"starter.evaluator-rules",
+			1,
+		);
+		await stores.profileTags.setProfileTags("starter.default", [
+			"tag.observation",
+		]);
 		await stores.stopWordProfiles.set({
 			profileId: "default",
 			personnelId: "default",

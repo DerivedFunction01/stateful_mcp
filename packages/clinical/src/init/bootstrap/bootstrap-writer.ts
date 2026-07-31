@@ -1,18 +1,21 @@
-import type { ClinicalInitSeedLoadedRecord, ClinicalInitSeedKind } from "../seed/record";
+import type {
+	ClinicalInitSeedKind,
+	ClinicalInitSeedLoadedRecord,
+} from "../seed/record";
 import type { ClinicalInitDiagnostic, ClinicalInitSeedPolicy } from "../types";
 import { ClinicalInitSeedDiagnosticCode } from "../types";
-import type { BootstrapStores } from "./stores";
 import {
-	normalizeProfile,
 	normalizeAttributeRule,
+	normalizeConceptDefault,
 	normalizeEvaluatorRule,
 	normalizeFieldRule,
-	normalizeConceptDefault,
+	normalizeProfile,
 	normalizeProseRule,
 	normalizeSharedAnchor,
 	normalizeStopWordList,
 	normalizeStopWordProfile,
 } from "./normalizers";
+import type { BootstrapStores } from "./stores";
 
 export interface ClinicalInitBootstrapResult {
 	recordsWritten: Partial<Record<ClinicalInitSeedKind, number>>;
@@ -164,7 +167,9 @@ async function isStoreEmpty(
 ): Promise<boolean> {
 	switch (kind) {
 		case "profile": {
-			const existing = await stores.profiles.get(record.profileId ?? record.recordId);
+			const existing = await stores.profiles.get(
+				record.profileId ?? record.recordId,
+			);
 			return existing === null;
 		}
 		case "attribute_rule": {
@@ -193,7 +198,9 @@ async function isStoreEmpty(
 		}
 		case "prose_rule": {
 			const payload = record.payload as Record<string, unknown> | undefined;
-			const existing = await stores.proseTemplates.getById(payload?.templateId as string);
+			const existing = await stores.proseTemplates.getById(
+				payload?.templateId as string,
+			);
 			return existing === null;
 		}
 		case "shared_field_anchor": {
@@ -206,7 +213,9 @@ async function isStoreEmpty(
 		}
 		case "stop_word_profile": {
 			const payload = record.payload as Record<string, unknown> | undefined;
-			const existing = await stores.stopWordProfiles.getProfile(payload?.profileId as string);
+			const existing = await stores.stopWordProfiles.getProfile(
+				payload?.profileId as string,
+			);
 			return existing === null;
 		}
 		default:

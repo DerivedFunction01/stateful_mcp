@@ -221,6 +221,7 @@ export interface CalibrationStore {
 }
 
 import type { PipelineStep } from "@stateful-mcp/core";
+import type { Position } from "./reference/auto-complete/interfaces";
 
 export interface SlotCondition {
 	pipeline: PipelineStep[];
@@ -250,7 +251,7 @@ export interface ClinicalProseTemplate {
 	targetConceptId?: string; // e.g. 'SNOMED::29857009'
 	workspaceId?: string;
 	specialtyId?: string;
-	slotPosition: "opening" | "continuing" | "closing" | "full_paragraph";
+	slotPosition: Position;
 	templateText: string;
 	slots: Record<string, OutputProseSlot>;
 }

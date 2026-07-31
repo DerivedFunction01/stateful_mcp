@@ -11,7 +11,7 @@ export interface ClinicalProseTemplateStore {
 	getById(templateId: string): Promise<ClinicalProseTemplate | null>;
 	listBySchema(
 		schema: string,
-		position?: "opening" | "continuing" | "closing" | "full_paragraph",
+		position?: Position,
 	): Promise<ClinicalProseTemplate[]>;
 	list(): Promise<ClinicalProseTemplate[]>;
 	set(template: ClinicalProseTemplate): Promise<void>;

@@ -12,10 +12,10 @@ import {
 	resolveConfigDir,
 } from "@stateful-mcp/core";
 import * as path from "path";
+import { initializeClinicalRuntime } from "../init/orchestrator";
 import type { ClinicalStoreConfig } from "./clinical-config";
 import type { ClinicalRuntime } from "./clinical-runtime";
 import { createClinicalRuntime } from "./clinical-runtime";
-import { initializeClinicalRuntime } from "../init/orchestrator";
 
 /**
  * Loads a ClinicalStoreConfig from a config directory.
