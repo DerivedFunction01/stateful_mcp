@@ -515,8 +515,33 @@ async function isStoreEmpty(
 		case "cadence_rule":
 		case "exclusion_rule":
 		case "range_rule": {
-			const existing = await stores.attributeRules.get(record.recordId);
-			return existing === null;
+			const compiled = compileTemporalRecord(record);
+			if (!compiled) return true;
+
+			for (const rule of compiled.attributeRules ?? []) {
+				const existing = await stores.attributeRules.get(rule.ruleId);
+				if (existing !== null) return false;
+			}
+
+			if (compiled.conceptFieldRules) {
+				for (const rule of compiled.conceptFieldRules) {
+					const existing = await stores.conceptFields.get(
+						rule.conceptId,
+						rule.targetSchema,
+						rule.fieldPath,
+					);
+					if (existing !== null) return false;
+				}
+			}
+
+			if (compiled.sharedFieldAnchors) {
+				for (const anchor of compiled.sharedFieldAnchors) {
+					const existing = await stores.sharedFieldAnchors.get(anchor.ruleId);
+					if (existing !== null) return false;
+				}
+			}
+
+			return true;
 		}
 		default:
 			return true;
