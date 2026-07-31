@@ -133,12 +133,24 @@ export const DEFAULT_CALENDAR_DATE_FORMATS: DateTimeFormatConfig[] = [
 	{
 		tokens: ["MM", "DD", "YYYY"],
 		separators: ["/", "/"],
-		options: { is24Hour: false },
+		options: {
+			is24Hour: false,
+			dayPeriods: {
+				am: ["AM", "a\\.m\\."],
+				pm: ["PM", "p\\.m\\."],
+			},
+		},
 	},
 	{
 		tokens: ["YYYY", "MM", "DD"],
 		separators: ["-", "-"],
-		options: { is24Hour: false },
+		options: {
+			is24Hour: false,
+			dayPeriods: {
+				am: ["AM", "a\\.m\\."],
+				pm: ["PM", "p\\.m\\."],
+			},
+		},
 	},
 	{
 		tokens: ["MM_name", "DD", "YYYY"],
@@ -159,6 +171,10 @@ export const DEFAULT_CALENDAR_DATE_FORMATS: DateTimeFormatConfig[] = [
 				"November",
 				"December",
 			],
+			dayPeriods: {
+				am: ["AM", "a\\.m\\."],
+				pm: ["PM", "p\\.m\\."],
+			},
 		},
 	},
 ];

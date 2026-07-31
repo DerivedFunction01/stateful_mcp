@@ -90,6 +90,10 @@ export type AttributeParserRule = {
 	calendarTokens?: DateTimeToken[];
 	calendarSeparators?: string[];
 	monthNames?: string[];
+	dayPeriods?: {
+		am: string[];
+		pm: string[];
+	};
 	namedGroupContract?: NamedGroupContract;
 	unitAnchor?: string;
 	targetSchema?: string;

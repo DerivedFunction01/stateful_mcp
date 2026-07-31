@@ -26,6 +26,7 @@ export function buildCalendarDateRules(
 			calendarTokens: format.tokens,
 			calendarSeparators: format.separators,
 			monthNames: format.options?.monthNames,
+			dayPeriods: format.options?.dayPeriods,
 			namedGroupContract: {
 				required: datePattern.groupNames,
 				allowed: datePattern.groupNames,

@@ -20,6 +20,10 @@ export interface DateTimeFormatConfig {
 		is24Hour?: boolean;
 		exact?: boolean;
 		monthNames?: string[];
+		dayPeriods?: {
+			am: string[];
+			pm: string[];
+		};
 	};
 }
 
@@ -58,6 +62,10 @@ function compressToRange(digits: (string | number | undefined)[]): string {
 	return combined.length > 1 ? `[${combined}]` : combined;
 }
 
+function escapeRegex(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function buildDatePatternString(
 	tokens: DateTimeToken[],
 	separators: string[],
@@ -87,6 +95,7 @@ export function buildDatePatternString(
 			"November",
 			"December",
 		],
+		dayPeriods,
 	} = options;
 
 	const centuryEntries = Object.entries(centuryDecades);
@@ -127,7 +136,9 @@ export function buildDatePatternString(
 	const ddPattern = "(?:0?[1-9]|[12]\\d|3[01])";
 	const hhPattern = is24Hour ? "(?:[01]\\d|2[0-3])" : "(?:0?[1-9]|1[0-2])";
 	const minSecPattern = "[0-5]\\d";
-	const ampmPattern = "[AaPp][Mm]";
+	const ampmPattern = dayPeriods
+		? `(?:${[...dayPeriods.am, ...dayPeriods.pm].map(escapeRegex).join("|")})`
+		: "[AaPp][Mm]";
 	const tzPattern = "(?:[A-Z]{3,4}|[+-]\\d{2}:?\\d{2})";
 
 	const tokenPatternMap: Record<DateTimeToken, (groupName: string) => string> =
@@ -179,6 +190,20 @@ export function buildMonthNameMap(
 	monthNames.forEach((name, idx) => {
 		map[name.toLowerCase()] = idx + 1;
 	});
+	return map;
+}
+
+export function buildDayPeriodMap(
+	dayPeriods?: { am: string[]; pm: string[] },
+): Map<string, "am" | "pm"> {
+	const map = new Map<string, "am" | "pm">();
+	if (!dayPeriods) return map;
+	for (const entry of dayPeriods.am) {
+		map.set(entry.toLowerCase(), "am");
+	}
+	for (const entry of dayPeriods.pm) {
+		map.set(entry.toLowerCase(), "pm");
+	}
 	return map;
 }
 

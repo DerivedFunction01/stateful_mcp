@@ -12,6 +12,7 @@ import type {
 import { getCompiledRegex } from "../_compiled-regex";
 import {
 	buildMonthNameMap,
+	buildDayPeriodMap,
 	compileDateRegex,
 } from "../utils/date-regex-generator";
 import {
@@ -354,9 +355,12 @@ export class ClinicalDateRangeTokenizer {
 		if (hh !== undefined) {
 			let hours = hh;
 			if (ampm) {
+				const dayPeriodMap = buildDayPeriodMap(rule.dayPeriods);
 				const lower = ampm.toLowerCase();
-				if (lower === "pm" && hours < 12) hours += 12;
-				if (lower === "am" && hours === 12) hours = 0;
+				const period = dayPeriodMap.get(lower) ??
+					(lower === "pm" ? "pm" : lower === "am" ? "am" : undefined);
+				if (period === "pm" && hours < 12) hours += 12;
+				if (period === "am" && hours === 12) hours = 0;
 			}
 			date.setUTCHours(hours, min ?? 0, ss ?? 0, 0);
 		}
