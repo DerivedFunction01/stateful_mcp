@@ -10,18 +10,33 @@ import { buildPatientLearningBucket } from "../schemas/patient";
 import type { CodeableConcept } from "../schemas/shared";
 
 export type WorkspaceCommandVerb =
-	| "branch" | "rule_out" | "confirm" | "suspend" | "re_activate" | "elevate" | "close";
+	| "branch"
+	| "rule_out"
+	| "confirm"
+	| "suspend"
+	| "re_activate"
+	| "elevate"
+	| "close";
 
 export type WorkspaceCommand =
 	| { verb: "branch"; branchName: string; conceptRef: string }
-	| { verb: "rule_out" | "confirm" | "suspend" | "re_activate"; branchRef: string }
+	| {
+			verb: "rule_out" | "confirm" | "suspend" | "re_activate";
+			branchRef: string;
+	  }
 	| { verb: "elevate"; branchRef: string; delta: number }
 	| { verb: "close" };
 
 export type WorkspaceCommandWarning =
-	| "MALFORMED" | "UNKNOWN_ALIAS" | "MISSING_BRANCH" | "BRANCH_NOT_FOUND"
-	| "AMBIGUOUS_BRANCH" | "UNSUPPORTED_TRANSITION" | "NO_WORKSPACE_CONTEXT"
-	| "UNRESOLVED_CONCEPT" | "DUPLICATE_COMMAND_ALIAS";
+	| "MALFORMED"
+	| "UNKNOWN_ALIAS"
+	| "MISSING_BRANCH"
+	| "BRANCH_NOT_FOUND"
+	| "AMBIGUOUS_BRANCH"
+	| "UNSUPPORTED_TRANSITION"
+	| "NO_WORKSPACE_CONTEXT"
+	| "UNRESOLVED_CONCEPT"
+	| "DUPLICATE_COMMAND_ALIAS";
 
 export class WorkspaceStore {
 	constructor(
@@ -278,7 +293,13 @@ export class WorkspaceStore {
 			workspace as unknown as Record<string, any>,
 			sessionId,
 		);
-		if (workspaceCommands?.length) await this.executeCommands(sessionId, workspaceId, workspace, workspaceCommands);
+		if (workspaceCommands?.length)
+			await this.executeCommands(
+				sessionId,
+				workspaceId,
+				workspace,
+				workspaceCommands,
+			);
 
 		return workspace;
 	}
@@ -292,26 +313,88 @@ export class WorkspaceStore {
 		for (const command of commands) {
 			if (command.verb === "close") {
 				workspace.closeRequested = true;
-				await this.eventStore.append(sessionId, workspaceId, { targetSchema: "workspace_close_requested" }, workspaceId);
+				await this.eventStore.append(
+					sessionId,
+					workspaceId,
+					{ targetSchema: "workspace_close_requested" },
+					workspaceId,
+				);
 				continue;
 			}
 			if (command.verb === "branch") {
-				const concept = workspace.branches.find((b) => b.hypothesisConcept.conceptId === command.conceptRef)?.hypothesisConcept;
+				const concept = workspace.branches.find(
+					(b) => b.hypothesisConcept.conceptId === command.conceptRef,
+				)?.hypothesisConcept;
 				if (!concept) continue;
-				const branch: ClinicalBranch = { id: `branch_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`, parentId: workspace.activeBranchId || null, name: command.branchName, hypothesisConcept: concept, status: "active", supportingConcepts: [], refutingConcepts: [], createdAt: { assertedTimestampUtc: new Date().toISOString(), precisionLevel: "second" } };
+				const branch: ClinicalBranch = {
+					id: `branch_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`,
+					parentId: workspace.activeBranchId || null,
+					name: command.branchName,
+					hypothesisConcept: concept,
+					status: "active",
+					supportingConcepts: [],
+					refutingConcepts: [],
+					createdAt: {
+						assertedTimestampUtc: new Date().toISOString(),
+						precisionLevel: "second",
+					},
+				};
 				workspace.branches.push(branch);
-				await this.eventStore.append(sessionId, workspaceId, { targetSchema: "branch_created", branchId: branch.id, name: branch.name }, workspaceId);
+				await this.eventStore.append(
+					sessionId,
+					workspaceId,
+					{
+						targetSchema: "branch_created",
+						branchId: branch.id,
+						name: branch.name,
+					},
+					workspaceId,
+				);
 				continue;
 			}
-			const matches = workspace.branches.filter((b) => [b.id, b.commandAlias, b.name, b.hypothesisConcept.conceptId, b.hypothesisConcept.display].filter(Boolean).some((v) => v === command.branchRef || v?.toLowerCase() === command.branchRef.toLowerCase()));
+			const matches = workspace.branches.filter((b) =>
+				[
+					b.id,
+					b.commandAlias,
+					b.name,
+					b.hypothesisConcept.conceptId,
+					b.hypothesisConcept.display,
+				]
+					.filter(Boolean)
+					.some(
+						(v) =>
+							v === command.branchRef ||
+							v?.toLowerCase() === command.branchRef.toLowerCase(),
+					),
+			);
 			if (matches.length !== 1) continue;
 			const branch = matches[0]!;
 			if (command.verb === "elevate") continue;
-			const status: BranchLifecycleState = command.verb === "rule_out" ? "ruled_out" : command.verb === "confirm" ? "confirmed" : command.verb === "suspend" ? "suspended" : "active";
+			const status: BranchLifecycleState =
+				command.verb === "rule_out"
+					? "ruled_out"
+					: command.verb === "confirm"
+						? "confirmed"
+						: command.verb === "suspend"
+							? "suspended"
+							: "active";
 			branch.status = status;
-			await this.eventStore.append(sessionId, workspaceId, { targetSchema: `branch_${command.verb === "rule_out" ? "ruled_out" : command.verb === "re_activate" ? "re_activated" : command.verb}`, branchId: branch.id }, workspaceId);
+			await this.eventStore.append(
+				sessionId,
+				workspaceId,
+				{
+					targetSchema: `branch_${command.verb === "rule_out" ? "ruled_out" : command.verb === "re_activate" ? "re_activated" : command.verb}`,
+					branchId: branch.id,
+				},
+				workspaceId,
+			);
 		}
-		await this.objectStore.set(workspaceId, [], workspace as unknown as Record<string, any>, sessionId);
+		await this.objectStore.set(
+			workspaceId,
+			[],
+			workspace as unknown as Record<string, any>,
+			sessionId,
+		);
 	}
 
 	async complete(

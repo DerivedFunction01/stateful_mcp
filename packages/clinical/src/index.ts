@@ -1,5 +1,6 @@
 export * from "./engine/clinical-engine";
 export * from "./engine/workspace-store";
+export * from "./init";
 export * from "./parser/cdsl-parser";
 export * from "./parser/command-autocomplete-suggester";
 export * from "./parser/field-registry/assessment";

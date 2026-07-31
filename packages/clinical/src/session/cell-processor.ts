@@ -111,7 +111,10 @@ export class CellProcessor {
 
 		const { cleanedText } = await this.preprocess(cell);
 		const commandResult = this.parser
-			? new WorkspaceCommandParser().parseCell(cleanedText, this.parser.getProfile())
+			? new WorkspaceCommandParser().parseCell(
+					cleanedText,
+					this.parser.getProfile(),
+				)
 			: { remainingText: cleanedText, commands: [], warnings: [] };
 		cell.workspaceCommands = commandResult.commands;
 		cell.workspaceCommandWarnings = commandResult.warnings;
@@ -167,7 +170,13 @@ export class CellProcessor {
 
 		switch (cell.routing.scope) {
 			case "global": {
-				if (commandResult.commands.length) cell.workspaceCommandWarnings = [...commandResult.warnings, ...commandResult.commands.map(() => "NO_WORKSPACE_CONTEXT" as const)];
+				if (commandResult.commands.length)
+					cell.workspaceCommandWarnings = [
+						...commandResult.warnings,
+						...commandResult.commands.map(
+							() => "NO_WORKSPACE_CONTEXT" as const,
+						),
+					];
 				cell.parsedOutput = null;
 				cell.status = "parsing";
 				try {
@@ -288,9 +297,13 @@ export class CellProcessor {
 		}
 
 		const { cleanedText } = await this.preprocess(cell);
-		const commandResult = typeof (this.parser as any).getProfile === "function"
-			? new WorkspaceCommandParser().parseCell(cleanedText, this.parser.getProfile())
-			: { remainingText: cleanedText, commands: [], warnings: [] };
+		const commandResult =
+			typeof (this.parser as any).getProfile === "function"
+				? new WorkspaceCommandParser().parseCell(
+						cleanedText,
+						this.parser.getProfile(),
+					)
+				: { remainingText: cleanedText, commands: [], warnings: [] };
 		cell.workspaceCommands = commandResult.commands;
 		cell.workspaceCommandWarnings = commandResult.warnings;
 
@@ -301,10 +314,14 @@ export class CellProcessor {
 		cell.parsedOutput = null;
 		cell.status = "parsing";
 		try {
-			const parsed = await this.parser.parse(commandResult.remainingText, undefined, {
-				targetSchema: cell.routing.targetSchema ?? undefined,
-				resolvedSection: cell.routing.resolvedSection ?? undefined,
-			});
+			const parsed = await this.parser.parse(
+				commandResult.remainingText,
+				undefined,
+				{
+					targetSchema: cell.routing.targetSchema ?? undefined,
+					resolvedSection: cell.routing.resolvedSection ?? undefined,
+				},
+			);
 			cell.parsedOutput = parsed;
 			cell.status = "pending_commit";
 

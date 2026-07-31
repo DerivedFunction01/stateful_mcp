@@ -1,4 +1,5 @@
 import type { ResourceLocator } from "@stateful-mcp/core";
+import type { ClinicalInitConfig } from "../init/types";
 import type {
 	AttributeParserRule,
 	ConceptFieldRule,
@@ -52,6 +53,7 @@ export interface ClinicalStoreDomainConfig {
 export interface ClinicalStoreConfig {
 	version: 1;
 	domains: Record<ClinicalStoreDomain, ClinicalStoreDomainConfig>;
+	init?: ClinicalInitConfig;
 	seeds: {
 		parserProfiles: ParserSyntaxProfile[];
 		conceptDefaults: ParserConceptDefault[];

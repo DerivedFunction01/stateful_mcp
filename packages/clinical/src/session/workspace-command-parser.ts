@@ -1,5 +1,8 @@
+import type {
+	WorkspaceCommand,
+	WorkspaceCommandWarning,
+} from "../engine/workspace-store";
 import type { ParserSyntaxProfile } from "../store/interfaces";
-import type { WorkspaceCommand, WorkspaceCommandWarning } from "../engine/workspace-store";
 
 export interface WorkspaceCommandParseResult {
 	remainingText: string;
@@ -8,7 +11,10 @@ export interface WorkspaceCommandParseResult {
 }
 
 export class WorkspaceCommandParser {
-	parseCell(text: string, profile: ParserSyntaxProfile): WorkspaceCommandParseResult {
+	parseCell(
+		text: string,
+		profile: ParserSyntaxProfile,
+	): WorkspaceCommandParseResult {
 		const commands: WorkspaceCommand[] = [];
 		const warnings: WorkspaceCommandWarning[] = [];
 		const remaining: string[] = [];
@@ -16,7 +22,9 @@ export class WorkspaceCommandParser {
 		const target = "WorkspaceCommand";
 		for (const segment of text.split(profile.stateDelimiter || "||")) {
 			const trimmed = segment.trim();
-			const match = trimmed.match(new RegExp(`^${this.escape(tagToken)}([^\\s]+)\\s*(.*)$`));
+			const match = trimmed.match(
+				new RegExp(`^${this.escape(tagToken)}([^\\s]+)\\s*(.*)$`),
+			);
 			if (!match) {
 				remaining.push(segment);
 				continue;
@@ -28,7 +36,8 @@ export class WorkspaceCommandParser {
 				continue;
 			}
 			const tokens = (match[2] ?? "").trim().split(/\s+/).filter(Boolean);
-			const verb = profile.workspaceCommandMappings?.[tokens[0]?.toLowerCase() ?? ""];
+			const verb =
+				profile.workspaceCommandMappings?.[tokens[0]?.toLowerCase() ?? ""];
 			if (!verb) {
 				warnings.push("UNKNOWN_ALIAS");
 				continue;
@@ -38,15 +47,29 @@ export class WorkspaceCommandParser {
 			if (command) commands.push(command);
 			else warnings.push("MALFORMED");
 		}
-		return { remainingText: remaining.join(` ${profile.stateDelimiter || "||"} `).trim(), commands, warnings };
+		return {
+			remainingText: remaining
+				.join(` ${profile.stateDelimiter || "||"} `)
+				.trim(),
+			commands,
+			warnings,
+		};
 	}
 
-	private parseCommand(verb: WorkspaceCommand["verb"], args: string[]): WorkspaceCommand | null {
+	private parseCommand(
+		verb: WorkspaceCommand["verb"],
+		args: string[],
+	): WorkspaceCommand | null {
 		if (verb === "close") return args.length === 0 ? { verb } : null;
-		if (verb === "branch") return args.length >= 2 ? { verb, branchName: args[0]!, conceptRef: args.slice(1).join(" ") } : null;
+		if (verb === "branch")
+			return args.length >= 2
+				? { verb, branchName: args[0]!, conceptRef: args.slice(1).join(" ") }
+				: null;
 		if (verb === "elevate") {
 			const delta = Number(args[1]);
-			return args.length === 2 && Number.isFinite(delta) ? { verb, branchRef: args[0]!, delta } : null;
+			return args.length === 2 && Number.isFinite(delta)
+				? { verb, branchRef: args[0]!, delta }
+				: null;
 		}
 		return args.length === 1 ? { verb, branchRef: args[0]! } : null;
 	}

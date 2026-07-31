@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { WorkspaceCommandParser } from "../src/session/workspace-command-parser";
 import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
+import { WorkspaceCommandParser } from "../src/session/workspace-command-parser";
 
 describe("WorkspaceCommandParser", () => {
 	it("extracts configured commands and preserves ordinary segments", () => {
