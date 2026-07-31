@@ -603,6 +603,22 @@ export class ClinicalEngine {
 			// Fail-safe if already initialized in event store
 		}
 
+		await this.eventStore.append(
+			sessionId,
+			effectiveAlias,
+			{
+				id: noteId,
+				targetSchema: "encounter_initialized",
+				noteId,
+				title: note.title,
+				patient,
+				createdAt: now,
+				status: "draft",
+				cells: [],
+			},
+			effectiveAlias,
+		);
+
 		return noteId;
 	}
 
