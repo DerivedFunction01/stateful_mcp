@@ -1,7 +1,45 @@
 import { describe, expect, it } from "bun:test";
-import { ProseRenderer, TemplateWalker } from "../src/renderer/prose-renderer";
+import {
+	type CellRenderResult,
+	CellRenderWarning,
+	ProseRenderer,
+	TemplateWalker,
+} from "../src/renderer/prose-renderer";
+import type { Cell } from "../src/session/cell";
+import type { ParsedItem } from "../src/parser/schema-parsers";
 import type { SoapNote } from "../src/schemas/document";
 import type { ClinicalProseTemplate } from "../src/store/interfaces";
+
+// ── Cell Rendering Test Helpers ──────────────────────────────────────────────
+
+function makeCell(overrides: Partial<Cell> = {}): Cell {
+	return {
+		cellId: "cell_1",
+		sessionId: "session_1",
+		mode: "cdsl",
+		rawInput: "#vital temp 38.9 C",
+		routing: { scope: "global", targetSchema: null },
+		parsedOutput: null,
+		status: "draft",
+		context: { objects: {} },
+		updatedAt: new Date().toISOString(),
+		...overrides,
+	};
+}
+
+function makeParsedItem(overrides: Partial<ParsedItem> = {}): ParsedItem {
+	return {
+		targetSchema: "VitalsMeasurementEvent",
+		attributes: {},
+		concept: [{ conceptId: "LOINC::8310-5", display: "Temperature" }],
+		rawText: "#vital temp 38.9 C",
+		tag: "#vital",
+		extractedData: {
+			measurement: { magnitude: 38.9, unit: { display: "C" } },
+		},
+		...overrides,
+	};
+}
 
 describe("ProseRenderer", () => {
 	const mockNote = {
@@ -255,6 +293,228 @@ describe("ProseRenderer", () => {
 			new Set(),
 		);
 		expect(output).toBe("Gender is FEMALE.");
+	});
+});
+
+// ── Cell Rendering Tests ──────────────────────────────────────────────────────
+
+describe("ProseRenderer.renderCell", () => {
+	const vitalsTemplate: ClinicalProseTemplate = {
+		templateId: "tpl-vitals",
+		targetSchema: "VitalsMeasurementEvent",
+		slotPosition: "opening",
+		templateText: "Temperature: {measurement.magnitude} {measurement.unit.display}",
+		slots: {
+			"measurement.magnitude": { sourcePath: "measurement.magnitude" },
+			"measurement.unit.display": { sourcePath: "measurement.unit.display" },
+		},
+	};
+
+	const vitalsConceptTemplate: ClinicalProseTemplate = {
+		templateId: "tpl-vitals-concept",
+		targetSchema: "VitalsMeasurementEvent",
+		targetConceptId: "LOINC::8310-5",
+		slotPosition: "opening",
+		templateText: "Temp (concept): {measurement.magnitude}{measurement.unit.display}",
+		slots: {
+			"measurement.magnitude": { sourcePath: "measurement.magnitude" },
+			"measurement.unit.display": { sourcePath: "measurement.unit.display" },
+		},
+	};
+
+	const vitalsGenericTemplate: ClinicalProseTemplate = {
+		templateId: "tpl-vitals-generic",
+		targetSchema: "VitalsMeasurementEvent",
+		slotPosition: "opening",
+		templateText: "Vital: {measurement.magnitude}",
+		slots: {
+			"measurement.magnitude": { sourcePath: "measurement.magnitude" },
+		},
+	};
+
+	const narrativeTemplate: ClinicalProseTemplate = {
+		templateId: "tpl-narrative",
+		targetSchema: "NarrativeCell",
+		slotPosition: "opening",
+		templateText: "Narrative: {rawInput}",
+		slots: {
+			rawInput: { sourcePath: "rawInput" },
+		},
+	};
+
+	it("1. CDSL cell with one ParsedItem and matching schema template renders through TemplateRenderer", () => {
+		const cell = makeCell({
+			parsedOutput: [makeParsedItem()],
+		});
+		const result = ProseRenderer.renderCell(cell, [vitalsTemplate]);
+
+		expect(result.text).toBe("Temperature: 38.9 C");
+		expect(result.templateId).toBe("tpl-vitals");
+		expect(result.targetSchema).toBe("VitalsMeasurementEvent");
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("2. CDSL cell with multiple parsed items renders each item independently and joins output deterministically", () => {
+		const item1 = makeParsedItem({
+			rawText: "#vital temp 38.9 C",
+			extractedData: { measurement: { magnitude: 38.9, unit: { display: "C" } } },
+		});
+		const item2 = makeParsedItem({
+			rawText: "#vital hr 82",
+			concept: [{ conceptId: "LOINC::8867-4", display: "Heart Rate" }],
+			extractedData: { measurement: { magnitude: 82, unit: { display: "/min" } } },
+		});
+		const cell = makeCell({
+			parsedOutput: [item1, item2],
+		});
+		const result = ProseRenderer.renderCell(cell, [vitalsTemplate]);
+
+		// Both items use the same template, joined by newline
+		expect(result.text).toBe("Temperature: 38.9 C\nTemperature: 82 /min");
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("3. Explicit templateId overrides inferred template selection", () => {
+		const cell = makeCell({
+			parsedOutput: [makeParsedItem()],
+		});
+		const result = ProseRenderer.renderCell(cell, [vitalsTemplate, vitalsGenericTemplate], {
+			templateId: "tpl-vitals-generic",
+		});
+
+		expect(result.text).toBe("Vital: 38.9");
+		expect(result.templateId).toBe("tpl-vitals-generic");
+	});
+
+	it("4. Concept-specific template is preferred over generic schema template", () => {
+		const cell = makeCell({
+			parsedOutput: [makeParsedItem()],
+		});
+		const result = ProseRenderer.renderCell(cell, [
+			vitalsGenericTemplate,
+			vitalsConceptTemplate,
+		]);
+
+		// Should prefer the concept-specific template
+		expect(result.templateId).toBe("tpl-vitals-concept");
+		expect(result.text).toBe("Temp (concept): 38.9C");
+	});
+
+	it("5. Missing template returns raw input plus NO_MATCHING_TEMPLATE warning", () => {
+		const cell = makeCell({
+			parsedOutput: [makeParsedItem()],
+		});
+		const result = ProseRenderer.renderCell(cell, []);
+
+		expect(result.text).toBe("#vital temp 38.9 C");
+		expect(result.warnings).toContain(CellRenderWarning.NO_MATCHING_TEMPLATE);
+	});
+
+	it("6. Null/empty parsedOutput returns raw input fallback and NO_PARSED_OUTPUT warning", () => {
+		const cell = makeCell({
+			parsedOutput: null,
+		});
+		const result = ProseRenderer.renderCell(cell, [vitalsTemplate]);
+
+		expect(result.text).toBe("#vital temp 38.9 C");
+		expect(result.warnings).toContain(CellRenderWarning.NO_PARSED_OUTPUT);
+	});
+
+	it("7. Narrative cell returns rawInput and preserves narrativeTarget in metadata", () => {
+		const cell = makeCell({
+			mode: "narrative",
+			rawInput: "Patient reports chest pain for 3 days",
+			narrativeTarget: "subjective.historyOfPresentIllness.narrative",
+		});
+		const result = ProseRenderer.renderCell(cell, []);
+
+		expect(result.text).toBe("Patient reports chest pain for 3 days");
+		expect(result.targetField).toBe("subjective.historyOfPresentIllness.narrative");
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("8. Narrative cell with an explicit template renders through the existing template engine", () => {
+		const cell = makeCell({
+			mode: "narrative",
+			rawInput: "Patient reports chest pain for 3 days",
+			narrativeTarget: "subjective.historyOfPresentIllness.narrative",
+		});
+		const result = ProseRenderer.renderCell(cell, [narrativeTemplate], {
+			templateId: "tpl-narrative",
+		});
+
+		expect(result.text).toBe("Narrative: Patient reports chest pain for 3 days");
+		expect(result.templateId).toBe("tpl-narrative");
+	});
+
+	it("9. Rendering does not mutate the cell or its parsedOutput", () => {
+		const originalItem = makeParsedItem();
+		const cell = makeCell({
+			parsedOutput: [originalItem],
+		});
+		// Deep clone before rendering to compare later
+		const cellBefore = structuredClone(cell);
+
+		ProseRenderer.renderCell(cell, [vitalsTemplate]);
+
+		expect(cell).toEqual(cellBefore);
+		expect(cell.parsedOutput).toEqual(cellBefore.parsedOutput);
+		expect(cell.parsedOutput?.[0]?.extractedData).toEqual(
+			cellBefore.parsedOutput?.[0]?.extractedData,
+		);
+	});
+
+	it("10. Circular template dependency still throws the existing renderer error", () => {
+		const t1: ClinicalProseTemplate = {
+			templateId: "t-cycle-1",
+			targetSchema: "VitalsMeasurementEvent",
+			slotPosition: "opening",
+			templateText: "Loop {child}",
+			slots: {
+				child: {
+					sourcePath: "measurement",
+					defaultDelegateTemplateId: "t-cycle-2",
+				},
+			},
+		};
+
+		const t2: ClinicalProseTemplate = {
+			templateId: "t-cycle-2",
+			targetSchema: "VitalsMeasurementEvent",
+			slotPosition: "opening",
+			templateText: "Loop {child}",
+			slots: {
+				child: {
+					sourcePath: "magnitude",
+					defaultDelegateTemplateId: "t-cycle-1",
+				},
+			},
+		};
+
+		const cell = makeCell({
+			parsedOutput: [makeParsedItem()],
+		});
+
+		expect(() => ProseRenderer.renderCell(cell, [t1, t2])).toThrow();
+	});
+
+	it("11. Error/deleted cells do not render error text as clinical prose", () => {
+		const errorCell = makeCell({
+			status: "error",
+			errorMessage: "parse failure",
+			parsedOutput: [makeParsedItem()],
+		});
+		const errorResult = ProseRenderer.renderCell(errorCell, [vitalsTemplate]);
+		expect(errorResult.text).toBe("");
+		expect(errorResult.warnings[0]).toBe(CellRenderWarning.CELL_ERROR);
+
+		const deletedCell = makeCell({
+			status: "deleted",
+			parsedOutput: [makeParsedItem()],
+		});
+		const deletedResult = ProseRenderer.renderCell(deletedCell, [vitalsTemplate]);
+		expect(deletedResult.text).toBe("");
+		expect(deletedResult.warnings).toContain(CellRenderWarning.CELL_DELETED);
 	});
 });
 
