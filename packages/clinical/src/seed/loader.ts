@@ -28,7 +28,6 @@ export async function seedClinicalData(
 		seedDir || path.join(__dirname, "..", "..", "seed");
 
 	const seedFiles = [
-		"ucum_seed.json",
 		"loinc_seed.json",
 		"snomed_seed.json",
 		"rxnorm_seed.json",

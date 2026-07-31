@@ -230,7 +230,7 @@ The renderer uses `ClinicalProseTemplate` objects with `slotPosition` values (`o
 - `clinical-config-seed.ts` — `DEFAULT_CLINICAL_STORE_CONFIG` — full default config with adapter registries for all store domains.
 - `loader.ts` — `seedClinicalData()`, `seedStopWordLists()`, `seedStopWordProfiles()` for file-based seed loading.
 
-Seed data files in the `seed/` directory: `ucum_seed.json`, `loinc_seed.json`, `snomed_seed.json`, `rxnorm_seed.json`, `icd10_seed.json`, `ucum_conversions.json`.
+Seed data files in the `seed/` directory:  `loinc_seed.json`, `snomed_seed.json`, `rxnorm_seed.json`, `icd10_seed.json`
 
 ---
 
