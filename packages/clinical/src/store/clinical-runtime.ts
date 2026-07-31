@@ -17,6 +17,7 @@ import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "
 import {
 	resolveCalibrationExceptionStore,
 	resolveConceptDefaultStore,
+	resolveConceptFieldStore,
 	resolveFacilityStore,
 	resolveMacroStore,
 	resolveParserProfileStores,
@@ -46,8 +47,10 @@ import type { ProseParserTemplateStore } from "./reference/prose-parser-template
 import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
 import { DefaultStopWordStore } from "./reference/stop-words/default-stop-word-store";
 import type { StopWordStore } from "./reference/stop-words/interfaces";
+import type { StopWordWordListStore } from "./reference/stop-words/interfaces";
+import type { ConceptFieldStore } from "./parser/concept_fields/interfaces";
 
-// ── Public types ─────────────────────────────────────────────────────────────
+// ── Public types ─────────────────────────────────────────────────────
 
 export interface ClinicalRuntimeParserStores {
 	profiles: ParserProfileCoreStore;
@@ -58,8 +61,10 @@ export interface ClinicalRuntimeParserStores {
 	evaluatorBindings: ParserProfileEvaluatorBindingStore;
 	tags: TagStore;
 	conceptDefaults: NewParserConceptDefaultStore;
+	conceptFields: ConceptFieldStore;
 	jurisdictionalDisplays: JurisdictionalDisplayStore;
 	stopWordProfiles: StopWordStore;
+	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;
 	proseParserTemplates: ProseParserTemplateStore;
 	calibration: CalibrationExceptionStore;
@@ -88,6 +93,7 @@ export async function createClinicalRuntime(
 		rules,
 		refs,
 		conceptDefaults,
+		conceptFields,
 		calibration,
 		personnel,
 		facilities,
@@ -101,6 +107,7 @@ export async function createClinicalRuntime(
 		resolveParserRuleStores(config),
 		resolveReferenceStores(config),
 		resolveConceptDefaultStore(config),
+		resolveConceptFieldStore(config),
 		resolveCalibrationExceptionStore(config),
 		resolvePersonnelStore(config),
 		resolveFacilityStore(config),
@@ -137,8 +144,10 @@ export async function createClinicalRuntime(
 			evaluatorBindings: rules.evaluatorBindings,
 			tags: refs.tags,
 			conceptDefaults,
+			conceptFields,
 			jurisdictionalDisplays: refs.jurisdictionalDisplays,
 			stopWordProfiles: stopWordStore,
+			stopWordWordLists,
 			proseTemplates: refs.proseTemplates,
 			proseParserTemplates: refs.proseParserTemplates,
 			calibration,

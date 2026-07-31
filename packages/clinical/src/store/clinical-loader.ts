@@ -15,6 +15,7 @@ import * as path from "path";
 import type { ClinicalStoreConfig } from "./clinical-config";
 import type { ClinicalRuntime } from "./clinical-runtime";
 import { createClinicalRuntime } from "./clinical-runtime";
+import { initializeClinicalRuntime } from "../init/orchestrator";
 
 /**
  * Loads a ClinicalStoreConfig from a config directory.
@@ -59,21 +60,31 @@ export async function loadClinicalStoreConfigFromFile(
 
 /**
  * One-shot factory: loads config (from dir or default) and returns a fully
- * wired ClinicalRuntime.
+ * wired ClinicalRuntime. If the config has init enabled, runs initialization
+ * before returning the runtime.
  */
 export async function buildClinicalRuntime(
 	dir?: string,
 ): Promise<ClinicalRuntime> {
 	const config = await loadClinicalStoreConfig(dir);
-	return createClinicalRuntime(config);
+	const runtime = await createClinicalRuntime(config);
+	if (config.init?.enabled) {
+		await initializeClinicalRuntime(runtime, config);
+	}
+	return runtime;
 }
 
 /**
  * Factory that accepts a config object directly (no file I/O).
  * Useful for tests and programmatic usage.
+ * If the config has init enabled, runs initialization before returning the runtime.
  */
 export async function buildClinicalRuntimeFromConfig(
 	config: ClinicalStoreConfig,
 ): Promise<ClinicalRuntime> {
-	return createClinicalRuntime(config);
+	const runtime = await createClinicalRuntime(config);
+	if (config.init?.enabled) {
+		await initializeClinicalRuntime(runtime, config);
+	}
+	return runtime;
 }
