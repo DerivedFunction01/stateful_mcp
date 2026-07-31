@@ -1,12 +1,14 @@
-import type { ConceptFieldRule } from "../../../store/interfaces";
+import type { SharedFieldAnchorRule } from "../../../parser/field-shared/shared-field-anchor";
 import type {
+	ConceptFieldRule,
 	DateTimeFormatConfig,
 	DateTimeToken,
 } from "../../../store/interfaces";
 import type { StoredAttributeRule } from "../../../store/parser/rules/interfaces";
-import type { SharedFieldAnchorRule } from "../../../parser/field-shared/shared-field-anchor";
-import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
-import type { ClinicalInitSeedKind } from "../../seed/record";
+import type {
+	ClinicalInitSeedKind,
+	ClinicalInitSeedLoadedRecord,
+} from "../../seed/record";
 
 export interface TemporalCompilationResult {
 	kind: ClinicalInitSeedKind;
@@ -49,9 +51,7 @@ function normalizeToken(raw: string): DateTimeToken | undefined {
 	return TOKEN_ALIASES[trimmed.toLowerCase()] as DateTimeToken | undefined;
 }
 
-function normalizeTokens(
-	raw: unknown,
-): DateTimeToken[] | null {
+function normalizeTokens(raw: unknown): DateTimeToken[] | null {
 	if (!Array.isArray(raw) || raw.length === 0) return null;
 	const tokens: DateTimeToken[] = [];
 	for (const item of raw) {
@@ -108,16 +108,16 @@ export function compileTemporalRecord(
 }
 
 function compileCalendarVocabulary(
-		record: ClinicalInitSeedLoadedRecord,
-		p: Record<string, unknown>,
-		profileId: string | undefined,
-	): TemporalCompilationResult | null {
-		return {
-			kind: record.kind,
-			recordId: record.recordId,
-			profileId,
-		};
-	}
+	record: ClinicalInitSeedLoadedRecord,
+	p: Record<string, unknown>,
+	profileId: string | undefined,
+): TemporalCompilationResult | null {
+	return {
+		kind: record.kind,
+		recordId: record.recordId,
+		profileId,
+	};
+}
 
 function compileDatePattern(
 	record: ClinicalInitSeedLoadedRecord,
@@ -135,32 +135,47 @@ function compileDatePattern(
 		return { kind: record.kind, recordId: record.recordId, profileId };
 	}
 
-	const options = typeof p.options === "object" && p.options !== null
-		? (p.options as Record<string, unknown>)
-		: undefined;
+	const options =
+		typeof p.options === "object" && p.options !== null
+			? (p.options as Record<string, unknown>)
+			: undefined;
 
 	const config: DateTimeFormatConfig = {
 		tokens,
 		separators,
 		options: options
 			? {
-					...(typeof options.centuryDecades === "object" && options.centuryDecades !== null
-						? { centuryDecades: options.centuryDecades as Record<string, string> }
+					...(typeof options.centuryDecades === "object" &&
+					options.centuryDecades !== null
+						? {
+								centuryDecades: options.centuryDecades as Record<
+									string,
+									string
+								>,
+							}
 						: {}),
-					...(typeof options.is24Hour === "boolean" ? { is24Hour: options.is24Hour } : {}),
-					...(typeof options.exact === "boolean" ? { exact: options.exact } : {}),
-					...(
-						Array.isArray(options.monthNames)
-							? { monthNames: options.monthNames.filter((m): m is string => typeof m === "string") }
-							: {}
-					),
-					...(
-						typeof options.dayPeriods === "object" && options.dayPeriods !== null
-							? {
-									dayPeriods: options.dayPeriods as { am: string[]; pm: string[] },
-								}
-							: {}
-					),
+					...(typeof options.is24Hour === "boolean"
+						? { is24Hour: options.is24Hour }
+						: {}),
+					...(typeof options.exact === "boolean"
+						? { exact: options.exact }
+						: {}),
+					...(Array.isArray(options.monthNames)
+						? {
+								monthNames: options.monthNames.filter(
+									(m): m is string => typeof m === "string",
+								),
+							}
+						: {}),
+					...(typeof options.dayPeriods === "object" &&
+					options.dayPeriods !== null
+						? {
+								dayPeriods: options.dayPeriods as {
+									am: string[];
+									pm: string[];
+								},
+							}
+						: {}),
 				}
 			: undefined,
 	};
@@ -189,24 +204,31 @@ function compileTimePattern(
 		return { kind: record.kind, recordId: record.recordId, profileId };
 	}
 
-	const options = typeof p.options === "object" && p.options !== null
-		? (p.options as Record<string, unknown>)
-		: undefined;
+	const options =
+		typeof p.options === "object" && p.options !== null
+			? (p.options as Record<string, unknown>)
+			: undefined;
 
 	const config: DateTimeFormatConfig = {
 		tokens,
 		separators,
 		options: options
 			? {
-					...(typeof options.is24Hour === "boolean" ? { is24Hour: options.is24Hour } : {}),
-					...(typeof options.exact === "boolean" ? { exact: options.exact } : {}),
-					...(
-						typeof options.dayPeriods === "object" && options.dayPeriods !== null
-							? {
-									dayPeriods: options.dayPeriods as { am: string[]; pm: string[] },
-								}
-							: {}
-					),
+					...(typeof options.is24Hour === "boolean"
+						? { is24Hour: options.is24Hour }
+						: {}),
+					...(typeof options.exact === "boolean"
+						? { exact: options.exact }
+						: {}),
+					...(typeof options.dayPeriods === "object" &&
+					options.dayPeriods !== null
+						? {
+								dayPeriods: options.dayPeriods as {
+									am: string[];
+									pm: string[];
+								},
+							}
+						: {}),
 				}
 			: undefined,
 	};
@@ -232,10 +254,7 @@ function compileRelativeTimeRule(
 	const precisionUnits = p.precisionUnits;
 	const directionAnchors = p.directionAnchors;
 
-	if (
-		!Array.isArray(sequences) ||
-		sequences.length === 0
-	) {
+	if (!Array.isArray(sequences) || sequences.length === 0) {
 		return { kind: record.kind, recordId: record.recordId, profileId };
 	}
 
@@ -247,13 +266,13 @@ function compileRelativeTimeRule(
 
 		const patterns = seq.patterns;
 		if (!Array.isArray(patterns) || patterns.length === 0) continue;
-		const regexPatterns = patterns.filter((p): p is string => typeof p === "string");
+		const regexPatterns = patterns.filter(
+			(p): p is string => typeof p === "string",
+		);
 		if (regexPatterns.length === 0) continue;
 
 		const targetField =
-			typeof seq.targetField === "string"
-				? seq.targetField
-				: "relative_time";
+			typeof seq.targetField === "string" ? seq.targetField : "relative_time";
 		const targetValue =
 			typeof seq.targetValue === "string"
 				? seq.targetValue
@@ -300,11 +319,15 @@ function compileRangeRule(
 
 			const patterns = seq.patterns;
 			if (!Array.isArray(patterns) || patterns.length === 0) continue;
-			const regexPatterns = patterns.filter((p): p is string => typeof p === "string");
+			const regexPatterns = patterns.filter(
+				(p): p is string => typeof p === "string",
+			);
 			if (regexPatterns.length === 0) continue;
 
 			const targetField =
-				typeof seq.targetField === "string" ? seq.targetField : "range_boundary";
+				typeof seq.targetField === "string"
+					? seq.targetField
+					: "range_boundary";
 			const targetValue =
 				typeof seq.targetValue === "string"
 					? seq.targetValue
@@ -344,10 +367,7 @@ function compileRangeRule(
 		});
 	}
 
-	if (
-		typeof anchorSchema === "string" &&
-		typeof anchorField === "string"
-	) {
+	if (typeof anchorSchema === "string" && typeof anchorField === "string") {
 		sharedFieldAnchors.push({
 			ruleId: `${record.recordId}.context`,
 			targetSchema: anchorSchema,
@@ -402,7 +422,9 @@ function compileCadenceRule(
 
 		const patterns = mapping.patterns;
 		if (!Array.isArray(patterns) || patterns.length === 0) continue;
-		const regexPatterns = patterns.filter((p): p is string => typeof p === "string");
+		const regexPatterns = patterns.filter(
+			(p): p is string => typeof p === "string",
+		);
 		if (regexPatterns.length === 0) continue;
 
 		const targetField =
@@ -450,7 +472,9 @@ function compileExclusionRule(
 
 		const patterns = seq.patterns;
 		if (!Array.isArray(patterns) || patterns.length === 0) continue;
-		const regexPatterns = patterns.filter((p): p is string => typeof p === "string");
+		const regexPatterns = patterns.filter(
+			(p): p is string => typeof p === "string",
+		);
 		if (regexPatterns.length === 0) continue;
 
 		const targetField =

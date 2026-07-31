@@ -1,2 +1,8 @@
-export type { BootstrapReadiness } from "./readiness";
-export { validateBootstrapReadiness } from "./readiness";
+export type {
+	BootstrapReadiness,
+	BootstrapReadinessDiagnostics,
+} from "./readiness";
+export {
+	getBootstrapReadinessDiagnostics,
+	validateBootstrapReadiness,
+} from "./readiness";

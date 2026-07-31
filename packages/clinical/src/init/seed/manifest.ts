@@ -60,6 +60,14 @@ export const STARTER_CLINICAL_INIT_MANIFEST: ClinicalInitSeedManifest = {
 			load: async () => (await import("./modules/vocabulary")).records,
 		},
 		{
+			moduleId: "starter.tags",
+			version: 1,
+			requires: ["starter.profile"],
+			kinds: ["tag", "profile_tag"],
+			format: "typed",
+			load: async () => (await import("./modules/tags")).records,
+		},
+		{
 			moduleId: "starter.variations",
 			version: 1,
 			requires: ["starter.profile", "starter.temporal"],
@@ -130,6 +138,8 @@ export function validateClinicalInitSeedManifest(
 		"macro",
 		"dictionary_expression",
 		"concept_relation",
+		"tag",
+		"profile_tag",
 	];
 
 	for (const module of manifest.modules) {

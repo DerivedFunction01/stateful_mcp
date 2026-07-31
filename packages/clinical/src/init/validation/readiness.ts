@@ -1,11 +1,21 @@
-import { buildCalendarDateRules } from "../../store/rules-builder";
 import type { ClinicalRuntimeParserStores } from "../../store/clinical-runtime";
+import { buildCalendarDateRules } from "../../store/rules-builder";
+import {
+	type ClinicalInitDiagnostic,
+	ClinicalInitSeedDiagnosticCode,
+} from "../types";
 
 export type BootstrapReadiness =
 	| "not-checked"
 	| "bootstrap-ready"
 	| "full-ready"
 	| "degraded";
+
+export interface BootstrapReadinessDiagnostics {
+	declaredEmpty: string[];
+	populated: string[];
+	diagnostics: ClinicalInitDiagnostic[];
+}
 
 export async function validateBootstrapReadiness(
 	stores: ClinicalRuntimeParserStores,
@@ -15,44 +25,78 @@ export async function validateBootstrapReadiness(
 
 	const activeProfile = profiles[0]!;
 
-	const attributeBindings = await stores.attributeBindings.listBindings(
-		activeProfile.profileId,
-	);
-	if (attributeBindings.length === 0) return "degraded";
+	// Empty declared stores are valid during the placeholder-seed phase. A
+	// profile is the only required signal that the parser runtime exists.
+	return activeProfile.profileId ? "bootstrap-ready" : "degraded";
+}
 
-	const evaluatorBindings = await stores.evaluatorBindings.listBindings(
-		activeProfile.profileId,
-	);
-	if (evaluatorBindings.length === 0) return "degraded";
-
-	const profileTags = await stores.profileTags.getProfileTags(
-		activeProfile.profileId,
-	);
-	if (profileTags.length === 0) return "degraded";
-
-	const conceptDefaults = await stores.conceptDefaults.list();
-	if (conceptDefaults.length === 0) return "degraded";
-
-	const sharedAnchors = await stores.sharedFieldAnchors.listForContext({});
-	const hasProseTemplates = (await stores.proseTemplates.list()).length > 0;
-	const hasProseParserTemplates =
-		(await stores.proseParserTemplates.listAll()).length > 0;
-	const hasConceptFields = (await stores.conceptFields.list()).length > 0;
-	const hasDictionaryExpressions = stores.dictionaryStore
-		? (await stores.dictionaryStore.getExpressions()).length > 0
-		: false;
-
-	if (
-		!hasProseTemplates ||
-		!hasProseParserTemplates ||
-		!hasConceptFields ||
-		sharedAnchors.length === 0 ||
-		!hasDictionaryExpressions
-	) {
-		return "degraded";
+export async function getBootstrapReadinessDiagnostics(
+	stores: ClinicalRuntimeParserStores,
+): Promise<BootstrapReadinessDiagnostics> {
+	const profiles = await stores.profiles.list();
+	if (profiles.length === 0) {
+		return {
+			declaredEmpty: [],
+			populated: [],
+			diagnostics: [],
+		};
 	}
 
-	return "bootstrap-ready";
+	const activeProfile = profiles[0]!;
+	const [
+		attributeBindings,
+		evaluatorBindings,
+		profileTags,
+		tags,
+		conceptDefaults,
+		sharedAnchors,
+		proseTemplates,
+		proseParserTemplates,
+		conceptFields,
+		dictionaryExpressions,
+	] = await Promise.all([
+		stores.attributeBindings.listBindings(activeProfile.profileId),
+		stores.evaluatorBindings.listBindings(activeProfile.profileId),
+		stores.profileTags.getProfileTags(activeProfile.profileId),
+		stores.tags.list(),
+		stores.conceptDefaults.list(),
+		stores.sharedFieldAnchors.listForContext({}),
+		stores.proseTemplates.list(),
+		stores.proseParserTemplates.listAll(),
+		stores.conceptFields.list(),
+		stores.dictionaryStore?.getExpressions() ?? Promise.resolve([]),
+	]);
+
+	const populations: Array<[string, number]> = [
+		["attributeBindings", attributeBindings.length],
+		["evaluatorBindings", evaluatorBindings.length],
+		["profileTags", profileTags.length],
+		["tags", tags.length],
+		["conceptDefaults", conceptDefaults.length],
+		["sharedFieldAnchors", sharedAnchors.length],
+		["proseTemplates", proseTemplates.length],
+		["proseParserTemplates", proseParserTemplates.length],
+		["conceptFields", conceptFields.length],
+		["dictionaryExpressions", dictionaryExpressions.length],
+	];
+	const declaredEmpty = populations
+		.filter(([, count]) => count === 0)
+		.map(([name]) => name);
+	const populated = populations
+		.filter(([, count]) => count > 0)
+		.map(([name]) => name);
+
+	return {
+		declaredEmpty,
+		populated,
+		diagnostics: declaredEmpty.map((name) => ({
+			severity: "info" as const,
+			code: ClinicalInitSeedDiagnosticCode.DECLARED_EMPTY_STORE,
+			message: `${name} is declared and wired but currently empty; populate it in a later seed phase.`,
+			phase: "validation" as const,
+			path: name,
+		})),
+	};
 }
 
 export async function getTemporalDiagnostics(

@@ -853,14 +853,16 @@ export class CdslParser {
 
 								const targetDateStr =
 									tc.targetDateTimePath && tc.targetDateTimePath.length > 0
-										? CdslParser.resolveDeepPath(targetData, tc.targetDateTimePath)
+										? CdslParser.resolveDeepPath(
+												targetData,
+												tc.targetDateTimePath,
+											)
 										: undefined;
 
 								if (
 									!rangeData ||
 									(tc.missingDatePolicy === "require" &&
-										(targetDateStr === undefined ||
-											targetDateStr === null))
+										(targetDateStr === undefined || targetDateStr === null))
 								) {
 									continue;
 								}
@@ -950,7 +952,7 @@ export class CdslParser {
 		if (!time) return true;
 
 		const targetMs = new Date(dateStr).getTime();
-		if (isNaN(targetMs)) return true;
+		if (Number.isNaN(targetMs)) return true;
 
 		const startIso = time.startDatetime?.assertedTimestampUtc;
 		const endIso = time.endDatetime?.assertedTimestampUtc;

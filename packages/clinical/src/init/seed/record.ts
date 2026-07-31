@@ -22,6 +22,8 @@ export type ClinicalInitSeedKind =
 	| "macro"
 	| "dictionary_expression"
 	| "concept_relation"
+	| "tag"
+	| "profile_tag"
 	| "variation_group";
 
 export interface ClinicalInitSeedRecord {

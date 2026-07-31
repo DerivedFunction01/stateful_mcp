@@ -1,6 +1,12 @@
 import type { ProseSlotType } from "../prose-parser-templates/prose-template";
 
-export type Relation = "trigger" | "qualifier" | "supporting" | "duration" | "contains" | "excludes";
+export type Relation =
+	| "trigger"
+	| "qualifier"
+	| "supporting"
+	| "duration"
+	| "contains"
+	| "excludes";
 export type Position = "opening" | "continuing" | "closing" | "full_paragraph";
 
 export interface AutocompleteSuggestion {

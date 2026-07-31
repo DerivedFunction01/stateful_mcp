@@ -59,7 +59,12 @@ describe("Clinical initialization contracts", () => {
 		);
 
 		expect(diagnostics).toEqual([]);
-		expect(STARTER_CLINICAL_INIT_MANIFEST.modules).toHaveLength(7);
+		expect(STARTER_CLINICAL_INIT_MANIFEST.modules).toHaveLength(8);
+		expect(
+			STARTER_CLINICAL_INIT_MANIFEST.modules.find(
+				(module) => module.moduleId === "starter.tags",
+			)?.kinds,
+		).toEqual(["tag", "profile_tag"]);
 	});
 
 	it("loads selected modules with dependencies and provenance", async () => {

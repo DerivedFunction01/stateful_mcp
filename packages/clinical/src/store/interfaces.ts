@@ -369,6 +369,7 @@ export interface StopWordWordListRecord {
 }
 
 export interface StopWordStore {
+	set(profile: StopWordProfile): Promise<void>;
 	getProfile(personnelId: string): Promise<StopWordProfile | null>;
 	setProfile(profile: StopWordProfile): Promise<void>;
 	deleteProfile(personnelId: string): Promise<void>;

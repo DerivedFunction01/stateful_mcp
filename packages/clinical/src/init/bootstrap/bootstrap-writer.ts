@@ -17,11 +17,13 @@ import {
 	normalizeMacro,
 	normalizePersonnel,
 	normalizeProfile,
+	normalizeProfileTag,
 	normalizeProseParserTemplate,
 	normalizeProseRule,
 	normalizeSharedAnchor,
 	normalizeStopWordList,
 	normalizeStopWordProfile,
+	normalizeTag,
 } from "./normalizers";
 import type { BootstrapStores } from "./stores";
 
@@ -65,6 +67,21 @@ registerHandler("profile", async (stores, record) => {
 	const profile = normalizeProfile(record);
 	if (!profile) return;
 	await stores.profiles.set(profile);
+});
+
+registerHandler("tag", async (stores, record) => {
+	const tag = normalizeTag(record);
+	if (!tag) return;
+	await stores.tags.set(tag);
+});
+
+registerHandler("profile_tag", async (stores, record) => {
+	const profileTag = normalizeProfileTag(record);
+	if (!profileTag) return;
+	await stores.profileTags.setProfileTags(
+		profileTag.profileId,
+		profileTag.tagIds,
+	);
 });
 
 registerHandler("attribute_rule", async (stores, record) => {
@@ -400,6 +417,20 @@ async function isStoreEmpty(
 				record.profileId ?? record.recordId,
 			);
 			return existing === null;
+		}
+		case "tag": {
+			const payload = record.payload;
+			const tagId = payload.tagId;
+			if (typeof tagId !== "string") return true;
+			return (await stores.tags.get(tagId)) === null;
+		}
+		case "profile_tag": {
+			const normalized = normalizeProfileTag(record);
+			if (!normalized) return true;
+			const existing = await stores.profileTags.getProfileTags(
+				normalized.profileId,
+			);
+			return existing.length === 0;
 		}
 		case "attribute_rule": {
 			const existing = await stores.attributeRules.get(record.recordId);

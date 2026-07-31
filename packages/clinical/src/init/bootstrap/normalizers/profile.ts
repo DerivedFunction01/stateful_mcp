@@ -7,5 +7,8 @@ export function normalizeProfile(
 	const payload = record.payload as Record<string, unknown> | undefined;
 	if (!payload || typeof payload !== "object") return null;
 	if (!payload.profileId && !record.profileId) return null;
-	return payload as unknown as ParserSyntaxProfile;
+	return {
+		...payload,
+		profileId: payload.profileId ?? record.profileId,
+	} as unknown as ParserSyntaxProfile;
 }

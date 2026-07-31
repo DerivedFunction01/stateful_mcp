@@ -1,14 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import {
-	bootstrapClinicalStores,
-} from "../src/init/bootstrap/bootstrap-writer";
+import { bootstrapClinicalStores } from "../src/init/bootstrap/bootstrap-writer";
 import { compileTemporalRecord } from "../src/init/bootstrap/normalizers/temporal";
 import { validateBootstrapReadiness } from "../src/init/validation/readiness";
 import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime";
 import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
-import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
 import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
+import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
 import { KvParserMacroStore } from "../src/store/parser/macros/kv-macro-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
 import { KvProfileTagStore } from "../src/store/parser/profiles/kv-profile-tag-store";
@@ -137,7 +135,11 @@ describe("compileTemporalRecord", () => {
 
 	it("returns empty result for empty payloads", () => {
 		const kinds: Array<{
-			kind: "relative_time_rule" | "range_rule" | "cadence_rule" | "exclusion_rule";
+			kind:
+				| "relative_time_rule"
+				| "range_rule"
+				| "cadence_rule"
+				| "exclusion_rule";
 		}> = [
 			{ kind: "relative_time_rule" },
 			{ kind: "range_rule" },
@@ -260,7 +262,9 @@ describe("bootstrapClinicalStores temporal kinds", () => {
 		const rules = await stores.attributeRules.list();
 		expect(rules.some((r) => r.targetField === "relative_time")).toBe(true);
 		const profile = await stores.profiles.get(PROFILE_ID);
-		expect(profile?.attributeRules?.some((r) => r.targetField === "relative_time")).toBe(true);
+		expect(
+			profile?.attributeRules?.some((r) => r.targetField === "relative_time"),
+		).toBe(true);
 	});
 
 	it("writes range_rule attribute rules, concept field rules, and anchors", async () => {
@@ -301,7 +305,9 @@ describe("bootstrapClinicalStores temporal kinds", () => {
 		const fieldRules = await stores.conceptFields.list();
 		expect(
 			fieldRules.some(
-				(f) => f.fieldPath === "startDatetime" && f.targetSchema === "ClinicalDateRange",
+				(f) =>
+					f.fieldPath === "startDatetime" &&
+					f.targetSchema === "ClinicalDateRange",
 			),
 		).toBe(true);
 
@@ -356,7 +362,7 @@ describe("bootstrapClinicalStores temporal kinds", () => {
 });
 
 describe("readiness with temporal data", () => {
-	it("returns degraded when temporal data is absent", async () => {
+	it("remains ready when optional temporal data is absent", async () => {
 		const stores = makeMockStores();
 		const profile = {
 			profileId: PROFILE_ID,
@@ -401,6 +407,6 @@ describe("readiness with temporal data", () => {
 		);
 
 		const readiness = await validateBootstrapReadiness(stores);
-		expect(readiness).toBe("degraded");
+		expect(readiness).toBe("bootstrap-ready");
 	});
 });

@@ -14,7 +14,10 @@ import {
 	validateLoadedVariations,
 } from "../src/init/seed/manifest";
 import type { ClinicalInitConfig } from "../src/init/types";
-import { validateBootstrapReadiness } from "../src/init/validation/readiness";
+import {
+	getBootstrapReadinessDiagnostics,
+	validateBootstrapReadiness,
+} from "../src/init/validation/readiness";
 import type { ClinicalStoreConfig } from "../src/store/clinical-config";
 import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime";
 import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
@@ -187,6 +190,44 @@ describe("bootstrapClinicalStores", () => {
 			await stores.proseParserTemplates.get("parser-template"),
 		).not.toBeNull();
 	});
+
+	it("wires future tag and profile-tag records without requiring starter data", async () => {
+		const stores = makeMockStores();
+		const result = await bootstrapClinicalStores(
+			stores,
+			[
+				{
+					recordId: "tag-record",
+					kind: "tag",
+					payload: {
+						tagId: "observation",
+						tagName: "ObservationEvent",
+						tagBlob: { priority: 1 },
+					},
+					sourceModuleId: "test",
+					sourceModuleVersion: 1,
+				},
+				{
+					recordId: "profile-tag-record",
+					kind: "profile_tag",
+					profileId: "starter.default",
+					payload: { tagIds: ["observation"] },
+					sourceModuleId: "test",
+					sourceModuleVersion: 1,
+				},
+			],
+			{ seedPolicy: "force" },
+		);
+
+		expect(result.recordsWritten.tag).toBe(1);
+		expect(result.recordsWritten.profile_tag).toBe(1);
+		expect((await stores.tags.get("observation"))?.tagBlob).toBe(
+			'{"priority":1}',
+		);
+		expect(await stores.profileTags.getProfileTags("starter.default")).toEqual([
+			"observation",
+		]);
+	});
 });
 
 describe("validateBootstrapReadiness", () => {
@@ -194,6 +235,36 @@ describe("validateBootstrapReadiness", () => {
 		const stores = makeMockStores();
 		const readiness = await validateBootstrapReadiness(stores);
 		expect(readiness).toBe("degraded");
+	});
+
+	it("accepts declared-empty stores and reports them as informational", async () => {
+		const stores = makeMockStores();
+		await stores.profiles.set({
+			profileId: "starter.default",
+			tagToken: "#",
+			stateDelimiter: "||",
+			personnelId: "",
+			stateStartDelimiter: "",
+			stateEndDelimiter: "",
+			macroStartToken: "",
+			variableStartToken: "",
+			variableEndToken: "",
+			isDefault: true,
+		});
+
+		expect(await validateBootstrapReadiness(stores)).toBe("bootstrap-ready");
+		const diagnostics = await getBootstrapReadinessDiagnostics(stores);
+		expect(diagnostics.declaredEmpty).toEqual(
+			expect.arrayContaining([
+				"profileTags",
+				"proseTemplates",
+				"conceptFields",
+				"dictionaryExpressions",
+			]),
+		);
+		expect(diagnostics.diagnostics.every((d) => d.severity === "info")).toBe(
+			true,
+		);
 	});
 
 	it("returns bootstrap-ready when minimum parser set is present", async () => {
@@ -210,6 +281,13 @@ describe("validateBootstrapReadiness", () => {
 			numericFieldFormats: [],
 			boundaryDelimiter: "",
 			transitionalWords: [],
+			personnelId: "",
+			stateStartDelimiter: "",
+			stateEndDelimiter: "",
+			macroStartToken: "",
+			variableStartToken: "",
+			variableEndToken: "",
+			isDefault: false,
 		});
 		await stores.attributeBindings.bind(
 			"starter.default",

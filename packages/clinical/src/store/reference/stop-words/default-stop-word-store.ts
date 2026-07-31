@@ -25,6 +25,10 @@ export class DefaultStopWordStore implements StopWordStore {
 		await this.profileStore.set(profile);
 	}
 
+	async set(profile: StopWordProfile): Promise<void> {
+		await this.setProfile(profile);
+	}
+
 	async deleteProfile(personnelId: string): Promise<void> {
 		const existing = await this.profileStore.get(personnelId);
 		if (!existing) return;

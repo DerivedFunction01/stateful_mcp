@@ -11,7 +11,10 @@ import {
 } from "./seed/manifest";
 import type { ClinicalInitSeedLoadedRecord } from "./seed/record";
 import type { ClinicalInitDiagnostic, ClinicalInitReport } from "./types";
-import { validateBootstrapReadiness } from "./validation/readiness";
+import {
+	getBootstrapReadinessDiagnostics,
+	validateBootstrapReadiness,
+} from "./validation/readiness";
 
 export async function initializeClinicalRuntime(
 	runtime: { config: ClinicalStoreConfig; parserStores: any },
@@ -75,6 +78,10 @@ export async function initializeClinicalRuntime(
 	if (resolvedInit.enabled && resolvedInit.seedSource !== "none") {
 		const readiness = await validateBootstrapReadiness(runtime.parserStores);
 		report.readiness = readiness;
+		const readinessDiagnostics = await getBootstrapReadinessDiagnostics(
+			runtime.parserStores,
+		);
+		report.diagnostics.push(...readinessDiagnostics.diagnostics);
 	}
 	report.completedPhases.push("validation");
 
