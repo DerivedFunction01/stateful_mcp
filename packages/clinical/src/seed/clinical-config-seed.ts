@@ -400,6 +400,26 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 				"Patient and patient-context storage backends, including note-linked context.",
 			defaultAdapters: [],
 		},
+		signed_note: {
+			group: "signed_note",
+			implemented: true,
+			description:
+				"Immutable signed SOAP note archive with full event log for replayability.",
+			defaultAdapters: [
+				{
+					group: "signed_note",
+					capabilities: ["read", "write", "query"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
 	},
 	seeds: {
 		parserProfiles: SEED_PARSER_PROFILES,

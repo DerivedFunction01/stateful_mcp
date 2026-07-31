@@ -1,14 +1,13 @@
-import type { ObjectStore } from "@stateful-mcp/core";
-import type { EventStore } from "@stateful-mcp/core";
-import type { CodeableConcept } from "../schemas/shared";
+import type { EventStore, ObjectStore } from "@stateful-mcp/core";
+import type { CdslParser } from "../parser/cdsl-parser";
+import type { SoapNote } from "../schemas/document";
 import type {
 	BranchLifecycleState,
 	ClinicalBranch,
 	EpistemicWorkspace,
 } from "../schemas/epistemic";
-import type { SoapNote } from "../schemas/document";
-import type { CdslParser } from "../parser/cdsl-parser";
 import { buildPatientLearningBucket } from "../schemas/patient";
+import type { CodeableConcept } from "../schemas/shared";
 
 export class WorkspaceStore {
 	constructor(
@@ -74,11 +73,7 @@ export class WorkspaceStore {
 						activeBranchId: { type: "string" },
 						globalFacts: { type: "array" },
 					},
-					required: [
-						"id",
-						"sourceSoapNoteId",
-						"linkedSourceEventId",
-					],
+					required: ["id", "sourceSoapNoteId", "linkedSourceEventId"],
 				});
 			} catch (_) {
 				// schema may already be registered
@@ -171,8 +166,7 @@ export class WorkspaceStore {
 			];
 
 			if (
-				JSON.stringify(newGlobalFacts) !==
-				JSON.stringify(workspace.globalFacts)
+				JSON.stringify(newGlobalFacts) !== JSON.stringify(workspace.globalFacts)
 			) {
 				workspace.globalFacts = newGlobalFacts;
 				await this.eventStore.append(
@@ -225,17 +219,13 @@ export class WorkspaceStore {
 					);
 				} else {
 					if (item.extractedData?.certainty === "refuted") {
-						activeBranch.refutingConcepts.push(
-							...(item.concept || []),
-						);
+						activeBranch.refutingConcepts.push(...(item.concept || []));
 						addedConcepts.push({
 							concept: item.concept || [],
 							type: "refuting",
 						});
 					} else {
-						activeBranch.supportingConcepts.push(
-							...(item.concept || []),
-						);
+						activeBranch.supportingConcepts.push(...(item.concept || []));
 						addedConcepts.push({
 							concept: item.concept || [],
 							type: "supporting",

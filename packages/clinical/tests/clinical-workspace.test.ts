@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { createRepo, EventStore, ObjectStore } from "@stateful-mcp/core";
 import { ClinicalEngine } from "../src/engine/clinical-engine";
 import { WorkspaceStore } from "../src/engine/workspace-store";
-import type { EpistemicWorkspace } from "../src/schemas/epistemic";
 
 describe("Clinical Epistemic Workspace Lifecycle", () => {
 	test("Initializes, updates, and completes workspace", async () => {

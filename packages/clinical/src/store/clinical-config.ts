@@ -15,6 +15,7 @@ export type ClinicalStoreDomain =
 	| "dictionary"
 	| "parser"
 	| "soap_note"
+	| "signed_note"
 	| "patient_store"
 	| "concept_fields"
 	| (string & {});

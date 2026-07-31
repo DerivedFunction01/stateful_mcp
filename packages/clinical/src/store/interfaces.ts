@@ -259,14 +259,14 @@ export interface ParserMacroStore {
 	delete(macroId: string): Promise<void>;
 }
 
-import type { EpistemicWorkspace } from "../schemas/epistemic";
-
 export interface SignedSoapNoteRecord {
 	noteId: string;
 	sessionId: string;
 	patientId: string;
 	documentVersion: number;
 	soapNoteJson: Record<string, any>;
+	events: Array<Record<string, unknown>>;
+	workspaceEvents: Array<Record<string, unknown>>;
 	createdAt: string;
 	signedBy: string;
 }

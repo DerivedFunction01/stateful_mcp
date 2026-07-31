@@ -401,9 +401,9 @@ const SOAP_ROUTING_CONFIGS: Record<
 
 // ── Engine ───────────────────────────────────────────────────────────────────
 
-import type { ClinicalBranch, EpistemicWorkspace } from "../schemas/epistemic";
+import type { EpistemicWorkspace } from "../schemas/epistemic";
 import type { CodeableConcept } from "../schemas/shared";
-import { WorkspaceStore } from "./workspace-store";
+import type { WorkspaceStore } from "./workspace-store";
 
 export interface ClinicalEngineConfig {
 	objectStore: ObjectStore;
@@ -893,12 +893,28 @@ export class ClinicalEngine {
 		);
 		const note = signedObj!.data as SoapNote;
 
+		const eventRecords = await this.eventStore.project(
+			effectiveAlias,
+			sessionId,
+		);
+
+		const workspaceEvents: Array<Record<string, unknown>> = [];
+		if (this.workspaceStore) {
+			const workspaces = await this.workspaceStore.list(sessionId, note.id);
+			for (const ws of workspaces) {
+				const wsEvents = await this.eventStore.project(ws.id, sessionId);
+				workspaceEvents.push(...wsEvents);
+			}
+		}
+
 		const record: SignedSoapNoteRecord = {
 			noteId: note.id,
 			sessionId,
 			patientId: note.patient.id,
 			documentVersion: 1,
 			soapNoteJson: note,
+			events: eventRecords,
+			workspaceEvents,
 			signedBy,
 			createdAt: new Date().toISOString(),
 		};
@@ -1062,14 +1078,6 @@ export class ClinicalEngine {
 		);
 		await this.objectStore.set(effectiveAlias, [], updatedNote, sessionId);
 		return commitId;
-	}
-
-	private async lazyInitParser(): Promise<void> {
-		if (!this.parser) {
-			throw new Error(
-				"CdslParser not initialized. Please verify engine configurations.",
-			);
-		}
 	}
 
 	async initAssessmentWorkspace(
