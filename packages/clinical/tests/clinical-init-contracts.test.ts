@@ -59,7 +59,7 @@ describe("Clinical initialization contracts", () => {
 		);
 
 		expect(diagnostics).toEqual([]);
-		expect(STARTER_CLINICAL_INIT_MANIFEST.modules).toHaveLength(5);
+		expect(STARTER_CLINICAL_INIT_MANIFEST.modules).toHaveLength(6);
 	});
 
 	it("loads selected modules with dependencies and provenance", async () => {

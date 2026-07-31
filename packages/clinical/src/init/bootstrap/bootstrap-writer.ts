@@ -8,7 +8,11 @@ import {
 	normalizeAttributeRule,
 	normalizeConceptDefault,
 	normalizeEvaluatorRule,
+	normalizeFacility,
 	normalizeFieldRule,
+	normalizeJurisdictionalDisplay,
+	normalizeMacro,
+	normalizePersonnel,
 	normalizeProfile,
 	normalizeProseParserTemplate,
 	normalizeProseRule,
@@ -111,6 +115,30 @@ registerHandler("stop_word_profile", async (stores, record) => {
 	const profile = normalizeStopWordProfile(record);
 	if (!profile) return;
 	await stores.stopWordProfiles.setProfile(profile);
+});
+
+registerHandler("personnel", async (stores, record) => {
+	const personnel = normalizePersonnel(record);
+	if (!personnel) return;
+	await stores.personnel.set(personnel);
+});
+
+registerHandler("facility", async (stores, record) => {
+	const facility = normalizeFacility(record);
+	if (!facility) return;
+	await stores.facilities.set(facility);
+});
+
+registerHandler("jurisdictional_display", async (stores, record) => {
+	const display = normalizeJurisdictionalDisplay(record);
+	if (!display) return;
+	await stores.jurisdictionalDisplays.set(display);
+});
+
+registerHandler("macro", async (stores, record) => {
+	const macro = normalizeMacro(record);
+	if (!macro) return;
+	await stores.macros.set(macro);
 });
 
 export async function bootstrapClinicalStores(
@@ -229,6 +257,30 @@ async function isStoreEmpty(
 			const payload = record.payload as Record<string, unknown> | undefined;
 			const existing = await stores.stopWordProfiles.getProfile(
 				payload?.profileId as string,
+			);
+			return existing === null;
+		}
+		case "personnel": {
+			const existing = await stores.personnel.get(record.recordId);
+			return existing === null;
+		}
+		case "facility": {
+			const existing = await stores.facilities.get(record.recordId);
+			return existing === null;
+		}
+		case "jurisdictional_display": {
+			const payload = record.payload as Record<string, unknown> | undefined;
+			const existing = await stores.jurisdictionalDisplays.get(
+				payload?.conceptId as string,
+				payload?.jurisdictionId as string,
+				payload?.source as string,
+			);
+			return existing === null;
+		}
+		case "macro": {
+			const payload = record.payload as Record<string, unknown> | undefined;
+			const existing = await stores.macros.get(
+				(payload?.macroName as string) ?? record.recordId,
 			);
 			return existing === null;
 		}

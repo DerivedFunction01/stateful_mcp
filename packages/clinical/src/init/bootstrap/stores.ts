@@ -13,6 +13,9 @@ import type {
 	ParserProfileRuleBindingStore,
 } from "../../store/parser/rules/interfaces";
 import type { TagStore } from "../../store/parser/tags/interfaces";
+import type { FacilityStore } from "../../store/reference/facilities/interfaces";
+import type { JurisdictionalDisplayStore } from "../../store/reference/jurisdictional-displays/interfaces";
+import type { PersonnelStore } from "../../store/reference/personnel/interfaces";
 import type { ProseParserTemplateStore } from "../../store/reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "../../store/reference/prose-templates/interfaces";
 import type {
@@ -35,5 +38,8 @@ export interface BootstrapStores {
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;
 	proseParserTemplates: ProseParserTemplateStore;
+	personnel: PersonnelStore;
+	facilities: FacilityStore;
+	jurisdictionalDisplays: JurisdictionalDisplayStore;
 	macros: ParserMacroStore;
 }

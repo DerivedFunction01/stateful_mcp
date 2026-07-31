@@ -1,10 +1,14 @@
 export { normalizeAttributeRule } from "./attribute-rule";
 export { normalizeConceptDefault } from "./concept-default";
 export { normalizeEvaluatorRule } from "./evaluator-rule";
+export { normalizeFacility } from "./facility";
 export { normalizeFieldRule } from "./field-rule";
+export { normalizeJurisdictionalDisplay } from "./jurisdictional-display";
+export { normalizeMacro } from "./macro";
+export { normalizePersonnel } from "./personnel";
 export { normalizeProfile } from "./profile";
-export { normalizeProseRule } from "./prose-rule";
 export { normalizeProseParserTemplate } from "./prose-parser-template";
+export { normalizeProseRule } from "./prose-rule";
 export { normalizeSharedAnchor } from "./shared-anchor";
 export { normalizeStopWordList } from "./stop-word-list";
 export { normalizeStopWordProfile } from "./stop-word-profile";

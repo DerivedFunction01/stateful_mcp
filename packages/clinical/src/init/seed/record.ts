@@ -16,6 +16,10 @@ export type ClinicalInitSeedKind =
 	| "shared_field_anchor"
 	| "stop_word_list"
 	| "stop_word_profile"
+	| "personnel"
+	| "facility"
+	| "jurisdictional_display"
+	| "macro"
 	| "variation_group";
 
 export interface ClinicalInitSeedRecord {
