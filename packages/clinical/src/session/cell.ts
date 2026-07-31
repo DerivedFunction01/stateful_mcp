@@ -45,7 +45,14 @@ export interface Cell {
 	routing: CellRoutingTarget;
 	parsedOutput: import("../parser/schema-parsers").ParsedItem[] | null;
 	workspaceId?: string;
-	status: "draft" | "parsing" | "pending_commit" | "committed" | "error" | "deleted" | "locked";
+	status:
+		| "draft"
+		| "parsing"
+		| "pending_commit"
+		| "committed"
+		| "error"
+		| "deleted"
+		| "locked";
 	errorMessage?: string;
 	lockedAt?: string;
 	updatedAt: string;

@@ -1,8 +1,6 @@
 export * from "./engine/clinical-engine";
 export * from "./engine/workspace-store";
 export * from "./parser/cdsl-parser";
-export * from "./session/cell";
-export * from "./session/cell-processor";
 export * from "./parser/field-registry/assessment";
 export * from "./parser/field-registry/diagnostic";
 export * from "./parser/field-registry/environment";
@@ -47,6 +45,8 @@ export * from "./seed/adapter-config";
 export * from "./seed/clinical-config-seed";
 export * from "./seed/defaults";
 export * from "./seed/loader";
+export * from "./session/cell";
+export * from "./session/cell-processor";
 export * from "./store/adapter-types";
 export * from "./store/clinical-config";
 export * from "./store/clinical-loader";

@@ -611,9 +611,8 @@ export class ClinicalEngine {
 				noteId,
 				title: note.title,
 				patient,
-			createdAt: now,
-			status: "draft",
-
+				createdAt: now,
+				status: "draft",
 			},
 			effectiveAlias,
 		);

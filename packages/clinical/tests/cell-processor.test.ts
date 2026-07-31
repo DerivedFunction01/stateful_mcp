@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import type { ClinicalEngine } from "../src/engine/clinical-engine";
 import type { WorkspaceStore } from "../src/engine/workspace-store";
 import type { SoapNote } from "../src/schemas/document";
-import { CellProcessor } from "../src/session/cell-processor";
-import { CellError } from "../src/session/cell";
 import type { Cell } from "../src/session/cell";
+import { CellError } from "../src/session/cell";
+import { CellProcessor } from "../src/session/cell-processor";
 
 function makeCell(overrides: Partial<Cell> = {}): Cell {
 	return {
@@ -24,7 +24,11 @@ describe("CellProcessor", () => {
 	describe("execute", () => {
 		test("routes global cell to engine.processCdsl", async () => {
 			const engine = {
-				processCdsl: async (_sessionId: string, _dictation: string, _alias?: string): Promise<SoapNote> =>
+				processCdsl: async (
+					_sessionId: string,
+					_dictation: string,
+					_alias?: string,
+				): Promise<SoapNote> =>
 					({
 						id: "note_1",
 						title: "Test",
@@ -33,7 +37,12 @@ describe("CellProcessor", () => {
 						subjective: { presentingComplaint: {} as any },
 						objective: { vitalSigns: [] },
 						assessment: { differentialDiagnoses: [] },
-						plan: { prescriptions: [], investigations: [], referrals: [], interventions: [] },
+						plan: {
+							prescriptions: [],
+							investigations: [],
+							referrals: [],
+							interventions: [],
+						},
 					}) as SoapNote,
 			} as unknown as ClinicalEngine;
 
@@ -50,8 +59,12 @@ describe("CellProcessor", () => {
 		test("routes branch_local cell to workspaceStore.process", async () => {
 			const engine = {} as unknown as ClinicalEngine;
 			const workspaceStore = {
-				process: async (_sessionId: string, _workspaceId: string, _branchId: string, _dictation: string): Promise<{ id: string }> =>
-					({ id: "ws_1" }),
+				process: async (
+					_sessionId: string,
+					_workspaceId: string,
+					_branchId: string,
+					_dictation: string,
+				): Promise<{ id: string }> => ({ id: "ws_1" }),
 			} as unknown as WorkspaceStore;
 
 			const processor = new CellProcessor(engine, workspaceStore);
@@ -70,7 +83,9 @@ describe("CellProcessor", () => {
 		test("rejects unresolved routing scope", async () => {
 			const engine = {} as unknown as ClinicalEngine;
 			const processor = new CellProcessor(engine);
-			const cell = makeCell({ routing: { scope: "unresolved", targetSchema: null } });
+			const cell = makeCell({
+				routing: { scope: "unresolved", targetSchema: null },
+			});
 			const result = await processor.execute(cell);
 
 			expect(result.cell.status).toBe("error");
@@ -86,7 +101,9 @@ describe("CellProcessor", () => {
 			const result = await processor.execute(cell);
 
 			expect(result.cell.status).toBe("error");
-			expect(result.error?.code).toBe(CellError.BRANCH_LOCAL_REQUIRES_WORKSPACE_ID);
+			expect(result.error?.code).toBe(
+				CellError.BRANCH_LOCAL_REQUIRES_WORKSPACE_ID,
+			);
 		});
 
 		test("rejects branch_local without WorkspaceStore configured", async () => {
@@ -211,7 +228,10 @@ describe("CellProcessor", () => {
 
 		test("rejects already locked cell", () => {
 			const processor = new CellProcessor({} as ClinicalEngine);
-			const cell = makeCell({ status: "locked", lockedAt: "2026-07-30T10:00:00Z" });
+			const cell = makeCell({
+				status: "locked",
+				lockedAt: "2026-07-30T10:00:00Z",
+			});
 			const result = processor.lock(cell);
 
 			expect(result.error?.code).toBe(CellError.CELL_IS_ALREADY_LOCKED);

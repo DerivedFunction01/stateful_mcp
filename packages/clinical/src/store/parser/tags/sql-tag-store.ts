@@ -35,11 +35,10 @@ export class SqlTagStore implements TagStore {
 		const row = {
 			tagId: record.tagId,
 			tagName: record.tagName,
-			tagBlob: JSON.stringify(
+			tagBlob:
 				typeof record.tagBlob === "string"
 					? record.tagBlob
 					: JSON.stringify(record.tagBlob),
-			),
 			source: record.source || "local",
 		};
 		const { sql, params } = this.compiler.compileUpsertTag(row, this.table);
