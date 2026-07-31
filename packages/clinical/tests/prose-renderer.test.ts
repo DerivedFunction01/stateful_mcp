@@ -82,7 +82,6 @@ describe("ProseRenderer", () => {
 			referrals: [],
 			interventions: [],
 		},
-		cells: [],
 	} as any as SoapNote;
 
 	it("should interpolate simple paths directly", () => {

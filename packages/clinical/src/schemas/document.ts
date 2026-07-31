@@ -179,12 +179,4 @@ export interface SoapNote {
 
 		narrative?: string;
 	};
-
-	/**
-	 * Jupyter-style computational cells.
-	 * Placeholder for a future parser/runtime layer that maps raw clinician
-	 * text to structured named-slot objects. Typing deferred pending
-	 * runtime design decisions.
-	 */
-	cells: Array<Record<string, unknown>>;
 }

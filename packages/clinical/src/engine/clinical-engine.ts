@@ -578,7 +578,6 @@ export class ClinicalEngine {
 				referrals: [],
 				interventions: [],
 			},
-			cells: [],
 		};
 
 		// Create in Object Store
@@ -612,9 +611,9 @@ export class ClinicalEngine {
 				noteId,
 				title: note.title,
 				patient,
-				createdAt: now,
-				status: "draft",
-				cells: [],
+			createdAt: now,
+			status: "draft",
+
 			},
 			effectiveAlias,
 		);
