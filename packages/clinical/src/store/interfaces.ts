@@ -136,6 +136,10 @@ export interface DateTimeFormatConfig {
 		centuryDecades?: Record<string, string>;
 		is24Hour?: boolean;
 		exact?: boolean;
+		dayPeriods?: {
+			am: string[];
+			pm: string[];
+		};
 		monthNames?: string[];
 	};
 }

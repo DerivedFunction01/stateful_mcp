@@ -149,6 +149,8 @@ export class ProseTemplateSuggester {
 			duration: 2,
 			qualifier: 1,
 			supporting: 0,
+			contains: 2,
+			excludes: 1,
 		};
 
 		const passesConditions = (slot: ProseSlot): boolean => {

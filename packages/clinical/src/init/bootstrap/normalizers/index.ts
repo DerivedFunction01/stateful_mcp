@@ -14,3 +14,7 @@ export { normalizeProseRule } from "./prose-rule";
 export { normalizeSharedAnchor } from "./shared-anchor";
 export { normalizeStopWordList } from "./stop-word-list";
 export { normalizeStopWordProfile } from "./stop-word-profile";
+export {
+	compileTemporalRecord,
+	type TemporalCompilationResult,
+} from "./temporal";

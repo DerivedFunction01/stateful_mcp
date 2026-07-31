@@ -840,6 +840,46 @@ export class CdslParser {
 								}
 							}
 
+							// Temporal containment check
+							if (anchor.temporalContainment) {
+								const tc = anchor.temporalContainment;
+								const sourceData = candidateItem.extractedData;
+								const targetData = targetItem.extractedData;
+
+								const rangeData =
+									tc.sourceRangePath && tc.sourceRangePath.length > 0
+										? CdslParser.resolveDeepPath(sourceData, tc.sourceRangePath)
+										: sourceData;
+
+								const targetDateStr =
+									tc.targetDateTimePath && tc.targetDateTimePath.length > 0
+										? CdslParser.resolveDeepPath(targetData, tc.targetDateTimePath)
+										: undefined;
+
+								if (
+									!rangeData ||
+									(tc.missingDatePolicy === "require" &&
+										(targetDateStr === undefined ||
+											targetDateStr === null))
+								) {
+									continue;
+								}
+
+								if (
+									targetDateStr !== undefined &&
+									targetDateStr !== null &&
+									typeof targetDateStr === "string"
+								) {
+									const contained = CdslParser.checkDateInRange(
+										targetDateStr,
+										rangeData as Record<string, any>,
+									);
+									if (!contained) {
+										continue;
+									}
+								}
+							}
+
 							const unitFactor =
 								distanceConfig.unit === "chars"
 									? charDistance
@@ -877,6 +917,64 @@ export class CdslParser {
 		}
 
 		return items;
+	}
+
+	/**
+	 * Resolves a dot-separated path within an object.
+	 */
+	private static resolveDeepPath(
+		obj: Record<string, any>,
+		path: string,
+	): unknown {
+		const parts = path.split(".");
+		let current: unknown = obj;
+		for (const part of parts) {
+			if (current === null || current === undefined) return undefined;
+			if (typeof current !== "object") return undefined;
+			current = (current as Record<string, unknown>)[part];
+		}
+		return current;
+	}
+
+	/**
+	 * Checks whether a date string falls within a ClinicalDateRange structure.
+	 * The rangeData is expected to have a `time` object with optional
+	 * `startDatetime`/`endDatetime` (each with `assertedTimestampUtc`) and
+	 * optional `excludedDatetimes[]` with `time.startDatetime`/`time.endDatetime`.
+	 */
+	private static checkDateInRange(
+		dateStr: string,
+		rangeData: Record<string, any>,
+	): boolean {
+		const time = rangeData?.time;
+		if (!time) return true;
+
+		const targetMs = new Date(dateStr).getTime();
+		if (isNaN(targetMs)) return true;
+
+		const startIso = time.startDatetime?.assertedTimestampUtc;
+		const endIso = time.endDatetime?.assertedTimestampUtc;
+
+		if (startIso && new Date(startIso).getTime() > targetMs) return false;
+		if (endIso && new Date(endIso).getTime() < targetMs) return false;
+
+		const excluded = rangeData.excludedDatetimes;
+		if (Array.isArray(excluded)) {
+			for (const ex of excluded) {
+				const exStart = ex?.time?.startDatetime?.assertedTimestampUtc;
+				const exEnd = ex?.time?.endDatetime?.assertedTimestampUtc;
+				if (exStart && !exEnd) {
+					if (new Date(exStart).getTime() === targetMs) return false;
+				}
+				if (exStart && exEnd) {
+					const exStartMs = new Date(exStart).getTime();
+					const exEndMs = new Date(exEnd).getTime();
+					if (targetMs >= exStartMs && targetMs <= exEndMs) return false;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	private async runProseParser(

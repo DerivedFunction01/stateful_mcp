@@ -5,6 +5,7 @@ import type {
 import type { ClinicalInitDiagnostic, ClinicalInitSeedPolicy } from "../types";
 import { ClinicalInitSeedDiagnosticCode } from "../types";
 import {
+	compileTemporalRecord,
 	normalizeAttributeRule,
 	normalizeConceptDefault,
 	normalizeConceptRelation,
@@ -174,6 +175,167 @@ registerHandler("concept_relation", async (stores, record) => {
 	await stores.dictionaryStore.addRelation(relation);
 });
 
+// ── Temporal kind handlers ────────────────────────────────────────────
+
+registerHandler("calendar_vocabulary", async (stores, record, diagnostics) => {
+	const result = compileTemporalRecord(record);
+	if (!result) return;
+	const profileId = result.profileId ?? record.profileId;
+	if (!profileId) return;
+
+	const profile = await stores.profiles.get(profileId);
+	if (!profile) return;
+
+	const payload = record.payload as Record<string, unknown> | undefined;
+	if (!payload) return;
+
+	const monthNames = payload.monthNames;
+	const dayPeriods = payload.dayPeriods;
+
+	const hasMonthNames =
+		typeof monthNames === "object" &&
+		monthNames !== null &&
+		Object.keys(monthNames).length > 0;
+	const hasDayPeriods =
+		typeof dayPeriods === "object" &&
+		dayPeriods !== null &&
+		Object.keys(dayPeriods).length > 0;
+
+	if (!hasMonthNames && !hasDayPeriods) return;
+
+	const existingFormats = profile.calendarDateFormats ?? [];
+	const updatedFormats = existingFormats.map((fmt) => {
+		const opts = { ...fmt.options };
+		if (hasMonthNames) {
+			const names = Object.values(monthNames as Record<string, unknown>).filter(
+				(v): v is string => typeof v === "string",
+			);
+			if (names.length > 0) opts.monthNames = names;
+		}
+		if (hasDayPeriods) {
+			const dp = dayPeriods as Record<string, unknown>;
+			const am = Array.isArray(dp.am) ? (dp.am as string[]) : [];
+			const pm = Array.isArray(dp.pm) ? (dp.pm as string[]) : [];
+			if (am.length > 0 || pm.length > 0) {
+				opts.dayPeriods = { am, pm };
+			}
+		}
+		return { ...fmt, options: opts };
+	});
+
+	profile.calendarDateFormats = updatedFormats;
+	await stores.profiles.set(profile);
+});
+
+registerHandler("date_pattern", async (stores, record, diagnostics) => {
+	const result = compileTemporalRecord(record);
+	if (!result || !result.calendarDateFormats?.length) return;
+	const profileId = result.profileId ?? record.profileId;
+	if (!profileId) return;
+
+	const profile = await stores.profiles.get(profileId);
+	if (!profile) return;
+
+	profile.calendarDateFormats = [
+		...(profile.calendarDateFormats ?? []),
+		...result.calendarDateFormats,
+	];
+	await stores.profiles.set(profile);
+});
+
+registerHandler("time_pattern", async (stores, record, diagnostics) => {
+	const result = compileTemporalRecord(record);
+	if (!result || !result.calendarDateFormats?.length) return;
+	const profileId = result.profileId ?? record.profileId;
+	if (!profileId) return;
+
+	const profile = await stores.profiles.get(profileId);
+	if (!profile) return;
+
+	profile.calendarDateFormats = [
+		...(profile.calendarDateFormats ?? []),
+		...result.calendarDateFormats,
+	];
+	await stores.profiles.set(profile);
+});
+
+registerHandler("relative_time_rule", async (stores, record, diagnostics) => {
+	const result = compileTemporalRecord(record);
+	if (!result) return;
+	if (result.attributeRules) {
+		for (const rule of result.attributeRules) {
+			await stores.attributeRules.set(rule);
+		}
+	}
+	await appendAttributeRulesToProfile(stores, result);
+});
+
+registerHandler("range_rule", async (stores, record, diagnostics) => {
+	const result = compileTemporalRecord(record);
+	if (!result) return;
+	if (result.attributeRules) {
+		for (const rule of result.attributeRules) {
+			await stores.attributeRules.set(rule);
+		}
+	}
+	if (result.conceptFieldRules) {
+		for (const rule of result.conceptFieldRules) {
+			await stores.conceptFields.set(rule);
+		}
+	}
+	if (result.sharedFieldAnchors) {
+		for (const anchor of result.sharedFieldAnchors) {
+			await stores.sharedFieldAnchors.set(anchor);
+		}
+	}
+	await appendAttributeRulesToProfile(stores, result);
+});
+
+registerHandler("cadence_rule", async (stores, record, diagnostics) => {
+	const result = compileTemporalRecord(record);
+	if (!result) return;
+	if (result.attributeRules) {
+		for (const rule of result.attributeRules) {
+			await stores.attributeRules.set(rule);
+		}
+	}
+	await appendAttributeRulesToProfile(stores, result);
+});
+
+registerHandler("exclusion_rule", async (stores, record, diagnostics) => {
+	const result = compileTemporalRecord(record);
+	if (!result) return;
+	if (result.attributeRules) {
+		for (const rule of result.attributeRules) {
+			await stores.attributeRules.set(rule);
+		}
+	}
+	if (result.sharedFieldAnchors) {
+		for (const anchor of result.sharedFieldAnchors) {
+			await stores.sharedFieldAnchors.set(anchor);
+		}
+	}
+	await appendAttributeRulesToProfile(stores, result);
+});
+
+async function appendAttributeRulesToProfile(
+	stores: BootstrapStores,
+	result: import("./normalizers").TemporalCompilationResult,
+): Promise<void> {
+	if (!result.attributeRules?.length) return;
+	const profileId = result.profileId;
+	if (!profileId) return;
+
+	const profile = await stores.profiles.get(profileId);
+	if (!profile) return;
+
+	profile.attributeRules = [
+		...(profile.attributeRules ?? []),
+		...result.attributeRules,
+	];
+	await stores.profiles.set(profile);
+}
+
 export async function bootstrapClinicalStores(
 	stores: BootstrapStores,
 	records: ClinicalInitSeedLoadedRecord[],
@@ -331,6 +493,30 @@ async function isStoreEmpty(
 				record.recordId;
 			const relations = await stores.dictionaryStore.getRelations();
 			return !relations.some((relation) => relation.id === relationId);
+		}
+		case "calendar_vocabulary": {
+			const pid = record.profileId;
+			if (!pid) return true;
+			const profile = await stores.profiles.get(pid);
+			if (!profile) return true;
+			const formats = profile.calendarDateFormats ?? [];
+			return formats.length === 0;
+		}
+		case "date_pattern":
+		case "time_pattern": {
+			const pid = record.profileId;
+			if (!pid) return true;
+			const profile = await stores.profiles.get(pid);
+			if (!profile) return true;
+			const formats = profile.calendarDateFormats ?? [];
+			return formats.length === 0;
+		}
+		case "relative_time_rule":
+		case "cadence_rule":
+		case "exclusion_rule":
+		case "range_rule": {
+			const existing = await stores.attributeRules.get(record.recordId);
+			return existing === null;
 		}
 		default:
 			return true;

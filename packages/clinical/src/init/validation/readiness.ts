@@ -1,3 +1,4 @@
+import { buildCalendarDateRules } from "../../store/rules-builder";
 import type { ClinicalRuntimeParserStores } from "../../store/clinical-runtime";
 
 export type BootstrapReadiness =
@@ -52,4 +53,31 @@ export async function validateBootstrapReadiness(
 	}
 
 	return "bootstrap-ready";
+}
+
+export async function getTemporalDiagnostics(
+	stores: ClinicalRuntimeParserStores,
+): Promise<{ hasCalendarDateFormats: boolean; compiledRuleCount: number }> {
+	const profiles = await stores.profiles.list();
+	const hasCalendarDateFormats = profiles.some(
+		(p) => (p.calendarDateFormats?.length ?? 0) > 0,
+	);
+
+	const allRules = new Set<string>();
+	for (const profile of profiles) {
+		const effectiveRules = [
+			...(profile.attributeRules ?? []),
+			...(profile.calendarDateFormats
+				? buildCalendarDateRules(profile.calendarDateFormats)
+				: []),
+		];
+		for (const rule of effectiveRules) {
+			allRules.add(rule.targetField);
+		}
+	}
+
+	return {
+		hasCalendarDateFormats,
+		compiledRuleCount: allRules.size,
+	};
 }

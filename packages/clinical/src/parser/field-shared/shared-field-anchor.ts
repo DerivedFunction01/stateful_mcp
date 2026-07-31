@@ -11,6 +11,19 @@ export interface SharedFieldAnchorDistance {
 	boundaryTransitionalWords?: string[];
 }
 
+export interface TemporalContainment {
+	/** Source field path in the anchor source's extractedData containing a ClinicalDateRange */
+	sourceRangePath: string;
+	/** Target field path in the anchor target's extractedData containing the event datetime */
+	targetDateTimePath: string;
+	/**
+	 * Policy when the target event has no resolved datetime:
+	 * - "require": skip association (event must have a date)
+	 * - "inherit": associate even without a precise date (default)
+	 */
+	missingDatePolicy?: "require" | "inherit";
+}
+
 export interface SharedFieldAnchorCondition {
 	pipeline: PipelineStep[];
 }
@@ -23,6 +36,7 @@ export interface SharedFieldAnchor {
 	anchorPattern?: string;
 	anchorPatternCaseInsensitive?: boolean;
 	condition?: SharedFieldAnchorCondition;
+	temporalContainment?: TemporalContainment;
 }
 
 export interface SharedFieldAnchorRule {
