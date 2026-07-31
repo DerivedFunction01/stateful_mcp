@@ -107,6 +107,10 @@ export type CountUnit =
 	| "patch"
 	| "caplet"
 	| "sachet"
+	| "pack"
+	| "drink"
+	| "glass"
+	| "shot"
 	| "/min"
 	| "breaths_per_min"
 	| "beats_per_min";

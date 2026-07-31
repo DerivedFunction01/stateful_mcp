@@ -38,7 +38,8 @@ export interface SocialHistoryEntry {
 	id: string;
 	category: CodeableConcept; // e.g. smoking, alcohol, occupation, exercise
 	status: SocialHistoryStatus;
-	quantity?: string; // Free-text quantity (e.g. "1 pack/day", "2-3 drinks/week")
+	count?: SingleMeasurement; // e.g. { magnitude: 1, unit: { display: "pack" } }
+	frequency?: MedicationFrequency; // e.g. { cadenceType: "interval", rate: { times: 1, period: "d" } }
 	dateRange?: ClinicalDateRange;
 	notes?: string;
 }

@@ -76,7 +76,8 @@ const socialTemplate: ParsedItem = {
 	extractedData: {
 		category: { conceptId: "SNOMED::77176002", display: "Smoker" },
 		status: "current",
-		quantity: "1 pack per day",
+		count: { magnitude: 1.3, unit: { display: "pack" } },
+		frequency: { cadenceType: "interval", rate: { times: 1.2, period: "d" } },
 		notes: "tobacco use 1 pack per day",
 	},
 };

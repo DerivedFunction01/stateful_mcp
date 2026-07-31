@@ -69,7 +69,9 @@ function createSocialHistoryFieldRegistry(
 		},
 		{
 			sourceKey: "quantity",
-			targetField: "quantity",
+			targetField: "count",
+			compute: (_slots, _conceptDefaults, rawGroups) =>
+				buildMeasurement(rawGroups || {}),
 		},
 
 		{

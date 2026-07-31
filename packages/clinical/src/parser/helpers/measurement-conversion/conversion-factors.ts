@@ -213,6 +213,10 @@ export const NUMBER_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	patch: factor(1),
 	caplet: factor(1),
 	sachet: factor(1),
+	pack: factor(1),
+	drink: factor(1),
+	glass: factor(1),
+	shot: factor(1),
 };
 
 /** Canonical base: kg/m³ (derived — stored as g/L → 1 g/L = 1 kg/m³) */
