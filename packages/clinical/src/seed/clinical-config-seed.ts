@@ -420,6 +420,26 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 				},
 			],
 		},
+		cell: {
+			group: "cell",
+			implemented: true,
+			description:
+				"Cell state persistence for cell context, parent resolution, and link target resolution.",
+			defaultAdapters: [
+				{
+					group: "cell",
+					capabilities: ["read", "write", "query"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
 	},
 	seeds: {
 		parserProfiles: SEED_PARSER_PROFILES,

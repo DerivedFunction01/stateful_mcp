@@ -8,6 +8,30 @@ export interface CellRoutingTarget {
 	branchId?: string;
 }
 
+export type CellStatus =
+	| "draft"
+	| "parsing"
+	| "pending_commit"
+	| "committed"
+	| "error"
+	| "deleted"
+	| "locked";
+
+export type MergeStrategy = "replace" | "append" | "deep_merge" | "partial_fill";
+
+export interface CellLinkTarget {
+	targetSchema: string;
+	targetCellId: string;
+	targetField: string;
+	mergeStrategy: MergeStrategy;
+}
+
+export interface CellContext {
+	objects: Record<string, Record<string, Record<string, unknown>>>;
+	sourceType?: "dictation" | "manual_entry" | "imported" | "narrative";
+	ambient?: Record<string, unknown>;
+}
+
 export enum CellError {
 	CELL_IS_LOCKED = "CELL_IS_LOCKED",
 	CELL_IS_DELETED = "CELL_IS_DELETED",
@@ -19,6 +43,8 @@ export enum CellError {
 	PARSER_NOT_CONFIGURED = "PARSER_NOT_CONFIGURED",
 	NARRATIVE_PIPELINE_NOT_IMPLEMENTED = "NARRATIVE_PIPELINE_NOT_IMPLEMENTED",
 	JS_SCRIPT_NOT_IMPLEMENTED = "JS_SCRIPT_NOT_IMPLEMENTED",
+	PARENT_CELL_NOT_FOUND = "PARENT_CELL_NOT_FOUND",
+	LINK_TARGET_NOT_FOUND = "LINK_TARGET_NOT_FOUND",
 }
 
 export const CELL_ERROR_MESSAGES: Record<CellError, string> = {
@@ -35,6 +61,8 @@ export const CELL_ERROR_MESSAGES: Record<CellError, string> = {
 	[CellError.NARRATIVE_PIPELINE_NOT_IMPLEMENTED]:
 		"narrative pipeline not yet implemented",
 	[CellError.JS_SCRIPT_NOT_IMPLEMENTED]: "js_script mode not implemented",
+	[CellError.PARENT_CELL_NOT_FOUND]: "parent cell not found",
+	[CellError.LINK_TARGET_NOT_FOUND]: "link target not found",
 };
 
 export interface Cell {
@@ -45,15 +73,12 @@ export interface Cell {
 	routing: CellRoutingTarget;
 	parsedOutput: import("../parser/schema-parsers").ParsedItem[] | null;
 	workspaceId?: string;
-	status:
-		| "draft"
-		| "parsing"
-		| "pending_commit"
-		| "committed"
-		| "error"
-		| "deleted"
-		| "locked";
+	status: CellStatus;
 	errorMessage?: string;
 	lockedAt?: string;
 	updatedAt: string;
+	metadata?: Record<string, unknown>;
+	parentCellId?: string;
+	linkTarget?: CellLinkTarget;
+	context: CellContext;
 }

@@ -18,6 +18,7 @@ export type ClinicalStoreDomain =
 	| "signed_note"
 	| "patient_store"
 	| "concept_fields"
+	| "cell"
 	| (string & {});
 
 export type ClinicalStoreCapability =

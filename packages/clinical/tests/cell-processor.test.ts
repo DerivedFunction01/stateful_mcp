@@ -15,6 +15,7 @@ function makeCell(overrides: Partial<Cell> = {}): Cell {
 		routing: { scope: "global", targetSchema: null },
 		parsedOutput: null,
 		status: "draft",
+		context: { objects: {} },
 		updatedAt: new Date().toISOString(),
 		...overrides,
 	};
@@ -43,7 +44,7 @@ describe("CellProcessor", () => {
 							referrals: [],
 							interventions: [],
 						},
-					}) as SoapNote,
+					}) as unknown as SoapNote,
 			} as unknown as ClinicalEngine;
 
 			const processor = new CellProcessor(engine);
