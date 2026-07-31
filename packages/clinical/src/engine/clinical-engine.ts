@@ -5,6 +5,7 @@ import type {
 	ObjectStore,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
+import type { CommandAutocompleteSuggester } from "../parser/command-autocomplete-suggester";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { ParsedItem } from "../parser/schema-parsers";
 import { ProseRenderer } from "../renderer/prose-renderer";
@@ -421,6 +422,7 @@ export interface ClinicalEngineConfig {
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
+	commandSuggester?: CommandAutocompleteSuggester;
 }
 
 export class ClinicalEngine {
@@ -436,8 +438,10 @@ export class ClinicalEngine {
 	private conceptFieldStore?: ConceptFieldStore;
 	private evaluatorStore?: EvaluatorStore;
 	private proseTemplateStore?: ClinicalProseTemplateStore;
+	private commandSuggester?: CommandAutocompleteSuggester;
 
 	constructor(config: ClinicalEngineConfig) {
+		this.commandSuggester = config.commandSuggester;
 		this.objectStore = config.objectStore;
 		this.eventStore = config.eventStore;
 		this.signedNoteStore = config.signedNoteStore;
@@ -461,6 +465,7 @@ export class ClinicalEngine {
 				profile,
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
+				commandSuggester: this.commandSuggester,
 			});
 		} else if (profileStore) {
 			// Defer initialization — lazy init on first use
@@ -472,6 +477,7 @@ export class ClinicalEngine {
 				profile: {} as ParserSyntaxProfile,
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
+				commandSuggester: this.commandSuggester,
 			});
 		}
 	}

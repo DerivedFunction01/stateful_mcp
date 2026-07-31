@@ -20,6 +20,10 @@ import type {
 	SystemWeightStore,
 } from "../store/learning/interfaces";
 import { GenericConfidenceScorer } from "../store/learning/parsed_cell/confidence-scorer";
+import type {
+	CommandAutocompleteContext,
+	CommandAutocompleteSuggestion,
+} from "../store/reference/auto-complete/command-autocomplete-interfaces";
 import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import {
@@ -27,6 +31,7 @@ import {
 	buildNumericFieldRules,
 } from "../store/rules-builder";
 import { SegmentProcessor } from "./cdsl-segment-processor";
+import type { CommandAutocompleteSuggester } from "./command-autocomplete-suggester";
 import type {
 	SharedFieldAnchorRule,
 	SharedFieldAnchorStore,
@@ -60,6 +65,7 @@ export interface CdslParserOptions {
 	macroStore?: ParserMacroStore;
 	variableService?: VariableService;
 	weightStore?: SystemWeightStore;
+	commandSuggester?: CommandAutocompleteSuggester;
 }
 
 export class CdslParser {
@@ -74,8 +80,12 @@ export class CdslParser {
 	private macroStore?: ParserMacroStore;
 	private variableService?: VariableService;
 	private weightStore?: SystemWeightStore;
+	private commandSuggester?: CommandAutocompleteSuggester;
 	private attributeRules: AttributeParserRule[];
 	private segmentProcessor: SegmentProcessor;
+
+	private static readonly MAX_RECENT_SCHEMAS = 3;
+	private recentTargetSchemas: string[] = [];
 
 	private static readonly SCHEMAS_WITHOUT_CONCEPT = new Set([
 		"ClinicalDateRange",
@@ -93,6 +103,7 @@ export class CdslParser {
 		this.macroStore = options.macroStore;
 		this.variableService = options.variableService;
 		this.weightStore = options.weightStore;
+		this.commandSuggester = options.commandSuggester;
 		this.attributeRules = [
 			...(this.profile.attributeRules || []),
 			...(this.profile.calendarDateFormats
@@ -180,7 +191,30 @@ export class CdslParser {
 	async suggestAutocomplete(
 		partialText: string,
 		context: StopWordContext,
+		commandContext?: CommandAutocompleteContext,
 	): Promise<AutocompleteSuggestion[]> {
+		// 1. Build effective command context — merge caller-provided context
+		//    with the internal recentTargetSchemas buffer
+		const effectiveCommandContext: CommandAutocompleteContext = {
+			...commandContext,
+			recentTargetSchemas:
+				commandContext?.recentTargetSchemas ?? this.recentTargetSchemas,
+		};
+
+		// 2. Detect trigger character for command autocomplete
+		const triggerChar = this.detectCommandTrigger(partialText);
+
+		// 3. If trigger detected and suggester available, return command suggestions
+		if (triggerChar && this.commandSuggester) {
+			const commandSuggestions = await this.commandSuggester.suggest(
+				partialText,
+				triggerChar,
+				effectiveCommandContext,
+			);
+			return commandSuggestions.map((s) => this.toAutocompleteSuggestion(s));
+		}
+
+		// 4. Otherwise, return prose template suggestions (existing behavior)
 		if (!this.proseTemplateStore) return [];
 		const suggester = new ProseTemplateSuggester(
 			this.proseTemplateStore,
@@ -192,6 +226,71 @@ export class CdslParser {
 			specialtyId: context.specialtyId,
 			locale: context.locale,
 		});
+	}
+
+	/**
+	 * Detect whether `partialText` ends with an active command trigger
+	 * (e.g. `#` for tags, `^` for macros). Returns the trigger character
+	 * or `null`.
+	 *
+	 * A trigger is detected when:
+	 * 1. The trigger char appears in `partialText`
+	 * 2. The text after the last occurrence does NOT contain a space
+	 *    (meaning the user is still typing the command name)
+	 */
+	private detectCommandTrigger(partialText: string): string | null {
+		const triggers = [this.profile.tagToken];
+		if (this.profile.macroStartToken) {
+			triggers.push(this.profile.macroStartToken);
+		}
+		if (this.profile.variableStartToken) {
+			triggers.push(this.profile.variableStartToken);
+		}
+		triggers.push("@");
+		let bestTrigger: string | null = null;
+		let bestIdx = -1;
+		for (const trigger of triggers) {
+			const idx = partialText.lastIndexOf(trigger);
+			if (idx > bestIdx) {
+				const afterTrigger = partialText.slice(idx + trigger.length);
+				if (!afterTrigger.includes(" ")) {
+					bestTrigger = trigger;
+					bestIdx = idx;
+				}
+			}
+		}
+		return bestTrigger;
+	}
+
+	/**
+	 * Convert a `CommandAutocompleteSuggestion` to `AutocompleteSuggestion`
+	 * format (Option A) so it can be merged into the unified suggestion list
+	 * without changing the public return type of `suggestAutocomplete()`.
+	 */
+	private toAutocompleteSuggestion(
+		s: CommandAutocompleteSuggestion,
+	): AutocompleteSuggestion {
+		return {
+			templateId: `command:${s.kind}`,
+			slotName: s.label,
+			triggerPattern: this.profile.tagToken,
+			insertText: s.insertText,
+			cursorOffset: s.cursorOffset ?? s.insertText.length,
+			targetSchema: s.targetSchema,
+			rankScore: s.rankScore,
+		};
+	}
+
+	/**
+	 * Update the rolling buffer of recent `targetSchema` values from parsed items.
+	 * Keeps at most `MAX_RECENT_SCHEMAS` entries, newest first.
+	 */
+	private updateRecentTargetSchemas(items: ParsedItem[]): void {
+		const schemas = items.map((item) => item.targetSchema);
+		this.recentTargetSchemas = [...schemas, ...this.recentTargetSchemas].slice(
+			0,
+			CdslParser.MAX_RECENT_SCHEMAS,
+		);
 	}
 
 	async preview(
@@ -239,26 +338,30 @@ export class CdslParser {
 		const cleanText = await this.applyVariables(text, context);
 		const expanded = await this.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
+		let items: ParsedItem[];
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
 				this.stopWordStore,
 				context,
 			);
-			return this.parseWithStopWordParser(
+			items = await this.parseWithStopWordParser(
 				expanded,
 				dynamicParser,
 				context,
 				undefined,
 				expanded,
 			);
+		} else {
+			items = await this.parseWithStopWordParser(
+				expanded,
+				effectiveStopWordParser,
+				context,
+				undefined,
+				expanded,
+			);
 		}
-		return this.parseWithStopWordParser(
-			expanded,
-			effectiveStopWordParser,
-			context,
-			undefined,
-			expanded,
-		);
+		this.updateRecentTargetSchemas(items);
+		return items;
 	}
 
 	async parseWithHistory(
@@ -269,26 +372,30 @@ export class CdslParser {
 		const cleanText = await this.applyVariables(text, context);
 		const expanded = await this.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
+		let items: ParsedItem[];
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
 				this.stopWordStore,
 				context,
 			);
-			return this.parseWithStopWordParser(
+			items = await this.parseWithStopWordParser(
 				expanded,
 				dynamicParser,
 				context,
 				historyStore,
 				expanded,
 			);
+		} else {
+			items = await this.parseWithStopWordParser(
+				expanded,
+				effectiveStopWordParser,
+				context,
+				historyStore,
+				expanded,
+			);
 		}
-		return this.parseWithStopWordParser(
-			expanded,
-			effectiveStopWordParser,
-			context,
-			historyStore,
-			expanded,
-		);
+		this.updateRecentTargetSchemas(items);
+		return items;
 	}
 
 	private async previewWithStopWordParser(
