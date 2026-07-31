@@ -34,9 +34,16 @@ export async function validateBootstrapReadiness(
 
 	const sharedAnchors = await stores.sharedFieldAnchors.listForContext({});
 	const hasProseTemplates = (await stores.proseTemplates.list()).length > 0;
+	const hasProseParserTemplates =
+		(await stores.proseParserTemplates.listAll()).length > 0;
 	const hasConceptFields = (await stores.conceptFields.list()).length > 0;
 
-	if (!hasProseTemplates || !hasConceptFields || sharedAnchors.length === 0) {
+	if (
+		!hasProseTemplates ||
+		!hasProseParserTemplates ||
+		!hasConceptFields ||
+		sharedAnchors.length === 0
+	) {
 		return "degraded";
 	}
 

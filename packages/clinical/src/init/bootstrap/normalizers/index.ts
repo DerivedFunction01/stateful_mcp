@@ -4,6 +4,7 @@ export { normalizeEvaluatorRule } from "./evaluator-rule";
 export { normalizeFieldRule } from "./field-rule";
 export { normalizeProfile } from "./profile";
 export { normalizeProseRule } from "./prose-rule";
+export { normalizeProseParserTemplate } from "./prose-parser-template";
 export { normalizeSharedAnchor } from "./shared-anchor";
 export { normalizeStopWordList } from "./stop-word-list";
 export { normalizeStopWordProfile } from "./stop-word-profile";

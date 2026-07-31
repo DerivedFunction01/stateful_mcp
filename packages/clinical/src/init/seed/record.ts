@@ -12,6 +12,7 @@ export type ClinicalInitSeedKind =
 	| "field_rule"
 	| "concept_default"
 	| "prose_rule"
+	| "prose_parser_template"
 	| "shared_field_anchor"
 	| "stop_word_list"
 	| "stop_word_profile"

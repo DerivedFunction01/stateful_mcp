@@ -43,6 +43,8 @@ import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordere
 import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
 import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";
 import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
+import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
+import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import type { TagStore } from "../store/parser/tags/interfaces";
 import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 
@@ -430,6 +432,8 @@ export interface ClinicalEngineConfig {
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
+	proseParserTemplateStore?: ProseParserTemplateStore;
+	sharedFieldAnchorStore?: SharedFieldAnchorStore;
 	commandSuggester?: CommandAutocompleteSuggester;
 	personnelId?: string;
 }
@@ -484,6 +488,8 @@ export class ClinicalEngine {
 				tagStore: config.tagStore,
 				profileTagStore: config.profileTagStore,
 				macroStore: config.macroStore,
+				proseTemplateStore: config.proseParserTemplateStore,
+				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
 		} else if (profileStore) {
@@ -501,6 +507,8 @@ export class ClinicalEngine {
 				tagStore: config.tagStore,
 				profileTagStore: config.profileTagStore,
 				macroStore: config.macroStore,
+				proseTemplateStore: config.proseParserTemplateStore,
+				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
 		}

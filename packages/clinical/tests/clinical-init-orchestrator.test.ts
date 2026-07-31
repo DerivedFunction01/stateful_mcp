@@ -142,6 +142,33 @@ describe("bootstrapClinicalStores", () => {
 
 		expect(Array.isArray(result.unsupportedKinds)).toBe(true);
 	});
+
+	it("writes parser prose templates to the parser template store", async () => {
+		const stores = makeMockStores();
+		const result = await bootstrapClinicalStores(
+			stores,
+			[
+				{
+					recordId: "parser-template-record",
+					kind: "prose_parser_template",
+					payload: {
+						templateId: "parser-template",
+						targetSchema: "ObservationEvent",
+						sectionPattern: "(?<value>.+)",
+						slots: [],
+					},
+					sourceModuleId: "test",
+					sourceModuleVersion: 1,
+				},
+			],
+			{ seedPolicy: "force" },
+		);
+
+		expect(result.recordsWritten.prose_parser_template).toBe(1);
+		expect(
+			await stores.proseParserTemplates.get("parser-template"),
+		).not.toBeNull();
+	});
 });
 
 describe("validateBootstrapReadiness", () => {
@@ -210,6 +237,12 @@ describe("validateBootstrapReadiness", () => {
 			slotPosition: "opening",
 			templateText: "test",
 			slots: {},
+		});
+		await stores.proseParserTemplates.set({
+			templateId: "test-parser-template",
+			targetSchema: "ObservationEvent",
+			sectionPattern: "(?<value>.+)",
+			slots: [],
 		});
 		await stores.conceptFields.set({
 			ruleId: "test-field",

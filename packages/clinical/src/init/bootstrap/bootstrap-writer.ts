@@ -10,6 +10,7 @@ import {
 	normalizeEvaluatorRule,
 	normalizeFieldRule,
 	normalizeProfile,
+	normalizeProseParserTemplate,
 	normalizeProseRule,
 	normalizeSharedAnchor,
 	normalizeStopWordList,
@@ -86,6 +87,12 @@ registerHandler("prose_rule", async (stores, record) => {
 	const template = normalizeProseRule(record);
 	if (!template) return;
 	await stores.proseTemplates.set(template);
+});
+
+registerHandler("prose_parser_template", async (stores, record) => {
+	const template = normalizeProseParserTemplate(record);
+	if (!template) return;
+	await stores.proseParserTemplates.set(template);
 });
 
 registerHandler("shared_field_anchor", async (stores, record) => {
@@ -201,6 +208,13 @@ async function isStoreEmpty(
 			const existing = await stores.proseTemplates.getById(
 				payload?.templateId as string,
 			);
+			return existing === null;
+		}
+		case "prose_parser_template": {
+			const payload = record.payload as Record<string, unknown> | undefined;
+			const templateId = payload?.templateId;
+			if (typeof templateId !== "string") return true;
+			const existing = await stores.proseParserTemplates.get(templateId);
 			return existing === null;
 		}
 		case "shared_field_anchor": {
