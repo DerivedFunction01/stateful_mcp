@@ -39,6 +39,7 @@ export interface ParserSyntaxProfile {
 	numericFieldFormats?: NumericFieldFormatOptions[];
 	boundaryDelimiter?: string;
 	transitionalWords?: string[];
+	numberWordConfig?: import("../parser/utils/number-word-normalizer").NumberWordConfig;
 }
 
 export interface PatientLearningContext extends PatientLearningBucket {

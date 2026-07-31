@@ -20,6 +20,7 @@ import {
 	type DateTimeFormatConfig,
 } from "../parser/utils/date-regex-generator";
 import { buildNumericPatternString } from "../parser/utils/numeric-regex-generator";
+import type { NumberWordConfig } from "../parser/utils/number-word-normalizer";
 import type {
 	AttributeParserRule,
 	NamedGroupContract,
@@ -161,6 +162,47 @@ export const DEFAULT_CALENDAR_DATE_FORMATS: DateTimeFormatConfig[] = [
 		},
 	},
 ];
+
+export const DEFAULT_NUMBER_WORD_CONFIG: NumberWordConfig = {
+	atoms: {
+		0: "zero",
+		1: "one",
+		2: "two",
+		3: "three",
+		4: "four",
+		5: "five",
+		6: "six",
+		7: "seven",
+		8: "eight",
+		9: "nine",
+		10: "ten",
+		11: "eleven",
+		12: "twelve",
+		13: "thirteen",
+		14: "fourteen",
+		15: "fifteen",
+		16: "sixteen",
+		17: "seventeen",
+		18: "eighteen",
+		19: "nineteen",
+		20: "twenty",
+		30: "thirty",
+		40: "forty",
+		50: "fifty",
+		60: "sixty",
+		70: "seventy",
+		80: "eighty",
+		90: "ninety",
+	},
+	scales: [
+		{ value: 1000000, word: "million", type: "major" },
+		{ value: 1000, word: "thousand", type: "major" },
+		{ value: 100, word: "hundred", type: "minor" },
+	],
+	conjunctions: ["and"],
+	protectedPatterns: [],
+	useWordBoundaries: true,
+};
 
 export const DEFAULT_ATTRIBUTE_RULES: AttributeParserRule[] = [
 	{

@@ -21,6 +21,7 @@ import {
 	schemaParserRegistry,
 } from "./schema-parsers";
 import type { StopWordParser } from "./stop-word-parser";
+import { NumberWordNormalizer } from "./utils/number-word-normalizer";
 
 export interface SegmentParseState {
 	tag: string;
@@ -136,7 +137,11 @@ export class SegmentProcessor {
 		tag: string = "",
 	): PreparsedContext {
 		const attrRules = this.attributeRules;
-		const candidates = QuantityTokenizer.tokenize(content, attrRules);
+		const numberWordConfig = this.profile.numberWordConfig;
+		const normalizer = new NumberWordNormalizer(numberWordConfig || null);
+		const { normalizedText } = normalizer.normalize(content);
+		const tokenizationText = normalizedText || content;
+		const candidates = QuantityTokenizer.tokenize(tokenizationText, attrRules);
 		const frequency = FrequencyHelper.parse(
 			content,
 			attrRules || [],
@@ -181,6 +186,7 @@ export class SegmentProcessor {
 
 		return {
 			rawText: content,
+			normalizedText: normalizedText !== content ? normalizedText : undefined,
 			candidates: candidatesByAnchor,
 			looseCandidates,
 			timeCandidates,
