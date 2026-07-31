@@ -106,3 +106,5 @@ export type OrganSystem =
 	| "dermatological"
 	| "psychiatric"
 	| "genitourinary";
+
+export type SoapSection = "subjective" | "objective" | "assessment" | "plan";

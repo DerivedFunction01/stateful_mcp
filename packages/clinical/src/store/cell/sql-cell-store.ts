@@ -8,11 +8,7 @@ export class SqlCellStore implements CellStore {
 	private readonly executor: SqlExecutor;
 	private readonly table: string;
 
-	constructor(
-		dialect: SqlDialect,
-		executor: SqlExecutor,
-		table = "cells",
-	) {
+	constructor(dialect: SqlDialect, executor: SqlExecutor, table = "cells") {
 		this.compiler = new CellQueryCompiler(dialect);
 		this.executor = executor;
 		this.table = table;
@@ -27,10 +23,7 @@ export class SqlCellStore implements CellStore {
 	}
 
 	async get(cellId: string): Promise<Cell | null> {
-		const { sql, params } = this.compiler.compileGetQuery(
-			cellId,
-			this.table,
-		);
+		const { sql, params } = this.compiler.compileGetQuery(cellId, this.table);
 		const row = await this.executor.queryOne(sql, params);
 		return row ? this.rowToRecord(row) : null;
 	}

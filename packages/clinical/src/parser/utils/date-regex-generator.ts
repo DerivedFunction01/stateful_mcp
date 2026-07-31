@@ -193,9 +193,10 @@ export function buildMonthNameMap(
 	return map;
 }
 
-export function buildDayPeriodMap(
-	dayPeriods?: { am: string[]; pm: string[] },
-): Map<string, "am" | "pm"> {
+export function buildDayPeriodMap(dayPeriods?: {
+	am: string[];
+	pm: string[];
+}): Map<string, "am" | "pm"> {
 	const map = new Map<string, "am" | "pm">();
 	if (!dayPeriods) return map;
 	for (const entry of dayPeriods.am) {

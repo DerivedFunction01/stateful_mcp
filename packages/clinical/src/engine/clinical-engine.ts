@@ -633,6 +633,7 @@ export class ClinicalEngine {
 		sessionId: string,
 		dictation: string,
 		alias?: string,
+		options?: { skipCellPreprocessing?: boolean },
 	): Promise<SoapNote> {
 		const effectiveAlias = alias ?? sessionId;
 		const activeObj = await this.objectStore.getObject(
@@ -653,16 +654,31 @@ export class ClinicalEngine {
 			| ParsedCellHistoryStore
 			| undefined;
 
+		const skipCellPreprocessing = options?.skipCellPreprocessing ?? true;
+		let textToParse = dictation;
+		if (!skipCellPreprocessing) {
+			const preprocessor = this.parser.getPreprocessor();
+			textToParse = await preprocessor.applyVariables(dictation, sessionId);
+			textToParse = await preprocessor.expandMacros(textToParse);
+
+			const directiveMatch = textToParse.match(
+				/^\/notes\/(subjective|objective|assessment|plan|\?)\/([A-Za-z0-9_]+|\?)\s*/,
+			);
+			if (directiveMatch) {
+				textToParse = textToParse.slice(directiveMatch[0]?.length ?? 0).trim();
+			}
+		}
+
 		const parsedItems = historyStore
 			? await this.parser.parseWithHistory(
-					dictation,
+					textToParse,
 					{
 						personnelId: "system",
 						patientContext: patientBucket,
 					},
 					historyStore,
 				)
-			: await this.parser.parse(dictation, {
+			: await this.parser.parse(textToParse, {
 					personnelId: "system",
 					patientContext: patientBucket,
 				});

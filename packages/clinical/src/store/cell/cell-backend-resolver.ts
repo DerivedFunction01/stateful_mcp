@@ -36,11 +36,8 @@ export async function resolveCellStore(
 		case "memory":
 			return new KvCellStore(new MemoryKvBackend());
 		case "jsonl": {
-			const path =
-				readStringOption(locator, "path", "") || "cells.jsonl";
-			return new KvCellStore(
-				new JsonlKvBackend({ dataFilePath: path }),
-			);
+			const path = readStringOption(locator, "path", "") || "cells.jsonl";
+			return new KvCellStore(new JsonlKvBackend({ dataFilePath: path }));
 		}
 		case "sqlite":
 		case "postgres":

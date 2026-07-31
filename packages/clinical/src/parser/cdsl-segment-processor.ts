@@ -32,6 +32,11 @@ export interface SegmentParseState {
 	parsersToRun: SchemaParser[];
 }
 
+export interface RoutingContext {
+	targetSchema?: string | null;
+	resolvedSection?: string | null;
+}
+
 export class SegmentProcessor {
 	constructor(
 		private profile: ParserSyntaxProfile,
@@ -44,6 +49,7 @@ export class SegmentProcessor {
 		text: string,
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
+		routingContext?: RoutingContext,
 	): Promise<SegmentParseState | null> {
 		const { tag, content } = this.extractTag(text);
 		if (!content) {
@@ -59,6 +65,7 @@ export class SegmentProcessor {
 			context,
 			undefined,
 			tag,
+			routingContext,
 		);
 
 		// Resolve concepts for concept-driven dispatch
@@ -69,13 +76,19 @@ export class SegmentProcessor {
 			await this.resolveConceptFieldRules(resolvedConcepts);
 
 		// Resolve tag to a schema parser
-		const mappedParser = this.resolveMappedParser(tag);
+		let mappedParser: SchemaParser | undefined;
+		if (routingContext?.targetSchema) {
+			mappedParser = this.resolveParserBySchema(routingContext.targetSchema);
+		} else {
+			mappedParser = this.resolveMappedParser(tag);
+		}
 
 		// Build parsersToRun from tag + concept routing
 		const parsersToRun = this.resolveParsersToRun(
 			tag,
 			conceptFieldRules,
 			mappedParser,
+			routingContext?.targetSchema,
 		);
 
 		return {
@@ -135,6 +148,7 @@ export class SegmentProcessor {
 		context?: StopWordContext,
 		attributeOverrides?: Record<string, any>,
 		tag: string = "",
+		routingContext?: RoutingContext,
 	): PreparsedContext {
 		const attrRules = this.attributeRules;
 		const numberWordConfig = this.profile.numberWordConfig;
@@ -249,10 +263,26 @@ export class SegmentProcessor {
 		return mappedParser;
 	}
 
+	private resolveParserBySchema(
+		targetSchema: string,
+	): SchemaParser | undefined {
+		let mappedParser = schemaParserRegistry.get(targetSchema.toLowerCase());
+		if (!mappedParser) {
+			for (const p of schemaParserRegistry.values()) {
+				if (p.targetSchema.toLowerCase() === targetSchema.toLowerCase()) {
+					mappedParser = p;
+					break;
+				}
+			}
+		}
+		return mappedParser;
+	}
+
 	private resolveParsersToRun(
 		tag: string,
 		conceptFieldRules: ConceptFieldRule[],
 		mappedParser: SchemaParser | undefined,
+		resolvedSchema?: string | null,
 	): SchemaParser[] {
 		const conceptMatchedParsers: SchemaParser[] = [];
 		if (conceptFieldRules.length > 0) {
@@ -277,7 +307,7 @@ export class SegmentProcessor {
 				parsersToRun.push(p);
 			}
 		}
-		if (parsersToRun.length === 0) {
+		if (parsersToRun.length === 0 && !resolvedSchema) {
 			for (const p of Array.from(schemaParserRegistry.values())) {
 				parsersToRun.push(p);
 			}

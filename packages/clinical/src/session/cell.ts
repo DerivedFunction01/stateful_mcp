@@ -1,3 +1,5 @@
+import type { SoapSection } from "../schemas/shared";
+
 export type CellMode = "cdsl" | "narrative" | "js_script";
 
 export type CellRoutingScope = "global" | "branch_local" | "unresolved";
@@ -6,6 +8,8 @@ export interface CellRoutingTarget {
 	scope: CellRoutingScope;
 	targetSchema: string | null;
 	branchId?: string;
+	resolvedSection?: SoapSection | null;
+	resolvedSchema?: string | null;
 }
 
 export type CellStatus =
@@ -17,7 +21,11 @@ export type CellStatus =
 	| "deleted"
 	| "locked";
 
-export type MergeStrategy = "replace" | "append" | "deep_merge" | "partial_fill";
+export type MergeStrategy =
+	| "replace"
+	| "append"
+	| "deep_merge"
+	| "partial_fill";
 
 export interface CellLinkTarget {
 	targetSchema: string;
@@ -61,7 +69,8 @@ export const CELL_ERROR_MESSAGES: Record<CellError, string> = {
 	[CellError.JS_SCRIPT_NOT_IMPLEMENTED]: "js_script mode not implemented",
 	[CellError.PARENT_CELL_NOT_FOUND]: "parent cell not found",
 	[CellError.LINK_TARGET_NOT_FOUND]: "link target not found",
-	[CellError.NARRATIVE_TARGET_REQUIRED]: "narrative cells require narrativeTarget",
+	[CellError.NARRATIVE_TARGET_REQUIRED]:
+		"narrative cells require narrativeTarget",
 };
 
 export interface Cell {

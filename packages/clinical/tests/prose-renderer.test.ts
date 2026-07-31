@@ -1,13 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import type { ParsedItem } from "../src/parser/schema-parsers";
 import {
-	type CellRenderResult,
 	CellRenderWarning,
 	ProseRenderer,
 	TemplateWalker,
 } from "../src/renderer/prose-renderer";
-import type { Cell } from "../src/session/cell";
-import type { ParsedItem } from "../src/parser/schema-parsers";
 import type { SoapNote } from "../src/schemas/document";
+import type { Cell } from "../src/session/cell";
 import type { ClinicalProseTemplate } from "../src/store/interfaces";
 
 // ── Cell Rendering Test Helpers ──────────────────────────────────────────────
@@ -303,7 +302,8 @@ describe("ProseRenderer.renderCell", () => {
 		templateId: "tpl-vitals",
 		targetSchema: "VitalsMeasurementEvent",
 		slotPosition: "opening",
-		templateText: "Temperature: {measurement.magnitude} {measurement.unit.display}",
+		templateText:
+			"Temperature: {measurement.magnitude} {measurement.unit.display}",
 		slots: {
 			"measurement.magnitude": { sourcePath: "measurement.magnitude" },
 			"measurement.unit.display": { sourcePath: "measurement.unit.display" },
@@ -315,7 +315,8 @@ describe("ProseRenderer.renderCell", () => {
 		targetSchema: "VitalsMeasurementEvent",
 		targetConceptId: "LOINC::8310-5",
 		slotPosition: "opening",
-		templateText: "Temp (concept): {measurement.magnitude}{measurement.unit.display}",
+		templateText:
+			"Temp (concept): {measurement.magnitude}{measurement.unit.display}",
 		slots: {
 			"measurement.magnitude": { sourcePath: "measurement.magnitude" },
 			"measurement.unit.display": { sourcePath: "measurement.unit.display" },
@@ -357,12 +358,16 @@ describe("ProseRenderer.renderCell", () => {
 	it("2. CDSL cell with multiple parsed items renders each item independently and joins output deterministically", () => {
 		const item1 = makeParsedItem({
 			rawText: "#vital temp 38.9 C",
-			extractedData: { measurement: { magnitude: 38.9, unit: { display: "C" } } },
+			extractedData: {
+				measurement: { magnitude: 38.9, unit: { display: "C" } },
+			},
 		});
 		const item2 = makeParsedItem({
 			rawText: "#vital hr 82",
 			concept: [{ conceptId: "LOINC::8867-4", display: "Heart Rate" }],
-			extractedData: { measurement: { magnitude: 82, unit: { display: "/min" } } },
+			extractedData: {
+				measurement: { magnitude: 82, unit: { display: "/min" } },
+			},
 		});
 		const cell = makeCell({
 			parsedOutput: [item1, item2],
@@ -378,9 +383,13 @@ describe("ProseRenderer.renderCell", () => {
 		const cell = makeCell({
 			parsedOutput: [makeParsedItem()],
 		});
-		const result = ProseRenderer.renderCell(cell, [vitalsTemplate, vitalsGenericTemplate], {
-			templateId: "tpl-vitals-generic",
-		});
+		const result = ProseRenderer.renderCell(
+			cell,
+			[vitalsTemplate, vitalsGenericTemplate],
+			{
+				templateId: "tpl-vitals-generic",
+			},
+		);
 
 		expect(result.text).toBe("Vital: 38.9");
 		expect(result.templateId).toBe("tpl-vitals-generic");
@@ -429,7 +438,9 @@ describe("ProseRenderer.renderCell", () => {
 		const result = ProseRenderer.renderCell(cell, []);
 
 		expect(result.text).toBe("Patient reports chest pain for 3 days");
-		expect(result.targetField).toBe("subjective.historyOfPresentIllness.narrative");
+		expect(result.targetField).toBe(
+			"subjective.historyOfPresentIllness.narrative",
+		);
 		expect(result.warnings).toEqual([]);
 	});
 
@@ -443,7 +454,9 @@ describe("ProseRenderer.renderCell", () => {
 			templateId: "tpl-narrative",
 		});
 
-		expect(result.text).toBe("Narrative: Patient reports chest pain for 3 days");
+		expect(result.text).toBe(
+			"Narrative: Patient reports chest pain for 3 days",
+		);
 		expect(result.templateId).toBe("tpl-narrative");
 	});
 
@@ -512,7 +525,9 @@ describe("ProseRenderer.renderCell", () => {
 			status: "deleted",
 			parsedOutput: [makeParsedItem()],
 		});
-		const deletedResult = ProseRenderer.renderCell(deletedCell, [vitalsTemplate]);
+		const deletedResult = ProseRenderer.renderCell(deletedCell, [
+			vitalsTemplate,
+		]);
 		expect(deletedResult.text).toBe("");
 		expect(deletedResult.warnings).toContain(CellRenderWarning.CELL_DELETED);
 	});

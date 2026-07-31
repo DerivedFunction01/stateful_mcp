@@ -1,10 +1,19 @@
 import type { ClinicalEngine } from "../engine/clinical-engine";
 import type { WorkspaceStore } from "../engine/workspace-store";
+import type { CdslParser } from "../parser/cdsl-parser";
 import type { ParsedItem } from "../parser/schema-parsers";
+import { schemaParserRegistry } from "../parser/schema-parsers";
+import type { TextPreprocessor } from "../parser/text-preprocessor";
 import type { SoapNote } from "../schemas/document";
+import type { SoapSection } from "../schemas/shared";
 import type { CellStore } from "../store/interfaces";
 import type { Cell } from "./cell";
 import { CELL_ERROR_MESSAGES, CellError } from "./cell";
+
+export interface PreprocessResult {
+	cleanedText: string;
+	cell: Cell;
+}
 
 export interface CellProcessResult {
 	cell: Cell;
@@ -18,7 +27,8 @@ export class CellProcessor {
 	constructor(
 		private engine: ClinicalEngine,
 		private workspaceStore?: WorkspaceStore,
-		private parser?: { parse: (text: string) => Promise<ParsedItem[]> },
+		private parser?: CdslParser,
+		private preprocessor?: TextPreprocessor,
 		private cellStore?: CellStore,
 	) {}
 
@@ -29,6 +39,67 @@ export class CellProcessor {
 		return { code, message: message ?? CELL_ERROR_MESSAGES[code] };
 	}
 
+	async preprocess(cell: Cell): Promise<PreprocessResult> {
+		if (!this.preprocessor) {
+			return { cleanedText: cell.rawInput, cell };
+		}
+
+		let cleanedText = cell.rawInput;
+		const sessionId = cell.sessionId;
+
+		cleanedText = await this.preprocessor.applyVariables(
+			cleanedText,
+			sessionId,
+		);
+		cleanedText = await this.preprocessor.expandMacros(cleanedText);
+
+		const directiveMatch = cleanedText.match(
+			/^\/notes\/(subjective|objective|assessment|plan|\?)\/([A-Za-z0-9_]+|\?)\s*/,
+		);
+		if (directiveMatch) {
+			const rawSection = directiveMatch[1];
+			const rawSchema = directiveMatch[2];
+			const section = rawSection === "?" ? null : (rawSection as SoapSection);
+			const schema = rawSchema === "?" ? null : rawSchema;
+			cell.routing = {
+				...cell.routing,
+				resolvedSection: section,
+				resolvedSchema: schema,
+				targetSchema: schema ?? cell.routing.targetSchema,
+			};
+			cleanedText = cleanedText.slice(directiveMatch[0]?.length ?? 0).trim();
+		}
+
+		if (!cell.routing.targetSchema && this.parser) {
+			const profile = this.parser.getProfile();
+			const tagToken = profile.tagToken || "#";
+			const tagRegex = new RegExp(
+				`(?:\\s|^)(${tagToken.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}[a-zA-Z0-9_-]+)(?:\\s|$)`,
+			);
+			const tagMatch = cleanedText.match(tagRegex);
+			if (tagMatch && tagMatch[1]) {
+				const tag = tagMatch[1]!;
+				let cleanKey = tag.startsWith(tagToken)
+					? tag.substring(tagToken.length).toLowerCase()
+					: tag.toLowerCase();
+				if (profile.tagMappings && profile.tagMappings[cleanKey]) {
+					cleanKey = profile.tagMappings[cleanKey]!.toLowerCase();
+				}
+				for (const p of Array.from(schemaParserRegistry.values())) {
+					if (p.targetSchema.toLowerCase() === cleanKey) {
+						cell.routing = {
+							...cell.routing,
+							targetSchema: p.targetSchema,
+						};
+						break;
+					}
+				}
+			}
+		}
+
+		return { cleanedText, cell };
+	}
+
 	async execute(cell: Cell, alias?: string): Promise<CellProcessResult> {
 		if (cell.status === "locked") {
 			return { cell, error: this.cellError(CellError.CELL_IS_LOCKED) };
@@ -37,13 +108,19 @@ export class CellProcessor {
 			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
 		}
 
+		const { cleanedText } = await this.preprocess(cell);
+
 		// Handle narrative mode: directly write rawInput to the targeted SoapNote field
 		if (cell.mode === "narrative") {
 			if (!cell.narrativeTarget) {
 				cell.status = "error";
-				cell.errorMessage = CELL_ERROR_MESSAGES[CellError.NARRATIVE_TARGET_REQUIRED];
+				cell.errorMessage =
+					CELL_ERROR_MESSAGES[CellError.NARRATIVE_TARGET_REQUIRED];
 				await this.saveCell(cell);
-				return { cell, error: this.cellError(CellError.NARRATIVE_TARGET_REQUIRED) };
+				return {
+					cell,
+					error: this.cellError(CellError.NARRATIVE_TARGET_REQUIRED),
+				};
 			}
 			cell.parsedOutput = null;
 			cell.metadata = { ...cell.metadata, sourceType: "narrative" };
@@ -52,7 +129,7 @@ export class CellProcessor {
 				const note = await this.engine.setSoapNoteField(
 					cell.sessionId,
 					cell.narrativeTarget,
-					cell.rawInput,
+					cleanedText,
 					effectiveAlias,
 				);
 				cell.status = "committed";
@@ -63,7 +140,13 @@ export class CellProcessor {
 				cell.status = "error";
 				cell.errorMessage = err instanceof Error ? err.message : String(err);
 				await this.saveCell(cell);
-				return { cell, error: { code: CellError.PARSER_NOT_CONFIGURED, message: cell.errorMessage } };
+				return {
+					cell,
+					error: {
+						code: CellError.PARSER_NOT_CONFIGURED,
+						message: cell.errorMessage,
+					},
+				};
 			}
 		}
 
@@ -83,7 +166,7 @@ export class CellProcessor {
 				try {
 					const note = await this.engine.processCdsl(
 						cell.sessionId,
-						cell.rawInput,
+						cleanedText,
 						effectiveAlias,
 					);
 					cell.status = "committed";
@@ -138,7 +221,7 @@ export class CellProcessor {
 						cell.sessionId,
 						cell.workspaceId,
 						cell.routing.branchId,
-						cell.rawInput,
+						cleanedText,
 					);
 					cell.status = "committed";
 					cell.lockedAt = new Date().toISOString();
@@ -183,12 +266,20 @@ export class CellProcessor {
 
 		// Narrative cells have no preview — rawInput is written directly to the targeted field
 		if (cell.mode === "narrative") {
-			return { cell, error: { code: CellError.PARSER_NOT_CONFIGURED, message: "preview not available for narrative cells" } };
+			return {
+				cell,
+				error: {
+					code: CellError.PARSER_NOT_CONFIGURED,
+					message: "preview not available for narrative cells",
+				},
+			};
 		}
 
 		if (!this.parser) {
 			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED) };
 		}
+
+		const { cleanedText } = await this.preprocess(cell);
 
 		// Resolve parent context before processing
 		const parentError = await this.resolveParentContext(cell);
@@ -197,7 +288,10 @@ export class CellProcessor {
 		cell.parsedOutput = null;
 		cell.status = "parsing";
 		try {
-			const parsed = await this.parser.parse(cell.rawInput);
+			const parsed = await this.parser.parse(cleanedText, undefined, {
+				targetSchema: cell.routing.targetSchema ?? undefined,
+				resolvedSection: cell.routing.resolvedSection ?? undefined,
+			});
 			cell.parsedOutput = parsed;
 			cell.status = "pending_commit";
 
@@ -271,8 +365,7 @@ export class CellProcessor {
 		const parent = await this.cellStore.get(cell.parentCellId);
 		if (!parent) {
 			cell.status = "error";
-			cell.errorMessage =
-				CELL_ERROR_MESSAGES[CellError.PARENT_CELL_NOT_FOUND];
+			cell.errorMessage = CELL_ERROR_MESSAGES[CellError.PARENT_CELL_NOT_FOUND];
 			return {
 				cell,
 				error: this.cellError(CellError.PARENT_CELL_NOT_FOUND),
@@ -329,10 +422,16 @@ export class CellProcessor {
 				(current[lastField] as unknown[]).push(newValue);
 				break;
 			case "deep_merge":
-				current[lastField] = { ...(current[lastField] as Record<string, unknown>), ...newValue };
+				current[lastField] = {
+					...(current[lastField] as Record<string, unknown>),
+					...newValue,
+				};
 				break;
 			case "partial_fill":
-				current[lastField] = { ...newValue, ...(current[lastField] as Record<string, unknown>) };
+				current[lastField] = {
+					...newValue,
+					...(current[lastField] as Record<string, unknown>),
+				};
 				break;
 		}
 

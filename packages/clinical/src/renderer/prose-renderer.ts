@@ -1,12 +1,7 @@
 import type { ParsedItem } from "../parser/schema-parsers";
-import type { CodeableConcept } from "../schemas/shared";
 import type { SoapNote } from "../schemas/document";
-import type {
-	Cell,
-	CellContext,
-	CellMode,
-	CellStatus,
-} from "../session/cell";
+import type { CodeableConcept } from "../schemas/shared";
+import type { Cell, CellContext, CellMode, CellStatus } from "../session/cell";
 import type { ClinicalProseTemplate } from "../store/interfaces";
 import { TemplateRenderer } from "./template-renderer";
 
@@ -85,8 +80,7 @@ export class ProseRenderer {
 			"closing",
 		);
 		if (resultNote.assessment) {
-			resultNote.assessment.narrative =
-				assessmentNarrative || undefined;
+			resultNote.assessment.narrative = assessmentNarrative || undefined;
 		}
 
 		const planEvents = resultNote.plan?.prescriptions || [];
@@ -167,27 +161,25 @@ export class ProseRenderer {
 					: ProseRenderer.selectTemplateForNarrative(cell, templates);
 
 				if (template) {
-					const context = ProseRenderer.buildCellTemplateContext(cell, undefined);
-					try {
-						const text = TemplateRenderer.renderTemplate(
-							template,
-							context,
-							templates,
-							new Set<string>(),
-						);
-						return {
-							cellId: cell.cellId,
-							mode: cell.mode,
-							status: cell.status,
-							text,
-							templateId: template.templateId,
-							targetField: cell.narrativeTarget,
-							warnings,
-						};
-					} catch (err) {
-						// Circular dependency — rethrow per spec
-						throw err;
-					}
+					const context = ProseRenderer.buildCellTemplateContext(
+						cell,
+						undefined,
+					);
+					const text = TemplateRenderer.renderTemplate(
+						template,
+						context,
+						templates,
+						new Set<string>(),
+					);
+					return {
+						cellId: cell.cellId,
+						mode: cell.mode,
+						status: cell.status,
+						text,
+						templateId: template.templateId,
+						targetField: cell.narrativeTarget,
+						warnings,
+					};
 				}
 			}
 
@@ -264,18 +256,13 @@ export class ProseRenderer {
 				usedTargetSchema = item.targetSchema;
 
 				const context = ProseRenderer.buildCellTemplateContext(cell, item);
-				try {
-					const rendered = TemplateRenderer.renderTemplate(
-						template,
-						context,
-						templates,
-						new Set<string>(),
-					);
-					parts.push(rendered);
-				} catch (err) {
-					// Circular dependency — rethrow per spec
-					throw err;
-				}
+				const rendered = TemplateRenderer.renderTemplate(
+					template,
+					context,
+					templates,
+					new Set<string>(),
+				);
+				parts.push(rendered);
 			}
 
 			return {
@@ -370,8 +357,7 @@ export class ProseRenderer {
 			: [];
 
 		// 5. First deterministic candidate by templateId
-		const finalPool =
-			workspaceMatches.length > 0 ? workspaceMatches : pool;
+		const finalPool = workspaceMatches.length > 0 ? workspaceMatches : pool;
 		const sorted = [...finalPool].sort((a, b) =>
 			a.templateId.localeCompare(b.templateId),
 		);

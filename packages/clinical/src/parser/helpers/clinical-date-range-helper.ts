@@ -11,8 +11,8 @@ import type {
 } from "../../store/interfaces";
 import { getCompiledRegex } from "../_compiled-regex";
 import {
-	buildMonthNameMap,
 	buildDayPeriodMap,
+	buildMonthNameMap,
 	compileDateRegex,
 } from "../utils/date-regex-generator";
 import {
@@ -357,7 +357,8 @@ export class ClinicalDateRangeTokenizer {
 			if (ampm) {
 				const dayPeriodMap = buildDayPeriodMap(rule.dayPeriods);
 				const lower = ampm.toLowerCase();
-				const period = dayPeriodMap.get(lower) ??
+				const period =
+					dayPeriodMap.get(lower) ??
 					(lower === "pm" ? "pm" : lower === "am" ? "am" : undefined);
 				if (period === "pm" && hours < 12) hours += 12;
 				if (period === "am" && hours === 12) hours = 0;

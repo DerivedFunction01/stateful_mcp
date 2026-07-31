@@ -1,9 +1,7 @@
 import {
 	type DictionaryStore,
 	executePipeline,
-	MemoryVariableStore,
 	type VariableService,
-	VariableServiceStore,
 } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
@@ -36,7 +34,6 @@ import type {
 	SharedFieldAnchorRule,
 	SharedFieldAnchorStore,
 } from "./field-shared/shared-field-anchor";
-import { MacroExpander } from "./macro-expander";
 import { ProseParser } from "./prose-parser";
 import { ProseTemplateSuggester } from "./prose-template-suggester";
 import {
@@ -47,7 +44,7 @@ import {
 	schemaParserRegistry,
 } from "./schema-parsers";
 import { StopWordParser } from "./stop-word-parser";
-import { CdslVariableParser } from "./variable-parser";
+import { TextPreprocessor } from "./text-preprocessor";
 
 interface ParserPreviewResult extends ParsedCandidateEnvelope {
 	targetSchema: string;
@@ -83,6 +80,7 @@ export class CdslParser {
 	private commandSuggester?: CommandAutocompleteSuggester;
 	private attributeRules: AttributeParserRule[];
 	private segmentProcessor: SegmentProcessor;
+	private preprocessor: TextPreprocessor;
 
 	private static readonly MAX_RECENT_SCHEMAS = 3;
 	private recentTargetSchemas: string[] = [];
@@ -117,6 +115,12 @@ export class CdslParser {
 			this.profile,
 			this.attributeRules,
 			this.conceptFieldStore,
+			this.dictionaryStore,
+		);
+		this.preprocessor = new TextPreprocessor(
+			this.variableService,
+			this.profile,
+			this.macroStore,
 			this.dictionaryStore,
 		);
 	}
@@ -166,26 +170,12 @@ export class CdslParser {
 		return this.attributeRules;
 	}
 
-	private async applyVariables(
-		text: string,
-		context?: StopWordContext,
-	): Promise<string> {
-		const sessionId = (context as any)?.sessionId || "default_session";
-		const service =
-			this.variableService ||
-			new VariableServiceStore(new MemoryVariableStore());
-		return CdslVariableParser.parseAndApply(
-			text,
-			service,
-			sessionId,
-			this.profile,
-			this.dictionaryStore,
-		);
+	getProfile(): ParserSyntaxProfile {
+		return this.profile;
 	}
 
-	private async expandMacros(text: string): Promise<string> {
-		if (!this.macroStore) return text;
-		return MacroExpander.expand(text, this.macroStore, this.profile);
+	getPreprocessor(): TextPreprocessor {
+		return this.preprocessor;
 	}
 
 	async suggestAutocomplete(
@@ -297,9 +287,14 @@ export class CdslParser {
 		text: string,
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
+		routingContext?: {
+			targetSchema?: string | null;
+			resolvedSection?: string | null;
+		},
 	): Promise<ParserPreviewResult[]> {
-		const cleanText = await this.applyVariables(text, context);
-		const expanded = await this.expandMacros(cleanText);
+		const sessionId = (context as any)?.sessionId || "default_session";
+		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
+		const expanded = await this.preprocessor.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
@@ -311,6 +306,7 @@ export class CdslParser {
 				dynamicParser,
 				context,
 				historyStore,
+				routingContext,
 			);
 		}
 		return this.previewWithStopWordParser(
@@ -318,6 +314,7 @@ export class CdslParser {
 			effectiveStopWordParser,
 			context,
 			historyStore,
+			routingContext,
 		);
 	}
 
@@ -334,9 +331,17 @@ export class CdslParser {
 		return new RegExp(parts.join("|"));
 	}
 
-	async parse(text: string, context?: StopWordContext): Promise<ParsedItem[]> {
-		const cleanText = await this.applyVariables(text, context);
-		const expanded = await this.expandMacros(cleanText);
+	async parse(
+		text: string,
+		context?: StopWordContext,
+		routingContext?: {
+			targetSchema?: string | null;
+			resolvedSection?: string | null;
+		},
+	): Promise<ParsedItem[]> {
+		const sessionId = (context as any)?.sessionId || "default_session";
+		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
+		const expanded = await this.preprocessor.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		let items: ParsedItem[];
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -350,6 +355,7 @@ export class CdslParser {
 				context,
 				undefined,
 				expanded,
+				routingContext,
 			);
 		} else {
 			items = await this.parseWithStopWordParser(
@@ -358,6 +364,7 @@ export class CdslParser {
 				context,
 				undefined,
 				expanded,
+				routingContext,
 			);
 		}
 		this.updateRecentTargetSchemas(items);
@@ -368,9 +375,14 @@ export class CdslParser {
 		text: string,
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
+		routingContext?: {
+			targetSchema?: string | null;
+			resolvedSection?: string | null;
+		},
 	): Promise<ParsedItem[]> {
-		const cleanText = await this.applyVariables(text, context);
-		const expanded = await this.expandMacros(cleanText);
+		const sessionId = (context as any)?.sessionId || "default_session";
+		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
+		const expanded = await this.preprocessor.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		let items: ParsedItem[];
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -384,6 +396,7 @@ export class CdslParser {
 				context,
 				historyStore,
 				expanded,
+				routingContext,
 			);
 		} else {
 			items = await this.parseWithStopWordParser(
@@ -392,6 +405,7 @@ export class CdslParser {
 				context,
 				historyStore,
 				expanded,
+				routingContext,
 			);
 		}
 		this.updateRecentTargetSchemas(items);
@@ -403,6 +417,10 @@ export class CdslParser {
 		effectiveStopWordParser: StopWordParser | undefined,
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
+		routingContext?: {
+			targetSchema?: string | null;
+			resolvedSection?: string | null;
+		},
 	): Promise<ParserPreviewResult[]> {
 		const results: ParserPreviewResult[] = [];
 
@@ -431,6 +449,7 @@ export class CdslParser {
 				trimmed,
 				effectiveStopWordParser,
 				context,
+				routingContext,
 			);
 			if (!state) continue;
 
@@ -491,6 +510,10 @@ export class CdslParser {
 		context?: StopWordContext,
 		historyStore?: ParsedCellHistoryStore,
 		originalFullText?: string,
+		routingContext?: {
+			targetSchema?: string | null;
+			resolvedSection?: string | null;
+		},
 	): Promise<ParsedItem[]> {
 		const items: ParsedItem[] = [];
 		const fullOriginalText = originalFullText || text;
@@ -518,6 +541,7 @@ export class CdslParser {
 				trimmed,
 				effectiveStopWordParser,
 				context,
+				routingContext,
 			);
 			if (!state) continue;
 
@@ -903,6 +927,8 @@ export class CdslParser {
 			content,
 			context,
 			overrides,
+			"",
+			undefined,
 		);
 
 		const allowedNamespaces = forcedSchema
