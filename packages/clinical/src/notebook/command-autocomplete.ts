@@ -67,7 +67,7 @@ export function cycleAutocomplete(
 ): { nextIndex: number; nextVerb: string } {
 	if (suggestions.length === 0) return { nextIndex: -1, nextVerb: "" };
 	const nextIndex =
-		((currentIndex + direction) % suggestions.length + suggestions.length) %
+		(((currentIndex + direction) % suggestions.length) + suggestions.length) %
 		suggestions.length;
 	return { nextIndex, nextVerb: suggestions[nextIndex]!.verb };
 }

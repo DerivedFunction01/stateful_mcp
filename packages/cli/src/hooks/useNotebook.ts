@@ -1,22 +1,118 @@
-import {
-	notebookReducer,
-	INITIAL_NOTEBOOK_STATE,
-} from "@stateful-mcp/clinical/notebook/notebook-state";
-import { CommandDispatcher } from "@stateful-mcp/clinical/notebook/command-dispatcher";
-import { PreviewWorkflow } from "@stateful-mcp/clinical/notebook/preview-workflow";
 import { getAutocompleteSuggestions } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
-import type { Cell } from "@stateful-mcp/clinical/session/cell";
+import { CommandDispatcher } from "@stateful-mcp/clinical/notebook/command-dispatcher";
 import type { ExecutionPolicy } from "@stateful-mcp/clinical/notebook/notebook-state";
-import { useCallback, useRef, useReducer } from "react";
+import {
+	INITIAL_NOTEBOOK_STATE,
+	notebookReducer,
+} from "@stateful-mcp/clinical/notebook/notebook-state";
+import { PreviewWorkflow } from "@stateful-mcp/clinical/notebook/preview-workflow";
+import type { Cell } from "@stateful-mcp/clinical/session/cell";
+import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { SessionState } from "./useSession";
 
-export type { ExecutionPolicy, NotebookState, NotebookAction } from "@stateful-mcp/clinical/notebook/notebook-state";
 export type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+export type {
+	ExecutionPolicy,
+	NotebookAction,
+	NotebookState,
+} from "@stateful-mcp/clinical/notebook/notebook-state";
+
+export interface CellSuggestion {
+	text: string;
+	kind: string;
+	detail?: string;
+}
+
+async function computeSuggestions(
+	text: string,
+	session: SessionState,
+): Promise<CellSuggestion[]> {
+	const triggers = ["#", "^", "@", "{"];
+	let lastIdx = -1;
+	let lastTrigger = "";
+	for (const t of triggers) {
+		const idx = text.lastIndexOf(t);
+		if (idx > lastIdx) {
+			lastIdx = idx;
+			lastTrigger = t;
+		}
+	}
+	if (lastIdx < 0) return [];
+
+	// Try engine suggestAutocomplete first (C3)
+	try {
+		const engine =
+			(session.result as any).engine ??
+			(session.result as any).processor?.engine;
+		if (engine && typeof engine.suggestAutocomplete === "function") {
+			const results = await engine.suggestAutocomplete(text);
+			if (results && results.length > 0) {
+				return results
+					.slice(0, 6)
+					.map((r: any) => ({
+						text: r.insertText ?? "",
+						kind: r.kind ?? lastTrigger,
+						detail: r.targetSchema ?? r.detail,
+					}))
+					.filter((r: CellSuggestion) => r.text);
+			}
+		}
+	} catch {
+		// engine.suggestAutocomplete not available
+	}
+
+	// Fallback: tag completions from profile.tagMappings (H2)
+	if (lastTrigger === "#") {
+		try {
+			const parser = (session.result.engine as any).parser;
+			if (parser && typeof parser.getProfile === "function") {
+				const profile = parser.getProfile();
+				const tagKeys = Object.keys(profile.tagMappings ?? {});
+				const prefix = text.slice(lastIdx + 1).toLowerCase();
+				return tagKeys
+					.filter((k) => k.startsWith(prefix))
+					.slice(0, 8)
+					.map((k) => ({
+						text: `#${k}`,
+						kind: "tag",
+						detail: profile.tagMappings[k],
+					}));
+			}
+		} catch {
+			// profile not available
+		}
+	}
+	return [];
+}
+
+export interface CellSuggestion {
+	text: string;
+	kind: string;
+	detail?: string;
+}
 
 export function useNotebook(session: SessionState | null) {
 	const [state, dispatch] = useReducer(notebookReducer, INITIAL_NOTEBOOK_STATE);
 	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
+	const [cellSuggestions, setCellSuggestions] = useState<CellSuggestion[]>([]);
+
+	useEffect(() => {
+		if (!session || state.mode !== "INSERT" || !state.draftText) {
+			setCellSuggestions([]);
+			return;
+		}
+		const text = state.draftText;
+		const timer = setTimeout(async () => {
+			try {
+				const s = await computeSuggestions(text, session);
+				setCellSuggestions(s);
+			} catch {
+				setCellSuggestions([]);
+			}
+		}, 120);
+		return () => clearTimeout(timer);
+	}, [state.draftText, state.mode, session]);
 
 	const createCell = useCallback(
 		(sessionId: string, rawInput = ""): Cell => ({
@@ -24,13 +120,17 @@ export function useNotebook(session: SessionState | null) {
 			sessionId,
 			mode: "cdsl",
 			rawInput,
-			routing: { scope: "unresolved", targetSchema: null },
+			routing: {
+				scope: "global",
+				targetSchema: state.defaultSchema,
+				resolvedSection: state.defaultSection as Cell["routing"]["resolvedSection"],
+			},
 			parsedOutput: null,
 			status: "draft",
 			updatedAt: new Date().toISOString(),
 			context: { objects: {} },
 		}),
-		[],
+		[state.defaultSection, state.defaultSchema],
 	);
 
 	const insertBelow = useCallback(
@@ -58,7 +158,9 @@ export function useNotebook(session: SessionState | null) {
 					cellId: cell.cellId,
 					updater: (c) => ({ ...c, status: "parsing" as const }),
 				});
-				const result = await session.result.processor.execute(structuredClone(cell));
+				const result = await session.result.processor.execute(
+					structuredClone(cell),
+				);
 				dispatch({
 					type: "UPDATE_CELL",
 					cellId: cell.cellId,
@@ -126,11 +228,16 @@ export function useNotebook(session: SessionState | null) {
 	);
 
 	const acceptPreview = useCallback(
-		async (candidate: import("@stateful-mcp/clinical/session/preview-candidate").PreviewCandidate) => {
+		async (
+			candidate: import("@stateful-mcp/clinical/session/preview-candidate").PreviewCandidate,
+		) => {
 			if (!session) return;
 			const cell = state.cells.find((c) => c.cellId === candidate.cellId);
 			if (!cell) return;
-			const { valid, error } = PreviewWorkflow.validateFingerprint(candidate, cell);
+			const { valid, error } = PreviewWorkflow.validateFingerprint(
+				candidate,
+				cell,
+			);
 			if (!valid) {
 				dispatch({
 					type: "UPDATE_CELL",
@@ -147,9 +254,25 @@ export function useNotebook(session: SessionState | null) {
 	);
 
 	const dispatchCommand = useCallback(
-		async (line: string): Promise<{ success: boolean; message?: string; action?: string; data?: unknown }> => {
+		async (
+			line: string,
+		): Promise<{
+			success: boolean;
+			message?: string;
+			action?: string;
+			data?: unknown;
+		}> => {
 			if (!session) return { success: false, message: "no session" };
 			const registry = (session.result.processor as any).cellCommandRegistry;
+
+			let selectedIndexes: number[] | undefined;
+			if (state.mode === "VISUAL") {
+				const lo = Math.min(state.visualStart, state.visualEnd);
+				const hi = Math.max(state.visualStart, state.visualEnd);
+				selectedIndexes = [];
+				for (let i = lo; i <= hi; i++) selectedIndexes.push(i);
+			}
+
 			const dispatcher = new CommandDispatcher({
 				sessionId: session.sessionId,
 				activeCell: state.cells[state.activeIndex],
@@ -157,12 +280,17 @@ export function useNotebook(session: SessionState | null) {
 				editorRegistry: editorRegistryRef.current,
 				cellCommandRegistry: registry,
 				processor: session.result.processor,
+				selectedIndexes,
 			});
 			const result = await dispatcher.dispatch(line);
 			if (result.commands) {
 				for (const cmd of result.commands as any[]) {
 					if (cmd.type === "UPDATE_CELL") {
-						dispatch({ type: "UPDATE_CELL", cellId: cmd.cellId, updater: cmd.updater });
+						dispatch({
+							type: "UPDATE_CELL",
+							cellId: cmd.cellId,
+							updater: cmd.updater,
+						});
 					}
 				}
 			}
@@ -170,7 +298,12 @@ export function useNotebook(session: SessionState | null) {
 			if (result.message) {
 				dispatch({ type: "SET_MESSAGE", message: result.message });
 			}
-			return { success: result.success, message: result.message, action: result.action, data: result.data };
+			return {
+				success: result.success,
+				message: result.message,
+				action: result.action,
+				data: result.data,
+			};
 		},
 		[session, state.activeIndex, state.cells],
 	);
@@ -205,41 +338,86 @@ export function useNotebook(session: SessionState | null) {
 			const registry = (session.result.processor as any).cellCommandRegistry;
 			const editorDescs = editorRegistryRef.current.getDescriptors();
 			const cellDescs = registry?.getDescriptors?.() ?? [];
-			const suggestions = getAutocompleteSuggestions(partial, editorDescs, cellDescs);
 
-			// When a verb is fully typed and a space follows, inject profile-based completions
-			if (partial.includes(" ")) {
-				const verb = partial.slice(0, partial.indexOf(" "));
+			const spaceIdx = partial.indexOf(" ");
+			if (spaceIdx >= 0) {
+				const verb = partial.slice(0, spaceIdx);
+				const afterVerb = partial.slice(spaceIdx + 1);
+				const argParts = afterVerb.split(" ");
+				const argIndex = Math.max(0, argParts.length - 1);
+				const currentPartial = argParts[argIndex] ?? "";
+
 				const matchedDesc = [...editorDescs, ...cellDescs].find(
 					(d) => d.verb === verb,
 				);
+
 				if (matchedDesc) {
-					// Already handled by getAutocompleteSuggestions → arg names/completions
-				} else {
-					// Unknown verb — try to inject field/tag mappings from profile
-					try {
-						const parser = (session.result.engine as any).parser;
-						if (parser && typeof parser.getProfile === "function") {
-							const profile = parser.getProfile();
-							const fieldKeys = Object.keys(profile.fieldMappings ?? {});
-							const tagKeys = Object.keys(profile.tagMappings ?? {});
-							const all = [...fieldKeys, ...tagKeys].filter(
-								(k) => k.startsWith(partial.slice(partial.indexOf(" ") + 1)),
-							);
-							for (const key of all) {
-								suggestions.push({
-									verb: key,
-									group: "field",
-									source: "cell" as const,
-									hasArgs: false,
-								});
-							}
-						}
-					} catch {
-						// profile not available
+					const argSchema = matchedDesc.args[argIndex];
+					if (argSchema?.completions && argSchema.completions.length > 0) {
+						return argSchema.completions
+							.filter((c: string) => c.startsWith(currentPartial))
+							.map((c: string) => ({
+								verb: c,
+								group: matchedDesc.group,
+								source:
+									matchedDesc.verb === verb ? "editor" : ("cell" as const),
+								hasArgs: false,
+							}));
 					}
 				}
+
+				// Profile-based completions for unknown verbs or verbs without arg completions
+				try {
+					const parser = (session.result.engine as any).parser;
+					if (parser && typeof parser.getProfile === "function") {
+						const profile = parser.getProfile();
+						const tagKeys = Object.keys(profile.tagMappings ?? {});
+						const fieldKeys = Object.keys(profile.fieldMappings ?? {});
+						const sections = ["subjective", "objective", "assessment", "plan"];
+
+						return [
+							...tagKeys.map((k) => ({
+								verb: k,
+								group: "tag" as const,
+								source: "cell" as const,
+								hasArgs: false,
+								isSection: false,
+							})),
+							...sections.map((s) => ({
+								verb: s,
+								group: "section" as const,
+								source: "cell" as const,
+								hasArgs: false,
+								isSection: true,
+							})),
+							...fieldKeys.map((k) => ({
+								verb: k,
+								group: "field" as const,
+								source: "cell" as const,
+								hasArgs: false,
+								isSection: false,
+							})),
+						]
+							.filter(({ verb }) => verb.startsWith(currentPartial))
+							.map(({ verb, group, source }) => ({
+								verb,
+								group,
+								source,
+								hasArgs: false,
+							}));
+					}
+				} catch {
+					// profile not available
+				}
+
+				return [];
 			}
+
+			const suggestions = getAutocompleteSuggestions(
+				partial,
+				editorDescs,
+				cellDescs,
+			);
 
 			return suggestions;
 		},
@@ -260,5 +438,6 @@ export function useNotebook(session: SessionState | null) {
 		nextErrorIndex,
 		prevErrorIndex,
 		getAutocomplete,
+		cellSuggestions,
 	};
 }

@@ -12,6 +12,8 @@ interface StatusBarProps {
 	message: string | null;
 	visualStart: number;
 	visualEnd: number;
+	defaultSection: string;
+	defaultSchema: string | null;
 }
 
 export function StatusBar({
@@ -24,11 +26,23 @@ export function StatusBar({
 	message,
 	visualStart,
 	visualEnd,
+	defaultSection,
+	defaultSchema,
 }: StatusBarProps) {
-	const modeColor = mode === "NORMAL" ? "green" : mode === "INSERT" ? "yellow" : mode === "COMMAND" ? "blue" : "magenta";
+	const modeColor =
+		mode === "NORMAL"
+			? "green"
+			: mode === "INSERT"
+				? "yellow"
+				: mode === "COMMAND"
+					? "blue"
+					: "magenta";
 	const dirtyFlag = dirty ? " [+]" : "";
 	const policyLabel = sessionMode === "execute" ? "EXEC" : "PREV";
 	const policyColor = sessionMode === "execute" ? "green" : "cyan";
+	const defaultLabel = defaultSchema
+		? `${defaultSection} / ${defaultSchema}`
+		: defaultSection;
 
 	let modeLabel = mode;
 	if (mode === "VISUAL") {
@@ -39,21 +53,35 @@ export function StatusBar({
 	}
 
 	return (
-		<Box width="100%" height={1} borderStyle="single" borderTop={true} paddingLeft={1} paddingRight={1}>
+		<Box
+			width="100%"
+			height={1}
+			borderStyle="single"
+			borderTop={true}
+			paddingLeft={1}
+			paddingRight={1}
+		>
 			<Box flexGrow={1}>
 				<Text bold color={modeColor}>
 					{modeLabel}
 				</Text>
 				<Text>
-					{" "}| cell {activeIndex + 1}/{cellCount}
+					{" "}
+					| cell {activeIndex + 1}/{cellCount}
 					{dirtyFlag}
 				</Text>
 				<Text>
-					{" "}| <Text color={policyColor}>{policyLabel}</Text>
+					{" "}
+					| <Text color={policyColor}>{policyLabel}</Text>
+				</Text>
+				<Text>
+					{" "}
+					| <Text color="magenta">ins@{defaultLabel}</Text>
 				</Text>
 				{message && (
 					<Text>
-						{" "}| <Text color="green">{message}</Text>
+						{" "}
+						| <Text color="green">{message}</Text>
 					</Text>
 				)}
 			</Box>

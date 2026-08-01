@@ -1,5 +1,7 @@
+import type { ParsedItem } from "@stateful-mcp/clinical/parser/schema-parsers";
 import type { PreviewCandidate } from "@stateful-mcp/clinical/session/preview-candidate";
 import { Box, Text, useInput } from "ink";
+import { useState } from "react";
 
 interface PreviewScreenProps {
 	candidate: PreviewCandidate;
@@ -14,6 +16,8 @@ export function PreviewScreen({
 	onEdit,
 	onCancel,
 }: PreviewScreenProps) {
+	const [showRendered, setShowRendered] = useState(false);
+
 	useInput((input, key) => {
 		if (input === "a" || input === "A") {
 			onAccept();
@@ -21,6 +25,10 @@ export function PreviewScreen({
 		}
 		if (input === "e" || input === "E") {
 			onEdit();
+			return;
+		}
+		if (input === "t" || input === "T") {
+			setShowRendered((r) => !r);
 			return;
 		}
 		if (key.escape || input === "q" || input === "c" || input === "C") {
@@ -37,7 +45,7 @@ export function PreviewScreen({
 			<Box>
 				<Text bold inverse>
 					{" "}
-					PREVIEW{" "}
+					{showRendered ? "RENDERED" : "PREVIEW"}{" "}
 				</Text>
 				<Text> </Text>
 				<Text color="gray">{candidate.cellId.slice(0, 24)}</Text>
@@ -48,30 +56,32 @@ export function PreviewScreen({
 				<Text color="gray">{"─".repeat(80)}</Text>
 			</Box>
 
-			{/* Parsed items */}
+			{/* Content */}
 			<Box flexGrow={1} flexDirection="column" paddingLeft={1}>
 				{items.length === 0 && <Text color="yellow">(no parsed items)</Text>}
-				{items.map((item, i) => (
-					<Box key={i} flexDirection="column" marginBottom={1}>
-						<Text bold color="cyan">
-							[{i + 1}] {item.targetSchema}
-						</Text>
-						<Box paddingLeft={2} flexDirection="column">
-							{Object.entries(item.extractedData).map(([key, value]) => (
-								<Box key={key}>
-									<Text color="gray">{key}: </Text>
-									<Text>{formatValue(value)}</Text>
+				{showRendered
+					? renderAsProse(items)
+					: items.map((item, i) => (
+							<Box key={i} flexDirection="column" marginBottom={1}>
+								<Text bold color="cyan">
+									[{i + 1}] {item.targetSchema}
+								</Text>
+								<Box paddingLeft={2} flexDirection="column">
+									{Object.entries(item.extractedData).map(([key, value]) => (
+										<Box key={key}>
+											<Text color="gray">{key}: </Text>
+											<Text>{formatValue(value)}</Text>
+										</Box>
+									))}
+									{item.rawText && (
+										<Box>
+											<Text color="gray">raw: </Text>
+											<Text dimColor>{item.rawText}</Text>
+										</Box>
+									)}
 								</Box>
-							))}
-							{item.rawText && (
-								<Box>
-									<Text color="gray">raw: </Text>
-									<Text dimColor>{item.rawText}</Text>
-								</Box>
-							)}
-						</Box>
-					</Box>
-				))}
+							</Box>
+						))}
 			</Box>
 
 			{/* Divider */}
@@ -90,10 +100,47 @@ export function PreviewScreen({
 				<Text bold color="red">
 					{"[C]ancel "}
 				</Text>
+				<Text bold color="blue">
+					{"[T]oggle "}
+				</Text>
 				<Text color="gray">
 					| fingerprint: {candidate.inputFingerprint.slice(0, 24)}
 				</Text>
 			</Box>
+		</Box>
+	);
+}
+
+function renderAsProse(items: ParsedItem[]) {
+	const sections: Record<string, string[]> = {};
+	for (const item of items) {
+		const lines: string[] = [item.rawText];
+		const fields = Object.entries(item.extractedData).filter(
+			([, v]) => v !== null && v !== undefined && v !== "",
+		);
+		if (fields.length > 0) {
+			lines.push(
+				...fields.map(([key, value]) => `  ${key}: ${formatValue(value)}`),
+			);
+		}
+		if (!sections[item.targetSchema]) sections[item.targetSchema] = [];
+		sections[item.targetSchema]!.push(item.rawText);
+	}
+
+	return (
+		<Box flexDirection="column">
+			{Object.entries(sections).map(([schema, texts], i) => (
+				<Box key={i} flexDirection="column" marginBottom={1}>
+					<Text bold color="green">
+						{schema}
+					</Text>
+					{texts.map((t, j) => (
+						<Text key={j} dimColor>
+							{"  "}• {t}
+						</Text>
+					))}
+				</Box>
+			))}
 		</Box>
 	);
 }

@@ -28,6 +28,10 @@ export interface NotebookState {
 	searchTerm: string;
 	showHelp: boolean;
 	showWorkspace: boolean;
+	showCellInfo: boolean;
+	cellInfoIndex: number;
+	defaultSection: string;
+	defaultSchema: string | null;
 	visualStart: number;
 	visualEnd: number;
 	message: string | null;
@@ -63,12 +67,15 @@ export type NotebookAction =
 	| { type: "SET_SEARCH_TERM"; term: string }
 	| { type: "TOGGLE_HELP" }
 	| { type: "TOGGLE_WORKSPACE" }
+	| { type: "TOGGLE_CELL_INFO"; cellIndex: number }
 	| { type: "ENTER_VISUAL_MODE" }
 	| { type: "EXTEND_SELECTION"; delta: number }
 	| { type: "SWAP_SELECTION_ANCHOR" }
 	| { type: "DELETE_SELECTION" }
 	| { type: "YANK_SELECTION" }
-	| { type: "SET_MESSAGE"; message: string | null };
+	| { type: "SET_MESSAGE"; message: string | null }
+	| { type: "COMMAND_SET"; text: string }
+	| { type: "SET_DEFAULT_INSERT"; section: string; schema: string | null };
 
 function snapshot(state: NotebookState): UndoEntry {
 	return {
@@ -114,6 +121,10 @@ export const INITIAL_NOTEBOOK_STATE: NotebookState = {
 	searchTerm: "",
 	showHelp: false,
 	showWorkspace: false,
+	showCellInfo: false,
+	cellInfoIndex: 0,
+	defaultSection: "subjective",
+	defaultSchema: null,
 	visualStart: 0,
 	visualEnd: 0,
 	message: null,
@@ -157,10 +168,20 @@ export function notebookReducer(
 			const u = pushUndo(state);
 			const cells = state.cells.map((c) =>
 				c.cellId === state.lastEditCellId
-					? { ...c, rawInput: state.draftText, updatedAt: new Date().toISOString() }
+					? {
+							...c,
+							rawInput: state.draftText,
+							updatedAt: new Date().toISOString(),
+						}
 					: c,
 			);
-			return { ...state, mode: "NORMAL", cells, undoStack: u.undoStack, redoStack: u.redoStack };
+			return {
+				...state,
+				mode: "NORMAL",
+				cells,
+				undoStack: u.undoStack,
+				redoStack: u.redoStack,
+			};
 		}
 
 		case "TYPE_CHAR":
@@ -173,10 +194,20 @@ export function notebookReducer(
 			const u = pushUndo(state);
 			const cells = state.cells.map((c) =>
 				c.cellId === state.lastEditCellId
-					? { ...c, rawInput: state.draftText, updatedAt: new Date().toISOString() }
+					? {
+							...c,
+							rawInput: state.draftText,
+							updatedAt: new Date().toISOString(),
+						}
 					: c,
 			);
-			return { ...state, mode: "NORMAL", cells, undoStack: u.undoStack, redoStack: u.redoStack };
+			return {
+				...state,
+				mode: "NORMAL",
+				cells,
+				undoStack: u.undoStack,
+				redoStack: u.redoStack,
+			};
 		}
 
 		case "INSERT_CELL": {
@@ -184,15 +215,32 @@ export function notebookReducer(
 			const cells = [...state.cells];
 			const insertAt = Math.min(action.position, cells.length);
 			cells.splice(insertAt, 0, action.cell);
-			return { ...state, cells, activeIndex: insertAt, undoStack: u.undoStack, redoStack: u.redoStack, dirty: true };
+			return {
+				...state,
+				cells,
+				activeIndex: insertAt,
+				undoStack: u.undoStack,
+				redoStack: u.redoStack,
+				dirty: true,
+			};
 		}
 
 		case "DELETE_ACTIVE_CELL": {
 			if (state.cells.length === 0) return state;
 			const u = pushUndo(state);
 			const cells = state.cells.filter((_, i) => i !== state.activeIndex);
-			const newIndex = Math.min(state.activeIndex, Math.max(0, cells.length - 1));
-			return { ...state, cells, activeIndex: newIndex, undoStack: u.undoStack, redoStack: u.redoStack, dirty: true };
+			const newIndex = Math.min(
+				state.activeIndex,
+				Math.max(0, cells.length - 1),
+			);
+			return {
+				...state,
+				cells,
+				activeIndex: newIndex,
+				undoStack: u.undoStack,
+				redoStack: u.redoStack,
+				dirty: true,
+			};
 		}
 
 		case "SET_CELL_TEXT": {
@@ -249,7 +297,12 @@ export function notebookReducer(
 			return { ...state, preview: null };
 
 		case "ENTER_COMMAND_MODE":
-			return { ...state, mode: "COMMAND", commandLine: ":", commandHistoryIndex: -1 };
+			return {
+				...state,
+				mode: "COMMAND",
+				commandLine: ":",
+				commandHistoryIndex: -1,
+			};
 
 		case "EXIT_COMMAND_MODE":
 			return { ...state, mode: "NORMAL", commandLine: "" };
@@ -258,29 +311,50 @@ export function notebookReducer(
 			return { ...state, commandLine: state.commandLine + action.char };
 
 		case "COMMAND_BACKSPACE": {
-			if (state.commandLine.length <= 1) return { ...state, mode: "NORMAL", commandLine: "" };
+			if (state.commandLine.length <= 1)
+				return { ...state, mode: "NORMAL", commandLine: "" };
 			return { ...state, commandLine: state.commandLine.slice(0, -1) };
 		}
 
 		case "COMMAND_SUBMIT": {
 			const line = action.line;
-			if (!line.slice(1).trim()) return { ...state, mode: "NORMAL", commandLine: "" };
-			const history = [line, ...state.commandHistory.filter((h) => h !== line)].slice(0, 50);
-			return { ...state, mode: "NORMAL", commandLine: "", commandHistory: history, commandHistoryIndex: -1 };
+			if (!line.slice(1).trim())
+				return { ...state, mode: "NORMAL", commandLine: "" };
+			const history = [
+				line,
+				...state.commandHistory.filter((h) => h !== line),
+			].slice(0, 50);
+			return {
+				...state,
+				mode: "NORMAL",
+				commandLine: "",
+				commandHistory: history,
+				commandHistoryIndex: -1,
+			};
 		}
 
 		case "COMMAND_HISTORY_PREV": {
 			if (state.commandHistory.length === 0) return state;
-			const newIdx = state.commandHistoryIndex < state.commandHistory.length - 1
-				? state.commandHistoryIndex + 1
-				: state.commandHistoryIndex;
-			return { ...state, commandLine: state.commandHistory[newIdx] ?? ":", commandHistoryIndex: newIdx };
+			const newIdx =
+				state.commandHistoryIndex < state.commandHistory.length - 1
+					? state.commandHistoryIndex + 1
+					: state.commandHistoryIndex;
+			return {
+				...state,
+				commandLine: state.commandHistory[newIdx] ?? ":",
+				commandHistoryIndex: newIdx,
+			};
 		}
 
 		case "COMMAND_HISTORY_NEXT": {
-			if (state.commandHistoryIndex <= 0) return { ...state, commandLine: ":", commandHistoryIndex: -1 };
+			if (state.commandHistoryIndex <= 0)
+				return { ...state, commandLine: ":", commandHistoryIndex: -1 };
 			const newIdx = state.commandHistoryIndex - 1;
-			return { ...state, commandLine: state.commandHistory[newIdx] ?? ":", commandHistoryIndex: newIdx };
+			return {
+				...state,
+				commandLine: state.commandHistory[newIdx] ?? ":",
+				commandHistoryIndex: newIdx,
+			};
 		}
 
 		case "YANK_CELL": {
@@ -300,7 +374,14 @@ export function notebookReducer(
 				return clone;
 			});
 			cells.splice(insertAt, 0, ...pasted);
-			return { ...state, cells, activeIndex: insertAt, undoStack: u.undoStack, redoStack: u.redoStack, dirty: true };
+			return {
+				...state,
+				cells,
+				activeIndex: insertAt,
+				undoStack: u.undoStack,
+				redoStack: u.redoStack,
+				dirty: true,
+			};
 		}
 
 		case "SET_SEARCH_TERM":
@@ -311,6 +392,13 @@ export function notebookReducer(
 
 		case "TOGGLE_WORKSPACE":
 			return { ...state, showWorkspace: !state.showWorkspace };
+
+		case "TOGGLE_CELL_INFO":
+			return {
+				...state,
+				showCellInfo: !state.showCellInfo,
+				cellInfoIndex: action.cellIndex,
+			};
 
 		case "ENTER_VISUAL_MODE": {
 			return {
@@ -324,8 +412,14 @@ export function notebookReducer(
 		case "EXTEND_SELECTION": {
 			return {
 				...state,
-				visualEnd: clampIndex(state.visualEnd + action.delta, state.cells.length),
-				activeIndex: clampIndex(state.activeIndex + action.delta, state.cells.length),
+				visualEnd: clampIndex(
+					state.visualEnd + action.delta,
+					state.cells.length,
+				),
+				activeIndex: clampIndex(
+					state.activeIndex + action.delta,
+					state.cells.length,
+				),
 			};
 		}
 
@@ -339,25 +433,53 @@ export function notebookReducer(
 		}
 
 		case "DELETE_SELECTION": {
-			const lo = clamp(Math.min(state.visualStart, state.visualEnd), 0, state.cells.length - 1);
-			const hi = clamp(Math.max(state.visualStart, state.visualEnd), 0, state.cells.length - 1);
+			const lo = clamp(
+				Math.min(state.visualStart, state.visualEnd),
+				0,
+				state.cells.length - 1,
+			);
+			const hi = clamp(
+				Math.max(state.visualStart, state.visualEnd),
+				0,
+				state.cells.length - 1,
+			);
 			const count = hi - lo + 1;
 			if (count <= 0) return state;
 			const u = pushUndo(state);
 			const cells = state.cells.filter((_, i) => i < lo || i > hi);
 			const newIndex = Math.min(lo, Math.max(0, cells.length - 1));
-			return { ...state, cells, activeIndex: newIndex, mode: "NORMAL", undoStack: u.undoStack, redoStack: u.redoStack, dirty: true };
+			return {
+				...state,
+				cells,
+				activeIndex: newIndex,
+				mode: "NORMAL",
+				undoStack: u.undoStack,
+				redoStack: u.redoStack,
+				dirty: true,
+			};
 		}
 
 		case "YANK_SELECTION": {
 			const lo = Math.min(state.visualStart, state.visualEnd);
 			const hi = Math.max(state.visualStart, state.visualEnd);
-			const yanked = state.cells.slice(lo, hi + 1).map((c) => structuredClone(c));
+			const yanked = state.cells
+				.slice(lo, hi + 1)
+				.map((c) => structuredClone(c));
 			return { ...state, yankBuffer: yanked, mode: "NORMAL" };
 		}
 
 		case "SET_MESSAGE":
 			return { ...state, message: action.message };
+
+		case "COMMAND_SET":
+			return { ...state, commandLine: action.text };
+
+		case "SET_DEFAULT_INSERT":
+			return {
+				...state,
+				defaultSection: action.section,
+				defaultSchema: action.schema,
+			};
 
 		default:
 			return state;

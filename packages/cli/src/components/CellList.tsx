@@ -1,6 +1,7 @@
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
+import type { CellSuggestion } from "../hooks/useNotebook";
 import { CellComponent } from "./Cell";
 
 interface CellListProps {
@@ -11,6 +12,7 @@ interface CellListProps {
 	lastEditCellId: string | null;
 	visualStart: number;
 	visualEnd: number;
+	cellSuggestions: CellSuggestion[];
 }
 
 export function CellList({
@@ -21,6 +23,7 @@ export function CellList({
 	lastEditCellId,
 	visualStart,
 	visualEnd,
+	cellSuggestions,
 }: CellListProps) {
 	const lo = Math.min(visualStart, visualEnd);
 	const hi = Math.max(visualStart, visualEnd);
@@ -41,8 +44,15 @@ export function CellList({
 					index={i}
 					isActive={i === activeIndex}
 					mode={i === activeIndex ? mode : "NORMAL"}
-					draftText={i === activeIndex && lastEditCellId === cell.cellId ? draftText : undefined}
+					draftText={
+						i === activeIndex && lastEditCellId === cell.cellId
+							? draftText
+							: undefined
+					}
 					isSelected={mode === "VISUAL" && i >= lo && i <= hi}
+					suggestions={
+						i === activeIndex && mode === "INSERT" ? cellSuggestions : undefined
+					}
 				/>
 			))}
 		</Box>

@@ -18,9 +18,12 @@ export function resolveKey(
 	}
 
 	if (mode === "INSERT") {
-		if (key.escape) return { action: EditorAction.ExitInsertMode, nextPending: "" };
-		if (key.return) return { action: EditorAction.CommitCell, nextPending: "", char: "\n" };
-		if (key.backspace) return { action: EditorAction.Backspace, nextPending: "" };
+		if (key.escape)
+			return { action: EditorAction.ExitInsertMode, nextPending: "" };
+		if (key.return)
+			return { action: EditorAction.TypeChar, nextPending: "", char: "\n" };
+		if (key.backspace)
+			return { action: EditorAction.Backspace, nextPending: "" };
 		if (input.length === 1 && !key.ctrl && !key.meta) {
 			return { action: EditorAction.TypeChar, nextPending: "", char: input };
 		}
@@ -36,12 +39,19 @@ export function resolveKey(
 		if (key.escape || input === "V" || input === "v") {
 			return { action: null, nextPending: "", char: undefined };
 		}
-		if (input === "d") return { action: EditorAction.DeleteSelection, nextPending: "" };
-		if (input === "y") return { action: EditorAction.YankSelection, nextPending: "" };
-		if (input === "j" || key.downArrow) return { action: EditorAction.ExtendSelectionDown, nextPending: "" };
-		if (input === "k" || key.upArrow) return { action: EditorAction.ExtendSelectionUp, nextPending: "" };
-		if (input === "o") return { action: EditorAction.SwapSelectionAnchor, nextPending: "" };
-		if (input === ":") return { action: EditorAction.OpenCommandLine, nextPending: "" };
+		if (input === "d")
+			return { action: EditorAction.DeleteSelection, nextPending: "" };
+		if (input === "y")
+			return { action: EditorAction.YankSelection, nextPending: "" };
+		if (input === "r") return { action: EditorAction.RunCell, nextPending: "" };
+		if (input === "j" || key.downArrow)
+			return { action: EditorAction.ExtendSelectionDown, nextPending: "" };
+		if (input === "k" || key.upArrow)
+			return { action: EditorAction.ExtendSelectionUp, nextPending: "" };
+		if (input === "o")
+			return { action: EditorAction.SwapSelectionAnchor, nextPending: "" };
+		if (input === ":")
+			return { action: EditorAction.OpenCommandLine, nextPending: "" };
 		if (input === "q") return { action: EditorAction.Quit, nextPending: "" };
 		return { action: null, nextPending: "" };
 	}
@@ -58,30 +68,51 @@ export function resolveKey(
 
 	if (seq.length === 1) {
 		switch (seq) {
-			case "j": return { action: EditorAction.MoveDown, nextPending: "" };
-			case "k": return { action: EditorAction.MoveUp, nextPending: "" };
-			case "i": return { action: EditorAction.EnterInsertMode, nextPending: "" };
-			case "o": return { action: EditorAction.InsertBelow, nextPending: "" };
-			case "O": return { action: EditorAction.InsertAbove, nextPending: "" };
-			case "d": return { action: null, nextPending: "d" };
-			case "y": return { action: null, nextPending: "y" };
-			case "[": return { action: null, nextPending: "[" };
-			case "]": return { action: null, nextPending: "]" };
-			case "p": return { action: EditorAction.PasteCell, nextPending: "" };
-			case "P": return { action: EditorAction.PreviewCell, nextPending: "" };
-			case "u": return { action: EditorAction.Undo, nextPending: "" };
-			case "r": return { action: EditorAction.RunCell, nextPending: "" };
-			case ":": return { action: EditorAction.OpenCommandLine, nextPending: "" };
-			case "s": return { action: EditorAction.Search, nextPending: "" };
-			case "/": return { action: EditorAction.Search, nextPending: "" };
-			case "V": return { action: EditorAction.EnterVisualMode, nextPending: "" };
-			default: return { action: null, nextPending: "" };
+			case "j":
+				return { action: EditorAction.MoveDown, nextPending: "" };
+			case "k":
+				return { action: EditorAction.MoveUp, nextPending: "" };
+			case "i":
+				return { action: EditorAction.EnterInsertMode, nextPending: "" };
+			case "o":
+				return { action: EditorAction.InsertBelow, nextPending: "" };
+			case "O":
+				return { action: EditorAction.InsertAbove, nextPending: "" };
+			case "I":
+				return { action: EditorAction.Info, nextPending: "" };
+			case "d":
+				return { action: null, nextPending: "d" };
+			case "y":
+				return { action: null, nextPending: "y" };
+			case "[":
+				return { action: null, nextPending: "[" };
+			case "]":
+				return { action: null, nextPending: "]" };
+			case "p":
+				return { action: EditorAction.PasteCell, nextPending: "" };
+			case "P":
+				return { action: EditorAction.PreviewCell, nextPending: "" };
+			case "u":
+				return { action: EditorAction.Undo, nextPending: "" };
+			case "r":
+				return { action: EditorAction.RunCell, nextPending: "" };
+			case ":":
+				return { action: EditorAction.OpenCommandLine, nextPending: "" };
+			case "s":
+				return { action: EditorAction.Search, nextPending: "" };
+			case "/":
+				return { action: EditorAction.Search, nextPending: "" };
+			case "V":
+				return { action: EditorAction.EnterVisualMode, nextPending: "" };
+			default:
+				return { action: null, nextPending: "" };
 		}
 	}
 
 	if (key.downArrow) return { action: EditorAction.MoveDown, nextPending: "" };
 	if (key.upArrow) return { action: EditorAction.MoveUp, nextPending: "" };
-	if (key.return) return { action: EditorAction.EnterInsertMode, nextPending: "" };
+	if (key.return)
+		return { action: EditorAction.EnterInsertMode, nextPending: "" };
 	if (key.escape) return { action: null, nextPending: "" };
 	if (key.backspace) return { action: null, nextPending: "" };
 	if (key.delete) return { action: EditorAction.DeleteCell, nextPending: "" };

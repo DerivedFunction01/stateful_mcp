@@ -13,6 +13,9 @@ export enum EditorCommandVerb {
 	Search = "search",
 	NoHL = "nohl",
 	Help = "help",
+	Info = "info",
+	Render = "render",
+	Default = "default",
 }
 
 export type EditorCommandHandler = (
@@ -108,6 +111,31 @@ export class EditorCommandRegistry {
 			success: true,
 			action: "show_help",
 		}));
+		registry.register(EditorCommandVerb.Info, () => ({
+			success: true,
+			action: "show_info",
+		}));
+		registry.register(EditorCommandVerb.Render, () => ({
+			success: true,
+			action: "render_preview",
+		}));
+		registry.register(EditorCommandVerb.Default, (_v, args) => {
+			const sections = ["subjective", "objective", "assessment", "plan"];
+			const section = args[0];
+			const schema = args[1] ?? null;
+			if (!section)
+				return { success: false, message: "usage: :default <section> [schema]" };
+			if (!sections.includes(section))
+				return {
+					success: false,
+					message: `section must be one of: ${sections.join(", ")}`,
+				};
+			return {
+				success: true,
+				action: "set_default_insert",
+				data: { section, schema },
+			};
+		});
 		return registry;
 	}
 }
@@ -196,5 +224,34 @@ const EDITOR_COMMAND_META: Record<string, CommandDescriptor> = {
 		group: CommandGroup.Editor,
 		descriptionKey: "editor.command.help",
 		args: [],
+	},
+	info: {
+		verb: "info",
+		aliases: ["inspect"],
+		group: CommandGroup.Editor,
+		descriptionKey: "editor.command.info",
+		args: [],
+	},
+	render: {
+		verb: "render",
+		aliases: ["prose"],
+		group: CommandGroup.Editor,
+		descriptionKey: "editor.command.render",
+		args: [],
+	},
+	default: {
+		verb: "default",
+		aliases: ["set-default", "set-default-insert"],
+		group: CommandGroup.Editor,
+		descriptionKey: "editor.command.default",
+		args: [
+			{
+				name: "section",
+				required: true,
+				descriptionKey: "arg.default.section",
+				completions: ["subjective", "objective", "assessment", "plan"],
+			},
+			{ name: "schema", required: false, descriptionKey: "arg.default.schema" },
+		],
 	},
 };

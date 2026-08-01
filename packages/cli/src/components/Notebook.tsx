@@ -1,13 +1,15 @@
+import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import type { NotebookState } from "@stateful-mcp/clinical/notebook/notebook-state";
+import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { Box } from "ink";
+import type { CellSuggestion } from "../hooks/useNotebook";
+import { CellInfoPanel } from "./CellInfoPanel";
 import { CellList } from "./CellList";
 import { CommandBar } from "./CommandBar";
 import { HelpBar } from "./HelpBar";
 import { HelpScreen } from "./HelpScreen";
 import { StatusBar } from "./StatusBar";
-import { WorkspaceScreen, createStubSnapshot } from "./WorkspaceScreen";
-import type { NotebookState } from "@stateful-mcp/clinical/notebook/notebook-state";
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
+import { createStubSnapshot, WorkspaceScreen } from "./WorkspaceScreen";
 
 interface NotebookProps {
 	state: NotebookState;
@@ -15,6 +17,7 @@ interface NotebookProps {
 	editorDescriptors: CommandDescriptor[];
 	cellDescriptors: CommandDescriptor[];
 	getAutocomplete: (partial: string) => AutocompleteSuggestion[];
+	cellSuggestions: CellSuggestion[];
 }
 
 export function Notebook({
@@ -23,6 +26,7 @@ export function Notebook({
 	editorDescriptors,
 	cellDescriptors,
 	getAutocomplete,
+	cellSuggestions,
 }: NotebookProps) {
 	if (state.showHelp) {
 		return (
@@ -34,12 +38,15 @@ export function Notebook({
 		);
 	}
 
+	if (state.showCellInfo) {
+		const cell = state.cells[state.cellInfoIndex];
+		if (!cell) return null;
+		return <CellInfoPanel cell={cell} onClose={() => {}} />;
+	}
+
 	if (state.showWorkspace) {
 		return (
-			<WorkspaceScreen
-				snapshot={createStubSnapshot()}
-				onClose={() => {}}
-			/>
+			<WorkspaceScreen snapshot={createStubSnapshot()} onClose={() => {}} />
 		);
 	}
 
@@ -54,6 +61,7 @@ export function Notebook({
 					lastEditCellId={state.lastEditCellId}
 					visualStart={state.visualStart}
 					visualEnd={state.visualEnd}
+					cellSuggestions={[]}
 				/>
 				<CommandBar
 					commandLine={state.commandLine}
@@ -74,11 +82,9 @@ export function Notebook({
 				lastEditCellId={state.lastEditCellId}
 				visualStart={state.visualStart}
 				visualEnd={state.visualEnd}
+				cellSuggestions={cellSuggestions}
 			/>
-			<HelpBar
-				mode={state.mode}
-				editorDescriptors={editorDescriptors}
-			/>
+			<HelpBar mode={state.mode} editorDescriptors={editorDescriptors} />
 			<StatusBar
 				mode={state.mode}
 				cellCount={state.cells.length}
@@ -89,6 +95,8 @@ export function Notebook({
 				message={state.message}
 				visualStart={state.visualStart}
 				visualEnd={state.visualEnd}
+				defaultSection={state.defaultSection}
+				defaultSchema={state.defaultSchema}
 			/>
 		</Box>
 	);

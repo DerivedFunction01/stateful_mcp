@@ -1,14 +1,21 @@
 import type { Cell } from "../session/cell";
-import type { CellProcessResult, CellProcessor } from "../session/cell-processor";
-import { computeInputFingerprint } from "../session/preview-candidate";
+import type {
+	CellProcessor,
+	CellProcessResult,
+} from "../session/cell-processor";
 import type { PreviewCandidate } from "../session/preview-candidate";
+import { computeInputFingerprint } from "../session/preview-candidate";
 
 export class PreviewWorkflow {
 	static async createCandidate(
 		cell: Cell,
 		processor: Pick<CellProcessor, "preview">,
 		sessionId: string,
-	): Promise<{ candidate?: PreviewCandidate; cellResult?: CellProcessResult; error?: string }> {
+	): Promise<{
+		candidate?: PreviewCandidate;
+		cellResult?: CellProcessResult;
+		error?: string;
+	}> {
 		const clone = structuredClone(cell);
 		const result = await processor.preview(clone);
 
@@ -61,7 +68,7 @@ export class PreviewWorkflow {
 		cell: Cell,
 		processor: Pick<CellProcessor, "execute">,
 	): Promise<{ cell?: Cell; error?: string }> {
-		const validation = this.validateFingerprint(candidate, cell);
+		const validation = PreviewWorkflow.validateFingerprint(candidate, cell);
 		if (!validation.valid) return { error: validation.error };
 
 		const result = await processor.execute(structuredClone(cell));

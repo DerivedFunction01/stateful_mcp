@@ -26,6 +26,7 @@ export enum EditorAction {
 	OpenCommandLine = "open_command_line",
 	OpenWorkspace = "open_workspace",
 	Quit = "quit",
+	Info = "info",
 	AcceptSuggestion = "accept_suggestion",
 	NextSuggestion = "next_suggestion",
 	PrevSuggestion = "prev_suggestion",

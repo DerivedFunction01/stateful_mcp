@@ -33,7 +33,13 @@ export function CommandBar({
 	return (
 		<Box width="100%" flexDirection="column">
 			{suggestions.length > 0 && (
-				<Box paddingLeft={1} paddingRight={1} flexDirection="row" gap={1} flexWrap="wrap">
+				<Box
+					paddingLeft={1}
+					paddingRight={1}
+					flexDirection="row"
+					gap={1}
+					flexWrap="wrap"
+				>
 					{suggestions.map((s, i) => (
 						<Text
 							key={`${s.source}-${s.verb}`}

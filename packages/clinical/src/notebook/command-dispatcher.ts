@@ -1,10 +1,8 @@
-import type { Cell, CellMode } from "../session/cell";
+import type { Cell } from "../session/cell";
 import type { CellCommandContext } from "../session/cell-command";
 import type { CellCommandRegistry } from "../session/cell-command-registry";
 import type { CellProcessResult } from "../session/cell-processor";
-import type { CommandDescriptor } from "../session/command-descriptor";
 import type { EditorCommandRegistry } from "../session/editor-command-registry";
-import type { ExecutionPolicy } from "./notebook-state";
 
 export interface DispatchContext {
 	sessionId: string;
@@ -12,6 +10,7 @@ export interface DispatchContext {
 	allCells: Cell[];
 	editorRegistry: EditorCommandRegistry;
 	cellCommandRegistry: CellCommandRegistry;
+	selectedIndexes?: number[];
 	processor?: {
 		execute(cell: Cell): Promise<CellProcessResult>;
 		preview(cell: Cell): Promise<CellProcessResult>;
@@ -36,40 +35,57 @@ export class CommandDispatcher {
 		const handler = this.ctx.cellCommandRegistry.get(verb);
 		if (!handler) return null;
 
-		const cell = this.ctx.activeCell;
-		if (!cell)
-			return { success: false, message: "no active cell" };
+		const multiCellVerbs = new Set(["link", "parent", "unlink"]);
+		const isMultiCell =
+			this.ctx.selectedIndexes &&
+			this.ctx.selectedIndexes.length > 0 &&
+			multiCellVerbs.has(verb);
 
-		const ctx: CellCommandContext = {
-			sessionId: this.ctx.sessionId,
-			cell: structuredClone(cell),
-			profile: { cellCommandToken: ":" } as any,
-		};
+		const cellsToProcess = isMultiCell
+			? this.ctx
+					.selectedIndexes!.map((i) => this.ctx.allCells[i])
+					.filter((c): c is Cell => !!c)
+			: this.ctx.activeCell
+				? [this.ctx.activeCell]
+				: [];
 
-		const result = await handler(
-			{ verb: verb as any, args, raw: `${verb} ${args.join(" ")}` },
-			ctx,
-		);
+		if (cellsToProcess.length === 0)
+			return { success: false, message: "no cells to process" };
 
-		if (result.success) {
-			return {
-				success: true,
-				commands: result.cell
-					? [
-							{
-								type: "UPDATE_CELL",
-								cellId: cell.cellId,
-								updater: () => result.cell,
-							},
-						]
-					: [],
+		const allCommands: Array<{ type: string; [key: string]: unknown }> = [];
+
+		for (const cell of cellsToProcess) {
+			if (!cell) continue;
+			const ctx: CellCommandContext = {
+				sessionId: this.ctx.sessionId,
+				cell: structuredClone(cell),
+				profile: { cellCommandToken: ":" } as any,
 			};
+
+			const result = await handler(
+				{ verb: verb as any, args, raw: `${verb} ${args.join(" ")}` },
+				ctx,
+			);
+
+			if (result.success && result.cell) {
+				allCommands.push({
+					type: "UPDATE_CELL",
+					cellId: cell.cellId,
+					updater: () => result.cell,
+				});
+			} else if (!result.success) {
+				return {
+					success: false,
+					message: result.message ?? `cell command failed for ${cell.cellId}`,
+				};
+			}
 		}
 
-		return {
-			success: false,
-			message: result.message ?? "cell command failed",
-		};
+		if (allCommands.length > 0) {
+			return { success: true, commands: allCommands };
+		}
+
+		return { success: false, message: "no cells updated" };
 	}
 
 	async dispatch(line: string): Promise<DispatchResult> {

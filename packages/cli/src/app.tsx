@@ -23,6 +23,7 @@ export function NotebookApp() {
 		nextErrorIndex,
 		prevErrorIndex,
 		getAutocomplete,
+		cellSuggestions,
 	} = useNotebook(session);
 	const { exit } = useApp();
 	const [pendingSequence, setPendingSequence] = useState("");
@@ -42,7 +43,20 @@ export function NotebookApp() {
 	);
 
 	const handleInput = useCallback(
-		(input: string, key: { upArrow?: boolean; downArrow?: boolean; escape?: boolean; return?: boolean; backspace?: boolean; tab?: boolean; shift?: boolean; ctrl?: boolean; meta?: boolean }) => {
+		(
+			input: string,
+			key: {
+				upArrow?: boolean;
+				downArrow?: boolean;
+				escape?: boolean;
+				return?: boolean;
+				backspace?: boolean;
+				tab?: boolean;
+				shift?: boolean;
+				ctrl?: boolean;
+				meta?: boolean;
+			},
+		) => {
 			if (state.preview) return;
 
 			if (state.mode === "COMMAND") {
@@ -53,11 +67,37 @@ export function NotebookApp() {
 				}
 				if (key.return) {
 					dispatchCommand(state.commandLine).then((result) => {
-						if (result.action === "quit") { exit(); return; }
-						if (result.action === "show_help") { dispatch({ type: "TOGGLE_HELP" }); return; }
-						if (result.action === "show_errors") { dispatch({ type: "SET_MESSAGE", message: "errors view" }); return; }
-						if (result.action === "undo") { dispatch({ type: "UNDO" }); return; }
-						if (result.action === "redo") { dispatch({ type: "REDO" }); return; }
+						if (result.action === "quit") {
+							exit();
+							return;
+						}
+						if (result.action === "show_help") {
+							dispatch({ type: "TOGGLE_HELP" });
+							return;
+						}
+						if (result.action === "show_info") {
+							dispatch({
+								type: "TOGGLE_CELL_INFO",
+								cellIndex: state.activeIndex,
+							});
+							return;
+						}
+						if (result.action === "render_preview") {
+							dispatch({ type: "SET_MESSAGE", message: "rendered view" });
+							return;
+						}
+						if (result.action === "show_errors") {
+							dispatch({ type: "SET_MESSAGE", message: "errors view" });
+							return;
+						}
+						if (result.action === "undo") {
+							dispatch({ type: "UNDO" });
+							return;
+						}
+						if (result.action === "redo") {
+							dispatch({ type: "REDO" });
+							return;
+						}
 						if (result.action === "set_execution_mode") {
 							const mode = (result as any).data?.mode;
 							if (mode === "preview" || mode === "execute") {
@@ -65,7 +105,25 @@ export function NotebookApp() {
 							}
 							return;
 						}
-						if (result.action === "save") { dispatch({ type: "SET_MESSAGE", message: "saved" }); return; }
+						if (result.action === "set_default_insert") {
+							const data = (result as any).data;
+							if (data) {
+								dispatch({
+									type: "SET_DEFAULT_INSERT",
+									section: data.section,
+									schema: data.schema ?? null,
+								});
+								dispatch({
+									type: "SET_MESSAGE",
+									message: `default insert: ${data.section}${data.schema ? ` / ${data.schema}` : ""}`,
+								});
+							}
+							return;
+						}
+						if (result.action === "save") {
+							dispatch({ type: "SET_MESSAGE", message: "saved" });
+							return;
+						}
 						if (!result.success && result.message) {
 							dispatch({ type: "SET_MESSAGE", message: result.message });
 						}
@@ -85,22 +143,72 @@ export function NotebookApp() {
 				}
 				if (key.shift && key.tab) {
 					const partial = state.commandLine.slice(1);
-					const suggestions = getAutocomplete(partial);
-					if (suggestions.length === 0) return;
-					const nextIdx = ((suggestionIndex - 1 + suggestions.length) % suggestions.length + suggestions.length) % suggestions.length;
-					const fill = suggestions[nextIdx]!.verb.slice(partial.length);
-					dispatch({ type: "COMMAND_APPEND", char: fill });
-					setSuggestionIndex(nextIdx);
+					const spaceIdx = partial.indexOf(" ");
+					if (spaceIdx >= 0) {
+						const verb = partial.slice(0, spaceIdx);
+						const afterVerb = partial.slice(spaceIdx + 1);
+						const suggestions = getAutocomplete(partial);
+						if (suggestions.length === 0) return;
+						const nextIdx =
+							(((suggestionIndex - 1 + suggestions.length) %
+								suggestions.length) +
+								suggestions.length) %
+							suggestions.length;
+						const lastSpace = afterVerb.lastIndexOf(" ");
+						const prefix = `:${verb} `;
+						const prevArgs =
+							lastSpace >= 0 ? afterVerb.slice(0, lastSpace + 1) : "";
+						dispatch({
+							type: "COMMAND_SET",
+							text: `${prefix}${prevArgs}${suggestions[nextIdx]!.verb} `,
+						});
+						setSuggestionIndex(nextIdx);
+					} else {
+						const suggestions = getAutocomplete(partial);
+						if (suggestions.length === 0) return;
+						const nextIdx =
+							(((suggestionIndex - 1 + suggestions.length) %
+								suggestions.length) +
+								suggestions.length) %
+							suggestions.length;
+						const fill = suggestions[nextIdx]!.verb.slice(partial.length);
+						dispatch({ type: "COMMAND_APPEND", char: fill });
+						setSuggestionIndex(nextIdx);
+					}
 					return;
 				}
 				if (key.tab) {
 					const partial = state.commandLine.slice(1);
-					const suggestions = getAutocomplete(partial);
-					if (suggestions.length === 0) return;
-					const nextIdx = ((suggestionIndex + 1) % suggestions.length + suggestions.length) % suggestions.length;
-					const fill = suggestions[nextIdx]!.verb.slice(partial.length);
-					dispatch({ type: "COMMAND_APPEND", char: fill });
-					setSuggestionIndex(nextIdx);
+					const spaceIdx = partial.indexOf(" ");
+					if (spaceIdx >= 0) {
+						const verb = partial.slice(0, spaceIdx);
+						const afterVerb = partial.slice(spaceIdx + 1);
+						const suggestions = getAutocomplete(partial);
+						if (suggestions.length === 0) return;
+						const nextIdx =
+							(((suggestionIndex + 1) % suggestions.length) +
+								suggestions.length) %
+							suggestions.length;
+						const lastSpace = afterVerb.lastIndexOf(" ");
+						const prefix = `:${verb} `;
+						const prevArgs =
+							lastSpace >= 0 ? afterVerb.slice(0, lastSpace + 1) : "";
+						dispatch({
+							type: "COMMAND_SET",
+							text: `${prefix}${prevArgs}${suggestions[nextIdx]!.verb} `,
+						});
+						setSuggestionIndex(nextIdx);
+					} else {
+						const suggestions = getAutocomplete(partial);
+						if (suggestions.length === 0) return;
+						const nextIdx =
+							(((suggestionIndex + 1) % suggestions.length) +
+								suggestions.length) %
+							suggestions.length;
+						const fill = suggestions[nextIdx]!.verb.slice(partial.length);
+						dispatch({ type: "COMMAND_APPEND", char: fill });
+						setSuggestionIndex(nextIdx);
+					}
 					return;
 				}
 				if (key.backspace) {
@@ -153,13 +261,37 @@ export function NotebookApp() {
 					dispatch({ type: "DELETE_ACTIVE_CELL" });
 					break;
 				case EditorAction.RunCell: {
-					const cell = state.cells[state.activeIndex];
-					if (!cell || !session) break;
-					if (state.sessionMode === "preview") {
-						previewCell(cell);
+					if (state.mode === "VISUAL") {
+						const lo = Math.min(state.visualStart, state.visualEnd);
+						const hi = Math.max(state.visualStart, state.visualEnd);
+						for (let i = lo; i <= hi; i++) {
+							const cell = state.cells[i];
+							if (cell && session) {
+								if (state.sessionMode === "preview") {
+									previewCell(cell);
+								} else {
+									dispatch({
+										type: "UPDATE_CELL",
+										cellId: cell.cellId,
+										updater: (c) => ({ ...c, status: "parsing" as const }),
+									});
+									runCell(cell);
+								}
+							}
+						}
 					} else {
-						dispatch({ type: "UPDATE_CELL", cellId: cell.cellId, updater: (c) => ({ ...c, status: "parsing" as const }) });
-						runCell(cell);
+						const cell = state.cells[state.activeIndex];
+						if (!cell || !session) break;
+						if (state.sessionMode === "preview") {
+							previewCell(cell);
+						} else {
+							dispatch({
+								type: "UPDATE_CELL",
+								cellId: cell.cellId,
+								updater: (c) => ({ ...c, status: "parsing" as const }),
+							});
+							runCell(cell);
+						}
 					}
 					break;
 				}
@@ -182,12 +314,14 @@ export function NotebookApp() {
 					break;
 				case EditorAction.NextError: {
 					const next = nextErrorIndex();
-					if (next !== null) dispatch({ type: "SET_ACTIVE_INDEX", index: next });
+					if (next !== null)
+						dispatch({ type: "SET_ACTIVE_INDEX", index: next });
 					break;
 				}
 				case EditorAction.PrevError: {
 					const prev = prevErrorIndex();
-					if (prev !== null) dispatch({ type: "SET_ACTIVE_INDEX", index: prev });
+					if (prev !== null)
+						dispatch({ type: "SET_ACTIVE_INDEX", index: prev });
 					break;
 				}
 				case EditorAction.OpenCommandLine:
@@ -215,9 +349,33 @@ export function NotebookApp() {
 				case EditorAction.Quit:
 					exit();
 					break;
+				case EditorAction.Info: {
+					const cell = state.cells[state.activeIndex];
+					if (cell)
+						dispatch({
+							type: "TOGGLE_CELL_INFO",
+							cellIndex: state.activeIndex,
+						});
+					break;
+				}
 			}
 		},
-		[state, session, pendingSequence, suggestionIndex, dispatch, insertBelow, insertAbove, runCell, previewCell, dispatchCommand, nextErrorIndex, prevErrorIndex, getAutocomplete, exit],
+		[
+			state,
+			session,
+			pendingSequence,
+			suggestionIndex,
+			dispatch,
+			insertBelow,
+			insertAbove,
+			runCell,
+			previewCell,
+			dispatchCommand,
+			nextErrorIndex,
+			prevErrorIndex,
+			getAutocomplete,
+			exit,
+		],
 	);
 
 	useInput(handleInput);
@@ -230,6 +388,7 @@ export function NotebookApp() {
 				editorDescriptors={[]}
 				cellDescriptors={[]}
 				getAutocomplete={() => []}
+				cellSuggestions={[]}
 			/>
 		);
 	}
@@ -247,7 +406,11 @@ export function NotebookApp() {
 				onCancel={() => {
 					const cell = state.cells.find((c) => c.cellId === candidate.cellId);
 					if (cell) {
-						dispatch({ type: "UPDATE_CELL", cellId: cell.cellId, updater: (c) => ({ ...c, status: "draft" as const }) });
+						dispatch({
+							type: "UPDATE_CELL",
+							cellId: cell.cellId,
+							updater: (c) => ({ ...c, status: "draft" as const }),
+						});
 					}
 					dispatch({ type: "CLEAR_PREVIEW" });
 				}}
@@ -262,6 +425,7 @@ export function NotebookApp() {
 			editorDescriptors={editorDescriptors}
 			cellDescriptors={cellDescriptors}
 			getAutocomplete={getAutocomplete}
+			cellSuggestions={cellSuggestions}
 		/>
 	);
 }

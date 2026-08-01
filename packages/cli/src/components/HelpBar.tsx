@@ -1,5 +1,5 @@
-import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
+import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
 import { useMemo } from "react";
 
@@ -22,7 +22,8 @@ export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
 		const cmds = editorDescriptors.slice(0, 6);
 		return cmds
 			.map((d) => {
-				const label = d.aliases.length > 0 ? `${d.verb}(${d.aliases[0]})` : d.verb;
+				const label =
+					d.aliases.length > 0 ? `${d.verb}(${d.aliases[0]})` : d.verb;
 				return `:${label}`;
 			})
 			.join("  ");

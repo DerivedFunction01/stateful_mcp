@@ -1,6 +1,8 @@
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
+import type { CellSuggestion } from "../hooks/useNotebook";
+import { formatParsedItem } from "../formatter/format-parsed";
 
 interface CellProps {
 	cell: Cell;
@@ -9,6 +11,7 @@ interface CellProps {
 	mode: EditorMode;
 	draftText?: string;
 	isSelected?: boolean;
+	suggestions?: CellSuggestion[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,6 +34,18 @@ const STATUS_SYMBOLS: Record<string, string> = {
 	locked: "🔒",
 };
 
+function relativeTime(iso: string): string {
+	const diff = Date.now() - new Date(iso).getTime();
+	const secs = Math.floor(diff / 1000);
+	if (secs < 60) return "just now";
+	const mins = Math.floor(secs / 60);
+	if (mins < 60) return `${mins}m ago`;
+	const hours = Math.floor(mins / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	return `${days}d ago`;
+}
+
 export function CellComponent({
 	cell,
 	index,
@@ -38,50 +53,195 @@ export function CellComponent({
 	mode,
 	draftText,
 	isSelected,
+	suggestions,
 }: CellProps) {
 	const prefix = isActive ? "▸" : isSelected ? ">" : " ";
 	const ordinal = String(index + 1).padStart(2, "0");
 	const statusColor = STATUS_COLORS[cell.status] ?? "white";
 	const symbol = STATUS_SYMBOLS[cell.status] ?? "?";
+	const isEditing = isActive && mode === "INSERT";
 
-	const displayText =
-		isActive && mode === "INSERT"
-			? (draftText ?? cell.rawInput)
-			: cell.rawInput;
+	const displayText = isEditing ? (draftText ?? cell.rawInput) : cell.rawInput;
+
+	const path = [
+		cell.routing.resolvedSection,
+		cell.routing.targetSchema ?? cell.routing.resolvedSchema,
+	]
+		.filter(Boolean)
+		.join(" >> ");
+	const pathInfo = path ? ` · ${path}` : "";
+	const ws = cell.workspaceId ? ` @ ${cell.workspaceId.slice(0, 12)}` : "";
+
+	const lockInfo = cell.lockedAt
+		? ` · ${STATUS_SYMBOLS["locked"]} ${relativeTime(cell.lockedAt)}`
+		: "";
+	const timeInfo = cell.updatedAt ? ` · ${relativeTime(cell.updatedAt)}` : "";
+	const narrativeInfo =
+		cell.metadata?.stopWordRatio && Number(cell.metadata.stopWordRatio) > 0.6
+			? ` · narrative`
+			: "";
+	const templateInfo = cell.metadata?.matchedTemplate
+		? ` · template:${cell.metadata.matchedTemplate}`
+		: "";
+
+	const fieldCount =
+		cell.status === "committed" && cell.parsedOutput
+			? cell.parsedOutput.reduce(
+					(n, item) => n + Object.keys(item.extractedData ?? {}).length,
+					0,
+				)
+			: 0;
+	const commitSummary =
+		cell.status === "committed"
+			? ` · ${fieldCount} fields${cell.routing.resolvedSchema ? ` @ ${cell.routing.resolvedSchema}` : ""}`
+			: "";
 
 	const statusLine = (() => {
+		const base = pathInfo + ws;
 		switch (cell.status) {
 			case "draft":
-				return [`○ draft`, cell.routing.targetSchema ? `schema:${cell.routing.targetSchema}` : null, cell.routing.resolvedSection ? `section:${cell.routing.resolvedSection}` : null, cell.workspaceId ? `ws:${cell.workspaceId.slice(0, 12)}` : null]
-					.filter(Boolean)
-					.join(" · ");
+				return `○ draft${base}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
 			case "committed":
-				return [`● committed`, cell.routing.targetSchema ?? "", cell.routing.resolvedSection ? `section:${cell.routing.resolvedSection}` : null, cell.workspaceId ? `ws:${cell.workspaceId.slice(0, 12)}` : null]
-					.filter(Boolean)
-					.join(" · ");
+				return `● committed${commitSummary}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
 			case "error":
 				return `✗ ${cell.errorMessage ?? "unknown"}`;
 			default:
-				return `${symbol} ${cell.status}`;
+				return `${symbol} ${cell.status}${base}${timeInfo}`;
 		}
 	})();
 
+	const textRows = displayText.split("\n");
+
+	// Border emphasis by state
+	const outerBorderColor = isSelected
+		? "magenta"
+		: isActive
+			? "green"
+			: "gray";
+	const innerBorderColor = isActive ? "cyan" : "gray";
+	const headerColor = isActive ? "bold" : isSelected ? "bold" : "normal";
+
 	return (
-		<Box flexDirection="column" marginBottom={0}>
+		<Box
+			flexDirection="column"
+			marginBottom={1}
+			borderStyle="single"
+			borderColor={outerBorderColor}
+			paddingLeft={1}
+			paddingRight={1}
+			paddingTop={0}
+			paddingBottom={0}
+		>
+			{/* HEADER — identity */}
 			<Box>
-				{isSelected ? (
-					<Text inverse bold={isActive}>
-						{prefix}[{ordinal}] <Text color="cyan">({cell.mode})</Text>{" "}
-						{displayText}
+				<Text bold={headerColor === "bold"}>
+					{prefix}[{ordinal}]{" "}
+					<Text color="cyan" bold={headerColor === "bold"}>
+						({cell.mode})
 					</Text>
-				) : (
-					<Text bold={isActive}>
-						{prefix}[{ordinal}] <Text color="cyan">({cell.mode})</Text>{" "}
-						{displayText}
-					</Text>
+					<Text color="gray">{pathInfo}{ws}</Text>
+				</Text>
+			</Box>
+
+			{/* INNER TEXT BOX — editable content */}
+			<Box
+				flexDirection="column"
+				borderStyle="single"
+				borderColor={innerBorderColor}
+				paddingLeft={1}
+				paddingRight={1}
+			>
+				{textRows.map((row, i) => (
+					<Box key={i}>
+						<Text bold={isActive}>{row || " "}</Text>
+					</Box>
+				))}
+				{isActive && textRows.length === 0 && (
+					<Box>
+						<Text color="gray" dimColor>
+							(empty)
+						</Text>
+					</Box>
+				)}
+
+				{/* Suggestions INSIDE text box, below the text */}
+				{suggestions && suggestions.length > 0 && (
+					<>
+						<Box>
+							<Text color={innerBorderColor}>┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈</Text>
+						</Box>
+						<Box flexDirection="column">
+							{suggestions.slice(0, 5).map((s, i) => (
+								<Box key={i}>
+									<Text dimColor>
+										{" "}
+										▸ {s.text}
+										{s.detail ? (
+											<Text color="gray"> — {s.detail}</Text>
+										) : null}
+									</Text>
+								</Box>
+							))}
+						</Box>
+					</>
 				)}
 			</Box>
-			<Box marginLeft={6}>
+
+			{/* RESULTS AREA — rendered output for committed cells */}
+			{cell.status === "committed" && cell.parsedOutput && (
+				<Box
+					flexDirection="column"
+					borderStyle="single"
+					borderColor="gray"
+					paddingLeft={1}
+					paddingRight={1}
+					marginTop={1}
+				>
+					{cell.parsedOutput.map((item, i) => {
+						const fmt = formatParsedItem(item);
+						return (
+							<Box key={i} flexDirection="column">
+								{fmt.fields.length === 0 && fmt.concepts.length === 0 ? (
+									<Box>
+										<Text color="gray" dimColor>
+											[{i + 1}] {item.targetSchema} — (no extracted fields)
+										</Text>
+									</Box>
+								) : (
+									<>
+										<Box>
+											<Text color="green" bold>
+												[{i + 1}] {item.targetSchema}
+											</Text>
+										</Box>
+										{fmt.fields.map((f, fi) => (
+											<Box key={fi}>
+												<Text color="gray">{"  "}• {f.field}: </Text>
+												<Text>
+													{typeof f.value === "object"
+														? JSON.stringify(f.value)
+														: String(f.value ?? "—")}
+												</Text>
+											</Box>
+										))}
+										{fmt.concepts.map((c, ci) => (
+											<Box key={ci}>
+												<Text color="gray">{"  "}• </Text>
+												<Text>
+													{c.id ?? "?"} = {c.display}
+												</Text>
+											</Box>
+										))}
+									</>
+								)}
+							</Box>
+						);
+					})}
+				</Box>
+			)}
+
+			{/* FOOTER — state */}
+			<Box marginTop={1}>
 				<Text color={statusColor}>{statusLine}</Text>
 			</Box>
 		</Box>
