@@ -1,4 +1,7 @@
-import type { NgramStore, NgramSuggestion } from "../../store/learning/interfaces";
+import type {
+	NgramStore,
+	NgramSuggestion,
+} from "../../store/learning/interfaces";
 import type { AutocompleteSuggestion } from "../../store/reference/auto-complete/interfaces";
 
 const MAX_SUGGESTIONS = 5;
@@ -28,7 +31,10 @@ function computeScore(
 ): number {
 	const prefix = ""; // caller passes prefix separately; we use the ngram itself
 	const ps = 0; // prefix match is handled at call site
-	const freq = Math.min(suggestion.frequency / Math.max(globalMaxFreq, COLD_START_MAX_FREQ), 1);
+	const freq = Math.min(
+		suggestion.frequency / Math.max(globalMaxFreq, COLD_START_MAX_FREQ),
+		1,
+	);
 	const recency = recencyScore(suggestion.lastUpdatedAt);
 	return ps * 0.5 + freq * 0.3 + recency * 0.2;
 }

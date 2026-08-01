@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import { KvNgramStore } from "../src/store/learning/autocomplete/kv-ngram-store";
 import { extractNgrams } from "../src/parser/utils/ngram-extractor";
+import { KvNgramStore } from "../src/store/learning/autocomplete/kv-ngram-store";
 
 describe("KvNgramStore", () => {
 	function makeStore(): KvNgramStore {

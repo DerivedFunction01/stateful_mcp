@@ -907,9 +907,7 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 			observationevent: ["SNOMED"],
 			medicationorderobject: ["RxNorm"],
 		},
-		 tagMappings: {
-			workspace: "WorkspaceCommand",
-			ws: "WorkspaceCommand",
+		tagMappings: {
 			vital: "VitalsMeasurementEvent",
 			vitalsmeasurementevent: "VitalsMeasurementEvent",
 			observation: "ObservationEvent",
@@ -927,6 +925,22 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 			re_activate: "re_activate",
 			elevate: "elevate",
 			close: "close",
+		},
+		cellCommandToken: ":",
+		cellCommandMappings: {
+			up: "up", down: "down", go: "go", top: "top", bottom: "bottom",
+			run: "run", preview: "preview", insert: "insert", delete: "delete",
+			split: "split", mode: "mode", workspace: "workspace", set: "set",
+			link: "link", unlink: "unlink", parent: "parent", help: "help",
+			status: "status", save: "save", clear: "clear",
+		},
+		fieldMappings: {
+			"ObservationEvent.symptom": "ObservationEvent.symptom",
+			"ObservationEvent.severity": "ObservationEvent.severity",
+			"VitalsMeasurementEvent.systolic": "VitalsMeasurementEvent.systolic",
+			"VitalsMeasurementEvent.diastolic": "VitalsMeasurementEvent.diastolic",
+			"PrimaryDiagnosisEntry.code": "PrimaryDiagnosisEntry.code",
+			"MedicationOrderObject.drugName": "MedicationOrderObject.drugName",
 		},
 	},
 ];

@@ -1,11 +1,46 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import { ProfileQueryCompiler } from "../../sql/profile-query-compiler";
-import type {
-	DateTimeFormatConfig,
-	NumericFieldFormatOptions,
-	ParserSyntaxProfile,
-} from "../interfaces";
+import type { ParserSyntaxProfile } from "../interfaces";
 import type { ParserProfileCoreStore } from "./interfaces";
+
+const SYNTAX_KEYS: readonly (keyof ParserSyntaxProfile)[] = [
+	"tagToken",
+	"stateDelimiter",
+	"stateStartDelimiter",
+	"stateEndDelimiter",
+	"macroStartToken",
+	"variableStartToken",
+	"variableEndToken",
+	"commentStartToken",
+	"commentEndToken",
+	"macroPlaceholder",
+	"variableDelimiter",
+	"macroArgStartToken",
+	"macroArgEndToken",
+	"macroArgDelimiter",
+	"startTermCodeDelimiter",
+	"startTermDisplayDelimiter",
+	"startTermCodeSeparator",
+	"startTermDelimiter",
+	"endTermDelimiter",
+	"attributeDelimiter",
+	"termTokenizer",
+	"stopWordThreshold",
+	"defaultsStrategy",
+	"boundaryDelimiter",
+	"transitionalWords",
+	"numberWordConfig",
+	"schemaNamespaces",
+	"schemaDefaults",
+	"calendarDateFormats",
+	"numericFieldFormats",
+	"tagMappings",
+	"commandMappings",
+	"workspaceCommandMappings",
+	"cellCommandMappings",
+	"fieldMappings",
+	"cellCommandToken",
+] as const;
 
 export class SqlParserProfileStore implements ParserProfileCoreStore {
 	private readonly compiler: ProfileQueryCompiler;
@@ -65,46 +100,20 @@ export class SqlParserProfileStore implements ParserProfileCoreStore {
 	}
 
 	private profileToRow(profile: ParserSyntaxProfile): Record<string, unknown> {
-		const meta: Record<string, unknown> = {};
-		if (profile.schemaNamespaces)
-			meta.schemaNamespaces = profile.schemaNamespaces;
-		if (profile.schemaDefaults) meta.schemaDefaults = profile.schemaDefaults;
-		if (profile.calendarDateFormats)
-			meta.calendarDateFormats = profile.calendarDateFormats;
-		if (profile.numericFieldFormats)
-			meta.numericFieldFormats = profile.numericFieldFormats;
-		if (profile.tagMappings) meta.tagMappings = profile.tagMappings;
-		if (profile.commandMappings) meta.commandMappings = profile.commandMappings;
+		const syntax: Record<string, unknown> = {};
+		for (const key of SYNTAX_KEYS) {
+			const value = profile[key];
+			if (value !== undefined) {
+				syntax[key] = value;
+			}
+		}
 
 		return {
 			profileId: profile.profileId,
 			personnelId: profile.personnelId,
 			isDefault: profile.isDefault ? 1 : 0,
 			isActive: profile.isActive !== false ? 1 : 0,
-			tagToken: profile.tagToken,
-			stateDelimiter: profile.stateDelimiter,
-			stateStartDelimiter: profile.stateStartDelimiter,
-			stateEndDelimiter: profile.stateEndDelimiter,
-			macroStartToken: profile.macroStartToken,
-			variableStartToken: profile.variableStartToken,
-			variableEndToken: profile.variableEndToken,
-			commentStartToken: profile.commentStartToken ?? null,
-			commentEndToken: profile.commentEndToken ?? null,
-			macroPlaceholder: profile.macroPlaceholder ?? null,
-			variableDelimiter: profile.variableDelimiter ?? null,
-			macroArgStartToken: profile.macroArgStartToken ?? null,
-			macroArgEndToken: profile.macroArgEndToken ?? null,
-			macroArgDelimiter: profile.macroArgDelimiter ?? null,
-			startTermCodeDelimiter: profile.startTermCodeDelimiter ?? null,
-			startTermDisplayDelimiter: profile.startTermDisplayDelimiter ?? null,
-			startTermCodeSeparator: profile.startTermCodeSeparator ?? null,
-			startTermDelimiter: profile.startTermDelimiter ?? null,
-			endTermDelimiter: profile.endTermDelimiter ?? null,
-			attributeDelimiter: profile.attributeDelimiter ?? null,
-			termTokenizer: profile.termTokenizer ?? null,
-			stopWordThreshold: profile.stopWordThreshold ?? null,
-			defaultsStrategy: profile.defaultsStrategy ?? null,
-			metadata: JSON.stringify(Object.keys(meta).length > 0 ? meta : {}),
+			syntax: JSON.stringify(Object.keys(syntax).length > 0 ? syntax : null),
 		};
 	}
 
@@ -112,76 +121,24 @@ export class SqlParserProfileStore implements ParserProfileCoreStore {
 		const profile: ParserSyntaxProfile = {
 			profileId: row.profileId as string,
 			personnelId: row.personnelId as string,
-			tagToken: row.tagToken as string,
-			stateDelimiter: row.stateDelimiter as string,
-			stateStartDelimiter: row.stateStartDelimiter as string,
-			stateEndDelimiter: row.stateEndDelimiter as string,
-			macroStartToken: row.macroStartToken as string,
-			variableStartToken: row.variableStartToken as string,
-			variableEndToken: row.variableEndToken as string,
+			tagToken: "#",
+			stateDelimiter: "||",
+			stateStartDelimiter: "|",
+			stateEndDelimiter: "|",
+			macroStartToken: "^",
+			variableStartToken: "{",
+			variableEndToken: "}",
 			isDefault: (row.isDefault as number) === 1,
 			isActive: (row.isActive as number) === 1,
 		};
 
-		if (row.commentStartToken != null)
-			profile.commentStartToken = row.commentStartToken as string;
-		if (row.commentEndToken != null)
-			profile.commentEndToken = row.commentEndToken as string;
-		if (row.macroPlaceholder != null)
-			profile.macroPlaceholder = row.macroPlaceholder as string;
-		if (row.variableDelimiter != null)
-			profile.variableDelimiter = row.variableDelimiter as string;
-		if (row.macroArgStartToken != null)
-			profile.macroArgStartToken = row.macroArgStartToken as string;
-		if (row.macroArgEndToken != null)
-			profile.macroArgEndToken = row.macroArgEndToken as string;
-		if (row.macroArgDelimiter != null)
-			profile.macroArgDelimiter = row.macroArgDelimiter as string;
-		if (row.startTermCodeDelimiter != null)
-			profile.startTermCodeDelimiter = row.startTermCodeDelimiter as string;
-		if (row.startTermDisplayDelimiter != null)
-			profile.startTermDisplayDelimiter =
-				row.startTermDisplayDelimiter as string;
-		if (row.startTermCodeSeparator != null)
-			profile.startTermCodeSeparator = row.startTermCodeSeparator as string;
-		if (row.startTermDelimiter != null)
-			profile.startTermDelimiter = row.startTermDelimiter as string;
-		if (row.endTermDelimiter != null)
-			profile.endTermDelimiter = row.endTermDelimiter as string;
-		if (row.attributeDelimiter != null)
-			profile.attributeDelimiter = row.attributeDelimiter as string;
-		if (row.termTokenizer != null)
-			profile.termTokenizer = row.termTokenizer as string;
-		if (row.stopWordThreshold != null)
-			profile.stopWordThreshold = Number(row.stopWordThreshold);
-		if (row.defaultsStrategy != null)
-			profile.defaultsStrategy = row.defaultsStrategy as string;
-
-		if (row.metadata != null && typeof row.metadata === "object") {
-			const meta = row.metadata as Record<string, any>;
-			if (meta.schemaNamespaces != null)
-				profile.schemaNamespaces = meta.schemaNamespaces as Record<
-					string,
-					string[]
-				>;
-			if (meta.schemaDefaults != null)
-				profile.schemaDefaults = meta.schemaDefaults as Record<
-					string,
-					Record<string, any>
-				>;
-			if (meta.calendarDateFormats != null)
-				profile.calendarDateFormats =
-					meta.calendarDateFormats as DateTimeFormatConfig[];
-			if (meta.numericFieldFormats != null)
-				profile.numericFieldFormats =
-					meta.numericFieldFormats as NumericFieldFormatOptions[];
-			if (meta.tagMappings != null)
-				profile.tagMappings = meta.tagMappings as Record<string, string>;
-			if (meta.commandMappings != null)
-				profile.commandMappings = meta.commandMappings as Record<
-					string,
-					"set" | "assert" | "eval"
-				>;
+		if (row.syntax != null && typeof row.syntax === "object") {
+			const s = row.syntax as Record<string, any>;
+			for (const key of SYNTAX_KEYS) {
+				if (s[key] !== undefined && s[key] !== null) {
+					(profile as any)[key] = s[key];
+				}
+			}
 		}
 
 		return profile;

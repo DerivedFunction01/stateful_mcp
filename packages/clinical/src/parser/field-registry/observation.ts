@@ -73,6 +73,15 @@ export function createObservationFieldRegistry(
 			},
 		},
 		{
+			sourceKey: "anatomy",
+			targetField: "anatomyLocations",
+			compute: (_slots, _conceptDefaults, rawGroups) => {
+				const raw = rawGroups?.anatomy;
+				if (!raw) return undefined;
+				return Array.isArray(raw) ? raw : [raw];
+			},
+		},
+		{
 			sourceKey: "trajectory",
 			targetField: "trajectory",
 			schemaDefaultField: "trajectory",
@@ -116,7 +125,7 @@ export const observationRouter = (
 export const observationConfig: SchemaParserConfig = {
 	schema: "ObservationEvent",
 	targetSchema: "ObservationEvent",
-	preparsedContextKeys: ["measurement", "frequency", "attributes"],
+	preparsedContextKeys: ["measurement", "frequency", "attributes", "anatomy"],
 };
 
 // ── Optional test block (consumed by field-registry.test.ts) ─────────────────

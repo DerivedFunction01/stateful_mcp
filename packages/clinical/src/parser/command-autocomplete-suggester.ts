@@ -436,6 +436,22 @@ export class CommandAutocompleteSuggester {
 		triggerChar: string,
 		ctx?: CommandAutocompleteContext,
 	): Promise<CommandAutocompleteSuggestion[]> {
+		const cellToken = this.profile.cellCommandToken || ":";
+		if (triggerChar === cellToken) {
+			const prefix =
+				partialText.trim().slice(cellToken.length).split(/\s+/)[0] ?? "";
+			return Object.entries(this.profile.cellCommandMappings ?? {})
+				.filter(([alias]) =>
+					alias.toLowerCase().startsWith(prefix.toLowerCase()),
+				)
+				.map(([alias, verb], index) => ({
+					kind: "slash_command" as const,
+					insertText: `${cellToken}${alias} `,
+					label: `${cellToken}${alias}`,
+					detail: verb,
+					rankScore: 1 - index / 100,
+				}));
+		}
 		if (triggerChar === this.profile.tagToken) {
 			const prefix = this.extractPrefix(partialText, this.profile.tagToken);
 			return this.suggestTags(prefix, ctx);

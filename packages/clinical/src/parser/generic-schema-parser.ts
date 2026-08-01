@@ -354,6 +354,19 @@ export class GenericSchemaParser {
 			}
 		}
 
+		if (
+			keys.includes("anatomy") &&
+			preparsedContext.anatomyCandidates?.length
+		) {
+			token.namedGroups.anatomy = preparsedContext.anatomyCandidates.map(
+				(candidate) => ({
+					anatomy: candidate.raw,
+					laterality: candidate.laterality,
+					depthIndex: candidate.depthIndex,
+				}),
+			);
+		}
+
 		return token;
 	}
 

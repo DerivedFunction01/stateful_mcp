@@ -17,6 +17,8 @@ export interface ParserSyntaxProfile {
 	macroArgEndToken?: string;
 	macroArgDelimiter?: string;
 	tagMappings?: Record<string, string>; // Maps custom tag names to canonical target schema types
+	cellCommandMappings?: Record<string, string>; // Maps cell-command aliases to canonical verbs
+	fieldMappings?: Record<string, string>; // Maps field aliases to Schema.field paths
 	commandMappings?: Record<string, "set" | "assert" | "eval">; // Maps custom command verbs to canonical verbs
 	workspaceCommandMappings?: Record<
 		string,
@@ -45,6 +47,7 @@ export interface ParserSyntaxProfile {
 	boundaryDelimiter?: string;
 	transitionalWords?: string[];
 	numberWordConfig?: import("../parser/utils/number-word-normalizer").NumberWordConfig;
+	cellCommandToken?: string; // Prefix for cell commands (e.g. ':')
 }
 
 export interface PatientLearningContext extends PatientLearningBucket {

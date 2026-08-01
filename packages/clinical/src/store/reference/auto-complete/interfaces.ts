@@ -14,7 +14,8 @@ export type AutocompleteSuggestionKind =
 	| "tag"
 	| "macro"
 	| "term"
-	| "variable";
+	| "variable"
+	| "cell_command";
 
 export interface AutocompleteSuggestion {
 	kind: AutocompleteSuggestionKind;

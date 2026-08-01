@@ -120,10 +120,7 @@ export async function resolveNgramStoreLocator(
 			connectionTarget,
 		);
 
-		return new SqlNgramStore(
-			name as SqlDialect,
-			new SqlExecutor(backend),
-		);
+		return new SqlNgramStore(name as SqlDialect, new SqlExecutor(backend));
 	}
 
 	if (["memory", "jsonl", "indexeddb", "localstorage"].includes(name)) {

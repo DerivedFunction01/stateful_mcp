@@ -2,11 +2,20 @@ import { describe, expect, it } from "bun:test";
 import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 import { WorkspaceCommandParser } from "../src/session/workspace-command-parser";
 
+const workspaceProfile = {
+	...SEED_PARSER_PROFILES[0]!,
+	tagMappings: {
+		...SEED_PARSER_PROFILES[0]!.tagMappings,
+		workspace: "WorkspaceCommand",
+		ws: "WorkspaceCommand",
+	},
+};
+
 describe("WorkspaceCommandParser", () => {
 	it("extracts configured commands and preserves ordinary segments", () => {
 		const result = new WorkspaceCommandParser().parseCell(
 			"#workspace rule_out PE || #vital temp 38.9 C",
-			SEED_PARSER_PROFILES[0]!,
+			workspaceProfile,
 		);
 		expect(result.commands).toEqual([{ verb: "rule_out", branchRef: "PE" }]);
 		expect(result.remainingText).toBe("#vital temp 38.9 C");
@@ -30,7 +39,7 @@ describe("WorkspaceCommandParser", () => {
 	it("reports malformed commands without throwing", () => {
 		const result = new WorkspaceCommandParser().parseCell(
 			"#workspace close extra || #workspace unknown PE",
-			SEED_PARSER_PROFILES[0]!,
+			workspaceProfile,
 		);
 		expect(result.commands).toEqual([]);
 		expect(result.warnings).toEqual(["MALFORMED", "UNKNOWN_ALIAS"]);

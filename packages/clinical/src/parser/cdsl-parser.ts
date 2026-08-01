@@ -250,7 +250,8 @@ export class CdslParser {
 	 *    (meaning the user is still typing the command name)
 	 */
 	private detectCommandTrigger(partialText: string): string | null {
-		const triggers = [this.profile.tagToken];
+		const cellToken = this.profile.cellCommandToken || ":";
+		const triggers = [this.profile.tagToken, cellToken];
 		if (this.profile.macroStartToken) {
 			triggers.push(this.profile.macroStartToken);
 		}
@@ -261,6 +262,15 @@ export class CdslParser {
 		let bestTrigger: string | null = null;
 		let bestIdx = -1;
 		for (const trigger of triggers) {
+			const cellToken = this.profile.cellCommandToken || ":";
+			if (
+				trigger === cellToken &&
+				partialText.trimStart().startsWith(cellToken)
+			) {
+				bestTrigger = trigger;
+				bestIdx = partialText.indexOf(trigger);
+				continue;
+			}
 			const idx = partialText.lastIndexOf(trigger);
 			if (idx > bestIdx) {
 				const afterTrigger = partialText.slice(idx + trigger.length);
@@ -282,7 +292,7 @@ export class CdslParser {
 		s: CommandAutocompleteSuggestion,
 	): AutocompleteSuggestion {
 		return {
-			kind: s.kind === "slash_command" ? "prose" : s.kind,
+			kind: s.kind === "slash_command" ? "cell_command" : s.kind,
 			templateId: `command:${s.kind}`,
 			slotName: s.label,
 			triggerPattern: this.profile.tagToken,

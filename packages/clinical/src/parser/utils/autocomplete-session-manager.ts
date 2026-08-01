@@ -1,4 +1,3 @@
-import type { CdslParser } from "../cdsl-parser";
 import type {
 	AutocompleteTransitionInsertPlan,
 	AutocompleteTransitionStore,
@@ -10,9 +9,10 @@ import type {
 } from "../../store/reference/auto-complete/command-autocomplete-interfaces";
 import type { AutocompleteSuggestion } from "../../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../../store/reference/prose-parser-templates/interfaces";
+import { NgramSuggester } from "../autocomplete/ngram-suggester";
+import type { CdslParser } from "../cdsl-parser";
 import type { ParsedItem } from "../schema-parsers";
 import { AutocompleteSessionStateMapper } from "./autocomplete-state-mapper";
-import { NgramSuggester } from "../autocomplete/ngram-suggester";
 import { extractNgrams } from "./ngram-extractor";
 
 export interface AutocompleteSessionState {
@@ -45,9 +45,13 @@ export class AutocompleteSessionManager {
 			filledSlots: this.filledSlots,
 			personnelId: this.personnelId,
 		};
-		const primary = await this.cdslParser.suggestAutocomplete(partialText, {
-			personnelId: this.personnelId,
-		}, commandContext);
+		const primary = await this.cdslParser.suggestAutocomplete(
+			partialText,
+			{
+				personnelId: this.personnelId,
+			},
+			commandContext,
+		);
 
 		// If primary returns enough results, return them directly
 		if (primary.length >= 3 || !this.ngramSuggester) return primary;
@@ -99,7 +103,10 @@ export class AutocompleteSessionManager {
 
 	async updateFromParse(parsedItems: ParsedItem[]): Promise<void> {
 		const schemas = parsedItems.map((item) => item.targetSchema);
-		this.recentTargetSchemas = [...schemas, ...this.recentTargetSchemas].slice(0, 3);
+		this.recentTargetSchemas = [...schemas, ...this.recentTargetSchemas].slice(
+			0,
+			3,
+		);
 
 		if (this.activeTemplateId && this.proseTemplateStore) {
 			const template = await this.proseTemplateStore.get(this.activeTemplateId);

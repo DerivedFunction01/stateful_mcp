@@ -6,7 +6,10 @@ import {
 } from "./adapter-types";
 import type { ClinicalStoreConfig } from "./clinical-config";
 import type { ParserMacroStore } from "./interfaces";
-import { resolveAutocompleteTransitionStoreLocator, resolveNgramStoreLocator } from "./learning/autocomplete-resolver";
+import {
+	resolveAutocompleteTransitionStoreLocator,
+	resolveNgramStoreLocator,
+} from "./learning/autocomplete-resolver";
 import type {
 	AutocompleteTransitionStore,
 	NgramStore,

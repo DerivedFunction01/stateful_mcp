@@ -1,16 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
 import { CdslParser } from "../src/parser/cdsl-parser";
-import { AutocompleteSessionManager } from "../src/parser/utils/autocomplete-session-manager";
-import { AutocompleteSessionStateMapper } from "../src/parser/utils/autocomplete-state-mapper";
-import { KvNgramStore } from "../src/store/learning/autocomplete/kv-ngram-store";
-import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 import type { ParsedItem } from "../src/parser/schema-parsers";
+import { AutocompleteSessionManager } from "../src/parser/utils/autocomplete-session-manager";
+import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
+import { KvNgramStore } from "../src/store/learning/autocomplete/kv-ngram-store";
 import type { ProseTemplate } from "../src/store/reference/prose-parser-templates/prose-template";
 
 describe("AutocompleteSessionManager", () => {
 	function makeParser(): CdslParser {
-		const profile = SEED_PARSER_PROFILES.find((p) => p.profileId === "default")!;
+		const profile = SEED_PARSER_PROFILES.find(
+			(p) => p.profileId === "default",
+		)!;
 		return new CdslParser({
 			dictionaryStore: {
 				addExpression: async () => {},
@@ -33,7 +34,12 @@ describe("AutocompleteSessionManager", () => {
 
 	it("preserves initial session state", () => {
 		const parser = makeParser();
-		const manager = new AutocompleteSessionManager(parser, undefined, undefined, "user1");
+		const manager = new AutocompleteSessionManager(
+			parser,
+			undefined,
+			undefined,
+			"user1",
+		);
 		const state = manager.getState();
 		expect(state.activeTemplateId).toBeNull();
 		expect(state.filledSlots).toEqual({});

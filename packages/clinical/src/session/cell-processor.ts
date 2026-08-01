@@ -9,6 +9,9 @@ import type { SoapSection } from "../schemas/shared";
 import type { CellStore } from "../store/interfaces";
 import type { Cell } from "./cell";
 import { CELL_ERROR_MESSAGES, CellError } from "./cell";
+import type { CellCommandContext } from "./cell-command";
+import { CellCommandParser } from "./cell-command-parser";
+import { CellCommandRegistry } from "./cell-command-registry";
 import { WorkspaceCommandParser } from "./workspace-command-parser";
 
 export interface PreprocessResult {
@@ -31,7 +34,61 @@ export class CellProcessor {
 		private parser?: CdslParser,
 		private preprocessor?: TextPreprocessor,
 		private cellStore?: CellStore,
+		private cellCommandRegistry: CellCommandRegistry = CellCommandRegistry.createDefault(),
 	) {}
+
+	private async executeCellCommand(
+		cell: Cell,
+	): Promise<CellProcessResult | null> {
+		if (!this.parser) return null;
+		const token = this.parser.getProfile().cellCommandToken || ":";
+		if (!cell.rawInput.trim().startsWith(token)) return null;
+		const command = CellCommandParser.parse(
+			cell.rawInput,
+			this.parser.getProfile(),
+		);
+		if (!command)
+			return {
+				cell,
+				error: this.cellError(
+					CellError.PARSER_NOT_CONFIGURED,
+					"invalid cell command",
+				),
+			};
+		const context: CellCommandContext = {
+			sessionId: cell.sessionId,
+			cell,
+			parser: this.parser,
+			engine: this.engine,
+			workspaceStore: this.workspaceStore,
+			profile: this.parser.getProfile(),
+			processor: this,
+		};
+		const result = await this.cellCommandRegistry.dispatch(command, context);
+		if (!result.success) {
+			cell.status = "error";
+			cell.errorMessage = result.message;
+			await this.saveCell(cell);
+			return {
+				cell,
+				error: this.cellError(CellError.PARSER_NOT_CONFIGURED, result.message),
+			};
+		}
+		if (result.parsedOutput) cell.parsedOutput = result.parsedOutput;
+		cell.status = "committed";
+		cell.lockedAt = new Date().toISOString();
+		cell.metadata = {
+			...cell.metadata,
+			cellCommand: command.verb,
+			commandOutput: result.output,
+		};
+		await this.saveCell(cell);
+		return {
+			cell,
+			workspaceId: result.workspaceId,
+			preview: result.parsedOutput ?? undefined,
+		};
+	}
 
 	cellError(
 		code: CellError,
@@ -108,6 +165,8 @@ export class CellProcessor {
 		if (cell.status === "deleted") {
 			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
 		}
+		const cellCommandResult = await this.executeCellCommand(cell);
+		if (cellCommandResult) return cellCommandResult;
 
 		const { cleanedText } = await this.preprocess(cell);
 		const commandResult = this.parser
@@ -279,6 +338,19 @@ export class CellProcessor {
 		}
 		if (cell.status === "deleted") {
 			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
+		}
+		const cellToken =
+			this.parser && typeof (this.parser as any).getProfile === "function"
+				? (this.parser as any).getProfile().cellCommandToken || ":"
+				: ":";
+		if (cell.rawInput.trim().startsWith(cellToken)) {
+			return {
+				cell,
+				error: this.cellError(
+					CellError.PARSER_NOT_CONFIGURED,
+					"preview not available for cell commands",
+				),
+			};
 		}
 
 		// Narrative cells have no preview — rawInput is written directly to the targeted field

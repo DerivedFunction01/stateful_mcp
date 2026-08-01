@@ -6,12 +6,10 @@ import type {
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import type { CommandAutocompleteSuggester } from "../parser/command-autocomplete-suggester";
-import { AutocompleteSessionManager } from "../parser/utils/autocomplete-session-manager";
-import type { AutocompleteSelection } from "../store/reference/auto-complete/command-autocomplete-interfaces";
-import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { ParsedItem } from "../parser/schema-parsers";
+import { AutocompleteSessionManager } from "../parser/utils/autocomplete-session-manager";
 import { ProseRenderer } from "../renderer/prose-renderer";
 import type { SoapNote } from "../schemas/document";
 import {
@@ -49,6 +47,8 @@ import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_l
 import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";
 import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
 import type { TagStore } from "../store/parser/tags/interfaces";
+import type { AutocompleteSelection } from "../store/reference/auto-complete/command-autocomplete-interfaces";
+import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 
@@ -571,9 +571,7 @@ export class ClinicalEngine {
 	/**
 	 * Record an autocomplete selection to update learning data.
 	 */
-	recordAutocompleteSelection(
-		selection: AutocompleteSelection,
-	): void {
+	recordAutocompleteSelection(selection: AutocompleteSelection): void {
 		this.autocompleteSession?.recordSelection(selection);
 	}
 

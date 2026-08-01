@@ -1,4 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
+import type { AnatomyCandidate } from "../parser/helpers/anatomy-helper";
 import type { QuantityCandidate } from "../parser/helpers/measurement-helper";
 import type { MedicationFrequency } from "../schemas/medication";
 import type { CodeableConcept } from "../schemas/shared";
@@ -136,6 +137,7 @@ export interface PreparsedContext {
 	candidates: Record<string, QuantityCandidate[]>;
 	looseCandidates: QuantityCandidate[];
 	timeCandidates: QuantityCandidate[];
+	anatomyCandidates?: AnatomyCandidate[];
 	frequency?: MedicationFrequency | null;
 	attributes: Record<string, string>;
 	parsedPartial?: Record<string, any>;

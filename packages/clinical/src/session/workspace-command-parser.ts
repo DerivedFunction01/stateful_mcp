@@ -30,6 +30,8 @@ export class WorkspaceCommandParser {
 				continue;
 			}
 			const tag = match[1]!.toLowerCase();
+			// Keep parsing legacy cells during migration even though the default
+			// profile no longer advertises workspace as a clinical tag.
 			const mapped = profile.tagMappings?.[tag] ?? tag;
 			if (mapped.toLowerCase() !== target.toLowerCase()) {
 				remaining.push(segment);
@@ -72,6 +74,15 @@ export class WorkspaceCommandParser {
 				: null;
 		}
 		return args.length === 1 ? { verb, branchRef: args[0]! } : null;
+	}
+
+	parseCommandAlias(
+		tokens: string[],
+		profile: ParserSyntaxProfile,
+	): WorkspaceCommand | null {
+		const verb =
+			profile.workspaceCommandMappings?.[tokens[0]?.toLowerCase() ?? ""];
+		return verb ? this.parseCommand(verb, tokens.slice(1)) : null;
 	}
 
 	private escape(value: string): string {

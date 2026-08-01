@@ -8,6 +8,7 @@ import type {
 	StopWordContext,
 } from "../store/interfaces";
 import { getCompiledRegex } from "./_compiled-regex";
+import { AnatomyTokenizer } from "./helpers/anatomy-helper";
 import { FrequencyHelper } from "./helpers/frequency-helper";
 import {
 	type QuantityCandidate,
@@ -161,6 +162,7 @@ export class SegmentProcessor {
 			attrRules || [],
 			this.profile.evaluatorRules || [],
 		);
+		const anatomyCandidates = AnatomyTokenizer.tokenize(content, attrRules);
 
 		const attributes: Record<string, string> = { ...attributeOverrides };
 		const rules = [...attrRules].sort((a, b) => {
@@ -204,6 +206,7 @@ export class SegmentProcessor {
 			candidates: candidatesByAnchor,
 			looseCandidates,
 			timeCandidates,
+			anatomyCandidates,
 			frequency,
 			attributes,
 			profile: this.profile,

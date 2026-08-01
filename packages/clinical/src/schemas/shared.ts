@@ -64,15 +64,15 @@ export interface ProductIdentifier {
 	buildYear?: number;
 	registryTrackingNumber?: string;
 }
-export type Laterality = 	
-| "left"
-| "right"
-| "bilateral"
-| "midline"
-| "dorsal"
-| "ventral"
-| "axial"
-| "radial"
+export type Laterality =
+	| "left"
+	| "right"
+	| "bilateral"
+	| "midline"
+	| "dorsal"
+	| "ventral"
+	| "axial"
+	| "radial";
 
 export interface AnatomicalLocation {
 	anatomy: CodeableConcept;
