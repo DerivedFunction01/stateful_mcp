@@ -14,8 +14,19 @@ async function main() {
   clinical eval <cdsl-text>      Parse CDSL and print result
   clinical session create <name> Create a new session
   clinical profile list          List parser profiles
-  clinical profile get <id>      Get profile details`);
+  clinical profile get <id>      Get profile details
+  clinical notebook              Open the interactive notebook editor`);
 		process.exit(0);
+	}
+
+	// ── notebook command — boot the Ink TUI ─────────────────────────
+	if (command === "notebook") {
+		const { render } = await import("ink");
+		const { NotebookApp } = await import("./app");
+		const { default: React } = await import("react");
+		const { waitUntilExit } = render(React.createElement(NotebookApp));
+		await waitUntilExit();
+		return;
 	}
 
 	// Commands that need a runtime but no engine/session

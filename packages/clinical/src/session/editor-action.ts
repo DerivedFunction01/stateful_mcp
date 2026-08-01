@@ -29,4 +29,9 @@ export enum EditorAction {
 	AcceptSuggestion = "accept_suggestion",
 	NextSuggestion = "next_suggestion",
 	PrevSuggestion = "prev_suggestion",
+	EnterInsertMode = "enter_insert_mode",
+	ExitInsertMode = "exit_insert_mode",
+	TypeChar = "type_char",
+	Backspace = "backspace",
+	CommitCell = "commit_cell",
 }

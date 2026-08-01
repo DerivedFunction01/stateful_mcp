@@ -18,16 +18,19 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node'",
+		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' --external 'ink' --external 'react' --external 'react-devtools-core' --external 'react-reconciler' --external 'scheduler'",
 		"check": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@stateful-mcp/clinical": "workspace:^",
 		"@stateful-mcp/core": "workspace:^",
-		"@stateful-mcp/clinical": "workspace:^"
+		"ink": "^7.1.1",
+		"react": "^19.2.8"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/node": "^20",
+		"@types/react": "^19.2.18",
 		"typescript": "^5"
 	}
 }
