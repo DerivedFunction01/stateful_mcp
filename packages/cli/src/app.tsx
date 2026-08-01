@@ -1,3 +1,4 @@
+import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { EditorAction } from "@stateful-mcp/clinical/session/editor-action";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import { useApp, useInput } from "ink";
@@ -6,6 +7,11 @@ import { Notebook } from "./components/Notebook";
 import { PreviewScreen } from "./components/PreviewScreen";
 import { useNotebook } from "./hooks/useNotebook";
 import { useSession } from "./hooks/useSession";
+import {
+	cycleIndex,
+	mergeCandidate,
+	type CompletionState,
+} from "./lib/completion-state";
 import { resolveKey } from "./lib/keymap";
 
 export function NotebookApp() {
@@ -27,7 +33,9 @@ export function NotebookApp() {
 	} = useNotebook(session);
 	const { exit } = useApp();
 	const [pendingSequence, setPendingSequence] = useState("");
-	const [suggestionIndex, setSuggestionIndex] = useState(-1);
+	const [completionState, setCompletionState] = useState<CompletionState>({
+		status: "idle",
+	});
 
 	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
 
@@ -62,11 +70,20 @@ export function NotebookApp() {
 			if (state.mode === "COMMAND") {
 				if (key.escape) {
 					dispatch({ type: "EXIT_COMMAND_MODE" });
-					setSuggestionIndex(-1);
+					setCompletionState({ status: "idle" });
 					return;
 				}
 				if (key.return) {
-					dispatchCommand(state.commandLine).then((result) => {
+					// Commit + execute in one: if cycling, merge highlighted candidate first.
+					let line = state.commandLine;
+					if (completionState.status === "cycling") {
+						const candidate =
+							completionState.candidates[completionState.highlightIndex];
+						if (candidate) {
+							line = mergeCandidate(line, candidate, false);
+						}
+					}
+					dispatchCommand(line).then((result) => {
 						if (result.action === "quit") {
 							exit();
 							return;
@@ -128,97 +145,106 @@ export function NotebookApp() {
 							dispatch({ type: "SET_MESSAGE", message: result.message });
 						}
 					});
-					setSuggestionIndex(-1);
+					setCompletionState({ status: "idle" });
 					return;
 				}
 				if (key.upArrow) {
-					dispatch({ type: "COMMAND_HISTORY_PREV" });
-					setSuggestionIndex(-1);
+					if (completionState.status === "cycling") {
+						const nextIdx = cycleIndex(
+							completionState.highlightIndex,
+							completionState.candidates.length,
+							-1,
+						);
+						setCompletionState({
+							status: "cycling",
+							candidates: completionState.candidates,
+							highlightIndex: nextIdx,
+						});
+					} else {
+						dispatch({ type: "COMMAND_HISTORY_PREV" });
+					}
 					return;
 				}
 				if (key.downArrow) {
-					dispatch({ type: "COMMAND_HISTORY_NEXT" });
-					setSuggestionIndex(-1);
+					if (completionState.status === "cycling") {
+						const nextIdx = cycleIndex(
+							completionState.highlightIndex,
+							completionState.candidates.length,
+							1,
+						);
+						setCompletionState({
+							status: "cycling",
+							candidates: completionState.candidates,
+							highlightIndex: nextIdx,
+						});
+					} else {
+						dispatch({ type: "COMMAND_HISTORY_NEXT" });
+					}
 					return;
 				}
 				if (key.shift && key.tab) {
 					const partial = state.commandLine.slice(1);
-					const spaceIdx = partial.indexOf(" ");
-					if (spaceIdx >= 0) {
-						const verb = partial.slice(0, spaceIdx);
-						const afterVerb = partial.slice(spaceIdx + 1);
-						const suggestions = getAutocomplete(partial);
-						if (suggestions.length === 0) return;
-						const nextIdx =
-							(((suggestionIndex - 1 + suggestions.length) %
-								suggestions.length) +
-								suggestions.length) %
-							suggestions.length;
-						const lastSpace = afterVerb.lastIndexOf(" ");
-						const prefix = `:${verb} `;
-						const prevArgs =
-							lastSpace >= 0 ? afterVerb.slice(0, lastSpace + 1) : "";
-						dispatch({
-							type: "COMMAND_SET",
-							text: `${prefix}${prevArgs}${suggestions[nextIdx]!.verb} `,
-						});
-						setSuggestionIndex(nextIdx);
-					} else {
-						const suggestions = getAutocomplete(partial);
-						if (suggestions.length === 0) return;
-						const nextIdx =
-							(((suggestionIndex - 1 + suggestions.length) %
-								suggestions.length) +
-								suggestions.length) %
-							suggestions.length;
-						const fill = suggestions[nextIdx]!.verb.slice(partial.length);
-						dispatch({ type: "COMMAND_APPEND", char: fill });
-						setSuggestionIndex(nextIdx);
-					}
+					const suggestions = getAutocomplete(partial);
+					if (suggestions.length === 0) return;
+					const candidates = suggestions.map(
+						(s: AutocompleteSuggestion) => s.verb,
+					);
+					const currentIdx =
+						completionState.status === "cycling"
+							? completionState.highlightIndex
+							: -1;
+					const nextIdx = cycleIndex(currentIdx, candidates.length, -1);
+					setCompletionState({
+						status: "cycling",
+						candidates,
+						highlightIndex: nextIdx,
+					});
 					return;
 				}
 				if (key.tab) {
 					const partial = state.commandLine.slice(1);
-					const spaceIdx = partial.indexOf(" ");
-					if (spaceIdx >= 0) {
-						const verb = partial.slice(0, spaceIdx);
-						const afterVerb = partial.slice(spaceIdx + 1);
-						const suggestions = getAutocomplete(partial);
-						if (suggestions.length === 0) return;
-						const nextIdx =
-							(((suggestionIndex + 1) % suggestions.length) +
-								suggestions.length) %
-							suggestions.length;
-						const lastSpace = afterVerb.lastIndexOf(" ");
-						const prefix = `:${verb} `;
-						const prevArgs =
-							lastSpace >= 0 ? afterVerb.slice(0, lastSpace + 1) : "";
-						dispatch({
-							type: "COMMAND_SET",
-							text: `${prefix}${prevArgs}${suggestions[nextIdx]!.verb} `,
-						});
-						setSuggestionIndex(nextIdx);
-					} else {
-						const suggestions = getAutocomplete(partial);
-						if (suggestions.length === 0) return;
-						const nextIdx =
-							(((suggestionIndex + 1) % suggestions.length) +
-								suggestions.length) %
-							suggestions.length;
-						const fill = suggestions[nextIdx]!.verb.slice(partial.length);
-						dispatch({ type: "COMMAND_APPEND", char: fill });
-						setSuggestionIndex(nextIdx);
-					}
+					const suggestions = getAutocomplete(partial);
+					if (suggestions.length === 0) return;
+					const candidates = suggestions.map(
+						(s: AutocompleteSuggestion) => s.verb,
+					);
+					const currentIdx =
+						completionState.status === "cycling"
+							? completionState.highlightIndex
+							: -1;
+					const nextIdx = cycleIndex(currentIdx, candidates.length, 1);
+					setCompletionState({
+						status: "cycling",
+						candidates,
+						highlightIndex: nextIdx,
+					});
 					return;
 				}
 				if (key.backspace) {
 					dispatch({ type: "COMMAND_BACKSPACE" });
-					setSuggestionIndex(-1);
+					setCompletionState({ status: "idle" });
+					return;
+				}
+				if (input === " ") {
+					// Space commits the highlighted candidate with trailing space.
+					if (completionState.status === "cycling") {
+						const candidate =
+							completionState.candidates[completionState.highlightIndex];
+						if (candidate) {
+							dispatch({
+								type: "COMMAND_SET",
+								text: mergeCandidate(state.commandLine, candidate, true),
+							});
+						}
+					} else {
+						dispatch({ type: "COMMAND_APPEND", char: " " });
+					}
+					setCompletionState({ status: "idle" });
 					return;
 				}
 				if (input.length === 1 && !key.ctrl && !key.meta) {
 					dispatch({ type: "COMMAND_APPEND", char: input });
-					setSuggestionIndex(-1);
+					setCompletionState({ status: "idle" });
 					return;
 				}
 				return;
@@ -326,7 +352,7 @@ export function NotebookApp() {
 				}
 				case EditorAction.OpenCommandLine:
 					dispatch({ type: "ENTER_COMMAND_MODE" });
-					setSuggestionIndex(-1);
+					setCompletionState({ status: "idle" });
 					break;
 				case EditorAction.EnterVisualMode:
 					dispatch({ type: "ENTER_VISUAL_MODE" });
@@ -364,7 +390,7 @@ export function NotebookApp() {
 			state,
 			session,
 			pendingSequence,
-			suggestionIndex,
+			completionState,
 			dispatch,
 			insertBelow,
 			insertAbove,
@@ -389,6 +415,7 @@ export function NotebookApp() {
 				cellDescriptors={[]}
 				getAutocomplete={() => []}
 				cellSuggestions={[]}
+				completionState={{ status: "idle" }}
 			/>
 		);
 	}
@@ -426,6 +453,7 @@ export function NotebookApp() {
 			cellDescriptors={cellDescriptors}
 			getAutocomplete={getAutocomplete}
 			cellSuggestions={cellSuggestions}
+			completionState={completionState}
 		/>
 	);
 }

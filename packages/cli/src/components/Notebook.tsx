@@ -3,6 +3,7 @@ import type { NotebookState } from "@stateful-mcp/clinical/notebook/notebook-sta
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { Box } from "ink";
 import type { CellSuggestion } from "../hooks/useNotebook";
+import type { CompletionState } from "../lib/completion-state";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { CellList } from "./CellList";
@@ -19,6 +20,7 @@ interface NotebookProps {
 	cellDescriptors: CommandDescriptor[];
 	getAutocomplete: (partial: string) => AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
+	completionState: CompletionState;
 }
 
 export function Notebook({
@@ -28,6 +30,7 @@ export function Notebook({
 	cellDescriptors,
 	getAutocomplete,
 	cellSuggestions,
+	completionState,
 }: NotebookProps) {
 	const workspace = useWorkspace({
 		showWorkspace: state.showWorkspace,
@@ -94,7 +97,11 @@ export function Notebook({
 				<CommandBar
 					commandLine={state.commandLine}
 					suggestions={getAutocomplete(state.commandLine.slice(1))}
-					suggestionIndex={-1}
+					suggestionIndex={
+						completionState.status === "cycling"
+							? completionState.highlightIndex
+							: -1
+					}
 				/>
 			</Box>
 		);
