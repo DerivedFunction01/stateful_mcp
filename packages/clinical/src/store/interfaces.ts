@@ -88,6 +88,7 @@ export interface ParserDictionaryRule {
 }
 
 export type AttributeParserRule = {
+	ruleId?: string;
 	targetField: string;
 	targetValue: string;
 	regexPatterns: string[];
@@ -107,6 +108,7 @@ export type AttributeParserRule = {
 };
 
 export interface FieldMappingRule<TSchema extends string = string> {
+	ruleId?: string;
 	sourceKey: string;
 	targetField?: TSchema;
 	namedGroupContract?: NamedGroupContract;

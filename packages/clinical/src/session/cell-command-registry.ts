@@ -12,6 +12,45 @@ import {
 } from "./cell-command";
 import { resolveFieldTarget, setNestedField } from "./cell-command-context";
 import { CellCommandParser } from "./cell-command-parser";
+import type { CommandDescriptor, CommandArgSchema } from "./command-descriptor";
+import { CommandGroup } from "./command-descriptor";
+
+const COMMAND_DESCRIPTOR_GROUP: Record<string, CommandGroup> = {
+	up: CommandGroup.Navigation,
+	down: CommandGroup.Navigation,
+	top: CommandGroup.Navigation,
+	bottom: CommandGroup.Navigation,
+	go: CommandGroup.Navigation,
+	run: CommandGroup.Cell,
+	preview: CommandGroup.Cell,
+	delete: CommandGroup.Cell,
+	mode: CommandGroup.Cell,
+	set: CommandGroup.Field,
+	link: CommandGroup.Field,
+	unlink: CommandGroup.Field,
+	parent: CommandGroup.Field,
+	workspace: CommandGroup.Workspace,
+	help: CommandGroup.System,
+	status: CommandGroup.Session,
+	clear: CommandGroup.Session,
+	save: CommandGroup.Session,
+};
+
+const COMMAND_DESCRIPTOR_ARGS: Record<string, CommandArgSchema[]> = {
+	go: [{ name: "index", required: true, descriptionKey: "arg.go.index" }],
+	mode: [{ name: "mode", required: true, descriptionKey: "arg.mode.name", completions: ["cdsl", "narrative", "js_script"] }],
+	set: [
+		{ name: "field", required: true, descriptionKey: "arg.set.field" },
+		{ name: "value", required: true, descriptionKey: "arg.set.value" },
+	],
+	link: [
+		{ name: "targetSchema", required: true, descriptionKey: "arg.link.targetSchema" },
+		{ name: "targetCellId", required: true, descriptionKey: "arg.link.targetCellId" },
+		{ name: "targetField", required: true, descriptionKey: "arg.link.targetField" },
+	],
+	parent: [{ name: "cellId", required: true, descriptionKey: "arg.parent.cellId" }],
+	workspace: [{ name: "action", required: true, descriptionKey: "arg.workspace.action" }],
+};
 
 export type CellCommandHandler = (
 	command: CellCommand,
@@ -56,6 +95,17 @@ export class CellCommandRegistry {
 	helpText(token: string = ":"): string {
 		const verbs = Array.from(this.handlers.keys()).sort().join(` ${token}`);
 		return `${token}${verbs}`;
+	}
+
+	getDescriptors(): CommandDescriptor[] {
+		const verbs = Array.from(this.handlers.keys()).sort();
+		return verbs.map((verb) => ({
+			verb,
+			aliases: [],
+			group: COMMAND_DESCRIPTOR_GROUP[verb] ?? CommandGroup.Cell,
+			descriptionKey: `command.description.${verb}`,
+			args: COMMAND_DESCRIPTOR_ARGS[verb] ?? [],
+		}));
 	}
 
 	static createDefault(): CellCommandRegistry {
