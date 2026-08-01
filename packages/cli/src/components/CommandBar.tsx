@@ -1,18 +1,28 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { Box, Text } from "ink";
 import { useMemo } from "react";
+import { completionRemainder } from "../lib/completion-state";
 
 interface CommandBarProps {
 	commandLine: string;
 	suggestions: AutocompleteSuggestion[];
 	suggestionIndex: number;
+	highlightedCandidate: AutocompleteSuggestion | null;
+	completionPrefix: string;
 }
 
 export function CommandBar({
 	commandLine,
 	suggestions,
 	suggestionIndex,
+	highlightedCandidate,
+	completionPrefix,
 }: CommandBarProps) {
+	const ghost = useMemo(() => {
+		if (!highlightedCandidate) return "";
+		return completionRemainder(highlightedCandidate.verb, completionPrefix);
+	}, [highlightedCandidate, completionPrefix]);
+
 	const argHints = useMemo(() => {
 		if (!commandLine.includes(" ")) return null;
 		const verb = commandLine.slice(1, commandLine.indexOf(" "));
@@ -70,6 +80,7 @@ export function CommandBar({
 				paddingRight={1}
 			>
 				<Text bold>{commandLine}</Text>
+				{ghost && <Text color="gray">{ghost}</Text>}
 				<Text color="green">█</Text>
 			</Box>
 		</Box>

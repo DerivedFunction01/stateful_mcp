@@ -1,4 +1,3 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { EditorAction } from "@stateful-mcp/clinical/session/editor-action";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import { useApp, useInput } from "ink";
@@ -8,9 +7,9 @@ import { PreviewScreen } from "./components/PreviewScreen";
 import { useNotebook } from "./hooks/useNotebook";
 import { useSession } from "./hooks/useSession";
 import {
-	cycleIndex,
-	mergeCandidate,
 	type CompletionState,
+	type CompletionKey,
+	reduceCompletion,
 } from "./lib/completion-state";
 import { resolveKey } from "./lib/keymap";
 
@@ -37,6 +36,7 @@ export function NotebookApp() {
 		status: "idle",
 	});
 
+	const submittingRef = useRef(false);
 	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
 
 	const cellDescriptors = useMemo(() => {
@@ -68,21 +68,25 @@ export function NotebookApp() {
 			if (state.preview) return;
 
 			if (state.mode === "COMMAND") {
+				// D4: ignore all keys while a dispatch is pending.
+				if (submittingRef.current) return;
+
 				if (key.escape) {
 					dispatch({ type: "EXIT_COMMAND_MODE" });
 					setCompletionState({ status: "idle" });
 					return;
 				}
 				if (key.return) {
-					// Commit + execute in one: if cycling, merge highlighted candidate first.
-					let line = state.commandLine;
-					if (completionState.status === "cycling") {
-						const candidate =
-							completionState.candidates[completionState.highlightIndex];
-						if (candidate) {
-							line = mergeCandidate(line, candidate, false);
-						}
-					}
+					// D5: pure transition — commit + execute in one.
+					const transition = reduceCompletion(
+						completionState,
+						{ kind: "enter" },
+						state.commandLine,
+						getAutocomplete,
+					);
+					setCompletionState(transition.completionState);
+					const line = transition.executeLine ?? state.commandLine;
+					submittingRef.current = true;
 					dispatchCommand(line).then((result) => {
 						if (result.action === "quit") {
 							exit();
@@ -144,108 +148,49 @@ export function NotebookApp() {
 						if (!result.success && result.message) {
 							dispatch({ type: "SET_MESSAGE", message: result.message });
 						}
-					});
-					setCompletionState({ status: "idle" });
-					return;
-				}
-				if (key.upArrow) {
-					if (completionState.status === "cycling") {
-						const nextIdx = cycleIndex(
-							completionState.highlightIndex,
-							completionState.candidates.length,
-							-1,
-						);
-						setCompletionState({
-							status: "cycling",
-							candidates: completionState.candidates,
-							highlightIndex: nextIdx,
-						});
-					} else {
-						dispatch({ type: "COMMAND_HISTORY_PREV" });
-					}
-					return;
-				}
-				if (key.downArrow) {
-					if (completionState.status === "cycling") {
-						const nextIdx = cycleIndex(
-							completionState.highlightIndex,
-							completionState.candidates.length,
-							1,
-						);
-						setCompletionState({
-							status: "cycling",
-							candidates: completionState.candidates,
-							highlightIndex: nextIdx,
-						});
-					} else {
-						dispatch({ type: "COMMAND_HISTORY_NEXT" });
-					}
-					return;
-				}
-				if (key.shift && key.tab) {
-					const partial = state.commandLine.slice(1);
-					const suggestions = getAutocomplete(partial);
-					if (suggestions.length === 0) return;
-					const candidates = suggestions.map(
-						(s: AutocompleteSuggestion) => s.verb,
-					);
-					const currentIdx =
-						completionState.status === "cycling"
-							? completionState.highlightIndex
-							: -1;
-					const nextIdx = cycleIndex(currentIdx, candidates.length, -1);
-					setCompletionState({
-						status: "cycling",
-						candidates,
-						highlightIndex: nextIdx,
+					}).finally(() => {
+						submittingRef.current = false;
 					});
 					return;
 				}
-				if (key.tab) {
-					const partial = state.commandLine.slice(1);
-					const suggestions = getAutocomplete(partial);
-					if (suggestions.length === 0) return;
-					const candidates = suggestions.map(
-						(s: AutocompleteSuggestion) => s.verb,
-					);
-					const currentIdx =
-						completionState.status === "cycling"
-							? completionState.highlightIndex
-							: -1;
-					const nextIdx = cycleIndex(currentIdx, candidates.length, 1);
-					setCompletionState({
-						status: "cycling",
-						candidates,
-						highlightIndex: nextIdx,
-					});
-					return;
+				let completionKey: CompletionKey | null = null;
+				if (key.upArrow) completionKey = { kind: "up" };
+				else if (key.downArrow) completionKey = { kind: "down" };
+				else if (key.shift && key.tab)
+					completionKey = { kind: "tab", shift: true };
+				else if (key.tab) completionKey = { kind: "tab", shift: false };
+				else if (input === " ") completionKey = { kind: "space" };
+				else if (key.backspace) completionKey = { kind: "backspace" };
+				else if (input.length === 1 && !key.ctrl && !key.meta)
+					completionKey = { kind: "char", char: input };
+
+				if (!completionKey) return;
+
+				const transition = reduceCompletion(
+					completionState,
+					completionKey,
+					state.commandLine,
+					getAutocomplete,
+				);
+				setCompletionState(transition.completionState);
+
+				if (transition.shouldAppend) {
+					dispatch({ type: "COMMAND_APPEND", char: transition.shouldAppend });
 				}
-				if (key.backspace) {
+				if (transition.committedLine) {
+					dispatch({
+						type: "COMMAND_SET",
+						text: transition.committedLine,
+					});
+				}
+				if (transition.historyMove === "prev") {
+					dispatch({ type: "COMMAND_HISTORY_PREV" });
+				}
+				if (transition.historyMove === "next") {
+					dispatch({ type: "COMMAND_HISTORY_NEXT" });
+				}
+				if (transition.backspace) {
 					dispatch({ type: "COMMAND_BACKSPACE" });
-					setCompletionState({ status: "idle" });
-					return;
-				}
-				if (input === " ") {
-					// Space commits the highlighted candidate with trailing space.
-					if (completionState.status === "cycling") {
-						const candidate =
-							completionState.candidates[completionState.highlightIndex];
-						if (candidate) {
-							dispatch({
-								type: "COMMAND_SET",
-								text: mergeCandidate(state.commandLine, candidate, true),
-							});
-						}
-					} else {
-						dispatch({ type: "COMMAND_APPEND", char: " " });
-					}
-					setCompletionState({ status: "idle" });
-					return;
-				}
-				if (input.length === 1 && !key.ctrl && !key.meta) {
-					dispatch({ type: "COMMAND_APPEND", char: input });
-					setCompletionState({ status: "idle" });
-					return;
 				}
 				return;
 			}

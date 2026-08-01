@@ -19,7 +19,8 @@
 	],
 	"scripts": {
 		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' --external 'ink' --external 'react' --external 'react-devtools-core' --external 'react-reconciler' --external 'scheduler'",
-		"check": "tsc --noEmit"
+		"check": "tsc --noEmit",
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@stateful-mcp/clinical": "workspace:^",

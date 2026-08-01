@@ -82,6 +82,15 @@ export function Notebook({
 	}
 
 	if (state.mode === "COMMAND") {
+		const suggestions = getAutocomplete(state.commandLine.slice(1));
+		const highlightedCandidate =
+			completionState.status === "cycling"
+				? completionState.candidates[completionState.highlightIndex] ?? null
+				: null;
+		const completionPrefix =
+			completionState.status === "cycling"
+				? completionState.session.prefix
+				: state.commandLine.slice(1);
 		return (
 			<Box flexDirection="column" width="100%" height="100%">
 				<CellList
@@ -96,12 +105,28 @@ export function Notebook({
 				/>
 				<CommandBar
 					commandLine={state.commandLine}
-					suggestions={getAutocomplete(state.commandLine.slice(1))}
+					suggestions={suggestions}
 					suggestionIndex={
 						completionState.status === "cycling"
 							? completionState.highlightIndex
 							: -1
 					}
+					highlightedCandidate={highlightedCandidate}
+					completionPrefix={completionPrefix}
+				/>
+				<HelpBar mode={state.mode} editorDescriptors={editorDescriptors} />
+				<StatusBar
+					mode={state.mode}
+					cellCount={state.cells.length}
+					activeIndex={state.activeIndex}
+					sessionId={sessionId}
+					dirty={state.dirty}
+					sessionMode={state.sessionMode}
+					message={state.message}
+					visualStart={state.visualStart}
+					visualEnd={state.visualEnd}
+					defaultSection={state.defaultSection}
+					defaultSchema={state.defaultSchema}
 				/>
 			</Box>
 		);
