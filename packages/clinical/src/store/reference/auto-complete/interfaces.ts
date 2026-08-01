@@ -9,7 +9,15 @@ export type Relation =
 	| "excludes";
 export type Position = "opening" | "continuing" | "closing" | "full_paragraph";
 
+export type AutocompleteSuggestionKind =
+	| "prose"
+	| "tag"
+	| "macro"
+	| "term"
+	| "variable";
+
 export interface AutocompleteSuggestion {
+	kind: AutocompleteSuggestionKind;
 	templateId: string;
 	slotName: string;
 	triggerPattern: string;

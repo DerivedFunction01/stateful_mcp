@@ -90,6 +90,49 @@ describe("CdslParser.suggestAutocomplete integration", () => {
 		expect(results[0]!.slotName).toBe("chief_complaint");
 		expect(results[0]!.insertText).toBe("presents with ");
 		expect(results[0]!.cursorOffset).toBe(14);
+		expect(results[0]!.kind).toBe("prose");
+	});
+
+	it("returns prose kind for prose suggestions", async () => {
+		const conceptBackend = new MemoryKvBackend();
+		const refBackend = new MemoryKvBackend();
+		const ds = new DictionaryStore(
+			new InMemoryConceptResolver(),
+			createMemoryConceptStore(conceptBackend),
+			createMemoryExpressionStore(),
+		);
+
+		const profile = SEED_PARSER_PROFILES.find((p) => p.profileId === "default");
+		const templateStore = makeKvTemplateStore(refBackend);
+
+		const tpl: ProseTemplate = {
+			templateId: "test_tpl",
+			targetSchema: "ObservationEvent",
+			sectionPattern: ".+",
+			slots: [
+				{
+					slotName: "symptom",
+					slotType: "concept",
+					anchorPattern: "pain",
+					triggerPattern: "chest pain",
+					suggestText: "chest pain ",
+					targetSchema: "ObservationEvent",
+				},
+			],
+		};
+		await templateStore.set(tpl);
+
+		const parser = new CdslParser({
+			dictionaryStore: ds,
+			profile: profile!,
+			proseTemplateStore: templateStore,
+		});
+
+		const results = await parser.suggestAutocomplete("chest pain", {
+			personnelId: "user1",
+		} as StopWordContext);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.kind).toBe("prose");
 	});
 
 	it("returns empty when proseTemplateStore is not provided", async () => {

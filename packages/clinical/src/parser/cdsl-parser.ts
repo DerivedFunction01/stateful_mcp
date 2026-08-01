@@ -230,12 +230,13 @@ export class CdslParser {
 			this.proseTemplateStore,
 			this.stopWordStore,
 		);
-		return suggester.suggest(partialText, {
+		const proseResults = await suggester.suggest(partialText, {
 			personnelId: context.personnelId,
 			workspaceId: context.workspaceId,
 			specialtyId: context.specialtyId,
 			locale: context.locale,
 		});
+		return proseResults.map((s) => ({ ...s, kind: "prose" as const }));
 	}
 
 	/**
@@ -281,6 +282,7 @@ export class CdslParser {
 		s: CommandAutocompleteSuggestion,
 	): AutocompleteSuggestion {
 		return {
+			kind: s.kind === "slash_command" ? "prose" : s.kind,
 			templateId: `command:${s.kind}`,
 			slotName: s.label,
 			triggerPattern: this.profile.tagToken,

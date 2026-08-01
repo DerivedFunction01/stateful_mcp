@@ -86,6 +86,7 @@ export class ProseTemplateSuggester {
 			const insertText =
 				candidate.slot.suggestText ?? candidate.slot.triggerPattern ?? "";
 			return {
+				kind: "prose" as const,
 				templateId: candidate.template.templateId,
 				slotName: candidate.slot.slotName,
 				triggerPattern: candidate.slot.triggerPattern ?? "",

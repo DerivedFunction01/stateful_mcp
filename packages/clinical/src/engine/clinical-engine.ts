@@ -6,6 +6,9 @@ import type {
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import type { CommandAutocompleteSuggester } from "../parser/command-autocomplete-suggester";
+import { AutocompleteSessionManager } from "../parser/utils/autocomplete-session-manager";
+import type { AutocompleteSelection } from "../store/reference/auto-complete/command-autocomplete-interfaces";
+import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { ParsedItem } from "../parser/schema-parsers";
@@ -453,6 +456,7 @@ export class ClinicalEngine {
 	private proseTemplateStore?: ClinicalProseTemplateStore;
 	private commandSuggester?: CommandAutocompleteSuggester;
 	private personnelId: string;
+	private autocompleteSession?: AutocompleteSessionManager;
 
 	constructor(config: ClinicalEngineConfig) {
 		this.commandSuggester = config.commandSuggester;
@@ -492,6 +496,12 @@ export class ClinicalEngine {
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
+			this.autocompleteSession = new AutocompleteSessionManager(
+				this.parser,
+				config.proseParserTemplateStore,
+				config.autocompleteTransitionStore,
+				this.personnelId,
+			);
 		} else if (profileStore) {
 			// Defer initialization — lazy init on first use
 			this.parser = null as unknown as CdslParser;
@@ -511,6 +521,12 @@ export class ClinicalEngine {
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
+			this.autocompleteSession = new AutocompleteSessionManager(
+				this.parser,
+				config.proseParserTemplateStore,
+				config.autocompleteTransitionStore,
+				this.personnelId,
+			);
 		}
 	}
 
@@ -536,6 +552,25 @@ export class ClinicalEngine {
 			profile,
 		});
 		return engine;
+	}
+
+	/**
+	 * Suggest autocomplete entries for the current session state.
+	 */
+	async suggestAutocomplete(
+		partialText: string,
+	): Promise<AutocompleteSuggestion[]> {
+		if (!this.autocompleteSession) return [];
+		return this.autocompleteSession.suggest(partialText);
+	}
+
+	/**
+	 * Record an autocomplete selection to update learning data.
+	 */
+	recordAutocompleteSelection(
+		selection: AutocompleteSelection,
+	): void {
+		this.autocompleteSession?.recordSelection(selection);
 	}
 
 	/**
