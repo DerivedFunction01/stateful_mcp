@@ -440,6 +440,26 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 				},
 			],
 		},
+		notebook: {
+			group: "notebook",
+			implemented: true,
+			description:
+				"Durable notebook session document store — cell order, content, active index, and draft text.",
+			defaultAdapters: [
+				{
+					group: "notebook",
+					capabilities: ["read", "write", "query"],
+					primary: {
+						_type: "adapter",
+						name: "memory",
+						options: {
+							seed: [],
+						},
+					},
+					implemented: true,
+				},
+			],
+		},
 	},
 	seeds: {
 		parserProfiles: SEED_PARSER_PROFILES,

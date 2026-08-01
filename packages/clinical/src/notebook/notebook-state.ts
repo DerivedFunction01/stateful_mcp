@@ -40,6 +40,7 @@ export interface NotebookState {
 
 export type NotebookAction =
 	| { type: "SET_CELLS"; cells: Cell[] }
+	| { type: "SET_DRAFT_TEXT"; text: string }
 	| { type: "MOVE_CURSOR"; delta: number }
 	| { type: "SET_ACTIVE_INDEX"; index: number }
 	| { type: "ENTER_INSERT_MODE" }
@@ -139,6 +140,16 @@ export function notebookReducer(
 	switch (action.type) {
 		case "SET_CELLS":
 			return { ...state, cells: action.cells };
+
+		case "SET_DRAFT_TEXT": {
+			const activeCell = state.cells[state.activeIndex];
+			return {
+				...state,
+				draftText: action.text,
+				mode: "INSERT",
+				lastEditCellId: activeCell?.cellId ?? state.lastEditCellId,
+			};
+		}
 
 		case "MOVE_CURSOR": {
 			const newIdx = clampIndex(

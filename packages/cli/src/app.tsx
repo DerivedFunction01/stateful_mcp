@@ -7,8 +7,8 @@ import { PreviewScreen } from "./components/PreviewScreen";
 import { useNotebook } from "./hooks/useNotebook";
 import { useSession } from "./hooks/useSession";
 import {
-	type CompletionState,
 	type CompletionKey,
+	type CompletionState,
 	reduceCompletion,
 } from "./lib/completion-state";
 import { resolveKey } from "./lib/keymap";
@@ -87,70 +87,72 @@ export function NotebookApp() {
 					setCompletionState(transition.completionState);
 					const line = transition.executeLine ?? state.commandLine;
 					submittingRef.current = true;
-					dispatchCommand(line).then((result) => {
-						if (result.action === "quit") {
-							exit();
-							return;
-						}
-						if (result.action === "show_help") {
-							dispatch({ type: "TOGGLE_HELP" });
-							return;
-						}
-						if (result.action === "show_info") {
-							dispatch({
-								type: "TOGGLE_CELL_INFO",
-								cellIndex: state.activeIndex,
-							});
-							return;
-						}
-						if (result.action === "render_preview") {
-							dispatch({ type: "SET_MESSAGE", message: "rendered view" });
-							return;
-						}
-						if (result.action === "show_errors") {
-							dispatch({ type: "SET_MESSAGE", message: "errors view" });
-							return;
-						}
-						if (result.action === "undo") {
-							dispatch({ type: "UNDO" });
-							return;
-						}
-						if (result.action === "redo") {
-							dispatch({ type: "REDO" });
-							return;
-						}
-						if (result.action === "set_execution_mode") {
-							const mode = (result as any).data?.mode;
-							if (mode === "preview" || mode === "execute") {
-								dispatch({ type: "SET_SESSION_MODE", mode });
+					dispatchCommand(line)
+						.then((result) => {
+							if (result.action === "quit") {
+								exit();
+								return;
 							}
-							return;
-						}
-						if (result.action === "set_default_insert") {
-							const data = (result as any).data;
-							if (data) {
-								dispatch({
-									type: "SET_DEFAULT_INSERT",
-									section: data.section,
-									schema: data.schema ?? null,
-								});
-								dispatch({
-									type: "SET_MESSAGE",
-									message: `default insert: ${data.section}${data.schema ? ` / ${data.schema}` : ""}`,
-								});
+							if (result.action === "show_help") {
+								dispatch({ type: "TOGGLE_HELP" });
+								return;
 							}
-							return;
-						}
-						if (result.action === "save") {
-							dispatch({ type: "SET_MESSAGE", message: "saved" });
-							return;
-						}
-						if (!result.success && result.message) {
-							dispatch({ type: "SET_MESSAGE", message: result.message });
-						}
-					}).finally(() => {
-						submittingRef.current = false;
-					});
+							if (result.action === "show_info") {
+								dispatch({
+									type: "TOGGLE_CELL_INFO",
+									cellIndex: state.activeIndex,
+								});
+								return;
+							}
+							if (result.action === "render_preview") {
+								dispatch({ type: "SET_MESSAGE", message: "rendered view" });
+								return;
+							}
+							if (result.action === "show_errors") {
+								dispatch({ type: "SET_MESSAGE", message: "errors view" });
+								return;
+							}
+							if (result.action === "undo") {
+								dispatch({ type: "UNDO" });
+								return;
+							}
+							if (result.action === "redo") {
+								dispatch({ type: "REDO" });
+								return;
+							}
+							if (result.action === "set_execution_mode") {
+								const mode = (result as any).data?.mode;
+								if (mode === "preview" || mode === "execute") {
+									dispatch({ type: "SET_SESSION_MODE", mode });
+								}
+								return;
+							}
+							if (result.action === "set_default_insert") {
+								const data = (result as any).data;
+								if (data) {
+									dispatch({
+										type: "SET_DEFAULT_INSERT",
+										section: data.section,
+										schema: data.schema ?? null,
+									});
+									dispatch({
+										type: "SET_MESSAGE",
+										message: `default insert: ${data.section}${data.schema ? ` / ${data.schema}` : ""}`,
+									});
+								}
+								return;
+							}
+							if (result.action === "save") {
+								dispatch({ type: "SET_MESSAGE", message: "saved" });
+								return;
+							}
+							if (!result.success && result.message) {
+								dispatch({ type: "SET_MESSAGE", message: result.message });
+							}
+						})
+						.finally(() => {
+							submittingRef.current = false;
+						});
 					return;
 				}
 				let completionKey: CompletionKey | null = null;

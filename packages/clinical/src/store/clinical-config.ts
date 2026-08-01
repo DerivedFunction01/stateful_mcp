@@ -20,6 +20,7 @@ export type ClinicalStoreDomain =
 	| "patient_store"
 	| "concept_fields"
 	| "cell"
+	| "notebook"
 	| (string & {});
 
 export type ClinicalStoreCapability =

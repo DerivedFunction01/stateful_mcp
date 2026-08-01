@@ -25,6 +25,8 @@ import type {
 } from "../store/clinical-config";
 import type { ClinicalRuntime } from "../store/clinical-runtime";
 import { createClinicalRuntime } from "../store/clinical-runtime";
+import { resolveNotebookStore } from "../store/notebook/notebook-backend-resolver";
+import type { NotebookStore } from "../store/notebook/notebook-store";
 import { DefaultParserProfileComposer } from "../store/parser/parser-composer";
 import { KvSignedSoapNoteStore } from "../store/signed-note/kv-signed-note-store";
 import type { ClinicalEngineConfig } from "./clinical-engine";
@@ -38,6 +40,7 @@ export interface EngineBuilderResult {
 	runtime: ClinicalRuntime;
 	engine: ClinicalEngine;
 	processor: CellProcessor;
+	notebook: NotebookStore;
 }
 
 export interface EngineBuilderOptions {
@@ -241,7 +244,11 @@ async function wireEngine(
 	runtime: ClinicalRuntime,
 	engineStores: Awaited<ReturnType<typeof createEngineStores>>,
 	options?: EngineBuilderOptions,
-): Promise<{ engine: ClinicalEngine; processor: CellProcessor }> {
+): Promise<{
+	engine: ClinicalEngine;
+	processor: CellProcessor;
+	notebook: NotebookStore;
+}> {
 	const personnelId = options?.personnelId ?? "system";
 	const dbPath = options?.dbPath ?? "./clinical";
 	const stores = runtime.parserStores;
@@ -300,6 +307,7 @@ async function wireEngine(
 
 	const engine = new ClinicalEngine(engineConfig);
 	const cellStore = await resolveCellStore(runtime.config);
+	const notebook = await resolveNotebookStore(runtime.config);
 	const parser = (engine as any).parser as CdslParser;
 	const processor = new CellProcessor(
 		engine,
@@ -310,7 +318,7 @@ async function wireEngine(
 		CellCommandRegistry.createDefault(),
 	);
 
-	return { engine, processor };
+	return { engine, processor, notebook };
 }
 
 // ── Public builder ────────────────────────────────────────────────
@@ -335,12 +343,12 @@ export class ClinicalEngineBuilder {
 			backend,
 			options?.dbPath ?? "./clinical",
 		);
-		const { engine, processor } = await wireEngine(
+		const { engine, processor, notebook } = await wireEngine(
 			runtime,
 			engineStores,
 			options,
 		);
-		return { runtime, engine, processor };
+		return { runtime, engine, processor, notebook };
 	}
 
 	/**
@@ -413,12 +421,12 @@ export class ClinicalEngineBuilder {
 		const runtime = await createClinicalRuntime(config);
 		await initializeClinicalRuntime(runtime, config);
 		const engineStores = await createEngineStores(backend, dbPath);
-		const { engine, processor } = await wireEngine(
+		const { engine, processor, notebook } = await wireEngine(
 			runtime,
 			engineStores,
 			options,
 		);
-		return { runtime, engine, processor };
+		return { runtime, engine, processor, notebook };
 	}
 }
 

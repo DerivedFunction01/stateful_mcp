@@ -1,15 +1,14 @@
 import type { EngineBuilderResult } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
 import { ClinicalEngineBuilder } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
+import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebook-store";
 import { useEffect, useState } from "react";
-import { MemoryNotebookStore } from "../store/memory-notebook-store";
+import { resolveInitialSession } from "../lib/session-resolver";
 
 export interface SessionState {
 	result: EngineBuilderResult;
-	notebook: MemoryNotebookStore;
+	notebook: NotebookStore;
 	sessionId: string;
 }
-
-const SESSION_ID = `tui-${Date.now()}`;
 
 export function useSession(): SessionState | null {
 	const [state, setState] = useState<SessionState | null>(null);
@@ -19,10 +18,12 @@ export function useSession(): SessionState | null {
 		(async () => {
 			const result = await ClinicalEngineBuilder.withDefaultBackend("memory");
 			if (cancelled) return;
+			const sessionId = await resolveInitialSession(result.notebook);
+			if (cancelled) return;
 			setState({
 				result,
-				notebook: new MemoryNotebookStore(),
-				sessionId: SESSION_ID,
+				notebook: result.notebook,
+				sessionId,
 			});
 		})();
 		return () => {

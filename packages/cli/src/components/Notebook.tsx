@@ -3,8 +3,8 @@ import type { NotebookState } from "@stateful-mcp/clinical/notebook/notebook-sta
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { Box } from "ink";
 import type { CellSuggestion } from "../hooks/useNotebook";
-import type { CompletionState } from "../lib/completion-state";
 import { useWorkspace } from "../hooks/useWorkspace";
+import type { CompletionState } from "../lib/completion-state";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { CellList } from "./CellList";
 import { CommandBar } from "./CommandBar";
@@ -85,7 +85,7 @@ export function Notebook({
 		const suggestions = getAutocomplete(state.commandLine.slice(1));
 		const highlightedCandidate =
 			completionState.status === "cycling"
-				? completionState.candidates[completionState.highlightIndex] ?? null
+				? (completionState.candidates[completionState.highlightIndex] ?? null)
 				: null;
 		const completionPrefix =
 			completionState.status === "cycling"

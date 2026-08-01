@@ -98,6 +98,59 @@ export function useNotebook(session: SessionState | null) {
 	const [state, dispatch] = useReducer(notebookReducer, INITIAL_NOTEBOOK_STATE);
 	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
 	const [cellSuggestions, setCellSuggestions] = useState<CellSuggestion[]>([]);
+	const hydratedRef = useRef(false);
+
+	// Hydrate the editor document from the durable notebook store once per session.
+	// The hydrated flag is set only AFTER hydration completes so the persist
+	// effect never writes an empty document over an existing one.
+	useEffect(() => {
+		if (!session || hydratedRef.current) return;
+		(async () => {
+			const doc = await session.notebook.loadDocument(session.sessionId);
+			if (!doc) {
+				hydratedRef.current = true;
+				return;
+			}
+			const cells = doc.ordering
+				.map((id) => doc.cells[id])
+				.filter((c): c is Cell => Boolean(c));
+			if (cells.length > 0) {
+				dispatch({ type: "SET_CELLS", cells });
+			}
+			dispatch({ type: "SET_ACTIVE_INDEX", index: doc.activeIndex });
+			// Restore the in-progress draft only if the active cell is mid-edit;
+			// otherwise ignore the persisted draft to avoid resurrecting stale text.
+			const active = cells[doc.activeIndex];
+			if (active && doc.draftText) {
+				dispatch({ type: "SET_DRAFT_TEXT", text: doc.draftText });
+			}
+			hydratedRef.current = true;
+		})();
+	}, [session]);
+
+	// Persist the session document (debounced) whenever document-relevant state changes.
+	useEffect(() => {
+		if (!session || !hydratedRef.current) return;
+		const timeout = setTimeout(() => {
+			const perCell: Record<string, Cell> = {};
+			for (const c of state.cells) perCell[c.cellId] = c;
+			const ordering = state.cells.map((c) => c.cellId);
+			const activeCell = state.cells[state.activeIndex];
+			// Only persist draftText when actively editing; otherwise store "" so a
+			// stale draft is never resurrected on the next launch.
+			const draft =
+				state.mode === "INSERT" && activeCell ? state.draftText : "";
+			void session.notebook.saveDocument({
+				sessionId: session.sessionId,
+				updatedAt: new Date().toISOString(),
+				ordering,
+				cells: perCell,
+				activeIndex: state.activeIndex,
+				draftText: draft,
+			});
+		}, 250);
+		return () => clearTimeout(timeout);
+	}, [state.cells, state.activeIndex, state.draftText, state.mode, session]);
 
 	useEffect(() => {
 		if (!session || state.mode !== "INSERT" || !state.draftText) {

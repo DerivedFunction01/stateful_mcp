@@ -88,7 +88,10 @@ export * from "./store/learning/parsed_cell/history-store";
 export * from "./store/learning/parsed_cell/kv-parsed-cell-store";
 export * from "./store/learning/parsed_cell/sql-parsed-cell-store";
 export * from "./store/notebook/interfaces";
+export * from "./store/notebook/kv-notebook-store";
+export * from "./store/notebook/notebook-backend-resolver";
 export * from "./store/notebook/notebook-store";
+export * from "./store/notebook/sql-notebook-store";
 export * from "./store/parser/anchors/kv-shared-field-anchor-store";
 export * from "./store/parser/anchors/sql-shared-field-anchor-store";
 export * from "./store/parser/macros/kv-macro-store";
@@ -98,6 +101,7 @@ export * from "./store/reference/prose-parser-templates/interfaces";
 export * from "./store/reference/prose-parser-templates/kv-prose-parser-template-store";
 export * from "./store/reference/prose-parser-templates/prose-template";
 export * from "./store/reference/prose-parser-templates/sql-prose-parser-template-store";
+export * from "./store/sql/notebook-query-compiler";
 
 // Auto-register default parsed cell transforms
 import "./store/learning/parsed_cell/transforms/observation-transform";

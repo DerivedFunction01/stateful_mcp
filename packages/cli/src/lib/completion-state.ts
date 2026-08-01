@@ -57,10 +57,7 @@ export function deriveCompletionSession(
 	};
 }
 
-export function completionRemainder(
-	candidate: string,
-	prefix: string,
-): string {
+export function completionRemainder(candidate: string, prefix: string): string {
 	if (!candidate.startsWith(prefix)) return "";
 	return candidate.slice(prefix.length);
 }
@@ -166,11 +163,7 @@ export function reduceCompletion(
 				if (candidate) {
 					return {
 						completionState: { status: "idle" },
-						committedLine: mergeCandidate(
-							commandLine,
-							candidate.verb,
-							true,
-						),
+						committedLine: mergeCandidate(commandLine, candidate.verb, true),
 					};
 				}
 			}
@@ -185,11 +178,7 @@ export function reduceCompletion(
 				if (candidate) {
 					return {
 						completionState: { status: "idle" },
-						executeLine: mergeCandidate(
-							commandLine,
-							candidate.verb,
-							false,
-						),
+						executeLine: mergeCandidate(commandLine, candidate.verb, false),
 					};
 				}
 			}

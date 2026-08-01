@@ -1,15 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import {
+	type CompletionState,
 	completionRemainder,
 	cycleIndex,
 	deriveCompletionSession,
 	mergeCandidate,
 	reduceCompletion,
-	type CompletionState,
 } from "../src/lib/completion-state";
 
-function sug(verb: string, source: "editor" | "cell" = "editor"): AutocompleteSuggestion {
+function sug(
+	verb: string,
+	source: "editor" | "cell" = "editor",
+): AutocompleteSuggestion {
 	return { verb, group: "test", source, hasArgs: false };
 }
 
@@ -188,7 +191,12 @@ describe("reduceCompletion", () => {
 			":d",
 			setSuggestions(["delete", "down", "dd"]),
 		).completionState as CompletionState & { status: "cycling" };
-		const up = reduceCompletion(cycling, { kind: "up" }, ":d", setSuggestions([]));
+		const up = reduceCompletion(
+			cycling,
+			{ kind: "up" },
+			":d",
+			setSuggestions([]),
+		);
 		if (up.completionState.status === "cycling") {
 			expect(up.completionState.highlightIndex).toBe(2);
 		}
@@ -207,7 +215,12 @@ describe("reduceCompletion", () => {
 		const r = reduceCompletion(idle, { kind: "up" }, ":", setSuggestions([]));
 		expect(r.completionState.status).toBe("idle");
 		expect(r.historyMove).toBe("prev");
-		const r2 = reduceCompletion(idle, { kind: "down" }, ":", setSuggestions([]));
+		const r2 = reduceCompletion(
+			idle,
+			{ kind: "down" },
+			":",
+			setSuggestions([]),
+		);
 		expect(r2.historyMove).toBe("next");
 	});
 
@@ -284,7 +297,12 @@ describe("reduceCompletion", () => {
 	});
 
 	test("Space without cycling appends space", () => {
-		const r = reduceCompletion(idle, { kind: "space" }, ":", setSuggestions([]));
+		const r = reduceCompletion(
+			idle,
+			{ kind: "space" },
+			":",
+			setSuggestions([]),
+		);
 		expect(r.completionState.status).toBe("idle");
 		expect(r.shouldAppend).toBe(" ");
 	});
@@ -307,7 +325,12 @@ describe("reduceCompletion", () => {
 	});
 
 	test("Enter without cycling executes raw line", () => {
-		const r = reduceCompletion(idle, { kind: "enter" }, ":delete", setSuggestions([]));
+		const r = reduceCompletion(
+			idle,
+			{ kind: "enter" },
+			":delete",
+			setSuggestions([]),
+		);
 		expect(r.completionState.status).toBe("idle");
 		expect(r.executeLine).toBe(":delete");
 	});
