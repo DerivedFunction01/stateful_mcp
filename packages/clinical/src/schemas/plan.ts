@@ -1,4 +1,4 @@
-import type { CodeableConcept } from "./shared";
+import type { CodeableConcept, Laterality } from "./shared";
 import type { ClinicalDateRange } from "./time";
 
 // =====================================================================
@@ -24,7 +24,7 @@ export interface InvestigationOrderObject extends BaseOrderObject {
 	investigationType: "laboratory" | "imaging";
 	specimenType?: CodeableConcept; // e.g. venous blood, urine
 	panelCode?: CodeableConcept; // e.g. LOINC::24320-4 Basic Metabolic Panel
-	laterality?: "left" | "right" | "bilateral";
+	laterality?: Laterality;
 }
 
 // =====================================================================

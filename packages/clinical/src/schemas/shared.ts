@@ -64,18 +64,19 @@ export interface ProductIdentifier {
 	buildYear?: number;
 	registryTrackingNumber?: string;
 }
+export type Laterality = 	
+| "left"
+| "right"
+| "bilateral"
+| "midline"
+| "dorsal"
+| "ventral"
+| "axial"
+| "radial"
 
 export interface AnatomicalLocation {
 	anatomy: CodeableConcept;
-	laterality?:
-		| "left"
-		| "right"
-		| "bilateral"
-		| "midline"
-		| "dorsal"
-		| "ventral"
-		| "axial"
-		| "radial";
+	laterality?: Laterality;
 	depthIndex?: number;
 }
 
