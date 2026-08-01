@@ -21,13 +21,14 @@ export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
 			return t("help.visual");
 		}
 		const cmds = editorDescriptors.slice(0, 6);
-		return cmds
+		const cmdLine = cmds
 			.map((d) => {
 				const label =
 					d.aliases.length > 0 ? `${d.verb}(${d.aliases[0]})` : d.verb;
 				return `:${label}`;
 			})
 			.join("  ");
+		return cmdLine ? `gw workspace  ${cmdLine}` : "gw workspace";
 	}, [mode, editorDescriptors]);
 
 	return (

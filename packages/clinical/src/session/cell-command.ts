@@ -25,7 +25,6 @@ export type CellCommandVerb =
 	| "delete"
 	| "split"
 	| "mode"
-	| "workspace"
 	| "set"
 	| "link"
 	| "unlink"

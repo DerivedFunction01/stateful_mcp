@@ -174,7 +174,7 @@ describe("CellCommandRegistry descriptors", () => {
 		const verbs = descriptors.map((d) => d.verb);
 		expect(verbs).toContain("up");
 		expect(verbs).toContain("set");
-		expect(verbs).toContain("workspace");
+		expect(verbs).not.toContain("workspace");
 		expect(verbs).toContain("help");
 	});
 
@@ -232,6 +232,23 @@ describe("EditorCommandRegistry", () => {
 		expect(verbs).toContain("q");
 		expect(verbs).toContain("mode");
 		expect(verbs).toContain("search");
+		expect(verbs).toContain("workspace");
+	});
+
+	it("bare workspace dispatches toggle_workspace", () => {
+		const registry = EditorCommandRegistry.createDefault();
+		expect(registry.dispatch("workspace", [])).toEqual({
+			success: true,
+			action: "toggle_workspace",
+		});
+	});
+
+	it("workspace with args returns handled usage and does not fall through", () => {
+		const registry = EditorCommandRegistry.createDefault();
+		const result = registry.dispatch("workspace", ["branch", "test", "test"]);
+		expect(result.success).toBe(true);
+		expect(result.action).toBe("workspace_usage");
+		expect(result.message).toContain("branch");
 	});
 });
 

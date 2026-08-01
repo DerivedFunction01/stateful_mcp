@@ -134,6 +134,18 @@ export function NotebookApp() {
 								}
 								return;
 							}
+							if (result.action === "toggle_workspace") {
+								dispatch({ type: "TOGGLE_WORKSPACE" });
+								return;
+							}
+							if (result.action === "workspace_usage") {
+								if (result.message)
+									dispatch({
+										type: "SET_MESSAGE",
+										message: result.message,
+									});
+								return;
+							}
 							if (result.action === "set_default_insert") {
 								const data = (result as any).data;
 								if (data) {
@@ -307,6 +319,9 @@ export function NotebookApp() {
 				case EditorAction.OpenCommandLine:
 					dispatch({ type: "ENTER_COMMAND_MODE" });
 					setCompletionState({ status: "idle" });
+					break;
+				case EditorAction.OpenWorkspace:
+					dispatch({ type: "TOGGLE_WORKSPACE" });
 					break;
 				case EditorAction.EnterVisualMode:
 					dispatch({ type: "ENTER_VISUAL_MODE" });

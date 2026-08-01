@@ -17,6 +17,7 @@ export enum EditorCommandVerb {
 	Info = "info",
 	Render = "render",
 	Default = "default",
+	Workspace = "workspace",
 }
 
 export type EditorCommandHandler = (
@@ -139,6 +140,17 @@ export class EditorCommandRegistry {
 				data: { section, schema },
 			};
 		});
+		registry.register(EditorCommandVerb.Workspace, (_v, args) => {
+			if (args.length > 0) {
+				return {
+					success: true,
+					action: "workspace_usage",
+					message:
+						"workspace opens the UI; enter branch/confirm/rule_out commands inside it",
+				};
+			}
+			return { success: true, action: "toggle_workspace" };
+		});
 		return registry;
 	}
 }
@@ -256,5 +268,12 @@ const EDITOR_COMMAND_META: Record<string, CommandDescriptor> = {
 			},
 			{ name: "schema", required: false, descriptionKey: "arg.default.schema" },
 		],
+	},
+	workspace: {
+		verb: "workspace",
+		aliases: [],
+		group: CommandGroup.Workspace,
+		descriptionKey: "editor.command.workspace",
+		args: [],
 	},
 };

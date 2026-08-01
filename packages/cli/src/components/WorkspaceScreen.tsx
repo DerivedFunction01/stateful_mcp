@@ -137,19 +137,34 @@ export function WorkspaceScreen({
 	useInput((_input, key) => {
 		if (key.escape) {
 			onClose();
+			return;
 		}
-		if (key.return && inputText.trim()) {
-			handleSubmit(inputText.trim());
+		if (key.return) {
+			if (inputText.trim()) {
+				handleSubmit(inputText.trim());
+			}
 			setInputText("");
+			return;
 		}
-		if (_input === "f") {
+		if (key.backspace) {
+			setInputText((prev) => prev.slice(0, -1));
+			return;
+		}
+		// Inline shortcuts only apply when the input buffer is empty, so letters
+		// like `f`/`w` can be typed inside findings, hypotheses, and commands.
+		if (inputText.length === 0 && _input === "f") {
 			onToggleFocus();
+			return;
 		}
-		if (_input === "w") {
+		if (inputText.length === 0 && _input === "w") {
 			const wid = snapshot?.activeBranchId;
 			if (wid) {
 				onComplete(wid);
 			}
+			return;
+		}
+		if (_input.length === 1 && !key.ctrl && !key.meta) {
+			setInputText((prev) => prev + _input);
 		}
 	});
 

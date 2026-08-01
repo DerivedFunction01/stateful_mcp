@@ -71,15 +71,6 @@ export function resolveArgCompletions(
 			: [];
 	}
 
-	if (v === "workspace") {
-		return argIndex === 0
-			? Object.keys(profile.workspaceCommandMappings ?? {}).map((c) => ({
-					code: c,
-					group: "workspace",
-				}))
-			: [];
-	}
-
 	if (v === "default" || v === "set-default" || v === "set-default-insert") {
 		if (argIndex === 0)
 			return SOAP_SECTIONS.map((c) => ({ code: c, group: "section" }));

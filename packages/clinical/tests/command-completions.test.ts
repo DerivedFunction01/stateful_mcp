@@ -48,15 +48,10 @@ describe("SOAP_SECTIONS", () => {
 });
 
 describe("resolveArgCompletions — workspace command", () => {
-	test("arg0 returns workspace command verbs, NOT SOAP sections", () => {
+	test("returns no arg completions (workspace is the UI opener, not an action command)", () => {
 		const profile = makeProfile();
 		const codes = resolveArgCompletions("workspace", 0, profile);
-		const values = codes.map((c) => c.code);
-		expect(values).toContain("rule_out");
-		expect(values).toContain("branch");
-		expect(values).toContain("close");
-		expect(values.some((c) => SOAP_SECTIONS.includes(c as any))).toBe(false);
-		expect(codes[0]?.group).toBe("workspace");
+		expect(codes).toEqual([]);
 	});
 });
 

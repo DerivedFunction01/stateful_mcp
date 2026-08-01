@@ -76,6 +76,7 @@ const en: Record<string, string> = {
 	"editor.command.info": "show cell info",
 	"editor.command.render": "render preview",
 	"editor.command.default": "set default insert section/schema",
+	"editor.command.workspace": "open the workspace screen (toggle)",
 
 	// Editor command args
 	"arg.mode.executionMode": "preview|execute",

@@ -29,7 +29,6 @@ const COMMAND_DESCRIPTOR_GROUP: Record<string, CommandGroup> = {
 	link: CommandGroup.Field,
 	unlink: CommandGroup.Field,
 	parent: CommandGroup.Field,
-	workspace: CommandGroup.Workspace,
 	help: CommandGroup.System,
 	status: CommandGroup.Session,
 	clear: CommandGroup.Session,
@@ -69,9 +68,6 @@ const COMMAND_DESCRIPTOR_ARGS: Record<string, CommandArgSchema[]> = {
 	],
 	parent: [
 		{ name: "cellId", required: true, descriptionKey: "arg.parent.cellId" },
-	],
-	workspace: [
-		{ name: "action", required: true, descriptionKey: "arg.workspace.action" },
 	],
 };
 
@@ -244,35 +240,6 @@ export class CellCommandRegistry {
 				success: true,
 				cell: ctx.cell,
 				parsedOutput: ctx.cell.parsedOutput,
-			};
-		});
-		registry.register("workspace", async (c, ctx) => {
-			if (
-				!ctx.workspaceStore ||
-				!ctx.cell.workspaceId ||
-				!ctx.cell.routing.branchId
-			)
-				return fail(CellCommandError.WORKSPACE_CONTEXT);
-			const tokens = c.args;
-			const { WorkspaceCommandParser } = await import(
-				"./workspace-command-parser"
-			);
-			const command = new WorkspaceCommandParser().parseCommandAlias(
-				tokens,
-				ctx.profile,
-			);
-			if (!command) return fail(CellCommandError.MALFORMED_COMMAND);
-			const workspace = await ctx.workspaceStore.process(
-				ctx.sessionId,
-				ctx.cell.workspaceId,
-				ctx.cell.routing.branchId,
-				"",
-				[command],
-			);
-			return {
-				success: true,
-				workspaceId: workspace.id,
-				workspaceCommands: [command],
 			};
 		});
 		registry.register("help", async (_c, ctx) =>

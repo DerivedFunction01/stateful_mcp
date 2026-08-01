@@ -63,6 +63,8 @@ export function resolveKey(
 	if (seq === "yy") return { action: EditorAction.YankCell, nextPending: "" };
 	if (seq === "[e") return { action: EditorAction.PrevError, nextPending: "" };
 	if (seq === "]e") return { action: EditorAction.NextError, nextPending: "" };
+	if (seq === "gw")
+		return { action: EditorAction.OpenWorkspace, nextPending: "" };
 
 	if (seq.length >= 2) return { action: null, nextPending: "" };
 
@@ -88,6 +90,8 @@ export function resolveKey(
 				return { action: null, nextPending: "[" };
 			case "]":
 				return { action: null, nextPending: "]" };
+			case "g":
+				return { action: null, nextPending: "g" };
 			case "p":
 				return { action: EditorAction.PasteCell, nextPending: "" };
 			case "P":
