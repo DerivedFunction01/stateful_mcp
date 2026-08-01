@@ -42,16 +42,17 @@ export interface AlgorithmicEvaluationObject {
 // PRIMARY DIAGNOSIS
 // The single working diagnosis for this encounter.
 // =====================================================================
+export type AcuityLevel =
+	| "acute"
+	| "subacute"
+	| "chronic"
+	| "acute_on_chronic"
+	| "exacerbation";
 
 export interface PrimaryDiagnosisEntry {
 	id: string;
 	diagnosis: CodeableConcept; // Normalized disease concept (ICD-10 / SNOMED-CT)
-	acuityLevel?:
-		| "acute"
-		| "subacute"
-		| "chronic"
-		| "acute_on_chronic"
-		| "exacerbation";
+	acuityLevel?: AcuityLevel;
 	supportingConcepts?: CodeableConcept[];
 	comorbidities?: CodeableConcept[];
 	anatomyLocations?: AnatomicalLocation[];

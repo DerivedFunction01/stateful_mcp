@@ -1,4 +1,5 @@
-import type { CodeableConcept } from "./shared";
+import type { AcuityLevel } from "./assessment";
+import type { Certainty, CodeableConcept } from "./shared";
 import type { TemporalBoundary } from "./time";
 
 export type BranchLifecycleState =
@@ -17,6 +18,9 @@ export interface ClinicalBranch {
 	status: BranchLifecycleState;
 	supportingConcepts: CodeableConcept[];
 	refutingConcepts: CodeableConcept[];
+	rank?: number;
+	confidence?: Certainty;
+	acuityLevel?: AcuityLevel;
 	createdAt: TemporalBoundary;
 	closedAt?: TemporalBoundary;
 }
