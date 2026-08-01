@@ -1,7 +1,9 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import { Box, Text } from "ink";
+import { Box, Text, useStdout } from "ink";
 import { useMemo } from "react";
 import { completionRemainder } from "../lib/completion-state";
+import { t } from "../lib/i18n";
+import { capSuggestions } from "../lib/palette";
 
 interface CommandBarProps {
 	commandLine: string;
@@ -11,6 +13,8 @@ interface CommandBarProps {
 	completionPrefix: string;
 }
 
+const NO_MATCH_THRESHOLD = 0;
+
 export function CommandBar({
 	commandLine,
 	suggestions,
@@ -18,31 +22,60 @@ export function CommandBar({
 	highlightedCandidate,
 	completionPrefix,
 }: CommandBarProps) {
+	const { stdout } = useStdout();
+	const columns = stdout?.columns ?? 80;
+
 	const ghost = useMemo(() => {
 		if (!highlightedCandidate) return "";
 		return completionRemainder(highlightedCandidate.verb, completionPrefix);
 	}, [highlightedCandidate, completionPrefix]);
 
-	const argHints = useMemo(() => {
-		if (!commandLine.includes(" ")) return null;
+	const { visible, hidden } = useMemo(
+		() => capSuggestions(columns, suggestions, suggestionIndex),
+		[columns, suggestions, suggestionIndex],
+	);
+
+	const noMatch = useMemo(() => {
+		if (suggestions.length > NO_MATCH_THRESHOLD) return null;
+		const partial = commandLine.slice(1).trim();
+		if (!partial) return null;
+		return partial;
+	}, [suggestions.length, commandLine]);
+
+	// Inline command-details line: the active verb suggestion's args + description.
+	const details = useMemo(() => {
+		const hasSpace = commandLine.includes(" ");
+		if (!hasSpace) return null;
 		const verb = commandLine.slice(1, commandLine.indexOf(" "));
-		const match = suggestions.find((s) => s.verb === verb);
-		if (!match || !match.argNames) return null;
+		const activeVerb =
+			highlightedCandidate?.kind === "verb"
+				? highlightedCandidate
+				: suggestions.find((s) => s.kind === "verb" && s.verb === verb);
+		if (
+			!activeVerb ||
+			!activeVerb.argNames ||
+			activeVerb.argNames.length === 0
+		) {
+			return null;
+		}
 		const parts: string[] = [];
-		for (let i = 0; i < match.argNames.length; i++) {
-			const name = match.argNames[i]!;
-			const required = match.argsRequired?.[i];
-			const hints = match.argHints?.[i];
+		for (let i = 0; i < activeVerb.argNames.length; i++) {
+			const name = activeVerb.argNames[i]!;
+			const required = activeVerb.argsRequired?.[i];
+			const hints = activeVerb.argHints?.[i];
 			const label = required ? `${name}[req]` : `${name}[opt]`;
 			const hintStr = hints && hints.length > 0 ? `(${hints.join("|")})` : "";
 			parts.push(`${label}${hintStr}`);
 		}
-		return parts.join(" ");
-	}, [commandLine, suggestions]);
+		const desc = activeVerb.descriptionKey
+			? t(activeVerb.descriptionKey)
+			: undefined;
+		return { parts: parts.join(" "), desc, verb };
+	}, [commandLine, suggestions, highlightedCandidate]);
 
 	return (
 		<Box width="100%" flexDirection="column">
-			{suggestions.length > 0 && (
+			{visible.length > 0 && (
 				<Box
 					paddingLeft={1}
 					paddingRight={1}
@@ -50,25 +83,61 @@ export function CommandBar({
 					gap={1}
 					flexWrap="wrap"
 				>
-					{suggestions.map((s, i) => (
-						<Text
-							key={`${s.source}-${s.verb}`}
-							color="cyan"
-							dimColor={i !== suggestionIndex}
-							inverse={i === suggestionIndex}
-						>
-							<Text color="gray">[{s.source[0]}]</Text>
-							{s.verb}
-							{s.argNames && s.argNames.length > 0
-								? ` (${s.argNames.join(" ")})`
-								: ""}
+					{visible.map((s) => {
+						const isActive =
+							suggestionIndex >= 0 && s === suggestions[suggestionIndex];
+						return (
+							<Text
+								key={`${s.kind}-${s.source}-${s.verb}-${s.argIndex}`}
+								color={s.kind === "arg" ? "magenta" : "cyan"}
+								dimColor={!isActive}
+								inverse={isActive}
+								bold={isActive}
+							>
+								{s.kind === "arg" ? (
+									<Text>
+										<Text color="gray">[{s.group}]</Text>
+										{s.verb}
+									</Text>
+								) : (
+									<Text>
+										<Text color="gray">[{s.source[0]}]</Text>
+										{s.verb}
+										{s.descriptionKey ? ` ${t(s.descriptionKey)}` : ""}
+										{s.argNames && s.argNames.length > 0
+											? ` (${s.argNames.join(" ")})`
+											: ""}
+									</Text>
+								)}
+							</Text>
+						);
+					})}
+					{hidden > 0 && (
+						<Text color="gray" bold>
+							+{hidden} more
 						</Text>
-					))}
+					)}
 				</Box>
 			)}
-			{argHints && (
+			{details && (
+				<Box
+					paddingLeft={1}
+					paddingRight={1}
+					flexWrap="wrap"
+					flexDirection="row"
+				>
+					<Text color="yellow" bold>
+						{details.verb}
+					</Text>
+					{details.desc && <Text color="white">: {details.desc} </Text>}
+					<Text color="yellow">{details.parts}</Text>
+				</Box>
+			)}
+			{noMatch && (
 				<Box paddingLeft={1} paddingRight={1}>
-					<Text color="yellow">{argHints}</Text>
+					<Text color="gray">
+						no command matches "{noMatch}" — Enter still runs it
+					</Text>
 				</Box>
 			)}
 			<Box

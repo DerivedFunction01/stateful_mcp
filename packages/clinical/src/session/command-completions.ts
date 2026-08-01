@@ -28,6 +28,22 @@ export function getAllSchemaKeys(): string[] {
 
 export type SectionSchemaResolver = (section: string) => string[];
 
+export type ArgCompletionGroup =
+	| "section"
+	| "schema"
+	| "field"
+	| "workspace"
+	| "mode";
+
+/**
+ * A locale-neutral completion code plus its semantic position, so the UI can
+ * render arg values distinctly (e.g. `[section] subjective` vs `[workspace] rule_out`).
+ */
+export interface ArgCompletionCode {
+	code: string;
+	group: ArgCompletionGroup;
+}
+
 /**
  * Resolve the locale-neutral completion codes for a given command (verb) at a
  * given argument index. Returns an empty array when the command/arg has no
@@ -46,25 +62,34 @@ export function resolveArgCompletions(
 	profile: ParserSyntaxProfile,
 	prevArgs: string[] = [],
 	getSchemasForSection?: SectionSchemaResolver,
-): string[] {
+): ArgCompletionCode[] {
 	const v = verb.toLowerCase();
 
 	if (v === "mode") {
-		return argIndex === 0 ? [...CELL_MODES] : [];
+		return argIndex === 0
+			? CELL_MODES.map((c) => ({ code: c, group: "mode" }))
+			: [];
 	}
 
 	if (v === "workspace") {
 		return argIndex === 0
-			? Object.keys(profile.workspaceCommandMappings ?? {})
+			? Object.keys(profile.workspaceCommandMappings ?? {}).map((c) => ({
+					code: c,
+					group: "workspace",
+				}))
 			: [];
 	}
 
 	if (v === "default" || v === "set-default" || v === "set-default-insert") {
-		if (argIndex === 0) return [...SOAP_SECTIONS];
+		if (argIndex === 0)
+			return SOAP_SECTIONS.map((c) => ({ code: c, group: "section" }));
 		if (argIndex === 1) {
 			const section = prevArgs[0];
 			if (section && isSoapSection(section) && getSchemasForSection) {
-				return getSchemasForSection(section);
+				return getSchemasForSection(section).map((c) => ({
+					code: c,
+					group: "schema",
+				}));
 			}
 			return [];
 		}
@@ -72,11 +97,18 @@ export function resolveArgCompletions(
 	}
 
 	if (v === "set") {
-		return argIndex === 0 ? Object.keys(profile.fieldMappings ?? {}) : [];
+		return argIndex === 0
+			? Object.keys(profile.fieldMappings ?? {}).map((c) => ({
+					code: c,
+					group: "field",
+				}))
+			: [];
 	}
 
 	if (v === "link") {
-		return argIndex === 0 ? getAllSchemaKeys() : [];
+		return argIndex === 0
+			? getAllSchemaKeys().map((c) => ({ code: c, group: "schema" }))
+			: [];
 	}
 
 	return [];

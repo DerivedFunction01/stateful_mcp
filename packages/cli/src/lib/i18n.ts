@@ -57,6 +57,59 @@ const en: Record<string, string> = {
 	"workspace.inputHint": "type a finding, hypothesis, or command...",
 	"workspace.ruledOut": "✗ ruled_out",
 	"workspace.focused": "FOCUSED",
+
+	// Editor command descriptions (locale-neutral keys from EditorCommandRegistry)
+	"editor.command.w": "save",
+	"editor.command.q": "quit",
+	"editor.command.wq": "save & quit",
+	"editor.command.e": "edit active cell",
+	"editor.command.mode": "set execution mode",
+	"editor.command.errors": "show parse errors",
+	"editor.command.undo": "undo last change",
+	"editor.command.redo": "redo last change",
+	"editor.command.search": "search cells",
+	"editor.command.nohl": "clear search highlight",
+	"editor.command.help": "show help",
+	"editor.command.info": "show cell info",
+	"editor.command.render": "render preview",
+	"editor.command.default": "set default insert section/schema",
+
+	// Editor command args
+	"arg.mode.executionMode": "preview|execute",
+	"arg.search.term": "search term",
+	"arg.default.section": "soap section",
+	"arg.default.schema": "target schema",
+
+	// Cell command descriptions (CellCommandRegistry.command.description.*)
+	"command.description.up": "move up",
+	"command.description.down": "move down",
+	"command.description.top": "go to first cell",
+	"command.description.bottom": "go to last cell",
+	"command.description.go": "go to cell index",
+	"command.description.run": "run active cell",
+	"command.description.preview": "preview active cell",
+	"command.description.delete": "delete selection",
+	"command.description.mode": "set cell mode",
+	"command.description.set": "set field value",
+	"command.description.link": "link cells",
+	"command.description.unlink": "unlink cells",
+	"command.description.parent": "set parent cell",
+	"command.description.workspace": "workspace action",
+	"command.description.help": "cell help",
+	"command.description.status": "session status",
+	"command.description.clear": "clear session",
+	"command.description.save": "save session",
+
+	// Cell command args
+	"arg.go.index": "target cell index",
+	"arg.mode.name": "cell mode",
+	"arg.set.field": "schema.field path",
+	"arg.set.value": "value",
+	"arg.link.targetSchema": "target schema",
+	"arg.link.targetCellId": "target cell id",
+	"arg.link.targetField": "target field",
+	"arg.parent.cellId": "parent cell id",
+	"arg.workspace.action": "workspace command verb",
 };
 
 export type Locale = typeof en;

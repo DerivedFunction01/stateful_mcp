@@ -418,6 +418,10 @@ export function useNotebook(session: SessionState | null) {
 								source:
 									matchedDesc.verb === verb ? "editor" : ("cell" as const),
 								hasArgs: false,
+								kind: "arg" as const,
+								argIndex,
+								argName: argSchema.name,
+								descriptionKey: argSchema.descriptionKey,
 							}));
 					}
 				}
@@ -442,13 +446,17 @@ export function useNotebook(session: SessionState | null) {
 							engine?.getSchemasForSection?.bind(engine),
 						);
 						return codes
-							.filter((c) => c.startsWith(currentPartial))
+							.filter((c) => c.code.startsWith(currentPartial))
 							.map((c) => ({
-								verb: c,
-								group: matchedDesc?.group ?? "field",
+								verb: c.code,
+								group: c.group,
 								source:
 									matchedDesc?.verb === verb ? "editor" : ("cell" as const),
 								hasArgs: false,
+								kind: "arg" as const,
+								argIndex,
+								argName: matchedDesc?.args[argIndex]?.name,
+								descriptionKey: matchedDesc?.args[argIndex]?.descriptionKey,
 							}));
 					}
 				} catch {
@@ -468,6 +476,7 @@ export function useNotebook(session: SessionState | null) {
 					group: "history" as const,
 					source: "editor" as const,
 					hasArgs: false,
+					kind: "verb" as const,
 				}));
 			}
 
@@ -476,8 +485,24 @@ export function useNotebook(session: SessionState | null) {
 				editorDescs,
 				cellDescs,
 			);
+			if (suggestions.length > 0) return suggestions;
 
-			return suggestions;
+			// No-match fallback: offer ranked command history entries whose verb
+			// starts with the typed prefix. Strictly additive — never mutates the
+			// typed line; Enter still dispatches so the dispatcher surfaces errors.
+			const historyFallback = rankHistory(state.commandHistory, {
+				limit: 6,
+				frequency: state.commandFrequency,
+			})
+				.filter((line) => line.slice(1).startsWith(partial))
+				.map((line) => ({
+					verb: line.slice(1),
+					group: "history" as const,
+					source: "editor" as const,
+					hasArgs: false,
+					kind: "verb" as const,
+				}));
+			return historyFallback;
 		},
 		[session, state.commandHistory, state.commandFrequency],
 	);

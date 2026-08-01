@@ -51,17 +51,20 @@ describe("resolveArgCompletions — workspace command", () => {
 	test("arg0 returns workspace command verbs, NOT SOAP sections", () => {
 		const profile = makeProfile();
 		const codes = resolveArgCompletions("workspace", 0, profile);
-		expect(codes).toContain("rule_out");
-		expect(codes).toContain("branch");
-		expect(codes).toContain("close");
-		expect(codes.some((c) => SOAP_SECTIONS.includes(c as any))).toBe(false);
+		const values = codes.map((c) => c.code);
+		expect(values).toContain("rule_out");
+		expect(values).toContain("branch");
+		expect(values).toContain("close");
+		expect(values.some((c) => SOAP_SECTIONS.includes(c as any))).toBe(false);
+		expect(codes[0]?.group).toBe("workspace");
 	});
 });
 
 describe("resolveArgCompletions — default command", () => {
 	test("arg0 returns the four SOAP section codes", () => {
 		const codes = resolveArgCompletions("default", 0, makeProfile());
-		expect(codes).toEqual([...SOAP_SECTIONS]);
+		expect(codes.map((c) => c.code)).toEqual([...SOAP_SECTIONS]);
+		expect(codes.every((c) => c.group === "section")).toBe(true);
 	});
 
 	test("arg1 with a chosen section returns section-scoped schemas", () => {
@@ -76,7 +79,11 @@ describe("resolveArgCompletions — default command", () => {
 			["objective"],
 			getSchemasForSection,
 		);
-		expect(codes).toEqual(["vitalsmeasurementevent", "physicalexamobject"]);
+		expect(codes.map((c) => c.code)).toEqual([
+			"vitalsmeasurementevent",
+			"physicalexamobject",
+		]);
+		expect(codes.every((c) => c.group === "schema")).toBe(true);
 	});
 
 	test("arg1 without a resolved section returns empty", () => {
@@ -88,15 +95,22 @@ describe("resolveArgCompletions — default command", () => {
 describe("resolveArgCompletions — mode", () => {
 	test("arg0 returns cell modes", () => {
 		const codes = resolveArgCompletions("mode", 0, makeProfile());
-		expect(codes).toEqual(["cdsl", "narrative", "js_script"]);
+		expect(codes.map((c) => c.code)).toEqual([
+			"cdsl",
+			"narrative",
+			"js_script",
+		]);
+		expect(codes.every((c) => c.group === "mode")).toBe(true);
 	});
 });
 
 describe("resolveArgCompletions — set field", () => {
 	test("arg0 returns fieldMappings keys", () => {
 		const codes = resolveArgCompletions("set", 0, makeProfile());
-		expect(codes).toContain("ObservationEvent.symptom");
-		expect(codes).not.toContain("subjective");
+		const values = codes.map((c) => c.code);
+		expect(values).toContain("ObservationEvent.symptom");
+		expect(values).not.toContain("subjective");
+		expect(codes.every((c) => c.group === "field")).toBe(true);
 	});
 });
 

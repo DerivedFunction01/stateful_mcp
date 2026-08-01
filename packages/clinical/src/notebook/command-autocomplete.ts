@@ -1,5 +1,7 @@
 import type { CommandDescriptor } from "../session/command-descriptor";
 
+export type AutocompleteSuggestionKind = "verb" | "arg";
+
 export interface AutocompleteSuggestion {
 	verb: string;
 	group: string;
@@ -8,6 +10,14 @@ export interface AutocompleteSuggestion {
 	argNames?: string[];
 	argHints?: string[][];
 	argsRequired?: boolean[];
+	/** Semantic role of the suggestion: a command verb vs an argument value. */
+	kind: AutocompleteSuggestionKind;
+	/** Argument position this value fills (kind === "arg"). */
+	argIndex?: number;
+	/** The CommandArgSchema.name this value fills (kind === "arg"). */
+	argName?: string;
+	/** Locale-neutral i18n description key for the command/arg. */
+	descriptionKey?: string;
 }
 
 const MAX_SUGGESTIONS = 12;
@@ -24,6 +34,8 @@ function toSuggestion(
 		argNames: d.args.map((a) => a.name),
 		argHints: d.args.map((a) => a.completions ?? []),
 		argsRequired: d.args.map((a) => a.required),
+		kind: "verb",
+		descriptionKey: d.descriptionKey,
 	};
 }
 

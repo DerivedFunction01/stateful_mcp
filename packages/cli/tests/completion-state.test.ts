@@ -13,7 +13,7 @@ function sug(
 	verb: string,
 	source: "editor" | "cell" = "editor",
 ): AutocompleteSuggestion {
-	return { verb, group: "test", source, hasArgs: false };
+	return { verb, group: "test", source, hasArgs: false, kind: "verb" };
 }
 
 function setSuggestions(verbs: string[]) {
