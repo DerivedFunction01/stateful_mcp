@@ -10,6 +10,7 @@ import {
 	ObjectStore,
 	readJsonConfigFile,
 	resolveConfigDir,
+	VariableServiceStore,
 } from "@stateful-mcp/core";
 import * as path from "path";
 import { initializeClinicalRuntime } from "../init/orchestrator";
@@ -17,6 +18,7 @@ import { CommandAutocompleteSuggester } from "../parser/command-autocomplete-sug
 import { DEFAULT_CLINICAL_STORE_CONFIG } from "../seed/clinical-config-seed";
 import { CellCommandRegistry } from "../session/cell-command-registry";
 import { CellProcessor } from "../session/cell-processor";
+import { VariableCellService } from "../session/variable-cell-service";
 import { WorkspaceCellService } from "../session/workspace-cell-service";
 import { resolveCellStore } from "../store/cell/cell-backend-resolver";
 import type {
@@ -298,6 +300,7 @@ async function wireEngine(
 		...engineStores,
 		workspaceStore,
 		workspaceReadModel,
+		variableService: new VariableServiceStore(),
 		profile: composedProfile,
 		parsedCellStore: runtime.learningStores[0] as any,
 		orderAwareStore: runtime.orderedLearningStores[0],
@@ -330,6 +333,14 @@ async function wireEngine(
 		cellStore,
 	);
 	engine.setWorkspaceCellService(workspaceCellService);
+	engine.setVariableCellService(
+		new VariableCellService(
+			engine.getVariableService()!,
+			cellStore,
+			(query) => engine.getParser().resolveConcept(query),
+			engine.getParser().getProfile(),
+		),
+	);
 
 	return { engine, processor, notebook, cellStore };
 }

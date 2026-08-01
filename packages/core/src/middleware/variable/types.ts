@@ -1,5 +1,10 @@
 // REFERENCE: docs/variable.md
 import type { OpName, PipelineStep } from "../../translation/types";
+import type {
+	VariableExpression,
+	VariableLoweringContext,
+	VariableScopeRef,
+} from "./ast";
 
 export type VariableOpType = "set" | "update" | "remove" | "eval";
 
@@ -28,6 +33,7 @@ export interface ConditionEvaluationResult {
 export interface VariableMutationEvent {
 	sessionId: string;
 	blockInstanceId?: string;
+	scope?: VariableScopeRef;
 	operation: VariableOpType;
 	key?: string;
 	value?: unknown;
@@ -71,6 +77,13 @@ export interface VariableService {
 		value: unknown,
 		blockInstanceId?: string,
 	): Promise<void>;
+	updateVariable(
+		sessionId: string,
+		key: string,
+		expression: VariableExpression,
+		blockInstanceId?: string,
+		context?: VariableLoweringContext,
+	): Promise<unknown>;
 
 	/** Batch set multiple variables (accepts key-value Record or Array of VariableInputEntry objects) */
 	setVariables(
@@ -115,6 +128,18 @@ export interface VariableService {
 		pipeline: PipelineStep[],
 		blockInstanceId?: string,
 	): Promise<unknown>;
+	evaluateExpression(
+		sessionId: string,
+		expression: VariableExpression,
+		blockInstanceId?: string,
+		context?: VariableLoweringContext,
+	): Promise<unknown>;
+	assertExpression(
+		sessionId: string,
+		expression: VariableExpression,
+		blockInstanceId?: string,
+		context?: VariableLoweringContext,
+	): Promise<boolean>;
 
 	/** Subscribe to reactive variable mutation events */
 	subscribe(

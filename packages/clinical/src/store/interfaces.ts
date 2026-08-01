@@ -48,6 +48,11 @@ export interface ParserSyntaxProfile {
 	transitionalWords?: string[];
 	numberWordConfig?: import("../parser/utils/number-word-normalizer").NumberWordConfig;
 	cellCommandToken?: string; // Prefix for cell commands (e.g. ':')
+	variableCommandToken?: string;
+	variableCommandMappings?: Record<
+		string,
+		"set" | "update" | "eval" | "assert" | "remove"
+	>;
 }
 
 export interface PatientLearningContext extends PatientLearningBucket {

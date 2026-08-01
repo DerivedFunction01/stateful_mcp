@@ -7,6 +7,43 @@ import type {
 import { resolveConceptHelper } from "./schema-parsers";
 
 export class CdslVariableParser {
+	/** Resolve variable references without mutating variable state. */
+	static async interpolate(
+		text: string,
+		variableService: VariableService,
+		sessionId: string,
+		profile: { variableStartToken: string; variableEndToken: string },
+		blockInstanceId?: string,
+	): Promise<string> {
+		const start = (profile.variableStartToken || "{").replace(
+			/[-/\\^$*+?.()|[\]{}]/g,
+			"\\$&",
+		);
+		const end = (profile.variableEndToken || "}").replace(
+			/[-/\\^$*+?.()|[\]{}]/g,
+			"\\$&",
+		);
+		const pattern = new RegExp(
+			`${start}(?<name>[A-Za-z_][A-Za-z0-9_.]*)${end}`,
+			"g",
+		);
+		let result = "";
+		let cursor = 0;
+		for (const match of text.matchAll(pattern)) {
+			const index = match.index ?? cursor;
+			result += text.slice(cursor, index);
+			const name = match.groups?.name ?? "";
+			const value = await variableService.getVariable(
+				sessionId,
+				name,
+				blockInstanceId,
+			);
+			result += formatInterpolatedValue(value);
+			cursor = index + match[0].length;
+		}
+		return result + text.slice(cursor);
+	}
+
 	/**
 	 * Scans text for canonical variable commands (e.g. /set, /assert, /eval)
 	 * and variable blocks (e.g. {x=10}, person{name=John}), applies assignments,
@@ -412,4 +449,17 @@ export class CdslVariableParser {
 		}
 		return result;
 	}
+}
+
+function formatInterpolatedValue(value: unknown): string {
+	if (value === undefined || value === null) return "";
+	if (
+		typeof value === "object" &&
+		value !== null &&
+		"display" in value &&
+		typeof (value as { display?: unknown }).display === "string"
+	) {
+		return (value as { display: string }).display;
+	}
+	return typeof value === "string" ? value : JSON.stringify(value);
 }

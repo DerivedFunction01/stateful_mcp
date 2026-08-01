@@ -3,6 +3,7 @@ import type {
 	EvaluatorStore,
 	EventStore,
 	ObjectStore,
+	VariableService,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import type { CommandAutocompleteSuggester } from "../parser/command-autocomplete-suggester";
@@ -416,6 +417,7 @@ import type { EpistemicWorkspace } from "../schemas/epistemic";
 import type { CodeableConcept } from "../schemas/shared";
 import type { Cell } from "../session/cell";
 import type { CellProcessResult } from "../session/cell-processor";
+import type { VariableCellService } from "../session/variable-cell-service";
 import type { WorkspaceCellService } from "../session/workspace-cell-service";
 import type {
 	WorkspaceReadModel,
@@ -431,6 +433,8 @@ export interface ClinicalEngineConfig {
 	workspaceStore?: WorkspaceStore;
 	workspaceReadModel?: WorkspaceReadModel;
 	workspaceCellService?: WorkspaceCellService;
+	variableService?: VariableService;
+	variableCellService?: VariableCellService;
 	calibrationStore?: CalibrationStore;
 	parsedCellStore?: ParsedCellStore;
 	stopWordStore?: StopWordStore;
@@ -460,6 +464,8 @@ export class ClinicalEngine {
 	private workspaceStore?: WorkspaceStore;
 	private workspaceReadModel?: WorkspaceReadModel;
 	private workspaceCellService?: WorkspaceCellService;
+	private variableService?: VariableService;
+	private variableCellService?: VariableCellService;
 	private calibrationStore?: CalibrationStore;
 	private parsedCellStore?: ParsedCellStore;
 	private orderAwareStore?: OrderedLearningStore;
@@ -480,6 +486,8 @@ export class ClinicalEngine {
 		this.workspaceStore = config.workspaceStore;
 		this.workspaceReadModel = config.workspaceReadModel;
 		this.workspaceCellService = config.workspaceCellService;
+		this.variableService = config.variableService;
+		this.variableCellService = config.variableCellService;
 		if (this.workspaceStore) {
 			(this.workspaceStore as any).personnelId = this.personnelId;
 		}
@@ -510,6 +518,7 @@ export class ClinicalEngine {
 				proseTemplateStore: config.proseParserTemplateStore,
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
+				variableService: this.variableService,
 			});
 			this.autocompleteSession = new AutocompleteSessionManager(
 				this.parser,
@@ -536,6 +545,7 @@ export class ClinicalEngine {
 				proseTemplateStore: config.proseParserTemplateStore,
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
+				variableService: this.variableService,
 			});
 			this.autocompleteSession = new AutocompleteSessionManager(
 				this.parser,
@@ -549,6 +559,31 @@ export class ClinicalEngine {
 
 	setWorkspaceCellService(service: WorkspaceCellService): void {
 		this.workspaceCellService = service;
+	}
+
+	getVariableService(): VariableService | undefined {
+		return this.variableService;
+	}
+
+	setVariableCellService(service: VariableCellService): void {
+		this.variableCellService = service;
+	}
+
+	async executeVariableCell(
+		sessionId: string,
+		collection: import("../session/cell").CellCollectionRef,
+		rawInput: string,
+		scope?: import("@stateful-mcp/core").VariableScopeRef,
+	) {
+		if (!this.variableCellService) {
+			throw new Error("variable cell service is not configured");
+		}
+		return this.variableCellService.execute(
+			sessionId,
+			collection,
+			rawInput,
+			scope,
+		);
 	}
 
 	/**

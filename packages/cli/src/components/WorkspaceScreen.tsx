@@ -1,7 +1,12 @@
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import { Box, Text, useInput } from "ink";
-import { useState } from "react";
+import { useEffect, useReducer } from "react";
 import { formatParsedItem } from "../formatter/format-parsed";
+import {
+	type CellSubmissionPlan,
+	createCellEditorState,
+	reduceCellEditor,
+} from "../lib/cell-editor";
 import { t } from "../lib/i18n";
 import { StatusBadge } from "./StatusBadge";
 
@@ -11,7 +16,8 @@ interface WorkspaceScreenProps {
 	error: string | null;
 	focused: boolean;
 	onClose: () => void;
-	onProcessInput: (branchId: string, text: string) => Promise<void>;
+	planSubmission: (text: string) => CellSubmissionPlan;
+	onSubmitPlan: (plan: CellSubmissionPlan) => Promise<void>;
 	getCommandSuggestions: (text: string) => string[];
 	onFocusBranch: (branchRef: string) => Promise<void>;
 }
@@ -124,23 +130,39 @@ export function WorkspaceScreen({
 	error,
 	focused,
 	onClose,
-	onProcessInput,
+	planSubmission,
+	onSubmitPlan,
 	getCommandSuggestions,
 	onFocusBranch,
 }: WorkspaceScreenProps) {
-	const [inputText, setInputText] = useState("");
-	const [editing, setEditing] = useState(false);
-	const [showHelp, setShowHelp] = useState(false);
-	const [suggestionIndex, setSuggestionIndex] = useState(0);
+	const [editor, dispatch] = useReducer(
+		reduceCellEditor,
+		createCellEditorState({
+			kind: "workspace",
+			collectionId: snapshot?.workspaceId ?? "",
+		}),
+	);
+	const inputText = editor.draftText;
+	const editing = editor.mode !== "NORMAL";
+	const showHelp = editor.showHelp;
+	const [suggestionIndex, setSuggestionIndex] = useReducer(
+		(index: number, next: number) => next,
+		0,
+	);
 	const suggestions = inputText.trim().startsWith(":")
 		? getCommandSuggestions(inputText)
 		: [];
 
+	useEffect(() => {
+		if (snapshot) {
+			dispatch({ type: "SET_CELLS", cells: snapshot.cells as any });
+		}
+	}, [snapshot]);
+
 	useInput((_input, key) => {
 		if (key.escape) {
 			if (editing || inputText) {
-				setInputText("");
-				setEditing(false);
+				dispatch({ type: "CANCEL" });
 			} else {
 				onClose();
 			}
@@ -148,11 +170,11 @@ export function WorkspaceScreen({
 		}
 		if (!editing) {
 			if (_input === "i" || _input === "a") {
-				setEditing(true);
+				dispatch({ type: "ENTER_INSERT" });
 				return;
 			}
 			if (_input === "?") {
-				setShowHelp(true);
+				dispatch({ type: "SHOW_HELP", show: true });
 				return;
 			}
 			return;
@@ -161,8 +183,7 @@ export function WorkspaceScreen({
 			if (inputText.trim()) {
 				handleSubmit(inputText.trim());
 			}
-			setInputText("");
-			setEditing(false);
+			dispatch({ type: "CANCEL" });
 			return;
 		}
 		if (key.tab && suggestions.length > 0) {
@@ -170,21 +191,21 @@ export function WorkspaceScreen({
 			if (suggestion) {
 				const parts = inputText.split(/\s+/);
 				parts[parts.length - 1] = suggestion;
-				setInputText(parts.join(" "));
-				setSuggestionIndex((index) => (index + 1) % suggestions.length);
+				dispatch({ type: "SET_DRAFT", text: parts.join(" ") });
+				setSuggestionIndex((suggestionIndex + 1) % suggestions.length);
 			}
 			return;
 		}
 		if (key.return) {
-			setInputText((prev) => `${prev}\n`);
+			dispatch({ type: "NEWLINE" });
 			return;
 		}
 		if (key.backspace) {
-			setInputText((prev) => prev.slice(0, -1));
+			dispatch({ type: "BACKSPACE" });
 			return;
 		}
 		if (_input.length === 1 && !key.ctrl && !key.meta) {
-			setInputText((prev) => prev + _input);
+			dispatch({ type: "INSERT_TEXT", text: _input });
 			setSuggestionIndex(0);
 		}
 	});
@@ -194,7 +215,7 @@ export function WorkspaceScreen({
 		const first = tokens[0]?.toLowerCase();
 		if (!first) return;
 		if (first === ":help" || first === "help") {
-			setShowHelp(true);
+			dispatch({ type: "SHOW_HELP", show: true });
 			return;
 		}
 		if (first === ":focus" || first === "focus") {
@@ -210,11 +231,8 @@ export function WorkspaceScreen({
 			onClose();
 			return;
 		}
-		if (!snapshot) return;
-		const activeBranchId = snapshot.activeBranchId;
-		if (!activeBranchId && snapshot.branches.length === 0) return;
-		const branchId = activeBranchId ?? snapshot.branches[0]!.branchId;
-		await onProcessInput(branchId!, text);
+		const plan = planSubmission(text);
+		await onSubmitPlan(plan);
 	};
 
 	const branches = snapshot?.branches ?? [];

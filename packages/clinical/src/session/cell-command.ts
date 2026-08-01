@@ -24,7 +24,7 @@ export type CellCommandVerb =
 	| "delete"
 	| "split"
 	| "mode"
-	| "set"
+	| "target"
 	| "link"
 	| "unlink"
 	| "parent"
@@ -87,7 +87,8 @@ export const CELL_COMMAND_ERROR_MESSAGES: Record<
 		`unknown cell command: ${v}`,
 	[CellCommandError.INVALID_ARGUMENT]: (v: string) => v,
 	[CellCommandError.CONFIGURATION]: "cell processor is not configured",
-	[CellCommandError.UNRESOLVED_TARGET]: "cannot resolve target schema for :set",
+	[CellCommandError.UNRESOLVED_TARGET]:
+		"cannot resolve target schema for :target",
 	[CellCommandError.INVALID_MODE]: "mode must be cdsl, narrative, or js_script",
 	[CellCommandError.INVALID_MERGE_STRATEGY]: "invalid link merge strategy",
 	[CellCommandError.MALFORMED_COMMAND]: "malformed workspace command",
@@ -105,7 +106,7 @@ export enum InvalidArgReason {
 export const INVALID_ARG_MESSAGES: Record<InvalidArgReason, string> = {
 	[InvalidArgReason.GO_INDEX]: "go requires a non-negative cell index",
 	[InvalidArgReason.PARENT_ID]: "parent requires a cell id",
-	[InvalidArgReason.SET_FIELD_VALUE]: "set requires a field and value",
+	[InvalidArgReason.SET_FIELD_VALUE]: "target requires a field and value",
 	[InvalidArgReason.LINK_TARGET]:
 		"link requires targetSchema, targetCellId, and targetField",
 };

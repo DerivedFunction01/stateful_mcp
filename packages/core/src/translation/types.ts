@@ -1,12 +1,16 @@
 export type ArgRef =
 	| { $init: string }
 	| { $var: string }
+	| { $literal: unknown }
+	| { $path: string[] }
 	| { $fn: "now" | "utc_time" }
 	| number
 	| string
 	| boolean;
 
 export type OpName =
+	| "neg"
+	| "not"
 	| "add"
 	| "sub"
 	| "mul"

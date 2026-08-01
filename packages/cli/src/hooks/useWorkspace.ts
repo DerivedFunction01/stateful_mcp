@@ -1,6 +1,10 @@
+import type { CellCollectionRef } from "@stateful-mcp/clinical/session/cell";
+import { segmentCellInput } from "@stateful-mcp/clinical/session/cell-input-segmentation";
+import { VariableCommandProvider } from "@stateful-mcp/clinical/session/variable-command-provider";
 import { WorkspaceCommandProvider } from "@stateful-mcp/clinical/session/workspace-command-provider";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CellSubmissionPlan } from "../lib/cell-editor";
 import { useSession } from "./useSession";
 
 interface UseWorkspaceArgs {
@@ -13,11 +17,6 @@ interface UseWorkspaceReturn {
 	snapshot: WorkspaceSnapshot | null;
 	loading: boolean;
 	error: string | null;
-	processInput: (
-		workspaceId: string,
-		branchId: string,
-		text: string,
-	) => Promise<void>;
 	complete: (winningBranchId: string) => Promise<void>;
 	addBranch: (branchName: string, conceptText: string) => Promise<void>;
 	focused: boolean;
@@ -25,6 +24,8 @@ interface UseWorkspaceReturn {
 	resetWorkspace: () => void;
 	getCommandSuggestions: (text: string) => string[];
 	focusBranch: (branchRef: string) => Promise<void>;
+	planSubmission: (text: string) => CellSubmissionPlan;
+	submitPlan: (plan: CellSubmissionPlan) => Promise<void>;
 }
 
 export function useWorkspace({
@@ -96,34 +97,6 @@ export function useWorkspace({
 		});
 	}, [session, sessionId]);
 
-	const processInput = useCallback(
-		async (workspaceId: string, branchId: string, text: string) => {
-			setError(null);
-			try {
-				const engine = session?.result.engine;
-				if (!engine) throw new Error("No engine available");
-				const created = await engine.createWorkspaceCell(
-					sessionId,
-					workspaceId,
-					text,
-					{
-						branchId,
-						routingScope: "branch_local",
-					},
-				);
-				await engine.executeWorkspaceCell(
-					sessionId,
-					workspaceId,
-					created.cellId,
-				);
-				await refresh();
-			} catch (err) {
-				setError(err instanceof Error ? err.message : String(err));
-			}
-		},
-		[session, sessionId, refresh],
-	);
-
 	const resetWorkspace = useCallback(() => {
 		setSnapshot(null);
 		workspaceIdRef.current = null;
@@ -183,6 +156,7 @@ export function useWorkspace({
 			const provider = new WorkspaceCommandProvider(
 				engine.getParser().getProfile(),
 			);
+			const variableProvider = new VariableCommandProvider();
 			const body = text.trim().slice(1);
 			const parts = body.split(/\s+/);
 			const prefix = parts[parts.length - 1] ?? "";
@@ -190,7 +164,15 @@ export function useWorkspace({
 				return provider
 					.getDescriptors()
 					.flatMap((descriptor) => [descriptor.verb, ...descriptor.aliases])
+					.concat(
+						variableProvider
+							.getDescriptors()
+							.map((descriptor) => descriptor.verb),
+					)
 					.filter((verb) => verb.startsWith(prefix));
+			}
+			if (parts[0] === "var") {
+				return variableProvider.getOperationCompletions(prefix);
 			}
 			return provider
 				.getArgumentCompletions(parts[0] ?? "", parts.length - 2, snapshot)
@@ -218,11 +200,88 @@ export function useWorkspace({
 		[session, sessionId, refresh],
 	);
 
+	const getCollection = useCallback(
+		(): CellCollectionRef => ({
+			kind: "workspace",
+			collectionId: workspaceIdRef.current ?? "",
+		}),
+		[],
+	);
+
+	const planSubmission = useCallback(
+		(text: string): CellSubmissionPlan => {
+			const profile = session?.result.engine.getParser().getProfile();
+			const mappings = profile?.workspaceCommandMappings ?? {};
+			const workspaceVerbs = new Set([
+				...Object.keys(mappings),
+				...Object.values(mappings),
+			]);
+			const directives = new Set(["target", "mode", "link", "parent"]);
+			const variableOperations = new Set(["var"]);
+			const ui = new Set(["help", "back", "exit", "focus", "status"]);
+			const collection = getCollection();
+			const segments = segmentCellInput(text, profile ?? ({} as any), {
+				isUiCommand: (verb) => ui.has(verb),
+				isVariableCommand: (verb) => variableOperations.has(verb),
+				isWorkspaceCommand: (verb) => workspaceVerbs.has(verb),
+				isCellConfiguration: (verb) => directives.has(verb),
+			});
+			return {
+				submissionId: crypto.randomUUID(),
+				collection,
+				segments: segments.map((segment) => ({
+					...segment,
+					intentKind: segment.intentKind,
+				})),
+			};
+		},
+		[session, getCollection],
+	);
+
+	const submitPlan = useCallback(
+		async (plan: CellSubmissionPlan) => {
+			const engine = session?.result.engine;
+			if (!engine || !workspaceIdRef.current) return;
+			const branchId =
+				snapshot?.activeBranchId ?? snapshot?.branches[0]?.branchId;
+			for (const segment of plan.segments) {
+				if (segment.kind === "ui_command") continue;
+				if (segment.kind === "variable_command") {
+					await engine.executeVariableCell(
+						sessionId,
+						plan.collection,
+						segment.text,
+						{
+							kind: "workspace",
+							id: plan.collection.collectionId,
+						},
+					);
+					continue;
+				}
+				const created = await engine.createWorkspaceCell(
+					sessionId,
+					workspaceIdRef.current,
+					segment.text,
+					{
+						branchId,
+						routingScope: branchId ? "branch_local" : "global",
+					},
+				);
+				await engine.executeWorkspaceCell(
+					sessionId,
+					workspaceIdRef.current,
+					created.cellId,
+				);
+			}
+			await refresh();
+		},
+		[session, sessionId, snapshot, refresh],
+	);
+
 	return {
 		snapshot,
 		loading,
 		error,
-		processInput,
 		complete,
 		addBranch,
 		focused,
@@ -230,5 +289,7 @@ export function useWorkspace({
 		resetWorkspace,
 		getCommandSuggestions,
 		focusBranch,
+		planSubmission,
+		submitPlan,
 	};
 }

@@ -194,6 +194,15 @@ export class CdslParser {
 		return this.profile;
 	}
 
+	async resolveConcept(text: string): Promise<unknown> {
+		const concepts = await resolveMultiConceptHelper(
+			text,
+			this.dictionaryStore,
+			this.profile.termTokenizer,
+		);
+		return concepts[0];
+	}
+
 	getPreprocessor(): TextPreprocessor {
 		return this.preprocessor;
 	}

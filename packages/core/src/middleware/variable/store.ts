@@ -4,6 +4,9 @@ import type { PersistentVariableStore } from "../../adapters/storage/interfaces"
 import { eventBroker } from "../../events/broker";
 import { executePipeline } from "../../translation/pipeline";
 import type { ArgRef, OpName, PipelineStep } from "../../translation/types";
+import type { VariableExpression, VariableLoweringContext } from "./ast";
+import { ancestorBlockIds } from "./ast";
+import { lowerVariableExpression } from "./lowerer";
 import type {
 	ConditionEvaluationResult,
 	VariableConditionRule,
@@ -166,6 +169,35 @@ export class VariableServiceStore implements VariableService {
 		});
 	}
 
+	async updateVariable(
+		sessionId: string,
+		key: string,
+		expression: VariableExpression,
+		blockInstanceId?: string,
+		context?: VariableLoweringContext,
+	): Promise<unknown> {
+		const current = await this.getVariable(sessionId, key, blockInstanceId);
+		if (current === undefined) {
+			throw new Error(`Variable '${key}' does not exist in the active scope`);
+		}
+		const value = await this.evaluateExpression(
+			sessionId,
+			expression,
+			blockInstanceId,
+			context,
+		);
+		await this.store.save(sessionId, key, value, blockInstanceId);
+		this.notifyListeners({
+			sessionId,
+			blockInstanceId,
+			operation: "update",
+			key,
+			value,
+			timestampUtc: new Date().toISOString(),
+		});
+		return value;
+	}
+
 	async setVariables(
 		sessionId: string,
 		variables: Record<string, unknown> | VariableInputEntry[],
@@ -230,14 +262,14 @@ export class VariableServiceStore implements VariableService {
 			return result;
 		}
 
-		if (blockInstanceId) {
-			const blockVal = await this.store.load(
-				sessionId,
-				keyOrKeys,
-				blockInstanceId,
-			);
-			if (blockVal !== undefined) return blockVal as T;
+		// Walk ancestor chain when blockInstanceId is a chain-encoded scope key.
+		// For a single-segment blockId (e.g. "person") this is one iteration.
+		const ancestors = blockInstanceId ? ancestorBlockIds(blockInstanceId) : [];
+		for (const scopeLevel of ancestors) {
+			const val = await this.store.load(sessionId, keyOrKeys, scopeLevel);
+			if (val !== undefined) return val as T;
 		}
+		// Global session fallback
 		const globalVal = await this.store.load(sessionId, keyOrKeys);
 		return globalVal as T | undefined;
 	}
@@ -246,11 +278,16 @@ export class VariableServiceStore implements VariableService {
 		sessionId: string,
 		blockInstanceId?: string,
 	): Promise<Record<string, unknown>> {
+		const ancestors = blockInstanceId ? ancestorBlockIds(blockInstanceId) : [];
+		const merged: Record<string, unknown> = {};
+		// Start from global scope, overlay each ancestor from least to most specific
 		const globalScope = await this.store.loadScope(sessionId);
-		if (!blockInstanceId) return globalScope;
-
-		const blockScope = await this.store.loadScope(sessionId, blockInstanceId);
-		return { ...globalScope, ...blockScope };
+		Object.assign(merged, globalScope);
+		for (const scopeLevel of ancestors) {
+			const scope = await this.store.loadScope(sessionId, scopeLevel);
+			Object.assign(merged, scope);
+		}
+		return merged;
 	}
 
 	async deleteVariable(
@@ -377,6 +414,45 @@ export class VariableServiceStore implements VariableService {
 			timestampUtc: new Date().toISOString(),
 		});
 		return result;
+	}
+
+	async evaluateExpression(
+		sessionId: string,
+		expression: VariableExpression,
+		blockInstanceId?: string,
+		context?: VariableLoweringContext,
+	): Promise<unknown> {
+		const lowered = await lowerVariableExpression(expression, context);
+		if (lowered.diagnostics.length > 0) {
+			throw new Error(lowered.diagnostics.map((d) => d.message).join("; "));
+		}
+		if (lowered.steps.length === 0) {
+			if ("$literal" in lowered.resultRef) return lowered.resultRef.$literal;
+			if ("$var" in lowered.resultRef) {
+				return this.getVariable(
+					sessionId,
+					lowered.resultRef.$var,
+					blockInstanceId,
+				);
+			}
+		}
+		return this.evaluatePipeline(sessionId, lowered.steps, blockInstanceId);
+	}
+
+	async assertExpression(
+		sessionId: string,
+		expression: VariableExpression,
+		blockInstanceId?: string,
+		context?: VariableLoweringContext,
+	): Promise<boolean> {
+		const result = await this.evaluateExpression(
+			sessionId,
+			expression,
+			blockInstanceId,
+			context,
+		);
+		if (!result) throw new Error("Variable assertion failed");
+		return true;
 	}
 
 	subscribe(

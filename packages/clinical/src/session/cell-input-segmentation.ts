@@ -4,6 +4,7 @@ import type { CellIntentKind } from "./cell";
 export type CellInputSegmentKind =
 	| "prose"
 	| "workspace_command"
+	| "variable_command"
 	| "cell_configuration"
 	| "ui_command";
 
@@ -18,6 +19,7 @@ export interface CellInputSegment {
 export interface CellInputCommandPolicy {
 	isUiCommand?: (verb: string) => boolean;
 	isWorkspaceCommand?: (verb: string) => boolean;
+	isVariableCommand?: (verb: string) => boolean;
 	isCellConfiguration?: (verb: string) => boolean;
 }
 
@@ -36,6 +38,7 @@ function classify(
 	const verb = firstCommand(line, profile.cellCommandToken || ":");
 	if (!verb) return "prose";
 	if (policy.isUiCommand?.(verb)) return "ui_command";
+	if (policy.isVariableCommand?.(verb)) return "variable_command";
 	if (policy.isWorkspaceCommand?.(verb)) return "workspace_command";
 	if (policy.isCellConfiguration?.(verb)) return "cell_configuration";
 	return "prose";
@@ -43,6 +46,7 @@ function classify(
 
 function intentFor(kind: CellInputSegmentKind): CellIntentKind {
 	if (kind === "workspace_command") return "workspace_command";
+	if (kind === "variable_command") return "variable_command";
 	if (kind === "cell_configuration") return "cell_configuration";
 	if (kind === "ui_command") return "ui_command";
 	return "prose";
@@ -91,6 +95,7 @@ export function segmentCellInput(
 		if (
 			!current ||
 			current.kind === "workspace_command" ||
+			current.kind === "variable_command" ||
 			current.kind === "ui_command"
 		) {
 			flush(index - 1);

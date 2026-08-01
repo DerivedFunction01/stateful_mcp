@@ -12,6 +12,17 @@ function compileArg(
 		if ("$var" in arg) {
 			return vars[arg.$var] || "NULL";
 		}
+		if ("$literal" in arg) {
+			if (arg.$literal === null) return "NULL";
+			if (typeof arg.$literal === "boolean") return arg.$literal ? "1" : "0";
+			if (typeof arg.$literal === "number") return String(arg.$literal);
+			return `'${String(arg.$literal).replace(/'/g, "''")}'`;
+		}
+		if ("$path" in arg) {
+			return dialect === "sqlite"
+				? `json_extract(row, '$.${arg.$path.join(".")}')`
+				: `row #>> '{${arg.$path.join(",")}}'`;
+		}
 		if ("$fn" in arg) {
 			if (arg.$fn === "now") {
 				return dialect === "sqlite" ? "date('now')" : "CURRENT_DATE";
@@ -38,6 +49,12 @@ export function compilePipelineToSQL(
 		const args = step.args.map((a) => compileArg(a, vars, dialect));
 
 		switch (step.op) {
+			case "neg":
+				lastExpr = `(-${args[0] ?? "0"})`;
+				break;
+			case "not":
+				lastExpr = `(NOT ${args[0] ?? "0"})`;
+				break;
 			case "add":
 				lastExpr = args.length === 0 ? "0" : `(${args.join(" + ")})`;
 				break;

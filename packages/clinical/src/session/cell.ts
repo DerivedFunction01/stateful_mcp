@@ -12,6 +12,7 @@ export interface CellCollectionRef {
 export type CellIntentKind =
 	| "prose"
 	| "workspace_command"
+	| "variable_command"
 	| "cell_configuration"
 	| "directed_value"
 	| (string & {});

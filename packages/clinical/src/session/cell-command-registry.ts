@@ -25,7 +25,7 @@ const COMMAND_DESCRIPTOR_GROUP: Record<string, CommandGroup> = {
 	preview: CommandGroup.Cell,
 	delete: CommandGroup.Cell,
 	mode: CommandGroup.Cell,
-	set: CommandGroup.Field,
+	target: CommandGroup.Field,
 	link: CommandGroup.Field,
 	unlink: CommandGroup.Field,
 	parent: CommandGroup.Field,
@@ -45,7 +45,7 @@ const COMMAND_DESCRIPTOR_ARGS: Record<string, CommandArgSchema[]> = {
 			completions: ["cdsl", "narrative", "js_script"],
 		},
 	],
-	set: [
+	target: [
 		{ name: "field", required: true, descriptionKey: "arg.set.field" },
 		{ name: "value", required: true, descriptionKey: "arg.set.value" },
 	],
@@ -200,7 +200,7 @@ export class CellCommandRegistry {
 			delete ctx.cell.linkTarget;
 			return { success: true, cell: ctx.cell };
 		});
-		registry.register("set", async (c, ctx) => {
+		registry.register("target", async (c, ctx) => {
 			const equals = c.args.indexOf("=");
 			const field = equals >= 0 ? c.args.slice(0, equals).join(" ") : c.args[0];
 			const value =
@@ -241,6 +241,11 @@ export class CellCommandRegistry {
 				cell: ctx.cell,
 				parsedOutput: ctx.cell.parsedOutput,
 			};
+		});
+		// Legacy alias retained at the parser boundary while :target becomes the
+		// documented cell-targeting command. Variable assignment uses :var set.
+		registry.register("set", async (c, ctx) => {
+			return registry.get("target")!(c, ctx);
 		});
 		registry.register("help", async (_c, ctx) =>
 			ok(registry.helpText(ctx.profile.cellCommandToken || ":")),

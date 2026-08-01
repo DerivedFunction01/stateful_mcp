@@ -14,12 +14,39 @@ function resolveArg(
 				: constants[arg.$init];
 		if ("$var" in arg)
 			return vars[arg.$var] !== undefined ? vars[arg.$var] : row[arg.$var];
+		if ("$literal" in arg) return arg.$literal;
+		if ("$path" in arg) {
+			let value: unknown = row;
+			for (const segment of arg.$path) {
+				if (value === null || value === undefined) return undefined;
+				value = (value as Record<string, unknown>)[segment];
+			}
+			return value;
+		}
 		if ("$fn" in arg) {
 			if (arg.$fn === "now") return new Date().toISOString().slice(0, 10);
 			if (arg.$fn === "utc_time") return new Date().toISOString();
 		}
 	}
 	return arg; // literal
+}
+
+function equivalentValue(left: unknown, right: unknown): boolean {
+	if (left === right) return true;
+	if (
+		typeof left === "object" &&
+		left !== null &&
+		typeof right === "object" &&
+		right !== null &&
+		"conceptId" in left &&
+		"conceptId" in right
+	) {
+		return (
+			(left as { conceptId?: unknown }).conceptId ===
+			(right as { conceptId?: unknown }).conceptId
+		);
+	}
+	return false;
 }
 
 // Execute a full pipeline over one row, threading return_var results as vars
@@ -54,6 +81,10 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 	};
 
 	switch (step.op) {
+		case "neg":
+			return -Number(args[0]);
+		case "not":
+			return !args[0];
 		// Arithmetic (Variadic Lisp-style)
 		case "add":
 			return args.reduce<number>((sum, val) => sum + Number(val), 0);
@@ -96,9 +127,14 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 				(val, i) => i === 0 || (args[i - 1] as any) <= (val as any),
 			);
 		case "eq":
-			return args.every((val) => val === args[0]);
+			return args.every((val) => equivalentValue(val, args[0]));
 		case "neq":
-			return new Set(args).size === args.length;
+			return args.every((val, index) =>
+				args.every(
+					(other, otherIndex) =>
+						index === otherIndex || !equivalentValue(val, other),
+				),
+			);
 		case "geq":
 			return args.every(
 				(val, i) => i === 0 || (args[i - 1] as any) >= (val as any),
@@ -116,12 +152,12 @@ function applyOp(step: PipelineStep, args: unknown[]): unknown {
 		case "in_set": {
 			if (args.length < 2) return false;
 			const [testVal, ...set] = args;
-			return set.some((member) => member === testVal);
+			return set.some((member) => equivalentValue(member, testVal));
 		}
 		case "not_in_set": {
 			if (args.length < 2) return true;
 			const [testVal, ...set] = args;
-			return set.every((member) => member !== testVal);
+			return set.every((member) => !equivalentValue(member, testVal));
 		}
 		// Date
 		case "year": {

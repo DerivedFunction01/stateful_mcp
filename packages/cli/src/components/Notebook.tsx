@@ -67,14 +67,8 @@ export function Notebook({
 				error={workspace.error}
 				focused={workspace.focused}
 				onClose={onCloseWorkspace}
-				onProcessInput={async (branchId, text) => {
-					if (!workspace.snapshot) return;
-					await workspace.processInput(
-						workspace.snapshot.workspaceId,
-						branchId,
-						text,
-					);
-				}}
+				planSubmission={workspace.planSubmission}
+				onSubmitPlan={workspace.submitPlan}
 				getCommandSuggestions={workspace.getCommandSuggestions}
 				onFocusBranch={workspace.focusBranch}
 			/>
