@@ -21,16 +21,8 @@ export interface DispatchContext {
 export interface DispatchResult {
 	success: boolean;
 	message?: string;
-	action?:
-		| "quit"
-		| "save"
-		| "show_errors"
-		| "show_help"
-		| "search"
-		| "undo"
-		| "redo"
-		| "set_execution_mode"
-		| "edit_cell";
+	action?: string;
+	data?: unknown;
 	commands?: Array<{ type: string; [key: string]: unknown }>;
 }
 
@@ -81,9 +73,11 @@ export class CommandDispatcher {
 	}
 
 	async dispatch(line: string): Promise<DispatchResult> {
-		const verbEnd = line.indexOf(" ");
-		const verb = verbEnd >= 0 ? line.slice(0, verbEnd) : line;
-		const argsStr = verbEnd >= 0 ? line.slice(verbEnd + 1).trim() : "";
+		const trimmed = line.replace(/^:+/, "").trim();
+		if (!trimmed) return { success: false, message: "empty command" };
+		const verbEnd = trimmed.indexOf(" ");
+		const verb = verbEnd >= 0 ? trimmed.slice(0, verbEnd) : trimmed;
+		const argsStr = verbEnd >= 0 ? trimmed.slice(verbEnd + 1).trim() : "";
 		const args = argsStr ? argsStr.split(" ") : [];
 
 		const editorResult = this.ctx.editorRegistry.dispatch(verb, args);
@@ -92,6 +86,7 @@ export class CommandDispatcher {
 				success: true,
 				message: editorResult.message,
 				action: editorResult.action as any,
+				data: editorResult.data,
 				commands: editorResult.data
 					? [{ type: "INTERNAL", ...(editorResult.data as any) }]
 					: [],

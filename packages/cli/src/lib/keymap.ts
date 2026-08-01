@@ -70,7 +70,6 @@ export function resolveKey(
 			case "p": return { action: EditorAction.PasteCell, nextPending: "" };
 			case "P": return { action: EditorAction.PreviewCell, nextPending: "" };
 			case "u": return { action: EditorAction.Undo, nextPending: "" };
-			case "q": return { action: EditorAction.Quit, nextPending: "" };
 			case "r": return { action: EditorAction.RunCell, nextPending: "" };
 			case ":": return { action: EditorAction.OpenCommandLine, nextPending: "" };
 			case "s": return { action: EditorAction.Search, nextPending: "" };

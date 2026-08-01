@@ -53,7 +53,22 @@ export function NotebookApp() {
 				}
 				if (key.return) {
 					dispatchCommand(state.commandLine).then((result) => {
-						if (result.message === "quit") exit();
+						if (result.action === "quit") { exit(); return; }
+						if (result.action === "show_help") { dispatch({ type: "TOGGLE_HELP" }); return; }
+						if (result.action === "show_errors") { dispatch({ type: "SET_MESSAGE", message: "errors view" }); return; }
+						if (result.action === "undo") { dispatch({ type: "UNDO" }); return; }
+						if (result.action === "redo") { dispatch({ type: "REDO" }); return; }
+						if (result.action === "set_execution_mode") {
+							const mode = (result as any).data?.mode;
+							if (mode === "preview" || mode === "execute") {
+								dispatch({ type: "SET_SESSION_MODE", mode });
+							}
+							return;
+						}
+						if (result.action === "save") { dispatch({ type: "SET_MESSAGE", message: "saved" }); return; }
+						if (!result.success && result.message) {
+							dispatch({ type: "SET_MESSAGE", message: result.message });
+						}
 					});
 					setSuggestionIndex(-1);
 					return;

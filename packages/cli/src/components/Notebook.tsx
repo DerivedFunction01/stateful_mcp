@@ -1,6 +1,7 @@
 import { Box } from "ink";
 import { CellList } from "./CellList";
 import { CommandBar } from "./CommandBar";
+import { HelpBar } from "./HelpBar";
 import { HelpScreen } from "./HelpScreen";
 import { StatusBar } from "./StatusBar";
 import { WorkspaceScreen, createStubSnapshot } from "./WorkspaceScreen";
@@ -73,6 +74,10 @@ export function Notebook({
 				lastEditCellId={state.lastEditCellId}
 				visualStart={state.visualStart}
 				visualEnd={state.visualEnd}
+			/>
+			<HelpBar
+				mode={state.mode}
+				editorDescriptors={editorDescriptors}
 			/>
 			<StatusBar
 				mode={state.mode}

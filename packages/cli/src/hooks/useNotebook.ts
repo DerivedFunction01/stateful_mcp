@@ -147,7 +147,7 @@ export function useNotebook(session: SessionState | null) {
 	);
 
 	const dispatchCommand = useCallback(
-		async (line: string): Promise<{ success: boolean; message?: string }> => {
+		async (line: string): Promise<{ success: boolean; message?: string; action?: string; data?: unknown }> => {
 			if (!session) return { success: false, message: "no session" };
 			const registry = (session.result.processor as any).cellCommandRegistry;
 			const dispatcher = new CommandDispatcher({
@@ -170,7 +170,7 @@ export function useNotebook(session: SessionState | null) {
 			if (result.message) {
 				dispatch({ type: "SET_MESSAGE", message: result.message });
 			}
-			return result;
+			return { success: result.success, message: result.message, action: result.action, data: result.data };
 		},
 		[session, state.activeIndex, state.cells],
 	);
@@ -205,7 +205,43 @@ export function useNotebook(session: SessionState | null) {
 			const registry = (session.result.processor as any).cellCommandRegistry;
 			const editorDescs = editorRegistryRef.current.getDescriptors();
 			const cellDescs = registry?.getDescriptors?.() ?? [];
-			return getAutocompleteSuggestions(partial, editorDescs, cellDescs);
+			const suggestions = getAutocompleteSuggestions(partial, editorDescs, cellDescs);
+
+			// When a verb is fully typed and a space follows, inject profile-based completions
+			if (partial.includes(" ")) {
+				const verb = partial.slice(0, partial.indexOf(" "));
+				const matchedDesc = [...editorDescs, ...cellDescs].find(
+					(d) => d.verb === verb,
+				);
+				if (matchedDesc) {
+					// Already handled by getAutocompleteSuggestions → arg names/completions
+				} else {
+					// Unknown verb — try to inject field/tag mappings from profile
+					try {
+						const parser = (session.result.engine as any).parser;
+						if (parser && typeof parser.getProfile === "function") {
+							const profile = parser.getProfile();
+							const fieldKeys = Object.keys(profile.fieldMappings ?? {});
+							const tagKeys = Object.keys(profile.tagMappings ?? {});
+							const all = [...fieldKeys, ...tagKeys].filter(
+								(k) => k.startsWith(partial.slice(partial.indexOf(" ") + 1)),
+							);
+							for (const key of all) {
+								suggestions.push({
+									verb: key,
+									group: "field",
+									source: "cell" as const,
+									hasArgs: false,
+								});
+							}
+						}
+					} catch {
+						// profile not available
+					}
+				}
+			}
+
+			return suggestions;
 		},
 		[session],
 	);
