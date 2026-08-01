@@ -500,3 +500,37 @@ export interface ClinicalParseConfidenceScorer {
 		context: ParsedCellRankerContext,
 	): Promise<ScoredParsedItem>;
 }
+
+// ── N-Gram Store ──────────────────────────────────────────────────────────────
+
+export interface NgramRecord {
+	ngram: string;
+	n: 1 | 2 | 3;
+	kind: import("../reference/auto-complete/interfaces").AutocompleteSuggestionKind;
+	frequency: number;
+	lastUpdatedAt: string;
+	templateId?: string;
+	slotName?: string;
+}
+
+export interface NgramSuggestion {
+	ngram: string;
+	n: 1 | 2 | 3;
+	kind: import("../reference/auto-complete/interfaces").AutocompleteSuggestionKind;
+	frequency: number;
+	lastUpdatedAt: string;
+}
+
+export interface NgramStore {
+	increment(
+		ngram: string,
+		n: 1 | 2 | 3,
+		kind: import("../reference/auto-complete/interfaces").AutocompleteSuggestionKind,
+		ctx?: { templateId?: string; slotName?: string },
+	): Promise<void>;
+	suggest(prefix: string, limit?: number): Promise<NgramSuggestion[]>;
+	getTopByKind(
+		kind: import("../reference/auto-complete/interfaces").AutocompleteSuggestionKind,
+		limit?: number,
+	): Promise<NgramSuggestion[]>;
+}

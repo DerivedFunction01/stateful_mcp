@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import { MemoryKvBackend } from "@stateful-mcp/core";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import { AutocompleteSessionManager } from "../src/parser/utils/autocomplete-session-manager";
 import { AutocompleteSessionStateMapper } from "../src/parser/utils/autocomplete-state-mapper";
+import { KvNgramStore } from "../src/store/learning/autocomplete/kv-ngram-store";
 import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 import type { ParsedItem } from "../src/parser/schema-parsers";
 import type { ProseTemplate } from "../src/store/reference/prose-parser-templates/prose-template";
@@ -153,5 +155,54 @@ describe("AutocompleteSessionManager", () => {
 		await manager.updateFromParse(items);
 		const state = manager.getState();
 		expect(state.filledSlots.symptom).toBe("Chest Pain");
+	});
+
+	it("falls back to n-gram suggestions when primary returns empty", async () => {
+		const parser = makeParser();
+		const ngramStore = new KvNgramStore(new MemoryKvBackend());
+		await ngramStore.increment("shoulder pain", 2, "prose");
+		await ngramStore.increment("sharp pain", 2, "prose");
+
+		const manager = new AutocompleteSessionManager(
+			parser,
+			undefined,
+			undefined,
+			"user1",
+			ngramStore,
+		);
+
+		const results = await manager.suggest("sh");
+		expect(results.length).toBeGreaterThan(0);
+		expect(results.every((r) => r.kind === "prose")).toBe(true);
+	});
+
+	it("updateFromParse feeds n-grams into store", async () => {
+		const parser = makeParser();
+		const ngramStore = new KvNgramStore(new MemoryKvBackend());
+
+		const manager = new AutocompleteSessionManager(
+			parser,
+			undefined,
+			undefined,
+			"user1",
+			ngramStore,
+		);
+
+		const items: ParsedItem[] = [
+			{
+				targetSchema: "ObservationEvent",
+				tag: "#observation",
+				rawText: "sharp chest pain",
+				concept: [{ conceptId: "SNOMED::123", display: "Chest Pain" }],
+				attributes: {},
+				extractedData: {},
+			},
+		];
+		await manager.updateFromParse(items);
+
+		const results = await ngramStore.suggest("sh");
+		expect(results.length).toBeGreaterThan(0);
+		// "sharp" should be present as a uni-gram
+		expect(results.some((r) => r.ngram === "sharp")).toBe(true);
 	});
 });

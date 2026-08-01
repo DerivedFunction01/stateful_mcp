@@ -14,8 +14,10 @@ import {
 	SqlExecutor,
 } from "@stateful-mcp/core";
 import { KvAutocompleteTransitionStore } from "./autocomplete/kv-autocomplete-transition-store";
+import { KvNgramStore } from "./autocomplete/kv-ngram-store";
 import { SqlAutocompleteTransitionStore } from "./autocomplete/sql-autocomplete-transition-store";
-import type { AutocompleteTransitionStore } from "./interfaces";
+import { SqlNgramStore } from "./autocomplete/sql-ngram-store";
+import type { AutocompleteTransitionStore, NgramStore } from "./interfaces";
 
 async function resolveKvBackendFromLocator(
 	locator: ResourceLocator,
@@ -89,6 +91,44 @@ export async function resolveAutocompleteTransitionStoreLocator(
 	if (["memory", "jsonl", "indexeddb", "localstorage"].includes(name)) {
 		const kvBackend = await resolveKvBackendFromLocator(locator);
 		return new KvAutocompleteTransitionStore(kvBackend);
+	}
+
+	throw new Error(`Unsupported clinical autocomplete adapter: ${name}`);
+}
+
+export async function resolveNgramStoreLocator(
+	locator: ResourceLocator,
+): Promise<NgramStore> {
+	if (locator._type !== "adapter") {
+		throw new Error(
+			`Unsupported clinical autocomplete locator type: ${locator._type}`,
+		);
+	}
+	const name = locator.name;
+
+	if (["sqlite", "duckdb", "postgres", "opfs"].includes(name)) {
+		const connectionTarget = resolveDbPath(
+			locator,
+			name as SqlDialect,
+			name === "postgres"
+				? "postgres://localhost:5432/clinical_autocomplete"
+				: `./clinical-autocomplete.${name === "duckdb" ? "duckdb" : "sqlite"}`,
+		);
+
+		const backend = await SqlBackend.connect(
+			name as SqlDialect,
+			connectionTarget,
+		);
+
+		return new SqlNgramStore(
+			name as SqlDialect,
+			new SqlExecutor(backend),
+		);
+	}
+
+	if (["memory", "jsonl", "indexeddb", "localstorage"].includes(name)) {
+		const kvBackend = await resolveKvBackendFromLocator(locator);
+		return new KvNgramStore(kvBackend);
 	}
 
 	throw new Error(`Unsupported clinical autocomplete adapter: ${name}`);

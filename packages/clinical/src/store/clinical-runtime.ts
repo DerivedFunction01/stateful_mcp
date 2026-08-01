@@ -6,9 +6,10 @@ import {
 } from "./adapter-types";
 import type { ClinicalStoreConfig } from "./clinical-config";
 import type { ParserMacroStore } from "./interfaces";
-import { resolveAutocompleteTransitionStoreLocator } from "./learning/autocomplete-resolver";
+import { resolveAutocompleteTransitionStoreLocator, resolveNgramStoreLocator } from "./learning/autocomplete-resolver";
 import type {
 	AutocompleteTransitionStore,
+	NgramStore,
 	OrderedLearningStore,
 	ParsedCellStore,
 } from "./learning/interfaces";
@@ -85,6 +86,7 @@ export interface ClinicalRuntime {
 	orderedLearningStores: OrderedLearningStore[];
 	autocompleteTransitionStores: AutocompleteTransitionStore[];
 	autocompleteTransitionStore?: AutocompleteTransitionStore;
+	ngramStore?: NgramStore;
 }
 
 // ── Factory using decomposed stores ──────────────────────────────────────────
@@ -121,6 +123,8 @@ export async function createClinicalRuntime(
 		buildOrderedLearningStores(config),
 		buildAutocompleteTransitionStores(config),
 	]);
+
+	const ngramStores = await buildNgramStores(config);
 
 	const composer = new DefaultParserProfileComposer(
 		profiles.core,
@@ -164,6 +168,7 @@ export async function createClinicalRuntime(
 		orderedLearningStores,
 		autocompleteTransitionStores,
 		autocompleteTransitionStore: autocompleteTransitionStores[0],
+		ngramStore: ngramStores[0],
 	};
 }
 
@@ -206,5 +211,19 @@ async function buildAutocompleteTransitionStores(
 		adapters
 			.filter((a) => a.implemented !== false && a.primary)
 			.map((a) => resolveAutocompleteTransitionStoreLocator(a.primary)),
+	);
+}
+
+async function buildNgramStores(
+	config: ClinicalStoreConfig,
+): Promise<NgramStore[]> {
+	const adapters = getClinicalAdapterConfigs("autocomplete", {
+		autocomplete: config.domains.autocomplete.defaultAdapters,
+	} as unknown as ClinicalStorageAdapterRegistry);
+
+	return await Promise.all(
+		adapters
+			.filter((a) => a.implemented !== false && a.primary)
+			.map((a) => resolveNgramStoreLocator(a.primary)),
 	);
 }

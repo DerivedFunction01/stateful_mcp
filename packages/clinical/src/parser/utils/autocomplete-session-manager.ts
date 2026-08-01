@@ -2,6 +2,7 @@ import type { CdslParser } from "../cdsl-parser";
 import type {
 	AutocompleteTransitionInsertPlan,
 	AutocompleteTransitionStore,
+	NgramStore,
 } from "../../store/learning/interfaces";
 import type {
 	AutocompleteSelection,
@@ -11,6 +12,8 @@ import type { AutocompleteSuggestion } from "../../store/reference/auto-complete
 import type { ProseParserTemplateStore } from "../../store/reference/prose-parser-templates/interfaces";
 import type { ParsedItem } from "../schema-parsers";
 import { AutocompleteSessionStateMapper } from "./autocomplete-state-mapper";
+import { NgramSuggester } from "../autocomplete/ngram-suggester";
+import { extractNgrams } from "./ngram-extractor";
 
 export interface AutocompleteSessionState {
 	activeTemplateId: string | null;
@@ -22,13 +25,19 @@ export class AutocompleteSessionManager {
 	private activeTemplateId: string | null = null;
 	private filledSlots: Record<string, unknown> = {};
 	private recentTargetSchemas: string[] = [];
+	private ngramSuggester?: NgramSuggester;
 
 	constructor(
 		private readonly cdslParser: CdslParser,
 		private readonly proseTemplateStore?: ProseParserTemplateStore,
 		private readonly transitionStore?: AutocompleteTransitionStore,
 		private readonly personnelId: string = "system",
-	) {}
+		private readonly ngramStore?: NgramStore,
+	) {
+		if (this.ngramStore) {
+			this.ngramSuggester = new NgramSuggester(this.ngramStore);
+		}
+	}
 
 	async suggest(partialText: string): Promise<AutocompleteSuggestion[]> {
 		const commandContext: CommandAutocompleteContext = {
@@ -36,9 +45,33 @@ export class AutocompleteSessionManager {
 			filledSlots: this.filledSlots,
 			personnelId: this.personnelId,
 		};
-		return this.cdslParser.suggestAutocomplete(partialText, {
+		const primary = await this.cdslParser.suggestAutocomplete(partialText, {
 			personnelId: this.personnelId,
 		}, commandContext);
+
+		// If primary returns enough results, return them directly
+		if (primary.length >= 3 || !this.ngramSuggester) return primary;
+
+		// Fallback: merge with n-gram suggestions
+		const ngram = await this.ngramSuggester.suggest(
+			partialText,
+			this.activeTemplateId,
+		);
+		if (ngram.length === 0) return primary;
+
+		const dedupSet = new Set<string>();
+		for (const s of primary) {
+			dedupSet.add(s.insertText.toLowerCase());
+		}
+		const merged = [...primary];
+		for (const s of ngram) {
+			if (!dedupSet.has(s.insertText.toLowerCase())) {
+				merged.push(s);
+				dedupSet.add(s.insertText.toLowerCase());
+			}
+		}
+		merged.sort((a, b) => b.rankScore - a.rankScore);
+		return merged.slice(0, 5);
 	}
 
 	async select(suggestion: AutocompleteSuggestion): Promise<void> {
@@ -76,6 +109,20 @@ export class AutocompleteSessionManager {
 					template,
 				);
 				Object.assign(this.filledSlots, slots);
+			}
+		}
+
+		// Feed n-gram store from parsed text
+		if (this.ngramStore) {
+			for (const item of parsedItems) {
+				const kind = item.tag?.startsWith("#") ? "tag" : "prose";
+				const ngrams = extractNgrams(item.rawText, kind, {
+					templateId: this.activeTemplateId ?? undefined,
+					slotName: item.targetSchema,
+				});
+				for (const ng of ngrams) {
+					await this.ngramStore.increment(ng.ngram, ng.n, ng.kind);
+				}
 			}
 		}
 	}

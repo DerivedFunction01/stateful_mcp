@@ -31,6 +31,7 @@ import type {
 } from "../store/interfaces";
 import type {
 	AutocompleteTransitionStore,
+	NgramStore,
 	ParsedCellHistoryStore,
 	ParsedCellRecord,
 	ParsedCellStore,
@@ -438,6 +439,7 @@ export interface ClinicalEngineConfig {
 	proseParserTemplateStore?: ProseParserTemplateStore;
 	sharedFieldAnchorStore?: SharedFieldAnchorStore;
 	commandSuggester?: CommandAutocompleteSuggester;
+	ngramStore?: NgramStore;
 	personnelId?: string;
 }
 
@@ -501,6 +503,7 @@ export class ClinicalEngine {
 				config.proseParserTemplateStore,
 				config.autocompleteTransitionStore,
 				this.personnelId,
+				config.ngramStore,
 			);
 		} else if (profileStore) {
 			// Defer initialization — lazy init on first use
@@ -526,6 +529,7 @@ export class ClinicalEngine {
 				config.proseParserTemplateStore,
 				config.autocompleteTransitionStore,
 				this.personnelId,
+				config.ngramStore,
 			);
 		}
 	}
