@@ -711,6 +711,29 @@ export class ClinicalEngine {
 	}
 
 	/**
+	 * Ensures an active encounter SOAP note exists for the session.
+	 *
+	 * Idempotent: if a note already exists at the effective alias, returns its
+	 * id without re-creating it. Otherwise initializes a new encounter and
+	 * returns the produced note id.
+	 */
+	async ensureEncounter(
+		sessionId: string,
+		patient: PatientProfile,
+		alias?: string,
+	): Promise<string> {
+		const effectiveAlias = alias ?? sessionId;
+		const activeObj = await this.objectStore.getObject(
+			effectiveAlias,
+			sessionId,
+		);
+		if (activeObj) {
+			return (activeObj.data as SoapNote).id;
+		}
+		return this.initEncounter(sessionId, patient, undefined, effectiveAlias);
+	}
+
+	/**
 	 * Parses CDSL clinical dictation and dynamically compiles it into the active SOAP note.
 	 */
 	async processCdsl(

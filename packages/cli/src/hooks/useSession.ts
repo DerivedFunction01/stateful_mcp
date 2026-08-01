@@ -1,8 +1,7 @@
 import type { EngineBuilderResult } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
-import { ClinicalEngineBuilder } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
 import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebook-store";
 import { useEffect, useState } from "react";
-import { resolveInitialSession } from "../lib/session-resolver";
+import { bootstrapSession } from "../lib/session-bootstrap";
 
 export interface SessionState {
 	result: EngineBuilderResult;
@@ -16,9 +15,7 @@ export function useSession(): SessionState | null {
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const result = await ClinicalEngineBuilder.withDefaultBackend("memory");
-			if (cancelled) return;
-			const sessionId = await resolveInitialSession(result.notebook);
+			const { result, sessionId } = await bootstrapSession();
 			if (cancelled) return;
 			setState({
 				result,

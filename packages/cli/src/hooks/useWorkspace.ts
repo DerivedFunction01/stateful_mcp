@@ -21,6 +21,7 @@ interface UseWorkspaceReturn {
 	addBranch: (branchName: string, conceptText: string) => Promise<void>;
 	focused: boolean;
 	toggleFocus: () => void;
+	resetWorkspace: () => void;
 }
 
 export function useWorkspace({
@@ -38,9 +39,9 @@ export function useWorkspace({
 
 	useEffect(() => {
 		if (!showWorkspace) {
-			setSnapshot(null);
-			workspaceIdRef.current = null;
-			initializedRef.current = false;
+			// Keep the snapshot alive when the full workspace screen closes so the
+			// context strip can keep rendering the active workspace in normal mode.
+			// Only an explicit reset (complete/reset) clears it.
 			setFocused(false);
 			return;
 		}
@@ -102,6 +103,13 @@ export function useWorkspace({
 		[session, sessionId, refresh],
 	);
 
+	const resetWorkspace = useCallback(() => {
+		setSnapshot(null);
+		workspaceIdRef.current = null;
+		initializedRef.current = false;
+		setFocused(false);
+	}, []);
+
 	const complete = useCallback(
 		async (winningBranchId: string) => {
 			setError(null);
@@ -114,14 +122,12 @@ export function useWorkspace({
 					workspaceIdRef.current,
 					winningBranchId,
 				);
-				setSnapshot(null);
-				workspaceIdRef.current = null;
-				initializedRef.current = false;
+				resetWorkspace();
 			} catch (err) {
 				setError(err instanceof Error ? err.message : String(err));
 			}
 		},
-		[session, sessionId],
+		[session, sessionId, resetWorkspace],
 	);
 
 	const addBranch = useCallback(
@@ -158,5 +164,6 @@ export function useWorkspace({
 		addBranch,
 		focused,
 		toggleFocus,
+		resetWorkspace,
 	};
 }

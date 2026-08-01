@@ -69,22 +69,40 @@ export class WorkspaceStore {
 		const linkedSourceEventId = sessionId;
 		const workspaceId = `work_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 
-		const branches: ClinicalBranch[] = candidateConcepts.map(
-			(concept, idx) => ({
-				id: `branch_${workspaceId}_${idx}`,
-				parentId: null,
-				name: concept.display || "Hypothesis Branch",
-				commandAlias: undefined,
-				hypothesisConcept: concept,
-				status: (idx === 0 ? "active" : "suspended") as BranchLifecycleState,
-				supportingConcepts: [],
-				refutingConcepts: [],
-				createdAt: {
-					assertedTimestampUtc: new Date().toISOString(),
-					precisionLevel: "second",
-				},
-			}),
-		);
+		const branches: ClinicalBranch[] = candidateConcepts.length
+			? candidateConcepts.map((concept, idx) => ({
+					id: `branch_${workspaceId}_${idx}`,
+					parentId: null,
+					name: concept.display || "Hypothesis Branch",
+					commandAlias: undefined,
+					hypothesisConcept: concept,
+					status: (idx === 0 ? "active" : "suspended") as BranchLifecycleState,
+					supportingConcepts: [],
+					refutingConcepts: [],
+					createdAt: {
+						assertedTimestampUtc: new Date().toISOString(),
+						precisionLevel: "second",
+					},
+				}))
+			: [
+					{
+						id: `branch_${workspaceId}_default`,
+						parentId: null,
+						name: "Hypothesis",
+						commandAlias: undefined,
+						hypothesisConcept: {
+							conceptId: "hypothesis_default",
+							display: "Hypothesis",
+						},
+						status: "active" as BranchLifecycleState,
+						supportingConcepts: [],
+						refutingConcepts: [],
+						createdAt: {
+							assertedTimestampUtc: new Date().toISOString(),
+							precisionLevel: "second" as const,
+						},
+					},
+				];
 
 		const workspace: EpistemicWorkspace = {
 			id: workspaceId,

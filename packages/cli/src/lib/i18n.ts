@@ -57,6 +57,9 @@ const en: Record<string, string> = {
 	"workspace.inputHint": "type a finding, hypothesis, or command...",
 	"workspace.ruledOut": "✗ ruled_out",
 	"workspace.focused": "FOCUSED",
+	"workspace.strip.full":
+		"workspace: {id} · branch: {name} · {status} · +{sup} / -{ref}",
+	"workspace.strip.short": "workspace {id} · {name} {status}",
 
 	// Editor command descriptions (locale-neutral keys from EditorCommandRegistry)
 	"editor.command.w": "save",

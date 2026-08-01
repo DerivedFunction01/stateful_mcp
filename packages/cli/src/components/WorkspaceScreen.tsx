@@ -3,6 +3,7 @@ import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import { formatParsedItem } from "../formatter/format-parsed";
 import { t } from "../lib/i18n";
+import { StatusBadge } from "./StatusBadge";
 
 interface WorkspaceScreenProps {
 	snapshot: WorkspaceSnapshot | null;
@@ -15,24 +16,6 @@ interface WorkspaceScreenProps {
 	onAddBranch: (name: string, conceptText: string) => Promise<void>;
 	onToggleFocus: () => void;
 	workspaceCommandMappings: Record<string, string>;
-}
-
-function StatusBadge({ status }: { status: string }) {
-	const color =
-		status === "active"
-			? "green"
-			: status === "suspended"
-				? "yellow"
-				: status === "confirmed"
-					? "blue"
-					: status === "rule_out"
-						? "red"
-						: "gray";
-	return (
-		<Text color={color as any}>
-			{status === "rule_out" ? t("workspace.ruledOut") : status}
-		</Text>
-	);
 }
 
 function GlobalFactsStrip({

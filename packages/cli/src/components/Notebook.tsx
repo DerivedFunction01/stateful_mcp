@@ -12,6 +12,7 @@ import { HelpBar } from "./HelpBar";
 import { HelpScreen } from "./HelpScreen";
 import { StatusBar } from "./StatusBar";
 import { WorkspaceScreen } from "./WorkspaceScreen";
+import { WorkspaceStrip } from "./WorkspaceStrip";
 
 interface NotebookProps {
 	state: NotebookState;
@@ -100,6 +101,7 @@ export function Notebook({
 				: state.commandLine.slice(1);
 		return (
 			<Box flexDirection="column" width="100%" height="100%">
+				<WorkspaceStrip snapshot={workspace.snapshot} />
 				<CellList
 					cells={state.cells}
 					activeIndex={state.activeIndex}
@@ -141,6 +143,7 @@ export function Notebook({
 
 	return (
 		<Box flexDirection="column" width="100%" height="100%">
+			<WorkspaceStrip snapshot={workspace.snapshot} />
 			<CellList
 				cells={state.cells}
 				activeIndex={state.activeIndex}
