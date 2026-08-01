@@ -34,4 +34,10 @@ export enum EditorAction {
 	TypeChar = "type_char",
 	Backspace = "backspace",
 	CommitCell = "commit_cell",
+	EnterVisualMode = "enter_visual_mode",
+	ExtendSelectionDown = "extend_selection_down",
+	ExtendSelectionUp = "extend_selection_up",
+	SwapSelectionAnchor = "swap_selection_anchor",
+	DeleteSelection = "delete_selection",
+	YankSelection = "yank_selection",
 }

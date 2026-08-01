@@ -1,275 +1,22 @@
+import {
+	notebookReducer,
+	INITIAL_NOTEBOOK_STATE,
+} from "@stateful-mcp/clinical/notebook/notebook-state";
+import { CommandDispatcher } from "@stateful-mcp/clinical/notebook/command-dispatcher";
+import { PreviewWorkflow } from "@stateful-mcp/clinical/notebook/preview-workflow";
+import { getAutocompleteSuggestions } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
-import type { PreviewCandidate } from "@stateful-mcp/clinical/session/preview-candidate";
-import { computeInputFingerprint } from "@stateful-mcp/clinical/session/preview-candidate";
-import type { EditorMode } from "../lib/keymap";
-import { useCallback, useReducer } from "react";
+import type { ExecutionPolicy } from "@stateful-mcp/clinical/notebook/notebook-state";
+import { useCallback, useRef, useReducer } from "react";
 import type { SessionState } from "./useSession";
 
-export type ExecutionPolicy = "execute" | "preview";
-
-export interface UndoEntry {
-	cells: Cell[];
-	activeIndex: number;
-	draftText: string;
-}
-
-export interface NotebookState {
-	cells: Cell[];
-	activeIndex: number;
-	mode: EditorMode;
-	draftText: string;
-	lastEditCellId: string | null;
-	undoStack: UndoEntry[];
-	redoStack: UndoEntry[];
-	dirty: boolean;
-	sessionMode: ExecutionPolicy;
-	preview: PreviewCandidate | null;
-}
-
-export type NotebookAction =
-	| { type: "SET_CELLS"; cells: Cell[] }
-	| { type: "MOVE_CURSOR"; delta: number }
-	| { type: "SET_ACTIVE_INDEX"; index: number }
-	| { type: "ENTER_INSERT_MODE" }
-	| { type: "EXIT_INSERT_MODE" }
-	| { type: "TYPE_CHAR"; char: string }
-	| { type: "BACKSPACE" }
-	| { type: "COMMIT_CELL" }
-	| { type: "INSERT_CELL"; cell: Cell; position: number }
-	| { type: "DELETE_ACTIVE_CELL" }
-	| { type: "SET_CELL_TEXT"; cellId: string; text: string }
-	| { type: "UPDATE_CELL"; cellId: string; updater: (c: Cell) => Cell }
-	| { type: "UNDO" }
-	| { type: "REDO" }
-	| { type: "SET_SESSION_MODE"; mode: ExecutionPolicy }
-	| { type: "SET_PREVIEW"; preview: PreviewCandidate }
-	| { type: "CLEAR_PREVIEW" };
-
-function snapshot(state: NotebookState): UndoEntry {
-	return {
-		cells: state.cells.map((c) => structuredClone(c)),
-		activeIndex: state.activeIndex,
-		draftText: state.draftText,
-	};
-}
-
-function pushUndo(
-	state: NotebookState,
-): { undoStack: UndoEntry[]; redoStack: UndoEntry[] } {
-	return {
-		undoStack: [...state.undoStack.slice(-49), snapshot(state)],
-		redoStack: [],
-	};
-}
-
-const INITIAL: NotebookState = {
-	cells: [],
-	activeIndex: 0,
-	mode: "NORMAL",
-	draftText: "",
-	lastEditCellId: null,
-	undoStack: [],
-	redoStack: [],
-	dirty: false,
-	sessionMode: "execute",
-	preview: null,
-};
-
-function notebookReducer(
-	state: NotebookState,
-	action: NotebookAction,
-): NotebookState {
-	switch (action.type) {
-		case "SET_CELLS":
-			return { ...state, cells: action.cells };
-
-		case "MOVE_CURSOR": {
-			const maxIdx = Math.max(0, state.cells.length - 1);
-			const newIdx = Math.max(
-				0,
-				Math.min(state.activeIndex + action.delta, maxIdx),
-			);
-			return { ...state, activeIndex: newIdx };
-		}
-
-		case "SET_ACTIVE_INDEX":
-			return { ...state, activeIndex: action.index };
-
-		case "ENTER_INSERT_MODE": {
-			const cell = state.cells[state.activeIndex];
-			if (!cell) return state;
-			const { undoStack, redoStack } = pushUndo(state);
-			return {
-				...state,
-				mode: "INSERT",
-				draftText: cell.rawInput,
-				lastEditCellId: cell.cellId,
-				undoStack,
-				redoStack,
-				dirty: true,
-			};
-		}
-
-		case "EXIT_INSERT_MODE": {
-			const { undoStack, redoStack } = pushUndo(state);
-			const cells = state.cells.map((c) => {
-				if (c.cellId === state.lastEditCellId) {
-					return {
-						...c,
-						rawInput: state.draftText,
-						updatedAt: new Date().toISOString(),
-					};
-				}
-				return c;
-			});
-			return {
-				...state,
-				mode: "NORMAL",
-				cells,
-				undoStack,
-				redoStack,
-			};
-		}
-
-		case "TYPE_CHAR": {
-			return {
-				...state,
-				draftText: state.draftText + action.char,
-			};
-		}
-
-		case "BACKSPACE": {
-			return {
-				...state,
-				draftText: state.draftText.slice(0, -1),
-			};
-		}
-
-		case "COMMIT_CELL": {
-			const { undoStack, redoStack } = pushUndo(state);
-			const cells = state.cells.map((c) => {
-				if (c.cellId === state.lastEditCellId) {
-					return {
-						...c,
-						rawInput: state.draftText,
-						updatedAt: new Date().toISOString(),
-					};
-				}
-				return c;
-			});
-			return {
-				...state,
-				mode: "NORMAL",
-				cells,
-				undoStack,
-				redoStack,
-			};
-		}
-
-		case "INSERT_CELL": {
-			const { undoStack, redoStack } = pushUndo(state);
-			const cells = [...state.cells];
-			const insertAt = Math.min(action.position, cells.length);
-			cells.splice(insertAt, 0, action.cell);
-			const newIndex = insertAt;
-			return {
-				...state,
-				cells,
-				activeIndex: newIndex,
-				undoStack,
-				redoStack,
-				dirty: true,
-			};
-		}
-
-		case "DELETE_ACTIVE_CELL": {
-			if (state.cells.length === 0) return state;
-			const { undoStack, redoStack } = pushUndo(state);
-			const cells = state.cells.filter(
-				(_, i) => i !== state.activeIndex,
-			);
-			const newIndex = Math.min(
-				state.activeIndex,
-				Math.max(0, cells.length - 1),
-			);
-			return {
-				...state,
-				cells,
-				activeIndex: newIndex,
-				undoStack,
-				redoStack,
-				dirty: true,
-			};
-		}
-
-		case "SET_CELL_TEXT": {
-			const cells = state.cells.map((c) => {
-				if (c.cellId === action.cellId) {
-					return { ...c, rawInput: action.text };
-				}
-				return c;
-			});
-			return { ...state, cells };
-		}
-
-		case "UPDATE_CELL": {
-			const cells = state.cells.map((c) => {
-				if (c.cellId === action.cellId) return action.updater(c);
-				return c;
-			});
-			return { ...state, cells };
-		}
-
-		case "UNDO": {
-			if (state.undoStack.length === 0) return state;
-			const prev = state.undoStack[state.undoStack.length - 1]!;
-			const redoStack = [...state.redoStack, snapshot(state)];
-			const undoStack = state.undoStack.slice(0, -1);
-			return {
-				...state,
-				cells: prev.cells,
-				activeIndex: prev.activeIndex,
-				draftText: prev.draftText,
-				mode: "NORMAL",
-				preview: null,
-				undoStack,
-				redoStack,
-			};
-		}
-
-		case "REDO": {
-			if (state.redoStack.length === 0) return state;
-			const next = state.redoStack[state.redoStack.length - 1]!;
-			const undoStack = [...state.undoStack, snapshot(state)];
-			const redoStack = state.redoStack.slice(0, -1);
-			return {
-				...state,
-				cells: next.cells,
-				activeIndex: next.activeIndex,
-				draftText: next.draftText,
-				mode: "NORMAL",
-				preview: null,
-				undoStack,
-				redoStack,
-			};
-		}
-
-		case "SET_SESSION_MODE":
-			return { ...state, sessionMode: action.mode };
-
-		case "SET_PREVIEW":
-			return { ...state, preview: action.preview };
-
-		case "CLEAR_PREVIEW":
-			return { ...state, preview: null };
-
-		default:
-			return state;
-	}
-}
+export type { ExecutionPolicy, NotebookState, NotebookAction } from "@stateful-mcp/clinical/notebook/notebook-state";
+export type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 
 export function useNotebook(session: SessionState | null) {
-	const [state, dispatch] = useReducer(notebookReducer, INITIAL);
+	const [state, dispatch] = useReducer(notebookReducer, INITIAL_NOTEBOOK_STATE);
+	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
 
 	const createCell = useCallback(
 		(sessionId: string, rawInput = ""): Cell => ({
@@ -289,11 +36,7 @@ export function useNotebook(session: SessionState | null) {
 	const insertBelow = useCallback(
 		(sessionId: string) => {
 			const cell = createCell(sessionId);
-			dispatch({
-				type: "INSERT_CELL",
-				cell,
-				position: state.activeIndex + 1,
-			});
+			dispatch({ type: "INSERT_CELL", cell, position: state.activeIndex + 1 });
 		},
 		[state.activeIndex, createCell],
 	);
@@ -301,11 +44,7 @@ export function useNotebook(session: SessionState | null) {
 	const insertAbove = useCallback(
 		(sessionId: string) => {
 			const cell = createCell(sessionId);
-			dispatch({
-				type: "INSERT_CELL",
-				cell,
-				position: state.activeIndex,
-			});
+			dispatch({ type: "INSERT_CELL", cell, position: state.activeIndex });
 		},
 		[state.activeIndex, createCell],
 	);
@@ -313,26 +52,25 @@ export function useNotebook(session: SessionState | null) {
 	const runCell = useCallback(
 		async (cell: Cell) => {
 			if (!session) return;
-			const processor = session.result.processor;
 			try {
-				const result = await processor.execute(
-					structuredClone(cell),
-				);
 				dispatch({
 					type: "UPDATE_CELL",
 					cellId: cell.cellId,
-					updater: (c) => {
-						const updated = result.cell;
-						return {
-							...c,
-							status: updated.status,
-							parsedOutput: updated.parsedOutput,
-							errorMessage: updated.errorMessage,
-							workspaceCommands: updated.workspaceCommands,
-							metadata: updated.metadata,
-							updatedAt: updated.updatedAt,
-						};
-					},
+					updater: (c) => ({ ...c, status: "parsing" as const }),
+				});
+				const result = await session.result.processor.execute(structuredClone(cell));
+				dispatch({
+					type: "UPDATE_CELL",
+					cellId: cell.cellId,
+					updater: (c) => ({
+						...c,
+						status: result.cell.status,
+						parsedOutput: result.cell.parsedOutput,
+						errorMessage: result.cell.errorMessage,
+						workspaceCommands: result.cell.workspaceCommands,
+						metadata: result.cell.metadata,
+						updatedAt: result.cell.updatedAt,
+					}),
 				});
 			} catch (err) {
 				dispatch({
@@ -341,8 +79,7 @@ export function useNotebook(session: SessionState | null) {
 					updater: (c) => ({
 						...c,
 						status: "error",
-						errorMessage:
-							err instanceof Error ? err.message : String(err),
+						errorMessage: err instanceof Error ? err.message : String(err),
 					}),
 				});
 			}
@@ -353,50 +90,25 @@ export function useNotebook(session: SessionState | null) {
 	const previewCell = useCallback(
 		async (cell: Cell) => {
 			if (!session) return;
-			const processor = session.result.processor;
 			try {
 				dispatch({
 					type: "UPDATE_CELL",
 					cellId: cell.cellId,
 					updater: (c) => ({ ...c, status: "parsing" as const }),
 				});
-
-				const clone = structuredClone(cell);
-				const result = await processor.preview(clone);
-
-				const previewError = result.error;
-				if (previewError) {
+				const { candidate, error } = await PreviewWorkflow.createCandidate(
+					cell,
+					session.result.processor,
+					session.sessionId,
+				);
+				if (error || !candidate) {
 					dispatch({
 						type: "UPDATE_CELL",
 						cellId: cell.cellId,
-						updater: (c) => ({
-							...c,
-							status: "error" as const,
-							errorMessage: previewError.message ?? "preview failed",
-						}),
+						updater: (c) => ({ ...c, status: "error", errorMessage: error }),
 					});
 					return;
 				}
-
-				const fingerprint = computeInputFingerprint(
-					cell.rawInput,
-					cell.routing.targetSchema,
-				);
-
-				const candidate: PreviewCandidate = {
-					candidateId: `preview_${cell.cellId}_${Date.now()}`,
-					sessionId: session.sessionId,
-					cellId: cell.cellId,
-					rawInput: cell.rawInput,
-					inputFingerprint: fingerprint,
-					profileFingerprint: "memory",
-					parsedOutput: result.preview ?? null,
-					warnings: [],
-					diagnostics: [],
-					status: 0 as any,
-					createdAt: new Date().toISOString(),
-				};
-
 				dispatch({ type: "SET_PREVIEW", preview: candidate });
 			} catch (err) {
 				dispatch({
@@ -405,8 +117,7 @@ export function useNotebook(session: SessionState | null) {
 					updater: (c) => ({
 						...c,
 						status: "error",
-						errorMessage:
-							err instanceof Error ? err.message : String(err),
+						errorMessage: err instanceof Error ? err.message : String(err),
 					}),
 				});
 			}
@@ -415,42 +126,88 @@ export function useNotebook(session: SessionState | null) {
 	);
 
 	const acceptPreview = useCallback(
-		async (candidate: PreviewCandidate) => {
+		async (candidate: import("@stateful-mcp/clinical/session/preview-candidate").PreviewCandidate) => {
 			if (!session) return;
-			const cell = state.cells.find(
-				(c) => c.cellId === candidate.cellId,
-			);
+			const cell = state.cells.find((c) => c.cellId === candidate.cellId);
 			if (!cell) return;
-
-			const currentFingerprint = computeInputFingerprint(
-				cell.rawInput,
-				cell.routing.targetSchema,
-			);
-			if (currentFingerprint !== candidate.inputFingerprint) {
+			const { valid, error } = PreviewWorkflow.validateFingerprint(candidate, cell);
+			if (!valid) {
 				dispatch({
 					type: "UPDATE_CELL",
 					cellId: cell.cellId,
-					updater: (c) => ({
-						...c,
-						status: "error" as const,
-						errorMessage: "preview stale — cell was edited since preview",
-					}),
+					updater: (c) => ({ ...c, status: "error", errorMessage: error }),
 				});
 				dispatch({ type: "CLEAR_PREVIEW" });
 				return;
 			}
-
 			dispatch({ type: "CLEAR_PREVIEW" });
 			await runCell(cell);
 		},
 		[session, state.cells, runCell],
 	);
 
-	const setSessionMode = useCallback(
-		(mode: ExecutionPolicy) => {
-			dispatch({ type: "SET_SESSION_MODE", mode });
+	const dispatchCommand = useCallback(
+		async (line: string): Promise<{ success: boolean; message?: string }> => {
+			if (!session) return { success: false, message: "no session" };
+			const registry = (session.result.processor as any).cellCommandRegistry;
+			const dispatcher = new CommandDispatcher({
+				sessionId: session.sessionId,
+				activeCell: state.cells[state.activeIndex],
+				allCells: state.cells,
+				editorRegistry: editorRegistryRef.current,
+				cellCommandRegistry: registry,
+				processor: session.result.processor,
+			});
+			const result = await dispatcher.dispatch(line);
+			if (result.commands) {
+				for (const cmd of result.commands as any[]) {
+					if (cmd.type === "UPDATE_CELL") {
+						dispatch({ type: "UPDATE_CELL", cellId: cmd.cellId, updater: cmd.updater });
+					}
+				}
+			}
+			dispatch({ type: "EXIT_COMMAND_MODE" });
+			if (result.message) {
+				dispatch({ type: "SET_MESSAGE", message: result.message });
+			}
+			return result;
 		},
-		[],
+		[session, state.activeIndex, state.cells],
+	);
+
+	const nextErrorIndex = useCallback((): number | null => {
+		for (let i = state.activeIndex + 1; i < state.cells.length; i++) {
+			if (state.cells[i]?.status === "error") return i;
+		}
+		for (let i = 0; i < state.activeIndex; i++) {
+			if (state.cells[i]?.status === "error") return i;
+		}
+		return null;
+	}, [state.activeIndex, state.cells]);
+
+	const prevErrorIndex = useCallback((): number | null => {
+		for (let i = state.activeIndex - 1; i >= 0; i--) {
+			if (state.cells[i]?.status === "error") return i;
+		}
+		for (let i = state.cells.length - 1; i > state.activeIndex; i--) {
+			if (state.cells[i]?.status === "error") return i;
+		}
+		return null;
+	}, [state.activeIndex, state.cells]);
+
+	const setSessionMode = useCallback((mode: ExecutionPolicy) => {
+		dispatch({ type: "SET_SESSION_MODE", mode });
+	}, []);
+
+	const getAutocomplete = useCallback(
+		(partial: string) => {
+			if (!session) return [];
+			const registry = (session.result.processor as any).cellCommandRegistry;
+			const editorDescs = editorRegistryRef.current.getDescriptors();
+			const cellDescs = registry?.getDescriptors?.() ?? [];
+			return getAutocompleteSuggestions(partial, editorDescs, cellDescs);
+		},
+		[session],
 	);
 
 	return {
@@ -463,5 +220,9 @@ export function useNotebook(session: SessionState | null) {
 		previewCell,
 		acceptPreview,
 		setSessionMode,
+		dispatchCommand,
+		nextErrorIndex,
+		prevErrorIndex,
+		getAutocomplete,
 	};
 }

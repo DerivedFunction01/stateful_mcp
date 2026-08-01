@@ -1,6 +1,6 @@
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
-import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebook-store";
 import type { NotebookCellRef } from "@stateful-mcp/clinical/store/notebook/interfaces";
+import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebook-store";
 
 interface SessionState {
 	cells: Map<string, Cell>;
@@ -42,10 +42,7 @@ export class MemoryNotebookStore implements NotebookStore {
 			});
 	}
 
-	async getCell(
-		sessionId: string,
-		cellId: string,
-	): Promise<Cell | null> {
+	async getCell(sessionId: string, cellId: string): Promise<Cell | null> {
 		const s = this.ensureSession(sessionId);
 		return s.cells.get(cellId) ?? null;
 	}
@@ -64,10 +61,7 @@ export class MemoryNotebookStore implements NotebookStore {
 		}
 	}
 
-	async deleteCell(
-		sessionId: string,
-		cellId: string,
-	): Promise<void> {
+	async deleteCell(sessionId: string, cellId: string): Promise<void> {
 		const s = this.ensureSession(sessionId);
 		s.cells.delete(cellId);
 		s.ordering = s.ordering.filter((id) => id !== cellId);

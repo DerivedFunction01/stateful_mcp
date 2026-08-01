@@ -1,6 +1,6 @@
-import { Box, Text } from "ink";
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
-import type { EditorMode } from "../lib/keymap";
+import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
+import { Box, Text } from "ink";
 import { CellComponent } from "./Cell";
 
 interface CellListProps {
@@ -9,6 +9,8 @@ interface CellListProps {
 	mode: EditorMode;
 	draftText: string;
 	lastEditCellId: string | null;
+	visualStart: number;
+	visualEnd: number;
 }
 
 export function CellList({
@@ -17,7 +19,12 @@ export function CellList({
 	mode,
 	draftText,
 	lastEditCellId,
+	visualStart,
+	visualEnd,
 }: CellListProps) {
+	const lo = Math.min(visualStart, visualEnd);
+	const hi = Math.max(visualStart, visualEnd);
+
 	return (
 		<Box flexDirection="column" flexGrow={1} paddingLeft={1} paddingTop={1}>
 			{cells.length === 0 && (
@@ -34,11 +41,8 @@ export function CellList({
 					index={i}
 					isActive={i === activeIndex}
 					mode={i === activeIndex ? mode : "NORMAL"}
-					draftText={
-						i === activeIndex && lastEditCellId === cell.cellId
-							? draftText
-							: undefined
-					}
+					draftText={i === activeIndex && lastEditCellId === cell.cellId ? draftText : undefined}
+					isSelected={mode === "VISUAL" && i >= lo && i <= hi}
 				/>
 			))}
 		</Box>

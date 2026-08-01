@@ -1,5 +1,5 @@
-import { ClinicalEngineBuilder } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
 import type { EngineBuilderResult } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
+import { ClinicalEngineBuilder } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
 import { useEffect, useState } from "react";
 import { MemoryNotebookStore } from "../store/memory-notebook-store";
 
@@ -17,8 +17,7 @@ export function useSession(): SessionState | null {
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const result =
-				await ClinicalEngineBuilder.withDefaultBackend("memory");
+			const result = await ClinicalEngineBuilder.withDefaultBackend("memory");
 			if (cancelled) return;
 			setState({
 				result,

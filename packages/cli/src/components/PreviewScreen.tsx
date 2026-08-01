@@ -36,7 +36,8 @@ export function PreviewScreen({
 			{/* Header */}
 			<Box>
 				<Text bold inverse>
-					{" "}PREVIEW{" "}
+					{" "}
+					PREVIEW{" "}
 				</Text>
 				<Text> </Text>
 				<Text color="gray">{candidate.cellId.slice(0, 24)}</Text>
@@ -49,25 +50,19 @@ export function PreviewScreen({
 
 			{/* Parsed items */}
 			<Box flexGrow={1} flexDirection="column" paddingLeft={1}>
-				{items.length === 0 && (
-					<Text color="yellow">(no parsed items)</Text>
-				)}
+				{items.length === 0 && <Text color="yellow">(no parsed items)</Text>}
 				{items.map((item, i) => (
 					<Box key={i} flexDirection="column" marginBottom={1}>
 						<Text bold color="cyan">
 							[{i + 1}] {item.targetSchema}
 						</Text>
 						<Box paddingLeft={2} flexDirection="column">
-							{Object.entries(item.extractedData).map(
-								([key, value]) => (
-									<Box key={key}>
-										<Text color="gray">{key}: </Text>
-										<Text>
-											{formatValue(value)}
-										</Text>
-									</Box>
-								),
-							)}
+							{Object.entries(item.extractedData).map(([key, value]) => (
+								<Box key={key}>
+									<Text color="gray">{key}: </Text>
+									<Text>{formatValue(value)}</Text>
+								</Box>
+							))}
 							{item.rawText && (
 								<Box>
 									<Text color="gray">raw: </Text>
@@ -110,9 +105,7 @@ function formatValue(value: unknown): string {
 	if (typeof value === "boolean") return String(value);
 	if (Array.isArray(value)) {
 		if (value.length === 0) return "[]";
-		return value
-			.map((v) => formatValue(v))
-			.join(", ");
+		return value.map((v) => formatValue(v)).join(", ");
 	}
 	if (typeof value === "object") {
 		try {

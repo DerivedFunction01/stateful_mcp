@@ -1,5 +1,5 @@
+import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
-import type { EditorMode } from "../lib/keymap";
 import type { ExecutionPolicy } from "../hooks/useNotebook";
 
 interface StatusBarProps {
@@ -9,6 +9,9 @@ interface StatusBarProps {
 	sessionId: string;
 	dirty: boolean;
 	sessionMode: ExecutionPolicy;
+	message: string | null;
+	visualStart: number;
+	visualEnd: number;
 }
 
 export function StatusBar({
@@ -18,35 +21,41 @@ export function StatusBar({
 	sessionId,
 	dirty,
 	sessionMode,
+	message,
+	visualStart,
+	visualEnd,
 }: StatusBarProps) {
-	const modeColor = mode === "NORMAL" ? "green" : "yellow";
+	const modeColor = mode === "NORMAL" ? "green" : mode === "INSERT" ? "yellow" : mode === "COMMAND" ? "blue" : "magenta";
 	const dirtyFlag = dirty ? " [+]" : "";
-	const policyLabel =
-		sessionMode === "execute" ? "EXEC" : "PREV";
+	const policyLabel = sessionMode === "execute" ? "EXEC" : "PREV";
 	const policyColor = sessionMode === "execute" ? "green" : "cyan";
 
+	let modeLabel = mode;
+	if (mode === "VISUAL") {
+		const lo = Math.min(visualStart, visualEnd);
+		const hi = Math.max(visualStart, visualEnd);
+		const count = hi - lo + 1;
+		modeLabel = `VISUAL (${count})` as any;
+	}
+
 	return (
-		<Box
-			width="100%"
-			height={1}
-			borderStyle="single"
-			borderTop={true}
-			paddingLeft={1}
-			paddingRight={1}
-		>
+		<Box width="100%" height={1} borderStyle="single" borderTop={true} paddingLeft={1} paddingRight={1}>
 			<Box flexGrow={1}>
 				<Text bold color={modeColor}>
-					{mode}
+					{modeLabel}
 				</Text>
 				<Text>
-					{" "}
-					| cell {activeIndex + 1}/{cellCount}
+					{" "}| cell {activeIndex + 1}/{cellCount}
 					{dirtyFlag}
 				</Text>
 				<Text>
-					{" "}
-					| <Text color={policyColor}>{policyLabel}</Text>
+					{" "}| <Text color={policyColor}>{policyLabel}</Text>
 				</Text>
+				{message && (
+					<Text>
+						{" "}| <Text color="green">{message}</Text>
+					</Text>
+				)}
 			</Box>
 			<Box>
 				<Text color="gray">{sessionId.slice(0, 20)}</Text>

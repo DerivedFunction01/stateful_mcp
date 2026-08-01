@@ -1,0 +1,1 @@
+export type EditorMode = "NORMAL" | "INSERT" | "COMMAND" | "VISUAL";
