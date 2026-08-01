@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import { t } from "../lib/i18n";
 
 interface HelpScreenProps {
@@ -10,8 +10,12 @@ interface HelpScreenProps {
 export function HelpScreen({
 	editorDescriptors,
 	cellDescriptors,
-	onClose: _onClose,
+	onClose,
 }: HelpScreenProps) {
+	useInput((_input, key) => {
+		if (key.escape) onClose();
+	});
+
 	return (
 		<Box flexDirection="column" width="100%" height="100%">
 			<Box>

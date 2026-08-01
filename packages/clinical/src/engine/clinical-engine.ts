@@ -575,6 +575,14 @@ export class ClinicalEngine {
 		return this.autocompleteSession.suggest(partialText);
 	}
 
+	getParser(): CdslParser {
+		return this.parser;
+	}
+
+	getWorkspaceStore(): WorkspaceStore | undefined {
+		return this.workspaceStore;
+	}
+
 	/**
 	 * Record an autocomplete selection to update learning data.
 	 */

@@ -21,6 +21,9 @@ interface NotebookProps {
 	getAutocomplete: (partial: string) => AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
 	completionState: CompletionState;
+	onCloseHelp: () => void;
+	onCloseWorkspace: () => void;
+	workspaceCommandMappings: Record<string, string>;
 }
 
 export function Notebook({
@@ -31,6 +34,9 @@ export function Notebook({
 	getAutocomplete,
 	cellSuggestions,
 	completionState,
+	onCloseHelp,
+	onCloseWorkspace,
+	workspaceCommandMappings,
 }: NotebookProps) {
 	const workspace = useWorkspace({
 		showWorkspace: state.showWorkspace,
@@ -43,7 +49,7 @@ export function Notebook({
 			<HelpScreen
 				editorDescriptors={editorDescriptors}
 				cellDescriptors={cellDescriptors}
-				onClose={() => {}}
+				onClose={onCloseHelp}
 			/>
 		);
 	}
@@ -61,7 +67,7 @@ export function Notebook({
 				loading={workspace.loading}
 				error={workspace.error}
 				focused={workspace.focused}
-				onClose={() => {}}
+				onClose={onCloseWorkspace}
 				onProcessInput={async (branchId, text) => {
 					if (!workspace.snapshot) return;
 					await workspace.processInput(
@@ -77,6 +83,7 @@ export function Notebook({
 					await workspace.addBranch(name, text);
 				}}
 				onToggleFocus={workspace.toggleFocus}
+				workspaceCommandMappings={workspaceCommandMappings}
 			/>
 		);
 	}

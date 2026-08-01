@@ -14,6 +14,7 @@ interface WorkspaceScreenProps {
 	onComplete: (branchId: string) => Promise<void>;
 	onAddBranch: (name: string, conceptText: string) => Promise<void>;
 	onToggleFocus: () => void;
+	workspaceCommandMappings: Record<string, string>;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -146,6 +147,7 @@ export function WorkspaceScreen({
 	onComplete,
 	onAddBranch,
 	onToggleFocus,
+	workspaceCommandMappings,
 }: WorkspaceScreenProps) {
 	const [inputText, setInputText] = useState("");
 
@@ -179,21 +181,13 @@ export function WorkspaceScreen({
 		const tokens = text.trim().split(/\s+/);
 		const first = tokens[0]?.toLowerCase();
 		if (!first) return;
-		const workspaceCommands = [
-			"rule_out",
-			"confirm",
-			"suspend",
-			"re_activate",
-			"branch",
-			"elevate",
-			"close",
-		];
-		if (workspaceCommands.includes(first)) {
-			if (first === "branch" && tokens.length >= 3) {
+		const command = workspaceCommandMappings[first] ?? first;
+		if (workspaceCommandMappings[first] || command === first) {
+			if (command === "branch" && tokens.length >= 3) {
 				await onAddBranch(tokens[1]!, tokens.slice(2).join(" "));
 				return;
 			}
-			if (first === "close") {
+			if (command === "close") {
 				await onComplete(branchId!);
 				return;
 			}

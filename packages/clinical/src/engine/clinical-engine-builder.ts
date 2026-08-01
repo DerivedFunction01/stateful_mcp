@@ -13,7 +13,6 @@ import {
 } from "@stateful-mcp/core";
 import * as path from "path";
 import { initializeClinicalRuntime } from "../init/orchestrator";
-import type { CdslParser } from "../parser/cdsl-parser";
 import { CommandAutocompleteSuggester } from "../parser/command-autocomplete-suggester";
 import { DEFAULT_CLINICAL_STORE_CONFIG } from "../seed/clinical-config-seed";
 import { CellCommandRegistry } from "../session/cell-command-registry";
@@ -306,12 +305,13 @@ async function wireEngine(
 	};
 
 	const engine = new ClinicalEngine(engineConfig);
+	const parser = engine.getParser();
+	workspaceStore.setParser(parser);
 	const cellStore = await resolveCellStore(runtime.config);
 	const notebook = await resolveNotebookStore(runtime.config);
-	const parser = (engine as any).parser as CdslParser;
 	const processor = new CellProcessor(
 		engine,
-		undefined,
+		workspaceStore,
 		parser,
 		undefined,
 		cellStore,

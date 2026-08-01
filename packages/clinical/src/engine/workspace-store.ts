@@ -46,6 +46,10 @@ export class WorkspaceStore {
 		private personnelId: string = "system",
 	) {}
 
+	setParser(parser: CdslParser): void {
+		this.parser = parser;
+	}
+
 	async init(
 		sessionId: string,
 		soapNoteId: string,

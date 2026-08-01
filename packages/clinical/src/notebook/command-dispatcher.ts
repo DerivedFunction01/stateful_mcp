@@ -1,8 +1,12 @@
+import type { ClinicalEngine } from "../engine/clinical-engine";
+import type { WorkspaceStore } from "../engine/workspace-store";
+import type { CdslParser } from "../parser/cdsl-parser";
 import type { Cell } from "../session/cell";
 import type { CellCommandContext } from "../session/cell-command";
 import type { CellCommandRegistry } from "../session/cell-command-registry";
 import type { CellProcessResult } from "../session/cell-processor";
 import type { EditorCommandRegistry } from "../session/editor-command-registry";
+import type { ParserSyntaxProfile } from "../store/interfaces";
 
 export interface DispatchContext {
 	sessionId: string;
@@ -14,7 +18,12 @@ export interface DispatchContext {
 	processor?: {
 		execute(cell: Cell): Promise<CellProcessResult>;
 		preview(cell: Cell): Promise<CellProcessResult>;
+		delete(cell: Cell): CellProcessResult;
 	};
+	engine?: ClinicalEngine;
+	parser?: CdslParser;
+	workspaceStore?: WorkspaceStore;
+	profile?: ParserSyntaxProfile;
 }
 
 export interface DispatchResult {
@@ -53,13 +62,23 @@ export class CommandDispatcher {
 			return { success: false, message: "no cells to process" };
 
 		const allCommands: Array<{ type: string; [key: string]: unknown }> = [];
+		let workspaceId: string | undefined;
+		let workspaceCommands: unknown[] | undefined;
 
 		for (const cell of cellsToProcess) {
 			if (!cell) continue;
 			const ctx: CellCommandContext = {
 				sessionId: this.ctx.sessionId,
+				activeCellIndex: this.ctx.activeCell
+					? this.ctx.allCells.indexOf(this.ctx.activeCell)
+					: undefined,
+				cells: this.ctx.allCells,
 				cell: structuredClone(cell),
-				profile: { cellCommandToken: ":" } as any,
+				engine: this.ctx.engine,
+				parser: this.ctx.parser,
+				workspaceStore: this.ctx.workspaceStore,
+				profile: this.ctx.profile ?? ({ cellCommandToken: ":" } as any),
+				processor: this.ctx.processor,
 			};
 
 			const result = await handler(
@@ -79,10 +98,20 @@ export class CommandDispatcher {
 					message: result.message ?? `cell command failed for ${cell.cellId}`,
 				};
 			}
+			if (result.success) {
+				workspaceId = result.workspaceId ?? workspaceId;
+				workspaceCommands = result.workspaceCommands ?? workspaceCommands;
+			}
 		}
 
 		if (allCommands.length > 0) {
 			return { success: true, commands: allCommands };
+		}
+		if (workspaceId || workspaceCommands) {
+			return {
+				success: true,
+				data: { workspaceId, workspaceCommands },
+			};
 		}
 
 		return { success: false, message: "no cells updated" };
@@ -109,7 +138,8 @@ export class CommandDispatcher {
 			};
 		}
 
-		const cellResult = await this.dispatchCellCommand(verb, args);
+		const cellVerb = this.ctx.profile?.cellCommandMappings?.[verb] ?? verb;
+		const cellResult = await this.dispatchCellCommand(cellVerb, args);
 		if (cellResult) return cellResult;
 
 		return { success: false, message: `unknown command: ${verb}` };

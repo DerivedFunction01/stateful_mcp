@@ -50,6 +50,13 @@ export function NotebookApp() {
 		[],
 	);
 
+	const workspaceCommandMappings = useMemo(
+		() =>
+			session?.result.engine.getParser().getProfile()
+				.workspaceCommandMappings ?? {},
+		[session],
+	);
+
 	const handleInput = useCallback(
 		(
 			input: string,
@@ -363,6 +370,9 @@ export function NotebookApp() {
 				getAutocomplete={() => []}
 				cellSuggestions={[]}
 				completionState={{ status: "idle" }}
+				onCloseHelp={() => dispatch({ type: "TOGGLE_HELP" })}
+				onCloseWorkspace={() => dispatch({ type: "TOGGLE_WORKSPACE" })}
+				workspaceCommandMappings={{}}
 			/>
 		);
 	}
@@ -401,6 +411,9 @@ export function NotebookApp() {
 			getAutocomplete={getAutocomplete}
 			cellSuggestions={cellSuggestions}
 			completionState={completionState}
+			onCloseHelp={() => dispatch({ type: "TOGGLE_HELP" })}
+			onCloseWorkspace={() => dispatch({ type: "TOGGLE_WORKSPACE" })}
+			workspaceCommandMappings={workspaceCommandMappings}
 		/>
 	);
 }

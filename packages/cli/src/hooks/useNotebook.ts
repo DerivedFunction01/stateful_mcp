@@ -8,6 +8,7 @@ import {
 import { PreviewWorkflow } from "@stateful-mcp/clinical/notebook/preview-workflow";
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
 import { resolveArgCompletions } from "@stateful-mcp/clinical/session/command-completions";
+import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import { rankHistory } from "@stateful-mcp/clinical/session/history-ranker";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
@@ -336,6 +337,10 @@ export function useNotebook(session: SessionState | null) {
 				editorRegistry: editorRegistryRef.current,
 				cellCommandRegistry: registry,
 				processor: session.result.processor,
+				engine: session.result.engine,
+				parser: session.result.engine.getParser(),
+				workspaceStore: session.result.engine.getWorkspaceStore(),
+				profile: session.result.engine.getParser().getProfile(),
 				selectedIndexes,
 			});
 			const result = await dispatcher.dispatch(line);
@@ -394,6 +399,18 @@ export function useNotebook(session: SessionState | null) {
 			const registry = (session.result.processor as any).cellCommandRegistry;
 			const editorDescs = editorRegistryRef.current.getDescriptors();
 			const cellDescs = registry?.getDescriptors?.() ?? [];
+			const profile = session.result.engine.getParser().getProfile();
+			const mappedCellDescs = Object.entries(profile.cellCommandMappings ?? {})
+				.map(([alias, canonical]) => {
+					const descriptor = cellDescs.find(
+						(d: CommandDescriptor) => d.verb === canonical,
+					);
+					return descriptor && descriptor.verb !== alias
+						? { ...descriptor, verb: alias, aliases: [canonical] }
+						: null;
+				})
+				.filter((d): d is NonNullable<typeof d> => d !== null);
+			const autocompleteCellDescs = [...cellDescs, ...mappedCellDescs];
 
 			const spaceIdx = partial.indexOf(" ");
 			if (spaceIdx >= 0) {
@@ -403,8 +420,9 @@ export function useNotebook(session: SessionState | null) {
 				const argIndex = Math.max(0, argParts.length - 1);
 				const currentPartial = argParts[argIndex] ?? "";
 
-				const matchedDesc = [...editorDescs, ...cellDescs].find(
-					(d) => d.verb === verb,
+				const canonicalVerb = profile.cellCommandMappings?.[verb] ?? verb;
+				const matchedDesc = [...editorDescs, ...autocompleteCellDescs].find(
+					(d) => d.verb === verb || d.verb === canonicalVerb,
 				);
 
 				if (matchedDesc) {
@@ -439,7 +457,7 @@ export function useNotebook(session: SessionState | null) {
 					if (profile) {
 						const prevArgs = argParts.slice(0, -1);
 						const codes = resolveArgCompletions(
-							verb,
+							canonicalVerb,
 							argIndex,
 							profile,
 							prevArgs,
@@ -483,7 +501,7 @@ export function useNotebook(session: SessionState | null) {
 			const suggestions = getAutocompleteSuggestions(
 				partial,
 				editorDescs,
-				cellDescs,
+				autocompleteCellDescs,
 			);
 			if (suggestions.length > 0) return suggestions;
 
