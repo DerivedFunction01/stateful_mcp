@@ -1,7 +1,7 @@
-import type { Cell, CellStatus } from "./cell";
 import type { ParsedItem } from "../parser/schema-parsers";
+import type { Cell } from "./cell";
 import type { CellProcessResult } from "./cell-processor";
-import type { ParseTrace, ParseDiagnostic } from "./parse-trace";
+import type { ParseDiagnostic, ParseTrace } from "./parse-trace";
 
 export enum CandidateStatus {
 	Active = "active",
@@ -41,12 +41,18 @@ export interface CandidateStore {
 }
 
 /** Compute a fingerprint for preview invalidation. */
-export function computeInputFingerprint(rawInput: string, routingSchema: string | null | undefined): string {
+export function computeInputFingerprint(
+	rawInput: string,
+	routingSchema: string | null | undefined,
+): string {
 	const normalized = rawInput.trim().toLowerCase().replace(/\s+/g, " ");
 	return `${routingSchema ?? ""}::${normalized}`;
 }
 
-export function computeProfileFingerprint(profileId: string, version?: string): string {
+export function computeProfileFingerprint(
+	profileId: string,
+	version?: string,
+): string {
 	return version ? `${profileId}@${version}` : profileId;
 }
 

@@ -12,7 +12,7 @@ import {
 } from "./cell-command";
 import { resolveFieldTarget, setNestedField } from "./cell-command-context";
 import { CellCommandParser } from "./cell-command-parser";
-import type { CommandDescriptor, CommandArgSchema } from "./command-descriptor";
+import type { CommandArgSchema, CommandDescriptor } from "./command-descriptor";
 import { CommandGroup } from "./command-descriptor";
 
 const COMMAND_DESCRIPTOR_GROUP: Record<string, CommandGroup> = {
@@ -38,18 +38,41 @@ const COMMAND_DESCRIPTOR_GROUP: Record<string, CommandGroup> = {
 
 const COMMAND_DESCRIPTOR_ARGS: Record<string, CommandArgSchema[]> = {
 	go: [{ name: "index", required: true, descriptionKey: "arg.go.index" }],
-	mode: [{ name: "mode", required: true, descriptionKey: "arg.mode.name", completions: ["cdsl", "narrative", "js_script"] }],
+	mode: [
+		{
+			name: "mode",
+			required: true,
+			descriptionKey: "arg.mode.name",
+			completions: ["cdsl", "narrative", "js_script"],
+		},
+	],
 	set: [
 		{ name: "field", required: true, descriptionKey: "arg.set.field" },
 		{ name: "value", required: true, descriptionKey: "arg.set.value" },
 	],
 	link: [
-		{ name: "targetSchema", required: true, descriptionKey: "arg.link.targetSchema" },
-		{ name: "targetCellId", required: true, descriptionKey: "arg.link.targetCellId" },
-		{ name: "targetField", required: true, descriptionKey: "arg.link.targetField" },
+		{
+			name: "targetSchema",
+			required: true,
+			descriptionKey: "arg.link.targetSchema",
+		},
+		{
+			name: "targetCellId",
+			required: true,
+			descriptionKey: "arg.link.targetCellId",
+		},
+		{
+			name: "targetField",
+			required: true,
+			descriptionKey: "arg.link.targetField",
+		},
 	],
-	parent: [{ name: "cellId", required: true, descriptionKey: "arg.parent.cellId" }],
-	workspace: [{ name: "action", required: true, descriptionKey: "arg.workspace.action" }],
+	parent: [
+		{ name: "cellId", required: true, descriptionKey: "arg.parent.cellId" },
+	],
+	workspace: [
+		{ name: "action", required: true, descriptionKey: "arg.workspace.action" },
+	],
 };
 
 export type CellCommandHandler = (

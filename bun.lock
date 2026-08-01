@@ -14,14 +14,8 @@
     },
     "packages/cli": {
       "name": "@stateful-mcp/cli",
-      "version": "0.5.0",
-      "bin": {
-        "clinical": "./dist/index.js",
-      },
+      "version": "0.4.0",
       "dependencies": {
-        "@duckdb/node-api": "^1.5.4-r.1",
-        "@sqlite.org/sqlite-wasm": "latest",
-        "@stateful-mcp/clinical": "workspace:^",
         "@stateful-mcp/core": "workspace:^",
       },
       "devDependencies": {
@@ -32,7 +26,7 @@
     },
     "packages/clinical": {
       "name": "@stateful-mcp/clinical",
-      "version": "0.1.2",
+      "version": "0.1.1",
       "dependencies": {
         "@duckdb/node-api": "^1.5.4-r.1",
         "@sqlite.org/sqlite-wasm": "latest",
@@ -46,7 +40,7 @@
     },
     "packages/core": {
       "name": "@stateful-mcp/core",
-      "version": "0.5.0",
+      "version": "0.4.0",
       "dependencies": {
         "@duckdb/node-api": "^1.5.5-r.1",
         "@sqlite.org/sqlite-wasm": "latest",
@@ -66,7 +60,7 @@
     },
     "packages/mcp-transport": {
       "name": "@stateful-mcp/mcp-transport",
-      "version": "0.5.0",
+      "version": "0.4.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.30.0",
         "@stateful-mcp/core": "workspace:^",

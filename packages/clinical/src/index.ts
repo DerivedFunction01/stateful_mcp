@@ -1,4 +1,6 @@
 export * from "./engine/clinical-engine";
+export * from "./engine/clinical-engine-builder";
+export * from "./engine/engine-factory";
 export * from "./engine/workspace-store";
 export * from "./init";
 export * from "./parser/cdsl-parser";
@@ -58,8 +60,8 @@ export * from "./session/editor-action";
 export * from "./session/editor-command-registry";
 export * from "./session/parse-trace";
 export * from "./session/preview-candidate";
-export * from "./session/workspace-read-model";
 export * from "./session/workspace-command-parser";
+export * from "./session/workspace-read-model";
 export * from "./store/adapter-types";
 export * from "./store/cell/cell-backend-resolver";
 export * from "./store/cell/kv-cell-store";

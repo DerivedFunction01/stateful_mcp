@@ -1,23 +1,25 @@
 import { describe, expect, it } from "bun:test";
 import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 import { CellCommandRegistry } from "../src/session/cell-command-registry";
-import { EditorCommandRegistry, EditorCommandVerb } from "../src/session/editor-command-registry";
+import type { CommandDescriptor } from "../src/session/command-descriptor";
 import { CommandGroup } from "../src/session/command-descriptor";
 import { EditorAction } from "../src/session/editor-action";
+import { EditorCommandRegistry } from "../src/session/editor-command-registry";
+import type { ParseDiagnostic, ParseTrace } from "../src/session/parse-trace";
 import {
-	ParseInputSpanKind,
-	ParseFieldSource,
 	ParseDiagnosticSeverity,
+	ParseFieldSource,
+	ParseInputSpanKind,
 	ParseRoutingReason,
-	ParseRuleKind,
 	TraceLevel,
 } from "../src/session/parse-trace";
-import { computeInputFingerprint, computeProfileFingerprint, CandidateStatus } from "../src/session/preview-candidate";
 import type { PreviewCandidate } from "../src/session/preview-candidate";
-import type { ParseTrace, ParseDiagnostic } from "../src/session/parse-trace";
-import type { CommandDescriptor } from "../src/session/command-descriptor";
-import type { WorkspaceSnapshot, WorkspaceReadModel } from "../src/session/workspace-read-model";
-import type { NotebookStore } from "../src/store/notebook/notebook-store";
+import {
+	CandidateStatus,
+	computeInputFingerprint,
+	computeProfileFingerprint,
+} from "../src/session/preview-candidate";
+import type { WorkspaceSnapshot } from "../src/session/workspace-read-model";
 import type { NotebookCellRef } from "../src/store/notebook/interfaces";
 
 // ── ParseTrace contracts ───────────────────────────────────────────
@@ -92,8 +94,14 @@ describe("PreviewCandidate", () => {
 	});
 
 	it("computes consistent fingerprints", () => {
-		const fp1 = computeInputFingerprint("#observation Chest pain", "ObservationEvent");
-		const fp2 = computeInputFingerprint("  #observation   Chest pain  ", "ObservationEvent");
+		const fp1 = computeInputFingerprint(
+			"#observation Chest pain",
+			"ObservationEvent",
+		);
+		const fp2 = computeInputFingerprint(
+			"  #observation   Chest pain  ",
+			"ObservationEvent",
+		);
 		expect(fp1).toBe(fp2);
 		expect(fp1).toBe("ObservationEvent::#observation chest pain");
 	});
@@ -110,7 +118,12 @@ describe("PreviewCandidate", () => {
 	});
 
 	it("allows candidate status transitions", () => {
-		const statuses = [CandidateStatus.Active, CandidateStatus.Committed, CandidateStatus.Cancelled, CandidateStatus.Expired];
+		const statuses = [
+			CandidateStatus.Active,
+			CandidateStatus.Committed,
+			CandidateStatus.Cancelled,
+			CandidateStatus.Expired,
+		];
 		expect(statuses).toHaveLength(4);
 	});
 });
@@ -181,9 +194,18 @@ describe("CellCommandRegistry descriptors", () => {
 describe("EditorCommandRegistry", () => {
 	it("dispatches default editor commands", () => {
 		const registry = EditorCommandRegistry.createDefault();
-		expect(registry.dispatch("w", [])).toEqual({ success: true, action: "save" });
-		expect(registry.dispatch("q", [])).toEqual({ success: true, action: "quit" });
-		expect(registry.dispatch("wq", [])).toEqual({ success: true, action: "save_quit" });
+		expect(registry.dispatch("w", [])).toEqual({
+			success: true,
+			action: "save",
+		});
+		expect(registry.dispatch("q", [])).toEqual({
+			success: true,
+			action: "quit",
+		});
+		expect(registry.dispatch("wq", [])).toEqual({
+			success: true,
+			action: "save_quit",
+		});
 	});
 
 	it("rejects unknown editor commands", () => {
@@ -194,7 +216,11 @@ describe("EditorCommandRegistry", () => {
 
 	it("dispatches mode toggle", () => {
 		const registry = EditorCommandRegistry.createDefault();
-		expect(registry.dispatch("mode", ["preview"])).toEqual({ success: true, action: "set_execution_mode", data: { mode: "preview" } });
+		expect(registry.dispatch("mode", ["preview"])).toEqual({
+			success: true,
+			action: "set_execution_mode",
+			data: { mode: "preview" },
+		});
 		expect(registry.dispatch("mode", ["invalid"]).success).toBe(false);
 	});
 

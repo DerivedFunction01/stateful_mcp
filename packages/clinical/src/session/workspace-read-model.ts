@@ -1,6 +1,11 @@
 import type { CodeableConcept } from "../schemas/shared";
 
-export type BranchStatus = "active" | "suspended" | "confirmed" | "rule_out" | "closed";
+export type BranchStatus =
+	| "active"
+	| "suspended"
+	| "confirmed"
+	| "rule_out"
+	| "closed";
 
 export interface BranchSummary {
 	branchId: string;
@@ -20,6 +25,9 @@ export interface WorkspaceSnapshot {
 }
 
 export interface WorkspaceReadModel {
-	getWorkspace(sessionId: string, workspaceId: string): Promise<WorkspaceSnapshot | null>;
+	getWorkspace(
+		sessionId: string,
+		workspaceId: string,
+	): Promise<WorkspaceSnapshot | null>;
 	listWorkspaces(sessionId: string): Promise<WorkspaceSnapshot[]>;
 }
