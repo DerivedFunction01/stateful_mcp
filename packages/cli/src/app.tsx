@@ -50,13 +50,6 @@ export function NotebookApp() {
 		[],
 	);
 
-	const workspaceCommandMappings = useMemo(
-		() =>
-			session?.result.engine.getParser().getProfile()
-				.workspaceCommandMappings ?? {},
-		[session],
-	);
-
 	const handleInput = useCallback(
 		(
 			input: string,
@@ -73,6 +66,9 @@ export function NotebookApp() {
 			},
 		) => {
 			if (state.preview) return;
+			// WorkspaceScreen owns editing and navigation while the workspace view is
+			// active. Prevent the notebook keymap from receiving the same keystroke.
+			if (state.showWorkspace) return;
 
 			if (state.mode === "COMMAND") {
 				// D4: ignore all keys while a dispatch is pending.
@@ -387,7 +383,6 @@ export function NotebookApp() {
 				completionState={{ status: "idle" }}
 				onCloseHelp={() => dispatch({ type: "TOGGLE_HELP" })}
 				onCloseWorkspace={() => dispatch({ type: "TOGGLE_WORKSPACE" })}
-				workspaceCommandMappings={{}}
 			/>
 		);
 	}
@@ -428,7 +423,6 @@ export function NotebookApp() {
 			completionState={completionState}
 			onCloseHelp={() => dispatch({ type: "TOGGLE_HELP" })}
 			onCloseWorkspace={() => dispatch({ type: "TOGGLE_WORKSPACE" })}
-			workspaceCommandMappings={workspaceCommandMappings}
 		/>
 	);
 }

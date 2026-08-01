@@ -1,5 +1,7 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import type { Cell } from "../../session/cell";
+import type { Cell, CellCollectionRef } from "../../session/cell";
+import type { CellCollectionDocument } from "../cell/cell-document";
+import { collectionKey } from "../cell/cell-document";
 import { NotebookQueryCompiler } from "../sql/notebook-query-compiler";
 import type { NotebookCellRef, NotebookSessionDocument } from "./interfaces";
 import type { NotebookStore } from "./notebook-store";
@@ -81,6 +83,14 @@ export class SqlNotebookStore implements NotebookStore {
 			cells,
 			activeIndex: Number(sessionRow.activeIndex ?? 0),
 			draftText: (sessionRow.draftText as string) ?? "",
+			collections: sessionRow.collectionsJson
+				? typeof sessionRow.collectionsJson === "string"
+					? JSON.parse(sessionRow.collectionsJson as string)
+					: (sessionRow.collectionsJson as Record<
+							string,
+							CellCollectionDocument
+						>)
+				: {},
 		};
 	}
 
@@ -91,6 +101,7 @@ export class SqlNotebookStore implements NotebookStore {
 			activeIndex: doc.activeIndex,
 			draftText: doc.draftText,
 			updatedAt: doc.updatedAt,
+			collectionsJson: JSON.stringify(doc.collections ?? {}),
 		});
 		const deleteCells = this.compiler.compileDeleteCellsQuery(doc.sessionId);
 		const insertCells = doc.ordering
@@ -106,6 +117,31 @@ export class SqlNotebookStore implements NotebookStore {
 
 		const statements = [sessionUpsert, deleteCells, ...insertCells];
 		await this.executor.transaction(statements);
+	}
+
+	async loadCollection(
+		sessionId: string,
+		collection: CellCollectionRef,
+	): Promise<CellCollectionDocument | null> {
+		const document = await this.loadDocument(sessionId);
+		return document?.collections?.[collectionKey(collection)] ?? null;
+	}
+
+	async saveCollection(
+		sessionId: string,
+		collection: CellCollectionDocument,
+	): Promise<void> {
+		const document =
+			(await this.loadDocument(sessionId)) ?? emptyDocument(sessionId);
+		document.collections ??= {};
+		document.collections[collectionKey(collection.collection)] = collection;
+		document.updatedAt = new Date().toISOString();
+		await this.saveDocument(document);
+	}
+
+	async listCollections(sessionId: string): Promise<CellCollectionDocument[]> {
+		const document = await this.loadDocument(sessionId);
+		return document?.collections ? Object.values(document.collections) : [];
 	}
 
 	async listSession(sessionId: string): Promise<NotebookCellRef[]> {
@@ -181,5 +217,6 @@ function emptyDocument(sessionId: string): NotebookSessionDocument {
 		cells: {},
 		activeIndex: 0,
 		draftText: "",
+		collections: {},
 	};
 }

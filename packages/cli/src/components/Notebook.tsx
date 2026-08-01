@@ -24,7 +24,6 @@ interface NotebookProps {
 	completionState: CompletionState;
 	onCloseHelp: () => void;
 	onCloseWorkspace: () => void;
-	workspaceCommandMappings: Record<string, string>;
 }
 
 export function Notebook({
@@ -37,7 +36,6 @@ export function Notebook({
 	completionState,
 	onCloseHelp,
 	onCloseWorkspace,
-	workspaceCommandMappings,
 }: NotebookProps) {
 	const workspace = useWorkspace({
 		showWorkspace: state.showWorkspace,
@@ -77,14 +75,8 @@ export function Notebook({
 						text,
 					);
 				}}
-				onComplete={async (branchId) => {
-					await workspace.complete(branchId);
-				}}
-				onAddBranch={async (name, text) => {
-					await workspace.addBranch(name, text);
-				}}
-				onToggleFocus={workspace.toggleFocus}
-				workspaceCommandMappings={workspaceCommandMappings}
+				getCommandSuggestions={workspace.getCommandSuggestions}
+				onFocusBranch={workspace.focusBranch}
 			/>
 		);
 	}

@@ -547,6 +547,10 @@ export class ClinicalEngine {
 		}
 	}
 
+	setWorkspaceCellService(service: WorkspaceCellService): void {
+		this.workspaceCellService = service;
+	}
+
 	/**
 	 * Creates a ClinicalEngine with a parser profile resolved from a store.
 	 */
@@ -1483,6 +1487,16 @@ export class ClinicalEngine {
 			throw new Error("workspaceCellService is not configured");
 		}
 		return this.workspaceCellService.listCells(sessionId, workspaceId);
+	}
+
+	async focusWorkspaceBranch(
+		sessionId: string,
+		workspaceId: string,
+		branchRef: string,
+	): Promise<void> {
+		if (!this.workspaceStore)
+			throw new Error("workspaceStore is not configured");
+		await this.workspaceStore.focus(sessionId, workspaceId, branchRef);
 	}
 
 	async supersedeWorkspaceCell(

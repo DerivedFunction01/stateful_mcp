@@ -17,6 +17,7 @@ import { CommandAutocompleteSuggester } from "../parser/command-autocomplete-sug
 import { DEFAULT_CLINICAL_STORE_CONFIG } from "../seed/clinical-config-seed";
 import { CellCommandRegistry } from "../session/cell-command-registry";
 import { CellProcessor } from "../session/cell-processor";
+import { WorkspaceCellService } from "../session/workspace-cell-service";
 import { resolveCellStore } from "../store/cell/cell-backend-resolver";
 import type {
 	ClinicalStoreBackendConfig,
@@ -24,6 +25,7 @@ import type {
 } from "../store/clinical-config";
 import type { ClinicalRuntime } from "../store/clinical-runtime";
 import { createClinicalRuntime } from "../store/clinical-runtime";
+import type { CellStore } from "../store/interfaces";
 import { resolveNotebookStore } from "../store/notebook/notebook-backend-resolver";
 import type { NotebookStore } from "../store/notebook/notebook-store";
 import { DefaultParserProfileComposer } from "../store/parser/parser-composer";
@@ -40,6 +42,7 @@ export interface EngineBuilderResult {
 	engine: ClinicalEngine;
 	processor: CellProcessor;
 	notebook: NotebookStore;
+	cellStore: CellStore;
 }
 
 export interface EngineBuilderOptions {
@@ -247,6 +250,7 @@ async function wireEngine(
 	engine: ClinicalEngine;
 	processor: CellProcessor;
 	notebook: NotebookStore;
+	cellStore: CellStore;
 }> {
 	const personnelId = options?.personnelId ?? "system";
 	const dbPath = options?.dbPath ?? "./clinical";
@@ -284,7 +288,11 @@ async function wireEngine(
 		personnelId,
 	);
 
-	const workspaceReadModel = new WorkspaceReadModelImpl(workspaceStore);
+	const cellStore = await resolveCellStore(runtime.config);
+	const workspaceReadModel = new WorkspaceReadModelImpl(
+		workspaceStore,
+		cellStore,
+	);
 
 	const engineConfig: ClinicalEngineConfig = {
 		...engineStores,
@@ -307,7 +315,6 @@ async function wireEngine(
 	const engine = new ClinicalEngine(engineConfig);
 	const parser = engine.getParser();
 	workspaceStore.setParser(parser);
-	const cellStore = await resolveCellStore(runtime.config);
 	const notebook = await resolveNotebookStore(runtime.config);
 	const processor = new CellProcessor(
 		engine,
@@ -317,8 +324,14 @@ async function wireEngine(
 		cellStore,
 		CellCommandRegistry.createDefault(),
 	);
+	const workspaceCellService = new WorkspaceCellService(
+		workspaceStore,
+		processor,
+		cellStore,
+	);
+	engine.setWorkspaceCellService(workspaceCellService);
 
-	return { engine, processor, notebook };
+	return { engine, processor, notebook, cellStore };
 }
 
 // ── Public builder ────────────────────────────────────────────────
@@ -343,12 +356,12 @@ export class ClinicalEngineBuilder {
 			backend,
 			options?.dbPath ?? "./clinical",
 		);
-		const { engine, processor, notebook } = await wireEngine(
+		const { engine, processor, notebook, cellStore } = await wireEngine(
 			runtime,
 			engineStores,
 			options,
 		);
-		return { runtime, engine, processor, notebook };
+		return { runtime, engine, processor, notebook, cellStore };
 	}
 
 	/**
@@ -421,12 +434,12 @@ export class ClinicalEngineBuilder {
 		const runtime = await createClinicalRuntime(config);
 		await initializeClinicalRuntime(runtime, config);
 		const engineStores = await createEngineStores(backend, dbPath);
-		const { engine, processor, notebook } = await wireEngine(
+		const { engine, processor, notebook, cellStore } = await wireEngine(
 			runtime,
 			engineStores,
 			options,
 		);
-		return { runtime, engine, processor, notebook };
+		return { runtime, engine, processor, notebook, cellStore };
 	}
 }
 

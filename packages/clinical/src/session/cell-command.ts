@@ -1,4 +1,3 @@
-import type { ClinicalEngine } from "../engine/clinical-engine";
 import type {
 	WorkspaceCommand,
 	WorkspaceCommandWarning,
@@ -46,7 +45,6 @@ export interface CellCommandContext {
 	activeCellIndex?: number;
 	cells?: Cell[];
 	cell: Cell;
-	engine?: ClinicalEngine;
 	parser?: CdslParser;
 	workspaceStore?: WorkspaceStore;
 	profile: ParserSyntaxProfile;

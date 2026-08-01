@@ -40,6 +40,7 @@ export class NotebookQueryCompiler {
 				{ name: "sessionId", type: "TEXT", nullable: false },
 				{ name: "activeIndex", type: "int", nullable: false },
 				{ name: "draftText", type: "TEXT", nullable: false },
+				{ name: "collectionsJson", type: "JSON", nullable: false },
 				{ name: "updatedAt", type: "TEXT", nullable: false },
 			],
 		});

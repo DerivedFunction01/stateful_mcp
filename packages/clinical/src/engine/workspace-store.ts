@@ -503,6 +503,51 @@ export class WorkspaceStore {
 		return currentCommitId;
 	}
 
+	async focus(
+		sessionId: string,
+		workspaceId: string,
+		branchRef: string,
+	): Promise<void> {
+		const workspace = await this.get(sessionId, workspaceId);
+		if (!workspace)
+			throw new Error(`Epistemic workspace ${workspaceId} not found`);
+		const branch = workspace.branches.find((candidate) =>
+			[
+				candidate.id,
+				candidate.commandAlias,
+				candidate.name,
+				candidate.hypothesisConcept.conceptId,
+				candidate.hypothesisConcept.display,
+			]
+				.filter(Boolean)
+				.some(
+					(value) =>
+						value === branchRef ||
+						value?.toLowerCase() === branchRef.toLowerCase(),
+				),
+		);
+		if (!branch) throw new Error(`Branch ${branchRef} not found`);
+		if (workspace.activeBranchId === branch.id) return;
+		const previousBranchId = workspace.activeBranchId;
+		workspace.activeBranchId = branch.id;
+		await this.eventStore.append(
+			sessionId,
+			workspaceId,
+			{
+				targetSchema: "branch_switched",
+				fromBranchId: previousBranchId,
+				toBranchId: branch.id,
+			},
+			workspaceId,
+		);
+		await this.objectStore.set(
+			workspaceId,
+			[],
+			workspace as unknown as Record<string, any>,
+			sessionId,
+		);
+	}
+
 	async get(
 		sessionId: string,
 		workspaceId: string,

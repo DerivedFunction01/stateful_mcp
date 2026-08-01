@@ -2,6 +2,20 @@ import type { SoapSection } from "../schemas/shared";
 
 export type CellMode = "cdsl" | "narrative" | "js_script";
 
+export type CellKind = "notebook" | "workspace" | (string & {});
+
+export interface CellCollectionRef {
+	kind: CellKind;
+	collectionId: string;
+}
+
+export type CellIntentKind =
+	| "prose"
+	| "workspace_command"
+	| "cell_configuration"
+	| "directed_value"
+	| (string & {});
+
 export type CellRoutingScope = "global" | "branch_local" | "unresolved";
 
 export interface CellRoutingTarget {
@@ -76,13 +90,14 @@ export const CELL_ERROR_MESSAGES: Record<CellError, string> = {
 export interface Cell {
 	cellId: string;
 	sessionId: string;
+	collection: CellCollectionRef;
+	intentKind: CellIntentKind;
 	mode: CellMode;
 	rawInput: string;
 	routing: CellRoutingTarget;
 	parsedOutput: import("../parser/schema-parsers").ParsedItem[] | null;
 	workspaceCommands?: import("../engine/workspace-store").WorkspaceCommand[];
 	workspaceCommandWarnings?: import("../engine/workspace-store").WorkspaceCommandWarning[];
-	workspaceId?: string;
 	status: CellStatus;
 	errorMessage?: string;
 	lockedAt?: string;

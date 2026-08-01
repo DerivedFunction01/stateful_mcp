@@ -24,7 +24,8 @@ function mapStatus(
 function projectCell(cell: Cell): WorkspaceCellSummary {
 	return {
 		cellId: cell.cellId,
-		workspaceId: cell.workspaceId ?? "",
+		workspaceId:
+			cell.collection.kind === "workspace" ? cell.collection.collectionId : "",
 		sessionId: cell.sessionId,
 		rawInput: cell.rawInput,
 		status: cell.status,
@@ -67,10 +68,11 @@ export class WorkspaceReadModelImpl implements WorkspaceReadModel {
 	): Promise<WorkspaceSnapshot> {
 		let cells: WorkspaceCellSummary[] = [];
 		if (this.cellStore) {
-			const allCells = await this.cellStore.list(sessionId);
-			cells = allCells
-				.filter((c) => c.workspaceId === workspace.id)
-				.map(projectCell);
+			const workspaceCells = await this.cellStore.listByCollection(sessionId, {
+				kind: "workspace",
+				collectionId: workspace.id,
+			});
+			cells = workspaceCells.map(projectCell);
 		}
 
 		return {

@@ -1,4 +1,3 @@
-import type { ClinicalEngine } from "../engine/clinical-engine";
 import type { WorkspaceStore } from "../engine/workspace-store";
 import type { CdslParser } from "../parser/cdsl-parser";
 import type { ParsedItem } from "../parser/schema-parsers";
@@ -12,6 +11,7 @@ import { CELL_ERROR_MESSAGES, CellError } from "./cell";
 import type { CellCommandContext } from "./cell-command";
 import { CellCommandParser } from "./cell-command-parser";
 import { CellCommandRegistry } from "./cell-command-registry";
+import type { CellDocumentExecutor } from "./cell-execution";
 import { WorkspaceCommandParser } from "./workspace-command-parser";
 
 function computePreviewFingerprint(cell: Cell): string {
@@ -54,7 +54,7 @@ export interface CellProcessResult {
 
 export class CellProcessor {
 	constructor(
-		private engine: ClinicalEngine,
+		private documentExecutor: CellDocumentExecutor,
 		private workspaceStore?: WorkspaceStore,
 		private parser?: CdslParser,
 		private preprocessor?: TextPreprocessor,
@@ -72,6 +72,13 @@ export class CellProcessor {
 			cell.rawInput,
 			this.parser.getProfile(),
 		);
+		if (
+			cell.collection.kind === "workspace" &&
+			command &&
+			this.parser.getProfile().workspaceCommandMappings?.[command.verb]
+		) {
+			return null;
+		}
 		if (!command)
 			return {
 				cell,
@@ -84,7 +91,6 @@ export class CellProcessor {
 			sessionId: cell.sessionId,
 			cell,
 			parser: this.parser,
-			engine: this.engine,
 			workspaceStore: this.workspaceStore,
 			profile: this.parser.getProfile(),
 			processor: this,
@@ -234,7 +240,7 @@ export class CellProcessor {
 			cell.metadata = { ...cell.metadata, sourceType: "narrative" };
 			try {
 				const effectiveAlias = alias ?? cell.sessionId;
-				const note = await this.engine.setSoapNoteField(
+				const note = await this.documentExecutor.setSoapNoteField(
 					cell.sessionId,
 					cell.narrativeTarget,
 					cleanedText,
@@ -279,7 +285,7 @@ export class CellProcessor {
 				cell.parsedOutput = null;
 				cell.status = "parsing";
 				try {
-					const note = await this.engine.processCdsl(
+					const note = await this.documentExecutor.processCdsl(
 						cell.sessionId,
 						commandResult.remainingText,
 						effectiveAlias,
@@ -309,7 +315,11 @@ export class CellProcessor {
 				}
 			}
 			case "branch_local": {
-				if (!cell.workspaceId || !cell.routing.branchId) {
+				const workspaceId =
+					cell.collection?.kind === "workspace"
+						? cell.collection.collectionId
+						: (cell as Cell & { workspaceId?: string }).workspaceId;
+				if (!workspaceId || !cell.routing.branchId) {
 					cell.status = "error";
 					cell.errorMessage =
 						CELL_ERROR_MESSAGES[CellError.BRANCH_LOCAL_REQUIRES_WORKSPACE_ID];
@@ -334,7 +344,7 @@ export class CellProcessor {
 				try {
 					const updatedWorkspace = await this.workspaceStore.process(
 						cell.sessionId,
-						cell.workspaceId,
+						workspaceId,
 						cell.routing.branchId,
 						commandResult.remainingText,
 						commandResult.commands,

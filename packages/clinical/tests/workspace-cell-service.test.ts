@@ -8,6 +8,8 @@ function makeCell(overrides: Partial<Cell> = {}): Cell {
 	return {
 		cellId: "cell_1",
 		sessionId: "session_1",
+		collection: { kind: "notebook", collectionId: "session_1" },
+		intentKind: "prose",
 		mode: "cdsl",
 		rawInput: "#vital temp 38.9 C",
 		routing: { scope: "global", targetSchema: null },
@@ -28,6 +30,14 @@ function makeMockCellStore(): CellStore {
 		async list(sessionId: string) {
 			return Array.from(cells.values()).filter(
 				(c) => c.sessionId === sessionId,
+			);
+		},
+		async listByCollection(sessionId, collection) {
+			return Array.from(cells.values()).filter(
+				(c) =>
+					c.sessionId === sessionId &&
+					c.collection.kind === collection.kind &&
+					c.collection.collectionId === collection.collectionId,
 			);
 		},
 		async save(cell: Cell) {
@@ -191,7 +201,6 @@ describe("WorkspaceCellService", () => {
 		const engine = {} as any;
 		const processor = new CellProcessor(engine);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,
@@ -205,7 +214,10 @@ describe("WorkspaceCellService", () => {
 		);
 
 		expect(result.cell.status).toBe("draft");
-		expect(result.cell.workspaceId).toBe("work_1");
+		expect(result.cell.collection).toEqual({
+			kind: "workspace",
+			collectionId: "work_1",
+		});
 		expect(result.cell.sessionId).toBe("session_1");
 		expect(result.cell.rawInput).toBe("#vital temp 38.9 C");
 		expect(result.cell.routing.scope).toBe("branch_local");
@@ -227,7 +239,6 @@ describe("WorkspaceCellService", () => {
 		const engine = {} as any;
 		const processor = new CellProcessor(engine);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,
@@ -242,7 +253,7 @@ describe("WorkspaceCellService", () => {
 
 		const cells = await service.listCells("session_1", "work_1");
 		expect(cells).toHaveLength(1);
-		expect(cells[0]!.workspaceId).toBe("work_1");
+		expect(cells[0]!.collection.collectionId).toBe("work_1");
 	});
 
 	test("rejects branch_local without branchId when no active branch", async () => {
@@ -260,7 +271,6 @@ describe("WorkspaceCellService", () => {
 		const engine = {} as any;
 		const processor = new CellProcessor(engine);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,
@@ -290,7 +300,6 @@ describe("WorkspaceCellService", () => {
 		const engine = {} as any;
 		const processor = new CellProcessor(engine);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,
@@ -330,7 +339,6 @@ describe("WorkspaceCellService", () => {
 		const engine = {} as any;
 		const processor = new CellProcessor(engine);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,
@@ -369,7 +377,6 @@ describe("WorkspaceCellService", () => {
 		const engine = {} as any;
 		const processor = new CellProcessor(engine);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,
@@ -404,7 +411,6 @@ describe("WorkspaceCellService", () => {
 		} as any;
 		const processor = new CellProcessor(engine, undefined, parser);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,
@@ -456,7 +462,6 @@ describe("WorkspaceCellService", () => {
 		} as any;
 		const processor = new CellProcessor(engine, undefined, parser);
 		const service = new WorkspaceCellService(
-			engine,
 			workspaceStore,
 			processor,
 			cellStore,

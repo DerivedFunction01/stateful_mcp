@@ -351,7 +351,10 @@ export class ProseRenderer {
 		);
 
 		// 4. Prefer matching workspaceId
-		const workspaceId = cell.workspaceId;
+		const workspaceId =
+			cell.collection?.kind === "workspace"
+				? cell.collection.collectionId
+				: (cell as Cell & { workspaceId?: string }).workspaceId;
 		const pool = conceptMatches.length > 0 ? conceptMatches : schemaMatches;
 		const workspaceMatches = workspaceId
 			? pool.filter((t) => t.workspaceId === workspaceId)

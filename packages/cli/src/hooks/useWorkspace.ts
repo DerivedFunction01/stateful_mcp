@@ -1,3 +1,4 @@
+import { WorkspaceCommandProvider } from "@stateful-mcp/clinical/session/workspace-command-provider";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "./useSession";
@@ -22,6 +23,8 @@ interface UseWorkspaceReturn {
 	focused: boolean;
 	toggleFocus: () => void;
 	resetWorkspace: () => void;
+	getCommandSuggestions: (text: string) => string[];
+	focusBranch: (branchRef: string) => Promise<void>;
 }
 
 export function useWorkspace({
@@ -81,6 +84,16 @@ export function useWorkspace({
 		if (!readModel) return;
 		const ws = await readModel.getWorkspace(sessionId, workspaceIdRef.current);
 		setSnapshot(ws);
+		const cells = await engine.listWorkspaceCells(
+			sessionId,
+			workspaceIdRef.current,
+		);
+		await session.notebook.saveCollection(sessionId, {
+			collection: { kind: "workspace", collectionId: workspaceIdRef.current },
+			ordering: cells.map((cell) => cell.cellId),
+			activeIndex: Math.max(0, cells.length - 1),
+			draftText: "",
+		});
 	}, [session, sessionId]);
 
 	const processInput = useCallback(
@@ -89,11 +102,19 @@ export function useWorkspace({
 			try {
 				const engine = session?.result.engine;
 				if (!engine) throw new Error("No engine available");
-				await engine.processWorkspaceDictation(
+				const created = await engine.createWorkspaceCell(
 					sessionId,
 					workspaceId,
-					branchId,
 					text,
+					{
+						branchId,
+						routingScope: "branch_local",
+					},
+				);
+				await engine.executeWorkspaceCell(
+					sessionId,
+					workspaceId,
+					created.cellId,
 				);
 				await refresh();
 			} catch (err) {
@@ -155,6 +176,48 @@ export function useWorkspace({
 		setFocused((prev) => !prev);
 	}, []);
 
+	const getCommandSuggestions = useCallback(
+		(text: string) => {
+			const engine = session?.result.engine;
+			if (!engine || !text.trim().startsWith(":")) return [];
+			const provider = new WorkspaceCommandProvider(
+				engine.getParser().getProfile(),
+			);
+			const body = text.trim().slice(1);
+			const parts = body.split(/\s+/);
+			const prefix = parts[parts.length - 1] ?? "";
+			if (parts.length <= 1) {
+				return provider
+					.getDescriptors()
+					.flatMap((descriptor) => [descriptor.verb, ...descriptor.aliases])
+					.filter((verb) => verb.startsWith(prefix));
+			}
+			return provider
+				.getArgumentCompletions(parts[0] ?? "", parts.length - 2, snapshot)
+				.filter((value) => value.startsWith(prefix));
+		},
+		[session, snapshot],
+	);
+
+	const focusBranch = useCallback(
+		async (branchRef: string) => {
+			const engine = session?.result.engine;
+			if (!engine || !workspaceIdRef.current) return;
+			try {
+				setError(null);
+				await engine.focusWorkspaceBranch(
+					sessionId,
+					workspaceIdRef.current,
+					branchRef,
+				);
+				await refresh();
+			} catch (err) {
+				setError(err instanceof Error ? err.message : String(err));
+			}
+		},
+		[session, sessionId, refresh],
+	);
+
 	return {
 		snapshot,
 		loading,
@@ -165,5 +228,7 @@ export function useWorkspace({
 		focused,
 		toggleFocus,
 		resetWorkspace,
+		getCommandSuggestions,
+		focusBranch,
 	};
 }

@@ -10,7 +10,8 @@ export function CellInfoPanel({ cell }: CellInfoPanelProps) {
 	const section = cell.routing.resolvedSection ?? "—";
 	const schema =
 		cell.routing.targetSchema ?? cell.routing.resolvedSchema ?? "—";
-	const workspace = cell.workspaceId ?? "—";
+	const workspace =
+		cell.collection.kind === "workspace" ? cell.collection.collectionId : "—";
 	const branch = cell.routing.branchId ?? "—";
 	const parent = cell.parentCellId ?? "—";
 	const link = cell.linkTarget

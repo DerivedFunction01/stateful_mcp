@@ -12,10 +12,8 @@ interface WorkspaceScreenProps {
 	focused: boolean;
 	onClose: () => void;
 	onProcessInput: (branchId: string, text: string) => Promise<void>;
-	onComplete: (branchId: string) => Promise<void>;
-	onAddBranch: (name: string, conceptText: string) => Promise<void>;
-	onToggleFocus: () => void;
-	workspaceCommandMappings: Record<string, string>;
+	getCommandSuggestions: (text: string) => string[];
+	onFocusBranch: (branchRef: string) => Promise<void>;
 }
 
 function GlobalFactsStrip({
@@ -127,71 +125,95 @@ export function WorkspaceScreen({
 	focused,
 	onClose,
 	onProcessInput,
-	onComplete,
-	onAddBranch,
-	onToggleFocus,
-	workspaceCommandMappings,
+	getCommandSuggestions,
+	onFocusBranch,
 }: WorkspaceScreenProps) {
 	const [inputText, setInputText] = useState("");
+	const [editing, setEditing] = useState(false);
+	const [showHelp, setShowHelp] = useState(false);
+	const [suggestionIndex, setSuggestionIndex] = useState(0);
+	const suggestions = inputText.trim().startsWith(":")
+		? getCommandSuggestions(inputText)
+		: [];
 
 	useInput((_input, key) => {
 		if (key.escape) {
-			onClose();
+			if (editing || inputText) {
+				setInputText("");
+				setEditing(false);
+			} else {
+				onClose();
+			}
 			return;
 		}
-		if (key.return) {
+		if (!editing) {
+			if (_input === "i" || _input === "a") {
+				setEditing(true);
+				return;
+			}
+			if (_input === "?") {
+				setShowHelp(true);
+				return;
+			}
+			return;
+		}
+		if (key.return && (key.ctrl || key.meta)) {
 			if (inputText.trim()) {
 				handleSubmit(inputText.trim());
 			}
 			setInputText("");
+			setEditing(false);
+			return;
+		}
+		if (key.tab && suggestions.length > 0) {
+			const suggestion = suggestions[suggestionIndex % suggestions.length];
+			if (suggestion) {
+				const parts = inputText.split(/\s+/);
+				parts[parts.length - 1] = suggestion;
+				setInputText(parts.join(" "));
+				setSuggestionIndex((index) => (index + 1) % suggestions.length);
+			}
+			return;
+		}
+		if (key.return) {
+			setInputText((prev) => `${prev}\n`);
 			return;
 		}
 		if (key.backspace) {
 			setInputText((prev) => prev.slice(0, -1));
 			return;
 		}
-		// Inline shortcuts only apply when the input buffer is empty, so letters
-		// like `f`/`w` can be typed inside findings, hypotheses, and commands.
-		if (inputText.length === 0 && _input === "f") {
-			onToggleFocus();
-			return;
-		}
-		if (inputText.length === 0 && _input === "w") {
-			const wid = snapshot?.activeBranchId;
-			if (wid) {
-				onComplete(wid);
-			}
-			return;
-		}
 		if (_input.length === 1 && !key.ctrl && !key.meta) {
 			setInputText((prev) => prev + _input);
+			setSuggestionIndex(0);
 		}
 	});
 
 	const handleSubmit = async (text: string) => {
-		if (!snapshot) return;
-		const activeBranchId = snapshot.activeBranchId;
-		if (!activeBranchId && snapshot.branches.length === 0) {
-			await onAddBranch("Hypothesis", text);
-			return;
-		}
-		const branchId = activeBranchId ?? snapshot.branches[0]!.branchId;
 		const tokens = text.trim().split(/\s+/);
 		const first = tokens[0]?.toLowerCase();
 		if (!first) return;
-		const command = workspaceCommandMappings[first] ?? first;
-		if (workspaceCommandMappings[first] || command === first) {
-			if (command === "branch" && tokens.length >= 3) {
-				await onAddBranch(tokens[1]!, tokens.slice(2).join(" "));
-				return;
-			}
-			if (command === "close") {
-				await onComplete(branchId!);
-				return;
-			}
-			await onProcessInput(branchId!, text);
+		if (first === ":help" || first === "help") {
+			setShowHelp(true);
 			return;
 		}
+		if (first === ":focus" || first === "focus") {
+			if (tokens[1]) await onFocusBranch(tokens[1]);
+			return;
+		}
+		if (
+			first === ":back" ||
+			first === ":exit" ||
+			first === "back" ||
+			first === "exit"
+		) {
+			onClose();
+			return;
+		}
+		if (!snapshot) return;
+		const activeBranchId = snapshot.activeBranchId;
+		if (!activeBranchId && snapshot.branches.length === 0) return;
+		const branchId = activeBranchId ?? snapshot.branches[0]!.branchId;
 		await onProcessInput(branchId!, text);
 	};
 
@@ -199,6 +221,22 @@ export function WorkspaceScreen({
 
 	return (
 		<Box flexDirection="column" width="100%" height="100%">
+			{showHelp && (
+				<Box
+					borderStyle="single"
+					paddingLeft={1}
+					paddingRight={1}
+					flexDirection="column"
+				>
+					<Text bold>Workspace commands</Text>
+					<Text color="gray">
+						i/a edit · Enter newline · Ctrl-Enter submit · Esc cancel/back
+					</Text>
+					<Text color="gray">
+						:branch :confirm :rule_out :suspend :re_activate :elevate :complete
+					</Text>
+				</Box>
+			)}
 			<Box>
 				<Text bold inverse>
 					{" "}
@@ -212,7 +250,7 @@ export function WorkspaceScreen({
 						plural: branches.length !== 1 ? "es" : "",
 					})}
 					{focused ? ` · ${t("workspace.focused")}` : ""}
-					{" · f: focus · w: complete · Esc: close"}
+					{" · i/a: edit · Esc: back"}
 				</Text>
 			</Box>
 
@@ -260,9 +298,18 @@ export function WorkspaceScreen({
 				marginTop={1}
 			>
 				<Text>
-					{inputText ? `> ${inputText}` : `> ${t("workspace.inputHint")}`}
+					{inputText
+						? `> ${inputText}`
+						: `> ${editing ? t("workspace.inputHint") : "i/a to edit"}`}
 				</Text>
 			</Box>
+			{editing && suggestions.length > 0 && (
+				<Box paddingLeft={1}>
+					<Text color="cyan">
+						COMMAND | workspace · {suggestions.slice(0, 6).join("  ")}
+					</Text>
+				</Box>
+			)}
 		</Box>
 	);
 }

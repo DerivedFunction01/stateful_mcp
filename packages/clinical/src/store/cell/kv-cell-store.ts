@@ -1,5 +1,5 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { Cell } from "../../session/cell";
+import type { Cell, CellCollectionRef } from "../../session/cell";
 import type { CellStore } from "../interfaces";
 
 export class KvCellStore implements CellStore {
@@ -17,6 +17,18 @@ export class KvCellStore implements CellStore {
 		return Object.values(data)
 			.map((v) => JSON.parse(v as string) as Cell)
 			.filter((c) => c.sessionId === sessionId);
+	}
+
+	async listByCollection(
+		sessionId: string,
+		collection: CellCollectionRef,
+	): Promise<Cell[]> {
+		const cells = await this.list(sessionId);
+		return cells.filter(
+			(cell) =>
+				cell.collection.kind === collection.kind &&
+				cell.collection.collectionId === collection.collectionId,
+		);
 	}
 
 	async save(cell: Cell): Promise<void> {

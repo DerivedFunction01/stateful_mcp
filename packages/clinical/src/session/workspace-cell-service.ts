@@ -1,4 +1,3 @@
-import type { ClinicalEngine } from "../engine/clinical-engine";
 import type { WorkspaceStore } from "../engine/workspace-store";
 import type { CellStore } from "../store/interfaces";
 import type { Cell } from "./cell";
@@ -24,7 +23,6 @@ export interface WorkspaceCellListResult {
 
 export class WorkspaceCellService {
 	constructor(
-		_engine: ClinicalEngine,
 		private workspaceStore: WorkspaceStore,
 		private cellProcessor: CellProcessor,
 		private cellStore: CellStore,
@@ -59,6 +57,10 @@ export class WorkspaceCellService {
 		const cell: Cell = {
 			cellId,
 			sessionId,
+			collection: { kind: "workspace", collectionId: workspaceId },
+			intentKind: rawInput.trim().startsWith(":")
+				? "workspace_command"
+				: "prose",
 			mode: options.mode ?? "cdsl",
 			rawInput,
 			routing: {
@@ -69,7 +71,6 @@ export class WorkspaceCellService {
 				resolvedSchema: null,
 			},
 			parsedOutput: null,
-			workspaceId,
 			status: "draft",
 			updatedAt: now,
 			context: {
@@ -174,8 +175,10 @@ export class WorkspaceCellService {
 	}
 
 	async listCells(sessionId: string, workspaceId: string): Promise<Cell[]> {
-		const cells = await this.cellStore.list(sessionId);
-		return cells.filter((c) => c.workspaceId === workspaceId);
+		return this.cellStore.listByCollection(sessionId, {
+			kind: "workspace",
+			collectionId: workspaceId,
+		});
 	}
 
 	async getCell(
@@ -185,7 +188,11 @@ export class WorkspaceCellService {
 	): Promise<Cell | null> {
 		const cell = await this.cellStore.get(cellId);
 		if (!cell) return null;
-		if (cell.workspaceId !== workspaceId) return null;
+		if (
+			cell.collection.kind !== "workspace" ||
+			cell.collection.collectionId !== workspaceId
+		)
+			return null;
 		return cell;
 	}
 
@@ -206,11 +213,12 @@ export class WorkspaceCellService {
 		const newCell: Cell = {
 			cellId: newCellId,
 			sessionId,
+			collection: { ...original.collection },
+			intentKind: original.intentKind,
 			mode: original.mode,
 			rawInput,
 			routing: { ...original.routing },
 			parsedOutput: null,
-			workspaceId,
 			status: "draft",
 			updatedAt: now,
 			context: {

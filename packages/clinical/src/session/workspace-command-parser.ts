@@ -18,10 +18,22 @@ export class WorkspaceCommandParser {
 		const commands: WorkspaceCommand[] = [];
 		const warnings: WorkspaceCommandWarning[] = [];
 		const remaining: string[] = [];
+		const commandToken = profile.cellCommandToken || ":";
 		const tagToken = profile.tagToken || "#";
 		const target = "WorkspaceCommand";
 		for (const segment of text.split(profile.stateDelimiter || "||")) {
 			const trimmed = segment.trim();
+			if (trimmed.startsWith(commandToken)) {
+				const tokens = trimmed
+					.slice(commandToken.length)
+					.trim()
+					.split(/\s+/)
+					.filter(Boolean);
+				const command = this.parseCommandAlias(tokens, profile);
+				if (command) commands.push(command);
+				else warnings.push("MALFORMED");
+				continue;
+			}
 			const match = trimmed.match(
 				new RegExp(`^${this.escape(tagToken)}([^\\s]+)\\s*(.*)$`),
 			);

@@ -72,7 +72,10 @@ export function CellComponent({
 		.filter(Boolean)
 		.join(" >> ");
 	const pathInfo = path ? ` · ${path}` : "";
-	const ws = cell.workspaceId ? ` @ ${cell.workspaceId.slice(0, 12)}` : "";
+	const ws =
+		cell.collection.kind === "workspace"
+			? ` @ ${cell.collection.collectionId.slice(0, 12)}`
+			: "";
 
 	const lockInfo = cell.lockedAt
 		? ` · ${STATUS_SYMBOLS["locked"]} ${relativeTime(cell.lockedAt)}`

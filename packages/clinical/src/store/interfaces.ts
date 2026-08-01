@@ -1,6 +1,6 @@
 import type { SharedFieldAnchor } from "../parser/field-shared/shared-field-anchor";
 import type { PatientLearningBucket } from "../schemas/patient";
-import type { Cell } from "../session/cell";
+import type { Cell, CellCollectionRef } from "../session/cell";
 
 export interface ParserSyntaxProfile {
 	profileId: string;
@@ -301,6 +301,10 @@ export interface SignedSoapNoteStore {
 export interface CellStore {
 	get(cellId: string): Promise<Cell | null>;
 	list(sessionId: string): Promise<Cell[]>;
+	listByCollection(
+		sessionId: string,
+		collection: CellCollectionRef,
+	): Promise<Cell[]>;
 	save(cell: Cell): Promise<void>;
 	delete(cellId: string): Promise<void>;
 }

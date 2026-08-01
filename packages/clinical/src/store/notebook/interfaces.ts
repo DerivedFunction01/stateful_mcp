@@ -1,4 +1,5 @@
 import type { Cell } from "../../session/cell";
+import type { CellCollectionDocument } from "../cell/cell-document";
 
 export interface NotebookCellRef {
 	sessionId: string;
@@ -19,4 +20,5 @@ export interface NotebookSessionDocument {
 	cells: Record<string, Cell>;
 	activeIndex: number;
 	draftText: string;
+	collections?: Record<string, CellCollectionDocument>;
 }

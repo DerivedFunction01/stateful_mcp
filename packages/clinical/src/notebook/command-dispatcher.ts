@@ -74,7 +74,6 @@ export class CommandDispatcher {
 					: undefined,
 				cells: this.ctx.allCells,
 				cell: structuredClone(cell),
-				engine: this.ctx.engine,
 				parser: this.ctx.parser,
 				workspaceStore: this.ctx.workspaceStore,
 				profile: this.ctx.profile ?? ({ cellCommandToken: ":" } as any),

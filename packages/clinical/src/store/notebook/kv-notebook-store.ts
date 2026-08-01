@@ -1,5 +1,7 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { Cell } from "../../session/cell";
+import type { Cell, CellCollectionRef } from "../../session/cell";
+import type { CellCollectionDocument } from "../cell/cell-document";
+import { collectionKey } from "../cell/cell-document";
 import type { NotebookCellRef, NotebookSessionDocument } from "./interfaces";
 import type { NotebookStore } from "./notebook-store";
 
@@ -41,6 +43,30 @@ export class KvNotebookStore implements NotebookStore {
 		await this.ensureSessionIndexed(doc.sessionId);
 		await this.backend.set(docKey(doc.sessionId), JSON.stringify(doc));
 		await this.backend.save();
+	}
+
+	async loadCollection(
+		sessionId: string,
+		collection: CellCollectionRef,
+	): Promise<CellCollectionDocument | null> {
+		const document = await this.loadDocument(sessionId);
+		return document?.collections?.[collectionKey(collection)] ?? null;
+	}
+
+	async saveCollection(
+		sessionId: string,
+		collection: CellCollectionDocument,
+	): Promise<void> {
+		const document =
+			(await this.loadDocument(sessionId)) ?? emptyDocument(sessionId);
+		document.collections ??= {};
+		document.collections[collectionKey(collection.collection)] = collection;
+		await this.saveDocument(document);
+	}
+
+	async listCollections(sessionId: string): Promise<CellCollectionDocument[]> {
+		const document = await this.loadDocument(sessionId);
+		return document?.collections ? Object.values(document.collections) : [];
 	}
 
 	async listSession(sessionId: string): Promise<NotebookCellRef[]> {

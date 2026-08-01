@@ -112,18 +112,37 @@ export function useNotebook(session: SessionState | null) {
 				hydratedRef.current = true;
 				return;
 			}
-			const cells = doc.ordering
-				.map((id) => doc.cells[id])
-				.filter((c): c is Cell => Boolean(c));
+			const collection = await session.notebook.loadCollection(
+				session.sessionId,
+				{
+					kind: "notebook",
+					collectionId: session.sessionId,
+				},
+			);
+			const ordering = collection?.ordering ?? doc.ordering;
+			const storedCells = await Promise.all(
+				ordering.map((id) => session.result.cellStore.get(id)),
+			);
+			const cells = storedCells.some(Boolean)
+				? storedCells.filter((c): c is Cell => Boolean(c))
+				: ordering
+						.map((id) => doc.cells[id])
+						.filter((c): c is Cell => Boolean(c));
 			if (cells.length > 0) {
 				dispatch({ type: "SET_CELLS", cells });
 			}
-			dispatch({ type: "SET_ACTIVE_INDEX", index: doc.activeIndex });
+			dispatch({
+				type: "SET_ACTIVE_INDEX",
+				index: collection?.activeIndex ?? doc.activeIndex,
+			});
 			// Restore the in-progress draft only if the active cell is mid-edit;
 			// otherwise ignore the persisted draft to avoid resurrecting stale text.
 			const active = cells[doc.activeIndex];
-			if (active && doc.draftText) {
-				dispatch({ type: "SET_DRAFT_TEXT", text: doc.draftText });
+			if (active && (collection?.draftText || doc.draftText)) {
+				dispatch({
+					type: "SET_DRAFT_TEXT",
+					text: collection?.draftText ?? doc.draftText,
+				});
 			}
 			hydratedRef.current = true;
 		})();
@@ -133,19 +152,26 @@ export function useNotebook(session: SessionState | null) {
 	useEffect(() => {
 		if (!session || !hydratedRef.current) return;
 		const timeout = setTimeout(() => {
-			const perCell: Record<string, Cell> = {};
-			for (const c of state.cells) perCell[c.cellId] = c;
 			const ordering = state.cells.map((c) => c.cellId);
 			const activeCell = state.cells[state.activeIndex];
 			// Only persist draftText when actively editing; otherwise store "" so a
 			// stale draft is never resurrected on the next launch.
 			const draft =
 				state.mode === "INSERT" && activeCell ? state.draftText : "";
+			for (const cell of state.cells) {
+				void session.result.cellStore.save(cell);
+			}
 			void session.notebook.saveDocument({
 				sessionId: session.sessionId,
 				updatedAt: new Date().toISOString(),
 				ordering,
-				cells: perCell,
+				cells: {},
+				activeIndex: state.activeIndex,
+				draftText: draft,
+			});
+			void session.notebook.saveCollection(session.sessionId, {
+				collection: { kind: "notebook", collectionId: session.sessionId },
+				ordering,
 				activeIndex: state.activeIndex,
 				draftText: draft,
 			});
@@ -174,6 +200,8 @@ export function useNotebook(session: SessionState | null) {
 		(sessionId: string, rawInput = ""): Cell => ({
 			cellId: `cell_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 			sessionId,
+			collection: { kind: "notebook", collectionId: sessionId },
+			intentKind: "prose",
 			mode: "cdsl",
 			rawInput,
 			routing: {
