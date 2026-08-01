@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { t } from "../lib/i18n";
 
 interface HelpScreenProps {
 	editorDescriptors: { verb: string; group: string }[];
@@ -16,13 +17,13 @@ export function HelpScreen({
 			<Box>
 				<Text bold inverse>
 					{" "}
-					HELP{" "}
+					{t("help.title")}{" "}
 				</Text>
-				<Text> — press Esc to close</Text>
+				<Text>{t("help.close")}</Text>
 			</Box>
 			<Box flexDirection="column" paddingLeft={1} paddingTop={1}>
 				<Text bold underline>
-					Editor commands
+					{t("help.editorCommands")}
 				</Text>
 				{editorDescriptors.map((d) => (
 					<Box key={d.verb} paddingLeft={2}>
@@ -34,7 +35,7 @@ export function HelpScreen({
 				))}
 				<Box paddingTop={1}>
 					<Text bold underline>
-						Cell commands
+						{t("help.cellCommands")}
 					</Text>
 				</Box>
 				{cellDescriptors.map((d) => (
@@ -47,13 +48,9 @@ export function HelpScreen({
 				))}
 			</Box>
 			<Box paddingTop={1} paddingLeft={1}>
-				<Text color="gray">
-					Keys: j/k ↑/↓ navigate i/o/O insert dd delete yy yank p paste
-				</Text>
+				<Text color="gray">{t("help.keys1")}</Text>
 				<br />
-				<Text color="gray">
-					u undo Ctrl-r redo r run P preview : command / search
-				</Text>
+				<Text color="gray">{t("help.keys2")}</Text>
 			</Box>
 		</Box>
 	);

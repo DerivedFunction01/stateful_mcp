@@ -1,3 +1,4 @@
+import { isSoapSection, SOAP_SECTIONS } from "./command-completions";
 import type { CommandDescriptor } from "./command-descriptor";
 import { CommandGroup } from "./command-descriptor";
 
@@ -120,15 +121,17 @@ export class EditorCommandRegistry {
 			action: "render_preview",
 		}));
 		registry.register(EditorCommandVerb.Default, (_v, args) => {
-			const sections = ["subjective", "objective", "assessment", "plan"];
 			const section = args[0];
 			const schema = args[1] ?? null;
 			if (!section)
-				return { success: false, message: "usage: :default <section> [schema]" };
-			if (!sections.includes(section))
 				return {
 					success: false,
-					message: `section must be one of: ${sections.join(", ")}`,
+					message: "usage: :default <section> [schema]",
+				};
+			if (!isSoapSection(section))
+				return {
+					success: false,
+					message: `section must be one of: ${SOAP_SECTIONS.join(", ")}`,
 				};
 			return {
 				success: true,
@@ -249,7 +252,7 @@ const EDITOR_COMMAND_META: Record<string, CommandDescriptor> = {
 				name: "section",
 				required: true,
 				descriptionKey: "arg.default.section",
-				completions: ["subjective", "objective", "assessment", "plan"],
+				completions: [...SOAP_SECTIONS],
 			},
 			{ name: "schema", required: false, descriptionKey: "arg.default.schema" },
 		],

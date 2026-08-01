@@ -1,8 +1,10 @@
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
-import type { CellSuggestion } from "../hooks/useNotebook";
+import { useMemo } from "react";
 import { formatParsedItem } from "../formatter/format-parsed";
+import type { CellSuggestion } from "../hooks/useNotebook";
+import { t } from "../lib/i18n";
 
 interface CellProps {
 	cell: Cell;
@@ -98,11 +100,12 @@ export function CellComponent({
 
 	const statusLine = (() => {
 		const base = pathInfo + ws;
+		const status = (key: string, symbol: string) => `${symbol} ${t(key)}`;
 		switch (cell.status) {
 			case "draft":
-				return `○ draft${base}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
+				return `${status("status.draft", "○")}${base}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
 			case "committed":
-				return `● committed${commitSummary}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
+				return `${status("status.committed", "●")}${commitSummary}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
 			case "error":
 				return `✗ ${cell.errorMessage ?? "unknown"}`;
 			default:
@@ -110,14 +113,50 @@ export function CellComponent({
 		}
 	})();
 
+	const actions = useMemo(() => {
+		if (!isActive) return [];
+		if (mode === "NORMAL") {
+			return [
+				{ key: "r", label: "run" },
+				{ key: "P", label: "preview" },
+				{ key: "dd", label: "del" },
+				{ key: "yy", label: "yank" },
+				{ key: "o", label: "ins↓" },
+				{ key: "O", label: "ins↑" },
+				{ key: "i", label: "edit" },
+				{ key: "I", label: "info" },
+				{ key: ":", label: "cmd" },
+			];
+		}
+		if (mode === "INSERT") {
+			return [
+				{ key: "Esc", label: "normal" },
+				{ key: ":w", label: "save" },
+			];
+		}
+		if (mode === "VISUAL") {
+			return [
+				{ key: "r", label: "run" },
+				{ key: "d", label: "del" },
+				{ key: "y", label: "yank" },
+				{ key: "Esc", label: "normal" },
+				{ key: ":", label: "cmd" },
+			];
+		}
+		if (mode === "COMMAND") {
+			return [
+				{ key: "Enter", label: "exec" },
+				{ key: "Esc", label: "cancel" },
+				{ key: "Tab", label: "cycle" },
+			];
+		}
+		return [];
+	}, [isActive, mode]);
+
 	const textRows = displayText.split("\n");
 
 	// Border emphasis by state
-	const outerBorderColor = isSelected
-		? "magenta"
-		: isActive
-			? "green"
-			: "gray";
+	const outerBorderColor = isSelected ? "magenta" : isActive ? "green" : "gray";
 	const innerBorderColor = isActive ? "cyan" : "gray";
 	const headerColor = isActive ? "bold" : isSelected ? "bold" : "normal";
 
@@ -139,9 +178,27 @@ export function CellComponent({
 					<Text color="cyan" bold={headerColor === "bold"}>
 						({cell.mode})
 					</Text>
-					<Text color="gray">{pathInfo}{ws}</Text>
+					<Text color="gray">
+						{pathInfo}
+						{ws}
+					</Text>
 				</Text>
 			</Box>
+
+			{/* ACTION BAR — per-cell actions, only for active cell */}
+			{actions.length > 0 && (
+				<Box marginLeft={1}>
+					<Text color="gray" dimColor>
+						{actions.map((a, i) => (
+							<Text key={a.key}>
+								{i > 0 ? " " : ""}
+								<Text color="cyan">[{a.key}]</Text>
+								<Text>{a.label}</Text>
+							</Text>
+						))}
+					</Text>
+				</Box>
+			)}
 
 			{/* INNER TEXT BOX — editable content */}
 			<Box
@@ -176,9 +233,7 @@ export function CellComponent({
 									<Text dimColor>
 										{" "}
 										▸ {s.text}
-										{s.detail ? (
-											<Text color="gray"> — {s.detail}</Text>
-										) : null}
+										{s.detail ? <Text color="gray"> — {s.detail}</Text> : null}
 									</Text>
 								</Box>
 							))}
@@ -216,7 +271,9 @@ export function CellComponent({
 										</Box>
 										{fmt.fields.map((f, fi) => (
 											<Box key={fi}>
-												<Text color="gray">{"  "}• {f.field}: </Text>
+												<Text color="gray">
+													{"  "}• {f.field}:{" "}
+												</Text>
 												<Text>
 													{typeof f.value === "object"
 														? JSON.stringify(f.value)

@@ -414,7 +414,11 @@ const SOAP_ROUTING_CONFIGS: Record<
 
 import type { EpistemicWorkspace } from "../schemas/epistemic";
 import type { CodeableConcept } from "../schemas/shared";
-import type { WorkspaceStore } from "./workspace-store";
+import type {
+	WorkspaceReadModel,
+	WorkspaceSnapshot,
+} from "../session/workspace-read-model";
+import type { WorkspaceCommand, WorkspaceStore } from "./workspace-store";
 
 export interface ClinicalEngineConfig {
 	objectStore: ObjectStore;
@@ -422,6 +426,7 @@ export interface ClinicalEngineConfig {
 	dictionaryStore: DictionaryStore;
 	signedNoteStore: SignedSoapNoteStore;
 	workspaceStore?: WorkspaceStore;
+	workspaceReadModel?: WorkspaceReadModel;
 	calibrationStore?: CalibrationStore;
 	parsedCellStore?: ParsedCellStore;
 	stopWordStore?: StopWordStore;
@@ -449,6 +454,7 @@ export class ClinicalEngine {
 	private eventStore: EventStore;
 	private signedNoteStore: SignedSoapNoteStore;
 	private workspaceStore?: WorkspaceStore;
+	private workspaceReadModel?: WorkspaceReadModel;
 	private calibrationStore?: CalibrationStore;
 	private parsedCellStore?: ParsedCellStore;
 	private orderAwareStore?: OrderedLearningStore;
@@ -467,6 +473,7 @@ export class ClinicalEngine {
 		this.signedNoteStore = config.signedNoteStore;
 		this.personnelId = config.personnelId ?? "system";
 		this.workspaceStore = config.workspaceStore;
+		this.workspaceReadModel = config.workspaceReadModel;
 		if (this.workspaceStore) {
 			(this.workspaceStore as any).personnelId = this.personnelId;
 		}
@@ -1223,6 +1230,48 @@ export class ClinicalEngine {
 		);
 	}
 
+	getWorkspaceReadModel(): WorkspaceReadModel | undefined {
+		return this.workspaceReadModel;
+	}
+
+	/**
+	 * Return the locale-neutral schema keys whose primary SOAP routing section
+	 * (first element of the routing config path) matches the given section.
+	 * Derived from SOAP_ROUTING_CONFIGS — single source of truth.
+	 */
+	getSchemasForSection(section: string): string[] {
+		const result: string[] = [];
+		const neutralItem: ParsedItem = {
+			targetSchema: "",
+			attributes: {},
+			concept: [],
+			rawText: "",
+			tag: "",
+			extractedData: {},
+		};
+		for (const [schemaKey, config] of Object.entries(SOAP_ROUTING_CONFIGS)) {
+			const path = config.getPath(neutralItem);
+			if (path[0] === section) result.push(schemaKey);
+		}
+		return result.sort();
+	}
+
+	async getAssessmentWorkspace(
+		sessionId: string,
+		workspaceId: string,
+	): Promise<WorkspaceSnapshot | null> {
+		if (!this.workspaceReadModel) return null;
+		return this.workspaceReadModel.getWorkspace(sessionId, workspaceId);
+	}
+
+	async listAssessmentWorkspaces(
+		sessionId: string,
+		soapNoteId: string,
+	): Promise<WorkspaceSnapshot[]> {
+		if (!this.workspaceReadModel) return [];
+		return this.workspaceReadModel.listWorkspaces(sessionId, soapNoteId);
+	}
+
 	async processWorkspaceDictation(
 		sessionId: string,
 		workspaceId: string,
@@ -1240,6 +1289,34 @@ export class ClinicalEngine {
 			dictation,
 			undefined,
 			alias,
+		);
+	}
+
+	async addAssessmentBranch(
+		sessionId: string,
+		workspaceId: string,
+		branchName: string,
+		conceptText: string,
+	): Promise<EpistemicWorkspace> {
+		if (!this.workspaceStore) {
+			throw new Error("workspaceStore is not configured");
+		}
+		const workspace = await this.workspaceStore.get(sessionId, workspaceId);
+		if (!workspace) {
+			throw new Error(`Workspace ${workspaceId} not found`);
+		}
+		const command: WorkspaceCommand = {
+			verb: "branch",
+			branchName,
+			conceptRef: conceptText,
+			fresh: true,
+		};
+		return this.workspaceStore.process(
+			sessionId,
+			workspaceId,
+			workspace.activeBranchId,
+			"",
+			[command],
 		);
 	}
 

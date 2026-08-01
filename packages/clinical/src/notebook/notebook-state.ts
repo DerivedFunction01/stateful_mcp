@@ -24,6 +24,7 @@ export interface NotebookState {
 	commandLine: string;
 	commandHistory: string[];
 	commandHistoryIndex: number;
+	commandFrequency: Record<string, number>;
 	yankBuffer: Cell[];
 	searchTerm: string;
 	showHelp: boolean;
@@ -117,6 +118,7 @@ export const INITIAL_NOTEBOOK_STATE: NotebookState = {
 	commandLine: "",
 	commandHistory: [],
 	commandHistoryIndex: -1,
+	commandFrequency: {},
 	yankBuffer: [],
 	searchTerm: "",
 	showHelp: false,
@@ -330,6 +332,10 @@ export function notebookReducer(
 				commandLine: "",
 				commandHistory: history,
 				commandHistoryIndex: -1,
+				commandFrequency: {
+					...state.commandFrequency,
+					[line]: (state.commandFrequency[line] ?? 0) + 1,
+				},
 			};
 		}
 

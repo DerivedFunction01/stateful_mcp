@@ -29,6 +29,7 @@ import { DefaultParserProfileComposer } from "../store/parser/parser-composer";
 import { KvSignedSoapNoteStore } from "../store/signed-note/kv-signed-note-store";
 import type { ClinicalEngineConfig } from "./clinical-engine";
 import { ClinicalEngine } from "./clinical-engine";
+import { WorkspaceReadModelImpl } from "./workspace-read-model";
 import { WorkspaceStore } from "./workspace-store";
 
 // ── Public result type ────────────────────────────────────────────
@@ -277,9 +278,12 @@ async function wireEngine(
 		personnelId,
 	);
 
+	const workspaceReadModel = new WorkspaceReadModelImpl(workspaceStore);
+
 	const engineConfig: ClinicalEngineConfig = {
 		...engineStores,
 		workspaceStore,
+		workspaceReadModel,
 		profile: composedProfile,
 		parsedCellStore: runtime.learningStores[0] as any,
 		orderAwareStore: runtime.orderedLearningStores[0],

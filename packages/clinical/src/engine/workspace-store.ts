@@ -19,7 +19,7 @@ export type WorkspaceCommandVerb =
 	| "close";
 
 export type WorkspaceCommand =
-	| { verb: "branch"; branchName: string; conceptRef: string }
+	| { verb: "branch"; branchName: string; conceptRef: string; fresh?: boolean }
 	| {
 			verb: "rule_out" | "confirm" | "suspend" | "re_activate";
 			branchRef: string;
@@ -322,9 +322,15 @@ export class WorkspaceStore {
 				continue;
 			}
 			if (command.verb === "branch") {
-				const concept = workspace.branches.find(
+				let concept = workspace.branches.find(
 					(b) => b.hypothesisConcept.conceptId === command.conceptRef,
 				)?.hypothesisConcept;
+				if (!concept && command.fresh) {
+					concept = {
+						conceptId: `fresh_${command.branchName.toLowerCase().replace(/\s+/g, "_")}`,
+						display: command.conceptRef,
+					};
+				}
 				if (!concept) continue;
 				const branch: ClinicalBranch = {
 					id: `branch_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`,

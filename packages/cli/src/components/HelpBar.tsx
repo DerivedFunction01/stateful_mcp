@@ -2,6 +2,7 @@ import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-d
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
 import { useMemo } from "react";
+import { t } from "../lib/i18n";
 
 interface HelpBarProps {
 	mode: EditorMode;
@@ -11,13 +12,13 @@ interface HelpBarProps {
 export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
 	const line = useMemo(() => {
 		if (mode === "INSERT") {
-			return ":w save  Esc NORMAL  Enter newline";
+			return t("help.insert");
 		}
 		if (mode === "COMMAND") {
-			return "Tab cycle  Enter execute  Esc cancel  ↑↓ history";
+			return t("help.command");
 		}
 		if (mode === "VISUAL") {
-			return "d delete  y yank  Esc NORMAL  : command";
+			return t("help.visual");
 		}
 		const cmds = editorDescriptors.slice(0, 6);
 		return cmds

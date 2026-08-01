@@ -1,6 +1,7 @@
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
 import type { ExecutionPolicy } from "../hooks/useNotebook";
+import { t } from "../lib/i18n";
 
 interface StatusBarProps {
 	mode: EditorMode;
@@ -67,7 +68,11 @@ export function StatusBar({
 				</Text>
 				<Text>
 					{" "}
-					| cell {activeIndex + 1}/{cellCount}
+					|{" "}
+					{t("statusbar.cell", {
+						current: activeIndex + 1,
+						total: cellCount,
+					})}
 					{dirtyFlag}
 				</Text>
 				<Text>
@@ -76,7 +81,10 @@ export function StatusBar({
 				</Text>
 				<Text>
 					{" "}
-					| <Text color="magenta">ins@{defaultLabel}</Text>
+					|{" "}
+					<Text color="magenta">
+						{t("statusbar.ins", { label: defaultLabel })}
+					</Text>
 				</Text>
 				{message && (
 					<Text>

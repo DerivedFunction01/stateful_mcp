@@ -3,13 +3,14 @@ import type { NotebookState } from "@stateful-mcp/clinical/notebook/notebook-sta
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { Box } from "ink";
 import type { CellSuggestion } from "../hooks/useNotebook";
+import { useWorkspace } from "../hooks/useWorkspace";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { CellList } from "./CellList";
 import { CommandBar } from "./CommandBar";
 import { HelpBar } from "./HelpBar";
 import { HelpScreen } from "./HelpScreen";
 import { StatusBar } from "./StatusBar";
-import { createStubSnapshot, WorkspaceScreen } from "./WorkspaceScreen";
+import { WorkspaceScreen } from "./WorkspaceScreen";
 
 interface NotebookProps {
 	state: NotebookState;
@@ -28,6 +29,12 @@ export function Notebook({
 	getAutocomplete,
 	cellSuggestions,
 }: NotebookProps) {
+	const workspace = useWorkspace({
+		showWorkspace: state.showWorkspace,
+		sessionId,
+		soapNoteId: sessionId,
+	});
+
 	if (state.showHelp) {
 		return (
 			<HelpScreen
@@ -46,7 +53,28 @@ export function Notebook({
 
 	if (state.showWorkspace) {
 		return (
-			<WorkspaceScreen snapshot={createStubSnapshot()} onClose={() => {}} />
+			<WorkspaceScreen
+				snapshot={workspace.snapshot}
+				loading={workspace.loading}
+				error={workspace.error}
+				focused={workspace.focused}
+				onClose={() => {}}
+				onProcessInput={async (branchId, text) => {
+					if (!workspace.snapshot) return;
+					await workspace.processInput(
+						workspace.snapshot.workspaceId,
+						branchId,
+						text,
+					);
+				}}
+				onComplete={async (branchId) => {
+					await workspace.complete(branchId);
+				}}
+				onAddBranch={async (name, text) => {
+					await workspace.addBranch(name, text);
+				}}
+				onToggleFocus={workspace.toggleFocus}
+			/>
 		);
 	}
 

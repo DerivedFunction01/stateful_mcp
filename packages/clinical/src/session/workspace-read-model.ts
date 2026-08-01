@@ -12,8 +12,17 @@ export interface BranchSummary {
 	name: string;
 	status: BranchStatus;
 	hypothesisConcept?: CodeableConcept;
+	supporting: string[];
+	refuting: string[];
 	supportingCount: number;
 	refutingCount: number;
+	commandAlias?: string;
+}
+
+export interface GlobalFactItem {
+	targetSchema: string;
+	rawText?: string;
+	extractedData?: Record<string, unknown>;
 }
 
 export interface WorkspaceSnapshot {
@@ -21,6 +30,7 @@ export interface WorkspaceSnapshot {
 	sourceSoapNoteId: string;
 	activeBranchId: string | null;
 	branches: BranchSummary[];
+	globalFacts: GlobalFactItem[];
 	globalFactCount: number;
 }
 
@@ -29,5 +39,8 @@ export interface WorkspaceReadModel {
 		sessionId: string,
 		workspaceId: string,
 	): Promise<WorkspaceSnapshot | null>;
-	listWorkspaces(sessionId: string): Promise<WorkspaceSnapshot[]>;
+	listWorkspaces(
+		sessionId: string,
+		soapNoteId: string,
+	): Promise<WorkspaceSnapshot[]>;
 }

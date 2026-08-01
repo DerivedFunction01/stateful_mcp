@@ -7,7 +7,9 @@ import {
 } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { PreviewWorkflow } from "@stateful-mcp/clinical/notebook/preview-workflow";
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
+import { resolveArgCompletions } from "@stateful-mcp/clinical/session/command-completions";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
+import { rankHistory } from "@stateful-mcp/clinical/session/history-ranker";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { SessionState } from "./useSession";
 
@@ -123,7 +125,8 @@ export function useNotebook(session: SessionState | null) {
 			routing: {
 				scope: "global",
 				targetSchema: state.defaultSchema,
-				resolvedSection: state.defaultSection as Cell["routing"]["resolvedSection"],
+				resolvedSection:
+					state.defaultSection as Cell["routing"]["resolvedSection"],
 			},
 			parsedOutput: null,
 			status: "draft",
@@ -366,51 +369,53 @@ export function useNotebook(session: SessionState | null) {
 					}
 				}
 
-				// Profile-based completions for unknown verbs or verbs without arg completions
+				// Command-aware, locale-neutral completions for the typed verb.
+				// Falls back to empty (no suggestions) for unrelated verbs rather than
+				// suggesting SOAP sections for everything.
 				try {
+					const engine = (session.result as any).engine;
 					const parser = (session.result.engine as any).parser;
-					if (parser && typeof parser.getProfile === "function") {
-						const profile = parser.getProfile();
-						const tagKeys = Object.keys(profile.tagMappings ?? {});
-						const fieldKeys = Object.keys(profile.fieldMappings ?? {});
-						const sections = ["subjective", "objective", "assessment", "plan"];
-
-						return [
-							...tagKeys.map((k) => ({
-								verb: k,
-								group: "tag" as const,
-								source: "cell" as const,
-								hasArgs: false,
-								isSection: false,
-							})),
-							...sections.map((s) => ({
-								verb: s,
-								group: "section" as const,
-								source: "cell" as const,
-								hasArgs: false,
-								isSection: true,
-							})),
-							...fieldKeys.map((k) => ({
-								verb: k,
-								group: "field" as const,
-								source: "cell" as const,
-								hasArgs: false,
-								isSection: false,
-							})),
-						]
-							.filter(({ verb }) => verb.startsWith(currentPartial))
-							.map(({ verb, group, source }) => ({
-								verb,
-								group,
-								source,
+					const profile =
+						parser && typeof parser.getProfile === "function"
+							? parser.getProfile()
+							: undefined;
+					if (profile) {
+						const prevArgs = argParts.slice(0, -1);
+						const codes = resolveArgCompletions(
+							verb,
+							argIndex,
+							profile,
+							prevArgs,
+							engine?.getSchemasForSection?.bind(engine),
+						);
+						return codes
+							.filter((c) => c.startsWith(currentPartial))
+							.map((c) => ({
+								verb: c,
+								group: matchedDesc?.group ?? "field",
+								source:
+									matchedDesc?.verb === verb ? "editor" : ("cell" as const),
 								hasArgs: false,
 							}));
 					}
 				} catch {
-					// profile not available
+					// resolver not available
 				}
 
 				return [];
+			}
+
+			if (partial === "") {
+				const ranked = rankHistory(state.commandHistory, {
+					limit: 8,
+					frequency: state.commandFrequency,
+				});
+				return ranked.map((line) => ({
+					verb: line.slice(1),
+					group: "history" as const,
+					source: "editor" as const,
+					hasArgs: false,
+				}));
 			}
 
 			const suggestions = getAutocompleteSuggestions(
@@ -421,7 +426,7 @@ export function useNotebook(session: SessionState | null) {
 
 			return suggestions;
 		},
-		[session],
+		[session, state.commandHistory, state.commandFrequency],
 	);
 
 	return {
