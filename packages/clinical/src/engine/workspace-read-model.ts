@@ -1,8 +1,11 @@
 import type { EpistemicWorkspace } from "../schemas/epistemic";
+import type { Cell } from "../session/cell";
 import type {
+	WorkspaceCellSummary,
 	WorkspaceReadModel,
 	WorkspaceSnapshot,
 } from "../session/workspace-read-model";
+import type { CellStore } from "../store/interfaces";
 import type { WorkspaceStore } from "./workspace-store";
 
 function mapStatus(
@@ -18,8 +21,28 @@ function mapStatus(
 	}
 }
 
+function projectCell(cell: Cell): WorkspaceCellSummary {
+	return {
+		cellId: cell.cellId,
+		workspaceId: cell.workspaceId ?? "",
+		sessionId: cell.sessionId,
+		rawInput: cell.rawInput,
+		status: cell.status,
+		updatedAt: cell.updatedAt,
+		routing: cell.routing,
+		parsedOutput: cell.parsedOutput,
+		workspaceCommands: cell.workspaceCommands,
+		workspaceCommandWarnings: cell.workspaceCommandWarnings,
+		errorMessage: cell.errorMessage,
+		metadata: cell.metadata,
+	};
+}
+
 export class WorkspaceReadModelImpl implements WorkspaceReadModel {
-	constructor(private workspaceStore: WorkspaceStore) {}
+	constructor(
+		private workspaceStore: WorkspaceStore,
+		private cellStore?: CellStore,
+	) {}
 
 	async getWorkspace(
 		sessionId: string,
@@ -27,7 +50,7 @@ export class WorkspaceReadModelImpl implements WorkspaceReadModel {
 	): Promise<WorkspaceSnapshot | null> {
 		const workspace = await this.workspaceStore.get(sessionId, workspaceId);
 		if (!workspace) return null;
-		return this.project(workspace);
+		return this.project(workspace, sessionId);
 	}
 
 	async listWorkspaces(
@@ -35,10 +58,21 @@ export class WorkspaceReadModelImpl implements WorkspaceReadModel {
 		soapNoteId: string,
 	): Promise<WorkspaceSnapshot[]> {
 		const workspaces = await this.workspaceStore.list(sessionId, soapNoteId);
-		return workspaces.map((w) => this.project(w));
+		return await Promise.all(workspaces.map((w) => this.project(w, sessionId)));
 	}
 
-	private project(workspace: EpistemicWorkspace): WorkspaceSnapshot {
+	private async project(
+		workspace: EpistemicWorkspace,
+		sessionId: string,
+	): Promise<WorkspaceSnapshot> {
+		let cells: WorkspaceCellSummary[] = [];
+		if (this.cellStore) {
+			const allCells = await this.cellStore.list(sessionId);
+			cells = allCells
+				.filter((c) => c.workspaceId === workspace.id)
+				.map(projectCell);
+		}
+
 		return {
 			workspaceId: workspace.id,
 			sourceSoapNoteId: workspace.sourceSoapNoteId,
@@ -60,6 +94,10 @@ export class WorkspaceReadModelImpl implements WorkspaceReadModel {
 				extractedData: (f as any).extractedData ?? undefined,
 			})),
 			globalFactCount: workspace.globalFacts.length,
+			cells,
+			lifecycle: {
+				closeRequested: workspace.closeRequested ?? false,
+			},
 		};
 	}
 }

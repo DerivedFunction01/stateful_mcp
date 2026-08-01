@@ -414,6 +414,9 @@ const SOAP_ROUTING_CONFIGS: Record<
 
 import type { EpistemicWorkspace } from "../schemas/epistemic";
 import type { CodeableConcept } from "../schemas/shared";
+import type { Cell } from "../session/cell";
+import type { CellProcessResult } from "../session/cell-processor";
+import type { WorkspaceCellService } from "../session/workspace-cell-service";
 import type {
 	WorkspaceReadModel,
 	WorkspaceSnapshot,
@@ -427,6 +430,7 @@ export interface ClinicalEngineConfig {
 	signedNoteStore: SignedSoapNoteStore;
 	workspaceStore?: WorkspaceStore;
 	workspaceReadModel?: WorkspaceReadModel;
+	workspaceCellService?: WorkspaceCellService;
 	calibrationStore?: CalibrationStore;
 	parsedCellStore?: ParsedCellStore;
 	stopWordStore?: StopWordStore;
@@ -455,6 +459,7 @@ export class ClinicalEngine {
 	private signedNoteStore: SignedSoapNoteStore;
 	private workspaceStore?: WorkspaceStore;
 	private workspaceReadModel?: WorkspaceReadModel;
+	private workspaceCellService?: WorkspaceCellService;
 	private calibrationStore?: CalibrationStore;
 	private parsedCellStore?: ParsedCellStore;
 	private orderAwareStore?: OrderedLearningStore;
@@ -474,6 +479,7 @@ export class ClinicalEngine {
 		this.personnelId = config.personnelId ?? "system";
 		this.workspaceStore = config.workspaceStore;
 		this.workspaceReadModel = config.workspaceReadModel;
+		this.workspaceCellService = config.workspaceCellService;
 		if (this.workspaceStore) {
 			(this.workspaceStore as any).personnelId = this.personnelId;
 		}
@@ -1373,5 +1379,138 @@ export class ClinicalEngine {
 			sessionId,
 		);
 		return updatedObj!.data as SoapNote;
+	}
+
+	async createWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		rawInput: string,
+		options?: {
+			branchId?: string;
+			routingScope?: "global" | "branch_local" | "unresolved";
+			mode?: "cdsl";
+			parentCellId?: string;
+		},
+	): Promise<{ cellId: string; workspaceId: string }> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		const result = await this.workspaceCellService.createCell(
+			sessionId,
+			workspaceId,
+			rawInput,
+			options,
+		);
+		return { cellId: result.cell.cellId, workspaceId: result.workspaceId };
+	}
+
+	async previewWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		cellId: string,
+	): Promise<CellProcessResult> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		return this.workspaceCellService.previewCell(
+			sessionId,
+			workspaceId,
+			cellId,
+		);
+	}
+
+	async resetWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		cellId: string,
+	): Promise<CellProcessResult> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		return this.workspaceCellService.resetCell(sessionId, workspaceId, cellId);
+	}
+
+	async editWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		cellId: string,
+		rawInput: string,
+	): Promise<CellProcessResult> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		return this.workspaceCellService.editCell(
+			sessionId,
+			workspaceId,
+			cellId,
+			rawInput,
+		);
+	}
+
+	async executeWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		cellId: string,
+		alias?: string,
+	): Promise<CellProcessResult> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		return this.workspaceCellService.executeCell(
+			sessionId,
+			workspaceId,
+			cellId,
+			alias,
+		);
+	}
+
+	async deleteWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		cellId: string,
+	): Promise<CellProcessResult> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		return this.workspaceCellService.deleteCell(sessionId, workspaceId, cellId);
+	}
+
+	async listWorkspaceCells(
+		sessionId: string,
+		workspaceId: string,
+	): Promise<Cell[]> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		return this.workspaceCellService.listCells(sessionId, workspaceId);
+	}
+
+	async supersedeWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		cellId: string,
+		rawInput: string,
+	): Promise<{ cellId: string; workspaceId: string }> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		const result = await this.workspaceCellService.supersedeCell(
+			sessionId,
+			workspaceId,
+			cellId,
+			rawInput,
+		);
+		return { cellId: result.cell.cellId, workspaceId: result.workspaceId };
+	}
+
+	async getWorkspaceCell(
+		sessionId: string,
+		workspaceId: string,
+		cellId: string,
+	): Promise<Cell | null> {
+		if (!this.workspaceCellService) {
+			throw new Error("workspaceCellService is not configured");
+		}
+		return this.workspaceCellService.getCell(sessionId, workspaceId, cellId);
 	}
 }

@@ -14,6 +14,31 @@ import { CellCommandParser } from "./cell-command-parser";
 import { CellCommandRegistry } from "./cell-command-registry";
 import { WorkspaceCommandParser } from "./workspace-command-parser";
 
+function computePreviewFingerprint(cell: Cell): string {
+	const routing = cell.routing;
+	const parts = [
+		cell.rawInput,
+		routing.scope ?? "",
+		routing.targetSchema ?? "",
+		routing.branchId ?? "",
+		routing.resolvedSchema ?? "",
+	];
+	return parts.join("::");
+}
+
+function clearPreviewData(cell: Cell): void {
+	cell.parsedOutput = null;
+	cell.workspaceCommands = undefined;
+	cell.workspaceCommandWarnings = undefined;
+	cell.errorMessage = undefined;
+	cell.lockedAt = undefined;
+	cell.status = "draft";
+	cell.metadata = {
+		...cell.metadata,
+		previewFingerprint: undefined,
+	};
+}
+
 export interface PreprocessResult {
 	cleanedText: string;
 	cell: Cell;
@@ -164,6 +189,21 @@ export class CellProcessor {
 		}
 		if (cell.status === "deleted") {
 			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
+		}
+		if (cell.status === "pending_commit") {
+			const fingerprint = cell.metadata?.previewFingerprint as
+				| string
+				| undefined;
+			const currentFingerprint = computePreviewFingerprint(cell);
+			if (fingerprint && fingerprint !== currentFingerprint) {
+				return {
+					cell,
+					error: this.cellError(
+						CellError.PARSER_NOT_CONFIGURED,
+						"stale preview — raw input has changed since last preview",
+					),
+				};
+			}
 		}
 		const cellCommandResult = await this.executeCellCommand(cell);
 		if (cellCommandResult) return cellCommandResult;
@@ -332,6 +372,49 @@ export class CellProcessor {
 		}
 	}
 
+	resetToDraft(cell: Cell): CellProcessResult {
+		if (cell.status === "locked") {
+			return { cell, error: this.cellError(CellError.CELL_IS_LOCKED) };
+		}
+		if (cell.status === "deleted") {
+			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
+		}
+		if (cell.status === "committed") {
+			return {
+				cell,
+				error: this.cellError(
+					CellError.CELL_IS_LOCKED,
+					"cannot reset a committed cell; create a correction cell instead",
+				),
+			};
+		}
+		clearPreviewData(cell);
+		cell.updatedAt = new Date().toISOString();
+		return { cell };
+	}
+
+	edit(cell: Cell, rawInput: string): CellProcessResult {
+		if (cell.status === "locked") {
+			return { cell, error: this.cellError(CellError.CELL_IS_LOCKED) };
+		}
+		if (cell.status === "deleted") {
+			return { cell, error: this.cellError(CellError.CELL_IS_DELETED) };
+		}
+		if (cell.status === "committed") {
+			return {
+				cell,
+				error: this.cellError(
+					CellError.CELL_IS_LOCKED,
+					"cannot edit a committed cell; create a correction cell instead",
+				),
+			};
+		}
+		cell.rawInput = rawInput;
+		clearPreviewData(cell);
+		cell.updatedAt = new Date().toISOString();
+		return { cell };
+	}
+
 	async preview(cell: Cell): Promise<CellProcessResult> {
 		if (cell.status === "locked") {
 			return { cell, error: this.cellError(CellError.CELL_IS_LOCKED) };
@@ -396,15 +479,22 @@ export class CellProcessor {
 			);
 			cell.parsedOutput = parsed;
 			cell.status = "pending_commit";
+			cell.metadata = {
+				...cell.metadata,
+				previewFingerprint: computePreviewFingerprint(cell),
+			};
 
 			// Post-processing: populate context and resolve link targets
 			this.populateContext(cell);
 			await this.resolveLinkTarget(cell);
 
+			await this.saveCell(cell);
+
 			return { cell, preview: parsed };
 		} catch (err) {
 			cell.status = "error";
 			cell.errorMessage = err instanceof Error ? err.message : String(err);
+			await this.saveCell(cell);
 			return {
 				cell,
 				error: {

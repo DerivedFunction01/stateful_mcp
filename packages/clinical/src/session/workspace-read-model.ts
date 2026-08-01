@@ -1,4 +1,5 @@
 import type { CodeableConcept } from "../schemas/shared";
+import type { Cell } from "./cell";
 
 export type BranchStatus =
 	| "active"
@@ -25,6 +26,25 @@ export interface GlobalFactItem {
 	extractedData?: Record<string, unknown>;
 }
 
+export interface WorkspaceCellSummary {
+	cellId: string;
+	workspaceId: string;
+	sessionId: string;
+	rawInput: string;
+	status: Cell["status"];
+	updatedAt: string;
+	routing: Cell["routing"];
+	parsedOutput: Cell["parsedOutput"];
+	workspaceCommands?: Cell["workspaceCommands"];
+	workspaceCommandWarnings?: Cell["workspaceCommandWarnings"];
+	errorMessage?: string;
+	metadata?: Cell["metadata"];
+}
+
+export interface WorkspaceLifecycleSummary {
+	closeRequested: boolean;
+}
+
 export interface WorkspaceSnapshot {
 	workspaceId: string;
 	sourceSoapNoteId: string;
@@ -32,6 +52,8 @@ export interface WorkspaceSnapshot {
 	branches: BranchSummary[];
 	globalFacts: GlobalFactItem[];
 	globalFactCount: number;
+	cells: WorkspaceCellSummary[];
+	lifecycle: WorkspaceLifecycleSummary;
 }
 
 export interface WorkspaceReadModel {
