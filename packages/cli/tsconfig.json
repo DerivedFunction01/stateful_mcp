@@ -14,7 +14,14 @@
 		"skipLibCheck": true,
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedIndexedAccess": true,
-		"noImplicitOverride": true
+		"noImplicitOverride": true,
+		"paths": {
+			"@stateful-mcp/core": ["../core/src/index.ts"],
+			"@stateful-mcp/core/*": ["../core/src/*"],
+			"@stateful-mcp/clinical/*": ["../clinical/src/*"],
+			"@stateful-mcp/cli/*": ["./src/*"],
+			"@stateful-mcp/cli": ["./src/index.ts"]
+		}
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"]

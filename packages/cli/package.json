@@ -2,26 +2,19 @@
 	"name": "@stateful-mcp/cli",
 	"version": "0.5.0",
 	"description": "Administrative CLI tool for Stateful framework",
-	"keywords": [
-		"cli",
-		"admin",
-		"stateful",
-		"mcp",
-		"gc",
-		"inspect",
-		"migrate"
-	],
 	"type": "module",
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"files": [
-		"dist"
-	],
+	"bin": {
+		"clinical": "./dist/index.js"
+	},
 	"scripts": {
-		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm"
+		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node'",
+		"start": "bun run ./src/index.ts"
 	},
 	"dependencies": {
-		"@stateful-mcp/core": "workspace:^"
+		"@duckdb/node-api": "^1.5.4-r.1",
+		"@stateful-mcp/clinical": "workspace:^",
+		"@stateful-mcp/core": "workspace:^",
+		"@sqlite.org/sqlite-wasm": "latest"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
