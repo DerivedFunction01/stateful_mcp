@@ -6,7 +6,7 @@ import {
 import type { OwnerScope } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
 import type { ConceptStore, PersistentExpressionStore } from "./interfaces";
-import type { ConceptResolver } from "./resolver";
+import type { ConceptResolver, ResolveResponse } from "./resolver";
 import type {
 	Concept,
 	ConceptRelation,
@@ -35,6 +35,10 @@ export class DictionaryStore {
 		private resolver: ConceptResolver,
 		private conceptStore: ConceptStore = createMemoryConceptStore(),
 		private expressionStore: PersistentExpressionStore = createMemoryExpressionStore(),
+		private optimizedResolver?: (
+			term: string,
+			context?: Record<string, any>,
+		) => Promise<ResolveResponse | null>,
 	) {}
 
 	public async search(
@@ -528,6 +532,10 @@ export class DictionaryStore {
 		term: string,
 		context?: Record<string, any>,
 	): Promise<any> {
+		if (this.optimizedResolver) {
+			const optimized = await this.optimizedResolver(term, context);
+			if (optimized) return optimized;
+		}
 		const result = await this.resolver.resolve(
 			term,
 			this.conceptStore,

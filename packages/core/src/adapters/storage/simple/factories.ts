@@ -1,4 +1,8 @@
 export {
+	createConceptFilterStore,
+	KvConceptFilterStore,
+} from "./create-concept-filter-store";
+export {
 	createConceptStore,
 	createJsonlConceptStore,
 	createMemoryConceptStore,

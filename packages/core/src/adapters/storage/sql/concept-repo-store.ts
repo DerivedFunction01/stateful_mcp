@@ -12,6 +12,7 @@ import type {
 	RelatedConceptResult,
 	TraversalDirection,
 } from "../../../middleware/dictionary/types";
+import { normalizeLookupTerm } from "../../../middleware/dictionary/types";
 import { SCHEMA } from "../store-schema";
 import type { SqlBackend } from "./backend";
 import {
@@ -204,10 +205,12 @@ export class ExpressionRepoStore implements PersistentExpressionStore {
 		await this.backend.exec(schema.inserts.SQL_UPSERT_DICT_EXPRESSION!.sql, [
 			expression.id,
 			expression.term,
-			expression.lookupTerm,
+			expression.lookupTerm ?? normalizeLookupTerm(expression.term),
 			expression.conceptId || null,
 			scope.level,
 			scope.level === "user" ? scope.userId : null,
+			expression.priorityWeight ?? null,
+			expression.active !== false,
 			JSON.stringify(expression),
 		]);
 	}
@@ -265,8 +268,16 @@ export class ExpressionRepoStore implements PersistentExpressionStore {
 			[`%${lookup ?? ""}%`, true],
 		);
 		return rows
-			.map(rowToExpression)
-			.filter((expression) => {
+			.map((row) => ({ row, expression: rowToExpression(row) }))
+			.filter(({ row, expression }) => {
+				if (request.scope) {
+					const level = request.scope.level;
+					const scopeMatches =
+						(row.scope_level === level &&
+							(level !== "user" || row.scope_id === request.scope.userId)) ||
+						(level !== "global" && row.scope_level === "global");
+					if (!scopeMatches) return false;
+				}
 				const key =
 					expression.lookupTerm ??
 					expression.term
@@ -284,6 +295,7 @@ export class ExpressionRepoStore implements PersistentExpressionStore {
 					return false;
 				return !request.activeOnly || expression.active;
 			})
+			.map(({ expression }) => expression)
 			.slice(0, request.limit ?? 50);
 	}
 }

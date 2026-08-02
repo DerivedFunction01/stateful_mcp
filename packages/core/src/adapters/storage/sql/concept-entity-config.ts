@@ -3,6 +3,7 @@ import type {
 	ConceptRelation,
 	Namespace,
 } from "../../../middleware/dictionary/types";
+import { normalizeLookupTerm } from "../../../middleware/dictionary/types";
 
 export const conceptDdlKeys = {
 	ddl: [
@@ -103,10 +104,12 @@ export function expressionToRow(
 	return {
 		id: expression.id,
 		term: expression.term,
-		lookup_term: expression.lookupTerm,
+		lookup_term: expression.lookupTerm ?? normalizeLookupTerm(expression.term),
 		concept_id: expression.conceptId || null,
 		scope_level: scope.level,
 		scope_id: scopeId,
+		priority_weight: expression.priorityWeight ?? null,
+		active: expression.active !== false,
 		data: JSON.stringify(expression),
 	};
 }

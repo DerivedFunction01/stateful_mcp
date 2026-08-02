@@ -1,10 +1,21 @@
+import type { DictionarySqlQueryRunner } from "@stateful-mcp/core/adapters/storage/sql/dict-executor";
+import { executeDictionaryPlan } from "@stateful-mcp/core/adapters/storage/sql/dict-executor";
+import { SqlConceptFilterStore } from "@stateful-mcp/core/adapters/storage/sql/dict-filter-store";
+import {
+	DictionaryQueryPlanner,
+	type DictionaryStorageTopology,
+} from "@stateful-mcp/core/adapters/storage/sql/dict-planner";
 import { registerAdapter } from "@stateful-mcp/core/config/loader";
 import type { StorageRuntimeConfig } from "@stateful-mcp/core/config/types";
 import { validateStorageRuntimeConfig } from "@stateful-mcp/core/config/validator";
 import type {
+	ConceptFilterStore,
 	ConceptStore,
 	PersistentExpressionStore,
 } from "@stateful-mcp/core/middleware/dictionary/interfaces";
+import { InMemoryConceptResolver } from "@stateful-mcp/core/middleware/dictionary/resolver";
+import { DictionaryStore } from "@stateful-mcp/core/middleware/dictionary/store";
+import { normalizeLookupTerm } from "@stateful-mcp/core/middleware/dictionary/types";
 import type {
 	EffectiveStorePolicy,
 	SchemaInitializationMode,
@@ -106,6 +117,14 @@ export interface RepoConfig {
 
 export interface RepoAdapter {
 	storageRuntime?: StorageRuntimeConfig;
+	dictionaryStore?: DictionaryStore;
+	dictionaryQueryPlanner?: DictionaryQueryPlanner;
+	dictionaryStorageTopology?: DictionaryStorageTopology;
+	conceptFilterStore?: ConceptFilterStore;
+	dictionarySqlQueryRunner?: DictionarySqlQueryRunner;
+	dictionarySqlQueryRunners?: Partial<
+		Record<"concepts" | "expressions" | "filters", DictionarySqlQueryRunner>
+	>;
 	sessionFilter?: SessionFilterStore;
 	persistentFilter?: PersistentFilterStore;
 	sessionObject?: SessionObjectStore;
@@ -273,6 +292,53 @@ function applyStorageRuntime(config: RepoConfig): RepoConfig {
 			(result as any).expression = expression;
 	}
 	return result;
+}
+
+function dictionaryTopology(
+	runtime: StorageRuntimeConfig,
+): DictionaryStorageTopology | undefined {
+	const dictionary = runtime.dictionary;
+	if (!dictionary?.concepts || !dictionary.expressions || !dictionary.filters)
+		return undefined;
+	const location = (
+		domain: "concepts" | "expressions" | "filters",
+		route: any,
+	) => {
+		const binding = route.projection ?? route.source;
+		const locator = binding?.locator;
+		const name = locator?.name;
+		const backendKind = ["sqlite", "postgres", "duckdb", "opfs"].includes(name)
+			? "sql"
+			: name === "remote_url"
+				? "remote"
+				: name === "memory"
+					? "memory"
+					: "kv";
+		const options = locator?.options ?? {};
+		const connectionId = String(
+			options.connectionString ??
+				options.connection ??
+				options.path ??
+				options.dbName ??
+				name ??
+				domain,
+		);
+		const dialect = isSql(name) ? dialectFor(name) : undefined;
+		return {
+			domain,
+			backendKind: backendKind as "sql" | "kv" | "memory" | "remote",
+			connectionId,
+			...(dialect ? { dialect } : {}),
+			read: binding.permissions?.read !== false,
+			write: binding.permissions?.write !== false,
+			syncWrite: binding.permissions?.syncWrite !== false,
+		};
+	};
+	return {
+		concepts: location("concepts", dictionary.concepts),
+		expressions: location("expressions", dictionary.expressions),
+		filters: location("filters", dictionary.filters),
+	};
 }
 
 function buildConceptBackend(
@@ -460,10 +526,15 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	if (conceptSpec) {
 		if (isSql(conceptSpec.type)) {
 			const dialect = dialectFor(conceptSpec.type);
+			const backend = await connectSql(conceptSpec);
+			adapter.dictionarySqlQueryRunner ??= backend;
+			if (!adapter.dictionarySqlQueryRunners)
+				adapter.dictionarySqlQueryRunners = {};
+			adapter.dictionarySqlQueryRunners.concepts = backend;
 			adapter.conceptStore = await sqlFactories.createConceptStore(
 				dialect,
 				conceptSpec.target!,
-				await connectSql(conceptSpec),
+				backend,
 			);
 		} else {
 			const backend = buildConceptBackend(conceptSpec.type, conceptSpec.target);
@@ -475,11 +546,16 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	if (expressionSpec) {
 		if (isSql(expressionSpec.type)) {
 			const dialect = dialectFor(expressionSpec.type);
+			const backend = await connectSql(expressionSpec);
+			adapter.dictionarySqlQueryRunner ??= backend;
+			if (!adapter.dictionarySqlQueryRunners)
+				adapter.dictionarySqlQueryRunners = {};
+			adapter.dictionarySqlQueryRunners.expressions = backend;
 			adapter.persistentExpressionStore =
 				await sqlFactories.createExpressionStore(
 					dialect,
 					expressionSpec.target!,
-					await connectSql(expressionSpec),
+					backend,
 				);
 		} else {
 			const backend = buildExpressionBackend(
@@ -489,6 +565,124 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 			adapter.persistentExpressionStore =
 				kvFactories.createExpressionStore(backend);
 		}
+	}
+	const dictionaryFilterRoute = config.storageRuntime?.dictionary?.filters;
+	const dictionaryFilterSpec = dictionaryFilterRoute
+		? routeBinding(dictionaryFilterRoute, "storage_runtime.dictionary.filters")
+		: undefined;
+	if (dictionaryFilterSpec) {
+		if (isSql(dictionaryFilterSpec.type)) {
+			const filterBackend = await connectSql(dictionaryFilterSpec);
+			adapter.dictionarySqlQueryRunner ??= filterBackend;
+			if (!adapter.dictionarySqlQueryRunners)
+				adapter.dictionarySqlQueryRunners = {};
+			adapter.dictionarySqlQueryRunners.filters = filterBackend;
+			const filterStore = new SqlConceptFilterStore(filterBackend);
+			await filterStore.initialize();
+			adapter.conceptFilterStore = filterStore;
+		} else if (dictionaryFilterSpec.type === "memory") {
+			const backend = buildKvBackend(
+				dictionaryFilterSpec.type,
+				dictionaryFilterSpec.target,
+				policyFor(dictionaryFilterSpec),
+			);
+			adapter.conceptFilterStore =
+				await kvFactories.createConceptFilterStore(backend);
+		} else {
+			const backend = buildKvBackend(
+				dictionaryFilterSpec.type,
+				dictionaryFilterSpec.target,
+				policyFor(dictionaryFilterSpec),
+			);
+			adapter.conceptFilterStore =
+				await kvFactories.createConceptFilterStore(backend);
+		}
+	}
+	if (config.storageRuntime) {
+		const topology = dictionaryTopology(config.storageRuntime);
+		if (topology) {
+			adapter.dictionaryStorageTopology = topology;
+			adapter.dictionaryQueryPlanner = new DictionaryQueryPlanner();
+		}
+	}
+	let optimizedResolver:
+		| ((term: string, context?: Record<string, any>) => Promise<any>)
+		| undefined;
+	const configuredConceptStore = adapter.conceptStore;
+	const configuredExpressionStore = adapter.persistentExpressionStore;
+	if (
+		adapter.dictionaryQueryPlanner &&
+		adapter.dictionaryStorageTopology &&
+		(adapter.dictionarySqlQueryRunners?.expressions ??
+			adapter.dictionarySqlQueryRunner) &&
+		configuredConceptStore &&
+		configuredExpressionStore
+	) {
+		optimizedResolver = async (term, context) => {
+			if (context?.user_id || context?.workspace_id) return null;
+			try {
+				const plan = adapter.dictionaryQueryPlanner!.plan(
+					adapter.dictionaryStorageTopology!,
+					{
+						lookupTerm: normalizeLookupTerm(term),
+						roleName: context?.role_name,
+						limit: 50,
+					},
+				);
+				const result = await executeDictionaryPlan(
+					plan,
+					{ roleName: context?.role_name },
+					{
+						sql:
+							adapter.dictionarySqlQueryRunners?.expressions ??
+							adapter.dictionarySqlQueryRunner,
+						concepts: configuredConceptStore.getByIds
+							? {
+									getByIds: configuredConceptStore.getByIds.bind(
+										configuredConceptStore,
+									),
+								}
+							: undefined,
+						filters:
+							adapter.conceptFilterStore &&
+							"listForConceptRoleBatch" in adapter.conceptFilterStore
+								? (adapter.conceptFilterStore as any)
+								: undefined,
+					},
+				);
+				const results = result.candidates.flatMap((candidate) => {
+					if (!candidate.concept) return [];
+					const expression =
+						typeof candidate.row.data === "string"
+							? JSON.parse(candidate.row.data)
+							: candidate.row.data;
+					return [
+						{
+							conceptId: candidate.concept.id,
+							concept: candidate.concept,
+							score: Number(candidate.row.priority_weight ?? 0),
+							matchedTerms: expression?.term ? [expression.term] : [term],
+							sources: result.hydration?.sources ?? ["local"],
+						},
+					];
+				});
+				return {
+					status: results.length ? "FOUND" : "NOT_FOUND",
+					sources: result.hydration?.sources ?? ["local"],
+					results,
+				};
+			} catch {
+				return null;
+			}
+		};
+	}
+	if (adapter.conceptStore && adapter.persistentExpressionStore) {
+		adapter.dictionaryStore = new DictionaryStore(
+			new InMemoryConceptResolver({ filterStore: adapter.conceptFilterStore }),
+			adapter.conceptStore,
+			adapter.persistentExpressionStore,
+			optimizedResolver,
+		);
 	}
 
 	return adapter;

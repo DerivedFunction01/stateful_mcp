@@ -182,6 +182,7 @@ export class InMemoryConceptResolver implements ConceptResolver {
 		metrics: ResolutionMetric[],
 		context?: Record<string, any>,
 	): Promise<ResolveResponse> {
+		const filterRole = context?.role_name ?? this.options.filterRole;
 		const conceptStore =
 			concepts instanceof Map ? new WrappedMapConceptStore(concepts) : concepts;
 		const expressionStore = Array.isArray(expressions)
@@ -258,10 +259,13 @@ export class InMemoryConceptResolver implements ConceptResolver {
 					hydratedConcepts?.get(expr.conceptId) ??
 					(await conceptStore.getById(expr.conceptId));
 				if (concept && concept.active !== false) {
-					const filters = this.options.filterStore
-						? await this.options.filterStore.listByConcept(concept.id)
-						: [];
-					if (!isConceptAllowed(filters, this.options.filterRole)) continue;
+					if (this.options.filterStore && filterRole) {
+						const filters = await this.options.filterStore.listForConceptRole(
+							concept.id,
+							filterRole,
+						);
+						if (!isConceptAllowed(filters, filterRole)) continue;
+					}
 					let score = expr.priorityWeight;
 					const metric = metrics.find(
 						(m) =>
@@ -307,10 +311,13 @@ export class InMemoryConceptResolver implements ConceptResolver {
 						candidate.concept.active === false
 					)
 						continue;
-					const filters = this.options.filterStore
-						? await this.options.filterStore.listByConcept(candidate.concept.id)
-						: [];
-					if (!isConceptAllowed(filters, this.options.filterRole)) continue;
+					if (this.options.filterStore && filterRole) {
+						const filters = await this.options.filterStore.listForConceptRole(
+							candidate.concept.id,
+							filterRole,
+						);
+						if (!isConceptAllowed(filters, filterRole)) continue;
+					}
 					candidates.set(candidate.concept.id, {
 						concept: candidate.concept,
 						score: candidate.score,

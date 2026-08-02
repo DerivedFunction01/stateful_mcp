@@ -48,3 +48,6 @@ scratch/
 temp_*/
 
 playground
+
+*.db*
+*.sqlite

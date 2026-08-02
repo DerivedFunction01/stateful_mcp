@@ -422,6 +422,8 @@ const TABLES = {
 			{ name: "concept_id", type: "text", nullable: true },
 			{ name: "scope_level", type: "text", nullable: false },
 			{ name: "scope_id", type: "text", nullable: true },
+			{ name: "priority_weight", type: "real", nullable: true },
+			{ name: "active", type: "bool", nullable: false, default: 1 },
 			{ name: "data", type: "json", nullable: false },
 		],
 	},
@@ -948,6 +950,8 @@ const INSERTS = {
 			"concept_id",
 			"scope_level",
 			"scope_id",
+			"priority_weight",
+			"active",
 			"data",
 		],
 		onConflict: "replace",
@@ -1524,7 +1528,12 @@ const SELECTS: Record<string, SelectQuery> = {
 	},
 	SQL_SEARCH_DICT_EXPRESSIONS: {
 		table: "dict_custom_expressions",
-		select: [{ column: "data" }, { column: "lookup_term" }],
+		select: [
+			{ column: "data" },
+			{ column: "lookup_term" },
+			{ column: "scope_level" },
+			{ column: "scope_id" },
+		],
 		where: [
 			{ column: "lookup_term", op: "ilike" },
 			{ column: "active", op: "eq", value: true },
