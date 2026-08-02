@@ -61,6 +61,7 @@ export interface ConceptStore {
 	 * Retrieve a single concept by ID.
 	 */
 	getById(id: string): Promise<Concept | null>;
+	getByIds?(ids: string[]): Promise<Concept[]>;
 
 	/**
 	 * List all namespaces.

@@ -97,8 +97,7 @@ export class ConceptRepoStore implements ConceptStore {
 			relation.active !== false,
 			relation.designationDate || null,
 		]);
-		await this.invalidateRelationCache(relation.conceptId);
-		await this.invalidateRelationCache(relation.linkedId);
+		await this.invalidateRelationCache();
 	}
 
 	async invalidateRelationCache(conceptId?: string): Promise<void> {
@@ -146,7 +145,7 @@ export class ConceptRepoStore implements ConceptStore {
 	): Promise<RelatedConceptResult[]> {
 		const schema = SCHEMA[this.backend.dialect];
 
-		if (useCache) {
+		if (useCache && direction === "forward") {
 			const cached = await this.backend.query(
 				schema.selects.SQL_SELECT_DICT_CACHE_RELATED!.sql,
 				[conceptId, maxDepth],
@@ -183,7 +182,7 @@ export class ConceptRepoStore implements ConceptStore {
 			depth: r.depth,
 		}));
 
-		if (useCache && results.length > 0) {
+		if (useCache && direction === "forward" && results.length > 0) {
 			const now = new Date().toISOString();
 			for (const res of results) {
 				await this.backend.exec(

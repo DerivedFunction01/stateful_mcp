@@ -144,13 +144,14 @@ export class SimpleConceptStore implements ConceptStore {
 		this.dirtyRelations.add(relation.id);
 
 		this.rebuildIndexes();
-		await this.invalidateRelationCache(relation.conceptId);
-		await this.invalidateRelationCache(relation.linkedId);
+		await this.invalidateRelationCache();
 	}
 
 	async invalidateRelationCache(conceptId?: string): Promise<void> {
 		if (conceptId) {
-			this.pathCache.delete(conceptId);
+			for (const key of this.pathCache.keys()) {
+				if (key.startsWith(`${conceptId}:`)) this.pathCache.delete(key);
+			}
 		} else {
 			this.pathCache.clear();
 		}
@@ -190,7 +191,7 @@ export class SimpleConceptStore implements ConceptStore {
 					results.push({
 						concept,
 						relationshipType: entry.inferredRelationshipType,
-						direction: "forward",
+						direction: entry.direction ?? "forward",
 						depth: entry.linkDepth,
 					});
 				}
@@ -259,6 +260,7 @@ export class SimpleConceptStore implements ConceptStore {
 					inferredRelationshipType: current.pathRelType,
 					active: true,
 					updatedAt: new Date().toISOString(),
+					direction: current.dir,
 				});
 			}
 

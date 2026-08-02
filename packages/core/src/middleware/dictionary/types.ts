@@ -87,6 +87,7 @@ export interface ConceptRelationCacheEntry {
 	inferredRelationshipType: ConceptRelationType;
 	active: boolean;
 	updatedAt?: string;
+	direction?: "forward" | "reverse";
 }
 
 /**

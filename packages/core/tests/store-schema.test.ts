@@ -16,6 +16,20 @@ function strip(sql: string): string {
 }
 
 describe("SCHEMA.sqlite DDL matches sqlite-schema.ts", () => {
+	test("fresh dictionary synchronization schema is available for every SQL dialect", () => {
+		for (const dialect of ["sqlite", "postgres", "duckdb"] as const) {
+			const schema = SCHEMA[dialect];
+			expect(schema.ddl.DDL_DICT_CUSTOM_EXPRESSIONS!.sql).toContain(
+				"lookup_term",
+			);
+			expect(schema.ddl.DDL_DICT_FILTERS!.sql).toContain("concept_filters");
+			expect(schema.ddl.DDL_DICT_SYNC_STATE!.sql).toContain("dict_sync_state");
+			expect(schema.ddl.DDL_DICT_TOMBSTONES!.sql).toContain("dict_tombstones");
+			expect(schema.ddlIndexes.IDX_DICT_EXPRESSION_LOOKUP!.sql).toContain(
+				"lookup_term",
+			);
+		}
+	});
 	test("DDL_FILTERS", () => {
 		const compiled = normalize(SCHEMA.sqlite.ddl.DDL_FILTERS!.sql);
 		expect(compiled).toContain('CREATE TABLE IF NOT EXISTS "filters"');

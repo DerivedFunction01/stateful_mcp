@@ -589,7 +589,8 @@ function registerAllTools(
 	server.registerTool(
 		"dictionary_resolve",
 		{
-			description: "Match and resolve shorthand terms to canonical concepts",
+			description:
+				"Match shorthand terms to canonical concepts and return source, freshness, authority, and partial-match metadata.",
 			inputSchema: resolveSchema,
 		},
 		async (args: any) => {

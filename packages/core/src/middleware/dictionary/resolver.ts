@@ -1,5 +1,11 @@
 import type { OwnerScope } from "../../config/types";
-import type { ConceptStore, PersistentExpressionStore } from "./interfaces";
+import { isConceptAllowed } from "./filters";
+import type {
+	ConceptFilterStore,
+	ConceptStore,
+	DictionarySource,
+	PersistentExpressionStore,
+} from "./interfaces";
 import type {
 	Concept,
 	CustomExpression,
@@ -32,6 +38,12 @@ class WrappedMapConceptStore implements ConceptStore {
 	}
 	async getById(id: string): Promise<Concept | null> {
 		return this.concepts.get(id) || null;
+	}
+	async getByIds(ids: string[]): Promise<Concept[]> {
+		const wanted = new Set(ids);
+		return [...this.concepts.values()].filter((concept) =>
+			wanted.has(concept.id),
+		);
 	}
 	async listNamespaces(): Promise<Namespace[]> {
 		return [];
@@ -91,6 +103,9 @@ export interface AggregatedResult {
 	score: number;
 	matchedTerms: string[];
 	sources: string[];
+	freshness?: "fresh" | "stale" | "unknown";
+	authority?: "authoritative" | "derived" | "user";
+	partial?: boolean;
 }
 
 export interface ResolveResponse {
@@ -116,7 +131,17 @@ export interface ConceptResolver {
 	): Promise<ResolveResponse>;
 }
 
+export interface InMemoryConceptResolverOptions {
+	filterStore?: ConceptFilterStore;
+	filterRole?: string;
+	source?: DictionarySource;
+	sourceId?: string;
+	freshness?: "fresh" | "stale" | "unknown";
+	authority?: "authoritative" | "derived" | "user";
+}
+
 export class InMemoryConceptResolver implements ConceptResolver {
+	constructor(private options: InMemoryConceptResolverOptions = {}) {}
 	private getExpressionScopeLevel(
 		expr: CustomExpression,
 	): "user" | "workspace" | "global" {
@@ -187,6 +212,21 @@ export class InMemoryConceptResolver implements ConceptResolver {
 					limit: 200,
 				})
 			: expressionStore.list(scope, true));
+		const conceptIds = [
+			...new Set(
+				exprCandidates
+					.map((expr) => expr.conceptId)
+					.filter((id): id is string => !!id),
+			),
+		];
+		const hydratedConcepts = conceptStore.getByIds
+			? new Map(
+					(await conceptStore.getByIds(conceptIds)).map((concept) => [
+						concept.id,
+						concept,
+					]),
+				)
+			: null;
 
 		for (const expr of exprCandidates.length > 0 ? exprCandidates : exprs) {
 			if (!expr.active || !expr.conceptId) continue;
@@ -214,8 +254,14 @@ export class InMemoryConceptResolver implements ConceptResolver {
 			}
 
 			if (matched) {
-				const concept = await conceptStore.getById(expr.conceptId);
+				const concept =
+					hydratedConcepts?.get(expr.conceptId) ??
+					(await conceptStore.getById(expr.conceptId));
 				if (concept && concept.active !== false) {
+					const filters = this.options.filterStore
+						? await this.options.filterStore.listByConcept(concept.id)
+						: [];
+					if (!isConceptAllowed(filters, this.options.filterRole)) continue;
 					let score = expr.priorityWeight;
 					const metric = metrics.find(
 						(m) =>
@@ -248,6 +294,37 @@ export class InMemoryConceptResolver implements ConceptResolver {
 		}
 
 		if (candidates.size === 0) {
+			if (this.options.source) {
+				const remote = await this.options.source.lookup({
+					query: term,
+					activeOnly: true,
+					limit: 50,
+				});
+				for (const candidate of remote) {
+					if (
+						!candidate.concept ||
+						!candidate.expression ||
+						candidate.concept.active === false
+					)
+						continue;
+					const filters = this.options.filterStore
+						? await this.options.filterStore.listByConcept(candidate.concept.id)
+						: [];
+					if (!isConceptAllowed(filters, this.options.filterRole)) continue;
+					candidates.set(candidate.concept.id, {
+						concept: candidate.concept,
+						score: candidate.score,
+						matchedTerms: new Set([candidate.expression.term]),
+						exact:
+							candidate.matchKind === "exact" ||
+							candidate.matchKind === "regex",
+						maxTier: 1,
+					});
+				}
+			}
+		}
+
+		if (candidates.size === 0) {
 			return { status: "NOT_FOUND", sources: [], results: [] };
 		}
 
@@ -258,6 +335,9 @@ export class InMemoryConceptResolver implements ConceptResolver {
 				score: data.score,
 				matchedTerms: Array.from(data.matchedTerms),
 				sources: ["local"],
+				freshness: this.options.freshness ?? "fresh",
+				authority: this.options.authority ?? "derived",
+				partial: !data.exact,
 				exact: data.exact,
 				maxTier: data.maxTier,
 			}))
@@ -275,12 +355,24 @@ export class InMemoryConceptResolver implements ConceptResolver {
 			status,
 			sources: ["local"],
 			results: sorted.map(
-				({ conceptId, concept, score, matchedTerms, sources }) => ({
+				({
 					conceptId,
 					concept,
 					score,
 					matchedTerms,
 					sources,
+					freshness,
+					authority,
+					partial,
+				}) => ({
+					conceptId,
+					concept,
+					score,
+					matchedTerms,
+					sources,
+					freshness,
+					authority,
+					partial,
 				}),
 			),
 		};

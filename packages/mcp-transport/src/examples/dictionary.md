@@ -7,3 +7,22 @@ LLM: Calling `filter_init(table="clinical_notes", session_id="s1")` -> returns "
 LLM: Calling `filter_add(filter_id="filter_1", condition={field: "diagnosis", operator: "equals", value: "CLINICAL::MYOCARDIAL_INFARCTION"})`
 ```
 This demonstrates resolving vernacular to a formal coordinate identifier before query execution.
+
+Example resolution metadata:
+
+```json
+{
+  "status": "FOUND",
+  "sources": ["local"],
+  "results": [
+    {
+      "conceptId": "concept_myocardial_infarction",
+      "freshness": "fresh",
+      "authority": "derived",
+      "partial": false
+    }
+  ]
+}
+```
+
+Clients should not depend on the projection's SQL or IndexedDB representation.
