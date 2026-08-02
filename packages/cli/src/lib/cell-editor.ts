@@ -141,7 +141,8 @@ export type EditorAction =
 	| { type: "SET_COMPLETION"; completion: CompletionState }
 	| { type: "SHOW_HELP"; show: boolean }
 	| { type: "SET_ERROR"; error: string | null }
-	| { type: "CANCEL" };
+	| { type: "CANCEL" }
+	| { type: "COMMIT_COMPLETION"; line: string };
 
 export interface EditorContext {
 	hostKind: string;
@@ -226,6 +227,12 @@ export function reduceEditorKernel(
 			};
 		case "SET_COMPLETION":
 			return { ...state, completion: action.completion };
+		case "COMMIT_COMPLETION":
+			return {
+				...state,
+				draftText: action.line,
+				completion: { status: "idle" },
+			};
 		case "SHOW_HELP":
 			return { ...state, showHelp: action.show };
 		case "SET_ERROR":

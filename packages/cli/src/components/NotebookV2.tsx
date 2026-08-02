@@ -240,6 +240,9 @@ export function NotebookV2() {
 			case "SET_COMPLETION":
 				setCompletion(action.completion);
 				return;
+			case "COMMIT_COMPLETION":
+				dispatch({ type: "COMMAND_SET", text: action.line });
+				return;
 			case "SHOW_HELP":
 				setShowHelp(true);
 				return;

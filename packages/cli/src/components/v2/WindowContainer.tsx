@@ -177,6 +177,27 @@ export function WindowContainer({
 				emit({ type: "BACKSPACE" });
 				return;
 			}
+			if (_input === " ") {
+				const transition = reduceCompletion(
+					current.completion,
+					{ kind: "space" },
+					current.draftText,
+					(partial) => catalog.getSuggestions(partial, context),
+				);
+				emit({
+					type: "SET_COMPLETION",
+					completion: transition.completionState,
+				});
+				if (transition.committedLine) {
+					emit({
+						type: "COMMIT_COMPLETION",
+						line: transition.committedLine,
+					});
+				} else if (transition.shouldAppend) {
+					emit({ type: "INSERT_TEXT", text: transition.shouldAppend });
+				}
+				return;
+			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {
 				emit({ type: "INSERT_TEXT", text: _input });
 			}
