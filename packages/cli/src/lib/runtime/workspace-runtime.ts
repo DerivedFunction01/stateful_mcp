@@ -17,6 +17,8 @@ import {
 } from "./window-profile";
 import { buildWorkspaceExtension } from "../windows/workspace/extension";
 
+import type { WindowOverlayRoute } from "../editor/overlay";
+
 export interface WorkspaceRuntimeOptions {
 	sessionId: string;
 	profile: ParserSyntaxProfile | null;
@@ -30,7 +32,7 @@ export interface WorkspaceRuntimeOptions {
 	}>;
 	onCommandResultAccepted(): void;
 	onAppQuit(): void;
-	onOpenOverlay?(route: "help" | "preview" | "info", payload?: unknown): void;
+	onOpenOverlay?(route: WindowOverlayRoute, payload?: unknown): void;
 	onCloseOverlay?(): void;
 	onSwitchWindow?(windowKind: string): void;
 	onSubmittingChange?(submitting: boolean): void;
@@ -94,7 +96,7 @@ export function useWorkspaceRuntime(opts: WorkspaceRuntimeOptions): {
 			for (const effect of effects) {
 				switch (effect.type) {
 					case "router.open": {
-						const route = effect.route === "search" ? "help" : effect.route;
+						const route = effect.route;
 						openedAny = true;
 						opts.onOpenOverlay?.(route, effect.payload);
 						break;

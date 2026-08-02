@@ -24,6 +24,7 @@ export type EditorAction =
 	| { type: "HISTORY_PREV" }
 	| { type: "HISTORY_NEXT" }
 	| { type: "CANCEL" }
+	| { type: "SEARCH" }
 	| { type: "COMMIT_COMPLETION"; line: string };
 
 export function createEditorKernelState(): EditorKernelState {
@@ -90,6 +91,8 @@ export function reduceEditorKernel(
 			return { ...state, error: action.error };
 		case "HISTORY_PREV":
 		case "HISTORY_NEXT":
+			return state;
+		case "SEARCH":
 			return state;
 		case "CANCEL":
 			return {

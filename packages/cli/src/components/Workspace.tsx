@@ -1,5 +1,5 @@
 import { useApp } from "ink";
-import { useMemo, useReducer, useState } from "react";
+import { useMemo, useReducer, useState, useEffect } from "react";
 import type { SessionState } from "../hooks/useSession";
 import { useWorkspace } from "../hooks/useWorkspace";
 import type {
@@ -23,6 +23,7 @@ import { workspaceWindow } from "../lib/windows/workspace/window";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
 import { WindowContainer } from "./WindowContainer";
+import { SearchOverlay, searchReducer, INITIAL_SEARCH_STATE } from "./SearchOverlay";
 
 interface WorkspaceProps {
 	session: SessionState;
@@ -53,6 +54,10 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 	});
 	const [overlay, setOverlay] = useState<WindowOverlay | null>(null);
 	const [, bumpDocument] = useState(0);
+	const [searchState, searchDispatch] = useReducer(
+		searchReducer,
+		INITIAL_SEARCH_STATE,
+	);
 
 	const profile = session.result.engine.getParser().getProfile();
 
@@ -135,7 +140,11 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 		},
 		onAppQuit: () => exit(),
 		onMessage: (message) => wsDispatch({ type: "SET_ERROR", error: message }),
-		onOpenOverlay: (route, payload) =>
+		onOpenOverlay: (route, payload) => {
+			if (route === "search") {
+				const term = (payload as any)?.query ?? "";
+				searchDispatch({ type: "OPEN", query: term, cells: cells as any });
+			}
 			setOverlay((prev) => {
 				const originCellId =
 					route === "info" || route === "preview"
@@ -144,8 +153,12 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 							]?.cellId
 						: undefined;
 				return { route, payload, originCellId };
-			}),
-		onCloseOverlay: () => setOverlay(null),
+			});
+		},
+		onCloseOverlay: () => {
+			searchDispatch({ type: "CLEAR" });
+			setOverlay(null);
+		},
 		onSwitchWindow: (windowKind) => {
 			if (windowKind === "notebook") onBack();
 		},
@@ -164,6 +177,17 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 			),
 		[cells, session.sessionId],
 	);
+
+	// Sync active index with search matches
+	useEffect(() => {
+		if (searchState.open && searchState.matches.length > 0 && searchState.matchIndex >= 0) {
+			const activeCellId = searchState.matches[searchState.matchIndex];
+			const index = cells.findIndex((c) => c.cellId === activeCellId);
+			if (index >= 0 && index !== documentPort.getView().activeIndex) {
+				documentPort.dispatch({ type: "setActive", index });
+			}
+		}
+	}, [searchState.open, searchState.matches, searchState.matchIndex, cells, documentPort]);
 
 	const domainPort = useMemo(
 		() =>
@@ -222,6 +246,10 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 			case "SET_COMPLETION":
 				setCompletion(action.completion);
 				return;
+			case "SEARCH":
+				setOverlay({ route: "search" });
+				searchDispatch({ type: "OPEN", query: "", cells: cells as any });
+				return;
 			default:
 				wsDispatch(action);
 				return;
@@ -250,6 +278,34 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 				<CellInfoPanel cell={cell as any} onClose={() => setOverlay(null)} />
 			);
 		}
+		if (o.route === "search") {
+			return (
+				<SearchOverlay
+					query={searchState.query}
+					matchIndex={searchState.matchIndex}
+					matchCount={searchState.matches.length}
+					onChangeQuery={(query) =>
+						searchDispatch({ type: "UPDATE_QUERY", query, cells: cells as any })
+					}
+					onNext={() => searchDispatch({ type: "NEXT" })}
+					onPrev={() => searchDispatch({ type: "PREV" })}
+					onSelect={() => {
+						if (searchState.matches.length > 0 && searchState.matchIndex >= 0) {
+							const activeCellId = searchState.matches[searchState.matchIndex];
+							const index = cells.findIndex((c) => c.cellId === activeCellId);
+							if (index >= 0) {
+								documentPort.dispatch({ type: "setActive", index });
+							}
+						}
+						setOverlay(null);
+					}}
+					onClose={() => {
+						searchDispatch({ type: "CLEAR" });
+						setOverlay(null);
+					}}
+				/>
+			);
+		}
 		return null;
 	};
 
@@ -264,6 +320,7 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 		error: workspace.error,
 		focused: workspace.focused,
 		lastEditCellId: null,
+		dirty: (workspace.snapshot as any)?.dirty ?? false,
 	});
 
 	const containerDomain = {

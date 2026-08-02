@@ -80,6 +80,16 @@ export function commandResultToEffects(result: {
 		case "show_errors":
 			effects.push({ type: "router.open", route: "search" });
 			return effects;
+		case "search":
+			effects.push({
+				type: "router.open",
+				route: "search",
+				payload: result.data,
+			});
+			return effects;
+		case "clear_search":
+			effects.push({ type: "router.close" });
+			return effects;
 		case "undo":
 			effects.push({ type: "document.dispatch", action: { type: "undo" } });
 			return effects;

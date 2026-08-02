@@ -20,6 +20,11 @@ export interface NotebookWindowDeps {
 	editorState: EditorKernelState;
 	lastEditCellId: string | null;
 	cellSuggestions?: CellSuggestion[];
+	dirty?: boolean;
+	sessionMode?: "execute" | "preview";
+	defaultSection?: string;
+	defaultSchema?: string | null;
+	message?: string | null;
 }
 
 /**
@@ -124,13 +129,13 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							cellCount={view.cells.length}
 							activeIndex={view.activeIndex}
 							sessionId={deps.sessionId}
-							dirty={false}
-							sessionMode="execute"
-							message={null}
+							dirty={deps.dirty ?? false}
+							sessionMode={deps.sessionMode ?? "execute"}
+							message={deps.message ?? null}
 							visualStart={view.selection?.start ?? 0}
 							visualEnd={view.selection?.end ?? 0}
-							defaultSection="subjective"
-							defaultSchema={null}
+							defaultSection={deps.defaultSection ?? "subjective"}
+							defaultSchema={deps.defaultSchema ?? null}
 						/>
 					);
 				},

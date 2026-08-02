@@ -23,6 +23,7 @@ export interface WorkspaceWindowDeps {
 	error: string | null;
 	focused: boolean;
 	lastEditCellId: string | null;
+	dirty?: boolean;
 }
 
 /**
@@ -122,7 +123,7 @@ export function workspaceWindow(deps: WorkspaceWindowDeps): WindowDefinition {
 							cellCount={view.cells.length}
 							activeIndex={view.activeIndex}
 							sessionId={deps.sessionId}
-							dirty={false}
+							dirty={deps.dirty ?? false}
 							sessionMode="execute"
 							message={null}
 							visualStart={view.selection?.start ?? 0}

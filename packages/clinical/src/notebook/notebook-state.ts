@@ -8,6 +8,7 @@ export interface UndoEntry {
 	cells: Cell[];
 	activeIndex: number;
 	draftText: string;
+	authoredRevision: number;
 }
 
 export interface NotebookState {
@@ -19,6 +20,8 @@ export interface NotebookState {
 	undoStack: UndoEntry[];
 	redoStack: UndoEntry[];
 	dirty: boolean;
+	authoredRevision: number;
+	persistedAuthoredRevision: number;
 	sessionMode: ExecutionPolicy;
 	preview: PreviewCandidate | null;
 	commandLine: string;
@@ -78,13 +81,15 @@ export type NotebookAction =
 	| { type: "YANK_SELECTION" }
 	| { type: "SET_MESSAGE"; message: string | null }
 	| { type: "COMMAND_SET"; text: string }
-	| { type: "SET_DEFAULT_INSERT"; section: string; schema: string | null };
+	| { type: "SET_DEFAULT_INSERT"; section: string; schema: string | null }
+	| { type: "SET_PERSISTED_REVISION"; revision: number };
 
 function snapshot(state: NotebookState): UndoEntry {
 	return {
 		cells: state.cells.map((c) => structuredClone(c)),
 		activeIndex: state.activeIndex,
 		draftText: state.draftText,
+		authoredRevision: state.authoredRevision,
 	};
 }
 
@@ -115,6 +120,8 @@ export const INITIAL_NOTEBOOK_STATE: NotebookState = {
 	undoStack: [],
 	redoStack: [],
 	dirty: false,
+	authoredRevision: 0,
+	persistedAuthoredRevision: 0,
 	sessionMode: "execute",
 	preview: null,
 	commandLine: "",
@@ -134,7 +141,7 @@ export const INITIAL_NOTEBOOK_STATE: NotebookState = {
 	message: null,
 };
 
-export function notebookReducer(
+export function rawNotebookReducer(
 	state: NotebookState,
 	action: NotebookAction,
 ): NotebookState {
@@ -174,7 +181,6 @@ export function notebookReducer(
 				lastEditCellId: cell.cellId,
 				undoStack: u.undoStack,
 				redoStack: u.redoStack,
-				dirty: true,
 			};
 		}
 
@@ -235,7 +241,6 @@ export function notebookReducer(
 				activeIndex: insertAt,
 				undoStack: u.undoStack,
 				redoStack: u.redoStack,
-				dirty: true,
 			};
 		}
 
@@ -253,7 +258,6 @@ export function notebookReducer(
 				activeIndex: newIndex,
 				undoStack: u.undoStack,
 				redoStack: u.redoStack,
-				dirty: true,
 			};
 		}
 
@@ -279,6 +283,7 @@ export function notebookReducer(
 				cells: prev.cells,
 				activeIndex: prev.activeIndex,
 				draftText: prev.draftText,
+				authoredRevision: prev.authoredRevision,
 				mode: "NORMAL",
 				preview: null,
 				undoStack: state.undoStack.slice(0, -1),
@@ -294,6 +299,7 @@ export function notebookReducer(
 				cells: next.cells,
 				activeIndex: next.activeIndex,
 				draftText: next.draftText,
+				authoredRevision: next.authoredRevision,
 				mode: "NORMAL",
 				preview: null,
 				undoStack: [...state.undoStack, snapshot(state)],
@@ -398,7 +404,6 @@ export function notebookReducer(
 				activeIndex: insertAt,
 				undoStack: u.undoStack,
 				redoStack: u.redoStack,
-				dirty: true,
 			};
 		}
 
@@ -480,7 +485,6 @@ export function notebookReducer(
 				mode: "NORMAL",
 				undoStack: u.undoStack,
 				redoStack: u.redoStack,
-				dirty: true,
 			};
 		}
 
@@ -506,7 +510,67 @@ export function notebookReducer(
 				defaultSchema: action.schema,
 			};
 
+		case "SET_PERSISTED_REVISION":
+			return {
+				...state,
+				persistedAuthoredRevision: action.revision,
+			};
+
 		default:
 			return state;
 	}
+}
+
+export function notebookReducer(
+	state: NotebookState,
+	action: NotebookAction,
+): NotebookState {
+	let nextState = rawNotebookReducer(state, action);
+
+	// Determine if the action should increment authoredRevision
+	let incrementRevision = false;
+	switch (action.type) {
+		case "INSERT_CELL":
+		case "DELETE_ACTIVE_CELL":
+		case "PASTE_CELL":
+		case "DELETE_SELECTION":
+		case "SET_DRAFT_TEXT":
+			incrementRevision = true;
+			break;
+		case "EXIT_INSERT_MODE":
+		case "COMMIT_CELL":
+			// Draft-text commits
+			incrementRevision = true;
+			break;
+		case "SET_CELL_TEXT": {
+			const cellBefore = state.cells.find((c) => c.cellId === action.cellId);
+			if (!cellBefore || cellBefore.rawInput !== action.text) {
+				incrementRevision = true;
+			}
+			break;
+		}
+		case "UPDATE_CELL": {
+			const cellBefore = state.cells.find((c) => c.cellId === action.cellId);
+			const cellAfter = nextState.cells.find((c) => c.cellId === action.cellId);
+			if (cellBefore && cellAfter && cellBefore.rawInput !== cellAfter.rawInput) {
+				incrementRevision = true;
+			}
+			break;
+		}
+	}
+
+	if (incrementRevision) {
+		nextState = {
+			...nextState,
+			authoredRevision: nextState.authoredRevision + 1,
+		};
+	}
+
+	// Compute dirty derived state
+	nextState = {
+		...nextState,
+		dirty: nextState.authoredRevision !== nextState.persistedAuthoredRevision,
+	};
+
+	return nextState;
 }

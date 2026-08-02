@@ -18,13 +18,15 @@ import {
 	type WindowRuntime,
 } from "./window-profile";
 
+import type { WindowOverlayRoute } from "../editor/overlay";
+
 export interface NotebookRuntimeOptions {
 	sessionId: string;
 	notebook: UseNotebookReturn;
 	cellDescriptors: { getDescriptors(): any[] };
 	onCommandResultAccepted(): void;
 	onAppQuit(): void;
-	onOpenOverlay?(route: "help" | "preview" | "info", payload?: unknown): void;
+	onOpenOverlay?(route: WindowOverlayRoute, payload?: unknown): void;
 	onCloseOverlay?(): void;
 	onSwitchWindow?(windowKind: string): void;
 	onSubmittingChange?(submitting: boolean): void;
@@ -104,7 +106,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 						});
 						break;
 					case "router.open": {
-						const route = effect.route === "search" ? "help" : effect.route;
+						const route = effect.route;
 						openedAny = true;
 						opts.onOpenOverlay?.(route, effect.payload);
 						break;

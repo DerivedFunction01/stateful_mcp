@@ -1,5 +1,5 @@
 import { useApp } from "ink";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import type {
@@ -21,6 +21,8 @@ import { HelpScreen } from "./HelpScreen";
 import { PreviewScreen } from "./PreviewScreen";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
+import { SearchOverlay, searchReducer, INITIAL_SEARCH_STATE } from "./SearchOverlay";
+import { useEngineCompletion } from "../hooks/useEngineCompletion";
 
 /**
  * Independent notebook root. Owns a separate useSession/useNotebook and runs
@@ -39,6 +41,11 @@ export function Notebook() {
 	const [activeWindow, setActiveWindow] = useState<"notebook" | "workspace">(
 		"notebook",
 	);
+	const [searchState, searchDispatch] = useReducer(
+		searchReducer,
+		INITIAL_SEARCH_STATE,
+	);
+	const engineSuggestionsRef = useRef<any[]>([]);
 
 	useEffect(() => {
 		if (state.preview && !overlay) {
@@ -72,6 +79,10 @@ export function Notebook() {
 		onAppQuit: () => exit(),
 		onMessage: (message) => dispatch({ type: "SET_MESSAGE", message }),
 		onOpenOverlay: (route, payload) => {
+			if (route === "search") {
+				const term = (payload as any)?.query ?? "";
+				searchDispatch({ type: "OPEN", query: term, cells: state.cells });
+			}
 			setOverlay((prev) => {
 				const originCellId =
 					route === "info" || route === "preview"
@@ -80,13 +91,102 @@ export function Notebook() {
 				return { route, payload, originCellId };
 			});
 		},
-		onCloseOverlay: () => setOverlay(null),
+		onCloseOverlay: () => {
+			searchDispatch({ type: "CLEAR" });
+			setOverlay(null);
+		},
 		onSwitchWindow: (windowKind) => {
 			if (windowKind === "workspace" || windowKind === "notebook") {
 				setActiveWindow(windowKind);
 			}
 		},
 	});
+
+	const context = useMemo(() => ({
+		hostKind: "notebook" as const,
+		collection: { kind: "notebook" as const, collectionId: session?.sessionId ?? "" },
+		sessionId: session?.sessionId ?? "",
+	}), [session?.sessionId]);
+
+	const scope = useMemo(() => ({
+		windowKind: "notebook",
+		sessionId: session?.sessionId ?? "",
+		collection: { kind: "notebook" as const, collectionId: session?.sessionId ?? "" },
+	}), [session?.sessionId]);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: runtime changes on every render and causes infinite loops
+	const catalog = useMemo(() => {
+		return new NotebookCommandCatalog(
+			runtime.runtime.catalog.descriptors(scope),
+			(partial) => {
+				const staticSugs = runtime.runtime.catalog.suggestions(partial, runtime.runtime.scope);
+				const engineSugs = engineSuggestionsRef.current;
+				const seen = new Set<string>();
+				const merged = [];
+				for (const s of staticSugs) {
+					const k = s.verb.toLowerCase();
+					if (!seen.has(k)) {
+						seen.add(k);
+						merged.push(s);
+					}
+				}
+				for (const s of engineSugs) {
+					const k = s.verb.toLowerCase();
+					if (!seen.has(k)) {
+						seen.add(k);
+						merged.push(s);
+					}
+				}
+				return merged;
+			}
+		);
+	}, [scope, session?.sessionId]);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: runtime changes on every render and causes infinite loops
+	const staticCandidates = useMemo(() => {
+		if (state.mode !== "COMMAND") return [];
+		return runtime.runtime.catalog.suggestions(state.commandLine.slice(1), runtime.runtime.scope);
+	}, [state.mode, state.commandLine, session?.sessionId]);
+
+	const { loading, engineCandidates, mergedCandidates } = useEngineCompletion({
+		mode: state.mode,
+		commandLine: state.commandLine,
+		catalog,
+		context,
+		engine: session?.result?.engine,
+		staticCandidates,
+	});
+
+	// Sync engine suggestions ref
+	useEffect(() => {
+		engineSuggestionsRef.current = engineCandidates;
+	}, [engineCandidates]);
+
+	// Sync completion state with loading/engineCandidates
+	useEffect(() => {
+		if (state.mode === "COMMAND" && completion.status === "cycling") {
+			setCompletion((prev) => {
+				if (prev.status !== "cycling") return prev;
+				return {
+					...prev,
+					loading,
+					engineCandidates,
+					candidates: mergedCandidates,
+				};
+			});
+		}
+	}, [loading, engineCandidates, mergedCandidates, state.mode]);
+
+	// Sync active index with search matches
+	useEffect(() => {
+		if (searchState.open && searchState.matches.length > 0 && searchState.matchIndex >= 0) {
+			const activeCellId = searchState.matches[searchState.matchIndex];
+			const index = state.cells.findIndex((c) => c.cellId === activeCellId);
+			if (index >= 0 && index !== state.activeIndex) {
+				dispatch({ type: "SET_ACTIVE_INDEX", index });
+			}
+		}
+	}, [searchState.open, searchState.matches, searchState.matchIndex, state.cells, state.activeIndex, dispatch]);
 
 	const documentPort = useMemo(
 		() =>
@@ -139,16 +239,6 @@ export function Notebook() {
 
 	if (!session) return null;
 
-	const context = {
-		hostKind: "notebook",
-		collection: { kind: "notebook" as const, collectionId: session.sessionId },
-		sessionId: session.sessionId,
-	};
-	const scope = {
-		windowKind: "notebook",
-		sessionId: session.sessionId,
-		collection: { kind: "notebook" as const, collectionId: session.sessionId },
-	};
 	const editorState: EditorKernelState = {
 		mode: state.mode as CellEditorMode,
 		draftText: state.mode === "COMMAND" ? state.commandLine : state.draftText,
@@ -156,12 +246,6 @@ export function Notebook() {
 		error: state.message,
 		showHelp: showHelp || state.showHelp || overlay !== null,
 	};
-
-	const catalog = new NotebookCommandCatalog(
-		runtime.runtime.catalog.descriptors(scope),
-		(partial) =>
-			runtime.runtime.catalog.suggestions(partial, runtime.runtime.scope),
-	);
 
 	const onOverlayAction = (action: WindowOverlayAction) => {
 		switch (action) {
@@ -227,6 +311,34 @@ export function Notebook() {
 				/>
 			);
 		}
+		if (o.route === "search") {
+			return (
+				<SearchOverlay
+					query={searchState.query}
+					matchIndex={searchState.matchIndex}
+					matchCount={searchState.matches.length}
+					onChangeQuery={(query) =>
+						searchDispatch({ type: "UPDATE_QUERY", query, cells: state.cells })
+					}
+					onNext={() => searchDispatch({ type: "NEXT" })}
+					onPrev={() => searchDispatch({ type: "PREV" })}
+					onSelect={() => {
+						if (searchState.matches.length > 0 && searchState.matchIndex >= 0) {
+							const activeCellId = searchState.matches[searchState.matchIndex];
+							const index = state.cells.findIndex((c) => c.cellId === activeCellId);
+							if (index >= 0) {
+								dispatch({ type: "SET_ACTIVE_INDEX", index });
+							}
+						}
+						setOverlay(null);
+					}}
+					onClose={() => {
+						searchDispatch({ type: "CLEAR" });
+						setOverlay(null);
+					}}
+				/>
+			);
+		}
 		return null;
 	};
 
@@ -265,6 +377,10 @@ export function Notebook() {
 			case "SHOW_HELP":
 				setShowHelp(true);
 				return;
+			case "SEARCH":
+				setOverlay({ route: "search" });
+				searchDispatch({ type: "OPEN", query: "", cells: state.cells });
+				return;
 			case "CANCEL":
 				if (state.mode === "COMMAND") dispatch({ type: "EXIT_COMMAND_MODE" });
 				else if (state.mode === "INSERT")
@@ -284,6 +400,11 @@ export function Notebook() {
 		editorState,
 		lastEditCellId: state.lastEditCellId,
 		cellSuggestions,
+		dirty: state.dirty,
+		sessionMode: state.sessionMode,
+		defaultSection: state.defaultSection,
+		defaultSchema: state.defaultSchema,
+		message: state.message,
 	});
 
 	const containerDomain = {

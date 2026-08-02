@@ -30,7 +30,9 @@ describe("Clinical Epistemic Workspace Lifecycle", () => {
 			dictionaryStore: {} as any,
 			signedNoteStore: {} as any,
 			workspaceStore,
+			profile: { stateDelimiter: "||" } as any,
 		});
+		workspaceStore.setParser(engine.getParser());
 
 		// 1. Create baseline active SoapNote
 		const patient = {
@@ -40,6 +42,7 @@ describe("Clinical Epistemic Workspace Lifecycle", () => {
 			administrativeGender: "male",
 			status: "active",
 			biologicalProfile: { organismType: "human" },
+			originationDate: { assertedTimestampUtc: new Date().toISOString() },
 		} as any;
 
 		const sessionId = "session_123";
@@ -110,7 +113,9 @@ describe("Clinical Epistemic Workspace Lifecycle", () => {
 			dictionaryStore: {} as any,
 			signedNoteStore: {} as any,
 			workspaceStore,
+			profile: { stateDelimiter: "||" } as any,
 		});
+		workspaceStore.setParser(engine.getParser());
 
 		const patient = {
 			id: "pat_1",
@@ -162,7 +167,9 @@ describe("ClinicalEngine.ensureEncounter", () => {
 			dictionaryStore: {} as any,
 			signedNoteStore: {} as any,
 			workspaceStore,
+			profile: { stateDelimiter: "||" } as any,
 		});
+		workspaceStore.setParser(engine.getParser());
 		return { engine, objectStore };
 	}
 

@@ -13,7 +13,7 @@ import { resolveKey } from "../../editor/keymap";
 interface Classification {
 	document?: DocumentAction;
 	domain?: DomainAction;
-	generic?: "ENTER_INSERT" | "ENTER_COMMAND" | "CANCEL";
+	generic?: "ENTER_INSERT" | "ENTER_COMMAND" | "CANCEL" | "SEARCH";
 	char?: string;
 }
 
@@ -71,6 +71,8 @@ function classify(action: ClinicalAction): Classification {
 			return { domain: { type: "showInfo" } };
 		case ClinicalAction.Quit:
 			return { domain: { type: "quit" } };
+		case ClinicalAction.Search:
+			return { generic: "SEARCH" };
 		default:
 			return {};
 	}

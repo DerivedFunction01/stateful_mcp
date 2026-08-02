@@ -178,33 +178,39 @@ export function useNotebook(session: SessionState | null) {
 	// Persist the session document (debounced) whenever document-relevant state changes.
 	useEffect(() => {
 		if (!session || !hydratedRef.current) return;
-		const timeout = setTimeout(() => {
+		const revisionToPersist = state.authoredRevision;
+		const timeout = setTimeout(async () => {
 			const ordering = state.cells.map((c) => c.cellId);
 			const activeCell = state.cells[state.activeIndex];
 			// Only persist draftText when actively editing; otherwise store "" so a
 			// stale draft is never resurrected on the next launch.
 			const draft =
 				state.mode === "INSERT" && activeCell ? state.draftText : "";
-			for (const cell of state.cells) {
-				void session.result.cellStore.save(cell);
+			try {
+				await Promise.all([
+					...state.cells.map((cell) => session.result.cellStore.save(cell)),
+					session.notebook.saveDocument({
+						sessionId: session.sessionId,
+						updatedAt: new Date().toISOString(),
+						ordering,
+						cells: {},
+						activeIndex: state.activeIndex,
+						draftText: draft,
+					}),
+					session.notebook.saveCollection(session.sessionId, {
+						collection: { kind: "notebook", collectionId: session.sessionId },
+						ordering,
+						activeIndex: state.activeIndex,
+						draftText: draft,
+					}),
+				]);
+				dispatch({ type: "SET_PERSISTED_REVISION", revision: revisionToPersist });
+			} catch (err) {
+				// Ignore or log error
 			}
-			void session.notebook.saveDocument({
-				sessionId: session.sessionId,
-				updatedAt: new Date().toISOString(),
-				ordering,
-				cells: {},
-				activeIndex: state.activeIndex,
-				draftText: draft,
-			});
-			void session.notebook.saveCollection(session.sessionId, {
-				collection: { kind: "notebook", collectionId: session.sessionId },
-				ordering,
-				activeIndex: state.activeIndex,
-				draftText: draft,
-			});
 		}, 250);
 		return () => clearTimeout(timeout);
-	}, [state.cells, state.activeIndex, state.draftText, state.mode, session]);
+	}, [state.cells, state.activeIndex, state.draftText, state.mode, session, state.authoredRevision]);
 
 	useEffect(() => {
 		if (!session || state.mode !== "INSERT" || !state.draftText) {

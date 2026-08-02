@@ -17,6 +17,8 @@ export type CompletionState =
 			candidates: AutocompleteSuggestion[];
 			highlightIndex: number;
 			session: CompletionSession;
+			loading?: boolean;
+			engineCandidates?: AutocompleteSuggestion[];
 	  };
 
 export function cycleIndex(
