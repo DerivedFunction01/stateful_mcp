@@ -17,16 +17,16 @@ export type PartOfDay =
 	| "midnight";
 
 export type Season = "spring" | "summer" | "autumn" | "winter";
-
-export type TimePrecisionLevel =
-	| "second"
+export type TimeUnit = 	| "second"
 	| "minute"
 	| "hour"
 	| "day"
 	| "week"
 	| "month"
+	| "year";
+export type TimePrecisionLevel =
+	| TimeUnit
 	| "quarter"
-	| "year"
 	| "decade"
 	| DayOfWeek
 	| PartOfDay

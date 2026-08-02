@@ -1,4 +1,5 @@
 import type { CodeableConcept } from "./shared";
+import type { TimeUnit } from "./time";
 
 export type TerrestrialUnitAnchor =
 	| "length"
@@ -52,13 +53,9 @@ export type MassUnit =
 	| "t"
 	| "ton";
 export type VolumeUnit =
-	| "l"
 	| "L"
 	| "dL"
-	| "dl"
-	| "ml"
 	| "mL"
-	| "ul"
 	| "uL"
 	| "fl_oz"
 	| "tsp"
@@ -117,7 +114,7 @@ export type CountUnit =
 export type ScoreUnit = "%" | "percent" | "score" | "points" | "ratio";
 
 type ConcMassUnit = "g" | "mg" | "mcg" | "ug" | "ng" | "pg";
-type ConcVolumeUnit = "l" | "L" | "dL" | "ml" | "mL" | "ul" | "uL";
+type ConcVolumeUnit = "L" | "dL" | "mL" | "uL";
 export type MassConcentrationUnit =
 	| `${ConcMassUnit}/${ConcVolumeUnit}`
 	| "mg/mL"
@@ -317,3 +314,184 @@ export function isBoundedMeasurement(
 		"unitAnchor" in m && (m as BoundedMeasurement).unitAnchor !== undefined
 	);
 }
+
+export const UNIT_DISPLAY_MAP: Record<AllowedUnit | TimeUnit, string> = {
+	// Mass
+	kg: "kg",
+	g: "g",
+	mg: "mg",
+	mcg: "mcg",
+	ug: "mcg",
+	ng: "ng",
+	pg: "pg",
+	lb: "lb",
+	oz: "oz",
+	t: "t",
+	ton: "ton",
+
+	// Volume
+	L: "L",
+	dL: "dL",
+	mL: "mL",
+	uL: "uL",
+	fl_oz: "fl oz",
+	tsp: "tsp",
+	tbsp: "tbsp",
+	qt: "qt",
+	pt: "pt",
+	gal: "gal",
+	cc: "cc",
+	cup: "cup",
+	pint: "pint",
+	quart: "quart",
+	gallon: "gallon",
+
+	// Length
+	km: "km",
+	m: "m",
+	cm: "cm",
+	mm: "mm",
+	um: "um",
+	nm: "nm",
+	in: "in",
+	ft: "ft",
+	"[in_i]": "in",
+	"[ft_i]": "ft",
+	yd: "yd",
+	mi: "mi",
+
+	// Temperature
+	Celsius: "Celsius",
+	Fahrenheit: "Fahrenheit",
+	Kelvin: "Kelvin",
+
+	// Pressure
+	mmHg: "mmHg",
+	bar: "bar",
+	atm: "atm",
+	Pa: "Pa",
+	kPa: "kPa",
+	psi: "psi",
+
+	// Count
+	count: "count",
+	cells: "cells",
+	elements: "elements",
+	copies: "copies",
+	IU: "IU",
+	U: "U",
+	"IU/mL": "IU/mL",
+	"U/mL": "U/mL",
+	tablet: "tablet",
+	capsule: "capsule",
+	puff: "puff",
+	spray: "spray",
+	drop: "drop",
+	dose: "dose",
+	pill: "pill",
+	vial: "vial",
+	patch: "patch",
+	caplet: "caplet",
+	sachet: "sachet",
+	pack: "pack",
+	drink: "drink",
+	glass: "glass",
+	shot: "shot",
+	"/min": "/min",
+	breaths_per_min: "bpm",
+	beats_per_min: "bpm",
+
+	// Score
+	"%": "%",
+	percent: "%",
+	score: "score",
+	points: "points",
+	ratio: "ratio",
+
+	// Mass Concentration permutations
+	"g/L": "g/L",
+	"g/dL": "g/dL",
+	"g/mL": "g/mL",
+	"g/uL": "g/uL",
+	"mg/L": "mg/L",
+	"mg/dL": "mg/dL",
+	"mg/mL": "mg/mL",
+	"mg/uL": "mg/uL",
+	"mcg/L": "mcg/L",
+	"mcg/dL": "mcg/dL",
+	"mcg/mL": "mcg/mL",
+	"mcg/uL": "mcg/uL",
+	"ug/L": "ug/L",
+	"ug/dL": "ug/dL",
+	"ug/mL": "ug/mL",
+	"ug/uL": "ug/uL",
+	"ng/L": "ng/L",
+	"ng/dL": "ng/dL",
+	"ng/mL": "ng/mL",
+	"ng/uL": "ng/uL",
+	"pg/L": "pg/L",
+	"pg/dL": "pg/dL",
+	"pg/mL": "pg/mL",
+	"pg/uL": "pg/uL",
+
+	// Substance Concentration
+	"mol/L": "mol/L",
+	"mmol/L": "mmol/L",
+	"umol/L": "umol/L",
+	"nmol/L": "nmol/L",
+	"mEq/L": "mEq/L",
+
+	// Energy
+	cal: "cal",
+	kcal: "kcal",
+	J: "J",
+	kJ: "kJ",
+	kWh: "kWh",
+
+	// Force
+	N: "N",
+	kN: "kN",
+	mN: "mN",
+	kgf: "kgf",
+	lbf: "lbf",
+
+	// Osmolality / Osmolarity
+	"Osm/kg": "Osm/kg",
+	"mOsm/kg": "mOsm/kg",
+	"Osm/L": "Osm/L",
+	"mOsm/L": "mOsm/L",
+
+	// Catalytic Activity
+	kat: "kat",
+	mkat: "mkat",
+	ukat: "ukat",
+	nkat: "nkat",
+
+	// Fraction
+	fraction: "fraction",
+
+	// Electric Potential, Current, Power
+	V: "V",
+	mV: "mV",
+	uV: "uV",
+	A: "A",
+	mA: "mA",
+	uA: "uA",
+	W: "W",
+	mW: "mW",
+	kW: "kW",
+
+	// Velocity / Acceleration
+	"m/s": "m/s",
+	"cm/s": "cm/s",
+	"km/h": "km/h",
+	mph: "mph",
+	"m/s2": "m/s²",
+	second: "s",
+	minute: "min",
+	hour: "hr",
+	day: "d",
+	week: "wk",
+	month: "mo",
+	year: "yr"
+};
