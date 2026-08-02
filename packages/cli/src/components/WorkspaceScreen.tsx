@@ -1,24 +1,30 @@
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
-import { Box, Text, useInput } from "ink";
-import { useEffect, useReducer } from "react";
+import { Box, Text } from "ink";
+import { useReducer as useReactReducer } from "react";
 import { formatParsedItem } from "../formatter/format-parsed";
 import {
 	type CellSubmissionPlan,
-	createCellEditorState,
-	reduceCellEditor,
+	type CommandCatalog,
+	createEditorKernelState,
+	type EditorContext,
+	reduceEditorKernel,
+	type SubmissionPort,
 } from "../lib/cell-editor";
 import { t } from "../lib/i18n";
+import { CellEditor } from "./CellEditor";
 import { StatusBadge } from "./StatusBadge";
+import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 
 interface WorkspaceScreenProps {
 	snapshot: WorkspaceSnapshot | null;
+	sessionId: string;
 	loading: boolean;
 	error: string | null;
 	focused: boolean;
 	onClose: () => void;
 	planSubmission: (text: string) => CellSubmissionPlan;
 	onSubmitPlan: (plan: CellSubmissionPlan) => Promise<void>;
-	getCommandSuggestions: (text: string) => string[];
+	commandCatalog: CommandCatalog;
 	onFocusBranch: (branchRef: string) => Promise<void>;
 }
 
@@ -126,135 +132,47 @@ function BranchCard({
 
 export function WorkspaceScreen({
 	snapshot,
+	sessionId,
 	loading,
 	error,
 	focused,
 	onClose,
 	planSubmission,
 	onSubmitPlan,
-	getCommandSuggestions,
+	commandCatalog,
 	onFocusBranch,
 }: WorkspaceScreenProps) {
-	const [editor, dispatch] = useReducer(
-		reduceCellEditor,
-		createCellEditorState({
+	const [editor, dispatch] = useReactReducer(
+		reduceEditorKernel,
+		undefined,
+		createEditorKernelState,
+	);
+	const context: EditorContext = {
+		hostKind: "workspace",
+		collection: {
 			kind: "workspace",
 			collectionId: snapshot?.workspaceId ?? "",
-		}),
-	);
-	const inputText = editor.draftText;
-	const editing = editor.mode !== "NORMAL";
-	const showHelp = editor.showHelp;
-	const [suggestionIndex, setSuggestionIndex] = useReducer(
-		(index: number, next: number) => next,
-		0,
-	);
-	const suggestions = inputText.trim().startsWith(":")
-		? getCommandSuggestions(inputText)
-		: [];
-
-	useEffect(() => {
-		if (snapshot) {
-			dispatch({ type: "SET_CELLS", cells: snapshot.cells as any });
-		}
-	}, [snapshot]);
-
-	useInput((_input, key) => {
-		if (key.escape) {
-			if (editing || inputText) {
-				dispatch({ type: "CANCEL" });
-			} else {
-				onClose();
-			}
-			return;
-		}
-		if (!editing) {
-			if (_input === "i" || _input === "a") {
-				dispatch({ type: "ENTER_INSERT" });
-				return;
-			}
-			if (_input === "?") {
-				dispatch({ type: "SHOW_HELP", show: true });
-				return;
-			}
-			return;
-		}
-		if (key.return && (key.ctrl || key.meta)) {
-			if (inputText.trim()) {
-				handleSubmit(inputText.trim());
-			}
-			dispatch({ type: "CANCEL" });
-			return;
-		}
-		if (key.tab && suggestions.length > 0) {
-			const suggestion = suggestions[suggestionIndex % suggestions.length];
-			if (suggestion) {
-				const parts = inputText.split(/\s+/);
-				parts[parts.length - 1] = suggestion;
-				dispatch({ type: "SET_DRAFT", text: parts.join(" ") });
-				setSuggestionIndex((suggestionIndex + 1) % suggestions.length);
-			}
-			return;
-		}
-		if (key.return) {
-			dispatch({ type: "NEWLINE" });
-			return;
-		}
-		if (key.backspace) {
-			dispatch({ type: "BACKSPACE" });
-			return;
-		}
-		if (_input.length === 1 && !key.ctrl && !key.meta) {
-			dispatch({ type: "INSERT_TEXT", text: _input });
-			setSuggestionIndex(0);
-		}
-	});
-
-	const handleSubmit = async (text: string) => {
-		const tokens = text.trim().split(/\s+/);
-		const first = tokens[0]?.toLowerCase();
-		if (!first) return;
-		if (first === ":help" || first === "help") {
-			dispatch({ type: "SHOW_HELP", show: true });
-			return;
-		}
-		if (first === ":focus" || first === "focus") {
-			if (tokens[1]) await onFocusBranch(tokens[1]);
-			return;
-		}
-		if (
-			first === ":back" ||
-			first === ":exit" ||
-			first === "back" ||
-			first === "exit"
-		) {
-			onClose();
-			return;
-		}
-		const plan = planSubmission(text);
-		await onSubmitPlan(plan);
+		},
+		sessionId,
+		activeBranchId: snapshot?.activeBranchId ?? undefined,
+	};
+	const submission: SubmissionPort = {
+		plan: (text) => planSubmission(text),
+		submit: (plan) => onSubmitPlan(plan),
 	};
 
 	const branches = snapshot?.branches ?? [];
+	if (editor.showHelp) {
+		return (
+			<WorkspaceHelpScreen
+				descriptors={commandCatalog.getDescriptors(context)}
+				onClose={() => dispatch({ type: "SHOW_HELP", show: false })}
+			/>
+		);
+	}
 
 	return (
 		<Box flexDirection="column" width="100%" height="100%">
-			{showHelp && (
-				<Box
-					borderStyle="single"
-					paddingLeft={1}
-					paddingRight={1}
-					flexDirection="column"
-				>
-					<Text bold>Workspace commands</Text>
-					<Text color="gray">
-						i/a edit · Enter newline · Ctrl-Enter submit · Esc cancel/back
-					</Text>
-					<Text color="gray">
-						:branch :confirm :rule_out :suspend :re_activate :elevate :complete
-					</Text>
-				</Box>
-			)}
 			<Box>
 				<Text bold inverse>
 					{" "}
@@ -308,26 +226,36 @@ export function WorkspaceScreen({
 				})}
 			</Box>
 
-			<Box
-				borderStyle="single"
-				borderColor="cyan"
-				paddingLeft={1}
-				paddingRight={1}
-				marginTop={1}
-			>
-				<Text>
-					{inputText
-						? `> ${inputText}`
-						: `> ${editing ? t("workspace.inputHint") : "i/a to edit"}`}
-				</Text>
-			</Box>
-			{editing && suggestions.length > 0 && (
-				<Box paddingLeft={1}>
-					<Text color="cyan">
-						COMMAND | workspace · {suggestions.slice(0, 6).join("  ")}
-					</Text>
-				</Box>
-			)}
+			<CellEditor
+				state={editor}
+				dispatch={dispatch}
+				context={context}
+				catalog={commandCatalog}
+				submission={submission}
+				onClose={onClose}
+				onShowHelp={() => dispatch({ type: "SHOW_HELP", show: true })}
+				onUiCommand={async (line) => {
+					const [command, branch] = line.split(/\s+/);
+					switch (command) {
+						case ":help":
+						case "help":
+							dispatch({ type: "SHOW_HELP", show: true });
+							return true;
+						case ":back":
+						case ":exit":
+						case "back":
+						case "exit":
+							onClose();
+							return true;
+						case ":focus":
+						case "focus":
+							if (branch) await onFocusBranch(branch);
+							return true;
+						default:
+							return false;
+					}
+				}}
+			/>
 		</Box>
 	);
 }

@@ -3,6 +3,7 @@ import type { NotebookState } from "@stateful-mcp/clinical/notebook/notebook-sta
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { Box } from "ink";
 import type { CellSuggestion } from "../hooks/useNotebook";
+import type { SessionState } from "../hooks/useSession";
 import { useWorkspace } from "../hooks/useWorkspace";
 import type { CompletionState } from "../lib/completion-state";
 import { CellInfoPanel } from "./CellInfoPanel";
@@ -23,6 +24,8 @@ interface NotebookProps {
 	cellSuggestions: CellSuggestion[];
 	completionState: CompletionState;
 	onCloseHelp: () => void;
+	/** Shared session; required to avoid a second useSession() bootstrap. */
+	session: SessionState | null;
 	onCloseWorkspace: () => void;
 }
 
@@ -36,11 +39,13 @@ export function Notebook({
 	completionState,
 	onCloseHelp,
 	onCloseWorkspace,
+	session,
 }: NotebookProps) {
 	const workspace = useWorkspace({
 		showWorkspace: state.showWorkspace,
 		sessionId,
 		soapNoteId: sessionId,
+		session,
 	});
 
 	if (state.showHelp) {
@@ -63,13 +68,14 @@ export function Notebook({
 		return (
 			<WorkspaceScreen
 				snapshot={workspace.snapshot}
+				sessionId={sessionId}
 				loading={workspace.loading}
 				error={workspace.error}
 				focused={workspace.focused}
 				onClose={onCloseWorkspace}
 				planSubmission={workspace.planSubmission}
 				onSubmitPlan={workspace.submitPlan}
-				getCommandSuggestions={workspace.getCommandSuggestions}
+				commandCatalog={workspace.commandCatalog}
 				onFocusBranch={workspace.focusBranch}
 			/>
 		);

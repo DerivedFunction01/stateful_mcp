@@ -1,16 +1,17 @@
 import type { CellCollectionRef } from "@stateful-mcp/clinical/session/cell";
 import { segmentCellInput } from "@stateful-mcp/clinical/session/cell-input-segmentation";
-import { VariableCommandProvider } from "@stateful-mcp/clinical/session/variable-command-provider";
-import { WorkspaceCommandProvider } from "@stateful-mcp/clinical/session/workspace-command-provider";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { CellSubmissionPlan } from "../lib/cell-editor";
-import { useSession } from "./useSession";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CellSubmissionPlan, CommandCatalog } from "../lib/cell-editor";
+import { WorkspaceCommandCatalog } from "../lib/workspace-editor";
+import type { SessionState } from "./useSession";
 
 interface UseWorkspaceArgs {
 	showWorkspace: boolean;
 	sessionId: string;
 	soapNoteId: string;
+	/** The shared session; avoids re-bootstrapping a second engine instance. */
+	session: SessionState | null;
 }
 
 interface UseWorkspaceReturn {
@@ -22,7 +23,7 @@ interface UseWorkspaceReturn {
 	focused: boolean;
 	toggleFocus: () => void;
 	resetWorkspace: () => void;
-	getCommandSuggestions: (text: string) => string[];
+	commandCatalog: CommandCatalog;
 	focusBranch: (branchRef: string) => Promise<void>;
 	planSubmission: (text: string) => CellSubmissionPlan;
 	submitPlan: (plan: CellSubmissionPlan) => Promise<void>;
@@ -32,8 +33,8 @@ export function useWorkspace({
 	showWorkspace,
 	sessionId,
 	soapNoteId,
+	session,
 }: UseWorkspaceArgs): UseWorkspaceReturn {
-	const session = useSession();
 	const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -149,37 +150,10 @@ export function useWorkspace({
 		setFocused((prev) => !prev);
 	}, []);
 
-	const getCommandSuggestions = useCallback(
-		(text: string) => {
-			const engine = session?.result.engine;
-			if (!engine || !text.trim().startsWith(":")) return [];
-			const provider = new WorkspaceCommandProvider(
-				engine.getParser().getProfile(),
-			);
-			const variableProvider = new VariableCommandProvider();
-			const body = text.trim().slice(1);
-			const parts = body.split(/\s+/);
-			const prefix = parts[parts.length - 1] ?? "";
-			if (parts.length <= 1) {
-				return provider
-					.getDescriptors()
-					.flatMap((descriptor) => [descriptor.verb, ...descriptor.aliases])
-					.concat(
-						variableProvider
-							.getDescriptors()
-							.map((descriptor) => descriptor.verb),
-					)
-					.filter((verb) => verb.startsWith(prefix));
-			}
-			if (parts[0] === "var") {
-				return variableProvider.getOperationCompletions(prefix);
-			}
-			return provider
-				.getArgumentCompletions(parts[0] ?? "", parts.length - 2, snapshot)
-				.filter((value) => value.startsWith(prefix));
-		},
-		[session, snapshot],
-	);
+	const commandCatalog = useMemo<CommandCatalog>(() => {
+		const profile = session?.result.engine.getParser().getProfile();
+		return new WorkspaceCommandCatalog(profile ?? ({} as any), snapshot);
+	}, [session, snapshot]);
 
 	const focusBranch = useCallback(
 		async (branchRef: string) => {
@@ -287,7 +261,7 @@ export function useWorkspace({
 		focused,
 		toggleFocus,
 		resetWorkspace,
-		getCommandSuggestions,
+		commandCatalog,
 		focusBranch,
 		planSubmission,
 		submitPlan,

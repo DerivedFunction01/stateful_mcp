@@ -3,6 +3,7 @@ import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-com
 import { useApp, useInput } from "ink";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Notebook } from "./components/Notebook";
+import { NotebookV2 } from "./components/NotebookV2";
 import { PreviewScreen } from "./components/PreviewScreen";
 import { useNotebook } from "./hooks/useNotebook";
 import { useSession } from "./hooks/useSession";
@@ -13,13 +14,18 @@ import {
 } from "./lib/completion-state";
 import { resolveKey } from "./lib/keymap";
 
-export function NotebookApp() {
+export function NotebookApp({ variant = "v1" }: { variant?: "v1" | "v2" }) {
+	return variant === "v2" ? <NotebookV2 /> : <NotebookAppV1 />;
+}
+
+export function NotebookAppV1() {
 	const session = useSession();
 	const {
 		state,
 		dispatch,
 		insertBelow,
 		insertAbove,
+		createCell,
 		runCell,
 		previewCell,
 		acceptPreview,
@@ -30,6 +36,7 @@ export function NotebookApp() {
 		getAutocomplete,
 		cellSuggestions,
 	} = useNotebook(session);
+
 	const { exit } = useApp();
 	const [pendingSequence, setPendingSequence] = useState("");
 	const [completionState, setCompletionState] = useState<CompletionState>({
@@ -230,6 +237,9 @@ export function NotebookApp() {
 				case EditorAction.ExitInsertMode:
 					dispatch({ type: "EXIT_INSERT_MODE" });
 					break;
+				case EditorAction.ExitVisualMode:
+					dispatch({ type: "EXIT_VISUAL_MODE" });
+					break;
 				case EditorAction.TypeChar:
 					if (result.char) dispatch({ type: "TYPE_CHAR", char: result.char });
 					break;
@@ -383,6 +393,7 @@ export function NotebookApp() {
 				completionState={{ status: "idle" }}
 				onCloseHelp={() => dispatch({ type: "TOGGLE_HELP" })}
 				onCloseWorkspace={() => dispatch({ type: "TOGGLE_WORKSPACE" })}
+				session={null}
 			/>
 		);
 	}
@@ -423,6 +434,7 @@ export function NotebookApp() {
 			completionState={completionState}
 			onCloseHelp={() => dispatch({ type: "TOGGLE_HELP" })}
 			onCloseWorkspace={() => dispatch({ type: "TOGGLE_WORKSPACE" })}
+			session={session}
 		/>
 	);
 }

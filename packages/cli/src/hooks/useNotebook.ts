@@ -1,3 +1,4 @@
+import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { getAutocompleteSuggestions } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { CommandDispatcher } from "@stateful-mcp/clinical/notebook/command-dispatcher";
 import type { ExecutionPolicy } from "@stateful-mcp/clinical/notebook/notebook-state";
@@ -20,6 +21,32 @@ export type {
 	NotebookAction,
 	NotebookState,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
+
+export interface UseNotebookReturn {
+	state: import("@stateful-mcp/clinical/notebook/notebook-state").NotebookState;
+	dispatch: (
+		action: import("@stateful-mcp/clinical/notebook/notebook-state").NotebookAction,
+	) => void;
+	insertBelow(sessionId: string): void;
+	insertAbove(sessionId: string): void;
+	createCell(sessionId: string, rawInput?: string): Cell;
+	runCell(cell: Cell): Promise<void>;
+	previewCell(cell: Cell): Promise<void>;
+	acceptPreview(
+		candidate: import("@stateful-mcp/clinical/session/preview-candidate").PreviewCandidate,
+	): Promise<void>;
+	setSessionMode(mode: ExecutionPolicy): void;
+	dispatchCommand(line: string): Promise<{
+		success: boolean;
+		message?: string;
+		action?: string;
+		data?: unknown;
+	}>;
+	nextErrorIndex(): number | null;
+	prevErrorIndex(): number | null;
+	getAutocomplete(partial: string): AutocompleteSuggestion[];
+	cellSuggestions: CellSuggestion[];
+}
 
 export interface CellSuggestion {
 	text: string;

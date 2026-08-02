@@ -71,6 +71,7 @@ export type NotebookAction =
 	| { type: "TOGGLE_WORKSPACE" }
 	| { type: "TOGGLE_CELL_INFO"; cellIndex: number }
 	| { type: "ENTER_VISUAL_MODE" }
+	| { type: "EXIT_VISUAL_MODE" }
 	| { type: "EXTEND_SELECTION"; delta: number }
 	| { type: "SWAP_SELECTION_ANCHOR" }
 	| { type: "DELETE_SELECTION" }
@@ -423,6 +424,13 @@ export function notebookReducer(
 				mode: "VISUAL",
 				visualStart: state.activeIndex,
 				visualEnd: state.activeIndex,
+			};
+		}
+
+		case "EXIT_VISUAL_MODE": {
+			return {
+				...state,
+				mode: "NORMAL",
 			};
 		}
 

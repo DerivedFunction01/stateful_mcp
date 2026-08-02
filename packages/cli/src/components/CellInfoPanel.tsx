@@ -1,12 +1,18 @@
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 
 interface CellInfoPanelProps {
 	cell: Cell;
 	onClose: () => void;
 }
 
-export function CellInfoPanel({ cell }: CellInfoPanelProps) {
+export function CellInfoPanel({ cell, onClose }: CellInfoPanelProps) {
+	useInput((input, key) => {
+		if (key.escape || input === "i" || input === "I" || input === "q") {
+			onClose();
+		}
+	});
+
 	const section = cell.routing.resolvedSection ?? "—";
 	const schema =
 		cell.routing.targetSchema ?? cell.routing.resolvedSchema ?? "—";

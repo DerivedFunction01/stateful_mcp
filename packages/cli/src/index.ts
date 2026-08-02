@@ -24,7 +24,10 @@ async function main() {
 		const { render } = await import("ink");
 		const { NotebookApp } = await import("./app");
 		const { default: React } = await import("react");
-		const { waitUntilExit } = render(React.createElement(NotebookApp));
+		const useV2 = args.includes("--v2");
+		const { waitUntilExit } = render(
+			React.createElement(NotebookApp, { variant: useV2 ? "v2" : "v1" }),
+		);
 		await waitUntilExit();
 		return;
 	}

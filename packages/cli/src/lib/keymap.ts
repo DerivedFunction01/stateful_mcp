@@ -36,7 +36,9 @@ export function resolveKey(
 	}
 
 	if (mode === "VISUAL") {
-		if (key.escape || input === "V" || input === "v") {
+		if (key.escape)
+			return { action: EditorAction.ExitVisualMode, nextPending: "" };
+		if (input === "V" || input === "v") {
 			return { action: null, nextPending: "", char: undefined };
 		}
 		if (input === "d")
