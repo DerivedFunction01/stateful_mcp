@@ -1,5 +1,6 @@
+import { createCellInterpretationSummary } from "@stateful-mcp/clinical/session/cell-interpretation-summary";
 import { useApp } from "ink";
-import { useMemo, useReducer, useState, useEffect } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import type { SessionState } from "../hooks/useSession";
 import { useWorkspace } from "../hooks/useWorkspace";
 import type {
@@ -14,16 +15,20 @@ import {
 	reduceEditorKernel,
 } from "../lib/cell-editor";
 import type { CompletionState } from "../lib/editor/completion-state";
+import { useWorkspaceRuntime } from "../lib/runtime/workspace-runtime";
 import { WindowDomainPort } from "../lib/windows/notebook/domain";
 import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension";
-import { useWorkspaceRuntime } from "../lib/runtime/workspace-runtime";
 import { WorkspaceDocumentPort } from "../lib/windows/workspace/document";
 import { WorkspaceKeymapPolicy } from "../lib/windows/workspace/keymap-policy";
 import { workspaceWindow } from "../lib/windows/workspace/window";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
+import {
+	INITIAL_SEARCH_STATE,
+	SearchOverlay,
+	searchReducer,
+} from "./SearchOverlay";
 import { WindowContainer } from "./WindowContainer";
-import { SearchOverlay, searchReducer, INITIAL_SEARCH_STATE } from "./SearchOverlay";
 
 interface WorkspaceProps {
 	session: SessionState;
@@ -180,14 +185,24 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 
 	// Sync active index with search matches
 	useEffect(() => {
-		if (searchState.open && searchState.matches.length > 0 && searchState.matchIndex >= 0) {
+		if (
+			searchState.open &&
+			searchState.matches.length > 0 &&
+			searchState.matchIndex >= 0
+		) {
 			const activeCellId = searchState.matches[searchState.matchIndex];
 			const index = cells.findIndex((c) => c.cellId === activeCellId);
 			if (index >= 0 && index !== documentPort.getView().activeIndex) {
 				documentPort.dispatch({ type: "setActive", index });
 			}
 		}
-	}, [searchState.open, searchState.matches, searchState.matchIndex, cells, documentPort]);
+	}, [
+		searchState.open,
+		searchState.matches,
+		searchState.matchIndex,
+		cells,
+		documentPort,
+	]);
 
 	const domainPort = useMemo(
 		() =>
@@ -275,7 +290,10 @@ export function Workspace({ session, onBack }: WorkspaceProps) {
 			const cell = cells[Math.max(0, cells.length - 1)];
 			if (!cell) return null;
 			return (
-				<CellInfoPanel cell={cell as any} onClose={() => setOverlay(null)} />
+				<CellInfoPanel
+					summary={createCellInterpretationSummary(cell)}
+					onClose={() => setOverlay(null)}
+				/>
 			);
 		}
 		if (o.route === "search") {

@@ -71,7 +71,9 @@ export class WorkspaceCommandCatalog implements CommandCatalog {
 				if (seen.has(canonicalVerb)) continue;
 
 				const names = [descriptor.verb, ...(descriptor.aliases ?? [])];
-				const hasPrefixMatch = names.some((name) => name.toLowerCase().startsWith(partialLower));
+				const hasPrefixMatch = names.some((name) =>
+					name.toLowerCase().startsWith(partialLower),
+				);
 				if (hasPrefixMatch) {
 					seen.add(canonicalVerb);
 					values.push(descriptorSuggestion(descriptor.verb, descriptor));

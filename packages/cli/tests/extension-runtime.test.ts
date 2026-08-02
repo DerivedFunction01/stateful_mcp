@@ -6,11 +6,11 @@ import {
 	visualSelectionExtension,
 } from "../src/lib/runtime/builtin-extensions";
 import type { WindowScope } from "../src/lib/runtime/extension";
+import { IntentCatalog } from "../src/lib/runtime/intent-catalog";
 import {
 	ExtensionRegistry,
 	IntentDispatcher,
 } from "../src/lib/runtime/registry";
-import { IntentCatalog } from "../src/lib/runtime/intent-catalog";
 import {
 	buildNotebookExtension,
 	commandResultToEffects,

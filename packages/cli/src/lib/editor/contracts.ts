@@ -1,12 +1,10 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import type {
-	Cell,
 	CellCollectionRef,
 	CellIntentKind,
 } from "@stateful-mcp/clinical/session/cell";
 import type { CellInputSegment } from "@stateful-mcp/clinical/session/cell-input-segmentation";
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
-import type { CompletionState } from "./completion-state";
 
 export interface EditorContext {
 	hostKind: string;

@@ -1,6 +1,11 @@
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import { useMemo, useRef } from "react";
 import type { UseNotebookReturn } from "../../hooks/useNotebook";
+import type { WindowOverlayRoute } from "../editor/overlay";
+import {
+	buildNotebookExtension,
+	commandResultToEffects,
+} from "../windows/notebook/extension";
 import { builtinExtensions } from "./builtin-extensions";
 import type {
 	EditorExtension,
@@ -9,16 +14,10 @@ import type {
 	WindowScope,
 } from "./extension";
 import {
-	buildNotebookExtension,
-	commandResultToEffects,
-} from "../windows/notebook/extension";
-import {
 	createWindowRuntime,
 	runIntent,
 	type WindowRuntime,
 } from "./window-profile";
-
-import type { WindowOverlayRoute } from "../editor/overlay";
 
 export interface NotebookRuntimeOptions {
 	sessionId: string;

@@ -552,7 +552,11 @@ export function notebookReducer(
 		case "UPDATE_CELL": {
 			const cellBefore = state.cells.find((c) => c.cellId === action.cellId);
 			const cellAfter = nextState.cells.find((c) => c.cellId === action.cellId);
-			if (cellBefore && cellAfter && cellBefore.rawInput !== cellAfter.rawInput) {
+			if (
+				cellBefore &&
+				cellAfter &&
+				cellBefore.rawInput !== cellAfter.rawInput
+			) {
 				incrementRevision = true;
 			}
 			break;

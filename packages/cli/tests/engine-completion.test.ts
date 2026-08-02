@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { useEngineCompletion } from "../src/hooks/useEngineCompletion";
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 
 // Mock catalog for testing
@@ -28,13 +27,37 @@ const mockEngine = {
 describe("engine completion helper hook logic", () => {
 	test("mergedCandidates dedupes and preserves static order", () => {
 		const staticCandidates: AutocompleteSuggestion[] = [
-			{ verb: "aspirin", group: "static", source: "editor", hasArgs: false, kind: "arg" },
-			{ verb: "cough", group: "static", source: "editor", hasArgs: false, kind: "arg" },
+			{
+				verb: "aspirin",
+				group: "static",
+				source: "editor",
+				hasArgs: false,
+				kind: "arg",
+			},
+			{
+				verb: "cough",
+				group: "static",
+				source: "editor",
+				hasArgs: false,
+				kind: "arg",
+			},
 		];
 
 		const engineCandidates: AutocompleteSuggestion[] = [
-			{ verb: "chest pain", group: "engine", source: "cell", hasArgs: false, kind: "arg" },
-			{ verb: "aspirin", group: "engine", source: "cell", hasArgs: false, kind: "arg" }, // duplicate!
+			{
+				verb: "chest pain",
+				group: "engine",
+				source: "cell",
+				hasArgs: false,
+				kind: "arg",
+			},
+			{
+				verb: "aspirin",
+				group: "engine",
+				source: "cell",
+				hasArgs: false,
+				kind: "arg",
+			}, // duplicate!
 		];
 
 		// Manual merge validation (logic matches hook)
@@ -58,9 +81,27 @@ describe("engine completion helper hook logic", () => {
 		}
 
 		expect(result).toEqual([
-			{ verb: "aspirin", group: "static", source: "editor", hasArgs: false, kind: "arg" },
-			{ verb: "cough", group: "static", source: "editor", hasArgs: false, kind: "arg" },
-			{ verb: "chest pain", group: "engine", source: "cell", hasArgs: false, kind: "arg" },
+			{
+				verb: "aspirin",
+				group: "static",
+				source: "editor",
+				hasArgs: false,
+				kind: "arg",
+			},
+			{
+				verb: "cough",
+				group: "static",
+				source: "editor",
+				hasArgs: false,
+				kind: "arg",
+			},
+			{
+				verb: "chest pain",
+				group: "engine",
+				source: "cell",
+				hasArgs: false,
+				kind: "arg",
+			},
 		]);
 	});
 });

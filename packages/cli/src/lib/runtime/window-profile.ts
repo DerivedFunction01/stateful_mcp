@@ -4,8 +4,8 @@ import type {
 	WindowIntent,
 	WindowScope,
 } from "./extension";
-import { ExtensionRegistry, IntentDispatcher } from "./registry";
 import { IntentCatalog } from "./intent-catalog";
+import { ExtensionRegistry, IntentDispatcher } from "./registry";
 
 export interface WindowRuntime {
 	scope: WindowScope;

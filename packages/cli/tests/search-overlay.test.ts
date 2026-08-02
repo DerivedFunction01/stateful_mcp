@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-	searchReducer,
-	INITIAL_SEARCH_STATE,
 	getSearchMatches,
+	INITIAL_SEARCH_STATE,
+	searchReducer,
 } from "../src/components/SearchOverlay";
-import { NotebookKeymapPolicy } from "../src/lib/windows/notebook/keymap-policy";
 import { commandResultToEffects } from "../src/lib/windows/notebook/extension";
 
 const mockCells = [

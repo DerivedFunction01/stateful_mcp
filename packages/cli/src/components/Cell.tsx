@@ -100,6 +100,12 @@ export function CellComponent({
 		cell.status === "committed"
 			? ` · ${fieldCount} fields${cell.routing.resolvedSchema ? ` @ ${cell.routing.resolvedSchema}` : ""}`
 			: "";
+	const interpretationInfo = (() => {
+		if (!isActive || cell.status !== "committed") return "";
+		const confidence = cell.interpretation?.confidence;
+		if (!confidence) return " · confidence unavailable";
+		return ` · confidence: ${confidence.level}`;
+	})();
 
 	const statusLine = (() => {
 		const base = pathInfo + ws;
@@ -108,7 +114,7 @@ export function CellComponent({
 			case "draft":
 				return `${status("status.draft", "○")}${base}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
 			case "committed":
-				return `${status("status.committed", "●")}${commitSummary}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
+				return `${status("status.committed", "●")}${commitSummary}${interpretationInfo}${narrativeInfo}${templateInfo}${timeInfo}${lockInfo}`;
 			case "error":
 				return `✗ ${cell.errorMessage ?? "unknown"}`;
 			default:

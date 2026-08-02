@@ -2,6 +2,9 @@ import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-com
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import type { ParserSyntaxProfile } from "@stateful-mcp/clinical/store/interfaces";
 import { useMemo, useRef } from "react";
+import type { WindowOverlayRoute } from "../editor/overlay";
+import { commandResultToEffects } from "../windows/notebook/extension";
+import { buildWorkspaceExtension } from "../windows/workspace/extension";
 import { builtinExtensions } from "./builtin-extensions";
 import type {
 	EditorExtension,
@@ -9,15 +12,11 @@ import type {
 	WindowIntent,
 	WindowScope,
 } from "./extension";
-import { commandResultToEffects } from "../windows/notebook/extension";
 import {
 	createWindowRuntime,
 	runIntent,
 	type WindowRuntime,
 } from "./window-profile";
-import { buildWorkspaceExtension } from "../windows/workspace/extension";
-
-import type { WindowOverlayRoute } from "../editor/overlay";
 
 export interface WorkspaceRuntimeOptions {
 	sessionId: string;

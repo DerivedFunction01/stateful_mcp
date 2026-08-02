@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { notebookWindow } from "../src/lib/windows/notebook/window";
 import { WindowRegistry } from "../src/lib/runtime/window-registry";
+import { notebookWindow } from "../src/lib/windows/notebook/window";
 
 function stubNotebook() {
 	return notebookWindow({

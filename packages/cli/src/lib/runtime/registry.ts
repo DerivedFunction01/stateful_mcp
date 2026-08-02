@@ -182,7 +182,9 @@ export function autocompleteFromCommands(
 		if (seen.has(canonicalVerb)) continue;
 
 		const names = [c.id, ...(c.aliases ?? [])];
-		const hasPrefixMatch = names.some((name) => name.toLowerCase().startsWith(partialLower));
+		const hasPrefixMatch = names.some((name) =>
+			name.toLowerCase().startsWith(partialLower),
+		);
 
 		if (hasPrefixMatch) {
 			seen.add(canonicalVerb);

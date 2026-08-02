@@ -108,4 +108,11 @@ export interface Cell {
 	linkTarget?: CellLinkTarget;
 	narrativeTarget?: string; // dot-separated SoapNote field path, e.g. "subjective.historyOfPresentIllness.narrative"
 	context: CellContext;
+	interpretation?: {
+		confidence?: {
+			score: number;
+			level: "high" | "medium" | "low";
+			breakdown?: import("../store/learning/interfaces").ParseConfidenceScoreBreakdown;
+		};
+	};
 }

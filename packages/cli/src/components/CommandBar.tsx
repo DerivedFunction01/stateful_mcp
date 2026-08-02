@@ -2,8 +2,8 @@ import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/com
 import { Box, Text, useStdout } from "ink";
 import { useMemo } from "react";
 import { completionRemainder } from "../lib/editor/completion-state";
-import { t } from "../lib/shared/i18n";
 import { capSuggestions } from "../lib/editor/palette";
+import { t } from "../lib/shared/i18n";
 
 interface CommandBarProps {
 	commandLine: string;
@@ -95,19 +95,25 @@ export function CommandBar({
 						return (
 							<Text
 								key={`${s.kind}-${s.source}-${s.verb}-${s.argIndex}`}
-								color={isActive ? undefined : (s.kind === "arg" ? "magenta" : "cyan")}
+								color={
+									isActive ? undefined : s.kind === "arg" ? "magenta" : "cyan"
+								}
 								dimColor={!isActive}
 								inverse={isActive}
 								bold={isActive}
 							>
 								{s.kind === "arg" ? (
 									<Text>
-										<Text color={isActive ? undefined : "gray"}>({s.group}) </Text>
+										<Text color={isActive ? undefined : "gray"}>
+											({s.group}){" "}
+										</Text>
 										{s.verb}
 									</Text>
 								) : (
 									<Text>
-										<Text color={isActive ? undefined : "gray"}>({s.source[0]}) </Text>
+										<Text color={isActive ? undefined : "gray"}>
+											({s.source[0]}){" "}
+										</Text>
 										{s.verb}
 										{s.descriptionKey ? ` - ${t(s.descriptionKey)}` : ""}
 										{s.argNames && s.argNames.length > 0

@@ -1,5 +1,6 @@
 import { useApp } from "ink";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEngineCompletion } from "../hooks/useEngineCompletion";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import type {
@@ -10,19 +11,22 @@ import type {
 	WindowOverlayAction,
 } from "../lib/cell-editor";
 import type { CompletionState } from "../lib/editor/completion-state";
+import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { NotebookCommandCatalog } from "../lib/windows/notebook/catalog";
 import { NotebookDocumentPort } from "../lib/windows/notebook/document";
 import { WindowDomainPort } from "../lib/windows/notebook/domain";
 import { NotebookKeymapPolicy } from "../lib/windows/notebook/keymap-policy";
 import { notebookWindow } from "../lib/windows/notebook/window";
-import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
 import { PreviewScreen } from "./PreviewScreen";
+import {
+	INITIAL_SEARCH_STATE,
+	SearchOverlay,
+	searchReducer,
+} from "./SearchOverlay";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
-import { SearchOverlay, searchReducer, INITIAL_SEARCH_STATE } from "./SearchOverlay";
-import { useEngineCompletion } from "../hooks/useEngineCompletion";
 
 /**
  * Independent notebook root. Owns a separate useSession/useNotebook and runs
@@ -102,19 +106,31 @@ export function Notebook() {
 		},
 	});
 
-	const context = useMemo(() => ({
-		hostKind: "notebook" as const,
-		collection: { kind: "notebook" as const, collectionId: session?.sessionId ?? "" },
-		sessionId: session?.sessionId ?? "",
-	}), [session?.sessionId]);
+	const context = useMemo(
+		() => ({
+			hostKind: "notebook" as const,
+			collection: {
+				kind: "notebook" as const,
+				collectionId: session?.sessionId ?? "",
+			},
+			sessionId: session?.sessionId ?? "",
+		}),
+		[session?.sessionId],
+	);
 
-	const scope = useMemo(() => ({
-		windowKind: "notebook",
-		sessionId: session?.sessionId ?? "",
-		collection: { kind: "notebook" as const, collectionId: session?.sessionId ?? "" },
-	}), [session?.sessionId]);
+	const scope = useMemo(
+		() => ({
+			windowKind: "notebook",
+			sessionId: session?.sessionId ?? "",
+			collection: {
+				kind: "notebook" as const,
+				collectionId: session?.sessionId ?? "",
+			},
+		}),
+		[session?.sessionId],
+	);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: runtime changes on every render and causes infinite loops
+	
 	const catalog = useMemo(() => {
 		return new NotebookCommandCatalog(
 			runtime.runtime.catalog.descriptors(scope),
@@ -122,7 +138,7 @@ export function Notebook() {
 		);
 	}, [scope, session?.sessionId, getAutocomplete]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: runtime changes on every render and causes infinite loops
+	
 	const staticCandidates = useMemo(() => {
 		if (state.mode !== "COMMAND") return [];
 		return getAutocomplete(state.commandLine.slice(1));
@@ -159,14 +175,25 @@ export function Notebook() {
 
 	// Sync active index with search matches
 	useEffect(() => {
-		if (searchState.open && searchState.matches.length > 0 && searchState.matchIndex >= 0) {
+		if (
+			searchState.open &&
+			searchState.matches.length > 0 &&
+			searchState.matchIndex >= 0
+		) {
 			const activeCellId = searchState.matches[searchState.matchIndex];
 			const index = state.cells.findIndex((c) => c.cellId === activeCellId);
 			if (index >= 0 && index !== state.activeIndex) {
 				dispatch({ type: "SET_ACTIVE_INDEX", index });
 			}
 		}
-	}, [searchState.open, searchState.matches, searchState.matchIndex, state.cells, state.activeIndex, dispatch]);
+	}, [
+		searchState.open,
+		searchState.matches,
+		searchState.matchIndex,
+		state.cells,
+		state.activeIndex,
+		dispatch,
+	]);
 
 	const documentPort = useMemo(
 		() =>
@@ -274,7 +301,7 @@ export function Notebook() {
 			if (!cell) return null;
 			return (
 				<CellInfoPanel
-					cell={cell as any}
+					summary={session.result.processor.getCellInterpretationSummary(cell)}
 					onClose={() => onOverlayAction("close")}
 				/>
 			);
@@ -305,7 +332,9 @@ export function Notebook() {
 					onSelect={() => {
 						if (searchState.matches.length > 0 && searchState.matchIndex >= 0) {
 							const activeCellId = searchState.matches[searchState.matchIndex];
-							const index = state.cells.findIndex((c) => c.cellId === activeCellId);
+							const index = state.cells.findIndex(
+								(c) => c.cellId === activeCellId,
+							);
 							if (index >= 0) {
 								dispatch({ type: "SET_ACTIVE_INDEX", index });
 							}
@@ -414,10 +443,7 @@ export function Notebook() {
 
 	if (activeWindow === "workspace") {
 		return (
-			<Workspace
-				session={session}
-				onBack={() => setActiveWindow("notebook")}
-			/>
+			<Workspace session={session} onBack={() => setActiveWindow("notebook")} />
 		);
 	}
 

@@ -6,10 +6,7 @@ import type {
 	WindowIntent,
 	WindowScope,
 } from "./extension";
-import {
-	autocompleteFromCommands,
-	type ExtensionRegistry,
-} from "./registry";
+import { autocompleteFromCommands, type ExtensionRegistry } from "./registry";
 
 /**
  * One source of truth for command descriptors and suggestions, backed by the

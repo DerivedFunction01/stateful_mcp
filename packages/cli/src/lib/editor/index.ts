@@ -1,48 +1,39 @@
-export type { CellEditorMode } from "./kernel";
 export type {
-	EditorKernelState,
-	EditorAction,
-} from "./kernel";
-export {
-	createEditorKernelState,
-	reduceEditorKernel,
-	currentCommandLine,
-	replaceCurrentLine,
-} from "./kernel";
-
+	CellSubmissionPlan,
+	CellSubmissionSegment,
+	CommandCatalog,
+	EditorContext,
+	SubmissionPort,
+} from "./contracts";
 export type {
-	DocumentView,
 	DocumentAction,
 	DocumentPort,
+	DocumentView,
 } from "./document";
-
 export type {
 	CommandResult,
 	DomainAction,
 	DomainPort,
 } from "./domain";
-
+export type { CellEditorMode, EditorAction, EditorKernelState } from "./kernel";
+export {
+	createEditorKernelState,
+	currentCommandLine,
+	reduceEditorKernel,
+	replaceCurrentLine,
+} from "./kernel";
 export type {
-	KeyResolution,
 	KeymapPolicy,
+	KeyResolution,
 } from "./keymap";
 
 export type {
-	WindowSlot,
-	WindowRegion,
-	WindowDefinition,
-} from "./window";
-
-export type {
-	WindowOverlayRoute,
 	WindowOverlay,
 	WindowOverlayAction,
+	WindowOverlayRoute,
 } from "./overlay";
-
 export type {
-	EditorContext,
-	CommandCatalog,
-	SubmissionPort,
-	CellSubmissionSegment,
-	CellSubmissionPlan,
-} from "./contracts";
+	WindowDefinition,
+	WindowRegion,
+	WindowSlot,
+} from "./window";

@@ -3,8 +3,8 @@ import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/com
 import { getAutocompleteSuggestions } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { CommandGroup } from "@stateful-mcp/clinical/session/command-descriptor";
-import { t } from "../src/lib/shared/i18n";
 import { capSuggestions, MAX_ARG, MAX_VERB } from "../src/lib/editor/palette";
+import { t } from "../src/lib/shared/i18n";
 
 function verbSug(verb: string, group = "editor"): AutocompleteSuggestion {
 	return {
@@ -114,7 +114,11 @@ describe("autocomplete suggestions with aliases and deduplication", () => {
 	};
 
 	test("matches and returns canonical name when prefix matches alias or canonical verb", () => {
-		const suggestions = getAutocompleteSuggestions("set-def", [defaultDesc], []);
+		const suggestions = getAutocompleteSuggestions(
+			"set-def",
+			[defaultDesc],
+			[],
+		);
 		expect(suggestions).toHaveLength(1);
 		expect(suggestions[0]!.verb).toBe("default");
 	});
@@ -126,7 +130,11 @@ describe("autocomplete suggestions with aliases and deduplication", () => {
 	});
 
 	test("deduplicates suggestions so only one candidate per descriptor is returned", () => {
-		const suggestions = getAutocompleteSuggestions("set-default", [defaultDesc], []);
+		const suggestions = getAutocompleteSuggestions(
+			"set-default",
+			[defaultDesc],
+			[],
+		);
 		expect(suggestions).toHaveLength(1);
 		expect(suggestions[0]!.verb).toBe("default");
 	});

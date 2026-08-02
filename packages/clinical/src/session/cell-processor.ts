@@ -1,5 +1,5 @@
 import type { WorkspaceStore } from "../engine/workspace-store";
-import type { CdslParser } from "../parser/cdsl-parser";
+import type { CdslParser, ClinicalParseResult } from "../parser/cdsl-parser";
 import type { ParsedItem } from "../parser/schema-parsers";
 import { schemaParserRegistry } from "../parser/schema-parsers";
 import type { TextPreprocessor } from "../parser/text-preprocessor";
@@ -12,6 +12,11 @@ import type { CellCommandContext } from "./cell-command";
 import { CellCommandParser } from "./cell-command-parser";
 import { CellCommandRegistry } from "./cell-command-registry";
 import type { CellDocumentExecutor } from "./cell-execution";
+import {
+	type CellInterpretationSource,
+	type CellInterpretationSummary,
+	createCellInterpretationSummary,
+} from "./cell-interpretation-summary";
 import { WorkspaceCommandParser } from "./workspace-command-parser";
 
 function computePreviewFingerprint(cell: Cell): string {
@@ -37,7 +42,26 @@ function clearPreviewData(cell: Cell): void {
 		...cell.metadata,
 		previewFingerprint: undefined,
 	};
+	cell.interpretation = undefined;
 }
+
+function compactConfidence(
+	result: ClinicalParseResult,
+): Cell["interpretation"] {
+	if (!result.confidence) return undefined;
+	return {
+		confidence: {
+			score: result.confidence.score,
+			level: result.confidence.level,
+			breakdown: result.confidence.breakdown,
+		},
+	};
+}
+
+const emptyParseResult = (): ClinicalParseResult => ({
+	items: [],
+	scoredItems: [],
+});
 
 export interface PreprocessResult {
 	cleanedText: string;
@@ -49,6 +73,7 @@ export interface CellProcessResult {
 	soapNote?: SoapNote;
 	workspaceId?: string;
 	preview?: ParsedItem[];
+	parseResult?: ClinicalParseResult;
 	error?: { code: CellError; message?: string };
 }
 
@@ -61,6 +86,13 @@ export class CellProcessor {
 		private cellStore?: CellStore,
 		private cellCommandRegistry: CellCommandRegistry = CellCommandRegistry.createDefault(),
 	) {}
+
+	/** Returns a read-only, presentation-safe projection of a cell. */
+	getCellInterpretationSummary(
+		cell: CellInterpretationSource,
+	): CellInterpretationSummary {
+		return createCellInterpretationSummary(cell);
+	}
 
 	private async executeCellCommand(
 		cell: Cell,
@@ -285,11 +317,24 @@ export class CellProcessor {
 				cell.parsedOutput = null;
 				cell.status = "parsing";
 				try {
-					const note = await this.documentExecutor.processCdsl(
-						cell.sessionId,
-						commandResult.remainingText,
-						effectiveAlias,
-					);
+					const result =
+						typeof (this.documentExecutor as any).processCdslDetailed ===
+						"function"
+							? await this.documentExecutor.processCdslDetailed(
+									cell.sessionId,
+									commandResult.remainingText,
+									effectiveAlias,
+								)
+							: {
+									soapNote: await this.documentExecutor.processCdsl(
+										cell.sessionId,
+										commandResult.remainingText,
+										effectiveAlias,
+									),
+									parseResult: emptyParseResult(),
+								};
+					cell.interpretation = compactConfidence(result.parseResult);
+					const note = result.soapNote;
 					cell.status = "committed";
 					cell.lockedAt = new Date().toISOString();
 
@@ -342,13 +387,27 @@ export class CellProcessor {
 				cell.parsedOutput = null;
 				cell.status = "parsing";
 				try {
-					const updatedWorkspace = await this.workspaceStore.process(
-						cell.sessionId,
-						workspaceId,
-						cell.routing.branchId,
-						commandResult.remainingText,
-						commandResult.commands,
-					);
+					const result =
+						typeof (this.workspaceStore as any).processDetailed === "function"
+							? await this.workspaceStore.processDetailed(
+									cell.sessionId,
+									workspaceId,
+									cell.routing.branchId,
+									commandResult.remainingText,
+									commandResult.commands,
+								)
+							: {
+									workspace: await (this.workspaceStore as any).process(
+										cell.sessionId,
+										workspaceId,
+										cell.routing.branchId,
+										commandResult.remainingText,
+										commandResult.commands,
+									),
+									parseResult: emptyParseResult(),
+								};
+					cell.interpretation = compactConfidence(result.parseResult);
+					const updatedWorkspace = result.workspace;
 					cell.status = "committed";
 					cell.lockedAt = new Date().toISOString();
 
@@ -479,15 +538,24 @@ export class CellProcessor {
 		cell.parsedOutput = null;
 		cell.status = "parsing";
 		try {
-			const parsed = await this.parser.parse(
-				commandResult.remainingText,
-				undefined,
-				{
-					targetSchema: cell.routing.targetSchema ?? undefined,
-					resolvedSection: cell.routing.resolvedSection ?? undefined,
-				},
-			);
-			cell.parsedOutput = parsed;
+			const parseResult =
+				typeof (this.parser as any).parseDetailed === "function"
+					? await this.parser.parseDetailed(
+							commandResult.remainingText,
+							undefined,
+							{
+								targetSchema: cell.routing.targetSchema ?? undefined,
+								resolvedSection: cell.routing.resolvedSection ?? undefined,
+							},
+						)
+					: {
+							items: await (this.parser as any).parse(
+								commandResult.remainingText,
+							),
+							scoredItems: [],
+						};
+			cell.parsedOutput = parseResult.items;
+			cell.interpretation = compactConfidence(parseResult);
 			cell.status = "pending_commit";
 			cell.metadata = {
 				...cell.metadata,
@@ -500,7 +568,7 @@ export class CellProcessor {
 
 			await this.saveCell(cell);
 
-			return { cell, preview: parsed };
+			return { cell, preview: parseResult.items, parseResult };
 		} catch (err) {
 			cell.status = "error";
 			cell.errorMessage = err instanceof Error ? err.message : String(err);

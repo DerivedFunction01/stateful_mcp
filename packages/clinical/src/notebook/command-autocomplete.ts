@@ -48,38 +48,40 @@ export function getAutocompleteSuggestions(
 	if (!partial) return [];
 	const partialLower = partial.toLowerCase();
 
-    // Combine descriptors with source
-    const allDesc = [
-      ...editorDescriptors.map((d) => ({ d, source: "editor" as const })),
-      ...cellDescriptors.map((d) => ({ d, source: "cell" as const })),
-    ];
+	// Combine descriptors with source
+	const allDesc = [
+		...editorDescriptors.map((d) => ({ d, source: "editor" as const })),
+		...cellDescriptors.map((d) => ({ d, source: "cell" as const })),
+	];
 
-    const results: AutocompleteSuggestion[] = [];
-    const seenCanonical = new Set<string>();
+	const results: AutocompleteSuggestion[] = [];
+	const seenCanonical = new Set<string>();
 
-    for (const { d, source } of allDesc) {
-      const canonicalVerb = d.verb.toLowerCase();
-      if (seenCanonical.has(canonicalVerb)) continue;
+	for (const { d, source } of allDesc) {
+		const canonicalVerb = d.verb.toLowerCase();
+		if (seenCanonical.has(canonicalVerb)) continue;
 
-      const names = [d.verb, ...(d.aliases ?? [])];
-      const matchingNames = names.filter((name) => name.toLowerCase().startsWith(partialLower));
+		const names = [d.verb, ...(d.aliases ?? [])];
+		const matchingNames = names.filter((name) =>
+			name.toLowerCase().startsWith(partialLower),
+		);
 
-      if (matchingNames.length > 0) {
-        // Sort to favor exact matches first, then shortest length
-        matchingNames.sort((a, b) => {
-          const aLower = a.toLowerCase();
-          const bLower = b.toLowerCase();
-          if (aLower === partialLower) return -1;
-          if (bLower === partialLower) return 1;
-          return a.length - b.length;
-        });
-        // Use the canonical verb for display, even if the match was an alias
-        results.push(toSuggestion(d, source, d.verb));
-        seenCanonical.add(canonicalVerb);
-      }
-    }
+		if (matchingNames.length > 0) {
+			// Sort to favor exact matches first, then shortest length
+			matchingNames.sort((a, b) => {
+				const aLower = a.toLowerCase();
+				const bLower = b.toLowerCase();
+				if (aLower === partialLower) return -1;
+				if (bLower === partialLower) return 1;
+				return a.length - b.length;
+			});
+			// Use the canonical verb for display, even if the match was an alias
+			results.push(toSuggestion(d, source, d.verb));
+			seenCanonical.add(canonicalVerb);
+		}
+	}
 
-    return results.slice(0, MAX_SUGGESTIONS);
+	return results.slice(0, MAX_SUGGESTIONS);
 }
 
 export function getArgCompletions(
@@ -95,10 +97,15 @@ export function getArgCompletions(
 			d.aliases?.some((a) => a.toLowerCase() === verbLower),
 	);
 	if (!desc) return undefined;
-	const bestName = [desc.verb, ...(desc.aliases ?? [])].find(
-		(name) => name.toLowerCase() === verbLower,
-	) ?? desc.verb;
-	return toSuggestion(desc, desc.verb === bestName ? "editor" : "cell", bestName);
+	const bestName =
+		[desc.verb, ...(desc.aliases ?? [])].find(
+			(name) => name.toLowerCase() === verbLower,
+		) ?? desc.verb;
+	return toSuggestion(
+		desc,
+		desc.verb === bestName ? "editor" : "cell",
+		bestName,
+	);
 }
 
 export function cycleAutocomplete(

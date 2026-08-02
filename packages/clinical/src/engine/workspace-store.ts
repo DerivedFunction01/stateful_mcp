@@ -1,5 +1,5 @@
 import type { EventStore, ObjectStore } from "@stateful-mcp/core";
-import type { CdslParser } from "../parser/cdsl-parser";
+import type { CdslParser, ClinicalParseResult } from "../parser/cdsl-parser";
 import type { SoapNote } from "../schemas/document";
 import type {
 	BranchLifecycleState,
@@ -163,14 +163,17 @@ export class WorkspaceStore {
 		return workspaceId;
 	}
 
-	async process(
+	async processDetailed(
 		sessionId: string,
 		workspaceId: string,
 		branchId: string,
 		dictation: string,
 		workspaceCommands?: WorkspaceCommand[] | string,
 		alias?: string,
-	): Promise<EpistemicWorkspace> {
+	): Promise<{
+		workspace: EpistemicWorkspace;
+		parseResult: ClinicalParseResult;
+	}> {
 		// Preserve the historical fifth-argument alias call shape for external callers.
 		if (typeof workspaceCommands === "string") {
 			alias = workspaceCommands;
@@ -247,10 +250,11 @@ export class WorkspaceStore {
 		const patientBucket = noteObj
 			? buildPatientLearningBucket(noteObj.patient)
 			: undefined;
-		const items = await this.parser.parse(dictation, {
+		const parseResult = await this.parser.parseDetailed(dictation, {
 			personnelId: this.personnelId,
 			patientContext: patientBucket,
 		});
+		const items = parseResult.items;
 
 		const activeBranch = workspace.branches.find(
 			(b) => b.id === workspace.activeBranchId,
@@ -323,7 +327,26 @@ export class WorkspaceStore {
 				workspaceCommands,
 			);
 
-		return workspace;
+		return { workspace, parseResult };
+	}
+
+	async process(
+		sessionId: string,
+		workspaceId: string,
+		branchId: string,
+		dictation: string,
+		workspaceCommands?: WorkspaceCommand[] | string,
+		alias?: string,
+	): Promise<EpistemicWorkspace> {
+		const result = await this.processDetailed(
+			sessionId,
+			workspaceId,
+			branchId,
+			dictation,
+			workspaceCommands,
+			alias,
+		);
+		return result.workspace;
 	}
 
 	private async executeCommands(

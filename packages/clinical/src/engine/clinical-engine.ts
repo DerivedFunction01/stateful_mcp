@@ -17,6 +17,7 @@ import {
 	buildPatientLearningBucket,
 	type PatientProfile,
 } from "../schemas/patient";
+import type { CellDocumentExecutionResult } from "../session/cell-execution";
 import type {
 	CalibrationStore,
 	ConceptFieldStore,
@@ -781,12 +782,12 @@ export class ClinicalEngine {
 	/**
 	 * Parses CDSL clinical dictation and dynamically compiles it into the active SOAP note.
 	 */
-	async processCdsl(
+	async processCdslDetailed(
 		sessionId: string,
 		dictation: string,
 		alias?: string,
 		options?: { skipCellPreprocessing?: boolean },
-	): Promise<SoapNote> {
+	): Promise<CellDocumentExecutionResult> {
 		const effectiveAlias = alias ?? sessionId;
 		const activeObj = await this.objectStore.getObject(
 			effectiveAlias,
@@ -821,8 +822,8 @@ export class ClinicalEngine {
 			}
 		}
 
-		const parsedItems = historyStore
-			? await this.parser.parseWithHistory(
+		const parseResult = historyStore
+			? await this.parser.parseWithHistoryDetailed(
 					textToParse,
 					{
 						personnelId: this.personnelId,
@@ -830,11 +831,12 @@ export class ClinicalEngine {
 					},
 					historyStore,
 				)
-			: await this.parser.parse(textToParse, {
+			: await this.parser.parseDetailed(textToParse, {
 					personnelId: this.personnelId,
 					patientContext: patientBucket,
 				});
 
+		const parsedItems = parseResult.items;
 		let currentObjId = effectiveAlias;
 
 		for (const item of parsedItems) {
@@ -974,7 +976,22 @@ export class ClinicalEngine {
 			effectiveAlias,
 			sessionId,
 		);
-		return updatedObj!.data as SoapNote;
+		return { soapNote: updatedObj!.data as SoapNote, parseResult };
+	}
+
+	async processCdsl(
+		sessionId: string,
+		dictation: string,
+		alias?: string,
+		options?: { skipCellPreprocessing?: boolean },
+	): Promise<SoapNote> {
+		const result = await this.processCdslDetailed(
+			sessionId,
+			dictation,
+			alias,
+			options,
+		);
+		return result.soapNote;
 	}
 
 	/**

@@ -8,8 +8,16 @@ export interface SearchState {
 }
 
 export type SearchAction =
-	| { type: "OPEN"; query?: string; cells: { cellId: string; rawInput: string }[] }
-	| { type: "UPDATE_QUERY"; query: string; cells: { cellId: string; rawInput: string }[] }
+	| {
+			type: "OPEN";
+			query?: string;
+			cells: { cellId: string; rawInput: string }[];
+	  }
+	| {
+			type: "UPDATE_QUERY";
+			query: string;
+			cells: { cellId: string; rawInput: string }[];
+	  }
 	| { type: "NEXT" }
 	| { type: "PREV" }
 	| { type: "CLOSE" }
@@ -22,7 +30,10 @@ export const INITIAL_SEARCH_STATE: SearchState = {
 	open: false,
 };
 
-export function getSearchMatches(query: string, cells: { cellId: string; rawInput: string }[]): string[] {
+export function getSearchMatches(
+	query: string,
+	cells: { cellId: string; rawInput: string }[],
+): string[] {
 	if (!query) return [];
 	const lowerQuery = query.toLowerCase();
 	return cells
@@ -30,7 +41,10 @@ export function getSearchMatches(query: string, cells: { cellId: string; rawInpu
 		.map((cell) => cell.cellId);
 }
 
-export function searchReducer(state: SearchState, action: SearchAction): SearchState {
+export function searchReducer(
+	state: SearchState,
+	action: SearchAction,
+): SearchState {
 	switch (action.type) {
 		case "OPEN": {
 			const query = action.query ?? state.query;
@@ -62,7 +76,8 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
 			if (state.matches.length === 0) return state;
 			return {
 				...state,
-				matchIndex: (state.matchIndex - 1 + state.matches.length) % state.matches.length,
+				matchIndex:
+					(state.matchIndex - 1 + state.matches.length) % state.matches.length,
 			};
 		}
 		case "CLOSE":
@@ -116,11 +131,19 @@ export function SearchOverlay({
 			onChangeQuery(query.slice(0, -1));
 			return;
 		}
-		if (key.downArrow || key.rightArrow || (key.ctrl && (input === "n" || input === "s"))) {
+		if (
+			key.downArrow ||
+			key.rightArrow ||
+			(key.ctrl && (input === "n" || input === "s"))
+		) {
 			onNext();
 			return;
 		}
-		if (key.upArrow || key.leftArrow || (key.ctrl && (input === "N" || input === "S" || input === "p"))) {
+		if (
+			key.upArrow ||
+			key.leftArrow ||
+			(key.ctrl && (input === "N" || input === "S" || input === "p"))
+		) {
 			onPrev();
 			return;
 		}
@@ -131,8 +154,16 @@ export function SearchOverlay({
 	});
 
 	return (
-		<Box flexDirection="row" borderStyle="single" borderColor="cyan" paddingX={1} width="100%">
-			<Text bold color="cyan">Search: </Text>
+		<Box
+			flexDirection="row"
+			borderStyle="single"
+			borderColor="cyan"
+			paddingX={1}
+			width="100%"
+		>
+			<Text bold color="cyan">
+				Search:{" "}
+			</Text>
 			<Text>{query}</Text>
 			<Text color="gray">_</Text>
 			<Box flexGrow={1} />

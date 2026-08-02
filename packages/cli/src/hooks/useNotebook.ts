@@ -204,13 +204,23 @@ export function useNotebook(session: SessionState | null) {
 						draftText: draft,
 					}),
 				]);
-				dispatch({ type: "SET_PERSISTED_REVISION", revision: revisionToPersist });
+				dispatch({
+					type: "SET_PERSISTED_REVISION",
+					revision: revisionToPersist,
+				});
 			} catch (err) {
 				// Ignore or log error
 			}
 		}, 250);
 		return () => clearTimeout(timeout);
-	}, [state.cells, state.activeIndex, state.draftText, state.mode, session, state.authoredRevision]);
+	}, [
+		state.cells,
+		state.activeIndex,
+		state.draftText,
+		state.mode,
+		session,
+		state.authoredRevision,
+	]);
 
 	useEffect(() => {
 		if (!session || state.mode !== "INSERT" || !state.draftText) {
@@ -482,23 +492,30 @@ export function useNotebook(session: SessionState | null) {
 				const currentPartial = argParts[argIndex] ?? "";
 
 				const canonicalVerb = profile.cellCommandMappings?.[verb] ?? verb;
-				const matchedDesc = [...editorDescs, ...autocompleteCellDescs].find((d) => {
-					const dVerb = d.verb.toLowerCase();
-					const vLower = verb.toLowerCase();
-					const cvLower = canonicalVerb.toLowerCase();
-					return (
-						dVerb === vLower ||
-						dVerb === cvLower ||
-						d.aliases?.some((a: string) => a.toLowerCase() === vLower || a.toLowerCase() === cvLower)
-					);
-				});
+				const matchedDesc = [...editorDescs, ...autocompleteCellDescs].find(
+					(d) => {
+						const dVerb = d.verb.toLowerCase();
+						const vLower = verb.toLowerCase();
+						const cvLower = canonicalVerb.toLowerCase();
+						return (
+							dVerb === vLower ||
+							dVerb === cvLower ||
+							d.aliases?.some(
+								(a: string) =>
+									a.toLowerCase() === vLower || a.toLowerCase() === cvLower,
+							)
+						);
+					},
+				);
 
 				const resolvedVerb = matchedDesc ? matchedDesc.verb : canonicalVerb;
 
 				if (matchedDesc) {
 					const argSchema = matchedDesc.args[argIndex];
 					if (argSchema?.completions && argSchema.completions.length > 0) {
-						const filteredCompletions = argSchema.completions.filter((c: string) => c.startsWith(currentPartial));
+						const filteredCompletions = argSchema.completions.filter(
+							(c: string) => c.startsWith(currentPartial),
+						);
 						if (filteredCompletions.length > 0) {
 							return filteredCompletions.map((c: string) => ({
 								verb: c,

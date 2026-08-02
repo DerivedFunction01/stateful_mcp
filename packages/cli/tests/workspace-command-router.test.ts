@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
-import { ExtensionRegistry } from "../src/lib/runtime/registry";
 import { IntentCatalog } from "../src/lib/runtime/intent-catalog";
+import { ExtensionRegistry } from "../src/lib/runtime/registry";
 import { buildNotebookExtension } from "../src/lib/windows/notebook/extension";
 
 const scope: any = {

@@ -15,7 +15,9 @@ import type {
 } from "../store/interfaces";
 import type {
 	AutocompleteTransitionStore,
+	ParseConfidenceScoreBreakdown,
 	ParsedCellHistoryStore,
+	ScoredParsedItem,
 	SystemWeightStore,
 } from "../store/learning/interfaces";
 import { GenericConfidenceScorer } from "../store/learning/parsed_cell/confidence-scorer";
@@ -51,6 +53,22 @@ import { TextPreprocessor } from "./text-preprocessor";
 
 interface ParserPreviewResult extends ParsedCandidateEnvelope {
 	targetSchema: string;
+}
+
+export interface ClinicalParseResult {
+	items: ParsedItem[];
+	scoredItems: ScoredParsedItem[];
+	confidence?: {
+		score: number;
+		level: "high" | "medium" | "low";
+		breakdown?: ParseConfidenceScoreBreakdown;
+	};
+}
+
+function parseConfidenceLevel(score: number): "high" | "medium" | "low" {
+	if (score >= 0.7) return "high";
+	if (score >= 0.5) return "medium";
+	return "low";
 }
 
 export interface CdslParserOptions {
@@ -372,6 +390,46 @@ export class CdslParser {
 		return new RegExp(parts.join("|"));
 	}
 
+	async parseDetailed(
+		text: string,
+		context?: StopWordContext,
+		routingContext?: {
+			targetSchema?: string | null;
+			resolvedSection?: string | null;
+		},
+	): Promise<ClinicalParseResult> {
+		const sessionId = (context as any)?.sessionId || "default_session";
+		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
+		const expanded = await this.preprocessor.expandMacros(cleanText);
+		const effectiveStopWordParser = this.stopWordParser;
+		if (!effectiveStopWordParser && this.stopWordStore && context) {
+			const dynamicParser = await StopWordParser.fromStore(
+				this.stopWordStore,
+				context,
+			);
+			const result = await this.parseWithStopWordParser(
+				expanded,
+				dynamicParser,
+				context,
+				undefined,
+				expanded,
+				routingContext,
+			);
+			this.updateRecentTargetSchemas(result.items);
+			return result;
+		}
+		const result = await this.parseWithStopWordParser(
+			expanded,
+			effectiveStopWordParser,
+			context,
+			undefined,
+			expanded,
+			routingContext,
+		);
+		this.updateRecentTargetSchemas(result.items);
+		return result;
+	}
+
 	async parse(
 		text: string,
 		context?: StopWordContext,
@@ -380,36 +438,49 @@ export class CdslParser {
 			resolvedSection?: string | null;
 		},
 	): Promise<ParsedItem[]> {
+		const result = await this.parseDetailed(text, context, routingContext);
+		return result.items;
+	}
+
+	async parseWithHistoryDetailed(
+		text: string,
+		context?: StopWordContext,
+		historyStore?: ParsedCellHistoryStore,
+		routingContext?: {
+			targetSchema?: string | null;
+			resolvedSection?: string | null;
+		},
+	): Promise<ClinicalParseResult> {
 		const sessionId = (context as any)?.sessionId || "default_session";
 		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
 		const expanded = await this.preprocessor.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
-		let items: ParsedItem[];
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
 			const dynamicParser = await StopWordParser.fromStore(
 				this.stopWordStore,
 				context,
 			);
-			items = await this.parseWithStopWordParser(
+			const result = await this.parseWithStopWordParser(
 				expanded,
 				dynamicParser,
 				context,
-				undefined,
+				historyStore,
 				expanded,
 				routingContext,
 			);
-		} else {
-			items = await this.parseWithStopWordParser(
-				expanded,
-				effectiveStopWordParser,
-				context,
-				undefined,
-				expanded,
-				routingContext,
-			);
+			this.updateRecentTargetSchemas(result.items);
+			return result;
 		}
-		this.updateRecentTargetSchemas(items);
-		return items;
+		const result = await this.parseWithStopWordParser(
+			expanded,
+			effectiveStopWordParser,
+			context,
+			historyStore,
+			expanded,
+			routingContext,
+		);
+		this.updateRecentTargetSchemas(result.items);
+		return result;
 	}
 
 	async parseWithHistory(
@@ -421,36 +492,13 @@ export class CdslParser {
 			resolvedSection?: string | null;
 		},
 	): Promise<ParsedItem[]> {
-		const sessionId = (context as any)?.sessionId || "default_session";
-		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
-		const expanded = await this.preprocessor.expandMacros(cleanText);
-		const effectiveStopWordParser = this.stopWordParser;
-		let items: ParsedItem[];
-		if (!effectiveStopWordParser && this.stopWordStore && context) {
-			const dynamicParser = await StopWordParser.fromStore(
-				this.stopWordStore,
-				context,
-			);
-			items = await this.parseWithStopWordParser(
-				expanded,
-				dynamicParser,
-				context,
-				historyStore,
-				expanded,
-				routingContext,
-			);
-		} else {
-			items = await this.parseWithStopWordParser(
-				expanded,
-				effectiveStopWordParser,
-				context,
-				historyStore,
-				expanded,
-				routingContext,
-			);
-		}
-		this.updateRecentTargetSchemas(items);
-		return items;
+		const result = await this.parseWithHistoryDetailed(
+			text,
+			context,
+			historyStore,
+			routingContext,
+		);
+		return result.items;
 	}
 
 	private async previewWithStopWordParser(
@@ -555,8 +603,9 @@ export class CdslParser {
 			targetSchema?: string | null;
 			resolvedSection?: string | null;
 		},
-	): Promise<ParsedItem[]> {
-		const items: ParsedItem[] = [];
+	): Promise<ClinicalParseResult> {
+		let items: ParsedItem[] = [];
+		const allScoredItems: ScoredParsedItem[] = [];
 		const fullOriginalText = originalFullText || text;
 
 		// 1. Run ProseParser if template store is configured
@@ -639,7 +688,7 @@ export class CdslParser {
 					this.weightStore,
 					historyStore as any,
 				);
-				const scored: { item: ParsedItem; score: number }[] = [];
+				const scored: ScoredParsedItem[] = [];
 				for (const item of candidateItems) {
 					const res = await confidenceScorer.scoreCandidate(item, {
 						tag: state.tag || "",
@@ -647,17 +696,18 @@ export class CdslParser {
 						rawText: state.content,
 						history: [],
 					});
-					scored.push({ item, score: res.confidenceScore });
+					scored.push(res);
 				}
 
-				scored.sort((a, b) => b.score - a.score);
+				scored.sort((a, b) => b.confidenceScore - a.confidenceScore);
+				allScoredItems.push(...scored);
 
 				const threshold = 0.5;
-				const winners = scored.filter((s) => s.score >= threshold);
+				const winners = scored.filter((s) => s.confidenceScore >= threshold);
 				const finalWinners = winners.length > 0 ? winners : scored.slice(0, 1);
 
 				for (const win of finalWinners) {
-					const item = win.item;
+					const item = win.parsedItem;
 					const key = `${item.targetSchema}:${item.concept[0]?.conceptId ?? ""}:${JSON.stringify(item.extractedData)}:segment_${items.length}`;
 					if (!seenFinal.has(key)) {
 						seenFinal.add(key);
@@ -933,13 +983,23 @@ export class CdslParser {
 					}
 				}
 
-				return items.filter((item) => !anchoredCandidates.has(item));
+				items = items.filter((item) => !anchoredCandidates.has(item));
 			} catch (e) {
 				console.error("Shared field anchoring failed:", e);
 			}
 		}
 
-		return items;
+		allScoredItems.sort((a, b) => b.confidenceScore - a.confidenceScore);
+		const topConfidence = allScoredItems[0];
+		const confidence = topConfidence
+			? {
+					score: topConfidence.confidenceScore,
+					level: parseConfidenceLevel(topConfidence.confidenceScore),
+					breakdown: topConfidence.breakdown,
+				}
+			: undefined;
+
+		return { items, scoredItems: allScoredItems, confidence };
 	}
 
 	/**

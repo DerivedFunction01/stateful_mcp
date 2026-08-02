@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef, useMemo } from "react";
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveCompletionSession } from "../lib/editor/completion-state";
 
 export function useEngineCompletion({
@@ -18,7 +18,9 @@ export function useEngineCompletion({
 	staticCandidates: AutocompleteSuggestion[];
 }) {
 	const [loading, setLoading] = useState(false);
-	const [engineCandidates, setEngineCandidates] = useState<AutocompleteSuggestion[]>([]);
+	const [engineCandidates, setEngineCandidates] = useState<
+		AutocompleteSuggestion[]
+	>([]);
 	const lastRequestRef = useRef<string | null>(null);
 
 	useEffect(() => {
@@ -42,14 +44,25 @@ export function useEngineCompletion({
 		const desc = descriptors.find(
 			(d: any) =>
 				d.verb.toLowerCase() === session.verb.toLowerCase() ||
-				d.aliases?.some((a: string) => a.toLowerCase() === session.verb.toLowerCase()),
+				d.aliases?.some(
+					(a: string) => a.toLowerCase() === session.verb.toLowerCase(),
+				),
 		);
 		const arg = desc?.args?.[session.argIndex];
 		const acceptsClinical =
 			arg &&
-			["section", "schema", "concept", "tag", "macro", "term", "vocabulary", "value", "args", "arg"].includes(
-				arg.name.toLowerCase(),
-			);
+			[
+				"section",
+				"schema",
+				"concept",
+				"tag",
+				"macro",
+				"term",
+				"vocabulary",
+				"value",
+				"args",
+				"arg",
+			].includes(arg.name.toLowerCase());
 
 		if (!acceptsClinical || !engine) {
 			setLoading(false);
@@ -66,14 +79,16 @@ export function useEngineCompletion({
 			try {
 				const suggestions = await engine.suggestAutocomplete(prefix);
 				if (lastRequestRef.current === prefix) {
-					const mapped: AutocompleteSuggestion[] = suggestions.map((s: any) => ({
-						verb: s.verb ?? s.name ?? s.code ?? String(s),
-						group: s.group ?? "engine",
-						source: "cell" as const,
-						hasArgs: false,
-						kind: "arg" as const,
-						descriptionKey: s.descriptionKey,
-					}));
+					const mapped: AutocompleteSuggestion[] = suggestions.map(
+						(s: any) => ({
+							verb: s.verb ?? s.name ?? s.code ?? String(s),
+							group: s.group ?? "engine",
+							source: "cell" as const,
+							hasArgs: false,
+							kind: "arg" as const,
+							descriptionKey: s.descriptionKey,
+						}),
+					);
 					setEngineCandidates(mapped);
 				}
 			} catch (e) {

@@ -58,6 +58,7 @@ export * from "./session/cell-command";
 export * from "./session/cell-command-context";
 export * from "./session/cell-command-parser";
 export * from "./session/cell-command-registry";
+export * from "./session/cell-interpretation-summary";
 export * from "./session/cell-processor";
 export * from "./session/command-completions";
 export * from "./session/command-descriptor";

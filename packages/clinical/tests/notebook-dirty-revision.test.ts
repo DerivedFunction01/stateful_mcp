@@ -60,7 +60,7 @@ describe("notebook dirty revision tracking", () => {
 
 	test("undoing reverts authoredRevision and recovers dirty status", () => {
 		let state = INITIAL_NOTEBOOK_STATE;
-		
+
 		// Insert cell (revision -> 1, dirty -> true)
 		state = notebookReducer(state, {
 			type: "INSERT_CELL",

@@ -27,7 +27,12 @@ export function WorkspaceHelpScreen({
 			</Box>
 			<Box flexDirection="column" paddingLeft={1} paddingTop={1}>
 				{descriptors.map((descriptor) => (
-					<Box key={descriptor.verb} paddingLeft={2} flexDirection="row" flexWrap="wrap">
+					<Box
+						key={descriptor.verb}
+						paddingLeft={2}
+						flexDirection="row"
+						flexWrap="wrap"
+					>
 						<Text bold color="cyan">
 							:{descriptor.verb}
 							{descriptor.aliases && descriptor.aliases.length > 0
@@ -37,10 +42,7 @@ export function WorkspaceHelpScreen({
 						{descriptor.descriptionKey && (
 							<Text color="white"> - {t(descriptor.descriptionKey)}</Text>
 						)}
-						<Text color="gray">
-							{" "}
-							({descriptor.group})
-						</Text>
+						<Text color="gray"> ({descriptor.group})</Text>
 					</Box>
 				))}
 			</Box>
