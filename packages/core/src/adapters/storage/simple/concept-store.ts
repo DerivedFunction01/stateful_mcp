@@ -12,7 +12,10 @@ import type {
 	RelatedConceptResult,
 	TraversalDirection,
 } from "../../../middleware/dictionary/types";
-import { invertRelationType } from "../../../middleware/dictionary/types";
+import {
+	invertRelationType,
+	normalizeLookupTerm,
+} from "../../../middleware/dictionary/types";
 import type {
 	ConceptStoreBackend,
 	DictDelta,
@@ -109,6 +112,13 @@ export class SimpleConceptStore implements ConceptStore {
 
 	async getById(id: string): Promise<Concept | null> {
 		return this.concepts.get(id) || null;
+	}
+
+	async getByIds(ids: string[]): Promise<Concept[]> {
+		const wanted = new Set(ids);
+		return [...this.concepts.values()].filter((concept) =>
+			wanted.has(concept.id),
+		);
 	}
 
 	async listNamespaces(): Promise<Namespace[]> {
@@ -350,7 +360,11 @@ export class SimplePersistentExpressionStore
 			scope_level: scope.level,
 			scope_id: scope.level === "user" ? scope.userId : null,
 		};
-		const saved = { ...expression, context };
+		const saved = {
+			...expression,
+			lookupTerm: expression.lookupTerm ?? normalizeLookupTerm(expression.term),
+			context,
+		};
 		const idx = this.expressions.findIndex((e) => e.id === expression.id);
 		if (idx !== -1) {
 			this.expressions[idx] = saved;
@@ -392,5 +406,40 @@ export class SimplePersistentExpressionStore
 
 	async getById(id: string): Promise<CustomExpression | null> {
 		return this.expressions.find((e) => e.id === id) || null;
+	}
+
+	async searchCandidates(request: {
+		query?: string;
+		lookupTerm?: string;
+		lookupPrefix?: string;
+		targetAssignments?: string[];
+		activeOnly?: boolean;
+		scope?: { level: string; userId?: string | null };
+		limit?: number;
+	}): Promise<CustomExpression[]> {
+		const query =
+			request.lookupTerm ??
+			(request.query ? normalizeLookupTerm(request.query) : undefined);
+		const prefix =
+			request.lookupPrefix && normalizeLookupTerm(request.lookupPrefix);
+		const visible = request.scope
+			? await this.list(request.scope, true)
+			: this.expressions;
+		return visible
+			.filter((expression) => {
+				if (request.activeOnly && !expression.active) return false;
+				if (
+					request.targetAssignments?.length &&
+					!request.targetAssignments.includes(expression.targetAssignment ?? "")
+				)
+					return false;
+				const key =
+					expression.lookupTerm ?? normalizeLookupTerm(expression.term);
+				return (
+					(!query || key === query || key.includes(query)) &&
+					(!prefix || key.startsWith(prefix))
+				);
+			})
+			.slice(0, request.limit ?? 50);
 	}
 }

@@ -1,4 +1,3 @@
-declare const window: any;
 type IDBOpenDBRequest = any;
 type IDBDatabase = any;
 type IDBTransaction = any;
@@ -18,11 +17,25 @@ import type {
 	ExpressionStoreBackend,
 } from "../dict-backend";
 
+export interface IndexedDbProjectionChange {
+	store: "concepts" | "namespaces" | "relations" | "filters";
+	operation: "upsert" | "delete";
+	key: string;
+	value?: unknown;
+}
+
+export interface IndexedDbSyncCheckpoint {
+	projectionId: string;
+	sourceId: string;
+	domain: string;
+	cursor?: string;
+	status: string;
+	updatedAt: string;
+}
+
 function getIndexedDB(): IDBFactory | null {
-	if (typeof window !== "undefined" && window.indexedDB) {
-		return window.indexedDB;
-	}
-	return null;
+	const runtime = globalThis as any;
+	return runtime.indexedDB ?? runtime.window?.indexedDB ?? null;
 }
 
 async function openDb(
@@ -56,7 +69,11 @@ export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 	private async getDB(): Promise<IDBDatabase> {
 		return openDb(this.dbName, (db) => {
 			if (!db.objectStoreNames.contains("concepts")) {
-				db.createObjectStore("concepts");
+				const store = db.createObjectStore("concepts");
+				store?.createIndex?.("by_standardCode", "standardCode", {
+					unique: false,
+				});
+				store?.createIndex?.("by_display", "display", { unique: false });
 			}
 			if (!db.objectStoreNames.contains("namespaces")) {
 				db.createObjectStore("namespaces");
@@ -70,6 +87,23 @@ export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 				});
 				relStore.createIndex("by_linkedId", "linkedId", {
 					unique: false,
+				});
+			}
+			if (!db.objectStoreNames.contains("filters")) {
+				const store = db.createObjectStore("filters", { keyPath: "filterId" });
+				store?.createIndex?.("by_concept_role", ["conceptId", "roleName"], {
+					unique: false,
+				});
+				store?.createIndex?.("by_role", "roleName", { unique: false });
+			}
+			if (!db.objectStoreNames.contains("syncState")) {
+				db.createObjectStore("syncState", {
+					keyPath: ["projectionId", "sourceId", "domain"],
+				});
+			}
+			if (!db.objectStoreNames.contains("tombstones")) {
+				db.createObjectStore("tombstones", {
+					keyPath: ["sourceId", "domain", "recordId"],
 				});
 			}
 		});
@@ -158,6 +192,34 @@ export class IndexedDbConceptStoreBackend implements ConceptStoreBackend {
 			tx.onerror = () => reject(tx.error);
 		});
 	}
+
+	/** Applies projection changes and advances the checkpoint in one transaction. */
+	async applyProjectionBatch(
+		changes: IndexedDbProjectionChange[],
+		checkpoint?: IndexedDbSyncCheckpoint,
+	): Promise<void> {
+		const db = await this.getDB();
+		const storeNames = [
+			"concepts",
+			"namespaces",
+			"relations",
+			"filters",
+			"syncState",
+		];
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction(storeNames, "readwrite");
+			for (const change of changes) {
+				const store = tx.objectStore(change.store);
+				if (change.operation === "delete") store.delete(change.key);
+				else store.put(change.value, change.key);
+			}
+			if (checkpoint) tx.objectStore("syncState").put(checkpoint);
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+			tx.onabort = () =>
+				reject(tx.error ?? new Error("IndexedDB projection batch aborted"));
+		});
+	}
 }
 
 export class IndexedDbExpressionStoreBackend implements ExpressionStoreBackend {
@@ -166,7 +228,10 @@ export class IndexedDbExpressionStoreBackend implements ExpressionStoreBackend {
 	private async getDB(): Promise<IDBDatabase> {
 		return openDb(this.dbName, (db) => {
 			if (!db.objectStoreNames.contains("expressions")) {
-				db.createObjectStore("expressions", { keyPath: "id" });
+				const store = db.createObjectStore("expressions", { keyPath: "id" });
+				store?.createIndex?.("by_lookupTerm", "lookupTerm", { unique: false });
+				store?.createIndex?.("by_conceptId", "conceptId", { unique: false });
+				store?.createIndex?.("by_active", "active", { unique: false });
 			}
 		});
 	}

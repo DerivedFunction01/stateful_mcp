@@ -367,7 +367,9 @@ export class DictionaryStore {
 			this.allowedTargetAssignments &&
 			this.allowedTargetAssignments.length > 0
 		) {
-			if (!this.allowedTargetAssignments.includes(expr.targetAssignment)) {
+			if (
+				!this.allowedTargetAssignments.includes(expr.targetAssignment ?? "")
+			) {
 				throw new Error(
 					`Target assignment "${expr.targetAssignment}" is not in the allowed list of assignments: [${this.allowedTargetAssignments.join(", ")}]`,
 				);

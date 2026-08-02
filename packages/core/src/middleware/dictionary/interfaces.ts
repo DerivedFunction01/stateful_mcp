@@ -1,12 +1,51 @@
 import type { OwnerScope } from "../../config/types";
 import type {
 	Concept,
+	ConceptFilter,
 	ConceptRelation,
 	CustomExpression,
 	Namespace,
 	RelatedConceptResult,
 	TraversalDirection,
 } from "./types";
+
+export interface DictionarySource {
+	lookup(
+		request: ExpressionSearchRequest,
+	): Promise<import("./types").DictionaryCandidate[]>;
+}
+
+export interface DictionarySyncState {
+	projectionId: string;
+	sourceId: string;
+	domain: string;
+	cursor?: string;
+	status: "idle" | "applied" | "error";
+	updatedAt: string;
+	errorMessage?: string;
+}
+
+export interface ExpressionSearchRequest {
+	query?: string;
+	lookupTerm?: string;
+	lookupPrefix?: string;
+	targetAssignments?: string[];
+	activeOnly?: boolean;
+	scope?: OwnerScope;
+	limit?: number;
+}
+
+export interface ConceptFilterStore {
+	get(filterId: string): Promise<ConceptFilter | null>;
+	listByConcept(conceptId: string): Promise<ConceptFilter[]>;
+	listByRole(roleName: string): Promise<ConceptFilter[]>;
+	listForConceptRole(
+		conceptId: string,
+		roleName: string,
+	): Promise<ConceptFilter[]>;
+	set(filter: ConceptFilter): Promise<void>;
+	delete(filterId: string): Promise<void>;
+}
 
 export interface ConceptStore {
 	/**
@@ -87,4 +126,7 @@ export interface PersistentExpressionStore {
 	 * Retrieve a single custom expression by ID (for permission/existence checking).
 	 */
 	getById(id: string): Promise<CustomExpression | null>;
+	searchCandidates?(
+		request: ExpressionSearchRequest,
+	): Promise<CustomExpression[]>;
 }

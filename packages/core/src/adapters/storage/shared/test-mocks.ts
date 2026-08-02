@@ -52,17 +52,17 @@ function objectStoreApi(storeMap: Map<string, any>) {
 		},
 		put(value: any, key?: string) {
 			const req: any = {};
+			const actualKey = key ?? value?.id ?? value?.key;
+			storeMap.set(actualKey, value);
 			setTimeout(() => {
-				const actualKey = key ?? value?.id ?? value?.key;
-				storeMap.set(actualKey, value);
 				if (req.onsuccess) req.onsuccess();
 			}, 0);
 			return req;
 		},
 		delete(key: string) {
 			const req: any = {};
+			storeMap.delete(key);
 			setTimeout(() => {
-				storeMap.delete(key);
 				if (req.onsuccess) req.onsuccess();
 			}, 0);
 			return req;
@@ -146,12 +146,13 @@ export const mockIndexedDB: IDBFactory & {
 				if (!mockIndexedDBStore.has(name)) {
 					mockIndexedDBStore.set(name, new Map());
 				}
+				return { createIndex() {} };
 			},
-			transaction(storeName: string, _mode: string) {
-				const storeMap = mockIndexedDBStore.get(storeName)!;
+			transaction(storeName: string | string[], _mode: string) {
+				const names = Array.isArray(storeName) ? storeName : [storeName];
 				const tx: any = {
-					objectStore() {
-						return objectStoreApi(storeMap);
+					objectStore(name = names[0]) {
+						return objectStoreApi(mockIndexedDBStore.get(name!)!);
 					},
 				};
 				setTimeout(() => {

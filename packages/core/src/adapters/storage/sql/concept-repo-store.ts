@@ -1,6 +1,7 @@
 import type { OwnerScope } from "../../../config/types";
 import type {
 	ConceptStore,
+	ExpressionSearchRequest,
 	PersistentExpressionStore,
 } from "../../../middleware/dictionary/interfaces";
 import type {
@@ -46,6 +47,12 @@ export class ConceptRepoStore implements ConceptStore {
 			[id],
 		);
 		return row ? rowToConcept(row) : null;
+	}
+
+	async getByIds(ids: string[]): Promise<Concept[]> {
+		if (ids.length === 0) return [];
+		const concepts = await Promise.all(ids.map((id) => this.getById(id)));
+		return concepts.filter((concept): concept is Concept => concept !== null);
 	}
 
 	async listNamespaces(): Promise<Namespace[]> {
@@ -198,6 +205,7 @@ export class ExpressionRepoStore implements PersistentExpressionStore {
 		await this.backend.exec(schema.inserts.SQL_UPSERT_DICT_EXPRESSION!.sql, [
 			expression.id,
 			expression.term,
+			expression.lookupTerm,
 			expression.conceptId || null,
 			scope.level,
 			scope.level === "user" ? scope.userId : null,
@@ -238,5 +246,45 @@ export class ExpressionRepoStore implements PersistentExpressionStore {
 			[id],
 		);
 		return row ? rowToExpression(row) : null;
+	}
+
+	async searchCandidates(
+		request: ExpressionSearchRequest,
+	): Promise<CustomExpression[]> {
+		const schema = SCHEMA[this.backend.dialect];
+		const lookup =
+			request.lookupTerm ??
+			(request.query
+				? request.query
+						.normalize("NFKC")
+						.trim()
+						.toLocaleLowerCase()
+						.replace(/\s+/g, " ")
+				: undefined);
+		const rows = await this.backend.query(
+			schema.selects.SQL_SEARCH_DICT_EXPRESSIONS!.sql,
+			[`%${lookup ?? ""}%`, true],
+		);
+		return rows
+			.map(rowToExpression)
+			.filter((expression) => {
+				const key =
+					expression.lookupTerm ??
+					expression.term
+						.normalize("NFKC")
+						.trim()
+						.toLocaleLowerCase()
+						.replace(/\s+/g, " ");
+				if (request.lookupTerm && key !== request.lookupTerm) return false;
+				if (request.lookupPrefix && !key.startsWith(request.lookupPrefix))
+					return false;
+				if (
+					request.targetAssignments?.length &&
+					!request.targetAssignments.includes(expression.targetAssignment ?? "")
+				)
+					return false;
+				return !request.activeOnly || expression.active;
+			})
+			.slice(0, request.limit ?? 50);
 	}
 }

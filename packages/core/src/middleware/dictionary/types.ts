@@ -110,12 +110,14 @@ export interface CustomExpression {
 	id: string;
 	/** Default readable shorthand term or alias (e.g. 'heart attack') */
 	term: string;
+	/** Normalized candidate key used for indexed lookup. */
+	lookupTerm?: string;
 	/** Regex pattern compiled dynamically to evaluate match candidates */
 	regexPattern: string;
 	/** If true, regex matches ignore letter casing (case-insensitive flag) */
 	isCaseInsensitive: boolean;
 	/** Domain-specific role/assignment classification for this expression */
-	targetAssignment: TargetAssignment;
+	targetAssignment?: TargetAssignment;
 	/** The target Concept ID this expression resolves/maps to */
 	conceptId?: string;
 	/** Static base scoring priority (higher values rank higher) */
@@ -124,6 +126,45 @@ export interface CustomExpression {
 	active: boolean;
 	/** Custom generic metadata dictionary (e.g. tags, workspace_id, description) */
 	context?: Record<string, any>;
+}
+
+export type ConceptFilterPolicy = "whitelist" | "blacklist";
+
+export interface ConceptFilter {
+	filterId: string;
+	conceptId: string;
+	policy: ConceptFilterPolicy;
+	roleName: string;
+	active?: boolean;
+}
+
+export type FreshnessState = "fresh" | "stale" | "unknown";
+
+export interface RecordSyncMetadata {
+	sourceId: string;
+	sourceRevision?: string;
+	syncedAt?: string;
+	updatedAt?: string;
+	deletedAt?: string;
+	tombstone?: boolean;
+	authority?: "authoritative" | "derived" | "user";
+}
+
+export interface DictionaryCandidate {
+	expression?: CustomExpression;
+	concept?: Concept;
+	filters?: ConceptFilter[];
+	score: number;
+	matchKind: "exact" | "lookup" | "prefix" | "regex" | "partial";
+	sourceId?: string;
+	authority?: "authoritative" | "derived" | "user";
+	freshness?: FreshnessState;
+	evidence?: string[];
+}
+
+/** Keep candidate keys deterministic across memory, SQL, and browser adapters. */
+export function normalizeLookupTerm(term: string): string {
+	return term.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
 /**

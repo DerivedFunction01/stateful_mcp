@@ -68,6 +68,19 @@ class WrappedArrayExpressionStore implements PersistentExpressionStore {
 	async getById(id: string): Promise<CustomExpression | null> {
 		return this.expressions.find((e) => e.id === id) || null;
 	}
+	async searchCandidates(request: {
+		query?: string;
+		lookupTerm?: string;
+		limit?: number;
+	}): Promise<CustomExpression[]> {
+		const key = request.lookupTerm ?? request.query?.toLocaleLowerCase().trim();
+		return this.expressions
+			.filter(
+				(expression) =>
+					!key || expression.term.toLocaleLowerCase().includes(key),
+			)
+			.slice(0, request.limit ?? 50);
+	}
 }
 
 export type ResolutionStatus = "FOUND" | "PARTIAL" | "NOT_FOUND";
@@ -166,8 +179,16 @@ export class InMemoryConceptResolver implements ConceptResolver {
 			: { level: "global" };
 
 		const exprs = await expressionStore.list(scope, true);
+		const exprCandidates = await (expressionStore.searchCandidates
+			? expressionStore.searchCandidates({
+					query: term,
+					activeOnly: true,
+					scope,
+					limit: 200,
+				})
+			: expressionStore.list(scope, true));
 
-		for (const expr of exprs) {
+		for (const expr of exprCandidates.length > 0 ? exprCandidates : exprs) {
 			if (!expr.active || !expr.conceptId) continue;
 			if (!this.matchesContext(expr, context)) continue;
 

@@ -1,4 +1,6 @@
 import { registerAdapter } from "@stateful-mcp/core/config/loader";
+import type { StorageRuntimeConfig } from "@stateful-mcp/core/config/types";
+import { validateStorageRuntimeConfig } from "@stateful-mcp/core/config/validator";
 import type {
 	ConceptStore,
 	PersistentExpressionStore,
@@ -61,6 +63,7 @@ export interface BackendSpec {
 }
 
 export interface RepoConfig {
+	storageRuntime?: StorageRuntimeConfig;
 	filter?: {
 		session?: BackendSpec | BackendSpec[];
 		persistent?: BackendSpec | BackendSpec[];
@@ -90,6 +93,7 @@ export interface RepoConfig {
 }
 
 export interface RepoAdapter {
+	storageRuntime?: StorageRuntimeConfig;
 	sessionFilter?: SessionFilterStore;
 	persistentFilter?: PersistentFilterStore;
 	sessionObject?: SessionObjectStore;
@@ -194,7 +198,9 @@ function buildExpressionBackend(
 // --- Main unified factory ---
 
 export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
-	const adapter: RepoAdapter = {};
+	if (config.storageRuntime)
+		validateStorageRuntimeConfig(config.storageRuntime);
+	const adapter: RepoAdapter = { storageRuntime: config.storageRuntime };
 
 	// Helper to resolve generic pair configuration (form, filter, object, event)
 	const resolvePair = async <T>(

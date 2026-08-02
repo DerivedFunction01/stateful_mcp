@@ -1,4 +1,5 @@
-import type { MiddlewareConfig } from "./types";
+import type { StoreBinding, StoreRoute } from "../storage/contracts";
+import type { MiddlewareConfig, StorageRuntimeConfig } from "./types";
 
 function validateLocator(locator: any, context: string): void {
 	if (!locator || typeof locator !== "object") {
@@ -35,6 +36,122 @@ function validateLocator(locator: any, context: string): void {
 	}
 }
 
+const bindingRoles = new Set([
+	"source",
+	"projection",
+	"cache",
+	"fallback",
+	"backup",
+]);
+const permissionCapabilities: Record<string, string> = {
+	read: "read",
+	write: "write",
+	delete: "delete",
+	syncRead: "incrementalChanges",
+	syncWrite: "incrementalChanges",
+	export: "read",
+	import: "write",
+};
+
+function validateBinding(binding: StoreBinding, context: string): void {
+	if (!binding || typeof binding !== "object")
+		throw new Error(`Validation Error: ${context} must be a store binding.`);
+	validateLocator(binding.locator, `${context}.locator`);
+	if (!bindingRoles.has(binding.role))
+		throw new Error(`Validation Error: ${context}.role is invalid.`);
+	if (
+		binding.freshnessTtlMs !== undefined &&
+		(!Number.isFinite(binding.freshnessTtlMs) || binding.freshnessTtlMs < 0)
+	) {
+		throw new Error(
+			`Validation Error: ${context}.freshnessTtlMs must be a non-negative number.`,
+		);
+	}
+	for (const [permission, capability] of Object.entries(
+		permissionCapabilities,
+	)) {
+		if (
+			binding.permissions?.[permission as keyof typeof binding.permissions] &&
+			binding.capabilities?.[
+				capability as keyof typeof binding.capabilities
+			] === false
+		) {
+			throw new Error(
+				`Validation Error: ${context}.permissions.${permission} exceeds capabilities.${capability}.`,
+			);
+		}
+	}
+	if (
+		binding.role === "source" &&
+		binding.permissions?.write &&
+		binding.authority === "authoritative"
+	) {
+		throw new Error(
+			`Validation Error: ${context} authoritative sources cannot grant writes.`,
+		);
+	}
+}
+
+function validateRoute(route: StoreRoute | undefined, context: string): void {
+	if (!route) return;
+	for (const [name, binding] of Object.entries(route)) {
+		if (Array.isArray(binding))
+			binding.forEach((item, index) =>
+				validateBinding(item, `${context}.${name}[${index}]`),
+			);
+		else if (binding) validateBinding(binding, `${context}.${name}`);
+	}
+}
+
+export function validateStorageRuntimeConfig(
+	config: unknown,
+): asserts config is StorageRuntimeConfig {
+	if (!config || typeof config !== "object")
+		throw new Error("Validation Error: storage_runtime must be an object.");
+	const value = config as StorageRuntimeConfig;
+	for (const [domain, routes] of Object.entries(value)) {
+		if (!routes || typeof routes !== "object")
+			throw new Error(
+				`Validation Error: storage_runtime.${domain} must be an object.`,
+			);
+		const section = routes as any;
+		if (
+			section.session?.ttlMs !== undefined &&
+			(!Number.isFinite(section.session.ttlMs) || section.session.ttlMs <= 0)
+		) {
+			throw new Error(
+				`Validation Error: storage_runtime.${domain}.session.ttlMs must be greater than zero.`,
+			);
+		}
+		validateRoute(
+			section.session?.route,
+			`storage_runtime.${domain}.session.route`,
+		);
+		validateRoute(
+			section.persistent?.scope?.global,
+			`storage_runtime.${domain}.persistent.scope.global`,
+		);
+		validateRoute(
+			section.persistent?.scope?.user,
+			`storage_runtime.${domain}.persistent.scope.user`,
+		);
+	}
+	const dictionary = value.dictionary;
+	if (dictionary) {
+		validateRoute(dictionary.concepts, "storage_runtime.dictionary.concepts");
+		validateRoute(
+			dictionary.expressions,
+			"storage_runtime.dictionary.expressions",
+		);
+		validateRoute(dictionary.filters, "storage_runtime.dictionary.filters");
+		if (dictionary.projection)
+			validateBinding(
+				dictionary.projection,
+				"storage_runtime.dictionary.projection",
+			);
+	}
+}
+
 export function validateMiddlewareConfig(
 	config: any,
 ): asserts config is MiddlewareConfig {
@@ -49,6 +166,8 @@ export function validateMiddlewareConfig(
 			`Validation Error: Unsupported config version "${config.version}". Supported version is 1.`,
 		);
 	}
+	if (config.storage_runtime)
+		validateStorageRuntimeConfig(config.storage_runtime);
 
 	validateLocator(config.filter_session_state, "filter_session_state");
 

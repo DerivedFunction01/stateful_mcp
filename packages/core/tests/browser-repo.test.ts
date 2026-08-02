@@ -1,6 +1,13 @@
 import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { installBrowserMocks } from "../src/adapters/storage/shared/test-mocks";
+import {
+	installBrowserMocks,
+	mockIndexedDBStore,
+} from "../src/adapters/storage/shared/test-mocks";
 import { createRepo } from "../src/adapters/storage/shared/unified-repo";
+import {
+	IndexedDbConceptStoreBackend,
+	IndexedDbExpressionStoreBackend,
+} from "../src/adapters/storage/simple/indexeddb/dict-backend";
 
 describe("Browser Storage Adapters", () => {
 	beforeAll(() => {
@@ -113,6 +120,51 @@ describe("Browser Storage Adapters", () => {
 			await sessionStore.expireSession(sessionId, 1000);
 			const retrieved = await sessionStore.get(sessionId, id);
 			expect(retrieved).toBeNull();
+		});
+
+		test("creates fresh dictionary projection stores", async () => {
+			const concepts = new Map();
+			const namespaces = new Map();
+			const relations: any[] = [];
+			await new IndexedDbConceptStoreBackend("fresh-dictionary-db").load(
+				concepts,
+				namespaces,
+				relations,
+			);
+			await new IndexedDbExpressionStoreBackend("fresh-dictionary-db").load([]);
+			expect(mockIndexedDBStore.has("filters")).toBe(true);
+			expect(mockIndexedDBStore.has("syncState")).toBe(true);
+			expect(mockIndexedDBStore.has("tombstones")).toBe(true);
+			expect(mockIndexedDBStore.has("expressions")).toBe(true);
+		});
+
+		test("applies a projection batch with its checkpoint", async () => {
+			const backend = new IndexedDbConceptStoreBackend("atomic-dictionary-db");
+			await backend.applyProjectionBatch(
+				[
+					{
+						store: "concepts",
+						operation: "upsert",
+						key: "c1",
+						value: { id: "c1", display: "Example" },
+					},
+				],
+				{
+					projectionId: "browser",
+					sourceId: "remote",
+					domain: "concepts",
+					cursor: "next-1",
+					status: "fresh",
+					updatedAt: new Date().toISOString(),
+				},
+			);
+			expect(mockIndexedDBStore.get("concepts")?.get("c1")?.display).toBe(
+				"Example",
+			);
+			expect(
+				Array.from(mockIndexedDBStore.get("syncState")?.values() ?? [])[0]
+					?.cursor,
+			).toBe("next-1");
 		});
 	});
 });

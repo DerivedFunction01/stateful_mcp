@@ -80,6 +80,27 @@ export type OwnerScope =
 	| { level: "global" }
 	| { level: "user"; userId: string };
 
+import type {
+	PersistentStoreRoute,
+	SessionStoreRoute,
+	StoreBinding,
+	StoreRoute,
+} from "../storage/contracts";
+export interface StorageRuntimeConfig {
+	filter?: { session?: SessionStoreRoute; persistent?: PersistentStoreRoute };
+	object?: { session?: SessionStoreRoute; persistent?: PersistentStoreRoute };
+	event?: { session?: SessionStoreRoute; persistent?: PersistentStoreRoute };
+	form?: { session?: SessionStoreRoute; persistent?: PersistentStoreRoute };
+	trace?: { session?: SessionStoreRoute; persistent?: PersistentStoreRoute };
+	variable?: { session?: SessionStoreRoute; persistent?: PersistentStoreRoute };
+	dictionary?: {
+		concepts?: StoreRoute;
+		expressions?: StoreRoute;
+		filters?: StoreRoute;
+		projection?: StoreBinding;
+	};
+}
+
 export interface StateRequirement {
 	id: string;
 	type: "filter" | "object" | "form" | "event" | "trace";
@@ -143,6 +164,7 @@ export interface MiddlewareConfig {
 
 	dictionary_state: ResourceLocator;
 	dictionary_resolver: ResourceLocator;
+	storage_runtime?: StorageRuntimeConfig;
 
 	auto_compression?: AutoCompressionConfig;
 

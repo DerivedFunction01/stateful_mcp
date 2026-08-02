@@ -1,4 +1,3 @@
-declare const window: any;
 type IDBOpenDBRequest = any;
 type IDBDatabase = any;
 type IDBTransaction = any;
@@ -27,10 +26,8 @@ interface AliasRecord {
 }
 
 function getIndexedDB(): IDBFactory | null {
-	if (typeof window !== "undefined" && window.indexedDB) {
-		return window.indexedDB;
-	}
-	return null;
+	const runtime = globalThis as any;
+	return runtime.indexedDB ?? runtime.window?.indexedDB ?? null;
 }
 
 async function openDb(
@@ -89,6 +86,27 @@ export class IndexedDbKvBackend implements KvBackend {
 			}
 			if (!db.objectStoreNames.contains("aliases")) {
 				const store = db.createObjectStore("aliases", { keyPath: "key" });
+			}
+			if (!db.objectStoreNames.contains("dictFilters")) {
+				const store = db.createObjectStore("dictFilters", {
+					keyPath: "filterId",
+				});
+				store?.createIndex?.("by_concept_role", ["conceptId", "roleName"], {
+					unique: false,
+				});
+			}
+			if (!db.objectStoreNames.contains("dictSyncState")) {
+				db.createObjectStore("dictSyncState", {
+					keyPath: ["projectionId", "sourceId", "domain"],
+				});
+			}
+			if (!db.objectStoreNames.contains("dictTombstones")) {
+				const store = db.createObjectStore("dictTombstones", {
+					keyPath: ["sourceId", "domain", "recordId"],
+				});
+				store?.createIndex?.("by_domain", ["sourceId", "domain"], {
+					unique: false,
+				});
 			}
 		});
 		return this.db;

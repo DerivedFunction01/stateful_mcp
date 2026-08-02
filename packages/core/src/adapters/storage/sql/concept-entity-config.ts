@@ -19,8 +19,14 @@ export const conceptDdlKeys = {
 };
 
 export const expressionDdlKeys = {
-	ddl: ["DDL_DICT_CUSTOM_EXPRESSIONS"],
-	ddlIndexes: [],
+	ddl: [
+		"DDL_DICT_CUSTOM_EXPRESSIONS",
+		"DDL_DICT_FILTERS",
+		"DDL_DICT_SOURCES",
+		"DDL_DICT_SYNC_STATE",
+		"DDL_DICT_TOMBSTONES",
+	],
+	ddlIndexes: ["IDX_DICT_EXPRESSION_LOOKUP", "IDX_DICT_EXPRESSION_CONCEPT"],
 };
 
 export function conceptToRow(concept: Concept): Record<string, any> {
@@ -97,6 +103,7 @@ export function expressionToRow(
 	return {
 		id: expression.id,
 		term: expression.term,
+		lookup_term: expression.lookupTerm,
 		concept_id: expression.conceptId || null,
 		scope_level: scope.level,
 		scope_id: scopeId,
@@ -105,5 +112,9 @@ export function expressionToRow(
 }
 
 export function rowToExpression(row: Record<string, any>): any {
-	return typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+	const expression =
+		typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+	return row.lookup_term && !expression.lookupTerm
+		? { ...expression, lookupTerm: row.lookup_term }
+		: expression;
 }
