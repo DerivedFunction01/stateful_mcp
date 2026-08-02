@@ -295,7 +295,9 @@ const EDITOR_COMMAND_META: Record<string, CommandDescriptor> = {
 	},
 	workspace: {
 		verb: "workspace",
-		aliases: [],
+		// "gw" mirrors the NORMAL-mode keybinding sequence that opens the
+		// workspace, so `:gw` and `:workspace` are equivalent command-line forms.
+		aliases: ["gw"],
 		group: CommandGroup.Workspace,
 		descriptionKey: "editor.command.workspace",
 		args: [],

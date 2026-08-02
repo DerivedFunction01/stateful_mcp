@@ -16,9 +16,9 @@ import {
 import type { CompletionState } from "../lib/completion-state";
 import { WindowDomainPort } from "../lib/notebook-domain";
 import { dispatchGeneralWindowCommand } from "../lib/notebook-extension";
-import { NotebookKeymapPolicy } from "../lib/notebook-keymap-policy";
 import { useWorkspaceRuntime } from "../lib/use-workspace-runtime";
 import { WorkspaceDocumentPort } from "../lib/workspace-document";
+import { WorkspaceKeymapPolicy } from "../lib/workspace-keymap-policy";
 import { workspaceWindow } from "../lib/workspace-window";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
@@ -94,7 +94,7 @@ export function WorkspaceV2({ session, onBack }: WorkspaceV2Props) {
 						success: false,
 						message: "usage: :branch <name> <concept>",
 					};
-			case "complete":
+				case "complete":
 					if (rest[0]) {
 						await workspace.complete(rest[0]);
 						return { success: true };
@@ -284,7 +284,7 @@ export function WorkspaceV2({ session, onBack }: WorkspaceV2Props) {
 	return (
 		<WindowContainer
 			definition={definition}
-			keymap={new NotebookKeymapPolicy()}
+			keymap={new WorkspaceKeymapPolicy()}
 			document={documentPort}
 			domain={containerDomain as any}
 			catalog={wsCatalog}

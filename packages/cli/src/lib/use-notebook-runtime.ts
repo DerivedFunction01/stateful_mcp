@@ -1,6 +1,7 @@
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import { useMemo, useRef } from "react";
 import type { UseNotebookReturn } from "../hooks/useNotebook";
+import { builtinExtensions } from "./builtin-extensions";
 import type {
 	EditorExtension,
 	WindowEffect,
@@ -74,6 +75,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 			/* ignore */
 		}
 		return [
+			...builtinExtensions,
 			buildNotebookExtension({
 				editorDescriptors: ds,
 				cellDescriptors: ds,

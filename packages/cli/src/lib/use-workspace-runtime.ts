@@ -2,6 +2,7 @@ import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-com
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import type { ParserSyntaxProfile } from "@stateful-mcp/clinical/store/interfaces";
 import { useMemo, useRef } from "react";
+import { builtinExtensions } from "./builtin-extensions";
 import type {
 	EditorExtension,
 	WindowEffect,
@@ -77,6 +78,7 @@ export function useWorkspaceRuntime(opts: WorkspaceRuntimeOptions): {
 			/* ignore */
 		}
 		return [
+			...builtinExtensions,
 			buildWorkspaceExtension({
 				profile: profile ?? ({} as ParserSyntaxProfile),
 				snapshot,

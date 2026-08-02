@@ -31,4 +31,13 @@ describe("P5 — `:workspace` command routing", () => {
 		expect(intent).not.toBeNull();
 		expect(intent?.id).toBe("command.workspace.workspace");
 	});
+
+	test(":gw is registered as a workspace alias and routes to the same intent", () => {
+		const catalog = notebookCatalog();
+		const gw = catalog.findByVerb("gw", scope);
+		expect(gw).toBeDefined();
+		const intent = catalog.toIntent(":gw", scope);
+		expect(intent).not.toBeNull();
+		expect(intent?.id).toBe("command.workspace.workspace");
+	});
 });

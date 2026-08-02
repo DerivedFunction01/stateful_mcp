@@ -16,6 +16,7 @@ import {
 	commandResultToEffects,
 	dispatchGeneralWindowCommand,
 } from "../src/lib/notebook-extension";
+import { buildWorkspaceExtension } from "../src/lib/workspace-extension";
 
 const scope: WindowScope = {
 	windowKind: "notebook",
@@ -58,6 +59,34 @@ describe("ScopedRegistry window isolation", () => {
 		const notebookCmds = registry.commandsFor(scope);
 		expect(notebookCmds.length).toBeGreaterThan(0);
 		expect(registry.commandsFor(otherScope).length).toBe(0);
+	});
+
+	test("notebook and workspace contributions remain isolated in both directions", () => {
+		const registry = new ExtensionRegistry();
+		registry.registerExtension(
+			buildNotebookExtension({
+				editorDescriptors: [editor as any],
+				cellDescriptors: [cell as any],
+				onCommand: async () => [],
+			}),
+			scope,
+		);
+		registry.registerExtension(
+			buildWorkspaceExtension({
+				profile: {} as any,
+				snapshot: null,
+				editorDescriptors: [],
+				onCommand: async () => [],
+			}),
+			otherScope,
+		);
+		expect(registry.commandsFor(scope).map((command) => command.id)).toEqual([
+			"w",
+			"branch",
+		]);
+		expect(registry.commandsFor(otherScope).map((command) => command.id)).not.toContain(
+			"branch",
+		);
 	});
 });
 

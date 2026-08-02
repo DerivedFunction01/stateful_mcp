@@ -121,6 +121,21 @@ describe("V2 workspace window", () => {
 		expect(view.activeIndex).toBe(0);
 	});
 
+	test("workspace document port supports generic yank/delete/paste/undo operations", () => {
+		const document = new WorkspaceDocumentPort(
+			{ collection: { kind: "workspace", collectionId: "work_1" } },
+			() => snapshot.cells,
+			() => 0,
+		);
+		document.dispatch({ type: "yankActive" });
+		document.dispatch({ type: "deleteActive" });
+		expect(document.getView().cells).toHaveLength(0);
+		document.dispatch({ type: "undo" });
+		expect(document.getView().cells).toHaveLength(1);
+		document.dispatch({ type: "paste" });
+		expect(document.getView().cells).toHaveLength(2);
+	});
+
 	test("workspace is registered in the canonical registry with notebook + plan", () => {
 		const reg = createWindowRegistry();
 		expect(reg.list().sort()).toEqual(["notebook", "plan", "workspace"]);

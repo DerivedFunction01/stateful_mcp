@@ -93,6 +93,13 @@ describe("Phase P5 — region/registry readiness", () => {
 		expect(plan === notebook).toBe(false);
 	});
 
+	test("canonical registry contains all supported window profiles", () => {
+		const registry = new WindowRegistry();
+		registry.register("notebook", () => stubNotebook());
+		registry.register("plan", () => planWindow());
+		expect(registry.list()).toEqual(["notebook", "plan"]);
+	});
+
 	test("notebook window passes lastEditCellId to CellList", () => {
 		const def = stubNotebook({ lastEditCellId: "cell-123" });
 		const regions = def.regions();
@@ -182,5 +189,16 @@ describe("Phase P5 — workspace window regions", () => {
 		expect(w.type).toBe("workspace");
 		expect(n.type).toBe("notebook");
 		expect(w === n).toBe(false);
+	});
+
+	test("workspace region keys are stable and ordered by slot", () => {
+		const regions = stubWorkspace().regions();
+		expect(regions.map((region) => region.key)).toEqual([
+			"workspace-primary",
+			"workspace-help-bar",
+			"workspace-status-bar",
+			"workspace-sidebar",
+		]);
+		expect(regions.filter((region) => region.slot === "sidebar")).toHaveLength(1);
 	});
 });
