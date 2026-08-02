@@ -64,11 +64,17 @@ export class WorkspaceCommandCatalog implements CommandCatalog {
 		const space = partial.indexOf(" ");
 		if (space < 0) {
 			const values: AutocompleteSuggestion[] = [];
+			const seen = new Set<string>();
+			const partialLower = partial.toLowerCase();
 			for (const descriptor of descriptors) {
-				for (const verb of [descriptor.verb, ...descriptor.aliases]) {
-					if (verb.startsWith(partial)) {
-						values.push(descriptorSuggestion(verb, descriptor));
-					}
+				const canonicalVerb = descriptor.verb.toLowerCase();
+				if (seen.has(canonicalVerb)) continue;
+
+				const names = [descriptor.verb, ...(descriptor.aliases ?? [])];
+				const hasPrefixMatch = names.some((name) => name.toLowerCase().startsWith(partialLower));
+				if (hasPrefixMatch) {
+					seen.add(canonicalVerb);
+					values.push(descriptorSuggestion(descriptor.verb, descriptor));
 				}
 			}
 			return values.slice(0, 12);

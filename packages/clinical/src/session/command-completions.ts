@@ -87,7 +87,7 @@ export function resolveArgCompletions(
 		return [];
 	}
 
-	if (v === "set") {
+	if (v === "set" || v === "target") {
 		return argIndex === 0
 			? Object.keys(profile.fieldMappings ?? {}).map((c) => ({
 					code: c,

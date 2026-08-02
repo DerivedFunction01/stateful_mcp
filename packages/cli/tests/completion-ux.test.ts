@@ -103,3 +103,31 @@ describe("i18n description resolution", () => {
 		expect(t("arg.default.section")).toBeTruthy();
 	});
 });
+
+describe("autocomplete suggestions with aliases and deduplication", () => {
+	const defaultDesc: CommandDescriptor = {
+		verb: "default",
+		aliases: ["set-default", "set-default-insert"],
+		group: CommandGroup.Editor,
+		descriptionKey: "command.description.default",
+		args: [],
+	};
+
+	test("matches and returns canonical name when prefix matches alias or canonical verb", () => {
+		const suggestions = getAutocompleteSuggestions("set-def", [defaultDesc], []);
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]!.verb).toBe("default");
+	});
+
+	test("returns canonical name if prefix matches canonical name", () => {
+		const suggestions = getAutocompleteSuggestions("def", [defaultDesc], []);
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]!.verb).toBe("default");
+	});
+
+	test("deduplicates suggestions so only one candidate per descriptor is returned", () => {
+		const suggestions = getAutocompleteSuggestions("set-default", [defaultDesc], []);
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]!.verb).toBe("default");
+	});
+});

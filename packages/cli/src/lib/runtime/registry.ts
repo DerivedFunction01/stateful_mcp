@@ -176,13 +176,18 @@ export function autocompleteFromCommands(
 	if (!partial) return [];
 	const seen = new Set<string>();
 	const out: AutocompleteSuggestion[] = [];
+	const partialLower = partial.toLowerCase();
 	for (const c of commands) {
-		for (const verb of [c.id, ...c.aliases]) {
-			if (seen.has(verb)) continue;
-			if (!verb.startsWith(partial)) continue;
-			seen.add(verb);
+		const canonicalVerb = c.id.toLowerCase();
+		if (seen.has(canonicalVerb)) continue;
+
+		const names = [c.id, ...(c.aliases ?? [])];
+		const hasPrefixMatch = names.some((name) => name.toLowerCase().startsWith(partialLower));
+
+		if (hasPrefixMatch) {
+			seen.add(canonicalVerb);
 			out.push({
-				verb,
+				verb: c.id,
 				group: c.group,
 				source,
 				hasArgs: c.args.length > 0,

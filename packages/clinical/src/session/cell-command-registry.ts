@@ -117,10 +117,20 @@ export class CellCommandRegistry {
 	}
 
 	getDescriptors(): CommandDescriptor[] {
-		const verbs = Array.from(this.handlers.keys()).sort();
+		// Define cell command aliases mapping: canonicalVerb -> aliases
+		const aliasesMap: Record<string, string[]> = {
+			target: ["set"],
+		};
+		// Only display/keep the canonical verbs as top-level descriptors.
+		// Handlers that are actual aliases are excluded from the main descriptor list.
+		const allAliases = new Set(Object.values(aliasesMap).flat());
+		const verbs = Array.from(this.handlers.keys())
+			.filter((verb) => !allAliases.has(verb))
+			.sort();
+
 		return verbs.map((verb) => ({
 			verb,
-			aliases: [],
+			aliases: aliasesMap[verb] ?? [],
 			group: COMMAND_DESCRIPTOR_GROUP[verb] ?? CommandGroup.Cell,
 			descriptionKey: `command.description.${verb}`,
 			args: COMMAND_DESCRIPTOR_ARGS[verb] ?? [],

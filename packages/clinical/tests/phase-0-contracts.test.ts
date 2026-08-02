@@ -173,7 +173,8 @@ describe("CellCommandRegistry descriptors", () => {
 		const descriptors = registry.getDescriptors();
 		const verbs = descriptors.map((d) => d.verb);
 		expect(verbs).toContain("up");
-		expect(verbs).toContain("set");
+		expect(verbs).toContain("target");
+		expect(verbs).not.toContain("set");
 		expect(verbs).not.toContain("workspace");
 		expect(verbs).toContain("help");
 	});

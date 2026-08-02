@@ -1,9 +1,10 @@
+import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { Box, Text, useInput } from "ink";
 import { t } from "../lib/shared/i18n";
 
 interface HelpScreenProps {
-	editorDescriptors: { verb: string; group: string }[];
-	cellDescriptors: { verb: string; group: string }[];
+	editorDescriptors: CommandDescriptor[];
+	cellDescriptors: CommandDescriptor[];
 	onClose: () => void;
 }
 
@@ -30,10 +31,16 @@ export function HelpScreen({
 					{t("help.editorCommands")}
 				</Text>
 				{editorDescriptors.map((d) => (
-					<Box key={d.verb} paddingLeft={2}>
+					<Box key={d.verb} paddingLeft={2} flexDirection="row" flexWrap="wrap">
 						<Text bold color="cyan">
 							:{d.verb}
+							{d.aliases && d.aliases.length > 0
+								? ` (${d.aliases.map((a) => `:${a}`).join(", ")})`
+								: ""}
 						</Text>
+						{d.descriptionKey && (
+							<Text color="white"> - {t(d.descriptionKey)}</Text>
+						)}
 						<Text color="gray"> ({d.group})</Text>
 					</Box>
 				))}
@@ -43,10 +50,16 @@ export function HelpScreen({
 					</Text>
 				</Box>
 				{cellDescriptors.map((d) => (
-					<Box key={d.verb} paddingLeft={2}>
+					<Box key={d.verb} paddingLeft={2} flexDirection="row" flexWrap="wrap">
 						<Text bold color="yellow">
 							:{d.verb}
+							{d.aliases && d.aliases.length > 0
+								? ` (${d.aliases.map((a) => `:${a}`).join(", ")})`
+								: ""}
 						</Text>
+						{d.descriptionKey && (
+							<Text color="white"> - {t(d.descriptionKey)}</Text>
+						)}
 						<Text color="gray"> ({d.group})</Text>
 					</Box>
 				))}

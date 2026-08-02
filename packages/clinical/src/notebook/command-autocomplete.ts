@@ -25,9 +25,10 @@ const MAX_SUGGESTIONS = 12;
 function toSuggestion(
 	d: CommandDescriptor,
 	source: "editor" | "cell",
+	verb: string = d.verb,
 ): AutocompleteSuggestion {
 	return {
-		verb: d.verb,
+		verb,
 		group: d.group,
 		source,
 		hasArgs: d.args.length > 0,
@@ -45,20 +46,40 @@ export function getAutocompleteSuggestions(
 	cellDescriptors: CommandDescriptor[],
 ): AutocompleteSuggestion[] {
 	if (!partial) return [];
-	const seen = new Set<string>();
-	const all: { d: CommandDescriptor; source: "editor" | "cell" }[] = [
-		...editorDescriptors.map((d) => ({ d, source: "editor" as const })),
-		...cellDescriptors.map((d) => ({ d, source: "cell" as const })),
-	];
-	return all
-		.filter(({ d }) => {
-			if (seen.has(d.verb)) return false;
-			if (!d.verb.startsWith(partial)) return false;
-			seen.add(d.verb);
-			return true;
-		})
-		.slice(0, MAX_SUGGESTIONS)
-		.map(({ d, source }) => toSuggestion(d, source));
+	const partialLower = partial.toLowerCase();
+
+    // Combine descriptors with source
+    const allDesc = [
+      ...editorDescriptors.map((d) => ({ d, source: "editor" as const })),
+      ...cellDescriptors.map((d) => ({ d, source: "cell" as const })),
+    ];
+
+    const results: AutocompleteSuggestion[] = [];
+    const seenCanonical = new Set<string>();
+
+    for (const { d, source } of allDesc) {
+      const canonicalVerb = d.verb.toLowerCase();
+      if (seenCanonical.has(canonicalVerb)) continue;
+
+      const names = [d.verb, ...(d.aliases ?? [])];
+      const matchingNames = names.filter((name) => name.toLowerCase().startsWith(partialLower));
+
+      if (matchingNames.length > 0) {
+        // Sort to favor exact matches first, then shortest length
+        matchingNames.sort((a, b) => {
+          const aLower = a.toLowerCase();
+          const bLower = b.toLowerCase();
+          if (aLower === partialLower) return -1;
+          if (bLower === partialLower) return 1;
+          return a.length - b.length;
+        });
+        // Use the canonical verb for display, even if the match was an alias
+        results.push(toSuggestion(d, source, d.verb));
+        seenCanonical.add(canonicalVerb);
+      }
+    }
+
+    return results.slice(0, MAX_SUGGESTIONS);
 }
 
 export function getArgCompletions(
@@ -67,9 +88,17 @@ export function getArgCompletions(
 	cellDescriptors: CommandDescriptor[],
 ): AutocompleteSuggestion | undefined {
 	const all = [...editorDescriptors, ...cellDescriptors];
-	const desc = all.find((d) => d.verb === verb);
+	const verbLower = verb.toLowerCase();
+	const desc = all.find(
+		(d) =>
+			d.verb.toLowerCase() === verbLower ||
+			d.aliases?.some((a) => a.toLowerCase() === verbLower),
+	);
 	if (!desc) return undefined;
-	return toSuggestion(desc, desc.verb === verb ? "editor" : "cell");
+	const bestName = [desc.verb, ...(desc.aliases ?? [])].find(
+		(name) => name.toLowerCase() === verbLower,
+	) ?? desc.verb;
+	return toSuggestion(desc, desc.verb === bestName ? "editor" : "cell", bestName);
 }
 
 export function cycleAutocomplete(

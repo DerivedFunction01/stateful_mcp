@@ -482,9 +482,18 @@ export function useNotebook(session: SessionState | null) {
 				const currentPartial = argParts[argIndex] ?? "";
 
 				const canonicalVerb = profile.cellCommandMappings?.[verb] ?? verb;
-				const matchedDesc = [...editorDescs, ...autocompleteCellDescs].find(
-					(d) => d.verb === verb || d.verb === canonicalVerb,
-				);
+				const matchedDesc = [...editorDescs, ...autocompleteCellDescs].find((d) => {
+					const dVerb = d.verb.toLowerCase();
+					const vLower = verb.toLowerCase();
+					const cvLower = canonicalVerb.toLowerCase();
+					return (
+						dVerb === vLower ||
+						dVerb === cvLower ||
+						d.aliases?.some((a: string) => a.toLowerCase() === vLower || a.toLowerCase() === cvLower)
+					);
+				});
+
+				const resolvedVerb = matchedDesc ? matchedDesc.verb : canonicalVerb;
 
 				if (matchedDesc) {
 					const argSchema = matchedDesc.args[argIndex];
@@ -518,7 +527,7 @@ export function useNotebook(session: SessionState | null) {
 					if (profile) {
 						const prevArgs = argParts.slice(0, -1);
 						const codes = resolveArgCompletions(
-							canonicalVerb,
+							resolvedVerb,
 							argIndex,
 							profile,
 							prevArgs,

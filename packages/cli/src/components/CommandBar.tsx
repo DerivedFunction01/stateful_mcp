@@ -89,23 +89,23 @@ export function CommandBar({
 						return (
 							<Text
 								key={`${s.kind}-${s.source}-${s.verb}-${s.argIndex}`}
-								color={s.kind === "arg" ? "magenta" : "cyan"}
+								color={isActive ? undefined : (s.kind === "arg" ? "magenta" : "cyan")}
 								dimColor={!isActive}
 								inverse={isActive}
 								bold={isActive}
 							>
 								{s.kind === "arg" ? (
 									<Text>
-										<Text color="gray">[{s.group}]</Text>
+										<Text color={isActive ? undefined : "gray"}>({s.group}) </Text>
 										{s.verb}
 									</Text>
 								) : (
 									<Text>
-										<Text color="gray">[{s.source[0]}]</Text>
+										<Text color={isActive ? undefined : "gray"}>({s.source[0]}) </Text>
 										{s.verb}
-										{s.descriptionKey ? ` ${t(s.descriptionKey)}` : ""}
+										{s.descriptionKey ? ` - ${t(s.descriptionKey)}` : ""}
 										{s.argNames && s.argNames.length > 0
-											? ` (${s.argNames.join(" ")})`
+											? ` <${s.argNames.join("> <")}>`
 											: ""}
 									</Text>
 								)}
@@ -130,13 +130,13 @@ export function CommandBar({
 						{details.verb}
 					</Text>
 					{details.desc && <Text color="white">: {details.desc} </Text>}
-					<Text color="yellow">{details.parts}</Text>
+					<Text color="yellow"> {details.parts}</Text>
 				</Box>
 			)}
 			{noMatch && (
 				<Box paddingLeft={1} paddingRight={1}>
-					<Text color="gray">
-						no command matches "{noMatch}" — Enter still runs it
+					<Text color="red" bold>
+						⚠ no command matches "{noMatch}" — Enter still runs it
 					</Text>
 				</Box>
 			)}
