@@ -165,6 +165,7 @@ export function Notebook() {
 		context,
 		engine: session?.result?.engine,
 		staticCandidates,
+		macroStore: session?.result.runtime.parserStores.commandMacros,
 	});
 
 	// Sync engine suggestions ref
@@ -366,12 +367,15 @@ export function Notebook() {
 	};
 
 	const onEditorAction = (action: EditorAction) => {
-		switch (action.type) {
+			switch (action.type) {
 			case "ENTER_INSERT":
 				dispatch({ type: "ENTER_INSERT_MODE" });
 				return;
 			case "ENTER_COMMAND":
 				dispatch({ type: "ENTER_COMMAND_MODE" });
+				return;
+			case "ENTER_MACRO":
+				dispatch({ type: "ENTER_MACRO_MODE" });
 				return;
 			case "INSERT_TEXT":
 				if (state.mode === "COMMAND")
@@ -383,8 +387,22 @@ export function Notebook() {
 				return;
 			case "BACKSPACE":
 				if (state.mode === "COMMAND") dispatch({ type: "COMMAND_BACKSPACE" });
+				else if (state.mode === "MACRO") dispatch({ type: "BACKSPACE" });
 				else dispatch({ type: "BACKSPACE" });
 				return;
+			case "SUBMIT_MACRO": {
+				if (state.mode !== "MACRO" || !state.draftText.trim()) return;
+				const macroCell = {
+					...notebook.createCell(session?.sessionId ?? "", state.draftText),
+					intentKind: "macro_command" as const,
+					mode: "macro" as const,
+					macro: { batchId: `batch:${Date.now()}`, definitionIds: [], status: "pending_commit" as const },
+				};
+				dispatch({ type: "INSERT_CELL", cell: macroCell, position: state.activeIndex + 1 });
+				dispatch({ type: "EXIT_MACRO_MODE" });
+				void notebook.runCell(macroCell);
+				return;
+			}
 			case "SET_COMPLETION":
 				setCompletion(action.completion);
 				return;
@@ -406,6 +424,7 @@ export function Notebook() {
 				return;
 			case "CANCEL":
 				if (state.mode === "COMMAND") dispatch({ type: "EXIT_COMMAND_MODE" });
+				else if (state.mode === "MACRO") dispatch({ type: "EXIT_MACRO_MODE" });
 				else if (state.mode === "INSERT")
 					dispatch({ type: "EXIT_INSERT_MODE" });
 				else if (state.mode === "VISUAL")

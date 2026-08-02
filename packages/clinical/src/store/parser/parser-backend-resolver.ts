@@ -33,6 +33,8 @@ import { KvConceptFieldStore } from "./concept_fields/kv-concept-field-store";
 import { SqlConceptFieldStore } from "./concept_fields/sql-concept-field-store";
 import { KvParserMacroStore } from "./macros/kv-macro-store";
 import { SqlParserMacroStore } from "./macros/sql-macro-store";
+import { KvParserCommandMacroStore } from "./command-macros/kv-command-macro-store";
+import { SqlParserCommandMacroStore } from "./command-macros/sql-command-macro-store";
 import { KvParserProfileStore } from "./profiles/kv-parser-profile-store";
 import { KvProfileTagStore } from "./profiles/kv-profile-tag-store";
 import { SqlParserProfileStore } from "./profiles/sql-parser-profile-store";
@@ -331,6 +333,16 @@ export async function resolveMacroStore(
 			jsonl: (backend) => new KvParserMacroStore(backend),
 		},
 	);
+}
+
+export async function resolveCommandMacroStore(
+	config: ClinicalStoreConfig,
+): Promise<KvParserCommandMacroStore | SqlParserCommandMacroStore> {
+	return resolveStoreWithFactory(config, "parser_macros", "./clinical-parser.sqlite", {
+		memory: (backend) => new KvParserCommandMacroStore(backend),
+		sql: (_dialect, executor) => new SqlParserCommandMacroStore(executor),
+		jsonl: (backend) => new KvParserCommandMacroStore(backend),
+	});
 }
 
 // ── Personnel ────────────────────────────────────────────────────────

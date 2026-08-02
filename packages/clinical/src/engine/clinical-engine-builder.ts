@@ -322,6 +322,7 @@ async function wireEngine(
 		undefined,
 		cellStore,
 		CellCommandRegistry.createDefault(),
+		runtime.parserStores.commandMacros,
 	);
 	const workspaceCellService = new WorkspaceCellService(
 		workspaceStore,

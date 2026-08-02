@@ -26,6 +26,7 @@ export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
 				arrows: "↑↓",
 			});
 		}
+		if (mode === "MACRO") return "Ctrl+Enter submit batch  Enter new line  Esc cancel";
 		if (mode === "VISUAL") {
 			return t("help.visual", {
 				delKey: "d",

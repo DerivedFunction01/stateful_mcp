@@ -7,6 +7,9 @@ import type { SoapNote } from "../schemas/document";
 import type { SoapSection } from "../schemas/shared";
 import type { CellStore } from "../store/interfaces";
 import type { Cell } from "./cell";
+import type { ParserCommandMacroStore } from "../store/parser/command-macros/interfaces";
+import { bindCommandMacro } from "../parser/command-macro-binder";
+import { renderCommandMacroTargets, type CommandMacroRenderValue } from "../parser/command-macro-renderer";
 import { CELL_ERROR_MESSAGES, CellError } from "./cell";
 import type { CellCommandContext } from "./cell-command";
 import { CellCommandParser } from "./cell-command-parser";
@@ -85,7 +88,56 @@ export class CellProcessor {
 		private preprocessor?: TextPreprocessor,
 		private cellStore?: CellStore,
 		private cellCommandRegistry: CellCommandRegistry = CellCommandRegistry.createDefault(),
+		private commandMacroStore?: ParserCommandMacroStore,
 	) {}
+
+	private async executeCommandMacro(cell: Cell): Promise<CellProcessResult | null> {
+		if (cell.mode !== "macro" && cell.intentKind !== "macro_command") return null;
+		if (!this.commandMacroStore) return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, "command macro store is not configured") };
+		const operations = [] as Array<{ targetPath: string; value: unknown; rawValue: string }>;
+		const diagnostics: string[] = [];
+		const rendered: Array<{ line: number; text: string; status: string }> = [];
+		for (const [lineIndex, line] of cell.rawInput.split(/\r?\n/).entries()) {
+			if (!line.trim()) continue;
+			const name = line.trim().replace(/^\^/, "").split(/\s+/, 1)[0] ?? "";
+			const macro = await this.commandMacroStore.get(name);
+			if (!macro) { diagnostics.push(`line ${lineIndex + 1}: unknown command macro '${name}'`); continue; }
+			const result = bindCommandMacro(line, macro, { groupId: cell.macro?.batchId ?? cell.cellId, cellRef: cell.cellId, sourceLine: lineIndex + 1 });
+			diagnostics.push(...result.diagnostics.map((item) => `line ${lineIndex + 1}: ${item.message}`));
+			for (const operation of result.plan?.operations ?? []) operations.push(operation);
+			if (macro.renderers?.preview && result.plan) {
+				const values: Record<string, CommandMacroRenderValue> = {};
+				for (const operation of result.plan.operations) {
+					const argument = macro.arguments[operation.sourceArgument];
+					if (argument) values[argument.argumentId] = { value: operation.value, status: "assigned", evidence: operation.evidence };
+				}
+				const output = renderCommandMacroTargets(macro.renderers.preview, { values });
+				rendered.push({ line: lineIndex + 1, ...output });
+			}
+		}
+		if (diagnostics.length) {
+			cell.status = "error";
+			cell.errorMessage = diagnostics.join("; ");
+			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "error", diagnostics };
+			await this.saveCell(cell);
+			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
+		}
+		try {
+			for (const operation of operations) await this.documentExecutor.setSoapNoteField(cell.sessionId, operation.targetPath, operation.value);
+			cell.status = "committed";
+			cell.lockedAt = new Date().toISOString();
+			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "committed", preview: rendered };
+			cell.metadata = { ...cell.metadata, macroOperations: operations.length };
+			await this.saveCell(cell);
+			return { cell };
+		} catch (error) {
+			cell.status = "error";
+			cell.errorMessage = error instanceof Error ? error.message : String(error);
+			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "error", diagnostics: [cell.errorMessage] };
+			await this.saveCell(cell);
+			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
+		}
+	}
 
 	/** Returns a read-only, presentation-safe projection of a cell. */
 	getCellInterpretationSummary(
@@ -248,6 +300,8 @@ export class CellProcessor {
 				};
 			}
 		}
+		const macroResult = await this.executeCommandMacro(cell);
+		if (macroResult) return macroResult;
 		const cellCommandResult = await this.executeCellCommand(cell);
 		if (cellCommandResult) return cellCommandResult;
 

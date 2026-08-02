@@ -24,6 +24,8 @@ export enum EditorAction {
 	Search = "search",
 	ClearSearch = "clear_search",
 	OpenCommandLine = "open_command_line",
+	OpenMacroInput = "open_macro_input",
+	SubmitMacro = "submit_macro",
 	OpenWorkspace = "open_workspace",
 	Quit = "quit",
 	Info = "info",

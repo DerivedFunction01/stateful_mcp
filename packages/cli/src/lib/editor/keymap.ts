@@ -90,6 +90,15 @@ export function resolveKey(
 		return { action: null, nextPending: "" };
 	}
 
+	if (mode === "MACRO") {
+		if (key.escape) return { action: EditorAction.ExitInsertMode, nextPending: "" };
+		if (key.ctrl && key.return) return { action: EditorAction.SubmitMacro, nextPending: "" };
+		if (key.return) return { action: EditorAction.TypeChar, nextPending: "", char: "\n" };
+		if (key.backspace) return { action: EditorAction.Backspace, nextPending: "" };
+		if (input.length === 1 && !key.ctrl && !key.meta) return { action: EditorAction.TypeChar, nextPending: "", char: input };
+		return { action: null, nextPending: pendingSequence };
+	}
+
 	if (mode === "INSERT") {
 		if (key.escape)
 			return { action: EditorAction.ExitInsertMode, nextPending: "" };
@@ -177,6 +186,8 @@ export function resolveKey(
 				return { action: EditorAction.RunCell, nextPending: "" };
 			case ":":
 				return { action: EditorAction.OpenCommandLine, nextPending: "" };
+			case "^":
+				return { action: EditorAction.OpenMacroInput, nextPending: "" };
 			case "s":
 				return { action: EditorAction.Search, nextPending: "" };
 			case "/":

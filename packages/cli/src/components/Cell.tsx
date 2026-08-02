@@ -159,6 +159,13 @@ export function CellComponent({
 				{ key: "Tab", label: "cycle" },
 			];
 		}
+		if (mode === "MACRO") {
+			return [
+				{ key: "Ctrl+Enter", label: "submit batch" },
+				{ key: "Enter", label: "new line" },
+				{ key: "Esc", label: "cancel" },
+			];
+		}
 		return [];
 	}, [isActive, mode]);
 

@@ -14,6 +14,8 @@ export interface EditorKernelState {
 export type EditorAction =
 	| { type: "ENTER_INSERT" }
 	| { type: "ENTER_COMMAND" }
+	| { type: "ENTER_MACRO" }
+	| { type: "SUBMIT_MACRO" }
 	| { type: "INSERT_TEXT"; text: string }
 	| { type: "NEWLINE" }
 	| { type: "BACKSPACE" }
@@ -51,6 +53,10 @@ export function reduceEditorKernel(
 				draftText: ":",
 				completion: { status: "idle" },
 			};
+		case "ENTER_MACRO":
+			return { ...state, mode: "MACRO", draftText: "^", completion: { status: "idle" }, error: null };
+		case "SUBMIT_MACRO":
+			return { ...state, mode: "NORMAL", completion: { status: "idle" } };
 		case "INSERT_TEXT":
 			return {
 				...state,

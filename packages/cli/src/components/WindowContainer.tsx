@@ -135,6 +135,15 @@ export function WindowContainer({
 			return;
 		}
 
+		if (current.mode === "MACRO") {
+			if (key.escape) { emit({ type: "CANCEL" }); return; }
+			if (key.return && key.ctrl) { emit({ type: "SUBMIT_MACRO" }); return; }
+			if (key.return) { emit({ type: "NEWLINE" }); return; }
+			if (key.backspace) { emit({ type: "BACKSPACE" }); return; }
+			if (_input.length === 1 && !key.ctrl && !key.meta) { emit({ type: "INSERT_TEXT", text: _input }); }
+			return;
+		}
+
 		if (current.mode === "COMMAND") {
 			if (key.escape) {
 				emit({ type: "CANCEL" });

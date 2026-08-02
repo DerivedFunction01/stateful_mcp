@@ -1,1 +1,1 @@
-export type EditorMode = "NORMAL" | "INSERT" | "COMMAND" | "VISUAL";
+export type EditorMode = "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";

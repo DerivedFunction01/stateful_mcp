@@ -61,6 +61,8 @@ export type NotebookAction =
 	| { type: "SET_PREVIEW"; preview: PreviewCandidate }
 	| { type: "CLEAR_PREVIEW" }
 	| { type: "ENTER_COMMAND_MODE" }
+	| { type: "ENTER_MACRO_MODE" }
+	| { type: "EXIT_MACRO_MODE" }
 	| { type: "EXIT_COMMAND_MODE" }
 	| { type: "COMMAND_APPEND"; char: string }
 	| { type: "COMMAND_BACKSPACE" }
@@ -323,6 +325,12 @@ export function rawNotebookReducer(
 				commandLine: ":",
 				commandHistoryIndex: -1,
 			};
+
+		case "ENTER_MACRO_MODE":
+			return { ...state, mode: "MACRO", draftText: "^", commandLine: "" };
+
+		case "EXIT_MACRO_MODE":
+			return { ...state, mode: "NORMAL", draftText: "" };
 
 		case "EXIT_COMMAND_MODE":
 			return { ...state, mode: "NORMAL", commandLine: "" };

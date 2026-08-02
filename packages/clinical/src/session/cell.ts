@@ -1,6 +1,6 @@
 import type { SoapSection } from "../schemas/shared";
 
-export type CellMode = "cdsl" | "narrative" | "js_script";
+export type CellMode = "cdsl" | "narrative" | "js_script" | "macro";
 
 export type CellKind = "notebook" | "workspace" | (string & {});
 
@@ -15,6 +15,7 @@ export type CellIntentKind =
 	| "variable_command"
 	| "cell_configuration"
 	| "directed_value"
+	| "macro_command"
 	| (string & {});
 
 export type CellRoutingScope = "global" | "branch_local" | "unresolved";
@@ -30,6 +31,7 @@ export interface CellRoutingTarget {
 export type CellStatus =
 	| "draft"
 	| "parsing"
+	| "preview"
 	| "pending_commit"
 	| "committed"
 	| "error"
@@ -114,5 +116,16 @@ export interface Cell {
 			level: "high" | "medium" | "low";
 			breakdown?: import("../store/learning/interfaces").ParseConfidenceScoreBreakdown;
 		};
+	};
+	macro?: {
+		batchId: string;
+		definitionIds: string[];
+		definitionVersions?: Record<string, number>;
+		preview?: unknown;
+		diagnostics?: string[];
+		compiledPlan?: unknown;
+		generatedCellIds?: string[];
+		status: "draft" | "preview" | "pending_commit" | "committed" | "error";
+		provenance?: { sourceMacroCellId: string; macroBatchId: string; macroLine: number; macroDefinitionId: string }[];
 	};
 }

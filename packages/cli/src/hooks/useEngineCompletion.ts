@@ -1,4 +1,5 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import { getCommandMacroAutocomplete } from "@stateful-mcp/clinical/notebook/command-macro-autocomplete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveCompletionSession } from "../lib/editor/completion-state";
 
@@ -9,13 +10,17 @@ export function useEngineCompletion({
 	context,
 	engine,
 	staticCandidates,
+	macroStore,
+	macroContext,
 }: {
-	mode: "NORMAL" | "INSERT" | "COMMAND" | "VISUAL";
+	mode: "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";
 	commandLine: string;
 	catalog: any;
 	context: any;
 	engine: any;
 	staticCandidates: AutocompleteSuggestion[];
+	macroStore?: { list: (context?: any) => Promise<any[]> };
+	macroContext?: { personnelId?: string; profileId?: string };
 }) {
 	const [loading, setLoading] = useState(false);
 	const [engineCandidates, setEngineCandidates] = useState<
@@ -24,6 +29,20 @@ export function useEngineCompletion({
 	const lastRequestRef = useRef<string | null>(null);
 
 	useEffect(() => {
+		if (mode === "MACRO") {
+			if (!macroStore) { setLoading(false); setEngineCandidates([]); return; }
+			const prefix = commandLine;
+			lastRequestRef.current = prefix;
+			setLoading(true);
+			const timer = setTimeout(async () => {
+				try {
+					const suggestions = await getCommandMacroAutocomplete(prefix, macroStore as any, macroContext);
+					if (lastRequestRef.current === prefix) setEngineCandidates(suggestions);
+				} catch { if (lastRequestRef.current === prefix) setEngineCandidates([]); }
+				finally { if (lastRequestRef.current === prefix) setLoading(false); }
+			}, 150);
+			return () => clearTimeout(timer);
+		}
 		if (mode !== "COMMAND") {
 			setLoading(false);
 			setEngineCandidates([]);
@@ -105,7 +124,7 @@ export function useEngineCompletion({
 		return () => {
 			clearTimeout(timer);
 		};
-	}, [mode, commandLine, catalog, context, engine]);
+	}, [mode, commandLine, catalog, context, engine, macroStore, macroContext]);
 
 	const mergedCandidates = useMemo(() => {
 		const seen = new Set<string>();

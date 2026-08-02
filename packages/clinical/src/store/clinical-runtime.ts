@@ -6,6 +6,7 @@ import {
 } from "./adapter-types";
 import type { ClinicalStoreConfig } from "./clinical-config";
 import type { ParserMacroStore } from "./interfaces";
+import type { ParserCommandMacroStore } from "./parser/command-macros/interfaces";
 import {
 	resolveAutocompleteTransitionStoreLocator,
 	resolveNgramStoreLocator,
@@ -22,6 +23,7 @@ import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "
 import type { ConceptFieldStore } from "./parser/concept_fields/interfaces";
 import {
 	resolveCalibrationExceptionStore,
+	resolveCommandMacroStore,
 	resolveConceptDefaultStore,
 	resolveConceptFieldStore,
 	resolveFacilityStore,
@@ -80,6 +82,7 @@ export interface ClinicalRuntimeParserStores {
 	facilities: FacilityStore;
 	sharedFieldAnchors: SharedFieldAnchorStore;
 	macros: ParserMacroStore;
+	commandMacros: ParserCommandMacroStore;
 }
 
 export interface ClinicalRuntime {
@@ -109,6 +112,7 @@ export async function createClinicalRuntime(
 		sharedFieldAnchors,
 		stopWordWordLists,
 		macros,
+		commandMacros,
 		orderedLearningStores,
 		autocompleteTransitionStores,
 	] = await Promise.all([
@@ -122,7 +126,8 @@ export async function createClinicalRuntime(
 		resolveFacilityStore(config),
 		resolveSharedFieldAnchorStore(config),
 		resolveStopWordWordListStore(config),
-		resolveMacroStore(config),
+			resolveMacroStore(config),
+			resolveCommandMacroStore(config),
 		buildOrderedLearningStores(config),
 		buildAutocompleteTransitionStores(config),
 	]);
@@ -166,6 +171,7 @@ export async function createClinicalRuntime(
 			facilities,
 			sharedFieldAnchors,
 			macros,
+			commandMacros,
 		},
 		learningStores: await buildLearningStores(config),
 		orderedLearningStores,

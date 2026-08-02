@@ -67,7 +67,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				},
 			});
 
-			if (deps.editorState.mode === "COMMAND") {
+			if (deps.editorState.mode === "COMMAND" || deps.editorState.mode === "MACRO") {
 				const commandLine = deps.editorState.draftText;
 				const suggestions = deps.catalog.getSuggestions(
 					commandLine.slice(1),
