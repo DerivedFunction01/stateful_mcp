@@ -2,7 +2,6 @@ import { useApp } from "ink";
 import { useMemo, useState } from "react";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
-import { useWorkspace } from "../hooks/useWorkspace";
 import type {
 	CellEditorMode,
 	EditorAction,
@@ -13,7 +12,7 @@ import type {
 import type { CompletionState } from "../lib/completion-state";
 import { NotebookCommandCatalog } from "../lib/notebook-catalog";
 import { NotebookDocumentPort } from "../lib/notebook-document";
-import { NotebookDomainPort } from "../lib/notebook-domain";
+import { WindowDomainPort } from "../lib/notebook-domain";
 import { NotebookKeymapPolicy } from "../lib/notebook-keymap-policy";
 import { notebookWindow } from "../lib/notebook-window";
 import { useNotebookRuntime } from "../lib/use-notebook-runtime";
@@ -21,7 +20,7 @@ import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
 import { PreviewScreen } from "./PreviewScreen";
 import { WindowContainer } from "./v2/WindowContainer";
-import { WorkspaceScreen } from "./WorkspaceScreen";
+import { WorkspaceV2 } from "./WorkspaceV2";
 
 /**
  * Independent v2 notebook root. Owns a separate useSession/useNotebook and runs
@@ -40,13 +39,6 @@ export function NotebookV2() {
 	const [activeWindow, setActiveWindow] = useState<"notebook" | "workspace">(
 		"notebook",
 	);
-
-	const workspace = useWorkspace({
-		showWorkspace: activeWindow === "workspace",
-		sessionId: session?.sessionId ?? "",
-		soapNoteId: session?.sessionId ?? "",
-		session,
-	});
 
 	const cellDescriptors = useMemo(
 		() => ({
@@ -97,18 +89,18 @@ export function NotebookV2() {
 
 	const domainPort = useMemo(
 		() =>
-			new NotebookDomainPort({
+			new WindowDomainPort({
 				runActive: () => {
 					const cell = state.cells[state.activeIndex];
 					return cell ? notebook.runCell(cell) : Promise.resolve();
 				},
-				runIndexes: async (indexes) => {
+				runIndexes: async (indexes: number[]) => {
 					for (const idx of indexes) {
 						const cell = state.cells[idx];
 						if (cell) await notebook.runCell(cell);
 					}
 				},
-				runCellIds: async (cellIds) => {
+				runCellIds: async (cellIds: string[]) => {
 					for (const id of cellIds) {
 						const cell = state.cells.find((c) => c.cellId === id);
 						if (cell) await notebook.runCell(cell);
@@ -118,7 +110,7 @@ export function NotebookV2() {
 					const cell = state.cells[state.activeIndex];
 					return cell ? notebook.previewCell(cell) : Promise.resolve();
 				},
-				dispatchCommand: (line) => notebook.dispatchCommand(line),
+				dispatchCommand: (line: string) => notebook.dispatchCommand(line),
 				getActiveIndex: () => state.activeIndex,
 			}),
 		[state, notebook],
@@ -292,17 +284,9 @@ export function NotebookV2() {
 
 	if (activeWindow === "workspace") {
 		return (
-			<WorkspaceScreen
-				snapshot={workspace.snapshot}
-				sessionId={session.sessionId}
-				loading={workspace.loading}
-				error={workspace.error}
-				focused={workspace.focused}
-				onClose={() => setActiveWindow("notebook")}
-				planSubmission={workspace.planSubmission}
-				onSubmitPlan={workspace.submitPlan}
-				commandCatalog={workspace.commandCatalog}
-				onFocusBranch={workspace.focusBranch}
+			<WorkspaceV2
+				session={session}
+				onBack={() => setActiveWindow("notebook")}
 			/>
 		);
 	}

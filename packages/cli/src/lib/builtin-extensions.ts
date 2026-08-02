@@ -71,7 +71,7 @@ const NV = ["NORMAL", "VISUAL"] as EditorMode[];
 /** Cell document navigation and manipulation. */
 export const cellDocumentExtension: EditorExtension = {
 	id: "document.cell",
-	windows: ["notebook"],
+	windows: ["notebook", "workspace"],
 	keybindings: [
 		{
 			id: "cell.down",
@@ -152,7 +152,7 @@ export const cellDocumentExtension: EditorExtension = {
 /** Visual selection. */
 export const visualSelectionExtension: EditorExtension = {
 	id: "document.visual",
-	windows: ["notebook"],
+	windows: ["notebook", "workspace"],
 	keybindings: [
 		{
 			id: "visual.down",

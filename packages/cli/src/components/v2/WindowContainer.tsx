@@ -236,13 +236,20 @@ export function WindowContainer({
 						</Box>
 					))}
 				</Box>
-				{bySlot("sidebar").length > 0 && (
-					<Box flexDirection="column" width={30} borderStyle="single">
-						{bySlot("sidebar").map((r) => (
-							<Box key={r.key}>{r.render()}</Box>
-						))}
-					</Box>
-				)}
+				{bySlot("sidebar").length > 0 &&
+					(() => {
+						const content = bySlot("sidebar")
+							.map((r) => ({ key: r.key, content: r.render() }))
+							.filter((r) => r.content !== null);
+						if (content.length === 0) return null;
+						return (
+							<Box flexDirection="column" width={30} borderStyle="single">
+								{content.map((r) => (
+									<Box key={r.key}>{r.content}</Box>
+								))}
+							</Box>
+						);
+					})()}
 			</Box>
 			{bySlot("command").map((r) => (
 				<Box key={r.key}>{r.render()}</Box>

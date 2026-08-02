@@ -28,6 +28,22 @@ export type EditorCommandHandler = (
 export class EditorCommandRegistry {
 	private handlers = new Map<string, EditorCommandHandler>();
 
+	/** Reverse map: alias → canonical verb (built lazily from EDITOR_COMMAND_META). */
+	private static aliasToCanonical: Map<string, string> | null = null;
+
+	private static canonicalMap(): Map<string, string> {
+		if (EditorCommandRegistry.aliasToCanonical) {
+			return EditorCommandRegistry.aliasToCanonical;
+		}
+		const map = new Map<string, string>();
+		for (const [canonical, meta] of Object.entries(EDITOR_COMMAND_META)) {
+			map.set(canonical, canonical);
+			for (const alias of meta.aliases) map.set(alias, canonical);
+		}
+		EditorCommandRegistry.aliasToCanonical = map;
+		return map;
+	}
+
 	register(verb: EditorCommandVerb, handler: EditorCommandHandler): this {
 		this.handlers.set(verb, handler);
 		return this;
@@ -37,14 +53,22 @@ export class EditorCommandRegistry {
 		return this.handlers.get(verb as EditorCommandVerb);
 	}
 
+	/** Resolve any alias (or canonical) verb to its canonical verb name. */
+	canonicalize(verb: string): string {
+		const direct = EditorCommandRegistry.canonicalMap().get(verb);
+		if (direct) return direct;
+		return EditorCommandRegistry.canonicalMap().get(verb.toLowerCase()) ?? verb;
+	}
+
 	dispatch(
 		verb: string,
 		args: string[],
 	): { success: boolean; message?: string; action?: string; data?: unknown } {
-		const handler = this.get(verb);
+		const canonical = this.canonicalize(verb);
+		const handler = this.get(canonical);
 		if (!handler)
 			return { success: false, message: `unknown editor command: ${verb}` };
-		return handler(verb as EditorCommandVerb, args);
+		return handler(canonical as EditorCommandVerb, args);
 	}
 
 	getDescriptors(): CommandDescriptor[] {

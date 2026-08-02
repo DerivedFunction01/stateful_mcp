@@ -17,7 +17,9 @@ const WORKSPACE_VERBS = [
 	"complete",
 ] as const;
 
-const SHARED_UI_VERBS = ["help", "back", "exit", "focus", "status"] as const;
+// `help` is owned by the shared EditorCommandRegistry; only workspace-specific
+// UI navigation verbs live here.
+const SHARED_UI_VERBS = ["back", "exit", "focus", "status"] as const;
 
 function argsFor(verb: string): CommandArgSchema[] {
 	switch (verb) {
@@ -74,6 +76,9 @@ export class WorkspaceCommandProvider {
 		const mappings = this.profile.workspaceCommandMappings ?? {};
 		const aliasesByVerb = new Map<string, string[]>();
 		for (const [alias, canonical] of Object.entries(mappings)) {
+			// Skip self-aliases (e.g. "branch: branch") so the canonical verb is
+			// not duplicated as one of its own alias completions.
+			if (alias === canonical) continue;
 			const aliases = aliasesByVerb.get(canonical) ?? [];
 			aliases.push(alias);
 			aliasesByVerb.set(canonical, aliases);

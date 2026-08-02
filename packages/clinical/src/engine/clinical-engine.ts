@@ -1396,6 +1396,31 @@ export class ClinicalEngine {
 		);
 	}
 
+	/** Mark an assessment workspace as durably closed without leaving the UI. */
+	async closeAssessmentWorkspace(
+		sessionId: string,
+		workspaceId: string,
+	): Promise<void> {
+		if (!this.workspaceStore) {
+			throw new Error("workspaceStore is not configured");
+		}
+		const workspace = await this.workspaceStore.get(sessionId, workspaceId);
+		if (!workspace) {
+			throw new Error(`Workspace ${workspaceId} not found`);
+		}
+		const branchId = workspace.activeBranchId ?? workspace.branches[0]?.id;
+		if (!branchId) {
+			throw new Error(`Workspace ${workspaceId} has no active branch`);
+		}
+		await this.workspaceStore.process(
+			sessionId,
+			workspaceId,
+			branchId,
+			"",
+			[{ verb: "close" }],
+		);
+	}
+
 	async completeAssessmentWorkspace(
 		sessionId: string,
 		workspaceId: string,

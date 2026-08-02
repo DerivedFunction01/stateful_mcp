@@ -1,5 +1,6 @@
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { CommandGroup } from "@stateful-mcp/clinical/session/command-descriptor";
+import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import type {
 	CommandContribution,
 	EditorExtension,
@@ -10,15 +11,19 @@ import type {
 
 /**
  * Convert clinical CommandDescriptors into extension CommandContributions.
- * Used to seed the notebook's extension command contributions.
+ * Used to seed a window's (notebook or workspace) command contributions.
+ *
+ * @param intentTypePrefix Namespacing prefix for the resolved intent type, e.g.
+ *   `command.` for notebook, `workspace.` for the workspace profile.
  */
 export function descriptorsToContributions(
 	descriptors: CommandDescriptor[],
 	source: "editor" | "cell" | "window",
+	intentTypePrefix = "command.",
 ): CommandContribution[] {
 	return descriptors.map((d) => ({
 		id: d.verb,
-		intentType: `command.${d.group}.${d.verb}`,
+		intentType: `${intentTypePrefix}${d.group}.${d.verb}`,
 		aliases: d.aliases,
 		args: d.args.map((a) => ({
 			name: a.name,
@@ -35,7 +40,7 @@ export function descriptorsToContributions(
 	}));
 }
 
-/** Basic result → effect routing for notebook commands. */
+/** Basic result → effect routing for window commands (notebook + workspace). */
 export function commandResultToEffects(result: {
 	success: boolean;
 	message?: string;
@@ -52,6 +57,18 @@ export function commandResultToEffects(result: {
 			return effects;
 		case "show_info":
 			effects.push({ type: "router.open", route: "info" });
+			return effects;
+		case "switch_window":
+			effects.push({
+				type: "router.switchWindow",
+				windowKind: (result.data as any)?.windowKind ?? "notebook",
+			});
+			return effects;
+		case "toggle_workspace":
+			effects.push({
+				type: "router.switchWindow",
+				windowKind: "workspace",
+			});
 			return effects;
 		case "render_preview":
 			effects.push({
@@ -78,11 +95,31 @@ export function commandResultToEffects(result: {
 		case "save":
 			effects.push({ type: "editor.message", message: "saved" });
 			return effects;
+		case "save_quit":
+			effects.push({ type: "app.quit" });
+			return effects;
 		default:
 			if (result.message)
 				effects.push({ type: "editor.message", message: result.message });
 			return effects;
 	}
+}
+
+/** Execute a shared editor command without coupling a window to notebook state. */
+export function dispatchGeneralWindowCommand(line: string): {
+	success: boolean;
+	message?: string;
+	action?: string;
+	data?: unknown;
+} | null {
+	const tokens = line.replace(/^:+/, "").trim().split(/\s+/).filter(Boolean);
+	const verb = tokens[0];
+	if (!verb) return null;
+	const result = EditorCommandRegistry.createDefault().dispatch(
+		verb,
+		tokens.slice(1),
+	);
+	return result.success ? result : null;
 }
 
 /**

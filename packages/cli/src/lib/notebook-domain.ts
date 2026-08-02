@@ -1,6 +1,6 @@
 import type { CommandResult, EditorContext } from "./cell-editor";
 
-export interface NotebookDomainDeps {
+export interface WindowDomainDeps {
 	runActive(): Promise<void>;
 	runIndexes(indexes: number[]): Promise<void>;
 	runCellIds(cellIds: string[]): Promise<void>;
@@ -11,15 +11,19 @@ export interface NotebookDomainDeps {
 		activeIndex: number,
 	): Promise<CommandResult>;
 	getActiveIndex(): number;
+	openWorkspace?(): Promise<void>;
+	showInfo?(): Promise<void>;
+	quit?(): Promise<void>;
 }
 
 /**
- * Adapts the notebook's existing execution (run/preview/command dispatch) behind
- * the generic `DomainPort`. The container routes run/preview and `:` command
- * submission through it; it never touches ClinicalEngine directly.
+ * Shared `DomainPort` adapter for a window (notebook or workspace). Maps the
+ * generic container domain actions (run/preview/) and window-level commands onto
+ * injected, window-specific operations. The container never touches the engine
+ * directly.
  */
-export class NotebookDomainPort {
-	constructor(private readonly deps: NotebookDomainDeps) {}
+export class WindowDomainPort {
+	constructor(private readonly deps: WindowDomainDeps) {}
 
 	async run(
 		_context: EditorContext,
@@ -48,4 +52,19 @@ export class NotebookDomainPort {
 			this.deps.getActiveIndex(),
 		);
 	}
+
+	async openWorkspace(_context: EditorContext) {
+		await this.deps.openWorkspace?.();
+	}
+
+	async showInfo(_context: EditorContext) {
+		await this.deps.showInfo?.();
+	}
+
+	async quit(_context: EditorContext) {
+		await this.deps.quit?.();
+	}
 }
+
+/** Backwards-compatible alias for the notebook domain port. */
+export { WindowDomainPort as NotebookDomainPort };

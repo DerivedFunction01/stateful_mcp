@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { WindowDefinition, WindowSlot } from "../src/lib/cell-editor";
+import { WindowDomainPort } from "../src/lib/notebook-domain";
 import { notebookWindow } from "../src/lib/notebook-window";
 import { PLAN_SLOTS, planWindow } from "../src/lib/plan-window";
 import { WindowRegistry } from "../src/lib/window-registry";
+import { WorkspaceDocumentPort } from "../src/lib/workspace-document";
+import { workspaceWindow } from "../src/lib/workspace-window";
 
 function stubNotebook(
 	overrides?: Partial<{
@@ -102,5 +105,82 @@ describe("Phase P5 — region/registry readiness", () => {
 		const regions = def.regions();
 		const primary = regions.find((r) => r.slot === "primary");
 		expect(primary).toBeDefined();
+	});
+});
+
+describe("Phase P5 — workspace window regions", () => {
+	const snapshot = {
+		workspaceId: "work_1",
+		sourceSoapNoteId: "s1",
+		activeBranchId: null,
+		branches: [],
+		globalFacts: [],
+		globalFactCount: 0,
+		cells: [],
+		lifecycle: { closeRequested: false },
+	} as any;
+
+	function stubWorkspace(
+		mode: "NORMAL" | "INSERT" | "COMMAND" | "VISUAL" = "NORMAL",
+	): WindowDefinition {
+		const document = new WorkspaceDocumentPort(
+			{ collection: { kind: "workspace", collectionId: "work_1" } },
+			() => snapshot.cells,
+			() => 0,
+		);
+		const domain = new WindowDomainPort({
+			runActive: async () => {},
+			runIndexes: async () => {},
+			runCellIds: async () => {},
+			previewActive: async () => {},
+			dispatchCommand: async () => ({ success: true }),
+			getActiveIndex: () => 0,
+		});
+		return workspaceWindow({
+			document,
+			domain,
+			catalog: { getDescriptors: () => [], getSuggestions: () => [] } as any,
+			sessionId: "s1",
+			editorState: {
+				mode,
+				draftText: mode === "COMMAND" ? ":" : "",
+				completion: { status: "idle" },
+				error: null,
+				showHelp: false,
+			},
+			snapshot,
+			loading: false,
+			error: null,
+			focused: false,
+			lastEditCellId: null,
+		});
+	}
+
+	const slotsOf = (def: WindowDefinition): WindowSlot[] =>
+		def.regions().map((r) => r.slot);
+
+	test("workspace window reserves a sidebar slot alongside primary/status/footer", () => {
+		const slots = slotsOf(stubWorkspace());
+		expect(slots).toContain("sidebar");
+		expect(slots).toContain("primary");
+		expect(slots).toContain("status");
+		expect(slots).toContain("footer");
+	});
+
+	test("workspace window adds a command slot only in COMMAND mode", () => {
+		expect(slotsOf(stubWorkspace("COMMAND"))).toContain("command");
+		expect(slotsOf(stubWorkspace("NORMAL"))).not.toContain("command");
+		expect(slotsOf(stubWorkspace("INSERT"))).not.toContain("command");
+	});
+
+	test("workspace + notebook are distinct window instances in one registry", () => {
+		const reg = new WindowRegistry();
+		reg.register("notebook", () => stubNotebook());
+		reg.register("workspace", () => stubWorkspace());
+		const w = reg.create("workspace")!;
+		const n = reg.create("notebook")!;
+		expect(w.type).toBe("workspace");
+		expect(n.type).toBe("notebook");
+		expect(w === n).toBe(false);
 	});
 });

@@ -19,6 +19,7 @@ interface UseWorkspaceReturn {
 	loading: boolean;
 	error: string | null;
 	complete: (winningBranchId: string) => Promise<void>;
+	close: () => Promise<void>;
 	addBranch: (branchName: string, conceptText: string) => Promise<void>;
 	focused: boolean;
 	toggleFocus: () => void;
@@ -124,6 +125,22 @@ export function useWorkspace({
 		},
 		[session, sessionId, resetWorkspace],
 	);
+
+	const close = useCallback(async () => {
+		setError(null);
+		try {
+			const engine = session?.result.engine;
+			if (!engine) throw new Error("No engine available");
+			if (!workspaceIdRef.current) return;
+			await engine.closeAssessmentWorkspace(
+				sessionId,
+				workspaceIdRef.current,
+			);
+			await refresh();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		}
+	}, [session, sessionId, refresh]);
 
 	const addBranch = useCallback(
 		async (branchName: string, conceptText: string) => {
@@ -257,6 +274,7 @@ export function useWorkspace({
 		loading,
 		error,
 		complete,
+		close,
 		addBranch,
 		focused,
 		toggleFocus,

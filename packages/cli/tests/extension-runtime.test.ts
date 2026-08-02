@@ -14,6 +14,7 @@ import { IntentCatalog } from "../src/lib/intent-catalog";
 import {
 	buildNotebookExtension,
 	commandResultToEffects,
+	dispatchGeneralWindowCommand,
 } from "../src/lib/notebook-extension";
 
 const scope: WindowScope = {
@@ -100,6 +101,27 @@ describe("command result → effects", () => {
 			type: "document.dispatch",
 			action: { type: "undo" },
 		});
+		const toggle = commandResultToEffects({
+			success: true,
+			action: "toggle_workspace",
+		});
+		expect(toggle).toEqual([
+			{ type: "router.switchWindow", windowKind: "workspace" },
+		]);
+		const switchWin = commandResultToEffects({
+			success: true,
+			action: "switch_window",
+			data: { windowKind: "notebook" },
+		});
+		expect(switchWin).toEqual([
+			{ type: "router.switchWindow", windowKind: "notebook" },
+		]);
+		expect(dispatchGeneralWindowCommand(":save")?.action).toBe("save");
+		expect(dispatchGeneralWindowCommand(":quit")?.action).toBe("quit");
+		expect(dispatchGeneralWindowCommand(":wq")?.action).toBe("save_quit");
+		expect(commandResultToEffects({ success: true, action: "save_quit" })).toEqual([
+			{ type: "app.quit" },
+		]);
 	});
 });
 

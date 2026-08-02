@@ -1,4 +1,6 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
+import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import { VariableCommandProvider } from "@stateful-mcp/clinical/session/variable-command-provider";
 import { WorkspaceCommandProvider } from "@stateful-mcp/clinical/session/workspace-command-provider";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
@@ -29,19 +31,29 @@ function descriptorSuggestion(
 export class WorkspaceCommandCatalog implements CommandCatalog {
 	private readonly workspace: WorkspaceCommandProvider;
 	private readonly variables = new VariableCommandProvider();
+	private readonly editor: CommandDescriptor[];
 
 	constructor(
 		profile: ParserSyntaxProfile,
 		private readonly snapshot: WorkspaceSnapshot | null,
 	) {
 		this.workspace = new WorkspaceCommandProvider(profile);
+		this.editor = EditorCommandRegistry.createDefault().getDescriptors();
 	}
 
 	getDescriptors(_context: EditorContext) {
-		return [
+		const seen = new Set<string>();
+		const out: CommandDescriptor[] = [];
+		for (const descriptor of [
+			...this.editor,
 			...this.workspace.getDescriptors(),
 			...this.variables.getDescriptors(),
-		];
+		]) {
+			if (seen.has(descriptor.verb)) continue;
+			seen.add(descriptor.verb);
+			out.push(descriptor);
+		}
+		return out;
 	}
 
 	getSuggestions(

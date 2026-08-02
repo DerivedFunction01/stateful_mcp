@@ -78,6 +78,10 @@ describe("Clinical Epistemic Workspace Lifecycle", () => {
 			(finalNote.assessment.differentialDiagnoses[0] as any)?.concept?.[0]
 				?.conceptId,
 		).toBe("SNOMED::312124007");
+
+		await engine.closeAssessmentWorkspace(sessionId, workspaceId);
+		const closed = await workspaceStore.get(sessionId, workspaceId);
+		expect(closed?.closeRequested).toBe(true);
 	});
 
 	test("init with empty candidateConcepts seeds a default Hypothesis branch", async () => {
