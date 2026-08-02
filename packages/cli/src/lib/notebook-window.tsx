@@ -2,6 +2,7 @@ import { CellList } from "../components/CellList";
 import { CommandBar } from "../components/CommandBar";
 import { HelpBar } from "../components/HelpBar";
 import { StatusBar } from "../components/StatusBar";
+import type { CellSuggestion } from "../hooks/useNotebook";
 import type {
 	CommandCatalog,
 	EditorKernelState,
@@ -18,6 +19,7 @@ export interface NotebookWindowDeps {
 	sessionId: string;
 	editorState: EditorKernelState;
 	lastEditCellId: string | null;
+	cellSuggestions?: CellSuggestion[];
 }
 
 /**
@@ -54,7 +56,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							lastEditCellId={deps.lastEditCellId}
 							visualStart={view.selection?.start ?? 0}
 							visualEnd={view.selection?.end ?? 0}
-							cellSuggestions={[]}
+							cellSuggestions={deps.cellSuggestions ?? []}
 						/>
 					);
 				},

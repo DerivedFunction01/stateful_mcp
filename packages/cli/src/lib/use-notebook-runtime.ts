@@ -93,8 +93,16 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 						notebook.dispatch(effect.action as any);
 						break;
 					case "editor.mode": {
+						notebook.dispatch({ type: "SET_SESSION_MODE", mode: effect.mode });
 						break;
 					}
+					case "editor.defaultInsert":
+						notebook.dispatch({
+							type: "SET_DEFAULT_INSERT",
+							section: effect.section,
+							schema: effect.schema,
+						});
+						break;
 					case "router.open": {
 						const route = effect.route === "search" ? "help" : effect.route;
 						openedAny = true;

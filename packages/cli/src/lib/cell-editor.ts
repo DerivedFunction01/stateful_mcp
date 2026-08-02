@@ -34,7 +34,9 @@ export type DocumentAction =
 	| { type: "extendSelection"; delta: number }
 	| { type: "swapAnchor" }
 	| { type: "deleteSelection" }
-	| { type: "yankSelection" };
+	| { type: "yankSelection" }
+	| { type: "nextError" }
+	| { type: "prevError" };
 
 export interface DocumentPort {
 	getView(): DocumentView;
@@ -141,6 +143,8 @@ export type EditorAction =
 	| { type: "SET_COMPLETION"; completion: CompletionState }
 	| { type: "SHOW_HELP"; show: boolean }
 	| { type: "SET_ERROR"; error: string | null }
+	| { type: "HISTORY_PREV" }
+	| { type: "HISTORY_NEXT" }
 	| { type: "CANCEL" }
 	| { type: "COMMIT_COMPLETION"; line: string };
 
@@ -237,6 +241,9 @@ export function reduceEditorKernel(
 			return { ...state, showHelp: action.show };
 		case "SET_ERROR":
 			return { ...state, error: action.error };
+		case "HISTORY_PREV":
+		case "HISTORY_NEXT":
+			return state;
 		case "CANCEL":
 			return {
 				...state,

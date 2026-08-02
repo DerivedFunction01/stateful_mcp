@@ -49,6 +49,10 @@ function classify(action: ClinicalAction): Classification {
 			return { document: { type: "deleteSelection" } };
 		case ClinicalAction.YankSelection:
 			return { document: { type: "yankSelection" } };
+		case ClinicalAction.PrevError:
+			return { document: { type: "prevError" } };
+		case ClinicalAction.NextError:
+			return { document: { type: "nextError" } };
 		case ClinicalAction.RunCell:
 			return { domain: { type: "run" } };
 		case ClinicalAction.PreviewCell:

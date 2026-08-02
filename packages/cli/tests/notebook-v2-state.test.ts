@@ -77,4 +77,19 @@ describe("isolated notebook v2 state contract", () => {
 		expect(second.draftText).toBe("");
 		expect(second.cells[0]?.rawInput).toBe("existing text");
 	});
+
+	test("command history is preserved for v2 command input", () => {
+		let state = notebookReducer(INITIAL_NOTEBOOK_STATE, {
+			type: "COMMAND_SUBMIT",
+			line: ":workspace",
+		});
+		state = notebookReducer(state, {
+			type: "COMMAND_SUBMIT",
+			line: ":help",
+		});
+		state = notebookReducer(state, { type: "COMMAND_HISTORY_PREV" });
+		expect(state.commandLine).toBe(":help");
+		state = notebookReducer(state, { type: "COMMAND_HISTORY_PREV" });
+		expect(state.commandLine).toBe(":workspace");
+	});
 });

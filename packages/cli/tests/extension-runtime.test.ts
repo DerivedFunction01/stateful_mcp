@@ -84,9 +84,9 @@ describe("ScopedRegistry window isolation", () => {
 			"w",
 			"branch",
 		]);
-		expect(registry.commandsFor(otherScope).map((command) => command.id)).not.toContain(
-			"branch",
-		);
+		expect(
+			registry.commandsFor(otherScope).map((command) => command.id),
+		).not.toContain("branch");
 	});
 });
 
@@ -148,8 +148,21 @@ describe("command result → effects", () => {
 		expect(dispatchGeneralWindowCommand(":save")?.action).toBe("save");
 		expect(dispatchGeneralWindowCommand(":quit")?.action).toBe("quit");
 		expect(dispatchGeneralWindowCommand(":wq")?.action).toBe("save_quit");
-		expect(commandResultToEffects({ success: true, action: "save_quit" })).toEqual([
-			{ type: "app.quit" },
+		expect(
+			commandResultToEffects({ success: true, action: "save_quit" }),
+		).toEqual([{ type: "app.quit" }]);
+		expect(
+			commandResultToEffects({
+				success: true,
+				action: "set_default_insert",
+				data: { section: "objective", schema: "VitalsMeasurementEvent" },
+			}),
+		).toEqual([
+			{
+				type: "editor.defaultInsert",
+				section: "objective",
+				schema: "VitalsMeasurementEvent",
+			},
 		]);
 	});
 });

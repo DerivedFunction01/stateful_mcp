@@ -132,10 +132,7 @@ export function useWorkspace({
 			const engine = session?.result.engine;
 			if (!engine) throw new Error("No engine available");
 			if (!workspaceIdRef.current) return;
-			await engine.closeAssessmentWorkspace(
-				sessionId,
-				workspaceIdRef.current,
-			);
+			await engine.closeAssessmentWorkspace(sessionId, workspaceIdRef.current);
 			await refresh();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));

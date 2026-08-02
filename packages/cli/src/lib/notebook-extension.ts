@@ -92,6 +92,19 @@ export function commandResultToEffects(result: {
 				effects.push({ type: "editor.mode", mode });
 			return effects;
 		}
+		case "set_default_insert": {
+			const data = result.data as
+				| { section?: unknown; schema?: unknown }
+				| undefined;
+			if (typeof data?.section === "string") {
+				effects.push({
+					type: "editor.defaultInsert",
+					section: data.section,
+					schema: typeof data.schema === "string" ? data.schema : null,
+				});
+			}
+			return effects;
+		}
 		case "save":
 			effects.push({ type: "editor.message", message: "saved" });
 			return effects;

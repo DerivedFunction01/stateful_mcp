@@ -199,6 +199,8 @@ describe("Phase P5 — workspace window regions", () => {
 			"workspace-status-bar",
 			"workspace-sidebar",
 		]);
-		expect(regions.filter((region) => region.slot === "sidebar")).toHaveLength(1);
+		expect(regions.filter((region) => region.slot === "sidebar")).toHaveLength(
+			1,
+		);
 	});
 });

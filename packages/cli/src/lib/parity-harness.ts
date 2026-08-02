@@ -64,6 +64,9 @@ function documentToNotebookAction(
 			return { type: "DELETE_SELECTION" };
 		case "yankSelection":
 			return { type: "YANK_SELECTION" };
+		case "nextError":
+		case "prevError":
+			return null;
 		case "insertBelow":
 		case "insertAbove":
 			return null;

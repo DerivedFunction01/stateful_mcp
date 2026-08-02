@@ -8,6 +8,8 @@ export interface NotebookDocumentDeps {
 	/** Insert a new cell below/above the active cell (session-aware). */
 	insertBelow(): void;
 	insertAbove(): void;
+	nextError?(): number | null;
+	prevError?(): number | null;
 }
 
 /**
@@ -73,6 +75,18 @@ export class NotebookDocumentPort implements DocumentPort {
 				return { type: "DELETE_SELECTION" };
 			case "yankSelection":
 				return { type: "YANK_SELECTION" };
+			case "nextError": {
+				const index = this.deps?.nextError?.();
+				return index === null || index === undefined
+					? null
+					: { type: "SET_ACTIVE_INDEX", index };
+			}
+			case "prevError": {
+				const index = this.deps?.prevError?.();
+				return index === null || index === undefined
+					? null
+					: { type: "SET_ACTIVE_INDEX", index };
+			}
 		}
 	}
 }

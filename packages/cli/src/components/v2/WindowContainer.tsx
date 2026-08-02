@@ -140,12 +140,16 @@ export function WindowContainer({
 				emit({ type: "CANCEL" });
 				return;
 			}
-			if (key.tab || key.upArrow || key.downArrow) {
+			if (key.upArrow || key.downArrow) {
+				emit({
+					type: key.upArrow ? "HISTORY_PREV" : "HISTORY_NEXT",
+				});
+				return;
+			}
+			if (key.tab) {
 				const transition = reduceCompletion(
 					current.completion,
-					key.tab
-						? { kind: "tab", shift: Boolean(key.shift) }
-						: { kind: key.upArrow ? "up" : "down" },
+					{ kind: "tab", shift: Boolean(key.shift) },
 					current.draftText,
 					(partial) => catalog.getSuggestions(partial, context),
 				);

@@ -1412,13 +1412,9 @@ export class ClinicalEngine {
 		if (!branchId) {
 			throw new Error(`Workspace ${workspaceId} has no active branch`);
 		}
-		await this.workspaceStore.process(
-			sessionId,
-			workspaceId,
-			branchId,
-			"",
-			[{ verb: "close" }],
-		);
+		await this.workspaceStore.process(sessionId, workspaceId, branchId, "", [
+			{ verb: "close" },
+		]);
 	}
 
 	async completeAssessmentWorkspace(

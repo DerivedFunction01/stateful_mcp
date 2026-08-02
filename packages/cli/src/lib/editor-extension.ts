@@ -69,6 +69,11 @@ export type WindowEffect =
 	| { type: "router.switchWindow"; windowKind: string }
 	| { type: "editor.message"; message: string }
 	| { type: "editor.mode"; mode: "execute" | "preview" }
+	| {
+			type: "editor.defaultInsert";
+			section: string;
+			schema: string | null;
+	  }
 	| { type: "editor.completion"; completion: CompletionState }
 	| { type: "app.quit" };
 

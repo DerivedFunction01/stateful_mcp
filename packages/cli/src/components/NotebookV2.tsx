@@ -1,5 +1,5 @@
 import { useApp } from "ink";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import type {
@@ -30,7 +30,7 @@ export function NotebookV2() {
 	const session = useSession();
 	const notebook = useNotebook(session);
 	const { exit } = useApp();
-	const { state, dispatch } = notebook;
+	const { state, dispatch, cellSuggestions } = notebook;
 	const [completion, setCompletion] = useState<CompletionState>({
 		status: "idle",
 	});
@@ -39,6 +39,16 @@ export function NotebookV2() {
 	const [activeWindow, setActiveWindow] = useState<"notebook" | "workspace">(
 		"notebook",
 	);
+
+	useEffect(() => {
+		if (state.preview && !overlay) {
+			setOverlay({
+				route: "preview",
+				payload: state.preview,
+				originCellId: state.preview.cellId,
+			});
+		}
+	}, [state.preview, overlay]);
 
 	const cellDescriptors = useMemo(
 		() => ({
@@ -83,6 +93,8 @@ export function NotebookV2() {
 			new NotebookDocumentPort(state, dispatch, {
 				insertBelow: () => notebook.insertBelow(session?.sessionId ?? ""),
 				insertAbove: () => notebook.insertAbove(session?.sessionId ?? ""),
+				nextError: notebook.nextErrorIndex,
+				prevError: notebook.prevErrorIndex,
 			}),
 		[state, dispatch, notebook, session],
 	);
@@ -92,18 +104,27 @@ export function NotebookV2() {
 			new WindowDomainPort({
 				runActive: () => {
 					const cell = state.cells[state.activeIndex];
-					return cell ? notebook.runCell(cell) : Promise.resolve();
+					if (!cell) return Promise.resolve();
+					return state.sessionMode === "preview"
+						? notebook.previewCell(cell)
+						: notebook.runCell(cell);
 				},
 				runIndexes: async (indexes: number[]) => {
 					for (const idx of indexes) {
 						const cell = state.cells[idx];
-						if (cell) await notebook.runCell(cell);
+						if (!cell) continue;
+						if (state.sessionMode === "preview")
+							await notebook.previewCell(cell);
+						else await notebook.runCell(cell);
 					}
 				},
 				runCellIds: async (cellIds: string[]) => {
 					for (const id of cellIds) {
 						const cell = state.cells.find((c) => c.cellId === id);
-						if (cell) await notebook.runCell(cell);
+						if (!cell) continue;
+						if (state.sessionMode === "preview")
+							await notebook.previewCell(cell);
+						else await notebook.runCell(cell);
 					}
 				},
 				previewActive: () => {
@@ -232,6 +253,12 @@ export function NotebookV2() {
 			case "SET_COMPLETION":
 				setCompletion(action.completion);
 				return;
+			case "HISTORY_PREV":
+				dispatch({ type: "COMMAND_HISTORY_PREV" });
+				return;
+			case "HISTORY_NEXT":
+				dispatch({ type: "COMMAND_HISTORY_NEXT" });
+				return;
 			case "COMMIT_COMPLETION":
 				dispatch({ type: "COMMAND_SET", text: action.line });
 				return;
@@ -256,6 +283,7 @@ export function NotebookV2() {
 		sessionId: session.sessionId,
 		editorState,
 		lastEditCellId: state.lastEditCellId,
+		cellSuggestions,
 	});
 
 	const containerDomain = {
@@ -277,6 +305,7 @@ export function NotebookV2() {
 			return Promise.resolve();
 		},
 		dispatchCommand: async (line: string) => {
+			dispatch({ type: "COMMAND_SUBMIT", line });
 			await runtime.dispatchCommandLine(line);
 			return { success: true };
 		},

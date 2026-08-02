@@ -50,6 +50,17 @@ describe("NotebookKeymapPolicy", () => {
 		}
 	});
 
+	test("[e and ]e resolve to error-navigation document actions", () => {
+		expect(policy.resolve("e", {}, "NORMAL", "[")).toEqual({
+			kind: "document",
+			action: { type: "prevError" },
+		});
+		expect(policy.resolve("e", {}, "NORMAL", "]")).toEqual({
+			kind: "document",
+			action: { type: "nextError" },
+		});
+	});
+
 	test("INSERT char resolves to generic insert-text", () => {
 		const result = policy.resolve("x", {}, "INSERT", "");
 		expect(result.kind).toBe("generic");

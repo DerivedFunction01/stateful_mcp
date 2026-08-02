@@ -15,7 +15,7 @@ async function main() {
   clinical session create <name> Create a new session
   clinical profile list          List parser profiles
   clinical profile get <id>      Get profile details
-  clinical notebook              Open the interactive notebook editor`);
+   clinical notebook              Open the interactive notebook editor`);
 		process.exit(0);
 	}
 
@@ -24,10 +24,7 @@ async function main() {
 		const { render } = await import("ink");
 		const { NotebookApp } = await import("./app");
 		const { default: React } = await import("react");
-		const useV2 = args.includes("--v2");
-		const { waitUntilExit } = render(
-			React.createElement(NotebookApp, { variant: useV2 ? "v2" : "v1" }),
-		);
+		const { waitUntilExit } = render(React.createElement(NotebookApp));
 		await waitUntilExit();
 		return;
 	}
