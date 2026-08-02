@@ -136,13 +136,9 @@ export const PRESSURE_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 /** Canonical base: litre (L) */
 export const VOLUME_CONVERSIONS: Record<string, ReturnType<typeof factor>> = {
 	L: factor(1),
-	l: factor(1),
 	dL: factor(1 / 10),
-	dl: factor(1 / 10),
 	mL: factor(1 / 1_000),
-	ml: factor(1 / 1_000),
 	uL: factor(1 / 1_000_000),
-	ul: factor(1 / 1_000_000),
 	cc: factor(1 / 1_000), // 1 cc ≡ 1 mL
 	fl_oz: factor(0.0295735295625), // US fl oz
 	tsp: factor(0.00492892159375),
@@ -225,47 +221,29 @@ export const MASS_CONCENTRATION_CONVERSIONS: Record<
 	ReturnType<typeof factor>
 > = {
 	"g/L": factor(1), // 1 g/L ≡ 1 kg/m³
-	"g/l": factor(1),
 	"g/dL": factor(10), // 1 g/dL = 10 g/L
 	"g/mL": factor(1_000),
-	"g/ml": factor(1_000),
 	"g/uL": factor(1_000_000),
-	"g/ul": factor(1_000_000),
 	"mg/L": factor(1 / 1_000), // 1 mg/L = 0.001 kg/m³
-	"mg/l": factor(1 / 1_000),
 	"mg/dL": factor(1 / 100), // 1 mg/dL = 0.01 g/L
 	"mg/mL": factor(1), // 1 mg/mL = 1 g/L
-	"mg/ml": factor(1),
 	"mg/uL": factor(1_000),
-	"mg/ul": factor(1_000),
 	"mcg/L": factor(1 / 1_000_000),
-	"mcg/l": factor(1 / 1_000_000),
 	"mcg/dL": factor(1 / 100_000),
 	"mcg/mL": factor(1 / 1_000),
-	"mcg/ml": factor(1 / 1_000),
 	"mcg/uL": factor(1),
-	"mcg/ul": factor(1),
 	"ug/L": factor(1 / 1_000_000),
-	"ug/l": factor(1 / 1_000_000),
 	"ug/dL": factor(1 / 100_000),
 	"ug/mL": factor(1 / 1_000),
-	"ug/ml": factor(1 / 1_000),
 	"ug/uL": factor(1),
-	"ug/ul": factor(1),
 	"ng/L": factor(1 / 1_000_000_000),
-	"ng/l": factor(1 / 1_000_000_000),
 	"ng/dL": factor(1 / 100_000_000),
 	"ng/mL": factor(1 / 1_000_000),
-	"ng/ml": factor(1 / 1_000_000),
 	"ng/uL": factor(1 / 1_000),
-	"ng/ul": factor(1 / 1_000),
 	"pg/L": factor(1 / 1_000_000_000_000),
-	"pg/l": factor(1 / 1_000_000_000_000),
 	"pg/dL": factor(1 / 100_000_000_000),
 	"pg/mL": factor(1 / 1_000_000_000),
-	"pg/ml": factor(1 / 1_000_000_000),
 	"pg/uL": factor(1 / 1_000_000),
-	"pg/ul": factor(1 / 1_000_000),
 };
 
 /** Canonical base: mol/L */
