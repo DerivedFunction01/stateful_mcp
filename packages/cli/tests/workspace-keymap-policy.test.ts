@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { WorkspaceKeymapPolicy } from "../src/lib/workspace-keymap-policy";
+import { WorkspaceKeymapPolicy } from "../src/lib/windows/workspace/keymap-policy";
 
 describe("WorkspaceKeymapPolicy", () => {
 	const policy = new WorkspaceKeymapPolicy();

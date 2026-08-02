@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Key } from "ink";
-import { NotebookKeymapPolicy } from "../src/lib/notebook-keymap-policy";
+import { NotebookKeymapPolicy } from "../src/lib/windows/notebook/keymap-policy";
 
 describe("P4 Overlay and Router key mappings", () => {
 	const policy = new NotebookKeymapPolicy();

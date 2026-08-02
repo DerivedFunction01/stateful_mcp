@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { currentCommandLine, replaceCurrentLine } from "../src/lib/cell-editor";
-import { WorkspaceCommandCatalog } from "../src/lib/workspace-editor";
+import { WorkspaceCommandCatalog } from "../src/lib/windows/workspace/editor";
 
 const profile = {
 	workspaceCommandMappings: {

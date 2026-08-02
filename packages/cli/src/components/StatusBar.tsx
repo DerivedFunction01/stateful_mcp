@@ -1,7 +1,7 @@
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
 import type { ExecutionPolicy } from "../hooks/useNotebook";
-import { t } from "../lib/i18n";
+import { t } from "../lib/shared/i18n";
 
 interface StatusBarProps {
 	mode: EditorMode;

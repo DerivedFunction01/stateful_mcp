@@ -1,5 +1,5 @@
 import { Text } from "ink";
-import { t } from "../lib/i18n";
+import { t } from "../lib/shared/i18n";
 
 function statusColor(status: string): string {
 	if (status === "active") return "green";

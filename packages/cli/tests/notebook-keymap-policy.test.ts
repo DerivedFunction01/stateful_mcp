@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { NotebookKeymapPolicy } from "../src/lib/notebook-keymap-policy";
+import { NotebookKeymapPolicy } from "../src/lib/windows/notebook/keymap-policy";
 
 const policy = new NotebookKeymapPolicy();
 

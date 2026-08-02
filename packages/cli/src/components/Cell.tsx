@@ -4,7 +4,7 @@ import { Box, Text } from "ink";
 import { useMemo } from "react";
 import { formatParsedItem } from "../formatter/format-parsed";
 import type { CellSuggestion } from "../hooks/useNotebook";
-import { t } from "../lib/i18n";
+import { t } from "../lib/shared/i18n";
 
 interface CellProps {
 	cell: Cell;

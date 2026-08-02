@@ -5,7 +5,7 @@ import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebo
 import {
 	bootstrapSession,
 	DEFAULT_TUI_PATIENT,
-} from "../src/lib/session-bootstrap";
+} from "../src/lib/session/bootstrap";
 
 class FakeNotebookStore implements NotebookStore {
 	async getSessionIds(): Promise<string[]> {

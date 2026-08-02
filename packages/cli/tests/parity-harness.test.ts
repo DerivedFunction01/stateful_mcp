@@ -7,7 +7,7 @@ import {
 	compareParity,
 	createNotebookParityRunner,
 	type ParityAction,
-} from "../src/lib/parity-harness";
+} from "../src/lib/testing/parity-harness";
 
 const cell = (id: string, rawInput: string) => ({
 	cellId: id,

@@ -7,7 +7,7 @@ import {
 	deriveCompletionSession,
 	mergeCandidate,
 	reduceCompletion,
-} from "../src/lib/completion-state";
+} from "../src/lib/editor/completion-state";
 
 function sug(
 	verb: string,

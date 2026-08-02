@@ -1,5 +1,5 @@
-import { NotebookV2 } from "./components/NotebookV2";
+import { Notebook } from "./components/Notebook";
 
 export function NotebookApp() {
-	return <NotebookV2 />;
+	return <Notebook />;
 }

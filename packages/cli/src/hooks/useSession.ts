@@ -1,7 +1,7 @@
 import type { EngineBuilderResult } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
 import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebook-store";
 import { useEffect, useState } from "react";
-import { bootstrapSession } from "../lib/session-bootstrap";
+import { bootstrapSession } from "../lib/session/bootstrap";
 
 export interface SessionState {
 	result: EngineBuilderResult;

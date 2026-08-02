@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
-import { dispatchGeneralWindowCommand } from "../src/lib/notebook-extension";
+import { dispatchGeneralWindowCommand } from "../src/lib/windows/notebook/extension";
 
 describe("gw alias", () => {
 	test("editor registry canonicalizes gw to workspace", () => {

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { WindowDefinition, WindowSlot } from "../src/lib/cell-editor";
-import { WindowDomainPort } from "../src/lib/notebook-domain";
-import { notebookWindow } from "../src/lib/notebook-window";
-import { PLAN_SLOTS, planWindow } from "../src/lib/plan-window";
-import { WindowRegistry } from "../src/lib/window-registry";
-import { WorkspaceDocumentPort } from "../src/lib/workspace-document";
-import { workspaceWindow } from "../src/lib/workspace-window";
+import { WindowDomainPort } from "../src/lib/windows/notebook/domain";
+import { notebookWindow } from "../src/lib/windows/notebook/window";
+import { PLAN_SLOTS, planWindow } from "../src/lib/windows/plan/window";
+import { WindowRegistry } from "../src/lib/runtime/window-registry";
+import { WorkspaceDocumentPort } from "../src/lib/windows/workspace/document";
+import { workspaceWindow } from "../src/lib/windows/workspace/window";
 
 function stubNotebook(
 	overrides?: Partial<{

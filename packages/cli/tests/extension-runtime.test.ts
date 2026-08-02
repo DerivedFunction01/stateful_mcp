@@ -4,19 +4,19 @@ import {
 	commandInputExtension,
 	coreEditorExtension,
 	visualSelectionExtension,
-} from "../src/lib/builtin-extensions";
-import type { WindowScope } from "../src/lib/editor-extension";
+} from "../src/lib/runtime/builtin-extensions";
+import type { WindowScope } from "../src/lib/runtime/extension";
 import {
 	ExtensionRegistry,
 	IntentDispatcher,
-} from "../src/lib/extension-registry";
-import { IntentCatalog } from "../src/lib/intent-catalog";
+} from "../src/lib/runtime/registry";
+import { IntentCatalog } from "../src/lib/runtime/intent-catalog";
 import {
 	buildNotebookExtension,
 	commandResultToEffects,
 	dispatchGeneralWindowCommand,
-} from "../src/lib/notebook-extension";
-import { buildWorkspaceExtension } from "../src/lib/workspace-extension";
+} from "../src/lib/windows/notebook/extension";
+import { buildWorkspaceExtension } from "../src/lib/windows/workspace/extension";
 
 const scope: WindowScope = {
 	windowKind: "notebook",

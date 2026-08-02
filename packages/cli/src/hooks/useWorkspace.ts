@@ -3,7 +3,7 @@ import { segmentCellInput } from "@stateful-mcp/clinical/session/cell-input-segm
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CellSubmissionPlan, CommandCatalog } from "../lib/cell-editor";
-import { WorkspaceCommandCatalog } from "../lib/workspace-editor";
+import { WorkspaceCommandCatalog } from "../lib/windows/workspace/editor";
 import type { SessionState } from "./useSession";
 
 interface UseWorkspaceArgs {

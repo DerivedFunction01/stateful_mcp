@@ -3,7 +3,7 @@ import {
 	INITIAL_NOTEBOOK_STATE,
 	notebookReducer,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
-import { NotebookDocumentPort } from "../src/lib/notebook-document";
+import { NotebookDocumentPort } from "../src/lib/windows/notebook/document";
 
 const baseCell = (id: string) => ({
 	cellId: id,

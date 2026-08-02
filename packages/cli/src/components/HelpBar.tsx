@@ -2,7 +2,7 @@ import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-d
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
 import { useMemo } from "react";
-import { t } from "../lib/i18n";
+import { t } from "../lib/shared/i18n";
 
 interface HelpBarProps {
 	mode: EditorMode;

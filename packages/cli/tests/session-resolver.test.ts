@@ -5,7 +5,7 @@ import type {
 	NotebookSessionDocument,
 } from "@stateful-mcp/clinical/store/notebook/interfaces";
 import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebook-store";
-import { resolveInitialSession } from "../src/lib/session-resolver";
+import { resolveInitialSession } from "../src/lib/session/resolver";
 
 function makeCell(cellId: string, sessionId: string, updatedAt: string): Cell {
 	return {

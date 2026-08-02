@@ -3,8 +3,8 @@ import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/com
 import { getAutocompleteSuggestions } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { CommandGroup } from "@stateful-mcp/clinical/session/command-descriptor";
-import { t } from "../src/lib/i18n";
-import { capSuggestions, MAX_ARG, MAX_VERB } from "../src/lib/palette";
+import { t } from "../src/lib/shared/i18n";
+import { capSuggestions, MAX_ARG, MAX_VERB } from "../src/lib/editor/palette";
 
 function verbSug(verb: string, group = "editor"): AutocompleteSuggestion {
 	return {

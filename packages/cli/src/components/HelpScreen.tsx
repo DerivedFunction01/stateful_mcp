@@ -1,5 +1,5 @@
 import { Box, Text, useInput } from "ink";
-import { t } from "../lib/i18n";
+import { t } from "../lib/shared/i18n";
 
 interface HelpScreenProps {
 	editorDescriptors: { verb: string; group: string }[];

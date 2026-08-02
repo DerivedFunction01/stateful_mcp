@@ -1,9 +1,9 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { Box, Text, useStdout } from "ink";
 import { useMemo } from "react";
-import { completionRemainder } from "../lib/completion-state";
-import { t } from "../lib/i18n";
-import { capSuggestions } from "../lib/palette";
+import { completionRemainder } from "../lib/editor/completion-state";
+import { t } from "../lib/shared/i18n";
+import { capSuggestions } from "../lib/editor/palette";
 
 interface CommandBarProps {
 	commandLine: string;

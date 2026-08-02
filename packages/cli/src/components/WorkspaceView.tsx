@@ -1,7 +1,7 @@
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import { Box, Text } from "ink";
 import { formatParsedItem } from "../formatter/format-parsed";
-import { t } from "../lib/i18n";
+import { t } from "../lib/shared/i18n";
 import { StatusBadge } from "./StatusBadge";
 
 interface WorkspaceViewProps {

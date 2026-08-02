@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import type { WindowDefinition, WindowSlot } from "../src/lib/cell-editor";
-import { WindowDomainPort } from "../src/lib/notebook-domain";
+import { WindowDomainPort } from "../src/lib/windows/notebook/domain";
 import {
 	createWindowRegistry,
 	WindowRegistry,
-} from "../src/lib/window-registry";
-import { WorkspaceDocumentPort } from "../src/lib/workspace-document";
-import { workspaceWindow } from "../src/lib/workspace-window";
+} from "../src/lib/runtime/window-registry";
+import { WorkspaceDocumentPort } from "../src/lib/windows/workspace/document";
+import { workspaceWindow } from "../src/lib/windows/workspace/window";
 
 const snapshot: WorkspaceSnapshot = {
 	workspaceId: "work_1",

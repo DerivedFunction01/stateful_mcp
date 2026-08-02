@@ -3,7 +3,7 @@ import { SOAP_SECTIONS } from "@stateful-mcp/clinical/session/command-completion
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
 import type { CellSuggestion } from "../hooks/useNotebook";
-import { has, t } from "../lib/i18n";
+import { has, t } from "../lib/shared/i18n";
 import { CellComponent } from "./Cell";
 
 interface CellListProps {
