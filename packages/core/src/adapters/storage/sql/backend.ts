@@ -1,11 +1,16 @@
 import { Database } from "bun:sqlite";
 import { type DuckDBConnection, DuckDBInstance } from "@duckdb/node-api";
 import { Pool, type PoolClient } from "pg";
+import type {
+	EffectiveStorePolicy,
+	StorageOperation,
+} from "../../../storage/contracts";
 import {
 	QueryCompiler,
 	type SqlDialect,
 } from "../../../translation/sql-compiler";
 import { OpfsDb } from "./opfs-backend";
+import { SqlPermissionPolicy } from "./permission-policy";
 
 export interface SqlStatement {
 	sql: string;
@@ -26,6 +31,7 @@ export class SqlBackend {
 	static async connect(
 		dialect: SqlDialect,
 		target: string,
+		policy?: EffectiveStorePolicy,
 	): Promise<SqlBackend> {
 		switch (dialect) {
 			case "sqlite": {
@@ -35,7 +41,9 @@ export class SqlBackend {
 				if (dir !== "." && !existsSync(dir)) {
 					mkdirSync(dir, { recursive: true });
 				}
-				return new SqlBackend("sqlite", new Database(target));
+				const backend = new SqlBackend("sqlite", new Database(target));
+				backend.setPermissionPolicy(policy);
+				return backend;
 			}
 			case "duckdb": {
 				let dbPath = target;
@@ -72,17 +80,23 @@ export class SqlBackend {
 					}
 				}
 
+				backend.setPermissionPolicy(policy);
 				return backend;
 			}
-			case "postgres":
-				return new SqlBackend(
+			case "postgres": {
+				const backend = new SqlBackend(
 					"postgres",
 					new Pool({ connectionString: target }),
 				);
+				backend.setPermissionPolicy(policy);
+				return backend;
+			}
 			case "opfs": {
 				const opfsDb = new OpfsDb(target);
 				await opfsDb.open();
-				return new SqlBackend("opfs", opfsDb);
+				const backend = new SqlBackend("opfs", opfsDb);
+				backend.setPermissionPolicy(policy);
+				return backend;
 			}
 			default: {
 				const _exhaustive: never = dialect;
@@ -91,7 +105,27 @@ export class SqlBackend {
 		}
 	}
 
+	private permissionPolicy = new SqlPermissionPolicy();
+
+	setPermissionPolicy(policy?: EffectiveStorePolicy): void {
+		this.permissionPolicy = new SqlPermissionPolicy(policy);
+	}
+
+	get diagnostics() {
+		return this.permissionPolicy.diagnostics;
+	}
+
+	get schemaMode() {
+		return this.permissionPolicy.policy.schemaMode ?? "initialize";
+	}
+
 	async exec(sql: string, params: any[] = []): Promise<void> {
+		const operation: StorageOperation = "write";
+		if (!this.permissionPolicy.allows(operation)) {
+			this.permissionPolicy.record(operation, "skipped_read_only");
+			return;
+		}
+		this.permissionPolicy.record(operation, "applied");
 		switch (this.dialect) {
 			case "sqlite":
 				(this.conn as Database).run(sql, ...params);
@@ -109,6 +143,11 @@ export class SqlBackend {
 	}
 
 	async query(sql: string, params: any[] = []): Promise<Record<string, any>[]> {
+		if (!this.permissionPolicy.allows("read")) {
+			this.permissionPolicy.record("read", "skipped_read_only");
+			return [];
+		}
+		this.permissionPolicy.record("read", "applied");
 		switch (this.dialect) {
 			case "sqlite": {
 				const db = this.conn as Database;
@@ -146,6 +185,11 @@ export class SqlBackend {
 	}
 
 	async transaction(statements: SqlStatement[]): Promise<void> {
+		if (!this.permissionPolicy.allows("write")) {
+			this.permissionPolicy.record("write", "skipped_read_only");
+			return;
+		}
+		this.permissionPolicy.record("write", "applied");
 		switch (this.dialect) {
 			case "sqlite": {
 				const db = this.conn as Database;

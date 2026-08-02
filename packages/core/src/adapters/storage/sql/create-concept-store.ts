@@ -11,6 +11,6 @@ export async function createConceptStore(
 	backend?: SqlBackend,
 ): Promise<ConceptStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, conceptDdlKeys);
+	await initSchema(be, conceptDdlKeys);
 	return new ConceptRepoStore(be);
 }

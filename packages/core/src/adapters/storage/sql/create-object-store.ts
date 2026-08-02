@@ -17,7 +17,7 @@ export async function createObjectStore(
 	backend?: SqlBackend,
 ): Promise<SessionObjectStore & PersistentObjectStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, objectDdlKeys);
+	await initSchema(be, objectDdlKeys);
 	const store = new GenericSqlEntityStore<ObjectState, PersistedObjectState>(
 		be,
 		objectEntityConfigs[dialect],

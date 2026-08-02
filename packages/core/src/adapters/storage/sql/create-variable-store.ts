@@ -18,7 +18,7 @@ export async function createVariableStore(
 	backend?: SqlBackend,
 ): Promise<SessionVariableStore & PersistentVariableStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, variableDdlKeys);
+	await initSchema(be, variableDdlKeys);
 	const store = new GenericSqlEntityStore(be, variableEntityConfigs[dialect]);
 	return new SqlRepoStore(store) as unknown as SessionVariableStore &
 		PersistentVariableStore;

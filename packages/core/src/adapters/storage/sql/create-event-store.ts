@@ -17,7 +17,7 @@ export async function createEventStore(
 	backend?: SqlBackend,
 ): Promise<SessionEventStore & PersistentEventStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, eventDdlKeys);
+	await initSchema(be, eventDdlKeys);
 	const store = new GenericSqlEntityStore<EventCommit, PersistedEventState>(
 		be,
 		eventEntityConfigs[dialect],

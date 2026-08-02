@@ -17,7 +17,7 @@ export async function createFormStore(
 	backend?: SqlBackend,
 ): Promise<SessionFormStore & PersistentFormStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, formDdlKeys);
+	await initSchema(be, formDdlKeys);
 	const store = new GenericSqlEntityStore<FormState, PersistedFormStateDetails>(
 		be,
 		formEntityConfigs[dialect],

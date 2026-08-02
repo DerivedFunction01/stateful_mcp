@@ -5,6 +5,13 @@ import type {
 	ConceptStore,
 	PersistentExpressionStore,
 } from "@stateful-mcp/core/middleware/dictionary/interfaces";
+import type {
+	EffectiveStorePolicy,
+	SchemaInitializationMode,
+	StoreBinding,
+	StoreCapabilities,
+	StorePermissions,
+} from "@stateful-mcp/core/storage/contracts";
 import type { SqlDialect } from "@stateful-mcp/core/translation/sql-compiler";
 import type {
 	PersistentEventStore,
@@ -45,6 +52,8 @@ import {
 	MemoryConceptStoreBackend,
 	MemoryExpressionStoreBackend,
 } from "../simple/memory/dict-backend";
+import { PermissionedSimpleKvBackend } from "../simple/permissioned-kv-backend";
+import { SqlBackend } from "../sql/backend";
 import * as sqlFactories from "../sql/factories";
 
 export type BackendType =
@@ -60,6 +69,9 @@ export type BackendType =
 export interface BackendSpec {
 	type: BackendType;
 	target?: string;
+	capabilities?: StoreCapabilities;
+	permissions?: StorePermissions;
+	schemaMode?: SchemaInitializationMode;
 }
 
 export interface RepoConfig {
@@ -145,18 +157,122 @@ function dialectFor(type: string): SqlDialect {
 	}
 }
 
-function buildKvBackend(type: string, target?: string): KvBackend {
+function policyFor(spec?: BackendSpec): EffectiveStorePolicy {
+	return {
+		capabilities: spec?.capabilities,
+		permissions: spec?.permissions,
+		schemaMode: spec?.schemaMode,
+	};
+}
+
+function buildKvBackend(
+	type: string,
+	target?: string,
+	policy: EffectiveStorePolicy = {},
+): KvBackend {
+	let backend: KvBackend;
 	switch (type) {
 		case "jsonl": {
 			const sessionPath = target ? `${target}-session.jsonl` : undefined;
 			const persistentPath = target ? `${target}-persistent.jsonl` : undefined;
-			return new JsonlKvBackend(sessionPath, persistentPath);
+			backend = new JsonlKvBackend(sessionPath, persistentPath);
+			break;
 		}
 		case "indexeddb":
-			return new IndexedDbKvBackend(target || "stateful_mcp_kv");
+			backend = new IndexedDbKvBackend(target || "stateful_mcp_kv");
+			break;
 		default:
-			return new MemoryKvBackend();
+			backend = new MemoryKvBackend();
+			break;
 	}
+	return new PermissionedSimpleKvBackend(backend, policy);
+}
+
+function connectSql(spec: BackendSpec): Promise<SqlBackend> {
+	return SqlBackend.connect(
+		dialectFor(spec.type),
+		spec.target || "",
+		policyFor(spec),
+	);
+}
+
+function bindingToSpec(binding: StoreBinding, context: string): BackendSpec {
+	if (binding.locator._type !== "adapter") {
+		throw new Error(
+			`${context} must use an adapter locator for repository construction.`,
+		);
+	}
+	const options = binding.locator.options ?? {};
+	const target =
+		(options as any).path ??
+		(options as any).dbName ??
+		(options as any).connectionString ??
+		(options as any).connection;
+	return {
+		type: binding.locator.name as BackendType,
+		target: target === undefined ? undefined : String(target),
+		capabilities: binding.capabilities,
+		permissions: binding.permissions,
+		schemaMode: binding.permissions?.write === false ? "read_only" : undefined,
+	};
+}
+
+function routeBinding(
+	route: { source?: StoreBinding; projection?: StoreBinding } | undefined,
+	context: string,
+): BackendSpec | undefined {
+	const binding = route?.projection ?? route?.source;
+	return binding ? bindingToSpec(binding, context) : undefined;
+}
+
+function applyStorageRuntime(config: RepoConfig): RepoConfig {
+	if (!config.storageRuntime) return config;
+	const result: RepoConfig = { ...config };
+	const runtime = config.storageRuntime as any;
+	for (const domain of [
+		"filter",
+		"form",
+		"object",
+		"event",
+		"trace",
+		"variable",
+	] as const) {
+		const section = runtime[domain];
+		if (!section) continue;
+		const existing = (result as any)[domain] ?? {};
+		const session = section.session?.route;
+		const global = section.persistent?.scope?.global;
+		const user = section.persistent?.scope?.user;
+		if (global && user && JSON.stringify(global) !== JSON.stringify(user)) {
+			throw new Error(
+				`storage_runtime.${domain} requires one backend for global and user persistence.`,
+			);
+		}
+		(result as any)[domain] = {
+			...existing,
+			session:
+				existing.session ??
+				routeBinding(session, `storage_runtime.${domain}.session`),
+			persistent:
+				existing.persistent ??
+				routeBinding(global ?? user, `storage_runtime.${domain}.persistent`),
+		};
+	}
+	const dictionary = runtime.dictionary;
+	if (dictionary) {
+		const concept = routeBinding(
+			dictionary.concepts,
+			"storage_runtime.dictionary.concepts",
+		);
+		const expression = routeBinding(
+			dictionary.expressions,
+			"storage_runtime.dictionary.expressions",
+		);
+		if (!(result as any).concept && concept) (result as any).concept = concept;
+		if (!(result as any).expression && expression)
+			(result as any).expression = expression;
+	}
+	return result;
 }
 
 function buildConceptBackend(
@@ -200,6 +316,7 @@ function buildExpressionBackend(
 export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 	if (config.storageRuntime)
 		validateStorageRuntimeConfig(config.storageRuntime);
+	config = applyStorageRuntime(config);
 	const adapter: RepoAdapter = { storageRuntime: config.storageRuntime };
 
 	// Helper to resolve generic pair configuration (form, filter, object, event)
@@ -227,11 +344,19 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 		) {
 			if (isSql(sessionSpec.type)) {
 				const dialect = dialectFor(sessionSpec.type);
-				const store = await sqlFactory(dialect, sessionSpec.target || "");
+				const store = await sqlFactory(
+					dialect,
+					sessionSpec.target || "",
+					await connectSql(sessionSpec),
+				);
 				result.session = store;
 				result.persistent = store;
 			} else {
-				const backend = buildKvBackend(sessionSpec.type, sessionSpec.target);
+				const backend = buildKvBackend(
+					sessionSpec.type,
+					sessionSpec.target,
+					policyFor(sessionSpec),
+				);
 				const store = await kvFactory(backend);
 				result.session = store;
 				result.persistent = store;
@@ -243,9 +368,17 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 		if (sessionSpec) {
 			if (isSql(sessionSpec.type)) {
 				const dialect = dialectFor(sessionSpec.type);
-				result.session = await sqlFactory(dialect, sessionSpec.target);
+				result.session = await sqlFactory(
+					dialect,
+					sessionSpec.target,
+					await connectSql(sessionSpec),
+				);
 			} else {
-				const backend = buildKvBackend(sessionSpec.type, sessionSpec.target);
+				const backend = buildKvBackend(
+					sessionSpec.type,
+					sessionSpec.target,
+					policyFor(sessionSpec),
+				);
 				result.session = await kvFactory(backend);
 			}
 		}
@@ -253,11 +386,16 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 		if (persistentSpec) {
 			if (isSql(persistentSpec.type)) {
 				const dialect = dialectFor(persistentSpec.type);
-				result.persistent = await sqlFactory(dialect, persistentSpec.target);
+				result.persistent = await sqlFactory(
+					dialect,
+					persistentSpec.target,
+					await connectSql(persistentSpec),
+				);
 			} else {
 				const backend = buildKvBackend(
 					persistentSpec.type,
 					persistentSpec.target,
+					policyFor(persistentSpec),
 				);
 				result.persistent = await kvFactory(backend);
 			}
@@ -325,6 +463,7 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 			adapter.conceptStore = await sqlFactories.createConceptStore(
 				dialect,
 				conceptSpec.target!,
+				await connectSql(conceptSpec),
 			);
 		} else {
 			const backend = buildConceptBackend(conceptSpec.type, conceptSpec.target);
@@ -340,6 +479,7 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 				await sqlFactories.createExpressionStore(
 					dialect,
 					expressionSpec.target!,
+					await connectSql(expressionSpec),
 				);
 		} else {
 			const backend = buildExpressionBackend(

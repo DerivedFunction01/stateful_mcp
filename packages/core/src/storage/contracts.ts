@@ -30,6 +30,32 @@ export interface StorePermissions {
 	export?: boolean;
 	import?: boolean;
 }
+export type StorageOperation =
+	| "read"
+	| "write"
+	| "delete"
+	| "syncRead"
+	| "syncWrite"
+	| "schema";
+export type OperationStatus =
+	| "applied"
+	| "skipped_read_only"
+	| "skipped_unsupported"
+	| "rejected";
+export type SchemaInitializationMode =
+	| "initialize"
+	| "validate_only"
+	| "read_only";
+export interface PermissionDiagnostics {
+	lastStatus?: OperationStatus;
+	lastOperation?: StorageOperation;
+	suppressedCount: number;
+}
+export interface EffectiveStorePolicy {
+	capabilities?: StoreCapabilities;
+	permissions?: StorePermissions;
+	schemaMode?: SchemaInitializationMode;
+}
 export type StorageRole =
 	| "source"
 	| "projection"
@@ -101,6 +127,7 @@ export interface SyncPreview {
 }
 export interface SyncResult extends SyncPreview {
 	cursor?: string;
+	status?: OperationStatus;
 }
 export interface SyncTarget {
 	preview(records: AsyncIterable<SyncRecord>): Promise<SyncPreview>;
@@ -112,7 +139,7 @@ export interface SyncCheckpointRecord {
 	sourceId: string;
 	domain: string;
 	cursor?: string;
-	status: "idle" | "applied" | "error";
+	status: "idle" | "applied" | "skipped" | "error";
 	updatedAt: string;
 	errorMessage?: string;
 }

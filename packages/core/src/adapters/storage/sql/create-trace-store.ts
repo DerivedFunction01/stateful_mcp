@@ -12,7 +12,7 @@ export async function createTraceStore(
 	backend?: SqlBackend,
 ): Promise<SessionTraceStore & PersistentTraceStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, traceDdlKeys);
+	await initSchema(be, traceDdlKeys);
 	const store = new GenericSqlEntityStore(be, traceEntityConfigs[dialect]);
 	return new SqlRepoStore(store) as SessionTraceStore & PersistentTraceStore;
 }

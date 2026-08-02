@@ -17,7 +17,7 @@ export async function createFilterStore(
 	backend?: SqlBackend,
 ): Promise<SessionFilterStore & PersistentFilterStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, filterDdlKeys);
+	await initSchema(be, filterDdlKeys);
 	const store = new GenericSqlEntityStore<FilterState, PersistedFilterState>(
 		be,
 		filterEntityConfigs[dialect],

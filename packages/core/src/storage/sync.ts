@@ -1,5 +1,6 @@
 import type {
 	CursorSyncSource,
+	EffectiveStorePolicy,
 	SyncCheckpointStore,
 	SyncMedium,
 	SyncPreview,
@@ -13,7 +14,7 @@ export interface SyncCheckpoint {
 	domain: string;
 	cursor?: string;
 	updatedAt: string;
-	status: "idle" | "applied" | "error";
+	status: "idle" | "applied" | "skipped" | "error";
 	errorMessage?: string;
 }
 
@@ -92,6 +93,33 @@ export interface IncrementalSyncResult extends SyncResult {
 	attempts: number;
 }
 
+export class PermissionedSyncTarget implements SyncTarget {
+	constructor(
+		private readonly target: SyncTarget,
+		private readonly policy: EffectiveStorePolicy = {},
+	) {}
+
+	async preview(records: AsyncIterable<SyncRecord>) {
+		if (this.policy.permissions?.syncWrite === false) {
+			const batch = await collectRecords(records);
+			return { accepted: 0, rejected: batch.length };
+		}
+		return this.target.preview(records);
+	}
+
+	async apply(records: AsyncIterable<SyncRecord>): Promise<SyncResult> {
+		if (this.policy.permissions?.syncWrite === false) {
+			const batch = await collectRecords(records);
+			return {
+				accepted: 0,
+				rejected: batch.length,
+				status: "skipped_read_only",
+			};
+		}
+		return this.target.apply(records);
+	}
+}
+
 export class IncrementalSyncRunner {
 	constructor(
 		private source: CursorSyncSource,
@@ -117,17 +145,24 @@ export class IncrementalSyncRunner {
 					options.pageSize,
 				);
 				const result = await this.target.apply(arrayRecords(page.records));
+				const applied =
+					result.status !== "skipped_read_only" &&
+					result.status !== "skipped_unsupported";
+				const cursor = applied ? page.nextCursor : previous?.cursor;
 				await this.checkpoints.set({
 					projectionId: options.projectionId,
 					sourceId: options.sourceId,
 					domain: options.domain,
-					cursor: page.nextCursor,
-					status: "applied",
+					cursor,
+					status: applied ? "applied" : "skipped",
 					updatedAt: new Date().toISOString(),
+					errorMessage: applied
+						? undefined
+						: "Sync write was suppressed by permissions.",
 				});
 				return {
 					...result,
-					nextCursor: page.nextCursor,
+					nextCursor: cursor,
 					hasMore: page.hasMore,
 					attempts,
 				};
@@ -160,7 +195,7 @@ export class InMemorySyncTarget implements SyncTarget {
 			if (this.isStale(record)) rejected++;
 			else accepted++;
 		}
-		return { accepted, rejected };
+		return { accepted, rejected, status: "applied" };
 	}
 
 	async apply(records: AsyncIterable<SyncRecord>): Promise<SyncResult> {

@@ -11,6 +11,6 @@ export async function createExpressionStore(
 	backend?: SqlBackend,
 ): Promise<PersistentExpressionStore> {
 	const be = backend ?? (await SqlBackend.connect(dialect, target));
-	if (!backend) await initSchema(be, expressionDdlKeys);
+	await initSchema(be, expressionDdlKeys);
 	return new ExpressionRepoStore(be);
 }
