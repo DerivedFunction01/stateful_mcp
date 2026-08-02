@@ -161,6 +161,71 @@ describe("unified repository dictionary service", () => {
 		expect(denied.status).toBe("NOT_FOUND");
 	});
 
+	test("revalidates optimized SQL candidates with the expression regex", async () => {
+		const base = `/tmp/dictionary-regex-${Date.now()}`;
+		const repo = await createRepo({
+			storageRuntime: {
+				dictionary: {
+					concepts: {
+						source: {
+							locator: {
+								_type: "adapter",
+								name: "sqlite",
+								options: { path: `${base}-concepts.db` },
+							},
+							role: "source",
+						},
+					},
+					expressions: {
+						projection: {
+							locator: {
+								_type: "adapter",
+								name: "sqlite",
+								options: { path: `${base}-local.db` },
+							},
+							role: "projection",
+						},
+					},
+					filters: {
+						projection: {
+							locator: {
+								_type: "adapter",
+								name: "sqlite",
+								options: { path: `${base}-local.db` },
+							},
+							role: "projection",
+						},
+					},
+				},
+			},
+		});
+		await repo.dictionaryStore!.loadConfig({
+			concepts: [
+				{
+					id: "c1",
+					namespaceCode: "TEST",
+					standardCode: "C1",
+					display: "Example",
+					active: true,
+				},
+			],
+			expressions: [
+				{
+					id: "e1",
+					term: "example",
+					lookupTerm: "example",
+					regexPattern: "^not-example$",
+					isCaseInsensitive: true,
+					conceptId: "c1",
+					priorityWeight: 1,
+					active: true,
+				},
+			],
+		});
+		const result = await repo.dictionaryStore!.resolve("example");
+		expect(result.status).toBe("NOT_FOUND");
+	});
+
 	test("constructs a persistent KV concept-filter store from dictionary routes", async () => {
 		const repo = await createRepo({
 			storageRuntime: {

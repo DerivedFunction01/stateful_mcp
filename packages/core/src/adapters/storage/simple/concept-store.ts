@@ -15,6 +15,7 @@ import type {
 import {
 	invertRelationType,
 	normalizeLookupTerm,
+	tokenizeLookupQuery,
 } from "../../../middleware/dictionary/types";
 import type {
 	ConceptStoreBackend,
@@ -419,9 +420,13 @@ export class SimplePersistentExpressionStore
 		scope?: { level: string; userId?: string | null };
 		limit?: number;
 	}): Promise<CustomExpression[]> {
-		const query =
-			request.lookupTerm ??
-			(request.query ? normalizeLookupTerm(request.query) : undefined);
+		const lookup = request.lookupTerm
+			? normalizeLookupTerm(request.lookupTerm)
+			: undefined;
+		const query = request.query
+			? normalizeLookupTerm(request.query)
+			: undefined;
+		const queryTokens = query ? tokenizeLookupQuery(query) : [];
 		const prefix =
 			request.lookupPrefix && normalizeLookupTerm(request.lookupPrefix);
 		const visible = request.scope
@@ -435,10 +440,15 @@ export class SimplePersistentExpressionStore
 					!request.targetAssignments.includes(expression.targetAssignment ?? "")
 				)
 					return false;
-				const key =
-					expression.lookupTerm ?? normalizeLookupTerm(expression.term);
+				const key = normalizeLookupTerm(
+					expression.lookupTerm ?? expression.term,
+				);
 				return (
-					(!query || key === query || key.includes(query)) &&
+					(!lookup || key === lookup) &&
+					(!query ||
+						queryTokens.some(
+							(token) => query.includes(key) || key.includes(token),
+						)) &&
 					(!prefix || key.startsWith(prefix))
 				);
 			})

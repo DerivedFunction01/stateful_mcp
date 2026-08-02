@@ -13,7 +13,10 @@ import type {
 	ConceptStore,
 	PersistentExpressionStore,
 } from "@stateful-mcp/core/middleware/dictionary/interfaces";
-import { InMemoryConceptResolver } from "@stateful-mcp/core/middleware/dictionary/resolver";
+import {
+	InMemoryConceptResolver,
+	matchCustomExpression,
+} from "@stateful-mcp/core/middleware/dictionary/resolver";
 import { DictionaryStore } from "@stateful-mcp/core/middleware/dictionary/store";
 import { normalizeLookupTerm } from "@stateful-mcp/core/middleware/dictionary/types";
 import type {
@@ -625,13 +628,13 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 					adapter.dictionaryStorageTopology!,
 					{
 						lookupTerm: normalizeLookupTerm(term),
-						roleName: context?.role_name,
+						roleName: context?.roleName ?? context?.role_name,
 						limit: 50,
 					},
 				);
 				const result = await executeDictionaryPlan(
 					plan,
-					{ roleName: context?.role_name },
+					{ roleName: context?.roleName ?? context?.role_name },
 					{
 						sql:
 							adapter.dictionarySqlQueryRunners?.expressions ??
@@ -656,6 +659,11 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 						typeof candidate.row.data === "string"
 							? JSON.parse(candidate.row.data)
 							: candidate.row.data;
+					if (
+						!expression ||
+						!matchCustomExpression(expression, term, true).matched
+					)
+						return [];
 					return [
 						{
 							conceptId: candidate.concept.id,

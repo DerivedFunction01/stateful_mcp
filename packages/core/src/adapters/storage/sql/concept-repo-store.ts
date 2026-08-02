@@ -12,7 +12,10 @@ import type {
 	RelatedConceptResult,
 	TraversalDirection,
 } from "../../../middleware/dictionary/types";
-import { normalizeLookupTerm } from "../../../middleware/dictionary/types";
+import {
+	normalizeLookupTerm,
+	tokenizeLookupQuery,
+} from "../../../middleware/dictionary/types";
 import { SCHEMA } from "../store-schema";
 import type { SqlBackend } from "./backend";
 import {
@@ -254,20 +257,28 @@ export class ExpressionRepoStore implements PersistentExpressionStore {
 		request: ExpressionSearchRequest,
 	): Promise<CustomExpression[]> {
 		const schema = SCHEMA[this.backend.dialect];
-		const lookup =
-			request.lookupTerm ??
-			(request.query
-				? request.query
-						.normalize("NFKC")
-						.trim()
-						.toLocaleLowerCase()
-						.replace(/\s+/g, " ")
-				: undefined);
-		const rows = await this.backend.query(
-			schema.selects.SQL_SEARCH_DICT_EXPRESSIONS!.sql,
-			[`%${lookup ?? ""}%`, true],
-		);
-		return rows
+		const normalizedQuery = request.query
+			? normalizeLookupTerm(request.query)
+			: undefined;
+		const lookup = request.lookupTerm
+			? normalizeLookupTerm(request.lookupTerm)
+			: undefined;
+		const queryValues = request.lookupTerm
+			? [lookup]
+			: [...tokenizeLookupQuery(normalizedQuery ?? ""), ""];
+		const rowMap = new Map<string, Record<string, unknown>>();
+		for (const value of queryValues) {
+			const rows = await this.backend.query(
+				schema.selects.SQL_SEARCH_DICT_EXPRESSIONS!.sql,
+				[`%${value ?? ""}%`, `%${value ?? ""}%`, true],
+			);
+			for (const row of rows) {
+				const id = String(row.id ?? row.lookup_term ?? "");
+				if (id) rowMap.set(id, row);
+			}
+			if (rowMap.size > 0 || request.lookupTerm) break;
+		}
+		return [...rowMap.values()]
 			.map((row) => ({ row, expression: rowToExpression(row) }))
 			.filter(({ row, expression }) => {
 				if (request.scope) {

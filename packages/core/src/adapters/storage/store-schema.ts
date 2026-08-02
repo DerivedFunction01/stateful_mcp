@@ -1535,7 +1535,12 @@ const SELECTS: Record<string, SelectQuery> = {
 			{ column: "scope_id" },
 		],
 		where: [
-			{ column: "lookup_term", op: "ilike" },
+			{
+				OR: [
+					{ column: "lookup_term", op: "ilike" },
+					{ column: "term", op: "ilike" },
+				],
+			},
 			{ column: "active", op: "eq", value: true },
 		],
 		limit: 200,

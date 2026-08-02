@@ -12,6 +12,7 @@ import type {
 	Namespace,
 	ResolutionMetric,
 } from "./types";
+import { normalizeLookupTerm, tokenizeLookupQuery } from "./types";
 
 class WrappedMapConceptStore implements ConceptStore {
 	constructor(private concepts: Map<string, Concept>) {}
@@ -83,19 +84,99 @@ class WrappedArrayExpressionStore implements PersistentExpressionStore {
 	async searchCandidates(request: {
 		query?: string;
 		lookupTerm?: string;
+		lookupPrefix?: string;
+		activeOnly?: boolean;
+		scope?: OwnerScope;
 		limit?: number;
 	}): Promise<CustomExpression[]> {
-		const key = request.lookupTerm ?? request.query?.toLocaleLowerCase().trim();
+		const lookup = request.lookupTerm
+			? normalizeLookupTerm(request.lookupTerm)
+			: undefined;
+		const query = request.query
+			? normalizeLookupTerm(request.query)
+			: undefined;
+		const queryTokens = query ? tokenizeLookupQuery(query) : [];
+		const prefix = request.lookupPrefix
+			? normalizeLookupTerm(request.lookupPrefix)
+			: undefined;
 		return this.expressions
-			.filter(
-				(expression) =>
-					!key || expression.term.toLocaleLowerCase().includes(key),
-			)
+			.filter((expression) => {
+				if (request.activeOnly && !expression.active) return false;
+				if (request.scope) {
+					const level =
+						expression.context?.scope_level ??
+						(expression.context?.user_id ? "user" : "global");
+					const scopeId =
+						expression.context?.scope_id ?? expression.context?.user_id;
+					const requestedId =
+						request.scope.level === "user" ? request.scope.userId : undefined;
+					const scopeMatches =
+						(level === request.scope.level &&
+							(level !== "user" || scopeId === requestedId)) ||
+						(request.scope.level !== "global" && level === "global");
+					if (!scopeMatches) return false;
+				}
+				const expressionKey = normalizeLookupTerm(
+					expression.lookupTerm ?? expression.term,
+				);
+				if (lookup && expressionKey !== lookup) return false;
+				if (
+					query &&
+					!queryTokens.some(
+						(token) =>
+							query.includes(expressionKey) || expressionKey.includes(token),
+					)
+				)
+					return false;
+				if (prefix && !expressionKey.startsWith(prefix)) return false;
+				return true;
+			})
 			.slice(0, request.limit ?? 50);
 	}
 }
 
 export type ResolutionStatus = "FOUND" | "PARTIAL" | "NOT_FOUND";
+
+export interface CustomExpressionMatch {
+	matched: boolean;
+	exact: boolean;
+	namedGroups?: Record<string, string | undefined>;
+}
+
+/** Applies the authoritative Node-side expression match after candidate lookup. */
+export function matchCustomExpression(
+	expression: CustomExpression,
+	term: string,
+	strictRegex = false,
+): CustomExpressionMatch {
+	const normalizedTerm = normalizeLookupTerm(term);
+	const normalizedLookup = normalizeLookupTerm(
+		expression.lookupTerm ?? expression.term,
+	);
+	if (!strictRegex && normalizedLookup === normalizedTerm) {
+		return { matched: true, exact: true };
+	}
+	if (expression.regexPattern.trim().length > 0) {
+		try {
+			const flags = expression.isCaseInsensitive ? "i" : "";
+			const match = new RegExp(expression.regexPattern, flags).exec(term);
+			return {
+				matched: match !== null,
+				exact: match !== null,
+				namedGroups: match?.groups,
+			};
+		} catch {
+			// Preserve legacy substring fallback only for malformed patterns.
+		}
+	}
+
+	return {
+		matched:
+			normalizedLookup === normalizedTerm ||
+			normalizedTerm.includes(normalizedLookup),
+		exact: normalizedLookup === normalizedTerm,
+	};
+}
 
 export interface AggregatedResult {
 	conceptId: string;
@@ -182,7 +263,8 @@ export class InMemoryConceptResolver implements ConceptResolver {
 		metrics: ResolutionMetric[],
 		context?: Record<string, any>,
 	): Promise<ResolveResponse> {
-		const filterRole = context?.role_name ?? this.options.filterRole;
+		const filterRole =
+			context?.roleName ?? context?.role_name ?? this.options.filterRole;
 		const conceptStore =
 			concepts instanceof Map ? new WrappedMapConceptStore(concepts) : concepts;
 		const expressionStore = Array.isArray(expressions)
@@ -205,19 +287,9 @@ export class InMemoryConceptResolver implements ConceptResolver {
 			: { level: "global" };
 
 		const exprs = await expressionStore.list(scope, true);
-		const exprCandidates = await (expressionStore.searchCandidates
-			? expressionStore.searchCandidates({
-					query: term,
-					activeOnly: true,
-					scope,
-					limit: 200,
-				})
-			: expressionStore.list(scope, true));
 		const conceptIds = [
 			...new Set(
-				exprCandidates
-					.map((expr) => expr.conceptId)
-					.filter((id): id is string => !!id),
+				exprs.map((expr) => expr.conceptId).filter((id): id is string => !!id),
 			),
 		];
 		const hydratedConcepts = conceptStore.getByIds
@@ -229,30 +301,13 @@ export class InMemoryConceptResolver implements ConceptResolver {
 				)
 			: null;
 
-		for (const expr of exprCandidates.length > 0 ? exprCandidates : exprs) {
+		for (const expr of exprs) {
 			if (!expr.active || !expr.conceptId) continue;
 			if (!this.matchesContext(expr, context)) continue;
 
-			let matched = false;
-			let isExact = false;
-
-			if (expr.term.toLowerCase() === term.toLowerCase()) {
-				matched = true;
-				isExact = true;
-			} else {
-				try {
-					const flags = expr.isCaseInsensitive ? "i" : "";
-					const regex = new RegExp(expr.regexPattern, flags);
-					if (regex.test(term)) {
-						matched = true;
-						isExact = true;
-					}
-				} catch (err) {
-					if (term.toLowerCase().includes(expr.term.toLowerCase())) {
-						matched = true;
-					}
-				}
-			}
+			const expressionMatch = matchCustomExpression(expr, term);
+			const matched = expressionMatch.matched;
+			const isExact = expressionMatch.exact;
 
 			if (matched) {
 				const concept =

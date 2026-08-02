@@ -233,11 +233,7 @@ async function createRepoBasedEngineStores(
 			persistent: repo.persistentEvent!,
 			schemas: new Map(),
 		}),
-		dictionaryStore: new DictionaryStore(
-			new InMemoryConceptResolver(),
-			repo.conceptStore!,
-			repo.persistentExpressionStore!,
-		),
+		dictionaryStore: repo.dictionaryStore!,
 		signedNoteStore: new KvSignedSoapNoteStore(new MemoryKvBackend()),
 	};
 }

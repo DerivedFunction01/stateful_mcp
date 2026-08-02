@@ -168,6 +168,18 @@ export function normalizeLookupTerm(term: string): string {
 	return term.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
+/** Produces bounded, locale-neutral token probes for prose candidate lookup. */
+export function tokenizeLookupQuery(query: string, limit = 16): string[] {
+	return [
+		...new Set(
+			normalizeLookupTerm(query)
+				.split(/[^\p{L}\p{N}_-]+/u)
+				.filter(Boolean)
+				.sort((left, right) => right.length - left.length),
+		),
+	].slice(0, limit);
+}
+
 /**
  * Tracks historical statistics and metrics for resolved expressions.
  */

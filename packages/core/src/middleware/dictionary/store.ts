@@ -549,7 +549,14 @@ export class DictionaryStore {
 			const scope: OwnerScope = context?.user_id
 				? { level: "user", userId: context.user_id }
 				: { level: "global" };
-			const exprs = await this.expressionStore.list(scope, true);
+			const exprs = this.expressionStore.searchCandidates
+				? await this.expressionStore.searchCandidates({
+						query: term,
+						activeOnly: true,
+						scope,
+						limit: 200,
+					})
+				: await this.expressionStore.list(scope, true);
 			const matchingExpr = exprs.find(
 				(e) =>
 					e.conceptId === top.conceptId && top.matchedTerms.includes(e.term),
