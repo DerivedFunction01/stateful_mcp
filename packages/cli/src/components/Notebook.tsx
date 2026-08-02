@@ -32,7 +32,7 @@ export function Notebook() {
 	const session = useSession();
 	const notebook = useNotebook(session);
 	const { exit } = useApp();
-	const { state, dispatch, cellSuggestions } = notebook;
+	const { state, dispatch, cellSuggestions, getAutocomplete } = notebook;
 	const [completion, setCompletion] = useState<CompletionState>({
 		status: "idle",
 	});
@@ -118,35 +118,15 @@ export function Notebook() {
 	const catalog = useMemo(() => {
 		return new NotebookCommandCatalog(
 			runtime.runtime.catalog.descriptors(scope),
-			(partial) => {
-				const staticSugs = runtime.runtime.catalog.suggestions(partial, runtime.runtime.scope);
-				const engineSugs = engineSuggestionsRef.current;
-				const seen = new Set<string>();
-				const merged = [];
-				for (const s of staticSugs) {
-					const k = s.verb.toLowerCase();
-					if (!seen.has(k)) {
-						seen.add(k);
-						merged.push(s);
-					}
-				}
-				for (const s of engineSugs) {
-					const k = s.verb.toLowerCase();
-					if (!seen.has(k)) {
-						seen.add(k);
-						merged.push(s);
-					}
-				}
-				return merged;
-			}
+			getAutocomplete,
 		);
-	}, [scope, session?.sessionId]);
+	}, [scope, session?.sessionId, getAutocomplete]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: runtime changes on every render and causes infinite loops
 	const staticCandidates = useMemo(() => {
 		if (state.mode !== "COMMAND") return [];
-		return runtime.runtime.catalog.suggestions(state.commandLine.slice(1), runtime.runtime.scope);
-	}, [state.mode, state.commandLine, session?.sessionId]);
+		return getAutocomplete(state.commandLine.slice(1));
+	}, [state.mode, state.commandLine, session?.sessionId, getAutocomplete]);
 
 	const { loading, engineCandidates, mergedCandidates } = useEngineCompletion({
 		mode: state.mode,
