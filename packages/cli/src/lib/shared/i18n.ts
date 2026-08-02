@@ -28,17 +28,42 @@ const en: Record<string, string> = {
 	"celllist.empty.key": "o",
 
 	// Help bar
-	"help.insert": ":w save  Esc NORMAL  Enter newline",
-	"help.command": "Tab cycle  Enter execute  Esc cancel  ↑↓ history",
-	"help.visual": "d delete  y yank  Esc NORMAL  : command",
+	"help.insert": "{saveCmd} save  {esc} NORMAL  {enter} newline",
+	"help.command":
+		"{tab} cycle  {enter} execute  {esc} cancel  {arrows} history",
+	"help.visual":
+		"{delKey} delete  {yankKey} yank  {esc} NORMAL  {cmdToken} command",
 
 	// Help screen
 	"help.title": "HELP",
-	"help.close": " — press Esc to close",
+	"help.close": " — press {esc} to close",
 	"help.editorCommands": "Editor commands",
 	"help.cellCommands": "Cell commands",
-	"help.keys1": "Keys: j/k ↑/↓ navigate i/o/O insert dd delete yy yank p paste",
-	"help.keys2": "u undo Ctrl-r redo r run P preview : command / search",
+	"help.keys1":
+		"Keys: {navKeys} navigate {insertKeys} insert {deleteKeys} delete {yankKeys} yank {pasteKey} paste",
+	"help.keys2":
+		"{undoKey} undo {redoKey} redo {runKey} run {previewKey} preview {cmdToken} command {searchKey} search",
+
+	// Cell info inspector
+	"inspector.title": "CELL INSPECTOR",
+	"inspector.mode": "mode: {value}",
+	"inspector.scope": "scope: {value}",
+	"inspector.confidence": "confidence: {value}",
+	"inspector.unavailable": "unavailable",
+	"inspector.source": "Source",
+	"inspector.routing": "Routing",
+	"inspector.diagnostics": "Diagnostics",
+	"inspector.interpretation": "Interpretation",
+	"inspector.rawSource": "Raw source",
+	"inspector.noItems": "(no parsed items)",
+	"inspector.noValues": "(no values)",
+	"inspector.noFields": "(no extracted fields)",
+	"inspector.branch": "branch: {value}",
+	"inspector.alternatives": "alternatives: {value}",
+	"inspector.validation": "validation: {value}",
+	"inspector.unresolved": " (unresolved)",
+	"inspector.scrollHint": "scroll: j/k ↑↓ PgUp/PgDn",
+	"inspector.closeFooter": "close: I/Esc/q",
 
 	// Status bar
 	"statusbar.cell": "cell {current}/{total}",

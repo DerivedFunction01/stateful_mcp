@@ -130,7 +130,6 @@ export function Notebook() {
 		[session?.sessionId],
 	);
 
-	
 	const catalog = useMemo(() => {
 		return new NotebookCommandCatalog(
 			runtime.runtime.catalog.descriptors(scope),
@@ -138,7 +137,6 @@ export function Notebook() {
 		);
 	}, [scope, session?.sessionId, getAutocomplete]);
 
-	
 	const staticCandidates = useMemo(() => {
 		if (state.mode !== "COMMAND") return [];
 		return getAutocomplete(state.commandLine.slice(1));

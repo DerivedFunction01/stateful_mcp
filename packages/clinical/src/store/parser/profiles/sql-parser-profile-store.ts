@@ -34,6 +34,7 @@ const SYNTAX_KEYS: readonly (keyof ParserSyntaxProfile)[] = [
 	"schemaDefaults",
 	"calendarDateFormats",
 	"numericFieldFormats",
+	"quantityDisplay",
 	"tagMappings",
 	"commandMappings",
 	"workspaceCommandMappings",

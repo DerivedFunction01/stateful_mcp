@@ -1,4 +1,7 @@
 import type { ParsedItem } from "../parser/schema-parsers";
+import type { PresentationItem } from "../presentation/field-types";
+import { createParsedItemPresentation } from "../presentation/projector";
+import type { QuantityFormatContext } from "../presentation/quantity-format";
 import type { CodeableConcept, SoapSection } from "../schemas/shared";
 import type {
 	Cell,
@@ -23,6 +26,7 @@ export interface CellInterpretationSource {
 	interpretation?: Cell["interpretation"];
 	status: CellStatus;
 	errorMessage?: string;
+	presentationContext?: QuantityFormatContext;
 }
 
 export interface CellInterpretationField {
@@ -36,6 +40,8 @@ export interface CellInterpretationItem {
 	rawText: string;
 	concepts: CodeableConcept[];
 	fields: CellInterpretationField[];
+	title?: string;
+	presentation?: PresentationItem;
 }
 
 export interface CellInterpretationSummary {
@@ -121,7 +127,11 @@ function flattenFields(
 	fields.push({ path, value, state: "resolved" });
 }
 
-function summarizeParsedItem(item: ParsedItem): CellInterpretationItem {
+function summarizeParsedItem(
+	item: ParsedItem,
+	context?: QuantityFormatContext,
+): CellInterpretationItem {
+	const presentation = createParsedItemPresentation(item, context);
 	const fields: CellInterpretationField[] = [];
 	for (const [key, value] of Object.entries(item.extractedData ?? {})) {
 		flattenFields(value, key, fields, new Set());
@@ -132,6 +142,8 @@ function summarizeParsedItem(item: ParsedItem): CellInterpretationItem {
 		rawText: item.rawText,
 		concepts: item.concept ?? [],
 		fields,
+		title: presentation.title,
+		presentation,
 	};
 }
 
@@ -155,7 +167,9 @@ export function createCellInterpretationSummary(
 			resolvedSchema: cell.routing.resolvedSchema ?? null,
 			...(cell.routing.branchId ? { branchId: cell.routing.branchId } : {}),
 		},
-		items: (cell.parsedOutput ?? []).map(summarizeParsedItem),
+		items: (cell.parsedOutput ?? []).map((item) =>
+			summarizeParsedItem(item, cell.presentationContext),
+		),
 		diagnostics: {
 			error: cell.errorMessage ? { message: cell.errorMessage } : undefined,
 			confidence: cell.interpretation?.confidence

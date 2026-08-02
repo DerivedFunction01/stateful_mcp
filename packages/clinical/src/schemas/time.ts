@@ -17,7 +17,8 @@ export type PartOfDay =
 	| "midnight";
 
 export type Season = "spring" | "summer" | "autumn" | "winter";
-export type TimeUnit = 	| "second"
+export type TimeUnit =
+	| "second"
 	| "minute"
 	| "hour"
 	| "day"

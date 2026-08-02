@@ -24,7 +24,7 @@ export function HelpScreen({
 					{" "}
 					{t("help.title")}{" "}
 				</Text>
-				<Text>{t("help.close")}</Text>
+				<Text>{t("help.close", { esc: "Esc" })}</Text>
 			</Box>
 			<Box flexDirection="column" paddingLeft={1} paddingTop={1}>
 				<Text bold underline>
@@ -65,9 +65,26 @@ export function HelpScreen({
 				))}
 			</Box>
 			<Box paddingTop={1} paddingLeft={1}>
-				<Text color="gray">{t("help.keys1")}</Text>
+				<Text color="gray">
+					{t("help.keys1", {
+						navKeys: "j/k ↑/↓",
+						insertKeys: "i/o/O",
+						deleteKeys: "dd",
+						yankKeys: "yy",
+						pasteKey: "p",
+					})}
+				</Text>
 				<br />
-				<Text color="gray">{t("help.keys2")}</Text>
+				<Text color="gray">
+					{t("help.keys2", {
+						undoKey: "u",
+						redoKey: "Ctrl-r",
+						runKey: "r",
+						previewKey: "P",
+						cmdToken: ":",
+						searchKey: "/",
+					})}
+				</Text>
 			</Box>
 		</Box>
 	);

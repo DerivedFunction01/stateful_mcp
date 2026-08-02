@@ -6,7 +6,10 @@ import {
 	InMemoryConceptResolver,
 } from "@stateful-mcp/core";
 import type { CustomExpression } from "@stateful-mcp/core/src/middleware/dictionary/types";
-import { CdslParser, type ClinicalParseResult } from "../src/parser/cdsl-parser";
+import {
+	CdslParser,
+	type ClinicalParseResult,
+} from "../src/parser/cdsl-parser";
 import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 
 async function seedFeverConcept(dictionaryStore: DictionaryStore) {

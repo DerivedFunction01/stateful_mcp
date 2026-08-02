@@ -1,4 +1,11 @@
 import type { ClinicalInitSeedRecord } from "../record";
+import { UNIT_DISPLAY_MAP } from "../../../schemas/measurement";
+
+const defaultQuantityDisplay = {
+	units: Object.fromEntries(
+		Object.entries(UNIT_DISPLAY_MAP).map(([unit, display]) => [unit, { short: display }]),
+	),
+};
 
 export const records: ClinicalInitSeedRecord[] = [
 	{
@@ -8,6 +15,7 @@ export const records: ClinicalInitSeedRecord[] = [
 		payload: {
 			tagToken: "#",
 			stateDelimiter: "||",
+			quantityDisplay: defaultQuantityDisplay,
 			languageValuesRequired: true,
 			cellCommandToken: ":",
 			cellCommandMappings: {

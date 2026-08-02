@@ -21,7 +21,62 @@ export interface KeymapPolicy {
 }
 
 /**
- * Map Ink Key + input string to EditorAction based on current mode.
+ * Minimal key resolution for overlay components (e.g. the cell info
+ * inspector) that do not participate in the full editor window keymap.
+ *
+ * The bindings are kept as data here so keys stay centralized and follow the
+ * same style as the editor keymap, without requiring the WindowContainer /
+ * extension registry machinery needed by editor windows.
+ */
+export type InspectorAction =
+	| "close"
+	| "scrollDown"
+	| "scrollUp"
+	| "pageDown"
+	| "pageUp"
+	| "scrollTop"
+	| "scrollBottom";
+
+interface InspectorBinding {
+	action: InspectorAction;
+	keys: string[];
+	match: (key: Key) => boolean;
+}
+
+function isInput(binding: InspectorBinding, input: string, key: Key): boolean {
+	return binding.keys.includes(input) || binding.match(key);
+}
+
+const inspectorBindings: readonly InspectorBinding[] = [
+	{
+		action: "close",
+		keys: ["i", "I", "q"],
+		match: (key) => key.escape === true,
+	},
+	{ action: "scrollDown", keys: ["j"], match: (key) => key.downArrow === true },
+	{ action: "scrollUp", keys: ["k"], match: (key) => key.upArrow === true },
+	{ action: "pageDown", keys: [], match: (key) => key.pageDown === true },
+	{ action: "pageUp", keys: [], match: (key) => key.pageUp === true },
+	{ action: "scrollTop", keys: [], match: (key) => key.home === true },
+	{ action: "scrollBottom", keys: [], match: (key) => key.end === true },
+];
+
+/**
+ * Resolve an overlay key press to an InspectorAction, or null if no binding
+ * matches. This keeps component-level input handling free of hardcoded keys.
+ */
+export function resolveInspectorKey(
+	input: string,
+	key: Key,
+): InspectorAction | null {
+	for (const binding of inspectorBindings) {
+		if (isInput(binding, input, key)) return binding.action;
+	}
+	return null;
+}
+
+/**
+ * Map Key + input string to EditorAction based on current mode.
  * Supports multi-key sequences (dd, yy, [e, ]e).
  * VISUAL mode uses the same j/k as NORMAL but with EXTEND_SELECTION.
  */

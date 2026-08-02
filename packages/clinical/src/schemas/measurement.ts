@@ -361,9 +361,9 @@ export const UNIT_DISPLAY_MAP: Record<AllowedUnit | TimeUnit, string> = {
 	mi: "mi",
 
 	// Temperature
-	Celsius: "Celsius",
-	Fahrenheit: "Fahrenheit",
-	Kelvin: "Kelvin",
+	Celsius: "°C",
+	Fahrenheit: "°F",
+	Kelvin: "K",
 
 	// Pressure
 	mmHg: "mmHg",
@@ -493,5 +493,5 @@ export const UNIT_DISPLAY_MAP: Record<AllowedUnit | TimeUnit, string> = {
 	day: "d",
 	week: "wk",
 	month: "mo",
-	year: "yr"
+	year: "yr",
 };

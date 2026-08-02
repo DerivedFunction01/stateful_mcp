@@ -22,10 +22,8 @@ export {
 	reduceEditorKernel,
 	replaceCurrentLine,
 } from "./kernel";
-export type {
-	KeymapPolicy,
-	KeyResolution,
-} from "./keymap";
+export type { InspectorAction, KeymapPolicy, KeyResolution } from "./keymap";
+export { resolveInspectorKey } from "./keymap";
 
 export type {
 	WindowOverlay,

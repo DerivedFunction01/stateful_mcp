@@ -12,13 +12,27 @@ interface HelpBarProps {
 export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
 	const line = useMemo(() => {
 		if (mode === "INSERT") {
-			return t("help.insert");
+			return t("help.insert", {
+				saveCmd: ":w",
+				esc: "Esc",
+				enter: "Enter",
+			});
 		}
 		if (mode === "COMMAND") {
-			return t("help.command");
+			return t("help.command", {
+				tab: "Tab",
+				enter: "Enter",
+				esc: "Esc",
+				arrows: "↑↓",
+			});
 		}
 		if (mode === "VISUAL") {
-			return t("help.visual");
+			return t("help.visual", {
+				delKey: "d",
+				yankKey: "y",
+				esc: "Esc",
+				cmdToken: ":",
+			});
 		}
 		const cmds = editorDescriptors.slice(0, 6);
 		const cmdLine = cmds

@@ -44,6 +44,7 @@ export interface ParserSyntaxProfile {
 	defaultsStrategy?: string;
 	calendarDateFormats?: DateTimeFormatConfig[];
 	numericFieldFormats?: NumericFieldFormatOptions[];
+	quantityDisplay?: QuantityDisplayProfile;
 	boundaryDelimiter?: string;
 	transitionalWords?: string[];
 	numberWordConfig?: import("../parser/utils/number-word-normalizer").NumberWordConfig;
@@ -82,6 +83,14 @@ export interface NumericFieldFormatOptions {
 	targetField?: NumericValueTarget;
 	targetSchema?: string;
 	priority?: number;
+}
+
+export interface QuantityDisplayProfile {
+	units?: Record<string, { short?: string; long?: string; narrow?: string }>;
+	operators?: Record<
+		"eq" | "gt" | "gte" | "lt" | "lte",
+		{ symbol: string; label?: string }
+	>;
 }
 
 export interface ParserDictionaryRule {

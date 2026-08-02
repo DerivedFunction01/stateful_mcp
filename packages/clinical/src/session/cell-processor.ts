@@ -91,7 +91,12 @@ export class CellProcessor {
 	getCellInterpretationSummary(
 		cell: CellInterpretationSource,
 	): CellInterpretationSummary {
-		return createCellInterpretationSummary(cell);
+		return createCellInterpretationSummary({
+			...cell,
+			presentationContext: this.parser
+				? { profile: this.parser.getProfile() }
+				: undefined,
+		});
 	}
 
 	private async executeCellCommand(
