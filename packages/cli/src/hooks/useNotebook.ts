@@ -498,9 +498,9 @@ export function useNotebook(session: SessionState | null) {
 				if (matchedDesc) {
 					const argSchema = matchedDesc.args[argIndex];
 					if (argSchema?.completions && argSchema.completions.length > 0) {
-						return argSchema.completions
-							.filter((c: string) => c.startsWith(currentPartial))
-							.map((c: string) => ({
+						const filteredCompletions = argSchema.completions.filter((c: string) => c.startsWith(currentPartial));
+						if (filteredCompletions.length > 0) {
+							return filteredCompletions.map((c: string) => ({
 								verb: c,
 								group: matchedDesc.group,
 								source:
@@ -511,6 +511,7 @@ export function useNotebook(session: SessionState | null) {
 								argName: argSchema.name,
 								descriptionKey: argSchema.descriptionKey,
 							}));
+						}
 					}
 				}
 

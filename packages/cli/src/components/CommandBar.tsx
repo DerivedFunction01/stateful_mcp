@@ -39,6 +39,12 @@ export function CommandBar({
 		if (suggestions.length > NO_MATCH_THRESHOLD) return null;
 		const partial = commandLine.slice(1).trim();
 		if (!partial) return null;
+		// Check if the typed prefix represents a command argument space (contains space).
+		// If the user has typed a valid verb followed by space, don't show the warning.
+		const spaceIdx = partial.indexOf(" ");
+		if (spaceIdx >= 0) {
+			return null;
+		}
 		return partial;
 	}, [suggestions.length, commandLine]);
 
