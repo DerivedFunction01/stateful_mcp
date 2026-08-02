@@ -6,6 +6,7 @@ import {
 	buildNotebookExtension,
 	commandResultToEffects,
 } from "../windows/notebook/extension";
+import { getSharedCellCommandDescriptors } from "../windows/shared-cell-commands";
 import { builtinExtensions } from "./builtin-extensions";
 import type {
 	EditorExtension,
@@ -30,6 +31,10 @@ export interface NotebookRuntimeOptions {
 	onSwitchWindow?(windowKind: string): void;
 	onSubmittingChange?(submitting: boolean): void;
 	onMessage?(message: string): void;
+	executeVariableCommand?(line: string): Promise<{
+		success: boolean;
+		message?: string;
+	}>;
 }
 
 /**
@@ -55,6 +60,11 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 		() => async (intent: WindowIntent, _scope: WindowScope) => {
 			const verb = (intent.arguments["_verb"] as string) ?? intent.id;
 			const rest = (intent.arguments["_rest"] as string) ?? "";
+			if (verb.toLowerCase() === "var" && opts.executeVariableCommand) {
+				return commandResultToEffects(
+					await opts.executeVariableCommand(`:var ${rest}`.trim()),
+				);
+			}
 			// Defer to the existing notebook command dispatcher for execution,
 			// then translate its result into effects.
 			const result = await notebook.dispatchCommand(`${verb} ${rest}`.trim());
@@ -80,6 +90,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 			buildNotebookExtension({
 				editorDescriptors: ds,
 				cellDescriptors: ds,
+				sharedCellDescriptors: getSharedCellCommandDescriptors(),
 				onCommand,
 			}),
 		];

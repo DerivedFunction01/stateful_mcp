@@ -153,6 +153,7 @@ export function dispatchGeneralWindowCommand(line: string): {
 export interface NotebookProfileDeps {
 	editorDescriptors: CommandDescriptor[];
 	cellDescriptors: CommandDescriptor[];
+	sharedCellDescriptors?: CommandDescriptor[];
 	onCommand(intent: WindowIntent, scope: WindowScope): Promise<WindowEffect[]>;
 }
 
@@ -164,10 +165,14 @@ export function buildNotebookExtension(
 		"editor",
 	);
 	const cellContribs = descriptorsToContributions(deps.cellDescriptors, "cell");
+	const sharedCellContribs = descriptorsToContributions(
+		deps.sharedCellDescriptors ?? [],
+		"cell",
+	);
 	return {
 		id: "notebook",
 		windows: ["notebook"],
-		commands: [...editorContribs, ...cellContribs],
+		commands: [...editorContribs, ...cellContribs, ...sharedCellContribs],
 		intentHandlers: [
 			{
 				id: "notebook.commands",

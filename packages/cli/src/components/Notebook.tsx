@@ -82,6 +82,22 @@ export function Notebook() {
 		},
 		onAppQuit: () => exit(),
 		onMessage: (message) => dispatch({ type: "SET_MESSAGE", message }),
+		executeVariableCommand: async (line) => {
+			try {
+				await session?.result.engine.executeVariableCell(
+					session?.sessionId ?? "",
+					{ kind: "notebook", collectionId: session?.sessionId ?? "" },
+					line,
+					{ kind: "session", id: session?.sessionId ?? "" },
+				);
+				return { success: true };
+			} catch (error) {
+				return {
+					success: false,
+					message: error instanceof Error ? error.message : String(error),
+				};
+			}
+		},
 		onOpenOverlay: (route, payload) => {
 			if (route === "search") {
 				const term = (payload as any)?.query ?? "";

@@ -1,11 +1,11 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
-import { VariableCommandProvider } from "@stateful-mcp/clinical/session/variable-command-provider";
 import { WorkspaceCommandProvider } from "@stateful-mcp/clinical/session/workspace-command-provider";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import type { ParserSyntaxProfile } from "@stateful-mcp/clinical/store/interfaces";
 import type { CommandCatalog, EditorContext } from "../../editor";
+import { getSharedCellCommandDescriptors } from "../shared-cell-commands";
 
 function descriptorSuggestion(
 	verb: string,
@@ -30,7 +30,6 @@ function descriptorSuggestion(
 
 export class WorkspaceCommandCatalog implements CommandCatalog {
 	private readonly workspace: WorkspaceCommandProvider;
-	private readonly variables = new VariableCommandProvider();
 	private readonly editor: CommandDescriptor[];
 
 	constructor(
@@ -47,7 +46,7 @@ export class WorkspaceCommandCatalog implements CommandCatalog {
 		for (const descriptor of [
 			...this.editor,
 			...this.workspace.getDescriptors(),
-			...this.variables.getDescriptors(),
+			...getSharedCellCommandDescriptors(),
 		]) {
 			if (seen.has(descriptor.verb)) continue;
 			seen.add(descriptor.verb);

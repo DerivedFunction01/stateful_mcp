@@ -16,6 +16,7 @@ import {
 	commandResultToEffects,
 	dispatchGeneralWindowCommand,
 } from "../src/lib/windows/notebook/extension";
+import { getSharedCellCommandDescriptors } from "../src/lib/windows/shared-cell-commands";
 import { buildWorkspaceExtension } from "../src/lib/windows/workspace/extension";
 
 const scope: WindowScope = {
@@ -91,6 +92,29 @@ describe("ScopedRegistry window isolation", () => {
 });
 
 describe("IntentCatalog", () => {
+	test("shared cell commands are reusable across window profiles", () => {
+		const registry = new ExtensionRegistry();
+		registry.registerExtension(
+			buildNotebookExtension({
+				editorDescriptors: [],
+				cellDescriptors: [],
+				sharedCellDescriptors: getSharedCellCommandDescriptors(),
+				onCommand: async () => [],
+			}),
+			scope,
+		);
+		const catalog = new IntentCatalog(registry);
+		expect(catalog.findByVerb("var", scope)?.id).toBe("var");
+		expect(
+			catalog.matchCommandLine(":var set weight = 80", scope),
+		).toMatchObject({
+			args: { _verb: "var", _rest: "set weight = 80" },
+		});
+		expect(catalog.suggestions("var ", scope).map((item) => item.verb)).toEqual(
+			["set", "update", "eval", "assert", "remove"],
+		);
+	});
+
 	test("resolves commands and arg completions in scope", () => {
 		const registry = new ExtensionRegistry();
 		registry.registerExtension(

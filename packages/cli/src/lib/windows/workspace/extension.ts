@@ -1,5 +1,4 @@
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
-import { VariableCommandProvider } from "@stateful-mcp/clinical/session/variable-command-provider";
 import { WorkspaceCommandProvider } from "@stateful-mcp/clinical/session/workspace-command-provider";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import type { ParserSyntaxProfile } from "@stateful-mcp/clinical/store/interfaces";
@@ -10,6 +9,7 @@ import type {
 	WindowScope,
 } from "../../runtime/extension";
 import { descriptorsToContributions } from "../notebook/extension";
+import { getSharedCellCommandDescriptors } from "../shared-cell-commands";
 
 export interface WorkspaceProfileDeps {
 	profile: ParserSyntaxProfile;
@@ -30,9 +30,8 @@ export function buildWorkspaceExtension(
 	deps: WorkspaceProfileDeps,
 ): EditorExtension {
 	const workspaceProvider = new WorkspaceCommandProvider(deps.profile);
-	const variableProvider = new VariableCommandProvider();
 	const workspaceDescriptors = workspaceProvider.getDescriptors();
-	const variableDescriptors = variableProvider.getDescriptors();
+	const variableDescriptors = getSharedCellCommandDescriptors();
 
 	const editorContribs = descriptorsToContributions(
 		deps.editorDescriptors,

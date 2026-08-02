@@ -148,7 +148,7 @@ export function CommandBar({
 			{noMatch && (
 				<Box paddingLeft={1} paddingRight={1}>
 					<Text color="red" bold>
-						⚠ no command matches "{noMatch}" — Enter still runs it
+						{t("command.noMatch", { partial: noMatch })}
 					</Text>
 				</Box>
 			)}

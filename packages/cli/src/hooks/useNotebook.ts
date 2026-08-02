@@ -13,6 +13,7 @@ import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-d
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
 import { rankHistory } from "@stateful-mcp/clinical/session/history-ranker";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { getSharedCellCommandDescriptors } from "../lib/windows/shared-cell-commands";
 import type { SessionState } from "./useSession";
 
 export type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
@@ -481,7 +482,11 @@ export function useNotebook(session: SessionState | null) {
 						: null;
 				})
 				.filter((d): d is NonNullable<typeof d> => d !== null);
-			const autocompleteCellDescs = [...cellDescs, ...mappedCellDescs];
+			const autocompleteCellDescs = [
+				...cellDescs,
+				...mappedCellDescs,
+				...getSharedCellCommandDescriptors(),
+			];
 
 			const spaceIdx = partial.indexOf(" ");
 			if (spaceIdx >= 0) {

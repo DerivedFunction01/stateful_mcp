@@ -3,6 +3,7 @@ import { segmentCellInput } from "@stateful-mcp/clinical/session/cell-input-segm
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CellSubmissionPlan, CommandCatalog } from "../lib/cell-editor";
+import { isSharedVariableCommand } from "../lib/windows/shared-cell-commands";
 import { WorkspaceCommandCatalog } from "../lib/windows/workspace/editor";
 import type { SessionState } from "./useSession";
 
@@ -205,12 +206,11 @@ export function useWorkspace({
 				...Object.values(mappings),
 			]);
 			const directives = new Set(["target", "mode", "link", "parent"]);
-			const variableOperations = new Set(["var"]);
 			const ui = new Set(["help", "back", "exit", "focus", "status"]);
 			const collection = getCollection();
 			const segments = segmentCellInput(text, profile ?? ({} as any), {
 				isUiCommand: (verb) => ui.has(verb),
-				isVariableCommand: (verb) => variableOperations.has(verb),
+				isVariableCommand: isSharedVariableCommand,
 				isWorkspaceCommand: (verb) => workspaceVerbs.has(verb),
 				isCellConfiguration: (verb) => directives.has(verb),
 			});
