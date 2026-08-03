@@ -1,16 +1,28 @@
 import type { ConceptLookup } from "../values/concept-value";
 import type { MacroStore } from "./macro-definition";
-
+export const AUTOCOMPL = [
+	"macro",
+	"argument",
+	"concept",
+	"enum",
+	"measurement",
+	"duration",
+	"text",
+	"boolean",
+	"date",
+	"number",
+];
+export type AutocompleteType = (typeof AUTOCOMPL)[number];
 export interface AutocompleteSuggestion {
 	label: string;
 	value: string;
-	type: "macro" | "argument" | "concept" | "enum";
+	type: AutocompleteType;
 	detail?: string;
 }
 
 export interface AutocompleteRequest {
 	query: string;
-	scope?: "macro" | "argument" | "concept" | "enum";
+	scope?: AutocompleteType;
 	argumentName?: string;
 	macroName?: string;
 	namespaceCode?: string;

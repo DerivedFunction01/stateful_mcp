@@ -1,7 +1,5 @@
 import { useApp } from "ink";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { useCommandMacroPreview } from "../hooks/useCommandMacroPreview";
-import { useEngineCompletion } from "../hooks/useEngineCompletion";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import type {
@@ -159,24 +157,11 @@ export function Notebook() {
 		return getAutocomplete(state.commandLine.slice(1));
 	}, [state.mode, state.commandLine, session?.sessionId, getAutocomplete]);
 
-	const { loading, engineCandidates, mergedCandidates } = useEngineCompletion({
-		mode: state.mode,
-		commandLine: state.mode === "MACRO" ? state.draftText : state.commandLine,
-		catalog,
-		context,
-		engine: session?.result?.engine,
-		staticCandidates,
-		macroStore: session?.result?.runtime?.parserStores?.commandMacros,
-		fieldMetadata: session?.result?.runtime?.parserStores?.commandFieldMetadata,
-	});
-	const { preview: macroPreview } = useCommandMacroPreview({
-		mode: state.mode,
-		input: state.draftText,
-		store: session?.result?.runtime?.parserStores?.commandMacros,
-	});
-	useEffect(() => {
-		dispatch({ type: "SET_MACRO_PREVIEW", preview: macroPreview });
-	}, [macroPreview, dispatch]);
+	// TODO(cli2-v2): replace the retired V1 engine/macro completion hooks with
+	// V2 notebook autocomplete and V2NotebookPreviewWorkflow presentation.
+	const loading = false;
+	const engineCandidates = [];
+	const mergedCandidates = staticCandidates;
 
 	// Sync engine suggestions ref
 	useEffect(() => {
@@ -470,7 +455,7 @@ export function Notebook() {
 		defaultSection: state.defaultSection,
 		defaultSchema: state.defaultSchema,
 		message: state.message,
-		macroPreview: state.macroPreview,
+		macroPreview: undefined,
 		macroSuggestions: mergedCandidates,
 	});
 

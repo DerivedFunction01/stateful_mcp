@@ -1,5 +1,4 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import type { CommandMacroPreview } from "@stateful-mcp/clinical/parser/command/command-macro-preview";
+import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/v2/macros/macro-autocomplete";
 import { Text } from "ink";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
@@ -28,7 +27,6 @@ export interface NotebookWindowDeps {
 	defaultSection?: string;
 	defaultSchema?: string | null;
 	message?: string | null;
-	macroPreview?: CommandMacroPreview | null;
 	macroSuggestions?: AutocompleteSuggestion[];
 }
 
@@ -117,24 +115,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				});
 			}
 
-			if (deps.editorState.mode === "MACRO" && deps.macroPreview) {
-				regions.push({
-					slot: "command",
-					key: "macro-preview",
-					render() {
-						const output = deps.macroPreview?.rendered
-							?.map((line) => `L${line.line} ${line.text} [${line.status}]`)
-							.join(" | ");
-						return (
-							<Text dimColor>
-								{output ||
-									deps.macroPreview?.diagnostics.join("; ") ||
-									deps.macroPreview?.status}
-							</Text>
-						);
-					},
-				});
-			}
+			// TODO(cli2-v2): add a V2NotebookPreviewWorkflow presentation region.
 
 			regions.push({
 				slot: "footer",

@@ -1,4 +1,4 @@
-export type V2NotebookEditorMode = "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";
+import type { V2NotebookEditorMode } from "./notebook-state";
 
 export interface V2NotebookSessionRecord {
 	sessionId: string;

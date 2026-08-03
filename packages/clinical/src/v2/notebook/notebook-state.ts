@@ -1,5 +1,7 @@
 import type { StructuredCell } from "../cells/structured-cell";
 
+export type V2NotebookEditorMode = "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";
+
 /** Editor-neutral V2 notebook state; domain truth remains in CellStore. */
 export interface V2NotebookEditorState {
 	cells: StructuredCell[];
@@ -7,7 +9,7 @@ export interface V2NotebookEditorState {
 	draftText: string;
 	commandLine: string;
 	commandHistory: string[];
-	mode: "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";
+	mode: V2NotebookEditorMode;
 	dirty: boolean;
 	message?: string;
 }
