@@ -60,82 +60,22 @@ export interface CommandSyntaxProfile {
 	variableNamePattern: string;
 	variableCommandMappings: Readonly<Record<string, VariableCommandVerb>>;
 }
-
-export const _COMMAND_SYNTAX_DEFAULTS = {
-	directCommandToken: ":",
-	macroStartToken: "^",
-	directCommandMappings: {
-		branch: "branch",
-		confirm: "confirm",
-		rule_out: "rule_out",
-		suspend: "suspend",
-		re_activate: "re_activate",
-		close: "close",
-		complete: "complete",
-	},
-	editorCommandMappings: {
-		write: "write",
-		w: "write",
-		quit: "quit",
-		q: "quit",
-		write_quit: "write_quit",
-		wq: "write_quit",
-		help: "help",
-		h: "help",
-		mode: "mode",
-		undo: "undo",
-		u: "undo",
-		redo: "redo",
-		render: "render",
-	},
-	variableCommandToken: ":",
-	variableCommandName: "var",
-	variableAssignmentDelimiter: "=",
-	variableNamePattern: "^[A-Za-z_][A-Za-z0-9_.]*$",
-	variableCommandMappings: {
-		set: "set",
-		update: "update",
-		eval: "eval",
-		assert: "assert",
-		remove: "remove",
-	},
-} as const;
-
 export function createCommandSyntaxProfile(
-	profile: Partial<CommandSyntaxProfile> &
-		Pick<CommandSyntaxProfile, "profileId">,
+    profile: Partial<CommandSyntaxProfile> &
+        Pick<CommandSyntaxProfile, "profileId">,
 ): CommandSyntaxProfile {
-	return {
-		...profile,
-		directCommandToken:
-			profile.directCommandToken ?? _COMMAND_SYNTAX_DEFAULTS.directCommandToken,
-		macroStartToken:
-			profile.macroStartToken ?? _COMMAND_SYNTAX_DEFAULTS.macroStartToken,
-		directCommandMappings: {
-			..._COMMAND_SYNTAX_DEFAULTS.directCommandMappings,
-			...profile.directCommandMappings,
-		},
-		editorCommandMappings: {
-			..._COMMAND_SYNTAX_DEFAULTS.editorCommandMappings,
-			...profile.editorCommandMappings,
-		},
-		variableCommandToken:
-			profile.variableCommandToken ??
-			_COMMAND_SYNTAX_DEFAULTS.variableCommandToken,
-		variableCommandName:
-			profile.variableCommandName ??
-			_COMMAND_SYNTAX_DEFAULTS.variableCommandName,
-		variableAssignmentDelimiter:
-			profile.variableAssignmentDelimiter ??
-			_COMMAND_SYNTAX_DEFAULTS.variableAssignmentDelimiter,
-		variableNamePattern:
-			profile.variableNamePattern ??
-			_COMMAND_SYNTAX_DEFAULTS.variableNamePattern,
-		variableCommandMappings: {
-			..._COMMAND_SYNTAX_DEFAULTS.variableCommandMappings,
-			...profile.variableCommandMappings,
-		},
-	};
+    return {
+        ...profile,
+        directCommandToken: profile.directCommandToken ?? "",
+        macroStartToken: profile.macroStartToken ?? "",
+        directCommandMappings: profile.directCommandMappings ?? {},
+        editorCommandMappings: profile.editorCommandMappings ?? {},
+        variableCommandToken: profile.variableCommandToken ?? "",
+        variableCommandName: profile.variableCommandName ?? "",
+        variableAssignmentDelimiter: profile.variableAssignmentDelimiter ?? "",
+        variableNamePattern: profile.variableNamePattern ?? ({} as any), // or a default RegExp/string depending on type
+        variableCommandMappings: profile.variableCommandMappings ?? {},
+    };
 }
 
 export function resolveCommandSyntaxProfile(

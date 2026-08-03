@@ -61,6 +61,7 @@ export * from "./notebook/notebook-session-query-compiler";
 export * from "./notebook/notebook-session-store";
 export * from "./notebook/notebook-state";
 export * from "./notebook/sql-notebook-session-store";
+export * from "./bootstrap";
 export * from "./bootstrap/mock-patient";
 export * from "./presentation/field-types";
 export * from "./presentation/policies";

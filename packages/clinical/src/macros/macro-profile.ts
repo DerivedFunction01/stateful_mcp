@@ -16,27 +16,15 @@ export interface SyntaxProfile extends Partial<CommandSyntaxProfile> {
 	conceptNamespaces?: Readonly<Record<string, readonly string[]>>;
 }
 
-export const _SYNTAX_DEFAULTS = {
-	macroStartToken: "^",
-	variableStartToken: "{",
-	variableEndToken: "}",
-	directCommandToken: ":",
-	conceptCodeSeparator: "::",
-	macroArgDelimiter: undefined,
-	fallbackBoundaryDelimiter: undefined,
-} as const;
-
 export function createSyntaxProfile(
-	profile: Omit<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator"> &
-		Partial<Pick<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator">>,
+    profile: Omit<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator"> &
+        Partial<Pick<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator">>,
 ): SyntaxProfile {
-	const commandProfile = createCommandSyntaxProfile(profile);
-	return {
-		...profile,
-		...commandProfile,
-		macroStartToken:
-			profile.macroStartToken ?? _SYNTAX_DEFAULTS.macroStartToken,
-		conceptCodeSeparator:
-			profile.conceptCodeSeparator ?? _SYNTAX_DEFAULTS.conceptCodeSeparator,
-	};
+    const commandProfile = createCommandSyntaxProfile(profile);
+    return {
+        ...profile,
+        ...commandProfile,
+        macroStartToken: profile.macroStartToken ?? "",
+        conceptCodeSeparator: profile.conceptCodeSeparator ?? "",
+    };
 }
