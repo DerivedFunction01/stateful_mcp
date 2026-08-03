@@ -1238,16 +1238,27 @@ export class ClinicalEngine {
 				sourceLine: link.sourceLine,
 			})),
 		];
-		if (eventBatch.length) {
-			await this.eventStore.appendBatch(
-				sessionId,
-				effectiveAlias,
-				eventBatch,
-				effectiveAlias,
-				graph.groupId,
-			);
+		try {
+			await this.objectStore.set(effectiveAlias, [], note, sessionId);
+			if (eventBatch.length) {
+				await this.eventStore.appendBatch(
+					sessionId,
+					effectiveAlias,
+					eventBatch,
+					effectiveAlias,
+					graph.groupId,
+				);
+			}
+		} catch (error) {
+			// The stores do not share a transaction boundary. Restore the document
+			// read model when event projection fails after the document write.
+			try {
+				await this.objectStore.set(effectiveAlias, [], obj.data, sessionId);
+			} catch {
+				/* preserve the original failure; recovery is best effort */
+			}
+			throw error;
 		}
-		await this.objectStore.set(effectiveAlias, [], note, sessionId);
 		return { generatedCellIds: graph.plans.map((plan) => plan.cellRef) };
 	}
 

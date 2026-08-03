@@ -313,6 +313,26 @@ export function CellComponent({
 				</Box>
 			)}
 
+			{cell.status === "committed" && cell.macro?.rendered?.confirmation && (
+				<Box
+					flexDirection="column"
+					borderStyle="single"
+					borderColor="yellow"
+					paddingLeft={1}
+					paddingRight={1}
+					marginTop={1}
+				>
+					<Text color="yellow" bold>
+						Macro confirmation
+					</Text>
+					{cell.macro.rendered.confirmation.map((item, i) => (
+						<Text key={i} color={item.status === "resolved" ? "green" : "yellow"}>
+							{item.line}. {item.text}
+						</Text>
+					))}
+				</Box>
+			)}
+
 			{/* FOOTER — state */}
 			<Box marginTop={1}>
 				<Text color={statusColor}>{statusLine}</Text>

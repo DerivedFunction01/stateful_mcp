@@ -111,6 +111,7 @@ describe("reduceCompletion", () => {
 			setSuggestions(["delete", "down", "dd"]),
 		);
 		expect(r.completionState.status).toBe("cycling");
+		expect(r.committedLine).toBe(":delete ");
 		if (r.completionState.status === "cycling") {
 			expect(r.completionState.highlightIndex).toBe(0);
 			expect(r.completionState.candidates[0]!.verb).toBe("delete");
@@ -136,6 +137,7 @@ describe("reduceCompletion", () => {
 			expect(second.completionState.highlightIndex).toBe(1);
 			expect(second.completionState.candidates[1]!.verb).toBe("down");
 		}
+		expect(second.committedLine).toBe(":down ");
 	});
 
 	test("Tab wraps at end", () => {

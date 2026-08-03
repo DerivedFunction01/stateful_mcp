@@ -76,9 +76,9 @@ export function mergeCandidate(
 		const afterVerb = partial.slice(spaceIdx + 1);
 		const lastSpace = afterVerb.lastIndexOf(" ");
 		const prevArgs = lastSpace >= 0 ? afterVerb.slice(0, lastSpace + 1) : "";
-		return `:${verb} ${prevArgs}${candidate}${trailingSpace ? " " : ""}`;
+		return `${commandLine[0] ?? ":"}${verb} ${prevArgs}${candidate}${trailingSpace ? " " : ""}`;
 	}
-	return `:${candidate}${trailingSpace ? " " : ""}`;
+	return `${commandLine[0] ?? ":"}${candidate}${trailingSpace ? " " : ""}`;
 }
 
 export type CompletionKey =
@@ -128,6 +128,7 @@ export function reduceCompletion(
 			);
 			const session = deriveCompletionSession(commandLine);
 			if (!session) return { completionState: { status: "idle" } };
+			const candidate = suggestions[nextIdx];
 			return {
 				completionState: {
 					status: "cycling",
@@ -135,6 +136,9 @@ export function reduceCompletion(
 					highlightIndex: nextIdx,
 					session,
 				},
+				committedLine: candidate
+					? mergeCandidate(commandLine, candidate.completionText ?? candidate.verb, true)
+					: undefined,
 			};
 		}
 		case "up":
@@ -180,7 +184,7 @@ export function reduceCompletion(
 				if (candidate) {
 					return {
 						completionState: { status: "idle" },
-						executeLine: mergeCandidate(commandLine, candidate.verb, false),
+						executeLine: mergeCandidate(commandLine, candidate.completionText ?? candidate.verb, false),
 					};
 				}
 			}

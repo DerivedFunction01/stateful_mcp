@@ -10,8 +10,12 @@ import type {
 import type { AutocompleteSuggestion } from "./command-autocomplete";
 
 function suggestion(macro: ParserCommandMacro): AutocompleteSuggestion {
+	const template = macro.authoringTemplate
+		? renderCommandMacroTemplate(macro.authoringTemplate).text
+		: undefined;
 	return {
 		verb: `^${macro.macroName}`,
+		completionText: template ? `^${macro.macroName} ${template}` : undefined,
 		group: "macro",
 		source: "cell",
 		hasArgs: macro.arguments.length > 0,

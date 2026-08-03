@@ -4,6 +4,8 @@ export type AutocompleteSuggestionKind = "verb" | "arg";
 
 export interface AutocompleteSuggestion {
 	verb: string;
+	/** Full text inserted when selecting the suggestion, when it differs from the label. */
+	completionText?: string;
 	group: string;
 	source: "editor" | "cell";
 	hasArgs: boolean;

@@ -815,4 +815,19 @@ describe("command macro v2 foundation", () => {
 		expect(result.error?.message).toBe("transaction failed");
 		expect([...saved.keys()].every((id) => id === "macro-fail")).toBe(true);
 	});
+
+	test("resolves required concept arguments through the dictionary during planning", async () => {
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(macro);
+		const dictionary = {
+			resolve: async () => ({
+				status: "FOUND",
+				results: [{ concept: { id: "concept-1", namespaceCode: "SNOMED", standardCode: "123", display: "Chest pain" } }],
+			}),
+		} as any;
+		const result = await planCommandMacroBatch("^cc SOB 4", store, { dictionaryStore: dictionary });
+		expect(result.diagnostics).toEqual([]);
+		expect(result.graph?.plans[0]?.operations[0]?.value).toEqual({ conceptId: "SNOMED::123", display: "Chest pain" });
+		expect(result.graph?.plans[0]?.operations[0]?.evidence.at(-1)?.source).toBe("dictionary");
+	});
 });

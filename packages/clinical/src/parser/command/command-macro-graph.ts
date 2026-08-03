@@ -2,6 +2,7 @@ import type {
 	ParserCommandMacro,
 	ParserCommandMacroStore,
 } from "../../store/parser/command-macros/interfaces";
+import type { DictionaryStore } from "@stateful-mcp/core";
 import { bindCommandMacro } from "./command-macro-binder";
 import {
 	buildCommandMacroCompatibilitySignature,
@@ -97,6 +98,8 @@ export async function planCommandMacroBatch(
 		groupId?: string;
 		cellRefPrefix?: string;
 		maxCompositionDepth?: number;
+		dictionaryStore?: DictionaryStore;
+		dictionaryContext?: Record<string, unknown>;
 	} = {},
 ): Promise<{
 	graph?: CommandMacroGraphPlan;
@@ -126,6 +129,46 @@ export async function planCommandMacroBatch(
 			cellRef: `${options.cellRefPrefix ?? groupId}:line:${lineIndex + 1}`,
 			sourceLine: lineIndex + 1,
 		});
+		if (result.plan && options.dictionaryStore) {
+			for (const operation of result.plan.operations) {
+				const argument = macro.arguments[operation.sourceArgument];
+				if (argument?.extraction.kind !== "concept") continue;
+				const resolved = await options.dictionaryStore.resolve(
+					operation.rawValue,
+					options.dictionaryContext,
+				);
+				if (resolved?.status !== "FOUND" || !resolved.results?.length) {
+					if (argument.extraction.requireConceptFilter)
+						diagnostics.push({
+							line: lineIndex + 1,
+							macroName,
+							message: `concept '${operation.rawValue}' could not be resolved`,
+						});
+					continue;
+				}
+				const candidate = resolved.results[0]?.concept;
+				if (!candidate) continue;
+				if (
+					argument.extraction.acceptedConceptNamespaces?.length &&
+					!argument.extraction.acceptedConceptNamespaces.includes(candidate.namespaceCode)
+				) {
+					diagnostics.push({
+						line: lineIndex + 1,
+						macroName,
+						message: `concept '${operation.rawValue}' is outside the accepted namespaces`,
+					});
+					continue;
+				}
+				operation.value = {
+					conceptId: `${candidate.namespaceCode}::${candidate.standardCode}`,
+					display: candidate.display,
+				};
+				operation.evidence = [
+					...operation.evidence,
+					{ source: "dictionary", confidence: 1 },
+				];
+			}
+		}
 		for (const diagnostic of result.diagnostics)
 			diagnostics.push({
 				line: lineIndex + 1,

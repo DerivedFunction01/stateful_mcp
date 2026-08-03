@@ -1,4 +1,5 @@
 import type { WorkspaceStore } from "../engine/workspace-store";
+import type { DictionaryStore } from "@stateful-mcp/core";
 import type { CdslParser, ClinicalParseResult } from "../parser/cdsl-parser";
 import { planCommandMacroBatch } from "../parser/command/command-macro-graph";
 import type { CommandMacroCellPlan } from "../parser/command/command-macro-ir";
@@ -95,6 +96,7 @@ export class CellProcessor {
 		private cellCommandRegistry: CellCommandRegistry = CellCommandRegistry.createDefault(),
 		private commandMacroStore?: ParserCommandMacroStore,
 		private commandTemplateStore?: CommandTemplateStore,
+		private dictionaryStore?: DictionaryStore,
 	) {}
 
 	private buildMacroGeneratedCells(
@@ -185,6 +187,7 @@ export class CellProcessor {
 			{
 				groupId: cell.macro?.batchId ?? cell.cellId,
 				cellRefPrefix: cell.cellId,
+				dictionaryStore: this.dictionaryStore,
 			},
 		);
 		diagnostics.push(
@@ -289,6 +292,12 @@ export class CellProcessor {
 			? this.buildMacroGeneratedCells(cell, graphResult.graph!.plans)
 			: [];
 		try {
+			cell.status = "pending_commit";
+			cell.macro = {
+				...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }),
+				status: "pending_commit",
+			};
+			await this.saveCell(cell);
 			for (const generatedCell of generatedCells)
 				await this.cellStore!.save(generatedCell);
 			const graphApplication = this.documentExecutor.applyMacroGraph
