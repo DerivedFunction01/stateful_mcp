@@ -7,46 +7,48 @@ export type ArgRef =
 	| number
 	| string
 	| boolean;
+export const OPS = [
+	"neg",
+	"not",
+	"add",
+	"sub",
+	"mul",
+	"div",
+	"mod",
+	"exp",
+	"lt",
+	"leq",
+	"eq",
+	"neq",
+	"geq",
+	"gt",
+	"in_set",
+	"not_in_set",
+	"and",
+	"or",
+	"year",
+	"month",
+	"day",
+	"quarter",
+	"date_diff",
+	"get",
+	"json_parse",
+	"to_string",
+	"to_number",
+	"round",
+	"ceil",
+	"floor",
+	"starts_with",
+	"ends_with",
+	"str_contains",
+	"substring",
+	"trim",
+	"lower",
+	"upper",
+	"concat",
+] as const;
 
-export type OpName =
-	| "neg"
-	| "not"
-	| "add"
-	| "sub"
-	| "mul"
-	| "div"
-	| "mod"
-	| "exp"
-	| "lt"
-	| "leq"
-	| "eq"
-	| "neq"
-	| "geq"
-	| "gt"
-	| "in_set"
-	| "not_in_set"
-	| "and"
-	| "or"
-	| "year"
-	| "month"
-	| "day"
-	| "quarter"
-	| "date_diff"
-	| "get"
-	| "json_parse"
-	| "to_string"
-	| "to_number"
-	| "round"
-	| "ceil"
-	| "floor"
-	| "starts_with"
-	| "ends_with"
-	| "str_contains"
-	| "substring"
-	| "trim"
-	| "lower"
-	| "upper"
-	| "concat";
+export type OpName = (typeof OPS)[number];
 
 export interface PipelineStep {
 	op: OpName;
