@@ -1,42 +1,70 @@
-import { VariableServiceStore, type EventStore, type DictionaryStore, type VariableService } from "@stateful-mcp/core";
-import { TransactionCoordinator, InMemoryTransactionJournal } from "../transactions/transaction-coordinator";
-import type { TransactionJournal, TransactionParticipant } from "../transactions/transaction-types";
-import type { ClinicalDocumentProjectionStore, SignedDocumentArchive } from "../clinical/clinical-document-types";
-import { InMemoryClinicalDocumentProjectionStore, InMemorySignedDocumentArchive } from "../clinical/clinical-document-types";
-import { CoreClinicalEventStore } from "../clinical/core-clinical-event-store";
+import {
+	type DictionaryStore,
+	type EventStore,
+	type VariableService,
+	VariableServiceStore,
+} from "@stateful-mcp/core";
+import type { CellStore } from "../cells/cell-service-types";
+import { StructuredCellService } from "../cells/structured-cell-service";
+import { V2VariableCellService } from "../cells/variable-cell-service";
 import { ClinicalDocumentService } from "../clinical/clinical-document-service";
+import type {
+	ClinicalDocumentProjectionStore,
+	SignedDocumentArchive,
+} from "../clinical/clinical-document-types";
+import {
+	InMemoryClinicalDocumentProjectionStore,
+	InMemorySignedDocumentArchive,
+} from "../clinical/clinical-document-types";
 import { ClinicalOperationCompiler } from "../clinical/clinical-operation-compiler";
 import { ClinicalTransactionParticipant } from "../clinical/clinical-transaction-participant";
+import { CoreClinicalEventStore } from "../clinical/core-clinical-event-store";
 import { registerClinicalSchemaAdapters } from "../clinical/register-clinical-schema-adapters";
-import { InMemoryWorkspaceViewStateStore } from "../workspaces/workspace-view-state";
-import type { WorkspaceViewStateStore } from "../workspaces/workspace-view-state";
+import {
+	createV2CommandSyntaxProfile,
+	type V2CommandSyntaxProfile,
+} from "../commands/command-syntax-profile";
+import { V2VariableCommandService } from "../commands/variable-command-service";
+import type { MacroStore } from "../macros/macro-definition";
+import {
+	createClinicalProjection,
+	createSyncProjection,
+	createWorkspaceProjection,
+} from "../projections/projection-handlers";
+import { ProjectionRegistry } from "../projections/projection-registry";
+import type { SchemaRegistry } from "../schemas/schema-registry";
+import { SyncApplicationService } from "../sync/sync-application-service";
+import { SyncEngine } from "../sync/sync-engine";
+import type { SyncConfig } from "../sync/sync-rule-config";
+import {
+	InMemoryTransactionJournal,
+	TransactionCoordinator,
+} from "../transactions/transaction-coordinator";
+import type {
+	TransactionJournal,
+	TransactionParticipant,
+} from "../transactions/transaction-types";
 import { CoreWorkspaceEventStore } from "../workspaces/core-workspace-event-store";
-import type { WorkspaceStore } from "../workspaces/workspace-store";
 import { WorkspaceService } from "../workspaces/workspace-service";
+import type { WorkspaceStore } from "../workspaces/workspace-store";
 import { WorkspaceTransactionParticipant } from "../workspaces/workspace-transaction-participant";
-import { StructuredCellService } from "../cells/structured-cell-service";
-import type { CellStore } from "../cells/cell-service-types";
+import type { WorkspaceViewStateStore } from "../workspaces/workspace-view-state";
+import {
+	InMemoryWorkspaceViewStateStore,
+	WorkspaceViewService,
+} from "../workspaces/workspace-view-state";
 import { CellTransactionParticipant } from "./cell-transaction-participant";
 import { ClinicalEngineV2 } from "./clinical-engine-v2";
-import { ProjectionRegistry } from "../projections/projection-registry";
-import { createClinicalProjection, createWorkspaceProjection, createSyncProjection } from "../projections/projection-handlers";
-import { SyncEngine } from "../sync/sync-engine";
-import { SyncApplicationService } from "../sync/sync-application-service";
-import type { SchemaRegistry } from "../schemas/schema-registry";
-import type { MacroStore } from "../macros/macro-definition";
-import type { SyncConfig } from "../sync/sync-rule-config";
-import { WorkspaceViewService } from "../workspaces/workspace-view-state";
 import type { ClinicalRuntimeV2 } from "./clinical-runtime-v2";
-import { createV2CommandSyntaxProfile, type V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
-import { V2VariableCommandService } from "../commands/variable-command-service";
-import { V2VariableCellService } from "../cells/variable-cell-service";
 
 export class ClinicalEngineV2Builder {
 	private eventStore?: EventStore;
 	private schemaRegistry?: SchemaRegistry;
 	private macroStore?: MacroStore;
 	private dictionaryStore?: DictionaryStore;
-	private cellCompiler?: (rawText: string) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>;
+	private cellCompiler?: (
+		rawText: string,
+	) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>;
 	private syncConfig?: SyncConfig;
 	private cellStore?: CellStore;
 	private workspaceStore?: WorkspaceStore;
@@ -73,7 +101,15 @@ export class ClinicalEngineV2Builder {
 		return this;
 	}
 
-	withCellCompiler(compile: (rawText: string) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>): this {
+	withCellCompiler(
+		compile: (
+			rawText: string,
+		) => Promise<{
+			plan?: unknown;
+			diagnostics: string[];
+			fingerprint: string;
+		}>,
+	): this {
 		this.cellCompiler = compile;
 		return this;
 	}
@@ -125,19 +161,33 @@ export class ClinicalEngineV2Builder {
 
 	build(): ClinicalEngineV2 {
 		const eventStore = this.requireStore(this.eventStore, "EventStore");
-		const schemaRegistry = this.requireStore(this.schemaRegistry, "SchemaRegistry");
+		const schemaRegistry = this.requireStore(
+			this.schemaRegistry,
+			"SchemaRegistry",
+		);
 		const macroStore = this.macroStore;
 		const dictionaryStore = this.dictionaryStore;
-		if (!macroStore) throw new Error("ClinicalEngineV2Builder: 'MacroStore' is required. Call .withMacroStore(store) before .build()");
-		if (!dictionaryStore) throw new Error("ClinicalEngineV2Builder: 'DictionaryStore' is required. Call .withDictionary(store) before .build()");
-		if (!this.cellCompiler) throw new Error("ClinicalEngineV2Builder: 'CellCompiler' is required. Call .withCellCompiler(compile) before .build()");
+		if (!macroStore)
+			throw new Error(
+				"ClinicalEngineV2Builder: 'MacroStore' is required. Call .withMacroStore(store) before .build()",
+			);
+		if (!dictionaryStore)
+			throw new Error(
+				"ClinicalEngineV2Builder: 'DictionaryStore' is required. Call .withDictionary(store) before .build()",
+			);
+		if (!this.cellCompiler)
+			throw new Error(
+				"ClinicalEngineV2Builder: 'CellCompiler' is required. Call .withCellCompiler(compile) before .build()",
+			);
 
 		const adapters = registerClinicalSchemaAdapters(schemaRegistry);
 
 		const coreClinicalEvents = new CoreClinicalEventStore(eventStore);
 		const clinicalCompiler = new ClinicalOperationCompiler(adapters);
-		const clinicalProjectionStore = this.projectionStore ?? new InMemoryClinicalDocumentProjectionStore();
-		const archiveStore = this.archiveStore ?? new InMemorySignedDocumentArchive();
+		const clinicalProjectionStore =
+			this.projectionStore ?? new InMemoryClinicalDocumentProjectionStore();
+		const archiveStore =
+			this.archiveStore ?? new InMemorySignedDocumentArchive();
 		const clinicalService = new ClinicalDocumentService(
 			coreClinicalEvents,
 			clinicalCompiler,
@@ -146,7 +196,10 @@ export class ClinicalEngineV2Builder {
 		);
 
 		const coreWorkspaceEvents = new CoreWorkspaceEventStore(eventStore);
-		const workspaceStore = this.requireStore(this.workspaceStore, "WorkspaceStore");
+		const workspaceStore = this.requireStore(
+			this.workspaceStore,
+			"WorkspaceStore",
+		);
 		const workspaceService = new WorkspaceService(
 			workspaceStore,
 			coreWorkspaceEvents,
@@ -164,8 +217,12 @@ export class ClinicalEngineV2Builder {
 		const journal = this.journal ?? new InMemoryTransactionJournal();
 		const coordinator = new TransactionCoordinator({ journal });
 
-		const clinicalParticipant = new ClinicalTransactionParticipant(clinicalService);
-		const workspaceParticipant = new WorkspaceTransactionParticipant(workspaceService);
+		const clinicalParticipant = new ClinicalTransactionParticipant(
+			clinicalService,
+		);
+		const workspaceParticipant = new WorkspaceTransactionParticipant(
+			workspaceService,
+		);
 		const cellParticipant = new CellTransactionParticipant(cellStore);
 		const participants: TransactionParticipant[] = [
 			clinicalParticipant,
@@ -175,9 +232,17 @@ export class ClinicalEngineV2Builder {
 		];
 
 		const syncEngine = new SyncEngine({ syncConfig: this.syncConfig });
-		const syncApplication = this.syncConfig ? new SyncApplicationService(workspaceService) : undefined;
+		const syncApplication = this.syncConfig
+			? new SyncApplicationService(workspaceService)
+			: undefined;
 		const variables = this.variableService ?? new VariableServiceStore();
-		const syntaxProfile = this.syntaxProfile ?? createV2CommandSyntaxProfile({ profileId: "v2-default", default: true, active: true });
+		const syntaxProfile =
+			this.syntaxProfile ??
+			createV2CommandSyntaxProfile({
+				profileId: "v2-default",
+				default: true,
+				active: true,
+			});
 
 		const registry = new ProjectionRegistry();
 		registry.register(createClinicalProjection(clinicalService));
@@ -226,7 +291,10 @@ export class ClinicalEngineV2Builder {
 	}
 
 	private requireStore<T>(store: T | undefined, name: string): T {
-		if (!store) throw new Error(`ClinicalEngineV2Builder: '${name}' is required. Call .with${name}(store) before .build()`);
+		if (!store)
+			throw new Error(
+				`ClinicalEngineV2Builder: '${name}' is required. Call .with${name}(store) before .build()`,
+			);
 		return store;
 	}
 }

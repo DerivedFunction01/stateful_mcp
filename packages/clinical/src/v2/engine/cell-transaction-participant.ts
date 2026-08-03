@@ -1,10 +1,10 @@
+import type { CellStore } from "../cells/cell-service-types";
+import type { StructuredCell } from "../cells/structured-cell";
 import type {
 	EventCommitReceipt,
 	TransactionParticipant,
 	TransactionParticipantContext,
 } from "../transactions/transaction-types";
-import type { CellStore } from "../cells/cell-service-types";
-import type { StructuredCell } from "../cells/structured-cell";
 
 /**
  * Transaction participant that marks a cell as committed after the full
@@ -22,7 +22,9 @@ export class CellTransactionParticipant implements TransactionParticipant {
 	constructor(private readonly store: CellStore) {}
 
 	async stage(context: TransactionParticipantContext): Promise<void> {
-		const cellIds = [...new Set(context.plan.generatedCells.map((c) => c.cellRef))];
+		const cellIds = [
+			...new Set(context.plan.generatedCells.map((c) => c.cellRef)),
+		];
 		if (!cellIds.length) {
 			const sourceCellId = context.plan.operations[0]?.cellRef;
 			if (sourceCellId) cellIds.push(sourceCellId);
@@ -43,7 +45,9 @@ export class CellTransactionParticipant implements TransactionParticipant {
 		}
 	}
 
-	async appendEvents(context: TransactionParticipantContext): Promise<EventCommitReceipt> {
+	async appendEvents(
+		context: TransactionParticipantContext,
+	): Promise<EventCommitReceipt> {
 		const existing = this.receipts.get(context.transactionId);
 		if (existing) return existing;
 		const cellIds = this.pendingCells.get(context.transactionId);
@@ -59,7 +63,11 @@ export class CellTransactionParticipant implements TransactionParticipant {
 			await this.store.save(updated);
 			committedIds.push(cellId);
 		}
-		const receipt = { commitId: context.transactionId, eventIds: committedIds, receiptKind: "cell_store" as const };
+		const receipt = {
+			commitId: context.transactionId,
+			eventIds: committedIds,
+			receiptKind: "cell_store" as const,
+		};
 		this.receipts.set(context.transactionId, receipt);
 		return receipt;
 	}

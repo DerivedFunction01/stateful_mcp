@@ -1,5 +1,4 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/v2/macros/macro-autocomplete";
-import { Text } from "ink";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";

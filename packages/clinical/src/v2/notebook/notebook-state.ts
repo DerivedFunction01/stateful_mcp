@@ -1,6 +1,10 @@
 import type { StructuredCell } from "../cells/structured-cell";
 export const NOTEBOOK_STATE = [
-	"NORMAL", "INSERT", "COMMAND", "MACRO",  "VISUAL"
+	"NORMAL",
+	"INSERT",
+	"COMMAND",
+	"MACRO",
+	"VISUAL",
 ] as const;
 export type V2NotebookEditorMode = (typeof NOTEBOOK_STATE)[number];
 /** Editor-neutral V2 notebook state; domain truth remains in CellStore. */
@@ -39,12 +43,32 @@ export function reduceV2NotebookEditor(
 	action: V2NotebookEditorAction,
 ): V2NotebookEditorState {
 	switch (action.type) {
-		case "set_cells": return { ...state, cells: action.cells, activeIndex: Math.min(state.activeIndex, Math.max(0, action.cells.length - 1)) };
-		case "set_active": return { ...state, activeIndex: Math.max(0, Math.min(action.index, Math.max(0, state.cells.length - 1))) };
-		case "set_draft": return { ...state, draftText: action.text, dirty: true };
-		case "set_command": return { ...state, commandLine: action.text };
-		case "set_mode": return { ...state, mode: action.mode };
-		case "set_message": return { ...state, message: action.message };
-		case "mark_clean": return { ...state, dirty: false };
+		case "set_cells":
+			return {
+				...state,
+				cells: action.cells,
+				activeIndex: Math.min(
+					state.activeIndex,
+					Math.max(0, action.cells.length - 1),
+				),
+			};
+		case "set_active":
+			return {
+				...state,
+				activeIndex: Math.max(
+					0,
+					Math.min(action.index, Math.max(0, state.cells.length - 1)),
+				),
+			};
+		case "set_draft":
+			return { ...state, draftText: action.text, dirty: true };
+		case "set_command":
+			return { ...state, commandLine: action.text };
+		case "set_mode":
+			return { ...state, mode: action.mode };
+		case "set_message":
+			return { ...state, message: action.message };
+		case "mark_clean":
+			return { ...state, dirty: false };
 	}
 }

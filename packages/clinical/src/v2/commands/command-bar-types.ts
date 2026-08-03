@@ -1,8 +1,10 @@
-import type { ClinicalOperation } from "../clinical/clinical-operation";
-import type { WorkspaceOperation } from "../workspaces/workspace-types";
-import type { MacroExecutionPlan } from "../macros/macro-plan";
-import type { V2WorkspaceAggregate } from "../workspaces/workspace-types";
 import type { VariableStatement } from "@stateful-mcp/core";
+import type { ClinicalOperation } from "../clinical/clinical-operation";
+import type { MacroExecutionPlan } from "../macros/macro-plan";
+import type {
+	V2WorkspaceAggregate,
+	WorkspaceOperation,
+} from "../workspaces/workspace-types";
 
 export type CommandBarIntentKind =
 	| "editor_command"
@@ -56,7 +58,10 @@ export interface CommandBarIntent {
 
 export interface CommandBarWorkspaceContext {
 	getWorkspace(workspaceId: string): Promise<V2WorkspaceAggregate | null>;
-	resolveBranchRef(workspace: V2WorkspaceAggregate, ref: string): { id: string };
+	resolveBranchRef(
+		workspace: V2WorkspaceAggregate,
+		ref: string,
+	): { id: string };
 }
 
 export interface CommandPreview {

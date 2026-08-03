@@ -193,12 +193,19 @@ export class ClinicalOperationCompiler {
 				node = node[key] as Record<string, unknown>;
 			}
 			const leaf = parts[parts.length - 1]!;
-			node[leaf] = applyMerge(node[leaf], unwrapTypedValue(operation.value), strategy);
+			node[leaf] = applyMerge(
+				node[leaf],
+				unwrapTypedValue(operation.value),
+				strategy,
+			);
 		}
 		return merged;
 	}
 
-	private recordIdForGroup(group: readonly MacroTargetOperation[], fallback: string): string {
+	private recordIdForGroup(
+		group: readonly MacroTargetOperation[],
+		fallback: string,
+	): string {
 		const identity = group.find((operation) => operation.targetPath === "id");
 		const value = identity ? unwrapTypedValue(identity.value) : undefined;
 		return typeof value === "string" && value.length > 0 ? value : fallback;
@@ -257,13 +264,27 @@ function unwrapTypedValue(value: unknown): unknown {
 	if (!value || typeof value !== "object" || !("kind" in value)) return value;
 	const typed = value as MacroTargetOperation["value"];
 	switch (typed.kind) {
-		case "concept": return typed.concept;
-		case "concept_array": return typed.concepts;
-		case "scalar": return typed.value;
-		case "enum": return typed.value;
-		case "temporal": return typed.value;
-		case "measurement": return { dimension: typed.dimension, magnitude: typed.magnitude, unit: typed.unit, operator: typed.operator, approximate: typed.isApproximate };
-		case "array": return typed.items.map(unwrapTypedValue);
-		case "composite": return typed.values;
+		case "concept":
+			return typed.concept;
+		case "concept_array":
+			return typed.concepts;
+		case "scalar":
+			return typed.value;
+		case "enum":
+			return typed.value;
+		case "temporal":
+			return typed.value;
+		case "measurement":
+			return {
+				dimension: typed.dimension,
+				magnitude: typed.magnitude,
+				unit: typed.unit,
+				operator: typed.operator,
+				approximate: typed.isApproximate,
+			};
+		case "array":
+			return typed.items.map(unwrapTypedValue);
+		case "composite":
+			return typed.values;
 	}
 }

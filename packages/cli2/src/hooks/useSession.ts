@@ -1,6 +1,5 @@
-import type { V2BootstrapResult } from "../lib/session/bootstrap-v2";
 import { useEffect, useState } from "react";
-import { bootstrapSession } from "../lib/session/bootstrap";
+import type { V2BootstrapResult } from "../lib/session/bootstrap-v2";
 
 export interface SessionState {
 	v2: V2BootstrapResult;
@@ -16,10 +15,17 @@ export function useSession(): SessionState | null {
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const { bootstrapV2Session } = await import("../lib/session/bootstrap-v2");
+			const { bootstrapV2Session } = await import(
+				"../lib/session/bootstrap-v2"
+			);
 			const v2 = await bootstrapV2Session();
 			if (cancelled) return;
-		setState({ v2, sessionId: v2.sessionId, result: undefined, notebook: undefined });
+			setState({
+				v2,
+				sessionId: v2.sessionId,
+				result: undefined,
+				notebook: undefined,
+			});
 		})();
 		return () => {
 			cancelled = true;

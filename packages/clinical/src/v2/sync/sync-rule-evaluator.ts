@@ -1,6 +1,6 @@
-import type { PropertyTranslation, PipelineStep } from "@stateful-mcp/core";
+import type { PipelineStep } from "@stateful-mcp/core";
 import { evaluatePipeline } from "../values/pipeline-evaluator";
-import type { SyncRule, SyncResult, SyncRuleMatch } from "./sync-rule-config";
+import type { SyncResult, SyncRuleMatch } from "./sync-rule-config";
 
 /**
  * Pure function: given matched sync rules + clinical record values, produce
@@ -10,18 +10,29 @@ import type { SyncRule, SyncResult, SyncRuleMatch } from "./sync-rule-config";
  * - Identity mapping when no pipeline is present (direct value copy).
  * - Pipeline-based reshaping when `transform.pipeline` is present.
  */
-export function evaluateSyncRules(matches: readonly SyncRuleMatch[]): SyncResult[] {
+export function evaluateSyncRules(
+	matches: readonly SyncRuleMatch[],
+): SyncResult[] {
 	const results: SyncResult[] = [];
 	for (const match of matches) {
 		const rule = match.rule;
 		const resultValues: Record<string, unknown> = { ...rule.constants };
-		for (const [targetField, translation] of Object.entries(rule.propertyMapping)) {
+		for (const [targetField, translation] of Object.entries(
+			rule.propertyMapping,
+		)) {
 			const sourceValue = resolvePath(match.values, translation.internal);
-			if (sourceValue === undefined && !translation.transform?.pipeline?.length) {
+			if (
+				sourceValue === undefined &&
+				!translation.transform?.pipeline?.length
+			) {
 				continue;
 			}
 			if (translation.transform?.pipeline?.length) {
-				const transformed = applyPipeline(translation.transform.pipeline, sourceValue, match.values);
+				const transformed = applyPipeline(
+					translation.transform.pipeline,
+					sourceValue,
+					match.values,
+				);
 				if (transformed !== undefined) {
 					resultValues[targetField] = transformed;
 				}
@@ -33,9 +44,10 @@ export function evaluateSyncRules(matches: readonly SyncRuleMatch[]): SyncResult
 		results.push({
 			operation: "add_fact",
 			targetSchema: rule.targetSchema,
-			certainty: typeof resultValues.certainty === "string"
-				? resultValues.certainty as SyncResult["certainty"]
-				: rule.defaultCertainty,
+			certainty:
+				typeof resultValues.certainty === "string"
+					? (resultValues.certainty as SyncResult["certainty"])
+					: rule.defaultCertainty,
 			values: resultValues,
 			provenance: {
 				ruleId: rule.ruleId,
@@ -71,17 +83,31 @@ function applyPipeline(
 	inputs: Record<string, unknown>,
 ): unknown {
 	const variables = new Map<string, string | number | boolean | null>();
-	if (sourceValue !== undefined && (typeof sourceValue === "string" || typeof sourceValue === "number" || typeof sourceValue === "boolean" || sourceValue === null)) {
+	if (
+		sourceValue !== undefined &&
+		(typeof sourceValue === "string" ||
+			typeof sourceValue === "number" ||
+			typeof sourceValue === "boolean" ||
+			sourceValue === null)
+	) {
 		variables.set("value", sourceValue as string | number | boolean | null);
 	}
 	for (const [key, value] of Object.entries(inputs)) {
-		if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null) {
+		if (
+			typeof value === "string" ||
+			typeof value === "number" ||
+			typeof value === "boolean" ||
+			value === null
+		) {
 			variables.set(key, value as string | number | boolean | null);
 		}
 	}
 	const context = {
 		variables,
-		inputs: Object.fromEntries(variables) as Record<string, string | number | boolean | null>,
+		inputs: Object.fromEntries(variables) as Record<
+			string,
+			string | number | boolean | null
+		>,
 	};
 	const result = evaluatePipeline(steps, context);
 	return result.value;

@@ -21,7 +21,9 @@ Legacy init/eval/session/profile commands are disabled in cli2.`);
 	}
 
 	if (["init", "eval", "session", "profile"].includes(command)) {
-		console.error(`cli2: '${command}' is disabled until its V2 implementation is wired.`);
+		console.error(
+			`cli2: '${command}' is disabled until its V2 implementation is wired.`,
+		);
 		process.exitCode = 2;
 		return;
 	}

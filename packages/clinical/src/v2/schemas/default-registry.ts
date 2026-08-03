@@ -1,7 +1,7 @@
 import {
 	algorithmicEvaluationSchema,
-	differentialDiagnosisSchema,
 	deviceDiagnosticSchema,
+	differentialDiagnosisSchema,
 	environmentSchema,
 	exposureSchema,
 	historySchema,
@@ -46,6 +46,7 @@ export function createDefaultV2SchemaRegistry(): SchemaRegistry {
 		safetyNettingSchema,
 		soapNoteSchema,
 		vitalsSchema,
-	]) registry.register(definition);
+	])
+		registry.register(definition);
 	return registry;
 }

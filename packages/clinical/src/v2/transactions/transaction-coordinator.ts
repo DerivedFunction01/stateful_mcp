@@ -253,7 +253,10 @@ export class TransactionCoordinator {
 		}
 	}
 
-	async markProjectionFailure(transactionId: string, error: unknown): Promise<void> {
+	async markProjectionFailure(
+		transactionId: string,
+		error: unknown,
+	): Promise<void> {
 		const transaction = await this.requireTransaction(transactionId);
 		transaction.status = "recovery_required";
 		transaction.error = error instanceof Error ? error.message : String(error);

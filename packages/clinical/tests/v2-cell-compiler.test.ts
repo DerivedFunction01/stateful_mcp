@@ -8,10 +8,12 @@ describe("V2 cell compiler", () => {
 			{ get: async () => null, list: async () => [] },
 			createDefaultV2SchemaRegistry(),
 		);
-		const result = await compiler.compile("^unknown value=1", { sessionId: "s1" });
-		 expect(result.plan).toBeUndefined();
-		 expect(result.diagnostics).toEqual(["V2 macro 'unknown' is not defined"]);
-		 expect(result.fingerprint).toBeTruthy();
+		const result = await compiler.compile("^unknown value=1", {
+			sessionId: "s1",
+		});
+		expect(result.plan).toBeUndefined();
+		expect(result.diagnostics).toEqual(["V2 macro 'unknown' is not defined"]);
+		expect(result.fingerprint).toBeTruthy();
 	});
 
 	it("keeps direct commands on the command-bar path", async () => {

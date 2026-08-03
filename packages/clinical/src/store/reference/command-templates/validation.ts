@@ -1,7 +1,6 @@
 import { OPS, type PipelineStep } from "@stateful-mcp/core";
 import type { CommandTemplate, CommandTemplateSlot } from "./interfaces";
 
-
 function validatePipeline(
 	steps: PipelineStep[],
 	path: string,

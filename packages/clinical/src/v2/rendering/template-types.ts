@@ -1,12 +1,21 @@
 import type { PipelineStep } from "@stateful-mcp/core";
 
-export type V2TemplatePosition = "opening" | "continuing" | "closing" | "full_paragraph";
-export interface V2SlotCondition { pipeline: PipelineStep[]; }
+export type V2TemplatePosition =
+	| "opening"
+	| "continuing"
+	| "closing"
+	| "full_paragraph";
+export interface V2SlotCondition {
+	pipeline: PipelineStep[];
+}
 export interface V2OutputProseSlot {
 	sourcePath: string;
 	format?: string;
 	fallback?: string;
-	conditionalDelegates?: { delegateTemplateId: string; conditions: V2SlotCondition }[];
+	conditionalDelegates?: {
+		delegateTemplateId: string;
+		conditions: V2SlotCondition;
+	}[];
 	defaultDelegateTemplateId?: string;
 	listOptions?: { delimiter: string; lastDelimiter?: string };
 	conditions?: V2SlotCondition;

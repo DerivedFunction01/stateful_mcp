@@ -1,7 +1,7 @@
 import type { ClinicalDocumentReadModel } from "../clinical/clinical-document-types";
-import { evaluateSyncRules } from "./sync-rule-evaluator";
-import type { SyncConfig, SyncResult, SyncRule } from "./sync-rule-config";
 import { normalizeSchemaPath } from "../schemas/schema-path-validator";
+import type { SyncConfig, SyncResult, SyncRule } from "./sync-rule-config";
+import { evaluateSyncRules } from "./sync-rule-evaluator";
 
 export interface SyncEngineOptions {
 	syncConfig?: SyncConfig;
@@ -35,7 +35,12 @@ export class SyncEngine {
 				if (record.removed) {
 					results.push({
 						operation: "remove_fact",
-						factId: this.factId(document.documentId, recordId, rule, rule.targetBranchId),
+						factId: this.factId(
+							document.documentId,
+							recordId,
+							rule,
+							rule.targetBranchId,
+						),
 						targetSchema: rule.targetSchema,
 						targetBranchId: rule.targetBranchId,
 						values: {},
@@ -50,12 +55,22 @@ export class SyncEngine {
 						provenance,
 					},
 				]);
-				results.push(...evaluated.map((result) => ({
-					...result,
-					factId: this.factId(document.documentId, recordId, rule, rule.targetBranchId),
-					targetBranchId: rule.targetBranchId,
-					provenance: { ...result.provenance, sourceDocumentHead: document.eventHead },
-				})));
+				results.push(
+					...evaluated.map((result) => ({
+						...result,
+						factId: this.factId(
+							document.documentId,
+							recordId,
+							rule,
+							rule.targetBranchId,
+						),
+						targetBranchId: rule.targetBranchId,
+						provenance: {
+							...result.provenance,
+							sourceDocumentHead: document.eventHead,
+						},
+					})),
+				);
 			}
 		}
 		return results;
@@ -64,17 +79,32 @@ export class SyncEngine {
 	private ruleMatches(
 		rule: SyncRule,
 		_recordId: string,
-		record: { schemaName: string; values: Record<string, unknown>; provenance?: { sourceMacroId?: string; sourcePath?: string } },
+		record: {
+			schemaName: string;
+			values: Record<string, unknown>;
+			provenance?: { sourceMacroId?: string; sourcePath?: string };
+		},
 	): boolean {
-		if (rule.sourceSchema && rule.sourceSchema !== record.schemaName) return false;
+		if (rule.sourceSchema && rule.sourceSchema !== record.schemaName)
+			return false;
 		if (rule.sourceMacroId) {
 			if (record.provenance?.sourceMacroId !== rule.sourceMacroId) return false;
 		}
-		if (rule.sourcePath && normalizeSchemaPath(record.provenance?.sourcePath ?? "") !== normalizeSchemaPath(rule.sourcePath)) return false;
+		if (
+			rule.sourcePath &&
+			normalizeSchemaPath(record.provenance?.sourcePath ?? "") !==
+				normalizeSchemaPath(rule.sourcePath)
+		)
+			return false;
 		return true;
 	}
 
-	private factId(documentId: string, recordId: string, rule: SyncRule, branchId?: string | "active"): string {
+	private factId(
+		documentId: string,
+		recordId: string,
+		rule: SyncRule,
+		branchId?: string | "active",
+	): string {
 		return [documentId, recordId, rule.ruleId, branchId ?? "global"].join(":");
 	}
 }

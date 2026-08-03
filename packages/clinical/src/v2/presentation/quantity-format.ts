@@ -1,19 +1,50 @@
 import type { V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
 import type { V2FormattedQuantityValue } from "./field-types";
 
-export interface V2QuantityFormatContext { syntaxProfile?: V2CommandSyntaxProfile; locale?: string; targetSchema?: string; targetField?: string; unitDisplayStyle?: "short" | "long" | "narrow"; }
+export interface V2QuantityFormatContext {
+	syntaxProfile?: V2CommandSyntaxProfile;
+	locale?: string;
+	targetSchema?: string;
+	targetField?: string;
+	unitDisplayStyle?: "short" | "long" | "narrow";
+}
 
-export function formatV2Quantity(value: unknown, context: V2QuantityFormatContext = {}): V2FormattedQuantityValue {
-	if (!value || typeof value !== "object") return { kind: "unknown", text: String(value ?? ""), approximate: false };
+export function formatV2Quantity(
+	value: unknown,
+	context: V2QuantityFormatContext = {},
+): V2FormattedQuantityValue {
+	if (!value || typeof value !== "object")
+		return { kind: "unknown", text: String(value ?? ""), approximate: false };
 	const record = value as Record<string, unknown>;
-	const formatNumber = (number: number) => new Intl.NumberFormat(context.locale ?? "en-US").format(number);
-	const unit = typeof record.unit === "string" ? record.unit : typeof record.unit === "object" && record.unit && "display" in record.unit ? String(record.unit.display) : "";
-	const prefix = typeof record.operator === "string" ? ({ eq: "=", gt: ">", gte: "≥", lt: "<", lte: "≤" }[record.operator] ?? String(record.operator)) : "";
+	const formatNumber = (number: number) =>
+		new Intl.NumberFormat(context.locale ?? "en-US").format(number);
+	const unit =
+		typeof record.unit === "string"
+			? record.unit
+			: typeof record.unit === "object" &&
+					record.unit &&
+					"display" in record.unit
+				? String(record.unit.display)
+				: "";
+	const prefix =
+		typeof record.operator === "string"
+			? ({ eq: "=", gt: ">", gte: "≥", lt: "<", lte: "≤" }[record.operator] ??
+				String(record.operator))
+			: "";
 	if (record.low || record.high) {
 		const low = record.low as Record<string, unknown> | undefined;
 		const high = record.high as Record<string, unknown> | undefined;
-		return { kind: "range", text: `${low?.magnitude === undefined ? "?" : formatNumber(Number(low.magnitude))}–${high?.magnitude === undefined ? "?" : formatNumber(Number(high.magnitude))}${unit ? ` ${unit}` : ""}`, approximate: Boolean(low?.is_approximate || high?.is_approximate) };
+		return {
+			kind: "range",
+			text: `${low?.magnitude === undefined ? "?" : formatNumber(Number(low.magnitude))}–${high?.magnitude === undefined ? "?" : formatNumber(Number(high.magnitude))}${unit ? ` ${unit}` : ""}`,
+			approximate: Boolean(low?.is_approximate || high?.is_approximate),
+		};
 	}
-	if (typeof record.magnitude !== "number") return { kind: "unknown", text: String(value), approximate: false };
-	return { kind: prefix ? "comparison" : "exact", text: `${prefix ? `${prefix} ` : ""}${formatNumber(record.magnitude)}${unit ? ` ${unit}` : ""}`, approximate: record.is_approximate === true };
+	if (typeof record.magnitude !== "number")
+		return { kind: "unknown", text: String(value), approximate: false };
+	return {
+		kind: prefix ? "comparison" : "exact",
+		text: `${prefix ? `${prefix} ` : ""}${formatNumber(record.magnitude)}${unit ? ` ${unit}` : ""}`,
+		approximate: record.is_approximate === true,
+	};
 }

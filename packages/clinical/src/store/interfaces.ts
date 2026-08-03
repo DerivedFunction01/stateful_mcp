@@ -113,7 +113,6 @@ export interface NamedGroupContract {
 	disallowed?: string[];
 }
 
-
 export interface CalibrationException {
 	exceptionId: string;
 	personnelId: string;
@@ -193,7 +192,6 @@ export interface SignedSoapNoteStore {
 	getBySession(sessionId: string): Promise<SignedSoapNoteRecord | null>;
 	listForPatient(patientId: string): Promise<SignedSoapNoteRecord[]>;
 }
-
 
 export interface Personnel {
 	personnelId: string;

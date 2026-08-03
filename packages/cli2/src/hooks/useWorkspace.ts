@@ -10,7 +10,12 @@ interface UseWorkspaceArgs {
 	session: SessionState | null;
 }
 
-export function useWorkspace({ showWorkspace, sessionId, soapNoteId, session }: UseWorkspaceArgs) {
+export function useWorkspace({
+	showWorkspace,
+	sessionId,
+	soapNoteId,
+	session,
+}: UseWorkspaceArgs) {
 	const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -30,45 +35,95 @@ export function useWorkspace({ showWorkspace, sessionId, soapNoteId, session }: 
 		(async () => {
 			try {
 				let workspace = (await service.listWorkspaces(sessionId))[0] ?? null;
-				if (!workspace) workspace = await service.createWorkspace({ sessionId, sourceDocumentId: soapNoteId, workspaceId: `workspace-${sessionId}`, initialBranches: [] });
+				if (!workspace)
+					workspace = await service.createWorkspace({
+						sessionId,
+						sourceDocumentId: soapNoteId,
+						workspaceId: `workspace-${sessionId}`,
+						initialBranches: [],
+					});
 				if (cancelled) return;
 				workspaceIdRef.current = workspace.id;
 				setSnapshot(await service.getSnapshot(workspace.id));
 			} catch (cause) {
-				if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause));
+				if (!cancelled)
+					setError(cause instanceof Error ? cause.message : String(cause));
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
 		})();
-		return () => { cancelled = true; };
+		return () => {
+			cancelled = true;
+		};
 	}, [service, sessionId, showWorkspace, soapNoteId]);
 
-	const apply = useCallback(async (operation: WorkspaceOperation) => {
-		if (!service || !workspaceIdRef.current) throw new Error("V2 workspace is not ready");
-		const current = await service.getWorkspace(workspaceIdRef.current);
-		if (!current) throw new Error("V2 workspace was not found");
-		await service.applyOperations(current.id, [operation], current.version, current.eventHead);
-		await refresh();
-	}, [refresh, service]);
+	const apply = useCallback(
+		async (operation: WorkspaceOperation) => {
+			if (!service || !workspaceIdRef.current)
+				throw new Error("V2 workspace is not ready");
+			const current = await service.getWorkspace(workspaceIdRef.current);
+			if (!current) throw new Error("V2 workspace was not found");
+			await service.applyOperations(
+				current.id,
+				[operation],
+				current.version,
+				current.eventHead,
+			);
+			await refresh();
+		},
+		[refresh, service],
+	);
 
-	const complete = useCallback(async (winningBranchId: string) => {
-		try { await apply({ kind: "complete", workspaceId: workspaceIdRef.current!, winningBranchId }); }
-		catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
-	}, [apply]);
+	const complete = useCallback(
+		async (winningBranchId: string) => {
+			try {
+				await apply({
+					kind: "complete",
+					workspaceId: workspaceIdRef.current!,
+					winningBranchId,
+				});
+			} catch (cause) {
+				setError(cause instanceof Error ? cause.message : String(cause));
+			}
+		},
+		[apply],
+	);
 	const close = useCallback(async () => {
-		try { await apply({ kind: "close", workspaceId: workspaceIdRef.current! }); }
-		catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+		try {
+			await apply({ kind: "close", workspaceId: workspaceIdRef.current! });
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : String(cause));
+		}
 	}, [apply]);
-	const addBranch = useCallback(async (name: string, conceptText: string) => {
-		try { await apply({ kind: "create_branch", workspaceId: workspaceIdRef.current!, name, concept: { conceptId: conceptText, display: conceptText } }); }
-		catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
-	}, [apply]);
-	const executeCommand = useCallback(async (rawText: string) => {
-		if (!session || !workspaceIdRef.current) return;
-		const result = await session.v2.commandBar.execute({ rawText, sessionId, workspaceId: workspaceIdRef.current });
-		if (result.status !== "committed") setError(result.error ?? "V2 workspace command failed");
-		await refresh();
-	}, [refresh, session, sessionId]);
+	const addBranch = useCallback(
+		async (name: string, conceptText: string) => {
+			try {
+				await apply({
+					kind: "create_branch",
+					workspaceId: workspaceIdRef.current!,
+					name,
+					concept: { conceptId: conceptText, display: conceptText },
+				});
+			} catch (cause) {
+				setError(cause instanceof Error ? cause.message : String(cause));
+			}
+		},
+		[apply],
+	);
+	const executeCommand = useCallback(
+		async (rawText: string) => {
+			if (!session || !workspaceIdRef.current) return;
+			const result = await session.v2.commandBar.execute({
+				rawText,
+				sessionId,
+				workspaceId: workspaceIdRef.current,
+			});
+			if (result.status !== "committed")
+				setError(result.error ?? "V2 workspace command failed");
+			await refresh();
+		},
+		[refresh, session, sessionId],
+	);
 
 	return {
 		snapshot,
@@ -76,13 +131,25 @@ export function useWorkspace({ showWorkspace, sessionId, soapNoteId, session }: 
 		error,
 		focused,
 		toggleFocus: () => setFocused((value) => !value),
-		resetWorkspace: () => { workspaceIdRef.current = null; setSnapshot(null); setFocused(false); },
+		resetWorkspace: () => {
+			workspaceIdRef.current = null;
+			setSnapshot(null);
+			setFocused(false);
+		},
 		complete,
 		close,
 		addBranch,
 		executeCommand,
 		focusBranch: async (branchRef: string) => {
-			if (!snapshot?.branches.some((branch) => branch.branchId === branchRef || branch.commandAlias === branchRef || branch.name === branchRef)) setError(`Branch '${branchRef}' was not found`);
+			if (
+				!snapshot?.branches.some(
+					(branch) =>
+						branch.branchId === branchRef ||
+						branch.commandAlias === branchRef ||
+						branch.name === branchRef,
+				)
+			)
+				setError(`Branch '${branchRef}' was not found`);
 		},
 	};
 }

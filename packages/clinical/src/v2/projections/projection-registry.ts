@@ -1,6 +1,9 @@
-import type { SyncConfig } from "../sync/sync-rule-config";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
-import type { TransactionParticipantKind, TransactionParticipantState } from "../transactions/transaction-types";
+import type { SyncConfig } from "../sync/sync-rule-config";
+import type {
+	TransactionParticipantKind,
+	TransactionParticipantState,
+} from "../transactions/transaction-types";
 
 export interface ProjectionContext {
 	transactionId: string;
@@ -20,11 +23,16 @@ export interface ProjectionHandler {
  * kind matches a committed participant.
  */
 export class ProjectionRegistry {
-	private readonly handlers = new Map<TransactionParticipantKind, ProjectionHandler>();
+	private readonly handlers = new Map<
+		TransactionParticipantKind,
+		ProjectionHandler
+	>();
 
 	register(handler: ProjectionHandler): void {
 		if (this.handlers.has(handler.kind)) {
-			throw new Error(`Projection handler for '${handler.kind}' is already registered`);
+			throw new Error(
+				`Projection handler for '${handler.kind}' is already registered`,
+			);
 		}
 		this.handlers.set(handler.kind, handler);
 	}
@@ -38,7 +46,9 @@ export class ProjectionRegistry {
 	 * transaction. Handlers are called in registration order.
 	 */
 	async onCommitted(context: ProjectionContext): Promise<void> {
-		const committedKinds = new Set(context.participantStates.map((p) => p.kind));
+		const committedKinds = new Set(
+			context.participantStates.map((p) => p.kind),
+		);
 		for (const [kind, handler] of this.handlers) {
 			if (committedKinds.has(kind)) {
 				await handler.onCommitted(context);

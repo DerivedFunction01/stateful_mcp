@@ -5,7 +5,9 @@ import { bootstrapV2Session } from "../src/lib/session/bootstrap-v2";
 
 describe("cli2 V2 macro execution", () => {
 	it("compiles a seeded macro, records a structured cell, and commits a clinical document", async () => {
-		const runtime = await bootstrapV2Session({ sessionId: "macro-integration" });
+		const runtime = await bootstrapV2Session({
+			sessionId: "macro-integration",
+		});
 		const document = await runtime.engine.initializeClinicalDocument({
 			kind: "document_initialized",
 			documentId: "doc-macro-integration",
@@ -16,7 +18,10 @@ describe("cli2 V2 macro execution", () => {
 			runtime.engine.getRuntime().macros.defs,
 			runtime.engine.getRuntime().macros.schemaRegistry,
 			runtime.engine.getRuntime().macros.dictionary,
-			createV2SyntaxProfile({ ...runtime.syntaxProfile, profileId: runtime.syntaxProfile.profileId }),
+			createV2SyntaxProfile({
+				...runtime.syntaxProfile,
+				profileId: runtime.syntaxProfile.profileId,
+			}),
 		);
 		const rawText = "^primary_diagnosis id=dx-1 diagnosis=SNOMED::233604007";
 		const compiled = await compiler.compile(rawText, {
@@ -35,12 +40,21 @@ describe("cli2 V2 macro execution", () => {
 
 		const plan = {
 			...compiled.plan!,
-			expectedVersions: [{ aggregateKind: "document" as const, aggregateId: document.documentId, expectedVersion: document.version, expectedHead: document.eventHead }],
+			expectedVersions: [
+				{
+					aggregateKind: "document" as const,
+					aggregateId: document.documentId,
+					expectedVersion: document.version,
+					expectedHead: document.eventHead,
+				},
+			],
 		};
 		const result = await runtime.engine.executePlan(plan);
 		expect(result.status).toBe("committed");
 		const projected = await runtime.engine.getDocument(document.documentId);
-		const diagnosis = Object.values(projected?.records ?? {}).find((record) => record.schemaName === "PrimaryDiagnosis");
+		const diagnosis = Object.values(projected?.records ?? {}).find(
+			(record) => record.schemaName === "PrimaryDiagnosis",
+		);
 		expect(diagnosis?.values.id).toBe("dx-1");
 	});
 });

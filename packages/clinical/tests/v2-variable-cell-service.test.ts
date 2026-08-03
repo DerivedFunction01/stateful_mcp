@@ -13,7 +13,11 @@ describe("V2 variable cell service", () => {
 			new V2VariableCommandService(variables),
 			createV2CommandSyntaxProfile({ profileId: "test" }),
 		);
-		const result = await service.execute("s1", { kind: "notebook", collectionId: "s1" }, ":var set count = 2");
+		const result = await service.execute(
+			"s1",
+			{ kind: "notebook", collectionId: "s1" },
+			":var set count = 2",
+		);
 
 		expect(result.cell.lifecycle.status).toBe("committed");
 		expect(result.cell.authored.intent?.kind).toBe("variable");
@@ -28,7 +32,13 @@ describe("V2 variable cell service", () => {
 			new V2VariableCommandService(new VariableServiceStore()),
 			createV2CommandSyntaxProfile({ profileId: "test" }),
 		);
-		await expect(service.execute("s1", { kind: "notebook", collectionId: "s1" }, ":var set bad-name = 1")).rejects.toThrow();
+		await expect(
+			service.execute(
+				"s1",
+				{ kind: "notebook", collectionId: "s1" },
+				":var set bad-name = 1",
+			),
+		).rejects.toThrow();
 		const cells = await store.list("s1");
 		expect(cells).toHaveLength(1);
 		expect(cells[0]?.lifecycle.status).toBe("failed");

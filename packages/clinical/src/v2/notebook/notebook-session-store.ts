@@ -16,6 +16,9 @@ export interface V2NotebookSessionRecord {
 export interface V2NotebookSessionStore {
 	get(sessionId: string): Promise<V2NotebookSessionRecord | null>;
 	list(): Promise<V2NotebookSessionRecord[]>;
-	save(record: V2NotebookSessionRecord, expectedRevision?: number): Promise<void>;
+	save(
+		record: V2NotebookSessionRecord,
+		expectedRevision?: number,
+	): Promise<void>;
 	delete(sessionId: string): Promise<void>;
 }

@@ -1,8 +1,11 @@
-import type { ProjectionContext, ProjectionHandler } from "./projection-registry";
 import type { ClinicalDocumentService } from "../clinical/clinical-document-service";
-import type { WorkspaceService } from "../workspaces/workspace-service";
-import { SyncEngine } from "../sync/sync-engine";
 import type { SyncApplicationService } from "../sync/sync-application-service";
+import type { SyncEngine } from "../sync/sync-engine";
+import type { WorkspaceService } from "../workspaces/workspace-service";
+import type {
+	ProjectionContext,
+	ProjectionHandler,
+} from "./projection-registry";
 
 /**
  * Post-commit projection handler for clinical documents.

@@ -1,4 +1,5 @@
 import type { PatientProfile } from "@stateful-mcp/clinical/schemas/patient";
+
 export { bootstrapV2Session } from "./bootstrap-v2";
 
 /**
@@ -14,7 +15,9 @@ export const DEFAULT_TUI_PATIENT: PatientProfile = {
 	biologicalProfile: { organismType: "human" },
 } as any;
 
-export interface BootstrapResult { sessionId: string; }
+export interface BootstrapResult {
+	sessionId: string;
+}
 
 /**
  * Bootstraps a TUI session: builds the engine, resolves the initial session id

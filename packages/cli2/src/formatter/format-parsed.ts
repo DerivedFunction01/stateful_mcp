@@ -22,14 +22,24 @@ export interface FormattedParseResult {
 
 export function formatParsedItem(item: unknown): FormattedParseResult {
 	void item;
-	return { targetSchema: "v2-unavailable", tag: "", rawInput: "", fields: [], concepts: [], warnings: ["V1 ParsedItem presentation is disabled in cli2"], errors: [] };
+	return {
+		targetSchema: "v2-unavailable",
+		tag: "",
+		rawInput: "",
+		fields: [],
+		concepts: [],
+		warnings: ["V1 ParsedItem presentation is disabled in cli2"],
+		errors: [],
+	};
 }
 
 export function formatParsedItems(items: unknown[]): FormattedParseResult[] {
 	return items.map(formatParsedItem);
 }
 
-export function formatPreviewCandidate(candidate: unknown): FormattedParseResult[] {
+export function formatPreviewCandidate(
+	candidate: unknown,
+): FormattedParseResult[] {
 	void candidate;
 	return [];
 }

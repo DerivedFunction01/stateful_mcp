@@ -7,11 +7,11 @@
  * the domain execution intent.
  */
 
+import type { VariableStatement } from "@stateful-mcp/core";
 import type {
 	MacroArgumentInput,
 	MacroSourceLine,
 } from "../macros/macro-binding";
-import type { VariableStatement } from "@stateful-mcp/core";
 
 export type WorkspaceCommandVerb =
 	| "branch"
@@ -54,4 +54,8 @@ export interface VariableIntent {
 	statement: VariableStatement;
 }
 
-export type CellIntent = MacroIntent | WorkspaceCommandIntent | NarrativeIntent | VariableIntent;
+export type CellIntent =
+	| MacroIntent
+	| WorkspaceCommandIntent
+	| NarrativeIntent
+	| VariableIntent;
