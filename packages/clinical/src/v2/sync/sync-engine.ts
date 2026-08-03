@@ -1,6 +1,7 @@
 import type { ClinicalDocumentReadModel } from "../clinical/clinical-document-types";
 import { evaluateSyncRules } from "./sync-rule-evaluator";
 import type { SyncConfig, SyncResult, SyncRule } from "./sync-rule-config";
+import { normalizeSchemaPath } from "../schemas/schema-path-validator";
 
 export interface SyncEngineOptions {
 	syncConfig?: SyncConfig;
@@ -22,21 +23,39 @@ export class SyncEngine {
 		if (!config || !config.rules.length) return [];
 		const results: SyncResult[] = [];
 		for (const [recordId, record] of Object.entries(document.records)) {
-			if (record.removed) continue;
 			for (const rule of config.rules) {
 				if (!this.ruleMatches(rule, recordId, record)) continue;
+				const provenance = {
+					recordId,
+					schemaName: record.schemaName,
+					sourceDocumentId: document.documentId,
+					sourceDocumentHead: document.eventHead,
+					...(record.provenance ?? {}),
+				};
+				if (record.removed) {
+					results.push({
+						operation: "remove_fact",
+						factId: this.factId(document.documentId, recordId, rule, rule.targetBranchId),
+						targetSchema: rule.targetSchema,
+						targetBranchId: rule.targetBranchId,
+						values: {},
+						provenance: { ruleId: rule.ruleId, ...provenance },
+					});
+					continue;
+				}
 				const evaluated = evaluateSyncRules([
 					{
 						rule,
 						values: record.values,
-						provenance: {
-							recordId,
-							schemaName: record.schemaName,
-							sourceCellId: typeof record.values.sourceCellId === "string" ? record.values.sourceCellId : undefined,
-						},
+						provenance,
 					},
 				]);
-				results.push(...evaluated);
+				results.push(...evaluated.map((result) => ({
+					...result,
+					factId: this.factId(document.documentId, recordId, rule, rule.targetBranchId),
+					targetBranchId: rule.targetBranchId,
+					provenance: { ...result.provenance, sourceDocumentHead: document.eventHead },
+				})));
 			}
 		}
 		return results;
@@ -45,13 +64,17 @@ export class SyncEngine {
 	private ruleMatches(
 		rule: SyncRule,
 		_recordId: string,
-		record: { schemaName: string; values: Record<string, unknown> },
+		record: { schemaName: string; values: Record<string, unknown>; provenance?: { sourceMacroId?: string; sourcePath?: string } },
 	): boolean {
 		if (rule.sourceSchema && rule.sourceSchema !== record.schemaName) return false;
 		if (rule.sourceMacroId) {
-			const cellRef = record.values.sourceCellId;
-			if (cellRef !== rule.sourceMacroId) return false;
+			if (record.provenance?.sourceMacroId !== rule.sourceMacroId) return false;
 		}
+		if (rule.sourcePath && normalizeSchemaPath(record.provenance?.sourcePath ?? "") !== normalizeSchemaPath(rule.sourcePath)) return false;
 		return true;
+	}
+
+	private factId(documentId: string, recordId: string, rule: SyncRule, branchId?: string | "active"): string {
+		return [documentId, recordId, rule.ruleId, branchId ?? "global"].join(":");
 	}
 }

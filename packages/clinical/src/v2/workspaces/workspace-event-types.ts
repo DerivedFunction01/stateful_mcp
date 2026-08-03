@@ -61,6 +61,13 @@ export type WorkspaceEvent =
 			metadata?: WorkspaceEventMetadata;
 	  }
 	| {
+			kind: "global_fact_removed";
+			workspaceId: string;
+			factId: string;
+			reason?: string;
+			metadata?: WorkspaceEventMetadata;
+	  }
+	| {
 			kind: "workspace_close_requested";
 			workspaceId: string;
 			metadata?: WorkspaceEventMetadata;

@@ -91,4 +91,21 @@ it("commits staged cells through the participant lifecycle", async () => {
 		const cell = await store.get("cell-already-done");
 		expect(cell?.lifecycle.status).toBe("committed");
 	});
+
+	it("rejects a stale expected cell revision during staging", async () => {
+		const store = new KvCellStore(new MemoryKvBackend());
+		await store.save(makeCell({ cellId: "cell-stale", lifecycle: { status: "pending_commit", revision: 4 } }));
+		const participant = new CellTransactionParticipant(store);
+		const context = {
+			transactionId: "tx-stale-cell", idempotencyKey: "ik-stale-cell",
+			plan: {
+				groupId: "g4", scope: { kind: "workspace", sessionId: "s1" },
+				macroDefinitions: [], links: [], generatedCells: [],
+				operations: [{ operationId: "o1", groupId: "g4", cellRef: "cell-stale", targetSchema: "Note", targetPath: "value", value: { kind: "scalar", scalarType: "string", value: "x" }, rawValue: "x", sourceLine: 1, evidence: [] }],
+				expectedVersions: [{ aggregateKind: "cell" as const, aggregateId: "cell-stale", expectedVersion: 3 }],
+				fingerprint: { value: "f4", algorithm: "v2-plan-fingerprint-v1" as const }, diagnostics: [],
+			},
+		};
+		await expect(participant.stage(context)).rejects.toThrow(/revision mismatch/);
+	});
 });

@@ -336,6 +336,7 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 		if (event.kind === "workspace_completed") return "workspace:completion";
 		if (event.kind === "concept_added" || event.kind === "global_fact_added")
 			return `fact:${event.fact.factId}`;
+		if (event.kind === "global_fact_removed") return `fact:${event.factId}`;
 		return null;
 	}
 }

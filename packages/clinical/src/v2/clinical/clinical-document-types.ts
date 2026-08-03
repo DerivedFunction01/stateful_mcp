@@ -1,4 +1,5 @@
 import type { KvBackend } from "@stateful-mcp/core";
+import type { ClinicalProvenance } from "./clinical-operation";
 
 export type ClinicalDocumentStatus = "draft" | "signed" | "amended" | "voided";
 
@@ -9,6 +10,7 @@ export interface ClinicalDocumentRecord {
 	values: Record<string, unknown>;
 	version: number;
 	removed?: boolean;
+	provenance?: ClinicalProvenance;
 }
 
 export interface ClinicalDocumentReadModel {

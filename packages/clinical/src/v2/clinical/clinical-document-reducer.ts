@@ -60,6 +60,7 @@ export function reduceClinicalEvent(
 				schemaVersion: event.schemaVersion,
 				values: structuredClone(event.values),
 				version: (next.records[event.recordId]?.version ?? 0) + 1,
+				provenance: event.provenance,
 			};
 			return next;
 		case "clinical_record_patched": {
@@ -71,6 +72,7 @@ export function reduceClinicalEvent(
 				...structuredClone(event.changes),
 			};
 			existing.version += 1;
+			existing.provenance = event.provenance ?? existing.provenance;
 			return next;
 		}
 		case "clinical_record_removed":

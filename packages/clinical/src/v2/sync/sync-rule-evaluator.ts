@@ -33,6 +33,9 @@ export function evaluateSyncRules(matches: readonly SyncRuleMatch[]): SyncResult
 		results.push({
 			operation: "add_fact",
 			targetSchema: rule.targetSchema,
+			certainty: typeof resultValues.certainty === "string"
+				? resultValues.certainty as SyncResult["certainty"]
+				: rule.defaultCertainty,
 			values: resultValues,
 			provenance: {
 				ruleId: rule.ruleId,

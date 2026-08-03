@@ -11,6 +11,7 @@ import type { WorkspaceService } from "../workspaces/workspace-service";
 import type { WorkspaceViewService } from "../workspaces/workspace-view-state";
 import type { StructuredCellService } from "../cells/structured-cell-service";
 import type { SyncEngine } from "../sync/sync-engine";
+import type { SyncApplicationService } from "../sync/sync-application-service";
 import type { ProjectionRegistry } from "../projections/projection-registry";
 import type { ClinicalRuntimeV2 } from "./clinical-runtime-v2";
 import { enrichPlanWithCompletionLinkage } from "../clinical/composite-clinical-linkage";
@@ -41,6 +42,7 @@ export class ClinicalEngineV2 {
 		private readonly cellService: StructuredCellService,
 		private readonly viewService: WorkspaceViewService,
 		private readonly syncEngine: SyncEngine,
+		private readonly syncApplication: SyncApplicationService | undefined,
 	) {}
 
 	async prepare(
@@ -63,8 +65,18 @@ export class ClinicalEngineV2 {
 		participants?: readonly TransactionParticipant[],
 	): Promise<ExecutionResult> {
 		const effective = participants ?? this.participants;
+		let committed: CommittedTransaction;
 		try {
-			const committed = await this.coordinator.commit(transactionId, effective);
+			committed = await this.coordinator.commit(transactionId, effective);
+		} catch (error) {
+			return {
+				status: "failed",
+				transactionId,
+				planFingerprint: "",
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+		try {
 			const plan = (await this.coordinator.get(transactionId))?.plan;
 			if (this.projectionRegistry && plan) {
 				const tx = await this.coordinator.get(transactionId);
@@ -84,6 +96,7 @@ export class ClinicalEngineV2 {
 				committed,
 			};
 		} catch (error) {
+			await this.coordinator.markProjectionFailure(transactionId, error);
 			return {
 				status: "failed",
 				transactionId,
@@ -102,7 +115,31 @@ export class ClinicalEngineV2 {
 	}
 
 	async recover(transactionId: string): Promise<RecoveryResult> {
-		return this.coordinator.recover(transactionId, this.participants);
+		const recovered = await this.coordinator.recover(transactionId, this.participants);
+		if (recovered.status === "committed" && this.projectionRegistry) {
+			const transaction = await this.coordinator.get(transactionId);
+			if (transaction) {
+				try {
+					await this.projectionRegistry.onCommitted({
+						transactionId,
+						plan: transaction.plan,
+						participantStates: transaction.participants,
+						syncConfig: this.runtime.stores.syncConfig,
+					});
+				} catch (error) {
+					await this.coordinator.markProjectionFailure(transactionId, error);
+					throw error;
+				}
+			}
+		}
+		return recovered;
+	}
+
+	async syncDocument(documentId: string, workspaceId: string): Promise<void> {
+		if (!this.syncApplication) throw new Error("Sync application is not configured");
+		const document = await this.clinicalService.getDocument(documentId);
+		if (!document) throw new Error(`Clinical document '${documentId}' was not found`);
+		await this.syncApplication.apply(workspaceId, this.syncEngine.evaluate(document));
 	}
 
 	getWorkspace(id: string): Promise<V2WorkspaceAggregate | null> {

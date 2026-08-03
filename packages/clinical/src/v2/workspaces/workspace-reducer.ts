@@ -81,6 +81,11 @@ export function reduceWorkspaceEvent(
 		case "global_fact_added":
 			next.globalFacts.push(event.fact);
 			return next;
+		case "global_fact_removed":
+			next.globalFacts = next.globalFacts.filter(
+				(fact) => fact.factId !== event.factId,
+			);
+			return next;
 		case "workspace_close_requested":
 			next.closeRequested = true;
 			return next;

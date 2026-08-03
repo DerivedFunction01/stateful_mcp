@@ -85,4 +85,5 @@ export * from "./projections/projection-handlers";
 export * from "./sync/sync-rule-config";
 export * from "./sync/sync-rule-evaluator";
 export * from "./sync/sync-engine";
+export * from "./sync/sync-application-service";
 export * from "./workspaces/workspace-view-state";

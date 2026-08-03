@@ -6,6 +6,7 @@ import type { MacroTargetOperation } from "../macros/macro-plan";
 import { reduceClinicalEvents } from "./clinical-document-reducer";
 import type {
 	ClinicalDocumentProjectionStore,
+	ClinicalDocumentRecord,
 	ClinicalDocumentReadModel,
 	SignedDocumentArchive,
 	SignedDocumentRecord,
@@ -56,6 +57,11 @@ export class ClinicalDocumentService {
 		return this.projections.get(documentId);
 	}
 
+	async getActiveRecords(documentId: string): Promise<ClinicalDocumentRecord[]> {
+		const document = await this.projections.get(documentId);
+		return Object.values(document?.records ?? {}).filter((record) => !record.removed);
+	}
+
 	listDocuments(sessionId: string): Promise<ClinicalDocumentReadModel[]> {
 		return this.projections.list(sessionId);
 	}
@@ -68,7 +74,7 @@ export class ClinicalDocumentService {
 		const document = await this.projections.get(documentId);
 		const existing = document
 			? Object.fromEntries(
-					Object.entries(document.records).map(([recordId, record]) => [
+					Object.entries(document.records).filter(([, record]) => !record.removed).map(([recordId, record]) => [
 						recordId,
 						{ values: record.values },
 					]),

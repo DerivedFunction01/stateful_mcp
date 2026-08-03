@@ -56,7 +56,10 @@ export interface SyncRuleMatch {
 /** Evaluated result ready to be applied to the workspace. */
 export interface SyncResult {
 	operation: "add_fact" | "remove_fact";
+	factId?: string;
 	targetSchema: string;
+	targetBranchId?: string | "active";
+	certainty?: FactCertainty;
 	values: Record<string, unknown>;
 	provenance: Record<string, unknown>;
 }

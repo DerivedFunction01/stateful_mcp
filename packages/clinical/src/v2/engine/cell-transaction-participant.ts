@@ -22,10 +22,21 @@ export class CellTransactionParticipant implements TransactionParticipant {
 	constructor(private readonly store: CellStore) {}
 
 	async stage(context: TransactionParticipantContext): Promise<void> {
-		const cellIds = context.plan.generatedCells.map((c) => c.cellRef);
+		const cellIds = [...new Set(context.plan.generatedCells.map((c) => c.cellRef))];
 		if (!cellIds.length) {
 			const sourceCellId = context.plan.operations[0]?.cellRef;
 			if (sourceCellId) cellIds.push(sourceCellId);
+		}
+		for (const cellId of cellIds) {
+			const cell = await this.store.get(cellId);
+			if (!cell) throw new Error(`Cell '${cellId}' was not found`);
+			if (cell.lifecycle.status === "committed") continue;
+			const expected = context.plan.expectedVersions.find(
+				(item) => item.aggregateKind === "cell" && item.aggregateId === cellId,
+			);
+			if (expected && cell.lifecycle.revision !== expected.expectedVersion) {
+				throw new Error(`Cell '${cellId}' revision mismatch`);
+			}
 		}
 		if (cellIds.length) {
 			this.pendingCells.set(context.transactionId, cellIds);
@@ -48,7 +59,7 @@ export class CellTransactionParticipant implements TransactionParticipant {
 			await this.store.save(updated);
 			committedIds.push(cellId);
 		}
-		const receipt = { commitId: context.transactionId, eventIds: committedIds };
+		const receipt = { commitId: context.transactionId, eventIds: committedIds, receiptKind: "cell_store" as const };
 		this.receipts.set(context.transactionId, receipt);
 		return receipt;
 	}

@@ -55,6 +55,32 @@ describe("V2 sync rule evaluator", () => {
 		expect(results[0]!.values.concept).toBe("C1");
 		expect(results[0]!.values.missing).toBeUndefined();
 	});
+
+	it("matches source path and macro provenance exactly", () => {
+		const engine = new SyncEngine({ syncConfig: {
+			rules: [{
+				ruleId: "location-rule",
+				sourcePath: "objective.observations[0].value",
+				sourceMacroId: "macro-observation",
+				targetSchema: "Observation",
+				propertyMapping: { value: { internal: "value" } },
+			}],
+		} });
+		const base: ClinicalDocumentReadModel = {
+			documentId: "doc-1", sessionId: "s1", patientId: "p1", status: "draft",
+			amendmentNotes: [], version: 2, eventHead: "h1", records: {},
+		};
+		const matching = { ...base, records: {
+			r1: { recordId: "r1", schemaName: "Observation", values: { value: 42 }, version: 1,
+				provenance: { sourcePath: "objective.observations[0].value", sourceMacroId: "macro-observation" } },
+		} };
+		const nonMatching = { ...base, records: {
+			r1: { recordId: "r1", schemaName: "Observation", values: { value: 42 }, version: 1,
+				provenance: { sourcePath: "subjective.observations[0].value", sourceMacroId: "macro-observation" } },
+		} };
+		expect(engine.evaluate(matching)).toHaveLength(1);
+		expect(engine.evaluate(nonMatching)).toHaveLength(0);
+	});
 });
 
 describe("V2 sync engine", () => {
@@ -97,7 +123,9 @@ describe("V2 sync engine", () => {
 				r1: { recordId: "r1", schemaName: "Observation", values: { concept: "BP" }, version: 1, removed: true },
 			},
 		};
-		expect(engine.evaluate(doc)).toHaveLength(0);
+		expect(engine.evaluate(doc)).toMatchObject([
+			{ operation: "remove_fact", factId: "doc-1:r1:vital-rule:global" },
+		]);
 	});
 
 	it("returns empty when no sync config is set", () => {

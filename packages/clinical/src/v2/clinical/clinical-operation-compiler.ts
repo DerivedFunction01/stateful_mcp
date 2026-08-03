@@ -212,6 +212,8 @@ export class ClinicalOperationCompiler {
 			provenance: {
 				operationId: operation.operationId,
 				sourceCellId: operation.cellRef,
+				sourcePath: operation.targetPath,
+				sourceMacroId: operation.macroDefinitionId ?? operation.groupId,
 			},
 		};
 	}
@@ -234,6 +236,8 @@ export class ClinicalOperationCompiler {
 			provenance: {
 				operationId: operation.operationId,
 				sourceCellId: operation.cellRef,
+				sourcePath: operation.targetPath,
+				sourceMacroId: operation.macroDefinitionId ?? operation.groupId,
 			},
 		};
 	}

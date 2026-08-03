@@ -52,6 +52,11 @@ export interface TypedFact {
 		sourceCellId?: string;
 		sourceMacroCellId?: string;
 		transactionId?: string;
+		sourceDocumentId?: string;
+		sourceDocumentHead?: string;
+		sourceRecordId?: string;
+		syncRuleId?: string;
+		sourcePath?: string;
 	};
 	workspaceId?: string;
 	branchId?: string;
@@ -63,6 +68,12 @@ export type WorkspaceOperation =
 			workspaceId: string;
 			branchId?: string;
 			fact: TypedFact;
+	  }
+	| {
+			kind: "remove_fact";
+			workspaceId: string;
+			factId: string;
+			reason?: string;
 	  }
 	| {
 			kind: "create_branch";

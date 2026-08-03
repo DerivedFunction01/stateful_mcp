@@ -172,6 +172,7 @@ export class MacroCompiler {
 			operations.push({
 				operationId: `op_${operations.length + 1}`,
 				groupId,
+				macroDefinitionId: definition.macroId,
 				targetSchema: spec.target.targetSchema,
 				targetPath: spec.target.targetPath,
 				value: canonicalValue,

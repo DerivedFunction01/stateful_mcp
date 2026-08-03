@@ -18,6 +18,8 @@ export type TransactionParticipantKind =
 export interface EventCommitReceipt {
 	commitId: string;
 	eventIds: readonly string[];
+	/** Identifies store-backed receipts that do not represent an EventStore commit. */
+	receiptKind?: "event_stream" | "cell_store";
 }
 
 /** Confirmation that a projection advanced to a specific committed head. */

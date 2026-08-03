@@ -9,6 +9,8 @@ export interface ClinicalProvenance {
 	operationId?: string;
 	transactionId?: string;
 	logicalRecordKey?: string;
+	sourcePath?: string;
+	sourceMacroId?: string;
 }
 
 export type ClinicalOperation =

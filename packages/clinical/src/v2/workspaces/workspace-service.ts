@@ -415,6 +415,17 @@ export class WorkspaceService implements WorkspaceServiceContract {
 					metadata: { logicalKey: `fact:${operation.fact.factId}` },
 				};
 			}
+			case "remove_fact":
+				return {
+					kind: "global_fact_removed",
+					workspaceId: aggregate.id,
+					factId: operation.factId,
+					reason: operation.reason,
+					metadata: {
+						logicalKey: `fact:${operation.factId}`,
+						reason: operation.reason,
+					},
+				};
 			case "branch_transition": {
 				const branch = this.resolveBranchRef(aggregate, operation.branchId);
 				this.validateTransition(aggregate, branch.id, operation.transition);

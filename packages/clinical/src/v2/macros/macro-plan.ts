@@ -34,6 +34,7 @@ export interface ExecutionScope {
 export interface MacroTargetOperation {
 	operationId: string;
 	groupId: string;
+	macroDefinitionId?: string;
 	cellRef?: string;
 	targetSchema: string;
 	targetPath: string;

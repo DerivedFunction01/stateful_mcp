@@ -21,6 +21,7 @@ import { ClinicalEngineV2 } from "./clinical-engine-v2";
 import { ProjectionRegistry } from "../projections/projection-registry";
 import { createClinicalProjection, createWorkspaceProjection, createSyncProjection } from "../projections/projection-handlers";
 import { SyncEngine } from "../sync/sync-engine";
+import { SyncApplicationService } from "../sync/sync-application-service";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import type { MacroStore } from "../macros/macro-definition";
 import type { SyncConfig } from "../sync/sync-rule-config";
@@ -32,6 +33,7 @@ export class ClinicalEngineV2Builder {
 	private schemaRegistry?: SchemaRegistry;
 	private macroStore?: MacroStore;
 	private dictionaryStore?: DictionaryStore;
+	private cellCompiler?: (rawText: string) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>;
 	private syncConfig?: SyncConfig;
 	private cellStore?: CellStore;
 	private workspaceStore?: WorkspaceStore;
@@ -63,6 +65,11 @@ export class ClinicalEngineV2Builder {
 
 	withDictionary(store: DictionaryStore): this {
 		this.dictionaryStore = store;
+		return this;
+	}
+
+	withCellCompiler(compile: (rawText: string) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>): this {
+		this.cellCompiler = compile;
 		return this;
 	}
 
@@ -106,6 +113,9 @@ export class ClinicalEngineV2Builder {
 		const schemaRegistry = this.requireStore(this.schemaRegistry, "SchemaRegistry");
 		const macroStore = this.macroStore;
 		const dictionaryStore = this.dictionaryStore;
+		if (!macroStore) throw new Error("ClinicalEngineV2Builder: 'MacroStore' is required. Call .withMacroStore(store) before .build()");
+		if (!dictionaryStore) throw new Error("ClinicalEngineV2Builder: 'DictionaryStore' is required. Call .withDictionary(store) before .build()");
+		if (!this.cellCompiler) throw new Error("ClinicalEngineV2Builder: 'CellCompiler' is required. Call .withCellCompiler(compile) before .build()");
 
 		const adapters = registerClinicalSchemaAdapters(schemaRegistry);
 
@@ -129,8 +139,8 @@ export class ClinicalEngineV2Builder {
 
 		const cellStore = this.requireStore(this.cellStore, "CellStore");
 		const cellService = new StructuredCellService({
-			store: cellStore as any,
-			compile: async () => ({ diagnostics: [], fingerprint: "" }),
+			store: cellStore,
+			compile: this.cellCompiler,
 		});
 
 		const viewStore = this.viewStore ?? new InMemoryWorkspaceViewStateStore();
@@ -150,12 +160,13 @@ export class ClinicalEngineV2Builder {
 		];
 
 		const syncEngine = new SyncEngine({ syncConfig: this.syncConfig });
+		const syncApplication = this.syncConfig ? new SyncApplicationService(workspaceService) : undefined;
 
 		const registry = new ProjectionRegistry();
 		registry.register(createClinicalProjection(clinicalService));
 		registry.register(createWorkspaceProjection(workspaceService));
 		if (this.syncConfig) {
-			registry.register(createSyncProjection(syncEngine, clinicalService, workspaceService));
+			registry.register(createSyncProjection(syncEngine, clinicalService));
 		}
 
 		const runtime: ClinicalRuntimeV2 = {
@@ -171,8 +182,8 @@ export class ClinicalEngineV2Builder {
 			},
 			macros: {
 				schemaRegistry,
-				defs: macroStore ?? ({} as any),
-				dictionary: dictionaryStore ?? ({} as any),
+				defs: macroStore,
+				dictionary: dictionaryStore,
 			},
 		};
 
@@ -186,6 +197,7 @@ export class ClinicalEngineV2Builder {
 			cellService,
 			viewService,
 			syncEngine,
+			syncApplication,
 		);
 	}
 
