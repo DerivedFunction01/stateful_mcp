@@ -1,20 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import {
-	MASS_CONCENTRATION_UNITS,
-	MEASUREMENT_OPERATORS,
-	type MeasurementOperator,
-	type SingleMeasurement,
-	VALUE_TYPES,
-	type ValueType,
-} from "../src/schemas/measurement";
-import {
-	OBSERVATION_TRAJECTORIES,
-	type ObservationEvent,
-} from "../src/schemas/observation";
-import {
-	TIME_PRECISION_LEVELS,
-	type TimeMeasurement,
-} from "../src/schemas/time";
+import { type ValueType, type MeasurementOperator, type SingleMeasurement, VALUE_TYPES, MEASUREMENT_OPERATORS, MASS_CONCENTRATION_UNITS, type TimeMeasurement, TIME_PRECISION_LEVELS, type ObservationEvent, OBSERVATION_TRAJECTORIES } from "../src";
+
 
 describe("redesigned measurement contracts", () => {
 	it("exposes statistical types and operators as runtime metadata", () => {

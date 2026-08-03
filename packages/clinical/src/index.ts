@@ -1,5 +1,5 @@
 export * from "./init";
-export * from "./v2/utils/stop-word-parser";
+export * from "./v2/values/utils/stop-word-parser";
 export * from "./v2/schemas/schemas-interface/assessment";
 export * from "./v2/schemas/schemas-interface/document";
 export * from "./v2/schemas/schemas-interface/environment";

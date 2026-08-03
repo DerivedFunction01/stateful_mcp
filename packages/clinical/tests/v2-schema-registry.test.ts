@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { CLINICAL_SOURCE_TYPES } from "../src/schemas/shared";
 import { observationSchema } from "../src/v2/schemas/definitions";
 import { validateSchemaDefaults } from "../src/v2/schemas/schema-defaults";
 import { defineSchema } from "../src/v2/schemas/schema-factory";
@@ -8,6 +7,7 @@ import {
 	fingerprintSchema,
 	SchemaRegistry,
 } from "../src/v2/schemas/schema-registry";
+import { CLINICAL_SOURCE_TYPES } from "../src/v2/schemas/schemas-interface/shared";
 
 const observation = defineSchema({
 	schema: "Observation",

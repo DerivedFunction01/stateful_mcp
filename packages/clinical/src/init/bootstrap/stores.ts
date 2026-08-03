@@ -1,4 +1,3 @@
-import type { DictionaryStore } from "@stateful-mcp/core";
 import type { CommandTemplateStore } from "../../v2/stores/command-templates/interfaces";
 import type { FacilityStore } from "../../v2/stores/facilities/interfaces";
 import type { JurisdictionalDisplayStore } from "../../v2/stores/jurisdictional-displays/interfaces";
@@ -10,7 +9,7 @@ import type {
 } from "../../v2/stores/stop-words/interfaces";
 
 export interface BootstrapStores {
-	dictionaryStore: DictionaryStore;
+	// V2 bootstrap owns schema/dictionary/macro/profile stores separately.
 	stopWordProfiles: StopWordStore;
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;

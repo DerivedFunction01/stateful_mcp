@@ -98,6 +98,7 @@ export * from "./values/temporal-syntax-profile";
 export * from "./values/temporal-recognizer";
 export * from "./values/temporal-resolver";
 export * from "./values/frequency-resolver";
+export * from "./bootstrap/v2-cold-start";
 export * from "./values/pipeline-evaluator";
 export * from "./values/temporal-value";
 export * from "./values/typed-value";

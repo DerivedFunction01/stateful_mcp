@@ -9,12 +9,11 @@ import {
 import { V2VariableCommandService } from "@stateful-mcp/clinical/v2/commands/variable-command-service";
 import type { ClinicalEngineV2 } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2";
 import { ClinicalEngineV2Builder } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2-builder";
-import { seedDefaultV2Macros } from "@stateful-mcp/clinical/v2/macros/default-macros";
 import { KvMacroStore } from "@stateful-mcp/clinical/v2/macros/kv-macro-store";
 import { createV2SyntaxProfile } from "@stateful-mcp/clinical/v2/macros/macro-profile";
 import { KvNotebookSessionStore } from "@stateful-mcp/clinical/v2/notebook/kv-notebook-session-store";
 import type { V2NotebookSessionStore } from "@stateful-mcp/clinical/v2/notebook/notebook-session-store";
-import { createDefaultV2SchemaRegistry } from "@stateful-mcp/clinical/v2/schemas/default-registry";
+import { initializeV2ColdStart } from "@stateful-mcp/clinical/v2/bootstrap/v2-cold-start";
 import { KvWorkspaceStore } from "@stateful-mcp/clinical/v2/workspaces/kv-workspace-store";
 import {
 	createEventStore,
@@ -62,23 +61,12 @@ export async function bootstrapV2Session(
 			active: true,
 		});
 	const dictionary = new DictionaryStore(new InMemoryConceptResolver());
-	await dictionary.loadConfig({
-		concepts: [
-			{
-				id: "c-pneumonia",
-				namespaceCode: "SNOMED",
-				standardCode: "233604007",
-				display: "Pneumonia",
-				active: true,
-			},
-		],
-	});
 	const macroStore = new KvMacroStore(new MemoryKvBackend());
 	const notebookSessionStore = new KvNotebookSessionStore(
 		new MemoryKvBackend(),
 	);
-	await seedDefaultV2Macros(macroStore);
-	const schemaRegistry = createDefaultV2SchemaRegistry();
+	const coldStart = await initializeV2ColdStart({ dictionary, macroStore, commandProfile: syntaxProfile });
+	const schemaRegistry = coldStart.schemaRegistry;
 	const cellCompiler = new V2CellCompiler(
 		macroStore,
 		schemaRegistry,
