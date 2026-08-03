@@ -25,12 +25,7 @@ export type LabInterpretationFlag =
  */
 export interface LabAnalyte {
 	name: CodeableConcept; // e.g. LOINC::2951-2 Serum Sodium
-	value: SingleMeasurement;
-	referenceRange?: {
-		low?: SingleMeasurement;
-		high?: SingleMeasurement;
-		narrative?: string; // e.g. "Varies by age/sex"
-	};
+	measurements: SingleMeasurement[];
 	interpretationFlag: LabInterpretationFlag;
 	notes?: string;
 }

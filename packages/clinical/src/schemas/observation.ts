@@ -19,7 +19,7 @@ export interface ObservationEvent {
 		maxScore: number;
 		normalizedScore: number;
 	};
-	duration: TimeMeasurement;
+	duration: TimeMeasurement[];
 	trajectory:
 		| "improving"
 		| "worsening"

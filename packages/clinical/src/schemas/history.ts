@@ -47,7 +47,7 @@ export interface SocialHistoryEntry {
 	id: string;
 	category: CodeableConcept; // e.g. smoking, alcohol, occupation, exercise
 	status: SocialHistoryStatus;
-	count?: SingleMeasurement; // e.g. { magnitude: 1, unit: { display: "pack" } }
+	count?: SingleMeasurement[]; // e.g. { magnitude: 1, unit: { display: "pack" } }
 	frequency?: MedicationFrequency; // e.g. { cadenceType: "interval", rate: { times: 1, period: "d" } }
 	dateRange?: ClinicalDateRange;
 	notes?: string;
@@ -72,7 +72,7 @@ export interface ReportedMedicationEntry {
 	id: string;
 	medication: CodeableConcept;
 	dosage?: DosageMeasurement;
-	count?: SingleMeasurement;
+	count?: SingleMeasurement[];
 	frequency?: MedicationFrequency;
 	complianceStatus: ComplianceStatus;
 	sourceType: ClinicalSourceType;

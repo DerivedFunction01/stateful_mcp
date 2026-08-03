@@ -78,7 +78,7 @@ export interface PharmaceuticalExposureEvent extends BaseExposureEvent {
 	exposureType: "pharmaceutical";
 	complianceStatus: ComplianceStatus;
 	dosage?: DosageMeasurement;
-	count?: SingleMeasurement;
+	count?: SingleMeasurement[];
 }
 
 export interface BiologicalExposureEvent extends BaseExposureEvent {

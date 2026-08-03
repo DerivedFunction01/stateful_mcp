@@ -28,7 +28,7 @@ export type SeverityTier = (typeof SEVERITY_TIERS)[number];
 
 export interface AlgorithmicHypothesis {
 	concept?: CodeableConcept;
-	scoreValue?: ScoreMeasurement;
+	scoreValue?: ScoreMeasurement[];
 	category?: string;
 }
 
