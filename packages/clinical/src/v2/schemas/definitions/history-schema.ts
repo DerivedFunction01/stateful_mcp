@@ -1,10 +1,12 @@
 import {
+	ALLERGY_SEVERITIES,
 	ALLERGY_VERIFICATION_STATUSES,
 	COMPLIANCE_STATUSES,
 	SOCIAL_HISTORY_STATUSES,
 } from "../../../schemas/history";
 import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
 import { defineSchema } from "../schema-factory";
+import { frequencyFields } from "./shared-fields";
 
 export const historySchema = defineSchema({
 	schema: "History",
@@ -45,6 +47,28 @@ export const historySchema = defineSchema({
 			required: true,
 			enumValues: CLINICAL_SOURCE_TYPES,
 		},
+		"currentMedications[].dosage": {
+			path: "currentMedications[].dosage",
+			valueKind: "measurement",
+			cardinality: "one",
+			required: false,
+			measurement: { dimension: "mass_concentration" },
+		},
+		"currentMedications[].count": {
+			path: "currentMedications[].count",
+			valueKind: "measurement",
+			cardinality: "many",
+			required: false,
+			measurement: { dimension: "count" },
+		},
+		...frequencyFields({ base: "currentMedications[]" }),
+		"currentMedications[].dateRange": {
+			path: "currentMedications[].dateRange",
+			valueKind: "temporal",
+			temporalType: "date_range",
+			cardinality: "one",
+			required: false,
+		},
 		allergies: {
 			path: "allergies",
 			valueKind: "composite",
@@ -65,6 +89,27 @@ export const historySchema = defineSchema({
 			required: true,
 			enumValues: ALLERGY_VERIFICATION_STATUSES,
 		},
+		"allergies[].reactionType": {
+			path: "allergies[].reactionType",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		"allergies[].allergySeverity": {
+			path: "allergies[].allergySeverity",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: ALLERGY_SEVERITIES,
+		},
+		"allergies[].onsetDateRange": {
+			path: "allergies[].onsetDateRange",
+			valueKind: "temporal",
+			temporalType: "date_range",
+			cardinality: "one",
+			required: false,
+		},
 		familyHistory: {
 			path: "familyHistory",
 			valueKind: "concept_array",
@@ -84,6 +129,35 @@ export const historySchema = defineSchema({
 			cardinality: "one",
 			required: true,
 			enumValues: SOCIAL_HISTORY_STATUSES,
+		},
+		"socialHistory[].category": {
+			path: "socialHistory[].category",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		"socialHistory[].count": {
+			path: "socialHistory[].count",
+			valueKind: "measurement",
+			cardinality: "many",
+			required: false,
+			measurement: { dimension: "count" },
+		},
+		...frequencyFields({ base: "socialHistory[]" }),
+		"socialHistory[].dateRange": {
+			path: "socialHistory[].dateRange",
+			valueKind: "temporal",
+			temporalType: "date_range",
+			cardinality: "one",
+			required: false,
+		},
+		"socialHistory[].notes": {
+			path: "socialHistory[].notes",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: false,
 		},
 		immunizations: {
 			path: "immunizations",

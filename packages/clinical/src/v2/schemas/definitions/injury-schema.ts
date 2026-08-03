@@ -4,7 +4,9 @@ import {
 	PROTECTIVE_ITEM_STATUSES,
 } from "../../../schemas/injury";
 import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
+import { OPERATIONAL_DOMAINS } from "../../../schemas/environment";
 import { defineSchema } from "../schema-factory";
+import { productDetailsFields } from "./shared-fields";
 
 export const mechanicalInjurySchema = defineSchema({
 	schema: "MechanicalInjury",
@@ -51,6 +53,100 @@ export const mechanicalInjurySchema = defineSchema({
 		ballisticProfile: {
 			path: "ballisticProfile",
 			valueKind: "composite",
+			cardinality: "one",
+			required: false,
+		},
+		"ballisticProfile.firearmOrOrdnance": {
+			path: "ballisticProfile.firearmOrOrdnance",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		"ballisticProfile.caliber": {
+			path: "ballisticProfile.caliber",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		"ballisticProfile.projectileType": {
+			path: "ballisticProfile.projectileType",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: false,
+		},
+		"ballisticProfile.estimatedStandoffDistance": {
+			path: "ballisticProfile.estimatedStandoffDistance",
+			valueKind: "measurement",
+			cardinality: "one",
+			required: false,
+			measurement: { dimension: "length" },
+		},
+		"ballisticProfile.armorPenetrationStatus": {
+			path: "ballisticProfile.armorPenetrationStatus",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: ["defeated_by_armor", "penetrated_armor", "unprotected"],
+		},
+		blastProfile: {
+			path: "blastProfile",
+			valueKind: "composite",
+			cardinality: "one",
+			required: false,
+		},
+		"blastProfile.blastWaveType": {
+			path: "blastProfile.blastWaveType",
+			valueKind: "enum",
+			cardinality: "one",
+			required: true,
+			enumValues: [
+				"primary_overpressure",
+				"secondary_shrapnel",
+				"tertiary_impact",
+				"quaternary_burn_chemical",
+			],
+		},
+		"blastProfile.detonationStandoffDistance": {
+			path: "blastProfile.detonationStandoffDistance",
+			valueKind: "measurement",
+			cardinality: "one",
+			required: false,
+			measurement: { dimension: "length" },
+		},
+		"blastProfile.enclosedSpace": {
+			path: "blastProfile.enclosedSpace",
+			valueKind: "scalar",
+			scalarType: "boolean",
+			cardinality: "one",
+			required: false,
+		},
+		fallProfile: {
+			path: "fallProfile",
+			valueKind: "composite",
+			cardinality: "one",
+			required: false,
+		},
+		"fallProfile.fallHeight": {
+			path: "fallProfile.fallHeight",
+			valueKind: "measurement",
+			cardinality: "one",
+			required: true,
+			measurement: { dimension: "length" },
+		},
+		"fallProfile.impactSurface": {
+			path: "fallProfile.impactSurface",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: false,
+		},
+		"fallProfile.freefall": {
+			path: "fallProfile.freefall",
+			valueKind: "scalar",
+			scalarType: "boolean",
 			cardinality: "one",
 			required: false,
 		},
@@ -103,6 +199,20 @@ export const protectiveEquipmentSchema = defineSchema({
 			required: true,
 			enumValues: OPERATIONAL_GEAR_CATEGORIES,
 		},
+		"verifiedDeployedGear[].id": {
+			path: "verifiedDeployedGear[].id",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: true,
+		},
+		"verifiedDeployedGear[].operationalDomain": {
+			path: "verifiedDeployedGear[].operationalDomain",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: OPERATIONAL_DOMAINS,
+		},
 		sourceType: {
 			path: "sourceType",
 			valueKind: "enum",
@@ -117,5 +227,9 @@ export const protectiveEquipmentSchema = defineSchema({
 			cardinality: "one",
 			required: false,
 		},
+		...productDetailsFields({
+			base: "verifiedDeployedGear[]",
+			name: "details",
+		}),
 	},
 });

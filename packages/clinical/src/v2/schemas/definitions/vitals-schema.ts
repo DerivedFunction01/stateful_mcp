@@ -4,6 +4,7 @@ import {
 } from "../../../schemas/measurement";
 import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
 import { defineSchema } from "../schema-factory";
+import { anatomyLocationsFields } from "./shared-fields";
 
 export const vitalsSchema = defineSchema({
 	schema: "Vitals",
@@ -51,19 +52,7 @@ export const vitalsSchema = defineSchema({
 				allowsDataPointCount: true,
 			},
 		},
-		anatomyLocations: {
-			path: "anatomyLocations",
-			valueKind: "composite",
-			cardinality: "many",
-			required: false,
-		},
-		"anatomyLocations[].anatomy": {
-			path: "anatomyLocations[].anatomy",
-			valueKind: "concept",
-			cardinality: "one",
-			required: true,
-			conceptResolution: { required: true },
-		},
+		...anatomyLocationsFields(),
 		sourceType: {
 			path: "sourceType",
 			valueKind: "enum",

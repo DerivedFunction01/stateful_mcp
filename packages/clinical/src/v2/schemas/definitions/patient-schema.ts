@@ -1,5 +1,8 @@
 import {
 	ADMINISTRATIVE_GENDERS,
+	CULTIVATION_ENVIRONMENTS,
+	GENETIC_MODIFICATION_STATUSES,
+	PROPAGATION_METHODS,
 	SUBJECT_LIFECYCLE_STATUSES,
 } from "../../../schemas/patient";
 import { defineSchema } from "../schema-factory";
@@ -35,6 +38,13 @@ export const patientSchema = defineSchema({
 			scalarType: "string",
 			cardinality: "one",
 			required: true,
+		},
+		"name.prefixOrTitle": {
+			path: "name.prefixOrTitle",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: false,
 		},
 		"name.givenNames": {
 			path: "name.givenNames",
@@ -82,6 +92,55 @@ export const patientSchema = defineSchema({
 			cardinality: "one",
 			required: true,
 			enumValues: ["human", "animal", "plant"],
+		},
+		"biologicalProfile.race": {
+			path: "biologicalProfile.race",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		"biologicalProfile.ethnicity": {
+			path: "biologicalProfile.ethnicity",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		"biologicalProfile.species": {
+			path: "biologicalProfile.species",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		"biologicalProfile.breedOrCultivar": {
+			path: "biologicalProfile.breedOrCultivar",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		"biologicalProfile.propagationMethod": {
+			path: "biologicalProfile.propagationMethod",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: PROPAGATION_METHODS,
+		},
+		"biologicalProfile.geneticModificationStatus": {
+			path: "biologicalProfile.geneticModificationStatus",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: GENETIC_MODIFICATION_STATUSES,
+		},
+		"biologicalProfile.cultivationEnvironment": {
+			path: "biologicalProfile.cultivationEnvironment",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: CULTIVATION_ENVIRONMENTS,
 		},
 	},
 });

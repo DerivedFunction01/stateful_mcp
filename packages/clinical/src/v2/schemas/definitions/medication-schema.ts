@@ -1,6 +1,6 @@
-import { CADENCE_BASE_TYPES } from "../../../schemas/medication";
 import { ROUTES } from "../../../schemas/shared";
 import { defineSchema } from "../schema-factory";
+import { dateRangeField, frequencyFields } from "./shared-fields";
 
 export const medicationSchema = defineSchema({
 	schema: "Medication",
@@ -46,19 +46,7 @@ export const medicationSchema = defineSchema({
 				dimension: "count",
 			},
 		},
-		frequency: {
-			path: "frequency",
-			valueKind: "composite",
-			cardinality: "one",
-			required: false,
-		},
-		"frequency.cadenceType": {
-			path: "frequency.cadenceType",
-			valueKind: "enum",
-			cardinality: "one",
-			required: true,
-			enumValues: CADENCE_BASE_TYPES,
-		},
+		...frequencyFields(),
 		route: {
 			path: "route",
 			valueKind: "enum",
@@ -96,12 +84,6 @@ export const medicationSchema = defineSchema({
 			required: false,
 			conceptResolution: { required: true },
 		},
-		dateRange: {
-			path: "dateRange",
-			valueKind: "temporal",
-			temporalType: "date_range",
-			cardinality: "one",
-			required: false,
-		},
+		...dateRangeField(),
 	},
 });

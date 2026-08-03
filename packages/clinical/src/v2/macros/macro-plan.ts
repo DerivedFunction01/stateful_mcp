@@ -9,6 +9,7 @@
 import type { TypedValue } from "../values/typed-value";
 import type { WorkspaceOperation } from "../workspaces/workspace-types";
 import type { MacroDefinitionRef } from "./macro-definition";
+import type { ClinicalOperation } from "../clinical/clinical-operation";
 
 export type MergeStrategy =
 	| "replace"
@@ -102,6 +103,7 @@ export interface MacroExecutionPlan {
 	links: MacroLinkOperation[];
 	generatedCells: GeneratedCellPlan[];
 	workspaceOperations?: WorkspaceOperation[];
+	clinicalOperations?: ClinicalOperation[];
 	expectedVersions: ExpectedAggregateVersion[];
 	fingerprint: MacroPlanFingerprint;
 	diagnostics: string[];

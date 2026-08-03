@@ -5,6 +5,11 @@ import {
 } from "../../../schemas/measurement";
 import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
 import { defineSchema } from "../schema-factory";
+import {
+	anatomyLocationsFields,
+	dateRangeField,
+	productDetailsFields,
+} from "./shared-fields";
 
 export const labPanelSchema = defineSchema({
 	schema: "LabPanel",
@@ -143,19 +148,8 @@ export const deviceDiagnosticSchema = defineSchema({
 			required: true,
 			conceptResolution: { required: true },
 		},
-		anatomyLocations: {
-			path: "anatomyLocations",
-			valueKind: "composite",
-			cardinality: "many",
-			required: false,
-		},
-		"anatomyLocations[].anatomy": {
-			path: "anatomyLocations[].anatomy",
-			valueKind: "concept",
-			cardinality: "one",
-			required: true,
-			conceptResolution: { required: true },
-		},
+		...anatomyLocationsFields(),
+		...productDetailsFields(),
 		sourceType: {
 			path: "sourceType",
 			valueKind: "enum",
@@ -163,12 +157,6 @@ export const deviceDiagnosticSchema = defineSchema({
 			required: true,
 			enumValues: CLINICAL_SOURCE_TYPES,
 		},
-		dateRange: {
-			path: "dateRange",
-			valueKind: "temporal",
-			temporalType: "date_range",
-			cardinality: "one",
-			required: false,
-		},
+		...dateRangeField(),
 	},
 });

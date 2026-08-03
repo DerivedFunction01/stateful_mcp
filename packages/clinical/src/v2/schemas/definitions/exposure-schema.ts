@@ -1,7 +1,13 @@
-import { EXPOSURE_TYPES } from "../../../schemas/exposure";
-import { CADENCE_BASE_TYPES } from "../../../schemas/medication";
+import {
+	EXPOSURE_TYPES,
+	CHEMICAL_FORMS,
+	COMPLIANCE_STATUSES,
+	BIOLOGICAL_MECHANISMS,
+	PATHOGEN_VECTOR_STATUSES,
+} from "../../../schemas/exposure";
 import { ROUTES } from "../../../schemas/shared";
 import { defineSchema } from "../schema-factory";
+import { frequencyFields, anatomyLocationsFields } from "./shared-fields";
 
 export const exposureSchema = defineSchema({
 	schema: "Exposure",
@@ -43,18 +49,77 @@ export const exposureSchema = defineSchema({
 			cardinality: "one",
 			required: false,
 		},
-		frequency: {
-			path: "frequency",
-			valueKind: "composite",
+		...frequencyFields(),
+		form: {
+			path: "form",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: CHEMICAL_FORMS,
+		},
+		complianceStatus: {
+			path: "complianceStatus",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: COMPLIANCE_STATUSES,
+		},
+		dosage: {
+			path: "dosage",
+			valueKind: "measurement",
+			cardinality: "one",
+			required: false,
+			measurement: { dimension: "mass_concentration" },
+		},
+		count: {
+			path: "count",
+			valueKind: "measurement",
+			cardinality: "many",
+			required: false,
+			measurement: { dimension: "count" },
+		},
+		species: {
+			path: "species",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		breedOrCultivar: {
+			path: "breedOrCultivar",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		mechanism: {
+			path: "mechanism",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: BIOLOGICAL_MECHANISMS,
+		},
+		isToxicOrVenomous: {
+			path: "isToxicOrVenomous",
+			valueKind: "scalar",
+			scalarType: "boolean",
 			cardinality: "one",
 			required: false,
 		},
-		"frequency.cadenceType": {
-			path: "frequency.cadenceType",
+		pathogenVectorStatus: {
+			path: "pathogenVectorStatus",
 			valueKind: "enum",
 			cardinality: "one",
-			required: true,
-			enumValues: CADENCE_BASE_TYPES,
+			required: false,
+			enumValues: PATHOGEN_VECTOR_STATUSES,
+		},
+		...anatomyLocationsFields(),
+		carriedPathogen: {
+			path: "carriedPathogen",
+			valueKind: "concept",
+			cardinality: "one",
+			required: false,
+			conceptResolution: { required: true },
 		},
 		side_effects: {
 			path: "side_effects",

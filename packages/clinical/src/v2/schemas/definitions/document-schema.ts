@@ -71,6 +71,42 @@ export const soapNoteSchema = defineSchema({
 			cardinality: "one",
 			required: true,
 		},
+		"subjective.historyOfPresentIllness": {
+			path: "subjective.historyOfPresentIllness",
+			valueKind: "composite",
+			cardinality: "one",
+			required: false,
+		},
+		"subjective.reviewOfSystems": {
+			path: "subjective.reviewOfSystems",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"subjective.exposures": {
+			path: "subjective.exposures",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"subjective.injuries": {
+			path: "subjective.injuries",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"subjective.environments": {
+			path: "subjective.environments",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"subjective.protectiveEquipment": {
+			path: "subjective.protectiveEquipment",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
 		objective: {
 			path: "objective",
 			valueKind: "composite",
@@ -91,6 +127,24 @@ export const soapNoteSchema = defineSchema({
 		},
 		"objective.labResults": {
 			path: "objective.labResults",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"objective.clinicalObservations": {
+			path: "objective.clinicalObservations",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"objective.imagingResults": {
+			path: "objective.imagingResults",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"objective.environments": {
+			path: "objective.environments",
 			valueKind: "composite",
 			cardinality: "many",
 			required: false,
@@ -119,6 +173,18 @@ export const soapNoteSchema = defineSchema({
 			valueKind: "composite",
 			cardinality: "many",
 			required: true,
+		},
+		"assessment.synthesisFindings": {
+			path: "assessment.synthesisFindings",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"assessment.algorithmicEvaluations": {
+			path: "assessment.algorithmicEvaluations",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
 		},
 		"assessment.narrative": {
 			path: "assessment.narrative",
@@ -155,6 +221,18 @@ export const soapNoteSchema = defineSchema({
 			path: "plan.interventions",
 			valueKind: "composite",
 			cardinality: "many",
+			required: false,
+		},
+		"plan.safetyNetting": {
+			path: "plan.safetyNetting",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"plan.militaryPlan": {
+			path: "plan.militaryPlan",
+			valueKind: "composite",
+			cardinality: "one",
 			required: false,
 		},
 		"plan.narrative": {
