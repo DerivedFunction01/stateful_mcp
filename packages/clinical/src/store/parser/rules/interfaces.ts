@@ -29,11 +29,3 @@ export interface ParserProfileEvaluatorBindingStore {
 	unbind(profileId: string, ruleId: string): Promise<void>;
 	listBindings(profileId: string): Promise<string[]>;
 }
-
-export interface ConceptFieldRuleBindingStore {
-	bind(profileId: string, ruleId: string, priority: number): Promise<void>;
-	unbind(profileId: string, ruleId: string): Promise<void>;
-	listBindings(
-		profileId: string,
-	): Promise<Array<{ ruleId: string; priority: number }>>;
-}

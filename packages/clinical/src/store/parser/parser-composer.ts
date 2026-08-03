@@ -5,7 +5,6 @@ import type {
 } from "../interfaces";
 import type { ParserProfileCoreStore } from "./profiles/interfaces";
 import type {
-	ConceptFieldRuleBindingStore,
 	ParserAttributeRuleStore,
 	ParserEvaluatorRuleStore,
 	ParserProfileEvaluatorBindingStore,
@@ -23,22 +22,17 @@ export class DefaultParserProfileComposer implements ParserProfileComposer {
 		private readonly evaluatorRules: ParserEvaluatorRuleStore,
 		private readonly attributeBindings: ParserProfileRuleBindingStore,
 		private readonly evaluatorBindings: ParserProfileEvaluatorBindingStore,
-		private readonly conceptFieldBindings?: ConceptFieldRuleBindingStore,
 	) {}
 
 	async getFullProfile(profileId: string): Promise<ParserSyntaxProfile | null> {
 		const profile = await this.profiles.get(profileId);
 		if (!profile) return null;
 
-		const [
-			attributeBindingsList,
-			evaluatorBindingsList,
-			conceptFieldBindingsList,
-		] = await Promise.all([
-			this.attributeBindings.listBindings(profileId),
-			this.evaluatorBindings.listBindings(profileId),
-			this.conceptFieldBindings?.listBindings(profileId) ?? Promise.resolve([]),
-		]);
+		const [attributeBindingsList, evaluatorBindingsList] =
+			await Promise.all([
+				this.attributeBindings.listBindings(profileId),
+				this.evaluatorBindings.listBindings(profileId),
+			]);
 
 		const resolvedAttributeRules = await this.resolveAttributeRules(
 			attributeBindingsList,
