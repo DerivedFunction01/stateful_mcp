@@ -17,7 +17,6 @@ import {
 	normalizePersonnel,
 	normalizeProfile,
 	normalizeProseRule,
-	normalizeSharedAnchor,
 	normalizeStopWordList,
 	normalizeStopWordProfile,
 } from "./normalizers";
@@ -93,12 +92,6 @@ registerHandler("prose_rule", async (stores, record) => {
 	const template = normalizeProseRule(record);
 	if (!template) return;
 	await stores.proseTemplates.set(template);
-});
-
-registerHandler("shared_field_anchor", async (stores, record) => {
-	const anchor = normalizeSharedAnchor(record);
-	if (!anchor) return;
-	await stores.sharedFieldAnchors.set(anchor);
 });
 
 registerHandler("stop_word_list", async (stores, record) => {
@@ -269,11 +262,6 @@ registerHandler("range_rule", async (stores, record, diagnostics) => {
 			await stores.conceptFields.set(rule);
 		}
 	}
-	if (result.sharedFieldAnchors) {
-		for (const anchor of result.sharedFieldAnchors) {
-			await stores.sharedFieldAnchors.set(anchor);
-		}
-	}
 	await appendAttributeRulesToProfile(stores, result);
 });
 
@@ -294,11 +282,6 @@ registerHandler("exclusion_rule", async (stores, record, diagnostics) => {
 	if (result.attributeRules) {
 		for (const rule of result.attributeRules) {
 			await stores.attributeRules.set(rule);
-		}
-	}
-	if (result.sharedFieldAnchors) {
-		for (const anchor of result.sharedFieldAnchors) {
-			await stores.sharedFieldAnchors.set(anchor);
 		}
 	}
 	await appendAttributeRulesToProfile(stores, result);
@@ -418,10 +401,6 @@ async function isStoreEmpty(
 			);
 			return existing === null;
 		}
-		case "shared_field_anchor": {
-			const existing = await stores.sharedFieldAnchors.get(record.recordId);
-			return existing === null;
-		}
 		case "stop_word_list": {
 			const existing = await stores.stopWordWordLists.get(record.recordId);
 			return existing === null;
@@ -502,13 +481,6 @@ async function isStoreEmpty(
 						rule.targetSchema,
 						rule.fieldPath,
 					);
-					if (existing !== null) return false;
-				}
-			}
-
-			if (compiled.sharedFieldAnchors) {
-				for (const anchor of compiled.sharedFieldAnchors) {
-					const existing = await stores.sharedFieldAnchors.get(anchor.ruleId);
 					if (existing !== null) return false;
 				}
 			}

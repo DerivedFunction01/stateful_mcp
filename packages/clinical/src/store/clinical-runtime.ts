@@ -1,5 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import {
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
@@ -24,7 +23,6 @@ import {
 	resolveParserRuleStores,
 	resolvePersonnelStore,
 	resolveReferenceStores,
-	resolveSharedFieldAnchorStore,
 	resolveStopWordWordListStore,
 } from "./parser/parser-backend-resolver";
 import { DefaultParserProfileComposer } from "./parser/parser-composer";
@@ -66,7 +64,6 @@ export interface ClinicalRuntimeParserStores {
 	calibration: CalibrationExceptionStore;
 	personnel: PersonnelStore;
 	facilities: FacilityStore;
-	sharedFieldAnchors: SharedFieldAnchorStore;
 	commandMacros: ParserCommandMacroStore;
 	commandFieldMetadata: CommandFieldMetadataStore;
 }
@@ -91,7 +88,6 @@ export async function createClinicalRuntime(
 		calibration,
 		personnel,
 		facilities,
-		sharedFieldAnchors,
 		stopWordWordLists,
 		commandMacros,
 	] = await Promise.all([
@@ -103,7 +99,6 @@ export async function createClinicalRuntime(
 		resolveCalibrationExceptionStore(config),
 		resolvePersonnelStore(config),
 		resolveFacilityStore(config),
-		resolveSharedFieldAnchorStore(config),
 		resolveStopWordWordListStore(config),
 		resolveCommandMacroStore(config),
 	]);
@@ -141,7 +136,6 @@ export async function createClinicalRuntime(
 			calibration,
 			personnel,
 			facilities,
-			sharedFieldAnchors,
 			commandMacros,
 			commandFieldMetadata: new CommandMacroFieldMetadataCatalog(commandMacros),
 		},

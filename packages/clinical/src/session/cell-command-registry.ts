@@ -10,7 +10,6 @@ import {
 	INVALID_ARG_MESSAGES,
 	InvalidArgReason,
 } from "./cell-command";
-import { resolveFieldTarget, setNestedField } from "./cell-command-context";
 import { CellCommandParser } from "./cell-command-parser";
 import type { CommandArgSchema, CommandDescriptor } from "./command-descriptor";
 import { CommandGroup } from "./command-descriptor";
@@ -210,47 +209,10 @@ export class CellCommandRegistry {
 			delete ctx.cell.linkTarget;
 			return { success: true, cell: ctx.cell };
 		});
-		registry.register("target", async (c, ctx) => {
-			const equals = c.args.indexOf("=");
-			const field = equals >= 0 ? c.args.slice(0, equals).join(" ") : c.args[0];
-			const value =
-				equals >= 0
-					? c.args.slice(equals + 1).join(" ")
-					: c.args.slice(1).join(" ");
-			if (!field || !value)
-				return fail(
-					CellCommandError.INVALID_ARGUMENT,
-					INVALID_ARG_MESSAGES[InvalidArgReason.SET_FIELD_VALUE],
-				);
-			const target = resolveFieldTarget(field, value, ctx.cell, ctx.profile);
-			if (!target) return fail(CellCommandError.UNRESOLVED_TARGET);
-			let parsedValue: unknown = value;
-			if (ctx.parser) {
-				const parsed = await ctx.parser.parse(value, undefined, {
-					targetSchema: target.targetSchema,
-				});
-				const first = parsed[0];
-				const leaf = target.fieldPath.split(".").filter(Boolean).pop();
-				if (first && leaf && first.extractedData[leaf] !== undefined)
-					parsedValue = first.extractedData[leaf];
-			}
-			const extractedData: Record<string, any> = {};
-			setNestedField(extractedData, target.fieldPath, parsedValue);
-			ctx.cell.parsedOutput = [
-				{
-					targetSchema: target.targetSchema,
-					attributes: {},
-					concept: [],
-					rawText: value,
-					tag: `#${target.targetSchema}`,
-					extractedData,
-				},
-			];
-			return {
-				success: true,
-				cell: ctx.cell,
-				parsedOutput: ctx.cell.parsedOutput,
-			};
+		registry.register("target", async (_c, ctx) => {
+			// Field-target resolution was removed in Engine V2 (CDSL-era cell
+			// command directive). The :target / :set commands are now no-ops.
+			return { success: true, cell: ctx.cell };
 		});
 		// Legacy alias retained at the parser boundary while :target becomes the
 		// documented cell-targeting command. Variable assignment uses :var set.

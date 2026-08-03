@@ -7,7 +7,6 @@ import type {
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
 import type { CommandAutocompleteSuggester } from "../parser/command/command-autocomplete-suggester";
-import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { ParsedItem } from "../parser/schema-parsers";
 import { ProseRenderer } from "../renderer/prose-renderer";
@@ -342,7 +341,6 @@ export interface ClinicalEngineConfig {
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
-	sharedFieldAnchorStore?: SharedFieldAnchorStore;
 	commandSuggester?: CommandAutocompleteSuggester;
 	ngramStore?: NgramStore;
 	personnelId?: string;
@@ -396,7 +394,6 @@ export class ClinicalEngine {
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
-				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
 		} else if (profileStore) {
@@ -410,7 +407,6 @@ export class ClinicalEngine {
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
-				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
 		}

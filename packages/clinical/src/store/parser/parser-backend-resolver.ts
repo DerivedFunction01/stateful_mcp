@@ -7,7 +7,6 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
-import type { SharedFieldAnchorStore } from "../../parser/field-shared/shared-field-anchor";
 import type { ClinicalStoreConfig } from "../clinical-config";
 import { KvCalibrationExceptionStore } from "../reference/calibration/kv-calibration-exception-store";
 import { SqlCalibrationExceptionStore } from "../reference/calibration/sql-calibration-exception-store";
@@ -25,8 +24,6 @@ import { KvStopWordProfileStore } from "../reference/stop-words/kv-stop-word-pro
 import { KvStopWordWordListStore } from "../reference/stop-words/kv-stop-word-word-list-store";
 import { SqlStopWordProfileStore } from "../reference/stop-words/sql-stop-word-profile-store";
 import { SqlStopWordWordListStore } from "../reference/stop-words/sql-stop-word-word-list-store";
-import { KvSharedFieldAnchorStore } from "./anchors/kv-shared-field-anchor-store";
-import { SqlSharedFieldAnchorStore } from "./anchors/sql-shared-field-anchor-store";
 import { KvParserCommandMacroStore } from "./command-macros/kv-command-macro-store";
 import { SqlParserCommandMacroStore } from "./command-macros/sql-command-macro-store";
 import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-store";
@@ -261,24 +258,6 @@ export async function resolveConceptFieldStore(
 			memory: (backend) => new KvConceptFieldStore(backend),
 			sql: (dialect, executor) => new SqlConceptFieldStore(dialect, executor),
 			jsonl: (backend) => new KvConceptFieldStore(backend),
-		},
-	);
-}
-
-// ── Shared Field Anchors ─────────────────────────────────────────────
-
-export async function resolveSharedFieldAnchorStore(
-	config: ClinicalStoreConfig,
-): Promise<SharedFieldAnchorStore> {
-	return resolveStoreWithFactory(
-		config,
-		"shared_field_anchors",
-		"./clinical.sqlite",
-		{
-			memory: (backend) => new KvSharedFieldAnchorStore(backend),
-			sql: (dialect, executor) =>
-				new SqlSharedFieldAnchorStore(dialect, executor),
-			jsonl: (backend) => new KvSharedFieldAnchorStore(backend),
 		},
 	);
 }

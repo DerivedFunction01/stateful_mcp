@@ -1,4 +1,3 @@
-import type { SharedFieldAnchorRule } from "../../../parser/field-shared/shared-field-anchor";
 import type {
 	ConceptFieldRule,
 	DateTimeFormatConfig,
@@ -16,7 +15,6 @@ export interface TemporalCompilationResult {
 	profileId?: string;
 	attributeRules?: StoredAttributeRule[];
 	conceptFieldRules?: ConceptFieldRule[];
-	sharedFieldAnchors?: SharedFieldAnchorRule[];
 	calendarDateFormats?: DateTimeFormatConfig[];
 }
 
@@ -310,7 +308,6 @@ function compileRangeRule(
 
 	const attributeRules: StoredAttributeRule[] = [];
 	const conceptFieldRules: ConceptFieldRule[] = [];
-	const sharedFieldAnchors: SharedFieldAnchorRule[] = [];
 
 	if (Array.isArray(sequences)) {
 		for (let i = 0; i < sequences.length; i++) {
@@ -367,30 +364,6 @@ function compileRangeRule(
 		});
 	}
 
-	if (typeof anchorSchema === "string" && typeof anchorField === "string") {
-		sharedFieldAnchors.push({
-			ruleId: `${record.recordId}.context`,
-			targetSchema: anchorSchema,
-			anchors: [
-				{
-					source: "ClinicalDateRange",
-					targetField: anchorField,
-					relation: "contains",
-					distance: {
-						maxLeft: 1,
-						maxRight: 0,
-						unit: "items",
-					},
-					temporalContainment: {
-						sourceRangePath: "",
-						targetDateTimePath: "effectiveDatetime",
-						missingDatePolicy: "inherit",
-					},
-				},
-			],
-		});
-	}
-
 	return {
 		kind: record.kind,
 		recordId: record.recordId,
@@ -398,8 +371,6 @@ function compileRangeRule(
 		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
 		conceptFieldRules:
 			conceptFieldRules.length > 0 ? conceptFieldRules : undefined,
-		sharedFieldAnchors:
-			sharedFieldAnchors.length > 0 ? sharedFieldAnchors : undefined,
 	};
 }
 
@@ -464,7 +435,6 @@ function compileExclusionRule(
 	}
 
 	const attributeRules: StoredAttributeRule[] = [];
-	const sharedFieldAnchors: SharedFieldAnchorRule[] = [];
 
 	for (let i = 0; i < sequences.length; i++) {
 		const seq = sequences[i] as Record<string, unknown> | undefined;
@@ -494,37 +464,10 @@ function compileExclusionRule(
 		});
 	}
 
-	const anchorSchema = p.anchorSchema;
-	const anchorField = p.anchorField;
-	if (
-		typeof anchorSchema === "string" &&
-		typeof anchorField === "string" &&
-		typeof p.exclusionSchema === "string"
-	) {
-		sharedFieldAnchors.push({
-			ruleId: `${record.recordId}.exclusion-context`,
-			targetSchema: anchorSchema as string,
-			anchors: [
-				{
-					source: "ClinicalDateRange",
-					targetField: anchorField as string,
-					relation: "excludes",
-					distance: {
-						maxLeft: 1,
-						maxRight: 0,
-						unit: "items",
-					},
-				},
-			],
-		});
-	}
-
 	return {
 		kind: record.kind,
 		recordId: record.recordId,
 		profileId,
 		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
-		sharedFieldAnchors:
-			sharedFieldAnchors.length > 0 ? sharedFieldAnchors : undefined,
 	};
 }

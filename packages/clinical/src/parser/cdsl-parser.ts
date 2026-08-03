@@ -21,7 +21,6 @@ import type {
 	ParsedCandidateEnvelope,
 	ParsedItem,
 } from "./schema-parsers";
-import type { SharedFieldAnchorStore } from "./field-shared/shared-field-anchor";
 import { TextPreprocessor } from "./text-preprocessor";
 import type { StopWordParser } from "./stop-word-parser";
 
@@ -46,7 +45,6 @@ export interface CdslParserOptions {
 	stopWordParser?: StopWordParser;
 	stopWordStore?: StopWordStore;
 	conceptFieldStore?: ConceptFieldStore;
-	sharedFieldAnchorStore?: SharedFieldAnchorStore;
 	weightStore?: SystemWeightStore;
 	autocompleteTransitionStore?: AutocompleteTransitionStore;
 	commandSuggester?: CommandAutocompleteSuggester;

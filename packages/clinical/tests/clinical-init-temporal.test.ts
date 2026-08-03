@@ -4,7 +4,6 @@ import { bootstrapClinicalStores } from "../src/init/bootstrap/bootstrap-writer"
 import { compileTemporalRecord } from "../src/init/bootstrap/normalizers/temporal";
 import { validateBootstrapReadiness } from "../src/init/validation/readiness";
 import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime";
-import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
 import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
 import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
@@ -36,7 +35,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
 		conceptDefaults: new KvConceptDefaultStore(backend),
 		conceptFields: new KvConceptFieldStore(backend),
-		sharedFieldAnchors: new KvSharedFieldAnchorStore(backend),
 		stopWordProfiles: new KvStopWordProfileStore(backend),
 		stopWordWordLists: new KvStopWordWordListStore(backend),
 		proseTemplates: new KvClinicalProseTemplateStore(backend),
@@ -152,7 +150,6 @@ describe("compileTemporalRecord", () => {
 			expect(result).not.toBeNull();
 			expect(result!.attributeRules).toBeUndefined();
 			expect(result!.conceptFieldRules).toBeUndefined();
-			expect(result!.sharedFieldAnchors).toBeUndefined();
 		}
 	});
 
@@ -300,19 +297,6 @@ describe("bootstrapClinicalStores temporal kinds", () => {
 				(f) =>
 					f.fieldPath === "startDatetime" &&
 					f.targetSchema === "ClinicalDateRange",
-			),
-		).toBe(true);
-
-		const anchors = await stores.sharedFieldAnchors.listForContext({});
-		expect(
-			anchors.some(
-				(a) =>
-					a.targetSchema === "VitalsMeasurementEvent" &&
-					a.anchors.some(
-						(anc) =>
-							anc.source === "ClinicalDateRange" &&
-							anc.targetField === "context.temporalContext",
-					),
 			),
 		).toBe(true);
 	});

@@ -1,4 +1,3 @@
-import type { SharedFieldAnchor } from "../parser/field-shared/shared-field-anchor";
 import type { PatientLearningBucket } from "../schemas/patient";
 import type { Cell, CellCollectionRef } from "../session/cell";
 
@@ -349,7 +348,6 @@ export interface SchemaParserConfig {
 	schema: string;
 	targetSchema: string;
 	preparsedContextKeys?: string[];
-	sharedFieldAnchors?: SharedFieldAnchor[];
 }
 
 export interface StopWordContext {

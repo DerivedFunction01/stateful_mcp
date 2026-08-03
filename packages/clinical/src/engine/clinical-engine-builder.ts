@@ -295,7 +295,6 @@ async function wireEngine(
 		profile: composedProfile,
 		conceptFieldStore: stores.conceptFields,
 		proseTemplateStore: stores.proseTemplates,
-		sharedFieldAnchorStore: stores.sharedFieldAnchors,
 		commandSuggester,
 		ngramStore: runtime.ngramStore,
 		personnelId,

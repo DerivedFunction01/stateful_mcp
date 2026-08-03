@@ -20,7 +20,6 @@ import {
 } from "../src/init/validation/readiness";
 import type { ClinicalStoreConfig } from "../src/store/clinical-config";
 import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime";
-import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
 import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
 import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
@@ -59,7 +58,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
 		conceptDefaults: new KvConceptDefaultStore(backend),
 		conceptFields: new KvConceptFieldStore(backend),
-		sharedFieldAnchors: new KvSharedFieldAnchorStore(backend),
 		stopWordProfiles: new KvStopWordProfileStore(backend),
 		stopWordWordLists: new KvStopWordWordListStore(backend),
 		proseTemplates: new KvClinicalProseTemplateStore(backend),
@@ -241,15 +239,6 @@ describe("validateBootstrapReadiness", () => {
 			targetSchema: "ObservationEvent",
 			regexPatterns: [],
 			defaultProperties: {},
-		});
-		await stores.sharedFieldAnchors.set({
-			ruleId: "test-anchor",
-			source: "ObservationEvent",
-			target: "ObservationEvent",
-			targetField: "value",
-			distance: 100,
-			boundaryDelimiter: "",
-			transitionalWords: [],
 		});
 		await stores.proseTemplates.set({
 			templateId: "test-template",

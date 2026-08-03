@@ -1,5 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { SharedFieldAnchorStore } from "../../parser/field-shared/shared-field-anchor";
 import type { ParserConceptDefaultStore } from "../../store/parser/concept_defaults/interfaces";
 import type { ConceptFieldStore } from "../../store/parser/concept_fields/interfaces";
 import type { ParserProfileCoreStore } from "../../store/parser/profiles/interfaces";
@@ -28,7 +27,6 @@ export interface BootstrapStores {
 	evaluatorBindings: ParserProfileEvaluatorBindingStore;
 	conceptDefaults: ParserConceptDefaultStore;
 	conceptFields: ConceptFieldStore;
-	sharedFieldAnchors: SharedFieldAnchorStore;
 	stopWordProfiles: StopWordStore;
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { SEED_PARSER_PROFILES } from "../src/seed/defaults";
 import type { Cell } from "../src/session/cell";
-import {
-	resolveFieldTarget,
-	setNestedField,
-} from "../src/session/cell-command-context";
 import { CellCommandParser } from "../src/session/cell-command-parser";
 import { CellCommandRegistry } from "../src/session/cell-command-registry";
 
@@ -32,38 +28,6 @@ describe("CellCommandParser", () => {
 			raw: ":ejecutar now",
 		});
 		expect(CellCommandParser.parse("ordinary text", profile)).toBeNull();
-	});
-});
-
-describe("cell command field targeting", () => {
-	it("resolves explicit and inferred schema paths", () => {
-		const profile = {
-			...SEED_PARSER_PROFILES[0]!,
-			fieldMappings: { sintoma: "ObservationEvent.symptom" },
-		};
-		expect(resolveFieldTarget("sintoma", "pain", cell(null), profile)).toEqual({
-			targetSchema: "ObservationEvent",
-			fieldPath: "symptom",
-			value: "pain",
-		});
-		expect(
-			resolveFieldTarget(
-				"severity.score",
-				"7",
-				cell("ObservationEvent"),
-				profile,
-			),
-		).toEqual({
-			targetSchema: "ObservationEvent",
-			fieldPath: "severity.score",
-			value: "7",
-		});
-	});
-
-	it("constructs nested extracted data", () => {
-		const data: Record<string, unknown> = {};
-		setNestedField(data, "symptom.severity.score", 7);
-		expect(data).toEqual({ symptom: { severity: { score: 7 } } });
 	});
 });
 
