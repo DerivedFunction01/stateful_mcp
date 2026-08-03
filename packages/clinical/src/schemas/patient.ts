@@ -1,15 +1,24 @@
 import type { BaseAgent, CodeableConcept } from "./shared";
 import type { TemporalBoundary } from "./time";
+
+export const ADMINISTRATIVE_GENDERS = [
+	"male",
+	"female",
+	"undetermined",
+	"not_applicable",
+] as const;
+
 export type AdministrativeGender =
-	| "male"
-	| "female"
-	| "undetermined"
-	| "not_applicable";
+	(typeof ADMINISTRATIVE_GENDERS)[number];
+
+export const SUBJECT_LIFECYCLE_STATUSES = [
+	"active",
+	"deceased",
+	"inactive_archived",
+] as const;
 
 export type SubjectLifecycleStatus =
-	| "active"
-	| "deceased"
-	| "inactive_archived";
+	(typeof SUBJECT_LIFECYCLE_STATUSES)[number];
 
 export interface LegalName {
 	givenNames?: string[];
@@ -21,27 +30,37 @@ export interface HumanSubjectAttributes {
 	ethnicity?: CodeableConcept; // Unified standard concepts
 }
 export interface NonHumanSubjectAttributes {
-	species?: CodeableConcept; // Primary organism taxonomy standard (e.g., Plant or Insect ID)
+	species?: CodeableConcept; // Primary organism taxonomy standard (e.g. Plant or Insect ID)
 	breedOrCultivar?: CodeableConcept;
 }
+
+export const PROPAGATION_METHODS = [
+	"seed_sexual",
+	"vegetative_clone",
+	"tissue_culture",
+	"grafting",
+	"unknown",
+] as const;
+
+export const GENETIC_MODIFICATION_STATUSES = [
+	"wild_type",
+	"selectively_bred",
+	"gmo",
+	"crispr_edited",
+] as const;
+
+export const CULTIVATION_ENVIRONMENTS = [
+	"open_field",
+	"greenhouse",
+	"hydroponic",
+	"aeroponic",
+	"wild",
+] as const;
+
 export interface PlantSubjectAttributes extends NonHumanSubjectAttributes {
-	propagationMethod:
-		| "seed_sexual"
-		| "vegetative_clone"
-		| "tissue_culture"
-		| "grafting"
-		| "unknown";
-	geneticModificationStatus:
-		| "wild_type"
-		| "selectively_bred"
-		| "gmo"
-		| "crispr_edited";
-	cultivationEnvironment:
-		| "open_field"
-		| "greenhouse"
-		| "hydroponic"
-		| "aeroponic"
-		| "wild";
+	propagationMethod: (typeof PROPAGATION_METHODS)[number];
+	geneticModificationStatus: (typeof GENETIC_MODIFICATION_STATUSES)[number];
+	cultivationEnvironment: (typeof CULTIVATION_ENVIRONMENTS)[number];
 }
 
 // Discriminator payload pattern to isolate primary species attributes

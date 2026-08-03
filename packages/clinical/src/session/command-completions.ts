@@ -1,17 +1,6 @@
 import { schemaParserRegistry } from "../parser/schema-parsers";
+import { SOAP_SECTIONS } from "../schemas/shared";
 import type { ParserSyntaxProfile } from "../store/interfaces";
-
-/**
- * The four main SOAP section codes. These are locale-neutral canonical
- * identifiers (matching the `SoapSection` type), NOT display labels.
- * Display strings are resolved through the locale dictionary in the CLI.
- */
-export const SOAP_SECTIONS = [
-	"subjective",
-	"objective",
-	"assessment",
-	"plan",
-] as const;
 
 export const CELL_MODES = ["cdsl", "narrative", "js_script"] as const;
 

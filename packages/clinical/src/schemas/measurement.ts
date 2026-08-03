@@ -1,167 +1,272 @@
 import type { CodeableConcept } from "./shared";
 import type { TimeUnit } from "./time";
 
+export const TERRESTRIAL_UNIT_ANCHORS = [
+	"length",
+	"mass",
+	"time",
+	"temperature",
+	"velocity",
+	"acceleration",
+	"volume",
+	"area",
+	"force",
+	"pressure",
+	"energy",
+] as const;
+
 export type TerrestrialUnitAnchor =
-	| "length"
-	| "mass"
-	| "time"
-	| "temperature"
-	| "velocity"
-	| "acceleration"
-	| "volume"
-	| "area"
-	| "force"
-	| "pressure"
-	| "energy";
+	(typeof TERRESTRIAL_UNIT_ANCHORS)[number];
+
+export const PHYSIOLOGICAL_UNIT_ANCHORS = [
+	"concentration",
+	"mass_concentration",
+	"substance_concentration",
+	"mass_fraction",
+	"fraction",
+	"osmolality",
+	"osmolarity",
+	"catalytic_activity",
+	"number",
+	"arbitrary",
+] as const;
 
 export type PhysiologicalUnitAnchor =
-	| "concentration"
-	| "mass_concentration"
-	| "substance_concentration"
-	| "mass_fraction"
-	| "fraction"
-	| "osmolality"
-	| "osmolarity"
-	| "catalytic_activity"
-	| "number"
-	| "arbitrary";
+	(typeof PHYSIOLOGICAL_UNIT_ANCHORS)[number];
+
+export const ENGINEERING_UNIT_ANCHORS = [
+	"dynamic_viscosity",
+	"power",
+	"power_level",
+	"pressure_level",
+	"electric_current",
+	"electric_potential",
+	"magnetic_flux_density",
+] as const;
 
 export type EngineeringUnitAnchor =
-	| "dynamic_viscosity"
-	| "power"
-	| "power_level"
-	| "pressure_level"
-	| "electric_current"
-	| "electric_potential"
-	| "magnetic_flux_density";
+	(typeof ENGINEERING_UNIT_ANCHORS)[number];
+
+export const MEASUREMENT_UNIT_ANCHORS = [
+	...TERRESTRIAL_UNIT_ANCHORS,
+	...PHYSIOLOGICAL_UNIT_ANCHORS,
+	...ENGINEERING_UNIT_ANCHORS,
+] as const;
 
 export type MeasurementUnitAnchor =
-	| TerrestrialUnitAnchor
-	| PhysiologicalUnitAnchor
-	| EngineeringUnitAnchor;
+	(typeof MEASUREMENT_UNIT_ANCHORS)[number];
 
-export type MassUnit =
-	| "kg"
+export const MASS_UNITS = [
+	"kg",
+	"g",
+	"mg",
+	"mcg",
+	"ug",
+	"ng",
+	"pg",
+	"lb",
+	"oz",
+	"t",
+	"ton",
+] as const;
+
+export type MassUnit = (typeof MASS_UNITS)[number];
+
+export const VOLUME_UNITS = [
+	"L",
+	"dL",
+	"mL",
+	"uL",
+	"fl_oz",
+	"tsp",
+	"tbsp",
+	"qt",
+	"pt",
+	"gal",
+	"cc",
+	"cup",
+	"pint",
+	"quart",
+	"gallon",
+] as const;
+
+export type VolumeUnit = (typeof VOLUME_UNITS)[number];
+
+export const LENGTH_UNITS = [
+	"km",
+	"m",
+	"cm",
+	"mm",
+	"um",
+	"nm",
+	"in",
+	"ft",
+	"[in_i]",
+	"[ft_i]",
+	"yd",
+	"mi",
+] as const;
+
+export type LengthUnit = (typeof LENGTH_UNITS)[number];
+
+export const TEMPERATURE_UNITS = ["Celsius", "Fahrenheit", "Kelvin"] as const;
+
+export type TemperatureUnit = (typeof TEMPERATURE_UNITS)[number];
+
+export const PRESSURE_UNITS = [
+	"mmHg",
+	"bar",
+	"atm",
+	"Pa",
+	"kPa",
+	"psi",
+] as const;
+
+export type PressureUnit = (typeof PRESSURE_UNITS)[number];
+
+export const COUNT_UNITS = [
+	"count",
+	"cells",
+	"elements",
+	"copies",
+	"IU",
+	"U",
+	"IU/mL",
+	"U/mL",
+	"tablet",
+	"capsule",
+	"puff",
+	"spray",
+	"drop",
+	"dose",
+	"pill",
+	"vial",
+	"patch",
+	"caplet",
+	"sachet",
+	"pack",
+	"drink",
+	"glass",
+	"shot",
+	"/min",
+	"breaths_per_min",
+	"beats_per_min",
+] as const;
+
+export type CountUnit = (typeof COUNT_UNITS)[number];
+
+export const SCORE_UNITS = ["%", "percent", "score", "points", "ratio"] as const;
+
+export type ScoreUnit = (typeof SCORE_UNITS)[number];
+
+type ConcMassUnit =
 	| "g"
 	| "mg"
 	| "mcg"
 	| "ug"
 	| "ng"
-	| "pg"
-	| "lb"
-	| "oz"
-	| "t"
-	| "ton";
-export type VolumeUnit =
-	| "L"
-	| "dL"
-	| "mL"
-	| "uL"
-	| "fl_oz"
-	| "tsp"
-	| "tbsp"
-	| "qt"
-	| "pt"
-	| "gal"
-	| "cc"
-	| "cup"
-	| "pint"
-	| "quart"
-	| "gallon";
-export type LengthUnit =
-	| "km"
-	| "m"
-	| "cm"
-	| "mm"
-	| "um"
-	| "nm"
-	| "in"
-	| "ft"
-	| "[in_i]"
-	| "[ft_i]"
-	| "yd"
-	| "mi";
+	| "pg";
 
-export type TemperatureUnit = "Celsius" | "Fahrenheit" | "Kelvin";
-export type PressureUnit = "mmHg" | "bar" | "atm" | "Pa" | "kPa" | "psi";
-export type CountUnit =
-	| "count"
-	| "cells"
-	| "elements"
-	| "copies"
-	| "IU"
-	| "U"
-	| "IU/mL"
-	| "U/mL"
-	| "tablet"
-	| "capsule"
-	| "puff"
-	| "spray"
-	| "drop"
-	| "dose"
-	| "pill"
-	| "vial"
-	| "patch"
-	| "caplet"
-	| "sachet"
-	| "pack"
-	| "drink"
-	| "glass"
-	| "shot"
-	| "/min"
-	| "breaths_per_min"
-	| "beats_per_min";
-export type ScoreUnit = "%" | "percent" | "score" | "points" | "ratio";
-
-type ConcMassUnit = "g" | "mg" | "mcg" | "ug" | "ng" | "pg";
 type ConcVolumeUnit = "L" | "dL" | "mL" | "uL";
+
+export const MASS_CONCENTRATION_UNITS = [
+	"mg/mL",
+	"mg/dL",
+	"mcg/mL",
+	"g/L",
+	"g/dL",
+] as const;
+
 export type MassConcentrationUnit =
 	| `${ConcMassUnit}/${ConcVolumeUnit}`
-	| "mg/mL"
-	| "mg/dL"
-	| "mcg/mL"
-	| "g/L"
-	| "g/dL";
+	| (typeof MASS_CONCENTRATION_UNITS)[number];
+
+export const SUBSTANCE_CONCENTRATION_UNITS = [
+	"mol/L",
+	"mmol/L",
+	"umol/L",
+	"nmol/L",
+	"mEq/L",
+] as const;
 
 export type SubstanceConcentrationUnit =
-	| "mol/L"
-	| "mmol/L"
-	| "umol/L"
-	| "nmol/L"
-	| "mEq/L";
-export type EnergyUnit = "cal" | "kcal" | "J" | "kJ" | "kWh";
-export type ForceUnit = "N" | "kN" | "mN" | "kgf" | "lbf";
-export type OsmolalityUnit = "Osm/kg" | "mOsm/kg";
-export type OsmolarityUnit = "Osm/L" | "mOsm/L";
-export type CatalyticActivityUnit = "U" | "kat" | "mkat" | "ukat" | "nkat";
-export type FractionUnit = "%" | "fraction" | "ratio";
-export type ElectricPotentialUnit = "V" | "mV" | "uV";
-export type ElectricCurrentUnit = "A" | "mA" | "uA";
-export type PowerUnit = "W" | "mW" | "kW";
-export type VelocityUnit = "m/s" | "cm/s" | "km/h" | "mph";
-export type AccelerationUnit = "m/s2" | "g";
+	(typeof SUBSTANCE_CONCENTRATION_UNITS)[number];
 
-export type AllowedUnit =
-	| MassUnit
-	| VolumeUnit
-	| LengthUnit
-	| TemperatureUnit
-	| PressureUnit
-	| CountUnit
-	| ScoreUnit
-	| MassConcentrationUnit
-	| SubstanceConcentrationUnit
-	| EnergyUnit
-	| ForceUnit
-	| OsmolalityUnit
-	| OsmolarityUnit
-	| CatalyticActivityUnit
-	| FractionUnit
-	| ElectricPotentialUnit
-	| ElectricCurrentUnit
-	| PowerUnit
-	| VelocityUnit
-	| AccelerationUnit;
+export const ENERGY_UNITS = ["cal", "kcal", "J", "kJ", "kWh"] as const;
+
+export type EnergyUnit = (typeof ENERGY_UNITS)[number];
+
+export const FORCE_UNITS = ["N", "kN", "mN", "kgf", "lbf"] as const;
+
+export type ForceUnit = (typeof FORCE_UNITS)[number];
+
+export const OSMOLALITY_UNITS = ["Osm/kg", "mOsm/kg"] as const;
+
+export type OsmolalityUnit = (typeof OSMOLALITY_UNITS)[number];
+
+export const OSMOLARITY_UNITS = ["Osm/L", "mOsm/L"] as const;
+
+export type OsmolarityUnit = (typeof OSMOLARITY_UNITS)[number];
+
+export const CATALYTIC_ACTIVITY_UNITS = [
+	"U",
+	"kat",
+	"mkat",
+	"ukat",
+	"nkat",
+] as const;
+
+export type CatalyticActivityUnit =
+	(typeof CATALYTIC_ACTIVITY_UNITS)[number];
+
+export const FRACTION_UNITS = ["%", "fraction", "ratio"] as const;
+
+export type FractionUnit = (typeof FRACTION_UNITS)[number];
+
+export const ELECTRIC_POTENTIAL_UNITS = ["V", "mV", "uV"] as const;
+
+export type ElectricPotentialUnit = (typeof ELECTRIC_POTENTIAL_UNITS)[number];
+
+export const ELECTRIC_CURRENT_UNITS = ["A", "mA", "uA"] as const;
+
+export type ElectricCurrentUnit = (typeof ELECTRIC_CURRENT_UNITS)[number];
+
+export const POWER_UNITS = ["W", "mW", "kW"] as const;
+
+export type PowerUnit = (typeof POWER_UNITS)[number];
+
+export const VELOCITY_UNITS = ["m/s", "cm/s", "km/h", "mph"] as const;
+
+export type VelocityUnit = (typeof VELOCITY_UNITS)[number];
+
+export const ACCELERATION_UNITS = ["m/s2", "g"] as const;
+
+export type AccelerationUnit = (typeof ACCELERATION_UNITS)[number];
+
+export const ALLOWED_UNITS = [
+	...MASS_UNITS,
+	...VOLUME_UNITS,
+	...LENGTH_UNITS,
+	...TEMPERATURE_UNITS,
+	...PRESSURE_UNITS,
+	...COUNT_UNITS,
+	...SCORE_UNITS,
+	...MASS_CONCENTRATION_UNITS,
+	...SUBSTANCE_CONCENTRATION_UNITS,
+	...ENERGY_UNITS,
+	...FORCE_UNITS,
+	...OSMOLALITY_UNITS,
+	...OSMOLARITY_UNITS,
+	...CATALYTIC_ACTIVITY_UNITS,
+	...FRACTION_UNITS,
+	...ELECTRIC_POTENTIAL_UNITS,
+	...ELECTRIC_CURRENT_UNITS,
+	...POWER_UNITS,
+	...VELOCITY_UNITS,
+	...ACCELERATION_UNITS,
+] as const;
+
+export type AllowedUnit = (typeof ALLOWED_UNITS)[number];
 
 export interface Statistics {
 	min?: number;
@@ -315,7 +420,7 @@ export function isBoundedMeasurement(
 	);
 }
 
-export const UNIT_DISPLAY_MAP: Record<AllowedUnit | TimeUnit, string> = {
+export const UNIT_DISPLAY_MAP: Record<string, string> = {
 	// Mass
 	kg: "kg",
 	g: "g",

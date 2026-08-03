@@ -1,4 +1,5 @@
-import { isSoapSection, SOAP_SECTIONS } from "./command-completions";
+import { SOAP_SECTIONS } from "../schemas/shared";
+import { isSoapSection } from "./command-completions";
 import type { CommandDescriptor } from "./command-descriptor";
 import { CommandGroup } from "./command-descriptor";
 

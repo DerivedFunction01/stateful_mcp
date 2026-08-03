@@ -3,25 +3,39 @@ export interface CodeableConcept {
 	display: string;
 }
 
+export const CLINICAL_SOURCE_TYPES = [
+	"patient_reported",
+	"clinician_observed",
+	"sensor_import",
+	"inspection",
+	"ehr_import",
+	"api_telemetry",
+	"telemetry_api",
+	"pacs_integration",
+] as const;
+
 export type ClinicalSourceType =
-	| "patient_reported"
-	| "clinician_observed"
-	| "sensor_import"
-	| "inspection"
-	| "ehr_import"
-	| "api_telemetry"
-	| "telemetry_api"
-	| "pacs_integration";
+	(typeof CLINICAL_SOURCE_TYPES)[number];
 
-export type Status =
-	| "present"
-	| "absent"
-	| "denied"
-	| "resolved"
-	| "newly_diagnosed"
-	| "not_applicable";
+export const STATUSES = [
+	"present",
+	"absent",
+	"denied",
+	"resolved",
+	"newly_diagnosed",
+	"not_applicable",
+] as const;
 
-export type Certainty = "confirmed" | "suspected" | "refuted" | "differential";
+export type Status = (typeof STATUSES)[number];
+
+export const CERTAINTIES = [
+	"confirmed",
+	"suspected",
+	"refuted",
+	"differential",
+] as const;
+
+export type Certainty = (typeof CERTAINTIES)[number];
 
 export interface BaseAgent {
 	id?: string;
@@ -64,15 +78,19 @@ export interface ProductIdentifier {
 	buildYear?: number;
 	registryTrackingNumber?: string;
 }
-export type Laterality =
-	| "left"
-	| "right"
-	| "bilateral"
-	| "midline"
-	| "dorsal"
-	| "ventral"
-	| "axial"
-	| "radial";
+
+export const LATERALITIES = [
+	"left",
+	"right",
+	"bilateral",
+	"midline",
+	"dorsal",
+	"ventral",
+	"axial",
+	"radial",
+] as const;
+
+export type Laterality = (typeof LATERALITIES)[number];
 
 export interface AnatomicalLocation {
 	anatomy: CodeableConcept;
@@ -80,32 +98,47 @@ export interface AnatomicalLocation {
 	depthIndex?: number;
 }
 
-export type Route =
-	| "oral"
-	| "intravenous"
-	| "intramuscular"
-	| "subcutaneous"
-	| "topical"
-	| "inhalation"
-	| "sublingual"
-	| "rectal"
-	| "intranasal"
-	| "transdermal"
-	| "ophthalmic"
-	| "otic"
-	| "intrathecal";
+export const ROUTES = [
+	"oral",
+	"intravenous",
+	"intramuscular",
+	"subcutaneous",
+	"topical",
+	"inhalation",
+	"sublingual",
+	"rectal",
+	"intranasal",
+	"transdermal",
+	"ophthalmic",
+	"otic",
+	"intrathecal",
+] as const;
 
-export type StringifiedBoolean = "true" | "false";
+export type Route = (typeof ROUTES)[number];
 
-export type OrganSystem =
-	| "heent"
-	| "cardiovascular"
-	| "respiratory"
-	| "gastrointestinal_abdominal"
-	| "musculoskeletal"
-	| "neurological"
-	| "dermatological"
-	| "psychiatric"
-	| "genitourinary";
+export const STRINGIFIED_BOOLEANS = ["true", "false"] as const;
 
-export type SoapSection = "subjective" | "objective" | "assessment" | "plan";
+export type StringifiedBoolean = (typeof STRINGIFIED_BOOLEANS)[number];
+
+export const ORGAN_SYSTEMS = [
+	"heent",
+	"cardiovascular",
+	"respiratory",
+	"gastrointestinal_abdominal",
+	"musculoskeletal",
+	"neurological",
+	"dermatological",
+	"psychiatric",
+	"genitourinary",
+] as const;
+
+export type OrganSystem = (typeof ORGAN_SYSTEMS)[number];
+
+export const SOAP_SECTIONS = [
+	"subjective",
+	"objective",
+	"assessment",
+	"plan",
+] as const;
+
+export type SoapSection = (typeof SOAP_SECTIONS)[number];

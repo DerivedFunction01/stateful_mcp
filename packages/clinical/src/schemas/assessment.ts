@@ -2,6 +2,26 @@ import type { ScoreMeasurement } from "./measurement";
 import type { AnatomicalLocation, Certainty, CodeableConcept } from "./shared";
 import type { ClinicalDateRange } from "./time";
 
+export const ALGORITHMIC_EVALUATION_TYPES = [
+	"diagnostic_inference",
+	"clinical_risk_score",
+	"drug_drug_interaction",
+	"drug_allergy_contraindication",
+	"dosage_threshold_violation",
+	"other_algorithmic_rule",
+] as const;
+
+export type AlgorithmicEvaluationType =
+	(typeof ALGORITHMIC_EVALUATION_TYPES)[number];
+
+export const SEVERITY_TIERS = [
+	"critical_hard_stop",
+	"warning_soft_stop",
+	"informational_notice",
+] as const;
+
+export type SeverityTier = (typeof SEVERITY_TIERS)[number];
+
 // =====================================================================
 // ALGORITHMIC EVALUATION
 // =====================================================================
@@ -14,23 +34,14 @@ export interface AlgorithmicHypothesis {
 
 export interface AlgorithmicEvaluationObject {
 	id: string;
-	evaluationType:
-		| "diagnostic_inference"
-		| "clinical_risk_score"
-		| "drug_drug_interaction"
-		| "drug_allergy_contraindication"
-		| "dosage_threshold_violation"
-		| "other_algorithmic_rule";
+	evaluationType: AlgorithmicEvaluationType;
 	algorithm: CodeableConcept;
 	sourceRegistry?: string;
 	mechanismDescription?: string;
 	inputConcepts?: CodeableConcept[]; // Upgraded to preserve mapping boundaries
 	triggeringConcepts?: CodeableConcept[]; // Upgraded to preserve mapping boundaries
 	hypothesesAndOutputs: AlgorithmicHypothesis[];
-	severityTier?:
-		| "critical_hard_stop"
-		| "warning_soft_stop"
-		| "informational_notice";
+	severityTier?: SeverityTier;
 	overrideStatus?: {
 		isOverridden: boolean;
 		justificationText?: string;
@@ -42,12 +53,16 @@ export interface AlgorithmicEvaluationObject {
 // PRIMARY DIAGNOSIS
 // The single working diagnosis for this encounter.
 // =====================================================================
-export type AcuityLevel =
-	| "acute"
-	| "subacute"
-	| "chronic"
-	| "acute_on_chronic"
-	| "exacerbation";
+
+export const ACUITY_LEVELS = [
+	"acute",
+	"subacute",
+	"chronic",
+	"acute_on_chronic",
+	"exacerbation",
+] as const;
+
+export type AcuityLevel = (typeof ACUITY_LEVELS)[number];
 
 export interface PrimaryDiagnosisEntry {
 	id: string;
@@ -71,6 +86,15 @@ export interface PrimaryDiagnosisEntry {
 // Ranked list of hypotheses considered during the assessment.
 // =====================================================================
 
+export const DIFFERENTIAL_DIAGNOSIS_STATUSES = [
+	"active",
+	"ruled_out",
+	"abandoned",
+] as const;
+
+export type DifferentialDiagnosisStatus =
+	(typeof DIFFERENTIAL_DIAGNOSIS_STATUSES)[number];
+
 export interface DifferentialDiagnosisEntry {
 	id: string;
 	/**
@@ -89,5 +113,5 @@ export interface DifferentialDiagnosisEntry {
 	relatedMedications?: CodeableConcept[];
 	anatomyLocations?: AnatomicalLocation[];
 	dateRange?: ClinicalDateRange;
-	status?: "active" | "ruled_out" | "abandoned";
+	status?: DifferentialDiagnosisStatus;
 }

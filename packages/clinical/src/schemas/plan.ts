@@ -1,6 +1,41 @@
 import type { CodeableConcept, Laterality } from "./shared";
 import type { ClinicalDateRange } from "./time";
 
+export const PRIORITIES = ["routine", "urgent", "stat"] as const;
+
+export type Priority = (typeof PRIORITIES)[number];
+
+export const INVESTIGATION_TYPES = ["laboratory", "imaging"] as const;
+
+export type InvestigationType = (typeof INVESTIGATION_TYPES)[number];
+
+export const REFERRAL_URGENCIES = [
+	"routine",
+	"urgent",
+	"emergent",
+] as const;
+
+export type ReferralUrgency = (typeof REFERRAL_URGENCIES)[number];
+
+export const ANESTHESIA_TYPES = [
+	"general",
+	"regional",
+	"local",
+	"sedation",
+	"none",
+] as const;
+
+export type AnesthesiaType = (typeof ANESTHESIA_TYPES)[number];
+
+export const ESCALATION_PATHS = [
+	"emergency_department",
+	"urgent_care",
+	"call_provider",
+	"telehealth",
+] as const;
+
+export type EscalationPath = (typeof ESCALATION_PATHS)[number];
+
 // =====================================================================
 // BASE ORDER OBJECT
 // Shared fields for all plan-level orders.
@@ -10,7 +45,7 @@ export interface BaseOrderObject {
 	id: string;
 	procedure: CodeableConcept;
 	rawTerm?: string;
-	priority: "routine" | "urgent" | "stat";
+	priority: Priority;
 	reason?: CodeableConcept;
 	dateRange?: ClinicalDateRange;
 }
@@ -21,7 +56,7 @@ export interface BaseOrderObject {
 // =====================================================================
 
 export interface InvestigationOrderObject extends BaseOrderObject {
-	investigationType: "laboratory" | "imaging";
+	investigationType: InvestigationType;
 	specimenType?: CodeableConcept; // e.g. venous blood, urine
 	panelCode?: CodeableConcept; // e.g. LOINC::24320-4 Basic Metabolic Panel
 	laterality?: Laterality;
@@ -31,8 +66,6 @@ export interface InvestigationOrderObject extends BaseOrderObject {
 // REFERRAL ORDER (Specialist Routing)
 // Care continuity — routing to a specialist or external service.
 // =====================================================================
-
-export type ReferralUrgency = "routine" | "urgent" | "emergent";
 
 export interface ReferralOrderObject extends BaseOrderObject {
 	specialistDiscipline: CodeableConcept; // e.g. Cardiology, Neurology
@@ -46,13 +79,6 @@ export interface ReferralOrderObject extends BaseOrderObject {
 // Scheduled or requested clinical procedures not captured as lab/imaging.
 // =====================================================================
 
-export type AnesthesiaType =
-	| "general"
-	| "regional"
-	| "local"
-	| "sedation"
-	| "none";
-
 export interface InterventionOrderObject extends BaseOrderObject {
 	procedureLocation?: CodeableConcept; // e.g. operating room, bedside, clinic
 	anesthesiaType?: AnesthesiaType;
@@ -63,12 +89,6 @@ export interface InterventionOrderObject extends BaseOrderObject {
 // SAFETY NETTING PLAN
 // Patient red flags, follow-up triggers, and escalation pathway.
 // =====================================================================
-
-export type EscalationPath =
-	| "emergency_department"
-	| "urgent_care"
-	| "call_provider"
-	| "telehealth";
 
 export interface SafetyNettingPlan {
 	/**

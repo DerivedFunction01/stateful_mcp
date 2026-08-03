@@ -7,18 +7,18 @@ import type {
 } from "./shared";
 import type { ClinicalDateRange, TemporalBoundary } from "./time";
 
-// =====================================================================
-// LAB / POINT-OF-CARE DIAGNOSTIC RESULTS
-// =====================================================================
+export const LAB_INTERPRETATION_FLAGS = [
+	"normal",
+	"high",
+	"low",
+	"critical_high",
+	"critical_low",
+	"abnormal",
+	"indeterminate",
+] as const;
 
 export type LabInterpretationFlag =
-	| "normal"
-	| "high"
-	| "low"
-	| "critical_high"
-	| "critical_low"
-	| "abnormal"
-	| "indeterminate";
+	(typeof LAB_INTERPRETATION_FLAGS)[number];
 
 /**
  * A single measured analyte within a lab panel.

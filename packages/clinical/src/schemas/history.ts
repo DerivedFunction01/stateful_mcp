@@ -3,21 +3,24 @@ import type { MedicationFrequency } from "./medication";
 import type { ClinicalSourceType, CodeableConcept } from "./shared";
 import type { ClinicalDateRange } from "./time";
 
-// =====================================================================
-// ALLERGY ENTRY
-// =====================================================================
+export const ALLERGY_VERIFICATION_STATUSES = [
+	"confirmed",
+	"suspected",
+	"refuted",
+	"entered_in_error",
+] as const;
 
 export type AllergyVerificationStatus =
-	| "confirmed"
-	| "suspected"
-	| "refuted"
-	| "entered_in_error";
+	(typeof ALLERGY_VERIFICATION_STATUSES)[number];
 
-export type AllergySeverity =
-	| "mild"
-	| "moderate"
-	| "severe"
-	| "life_threatening";
+export const ALLERGY_SEVERITIES = [
+	"mild",
+	"moderate",
+	"severe",
+	"life_threatening",
+] as const;
+
+export type AllergySeverity = (typeof ALLERGY_SEVERITIES)[number];
 
 export interface AllergyEntry {
 	id: string;
@@ -32,7 +35,13 @@ export interface AllergyEntry {
 // SOCIAL HISTORY ENTRY
 // =====================================================================
 
-export type SocialHistoryStatus = "current" | "former" | "never";
+export const SOCIAL_HISTORY_STATUSES = [
+	"current",
+	"former",
+	"never",
+] as const;
+
+export type SocialHistoryStatus = (typeof SOCIAL_HISTORY_STATUSES)[number];
 
 export interface SocialHistoryEntry {
 	id: string;
@@ -50,17 +59,22 @@ export interface SocialHistoryEntry {
 // Represents medications the patient reports they are already taking.
 // =====================================================================
 
+export const COMPLIANCE_STATUSES = [
+	"adherent",
+	"non_adherent",
+	"intermittent",
+	"discontinued",
+] as const;
+
+export type ComplianceStatus = (typeof COMPLIANCE_STATUSES)[number];
+
 export interface ReportedMedicationEntry {
 	id: string;
 	medication: CodeableConcept;
 	dosage?: DosageMeasurement;
 	count?: SingleMeasurement;
 	frequency?: MedicationFrequency;
-	complianceStatus:
-		| "adherent"
-		| "non_adherent"
-		| "intermittent"
-		| "discontinued";
+	complianceStatus: ComplianceStatus;
 	sourceType: ClinicalSourceType;
 	dateRange?: ClinicalDateRange;
 }

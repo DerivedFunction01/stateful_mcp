@@ -2,20 +2,29 @@ import type { CountMeasurement, DosageMeasurement } from "./measurement";
 import type { CodeableConcept, Route } from "./shared";
 import type { ClinicalDateRange, TimePrecisionLevel } from "./time";
 
-export type CadenceBaseType =
-	| "interval"
-	| "event_anchored"
-	| "continuous"
-	| "one_time";
+export const CADENCE_BASE_TYPES = [
+	"interval",
+	"event_anchored",
+	"continuous",
+	"one_time",
+] as const;
+
+export type CadenceBaseType = (typeof CADENCE_BASE_TYPES)[number];
+
+export const PHYSIOLOGICAL_EVENT_ANCHORS = [
+	"waking",
+	"before_meal",
+	"with_meal",
+	"after_meal",
+	"before_sleep",
+] as const;
 
 export type PhysiologicalEventAnchor =
-	| "waking"
-	| "before_meal"
-	| "with_meal"
-	| "after_meal"
-	| "before_sleep";
+	(typeof PHYSIOLOGICAL_EVENT_ANCHORS)[number];
 
-export type FrequencyShorthand = "QD" | "BID" | "TID" | "QID";
+export const FREQUENCY_SHORTHANDS = ["QD", "BID", "TID", "QID"] as const;
+
+export type FrequencyShorthand = (typeof FREQUENCY_SHORTHANDS)[number];
 
 export interface MedicationFrequency {
 	cadenceType: CadenceBaseType;

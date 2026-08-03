@@ -1,37 +1,65 @@
 import type { SingleMeasurement } from "./measurement";
 
-export type DayOfWeek =
-	| "monday"
-	| "tuesday"
-	| "wednesday"
-	| "thursday"
-	| "friday"
-	| "saturday"
-	| "sunday";
+export const DAY_OF_WEEKS = [
+	"monday",
+	"tuesday",
+	"wednesday",
+	"thursday",
+	"friday",
+	"saturday",
+	"sunday",
+] as const;
 
-export type PartOfDay =
-	| "morning"
-	| "afternoon"
-	| "evening"
-	| "night"
-	| "midnight";
+export type DayOfWeek = (typeof DAY_OF_WEEKS)[number];
 
-export type Season = "spring" | "summer" | "autumn" | "winter";
-export type TimeUnit =
-	| "second"
-	| "minute"
-	| "hour"
-	| "day"
-	| "week"
-	| "month"
-	| "year";
-export type TimePrecisionLevel =
-	| TimeUnit
-	| "quarter"
-	| "decade"
-	| DayOfWeek
-	| PartOfDay
-	| Season;
+export const PARTS_OF_DAY = [
+	"morning",
+	"afternoon",
+	"evening",
+	"night",
+	"midnight",
+] as const;
+
+export type PartOfDay = (typeof PARTS_OF_DAY)[number];
+
+export const SEASONS = [
+	"spring",
+	"summer",
+	"autumn",
+	"winter",
+] as const;
+
+export type Season = (typeof SEASONS)[number];
+
+export const TIME_UNITS = [
+	"second",
+	"minute",
+	"hour",
+	"day",
+	"week",
+	"month",
+	"year",
+] as const;
+
+export type TimeUnit = (typeof TIME_UNITS)[number];
+
+export const TIME_PRECISION_LEVELS = [
+	...TIME_UNITS,
+	"quarter",
+	"decade",
+	...DAY_OF_WEEKS,
+	...PARTS_OF_DAY,
+	...SEASONS,
+] as const;
+
+export const TEMPORAL_DIRECTION = [
+	"retrospective",
+	"prospective",
+	"static_approximate",
+] as const;
+export type TemporalDirection = (typeof TEMPORAL_DIRECTION)[number];
+
+export type TimePrecisionLevel = (typeof TIME_PRECISION_LEVELS)[number];
 
 /**
  * Extends SingleMeasurement but overrides `unit` with a chronological precision level
@@ -61,7 +89,7 @@ export interface ClinicalDateRange {
 	includedDatetimes?: Array<{ time: TimeInterval; description?: string }>;
 	excludedDatetimes?: Array<{ time: TimeInterval; description?: string }>;
 	relativeEstimate?: {
-		direction: "retrospective" | "prospective" | "static_approximate";
+		direction: TemporalDirection;
 		firstValue: number;
 		secondValue?: number;
 		precisionUnit: TimePrecisionLevel;
