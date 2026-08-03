@@ -2,7 +2,6 @@ export * from "./init";
 export * from "./parser/cdsl-parser";
 export * from "./parser/generic-schema-parser";
 export * from "./parser/generic-tokenizer";
-export * from "./parser/parsers/clinical-date-range-parser";
 export {
 	type SchemaParser,
 	schemaParserRegistry,
