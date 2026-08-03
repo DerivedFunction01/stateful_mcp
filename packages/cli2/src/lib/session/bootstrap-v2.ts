@@ -1,4 +1,5 @@
 import { initializeColdStart } from "@stateful-mcp/clinical/bootstrap/cold-start";
+import { createMockCaseIdentity } from "@stateful-mcp/clinical/bootstrap/mock-patient";
 import { KvCellStore } from "@stateful-mcp/clinical/cells/kv-cell-store";
 import { CellCompiler } from "@stateful-mcp/clinical/cells/cell-compiler";
 import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
@@ -27,7 +28,7 @@ import { DictionaryStore } from "@stateful-mcp/core/middleware/dictionary/store"
 import {
 	createNotebookSession,
 	type NotebookSession,
-} from "./notebook-session";
+} from "./v2-notebook-session";
 
 export interface BootstrapResult {
 	engine: ClinicalEngine;
@@ -37,6 +38,8 @@ export interface BootstrapResult {
 	notebook: NotebookSession;
 	sessionId: string;
 	syntaxProfile: CommandSyntaxProfile;
+	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
+	bootstrapStatus: "created" | "resumed";
 }
 
 /**
@@ -101,14 +104,59 @@ export async function bootstrapSession(
 	);
 
 	const sessionId = options.sessionId ?? `cli2-${Date.now()}`;
-	if (!(await notebookSessionStore.get(sessionId)))
+	const existingSession = await notebookSessionStore.get(sessionId);
+	const caseIdentity = createMockCaseIdentity(sessionId);
+	let bootstrapStatus: BootstrapResult["bootstrapStatus"] = "resumed";
+	if (!existingSession) {
+		const document = await engine.initializeClinicalDocument({
+			kind: "document_initialized",
+			documentId: caseIdentity.documentId,
+			sessionId,
+			patientId: caseIdentity.patient.id,
+			initialState: {
+				patient: caseIdentity.patient,
+			},
+		});
+		const workspace = await engine.getWorkspaceService().createWorkspace({
+			sessionId,
+			sourceDocumentId: document.documentId,
+			workspaceId: caseIdentity.workspaceId,
+			initialBranches: [],
+		});
+		if (workspace.sourceDocumentId !== document.documentId)
+			throw new Error("CLI2 bootstrap created an unlinked workspace");
 		await notebookSessionStore.save({
 			sessionId,
 			cellOrder: [],
+			workspaceId: workspace.id,
+			documentId: document.documentId,
 			commandHistory: [],
 			revision: 0,
 			updatedAt: new Date().toISOString(),
 		});
+		bootstrapStatus = "created";
+	} else {
+		if (!existingSession.workspaceId || !existingSession.documentId)
+			throw new Error(
+				`CLI2 session '${sessionId}' has no persisted workspace/document binding`,
+			);
+		const document = await engine.getDocument(existingSession.documentId);
+		const workspace = await engine
+			.getWorkspaceService()
+			.getWorkspace(existingSession.workspaceId);
+		if (!document)
+			throw new Error(
+				`CLI2 session '${sessionId}' document '${existingSession.documentId}' was not found`,
+			);
+		if (!workspace)
+			throw new Error(
+				`CLI2 session '${sessionId}' workspace '${existingSession.workspaceId}' was not found`,
+			);
+		if (workspace.sourceDocumentId !== existingSession.documentId)
+			throw new Error(
+				`CLI2 session '${sessionId}' workspace/document binding is inconsistent`,
+			);
+	}
 	const notebook = createNotebookSession({
 		sessionId,
 		engine,
@@ -125,5 +173,7 @@ export async function bootstrapSession(
 		notebook,
 		sessionId,
 		syntaxProfile,
+		caseIdentity,
+		bootstrapStatus,
 	};
 }
