@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
-import type { CellStore } from "../src/v2/cells/cell-service-types";
-import { KvCellStore } from "../src/v2/cells/kv-cell-store";
-import { SqlCellStore } from "../src/v2/cells/sql-cell-store";
-import { StructuredCellService } from "../src/v2/cells/structured-cell-service";
+import type { CellStore } from "../src/cells/cell-service-types";
+import { KvCellStore } from "../src/cells/kv-cell-store";
+import { SqlCellStore } from "../src/cells/sql-cell-store";
+import { StructuredCellService } from "../src/cells/structured-cell-service";
 
 async function compile(rawText: string) {
 	return { plan: {}, diagnostics: [], fingerprint: `fp_${rawText.length}` };
@@ -21,7 +21,7 @@ async function sqlStore(): Promise<CellStore> {
 describe.each([
 	["kv", () => kvStore()],
 	["sql", async () => sqlStore()],
-])("V2 structured cell service (%s)", (_name, makeStore) => {
+])(" structured cell service (%s)", (_name, makeStore) => {
 	it("creates a draft cell", async () => {
 		const service = new StructuredCellService({
 			store: await makeStore(),

@@ -27,7 +27,7 @@ export interface WorkspaceWindowDeps {
 }
 
 /**
- * V2 workspace window definition. Hosted by the same `WindowContainer` as the
+ *  workspace window definition. Hosted by the same `WindowContainer` as the
  * notebook: the container owns the single `useInput`, and this definition only
  * supplies the window's regions (primary cell list, scoped command bar, status
  * with branch context, help footer, and a reserved sidebar). Editing uses the

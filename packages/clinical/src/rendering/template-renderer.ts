@@ -7,16 +7,16 @@ import {
 	resolveTranslationPath,
 } from "@stateful-mcp/core";
 import type {
-	V2ClinicalProseTemplate,
-	V2OutputProseSlot,
-	V2SlotCondition,
+	ClinicalProseTemplate,
+	OutputProseSlot,
+	SlotCondition,
 } from "./template-types";
 
-export class V2TemplateRenderer {
+export class TemplateRenderer {
 	static renderTemplate(
-		template: V2ClinicalProseTemplate,
+		template: ClinicalProseTemplate,
 		context: unknown,
-		templates: readonly V2ClinicalProseTemplate[],
+		templates: readonly ClinicalProseTemplate[],
 		visited = new Set<string>(),
 	): string {
 		if (visited.has(template.templateId))
@@ -25,10 +25,10 @@ export class V2TemplateRenderer {
 			);
 		const nextVisited = new Set(visited).add(template.templateId);
 		let output = template.templateText;
-		for (const token of V2TemplateRenderer.extractTokens(output)) {
+		for (const token of TemplateRenderer.extractTokens(output)) {
 			const slot = template.slots[token];
 			const replacement = slot
-				? V2TemplateRenderer.renderSlot(slot, context, templates, nextVisited)
+				? TemplateRenderer.renderSlot(slot, context, templates, nextVisited)
 				: "";
 			output = output.replace(`{${token}}`, replacement);
 		}
@@ -37,7 +37,7 @@ export class V2TemplateRenderer {
 
 	static renderObject(
 		value: Record<string, unknown>,
-		templates: readonly V2ClinicalProseTemplate[],
+		templates: readonly ClinicalProseTemplate[],
 		targetSchema: string,
 	): string | null {
 		const candidates = templates
@@ -49,14 +49,14 @@ export class V2TemplateRenderer {
 			);
 		const template = candidates[0];
 		return template
-			? V2TemplateRenderer.renderTemplate(template, value, templates)
+			? TemplateRenderer.renderTemplate(template, value, templates)
 			: null;
 	}
 
 	private static renderSlot(
-		slot: V2OutputProseSlot,
+		slot: OutputProseSlot,
 		context: unknown,
-		templates: readonly V2ClinicalProseTemplate[],
+		templates: readonly ClinicalProseTemplate[],
 		visited: Set<string>,
 	): string {
 		const value = resolveTranslationPath(context, slot.sourcePath);
@@ -64,19 +64,19 @@ export class V2TemplateRenderer {
 			value === undefined ||
 			value === null ||
 			(slot.conditions &&
-				!V2TemplateRenderer.condition(slot.conditions, context))
+				!TemplateRenderer.condition(slot.conditions, context))
 		)
 			return slot.fallback ?? "";
 		const delegateId =
 			(slot.conditionalDelegates ?? []).find((delegate) =>
-				V2TemplateRenderer.condition(delegate.conditions, value),
+				TemplateRenderer.condition(delegate.conditions, value),
 			)?.delegateTemplateId ?? slot.defaultDelegateTemplateId;
 		let rendered = delegateId
 			? templates.find((template) => template.templateId === delegateId)
 				? Array.isArray(value)
 					? joinTranslationList(
 							value.map((item) =>
-								V2TemplateRenderer.renderTemplate(
+								TemplateRenderer.renderTemplate(
 									templates.find(
 										(template) => template.templateId === delegateId,
 									)!,
@@ -87,7 +87,7 @@ export class V2TemplateRenderer {
 							),
 							slot.listOptions,
 						)
-					: V2TemplateRenderer.renderTemplate(
+					: TemplateRenderer.renderTemplate(
 							templates.find((template) => template.templateId === delegateId)!,
 							value,
 							templates,
@@ -112,7 +112,7 @@ export class V2TemplateRenderer {
 	}
 
 	private static condition(
-		condition: V2SlotCondition,
+		condition: SlotCondition,
 		context: unknown,
 	): boolean {
 		return evaluateTranslationCondition(condition.pipeline, context);

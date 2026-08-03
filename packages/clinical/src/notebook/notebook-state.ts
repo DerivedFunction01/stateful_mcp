@@ -6,20 +6,20 @@ export const NOTEBOOK_STATE = [
 	"MACRO",
 	"VISUAL",
 ] as const;
-export type V2NotebookEditorMode = (typeof NOTEBOOK_STATE)[number];
-/** Editor-neutral V2 notebook state; domain truth remains in CellStore. */
-export interface V2NotebookEditorState {
+export type NotebookEditorMode = (typeof NOTEBOOK_STATE)[number];
+/** Editor-neutral  notebook state; domain truth remains in CellStore. */
+export interface NotebookEditorState {
 	cells: StructuredCell[];
 	activeIndex: number;
 	draftText: string;
 	commandLine: string;
 	commandHistory: string[];
-	mode: V2NotebookEditorMode;
+	mode: NotebookEditorMode;
 	dirty: boolean;
 	message?: string;
 }
 
-export const INITIAL_V2_NOTEBOOK_EDITOR_STATE: V2NotebookEditorState = {
+export const INITIAL__NOTEBOOK_EDITOR_STATE: NotebookEditorState = {
 	cells: [],
 	activeIndex: 0,
 	draftText: "",
@@ -29,19 +29,19 @@ export const INITIAL_V2_NOTEBOOK_EDITOR_STATE: V2NotebookEditorState = {
 	dirty: false,
 };
 
-export type V2NotebookEditorAction =
+export type NotebookEditorAction =
 	| { type: "set_cells"; cells: StructuredCell[] }
 	| { type: "set_active"; index: number }
 	| { type: "set_draft"; text: string }
 	| { type: "set_command"; text: string }
-	| { type: "set_mode"; mode: V2NotebookEditorState["mode"] }
+	| { type: "set_mode"; mode: NotebookEditorState["mode"] }
 	| { type: "set_message"; message?: string }
 	| { type: "mark_clean" };
 
-export function reduceV2NotebookEditor(
-	state: V2NotebookEditorState,
-	action: V2NotebookEditorAction,
-): V2NotebookEditorState {
+export function reduceNotebookEditor(
+	state: NotebookEditorState,
+	action: NotebookEditorAction,
+): NotebookEditorState {
 	switch (action.type) {
 		case "set_cells":
 			return {

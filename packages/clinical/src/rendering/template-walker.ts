@@ -1,8 +1,8 @@
-import type { V2ClinicalProseTemplate } from "./template-types";
+import type { ClinicalProseTemplate } from "./template-types";
 
-export class V2TemplateWalker {
+export class TemplateWalker {
 	static validate(
-		templates: readonly V2ClinicalProseTemplate[],
+		templates: readonly ClinicalProseTemplate[],
 		maxDepth = 10,
 	): void {
 		const byId = new Map(

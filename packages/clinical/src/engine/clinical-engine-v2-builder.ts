@@ -6,7 +6,7 @@ import {
 } from "@stateful-mcp/core";
 import type { CellStore } from "../cells/cell-service-types";
 import { StructuredCellService } from "../cells/structured-cell-service";
-import { V2VariableCellService } from "../cells/variable-cell-service";
+import { VariableCellService } from "../cells/variable-cell-service";
 import { ClinicalDocumentService } from "../clinical/clinical-document-service";
 import type {
 	ClinicalDocumentProjectionStore,
@@ -21,10 +21,10 @@ import { ClinicalTransactionParticipant } from "../clinical/clinical-transaction
 import { CoreClinicalEventStore } from "../clinical/core-clinical-event-store";
 import { registerClinicalSchemaAdapters } from "../clinical/register-clinical-schema-adapters";
 import {
-	createV2CommandSyntaxProfile,
-	type V2CommandSyntaxProfile,
+	createCommandSyntaxProfile,
+	type CommandSyntaxProfile,
 } from "../commands/command-syntax-profile";
-import { V2VariableCommandService } from "../commands/variable-command-service";
+import { VariableCommandService } from "../commands/variable-command-service";
 import type { MacroStore } from "../macros/macro-definition";
 import {
 	createClinicalProjection,
@@ -54,10 +54,10 @@ import {
 	WorkspaceViewService,
 } from "../workspaces/workspace-view-state";
 import { CellTransactionParticipant } from "./cell-transaction-participant";
-import { ClinicalEngineV2 } from "./clinical-engine-v2";
-import type { ClinicalRuntimeV2 } from "./clinical-runtime-v2";
+import { ClinicalEngine } from "./clinical-engine-v2";
+import type { ClinicalRuntime } from "./clinical-runtime-v2";
 
-export class ClinicalEngineV2Builder {
+export class ClinicalEngineBuilder {
 	private eventStore?: EventStore;
 	private schemaRegistry?: SchemaRegistry;
 	private macroStore?: MacroStore;
@@ -73,7 +73,7 @@ export class ClinicalEngineV2Builder {
 	private viewStore?: WorkspaceViewStateStore;
 	private journal?: TransactionJournal;
 	private extraParticipants: TransactionParticipant[] = [];
-	private syntaxProfile?: V2CommandSyntaxProfile;
+	private syntaxProfile?: CommandSyntaxProfile;
 	private variableService?: VariableService;
 
 	withEventStore(store: EventStore): this {
@@ -144,7 +144,7 @@ export class ClinicalEngineV2Builder {
 		return this;
 	}
 
-	withSyntaxProfile(profile: V2CommandSyntaxProfile): this {
+	withSyntaxProfile(profile: CommandSyntaxProfile): this {
 		this.syntaxProfile = profile;
 		return this;
 	}
@@ -159,7 +159,7 @@ export class ClinicalEngineV2Builder {
 		return this;
 	}
 
-	build(): ClinicalEngineV2 {
+	build(): ClinicalEngine {
 		const eventStore = this.requireStore(this.eventStore, "EventStore");
 		const schemaRegistry = this.requireStore(
 			this.schemaRegistry,
@@ -169,15 +169,15 @@ export class ClinicalEngineV2Builder {
 		const dictionaryStore = this.dictionaryStore;
 		if (!macroStore)
 			throw new Error(
-				"ClinicalEngineV2Builder: 'MacroStore' is required. Call .withMacroStore(store) before .build()",
+				"ClinicalEngineBuilder: 'MacroStore' is required. Call .withMacroStore(store) before .build()",
 			);
 		if (!dictionaryStore)
 			throw new Error(
-				"ClinicalEngineV2Builder: 'DictionaryStore' is required. Call .withDictionary(store) before .build()",
+				"ClinicalEngineBuilder: 'DictionaryStore' is required. Call .withDictionary(store) before .build()",
 			);
 		if (!this.cellCompiler)
 			throw new Error(
-				"ClinicalEngineV2Builder: 'CellCompiler' is required. Call .withCellCompiler(compile) before .build()",
+				"ClinicalEngineBuilder: 'CellCompiler' is required. Call .withCellCompiler(compile) before .build()",
 			);
 
 		const adapters = registerClinicalSchemaAdapters(schemaRegistry);
@@ -238,7 +238,7 @@ export class ClinicalEngineV2Builder {
 		const variables = this.variableService ?? new VariableServiceStore();
 		const syntaxProfile =
 			this.syntaxProfile ??
-			createV2CommandSyntaxProfile({
+			createCommandSyntaxProfile({
 				profileId: "v2-default",
 				default: true,
 				active: true,
@@ -251,7 +251,7 @@ export class ClinicalEngineV2Builder {
 			registry.register(createSyncProjection(syncEngine, clinicalService));
 		}
 
-		const runtime: ClinicalRuntimeV2 = {
+		const runtime: ClinicalRuntime = {
 			stores: {
 				eventStore,
 				transactionJournal: journal,
@@ -269,14 +269,14 @@ export class ClinicalEngineV2Builder {
 			},
 			syntaxProfile,
 			variables,
-			variableCells: new V2VariableCellService(
+			variableCells: new VariableCellService(
 				cellStore,
-				new V2VariableCommandService(variables),
+				new VariableCommandService(variables),
 				syntaxProfile,
 			),
 		};
 
-		return new ClinicalEngineV2(
+		return new ClinicalEngine(
 			runtime,
 			coordinator,
 			participants,
@@ -293,7 +293,7 @@ export class ClinicalEngineV2Builder {
 	private requireStore<T>(store: T | undefined, name: string): T {
 		if (!store)
 			throw new Error(
-				`ClinicalEngineV2Builder: '${name}' is required. Call .with${name}(store) before .build()`,
+				`ClinicalEngineBuilder: '${name}' is required. Call .with${name}(store) before .build()`,
 			);
 		return store;
 	}

@@ -1,4 +1,4 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/v2/macros/macro-autocomplete";
+import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/macros/macro-autocomplete";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
@@ -114,7 +114,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				});
 			}
 
-			// TODO(cli2-v2): add a V2NotebookPreviewWorkflow presentation region.
+			// TODO(cli2-v2): add a NotebookPreviewWorkflow presentation region.
 
 			regions.push({
 				slot: "footer",

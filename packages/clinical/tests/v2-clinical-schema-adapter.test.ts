@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import {
 	buildClinicalSchemaAdapter,
 	registerClinicalSchemaAdapters,
-} from "../src/v2/clinical/register-clinical-schema-adapters";
-import { primaryDiagnosisSchema } from "../src/v2/schemas/definitions/assessment-schema";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
+} from "../src/clinical/register-clinical-schema-adapters";
+import { primaryDiagnosisSchema } from "../src/schemas/definitions/assessment-schema";
+import { SchemaRegistry } from "../src/schemas/schema-registry";
 
-describe("V2 clinical per-schema adapters", () => {
+describe(" clinical per-schema adapters", () => {
 	it("registers a real adapter for every published schema (no shared permissive adapter)", () => {
 		const registry = new SchemaRegistry();
 		registry.register(primaryDiagnosisSchema);

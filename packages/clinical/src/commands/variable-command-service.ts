@@ -6,7 +6,7 @@ import type {
 } from "@stateful-mcp/core";
 import { formatBlockId } from "@stateful-mcp/core";
 
-export class V2VariableCommandService {
+export class VariableCommandService {
 	constructor(
 		private readonly variables: VariableService,
 		private readonly resolveConcept?: VariableConceptResolver,

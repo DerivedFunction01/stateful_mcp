@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import { V2_PRIMARY_DIAGNOSIS_MACRO } from "../src/v2/macros/default-macros";
-import { KvMacroStore } from "../src/v2/macros/kv-macro-store";
-import { V2MacroQueryCompiler } from "../src/v2/macros/macro-query-compiler";
+import { _PRIMARY_DIAGNOSIS_MACRO } from "../src/macros/default-macros";
+import { KvMacroStore } from "../src/macros/kv-macro-store";
+import { MacroQueryCompiler } from "../src/macros/macro-query-compiler";
 
-describe("V2 durable macro stores", () => {
+describe(" durable macro stores", () => {
 	it("persists and filters macro definitions through KV", async () => {
 		const store = new KvMacroStore(new MemoryKvBackend());
-		await store.set(V2_PRIMARY_DIAGNOSIS_MACRO);
+		await store.set(_PRIMARY_DIAGNOSIS_MACRO);
 		expect((await store.get("primary_diagnosis"))?.macroId).toBe(
 			"v2-primary-diagnosis-1",
 		);
@@ -17,7 +17,7 @@ describe("V2 durable macro stores", () => {
 	});
 
 	it("compiles SQL DDL and AST queries without string-built SQL", () => {
-		const compiler = new V2MacroQueryCompiler("sqlite");
+		const compiler = new MacroQueryCompiler("sqlite");
 		const ddl = compiler.getTableDDL("v2_macros")[0]!;
 		const query = compiler.getQuery("primary_diagnosis", "v2_macros", {
 			profileId: "default",

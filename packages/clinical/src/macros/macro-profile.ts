@@ -1,7 +1,7 @@
-import type { V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
-import { createV2CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import { createCommandSyntaxProfile } from "../commands/command-syntax-profile";
 
-export interface V2SyntaxProfile extends Partial<V2CommandSyntaxProfile> {
+export interface SyntaxProfile extends Partial<CommandSyntaxProfile> {
 	profileId: string;
 	personnelId?: string;
 	isDefault?: boolean;
@@ -16,7 +16,7 @@ export interface V2SyntaxProfile extends Partial<V2CommandSyntaxProfile> {
 	conceptNamespaces?: Readonly<Record<string, readonly string[]>>;
 }
 
-export const V2_SYNTAX_DEFAULTS = {
+export const _SYNTAX_DEFAULTS = {
 	macroStartToken: "^",
 	variableStartToken: "{",
 	variableEndToken: "}",
@@ -26,17 +26,17 @@ export const V2_SYNTAX_DEFAULTS = {
 	fallbackBoundaryDelimiter: undefined,
 } as const;
 
-export function createV2SyntaxProfile(
-	profile: Omit<V2SyntaxProfile, "macroStartToken" | "conceptCodeSeparator"> &
-		Partial<Pick<V2SyntaxProfile, "macroStartToken" | "conceptCodeSeparator">>,
-): V2SyntaxProfile {
-	const commandProfile = createV2CommandSyntaxProfile(profile);
+export function createSyntaxProfile(
+	profile: Omit<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator"> &
+		Partial<Pick<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator">>,
+): SyntaxProfile {
+	const commandProfile = createCommandSyntaxProfile(profile);
 	return {
 		...profile,
 		...commandProfile,
 		macroStartToken:
-			profile.macroStartToken ?? V2_SYNTAX_DEFAULTS.macroStartToken,
+			profile.macroStartToken ?? _SYNTAX_DEFAULTS.macroStartToken,
 		conceptCodeSeparator:
-			profile.conceptCodeSeparator ?? V2_SYNTAX_DEFAULTS.conceptCodeSeparator,
+			profile.conceptCodeSeparator ?? _SYNTAX_DEFAULTS.conceptCodeSeparator,
 	};
 }

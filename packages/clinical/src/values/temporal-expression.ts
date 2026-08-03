@@ -1,5 +1,5 @@
 import type { ClinicalDateRange, TimePrecisionLevel, TemporalDirection } from "../schemas/schemas-interface/time";
-import type { V2TemporalSyntaxProfile } from "./temporal-syntax-profile";
+import type { TemporalSyntaxProfile } from "./temporal-syntax-profile";
 
 export type TemporalExpression =
 	| { kind: "absolute_instant"; instant: string; precision: TimePrecisionLevel }
@@ -15,7 +15,7 @@ export interface TemporalAnchor {
 	locale?: string;
 }
 
-export type TemporalRecognitionProfile = V2TemporalSyntaxProfile;
+export type TemporalRecognitionProfile = TemporalSyntaxProfile;
 
 export interface TemporalResolveResult { value?: ClinicalDateRange; diagnostics: TemporalDiagnostic[]; }
 export interface TemporalDiagnostic { code: "invalid_expression" | "invalid_anchor" | "invalid_range" | "unsupported_unit" | "ambiguous"; message: string; }

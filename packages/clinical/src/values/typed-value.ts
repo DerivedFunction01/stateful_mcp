@@ -1,5 +1,5 @@
 /**
- * V2 typed value contracts.
+ *  typed value contracts.
  *
  * These are pure type contracts shared by macro definitions, macro planning,
  * and execution. They are intentionally decoupled from the retired CDSL /

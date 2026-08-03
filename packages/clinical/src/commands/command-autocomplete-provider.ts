@@ -5,14 +5,14 @@ import type {
 	CommandSuggestion,
 } from "./command-bar-types";
 import {
-	createV2CommandSyntaxProfile,
-	type V2CommandSyntaxProfile,
+	createCommandSyntaxProfile,
+	type CommandSyntaxProfile,
 } from "./command-syntax-profile";
 
 export async function getCommandBarSuggestions(
 	context: CommandAutocompleteContext,
 	options: { macroStore?: MacroStore; schemaRegistry?: SchemaRegistry } = {},
-	profile: V2CommandSyntaxProfile = createV2CommandSyntaxProfile({
+	profile: CommandSyntaxProfile = createCommandSyntaxProfile({
 		profileId: "v2-default",
 	}),
 ): Promise<CommandSuggestion[]> {
@@ -92,7 +92,7 @@ export async function getCommandBarSuggestions(
 async function macroSuggestions(
 	input: string,
 	store: MacroStore | undefined,
-	profile: V2CommandSyntaxProfile,
+	profile: CommandSyntaxProfile,
 ): Promise<CommandSuggestion[]> {
 	if (!store) return [];
 	const prefix =

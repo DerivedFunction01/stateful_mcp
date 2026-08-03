@@ -9,24 +9,24 @@ import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/ada
 import {
 	ClinicalDocumentConflictError,
 	ClinicalDocumentService,
-} from "../src/v2/clinical/clinical-document-service";
+} from "../src/clinical/clinical-document-service";
 import {
 	SqlClinicalDocumentProjectionStore,
 	SqlSignedDocumentArchive,
-} from "../src/v2/clinical/clinical-document-sql-stores";
+} from "../src/clinical/clinical-document-sql-stores";
 import {
 	InMemoryClinicalDocumentProjectionStore,
 	InMemorySignedDocumentArchive,
-} from "../src/v2/clinical/clinical-document-types";
-import { ClinicalOperationCompiler } from "../src/v2/clinical/clinical-operation-compiler";
-import { ClinicalSchemaAdapterRegistry } from "../src/v2/clinical/clinical-schema-adapter";
-import { ClinicalTransactionParticipant } from "../src/v2/clinical/clinical-transaction-participant";
-import { CoreClinicalEventStore } from "../src/v2/clinical/core-clinical-event-store";
-import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
+} from "../src/clinical/clinical-document-types";
+import { ClinicalOperationCompiler } from "../src/clinical/clinical-operation-compiler";
+import { ClinicalSchemaAdapterRegistry } from "../src/clinical/clinical-schema-adapter";
+import { ClinicalTransactionParticipant } from "../src/clinical/clinical-transaction-participant";
+import { CoreClinicalEventStore } from "../src/clinical/core-clinical-event-store";
+import type { MacroExecutionPlan } from "../src/macros/macro-plan";
 import {
 	InMemoryTransactionJournal,
 	TransactionCoordinator,
-} from "../src/v2/transactions/transaction-coordinator";
+} from "../src/transactions/transaction-coordinator";
 
 async function makeService() {
 	const storage = await createEventStore(new SimpleMemoryKvBackend());
@@ -80,7 +80,7 @@ async function makeSqlService() {
 	};
 }
 
-describe("V2 clinical document service", () => {
+describe(" clinical document service", () => {
 	it("projects generic clinical records and rebuilds historical heads", async () => {
 		const { service } = await makeService();
 		const created = await service.initDocument({

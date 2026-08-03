@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { recognizeTemporalExpression } from "../src/v2/values/temporal-recognizer";
-import { resolveTemporalExpression } from "../src/v2/values/temporal-resolver";
-import { resolveFrequency } from "../src/v2/values/frequency-resolver";
-import { createV2TemporalSyntaxProfile } from "../src/v2/values/temporal-syntax-profile";
+import { recognizeTemporalExpression } from "../src/values/temporal-recognizer";
+import { resolveTemporalExpression } from "../src/values/temporal-resolver";
+import { resolveFrequency } from "../src/values/frequency-resolver";
+import { createTemporalSyntaxProfile } from "../src/values/temporal-syntax-profile";
 
 const anchor = { referenceInstant: "2026-08-03T17:30:30-04:00", timezone: "America/New_York" };
 
-describe("V2 temporal values", () => {
+describe(" temporal values", () => {
 	it("recognizes configurable relative-day aliases", () => {
 		expect(recognizeTemporalExpression("today").expression).toEqual({ kind: "relative_day", offsetDays: 0 });
 		expect(recognizeTemporalExpression("yesterday").expression).toEqual({ kind: "relative_day", offsetDays: -1 });
@@ -28,7 +28,7 @@ describe("V2 temporal values", () => {
 	});
 
 	it("uses profile date rules instead of hardcoded date formats", () => {
-		const profile = createV2TemporalSyntaxProfile({ profileId: "date-profile", dateRecognitionRules: [{ pattern: "^(?<day>\\d{2})/(?<month>\\d{2})/(?<year>\\d{4})$", precision: "day", yearGroup: "year", monthGroup: "month", dayGroup: "day" }] });
+		const profile = createTemporalSyntaxProfile({ profileId: "date-profile", dateRecognitionRules: [{ pattern: "^(?<day>\\d{2})/(?<month>\\d{2})/(?<year>\\d{4})$", precision: "day", yearGroup: "year", monthGroup: "month", dayGroup: "day" }] });
 		const expression = recognizeTemporalExpression("03/08/2026", profile).expression;
 		expect(expression).toEqual({ kind: "absolute_instant", instant: "2026-08-03T00:00:00.000Z", precision: "day" });
 	});

@@ -16,7 +16,7 @@ export interface FrequencyResolution {
 	prnReason?: CodeableConcept;
 }
 
-export const V2_FREQUENCY_DEFAULTS: FrequencyProfile = {
+export const _FREQUENCY_DEFAULTS: FrequencyProfile = {
   aliases: {
     QD: { multiplier: 1, unit: "day" },
     BID: { multiplier: 12, unit: "hour" },
@@ -34,7 +34,7 @@ export function resolveFrequency(
 		eventAnchor?: PhysiologicalEventAnchor;
 		prnReason?: CodeableConcept;
 	},
-  profile: FrequencyProfile = V2_FREQUENCY_DEFAULTS,
+  profile: FrequencyProfile = _FREQUENCY_DEFAULTS,
 ): FrequencyResolution {
   const shorthand = input.alias ? profile.aliases[input.alias] : undefined;
 	const res: FrequencyResolution = {

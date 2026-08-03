@@ -1,10 +1,10 @@
 /**
- * V2 command-macro definition contracts.
+ *  command-macro definition contracts.
  *
- * Type-only V2 equivalent of the legacy `ParserCommandMacro` / macro value
+ * Type-only  equivalent of the legacy `ParserCommandMacro` / macro value
  * specification model, decoupled from parser profiles and `ParsedItem`. The
  * legacy macro files under `parser/command/` and `store/parser/command-macros/`
- * are reference material for Phase 3 and MUST NOT be imported by V2.
+ * are reference material for Phase 3 and MUST NOT be imported by .
  */
 
 import type { MergeStrategy } from "../values/merge";
@@ -59,7 +59,7 @@ export interface PipelineConditionSpec {
 	message?: string;
 }
 
-export interface V2ValueSpec {
+export interface ValueSpec {
 	kind: MacroValueSpecKind;
 	patterns?: readonly string[];
 	namedGroupContract?: NamedGroupContract;
@@ -86,7 +86,7 @@ export interface MacroArgumentSpec {
 	roleName: string;
 	position?: number;
 	target: { targetSchema: string; targetPath: string };
-	extraction: V2ValueSpec;
+	extraction: ValueSpec;
 	required?: boolean;
 	blankPolicy?: "reject" | "allow" | "skip";
 	autocomplete?: {
@@ -114,7 +114,7 @@ export interface MacroDefinitionRef {
 	version: number;
 }
 
-export interface V2MacroDefinition {
+export interface MacroDefinition {
 	macroId: string;
 	macroName: string;
 	version: number;
@@ -147,9 +147,9 @@ export interface MacroStore {
 	get(
 		macroName: string,
 		context?: { personnelId?: string; profileId?: string },
-	): Promise<V2MacroDefinition | null>;
+	): Promise<MacroDefinition | null>;
 	list(context?: {
 		personnelId?: string;
 		profileId?: string;
-	}): Promise<V2MacroDefinition[]>;
+	}): Promise<MacroDefinition[]>;
 }

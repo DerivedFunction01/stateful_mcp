@@ -1,5 +1,5 @@
 /**
- * V2 macro compiler.
+ *  macro compiler.
  *
  * Coordinates macro input → binding → typed value extraction → immutable
  * `MacroExecutionPlan`. It validates the definition and its target paths
@@ -22,7 +22,7 @@ import {
 } from "../values/pipeline-evaluator";
 import { bindMacro } from "./macro-binder";
 import type { MacroBindingIssue, MacroInput } from "./macro-binding";
-import type { MacroArgumentSpec, V2MacroDefinition } from "./macro-definition";
+import type { MacroArgumentSpec, MacroDefinition } from "./macro-definition";
 import type {
 	MacroExecutionPlan,
 	MacroPlanFingerprint,
@@ -73,7 +73,7 @@ export class MacroCompiler {
 
 	async compile(
 		input: MacroInput,
-		definition: V2MacroDefinition,
+		definition: MacroDefinition,
 		options: MacroCompilerOptions = {},
 	): Promise<MacroCompileResult> {
 		const diagnostics: string[] = [];
@@ -306,7 +306,7 @@ export class MacroCompiler {
 		return evidence;
 	}
 
-	private resolveField(definition: V2MacroDefinition, spec: MacroArgumentSpec) {
+	private resolveField(definition: MacroDefinition, spec: MacroArgumentSpec) {
 		const result = validateTargetPath(
 			this.deps.registry,
 			spec.target.targetSchema,
@@ -329,7 +329,7 @@ export class MacroCompiler {
 	}
 
 	private fingerprint(
-		definition: V2MacroDefinition,
+		definition: MacroDefinition,
 		operations: MacroTargetOperation[],
 	): MacroPlanFingerprint {
 		const seed = JSON.stringify({

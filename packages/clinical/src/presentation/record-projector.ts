@@ -1,16 +1,16 @@
 import type { ClinicalDocumentRecord } from "../clinical/clinical-document-types";
-import type { V2PresentationField, V2PresentationItem } from "./field-types";
-import type { V2PresentationFieldSpec, V2PresentationPolicy } from "./policies";
+import type { PresentationField, PresentationItem } from "./field-types";
+import type { PresentationFieldSpec, PresentationPolicy } from "./policies";
 import {
-	formatV2Quantity,
-	type V2QuantityFormatContext,
+	formatQuantity,
+	type QuantityFormatContext,
 } from "./quantity-format";
 
-export function createV2RecordPresentation(
+export function createRecordPresentation(
 	record: ClinicalDocumentRecord,
-	policy?: V2PresentationPolicy,
-	context?: V2QuantityFormatContext,
-): V2PresentationItem {
+	policy?: PresentationPolicy,
+	context?: QuantityFormatContext,
+): PresentationItem {
 	const values = record.values;
 	const paths = Object.keys(values).filter(
 		(path) => !policy?.hiddenPaths?.includes(path),
@@ -68,11 +68,11 @@ export function createV2RecordPresentation(
 function projectField(
 	path: string,
 	value: unknown,
-	spec: V2PresentationFieldSpec | undefined,
-	policy: V2PresentationPolicy | undefined,
-	context?: V2QuantityFormatContext,
-): V2PresentationField {
-	const field: V2PresentationField = {
+	spec: PresentationFieldSpec | undefined,
+	policy: PresentationPolicy | undefined,
+	context?: QuantityFormatContext,
+): PresentationField {
+	const field: PresentationField = {
 		path,
 		label: spec?.label ?? label(path),
 		kind: spec?.kind ?? inferKind(value),
@@ -88,7 +88,7 @@ function projectField(
 		formatted: ["measurement", "quantity", "duration", "range"].includes(
 			spec?.kind ?? "",
 		)
-			? formatV2Quantity(value, { ...context, targetField: path })
+			? formatQuantity(value, { ...context, targetField: path })
 			: undefined,
 	};
 	if (Array.isArray(value))
@@ -128,7 +128,7 @@ function label(path: string): string {
 		.replace(/[_-]/g, " ")
 		.replace(/^./, (char) => char.toUpperCase());
 }
-function inferKind(value: unknown): V2PresentationField["kind"] {
+function inferKind(value: unknown): PresentationField["kind"] {
 	if (isConcept(value)) return "concept";
 	if (Array.isArray(value)) return "collection";
 	if (typeof value === "boolean") return "boolean";

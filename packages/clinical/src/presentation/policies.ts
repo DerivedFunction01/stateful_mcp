@@ -1,38 +1,38 @@
 import type {
-	V2PresentationFieldEmphasis,
-	V2PresentationFieldKind,
+	PresentationFieldEmphasis,
+	PresentationFieldKind,
 } from "./field-types";
 
-export interface V2PresentationFieldSpec {
-	kind: V2PresentationFieldKind;
+export interface PresentationFieldSpec {
+	kind: PresentationFieldKind;
 	label?: string;
-	emphasis?: V2PresentationFieldEmphasis;
+	emphasis?: PresentationFieldEmphasis;
 	visible?: boolean;
-	fields?: Record<string, V2PresentationFieldSpec>;
-	item?: V2PresentationFieldSpec;
+	fields?: Record<string, PresentationFieldSpec>;
+	item?: PresentationFieldSpec;
 }
-export interface V2PresentationGroupPolicy {
+export interface PresentationGroupPolicy {
 	id: string;
 	label: string;
 	paths: string[];
 }
-export interface V2PresentationPolicy {
+export interface PresentationPolicy {
 	targetSchema: string;
 	titlePath?: string;
-	fields: Record<string, V2PresentationFieldSpec>;
-	groups?: V2PresentationGroupPolicy[];
+	fields: Record<string, PresentationFieldSpec>;
+	groups?: PresentationGroupPolicy[];
 	hiddenPaths?: string[];
 }
 
-export class V2PresentationPolicyRegistry {
-	private readonly policies = new Map<string, V2PresentationPolicy>();
-	register(policy: V2PresentationPolicy): void {
+export class PresentationPolicyRegistry {
+	private readonly policies = new Map<string, PresentationPolicy>();
+	register(policy: PresentationPolicy): void {
 		this.policies.set(policy.targetSchema, policy);
 	}
-	get(targetSchema: string): V2PresentationPolicy | undefined {
+	get(targetSchema: string): PresentationPolicy | undefined {
 		return this.policies.get(targetSchema);
 	}
-	list(): readonly V2PresentationPolicy[] {
+	list(): readonly PresentationPolicy[] {
 		return [...this.policies.values()];
 	}
 }

@@ -2,15 +2,15 @@ import { describe, expect, test } from "bun:test";
 import type {
 	MacroArgumentSpec,
 	MacroChildDefinition,
-	V2MacroDefinition,
-} from "../src/v2/macros/macro-definition";
+	MacroDefinition,
+} from "../src/macros/macro-definition";
 import {
 	type MacroValidationIssue,
 	type MacroValidationResult,
 	validateMacroDefinition,
-} from "../src/v2/macros/macro-validator";
-import { observationSchema } from "../src/v2/schemas/definitions";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
+} from "../src/macros/macro-validator";
+import { observationSchema } from "../src/schemas/definitions";
+import { SchemaRegistry } from "../src/schemas/schema-registry";
 
 function buildRegistry(): SchemaRegistry {
 	const registry = new SchemaRegistry();
@@ -19,8 +19,8 @@ function buildRegistry(): SchemaRegistry {
 }
 
 function baseMacro(
-	overrides: Partial<V2MacroDefinition> = {},
-): V2MacroDefinition {
+	overrides: Partial<MacroDefinition> = {},
+): MacroDefinition {
 	const args: MacroArgumentSpec[] = [
 		{
 			argumentId: "concept",
@@ -62,7 +62,7 @@ function findIssue(
 	return result.issues.find((issue) => issue.code === code);
 }
 
-describe("V2 macro validator", () => {
+describe(" macro validator", () => {
 	test("valid published macro passes without issues", () => {
 		const registry = buildRegistry();
 		const def = baseMacro();

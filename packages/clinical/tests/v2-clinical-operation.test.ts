@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { createEventStore, EventStore } from "@stateful-mcp/core";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
-import { ClinicalOperationCompiler } from "../src/v2/clinical/clinical-operation-compiler";
-import { ClinicalSchemaAdapterRegistry } from "../src/v2/clinical/clinical-schema-adapter";
-import { CoreClinicalEventStore } from "../src/v2/clinical/core-clinical-event-store";
-import { CoreStreamEventStore } from "../src/v2/events/core-stream-event-store";
+import { ClinicalOperationCompiler } from "../src/clinical/clinical-operation-compiler";
+import { ClinicalSchemaAdapterRegistry } from "../src/clinical/clinical-schema-adapter";
+import { CoreClinicalEventStore } from "../src/clinical/core-clinical-event-store";
+import { CoreStreamEventStore } from "../src/events/core-stream-event-store";
 import type {
 	StreamEventCodec,
 	StreamEventRecord,
-} from "../src/v2/events/stream-event-store";
+} from "../src/events/stream-event-store";
 
 async function eventStore(): Promise<EventStore> {
 	const storage = await createEventStore(new SimpleMemoryKvBackend());
@@ -19,7 +19,7 @@ async function eventStore(): Promise<EventStore> {
 	});
 }
 
-describe("V2 clinical operations", () => {
+describe(" clinical operations", () => {
 	it("compiles schema records without schema-specific event union variants", async () => {
 		const schemas = new ClinicalSchemaAdapterRegistry();
 		schemas.register({

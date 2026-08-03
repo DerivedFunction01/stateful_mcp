@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { observationSchema } from "../src/v2/schemas/definitions";
-import { validateSchemaDefaults } from "../src/v2/schemas/schema-defaults";
-import { defineSchema } from "../src/v2/schemas/schema-factory";
-import { validateTargetPath } from "../src/v2/schemas/schema-path-validator";
+import { observationSchema } from "../src/schemas/definitions";
+import { validateSchemaDefaults } from "../src/schemas/schema-defaults";
+import { defineSchema } from "../src/schemas/schema-factory";
+import { validateTargetPath } from "../src/schemas/schema-path-validator";
 import {
 	fingerprintSchema,
 	SchemaRegistry,
-} from "../src/v2/schemas/schema-registry";
-import { CLINICAL_SOURCE_TYPES } from "../src/v2/schemas/schemas-interface/shared";
+} from "../src/schemas/schema-registry";
+import { CLINICAL_SOURCE_TYPES } from "../src/schemas/schemas-interface/shared";
 
 const observation = defineSchema({
 	schema: "Observation",
@@ -43,7 +43,7 @@ const observation = defineSchema({
 	},
 });
 
-describe("V2 schema registry", () => {
+describe(" schema registry", () => {
 	it("registers published versions and resolves the newest published version", () => {
 		const registry = new SchemaRegistry();
 		const registered = registry.register(observation);

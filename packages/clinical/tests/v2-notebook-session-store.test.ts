@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import { KvNotebookSessionStore } from "../src/v2/notebook/kv-notebook-session-store";
-import { NotebookSessionQueryCompiler } from "../src/v2/notebook/notebook-session-query-compiler";
+import { KvNotebookSessionStore } from "../src/notebook/kv-notebook-session-store";
+import { NotebookSessionQueryCompiler } from "../src/notebook/notebook-session-query-compiler";
 
 const record = {
 	sessionId: "s1",
@@ -12,7 +12,7 @@ const record = {
 	updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-describe("V2 notebook session stores", () => {
+describe(" notebook session stores", () => {
 	it("persists editor-only session state in KV with revision checks", async () => {
 		const store = new KvNotebookSessionStore(new MemoryKvBackend());
 		await store.save(record);

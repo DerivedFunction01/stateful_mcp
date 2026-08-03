@@ -1,6 +1,6 @@
-import type { V2VariableCellService } from "../cells/variable-cell-service";
+import type { VariableCellService } from "../cells/variable-cell-service";
 import type {
-	ClinicalEngineV2,
+	ClinicalEngine,
 	ExecutionResult,
 } from "../engine/clinical-engine-v2";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
@@ -13,22 +13,22 @@ import type {
 	CommandPreview,
 } from "./command-bar-types";
 import {
-	createV2CommandSyntaxProfile,
-	type V2CommandSyntaxProfile,
+	createCommandSyntaxProfile,
+	type CommandSyntaxProfile,
 } from "./command-syntax-profile";
 import { parseDirectCommand } from "./direct-command-parser";
-import { parseV2VariableCommand } from "./variable-command";
-import type { V2VariableCommandService } from "./variable-command-service";
+import { parseVariableCommand } from "./variable-command";
+import type { VariableCommandService } from "./variable-command-service";
 
-export class V2CommandBarService {
+export class CommandBarService {
 	constructor(
-		private readonly engine: ClinicalEngineV2,
+		private readonly engine: ClinicalEngine,
 		private readonly workspaceService: WorkspaceService,
-		private readonly syntaxProfile: V2CommandSyntaxProfile = createV2CommandSyntaxProfile(
+		private readonly syntaxProfile: CommandSyntaxProfile = createCommandSyntaxProfile(
 			{ profileId: "v2-default" },
 		),
-		private readonly variableService?: V2VariableCommandService,
-		private readonly variableCellService?: V2VariableCellService,
+		private readonly variableService?: VariableCommandService,
+		private readonly variableCellService?: VariableCellService,
 	) {}
 
 	async preview(input: CommandBarInput): Promise<CommandPreview> {
@@ -49,7 +49,7 @@ export class V2CommandBarService {
 					kind: "variable_operation",
 					rawText: input.rawText,
 					sessionId: input.sessionId,
-					variableStatement: parseV2VariableCommand(
+					variableStatement: parseVariableCommand(
 						input.rawText,
 						this.syntaxProfile,
 					),
@@ -136,7 +136,7 @@ export class V2CommandBarService {
 						status: "failed",
 						transactionId: "",
 						planFingerprint: preview.fingerprint,
-						error: "V2 variable service is not configured",
+						error: " variable service is not configured",
 					};
 				await this.variableService.execute(
 					input.sessionId,

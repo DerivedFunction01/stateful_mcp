@@ -3,7 +3,7 @@ import {
 	QueryCompiler,
 	type SqlDialect,
 } from "@stateful-mcp/core";
-import type { V2NotebookSessionRecord } from "./notebook-session-store";
+import type { NotebookSessionRecord } from "./notebook-session-store";
 
 export class NotebookSessionQueryCompiler {
 	private readonly compiler: QueryCompiler;
@@ -39,7 +39,7 @@ export class NotebookSessionQueryCompiler {
 			orderBy: [{ column: "updatedAt", direction: "DESC" }],
 		});
 	}
-	upsertQuery(record: V2NotebookSessionRecord, table: string): CompiledQuery {
+	upsertQuery(record: NotebookSessionRecord, table: string): CompiledQuery {
 		return this.compiler.compileInsert({
 			table,
 			values: {

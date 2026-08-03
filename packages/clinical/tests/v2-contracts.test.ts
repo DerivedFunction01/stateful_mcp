@@ -4,17 +4,17 @@ import type {
 	MacroIntent,
 	NarrativeIntent,
 	WorkspaceCommandIntent,
-} from "../src/v2/cells/cell-intent";
-import type { StructuredCell } from "../src/v2/cells/structured-cell";
-import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
+} from "../src/cells/cell-intent";
+import type { StructuredCell } from "../src/cells/structured-cell";
+import type { MacroExecutionPlan } from "../src/macros/macro-plan";
 import type {
 	ConceptValue,
 	MeasurementValue,
 	TypedValue,
-} from "../src/v2/values/typed-value";
-import { valueKind } from "../src/v2/values/typed-value";
+} from "../src/values/typed-value";
+import { valueKind } from "../src/values/typed-value";
 
-describe("V2 structured cell contract", () => {
+describe(" structured cell contract", () => {
 	it("satisfies the StructuredCell shape", () => {
 		const cell: StructuredCell = {
 			cellId: "cell_1",
@@ -64,7 +64,7 @@ describe("V2 structured cell contract", () => {
 	});
 });
 
-describe("V2 cell intent union", () => {
+describe(" cell intent union", () => {
 	it("discriminates macro / workspace / narrative intents", () => {
 		const macro: MacroIntent = {
 			kind: "macro",
@@ -90,7 +90,7 @@ describe("V2 cell intent union", () => {
 	});
 });
 
-describe("V2 macro plan contract", () => {
+describe(" macro plan contract", () => {
 	it("carries scope, operations, links, versions, and fingerprint", () => {
 		const value: ConceptValue = {
 			kind: "concept",
@@ -130,7 +130,7 @@ describe("V2 macro plan contract", () => {
 	});
 });
 
-describe("V2 typed value union", () => {
+describe(" typed value union", () => {
 	it("discriminates measurement value kind", () => {
 		const measurement: MeasurementValue = {
 			kind: "measurement",

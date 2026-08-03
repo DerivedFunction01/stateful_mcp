@@ -1,5 +1,5 @@
 import type { CodeableConcept } from "../schemas/schemas-interface/shared";
-import type { V2WorkspaceAggregate } from "./workspace-types";
+import type { WorkspaceAggregate } from "./workspace-types";
 
 export type WorkspaceSnapshotBranchStatus =
 	| "active"
@@ -24,7 +24,7 @@ export interface WorkspaceSnapshot {
 	sourceDocumentId: string;
 	activeBranchId: string | null;
 	branches: WorkspaceSnapshotBranch[];
-	globalFacts: V2WorkspaceAggregate["globalFacts"];
+	globalFacts: WorkspaceAggregate["globalFacts"];
 	closeRequested: boolean;
 	completed: boolean;
 	version: number;

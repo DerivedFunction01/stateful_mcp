@@ -1,5 +1,5 @@
 /**
- * V2 value extractor.
+ *  value extractor.
  *
  * Converts a raw bound argument value into a `TypedValue` using the argument's
  * extraction spec and (when available) the target schema field metadata. This

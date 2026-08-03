@@ -5,7 +5,7 @@ import {
 	type SqlDialect,
 } from "@stateful-mcp/core";
 
-export class V2MacroQueryCompiler {
+export class MacroQueryCompiler {
 	private readonly compiler: QueryCompiler;
 
 	constructor(private readonly dialect: SqlDialect = "sqlite") {

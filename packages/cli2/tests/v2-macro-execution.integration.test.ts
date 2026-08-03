@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { V2CellCompiler } from "@stateful-mcp/clinical/v2/cells/v2-cell-compiler";
-import { createV2SyntaxProfile } from "@stateful-mcp/clinical/v2/macros/macro-profile";
-import { bootstrapV2Session } from "../src/lib/session/bootstrap-v2";
+import { CellCompiler } from "@stateful-mcp/clinical/cells-cell-compiler";
+import { createSyntaxProfile } from "@stateful-mcp/clinical/macros/macro-profile";
+import { bootstrapSession } from "../src/lib/session/bootstrap-v2";
 
-describe("cli2 V2 macro execution", () => {
+describe("cli2  macro execution", () => {
 	it("compiles a seeded macro, records a structured cell, and commits a clinical document", async () => {
-		const runtime = await bootstrapV2Session({
+		const runtime = await bootstrapSession({
 			sessionId: "macro-integration",
 		});
 		const document = await runtime.engine.initializeClinicalDocument({
@@ -14,11 +14,11 @@ describe("cli2 V2 macro execution", () => {
 			sessionId: runtime.sessionId,
 			patientId: "patient-1",
 		});
-		const compiler = new V2CellCompiler(
+		const compiler = new CellCompiler(
 			runtime.engine.getRuntime().macros.defs,
 			runtime.engine.getRuntime().macros.schemaRegistry,
 			runtime.engine.getRuntime().macros.dictionary,
-			createV2SyntaxProfile({
+			createSyntaxProfile({
 				...runtime.syntaxProfile,
 				profileId: runtime.syntaxProfile.profileId,
 			}),

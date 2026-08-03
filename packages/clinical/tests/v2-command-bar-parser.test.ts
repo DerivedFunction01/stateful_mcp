@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { createV2CommandSyntaxProfile } from "../src/v2/commands/command-syntax-profile";
-import { parseDirectCommand } from "../src/v2/commands/direct-command-parser";
+import { createCommandSyntaxProfile } from "../src/commands/command-syntax-profile";
+import { parseDirectCommand } from "../src/commands/direct-command-parser";
 
 const workspace = {
 	id: "ws-1",
@@ -35,7 +35,7 @@ const context = {
 	},
 };
 
-describe("V2 direct command-bar parser", () => {
+describe(" direct command-bar parser", () => {
 	it("compiles confirmation into a typed workspace operation", async () => {
 		const intent = await parseDirectCommand(
 			{
@@ -98,7 +98,7 @@ describe("V2 direct command-bar parser", () => {
 	});
 
 	it("uses configured command tokens and aliases", async () => {
-		const profile = createV2CommandSyntaxProfile({
+		const profile = createCommandSyntaxProfile({
 			profileId: "custom",
 			directCommandToken: "/",
 			directCommandMappings: { ok: "confirm" },

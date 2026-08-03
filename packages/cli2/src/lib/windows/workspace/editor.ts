@@ -8,7 +8,7 @@ import type { CommandCatalog, EditorContext } from "../../editor";
 import { getSharedCellCommandDescriptors } from "../shared-cell-commands";
 
 // TODO(cli2-v2): remove the copied V1 WorkspaceCommandProvider/editor catalog
-// after all workspace help/autocomplete uses the V2 command profile.
+// after all workspace help/autocomplete uses the  command profile.
 
 function descriptorSuggestion(
 	verb: string,

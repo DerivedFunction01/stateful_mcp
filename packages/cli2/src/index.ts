@@ -4,7 +4,7 @@ async function main() {
 
 	if (!command || command === "help" || command === "--help") {
 		console.log(`Usage:
-  clinical notebook              Open the V2 notebook editor
+  clinical notebook              Open the  notebook editor
 
 Legacy init/eval/session/profile commands are disabled in cli2.`);
 		process.exit(0);
@@ -22,7 +22,7 @@ Legacy init/eval/session/profile commands are disabled in cli2.`);
 
 	if (["init", "eval", "session", "profile"].includes(command)) {
 		console.error(
-			`cli2: '${command}' is disabled until its V2 implementation is wired.`,
+			`cli2: '${command}' is disabled until its  implementation is wired.`,
 		);
 		process.exitCode = 2;
 		return;

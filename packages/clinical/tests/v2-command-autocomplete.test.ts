@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getCommandBarSuggestions } from "../src/v2/commands/command-autocomplete-provider";
+import { getCommandBarSuggestions } from "../src/commands/command-autocomplete-provider";
 
-describe("V2 command-bar autocomplete", () => {
+describe(" command-bar autocomplete", () => {
 	it("suggests direct commands without mutation", async () => {
 		const suggestions = await getCommandBarSuggestions({
 			input: ":con",

@@ -1,18 +1,18 @@
-import type { V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
-import type { V2FormattedQuantityValue } from "./field-types";
+import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import type { FormattedQuantityValue } from "./field-types";
 
-export interface V2QuantityFormatContext {
-	syntaxProfile?: V2CommandSyntaxProfile;
+export interface QuantityFormatContext {
+	syntaxProfile?: CommandSyntaxProfile;
 	locale?: string;
 	targetSchema?: string;
 	targetField?: string;
 	unitDisplayStyle?: "short" | "long" | "narrow";
 }
 
-export function formatV2Quantity(
+export function formatQuantity(
 	value: unknown,
-	context: V2QuantityFormatContext = {},
-): V2FormattedQuantityValue {
+	context: QuantityFormatContext = {},
+): FormattedQuantityValue {
 	if (!value || typeof value !== "object")
 		return { kind: "unknown", text: String(value ?? ""), approximate: false };
 	const record = value as Record<string, unknown>;

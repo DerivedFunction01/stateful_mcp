@@ -1,5 +1,5 @@
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/v2/workspaces/workspace-snapshot";
-import type { WorkspaceOperation } from "@stateful-mcp/clinical/v2/workspaces/workspace-types";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
+import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SessionState } from "./useSession";
 
@@ -60,9 +60,9 @@ export function useWorkspace({
 	const apply = useCallback(
 		async (operation: WorkspaceOperation) => {
 			if (!service || !workspaceIdRef.current)
-				throw new Error("V2 workspace is not ready");
+				throw new Error(" workspace is not ready");
 			const current = await service.getWorkspace(workspaceIdRef.current);
-			if (!current) throw new Error("V2 workspace was not found");
+			if (!current) throw new Error(" workspace was not found");
 			await service.applyOperations(
 				current.id,
 				[operation],
@@ -119,7 +119,7 @@ export function useWorkspace({
 				workspaceId: workspaceIdRef.current,
 			});
 			if (result.status !== "committed")
-				setError(result.error ?? "V2 workspace command failed");
+				setError(result.error ?? " workspace command failed");
 			await refresh();
 		},
 		[refresh, session, sessionId],

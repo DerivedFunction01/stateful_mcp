@@ -1,5 +1,5 @@
 /**
- * V2 cell-intent contracts.
+ *  cell-intent contracts.
  *
  * The discriminated union that classifies authored raw text into a typed,
  * compilable intent. Macro is the primary path; workspace commands and
@@ -22,7 +22,7 @@ export type WorkspaceCommandVerb =
 	| "elevate"
 	| "close";
 
-/** Typed workspace command payload (V2-local; workspace service compiles it). */
+/** Typed workspace command payload (-local; workspace service compiles it). */
 export interface WorkspaceCommandIntentPayload {
 	verb: WorkspaceCommandVerb;
 	branchName?: string;

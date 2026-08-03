@@ -1,6 +1,6 @@
 /**
  * TODO(cli2-v2): replace this legacy ParsedItem formatter with
- * V2PresentationItem/V2ClinicalDocumentRenderer output. These functions are
+ * PresentationItem/ClinicalDocumentRenderer output. These functions are
  * retained as disabled presentation seams for copied UI callers only.
  */
 

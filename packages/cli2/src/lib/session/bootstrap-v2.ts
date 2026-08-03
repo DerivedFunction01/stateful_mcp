@@ -1,20 +1,20 @@
-import { KvCellStore } from "@stateful-mcp/clinical/v2/cells/kv-cell-store";
-import { V2CellCompiler } from "@stateful-mcp/clinical/v2/cells/v2-cell-compiler";
-import type { V2VariableCellService } from "@stateful-mcp/clinical/v2/cells/variable-cell-service";
-import { V2CommandBarService } from "@stateful-mcp/clinical/v2/commands/command-bar-service";
+import { KvCellStore } from "@stateful-mcp/clinical/cells/kv-cell-store";
+import { CellCompiler } from "@stateful-mcp/clinical/cells-cell-compiler";
+import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
+import { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
 import {
-	createV2CommandSyntaxProfile,
-	type V2CommandSyntaxProfile,
-} from "@stateful-mcp/clinical/v2/commands/command-syntax-profile";
-import { V2VariableCommandService } from "@stateful-mcp/clinical/v2/commands/variable-command-service";
-import type { ClinicalEngineV2 } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2";
-import { ClinicalEngineV2Builder } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2-builder";
-import { KvMacroStore } from "@stateful-mcp/clinical/v2/macros/kv-macro-store";
-import { createV2SyntaxProfile } from "@stateful-mcp/clinical/v2/macros/macro-profile";
-import { KvNotebookSessionStore } from "@stateful-mcp/clinical/v2/notebook/kv-notebook-session-store";
-import type { V2NotebookSessionStore } from "@stateful-mcp/clinical/v2/notebook/notebook-session-store";
-import { initializeV2ColdStart } from "@stateful-mcp/clinical/v2/bootstrap/v2-cold-start";
-import { KvWorkspaceStore } from "@stateful-mcp/clinical/v2/workspaces/kv-workspace-store";
+	createCommandSyntaxProfile,
+	type CommandSyntaxProfile,
+} from "@stateful-mcp/clinical/commands/command-syntax-profile";
+import { VariableCommandService } from "@stateful-mcp/clinical/commands/variable-command-service";
+import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
+import { ClinicalEngineBuilder } from "@stateful-mcp/clinical/engine/clinical-engine-v2-builder";
+import { KvMacroStore } from "@stateful-mcp/clinical/macros/kv-macro-store";
+import { createSyntaxProfile } from "@stateful-mcp/clinical/macros/macro-profile";
+import { KvNotebookSessionStore } from "@stateful-mcp/clinical/notebook/kv-notebook-session-store";
+import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
+import { initializeColdStart } from "@stateful-mcp/clinical/bootstrap-cold-start";
+import { KvWorkspaceStore } from "@stateful-mcp/clinical/workspaces/kv-workspace-store";
 import {
 	createEventStore,
 	EventStore,
@@ -25,28 +25,28 @@ import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/ada
 import { InMemoryConceptResolver } from "@stateful-mcp/core/middleware/dictionary/resolver";
 import { DictionaryStore } from "@stateful-mcp/core/middleware/dictionary/store";
 import {
-	createV2NotebookSession,
-	type V2NotebookSession,
-} from "./v2-notebook-session";
+	createNotebookSession,
+	type NotebookSession,
+} from ".-notebook-session";
 
-export interface V2BootstrapResult {
-	engine: ClinicalEngineV2;
-	commandBar: V2CommandBarService;
-	variableCells: V2VariableCellService;
-	notebookSessionStore: V2NotebookSessionStore;
-	notebook: V2NotebookSession;
+export interface BootstrapResult {
+	engine: ClinicalEngine;
+	commandBar: CommandBarService;
+	variableCells: VariableCellService;
+	notebookSessionStore: NotebookSessionStore;
+	notebook: NotebookSession;
 	sessionId: string;
-	syntaxProfile: V2CommandSyntaxProfile;
+	syntaxProfile: CommandSyntaxProfile;
 }
 
 /**
  * Native CLI2 bootstrap. This intentionally has no legacy ClinicalEngine or
- * NotebookStore dependency. V2 cell compilation is wired; macro definitions
+ * NotebookStore dependency.  cell compilation is wired; macro definitions
  * remain an explicit store seam until durable definitions are configured.
  */
-export async function bootstrapV2Session(
-	options: { sessionId?: string; syntaxProfile?: V2CommandSyntaxProfile } = {},
-): Promise<V2BootstrapResult> {
+export async function bootstrapSession(
+	options: { sessionId?: string; syntaxProfile?: CommandSyntaxProfile } = {},
+): Promise<BootstrapResult> {
 	const eventStorage = await createEventStore(new SimpleMemoryKvBackend());
 	const eventStore = new EventStore({
 		session: eventStorage,
@@ -55,7 +55,7 @@ export async function bootstrapV2Session(
 	});
 	const syntaxProfile =
 		options.syntaxProfile ??
-		createV2CommandSyntaxProfile({
+		createCommandSyntaxProfile({
 			profileId: "cli2-default",
 			default: true,
 			active: true,
@@ -65,18 +65,18 @@ export async function bootstrapV2Session(
 	const notebookSessionStore = new KvNotebookSessionStore(
 		new MemoryKvBackend(),
 	);
-	const coldStart = await initializeV2ColdStart({ dictionary, macroStore, commandProfile: syntaxProfile });
+	const coldStart = await initializeColdStart({ dictionary, macroStore, commandProfile: syntaxProfile });
 	const schemaRegistry = coldStart.schemaRegistry;
-	const cellCompiler = new V2CellCompiler(
+	const cellCompiler = new CellCompiler(
 		macroStore,
 		schemaRegistry,
 		dictionary,
-		createV2SyntaxProfile({
+		createSyntaxProfile({
 			...syntaxProfile,
 			profileId: syntaxProfile.profileId,
 		}),
 	);
-	const engine = new ClinicalEngineV2Builder()
+	const engine = new ClinicalEngineBuilder()
 		.withEventStore(eventStore)
 		.withSchemaRegistry(schemaRegistry)
 		.withMacroStore(macroStore)
@@ -88,11 +88,11 @@ export async function bootstrapV2Session(
 		.withVariableService(new VariableServiceStore())
 		.build();
 	const runtime = engine.getRuntime();
-	const commandBar = new V2CommandBarService(
+	const commandBar = new CommandBarService(
 		engine,
 		engine.getWorkspaceService(),
 		syntaxProfile,
-		new V2VariableCommandService(runtime.variables),
+		new VariableCommandService(runtime.variables),
 		runtime.variableCells,
 	);
 
@@ -105,7 +105,7 @@ export async function bootstrapV2Session(
 			revision: 0,
 			updatedAt: new Date().toISOString(),
 		});
-	const notebook = createV2NotebookSession({
+	const notebook = createNotebookSession({
 		sessionId,
 		engine,
 		commandBar,

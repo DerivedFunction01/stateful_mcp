@@ -20,8 +20,8 @@ import {
 	safetyNettingSchema,
 	soapNoteSchema,
 	vitalsSchema,
-} from "../src/v2/schemas/definitions";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
+} from "../src/schemas/definitions";
+import { SchemaRegistry } from "../src/schemas/schema-registry";
 
 const SCHEMAS: Array<{ name: string; schema: unknown }> = [
 	{ name: "Observation", schema: observationSchema },
@@ -46,7 +46,7 @@ const SCHEMAS: Array<{ name: string; schema: unknown }> = [
 	{ name: "Note", schema: soapNoteSchema },
 ];
 
-describe("V2 registered schemas", () => {
+describe(" registered schemas", () => {
 	it("registers and resolves every published schema definition", () => {
 		const registry = new SchemaRegistry();
 		for (const { schema } of SCHEMAS) {

@@ -1,6 +1,6 @@
-import type { V2MacroDefinition } from "./macro-definition";
+import type { MacroDefinition } from "./macro-definition";
 
-export const V2_PRIMARY_DIAGNOSIS_MACRO: V2MacroDefinition = {
+export const _PRIMARY_DIAGNOSIS_MACRO: MacroDefinition = {
 	macroId: "v2-primary-diagnosis-1",
 	macroName: "primary_diagnosis",
 	version: 1,
@@ -41,8 +41,8 @@ export const V2_PRIMARY_DIAGNOSIS_MACRO: V2MacroDefinition = {
 	],
 };
 
-export async function seedDefaultV2Macros(store: {
-	set(macro: V2MacroDefinition): Promise<void>;
+export async function seedDefaultMacros(store: {
+	set(macro: MacroDefinition): Promise<void>;
 }): Promise<void> {
-	await store.set(V2_PRIMARY_DIAGNOSIS_MACRO);
+	await store.set(_PRIMARY_DIAGNOSIS_MACRO);
 }

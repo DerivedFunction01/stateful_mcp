@@ -1,12 +1,12 @@
 import type {
-	V2Branch,
-	V2WorkspaceAggregate,
+	Branch,
+	WorkspaceAggregate,
 } from "../workspaces/workspace-types";
 import type { ClinicalOperation } from "./clinical-operation";
 
 export function clinicalOperationsFromWorkspaceCompletion(input: {
 	documentId: string;
-	workspace: V2WorkspaceAggregate;
+	workspace: WorkspaceAggregate;
 	transactionId?: string;
 	sourceCellId?: string;
 }): ClinicalOperation[] {
@@ -62,13 +62,13 @@ export function clinicalOperationsFromWorkspaceCompletion(input: {
 }
 
 function confidenceForBranch(
-	branch: V2Branch,
+	branch: Branch,
 ): "confirmed" | "suspected" | "refuted" {
 	if (branch.status === "confirmed") return "confirmed";
 	if (branch.status === "ruled_out") return "refuted";
 	return "suspected";
 }
 
-function statusForBranch(branch: V2Branch): "active" | "ruled_out" {
+function statusForBranch(branch: Branch): "active" | "ruled_out" {
 	return branch.status === "ruled_out" ? "ruled_out" : "active";
 }

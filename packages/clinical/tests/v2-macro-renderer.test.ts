@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
-import type { MacroPreview } from "../src/v2/macros/macro-renderer";
-import { renderMacroPreview } from "../src/v2/macros/macro-renderer";
+import type { MacroExecutionPlan } from "../src/macros/macro-plan";
+import type { MacroPreview } from "../src/macros/macro-renderer";
+import { renderMacroPreview } from "../src/macros/macro-renderer";
 
-describe("V2 macro renderer", () => {
+describe(" macro renderer", () => {
 	it("renders a plan with concept, measurement, enum, and composite/duration ops", () => {
 		const plan: MacroExecutionPlan = {
 			groupId: "g1",

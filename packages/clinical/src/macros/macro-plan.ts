@@ -1,8 +1,8 @@
 /**
- * V2 macro execution plan contracts.
+ *  macro execution plan contracts.
  *
  * The immutable plan produced by the macro compiler from a bound macro input,
- * combined with workspace/document scope. This is the V2 public contract; the
+ * combined with workspace/document scope. This is the  public contract; the
  * legacy `CommandMacroGraphPlan` is reference material only.
  */
 

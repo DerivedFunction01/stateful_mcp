@@ -5,7 +5,7 @@ import type {
 import { notebookReducer } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { DocumentAction } from "../editor";
 
-/** Normalized semantic actions shared by the v1/v2 parity runner. */
+/** Normalized semantic actions shared by the v1 parity runner. */
 export type ParityAction =
 	| { type: "notebook"; action: NotebookAction }
 	| { type: "document"; action: DocumentAction };

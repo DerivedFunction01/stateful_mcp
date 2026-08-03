@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { bootstrapV2Session } from "../src/lib/session/bootstrap-v2";
+import { bootstrapSession } from "../src/lib/session/bootstrap-v2";
 
-describe("cli2 V2 notebook session seam", () => {
-	it("exposes V2 services without a legacy NotebookStore", async () => {
-		const result = await bootstrapV2Session({ sessionId: "cli2-notebook" });
+describe("cli2  notebook session seam", () => {
+	it("exposes  services without a legacy NotebookStore", async () => {
+		const result = await bootstrapSession({ sessionId: "cli2-notebook" });
 		const suggestions = await result.notebook.getAutocomplete({
 			input: ":con",
 			cursorOffset: 4,

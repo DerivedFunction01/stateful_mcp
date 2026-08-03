@@ -2,32 +2,32 @@ import { MacroCompiler } from "../macros/macro-compiler";
 import type { MacroStore } from "../macros/macro-definition";
 import { parseMacroLine } from "../macros/macro-input-parser";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
-import type { V2SyntaxProfile } from "../macros/macro-profile";
-import { createV2SyntaxProfile } from "../macros/macro-profile";
+import type { SyntaxProfile } from "../macros/macro-profile";
+import { createSyntaxProfile } from "../macros/macro-profile";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import type { ConceptLookup } from "../values/concept-value";
 
-export interface V2CellCompileContext {
+export interface CellCompileContext {
 	sessionId?: string;
 	workspaceId?: string;
 	documentId?: string;
 }
 
-export interface V2CellCompileResult {
+export interface CellCompileResult {
 	plan?: MacroExecutionPlan;
 	diagnostics: string[];
 	fingerprint: string;
 }
 
-export class V2CellCompiler {
+export class CellCompiler {
 	private readonly compiler: MacroCompiler;
-	private readonly profile: V2SyntaxProfile;
+	private readonly profile: SyntaxProfile;
 
 	constructor(
 		private readonly macros: MacroStore,
 		registry: SchemaRegistry,
 		dictionary?: ConceptLookup,
-		profile: V2SyntaxProfile = createV2SyntaxProfile({
+		profile: SyntaxProfile = createSyntaxProfile({
 			profileId: "v2-default",
 		}),
 	) {
@@ -37,8 +37,8 @@ export class V2CellCompiler {
 
 	async compile(
 		rawText: string,
-		context: V2CellCompileContext = {},
-	): Promise<V2CellCompileResult> {
+		context: CellCompileContext = {},
+	): Promise<CellCompileResult> {
 		const input = rawText.trim();
 		if (!input)
 			return {
@@ -53,7 +53,7 @@ export class V2CellCompiler {
 			)
 				return {
 					diagnostics: [
-						"Direct commands must be executed through V2CommandBarService",
+						"Direct commands must be executed through CommandBarService",
 					],
 					fingerprint: fingerprint(rawText),
 				};
@@ -68,7 +68,7 @@ export class V2CellCompiler {
 		});
 		if (!definition)
 			return {
-				diagnostics: [`V2 macro '${parsed.macroName}' is not defined`],
+				diagnostics: [` macro '${parsed.macroName}' is not defined`],
 				fingerprint: fingerprint(rawText, parsed.macroName),
 			};
 		const scope = context.documentId

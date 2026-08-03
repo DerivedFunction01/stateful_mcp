@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { V2MacroDefinition } from "../src/v2/macros/macro-definition";
-import { parseMacroLine } from "../src/v2/macros/macro-input-parser";
-import { createV2SyntaxProfile } from "../src/v2/macros/macro-profile";
+import type { MacroDefinition } from "../src/macros/macro-definition";
+import { parseMacroLine } from "../src/macros/macro-input-parser";
+import { createSyntaxProfile } from "../src/macros/macro-profile";
 
-const OBSERVATION: V2MacroDefinition = {
+const OBSERVATION: MacroDefinition = {
 	macroId: "obs",
 	macroName: "observation",
 	version: 1,
@@ -109,7 +109,7 @@ describe("macro-input-parser", () => {
 	});
 
 	test("uses profile defaults without requiring a delimiter", () => {
-		const profile = createV2SyntaxProfile({
+		const profile = createSyntaxProfile({
 			profileId: "default",
 			macroArgDelimiter: ";",
 		});
@@ -124,7 +124,7 @@ describe("macro-input-parser", () => {
 	});
 
 	test("preserves configured list item spans for a value rule", () => {
-		const definition: V2MacroDefinition = {
+		const definition: MacroDefinition = {
 			...OBSERVATION,
 			arguments: [
 				{

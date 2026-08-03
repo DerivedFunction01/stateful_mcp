@@ -1,11 +1,11 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import { NotebookSessionQueryCompiler } from "./notebook-session-query-compiler";
 import type {
-	V2NotebookSessionRecord,
-	V2NotebookSessionStore,
+	NotebookSessionRecord,
+	NotebookSessionStore,
 } from "./notebook-session-store";
 
-export class SqlNotebookSessionStore implements V2NotebookSessionStore {
+export class SqlNotebookSessionStore implements NotebookSessionStore {
 	private readonly compiler: NotebookSessionQueryCompiler;
 	private readonly ready: Promise<void>;
 	constructor(
@@ -16,20 +16,20 @@ export class SqlNotebookSessionStore implements V2NotebookSessionStore {
 		this.compiler = new NotebookSessionQueryCompiler(dialect);
 		this.ready = this.ensureTable();
 	}
-	async get(sessionId: string): Promise<V2NotebookSessionRecord | null> {
+	async get(sessionId: string): Promise<NotebookSessionRecord | null> {
 		await this.ready;
 		const query = this.compiler.getQuery(sessionId, this.table);
 		const row = await this.executor.queryOne(query.sql, query.params);
 		return row ? parse(row.sessionJson) : null;
 	}
-	async list(): Promise<V2NotebookSessionRecord[]> {
+	async list(): Promise<NotebookSessionRecord[]> {
 		await this.ready;
 		const query = this.compiler.listQuery(this.table);
 		const rows = await this.executor.query(query.sql, query.params);
 		return rows.map((row) => parse(row.sessionJson));
 	}
 	async save(
-		record: V2NotebookSessionRecord,
+		record: NotebookSessionRecord,
 		expectedRevision?: number,
 	): Promise<void> {
 		await this.ready;
@@ -55,8 +55,8 @@ export class SqlNotebookSessionStore implements V2NotebookSessionStore {
 	}
 }
 
-function parse(value: unknown): V2NotebookSessionRecord {
+function parse(value: unknown): NotebookSessionRecord {
 	return typeof value === "string"
-		? (JSON.parse(value) as V2NotebookSessionRecord)
-		: (value as V2NotebookSessionRecord);
+		? (JSON.parse(value) as NotebookSessionRecord)
+		: (value as NotebookSessionRecord);
 }

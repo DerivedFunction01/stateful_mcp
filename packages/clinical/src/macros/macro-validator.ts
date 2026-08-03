@@ -2,7 +2,7 @@ import { validateTargetPath } from "../schemas/schema-path-validator";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import { MERGE_STRATEGIES } from "../values/merge";
 import type { TypedValueKind } from "../values/typed-value";
-import type { MacroValueSpecKind, V2MacroDefinition } from "./macro-definition";
+import type { MacroValueSpecKind, MacroDefinition } from "./macro-definition";
 
 export type MacroValidationSeverity = "error" | "warning";
 
@@ -16,7 +16,7 @@ export interface MacroValidationIssue {
 
 export interface MacroValidationResult {
 	valid: boolean;
-	definition: V2MacroDefinition;
+	definition: MacroDefinition;
 	issues: MacroValidationIssue[];
 }
 
@@ -54,7 +54,7 @@ function extractionKindCompatible(
 export class MacroDefinitionValidator {
 	constructor(private readonly registry: SchemaRegistry) {}
 
-	validate(def: V2MacroDefinition): MacroValidationResult {
+	validate(def: MacroDefinition): MacroValidationResult {
 		const issues: MacroValidationIssue[] = [];
 
 		this.validateStructure(def, issues);
@@ -70,7 +70,7 @@ export class MacroDefinitionValidator {
 	}
 
 	private validateStructure(
-		def: V2MacroDefinition,
+		def: MacroDefinition,
 		issues: MacroValidationIssue[],
 	): void {
 		if (!def.macroId || !def.macroId.trim()) {
@@ -122,7 +122,7 @@ export class MacroDefinitionValidator {
 	}
 
 	private validateStatus(
-		def: V2MacroDefinition,
+		def: MacroDefinition,
 		issues: MacroValidationIssue[],
 	): void {
 		switch (def.status) {
@@ -146,7 +146,7 @@ export class MacroDefinitionValidator {
 	}
 
 	private validateSchemaExistence(
-		def: V2MacroDefinition,
+		def: MacroDefinition,
 		issues: MacroValidationIssue[],
 	): void {
 		const rootSchema = def.root.targetSchema;
@@ -174,7 +174,7 @@ export class MacroDefinitionValidator {
 	}
 
 	private validateTargets(
-		def: V2MacroDefinition,
+		def: MacroDefinition,
 		issues: MacroValidationIssue[],
 	): void {
 		for (const arg of def.arguments ?? []) {
@@ -242,7 +242,7 @@ export class MacroDefinitionValidator {
 	}
 
 	private validateExecutionPolicy(
-		def: V2MacroDefinition,
+		def: MacroDefinition,
 		issues: MacroValidationIssue[],
 	): void {
 		if (def.root.outputCellKind !== "macro_output") return;
@@ -266,7 +266,7 @@ export class MacroDefinitionValidator {
 	}
 
 	private validateChildren(
-		def: V2MacroDefinition,
+		def: MacroDefinition,
 		issues: MacroValidationIssue[],
 	): void {
 		const children = def.children ?? [];
@@ -315,7 +315,7 @@ export class MacroDefinitionValidator {
 	}
 
 	private validateMergePolicies(
-		def: V2MacroDefinition,
+		def: MacroDefinition,
 		issues: MacroValidationIssue[],
 	): void {
 		for (const child of def.children ?? []) {
@@ -331,7 +331,7 @@ export class MacroDefinitionValidator {
 }
 
 export function validateMacroDefinition(
-	def: V2MacroDefinition,
+	def: MacroDefinition,
 	registry: SchemaRegistry,
 ): MacroValidationResult {
 	return new MacroDefinitionValidator(registry).validate(def);

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { ClinicalDocumentReadModel } from "../src/v2/clinical/clinical-document-types";
-import { V2ClinicalDocumentRenderer } from "../src/v2/rendering/clinical-document-renderer";
-import { V2TemplateRenderer } from "../src/v2/rendering/template-renderer";
-import { V2TemplateWalker } from "../src/v2/rendering/template-walker";
+import type { ClinicalDocumentReadModel } from "../src/clinical/clinical-document-types";
+import { ClinicalDocumentRenderer } from "../src/rendering/clinical-document-renderer";
+import { TemplateRenderer } from "../src/rendering/template-renderer";
+import { TemplateWalker } from "../src/rendering/template-walker";
 
 const document: ClinicalDocumentReadModel = {
 	documentId: "doc-render",
@@ -26,15 +26,15 @@ const document: ClinicalDocumentReadModel = {
 	},
 };
 
-describe("V2 presentation and rendering", () => {
+describe(" presentation and rendering", () => {
 	it("projects final clinical records without ParsedItem", () => {
-		const rendered = new V2ClinicalDocumentRenderer().render(document);
+		const rendered = new ClinicalDocumentRenderer().render(document);
 		expect(rendered.records[0]?.title).toBe("Pneumonia");
 		expect(rendered.sections.assessment).toEqual([]);
 		expect(rendered.records[0]?.groups[0]?.fields.length).toBeGreaterThan(0);
 	});
 
-	it("renders V2 templates and rejects cycles", () => {
+	it("renders  templates and rejects cycles", () => {
 		const templates = [
 			{
 				templateId: "dx",
@@ -45,12 +45,12 @@ describe("V2 presentation and rendering", () => {
 			},
 		];
 		expect(
-			V2TemplateRenderer.renderObject(
+			TemplateRenderer.renderObject(
 				document.records["dx-1"]!.values,
 				templates,
 				"PrimaryDiagnosis",
 			),
 		).toBe("Diagnosis: Pneumonia");
-		V2TemplateWalker.validate(templates);
+		TemplateWalker.validate(templates);
 	});
 });

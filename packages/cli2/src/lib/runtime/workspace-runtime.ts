@@ -8,7 +8,7 @@ import { buildWorkspaceExtension } from "../windows/workspace/extension";
 import { builtinExtensions } from "./builtin-extensions";
 
 // TODO(cli2-v2): this copied runtime remains a disabled V1 help/command seam.
-// Native Workspace uses WorkspaceService and V2 snapshots directly.
+// Native Workspace uses WorkspaceService and  snapshots directly.
 import type {
 	EditorExtension,
 	WindowEffect,

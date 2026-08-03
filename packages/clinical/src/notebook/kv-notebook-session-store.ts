@@ -1,30 +1,30 @@
 import type { KvBackend } from "@stateful-mcp/core";
 import type {
-	V2NotebookSessionRecord,
-	V2NotebookSessionStore,
+	NotebookSessionRecord,
+	NotebookSessionStore,
 } from "./notebook-session-store";
 
-export class KvNotebookSessionStore implements V2NotebookSessionStore {
+export class KvNotebookSessionStore implements NotebookSessionStore {
 	constructor(
 		private readonly backend: KvBackend,
 		private readonly prefix = "v2:notebook-session:",
 	) {}
 
-	async get(sessionId: string): Promise<V2NotebookSessionRecord | null> {
+	async get(sessionId: string): Promise<NotebookSessionRecord | null> {
 		const data = await this.backend.load();
 		return read(data[`${this.prefix}${sessionId}`]);
 	}
 
-	async list(): Promise<V2NotebookSessionRecord[]> {
+	async list(): Promise<NotebookSessionRecord[]> {
 		const data = await this.backend.load();
 		return Object.entries(data)
 			.filter(([key]) => key.startsWith(this.prefix))
 			.map(([, value]) => read(value))
-			.filter((record): record is V2NotebookSessionRecord => Boolean(record));
+			.filter((record): record is NotebookSessionRecord => Boolean(record));
 	}
 
 	async save(
-		record: V2NotebookSessionRecord,
+		record: NotebookSessionRecord,
 		expectedRevision?: number,
 	): Promise<void> {
 		const existing = await this.get(record.sessionId);
@@ -48,10 +48,10 @@ export class KvNotebookSessionStore implements V2NotebookSessionStore {
 	}
 }
 
-function read(value: unknown): V2NotebookSessionRecord | null {
+function read(value: unknown): NotebookSessionRecord | null {
 	if (typeof value !== "string") return null;
 	try {
-		return JSON.parse(value) as V2NotebookSessionRecord;
+		return JSON.parse(value) as NotebookSessionRecord;
 	} catch {
 		return null;
 	}

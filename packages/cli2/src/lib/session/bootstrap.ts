@@ -1,6 +1,6 @@
 import type { PatientProfile } from "@stateful-mcp/clinical/schemas/patient";
 
-export { bootstrapV2Session } from "./bootstrap-v2";
+export { bootstrapSession } from "./bootstrap-v2";
 
 /**
  * Placeholder patient used to seed a valid encounter on TUI bootstrap.
@@ -31,6 +31,6 @@ export async function bootstrapSession(
 ): Promise<BootstrapResult> {
 	void options;
 	throw new Error(
-		"cli2: V2 bootstrap is not wired yet; legacy ClinicalEngineBuilder bootstrap is disabled.",
+		"cli2:  bootstrap is not wired yet; legacy ClinicalEngineBuilder bootstrap is disabled.",
 	);
 }

@@ -3,7 +3,7 @@ import { readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const V2_ROOT = resolve(fileURLToPath(import.meta.url), "../../src/v2");
+const _ROOT = resolve(fileURLToPath(import.meta.url), "../../src");
 
 function v2Files(): string[] {
 	const out: string[] = [];
@@ -17,7 +17,7 @@ function v2Files(): string[] {
 			}
 		}
 	};
-	walk(V2_ROOT);
+	walk(_ROOT);
 	return out;
 }
 
@@ -35,49 +35,49 @@ function contentMatches(marker: string, content: string): boolean {
 	);
 }
 
-// Forbidden legacy-module import fragments. A V2 source file that references any
-// of these in an import specifier violates the V2 boundary.
+// Forbidden legacy-module import fragments. A  source file that references any
+// of these in an import specifier violates the  boundary.
 const FORBIDDEN_MARKERS: Array<{ marker: string; reason: string }> = [
 	{
 		marker: "parser/cdsl-parser",
-		reason: "CDSL parser is retired and must not be a V2 dependency",
+		reason: "CDSL parser is retired and must not be a  dependency",
 	},
 	{
 		marker: "parser/schema-parsers",
-		reason: "ParsedItem/schema-parsers is retired for V2",
+		reason: "ParsedItem/schema-parsers is retired for ",
 	},
 	{
 		marker: "store/parser/profiles",
-		reason: "legacy parser profiles are not V2 dependencies",
+		reason: "legacy parser profiles are not  dependencies",
 	},
 	{
 		marker: "store/parser/composer",
-		reason: "legacy parser graph construction is not a V2 dependency",
+		reason: "legacy parser graph construction is not a  dependency",
 	},
 	{
 		marker: "store/parser/tags",
-		reason: "tags are retired and have no V2 core equivalent",
+		reason: "tags are retired and have no  core equivalent",
 	},
 	{
 		marker: "store/reference/stop-words",
-		reason: "stop-word gating is not a V2 dependency",
+		reason: "stop-word gating is not a  dependency",
 	},
 	{
 		marker: "store/learning/parsed_cell",
-		reason: "parsed-cell learning is not a V2 dependency",
+		reason: "parsed-cell learning is not a  dependency",
 	},
 	{
 		marker: "store/learning/ordered_learning",
-		reason: "ordered learning is not a V2 dependency",
+		reason: "ordered learning is not a  dependency",
 	},
 	{
 		marker: "store/reference/prose-parser-templates",
-		reason: "parser-input prose templates are not V2 dependencies",
+		reason: "parser-input prose templates are not  dependencies",
 	},
 ];
 
-describe("Engine V2 dependency boundary", () => {
-	it("finds V2 source files", () => {
+describe("Engine  dependency boundary", () => {
+	it("finds  source files", () => {
 		const files = v2Files();
 		expect(files.length).toBeGreaterThan(0);
 	});

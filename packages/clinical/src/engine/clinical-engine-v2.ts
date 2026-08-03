@@ -16,9 +16,9 @@ import type {
 	TransactionParticipant,
 } from "../transactions/transaction-types";
 import type { WorkspaceService } from "../workspaces/workspace-service";
-import type { V2WorkspaceAggregate } from "../workspaces/workspace-types";
+import type { WorkspaceAggregate } from "../workspaces/workspace-types";
 import type { WorkspaceViewService } from "../workspaces/workspace-view-state";
-import type { ClinicalRuntimeV2 } from "./clinical-runtime-v2";
+import type { ClinicalRuntime } from "./clinical-runtime-v2";
 
 export interface ExecutionResult {
 	status: "committed" | "failed";
@@ -29,12 +29,12 @@ export interface ExecutionResult {
 }
 
 /**
- * Thin facade over V2 domain services. Provides the primary entry point for
+ * Thin facade over  domain services. Provides the primary entry point for
  * macro execution (preview → execute → commit) and read-model access.
  */
-export class ClinicalEngineV2 {
+export class ClinicalEngine {
 	constructor(
-		private readonly runtime: ClinicalRuntimeV2,
+		private readonly runtime: ClinicalRuntime,
 		private readonly coordinator: TransactionCoordinator,
 		private readonly participants: readonly TransactionParticipant[],
 		private readonly projectionRegistry: ProjectionRegistry | undefined,
@@ -46,7 +46,7 @@ export class ClinicalEngineV2 {
 		private readonly syncApplication: SyncApplicationService | undefined,
 	) {}
 
-	getRuntime(): ClinicalRuntimeV2 {
+	getRuntime(): ClinicalRuntime {
 		return this.runtime;
 	}
 
@@ -169,7 +169,7 @@ export class ClinicalEngineV2 {
 		);
 	}
 
-	getWorkspace(id: string): Promise<V2WorkspaceAggregate | null> {
+	getWorkspace(id: string): Promise<WorkspaceAggregate | null> {
 		return this.workspaceService.getWorkspace(id);
 	}
 

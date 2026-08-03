@@ -22,8 +22,8 @@ import {
 } from "./definitions";
 import { SchemaRegistry } from "./schema-registry";
 
-/** Creates the published V2 schema catalog used by the CLI/runtime bootstrap. */
-export function createDefaultV2SchemaRegistry(): SchemaRegistry {
+/** Creates the published  schema catalog used by the CLI/runtime bootstrap. */
+export function createDefaultSchemaRegistry(): SchemaRegistry {
 	const registry = new SchemaRegistry();
 	for (const definition of [
 		algorithmicEvaluationSchema,

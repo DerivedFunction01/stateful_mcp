@@ -2,7 +2,7 @@ import type { VariableStatement } from "@stateful-mcp/core";
 import type { ClinicalOperation } from "../clinical/clinical-operation";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
 import type {
-	V2WorkspaceAggregate,
+	WorkspaceAggregate,
 	WorkspaceOperation,
 } from "../workspaces/workspace-types";
 
@@ -57,9 +57,9 @@ export interface CommandBarIntent {
 }
 
 export interface CommandBarWorkspaceContext {
-	getWorkspace(workspaceId: string): Promise<V2WorkspaceAggregate | null>;
+	getWorkspace(workspaceId: string): Promise<WorkspaceAggregate | null>;
 	resolveBranchRef(
-		workspace: V2WorkspaceAggregate,
+		workspace: WorkspaceAggregate,
 		ref: string,
 	): { id: string };
 }

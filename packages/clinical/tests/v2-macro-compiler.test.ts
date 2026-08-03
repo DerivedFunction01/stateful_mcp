@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { bindMacro } from "../src/v2/macros/macro-binder";
-import { MacroCompiler } from "../src/v2/macros/macro-compiler";
-import type { V2MacroDefinition } from "../src/v2/macros/macro-definition";
-import { parseMacroLine } from "../src/v2/macros/macro-input-parser";
-import { renderMacroPreview } from "../src/v2/macros/macro-renderer";
-import { observationSchema } from "../src/v2/schemas/definitions";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
+import { bindMacro } from "../src/macros/macro-binder";
+import { MacroCompiler } from "../src/macros/macro-compiler";
+import type { MacroDefinition } from "../src/macros/macro-definition";
+import { parseMacroLine } from "../src/macros/macro-input-parser";
+import { renderMacroPreview } from "../src/macros/macro-renderer";
+import { observationSchema } from "../src/schemas/definitions";
+import { SchemaRegistry } from "../src/schemas/schema-registry";
 
-const OBSERVATION_MACRO: V2MacroDefinition = {
+const OBSERVATION_MACRO: MacroDefinition = {
 	macroId: "m_obs_1",
 	macroName: "observation",
 	version: 1,
@@ -61,7 +61,7 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 	],
 };
 
-describe("V2 macro compile pipeline", () => {
+describe(" macro compile pipeline", () => {
 	it("binds named arguments", () => {
 		const input = parseMacroLine(
 			"^observation concept=chest pain trajectory=stable",

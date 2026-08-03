@@ -1,5 +1,5 @@
 import type { MacroExecutionPlan } from "../macros/macro-plan";
-import type { V2WorkspaceAggregate } from "../workspaces/workspace-types";
+import type { WorkspaceAggregate } from "../workspaces/workspace-types";
 import { clinicalOperationsFromWorkspaceCompletion } from "./workspace-clinical-linkage";
 
 /**
@@ -14,7 +14,7 @@ import { clinicalOperationsFromWorkspaceCompletion } from "./workspace-clinical-
  */
 export function enrichPlanWithCompletionLinkage(
 	plan: MacroExecutionPlan,
-	workspace: V2WorkspaceAggregate,
+	workspace: WorkspaceAggregate,
 ): MacroExecutionPlan {
 	const documentId = plan.scope.documentId;
 	if (!documentId) return plan;

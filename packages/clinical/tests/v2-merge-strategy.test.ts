@@ -3,9 +3,9 @@ import {
 	applyMerge,
 	MERGE_STRATEGIES,
 	writePolicyToMergeStrategy,
-} from "../src/v2/values/merge";
+} from "../src/values/merge";
 
-describe("V2 merge strategy vocabulary", () => {
+describe(" merge strategy vocabulary", () => {
 	it("exposes the four canonical strategies", () => {
 		expect(MERGE_STRATEGIES).toEqual([
 			"replace",

@@ -6,15 +6,15 @@ import type {
 	CommandDiagnostic,
 } from "./command-bar-types";
 import {
-	createV2CommandSyntaxProfile,
-	V2_DIRECT_COMMANDS,
-	type V2CommandSyntaxProfile,
+	createCommandSyntaxProfile,
+	_DIRECT_COMMANDS,
+	type CommandSyntaxProfile,
 } from "./command-syntax-profile";
 
 export async function parseDirectCommand(
 	input: CommandBarInput,
 	context: CommandBarWorkspaceContext,
-	profile: V2CommandSyntaxProfile = createV2CommandSyntaxProfile({
+	profile: CommandSyntaxProfile = createCommandSyntaxProfile({
 		profileId: "v2-default",
 	}),
 ): Promise<CommandBarIntent> {
@@ -31,7 +31,7 @@ export async function parseDirectCommand(
 	const tokens = tokenize(text.slice(profile.directCommandToken.length).trim());
 	const alias = tokens.shift()?.toLocaleLowerCase();
 	const verb = alias ? profile.directCommandMappings[alias] : undefined;
-	if (!verb || !V2_DIRECT_COMMANDS.includes(verb))
+	if (!verb || !_DIRECT_COMMANDS.includes(verb))
 		return invalidIntent(
 			input,
 			"unknown_command",

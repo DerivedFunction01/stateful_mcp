@@ -52,7 +52,7 @@ export interface UseNotebookReturn {
 
 /**
  * CLI2 editor adapter. The reducer and legacy Cell shape remain presentation
- * compatibility for the copied Ink shell; all domain execution is V2-owned.
+ * compatibility for the copied Ink shell; all domain execution is -owned.
  */
 export function useNotebook(session: SessionState | null): UseNotebookReturn {
 	const [state, dispatch] = useReducer(notebookReducer, INITIAL_NOTEBOOK_STATE);
@@ -101,7 +101,7 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		void cell;
 		dispatch({
 			type: "SET_MESSAGE",
-			message: "CLI2 V2 cell execution is not wired yet",
+			message: "CLI2  cell execution is not wired yet",
 		});
 	}, []);
 
@@ -109,7 +109,7 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		void cell;
 		dispatch({
 			type: "SET_MESSAGE",
-			message: "CLI2 V2 cell preview is not wired yet",
+			message: "CLI2  cell preview is not wired yet",
 		});
 	}, []);
 
@@ -121,12 +121,12 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 	const dispatchCommand = useCallback(
 		async (line: string) => {
 			if (!session)
-				return { success: false, message: "V2 session is not ready" };
+				return { success: false, message: " session is not ready" };
 			const profile = session.v2.syntaxProfile;
 			if (!line.trim().startsWith(profile.directCommandToken)) {
 				return {
 					success: false,
-					message: "CLI2 V2 accepts direct ':' commands or '^' macros",
+					message: "CLI2  accepts direct ':' commands or '^' macros",
 				};
 			}
 			const result = await session.v2.commandBar.execute({
@@ -136,8 +136,8 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 			dispatch({ type: "EXIT_COMMAND_MODE" });
 			const message =
 				result.status === "committed"
-					? "V2 command committed"
-					: (result.error ?? "V2 command failed");
+					? " command committed"
+					: (result.error ?? " command failed");
 			dispatch({ type: "SET_MESSAGE", message });
 			return { success: result.status === "committed", message, data: result };
 		},

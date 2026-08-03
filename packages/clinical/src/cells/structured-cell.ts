@@ -1,5 +1,5 @@
 /**
- * V2 structured-cell contracts.
+ *  structured-cell contracts.
  *
  * The durable authored execution unit. This intentionally does NOT carry
  * `parsedOutput`, CDSL mode fields, parser confidence records, or untyped
@@ -11,8 +11,8 @@ import type { MergeStrategy } from "../values/merge";
 import type { CellIntent } from "./cell-intent";
 import type { CellResultRef } from "./cell-results";
 
-/** V2-local collection reference (not the legacy session/cell collection). */
-export interface V2CellCollectionRef {
+/** -local collection reference (not the legacy session/cell collection). */
+export interface CellCollectionRef {
 	kind: "notebook" | "workspace" | (string & {});
 	collectionId: string;
 }
@@ -67,7 +67,7 @@ export interface CellDiagnostic {
 export interface StructuredCell {
 	cellId: string;
 	sessionId: string;
-	collection: V2CellCollectionRef;
+	collection: CellCollectionRef;
 	source: {
 		origin: CellSourceOrigin;
 		authorId?: string;

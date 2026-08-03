@@ -158,7 +158,7 @@ export function Notebook() {
 	}, [state.mode, state.commandLine, session?.sessionId, getAutocomplete]);
 
 	// TODO(cli2-v2): replace the retired V1 engine/macro completion hooks with
-	// V2 notebook autocomplete and V2NotebookPreviewWorkflow presentation.
+	//  notebook autocomplete and NotebookPreviewWorkflow presentation.
 	const loading = false;
 	const engineCandidates = [];
 	const mergedCandidates = staticCandidates;

@@ -1,45 +1,45 @@
 import type { ClinicalDocumentReadModel } from "../clinical/clinical-document-types";
-import type { V2PresentationItem } from "../presentation/field-types";
-import { V2PresentationPolicyRegistry } from "../presentation/policies";
-import { createV2RecordPresentation } from "../presentation/record-projector";
-import { V2TemplateRenderer } from "./template-renderer";
-import type { V2ClinicalProseTemplate } from "./template-types";
+import type { PresentationItem } from "../presentation/field-types";
+import { PresentationPolicyRegistry } from "../presentation/policies";
+import { createRecordPresentation } from "../presentation/record-projector";
+import { TemplateRenderer } from "./template-renderer";
+import type { ClinicalProseTemplate } from "./template-types";
 
-export interface V2RenderedClinicalDocument {
+export interface RenderedClinicalDocument {
 	documentId: string;
 	sections: Record<
 		"subjective" | "objective" | "assessment" | "plan",
 		string[]
 	>;
-	records: V2PresentationItem[];
+	records: PresentationItem[];
 }
 
-/** Renders the final projected V2 clinical schema without mutating it. */
-export class V2ClinicalDocumentRenderer {
-	private readonly policies: V2PresentationPolicyRegistry;
+/** Renders the final projected  clinical schema without mutating it. */
+export class ClinicalDocumentRenderer {
+	private readonly policies: PresentationPolicyRegistry;
 
-	constructor(policies?: V2PresentationPolicyRegistry) {
-		this.policies = policies ?? new V2PresentationPolicyRegistry();
+	constructor(policies?: PresentationPolicyRegistry) {
+		this.policies = policies ?? new PresentationPolicyRegistry();
 	}
 
 	render(
 		document: ClinicalDocumentReadModel,
-		templates: readonly V2ClinicalProseTemplate[] = [],
-	): V2RenderedClinicalDocument {
+		templates: readonly ClinicalProseTemplate[] = [],
+	): RenderedClinicalDocument {
 		const sections = {
 			subjective: [],
 			objective: [],
 			assessment: [],
 			plan: [],
-		} as V2RenderedClinicalDocument["sections"];
+		} as RenderedClinicalDocument["sections"];
 		const records = Object.values(document.records)
 			.filter((record) => !record.removed)
 			.map((record) => {
-				const presentation = createV2RecordPresentation(
+				const presentation = createRecordPresentation(
 					record,
 					this.policies.get(record.schemaName),
 				);
-				const prose = V2TemplateRenderer.renderObject(
+				const prose = TemplateRenderer.renderObject(
 					record.values,
 					templates,
 					record.schemaName,
@@ -53,8 +53,8 @@ export class V2ClinicalDocumentRenderer {
 
 	private sectionFor(
 		schema: string,
-		templates: readonly V2ClinicalProseTemplate[],
-	): keyof V2RenderedClinicalDocument["sections"] {
+		templates: readonly ClinicalProseTemplate[],
+	): keyof RenderedClinicalDocument["sections"] {
 		return (
 			templates.find((template) => template.targetSchema === schema)?.section ??
 			(schema.toLowerCase().includes("diagnosis")

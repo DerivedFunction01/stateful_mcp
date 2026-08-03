@@ -1,5 +1,5 @@
 import type { CodeableConcept } from "../schemas/schemas-interface/shared";
-import type { TypedFact, V2Branch } from "./workspace-types";
+import type { TypedFact, Branch } from "./workspace-types";
 
 export interface WorkspaceEventMetadata {
 	logicalKey: string;
@@ -19,7 +19,7 @@ export type WorkspaceEvent =
 			workspaceId: string;
 			sessionId: string;
 			sourceDocumentId: string;
-			branches: V2Branch[];
+			branches: Branch[];
 			activeBranchId: string;
 			globalFacts: TypedFact[];
 			metadata?: WorkspaceEventMetadata;

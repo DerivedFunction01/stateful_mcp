@@ -1,23 +1,23 @@
-import type { V2NotebookEditorMode } from "./notebook-state";
+import type { NotebookEditorMode } from "./notebook-state";
 
-export interface V2NotebookSessionRecord {
+export interface NotebookSessionRecord {
 	sessionId: string;
 	cellOrder: string[];
 	activeCellId?: string;
 	workspaceId?: string;
 	documentId?: string;
 	draftText?: string;
-	editorMode?: V2NotebookEditorMode;
+	editorMode?: NotebookEditorMode;
 	commandHistory: string[];
 	revision: number;
 	updatedAt: string;
 }
 
-export interface V2NotebookSessionStore {
-	get(sessionId: string): Promise<V2NotebookSessionRecord | null>;
-	list(): Promise<V2NotebookSessionRecord[]>;
+export interface NotebookSessionStore {
+	get(sessionId: string): Promise<NotebookSessionRecord | null>;
+	list(): Promise<NotebookSessionRecord[]>;
 	save(
-		record: V2NotebookSessionRecord,
+		record: NotebookSessionRecord,
 		expectedRevision?: number,
 	): Promise<void>;
 	delete(sessionId: string): Promise<void>;

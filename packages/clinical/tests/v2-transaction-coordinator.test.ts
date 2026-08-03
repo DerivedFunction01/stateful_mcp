@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
-import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
-import { KvTransactionJournal } from "../src/v2/transactions/kv-transaction-journal";
-import { SqlTransactionJournal } from "../src/v2/transactions/sql-transaction-journal";
+import type { MacroExecutionPlan } from "../src/macros/macro-plan";
+import { KvTransactionJournal } from "../src/transactions/kv-transaction-journal";
+import { SqlTransactionJournal } from "../src/transactions/sql-transaction-journal";
 import {
 	InMemoryTransactionJournal,
 	TransactionConflictError,
 	TransactionCoordinator,
 	TransactionIdempotencyError,
-} from "../src/v2/transactions/transaction-coordinator";
+} from "../src/transactions/transaction-coordinator";
 
 const plan: MacroExecutionPlan = {
 	groupId: "g1",
@@ -50,7 +50,7 @@ function participant(
 	};
 }
 
-describe("V2 transaction coordinator", () => {
+describe(" transaction coordinator", () => {
 	it("rejects stale aggregate versions during prepare", async () => {
 		const coordinator = new TransactionCoordinator({
 			journal: new InMemoryTransactionJournal(),

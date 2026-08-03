@@ -5,30 +5,30 @@ import {
 	MemoryKvBackend,
 } from "@stateful-mcp/core";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
-import { ClinicalDocumentService } from "../src/v2/clinical/clinical-document-service";
+import { ClinicalDocumentService } from "../src/clinical/clinical-document-service";
 import {
 	InMemoryClinicalDocumentProjectionStore,
 	InMemorySignedDocumentArchive,
-} from "../src/v2/clinical/clinical-document-types";
-import { ClinicalOperationCompiler } from "../src/v2/clinical/clinical-operation-compiler";
-import { ClinicalTransactionParticipant } from "../src/v2/clinical/clinical-transaction-participant";
-import { enrichPlanWithCompletionLinkage } from "../src/v2/clinical/composite-clinical-linkage";
-import { CoreClinicalEventStore } from "../src/v2/clinical/core-clinical-event-store";
-import { registerClinicalSchemaAdapters } from "../src/v2/clinical/register-clinical-schema-adapters";
-import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
+} from "../src/clinical/clinical-document-types";
+import { ClinicalOperationCompiler } from "../src/clinical/clinical-operation-compiler";
+import { ClinicalTransactionParticipant } from "../src/clinical/clinical-transaction-participant";
+import { enrichPlanWithCompletionLinkage } from "../src/clinical/composite-clinical-linkage";
+import { CoreClinicalEventStore } from "../src/clinical/core-clinical-event-store";
+import { registerClinicalSchemaAdapters } from "../src/clinical/register-clinical-schema-adapters";
+import type { MacroExecutionPlan } from "../src/macros/macro-plan";
 import {
 	differentialDiagnosisSchema,
 	primaryDiagnosisSchema,
-} from "../src/v2/schemas/definitions/assessment-schema";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
+} from "../src/schemas/definitions/assessment-schema";
+import { SchemaRegistry } from "../src/schemas/schema-registry";
 import {
 	InMemoryTransactionJournal,
 	TransactionCoordinator,
-} from "../src/v2/transactions/transaction-coordinator";
-import { CoreWorkspaceEventStore } from "../src/v2/workspaces/core-workspace-event-store";
-import { KvWorkspaceStore } from "../src/v2/workspaces/kv-workspace-store";
-import { WorkspaceService } from "../src/v2/workspaces/workspace-service";
-import { WorkspaceTransactionParticipant } from "../src/v2/workspaces/workspace-transaction-participant";
+} from "../src/transactions/transaction-coordinator";
+import { CoreWorkspaceEventStore } from "../src/workspaces/core-workspace-event-store";
+import { KvWorkspaceStore } from "../src/workspaces/kv-workspace-store";
+import { WorkspaceService } from "../src/workspaces/workspace-service";
+import { WorkspaceTransactionParticipant } from "../src/workspaces/workspace-transaction-participant";
 
 async function clinicalSetup() {
 	const schemas = new SchemaRegistry();
@@ -68,7 +68,7 @@ async function workspaceSetup() {
 	return service;
 }
 
-describe("V2 composite transaction completion linkage", () => {
+describe(" composite transaction completion linkage", () => {
 	it("enriches a composite plan with completion-derived clinical operations", async () => {
 		const workspaceService = await workspaceSetup();
 		const workspace = await workspaceService.createWorkspace({

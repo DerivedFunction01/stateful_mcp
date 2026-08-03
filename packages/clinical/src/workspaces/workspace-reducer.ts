@@ -2,23 +2,23 @@ import type {
 	WorkspaceEvent,
 	WorkspaceEventRecord,
 } from "./workspace-event-types";
-import type { V2Branch, V2WorkspaceAggregate } from "./workspace-types";
+import type { Branch, WorkspaceAggregate } from "./workspace-types";
 
 export function reduceWorkspaceEvents(
 	records: readonly WorkspaceEventRecord[],
-): V2WorkspaceAggregate {
+): WorkspaceAggregate {
 	const initialized = records.find(
 		(record) => record.payload.kind === "workspace_initialized",
 	);
 	if (!initialized || initialized.payload.kind !== "workspace_initialized")
 		throw new Error("Workspace initialization event is missing");
 
-	let aggregate: V2WorkspaceAggregate = {
+	let aggregate: WorkspaceAggregate = {
 		id: initialized.payload.workspaceId,
 		sessionId: initialized.payload.sessionId,
 		sourceDocumentId: initialized.payload.sourceDocumentId,
 		activeBranchId: initialized.payload.activeBranchId || null,
-		branches: structuredClone(initialized.payload.branches) as V2Branch[],
+		branches: structuredClone(initialized.payload.branches) as Branch[],
 		globalFacts: structuredClone(initialized.payload.globalFacts),
 		closeRequested: false,
 		version: 1,
@@ -36,10 +36,10 @@ export function reduceWorkspaceEvents(
 }
 
 export function reduceWorkspaceEvent(
-	aggregate: V2WorkspaceAggregate,
+	aggregate: WorkspaceAggregate,
 	event: WorkspaceEvent,
-): V2WorkspaceAggregate {
-	const next = structuredClone(aggregate) as V2WorkspaceAggregate;
+): WorkspaceAggregate {
+	const next = structuredClone(aggregate) as WorkspaceAggregate;
 	switch (event.kind) {
 		case "workspace_initialized":
 			return next;

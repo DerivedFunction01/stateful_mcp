@@ -1,13 +1,13 @@
 import type {
 	CreateWorkspaceRequest,
-	V2Branch,
-	V2WorkspaceAggregate,
+	Branch,
+	WorkspaceAggregate,
 } from "./workspace-types";
 
 export function createWorkspace(
 	request: CreateWorkspaceRequest,
 	now = new Date().toISOString(),
-): V2WorkspaceAggregate {
+): WorkspaceAggregate {
 	const workspaceId = request.workspaceId ?? `work_${crypto.randomUUID()}`;
 	const initialBranches = request.initialBranches?.length
 		? request.initialBranches
@@ -20,7 +20,7 @@ export function createWorkspace(
 					},
 				},
 			];
-	const branches: V2Branch[] = initialBranches.map((branch, index) => ({
+	const branches: Branch[] = initialBranches.map((branch, index) => ({
 		id: `branch_${workspaceId}_${index}_${crypto.randomUUID()}`,
 		parentId: null,
 		name: branch.name,

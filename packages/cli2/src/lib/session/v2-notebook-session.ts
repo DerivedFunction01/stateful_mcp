@@ -1,38 +1,38 @@
-import type { CellStore } from "@stateful-mcp/clinical/v2/cells/cell-service-types";
-import type { StructuredCellService } from "@stateful-mcp/clinical/v2/cells/structured-cell-service";
-import type { V2VariableCellService } from "@stateful-mcp/clinical/v2/cells/variable-cell-service";
-import { getCommandBarSuggestions } from "@stateful-mcp/clinical/v2/commands/command-autocomplete-provider";
-import type { V2CommandBarService } from "@stateful-mcp/clinical/v2/commands/command-bar-service";
+import type { CellStore } from "@stateful-mcp/clinical/cells/cell-service-types";
+import type { StructuredCellService } from "@stateful-mcp/clinical/cells/structured-cell-service";
+import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
+import { getCommandBarSuggestions } from "@stateful-mcp/clinical/commands/command-autocomplete-provider";
+import type { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
 import type {
 	CommandAutocompleteContext,
 	CommandSuggestion,
-} from "@stateful-mcp/clinical/v2/commands/command-bar-types";
-import type { V2CommandSyntaxProfile } from "@stateful-mcp/clinical/v2/commands/command-syntax-profile";
-import type { ClinicalEngineV2 } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2";
-import type { V2NotebookSessionStore } from "@stateful-mcp/clinical/v2/notebook/notebook-session-store";
+} from "@stateful-mcp/clinical/commands/command-bar-types";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
+import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
+import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
 
-export interface V2NotebookSession {
+export interface NotebookSession {
 	sessionId: string;
-	engine: ClinicalEngineV2;
-	commandBar: V2CommandBarService;
+	engine: ClinicalEngine;
+	commandBar: CommandBarService;
 	cellService: StructuredCellService;
 	cellStore: CellStore;
-	variableCells: V2VariableCellService;
-	syntaxProfile: V2CommandSyntaxProfile;
-	sessionStore: V2NotebookSessionStore;
+	variableCells: VariableCellService;
+	syntaxProfile: CommandSyntaxProfile;
+	sessionStore: NotebookSessionStore;
 	getAutocomplete(
 		context: CommandAutocompleteContext,
 	): Promise<CommandSuggestion[]>;
 }
 
-export function createV2NotebookSession(input: {
+export function createNotebookSession(input: {
 	sessionId: string;
-	engine: ClinicalEngineV2;
-	commandBar: V2CommandBarService;
-	variableCells: V2VariableCellService;
-	syntaxProfile: V2CommandSyntaxProfile;
-	sessionStore: V2NotebookSessionStore;
-}): V2NotebookSession {
+	engine: ClinicalEngine;
+	commandBar: CommandBarService;
+	variableCells: VariableCellService;
+	syntaxProfile: CommandSyntaxProfile;
+	sessionStore: NotebookSessionStore;
+}): NotebookSession {
 	const runtime = input.engine.getRuntime();
 	return {
 		...input,

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type { ClinicalDocumentReadModel } from "../src/v2/clinical/clinical-document-types";
-import { ProjectionRegistry } from "../src/v2/projections/projection-registry";
-import { SyncEngine } from "../src/v2/sync/sync-engine";
-import type { SyncConfig } from "../src/v2/sync/sync-rule-config";
-import { evaluateSyncRules } from "../src/v2/sync/sync-rule-evaluator";
+import type { ClinicalDocumentReadModel } from "../src/clinical/clinical-document-types";
+import { ProjectionRegistry } from "../src/projections/projection-registry";
+import { SyncEngine } from "../src/sync/sync-engine";
+import type { SyncConfig } from "../src/sync/sync-rule-config";
+import { evaluateSyncRules } from "../src/sync/sync-rule-evaluator";
 
-describe("V2 sync rule evaluator", () => {
+describe(" sync rule evaluator", () => {
 	it("returns empty results for no matches", () => {
 		const results = evaluateSyncRules([]);
 		expect(results).toEqual([]);
@@ -115,7 +115,7 @@ describe("V2 sync rule evaluator", () => {
 	});
 });
 
-describe("V2 sync engine", () => {
+describe(" sync engine", () => {
 	const config: SyncConfig = {
 		rules: [
 			{
@@ -196,7 +196,7 @@ describe("V2 sync engine", () => {
 	});
 });
 
-describe("V2 ProjectionRegistry", () => {
+describe(" ProjectionRegistry", () => {
 	it("registers and invokes handlers matching committed participant kinds", async () => {
 		const registry = new ProjectionRegistry();
 		const calls: string[] = [];

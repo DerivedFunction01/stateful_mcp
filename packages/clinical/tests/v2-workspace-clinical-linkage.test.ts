@@ -1,16 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { registerClinicalSchemaAdapters } from "../src/v2/clinical/register-clinical-schema-adapters";
-import { clinicalOperationsFromWorkspaceCompletion } from "../src/v2/clinical/workspace-clinical-linkage";
+import { registerClinicalSchemaAdapters } from "../src/clinical/register-clinical-schema-adapters";
+import { clinicalOperationsFromWorkspaceCompletion } from "../src/clinical/workspace-clinical-linkage";
 import {
 	differentialDiagnosisSchema,
 	primaryDiagnosisSchema,
-} from "../src/v2/schemas/definitions/assessment-schema";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
-import type { V2WorkspaceAggregate } from "../src/v2/workspaces/workspace-types";
+} from "../src/schemas/definitions/assessment-schema";
+import { SchemaRegistry } from "../src/schemas/schema-registry";
+import type { WorkspaceAggregate } from "../src/workspaces/workspace-types";
 
 function workspace(
-	overrides: Partial<V2WorkspaceAggregate> = {},
-): V2WorkspaceAggregate {
+	overrides: Partial<WorkspaceAggregate> = {},
+): WorkspaceAggregate {
 	return {
 		id: "ws-1",
 		sessionId: "s1",
@@ -55,7 +55,7 @@ function workspace(
 	};
 }
 
-describe("V2 workspace-completion clinical linkage", () => {
+describe(" workspace-completion clinical linkage", () => {
 	it("emits PrimaryDiagnosis + DifferentialDiagnosis ops conforming to their schemas", () => {
 		const ops = clinicalOperationsFromWorkspaceCompletion({
 			documentId: "doc-1",

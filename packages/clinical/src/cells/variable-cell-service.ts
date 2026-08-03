@@ -1,26 +1,26 @@
 import type { VariableScopeRef } from "@stateful-mcp/core";
-import type { V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
-import { parseV2VariableCommand } from "../commands/variable-command";
-import type { V2VariableCommandService } from "../commands/variable-command-service";
+import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import { parseVariableCommand } from "../commands/variable-command";
+import type { VariableCommandService } from "../commands/variable-command-service";
 import type { CellStore } from "./cell-service-types";
-import type { StructuredCell, V2CellCollectionRef } from "./structured-cell";
+import type { StructuredCell, CellCollectionRef } from "./structured-cell";
 
 export interface VariableCellResult {
 	cell: StructuredCell;
 	value?: unknown;
 }
 
-/** V2 replacement for the legacy VariableCellService. */
-export class V2VariableCellService {
+/**  replacement for the legacy VariableCellService. */
+export class VariableCellService {
 	constructor(
 		private readonly store: CellStore,
-		private readonly commands: V2VariableCommandService,
-		private readonly syntaxProfile: V2CommandSyntaxProfile,
+		private readonly commands: VariableCommandService,
+		private readonly syntaxProfile: CommandSyntaxProfile,
 	) {}
 
 	async execute(
 		sessionId: string,
-		collection: V2CellCollectionRef,
+		collection: CellCollectionRef,
 		rawInput: string,
 		scope?: VariableScopeRef,
 		authorId?: string,
@@ -32,7 +32,7 @@ export class V2VariableCellService {
 			authorId,
 		});
 		try {
-			const statement = parseV2VariableCommand(rawInput, this.syntaxProfile);
+			const statement = parseVariableCommand(rawInput, this.syntaxProfile);
 			const value = await this.commands.execute(sessionId, statement, scope);
 			const now = new Date().toISOString();
 			const committed: StructuredCell = {

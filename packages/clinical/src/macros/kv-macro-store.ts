@@ -1,5 +1,5 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { MacroStore, V2MacroDefinition } from "./macro-definition";
+import type { MacroStore, MacroDefinition } from "./macro-definition";
 
 export class KvMacroStore implements MacroStore {
 	constructor(
@@ -10,7 +10,7 @@ export class KvMacroStore implements MacroStore {
 	async get(
 		macroName: string,
 		context?: { personnelId?: string; profileId?: string },
-	): Promise<V2MacroDefinition | null> {
+	): Promise<MacroDefinition | null> {
 		return (
 			(await this.list(context)).find(
 				(macro) => macro.macroName === macroName,
@@ -20,7 +20,7 @@ export class KvMacroStore implements MacroStore {
 
 	async list(
 		context: { personnelId?: string; profileId?: string } = {},
-	): Promise<V2MacroDefinition[]> {
+	): Promise<MacroDefinition[]> {
 		const data = await this.backend.load();
 		return Object.entries(data)
 			.filter(([key]) => key.startsWith(this.prefix))
@@ -45,7 +45,7 @@ export class KvMacroStore implements MacroStore {
 			);
 	}
 
-	async set(macro: V2MacroDefinition): Promise<void> {
+	async set(macro: MacroDefinition): Promise<void> {
 		await this.backend.set(
 			`${this.prefix}${macro.macroId}`,
 			JSON.stringify(macro),
@@ -59,8 +59,8 @@ export class KvMacroStore implements MacroStore {
 	}
 }
 
-function parse(value: unknown): V2MacroDefinition {
+function parse(value: unknown): MacroDefinition {
 	return typeof value === "string"
-		? (JSON.parse(value) as V2MacroDefinition)
-		: (value as V2MacroDefinition);
+		? (JSON.parse(value) as MacroDefinition)
+		: (value as MacroDefinition);
 }

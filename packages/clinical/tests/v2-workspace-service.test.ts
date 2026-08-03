@@ -5,21 +5,21 @@ import {
 	MemoryKvBackend,
 } from "@stateful-mcp/core";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
-import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
-import { TransactionCoordinator } from "../src/v2/transactions/transaction-coordinator";
-import { CoreWorkspaceEventStore } from "../src/v2/workspaces/core-workspace-event-store";
-import { KvWorkspaceStore } from "../src/v2/workspaces/kv-workspace-store";
-import type { WorkspaceEventStore } from "../src/v2/workspaces/workspace-event-store";
+import type { MacroExecutionPlan } from "../src/macros/macro-plan";
+import { TransactionCoordinator } from "../src/transactions/transaction-coordinator";
+import { CoreWorkspaceEventStore } from "../src/workspaces/core-workspace-event-store";
+import { KvWorkspaceStore } from "../src/workspaces/kv-workspace-store";
+import type { WorkspaceEventStore } from "../src/workspaces/workspace-event-store";
 import {
 	WorkspaceConflictError,
 	WorkspaceService,
-} from "../src/v2/workspaces/workspace-service";
-import type { WorkspaceStore } from "../src/v2/workspaces/workspace-store";
-import { WorkspaceTransactionParticipant } from "../src/v2/workspaces/workspace-transaction-participant";
+} from "../src/workspaces/workspace-service";
+import type { WorkspaceStore } from "../src/workspaces/workspace-store";
+import { WorkspaceTransactionParticipant } from "../src/workspaces/workspace-transaction-participant";
 import {
 	InMemoryWorkspaceViewStateStore,
 	WorkspaceViewService,
-} from "../src/v2/workspaces/workspace-view-state";
+} from "../src/workspaces/workspace-view-state";
 
 type BackendPair = { store: WorkspaceStore; events: WorkspaceEventStore };
 
@@ -38,7 +38,7 @@ async function corePair(): Promise<BackendPair> {
 	};
 }
 
-describe("V2 workspace service with core DAG event store", () => {
+describe(" workspace service with core DAG event store", () => {
 	it("creates a workspace and records an initialization event", async () => {
 		const pair = await corePair();
 		const service = new WorkspaceService(pair.store, pair.events);
@@ -178,7 +178,7 @@ describe("V2 workspace service with core DAG event store", () => {
 	});
 });
 
-describe("V2 workspace transaction participant", () => {
+describe(" workspace transaction participant", () => {
 	it("preserves parallel heads and merges them through the core DAG", async () => {
 		const pair = await corePair();
 		const root = await new WorkspaceService(
@@ -452,7 +452,7 @@ describe("V2 workspace transaction participant", () => {
 		};
 		const coordinator = new TransactionCoordinator({
 			journal: new (
-				await import("../src/v2/transactions/transaction-coordinator")
+				await import("../src/transactions/transaction-coordinator")
 			).InMemoryTransactionJournal(),
 		});
 		const participant = new WorkspaceTransactionParticipant(service);

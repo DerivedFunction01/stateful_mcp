@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { createAnatomyValue } from "../src/v2/values/anatomy-value";
-import { resolveConceptValue } from "../src/v2/values/concept-value";
-import { createMeasurementValue } from "../src/v2/values/measurement-value";
+import { createAnatomyValue } from "../src/values/anatomy-value";
+import { resolveConceptValue } from "../src/values/concept-value";
+import { createMeasurementValue } from "../src/values/measurement-value";
 import {
 	createCadenceValue,
 	createDateRangeValue,
 	createDurationValue,
-} from "../src/v2/values/temporal-value";
-import { ValueRuleRegistry } from "../src/v2/values/value-rule-registry";
+} from "../src/values/temporal-value";
+import { ValueRuleRegistry } from "../src/values/value-rule-registry";
 
-describe("V2 value foundations", () => {
+describe(" value foundations", () => {
 	it("creates measurement values with statistical metadata", () => {
 		const result = createMeasurementValue(
 			{

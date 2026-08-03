@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
-import { MacroAutocomplete } from "../src/v2/macros/macro-autocomplete";
+import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
 import type {
 	MacroStore,
-	V2MacroDefinition,
-} from "../src/v2/macros/macro-definition";
-import type { ConceptLookup } from "../src/v2/values/concept-value";
+	MacroDefinition,
+} from "../src/macros/macro-definition";
+import type { ConceptLookup } from "../src/values/concept-value";
 
-function makeMacroStore(macros: V2MacroDefinition[]): MacroStore {
+function makeMacroStore(macros: MacroDefinition[]): MacroStore {
 	return {
 		async list() {
 			return macros;
@@ -26,7 +26,7 @@ function makeDictionary(concepts: Concept[]): ConceptLookup {
 	};
 }
 
-const SAMPLE_MACROS: V2MacroDefinition[] = [
+const SAMPLE_MACROS: MacroDefinition[] = [
 	{
 		macroId: "m1",
 		macroName: "observation",

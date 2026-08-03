@@ -1,9 +1,9 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import type { MacroStore, V2MacroDefinition } from "./macro-definition";
-import { V2MacroQueryCompiler } from "./macro-query-compiler";
+import type { MacroStore, MacroDefinition } from "./macro-definition";
+import { MacroQueryCompiler } from "./macro-query-compiler";
 
 export class SqlMacroStore implements MacroStore {
-	private readonly compiler: V2MacroQueryCompiler;
+	private readonly compiler: MacroQueryCompiler;
 	private readonly ready: Promise<void>;
 
 	constructor(
@@ -11,14 +11,14 @@ export class SqlMacroStore implements MacroStore {
 		private readonly executor: SqlExecutor,
 		private readonly table = "v2_macros",
 	) {
-		this.compiler = new V2MacroQueryCompiler(dialect);
+		this.compiler = new MacroQueryCompiler(dialect);
 		this.ready = this.ensureTable();
 	}
 
 	async get(
 		macroName: string,
 		context?: { personnelId?: string; profileId?: string },
-	): Promise<V2MacroDefinition | null> {
+	): Promise<MacroDefinition | null> {
 		await this.ready;
 		const query = this.compiler.getQuery(macroName, this.table, context);
 		const row = await this.executor.queryOne(query.sql, query.params);
@@ -28,14 +28,14 @@ export class SqlMacroStore implements MacroStore {
 	async list(context?: {
 		personnelId?: string;
 		profileId?: string;
-	}): Promise<V2MacroDefinition[]> {
+	}): Promise<MacroDefinition[]> {
 		await this.ready;
 		const query = this.compiler.listQuery(this.table, context);
 		const rows = await this.executor.query(query.sql, query.params);
 		return rows.map((row) => parse(row.definition));
 	}
 
-	async set(macro: V2MacroDefinition): Promise<void> {
+	async set(macro: MacroDefinition): Promise<void> {
 		await this.ready;
 		const query = this.compiler.upsertQuery(
 			{
@@ -68,8 +68,8 @@ export class SqlMacroStore implements MacroStore {
 	}
 }
 
-function parse(value: unknown): V2MacroDefinition {
+function parse(value: unknown): MacroDefinition {
 	return typeof value === "string"
-		? (JSON.parse(value) as V2MacroDefinition)
-		: (value as V2MacroDefinition);
+		? (JSON.parse(value) as MacroDefinition)
+		: (value as MacroDefinition);
 }

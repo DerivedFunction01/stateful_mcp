@@ -1,5 +1,5 @@
 /**
- * V2 macro binder.
+ *  macro binder.
  *
  * Maps a lexed `MacroInput` (raw argument tokens) onto a resolved macro
  * definition's argument specs, matching named/positional/aliased arguments and
@@ -14,7 +14,7 @@ import type {
 	MacroBindingResult,
 	MacroInput,
 } from "./macro-binding";
-import type { MacroArgumentSpec, V2MacroDefinition } from "./macro-definition";
+import type { MacroArgumentSpec, MacroDefinition } from "./macro-definition";
 
 export interface MacroBindingOptions {
 	/** Allow arguments with no explicit name to map positionally. */
@@ -25,7 +25,7 @@ export interface MacroBindingOptions {
 
 export function bindMacro(
 	input: MacroInput,
-	definition: V2MacroDefinition,
+	definition: MacroDefinition,
 	options: MacroBindingOptions = {},
 ): MacroBindingResult {
 	const issues: MacroBindingIssue[] = [];
@@ -110,7 +110,7 @@ export function bindMacro(
 
 function resolveSpec(
 	arg: MacroArgumentInput,
-	definition: V2MacroDefinition,
+	definition: MacroDefinition,
 	allowPositional: boolean,
 	allowInference: boolean,
 ): MacroArgumentSpec | undefined {

@@ -1,5 +1,5 @@
 /**
- * Canonical V2 merge strategy vocabulary.
+ * Canonical  merge strategy vocabulary.
  *
  * Centralized from the previously duplicated inline unions in macro-plan,
  * macro-definition, structured-cell, and typed-value. Semantics mirror the

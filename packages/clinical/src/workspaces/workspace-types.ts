@@ -1,5 +1,5 @@
 /**
- * V2 workspace typed contracts (type-only).
+ *  workspace typed contracts (type-only).
  *
  * These are the typed aggregates/operations the workspace service will compile
  * and the transaction coordinator will commit. The legacy
@@ -15,7 +15,7 @@ export type BranchLifecycleState =
 	| "ruled_out"
 	| "closed";
 
-export interface V2Branch {
+export interface Branch {
 	id: string;
 	parentId: string | null;
 	name: string;
@@ -27,12 +27,12 @@ export interface V2Branch {
 	createdAt: string;
 }
 
-export interface V2WorkspaceAggregate {
+export interface WorkspaceAggregate {
 	id: string;
 	sessionId: string;
 	sourceDocumentId: string;
 	activeBranchId: string | null;
-	branches: V2Branch[];
+	branches: Branch[];
 	globalFacts: TypedFact[];
 	closeRequested: boolean;
 	completed?: boolean;

@@ -4,13 +4,13 @@ import type {
 	MacroListItemInput,
 	MacroSourceLine,
 } from "./macro-binding";
-import type { MacroArgumentSpec, V2MacroDefinition } from "./macro-definition";
-import type { V2SyntaxProfile } from "./macro-profile";
+import type { MacroArgumentSpec, MacroDefinition } from "./macro-definition";
+import type { SyntaxProfile } from "./macro-profile";
 
 export interface ParseMacroLineOptions {
 	macroStartToken?: string;
-	definition?: V2MacroDefinition;
-	profile?: V2SyntaxProfile;
+	definition?: MacroDefinition;
+	profile?: SyntaxProfile;
 }
 
 export interface MacroParseDiagnostic {
@@ -68,9 +68,9 @@ export function parseMacroLine(
 function matchDefinitionArguments(
 	raw: string,
 	bodyStart: number,
-	definition: V2MacroDefinition,
+	definition: MacroDefinition,
 	diagnostics: MacroParseDiagnostic[],
-	profile?: V2SyntaxProfile,
+	profile?: SyntaxProfile,
 ): MacroArgumentInput[] {
 	const delimiter =
 		definition.syntax?.argumentDelimiter ??

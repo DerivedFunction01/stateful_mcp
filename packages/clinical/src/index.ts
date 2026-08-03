@@ -1,7 +1,7 @@
 /**
- * Engine V2 public boundary.
+ * Engine  public boundary.
  *
- * V2 domain contracts are grouped here. V2 modules MUST NOT import the retired
+ *  domain contracts are grouped here.  modules MUST NOT import the retired
  * legacy parser stack (`parser/cdsl-parser`, `parser/schema-parsers`,
  * `ParsedItem`, legacy parser profiles/tags/stop-word gating, parsed-cell or
  * ordered-learning stores, or parser-input prose templates) except inside the
@@ -17,7 +17,7 @@ export * from "./cells/kv-cell-store";
 export * from "./cells/sql-cell-store";
 export * from "./cells/structured-cell";
 export * from "./cells/structured-cell-service";
-export * from "./cells/v2-cell-compiler";
+export * from "./cells-cell-compiler";
 export * from "./cells/variable-cell-service";
 export * from "./clinical/clinical-document-reducer";
 export * from "./clinical/clinical-document-service";
@@ -60,7 +60,6 @@ export * from "./notebook/kv-notebook-session-store";
 export * from "./notebook/notebook-session-query-compiler";
 export * from "./notebook/notebook-session-store";
 export * from "./notebook/notebook-state";
-export * from "./notebook/preview-workflow";
 export * from "./notebook/sql-notebook-session-store";
 export * from "./presentation/field-types";
 export * from "./presentation/policies";
@@ -98,7 +97,7 @@ export * from "./values/temporal-syntax-profile";
 export * from "./values/temporal-recognizer";
 export * from "./values/temporal-resolver";
 export * from "./values/frequency-resolver";
-export * from "./bootstrap/v2-cold-start";
+
 export * from "./values/pipeline-evaluator";
 export * from "./values/temporal-value";
 export * from "./values/typed-value";

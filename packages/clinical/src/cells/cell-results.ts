@@ -1,5 +1,5 @@
 /**
- * V2 cell result references.
+ *  cell result references.
  *
  * A cell retains references to durable results (events, document/workspace
  * changes) rather than duplicating the projected document. Read models are

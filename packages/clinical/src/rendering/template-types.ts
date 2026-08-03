@@ -1,27 +1,27 @@
 import type { PipelineStep } from "@stateful-mcp/core";
 
-export type V2TemplatePosition =
+export type TemplatePosition =
 	| "opening"
 	| "continuing"
 	| "closing"
 	| "full_paragraph";
-export interface V2SlotCondition {
+export interface SlotCondition {
 	pipeline: PipelineStep[];
 }
-export interface V2OutputProseSlot {
+export interface OutputProseSlot {
 	sourcePath: string;
 	format?: string;
 	fallback?: string;
 	conditionalDelegates?: {
 		delegateTemplateId: string;
-		conditions: V2SlotCondition;
+		conditions: SlotCondition;
 	}[];
 	defaultDelegateTemplateId?: string;
 	listOptions?: { delimiter: string; lastDelimiter?: string };
-	conditions?: V2SlotCondition;
+	conditions?: SlotCondition;
 	transform?: { pipeline: PipelineStep[] };
 }
-export interface V2ClinicalProseTemplate {
+export interface ClinicalProseTemplate {
 	templateId: string;
 	parentTemplateId?: string;
 	targetSchema: string;
@@ -29,7 +29,7 @@ export interface V2ClinicalProseTemplate {
 	workspaceId?: string;
 	specialtyId?: string;
 	section?: "subjective" | "objective" | "assessment" | "plan";
-	slotPosition: V2TemplatePosition;
+	slotPosition: TemplatePosition;
 	templateText: string;
-	slots: Record<string, V2OutputProseSlot>;
+	slots: Record<string, OutputProseSlot>;
 }

@@ -38,7 +38,7 @@ export function Workspace({
 	return (
 		<Box flexDirection="column" padding={1}>
 			<Text bold>
-				V2 Workspace {workspace.snapshot?.workspaceId ?? "loading"}
+				 Workspace {workspace.snapshot?.workspaceId ?? "loading"}
 			</Text>
 			{workspace.loading && <Text>Loading workspace...</Text>}
 			{workspace.error && <Text color="red">{workspace.error}</Text>}
@@ -54,7 +54,7 @@ export function Workspace({
 			</Text>
 			<Text color="cyan">:{command}</Text>
 			<Text dimColor>
-				Enter executes a V2 command. Esc returns to notebook.
+				Enter executes a  command. Esc returns to notebook.
 			</Text>
 		</Box>
 	);

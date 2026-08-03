@@ -14,8 +14,8 @@ import type { WorkspaceStore } from "./workspace-store";
 import type {
 	CreateWorkspaceRequest,
 	TypedFact,
-	V2Branch,
-	V2WorkspaceAggregate,
+	Branch,
+	WorkspaceAggregate,
 	WorkspaceOperation,
 } from "./workspace-types";
 
@@ -47,9 +47,9 @@ export type WorkspaceDiagnosticCode =
 export interface WorkspaceServiceContract {
 	createWorkspace(
 		request: CreateWorkspaceRequest,
-	): Promise<V2WorkspaceAggregate>;
-	getWorkspace(workspaceId: string): Promise<V2WorkspaceAggregate | null>;
-	listWorkspaces(sessionId: string): Promise<V2WorkspaceAggregate[]>;
+	): Promise<WorkspaceAggregate>;
+	getWorkspace(workspaceId: string): Promise<WorkspaceAggregate | null>;
+	listWorkspaces(sessionId: string): Promise<WorkspaceAggregate[]>;
 	applyOperations(
 		workspaceId: string,
 		operations: WorkspaceOperation[],
@@ -57,29 +57,29 @@ export interface WorkspaceServiceContract {
 		expectedHead?: string,
 		transactionId?: string,
 		idempotencyKey?: string,
-	): Promise<V2WorkspaceAggregate>;
+	): Promise<WorkspaceAggregate>;
 	getSnapshot(workspaceId: string): Promise<WorkspaceSnapshot | null>;
-	rebuildFromEvents(workspaceId: string): Promise<V2WorkspaceAggregate | null>;
+	rebuildFromEvents(workspaceId: string): Promise<WorkspaceAggregate | null>;
 	voidEvent(
 		workspaceId: string,
 		eventId: string,
 		expectedHead: string,
 		reason: string,
 		actorId?: string,
-	): Promise<V2WorkspaceAggregate>;
+	): Promise<WorkspaceAggregate>;
 	ingestFact(
 		workspaceId: string,
 		fact: TypedFact,
 		expectedVersion: number,
 		branchRef?: string,
 		expectedHead?: string,
-	): Promise<V2WorkspaceAggregate>;
+	): Promise<WorkspaceAggregate>;
 }
 
 export interface PreparedWorkspaceMutation {
 	workspaceId: string;
 	baseVersion: number;
-	aggregate: V2WorkspaceAggregate;
+	aggregate: WorkspaceAggregate;
 	events: WorkspaceEvent[];
 }
 
@@ -91,7 +91,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 
 	async createWorkspace(
 		request: CreateWorkspaceRequest,
-	): Promise<V2WorkspaceAggregate> {
+	): Promise<WorkspaceAggregate> {
 		const aggregate = createWorkspace(request);
 		const initialized: WorkspaceEvent = {
 			kind: "workspace_initialized",
@@ -114,11 +114,11 @@ export class WorkspaceService implements WorkspaceServiceContract {
 		return projected;
 	}
 
-	getWorkspace(workspaceId: string): Promise<V2WorkspaceAggregate | null> {
+	getWorkspace(workspaceId: string): Promise<WorkspaceAggregate | null> {
 		return this.store.get(workspaceId);
 	}
 
-	listWorkspaces(sessionId: string): Promise<V2WorkspaceAggregate[]> {
+	listWorkspaces(sessionId: string): Promise<WorkspaceAggregate[]> {
 		return this.store.list(sessionId);
 	}
 
@@ -129,7 +129,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 		expectedHead?: string,
 		transactionId?: string,
 		idempotencyKey?: string,
-	): Promise<V2WorkspaceAggregate> {
+	): Promise<WorkspaceAggregate> {
 		const aggregate = await this.requireWorkspace(workspaceId);
 		if (aggregate.version !== expectedVersion)
 			throw new WorkspaceConflictError(
@@ -171,7 +171,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 		expectedHead: string,
 		reason: string,
 		actorId?: string,
-	): Promise<V2WorkspaceAggregate> {
+	): Promise<WorkspaceAggregate> {
 		const aggregate = await this.requireWorkspace(workspaceId);
 		if (aggregate.eventHead !== expectedHead)
 			throw new WorkspaceConflictError(
@@ -205,7 +205,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 		return projected;
 	}
 
-	resolveBranchRef(aggregate: V2WorkspaceAggregate, ref: string): V2Branch {
+	resolveBranchRef(aggregate: WorkspaceAggregate, ref: string): Branch {
 		const exactId = aggregate.branches.filter((branch) => branch.id === ref);
 		if (exactId.length === 1) return exactId[0]!;
 		const exactAlias = aggregate.branches.filter(
@@ -249,7 +249,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 		expectedVersion: number,
 		branchRef?: string,
 		expectedHead?: string,
-	): Promise<V2WorkspaceAggregate> {
+	): Promise<WorkspaceAggregate> {
 		return this.applyOperations(
 			workspaceId,
 			[{ kind: "add_fact", workspaceId, fact, branchId: branchRef }],
@@ -260,7 +260,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 
 	async rebuildFromEvents(
 		workspaceId: string,
-	): Promise<V2WorkspaceAggregate | null> {
+	): Promise<WorkspaceAggregate | null> {
 		const current = await this.requireWorkspace(workspaceId);
 		if (!current.eventHead) return current;
 		const records = await this.events.project(
@@ -324,10 +324,10 @@ export class WorkspaceService implements WorkspaceServiceContract {
 	}
 
 	private planOperations(
-		initial: V2WorkspaceAggregate,
+		initial: WorkspaceAggregate,
 		operations: readonly WorkspaceOperation[],
-	): { aggregate: V2WorkspaceAggregate; events: WorkspaceEvent[] } {
-		let aggregate = structuredClone(initial) as V2WorkspaceAggregate;
+	): { aggregate: WorkspaceAggregate; events: WorkspaceEvent[] } {
+		let aggregate = structuredClone(initial) as WorkspaceAggregate;
 		const events: WorkspaceEvent[] = [];
 		for (const operation of operations) {
 			if (operation.workspaceId !== aggregate.id)
@@ -349,7 +349,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 	}
 
 	private toEvent(
-		aggregate: V2WorkspaceAggregate,
+		aggregate: WorkspaceAggregate,
 		operation: WorkspaceOperation,
 	): WorkspaceEvent {
 		if (aggregate.completed)
@@ -477,7 +477,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 
 	private async requireWorkspace(
 		workspaceId: string,
-	): Promise<V2WorkspaceAggregate> {
+	): Promise<WorkspaceAggregate> {
 		const aggregate = await this.store.get(workspaceId);
 		if (!aggregate)
 			throw new WorkspaceOperationError(
@@ -487,14 +487,14 @@ export class WorkspaceService implements WorkspaceServiceContract {
 	}
 
 	private branch(
-		aggregate: V2WorkspaceAggregate,
+		aggregate: WorkspaceAggregate,
 		branchId: string,
-	): V2Branch | undefined {
+	): Branch | undefined {
 		return aggregate.branches.find((branch) => branch.id === branchId);
 	}
 
 	private validateFact(
-		aggregate: V2WorkspaceAggregate,
+		aggregate: WorkspaceAggregate,
 		fact: TypedFact,
 		branchId?: string,
 	): void {
@@ -502,7 +502,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 			throw new WorkspaceOperationError("Branch was not found");
 	}
 
-	private hasFact(aggregate: V2WorkspaceAggregate, factId: string): boolean {
+	private hasFact(aggregate: WorkspaceAggregate, factId: string): boolean {
 		return (
 			aggregate.globalFacts.some((fact) => fact.factId === factId) ||
 			aggregate.branches.some(
@@ -518,7 +518,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 	}
 
 	private validateTransition(
-		aggregate: V2WorkspaceAggregate,
+		aggregate: WorkspaceAggregate,
 		branchId: string,
 		transition: "confirm" | "rule_out" | "suspend" | "reactivate",
 	): void {
@@ -537,7 +537,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 			);
 	}
 
-	private snapshot(aggregate: V2WorkspaceAggregate): WorkspaceSnapshot {
+	private snapshot(aggregate: WorkspaceAggregate): WorkspaceSnapshot {
 		return {
 			workspaceId: aggregate.id,
 			sessionId: aggregate.sessionId,

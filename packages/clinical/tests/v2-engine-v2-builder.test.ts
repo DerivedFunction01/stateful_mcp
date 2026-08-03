@@ -6,15 +6,15 @@ import {
 	MemoryKvBackend,
 } from "@stateful-mcp/core";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
-import { KvCellStore } from "../src/v2/cells/kv-cell-store";
-import { ClinicalEngineV2Builder } from "../src/v2/engine/clinical-engine-v2-builder";
-import type { MacroStore } from "../src/v2/macros/macro-definition";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
-import { KvWorkspaceStore } from "../src/v2/workspaces/kv-workspace-store";
+import { KvCellStore } from "../src/cells/kv-cell-store";
+import { ClinicalEngineBuilder } from "../src/engine/clinical-engine-v2-builder";
+import type { MacroStore } from "../src/macros/macro-definition";
+import { SchemaRegistry } from "../src/schemas/schema-registry";
+import { KvWorkspaceStore } from "../src/workspaces/kv-workspace-store";
 
-describe("ClinicalEngineV2Builder", () => {
+describe("ClinicalEngineBuilder", () => {
 	it("rejects an incomplete composition instead of installing placeholders", () => {
-		expect(() => new ClinicalEngineV2Builder().build()).toThrow(/EventStore/);
+		expect(() => new ClinicalEngineBuilder().build()).toThrow(/EventStore/);
 	});
 
 	it("builds a typed in-memory composition when all required dependencies are supplied", async () => {
@@ -29,7 +29,7 @@ describe("ClinicalEngineV2Builder", () => {
 			list: async () => [],
 		};
 		const dictionaryStore = {} as DictionaryStore;
-		const engine = new ClinicalEngineV2Builder()
+		const engine = new ClinicalEngineBuilder()
 			.withEventStore(eventStore)
 			.withSchemaRegistry(new SchemaRegistry())
 			.withMacroStore(macroStore)

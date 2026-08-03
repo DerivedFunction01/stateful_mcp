@@ -1,5 +1,5 @@
 /**
- * V2 macro input and binding contracts.
+ *  macro input and binding contracts.
  *
  * `MacroInput` is the typed result of classifying macro syntax (lines of the
  * form `^macroName arg=value ...`). Binding maps that raw input onto a resolved

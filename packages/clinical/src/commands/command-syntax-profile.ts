@@ -1,4 +1,4 @@
-export type V2DirectCommandVerb =
+export type DirectCommandVerb =
 	| "branch"
 	| "confirm"
 	| "rule_out"
@@ -7,7 +7,7 @@ export type V2DirectCommandVerb =
 	| "close"
 	| "complete";
 
-export type V2EditorCommandVerb =
+export type EditorCommandVerb =
 	| "write"
 	| "quit"
 	| "write_quit"
@@ -17,14 +17,14 @@ export type V2EditorCommandVerb =
 	| "redo"
 	| "render";
 
-export type V2VariableCommandVerb =
+export type VariableCommandVerb =
 	| "set"
 	| "update"
 	| "eval"
 	| "assert"
 	| "remove";
 
-export const V2_DIRECT_COMMANDS: readonly V2DirectCommandVerb[] = [
+export const _DIRECT_COMMANDS: readonly DirectCommandVerb[] = [
 	"branch",
 	"confirm",
 	"rule_out",
@@ -34,7 +34,7 @@ export const V2_DIRECT_COMMANDS: readonly V2DirectCommandVerb[] = [
 	"complete",
 ];
 
-export const V2_EDITOR_COMMANDS: readonly V2EditorCommandVerb[] = [
+export const _EDITOR_COMMANDS: readonly EditorCommandVerb[] = [
 	"write",
 	"quit",
 	"write_quit",
@@ -45,23 +45,23 @@ export const V2_EDITOR_COMMANDS: readonly V2EditorCommandVerb[] = [
 	"render",
 ];
 
-export interface V2CommandSyntaxProfile {
+export interface CommandSyntaxProfile {
 	profileId: string;
 	personnelId?: string;
 	active?: boolean;
 	default?: boolean;
 	directCommandToken: string;
 	macroStartToken: string;
-	directCommandMappings: Readonly<Record<string, V2DirectCommandVerb>>;
-	editorCommandMappings: Readonly<Record<string, V2EditorCommandVerb>>;
+	directCommandMappings: Readonly<Record<string, DirectCommandVerb>>;
+	editorCommandMappings: Readonly<Record<string, EditorCommandVerb>>;
 	variableCommandToken: string;
 	variableCommandName: string;
 	variableAssignmentDelimiter: string;
 	variableNamePattern: string;
-	variableCommandMappings: Readonly<Record<string, V2VariableCommandVerb>>;
+	variableCommandMappings: Readonly<Record<string, VariableCommandVerb>>;
 }
 
-export const V2_COMMAND_SYNTAX_DEFAULTS = {
+export const _COMMAND_SYNTAX_DEFAULTS = {
 	directCommandToken: ":",
 	macroStartToken: "^",
 	directCommandMappings: {
@@ -101,48 +101,48 @@ export const V2_COMMAND_SYNTAX_DEFAULTS = {
 	},
 } as const;
 
-export function createV2CommandSyntaxProfile(
-	profile: Partial<V2CommandSyntaxProfile> &
-		Pick<V2CommandSyntaxProfile, "profileId">,
-): V2CommandSyntaxProfile {
+export function createCommandSyntaxProfile(
+	profile: Partial<CommandSyntaxProfile> &
+		Pick<CommandSyntaxProfile, "profileId">,
+): CommandSyntaxProfile {
 	return {
 		...profile,
 		directCommandToken:
 			profile.directCommandToken ??
-			V2_COMMAND_SYNTAX_DEFAULTS.directCommandToken,
+			_COMMAND_SYNTAX_DEFAULTS.directCommandToken,
 		macroStartToken:
-			profile.macroStartToken ?? V2_COMMAND_SYNTAX_DEFAULTS.macroStartToken,
+			profile.macroStartToken ?? _COMMAND_SYNTAX_DEFAULTS.macroStartToken,
 		directCommandMappings: {
-			...V2_COMMAND_SYNTAX_DEFAULTS.directCommandMappings,
+			..._COMMAND_SYNTAX_DEFAULTS.directCommandMappings,
 			...profile.directCommandMappings,
 		},
 		editorCommandMappings: {
-			...V2_COMMAND_SYNTAX_DEFAULTS.editorCommandMappings,
+			..._COMMAND_SYNTAX_DEFAULTS.editorCommandMappings,
 			...profile.editorCommandMappings,
 		},
 		variableCommandToken:
 			profile.variableCommandToken ??
-			V2_COMMAND_SYNTAX_DEFAULTS.variableCommandToken,
+			_COMMAND_SYNTAX_DEFAULTS.variableCommandToken,
 		variableCommandName:
 			profile.variableCommandName ??
-			V2_COMMAND_SYNTAX_DEFAULTS.variableCommandName,
+			_COMMAND_SYNTAX_DEFAULTS.variableCommandName,
 		variableAssignmentDelimiter:
 			profile.variableAssignmentDelimiter ??
-			V2_COMMAND_SYNTAX_DEFAULTS.variableAssignmentDelimiter,
+			_COMMAND_SYNTAX_DEFAULTS.variableAssignmentDelimiter,
 		variableNamePattern:
 			profile.variableNamePattern ??
-			V2_COMMAND_SYNTAX_DEFAULTS.variableNamePattern,
+			_COMMAND_SYNTAX_DEFAULTS.variableNamePattern,
 		variableCommandMappings: {
-			...V2_COMMAND_SYNTAX_DEFAULTS.variableCommandMappings,
+			..._COMMAND_SYNTAX_DEFAULTS.variableCommandMappings,
 			...profile.variableCommandMappings,
 		},
 	};
 }
 
-export function resolveV2CommandSyntaxProfile(
-	profiles: readonly V2CommandSyntaxProfile[] = [],
+export function resolveCommandSyntaxProfile(
+	profiles: readonly CommandSyntaxProfile[] = [],
 	personnelId?: string,
-): V2CommandSyntaxProfile {
+): CommandSyntaxProfile {
 	return (
 		profiles.find(
 			(profile) => profile.active && profile.personnelId === personnelId,
@@ -150,7 +150,7 @@ export function resolveV2CommandSyntaxProfile(
 		profiles.find((profile) => profile.active && profile.default) ??
 		profiles.find((profile) => profile.default) ??
 		profiles[0] ??
-		createV2CommandSyntaxProfile({
+		createCommandSyntaxProfile({
 			profileId: "v2-default",
 			default: true,
 			active: true,

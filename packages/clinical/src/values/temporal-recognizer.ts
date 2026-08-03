@@ -1,8 +1,8 @@
 import type { TimePrecisionLevel } from "../schemas/schemas-interface/time";
-import { createV2TemporalSyntaxProfile, type V2TemporalSyntaxProfile } from "./temporal-syntax-profile";
+import { createTemporalSyntaxProfile, type TemporalSyntaxProfile } from "./temporal-syntax-profile";
 import type { TemporalExpression } from "./temporal-expression";
 
-export function recognizeTemporalExpression(text: string, profile: V2TemporalSyntaxProfile = createV2TemporalSyntaxProfile({ profileId: "v2-temporal-default" })): { expression?: TemporalExpression; diagnostics: string[] } {
+export function recognizeTemporalExpression(text: string, profile: TemporalSyntaxProfile = createTemporalSyntaxProfile({ profileId: "v2-temporal-default" })): { expression?: TemporalExpression; diagnostics: string[] } {
 	const input = text.trim();
 	if (!input) return { diagnostics: ["Temporal expression is empty"] };
 	const lower = input.toLocaleLowerCase();

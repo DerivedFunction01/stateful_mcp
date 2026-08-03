@@ -9,7 +9,7 @@ import {
 import { getSharedCellCommandDescriptors } from "../windows/shared-cell-commands";
 
 // TODO(cli2-v2): retain editor effects/keymaps, but remove the legacy editor
-// registry and shared V1 cell descriptors after the V2 catalog is wired.
+// registry and shared V1 cell descriptors after the  catalog is wired.
 import { builtinExtensions } from "./builtin-extensions";
 import type {
 	EditorExtension,
@@ -62,7 +62,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 	const onCommand = useMemo(
 		() => async (intent: WindowIntent, _scope: WindowScope) => {
 			// TODO(cli2-v2): route editor commands to the CLI reducer and direct
-			// domain commands to V2CommandBarService. The copied V1 dispatcher is
+			// domain commands to CommandBarService. The copied V1 dispatcher is
 			// intentionally disabled in cli2.
 			const verb = (intent.arguments["_verb"] as string) ?? intent.id;
 			const rest = (intent.arguments["_rest"] as string) ?? "";
@@ -74,7 +74,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 			void notebook;
 			return commandResultToEffects({
 				success: false,
-				message: `cli2: command '${`${verb} ${rest}`.trim()}' awaits V2 command-bar wiring`,
+				message: `cli2: command '${`${verb} ${rest}`.trim()}' awaits  command-bar wiring`,
 			});
 		},
 		[notebook],

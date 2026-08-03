@@ -1,17 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend, VariableServiceStore } from "@stateful-mcp/core";
-import { KvCellStore } from "../src/v2/cells/kv-cell-store";
-import { V2VariableCellService } from "../src/v2/cells/variable-cell-service";
-import { createV2CommandSyntaxProfile } from "../src/v2/commands/command-syntax-profile";
-import { V2VariableCommandService } from "../src/v2/commands/variable-command-service";
+import { KvCellStore } from "../src/cells/kv-cell-store";
+import { VariableCellService } from "../src/cells/variable-cell-service";
+import { createCommandSyntaxProfile } from "../src/commands/command-syntax-profile";
+import { VariableCommandService } from "../src/commands/variable-command-service";
 
-describe("V2 variable cell service", () => {
+describe(" variable cell service", () => {
 	it("records a successful variable command as a committed structured cell", async () => {
 		const variables = new VariableServiceStore();
-		const service = new V2VariableCellService(
+		const service = new VariableCellService(
 			new KvCellStore(new MemoryKvBackend()),
-			new V2VariableCommandService(variables),
-			createV2CommandSyntaxProfile({ profileId: "test" }),
+			new VariableCommandService(variables),
+			createCommandSyntaxProfile({ profileId: "test" }),
 		);
 		const result = await service.execute(
 			"s1",
@@ -27,10 +27,10 @@ describe("V2 variable cell service", () => {
 
 	it("records failed variable commands without leaving a committed cell", async () => {
 		const store = new KvCellStore(new MemoryKvBackend());
-		const service = new V2VariableCellService(
+		const service = new VariableCellService(
 			store,
-			new V2VariableCommandService(new VariableServiceStore()),
-			createV2CommandSyntaxProfile({ profileId: "test" }),
+			new VariableCommandService(new VariableServiceStore()),
+			createCommandSyntaxProfile({ profileId: "test" }),
 		);
 		await expect(
 			service.execute(

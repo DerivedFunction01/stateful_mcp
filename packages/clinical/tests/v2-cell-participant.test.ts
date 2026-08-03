@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import { KvCellStore } from "../src/v2/cells/kv-cell-store";
-import type { StructuredCell } from "../src/v2/cells/structured-cell";
-import { CellTransactionParticipant } from "../src/v2/engine/cell-transaction-participant";
+import { KvCellStore } from "../src/cells/kv-cell-store";
+import type { StructuredCell } from "../src/cells/structured-cell";
+import { CellTransactionParticipant } from "../src/engine/cell-transaction-participant";
 
 function makeCell(overrides: Partial<StructuredCell> = {}): StructuredCell {
 	return {
@@ -20,7 +20,7 @@ function makeCell(overrides: Partial<StructuredCell> = {}): StructuredCell {
 	};
 }
 
-describe("V2 CellTransactionParticipant", () => {
+describe(" CellTransactionParticipant", () => {
 	it("commits staged cells through the participant lifecycle", async () => {
 		const store = new KvCellStore(new MemoryKvBackend());
 		await store.save(makeCell({ cellId: "cell-exec" }));
