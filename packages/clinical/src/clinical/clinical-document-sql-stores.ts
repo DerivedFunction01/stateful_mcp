@@ -22,7 +22,7 @@ class ClinicalDocumentQueryCompiler {
 					{ name: "documentId", type: "TEXT", nullable: false },
 					{ name: "sessionId", type: "TEXT", nullable: false },
 					{ name: "patientId", type: "TEXT", nullable: false },
-					{ name: "documentJson", type: "TEXT", nullable: false },
+					{ name: "documentJson", type: "json", nullable: false },
 					{ name: "version", type: "INTEGER", nullable: false },
 					{ name: "eventHead", type: "TEXT", nullable: true },
 				],
@@ -44,7 +44,7 @@ class ClinicalDocumentQueryCompiler {
 					{ name: "documentId", type: "TEXT", nullable: false },
 					{ name: "sessionId", type: "TEXT", nullable: false },
 					{ name: "patientId", type: "TEXT", nullable: false },
-					{ name: "recordJson", type: "TEXT", nullable: false },
+					{ name: "recordJson", type: "json", nullable: false },
 				],
 			}),
 			this.compiler.compileCreateIndex({
