@@ -2,7 +2,7 @@ import type {
 	AnatomicalLocation,
 	CodeableConcept,
 	Laterality,
-} from "../../schemas/shared";
+} from "../schemas/schemas-interface/shared";
 
 export interface AnatomyValueInput {
 	anatomy: CodeableConcept;

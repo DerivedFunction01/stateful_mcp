@@ -1,4 +1,4 @@
-import type { TemporalDirection, TimePrecisionLevel } from "../../schemas/time";
+import type { TemporalDirection, TimePrecisionLevel } from "../schemas/schemas-interface/time";
 
 export interface V2DateRecognitionRule { pattern: string; precision: TimePrecisionLevel; yearGroup: string; monthGroup: string; dayGroup: string; timeGroup?: string; }
 /** Separate from command syntax: controls how temporal text is written/read. */

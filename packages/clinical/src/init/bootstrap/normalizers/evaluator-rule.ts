@@ -1,4 +1,4 @@
-import type { ParserDictionaryRule } from "../../../store/interfaces";
+import type { ParserDictionaryRule } from "../../../v2/stores/interfaces";
 import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeEvaluatorRule(

@@ -1,26 +1,19 @@
 export * from "./init";
-export * from "./parser/cdsl-parser";
-export * from "./parser/generic-schema-parser";
-export * from "./parser/generic-tokenizer";
-export {
-	type SchemaParser,
-	schemaParserRegistry,
-} from "./parser/schema-parsers";
-export * from "./parser/stop-word-parser";
-export * from "./schemas/assessment";
-export * from "./schemas/document";
-export * from "./schemas/environment";
-export * from "./schemas/epistemic";
-export * from "./schemas/exposure";
-export * from "./schemas/injury";
-export * from "./schemas/measurement";
-export * from "./schemas/medication";
-export * from "./schemas/observation";
-export * from "./schemas/patient";
-export * from "./schemas/shared";
-export * from "./schemas/time";
-export * from "./schemas/vitals";
-export * from "./store/reference/auto-complete/command-autocomplete-interfaces";
+export * from "./v2/utils/stop-word-parser";
+export * from "./v2/schemas/schemas-interface/assessment";
+export * from "./v2/schemas/schemas-interface/document";
+export * from "./v2/schemas/schemas-interface/environment";
+export * from "./v2/schemas/schemas-interface/epistemic";
+export * from "./v2/schemas/schemas-interface/exposure";
+export * from "./v2/schemas/schemas-interface/injury";
+export * from "./v2/schemas/schemas-interface/measurement";
+export * from "./v2/schemas/schemas-interface/medication";
+export * from "./v2/schemas/schemas-interface/observation";
+export * from "./v2/schemas/schemas-interface/patient";
+export * from "./v2/schemas/schemas-interface/shared";
+export * from "./v2/schemas/schemas-interface/time";
+export * from "./v2/schemas/schemas-interface/vitals";
+export * from "./v2/stores/auto-complete/command-autocomplete-interfaces";
 export * from "./v2/stores/command-templates/interfaces";
 export * from "./v2/stores/command-templates/kv-command-template-store";
 export * from "./v2/stores/command-templates/sql-command-template-store";

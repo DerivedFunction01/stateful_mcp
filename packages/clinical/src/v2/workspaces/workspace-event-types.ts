@@ -1,4 +1,4 @@
-import type { CodeableConcept } from "../../schemas/shared";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 import type { TypedFact, V2Branch } from "./workspace-types";
 
 export interface WorkspaceEventMetadata {

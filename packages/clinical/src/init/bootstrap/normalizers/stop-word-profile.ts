@@ -1,4 +1,4 @@
-import type { StopWordProfile } from "../../../store/interfaces";
+import type { StopWordProfile } from "../../../v2/stores/interfaces";
 import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeStopWordProfile(

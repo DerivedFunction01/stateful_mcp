@@ -1,5 +1,5 @@
 import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
-import type { CodeableConcept } from "../../schemas/shared";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 import type { ConceptValue, ValueEvidence } from "./typed-value";
 
 export interface ConceptLookup {

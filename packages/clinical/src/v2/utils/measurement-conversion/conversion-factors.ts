@@ -9,7 +9,7 @@
  * non‑SI values use standard published conversion factors (CODATA / NIST).
  */
 
-import type { MeasurementUnitAnchor } from "../../../schemas/measurement";
+import type { MeasurementUnitAnchor } from "../../schemas/schemas-interface/measurement";
 
 /**
  * Normalizes a measurement magnitude to its canonical base unit.

@@ -4,8 +4,8 @@ import {
 	COMPLIANCE_STATUSES,
 	EXPOSURE_TYPES,
 	PATHOGEN_VECTOR_STATUSES,
-} from "../../../schemas/exposure";
-import { ROUTES } from "../../../schemas/shared";
+} from "../schemas-interface/exposure";
+import { ROUTES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
 import { anatomyLocationsFields, frequencyFields } from "./shared-fields";
 

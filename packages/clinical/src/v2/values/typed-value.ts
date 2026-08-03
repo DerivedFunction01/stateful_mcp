@@ -6,10 +6,10 @@
  * `ParsedItem` value model. No runtime code or legacy parser imports exist here.
  */
 
-import type { MeasurementOperator, ValueType } from "../../schemas/measurement";
-import type { MedicationFrequency } from "../../schemas/medication";
-import type { CodeableConcept } from "../../schemas/shared";
-import type { ClinicalDateRange, TimePrecisionLevel } from "../../schemas/time";
+import type { MeasurementOperator, ValueType } from "../schemas/schemas-interface/measurement";
+import type { MedicationFrequency } from "../schemas/schemas-interface/medication";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
+import type { ClinicalDateRange, TimePrecisionLevel } from "../schemas/schemas-interface/time";
 import type { MergeStrategy } from "./merge";
 
 export interface NumericBounds {

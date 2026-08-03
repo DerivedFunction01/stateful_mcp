@@ -1,444 +1,443 @@
-import type {
-	DateTimeFormatConfig,
-	DateTimeToken,
-} from "../../../store/interfaces";
-import type { StoredAttributeRule } from "../../../store/parser/rules/interfaces";
-import type {
-	ClinicalInitSeedKind,
-	ClinicalInitSeedLoadedRecord,
-} from "../../seed/record";
+// import type {
+// 	DateTimeFormatConfig,
+// 	DateTimeToken,
+// } from "../../../v2/stores/interfaces";
+// import type {
+// 	ClinicalInitSeedKind,
+// 	ClinicalInitSeedLoadedRecord,
+// } from "../../seed/record";
 
-export interface TemporalCompilationResult {
-	kind: ClinicalInitSeedKind;
-	recordId: string;
-	profileId?: string;
-	attributeRules?: StoredAttributeRule[];
-	calendarDateFormats?: DateTimeFormatConfig[];
-}
+// export interface TemporalCompilationResult {
+// 	kind: ClinicalInitSeedKind;
+// 	recordId: string;
+// 	profileId?: string;
 
-const TOKEN_ALIASES: Record<string, DateTimeToken> = {
-	minute: "min",
-	minutes: "min",
-	hr: "HH",
-	hour: "HH",
-	hours: "HH",
-	month: "MM",
-	day: "DD",
-	sec: "SS",
-	second: "SS",
-	seconds: "SS",
-};
+// 	calendarDateFormats?: DateTimeFormatConfig[];
+// }
 
-function normalizeToken(raw: string): DateTimeToken | undefined {
-	const trimmed = raw.trim() as DateTimeToken;
-	const valid: DateTimeToken[] = [
-		"YYYY",
-		"YY",
-		"MM",
-		"MM_name",
-		"DD",
-		"HH",
-		"min",
-		"SS",
-		"ampm",
-		"tz",
-	];
-	if (valid.includes(trimmed)) return trimmed;
-	return TOKEN_ALIASES[trimmed.toLowerCase()] as DateTimeToken | undefined;
-}
+// const TOKEN_ALIASES: Record<string, DateTimeToken> = {
+// 	minute: "min",
+// 	minutes: "min",
+// 	hr: "HH",
+// 	hour: "HH",
+// 	hours: "HH",
+// 	month: "MM",
+// 	day: "DD",
+// 	sec: "SS",
+// 	second: "SS",
+// 	seconds: "SS",
+// };
 
-function normalizeTokens(raw: unknown): DateTimeToken[] | null {
-	if (!Array.isArray(raw) || raw.length === 0) return null;
-	const tokens: DateTimeToken[] = [];
-	for (const item of raw) {
-		if (typeof item !== "string") return null;
-		const token = normalizeToken(item);
-		if (!token) return null;
-		tokens.push(token);
-	}
-	return tokens;
-}
+// function normalizeToken(raw: string): DateTimeToken | undefined {
+// 	const trimmed = raw.trim() as DateTimeToken;
+// 	const valid: DateTimeToken[] = [
+// 		"YYYY",
+// 		"YY",
+// 		"MM",
+// 		"MM_name",
+// 		"DD",
+// 		"HH",
+// 		"min",
+// 		"SS",
+// 		"ampm",
+// 		"tz",
+// 	];
+// 	if (valid.includes(trimmed)) return trimmed;
+// 	return TOKEN_ALIASES[trimmed.toLowerCase()] as DateTimeToken | undefined;
+// }
 
-function normalizeSeparators(raw: unknown): string[] | null {
-	if (!Array.isArray(raw) || raw.length === 0) return null;
-	const separators: string[] = [];
-	for (const item of raw) {
-		if (typeof item !== "string") return null;
-		separators.push(item);
-	}
-	return separators;
-}
+// function normalizeTokens(raw: unknown): DateTimeToken[] | null {
+// 	if (!Array.isArray(raw) || raw.length === 0) return null;
+// 	const tokens: DateTimeToken[] = [];
+// 	for (const item of raw) {
+// 		if (typeof item !== "string") return null;
+// 		const token = normalizeToken(item);
+// 		if (!token) return null;
+// 		tokens.push(token);
+// 	}
+// 	return tokens;
+// }
 
-function getTokenCount(tokens: DateTimeToken[]): number {
-	return tokens.length;
-}
+// function normalizeSeparators(raw: unknown): string[] | null {
+// 	if (!Array.isArray(raw) || raw.length === 0) return null;
+// 	const separators: string[] = [];
+// 	for (const item of raw) {
+// 		if (typeof item !== "string") return null;
+// 		separators.push(item);
+// 	}
+// 	return separators;
+// }
 
-export function compileTemporalRecord(
-	record: ClinicalInitSeedLoadedRecord,
-): TemporalCompilationResult | null {
-	const payload = record.payload;
-	if (!payload || typeof payload !== "object") return null;
-	const p = payload as Record<string, unknown>;
-	const profileId = (record.profileId ?? p.profileId ?? undefined) as
-		| string
-		| undefined;
+// function getTokenCount(tokens: DateTimeToken[]): number {
+// 	return tokens.length;
+// }
 
-	switch (record.kind) {
-		case "calendar_vocabulary":
-			return compileCalendarVocabulary(record, p, profileId);
-		case "date_pattern":
-			return compileDatePattern(record, p, profileId);
-		case "time_pattern":
-			return compileTimePattern(record, p, profileId);
-		case "relative_time_rule":
-			return compileRelativeTimeRule(record, p, profileId);
-		case "range_rule":
-			return compileRangeRule(record, p, profileId);
-		case "cadence_rule":
-			return compileCadenceRule(record, p, profileId);
-		case "exclusion_rule":
-			return compileExclusionRule(record, p, profileId);
-		default:
-			return null;
-	}
-}
+// export function compileTemporalRecord(
+// 	record: ClinicalInitSeedLoadedRecord,
+// ): TemporalCompilationResult | null {
+// 	const payload = record.payload;
+// 	if (!payload || typeof payload !== "object") return null;
+// 	const p = payload as Record<string, unknown>;
+// 	const profileId = (record.profileId ?? p.profileId ?? undefined) as
+// 		| string
+// 		| undefined;
 
-function compileCalendarVocabulary(
-	record: ClinicalInitSeedLoadedRecord,
-	p: Record<string, unknown>,
-	profileId: string | undefined,
-): TemporalCompilationResult | null {
-	return {
-		kind: record.kind,
-		recordId: record.recordId,
-		profileId,
-	};
-}
+// 	switch (record.kind) {
+// 		case "calendar_vocabulary":
+// 			return compileCalendarVocabulary(record, p, profileId);
+// 		case "date_pattern":
+// 			return compileDatePattern(record, p, profileId);
+// 		case "time_pattern":
+// 			return compileTimePattern(record, p, profileId);
+// 		case "relative_time_rule":
+// 			return compileRelativeTimeRule(record, p, profileId);
+// 		case "range_rule":
+// 			return compileRangeRule(record, p, profileId);
+// 		case "cadence_rule":
+// 			return compileCadenceRule(record, p, profileId);
+// 		case "exclusion_rule":
+// 			return compileExclusionRule(record, p, profileId);
+// 		default:
+// 			return null;
+// 	}
+// }
 
-function compileDatePattern(
-	record: ClinicalInitSeedLoadedRecord,
-	p: Record<string, unknown>,
-	profileId: string | undefined,
-): TemporalCompilationResult | null {
-	const tokens = normalizeTokens(p.tokens);
-	const separators = normalizeSeparators(p.separators);
+// function compileCalendarVocabulary(
+// 	record: ClinicalInitSeedLoadedRecord,
+// 	p: Record<string, unknown>,
+// 	profileId: string | undefined,
+// ): TemporalCompilationResult | null {
+// 	return {
+// 		kind: record.kind,
+// 		recordId: record.recordId,
+// 		profileId,
+// 	};
+// }
 
-	if (!tokens || !separators) {
-		return { kind: record.kind, recordId: record.recordId, profileId };
-	}
+// function compileDatePattern(
+// 	record: ClinicalInitSeedLoadedRecord,
+// 	p: Record<string, unknown>,
+// 	profileId: string | undefined,
+// ): TemporalCompilationResult | null {
+// 	const tokens = normalizeTokens(p.tokens);
+// 	const separators = normalizeSeparators(p.separators);
 
-	if (separators.length !== getTokenCount(tokens) - 1) {
-		return { kind: record.kind, recordId: record.recordId, profileId };
-	}
+// 	if (!tokens || !separators) {
+// 		return { kind: record.kind, recordId: record.recordId, profileId };
+// 	}
 
-	const options =
-		typeof p.options === "object" && p.options !== null
-			? (p.options as Record<string, unknown>)
-			: undefined;
+// 	if (separators.length !== getTokenCount(tokens) - 1) {
+// 		return { kind: record.kind, recordId: record.recordId, profileId };
+// 	}
 
-	const config: DateTimeFormatConfig = {
-		tokens,
-		separators,
-		options: options
-			? {
-					...(typeof options.centuryDecades === "object" &&
-					options.centuryDecades !== null
-						? {
-								centuryDecades: options.centuryDecades as Record<
-									string,
-									string
-								>,
-							}
-						: {}),
-					...(typeof options.is24Hour === "boolean"
-						? { is24Hour: options.is24Hour }
-						: {}),
-					...(typeof options.exact === "boolean"
-						? { exact: options.exact }
-						: {}),
-					...(Array.isArray(options.monthNames)
-						? {
-								monthNames: options.monthNames.filter(
-									(m): m is string => typeof m === "string",
-								),
-							}
-						: {}),
-					...(typeof options.dayPeriods === "object" &&
-					options.dayPeriods !== null
-						? {
-								dayPeriods: options.dayPeriods as {
-									am: string[];
-									pm: string[];
-								},
-							}
-						: {}),
-				}
-			: undefined,
-	};
+// 	const options =
+// 		typeof p.options === "object" && p.options !== null
+// 			? (p.options as Record<string, unknown>)
+// 			: undefined;
 
-	return {
-		kind: record.kind,
-		recordId: record.recordId,
-		profileId,
-		calendarDateFormats: [config],
-	};
-}
+// 	const config: DateTimeFormatConfig = {
+// 		tokens,
+// 		separators,
+// 		options: options
+// 			? {
+// 					...(typeof options.centuryDecades === "object" &&
+// 					options.centuryDecades !== null
+// 						? {
+// 								centuryDecades: options.centuryDecades as Record<
+// 									string,
+// 									string
+// 								>,
+// 							}
+// 						: {}),
+// 					...(typeof options.is24Hour === "boolean"
+// 						? { is24Hour: options.is24Hour }
+// 						: {}),
+// 					...(typeof options.exact === "boolean"
+// 						? { exact: options.exact }
+// 						: {}),
+// 					...(Array.isArray(options.monthNames)
+// 						? {
+// 								monthNames: options.monthNames.filter(
+// 									(m): m is string => typeof m === "string",
+// 								),
+// 							}
+// 						: {}),
+// 					...(typeof options.dayPeriods === "object" &&
+// 					options.dayPeriods !== null
+// 						? {
+// 								dayPeriods: options.dayPeriods as {
+// 									am: string[];
+// 									pm: string[];
+// 								},
+// 							}
+// 						: {}),
+// 				}
+// 			: undefined,
+// 	};
 
-function compileTimePattern(
-	record: ClinicalInitSeedLoadedRecord,
-	p: Record<string, unknown>,
-	profileId: string | undefined,
-): TemporalCompilationResult | null {
-	const tokens = normalizeTokens(p.tokens);
-	const separators = normalizeSeparators(p.separators);
+// 	return {
+// 		kind: record.kind,
+// 		recordId: record.recordId,
+// 		profileId,
+// 		calendarDateFormats: [config],
+// 	};
+// }
 
-	if (!tokens || !separators) {
-		return { kind: record.kind, recordId: record.recordId, profileId };
-	}
+// function compileTimePattern(
+// 	record: ClinicalInitSeedLoadedRecord,
+// 	p: Record<string, unknown>,
+// 	profileId: string | undefined,
+// ): TemporalCompilationResult | null {
+// 	const tokens = normalizeTokens(p.tokens);
+// 	const separators = normalizeSeparators(p.separators);
 
-	if (separators.length !== getTokenCount(tokens) - 1) {
-		return { kind: record.kind, recordId: record.recordId, profileId };
-	}
+// 	if (!tokens || !separators) {
+// 		return { kind: record.kind, recordId: record.recordId, profileId };
+// 	}
 
-	const options =
-		typeof p.options === "object" && p.options !== null
-			? (p.options as Record<string, unknown>)
-			: undefined;
+// 	if (separators.length !== getTokenCount(tokens) - 1) {
+// 		return { kind: record.kind, recordId: record.recordId, profileId };
+// 	}
 
-	const config: DateTimeFormatConfig = {
-		tokens,
-		separators,
-		options: options
-			? {
-					...(typeof options.is24Hour === "boolean"
-						? { is24Hour: options.is24Hour }
-						: {}),
-					...(typeof options.exact === "boolean"
-						? { exact: options.exact }
-						: {}),
-					...(typeof options.dayPeriods === "object" &&
-					options.dayPeriods !== null
-						? {
-								dayPeriods: options.dayPeriods as {
-									am: string[];
-									pm: string[];
-								},
-							}
-						: {}),
-				}
-			: undefined,
-	};
+// 	const options =
+// 		typeof p.options === "object" && p.options !== null
+// 			? (p.options as Record<string, unknown>)
+// 			: undefined;
 
-	return {
-		kind: record.kind,
-		recordId: record.recordId,
-		profileId,
-		calendarDateFormats: [config],
-	};
-}
+// 	const config: DateTimeFormatConfig = {
+// 		tokens,
+// 		separators,
+// 		options: options
+// 			? {
+// 					...(typeof options.is24Hour === "boolean"
+// 						? { is24Hour: options.is24Hour }
+// 						: {}),
+// 					...(typeof options.exact === "boolean"
+// 						? { exact: options.exact }
+// 						: {}),
+// 					...(typeof options.dayPeriods === "object" &&
+// 					options.dayPeriods !== null
+// 						? {
+// 								dayPeriods: options.dayPeriods as {
+// 									am: string[];
+// 									pm: string[];
+// 								},
+// 							}
+// 						: {}),
+// 				}
+// 			: undefined,
+// 	};
 
-function makeRuleId(recordId: string, suffix: string): string {
-	return `${recordId}.${suffix}`;
-}
+// 	return {
+// 		kind: record.kind,
+// 		recordId: record.recordId,
+// 		profileId,
+// 		calendarDateFormats: [config],
+// 	};
+// }
 
-function compileRelativeTimeRule(
-	record: ClinicalInitSeedLoadedRecord,
-	p: Record<string, unknown>,
-	profileId: string | undefined,
-): TemporalCompilationResult | null {
-	const sequences = p.sequences;
-	const precisionUnits = p.precisionUnits;
-	const directionAnchors = p.directionAnchors;
+// function makeRuleId(recordId: string, suffix: string): string {
+// 	return `${recordId}.${suffix}`;
+// }
 
-	if (!Array.isArray(sequences) || sequences.length === 0) {
-		return { kind: record.kind, recordId: record.recordId, profileId };
-	}
+// function compileRelativeTimeRule(
+// 	record: ClinicalInitSeedLoadedRecord,
+// 	p: Record<string, unknown>,
+// 	profileId: string | undefined,
+// ): TemporalCompilationResult | null {
+// 	const sequences = p.sequences;
+// 	const precisionUnits = p.precisionUnits;
+// 	const directionAnchors = p.directionAnchors;
 
-	const attributeRules: StoredAttributeRule[] = [];
+// 	if (!Array.isArray(sequences) || sequences.length === 0) {
+// 		return { kind: record.kind, recordId: record.recordId, profileId };
+// 	}
 
-	for (let i = 0; i < sequences.length; i++) {
-		const seq = sequences[i] as Record<string, unknown> | undefined;
-		if (!seq || typeof seq !== "object") continue;
+// 	const attributeRules: StoredAttributeRule[] = [];
 
-		const patterns = seq.patterns;
-		if (!Array.isArray(patterns) || patterns.length === 0) continue;
-		const regexPatterns = patterns.filter(
-			(p): p is string => typeof p === "string",
-		);
-		if (regexPatterns.length === 0) continue;
+// 	for (let i = 0; i < sequences.length; i++) {
+// 		const seq = sequences[i] as Record<string, unknown> | undefined;
+// 		if (!seq || typeof seq !== "object") continue;
 
-		const targetField =
-			typeof seq.targetField === "string" ? seq.targetField : "relative_time";
-		const targetValue =
-			typeof seq.targetValue === "string"
-				? seq.targetValue
-				: `relative_time_seq_${i}`;
+// 		const patterns = seq.patterns;
+// 		if (!Array.isArray(patterns) || patterns.length === 0) continue;
+// 		const regexPatterns = patterns.filter(
+// 			(p): p is string => typeof p === "string",
+// 		);
+// 		if (regexPatterns.length === 0) continue;
 
-		const rule: StoredAttributeRule = {
-			ruleId: makeRuleId(record.recordId, `seq_${i}`),
-			targetField,
-			targetValue,
-			regexPatterns,
-			isCaseInsensitive: seq.isCaseInsensitive !== false,
-			priority: typeof seq.priority === "number" ? seq.priority : 50,
-		};
-		attributeRules.push(rule);
-	}
+// 		const targetField =
+// 			typeof seq.targetField === "string" ? seq.targetField : "relative_time";
+// 		const targetValue =
+// 			typeof seq.targetValue === "string"
+// 				? seq.targetValue
+// 				: `relative_time_seq_${i}`;
 
-	return {
-		kind: record.kind,
-		recordId: record.recordId,
-		profileId,
-		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
-	};
-}
+// 		const rule: StoredAttributeRule = {
+// 			ruleId: makeRuleId(record.recordId, `seq_${i}`),
+// 			targetField,
+// 			targetValue,
+// 			regexPatterns,
+// 			isCaseInsensitive: seq.isCaseInsensitive !== false,
+// 			priority: typeof seq.priority === "number" ? seq.priority : 50,
+// 		};
+// 		attributeRules.push(rule);
+// 	}
 
-function compileRangeRule(
-	record: ClinicalInitSeedLoadedRecord,
-	p: Record<string, unknown>,
-	profileId: string | undefined,
-): TemporalCompilationResult | null {
-	const sequences = p.sequences;
-	const anchorSchema = p.anchorSchema;
-	const anchorField = p.anchorField;
+// 	return {
+// 		kind: record.kind,
+// 		recordId: record.recordId,
+// 		profileId,
+// 		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
+// 	};
+// }
 
-	const attributeRules: StoredAttributeRule[] = [];
+// function compileRangeRule(
+// 	record: ClinicalInitSeedLoadedRecord,
+// 	p: Record<string, unknown>,
+// 	profileId: string | undefined,
+// ): TemporalCompilationResult | null {
+// 	const sequences = p.sequences;
+// 	const anchorSchema = p.anchorSchema;
+// 	const anchorField = p.anchorField;
 
-	if (Array.isArray(sequences)) {
-		for (let i = 0; i < sequences.length; i++) {
-			const seq = sequences[i] as Record<string, unknown> | undefined;
-			if (!seq || typeof seq !== "object") continue;
+// 	const attributeRules: StoredAttributeRule[] = [];
 
-			const patterns = seq.patterns;
-			if (!Array.isArray(patterns) || patterns.length === 0) continue;
-			const regexPatterns = patterns.filter(
-				(p): p is string => typeof p === "string",
-			);
-			if (regexPatterns.length === 0) continue;
+// 	if (Array.isArray(sequences)) {
+// 		for (let i = 0; i < sequences.length; i++) {
+// 			const seq = sequences[i] as Record<string, unknown> | undefined;
+// 			if (!seq || typeof seq !== "object") continue;
 
-			const targetField =
-				typeof seq.targetField === "string"
-					? seq.targetField
-					: "range_boundary";
-			const targetValue =
-				typeof seq.targetValue === "string"
-					? seq.targetValue
-					: `range_seq_${i}`;
+// 			const patterns = seq.patterns;
+// 			if (!Array.isArray(patterns) || patterns.length === 0) continue;
+// 			const regexPatterns = patterns.filter(
+// 				(p): p is string => typeof p === "string",
+// 			);
+// 			if (regexPatterns.length === 0) continue;
 
-			const rule: StoredAttributeRule = {
-				ruleId: makeRuleId(record.recordId, `seq_${i}`),
-				targetField,
-				targetValue,
-				regexPatterns,
-				isCaseInsensitive: seq.isCaseInsensitive !== false,
-				priority: typeof seq.priority === "number" ? seq.priority : 50,
-			};
-			attributeRules.push(rule);
-		}
-	}
+// 			const targetField =
+// 				typeof seq.targetField === "string"
+// 					? seq.targetField
+// 					: "range_boundary";
+// 			const targetValue =
+// 				typeof seq.targetValue === "string"
+// 					? seq.targetValue
+// 					: `range_seq_${i}`;
 
-	return {
-		kind: record.kind,
-		recordId: record.recordId,
-		profileId,
-		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
-	};
-}
+// 			const rule: StoredAttributeRule = {
+// 				ruleId: makeRuleId(record.recordId, `seq_${i}`),
+// 				targetField,
+// 				targetValue,
+// 				regexPatterns,
+// 				isCaseInsensitive: seq.isCaseInsensitive !== false,
+// 				priority: typeof seq.priority === "number" ? seq.priority : 50,
+// 			};
+// 			attributeRules.push(rule);
+// 		}
+// 	}
 
-function compileCadenceRule(
-	record: ClinicalInitSeedLoadedRecord,
-	p: Record<string, unknown>,
-	profileId: string | undefined,
-): TemporalCompilationResult | null {
-	const mappings = p.mappings;
+// 	return {
+// 		kind: record.kind,
+// 		recordId: record.recordId,
+// 		profileId,
+// 		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
+// 	};
+// }
 
-	if (!Array.isArray(mappings) || mappings.length === 0) {
-		return { kind: record.kind, recordId: record.recordId, profileId };
-	}
+// function compileCadenceRule(
+// 	record: ClinicalInitSeedLoadedRecord,
+// 	p: Record<string, unknown>,
+// 	profileId: string | undefined,
+// ): TemporalCompilationResult | null {
+// 	const mappings = p.mappings;
 
-	const attributeRules: StoredAttributeRule[] = [];
+// 	if (!Array.isArray(mappings) || mappings.length === 0) {
+// 		return { kind: record.kind, recordId: record.recordId, profileId };
+// 	}
 
-	for (let i = 0; i < mappings.length; i++) {
-		const mapping = mappings[i] as Record<string, unknown> | undefined;
-		if (!mapping || typeof mapping !== "object") continue;
+// 	const attributeRules: StoredAttributeRule[] = [];
 
-		const patterns = mapping.patterns;
-		if (!Array.isArray(patterns) || patterns.length === 0) continue;
-		const regexPatterns = patterns.filter(
-			(p): p is string => typeof p === "string",
-		);
-		if (regexPatterns.length === 0) continue;
+// 	for (let i = 0; i < mappings.length; i++) {
+// 		const mapping = mappings[i] as Record<string, unknown> | undefined;
+// 		if (!mapping || typeof mapping !== "object") continue;
 
-		const targetField =
-			typeof mapping.targetField === "string" ? mapping.targetField : "cadence";
-		const targetValue =
-			typeof mapping.targetValue === "string"
-				? mapping.targetValue
-				: `cadence_${i}`;
+// 		const patterns = mapping.patterns;
+// 		if (!Array.isArray(patterns) || patterns.length === 0) continue;
+// 		const regexPatterns = patterns.filter(
+// 			(p): p is string => typeof p === "string",
+// 		);
+// 		if (regexPatterns.length === 0) continue;
 
-		attributeRules.push({
-			ruleId: makeRuleId(record.recordId, `map_${i}`),
-			targetField,
-			targetValue,
-			regexPatterns,
-			isCaseInsensitive: mapping.isCaseInsensitive !== false,
-			priority: typeof mapping.priority === "number" ? mapping.priority : 50,
-		});
-	}
+// 		const targetField =
+// 			typeof mapping.targetField === "string" ? mapping.targetField : "cadence";
+// 		const targetValue =
+// 			typeof mapping.targetValue === "string"
+// 				? mapping.targetValue
+// 				: `cadence_${i}`;
 
-	return {
-		kind: record.kind,
-		recordId: record.recordId,
-		profileId,
-		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
-	};
-}
+// 		attributeRules.push({
+// 			ruleId: makeRuleId(record.recordId, `map_${i}`),
+// 			targetField,
+// 			targetValue,
+// 			regexPatterns,
+// 			isCaseInsensitive: mapping.isCaseInsensitive !== false,
+// 			priority: typeof mapping.priority === "number" ? mapping.priority : 50,
+// 		});
+// 	}
 
-function compileExclusionRule(
-	record: ClinicalInitSeedLoadedRecord,
-	p: Record<string, unknown>,
-	profileId: string | undefined,
-): TemporalCompilationResult | null {
-	const sequences = p.sequences;
+// 	return {
+// 		kind: record.kind,
+// 		recordId: record.recordId,
+// 		profileId,
+// 		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
+// 	};
+// }
 
-	if (!Array.isArray(sequences) || sequences.length === 0) {
-		return { kind: record.kind, recordId: record.recordId, profileId };
-	}
+// function compileExclusionRule(
+// 	record: ClinicalInitSeedLoadedRecord,
+// 	p: Record<string, unknown>,
+// 	profileId: string | undefined,
+// ): TemporalCompilationResult | null {
+// 	const sequences = p.sequences;
 
-	const attributeRules: StoredAttributeRule[] = [];
+// 	if (!Array.isArray(sequences) || sequences.length === 0) {
+// 		return { kind: record.kind, recordId: record.recordId, profileId };
+// 	}
 
-	for (let i = 0; i < sequences.length; i++) {
-		const seq = sequences[i] as Record<string, unknown> | undefined;
-		if (!seq || typeof seq !== "object") continue;
+// 	const attributeRules: StoredAttributeRule[] = [];
 
-		const patterns = seq.patterns;
-		if (!Array.isArray(patterns) || patterns.length === 0) continue;
-		const regexPatterns = patterns.filter(
-			(p): p is string => typeof p === "string",
-		);
-		if (regexPatterns.length === 0) continue;
+// 	for (let i = 0; i < sequences.length; i++) {
+// 		const seq = sequences[i] as Record<string, unknown> | undefined;
+// 		if (!seq || typeof seq !== "object") continue;
 
-		const targetField =
-			typeof seq.targetField === "string" ? seq.targetField : "exclusion";
-		const targetValue =
-			typeof seq.targetValue === "string"
-				? seq.targetValue
-				: `exclusion_seq_${i}`;
+// 		const patterns = seq.patterns;
+// 		if (!Array.isArray(patterns) || patterns.length === 0) continue;
+// 		const regexPatterns = patterns.filter(
+// 			(p): p is string => typeof p === "string",
+// 		);
+// 		if (regexPatterns.length === 0) continue;
 
-		attributeRules.push({
-			ruleId: makeRuleId(record.recordId, `seq_${i}`),
-			targetField,
-			targetValue,
-			regexPatterns,
-			isCaseInsensitive: seq.isCaseInsensitive !== false,
-			priority: typeof seq.priority === "number" ? seq.priority : 50,
-		});
-	}
+// 		const targetField =
+// 			typeof seq.targetField === "string" ? seq.targetField : "exclusion";
+// 		const targetValue =
+// 			typeof seq.targetValue === "string"
+// 				? seq.targetValue
+// 				: `exclusion_seq_${i}`;
 
-	return {
-		kind: record.kind,
-		recordId: record.recordId,
-		profileId,
-		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
-	};
-}
+// 		attributeRules.push({
+// 			ruleId: makeRuleId(record.recordId, `seq_${i}`),
+// 			targetField,
+// 			targetValue,
+// 			regexPatterns,
+// 			isCaseInsensitive: seq.isCaseInsensitive !== false,
+// 			priority: typeof seq.priority === "number" ? seq.priority : 50,
+// 		});
+// 	}
+
+// 	return {
+// 		kind: record.kind,
+// 		recordId: record.recordId,
+// 		profileId,
+// 		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
+// 	};
+// }

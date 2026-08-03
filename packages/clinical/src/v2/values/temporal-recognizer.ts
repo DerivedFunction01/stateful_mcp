@@ -1,4 +1,4 @@
-import type { TimePrecisionLevel } from "../../schemas/time";
+import type { TimePrecisionLevel } from "../schemas/schemas-interface/time";
 import { createV2TemporalSyntaxProfile, type V2TemporalSyntaxProfile } from "./temporal-syntax-profile";
 import type { TemporalExpression } from "./temporal-expression";
 

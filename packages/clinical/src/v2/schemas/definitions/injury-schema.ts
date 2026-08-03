@@ -1,10 +1,10 @@
-import { OPERATIONAL_DOMAINS } from "../../../schemas/environment";
+import { OPERATIONAL_DOMAINS } from "../schemas-interface/environment";
 import {
 	EQUIPMENT_STATUSES,
 	OPERATIONAL_GEAR_CATEGORIES,
 	PROTECTIVE_ITEM_STATUSES,
-} from "../../../schemas/injury";
-import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
+} from "../schemas-interface/injury";
+import { CLINICAL_SOURCE_TYPES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
 import { productDetailsFields } from "./shared-fields";
 

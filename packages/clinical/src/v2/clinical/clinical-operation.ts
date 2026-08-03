@@ -1,4 +1,4 @@
-import type { CodeableConcept } from "../../schemas/shared";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 import type { TypedValue } from "../values/typed-value";
 import type { FactCertainty } from "../workspaces/workspace-types";
 

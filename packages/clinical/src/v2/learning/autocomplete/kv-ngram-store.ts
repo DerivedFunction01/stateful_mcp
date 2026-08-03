@@ -1,5 +1,5 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { AutocompleteSuggestionKind } from "../../../store/reference/auto-complete/interfaces";
+import type { AutocompleteSuggestionKind } from "../../stores/auto-complete/interfaces";
 import type { NgramRecord, NgramStore, NgramSuggestion } from "../interfaces";
 
 const STORE_PREFIX = "ngram:";

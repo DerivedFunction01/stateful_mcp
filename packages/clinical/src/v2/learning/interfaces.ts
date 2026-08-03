@@ -94,7 +94,7 @@ export interface SystemWeightStore {
 export interface NgramRecord {
 	ngram: string;
 	n: 1 | 2 | 3;
-	kind: import("../../store/reference/auto-complete/interfaces").AutocompleteSuggestionKind;
+	kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind;
 	frequency: number;
 	lastUpdatedAt: string;
 	templateId?: string;
@@ -104,7 +104,7 @@ export interface NgramRecord {
 export interface NgramSuggestion {
 	ngram: string;
 	n: 1 | 2 | 3;
-	kind: import("../../store/reference/auto-complete/interfaces").AutocompleteSuggestionKind;
+	kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind;
 	frequency: number;
 	lastUpdatedAt: string;
 }
@@ -113,12 +113,12 @@ export interface NgramStore {
 	increment(
 		ngram: string,
 		n: 1 | 2 | 3,
-		kind: import("../../store/reference/auto-complete/interfaces").AutocompleteSuggestionKind,
+		kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind,
 		ctx?: { templateId?: string; slotName?: string },
 	): Promise<void>;
 	suggest(prefix: string, limit?: number): Promise<NgramSuggestion[]>;
 	getTopByKind(
-		kind: import("../../store/reference/auto-complete/interfaces").AutocompleteSuggestionKind,
+		kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind,
 		limit?: number,
 	): Promise<NgramSuggestion[]>;
 }

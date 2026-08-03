@@ -1,6 +1,6 @@
-import type { TimePrecisionLevel } from "../../schemas/time";
-import type { CodeableConcept } from "../../schemas/shared";
-import type { CadenceBaseType, PhysiologicalEventAnchor } from "../../schemas/medication";
+import type { TimePrecisionLevel } from "../schemas/schemas-interface/time";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
+import type { CadenceBaseType, PhysiologicalEventAnchor } from "../schemas/schemas-interface/medication";
 
 export interface FrequencyProfile {
   aliases: Readonly<

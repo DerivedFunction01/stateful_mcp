@@ -1,4 +1,4 @@
-import type { PatientLearningBucket } from "../schemas/patient";
+import type { PatientLearningBucket } from "../schemas/schemas-interface/patient";
 
 export interface PatientLearningContext extends PatientLearningBucket {
 	facilityId?: string;
@@ -139,7 +139,7 @@ export interface CalibrationStore {
 }
 
 import type { PipelineStep } from "@stateful-mcp/core";
-import type { Position } from "./reference/auto-complete/interfaces";
+import type { Position } from "./auto-complete/interfaces";
 
 export interface SlotCondition {
 	pipeline: PipelineStep[];

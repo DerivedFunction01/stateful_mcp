@@ -1,4 +1,4 @@
-import type { ClinicalDateRange, TimePrecisionLevel, TemporalDirection } from "../../schemas/time";
+import type { ClinicalDateRange, TimePrecisionLevel, TemporalDirection } from "../schemas/schemas-interface/time";
 import type { V2TemporalSyntaxProfile } from "./temporal-syntax-profile";
 
 export type TemporalExpression =

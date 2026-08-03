@@ -4,8 +4,8 @@ import {
 	INVESTIGATION_TYPES,
 	PRIORITIES,
 	REFERRAL_URGENCIES,
-} from "../../../schemas/plan";
-import { LATERALITIES } from "../../../schemas/shared";
+} from "../schemas-interface/plan";
+import { LATERALITIES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
 
 export const investigationOrderSchema = defineSchema({

@@ -1,5 +1,5 @@
-import { UNIT_DISPLAY_MAP } from "../../../schemas/measurement";
-import type { ParserSyntaxProfile } from "../../../store/interfaces";
+import { UNIT_DISPLAY_MAP } from "../../../v2/schemas/schemas-interface/measurement";
+import type { ParserSyntaxProfile } from "../../../v2/stores/interfaces";
 import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeProfile(

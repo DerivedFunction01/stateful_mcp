@@ -1,4 +1,4 @@
-import type { CodeableConcept } from "../../schemas/shared";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 import type { V2WorkspaceAggregate } from "./workspace-types";
 
 export type WorkspaceSnapshotBranchStatus =

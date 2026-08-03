@@ -1,4 +1,4 @@
-import type { MeasurementOperator } from "../../schemas/measurement";
+import type { MeasurementOperator } from "../schemas/schemas-interface/measurement";
 import type { NumericBounds } from "./typed-value";
 
 export interface MeasurementResolution {

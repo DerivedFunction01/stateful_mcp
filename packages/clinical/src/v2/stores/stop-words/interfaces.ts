@@ -3,7 +3,7 @@ import type {
 	StopWordStore,
 	StopWordWordListRecord,
 	StopWordWordListStore,
-} from "../../../store/interfaces";
+} from "../interfaces";
 
 export type {
 	StopWordProfile,

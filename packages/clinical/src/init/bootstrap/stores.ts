@@ -1,11 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { ParserProfileCoreStore } from "../../store/parser/profiles/interfaces";
-import type {
-	ParserAttributeRuleStore,
-	ParserEvaluatorRuleStore,
-	ParserProfileEvaluatorBindingStore,
-	ParserProfileRuleBindingStore,
-} from "../../store/parser/rules/interfaces";
 import type { CommandTemplateStore } from "../../v2/stores/command-templates/interfaces";
 import type { FacilityStore } from "../../v2/stores/facilities/interfaces";
 import type { JurisdictionalDisplayStore } from "../../v2/stores/jurisdictional-displays/interfaces";
@@ -18,11 +11,6 @@ import type {
 
 export interface BootstrapStores {
 	dictionaryStore: DictionaryStore;
-	profiles: ParserProfileCoreStore;
-	attributeRules: ParserAttributeRuleStore;
-	evaluatorRules: ParserEvaluatorRuleStore;
-	attributeBindings: ParserProfileRuleBindingStore;
-	evaluatorBindings: ParserProfileEvaluatorBindingStore;
 	stopWordProfiles: StopWordStore;
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;

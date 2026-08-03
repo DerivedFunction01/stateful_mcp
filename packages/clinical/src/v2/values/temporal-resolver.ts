@@ -1,4 +1,4 @@
-import type { ClinicalDateRange, TemporalBoundary, TimePrecisionLevel } from "../../schemas/time";
+import type { ClinicalDateRange, TemporalBoundary, TimePrecisionLevel } from "../schemas/schemas-interface/time";
 import { type TemporalAnchor, type TemporalExpression, type TemporalResolveResult } from "./temporal-expression";
 
 export function resolveTemporalExpression(expression: TemporalExpression, anchor: TemporalAnchor): TemporalResolveResult {

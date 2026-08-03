@@ -4,7 +4,7 @@ import {
 	GENETIC_MODIFICATION_STATUSES,
 	PROPAGATION_METHODS,
 	SUBJECT_LIFECYCLE_STATUSES,
-} from "../../../schemas/patient";
+} from "../schemas-interface/patient";
 import { defineSchema } from "../schema-factory";
 
 export const patientSchema = defineSchema({

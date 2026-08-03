@@ -1,4 +1,4 @@
-import type { AutocompleteSuggestionKind } from "../../store/reference/auto-complete/interfaces";
+import type { AutocompleteSuggestionKind } from "../../stores/auto-complete/interfaces";
 
 export interface NgramExtractionResult {
 	ngram: string;

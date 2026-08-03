@@ -1,4 +1,4 @@
-import type { CodeableConcept } from "../../schemas/shared";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 
 export type V2PresentationFieldKind =
 	| "concept"

@@ -1,5 +1,5 @@
 import type { ClinicalInitSeedRecord } from "../record";
-import { UNIT_DISPLAY_MAP } from "../../../schemas/measurement";
+import { UNIT_DISPLAY_MAP } from "../../../v2/schemas/schemas-interface/measurement";
 
 const defaultQuantityDisplay = {
 	units: Object.fromEntries(

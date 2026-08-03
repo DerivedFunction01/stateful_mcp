@@ -15,8 +15,8 @@ import {
 	VEHICLE_CHASSIS_CATEGORIES,
 	VEHICLE_USAGES,
 	WEATHER_CONDITIONS,
-} from "../../../schemas/environment";
-import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
+} from "../schemas-interface/environment";
+import { CLINICAL_SOURCE_TYPES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
 import { productDetailsFields } from "./shared-fields";
 

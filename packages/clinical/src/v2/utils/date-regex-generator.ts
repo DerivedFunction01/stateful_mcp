@@ -1,4 +1,4 @@
-import { getCompiledRegex } from "../_compiled-regex";
+import { getCompiledRegex } from "./_compiled-regex";
 
 export type DateTimeToken =
 	| "YYYY"

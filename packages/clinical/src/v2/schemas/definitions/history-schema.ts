@@ -3,8 +3,8 @@ import {
 	ALLERGY_VERIFICATION_STATUSES,
 	COMPLIANCE_STATUSES,
 	SOCIAL_HISTORY_STATUSES,
-} from "../../../schemas/history";
-import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
+} from "../schemas-interface/history";
+import { CLINICAL_SOURCE_TYPES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
 import { frequencyFields } from "./shared-fields";
 

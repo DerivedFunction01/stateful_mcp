@@ -12,7 +12,7 @@
  *   // → 15998.6864898
  */
 
-import type { MeasurementUnitAnchor } from "../../../schemas/measurement";
+import type { MeasurementUnitAnchor } from "../../schemas/schemas-interface/measurement";
 import { getDefaultConversionRegistry } from "./registry";
 
 export {

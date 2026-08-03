@@ -1,4 +1,4 @@
-import { ROUTES } from "../../../schemas/shared";
+import { ROUTES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
 import { dateRangeField, frequencyFields } from "./shared-fields";
 

@@ -1,9 +1,9 @@
 import {
 	CADENCE_BASE_TYPES,
 	PHYSIOLOGICAL_EVENT_ANCHORS,
-} from "../../../schemas/medication";
-import { CLINICAL_SOURCE_TYPES, LATERALITIES } from "../../../schemas/shared";
-import { TIME_PRECISION_LEVELS } from "../../../schemas/time";
+} from "../schemas-interface/medication";
+import { CLINICAL_SOURCE_TYPES, LATERALITIES } from "../schemas-interface/shared";
+import { TIME_PRECISION_LEVELS } from "../schemas-interface/time";
 import type { SchemaFieldDefinition } from "../schema-factory";
 
 /**

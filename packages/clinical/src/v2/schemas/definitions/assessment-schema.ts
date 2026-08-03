@@ -3,8 +3,8 @@ import {
 	ALGORITHMIC_EVALUATION_TYPES,
 	DIFFERENTIAL_DIAGNOSIS_STATUSES,
 	SEVERITY_TIERS,
-} from "../../../schemas/assessment";
-import { CERTAINTIES } from "../../../schemas/shared";
+} from "../schemas-interface/assessment";
+import { CERTAINTIES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
 
 export const primaryDiagnosisSchema = defineSchema({

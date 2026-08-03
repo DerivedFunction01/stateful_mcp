@@ -1,4 +1,4 @@
-import type { ClinicalProseTemplate } from "../../../store/interfaces";
+import type { ClinicalProseTemplate } from "../../../v2/stores/interfaces";
 import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeProseRule(

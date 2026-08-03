@@ -1,15 +1,15 @@
 import {
 	MEASUREMENT_OPERATORS,
 	VALUE_TYPES,
-} from "../../../schemas/measurement";
-import { OBSERVATION_TRAJECTORIES } from "../../../schemas/observation";
+} from "../schemas-interface/measurement";
+import { OBSERVATION_TRAJECTORIES } from "../schemas-interface/observation";
 import {
 	CERTAINTIES,
 	CLINICAL_SOURCE_TYPES,
 	LATERALITIES,
 	STATUSES,
-} from "../../../schemas/shared";
-import { TIME_PRECISION_LEVELS } from "../../../schemas/time";
+} from "../schemas-interface/shared";
+import { TIME_PRECISION_LEVELS } from "../schemas-interface/time";
 import { defineSchema } from "../schema-factory";
 
 export const observationSchema = defineSchema({

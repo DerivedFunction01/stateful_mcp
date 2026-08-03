@@ -6,7 +6,7 @@
  * `WorkspaceStore(parser)` and `ParsedItem`-based fact extraction are not used.
  */
 
-import type { CodeableConcept } from "../../schemas/shared";
+import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 
 export type BranchLifecycleState =
 	| "active"

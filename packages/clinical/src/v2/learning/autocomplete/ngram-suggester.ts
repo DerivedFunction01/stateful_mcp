@@ -2,7 +2,7 @@ import type {
 	NgramStore,
 	NgramSuggestion,
 } from "../interfaces";
-import type { AutocompleteSuggestion } from "../../../store/reference/auto-complete/interfaces";
+import type { AutocompleteSuggestion } from "../../stores/auto-complete/interfaces";
 
 const MAX_SUGGESTIONS = 5;
 

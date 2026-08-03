@@ -1,5 +1,5 @@
-import type { NumericFieldFormatOptions } from "../../store/interfaces";
-import { getCompiledRegex } from "../_compiled-regex";
+import type { NumericFieldFormatOptions } from "../stores/interfaces";
+import { getCompiledRegex } from "./_compiled-regex";
 
 export type { NumericFieldFormatOptions };
 

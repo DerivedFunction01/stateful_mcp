@@ -1,4 +1,4 @@
-import type { NamedGroupContract } from "../../store/interfaces";
+import type { NamedGroupContract } from "../stores/interfaces";
 
 export class NamedGroupContractError extends Error {
 	constructor(message: string) {
