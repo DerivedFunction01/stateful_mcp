@@ -32,6 +32,8 @@ import { KvParserCommandMacroStore } from "../src/store/parser/command-macros/kv
 import { validateParserCommandMacro } from "../src/store/parser/command-macros/validation";
 import { KvCommandTemplateStore } from "../src/store/reference/command-templates/kv-command-template-store";
 import { validateCommandTemplate } from "../src/store/reference/command-templates/validation";
+import { extractCommandValue } from "../src/parser/command/command-value-adapter";
+import { CommandMacroFieldMetadataCatalog } from "../src/parser/command/command-field-metadata";
 import { CommandMacroQueryCompiler } from "../src/store/sql/command-macro-query-compiler";
 import { CommandTemplateQueryCompiler } from "../src/store/sql/command-template-query-compiler";
 
@@ -223,6 +225,25 @@ describe("command macro v2 foundation", () => {
 		expect(
 			diagnostics.some((item) => item.includes("unsupported operation")),
 		).toBe(true);
+	});
+
+	test("extracts typed command values through the direct adapter contract", () => {
+		const result = extractCommandValue("42", {
+			kind: "scalar",
+			extraction: { pattern: "^(?<value>\\d+)$", fullSpan: true, namedGroupContract: { required: ["value"] } },
+			valueType: "integer",
+		});
+		expect(result.value).toBe(42);
+		expect(result.namedGroups?.value).toBe("42");
+		expect(result.evidence[0]?.source).toBe("scalar");
+	});
+
+	test("derives field metadata from active macro definitions", async () => {
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(macro);
+		const fields = await new CommandMacroFieldMetadataCatalog(store).list();
+		expect(fields.map((field) => field.roleName)).toEqual(["subjective.presenting_complaint", "subjective.severity"]);
+		expect(fields.find((field) => field.roleName === "subjective.severity")?.valueKind).toBe("scalar");
 	});
 
 	test("validates the full plan before mutation and compensates failures", async () => {

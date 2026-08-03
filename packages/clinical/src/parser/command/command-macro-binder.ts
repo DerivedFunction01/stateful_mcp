@@ -1,4 +1,5 @@
 import type { ParserCommandMacro } from "../../store/parser/command-macros/interfaces";
+import type { AttributeParserRule } from "../../store/interfaces";
 import { evaluateMacroBoundary } from "./command-macro-boundary";
 import {
 	type CommandMacroCellPlan,
@@ -23,7 +24,7 @@ export interface CommandMacroBindResult {
 export function bindCommandMacro(
 	input: string,
 	macro: ParserCommandMacro,
-	options: { groupId?: string; cellRef?: string; sourceLine?: number } = {},
+	options: { groupId?: string; cellRef?: string; sourceLine?: number; attributeRules?: AttributeParserRule[] } = {},
 ): CommandMacroBindResult {
 	const lexed = lexCommandMacro(input, macro);
 	const diagnostics: CommandMacroBindDiagnostic[] = lexed.diagnostics.map(
@@ -131,7 +132,7 @@ export function bindCommandMacro(
 				continue;
 			}
 		}
-		const value = extractCommandMacroValue(token.rawText, argument.extraction);
+		const value = extractCommandMacroValue(token.rawText, argument.extraction, { attributeRules: options.attributeRules });
 		if (value.diagnostics.length) {
 			diagnostics.push(
 				...value.diagnostics.map((message) => ({
