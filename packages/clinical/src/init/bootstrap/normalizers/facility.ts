@@ -1,4 +1,4 @@
-import type { Facility } from "../../../store/reference/facilities/interfaces";
+import type { Facility } from "../../../v2/stores/facilities/interfaces";
 import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeFacility(

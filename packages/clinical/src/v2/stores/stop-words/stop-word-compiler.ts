@@ -1,4 +1,4 @@
-import type { StopWordContext } from "../../interfaces";
+import type { StopWordContext } from "../../../store/interfaces";
 import type { StopWordProfile } from "./interfaces";
 import type { StopWordWordListStore } from "./word-list-store-interfaces";
 

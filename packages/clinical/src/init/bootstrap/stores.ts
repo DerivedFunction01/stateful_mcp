@@ -6,15 +6,15 @@ import type {
 	ParserProfileEvaluatorBindingStore,
 	ParserProfileRuleBindingStore,
 } from "../../store/parser/rules/interfaces";
-import type { CommandTemplateStore } from "../../store/reference/command-templates/interfaces";
-import type { FacilityStore } from "../../store/reference/facilities/interfaces";
-import type { JurisdictionalDisplayStore } from "../../store/reference/jurisdictional-displays/interfaces";
-import type { PersonnelStore } from "../../store/reference/personnel/interfaces";
-import type { ClinicalProseTemplateStore } from "../../store/reference/prose-templates/interfaces";
+import type { CommandTemplateStore } from "../../v2/stores/command-templates/interfaces";
+import type { FacilityStore } from "../../v2/stores/facilities/interfaces";
+import type { JurisdictionalDisplayStore } from "../../v2/stores/jurisdictional-displays/interfaces";
+import type { PersonnelStore } from "../../v2/stores/personnel/interfaces";
+import type { ClinicalProseTemplateStore } from "../../v2/stores/prose-templates/interfaces";
 import type {
 	StopWordStore,
 	StopWordWordListStore,
-} from "../../store/reference/stop-words/interfaces";
+} from "../../v2/stores/stop-words/interfaces";
 
 export interface BootstrapStores {
 	dictionaryStore: DictionaryStore;

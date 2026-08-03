@@ -1,4 +1,4 @@
-import type { Personnel } from "../../../store/reference/personnel/interfaces";
+import type { Personnel } from "../../../v2/stores/personnel/interfaces";
 import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizePersonnel(

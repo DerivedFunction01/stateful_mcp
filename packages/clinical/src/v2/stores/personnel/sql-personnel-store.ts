@@ -1,5 +1,5 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import { ReferenceQueryCompiler } from "../../sql/reference-query-compiler";
+import { ReferenceQueryCompiler } from "../../../store/sql/reference-query-compiler";
 import type { Personnel, PersonnelStore } from "./interfaces";
 
 export class SqlPersonnelStore implements PersonnelStore {

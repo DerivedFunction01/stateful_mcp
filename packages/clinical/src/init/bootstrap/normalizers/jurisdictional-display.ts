@@ -1,4 +1,4 @@
-import type { JurisdictionalDisplay } from "../../../store/reference/jurisdictional-displays/interfaces";
+import type { JurisdictionalDisplay } from "../../../v2/stores/jurisdictional-displays/interfaces";
 import type { ClinicalInitSeedLoadedRecord } from "../../seed/record";
 
 export function normalizeJurisdictionalDisplay(
