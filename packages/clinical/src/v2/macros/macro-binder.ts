@@ -76,7 +76,11 @@ export function bindMacro(
 			argumentId: spec.argumentId,
 			name: spec.name,
 			rawValue: arg.rawValue,
+			captures: arg.captures,
+			items: arg.items,
 			source: arg.source,
+			start: arg.start,
+			end: arg.end,
 		});
 	});
 
@@ -114,7 +118,7 @@ function resolveSpec(
 		if (!allowPositional) return undefined;
 		return definition.arguments.find((spec) => spec.position === arg.position);
 	}
-	if (arg.source === "named" || arg.source === "inferred") {
+	if (arg.source === "named" || arg.source === "inferred" || arg.source === "rule") {
 		if (arg.name) {
 			const byName = definition.arguments.find(
 				(spec) =>

@@ -7,7 +7,7 @@
  * are reference material for Phase 3 and MUST NOT be imported by V2.
  */
 
-import type { TypedValueKind } from "../values/typed-value";
+import type { TemporalValueType, TypedValueKind } from "../values/typed-value";
 
 export type MacroDefinitionStatus = "draft" | "published" | "retired";
 
@@ -29,6 +29,10 @@ export type MacroValueSpecKind =
 
 export interface V2ValueSpec {
 	kind: MacroValueSpecKind;
+	/** Profile/macro-owned expressions. Named groups define the value shape. */
+	patterns?: readonly string[];
+	temporalType?: TemporalValueType;
+	itemDelimiter?: string;
 	target?: { targetSchema: string; targetPath: string };
 	required?: boolean;
 	blankPolicy?: "reject" | "allow" | "skip";
@@ -99,6 +103,10 @@ export interface V2MacroDefinition {
 	description?: string;
 	personnelId?: string;
 	profileId?: string;
+	syntax?: {
+		argumentDelimiter?: string;
+		proseBoundaryToken?: string;
+	};
 }
 
 export interface MacroStore {

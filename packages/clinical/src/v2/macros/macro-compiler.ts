@@ -25,6 +25,7 @@ import { resolveConceptValue } from "../values/concept-value";
 import type { ValueExtractDiagnostic } from "./macro-value-extractor";
 import { extractTypedValue } from "./macro-value-extractor";
 import { bindMacro } from "./macro-binder";
+import { MacroDefinitionValidator } from "./macro-validator";
 
 export interface MacroCompilerDeps {
 	registry: SchemaRegistry;
@@ -58,6 +59,9 @@ export class MacroCompiler {
 		const diagnostics: string[] = [];
 		const groupId = options.groupId ?? `grp_${definition.macroId}_${definition.version}`;
 		const scope = options.scope ?? { kind: "clinical_document", sessionId: input.sourceLines[0]?.line ? String(input.sourceLines[0].line) : input.macroName };
+		const validation = new MacroDefinitionValidator(this.deps.registry).validate(definition);
+		diagnostics.push(...validation.issues.filter((issue) => issue.severity === "error").map((issue) => issue.message));
+		if (!validation.valid) return { groupId, diagnostics };
 
 		const binding = bindMacro(input, definition);
 		for (const issue of binding.issues) {
@@ -71,6 +75,8 @@ export class MacroCompiler {
 			const field = this.resolveField(definition, spec);
 			const extraction = await extractTypedValue(bindingEntry.rawValue, spec, {
 				field,
+				captures: bindingEntry.captures,
+				items: bindingEntry.items,
 				resolveConcept: this.deps.dictionary
 					? (raw) => this.resolveConcept(raw, spec)
 					: undefined,

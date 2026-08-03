@@ -1,182 +1,305 @@
+import type { V2MacroDefinition, MacroArgumentSpec } from "./macro-definition";
 import type {
 	MacroArgumentInput,
+	MacroListItemInput,
 	MacroInput,
 	MacroSourceLine,
 } from "./macro-binding";
+import type { V2SyntaxProfile } from "./macro-profile";
 
 export interface ParseMacroLineOptions {
 	macroStartToken?: string;
+	definition?: V2MacroDefinition;
+	profile?: V2SyntaxProfile;
+}
+
+export interface MacroParseDiagnostic {
+	code: "UNTERMINATED_QUOTE" | "UNTERMINATED_GROUP" | "INVALID_PATTERN" | "NO_MATCH";
+	message: string;
+	start: number;
+	end: number;
 }
 
 export function parseMacroLine(
 	raw: string,
-	lineNumber: number = 0,
+	lineNumber = 0,
 	options: ParseMacroLineOptions = {},
-): MacroInput | null {
-	const macroStartToken = options.macroStartToken ?? "^";
+): (MacroInput & { diagnostics?: MacroParseDiagnostic[] }) | null {
+	const marker = options.macroStartToken ?? options.profile?.macroStartToken ?? "^";
+	const leading = raw.search(/\S/);
+	if (leading < 0 || !raw.startsWith(marker, leading)) return null;
+	const nameStart = leading + marker.length;
+	const nameEnd = scanUntilWhitespace(raw, nameStart);
+	const macroName = raw.slice(nameStart, nameEnd);
+	if (!macroName) return null;
 
-	const trimmed = raw.trimStart();
-	if (!trimmed.startsWith(macroStartToken)) {
-		return null;
-	}
-
-	const afterStart = trimmed.slice(macroStartToken.length);
-	if (!afterStart.length) {
-		return null;
-	}
-
-	const macroNameEnd = findTokenBoundary(afterStart, 0);
-	const macroName = afterStart.slice(0, macroNameEnd);
-	if (!macroName) {
-		return null;
-	}
-
-	const argsRaw = afterStart.slice(macroNameEnd).trim();
-	const arguments_: MacroArgumentInput[] = [];
-	const sourceLines: MacroSourceLine[] = [
-		{ line: lineNumber, raw, macroName },
-	];
-
-	if (argsRaw.length > 0) {
-		tokenizeArguments(argsRaw, lineNumber, arguments_);
-	}
-
+	const diagnostics: MacroParseDiagnostic[] = [];
+	const bodyStart = skipWhitespace(raw, nameEnd);
+	const arguments_ = options.definition
+		? matchDefinitionArguments(raw, bodyStart, options.definition, diagnostics, options.profile)
+		: scanFallbackAssignments(raw, bodyStart, diagnostics, options.profile?.macroArgDelimiter ?? options.profile?.fallbackBoundaryDelimiter);
+	const sourceLines: MacroSourceLine[] = [{ line: lineNumber, raw, macroName }];
+	for (const argument of arguments_) argument.line = lineNumber;
 	return {
 		macroName,
 		sourceLines,
 		arguments: arguments_,
+		diagnostics: diagnostics.length ? diagnostics : undefined,
 	};
 }
 
-function findTokenBoundary(text: string, start: number): number {
-	for (let i = start; i < text.length; i++) {
-		const ch = text[i]!;
-		if (ch === " " || ch === "\t") {
-			return i;
-		}
-		if (ch === "=") {
-			return i;
-		}
-	}
-	return text.length;
-}
-
-function tokenizeArguments(
+function matchDefinitionArguments(
 	raw: string,
-	lineNumber: number,
-	out: MacroArgumentInput[],
-): void {
-	for (const token of scanArgumentTokens(raw)) {
-		const eqIdx = indexOfEquals(token);
-		if (eqIdx !== -1 && eqIdx > 0) {
-			const name = token.slice(0, eqIdx);
-			const rawValue = unquote(token.slice(eqIdx + 1));
-			out.push({
-				name,
-				position: out.length,
-				rawValue,
-				source: "named",
-				line: lineNumber,
+	bodyStart: number,
+	definition: V2MacroDefinition,
+	diagnostics: MacroParseDiagnostic[],
+	profile?: V2SyntaxProfile,
+): MacroArgumentInput[] {
+	const delimiter = definition.syntax?.argumentDelimiter ?? profile?.macroArgDelimiter ?? profile?.fallbackBoundaryDelimiter;
+	const named = scanNamedAssignments(raw, bodyStart, diagnostics, delimiter);
+	const arguments_: MacroArgumentInput[] = [];
+	for (const segment of named) {
+		const spec = resolveNamedSpec(segment.name, definition.arguments);
+		if (!spec) {
+			arguments_.push({ name: segment.name, rawValue: segment.value, source: "named", start: segment.start, end: segment.end });
+			continue;
+		}
+		const matched = matchSpec(segment.value, segment.valueStart, spec, diagnostics);
+		const items = splitListItems(segment.value, segment.valueStart, spec.extraction.itemDelimiter);
+		arguments_.push({
+			name: segment.name,
+			position: spec.position,
+			rawValue: matched?.rawValue ?? segment.value,
+			captures: matched?.captures,
+			items,
+			source: matched ? "rule" : "named",
+			start: matched?.start ?? segment.valueStart,
+			end: matched?.end ?? segment.end,
+		});
+	}
+
+	// Unnamed text is matched by declared positional expressions, never split by whitespace.
+	const unnamed = scanUnnamedRegions(raw, bodyStart, named, definition.syntax?.argumentDelimiter);
+	const positional = definition.arguments
+		.filter((spec) => spec.position !== undefined && !named.some((part) => resolveNamedSpec(part.name, definition.arguments)?.argumentId === spec.argumentId))
+		.sort((left, right) => (left.position ?? 0) - (right.position ?? 0));
+	let specIndex = 0;
+	for (const region of unnamed) {
+		let cursor = region.start;
+		while (cursor < region.end && specIndex < positional.length) {
+			const spec = positional[specIndex++]!;
+			const matched = matchSpec(raw.slice(cursor, region.end), cursor, spec, diagnostics);
+			if (!matched) break;
+			arguments_.push({
+				position: spec.position,
+				rawValue: matched.rawValue,
+				captures: matched.captures,
+				items: splitListItems(matched.rawValue, matched.start, spec.extraction.itemDelimiter),
+				source: "rule",
+				start: matched.start,
+				end: matched.end,
 			});
-		} else {
-			out.push({
-				position: out.length,
-				rawValue: unquote(token),
-				source: "positional",
-				line: lineNumber,
-			});
+			cursor = matched.end;
+			if (cursor < region.end) cursor = skipWhitespace(raw, cursor);
 		}
 	}
+	return arguments_.sort((left, right) => (left.start ?? 0) - (right.start ?? 0));
 }
 
-/** Find the first `=` that separates a name from its value (skips quoted regions). */
-function indexOfEquals(token: string): number {
-	let quote: string | null = null;
+interface NamedSegment {
+	name: string;
+	value: string;
+	start: number;
+	valueStart: number;
+	end: number;
+}
+
+function scanNamedAssignments(
+	raw: string,
+	start: number,
+	diagnostics: MacroParseDiagnostic[],
+	delimiter?: string,
+): NamedSegment[] {
+	const markers: Array<{ name: string; start: number; equals: number }> = [];
+	let quote = "";
 	let escaped = false;
-	for (let i = 0; i < token.length; i++) {
-		const ch = token[i]!;
-		if (escaped) {
-			escaped = false;
+	let depth = 0;
+	for (let index = start; index < raw.length; index += 1) {
+		const char = raw[index]!;
+		if (escaped) { escaped = false; continue; }
+		if (char === "\\" && quote) { escaped = true; continue; }
+		if (quote) { if (char === quote) quote = ""; continue; }
+		if (char === '"' || char === "'") { quote = char; continue; }
+		if (char === "[") { depth += 1; continue; }
+		if (char === "]") { depth = Math.max(0, depth - 1); continue; }
+		if (!depth && delimiter && raw.startsWith(delimiter, index)) {
+			index += delimiter.length - 1;
 			continue;
 		}
-		if (ch === "\\" && quote) {
-			escaped = true;
-			continue;
-		}
-		if (ch === "'" || ch === '"') {
-			if (quote === ch) {
-				quote = null;
-			} else if (quote === null) {
-				quote = ch;
-			}
-			continue;
-		}
-		if (ch === "=" && quote === null) {
-			return i;
-		}
+		const followsDelimiter = delimiter !== undefined && raw.slice(index - delimiter.length, index) === delimiter;
+		if (depth || (index > start && !/\s/.test(raw[index - 1]!) && !followsDelimiter)) continue;
+		const match = /^[A-Za-z_][\w-]*=/.exec(raw.slice(index));
+		if (match) markers.push({ name: match[0].slice(0, -1), start: index, equals: index + match[0].length - 1 });
 	}
-	return -1;
+	if (quote) diagnostics.push({ code: "UNTERMINATED_QUOTE", message: "Unterminated quote", start, end: raw.length });
+	if (depth) diagnostics.push({ code: "UNTERMINATED_GROUP", message: "Unterminated grouped value", start, end: raw.length });
+	return markers.map((marker, index) => {
+		const nextStart = markers[index + 1]?.start ?? raw.length;
+		const delimiterEnd = delimiter && raw.slice(nextStart - delimiter.length, nextStart) === delimiter
+			? nextStart - delimiter.length
+			: nextStart;
+		const end = delimiterEnd;
+		const valueStart = skipWhitespace(raw, marker.equals + 1);
+		const valueEnd = trimEnd(raw, valueStart, end);
+		return {
+			name: marker.name,
+			value: raw.slice(valueStart, valueEnd),
+			start: marker.start,
+			valueStart,
+			end: valueEnd,
+		};
+	});
 }
 
-/** Scan whitespace-separated argument tokens, treating quoted segments (even after `=`) as atomic. */
-function scanArgumentTokens(text: string): string[] {
-	const tokens: string[] = [];
-	let i = 0;
-	while (i < text.length) {
-		i = skipWhitespace(text, i);
-		if (i >= text.length) break;
-		const start = i;
-		let quote: string | null = null;
-		let escaped = false;
-		while (i < text.length) {
-			const ch = text[i]!;
-			if (escaped) {
-				escaped = false;
-				i++;
-				continue;
-			}
-			if (ch === "\\" && quote) {
-				escaped = true;
-				i++;
-				continue;
-			}
-			if (ch === "'" || ch === '"') {
-				if (quote === ch) {
-					quote = null;
-				} else if (quote === null) {
-					quote = ch;
-				}
-				i++;
-				continue;
-			}
-			if ((ch === " " || ch === "\t") && quote === null) {
-				break;
-			}
-			i++;
-		}
-		tokens.push(text.slice(start, i));
+function scanUnnamedRegions(raw: string, start: number, named: NamedSegment[], delimiter?: string): Array<{ start: number; end: number }> {
+	const regions: Array<{ start: number; end: number }> = [];
+	let cursor = start;
+	for (const segment of named) {
+		const end = segment.start;
+		if (skipWhitespace(raw, cursor) < end) regions.push({ start: skipWhitespace(raw, cursor), end });
+		cursor = segment.end;
 	}
-	return tokens;
+	if (skipWhitespace(raw, cursor) < raw.length) regions.push({ start: skipWhitespace(raw, cursor), end: raw.length });
+	if (delimiter) {
+		return regions.flatMap((region) => splitByDelimiter(raw, region, delimiter));
+	}
+	return regions;
 }
 
-function unquote(value: string): string {
-	let result = value;
-	if (
-		result.length > 0 &&
-		(result[0] === "'" || result[0] === '"') && result[result.length - 1] === result[0]
-	) {
-		return result.slice(1, -1).replace(/\\(['"])/g, "$1");
+function scanFallbackAssignments(raw: string, start: number, diagnostics: MacroParseDiagnostic[], delimiter?: string): MacroArgumentInput[] {
+	const named = scanNamedAssignments(raw, start, diagnostics, delimiter);
+	if (named.length) return named.map((segment, position) => ({
+		name: segment.name,
+		position,
+		rawValue: segment.value,
+		source: "named",
+		start: segment.start,
+		end: segment.end,
+	}));
+	const valueStart = skipWhitespace(raw, start);
+	return valueStart < raw.length
+		? [{ position: 0, rawValue: raw.slice(valueStart), source: "positional", start: valueStart, end: raw.length }]
+		: [];
+}
+
+function splitListItems(text: string, offset: number, delimiter?: string): MacroListItemInput[] | undefined {
+	if (!delimiter) return undefined;
+	const items: MacroListItemInput[] = [];
+	let start = 0;
+	let quote = "";
+	let depth = 0;
+	for (let index = 0; index < text.length; index += 1) {
+		const char = text[index]!;
+		if (char === '"' || char === "'") {
+			if (!quote) quote = char;
+			else if (quote === char) quote = "";
+			continue;
+		}
+		if (quote) continue;
+		if (char === "[") { depth += 1; continue; }
+		if (char === "]") { depth = Math.max(0, depth - 1); continue; }
+		if (!depth && text.startsWith(delimiter, index)) {
+			pushListItem(items, text, start, index, offset);
+			index += delimiter.length - 1;
+			start = index + 1;
+		}
 	}
-	if (result.length > 0 && (result[0] === "'" || result[0] === '"')) {
-		return result.slice(1);
+	pushListItem(items, text, start, text.length, offset);
+	return items;
+}
+
+function pushListItem(items: MacroListItemInput[], text: string, start: number, end: number, offset: number): void {
+	const valueStart = skipWhitespace(text, start);
+	const valueEnd = trimEnd(text, valueStart, end);
+	if (valueStart < valueEnd) items.push({ rawValue: text.slice(valueStart, valueEnd), start: offset + valueStart, end: offset + valueEnd });
+}
+
+function matchSpec(
+	text: string,
+	offset: number,
+	spec: MacroArgumentSpec,
+	diagnostics: MacroParseDiagnostic[],
+): { rawValue: string; captures: Record<string, string | undefined>; start: number; end: number } | undefined {
+	const patterns = spec.extraction.patterns ?? [];
+	if (!patterns.length) return undefined;
+	for (const pattern of patterns) {
+		try {
+			const expression = new RegExp(`^(?:${pattern})`, "i");
+			const match = expression.exec(text);
+			if (match) {
+				return {
+				rawValue: match[0].trim(),
+				captures: match.groups ?? {},
+				start: offset,
+				end: offset + match[0].length,
+				};
+			}
+		} catch {
+			diagnostics.push({ code: "INVALID_PATTERN", message: `Invalid extraction pattern for '${spec.name}'`, start: offset, end: offset + text.length });
+		}
 	}
-	return result;
+	return undefined;
+}
+
+function resolveNamedSpec(name: string, specs: readonly MacroArgumentSpec[]): MacroArgumentSpec | undefined {
+	const normalized = name.toLowerCase();
+	return specs.find((spec) => spec.name.toLowerCase() === normalized || spec.argumentId.toLowerCase() === normalized || spec.aliases?.some((alias) => alias.toLowerCase() === normalized));
+}
+
+function scanUntilWhitespace(text: string, start: number): number {
+	let index = start;
+	while (index < text.length && !/\s/.test(text[index]!)) index += 1;
+	return index;
 }
 
 function skipWhitespace(text: string, start: number): number {
-	let i = start;
-	while (i < text.length && (text[i] === " " || text[i] === "\t")) {
-		i++;
+	let index = start;
+	while (index < text.length && /\s/.test(text[index]!)) index += 1;
+	return index;
+}
+
+function trimEnd(text: string, start: number, end: number): number {
+	let index = end;
+	while (index > start && /\s/.test(text[index - 1]!)) index -= 1;
+	return index;
+}
+
+function splitByDelimiter(
+	raw: string,
+	region: { start: number; end: number },
+	delimiter: string,
+): Array<{ start: number; end: number }> {
+	const parts: Array<{ start: number; end: number }> = [];
+	let start = region.start;
+	let quote = "";
+	let escaped = false;
+	let depth = 0;
+	for (let index = region.start; index < region.end; index += 1) {
+		const char = raw[index]!;
+		if (escaped) { escaped = false; continue; }
+		if (char === "\\" && quote) { escaped = true; continue; }
+		if (quote) { if (char === quote) quote = ""; continue; }
+		if (char === '"' || char === "'") { quote = char; continue; }
+		if (char === "[") { depth += 1; continue; }
+		if (char === "]") { depth = Math.max(0, depth - 1); continue; }
+		if (!depth && raw.startsWith(delimiter, index)) {
+			const end = trimEnd(raw, start, index);
+			if (skipWhitespace(raw, start) < end) parts.push({ start: skipWhitespace(raw, start), end });
+			index += delimiter.length - 1;
+			start = index + 1;
+		}
 	}
-	return i;
+	const end = trimEnd(raw, start, region.end);
+	if (skipWhitespace(raw, start) < end) parts.push({ start: skipWhitespace(raw, start), end });
+	return parts;
 }

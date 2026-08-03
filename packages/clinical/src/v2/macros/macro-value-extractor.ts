@@ -10,6 +10,7 @@
 import type { MacroArgumentSpec, V2ValueSpec } from "./macro-definition";
 import type { SchemaField } from "../schemas/schema-types";
 import type { TypedValue } from "../values/typed-value";
+import type { MacroListItemInput } from "./macro-binding";
 import {
 	createMeasurementValue,
 	type MeasurementValueInput,
@@ -36,6 +37,8 @@ export interface ValueExtractResult {
 
 export interface ExtractTypedValueOptions {
 	field?: SchemaField;
+	captures?: Record<string, string | undefined>;
+	items?: readonly MacroListItemInput[];
 	resolveConcept?: (raw: string) => Promise<{ concept?: { conceptId?: string; display: string }; diagnostics?: string[] }>;
 }
 
@@ -56,28 +59,32 @@ export async function extractTypedValue(
 
 	switch (spec.extraction.kind) {
 		case "concept": {
+			const conceptText = options.captures?.concept ?? text;
 			if (options.resolveConcept) {
-				const resolved = await options.resolveConcept(text);
+				const resolved = await options.resolveConcept(conceptText);
 				if (!resolved.concept) {
 					return {
 						diagnostics: [{ code: "concept_required", argumentId: spec.argumentId, message: resolved.diagnostics?.join("; ") ?? `Concept '${text}' could not be resolved` }],
 					};
 				}
 				return {
-					value: { kind: "concept", concept: { conceptId: resolved.concept.conceptId, display: resolved.concept.display }, rawText: text },
+					value: { kind: "concept", concept: { conceptId: resolved.concept.conceptId, display: resolved.concept.display }, rawText: conceptText },
 					diagnostics: [],
 				};
 			}
 			return {
-				value: { kind: "concept", concept: { display: text }, rawText: text },
+				value: { kind: "concept", concept: { display: conceptText }, rawText: conceptText },
 				diagnostics: [],
 			};
 		}
 		case "concept_array": {
+			const items = options.items?.length
+				? options.items.map((item) => item.rawValue)
+				: [options.captures?.concept ?? options.captures?.item ?? text];
 			return {
 				value: {
 					kind: "concept_array",
-					concepts: text.split(/[,;]/).filter(Boolean).map((c) => ({ display: c.trim() })),
+					concepts: items.map((item) => ({ display: item })),
 					mergeStrategy: "append",
 					rawText: text,
 				},
@@ -85,22 +92,33 @@ export async function extractTypedValue(
 			};
 		}
 		case "enum": {
+			const enumText = options.captures?.value ?? options.captures?.enum ?? text;
 			const allowed = options.field?.enumValues;
-			if (allowed && allowed.length > 0 && !allowed.includes(text)) {
+			if (allowed && allowed.length > 0 && !allowed.includes(enumText)) {
 				return {
 					diagnostics: [{ code: "invalid_enum", argumentId: spec.argumentId, message: `'${text}' is not a valid ${spec.name}` }],
 				};
 			}
-			return { value: { kind: "enum", value: text, rawText: text }, diagnostics: [] };
+			return { value: { kind: "enum", value: enumText, rawText: text }, diagnostics: [] };
 		}
 		case "scalar": {
-			return extractScalar(text, spec, options.field);
+			return extractScalar(options.captures?.value ?? options.captures?.scalar ?? text, spec, options.field);
 		}
 		case "measurement": {
-			return extractMeasurement(text, spec, options.field);
+			return extractMeasurement(text, spec, options.field, options.captures);
 		}
-		case "temporal":
-			return { value: { kind: "temporal", temporalType: spec.extraction.valueKind === "temporal" ? inferTemporalType(text) : "duration", value: text, rawText: text }, diagnostics: [] };
+		case "temporal": {
+			const temporalType = spec.extraction.temporalType;
+			if (!temporalType) {
+				return {
+					diagnostics: [{ code: "invalid_temporal", argumentId: spec.argumentId, message: `Argument '${spec.name}' must declare temporalType` }],
+				};
+			}
+			return {
+				value: { kind: "temporal", temporalType, value: options.captures?.value ?? text, rawText: text },
+				diagnostics: [],
+			};
+		}
 		case "array":
 			return { value: { kind: "array", itemKind: "scalar", items: [], mergeStrategy: "append" }, diagnostics: [] };
 		case "prose":
@@ -146,19 +164,22 @@ function extractMeasurement(
 	text: string,
 	spec: MacroArgumentSpec,
 	field?: SchemaField,
+	captures?: Record<string, string | undefined>,
 ): ValueExtractResult {
-	const match = /^(?<op>[<>]=?)?\s*(?<approx>~)?\s*(?<mag>\d+(?:\.\d+)?)(?:\s*(?<unit>[A-Za-z%/µ°]+))?/.exec(
-		text,
-	);
-	if (!match?.groups?.mag) {
+	const groups = captures ?? {};
+	const magnitude = groups.magnitude ?? groups.mag;
+	const unit = groups.unit;
+	const operator = groups.operator ?? groups.op;
+	const approximate = groups.approximate ?? groups.approx;
+	if (!magnitude) {
 		return { diagnostics: [{ code: "invalid_measurement", argumentId: spec.argumentId, message: `'${text}' is not a measurement` }] };
 	}
 	const input: MeasurementValueInput = {
 		dimension: field?.measurement?.dimension ?? spec.extraction.valueKind ?? "measurement",
-		magnitude: Number(match.groups.mag),
-		unit: match.groups.unit ?? "",
-		operator: match.groups.op ? mapOperator(match.groups.op) : undefined,
-		isApproximate: Boolean(match.groups.approx),
+		magnitude: Number(magnitude),
+		unit: unit ?? "",
+		operator: operator ? mapOperator(operator) : undefined,
+		isApproximate: Boolean(approximate),
 		rawText: text,
 	};
 	const result = createMeasurementValue(input, field?.measurement?.allowedUnits);
@@ -176,10 +197,4 @@ function mapOperator(op: string): MeasurementValueInput["operator"] {
 		case "<=": return "lte";
 		default: return undefined;
 	}
-}
-
-function inferTemporalType(text: string): "duration" | "date" | "date_range" | "relative_time" | "cadence" {
-	if (/\d+\s*[a-z]+/i.test(text) && !/\d{4}/.test(text)) return "duration";
-	if (/\bago\b|\blast\b|for/i.test(text)) return "relative_time";
-	return "duration";
 }

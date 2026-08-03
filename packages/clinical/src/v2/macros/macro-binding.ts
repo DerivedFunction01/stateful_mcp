@@ -16,8 +16,18 @@ export interface MacroArgumentInput {
 	name?: string;
 	position?: number;
 	rawValue: string;
-	source: "named" | "positional" | "inferred";
+	captures?: Record<string, string | undefined>;
+	items?: MacroListItemInput[];
+	source: "named" | "positional" | "inferred" | "rule";
 	line?: number;
+	start?: number;
+	end?: number;
+}
+
+export interface MacroListItemInput {
+	rawValue: string;
+	start: number;
+	end: number;
 }
 
 /** Classified macro intent from raw authored text (pre-binding). */
@@ -44,7 +54,11 @@ export interface MacroArgumentBinding {
 	argumentId: string;
 	name: string;
 	rawValue: string;
-	source: "named" | "positional" | "inferred";
+	captures?: Record<string, string | undefined>;
+	items?: MacroListItemInput[];
+	source: "named" | "positional" | "inferred" | "rule";
+	start?: number;
+	end?: number;
 }
 
 export interface MacroBindingResult {

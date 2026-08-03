@@ -25,7 +25,7 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 			roleName: "observation.concept",
 			position: 0,
 			target: { targetSchema: "Observation", targetPath: "concept" },
-			extraction: { kind: "concept", required: true },
+				extraction: { kind: "concept", required: true, patterns: [String.raw`(?<concept>.+)`] },
 			required: true,
 		},
 		{
@@ -34,7 +34,7 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 			roleName: "observation.trajectory",
 			position: 1,
 			target: { targetSchema: "Observation", targetPath: "trajectory" },
-			extraction: { kind: "enum", required: true },
+				extraction: { kind: "enum", required: true, patterns: [String.raw`(?<value>.+)`] },
 			required: true,
 		},
 		{
@@ -43,7 +43,7 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 			roleName: "observation.duration",
 			position: 2,
 			target: { targetSchema: "Observation", targetPath: "duration" },
-			extraction: { kind: "measurement" },
+				extraction: { kind: "measurement", patterns: [String.raw`["']?(?<magnitude>\d+(?:\.\d+)?)\s+(?<unit>[\w/°%]+)["']?`] },
 		},
 	],
 };
@@ -77,7 +77,7 @@ describe("V2 macro compile pipeline", () => {
 		};
 
 		const compiler = new MacroCompiler({ registry, dictionary });
-		const input = parseMacroLine('^observation concept=SNOMED::29857009 trajectory=stable duration="3 day"')!;
+		const input = parseMacroLine('^observation concept=SNOMED::29857009 trajectory=stable duration="3 day"', 0, { definition: OBSERVATION_MACRO })!;
 		const result = await compiler.compile(input, OBSERVATION_MACRO, {
 			groupId: "grp1",
 			scope: { kind: "clinical_document", sessionId: "s1", documentId: "n1" },
@@ -98,7 +98,7 @@ describe("V2 macro compile pipeline", () => {
 		const registry = new SchemaRegistry();
 		registry.register(observationSchema);
 		const compiler = new MacroCompiler({ registry });
-		const input = parseMacroLine("^observation concept=chest pain trajectory=stable")!;
+		const input = parseMacroLine("^observation concept=chest pain trajectory=stable", 0, { definition: OBSERVATION_MACRO })!;
 		const a = await compiler.compile(input, OBSERVATION_MACRO, { groupId: "g" });
 		const b = await compiler.compile(input, OBSERVATION_MACRO, { groupId: "g" });
 		expect(a.plan!.fingerprint.value).toBe(b.plan!.fingerprint.value);

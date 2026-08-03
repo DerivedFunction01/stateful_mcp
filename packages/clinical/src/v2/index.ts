@@ -34,3 +34,6 @@ export * from "./macros/macro-validator";
 export * from "./macros/macro-renderer";
 export * from "./macros/macro-autocomplete";
 export * from "./macros/macro-compiler";
+export * from "./macros/macro-profile";
+export * from "./transactions/transaction-types";
+export * from "./transactions/transaction-coordinator";
