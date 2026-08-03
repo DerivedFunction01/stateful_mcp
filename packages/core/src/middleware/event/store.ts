@@ -177,6 +177,7 @@ export class EventStore {
 
 		const state: Omit<EventCommit, "commitId"> = {
 			sessionId,
+			schemaName,
 			parentCommitId: null,
 			createdAt: new Date().toISOString(),
 			operation: "add",
@@ -741,6 +742,7 @@ export class EventStore {
 		while (currentId) {
 			const commit = await this.session.get(sessionId, currentId);
 			if (!commit) break;
+			if (commit.schemaName) return commit.schemaName;
 			if (!commit.parentCommitId) {
 				// Root commit. We can scan schemas for a matching one, or assume the type.
 				// Let's return the first registered schema name as fallback.

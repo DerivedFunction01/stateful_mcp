@@ -386,18 +386,6 @@ export class WorkspaceService implements WorkspaceServiceContract {
 					metadata: { logicalKey: `branch:${branchId}` },
 				};
 			}
-			case "focus_branch": {
-				const branch = this.resolveBranchRef(aggregate, operation.branchId);
-				if (branch.status === "confirmed" || branch.status === "ruled_out")
-					throw new WorkspaceOperationError("Cannot focus a terminal branch");
-				return {
-					kind: "branch_switched",
-					workspaceId: aggregate.id,
-					fromBranchId: aggregate.activeBranchId,
-					toBranchId: branch.id,
-					metadata: { logicalKey: "workspace:focus" },
-				};
-			}
 			case "add_fact": {
 				const branch = operation.branchId
 					? this.resolveBranchRef(aggregate, operation.branchId)

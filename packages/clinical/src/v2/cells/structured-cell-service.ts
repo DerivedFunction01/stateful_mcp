@@ -63,26 +63,6 @@ export class StructuredCellService {
 		const previewId = `preview_${cell.cellId}_${cell.lifecycle.revision}`;
 		const status: CellPreview["status"] =
 			result.diagnostics.length > 0 ? "invalid" : "valid";
-		const persisted: StructuredCell = {
-			...cell,
-			lifecycle: {
-				...cell.lifecycle,
-				status:
-					cell.lifecycle.status === "draft" ? "preview" : cell.lifecycle.status,
-			},
-			execution: {
-				...cell.execution,
-				previewId,
-				planFingerprint: result.fingerprint,
-			},
-		};
-		if (
-			persisted.execution.previewId !== cell.execution.previewId ||
-			persisted.execution.planFingerprint !== cell.execution.planFingerprint ||
-			persisted.lifecycle.status !== cell.lifecycle.status
-		) {
-			await this.store.save(persisted);
-		}
 		return {
 			previewId,
 			cellId: cell.cellId,
@@ -106,11 +86,16 @@ export class StructuredCellService {
 		if (cell.lifecycle.revision !== request.expectedRevision) {
 			throw new Error(`Cell '${request.cellId}' revision mismatch`);
 		}
-		if (cell.execution.previewId !== request.previewId) {
+		const expectedPreviewId = `preview_${cell.cellId}_${cell.lifecycle.revision}`;
+		if (expectedPreviewId !== request.previewId) {
 			throw new Error(`Cell '${request.cellId}' preview mismatch`);
 		}
-		if (cell.execution.planFingerprint !== request.planFingerprint) {
+		const compiled = await this.compile(cell.authored.rawText);
+		if (compiled.fingerprint !== request.planFingerprint) {
 			throw new Error(`Cell '${request.cellId}' plan fingerprint mismatch`);
+		}
+		if (compiled.diagnostics.length > 0) {
+			throw new Error(`Cell '${request.cellId}' preview is invalid`);
 		}
 		const now = new Date().toISOString();
 		const updated: StructuredCell = {

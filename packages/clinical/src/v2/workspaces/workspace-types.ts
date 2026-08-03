@@ -73,11 +73,6 @@ export type WorkspaceOperation =
 			commandAlias?: string;
 	  }
 	| {
-			kind: "focus_branch";
-			workspaceId: string;
-			branchId: string;
-	  }
-	| {
 			kind: "branch_transition";
 			workspaceId: string;
 			branchId: string;

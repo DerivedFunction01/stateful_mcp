@@ -46,7 +46,7 @@ function makeEventEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 			merge_rejected_ids: state.mergeRejectedIds
 				? jsonStringify(state.mergeRejectedIds)
 				: null,
-			schema_name: state.schema_name || null,
+			schema_name: state.schemaName || null,
 		}),
 
 		rowToSession: (row: Record<string, any>) => ({
@@ -67,7 +67,7 @@ function makeEventEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 			mergeRejectedIds: row.merge_rejected_ids
 				? jsonParse(row.merge_rejected_ids)
 				: undefined,
-			schema_name: row.schema_name || undefined,
+			schemaName: row.schema_name || undefined,
 		}),
 
 		persistentToRow: (
@@ -94,7 +94,7 @@ function makeEventEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 			merge_rejected_ids: state.mergeRejectedIds
 				? jsonStringify(state.mergeRejectedIds)
 				: null,
-			schema_name: state.schema_name,
+			schema_name: state.schemaName,
 		}),
 
 		rowToPersistent: (
@@ -118,7 +118,7 @@ function makeEventEntityConfig(_dialect: SqlDialect): EntityConfig<any, any> {
 			mergeRejectedIds: row.merge_rejected_ids
 				? jsonParse(row.merge_rejected_ids)
 				: undefined,
-			schema_name: row.schema_name,
+			schemaName: row.schema_name,
 			tags: jsonParse(savedRow!.tags),
 			description: savedRow!.description,
 		}),

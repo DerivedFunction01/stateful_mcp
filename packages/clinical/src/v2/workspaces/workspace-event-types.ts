@@ -3,7 +3,11 @@ import type { TypedFact, V2Branch } from "./workspace-types";
 
 export interface WorkspaceEventMetadata {
 	logicalKey: string;
+	logicalRecordKey?: string;
+	operationId?: string;
 	actorId?: string;
+	authorId?: string;
+	scope?: { level: "global" | "session" | "user"; userId?: string };
 	reason?: string;
 	sourceCellId?: string;
 	transactionId?: string;
@@ -28,13 +32,6 @@ export type WorkspaceEvent =
 			parentBranchId: string | null;
 			hypothesisConcept: CodeableConcept;
 			commandAlias?: string;
-			metadata?: WorkspaceEventMetadata;
-	  }
-	| {
-			kind: "branch_switched";
-			workspaceId: string;
-			fromBranchId: string | null;
-			toBranchId: string;
 			metadata?: WorkspaceEventMetadata;
 	  }
 	| {
@@ -86,4 +83,7 @@ export interface WorkspaceEventRecord {
 	voidReason?: string;
 	voidedBy?: string;
 	voidedAt?: string;
+	mutationType?: "add" | "update" | "remove";
+	mutationParentIds?: string[];
+	beforeData?: Record<string, unknown>;
 }

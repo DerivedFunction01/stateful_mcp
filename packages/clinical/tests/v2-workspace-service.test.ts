@@ -7,6 +7,7 @@ import {
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
 import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
 import { TransactionCoordinator } from "../src/v2/transactions/transaction-coordinator";
+import { InMemoryWorkspaceViewStateStore, WorkspaceViewService } from "../src/v2/workspaces/workspace-view-state";
 import { CoreWorkspaceEventStore } from "../src/v2/workspaces/core-workspace-event-store";
 import { KvWorkspaceStore } from "../src/v2/workspaces/kv-workspace-store";
 import type { WorkspaceEventStore } from "../src/v2/workspaces/workspace-event-store";
@@ -399,23 +400,14 @@ describe("V2 workspace transaction participant", () => {
 			root.version,
 			root.eventHead,
 		);
-		const focused = await service.applyOperations(
-			root.id,
-			[{ kind: "focus_branch", workspaceId: root.id, branchId: "pe" }],
-			created.version,
-			created.eventHead,
-		);
+		const view = new WorkspaceViewService(service, new InMemoryWorkspaceViewStateStore());
+		const focused = await view.focusBranch("clinician-1", root.id, "pe");
 
-		expect(focused.activeBranchId).toBe(
-			focused.branches.find((branch) => branch.commandAlias === "pe")?.id,
+		expect(focused.focusedBranchId).toBe(
+			created.branches.find((branch) => branch.commandAlias === "pe")?.id,
 		);
 		await expect(
-			service.applyOperations(
-				root.id,
-				[{ kind: "focus_branch", workspaceId: root.id, branchId: "missing" }],
-				focused.version,
-				focused.eventHead,
-			),
+			view.focusBranch("clinician-1", root.id, "missing"),
 		).rejects.toMatchObject({ diagnosticCode: "missing_branch" });
 	});
 

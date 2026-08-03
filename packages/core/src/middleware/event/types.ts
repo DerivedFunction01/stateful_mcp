@@ -29,6 +29,7 @@ export interface EventCommit {
 	mergeRejectedIds?: string[];
 	linearDepth: number;
 	gcLock: boolean;
+	schemaName?: string;
 }
 
 export interface MergeSession {

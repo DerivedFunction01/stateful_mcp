@@ -55,6 +55,7 @@ export * from "./workspaces/workspace-event-store";
 export * from "./workspaces/workspace-event-types";
 export * from "./workspaces/workspace-factory";
 export * from "./workspaces/workspace-read-model";
+export * from "./workspaces/workspace-view-state";
 export * from "./workspaces/workspace-service";
 export * from "./workspaces/workspace-snapshot";
 export * from "./workspaces/workspace-store";

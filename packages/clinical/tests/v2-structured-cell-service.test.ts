@@ -161,6 +161,7 @@ describe.each([
 		expect(preview.cellId).toBe(created.cellId);
 		expect(preview.status).toBe("valid");
 		expect(preview.diagnostics).toEqual([]);
+		expect(await service.get(created.cellId)).toEqual(created);
 	});
 
 	it("executes a draft cell and transitions to pending_commit", async () => {

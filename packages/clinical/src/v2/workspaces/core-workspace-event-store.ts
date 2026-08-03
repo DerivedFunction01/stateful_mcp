@@ -78,6 +78,7 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 	): Promise<WorkspaceEventRecord[]> {
 		const commit = await this.eventStore.getCommit(commitId, sessionId);
 		const projected = await this.eventStore.project(commitId, sessionId);
+		const mutationMetadata = await this.mutationMetadata(commitId, sessionId);
 		return projected
 			.map((record) =>
 				this.decode(
@@ -85,6 +86,7 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 					workspaceId,
 					commitId,
 					commit?.parentCommitId ?? null,
+					mutationMetadata.get(record.event_id),
 				),
 			)
 			.filter((record): record is WorkspaceEventRecord => Boolean(record));
@@ -195,6 +197,7 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 		workspaceId: string,
 		commitId: string,
 		parentCommitId: string | null,
+		mutation?: { type: "add" | "update" | "remove"; mutationParentIds?: string[]; beforeData?: Record<string, unknown> },
 	): WorkspaceEventRecord | null {
 		if (record.workspaceId && record.workspaceId !== workspaceId) return null;
 		const {
@@ -219,7 +222,31 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 			voidReason: typeof voidReason === "string" ? voidReason : undefined,
 			voidedBy: typeof voidedBy === "string" ? voidedBy : undefined,
 			voidedAt: typeof voidedAt === "string" ? voidedAt : undefined,
+			mutationType: mutation?.type,
+			mutationParentIds: mutation?.mutationParentIds,
+			beforeData: mutation?.beforeData,
 		};
+	}
+
+	private async mutationMetadata(
+		commitId: string,
+		sessionId: string,
+	): Promise<Map<string, { type: "add" | "update" | "remove"; mutationParentIds?: string[]; beforeData?: Record<string, unknown> }>> {
+		const commits: Array<{ commitId: string; parentCommitId: string | null; mutations: readonly { type: "add" | "update" | "remove"; event_id: string; mutation_parent_ids?: string[]; before_data?: Record<string, unknown> }[] }> = [];
+		let current: string | null = commitId;
+		while (current) {
+			const commit = await this.eventStore.getCommit(current, sessionId);
+			if (!commit) break;
+			commits.unshift(commit);
+			current = commit.parentCommitId;
+		}
+		const result = new Map<string, { type: "add" | "update" | "remove"; mutationParentIds?: string[]; beforeData?: Record<string, unknown> }>();
+		for (const commit of commits) {
+			for (const mutation of commit.mutations) {
+				result.set(mutation.event_id, { type: mutation.type, mutationParentIds: mutation.mutation_parent_ids, beforeData: mutation.before_data });
+			}
+		}
+		return result;
 	}
 
 	private async actualCommitId(
@@ -271,7 +298,6 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 		if (event.metadata?.logicalKey) return event.metadata.logicalKey;
 		if (event.kind === "branch_lifecycle_transitioned")
 			return `branch:${event.branchId}`;
-		if (event.kind === "branch_switched") return "workspace:focus";
 		if (event.kind === "workspace_close_requested")
 			return "workspace:lifecycle";
 		if (event.kind === "workspace_completed") return "workspace:completion";

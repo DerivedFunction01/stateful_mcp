@@ -56,9 +56,6 @@ export function reduceWorkspaceEvent(
 				createdAt: new Date().toISOString(),
 			});
 			return next;
-		case "branch_switched":
-			next.activeBranchId = event.toBranchId;
-			return next;
 		case "branch_lifecycle_transitioned": {
 			const branch = next.branches.find((item) => item.id === event.branchId);
 			if (!branch)
