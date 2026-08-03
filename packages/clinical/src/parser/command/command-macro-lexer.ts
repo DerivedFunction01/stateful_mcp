@@ -1,4 +1,5 @@
-import type { ParserCommandMacro } from "../store/parser/command-macros/interfaces";
+import type { ParserCommandMacro } from "../../store/parser/command-macros/interfaces";
+import { evaluateMacroEnvelope } from "./command-macro-boundary";
 
 export interface MacroArgumentToken {
 	rawText: string;
@@ -32,6 +33,7 @@ export function lexCommandMacro(input: string, macro?: ParserCommandMacro): Comm
 	const nameStart = cursor;
 	while (cursor < input.length && !/\s/.test(input[cursor] ?? "")) cursor++;
 	const macroName = input.slice(nameStart, cursor);
+	const commandEnd = cursor;
 	const tokens: MacroArgumentToken[] = [];
 	const delimiter = macro?.delimiter;
 	let tokenStart = -1;
@@ -67,6 +69,10 @@ export function lexCommandMacro(input: string, macro?: ParserCommandMacro): Comm
 		if (char === "]") depth = Math.max(0, depth - 1);
 		if (!depth && macro?.proseBoundaryToken && input.startsWith(macro.proseBoundaryToken, cursor)) {
 			emit(cursor);
+			if (macro.boundary) {
+				const boundary = evaluateMacroEnvelope(input.slice(0, cursor), commandEnd, macro.boundary);
+				if (!boundary.accepted) diagnostics.push({ message: `macro envelope exceeded: ${boundary.reasons.join("; ")}`, start: commandEnd, end: cursor });
+			}
 			return { macroName, arguments: tokens, prose: { rawText: input.slice(cursor + macro.proseBoundaryToken.length).trim(), start: cursor, end: input.length }, diagnostics };
 		}
 		const isConfiguredDelimiter = delimiter !== undefined && input.startsWith(delimiter, cursor);
@@ -78,6 +84,10 @@ export function lexCommandMacro(input: string, macro?: ParserCommandMacro): Comm
 		if (tokenStart < 0) tokenStart = cursor;
 	}
 	emit(input.length);
+	if (macro?.boundary) {
+		const boundary = evaluateMacroEnvelope(input, commandEnd, macro.boundary);
+		if (!boundary.accepted) diagnostics.push({ message: `macro envelope exceeded: ${boundary.reasons.join("; ")}`, start: commandEnd, end: input.length });
+	}
 	if (quote) diagnostics.push({ message: "unterminated quote", start: tokenStart < 0 ? input.length : tokenStart, end: input.length });
 	if (depth) diagnostics.push({ message: "unterminated grouped array", start: tokenStart < 0 ? input.length : tokenStart, end: input.length });
 	return { macroName, arguments: tokens, diagnostics };

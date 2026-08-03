@@ -8,8 +8,8 @@ import type { SoapSection } from "../schemas/shared";
 import type { CellStore } from "../store/interfaces";
 import type { Cell } from "./cell";
 import type { ParserCommandMacroStore } from "../store/parser/command-macros/interfaces";
-import { bindCommandMacro } from "../parser/command-macro-binder";
-import { renderCommandMacroTargets, type CommandMacroRenderValue } from "../parser/command-macro-renderer";
+import { planCommandMacroBatch } from "../parser/command/command-macro-graph";
+import { renderCommandMacroTargets, type CommandMacroRenderValue } from "../parser/command/command-macro-renderer";
 import { CELL_ERROR_MESSAGES, CellError } from "./cell";
 import type { CellCommandContext } from "./cell-command";
 import { CellCommandParser } from "./cell-command-parser";
@@ -94,20 +94,18 @@ export class CellProcessor {
 	private async executeCommandMacro(cell: Cell): Promise<CellProcessResult | null> {
 		if (cell.mode !== "macro" && cell.intentKind !== "macro_command") return null;
 		if (!this.commandMacroStore) return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, "command macro store is not configured") };
-		const operations = [] as Array<{ targetPath: string; value: unknown; rawValue: string }>;
 		const diagnostics: string[] = [];
 		const rendered: Array<{ line: number; text: string; status: string }> = [];
+		const graphResult = await planCommandMacroBatch(cell.rawInput, this.commandMacroStore, { groupId: cell.macro?.batchId ?? cell.cellId, cellRefPrefix: cell.cellId });
+		diagnostics.push(...graphResult.diagnostics.map((item) => `line ${item.line ?? "?"}: ${item.message}`));
 		for (const [lineIndex, line] of cell.rawInput.split(/\r?\n/).entries()) {
 			if (!line.trim()) continue;
 			const name = line.trim().replace(/^\^/, "").split(/\s+/, 1)[0] ?? "";
 			const macro = await this.commandMacroStore.get(name);
-			if (!macro) { diagnostics.push(`line ${lineIndex + 1}: unknown command macro '${name}'`); continue; }
-			const result = bindCommandMacro(line, macro, { groupId: cell.macro?.batchId ?? cell.cellId, cellRef: cell.cellId, sourceLine: lineIndex + 1 });
-			diagnostics.push(...result.diagnostics.map((item) => `line ${lineIndex + 1}: ${item.message}`));
-			for (const operation of result.plan?.operations ?? []) operations.push(operation);
-			if (macro.renderers?.preview && result.plan) {
+			if (macro?.renderers?.preview) {
+				const plan = graphResult.graph?.plans.find((candidate) => candidate.operations.some((operation) => operation.sourceLine === lineIndex + 1));
 				const values: Record<string, CommandMacroRenderValue> = {};
-				for (const operation of result.plan.operations) {
+				for (const operation of plan?.operations ?? []) {
 					const argument = macro.arguments[operation.sourceArgument];
 					if (argument) values[argument.argumentId] = { value: operation.value, status: "assigned", evidence: operation.evidence };
 				}
@@ -122,12 +120,27 @@ export class CellProcessor {
 			await this.saveCell(cell);
 			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
 		}
+		if (!graphResult.graph) diagnostics.push("macro graph was not compiled");
+		if (graphResult.graph?.links.length && !this.documentExecutor.applyMacroGraph && !this.documentExecutor.applyMacroLink) diagnostics.push("macro graph contains links but the document transaction adapter does not support links");
+		if (diagnostics.length) {
+			cell.status = "error";
+			cell.errorMessage = diagnostics.join("; ");
+			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "error", diagnostics };
+			await this.saveCell(cell);
+			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
+		}
 		try {
-			for (const operation of operations) await this.documentExecutor.setSoapNoteField(cell.sessionId, operation.targetPath, operation.value);
+			const graphApplication = this.documentExecutor.applyMacroGraph
+				? await this.documentExecutor.applyMacroGraph(cell.sessionId, graphResult.graph!, cell.sessionId)
+				: undefined;
+			if (!graphApplication) {
+				for (const plan of graphResult.graph!.plans) for (const operation of plan.operations) await this.documentExecutor.setSoapNoteField(cell.sessionId, operation.targetPath, operation.value);
+				for (const link of graphResult.graph!.links) await this.documentExecutor.applyMacroLink!(cell.sessionId, link);
+			}
 			cell.status = "committed";
 			cell.lockedAt = new Date().toISOString();
-			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "committed", preview: rendered };
-			cell.metadata = { ...cell.metadata, macroOperations: operations.length };
+			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "committed", preview: rendered, definitionIds: graphResult.graph!.definitionIds, definitionVersions: graphResult.graph!.definitionVersions, compiledPlan: graphResult.graph, generatedCellIds: graphApplication?.generatedCellIds };
+			cell.metadata = { ...cell.metadata, macroOperations: graphResult.graph!.plans.reduce((count, plan) => count + plan.operations.length, 0), macroLinks: graphResult.graph!.links.length };
 			await this.saveCell(cell);
 			return { cell };
 		} catch (error) {

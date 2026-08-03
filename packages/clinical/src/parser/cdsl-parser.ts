@@ -34,7 +34,7 @@ import {
 	buildNumericFieldRules,
 } from "../store/rules-builder";
 import { SegmentProcessor } from "./cdsl-segment-processor";
-import { CommandAutocompleteSuggester } from "./command-autocomplete-suggester";
+import { CommandAutocompleteSuggester } from "./command/command-autocomplete-suggester";
 import type {
 	SharedFieldAnchorRule,
 	SharedFieldAnchorStore,

@@ -340,7 +340,7 @@ export async function resolveCommandMacroStore(
 ): Promise<KvParserCommandMacroStore | SqlParserCommandMacroStore> {
 	return resolveStoreWithFactory(config, "parser_macros", "./clinical-parser.sqlite", {
 		memory: (backend) => new KvParserCommandMacroStore(backend),
-		sql: (_dialect, executor) => new SqlParserCommandMacroStore(executor),
+		sql: (dialect, executor) => new SqlParserCommandMacroStore(dialect, executor),
 		jsonl: (backend) => new KvParserCommandMacroStore(backend),
 	});
 }

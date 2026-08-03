@@ -1,6 +1,7 @@
 import type { NamedGroupContract } from "../../interfaces";
-import type { CommandMacroAuthoringTemplate } from "../../../parser/command-macro-authoring-template";
-import type { CommandMacroRenderPipeline } from "../../../parser/command-macro-renderer";
+import type { CommandMacroAuthoringTemplate } from "../../../parser/command/command-macro-authoring-template";
+import type { CommandMacroRenderPipeline } from "../../../parser/command/command-macro-renderer";
+import type { MacroBoundaryPolicy } from "../../../parser/command/command-macro-boundary";
 
 export interface CommandFieldMetadata {
 	roleName: string;
@@ -151,6 +152,7 @@ export interface ParserCommandMacro {
 		confirmation?: CommandMacroRenderPipeline;
 		audit?: CommandMacroRenderPipeline;
 	};
+	boundary?: MacroBoundaryPolicy;
 }
 
 export interface CommandMacroArgument {
@@ -165,6 +167,7 @@ export interface CommandMacroArgument {
 	blankPolicy?: "reject" | "allow" | "skip";
 	binding?: { positional: boolean; named: boolean; inference: "disabled" | "allowed" | "thresholded" };
 	autocomplete?: CommandMacroAutocomplete;
+	boundary?: MacroBoundaryPolicy;
 }
 
 export interface CommandMacroChildDefinition {

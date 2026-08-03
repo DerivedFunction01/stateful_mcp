@@ -1,6 +1,7 @@
-import type { ParserCommandMacro } from "../store/parser/command-macros/interfaces";
+import type { ParserCommandMacro } from "../../store/parser/command-macros/interfaces";
 import { extractCommandMacroValue, type CommandMacroCellPlan } from "./command-macro-ir";
 import { lexCommandMacro, type MacroArgumentToken } from "./command-macro-lexer";
+import { evaluateMacroBoundary } from "./command-macro-boundary";
 
 export interface CommandMacroBindDiagnostic { message: string; argumentId?: string; tokenIndex?: number }
 export interface CommandMacroBindResult { plan?: CommandMacroCellPlan; diagnostics: CommandMacroBindDiagnostic[]; tokens: MacroArgumentToken[] }
@@ -35,6 +36,11 @@ export function bindCommandMacro(input: string, macro: ParserCommandMacro, optio
 	for (const [index, argument] of macro.arguments.entries()) {
 		const token = argumentsById.get(argument.argumentId);
 		if (!token) continue;
+		if (argument.boundary) {
+			const anchorToken = macro.arguments.slice(0, index).map((item) => argumentsById.get(item.argumentId)).filter(Boolean).at(-1);
+			const boundary = evaluateMacroBoundary(input, { start: token.start, end: token.end }, anchorToken ? { start: anchorToken.start, end: anchorToken.end } : { start: 0, end: 0 }, argument.boundary);
+			if (!boundary.accepted) { diagnostics.push(...boundary.reasons.map((message) => ({ message: `argument '${argument.name}' boundary: ${message}`, argumentId: argument.argumentId }))); continue; }
+		}
 		const value = extractCommandMacroValue(token.rawText, argument.extraction);
 		if (value.diagnostics.length) { diagnostics.push(...value.diagnostics.map((message) => ({ message, argumentId: argument.argumentId }))); continue; }
 		operations.push({ operationId: `${groupId}:${argument.argumentId}`, groupId, cellRef, targetSchema: argument.target.targetSchema, targetPath: argument.target.targetPath, rawValue: token.rawText, value: value.value, sourceLine: options.sourceLine ?? 1, sourceArgument: index, evidence: value.evidence });

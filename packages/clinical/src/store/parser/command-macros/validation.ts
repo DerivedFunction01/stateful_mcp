@@ -6,7 +6,7 @@ import type {
 	NumericBounds,
 	ParserCommandMacro,
 } from "./interfaces";
-import { isStructuredMacroSlot } from "../../../parser/command-macro-authoring-template";
+import { isStructuredMacroSlot } from "../../../parser/command/command-macro-authoring-template";
 
 function groupNames(pattern: string): Set<string> {
 	const names = new Set<string>();
@@ -93,6 +93,14 @@ export function validateParserCommandMacro(macro: ParserCommandMacro): CommandMa
 	if (!macro.macroName.trim()) diagnostics.push({ path: "macroName", message: "macroName is required" });
 	if (!Number.isInteger(macro.version) || macro.version < 1) diagnostics.push({ path: "version", message: "version must be a positive integer" });
 	if (!macro.root.roleName || !macro.root.targetSchema) diagnostics.push({ path: "root", message: "root roleName and targetSchema are required" });
+	const childNames = new Set<string>();
+	for (const [index, child] of (macro.children ?? []).entries()) {
+		if (!child.childMacroName.trim()) diagnostics.push({ path: `children[${index}]`, message: "child macro name is required" });
+		if (childNames.has(child.childMacroName)) diagnostics.push({ path: `children[${index}]`, message: `duplicate child macro '${child.childMacroName}'` });
+		childNames.add(child.childMacroName);
+		if (!macro.arguments.some((argument) => argument.roleName === child.parentRoleName)) diagnostics.push({ path: `children[${index}].parentRoleName`, message: `parent role '${child.parentRoleName}' is not declared by an argument` });
+		if (!child.parentTargetPath.trim()) diagnostics.push({ path: `children[${index}].parentTargetPath`, message: "parent target path is required" });
+	}
 	if (macro.authoringTemplate) {
 		if (macro.authoringTemplate.version !== 1) diagnostics.push({ path: "authoringTemplate.version", message: "unsupported authoring template version" });
 		const argumentIds = new Set(macro.arguments.map((argument) => argument.argumentId));

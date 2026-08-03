@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { CdslParser } from "../src/parser/cdsl-parser";
-import { CommandAutocompleteSuggester } from "../src/parser/command-autocomplete-suggester";
+import { CommandAutocompleteSuggester } from "../src/parser/command/command-autocomplete-suggester";
 import type {
 	ParserMacro,
 	ParserMacroStore,

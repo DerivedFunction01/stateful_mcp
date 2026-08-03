@@ -14,7 +14,7 @@ import {
 } from "@stateful-mcp/core";
 import * as path from "path";
 import { initializeClinicalRuntime } from "../init/orchestrator";
-import { CommandAutocompleteSuggester } from "../parser/command-autocomplete-suggester";
+import { CommandAutocompleteSuggester } from "../parser/command/command-autocomplete-suggester";
 import { DEFAULT_CLINICAL_STORE_CONFIG } from "../seed/clinical-config-seed";
 import { CellCommandRegistry } from "../session/cell-command-registry";
 import { CellProcessor } from "../session/cell-processor";

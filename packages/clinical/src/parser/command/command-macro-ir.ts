@@ -1,4 +1,4 @@
-import type { CommandMacroValueSpec } from "../store/parser/command-macros/interfaces";
+import type { CommandMacroValueSpec } from "../../store/parser/command-macros/interfaces";
 
 export interface CommandMacroEvidence {
 	source: string;
@@ -26,6 +26,25 @@ export interface CommandMacroCellPlan {
 	operations: CommandMacroTargetOperation[];
 	parentRef?: string;
 	linkTarget?: { targetField: string; mergeStrategy: "replace" | "append" | "deep_merge" | "partial_fill" };
+}
+
+export interface CommandMacroLinkOperation {
+	linkId: string;
+	parentRef: string;
+	childRef: string;
+	parentRoleName: string;
+	parentTargetPath: string;
+	mergeStrategy: "replace" | "append" | "deep_merge" | "partial_fill";
+	sourceLine: number;
+}
+
+export interface CommandMacroGraphPlan {
+	groupId: string;
+	plans: CommandMacroCellPlan[];
+	links: CommandMacroLinkOperation[];
+	definitionIds: string[];
+	definitionVersions: Record<string, number>;
+	diagnostics: string[];
 }
 
 export interface CommandMacroValueResult {

@@ -2,20 +2,20 @@ import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
 	ParserMacroStore,
 	ParserSyntaxProfile,
-} from "../store/interfaces";
+} from "../../store/interfaces";
 import type {
 	AutocompleteTransitionInsertPlan,
 	AutocompleteTransitionStore,
 	SystemWeightStore,
-} from "../store/learning/interfaces";
-import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
-import type { TagRecord, TagStore } from "../store/parser/tags/interfaces";
-import { parseTagMetadata } from "../store/parser/tags/interfaces";
+} from "../../store/learning/interfaces";
+import type { ProfileTagStore } from "../../store/parser/profiles/interfaces";
+import type { TagRecord, TagStore } from "../../store/parser/tags/interfaces";
+import { parseTagMetadata } from "../../store/parser/tags/interfaces";
 import type {
 	AutocompleteSelection,
 	CommandAutocompleteContext,
 	CommandAutocompleteSuggestion,
-} from "../store/reference/auto-complete/command-autocomplete-interfaces";
+} from "../../store/reference/auto-complete/command-autocomplete-interfaces";
 
 const TRANSITION_TABLE = "autocomplete_transitions";
 

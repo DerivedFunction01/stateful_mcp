@@ -1,6 +1,6 @@
 import type { AutocompleteSuggestion } from "./command-autocomplete";
 import type { ParserCommandMacro, ParserCommandMacroStore } from "../store/parser/command-macros/interfaces";
-import { renderCommandMacroTemplate, nextEmptyMacroSlot, type MacroSlotState } from "../parser/command-macro-authoring-template";
+import { renderCommandMacroTemplate, nextEmptyMacroSlot, type MacroSlotState } from "../parser/command/command-macro-authoring-template";
 
 function suggestion(macro: ParserCommandMacro): AutocompleteSuggestion {
 	return {

@@ -1,4 +1,4 @@
-import type { ParserCommandMacro } from "../store/parser/command-macros/interfaces";
+import type { ParserCommandMacro } from "../../store/parser/command-macros/interfaces";
 import { bindCommandMacro } from "./command-macro-binder";
 import { renderCommandMacroTargets, type CommandMacroRenderValue } from "./command-macro-renderer";
 

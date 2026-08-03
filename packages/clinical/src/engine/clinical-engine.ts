@@ -6,7 +6,7 @@ import type {
 	VariableService,
 } from "@stateful-mcp/core";
 import { CdslParser } from "../parser/cdsl-parser";
-import type { CommandAutocompleteSuggester } from "../parser/command-autocomplete-suggester";
+import type { CommandAutocompleteSuggester } from "../parser/command/command-autocomplete-suggester";
 import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { ParsedItem } from "../parser/schema-parsers";
@@ -425,6 +425,7 @@ import type {
 	WorkspaceSnapshot,
 } from "../session/workspace-read-model";
 import type { WorkspaceCommand, WorkspaceStore } from "./workspace-store";
+import type { CommandMacroGraphPlan } from "../parser/command/command-macro-ir";
 
 export interface ClinicalEngineConfig {
 	objectStore: ObjectStore;
@@ -1146,6 +1147,52 @@ export class ClinicalEngine {
 
 		await this.objectStore.set(effectiveAlias, [], note, sessionId);
 		return note;
+	}
+
+	/**
+	 * Applies a compiled macro graph as one object-store write. This is the
+	 * atomic document bridge used by macro cells; it deliberately does not
+	 * invoke CDSL parsing or the prose renderer.
+	 */
+	async applyMacroGraph(
+		sessionId: string,
+		graph: CommandMacroGraphPlan,
+		alias?: string,
+	): Promise<{ generatedCellIds?: string[] }> {
+		const effectiveAlias = alias ?? sessionId;
+		const obj = await this.objectStore.getObject(effectiveAlias, sessionId);
+		if (!obj) throw new Error("No active encounter note session found.");
+		const note: any = structuredClone(obj.data);
+		const setPath = (path: string, value: unknown): void => {
+			const parts = path.split(".").filter(Boolean);
+			if (!parts.length) throw new Error("Macro target path cannot be empty");
+			let current = note;
+			for (const part of parts.slice(0, -1)) {
+				if (current[part] === undefined || current[part] === null) current[part] = {};
+				if (typeof current[part] !== "object") throw new Error(`Macro target path is not traversable: ${path}`);
+				current = current[part];
+			}
+			current[parts[parts.length - 1]!] = value;
+		};
+		for (const plan of graph.plans) for (const operation of plan.operations) setPath(operation.targetPath, operation.value);
+		for (const link of graph.links) {
+			const parts = link.parentTargetPath.split(".").filter(Boolean);
+			if (!parts.length) throw new Error(`Macro link '${link.linkId}' has an empty target path`);
+			let current = note;
+			for (const part of parts.slice(0, -1)) {
+				if (current[part] === undefined || current[part] === null) current[part] = {};
+				if (typeof current[part] !== "object") throw new Error(`Macro link target is not traversable: ${link.parentTargetPath}`);
+				current = current[part];
+			}
+			const key = parts[parts.length - 1]!;
+			const existing = current[key];
+			if (link.mergeStrategy === "append") current[key] = [...(Array.isArray(existing) ? existing : []), link.childRef];
+			else if (link.mergeStrategy === "partial_fill" && existing !== undefined && existing !== null) continue;
+			else if (link.mergeStrategy === "deep_merge" && existing && typeof existing === "object" && !Array.isArray(existing)) current[key] = { ...existing, ref: link.childRef };
+			else current[key] = link.childRef;
+		}
+		await this.objectStore.set(effectiveAlias, [], note, sessionId);
+		return { generatedCellIds: graph.plans.map((plan) => plan.cellRef) };
 	}
 
 	/**

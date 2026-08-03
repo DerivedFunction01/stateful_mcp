@@ -1,13 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import { bindCommandMacro } from "../src/parser/command-macro-binder";
-import { lexCommandMacro } from "../src/parser/command-macro-lexer";
+import { bindCommandMacro } from "../src/parser/command/command-macro-binder";
+import { lexCommandMacro } from "../src/parser/command/command-macro-lexer";
 import { KvParserCommandMacroStore } from "../src/store/parser/command-macros/kv-command-macro-store";
 import { validateParserCommandMacro } from "../src/store/parser/command-macros/validation";
 import { executeCommandMacroPlans } from "../src/engine/command-macro-executor";
+import { executeCommandMacroGraph } from "../src/engine/command-macro-executor";
+import { planCommandMacroBatch, validateMacroCompositionGraph } from "../src/parser/command/command-macro-graph";
 import { getCommandMacroAutocomplete } from "../src/notebook/command-macro-autocomplete";
-import { assignMacroSlot, renderCommandMacroTemplate } from "../src/parser/command-macro-authoring-template";
-import { renderCommandMacroTargets } from "../src/parser/command-macro-renderer";
+import { assignMacroSlot, renderCommandMacroTemplate } from "../src/parser/command/command-macro-authoring-template";
+import { renderCommandMacroTargets } from "../src/parser/command/command-macro-renderer";
+import { evaluateMacroBoundary, evaluateMacroEnvelope } from "../src/parser/command/command-macro-boundary";
+import { CommandMacroQueryCompiler } from "../src/store/sql/command-macro-query-compiler";
 import type { ParserCommandMacro } from "../src/store/parser/command-macros/interfaces";
 
 const macro: ParserCommandMacro = {
@@ -115,5 +119,72 @@ describe("command macro v2 foundation", () => {
 	test("does not infer slots from visible placeholder text", () => {
 		const result = renderCommandMacroTargets({ version: 1, steps: [{ kind: "literal", text: "custom expression [__]" }] }, { values: {} });
 		expect(result.text).toBe("custom expression [__]");
+	});
+
+	test("plans explicit parent-child links and merge strategies", async () => {
+		const parent: ParserCommandMacro = {
+			...macro,
+			macroId: "parent-v1",
+			macroName: "parent",
+			children: [{ childMacroName: "qualifier", parentRoleName: "subjective.presenting_complaint", parentTargetPath: "qualifiers", mergeStrategy: "append" }],
+		};
+		const child: ParserCommandMacro = {
+			...macro,
+			macroId: "qualifier-v1",
+			macroName: "qualifier",
+			arguments: [{ ...macro.arguments[0]!, argumentId: "qualifier", name: "qualifier", roleName: "subjective.presenting_complaint" }],
+		};
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(parent);
+		await store.set(child);
+		const result = await planCommandMacroBatch("^parent SOB\n^qualifier diaphoresis", store, { groupId: "batch-1" });
+		expect(result.diagnostics).toEqual([]);
+		expect(result.graph?.links[0]).toMatchObject({ mergeStrategy: "append", parentTargetPath: "qualifiers" });
+		expect(result.graph?.plans[1]?.parentRef).toBe(result.graph?.plans[0]?.cellRef);
+	});
+
+	test("rejects cyclic child composition before execution", () => {
+		const a: ParserCommandMacro = { ...macro, macroName: "a", children: [{ childMacroName: "b", parentRoleName: "subjective.presenting_complaint", parentTargetPath: "child", mergeStrategy: "replace" }] };
+		const b: ParserCommandMacro = { ...macro, macroName: "b", children: [{ childMacroName: "a", parentRoleName: "subjective.presenting_complaint", parentTargetPath: "child", mergeStrategy: "replace" }] };
+		const diagnostics = validateMacroCompositionGraph(a, new Map([["a", a], ["b", b]]));
+		expect(diagnostics.some((item) => item.includes("cyclic"))).toBe(true);
+	});
+
+	test("executes graph links after target operations and compensates both", async () => {
+		const events: string[] = [];
+		const result = await executeCommandMacroGraph({ plans: [{ cellRef: "p", targetSchema: "ObservationEvent", operations: [{ operationId: "write", groupId: "g", cellRef: "p", targetSchema: "ObservationEvent", targetPath: "concept", rawValue: "SOB", value: "SOB", sourceLine: 1, sourceArgument: 0, evidence: [] }] }], links: [{ linkId: "link", parentRef: "p", childRef: "c", parentRoleName: "subjective.presenting_complaint", parentTargetPath: "qualifiers", mergeStrategy: "append", sourceLine: 2 }] }, {
+			apply: async () => { events.push("write"); },
+			applyLink: async () => { events.push("link"); throw new Error("link failed"); },
+			rollback: async () => { events.push("rollback-write"); },
+		});
+		expect(result.status).toBe("error");
+		expect(events).toEqual(["write", "link", "rollback-write"]);
+	});
+
+	test("enforces macro envelopes and reports boundary evidence", () => {
+		const envelope = evaluateMacroEnvelope("^cc SOB one two three four", 3, { maxWords: 2 });
+		expect(envelope.accepted).toBe(false);
+		expect(envelope.reasons[0]).toContain("word distance");
+		const local = evaluateMacroBoundary("shoulder pain on the right", { start: 20, end: 25 }, { start: 0, end: 7 }, { direction: "right", maxWords: 4, unit: "words" });
+		expect(local.accepted).toBe(true);
+	});
+
+	test("keeps a macro from consuming a distant paragraph", () => {
+		const bounded: ParserCommandMacro = { ...macro, boundary: { maxParagraphs: 0, maxWords: 8 } };
+		const result = lexCommandMacro("^cc SOB\n\nfar away prose that must not be consumed", bounded);
+		expect(result.diagnostics.some((item) => item.message.includes("macro envelope"))).toBe(true);
+	});
+
+	test("compiles command macro DDL and context-aware queries", () => {
+		const compiler = new CommandMacroQueryCompiler("sqlite");
+		const ddl = compiler.getTableDDL("parser_command_macros")[0]!;
+		const query = compiler.compileGetQuery("cc", "parser_command_macros", { personnelId: "p1", profileId: "profile" });
+		expect(ddl.sql).toContain("CREATE TABLE IF NOT EXISTS");
+		expect(ddl.sql).toContain("definition");
+		expect(query.sql).toContain("macroName");
+		expect(query.sql).toContain("personnelId");
+		expect(query.params).toContain("cc");
+		expect(query.params).toContain("p1");
+		expect(query.params).toContain("profile");
 	});
 });
