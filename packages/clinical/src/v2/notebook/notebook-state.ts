@@ -1,7 +1,8 @@
 import type { StructuredCell } from "../cells/structured-cell";
-
-export type V2NotebookEditorMode = "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";
-
+export const NOTEBOOK_STATE = [
+	"NORMAL", "INSERT", "COMMAND", "MACRO",  "VISUAL"
+] as const;
+export type V2NotebookEditorMode = (typeof NOTEBOOK_STATE)[number];
 /** Editor-neutral V2 notebook state; domain truth remains in CellStore. */
 export interface V2NotebookEditorState {
 	cells: StructuredCell[];
