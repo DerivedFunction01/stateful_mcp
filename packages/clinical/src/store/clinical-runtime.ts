@@ -1,5 +1,9 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import {
+	type CommandFieldMetadataStore,
+	CommandMacroFieldMetadataCatalog,
+} from "../parser/command/command-field-metadata";
+import {
 	type ClinicalStorageAdapterRegistry,
 	getClinicalAdapterConfigs,
 } from "./adapter-types";
@@ -7,10 +11,6 @@ import type { ClinicalStoreConfig } from "./clinical-config";
 import { resolveNgramStoreLocator } from "./learning/autocomplete-resolver";
 import type { NgramStore } from "./learning/interfaces";
 import type { ParserCommandMacroStore } from "./parser/command-macros/interfaces";
-import {
-	CommandMacroFieldMetadataCatalog,
-	type CommandFieldMetadataStore,
-} from "../parser/command/command-field-metadata";
 
 import {
 	resolveCalibrationExceptionStore,

@@ -1,4 +1,3 @@
-import type { CommandMacroValueSpec } from "../../store/parser/command-macros/interfaces";
 import { extractCommandValue } from "./command-value-adapter";
 
 export interface CommandMacroEvidence {

@@ -10,8 +10,7 @@ export const BRANCH_LIFECYCLE_STATES = [
 	"abandoned",
 ] as const;
 
-export type BranchLifecycleState =
-	(typeof BRANCH_LIFECYCLE_STATES)[number];
+export type BranchLifecycleState = (typeof BRANCH_LIFECYCLE_STATES)[number];
 
 export interface ClinicalBranch {
 	id: string;

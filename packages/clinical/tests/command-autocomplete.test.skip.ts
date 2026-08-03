@@ -1,9 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import { CommandAutocompleteSuggester } from "../src/parser/command/command-autocomplete-suggester";
-import type {
-	ParserSyntaxProfile,
-} from "../src/store/interfaces";
+import type { ParserSyntaxProfile } from "../src/store/interfaces";
 import type {
 	AutocompleteTransitionInsertPlan,
 	AutocompleteTransitionKey,

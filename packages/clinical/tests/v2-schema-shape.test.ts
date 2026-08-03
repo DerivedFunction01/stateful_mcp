@@ -1,17 +1,20 @@
 import { describe, expect, it } from "bun:test";
 import {
-	MEASUREMENT_OPERATORS,
 	MASS_CONCENTRATION_UNITS,
-	VALUE_TYPES,
+	MEASUREMENT_OPERATORS,
 	type MeasurementOperator,
 	type SingleMeasurement,
+	VALUE_TYPES,
 	type ValueType,
 } from "../src/schemas/measurement";
 import {
 	OBSERVATION_TRAJECTORIES,
 	type ObservationEvent,
 } from "../src/schemas/observation";
-import { TIME_PRECISION_LEVELS, type TimeMeasurement } from "../src/schemas/time";
+import {
+	TIME_PRECISION_LEVELS,
+	type TimeMeasurement,
+} from "../src/schemas/time";
 
 describe("redesigned measurement contracts", () => {
 	it("exposes statistical types and operators as runtime metadata", () => {
@@ -55,8 +58,8 @@ describe("redesigned observation contract", () => {
 			sourceType: "patient_reported",
 			severity: { score: 4, maxScore: 10, normalizedScore: 0.4 },
 			duration: [
-			{ magnitude: 2, unitAnchor: "time", unit: "hour" },
-			{ magnitude: 1, unitAnchor: "time", unit: "day" },
+				{ magnitude: 2, unitAnchor: "time", unit: "hour" },
+				{ magnitude: 1, unitAnchor: "time", unit: "day" },
 			],
 			trajectory: "stable",
 		};

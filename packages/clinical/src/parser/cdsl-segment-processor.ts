@@ -37,7 +37,7 @@ export class SegmentProcessor {
 	constructor(
 		private profile: ParserSyntaxProfile,
 		private attributeRules: AttributeParserRule[],
-		private dictionaryStore: DictionaryStore,
+		_dictionaryStore: DictionaryStore,
 	) {}
 
 	async processSegment(

@@ -6,10 +6,14 @@
  * legacy `CommandMacroGraphPlan` is reference material only.
  */
 
-import type { MacroDefinitionRef } from "./macro-definition";
 import type { TypedValue } from "../values/typed-value";
+import type { MacroDefinitionRef } from "./macro-definition";
 
-export type MergeStrategy = "replace" | "append" | "deep_merge" | "partial_fill";
+export type MergeStrategy =
+	| "replace"
+	| "append"
+	| "deep_merge"
+	| "partial_fill";
 
 export interface MacroEvidence {
 	source: string;
@@ -17,7 +21,10 @@ export interface MacroEvidence {
 	confidence?: number;
 }
 
-export type ExecutionScopeKind = "clinical_document" | "workspace" | "composite";
+export type ExecutionScopeKind =
+	| "clinical_document"
+	| "workspace"
+	| "composite";
 
 export interface ExecutionScope {
 	kind: ExecutionScopeKind;
@@ -38,7 +45,14 @@ export interface MacroTargetOperation {
 	sourceLine: number;
 	sourceArgument?: number;
 	evidence: MacroEvidence[];
-	failureStage?: "validation" | "binding" | "extraction" | "constraint" | "compilation" | "projection" | "execution";
+	failureStage?:
+		| "validation"
+		| "binding"
+		| "extraction"
+		| "constraint"
+		| "compilation"
+		| "projection"
+		| "execution";
 }
 
 export interface MacroLinkOperation {

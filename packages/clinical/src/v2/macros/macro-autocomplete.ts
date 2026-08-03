@@ -1,6 +1,5 @@
-import type { V2MacroDefinition, MacroArgumentSpec, MacroStore } from "./macro-definition";
 import type { ConceptLookup } from "../values/concept-value";
-import type { CodeableConcept } from "../../schemas/shared";
+import type { MacroStore } from "./macro-definition";
 
 export interface AutocompleteSuggestion {
 	label: string;
@@ -42,7 +41,10 @@ function matchesPrefix(text: string, prefix: string): boolean {
 	return text.toLowerCase().startsWith(prefix.toLowerCase());
 }
 
-function sortSuggestions(a: AutocompleteSuggestion, b: AutocompleteSuggestion): number {
+function sortSuggestions(
+	a: AutocompleteSuggestion,
+	b: AutocompleteSuggestion,
+): number {
 	return a.label.localeCompare(b.label);
 }
 
@@ -50,7 +52,8 @@ export class MacroAutocomplete {
 	constructor(private deps: AutocompleteServiceDeps) {}
 
 	async suggest(req: AutocompleteRequest): Promise<AutocompleteSuggestion[]> {
-		const { query, scope, argumentName, macroName, namespaceCode, enumValues } = req;
+		const { query, scope, argumentName, macroName, namespaceCode, enumValues } =
+			req;
 
 		if (scope === "argument" && macroName) {
 			return this.suggestArguments(macroName, query, argumentName);
@@ -69,7 +72,9 @@ export class MacroAutocomplete {
 		return [];
 	}
 
-	private async suggestMacros(prefix: string): Promise<AutocompleteSuggestion[]> {
+	private async suggestMacros(
+		prefix: string,
+	): Promise<AutocompleteSuggestion[]> {
 		const all = await this.deps.macros.list();
 		const suggestions: AutocompleteSuggestion[] = all
 			.filter((m) => matchesPrefix(m.macroName, prefix))
@@ -91,11 +96,13 @@ export class MacroAutocomplete {
 		const macro = await this.deps.macros.get(macroName);
 		if (!macro) return [];
 
-		const targetArgumentName = argumentName?.toLowerCase() ?? prefix.toLowerCase();
+		const targetArgumentName =
+			argumentName?.toLowerCase() ?? prefix.toLowerCase();
 		const suggestions: AutocompleteSuggestion[] = macro.arguments
 			.filter((arg) => {
 				if (matchesPrefix(arg.name, targetArgumentName)) return true;
-				if (arg.aliases?.some((a) => matchesPrefix(a, targetArgumentName))) return true;
+				if (arg.aliases?.some((a) => matchesPrefix(a, targetArgumentName)))
+					return true;
 				return matchesPrefix(arg.roleName, targetArgumentName);
 			})
 			.map((arg) => ({
@@ -109,7 +116,10 @@ export class MacroAutocomplete {
 		return suggestions;
 	}
 
-	private suggestEnums(prefix: string, enumValues?: readonly string[]): AutocompleteSuggestion[] {
+	private suggestEnums(
+		prefix: string,
+		enumValues?: readonly string[],
+	): AutocompleteSuggestion[] {
 		if (!enumValues) return [];
 		const lowerPrefix = prefix.trim().toLowerCase();
 		if (!lowerPrefix) return [];
@@ -131,7 +141,11 @@ export class MacroAutocomplete {
 	): Promise<AutocompleteSuggestion[]> {
 		if (!this.deps.dictionary) return [];
 		const lowerQuery = query.trim().toLowerCase();
-		let candidates = await this.deps.dictionary.search(query, namespaceCode, MAX_SUGGESTIONS);
+		let candidates = await this.deps.dictionary.search(
+			query,
+			namespaceCode,
+			MAX_SUGGESTIONS,
+		);
 		if (lowerQuery) {
 			candidates = candidates.filter(
 				(c) =>

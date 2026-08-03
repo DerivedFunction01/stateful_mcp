@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
-import { observationSchema } from "../src/v2/schemas/definitions";
-import { parseMacroLine } from "../src/v2/macros/macro-input-parser";
 import { bindMacro } from "../src/v2/macros/macro-binder";
 import { MacroCompiler } from "../src/v2/macros/macro-compiler";
-import { renderMacroPreview } from "../src/v2/macros/macro-renderer";
 import type { V2MacroDefinition } from "../src/v2/macros/macro-definition";
+import { parseMacroLine } from "../src/v2/macros/macro-input-parser";
+import { renderMacroPreview } from "../src/v2/macros/macro-renderer";
+import { observationSchema } from "../src/v2/schemas/definitions";
+import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
 
 const OBSERVATION_MACRO: V2MacroDefinition = {
 	macroId: "m_obs_1",
@@ -25,7 +25,11 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 			roleName: "observation.concept",
 			position: 0,
 			target: { targetSchema: "Observation", targetPath: "concept" },
-				extraction: { kind: "concept", required: true, patterns: [String.raw`(?<concept>.+)`] },
+			extraction: {
+				kind: "concept",
+				required: true,
+				patterns: [`(?<concept>.+)`],
+			},
 			required: true,
 		},
 		{
@@ -34,7 +38,11 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 			roleName: "observation.trajectory",
 			position: 1,
 			target: { targetSchema: "Observation", targetPath: "trajectory" },
-				extraction: { kind: "enum", required: true, patterns: [String.raw`(?<value>.+)`] },
+			extraction: {
+				kind: "enum",
+				required: true,
+				patterns: [`(?<value>.+)`],
+			},
 			required: true,
 		},
 		{
@@ -43,16 +51,25 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 			roleName: "observation.duration",
 			position: 2,
 			target: { targetSchema: "Observation", targetPath: "duration" },
-				extraction: { kind: "measurement", patterns: [String.raw`["']?(?<magnitude>\d+(?:\.\d+)?)\s+(?<unit>[\w/°%]+)["']?`] },
+			extraction: {
+				kind: "measurement",
+				patterns: [
+					`["']?(?<magnitude>d+(?:.d+)?)s+(?<unit>[w/°%]+)["']?`,
+				],
+			},
 		},
 	],
 };
 
 describe("V2 macro compile pipeline", () => {
 	it("binds named arguments", () => {
-		const input = parseMacroLine("^observation concept=chest pain trajectory=stable")!;
+		const input = parseMacroLine(
+			"^observation concept=chest pain trajectory=stable",
+		)!;
 		const result = bindMacro(input, OBSERVATION_MACRO);
-		expect(result.issues.filter((i) => i.code === "MISSING_REQUIRED")).toEqual([]);
+		expect(result.issues.filter((i) => i.code === "MISSING_REQUIRED")).toEqual(
+			[],
+		);
 		expect(result.bindings.map((b) => b.name)).toContain("concept");
 	});
 
@@ -67,17 +84,23 @@ describe("V2 macro compile pipeline", () => {
 		registry.register(observationSchema);
 
 		const dictionary = {
-			search: async () => [{
-				id: "c1",
-				namespaceCode: "SNOMED",
-				standardCode: "29857009",
-				display: "Chest pain",
-				active: true,
-			}],
+			search: async () => [
+				{
+					id: "c1",
+					namespaceCode: "SNOMED",
+					standardCode: "29857009",
+					display: "Chest pain",
+					active: true,
+				},
+			],
 		};
 
 		const compiler = new MacroCompiler({ registry, dictionary });
-		const input = parseMacroLine('^observation concept=SNOMED::29857009 trajectory=stable duration="3 day"', 0, { definition: OBSERVATION_MACRO })!;
+		const input = parseMacroLine(
+			'^observation concept=SNOMED::29857009 trajectory=stable duration="3 day"',
+			0,
+			{ definition: OBSERVATION_MACRO },
+		)!;
 		const result = await compiler.compile(input, OBSERVATION_MACRO, {
 			groupId: "grp1",
 			scope: { kind: "clinical_document", sessionId: "s1", documentId: "n1" },
@@ -98,9 +121,17 @@ describe("V2 macro compile pipeline", () => {
 		const registry = new SchemaRegistry();
 		registry.register(observationSchema);
 		const compiler = new MacroCompiler({ registry });
-		const input = parseMacroLine("^observation concept=chest pain trajectory=stable", 0, { definition: OBSERVATION_MACRO })!;
-		const a = await compiler.compile(input, OBSERVATION_MACRO, { groupId: "g" });
-		const b = await compiler.compile(input, OBSERVATION_MACRO, { groupId: "g" });
+		const input = parseMacroLine(
+			"^observation concept=chest pain trajectory=stable",
+			0,
+			{ definition: OBSERVATION_MACRO },
+		)!;
+		const a = await compiler.compile(input, OBSERVATION_MACRO, {
+			groupId: "g",
+		});
+		const b = await compiler.compile(input, OBSERVATION_MACRO, {
+			groupId: "g",
+		});
 		expect(a.plan!.fingerprint.value).toBe(b.plan!.fingerprint.value);
 	});
 });

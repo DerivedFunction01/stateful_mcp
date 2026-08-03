@@ -1,4 +1,8 @@
-export type ProseSlotType = "attribute" | "concept" | "repeating_block" | "sub_section";
+export type ProseSlotType =
+	| "attribute"
+	| "concept"
+	| "repeating_block"
+	| "sub_section";
 
 export type Relation =
 	| "trigger"

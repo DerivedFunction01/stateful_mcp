@@ -1,5 +1,5 @@
-import type { WorkspaceStore } from "../engine/workspace-store";
 import type { DictionaryStore } from "@stateful-mcp/core";
+import type { WorkspaceStore } from "../engine/workspace-store";
 import type { CdslParser, ClinicalParseResult } from "../parser/cdsl-parser";
 import { planCommandMacroBatch } from "../parser/command/command-macro-graph";
 import type { CommandMacroCellPlan } from "../parser/command/command-macro-ir";

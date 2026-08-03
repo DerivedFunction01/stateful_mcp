@@ -3,7 +3,11 @@ import type { CodeableConcept } from "../../schemas/shared";
 import type { ConceptValue, ValueEvidence } from "./typed-value";
 
 export interface ConceptLookup {
-	search(query: string, namespaceCode?: string, limit?: number): Promise<Concept[]>;
+	search(
+		query: string,
+		namespaceCode?: string,
+		limit?: number,
+	): Promise<Concept[]>;
 }
 
 export interface ConceptResolutionOptions {
@@ -37,23 +41,35 @@ export async function resolveConceptValue(
 	);
 	const exact = candidates.find((candidate) =>
 		coordinate.namespace
-			? candidate.namespaceCode === coordinate.namespace && candidate.standardCode === coordinate.code
-			: candidate.display.toLowerCase() === text.toLowerCase() || candidate.standardCode === text,
+			? candidate.namespaceCode === coordinate.namespace &&
+				candidate.standardCode === coordinate.code
+			: candidate.display.toLowerCase() === text.toLowerCase() ||
+				candidate.standardCode === text,
 	);
 	if (!exact || exact.active === false) {
 		return {
-			diagnostics: options.required === false ? [] : [{
-				code: "concept_unresolved",
-				message: `Concept '${rawText}' could not be resolved`,
-			}],
+			diagnostics:
+				options.required === false
+					? []
+					: [
+							{
+								code: "concept_unresolved",
+								message: `Concept '${rawText}' could not be resolved`,
+							},
+						],
 		};
 	}
-	if (options.allowedNamespaces && !options.allowedNamespaces.includes(exact.namespaceCode)) {
+	if (
+		options.allowedNamespaces &&
+		!options.allowedNamespaces.includes(exact.namespaceCode)
+	) {
 		return {
-			diagnostics: [{
-				code: "concept_namespace_invalid",
-				message: `Concept '${rawText}' resolved to disallowed namespace '${exact.namespaceCode}'`,
-			}],
+			diagnostics: [
+				{
+					code: "concept_namespace_invalid",
+					message: `Concept '${rawText}' resolved to disallowed namespace '${exact.namespaceCode}'`,
+				},
+			],
 		};
 	}
 	const concept: CodeableConcept = {
@@ -69,5 +85,8 @@ export async function resolveConceptValue(
 function parseCoordinate(value: string): { namespace?: string; code?: string } {
 	const separator = value.indexOf("::");
 	if (separator <= 0) return {};
-	return { namespace: value.slice(0, separator), code: value.slice(separator + 2) };
+	return {
+		namespace: value.slice(0, separator),
+		code: value.slice(separator + 2),
+	};
 }

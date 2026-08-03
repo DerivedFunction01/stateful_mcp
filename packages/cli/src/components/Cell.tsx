@@ -326,7 +326,10 @@ export function CellComponent({
 						Macro confirmation
 					</Text>
 					{cell.macro.rendered.confirmation.map((item, i) => (
-						<Text key={i} color={item.status === "resolved" ? "green" : "yellow"}>
+						<Text
+							key={i}
+							color={item.status === "resolved" ? "green" : "yellow"}
+						>
 							{item.line}. {item.text}
 						</Text>
 					))}

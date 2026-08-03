@@ -17,8 +17,7 @@ export const LAB_INTERPRETATION_FLAGS = [
 	"indeterminate",
 ] as const;
 
-export type LabInterpretationFlag =
-	(typeof LAB_INTERPRETATION_FLAGS)[number];
+export type LabInterpretationFlag = (typeof LAB_INTERPRETATION_FLAGS)[number];
 
 /**
  * A single measured analyte within a lab panel.

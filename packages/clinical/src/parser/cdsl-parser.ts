@@ -1,4 +1,4 @@
-import { type DictionaryStore } from "@stateful-mcp/core";
+import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
 	ParserSyntaxProfile,
@@ -15,12 +15,9 @@ import type {
 import type { CommandAutocompleteContext } from "../store/reference/auto-complete/command-autocomplete-interfaces";
 import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { CommandAutocompleteSuggester } from "./command/command-autocomplete-suggester";
-import type {
-	ParsedCandidateEnvelope,
-	ParsedItem,
-} from "./schema-parsers";
-import { TextPreprocessor } from "./text-preprocessor";
+import type { ParsedCandidateEnvelope, ParsedItem } from "./schema-parsers";
 import type { StopWordParser } from "./stop-word-parser";
+import { TextPreprocessor } from "./text-preprocessor";
 
 interface ParserPreviewResult extends ParsedCandidateEnvelope {
 	targetSchema: string;

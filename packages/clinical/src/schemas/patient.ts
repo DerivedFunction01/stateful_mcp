@@ -8,8 +8,7 @@ export const ADMINISTRATIVE_GENDERS = [
 	"not_applicable",
 ] as const;
 
-export type AdministrativeGender =
-	(typeof ADMINISTRATIVE_GENDERS)[number];
+export type AdministrativeGender = (typeof ADMINISTRATIVE_GENDERS)[number];
 
 export const SUBJECT_LIFECYCLE_STATUSES = [
 	"active",

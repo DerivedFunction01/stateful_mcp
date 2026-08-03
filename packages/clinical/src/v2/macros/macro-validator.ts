@@ -1,14 +1,7 @@
-import type {
-	MacroArgumentSpec,
-	MacroChildDefinition,
-	MacroExecutionPolicy,
-	MacroValueSpecKind,
-	V2MacroDefinition,
-	V2ValueSpec,
-} from "./macro-definition";
-import { SchemaRegistry } from "../schemas/schema-registry";
 import { validateTargetPath } from "../schemas/schema-path-validator";
+import type { SchemaRegistry } from "../schemas/schema-registry";
 import type { TypedValueKind } from "../values/typed-value";
+import type { MacroValueSpecKind, V2MacroDefinition } from "./macro-definition";
 
 export type MacroValidationSeverity = "error" | "warning";
 
@@ -26,9 +19,17 @@ export interface MacroValidationResult {
 	issues: MacroValidationIssue[];
 }
 
-const MERGE_STRATEGIES = ["replace", "append", "deep_merge", "partial_fill"] as const;
+const MERGE_STRATEGIES = [
+	"replace",
+	"append",
+	"deep_merge",
+	"partial_fill",
+] as const;
 
-const PLURAL_EXTRACTION_KINDS = new Set<MacroValueSpecKind>(["concept_array", "array"]);
+const PLURAL_EXTRACTION_KINDS = new Set<MacroValueSpecKind>([
+	"concept_array",
+	"array",
+]);
 
 function extractionKindCompatible(
 	extractionKind: MacroValueSpecKind,
@@ -74,7 +75,10 @@ export class MacroDefinitionValidator {
 		return { valid, definition: def, issues };
 	}
 
-	private validateStructure(def: V2MacroDefinition, issues: MacroValidationIssue[]): void {
+	private validateStructure(
+		def: V2MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
 		if (!def.macroId || !def.macroId.trim()) {
 			issues.push({
 				severity: "error",
@@ -123,7 +127,10 @@ export class MacroDefinitionValidator {
 		}
 	}
 
-	private validateStatus(def: V2MacroDefinition, issues: MacroValidationIssue[]): void {
+	private validateStatus(
+		def: V2MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
 		switch (def.status) {
 			case "published":
 				break;
@@ -144,7 +151,10 @@ export class MacroDefinitionValidator {
 		}
 	}
 
-	private validateSchemaExistence(def: V2MacroDefinition, issues: MacroValidationIssue[]): void {
+	private validateSchemaExistence(
+		def: V2MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
 		const rootSchema = def.root.targetSchema;
 		if (!this.registry.get(rootSchema)) {
 			issues.push({
@@ -169,17 +179,29 @@ export class MacroDefinitionValidator {
 		}
 	}
 
-	private validateTargets(def: V2MacroDefinition, issues: MacroValidationIssue[]): void {
+	private validateTargets(
+		def: V2MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
 		for (const arg of def.arguments ?? []) {
 			const targetSchema = arg.target.targetSchema;
 			const targetPath = arg.target.targetPath;
 
-			const pathResult = validateTargetPath(this.registry, targetSchema, targetPath);
+			const pathResult = validateTargetPath(
+				this.registry,
+				targetSchema,
+				targetPath,
+			);
 			if (!pathResult.valid) {
 				issues.push({
 					severity: "error",
-					code: pathResult.code === "schema_not_found" ? "UNKNOWN_SCHEMA" : "PATH_NOT_FOUND",
-					message: pathResult.message ?? `Invalid target path '${targetPath}' on schema '${targetSchema}'`,
+					code:
+						pathResult.code === "schema_not_found"
+							? "UNKNOWN_SCHEMA"
+							: "PATH_NOT_FOUND",
+					message:
+						pathResult.message ??
+						`Invalid target path '${targetPath}' on schema '${targetSchema}'`,
 					argumentId: arg.argumentId,
 					path: targetPath,
 				});
@@ -210,7 +232,10 @@ export class MacroDefinitionValidator {
 				});
 			}
 
-			if (field.cardinality === "many" && !PLURAL_EXTRACTION_KINDS.has(arg.extraction.kind)) {
+			if (
+				field.cardinality === "many" &&
+				!PLURAL_EXTRACTION_KINDS.has(arg.extraction.kind)
+			) {
 				issues.push({
 					severity: "warning",
 					code: "CARDINALITY_MISMATCH",
@@ -222,7 +247,10 @@ export class MacroDefinitionValidator {
 		}
 	}
 
-	private validateExecutionPolicy(def: V2MacroDefinition, issues: MacroValidationIssue[]): void {
+	private validateExecutionPolicy(
+		def: V2MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
 		if (def.root.outputCellKind !== "macro_output") return;
 
 		if (!def.execution) {
@@ -243,7 +271,10 @@ export class MacroDefinitionValidator {
 		}
 	}
 
-	private validateChildren(def: V2MacroDefinition, issues: MacroValidationIssue[]): void {
+	private validateChildren(
+		def: V2MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
 		const children = def.children ?? [];
 		if (children.length === 0) return;
 
@@ -258,12 +289,21 @@ export class MacroDefinitionValidator {
 			}
 			seenChildNames.add(child.childMacroName);
 
-			const pathResult = validateTargetPath(this.registry, def.root.targetSchema, child.parentTargetPath);
+			const pathResult = validateTargetPath(
+				this.registry,
+				def.root.targetSchema,
+				child.parentTargetPath,
+			);
 			if (!pathResult.valid) {
 				issues.push({
 					severity: "error",
-					code: pathResult.code === "schema_not_found" ? "UNKNOWN_SCHEMA" : "PATH_NOT_FOUND",
-					message: pathResult.message ?? `Invalid parentTargetPath '${child.parentTargetPath}' on schema '${def.root.targetSchema}'`,
+					code:
+						pathResult.code === "schema_not_found"
+							? "UNKNOWN_SCHEMA"
+							: "PATH_NOT_FOUND",
+					message:
+						pathResult.message ??
+						`Invalid parentTargetPath '${child.parentTargetPath}' on schema '${def.root.targetSchema}'`,
 					path: child.parentTargetPath,
 				});
 			}
@@ -280,7 +320,10 @@ export class MacroDefinitionValidator {
 		}
 	}
 
-	private validateMergePolicies(def: V2MacroDefinition, issues: MacroValidationIssue[]): void {
+	private validateMergePolicies(
+		def: V2MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
 		for (const child of def.children ?? []) {
 			if (!MERGE_STRATEGIES.includes(child.mergeStrategy)) {
 				issues.push({

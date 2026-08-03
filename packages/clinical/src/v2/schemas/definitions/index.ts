@@ -18,8 +18,8 @@ export { patientSchema } from "./patient-schema";
 export {
 	interventionOrderSchema,
 	investigationOrderSchema,
+	militaryPlanExtensionSchema,
 	referralOrderSchema,
 	safetyNettingSchema,
-	militaryPlanExtensionSchema,
 } from "./plan-schema";
 export { vitalsSchema } from "./vitals-schema";

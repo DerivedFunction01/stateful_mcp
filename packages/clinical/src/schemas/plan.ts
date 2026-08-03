@@ -9,11 +9,7 @@ export const INVESTIGATION_TYPES = ["laboratory", "imaging"] as const;
 
 export type InvestigationType = (typeof INVESTIGATION_TYPES)[number];
 
-export const REFERRAL_URGENCIES = [
-	"routine",
-	"urgent",
-	"emergent",
-] as const;
+export const REFERRAL_URGENCIES = ["routine", "urgent", "emergent"] as const;
 
 export type ReferralUrgency = (typeof REFERRAL_URGENCIES)[number];
 

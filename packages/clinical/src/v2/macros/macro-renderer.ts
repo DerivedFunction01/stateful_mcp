@@ -1,5 +1,5 @@
-import type { MacroExecutionPlan } from "./macro-plan";
 import type { TypedValue } from "../values/typed-value";
+import type { MacroExecutionPlan } from "./macro-plan";
 
 export interface MacroPreviewField {
 	path: string;
@@ -57,47 +57,54 @@ function renderTypedValue(value: TypedValue): string {
 		case "enum":
 			return value.value;
 
-	case "measurement": {
-		const parts: string[] = [];
-		if (value.isApproximate) {
-			parts.push("~");
+		case "measurement": {
+			const parts: string[] = [];
+			if (value.isApproximate) {
+				parts.push("~");
+			}
+			if (value.operator && value.operator !== "eq") {
+				const opMap: Record<string, string> = {
+					gt: ">",
+					gte: ">=",
+					lt: "<",
+					lte: "<=",
+				};
+				parts.push(opMap[value.operator] || value.operator);
+			}
+			parts.push(`${value.magnitude} ${value.unit}`);
+			return parts.join("");
 		}
-		if (value.operator && value.operator !== "eq") {
-			const opMap: Record<string, string> = {
-				gt: ">",
-				gte: ">=",
-				lt: "<",
-				lte: "<=",
-			};
-			parts.push(opMap[value.operator] || value.operator);
-		}
-		parts.push(`${value.magnitude} ${value.unit}`);
-		return parts.join("");
-	}
 
-	case "temporal":
-		switch (value.temporalType) {
-			case "duration": {
-				const measurements = (value.value as { measurements: { magnitude: number; unit: string }[] }).measurements;
-				const rendered = measurements.map(
-					(m) => `${m.magnitude} x ${m.unit}`,
-				);
-				return rendered.join(", ");
+		case "temporal":
+			switch (value.temporalType) {
+				case "duration": {
+					const measurements = (
+						value.value as {
+							measurements: { magnitude: number; unit: string }[];
+						}
+					).measurements;
+					const rendered = measurements.map(
+						(m) => `${m.magnitude} x ${m.unit}`,
+					);
+					return rendered.join(", ");
+				}
+				case "date":
+					return (value.value as { value: string }).value;
+				case "date_range":
+					return "range";
+				case "relative_time": {
+					const rt = value.value as { amount: number; unit: string };
+					return `${rt.amount} ${rt.unit}`;
+				}
+				case "cadence": {
+					const cadence = (
+						value.value as { kind: "cadence"; value: { cadenceType: string } }
+					).value;
+					return cadence.cadenceType;
+				}
+				default:
+					return JSON.stringify(value.value);
 			}
-			case "date":
-				return (value.value as { value: string }).value;
-			case "date_range":
-				return "range";
-			case "relative_time":
-				const rt = value.value as { amount: number; unit: string };
-				return `${rt.amount} ${rt.unit}`;
-			case "cadence": {
-				const cadence = (value.value as { kind: "cadence"; value: { cadenceType: string } }).value;
-				return cadence.cadenceType;
-			}
-			default:
-				return JSON.stringify(value.value);
-		}
 
 		case "array": {
 			const items = value.items.map((item) => renderTypedValue(item));

@@ -9,6 +9,7 @@ import {
 	getCommandMacroContextualAutocomplete,
 	getCompatibleCommandMacros,
 } from "../src/notebook/command-macro-autocomplete";
+import { CommandMacroFieldMetadataCatalog } from "../src/parser/command/command-field-metadata";
 import {
 	assignMacroSlot,
 	renderCommandMacroTemplate,
@@ -25,6 +26,7 @@ import {
 import { lexCommandMacro } from "../src/parser/command/command-macro-lexer";
 import { createCommandMacroPreviewController } from "../src/parser/command/command-macro-preview";
 import { renderCommandMacroTargets } from "../src/parser/command/command-macro-renderer";
+import { extractCommandValue } from "../src/parser/command/command-value-adapter";
 import type { Cell } from "../src/session/cell";
 import { CellProcessor } from "../src/session/cell-processor";
 import type { ParserCommandMacro } from "../src/store/parser/command-macros/interfaces";
@@ -32,8 +34,6 @@ import { KvParserCommandMacroStore } from "../src/store/parser/command-macros/kv
 import { validateParserCommandMacro } from "../src/store/parser/command-macros/validation";
 import { KvCommandTemplateStore } from "../src/store/reference/command-templates/kv-command-template-store";
 import { validateCommandTemplate } from "../src/store/reference/command-templates/validation";
-import { extractCommandValue } from "../src/parser/command/command-value-adapter";
-import { CommandMacroFieldMetadataCatalog } from "../src/parser/command/command-field-metadata";
 import { CommandMacroQueryCompiler } from "../src/store/sql/command-macro-query-compiler";
 import { CommandTemplateQueryCompiler } from "../src/store/sql/command-template-query-compiler";
 
@@ -230,7 +230,11 @@ describe("command macro v2 foundation", () => {
 	test("extracts typed command values through the direct adapter contract", () => {
 		const result = extractCommandValue("42", {
 			kind: "scalar",
-			extraction: { pattern: "^(?<value>\\d+)$", fullSpan: true, namedGroupContract: { required: ["value"] } },
+			extraction: {
+				pattern: "^(?<value>\\d+)$",
+				fullSpan: true,
+				namedGroupContract: { required: ["value"] },
+			},
 			valueType: "integer",
 		});
 		expect(result.value).toBe(42);
@@ -242,8 +246,14 @@ describe("command macro v2 foundation", () => {
 		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
 		await store.set(macro);
 		const fields = await new CommandMacroFieldMetadataCatalog(store).list();
-		expect(fields.map((field) => field.roleName)).toEqual(["subjective.presenting_complaint", "subjective.severity"]);
-		expect(fields.find((field) => field.roleName === "subjective.severity")?.valueKind).toBe("scalar");
+		expect(fields.map((field) => field.roleName)).toEqual([
+			"subjective.presenting_complaint",
+			"subjective.severity",
+		]);
+		expect(
+			fields.find((field) => field.roleName === "subjective.severity")
+				?.valueKind,
+		).toBe("scalar");
 	});
 
 	test("validates the full plan before mutation and compensates failures", async () => {
@@ -822,12 +832,28 @@ describe("command macro v2 foundation", () => {
 		const dictionary = {
 			resolve: async () => ({
 				status: "FOUND",
-				results: [{ concept: { id: "concept-1", namespaceCode: "SNOMED", standardCode: "123", display: "Chest pain" } }],
+				results: [
+					{
+						concept: {
+							id: "concept-1",
+							namespaceCode: "SNOMED",
+							standardCode: "123",
+							display: "Chest pain",
+						},
+					},
+				],
 			}),
 		} as any;
-		const result = await planCommandMacroBatch("^cc SOB 4", store, { dictionaryStore: dictionary });
+		const result = await planCommandMacroBatch("^cc SOB 4", store, {
+			dictionaryStore: dictionary,
+		});
 		expect(result.diagnostics).toEqual([]);
-		expect(result.graph?.plans[0]?.operations[0]?.value).toEqual({ conceptId: "SNOMED::123", display: "Chest pain" });
-		expect(result.graph?.plans[0]?.operations[0]?.evidence.at(-1)?.source).toBe("dictionary");
+		expect(result.graph?.plans[0]?.operations[0]?.value).toEqual({
+			conceptId: "SNOMED::123",
+			display: "Chest pain",
+		});
+		expect(result.graph?.plans[0]?.operations[0]?.evidence.at(-1)?.source).toBe(
+			"dictionary",
+		);
 	});
 });

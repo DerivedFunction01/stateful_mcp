@@ -149,7 +149,6 @@ describe("bootstrapClinicalStores", () => {
 
 		expect(Array.isArray(result.unsupportedKinds)).toBe(true);
 	});
-
 });
 
 describe("validateBootstrapReadiness", () => {
@@ -177,10 +176,7 @@ describe("validateBootstrapReadiness", () => {
 		expect(await validateBootstrapReadiness(stores)).toBe("bootstrap-ready");
 		const diagnostics = await getBootstrapReadinessDiagnostics(stores);
 		expect(diagnostics.declaredEmpty).toEqual(
-			expect.arrayContaining([
-				"proseTemplates",
-				"dictionaryExpressions",
-			]),
+			expect.arrayContaining(["proseTemplates", "dictionaryExpressions"]),
 		);
 		expect(diagnostics.diagnostics.every((d) => d.severity === "info")).toBe(
 			true,

@@ -40,14 +40,20 @@ export class SchemaRegistry {
 		if (!versions) return null;
 		if (version !== undefined) return versions.get(version) ?? null;
 		const candidates = [...versions.values()].filter((item) =>
-			this.allowDraftResolution ? item.status !== "retired" : item.status === "published",
+			this.allowDraftResolution
+				? item.status !== "retired"
+				: item.status === "published",
 		);
-		return candidates.sort((left, right) => right.version - left.version)[0] ?? null;
+		return (
+			candidates.sort((left, right) => right.version - left.version)[0] ?? null
+		);
 	}
 
 	list(schema?: string): RegisteredSchema[] {
 		if (schema) return [...(this.schemas.get(schema)?.values() ?? [])];
-		return [...this.schemas.values()].flatMap((versions) => [...versions.values()]);
+		return [...this.schemas.values()].flatMap((versions) => [
+			...versions.values(),
+		]);
 	}
 
 	getField(schema: string, path: string, version?: number): SchemaField | null {
@@ -61,7 +67,9 @@ function validateDefinition(definition: SchemaDefinition): void {
 		throw new Error("Schema version must be a positive integer");
 	}
 	if (Object.keys(definition.fields).length === 0) {
-		throw new Error(`Schema '${definition.schema}' must define at least one field`);
+		throw new Error(
+			`Schema '${definition.schema}' must define at least one field`,
+		);
 	}
 	for (const [key, field] of Object.entries(definition.fields)) {
 		if (!field.path.trim() || key !== field.path) {
@@ -70,23 +78,39 @@ function validateDefinition(definition: SchemaDefinition): void {
 		if (field.valueKind === "scalar" && !field.scalarType) {
 			throw new Error(`Scalar field '${field.path}' must declare scalarType`);
 		}
-		if (field.valueKind === "enum" && (!field.enumValues || field.enumValues.length === 0)) {
+		if (
+			field.valueKind === "enum" &&
+			(!field.enumValues || field.enumValues.length === 0)
+		) {
 			throw new Error(`Enum field '${field.path}' must declare enumValues`);
 		}
 		if (field.valueKind === "measurement" && !field.measurement) {
-			throw new Error(`Measurement field '${field.path}' must declare measurement metadata`);
+			throw new Error(
+				`Measurement field '${field.path}' must declare measurement metadata`,
+			);
 		}
 		if (field.measurement?.allowedUnits) {
-			assertUnique(field.measurement.allowedUnits, `allowed units for '${field.path}'`);
+			assertUnique(
+				field.measurement.allowedUnits,
+				`allowed units for '${field.path}'`,
+			);
 		}
 		if (field.measurement?.statisticalTypes) {
-			assertUnique(field.measurement.statisticalTypes, `statistical types for '${field.path}'`);
+			assertUnique(
+				field.measurement.statisticalTypes,
+				`statistical types for '${field.path}'`,
+			);
 		}
 		if (field.measurement?.operators) {
-			assertUnique(field.measurement.operators, `operators for '${field.path}'`);
+			assertUnique(
+				field.measurement.operators,
+				`operators for '${field.path}'`,
+			);
 		}
 		if (field.valueKind === "temporal" && !field.temporalType) {
-			throw new Error(`Temporal field '${field.path}' must declare temporalType`);
+			throw new Error(
+				`Temporal field '${field.path}' must declare temporalType`,
+			);
 		}
 	}
 }
@@ -97,32 +121,39 @@ function assertUnique(values: readonly string[], label: string): void {
 	}
 }
 
-function cloneFields(fields: Readonly<Record<string, SchemaField>>): Record<string, SchemaField> {
+function cloneFields(
+	fields: Readonly<Record<string, SchemaField>>,
+): Record<string, SchemaField> {
 	return Object.fromEntries(
-		Object.entries(fields).map(([path, field]) => [path, {
-			...field,
-			enumValues: field.enumValues ? [...field.enumValues] : undefined,
-			measurement: field.measurement
-				? {
-					...field.measurement,
-					allowedUnits: field.measurement.allowedUnits
-						? [...field.measurement.allowedUnits]
-						: undefined,
-				}
-				: undefined,
-			conceptResolution: field.conceptResolution
-				? {
-					...field.conceptResolution,
-					allowedNamespaces: field.conceptResolution.allowedNamespaces
-						? [...field.conceptResolution.allowedNamespaces]
-						: undefined,
-				}
-				: undefined,
-		}]),
+		Object.entries(fields).map(([path, field]) => [
+			path,
+			{
+				...field,
+				enumValues: field.enumValues ? [...field.enumValues] : undefined,
+				measurement: field.measurement
+					? {
+							...field.measurement,
+							allowedUnits: field.measurement.allowedUnits
+								? [...field.measurement.allowedUnits]
+								: undefined,
+						}
+					: undefined,
+				conceptResolution: field.conceptResolution
+					? {
+							...field.conceptResolution,
+							allowedNamespaces: field.conceptResolution.allowedNamespaces
+								? [...field.conceptResolution.allowedNamespaces]
+								: undefined,
+						}
+					: undefined,
+			},
+		]),
 	) as Record<string, SchemaField>;
 }
 
-export function fingerprintSchema(definition: SchemaDefinition): SchemaFingerprint {
+export function fingerprintSchema(
+	definition: SchemaDefinition,
+): SchemaFingerprint {
 	return {
 		value: hashString(stableSerialize(definition)),
 		algorithm: "v2-schema-fingerprint-v1",
@@ -135,7 +166,10 @@ function stableSerialize(value: unknown): string {
 	}
 	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
 	const record = value as Record<string, unknown>;
-	return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`).join(",")}}`;
+	return `{${Object.keys(record)
+		.sort()
+		.map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
+		.join(",")}}`;
 }
 
 function hashString(value: string): string {

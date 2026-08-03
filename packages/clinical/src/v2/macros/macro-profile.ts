@@ -29,7 +29,9 @@ export function createV2SyntaxProfile(
 ): V2SyntaxProfile {
 	return {
 		...profile,
-		macroStartToken: profile.macroStartToken ?? V2_SYNTAX_DEFAULTS.macroStartToken,
-		conceptCodeSeparator: profile.conceptCodeSeparator ?? V2_SYNTAX_DEFAULTS.conceptCodeSeparator,
+		macroStartToken:
+			profile.macroStartToken ?? V2_SYNTAX_DEFAULTS.macroStartToken,
+		conceptCodeSeparator:
+			profile.conceptCodeSeparator ?? V2_SYNTAX_DEFAULTS.conceptCodeSeparator,
 	};
 }

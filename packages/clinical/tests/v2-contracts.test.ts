@@ -7,12 +7,12 @@ import type {
 } from "../src/v2/cells/cell-intent";
 import type { StructuredCell } from "../src/v2/cells/structured-cell";
 import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
-import { valueKind } from "../src/v2/values/typed-value";
 import type {
 	ConceptValue,
 	MeasurementValue,
 	TypedValue,
 } from "../src/v2/values/typed-value";
+import { valueKind } from "../src/v2/values/typed-value";
 
 describe("V2 structured cell contract", () => {
 	it("satisfies the StructuredCell shape", () => {

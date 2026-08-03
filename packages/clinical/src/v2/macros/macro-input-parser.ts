@@ -1,10 +1,10 @@
-import type { V2MacroDefinition, MacroArgumentSpec } from "./macro-definition";
 import type {
 	MacroArgumentInput,
-	MacroListItemInput,
 	MacroInput,
+	MacroListItemInput,
 	MacroSourceLine,
 } from "./macro-binding";
+import type { MacroArgumentSpec, V2MacroDefinition } from "./macro-definition";
 import type { V2SyntaxProfile } from "./macro-profile";
 
 export interface ParseMacroLineOptions {
@@ -14,7 +14,11 @@ export interface ParseMacroLineOptions {
 }
 
 export interface MacroParseDiagnostic {
-	code: "UNTERMINATED_QUOTE" | "UNTERMINATED_GROUP" | "INVALID_PATTERN" | "NO_MATCH";
+	code:
+		| "UNTERMINATED_QUOTE"
+		| "UNTERMINATED_GROUP"
+		| "INVALID_PATTERN"
+		| "NO_MATCH";
 	message: string;
 	start: number;
 	end: number;
@@ -25,7 +29,8 @@ export function parseMacroLine(
 	lineNumber = 0,
 	options: ParseMacroLineOptions = {},
 ): (MacroInput & { diagnostics?: MacroParseDiagnostic[] }) | null {
-	const marker = options.macroStartToken ?? options.profile?.macroStartToken ?? "^";
+	const marker =
+		options.macroStartToken ?? options.profile?.macroStartToken ?? "^";
 	const leading = raw.search(/\S/);
 	if (leading < 0 || !raw.startsWith(marker, leading)) return null;
 	const nameStart = leading + marker.length;
@@ -36,8 +41,20 @@ export function parseMacroLine(
 	const diagnostics: MacroParseDiagnostic[] = [];
 	const bodyStart = skipWhitespace(raw, nameEnd);
 	const arguments_ = options.definition
-		? matchDefinitionArguments(raw, bodyStart, options.definition, diagnostics, options.profile)
-		: scanFallbackAssignments(raw, bodyStart, diagnostics, options.profile?.macroArgDelimiter ?? options.profile?.fallbackBoundaryDelimiter);
+		? matchDefinitionArguments(
+				raw,
+				bodyStart,
+				options.definition,
+				diagnostics,
+				options.profile,
+			)
+		: scanFallbackAssignments(
+				raw,
+				bodyStart,
+				diagnostics,
+				options.profile?.macroArgDelimiter ??
+					options.profile?.fallbackBoundaryDelimiter,
+			);
 	const sourceLines: MacroSourceLine[] = [{ line: lineNumber, raw, macroName }];
 	for (const argument of arguments_) argument.line = lineNumber;
 	return {
@@ -55,17 +72,35 @@ function matchDefinitionArguments(
 	diagnostics: MacroParseDiagnostic[],
 	profile?: V2SyntaxProfile,
 ): MacroArgumentInput[] {
-	const delimiter = definition.syntax?.argumentDelimiter ?? profile?.macroArgDelimiter ?? profile?.fallbackBoundaryDelimiter;
+	const delimiter =
+		definition.syntax?.argumentDelimiter ??
+		profile?.macroArgDelimiter ??
+		profile?.fallbackBoundaryDelimiter;
 	const named = scanNamedAssignments(raw, bodyStart, diagnostics, delimiter);
 	const arguments_: MacroArgumentInput[] = [];
 	for (const segment of named) {
 		const spec = resolveNamedSpec(segment.name, definition.arguments);
 		if (!spec) {
-			arguments_.push({ name: segment.name, rawValue: segment.value, source: "named", start: segment.start, end: segment.end });
+			arguments_.push({
+				name: segment.name,
+				rawValue: segment.value,
+				source: "named",
+				start: segment.start,
+				end: segment.end,
+			});
 			continue;
 		}
-		const matched = matchSpec(segment.value, segment.valueStart, spec, diagnostics);
-		const items = splitListItems(segment.value, segment.valueStart, spec.extraction.itemDelimiter);
+		const matched = matchSpec(
+			segment.value,
+			segment.valueStart,
+			spec,
+			diagnostics,
+		);
+		const items = splitListItems(
+			segment.value,
+			segment.valueStart,
+			spec.extraction.itemDelimiter,
+		);
 		arguments_.push({
 			name: segment.name,
 			position: spec.position,
@@ -79,22 +114,44 @@ function matchDefinitionArguments(
 	}
 
 	// Unnamed text is matched by declared positional expressions, never split by whitespace.
-	const unnamed = scanUnnamedRegions(raw, bodyStart, named, definition.syntax?.argumentDelimiter);
+	const unnamed = scanUnnamedRegions(
+		raw,
+		bodyStart,
+		named,
+		definition.syntax?.argumentDelimiter,
+	);
 	const positional = definition.arguments
-		.filter((spec) => spec.position !== undefined && !named.some((part) => resolveNamedSpec(part.name, definition.arguments)?.argumentId === spec.argumentId))
+		.filter(
+			(spec) =>
+				spec.position !== undefined &&
+				!named.some(
+					(part) =>
+						resolveNamedSpec(part.name, definition.arguments)?.argumentId ===
+						spec.argumentId,
+				),
+		)
 		.sort((left, right) => (left.position ?? 0) - (right.position ?? 0));
 	let specIndex = 0;
 	for (const region of unnamed) {
 		let cursor = region.start;
 		while (cursor < region.end && specIndex < positional.length) {
 			const spec = positional[specIndex++]!;
-			const matched = matchSpec(raw.slice(cursor, region.end), cursor, spec, diagnostics);
+			const matched = matchSpec(
+				raw.slice(cursor, region.end),
+				cursor,
+				spec,
+				diagnostics,
+			);
 			if (!matched) break;
 			arguments_.push({
 				position: spec.position,
 				rawValue: matched.rawValue,
 				captures: matched.captures,
-				items: splitListItems(matched.rawValue, matched.start, spec.extraction.itemDelimiter),
+				items: splitListItems(
+					matched.rawValue,
+					matched.start,
+					spec.extraction.itemDelimiter,
+				),
 				source: "rule",
 				start: matched.start,
 				end: matched.end,
@@ -103,7 +160,9 @@ function matchDefinitionArguments(
 			if (cursor < region.end) cursor = skipWhitespace(raw, cursor);
 		}
 	}
-	return arguments_.sort((left, right) => (left.start ?? 0) - (right.start ?? 0));
+	return arguments_.sort(
+		(left, right) => (left.start ?? 0) - (right.start ?? 0),
+	);
 }
 
 interface NamedSegment {
@@ -126,28 +185,71 @@ function scanNamedAssignments(
 	let depth = 0;
 	for (let index = start; index < raw.length; index += 1) {
 		const char = raw[index]!;
-		if (escaped) { escaped = false; continue; }
-		if (char === "\\" && quote) { escaped = true; continue; }
-		if (quote) { if (char === quote) quote = ""; continue; }
-		if (char === '"' || char === "'") { quote = char; continue; }
-		if (char === "[") { depth += 1; continue; }
-		if (char === "]") { depth = Math.max(0, depth - 1); continue; }
+		if (escaped) {
+			escaped = false;
+			continue;
+		}
+		if (char === "\\" && quote) {
+			escaped = true;
+			continue;
+		}
+		if (quote) {
+			if (char === quote) quote = "";
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			quote = char;
+			continue;
+		}
+		if (char === "[") {
+			depth += 1;
+			continue;
+		}
+		if (char === "]") {
+			depth = Math.max(0, depth - 1);
+			continue;
+		}
 		if (!depth && delimiter && raw.startsWith(delimiter, index)) {
 			index += delimiter.length - 1;
 			continue;
 		}
-		const followsDelimiter = delimiter !== undefined && raw.slice(index - delimiter.length, index) === delimiter;
-		if (depth || (index > start && !/\s/.test(raw[index - 1]!) && !followsDelimiter)) continue;
+		const followsDelimiter =
+			delimiter !== undefined &&
+			raw.slice(index - delimiter.length, index) === delimiter;
+		if (
+			depth ||
+			(index > start && !/\s/.test(raw[index - 1]!) && !followsDelimiter)
+		)
+			continue;
 		const match = /^[A-Za-z_][\w-]*=/.exec(raw.slice(index));
-		if (match) markers.push({ name: match[0].slice(0, -1), start: index, equals: index + match[0].length - 1 });
+		if (match)
+			markers.push({
+				name: match[0].slice(0, -1),
+				start: index,
+				equals: index + match[0].length - 1,
+			});
 	}
-	if (quote) diagnostics.push({ code: "UNTERMINATED_QUOTE", message: "Unterminated quote", start, end: raw.length });
-	if (depth) diagnostics.push({ code: "UNTERMINATED_GROUP", message: "Unterminated grouped value", start, end: raw.length });
+	if (quote)
+		diagnostics.push({
+			code: "UNTERMINATED_QUOTE",
+			message: "Unterminated quote",
+			start,
+			end: raw.length,
+		});
+	if (depth)
+		diagnostics.push({
+			code: "UNTERMINATED_GROUP",
+			message: "Unterminated grouped value",
+			start,
+			end: raw.length,
+		});
 	return markers.map((marker, index) => {
 		const nextStart = markers[index + 1]?.start ?? raw.length;
-		const delimiterEnd = delimiter && raw.slice(nextStart - delimiter.length, nextStart) === delimiter
-			? nextStart - delimiter.length
-			: nextStart;
+		const delimiterEnd =
+			delimiter &&
+			raw.slice(nextStart - delimiter.length, nextStart) === delimiter
+				? nextStart - delimiter.length
+				: nextStart;
 		const end = delimiterEnd;
 		const valueStart = skipWhitespace(raw, marker.equals + 1);
 		const valueEnd = trimEnd(raw, valueStart, end);
@@ -161,38 +263,65 @@ function scanNamedAssignments(
 	});
 }
 
-function scanUnnamedRegions(raw: string, start: number, named: NamedSegment[], delimiter?: string): Array<{ start: number; end: number }> {
+function scanUnnamedRegions(
+	raw: string,
+	start: number,
+	named: NamedSegment[],
+	delimiter?: string,
+): Array<{ start: number; end: number }> {
 	const regions: Array<{ start: number; end: number }> = [];
 	let cursor = start;
 	for (const segment of named) {
 		const end = segment.start;
-		if (skipWhitespace(raw, cursor) < end) regions.push({ start: skipWhitespace(raw, cursor), end });
+		if (skipWhitespace(raw, cursor) < end)
+			regions.push({ start: skipWhitespace(raw, cursor), end });
 		cursor = segment.end;
 	}
-	if (skipWhitespace(raw, cursor) < raw.length) regions.push({ start: skipWhitespace(raw, cursor), end: raw.length });
+	if (skipWhitespace(raw, cursor) < raw.length)
+		regions.push({ start: skipWhitespace(raw, cursor), end: raw.length });
 	if (delimiter) {
-		return regions.flatMap((region) => splitByDelimiter(raw, region, delimiter));
+		return regions.flatMap((region) =>
+			splitByDelimiter(raw, region, delimiter),
+		);
 	}
 	return regions;
 }
 
-function scanFallbackAssignments(raw: string, start: number, diagnostics: MacroParseDiagnostic[], delimiter?: string): MacroArgumentInput[] {
+function scanFallbackAssignments(
+	raw: string,
+	start: number,
+	diagnostics: MacroParseDiagnostic[],
+	delimiter?: string,
+): MacroArgumentInput[] {
 	const named = scanNamedAssignments(raw, start, diagnostics, delimiter);
-	if (named.length) return named.map((segment, position) => ({
-		name: segment.name,
-		position,
-		rawValue: segment.value,
-		source: "named",
-		start: segment.start,
-		end: segment.end,
-	}));
+	if (named.length)
+		return named.map((segment, position) => ({
+			name: segment.name,
+			position,
+			rawValue: segment.value,
+			source: "named",
+			start: segment.start,
+			end: segment.end,
+		}));
 	const valueStart = skipWhitespace(raw, start);
 	return valueStart < raw.length
-		? [{ position: 0, rawValue: raw.slice(valueStart), source: "positional", start: valueStart, end: raw.length }]
+		? [
+				{
+					position: 0,
+					rawValue: raw.slice(valueStart),
+					source: "positional",
+					start: valueStart,
+					end: raw.length,
+				},
+			]
 		: [];
 }
 
-function splitListItems(text: string, offset: number, delimiter?: string): MacroListItemInput[] | undefined {
+function splitListItems(
+	text: string,
+	offset: number,
+	delimiter?: string,
+): MacroListItemInput[] | undefined {
 	if (!delimiter) return undefined;
 	const items: MacroListItemInput[] = [];
 	let start = 0;
@@ -206,8 +335,14 @@ function splitListItems(text: string, offset: number, delimiter?: string): Macro
 			continue;
 		}
 		if (quote) continue;
-		if (char === "[") { depth += 1; continue; }
-		if (char === "]") { depth = Math.max(0, depth - 1); continue; }
+		if (char === "[") {
+			depth += 1;
+			continue;
+		}
+		if (char === "]") {
+			depth = Math.max(0, depth - 1);
+			continue;
+		}
 		if (!depth && text.startsWith(delimiter, index)) {
 			pushListItem(items, text, start, index, offset);
 			index += delimiter.length - 1;
@@ -218,10 +353,21 @@ function splitListItems(text: string, offset: number, delimiter?: string): Macro
 	return items;
 }
 
-function pushListItem(items: MacroListItemInput[], text: string, start: number, end: number, offset: number): void {
+function pushListItem(
+	items: MacroListItemInput[],
+	text: string,
+	start: number,
+	end: number,
+	offset: number,
+): void {
 	const valueStart = skipWhitespace(text, start);
 	const valueEnd = trimEnd(text, valueStart, end);
-	if (valueStart < valueEnd) items.push({ rawValue: text.slice(valueStart, valueEnd), start: offset + valueStart, end: offset + valueEnd });
+	if (valueStart < valueEnd)
+		items.push({
+			rawValue: text.slice(valueStart, valueEnd),
+			start: offset + valueStart,
+			end: offset + valueEnd,
+		});
 }
 
 function matchSpec(
@@ -229,7 +375,14 @@ function matchSpec(
 	offset: number,
 	spec: MacroArgumentSpec,
 	diagnostics: MacroParseDiagnostic[],
-): { rawValue: string; captures: Record<string, string | undefined>; start: number; end: number } | undefined {
+):
+	| {
+			rawValue: string;
+			captures: Record<string, string | undefined>;
+			start: number;
+			end: number;
+	  }
+	| undefined {
 	const patterns = spec.extraction.patterns ?? [];
 	if (!patterns.length) return undefined;
 	for (const pattern of patterns) {
@@ -238,22 +391,35 @@ function matchSpec(
 			const match = expression.exec(text);
 			if (match) {
 				return {
-				rawValue: match[0].trim(),
-				captures: match.groups ?? {},
-				start: offset,
-				end: offset + match[0].length,
+					rawValue: match[0].trim(),
+					captures: match.groups ?? {},
+					start: offset,
+					end: offset + match[0].length,
 				};
 			}
 		} catch {
-			diagnostics.push({ code: "INVALID_PATTERN", message: `Invalid extraction pattern for '${spec.name}'`, start: offset, end: offset + text.length });
+			diagnostics.push({
+				code: "INVALID_PATTERN",
+				message: `Invalid extraction pattern for '${spec.name}'`,
+				start: offset,
+				end: offset + text.length,
+			});
 		}
 	}
 	return undefined;
 }
 
-function resolveNamedSpec(name: string, specs: readonly MacroArgumentSpec[]): MacroArgumentSpec | undefined {
+function resolveNamedSpec(
+	name: string,
+	specs: readonly MacroArgumentSpec[],
+): MacroArgumentSpec | undefined {
 	const normalized = name.toLowerCase();
-	return specs.find((spec) => spec.name.toLowerCase() === normalized || spec.argumentId.toLowerCase() === normalized || spec.aliases?.some((alias) => alias.toLowerCase() === normalized));
+	return specs.find(
+		(spec) =>
+			spec.name.toLowerCase() === normalized ||
+			spec.argumentId.toLowerCase() === normalized ||
+			spec.aliases?.some((alias) => alias.toLowerCase() === normalized),
+	);
 }
 
 function scanUntilWhitespace(text: string, start: number): number {
@@ -286,20 +452,40 @@ function splitByDelimiter(
 	let depth = 0;
 	for (let index = region.start; index < region.end; index += 1) {
 		const char = raw[index]!;
-		if (escaped) { escaped = false; continue; }
-		if (char === "\\" && quote) { escaped = true; continue; }
-		if (quote) { if (char === quote) quote = ""; continue; }
-		if (char === '"' || char === "'") { quote = char; continue; }
-		if (char === "[") { depth += 1; continue; }
-		if (char === "]") { depth = Math.max(0, depth - 1); continue; }
+		if (escaped) {
+			escaped = false;
+			continue;
+		}
+		if (char === "\\" && quote) {
+			escaped = true;
+			continue;
+		}
+		if (quote) {
+			if (char === quote) quote = "";
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			quote = char;
+			continue;
+		}
+		if (char === "[") {
+			depth += 1;
+			continue;
+		}
+		if (char === "]") {
+			depth = Math.max(0, depth - 1);
+			continue;
+		}
 		if (!depth && raw.startsWith(delimiter, index)) {
 			const end = trimEnd(raw, start, index);
-			if (skipWhitespace(raw, start) < end) parts.push({ start: skipWhitespace(raw, start), end });
+			if (skipWhitespace(raw, start) < end)
+				parts.push({ start: skipWhitespace(raw, start), end });
 			index += delimiter.length - 1;
 			start = index + 1;
 		}
 	}
 	const end = trimEnd(raw, start, region.end);
-	if (skipWhitespace(raw, start) < end) parts.push({ start: skipWhitespace(raw, start), end });
+	if (skipWhitespace(raw, start) < end)
+		parts.push({ start: skipWhitespace(raw, start), end });
 	return parts;
 }

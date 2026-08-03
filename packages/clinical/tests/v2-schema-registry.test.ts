@@ -1,10 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { CLINICAL_SOURCE_TYPES } from "../src/schemas/shared";
-import { defineSchema } from "../src/v2/schemas/schema-factory";
-import { validateSchemaDefaults } from "../src/v2/schemas/schema-defaults";
-import { validateTargetPath } from "../src/v2/schemas/schema-path-validator";
-import { SchemaRegistry, fingerprintSchema } from "../src/v2/schemas/schema-registry";
 import { observationSchema } from "../src/v2/schemas/definitions";
+import { validateSchemaDefaults } from "../src/v2/schemas/schema-defaults";
+import { defineSchema } from "../src/v2/schemas/schema-factory";
+import { validateTargetPath } from "../src/v2/schemas/schema-path-validator";
+import {
+	fingerprintSchema,
+	SchemaRegistry,
+} from "../src/v2/schemas/schema-registry";
 
 const observation = defineSchema({
 	schema: "Observation",
@@ -75,18 +78,27 @@ describe("V2 schema registry", () => {
 				severity: observation.fields.severity,
 				concept: observation.fields.concept,
 				sourceType: observation.fields.sourceType,
-				"anatomyLocations[].anatomy": observation.fields["anatomyLocations[].anatomy"]!,
+				"anatomyLocations[].anatomy":
+					observation.fields["anatomyLocations[].anatomy"]!,
 			},
 		});
 
-		expect(fingerprintSchema(observation)).toEqual(fingerprintSchema(reordered));
+		expect(fingerprintSchema(observation)).toEqual(
+			fingerprintSchema(reordered),
+		);
 	});
 
 	it("validates indexed paths against wildcard schema paths", () => {
 		const registry = new SchemaRegistry();
 		registry.register(observation);
 
-		expect(validateTargetPath(registry, "Observation", "anatomyLocations[0].anatomy")).toMatchObject({
+		expect(
+			validateTargetPath(
+				registry,
+				"Observation",
+				"anatomyLocations[0].anatomy",
+			),
+		).toMatchObject({
 			valid: true,
 			path: "anatomyLocations[].anatomy",
 		});
@@ -99,19 +111,31 @@ describe("V2 schema registry", () => {
 		const registry = new SchemaRegistry();
 		registry.register(observation);
 
-		expect(validateSchemaDefaults(registry, {
-			schema: "Observation",
-			values: [{
-				path: "sourceType",
-				value: { kind: "enum", value: "patient_reported" },
-			}],
-		})).toEqual([]);
-		expect(validateSchemaDefaults(registry, {
-			schema: "Observation",
-			values: [{
-				path: "sourceType",
-				value: { kind: "scalar", scalarType: "string", value: "patient_reported" },
-			}],
-		})[0]?.message).toContain("incompatible");
+		expect(
+			validateSchemaDefaults(registry, {
+				schema: "Observation",
+				values: [
+					{
+						path: "sourceType",
+						value: { kind: "enum", value: "patient_reported" },
+					},
+				],
+			}),
+		).toEqual([]);
+		expect(
+			validateSchemaDefaults(registry, {
+				schema: "Observation",
+				values: [
+					{
+						path: "sourceType",
+						value: {
+							kind: "scalar",
+							scalarType: "string",
+							value: "patient_reported",
+						},
+					},
+				],
+			})[0]?.message,
+		).toContain("incompatible");
 	});
 });

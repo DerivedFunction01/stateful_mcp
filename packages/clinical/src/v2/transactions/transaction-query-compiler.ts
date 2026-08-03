@@ -1,4 +1,9 @@
-import { QueryCompiler, type CompiledQuery, type QueryCondition, type SqlDialect } from "@stateful-mcp/core";
+import {
+	type CompiledQuery,
+	QueryCompiler,
+	type QueryCondition,
+	type SqlDialect,
+} from "@stateful-mcp/core";
 
 export class TransactionQueryCompiler {
 	private readonly compiler: QueryCompiler;
@@ -45,26 +50,51 @@ export class TransactionQueryCompiler {
 	}
 
 	getByIdQuery(transactionId: string, table: string): CompiledQuery {
-		return this.compiler.compileSelect({ table, where: [{ column: "transactionId", op: "eq", value: transactionId }] });
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "transactionId", op: "eq", value: transactionId }],
+		});
 	}
 
 	getByIdempotencyQuery(idempotencyKey: string, table: string): CompiledQuery {
-		return this.compiler.compileSelect({ table, where: [{ column: "idempotencyKey", op: "eq", value: idempotencyKey }] });
+		return this.compiler.compileSelect({
+			table,
+			where: [{ column: "idempotencyKey", op: "eq", value: idempotencyKey }],
+		});
 	}
 
-	listQuery(sourceCellId: string | undefined, statuses: readonly string[] | undefined, table: string): CompiledQuery {
+	listQuery(
+		sourceCellId: string | undefined,
+		statuses: readonly string[] | undefined,
+		table: string,
+	): CompiledQuery {
 		const where: QueryCondition[] = [];
-		if (sourceCellId) where.push({ column: "sourceCellId", op: "eq", value: sourceCellId });
-		if (statuses?.length) where.push({ column: "status", op: "in_set", values: [...statuses] });
+		if (sourceCellId)
+			where.push({ column: "sourceCellId", op: "eq", value: sourceCellId });
+		if (statuses?.length)
+			where.push({ column: "status", op: "in_set", values: [...statuses] });
 		return this.compiler.compileSelect({ table, where });
 	}
 
-	upsertQuery(transaction: { transactionId: string; idempotencyKey: string; sourceCellId: string; sourceCellRevision: number; status: string; transactionJson: string; createdAt: string; updatedAt: string }, table: string): CompiledQuery {
+	upsertQuery(
+		transaction: {
+			transactionId: string;
+			idempotencyKey: string;
+			sourceCellId: string;
+			sourceCellRevision: number;
+			status: string;
+			transactionJson: string;
+			createdAt: string;
+			updatedAt: string;
+		},
+		table: string,
+	): CompiledQuery {
 		return this.compiler.compileInsert({
 			table,
 			values: transaction,
 			onConflict: "replace",
-			conflictColumns: this.dialect === "sqlite" ? undefined : ["transactionId"],
+			conflictColumns:
+				this.dialect === "sqlite" ? undefined : ["transactionId"],
 		});
 	}
 }

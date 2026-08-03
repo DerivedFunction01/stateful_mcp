@@ -3,22 +3,14 @@ import type {
 	PressureMeasurement,
 	TemperatureMeasurement,
 } from "./measurement";
-import type {
-	ClinicalSourceType,
-	ProductIdentifier,
-} from "./shared";
+import type { ClinicalSourceType, ProductIdentifier } from "./shared";
 import type { ClinicalDateRange } from "./time";
 
 // =====================================================================
 // 1. HARD COMPILER ENUMS BOUNDED BY PHYSICS & STANDARDS
 // =====================================================================
 
-export const OPERATIONAL_DOMAINS = [
-	"land",
-	"water",
-	"air",
-	"space",
-] as const;
+export const OPERATIONAL_DOMAINS = ["land", "water", "air", "space"] as const;
 
 export type OperationalDomain = (typeof OPERATIONAL_DOMAINS)[number];
 
@@ -57,8 +49,7 @@ export const COMBAT_ENGAGEMENT_LEVELS = [
 	"evacuation",
 ] as const;
 
-export type CombatEngagementLevel =
-	(typeof COMBAT_ENGAGEMENT_LEVELS)[number];
+export type CombatEngagementLevel = (typeof COMBAT_ENGAGEMENT_LEVELS)[number];
 
 export const EMPLOYMENT_REGIMES = [
 	"civilian_industrial",
@@ -118,8 +109,7 @@ export const CELESTIAL_SPACE_TERRAINS = [
 	"deep_space",
 ] as const;
 
-export type CelestialSpaceTerrain =
-	(typeof CELESTIAL_SPACE_TERRAINS)[number];
+export type CelestialSpaceTerrain = (typeof CELESTIAL_SPACE_TERRAINS)[number];
 
 export const VEHICLE_CHASSIS_CATEGORIES = [
 	"car",
@@ -266,11 +256,7 @@ export type StructuralTerrainContext =
 // VEHICLE CONTEXT SPECIFICATION
 // ─────────────────────────────────────────────────────────────────────
 
-export const TRANSPORT_MODES = [
-	"operator",
-	"passenger",
-	"pedestrian",
-] as const;
+export const TRANSPORT_MODES = ["operator", "passenger", "pedestrian"] as const;
 
 export type TransportMode = (typeof TRANSPORT_MODES)[number];
 

@@ -16,8 +16,7 @@ export const IMPACT_ARMOR_CATEGORIES = [
 	"boots",
 ] as const;
 
-export type ImpactArmorCategory =
-	(typeof IMPACT_ARMOR_CATEGORIES)[number];
+export type ImpactArmorCategory = (typeof IMPACT_ARMOR_CATEGORIES)[number];
 
 export const LIFE_SUPPORT_ENV_CATEGORIES = [
 	"respirator",
@@ -37,8 +36,7 @@ export const SYSTEMS_SUIT_CATEGORIES = [
 	"safety_restraint",
 ] as const;
 
-export type SystemsSuitCategory =
-	(typeof SYSTEMS_SUIT_CATEGORIES)[number];
+export type SystemsSuitCategory = (typeof SYSTEMS_SUIT_CATEGORIES)[number];
 
 // Consolidated biological operational gear type vector
 export const OPERATIONAL_GEAR_CATEGORIES = [
@@ -100,8 +98,7 @@ export const PROTECTIVE_ITEM_STATUSES = [
 	"destroyed",
 ] as const;
 
-export type ProtectiveItemStatus =
-	(typeof PROTECTIVE_ITEM_STATUSES)[number];
+export type ProtectiveItemStatus = (typeof PROTECTIVE_ITEM_STATUSES)[number];
 
 export interface ProtectiveItem {
 	id: string;

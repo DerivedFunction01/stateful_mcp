@@ -222,7 +222,6 @@ export async function resolveStopWordWordListStore(
 	);
 }
 
-
 // ── Calibration exceptions ───────────────────────────────────────────
 
 export async function resolveCalibrationExceptionStore(

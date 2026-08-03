@@ -5,7 +5,6 @@ import type {
 	SingleMeasurement,
 } from "../../schemas/measurement";
 import { isBoundedMeasurement } from "../../schemas/measurement";
-import type { CodeableConcept } from "../../schemas/shared";
 import type {
 	TemporalBoundary,
 	TimeMeasurement,
@@ -86,8 +85,6 @@ export class QuantityTokenizer {
 						groups.is_approximate === "true" ||
 						rule.targetValue === "is_approximate" ||
 						rule.targetValue === "approximate";
-
-					
 
 					const start = match.index;
 					const end = start + match[0].length;
@@ -243,7 +240,9 @@ export class MeasurementHelper {
 				| PhysicalResolved
 				| undefined;
 		}
-		const unit: AllowedUnit | undefined = (resolved?.display ?? defaultUnit) as AllowedUnit | undefined;
+		const unit: AllowedUnit | undefined = (resolved?.display ?? defaultUnit) as
+			| AllowedUnit
+			| undefined;
 
 		let operator: SingleMeasurement["operator"] = "eq";
 		if (token.operator) {
@@ -255,7 +254,6 @@ export class MeasurementHelper {
 			unit: unit,
 			operator,
 			is_approximate: token.isApproximate || undefined,
-			
 		};
 
 		if (resolved?.unitAnchor) {

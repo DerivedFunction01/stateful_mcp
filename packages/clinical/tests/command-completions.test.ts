@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-	resolveArgCompletions,
-} from "../src/session/command-completions";
-import type { ParserSyntaxProfile } from "../src/store/interfaces";
 import { SOAP_SECTIONS } from "../src/schemas/shared";
+import { resolveArgCompletions } from "../src/session/command-completions";
+import type { ParserSyntaxProfile } from "../src/store/interfaces";
 
 function makeProfile(
 	partial: Partial<ParserSyntaxProfile> = {},

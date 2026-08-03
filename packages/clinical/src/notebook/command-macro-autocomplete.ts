@@ -1,3 +1,4 @@
+import type { CommandFieldMetadataStore } from "../parser/command/command-field-metadata";
 import {
 	type MacroSlotState,
 	nextEmptyMacroSlot,
@@ -7,7 +8,6 @@ import type {
 	ParserCommandMacro,
 	ParserCommandMacroStore,
 } from "../store/parser/command-macros/interfaces";
-import type { CommandFieldMetadataStore } from "../parser/command/command-field-metadata";
 import type { AutocompleteSuggestion } from "./command-autocomplete";
 
 function suggestion(macro: ParserCommandMacro): AutocompleteSuggestion {
@@ -78,7 +78,10 @@ export async function getCommandMacroContextualAutocomplete(
 		);
 		const metadata = argument ? byRole.get(argument.roleName) : undefined;
 		return metadata
-			? { ...suggestion, descriptionKey: `${metadata.targetSchema}.${metadata.targetPath}` }
+			? {
+					...suggestion,
+					descriptionKey: `${metadata.targetSchema}.${metadata.targetPath}`,
+				}
 			: suggestion;
 	});
 }

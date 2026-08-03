@@ -1,5 +1,5 @@
+import type { SchemaRegistry } from "./schema-registry";
 import type { SchemaField } from "./schema-types";
-import { SchemaRegistry } from "./schema-registry";
 
 export interface SchemaPathValidationResult {
 	valid: boolean;

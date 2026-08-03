@@ -7,7 +7,6 @@
  * constructing `ParsedItem` or importing the retired parser stack.
  */
 
-import type { MacroArgumentSpec, V2MacroDefinition } from "./macro-definition";
 import type {
 	MacroArgumentBinding,
 	MacroArgumentInput,
@@ -15,6 +14,7 @@ import type {
 	MacroBindingResult,
 	MacroInput,
 } from "./macro-binding";
+import type { MacroArgumentSpec, V2MacroDefinition } from "./macro-definition";
 
 export interface MacroBindingOptions {
 	/** Allow arguments with no explicit name to map positionally. */
@@ -118,17 +118,23 @@ function resolveSpec(
 		if (!allowPositional) return undefined;
 		return definition.arguments.find((spec) => spec.position === arg.position);
 	}
-	if (arg.source === "named" || arg.source === "inferred" || arg.source === "rule") {
+	if (
+		arg.source === "named" ||
+		arg.source === "inferred" ||
+		arg.source === "rule"
+	) {
 		if (arg.name) {
 			const byName = definition.arguments.find(
 				(spec) =>
 					spec.name.toLowerCase() === arg.name!.toLowerCase() ||
-					spec.aliases?.some((a) => a.toLowerCase() === arg.name!.toLowerCase()),
+					spec.aliases?.some(
+						(a) => a.toLowerCase() === arg.name!.toLowerCase(),
+					),
 			);
 			if (byName) return byName;
 			if (allowInference) {
-				return definition.arguments.find(
-					(spec) => spec.roleName.toLowerCase().endsWith(arg.name!.toLowerCase()),
+				return definition.arguments.find((spec) =>
+					spec.roleName.toLowerCase().endsWith(arg.name!.toLowerCase()),
 				);
 			}
 		}

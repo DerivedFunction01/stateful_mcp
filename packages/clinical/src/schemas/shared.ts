@@ -14,8 +14,7 @@ export const CLINICAL_SOURCE_TYPES = [
 	"pacs_integration",
 ] as const;
 
-export type ClinicalSourceType =
-	(typeof CLINICAL_SOURCE_TYPES)[number];
+export type ClinicalSourceType = (typeof CLINICAL_SOURCE_TYPES)[number];
 
 export const STATUSES = [
 	"present",

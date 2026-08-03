@@ -1,7 +1,5 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type {
-		ParserSyntaxProfile,
-} from "../../store/interfaces";
+import type { ParserSyntaxProfile } from "../../store/interfaces";
 import type {
 	AutocompleteTransitionInsertPlan,
 	AutocompleteTransitionStore,
@@ -434,7 +432,7 @@ export class CommandAutocompleteSuggester {
 	 * Falls back to `tagStore.list()` when the profile has no tags or on error.
 	 */
 	private async resolveTagRecords(profileId?: string): Promise<any[]> {
-		return []
+		return [];
 	}
 
 	/**

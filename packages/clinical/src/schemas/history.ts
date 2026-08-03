@@ -35,11 +35,7 @@ export interface AllergyEntry {
 // SOCIAL HISTORY ENTRY
 // =====================================================================
 
-export const SOCIAL_HISTORY_STATUSES = [
-	"current",
-	"former",
-	"never",
-] as const;
+export const SOCIAL_HISTORY_STATUSES = ["current", "former", "never"] as const;
 
 export type SocialHistoryStatus = (typeof SOCIAL_HISTORY_STATUSES)[number];
 

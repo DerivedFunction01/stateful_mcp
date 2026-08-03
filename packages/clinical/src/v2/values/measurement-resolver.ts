@@ -1,4 +1,4 @@
-import type { MeasurementOperator, ValueType } from "../../schemas/measurement";
+import type { MeasurementOperator } from "../../schemas/measurement";
 import type { NumericBounds } from "./typed-value";
 
 export interface MeasurementResolution {
@@ -128,7 +128,10 @@ export function validateMeasurementConstraints(
 			unit: resolution.unit,
 		});
 	}
-	if (constraints.allowedUnits && !constraints.allowedUnits.includes(resolution.unit)) {
+	if (
+		constraints.allowedUnits &&
+		!constraints.allowedUnits.includes(resolution.unit)
+	) {
 		diagnostics.push({
 			code: "unit_not_allowed",
 			message: `Unit '${resolution.unit}' is not in the allowed list`,
@@ -144,7 +147,11 @@ export function validateMeasurementConstraints(
 	}
 	if (constraints.rawBounds) {
 		const rb = constraints.rawBounds;
-		if (rb.min !== undefined && (resolution.rawValue < rb.min || (resolution.rawValue === rb.min && rb.inclusiveMin === false))) {
+		if (
+			rb.min !== undefined &&
+			(resolution.rawValue < rb.min ||
+				(resolution.rawValue === rb.min && rb.inclusiveMin === false))
+		) {
 			diagnostics.push({
 				code: "raw_bounds_exceeded",
 				message: `Raw value ${resolution.rawValue} is below minimum ${rb.min}`,
@@ -153,7 +160,11 @@ export function validateMeasurementConstraints(
 				unit: resolution.rawUnit,
 			});
 		}
-		if (rb.max !== undefined && (resolution.rawValue > rb.max || (resolution.rawValue === rb.max && rb.inclusiveMax === false))) {
+		if (
+			rb.max !== undefined &&
+			(resolution.rawValue > rb.max ||
+				(resolution.rawValue === rb.max && rb.inclusiveMax === false))
+		) {
 			diagnostics.push({
 				code: "raw_bounds_exceeded",
 				message: `Raw value ${resolution.rawValue} exceeds maximum ${rb.max}`,
@@ -166,7 +177,10 @@ export function validateMeasurementConstraints(
 	if (constraints.normalizedBounds && resolution.normalized) {
 		const nb = constraints.normalizedBounds;
 		const nv = resolution.normalized.magnitude;
-		if (nb.min !== undefined && (nv < nb.min || (nv === nb.min && nb.inclusiveMin === false))) {
+		if (
+			nb.min !== undefined &&
+			(nv < nb.min || (nv === nb.min && nb.inclusiveMin === false))
+		) {
 			diagnostics.push({
 				code: "normalized_bounds_exceeded",
 				message: `Normalized value ${nv} is below minimum ${nb.min}`,
@@ -175,7 +189,10 @@ export function validateMeasurementConstraints(
 				normalizedUnit: resolution.normalized.unit,
 			});
 		}
-		if (nb.max !== undefined && (nv > nb.max || (nv === nb.max && nb.inclusiveMax === false))) {
+		if (
+			nb.max !== undefined &&
+			(nv > nb.max || (nv === nb.max && nb.inclusiveMax === false))
+		) {
 			diagnostics.push({
 				code: "normalized_bounds_exceeded",
 				message: `Normalized value ${nv} exceeds maximum ${nb.max}`,

@@ -174,9 +174,9 @@ function executeStep(
 			case "or":
 				return { value: Boolean(args[0]) || Boolean(args[1]), diagnostics };
 			case "not":
-				return { value: !Boolean(args[0]), diagnostics };
+				return { value: !args[0], diagnostics };
 			case "neg":
-				return { value: -(toNumber(args[0])), diagnostics };
+				return { value: -toNumber(args[0]), diagnostics };
 			case "add":
 				return { value: toNumber(args[0]) + toNumber(args[1]), diagnostics };
 			case "sub":
@@ -188,11 +188,17 @@ function executeStep(
 			case "mod":
 				return { value: toNumber(args[0]) % toNumber(args[1]), diagnostics };
 			case "exp":
-				return { value: Math.pow(toNumber(args[0]), toNumber(args[1])), diagnostics };
+				return { value: toNumber(args[0]) ** toNumber(args[1]), diagnostics };
 			case "in_set":
-				return { value: Array.isArray(args[1]) && args[1].includes(args[0]), diagnostics };
+				return {
+					value: Array.isArray(args[1]) && args[1].includes(args[0]),
+					diagnostics,
+				};
 			case "not_in_set":
-				return { value: !Array.isArray(args[1]) || !args[1].includes(args[0]), diagnostics };
+				return {
+					value: !Array.isArray(args[1]) || !args[1].includes(args[0]),
+					diagnostics,
+				};
 			case "to_number":
 				return { value: Number(args[0]), diagnostics };
 			case "to_string":
@@ -210,17 +216,35 @@ function executeStep(
 			case "trim":
 				return { value: String(args[0]).trim(), diagnostics };
 			case "starts_with":
-				return { value: String(args[0]).startsWith(String(args[1])), diagnostics };
+				return {
+					value: String(args[0]).startsWith(String(args[1])),
+					diagnostics,
+				};
 			case "ends_with":
-				return { value: String(args[0]).endsWith(String(args[1])), diagnostics };
+				return {
+					value: String(args[0]).endsWith(String(args[1])),
+					diagnostics,
+				};
 			case "str_contains":
-				return { value: String(args[0]).includes(String(args[1])), diagnostics };
+				return {
+					value: String(args[0]).includes(String(args[1])),
+					diagnostics,
+				};
 			case "concat":
 				return { value: args.map(String).join(""), diagnostics };
 			case "get":
-				return { value: args[0] != null ? (args[0] as Record<string, PipelineValue>)[String(args[1])] : null, diagnostics };
+				return {
+					value:
+						args[0] != null
+							? (args[0] as Record<string, PipelineValue>)[String(args[1])]
+							: null,
+					diagnostics,
+				};
 			case "json_parse":
-				return { value: JSON.parse(String(args[0])) as PipelineValue, diagnostics };
+				return {
+					value: JSON.parse(String(args[0])) as PipelineValue,
+					diagnostics,
+				};
 			case "year":
 				return { value: new Date(String(args[0])).getFullYear(), diagnostics };
 			case "month":
@@ -228,9 +252,17 @@ function executeStep(
 			case "day":
 				return { value: new Date(String(args[0])).getDate(), diagnostics };
 			case "quarter":
-				return { value: Math.floor((new Date(String(args[0])).getMonth() + 3) / 3), diagnostics };
+				return {
+					value: Math.floor((new Date(String(args[0])).getMonth() + 3) / 3),
+					diagnostics,
+				};
 			case "date_diff":
-				return { value: new Date(String(args[1])).getTime() - new Date(String(args[0])).getTime(), diagnostics };
+				return {
+					value:
+						new Date(String(args[1])).getTime() -
+						new Date(String(args[0])).getTime(),
+					diagnostics,
+				};
 			default:
 				diagnostics.push({
 					code: "unsupported_op",
@@ -253,7 +285,8 @@ function toNumber(value: unknown): number {
 	if (typeof value === "number") return value;
 	if (typeof value === "string") {
 		const num = Number(value);
-		if (!Number.isFinite(num)) throw new Error(`Cannot convert '${value}' to number`);
+		if (!Number.isFinite(num))
+			throw new Error(`Cannot convert '${value}' to number`);
 		return num;
 	}
 	if (typeof value === "boolean") return value ? 1 : 0;

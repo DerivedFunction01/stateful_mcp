@@ -24,13 +24,15 @@ export interface TransactionParticipantContext {
 	transactionId: string;
 	idempotencyKey: string;
 	plan: MacroExecutionPlan;
-	}
+}
 
 export interface TransactionParticipant {
 	participantId: string;
 	kind: TransactionParticipantKind;
 	stage?(context: TransactionParticipantContext): Promise<void>;
-	appendEvents?(context: TransactionParticipantContext): Promise<EventCommitReceipt>;
+	appendEvents?(
+		context: TransactionParticipantContext,
+	): Promise<EventCommitReceipt>;
 	finalize?(context: TransactionParticipantContext): Promise<void>;
 	project?(context: TransactionParticipantContext): Promise<void>;
 }

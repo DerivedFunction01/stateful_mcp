@@ -137,7 +137,11 @@ export function reduceCompletion(
 					session,
 				},
 				committedLine: candidate
-					? mergeCandidate(commandLine, candidate.completionText ?? candidate.verb, true)
+					? mergeCandidate(
+							commandLine,
+							candidate.completionText ?? candidate.verb,
+							true,
+						)
 					: undefined,
 			};
 		}
@@ -184,7 +188,11 @@ export function reduceCompletion(
 				if (candidate) {
 					return {
 						completionState: { status: "idle" },
-						executeLine: mergeCandidate(commandLine, candidate.completionText ?? candidate.verb, false),
+						executeLine: mergeCandidate(
+							commandLine,
+							candidate.completionText ?? candidate.verb,
+							false,
+						),
 					};
 				}
 			}

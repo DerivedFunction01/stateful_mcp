@@ -7,7 +7,10 @@
  * the domain execution intent.
  */
 
-import type { MacroSourceLine, MacroArgumentInput } from "../macros/macro-binding";
+import type {
+	MacroArgumentInput,
+	MacroSourceLine,
+} from "../macros/macro-binding";
 
 export type WorkspaceCommandVerb =
 	| "branch"

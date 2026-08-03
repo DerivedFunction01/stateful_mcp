@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
+import { KvTransactionJournal } from "../src/v2/transactions/kv-transaction-journal";
+import { SqlTransactionJournal } from "../src/v2/transactions/sql-transaction-journal";
 import {
 	InMemoryTransactionJournal,
 	TransactionConflictError,
 	TransactionCoordinator,
 	TransactionIdempotencyError,
 } from "../src/v2/transactions/transaction-coordinator";
-import { KvTransactionJournal } from "../src/v2/transactions/kv-transaction-journal";
-import { SqlTransactionJournal } from "../src/v2/transactions/sql-transaction-journal";
 
 const plan: MacroExecutionPlan = {
 	groupId: "g1",
@@ -17,7 +17,9 @@ const plan: MacroExecutionPlan = {
 	operations: [],
 	links: [],
 	generatedCells: [],
-	expectedVersions: [{ aggregateKind: "document", aggregateId: "doc1", expectedVersion: 3 }],
+	expectedVersions: [
+		{ aggregateKind: "document", aggregateId: "doc1", expectedVersion: 3 },
+	],
 	fingerprint: { value: "plan1", algorithm: "v2-plan-fingerprint-v1" },
 	diagnostics: [],
 };
@@ -31,14 +33,20 @@ function participant(
 	return {
 		participantId: id,
 		kind,
-		appendEvents: kind === "projection" ? undefined : async () => {
-			counters.appends += 1;
-			return { commitId: `${id}-commit`, eventIds: [`${id}-event`] };
-		},
-		project: kind === "projection" ? async () => {
-			counters.projections += 1;
-			if (projectFails) throw new Error("projection unavailable");
-		} : undefined,
+		appendEvents:
+			kind === "projection"
+				? undefined
+				: async () => {
+						counters.appends += 1;
+						return { commitId: `${id}-commit`, eventIds: [`${id}-event`] };
+					},
+		project:
+			kind === "projection"
+				? async () => {
+						counters.projections += 1;
+						if (projectFails) throw new Error("projection unavailable");
+					}
+				: undefined,
 	};
 }
 
@@ -50,13 +58,15 @@ describe("V2 transaction coordinator", () => {
 			createTransactionId: () => "tx-stale",
 		});
 
-		await expect(coordinator.prepare({
-			idempotencyKey: "idem-stale",
-			sourceCellId: "cell1",
-			sourceCellRevision: 1,
-			plan,
-			participants: [],
-		})).rejects.toBeInstanceOf(TransactionConflictError);
+		await expect(
+			coordinator.prepare({
+				idempotencyKey: "idem-stale",
+				sourceCellId: "cell1",
+				sourceCellRevision: 1,
+				plan,
+				participants: [],
+			}),
+		).rejects.toBeInstanceOf(TransactionConflictError);
 	});
 
 	it("returns the same prepared transaction for a repeated idempotency key", async () => {
@@ -64,18 +74,36 @@ describe("V2 transaction coordinator", () => {
 			journal: new InMemoryTransactionJournal(),
 			createTransactionId: () => "tx-idempotent",
 		});
-		const request = { idempotencyKey: "idem1", sourceCellId: "cell1", sourceCellRevision: 2, plan, participants: [] };
+		const request = {
+			idempotencyKey: "idem1",
+			sourceCellId: "cell1",
+			sourceCellRevision: 2,
+			plan,
+			participants: [],
+		};
 		const first = await coordinator.prepare(request);
 		const second = await coordinator.prepare(request);
 
 		expect(second.transactionId).toBe(first.transactionId);
-		await expect(coordinator.prepare({ ...request, idempotencyKey: "idem1", plan: { ...plan, fingerprint: { ...plan.fingerprint, value: "different" } } })).rejects.toBeInstanceOf(TransactionIdempotencyError);
+		await expect(
+			coordinator.prepare({
+				...request,
+				idempotencyKey: "idem1",
+				plan: {
+					...plan,
+					fingerprint: { ...plan.fingerprint, value: "different" },
+				},
+			}),
+		).rejects.toBeInstanceOf(TransactionIdempotencyError);
 	});
 
 	it("does not append duplicate event batches while recovering projection failure", async () => {
 		const counters = { appends: 0, projections: 0 };
 		const journal = new InMemoryTransactionJournal();
-		const coordinator = new TransactionCoordinator({ journal, createTransactionId: () => "tx-recovery" });
+		const coordinator = new TransactionCoordinator({
+			journal,
+			createTransactionId: () => "tx-recovery",
+		});
 		const events = participant("clinical", "clinical_events", counters);
 		let failProjection = true;
 		const projection = {
@@ -86,12 +114,25 @@ describe("V2 transaction coordinator", () => {
 				if (failProjection) throw new Error("projection unavailable");
 			},
 		};
-		const prepared = await coordinator.prepare({ idempotencyKey: "idem2", sourceCellId: "cell1", sourceCellRevision: 1, plan, participants: [events, projection] });
+		const prepared = await coordinator.prepare({
+			idempotencyKey: "idem2",
+			sourceCellId: "cell1",
+			sourceCellRevision: 1,
+			plan,
+			participants: [events, projection],
+		});
 
-		await expect(coordinator.commit(prepared.transactionId, [events, projection])).rejects.toThrow("projection unavailable");
-		expect((await coordinator.get(prepared.transactionId))?.status).toBe("recovery_required");
+		await expect(
+			coordinator.commit(prepared.transactionId, [events, projection]),
+		).rejects.toThrow("projection unavailable");
+		expect((await coordinator.get(prepared.transactionId))?.status).toBe(
+			"recovery_required",
+		);
 		failProjection = false;
-		const recovered = await coordinator.recover(prepared.transactionId, [events, projection]);
+		const recovered = await coordinator.recover(prepared.transactionId, [
+			events,
+			projection,
+		]);
 
 		expect(recovered.status).toBe("committed");
 		expect(counters.appends).toBe(1);
@@ -100,23 +141,53 @@ describe("V2 transaction coordinator", () => {
 
 	it("keeps clinical and workspace event streams under one transaction", async () => {
 		const counters = { appends: 0, projections: 0 };
-		const coordinator = new TransactionCoordinator({ journal: new InMemoryTransactionJournal(), createTransactionId: () => "tx-composite" });
+		const coordinator = new TransactionCoordinator({
+			journal: new InMemoryTransactionJournal(),
+			createTransactionId: () => "tx-composite",
+		});
 		const clinical = participant("clinical", "clinical_events", counters);
 		const workspace = participant("workspace", "workspace_events", counters);
-		const prepared = await coordinator.prepare({ idempotencyKey: "idem3", sourceCellId: "cell1", sourceCellRevision: 1, plan, participants: [clinical, workspace] });
-		const committed = await coordinator.commit(prepared.transactionId, [clinical, workspace]);
+		const prepared = await coordinator.prepare({
+			idempotencyKey: "idem3",
+			sourceCellId: "cell1",
+			sourceCellRevision: 1,
+			plan,
+			participants: [clinical, workspace],
+		});
+		const committed = await coordinator.commit(prepared.transactionId, [
+			clinical,
+			workspace,
+		]);
 
 		expect(committed.status).toBe("committed");
 		expect(counters.appends).toBe(2);
-		expect((await coordinator.get(prepared.transactionId))?.participants.map((item) => item.kind)).toEqual(["clinical_events", "workspace_events"]);
+		expect(
+			(await coordinator.get(prepared.transactionId))?.participants.map(
+				(item) => item.kind,
+			),
+		).toEqual(["clinical_events", "workspace_events"]);
 	});
 
 	it("rejects abort after events commit but allows abort before commit", async () => {
-		const coordinator = new TransactionCoordinator({ journal: new InMemoryTransactionJournal(), createTransactionId: () => "tx-abort" });
-		const prepared = await coordinator.prepare({ idempotencyKey: "idem-abort", sourceCellId: "cell1", sourceCellRevision: 1, plan, participants: [] });
-		const aborted = await coordinator.abort(prepared.transactionId, "cancelled");
+		const coordinator = new TransactionCoordinator({
+			journal: new InMemoryTransactionJournal(),
+			createTransactionId: () => "tx-abort",
+		});
+		const prepared = await coordinator.prepare({
+			idempotencyKey: "idem-abort",
+			sourceCellId: "cell1",
+			sourceCellRevision: 1,
+			plan,
+			participants: [],
+		});
+		const aborted = await coordinator.abort(
+			prepared.transactionId,
+			"cancelled",
+		);
 		expect(aborted.status).toBe("aborted");
-		await expect(coordinator.commit(prepared.transactionId, [])).rejects.toBeInstanceOf(TransactionConflictError);
+		await expect(
+			coordinator.commit(prepared.transactionId, []),
+		).rejects.toBeInstanceOf(TransactionConflictError);
 	});
 
 	it("persists deterministic transaction state in KV and SQL journals", async () => {
@@ -140,7 +211,11 @@ describe("V2 transaction coordinator", () => {
 		const backend = await SqlBackend.connect("sqlite", ":memory:");
 		const sql = new SqlTransactionJournal("sqlite", new SqlExecutor(backend));
 		await sql.put(transaction);
-		expect(await sql.getByIdempotencyKey(transaction.idempotencyKey)).toEqual(transaction);
-		expect(await sql.list({ sourceCellId: "cell1", statuses: ["prepared"] })).toEqual([transaction]);
+		expect(await sql.getByIdempotencyKey(transaction.idempotencyKey)).toEqual(
+			transaction,
+		);
+		expect(
+			await sql.list({ sourceCellId: "cell1", statuses: ["prepared"] }),
+		).toEqual([transaction]);
 	});
 });

@@ -1,9 +1,9 @@
-import type {
-	MeasurementOperator,
-	ValueType,
-} from "../../schemas/measurement";
+import type { MeasurementOperator, ValueType } from "../../schemas/measurement";
+import {
+	type MeasurementResolverDiagnostic,
+	validateMeasurementConstraints,
+} from "./measurement-resolver";
 import type { MeasurementValue } from "./typed-value";
-import { validateMeasurementConstraints, type MeasurementConstraint, type MeasurementResolverDiagnostic } from "./measurement-resolver";
 
 export interface MeasurementValueInput {
 	dimension: string;
@@ -15,8 +15,18 @@ export interface MeasurementValueInput {
 	dataPointCount?: number;
 	rawText?: string;
 	normalized?: { magnitude: number; unit: string };
-	rawBounds?: { min?: number; max?: number; inclusiveMin?: boolean; inclusiveMax?: boolean };
-	normalizedBounds?: { min?: number; max?: number; inclusiveMin?: boolean; inclusiveMax?: boolean };
+	rawBounds?: {
+		min?: number;
+		max?: number;
+		inclusiveMin?: boolean;
+		inclusiveMax?: boolean;
+	};
+	normalizedBounds?: {
+		min?: number;
+		max?: number;
+		inclusiveMin?: boolean;
+		inclusiveMax?: boolean;
+	};
 	canonicalUnit?: string;
 	deniedUnits?: readonly string[];
 }
@@ -50,7 +60,9 @@ export interface MeasurementValueResult {
 	diagnostics: MeasurementDiagnostic[];
 }
 
-function toResolverDiagnostic(d: MeasurementResolverDiagnostic): MeasurementDiagnostic {
+function toResolverDiagnostic(
+	d: MeasurementResolverDiagnostic,
+): MeasurementDiagnostic {
 	return {
 		code: d.code,
 		message: d.message,
@@ -72,22 +84,42 @@ export function createMeasurementValue(
 ): MeasurementValueResult {
 	const diagnostics: MeasurementDiagnostic[] = [];
 	if (!Number.isFinite(input.magnitude)) {
-		diagnostics.push({ code: "non_finite_magnitude", message: `Measurement magnitude must be finite, got ${input.magnitude}` });
+		diagnostics.push({
+			code: "non_finite_magnitude",
+			message: `Measurement magnitude must be finite, got ${input.magnitude}`,
+		});
 		return { diagnostics };
 	}
-	if (input.dataPointCount !== undefined && (!Number.isInteger(input.dataPointCount) || input.dataPointCount < 1)) {
-		diagnostics.push({ code: "invalid_data_point_count", message: "Measurement dataPointCount must be a positive integer" });
+	if (
+		input.dataPointCount !== undefined &&
+		(!Number.isInteger(input.dataPointCount) || input.dataPointCount < 1)
+	) {
+		diagnostics.push({
+			code: "invalid_data_point_count",
+			message: "Measurement dataPointCount must be a positive integer",
+		});
 	}
 	if (!input.unit) {
-		diagnostics.push({ code: "missing_unit", message: "Measurement unit is required" });
+		diagnostics.push({
+			code: "missing_unit",
+			message: "Measurement unit is required",
+		});
 		return { diagnostics };
 	}
 	if (input.deniedUnits?.includes(input.unit)) {
-		diagnostics.push({ code: "unit_denied", message: `Unit '${input.unit}' is denied for dimension '${input.dimension}'`, unit: input.unit });
+		diagnostics.push({
+			code: "unit_denied",
+			message: `Unit '${input.unit}' is denied for dimension '${input.dimension}'`,
+			unit: input.unit,
+		});
 		return { diagnostics };
 	}
 	if (allowedUnits && !allowedUnits.includes(input.unit)) {
-		diagnostics.push({ code: "invalid_unit", message: `Unit '${input.unit}' is not allowed for dimension '${input.dimension}'`, unit: input.unit });
+		diagnostics.push({
+			code: "invalid_unit",
+			message: `Unit '${input.unit}' is not allowed for dimension '${input.dimension}'`,
+			unit: input.unit,
+		});
 		return { diagnostics };
 	}
 	const constraintDiagnostics = validateMeasurementConstraints(
@@ -111,7 +143,13 @@ export function createMeasurementValue(
 		},
 	);
 	diagnostics.push(...constraintDiagnostics.map(toResolverDiagnostic));
-	if (diagnostics.some((d) => d.code === "raw_bounds_exceeded" || d.code === "normalized_bounds_exceeded")) {
+	if (
+		diagnostics.some(
+			(d) =>
+				d.code === "raw_bounds_exceeded" ||
+				d.code === "normalized_bounds_exceeded",
+		)
+	) {
 		return { diagnostics };
 	}
 	return {

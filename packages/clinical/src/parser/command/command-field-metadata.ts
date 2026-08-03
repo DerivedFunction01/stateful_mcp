@@ -1,25 +1,47 @@
-import type { ParserCommandMacroStore, CommandFieldMetadata } from "../../store/parser/command-macros/interfaces";
+import type {
+	CommandFieldMetadata,
+	ParserCommandMacroStore,
+} from "../../store/parser/command-macros/interfaces";
 
 export interface CommandFieldMetadataStore {
-	list(context?: { personnelId?: string; profileId?: string }): Promise<CommandFieldMetadata[]>;
-	get(roleName: string, context?: { personnelId?: string; profileId?: string }): Promise<CommandFieldMetadata | null>;
+	list(context?: {
+		personnelId?: string;
+		profileId?: string;
+	}): Promise<CommandFieldMetadata[]>;
+	get(
+		roleName: string,
+		context?: { personnelId?: string; profileId?: string },
+	): Promise<CommandFieldMetadata | null>;
 }
 
-function valueKind(argument: { extraction: { kind: string } }): CommandFieldMetadata["valueKind"] {
+function valueKind(argument: {
+	extraction: { kind: string };
+}): CommandFieldMetadata["valueKind"] {
 	switch (argument.extraction.kind) {
-		case "concept": return "concept";
-		case "measurement": return "quantity";
-		case "temporal": return "temporal";
-		case "array": return "array";
-		case "prose": return "prose";
-		default: return "scalar";
+		case "concept":
+			return "concept";
+		case "measurement":
+			return "quantity";
+		case "temporal":
+			return "temporal";
+		case "array":
+			return "array";
+		case "prose":
+			return "prose";
+		default:
+			return "scalar";
 	}
 }
 
-export class CommandMacroFieldMetadataCatalog implements CommandFieldMetadataStore {
+export class CommandMacroFieldMetadataCatalog
+	implements CommandFieldMetadataStore
+{
 	constructor(private readonly macroStore: ParserCommandMacroStore) {}
 
-	async list(context?: { personnelId?: string; profileId?: string }): Promise<CommandFieldMetadata[]> {
+	async list(context?: {
+		personnelId?: string;
+		profileId?: string;
+	}): Promise<CommandFieldMetadata[]> {
 		const macros = await this.macroStore.list(context);
 		const fields = new Map<string, CommandFieldMetadata>();
 		for (const macro of macros) {
@@ -35,17 +57,35 @@ export class CommandMacroFieldMetadataCatalog implements CommandFieldMetadataSto
 					hint: argument.name,
 				};
 				const existing = fields.get(argument.roleName);
-				fields.set(argument.roleName, existing ? {
-					...existing,
-					aliases: [...new Set([...(existing.aliases ?? []), ...(metadata.aliases ?? [])])],
-					required: existing.required || metadata.required,
-				} : metadata);
+				fields.set(
+					argument.roleName,
+					existing
+						? {
+								...existing,
+								aliases: [
+									...new Set([
+										...(existing.aliases ?? []),
+										...(metadata.aliases ?? []),
+									]),
+								],
+								required: existing.required || metadata.required,
+							}
+						: metadata,
+				);
 			}
 		}
-		return [...fields.values()].sort((left, right) => left.roleName.localeCompare(right.roleName));
+		return [...fields.values()].sort((left, right) =>
+			left.roleName.localeCompare(right.roleName),
+		);
 	}
 
-	async get(roleName: string, context?: { personnelId?: string; profileId?: string }): Promise<CommandFieldMetadata | null> {
-		return (await this.list(context)).find((field) => field.roleName === roleName) ?? null;
+	async get(
+		roleName: string,
+		context?: { personnelId?: string; profileId?: string },
+	): Promise<CommandFieldMetadata | null> {
+		return (
+			(await this.list(context)).find((field) => field.roleName === roleName) ??
+			null
+		);
 	}
 }

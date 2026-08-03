@@ -1,8 +1,8 @@
+import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
 	ParserCommandMacro,
 	ParserCommandMacroStore,
 } from "../../store/parser/command-macros/interfaces";
-import type { DictionaryStore } from "@stateful-mcp/core";
 import { bindCommandMacro } from "./command-macro-binder";
 import {
 	buildCommandMacroCompatibilitySignature,
@@ -150,7 +150,9 @@ export async function planCommandMacroBatch(
 				if (!candidate) continue;
 				if (
 					argument.extraction.acceptedConceptNamespaces?.length &&
-					!argument.extraction.acceptedConceptNamespaces.includes(candidate.namespaceCode)
+					!argument.extraction.acceptedConceptNamespaces.includes(
+						candidate.namespaceCode,
+					)
 				) {
 					diagnostics.push({
 						line: lineIndex + 1,

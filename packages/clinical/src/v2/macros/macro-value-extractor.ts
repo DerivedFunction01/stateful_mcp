@@ -7,15 +7,14 @@
  * hardcoded language-specific parsing and never imports the retired parser.
  */
 
-import type { MacroArgumentSpec, V2ValueSpec } from "./macro-definition";
 import type { SchemaField } from "../schemas/schema-types";
-import type { TypedValue, ValueEvidence } from "../values/typed-value";
-import type { MacroListItemInput } from "./macro-binding";
 import {
 	createMeasurementValue,
 	type MeasurementValueInput,
 } from "../values/measurement-value";
-import { validateMeasurementConstraints, type MeasurementConstraint } from "../values/measurement-resolver";
+import type { TypedValue } from "../values/typed-value";
+import type { MacroListItemInput } from "./macro-binding";
+import type { MacroArgumentSpec } from "./macro-definition";
 
 export type ValueExtractDiagnosticCode =
 	| "invalid_scalar"
@@ -53,7 +52,10 @@ export interface ExtractTypedValueOptions {
 	field?: SchemaField;
 	captures?: Record<string, string | undefined>;
 	items?: readonly MacroListItemInput[];
-	resolveConcept?: (raw: string) => Promise<{ concept?: { conceptId?: string; display: string }; diagnostics?: string[] }>;
+	resolveConcept?: (raw: string) => Promise<{
+		concept?: { conceptId?: string; display: string };
+		diagnostics?: string[];
+	}>;
 }
 
 export async function extractTypedValue(
@@ -65,7 +67,13 @@ export async function extractTypedValue(
 	if (text.length === 0) {
 		if (spec.blankPolicy === "reject") {
 			return {
-				diagnostics: [{ code: "blank_rejected", argumentId: spec.argumentId, message: `Argument '${spec.name}' cannot be blank` }],
+				diagnostics: [
+					{
+						code: "blank_rejected",
+						argumentId: spec.argumentId,
+						message: `Argument '${spec.name}' cannot be blank`,
+					},
+				],
 			};
 		}
 		return { diagnostics: [] };
@@ -78,16 +86,37 @@ export async function extractTypedValue(
 				const resolved = await options.resolveConcept(conceptText);
 				if (!resolved.concept) {
 					return {
-						diagnostics: [{ code: "concept_required", argumentId: spec.argumentId, message: resolved.diagnostics?.join("; ") ?? `Concept '${text}' could not be resolved` }],
+						diagnostics: [
+							{
+								code: "concept_required",
+								argumentId: spec.argumentId,
+								message:
+									resolved.diagnostics?.join("; ") ??
+									`Concept '${text}' could not be resolved`,
+							},
+						],
 					};
 				}
 				return {
-					value: { kind: "concept", concept: { conceptId: resolved.concept.conceptId, display: resolved.concept.display }, rawText: conceptText, evidence: [{ source: "dictionary" }] },
+					value: {
+						kind: "concept",
+						concept: {
+							conceptId: resolved.concept.conceptId,
+							display: resolved.concept.display,
+						},
+						rawText: conceptText,
+						evidence: [{ source: "dictionary" }],
+					},
 					diagnostics: [],
 				};
 			}
 			return {
-				value: { kind: "concept", concept: { display: conceptText }, rawText: conceptText, evidence: [{ source: "pattern" }] },
+				value: {
+					kind: "concept",
+					concept: { display: conceptText },
+					rawText: conceptText,
+					evidence: [{ source: "pattern" }],
+				},
 				diagnostics: [],
 			};
 		}
@@ -99,10 +128,21 @@ export async function extractTypedValue(
 			const conceptItems = items.map((item, index) => {
 				const trimmed = item.trim();
 				if (trimmed.length === 0) {
-					arrayDiagnostics.push({ code: "array_item_invalid", argumentId: spec.argumentId, itemIndex: index, message: `Array item at index ${index} is blank` });
-					return { display: trimmed, evidence: [{ source: "array_item", index }] };
+					arrayDiagnostics.push({
+						code: "array_item_invalid",
+						argumentId: spec.argumentId,
+						itemIndex: index,
+						message: `Array item at index ${index} is blank`,
+					});
+					return {
+						display: trimmed,
+						evidence: [{ source: "array_item", index }],
+					};
 				}
-				return { display: trimmed, evidence: [{ source: "array_item", index }] };
+				return {
+					display: trimmed,
+					evidence: [{ source: "array_item", index }],
+				};
 			});
 			return {
 				value: {
@@ -116,17 +156,37 @@ export async function extractTypedValue(
 			};
 		}
 		case "enum": {
-			const enumText = options.captures?.value ?? options.captures?.enum ?? text;
+			const enumText =
+				options.captures?.value ?? options.captures?.enum ?? text;
 			const allowed = options.field?.enumValues;
 			if (allowed && allowed.length > 0 && !allowed.includes(enumText)) {
 				return {
-					diagnostics: [{ code: "invalid_enum", argumentId: spec.argumentId, message: `'${text}' is not a valid ${spec.name}`, path: spec.target.targetPath }],
+					diagnostics: [
+						{
+							code: "invalid_enum",
+							argumentId: spec.argumentId,
+							message: `'${text}' is not a valid ${spec.name}`,
+							path: spec.target.targetPath,
+						},
+					],
 				};
 			}
-			return { value: { kind: "enum", value: enumText, rawText: text, evidence: [{ source: "enum_pattern" }] }, diagnostics: [] };
+			return {
+				value: {
+					kind: "enum",
+					value: enumText,
+					rawText: text,
+					evidence: [{ source: "enum_pattern" }],
+				},
+				diagnostics: [],
+			};
 		}
 		case "scalar": {
-			return extractScalar(options.captures?.value ?? options.captures?.scalar ?? text, spec, options.field);
+			return extractScalar(
+				options.captures?.value ?? options.captures?.scalar ?? text,
+				spec,
+				options.field,
+			);
 		}
 		case "measurement": {
 			return extractMeasurement(text, spec, options.field, options.captures);
@@ -135,20 +195,50 @@ export async function extractTypedValue(
 			const temporalType = spec.extraction.temporalType;
 			if (!temporalType) {
 				return {
-					diagnostics: [{ code: "invalid_temporal", argumentId: spec.argumentId, message: `Argument '${spec.name}' must declare temporalType` }],
+					diagnostics: [
+						{
+							code: "invalid_temporal",
+							argumentId: spec.argumentId,
+							message: `Argument '${spec.name}' must declare temporalType`,
+						},
+					],
 				};
 			}
 			return {
-				value: { kind: "temporal", temporalType, value: options.captures?.value ?? text, rawText: text, evidence: [{ source: "temporal_pattern" }] },
+				value: {
+					kind: "temporal",
+					temporalType,
+					value: options.captures?.value ?? text,
+					rawText: text,
+					evidence: [{ source: "temporal_pattern" }],
+				},
 				diagnostics: [],
 			};
 		}
 		case "array":
 			return extractArray(text, spec, options);
 		case "prose":
-			return { value: { kind: "scalar", scalarType: "string", value: text, rawText: text, evidence: [{ source: "prose" }] }, diagnostics: [] };
+			return {
+				value: {
+					kind: "scalar",
+					scalarType: "string",
+					value: text,
+					rawText: text,
+					evidence: [{ source: "prose" }],
+				},
+				diagnostics: [],
+			};
 		default:
-			return { value: { kind: "scalar", scalarType: "string", value: text, rawText: text, evidence: [{ source: "default" }] }, diagnostics: [] };
+			return {
+				value: {
+					kind: "scalar",
+					scalarType: "string",
+					value: text,
+					rawText: text,
+					evidence: [{ source: "default" }],
+				},
+				diagnostics: [],
+			};
 	}
 }
 
@@ -158,9 +248,20 @@ async function extractArray(
 	options: ExtractTypedValueOptions,
 ): Promise<ValueExtractResult> {
 	const delimiter = spec.extraction.itemDelimiter ?? ";";
-	const rawItems = text.split(delimiter).map((item) => item.trim()).filter((item) => item.length > 0);
+	const rawItems = text
+		.split(delimiter)
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
 	if (rawItems.length === 0) {
-		return { diagnostics: [{ code: "array_empty", argumentId: spec.argumentId, message: `Array argument '${spec.name}' has no items` }] };
+		return {
+			diagnostics: [
+				{
+					code: "array_empty",
+					argumentId: spec.argumentId,
+					message: `Array argument '${spec.name}' has no items`,
+				},
+			],
+		};
 	}
 	const itemDiagnostics: ValueExtractDiagnostic[] = [];
 	const items: TypedValue[] = [];
@@ -197,25 +298,88 @@ function extractScalar(
 		case "integer": {
 			const value = Number.parseInt(text, 10);
 			if (!Number.isFinite(value) || String(value) !== text.replace(/^-/, "")) {
-				return { diagnostics: [{ code: "invalid_scalar", argumentId: spec.argumentId, message: `'${text}' is not an integer`, path: spec.target.targetPath }] };
+				return {
+					diagnostics: [
+						{
+							code: "invalid_scalar",
+							argumentId: spec.argumentId,
+							message: `'${text}' is not an integer`,
+							path: spec.target.targetPath,
+						},
+					],
+				};
 			}
-			return { value: { kind: "scalar", scalarType: "integer", value, rawText: text, evidence: [{ source: "scalar_pattern" }] }, diagnostics: [] };
+			return {
+				value: {
+					kind: "scalar",
+					scalarType: "integer",
+					value,
+					rawText: text,
+					evidence: [{ source: "scalar_pattern" }],
+				},
+				diagnostics: [],
+			};
 		}
 		case "number": {
 			const value = Number(text);
 			if (!Number.isFinite(value)) {
-				return { diagnostics: [{ code: "invalid_scalar", argumentId: spec.argumentId, message: `'${text}' is not a number`, path: spec.target.targetPath }] };
+				return {
+					diagnostics: [
+						{
+							code: "invalid_scalar",
+							argumentId: spec.argumentId,
+							message: `'${text}' is not a number`,
+							path: spec.target.targetPath,
+						},
+					],
+				};
 			}
-			return { value: { kind: "scalar", scalarType: "number", value, rawText: text, evidence: [{ source: "scalar_pattern" }] }, diagnostics: [] };
+			return {
+				value: {
+					kind: "scalar",
+					scalarType: "number",
+					value,
+					rawText: text,
+					evidence: [{ source: "scalar_pattern" }],
+				},
+				diagnostics: [],
+			};
 		}
 		case "boolean": {
 			if (text !== "true" && text !== "false") {
-				return { diagnostics: [{ code: "invalid_scalar", argumentId: spec.argumentId, message: `'${text}' is not a boolean`, path: spec.target.targetPath }] };
+				return {
+					diagnostics: [
+						{
+							code: "invalid_scalar",
+							argumentId: spec.argumentId,
+							message: `'${text}' is not a boolean`,
+							path: spec.target.targetPath,
+						},
+					],
+				};
 			}
-			return { value: { kind: "scalar", scalarType: "boolean", value: text === "true", rawText: text, evidence: [{ source: "scalar_pattern" }] }, diagnostics: [] };
+			return {
+				value: {
+					kind: "scalar",
+					scalarType: "boolean",
+					value: text === "true",
+					rawText: text,
+					evidence: [{ source: "scalar_pattern" }],
+				},
+				diagnostics: [],
+			};
 		}
 		default:
-			return { value: { kind: "scalar", scalarType: "string", value: text, rawText: text, evidence: [{ source: "scalar_pattern" }] }, diagnostics: [] };
+			return {
+				value: {
+					kind: "scalar",
+					scalarType: "string",
+					value: text,
+					rawText: text,
+					evidence: [{ source: "scalar_pattern" }],
+				},
+				diagnostics: [],
+			};
 	}
 }
 
@@ -231,41 +395,64 @@ function extractMeasurement(
 	const operator = groups.operator ?? groups.op;
 	const approximate = groups.approximate ?? groups.approx;
 	if (!magnitude) {
-		return { diagnostics: [{ code: "invalid_measurement", argumentId: spec.argumentId, message: `'${text}' is not a measurement`, path: spec.target.targetPath }] };
+		return {
+			diagnostics: [
+				{
+					code: "invalid_measurement",
+					argumentId: spec.argumentId,
+					message: `'${text}' is not a measurement`,
+					path: spec.target.targetPath,
+				},
+			],
+		};
 	}
 	const input: MeasurementValueInput = {
-		dimension: field?.measurement?.dimension ?? spec.extraction.valueKind ?? "measurement",
+		dimension:
+			field?.measurement?.dimension ??
+			spec.extraction.valueKind ??
+			"measurement",
 		magnitude: Number(magnitude),
 		unit: unit ?? "",
 		operator: operator ? mapOperator(operator) : undefined,
 		isApproximate: Boolean(approximate),
 		rawText: text,
-		rawBounds: spec.extraction.measurement?.rawBounds ?? spec.extraction.numericBounds,
+		rawBounds:
+			spec.extraction.measurement?.rawBounds ?? spec.extraction.numericBounds,
 		normalizedBounds: spec.extraction.measurement?.normalizedBounds,
 		canonicalUnit: spec.extraction.measurement?.canonicalUnit,
 		deniedUnits: spec.extraction.measurement?.deniedUnits,
 	};
-	const result = createMeasurementValue(input, field?.measurement?.allowedUnits);
+	const result = createMeasurementValue(
+		input,
+		field?.measurement?.allowedUnits,
+	);
 	if (!result.value) {
-		return { diagnostics: result.diagnostics.map((d) => ({
-			code: d.code as ValueExtractDiagnosticCode,
-			argumentId: spec.argumentId,
-			path: spec.target.targetPath,
-			message: d.message,
-			actual: d.actual,
-			maximum: d.maximum,
-			minimum: d.minimum,
-		})) };
+		return {
+			diagnostics: result.diagnostics.map((d) => ({
+				code: d.code as ValueExtractDiagnosticCode,
+				argumentId: spec.argumentId,
+				path: spec.target.targetPath,
+				message: d.message,
+				actual: d.actual,
+				maximum: d.maximum,
+				minimum: d.minimum,
+			})),
+		};
 	}
 	return { value: result.value, diagnostics: [] };
 }
 
 function mapOperator(op: string): MeasurementValueInput["operator"] {
 	switch (op) {
-		case ">": return "gt";
-		case ">=": return "gte";
-		case "<": return "lt";
-		case "<=": return "lte";
-		default: return undefined;
+		case ">":
+			return "gt";
+		case ">=":
+			return "gte";
+		case "<":
+			return "lt";
+		case "<=":
+			return "lte";
+		default:
+			return undefined;
 	}
 }

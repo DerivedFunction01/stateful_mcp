@@ -1,0 +1,80 @@
+import type { StructuredCell } from "./structured-cell";
+
+export interface CellStore {
+	get(cellId: string): Promise<StructuredCell | null>;
+	list(sessionId: string): Promise<StructuredCell[]>;
+	save(cell: StructuredCell): Promise<void>;
+	delete(cellId: string): Promise<void>;
+	create(request: CreateCellRequest): Promise<StructuredCell>;
+	edit(
+		cellId: string,
+		rawText: string,
+		expectedRevision: number,
+	): Promise<StructuredCell>;
+	supersede(
+		cellId: string,
+		newRawText: string,
+		expectedRevision: number,
+		authorId?: string,
+	): Promise<StructuredCell>;
+}
+
+export interface CreateCellRequest {
+	sessionId: string;
+	collection: StructuredCell["collection"];
+	rawText: string;
+	authorId?: string;
+}
+
+export interface EditCellRequest {
+	cellId: string;
+	rawText: string;
+	expectedRevision: number;
+}
+
+export interface PreviewCellRequest {
+	cellId: string;
+	expectedRevision: number;
+}
+
+export interface ExecuteCellRequest {
+	cellId: string;
+	expectedRevision: number;
+	previewId: string;
+	planFingerprint: string;
+	idempotencyKey: string;
+}
+
+export interface CancelCellRequest {
+	cellId: string;
+	expectedRevision: number;
+}
+
+export interface SupersedeCellRequest {
+	cellId: string;
+	newRawText: string;
+	expectedRevision: number;
+	authorId?: string;
+}
+
+export interface CellPreview {
+	previewId: string;
+	cellId: string;
+	planFingerprint: string;
+	diagnostics: string[];
+	status: "valid" | "invalid" | "ambiguous";
+}
+
+export interface CellExecutionResult {
+	transactionId: string;
+	status: "committed" | "failed" | "recovery_required";
+	generatedCellIds: string[];
+	diagnostics: string[];
+}
+
+export interface CellServiceDeps {
+	store: CellStore;
+	compile: (
+		input: string,
+	) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>;
+}

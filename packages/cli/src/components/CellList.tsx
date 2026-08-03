@@ -1,10 +1,10 @@
+import { SOAP_SECTIONS } from "@stateful-mcp/clinical";
 import type { Cell } from "@stateful-mcp/clinical/session/cell";
 import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
 import { Box, Text } from "ink";
 import type { CellSuggestion } from "../hooks/useNotebook";
 import { has, t } from "../lib/shared/i18n";
 import { CellComponent } from "./Cell";
-import { SOAP_SECTIONS } from "@stateful-mcp/clinical";
 
 interface CellListProps {
 	cells: Cell[];

@@ -1,19 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { defineSchema } from "../src/v2/schemas/schema-factory";
-import { observationSchema } from "../src/v2/schemas/definitions";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
 import type {
-	V2MacroDefinition,
 	MacroArgumentSpec,
 	MacroChildDefinition,
-	MacroExecutionPolicy,
+	V2MacroDefinition,
 } from "../src/v2/macros/macro-definition";
-import type { V2ValueSpec } from "../src/v2/macros/macro-definition";
 import {
-	validateMacroDefinition,
 	type MacroValidationIssue,
 	type MacroValidationResult,
+	validateMacroDefinition,
 } from "../src/v2/macros/macro-validator";
+import { observationSchema } from "../src/v2/schemas/definitions";
+import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
 
 function buildRegistry(): SchemaRegistry {
 	const registry = new SchemaRegistry();
@@ -21,7 +18,9 @@ function buildRegistry(): SchemaRegistry {
 	return registry;
 }
 
-function baseMacro(overrides: Partial<V2MacroDefinition> = {}): V2MacroDefinition {
+function baseMacro(
+	overrides: Partial<V2MacroDefinition> = {},
+): V2MacroDefinition {
 	const args: MacroArgumentSpec[] = [
 		{
 			argumentId: "concept",
@@ -56,7 +55,10 @@ function baseMacro(overrides: Partial<V2MacroDefinition> = {}): V2MacroDefinitio
 	};
 }
 
-function findIssue(result: MacroValidationResult, code: string): MacroValidationIssue | undefined {
+function findIssue(
+	result: MacroValidationResult,
+	code: string,
+): MacroValidationIssue | undefined {
 	return result.issues.find((issue) => issue.code === code);
 }
 
@@ -140,7 +142,8 @@ describe("V2 macro validator", () => {
 					childMacroName: "child1",
 					parentRoleName: "observation.root",
 					parentTargetPath: "severity",
-					mergeStrategy: "invalid_strategy" as MacroChildDefinition["mergeStrategy"],
+					mergeStrategy:
+						"invalid_strategy" as MacroChildDefinition["mergeStrategy"],
 				},
 			],
 		});

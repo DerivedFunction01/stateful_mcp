@@ -12,12 +12,7 @@ export const EXPOSURE_TYPES = [
 
 export type ExposureType = (typeof EXPOSURE_TYPES)[number];
 
-export const CHEMICAL_FORMS = [
-	"gas",
-	"liquid",
-	"solid",
-	"aerosol",
-] as const;
+export const CHEMICAL_FORMS = ["gas", "liquid", "solid", "aerosol"] as const;
 
 export type ChemicalForm = (typeof CHEMICAL_FORMS)[number];
 
@@ -43,8 +38,7 @@ export const BIOLOGICAL_MECHANISMS = [
 	"sap_exudate_exposure",
 ] as const;
 
-export type BiologicalMechanism =
-	(typeof BIOLOGICAL_MECHANISMS)[number];
+export type BiologicalMechanism = (typeof BIOLOGICAL_MECHANISMS)[number];
 
 export const PATHOGEN_VECTOR_STATUSES = [
 	"confirmed_infected_vector",
@@ -52,8 +46,7 @@ export const PATHOGEN_VECTOR_STATUSES = [
 	"low_risk_clean",
 ] as const;
 
-export type PathogenVectorStatus =
-	(typeof PATHOGEN_VECTOR_STATUSES)[number];
+export type PathogenVectorStatus = (typeof PATHOGEN_VECTOR_STATUSES)[number];
 
 export interface BaseExposureEvent {
 	id: string;

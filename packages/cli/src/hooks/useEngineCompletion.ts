@@ -1,6 +1,6 @@
+import type { CommandFieldMetadataStore } from "@stateful-mcp/clinical";
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { getCommandMacroContextualAutocomplete } from "@stateful-mcp/clinical/notebook/command-macro-autocomplete";
-import type { CommandFieldMetadataStore } from "@stateful-mcp/clinical";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveCompletionSession } from "../lib/editor/completion-state";
 
@@ -140,7 +140,16 @@ export function useEngineCompletion({
 		return () => {
 			clearTimeout(timer);
 		};
-	}, [mode, commandLine, catalog, context, engine, macroStore, macroContext, fieldMetadata]);
+	}, [
+		mode,
+		commandLine,
+		catalog,
+		context,
+		engine,
+		macroStore,
+		macroContext,
+		fieldMetadata,
+	]);
 
 	const mergedCandidates = useMemo(() => {
 		const seen = new Set<string>();

@@ -1,7 +1,10 @@
 import type { TypedValue } from "../values/typed-value";
+import {
+	normalizeSchemaPath,
+	validateTargetPath,
+} from "./schema-path-validator";
+import type { SchemaRegistry } from "./schema-registry";
 import type { SchemaField } from "./schema-types";
-import { SchemaRegistry } from "./schema-registry";
-import { normalizeSchemaPath, validateTargetPath } from "./schema-path-validator";
 
 export interface SchemaDefault {
 	path: string;
@@ -26,9 +29,17 @@ export function validateSchemaDefaults(
 	const diagnostics: SchemaDefaultDiagnostic[] = [];
 	for (const entry of defaults.values) {
 		const path = normalizeSchemaPath(entry.path);
-		const result = validateTargetPath(registry, defaults.schema, path, defaults.version);
+		const result = validateTargetPath(
+			registry,
+			defaults.schema,
+			path,
+			defaults.version,
+		);
 		if (!result.valid || !result.field) {
-			diagnostics.push({ path, message: result.message ?? "Invalid schema default path" });
+			diagnostics.push({
+				path,
+				message: result.message ?? "Invalid schema default path",
+			});
 			continue;
 		}
 		if (!isCompatibleDefault(result.field, entry.value)) {
@@ -43,12 +54,15 @@ export function validateSchemaDefaults(
 
 function isCompatibleDefault(field: SchemaField, value: TypedValue): boolean {
 	if (field.cardinality === "many") {
-		if (value.kind === "concept_array") return field.valueKind === "concept_array";
+		if (value.kind === "concept_array")
+			return field.valueKind === "concept_array";
 		if (value.kind !== "array") return false;
 		return field.valueKind === "array" || value.itemKind === field.valueKind;
 	}
 	if (field.valueKind !== value.kind) return false;
-	if (field.valueKind === "scalar" && value.kind === "scalar") return field.scalarType === value.scalarType;
-	if (field.valueKind === "temporal" && value.kind === "temporal") return field.temporalType === value.temporalType;
+	if (field.valueKind === "scalar" && value.kind === "scalar")
+		return field.scalarType === value.scalarType;
+	if (field.valueKind === "temporal" && value.kind === "temporal")
+		return field.temporalType === value.temporalType;
 	return true;
 }

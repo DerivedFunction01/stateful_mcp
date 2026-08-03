@@ -25,7 +25,7 @@ export function createDurationValue(
 export function createDateValue(
 	value: string,
 	precision?: TimePrecisionLevel,
-	): TemporalValue {
+): TemporalValue {
 	return temporal("date", { kind: "date", value, precision });
 }
 
@@ -38,7 +38,12 @@ export function createRelativeTimeValue(
 	amount: number,
 	unit: TimePrecisionLevel,
 ): TemporalValue {
-	return temporal("relative_time", { kind: "relative_time", direction, amount, unit });
+	return temporal("relative_time", {
+		kind: "relative_time",
+		direction,
+		amount,
+		unit,
+	});
 }
 
 export function createCadenceValue(value: MedicationFrequency): TemporalValue {

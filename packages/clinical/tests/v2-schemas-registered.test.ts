@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
 import {
 	algorithmicEvaluationSchema,
 	deviceDiagnosticSchema,
@@ -22,6 +21,7 @@ import {
 	soapNoteSchema,
 	vitalsSchema,
 } from "../src/v2/schemas/definitions";
+import { SchemaRegistry } from "../src/v2/schemas/schema-registry";
 
 const SCHEMAS: Array<{ name: string; schema: unknown }> = [
 	{ name: "Observation", schema: observationSchema },

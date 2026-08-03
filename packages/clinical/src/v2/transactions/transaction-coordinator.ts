@@ -3,8 +3,8 @@ import type {
 	AggregateVersionReader,
 	CommittedTransaction,
 	MacroTransaction,
-	PrepareTransactionRequest,
 	PreparedTransaction,
+	PrepareTransactionRequest,
 	RecoveryQuery,
 	RecoveryResult,
 	SourceCellRevisionReader,
@@ -30,7 +30,9 @@ export class InMemoryTransactionJournal implements TransactionJournal {
 		return this.transactions.get(transactionId) ?? null;
 	}
 
-	async getByIdempotencyKey(idempotencyKey: string): Promise<MacroTransaction | null> {
+	async getByIdempotencyKey(
+		idempotencyKey: string,
+	): Promise<MacroTransaction | null> {
 		const transactionId = this.idempotency.get(idempotencyKey);
 		return transactionId ? this.get(transactionId) : null;
 	}
@@ -41,9 +43,11 @@ export class InMemoryTransactionJournal implements TransactionJournal {
 	}
 
 	async list(query: RecoveryQuery = {}): Promise<MacroTransaction[]> {
-		return [...this.transactions.values()].filter((transaction) =>
-			(!query.sourceCellId || transaction.sourceCellId === query.sourceCellId) &&
-			(!query.statuses || query.statuses.includes(transaction.status)),
+		return [...this.transactions.values()].filter(
+			(transaction) =>
+				(!query.sourceCellId ||
+					transaction.sourceCellId === query.sourceCellId) &&
+				(!query.statuses || query.statuses.includes(transaction.status)),
 		);
 	}
 }
@@ -65,14 +69,24 @@ export class TransactionCoordinator {
 		this.journal = options.journal;
 		this.readAggregateVersion = options.readAggregateVersion;
 		this.readCellRevision = options.readCellRevision;
-		this.createTransactionId = options.createTransactionId ?? (() => `tx_${crypto.randomUUID()}`);
+		this.createTransactionId =
+			options.createTransactionId ?? (() => `tx_${crypto.randomUUID()}`);
 	}
 
-	async prepare(request: PrepareTransactionRequest): Promise<PreparedTransaction> {
-		const existing = await this.journal.getByIdempotencyKey(request.idempotencyKey);
+	async prepare(
+		request: PrepareTransactionRequest,
+	): Promise<PreparedTransaction> {
+		const existing = await this.journal.getByIdempotencyKey(
+			request.idempotencyKey,
+		);
 		if (existing) {
-			if (existing.plan.fingerprint.value !== request.plan.fingerprint.value || existing.sourceCellId !== request.sourceCellId) {
-				throw new TransactionIdempotencyError(`Idempotency key '${request.idempotencyKey}' belongs to another plan`);
+			if (
+				existing.plan.fingerprint.value !== request.plan.fingerprint.value ||
+				existing.sourceCellId !== request.sourceCellId
+			) {
+				throw new TransactionIdempotencyError(
+					`Idempotency key '${request.idempotencyKey}' belongs to another plan`,
+				);
 			}
 			return {
 				transactionId: existing.transactionId,
@@ -106,10 +120,16 @@ export class TransactionCoordinator {
 		};
 	}
 
-	async commit(transactionId: string, participants: readonly TransactionParticipant[]): Promise<CommittedTransaction> {
+	async commit(
+		transactionId: string,
+		participants: readonly TransactionParticipant[],
+	): Promise<CommittedTransaction> {
 		const transaction = await this.requireTransaction(transactionId);
 		if (transaction.status === "committed") return this.committed(transaction);
-		if (transaction.status === "aborted") throw new TransactionConflictError("Aborted transaction cannot be committed");
+		if (transaction.status === "aborted")
+			throw new TransactionConflictError(
+				"Aborted transaction cannot be committed",
+			);
 		const context: TransactionParticipantContext = {
 			transactionId,
 			idempotencyKey: transaction.idempotencyKey,
@@ -126,9 +146,16 @@ export class TransactionCoordinator {
 					await this.save(transaction);
 				}
 			}
-			for (const participant of participants.filter((item) => item.appendEvents)) {
+			for (const participant of participants.filter(
+				(item) => item.appendEvents,
+			)) {
 				const state = this.stateFor(transaction, participant);
-				if (state.status === "committed" || state.status === "finalized" || state.status === "projected") continue;
+				if (
+					state.status === "committed" ||
+					state.status === "finalized" ||
+					state.status === "projected"
+				)
+					continue;
 				state.receipt = await participant.appendEvents!(context);
 				state.status = "committed";
 				await this.save(transaction);
@@ -138,7 +165,11 @@ export class TransactionCoordinator {
 			for (const participant of participants) {
 				const state = this.stateFor(transaction, participant);
 				if (state.status === "projected") continue;
-				if (state.status === "committed" || state.status === "staged" || state.status === "pending") {
+				if (
+					state.status === "committed" ||
+					state.status === "staged" ||
+					state.status === "pending"
+				) {
 					if (participant.finalize) await participant.finalize(context);
 					state.status = "finalized";
 					await this.save(transaction);
@@ -153,19 +184,34 @@ export class TransactionCoordinator {
 			await this.save(transaction);
 			return this.committed(transaction);
 		} catch (error) {
-			transaction.status = transaction.participants.some((participant) => participant.status === "committed" || participant.status === "finalized" || participant.status === "projected")
+			transaction.status = transaction.participants.some(
+				(participant) =>
+					participant.status === "committed" ||
+					participant.status === "finalized" ||
+					participant.status === "projected",
+			)
 				? "recovery_required"
 				: "failed";
-			transaction.error = error instanceof Error ? error.message : String(error);
+			transaction.error =
+				error instanceof Error ? error.message : String(error);
 			await this.save(transaction);
 			throw error;
 		}
 	}
 
-	async abort(transactionId: string, reason: string): Promise<AbortedTransaction> {
+	async abort(
+		transactionId: string,
+		reason: string,
+	): Promise<AbortedTransaction> {
 		const transaction = await this.requireTransaction(transactionId);
-		if (transaction.status === "events_committed" || transaction.status === "recovery_required" || transaction.status === "committed") {
-			throw new TransactionConflictError("Committed events cannot be aborted; recover finalization instead");
+		if (
+			transaction.status === "events_committed" ||
+			transaction.status === "recovery_required" ||
+			transaction.status === "committed"
+		) {
+			throw new TransactionConflictError(
+				"Committed events cannot be aborted; recover finalization instead",
+			);
 		}
 		transaction.status = "aborted";
 		transaction.error = reason;
@@ -177,7 +223,10 @@ export class TransactionCoordinator {
 		return this.journal.get(transactionId);
 	}
 
-	async recover(transactionId: string, participants: readonly TransactionParticipant[]): Promise<RecoveryResult> {
+	async recover(
+		transactionId: string,
+		participants: readonly TransactionParticipant[],
+	): Promise<RecoveryResult> {
 		const transaction = await this.requireTransaction(transactionId);
 		transaction.recoveryAttempts += 1;
 		await this.save(transaction);
@@ -186,40 +235,74 @@ export class TransactionCoordinator {
 			return { transactionId, status: committed.status };
 		} catch (error) {
 			const current = await this.requireTransaction(transactionId);
-			return { transactionId, status: current.status, error: error instanceof Error ? error.message : String(error) };
+			return {
+				transactionId,
+				status: current.status,
+				error: error instanceof Error ? error.message : String(error),
+			};
 		}
 	}
 
-	async listRecoverable(query: RecoveryQuery = {}): Promise<MacroTransaction[]> {
+	async listRecoverable(
+		query: RecoveryQuery = {},
+	): Promise<MacroTransaction[]> {
 		return this.journal.list({
 			...query,
-			statuses: query.statuses ?? ["staging", "events_committed", "recovery_required", "failed"],
+			statuses: query.statuses ?? [
+				"staging",
+				"events_committed",
+				"recovery_required",
+				"failed",
+			],
 		});
 	}
 
-	private async assertExpectedVersions(request: PrepareTransactionRequest): Promise<void> {
+	private async assertExpectedVersions(
+		request: PrepareTransactionRequest,
+	): Promise<void> {
 		if (this.readCellRevision) {
 			const current = await this.readCellRevision(request.sourceCellId);
-			if (current !== request.sourceCellRevision) throw new TransactionConflictError(`Source cell '${request.sourceCellId}' is stale`);
+			if (current !== request.sourceCellRevision)
+				throw new TransactionConflictError(
+					`Source cell '${request.sourceCellId}' is stale`,
+				);
 		}
 		if (!this.readAggregateVersion) return;
 		for (const expectation of request.plan.expectedVersions) {
 			const current = await this.readAggregateVersion(expectation);
-			if (current.version !== expectation.expectedVersion || (expectation.expectedHead && current.head !== expectation.expectedHead)) {
-				throw new TransactionConflictError(`Aggregate '${expectation.aggregateId}' is stale`);
+			if (
+				current.version !== expectation.expectedVersion ||
+				(expectation.expectedHead && current.head !== expectation.expectedHead)
+			) {
+				throw new TransactionConflictError(
+					`Aggregate '${expectation.aggregateId}' is stale`,
+				);
 			}
 		}
 	}
 
-	private async requireTransaction(transactionId: string): Promise<MacroTransaction> {
+	private async requireTransaction(
+		transactionId: string,
+	): Promise<MacroTransaction> {
 		const transaction = await this.journal.get(transactionId);
-		if (!transaction) throw new TransactionConflictError(`Transaction '${transactionId}' was not found`);
+		if (!transaction)
+			throw new TransactionConflictError(
+				`Transaction '${transactionId}' was not found`,
+			);
 		return transaction;
 	}
 
-	private stateFor(transaction: MacroTransaction, participant: TransactionParticipant): TransactionParticipantState {
-		const state = transaction.participants.find((item) => item.participantId === participant.participantId);
-		if (!state) throw new TransactionConflictError(`Participant '${participant.participantId}' was not prepared`);
+	private stateFor(
+		transaction: MacroTransaction,
+		participant: TransactionParticipant,
+	): TransactionParticipantState {
+		const state = transaction.participants.find(
+			(item) => item.participantId === participant.participantId,
+		);
+		if (!state)
+			throw new TransactionConflictError(
+				`Participant '${participant.participantId}' was not prepared`,
+			);
 		return state;
 	}
 

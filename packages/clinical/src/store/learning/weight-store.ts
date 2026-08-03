@@ -1,6 +1,6 @@
 import type { KvBackend, SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import type { SystemWeightStore } from "./interfaces";
 import { WeightQueryCompiler } from "../sql/weight-query-compiler";
+import type { SystemWeightStore } from "./interfaces";
 
 const DEFAULT_WEIGHT = 1.0;
 const MIN_WEIGHT = 0.1;
@@ -98,11 +98,7 @@ export class SqlBackendSystemWeightStore implements SystemWeightStore {
 	private readonly executor: SqlExecutor;
 	private readonly table: string;
 
-	constructor(
-		dialect: SqlDialect,
-		executor: SqlExecutor,
-		table = "weights",
-	) {
+	constructor(dialect: SqlDialect, executor: SqlExecutor, table = "weights") {
 		this.compiler = new WeightQueryCompiler(dialect);
 		this.executor = executor;
 		this.table = table;

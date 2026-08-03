@@ -12,8 +12,7 @@ export const TERRESTRIAL_UNIT_ANCHORS = [
 	"energy",
 ] as const;
 
-export type TerrestrialUnitAnchor =
-	(typeof TERRESTRIAL_UNIT_ANCHORS)[number];
+export type TerrestrialUnitAnchor = (typeof TERRESTRIAL_UNIT_ANCHORS)[number];
 
 export const PHYSIOLOGICAL_UNIT_ANCHORS = [
 	"concentration",
@@ -41,8 +40,7 @@ export const ENGINEERING_UNIT_ANCHORS = [
 	"magnetic_flux_density",
 ] as const;
 
-export type EngineeringUnitAnchor =
-	(typeof ENGINEERING_UNIT_ANCHORS)[number];
+export type EngineeringUnitAnchor = (typeof ENGINEERING_UNIT_ANCHORS)[number];
 
 export const MEASUREMENT_UNIT_ANCHORS = [
 	...TERRESTRIAL_UNIT_ANCHORS,
@@ -50,8 +48,7 @@ export const MEASUREMENT_UNIT_ANCHORS = [
 	...ENGINEERING_UNIT_ANCHORS,
 ] as const;
 
-export type MeasurementUnitAnchor =
-	(typeof MEASUREMENT_UNIT_ANCHORS)[number];
+export type MeasurementUnitAnchor = (typeof MEASUREMENT_UNIT_ANCHORS)[number];
 
 export const MASS_UNITS = [
 	"kg",
@@ -152,7 +149,13 @@ export const COUNT_UNITS = [
 
 export type CountUnit = (typeof COUNT_UNITS)[number];
 
-export const SCORE_UNITS = ["%", "percent", "score", "points", "ratio"] as const;
+export const SCORE_UNITS = [
+	"%",
+	"percent",
+	"score",
+	"points",
+	"ratio",
+] as const;
 
 export type ScoreUnit = (typeof SCORE_UNITS)[number];
 
@@ -220,8 +223,7 @@ export const CATALYTIC_ACTIVITY_UNITS = [
 	"nkat",
 ] as const;
 
-export type CatalyticActivityUnit =
-	(typeof CATALYTIC_ACTIVITY_UNITS)[number];
+export type CatalyticActivityUnit = (typeof CATALYTIC_ACTIVITY_UNITS)[number];
 
 export const FRACTION_UNITS = ["%", "fraction", "ratio"] as const;
 
@@ -320,87 +322,88 @@ export interface BoundedMeasurement extends SingleMeasurement {
 
 export interface TemperatureMeasurement extends BoundedMeasurement {
 	unitAnchor: "temperature";
-	unit?: TemperatureUnit
+	unit?: TemperatureUnit;
 }
 
 export interface PressureMeasurement extends BoundedMeasurement {
 	unitAnchor: "pressure";
-	unit?: PressureUnit
+	unit?: PressureUnit;
 }
 
 export interface CountMeasurement extends BoundedMeasurement {
 	unitAnchor: "number";
-	unit?: CountUnit
+	unit?: CountUnit;
 }
 
 export interface DistanceMeasurement extends BoundedMeasurement {
 	unitAnchor: "length";
-	unit?: LengthUnit
+	unit?: LengthUnit;
 }
 
 export interface MassMeasurement extends BoundedMeasurement {
 	unitAnchor: "mass";
-	unit?: MassUnit
+	unit?: MassUnit;
 }
 
-export interface MassConcentrationMeasurement extends Omit<BoundedMeasurement, "unit"> {
+export interface MassConcentrationMeasurement
+	extends Omit<BoundedMeasurement, "unit"> {
 	unitAnchor: "mass_concentration";
-	unit?: MassConcentrationUnit
+	unit?: MassConcentrationUnit;
 }
 
 export interface EnergyMeasurement extends BoundedMeasurement {
 	unitAnchor: "energy";
-	unit?: EnergyUnit
+	unit?: EnergyUnit;
 }
 
 export interface ForceMeasurement extends BoundedMeasurement {
 	unitAnchor: "force";
-	unit?: ForceUnit
+	unit?: ForceUnit;
 }
 
 export interface OsmolalityMeasurement extends BoundedMeasurement {
 	unitAnchor: "osmolality";
-	unit?: OsmolalityUnit
+	unit?: OsmolalityUnit;
 }
 
 export interface OsmolarityMeasurement extends BoundedMeasurement {
 	unitAnchor: "osmolarity";
-	unit?: OsmolarityUnit
+	unit?: OsmolarityUnit;
 }
 
 export interface CatalyticActivityMeasurement extends BoundedMeasurement {
 	unitAnchor: "catalytic_activity";
-	unit?: CatalyticActivityUnit
+	unit?: CatalyticActivityUnit;
 }
 
 export interface FractionMeasurement extends BoundedMeasurement {
 	unitAnchor: "fraction";
-	unit?: FractionUnit
+	unit?: FractionUnit;
 }
 
 export interface ElectricPotentialMeasurement extends BoundedMeasurement {
 	unitAnchor: "electric_potential";
-	unit?: ElectricPotentialUnit
+	unit?: ElectricPotentialUnit;
 }
 
 export interface ElectricCurrentMeasurement extends BoundedMeasurement {
 	unitAnchor: "electric_current";
-	unit?: ElectricCurrentUnit
+	unit?: ElectricCurrentUnit;
 }
 
 export interface PowerMeasurement extends BoundedMeasurement {
 	unitAnchor: "power";
-	unit?: PowerUnit
+	unit?: PowerUnit;
 }
 
 export interface VelocityMeasurement extends BoundedMeasurement {
 	unitAnchor: "velocity";
-	unit?: VelocityUnit
+	unit?: VelocityUnit;
 }
 
 export interface AccelerationMeasurement extends BoundedMeasurement {
 	unitAnchor: "acceleration";
-	unit?: AccelerationUnit
+	unit?: AccelerationUnit;
 }
 
 /** Covers all pharmaceutical dosage forms: solid mass (mg, g) or liquid concentration (mg/mL). */
@@ -409,7 +412,7 @@ export type DosageMeasurement = MassMeasurement | MassConcentrationMeasurement;
 /** Dimensionless score or ratio produced by an algorithmic evaluation. */
 export interface ScoreMeasurement extends BoundedMeasurement {
 	unitAnchor: "arbitrary";
-	unit?: ScoreUnit
+	unit?: ScoreUnit;
 }
 
 /**

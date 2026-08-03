@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
-import type { V2MacroDefinition, MacroStore } from "../src/v2/macros/macro-definition";
-import type { ConceptLookup } from "../src/v2/values/concept-value";
 import { MacroAutocomplete } from "../src/v2/macros/macro-autocomplete";
+import type {
+	MacroStore,
+	V2MacroDefinition,
+} from "../src/v2/macros/macro-definition";
+import type { ConceptLookup } from "../src/v2/values/concept-value";
 
 function makeMacroStore(macros: V2MacroDefinition[]): MacroStore {
 	return {
@@ -124,7 +127,11 @@ describe("MacroAutocomplete", () => {
 			const results = await service.suggest({ query: "^obs", scope: "macro" });
 
 			expect(results).toHaveLength(3);
-			expect(results.map((r) => r.value)).toEqual(["obs", "observation", "observation_set"]);
+			expect(results.map((r) => r.value)).toEqual([
+				"obs",
+				"observation",
+				"observation_set",
+			]);
 		});
 
 		test("is case-insensitive", async () => {
@@ -135,7 +142,11 @@ describe("MacroAutocomplete", () => {
 			const results = await service.suggest({ query: "^OBS", scope: "macro" });
 
 			expect(results).toHaveLength(3);
-			expect(results.map((r) => r.value)).toEqual(["obs", "observation", "observation_set"]);
+			expect(results.map((r) => r.value)).toEqual([
+				"obs",
+				"observation",
+				"observation_set",
+			]);
 		});
 
 		test("returns empty array for unmatched prefix", async () => {
@@ -258,36 +269,38 @@ describe("MacroAutocomplete", () => {
 
 	describe("concept suggestions", () => {
 		test("searches dictionary and maps to namespace::code format", async () => {
-		const lowerQuery = "che";
-		const service = new MacroAutocomplete({
-			macros: makeMacroStore(SAMPLE_MACROS),
-			dictionary: makeDictionary(
-				SAMPLE_CONCEPTS.filter((c) =>
-					c.active !== false && c.display.toLowerCase().startsWith(lowerQuery),
+			const lowerQuery = "che";
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore(SAMPLE_MACROS),
+				dictionary: makeDictionary(
+					SAMPLE_CONCEPTS.filter(
+						(c) =>
+							c.active !== false &&
+							c.display.toLowerCase().startsWith(lowerQuery),
+					),
 				),
-			),
-		});
+			});
 
-		const results = await service.suggest({
-			query: "che",
-			scope: "concept",
-			namespaceCode: "snomed",
-		});
+			const results = await service.suggest({
+				query: "che",
+				scope: "concept",
+				namespaceCode: "snomed",
+			});
 
-		expect(results).toHaveLength(2);
-		expect(results[0]).toEqual({
-			label: "Chest infection",
-			value: "snomed::67890",
-			type: "concept",
-			detail: "67890",
+			expect(results).toHaveLength(2);
+			expect(results[0]).toEqual({
+				label: "Chest infection",
+				value: "snomed::67890",
+				type: "concept",
+				detail: "67890",
+			});
+			expect(results[1]).toEqual({
+				label: "Chest pain",
+				value: "snomed::12345",
+				type: "concept",
+				detail: "12345",
+			});
 		});
-		expect(results[1]).toEqual({
-			label: "Chest pain",
-			value: "snomed::12345",
-			type: "concept",
-			detail: "12345",
-		});
-	});
 
 		test("filters out inactive concepts", async () => {
 			const service = new MacroAutocomplete({
@@ -317,7 +330,8 @@ describe("MacroAutocomplete", () => {
 		});
 
 		test("passes namespaceCode through to dictionary.search", async () => {
-			const capturedQueries: Array<{ query: string; namespaceCode?: string }> = [];
+			const capturedQueries: Array<{ query: string; namespaceCode?: string }> =
+				[];
 			const service = new MacroAutocomplete({
 				macros: makeMacroStore(SAMPLE_MACROS),
 				dictionary: {

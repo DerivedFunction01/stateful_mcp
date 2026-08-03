@@ -22,10 +22,13 @@ export class ValueRuleRegistry {
 	private readonly profiles = new Map<string, Map<string, V2ValueRule>>();
 
 	register(profileId: string, rules: readonly V2ValueRule[]): void {
-		const profile = this.profiles.get(profileId) ?? new Map<string, V2ValueRule>();
+		const profile =
+			this.profiles.get(profileId) ?? new Map<string, V2ValueRule>();
 		for (const rule of rules) {
 			if (!rule.ruleId || !rule.targetSchema || !rule.targetPath) {
-				throw new Error("A V2 value rule requires an ID, schema, and target path");
+				throw new Error(
+					"A V2 value rule requires an ID, schema, and target path",
+				);
 			}
 			if (rule.patterns.length === 0) {
 				throw new Error(`V2 value rule '${rule.ruleId}' must define a pattern`);
@@ -44,8 +47,14 @@ export class ValueRuleRegistry {
 
 	list(profileId: string, targetPath?: string): V2ValueRule[] {
 		return [...(this.profiles.get(profileId)?.values() ?? [])]
-			.filter((rule) => targetPath === undefined || rule.targetPath === targetPath)
-			.sort((left, right) => (right.priority ?? 0) - (left.priority ?? 0) || left.ruleId.localeCompare(right.ruleId));
+			.filter(
+				(rule) => targetPath === undefined || rule.targetPath === targetPath,
+			)
+			.sort(
+				(left, right) =>
+					(right.priority ?? 0) - (left.priority ?? 0) ||
+					left.ruleId.localeCompare(right.ruleId),
+			);
 	}
 
 	match(profileId: string, targetPath: string, text: string): V2RuleMatch[] {
@@ -54,7 +63,10 @@ export class ValueRuleRegistry {
 			for (const pattern of rule.patterns) {
 				let expression: RegExp;
 				try {
-					expression = new RegExp(pattern, rule.caseInsensitive === false ? "g" : "gi");
+					expression = new RegExp(
+						pattern,
+						rule.caseInsensitive === false ? "g" : "gi",
+					);
 				} catch {
 					continue;
 				}
@@ -68,6 +80,10 @@ export class ValueRuleRegistry {
 				}
 			}
 		}
-		return matches.sort((left, right) => left.index - right.index || (right.rule.priority ?? 0) - (left.rule.priority ?? 0));
+		return matches.sort(
+			(left, right) =>
+				left.index - right.index ||
+				(right.rule.priority ?? 0) - (left.rule.priority ?? 0),
+		);
 	}
 }

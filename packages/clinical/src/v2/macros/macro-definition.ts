@@ -39,8 +39,18 @@ export interface MeasurementConstraintSpec {
 	allowedUnits?: readonly string[];
 	deniedUnits?: readonly string[];
 	canonicalUnit?: string;
-	rawBounds?: { min?: number; max?: number; inclusiveMin?: boolean; inclusiveMax?: boolean };
-	normalizedBounds?: { min?: number; max?: number; inclusiveMin?: boolean; inclusiveMax?: boolean };
+	rawBounds?: {
+		min?: number;
+		max?: number;
+		inclusiveMin?: boolean;
+		inclusiveMax?: boolean;
+	};
+	normalizedBounds?: {
+		min?: number;
+		max?: number;
+		inclusiveMin?: boolean;
+		inclusiveMax?: boolean;
+	};
 }
 
 export interface PipelineConditionSpec {

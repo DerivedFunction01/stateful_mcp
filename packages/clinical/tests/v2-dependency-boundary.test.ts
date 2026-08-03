@@ -23,9 +23,7 @@ function v2Files(): string[] {
 
 function stripComments(content: string): string {
 	// Remove block comments and line comments (preserves import specifiers).
-	return content
-		.replace(/\/\*[\s\S]*?\*\//g, "")
-		.replace(/\/\/[^\n]*/g, "");
+	return content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
 function contentMatches(marker: string, content: string): boolean {
@@ -93,9 +91,10 @@ describe("Engine V2 dependency boundary", () => {
 					offenders.push(file);
 				}
 			}
-			expect(offenders, `${marker} appears in: ${offenders.join(", ")}`).toEqual(
-				[],
-			);
+			expect(
+				offenders,
+				`${marker} appears in: ${offenders.join(", ")}`,
+			).toEqual([]);
 		});
 	}
 });

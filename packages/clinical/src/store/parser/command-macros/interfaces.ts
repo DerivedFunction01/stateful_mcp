@@ -7,13 +7,7 @@ export interface CommandFieldMetadata {
 	targetSchema: string;
 	targetPath: string;
 	aliases?: string[];
-	valueKind:
-		| "concept"
-		| "quantity"
-		| "temporal"
-		| "scalar"
-		| "array"
-		| "prose";
+	valueKind: "concept" | "quantity" | "temporal" | "scalar" | "array" | "prose";
 	cardinality: "one" | "many";
 	required?: boolean;
 	ruleIds?: string[];
