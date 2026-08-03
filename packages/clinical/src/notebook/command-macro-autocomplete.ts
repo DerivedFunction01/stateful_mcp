@@ -7,6 +7,7 @@ import type {
 	ParserCommandMacro,
 	ParserCommandMacroStore,
 } from "../store/parser/command-macros/interfaces";
+import type { CommandFieldMetadataStore } from "../parser/command/command-field-metadata";
 import type { AutocompleteSuggestion } from "./command-autocomplete";
 
 function suggestion(macro: ParserCommandMacro): AutocompleteSuggestion {
@@ -58,6 +59,7 @@ export async function getCommandMacroContextualAutocomplete(
 	partial: string,
 	store: ParserCommandMacroStore,
 	context?: { personnelId?: string; profileId?: string },
+	fieldMetadata?: CommandFieldMetadataStore,
 ): Promise<AutocompleteSuggestion[]> {
 	const text = partial.trimStart();
 	const words = text.split(/\s+/);
@@ -65,7 +67,20 @@ export async function getCommandMacroContextualAutocomplete(
 	if (words.length <= 1)
 		return getCommandMacroAutocomplete(partial, store, context);
 	const macro = await store.get(macroName, context);
-	return macro ? getMacroArgumentAutocomplete(macro, text) : [];
+	if (!macro) return [];
+	const suggestions = getMacroArgumentAutocomplete(macro, text);
+	if (!fieldMetadata) return suggestions;
+	const fields = await fieldMetadata.list(context);
+	const byRole = new Map(fields.map((field) => [field.roleName, field]));
+	return suggestions.map((suggestion) => {
+		const argument = macro.arguments.find(
+			(candidate) => candidate.name === suggestion.argName,
+		);
+		const metadata = argument ? byRole.get(argument.roleName) : undefined;
+		return metadata
+			? { ...suggestion, descriptionKey: `${metadata.targetSchema}.${metadata.targetPath}` }
+			: suggestion;
+	});
 }
 
 export function getMacroArgumentAutocomplete(

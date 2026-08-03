@@ -9,7 +9,6 @@ export interface CommandFieldMetadata {
 	aliases?: string[];
 	valueKind:
 		| "concept"
-		| "attribute"
 		| "quantity"
 		| "temporal"
 		| "scalar"

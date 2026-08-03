@@ -19,6 +19,10 @@ import type {
 import { resolveParsedCellStoreLocatorV2 } from "./learning/learning-backend-resolver";
 import { resolveOrderedLearningStoreLocator } from "./learning/ordered-learning-resolver";
 import type { ParserCommandMacroStore } from "./parser/command-macros/interfaces";
+import {
+	CommandMacroFieldMetadataCatalog,
+	type CommandFieldMetadataStore,
+} from "../parser/command/command-field-metadata";
 import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "./parser/concept_defaults/interfaces";
 import type { ConceptFieldStore } from "./parser/concept_fields/interfaces";
 import {
@@ -85,6 +89,7 @@ export interface ClinicalRuntimeParserStores {
 	sharedFieldAnchors: SharedFieldAnchorStore;
 	macros: ParserMacroStore;
 	commandMacros: ParserCommandMacroStore;
+	commandFieldMetadata: CommandFieldMetadataStore;
 }
 
 export interface ClinicalRuntime {
@@ -175,6 +180,7 @@ export async function createClinicalRuntime(
 			sharedFieldAnchors,
 			macros,
 			commandMacros,
+			commandFieldMetadata: new CommandMacroFieldMetadataCatalog(commandMacros),
 		},
 		learningStores: await buildLearningStores(config),
 		orderedLearningStores,

@@ -167,6 +167,7 @@ export function Notebook() {
 		engine: session?.result?.engine,
 		staticCandidates,
 		macroStore: session?.result.runtime.parserStores.commandMacros,
+		fieldMetadata: session?.result.runtime.parserStores.commandFieldMetadata,
 	});
 	const { preview: macroPreview } = useCommandMacroPreview({
 		mode: state.mode,

@@ -1,5 +1,6 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { getCommandMacroContextualAutocomplete } from "@stateful-mcp/clinical/notebook/command-macro-autocomplete";
+import type { CommandFieldMetadataStore } from "@stateful-mcp/clinical";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveCompletionSession } from "../lib/editor/completion-state";
 
@@ -12,6 +13,7 @@ export function useEngineCompletion({
 	staticCandidates,
 	macroStore,
 	macroContext,
+	fieldMetadata,
 }: {
 	mode: "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";
 	commandLine: string;
@@ -21,6 +23,7 @@ export function useEngineCompletion({
 	staticCandidates: AutocompleteSuggestion[];
 	macroStore?: { list: (context?: any) => Promise<any[]> };
 	macroContext?: { personnelId?: string; profileId?: string };
+	fieldMetadata?: CommandFieldMetadataStore;
 }) {
 	const [loading, setLoading] = useState(false);
 	const [engineCandidates, setEngineCandidates] = useState<
@@ -44,6 +47,7 @@ export function useEngineCompletion({
 						prefix,
 						macroStore as any,
 						macroContext,
+						fieldMetadata,
 					);
 					if (lastRequestRef.current === prefix)
 						setEngineCandidates(suggestions);
@@ -136,7 +140,7 @@ export function useEngineCompletion({
 		return () => {
 			clearTimeout(timer);
 		};
-	}, [mode, commandLine, catalog, context, engine, macroStore, macroContext]);
+	}, [mode, commandLine, catalog, context, engine, macroStore, macroContext, fieldMetadata]);
 
 	const mergedCandidates = useMemo(() => {
 		const seen = new Set<string>();
