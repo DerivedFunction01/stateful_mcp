@@ -1,0 +1,31 @@
+{
+	"compilerOptions": {
+		"lib": ["ESNext"],
+		"target": "ESNext",
+		"module": "Preserve",
+		"moduleDetection": "force",
+		"allowJs": true,
+		"jsx": "react-jsx",
+		"jsxImportSource": "react",
+		"types": ["bun"],
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"noEmit": true,
+		"strict": true,
+		"skipLibCheck": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"paths": {
+			"@stateful-mcp/core": ["../core/src/index.ts"],
+			"@stateful-mcp/core/*": ["../core/src/*"],
+			"@stateful-mcp/clinical": ["../clinical/src/index.ts"],
+			"@stateful-mcp/clinical/*": ["../clinical/src/*"],
+			"@stateful-mcp/cli/*": ["./src/*"],
+			"@stateful-mcp/cli": ["./src/index.ts"]
+		}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"]
+}

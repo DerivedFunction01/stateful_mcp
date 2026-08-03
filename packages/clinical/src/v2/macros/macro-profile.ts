@@ -1,4 +1,7 @@
-export interface V2SyntaxProfile {
+import type { V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import { createV2CommandSyntaxProfile } from "../commands/command-syntax-profile";
+
+export interface V2SyntaxProfile extends Partial<V2CommandSyntaxProfile> {
 	profileId: string;
 	personnelId?: string;
 	isDefault?: boolean;
@@ -17,7 +20,7 @@ export const V2_SYNTAX_DEFAULTS = {
 	macroStartToken: "^",
 	variableStartToken: "{",
 	variableEndToken: "}",
-	cellCommandToken: ":",
+	directCommandToken: ":",
 	conceptCodeSeparator: "::",
 	macroArgDelimiter: undefined,
 	fallbackBoundaryDelimiter: undefined,
@@ -27,8 +30,10 @@ export function createV2SyntaxProfile(
 	profile: Omit<V2SyntaxProfile, "macroStartToken" | "conceptCodeSeparator"> &
 		Partial<Pick<V2SyntaxProfile, "macroStartToken" | "conceptCodeSeparator">>,
 ): V2SyntaxProfile {
+	const commandProfile = createV2CommandSyntaxProfile(profile);
 	return {
 		...profile,
+		...commandProfile,
 		macroStartToken:
 			profile.macroStartToken ?? V2_SYNTAX_DEFAULTS.macroStartToken,
 		conceptCodeSeparator:

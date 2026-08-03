@@ -8,6 +8,7 @@ import type { SyncConfig } from "../sync/sync-rule-config";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import type { MacroStore } from "../macros/macro-definition";
 import type { DictionaryStore } from "@stateful-mcp/core";
+import type { V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
 
 /**
  * Injectable configuration holder for V2 engine services.
@@ -29,4 +30,5 @@ export interface ClinicalRuntimeV2 {
 		defs: MacroStore;
 		dictionary: DictionaryStore;
 	};
+	syntaxProfile: V2CommandSyntaxProfile;
 }

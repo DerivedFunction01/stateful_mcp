@@ -27,6 +27,7 @@ import type { MacroStore } from "../macros/macro-definition";
 import type { SyncConfig } from "../sync/sync-rule-config";
 import { WorkspaceViewService } from "../workspaces/workspace-view-state";
 import type { ClinicalRuntimeV2 } from "./clinical-runtime-v2";
+import { createV2CommandSyntaxProfile, type V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
 
 export class ClinicalEngineV2Builder {
 	private eventStore?: EventStore;
@@ -42,6 +43,7 @@ export class ClinicalEngineV2Builder {
 	private viewStore?: WorkspaceViewStateStore;
 	private journal?: TransactionJournal;
 	private extraParticipants: TransactionParticipant[] = [];
+	private syntaxProfile?: V2CommandSyntaxProfile;
 
 	withEventStore(store: EventStore): this {
 		this.eventStore = store;
@@ -100,6 +102,11 @@ export class ClinicalEngineV2Builder {
 
 	withSync(config: SyncConfig): this {
 		this.syncConfig = config;
+		return this;
+	}
+
+	withSyntaxProfile(profile: V2CommandSyntaxProfile): this {
+		this.syntaxProfile = profile;
 		return this;
 	}
 
@@ -185,6 +192,7 @@ export class ClinicalEngineV2Builder {
 				defs: macroStore,
 				dictionary: dictionaryStore,
 			},
+			syntaxProfile: this.syntaxProfile ?? createV2CommandSyntaxProfile({ profileId: "v2-default", default: true, active: true }),
 		};
 
 		return new ClinicalEngineV2(
