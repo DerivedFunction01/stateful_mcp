@@ -1,5 +1,5 @@
 import type { KvBackend, SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import { WeightQueryCompiler } from "../sql/weight-query-compiler";
+import { WeightQueryCompiler } from "../../store/sql/weight-query-compiler";
 import type { SystemWeightStore } from "./interfaces";
 
 const DEFAULT_WEIGHT = 1.0;

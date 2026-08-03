@@ -8,8 +8,8 @@ import {
 	getClinicalAdapterConfigs,
 } from "./adapter-types";
 import type { ClinicalStoreConfig } from "./clinical-config";
-import { resolveNgramStoreLocator } from "./learning/autocomplete-resolver";
-import type { NgramStore } from "./learning/interfaces";
+import { resolveNgramStoreLocator } from "../v2/learning/autocomplete/autocomplete-resolver";
+import type { NgramStore } from "../v2/learning/interfaces";
 import type { ParserCommandMacroStore } from "./parser/command-macros/interfaces";
 
 import {

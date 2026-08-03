@@ -7,7 +7,7 @@ import type {
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 } from "../store/interfaces";
-import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import type { ParsedCellHistoryStore } from "../v2/learning/interfaces";
 import { GenericTokenizer } from "./generic-tokenizer";
 import type {
 	ParsedCandidateEnvelope,

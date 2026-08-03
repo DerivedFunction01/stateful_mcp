@@ -11,7 +11,7 @@ import type {
 	ParsedCellHistoryStore,
 	ScoredParsedItem,
 	SystemWeightStore,
-} from "../store/learning/interfaces";
+} from "../v2/learning/interfaces";
 import type { CommandAutocompleteContext } from "../store/reference/auto-complete/command-autocomplete-interfaces";
 import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { CommandAutocompleteSuggester } from "./command/command-autocomplete-suggester";

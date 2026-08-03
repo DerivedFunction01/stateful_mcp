@@ -1,8 +1,8 @@
 import type {
 	NgramStore,
 	NgramSuggestion,
-} from "../../store/learning/interfaces";
-import type { AutocompleteSuggestion } from "../../store/reference/auto-complete/interfaces";
+} from "../interfaces";
+import type { AutocompleteSuggestion } from "../../../store/reference/auto-complete/interfaces";
 
 const MAX_SUGGESTIONS = 5;
 

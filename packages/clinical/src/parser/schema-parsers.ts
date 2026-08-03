@@ -9,7 +9,7 @@ import type {
 	ParserSyntaxProfile,
 	PatientLearningContext,
 } from "../store/interfaces";
-import type { ParsedCellHistoryStore } from "../store/learning/interfaces";
+import type { ParsedCellHistoryStore } from "../v2/learning/interfaces";
 import { ClinicalDateRangeSchemaParser } from "./parsers/clinical-date-range-parser";
 
 export const CANONICAL_TAGS = {
