@@ -2,8 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
 import { bootstrapClinicalStores } from "../src/init/bootstrap/bootstrap-writer";
 import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime";
-import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
-import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
 import { KvParserAttributeRuleStore } from "../src/store/parser/rules/kv-parser-attribute-rule-store";
 import { KvParserEvaluatorRuleStore } from "../src/store/parser/rules/kv-parser-evaluator-rule-store";
@@ -41,8 +39,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		evaluatorRules: new KvParserEvaluatorRuleStore(backend),
 		attributeBindings: new KvProfileRuleBindingStore(backend),
 		evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		conceptDefaults: new KvConceptDefaultStore(backend),
-		conceptFields: new KvConceptFieldStore(backend),
 		stopWordProfiles: new KvStopWordProfileStore(backend),
 		stopWordWordLists: new KvStopWordWordListStore(backend),
 		proseTemplates: new KvClinicalProseTemplateStore(backend),

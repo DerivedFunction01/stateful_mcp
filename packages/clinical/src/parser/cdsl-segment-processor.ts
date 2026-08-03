@@ -1,9 +1,6 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { CodeableConcept } from "../schemas/shared";
 import type {
 	AttributeParserRule,
-	ConceptFieldRule,
-	ConceptFieldStore,
 	ParserSyntaxProfile,
 	StopWordContext,
 } from "../store/interfaces";
@@ -17,7 +14,6 @@ import {
 import {
 	type PreparsedContext,
 	type RankingSignal,
-	resolveMultiConceptHelper,
 	type SchemaParser,
 	schemaParserRegistry,
 } from "./schema-parsers";
@@ -28,7 +24,6 @@ export interface SegmentParseState {
 	tag: string;
 	content: string;
 	preparsedContext: PreparsedContext;
-	conceptFieldRules: ConceptFieldRule[];
 	mappedParser: SchemaParser | undefined;
 	parsersToRun: SchemaParser[];
 }
@@ -42,7 +37,6 @@ export class SegmentProcessor {
 	constructor(
 		private profile: ParserSyntaxProfile,
 		private attributeRules: AttributeParserRule[],
-		private conceptFieldStore: ConceptFieldStore | undefined,
 		private dictionaryStore: DictionaryStore,
 	) {}
 
@@ -69,13 +63,6 @@ export class SegmentProcessor {
 			routingContext,
 		);
 
-		// Resolve concepts for concept-driven dispatch
-		const resolvedConcepts = await this.resolveSegmentConcepts(content);
-
-		// Look up ConceptFieldRule[] for resolved conceptIds
-		const conceptFieldRules =
-			await this.resolveConceptFieldRules(resolvedConcepts);
-
 		// Resolve tag to a schema parser
 		let mappedParser: SchemaParser | undefined;
 		if (routingContext?.targetSchema) {
@@ -87,7 +74,6 @@ export class SegmentProcessor {
 		// Build parsersToRun from tag + concept routing
 		const parsersToRun = this.resolveParsersToRun(
 			tag,
-			conceptFieldRules,
 			mappedParser,
 			routingContext?.targetSchema,
 		);
@@ -96,7 +82,6 @@ export class SegmentProcessor {
 			tag,
 			content,
 			preparsedContext,
-			conceptFieldRules,
 			mappedParser,
 			parsersToRun,
 		};
@@ -214,34 +199,6 @@ export class SegmentProcessor {
 		};
 	}
 
-	private async resolveSegmentConcepts(
-		content: string,
-		allowedNamespaces?: string[],
-	): Promise<CodeableConcept[]> {
-		return resolveMultiConceptHelper(
-			content,
-			this.dictionaryStore,
-			this.profile.termTokenizer,
-			allowedNamespaces,
-		);
-	}
-
-	private async resolveConceptFieldRules(
-		concepts: CodeableConcept[],
-	): Promise<ConceptFieldRule[]> {
-		const conceptFieldRules: ConceptFieldRule[] = [];
-		if (this.conceptFieldStore && concepts.length > 0) {
-			const allRules = await this.conceptFieldStore.list();
-			const matchedConceptIds = new Set(concepts.map((c) => c.conceptId));
-			for (const rule of allRules) {
-				if (matchedConceptIds.has(rule.conceptId)) {
-					conceptFieldRules.push(rule);
-				}
-			}
-		}
-		return conceptFieldRules;
-	}
-
 	private resolveMappedParser(tag: string): SchemaParser | undefined {
 		if (!tag) return undefined;
 
@@ -283,32 +240,12 @@ export class SegmentProcessor {
 
 	private resolveParsersToRun(
 		tag: string,
-		conceptFieldRules: ConceptFieldRule[],
 		mappedParser: SchemaParser | undefined,
 		resolvedSchema?: string | null,
 	): SchemaParser[] {
-		const conceptMatchedParsers: SchemaParser[] = [];
-		if (conceptFieldRules.length > 0) {
-			const matchedSchemas = new Set(
-				conceptFieldRules.map((r) => r.targetSchema),
-			);
-			for (const schema of matchedSchemas) {
-				for (const p of Array.from(schemaParserRegistry.values())) {
-					if (p.targetSchema.toLowerCase() === schema.toLowerCase()) {
-						conceptMatchedParsers.push(p);
-					}
-				}
-			}
-		}
-
 		const parsersToRun: SchemaParser[] = [];
 		if (mappedParser) {
 			parsersToRun.push(mappedParser);
-		}
-		for (const p of conceptMatchedParsers) {
-			if (!parsersToRun.includes(p)) {
-				parsersToRun.push(p);
-			}
 		}
 		if (parsersToRun.length === 0 && !resolvedSchema) {
 			for (const p of Array.from(schemaParserRegistry.values())) {

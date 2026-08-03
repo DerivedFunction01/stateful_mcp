@@ -5,8 +5,6 @@ import type { MedicationFrequency } from "../schemas/medication";
 import type { CodeableConcept } from "../schemas/shared";
 import type {
 	AttributeParserRule,
-	ConceptFieldStore,
-	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 	PatientLearningContext,
@@ -119,14 +117,12 @@ export interface SchemaParserOptions {
 	tag: string;
 	content: string;
 	dictionaryStore: DictionaryStore;
-	conceptDefaultsStore?: ParserConceptDefaultStore;
 	attributeRules?: AttributeParserRule[];
 	evaluatorRules?: ParserDictionaryRule[];
 	termTokenizer?: string;
 	allowedNamespaces?: string[];
 	preparsedContext?: PreparsedContext;
 	historyStore?: ParsedCellHistoryStore;
-	conceptFieldStore?: ConceptFieldStore;
 	concepts?: CodeableConcept[];
 }
 

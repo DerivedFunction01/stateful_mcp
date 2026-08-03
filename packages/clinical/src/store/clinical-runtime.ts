@@ -11,13 +11,10 @@ import {
 	CommandMacroFieldMetadataCatalog,
 	type CommandFieldMetadataStore,
 } from "../parser/command/command-field-metadata";
-import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "./parser/concept_defaults/interfaces";
-import type { ConceptFieldStore } from "./parser/concept_fields/interfaces";
+
 import {
 	resolveCalibrationExceptionStore,
 	resolveCommandMacroStore,
-	resolveConceptDefaultStore,
-	resolveConceptFieldStore,
 	resolveFacilityStore,
 	resolveParserProfileStores,
 	resolveParserRuleStores,
@@ -54,8 +51,6 @@ export interface ClinicalRuntimeParserStores {
 	evaluatorRules: ParserEvaluatorRuleStore;
 	attributeBindings: ParserProfileRuleBindingStore;
 	evaluatorBindings: ParserProfileEvaluatorBindingStore;
-	conceptDefaults: NewParserConceptDefaultStore;
-	conceptFields: ConceptFieldStore;
 	jurisdictionalDisplays: JurisdictionalDisplayStore;
 	stopWordProfiles: StopWordStore;
 	stopWordWordLists: StopWordWordListStore;
@@ -83,8 +78,6 @@ export async function createClinicalRuntime(
 		profiles,
 		rules,
 		refs,
-		conceptDefaults,
-		conceptFields,
 		calibration,
 		personnel,
 		facilities,
@@ -94,8 +87,6 @@ export async function createClinicalRuntime(
 		resolveParserProfileStores(config),
 		resolveParserRuleStores(config),
 		resolveReferenceStores(config),
-		resolveConceptDefaultStore(config),
-		resolveConceptFieldStore(config),
 		resolveCalibrationExceptionStore(config),
 		resolvePersonnelStore(config),
 		resolveFacilityStore(config),
@@ -126,8 +117,6 @@ export async function createClinicalRuntime(
 			evaluatorRules: rules.evaluatorRules,
 			attributeBindings: rules.attributeBindings,
 			evaluatorBindings: rules.evaluatorBindings,
-			conceptDefaults,
-			conceptFields,
 			jurisdictionalDisplays: refs.jurisdictionalDisplays,
 			stopWordProfiles: stopWordStore,
 			stopWordWordLists,

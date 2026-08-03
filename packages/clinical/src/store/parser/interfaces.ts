@@ -5,7 +5,6 @@ export type {
 	DateTimeToken,
 	NamedGroupContract,
 	NumericFieldFormatOptions,
-	ParserConceptDefault,
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 	StopWordProfile,

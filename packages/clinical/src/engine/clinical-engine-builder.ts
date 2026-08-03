@@ -293,7 +293,6 @@ async function wireEngine(
 		workspaceReadModel,
 		variableService: new VariableServiceStore(),
 		profile: composedProfile,
-		conceptFieldStore: stores.conceptFields,
 		proseTemplateStore: stores.proseTemplates,
 		commandSuggester,
 		ngramStore: runtime.ngramStore,

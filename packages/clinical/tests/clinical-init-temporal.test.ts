@@ -4,8 +4,6 @@ import { bootstrapClinicalStores } from "../src/init/bootstrap/bootstrap-writer"
 import { compileTemporalRecord } from "../src/init/bootstrap/normalizers/temporal";
 import { validateBootstrapReadiness } from "../src/init/validation/readiness";
 import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime";
-import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
-import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
 import { KvParserAttributeRuleStore } from "../src/store/parser/rules/kv-parser-attribute-rule-store";
 import { KvParserEvaluatorRuleStore } from "../src/store/parser/rules/kv-parser-evaluator-rule-store";
@@ -33,8 +31,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		evaluatorRules: new KvParserEvaluatorRuleStore(backend),
 		attributeBindings: new KvProfileRuleBindingStore(backend),
 		evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		conceptDefaults: new KvConceptDefaultStore(backend),
-		conceptFields: new KvConceptFieldStore(backend),
 		stopWordProfiles: new KvStopWordProfileStore(backend),
 		stopWordWordLists: new KvStopWordWordListStore(backend),
 		proseTemplates: new KvClinicalProseTemplateStore(backend),
@@ -149,7 +145,6 @@ describe("compileTemporalRecord", () => {
 
 			expect(result).not.toBeNull();
 			expect(result!.attributeRules).toBeUndefined();
-			expect(result!.conceptFieldRules).toBeUndefined();
 		}
 	});
 
@@ -290,15 +285,6 @@ describe("bootstrapClinicalStores temporal kinds", () => {
 
 		const rules = await stores.attributeRules.list();
 		expect(rules.some((r) => r.targetField === "range_boundary")).toBe(true);
-
-		const fieldRules = await stores.conceptFields.list();
-		expect(
-			fieldRules.some(
-				(f) =>
-					f.fieldPath === "startDatetime" &&
-					f.targetSchema === "ClinicalDateRange",
-			),
-		).toBe(true);
 	});
 
 	it("skips bootstrap when if_empty and rules already exist", async () => {

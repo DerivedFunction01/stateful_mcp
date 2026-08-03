@@ -2,8 +2,6 @@ import type { DictionaryStore } from "@stateful-mcp/core";
 import type { CodeableConcept } from "../../schemas/shared";
 import type {
 	AttributeParserRule,
-	ConceptFieldStore,
-	ParserConceptDefaultStore,
 	ParserDictionaryRule,
 } from "../../store/interfaces";
 import type { ParsedCellHistoryStore } from "../../store/learning/interfaces";
@@ -27,14 +25,12 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		_tagOrOptions: string | SchemaParserOptions,
 		_content?: string,
 		_dictionaryStore?: DictionaryStore,
-		_conceptDefaultsStore?: ParserConceptDefaultStore,
 		_attributeRules?: AttributeParserRule[],
 		_evaluatorRules?: ParserDictionaryRule[],
 		_termTokenizer?: string,
 		_allowedNamespaces?: string[],
 		_preparsedContext?: PreparsedContext,
 		_historyStore?: ParsedCellHistoryStore,
-		_conceptFieldStore?: ConceptFieldStore,
 		_concepts?: CodeableConcept[],
 	): Promise<ParsedCandidateEnvelope> {
 		let options: SchemaParserOptions;
@@ -45,14 +41,12 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 				tag: _tagOrOptions,
 				content: _content!,
 				dictionaryStore: _dictionaryStore!,
-				conceptDefaultsStore: _conceptDefaultsStore,
 				attributeRules: _attributeRules,
 				evaluatorRules: _evaluatorRules,
 				termTokenizer: _termTokenizer,
 				allowedNamespaces: _allowedNamespaces,
 				preparsedContext: _preparsedContext,
 				historyStore: _historyStore,
-				conceptFieldStore: _conceptFieldStore,
 				concepts: _concepts,
 			};
 		}
@@ -64,13 +58,11 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 		_tagOrOptions: string | SchemaParserOptions,
 		_content?: string,
 		_dictionaryStore?: DictionaryStore,
-		_conceptDefaultsStore?: ParserConceptDefaultStore,
 		_attributeRules?: AttributeParserRule[],
 		_evaluatorRules?: ParserDictionaryRule[],
 		_termTokenizer?: string,
 		_allowedNamespaces?: string[],
 		_preparsedContext?: PreparsedContext,
-		_conceptFieldStore?: ConceptFieldStore,
 		_concepts?: CodeableConcept[],
 	): Promise<ParsedItem | ParsedItem[] | null> {
 		let options: SchemaParserOptions;
@@ -81,27 +73,19 @@ export class ClinicalDateRangeSchemaParser implements SchemaParser {
 				tag: _tagOrOptions,
 				content: _content!,
 				dictionaryStore: _dictionaryStore!,
-				conceptDefaultsStore: _conceptDefaultsStore,
 				attributeRules: _attributeRules,
 				evaluatorRules: _evaluatorRules,
 				termTokenizer: _termTokenizer,
 				allowedNamespaces: _allowedNamespaces,
 				preparsedContext: _preparsedContext,
-				conceptFieldStore: _conceptFieldStore,
 				concepts: _concepts,
 			};
 		}
 		const tag = options.tag;
 		const content = options.content;
-		const dictionaryStore = options.dictionaryStore;
-		const conceptDefaultsStore = options.conceptDefaultsStore;
 		const attributeRules = options.attributeRules;
 		const evaluatorRules = options.evaluatorRules;
-		const termTokenizer = options.termTokenizer;
-		const allowedNamespaces = options.allowedNamespaces;
 		const preparsedContext = options.preparsedContext;
-		const conceptFieldStore = options.conceptFieldStore;
-		const concepts = options.concepts;
 		const attrRules = attributeRules || [];
 		const evalRules = evaluatorRules || [];
 		const cleaned = content.trim();

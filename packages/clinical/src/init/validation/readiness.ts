@@ -46,25 +46,19 @@ export async function getBootstrapReadinessDiagnostics(
 	const [
 		attributeBindings,
 		evaluatorBindings,
-		conceptDefaults,
 		proseTemplates,
-		conceptFields,
 		dictionaryExpressions,
 	] = await Promise.all([
 		stores.attributeBindings.listBindings(activeProfile.profileId),
 		stores.evaluatorBindings.listBindings(activeProfile.profileId),
-		stores.conceptDefaults.list(),
 		stores.proseTemplates.list(),
-		stores.conceptFields.list(),
 		stores.dictionaryStore?.getExpressions() ?? Promise.resolve([]),
 	]);
 
 	const populations: Array<[string, number]> = [
 		["attributeBindings", attributeBindings.length],
 		["evaluatorBindings", evaluatorBindings.length],
-		["conceptDefaults", conceptDefaults.length],
 		["proseTemplates", proseTemplates.length],
-		["conceptFields", conceptFields.length],
 		["dictionaryExpressions", dictionaryExpressions.length],
 	];
 	const declaredEmpty = populations

@@ -9,8 +9,6 @@ export type ClinicalInitSeedKind =
 	| "exclusion_rule"
 	| "attribute_rule"
 	| "evaluator_rule"
-	| "field_rule"
-	| "concept_default"
 	| "prose_rule"
 	| "prose_parser_template"
 	| "stop_word_list"

@@ -20,8 +20,6 @@ import {
 	DEFAULT_EVALUATOR_RULES,
 	DEFAULT_STOP_WORD_LISTS,
 	DEFAULT_STOP_WORD_PROFILES,
-	SEED_CONCEPT_DEFAULTS,
-	SEED_CONCEPT_FIELD_RULES,
 	SEED_PARSER_PROFILES,
 } from "./defaults";
 import type { ClinicalStoreConfig } from "../store/clinical-config";
@@ -173,44 +171,6 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 			defaultAdapters: [
 				{
 					group: "reference",
-					capabilities: ["read", "write"],
-					primary: {
-						_type: "adapter",
-						name: "memory",
-						options: {
-							seed: [],
-						},
-					},
-					implemented: true,
-				},
-			],
-		},
-		concept_defaults: {
-			group: "concept_defaults",
-			implemented: true,
-			description: "Concept defaults tied to the dictionary backend config.",
-			defaultAdapters: [
-				{
-					group: "concept_defaults",
-					capabilities: ["read", "write"],
-					primary: {
-						_type: "adapter",
-						name: "memory",
-						options: {
-							seed: [],
-						},
-					},
-					implemented: true,
-				},
-			],
-		},
-		concept_fields: {
-			group: "concept_fields",
-			implemented: true,
-			description: "Concept-to-field routing rules.",
-			defaultAdapters: [
-				{
-					group: "concept_fields",
 					capabilities: ["read", "write"],
 					primary: {
 						_type: "adapter",
@@ -444,8 +404,6 @@ export const DEFAULT_CLINICAL_STORE_CONFIG: ClinicalStoreConfig = {
 	},
 	seeds: {
 		parserProfiles: SEED_PARSER_PROFILES,
-		conceptDefaults: SEED_CONCEPT_DEFAULTS,
-		conceptFieldRules: SEED_CONCEPT_FIELD_RULES,
 		calendarDateFormats: DEFAULT_CALENDAR_DATE_FORMATS,
 		attributeRules: DEFAULT_ATTRIBUTE_RULES,
 		evaluatorRules: DEFAULT_EVALUATOR_RULES,

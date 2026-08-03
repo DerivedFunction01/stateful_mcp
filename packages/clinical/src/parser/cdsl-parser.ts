@@ -1,8 +1,6 @@
 import { type DictionaryStore } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
-	ConceptFieldStore,
-	ParserConceptDefaultStore,
 	ParserSyntaxProfile,
 	StopWordContext,
 	StopWordStore,
@@ -41,10 +39,8 @@ export interface ClinicalParseResult {
 export interface CdslParserOptions {
 	dictionaryStore: DictionaryStore;
 	profile: ParserSyntaxProfile;
-	conceptDefaultsStore?: ParserConceptDefaultStore;
 	stopWordParser?: StopWordParser;
 	stopWordStore?: StopWordStore;
-	conceptFieldStore?: ConceptFieldStore;
 	weightStore?: SystemWeightStore;
 	autocompleteTransitionStore?: AutocompleteTransitionStore;
 	commandSuggester?: CommandAutocompleteSuggester;

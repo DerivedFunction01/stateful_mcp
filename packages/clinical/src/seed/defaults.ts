@@ -25,9 +25,7 @@ import type {
 	AttributeParserRule,
 	NamedGroupContract,
 	NumericFieldFormatOptions,
-	ParserConceptDefault,
 	ParserSyntaxProfile,
-	ConceptFieldRule,
 } from "../store/interfaces";
 
 export const NUMERIC_PATTERN_INTEGER = (
@@ -942,58 +940,6 @@ export const SEED_PARSER_PROFILES: ParserSyntaxProfile[] = [
 			"PrimaryDiagnosisEntry.code": "PrimaryDiagnosisEntry.code",
 			"MedicationOrderObject.drugName": "MedicationOrderObject.drugName",
 		},
-	},
-];
-
-export const SEED_CONCEPT_DEFAULTS: ParserConceptDefault[] = [
-	{
-		anchorConceptId: "LOINC::8310-5",
-		targetSchema: "VitalsMeasurementEvent",
-		regexPatterns: [
-			"temp(?:erature)?\\s+is\\s+(?<value>\\d+(?:\\.\\d+)?)\\s*(?<unit>[a-zA-Z%]*)",
-		],
-		defaultProperties: {
-			unit: "Celsius",
-			captureGroupMapping: ["value", "unit"],
-		},
-	},
-	{
-		anchorConceptId: "LOINC::8480-6",
-		targetSchema: "VitalsMeasurementEvent",
-		regexPatterns: [],
-		defaultProperties: {
-			unit: "mmHg",
-		},
-	},
-	{
-		anchorConceptId: "LOINC::8867-4",
-		targetSchema: "VitalsMeasurementEvent",
-		regexPatterns: [],
-		defaultProperties: {
-			unit: "/min",
-		},
-	},
-];
-
-
-export const SEED_CONCEPT_FIELD_RULES: ConceptFieldRule[] = [
-	{
-		ruleId: "dyspnea-primary-obs",
-		conceptId: "SNOMED::267036007",
-		targetSchema: "ObservationEvent",
-		fieldPath: "concept",
-	},
-	{
-		ruleId: "fever-qualifier-obs",
-		conceptId: "SNOMED::386661006",
-		targetSchema: "ObservationEvent",
-		fieldPath: "qualifiers",
-	},
-	{
-		ruleId: "fever-vitaltype-vitals",
-		conceptId: "SNOMED::386661006",
-		targetSchema: "VitalsMeasurementEvent",
-		fieldPath: "vitalType",
 	},
 ];
 

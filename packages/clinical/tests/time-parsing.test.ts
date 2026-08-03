@@ -48,7 +48,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"3 weeks ago",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -62,7 +61,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"in 2 hours",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -78,7 +76,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"every 8 hours",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -91,7 +88,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"daily",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -106,7 +102,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"from Monday to Wednesday",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -129,7 +124,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"daily except Sundays",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -154,7 +148,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"daily except January 15, 2026",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -180,7 +173,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"every 8 hours from Monday to Wednesday",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -201,7 +193,6 @@ describe("ClinicalDateRange parsing", () => {
 			"#time",
 			"every 8 hours from Monday to Wednesday except January 15, 2026",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -233,7 +224,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"01/15/2023",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -251,7 +241,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"2023-01-15",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -269,7 +258,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"January 15, 2023",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -314,7 +302,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"Enero 15, 2023",
 			store,
-			undefined,
 			spanishRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -343,7 +330,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"January 15, 2023",
 			store,
-			undefined,
 			noMonthNameRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -366,7 +352,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"01/15/2023 14:30",
 			store,
-			undefined,
 			timeRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -384,7 +369,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"01/15/2026 to 01/20/2026",
 			store,
-			undefined,
 			rangeListRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -401,7 +385,6 @@ describe("ClinicalDateRange calendar date parsing", () => {
 			"#time",
 			"January 15, 2026, January 20, 2026, January 22, 2026",
 			store,
-			undefined,
 			rangeListRules,
 			DEFAULT_EVALUATOR_RULES,
 		);
@@ -434,7 +417,6 @@ describe("ClinicalDateRange memoization", () => {
 			"#time",
 			"01/15/2023",
 			store,
-			undefined,
 			expandedRules,
 			DEFAULT_EVALUATOR_RULES,
 		);

@@ -26,10 +26,6 @@ import { SqlStopWordProfileStore } from "../reference/stop-words/sql-stop-word-p
 import { SqlStopWordWordListStore } from "../reference/stop-words/sql-stop-word-word-list-store";
 import { KvParserCommandMacroStore } from "./command-macros/kv-command-macro-store";
 import { SqlParserCommandMacroStore } from "./command-macros/sql-command-macro-store";
-import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-store";
-import { SqlConceptDefaultStore } from "./concept_defaults/sql-concept-default-store";
-import { KvConceptFieldStore } from "./concept_fields/kv-concept-field-store";
-import { SqlConceptFieldStore } from "./concept_fields/sql-concept-field-store";
 import { KvParserProfileStore } from "./profiles/kv-parser-profile-store";
 import { SqlParserProfileStore } from "./profiles/sql-parser-profile-store";
 import { KvParserAttributeRuleStore } from "./rules/kv-parser-attribute-rule-store";
@@ -226,41 +222,6 @@ export async function resolveStopWordWordListStore(
 	);
 }
 
-// ── Concept defaults ─────────────────────────────────────────────────────────
-
-export async function resolveConceptDefaultStore(
-	config: ClinicalStoreConfig,
-	sharedSqlBackend?: SqlBackend,
-): Promise<KvConceptDefaultStore | SqlConceptDefaultStore> {
-	return resolveStoreWithFactory(
-		config,
-		"concept_defaults",
-		"./clinical.sqlite",
-		{
-			memory: (backend) => new KvConceptDefaultStore(backend),
-			sql: (dialect, executor) => new SqlConceptDefaultStore(dialect, executor),
-			jsonl: (backend) => new KvConceptDefaultStore(backend),
-		},
-		sharedSqlBackend,
-	);
-}
-
-// ── Concept field routing rules ──────────────────────────────────────
-
-export async function resolveConceptFieldStore(
-	config: ClinicalStoreConfig,
-): Promise<KvConceptFieldStore | SqlConceptFieldStore> {
-	return resolveStoreWithFactory(
-		config,
-		"concept_fields",
-		"./clinical.sqlite",
-		{
-			memory: (backend) => new KvConceptFieldStore(backend),
-			sql: (dialect, executor) => new SqlConceptFieldStore(dialect, executor),
-			jsonl: (backend) => new KvConceptFieldStore(backend),
-		},
-	);
-}
 
 // ── Calibration exceptions ───────────────────────────────────────────
 

@@ -18,7 +18,6 @@ import {
 import type { CellDocumentExecutionResult } from "../session/cell-execution";
 import type {
 	CalibrationStore,
-	ConceptFieldStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
 	SignedSoapNoteRecord,
@@ -338,7 +337,6 @@ export interface ClinicalEngineConfig {
 	profile?: ParserSyntaxProfile;
 	profileStore?: ParserProfileStore;
 	weightStore?: SystemWeightStore;
-	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
 	commandSuggester?: CommandAutocompleteSuggester;
@@ -357,7 +355,6 @@ export class ClinicalEngine {
 	private variableService?: VariableService;
 	private variableCellService?: VariableCellService;
 	private calibrationStore?: CalibrationStore;
-	private conceptFieldStore?: ConceptFieldStore;
 	private evaluatorStore?: EvaluatorStore;
 	private proseTemplateStore?: ClinicalProseTemplateStore;
 	private commandSuggester?: CommandAutocompleteSuggester;
@@ -378,7 +375,6 @@ export class ClinicalEngine {
 			(this.workspaceStore as any).personnelId = this.personnelId;
 		}
 		this.calibrationStore = config.calibrationStore;
-		this.conceptFieldStore = config.conceptFieldStore;
 		this.evaluatorStore = config.evaluatorStore;
 		this.proseTemplateStore = config.proseTemplateStore;
 
@@ -391,7 +387,6 @@ export class ClinicalEngine {
 			this.parser = new CdslParser({
 				dictionaryStore,
 				profile,
-				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
 				commandSuggester: this.commandSuggester,
@@ -404,7 +399,6 @@ export class ClinicalEngine {
 			this.parser = new CdslParser({
 				dictionaryStore,
 				profile: {} as ParserSyntaxProfile,
-				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
 				commandSuggester: this.commandSuggester,

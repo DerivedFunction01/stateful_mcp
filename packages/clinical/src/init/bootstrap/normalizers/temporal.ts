@@ -1,5 +1,4 @@
 import type {
-	ConceptFieldRule,
 	DateTimeFormatConfig,
 	DateTimeToken,
 } from "../../../store/interfaces";
@@ -14,7 +13,6 @@ export interface TemporalCompilationResult {
 	recordId: string;
 	profileId?: string;
 	attributeRules?: StoredAttributeRule[];
-	conceptFieldRules?: ConceptFieldRule[];
 	calendarDateFormats?: DateTimeFormatConfig[];
 }
 
@@ -301,13 +299,10 @@ function compileRangeRule(
 	profileId: string | undefined,
 ): TemporalCompilationResult | null {
 	const sequences = p.sequences;
-	const startTarget = p.startTarget;
-	const endTarget = p.endTarget;
 	const anchorSchema = p.anchorSchema;
 	const anchorField = p.anchorField;
 
 	const attributeRules: StoredAttributeRule[] = [];
-	const conceptFieldRules: ConceptFieldRule[] = [];
 
 	if (Array.isArray(sequences)) {
 		for (let i = 0; i < sequences.length; i++) {
@@ -342,35 +337,11 @@ function compileRangeRule(
 		}
 	}
 
-	if (
-		typeof startTarget === "string" &&
-		typeof endTarget === "string" &&
-		typeof p.conceptId === "string" &&
-		typeof p.targetSchema === "string"
-	) {
-		const conceptId = p.conceptId as string;
-		const targetSchema = p.targetSchema as string;
-		conceptFieldRules.push({
-			ruleId: `${record.recordId}.start`,
-			conceptId,
-			targetSchema,
-			fieldPath: startTarget,
-		});
-		conceptFieldRules.push({
-			ruleId: `${record.recordId}.end`,
-			conceptId,
-			targetSchema,
-			fieldPath: endTarget,
-		});
-	}
-
 	return {
 		kind: record.kind,
 		recordId: record.recordId,
 		profileId,
 		attributeRules: attributeRules.length > 0 ? attributeRules : undefined,
-		conceptFieldRules:
-			conceptFieldRules.length > 0 ? conceptFieldRules : undefined,
 	};
 }
 

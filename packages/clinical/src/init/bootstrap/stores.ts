@@ -1,6 +1,4 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
-import type { ParserConceptDefaultStore } from "../../store/parser/concept_defaults/interfaces";
-import type { ConceptFieldStore } from "../../store/parser/concept_fields/interfaces";
 import type { ParserProfileCoreStore } from "../../store/parser/profiles/interfaces";
 import type {
 	ParserAttributeRuleStore,
@@ -25,8 +23,6 @@ export interface BootstrapStores {
 	evaluatorRules: ParserEvaluatorRuleStore;
 	attributeBindings: ParserProfileRuleBindingStore;
 	evaluatorBindings: ParserProfileEvaluatorBindingStore;
-	conceptDefaults: ParserConceptDefaultStore;
-	conceptFields: ConceptFieldStore;
 	stopWordProfiles: StopWordStore;
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;

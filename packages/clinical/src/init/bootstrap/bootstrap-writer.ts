@@ -7,12 +7,10 @@ import { ClinicalInitSeedDiagnosticCode } from "../types";
 import {
 	compileTemporalRecord,
 	normalizeAttributeRule,
-	normalizeConceptDefault,
 	normalizeConceptRelation,
 	normalizeDictionaryExpression,
 	normalizeEvaluatorRule,
 	normalizeFacility,
-	normalizeFieldRule,
 	normalizeJurisdictionalDisplay,
 	normalizePersonnel,
 	normalizeProfile,
@@ -74,18 +72,6 @@ registerHandler("evaluator_rule", async (stores, record) => {
 	const rule = normalizeEvaluatorRule(record);
 	if (!rule) return;
 	await stores.evaluatorRules.set(rule);
-});
-
-registerHandler("field_rule", async (stores, record) => {
-	const rule = normalizeFieldRule(record);
-	if (!rule) return;
-	await stores.conceptFields.set(rule);
-});
-
-registerHandler("concept_default", async (stores, record) => {
-	const def = normalizeConceptDefault(record);
-	if (!def) return;
-	await stores.conceptDefaults.set(def);
 });
 
 registerHandler("prose_rule", async (stores, record) => {
@@ -257,11 +243,6 @@ registerHandler("range_rule", async (stores, record, diagnostics) => {
 			await stores.attributeRules.set(rule);
 		}
 	}
-	if (result.conceptFieldRules) {
-		for (const rule of result.conceptFieldRules) {
-			await stores.conceptFields.set(rule);
-		}
-	}
 	await appendAttributeRulesToProfile(stores, result);
 });
 
@@ -378,22 +359,6 @@ async function isStoreEmpty(
 			const existing = await stores.evaluatorRules.get(record.recordId);
 			return existing === null;
 		}
-		case "field_rule": {
-			const existing = await stores.conceptFields.get(
-				(record.payload as any)?.conceptId,
-				(record.payload as any)?.targetSchema,
-				(record.payload as any)?.fieldPath,
-			);
-			return existing === null;
-		}
-		case "concept_default": {
-			const payload = record.payload as Record<string, unknown> | undefined;
-			const existing = await stores.conceptDefaults.get(
-				payload?.anchorConceptId as string,
-				payload?.targetSchema as string,
-			);
-			return existing === null;
-		}
 		case "prose_rule": {
 			const payload = record.payload as Record<string, unknown> | undefined;
 			const existing = await stores.proseTemplates.getById(
@@ -472,17 +437,6 @@ async function isStoreEmpty(
 			for (const rule of compiled.attributeRules ?? []) {
 				const existing = await stores.attributeRules.get(rule.ruleId);
 				if (existing !== null) return false;
-			}
-
-			if (compiled.conceptFieldRules) {
-				for (const rule of compiled.conceptFieldRules) {
-					const existing = await stores.conceptFields.get(
-						rule.conceptId,
-						rule.targetSchema,
-						rule.fieldPath,
-					);
-					if (existing !== null) return false;
-				}
 			}
 
 			return true;
