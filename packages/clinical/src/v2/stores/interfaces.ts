@@ -4,12 +4,6 @@ export interface PatientLearningContext extends PatientLearningBucket {
 	facilityId?: string;
 }
 
-export type NumericValueTarget =
-	| "severity_score"
-	| "pain_score"
-	| "percentage"
-	| "measurement_value";
-
 export interface NumericFieldFormatOptions {
 	integerDigits?: number;
 	decimalDigits?: number;
@@ -24,8 +18,6 @@ export interface NumericFieldFormatOptions {
 	negativeStyle?: "sign" | "parens" | "both";
 	groupName?: string;
 	wrap?: boolean;
-	targetField?: NumericValueTarget;
-	targetSchema?: string;
 	priority?: number;
 }
 
@@ -35,49 +27,6 @@ export interface QuantityDisplayProfile {
 		"eq" | "gt" | "gte" | "lt" | "lte",
 		{ symbol: string; label?: string }
 	>;
-}
-
-export interface ParserDictionaryRule {
-	ruleId: string;
-	targetField: string; // e.g. 'severity', 'blood_pressure', 'quantity', 'session_vars'
-	evaluatorName: string; // e.g. 'parseSeverity', 'parseBloodPressure', 'parseQuantityUnit', 'parseSessionVars'
-	regexPatterns: string[]; // e.g. ['(?<numerator>\\d+)\\s*\\/\\s*(?<denominator>\\d+)']
-	namedGroupContract?: NamedGroupContract;
-}
-
-export type AttributeParserRule = {
-	ruleId?: string;
-	targetField: string;
-	targetValue: string;
-	regexPatterns: string[];
-	isCaseInsensitive?: boolean;
-	blacklistPatterns?: string[];
-	priority?: number;
-	calendarTokens?: DateTimeToken[];
-	calendarSeparators?: string[];
-	monthNames?: string[];
-	dayPeriods?: {
-		am: string[];
-		pm: string[];
-	};
-	namedGroupContract?: NamedGroupContract;
-	unitAnchor?: string;
-	targetSchema?: string;
-};
-
-export interface FieldMappingRule<TSchema extends string = string> {
-	ruleId?: string;
-	sourceKey: string;
-	targetField?: TSchema;
-	namedGroupContract?: NamedGroupContract;
-	valueMap?: Record<string, string | number | boolean>;
-	conceptDefaultPath?: (string | number)[];
-	schemaDefaultField?: string;
-	compute?: (
-		slots: Record<string, any>,
-		conceptDefaults: any,
-		rawGroups?: Record<string, string | undefined>,
-	) => unknown;
 }
 
 export type DateTimeToken =
