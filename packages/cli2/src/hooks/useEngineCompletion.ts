@@ -3,6 +3,7 @@ import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/com
 import { getCommandMacroContextualAutocomplete } from "@stateful-mcp/clinical/notebook/command-macro-autocomplete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveCompletionSession } from "../lib/editor/completion-state";
+import type { V2NotebookEditorMode } from "@stateful-mcp/clinical/v2/notebook/notebook-session-store";
 
 export function useEngineCompletion({
 	mode,
@@ -15,7 +16,7 @@ export function useEngineCompletion({
 	macroContext,
 	fieldMetadata,
 }: {
-	mode: "NORMAL" | "INSERT" | "COMMAND" | "MACRO" | "VISUAL";
+	mode: V2NotebookEditorMode;
 	commandLine: string;
 	catalog: any;
 	context: any;
