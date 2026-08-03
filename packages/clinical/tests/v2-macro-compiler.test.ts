@@ -54,7 +54,7 @@ const OBSERVATION_MACRO: V2MacroDefinition = {
 			extraction: {
 				kind: "measurement",
 				patterns: [
-					`["']?(?<magnitude>d+(?:.d+)?)s+(?<unit>[w/°%]+)["']?`,
+					`["']?(?<magnitude>\\d+(?:\\.\\d+)?)\\s+(?<unit>[\\w/°%]+)["']?`,
 				],
 			},
 		},
