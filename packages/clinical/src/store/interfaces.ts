@@ -1,59 +1,4 @@
 import type { PatientLearningBucket } from "../schemas/patient";
-import type { Cell, CellCollectionRef } from "../session/cell";
-
-export interface ParserSyntaxProfile {
-	profileId: string;
-	personnelId: string;
-	tagToken: string; // e.g. '#'
-	stateDelimiter: string; // e.g. '||' (full cell split)
-	stateStartDelimiter: string; // e.g. '|' (split different objects within that cell, semi-hard boundary)
-	stateEndDelimiter: string; // e.g. '|'
-	macroStartToken: string; // e.g. '^'
-	variableStartToken: string; // e.g. '{'
-	variableEndToken: string; // e.g. '}'
-	isDefault: boolean;
-	macroArgStartToken?: string;
-	macroArgEndToken?: string;
-	macroArgDelimiter?: string;
-	tagMappings?: Record<string, string>; // Maps custom tag names to canonical target schema types
-	cellCommandMappings?: Record<string, string>; // Maps cell-command aliases to canonical verbs
-	fieldMappings?: Record<string, string>; // Maps field aliases to Schema.field paths
-	commandMappings?: Record<string, "set" | "assert" | "eval">; // Maps custom command verbs to canonical verbs
-	workspaceCommandMappings?: Record<
-		string,
-		import("../engine/workspace-store").WorkspaceCommandVerb
-	>;
-	attributeRules?: AttributeParserRule[]; // Profile-driven regex parser rules for enums/attributes
-	evaluatorRules?: ParserDictionaryRule[]; // Dynamic regex capture evaluators
-	termTokenizer?: string; // Tokenizer to parse direct database/dictionary lookup (e.g. '::')
-	commentStartToken?: string; // e.g. '//'
-	commentEndToken?: string; // e.g. ';'
-	macroPlaceholder?: string; // e.g. '[__]'
-	variableDelimiter?: string; // e.g. ','
-	startTermCodeDelimiter?: string; // e.g. '@@'
-	startTermDisplayDelimiter?: string; // e.g. '@#'
-	startTermCodeSeparator?: string; // e.g. '#'
-	startTermDelimiter?: string; // e.g. '@'
-	endTermDelimiter?: string; // e.g. ';'
-	attributeDelimiter?: string; // e.g. ','
-	isActive?: boolean;
-	schemaNamespaces?: Record<string, string[]>; // Maps schema keys or names to prioritized/allowed namespaces
-	stopWordThreshold?: number; // Ratio (0.0–1.0) of stop words above which a tagless segment is treated as conversational narrative and skipped. Default: 0.6
-	schemaDefaults?: Record<string, Record<string, any>>;
-	defaultsStrategy?: string;
-	calendarDateFormats?: DateTimeFormatConfig[];
-	numericFieldFormats?: NumericFieldFormatOptions[];
-	quantityDisplay?: QuantityDisplayProfile;
-	boundaryDelimiter?: string;
-	transitionalWords?: string[];
-	numberWordConfig?: import("../parser/utils/number-word-normalizer").NumberWordConfig;
-	cellCommandToken?: string; // Prefix for cell commands (e.g. ':')
-	variableCommandToken?: string;
-	variableCommandMappings?: Record<
-		string,
-		"set" | "update" | "eval" | "assert" | "remove"
-	>;
-}
 
 export interface PatientLearningContext extends PatientLearningBucket {
 	facilityId?: string;
@@ -168,12 +113,6 @@ export interface NamedGroupContract {
 	disallowed?: string[];
 }
 
-export interface ParserProfileStore {
-	get(profileId: string): Promise<ParserSyntaxProfile | null>;
-	getByPersonnel(personnelId: string): Promise<ParserSyntaxProfile | null>;
-	set(profile: ParserSyntaxProfile): Promise<void>;
-	delete(profileId: string): Promise<void>;
-}
 
 export interface CalibrationException {
 	exceptionId: string;
@@ -255,16 +194,6 @@ export interface SignedSoapNoteStore {
 	listForPatient(patientId: string): Promise<SignedSoapNoteRecord[]>;
 }
 
-export interface CellStore {
-	get(cellId: string): Promise<Cell | null>;
-	list(sessionId: string): Promise<Cell[]>;
-	listByCollection(
-		sessionId: string,
-		collection: CellCollectionRef,
-	): Promise<Cell[]>;
-	save(cell: Cell): Promise<void>;
-	delete(cellId: string): Promise<void>;
-}
 
 export interface Personnel {
 	personnelId: string;

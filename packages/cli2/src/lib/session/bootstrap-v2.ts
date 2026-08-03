@@ -18,6 +18,8 @@ import type { ClinicalEngineV2 } from "@stateful-mcp/clinical/v2/engine/clinical
 import { V2CommandBarService } from "@stateful-mcp/clinical/v2/commands/command-bar-service";
 import { V2VariableCommandService } from "@stateful-mcp/clinical/v2/commands/variable-command-service";
 import type { V2VariableCellService } from "@stateful-mcp/clinical/v2/cells/variable-cell-service";
+import { KvNotebookSessionStore } from "@stateful-mcp/clinical/v2/notebook/kv-notebook-session-store";
+import type { V2NotebookSessionStore } from "@stateful-mcp/clinical/v2/notebook/notebook-session-store";
 import { createV2NotebookSession, type V2NotebookSession } from "./v2-notebook-session";
 import { VariableServiceStore } from "@stateful-mcp/core";
 
@@ -25,6 +27,7 @@ export interface V2BootstrapResult {
 	engine: ClinicalEngineV2;
 	commandBar: V2CommandBarService;
 	variableCells: V2VariableCellService;
+	notebookSessionStore: V2NotebookSessionStore;
 	notebook: V2NotebookSession;
 	sessionId: string;
 	syntaxProfile: V2CommandSyntaxProfile;
@@ -54,6 +57,7 @@ export async function bootstrapV2Session(options: {
 	const dictionary = new DictionaryStore(new InMemoryConceptResolver());
 	await dictionary.loadConfig({ concepts: [{ id: "c-pneumonia", namespaceCode: "SNOMED", standardCode: "233604007", display: "Pneumonia", active: true }] });
 	const macroStore = new KvMacroStore(new MemoryKvBackend());
+	const notebookSessionStore = new KvNotebookSessionStore(new MemoryKvBackend());
 	await seedDefaultV2Macros(macroStore);
 	const schemaRegistry = createDefaultV2SchemaRegistry();
 	const cellCompiler = new V2CellCompiler(
@@ -83,11 +87,13 @@ export async function bootstrapV2Session(options: {
 	);
 
 	const sessionId = options.sessionId ?? `cli2-${Date.now()}`;
-	const notebook = createV2NotebookSession({ sessionId, engine, commandBar, variableCells: runtime.variableCells, syntaxProfile });
+	if (!(await notebookSessionStore.get(sessionId))) await notebookSessionStore.save({ sessionId, cellOrder: [], commandHistory: [], revision: 0, updatedAt: new Date().toISOString() });
+	const notebook = createV2NotebookSession({ sessionId, engine, commandBar, variableCells: runtime.variableCells, syntaxProfile, sessionStore: notebookSessionStore });
 	return {
 		engine,
 		commandBar,
 		variableCells: runtime.variableCells,
+		notebookSessionStore,
 		notebook,
 		sessionId,
 		syntaxProfile,
