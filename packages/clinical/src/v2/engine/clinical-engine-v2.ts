@@ -45,6 +45,18 @@ export class ClinicalEngineV2 {
 		private readonly syncApplication: SyncApplicationService | undefined,
 	) {}
 
+	getRuntime(): ClinicalRuntimeV2 {
+		return this.runtime;
+	}
+
+	getWorkspaceService(): WorkspaceService {
+		return this.workspaceService;
+	}
+
+	getCellService(): StructuredCellService {
+		return this.cellService;
+	}
+
 	async prepare(
 		plan: MacroExecutionPlan,
 		participants?: readonly TransactionParticipant[],

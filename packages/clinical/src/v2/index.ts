@@ -50,6 +50,7 @@ export * from "./schemas/schema-defaults";
 export * from "./schemas/schema-factory";
 export * from "./schemas/schema-path-validator";
 export * from "./schemas/schema-registry";
+export * from "./schemas/default-registry";
 export * from "./schemas/schema-types";
 export * from "./transactions/kv-transaction-journal";
 export * from "./transactions/sql-transaction-journal";

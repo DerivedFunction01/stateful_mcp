@@ -66,7 +66,7 @@ export function Notebook() {
 		() => ({
 			getDescriptors: () =>
 				((
-					session?.result.processor as any
+					session?.result?.processor as any
 				)?.cellCommandRegistry?.getDescriptors?.() as any[]) ?? [],
 		}),
 		[session],
@@ -85,7 +85,7 @@ export function Notebook() {
 		onMessage: (message) => dispatch({ type: "SET_MESSAGE", message }),
 		executeVariableCommand: async (line) => {
 			try {
-				await session?.result.engine.executeVariableCell(
+				await session?.result?.engine?.executeVariableCell?.(
 					session?.sessionId ?? "",
 					{ kind: "notebook", collectionId: session?.sessionId ?? "" },
 					line,
@@ -166,13 +166,13 @@ export function Notebook() {
 		context,
 		engine: session?.result?.engine,
 		staticCandidates,
-		macroStore: session?.result.runtime.parserStores.commandMacros,
-		fieldMetadata: session?.result.runtime.parserStores.commandFieldMetadata,
+		macroStore: session?.result?.runtime?.parserStores?.commandMacros,
+		fieldMetadata: session?.result?.runtime?.parserStores?.commandFieldMetadata,
 	});
 	const { preview: macroPreview } = useCommandMacroPreview({
 		mode: state.mode,
 		input: state.draftText,
-		store: session?.result.runtime.parserStores.commandMacros,
+		store: session?.result?.runtime?.parserStores?.commandMacros,
 	});
 	useEffect(() => {
 		dispatch({ type: "SET_MACRO_PREVIEW", preview: macroPreview });

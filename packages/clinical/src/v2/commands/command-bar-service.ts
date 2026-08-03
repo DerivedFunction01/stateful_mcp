@@ -12,6 +12,7 @@ import type {
 import { createV2CommandSyntaxProfile, type V2CommandSyntaxProfile } from "./command-syntax-profile";
 import { parseV2VariableCommand } from "./variable-command";
 import type { V2VariableCommandService } from "./variable-command-service";
+import type { V2VariableCellService } from "../cells/variable-cell-service";
 
 export class V2CommandBarService {
 	constructor(
@@ -19,6 +20,7 @@ export class V2CommandBarService {
 		private readonly workspaceService: WorkspaceService,
 		private readonly syntaxProfile: V2CommandSyntaxProfile = createV2CommandSyntaxProfile({ profileId: "v2-default" }),
 		private readonly variableService?: V2VariableCommandService,
+		private readonly variableCellService?: V2VariableCellService,
 	) {}
 
 	async preview(input: CommandBarInput): Promise<CommandPreview> {
@@ -62,6 +64,14 @@ export class V2CommandBarService {
 		}
 		if (!preview.plan) {
 			if (preview.intent.kind === "variable_operation" && preview.intent.variableStatement) {
+				if (this.variableCellService) {
+					await this.variableCellService.execute(
+						input.sessionId,
+						{ kind: "notebook", collectionId: input.sessionId },
+						input.rawText,
+					);
+					return { status: "committed", transactionId: `variable:${input.sessionId}`, planFingerprint: preview.fingerprint };
+				}
 				if (!this.variableService) return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: "V2 variable service is not configured" };
 				await this.variableService.execute(input.sessionId, preview.intent.variableStatement);
 				return { status: "committed", transactionId: `variable:${input.sessionId}`, planFingerprint: preview.fingerprint };

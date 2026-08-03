@@ -56,7 +56,7 @@ export function useWorkspace({
 		initializedRef.current = true;
 		setLoading(true);
 		setError(null);
-		const engine = session?.result.engine;
+		const engine = session?.result?.engine;
 		if (!engine) {
 			setError("No engine available");
 			setLoading(false);
@@ -64,17 +64,17 @@ export function useWorkspace({
 		}
 		engine
 			.initAssessmentWorkspace(sessionId, soapNoteId, [])
-			.then((workspaceId) => {
+			.then((workspaceId: string) => {
 				workspaceIdRef.current = workspaceId;
 				const readModel = engine.getWorkspaceReadModel();
 				if (!readModel) throw new Error("No workspace read model");
 				return readModel.getWorkspace(sessionId, workspaceId);
 			})
-			.then((ws) => {
+			.then((ws: WorkspaceSnapshot | null) => {
 				setSnapshot(ws);
 				setLoading(false);
 			})
-			.catch((err) => {
+			.catch((err: unknown) => {
 				setError(err instanceof Error ? err.message : String(err));
 				setLoading(false);
 			});
@@ -82,7 +82,7 @@ export function useWorkspace({
 
 	const refresh = useCallback(async () => {
 		if (!workspaceIdRef.current) return;
-		const engine = session?.result.engine;
+		const engine = session?.result?.engine;
 		if (!engine) return;
 		const readModel = engine.getWorkspaceReadModel();
 		if (!readModel) return;
@@ -92,9 +92,9 @@ export function useWorkspace({
 			sessionId,
 			workspaceIdRef.current,
 		);
-		await session.notebook.saveCollection(sessionId, {
+		await session?.notebook?.saveCollection?.(sessionId, {
 			collection: { kind: "workspace", collectionId: workspaceIdRef.current },
-			ordering: cells.map((cell) => cell.cellId),
+			ordering: cells.map((cell: { cellId: string }) => cell.cellId),
 			activeIndex: Math.max(0, cells.length - 1),
 			draftText: "",
 		});
@@ -111,7 +111,7 @@ export function useWorkspace({
 		async (winningBranchId: string) => {
 			setError(null);
 			try {
-				const engine = session?.result.engine;
+				const engine = session?.result?.engine;
 				if (!engine) throw new Error("No engine available");
 				if (!workspaceIdRef.current) return;
 				await engine.completeAssessmentWorkspace(
@@ -130,7 +130,7 @@ export function useWorkspace({
 	const close = useCallback(async () => {
 		setError(null);
 		try {
-			const engine = session?.result.engine;
+			const engine = session?.result?.engine;
 			if (!engine) throw new Error("No engine available");
 			if (!workspaceIdRef.current) return;
 			await engine.closeAssessmentWorkspace(sessionId, workspaceIdRef.current);
@@ -144,7 +144,7 @@ export function useWorkspace({
 		async (branchName: string, conceptText: string) => {
 			setError(null);
 			try {
-				const engine = session?.result.engine;
+				const engine = session?.result?.engine;
 				if (!engine) throw new Error("No engine available");
 				if (!workspaceIdRef.current) return;
 				await engine.addAssessmentBranch(
@@ -166,13 +166,13 @@ export function useWorkspace({
 	}, []);
 
 	const commandCatalog = useMemo<CommandCatalog>(() => {
-		const profile = session?.result.engine.getParser().getProfile();
+		const profile = session?.result?.engine?.getParser?.().getProfile?.();
 		return new WorkspaceCommandCatalog(profile ?? ({} as any), snapshot);
 	}, [session, snapshot]);
 
 	const focusBranch = useCallback(
 		async (branchRef: string) => {
-			const engine = session?.result.engine;
+			const engine = session?.result?.engine;
 			if (!engine || !workspaceIdRef.current) return;
 			try {
 				setError(null);
@@ -199,7 +199,7 @@ export function useWorkspace({
 
 	const planSubmission = useCallback(
 		(text: string): CellSubmissionPlan => {
-			const profile = session?.result.engine.getParser().getProfile();
+			const profile = session?.result?.engine?.getParser?.().getProfile?.();
 			const mappings = profile?.workspaceCommandMappings ?? {};
 			const workspaceVerbs = new Set([
 				...Object.keys(mappings),
@@ -228,7 +228,7 @@ export function useWorkspace({
 
 	const submitPlan = useCallback(
 		async (plan: CellSubmissionPlan) => {
-			const engine = session?.result.engine;
+			const engine = session?.result?.engine;
 			if (!engine || !workspaceIdRef.current) return;
 			const branchId =
 				snapshot?.activeBranchId ?? snapshot?.branches[0]?.branchId;

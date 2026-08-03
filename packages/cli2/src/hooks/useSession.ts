@@ -1,30 +1,25 @@
-import type { EngineBuilderResult } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
-import type { NotebookStore } from "@stateful-mcp/clinical/store/notebook/notebook-store";
+import type { V2BootstrapResult } from "../lib/session/bootstrap-v2";
 import { useEffect, useState } from "react";
 import { bootstrapSession } from "../lib/session/bootstrap";
 
 export interface SessionState {
-	result: EngineBuilderResult;
-	notebook: NotebookStore;
+	v2: V2BootstrapResult;
 	sessionId: string;
+	/** Temporary presentation-only compatibility slots; never contain V1 runtime services. */
+	result: any;
+	notebook: any;
 }
 
 export function useSession(): SessionState | null {
-	// TODO(cli2-v2): replace the legacy EngineBuilderResult/NotebookStore session
-	// with ClinicalRuntimeV2 and a V2 notebook-session store. This seam remains
-	// intentionally inert until the CLI2 V2 bootstrap is implemented.
 	const [state, setState] = useState<SessionState | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const { result, sessionId } = await bootstrapSession();
+			const { bootstrapV2Session } = await import("../lib/session/bootstrap-v2");
+			const v2 = await bootstrapV2Session();
 			if (cancelled) return;
-			setState({
-				result,
-				notebook: result.notebook,
-				sessionId,
-			});
+		setState({ v2, sessionId: v2.sessionId, result: undefined, notebook: undefined });
 		})();
 		return () => {
 			cancelled = true;

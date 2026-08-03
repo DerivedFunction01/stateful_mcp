@@ -2,7 +2,7 @@ import { createEventStore, EventStore, MemoryKvBackend } from "@stateful-mcp/cor
 import { DictionaryStore } from "@stateful-mcp/core/middleware/dictionary/store";
 import { InMemoryConceptResolver } from "@stateful-mcp/core/middleware/dictionary/resolver";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
-import { SchemaRegistry } from "@stateful-mcp/clinical/v2/schemas/schema-registry";
+import { createDefaultV2SchemaRegistry } from "@stateful-mcp/clinical/v2/schemas/default-registry";
 import { KvCellStore } from "@stateful-mcp/clinical/v2/cells/kv-cell-store";
 import { KvWorkspaceStore } from "@stateful-mcp/clinical/v2/workspaces/kv-workspace-store";
 import { ClinicalEngineV2Builder } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2-builder";
@@ -12,10 +12,17 @@ import {
 } from "@stateful-mcp/clinical/v2/commands/command-syntax-profile";
 import type { MacroStore } from "@stateful-mcp/clinical/v2/macros/macro-definition";
 import type { ClinicalEngineV2 } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2";
+import { V2CommandBarService } from "@stateful-mcp/clinical/v2/commands/command-bar-service";
+import { V2VariableCommandService } from "@stateful-mcp/clinical/v2/commands/variable-command-service";
+import type { V2VariableCellService } from "@stateful-mcp/clinical/v2/cells/variable-cell-service";
+import { createV2NotebookSession, type V2NotebookSession } from "./v2-notebook-session";
 import { VariableServiceStore } from "@stateful-mcp/core";
 
 export interface V2BootstrapResult {
 	engine: ClinicalEngineV2;
+	commandBar: V2CommandBarService;
+	variableCells: V2VariableCellService;
+	notebook: V2NotebookSession;
 	sessionId: string;
 	syntaxProfile: V2CommandSyntaxProfile;
 }
@@ -48,7 +55,7 @@ export async function bootstrapV2Session(options: {
 	const dictionary = new DictionaryStore(new InMemoryConceptResolver());
 	const engine = new ClinicalEngineV2Builder()
 		.withEventStore(eventStore)
-		.withSchemaRegistry(new SchemaRegistry())
+		.withSchemaRegistry(createDefaultV2SchemaRegistry())
 		.withMacroStore(EMPTY_MACRO_STORE)
 		.withDictionary(dictionary)
 		.withWorkspaceStore(new KvWorkspaceStore(new MemoryKvBackend()))
@@ -60,10 +67,23 @@ export async function bootstrapV2Session(options: {
 		.withSyntaxProfile(syntaxProfile)
 		.withVariableService(new VariableServiceStore())
 		.build();
+	const runtime = engine.getRuntime();
+	const commandBar = new V2CommandBarService(
+		engine,
+		engine.getWorkspaceService(),
+		syntaxProfile,
+		new V2VariableCommandService(runtime.variables),
+		runtime.variableCells,
+	);
 
+	const sessionId = options.sessionId ?? `cli2-${Date.now()}`;
+	const notebook = createV2NotebookSession({ sessionId, engine, commandBar, variableCells: runtime.variableCells, syntaxProfile });
 	return {
 		engine,
-		sessionId: options.sessionId ?? `cli2-${Date.now()}`,
+		commandBar,
+		variableCells: runtime.variableCells,
+		notebook,
+		sessionId,
 		syntaxProfile,
 	};
 }
