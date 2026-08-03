@@ -38,6 +38,7 @@ export interface MacroTargetOperation {
 	sourceLine: number;
 	sourceArgument?: number;
 	evidence: MacroEvidence[];
+	failureStage?: "validation" | "binding" | "extraction" | "constraint" | "compilation" | "projection" | "execution";
 }
 
 export interface MacroLinkOperation {

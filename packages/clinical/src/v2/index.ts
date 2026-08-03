@@ -9,6 +9,8 @@
  */
 
 export * from "./values/typed-value";
+export * from "./values/measurement-resolver";
+export * from "./values/pipeline-evaluator";
 export * from "./macros/macro-definition";
 export * from "./macros/macro-binding";
 export * from "./macros/macro-plan";

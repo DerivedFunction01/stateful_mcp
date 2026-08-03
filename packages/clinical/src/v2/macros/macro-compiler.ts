@@ -26,6 +26,8 @@ import type { ValueExtractDiagnostic } from "./macro-value-extractor";
 import { extractTypedValue } from "./macro-value-extractor";
 import { bindMacro } from "./macro-binder";
 import { MacroDefinitionValidator } from "./macro-validator";
+import { validateMeasurementConstraints, type MeasurementConstraint } from "../values/measurement-resolver";
+import { validatePipeline, type PipelineDiagnostic } from "../values/pipeline-evaluator";
 
 export interface MacroCompilerDeps {
 	registry: SchemaRegistry;
@@ -46,6 +48,23 @@ export interface MacroCompilerOptions {
 	groupId?: string;
 	scope?: MacroExecutionPlan["scope"];
 	sourceLine?: number;
+	expectedFingerprint?: string;
+}
+
+export type FailureStage =
+	| "validation"
+	| "binding"
+	| "extraction"
+	| "constraint"
+	| "compilation"
+	| "projection"
+	| "execution";
+
+export interface FailureStageDiagnostic {
+	stage: FailureStage;
+	message: string;
+	argumentId?: string;
+	operationId?: string;
 }
 
 export class MacroCompiler {
@@ -57,21 +76,37 @@ export class MacroCompiler {
 		options: MacroCompilerOptions = {},
 	): Promise<MacroCompileResult> {
 		const diagnostics: string[] = [];
+		const stageDiagnostics: FailureStageDiagnostic[] = [];
 		const groupId = options.groupId ?? `grp_${definition.macroId}_${definition.version}`;
 		const scope = options.scope ?? { kind: "clinical_document", sessionId: input.sourceLines[0]?.line ? String(input.sourceLines[0].line) : input.macroName };
+
 		const validation = new MacroDefinitionValidator(this.deps.registry).validate(definition);
-		diagnostics.push(...validation.issues.filter((issue) => issue.severity === "error").map((issue) => issue.message));
+		for (const issue of validation.issues.filter((issue) => issue.severity === "error")) {
+			diagnostics.push(issue.message);
+			stageDiagnostics.push({ stage: "validation", message: issue.message, argumentId: issue.argumentId });
+		}
 		if (!validation.valid) return { groupId, diagnostics };
 
 		const binding = bindMacro(input, definition);
 		for (const issue of binding.issues) {
 			diagnostics.push(issue.message);
+			stageDiagnostics.push({ stage: "binding", message: issue.message, argumentId: issue.argumentId });
 		}
 
 		const operations: MacroTargetOperation[] = [];
 		for (const bindingEntry of binding.bindings) {
 			const spec = definition.arguments.find((a) => a.argumentId === bindingEntry.argumentId);
 			if (!spec) continue;
+
+			const conditionResult = this.evaluateCondition(spec, bindingEntry);
+			if (!conditionResult.pass) {
+				for (const diag of conditionResult.diagnostics) {
+					diagnostics.push(diag.message);
+					stageDiagnostics.push({ stage: "constraint", message: diag.message, argumentId: spec.argumentId });
+				}
+				continue;
+			}
+
 			const field = this.resolveField(definition, spec);
 			const extraction = await extractTypedValue(bindingEntry.rawValue, spec, {
 				field,
@@ -83,22 +118,39 @@ export class MacroCompiler {
 			});
 			for (const diag of extraction.diagnostics) {
 				diagnostics.push(diag.message);
+				stageDiagnostics.push({ stage: "extraction", message: diag.message, argumentId: diag.argumentId });
 			}
 			if (!extraction.value) continue;
+
+			const constraintDiags = this.validateConstraints(extraction.value, spec, field);
+			for (const diag of constraintDiags) {
+				diagnostics.push(diag.message);
+				stageDiagnostics.push({ stage: "constraint", message: diag.message, argumentId: spec.argumentId });
+			}
+			if (constraintDiags.length > 0) continue;
+
+			const canonicalValue = this.canonicalizeValue(extraction.value);
+			const evidence = this.buildEvidence(spec, bindingEntry, extraction);
+
 			operations.push({
 				operationId: `op_${operations.length + 1}`,
 				groupId,
 				targetSchema: spec.target.targetSchema,
 				targetPath: spec.target.targetPath,
-				value: extraction.value,
+				value: canonicalValue,
 				rawValue: bindingEntry.rawValue,
 				sourceLine: options.sourceLine ?? input.sourceLines[0]?.line ?? 0,
 				sourceArgument: spec.position,
-				evidence: [{ source: spec.extraction.kind }],
+				evidence,
 			});
 		}
 
 		const fingerprint = this.fingerprint(definition, operations);
+
+		if (options.expectedFingerprint && options.expectedFingerprint !== fingerprint.value) {
+			diagnostics.push(`Plan fingerprint mismatch: expected ${options.expectedFingerprint}, got ${fingerprint.value}`);
+			stageDiagnostics.push({ stage: "compilation", message: `Plan fingerprint mismatch: expected ${options.expectedFingerprint}, got ${fingerprint.value}` });
+		}
 
 		const plan: MacroExecutionPlan = {
 			groupId,
@@ -117,6 +169,76 @@ export class MacroCompiler {
 		};
 
 		return { plan, groupId, diagnostics };
+	}
+
+	private evaluateCondition(
+		spec: MacroArgumentSpec,
+		bindingEntry: { argumentId: string; rawValue: string; captures?: Record<string, string | undefined> },
+	) {
+		const condition = spec.extraction.condition;
+		if (!condition) return { pass: true, diagnostics: [] as PipelineDiagnostic[] };
+		const diagnostics = validatePipeline(condition.pipeline);
+		if (diagnostics.length > 0) {
+			return { pass: false, diagnostics };
+		}
+		return { pass: true, diagnostics: [] };
+	}
+
+	private validateConstraints(
+		value: import("../values/typed-value").TypedValue,
+		spec: MacroArgumentSpec,
+		field?: import("../schemas/schema-types").SchemaField,
+	): import("../values/measurement-resolver").MeasurementResolverDiagnostic[] {
+		if (value.kind !== "measurement") return [];
+		const constraint: MeasurementConstraint = {
+			dimension: spec.extraction.measurement?.dimension ?? field?.measurement?.dimension,
+			allowedUnits: spec.extraction.measurement?.allowedUnits ?? field?.measurement?.allowedUnits,
+			deniedUnits: spec.extraction.measurement?.deniedUnits,
+			canonicalUnit: spec.extraction.measurement?.canonicalUnit,
+			rawBounds: spec.extraction.measurement?.rawBounds ?? spec.extraction.numericBounds,
+			normalizedBounds: spec.extraction.measurement?.normalizedBounds,
+		};
+		return validateMeasurementConstraints(
+			{
+				magnitude: value.magnitude,
+				unit: value.unit,
+				operator: value.operator,
+				isApproximate: value.isApproximate,
+				dimension: value.dimension,
+				normalized: value.normalized,
+				rawValue: value.magnitude,
+				rawUnit: value.unit,
+			},
+			constraint,
+		);
+	}
+
+	private canonicalizeValue(value: import("../values/typed-value").TypedValue): import("../values/typed-value").TypedValue {
+		if (value.kind === "measurement" && value.normalized) {
+			return {
+				...value,
+				magnitude: value.normalized.magnitude,
+				unit: value.normalized.unit,
+				normalized: undefined,
+			};
+		}
+		return value;
+	}
+
+	private buildEvidence(
+		spec: MacroArgumentSpec,
+		bindingEntry: { argumentId: string; rawValue: string; captures?: Record<string, string | undefined> },
+		extraction: { diagnostics: unknown[] },
+	): import("../values/typed-value").ValueEvidence[] {
+		const evidence: import("../values/typed-value").ValueEvidence[] = [{ source: spec.extraction.kind }];
+		if (bindingEntry.captures) {
+			for (const [key, value] of Object.entries(bindingEntry.captures)) {
+				if (value !== undefined) {
+					evidence.push({ source: `capture:${key}`, pattern: value });
+				}
+			}
+		}
+		return evidence;
 	}
 
 	private resolveField(

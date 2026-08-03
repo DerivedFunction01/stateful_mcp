@@ -139,6 +139,8 @@ export interface ArrayValue {
 	items: TypedValue[];
 	itemDelimiter?: string;
 	mergeStrategy: "append" | "replace";
+	rawText?: string;
+	evidence?: ValueEvidence[];
 }
 
 export interface CompositeValue {

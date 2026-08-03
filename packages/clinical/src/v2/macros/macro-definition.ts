@@ -27,10 +27,31 @@ export type MacroValueSpecKind =
 	| "array"
 	| "prose";
 
+export interface NamedGroupContract {
+	required?: readonly string[];
+	allowed?: readonly string[];
+	disallowed?: readonly string[];
+	fullSpan?: boolean;
+}
+
+export interface MeasurementConstraintSpec {
+	dimension?: string;
+	allowedUnits?: readonly string[];
+	deniedUnits?: readonly string[];
+	canonicalUnit?: string;
+	rawBounds?: { min?: number; max?: number; inclusiveMin?: boolean; inclusiveMax?: boolean };
+	normalizedBounds?: { min?: number; max?: number; inclusiveMin?: boolean; inclusiveMax?: boolean };
+}
+
+export interface PipelineConditionSpec {
+	pipeline: import("@stateful-mcp/core").PipelineStep[];
+	message?: string;
+}
+
 export interface V2ValueSpec {
 	kind: MacroValueSpecKind;
-	/** Profile/macro-owned expressions. Named groups define the value shape. */
 	patterns?: readonly string[];
+	namedGroupContract?: NamedGroupContract;
 	temporalType?: TemporalValueType;
 	itemDelimiter?: string;
 	target?: { targetSchema: string; targetPath: string };
@@ -43,6 +64,8 @@ export interface V2ValueSpec {
 		inclusiveMax?: boolean;
 	};
 	valueKind?: TypedValueKind;
+	measurement?: MeasurementConstraintSpec;
+	condition?: PipelineConditionSpec;
 }
 
 export interface MacroArgumentSpec {
