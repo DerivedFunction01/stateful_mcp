@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parseMacroLine } from "../src/v2/macros/macro-input-parser";
 import type { V2MacroDefinition } from "../src/v2/macros/macro-definition";
+import { createV2SyntaxProfile } from "../src/v2/macros/macro-profile";
 
 const OBSERVATION: V2MacroDefinition = {
 	macroId: "obs",
@@ -73,6 +74,27 @@ describe("macro-input-parser", () => {
 	test("supports equals inside a quoted expression", () => {
 		const result = parseMacroLine('^observation concept="a = b"', 0, { definition: OBSERVATION });
 		expect(result?.arguments[0]?.rawValue).toBe('"a = b"');
+	});
+
+	test("uses profile defaults without requiring a delimiter", () => {
+		const profile = createV2SyntaxProfile({ profileId: "default", macroArgDelimiter: ";" });
+		const result = parseMacroLine("^observation duration=2 hours", 0, { definition: OBSERVATION, profile });
+		expect(result?.arguments[0]?.captures).toEqual({ magnitude: "2", unit: "hours" });
+	});
+
+	test("preserves configured list item spans for a value rule", () => {
+		const definition: V2MacroDefinition = {
+			...OBSERVATION,
+			arguments: [{
+				...OBSERVATION.arguments[0]!,
+				argumentId: "qualifiers",
+				name: "qualifiers",
+				extraction: { kind: "concept_array", itemDelimiter: "~", patterns: [String.raw`(?<concept>.+)`] },
+			}],
+		};
+		const result = parseMacroLine("^observation qualifiers=shortness of breath~exertional", 0, { definition });
+		expect(result?.arguments[0]?.items?.map((item) => item.rawValue)).toEqual(["shortness of breath", "exertional"]);
+		expect(result?.arguments[0]?.items?.[0]?.start).toBeGreaterThan(0);
 	});
 
 	test("reports invalid expressions without throwing", () => {
