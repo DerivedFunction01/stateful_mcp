@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createDefaultSchemaRegistry } from "../src/schemas/default-registry";
-import { CellCompiler } from "../src/cells/v2-cell-compiler";
+import { CellCompiler } from "../src/cells/cell-compiler";
 
 describe(" cell compiler", () => {
 	it("returns a typed diagnostic for an undefined macro", async () => {

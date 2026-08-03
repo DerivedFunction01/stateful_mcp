@@ -5,7 +5,7 @@ import {
 	InMemoryConceptResolver,
 	MemoryKvBackend,
 } from "@stateful-mcp/core";
-import { initializeColdStart } from "../src/bootstrap/v2-cold-start";
+import { initializeColdStart } from "../src/bootstrap/cold-start";
 import { KvMacroStore } from "../src/macros/kv-macro-store";
 
 describe(" cold start", () => {

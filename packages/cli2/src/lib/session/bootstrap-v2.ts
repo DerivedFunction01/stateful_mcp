@@ -1,6 +1,6 @@
-import { initializeColdStart } from "@stateful-mcp/clinical/bootstrap/v2-cold-start";
+import { initializeColdStart } from "@stateful-mcp/clinical/bootstrap/cold-start";
 import { KvCellStore } from "@stateful-mcp/clinical/cells/kv-cell-store";
-import { CellCompiler } from "@stateful-mcp/clinical/cells/v2-cell-compiler";
+import { CellCompiler } from "@stateful-mcp/clinical/cells/cell-compiler";
 import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
 import { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
 import {
@@ -27,7 +27,7 @@ import { DictionaryStore } from "@stateful-mcp/core/middleware/dictionary/store"
 import {
 	createNotebookSession,
 	type NotebookSession,
-} from "./v2-notebook-session";
+} from "./notebook-session";
 
 export interface BootstrapResult {
 	engine: ClinicalEngine;
