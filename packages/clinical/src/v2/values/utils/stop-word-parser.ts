@@ -1,4 +1,4 @@
-import type { StopWordContext, StopWordStore } from "../stores/interfaces";
+import type { StopWordContext, StopWordStore } from "../../stores/interfaces";
 
 export class StopWordParser {
 	private stopWordsSet: Set<string>;

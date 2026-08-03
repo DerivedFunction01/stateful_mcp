@@ -11,7 +11,7 @@
  *   // → 15998.6864898 (pascals)
  */
 
-import type { MeasurementUnitAnchor } from "../../schemas/schemas-interface/measurement";
+import type { MeasurementUnitAnchor } from "../../../schemas/schemas-interface/measurement";
 import { ANCHOR_TO_CONVERSIONS } from "./conversion-factors";
 
 export interface ConversionEntry {

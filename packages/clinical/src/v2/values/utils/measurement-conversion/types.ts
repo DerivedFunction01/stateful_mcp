@@ -1,4 +1,4 @@
-import type { MeasurementUnitAnchor } from "../../schemas/schemas-interface/measurement";
+import type { MeasurementUnitAnchor } from "../../../schemas/schemas-interface/measurement";
 
 export interface ConversionEntry {
 	fromUnit: string;
