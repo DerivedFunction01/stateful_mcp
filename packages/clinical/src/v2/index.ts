@@ -16,3 +16,8 @@ export * from "./cells/structured-cell";
 export * from "./cells/cell-intent";
 export * from "./cells/cell-results";
 export * from "./workspaces/workspace-types";
+export * from "./schemas/schema-types";
+export * from "./schemas/schema-factory";
+export * from "./schemas/schema-registry";
+export * from "./schemas/schema-path-validator";
+export * from "./schemas/schema-defaults";

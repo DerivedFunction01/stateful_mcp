@@ -1,6 +1,3 @@
-import type { CodeableConcept } from "./shared";
-import type { TimeUnit } from "./time";
-
 export const TERRESTRIAL_UNIT_ANCHORS = [
 	"length",
 	"mass",
@@ -268,36 +265,32 @@ export const ALLOWED_UNITS = [
 
 export type AllowedUnit = (typeof ALLOWED_UNITS)[number];
 
-export interface Statistics {
-	min?: number;
-	max?: number;
-	mean?: number;
-	stdev?: number;
-	stdev_pop?: number;
-	variance?: number;
-	numerator?: number;
-	denominator?: number;
-	range?: number;
-	rmse?: number;
-	mae?: number;
-	mse?: number;
-	median?: number;
-	margin_of_err?: number;
-}
+export const VALUE_TYPE = [
+	"min",
+	"max",
+	"mean",
+	"stdev",
+	"stdev_pop",
+	"variance",
+	"numerator",
+	"denominator",
+	"range",
+	"rmse",
+	"mae",
+	"mse",
+	"median",
+	"margin_of_err",
+] as const;
 
-/**
- * Root of the measurement hierarchy.
- * Carries the raw numeric value plus optional operator, approximation flag,
- * and data-point count.  Used directly by the parser (which does not yet know
- * the physical dimension) and as the base for every typed sub-interface.
- */
+export type ValueType = (typeof VALUE_TYPE)[number];
+
 export interface SingleMeasurement {
 	magnitude: number;
-	unit?: CodeableConcept;
+	unit?: AllowedUnit;
 	num_data_points?: number;
 	operator?: "eq" | "gt" | "gte" | "lt" | "lte";
 	is_approximate?: boolean;
-	statistics?: Statistics;
+	value_type?: ValueType;
 }
 
 /**
@@ -316,87 +309,87 @@ export interface BoundedMeasurement extends SingleMeasurement {
 
 export interface TemperatureMeasurement extends BoundedMeasurement {
 	unitAnchor: "temperature";
-	unit?: Omit<CodeableConcept, "display"> & { display: TemperatureUnit };
+	unit?: TemperatureUnit
 }
 
 export interface PressureMeasurement extends BoundedMeasurement {
 	unitAnchor: "pressure";
-	unit?: Omit<CodeableConcept, "display"> & { display: PressureUnit };
+	unit?: PressureUnit
 }
 
 export interface CountMeasurement extends BoundedMeasurement {
 	unitAnchor: "number";
-	unit?: Omit<CodeableConcept, "display"> & { display: CountUnit };
+	unit?: CountUnit
 }
 
 export interface DistanceMeasurement extends BoundedMeasurement {
 	unitAnchor: "length";
-	unit?: Omit<CodeableConcept, "display"> & { display: LengthUnit };
+	unit?: LengthUnit
 }
 
 export interface MassMeasurement extends BoundedMeasurement {
 	unitAnchor: "mass";
-	unit?: Omit<CodeableConcept, "display"> & { display: MassUnit };
+	unit?: MassUnit
 }
 
-export interface MassConcentrationMeasurement extends BoundedMeasurement {
+export interface MassConcentrationMeasurement extends Omit<BoundedMeasurement, "unit"> {
 	unitAnchor: "mass_concentration";
-	unit?: Omit<CodeableConcept, "display"> & { display: MassConcentrationUnit };
+	unit?: MassConcentrationUnit
 }
 
 export interface EnergyMeasurement extends BoundedMeasurement {
 	unitAnchor: "energy";
-	unit?: Omit<CodeableConcept, "display"> & { display: EnergyUnit };
+	unit?: EnergyUnit
 }
 
 export interface ForceMeasurement extends BoundedMeasurement {
 	unitAnchor: "force";
-	unit?: Omit<CodeableConcept, "display"> & { display: ForceUnit };
+	unit?: ForceUnit
 }
 
 export interface OsmolalityMeasurement extends BoundedMeasurement {
 	unitAnchor: "osmolality";
-	unit?: Omit<CodeableConcept, "display"> & { display: OsmolalityUnit };
+	unit?: OsmolalityUnit
 }
 
 export interface OsmolarityMeasurement extends BoundedMeasurement {
 	unitAnchor: "osmolarity";
-	unit?: Omit<CodeableConcept, "display"> & { display: OsmolarityUnit };
+	unit?: OsmolarityUnit
 }
 
 export interface CatalyticActivityMeasurement extends BoundedMeasurement {
 	unitAnchor: "catalytic_activity";
-	unit?: Omit<CodeableConcept, "display"> & { display: CatalyticActivityUnit };
+	unit?: CatalyticActivityUnit
 }
 
 export interface FractionMeasurement extends BoundedMeasurement {
 	unitAnchor: "fraction";
-	unit?: Omit<CodeableConcept, "display"> & { display: FractionUnit };
+	unit?: FractionUnit
 }
 
 export interface ElectricPotentialMeasurement extends BoundedMeasurement {
 	unitAnchor: "electric_potential";
-	unit?: Omit<CodeableConcept, "display"> & { display: ElectricPotentialUnit };
+	unit?: ElectricPotentialUnit
 }
 
 export interface ElectricCurrentMeasurement extends BoundedMeasurement {
 	unitAnchor: "electric_current";
-	unit?: Omit<CodeableConcept, "display"> & { display: ElectricCurrentUnit };
+	unit?: ElectricCurrentUnit
 }
 
 export interface PowerMeasurement extends BoundedMeasurement {
 	unitAnchor: "power";
-	unit?: Omit<CodeableConcept, "display"> & { display: PowerUnit };
+	unit?: PowerUnit
 }
 
 export interface VelocityMeasurement extends BoundedMeasurement {
 	unitAnchor: "velocity";
-	unit?: Omit<CodeableConcept, "display"> & { display: VelocityUnit };
+	unit?: VelocityUnit
 }
 
 export interface AccelerationMeasurement extends BoundedMeasurement {
 	unitAnchor: "acceleration";
-	unit?: Omit<CodeableConcept, "display"> & { display: AccelerationUnit };
+	unit?: AccelerationUnit
 }
 
 /** Covers all pharmaceutical dosage forms: solid mass (mg, g) or liquid concentration (mg/mL). */
@@ -405,7 +398,7 @@ export type DosageMeasurement = MassMeasurement | MassConcentrationMeasurement;
 /** Dimensionless score or ratio produced by an algorithmic evaluation. */
 export interface ScoreMeasurement extends BoundedMeasurement {
 	unitAnchor: "arbitrary";
-	unit?: Omit<CodeableConcept, "display"> & { display: ScoreUnit };
+	unit?: ScoreUnit
 }
 
 /**

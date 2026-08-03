@@ -541,7 +541,7 @@ export class ClinicalEngine {
 					rawTerm: "",
 					sourceType: "patient_reported",
 					severity: { score: 0, maxScore: 0, normalizedScore: 0 },
-					duration: { magnitude: 0 },
+					duration: { magnitude: 0, unit: "second", unitAnchor: "time" },
 					trajectory: "unknown",
 				},
 				historyOfPresentIllness: { events: [] },

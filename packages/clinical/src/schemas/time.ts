@@ -1,4 +1,5 @@
 import type { SingleMeasurement } from "./measurement";
+import type { CodeableConcept } from "./shared";
 
 export const DAY_OF_WEEKS = [
 	"monday",
@@ -66,9 +67,10 @@ export type TimePrecisionLevel = (typeof TIME_PRECISION_LEVELS)[number];
  * instead of a CodeableConcept — keeping it in the hierarchy while remaining incompatible
  * with physical-dimension anchored types.
  */
-export interface TimeMeasurement extends Omit<SingleMeasurement, "unit"> {
-	unit?: TimePrecisionLevel;
-}
+export type TimeMeasurement = Omit<SingleMeasurement, 'unit'> & {
+    unitAnchor: "time";
+    unit?: TimePrecisionLevel;
+};
 
 export interface TemporalBoundary {
 	assertedTimestampUtc: string;

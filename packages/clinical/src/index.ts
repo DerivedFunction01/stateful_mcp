@@ -94,14 +94,3 @@ export * from "./store/reference/command-templates/sql-command-template-store";
 export * from "./store/reference/command-templates/validation";
 export * from "./store/sql/command-template-query-compiler";
 export * from "./store/sql/notebook-query-compiler";
-
-// Auto-register default parsed cell transforms
-import "./store/learning/parsed_cell/transforms/observation-transform";
-import "./store/learning/parsed_cell/transforms/vitals-transform";
-import "./store/learning/parsed_cell/transforms/medication-transform";
-import "./store/learning/parsed_cell/transforms/clinical-date-range-transform";
-import "./store/learning/parsed_cell/transforms/assessment-transforms";
-import "./store/learning/parsed_cell/transforms/history-transforms";
-import "./store/learning/parsed_cell/transforms/exposure-injury-transforms";
-import "./store/learning/parsed_cell/transforms/diagnostic-transforms";
-import "./store/learning/parsed_cell/transforms/plan-transforms";
