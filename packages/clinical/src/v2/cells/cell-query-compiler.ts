@@ -7,6 +7,8 @@ import {
 export interface CellRow {
 	cellId: string;
 	sessionId: string;
+	collectionKind: string;
+	collectionId: string;
 	cellJson: string;
 }
 
@@ -26,6 +28,8 @@ export class CellQueryCompiler {
 				columns: [
 					{ name: "cellId", type: "TEXT", nullable: false },
 					{ name: "sessionId", type: "TEXT", nullable: false },
+					{ name: "collectionKind", type: "TEXT", nullable: false },
+					{ name: "collectionId", type: "TEXT", nullable: false },
 					{ name: "cellJson", type: "TEXT", nullable: false },
 				],
 			}),
@@ -48,6 +52,22 @@ export class CellQueryCompiler {
 		return this.compiler.compileSelect({
 			table,
 			where: [{ column: "sessionId", op: "eq", value: sessionId }],
+		});
+	}
+
+	listByCollectionQuery(
+		sessionId: string,
+		collectionKind: string,
+		collectionId: string,
+		table: string,
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table,
+			where: [
+				{ column: "sessionId", op: "eq", value: sessionId },
+				{ column: "collectionKind", op: "eq", value: collectionKind },
+				{ column: "collectionId", op: "eq", value: collectionId },
+			],
 		});
 	}
 

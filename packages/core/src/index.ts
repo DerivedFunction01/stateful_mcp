@@ -37,6 +37,7 @@ export * from "./middleware/dictionary/types";
 export * from "./middleware/event/evaluator-types";
 export * from "./middleware/event/selective-validator-router";
 export * from "./middleware/event/store";
+export * from "./middleware/event/types";
 export * from "./middleware/filter/store";
 export * from "./middleware/form/store";
 export * from "./middleware/object/constants";

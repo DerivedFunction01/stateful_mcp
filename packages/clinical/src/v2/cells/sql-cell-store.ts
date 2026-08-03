@@ -31,6 +31,21 @@ export class SqlCellStore implements CellStore {
 		return rows.map((row) => this.fromRow(row));
 	}
 
+	async listByCollection(
+		sessionId: string,
+		collection: StructuredCell["collection"],
+	): Promise<StructuredCell[]> {
+		await this.ready;
+		const query = this.compiler.listByCollectionQuery(
+			sessionId,
+			collection.kind,
+			collection.collectionId,
+			this.table,
+		);
+		const rows = await this.executor.query(query.sql, query.params);
+		return rows.map((row) => this.fromRow(row));
+	}
+
 	async save(cell: StructuredCell): Promise<void> {
 		await this.ready;
 		const query = this.compiler.upsertQuery(this.toRow(cell), this.table);
@@ -88,11 +103,15 @@ export class SqlCellStore implements CellStore {
 	private toRow(cell: StructuredCell): {
 		cellId: string;
 		sessionId: string;
+		collectionKind: string;
+		collectionId: string;
 		cellJson: string;
 	} {
 		return {
 			cellId: cell.cellId,
 			sessionId: cell.sessionId,
+			collectionKind: cell.collection.kind,
+			collectionId: cell.collection.collectionId,
 			cellJson: JSON.stringify(cell),
 		};
 	}

@@ -129,7 +129,7 @@ export class StructuredCellService {
 		await this.store.save(updated);
 		return {
 			transactionId: updated.execution.transactionId ?? "",
-			status: "committed",
+			status: "pending_commit",
 			generatedCellIds: [],
 			diagnostics: [],
 		};

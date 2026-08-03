@@ -329,11 +329,51 @@ export class EventStore {
 			);
 		}
 		if (idempotencyKey) {
+			const sessionCommitIds = await this.session.listSession(sessionId);
+			for (const sessionCommitId of sessionCommitIds) {
+				const sessionCommit = await this.session.get(
+					sessionId,
+					sessionCommitId,
+				);
+				if (!sessionCommit) continue;
+				const idempotentMutations = sessionCommit.mutations.filter(
+					(mutation) => mutation.data?.macroBatchId === idempotencyKey,
+				);
+				if (
+					idempotentMutations.length === data.length &&
+					idempotentMutations.length > 0
+				) {
+					return {
+						commitId: sessionCommitId,
+						eventIds: idempotentMutations.map((mutation) => mutation.event_id),
+					};
+				}
+			}
+
 			const existing = await this.project(resolvedId, sessionId);
 			const matching = existing.filter(
 				(record) => record.macroBatchId === idempotencyKey,
 			);
 			if (matching.length === data.length && matching.length > 0) {
+				let currentCommitId: string | null = resolvedId;
+				while (currentCommitId) {
+					const currentCommit = await this.session.get(
+						sessionId,
+						currentCommitId,
+					);
+					if (!currentCommit) break;
+					if (
+						currentCommit.mutations.some(
+							(mutation) => mutation.data?.macroBatchId === idempotencyKey,
+						)
+					) {
+						return {
+							commitId: currentCommitId,
+							eventIds: matching.map((record) => record.event_id),
+						};
+					}
+					currentCommitId = currentCommit.parentCommitId;
+				}
 				return {
 					commitId: resolvedId,
 					eventIds: matching.map((record) => record.event_id),

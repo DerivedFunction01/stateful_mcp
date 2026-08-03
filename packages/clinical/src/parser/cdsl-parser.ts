@@ -68,7 +68,7 @@ export class CdslParser {
 	constructor(options: CdslParserOptions) {
 		this.dictionaryStore = options.dictionaryStore;
 		this.profile = options.profile;
-		this.preprocessor = new TextPreprocessor(this.profile);
+		this.preprocessor = new TextPreprocessor();
 	}
 
 	static async create(options: CdslParserOptions): Promise<CdslParser> {

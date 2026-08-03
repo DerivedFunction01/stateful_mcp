@@ -31,7 +31,9 @@ const OBSERVATION: V2MacroDefinition = {
 			target: { targetSchema: "Observation", targetPath: "duration" },
 			extraction: {
 				kind: "measurement",
-				patterns: [`["']?(?<magnitude>\\d+(?:\\.\\d+)?)\\s+(?<unit>[\\w/°%]+)["']?`],
+				patterns: [
+					`["']?(?<magnitude>\\d+(?:\\.\\d+)?)\\s+(?<unit>[\\w/°%]+)["']?`,
+				],
 			},
 		},
 	],

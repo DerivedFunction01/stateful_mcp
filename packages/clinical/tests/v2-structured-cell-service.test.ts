@@ -186,7 +186,7 @@ describe.each([
 			idempotencyKey: "idem-execute-1",
 		});
 
-		expect(result.status).toBe("committed");
+		expect(result.status).toBe("pending_commit");
 		expect(result.transactionId).toBeTruthy();
 
 		const updated = await service.get(created.cellId);

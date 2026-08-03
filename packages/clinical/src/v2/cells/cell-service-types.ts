@@ -3,6 +3,10 @@ import type { StructuredCell } from "./structured-cell";
 export interface CellStore {
 	get(cellId: string): Promise<StructuredCell | null>;
 	list(sessionId: string): Promise<StructuredCell[]>;
+	listByCollection(
+		sessionId: string,
+		collection: StructuredCell["collection"],
+	): Promise<StructuredCell[]>;
 	save(cell: StructuredCell): Promise<void>;
 	delete(cellId: string): Promise<void>;
 	create(request: CreateCellRequest): Promise<StructuredCell>;
@@ -67,7 +71,7 @@ export interface CellPreview {
 
 export interface CellExecutionResult {
 	transactionId: string;
-	status: "committed" | "failed" | "recovery_required";
+	status: "pending_commit" | "committed" | "failed" | "recovery_required";
 	generatedCellIds: string[];
 	diagnostics: string[];
 }

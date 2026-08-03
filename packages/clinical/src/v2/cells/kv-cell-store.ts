@@ -26,6 +26,18 @@ export class KvCellStore implements CellStore {
 			.filter((cell) => cell.sessionId === sessionId);
 	}
 
+	async listByCollection(
+		sessionId: string,
+		collection: StructuredCell["collection"],
+	): Promise<StructuredCell[]> {
+		const cells = await this.list(sessionId);
+		return cells.filter(
+			(cell) =>
+				cell.collection.kind === collection.kind &&
+				cell.collection.collectionId === collection.collectionId,
+		);
+	}
+
 	async save(cell: StructuredCell): Promise<void> {
 		await this.backend.set(this.key(cell.cellId), JSON.stringify(cell));
 		await this.backend.save();

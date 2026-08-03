@@ -7,6 +7,7 @@
  */
 
 import type { TypedValue } from "../values/typed-value";
+import type { WorkspaceOperation } from "../workspaces/workspace-types";
 import type { MacroDefinitionRef } from "./macro-definition";
 
 export type MergeStrategy =
@@ -100,6 +101,7 @@ export interface MacroExecutionPlan {
 	operations: MacroTargetOperation[];
 	links: MacroLinkOperation[];
 	generatedCells: GeneratedCellPlan[];
+	workspaceOperations?: WorkspaceOperation[];
 	expectedVersions: ExpectedAggregateVersion[];
 	fingerprint: MacroPlanFingerprint;
 	diagnostics: string[];

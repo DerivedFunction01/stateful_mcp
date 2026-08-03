@@ -29,10 +29,15 @@ export interface V2Branch {
 
 export interface V2WorkspaceAggregate {
 	id: string;
+	sessionId: string;
 	sourceDocumentId: string;
 	activeBranchId: string | null;
 	branches: V2Branch[];
+	globalFacts: TypedFact[];
 	closeRequested: boolean;
+	completed?: boolean;
+	version: number;
+	eventHead?: string;
 }
 
 export type FactCertainty = "supporting" | "refuting" | "neutral";
@@ -65,6 +70,7 @@ export type WorkspaceOperation =
 			name: string;
 			concept: CodeableConcept;
 			parentBranchId?: string;
+			commandAlias?: string;
 	  }
 	| {
 			kind: "focus_branch";
@@ -76,5 +82,24 @@ export type WorkspaceOperation =
 			workspaceId: string;
 			branchId: string;
 			transition: "confirm" | "rule_out" | "suspend" | "reactivate";
+			reason?: string;
+			actorId?: string;
+			sourceCellId?: string;
 	  }
-	| { kind: "close"; workspaceId: string };
+	| { kind: "close"; workspaceId: string }
+	| {
+			kind: "complete";
+			workspaceId: string;
+			winningBranchId: string;
+	  };
+
+export interface CreateWorkspaceRequest {
+	sessionId: string;
+	sourceDocumentId: string;
+	initialBranches?: Array<{
+		name: string;
+		hypothesisConcept: CodeableConcept;
+		status?: BranchLifecycleState;
+	}>;
+	workspaceId?: string;
+}
