@@ -18,7 +18,7 @@ export type Status =
 	| "absent"
 	| "denied"
 	| "resolved"
-	| "newly_diganosed"
+	| "newly_diagnosed"
 	| "not_applicable";
 
 export type Certainty = "confirmed" | "suspected" | "refuted" | "differential";
