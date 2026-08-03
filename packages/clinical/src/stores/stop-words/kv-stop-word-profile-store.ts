@@ -1,5 +1,5 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { StopWordProfile } from "../../parser/interfaces";
+import type { StopWordProfile } from "../interfaces";
 import type { StopWordProfileStore } from "./interfaces";
 
 export class KvStopWordProfileStore implements StopWordProfileStore {

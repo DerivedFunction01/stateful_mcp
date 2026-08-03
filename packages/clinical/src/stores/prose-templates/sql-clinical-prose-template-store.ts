@@ -1,5 +1,5 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import type { ClinicalProseTemplate } from "../../parser/interfaces";
+import type { ClinicalProseTemplate } from "../interfaces";
 import { ReferenceQueryCompiler } from "../sql/reference-query-compiler";
 import type { Position } from "../auto-complete/interfaces";
 import type { ClinicalProseTemplateStore } from "./interfaces";

@@ -17,7 +17,7 @@ export * from "./cells/kv-cell-store";
 export * from "./cells/sql-cell-store";
 export * from "./cells/structured-cell";
 export * from "./cells/structured-cell-service";
-export * from "./cells-cell-compiler";
+export * from "./cells/v2-cell-compiler";
 export * from "./cells/variable-cell-service";
 export * from "./clinical/clinical-document-reducer";
 export * from "./clinical/clinical-document-service";
