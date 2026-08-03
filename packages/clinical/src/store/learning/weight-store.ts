@@ -1,5 +1,6 @@
-import type { KvBackend, SqlBackend, SqlDialect, SqlExecutor } from "@stateful-mcp/core";
+import type { KvBackend, SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { SystemWeightStore } from "./interfaces";
+import { WeightQueryCompiler } from "../sql/weight-query-compiler";
 
 const DEFAULT_WEIGHT = 1.0;
 const MIN_WEIGHT = 0.1;
@@ -92,31 +93,90 @@ export class KvBackendSystemWeightStore implements SystemWeightStore {
 	}
 }
 
-// export class SqlBackendSystemWeightStore implements SystemWeightStore {
-//     private readonly compiler: any;
-//     private readonly executor: SqlExecutor;
-//     private readonly table: string;
-    
-//     constructor(
-//         dialect: SqlDialect,
-//         executor: SqlExecutor,
-//         table = "weights",
-//     ) {
-//         this.compiler = {};
-//         this.executor = executor;
-//         this.table = table;
-//     }
-//     getWeight(category: string, key: string, subKey?: string): Promise<number> {
-//         throw new Error("Method not implemented.");
-//     }
-//     setWeight(category: string, key: string, value: number, subKey?: string): Promise<void> {
-//         throw new Error("Method not implemented.");
-//     }
-//     adjustWeight(category: string, key: string, delta: number, subKey?: string): Promise<void> {
-//         throw new Error("Method not implemented.");
-//     }
-//     getWeightsForCategory(category: string, key: string): Promise<Record<string, number>> {
-//         throw new Error("Method not implemented.");
-//     }
+export class SqlBackendSystemWeightStore implements SystemWeightStore {
+	private readonly compiler: WeightQueryCompiler;
+	private readonly executor: SqlExecutor;
+	private readonly table: string;
 
-// }
+	constructor(
+		dialect: SqlDialect,
+		executor: SqlExecutor,
+		table = "weights",
+	) {
+		this.compiler = new WeightQueryCompiler(dialect);
+		this.executor = executor;
+		this.table = table;
+		this.ensureTable();
+	}
+
+	private async ensureTable(): Promise<void> {
+		const ddls = this.compiler.getTableDDL(this.table);
+		for (const ddl of ddls) {
+			await this.executor.exec(ddl.sql, ddl.params);
+		}
+	}
+
+	async getWeight(
+		category: string,
+		key: string,
+		subKey?: string,
+	): Promise<number> {
+		const { sql, params } = this.compiler.compileGetWeight(
+			this.table,
+			category,
+			key,
+			subKey,
+		);
+		const row = await this.executor.queryOne(sql, params);
+		if (row && row.value !== undefined) {
+			return row.value as number;
+		}
+		return DEFAULT_WEIGHT;
+	}
+
+	async setWeight(
+		category: string,
+		key: string,
+		value: number,
+		subKey?: string,
+	): Promise<void> {
+		const { sql, params } = this.compiler.compileSetWeight(
+			this.table,
+			category,
+			key,
+			value,
+			subKey,
+		);
+		await this.executor.exec(sql, params);
+	}
+
+	async adjustWeight(
+		category: string,
+		key: string,
+		delta: number,
+		subKey?: string,
+	): Promise<void> {
+		const current = await this.getWeight(category, key, subKey);
+		const next = Math.min(MAX_WEIGHT, Math.max(MIN_WEIGHT, current + delta));
+		await this.setWeight(category, key, next, subKey);
+	}
+
+	async getWeightsForCategory(
+		category: string,
+		key: string,
+	): Promise<Record<string, number>> {
+		const { sql, params } = this.compiler.compileGetWeightsForCategory(
+			this.table,
+			category,
+			key,
+		);
+		const rows = await this.executor.query(sql, params);
+		const result: Record<string, number> = {};
+		for (const row of rows) {
+			const sk = row.sub_key as string;
+			if (sk === "") continue;
+			result[sk] = (row.value as number) ?? DEFAULT_WEIGHT;
+		}
+		return result;
+	}
+}

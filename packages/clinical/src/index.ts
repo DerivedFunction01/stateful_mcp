@@ -94,3 +94,4 @@ export * from "./store/reference/command-templates/sql-command-template-store";
 export * from "./store/reference/command-templates/validation";
 export * from "./store/sql/command-template-query-compiler";
 export * from "./store/sql/notebook-query-compiler";
+export * from "./store/sql/weight-query-compiler";

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
 import {
 	InMemoryTransactionJournal,
@@ -6,6 +7,8 @@ import {
 	TransactionCoordinator,
 	TransactionIdempotencyError,
 } from "../src/v2/transactions/transaction-coordinator";
+import { KvTransactionJournal } from "../src/v2/transactions/kv-transaction-journal";
+import { SqlTransactionJournal } from "../src/v2/transactions/sql-transaction-journal";
 
 const plan: MacroExecutionPlan = {
 	groupId: "g1",
@@ -106,5 +109,38 @@ describe("V2 transaction coordinator", () => {
 		expect(committed.status).toBe("committed");
 		expect(counters.appends).toBe(2);
 		expect((await coordinator.get(prepared.transactionId))?.participants.map((item) => item.kind)).toEqual(["clinical_events", "workspace_events"]);
+	});
+
+	it("rejects abort after events commit but allows abort before commit", async () => {
+		const coordinator = new TransactionCoordinator({ journal: new InMemoryTransactionJournal(), createTransactionId: () => "tx-abort" });
+		const prepared = await coordinator.prepare({ idempotencyKey: "idem-abort", sourceCellId: "cell1", sourceCellRevision: 1, plan, participants: [] });
+		const aborted = await coordinator.abort(prepared.transactionId, "cancelled");
+		expect(aborted.status).toBe("aborted");
+		await expect(coordinator.commit(prepared.transactionId, [])).rejects.toBeInstanceOf(TransactionConflictError);
+	});
+
+	it("persists deterministic transaction state in KV and SQL journals", async () => {
+		const transaction = {
+			transactionId: "tx-persisted",
+			idempotencyKey: "idem-persisted",
+			sourceCellId: "cell1",
+			sourceCellRevision: 4,
+			plan,
+			status: "prepared" as const,
+			participants: [],
+			recoveryAttempts: 0,
+			createdAt: "2026-08-03T00:00:00.000Z",
+			updatedAt: "2026-08-03T00:00:00.000Z",
+		};
+		const kv = new KvTransactionJournal(new MemoryKvBackend());
+		await kv.put(transaction);
+		expect(await kv.get(transaction.transactionId)).toEqual(transaction);
+		expect(await kv.list({ statuses: ["prepared"] })).toEqual([transaction]);
+
+		const backend = await SqlBackend.connect("sqlite", ":memory:");
+		const sql = new SqlTransactionJournal("sqlite", new SqlExecutor(backend));
+		await sql.put(transaction);
+		expect(await sql.getByIdempotencyKey(transaction.idempotencyKey)).toEqual(transaction);
+		expect(await sql.list({ sourceCellId: "cell1", statuses: ["prepared"] })).toEqual([transaction]);
 	});
 });

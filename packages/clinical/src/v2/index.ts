@@ -37,3 +37,6 @@ export * from "./macros/macro-compiler";
 export * from "./macros/macro-profile";
 export * from "./transactions/transaction-types";
 export * from "./transactions/transaction-coordinator";
+export * from "./transactions/transaction-query-compiler";
+export * from "./transactions/sql-transaction-journal";
+export * from "./transactions/kv-transaction-journal";
