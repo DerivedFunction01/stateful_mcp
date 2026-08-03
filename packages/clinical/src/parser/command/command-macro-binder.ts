@@ -32,6 +32,10 @@ export function bindCommandMacro(input: string, macro: ParserCommandMacro, optio
 	if (diagnostics.length) return { diagnostics, tokens: lexed.arguments };
 	const groupId = options.groupId ?? `macro:${macro.macroId}:${Date.now()}`;
 	const cellRef = options.cellRef ?? `${groupId}:root`;
+	const proseArgument = macro.arguments.find((argument) => argument.extraction.kind === "prose");
+	const proseSpec = proseArgument?.extraction.kind === "prose" ? proseArgument.extraction : undefined;
+	if (lexed.prose && !proseArgument) diagnostics.push({ message: "explicit prose boundary requires a prose argument" });
+	if (diagnostics.length) return { diagnostics, tokens: lexed.arguments };
 	const operations = [];
 	for (const [index, argument] of macro.arguments.entries()) {
 		const token = argumentsById.get(argument.argumentId);
@@ -46,5 +50,5 @@ export function bindCommandMacro(input: string, macro: ParserCommandMacro, optio
 		operations.push({ operationId: `${groupId}:${argument.argumentId}`, groupId, cellRef, targetSchema: argument.target.targetSchema, targetPath: argument.target.targetPath, rawValue: token.rawText, value: value.value, sourceLine: options.sourceLine ?? 1, sourceArgument: index, evidence: value.evidence });
 	}
 	if (diagnostics.length) return { diagnostics, tokens: lexed.arguments };
-	return { tokens: lexed.arguments, diagnostics: [], plan: { cellRef, targetSchema: macro.root.targetSchema, rootTarget: macro.root.targetPath, operations } };
+	return { tokens: lexed.arguments, diagnostics: [], plan: { cellRef, targetSchema: macro.root.targetSchema, rootTarget: macro.root.targetPath, operations, proseRegion: lexed.prose && proseArgument && proseSpec ? { ...lexed.prose, targetSchema: proseSpec.targetSchema } : undefined } };
 }

@@ -1,6 +1,6 @@
 import type { ParserCommandMacro, ParserCommandMacroStore } from "../../store/parser/command-macros/interfaces";
 import { bindCommandMacro } from "./command-macro-binder";
-import type { CommandMacroCellPlan, CommandMacroGraphPlan, CommandMacroLinkOperation } from "./command-macro-ir";
+import { buildCommandMacroCompatibilitySignature, type CommandMacroCellPlan, type CommandMacroGraphPlan, type CommandMacroLinkOperation } from "./command-macro-ir";
 
 export interface CommandMacroGraphDiagnostic { line?: number; macroName?: string; message: string }
 
@@ -52,6 +52,7 @@ export async function planCommandMacroBatch(
 		const result = bindCommandMacro(line, macro, { groupId, cellRef: `${options.cellRefPrefix ?? groupId}:line:${lineIndex + 1}`, sourceLine: lineIndex + 1 });
 		for (const diagnostic of result.diagnostics) diagnostics.push({ line: lineIndex + 1, macroName, message: diagnostic.message });
 		if (result.plan) resolved.push({ macro, plan: result.plan, line: lineIndex + 1 });
+		if (result.plan) { result.plan.macroDefinitionId = macro.macroId; result.plan.macroDefinitionVersion = macro.version; }
 	}
 	if (diagnostics.length) return { diagnostics };
 	const definitions = new Map(resolved.map((entry) => [entry.macro.macroName, entry.macro]));
@@ -76,6 +77,7 @@ export async function planCommandMacroBatch(
 			definitionIds: [...new Set(resolved.map((entry) => entry.macro.macroId))],
 			definitionVersions: Object.fromEntries(resolved.map((entry) => [entry.macro.macroId, entry.macro.version])),
 			diagnostics: [],
+			compatibilitySignature: buildCommandMacroCompatibilitySignature(resolved.map((entry) => entry.plan), links),
 		},
 	};
 }

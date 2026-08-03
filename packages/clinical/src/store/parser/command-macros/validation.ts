@@ -52,6 +52,13 @@ function validateBounds(bounds: NumericBounds | undefined, path: string, diagnos
 	if (bounds.min !== undefined && bounds.max !== undefined && bounds.min > bounds.max) diagnostics.push({ path, message: "minimum cannot exceed maximum" });
 }
 
+function validateBoundary(boundary: { maxLeft?: number; maxRight?: number; maxCharacters?: number; maxWords?: number; maxSentences?: number; maxParagraphs?: number } | undefined, path: string, diagnostics: CommandMacroValidationDiagnostic[]): void {
+	if (!boundary) return;
+	for (const [key, value] of Object.entries(boundary)) {
+		if (key.startsWith("max") && value !== undefined && (!Number.isFinite(value) || value < 0)) diagnostics.push({ path: `${path}.${key}`, message: "boundary limits must be finite and non-negative" });
+	}
+}
+
 function validateSpec(spec: CommandMacroValueSpec, path: string, diagnostics: CommandMacroValidationDiagnostic[]): void {
 	switch (spec.kind) {
 		case "concept":
@@ -93,6 +100,8 @@ export function validateParserCommandMacro(macro: ParserCommandMacro): CommandMa
 	if (!macro.macroName.trim()) diagnostics.push({ path: "macroName", message: "macroName is required" });
 	if (!Number.isInteger(macro.version) || macro.version < 1) diagnostics.push({ path: "version", message: "version must be a positive integer" });
 	if (!macro.root.roleName || !macro.root.targetSchema) diagnostics.push({ path: "root", message: "root roleName and targetSchema are required" });
+	validateBoundary(macro.boundary, "boundary", diagnostics);
+	if (macro.renderers && macro.renderers.preview.version !== 1) diagnostics.push({ path: "renderers.preview.version", message: "unsupported preview renderer version" });
 	const childNames = new Set<string>();
 	for (const [index, child] of (macro.children ?? []).entries()) {
 		if (!child.childMacroName.trim()) diagnostics.push({ path: `children[${index}]`, message: "child macro name is required" });
@@ -121,6 +130,7 @@ export function validateParserCommandMacro(macro: ParserCommandMacro): CommandMa
 		ids.add(argument.argumentId);
 		if (!argument.name.trim() || !argument.roleName.trim()) diagnostics.push({ path, message: "argument name and roleName are required" });
 		if (!argument.target.targetSchema || !argument.target.targetPath) diagnostics.push({ path: `${path}.target`, message: "target schema and path are required" });
+		validateBoundary(argument.boundary, `${path}.boundary`, diagnostics);
 		validateSpec(argument.extraction, `${path}.extraction`, diagnostics);
 	}
 	return diagnostics;

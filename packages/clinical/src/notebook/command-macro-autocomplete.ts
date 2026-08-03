@@ -31,6 +31,19 @@ export async function getCommandMacroAutocomplete(
 		.map(suggestion);
 }
 
+export async function getCommandMacroContextualAutocomplete(
+	partial: string,
+	store: ParserCommandMacroStore,
+	context?: { personnelId?: string; profileId?: string },
+): Promise<AutocompleteSuggestion[]> {
+	const text = partial.trimStart();
+	const words = text.split(/\s+/);
+	const macroName = (words[0] ?? "").replace(/^\^/, "");
+	if (words.length <= 1) return getCommandMacroAutocomplete(partial, store, context);
+	const macro = await store.get(macroName, context);
+	return macro ? getMacroArgumentAutocomplete(macro, text) : [];
+}
+
 export function getMacroArgumentAutocomplete(macro: ParserCommandMacro, input: string): AutocompleteSuggestion[] {
 	const current = input.trim().split(/\s+/).at(-1) ?? "";
 	const normalized = current.toLocaleLowerCase();
@@ -50,4 +63,25 @@ export function renderMacroAuthoringSuggestion(
 	if (!macro.authoringTemplate) return undefined;
 	const rendered = renderCommandMacroTemplate(macro.authoringTemplate, values);
 	return { text: rendered.text, activeSlot: nextEmptyMacroSlot(rendered.slots) };
+}
+
+export interface CompatibleMacroSuggestion {
+	macro: ParserCommandMacro;
+	compatibility: "declared-child" | "same-target-schema";
+	staticReason: string;
+}
+
+/** Deterministic eligibility projection for future learning-based ranking. */
+export async function getCompatibleCommandMacros(
+	current: ParserCommandMacro,
+	store: ParserCommandMacroStore,
+	context?: { personnelId?: string; profileId?: string },
+): Promise<CompatibleMacroSuggestion[]> {
+	const declaredChildren = new Set((current.children ?? []).map((child) => child.childMacroName));
+	const macros = await store.list(context);
+	return macros.flatMap<CompatibleMacroSuggestion>((macro) => {
+		if (declaredChildren.has(macro.macroName)) return [{ macro, compatibility: "declared-child", staticReason: "declared child macro" }];
+		if (macro.root.targetSchema === current.root.targetSchema && macro.macroId !== current.macroId) return [{ macro, compatibility: "same-target-schema", staticReason: "same target schema" }];
+		return [];
+	});
 }

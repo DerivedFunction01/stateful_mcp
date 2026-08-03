@@ -1,4 +1,5 @@
 import { CellList } from "../../../components/CellList";
+import { Text } from "ink";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
 import { StatusBar } from "../../../components/StatusBar";
@@ -11,6 +12,8 @@ import type {
 } from "../../editor";
 import type { NotebookDocumentPort } from "./document";
 import type { NotebookDomainPort } from "./domain";
+import type { CommandMacroPreview } from "@stateful-mcp/clinical/parser/command/command-macro-preview";
+import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 
 export interface NotebookWindowDeps {
 	document: NotebookDocumentPort;
@@ -25,6 +28,8 @@ export interface NotebookWindowDeps {
 	defaultSection?: string;
 	defaultSchema?: string | null;
 	message?: string | null;
+	macroPreview?: CommandMacroPreview | null;
+	macroSuggestions?: AutocompleteSuggestion[];
 }
 
 /**
@@ -69,10 +74,11 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 
 			if (deps.editorState.mode === "COMMAND" || deps.editorState.mode === "MACRO") {
 				const commandLine = deps.editorState.draftText;
-				const suggestions = deps.catalog.getSuggestions(
+				const catalogSuggestions = deps.catalog.getSuggestions(
 					commandLine.slice(1),
 					context,
 				);
+				const suggestions = deps.editorState.mode === "MACRO" && deps.macroSuggestions ? deps.macroSuggestions : catalogSuggestions;
 				const highlightedCandidate =
 					deps.editorState.completion.status === "cycling"
 						? (deps.editorState.completion.candidates[
@@ -101,6 +107,17 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								completionPrefix={completionPrefix}
 							/>
 						);
+					},
+				});
+			}
+
+			if (deps.editorState.mode === "MACRO" && deps.macroPreview) {
+				regions.push({
+					slot: "command",
+					key: "macro-preview",
+					render() {
+						const output = deps.macroPreview?.rendered?.map((line) => `L${line.line} ${line.text} [${line.status}]`).join(" | ");
+						return <Text dimColor>{output || deps.macroPreview?.diagnostics.join("; ") || deps.macroPreview?.status}</Text>;
 					},
 				});
 			}

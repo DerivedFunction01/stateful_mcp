@@ -1,4 +1,5 @@
 import { Box, useInput } from "ink";
+import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
 import { type ReactElement, useReducer } from "react";
 import {
 	type CommandCatalog,
@@ -31,6 +32,7 @@ export interface WindowContainerProps {
 	onOverlayAction?: (action: WindowOverlayAction) => void;
 	/** Renders the content for an active overlay (window-specific). */
 	renderOverlay?: (overlay: WindowOverlay) => ReactElement | null;
+	completionProvider?: (partial: string) => AutocompleteSuggestion[];
 }
 
 /**
@@ -53,6 +55,7 @@ export function WindowContainer({
 	overlay = null,
 	onOverlayAction,
 	renderOverlay,
+	completionProvider,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -140,6 +143,13 @@ export function WindowContainer({
 			if (key.return && key.ctrl) { emit({ type: "SUBMIT_MACRO" }); return; }
 			if (key.return) { emit({ type: "NEWLINE" }); return; }
 			if (key.backspace) { emit({ type: "BACKSPACE" }); return; }
+			if (key.tab && completionProvider) {
+				const transition = reduceCompletion(current.completion, { kind: "tab", shift: Boolean(key.shift) }, current.draftText, completionProvider);
+				emit({ type: "SET_COMPLETION", completion: transition.completionState });
+				if (transition.committedLine) emit({ type: "COMMIT_COMPLETION", line: transition.committedLine });
+				else if (transition.shouldAppend) emit({ type: "INSERT_TEXT", text: transition.shouldAppend });
+				return;
+			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) { emit({ type: "INSERT_TEXT", text: _input }); }
 			return;
 		}

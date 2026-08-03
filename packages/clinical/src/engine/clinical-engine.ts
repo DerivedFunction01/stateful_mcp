@@ -1191,6 +1191,30 @@ export class ClinicalEngine {
 			else if (link.mergeStrategy === "deep_merge" && existing && typeof existing === "object" && !Array.isArray(existing)) current[key] = { ...existing, ref: link.childRef };
 			else current[key] = link.childRef;
 		}
+		const eventBatch = [
+			...graph.plans.flatMap((plan) => plan.operations.map((operation) => ({
+				type: "macro_operation",
+				macroBatchId: graph.groupId,
+				operationId: operation.operationId,
+				targetSchema: operation.targetSchema,
+				targetPath: operation.targetPath,
+				value: operation.value,
+				sourceLine: operation.sourceLine,
+			}))),
+			...graph.links.map((link) => ({
+				type: "macro_link",
+				macroBatchId: graph.groupId,
+				linkId: link.linkId,
+				parentRef: link.parentRef,
+				childRef: link.childRef,
+				parentTargetPath: link.parentTargetPath,
+				mergeStrategy: link.mergeStrategy,
+				sourceLine: link.sourceLine,
+			})),
+		];
+		if (eventBatch.length) {
+			await this.eventStore.appendBatch(sessionId, effectiveAlias, eventBatch, effectiveAlias, graph.groupId);
+		}
 		await this.objectStore.set(effectiveAlias, [], note, sessionId);
 		return { generatedCellIds: graph.plans.map((plan) => plan.cellRef) };
 	}

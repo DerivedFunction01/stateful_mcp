@@ -127,5 +127,7 @@ export interface Cell {
 		generatedCellIds?: string[];
 		status: "draft" | "preview" | "pending_commit" | "committed" | "error";
 		provenance?: { sourceMacroCellId: string; macroBatchId: string; macroLine: number; macroDefinitionId: string }[];
+		compatibilitySignature?: string;
+		executionTrace?: import("../parser/command/command-macro-ir").CommandMacroExecutionTrace[];
 	};
 }

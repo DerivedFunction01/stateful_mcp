@@ -1,6 +1,7 @@
 import type { Cell } from "../session/cell";
 import type { EditorMode } from "../session/editor-mode";
 import type { PreviewCandidate } from "../session/preview-candidate";
+import type { CommandMacroPreview } from "../parser/command/command-macro-preview";
 
 export type ExecutionPolicy = "execute" | "preview";
 
@@ -24,6 +25,7 @@ export interface NotebookState {
 	persistedAuthoredRevision: number;
 	sessionMode: ExecutionPolicy;
 	preview: PreviewCandidate | null;
+	macroPreview: CommandMacroPreview | null;
 	commandLine: string;
 	commandHistory: string[];
 	commandHistoryIndex: number;
@@ -44,6 +46,7 @@ export interface NotebookState {
 export type NotebookAction =
 	| { type: "SET_CELLS"; cells: Cell[] }
 	| { type: "SET_DRAFT_TEXT"; text: string }
+	| { type: "SET_MACRO_TEXT"; text: string }
 	| { type: "MOVE_CURSOR"; delta: number }
 	| { type: "SET_ACTIVE_INDEX"; index: number }
 	| { type: "ENTER_INSERT_MODE" }
@@ -60,6 +63,7 @@ export type NotebookAction =
 	| { type: "SET_SESSION_MODE"; mode: ExecutionPolicy }
 	| { type: "SET_PREVIEW"; preview: PreviewCandidate }
 	| { type: "CLEAR_PREVIEW" }
+	| { type: "SET_MACRO_PREVIEW"; preview: CommandMacroPreview | null }
 	| { type: "ENTER_COMMAND_MODE" }
 	| { type: "ENTER_MACRO_MODE" }
 	| { type: "EXIT_MACRO_MODE" }
@@ -125,7 +129,8 @@ export const INITIAL_NOTEBOOK_STATE: NotebookState = {
 	authoredRevision: 0,
 	persistedAuthoredRevision: 0,
 	sessionMode: "execute",
-	preview: null,
+		preview: null,
+		macroPreview: null,
 	commandLine: "",
 	commandHistory: [],
 	commandHistoryIndex: -1,
@@ -160,6 +165,9 @@ export function rawNotebookReducer(
 				lastEditCellId: activeCell?.cellId ?? state.lastEditCellId,
 			};
 		}
+
+		case "SET_MACRO_TEXT":
+			return { ...state, draftText: action.text, mode: "MACRO", dirty: true, authoredRevision: state.authoredRevision + 1 };
 
 		case "MOVE_CURSOR": {
 			const newIdx = clampIndex(
@@ -317,6 +325,9 @@ export function rawNotebookReducer(
 
 		case "CLEAR_PREVIEW":
 			return { ...state, preview: null };
+
+		case "SET_MACRO_PREVIEW":
+			return { ...state, macroPreview: action.preview };
 
 		case "ENTER_COMMAND_MODE":
 			return {

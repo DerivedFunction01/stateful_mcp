@@ -1,5 +1,5 @@
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import { getCommandMacroAutocomplete } from "@stateful-mcp/clinical/notebook/command-macro-autocomplete";
+import { getCommandMacroContextualAutocomplete } from "@stateful-mcp/clinical/notebook/command-macro-autocomplete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveCompletionSession } from "../lib/editor/completion-state";
 
@@ -36,7 +36,7 @@ export function useEngineCompletion({
 			setLoading(true);
 			const timer = setTimeout(async () => {
 				try {
-					const suggestions = await getCommandMacroAutocomplete(prefix, macroStore as any, macroContext);
+					const suggestions = await getCommandMacroContextualAutocomplete(prefix, macroStore as any, macroContext);
 					if (lastRequestRef.current === prefix) setEngineCandidates(suggestions);
 				} catch { if (lastRequestRef.current === prefix) setEngineCandidates([]); }
 				finally { if (lastRequestRef.current === prefix) setLoading(false); }

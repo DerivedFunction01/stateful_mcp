@@ -1,6 +1,7 @@
 import { useApp } from "ink";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useEngineCompletion } from "../hooks/useEngineCompletion";
+import { useCommandMacroPreview } from "../hooks/useCommandMacroPreview";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import type {
@@ -160,13 +161,21 @@ export function Notebook() {
 
 	const { loading, engineCandidates, mergedCandidates } = useEngineCompletion({
 		mode: state.mode,
-		commandLine: state.commandLine,
+		commandLine: state.mode === "MACRO" ? state.draftText : state.commandLine,
 		catalog,
 		context,
 		engine: session?.result?.engine,
 		staticCandidates,
 		macroStore: session?.result.runtime.parserStores.commandMacros,
 	});
+	const { preview: macroPreview } = useCommandMacroPreview({
+		mode: state.mode,
+		input: state.draftText,
+		store: session?.result.runtime.parserStores.commandMacros,
+	});
+	useEffect(() => {
+		dispatch({ type: "SET_MACRO_PREVIEW", preview: macroPreview });
+	}, [macroPreview, dispatch]);
 
 	// Sync engine suggestions ref
 	useEffect(() => {
@@ -175,7 +184,7 @@ export function Notebook() {
 
 	// Sync completion state with loading/engineCandidates
 	useEffect(() => {
-		if (state.mode === "COMMAND" && completion.status === "cycling") {
+		if ((state.mode === "COMMAND" || state.mode === "MACRO") && completion.status === "cycling") {
 			setCompletion((prev) => {
 				if (prev.status !== "cycling") return prev;
 				return {
@@ -413,7 +422,8 @@ export function Notebook() {
 				dispatch({ type: "COMMAND_HISTORY_NEXT" });
 				return;
 			case "COMMIT_COMPLETION":
-				dispatch({ type: "COMMAND_SET", text: action.line });
+				if (state.mode === "MACRO") dispatch({ type: "SET_MACRO_TEXT", text: action.line });
+				else dispatch({ type: "COMMAND_SET", text: action.line });
 				return;
 			case "SHOW_HELP":
 				setShowHelp(true);
@@ -447,6 +457,8 @@ export function Notebook() {
 		defaultSection: state.defaultSection,
 		defaultSchema: state.defaultSchema,
 		message: state.message,
+		macroPreview: state.macroPreview,
+		macroSuggestions: mergedCandidates,
 	});
 
 	const containerDomain = {
@@ -493,6 +505,7 @@ export function Notebook() {
 			overlay={overlay}
 			onOverlayAction={onOverlayAction}
 			renderOverlay={renderOverlay}
+			completionProvider={() => mergedCandidates}
 		/>
 	);
 }

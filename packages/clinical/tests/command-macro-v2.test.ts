@@ -12,6 +12,11 @@ import { assignMacroSlot, renderCommandMacroTemplate } from "../src/parser/comma
 import { renderCommandMacroTargets } from "../src/parser/command/command-macro-renderer";
 import { evaluateMacroBoundary, evaluateMacroEnvelope } from "../src/parser/command/command-macro-boundary";
 import { CommandMacroQueryCompiler } from "../src/store/sql/command-macro-query-compiler";
+import { createCommandMacroPreviewController } from "../src/parser/command/command-macro-preview";
+import { getCommandMacroContextualAutocomplete } from "../src/notebook/command-macro-autocomplete";
+import { getCompatibleCommandMacros } from "../src/notebook/command-macro-autocomplete";
+import { CellProcessor } from "../src/session/cell-processor";
+import type { Cell } from "../src/session/cell";
 import type { ParserCommandMacro } from "../src/store/parser/command-macros/interfaces";
 
 const macro: ParserCommandMacro = {
@@ -186,5 +191,101 @@ describe("command macro v2 foundation", () => {
 		expect(query.params).toContain("cc");
 		expect(query.params).toContain("p1");
 		expect(query.params).toContain("profile");
+	});
+
+	test("debounces preview requests and resolves stale work as null", async () => {
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(macro);
+		const controller = createCommandMacroPreviewController(store, 1);
+		const stale = controller.request("^cc SOB 4");
+		const current = controller.request("^cc SOB 5");
+		expect(await stale).toBeNull();
+		expect((await current)?.status).toBe("preview");
+		controller.cancel();
+	});
+
+	test("cancels a pending preview without querying after cancellation", async () => {
+		let queried = false;
+		const store = { list: async () => { queried = true; return [macro]; }, get: async () => null, set: async () => undefined, delete: async () => undefined };
+		const controller = createCommandMacroPreviewController(store, 10);
+		const request = controller.request("^cc SOB");
+		controller.cancel();
+		expect(await request).toBeNull();
+		expect(queried).toBe(false);
+	});
+
+	test("switches autocomplete from macro names to declared argument slots", async () => {
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(macro);
+		const suggestions = await getCommandMacroContextualAutocomplete("^cc se", store);
+		expect(suggestions.map((item) => item.verb)).toEqual(["severity="]);
+	});
+
+	test("requires an explicit prose argument for a prose boundary", () => {
+		const proseMacro: ParserCommandMacro = { ...macro, proseBoundaryToken: "||" };
+		const result = bindCommandMacro("^cc SOB || unrelated prose", proseMacro);
+		expect(result.diagnostics.some((item) => item.message.includes("prose argument"))).toBe(true);
+	});
+
+	test("preserves explicit prose regions when declared", () => {
+		const proseMacro: ParserCommandMacro = {
+			...macro,
+			proseBoundaryToken: "||",
+			arguments: [...macro.arguments, { argumentId: "history", name: "history", roleName: "history.context", target: { targetSchema: "History", targetPath: "text" }, extraction: { kind: "prose", targetSchema: "History", parser: "legacy_cdsl" } }],
+		};
+		const result = bindCommandMacro("^cc SOB || unrelated prose", proseMacro);
+		expect(result.diagnostics).toEqual([]);
+		expect(result.plan?.proseRegion?.rawText).toBe("unrelated prose");
+	});
+
+	test("exposes static compatible macro candidates without learning scores", async () => {
+		const current: ParserCommandMacro = { ...macro, children: [{ childMacroName: "qualifier", parentRoleName: "subjective.presenting_complaint", parentTargetPath: "qualifiers", mergeStrategy: "append" }] };
+		const compatible: ParserCommandMacro = { ...macro, macroId: "qualifier-v1", macroName: "qualifier" };
+		const unrelated: ParserCommandMacro = { ...macro, macroId: "other-v1", macroName: "other", root: { ...macro.root, targetSchema: "OtherEvent" } };
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(current);
+		await store.set(compatible);
+		await store.set(unrelated);
+		const result = await getCompatibleCommandMacros(current, store);
+		expect(result.map((item) => item.macro.macroName)).toEqual(["qualifier"]);
+		expect(result.find((item) => item.macro.macroName === "qualifier")?.compatibility).toBe("declared-child");
+	});
+
+	test("persists generated cells with macro provenance and compensates on failure", async () => {
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(macro);
+		const saved = new Map<string, Cell>();
+		const cellStore = {
+			get: async (id: string) => saved.get(id) ?? null,
+			list: async () => [...saved.values()],
+			listByCollection: async () => [...saved.values()],
+			save: async (cell: Cell) => { saved.set(cell.cellId, structuredClone(cell)); },
+			delete: async (id: string) => { saved.delete(id); },
+		};
+		const executor = {
+			applyMacroGraph: async () => ({}),
+		};
+		const processor = new CellProcessor(executor as any, undefined, undefined, undefined, cellStore as any, undefined, store);
+		const cell = {
+			cellId: "macro-cell", sessionId: "session", collection: { kind: "notebook", collectionId: "session" }, intentKind: "macro_command", mode: "macro", rawInput: "^cc SOB 4", routing: { scope: "global", targetSchema: null }, parsedOutput: null, status: "pending_commit", updatedAt: new Date().toISOString(), context: { objects: {} }, macro: { batchId: "batch", definitionIds: [], status: "pending_commit" },
+		} as Cell;
+		const result = await processor.execute(cell);
+		expect(result.error).toBeUndefined();
+		expect(result.cell.macro?.generatedCellIds).toHaveLength(1);
+		const generated = await cellStore.get(result.cell.macro!.generatedCellIds![0]!);
+		expect(generated?.metadata).toMatchObject({ macroGenerated: true, sourceMacroCellId: "macro-cell" });
+		expect(generated?.status).toBe("committed");
+	});
+
+	test("removes pending generated cells when graph application fails", async () => {
+		const store = new KvParserCommandMacroStore(new MemoryKvBackend());
+		await store.set(macro);
+		const saved = new Map<string, Cell>();
+		const cellStore = { get: async (id: string) => saved.get(id) ?? null, list: async () => [...saved.values()], listByCollection: async () => [...saved.values()], save: async (cell: Cell) => { saved.set(cell.cellId, structuredClone(cell)); }, delete: async (id: string) => { saved.delete(id); } };
+		const processor = new CellProcessor({ applyMacroGraph: async () => { throw new Error("transaction failed"); } } as any, undefined, undefined, undefined, cellStore as any, undefined, store);
+		const cell = { cellId: "macro-fail", sessionId: "session", collection: { kind: "notebook", collectionId: "session" }, intentKind: "macro_command", mode: "macro", rawInput: "^cc SOB 4", routing: { scope: "global", targetSchema: null }, parsedOutput: null, status: "pending_commit", updatedAt: new Date().toISOString(), context: { objects: {} }, macro: { batchId: "batch-fail", definitionIds: [], status: "pending_commit" } } as Cell;
+		const result = await processor.execute(cell);
+		expect(result.error?.message).toBe("transaction failed");
+		expect([...saved.keys()].every((id) => id === "macro-fail")).toBe(true);
 	});
 });

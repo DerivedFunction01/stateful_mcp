@@ -306,6 +306,103 @@ export class EventStore {
 		return finalId;
 	}
 
+	/**
+	 * Appends several add mutations as one commit. All records are schema and
+	 * reference validated before the commit is created, so callers never get a
+	 * partially appended batch from validation or external projection failure.
+	 */
+	async appendBatch(
+		sessionId: string,
+		idOrAlias: string,
+		data: readonly Record<string, any>[],
+		alias?: string,
+		idempotencyKey?: string,
+	): Promise<{ commitId: string; eventIds: string[] }> {
+		if (!data.length) throw new Error("Event batch must contain at least one record");
+		const resolvedId = await this.resolveId(idOrAlias, sessionId);
+		const parent = await this.session.get(sessionId, resolvedId);
+		if (!parent) {
+			throw new StatefulFrameworkError(
+				ErrorCode.OBJECT_NOT_FOUND,
+				`Parent commit "${idOrAlias}" not found`,
+			);
+		}
+		if (idempotencyKey) {
+			const existing = await this.project(resolvedId, sessionId);
+			const matching = existing.filter((record) => record.macroBatchId === idempotencyKey);
+			if (matching.length === data.length && matching.length > 0) {
+				return { commitId: resolvedId, eventIds: matching.map((record) => record.event_id) };
+			}
+		}
+		const schemaName = await this.getSchemaName(resolvedId, sessionId);
+		const schema = this.schemas.get(schemaName);
+		const eventIds = data.map(() => `ev_${Math.random().toString(36).slice(2, 10)}`);
+		if (schema) {
+			const validate = ajv.compile(schema);
+			for (const record of data) {
+				if (!validate(record)) {
+					throw new StatefulFrameworkError(
+						ErrorCode.OBJECT_VALIDATION_FAILED,
+						`Event data fails schema validation: ${JSON.stringify(validate.errors)}`,
+					);
+				}
+				try {
+					await validateStateReferences(schema, record, sessionId, {
+						filter: this.filterStore,
+						object: this.objectStore,
+						form: this.formStore,
+					});
+				} catch (err: any) {
+					throw new StatefulFrameworkError(
+						ErrorCode.OBJECT_VALIDATION_FAILED,
+						`Event references validation failed: ${err.message || err}`,
+					);
+				}
+			}
+		}
+		const mutations: EventMutation[] = data.map((record, index) => ({
+			type: "add",
+			event_id: eventIds[index]!,
+			data: record,
+		}));
+		const currentArray = await this.project(resolvedId, sessionId);
+		await this.validateMutations(
+			schemaName,
+			[...currentArray, ...data.map((record, index) => ({ event_id: eventIds[index]!, ...record }))],
+			mutations,
+			sessionId,
+		);
+		const commitState: Omit<EventCommit, "commitId"> = {
+			sessionId,
+			parentCommitId: resolvedId,
+			createdAt: new Date().toISOString(),
+			operation: "add",
+			mutations,
+			linearDepth: (parent.linearDepth || 1) + 1,
+			gcLock: false,
+		};
+		const isAliasInput = (await this.session.getAlias(sessionId, idOrAlias)) !== null;
+		const targetAlias = alias || (isAliasInput ? idOrAlias : undefined);
+		const newId = await this.session.create(sessionId, commitState, targetAlias);
+		try {
+			await this.runEventValidation(newId, sessionId, schemaName);
+		} catch (error) {
+			await this.session.delete(sessionId, newId);
+			if (targetAlias) await this.session.deleteAlias(sessionId, targetAlias);
+			throw error;
+		}
+		const commitId = targetAlias || newId;
+		eventBroker.emitStateChange({
+			service: "event",
+			action: "append",
+			sessionId,
+			id: commitId,
+			data: { parentCommitId: resolvedId, eventIds, data, mutations, batch: true },
+			timestamp: Date.now(),
+		});
+		return { commitId, eventIds };
+	}
+
 	async patch(
 		sessionId: string,
 		idOrAlias: string,

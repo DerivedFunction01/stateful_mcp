@@ -85,6 +85,53 @@ export async function runEventTests() {
 		"✓ Event schema validation and initialization verified successfully.",
 	);
 
+	// ──── TEST CASE 1B: Atomic Batch Append ────
+	console.log("\n🧪 Test Case 1B: Atomic Batch Append");
+	const batch = await eventStore.appendBatch(
+		sessionId,
+		"baseline",
+		[
+			{ type: "BatchA", value: 1, macroBatchId: "macro-retry" },
+			{ type: "BatchB", value: 2, macroBatchId: "macro-retry" },
+		],
+		"batch_tip",
+		"macro-retry",
+	);
+	if (batch.eventIds.length !== 2) throw new Error("Expected two batch event IDs");
+	const batchArray = await eventStore.project("batch_tip", sessionId);
+	if (!batchArray.some((event) => event.type === "BatchA") || !batchArray.some((event) => event.type === "BatchB")) {
+		throw new Error(`Batch projection mismatch: ${JSON.stringify(batchArray)}`);
+	}
+	const retry = await eventStore.appendBatch(
+		sessionId,
+		"batch_tip",
+		[
+			{ type: "BatchA", value: 1, macroBatchId: "macro-retry" },
+			{ type: "BatchB", value: 2, macroBatchId: "macro-retry" },
+		],
+		"batch_tip",
+		"macro-retry",
+	);
+	const retryAgain = await eventStore.appendBatch(
+		sessionId,
+		"batch_tip",
+		[
+			{ type: "BatchA", value: 1, macroBatchId: "macro-retry" },
+			{ type: "BatchB", value: 2, macroBatchId: "macro-retry" },
+		],
+		"batch_tip",
+		"macro-retry",
+	);
+	if (retry.commitId !== retryAgain.commitId || retry.eventIds.join() !== retryAgain.eventIds.join()) throw new Error("Batch retry must be idempotent");
+	try {
+		await eventStore.appendBatch(sessionId, "batch_tip", [{ type: "Valid", value: 3 }, { type: "Invalid" }], "invalid_batch");
+		throw new Error("Expected invalid batch to fail");
+	} catch (error: any) {
+		if (error.code !== "OBJECT_VALIDATION_FAILED") throw error;
+	}
+	if (await eventStore.getCommit("invalid_batch", sessionId)) throw new Error("Invalid batch must not create a commit");
+	console.log("✓ Batch validation and single-commit projection verified successfully.");
+
 	// ──── TEST CASE 2: Mutation Projection (Add, Patch, Delete) ────
 	console.log("\n🧪 Test Case 2: Mutation Projection (Add, Patch, Delete)");
 

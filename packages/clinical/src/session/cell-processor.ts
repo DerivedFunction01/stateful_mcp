@@ -10,6 +10,7 @@ import type { Cell } from "./cell";
 import type { ParserCommandMacroStore } from "../store/parser/command-macros/interfaces";
 import { planCommandMacroBatch } from "../parser/command/command-macro-graph";
 import { renderCommandMacroTargets, type CommandMacroRenderValue } from "../parser/command/command-macro-renderer";
+import type { CommandMacroCellPlan } from "../parser/command/command-macro-ir";
 import { CELL_ERROR_MESSAGES, CellError } from "./cell";
 import type { CellCommandContext } from "./cell-command";
 import { CellCommandParser } from "./cell-command-parser";
@@ -91,6 +92,45 @@ export class CellProcessor {
 		private commandMacroStore?: ParserCommandMacroStore,
 	) {}
 
+	private buildMacroGeneratedCells(cell: Cell, plans: readonly CommandMacroCellPlan[]): Cell[] {
+		const generatedIds = new Map(plans.map((plan, index) => [plan.cellRef, `macro-generated:${cell.cellId}:${index}`]));
+		const now = new Date().toISOString();
+		return plans.map((plan, index) => {
+			const generatedCellId = generatedIds.get(plan.cellRef)!;
+			const parentCellId = plan.parentRef ? generatedIds.get(plan.parentRef) : undefined;
+			const firstOperation = plan.operations[0];
+			return {
+				cellId: generatedCellId,
+				sessionId: cell.sessionId,
+				collection: { ...cell.collection },
+				intentKind: "directed_value",
+				mode: "cdsl",
+				rawInput: plan.operations.map((operation) => operation.rawValue).join(" "),
+				routing: { scope: "global", targetSchema: plan.targetSchema, resolvedSchema: plan.targetSchema },
+				parsedOutput: null,
+				status: "pending_commit",
+				updatedAt: now,
+				parentCellId,
+				linkTarget: parentCellId && plan.linkTarget ? {
+					targetSchema: plan.targetSchema,
+					targetCellId: parentCellId,
+					targetField: plan.linkTarget.targetField,
+					mergeStrategy: plan.linkTarget.mergeStrategy,
+				} : undefined,
+				context: { objects: {}, sourceType: "manual_entry" },
+				metadata: {
+					macroGenerated: true,
+					sourceMacroCellId: cell.cellId,
+					macroBatchId: cell.macro?.batchId ?? cell.cellId,
+					macroLine: firstOperation?.sourceLine ?? index + 1,
+					macroDefinitionId: plan.macroDefinitionId,
+					macroDefinitionVersion: plan.macroDefinitionVersion,
+					operationIds: plan.operations.map((operation) => operation.operationId),
+				},
+			};
+		});
+	}
+
 	private async executeCommandMacro(cell: Cell): Promise<CellProcessResult | null> {
 		if (cell.mode !== "macro" && cell.intentKind !== "macro_command") return null;
 		if (!this.commandMacroStore) return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, "command macro store is not configured") };
@@ -129,7 +169,9 @@ export class CellProcessor {
 			await this.saveCell(cell);
 			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
 		}
+		const generatedCells = this.cellStore ? this.buildMacroGeneratedCells(cell, graphResult.graph!.plans) : [];
 		try {
+			for (const generatedCell of generatedCells) await this.cellStore!.save(generatedCell);
 			const graphApplication = this.documentExecutor.applyMacroGraph
 				? await this.documentExecutor.applyMacroGraph(cell.sessionId, graphResult.graph!, cell.sessionId)
 				: undefined;
@@ -139,11 +181,15 @@ export class CellProcessor {
 			}
 			cell.status = "committed";
 			cell.lockedAt = new Date().toISOString();
-			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "committed", preview: rendered, definitionIds: graphResult.graph!.definitionIds, definitionVersions: graphResult.graph!.definitionVersions, compiledPlan: graphResult.graph, generatedCellIds: graphApplication?.generatedCellIds };
+			const provenance = graphResult.graph!.plans.flatMap((plan) => plan.operations.map((operation) => ({ sourceMacroCellId: cell.cellId, macroBatchId: graphResult.graph!.groupId, macroLine: operation.sourceLine, macroDefinitionId: plan.macroDefinitionId ?? "" })));
+			const executionTrace = graphResult.graph!.plans.flatMap((plan) => plan.operations.map((operation) => ({ phase: "apply" as const, status: "completed" as const, operationId: operation.operationId, line: operation.sourceLine, createdAt: new Date().toISOString() })));
+			for (const generatedCell of generatedCells) { generatedCell.status = "committed"; generatedCell.updatedAt = new Date().toISOString(); await this.cellStore!.save(generatedCell); }
+			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "committed", preview: rendered, definitionIds: graphResult.graph!.definitionIds, definitionVersions: graphResult.graph!.definitionVersions, compiledPlan: graphResult.graph, generatedCellIds: generatedCells.map((generatedCell) => generatedCell.cellId), compatibilitySignature: graphResult.graph!.compatibilitySignature, provenance, executionTrace };
 			cell.metadata = { ...cell.metadata, macroOperations: graphResult.graph!.plans.reduce((count, plan) => count + plan.operations.length, 0), macroLinks: graphResult.graph!.links.length };
 			await this.saveCell(cell);
 			return { cell };
 		} catch (error) {
+			for (const generatedCell of generatedCells) { try { await this.cellStore?.delete(generatedCell.cellId); } catch { /* best-effort compensation */ } }
 			cell.status = "error";
 			cell.errorMessage = error instanceof Error ? error.message : String(error);
 			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "error", diagnostics: [cell.errorMessage] };
