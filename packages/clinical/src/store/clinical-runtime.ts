@@ -6,7 +6,6 @@ import {
 } from "./adapter-types";
 import type { ClinicalStoreConfig } from "./clinical-config";
 import type { ParserMacroStore } from "./interfaces";
-import type { ParserCommandMacroStore } from "./parser/command-macros/interfaces";
 import {
 	resolveAutocompleteTransitionStoreLocator,
 	resolveNgramStoreLocator,
@@ -19,6 +18,7 @@ import type {
 } from "./learning/interfaces";
 import { resolveParsedCellStoreLocatorV2 } from "./learning/learning-backend-resolver";
 import { resolveOrderedLearningStoreLocator } from "./learning/ordered-learning-resolver";
+import type { ParserCommandMacroStore } from "./parser/command-macros/interfaces";
 import type { ParserConceptDefaultStore as NewParserConceptDefaultStore } from "./parser/concept_defaults/interfaces";
 import type { ConceptFieldStore } from "./parser/concept_fields/interfaces";
 import {
@@ -48,6 +48,7 @@ import type {
 } from "./parser/rules/interfaces";
 import type { TagStore } from "./parser/tags/interfaces";
 import type { CalibrationExceptionStore } from "./reference/calibration/interfaces";
+import type { CommandTemplateStore } from "./reference/command-templates/interfaces";
 import type { FacilityStore } from "./reference/facilities/interfaces";
 import type { JurisdictionalDisplayStore } from "./reference/jurisdictional-displays/interfaces";
 import type { PersonnelStore } from "./reference/personnel/interfaces";
@@ -77,6 +78,7 @@ export interface ClinicalRuntimeParserStores {
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;
 	proseParserTemplates: ProseParserTemplateStore;
+	commandTemplates: CommandTemplateStore;
 	calibration: CalibrationExceptionStore;
 	personnel: PersonnelStore;
 	facilities: FacilityStore;
@@ -126,8 +128,8 @@ export async function createClinicalRuntime(
 		resolveFacilityStore(config),
 		resolveSharedFieldAnchorStore(config),
 		resolveStopWordWordListStore(config),
-			resolveMacroStore(config),
-			resolveCommandMacroStore(config),
+		resolveMacroStore(config),
+		resolveCommandMacroStore(config),
 		buildOrderedLearningStores(config),
 		buildAutocompleteTransitionStores(config),
 	]);
@@ -166,6 +168,7 @@ export async function createClinicalRuntime(
 			stopWordWordLists,
 			proseTemplates: refs.proseTemplates,
 			proseParserTemplates: refs.proseParserTemplates,
+			commandTemplates: refs.commandTemplates,
 			calibration,
 			personnel,
 			facilities,

@@ -318,7 +318,8 @@ export class EventStore {
 		alias?: string,
 		idempotencyKey?: string,
 	): Promise<{ commitId: string; eventIds: string[] }> {
-		if (!data.length) throw new Error("Event batch must contain at least one record");
+		if (!data.length)
+			throw new Error("Event batch must contain at least one record");
 		const resolvedId = await this.resolveId(idOrAlias, sessionId);
 		const parent = await this.session.get(sessionId, resolvedId);
 		if (!parent) {
@@ -329,14 +330,21 @@ export class EventStore {
 		}
 		if (idempotencyKey) {
 			const existing = await this.project(resolvedId, sessionId);
-			const matching = existing.filter((record) => record.macroBatchId === idempotencyKey);
+			const matching = existing.filter(
+				(record) => record.macroBatchId === idempotencyKey,
+			);
 			if (matching.length === data.length && matching.length > 0) {
-				return { commitId: resolvedId, eventIds: matching.map((record) => record.event_id) };
+				return {
+					commitId: resolvedId,
+					eventIds: matching.map((record) => record.event_id),
+				};
 			}
 		}
 		const schemaName = await this.getSchemaName(resolvedId, sessionId);
 		const schema = this.schemas.get(schemaName);
-		const eventIds = data.map(() => `ev_${Math.random().toString(36).slice(2, 10)}`);
+		const eventIds = data.map(
+			() => `ev_${Math.random().toString(36).slice(2, 10)}`,
+		);
 		if (schema) {
 			const validate = ajv.compile(schema);
 			for (const record of data) {
@@ -368,7 +376,13 @@ export class EventStore {
 		const currentArray = await this.project(resolvedId, sessionId);
 		await this.validateMutations(
 			schemaName,
-			[...currentArray, ...data.map((record, index) => ({ event_id: eventIds[index]!, ...record }))],
+			[
+				...currentArray,
+				...data.map((record, index) => ({
+					event_id: eventIds[index]!,
+					...record,
+				})),
+			],
 			mutations,
 			sessionId,
 		);
@@ -381,9 +395,14 @@ export class EventStore {
 			linearDepth: (parent.linearDepth || 1) + 1,
 			gcLock: false,
 		};
-		const isAliasInput = (await this.session.getAlias(sessionId, idOrAlias)) !== null;
+		const isAliasInput =
+			(await this.session.getAlias(sessionId, idOrAlias)) !== null;
 		const targetAlias = alias || (isAliasInput ? idOrAlias : undefined);
-		const newId = await this.session.create(sessionId, commitState, targetAlias);
+		const newId = await this.session.create(
+			sessionId,
+			commitState,
+			targetAlias,
+		);
 		try {
 			await this.runEventValidation(newId, sessionId, schemaName);
 		} catch (error) {
@@ -397,7 +416,13 @@ export class EventStore {
 			action: "append",
 			sessionId,
 			id: commitId,
-			data: { parentCommitId: resolvedId, eventIds, data, mutations, batch: true },
+			data: {
+				parentCommitId: resolvedId,
+				eventIds,
+				data,
+				mutations,
+				batch: true,
+			},
 			timestamp: Date.now(),
 		});
 		return { commitId, eventIds };

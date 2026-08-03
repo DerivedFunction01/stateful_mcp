@@ -30,16 +30,28 @@ export function useEngineCompletion({
 
 	useEffect(() => {
 		if (mode === "MACRO") {
-			if (!macroStore) { setLoading(false); setEngineCandidates([]); return; }
+			if (!macroStore) {
+				setLoading(false);
+				setEngineCandidates([]);
+				return;
+			}
 			const prefix = commandLine;
 			lastRequestRef.current = prefix;
 			setLoading(true);
 			const timer = setTimeout(async () => {
 				try {
-					const suggestions = await getCommandMacroContextualAutocomplete(prefix, macroStore as any, macroContext);
-					if (lastRequestRef.current === prefix) setEngineCandidates(suggestions);
-				} catch { if (lastRequestRef.current === prefix) setEngineCandidates([]); }
-				finally { if (lastRequestRef.current === prefix) setLoading(false); }
+					const suggestions = await getCommandMacroContextualAutocomplete(
+						prefix,
+						macroStore as any,
+						macroContext,
+					);
+					if (lastRequestRef.current === prefix)
+						setEngineCandidates(suggestions);
+				} catch {
+					if (lastRequestRef.current === prefix) setEngineCandidates([]);
+				} finally {
+					if (lastRequestRef.current === prefix) setLoading(false);
+				}
 			}, 150);
 			return () => clearTimeout(timer);
 		}

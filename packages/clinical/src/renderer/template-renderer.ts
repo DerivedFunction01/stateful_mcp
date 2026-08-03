@@ -1,4 +1,11 @@
-import { executePipeline } from "@stateful-mcp/core/src/translation/pipeline";
+import {
+	evaluateTranslationCondition,
+	executePipeline,
+	formatTranslationValue,
+	joinTranslationList,
+	normalizeTranslationInput,
+	resolveTranslationPath,
+} from "@stateful-mcp/core";
 import type {
 	ClinicalProseTemplate,
 	OutputProseSlot,
@@ -90,13 +97,9 @@ export class TemplateRenderer {
 			}
 
 			if (slot.transform?.pipeline) {
-				const pipelineInput =
-					typeof resolvedData === "object" && resolvedData !== null
-						? resolvedData
-						: { "": resolvedData };
 				const transformResult = executePipeline(
 					slot.transform.pipeline,
-					pipelineInput,
+					normalizeTranslationInput(resolvedData),
 					{},
 				);
 				slotValue = String(transformResult ?? "");
@@ -144,28 +147,11 @@ export class TemplateRenderer {
 	}
 
 	static resolvePath(context: any, path: string): any {
-		if (path === "$root" || path === "") return context;
-		const parts = path.split(".");
-		let current = context;
-		for (const part of parts) {
-			if (current === undefined || current === null) return undefined;
-			const index = Number.parseInt(part, 10);
-			if (!Number.isNaN(index)) {
-				current = current[index];
-			} else {
-				current = current[part];
-			}
-		}
-		return current;
+		return resolveTranslationPath(context, path);
 	}
 
 	static evaluateCondition(condition: SlotCondition, context: any): boolean {
-		const row =
-			typeof context === "object" && context !== null
-				? context
-				: { "": context };
-		const result = executePipeline(condition.pipeline, row, {});
-		return Boolean(result);
+		return evaluateTranslationCondition(condition.pipeline, context);
 	}
 
 	static resolveDelegate(
@@ -185,34 +171,13 @@ export class TemplateRenderer {
 	}
 
 	static formatValue(value: any, format?: string): string {
-		if (value === undefined || value === null) return "";
-		if (!format) {
-			return typeof value === "object" ? JSON.stringify(value) : String(value);
-		}
-		let output = format;
-		const tokens = TemplateRenderer.extractTokens(format);
-		for (const token of tokens) {
-			const propVal = TemplateRenderer.resolvePath(value, token);
-			output = output.replace(
-				`{${token}}`,
-				propVal !== undefined ? String(propVal) : "",
-			);
-		}
-		return output;
+		return formatTranslationValue(value, format);
 	}
 
 	static joinList(
 		items: string[],
 		options?: { delimiter: string; lastDelimiter?: string },
 	): string {
-		const cleanItems = items.filter((x) => x.trim().length > 0);
-		if (cleanItems.length === 0) return "";
-		if (cleanItems.length === 1) return cleanItems[0]!;
-		if (!options) return cleanItems.join(", ");
-		if (options.lastDelimiter && cleanItems.length > 1) {
-			const last = cleanItems.pop();
-			return `${cleanItems.join(options.delimiter)}${options.lastDelimiter}${last}`;
-		}
-		return cleanItems.join(options.delimiter);
+		return joinTranslationList(items, options);
 	}
 }

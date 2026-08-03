@@ -414,6 +414,7 @@ const SOAP_ROUTING_CONFIGS: Record<
 
 // ── Engine ───────────────────────────────────────────────────────────────────
 
+import type { CommandMacroGraphPlan } from "../parser/command/command-macro-ir";
 import type { EpistemicWorkspace } from "../schemas/epistemic";
 import type { CodeableConcept } from "../schemas/shared";
 import type { Cell } from "../session/cell";
@@ -425,7 +426,6 @@ import type {
 	WorkspaceSnapshot,
 } from "../session/workspace-read-model";
 import type { WorkspaceCommand, WorkspaceStore } from "./workspace-store";
-import type { CommandMacroGraphPlan } from "../parser/command/command-macro-ir";
 
 export interface ClinicalEngineConfig {
 	objectStore: ObjectStore;
@@ -1168,39 +1168,65 @@ export class ClinicalEngine {
 			if (!parts.length) throw new Error("Macro target path cannot be empty");
 			let current = note;
 			for (const part of parts.slice(0, -1)) {
-				if (current[part] === undefined || current[part] === null) current[part] = {};
-				if (typeof current[part] !== "object") throw new Error(`Macro target path is not traversable: ${path}`);
+				if (current[part] === undefined || current[part] === null)
+					current[part] = {};
+				if (typeof current[part] !== "object")
+					throw new Error(`Macro target path is not traversable: ${path}`);
 				current = current[part];
 			}
 			current[parts[parts.length - 1]!] = value;
 		};
-		for (const plan of graph.plans) for (const operation of plan.operations) setPath(operation.targetPath, operation.value);
+		for (const plan of graph.plans)
+			for (const operation of plan.operations)
+				setPath(operation.targetPath, operation.value);
 		for (const link of graph.links) {
 			const parts = link.parentTargetPath.split(".").filter(Boolean);
-			if (!parts.length) throw new Error(`Macro link '${link.linkId}' has an empty target path`);
+			if (!parts.length)
+				throw new Error(`Macro link '${link.linkId}' has an empty target path`);
 			let current = note;
 			for (const part of parts.slice(0, -1)) {
-				if (current[part] === undefined || current[part] === null) current[part] = {};
-				if (typeof current[part] !== "object") throw new Error(`Macro link target is not traversable: ${link.parentTargetPath}`);
+				if (current[part] === undefined || current[part] === null)
+					current[part] = {};
+				if (typeof current[part] !== "object")
+					throw new Error(
+						`Macro link target is not traversable: ${link.parentTargetPath}`,
+					);
 				current = current[part];
 			}
 			const key = parts[parts.length - 1]!;
 			const existing = current[key];
-			if (link.mergeStrategy === "append") current[key] = [...(Array.isArray(existing) ? existing : []), link.childRef];
-			else if (link.mergeStrategy === "partial_fill" && existing !== undefined && existing !== null) continue;
-			else if (link.mergeStrategy === "deep_merge" && existing && typeof existing === "object" && !Array.isArray(existing)) current[key] = { ...existing, ref: link.childRef };
+			if (link.mergeStrategy === "append")
+				current[key] = [
+					...(Array.isArray(existing) ? existing : []),
+					link.childRef,
+				];
+			else if (
+				link.mergeStrategy === "partial_fill" &&
+				existing !== undefined &&
+				existing !== null
+			)
+				continue;
+			else if (
+				link.mergeStrategy === "deep_merge" &&
+				existing &&
+				typeof existing === "object" &&
+				!Array.isArray(existing)
+			)
+				current[key] = { ...existing, ref: link.childRef };
 			else current[key] = link.childRef;
 		}
 		const eventBatch = [
-			...graph.plans.flatMap((plan) => plan.operations.map((operation) => ({
-				type: "macro_operation",
-				macroBatchId: graph.groupId,
-				operationId: operation.operationId,
-				targetSchema: operation.targetSchema,
-				targetPath: operation.targetPath,
-				value: operation.value,
-				sourceLine: operation.sourceLine,
-			}))),
+			...graph.plans.flatMap((plan) =>
+				plan.operations.map((operation) => ({
+					type: "macro_operation",
+					macroBatchId: graph.groupId,
+					operationId: operation.operationId,
+					targetSchema: operation.targetSchema,
+					targetPath: operation.targetPath,
+					value: operation.value,
+					sourceLine: operation.sourceLine,
+				})),
+			),
 			...graph.links.map((link) => ({
 				type: "macro_link",
 				macroBatchId: graph.groupId,
@@ -1213,7 +1239,13 @@ export class ClinicalEngine {
 			})),
 		];
 		if (eventBatch.length) {
-			await this.eventStore.appendBatch(sessionId, effectiveAlias, eventBatch, effectiveAlias, graph.groupId);
+			await this.eventStore.appendBatch(
+				sessionId,
+				effectiveAlias,
+				eventBatch,
+				effectiveAlias,
+				graph.groupId,
+			);
 		}
 		await this.objectStore.set(effectiveAlias, [], note, sessionId);
 		return { generatedCellIds: graph.plans.map((plan) => plan.cellRef) };

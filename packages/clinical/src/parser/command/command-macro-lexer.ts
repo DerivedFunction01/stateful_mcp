@@ -21,11 +21,15 @@ export interface CommandMacroLexResult {
 function unquote(value: string): string {
 	if (value.length < 2) return value;
 	const quote = value[0];
-	if ((quote !== '"' && quote !== "'") || value[value.length - 1] !== quote) return value;
+	if ((quote !== '"' && quote !== "'") || value[value.length - 1] !== quote)
+		return value;
 	return value.slice(1, -1).replace(/\\([\\"'])/g, "$1");
 }
 
-export function lexCommandMacro(input: string, macro?: ParserCommandMacro): CommandMacroLexResult {
+export function lexCommandMacro(
+	input: string,
+	macro?: ParserCommandMacro,
+): CommandMacroLexResult {
 	const diagnostics: CommandMacroLexResult["diagnostics"] = [];
 	const start = input.trimStart().startsWith("^") ? input.indexOf("^") + 1 : 0;
 	let cursor = start;
@@ -45,9 +49,12 @@ export function lexCommandMacro(input: string, macro?: ParserCommandMacro): Comm
 		const raw = input.slice(tokenStart, end).trim();
 		if (raw) {
 			const separator = raw.indexOf("=");
-			const explicit = separator > 0 && /^[A-Za-z_][\w-]*$/.test(raw.slice(0, separator));
+			const explicit =
+				separator > 0 && /^[A-Za-z_][\w-]*$/.test(raw.slice(0, separator));
 			tokens.push({
-				rawText: explicit ? unquote(raw.slice(separator + 1).trim()) : unquote(raw),
+				rawText: explicit
+					? unquote(raw.slice(separator + 1).trim())
+					: unquote(raw),
 				argumentId: explicit ? raw.slice(0, separator) : undefined,
 				source: "pasted",
 				explicit,
@@ -61,21 +68,60 @@ export function lexCommandMacro(input: string, macro?: ParserCommandMacro): Comm
 
 	for (; cursor < input.length; cursor++) {
 		const char = input[cursor] ?? "";
-		if (escaped) { escaped = false; if (tokenStart < 0) tokenStart = cursor; continue; }
-		if (char === "\\") { escaped = true; if (tokenStart < 0) tokenStart = cursor; continue; }
-		if (quote) { if (char === quote) quote = ""; if (tokenStart < 0) tokenStart = cursor; continue; }
-		if (char === '"' || char === "'") { quote = char; if (tokenStart < 0) tokenStart = cursor; continue; }
+		if (escaped) {
+			escaped = false;
+			if (tokenStart < 0) tokenStart = cursor;
+			continue;
+		}
+		if (char === "\\") {
+			escaped = true;
+			if (tokenStart < 0) tokenStart = cursor;
+			continue;
+		}
+		if (quote) {
+			if (char === quote) quote = "";
+			if (tokenStart < 0) tokenStart = cursor;
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			quote = char;
+			if (tokenStart < 0) tokenStart = cursor;
+			continue;
+		}
 		if (char === "[") depth++;
 		if (char === "]") depth = Math.max(0, depth - 1);
-		if (!depth && macro?.proseBoundaryToken && input.startsWith(macro.proseBoundaryToken, cursor)) {
+		if (
+			!depth &&
+			macro?.proseBoundaryToken &&
+			input.startsWith(macro.proseBoundaryToken, cursor)
+		) {
 			emit(cursor);
 			if (macro.boundary) {
-				const boundary = evaluateMacroEnvelope(input.slice(0, cursor), commandEnd, macro.boundary);
-				if (!boundary.accepted) diagnostics.push({ message: `macro envelope exceeded: ${boundary.reasons.join("; ")}`, start: commandEnd, end: cursor });
+				const boundary = evaluateMacroEnvelope(
+					input.slice(0, cursor),
+					commandEnd,
+					macro.boundary,
+				);
+				if (!boundary.accepted)
+					diagnostics.push({
+						message: `macro envelope exceeded: ${boundary.reasons.join("; ")}`,
+						start: commandEnd,
+						end: cursor,
+					});
 			}
-			return { macroName, arguments: tokens, prose: { rawText: input.slice(cursor + macro.proseBoundaryToken.length).trim(), start: cursor, end: input.length }, diagnostics };
+			return {
+				macroName,
+				arguments: tokens,
+				prose: {
+					rawText: input.slice(cursor + macro.proseBoundaryToken.length).trim(),
+					start: cursor,
+					end: input.length,
+				},
+				diagnostics,
+			};
 		}
-		const isConfiguredDelimiter = delimiter !== undefined && input.startsWith(delimiter, cursor);
+		const isConfiguredDelimiter =
+			delimiter !== undefined && input.startsWith(delimiter, cursor);
 		if (!quote && !depth && (isConfiguredDelimiter || /[\s,;]/.test(char))) {
 			emit(cursor);
 			if (isConfiguredDelimiter) cursor += delimiter.length - 1;
@@ -86,9 +132,24 @@ export function lexCommandMacro(input: string, macro?: ParserCommandMacro): Comm
 	emit(input.length);
 	if (macro?.boundary) {
 		const boundary = evaluateMacroEnvelope(input, commandEnd, macro.boundary);
-		if (!boundary.accepted) diagnostics.push({ message: `macro envelope exceeded: ${boundary.reasons.join("; ")}`, start: commandEnd, end: input.length });
+		if (!boundary.accepted)
+			diagnostics.push({
+				message: `macro envelope exceeded: ${boundary.reasons.join("; ")}`,
+				start: commandEnd,
+				end: input.length,
+			});
 	}
-	if (quote) diagnostics.push({ message: "unterminated quote", start: tokenStart < 0 ? input.length : tokenStart, end: input.length });
-	if (depth) diagnostics.push({ message: "unterminated grouped array", start: tokenStart < 0 ? input.length : tokenStart, end: input.length });
+	if (quote)
+		diagnostics.push({
+			message: "unterminated quote",
+			start: tokenStart < 0 ? input.length : tokenStart,
+			end: input.length,
+		});
+	if (depth)
+		diagnostics.push({
+			message: "unterminated grouped array",
+			start: tokenStart < 0 ? input.length : tokenStart,
+			end: input.length,
+		});
 	return { macroName, arguments: tokens, diagnostics };
 }

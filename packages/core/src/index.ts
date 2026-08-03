@@ -53,5 +53,6 @@ export * from "./storage/contracts";
 export * from "./storage/scoped-store";
 export * from "./storage/sync";
 export * from "./translation/pipeline";
+export * from "./translation/rendering";
 export * from "./translation/sql-compiler";
 export * from "./translation/types";

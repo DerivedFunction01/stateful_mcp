@@ -60,8 +60,12 @@ export function nextEmptyMacroSlot(
 	slots: readonly MacroSlotState[],
 	from = -1,
 ): MacroSlotState | undefined {
-	return slots.slice(from + 1).find((slot) => slot.status === "empty" || slot.status === "partial")
-		?? slots.find((slot) => slot.status === "empty" || slot.status === "partial");
+	return (
+		slots
+			.slice(from + 1)
+			.find((slot) => slot.status === "empty" || slot.status === "partial") ??
+		slots.find((slot) => slot.status === "empty" || slot.status === "partial")
+	);
 }
 
 export interface MacroSlotAssignment {
@@ -79,12 +83,27 @@ export function assignMacroSlot(
 	const nextValues = new Map(values);
 	nextValues.set(slotKey(slot.slotId, slot.occurrence), value);
 	const rendered = renderCommandMacroTemplate(template, nextValues);
-	const assignedIndex = rendered.slots.findIndex((candidate) => candidate.slotId === slot.slotId && candidate.occurrence === slot.occurrence);
-	return { values: nextValues, rendered, activeSlot: nextEmptyMacroSlot(rendered.slots, assignedIndex) };
+	const assignedIndex = rendered.slots.findIndex(
+		(candidate) =>
+			candidate.slotId === slot.slotId &&
+			candidate.occurrence === slot.occurrence,
+	);
+	return {
+		values: nextValues,
+		rendered,
+		activeSlot: nextEmptyMacroSlot(rendered.slots, assignedIndex),
+	};
 }
 
-export function isStructuredMacroSlot(value: unknown): value is Extract<CommandMacroTemplatePart, { kind: "slot" }> {
+export function isStructuredMacroSlot(
+	value: unknown,
+): value is Extract<CommandMacroTemplatePart, { kind: "slot" }> {
 	if (!value || typeof value !== "object") return false;
 	const candidate = value as Record<string, unknown>;
-	return candidate.kind === "slot" && typeof candidate.slotId === "string" && Number.isInteger(candidate.occurrence) && (candidate.occurrence as number) >= 0;
+	return (
+		candidate.kind === "slot" &&
+		typeof candidate.slotId === "string" &&
+		Number.isInteger(candidate.occurrence) &&
+		(candidate.occurrence as number) >= 0
+	);
 }

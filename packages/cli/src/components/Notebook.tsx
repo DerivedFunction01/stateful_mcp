@@ -1,7 +1,7 @@
 import { useApp } from "ink";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { useEngineCompletion } from "../hooks/useEngineCompletion";
 import { useCommandMacroPreview } from "../hooks/useCommandMacroPreview";
+import { useEngineCompletion } from "../hooks/useEngineCompletion";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import type {
@@ -184,7 +184,10 @@ export function Notebook() {
 
 	// Sync completion state with loading/engineCandidates
 	useEffect(() => {
-		if ((state.mode === "COMMAND" || state.mode === "MACRO") && completion.status === "cycling") {
+		if (
+			(state.mode === "COMMAND" || state.mode === "MACRO") &&
+			completion.status === "cycling"
+		) {
 			setCompletion((prev) => {
 				if (prev.status !== "cycling") return prev;
 				return {
@@ -376,7 +379,7 @@ export function Notebook() {
 	};
 
 	const onEditorAction = (action: EditorAction) => {
-			switch (action.type) {
+		switch (action.type) {
 			case "ENTER_INSERT":
 				dispatch({ type: "ENTER_INSERT_MODE" });
 				return;
@@ -405,9 +408,17 @@ export function Notebook() {
 					...notebook.createCell(session?.sessionId ?? "", state.draftText),
 					intentKind: "macro_command" as const,
 					mode: "macro" as const,
-					macro: { batchId: `batch:${Date.now()}`, definitionIds: [], status: "pending_commit" as const },
+					macro: {
+						batchId: `batch:${Date.now()}`,
+						definitionIds: [],
+						status: "pending_commit" as const,
+					},
 				};
-				dispatch({ type: "INSERT_CELL", cell: macroCell, position: state.activeIndex + 1 });
+				dispatch({
+					type: "INSERT_CELL",
+					cell: macroCell,
+					position: state.activeIndex + 1,
+				});
 				dispatch({ type: "EXIT_MACRO_MODE" });
 				void notebook.runCell(macroCell);
 				return;
@@ -422,7 +433,8 @@ export function Notebook() {
 				dispatch({ type: "COMMAND_HISTORY_NEXT" });
 				return;
 			case "COMMIT_COMPLETION":
-				if (state.mode === "MACRO") dispatch({ type: "SET_MACRO_TEXT", text: action.line });
+				if (state.mode === "MACRO")
+					dispatch({ type: "SET_MACRO_TEXT", text: action.line });
 				else dispatch({ type: "COMMAND_SET", text: action.line });
 				return;
 			case "SHOW_HELP":

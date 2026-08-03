@@ -1,5 +1,5 @@
-import { Box, useInput } from "ink";
 import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import { Box, useInput } from "ink";
 import { type ReactElement, useReducer } from "react";
 import {
 	type CommandCatalog,
@@ -139,18 +139,42 @@ export function WindowContainer({
 		}
 
 		if (current.mode === "MACRO") {
-			if (key.escape) { emit({ type: "CANCEL" }); return; }
-			if (key.return && key.ctrl) { emit({ type: "SUBMIT_MACRO" }); return; }
-			if (key.return) { emit({ type: "NEWLINE" }); return; }
-			if (key.backspace) { emit({ type: "BACKSPACE" }); return; }
-			if (key.tab && completionProvider) {
-				const transition = reduceCompletion(current.completion, { kind: "tab", shift: Boolean(key.shift) }, current.draftText, completionProvider);
-				emit({ type: "SET_COMPLETION", completion: transition.completionState });
-				if (transition.committedLine) emit({ type: "COMMIT_COMPLETION", line: transition.committedLine });
-				else if (transition.shouldAppend) emit({ type: "INSERT_TEXT", text: transition.shouldAppend });
+			if (key.escape) {
+				emit({ type: "CANCEL" });
 				return;
 			}
-			if (_input.length === 1 && !key.ctrl && !key.meta) { emit({ type: "INSERT_TEXT", text: _input }); }
+			if (key.return && key.ctrl) {
+				emit({ type: "SUBMIT_MACRO" });
+				return;
+			}
+			if (key.return) {
+				emit({ type: "NEWLINE" });
+				return;
+			}
+			if (key.backspace) {
+				emit({ type: "BACKSPACE" });
+				return;
+			}
+			if (key.tab && completionProvider) {
+				const transition = reduceCompletion(
+					current.completion,
+					{ kind: "tab", shift: Boolean(key.shift) },
+					current.draftText,
+					completionProvider,
+				);
+				emit({
+					type: "SET_COMPLETION",
+					completion: transition.completionState,
+				});
+				if (transition.committedLine)
+					emit({ type: "COMMIT_COMPLETION", line: transition.committedLine });
+				else if (transition.shouldAppend)
+					emit({ type: "INSERT_TEXT", text: transition.shouldAppend });
+				return;
+			}
+			if (_input.length === 1 && !key.ctrl && !key.meta) {
+				emit({ type: "INSERT_TEXT", text: _input });
+			}
 			return;
 		}
 

@@ -27,8 +27,16 @@ export interface CommandMacroCellPlan {
 	rootTarget?: string;
 	operations: CommandMacroTargetOperation[];
 	parentRef?: string;
-	linkTarget?: { targetField: string; mergeStrategy: "replace" | "append" | "deep_merge" | "partial_fill" };
-	proseRegion?: { rawText: string; start: number; end: number; targetSchema: string };
+	linkTarget?: {
+		targetField: string;
+		mergeStrategy: "replace" | "append" | "deep_merge" | "partial_fill";
+	};
+	proseRegion?: {
+		rawText: string;
+		start: number;
+		end: number;
+		targetSchema: string;
+	};
 }
 
 export interface CommandMacroLinkOperation {
@@ -52,7 +60,15 @@ export interface CommandMacroGraphPlan {
 }
 
 export interface CommandMacroExecutionTrace {
-	phase: "lex" | "bind" | "validate" | "render" | "apply" | "link" | "commit" | "rollback";
+	phase:
+		| "lex"
+		| "bind"
+		| "validate"
+		| "render"
+		| "apply"
+		| "link"
+		| "commit"
+		| "rollback";
 	status: "started" | "completed" | "failed";
 	line?: number;
 	operationId?: string;
@@ -65,8 +81,19 @@ export function buildCommandMacroCompatibilitySignature(
 	plans: readonly CommandMacroCellPlan[],
 	links: readonly CommandMacroLinkOperation[],
 ): string {
-	const targets = plans.flatMap((plan) => plan.operations.map((operation) => `${operation.targetSchema}:${operation.targetPath}`)).sort();
-	const linkTargets = links.map((link) => `${link.parentRoleName}:${link.parentTargetPath}:${link.mergeStrategy}`).sort();
+	const targets = plans
+		.flatMap((plan) =>
+			plan.operations.map(
+				(operation) => `${operation.targetSchema}:${operation.targetPath}`,
+			),
+		)
+		.sort();
+	const linkTargets = links
+		.map(
+			(link) =>
+				`${link.parentRoleName}:${link.parentTargetPath}:${link.mergeStrategy}`,
+		)
+		.sort();
 	return [...new Set([...targets, ...linkTargets])].join("|");
 }
 
@@ -78,29 +105,86 @@ export interface CommandMacroValueResult {
 	confidence?: number;
 }
 
-export function extractCommandMacroValue(rawValue: string, spec: CommandMacroValueSpec): CommandMacroValueResult {
-	if (spec.kind === "prose") return { value: rawValue, evidence: [{ source: "legacy_cdsl" }], diagnostics: [] };
+export function extractCommandMacroValue(
+	rawValue: string,
+	spec: CommandMacroValueSpec,
+): CommandMacroValueResult {
+	if (spec.kind === "prose")
+		return {
+			value: rawValue,
+			evidence: [{ source: "legacy_cdsl" }],
+			diagnostics: [],
+		};
 	if (spec.kind === "array") {
 		const delimiter = spec.itemDelimiter ?? ";";
-		const value = rawValue.replace(/^\[|\]$/g, "").split(delimiter).map((item) => extractCommandMacroValue(item.trim(), spec.item));
-		return { value: value.map((item) => item.value), evidence: value.flatMap((item) => item.evidence), diagnostics: value.flatMap((item) => item.diagnostics) };
+		const value = rawValue
+			.replace(/^\[|\]$/g, "")
+			.split(delimiter)
+			.map((item) => extractCommandMacroValue(item.trim(), spec.item));
+		return {
+			value: value.map((item) => item.value),
+			evidence: value.flatMap((item) => item.evidence),
+			diagnostics: value.flatMap((item) => item.diagnostics),
+		};
 	}
 	if (spec.kind === "enum") {
-		const candidates = spec.values.flatMap((entry) => entry.patterns.map((rule) => ({ entry, rule }))).sort((a, b) => (b.rule.priority ?? a.entry.priority ?? 0) - (a.rule.priority ?? b.entry.priority ?? 0));
+		const candidates = spec.values
+			.flatMap((entry) => entry.patterns.map((rule) => ({ entry, rule })))
+			.sort(
+				(a, b) =>
+					(b.rule.priority ?? a.entry.priority ?? 0) -
+					(a.rule.priority ?? b.entry.priority ?? 0),
+			);
 		for (const candidate of candidates) {
 			const flags = spec.caseSensitive ? "" : "i";
 			const match = new RegExp(candidate.rule.pattern, flags).exec(rawValue);
-			if (match && (!candidate.rule.fullSpan || match[0] === rawValue)) return { value: candidate.entry.value, namedGroups: match.groups, evidence: [{ source: "enum", pattern: candidate.rule.pattern }], diagnostics: [], confidence: 1 };
+			if (match && (!candidate.rule.fullSpan || match[0] === rawValue))
+				return {
+					value: candidate.entry.value,
+					namedGroups: match.groups,
+					evidence: [{ source: "enum", pattern: candidate.rule.pattern }],
+					diagnostics: [],
+					confidence: 1,
+				};
 		}
-		return { value: undefined, evidence: [], diagnostics: ["value did not match an enum pattern"] };
+		return {
+			value: undefined,
+			evidence: [],
+			diagnostics: ["value did not match an enum pattern"],
+		};
 	}
 	const rule = spec.kind === "concept" ? spec.patterns?.[0] : spec.extraction;
-	if (!rule) return { value: rawValue, evidence: [{ source: "raw" }], diagnostics: [] };
+	if (!rule)
+		return { value: rawValue, evidence: [{ source: "raw" }], diagnostics: [] };
 	const match = new RegExp(rule.pattern).exec(rawValue);
-	if (!match || (rule.fullSpan && match[0] !== rawValue)) return { value: undefined, evidence: [], diagnostics: ["value did not match its guarded pattern"] };
+	if (!match || (rule.fullSpan && match[0] !== rawValue))
+		return {
+			value: undefined,
+			evidence: [],
+			diagnostics: ["value did not match its guarded pattern"],
+		};
 	if (spec.kind === "scalar") {
-		const value = spec.valueType === "integer" ? Number.parseInt(rawValue, 10) : spec.valueType === "number" ? Number(rawValue) : spec.valueType === "boolean" ? rawValue === "true" : rawValue;
-		return { value, namedGroups: match.groups, evidence: [{ source: "scalar", pattern: rule.pattern }], diagnostics: [], confidence: 1 };
+		const value =
+			spec.valueType === "integer"
+				? Number.parseInt(rawValue, 10)
+				: spec.valueType === "number"
+					? Number(rawValue)
+					: spec.valueType === "boolean"
+						? rawValue === "true"
+						: rawValue;
+		return {
+			value,
+			namedGroups: match.groups,
+			evidence: [{ source: "scalar", pattern: rule.pattern }],
+			diagnostics: [],
+			confidence: 1,
+		};
 	}
-	return { value: match.groups ?? rawValue, namedGroups: match.groups, evidence: [{ source: spec.kind, pattern: rule.pattern }], diagnostics: [], confidence: 1 };
+	return {
+		value: match.groups ?? rawValue,
+		namedGroups: match.groups,
+		evidence: [{ source: spec.kind, pattern: rule.pattern }],
+		diagnostics: [],
+		confidence: 1,
+	};
 }

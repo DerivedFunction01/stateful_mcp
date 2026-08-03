@@ -14,6 +14,7 @@ import type {
 	ParserProfileRuleBindingStore,
 } from "../../store/parser/rules/interfaces";
 import type { TagStore } from "../../store/parser/tags/interfaces";
+import type { CommandTemplateStore } from "../../store/reference/command-templates/interfaces";
 import type { FacilityStore } from "../../store/reference/facilities/interfaces";
 import type { JurisdictionalDisplayStore } from "../../store/reference/jurisdictional-displays/interfaces";
 import type { PersonnelStore } from "../../store/reference/personnel/interfaces";
@@ -40,6 +41,7 @@ export interface BootstrapStores {
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;
 	proseParserTemplates: ProseParserTemplateStore;
+	commandTemplates: CommandTemplateStore;
 	personnel: PersonnelStore;
 	facilities: FacilityStore;
 	jurisdictionalDisplays: JurisdictionalDisplayStore;

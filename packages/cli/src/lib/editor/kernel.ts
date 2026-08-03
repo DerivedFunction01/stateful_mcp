@@ -54,7 +54,13 @@ export function reduceEditorKernel(
 				completion: { status: "idle" },
 			};
 		case "ENTER_MACRO":
-			return { ...state, mode: "MACRO", draftText: "^", completion: { status: "idle" }, error: null };
+			return {
+				...state,
+				mode: "MACRO",
+				draftText: "^",
+				completion: { status: "idle" },
+				error: null,
+			};
 		case "SUBMIT_MACRO":
 			return { ...state, mode: "NORMAL", completion: { status: "idle" } };
 		case "INSERT_TEXT":

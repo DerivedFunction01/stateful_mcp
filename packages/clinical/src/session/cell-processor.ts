@@ -1,16 +1,20 @@
 import type { WorkspaceStore } from "../engine/workspace-store";
 import type { CdslParser, ClinicalParseResult } from "../parser/cdsl-parser";
+import { planCommandMacroBatch } from "../parser/command/command-macro-graph";
+import type { CommandMacroCellPlan } from "../parser/command/command-macro-ir";
+import {
+	type CommandMacroRenderValue,
+	renderCommandMacroTargets,
+} from "../parser/command/command-macro-renderer";
 import type { ParsedItem } from "../parser/schema-parsers";
 import { schemaParserRegistry } from "../parser/schema-parsers";
 import type { TextPreprocessor } from "../parser/text-preprocessor";
 import type { SoapNote } from "../schemas/document";
 import type { SoapSection } from "../schemas/shared";
 import type { CellStore } from "../store/interfaces";
-import type { Cell } from "./cell";
 import type { ParserCommandMacroStore } from "../store/parser/command-macros/interfaces";
-import { planCommandMacroBatch } from "../parser/command/command-macro-graph";
-import { renderCommandMacroTargets, type CommandMacroRenderValue } from "../parser/command/command-macro-renderer";
-import type { CommandMacroCellPlan } from "../parser/command/command-macro-ir";
+import type { CommandTemplateStore } from "../store/reference/command-templates/interfaces";
+import type { Cell } from "./cell";
 import { CELL_ERROR_MESSAGES, CellError } from "./cell";
 import type { CellCommandContext } from "./cell-command";
 import { CellCommandParser } from "./cell-command-parser";
@@ -90,14 +94,25 @@ export class CellProcessor {
 		private cellStore?: CellStore,
 		private cellCommandRegistry: CellCommandRegistry = CellCommandRegistry.createDefault(),
 		private commandMacroStore?: ParserCommandMacroStore,
+		private commandTemplateStore?: CommandTemplateStore,
 	) {}
 
-	private buildMacroGeneratedCells(cell: Cell, plans: readonly CommandMacroCellPlan[]): Cell[] {
-		const generatedIds = new Map(plans.map((plan, index) => [plan.cellRef, `macro-generated:${cell.cellId}:${index}`]));
+	private buildMacroGeneratedCells(
+		cell: Cell,
+		plans: readonly CommandMacroCellPlan[],
+	): Cell[] {
+		const generatedIds = new Map(
+			plans.map((plan, index) => [
+				plan.cellRef,
+				`macro-generated:${cell.cellId}:${index}`,
+			]),
+		);
 		const now = new Date().toISOString();
 		return plans.map((plan, index) => {
 			const generatedCellId = generatedIds.get(plan.cellRef)!;
-			const parentCellId = plan.parentRef ? generatedIds.get(plan.parentRef) : undefined;
+			const parentCellId = plan.parentRef
+				? generatedIds.get(plan.parentRef)
+				: undefined;
 			const firstOperation = plan.operations[0];
 			return {
 				cellId: generatedCellId,
@@ -105,18 +120,27 @@ export class CellProcessor {
 				collection: { ...cell.collection },
 				intentKind: "directed_value",
 				mode: "cdsl",
-				rawInput: plan.operations.map((operation) => operation.rawValue).join(" "),
-				routing: { scope: "global", targetSchema: plan.targetSchema, resolvedSchema: plan.targetSchema },
+				rawInput: plan.operations
+					.map((operation) => operation.rawValue)
+					.join(" "),
+				routing: {
+					scope: "global",
+					targetSchema: plan.targetSchema,
+					resolvedSchema: plan.targetSchema,
+				},
 				parsedOutput: null,
 				status: "pending_commit",
 				updatedAt: now,
 				parentCellId,
-				linkTarget: parentCellId && plan.linkTarget ? {
-					targetSchema: plan.targetSchema,
-					targetCellId: parentCellId,
-					targetField: plan.linkTarget.targetField,
-					mergeStrategy: plan.linkTarget.mergeStrategy,
-				} : undefined,
+				linkTarget:
+					parentCellId && plan.linkTarget
+						? {
+								targetSchema: plan.targetSchema,
+								targetCellId: parentCellId,
+								targetField: plan.linkTarget.targetField,
+								mergeStrategy: plan.linkTarget.mergeStrategy,
+							}
+						: undefined,
 				context: { objects: {}, sourceType: "manual_entry" },
 				metadata: {
 					macroGenerated: true,
@@ -125,76 +149,239 @@ export class CellProcessor {
 					macroLine: firstOperation?.sourceLine ?? index + 1,
 					macroDefinitionId: plan.macroDefinitionId,
 					macroDefinitionVersion: plan.macroDefinitionVersion,
-					operationIds: plan.operations.map((operation) => operation.operationId),
+					operationIds: plan.operations.map(
+						(operation) => operation.operationId,
+					),
 				},
 			};
 		});
 	}
 
-	private async executeCommandMacro(cell: Cell): Promise<CellProcessResult | null> {
-		if (cell.mode !== "macro" && cell.intentKind !== "macro_command") return null;
-		if (!this.commandMacroStore) return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, "command macro store is not configured") };
+	private async executeCommandMacro(
+		cell: Cell,
+	): Promise<CellProcessResult | null> {
+		if (cell.mode !== "macro" && cell.intentKind !== "macro_command")
+			return null;
+		if (!this.commandMacroStore)
+			return {
+				cell,
+				error: this.cellError(
+					CellError.PARSER_NOT_CONFIGURED,
+					"command macro store is not configured",
+				),
+			};
 		const diagnostics: string[] = [];
-		const rendered: Array<{ line: number; text: string; status: string }> = [];
-		const graphResult = await planCommandMacroBatch(cell.rawInput, this.commandMacroStore, { groupId: cell.macro?.batchId ?? cell.cellId, cellRefPrefix: cell.cellId });
-		diagnostics.push(...graphResult.diagnostics.map((item) => `line ${item.line ?? "?"}: ${item.message}`));
+		const rendered: Array<{
+			line: number;
+			text: string;
+			status: string;
+			diagnostics?: string[];
+		}> = [];
+		const confirmation: typeof rendered = [];
+		const audit: typeof rendered = [];
+		const graphResult = await planCommandMacroBatch(
+			cell.rawInput,
+			this.commandMacroStore,
+			{
+				groupId: cell.macro?.batchId ?? cell.cellId,
+				cellRefPrefix: cell.cellId,
+			},
+		);
+		diagnostics.push(
+			...graphResult.diagnostics.map(
+				(item) => `line ${item.line ?? "?"}: ${item.message}`,
+			),
+		);
 		for (const [lineIndex, line] of cell.rawInput.split(/\r?\n/).entries()) {
 			if (!line.trim()) continue;
 			const name = line.trim().replace(/^\^/, "").split(/\s+/, 1)[0] ?? "";
 			const macro = await this.commandMacroStore.get(name);
-			if (macro?.renderers?.preview) {
-				const plan = graphResult.graph?.plans.find((candidate) => candidate.operations.some((operation) => operation.sourceLine === lineIndex + 1));
+			if (macro?.renderTemplateIds && this.commandTemplateStore) {
+				const plan = graphResult.graph?.plans.find((candidate) =>
+					candidate.operations.some(
+						(operation) => operation.sourceLine === lineIndex + 1,
+					),
+				);
 				const values: Record<string, CommandMacroRenderValue> = {};
 				for (const operation of plan?.operations ?? []) {
 					const argument = macro.arguments[operation.sourceArgument];
-					if (argument) values[argument.argumentId] = { value: operation.value, status: "assigned", evidence: operation.evidence };
+					if (argument)
+						values[argument.argumentId] = {
+							value: operation.value,
+							status: "assigned",
+							evidence: operation.evidence,
+						};
 				}
-				const output = renderCommandMacroTargets(macro.renderers.preview, { values });
-				rendered.push({ line: lineIndex + 1, ...output });
+				const renderStage = async (
+					stage: "preview" | "confirmation" | "audit",
+					target: typeof rendered,
+				): Promise<void> => {
+					const templateId = macro.renderTemplateIds?.[stage];
+					if (!templateId) return;
+					const template = await this.commandTemplateStore!.getById(templateId);
+					if (!template) {
+						target.push({
+							line: lineIndex + 1,
+							text: "",
+							status: "invalid",
+							diagnostics: [`missing ${stage} render template '${templateId}'`],
+						});
+						return;
+					}
+					const output = renderCommandMacroTargets(template, {
+						values,
+						data: {
+							arguments: values,
+							execution: { batchId: graphResult.graph?.groupId, stage },
+						},
+					});
+					target.push({ line: lineIndex + 1, ...output });
+				};
+				await renderStage("preview", rendered);
+				await renderStage("confirmation", confirmation);
+				await renderStage("audit", audit);
 			}
 		}
 		if (diagnostics.length) {
 			cell.status = "error";
 			cell.errorMessage = diagnostics.join("; ");
-			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "error", diagnostics };
+			cell.macro = {
+				...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }),
+				status: "error",
+				diagnostics,
+			};
 			await this.saveCell(cell);
-			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
+			return {
+				cell,
+				error: this.cellError(
+					CellError.PARSER_NOT_CONFIGURED,
+					cell.errorMessage,
+				),
+			};
 		}
 		if (!graphResult.graph) diagnostics.push("macro graph was not compiled");
-		if (graphResult.graph?.links.length && !this.documentExecutor.applyMacroGraph && !this.documentExecutor.applyMacroLink) diagnostics.push("macro graph contains links but the document transaction adapter does not support links");
+		if (
+			graphResult.graph?.links.length &&
+			!this.documentExecutor.applyMacroGraph &&
+			!this.documentExecutor.applyMacroLink
+		)
+			diagnostics.push(
+				"macro graph contains links but the document transaction adapter does not support links",
+			);
 		if (diagnostics.length) {
 			cell.status = "error";
 			cell.errorMessage = diagnostics.join("; ");
-			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "error", diagnostics };
+			cell.macro = {
+				...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }),
+				status: "error",
+				diagnostics,
+			};
 			await this.saveCell(cell);
-			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
+			return {
+				cell,
+				error: this.cellError(
+					CellError.PARSER_NOT_CONFIGURED,
+					cell.errorMessage,
+				),
+			};
 		}
-		const generatedCells = this.cellStore ? this.buildMacroGeneratedCells(cell, graphResult.graph!.plans) : [];
+		const generatedCells = this.cellStore
+			? this.buildMacroGeneratedCells(cell, graphResult.graph!.plans)
+			: [];
 		try {
-			for (const generatedCell of generatedCells) await this.cellStore!.save(generatedCell);
+			for (const generatedCell of generatedCells)
+				await this.cellStore!.save(generatedCell);
 			const graphApplication = this.documentExecutor.applyMacroGraph
-				? await this.documentExecutor.applyMacroGraph(cell.sessionId, graphResult.graph!, cell.sessionId)
+				? await this.documentExecutor.applyMacroGraph(
+						cell.sessionId,
+						graphResult.graph!,
+						cell.sessionId,
+					)
 				: undefined;
 			if (!graphApplication) {
-				for (const plan of graphResult.graph!.plans) for (const operation of plan.operations) await this.documentExecutor.setSoapNoteField(cell.sessionId, operation.targetPath, operation.value);
-				for (const link of graphResult.graph!.links) await this.documentExecutor.applyMacroLink!(cell.sessionId, link);
+				for (const plan of graphResult.graph!.plans)
+					for (const operation of plan.operations)
+						await this.documentExecutor.setSoapNoteField(
+							cell.sessionId,
+							operation.targetPath,
+							operation.value,
+						);
+				for (const link of graphResult.graph!.links)
+					await this.documentExecutor.applyMacroLink!(cell.sessionId, link);
 			}
 			cell.status = "committed";
 			cell.lockedAt = new Date().toISOString();
-			const provenance = graphResult.graph!.plans.flatMap((plan) => plan.operations.map((operation) => ({ sourceMacroCellId: cell.cellId, macroBatchId: graphResult.graph!.groupId, macroLine: operation.sourceLine, macroDefinitionId: plan.macroDefinitionId ?? "" })));
-			const executionTrace = graphResult.graph!.plans.flatMap((plan) => plan.operations.map((operation) => ({ phase: "apply" as const, status: "completed" as const, operationId: operation.operationId, line: operation.sourceLine, createdAt: new Date().toISOString() })));
-			for (const generatedCell of generatedCells) { generatedCell.status = "committed"; generatedCell.updatedAt = new Date().toISOString(); await this.cellStore!.save(generatedCell); }
-			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "committed", preview: rendered, definitionIds: graphResult.graph!.definitionIds, definitionVersions: graphResult.graph!.definitionVersions, compiledPlan: graphResult.graph, generatedCellIds: generatedCells.map((generatedCell) => generatedCell.cellId), compatibilitySignature: graphResult.graph!.compatibilitySignature, provenance, executionTrace };
-			cell.metadata = { ...cell.metadata, macroOperations: graphResult.graph!.plans.reduce((count, plan) => count + plan.operations.length, 0), macroLinks: graphResult.graph!.links.length };
+			const provenance = graphResult.graph!.plans.flatMap((plan) =>
+				plan.operations.map((operation) => ({
+					sourceMacroCellId: cell.cellId,
+					macroBatchId: graphResult.graph!.groupId,
+					macroLine: operation.sourceLine,
+					macroDefinitionId: plan.macroDefinitionId ?? "",
+				})),
+			);
+			const executionTrace = graphResult.graph!.plans.flatMap((plan) =>
+				plan.operations.map((operation) => ({
+					phase: "apply" as const,
+					status: "completed" as const,
+					operationId: operation.operationId,
+					line: operation.sourceLine,
+					createdAt: new Date().toISOString(),
+				})),
+			);
+			for (const generatedCell of generatedCells) {
+				generatedCell.status = "committed";
+				generatedCell.updatedAt = new Date().toISOString();
+				await this.cellStore!.save(generatedCell);
+			}
+			cell.macro = {
+				...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }),
+				status: "committed",
+				preview: rendered,
+				rendered: { preview: rendered, confirmation, audit },
+				definitionIds: graphResult.graph!.definitionIds,
+				definitionVersions: graphResult.graph!.definitionVersions,
+				compiledPlan: graphResult.graph,
+				generatedCellIds: generatedCells.map(
+					(generatedCell) => generatedCell.cellId,
+				),
+				compatibilitySignature: graphResult.graph!.compatibilitySignature,
+				provenance,
+				executionTrace,
+			};
+			cell.metadata = {
+				...cell.metadata,
+				macroOperations: graphResult.graph!.plans.reduce(
+					(count, plan) => count + plan.operations.length,
+					0,
+				),
+				macroLinks: graphResult.graph!.links.length,
+			};
 			await this.saveCell(cell);
 			return { cell };
 		} catch (error) {
-			for (const generatedCell of generatedCells) { try { await this.cellStore?.delete(generatedCell.cellId); } catch { /* best-effort compensation */ } }
+			for (const generatedCell of generatedCells) {
+				try {
+					await this.cellStore?.delete(generatedCell.cellId);
+				} catch {
+					/* best-effort compensation */
+				}
+			}
 			cell.status = "error";
-			cell.errorMessage = error instanceof Error ? error.message : String(error);
-			cell.macro = { ...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }), status: "error", diagnostics: [cell.errorMessage] };
+			cell.errorMessage =
+				error instanceof Error ? error.message : String(error);
+			cell.macro = {
+				...(cell.macro ?? { batchId: cell.cellId, definitionIds: [] }),
+				status: "error",
+				diagnostics: [cell.errorMessage],
+			};
 			await this.saveCell(cell);
-			return { cell, error: this.cellError(CellError.PARSER_NOT_CONFIGURED, cell.errorMessage) };
+			return {
+				cell,
+				error: this.cellError(
+					CellError.PARSER_NOT_CONFIGURED,
+					cell.errorMessage,
+				),
+			};
 		}
 	}
 

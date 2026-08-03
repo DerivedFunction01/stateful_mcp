@@ -1,4 +1,7 @@
-import type { CommandMacroPreview, ParserCommandMacroStore } from "@stateful-mcp/clinical";
+import type {
+	CommandMacroPreview,
+	ParserCommandMacroStore,
+} from "@stateful-mcp/clinical";
 import { createCommandMacroPreviewController } from "@stateful-mcp/clinical";
 import { useEffect, useRef, useState } from "react";
 
@@ -15,7 +18,9 @@ export function useCommandMacroPreview({
 	context?: { personnelId?: string; profileId?: string };
 	delayMs?: number;
 }): { loading: boolean; preview: CommandMacroPreview | null } {
-	const controllerRef = useRef<ReturnType<typeof createCommandMacroPreviewController> | null>(null);
+	const controllerRef = useRef<ReturnType<
+		typeof createCommandMacroPreviewController
+	> | null>(null);
 	const [preview, setPreview] = useState<CommandMacroPreview | null>(null);
 	const [loading, setLoading] = useState(false);
 	useEffect(() => {

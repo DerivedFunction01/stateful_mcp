@@ -1,7 +1,7 @@
+import type { CommandMacroPreview } from "../parser/command/command-macro-preview";
 import type { Cell } from "../session/cell";
 import type { EditorMode } from "../session/editor-mode";
 import type { PreviewCandidate } from "../session/preview-candidate";
-import type { CommandMacroPreview } from "../parser/command/command-macro-preview";
 
 export type ExecutionPolicy = "execute" | "preview";
 
@@ -129,8 +129,8 @@ export const INITIAL_NOTEBOOK_STATE: NotebookState = {
 	authoredRevision: 0,
 	persistedAuthoredRevision: 0,
 	sessionMode: "execute",
-		preview: null,
-		macroPreview: null,
+	preview: null,
+	macroPreview: null,
 	commandLine: "",
 	commandHistory: [],
 	commandHistoryIndex: -1,
@@ -167,7 +167,13 @@ export function rawNotebookReducer(
 		}
 
 		case "SET_MACRO_TEXT":
-			return { ...state, draftText: action.text, mode: "MACRO", dirty: true, authoredRevision: state.authoredRevision + 1 };
+			return {
+				...state,
+				draftText: action.text,
+				mode: "MACRO",
+				dirty: true,
+				authoredRevision: state.authoredRevision + 1,
+			};
 
 		case "MOVE_CURSOR": {
 			const newIdx = clampIndex(

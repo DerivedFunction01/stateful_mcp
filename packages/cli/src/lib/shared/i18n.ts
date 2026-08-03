@@ -31,8 +31,7 @@ const en: Record<string, string> = {
 	"help.insert": "{saveCmd} save  {esc} NORMAL  {enter} newline",
 	"help.command":
 		"{tab} cycle  {enter} execute  {esc} cancel  {arrows} history",
-	"command.noMatch":
-		"⚠ no command matches \"{partial}\" — Enter still runs it",
+	"command.noMatch": '⚠ no command matches "{partial}" — Enter still runs it',
 	"help.visual":
 		"{delKey} delete  {yankKey} yank  {esc} NORMAL  {cmdToken} command",
 

@@ -1,17 +1,34 @@
-import type { ParserCommandMacro } from "../../store/parser/command-macros/interfaces";
+import type {
+	ParserCommandMacro,
+	ParserCommandMacroStore,
+} from "../../store/parser/command-macros/interfaces";
+import type {
+	CommandTemplate,
+	CommandTemplateStore,
+} from "../../store/reference/command-templates/interfaces";
 import { bindCommandMacro } from "./command-macro-binder";
-import { renderCommandMacroTargets, type CommandMacroRenderValue } from "./command-macro-renderer";
-import type { ParserCommandMacroStore } from "../../store/parser/command-macros/interfaces";
+import {
+	type CommandMacroRenderValue,
+	renderCommandMacroTargets,
+} from "./command-macro-renderer";
 
 export interface CommandMacroPreview {
 	status: "draft" | "preview" | "pending_commit" | "committed" | "error";
 	macroName?: string;
 	plans: Array<NonNullable<ReturnType<typeof bindCommandMacro>["plan"]>>;
 	diagnostics: string[];
-	rendered?: Array<{ line: number; text: string; status: "resolved" | "partial" | "ambiguous" | "invalid" }>;
+	rendered?: Array<{
+		line: number;
+		text: string;
+		status: "resolved" | "partial" | "ambiguous" | "invalid";
+	}>;
 }
 
-export function previewCommandMacroBatch(input: string, macros: Map<string, ParserCommandMacro>): CommandMacroPreview {
+export function previewCommandMacroBatch(
+	input: string,
+	macros: Map<string, ParserCommandMacro>,
+	templates: ReadonlyMap<string, CommandTemplate> = new Map(),
+): CommandMacroPreview {
 	const plans: CommandMacroPreview["plans"] = [];
 	const diagnostics: string[] = [];
 	const rendered: NonNullable<CommandMacroPreview["rendered"]> = [];
@@ -19,31 +36,64 @@ export function previewCommandMacroBatch(input: string, macros: Map<string, Pars
 		if (!line.trim()) continue;
 		const macroName = line.trim().replace(/^\^/, "").split(/\s+/, 1)[0] ?? "";
 		const macro = macros.get(macroName);
-		if (!macro) { diagnostics.push(`line ${lineIndex + 1}: unknown command macro '${macroName}'`); continue; }
-		const result = bindCommandMacro(line, macro, { groupId: `preview:${lineIndex}`, sourceLine: lineIndex + 1 });
+		if (!macro) {
+			diagnostics.push(
+				`line ${lineIndex + 1}: unknown command macro '${macroName}'`,
+			);
+			continue;
+		}
+		const result = bindCommandMacro(line, macro, {
+			groupId: `preview:${lineIndex}`,
+			sourceLine: lineIndex + 1,
+		});
 		if (result.plan) plans.push(result.plan);
-		for (const diagnostic of result.diagnostics) diagnostics.push(`line ${lineIndex + 1}: ${diagnostic.message}`);
-		if (macro.renderers?.preview && result.plan) {
+		for (const diagnostic of result.diagnostics)
+			diagnostics.push(`line ${lineIndex + 1}: ${diagnostic.message}`);
+		const template = macro.renderTemplateIds?.preview
+			? templates.get(macro.renderTemplateIds.preview)
+			: undefined;
+		if (template && result.plan) {
 			const values: Record<string, CommandMacroRenderValue> = {};
 			for (const operation of result.plan.operations) {
 				const argument = macro.arguments[operation.sourceArgument];
-				if (argument) values[argument.argumentId] = { value: operation.value, status: "assigned", evidence: operation.evidence };
+				if (argument)
+					values[argument.argumentId] = {
+						value: operation.value,
+						status: "assigned",
+						evidence: operation.evidence,
+					};
 			}
-			const output = renderCommandMacroTargets(macro.renderers.preview, { values });
+			const output = renderCommandMacroTargets(
+				template,
+				{ values, data: { arguments: values } },
+				templates,
+			);
 			rendered.push({ line: lineIndex + 1, ...output });
 		}
 	}
-	return { status: diagnostics.length ? "error" : "preview", macroName: plans.length ? input.trim().replace(/^\^/, "").split(/\s+/, 1)[0] : undefined, plans, diagnostics, rendered };
+	return {
+		status: diagnostics.length ? "error" : "preview",
+		macroName: plans.length
+			? input.trim().replace(/^\^/, "").split(/\s+/, 1)[0]
+			: undefined,
+		plans,
+		diagnostics,
+		rendered,
+	};
 }
 
 export interface CommandMacroPreviewController {
-	request(input: string, context?: { personnelId?: string; profileId?: string }): Promise<CommandMacroPreview | null>;
+	request(
+		input: string,
+		context?: { personnelId?: string; profileId?: string },
+	): Promise<CommandMacroPreview | null>;
 	cancel(): void;
 }
 
 export function createCommandMacroPreviewController(
 	store: ParserCommandMacroStore,
 	delayMs = 150,
+	templateStore?: CommandTemplateStore,
 ): CommandMacroPreviewController {
 	let generation = 0;
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -59,10 +109,22 @@ export function createCommandMacroPreviewController(
 				timer = setTimeout(async () => {
 					try {
 						const definitions = await store.list(context);
+						const templates = templateStore ? await templateStore.list() : [];
 						if (requestGeneration !== generation) return resolve(null);
-						resolve(previewCommandMacroBatch(input, new Map(definitions.map((macro) => [macro.macroName, macro]))));
-					} catch { resolve(null); }
-					finally { if (requestGeneration === generation) pending = undefined; }
+						resolve(
+							previewCommandMacroBatch(
+								input,
+								new Map(definitions.map((macro) => [macro.macroName, macro])),
+								new Map(
+									templates.map((template) => [template.templateId, template]),
+								),
+							),
+						);
+					} catch {
+						resolve(null);
+					} finally {
+						if (requestGeneration === generation) pending = undefined;
+					}
 				}, delayMs);
 			});
 		},

@@ -7,19 +7,35 @@ export class KvParserCommandMacroStore implements ParserCommandMacroStore {
 
 	constructor(private readonly backend: KvBackend) {}
 
-	async get(macroName: string, context?: { personnelId?: string; profileId?: string }): Promise<ParserCommandMacro | null> {
+	async get(
+		macroName: string,
+		context?: { personnelId?: string; profileId?: string },
+	): Promise<ParserCommandMacro | null> {
 		const macros = await this.list(context);
 		return macros.find((macro) => macro.macroName === macroName) ?? null;
 	}
 
-	async list(context?: { personnelId?: string; profileId?: string }): Promise<ParserCommandMacro[]> {
+	async list(context?: {
+		personnelId?: string;
+		profileId?: string;
+	}): Promise<ParserCommandMacro[]> {
 		const data = await this.backend.load();
 		return Object.entries(data)
 			.filter(([key]) => key.startsWith(this.prefix))
 			.map(([, value]) => value as ParserCommandMacro)
 			.filter((macro) => macro.active)
-			.filter((macro) => !macro.personnelId || !context?.personnelId || macro.personnelId === context.personnelId)
-			.filter((macro) => !macro.profileId || !context?.profileId || macro.profileId === context.profileId)
+			.filter(
+				(macro) =>
+					!macro.personnelId ||
+					!context?.personnelId ||
+					macro.personnelId === context.personnelId,
+			)
+			.filter(
+				(macro) =>
+					!macro.profileId ||
+					!context?.profileId ||
+					macro.profileId === context.profileId,
+			)
 			.sort((a, b) => a.macroName.localeCompare(b.macroName));
 	}
 

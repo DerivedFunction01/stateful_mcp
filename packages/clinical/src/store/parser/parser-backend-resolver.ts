@@ -11,6 +11,8 @@ import type { SharedFieldAnchorStore } from "../../parser/field-shared/shared-fi
 import type { ClinicalStoreConfig } from "../clinical-config";
 import { KvCalibrationExceptionStore } from "../reference/calibration/kv-calibration-exception-store";
 import { SqlCalibrationExceptionStore } from "../reference/calibration/sql-calibration-exception-store";
+import { KvCommandTemplateStore } from "../reference/command-templates/kv-command-template-store";
+import { SqlCommandTemplateStore } from "../reference/command-templates/sql-command-template-store";
 import { KvFacilityStore } from "../reference/facilities/kv-facility-store";
 import { SqlFacilityStore } from "../reference/facilities/sql-facility-store";
 import { KvJurisdictionalDisplayStore } from "../reference/jurisdictional-displays/kv-jurisdictional-display-store";
@@ -27,14 +29,14 @@ import { SqlStopWordProfileStore } from "../reference/stop-words/sql-stop-word-p
 import { SqlStopWordWordListStore } from "../reference/stop-words/sql-stop-word-word-list-store";
 import { KvSharedFieldAnchorStore } from "./anchors/kv-shared-field-anchor-store";
 import { SqlSharedFieldAnchorStore } from "./anchors/sql-shared-field-anchor-store";
+import { KvParserCommandMacroStore } from "./command-macros/kv-command-macro-store";
+import { SqlParserCommandMacroStore } from "./command-macros/sql-command-macro-store";
 import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-store";
 import { SqlConceptDefaultStore } from "./concept_defaults/sql-concept-default-store";
 import { KvConceptFieldStore } from "./concept_fields/kv-concept-field-store";
 import { SqlConceptFieldStore } from "./concept_fields/sql-concept-field-store";
 import { KvParserMacroStore } from "./macros/kv-macro-store";
 import { SqlParserMacroStore } from "./macros/sql-macro-store";
-import { KvParserCommandMacroStore } from "./command-macros/kv-command-macro-store";
-import { SqlParserCommandMacroStore } from "./command-macros/sql-command-macro-store";
 import { KvParserProfileStore } from "./profiles/kv-parser-profile-store";
 import { KvProfileTagStore } from "./profiles/kv-profile-tag-store";
 import { SqlParserProfileStore } from "./profiles/sql-parser-profile-store";
@@ -201,6 +203,7 @@ export async function resolveReferenceStores(
 	stopWordProfiles: KvStopWordProfileStore | SqlStopWordProfileStore;
 	proseTemplates: KvClinicalProseTemplateStore | SqlClinicalProseTemplateStore;
 	proseParserTemplates: KvProseParserTemplateStore | SqlProseTemplateStore;
+	commandTemplates: KvCommandTemplateStore | SqlCommandTemplateStore;
 }> {
 	return resolveStoreWithFactory(
 		config,
@@ -213,6 +216,7 @@ export async function resolveReferenceStores(
 				stopWordProfiles: new KvStopWordProfileStore(backend),
 				proseTemplates: new KvClinicalProseTemplateStore(backend),
 				proseParserTemplates: new KvProseParserTemplateStore(backend),
+				commandTemplates: new KvCommandTemplateStore(backend),
 			}),
 			sql: (dialect, executor) => ({
 				tags: new SqlTagStore(dialect, executor),
@@ -223,6 +227,7 @@ export async function resolveReferenceStores(
 				stopWordProfiles: new SqlStopWordProfileStore(dialect, executor),
 				proseTemplates: new SqlClinicalProseTemplateStore(dialect, executor),
 				proseParserTemplates: new SqlProseTemplateStore(dialect, executor),
+				commandTemplates: new SqlCommandTemplateStore(dialect, executor),
 			}),
 			jsonl: (backend) => ({
 				tags: new KvTagStore(backend),
@@ -230,6 +235,7 @@ export async function resolveReferenceStores(
 				stopWordProfiles: new KvStopWordProfileStore(backend),
 				proseTemplates: new KvClinicalProseTemplateStore(backend),
 				proseParserTemplates: new KvProseParserTemplateStore(backend),
+				commandTemplates: new KvCommandTemplateStore(backend),
 			}),
 		},
 	);
@@ -338,11 +344,17 @@ export async function resolveMacroStore(
 export async function resolveCommandMacroStore(
 	config: ClinicalStoreConfig,
 ): Promise<KvParserCommandMacroStore | SqlParserCommandMacroStore> {
-	return resolveStoreWithFactory(config, "parser_macros", "./clinical-parser.sqlite", {
-		memory: (backend) => new KvParserCommandMacroStore(backend),
-		sql: (dialect, executor) => new SqlParserCommandMacroStore(dialect, executor),
-		jsonl: (backend) => new KvParserCommandMacroStore(backend),
-	});
+	return resolveStoreWithFactory(
+		config,
+		"parser_macros",
+		"./clinical-parser.sqlite",
+		{
+			memory: (backend) => new KvParserCommandMacroStore(backend),
+			sql: (dialect, executor) =>
+				new SqlParserCommandMacroStore(dialect, executor),
+			jsonl: (backend) => new KvParserCommandMacroStore(backend),
+		},
+	);
 }
 
 // ── Personnel ────────────────────────────────────────────────────────

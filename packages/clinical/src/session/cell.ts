@@ -122,11 +122,27 @@ export interface Cell {
 		definitionIds: string[];
 		definitionVersions?: Record<string, number>;
 		preview?: unknown;
+		rendered?: Partial<
+			Record<
+				"preview" | "confirmation" | "audit",
+				Array<{
+					line: number;
+					text: string;
+					status: string;
+					diagnostics?: string[];
+				}>
+			>
+		>;
 		diagnostics?: string[];
 		compiledPlan?: unknown;
 		generatedCellIds?: string[];
 		status: "draft" | "preview" | "pending_commit" | "committed" | "error";
-		provenance?: { sourceMacroCellId: string; macroBatchId: string; macroLine: number; macroDefinitionId: string }[];
+		provenance?: {
+			sourceMacroCellId: string;
+			macroBatchId: string;
+			macroLine: number;
+			macroDefinitionId: string;
+		}[];
 		compatibilitySignature?: string;
 		executionTrace?: import("../parser/command/command-macro-ir").CommandMacroExecutionTrace[];
 	};

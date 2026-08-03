@@ -1,7 +1,6 @@
-import type { NamedGroupContract } from "../../interfaces";
 import type { CommandMacroAuthoringTemplate } from "../../../parser/command/command-macro-authoring-template";
-import type { CommandMacroRenderPipeline } from "../../../parser/command/command-macro-renderer";
 import type { MacroBoundaryPolicy } from "../../../parser/command/command-macro-boundary";
+import type { NamedGroupContract } from "../../interfaces";
 
 export interface CommandFieldMetadata {
 	roleName: string;
@@ -31,7 +30,11 @@ export interface NumericBounds {
 
 export interface CommandMacroExclusionRule {
 	pattern: string;
-	scope: "candidate_span" | "captured_group" | "full_argument" | "surrounding_context";
+	scope:
+		| "candidate_span"
+		| "captured_group"
+		| "full_argument"
+		| "surrounding_context";
 	targetGroup?: string;
 	reason: string;
 	caseSensitive?: boolean;
@@ -79,7 +82,12 @@ export interface CommandMacroMeasurementSpec {
 export interface CommandMacroTemporalSpec {
 	kind: "temporal";
 	extraction: CommandMacroPatternRule;
-	temporalType: "duration" | "date" | "date_range" | "relative_time" | "cadence";
+	temporalType:
+		| "duration"
+		| "date"
+		| "date_range"
+		| "relative_time"
+		| "cadence";
 }
 
 export interface CommandMacroScalarSpec {
@@ -142,15 +150,19 @@ export interface ParserCommandMacro {
 	arguments: CommandMacroArgument[];
 	children?: CommandMacroChildDefinition[];
 	proseBoundaryToken?: string;
-	execution?: { atomic: true; confidenceThreshold?: number; maxCompositionDepth?: number };
+	execution?: {
+		atomic: true;
+		confidenceThreshold?: number;
+		maxCompositionDepth?: number;
+	};
 	personnelId?: string;
 	profileId?: string;
 	description?: string;
 	authoringTemplate?: CommandMacroAuthoringTemplate;
-	renderers?: {
-		preview: CommandMacroRenderPipeline;
-		confirmation?: CommandMacroRenderPipeline;
-		audit?: CommandMacroRenderPipeline;
+	renderTemplateIds?: {
+		preview: string;
+		confirmation?: string;
+		audit?: string;
 	};
 	boundary?: MacroBoundaryPolicy;
 }
@@ -165,7 +177,11 @@ export interface CommandMacroArgument {
 	extraction: CommandMacroValueSpec;
 	required?: boolean;
 	blankPolicy?: "reject" | "allow" | "skip";
-	binding?: { positional: boolean; named: boolean; inference: "disabled" | "allowed" | "thresholded" };
+	binding?: {
+		positional: boolean;
+		named: boolean;
+		inference: "disabled" | "allowed" | "thresholded";
+	};
 	autocomplete?: CommandMacroAutocomplete;
 	boundary?: MacroBoundaryPolicy;
 }
@@ -176,11 +192,22 @@ export interface CommandMacroChildDefinition {
 	parentTargetPath: string;
 	mergeStrategy: "replace" | "append" | "deep_merge" | "partial_fill";
 	repeatable?: boolean;
+	renderTemplateId?: string;
+	renderMode?: "omit" | "inline" | "group" | "separate";
+	renderLabel?: string;
+	renderOrder?: number;
+	renderSeparator?: string;
 }
 
 export interface ParserCommandMacroStore {
-	get(macroName: string, context?: { personnelId?: string; profileId?: string }): Promise<ParserCommandMacro | null>;
-	list(context?: { personnelId?: string; profileId?: string }): Promise<ParserCommandMacro[]>;
+	get(
+		macroName: string,
+		context?: { personnelId?: string; profileId?: string },
+	): Promise<ParserCommandMacro | null>;
+	list(context?: {
+		personnelId?: string;
+		profileId?: string;
+	}): Promise<ParserCommandMacro[]>;
 	set(macro: ParserCommandMacro): Promise<void>;
 	delete(macroId: string): Promise<void>;
 }
