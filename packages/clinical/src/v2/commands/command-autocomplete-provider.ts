@@ -14,7 +14,7 @@ export async function getCommandBarSuggestions(
 	const commandText = input.slice(profile.directCommandToken.length);
 	const [verb = "", ...args] = commandText.split(/\s+/);
 	if (args.length === 0 || (args.length === 1 && !commandText.endsWith(" "))) {
-		return Object.keys({ ...profile.editorCommandMappings, ...profile.directCommandMappings })
+		return [profile.variableCommandName, ...Object.keys({ ...profile.editorCommandMappings, ...profile.directCommandMappings })]
 			.filter((command) => command.startsWith(verb))
 			.map((command) => ({ label: `${profile.directCommandToken}${command}`, insertText: `${profile.directCommandToken}${command}`, kind: "command" as const, source: "static" as const }));
 	}

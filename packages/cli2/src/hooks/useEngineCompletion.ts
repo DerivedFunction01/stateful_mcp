@@ -25,6 +25,8 @@ export function useEngineCompletion({
 	macroContext?: { personnelId?: string; profileId?: string };
 	fieldMetadata?: CommandFieldMetadataStore;
 }) {
+	// TODO(cli2-v2): replace legacy engine/macro autocomplete with the pure V2
+	// command autocomplete providers. Keep the debounce/cancellation behavior.
 	const [loading, setLoading] = useState(false);
 	const [engineCandidates, setEngineCandidates] = useState<
 		AutocompleteSuggestion[]

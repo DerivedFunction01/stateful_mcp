@@ -1,4 +1,4 @@
-import type { EventStore, DictionaryStore } from "@stateful-mcp/core";
+import { VariableServiceStore, type EventStore, type DictionaryStore, type VariableService } from "@stateful-mcp/core";
 import { TransactionCoordinator, InMemoryTransactionJournal } from "../transactions/transaction-coordinator";
 import type { TransactionJournal, TransactionParticipant } from "../transactions/transaction-types";
 import type { ClinicalDocumentProjectionStore, SignedDocumentArchive } from "../clinical/clinical-document-types";
@@ -28,6 +28,8 @@ import type { SyncConfig } from "../sync/sync-rule-config";
 import { WorkspaceViewService } from "../workspaces/workspace-view-state";
 import type { ClinicalRuntimeV2 } from "./clinical-runtime-v2";
 import { createV2CommandSyntaxProfile, type V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import { V2VariableCommandService } from "../commands/variable-command-service";
+import { V2VariableCellService } from "../cells/variable-cell-service";
 
 export class ClinicalEngineV2Builder {
 	private eventStore?: EventStore;
@@ -44,6 +46,7 @@ export class ClinicalEngineV2Builder {
 	private journal?: TransactionJournal;
 	private extraParticipants: TransactionParticipant[] = [];
 	private syntaxProfile?: V2CommandSyntaxProfile;
+	private variableService?: VariableService;
 
 	withEventStore(store: EventStore): this {
 		this.eventStore = store;
@@ -110,6 +113,11 @@ export class ClinicalEngineV2Builder {
 		return this;
 	}
 
+	withVariableService(service: VariableService): this {
+		this.variableService = service;
+		return this;
+	}
+
 	addParticipant(participant: TransactionParticipant): this {
 		this.extraParticipants.push(participant);
 		return this;
@@ -168,6 +176,8 @@ export class ClinicalEngineV2Builder {
 
 		const syncEngine = new SyncEngine({ syncConfig: this.syncConfig });
 		const syncApplication = this.syncConfig ? new SyncApplicationService(workspaceService) : undefined;
+		const variables = this.variableService ?? new VariableServiceStore();
+		const syntaxProfile = this.syntaxProfile ?? createV2CommandSyntaxProfile({ profileId: "v2-default", default: true, active: true });
 
 		const registry = new ProjectionRegistry();
 		registry.register(createClinicalProjection(clinicalService));
@@ -192,7 +202,13 @@ export class ClinicalEngineV2Builder {
 				defs: macroStore,
 				dictionary: dictionaryStore,
 			},
-			syntaxProfile: this.syntaxProfile ?? createV2CommandSyntaxProfile({ profileId: "v2-default", default: true, active: true }),
+			syntaxProfile,
+			variables,
+			variableCells: new V2VariableCellService(
+				cellStore,
+				new V2VariableCommandService(variables),
+				syntaxProfile,
+			),
 		};
 
 		return new ClinicalEngineV2(

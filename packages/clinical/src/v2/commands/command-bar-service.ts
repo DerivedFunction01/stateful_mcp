@@ -10,16 +10,41 @@ import type {
 	CommandPreview,
 } from "./command-bar-types";
 import { createV2CommandSyntaxProfile, type V2CommandSyntaxProfile } from "./command-syntax-profile";
+import { parseV2VariableCommand } from "./variable-command";
+import type { V2VariableCommandService } from "./variable-command-service";
 
 export class V2CommandBarService {
 	constructor(
 	private readonly engine: ClinicalEngineV2,
 		private readonly workspaceService: WorkspaceService,
 		private readonly syntaxProfile: V2CommandSyntaxProfile = createV2CommandSyntaxProfile({ profileId: "v2-default" }),
+		private readonly variableService?: V2VariableCommandService,
 	) {}
 
 	async preview(input: CommandBarInput): Promise<CommandPreview> {
 		const intent = await parseDirectCommand(input, this.workspaceContext(), this.syntaxProfile);
+		if (input.rawText.trim().startsWith(`${this.syntaxProfile.variableCommandToken}${this.syntaxProfile.variableCommandName}`)) {
+			try {
+				const variableIntent: CommandBarIntent = {
+					kind: "variable_operation",
+					rawText: input.rawText,
+					sessionId: input.sessionId,
+					variableStatement: parseV2VariableCommand(input.rawText, this.syntaxProfile),
+					diagnostics: [],
+				};
+				const fingerprint = fingerprintFor(variableIntent);
+				return { intent: variableIntent, fingerprint, diagnostics: [] };
+			} catch (error) {
+				const variableIntent: CommandBarIntent = {
+					kind: "unsupported",
+					rawText: input.rawText,
+					sessionId: input.sessionId,
+					diagnostics: [{ code: "invalid_argument", message: error instanceof Error ? error.message : String(error), severity: "error" }],
+				};
+				const fingerprint = fingerprintFor(variableIntent);
+				return { intent: variableIntent, fingerprint, diagnostics: variableIntent.diagnostics };
+			}
+		}
 		const plan = intent.operation && input.workspaceId
 			? await this.planForIntent(intent, input)
 			: undefined;
@@ -36,6 +61,11 @@ export class V2CommandBarService {
 			return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: preview.diagnostics.map((diagnostic) => diagnostic.message).join("; ") };
 		}
 		if (!preview.plan) {
+			if (preview.intent.kind === "variable_operation" && preview.intent.variableStatement) {
+				if (!this.variableService) return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: "V2 variable service is not configured" };
+				await this.variableService.execute(input.sessionId, preview.intent.variableStatement);
+				return { status: "committed", transactionId: `variable:${input.sessionId}`, planFingerprint: preview.fingerprint };
+			}
 			return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: "Command did not produce an executable plan" };
 		}
 		if (input.expectedFingerprint && input.expectedFingerprint !== preview.fingerprint)

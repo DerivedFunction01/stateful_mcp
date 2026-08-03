@@ -10,6 +10,9 @@ export interface SessionState {
 }
 
 export function useSession(): SessionState | null {
+	// TODO(cli2-v2): replace the legacy EngineBuilderResult/NotebookStore session
+	// with ClinicalRuntimeV2 and a V2 notebook-session store. This seam remains
+	// intentionally inert until the CLI2 V2 bootstrap is implemented.
 	const [state, setState] = useState<SessionState | null>(null);
 
 	useEffect(() => {

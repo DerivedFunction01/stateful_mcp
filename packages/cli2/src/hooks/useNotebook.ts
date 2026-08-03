@@ -124,6 +124,9 @@ export interface CellSuggestion {
 }
 
 export function useNotebook(session: SessionState | null) {
+	// TODO(cli2-v2): retain this reducer for editor-only state, but replace all
+	// Cell/CommandDispatcher/PreviewWorkflow imports and domain methods with
+	// StructuredCellService, V2CommandBarService, and ClinicalEngineV2.
 	const [state, dispatch] = useReducer(notebookReducer, INITIAL_NOTEBOOK_STATE);
 	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
 	const [cellSuggestions, setCellSuggestions] = useState<CellSuggestion[]>([]);

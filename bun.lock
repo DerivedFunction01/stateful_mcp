@@ -28,6 +28,22 @@
         "typescript": "^5",
       },
     },
+    "packages/cli2": {
+      "name": "@stateful-mcp/cli2",
+      "version": "0.5.0",
+      "dependencies": {
+        "@stateful-mcp/clinical": "workspace:^",
+        "@stateful-mcp/core": "workspace:^",
+        "ink": "^7.1.1",
+        "react": "^19.2.8",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/node": "^20",
+        "@types/react": "^19.2.18",
+        "typescript": "^5",
+      },
+    },
     "packages/clinical": {
       "name": "@stateful-mcp/clinical",
       "version": "0.1.2",
@@ -183,6 +199,8 @@
     "@sqlite.org/sqlite-wasm": ["@sqlite.org/sqlite-wasm@3.53.0-build1", "", {}, "sha512-PfWPWN2n+/37doa8oh2/oUXk4OOsRYZsxc1W1sDXIGb/Pu5Yrb+f2eyYpgQMGITVX7HVgxhs9P18Rc6I97ym/g=="],
 
     "@stateful-mcp/cli": ["@stateful-mcp/cli@workspace:packages/cli"],
+
+    "@stateful-mcp/cli2": ["@stateful-mcp/cli2@workspace:packages/cli2"],
 
     "@stateful-mcp/clinical": ["@stateful-mcp/clinical@workspace:packages/clinical"],
 

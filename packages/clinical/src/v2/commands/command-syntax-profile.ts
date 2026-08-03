@@ -17,6 +17,8 @@ export type V2EditorCommandVerb =
 	| "redo"
 	| "render";
 
+export type V2VariableCommandVerb = "set" | "update" | "eval" | "assert" | "remove";
+
 export const V2_DIRECT_COMMANDS: readonly V2DirectCommandVerb[] = [
 	"branch", "confirm", "rule_out", "suspend", "re_activate", "close", "complete",
 ];
@@ -34,6 +36,11 @@ export interface V2CommandSyntaxProfile {
 	macroStartToken: string;
 	directCommandMappings: Readonly<Record<string, V2DirectCommandVerb>>;
 	editorCommandMappings: Readonly<Record<string, V2EditorCommandVerb>>;
+	variableCommandToken: string;
+	variableCommandName: string;
+	variableAssignmentDelimiter: string;
+	variableNamePattern: string;
+	variableCommandMappings: Readonly<Record<string, V2VariableCommandVerb>>;
 }
 
 export const V2_COMMAND_SYNTAX_DEFAULTS = {
@@ -63,6 +70,17 @@ export const V2_COMMAND_SYNTAX_DEFAULTS = {
 	redo: "redo",
 	render: "render",
 	},
+	variableCommandToken: ":",
+	variableCommandName: "var",
+	variableAssignmentDelimiter: "=",
+	variableNamePattern: "^[A-Za-z_][A-Za-z0-9_.]*$",
+	variableCommandMappings: {
+		set: "set",
+		update: "update",
+		eval: "eval",
+		assert: "assert",
+		remove: "remove",
+	},
 } as const;
 
 export function createV2CommandSyntaxProfile(
@@ -74,6 +92,11 @@ export function createV2CommandSyntaxProfile(
 		macroStartToken: profile.macroStartToken ?? V2_COMMAND_SYNTAX_DEFAULTS.macroStartToken,
 		directCommandMappings: { ...V2_COMMAND_SYNTAX_DEFAULTS.directCommandMappings, ...profile.directCommandMappings },
 		editorCommandMappings: { ...V2_COMMAND_SYNTAX_DEFAULTS.editorCommandMappings, ...profile.editorCommandMappings },
+		variableCommandToken: profile.variableCommandToken ?? V2_COMMAND_SYNTAX_DEFAULTS.variableCommandToken,
+		variableCommandName: profile.variableCommandName ?? V2_COMMAND_SYNTAX_DEFAULTS.variableCommandName,
+		variableAssignmentDelimiter: profile.variableAssignmentDelimiter ?? V2_COMMAND_SYNTAX_DEFAULTS.variableAssignmentDelimiter,
+		variableNamePattern: profile.variableNamePattern ?? V2_COMMAND_SYNTAX_DEFAULTS.variableNamePattern,
+		variableCommandMappings: { ...V2_COMMAND_SYNTAX_DEFAULTS.variableCommandMappings, ...profile.variableCommandMappings },
 	};
 }
 

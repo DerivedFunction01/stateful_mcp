@@ -21,6 +21,8 @@ export function descriptorsToContributions(
 	source: "editor" | "cell" | "window",
 	intentTypePrefix = "command.",
 ): CommandContribution[] {
+	// TODO(cli2-v2): replace legacy CommandDescriptor input with canonical V2
+	// command descriptors and V2CommandSyntaxProfile mappings.
 	return descriptors.map((d) => ({
 		id: d.verb,
 		intentType: `${intentTypePrefix}${d.group}.${d.verb}`,

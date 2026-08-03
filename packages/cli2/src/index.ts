@@ -1,21 +1,12 @@
-import { ClinicalEngineBuilder } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
-import { handleEval } from "./commands/eval";
-import { handleInit } from "./commands/init";
-import { handleProfile } from "./commands/profile";
-import { handleSession } from "./commands/session";
-
 async function main() {
 	const args = process.argv.slice(2);
 	const command = args[0];
 
 	if (!command || command === "help" || command === "--help") {
 		console.log(`Usage:
-  clinical init                  Bootstrap and print readiness
-  clinical eval <cdsl-text>      Parse CDSL and print result
-  clinical session create <name> Create a new session
-  clinical profile list          List parser profiles
-  clinical profile get <id>      Get profile details
-   clinical notebook              Open the interactive notebook editor`);
+  clinical notebook              Open the V2 notebook editor
+
+Legacy init/eval/session/profile commands are disabled in cli2.`);
 		process.exit(0);
 	}
 
@@ -29,30 +20,9 @@ async function main() {
 		return;
 	}
 
-	// Commands that need a runtime but no engine/session
-	if (command === "init") {
-		const { runtime } =
-			await ClinicalEngineBuilder.withDefaultBackend("memory");
-		await handleInit(runtime);
-		return;
-	}
-	if (command === "profile") {
-		const { runtime } =
-			await ClinicalEngineBuilder.withDefaultBackend("memory");
-		await handleProfile(runtime, args.slice(1));
-		return;
-	}
-
-	// Commands that need a full engine
-	const { engine } = await ClinicalEngineBuilder.withDefaultBackend("memory");
-
-	if (command === "eval") {
-		const sessionId = `cli-${Date.now()}`;
-		await handleEval(engine, sessionId, args.slice(1));
-		return;
-	}
-	if (command === "session") {
-		await handleSession(engine, args.slice(1));
+	if (["init", "eval", "session", "profile"].includes(command)) {
+		console.error(`cli2: '${command}' is disabled until its V2 implementation is wired.`);
+		process.exitCode = 2;
 		return;
 	}
 

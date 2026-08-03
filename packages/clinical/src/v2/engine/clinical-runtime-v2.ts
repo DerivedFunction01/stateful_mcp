@@ -9,6 +9,8 @@ import type { SchemaRegistry } from "../schemas/schema-registry";
 import type { MacroStore } from "../macros/macro-definition";
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { V2CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import type { VariableService } from "@stateful-mcp/core";
+import type { V2VariableCellService } from "../cells/variable-cell-service";
 
 /**
  * Injectable configuration holder for V2 engine services.
@@ -31,4 +33,6 @@ export interface ClinicalRuntimeV2 {
 		dictionary: DictionaryStore;
 	};
 	syntaxProfile: V2CommandSyntaxProfile;
+	variables: VariableService;
+	variableCells: V2VariableCellService;
 }

@@ -11,6 +11,7 @@ import type {
 	MacroArgumentInput,
 	MacroSourceLine,
 } from "../macros/macro-binding";
+import type { VariableStatement } from "@stateful-mcp/core";
 
 export type WorkspaceCommandVerb =
 	| "branch"
@@ -48,4 +49,9 @@ export interface NarrativeIntent {
 	value: string;
 }
 
-export type CellIntent = MacroIntent | WorkspaceCommandIntent | NarrativeIntent;
+export interface VariableIntent {
+	kind: "variable";
+	statement: VariableStatement;
+}
+
+export type CellIntent = MacroIntent | WorkspaceCommandIntent | NarrativeIntent | VariableIntent;

@@ -1,7 +1,6 @@
 import type { EngineBuilderResult } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
-import { ClinicalEngineBuilder } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
 import type { PatientProfile } from "@stateful-mcp/clinical/schemas/patient";
-import { resolveInitialSession } from "./resolver";
+export { bootstrapV2Session } from "./bootstrap-v2";
 
 /**
  * Placeholder patient used to seed a valid encounter on TUI bootstrap.
@@ -31,13 +30,8 @@ export interface BootstrapResult {
 export async function bootstrapSession(
 	options: { result?: EngineBuilderResult; patient?: PatientProfile } = {},
 ): Promise<BootstrapResult> {
-	const result =
-		options.result ??
-		(await ClinicalEngineBuilder.withDefaultBackend("memory"));
-	const sessionId = await resolveInitialSession(result.notebook);
-	await result.engine.ensureEncounter(
-		sessionId,
-		options.patient ?? DEFAULT_TUI_PATIENT,
+	void options;
+	throw new Error(
+		"cli2: V2 bootstrap is not wired yet; legacy ClinicalEngineBuilder bootstrap is disabled.",
 	);
-	return { result, sessionId };
 }

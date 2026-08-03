@@ -2,11 +2,13 @@ import type { ClinicalOperation } from "../clinical/clinical-operation";
 import type { WorkspaceOperation } from "../workspaces/workspace-types";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
 import type { V2WorkspaceAggregate } from "../workspaces/workspace-types";
+import type { VariableStatement } from "@stateful-mcp/core";
 
 export type CommandBarIntentKind =
 	| "editor_command"
 	| "workspace_operation"
 	| "clinical_operation"
+	| "variable_operation"
 	| "cell_operation"
 	| "navigation"
 	| "unsupported";
@@ -48,6 +50,7 @@ export interface CommandBarIntent {
 	documentId?: string;
 	cellId?: string;
 	operation?: WorkspaceOperation | ClinicalOperation;
+	variableStatement?: VariableStatement;
 	diagnostics: CommandDiagnostic[];
 }
 

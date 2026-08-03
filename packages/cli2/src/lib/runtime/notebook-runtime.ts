@@ -58,6 +58,9 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 
 	const onCommand = useMemo(
 		() => async (intent: WindowIntent, _scope: WindowScope) => {
+			// TODO(cli2-v2): route editor commands to the CLI reducer and direct
+			// domain commands to V2CommandBarService. The copied V1 dispatcher is
+			// intentionally disabled in cli2.
 			const verb = (intent.arguments["_verb"] as string) ?? intent.id;
 			const rest = (intent.arguments["_rest"] as string) ?? "";
 			if (verb.toLowerCase() === "var" && opts.executeVariableCommand) {
@@ -65,10 +68,11 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 					await opts.executeVariableCommand(`:var ${rest}`.trim()),
 				);
 			}
-			// Defer to the existing notebook command dispatcher for execution,
-			// then translate its result into effects.
-			const result = await notebook.dispatchCommand(`${verb} ${rest}`.trim());
-			return commandResultToEffects(result);
+			void notebook;
+			return commandResultToEffects({
+				success: false,
+				message: `cli2: command '${`${verb} ${rest}`.trim()}' awaits V2 command-bar wiring`,
+			});
 		},
 		[notebook],
 	);
