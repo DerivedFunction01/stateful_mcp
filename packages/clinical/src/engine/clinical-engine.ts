@@ -21,7 +21,6 @@ import type { CellDocumentExecutionResult } from "../session/cell-execution";
 import type {
 	CalibrationStore,
 	ConceptFieldStore,
-	ParserMacroStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
 	SignedSoapNoteRecord,
@@ -30,115 +29,15 @@ import type {
 	StopWordStore,
 } from "../store/interfaces";
 import type {
-	AutocompleteTransitionStore,
 	NgramStore,
-	ParsedCellHistoryStore,
-	ParsedCellRecord,
-	ParsedCellStore,
 	SystemWeightStore,
 } from "../store/learning/interfaces";
-import {
-	MAX_ORDERED_TOKENS,
-	type OrderedLearningHistoryKey,
-	type OrderedLearningStore,
-	type OrderedLearningToken,
-	scoreRecency,
-} from "../store/learning/interfaces";
-import { OrderedLearningRanker } from "../store/learning/ordered_learning/ordered-learning-ranking";
-import type { OrderedLearningRankedCandidate } from "../store/learning/ordered_learning/ordered-learning-ranking-types";
-import { getTransformForSchema } from "../store/learning/parsed_cell/parsed-cell-record-transform";
-import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
-import type { TagStore } from "../store/parser/tags/interfaces";
 import type { AutocompleteSelection } from "../store/reference/auto-complete/command-autocomplete-interfaces";
 import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
 import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 
-// ── Order-Aware Projection ───────────────────────────────────────────────────
-
-export interface OrderAwareProjection {
-	storeId: string;
-	rankedCandidate: OrderedLearningRankedCandidate | null;
-}
-
-/**
- * Builds an ordered token sequence from any parsed item.
- * Produces tokens for tag, concept, and each scalar field in extractedData.
- */
-export function buildOrderedTokens(
-	item: ParsedItem,
-	startIndex: number = 0,
-): OrderedLearningToken[] {
-	const tokens: OrderedLearningToken[] = [];
-	let idx = startIndex;
-
-	// tag
-	tokens.push({ kind: "tag", key: item.tag, index: idx++ });
-
-	// concept
-	if (item.concept[0]?.conceptId) {
-		tokens.push({
-			kind: "concept",
-			key: item.concept[0].conceptId,
-			value: item.concept[0].display,
-			index: idx++,
-		});
-	}
-
-	// all scalar fields present in extractedData
-	const extracted = item.extractedData ?? {};
-	for (const key of Object.keys(extracted)) {
-		const val = extracted[key];
-		if (val !== undefined && val !== null && typeof val !== "object") {
-			tokens.push({
-				kind: "field",
-				key,
-				value: String(val),
-				index: idx++,
-			});
-		}
-	}
-
-	return tokens.slice(0, MAX_ORDERED_TOKENS);
-}
-
 // ── Helper functions for dynamic schema mapping ─────────────────────────────────
-
-function createEmptyShapeFromTemplate(templateObj: any): any {
-	if (templateObj === null || templateObj === undefined) return undefined;
-	if (Array.isArray(templateObj)) return [];
-	if (typeof templateObj === "object") {
-		const empty: any = {};
-		for (const key of Object.keys(templateObj)) {
-			const val = templateObj[key];
-			if (typeof val === "object" && val !== null) {
-				empty[key] = createEmptyShapeFromTemplate(val);
-			} else {
-				empty[key] = undefined;
-			}
-		}
-		return empty;
-	}
-	return undefined;
-}
-
-function fillDefaults(obj: any, defaults: any): any {
-	if (obj === null || obj === undefined) return defaults;
-	if (typeof obj !== "object" || Array.isArray(obj)) return obj;
-	const result = { ...obj };
-	for (const key of Object.keys(defaults)) {
-		if (result[key] === undefined || result[key] === null) {
-			result[key] = defaults[key];
-		} else if (
-			typeof result[key] === "object" &&
-			typeof defaults[key] === "object" &&
-			defaults[key] !== null
-		) {
-			result[key] = fillDefaults(result[key], defaults[key]);
-		}
-	}
-	return result;
-}
 
 const SOAP_ROUTING_CONFIGS: Record<
 	string,
@@ -438,16 +337,10 @@ export interface ClinicalEngineConfig {
 	variableService?: VariableService;
 	variableCellService?: VariableCellService;
 	calibrationStore?: CalibrationStore;
-	parsedCellStore?: ParsedCellStore;
 	stopWordStore?: StopWordStore;
 	profile?: ParserSyntaxProfile;
 	profileStore?: ParserProfileStore;
-	orderAwareStore?: OrderedLearningStore;
-	autocompleteTransitionStore?: AutocompleteTransitionStore;
 	weightStore?: SystemWeightStore;
-	tagStore?: TagStore;
-	profileTagStore?: ProfileTagStore;
-	macroStore?: ParserMacroStore;
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
@@ -469,9 +362,6 @@ export class ClinicalEngine {
 	private variableService?: VariableService;
 	private variableCellService?: VariableCellService;
 	private calibrationStore?: CalibrationStore;
-	private parsedCellStore?: ParsedCellStore;
-	private orderAwareStore?: OrderedLearningStore;
-	private autocompleteTransitionStore?: AutocompleteTransitionStore;
 	private conceptFieldStore?: ConceptFieldStore;
 	private evaluatorStore?: EvaluatorStore;
 	private proseTemplateStore?: ClinicalProseTemplateStore;
@@ -494,9 +384,6 @@ export class ClinicalEngine {
 			(this.workspaceStore as any).personnelId = this.personnelId;
 		}
 		this.calibrationStore = config.calibrationStore;
-		this.parsedCellStore = config.parsedCellStore;
-		this.orderAwareStore = config.orderAwareStore;
-		this.autocompleteTransitionStore = config.autocompleteTransitionStore;
 		this.conceptFieldStore = config.conceptFieldStore;
 		this.evaluatorStore = config.evaluatorStore;
 		this.proseTemplateStore = config.proseTemplateStore;
@@ -513,19 +400,14 @@ export class ClinicalEngine {
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
-				autocompleteTransitionStore: config.autocompleteTransitionStore,
-				tagStore: config.tagStore,
-				profileTagStore: config.profileTagStore,
-				macroStore: config.macroStore,
 				proseTemplateStore: config.proseParserTemplateStore,
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
-				variableService: this.variableService,
 			});
 			this.autocompleteSession = new AutocompleteSessionManager(
 				this.parser,
 				config.proseParserTemplateStore,
-				config.autocompleteTransitionStore,
+				undefined,
 				this.personnelId,
 				config.ngramStore,
 			);
@@ -540,19 +422,14 @@ export class ClinicalEngine {
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
-				autocompleteTransitionStore: config.autocompleteTransitionStore,
-				tagStore: config.tagStore,
-				profileTagStore: config.profileTagStore,
-				macroStore: config.macroStore,
 				proseTemplateStore: config.proseParserTemplateStore,
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
-				variableService: this.variableService,
 			});
 			this.autocompleteSession = new AutocompleteSessionManager(
 				this.parser,
 				config.proseParserTemplateStore,
-				config.autocompleteTransitionStore,
+				undefined,
 				this.personnelId,
 				config.ngramStore,
 			);
@@ -804,16 +681,12 @@ export class ClinicalEngine {
 
 		const note = activeObj.data as SoapNote;
 		const patientBucket = buildPatientLearningBucket(note.patient);
-		const historyStore = this.parsedCellStore as
-			| ParsedCellHistoryStore
-			| undefined;
 
 		const skipCellPreprocessing = options?.skipCellPreprocessing ?? true;
 		let textToParse = dictation;
 		if (!skipCellPreprocessing) {
 			const preprocessor = this.parser.getPreprocessor();
-			textToParse = await preprocessor.applyVariables(dictation, sessionId);
-			textToParse = await preprocessor.expandMacros(textToParse);
+			textToParse = await preprocessor.expandMacros(dictation);
 
 			const directiveMatch = textToParse.match(
 				/^\/notes\/(subjective|objective|assessment|plan|\?)\/([A-Za-z0-9_]+|\?)\s*/,
@@ -823,95 +696,15 @@ export class ClinicalEngine {
 			}
 		}
 
-		const parseResult = historyStore
-			? await this.parser.parseWithHistoryDetailed(
-					textToParse,
-					{
-						personnelId: this.personnelId,
-						patientContext: patientBucket,
-					},
-					historyStore,
-				)
-			: await this.parser.parseDetailed(textToParse, {
-					personnelId: this.personnelId,
-					patientContext: patientBucket,
-				});
+		const parseResult = await this.parser.parseDetailed(textToParse, {
+			personnelId: this.personnelId,
+			patientContext: patientBucket,
+		});
 
 		const parsedItems = parseResult.items;
 		let currentObjId = effectiveAlias;
 
 		for (const item of parsedItems) {
-			if (this.parsedCellStore) {
-				const cellId = `cell_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-				const now = new Date().toISOString();
-				const parsedCell: ParsedCellRecord = {
-					shared: {
-						cellId,
-						sessionId,
-						patientId: patientBucket.patientId,
-						patientOrganismType: patientBucket.organismType,
-						patientGender: patientBucket.gender,
-						patientAgeBucket: patientBucket.ageBucket,
-						patientSpeciesBucket: patientBucket.speciesBucket,
-						patientSubBucket: patientBucket.subBucket,
-						patientBucketKey: patientBucket.bucketKey,
-						patientTierWeights: patientBucket.weights,
-						personnelId: this.personnelId,
-						tag: item.tag,
-						targetSchema: item.targetSchema,
-						rawText: item.rawText,
-						anchorText: item.tag,
-						parserVersion: "phase2",
-						contractVersion: "v1",
-						sourceKind: "direct_contract",
-						outcome: "accepted",
-						acceptedAt: now,
-						createdAt: now,
-						updatedAt: now,
-					},
-					parsedItem: item,
-					learningMetadata: {
-						history: {
-							priorAcceptCount: 1,
-							priorCorrectionCount: 0,
-							lastAcceptedAt: now,
-							recencyScore: scoreRecency(now),
-						},
-						flags: {
-							contractValid: true,
-							stalePreference: false,
-							reviewRequired: false,
-						},
-						candidateTokens: [],
-					},
-				};
-				await this.parsedCellStore.putRecord(parsedCell);
-
-				// Persist ordered tokens to the order-aware store
-				if (this.orderAwareStore) {
-					const orderedTokens = buildOrderedTokens(item);
-					await this.orderAwareStore.putRecord({
-						shared: {
-							cellId,
-							soapNoteId: note.id,
-							tag: item.tag,
-							targetSchema: item.targetSchema,
-							rawText: item.rawText,
-							patientId: patientBucket.patientId,
-							patientOrganismType: patientBucket.organismType,
-							patientGender: patientBucket.gender,
-							patientAgeBucket: patientBucket.ageBucket,
-							patientSpeciesBucket: patientBucket.speciesBucket,
-							patientSubBucket: patientBucket.subBucket,
-							patientBucketKey: patientBucket.bucketKey,
-							personnelId: this.personnelId,
-							acceptedAt: now,
-						},
-						parsedItem: item,
-						orderedTokens,
-					});
-				}
-			}
 			// Log calibration if concept is not found
 			if (!item.concept[0]?.conceptId && this.calibrationStore) {
 				await this.calibrationStore.logException({
@@ -925,28 +718,14 @@ export class ClinicalEngine {
 			const schemaClean = item.targetSchema.toLowerCase();
 			const routing = SOAP_ROUTING_CONFIGS[schemaClean];
 			if (routing) {
-				const transform = getTransformForSchema(item.targetSchema);
-				const fallbackDefaults = routing.defaultFallbacks || {};
 				const parsedData = item.extractedData || {};
 				const mappedFields = routing.mapFields(item);
 
-				let mergedData: any;
-				if (transform) {
-					const cleanShape = createEmptyShapeFromTemplate(
-						transform.template().extractedData,
-					);
-					mergedData = {
-						id: `${routing.idPrefix}_${crypto.randomUUID().slice(0, 8)}`,
-						...fillDefaults({ ...cleanShape, ...parsedData }, fallbackDefaults),
-						...mappedFields,
-					};
-				} else {
-					mergedData = {
-						id: `${routing.idPrefix}_${crypto.randomUUID().slice(0, 8)}`,
-						...parsedData,
-						...mappedFields,
-					};
-				}
+				const mergedData: any = {
+					id: `${routing.idPrefix}_${crypto.randomUUID().slice(0, 8)}`,
+					...parsedData,
+					...mappedFields,
+				};
 
 				// Append event to EventStore under the session tip
 				const eventData = {
@@ -993,30 +772,6 @@ export class ClinicalEngine {
 			options,
 		);
 		return result.soapNote;
-	}
-
-	/**
-	 * Computes the order-aware ranking projection for a given observation parse.
-	 * Returns null if no order-aware store is configured or history is empty.
-	 */
-	async getOrderAwareProjection(
-		key: OrderedLearningHistoryKey,
-		candidateTokens: OrderedLearningToken[],
-		storeId: string = "default",
-	): Promise<OrderAwareProjection | null> {
-		if (!this.orderAwareStore) return null;
-
-		const ranker = new OrderedLearningRanker();
-		const rankedCandidate = await ranker.rankCandidate(
-			this.orderAwareStore,
-			{ key, candidateTokens },
-			{ adapterId: storeId },
-		);
-
-		return {
-			storeId,
-			rankedCandidate,
-		};
 	}
 
 	/**

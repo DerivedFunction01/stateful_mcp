@@ -46,8 +46,6 @@ export async function getBootstrapReadinessDiagnostics(
 	const [
 		attributeBindings,
 		evaluatorBindings,
-		profileTags,
-		tags,
 		conceptDefaults,
 		sharedAnchors,
 		proseTemplates,
@@ -57,8 +55,6 @@ export async function getBootstrapReadinessDiagnostics(
 	] = await Promise.all([
 		stores.attributeBindings.listBindings(activeProfile.profileId),
 		stores.evaluatorBindings.listBindings(activeProfile.profileId),
-		stores.profileTags.getProfileTags(activeProfile.profileId),
-		stores.tags.list(),
 		stores.conceptDefaults.list(),
 		stores.sharedFieldAnchors.listForContext({}),
 		stores.proseTemplates.list(),
@@ -70,8 +66,6 @@ export async function getBootstrapReadinessDiagnostics(
 	const populations: Array<[string, number]> = [
 		["attributeBindings", attributeBindings.length],
 		["evaluatorBindings", evaluatorBindings.length],
-		["profileTags", profileTags.length],
-		["tags", tags.length],
 		["conceptDefaults", conceptDefaults.length],
 		["sharedFieldAnchors", sharedAnchors.length],
 		["proseTemplates", proseTemplates.length],

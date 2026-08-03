@@ -1,13 +1,8 @@
-import {
-	type DictionaryStore,
-	executePipeline,
-	type VariableService,
-} from "@stateful-mcp/core";
+import { type DictionaryStore, executePipeline } from "@stateful-mcp/core";
 import type {
 	AttributeParserRule,
 	ConceptFieldStore,
 	ParserConceptDefaultStore,
-	ParserMacroStore,
 	ParserProfileStore,
 	ParserSyntaxProfile,
 	StopWordContext,
@@ -20,9 +15,6 @@ import type {
 	ScoredParsedItem,
 	SystemWeightStore,
 } from "../store/learning/interfaces";
-import { GenericConfidenceScorer } from "../store/learning/parsed_cell/confidence-scorer";
-import type { ProfileTagStore } from "../store/parser/profiles/interfaces";
-import type { TagStore } from "../store/parser/tags/interfaces";
 import type {
 	CommandAutocompleteContext,
 	CommandAutocompleteSuggestion,
@@ -80,12 +72,8 @@ export interface CdslParserOptions {
 	conceptFieldStore?: ConceptFieldStore;
 	proseTemplateStore?: ProseParserTemplateStore;
 	sharedFieldAnchorStore?: SharedFieldAnchorStore;
-	macroStore?: ParserMacroStore;
-	variableService?: VariableService;
 	weightStore?: SystemWeightStore;
 	autocompleteTransitionStore?: AutocompleteTransitionStore;
-	tagStore?: TagStore;
-	profileTagStore?: ProfileTagStore;
 	commandSuggester?: CommandAutocompleteSuggester;
 }
 
@@ -98,8 +86,6 @@ export class CdslParser {
 	private conceptFieldStore?: ConceptFieldStore;
 	private proseTemplateStore?: ProseParserTemplateStore;
 	private sharedFieldAnchorStore?: SharedFieldAnchorStore;
-	private macroStore?: ParserMacroStore;
-	private variableService?: VariableService;
 	private weightStore?: SystemWeightStore;
 	private autocompleteTransitionStore?: AutocompleteTransitionStore;
 	private commandSuggester?: CommandAutocompleteSuggester;
@@ -123,23 +109,9 @@ export class CdslParser {
 		this.conceptFieldStore = options.conceptFieldStore;
 		this.proseTemplateStore = options.proseTemplateStore;
 		this.sharedFieldAnchorStore = options.sharedFieldAnchorStore;
-		this.macroStore = options.macroStore;
-		this.variableService = options.variableService;
 		this.weightStore = options.weightStore;
 		this.autocompleteTransitionStore = options.autocompleteTransitionStore;
-		this.commandSuggester =
-			options.commandSuggester ??
-			(options.tagStore && options.profileTagStore
-				? new CommandAutocompleteSuggester(
-						options.tagStore,
-						options.profileTagStore,
-						this.profile,
-						this.autocompleteTransitionStore,
-						this.weightStore,
-						this.macroStore,
-						this.dictionaryStore,
-					)
-				: undefined);
+		this.commandSuggester = options.commandSuggester;
 		this.attributeRules = [
 			...(this.profile.attributeRules || []),
 			...(this.profile.calendarDateFormats
@@ -155,12 +127,7 @@ export class CdslParser {
 			this.conceptFieldStore,
 			this.dictionaryStore,
 		);
-		this.preprocessor = new TextPreprocessor(
-			this.variableService,
-			this.profile,
-			this.macroStore,
-			this.dictionaryStore,
-		);
+		this.preprocessor = new TextPreprocessor(this.profile);
 	}
 
 	/**
@@ -180,7 +147,6 @@ export class CdslParser {
 	 * @param options.conceptFieldStore - Optional concept field store
 	 * @param options.proseTemplateStore - Optional prose parser template store
 	 * @param options.sharedFieldAnchorStore - Optional shared field anchor store
-	 * @param options.macroStore - Optional macro store for macro expansion
 	 */
 	static async create(
 		options: CdslParserOptions & {
@@ -352,7 +318,7 @@ export class CdslParser {
 		},
 	): Promise<ParserPreviewResult[]> {
 		const sessionId = (context as any)?.sessionId || "default_session";
-		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
+		const cleanText = text;
 		const expanded = await this.preprocessor.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -399,7 +365,7 @@ export class CdslParser {
 		},
 	): Promise<ClinicalParseResult> {
 		const sessionId = (context as any)?.sessionId || "default_session";
-		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
+		const cleanText = text;
 		const expanded = await this.preprocessor.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -452,7 +418,7 @@ export class CdslParser {
 		},
 	): Promise<ClinicalParseResult> {
 		const sessionId = (context as any)?.sessionId || "default_session";
-		const cleanText = await this.preprocessor.applyVariables(text, sessionId);
+		const cleanText = text;
 		const expanded = await this.preprocessor.expandMacros(cleanText);
 		const effectiveStopWordParser = this.stopWordParser;
 		if (!effectiveStopWordParser && this.stopWordStore && context) {
@@ -684,30 +650,7 @@ export class CdslParser {
 			}
 
 			if (candidateItems.length > 0) {
-				const confidenceScorer = new GenericConfidenceScorer(
-					this.weightStore,
-					historyStore as any,
-				);
-				const scored: ScoredParsedItem[] = [];
 				for (const item of candidateItems) {
-					const res = await confidenceScorer.scoreCandidate(item, {
-						tag: state.tag || "",
-						targetSchema: item.targetSchema,
-						rawText: state.content,
-						history: [],
-					});
-					scored.push(res);
-				}
-
-				scored.sort((a, b) => b.confidenceScore - a.confidenceScore);
-				allScoredItems.push(...scored);
-
-				const threshold = 0.5;
-				const winners = scored.filter((s) => s.confidenceScore >= threshold);
-				const finalWinners = winners.length > 0 ? winners : scored.slice(0, 1);
-
-				for (const win of finalWinners) {
-					const item = win.parsedItem;
 					const key = `${item.targetSchema}:${item.concept[0]?.conceptId ?? ""}:${JSON.stringify(item.extractedData)}:segment_${items.length}`;
 					if (!seenFinal.has(key)) {
 						seenFinal.add(key);

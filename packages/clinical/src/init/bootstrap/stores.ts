@@ -1,19 +1,14 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { SharedFieldAnchorStore } from "../../parser/field-shared/shared-field-anchor";
-import type { ParserMacroStore } from "../../store/interfaces";
 import type { ParserConceptDefaultStore } from "../../store/parser/concept_defaults/interfaces";
 import type { ConceptFieldStore } from "../../store/parser/concept_fields/interfaces";
-import type {
-	ParserProfileCoreStore,
-	ProfileTagStore,
-} from "../../store/parser/profiles/interfaces";
+import type { ParserProfileCoreStore } from "../../store/parser/profiles/interfaces";
 import type {
 	ParserAttributeRuleStore,
 	ParserEvaluatorRuleStore,
 	ParserProfileEvaluatorBindingStore,
 	ParserProfileRuleBindingStore,
 } from "../../store/parser/rules/interfaces";
-import type { TagStore } from "../../store/parser/tags/interfaces";
 import type { CommandTemplateStore } from "../../store/reference/command-templates/interfaces";
 import type { FacilityStore } from "../../store/reference/facilities/interfaces";
 import type { JurisdictionalDisplayStore } from "../../store/reference/jurisdictional-displays/interfaces";
@@ -28,12 +23,10 @@ import type {
 export interface BootstrapStores {
 	dictionaryStore: DictionaryStore;
 	profiles: ParserProfileCoreStore;
-	profileTags: ProfileTagStore;
 	attributeRules: ParserAttributeRuleStore;
 	evaluatorRules: ParserEvaluatorRuleStore;
 	attributeBindings: ParserProfileRuleBindingStore;
 	evaluatorBindings: ParserProfileEvaluatorBindingStore;
-	tags: TagStore;
 	conceptDefaults: ParserConceptDefaultStore;
 	conceptFields: ConceptFieldStore;
 	sharedFieldAnchors: SharedFieldAnchorStore;
@@ -45,5 +38,4 @@ export interface BootstrapStores {
 	personnel: PersonnelStore;
 	facilities: FacilityStore;
 	jurisdictionalDisplays: JurisdictionalDisplayStore;
-	macros: ParserMacroStore;
 }

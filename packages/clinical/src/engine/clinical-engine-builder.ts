@@ -256,8 +256,6 @@ async function wireEngine(
 
 	const composer = new DefaultParserProfileComposer(
 		stores.profiles,
-		stores.profileTags,
-		stores.tags,
 		stores.attributeRules,
 		stores.evaluatorRules,
 		stores.attributeBindings,
@@ -270,12 +268,9 @@ async function wireEngine(
 		throw new Error(`parser profile not found: ${profileId}`);
 
 	const commandSuggester = new CommandAutocompleteSuggester(
-		stores.tags,
-		stores.profileTags,
 		composedProfile,
-		runtime.autocompleteTransitionStore,
 		undefined,
-		stores.macros,
+		undefined,
 		stores.dictionaryStore,
 	);
 
@@ -298,9 +293,6 @@ async function wireEngine(
 		workspaceReadModel,
 		variableService: new VariableServiceStore(),
 		profile: composedProfile,
-		parsedCellStore: runtime.learningStores[0] as any,
-		orderAwareStore: runtime.orderedLearningStores[0],
-		autocompleteTransitionStore: runtime.autocompleteTransitionStore,
 		conceptFieldStore: stores.conceptFields,
 		proseTemplateStore: stores.proseTemplates,
 		proseParserTemplateStore: stores.proseParserTemplates,

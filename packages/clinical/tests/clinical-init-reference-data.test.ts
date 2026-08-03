@@ -5,14 +5,11 @@ import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime"
 import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
 import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
 import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
-import { KvParserMacroStore } from "../src/store/parser/macros/kv-macro-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
-import { KvProfileTagStore } from "../src/store/parser/profiles/kv-profile-tag-store";
 import { KvParserAttributeRuleStore } from "../src/store/parser/rules/kv-parser-attribute-rule-store";
 import { KvParserEvaluatorRuleStore } from "../src/store/parser/rules/kv-parser-evaluator-rule-store";
 import { KvProfileEvaluatorBindingStore } from "../src/store/parser/rules/kv-profile-evaluator-binding-store";
 import { KvProfileRuleBindingStore } from "../src/store/parser/rules/kv-profile-rule-binding-store";
-import { KvTagStore } from "../src/store/parser/tags/kv-tag-store";
 import { KvFacilityStore } from "../src/store/reference/facilities/kv-facility-store";
 import { KvJurisdictionalDisplayStore } from "../src/store/reference/jurisdictional-displays/kv-jurisdictional-display-store";
 import { KvPersonnelStore } from "../src/store/reference/personnel/kv-personnel-store";
@@ -42,12 +39,10 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 	const backend = new MemoryKvBackend();
 	return {
 		profiles: new KvParserProfileStore(backend),
-		profileTags: new KvProfileTagStore(backend),
 		attributeRules: new KvParserAttributeRuleStore(backend),
 		evaluatorRules: new KvParserEvaluatorRuleStore(backend),
 		attributeBindings: new KvProfileRuleBindingStore(backend),
 		evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		tags: new KvTagStore(backend),
 		conceptDefaults: new KvConceptDefaultStore(backend),
 		conceptFields: new KvConceptFieldStore(backend),
 		sharedFieldAnchors: new KvSharedFieldAnchorStore(backend),
@@ -59,7 +54,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		personnel: new KvPersonnelStore(backend),
 		facilities: new KvFacilityStore(backend),
 		jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
-		macros: new KvParserMacroStore(backend),
 		dictionaryStore: makeMockDictionaryStore(),
 	};
 }
@@ -156,34 +150,6 @@ describe("bootstrapClinicalStores reference data", () => {
 			preferredDisplay: "Preferred term",
 			fullySpecifiedName: "Fully specified term",
 			source: "SNOMED",
-		});
-	});
-
-	it("writes macro records to the macros store", async () => {
-		const stores = makeMockStores();
-		const result = await bootstrapClinicalStores(
-			stores,
-			[
-				{
-					recordId: "macro.vitals",
-					kind: "macro",
-					payload: {
-						macroId: "macro.vitals",
-						macroName: "vitals",
-						macroTemplate: "#vitals {1}",
-					},
-					sourceModuleId: "test",
-					sourceModuleVersion: 1,
-				},
-			],
-			{ seedPolicy: "force" },
-		);
-
-		expect(result.recordsWritten.macro).toBe(1);
-		expect(await stores.macros.get("vitals")).toEqual({
-			macroId: "macro.vitals",
-			macroName: "vitals",
-			macroTemplate: "#vitals {1}",
 		});
 	});
 

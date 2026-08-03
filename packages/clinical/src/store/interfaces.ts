@@ -279,20 +279,6 @@ export interface ClinicalProseTemplate {
 	slots: Record<string, OutputProseSlot>;
 }
 
-export interface ParserMacro {
-	macroId: string;
-	macroName: string;
-	macroTemplate: string;
-	personnelId?: string;
-}
-
-export interface ParserMacroStore {
-	get(macroName: string): Promise<ParserMacro | null>;
-	list(): Promise<ParserMacro[]>;
-	set(macro: ParserMacro): Promise<void>;
-	delete(macroId: string): Promise<void>;
-}
-
 export interface SignedSoapNoteRecord {
 	noteId: string;
 	sessionId: string;

@@ -23,14 +23,11 @@ import type { ClinicalRuntimeParserStores } from "../src/store/clinical-runtime"
 import { KvSharedFieldAnchorStore } from "../src/store/parser/anchors/kv-shared-field-anchor-store";
 import { KvConceptDefaultStore } from "../src/store/parser/concept_defaults/kv-concept-default-store";
 import { KvConceptFieldStore } from "../src/store/parser/concept_fields/kv-concept-field-store";
-import { KvParserMacroStore } from "../src/store/parser/macros/kv-macro-store";
 import { KvParserProfileStore } from "../src/store/parser/profiles/kv-parser-profile-store";
-import { KvProfileTagStore } from "../src/store/parser/profiles/kv-profile-tag-store";
 import { KvParserAttributeRuleStore } from "../src/store/parser/rules/kv-parser-attribute-rule-store";
 import { KvParserEvaluatorRuleStore } from "../src/store/parser/rules/kv-parser-evaluator-rule-store";
 import { KvProfileEvaluatorBindingStore } from "../src/store/parser/rules/kv-profile-evaluator-binding-store";
 import { KvProfileRuleBindingStore } from "../src/store/parser/rules/kv-profile-rule-binding-store";
-import { KvTagStore } from "../src/store/parser/tags/kv-tag-store";
 import { KvProseParserTemplateStore } from "../src/store/reference/prose-parser-templates/kv-prose-parser-template-store";
 import { KvClinicalProseTemplateStore } from "../src/store/reference/prose-templates/kv-clinical-prose-template-store";
 import { KvStopWordProfileStore } from "../src/store/reference/stop-words/kv-stop-word-profile-store";
@@ -57,12 +54,10 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 	const backend = new MemoryKvBackend();
 	return {
 		profiles: new KvParserProfileStore(backend),
-		profileTags: new KvProfileTagStore(backend),
 		attributeRules: new KvParserAttributeRuleStore(backend),
 		evaluatorRules: new KvParserEvaluatorRuleStore(backend),
 		attributeBindings: new KvProfileRuleBindingStore(backend),
 		evaluatorBindings: new KvProfileEvaluatorBindingStore(backend),
-		tags: new KvTagStore(backend),
 		conceptDefaults: new KvConceptDefaultStore(backend),
 		conceptFields: new KvConceptFieldStore(backend),
 		sharedFieldAnchors: new KvSharedFieldAnchorStore(backend),
@@ -70,7 +65,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		stopWordWordLists: new KvStopWordWordListStore(backend),
 		proseTemplates: new KvClinicalProseTemplateStore(backend),
 		proseParserTemplates: new KvProseParserTemplateStore(backend),
-		macros: new KvParserMacroStore(backend),
 		jurisdictionalDisplays: {} as any,
 		calibration: {} as any,
 		personnel: {} as any,
@@ -191,43 +185,6 @@ describe("bootstrapClinicalStores", () => {
 		).not.toBeNull();
 	});
 
-	it("wires future tag and profile-tag records without requiring starter data", async () => {
-		const stores = makeMockStores();
-		const result = await bootstrapClinicalStores(
-			stores,
-			[
-				{
-					recordId: "tag-record",
-					kind: "tag",
-					payload: {
-						tagId: "observation",
-						tagName: "ObservationEvent",
-						tagBlob: { priority: 1 },
-					},
-					sourceModuleId: "test",
-					sourceModuleVersion: 1,
-				},
-				{
-					recordId: "profile-tag-record",
-					kind: "profile_tag",
-					profileId: "starter.default",
-					payload: { tagIds: ["observation"] },
-					sourceModuleId: "test",
-					sourceModuleVersion: 1,
-				},
-			],
-			{ seedPolicy: "force" },
-		);
-
-		expect(result.recordsWritten.tag).toBe(1);
-		expect(result.recordsWritten.profile_tag).toBe(1);
-		expect((await stores.tags.get("observation"))?.tagBlob).toBe(
-			'{"priority":1}',
-		);
-		expect(await stores.profileTags.getProfileTags("starter.default")).toEqual([
-			"observation",
-		]);
-	});
 });
 
 describe("validateBootstrapReadiness", () => {
@@ -256,7 +213,6 @@ describe("validateBootstrapReadiness", () => {
 		const diagnostics = await getBootstrapReadinessDiagnostics(stores);
 		expect(diagnostics.declaredEmpty).toEqual(
 			expect.arrayContaining([
-				"profileTags",
 				"proseTemplates",
 				"conceptFields",
 				"dictionaryExpressions",
@@ -299,9 +255,6 @@ describe("validateBootstrapReadiness", () => {
 			"starter.evaluator-rules",
 			1,
 		);
-		await stores.profileTags.setProfileTags("starter.default", [
-			"tag.observation",
-		]);
 		await stores.stopWordProfiles.set({
 			profileId: "default",
 			personnelId: "default",

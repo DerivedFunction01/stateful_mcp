@@ -14,16 +14,13 @@ import {
 	normalizeFacility,
 	normalizeFieldRule,
 	normalizeJurisdictionalDisplay,
-	normalizeMacro,
 	normalizePersonnel,
 	normalizeProfile,
-	normalizeProfileTag,
 	normalizeProseParserTemplate,
 	normalizeProseRule,
 	normalizeSharedAnchor,
 	normalizeStopWordList,
 	normalizeStopWordProfile,
-	normalizeTag,
 } from "./normalizers";
 import type { BootstrapStores } from "./stores";
 
@@ -67,21 +64,6 @@ registerHandler("profile", async (stores, record) => {
 	const profile = normalizeProfile(record);
 	if (!profile) return;
 	await stores.profiles.set(profile);
-});
-
-registerHandler("tag", async (stores, record) => {
-	const tag = normalizeTag(record);
-	if (!tag) return;
-	await stores.tags.set(tag);
-});
-
-registerHandler("profile_tag", async (stores, record) => {
-	const profileTag = normalizeProfileTag(record);
-	if (!profileTag) return;
-	await stores.profileTags.setProfileTags(
-		profileTag.profileId,
-		profileTag.tagIds,
-	);
 });
 
 registerHandler("attribute_rule", async (stores, record) => {
@@ -154,12 +136,6 @@ registerHandler("jurisdictional_display", async (stores, record) => {
 	const display = normalizeJurisdictionalDisplay(record);
 	if (!display) return;
 	await stores.jurisdictionalDisplays.set(display);
-});
-
-registerHandler("macro", async (stores, record) => {
-	const macro = normalizeMacro(record);
-	if (!macro) return;
-	await stores.macros.set(macro);
 });
 
 registerHandler(
@@ -418,20 +394,6 @@ async function isStoreEmpty(
 			);
 			return existing === null;
 		}
-		case "tag": {
-			const payload = record.payload;
-			const tagId = payload.tagId;
-			if (typeof tagId !== "string") return true;
-			return (await stores.tags.get(tagId)) === null;
-		}
-		case "profile_tag": {
-			const normalized = normalizeProfileTag(record);
-			if (!normalized) return true;
-			const existing = await stores.profileTags.getProfileTags(
-				normalized.profileId,
-			);
-			return existing.length === 0;
-		}
 		case "attribute_rule": {
 			const existing = await stores.attributeRules.get(record.recordId);
 			return existing === null;
@@ -499,13 +461,6 @@ async function isStoreEmpty(
 				payload?.conceptId as string,
 				payload?.jurisdictionId as string,
 				payload?.source as string,
-			);
-			return existing === null;
-		}
-		case "macro": {
-			const payload = record.payload as Record<string, unknown> | undefined;
-			const existing = await stores.macros.get(
-				(payload?.macroName as string) ?? record.recordId,
 			);
 			return existing === null;
 		}

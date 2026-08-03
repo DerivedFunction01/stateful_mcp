@@ -1,44 +1,25 @@
-import {
-	type DictionaryStore,
-	MemoryVariableStore,
-	type VariableService,
-	VariableServiceStore,
-} from "@stateful-mcp/core";
-import type {
-	ParserMacroStore,
-	ParserSyntaxProfile,
-} from "../store/interfaces";
-import { MacroExpander } from "./macro-expander";
-import { CdslVariableParser } from "./variable-parser";
+import type { ParserSyntaxProfile } from "../store/interfaces";
 
+/**
+ * Legacy CDSL text pre-processing (inline variable blocks and macro expansion)
+ * is disabled in Engine V2. It remains as a no-op compatibility shim so
+ * transitional callers compile while the legacy prose/CDSL path is dismantled.
+ * Typed command macros and command variables (`:var`) are handled separately.
+ */
 export class TextPreprocessor {
-	constructor(
-		private variableService: VariableService | undefined,
-		private profile: ParserSyntaxProfile,
-		private macroStore?: ParserMacroStore,
-		private dictionaryStore?: DictionaryStore,
-	) {}
+	constructor(private profile: ParserSyntaxProfile) {}
 
-	async applyVariables(text: string, sessionId: string): Promise<string> {
-		const service =
-			this.variableService ??
-			new VariableServiceStore(new MemoryVariableStore());
-		return CdslVariableParser.parseAndApply(
-			text,
-			service,
-			sessionId,
-			this.profile,
-			this.dictionaryStore,
-		);
-	}
-
+	/** Legacy CDSL macro expansion is disabled in Engine V2. */
 	async expandMacros(text: string): Promise<string> {
-		if (!this.macroStore) return text;
-		return MacroExpander.expand(text, this.macroStore, this.profile);
+		return text;
 	}
 
-	async preprocess(text: string, sessionId: string): Promise<string> {
-		const afterVars = await this.applyVariables(text, sessionId);
-		return this.expandMacros(afterVars);
+	/** Legacy CDSL variable preprocessing is disabled in Engine V2. */
+	async applyVariables(text: string): Promise<string> {
+		return text;
+	}
+
+	async preprocess(text: string): Promise<string> {
+		return text;
 	}
 }

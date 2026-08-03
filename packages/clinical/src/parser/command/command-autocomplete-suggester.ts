@@ -1,16 +1,12 @@
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type {
-	ParserMacroStore,
-	ParserSyntaxProfile,
+		ParserSyntaxProfile,
 } from "../../store/interfaces";
 import type {
 	AutocompleteTransitionInsertPlan,
 	AutocompleteTransitionStore,
 	SystemWeightStore,
 } from "../../store/learning/interfaces";
-import type { ProfileTagStore } from "../../store/parser/profiles/interfaces";
-import type { TagRecord, TagStore } from "../../store/parser/tags/interfaces";
-import { parseTagMetadata } from "../../store/parser/tags/interfaces";
 import type {
 	AutocompleteSelection,
 	CommandAutocompleteContext,
@@ -59,12 +55,9 @@ const DEFAULT_LEARNED_PRIORITY_WEIGHT = 0.2;
  */
 export class CommandAutocompleteSuggester {
 	constructor(
-		private tagStore: TagStore,
-		private profileTagStore: ProfileTagStore,
 		private profile: ParserSyntaxProfile,
 		private transitionStore?: AutocompleteTransitionStore,
 		private weightStore?: SystemWeightStore,
-		private macroStore?: ParserMacroStore,
 		private dictionaryStore?: DictionaryStore,
 	) {}
 
@@ -150,7 +143,7 @@ export class CommandAutocompleteSuggester {
 
 		// 5. Score each tag
 		const scored = filtered.map((record) => {
-			const metadata = parseTagMetadata(record.tagBlob);
+			const metadata = { priority: 1 } as any;
 			const baseScore = this.prefixMatchScore(prefix, record.tagName);
 			const priorityScore = Math.min((metadata.priority ?? 0) / maxPriority, 1);
 			const affinityScore = this.affinityOverlap(
@@ -199,63 +192,14 @@ export class CommandAutocompleteSuggester {
 	/**
 	 * Suggest macros whose `macroName` starts with `prefix` (case-insensitive).
 	 *
-	 * Macros are fetched from `ParserMacroStore.list()`, filtered by prefix,
-	 * and scored by prefix match + optional transition data.
+	 * Legacy parser macro suggestions are disabled. Typed command macros use
+	 * the command-macro autocomplete path instead.
 	 */
 	async suggestMacros(
 		prefix: string,
 		ctx?: CommandAutocompleteContext,
 	): Promise<CommandAutocompleteSuggestion[]> {
-		if (!this.macroStore) return [];
-
-		const macros = await this.macroStore.list();
-		if (macros.length === 0) return [];
-
-		const lowerPrefix = prefix.toLowerCase();
-		const filtered =
-			lowerPrefix === ""
-				? macros
-				: macros.filter((m) =>
-						m.macroName.toLowerCase().startsWith(lowerPrefix),
-					);
-		if (filtered.length === 0) return [];
-
-		// Compute transition scores
-		const recentSchemas = ctx?.recentTargetSchemas ?? [];
-		const transitionScores = await this.computeTransitionScores(
-			recentSchemas,
-			ctx?.personnelId,
-			"command_macro",
-		);
-		const hasTransitionData = Object.keys(transitionScores).length > 0;
-
-		// Score each macro
-		const scored = filtered.map((macro) => {
-			const baseScore = this.prefixMatchScore(prefix, macro.macroName);
-			const transitionScore = transitionScores[macro.macroName] ?? 0;
-			const coldStartScore = baseScore;
-			const learnedScore = baseScore * 0.3 + transitionScore * 0.7;
-			const finalScore = hasTransitionData ? learnedScore : coldStartScore;
-			return { macro, finalScore };
-		});
-
-		scored.sort((a, b) => {
-			if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
-			return a.macro.macroName.localeCompare(b.macro.macroName);
-		});
-
-		const macroToken = this.profile.macroStartToken ?? "^";
-		return scored.map(({ macro, finalScore }) => {
-			const insertText = `${macroToken}${macro.macroName} `;
-			return {
-				kind: "macro" as const,
-				insertText,
-				label: macro.macroName,
-				detail: macro.macroTemplate,
-				cursorOffset: insertText.length,
-				rankScore: Math.max(0, Math.min(1, finalScore)),
-			};
-		});
+		return [];
 	}
 
 	/**
@@ -489,23 +433,8 @@ export class CommandAutocompleteSuggester {
 	 * Resolve tag records, scoped to the active profile if `profileId` is set.
 	 * Falls back to `tagStore.list()` when the profile has no tags or on error.
 	 */
-	private async resolveTagRecords(profileId?: string): Promise<TagRecord[]> {
-		if (!profileId) {
-			return this.tagStore.list();
-		}
-		let tagIds: string[];
-		try {
-			tagIds = await this.profileTagStore.getProfileTags(profileId);
-		} catch {
-			return this.tagStore.list();
-		}
-		if (tagIds.length === 0) {
-			return this.tagStore.list();
-		}
-		const records = await Promise.all(
-			tagIds.map((id) => this.tagStore.get(id)),
-		);
-		return records.filter((r): r is TagRecord => r !== null);
+	private async resolveTagRecords(profileId?: string): Promise<any[]> {
+		return []
 	}
 
 	/**

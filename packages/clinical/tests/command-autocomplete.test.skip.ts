@@ -2,8 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { CdslParser } from "../src/parser/cdsl-parser";
 import { CommandAutocompleteSuggester } from "../src/parser/command/command-autocomplete-suggester";
 import type {
-	ParserMacro,
-	ParserMacroStore,
 	ParserSyntaxProfile,
 } from "../src/store/interfaces";
 import type {
@@ -60,33 +58,6 @@ class InMemoryProfileTagStore implements ProfileTagStore {
 			);
 		} else {
 			this.profileTags.delete(profileId);
-		}
-	}
-}
-
-// ── In-memory ParserMacroStore ─────────────────────────────────────
-
-class InMemoryMacroStore implements ParserMacroStore {
-	private macros = new Map<string, ParserMacro>();
-
-	async get(macroName: string): Promise<ParserMacro | null> {
-		return this.macros.get(macroName) ?? null;
-	}
-
-	async list(): Promise<ParserMacro[]> {
-		return Array.from(this.macros.values());
-	}
-
-	async set(macro: ParserMacro): Promise<void> {
-		this.macros.set(macro.macroName, macro);
-	}
-
-	async delete(macroId: string): Promise<void> {
-		for (const [key, val] of this.macros) {
-			if (val.macroId === macroId) {
-				this.macros.delete(key);
-				return;
-			}
 		}
 	}
 }
@@ -540,68 +511,6 @@ describe("CommandAutocompleteSuggester", () => {
 		});
 	});
 
-	describe("suggestMacros", () => {
-		it("returns macros matching prefix", async () => {
-			const macroStore = new InMemoryMacroStore();
-			await macroStore.set({
-				macroId: "m1",
-				macroName: "vitals",
-				macroTemplate: "#vital Heart rate 72",
-			});
-			await macroStore.set({
-				macroId: "m2",
-				macroName: "full_exam",
-				macroTemplate: "#observation ...",
-			});
-
-			const suggester = new CommandAutocompleteSuggester(
-				new InMemoryTagStore(),
-				new InMemoryProfileTagStore(),
-				TEST_PROFILE,
-				undefined,
-				undefined,
-				macroStore,
-			);
-
-			const results = await suggester.suggestMacros("v");
-			expect(results).toHaveLength(1);
-			expect(results[0]!.label).toBe("vitals");
-			expect(results[0]!.kind).toBe("macro");
-		});
-
-		it("returns empty when no macro store is configured", async () => {
-			const suggester = new CommandAutocompleteSuggester(
-				new InMemoryTagStore(),
-				new InMemoryProfileTagStore(),
-				TEST_PROFILE,
-			);
-
-			const results = await suggester.suggestMacros("v");
-			expect(results).toHaveLength(0);
-		});
-
-		it("insertText includes macro token prefix and trailing space", async () => {
-			const macroStore = new InMemoryMacroStore();
-			await macroStore.set({
-				macroId: "m1",
-				macroName: "vitals",
-				macroTemplate: "#vital Heart rate 72",
-			});
-
-			const suggester = new CommandAutocompleteSuggester(
-				new InMemoryTagStore(),
-				new InMemoryProfileTagStore(),
-				TEST_PROFILE,
-				undefined,
-				undefined,
-				macroStore,
-			);
-
-			const results = await suggester.suggestMacros("v");
-			expect(results[0]!.insertText).toBe("^vitals ");
-		});
-	});
-
 	describe("recordTagSelection", () => {
 		it("records a tag selection to the transition store", async () => {
 			const transitionStore = new InMemoryAutocompleteTransitionStore();
@@ -824,29 +733,6 @@ describe("CommandAutocompleteSuggester", () => {
 			const results = await suggester.suggest("#v", "#");
 			expect(results).toHaveLength(1);
 			expect(results[0]!.label).toBe("vital");
-		});
-
-		it("dispatches to suggestMacros when triggerChar matches macroStartToken", async () => {
-			const macroStore = new InMemoryMacroStore();
-			await macroStore.set({
-				macroId: "m1",
-				macroName: "vitals",
-				macroTemplate: "#vital Heart rate 72",
-			});
-
-			const suggester = new CommandAutocompleteSuggester(
-				new InMemoryTagStore(),
-				new InMemoryProfileTagStore(),
-				TEST_PROFILE,
-				undefined,
-				undefined,
-				macroStore,
-			);
-
-			const results = await suggester.suggest("^v", "^");
-			expect(results).toHaveLength(1);
-			expect(results[0]!.label).toBe("vitals");
-			expect(results[0]!.kind).toBe("macro");
 		});
 
 		it("dispatches to suggestTerms when triggerChar is @", async () => {

@@ -35,12 +35,8 @@ import { KvConceptDefaultStore } from "./concept_defaults/kv-concept-default-sto
 import { SqlConceptDefaultStore } from "./concept_defaults/sql-concept-default-store";
 import { KvConceptFieldStore } from "./concept_fields/kv-concept-field-store";
 import { SqlConceptFieldStore } from "./concept_fields/sql-concept-field-store";
-import { KvParserMacroStore } from "./macros/kv-macro-store";
-import { SqlParserMacroStore } from "./macros/sql-macro-store";
 import { KvParserProfileStore } from "./profiles/kv-parser-profile-store";
-import { KvProfileTagStore } from "./profiles/kv-profile-tag-store";
 import { SqlParserProfileStore } from "./profiles/sql-parser-profile-store";
-import { SqlProfileTagStore } from "./profiles/sql-profile-tag-store";
 import { KvParserAttributeRuleStore } from "./rules/kv-parser-attribute-rule-store";
 import { KvParserEvaluatorRuleStore } from "./rules/kv-parser-evaluator-rule-store";
 import { KvProfileEvaluatorBindingStore } from "./rules/kv-profile-evaluator-binding-store";
@@ -49,8 +45,6 @@ import { SqlParserAttributeRuleStore } from "./rules/sql-parser-attribute-rule-s
 import { SqlParserEvaluatorRuleStore } from "./rules/sql-parser-evaluator-rule-store";
 import { SqlProfileEvaluatorBindingStore } from "./rules/sql-profile-evaluator-binding-store";
 import { SqlProfileRuleBindingStore } from "./rules/sql-profile-rule-binding-store";
-import { KvTagStore } from "./tags/kv-tag-store";
-import { SqlTagStore } from "./tags/sql-tag-store";
 
 function getPrimaryLocator(
 	config: ClinicalStoreConfig,
@@ -120,31 +114,19 @@ async function resolveStoreWithFactory(
 	}
 }
 
-// ── Profiles + tags ──────────────────────────────────────────────────────────
+// ── Profiles ─────────────────────────────────────────────────────────
 
 export async function resolveParserProfileStores(
 	config: ClinicalStoreConfig,
-): Promise<{
-	core: KvParserProfileStore | SqlParserProfileStore;
-	tags: KvProfileTagStore | SqlProfileTagStore;
-}> {
+): Promise<KvParserProfileStore | SqlParserProfileStore> {
 	return resolveStoreWithFactory(
 		config,
 		"parser_profiles",
 		"./clinical-parser.sqlite",
 		{
-			memory: (backend) => ({
-				core: new KvParserProfileStore(backend),
-				tags: new KvProfileTagStore(backend),
-			}),
-			sql: (dialect, executor) => ({
-				core: new SqlParserProfileStore(dialect, executor),
-				tags: new SqlProfileTagStore(dialect, executor),
-			}),
-			jsonl: (backend) => ({
-				core: new KvParserProfileStore(backend),
-				tags: new KvProfileTagStore(backend),
-			}),
+			memory: (backend) => new KvParserProfileStore(backend),
+			sql: (dialect, executor) => new SqlParserProfileStore(dialect, executor),
+			jsonl: (backend) => new KvParserProfileStore(backend),
 		},
 	);
 }
@@ -196,7 +178,6 @@ export async function resolveParserRuleStores(
 export async function resolveReferenceStores(
 	config: ClinicalStoreConfig,
 ): Promise<{
-	tags: KvTagStore | SqlTagStore;
 	jurisdictionalDisplays:
 		| KvJurisdictionalDisplayStore
 		| SqlJurisdictionalDisplayStore;
@@ -211,7 +192,6 @@ export async function resolveReferenceStores(
 		"./clinical-reference.sqlite",
 		{
 			memory: (backend) => ({
-				tags: new KvTagStore(backend),
 				jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
 				stopWordProfiles: new KvStopWordProfileStore(backend),
 				proseTemplates: new KvClinicalProseTemplateStore(backend),
@@ -219,7 +199,6 @@ export async function resolveReferenceStores(
 				commandTemplates: new KvCommandTemplateStore(backend),
 			}),
 			sql: (dialect, executor) => ({
-				tags: new SqlTagStore(dialect, executor),
 				jurisdictionalDisplays: new SqlJurisdictionalDisplayStore(
 					dialect,
 					executor,
@@ -230,7 +209,6 @@ export async function resolveReferenceStores(
 				commandTemplates: new SqlCommandTemplateStore(dialect, executor),
 			}),
 			jsonl: (backend) => ({
-				tags: new KvTagStore(backend),
 				jurisdictionalDisplays: new KvJurisdictionalDisplayStore(backend),
 				stopWordProfiles: new KvStopWordProfileStore(backend),
 				proseTemplates: new KvClinicalProseTemplateStore(backend),
@@ -322,23 +300,6 @@ export async function resolveCalibrationExceptionStore(
 			new SqlCalibrationExceptionStore(dialect, executor),
 		jsonl: (backend) => new KvCalibrationExceptionStore(backend),
 	});
-}
-
-// ── Macros ───────────────────────────────────────────────────────────
-
-export async function resolveMacroStore(
-	config: ClinicalStoreConfig,
-): Promise<KvParserMacroStore | SqlParserMacroStore> {
-	return resolveStoreWithFactory(
-		config,
-		"parser_macros",
-		"./clinical-parser.sqlite",
-		{
-			memory: (backend) => new KvParserMacroStore(backend),
-			sql: (dialect, executor) => new SqlParserMacroStore(executor),
-			jsonl: (backend) => new KvParserMacroStore(backend),
-		},
-	);
 }
 
 export async function resolveCommandMacroStore(

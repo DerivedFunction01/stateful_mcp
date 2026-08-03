@@ -3,10 +3,7 @@ import type {
 	ParserDictionaryRule,
 	ParserSyntaxProfile,
 } from "../interfaces";
-import type {
-	ParserProfileCoreStore,
-	ProfileTagStore,
-} from "./profiles/interfaces";
+import type { ParserProfileCoreStore } from "./profiles/interfaces";
 import type {
 	ConceptFieldRuleBindingStore,
 	ParserAttributeRuleStore,
@@ -14,7 +11,6 @@ import type {
 	ParserProfileEvaluatorBindingStore,
 	ParserProfileRuleBindingStore,
 } from "./rules/interfaces";
-import type { TagRecord, TagStore } from "./tags/interfaces";
 
 export interface ParserProfileComposer {
 	getFullProfile(profileId: string): Promise<ParserSyntaxProfile | null>;
@@ -23,8 +19,6 @@ export interface ParserProfileComposer {
 export class DefaultParserProfileComposer implements ParserProfileComposer {
 	constructor(
 		private readonly profiles: ParserProfileCoreStore,
-		private readonly tags: ProfileTagStore,
-		private readonly tagStore: TagStore,
 		private readonly attributeRules: ParserAttributeRuleStore,
 		private readonly evaluatorRules: ParserEvaluatorRuleStore,
 		private readonly attributeBindings: ParserProfileRuleBindingStore,
@@ -37,18 +31,15 @@ export class DefaultParserProfileComposer implements ParserProfileComposer {
 		if (!profile) return null;
 
 		const [
-			profileTagIds,
 			attributeBindingsList,
 			evaluatorBindingsList,
 			conceptFieldBindingsList,
 		] = await Promise.all([
-			this.tags.getProfileTags(profileId),
 			this.attributeBindings.listBindings(profileId),
 			this.evaluatorBindings.listBindings(profileId),
 			this.conceptFieldBindings?.listBindings(profileId) ?? Promise.resolve([]),
 		]);
 
-		const tagRecords = await this.resolveTags(profileTagIds);
 		const resolvedAttributeRules = await this.resolveAttributeRules(
 			attributeBindingsList,
 		);
@@ -58,25 +49,9 @@ export class DefaultParserProfileComposer implements ParserProfileComposer {
 
 		return {
 			...profile,
-			tagMappings: this.buildTagMappings(tagRecords),
 			attributeRules: resolvedAttributeRules,
 			evaluatorRules: resolvedEvaluatorRules,
 		};
-	}
-
-	private async resolveTags(tagIds: string[]): Promise<TagRecord[]> {
-		const results = await Promise.all(
-			tagIds.map((id) => this.tagStore.get(id)),
-		);
-		return results.filter((t): t is TagRecord => t !== null);
-	}
-
-	private buildTagMappings(tags: TagRecord[]): Record<string, string> {
-		const mappings: Record<string, string> = {};
-		for (const tag of tags) {
-			mappings[tag.tagId] = tag.tagName;
-		}
-		return mappings;
 	}
 
 	private async resolveAttributeRules(

@@ -478,12 +478,7 @@ export class CellProcessor {
 		}
 
 		let cleanedText = cell.rawInput;
-		const sessionId = cell.sessionId;
 
-		cleanedText = await this.preprocessor.applyVariables(
-			cleanedText,
-			sessionId,
-		);
 		cleanedText = await this.preprocessor.expandMacros(cleanedText);
 
 		const directiveMatch = cleanedText.match(
