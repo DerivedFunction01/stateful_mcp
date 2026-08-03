@@ -7,6 +7,7 @@
  * are reference material for Phase 3 and MUST NOT be imported by V2.
  */
 
+import type { MergeStrategy } from "../values/merge";
 import type { TemporalValueType, TypedValueKind } from "../values/typed-value";
 
 export type MacroDefinitionStatus = "draft" | "published" | "retired";
@@ -99,7 +100,7 @@ export interface MacroChildDefinition {
 	childMacroName: string;
 	parentRoleName: string;
 	parentTargetPath: string;
-	mergeStrategy: "replace" | "append" | "deep_merge" | "partial_fill";
+	mergeStrategy: MergeStrategy;
 	repeatable?: boolean;
 	renderTemplateId?: string;
 	renderMode?: "omit" | "inline" | "group" | "separate";

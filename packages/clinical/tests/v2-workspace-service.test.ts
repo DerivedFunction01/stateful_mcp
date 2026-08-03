@@ -7,7 +7,6 @@ import {
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
 import type { MacroExecutionPlan } from "../src/v2/macros/macro-plan";
 import { TransactionCoordinator } from "../src/v2/transactions/transaction-coordinator";
-import { InMemoryWorkspaceViewStateStore, WorkspaceViewService } from "../src/v2/workspaces/workspace-view-state";
 import { CoreWorkspaceEventStore } from "../src/v2/workspaces/core-workspace-event-store";
 import { KvWorkspaceStore } from "../src/v2/workspaces/kv-workspace-store";
 import type { WorkspaceEventStore } from "../src/v2/workspaces/workspace-event-store";
@@ -17,6 +16,10 @@ import {
 } from "../src/v2/workspaces/workspace-service";
 import type { WorkspaceStore } from "../src/v2/workspaces/workspace-store";
 import { WorkspaceTransactionParticipant } from "../src/v2/workspaces/workspace-transaction-participant";
+import {
+	InMemoryWorkspaceViewStateStore,
+	WorkspaceViewService,
+} from "../src/v2/workspaces/workspace-view-state";
 
 type BackendPair = { store: WorkspaceStore; events: WorkspaceEventStore };
 
@@ -400,7 +403,10 @@ describe("V2 workspace transaction participant", () => {
 			root.version,
 			root.eventHead,
 		);
-		const view = new WorkspaceViewService(service, new InMemoryWorkspaceViewStateStore());
+		const view = new WorkspaceViewService(
+			service,
+			new InMemoryWorkspaceViewStateStore(),
+		);
 		const focused = await view.focusBranch("clinician-1", root.id, "pe");
 
 		expect(focused.focusedBranchId).toBe(

@@ -6,16 +6,11 @@
  * legacy `CommandMacroGraphPlan` is reference material only.
  */
 
+import type { ClinicalOperation } from "../clinical/clinical-operation";
+import type { ClinicalWritePolicy, MergeStrategy } from "../values/merge";
 import type { TypedValue } from "../values/typed-value";
 import type { WorkspaceOperation } from "../workspaces/workspace-types";
 import type { MacroDefinitionRef } from "./macro-definition";
-import type { ClinicalOperation } from "../clinical/clinical-operation";
-
-export type MergeStrategy =
-	| "replace"
-	| "append"
-	| "deep_merge"
-	| "partial_fill";
 
 export interface MacroEvidence {
 	source: string;
@@ -46,6 +41,7 @@ export interface MacroTargetOperation {
 	rawValue: string;
 	sourceLine: number;
 	sourceArgument?: number;
+	writePolicy?: ClinicalWritePolicy;
 	evidence: MacroEvidence[];
 	failureStage?:
 		| "validation"
@@ -104,6 +100,8 @@ export interface MacroExecutionPlan {
 	generatedCells: GeneratedCellPlan[];
 	workspaceOperations?: WorkspaceOperation[];
 	clinicalOperations?: ClinicalOperation[];
+	/** Macro-bar execution-mode merge policy; per-operation overrides win. */
+	writePolicy?: ClinicalWritePolicy;
 	expectedVersions: ExpectedAggregateVersion[];
 	fingerprint: MacroPlanFingerprint;
 	diagnostics: string[];

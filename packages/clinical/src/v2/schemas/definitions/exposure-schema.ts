@@ -1,13 +1,13 @@
 import {
-	EXPOSURE_TYPES,
+	BIOLOGICAL_MECHANISMS,
 	CHEMICAL_FORMS,
 	COMPLIANCE_STATUSES,
-	BIOLOGICAL_MECHANISMS,
+	EXPOSURE_TYPES,
 	PATHOGEN_VECTOR_STATUSES,
 } from "../../../schemas/exposure";
 import { ROUTES } from "../../../schemas/shared";
 import { defineSchema } from "../schema-factory";
-import { frequencyFields, anatomyLocationsFields } from "./shared-fields";
+import { anatomyLocationsFields, frequencyFields } from "./shared-fields";
 
 export const exposureSchema = defineSchema({
 	schema: "Exposure",

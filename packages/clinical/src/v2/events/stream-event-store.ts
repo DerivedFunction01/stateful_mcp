@@ -48,10 +48,19 @@ export interface StreamMergeResult<TEvent> {
 	conflicts?: readonly StreamMergeConflict<TEvent>[];
 }
 
-export interface StreamEventCodec<TEvent, TRecord extends StreamEventRecord<TEvent>> {
+export interface StreamEventCodec<
+	TEvent,
+	TRecord extends StreamEventRecord<TEvent>,
+> {
 	schemaName: string;
-	encode(event: TEvent, metadata?: StreamEventMetadata): Record<string, unknown>;
-	decode(record: Record<string, unknown>, context: StreamDecodeContext): TRecord | null;
+	encode(
+		event: TEvent,
+		metadata?: StreamEventMetadata,
+	): Record<string, unknown>;
+	decode(
+		record: Record<string, unknown>,
+		context: StreamDecodeContext,
+	): TRecord | null;
 	logicalKey?(event: TEvent): string | null;
 }
 
@@ -77,18 +86,41 @@ export interface StreamDecodeContext {
 	};
 }
 
-export interface StreamEventStore<TEvent, TRecord extends StreamEventRecord<TEvent>> {
+export interface StreamEventStore<
+	TEvent,
+	TRecord extends StreamEventRecord<TEvent>,
+> {
 	initialize(
 		streamId: string,
 		sessionId: string,
 		event: TEvent,
 		metadata?: StreamEventMetadata,
 	): Promise<{ commitId: string; records: TRecord[] }>;
-	append(request: StreamAppendRequest<TEvent>): Promise<{ commitId: string; records: TRecord[] }>;
-	project(streamId: string, sessionId: string, commitId: string): Promise<TRecord[]>;
-	patch(target: StreamPatchTarget, patch: Record<string, unknown>): Promise<{ commitId: string; eventId: string }>;
-	merge(sessionId: string, targetCommitId: string, sourceCommitIds: readonly string[]): Promise<StreamMergeResult<TEvent>>;
+	append(
+		request: StreamAppendRequest<TEvent>,
+	): Promise<{ commitId: string; records: TRecord[] }>;
+	project(
+		streamId: string,
+		sessionId: string,
+		commitId: string,
+	): Promise<TRecord[]>;
+	patch(
+		target: StreamPatchTarget,
+		patch: Record<string, unknown>,
+	): Promise<{ commitId: string; eventId: string }>;
+	merge(
+		sessionId: string,
+		targetCommitId: string,
+		sourceCommitIds: readonly string[],
+	): Promise<StreamMergeResult<TEvent>>;
 	inspectMerge(mergeSessionId: string): Promise<unknown>;
-	resolveMerge(mergeSessionId: string, eventId: string, resolution: unknown): Promise<string>;
-	commitMerge(mergeSessionId: string, sessionId: string): Promise<{ commitId: string }>;
+	resolveMerge(
+		mergeSessionId: string,
+		eventId: string,
+		resolution: unknown,
+	): Promise<string>;
+	commitMerge(
+		mergeSessionId: string,
+		sessionId: string,
+	): Promise<{ commitId: string }>;
 }

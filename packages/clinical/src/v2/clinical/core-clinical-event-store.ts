@@ -1,16 +1,22 @@
+import type { EventStore } from "@stateful-mcp/core";
+import { CoreStreamEventStore } from "../events/core-stream-event-store";
 import type {
 	StreamEventCodec,
 	StreamEventMetadata,
 } from "../events/stream-event-store";
-import { CoreStreamEventStore } from "../events/core-stream-event-store";
-import type { EventStore } from "@stateful-mcp/core";
-import type { ClinicalEvent, ClinicalEventRecord } from "./clinical-event-types";
+import type {
+	ClinicalEvent,
+	ClinicalEventRecord,
+} from "./clinical-event-types";
 
 const SCHEMA_NAME = "v2_clinical_events";
 
 const codec: StreamEventCodec<ClinicalEvent, ClinicalEventRecord> = {
 	schemaName: SCHEMA_NAME,
-	encode(event: ClinicalEvent, metadata?: StreamEventMetadata): Record<string, unknown> {
+	encode(
+		event: ClinicalEvent,
+		metadata?: StreamEventMetadata,
+	): Record<string, unknown> {
 		return {
 			...event,
 			macroBatchId: metadata?.idempotencyKey,
@@ -28,7 +34,11 @@ const codec: StreamEventCodec<ClinicalEvent, ClinicalEventRecord> = {
 			voidedAt,
 			...payload
 		} = record;
-		if (typeof payload.kind !== "string" || typeof payload.documentId !== "string") return null;
+		if (
+			typeof payload.kind !== "string" ||
+			typeof payload.documentId !== "string"
+		)
+			return null;
 		return {
 			eventId: String(eventId),
 			streamId: context.streamId,
@@ -47,7 +57,8 @@ const codec: StreamEventCodec<ClinicalEvent, ClinicalEventRecord> = {
 	},
 	logicalKey(event: ClinicalEvent): string | null {
 		if (event.kind === "clinical_document_initialized") return "document:root";
-		if ("recordId" in event) return `record:${event.schemaName}:${event.recordId}`;
+		if ("recordId" in event)
+			return `record:${event.schemaName}:${event.recordId}`;
 		if (event.kind === "clinical_document_signed") return "document:lifecycle";
 		if (event.kind === "clinical_document_amended") return "document:lifecycle";
 		if (event.kind === "clinical_document_voided") return "document:lifecycle";
@@ -55,7 +66,10 @@ const codec: StreamEventCodec<ClinicalEvent, ClinicalEventRecord> = {
 	},
 };
 
-export class CoreClinicalEventStore extends CoreStreamEventStore<ClinicalEvent, ClinicalEventRecord> {
+export class CoreClinicalEventStore extends CoreStreamEventStore<
+	ClinicalEvent,
+	ClinicalEventRecord
+> {
 	constructor(eventStore: EventStore) {
 		super(eventStore, codec);
 	}

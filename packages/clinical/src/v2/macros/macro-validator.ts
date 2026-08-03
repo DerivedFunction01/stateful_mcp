@@ -1,5 +1,6 @@
 import { validateTargetPath } from "../schemas/schema-path-validator";
 import type { SchemaRegistry } from "../schemas/schema-registry";
+import { MERGE_STRATEGIES } from "../values/merge";
 import type { TypedValueKind } from "../values/typed-value";
 import type { MacroValueSpecKind, V2MacroDefinition } from "./macro-definition";
 
@@ -18,13 +19,6 @@ export interface MacroValidationResult {
 	definition: V2MacroDefinition;
 	issues: MacroValidationIssue[];
 }
-
-const MERGE_STRATEGIES = [
-	"replace",
-	"append",
-	"deep_merge",
-	"partial_fill",
-] as const;
 
 const PLURAL_EXTRACTION_KINDS = new Set<MacroValueSpecKind>([
 	"concept_array",

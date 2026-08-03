@@ -10,6 +10,7 @@ import type { MeasurementOperator, ValueType } from "../../schemas/measurement";
 import type { MedicationFrequency } from "../../schemas/medication";
 import type { CodeableConcept } from "../../schemas/shared";
 import type { ClinicalDateRange, TimePrecisionLevel } from "../../schemas/time";
+import type { MergeStrategy } from "./merge";
 
 export interface NumericBounds {
 	min?: number;
@@ -28,19 +29,20 @@ export type TypedValueKind =
 	| "array"
 	| "composite";
 
-/** A canonical clinical concept, resolved through the dictionary service. */
-export interface ConceptValue {
+/** A canonical clinical concept, resolved through the dictionary service. */ export interface ConceptValue {
 	kind: "concept";
 	concept: CodeableConcept;
 	rawText?: string;
 	evidence?: ValueEvidence[];
 }
 
+export type ArrayMergeStrategy = Extract<MergeStrategy, "append" | "replace">;
+
 export interface ConceptArrayValue {
 	kind: "concept_array";
 	concepts: CodeableConcept[];
 	rawText?: string;
-	mergeStrategy: "append" | "replace";
+	mergeStrategy: ArrayMergeStrategy;
 	evidence?: ValueEvidence[];
 }
 
@@ -135,7 +137,7 @@ export interface ArrayValue {
 	itemKind: TypedValueKind;
 	items: TypedValue[];
 	itemDelimiter?: string;
-	mergeStrategy: "append" | "replace";
+	mergeStrategy: ArrayMergeStrategy;
 	rawText?: string;
 	evidence?: ValueEvidence[];
 }

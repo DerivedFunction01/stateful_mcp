@@ -175,7 +175,17 @@ export class TransactionCoordinator {
 					await this.save(transaction);
 				}
 				if (participant.project) {
-					await participant.project(context);
+					const projected = await participant.project(context);
+					if (
+						projected &&
+						state.receipt &&
+						projected.projectedHead !== state.receipt.commitId
+					) {
+						throw new TransactionConflictError(
+							`Projected head '${projected.projectedHead}' does not match committed head '${state.receipt.commitId}' for participant '${participant.participantId}'`,
+						);
+					}
+					state.projectionHead = projected?.projectedHead;
 					state.status = "projected";
 					await this.save(transaction);
 				}

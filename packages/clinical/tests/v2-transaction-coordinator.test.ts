@@ -190,6 +190,54 @@ describe("V2 transaction coordinator", () => {
 		).rejects.toBeInstanceOf(TransactionConflictError);
 	});
 
+	it("captures projection receipts and fails when projected head drifts from committed head", async () => {
+		const counters = { appends: 0, projections: 0 };
+		const coordinator = new TransactionCoordinator({
+			journal: new InMemoryTransactionJournal(),
+			createTransactionId: () => "tx-projection-drift",
+		});
+		const clinical = participant("clinical", "clinical_events", counters);
+		const projection = {
+			participantId: "clinical",
+			kind: "clinical_events" as const,
+			drift: false,
+			appendEvents() {
+				counters.appends += 1;
+				return { commitId: "clinical-commit", eventIds: ["e1"] };
+			},
+			project() {
+				counters.projections += 1;
+				return { projectedHead: this.drift ? "other-head" : "clinical-commit" };
+			},
+		};
+		const prepared = await coordinator.prepare({
+			idempotencyKey: "idem-project",
+			sourceCellId: "cell1",
+			sourceCellRevision: 1,
+			plan,
+			participants: [projection],
+		});
+
+		const committed = await coordinator.commit(prepared.transactionId, [
+			projection,
+		]);
+		expect(committed.status).toBe("committed");
+		const state = (await coordinator.get(prepared.transactionId))!;
+		expect(state.participants[0]?.projectionHead).toBe("clinical-commit");
+
+		projection.drift = true;
+		const second = await coordinator.prepare({
+			idempotencyKey: "idem-project-2",
+			sourceCellId: "cell1",
+			sourceCellRevision: 1,
+			plan,
+			participants: [projection],
+		});
+		await expect(
+			coordinator.commit(second.transactionId, [projection]),
+		).rejects.toThrow(/does not match committed head/);
+	});
+
 	it("persists deterministic transaction state in KV and SQL journals", async () => {
 		const transaction = {
 			transactionId: "tx-persisted",

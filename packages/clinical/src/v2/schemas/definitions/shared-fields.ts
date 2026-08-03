@@ -1,13 +1,10 @@
-import type { SchemaFieldDefinition } from "../schema-factory";
 import {
 	CADENCE_BASE_TYPES,
 	PHYSIOLOGICAL_EVENT_ANCHORS,
 } from "../../../schemas/medication";
-import {
-	CLINICAL_SOURCE_TYPES,
-	LATERALITIES,
-} from "../../../schemas/shared";
+import { CLINICAL_SOURCE_TYPES, LATERALITIES } from "../../../schemas/shared";
 import { TIME_PRECISION_LEVELS } from "../../../schemas/time";
+import type { SchemaFieldDefinition } from "../schema-factory";
 
 /**
  * Shared, reusable schema field fragments.
@@ -176,7 +173,10 @@ export function productDetailsFields(
 	overrides: FieldOverrides = {},
 ): Record<string, SchemaFieldDefinition> {
 	const required = overrides.required ?? false;
-	const productDetails = joinPath(overrides.base, overrides.name ?? "productDetails");
+	const productDetails = joinPath(
+		overrides.base,
+		overrides.name ?? "productDetails",
+	);
 	return {
 		[productDetails]: {
 			path: productDetails,

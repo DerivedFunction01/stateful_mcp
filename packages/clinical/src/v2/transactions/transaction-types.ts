@@ -20,6 +20,14 @@ export interface EventCommitReceipt {
 	eventIds: readonly string[];
 }
 
+/** Confirmation that a projection advanced to a specific committed head. */
+export interface ProjectionReceipt {
+	/** Head commit the projection was built from (must equal the event receipt head). */
+	projectedHead: string;
+	/** Aggregates whose projected state advanced, keyed by aggregateId. */
+	aggregates?: Record<string, { version: number; head: string }>;
+}
+
 export interface TransactionParticipantContext {
 	transactionId: string;
 	idempotencyKey: string;
@@ -34,7 +42,9 @@ export interface TransactionParticipant {
 		context: TransactionParticipantContext,
 	): Promise<EventCommitReceipt>;
 	finalize?(context: TransactionParticipantContext): Promise<void>;
-	project?(context: TransactionParticipantContext): Promise<void>;
+	project?(
+		context: TransactionParticipantContext,
+	): Promise<ProjectionReceipt | undefined>;
 }
 
 export interface TransactionParticipantState {
@@ -42,6 +52,7 @@ export interface TransactionParticipantState {
 	kind: TransactionParticipantKind;
 	status: "pending" | "staged" | "committed" | "finalized" | "projected";
 	receipt?: EventCommitReceipt;
+	projectionHead?: string;
 	error?: string;
 }
 

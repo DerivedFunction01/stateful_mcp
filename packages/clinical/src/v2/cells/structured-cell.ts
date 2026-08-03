@@ -7,6 +7,7 @@
  * execution mode.
  */
 
+import type { MergeStrategy } from "../values/merge";
 import type { CellIntent } from "./cell-intent";
 import type { CellResultRef } from "./cell-results";
 
@@ -51,7 +52,7 @@ export interface CellLink {
 	targetCellId: string;
 	targetSchema: string;
 	targetField: string;
-	mergeStrategy: "replace" | "append" | "deep_merge" | "partial_fill";
+	mergeStrategy: MergeStrategy;
 }
 
 export type CellDiagnosticSeverity = "info" | "warning" | "error";

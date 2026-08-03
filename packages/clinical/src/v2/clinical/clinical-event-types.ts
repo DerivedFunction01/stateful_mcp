@@ -1,4 +1,7 @@
-import type { StreamEventMetadata, StreamEventRecord } from "../events/stream-event-store";
+import type {
+	StreamEventMetadata,
+	StreamEventRecord,
+} from "../events/stream-event-store";
 import type { ClinicalProvenance } from "./clinical-operation";
 
 export type ClinicalEvent =

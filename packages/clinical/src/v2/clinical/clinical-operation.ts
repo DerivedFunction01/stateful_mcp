@@ -45,7 +45,7 @@ export type ClinicalOperation =
 			schemaName: string;
 			schemaVersion: number;
 			recordId: string;
-		reason?: string;
+			reason?: string;
 			provenance?: ClinicalProvenance;
 	  }
 	| {
@@ -68,4 +68,7 @@ export type ClinicalOperation =
 			provenance?: ClinicalProvenance;
 	  };
 
-export type ClinicalOperationValue = TypedValue | CodeableConcept | FactCertainty;
+export type ClinicalOperationValue =
+	| TypedValue
+	| CodeableConcept
+	| FactCertainty;

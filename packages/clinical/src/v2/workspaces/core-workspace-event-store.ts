@@ -197,7 +197,11 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 		workspaceId: string,
 		commitId: string,
 		parentCommitId: string | null,
-		mutation?: { type: "add" | "update" | "remove"; mutationParentIds?: string[]; beforeData?: Record<string, unknown> },
+		mutation?: {
+			type: "add" | "update" | "remove";
+			mutationParentIds?: string[];
+			beforeData?: Record<string, unknown>;
+		},
 	): WorkspaceEventRecord | null {
 		if (record.workspaceId && record.workspaceId !== workspaceId) return null;
 		const {
@@ -231,8 +235,26 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 	private async mutationMetadata(
 		commitId: string,
 		sessionId: string,
-	): Promise<Map<string, { type: "add" | "update" | "remove"; mutationParentIds?: string[]; beforeData?: Record<string, unknown> }>> {
-		const commits: Array<{ commitId: string; parentCommitId: string | null; mutations: readonly { type: "add" | "update" | "remove"; event_id: string; mutation_parent_ids?: string[]; before_data?: Record<string, unknown> }[] }> = [];
+	): Promise<
+		Map<
+			string,
+			{
+				type: "add" | "update" | "remove";
+				mutationParentIds?: string[];
+				beforeData?: Record<string, unknown>;
+			}
+		>
+	> {
+		const commits: Array<{
+			commitId: string;
+			parentCommitId: string | null;
+			mutations: readonly {
+				type: "add" | "update" | "remove";
+				event_id: string;
+				mutation_parent_ids?: string[];
+				before_data?: Record<string, unknown>;
+			}[];
+		}> = [];
 		let current: string | null = commitId;
 		while (current) {
 			const commit = await this.eventStore.getCommit(current, sessionId);
@@ -240,10 +262,21 @@ export class CoreWorkspaceEventStore implements WorkspaceEventStore {
 			commits.unshift(commit);
 			current = commit.parentCommitId;
 		}
-		const result = new Map<string, { type: "add" | "update" | "remove"; mutationParentIds?: string[]; beforeData?: Record<string, unknown> }>();
+		const result = new Map<
+			string,
+			{
+				type: "add" | "update" | "remove";
+				mutationParentIds?: string[];
+				beforeData?: Record<string, unknown>;
+			}
+		>();
 		for (const commit of commits) {
 			for (const mutation of commit.mutations) {
-				result.set(mutation.event_id, { type: mutation.type, mutationParentIds: mutation.mutation_parent_ids, beforeData: mutation.before_data });
+				result.set(mutation.event_id, {
+					type: mutation.type,
+					mutationParentIds: mutation.mutation_parent_ids,
+					beforeData: mutation.before_data,
+				});
 			}
 		}
 		return result;

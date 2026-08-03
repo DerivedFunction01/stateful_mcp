@@ -1,4 +1,4 @@
-import { WorkspaceService } from "./workspace-service";
+import type { WorkspaceService } from "./workspace-service";
 
 export interface WorkspaceViewState {
 	userId: string;
@@ -12,10 +12,15 @@ export interface WorkspaceViewStateStore {
 	save(state: WorkspaceViewState): Promise<void>;
 }
 
-export class InMemoryWorkspaceViewStateStore implements WorkspaceViewStateStore {
+export class InMemoryWorkspaceViewStateStore
+	implements WorkspaceViewStateStore
+{
 	private readonly states = new Map<string, WorkspaceViewState>();
 
-	async get(userId: string, workspaceId: string): Promise<WorkspaceViewState | null> {
+	async get(
+		userId: string,
+		workspaceId: string,
+	): Promise<WorkspaceViewState | null> {
 		return this.states.get(`${userId}:${workspaceId}`) ?? null;
 	}
 
@@ -30,7 +35,11 @@ export class WorkspaceViewService {
 		private readonly store: WorkspaceViewStateStore,
 	) {}
 
-	async focusBranch(userId: string, workspaceId: string, branchRef: string): Promise<WorkspaceViewState> {
+	async focusBranch(
+		userId: string,
+		workspaceId: string,
+		branchRef: string,
+	): Promise<WorkspaceViewState> {
 		const aggregate = await this.workspace.getWorkspace(workspaceId);
 		if (!aggregate) throw new Error(`Workspace '${workspaceId}' was not found`);
 		const branch = this.workspace.resolveBranchRef(aggregate, branchRef);
@@ -45,7 +54,11 @@ export class WorkspaceViewService {
 		return state;
 	}
 
-	async selectHead(userId: string, workspaceId: string, head: string): Promise<WorkspaceViewState> {
+	async selectHead(
+		userId: string,
+		workspaceId: string,
+		head: string,
+	): Promise<WorkspaceViewState> {
 		const current = await this.store.get(userId, workspaceId);
 		const state: WorkspaceViewState = {
 			userId,
