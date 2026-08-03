@@ -18,5 +18,5 @@ export * from "./v2/stores/command-templates/interfaces";
 export * from "./v2/stores/command-templates/kv-command-template-store";
 export * from "./v2/stores/command-templates/sql-command-template-store";
 export * from "./v2/stores/command-templates/validation";
-export * from "./store/sql/command-template-query-compiler";
-export * from "./store/sql/weight-query-compiler";
+export * from "./v2/stores/sql/command-template-query-compiler";
+export * from "./v2/stores/sql/weight-query-compiler";

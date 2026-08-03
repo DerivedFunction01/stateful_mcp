@@ -1,5 +1,5 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import { CommandTemplateQueryCompiler } from "../../../store/sql/command-template-query-compiler";
+import { CommandTemplateQueryCompiler } from "../sql/command-template-query-compiler";
 import type { CommandTemplate, CommandTemplateStore } from "./interfaces";
 import { assertValidCommandTemplate } from "./validation";
 

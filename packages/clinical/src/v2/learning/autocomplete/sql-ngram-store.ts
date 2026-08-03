@@ -1,6 +1,6 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { AutocompleteSuggestionKind } from "../../stores/auto-complete/interfaces";
-import { NgramQueryCompiler } from "../../../store/sql/ngram-query-compiler";
+import { NgramQueryCompiler } from "../../stores/sql/ngram-query-compiler";
 import type { NgramStore, NgramSuggestion } from "../interfaces";
 
 const DEFAULT_TABLE = "ngrams";

@@ -1,6 +1,6 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { StopWordProfile } from "../../parser/interfaces";
-import { ReferenceQueryCompiler } from "../../../store/sql/reference-query-compiler";
+import { ReferenceQueryCompiler } from "../sql/reference-query-compiler";
 import type { StopWordProfileStore } from "./interfaces";
 
 export class SqlStopWordProfileStore implements StopWordProfileStore {

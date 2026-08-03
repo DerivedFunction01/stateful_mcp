@@ -14,64 +14,6 @@ export class ReferenceQueryCompiler {
 		this.compiler = new QueryCompiler(dialect);
 	}
 
-	// ── Tags ────────────────────────────────────────────────────────────────────
-
-	public getTagsTableDDL(table: string): CompiledQuery {
-		return this.compiler.compileCreateTable({
-			table,
-			ifNotExists: true,
-			columns: [
-				{ name: "tagId", type: "text", primaryKey: true },
-				{ name: "tagName", type: "text", nullable: false, unique: true },
-				{ name: "tagBlob", type: "json", nullable: false, default: "{}" },
-				{
-					name: "source",
-					type: "text",
-					nullable: false,
-					default: "local",
-				},
-			],
-		});
-	}
-
-	public compileGetTag(tagId: string, table: string): CompiledQuery {
-		return this.compiler.compileSelect({
-			table,
-			where: [{ column: "tagId", op: "eq", value: tagId }],
-		});
-	}
-
-	public compileListTags(
-		table: string,
-		where?: QueryCondition[],
-	): CompiledQuery {
-		return this.compiler.compileSelect({
-			table,
-			where,
-			orderBy: [{ column: "tagName", direction: "ASC" }],
-		});
-	}
-
-	public compileUpsertTag(
-		row: Record<string, unknown>,
-		table: string,
-	): CompiledQuery {
-		const conflictColumns = this.dialect === "sqlite" ? undefined : ["tagId"];
-		return this.compiler.compileInsert({
-			table,
-			values: row,
-			onConflict: "replace",
-			conflictColumns,
-		});
-	}
-
-	public compileDeleteTag(tagId: string, table: string): CompiledQuery {
-		return this.compiler.compileDelete({
-			table,
-			where: [{ column: "tagId", op: "eq", value: tagId }],
-		});
-	}
-
 	// ── Jurisdictional Displays ─────────────────────────────────────────────────
 
 	public getJurisdictionalDisplaysTableDDL(table: string): CompiledQuery[] {
@@ -469,38 +411,6 @@ export class ReferenceQueryCompiler {
 			table,
 			where,
 			orderBy: [{ column: "createdAt", direction: "DESC" }],
-		});
-	}
-
-	public compileInsertCalibrationException(
-		row: Record<string, unknown>,
-		table: string,
-	): CompiledQuery {
-		return this.compiler.compileInsert({
-			table,
-			values: row,
-		});
-	}
-
-	public compileUpdateCalibrationException(
-		exceptionId: string,
-		set: Record<string, unknown>,
-		table: string,
-	): CompiledQuery {
-		return this.compiler.compileUpdate({
-			table,
-			set,
-			where: [{ column: "exceptionId", op: "eq", value: exceptionId }],
-		});
-	}
-
-	public compileDeleteCalibrationException(
-		exceptionId: string,
-		table: string,
-	): CompiledQuery {
-		return this.compiler.compileDelete({
-			table,
-			where: [{ column: "exceptionId", op: "eq", value: exceptionId }],
 		});
 	}
 
