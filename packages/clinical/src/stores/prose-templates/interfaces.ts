@@ -1,5 +1,5 @@
-import type { ClinicalProseTemplate } from "../interfaces";
 import type { Position } from "../auto-complete/interfaces";
+import type { ClinicalProseTemplate } from "../interfaces";
 
 export interface ClinicalProseTemplateStore {
 	get(

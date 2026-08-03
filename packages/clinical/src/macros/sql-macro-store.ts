@@ -1,5 +1,5 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
-import type { MacroStore, MacroDefinition } from "./macro-definition";
+import type { MacroDefinition, MacroStore } from "./macro-definition";
 import { MacroQueryCompiler } from "./macro-query-compiler";
 
 export class SqlMacroStore implements MacroStore {

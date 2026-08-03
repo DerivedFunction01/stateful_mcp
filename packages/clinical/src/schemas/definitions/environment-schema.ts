@@ -1,3 +1,4 @@
+import { defineSchema } from "../schema-factory";
 import {
 	AQUATIC_TERRAINS,
 	ATMOSPHERIC_TERRAINS,
@@ -17,7 +18,6 @@ import {
 	WEATHER_CONDITIONS,
 } from "../schemas-interface/environment";
 import { CLINICAL_SOURCE_TYPES } from "../schemas-interface/shared";
-import { defineSchema } from "../schema-factory";
 import { productDetailsFields } from "./shared-fields";
 
 const COMBINED_TERRAINS = [

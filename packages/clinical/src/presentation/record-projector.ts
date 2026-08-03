@@ -1,10 +1,7 @@
 import type { ClinicalDocumentRecord } from "../clinical/clinical-document-types";
 import type { PresentationField, PresentationItem } from "./field-types";
 import type { PresentationFieldSpec, PresentationPolicy } from "./policies";
-import {
-	formatQuantity,
-	type QuantityFormatContext,
-} from "./quantity-format";
+import { formatQuantity, type QuantityFormatContext } from "./quantity-format";
 
 export function createRecordPresentation(
 	record: ClinicalDocumentRecord,

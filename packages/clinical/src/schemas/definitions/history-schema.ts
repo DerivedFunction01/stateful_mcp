@@ -1,3 +1,4 @@
+import { defineSchema } from "../schema-factory";
 import {
 	ALLERGY_SEVERITIES,
 	ALLERGY_VERIFICATION_STATUSES,
@@ -5,7 +6,6 @@ import {
 	SOCIAL_HISTORY_STATUSES,
 } from "../schemas-interface/history";
 import { CLINICAL_SOURCE_TYPES } from "../schemas-interface/shared";
-import { defineSchema } from "../schema-factory";
 import { frequencyFields } from "./shared-fields";
 
 export const historySchema = defineSchema({

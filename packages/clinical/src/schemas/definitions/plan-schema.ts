@@ -1,3 +1,4 @@
+import { defineSchema } from "../schema-factory";
 import {
 	ANESTHESIA_TYPES,
 	ESCALATION_PATHS,
@@ -6,7 +7,6 @@ import {
 	REFERRAL_URGENCIES,
 } from "../schemas-interface/plan";
 import { LATERALITIES } from "../schemas-interface/shared";
-import { defineSchema } from "../schema-factory";
 
 export const investigationOrderSchema = defineSchema({
 	schema: "InvestigationOrder",

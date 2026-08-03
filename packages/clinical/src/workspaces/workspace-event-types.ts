@@ -1,5 +1,5 @@
 import type { CodeableConcept } from "../schemas/schemas-interface/shared";
-import type { TypedFact, Branch } from "./workspace-types";
+import type { Branch, TypedFact } from "./workspace-types";
 
 export interface WorkspaceEventMetadata {
 	logicalKey: string;

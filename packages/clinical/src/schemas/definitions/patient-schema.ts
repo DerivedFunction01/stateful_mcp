@@ -1,3 +1,4 @@
+import { defineSchema } from "../schema-factory";
 import {
 	ADMINISTRATIVE_GENDERS,
 	CULTIVATION_ENVIRONMENTS,
@@ -5,7 +6,6 @@ import {
 	PROPAGATION_METHODS,
 	SUBJECT_LIFECYCLE_STATUSES,
 } from "../schemas-interface/patient";
-import { defineSchema } from "../schema-factory";
 
 export const patientSchema = defineSchema({
 	schema: "Patient",

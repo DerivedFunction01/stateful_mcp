@@ -5,8 +5,8 @@ import type {
 	CommandSuggestion,
 } from "./command-bar-types";
 import {
-	createCommandSyntaxProfile,
 	type CommandSyntaxProfile,
+	createCommandSyntaxProfile,
 } from "./command-syntax-profile";
 
 export async function getCommandBarSuggestions(
@@ -75,17 +75,15 @@ export async function getCommandBarSuggestions(
 			},
 		];
 	if (options.schemaRegistry && verb === "field")
-		return options.schemaRegistry
-			.list()
-			.flatMap((schema) =>
-				Object.keys(schema.fields).map((path) => ({
-					label: path,
-					insertText: path,
-					kind: "field" as const,
-					detail: schema.schema,
-					source: "context" as const,
-				})),
-			);
+		return options.schemaRegistry.list().flatMap((schema) =>
+			Object.keys(schema.fields).map((path) => ({
+				label: path,
+				insertText: path,
+				kind: "field" as const,
+				detail: schema.schema,
+				source: "context" as const,
+			})),
+		);
 	return [];
 }
 

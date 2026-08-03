@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
 import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
 import type {
-	MacroStore,
 	MacroDefinition,
+	MacroStore,
 } from "../src/macros/macro-definition";
 import type { ConceptLookup } from "../src/values/concept-value";
 

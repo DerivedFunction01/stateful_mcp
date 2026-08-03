@@ -1,5 +1,8 @@
 import type { MedicationFrequency } from "../schemas/schemas-interface/medication";
-import type { ClinicalDateRange, TimePrecisionLevel } from "../schemas/schemas-interface/time";
+import type {
+	ClinicalDateRange,
+	TimePrecisionLevel,
+} from "../schemas/schemas-interface/time";
 import type {
 	MeasurementValue,
 	TemporalValue,

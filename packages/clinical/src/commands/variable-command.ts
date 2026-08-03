@@ -56,10 +56,7 @@ export function parseVariableCommand(
 	throw new VariableCommandParseError("unsupported_variable_operation");
 }
 
-function target(
-	value: string,
-	profile: CommandSyntaxProfile,
-): VariableTarget {
+function target(value: string, profile: CommandSyntaxProfile): VariableTarget {
 	const name = value.trim();
 	if (!new RegExp(profile.variableNamePattern, "u").test(name))
 		throw new VariableCommandParseError("invalid_variable_name");

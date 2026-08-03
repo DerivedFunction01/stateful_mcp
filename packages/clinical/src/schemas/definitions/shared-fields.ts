@@ -1,10 +1,13 @@
+import type { SchemaFieldDefinition } from "../schema-factory";
 import {
 	CADENCE_BASE_TYPES,
 	PHYSIOLOGICAL_EVENT_ANCHORS,
 } from "../schemas-interface/medication";
-import { CLINICAL_SOURCE_TYPES, LATERALITIES } from "../schemas-interface/shared";
+import {
+	CLINICAL_SOURCE_TYPES,
+	LATERALITIES,
+} from "../schemas-interface/shared";
 import { TIME_PRECISION_LEVELS } from "../schemas-interface/time";
-import type { SchemaFieldDefinition } from "../schema-factory";
 
 /**
  * Shared, reusable schema field fragments.

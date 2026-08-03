@@ -1,4 +1,7 @@
-import type { MeasurementOperator, ValueType } from "../schemas/schemas-interface/measurement";
+import type {
+	MeasurementOperator,
+	ValueType,
+} from "../schemas/schemas-interface/measurement";
 import {
 	type MeasurementResolverDiagnostic,
 	validateMeasurementConstraints,

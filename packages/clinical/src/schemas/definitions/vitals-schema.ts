@@ -1,9 +1,9 @@
+import { defineSchema } from "../schema-factory";
 import {
 	MEASUREMENT_OPERATORS,
 	VALUE_TYPES,
 } from "../schemas-interface/measurement";
 import { CLINICAL_SOURCE_TYPES } from "../schemas-interface/shared";
-import { defineSchema } from "../schema-factory";
 import { anatomyLocationsFields } from "./shared-fields";
 
 export const vitalsSchema = defineSchema({

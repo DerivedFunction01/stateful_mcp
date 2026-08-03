@@ -12,9 +12,9 @@ import {
 import type { WorkspaceSnapshot } from "./workspace-snapshot";
 import type { WorkspaceStore } from "./workspace-store";
 import type {
+	Branch,
 	CreateWorkspaceRequest,
 	TypedFact,
-	Branch,
 	WorkspaceAggregate,
 	WorkspaceOperation,
 } from "./workspace-types";
@@ -45,9 +45,7 @@ export type WorkspaceDiagnosticCode =
 	| "no_workspace_context";
 
 export interface WorkspaceServiceContract {
-	createWorkspace(
-		request: CreateWorkspaceRequest,
-	): Promise<WorkspaceAggregate>;
+	createWorkspace(request: CreateWorkspaceRequest): Promise<WorkspaceAggregate>;
 	getWorkspace(workspaceId: string): Promise<WorkspaceAggregate | null>;
 	listWorkspaces(sessionId: string): Promise<WorkspaceAggregate[]>;
 	applyOperations(

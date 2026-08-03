@@ -6,9 +6,9 @@ import type {
 	CommandDiagnostic,
 } from "./command-bar-types";
 import {
-	createCommandSyntaxProfile,
 	_DIRECT_COMMANDS,
 	type CommandSyntaxProfile,
+	createCommandSyntaxProfile,
 } from "./command-syntax-profile";
 
 export async function parseDirectCommand(

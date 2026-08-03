@@ -13,9 +13,9 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
+import type { NgramStore } from "../interfaces";
 import { KvNgramStore } from "./kv-ngram-store";
 import { SqlNgramStore } from "./sql-ngram-store";
-import type { NgramStore } from "../interfaces";
 
 async function resolveKvBackendFromLocator(
 	locator: ResourceLocator,

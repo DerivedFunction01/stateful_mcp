@@ -58,10 +58,7 @@ export interface CommandBarIntent {
 
 export interface CommandBarWorkspaceContext {
 	getWorkspace(workspaceId: string): Promise<WorkspaceAggregate | null>;
-	resolveBranchRef(
-		workspace: WorkspaceAggregate,
-		ref: string,
-	): { id: string };
+	resolveBranchRef(workspace: WorkspaceAggregate, ref: string): { id: string };
 }
 
 export interface CommandPreview {

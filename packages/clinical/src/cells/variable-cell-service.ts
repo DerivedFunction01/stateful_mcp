@@ -3,7 +3,7 @@ import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
 import { parseVariableCommand } from "../commands/variable-command";
 import type { VariableCommandService } from "../commands/variable-command-service";
 import type { CellStore } from "./cell-service-types";
-import type { StructuredCell, CellCollectionRef } from "./structured-cell";
+import type { CellCollectionRef, StructuredCell } from "./structured-cell";
 
 export interface VariableCellResult {
 	cell: StructuredCell;

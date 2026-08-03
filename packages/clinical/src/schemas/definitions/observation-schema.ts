@@ -1,3 +1,4 @@
+import { defineSchema } from "../schema-factory";
 import {
 	MEASUREMENT_OPERATORS,
 	VALUE_TYPES,
@@ -10,7 +11,6 @@ import {
 	STATUSES,
 } from "../schemas-interface/shared";
 import { TIME_PRECISION_LEVELS } from "../schemas-interface/time";
-import { defineSchema } from "../schema-factory";
 
 export const observationSchema = defineSchema({
 	schema: "Observation",

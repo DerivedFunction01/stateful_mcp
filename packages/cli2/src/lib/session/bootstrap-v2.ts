@@ -1,10 +1,11 @@
+import { initializeColdStart } from "@stateful-mcp/clinical/bootstrap/v2-cold-start";
 import { KvCellStore } from "@stateful-mcp/clinical/cells/kv-cell-store";
 import { CellCompiler } from "@stateful-mcp/clinical/cells/v2-cell-compiler";
 import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
 import { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
 import {
-	createCommandSyntaxProfile,
 	type CommandSyntaxProfile,
+	createCommandSyntaxProfile,
 } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import { VariableCommandService } from "@stateful-mcp/clinical/commands/variable-command-service";
 import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
@@ -13,7 +14,6 @@ import { KvMacroStore } from "@stateful-mcp/clinical/macros/kv-macro-store";
 import { createSyntaxProfile } from "@stateful-mcp/clinical/macros/macro-profile";
 import { KvNotebookSessionStore } from "@stateful-mcp/clinical/notebook/kv-notebook-session-store";
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
-import { initializeColdStart } from "@stateful-mcp/clinical/bootstrap/v2-cold-start";
 import { KvWorkspaceStore } from "@stateful-mcp/clinical/workspaces/kv-workspace-store";
 import {
 	createEventStore,
@@ -65,7 +65,11 @@ export async function bootstrapSession(
 	const notebookSessionStore = new KvNotebookSessionStore(
 		new MemoryKvBackend(),
 	);
-	const coldStart = await initializeColdStart({ dictionary, macroStore, commandProfile: syntaxProfile });
+	const coldStart = await initializeColdStart({
+		dictionary,
+		macroStore,
+		commandProfile: syntaxProfile,
+	});
 	const schemaRegistry = coldStart.schemaRegistry;
 	const cellCompiler = new CellCompiler(
 		macroStore,

@@ -16,9 +16,6 @@ export interface NotebookSessionRecord {
 export interface NotebookSessionStore {
 	get(sessionId: string): Promise<NotebookSessionRecord | null>;
 	list(): Promise<NotebookSessionRecord[]>;
-	save(
-		record: NotebookSessionRecord,
-		expectedRevision?: number,
-	): Promise<void>;
+	save(record: NotebookSessionRecord, expectedRevision?: number): Promise<void>;
 	delete(sessionId: string): Promise<void>;
 }

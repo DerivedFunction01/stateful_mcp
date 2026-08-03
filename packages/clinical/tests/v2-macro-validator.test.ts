@@ -18,9 +18,7 @@ function buildRegistry(): SchemaRegistry {
 	return registry;
 }
 
-function baseMacro(
-	overrides: Partial<MacroDefinition> = {},
-): MacroDefinition {
+function baseMacro(overrides: Partial<MacroDefinition> = {}): MacroDefinition {
 	const args: MacroArgumentSpec[] = [
 		{
 			argumentId: "concept",

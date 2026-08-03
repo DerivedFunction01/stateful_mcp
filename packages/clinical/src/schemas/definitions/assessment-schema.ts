@@ -1,3 +1,4 @@
+import { defineSchema } from "../schema-factory";
 import {
 	ACUITY_LEVELS,
 	ALGORITHMIC_EVALUATION_TYPES,
@@ -5,7 +6,6 @@ import {
 	SEVERITY_TIERS,
 } from "../schemas-interface/assessment";
 import { CERTAINTIES } from "../schemas-interface/shared";
-import { defineSchema } from "../schema-factory";
 
 export const primaryDiagnosisSchema = defineSchema({
 	schema: "PrimaryDiagnosis",

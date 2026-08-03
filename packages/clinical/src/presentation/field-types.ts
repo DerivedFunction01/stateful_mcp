@@ -15,10 +15,7 @@ export type PresentationFieldKind =
 	| "date"
 	| "object";
 export type PresentationFieldState = "resolved" | "unresolved";
-export type PresentationFieldEmphasis =
-	| "primary"
-	| "secondary"
-	| "diagnostic";
+export type PresentationFieldEmphasis = "primary" | "secondary" | "diagnostic";
 
 export interface FormattedQuantityValue {
 	kind: "exact" | "comparison" | "range" | "unknown";

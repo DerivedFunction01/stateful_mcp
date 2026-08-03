@@ -1,10 +1,10 @@
+import { defineSchema } from "../schema-factory";
 import { LAB_INTERPRETATION_FLAGS } from "../schemas-interface/diagnostic";
 import {
 	MEASUREMENT_OPERATORS,
 	VALUE_TYPES,
 } from "../schemas-interface/measurement";
 import { CLINICAL_SOURCE_TYPES } from "../schemas-interface/shared";
-import { defineSchema } from "../schema-factory";
 import {
 	anatomyLocationsFields,
 	dateRangeField,

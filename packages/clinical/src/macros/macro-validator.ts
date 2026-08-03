@@ -2,7 +2,7 @@ import { validateTargetPath } from "../schemas/schema-path-validator";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import { MERGE_STRATEGIES } from "../values/merge";
 import type { TypedValueKind } from "../values/typed-value";
-import type { MacroValueSpecKind, MacroDefinition } from "./macro-definition";
+import type { MacroDefinition, MacroValueSpecKind } from "./macro-definition";
 
 export type MacroValidationSeverity = "error" | "warning";
 

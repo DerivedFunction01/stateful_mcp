@@ -1,10 +1,13 @@
-import type { MeasurementOperator, ValueType } from "./schemas-interface/measurement";
 import type {
 	ScalarType,
 	TemporalValueType,
 	TypedValue,
 	TypedValueKind,
 } from "../values/typed-value";
+import type {
+	MeasurementOperator,
+	ValueType,
+} from "./schemas-interface/measurement";
 
 export type SchemaPublicationStatus = "draft" | "published" | "retired";
 

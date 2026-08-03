@@ -37,9 +37,7 @@ export function Workspace({
 
 	return (
 		<Box flexDirection="column" padding={1}>
-			<Text bold>
-				 Workspace {workspace.snapshot?.workspaceId ?? "loading"}
-			</Text>
+			<Text bold>Workspace {workspace.snapshot?.workspaceId ?? "loading"}</Text>
 			{workspace.loading && <Text>Loading workspace...</Text>}
 			{workspace.error && <Text color="red">{workspace.error}</Text>}
 			{workspace.snapshot?.branches.map((branch) => (
@@ -53,9 +51,7 @@ export function Workspace({
 				{workspace.snapshot?.globalFacts.length ?? 0} global facts
 			</Text>
 			<Text color="cyan">:{command}</Text>
-			<Text dimColor>
-				Enter executes a  command. Esc returns to notebook.
-			</Text>
+			<Text dimColor>Enter executes a command. Esc returns to notebook.</Text>
 		</Box>
 	);
 }

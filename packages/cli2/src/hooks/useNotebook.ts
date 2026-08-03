@@ -36,9 +36,7 @@ export interface UseNotebookReturn {
 	previewCell(cell: Cell): Promise<void>;
 	acceptPreview(candidate: PreviewCandidate): Promise<void>;
 	setSessionMode(mode: ExecutionPolicy): void;
-	dispatchCommand(
-		line: string,
-	): Promise<{
+	dispatchCommand(line: string): Promise<{
 		success: boolean;
 		message?: string;
 		action?: string;
@@ -120,8 +118,7 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 
 	const dispatchCommand = useCallback(
 		async (line: string) => {
-			if (!session)
-				return { success: false, message: " session is not ready" };
+			if (!session) return { success: false, message: " session is not ready" };
 			const profile = session.v2.syntaxProfile;
 			if (!line.trim().startsWith(profile.directCommandToken)) {
 				return {

@@ -1,6 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { type ValueType, type MeasurementOperator, type SingleMeasurement, VALUE_TYPES, MEASUREMENT_OPERATORS, MASS_CONCENTRATION_UNITS, type TimeMeasurement, TIME_PRECISION_LEVELS, type ObservationEvent, OBSERVATION_TRAJECTORIES } from "../src";
-
+import {
+	MASS_CONCENTRATION_UNITS,
+	MEASUREMENT_OPERATORS,
+	type MeasurementOperator,
+	OBSERVATION_TRAJECTORIES,
+	type ObservationEvent,
+	type SingleMeasurement,
+	TIME_PRECISION_LEVELS,
+	type TimeMeasurement,
+	VALUE_TYPES,
+	type ValueType,
+} from "../src";
 
 describe("redesigned measurement contracts", () => {
 	it("exposes statistical types and operators as runtime metadata", () => {

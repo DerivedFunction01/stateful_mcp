@@ -1,4 +1,4 @@
-// TODO(cli2-v2): replace V1 NotebookStore session resumption with 
+// TODO(cli2-v2): replace V1 NotebookStore session resumption with
 // notebook/cell-store session resolution before this file is deleted.
 
 /**

@@ -1,5 +1,5 @@
-import { ROUTES } from "../schemas-interface/shared";
 import { defineSchema } from "../schema-factory";
+import { ROUTES } from "../schemas-interface/shared";
 import { dateRangeField, frequencyFields } from "./shared-fields";
 
 export const medicationSchema = defineSchema({

@@ -1,6 +1,6 @@
 import type {
-	CreateWorkspaceRequest,
 	Branch,
+	CreateWorkspaceRequest,
 	WorkspaceAggregate,
 } from "./workspace-types";
 

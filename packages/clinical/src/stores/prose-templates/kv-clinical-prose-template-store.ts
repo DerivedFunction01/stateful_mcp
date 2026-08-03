@@ -1,6 +1,6 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { ClinicalProseTemplate } from "../interfaces";
 import type { Position } from "../auto-complete/interfaces";
+import type { ClinicalProseTemplate } from "../interfaces";
 import type { ClinicalProseTemplateStore } from "./interfaces";
 
 export class KvClinicalProseTemplateStore

@@ -1,5 +1,5 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { MacroStore, MacroDefinition } from "./macro-definition";
+import type { MacroDefinition, MacroStore } from "./macro-definition";
 
 export class KvMacroStore implements MacroStore {
 	constructor(

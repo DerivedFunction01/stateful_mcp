@@ -13,8 +13,8 @@ import type {
 	CommandPreview,
 } from "./command-bar-types";
 import {
-	createCommandSyntaxProfile,
 	type CommandSyntaxProfile,
+	createCommandSyntaxProfile,
 } from "./command-syntax-profile";
 import { parseDirectCommand } from "./direct-command-parser";
 import { parseVariableCommand } from "./variable-command";

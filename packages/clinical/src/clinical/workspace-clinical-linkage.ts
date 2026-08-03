@@ -1,7 +1,4 @@
-import type {
-	Branch,
-	WorkspaceAggregate,
-} from "../workspaces/workspace-types";
+import type { Branch, WorkspaceAggregate } from "../workspaces/workspace-types";
 import type { ClinicalOperation } from "./clinical-operation";
 
 export function clinicalOperationsFromWorkspaceCompletion(input: {

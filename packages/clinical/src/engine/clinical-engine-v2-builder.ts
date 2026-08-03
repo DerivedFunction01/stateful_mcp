@@ -21,8 +21,8 @@ import { ClinicalTransactionParticipant } from "../clinical/clinical-transaction
 import { CoreClinicalEventStore } from "../clinical/core-clinical-event-store";
 import { registerClinicalSchemaAdapters } from "../clinical/register-clinical-schema-adapters";
 import {
-	createCommandSyntaxProfile,
 	type CommandSyntaxProfile,
+	createCommandSyntaxProfile,
 } from "../commands/command-syntax-profile";
 import { VariableCommandService } from "../commands/variable-command-service";
 import type { MacroStore } from "../macros/macro-definition";
@@ -102,9 +102,7 @@ export class ClinicalEngineBuilder {
 	}
 
 	withCellCompiler(
-		compile: (
-			rawText: string,
-		) => Promise<{
+		compile: (rawText: string) => Promise<{
 			plan?: unknown;
 			diagnostics: string[];
 			fingerprint: string;

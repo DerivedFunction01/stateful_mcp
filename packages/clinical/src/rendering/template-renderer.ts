@@ -63,8 +63,7 @@ export class TemplateRenderer {
 		if (
 			value === undefined ||
 			value === null ||
-			(slot.conditions &&
-				!TemplateRenderer.condition(slot.conditions, context))
+			(slot.conditions && !TemplateRenderer.condition(slot.conditions, context))
 		)
 			return slot.fallback ?? "";
 		const delegateId =

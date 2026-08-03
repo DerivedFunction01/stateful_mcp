@@ -1,3 +1,4 @@
+import { defineSchema } from "../schema-factory";
 import {
 	BIOLOGICAL_MECHANISMS,
 	CHEMICAL_FORMS,
@@ -6,7 +7,6 @@ import {
 	PATHOGEN_VECTOR_STATUSES,
 } from "../schemas-interface/exposure";
 import { ROUTES } from "../schemas-interface/shared";
-import { defineSchema } from "../schema-factory";
 import { anatomyLocationsFields, frequencyFields } from "./shared-fields";
 
 export const exposureSchema = defineSchema({

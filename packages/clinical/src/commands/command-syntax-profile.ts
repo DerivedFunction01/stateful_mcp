@@ -108,8 +108,7 @@ export function createCommandSyntaxProfile(
 	return {
 		...profile,
 		directCommandToken:
-			profile.directCommandToken ??
-			_COMMAND_SYNTAX_DEFAULTS.directCommandToken,
+			profile.directCommandToken ?? _COMMAND_SYNTAX_DEFAULTS.directCommandToken,
 		macroStartToken:
 			profile.macroStartToken ?? _COMMAND_SYNTAX_DEFAULTS.macroStartToken,
 		directCommandMappings: {
