@@ -1,0 +1,82 @@
+import {
+	MEASUREMENT_OPERATORS,
+	VALUE_TYPES,
+} from "../../../schemas/measurement";
+import { CLINICAL_SOURCE_TYPES } from "../../../schemas/shared";
+import { defineSchema } from "../schema-factory";
+
+export const vitalsSchema = defineSchema({
+	schema: "Vitals",
+	version: 1,
+	status: "published",
+	fields: {
+		id: {
+			path: "id",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: true,
+		},
+		category: {
+			path: "category",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: true,
+		},
+		vitalType: {
+			path: "vitalType",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		rawTerm: {
+			path: "rawTerm",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: true,
+		},
+		measurement: {
+			path: "measurement",
+			valueKind: "measurement",
+			cardinality: "one",
+			required: true,
+			measurement: {
+				dimension: "vital_sign",
+				statisticalTypes: VALUE_TYPES,
+				operators: MEASUREMENT_OPERATORS,
+				allowsApproximate: true,
+				allowsDataPointCount: true,
+			},
+		},
+		anatomyLocations: {
+			path: "anatomyLocations",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"anatomyLocations[].anatomy": {
+			path: "anatomyLocations[].anatomy",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		sourceType: {
+			path: "sourceType",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: CLINICAL_SOURCE_TYPES,
+		},
+		dateRange: {
+			path: "dateRange",
+			valueKind: "temporal",
+			temporalType: "date_range",
+			cardinality: "one",
+			required: false,
+		},
+	},
+});

@@ -1,0 +1,226 @@
+import {
+	ACUITY_LEVELS,
+	ALGORITHMIC_EVALUATION_TYPES,
+	DIFFERENTIAL_DIAGNOSIS_STATUSES,
+	SEVERITY_TIERS,
+} from "../../../schemas/assessment";
+import { CERTAINTIES } from "../../../schemas/shared";
+import { defineSchema } from "../schema-factory";
+
+export const primaryDiagnosisSchema = defineSchema({
+	schema: "PrimaryDiagnosis",
+	version: 1,
+	status: "published",
+	fields: {
+		id: {
+			path: "id",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: true,
+		},
+		diagnosis: {
+			path: "diagnosis",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		acuityLevel: {
+			path: "acuityLevel",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: ACUITY_LEVELS,
+		},
+		supportingConcepts: {
+			path: "supportingConcepts",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		comorbidities: {
+			path: "comorbidities",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		anatomyLocations: {
+			path: "anatomyLocations",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"anatomyLocations[].anatomy": {
+			path: "anatomyLocations[].anatomy",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		relatedMedications: {
+			path: "relatedMedications",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		dateRange: {
+			path: "dateRange",
+			valueKind: "temporal",
+			temporalType: "date_range",
+			cardinality: "one",
+			required: false,
+		},
+	},
+});
+
+export const differentialDiagnosisSchema = defineSchema({
+	schema: "DifferentialDiagnosis",
+	version: 1,
+	status: "published",
+	fields: {
+		id: {
+			path: "id",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: true,
+		},
+		rank: {
+			path: "rank",
+			valueKind: "scalar",
+			scalarType: "number",
+			cardinality: "one",
+			required: true,
+			bounds: { min: 1 },
+		},
+		diagnosis: {
+			path: "diagnosis",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		confidence: {
+			path: "confidence",
+			valueKind: "enum",
+			cardinality: "one",
+			required: true,
+			enumValues: CERTAINTIES,
+		},
+		supportingConcepts: {
+			path: "supportingConcepts",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		refutingConcepts: {
+			path: "refutingConcepts",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		relatedMedications: {
+			path: "relatedMedications",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		anatomyLocations: {
+			path: "anatomyLocations",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"anatomyLocations[].anatomy": {
+			path: "anatomyLocations[].anatomy",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		dateRange: {
+			path: "dateRange",
+			valueKind: "temporal",
+			temporalType: "date_range",
+			cardinality: "one",
+			required: false,
+		},
+		status: {
+			path: "status",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: DIFFERENTIAL_DIAGNOSIS_STATUSES,
+		},
+	},
+});
+
+export const algorithmicEvaluationSchema = defineSchema({
+	schema: "AlgorithmicEvaluation",
+	version: 1,
+	status: "published",
+	fields: {
+		id: {
+			path: "id",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: true,
+		},
+		evaluationType: {
+			path: "evaluationType",
+			valueKind: "enum",
+			cardinality: "one",
+			required: true,
+			enumValues: ALGORITHMIC_EVALUATION_TYPES,
+		},
+		algorithm: {
+			path: "algorithm",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		mechanismDescription: {
+			path: "mechanismDescription",
+			valueKind: "scalar",
+			scalarType: "string",
+			cardinality: "one",
+			required: false,
+		},
+		inputConcepts: {
+			path: "inputConcepts",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		triggeringConcepts: {
+			path: "triggeringConcepts",
+			valueKind: "concept_array",
+			cardinality: "many",
+			required: false,
+			conceptResolution: { required: true },
+		},
+		severityTier: {
+			path: "severityTier",
+			valueKind: "enum",
+			cardinality: "one",
+			required: false,
+			enumValues: SEVERITY_TIERS,
+		},
+		hypothesesAndOutputs: {
+			path: "hypothesesAndOutputs",
+			valueKind: "composite",
+			cardinality: "many",
+			required: true,
+		},
+	},
+});
