@@ -1,6 +1,9 @@
 import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
 import { CommandGroup } from "@stateful-mcp/clinical/session/command-descriptor";
 import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
+
+// TODO(cli2-v2): replace descriptor conversion and editor-registry dispatch
+// with the CLI2 editor catalog plus V2CommandBarService.
 import type {
 	CommandContribution,
 	EditorExtension,

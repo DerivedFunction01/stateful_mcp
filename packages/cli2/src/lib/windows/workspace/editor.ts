@@ -7,6 +7,9 @@ import type { ParserSyntaxProfile } from "@stateful-mcp/clinical/store/interface
 import type { CommandCatalog, EditorContext } from "../../editor";
 import { getSharedCellCommandDescriptors } from "../shared-cell-commands";
 
+// TODO(cli2-v2): remove the copied V1 WorkspaceCommandProvider/editor catalog
+// after all workspace help/autocomplete uses the V2 command profile.
+
 function descriptorSuggestion(
 	verb: string,
 	descriptor: {

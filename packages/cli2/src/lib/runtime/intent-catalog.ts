@@ -8,6 +8,9 @@ import type {
 } from "./extension";
 import { autocompleteFromCommands, type ExtensionRegistry } from "./registry";
 
+// TODO(cli2-v2): replace legacy CommandDescriptor values with the V2 syntax
+// profile/canonical command descriptor catalog. This is not a compatibility path.
+
 /**
  * One source of truth for command descriptors and suggestions, backed by the
  * extension command contributions for the active window scope. Used by command

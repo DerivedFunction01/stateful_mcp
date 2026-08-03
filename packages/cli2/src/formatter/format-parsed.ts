@@ -1,5 +1,8 @@
-import type { ParsedItem } from "@stateful-mcp/clinical/parser/schema-parsers";
-import type { PreviewCandidate } from "@stateful-mcp/clinical/session/preview-candidate";
+/**
+ * TODO(cli2-v2): replace this legacy ParsedItem formatter with
+ * V2PresentationItem/V2ClinicalDocumentRenderer output. These functions are
+ * retained as disabled presentation seams for copied UI callers only.
+ */
 
 export interface FormattedField {
 	field: string;
@@ -17,40 +20,18 @@ export interface FormattedParseResult {
 	errors: string[];
 }
 
-export function formatParsedItem(item: ParsedItem): FormattedParseResult {
-	const fields: FormattedField[] = [];
-	for (const [key, value] of Object.entries(item.extractedData ?? {})) {
-		fields.push({ field: key, value });
-	}
-	if (item.attributes) {
-		for (const [key, value] of Object.entries(item.attributes)) {
-			fields.push({ field: `attr.${key}`, value, source: "attribute" });
-		}
-	}
-
-	return {
-		targetSchema: item.targetSchema,
-		tag: item.tag,
-		rawInput: item.rawText,
-		fields,
-		concepts: item.concept.map((c) => ({
-			id: c.conceptId,
-			display: c.display,
-		})),
-		warnings: [],
-		errors: [],
-	};
+export function formatParsedItem(item: unknown): FormattedParseResult {
+	void item;
+	return { targetSchema: "v2-unavailable", tag: "", rawInput: "", fields: [], concepts: [], warnings: ["V1 ParsedItem presentation is disabled in cli2"], errors: [] };
 }
 
-export function formatParsedItems(items: ParsedItem[]): FormattedParseResult[] {
+export function formatParsedItems(items: unknown[]): FormattedParseResult[] {
 	return items.map(formatParsedItem);
 }
 
-export function formatPreviewCandidate(
-	candidate: PreviewCandidate,
-): FormattedParseResult[] {
-	if (!candidate.parsedOutput) return [];
-	return formatParsedItems(candidate.parsedOutput);
+export function formatPreviewCandidate(candidate: unknown): FormattedParseResult[] {
+	void candidate;
+	return [];
 }
 
 export function printJson(data: unknown): void {

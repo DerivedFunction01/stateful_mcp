@@ -7,6 +7,9 @@ import {
 	commandResultToEffects,
 } from "../windows/notebook/extension";
 import { getSharedCellCommandDescriptors } from "../windows/shared-cell-commands";
+
+// TODO(cli2-v2): retain editor effects/keymaps, but remove the legacy editor
+// registry and shared V1 cell descriptors after the V2 catalog is wired.
 import { builtinExtensions } from "./builtin-extensions";
 import type {
 	EditorExtension,
