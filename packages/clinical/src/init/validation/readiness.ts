@@ -49,7 +49,6 @@ export async function getBootstrapReadinessDiagnostics(
 		conceptDefaults,
 		sharedAnchors,
 		proseTemplates,
-		proseParserTemplates,
 		conceptFields,
 		dictionaryExpressions,
 	] = await Promise.all([
@@ -58,7 +57,6 @@ export async function getBootstrapReadinessDiagnostics(
 		stores.conceptDefaults.list(),
 		stores.sharedFieldAnchors.listForContext({}),
 		stores.proseTemplates.list(),
-		stores.proseParserTemplates.listAll(),
 		stores.conceptFields.list(),
 		stores.dictionaryStore?.getExpressions() ?? Promise.resolve([]),
 	]);
@@ -69,7 +67,6 @@ export async function getBootstrapReadinessDiagnostics(
 		["conceptDefaults", conceptDefaults.length],
 		["sharedFieldAnchors", sharedAnchors.length],
 		["proseTemplates", proseTemplates.length],
-		["proseParserTemplates", proseParserTemplates.length],
 		["conceptFields", conceptFields.length],
 		["dictionaryExpressions", dictionaryExpressions.length],
 	];

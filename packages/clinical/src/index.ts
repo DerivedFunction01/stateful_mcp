@@ -40,7 +40,6 @@ export * from "./parser/field-shared/shared-field-anchor";
 export * from "./parser/generic-schema-parser";
 export * from "./parser/generic-tokenizer";
 export * from "./parser/parsers/clinical-date-range-parser";
-export * from "./parser/prose-parser";
 export {
 	type SchemaParser,
 	schemaParserRegistry,
@@ -110,10 +109,6 @@ export * from "./store/reference/command-templates/interfaces";
 export * from "./store/reference/command-templates/kv-command-template-store";
 export * from "./store/reference/command-templates/sql-command-template-store";
 export * from "./store/reference/command-templates/validation";
-export * from "./store/reference/prose-parser-templates/interfaces";
-export * from "./store/reference/prose-parser-templates/kv-prose-parser-template-store";
-export * from "./store/reference/prose-parser-templates/prose-template";
-export * from "./store/reference/prose-parser-templates/sql-prose-parser-template-store";
 export * from "./store/sql/command-template-query-compiler";
 export * from "./store/sql/notebook-query-compiler";
 

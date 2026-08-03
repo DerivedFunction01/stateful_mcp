@@ -10,7 +10,6 @@ import type { CommandAutocompleteSuggester } from "../parser/command/command-aut
 import type { SharedFieldAnchorStore } from "../parser/field-shared/shared-field-anchor";
 import { TimeHelper } from "../parser/helpers/measurement-helper";
 import type { ParsedItem } from "../parser/schema-parsers";
-import { AutocompleteSessionManager } from "../parser/utils/autocomplete-session-manager";
 import { ProseRenderer } from "../renderer/prose-renderer";
 import type { SoapNote } from "../schemas/document";
 import {
@@ -34,7 +33,6 @@ import type {
 } from "../store/learning/interfaces";
 import type { AutocompleteSelection } from "../store/reference/auto-complete/command-autocomplete-interfaces";
 import type { AutocompleteSuggestion } from "../store/reference/auto-complete/interfaces";
-import type { ProseParserTemplateStore } from "../store/reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "../store/reference/prose-templates/interfaces";
 
 // ── Helper functions for dynamic schema mapping ─────────────────────────────────
@@ -344,7 +342,6 @@ export interface ClinicalEngineConfig {
 	conceptFieldStore?: ConceptFieldStore;
 	evaluatorStore?: EvaluatorStore;
 	proseTemplateStore?: ClinicalProseTemplateStore;
-	proseParserTemplateStore?: ProseParserTemplateStore;
 	sharedFieldAnchorStore?: SharedFieldAnchorStore;
 	commandSuggester?: CommandAutocompleteSuggester;
 	ngramStore?: NgramStore;
@@ -367,7 +364,6 @@ export class ClinicalEngine {
 	private proseTemplateStore?: ClinicalProseTemplateStore;
 	private commandSuggester?: CommandAutocompleteSuggester;
 	private personnelId: string;
-	private autocompleteSession?: AutocompleteSessionManager;
 
 	constructor(config: ClinicalEngineConfig) {
 		this.commandSuggester = config.commandSuggester;
@@ -400,17 +396,9 @@ export class ClinicalEngine {
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
-				proseTemplateStore: config.proseParserTemplateStore,
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
-			this.autocompleteSession = new AutocompleteSessionManager(
-				this.parser,
-				config.proseParserTemplateStore,
-				undefined,
-				this.personnelId,
-				config.ngramStore,
-			);
 		} else if (profileStore) {
 			// Defer initialization — lazy init on first use
 			this.parser = null as unknown as CdslParser;
@@ -422,17 +410,9 @@ export class ClinicalEngine {
 				conceptFieldStore: this.conceptFieldStore,
 				stopWordStore,
 				weightStore: config.weightStore,
-				proseTemplateStore: config.proseParserTemplateStore,
 				sharedFieldAnchorStore: config.sharedFieldAnchorStore,
 				commandSuggester: this.commandSuggester,
 			});
-			this.autocompleteSession = new AutocompleteSessionManager(
-				this.parser,
-				config.proseParserTemplateStore,
-				undefined,
-				this.personnelId,
-				config.ngramStore,
-			);
 		}
 	}
 
@@ -495,8 +475,7 @@ export class ClinicalEngine {
 	async suggestAutocomplete(
 		partialText: string,
 	): Promise<AutocompleteSuggestion[]> {
-		if (!this.autocompleteSession) return [];
-		return this.autocompleteSession.suggest(partialText);
+		return [];
 	}
 
 	getParser(): CdslParser {
@@ -511,7 +490,7 @@ export class ClinicalEngine {
 	 * Record an autocomplete selection to update learning data.
 	 */
 	recordAutocompleteSelection(selection: AutocompleteSelection): void {
-		this.autocompleteSession?.recordSelection(selection);
+		return;
 	}
 
 	/**

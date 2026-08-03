@@ -8,7 +8,6 @@ export { normalizeFieldRule } from "./field-rule";
 export { normalizeJurisdictionalDisplay } from "./jurisdictional-display";
 export { normalizePersonnel } from "./personnel";
 export { normalizeProfile } from "./profile";
-export { normalizeProseParserTemplate } from "./prose-parser-template";
 export { normalizeProseRule } from "./prose-rule";
 export { normalizeSharedAnchor } from "./shared-anchor";
 export { normalizeStopWordList } from "./stop-word-list";

@@ -40,7 +40,6 @@ import type { CommandTemplateStore } from "./reference/command-templates/interfa
 import type { FacilityStore } from "./reference/facilities/interfaces";
 import type { JurisdictionalDisplayStore } from "./reference/jurisdictional-displays/interfaces";
 import type { PersonnelStore } from "./reference/personnel/interfaces";
-import type { ProseParserTemplateStore } from "./reference/prose-parser-templates/interfaces";
 import type { ClinicalProseTemplateStore } from "./reference/prose-templates/interfaces";
 import { DefaultStopWordStore } from "./reference/stop-words/default-stop-word-store";
 import type {
@@ -63,7 +62,6 @@ export interface ClinicalRuntimeParserStores {
 	stopWordProfiles: StopWordStore;
 	stopWordWordLists: StopWordWordListStore;
 	proseTemplates: ClinicalProseTemplateStore;
-	proseParserTemplates: ProseParserTemplateStore;
 	commandTemplates: CommandTemplateStore;
 	calibration: CalibrationExceptionStore;
 	personnel: PersonnelStore;
@@ -139,7 +137,6 @@ export async function createClinicalRuntime(
 			stopWordProfiles: stopWordStore,
 			stopWordWordLists,
 			proseTemplates: refs.proseTemplates,
-			proseParserTemplates: refs.proseParserTemplates,
 			commandTemplates: refs.commandTemplates,
 			calibration,
 			personnel,

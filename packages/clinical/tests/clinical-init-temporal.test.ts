@@ -12,7 +12,6 @@ import { KvParserAttributeRuleStore } from "../src/store/parser/rules/kv-parser-
 import { KvParserEvaluatorRuleStore } from "../src/store/parser/rules/kv-parser-evaluator-rule-store";
 import { KvProfileEvaluatorBindingStore } from "../src/store/parser/rules/kv-profile-evaluator-binding-store";
 import { KvProfileRuleBindingStore } from "../src/store/parser/rules/kv-profile-rule-binding-store";
-import { KvProseParserTemplateStore } from "../src/store/reference/prose-parser-templates/kv-prose-parser-template-store";
 import { KvClinicalProseTemplateStore } from "../src/store/reference/prose-templates/kv-clinical-prose-template-store";
 import { KvStopWordProfileStore } from "../src/store/reference/stop-words/kv-stop-word-profile-store";
 import { KvStopWordWordListStore } from "../src/store/reference/stop-words/kv-stop-word-word-list-store";
@@ -41,7 +40,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		stopWordProfiles: new KvStopWordProfileStore(backend),
 		stopWordWordLists: new KvStopWordWordListStore(backend),
 		proseTemplates: new KvClinicalProseTemplateStore(backend),
-		proseParserTemplates: new KvProseParserTemplateStore(backend),
 		calibration: {} as any,
 		personnel: {} as any,
 		facilities: {} as any,

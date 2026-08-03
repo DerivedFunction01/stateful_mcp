@@ -28,7 +28,6 @@ import { KvParserAttributeRuleStore } from "../src/store/parser/rules/kv-parser-
 import { KvParserEvaluatorRuleStore } from "../src/store/parser/rules/kv-parser-evaluator-rule-store";
 import { KvProfileEvaluatorBindingStore } from "../src/store/parser/rules/kv-profile-evaluator-binding-store";
 import { KvProfileRuleBindingStore } from "../src/store/parser/rules/kv-profile-rule-binding-store";
-import { KvProseParserTemplateStore } from "../src/store/reference/prose-parser-templates/kv-prose-parser-template-store";
 import { KvClinicalProseTemplateStore } from "../src/store/reference/prose-templates/kv-clinical-prose-template-store";
 import { KvStopWordProfileStore } from "../src/store/reference/stop-words/kv-stop-word-profile-store";
 import { KvStopWordWordListStore } from "../src/store/reference/stop-words/kv-stop-word-word-list-store";
@@ -64,7 +63,6 @@ function makeMockStores(): ClinicalRuntimeParserStores {
 		stopWordProfiles: new KvStopWordProfileStore(backend),
 		stopWordWordLists: new KvStopWordWordListStore(backend),
 		proseTemplates: new KvClinicalProseTemplateStore(backend),
-		proseParserTemplates: new KvProseParserTemplateStore(backend),
 		jurisdictionalDisplays: {} as any,
 		calibration: {} as any,
 		personnel: {} as any,
@@ -156,33 +154,6 @@ describe("bootstrapClinicalStores", () => {
 		});
 
 		expect(Array.isArray(result.unsupportedKinds)).toBe(true);
-	});
-
-	it("writes parser prose templates to the parser template store", async () => {
-		const stores = makeMockStores();
-		const result = await bootstrapClinicalStores(
-			stores,
-			[
-				{
-					recordId: "parser-template-record",
-					kind: "prose_parser_template",
-					payload: {
-						templateId: "parser-template",
-						targetSchema: "ObservationEvent",
-						sectionPattern: "(?<value>.+)",
-						slots: [],
-					},
-					sourceModuleId: "test",
-					sourceModuleVersion: 1,
-				},
-			],
-			{ seedPolicy: "force" },
-		);
-
-		expect(result.recordsWritten.prose_parser_template).toBe(1);
-		expect(
-			await stores.proseParserTemplates.get("parser-template"),
-		).not.toBeNull();
 	});
 
 });
@@ -286,12 +257,6 @@ describe("validateBootstrapReadiness", () => {
 			slotPosition: "opening",
 			templateText: "test",
 			slots: {},
-		});
-		await stores.proseParserTemplates.set({
-			templateId: "test-parser-template",
-			targetSchema: "ObservationEvent",
-			sectionPattern: "(?<value>.+)",
-			slots: [],
 		});
 		await stores.conceptFields.set({
 			ruleId: "test-field",
