@@ -1,4 +1,3 @@
-import type { EngineBuilderResult } from "@stateful-mcp/clinical/engine/clinical-engine-builder";
 import type { PatientProfile } from "@stateful-mcp/clinical/schemas/patient";
 export { bootstrapV2Session } from "./bootstrap-v2";
 
@@ -15,10 +14,7 @@ export const DEFAULT_TUI_PATIENT: PatientProfile = {
 	biologicalProfile: { organismType: "human" },
 } as any;
 
-export interface BootstrapResult {
-	result: EngineBuilderResult;
-	sessionId: string;
-}
+export interface BootstrapResult { sessionId: string; }
 
 /**
  * Bootstraps a TUI session: builds the engine, resolves the initial session id
@@ -28,7 +24,7 @@ export interface BootstrapResult {
  * `ensureEncounter` is idempotent — safe on both fresh and resumed sessions.
  */
 export async function bootstrapSession(
-	options: { result?: EngineBuilderResult; patient?: PatientProfile } = {},
+	options: { patient?: PatientProfile } = {},
 ): Promise<BootstrapResult> {
 	void options;
 	throw new Error(
