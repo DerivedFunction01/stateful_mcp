@@ -42,8 +42,12 @@ export function validateSchemaDefaults(
 }
 
 function isCompatibleDefault(field: SchemaField, value: TypedValue): boolean {
+	if (field.cardinality === "many") {
+		if (value.kind === "concept_array") return field.valueKind === "concept_array";
+		if (value.kind !== "array") return false;
+		return field.valueKind === "array" || value.itemKind === field.valueKind;
+	}
 	if (field.valueKind !== value.kind) return false;
-	if (field.cardinality === "many" && value.kind !== "array" && value.kind !== "concept_array") return false;
 	if (field.valueKind === "scalar" && value.kind === "scalar") return field.scalarType === value.scalarType;
 	if (field.valueKind === "temporal" && value.kind === "temporal") return field.temporalType === value.temporalType;
 	return true;

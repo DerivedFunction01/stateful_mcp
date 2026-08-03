@@ -4,6 +4,7 @@ import { defineSchema } from "../src/v2/schemas/schema-factory";
 import { validateSchemaDefaults } from "../src/v2/schemas/schema-defaults";
 import { validateTargetPath } from "../src/v2/schemas/schema-path-validator";
 import { SchemaRegistry, fingerprintSchema } from "../src/v2/schemas/schema-registry";
+import { observationSchema } from "../src/v2/schemas/definitions";
 
 const observation = defineSchema({
 	schema: "Observation",
@@ -51,6 +52,20 @@ describe("V2 schema registry", () => {
 		expect(registry.getField("Observation", "sourceType")?.enumValues).toEqual(
 			CLINICAL_SOURCE_TYPES,
 		);
+	});
+
+	it("describes observation duration as an ordered measurement collection", () => {
+		const registry = new SchemaRegistry();
+		registry.register(observationSchema);
+		const duration = registry.getField("Observation", "duration");
+
+		expect(duration).toMatchObject({
+			valueKind: "measurement",
+			cardinality: "many",
+		});
+		expect(duration?.measurement?.dimension).toBe("time");
+		expect(duration?.measurement?.operators).toContain("gte");
+		expect(duration?.measurement?.statisticalTypes).toContain("mean");
 	});
 
 	it("keeps fingerprints deterministic despite object key order", () => {

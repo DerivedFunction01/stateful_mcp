@@ -1,5 +1,4 @@
 import type { SingleMeasurement } from "./measurement";
-import type { CodeableConcept } from "./shared";
 
 export const DAY_OF_WEEKS = [
 	"monday",
@@ -63,9 +62,8 @@ export type TemporalDirection = (typeof TEMPORAL_DIRECTION)[number];
 export type TimePrecisionLevel = (typeof TIME_PRECISION_LEVELS)[number];
 
 /**
- * Extends SingleMeasurement but overrides `unit` with a chronological precision level
- * instead of a CodeableConcept — keeping it in the hierarchy while remaining incompatible
- * with physical-dimension anchored types.
+ * Extends SingleMeasurement with a time anchor and a chronological precision
+ * unit. Time measurements use primitive units and never carry concepts.
  */
 export type TimeMeasurement = Omit<SingleMeasurement, 'unit'> & {
     unitAnchor: "time";

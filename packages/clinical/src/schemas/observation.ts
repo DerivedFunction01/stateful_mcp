@@ -7,6 +7,17 @@ import type {
 } from "./shared";
 import type { ClinicalDateRange, TimeMeasurement } from "./time";
 
+export const OBSERVATION_TRAJECTORIES = [
+	"improving",
+	"worsening",
+	"stable",
+	"resolved",
+	"fluctuating",
+	"unknown",
+] as const;
+
+export type ObservationTrajectory = (typeof OBSERVATION_TRAJECTORIES)[number];
+
 export interface ObservationEvent {
 	id: string;
 	concept: CodeableConcept;
@@ -20,13 +31,7 @@ export interface ObservationEvent {
 		normalizedScore: number;
 	};
 	duration: TimeMeasurement[];
-	trajectory:
-		| "improving"
-		| "worsening"
-		| "stable"
-		| "resolved"
-		| "fluctuating"
-		| "unknown";
+	trajectory: ObservationTrajectory;
 	qualifiers?: CodeableConcept[];
 	anatomyLocations?: AnatomicalLocation[];
 	dateRange?: ClinicalDateRange;

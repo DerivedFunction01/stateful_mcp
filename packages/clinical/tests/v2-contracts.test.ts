@@ -137,6 +137,10 @@ describe("V2 typed value union", () => {
 			dimension: "pressure",
 			magnitude: 120,
 			unit: "mmHg",
+			statisticalType: "mean",
+			operator: "gte",
+			isApproximate: false,
+			dataPointCount: 1,
 		};
 		expect(valueKind(measurement)).toBe("measurement");
 	});

@@ -76,9 +76,24 @@ function validateDefinition(definition: SchemaDefinition): void {
 		if (field.valueKind === "measurement" && !field.measurement) {
 			throw new Error(`Measurement field '${field.path}' must declare measurement metadata`);
 		}
+		if (field.measurement?.allowedUnits) {
+			assertUnique(field.measurement.allowedUnits, `allowed units for '${field.path}'`);
+		}
+		if (field.measurement?.statisticalTypes) {
+			assertUnique(field.measurement.statisticalTypes, `statistical types for '${field.path}'`);
+		}
+		if (field.measurement?.operators) {
+			assertUnique(field.measurement.operators, `operators for '${field.path}'`);
+		}
 		if (field.valueKind === "temporal" && !field.temporalType) {
 			throw new Error(`Temporal field '${field.path}' must declare temporalType`);
 		}
+	}
+}
+
+function assertUnique(values: readonly string[], label: string): void {
+	if (new Set(values).size !== values.length) {
+		throw new Error(`Duplicate values found in ${label}`);
 	}
 }
 

@@ -156,27 +156,34 @@ export const SCORE_UNITS = ["%", "percent", "score", "points", "ratio"] as const
 
 export type ScoreUnit = (typeof SCORE_UNITS)[number];
 
-type ConcMassUnit =
-	| "g"
-	| "mg"
-	| "mcg"
-	| "ug"
-	| "ng"
-	| "pg";
-
-type ConcVolumeUnit = "L" | "dL" | "mL" | "uL";
-
 export const MASS_CONCENTRATION_UNITS = [
-	"mg/mL",
-	"mg/dL",
-	"mcg/mL",
 	"g/L",
 	"g/dL",
+	"g/mL",
+	"g/uL",
+	"mg/mL",
+	"mg/dL",
+	"mg/L",
+	"mg/uL",
+	"mcg/mL",
+	"mcg/dL",
+	"mcg/L",
+	"mcg/uL",
+	"ug/L",
+	"ug/dL",
+	"ug/mL",
+	"ug/uL",
+	"ng/L",
+	"ng/dL",
+	"ng/mL",
+	"ng/uL",
+	"pg/L",
+	"pg/dL",
+	"pg/mL",
+	"pg/uL",
 ] as const;
 
-export type MassConcentrationUnit =
-	| `${ConcMassUnit}/${ConcVolumeUnit}`
-	| (typeof MASS_CONCENTRATION_UNITS)[number];
+export type MassConcentrationUnit = (typeof MASS_CONCENTRATION_UNITS)[number];
 
 export const SUBSTANCE_CONCENTRATION_UNITS = [
 	"mol/L",
@@ -265,7 +272,7 @@ export const ALLOWED_UNITS = [
 
 export type AllowedUnit = (typeof ALLOWED_UNITS)[number];
 
-export const VALUE_TYPE = [
+export const VALUE_TYPES = [
 	"min",
 	"max",
 	"mean",
@@ -282,13 +289,17 @@ export const VALUE_TYPE = [
 	"margin_of_err",
 ] as const;
 
-export type ValueType = (typeof VALUE_TYPE)[number];
+export type ValueType = (typeof VALUE_TYPES)[number];
+
+export const MEASUREMENT_OPERATORS = ["eq", "gt", "gte", "lt", "lte"] as const;
+
+export type MeasurementOperator = (typeof MEASUREMENT_OPERATORS)[number];
 
 export interface SingleMeasurement {
 	magnitude: number;
 	unit?: AllowedUnit;
 	num_data_points?: number;
-	operator?: "eq" | "gt" | "gte" | "lt" | "lte";
+	operator?: MeasurementOperator;
 	is_approximate?: boolean;
 	value_type?: ValueType;
 }

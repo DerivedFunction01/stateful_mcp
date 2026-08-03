@@ -7,6 +7,12 @@
  */
 
 import type { CodeableConcept } from "../../schemas/shared";
+import type {
+	MeasurementOperator,
+	ValueType,
+} from "../../schemas/measurement";
+import type { MedicationFrequency } from "../../schemas/medication";
+import type { ClinicalDateRange, TimePrecisionLevel } from "../../schemas/time";
 
 export interface NumericBounds {
 	min?: number;
@@ -65,6 +71,10 @@ export interface MeasurementValue {
 	dimension: string;
 	magnitude: number;
 	unit: string;
+	statisticalType?: ValueType;
+	operator?: MeasurementOperator;
+	isApproximate?: boolean;
+	dataPointCount?: number;
 	/** Value normalized to the dimension's canonical base unit, when known. */
 	normalized?: { magnitude: number; unit: string };
 	rawText?: string;
@@ -78,10 +88,47 @@ export type TemporalValueType =
 	| "relative_time"
 	| "cadence";
 
+export interface DurationTemporalPayload {
+	kind: "duration";
+	measurements: MeasurementValue[];
+	ordered: true;
+}
+
+export interface DateTemporalPayload {
+	kind: "date";
+	value: string;
+	precision?: TimePrecisionLevel;
+}
+
+export interface DateRangeTemporalPayload {
+	kind: "date_range";
+	value: ClinicalDateRange;
+}
+
+export interface RelativeTimeTemporalPayload {
+	kind: "relative_time";
+	direction: "retrospective" | "prospective" | "static_approximate";
+	amount: number;
+	unit: TimePrecisionLevel;
+}
+
+export interface CadenceTemporalPayload {
+	kind: "cadence";
+	value: MedicationFrequency;
+}
+
+export type TemporalValuePayload =
+	| string
+	| DurationTemporalPayload
+	| DateTemporalPayload
+	| DateRangeTemporalPayload
+	| RelativeTimeTemporalPayload
+	| CadenceTemporalPayload;
+
 export interface TemporalValue {
 	kind: "temporal";
 	temporalType: TemporalValueType;
-	value: unknown;
+	value: TemporalValuePayload;
 	rawText?: string;
 	evidence?: ValueEvidence[];
 }

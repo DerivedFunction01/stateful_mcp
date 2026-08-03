@@ -18,14 +18,14 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 			DEFAULT_ATTRIBUTE_RULES,
 		);
 		const parsed = MeasurementHelper.parseAs<MassMeasurement>(
-			candidates[0],
+			candidates[0]!,
 			"mass",
 			DEFAULT_ATTRIBUTE_RULES,
 		);
 		expect(parsed).not.toBeNull();
 		expect(parsed!.unitAnchor).toBe("mass");
 		expect(parsed!.magnitude).toBe(50);
-		expect(parsed!.unit!.display).toBe("mg");
+		expect(parsed!.unit).toBe("mg");
 	});
 
 	test("should parse TemperatureMeasurement correctly using parseAs", () => {
@@ -34,14 +34,14 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 			DEFAULT_ATTRIBUTE_RULES,
 		);
 		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(
-			candidates[0],
+			candidates[0]!,
 			"temperature",
 			DEFAULT_ATTRIBUTE_RULES,
 		);
 		expect(parsed).not.toBeNull();
 		expect(parsed!.unitAnchor).toBe("temperature");
 		expect(parsed!.magnitude).toBe(37.5);
-		expect(parsed!.unit!.display).toBe("Celsius");
+		expect(parsed!.unit!).toBe("Celsius");
 	});
 
 	test("should return null when parsing mismatching unit anchor", () => {
@@ -51,7 +51,7 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 			DEFAULT_ATTRIBUTE_RULES,
 		);
 		const parsed = MeasurementHelper.parseAs<TemperatureMeasurement>(
-			candidates[0],
+			candidates[0]!,
 			"temperature",
 			DEFAULT_ATTRIBUTE_RULES,
 		);
@@ -63,16 +63,16 @@ describe("Strongly-Typed Measurement Units & parseAs Helper", () => {
 		const mass: MassMeasurement = {
 			magnitude: 10,
 			unitAnchor: "mass",
-			unit: { display: "kg" },
+			unit: "kg",
 		};
-		expect(mass.unit!.display).toBe("kg");
+		expect(mass.unit).toBe("kg");
 
 		const temp: TemperatureMeasurement = {
 			magnitude: 37,
 			unitAnchor: "temperature",
-			unit: { display: "Celsius" },
+			unit: "Celsius",
 		};
-		expect(temp.unit!.display).toBe("Celsius");
+		expect(temp.unit).toBe("Celsius");
 	});
 
 	test("should return all candidates when multiple rules match", () => {

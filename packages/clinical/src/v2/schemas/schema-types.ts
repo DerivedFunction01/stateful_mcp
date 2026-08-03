@@ -1,3 +1,4 @@
+import type { MeasurementOperator, ValueType } from "../../schemas/measurement";
 import type {
 	ScalarType,
 	TemporalValueType,
@@ -25,6 +26,10 @@ export interface SchemaMeasurementMetadata {
 	dimension: string;
 	allowedUnits?: readonly string[];
 	canonicalUnit?: string;
+	statisticalTypes?: readonly ValueType[];
+	operators?: readonly MeasurementOperator[];
+	allowsApproximate?: boolean;
+	allowsDataPointCount?: boolean;
 }
 
 export interface SchemaField {
