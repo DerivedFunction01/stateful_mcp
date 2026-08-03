@@ -124,16 +124,20 @@ export class ClinicalOperationCompiler {
 		const schemaVersion = options.schemaVersion ?? 1;
 		const groups = new Map<string, MacroTargetOperation[]>();
 		for (const operation of operations) {
-			const group = groups.get(operation.operationId) ?? [];
+			const groupKey = operation.macroDefinitionId
+				? `${operation.groupId}:${operation.targetSchema}`
+				: operation.operationId;
+			const group = groups.get(groupKey) ?? [];
 			group.push(operation);
-			groups.set(operation.operationId, group);
+			groups.set(groupKey, group);
 		}
 		const compiled: ClinicalOperation[] = [];
-		for (const [recordId, group] of groups) {
+		for (const [groupKey, group] of groups) {
 			const first = group[0]!;
 			const schemaName = first.targetSchema;
 			const strategy = this.effectiveStrategy(group, options.writePolicy);
 			const merged = this.mergeGroup(group, strategy);
+			const recordId = this.recordIdForGroup(group, groupKey);
 			const existing = options.existing?.[recordId];
 			compiled.push(
 				existing && existing.values
@@ -189,9 +193,15 @@ export class ClinicalOperationCompiler {
 				node = node[key] as Record<string, unknown>;
 			}
 			const leaf = parts[parts.length - 1]!;
-			node[leaf] = applyMerge(node[leaf], operation.value, strategy);
+			node[leaf] = applyMerge(node[leaf], unwrapTypedValue(operation.value), strategy);
 		}
 		return merged;
+	}
+
+	private recordIdForGroup(group: readonly MacroTargetOperation[], fallback: string): string {
+		const identity = group.find((operation) => operation.targetPath === "id");
+		const value = identity ? unwrapTypedValue(identity.value) : undefined;
+		return typeof value === "string" && value.length > 0 ? value : fallback;
 	}
 
 	private upsertOperation(
@@ -240,5 +250,20 @@ export class ClinicalOperationCompiler {
 				sourceMacroId: operation.macroDefinitionId ?? operation.groupId,
 			},
 		};
+	}
+}
+
+function unwrapTypedValue(value: unknown): unknown {
+	if (!value || typeof value !== "object" || !("kind" in value)) return value;
+	const typed = value as MacroTargetOperation["value"];
+	switch (typed.kind) {
+		case "concept": return typed.concept;
+		case "concept_array": return typed.concepts;
+		case "scalar": return typed.value;
+		case "enum": return typed.value;
+		case "temporal": return typed.value;
+		case "measurement": return { dimension: typed.dimension, magnitude: typed.magnitude, unit: typed.unit, operator: typed.operator, approximate: typed.isApproximate };
+		case "array": return typed.items.map(unwrapTypedValue);
+		case "composite": return typed.values;
 	}
 }

@@ -3,6 +3,8 @@ import { DictionaryStore } from "@stateful-mcp/core/middleware/dictionary/store"
 import { InMemoryConceptResolver } from "@stateful-mcp/core/middleware/dictionary/resolver";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
 import { createDefaultV2SchemaRegistry } from "@stateful-mcp/clinical/v2/schemas/default-registry";
+import { V2CellCompiler } from "@stateful-mcp/clinical/v2/cells/v2-cell-compiler";
+import { createV2SyntaxProfile } from "@stateful-mcp/clinical/v2/macros/macro-profile";
 import { KvCellStore } from "@stateful-mcp/clinical/v2/cells/kv-cell-store";
 import { KvWorkspaceStore } from "@stateful-mcp/clinical/v2/workspaces/kv-workspace-store";
 import { ClinicalEngineV2Builder } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2-builder";
@@ -10,7 +12,8 @@ import {
 	createV2CommandSyntaxProfile,
 	type V2CommandSyntaxProfile,
 } from "@stateful-mcp/clinical/v2/commands/command-syntax-profile";
-import type { MacroStore } from "@stateful-mcp/clinical/v2/macros/macro-definition";
+import { KvMacroStore } from "@stateful-mcp/clinical/v2/macros/kv-macro-store";
+import { seedDefaultV2Macros } from "@stateful-mcp/clinical/v2/macros/default-macros";
 import type { ClinicalEngineV2 } from "@stateful-mcp/clinical/v2/engine/clinical-engine-v2";
 import { V2CommandBarService } from "@stateful-mcp/clinical/v2/commands/command-bar-service";
 import { V2VariableCommandService } from "@stateful-mcp/clinical/v2/commands/variable-command-service";
@@ -27,15 +30,11 @@ export interface V2BootstrapResult {
 	syntaxProfile: V2CommandSyntaxProfile;
 }
 
-const EMPTY_MACRO_STORE: MacroStore = {
-	get: async () => null,
-	list: async () => [],
-};
 
 /**
  * Native CLI2 bootstrap. This intentionally has no legacy ClinicalEngine or
- * NotebookStore dependency. Cell text compilation remains an explicit seam
- * until the V2 macro/cell compiler is connected to the notebook editor.
+ * NotebookStore dependency. V2 cell compilation is wired; macro definitions
+ * remain an explicit store seam until durable definitions are configured.
  */
 export async function bootstrapV2Session(options: {
 	sessionId?: string;
@@ -53,17 +52,24 @@ export async function bootstrapV2Session(options: {
 		active: true,
 	});
 	const dictionary = new DictionaryStore(new InMemoryConceptResolver());
+	await dictionary.loadConfig({ concepts: [{ id: "c-pneumonia", namespaceCode: "SNOMED", standardCode: "233604007", display: "Pneumonia", active: true }] });
+	const macroStore = new KvMacroStore(new MemoryKvBackend());
+	await seedDefaultV2Macros(macroStore);
+	const schemaRegistry = createDefaultV2SchemaRegistry();
+	const cellCompiler = new V2CellCompiler(
+		macroStore,
+		schemaRegistry,
+		dictionary,
+		createV2SyntaxProfile({ ...syntaxProfile, profileId: syntaxProfile.profileId }),
+	);
 	const engine = new ClinicalEngineV2Builder()
 		.withEventStore(eventStore)
-		.withSchemaRegistry(createDefaultV2SchemaRegistry())
-		.withMacroStore(EMPTY_MACRO_STORE)
+		.withSchemaRegistry(schemaRegistry)
+		.withMacroStore(macroStore)
 		.withDictionary(dictionary)
 		.withWorkspaceStore(new KvWorkspaceStore(new MemoryKvBackend()))
 		.withCellStore(new KvCellStore(new MemoryKvBackend()))
-		.withCellCompiler(async () => ({
-			diagnostics: ["CLI2 V2 cell compiler is not wired yet"],
-			fingerprint: "cli2-v2-cell-compiler-unwired",
-		}))
+		.withCellCompiler(cellCompiler.compile.bind(cellCompiler))
 		.withSyntaxProfile(syntaxProfile)
 		.withVariableService(new VariableServiceStore())
 		.build();

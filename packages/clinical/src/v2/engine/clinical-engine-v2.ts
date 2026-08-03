@@ -18,6 +18,7 @@ import { enrichPlanWithCompletionLinkage } from "../clinical/composite-clinical-
 import type { V2WorkspaceAggregate } from "../workspaces/workspace-types";
 import type { ClinicalDocumentReadModel } from "../clinical/clinical-document-types";
 import type { StructuredCell } from "../cells/structured-cell";
+import type { ClinicalOperation } from "../clinical/clinical-operation";
 
 export interface ExecutionResult {
 	status: "committed" | "failed";
@@ -55,6 +56,10 @@ export class ClinicalEngineV2 {
 
 	getCellService(): StructuredCellService {
 		return this.cellService;
+	}
+
+	async initializeClinicalDocument(operation: Extract<ClinicalOperation, { kind: "document_initialized" }>) {
+		return this.clinicalService.initDocument(operation);
 	}
 
 	async prepare(

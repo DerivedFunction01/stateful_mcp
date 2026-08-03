@@ -1,284 +1,88 @@
-import type { CellCollectionRef } from "@stateful-mcp/clinical/session/cell";
-import { segmentCellInput } from "@stateful-mcp/clinical/session/cell-input-segmentation";
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CellSubmissionPlan, CommandCatalog } from "../lib/cell-editor";
-import { isSharedVariableCommand } from "../lib/windows/shared-cell-commands";
-import { WorkspaceCommandCatalog } from "../lib/windows/workspace/editor";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/v2/workspaces/workspace-snapshot";
+import type { WorkspaceOperation } from "@stateful-mcp/clinical/v2/workspaces/workspace-types";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { SessionState } from "./useSession";
 
 interface UseWorkspaceArgs {
 	showWorkspace: boolean;
 	sessionId: string;
 	soapNoteId: string;
-	/** The shared session; avoids re-bootstrapping a second engine instance. */
 	session: SessionState | null;
 }
 
-interface UseWorkspaceReturn {
-	snapshot: WorkspaceSnapshot | null;
-	loading: boolean;
-	error: string | null;
-	complete: (winningBranchId: string) => Promise<void>;
-	close: () => Promise<void>;
-	addBranch: (branchName: string, conceptText: string) => Promise<void>;
-	focused: boolean;
-	toggleFocus: () => void;
-	resetWorkspace: () => void;
-	commandCatalog: CommandCatalog;
-	focusBranch: (branchRef: string) => Promise<void>;
-	planSubmission: (text: string) => CellSubmissionPlan;
-	submitPlan: (plan: CellSubmissionPlan) => Promise<void>;
-}
-
-export function useWorkspace({
-	showWorkspace,
-	sessionId,
-	soapNoteId,
-	session,
-}: UseWorkspaceArgs): UseWorkspaceReturn {
+export function useWorkspace({ showWorkspace, sessionId, soapNoteId, session }: UseWorkspaceArgs) {
 	const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [focused, setFocused] = useState(false);
 	const workspaceIdRef = useRef<string | null>(null);
-	const initializedRef = useRef(false);
-
-	useEffect(() => {
-		if (!showWorkspace) {
-			// Keep the snapshot alive when the full workspace screen closes so the
-			// context strip can keep rendering the active workspace in normal mode.
-			// Only an explicit reset (complete/reset) clears it.
-			setFocused(false);
-			return;
-		}
-		if (initializedRef.current && workspaceIdRef.current) return;
-		initializedRef.current = true;
-		setLoading(true);
-		setError(null);
-		const engine = session?.result?.engine;
-		if (!engine) {
-			setError("No engine available");
-			setLoading(false);
-			return;
-		}
-		engine
-			.initAssessmentWorkspace(sessionId, soapNoteId, [])
-			.then((workspaceId: string) => {
-				workspaceIdRef.current = workspaceId;
-				const readModel = engine.getWorkspaceReadModel();
-				if (!readModel) throw new Error("No workspace read model");
-				return readModel.getWorkspace(sessionId, workspaceId);
-			})
-			.then((ws: WorkspaceSnapshot | null) => {
-				setSnapshot(ws);
-				setLoading(false);
-			})
-			.catch((err: unknown) => {
-				setError(err instanceof Error ? err.message : String(err));
-				setLoading(false);
-			});
-	}, [showWorkspace, sessionId, soapNoteId, session]);
+	const service = session?.v2.engine.getWorkspaceService();
 
 	const refresh = useCallback(async () => {
-		if (!workspaceIdRef.current) return;
-		const engine = session?.result?.engine;
-		if (!engine) return;
-		const readModel = engine.getWorkspaceReadModel();
-		if (!readModel) return;
-		const ws = await readModel.getWorkspace(sessionId, workspaceIdRef.current);
-		setSnapshot(ws);
-		const cells = await engine.listWorkspaceCells(
-			sessionId,
-			workspaceIdRef.current,
-		);
-		await session?.notebook?.saveCollection?.(sessionId, {
-			collection: { kind: "workspace", collectionId: workspaceIdRef.current },
-			ordering: cells.map((cell: { cellId: string }) => cell.cellId),
-			activeIndex: Math.max(0, cells.length - 1),
-			draftText: "",
-		});
-	}, [session, sessionId]);
+		if (!service || !workspaceIdRef.current) return;
+		setSnapshot(await service.getSnapshot(workspaceIdRef.current));
+	}, [service]);
 
-	const resetWorkspace = useCallback(() => {
-		setSnapshot(null);
-		workspaceIdRef.current = null;
-		initializedRef.current = false;
-		setFocused(false);
-	}, []);
-
-	const complete = useCallback(
-		async (winningBranchId: string) => {
-			setError(null);
+	useEffect(() => {
+		if (!showWorkspace || !service) return;
+		let cancelled = false;
+		setLoading(true);
+		(async () => {
 			try {
-				const engine = session?.result?.engine;
-				if (!engine) throw new Error("No engine available");
-				if (!workspaceIdRef.current) return;
-				await engine.completeAssessmentWorkspace(
-					sessionId,
-					workspaceIdRef.current,
-					winningBranchId,
-				);
-				resetWorkspace();
-			} catch (err) {
-				setError(err instanceof Error ? err.message : String(err));
+				let workspace = (await service.listWorkspaces(sessionId))[0] ?? null;
+				if (!workspace) workspace = await service.createWorkspace({ sessionId, sourceDocumentId: soapNoteId, workspaceId: `workspace-${sessionId}`, initialBranches: [] });
+				if (cancelled) return;
+				workspaceIdRef.current = workspace.id;
+				setSnapshot(await service.getSnapshot(workspace.id));
+			} catch (cause) {
+				if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause));
+			} finally {
+				if (!cancelled) setLoading(false);
 			}
-		},
-		[session, sessionId, resetWorkspace],
-	);
+		})();
+		return () => { cancelled = true; };
+	}, [service, sessionId, showWorkspace, soapNoteId]);
 
+	const apply = useCallback(async (operation: WorkspaceOperation) => {
+		if (!service || !workspaceIdRef.current) throw new Error("V2 workspace is not ready");
+		const current = await service.getWorkspace(workspaceIdRef.current);
+		if (!current) throw new Error("V2 workspace was not found");
+		await service.applyOperations(current.id, [operation], current.version, current.eventHead);
+		await refresh();
+	}, [refresh, service]);
+
+	const complete = useCallback(async (winningBranchId: string) => {
+		try { await apply({ kind: "complete", workspaceId: workspaceIdRef.current!, winningBranchId }); }
+		catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+	}, [apply]);
 	const close = useCallback(async () => {
-		setError(null);
-		try {
-			const engine = session?.result?.engine;
-			if (!engine) throw new Error("No engine available");
-			if (!workspaceIdRef.current) return;
-			await engine.closeAssessmentWorkspace(sessionId, workspaceIdRef.current);
-			await refresh();
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
-		}
-	}, [session, sessionId, refresh]);
-
-	const addBranch = useCallback(
-		async (branchName: string, conceptText: string) => {
-			setError(null);
-			try {
-				const engine = session?.result?.engine;
-				if (!engine) throw new Error("No engine available");
-				if (!workspaceIdRef.current) return;
-				await engine.addAssessmentBranch(
-					sessionId,
-					workspaceIdRef.current,
-					branchName,
-					conceptText,
-				);
-				await refresh();
-			} catch (err) {
-				setError(err instanceof Error ? err.message : String(err));
-			}
-		},
-		[session, sessionId, refresh],
-	);
-
-	const toggleFocus = useCallback(() => {
-		setFocused((prev) => !prev);
-	}, []);
-
-	const commandCatalog = useMemo<CommandCatalog>(() => {
-		const profile = session?.result?.engine?.getParser?.().getProfile?.();
-		return new WorkspaceCommandCatalog(profile ?? ({} as any), snapshot);
-	}, [session, snapshot]);
-
-	const focusBranch = useCallback(
-		async (branchRef: string) => {
-			const engine = session?.result?.engine;
-			if (!engine || !workspaceIdRef.current) return;
-			try {
-				setError(null);
-				await engine.focusWorkspaceBranch(
-					sessionId,
-					workspaceIdRef.current,
-					branchRef,
-				);
-				await refresh();
-			} catch (err) {
-				setError(err instanceof Error ? err.message : String(err));
-			}
-		},
-		[session, sessionId, refresh],
-	);
-
-	const getCollection = useCallback(
-		(): CellCollectionRef => ({
-			kind: "workspace",
-			collectionId: workspaceIdRef.current ?? "",
-		}),
-		[],
-	);
-
-	const planSubmission = useCallback(
-		(text: string): CellSubmissionPlan => {
-			const profile = session?.result?.engine?.getParser?.().getProfile?.();
-			const mappings = profile?.workspaceCommandMappings ?? {};
-			const workspaceVerbs = new Set([
-				...Object.keys(mappings),
-				...Object.values(mappings),
-			]);
-			const directives = new Set(["target", "mode", "link", "parent"]);
-			const ui = new Set(["help", "back", "exit", "focus", "status"]);
-			const collection = getCollection();
-			const segments = segmentCellInput(text, profile ?? ({} as any), {
-				isUiCommand: (verb) => ui.has(verb),
-				isVariableCommand: isSharedVariableCommand,
-				isWorkspaceCommand: (verb) => workspaceVerbs.has(verb),
-				isCellConfiguration: (verb) => directives.has(verb),
-			});
-			return {
-				submissionId: crypto.randomUUID(),
-				collection,
-				segments: segments.map((segment) => ({
-					...segment,
-					intentKind: segment.intentKind,
-				})),
-			};
-		},
-		[session, getCollection],
-	);
-
-	const submitPlan = useCallback(
-		async (plan: CellSubmissionPlan) => {
-			const engine = session?.result?.engine;
-			if (!engine || !workspaceIdRef.current) return;
-			const branchId =
-				snapshot?.activeBranchId ?? snapshot?.branches[0]?.branchId;
-			for (const segment of plan.segments) {
-				if (segment.kind === "ui_command") continue;
-				if (segment.kind === "variable_command") {
-					await engine.executeVariableCell(
-						sessionId,
-						plan.collection,
-						segment.text,
-						{
-							kind: "workspace",
-							id: plan.collection.collectionId,
-						},
-					);
-					continue;
-				}
-				const created = await engine.createWorkspaceCell(
-					sessionId,
-					workspaceIdRef.current,
-					segment.text,
-					{
-						branchId,
-						routingScope: branchId ? "branch_local" : "global",
-					},
-				);
-				await engine.executeWorkspaceCell(
-					sessionId,
-					workspaceIdRef.current,
-					created.cellId,
-				);
-			}
-			await refresh();
-		},
-		[session, sessionId, snapshot, refresh],
-	);
+		try { await apply({ kind: "close", workspaceId: workspaceIdRef.current! }); }
+		catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+	}, [apply]);
+	const addBranch = useCallback(async (name: string, conceptText: string) => {
+		try { await apply({ kind: "create_branch", workspaceId: workspaceIdRef.current!, name, concept: { conceptId: conceptText, display: conceptText } }); }
+		catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+	}, [apply]);
+	const executeCommand = useCallback(async (rawText: string) => {
+		if (!session || !workspaceIdRef.current) return;
+		const result = await session.v2.commandBar.execute({ rawText, sessionId, workspaceId: workspaceIdRef.current });
+		if (result.status !== "committed") setError(result.error ?? "V2 workspace command failed");
+		await refresh();
+	}, [refresh, session, sessionId]);
 
 	return {
 		snapshot,
 		loading,
 		error,
+		focused,
+		toggleFocus: () => setFocused((value) => !value),
+		resetWorkspace: () => { workspaceIdRef.current = null; setSnapshot(null); setFocused(false); },
 		complete,
 		close,
 		addBranch,
-		focused,
-		toggleFocus,
-		resetWorkspace,
-		commandCatalog,
-		focusBranch,
-		planSubmission,
-		submitPlan,
+		executeCommand,
+		focusBranch: async (branchRef: string) => {
+			if (!snapshot?.branches.some((branch) => branch.branchId === branchRef || branch.commandAlias === branchRef || branch.name === branchRef)) setError(`Branch '${branchRef}' was not found`);
+		},
 	};
 }
