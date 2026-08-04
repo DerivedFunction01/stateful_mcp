@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { BootstrapResult } from "../lib/session/bootstrap-v2";
+import type { BootstrapResult } from "../lib/session/bootstrap-session";
 
 export interface SessionState {
 	v2: BootstrapResult;
@@ -15,7 +15,7 @@ export function useSession(): SessionState | null {
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const { bootstrapSession } = await import("../lib/session/bootstrap-v2");
+			const { bootstrapSession } = await import("../lib/session/bootstrap-session");
 			const v2 = await bootstrapSession();
 			if (cancelled) return;
 			setState({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { bootstrapSession } from "../src/lib/session/bootstrap-v2";
+import { bootstrapSession } from "../src/lib/session/bootstrap-session";
 
 describe("cli2  notebook session seam", () => {
 	it("exposes  services without a legacy NotebookStore", async () => {

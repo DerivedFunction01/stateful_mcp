@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { bootstrapSession } from "../src/lib/session/bootstrap-v2";
-import { Cli2BootstrapBuilder } from "../src/lib/session/cli2-bootstrap-builder";
+import { bootstrapSession } from "../src/lib/session/bootstrap-session";
+import { Cli2BootstrapBuilder } from "../src/lib/session/cli2-bootstrap";
 
 describe("cli2  bootstrap", () => {
 	it("constructs the  engine without the legacy ClinicalEngineBuilder", async () => {
