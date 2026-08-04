@@ -83,6 +83,13 @@ describe("NotebookKeymapPolicy", () => {
 		});
 	});
 
+	test("MACRO Ctrl+Enter resolves to submit-macro", () => {
+		expect(policy.resolve("\r", { ctrl: true, return: true }, "MACRO", "")).toEqual({
+			kind: "generic",
+			action: { type: "SUBMIT_MACRO" },
+		});
+	});
+
 	test("VISUAL Esc resolves to generic cancel", () => {
 		const result = policy.resolve("\x1b", { escape: true }, "VISUAL", "");
 		expect(result.kind).toBe("generic");

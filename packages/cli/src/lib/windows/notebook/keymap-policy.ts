@@ -14,7 +14,7 @@ import type { EditorKeymapProfile } from "../../editor/editor-keymap-profile";
 interface Classification {
 	document?: DocumentAction;
 	domain?: DomainAction;
-	generic?: "ENTER_INSERT" | "ENTER_COMMAND" | "ENTER_MACRO" | "CANCEL" | "SEARCH";
+	generic?: "ENTER_INSERT" | "ENTER_COMMAND" | "ENTER_MACRO" | "CANCEL" | "SEARCH" | "SUBMIT_MACRO";
 	char?: string;
 }
 
@@ -70,6 +70,8 @@ function classify(action: ClinicalAction): Classification {
 			return { generic: "ENTER_COMMAND" };
 		case ClinicalAction.OpenMacroInput:
 			return { generic: "ENTER_MACRO" };
+		case ClinicalAction.SubmitMacro:
+			return { generic: "SUBMIT_MACRO" };
 		case ClinicalAction.OpenWorkspace:
 			return { domain: { type: "openWorkspace" } };
 		case ClinicalAction.Info:
@@ -79,7 +81,7 @@ function classify(action: ClinicalAction): Classification {
 		case ClinicalAction.Search:
 			return { generic: "SEARCH" };
 		default:
-			return {};
+			throw new Error(`Unclassified editor action: ${action}`);
 	}
 }
 

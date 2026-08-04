@@ -147,6 +147,8 @@ export function dispatchGeneralWindowCommand(line: string): {
 	if (verb === "q" || verb === "quit") return { success: true, action: "quit" };
 	if (verb === "help" || verb === "h")
 		return { success: true, action: "show_help" };
+	if (verb === "w") return { success: true, action: "save" };
+	if (verb === "wq") return { success: true, action: "save_quit" };
 	return null;
 }
 

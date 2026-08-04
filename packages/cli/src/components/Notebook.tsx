@@ -27,6 +27,7 @@ import {
 } from "./SearchOverlay";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
+import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension";
 
 /**
  * Independent notebook root. Owns a separate useSession/useNotebook and runs
@@ -483,6 +484,15 @@ export function Notebook() {
 			return Promise.resolve();
 		},
 		dispatchCommand: async (line: string) => {
+			const general = dispatchGeneralWindowCommand(line);
+			if (general) {
+				if (general.action === "quit") exit();
+				if (general.action === "show_help") setShowHelp(true);
+				if (general.action === "save" || general.action === "save_quit")
+					dispatch({ type: "set_message", message: "saved" });
+				if (general.action === "save_quit") exit();
+				return general;
+			}
 			dispatch({ type: "set_command", text: line });
 			await runtime.dispatchCommandLine(line);
 			return { success: true };
