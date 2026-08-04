@@ -4,7 +4,7 @@ async function main() {
 
 	if (!command || command === "help" || command === "--help") {
 		console.log(`Usage:
-  clinical notebook              Open the  notebook editor
+  clinical notebook [--session=<id>]  Open the notebook editor
 
 	  clinical init [--backend=memory|sqlite|jsonl] [--path=PATH]
                                  Initialize clinical bootstrap stores
@@ -18,10 +18,14 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 
 	// ── notebook command — boot the Ink TUI ─────────────────────────
 	if (command === "notebook") {
+		const sessionArg = args.find((arg) => arg.startsWith("--session="));
+		const preferredSessionId = sessionArg?.slice("--session=".length);
 		const { render } = await import("ink");
 		const { NotebookApp } = await import("./app");
 		const { default: React } = await import("react");
-		const { waitUntilExit } = render(React.createElement(NotebookApp));
+		const { waitUntilExit } = render(
+			React.createElement(NotebookApp, { preferredSessionId }),
+		);
 		await waitUntilExit();
 		return;
 	}

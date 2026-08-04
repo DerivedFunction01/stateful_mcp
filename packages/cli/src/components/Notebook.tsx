@@ -33,8 +33,12 @@ import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension"
  * Independent notebook root. Owns a separate useSession/useNotebook and runs
  * the notebook command path through the extension intent/effect runtime.
  */
-export function Notebook() {
-	const session = useSession();
+export function Notebook({
+	preferredSessionId,
+}: {
+	preferredSessionId?: string;
+}) {
+	const session = useSession(preferredSessionId);
 	const notebook = useNotebook(session);
 	const { exit } = useApp();
 	const { state, dispatch, cellSuggestions, getAutocomplete } = notebook;

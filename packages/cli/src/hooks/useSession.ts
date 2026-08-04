@@ -9,7 +9,9 @@ export interface SessionState {
 	notebook: any;
 }
 
-export function useSession(): SessionState | null {
+export function useSession(
+	preferredSessionId?: string,
+): SessionState | null {
 	const [state, setState] = useState<SessionState | null>(null);
 
 	useEffect(() => {
@@ -18,7 +20,7 @@ export function useSession(): SessionState | null {
 			const { bootstrapSession } = await import(
 				"../lib/session/bootstrap-session"
 			);
-			const v2 = await bootstrapSession();
+			const v2 = await bootstrapSession({ sessionId: preferredSessionId });
 			if (cancelled) return;
 			setState({
 				v2,
@@ -30,7 +32,7 @@ export function useSession(): SessionState | null {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [preferredSessionId]);
 
 	return state;
 }
