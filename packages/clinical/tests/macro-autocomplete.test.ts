@@ -203,7 +203,7 @@ describe("MacroAutocomplete", () => {
 			});
 
 			expect(results).toHaveLength(1);
-			expect(results[0].label).toBe("concept");
+			expect(results[0]!.label).toBe("concept");
 		});
 
 		test("matches by roleName prefix", async () => {
@@ -218,7 +218,7 @@ describe("MacroAutocomplete", () => {
 			});
 
 			expect(results).toHaveLength(1);
-			expect(results[0].label).toBe("status");
+			expect(results[0]!.label).toBe("status");
 		});
 
 		test("returns empty array for unknown macro", async () => {
@@ -349,7 +349,7 @@ describe("MacroAutocomplete", () => {
 			});
 
 			expect(capturedQueries).toHaveLength(1);
-			expect(capturedQueries[0].namespaceCode).toBe("snomed");
+			expect(capturedQueries[0]!.namespaceCode).toBe("snomed");
 		});
 	});
 
@@ -373,6 +373,98 @@ describe("MacroAutocomplete", () => {
 			const results = await service.suggest({ query: "che" });
 
 			expect(results).toEqual([]);
+		});
+	});
+
+	describe("Upgraded Autocomplete Features", () => {
+		test("suggests enum values from extraction patterns for enum argument", async () => {
+			const macros: MacroDefinition[] = [
+				{
+					macroId: "m1",
+					macroName: "obs",
+					version: 1,
+					status: "published",
+					active: true,
+					root: { roleName: "obs", targetSchema: "Obs", outputCellKind: "structured" },
+					arguments: [
+						{
+							argumentId: "a1",
+							name: "severity",
+							roleName: "obs.severity",
+							target: { targetSchema: "Obs", targetPath: "severity" },
+							extraction: {
+								kind: "enum",
+								patterns: ["mild", "moderate", "severe"]
+							}
+						}
+					]
+				}
+			];
+			const service = new MacroAutocomplete({ macros: makeMacroStore(macros) });
+			const results = await service.suggest({
+				query: "mi",
+				macroName: "obs",
+				argumentName: "severity"
+			});
+			expect(results).toHaveLength(1);
+			expect(results[0].value).toBe("mild");
+		});
+
+		test("suggests numeric range values with step level", async () => {
+			const macros: MacroDefinition[] = [
+				{
+					macroId: "m1",
+					macroName: "obs",
+					version: 1,
+					status: "published",
+					active: true,
+					root: { roleName: "obs", targetSchema: "Obs", outputCellKind: "structured" },
+					arguments: [
+						{
+							argumentId: "a1",
+							name: "level",
+							roleName: "obs.level",
+							target: { targetSchema: "Obs", targetPath: "level" },
+							extraction: {
+								kind: "scalar",
+								numericBounds: { min: 2, max: 8, step: 2 }
+							}
+						}
+					]
+				}
+			];
+			const service = new MacroAutocomplete({ macros: makeMacroStore(macros) });
+			const results = await service.suggest({
+				query: "4",
+				macroName: "obs",
+				argumentName: "level"
+			});
+			expect(results).toHaveLength(1);
+			expect(results[0].value).toBe("4");
+		});
+
+		test("supports direct concept search with # prefix and namespace parsing", async () => {
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore(SAMPLE_MACROS),
+				dictionary: makeDictionary(SAMPLE_CONCEPTS),
+			});
+			const results = await service.suggest({
+				query: "#snomed:che",
+			});
+			expect(results).toHaveLength(2);
+			expect(results.every((r) => r.type === "concept")).toBe(true);
+		});
+
+		test("supports expression search override with @ prefix", async () => {
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore(SAMPLE_MACROS),
+				dictionary: makeDictionary(SAMPLE_CONCEPTS),
+			});
+			const results = await service.suggest({
+				query: "@che",
+			});
+			expect(results).toHaveLength(2);
+			expect(results.every((r) => r.type === "concept")).toBe(true);
 		});
 	});
 });

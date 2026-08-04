@@ -30,6 +30,7 @@ export class DictionaryStore {
 	private defaultDynamicNamespace = "CUSTOM";
 	private defaultWorkspaceId = "global";
 	private exposeWorkspaceAsEnum = false;
+	private enableGlobalAggregation = false;
 
 	constructor(
 		private resolver: ConceptResolver,
@@ -69,6 +70,12 @@ export class DictionaryStore {
 			config.defaultWorkspaceId || process.env.WORKSPACE_ID || "global";
 		if (config.defaultDynamicNamespace) {
 			this.defaultDynamicNamespace = config.defaultDynamicNamespace;
+		}
+		if (config.enableGlobalAggregation !== undefined) {
+			this.enableGlobalAggregation = config.enableGlobalAggregation;
+			if (this.resolver) {
+				(this.resolver as any).enableGlobalAggregation = config.enableGlobalAggregation;
+			}
 		}
 		if (config.namespaces) {
 			for (const ns of config.namespaces) {
@@ -640,24 +647,72 @@ export class DictionaryStore {
 		conceptId: string,
 		context: Record<string, any>,
 	) {
-		const existing = this.metrics.find(
-			(m) =>
-				m.expressionId === expressionId &&
-				m.conceptId === conceptId &&
-				JSON.stringify(m.context) === JSON.stringify(context),
-		);
+		const record = (ctx: Record<string, any>) => {
+			const existing = this.metrics.find(
+				(m) =>
+					m.expressionId === expressionId &&
+					m.conceptId === conceptId &&
+					JSON.stringify(m.context) === JSON.stringify(ctx),
+			);
 
-		if (existing) {
-			existing.usageCount++;
-			existing.lastResolvedAt = new Date().toISOString();
+			if (existing) {
+				existing.usageCount++;
+				if (existing.impressionCount < existing.usageCount) {
+					existing.impressionCount = existing.usageCount;
+				}
+				existing.lastResolvedAt = new Date().toISOString();
+			} else {
+				this.metrics.push({
+					expressionId,
+					conceptId,
+					context: ctx,
+					usageCount: 1,
+					impressionCount: 1,
+					lastResolvedAt: new Date().toISOString(),
+				});
+			}
+		};
+
+		if (this.enableGlobalAggregation && context && context.user_id) {
+			record({ user_id: context.user_id });
+			record({ level: "global" });
 		} else {
-			this.metrics.push({
-				expressionId,
-				conceptId,
-				context,
-				usageCount: 1,
-				lastResolvedAt: new Date().toISOString(),
-			});
+			record(context || {});
+		}
+	}
+
+	public recordImpression(
+		expressionId: string,
+		conceptId: string,
+		context: Record<string, any>,
+	) {
+		const record = (ctx: Record<string, any>) => {
+			const existing = this.metrics.find(
+				(m) =>
+					m.expressionId === expressionId &&
+					m.conceptId === conceptId &&
+					JSON.stringify(m.context) === JSON.stringify(ctx),
+			);
+
+			if (existing) {
+				existing.impressionCount++;
+			} else {
+				this.metrics.push({
+					expressionId,
+					conceptId,
+					context: ctx,
+					usageCount: 0,
+					impressionCount: 1,
+					lastResolvedAt: new Date().toISOString(),
+				});
+			}
+		};
+
+		if (this.enableGlobalAggregation && context && context.user_id) {
+			record({ user_id: context.user_id });
+			record({ level: "global" });
+		} else {
+			record(context || {});
 		}
 	}
 

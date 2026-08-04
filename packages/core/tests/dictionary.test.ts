@@ -155,7 +155,7 @@ export async function runDictionaryTests() {
 	);
 	if (
 		resolvedSecond.status !== "FOUND" ||
-		resolvedSecond.results[0]?.score !== 15
+		resolvedSecond.results[0]?.score !== 10
 	) {
 		throw new Error(
 			`Score boosting validation failed. Score: ${resolvedSecond?.results[0]?.score}`,
@@ -854,4 +854,114 @@ export async function runDictionaryTests() {
 		throw new Error("Transitive path cache retrieval failed");
 	}
 	console.log("✓ Transitive closure relation cache hit verified successfully.");
+
+	// Test case: CTR/Impression Feedback demotion
+	console.log("\n🧪 Test Case 6: Autocomplete CTR/Impression Feedback Demotion");
+	const ctrStore = new DictionaryStore(new InMemoryConceptResolver());
+	await ctrStore.loadConfig({
+		namespaces: [{ code: "SNOMED", isPublic: true, isExternalPrivate: false }],
+		concepts: [
+			{ id: "c_a", namespaceCode: "SNOMED", standardCode: "A", display: "Concept A" },
+			{ id: "c_b", namespaceCode: "SNOMED", standardCode: "B", display: "Concept B" },
+		],
+		expressions: [
+			{
+				id: "expr_a",
+				term: "test term",
+				regexPattern: "test",
+				isCaseInsensitive: true,
+				targetAssignment: "MAIN_TERM",
+				conceptId: "c_a",
+				priorityWeight: 50,
+				active: true,
+			},
+			{
+				id: "expr_b",
+				term: "test term",
+				regexPattern: "test",
+				isCaseInsensitive: true,
+				targetAssignment: "MAIN_TERM",
+				conceptId: "c_b",
+				priorityWeight: 20,
+				active: true,
+			},
+		],
+	});
+
+	// Initial resolve: Concept A should be top because weight 50 > 20
+	const initialRes = await ctrStore.resolve("test term");
+	if (initialRes.results[0]?.conceptId !== "c_a") {
+		throw new Error("Initial resolution failed: Concept A should be top");
+	}
+
+	// Record 50 impressions for expr_a without any usage
+	for (let i = 0; i < 50; i++) {
+		ctrStore.recordImpression("expr_a", "c_a", {});
+	}
+
+	// Record 1 usage (which is also 1 impression) for expr_b
+	ctrStore.recordUsage("expr_b", "c_b", {});
+
+	// Now resolve: Concept B should be top because Concept A is heavily penalized by CTR
+	// Score A = round((50 + 0) * (1 / 52)) = 1
+	// Score B = round((20 + 10) * (2 / 3)) = 20
+	const penalizedRes = await ctrStore.resolve("test term");
+	if (penalizedRes.results[0]?.conceptId !== "c_b") {
+		throw new Error("CTR Demotion failed: Concept B should be top after Concept A impressions");
+	}
+	console.log("✓ CTR/Impression Feedback demoted rarely-used concept successfully.");
+
+	// Test case: Blended CTR with SystemWeightStore and enableGlobalAggregation = true
+	console.log("\n🧪 Test Case 7: Blended CTR with SystemWeightStore Configuration");
+	const mockWeightStore = {
+		weights: {
+			user_weight: 0.8,
+			global_weight: 0.2
+		},
+		async getWeight(category: string, key: string): Promise<number> {
+			return (this.weights as any)[key] ?? 0.5;
+		},
+		async setWeight(category: string, key: string, value: number) {
+			(this.weights as any)[key] = value;
+		},
+		async adjustWeight() {}
+	};
+
+	const blendResolver = new InMemoryConceptResolver({
+		enableGlobalAggregation: true,
+		weightStore: mockWeightStore
+	});
+	const blendStore = new DictionaryStore(blendResolver);
+	await blendStore.loadConfig({
+		enableGlobalAggregation: true,
+		namespaces: [{ code: "SNOMED", isPublic: true, isExternalPrivate: false }],
+		concepts: [
+			{ id: "c_a", namespaceCode: "SNOMED", standardCode: "A", display: "Concept A" },
+		],
+		expressions: [
+			{
+				id: "expr_a",
+				term: "test term",
+				regexPattern: "test",
+				isCaseInsensitive: true,
+				targetAssignment: "MAIN_TERM",
+				conceptId: "c_a",
+				priorityWeight: 50,
+				active: true,
+			},
+		],
+	});
+
+	// Record global usage for expr_a (adds to user_id context and global context)
+	blendStore.recordUsage("expr_a", "c_a", { user_id: "user1" });
+
+	// CTR calculations:
+	// User1 CTR = (1 + 1) / (1 + 2) = 2/3 = 0.667
+	// Global CTR = (1 + 1) / (1 + 2) = 2/3 = 0.667
+	// Blended CTR (0.8 * User1 + 0.2 * Global) = 0.667
+	const blendRes = await blendStore.resolve("test term", { user_id: "user1" });
+	if (!blendRes.results[0] || blendRes.results[0].score !== 40) { // Math.round((50+10) * 0.667) = 40
+		throw new Error("Blended CTR resolve score mismatch: expected 40, got " + blendRes.results[0]?.score);
+	}
+	console.log("✓ Blended CTR with SystemWeightStore resolved with correct weights.");
 }

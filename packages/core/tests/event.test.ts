@@ -198,8 +198,7 @@ export async function runEventTests() {
 			`Expected Temp event to be removed, projected array: ${JSON.stringify(array)}`,
 		);
 	}
-	// Assert eventBroker captured correct state changes
-	const appendEvent = capturedEvents.find((e) => e.action === "append");
+	const appendEvent = capturedEvents.find((e) => e.action === "append" && e.data?.eventId);
 	if (
 		!appendEvent ||
 		!appendEvent.data?.eventId ||

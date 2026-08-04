@@ -219,6 +219,10 @@ export interface InMemoryConceptResolverOptions {
 	sourceId?: string;
 	freshness?: "fresh" | "stale" | "unknown";
 	authority?: "authoritative" | "derived" | "user";
+	enableGlobalAggregation?: boolean;
+	weightStore?: {
+		getWeight(category: string, key: string, subKey?: string): Promise<number>;
+	};
 }
 
 export class InMemoryConceptResolver implements ConceptResolver {
@@ -328,9 +332,63 @@ export class InMemoryConceptResolver implements ConceptResolver {
 							m.conceptId === expr.conceptId &&
 							this.matchesContext(expr, context),
 					);
-					if (metric) {
-						score += metric.usageCount * 10;
+
+					let finalCTR = 0.5;
+					if (this.options.enableGlobalAggregation && context?.user_id) {
+						const userMetric = metrics.find(
+							(m) =>
+								m.expressionId === expr.id &&
+								m.conceptId === expr.conceptId &&
+								m.context?.user_id === context.user_id,
+						);
+						const globalMetric = metrics.find(
+							(m) =>
+								m.expressionId === expr.id &&
+								m.conceptId === expr.conceptId &&
+								m.context?.level === "global",
+						);
+
+						const userCTR = userMetric
+							? (userMetric.usageCount + 1) /
+								((userMetric.impressionCount ?? userMetric.usageCount) + 2)
+							: 0.5;
+						const globalCTR = globalMetric
+							? (globalMetric.usageCount + 1) /
+								((globalMetric.impressionCount ?? globalMetric.usageCount) + 2)
+							: 0.5;
+
+						let userWeight = 0.7;
+						let globalWeight = 0.3;
+						if (this.options.weightStore) {
+							try {
+								userWeight = await this.options.weightStore.getWeight(
+									"dictionary_ctr_blending",
+									"user_weight",
+								);
+								globalWeight = await this.options.weightStore.getWeight(
+									"dictionary_ctr_blending",
+									"global_weight",
+								);
+							} catch (e) {
+								// fallback to defaults
+							}
+						}
+						const totalWeight = userWeight + globalWeight;
+						const normUser = totalWeight > 0 ? userWeight / totalWeight : 0.7;
+						const normGlobal = totalWeight > 0 ? globalWeight / totalWeight : 0.3;
+
+						finalCTR = normUser * userCTR + normGlobal * globalCTR;
+					} else {
+						const usageCount = metric ? metric.usageCount : 0;
+						const impressionCount = metric
+							? metric.impressionCount ?? metric.usageCount
+							: 0;
+						finalCTR = (usageCount + 1) / (impressionCount + 2);
 					}
+
+					const usageCount = metric ? metric.usageCount : 0;
+					score += usageCount * 10;
+					score = Math.round(score * finalCTR);
 
 					const tier = this.getExpressionScopeLevelNumeric(expr);
 					const existing = candidates.get(expr.conceptId);

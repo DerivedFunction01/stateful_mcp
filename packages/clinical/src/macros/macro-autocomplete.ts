@@ -1,5 +1,8 @@
+import type { ConceptFilterStore } from "@stateful-mcp/core";
+import { isConceptAllowed } from "@stateful-mcp/core";
 import type { ConceptLookup } from "../values/concept-value";
 import type { MacroStore } from "./macro-definition";
+
 export const AUTOCOMPL = [
 	"macro",
 	"argument",
@@ -13,6 +16,7 @@ export const AUTOCOMPL = [
 	"number",
 ];
 export type AutocompleteType = (typeof AUTOCOMPL)[number];
+
 export interface AutocompleteSuggestion {
 	label: string;
 	value: string;
@@ -32,6 +36,7 @@ export interface AutocompleteRequest {
 export interface AutocompleteServiceDeps {
 	macros: MacroStore;
 	dictionary?: ConceptLookup;
+	filterStore?: ConceptFilterStore;
 }
 
 const MACRO_START_TOKEN = "^";
@@ -45,10 +50,6 @@ function prefixAfterToken(query: string): string {
 	return query.slice(MACRO_START_TOKEN.length);
 }
 
-function isConceptKind(extractionKind: string): boolean {
-	return extractionKind === "concept" || extractionKind === "concept_array";
-}
-
 function matchesPrefix(text: string, prefix: string): boolean {
 	return text.toLowerCase().startsWith(prefix.toLowerCase());
 }
@@ -60,6 +61,11 @@ function sortSuggestions(
 	return a.label.localeCompare(b.label);
 }
 
+function extractPrefixFromPattern(pattern: string): string | null {
+	const match = pattern.match(/^([a-zA-Z0-9_\s]+)/);
+	return match ? match[1]! : null;
+}
+
 export class MacroAutocomplete {
 	constructor(private deps: AutocompleteServiceDeps) {}
 
@@ -67,6 +73,40 @@ export class MacroAutocomplete {
 		const { query, scope, argumentName, macroName, namespaceCode, enumValues } =
 			req;
 
+		// 1. Direct concept search overrides via tokens
+		if (query.startsWith("#")) {
+			const after = query.slice(1);
+			const colonIndex = after.indexOf(":");
+			let ns = namespaceCode;
+			let conceptQuery = after;
+			if (colonIndex !== -1) {
+				ns = after.slice(0, colonIndex);
+				conceptQuery = after.slice(colonIndex + 1);
+			}
+			return this.suggestConcepts(conceptQuery, ns, macroName, argumentName);
+		}
+
+		if (query.startsWith("@")) {
+			return this.suggestConcepts(query.slice(1), namespaceCode, macroName, argumentName);
+		}
+
+		// 2. Argument value autocompletion if argumentName and macroName are known
+		if (macroName && argumentName) {
+			const macro = await this.deps.macros.get(macroName);
+			if (macro) {
+				const arg = macro.arguments.find(
+					(a) =>
+						a.name.toLowerCase() === argumentName.toLowerCase() ||
+						a.aliases?.some((alias) => alias.toLowerCase() === argumentName.toLowerCase()) ||
+						a.roleName.toLowerCase() === argumentName.toLowerCase()
+				);
+				if (arg) {
+					return this.suggestValueForArgument(arg, query);
+				}
+			}
+		}
+
+		// 3. Fallbacks to scopes
 		if (scope === "argument" && macroName) {
 			return this.suggestArguments(macroName, query, argumentName);
 		}
@@ -74,7 +114,7 @@ export class MacroAutocomplete {
 			return this.suggestEnums(query, enumValues);
 		}
 		if (scope === "concept") {
-			return this.suggestConcepts(query, namespaceCode);
+			return this.suggestConcepts(query, namespaceCode, macroName, argumentName);
 		}
 
 		if (startsWithToken(query)) {
@@ -82,6 +122,62 @@ export class MacroAutocomplete {
 		}
 
 		return [];
+	}
+
+	private async suggestValueForArgument(
+		arg: any,
+		query: string
+	): Promise<AutocompleteSuggestion[]> {
+		const spec = arg.extraction;
+		if (!spec) return [];
+
+		const suggestions: AutocompleteSuggestion[] = [];
+
+		// Enum types
+		if (spec.kind === "enum") {
+			const allowed = spec.patterns ?? [];
+			return this.suggestEnums(query, allowed);
+		}
+
+		// Scalar types with bounds
+		if (spec.kind === "scalar") {
+			const bounds = spec.numericBounds;
+			if (bounds && bounds.min !== undefined && bounds.max !== undefined) {
+				const step = bounds.step ?? 1;
+				for (let v = bounds.min; v <= bounds.max; v += step) {
+					const valStr = String(v);
+					if (matchesPrefix(valStr, query)) {
+						suggestions.push({
+							label: valStr,
+							value: valStr,
+							type: "number" as const,
+						});
+					}
+				}
+				return suggestions.sort(sortSuggestions).slice(0, MAX_SUGGESTIONS);
+			}
+		}
+
+		// Concept types
+		if (spec.kind === "concept" || spec.kind === "concept_array") {
+			return this.suggestConcepts(query, undefined, undefined, arg.name, arg.roleName);
+		}
+
+		// Pattern-based literal template prefixes
+		if (spec.patterns && spec.patterns.length > 0) {
+			for (const pat of spec.patterns) {
+				const prefix = extractPrefixFromPattern(pat);
+				if (prefix && matchesPrefix(prefix, query)) {
+					suggestions.push({
+						label: prefix,
+						value: prefix,
+						type: "text" as const,
+					});
+				}
+			}
+		}
+
+		return suggestions.sort(sortSuggestions).slice(0, MAX_SUGGESTIONS);
 	}
 
 	private async suggestMacros(
@@ -150,13 +246,16 @@ export class MacroAutocomplete {
 	private async suggestConcepts(
 		query: string,
 		namespaceCode?: string,
+		macroName?: string,
+		argumentName?: string,
+		roleNameOverride?: string,
 	): Promise<AutocompleteSuggestion[]> {
 		if (!this.deps.dictionary) return [];
 		const lowerQuery = query.trim().toLowerCase();
 		let candidates = await this.deps.dictionary.search(
 			query,
 			namespaceCode,
-			MAX_SUGGESTIONS,
+			MAX_SUGGESTIONS * 2, // Search a bit more to allow room for filtered out items
 		);
 		if (lowerQuery) {
 			candidates = candidates.filter(
@@ -165,6 +264,31 @@ export class MacroAutocomplete {
 					c.standardCode?.toLowerCase().startsWith(lowerQuery),
 			);
 		}
+
+		// Filter concepts using ConceptFilterStore if role context is available
+		let roleName = roleNameOverride;
+		if (!roleName && macroName && argumentName) {
+			const macro = await this.deps.macros.get(macroName);
+			const arg = macro?.arguments.find(
+				(a) =>
+					a.name.toLowerCase() === argumentName.toLowerCase() ||
+					a.aliases?.some((alias) => alias.toLowerCase() === argumentName.toLowerCase()) ||
+					a.roleName.toLowerCase() === argumentName.toLowerCase()
+			);
+			if (arg) roleName = arg.roleName;
+		}
+
+		if (roleName && this.deps.filterStore) {
+			const allowed: any[] = [];
+			for (const c of candidates) {
+				const filters = await this.deps.filterStore.listForConceptRole(c.id, roleName);
+				if (isConceptAllowed(filters, roleName)) {
+					allowed.push(c);
+				}
+			}
+			candidates = allowed;
+		}
+
 		const suggestions: AutocompleteSuggestion[] = candidates
 			.filter((c) => c.active !== false)
 			.map((c) => ({
@@ -175,6 +299,24 @@ export class MacroAutocomplete {
 			}))
 			.sort(sortSuggestions)
 			.slice(0, MAX_SUGGESTIONS);
+
+		// Record impressions for candidates in the suggestion list
+		if (this.deps.dictionary && typeof (this.deps.dictionary as any).recordImpression === "function") {
+			const dictStore = this.deps.dictionary as any;
+			const scope = { level: "global" };
+			try {
+				const exprs = dictStore.expressionStore ? await dictStore.expressionStore.list(scope, true) : [];
+				for (const c of candidates) {
+					const matchingExprs = exprs.filter((e: any) => e.conceptId === c.id);
+					for (const expr of matchingExprs) {
+						dictStore.recordImpression(expr.id, c.id, {});
+					}
+				}
+			} catch (e) {
+				// Fall softly
+			}
+		}
+
 		return suggestions;
 	}
 }

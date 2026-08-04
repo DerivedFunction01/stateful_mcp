@@ -412,6 +412,7 @@ export function createNotebookSession(input: {
 				{
 					macroStore: runtime.macros.defs,
 					schemaRegistry: runtime.macros.schemaRegistry,
+					dictionary: runtime.macros.dictionary,
 				},
 				input.syntaxProfile,
 			),

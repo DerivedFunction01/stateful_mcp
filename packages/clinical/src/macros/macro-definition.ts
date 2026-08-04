@@ -73,6 +73,7 @@ export interface ValueSpec {
 		max?: number;
 		inclusiveMin?: boolean;
 		inclusiveMax?: boolean;
+		step?: number;
 	};
 	valueKind?: TypedValueKind;
 	measurement?: MeasurementConstraintSpec;

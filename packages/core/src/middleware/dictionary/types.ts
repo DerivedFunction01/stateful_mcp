@@ -192,6 +192,8 @@ export interface ResolutionMetric {
 	context: Record<string, any>;
 	/** Total number of times this specific resolution mapping has been used */
 	usageCount: number;
+	/** Total number of times this specific mapping was suggested */
+	impressionCount: number;
 	/** ISO timestamp of the last successful resolution of this mapping */
 	lastResolvedAt: string;
 }
@@ -231,6 +233,8 @@ export interface DictionaryConfig {
 	defaultWorkspaceId?: string;
 	/** Flag to determine whether valid workspaces should be strictly exposed as an enum to the LLM */
 	exposeWorkspaceAsEnum?: boolean;
+	/** Flag to enable global aggregation of user impressions and usage metrics */
+	enableGlobalAggregation?: boolean;
 }
 
 /**
