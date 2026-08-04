@@ -87,9 +87,28 @@ export class KvCellStore implements CellStore {
 	private read(value: unknown): StructuredCell | null {
 		if (typeof value !== "string") return null;
 		try {
-			return JSON.parse(value) as StructuredCell;
+			const parsed: unknown = JSON.parse(value);
+			if (!isStructuredCellRecord(parsed)) return null;
+			return parsed;
 		} catch {
 			return null;
 		}
 	}
+}
+
+function isStructuredCellRecord(value: unknown): value is StructuredCell {
+	if (!value || typeof value !== "object") return false;
+	const record = value as Record<string, unknown>;
+	const source = record.source as Record<string, unknown> | undefined;
+	const authored = record.authored as Record<string, unknown> | undefined;
+	const lifecycle = record.lifecycle as Record<string, unknown> | undefined;
+	return (
+		typeof record.cellId === "string" &&
+		typeof record.sessionId === "string" &&
+		Boolean(record.collection) &&
+		typeof source?.origin === "string" &&
+		typeof authored?.rawText === "string" &&
+		typeof lifecycle?.status === "string" &&
+		typeof lifecycle.revision === "number"
+	);
 }

@@ -6,7 +6,10 @@ async function main() {
 		console.log(`Usage:
   clinical notebook              Open the  notebook editor
 
-Legacy init/eval/session/profile commands are disabled in cli2.`);
+  clinical init [--backend=memory|sqlite|jsonl] [--path=PATH]
+                                 Initialize clinical bootstrap stores
+
+Legacy eval/session/profile commands are disabled in cli2.`);
 		process.exit(0);
 	}
 
@@ -20,9 +23,30 @@ Legacy init/eval/session/profile commands are disabled in cli2.`);
 		return;
 	}
 
-	if (["init", "eval", "session", "profile"].includes(command)) {
+	if (command === "init") {
+		const backendArg = args.find((arg) => arg.startsWith("--backend="));
+		const pathArg = args.find((arg) => arg.startsWith("--path="));
+		const backend = (backendArg?.slice("--backend=".length) ?? "memory") as
+			"memory" | "sqlite" | "jsonl";
+		if (!["memory", "sqlite", "jsonl"].includes(backend)) {
+			console.error(`cli2: unsupported init backend '${backend}'`);
+			process.exitCode = 2;
+			return;
+		}
+		const { ClinicalBootstrap } = await import(
+			"@stateful-mcp/clinical/bootstrap/bootstrap"
+		);
+		await ClinicalBootstrap.fromConfig({
+			backend,
+			dbPath: pathArg?.slice("--path=".length),
+		});
+		console.log(`clinical bootstrap initialized (${backend})`);
+		return;
+	}
+
+	if (["eval", "session", "profile"].includes(command)) {
 		console.error(
-			`cli2: '${command}' is disabled until its  implementation is wired.`,
+			`cli2: '${command}' is disabled until its V2 implementation is wired.`,
 		);
 		process.exitCode = 2;
 		return;

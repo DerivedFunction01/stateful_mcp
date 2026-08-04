@@ -61,13 +61,8 @@ export function Notebook() {
 	}, [state.preview, overlay]);
 
 	const cellDescriptors = useMemo(
-		() => ({
-			getDescriptors: () =>
-				((
-					session?.result?.processor as any
-				)?.cellCommandRegistry?.getDescriptors?.() as any[]) ?? [],
-		}),
-		[session],
+		() => ({ getDescriptors: () => [] as any[] }),
+		[],
 	);
 
 	const runtime = useNotebookRuntime({
@@ -83,13 +78,16 @@ export function Notebook() {
 			onMessage: (message) => dispatch({ type: "set_message", message }),
 		executeVariableCommand: async (line) => {
 			try {
-				await session?.result?.engine?.executeVariableCell?.(
-					session?.sessionId ?? "",
-					{ kind: "notebook", collectionId: session?.sessionId ?? "" },
-					line,
-					{ kind: "session", id: session?.sessionId ?? "" },
-				);
-				return { success: true };
+				if (!session) return { success: false, message: "CLI2 session is not ready" };
+				const snapshot = await session.v2.notebook.loadEditorSnapshot();
+				const result = await session.v2.commandBar.execute({
+					rawText: line,
+					sessionId: session.sessionId,
+					workspaceId: snapshot.record.workspaceId,
+					documentId: snapshot.record.documentId,
+					cellId: snapshot.activeCellId,
+				});
+				return { success: result.status === "committed", message: result.error };
 			} catch (error) {
 				return {
 					success: false,

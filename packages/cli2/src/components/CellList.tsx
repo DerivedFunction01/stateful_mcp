@@ -33,7 +33,7 @@ export function CellList({
 			{cells.length === 0 && (
 				<Box paddingLeft={2}><Text>{has("celllist.empty") ? t("celllist.empty") : "No cells"}</Text></Box>
 			)}
-			{cells.map((cell, index) => (
+			{cells.filter((cell): cell is StructuredCell => Boolean(cell)).map((cell, index) => (
 				<CellComponent
 					key={cell.cellId}
 					cell={cell}
