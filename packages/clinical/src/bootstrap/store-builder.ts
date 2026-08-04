@@ -42,6 +42,9 @@ import type { TransactionJournal } from "../transactions/transaction-types";
 import { KvWorkspaceStore } from "../workspaces/kv-workspace-store";
 import { SqlWorkspaceStore } from "../workspaces/sql-workspace-store";
 import type { WorkspaceStore } from "../workspaces/workspace-store";
+import { KvCommandHistoryStore } from "../learning/kv-command-history-store";
+import type { CommandHistoryStore } from "../learning/command-history";
+import { SqlCommandHistoryStore } from "../learning/sql-command-history-store";
 
 export type StoreBackend = "memory" | "sqlite" | "jsonl";
 
@@ -60,6 +63,7 @@ export interface StoreBuilderResult {
 	journal: TransactionJournal;
 	projectionStore: ClinicalDocumentProjectionStore;
 	archiveStore: SignedDocumentArchive;
+	commandHistoryStore: CommandHistoryStore;
 }
 
 export class StoreBuilder {
@@ -104,6 +108,7 @@ async function createMemoryStores(): Promise<StoreBuilderResult> {
 		journal: new KvTransactionJournal(backend),
 		projectionStore: new InMemoryClinicalDocumentProjectionStore(),
 		archiveStore: new InMemorySignedDocumentArchive(),
+		commandHistoryStore: new KvCommandHistoryStore(backend),
 	};
 }
 
@@ -128,6 +133,7 @@ async function createJsonlStores(
 		journal: new KvTransactionJournal(backend),
 		projectionStore: new KvClinicalDocumentProjectionStore(backend),
 		archiveStore: new KvSignedDocumentArchive(backend),
+		commandHistoryStore: new KvCommandHistoryStore(backend),
 	};
 }
 
@@ -146,6 +152,7 @@ async function createSqliteStores(dbPath: string): Promise<StoreBuilderResult> {
 		journal: new SqlTransactionJournal(dialect, executor),
 		projectionStore: new SqlClinicalDocumentProjectionStore(dialect, executor),
 		archiveStore: new SqlSignedDocumentArchive(dialect, executor),
+		commandHistoryStore: new SqlCommandHistoryStore(dialect, executor),
 	};
 }
 

@@ -35,6 +35,14 @@ export function buildCommandDescriptors(
 			descriptionKey: `editor.command.${canonical}`,
 		});
 	}
+	if (!editorGroups.has("history")) {
+		descriptors.push({
+			verb: "history",
+			aliases: [],
+			group: "editor",
+			descriptionKey: "editor.command.history",
+		});
+	}
 
 	// Direct commands: group by canonical action value.
 	const directGroups = groupMappingsByCanonical(profile.directCommandMappings);

@@ -9,9 +9,14 @@ import {
 } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
-import { argumentSuggestions, dedupeCanonicalSuggestions } from "../lib/editor/command-autocomplete";
+import {
+	argumentSuggestions,
+	 dedupeCanonicalSuggestions,
+	historySuggestions,
+} from "../lib/editor/command-autocomplete";
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
 import type { SessionState } from "./useSession";
+import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 
 export interface CellSuggestion {
 	text: string;
@@ -60,13 +65,17 @@ export type {
 	NotebookEditorState,
 };
 
-export function useNotebook(session: SessionState | null): UseNotebookReturn {
+export function useNotebook(
+	session: SessionState | null,
+	options: { onOpenHistory?: () => void } = {},
+): UseNotebookReturn {
 	const [state, dispatch] = useReducer(
 		reduceNotebookEditor,
 		INITIAL__NOTEBOOK_EDITOR_STATE,
 	);
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
 	const [macroSuggestions, setMacroSuggestions] = useState<AutocompleteSuggestion[]>([]);
+	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<CommandHistoryCandidate[]>([]);
 	const editingCellIdRef = useRef<string | null>(null);
 	const editingRevisionRef = useRef<number>(0);
 
@@ -111,6 +120,27 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 			cancelled = true;
 		};
 	}, [session, state.mode, state.draftText]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!session) {
+			setCommandHistoryCandidates([]);
+			return () => {
+				cancelled = true;
+			};
+		}
+		void session.v2.commandHistoryStore
+			.query({ sessionId: session.sessionId, scope: "merged", limit: 50 })
+			.then((candidates) => {
+				if (!cancelled) setCommandHistoryCandidates(candidates);
+			})
+			.catch(() => {
+				if (!cancelled) setCommandHistoryCandidates([]);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [session, state.commandHistory]);
 
 	const loadSnapshot = useCallback(async () => {
 		if (!session) return;
@@ -341,6 +371,12 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		async (line: string) => {
 			if (!session)
 				return { success: false, message: "CLI2 session is not ready" };
+			if (line.trim() === ":history") {
+				options.onOpenHistory?.();
+				dispatch({ type: "set_mode", mode: "NORMAL" });
+				dispatch({ type: "set_command", text: "" });
+				return { success: true, message: "history opened" };
+			}
 			const snapshot = await session.v2.notebook.loadEditorSnapshot();
 			const result = await session.v2.commandBar.execute({
 				rawText: line,
@@ -360,13 +396,30 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 							: `${variable.operation} ${variable.name ?? ""} = ${variable.serialized ?? "undefined"}`.trim()
 				: result.status === "committed"
 					? "V2 command committed"
-					: (result.error ?? "V2 command failed");
+				: (result.error ?? "V2 command failed");
+			if (result.status === "committed") {
+				const normalizedLine = line.trim();
+				const canonicalVerb = normalizedLine
+					.replace(/^[:^]/, "")
+					.split(/\s+/, 1)[0];
+				const commandHistory = [
+					normalizedLine,
+					...state.commandHistory.filter((entry) => entry !== normalizedLine),
+				].slice(0, 50);
+				dispatch({ type: "set_command_history", history: commandHistory });
+				await session.v2.commandHistoryStore.recordSuccess({
+					sessionId: session.sessionId,
+					commandText: normalizedLine,
+					canonicalVerb,
+					commandId: canonicalVerb ? `editor.command.${canonicalVerb}` : undefined,
+				});
+			}
 			dispatch({ type: "set_mode", mode: "NORMAL" });
 			dispatch({ type: "set_command", text: "" });
 			dispatch({ type: "set_message", message });
 			return { success: result.status === "committed", message, data: result };
 		},
-		[session],
+		[options, session, state.commandHistory],
 	);
 
 	const getAutocomplete = useCallback(
@@ -386,15 +439,25 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 			});
 			const argumentCandidates = argumentSuggestions(partial, descriptors);
 			if (argumentCandidates.length > 0) return argumentCandidates;
-			return dedupeCanonicalSuggestions(
+			const staticSuggestions = dedupeCanonicalSuggestions(
 				descriptors,
 				partial,
 				token,
 				state.mode === "MACRO" ? "macro" : "editor",
 				state.mode === "MACRO" ? "macro" : "v2",
 			);
+			if (state.mode === "MACRO") return staticSuggestions;
+			const learnedSuggestions = historySuggestions(
+				commandHistoryCandidates,
+				partial,
+				token,
+			);
+			return [...learnedSuggestions, ...staticSuggestions].filter(
+				(suggestion, index, all) =>
+					all.findIndex((candidate) => candidate.value === suggestion.value) === index,
+			).slice(0, 12);
 		},
-		[session, state.mode],
+		[commandHistoryCandidates, session, state.mode],
 	);
 
 	const nextErrorIndex = useCallback((): number | null => {

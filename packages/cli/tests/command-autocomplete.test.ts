@@ -4,6 +4,7 @@ import { createCommandSyntaxProfile } from "@stateful-mcp/clinical/commands/comm
 import {
 	argumentSuggestions,
 	dedupeCanonicalSuggestions,
+	historySuggestions,
 	knownVerbs,
 	MAX_SUGGESTIONS,
 } from "../src/lib/editor/command-autocomplete";
@@ -125,6 +126,31 @@ describe("CLI2 command autocomplete", () => {
 			const suggestions = dedupeCanonicalSuggestions(descriptors, "w", TOKEN);
 			// completionText is the bare verb; mergeCandidate prepends the token.
 			expect(suggestions[0]?.completionText).toBe("write");
+		});
+	});
+
+	describe("learned history ranking", () => {
+		it("can rank a frequently used history command ahead of static matches", () => {
+			const suggestions = historySuggestions(
+				[
+					{
+						commandText: ":wq",
+						sessionCount: 12,
+						allCount: 20,
+						sessionLastUsedAt: "2026-08-04T12:00:00.000Z",
+					},
+					{
+						commandText: ":w",
+						sessionCount: 1,
+						allCount: 1,
+						allLastUsedAt: "2026-08-04T11:00:00.000Z",
+					},
+				],
+				"w",
+				TOKEN,
+			);
+			expect(suggestions.map((suggestion) => suggestion.verb)).toEqual(["wq", "w"]);
+			expect(suggestions[0]?.descriptionKey).toBeUndefined();
 		});
 	});
 

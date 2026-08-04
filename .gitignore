@@ -50,4 +50,4 @@ temp_*/
 playground
 
 *.db*
-*.sqlite
+*.sqlite*

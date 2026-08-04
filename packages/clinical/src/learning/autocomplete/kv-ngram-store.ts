@@ -3,9 +3,40 @@ import type { AutocompleteSuggestionKind } from "../../stores/auto-complete/inte
 import type { NgramRecord, NgramStore, NgramSuggestion } from "../interfaces";
 
 const STORE_PREFIX = "ngram:";
+const CHECKPOINT_INTERVAL = 256;
 
 export class KvNgramStore implements NgramStore {
+	private data: Record<string, unknown> | null = null;
+	private writeTail: Promise<void> = Promise.resolve();
+	private writesSinceCheckpoint = 0;
+
 	constructor(private backend: KvBackend) {}
+
+	private async ensureLoaded(): Promise<Record<string, unknown>> {
+		if (this.data === null) this.data = await this.backend.load();
+		return this.data;
+	}
+
+	/** Refresh the cache when another store instance may have changed the backend. */
+	async reload(): Promise<void> {
+		this.data = await this.backend.load();
+	}
+
+	private enqueueWrite(operation: () => Promise<void>): Promise<void> {
+		const next = this.writeTail.then(operation, operation);
+		this.writeTail = next.then(
+			() => undefined,
+			() => undefined,
+		);
+		return next;
+	}
+
+	private async checkpointIfNeeded(): Promise<void> {
+		this.writesSinceCheckpoint += 1;
+		if (this.writesSinceCheckpoint < CHECKPOINT_INTERVAL) return;
+		await this.backend.save();
+		this.writesSinceCheckpoint = 0;
+	}
 
 	private buildKey(ngram: string, n: number, kind: string): string {
 		return `${STORE_PREFIX}${kind}:${n}:${ngram.toLowerCase()}`;
@@ -17,35 +48,37 @@ export class KvNgramStore implements NgramStore {
 		kind: AutocompleteSuggestionKind,
 		ctx?: { templateId?: string; slotName?: string },
 	): Promise<void> {
-		const key = this.buildKey(ngram, n, kind);
-		const data = await this.backend.load();
-		const existing = data[key] as NgramRecord | undefined;
-		const now = new Date().toISOString();
+		await this.enqueueWrite(async () => {
+			const key = this.buildKey(ngram, n, kind);
+			const data = await this.ensureLoaded();
+			const existing = data[key] as NgramRecord | undefined;
+			const now = new Date().toISOString();
+			const record: NgramRecord = existing
+				? {
+						...existing,
+						frequency: existing.frequency + 1,
+						lastUpdatedAt: now,
+					}
+				: {
+						ngram: ngram.toLowerCase(),
+						n,
+						kind,
+						frequency: 1,
+						lastUpdatedAt: now,
+						templateId: ctx?.templateId,
+						slotName: ctx?.slotName,
+					};
+			if (ctx?.templateId) record.templateId = ctx.templateId;
+			if (ctx?.slotName) record.slotName = ctx.slotName;
 
-		if (existing) {
-			existing.frequency += 1;
-			existing.lastUpdatedAt = now;
-			if (ctx?.templateId) existing.templateId = ctx.templateId;
-			if (ctx?.slotName) existing.slotName = ctx.slotName;
-			await this.backend.set(key, existing);
-		} else {
-			const record: NgramRecord = {
-				ngram: ngram.toLowerCase(),
-				n,
-				kind,
-				frequency: 1,
-				lastUpdatedAt: now,
-				templateId: ctx?.templateId,
-				slotName: ctx?.slotName,
-			};
+			data[key] = record;
 			await this.backend.set(key, record);
-		}
-
-		await this.backend.save();
+			await this.checkpointIfNeeded();
+		});
 	}
 
 	async suggest(prefix: string, limit = 10): Promise<NgramSuggestion[]> {
-		const data = await this.backend.load();
+		const data = await this.ensureLoaded();
 		const lower = prefix.toLowerCase();
 		const results: NgramSuggestion[] = [];
 
@@ -74,7 +107,7 @@ export class KvNgramStore implements NgramStore {
 		kind: AutocompleteSuggestionKind,
 		limit = 10,
 	): Promise<NgramSuggestion[]> {
-		const data = await this.backend.load();
+		const data = await this.ensureLoaded();
 		const results: NgramSuggestion[] = [];
 
 		for (const value of Object.values(data)) {

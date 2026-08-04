@@ -18,6 +18,7 @@ import { WindowDomainPort } from "../lib/windows/notebook/domain";
 import { NotebookKeymapPolicy } from "../lib/windows/notebook/keymap-policy";
 import { notebookWindow } from "../lib/windows/notebook/window";
 import { CellInfoPanel } from "./CellInfoPanel";
+import { HistoryOverlay } from "./HistoryOverlay";
 import { HelpScreen } from "./HelpScreen";
 import { PreviewScreen } from "./PreviewScreen";
 import {
@@ -28,6 +29,7 @@ import {
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
 import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension";
+import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 
 /**
  * Independent notebook root. Owns a separate useSession/useNotebook and runs
@@ -39,14 +41,16 @@ export function Notebook({
 	preferredSessionId?: string;
 }) {
 	const session = useSession(preferredSessionId);
-	const notebook = useNotebook(session);
+	const [overlay, setOverlay] = useState<WindowOverlay | null>(null);
+	const notebook = useNotebook(session, {
+		onOpenHistory: () => setOverlay({ route: "history" }),
+	});
 	const { exit } = useApp();
 	const { state, dispatch, cellSuggestions, getAutocomplete } = notebook;
 	const [completion, setCompletion] = useState<CompletionState>({
 		status: "idle",
 	});
 	const [showHelp, setShowHelp] = useState(false);
-	const [overlay, setOverlay] = useState<WindowOverlay | null>(null);
 	const [activeWindow, setActiveWindow] = useState<"notebook" | "workspace">(
 		"notebook",
 	);
@@ -55,6 +59,15 @@ export function Notebook({
 		INITIAL_SEARCH_STATE,
 	);
 	const engineSuggestionsRef = useRef<any[]>([]);
+	const [historyCandidates, setHistoryCandidates] = useState<CommandHistoryCandidate[]>([]);
+
+	useEffect(() => {
+		if (!session || overlay?.route !== "history") return;
+		void session.v2.commandHistoryStore
+			.query({ sessionId: session.sessionId, scope: "merged", limit: 100 })
+			.then(setHistoryCandidates)
+			.catch(() => setHistoryCandidates([]));
+	}, [overlay?.route, session]);
 
 	useEffect(() => {
 		if (state.preview && !overlay) {
@@ -385,6 +398,19 @@ export function Notebook({
 						searchDispatch({ type: "CLEAR" });
 						setOverlay(null);
 					}}
+				/>
+			);
+		}
+		if (o.route === "history") {
+			return (
+				<HistoryOverlay
+					candidates={historyCandidates}
+					onInsert={(command) => {
+						dispatch({ type: "set_command", text: command });
+						dispatch({ type: "set_mode", mode: "COMMAND" });
+						setOverlay(null);
+					}}
+					onClose={() => setOverlay(null)}
 				/>
 			);
 		}

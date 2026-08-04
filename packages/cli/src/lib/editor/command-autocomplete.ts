@@ -1,8 +1,48 @@
 import type { AutocompleteSuggestion } from "./autocomplete";
 import type { CommandDescriptor } from "./command-descriptor";
+import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 
 /** Semantic cap mirroring V1 `MAX_SUGGESTIONS = 12`. */
 export const MAX_SUGGESTIONS = 12;
+
+export function historySuggestions(
+	candidates: CommandHistoryCandidate[],
+	partial: string,
+	token: string,
+	limit = MAX_SUGGESTIONS,
+): AutocompleteSuggestion[] {
+	const normalized = partial.toLocaleLowerCase();
+	return candidates
+		.filter((candidate) => {
+			const command = candidate.commandText.toLocaleLowerCase();
+			return !normalized || command.replace(token, "").startsWith(normalized);
+		})
+		.sort((a, b) => {
+			const countDelta =
+				b.sessionCount + b.allCount - (a.sessionCount + a.allCount);
+			if (countDelta !== 0) return countDelta;
+			return Date.parse(b.sessionLastUsedAt ?? b.allLastUsedAt ?? "") -
+				Date.parse(a.sessionLastUsedAt ?? a.allLastUsedAt ?? "");
+		})
+		.slice(0, limit)
+		.map((candidate) => {
+			const command = candidate.commandText.startsWith(token)
+				? candidate.commandText.slice(token.length)
+				: candidate.commandText;
+			return {
+				label: command,
+				value: `${token}${command}`,
+				type: "command" as const,
+				verb: command,
+				completionText: command,
+				group: "history",
+				source: "editor" as const,
+				hasArgs: false,
+				kind: "verb" as const,
+				descriptionKey: candidate.commandId,
+			};
+		});
+}
 
 /**
  * V1-style canonical dedup autocomplete.

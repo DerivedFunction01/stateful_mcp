@@ -27,6 +27,7 @@ export interface Cli2BootstrapResult {
 	syntaxProfile: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
 	editorKeymap: EditorKeymapProfile;
 	profileStore: import("@stateful-mcp/clinical/stores/profiles/profile-store").UnifiedProfileStore;
+	commandHistoryStore: import("@stateful-mcp/clinical/learning/command-history").CommandHistoryStore;
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
 	bootstrapStatus: "created" | "resumed" | "error";
 	bootstrapError?: string;
@@ -109,6 +110,8 @@ export async function buildCli2Bootstrap(
 	const sessionStore =
 		stores?.notebookSessionStore ?? clinical.stores.notebookSessionStore;
 	const profileStore = stores?.profileStore ?? clinical.stores.profileStore;
+	const commandHistoryStore =
+		stores?.commandHistoryStore ?? clinical.stores.commandHistoryStore;
 	const sessionId = await resolveInitialSession(sessionStore, options.sessionId);
 	const existingSession = await sessionStore.get(sessionId);
 	const caseIdentity = createMockCaseIdentity(sessionId);
@@ -184,6 +187,7 @@ export async function buildCli2Bootstrap(
 		syntaxProfile: clinical.syntaxProfile,
 		editorKeymap,
 		profileStore,
+		commandHistoryStore,
 		caseIdentity,
 		bootstrapStatus,
 		bootstrapError,
