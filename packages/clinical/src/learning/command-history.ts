@@ -1,5 +1,10 @@
 export type CommandHistoryScope = "session" | "all";
 
+export interface HistoryPruningConfig {
+	maxHistoryRows: number;
+	pruneBatchSize: number;
+}
+
 export interface CommandHistoryEvent {
 	eventId: string;
 	scope: CommandHistoryScope;

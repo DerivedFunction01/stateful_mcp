@@ -9,15 +9,20 @@ import {
 } from "./command-history";
 import { CommandHistoryQueryCompiler } from "../stores/sql/command-history-query-compiler";
 
+import type { HistoryPruningConfig } from "./command-history";
+
 export class SqlCommandHistoryStore implements CommandHistoryStore {
 	private readonly compiler: CommandHistoryQueryCompiler;
 	private readonly table = "command_history_events";
 	private readonly ready: Promise<void>;
+	private readonly pruningConfig?: HistoryPruningConfig;
 
 	constructor(
 		private readonly dialect: SqlDialect,
 		private readonly executor: SqlExecutor,
+		pruningConfig?: HistoryPruningConfig,
 	) {
+		this.pruningConfig = pruningConfig;
 		this.compiler = new CommandHistoryQueryCompiler(dialect);
 		this.ready = this.ensureTable();
 	}
@@ -25,6 +30,61 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 	private async ensureTable(): Promise<void> {
 		for (const query of this.compiler.getTableDDL(this.table))
 			await this.executor.exec(query.sql, query.params);
+	}
+
+	private async consolidateAndPrune(): Promise<void> {
+		if (!this.pruningConfig) return;
+		const countQuery = this.compiler.compileCount(this.table);
+		const countRows = await this.executor.query(countQuery.sql, countQuery.params);
+		const total = Number(countRows[0]?.count ?? 0);
+		if (total <= this.pruningConfig.maxHistoryRows) return;
+
+		const batchSize = this.pruningConfig.pruneBatchSize;
+		const pruneSelectQuery = this.compiler.compilePruneSelect(this.table, batchSize);
+		const oldEvents = await this.executor.query(
+			pruneSelectQuery.sql,
+			pruneSelectQuery.params
+		);
+		if (oldEvents.length === 0) return;
+
+		const eventIds = oldEvents.map((r: any) => String(r.event_id));
+
+		for (const ev of oldEvents) {
+			const isSuccess = ev.outcome === "success" ? 1 : 0;
+			const isFailure = ev.outcome === "failure" ? 1 : 0;
+			const upsertQuery = this.compiler.compileUpsertCommandAggregate(
+				ev.command_text,
+				ev.scope,
+				ev.scope_key,
+				ev.canonical_verb ?? null,
+				ev.command_id ?? null,
+				isSuccess,
+				isFailure,
+				ev.executed_at
+			);
+			await this.executor.exec(upsertQuery.sql, upsertQuery.params);
+
+			const getArgsQuery = this.compiler.compileGetArguments([ev.event_id]);
+			const args = await this.executor.query(getArgsQuery.sql, getArgsQuery.params);
+			for (const arg of args) {
+				const upsertArgQuery = this.compiler.compileUpsertArgumentAggregate(
+					ev.command_id ?? ev.canonical_verb ?? "unknown",
+					Number(arg.argument_index),
+					arg.argument_name ?? null,
+					arg.argument_value,
+					ev.scope,
+					ev.scope_key,
+					1,
+					ev.executed_at
+				);
+				await this.executor.exec(upsertArgQuery.sql, upsertArgQuery.params);
+			}
+		}
+
+		const deleteArgsQuery = this.compiler.compileDelete("command_history_arguments", eventIds);
+		const deleteEventsQuery = this.compiler.compileDelete(this.table, eventIds);
+		await this.executor.exec(deleteArgsQuery.sql, deleteArgsQuery.params);
+		await this.executor.exec(deleteEventsQuery.sql, deleteEventsQuery.params);
 	}
 
 	async recordSuccess(input: {
@@ -83,13 +143,21 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 				}
 			}
 		}
+		if (this.pruningConfig) {
+			await this.consolidateAndPrune();
+		}
 	}
 
 	async query(input: CommandHistoryQuery): Promise<CommandHistoryCandidate[]> {
 		await this.ready;
 		const query = this.compiler.compileQuery(this.table, input);
 		const rows = await this.executor.query(query.sql, query.params);
+
+		const aggQuery = this.compiler.compileAggregateQuery(input);
+		const aggRows = await this.executor.query(aggQuery.sql, aggQuery.params);
+
 		const candidates = new Map<string, CommandHistoryCandidate>();
+
 		for (const row of rows) {
 			const commandText = String(row.command_text);
 			const current = candidates.get(commandText) ?? {
@@ -101,14 +169,52 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 			};
 			if (row.scope === "session") {
 				current.sessionCount += 1;
-				current.sessionLastUsedAt ??= row.executed_at as string;
+				current.sessionLastUsedAt = current.sessionLastUsedAt
+					? (row.executed_at > current.sessionLastUsedAt ? row.executed_at : current.sessionLastUsedAt)
+					: row.executed_at as string;
 			} else {
 				current.allCount += 1;
-				current.allLastUsedAt ??= row.executed_at as string;
+				current.allLastUsedAt = current.allLastUsedAt
+					? (row.executed_at > current.allLastUsedAt ? row.executed_at : current.allLastUsedAt)
+					: row.executed_at as string;
 			}
 			candidates.set(commandText, current);
 		}
-		return [...candidates.values()].slice(0, input.limit ?? 50);
+
+		for (const row of aggRows) {
+			const commandText = String(row.command_text);
+			const current = candidates.get(commandText) ?? {
+				commandText,
+				canonicalVerb: row.canonical_verb as string | undefined,
+				commandId: row.command_id as string | undefined,
+				sessionCount: 0,
+				allCount: 0,
+			};
+			const total = Number(row.success_count ?? 0) + Number(row.failure_count ?? 0);
+			if (row.scope === "session") {
+				current.sessionCount += total;
+				current.sessionLastUsedAt = current.sessionLastUsedAt
+					? (row.last_used_at > current.sessionLastUsedAt ? row.last_used_at : current.sessionLastUsedAt)
+					: row.last_used_at as string;
+			} else {
+				current.allCount += total;
+				current.allLastUsedAt = current.allLastUsedAt
+					? (row.last_used_at > current.allLastUsedAt ? row.last_used_at : current.allLastUsedAt)
+					: row.last_used_at as string;
+			}
+			candidates.set(commandText, current);
+		}
+
+		return [...candidates.values()]
+			.sort((a, b) => {
+				const countA = a.sessionCount + a.allCount;
+				const countB = b.sessionCount + b.allCount;
+				if (countB !== countA) return countB - countA;
+				const timeA = a.sessionLastUsedAt || a.allLastUsedAt || "";
+				const timeB = b.sessionLastUsedAt || b.allLastUsedAt || "";
+				return timeB.localeCompare(timeA);
+			})
+			.slice(0, input.limit ?? 50);
 	}
 
 	async queryArgumentUsage(input: {
@@ -151,10 +257,7 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 
 		sql += `
 			GROUP BY val.argument_value
-			ORDER BY (session_count + all_count) DESC, COALESCE(session_last_used_at, all_last_used_at) DESC
-			LIMIT ?
 		`;
-		params.push(input.limit ?? 50);
 
 		if (this.dialect === "postgres") {
 			let paramIndex = 1;
@@ -162,14 +265,64 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 		}
 
 		const rows = await this.executor.query(sql, params);
-		return rows.map((row) => ({
-			commandId: input.commandId,
-			argumentIndex: input.argumentIndex,
-			argumentValue: String(row.argument_value),
-			sessionCount: Number(row.session_count),
-			allCount: Number(row.all_count),
-			sessionLastUsedAt: row.session_last_used_at ? String(row.session_last_used_at) : undefined,
-			allLastUsedAt: row.all_last_used_at ? String(row.all_last_used_at) : undefined,
-		}));
+
+		let aggRows: any[] = [];
+		if (!input.priorArguments || input.priorArguments.length === 0) {
+			const aggQuery = this.compiler.compileArgumentAggregateQuery({
+				commandId: input.commandId,
+				argumentIndex: input.argumentIndex,
+				prefix: input.prefix,
+			});
+			aggRows = await this.executor.query(aggQuery.sql, aggQuery.params);
+		}
+
+		const usageMap = new Map<string, ArgumentUsageRecord>();
+		for (const row of rows) {
+			const val = String(row.argument_value);
+			usageMap.set(val, {
+				commandId: input.commandId,
+				argumentIndex: input.argumentIndex,
+				argumentValue: val,
+				sessionCount: Number(row.session_count),
+				allCount: Number(row.all_count),
+				sessionLastUsedAt: row.session_last_used_at ? String(row.session_last_used_at) : undefined,
+				allLastUsedAt: row.all_last_used_at ? String(row.all_last_used_at) : undefined,
+			});
+		}
+
+		for (const row of aggRows) {
+			const val = String(row.argument_value);
+			const count = Number(row.use_count ?? 0);
+			const existing = usageMap.get(val) ?? {
+				commandId: input.commandId,
+				argumentIndex: input.argumentIndex,
+				argumentValue: val,
+				sessionCount: 0,
+				allCount: 0,
+			};
+			if (row.scope === "session" && row.scope_key === input.sessionId) {
+				existing.sessionCount += count;
+				existing.sessionLastUsedAt = existing.sessionLastUsedAt
+					? (row.last_used_at > existing.sessionLastUsedAt ? row.last_used_at : existing.sessionLastUsedAt)
+					: row.last_used_at ? String(row.last_used_at) : undefined;
+			} else {
+				existing.allCount += count;
+				existing.allLastUsedAt = existing.allLastUsedAt
+					? (row.last_used_at > existing.allLastUsedAt ? row.last_used_at : existing.allLastUsedAt)
+					: row.last_used_at ? String(row.last_used_at) : undefined;
+			}
+			usageMap.set(val, existing);
+		}
+
+		return [...usageMap.values()]
+			.sort((a, b) => {
+				const countA = a.sessionCount + a.allCount;
+				const countB = b.sessionCount + b.allCount;
+				if (countB !== countA) return countB - countA;
+				const timeA = a.sessionLastUsedAt || a.allLastUsedAt || "";
+				const timeB = b.sessionLastUsedAt || b.allLastUsedAt || "";
+				return timeB.localeCompare(timeA);
+			})
+			.slice(0, input.limit ?? 50);
 	}
 }

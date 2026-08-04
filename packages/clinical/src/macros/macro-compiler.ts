@@ -32,15 +32,19 @@ import { MacroDefinitionValidator } from "./macro-validator";
 import type { ValueExtractDiagnostic } from "./macro-value-extractor";
 import { extractTypedValue } from "./macro-value-extractor";
 
+import type { MacroParseLearningStore } from "../learning/macro-parse-learning-store";
+
 export interface MacroCompilerDeps {
 	registry: SchemaRegistry;
 	dictionary?: ConceptLookup;
+	macroParseStore?: MacroParseLearningStore;
 }
 
 export interface MacroCompileResult {
 	plan?: MacroExecutionPlan;
 	groupId: string;
 	diagnostics: string[];
+	confidence?: Record<string, { score: number; sampleSize: number }>;
 }
 
 export type CompileDiagnostic = ValueExtractDiagnostic | MacroBindingIssue;
@@ -216,7 +220,29 @@ export class MacroCompiler {
 			diagnostics,
 		};
 
-		return { plan, groupId, diagnostics };
+		const confidence: Record<string, { score: number; sampleSize: number }> = {};
+		if (this.deps.macroParseStore) {
+			for (const bindingEntry of binding.bindings) {
+				const spec = definition.arguments.find(
+					(a) => a.argumentId === bindingEntry.argumentId,
+				);
+				if (!spec) continue;
+
+				const op = operations.find((o) => o.sourceArgument === spec.position);
+				if (!op) continue;
+
+				const parsedValueStr = typeof op.value === "string" ? op.value : JSON.stringify(op.value);
+				const res = await this.deps.macroParseStore.getConfidence(
+					definition.macroId,
+					spec.argumentId,
+					bindingEntry.rawValue,
+					parsedValueStr
+				);
+				confidence[spec.argumentId] = res;
+			}
+		}
+
+		return { plan, groupId, diagnostics, confidence };
 	}
 
 	private evaluateCondition(
