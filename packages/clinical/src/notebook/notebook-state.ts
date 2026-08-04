@@ -218,8 +218,8 @@ export function reduceNotebookEditor(
 		case "set_visual_selection":
 			return {
 				...state,
-				visualStart: action.start,
-				visualEnd: action.end,
+				visualStart: clampIndex(action.start, state.cells.length),
+				visualEnd: clampIndex(action.end, state.cells.length),
 			};
 		case "set_command_history":
 			return { ...state, commandHistory: action.history };
