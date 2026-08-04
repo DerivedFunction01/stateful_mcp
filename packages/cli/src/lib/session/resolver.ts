@@ -7,6 +7,16 @@
  * First impl: resumes the most-recently-updated existing session if one
  * exists, otherwise generates a fresh `tui-${Date.now()}` id.
  */
-export async function resolveInitialSession(): Promise<string> {
-	return `cli2-${Date.now()}`;
+import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
+
+export async function resolveInitialSession(
+	store: NotebookSessionStore,
+	preferredId?: string,
+): Promise<string> {
+	if (preferredId) return preferredId;
+	const sessions = await store.list();
+	const mostRecent = sessions.sort((left, right) =>
+		right.updatedAt.localeCompare(left.updatedAt),
+	)[0];
+	return mostRecent?.sessionId ?? `cli2-${Date.now()}`;
 }

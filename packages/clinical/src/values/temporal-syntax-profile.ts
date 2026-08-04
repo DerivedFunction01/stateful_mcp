@@ -2,6 +2,7 @@ import type {
 	TemporalDirection,
 	TimePrecisionLevel,
 } from "../schemas/schemas-interface/time";
+import type { DateTimeFormatConfig } from "./utils/date-regex-generator";
 
 export interface DateRecognitionRule {
 	pattern: string;
@@ -15,6 +16,7 @@ export interface DateRecognitionRule {
 export interface TemporalSyntaxProfile {
 	profileId: string;
 	dateRecognitionRules: readonly DateRecognitionRule[];
+	dateTimeFormats?: readonly DateTimeFormatConfig[];
 	relativeDayAliases: Readonly<Record<string, number>>;
 	unitAliases: Readonly<Record<string, TimePrecisionLevel>>;
 	directionAliases: Readonly<Record<string, TemporalDirection>>;
@@ -25,6 +27,7 @@ export interface TemporalSyntaxProfile {
 }
 export interface TemporalSyntaxProfileDefaults {
 	dateRecognitionRules?: readonly DateRecognitionRule[];
+	dateTimeFormats?: readonly DateTimeFormatConfig[];
 	relativeDayAliases?: Readonly<Record<string, number>>;
 	unitAliases?: Readonly<Record<string, TimePrecisionLevel>>;
 	directionAliases?: Readonly<Record<string, TemporalDirection>>;
@@ -42,6 +45,7 @@ export function createTemporalSyntaxProfile(
 		...profile,
 		dateRecognitionRules:
 			profile.dateRecognitionRules ?? defaults?.dateRecognitionRules ?? [],
+		dateTimeFormats: profile.dateTimeFormats ?? defaults?.dateTimeFormats ?? [],
 		relativeDayAliases:
 			profile.relativeDayAliases ?? defaults?.relativeDayAliases ?? {},
 		unitAliases: profile.unitAliases ?? defaults?.unitAliases ?? {},

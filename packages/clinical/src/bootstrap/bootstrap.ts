@@ -83,6 +83,20 @@ async function buildClinicalBootstrap(
 		dictionaryConfig: config.dictionaryConfig,
 		valueRules: config.valueRules,
 	});
+	await stores.profileStore.set({
+		profileId: coldStart.commandProfile.profileId,
+		kind: "command",
+		isDefault: coldStart.commandProfile.default,
+		active: coldStart.commandProfile.active,
+		payload: coldStart.commandProfile,
+	});
+	await stores.profileStore.set({
+		profileId: coldStart.temporalProfile.profileId,
+		kind: "temporal",
+		isDefault: coldStart.temporalProfile.profileId.endsWith(":temporal"),
+		active: true,
+		payload: coldStart.temporalProfile,
+	});
 
 	const commandProfile = coldStart.commandProfile;
 	const cellCompiler = new CellCompiler(

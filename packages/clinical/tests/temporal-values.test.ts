@@ -100,6 +100,31 @@ describe(" temporal values", () => {
 		});
 	});
 
+	it("recognizes configured tokenized date and time formats", () => {
+		const profile = createTemporalSyntaxProfile({
+			profileId: "tokenized",
+			dateTimeFormats: [
+				{
+					tokens: ["DD", "MM", "YYYY", "HH", "min", "ampm", "tz"],
+					separators: ["/", "/", " ", ":", " ", " "],
+					options: {
+						is24Hour: false,
+						dayPeriods: { am: ["vorm."], pm: ["nachm."] },
+					},
+				},
+			],
+		});
+		const expression = recognizeTemporalExpression(
+			"03/08/2026 05:30 nachm. -04:00",
+			profile,
+		).expression;
+		expect(expression).toEqual({
+			kind: "absolute_instant",
+			instant: "2026-08-03T17:30:00-04:00",
+			precision: "second",
+		});
+	});
+
 	it("resolves configured frequency shorthand without parser dependencies", () => {
 		expect(
 			resolveFrequency(

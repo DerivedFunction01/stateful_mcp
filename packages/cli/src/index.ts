@@ -6,8 +6,11 @@ async function main() {
 		console.log(`Usage:
   clinical notebook              Open the  notebook editor
 
-  clinical init [--backend=memory|sqlite|jsonl] [--path=PATH]
+	  clinical init [--backend=memory|sqlite|jsonl] [--path=PATH]
                                  Initialize clinical bootstrap stores
+
+  clinical profile list|get <id>  Inspect unified V2 profiles
+  clinical session create|list    Manage notebook sessions
 
 Legacy eval/session/profile commands are disabled in cli2.`);
 		process.exit(0);
@@ -35,21 +38,35 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 			process.exitCode = 2;
 			return;
 		}
-		const { ClinicalBootstrap } = await import(
-			"@stateful-mcp/clinical/bootstrap/bootstrap"
-		);
-		await ClinicalBootstrap.fromConfig({
-			backend,
+		const { Cli2BootstrapBuilder } = await import("./lib/session/cli2-bootstrap");
+		const result = await Cli2BootstrapBuilder.withDefaultBackend(backend, {
 			dbPath: pathArg?.slice("--path=".length),
 		});
-		console.log(`clinical bootstrap initialized (${backend})`);
+		const profiles = await result.profileStore.list();
+		console.log(JSON.stringify({ readiness: "bootstrap-ready", profiles: profiles.map((p) => p.profileId), storeCount: Object.keys(result.engine.getRuntime().stores).length + 1 }));
 		return;
 	}
 
-	if (["eval", "session", "profile"].includes(command)) {
-		console.error(
-			`cli2: '${command}' is disabled until its V2 implementation is wired.`,
-		);
+	if (command === "profile" || command === "session") {
+		const { bootstrapSession } = await import("./lib/session/bootstrap-session");
+		const result = await bootstrapSession({ sessionId: `cli2-command-${Date.now()}` });
+		if (command === "profile") {
+			const sub = args[1] ?? "list";
+			const store = result.profileStore;
+			if (sub === "list") console.log(JSON.stringify(await store.list()));
+			else if (sub === "get" && args[2]) console.log(JSON.stringify(await store.get(args[2])));
+			else throw new Error("usage: clinical profile list | get <profileId>");
+		} else {
+			const sub = args[1] ?? "list";
+			if (sub === "list") console.log(JSON.stringify(await result.notebookSessionStore.list()));
+			else if (sub === "create") console.log(JSON.stringify({ sessionId: result.sessionId, documentId: result.caseIdentity.documentId, workspaceId: result.caseIdentity.workspaceId }));
+			else throw new Error("usage: clinical session create | list");
+		}
+		return;
+	}
+
+	if (command === "eval") {
+		console.error("cli2: eval is unavailable because V2 no longer uses a CDSL engine.");
 		process.exitCode = 2;
 		return;
 	}

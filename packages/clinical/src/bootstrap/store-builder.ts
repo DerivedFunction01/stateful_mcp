@@ -30,6 +30,9 @@ import {
 import { KvMacroStore } from "../macros/kv-macro-store";
 import type { MacroStore } from "../macros/macro-definition";
 import { SqlMacroStore } from "../macros/sql-macro-store";
+import { KvProfileStore } from "../stores/profiles/kv-profile-store";
+import { SqlProfileStore } from "../stores/profiles/sql-profile-store";
+import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
 import { KvNotebookSessionStore } from "../notebook/kv-notebook-session-store";
 import type { NotebookSessionStore } from "../notebook/notebook-session-store";
 import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store";
@@ -53,6 +56,7 @@ export interface StoreBuilderResult {
 	cellStore: CellStore;
 	notebookSessionStore: NotebookSessionStore;
 	macroStore: MacroStore;
+	profileStore: UnifiedProfileStore;
 	journal: TransactionJournal;
 	projectionStore: ClinicalDocumentProjectionStore;
 	archiveStore: SignedDocumentArchive;
@@ -96,6 +100,7 @@ async function createMemoryStores(): Promise<StoreBuilderResult> {
 		cellStore: new KvCellStore(backend),
 		notebookSessionStore: new KvNotebookSessionStore(backend),
 		macroStore: new KvMacroStore(backend),
+		profileStore: new KvProfileStore(backend),
 		journal: new KvTransactionJournal(backend),
 		projectionStore: new InMemoryClinicalDocumentProjectionStore(),
 		archiveStore: new InMemorySignedDocumentArchive(),
@@ -119,6 +124,7 @@ async function createJsonlStores(
 		cellStore: new KvCellStore(backend),
 		notebookSessionStore: new KvNotebookSessionStore(backend),
 		macroStore: new KvMacroStore(backend),
+		profileStore: new KvProfileStore(backend),
 		journal: new KvTransactionJournal(backend),
 		projectionStore: new KvClinicalDocumentProjectionStore(backend),
 		archiveStore: new KvSignedDocumentArchive(backend),
@@ -136,6 +142,7 @@ async function createSqliteStores(dbPath: string): Promise<StoreBuilderResult> {
 		cellStore: new SqlCellStore(dialect, executor),
 		notebookSessionStore: new SqlNotebookSessionStore(dialect, executor),
 		macroStore: new SqlMacroStore(dialect, executor),
+		profileStore: new SqlProfileStore(dialect, executor),
 		journal: new SqlTransactionJournal(dialect, executor),
 		projectionStore: new SqlClinicalDocumentProjectionStore(dialect, executor),
 		archiveStore: new SqlSignedDocumentArchive(dialect, executor),

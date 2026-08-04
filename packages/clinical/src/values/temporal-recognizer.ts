@@ -1,9 +1,10 @@
-import type { TimePrecisionLevel } from "../schemas/schemas-interface/time";
+import { TIME_UNITS, type TimePrecisionLevel, type TimeUnit } from "../schemas/schemas-interface/time";
 import type { TemporalExpression } from "./temporal-expression";
 import {
 	createTemporalSyntaxProfile,
 	type TemporalSyntaxProfile,
 } from "./temporal-syntax-profile";
+import { buildDatePatternString, buildDayPeriodMap, buildMonthNameMap } from "./utils/date-regex-generator";
 
 export function recognizeTemporalExpression(
 	text: string,
@@ -63,6 +64,31 @@ export function recognizeTemporalExpression(
 			diagnostics: [],
 		};
 	}
+	for (const format of profile.dateTimeFormats ?? []) {
+		const generated = buildDatePatternString(format.tokens, format.separators, format.options);
+		const match = new RegExp(generated.pattern, "u").exec(input);
+		if (!match?.groups) continue;
+		const groups = match.groups;
+		const year = groups.yyyy ?? groups.yy;
+		const month = groups.mm_name
+			? buildMonthNameMap(format.options?.monthNames)[groups.mm_name.toLocaleLowerCase()]
+			: Number(groups.mm);
+		const day = Number(groups.dd);
+		if (!year || !month || !day) continue;
+		let hour = groups.hh ? Number(groups.hh) : 0;
+		const minute = groups.min ? Number(groups.min) : 0;
+		const second = groups.ss ? Number(groups.ss) : 0;
+		if (!format.options?.is24Hour && groups.ampm) {
+			const period = buildDayPeriodMap(format.options?.dayPeriods).get(groups.ampm.toLocaleLowerCase());
+			if (period === "pm" && hour < 12) hour += 12;
+			if (period === "am" && hour === 12) hour = 0;
+		}
+		const date = `${String(year).length === 2 ? `20${year}` : year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+		const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+		const instant = groups.tz ? `${date}T${time}${groups.tz}` : `${date}T${time}.000Z`;
+		if (Number.isNaN(new Date(instant).getTime())) continue;
+		return { expression: { kind: "absolute_instant", instant, precision: format.tokens.includes("HH") ? "second" : "day" }, diagnostics: [] };
+	}
 	const tokens = lower.split(/\s+/);
 	const direction =
 		profile.directionAliases[tokens[0] ?? ""] ??
@@ -88,15 +114,5 @@ export function recognizeTemporalExpression(
 }
 
 export function temporalUnitIsTimeUnit(unit: TimePrecisionLevel): boolean {
-	return [
-		"second",
-		"minute",
-		"hour",
-		"day",
-		"week",
-		"month",
-		"year",
-		"quarter",
-		"decade",
-	].includes(unit);
+	return TIME_UNITS.includes(unit as TimeUnit);
 }
