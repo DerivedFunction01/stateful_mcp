@@ -1,5 +1,6 @@
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
+import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 import {
 	INITIAL__NOTEBOOK_EDITOR_STATE,
 	type NotebookEditorAction,
@@ -8,6 +9,7 @@ import {
 	reduceNotebookEditor,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { globalRegistry } from "../lib/editor/argument-autocomplete-registry";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import {
 	argumentSuggestions,
@@ -15,10 +17,8 @@ import {
 	historySuggestions,
 	rankArgumentSuggestions,
 } from "../lib/editor/command-autocomplete";
-import { globalRegistry } from "../lib/editor/argument-autocomplete-registry";
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
 import type { SessionState } from "./useSession";
-import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 
 export interface CellSuggestion {
 	text: string;
@@ -76,9 +76,15 @@ export function useNotebook(
 		INITIAL__NOTEBOOK_EDITOR_STATE,
 	);
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
-	const [macroSuggestions, setMacroSuggestions] = useState<AutocompleteSuggestion[]>([]);
-	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<CommandHistoryCandidate[]>([]);
-	const [argumentSuggestionsList, setArgumentSuggestionsList] = useState<AutocompleteSuggestion[]>([]);
+	const [macroSuggestions, setMacroSuggestions] = useState<
+		AutocompleteSuggestion[]
+	>([]);
+	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<
+		CommandHistoryCandidate[]
+	>([]);
+	const [argumentSuggestionsList, setArgumentSuggestionsList] = useState<
+		AutocompleteSuggestion[]
+	>([]);
 	const editingCellIdRef = useRef<string | null>(null);
 	const editingRevisionRef = useRef<number>(0);
 
@@ -100,7 +106,8 @@ export function useNotebook(
 
 		const profile = session.v2.syntaxProfile;
 		const descriptors = buildCommandDescriptors(profile, {
-			variableName: state.mode === "MACRO" ? undefined : profile.variableCommandName,
+			variableName:
+				state.mode === "MACRO" ? undefined : profile.variableCommandName,
 			variableAliases: state.mode === "MACRO" ? undefined : ["variable"],
 		});
 
@@ -144,7 +151,8 @@ export function useNotebook(
 			argumentDescriptor,
 		};
 
-		globalRegistry.getSuggestions(context)
+		globalRegistry
+			.getSuggestions(context)
 			.then((candidates) => {
 				if (cancelled) return;
 				const ranked = rankArgumentSuggestions(candidates, context);
@@ -167,35 +175,56 @@ export function useNotebook(
 				cancelled = true;
 			};
 		}
-		void session.v2.notebook.loadEditorSnapshot().then(async (snapshot) => {
-			const suggestions = await session.v2.notebook.getAutocomplete({
-				input: state.draftText,
-				cursorOffset: state.draftText.length,
-				sessionId: session.sessionId,
-				workspaceId: snapshot.record.workspaceId,
-				documentId: snapshot.record.documentId,
-				activeCellId: snapshot.activeCellId,
+		void session.v2.notebook
+			.loadEditorSnapshot()
+			.then(async (snapshot) => {
+				const suggestions = await session.v2.notebook.getAutocomplete({
+					input: state.draftText,
+					cursorOffset: state.draftText.length,
+					sessionId: session.sessionId,
+					workspaceId: snapshot.record.workspaceId,
+					documentId: snapshot.record.documentId,
+					activeCellId: snapshot.activeCellId,
+				});
+				if (cancelled) return;
+				setMacroSuggestions(
+					suggestions
+						.filter(
+							(suggestion) =>
+								suggestion.kind === "macro" ||
+								suggestion.kind === "argument" ||
+								suggestion.kind === "field" ||
+								suggestion.kind === "value",
+						)
+						.map((suggestion) => ({
+							label: suggestion.label,
+							value: suggestion.insertText,
+							type:
+								suggestion.kind === "macro"
+									? "macro"
+									: suggestion.kind === "branch"
+										? "argument"
+										: suggestion.kind,
+							verb: suggestion.label,
+							completionText: suggestion.insertText,
+							group: "macro",
+							source: "macro",
+							hasArgs: suggestion.kind === "macro",
+							kind:
+								suggestion.kind === "argument" || suggestion.kind === "branch"
+									? "arg"
+									: suggestion.kind === "field"
+										? "field"
+										: suggestion.kind === "value"
+											? "value"
+											: "verb",
+							detail: suggestion.detail,
+						})),
+				);
+			})
+			.catch(() => {
+				if (!cancelled) setMacroSuggestions([]);
 			});
-			if (cancelled) return;
-			setMacroSuggestions(
-				suggestions
-					.filter((suggestion) => suggestion.kind === "macro" || suggestion.kind === "argument" || suggestion.kind === "field" || suggestion.kind === "value")
-					.map((suggestion) => ({
-						label: suggestion.label,
-						value: suggestion.insertText,
-						type: suggestion.kind === "macro" ? "macro" : suggestion.kind === "branch" ? "argument" : suggestion.kind,
-						verb: suggestion.label,
-						completionText: suggestion.insertText,
-						group: "macro",
-						source: "macro",
-						hasArgs: suggestion.kind === "macro",
-						kind: suggestion.kind === "argument" || suggestion.kind === "branch" ? "arg" : suggestion.kind === "field" ? "field" : suggestion.kind === "value" ? "value" : "verb",
-						detail: suggestion.detail,
-					})),
-			);
-		}).catch(() => {
-			if (!cancelled) setMacroSuggestions([]);
-		});
 		return () => {
 			cancelled = true;
 		};
@@ -241,9 +270,7 @@ export function useNotebook(
 				mode: snapshot.record.editorMode ?? "NORMAL",
 			});
 			if (snapshot.diagnostics.length > 0) {
-				const messages = snapshot.diagnostics
-					.map((d) => d.reason)
-					.join("; ");
+				const messages = snapshot.diagnostics.map((d) => d.reason).join("; ");
 				dispatch({
 					type: "set_message",
 					message: `Cell load warnings: ${messages}`,
@@ -290,7 +317,9 @@ export function useNotebook(
 				cells: snapshot.cells,
 				activeIndex: activeIndex >= 0 ? activeIndex : 0,
 				draftText:
-					state.mode === "INSERT" ? state.draftText : snapshot.record.draftText ?? "",
+					state.mode === "INSERT"
+						? state.draftText
+						: (snapshot.record.draftText ?? ""),
 				commandHistory: snapshot.record.commandHistory,
 				mode: snapshot.record.editorMode ?? "NORMAL",
 			});
@@ -315,7 +344,10 @@ export function useNotebook(
 			});
 			editingCellIdRef.current = null;
 		} catch (error) {
-			if (error instanceof Error && error.message.includes("revision mismatch")) {
+			if (
+				error instanceof Error &&
+				error.message.includes("revision mismatch")
+			) {
 				await refreshSnapshot();
 			} else {
 				dispatch({
@@ -476,7 +508,7 @@ export function useNotebook(
 							: `${variable.operation} ${variable.name ?? ""} = ${variable.serialized ?? "undefined"}`.trim()
 				: result.status === "committed"
 					? "V2 command committed"
-				: (result.error ?? "V2 command failed");
+					: (result.error ?? "V2 command failed");
 			if (result.status === "committed") {
 				const normalizedLine = line.trim();
 				const canonicalVerb = normalizedLine
@@ -488,17 +520,25 @@ export function useNotebook(
 				].slice(0, 50);
 				dispatch({ type: "set_command_history", history: commandHistory });
 				const spaceIdx = normalizedLine.indexOf(" ");
-				const args = spaceIdx >= 0
-					? normalizedLine.slice(spaceIdx + 1).trim().split(/\s+/).filter(Boolean).map((part, index) => ({
-						index,
-						value: part,
-					}))
-					: [];
+				const args =
+					spaceIdx >= 0
+						? normalizedLine
+								.slice(spaceIdx + 1)
+								.trim()
+								.split(/\s+/)
+								.filter(Boolean)
+								.map((part, index) => ({
+									index,
+									value: part,
+								}))
+						: [];
 				await session.v2.commandHistoryStore.recordSuccess({
 					sessionId: session.sessionId,
 					commandText: normalizedLine,
 					canonicalVerb,
-					commandId: canonicalVerb ? `editor.command.${canonicalVerb}` : undefined,
+					commandId: canonicalVerb
+						? `editor.command.${canonicalVerb}`
+						: undefined,
 					args,
 				});
 			}
@@ -543,10 +583,14 @@ export function useNotebook(
 				partial,
 				token,
 			);
-			return [...learnedSuggestions, ...staticSuggestions].filter(
-				(suggestion, index, all) =>
-					all.findIndex((candidate) => candidate.value === suggestion.value) === index,
-			).slice(0, 12);
+			return [...learnedSuggestions, ...staticSuggestions]
+				.filter(
+					(suggestion, index, all) =>
+						all.findIndex(
+							(candidate) => candidate.value === suggestion.value,
+						) === index,
+				)
+				.slice(0, 12);
 		},
 		[commandHistoryCandidates, argumentSuggestionsList, session, state.mode],
 	);
@@ -707,7 +751,7 @@ export function useNotebook(
 		macroSuggestions,
 		refreshSnapshot,
 		commitEditorDraft,
-	setEditingCell: (cellId) => {
+		setEditingCell: (cellId) => {
 			editingCellIdRef.current = cellId;
 			const cell = state.cells.find((c) => c.cellId === cellId);
 			if (cell) editingRevisionRef.current = cell.lifecycle.revision;
@@ -726,8 +770,7 @@ export function useNotebook(
 			} catch (error) {
 				dispatch({
 					type: "set_message",
-					message:
-						error instanceof Error ? error.message : String(error),
+					message: error instanceof Error ? error.message : String(error),
 				});
 				return null;
 			}
@@ -761,8 +804,7 @@ export function useNotebook(
 			} catch (error) {
 				dispatch({
 					type: "set_message",
-					message:
-						error instanceof Error ? error.message : String(error),
+					message: error instanceof Error ? error.message : String(error),
 				});
 				return false;
 			}
@@ -774,10 +816,7 @@ export function useNotebook(
 			const currentIndex = state.cells.indexOf(cell);
 			const targetIndex = currentIndex + delta;
 			if (targetIndex < 0 || targetIndex >= state.cells.length) return;
-			await session.v2.notebook.moveCells(
-				[cell.cellId],
-				targetIndex,
-			);
+			await session.v2.notebook.moveCells([cell.cellId], targetIndex);
 			dispatch({
 				type: "move_cell",
 				cellId: cell.cellId,

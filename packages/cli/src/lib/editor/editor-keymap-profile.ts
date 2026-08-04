@@ -23,7 +23,9 @@ export function chordMatches(chord: string, input: string, key: Key): boolean {
 	if (isSpecialChord(chord)) {
 		switch (chord) {
 			case SpecialKeys.CtrlR:
-				return Boolean(key.ctrl) && (input.toLowerCase() === "r" || input === "\x12");
+				return (
+					Boolean(key.ctrl) && (input.toLowerCase() === "r" || input === "\x12")
+				);
 			case SpecialKeys.Enter:
 				return Boolean(key.return);
 			case SpecialKeys.Escape:

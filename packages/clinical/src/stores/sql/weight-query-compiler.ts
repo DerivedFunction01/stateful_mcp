@@ -26,7 +26,56 @@ export class WeightQueryCompiler {
 				],
 				primaryKey: ["category", "key", "sub_key"],
 			}),
+			this.compiler.compileCreateTable({
+				table: `${table}_feedback`,
+				ifNotExists: true,
+				columns: [
+					{ name: "category", type: "TEXT", nullable: false },
+					{ name: "key", type: "TEXT", nullable: false },
+					{ name: "sub_key", type: "TEXT", nullable: false },
+					{ name: "correlation_id", type: "TEXT", nullable: false },
+				],
+				primaryKey: ["category", "key", "sub_key", "correlation_id"],
+			}),
 		];
+	}
+
+	public compileGetFeedback(
+		table: string,
+		category: string,
+		key: string,
+		subKey: string,
+		correlationId: string,
+	): CompiledQuery {
+		return this.compiler.compileSelect({
+			table: `${table}_feedback`,
+			select: [{ column: "correlation_id" }],
+			where: [
+				{ column: "category", op: "eq", value: category },
+				{ column: "key", op: "eq", value: key },
+				{ column: "sub_key", op: "eq", value: subKey },
+				{ column: "correlation_id", op: "eq", value: correlationId },
+			],
+		});
+	}
+
+	public compileRecordFeedback(
+		table: string,
+		category: string,
+		key: string,
+		subKey: string,
+		correlationId: string,
+	): CompiledQuery {
+		return this.compiler.compileInsert({
+			table: `${table}_feedback`,
+			values: {
+				category,
+				key,
+				sub_key: subKey,
+				correlation_id: correlationId,
+			},
+			onConflict: "ignore",
+		});
 	}
 
 	public compileGetWeight(

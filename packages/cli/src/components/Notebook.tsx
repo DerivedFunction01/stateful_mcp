@@ -1,3 +1,5 @@
+import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
+import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 import { useApp } from "ink";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNotebook } from "../hooks/useNotebook";
@@ -15,11 +17,12 @@ import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { NotebookCommandCatalog } from "../lib/windows/notebook/catalog";
 import { NotebookDocumentPort } from "../lib/windows/notebook/document";
 import { WindowDomainPort } from "../lib/windows/notebook/domain";
+import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension";
 import { NotebookKeymapPolicy } from "../lib/windows/notebook/keymap-policy";
 import { notebookWindow } from "../lib/windows/notebook/window";
 import { CellInfoPanel } from "./CellInfoPanel";
-import { HistoryOverlay } from "./HistoryOverlay";
 import { HelpScreen } from "./HelpScreen";
+import { HistoryOverlay } from "./HistoryOverlay";
 import { PreviewScreen } from "./PreviewScreen";
 import {
 	INITIAL_SEARCH_STATE,
@@ -28,8 +31,6 @@ import {
 } from "./SearchOverlay";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
-import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension";
-import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 
 /**
  * Independent notebook root. Owns a separate useSession/useNotebook and runs
@@ -59,7 +60,9 @@ export function Notebook({
 		INITIAL_SEARCH_STATE,
 	);
 	const engineSuggestionsRef = useRef<any[]>([]);
-	const [historyCandidates, setHistoryCandidates] = useState<CommandHistoryCandidate[]>([]);
+	const [historyCandidates, setHistoryCandidates] = useState<
+		CommandHistoryCandidate[]
+	>([]);
 
 	useEffect(() => {
 		if (!session || overlay?.route !== "history") return;
@@ -177,15 +180,20 @@ export function Notebook({
 		if (state.mode !== "COMMAND" && state.mode !== "MACRO") return [];
 		const input = state.mode === "MACRO" ? state.draftText : state.commandLine;
 		return getAutocomplete(input.slice(1));
-	}, [state.mode, state.commandLine, state.draftText, session?.sessionId, getAutocomplete]);
+	}, [
+		state.mode,
+		state.commandLine,
+		state.draftText,
+		session?.sessionId,
+		getAutocomplete,
+	]);
 
 	// TODO(cli2-v2): replace the retired V1 engine/macro completion hooks with
 	//  notebook autocomplete and NotebookPreviewWorkflow presentation.
 	const loading = false;
-	const engineCandidates = useMemo<
-		AutocompleteSuggestion[]
-	>(() => [], []);
-	const mergedCandidates = state.mode === "MACRO" ? notebook.macroSuggestions : staticCandidates;
+	const engineCandidates = useMemo<AutocompleteSuggestion[]>(() => [], []);
+	const mergedCandidates =
+		state.mode === "MACRO" ? notebook.macroSuggestions : staticCandidates;
 
 	// Sync engine suggestions ref
 	useEffect(() => {
@@ -358,9 +366,7 @@ export function Notebook({
 			);
 		}
 		if (o.route === "preview") {
-			const preview = (o.payload ?? state.preview) as
-				| import("@stateful-mcp/clinical/cells/cell-service-types").CellPreview
-				| undefined;
+			const preview = (o.payload ?? state.preview) as CellPreview | undefined;
 			if (!preview) return null;
 			return (
 				<PreviewScreen
@@ -422,8 +428,7 @@ export function Notebook({
 			case "ENTER_INSERT": {
 				const cell = state.cells[state.activeIndex];
 				if (cell && cell.lifecycle.status === "committed") {
-					const superseded =
-						await notebook.supersedeActiveCell();
+					const superseded = await notebook.supersedeActiveCell();
 					if (!superseded) return;
 					dispatch({
 						type: "set_cells",
@@ -441,9 +446,7 @@ export function Notebook({
 					});
 					return;
 				}
-				notebook.setEditingCell(
-					state.cells[state.activeIndex]?.cellId ?? null,
-				);
+				notebook.setEditingCell(state.cells[state.activeIndex]?.cellId ?? null);
 				dispatch({ type: "set_mode", mode: "INSERT" });
 				return;
 			}

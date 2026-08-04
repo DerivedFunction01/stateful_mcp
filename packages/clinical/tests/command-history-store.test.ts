@@ -27,7 +27,10 @@ describe("command history store", () => {
 
 	it("limits session queries and filters by normalized prefix", async () => {
 		const store = new KvCommandHistoryStore(new MemoryKvBackend());
-		await store.recordSuccess({ sessionId: "session-1", commandText: ":write" });
+		await store.recordSuccess({
+			sessionId: "session-1",
+			commandText: ":write",
+		});
 		await store.recordSuccess({ sessionId: "session-1", commandText: ":wq" });
 		await store.recordSuccess({ sessionId: "session-1", commandText: ":quit" });
 

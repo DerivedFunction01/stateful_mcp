@@ -1,5 +1,5 @@
-import { OPS } from "./types";
 import type { ArgRef, PipelineStep } from "./types";
+import { OPS } from "./types";
 
 // ---------------------------------------------------------------------------
 // Pipeline diagnostics & validation

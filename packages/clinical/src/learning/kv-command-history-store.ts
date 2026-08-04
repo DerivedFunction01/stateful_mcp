@@ -102,7 +102,10 @@ export class KvCommandHistoryStore implements CommandHistoryStore {
 			};
 			if (event.scope === "session") {
 				current.sessionCount += 1;
-				if (!current.sessionLastUsedAt || event.executedAt > current.sessionLastUsedAt)
+				if (
+					!current.sessionLastUsedAt ||
+					event.executedAt > current.sessionLastUsedAt
+				)
 					current.sessionLastUsedAt = event.executedAt;
 			} else {
 				current.allCount += 1;
@@ -112,16 +115,17 @@ export class KvCommandHistoryStore implements CommandHistoryStore {
 			candidates.set(event.commandText, current);
 		}
 		return [...candidates.values()]
-			.sort((a, b) =>
-				(b.sessionCount + b.allCount) - (a.sessionCount + a.allCount) ||
-				Math.max(
-					Date.parse(b.sessionLastUsedAt ?? b.allLastUsedAt ?? ""),
-					Date.parse(b.allLastUsedAt ?? ""),
-				) -
-				Math.max(
-					Date.parse(a.sessionLastUsedAt ?? a.allLastUsedAt ?? ""),
-					Date.parse(a.allLastUsedAt ?? ""),
-				),
+			.sort(
+				(a, b) =>
+					b.sessionCount + b.allCount - (a.sessionCount + a.allCount) ||
+					Math.max(
+						Date.parse(b.sessionLastUsedAt ?? b.allLastUsedAt ?? ""),
+						Date.parse(b.allLastUsedAt ?? ""),
+					) -
+						Math.max(
+							Date.parse(a.sessionLastUsedAt ?? a.allLastUsedAt ?? ""),
+							Date.parse(a.allLastUsedAt ?? ""),
+						),
 			)
 			.slice(0, input.limit ?? 50);
 	}
@@ -137,19 +141,26 @@ export class KvCommandHistoryStore implements CommandHistoryStore {
 		const data = await this.ensureLoaded();
 		const targetCmd = input.commandId.toLowerCase().replace(/^[:^]/, "");
 
-		const usage = new Map<string, {
-			sessionCount: number;
-			allCount: number;
-			sessionLastUsedAt?: string;
-			allLastUsedAt?: string;
-		}>();
+		const usage = new Map<
+			string,
+			{
+				sessionCount: number;
+				allCount: number;
+				sessionLastUsedAt?: string;
+				allLastUsedAt?: string;
+			}
+		>();
 
 		for (const value of Object.values(data)) {
 			const event = value as CommandHistoryEvent;
 			if (!event || event.outcome !== "success") continue;
 
-			const evCmdId = (event.commandId ?? "").toLowerCase().replace(/^[:^]/, "");
-			const evVerb = (event.canonicalVerb ?? "").toLowerCase().replace(/^[:^]/, "");
+			const evCmdId = (event.commandId ?? "")
+				.toLowerCase()
+				.replace(/^[:^]/, "");
+			const evVerb = (event.canonicalVerb ?? "")
+				.toLowerCase()
+				.replace(/^[:^]/, "");
 
 			const tokens = event.commandText.trim().split(/\s+/);
 			const firstToken = (tokens[0] ?? "").toLowerCase().replace(/^[:^]/, "");
@@ -163,7 +174,7 @@ export class KvCommandHistoryStore implements CommandHistoryStore {
 			let args: string[] = [];
 			if (event.args && event.args.length > 0) {
 				const sortedArgs = [...event.args].sort((a, b) => a.index - b.index);
-				args = sortedArgs.map(a => a.value);
+				args = sortedArgs.map((a) => a.value);
 			} else {
 				args = tokens.slice(1);
 			}
@@ -171,7 +182,10 @@ export class KvCommandHistoryStore implements CommandHistoryStore {
 			if (input.priorArguments && input.priorArguments.length > 0) {
 				let priorMatch = true;
 				for (let i = 0; i < input.priorArguments.length; i++) {
-					if ((args[i] ?? "").toLowerCase() !== input.priorArguments[i]!.toLowerCase()) {
+					if (
+						(args[i] ?? "").toLowerCase() !==
+						input.priorArguments[i]!.toLowerCase()
+					) {
 						priorMatch = false;
 						break;
 					}
@@ -182,7 +196,10 @@ export class KvCommandHistoryStore implements CommandHistoryStore {
 			const argValue = args[input.argumentIndex];
 			if (argValue === undefined) continue;
 
-			if (input.prefix && !argValue.toLowerCase().startsWith(input.prefix.toLowerCase())) {
+			if (
+				input.prefix &&
+				!argValue.toLowerCase().startsWith(input.prefix.toLowerCase())
+			) {
 				continue;
 			}
 
@@ -192,33 +209,48 @@ export class KvCommandHistoryStore implements CommandHistoryStore {
 			};
 			if (event.scope === "session" && event.scopeKey === input.sessionId) {
 				current.sessionCount += 1;
-				if (!current.sessionLastUsedAt || event.executedAt > current.sessionLastUsedAt) {
+				if (
+					!current.sessionLastUsedAt ||
+					event.executedAt > current.sessionLastUsedAt
+				) {
 					current.sessionLastUsedAt = event.executedAt;
 				}
 			} else if (event.scope === "all") {
 				current.allCount += 1;
-				if (!current.allLastUsedAt || event.executedAt > current.allLastUsedAt) {
+				if (
+					!current.allLastUsedAt ||
+					event.executedAt > current.allLastUsedAt
+				) {
 					current.allLastUsedAt = event.executedAt;
 				}
 			}
 			usage.set(argValue, current);
 		}
 
-		return [...usage.entries()].map(([val, u]) => ({
-			commandId: input.commandId,
-			argumentIndex: input.argumentIndex,
-			argumentValue: val,
-			sessionCount: u.sessionCount,
-			allCount: u.allCount,
-			sessionLastUsedAt: u.sessionLastUsedAt,
-			allLastUsedAt: u.allLastUsedAt,
-		})).sort((a, b) => {
-			const bTotal = b.sessionCount + b.allCount;
-			const aTotal = a.sessionCount + a.allCount;
-			if (bTotal !== aTotal) return bTotal - aTotal;
-			const bTime = Math.max(Date.parse(b.sessionLastUsedAt ?? ""), Date.parse(b.allLastUsedAt ?? ""));
-			const aTime = Math.max(Date.parse(a.sessionLastUsedAt ?? ""), Date.parse(a.allLastUsedAt ?? ""));
-			return bTime - aTime;
-		}).slice(0, input.limit ?? 50);
+		return [...usage.entries()]
+			.map(([val, u]) => ({
+				commandId: input.commandId,
+				argumentIndex: input.argumentIndex,
+				argumentValue: val,
+				sessionCount: u.sessionCount,
+				allCount: u.allCount,
+				sessionLastUsedAt: u.sessionLastUsedAt,
+				allLastUsedAt: u.allLastUsedAt,
+			}))
+			.sort((a, b) => {
+				const bTotal = b.sessionCount + b.allCount;
+				const aTotal = a.sessionCount + a.allCount;
+				if (bTotal !== aTotal) return bTotal - aTotal;
+				const bTime = Math.max(
+					Date.parse(b.sessionLastUsedAt ?? ""),
+					Date.parse(b.allLastUsedAt ?? ""),
+				);
+				const aTime = Math.max(
+					Date.parse(a.sessionLastUsedAt ?? ""),
+					Date.parse(a.allLastUsedAt ?? ""),
+				);
+				return bTime - aTime;
+			})
+			.slice(0, input.limit ?? 50);
 	}
 }

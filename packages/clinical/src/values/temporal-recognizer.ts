@@ -1,10 +1,18 @@
-import { TIME_UNITS, type TimePrecisionLevel, type TimeUnit } from "../schemas/schemas-interface/time";
-import type { TemporalExpression } from "./temporal-expression";
+import {
+	TIME_UNITS,
+	type TimePrecisionLevel,
+	type TimeUnit,
+} from "../schemas/schemas-interface/time";
 import {
 	createNumericalSyntaxProfile,
 	type NumericalSyntaxProfile,
 } from "./numerical-syntax-profile";
-import { buildDatePatternString, buildDayPeriodMap, buildMonthNameMap } from "./utils/date-regex-generator";
+import type { TemporalExpression } from "./temporal-expression";
+import {
+	buildDatePatternString,
+	buildDayPeriodMap,
+	buildMonthNameMap,
+} from "./utils/date-regex-generator";
 
 export function recognizeTemporalExpression(
 	text: string,
@@ -47,13 +55,19 @@ export function recognizeTemporalExpression(
 		}
 	}
 	for (const format of t.dateTimeFormats) {
-		const generated = buildDatePatternString(format.tokens, format.separators, format.options);
+		const generated = buildDatePatternString(
+			format.tokens,
+			format.separators,
+			format.options,
+		);
 		const match = new RegExp(generated.pattern, "u").exec(input);
 		if (!match?.groups) continue;
 		const groups = match.groups;
 		const year = groups.yyyy ?? groups.yy;
 		const month = groups.mm_name
-			? buildMonthNameMap(format.options?.monthNames)[groups.mm_name.toLocaleLowerCase()]
+			? buildMonthNameMap(format.options?.monthNames)[
+					groups.mm_name.toLocaleLowerCase()
+				]
 			: Number(groups.mm);
 		const day = Number(groups.dd);
 		if (!year || !month || !day) continue;
@@ -61,26 +75,32 @@ export function recognizeTemporalExpression(
 		const minute = groups.min ? Number(groups.min) : 0;
 		const second = groups.ss ? Number(groups.ss) : 0;
 		if (!format.options?.is24Hour && groups.ampm) {
-			const period = buildDayPeriodMap(format.options?.dayPeriods).get(groups.ampm.toLocaleLowerCase());
+			const period = buildDayPeriodMap(format.options?.dayPeriods).get(
+				groups.ampm.toLocaleLowerCase(),
+			);
 			if (period === "pm" && hour < 12) hour += 12;
 			if (period === "am" && hour === 12) hour = 0;
 		}
 		const date = `${String(year).length === 2 ? `20${year}` : year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 		const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
-		const instant = groups.tz ? `${date}T${time}${groups.tz}` : `${date}T${time}.000Z`;
+		const instant = groups.tz
+			? `${date}T${time}${groups.tz}`
+			: `${date}T${time}.000Z`;
 		if (Number.isNaN(new Date(instant).getTime())) continue;
 		const precision: TimePrecisionLevel =
-			format.options?.precision ?? (format.tokens.includes("HH") ? "second" : "day");
-		return { expression: { kind: "absolute_instant", instant, precision }, diagnostics: [] };
+			format.options?.precision ??
+			(format.tokens.includes("HH") ? "second" : "day");
+		return {
+			expression: { kind: "absolute_instant", instant, precision },
+			diagnostics: [],
+		};
 	}
 	const tokens = lower.split(/\s+/);
 	const direction =
 		t.directionAliases[tokens[0] ?? ""] ??
 		t.directionAliases[tokens.at(-1) ?? ""];
 	const numericIndex =
-		direction === "prospective" && t.directionAliases[tokens[0] ?? ""]
-			? 1
-			: 0;
+		direction === "prospective" && t.directionAliases[tokens[0] ?? ""] ? 1 : 0;
 	const amount = Number(tokens[numericIndex]);
 	const unitToken = tokens[numericIndex + 1];
 	const unit = unitToken ? t.unitAliases[unitToken] : undefined;

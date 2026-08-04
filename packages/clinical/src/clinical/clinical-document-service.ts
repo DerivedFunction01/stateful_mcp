@@ -3,6 +3,7 @@ import type {
 	StreamPatchTarget,
 } from "../events/stream-event-store";
 import type { MacroTargetOperation } from "../macros/macro-plan";
+import type { ClinicalWritePolicy } from "../values/merge";
 import { reduceClinicalEvents } from "./clinical-document-reducer";
 import type {
 	ClinicalDocumentProjectionStore,
@@ -73,7 +74,7 @@ export class ClinicalDocumentService {
 	async compileMacroTargets(
 		documentId: string,
 		operations: readonly MacroTargetOperation[],
-		writePolicy?: import("../values/merge").ClinicalWritePolicy,
+		writePolicy?: ClinicalWritePolicy,
 	): Promise<ClinicalOperation[]> {
 		const document = await this.projections.get(documentId);
 		const existing = document

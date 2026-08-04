@@ -10,6 +10,7 @@ import type {
 	SignedDocumentArchive,
 } from "../clinical/clinical-document-types";
 import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import type { MacroLearningService } from "../learning/macro-learning-service";
 import type { MacroStore } from "../macros/macro-definition";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import type { SyncConfig } from "../sync/sync-rule-config";
@@ -40,4 +41,7 @@ export interface ClinicalRuntime {
 	syntaxProfile: CommandSyntaxProfile;
 	variables: VariableService;
 	variableCells: VariableCellService;
+	learning?: {
+		macro: MacroLearningService;
+	};
 }

@@ -1,9 +1,9 @@
-import { Box, Text, useInput, useStdout } from "ink";
-import { useMemo, useState } from "react";
 import type {
 	CommandHistoryCandidate,
 	CommandHistoryScope,
 } from "@stateful-mcp/clinical/learning/command-history";
+import { Box, Text, useInput, useStdout } from "ink";
+import { useMemo, useState } from "react";
 import { t } from "../lib/shared/i18n";
 
 type HistoryScope = CommandHistoryScope | "merged";
@@ -26,7 +26,9 @@ function lastUsed(candidate: CommandHistoryCandidate): string {
 	const day = 24 * hour;
 	if (elapsed < minute) return t("history.time.justNow");
 	if (elapsed < hour)
-		return t("history.time.minutesAgo", { value: Math.floor(elapsed / minute) });
+		return t("history.time.minutesAgo", {
+			value: Math.floor(elapsed / minute),
+		});
 	if (elapsed < day)
 		return t("history.time.hoursAgo", { value: Math.floor(elapsed / hour) });
 	if (elapsed < 2 * day) return t("history.time.yesterday");
@@ -54,7 +56,8 @@ export function HistoryOverlay({
 
 	const visible = useMemo(() => {
 		const filtered = candidates.filter((candidate) => {
-			if (!candidate.commandText.startsWith(filter.toLocaleLowerCase())) return false;
+			if (!candidate.commandText.startsWith(filter.toLocaleLowerCase()))
+				return false;
 			if (scope === "session") return candidate.sessionCount > 0;
 			if (scope === "all") return candidate.allCount > 0;
 			return true;
@@ -93,7 +96,11 @@ export function HistoryOverlay({
 		}
 		if (input === "s") {
 			setSort((value) =>
-				value === "score" ? "recent" : value === "recent" ? "frequency" : "score",
+				value === "score"
+					? "recent"
+					: value === "recent"
+						? "frequency"
+						: "score",
 			);
 			setIndex(0);
 			return;
@@ -111,17 +118,40 @@ export function HistoryOverlay({
 	});
 
 	return (
-		<Box borderStyle="single" borderColor="cyan" width="100%" flexDirection="column" paddingX={1}>
-			<Text bold color="cyan">{t("history.title")}</Text>
-			<Text>{t("history.scope", { value: t(`history.scope.${scope}`) })} {t("history.sort", { value: t(`history.sort.${sort}`) })} {t("history.filter", { value: filter })}</Text>
+		<Box
+			borderStyle="single"
+			borderColor="cyan"
+			width="100%"
+			flexDirection="column"
+			paddingX={1}
+		>
+			<Text bold color="cyan">
+				{t("history.title")}
+			</Text>
+			<Text>
+				{t("history.scope", { value: t(`history.scope.${scope}`) })}{" "}
+				{t("history.sort", { value: t(`history.sort.${sort}`) })}{" "}
+				{t("history.filter", { value: filter })}
+			</Text>
 			{scope === "merged" ? (
-				<Text dimColor>{`${truncate(t("history.column.command"), commandWidth)}  ${t("history.column.session").padStart(7)}  ${t("history.column.all").padStart(5)}  ${t("history.column.lastUsed").padEnd(12)}  ${t("history.column.source")}`}</Text>
+				<Text
+					dimColor
+				>{`${truncate(t("history.column.command"), commandWidth)}  ${t("history.column.session").padStart(7)}  ${t("history.column.all").padStart(5)}  ${t("history.column.lastUsed").padEnd(12)}  ${t("history.column.source")}`}</Text>
 			) : (
-				<Text dimColor>{`${truncate(t("history.column.command"), commandWidth)}  ${t("history.column.uses").padStart(5)}  ${t("history.column.lastUsed").padEnd(12)}  ${t(`history.scope.${scope}`)}`}</Text>
+				<Text
+					dimColor
+				>{`${truncate(t("history.column.command"), commandWidth)}  ${t("history.column.uses").padStart(5)}  ${t("history.column.lastUsed").padEnd(12)}  ${t(`history.scope.${scope}`)}`}</Text>
 			)}
-			{visible.length === 0 && <Text>{filter ? t("history.noMatches") : t("history.empty")}</Text>}
+			{visible.length === 0 && (
+				<Text>{filter ? t("history.noMatches") : t("history.empty")}</Text>
+			)}
 			{visible.map((candidate, rowIndex) => {
-				const candidateScope = candidate.sessionCount > 0 && candidate.allCount > 0 ? "merged" : candidate.sessionCount > 0 ? "session" : "all";
+				const candidateScope =
+					candidate.sessionCount > 0 && candidate.allCount > 0
+						? "merged"
+						: candidate.sessionCount > 0
+							? "session"
+							: "all";
 				return (
 					<Text key={candidate.commandText} inverse={rowIndex === index}>
 						{rowIndex === index ? "▸ " : "  "}
@@ -131,7 +161,11 @@ export function HistoryOverlay({
 					</Text>
 				);
 			})}
-			{visible[index] && <Text dimColor>{t("history.selected", { value: visible[index]!.commandText })}</Text>}
+			{visible[index] && (
+				<Text dimColor>
+					{t("history.selected", { value: visible[index]!.commandText })}
+				</Text>
+			)}
 			<Text dimColor>{t("history.hints")}</Text>
 		</Box>
 	);

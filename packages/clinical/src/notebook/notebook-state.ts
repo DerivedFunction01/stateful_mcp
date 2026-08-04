@@ -104,7 +104,14 @@ export type NotebookEditorAction =
 	| { type: "paste_cells"; cells: StructuredCell[]; insertIndex: number }
 	| { type: "set_persisted_revision"; revision: number }
 	| { type: "move_cell"; cellId: string; targetIndex: number }
-	| { type: "hydrate_snapshot"; cells: StructuredCell[]; activeIndex: number; draftText: string; commandHistory: string[]; mode: NotebookEditorMode }
+	| {
+			type: "hydrate_snapshot";
+			cells: StructuredCell[];
+			activeIndex: number;
+			draftText: string;
+			commandHistory: string[];
+			mode: NotebookEditorMode;
+	  }
 	| { type: "undo" }
 	| { type: "redo" }
 	| { type: "clear_yank_buffer" }
@@ -308,9 +315,7 @@ export function reduceNotebookEditor(
 			const snapshot: NotebookEditorUndoSnapshot = {
 				cellOrder: nextCells.map((c) => c.cellId),
 				activeIndex:
-					state.activeIndex === fromIndex
-						? toIndex
-						: state.activeIndex,
+					state.activeIndex === fromIndex ? toIndex : state.activeIndex,
 				draftText: state.draftText,
 				commandHistory: state.commandHistory,
 				authoredRevision: state.authoredRevision,
@@ -320,10 +325,7 @@ export function reduceNotebookEditor(
 				{
 					...state,
 					cells: nextCells,
-					activeIndex: clampIndex(
-						state.activeIndex,
-						nextCells.length,
-					),
+					activeIndex: clampIndex(state.activeIndex, nextCells.length),
 					authoredRevision: state.authoredRevision + 1,
 				},
 				snapshot,

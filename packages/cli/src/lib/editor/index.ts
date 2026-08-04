@@ -23,6 +23,17 @@ export type {
 	DomainAction,
 	DomainPort,
 } from "./domain";
+export type {
+	EditorKeymapNormalBindings,
+	EditorKeymapProfile,
+	EditorKeymapSequenceBindings,
+	EditorKeymapVisualBindings,
+} from "./editor-keymap-profile";
+export {
+	chordMatches,
+	isSpecialChord,
+	SpecialKeys,
+} from "./editor-keymap-profile";
 export type { CellEditorMode, EditorAction, EditorKernelState } from "./kernel";
 export {
 	createEditorKernelState,
@@ -32,17 +43,6 @@ export {
 } from "./kernel";
 export type { InspectorAction, KeymapPolicy, KeyResolution } from "./keymap";
 export { resolveInspectorKey, resolveKey } from "./keymap";
-export {
-	chordMatches,
-	isSpecialChord,
-	SpecialKeys,
-} from "./editor-keymap-profile";
-export type {
-	EditorKeymapNormalBindings,
-	EditorKeymapProfile,
-	EditorKeymapSequenceBindings,
-	EditorKeymapVisualBindings,
-} from "./editor-keymap-profile";
 
 export type {
 	WindowOverlay,

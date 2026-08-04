@@ -1,3 +1,4 @@
+import { ClinicalBootstrap } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import {
 	buildCli2Bootstrap,
 	Cli2BootstrapBuilder,
@@ -15,11 +16,9 @@ export async function bootstrapSession(
 		...options,
 		clinical:
 			options.clinical ??
-			(await import("@stateful-mcp/clinical/bootstrap/bootstrap").then((m) =>
-				m.ClinicalBootstrap.withDefaultBackend("memory", {
-					syntaxProfile: options.syntaxProfile,
-				}),
-			)),
+			(await ClinicalBootstrap.withDefaultBackend("memory", {
+				syntaxProfile: options.syntaxProfile,
+			})),
 	});
 }
 

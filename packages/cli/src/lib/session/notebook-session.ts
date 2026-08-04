@@ -128,7 +128,7 @@ export function createNotebookSession(input: {
 		const activeCellId =
 			record.activeCellId && cellIds.has(record.activeCellId)
 				? record.activeCellId
-				: record.cellOrder[0] ?? cells[0]?.cellId;
+				: (record.cellOrder[0] ?? cells[0]?.cellId);
 		return {
 			record,
 			cells,
@@ -364,19 +364,14 @@ export function createNotebookSession(input: {
 	): Promise<void> => {
 		const record = await input.sessionStore.get(input.sessionId);
 		if (!record)
-			throw new Error(
-				`Notebook session '${input.sessionId}' was not found`,
-			);
+			throw new Error(`Notebook session '${input.sessionId}' was not found`);
 		const nextOrder = [...record.cellOrder];
 		for (const cellId of cellIds) {
 			const fromIndex = nextOrder.indexOf(cellId);
 			if (fromIndex < 0) continue;
 			nextOrder.splice(fromIndex, 1);
 		}
-		const insertAt = Math.max(
-			0,
-			Math.min(targetIndex, nextOrder.length),
-		);
+		const insertAt = Math.max(0, Math.min(targetIndex, nextOrder.length));
 		nextOrder.splice(insertAt, 0, ...cellIds);
 		await input.sessionStore.save(
 			{
@@ -413,6 +408,7 @@ export function createNotebookSession(input: {
 					macroStore: runtime.macros.defs,
 					schemaRegistry: runtime.macros.schemaRegistry,
 					dictionary: runtime.macros.dictionary,
+					learningService: runtime.learning?.macro,
 				},
 				input.syntaxProfile,
 			),

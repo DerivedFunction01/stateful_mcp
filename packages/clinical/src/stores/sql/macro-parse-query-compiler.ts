@@ -7,7 +7,7 @@ import {
 export class MacroParseQueryCompiler {
 	private readonly compiler: QueryCompiler;
 
-	constructor(private readonly dialect: SqlDialect) {
+	constructor(readonly dialect: SqlDialect) {
 		this.compiler = new QueryCompiler(dialect);
 	}
 
@@ -30,9 +30,7 @@ export class MacroParseQueryCompiler {
 					{ name: "timestamp", type: "TEXT", nullable: false },
 				],
 				primaryKey: ["id"],
-				checks: [
-					`outcome IN ('accepted', 'corrected', 'rejected')`,
-				],
+				checks: [`outcome IN ('accepted', 'corrected', 'rejected')`],
 			}),
 			this.compiler.compileCreateIndex({
 				table,
@@ -57,17 +55,14 @@ export class MacroParseQueryCompiler {
 		];
 	}
 
-	compileInsert(
-		table: string,
-		values: Record<string, unknown>,
-	): CompiledQuery {
+	compileInsert(table: string, values: Record<string, unknown>): CompiledQuery {
 		return this.compiler.compileInsert({ table, values });
 	}
 
 	compileCount(table: string): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			select: [{ raw: "COUNT(*) as count" }]
+			select: [{ raw: "COUNT(*) as count" }],
 		});
 	}
 
@@ -85,17 +80,17 @@ export class MacroParseQueryCompiler {
 				{ column: "corrected_value" },
 				{ column: "outcome" },
 				{ column: "personnel_id" },
-				{ column: "timestamp" }
+				{ column: "timestamp" },
 			],
 			orderBy: [{ column: "timestamp", direction: "ASC" }],
-			limit
+			limit,
 		});
 	}
 
 	compileDelete(table: string, ids: string[]): CompiledQuery {
 		return this.compiler.compileDelete({
 			table,
-			where: [{ column: "id", op: "in_set" as const, values: ids }]
+			where: [{ column: "id", op: "in_set" as const, values: ids }],
 		});
 	}
 
@@ -105,7 +100,7 @@ export class MacroParseQueryCompiler {
 		rawTerm: string,
 		parsedValue: string,
 		outcome: "accepted" | "corrected" | "rejected",
-		timestamp: string
+		timestamp: string,
 	): CompiledQuery {
 		const isAccepted = outcome === "accepted" ? 1 : 0;
 		const isCorrected = outcome === "corrected" ? 1 : 0;
@@ -121,17 +116,26 @@ export class MacroParseQueryCompiler {
 				accepted_count: isAccepted,
 				corrected_count: isCorrected,
 				rejected_count: isRejected,
-				last_updated_at: timestamp
+				last_updated_at: timestamp,
 			},
 			onConflict: {
-				conflictColumns: ["macro_id", "argument_name", "raw_term", "parsed_value"],
+				conflictColumns: [
+					"macro_id",
+					"argument_name",
+					"raw_term",
+					"parsed_value",
+				],
 				update: {
 					accepted_count: { raw: "accepted_count + EXCLUDED.accepted_count" },
-					corrected_count: { raw: "corrected_count + EXCLUDED.corrected_count" },
+					corrected_count: {
+						raw: "corrected_count + EXCLUDED.corrected_count",
+					},
 					rejected_count: { raw: "rejected_count + EXCLUDED.rejected_count" },
-					last_updated_at: { raw: "CASE WHEN EXCLUDED.last_updated_at > last_updated_at THEN EXCLUDED.last_updated_at ELSE last_updated_at END" }
-				}
-			}
+					last_updated_at: {
+						raw: "CASE WHEN EXCLUDED.last_updated_at > last_updated_at THEN EXCLUDED.last_updated_at ELSE last_updated_at END",
+					},
+				},
+			},
 		});
 	}
 
@@ -139,21 +143,21 @@ export class MacroParseQueryCompiler {
 		macroId: string,
 		argumentName: string,
 		rawTerm: string,
-		parsedValue: string
+		parsedValue: string,
 	): CompiledQuery {
 		return this.compiler.compileSelect({
 			table: "macro_parse_aggregates",
 			select: [
 				{ column: "accepted_count" },
 				{ column: "corrected_count" },
-				{ column: "rejected_count" }
+				{ column: "rejected_count" },
 			],
 			where: [
 				{ column: "macro_id", op: "eq" as const, value: macroId },
 				{ column: "argument_name", op: "eq" as const, value: argumentName },
 				{ column: "raw_term", op: "eq" as const, value: rawTerm },
-				{ column: "parsed_value", op: "eq" as const, value: parsedValue }
-			]
+				{ column: "parsed_value", op: "eq" as const, value: parsedValue },
+			],
 		});
 	}
 
@@ -161,21 +165,18 @@ export class MacroParseQueryCompiler {
 		macroId: string,
 		argumentName: string,
 		rawTerm: string,
-		parsedValue: string
+		parsedValue: string,
 	): CompiledQuery {
 		return this.compiler.compileSelect({
 			table: "macro_parse_events",
-			select: [
-				{ column: "outcome" },
-				{ raw: "COUNT(*) as count" }
-			],
+			select: [{ column: "outcome" }, { raw: "COUNT(*) as count" }],
 			where: [
 				{ column: "macro_id", op: "eq" as const, value: macroId },
 				{ column: "argument_name", op: "eq" as const, value: argumentName },
 				{ column: "raw_term", op: "eq" as const, value: rawTerm },
-				{ column: "parsed_value", op: "eq" as const, value: parsedValue }
+				{ column: "parsed_value", op: "eq" as const, value: parsedValue },
 			],
-			groupBy: [{ column: "outcome" }]
+			groupBy: [{ column: "outcome" }],
 		});
 	}
 }

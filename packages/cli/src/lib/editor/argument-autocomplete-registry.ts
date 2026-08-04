@@ -1,12 +1,10 @@
-import type { CommandDescriptor } from "./command-descriptor";
-import type { AutocompleteSuggestion } from "./autocomplete";
-import {
-	type ArgumentAutocompleteContext,
-	type ArgumentCompletionCandidate,
-	type ArgumentCompletionProvider,
-	type VariableScopeReader,
-} from "./argument-autocomplete-types";
 import type { CommandHistoryStore } from "@stateful-mcp/clinical/learning/command-history";
+import type {
+	ArgumentAutocompleteContext,
+	ArgumentCompletionCandidate,
+	ArgumentCompletionProvider,
+	VariableScopeReader,
+} from "./argument-autocomplete-types";
 
 export class StaticEnumProvider implements ArgumentCompletionProvider {
 	supports(context: ArgumentAutocompleteContext): boolean {
@@ -64,7 +62,10 @@ export class DependentEnumProvider implements ArgumentCompletionProvider {
 		if (ruleFn) {
 			allowedValues = ruleFn(priorVal);
 		} else {
-			if (context.commandId === "future-command" && context.argumentIndex === 1) {
+			if (
+				context.commandId === "future-command" &&
+				context.argumentIndex === 1
+			) {
 				if (priorVal === "alpha") {
 					allowedValues = ["one", "two"];
 				} else if (priorVal === "bravo") {
@@ -82,7 +83,9 @@ export class DependentEnumProvider implements ArgumentCompletionProvider {
 }
 
 export class VariableLiveScopeProvider implements ArgumentCompletionProvider {
-	constructor(private readonly getReader: () => VariableScopeReader | undefined) {}
+	constructor(
+		private readonly getReader: () => VariableScopeReader | undefined,
+	) {}
 
 	supports(context: ArgumentAutocompleteContext): boolean {
 		const reader = this.getReader();
@@ -100,7 +103,10 @@ export class VariableLiveScopeProvider implements ArgumentCompletionProvider {
 		const reader = this.getReader();
 		if (!reader) return [];
 		try {
-			const scope = await reader.getScope(context.sessionId, context.blockInstanceId);
+			const scope = await reader.getScope(
+				context.sessionId,
+				context.blockInstanceId,
+			);
 			const variables = Object.keys(scope);
 
 			const operation = context.priorArguments[0] ?? "";
@@ -108,18 +114,23 @@ export class VariableLiveScopeProvider implements ArgumentCompletionProvider {
 
 			const delimiter = "=";
 
-			const candidates: ArgumentCompletionCandidate[] = variables.map((variable) => {
-				const value = isSet ? `${variable}${delimiter}` : variable;
-				return {
-					value,
-					source: "scope" as const,
-					valid: true,
-				};
-			});
+			const candidates: ArgumentCompletionCandidate[] = variables.map(
+				(variable) => {
+					const value = isSet ? `${variable}${delimiter}` : variable;
+					return {
+						value,
+						source: "scope" as const,
+						valid: true,
+					};
+				},
+			);
 
 			if (isSet && context.argumentPrefix) {
 				const pattern = /^[a-zA-Z_][a-zA-Z0-9_.]*$/;
-				if (pattern.test(context.argumentPrefix) && !variables.includes(context.argumentPrefix)) {
+				if (
+					pattern.test(context.argumentPrefix) &&
+					!variables.includes(context.argumentPrefix)
+				) {
 					candidates.push({
 						value: `${context.argumentPrefix}${delimiter}`,
 						source: "static" as const,
@@ -136,7 +147,9 @@ export class VariableLiveScopeProvider implements ArgumentCompletionProvider {
 }
 
 export class HistoryArgumentProvider implements ArgumentCompletionProvider {
-	constructor(private readonly getStore: () => CommandHistoryStore | undefined) {}
+	constructor(
+		private readonly getStore: () => CommandHistoryStore | undefined,
+	) {}
 
 	supports(context: ArgumentAutocompleteContext): boolean {
 		return this.getStore() !== undefined;
@@ -177,7 +190,9 @@ export class ArgumentAutocompleteProviderRegistry {
 	constructor() {
 		this.providers.push(new StaticEnumProvider());
 		this.providers.push(new DependentEnumProvider());
-		this.providers.push(new VariableLiveScopeProvider(() => this.variableReader));
+		this.providers.push(
+			new VariableLiveScopeProvider(() => this.variableReader),
+		);
 		this.providers.push(new HistoryArgumentProvider(() => this.historyStore));
 	}
 

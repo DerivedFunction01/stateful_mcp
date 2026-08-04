@@ -74,7 +74,8 @@ export class DictionaryStore {
 		if (config.enableGlobalAggregation !== undefined) {
 			this.enableGlobalAggregation = config.enableGlobalAggregation;
 			if (this.resolver) {
-				(this.resolver as any).enableGlobalAggregation = config.enableGlobalAggregation;
+				(this.resolver as any).enableGlobalAggregation =
+					config.enableGlobalAggregation;
 			}
 		}
 		if (config.namespaces) {

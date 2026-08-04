@@ -856,13 +856,25 @@ export async function runDictionaryTests() {
 	console.log("✓ Transitive closure relation cache hit verified successfully.");
 
 	// Test case: CTR/Impression Feedback demotion
-	console.log("\n🧪 Test Case 6: Autocomplete CTR/Impression Feedback Demotion");
+	console.log(
+		"\n🧪 Test Case 6: Autocomplete CTR/Impression Feedback Demotion",
+	);
 	const ctrStore = new DictionaryStore(new InMemoryConceptResolver());
 	await ctrStore.loadConfig({
 		namespaces: [{ code: "SNOMED", isPublic: true, isExternalPrivate: false }],
 		concepts: [
-			{ id: "c_a", namespaceCode: "SNOMED", standardCode: "A", display: "Concept A" },
-			{ id: "c_b", namespaceCode: "SNOMED", standardCode: "B", display: "Concept B" },
+			{
+				id: "c_a",
+				namespaceCode: "SNOMED",
+				standardCode: "A",
+				display: "Concept A",
+			},
+			{
+				id: "c_b",
+				namespaceCode: "SNOMED",
+				standardCode: "B",
+				display: "Concept B",
+			},
 		],
 		expressions: [
 			{
@@ -907,16 +919,22 @@ export async function runDictionaryTests() {
 	// Score B = round((20 + 10) * (2 / 3)) = 20
 	const penalizedRes = await ctrStore.resolve("test term");
 	if (penalizedRes.results[0]?.conceptId !== "c_b") {
-		throw new Error("CTR Demotion failed: Concept B should be top after Concept A impressions");
+		throw new Error(
+			"CTR Demotion failed: Concept B should be top after Concept A impressions",
+		);
 	}
-	console.log("✓ CTR/Impression Feedback demoted rarely-used concept successfully.");
+	console.log(
+		"✓ CTR/Impression Feedback demoted rarely-used concept successfully.",
+	);
 
 	// Test case: Blended CTR with SystemWeightStore and enableGlobalAggregation = true
-	console.log("\n🧪 Test Case 7: Blended CTR with SystemWeightStore Configuration");
+	console.log(
+		"\n🧪 Test Case 7: Blended CTR with SystemWeightStore Configuration",
+	);
 	const mockWeightStore = {
 		weights: {
 			user_weight: 0.8,
-			global_weight: 0.2
+			global_weight: 0.2,
 		},
 		async getWeight(category: string, key: string): Promise<number> {
 			return (this.weights as any)[key] ?? 0.5;
@@ -924,19 +942,24 @@ export async function runDictionaryTests() {
 		async setWeight(category: string, key: string, value: number) {
 			(this.weights as any)[key] = value;
 		},
-		async adjustWeight() {}
+		async adjustWeight() {},
 	};
 
 	const blendResolver = new InMemoryConceptResolver({
 		enableGlobalAggregation: true,
-		weightStore: mockWeightStore
+		weightStore: mockWeightStore,
 	});
 	const blendStore = new DictionaryStore(blendResolver);
 	await blendStore.loadConfig({
 		enableGlobalAggregation: true,
 		namespaces: [{ code: "SNOMED", isPublic: true, isExternalPrivate: false }],
 		concepts: [
-			{ id: "c_a", namespaceCode: "SNOMED", standardCode: "A", display: "Concept A" },
+			{
+				id: "c_a",
+				namespaceCode: "SNOMED",
+				standardCode: "A",
+				display: "Concept A",
+			},
 		],
 		expressions: [
 			{
@@ -960,8 +983,14 @@ export async function runDictionaryTests() {
 	// Global CTR = (1 + 1) / (1 + 2) = 2/3 = 0.667
 	// Blended CTR (0.8 * User1 + 0.2 * Global) = 0.667
 	const blendRes = await blendStore.resolve("test term", { user_id: "user1" });
-	if (!blendRes.results[0] || blendRes.results[0].score !== 40) { // Math.round((50+10) * 0.667) = 40
-		throw new Error("Blended CTR resolve score mismatch: expected 40, got " + blendRes.results[0]?.score);
+	if (!blendRes.results[0] || blendRes.results[0].score !== 40) {
+		// Math.round((50+10) * 0.667) = 40
+		throw new Error(
+			"Blended CTR resolve score mismatch: expected 40, got " +
+				blendRes.results[0]?.score,
+		);
 	}
-	console.log("✓ Blended CTR with SystemWeightStore resolved with correct weights.");
+	console.log(
+		"✓ Blended CTR with SystemWeightStore resolved with correct weights.",
+	);
 }

@@ -16,8 +16,8 @@ import {
 } from "../lib/editor";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { reduceCompletion } from "../lib/editor/completion-state";
-import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
+import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 
 export interface WindowContainerProps {
 	definition: WindowDefinition;
@@ -270,8 +270,8 @@ export function WindowContainer({
 	if (current.showHelp && overlay === null) {
 		return (
 			<WorkspaceHelpScreen
-					descriptors={catalog.getDescriptors(context)}
-					keymapProfile={keymapProfile}
+				descriptors={catalog.getDescriptors(context)}
+				keymapProfile={keymapProfile}
 				onClose={() => emit({ type: "SHOW_HELP", show: false })}
 			/>
 		);

@@ -1,5 +1,12 @@
-import { QueryCompiler, type SqlDialect, type SqlExecutor } from "@stateful-mcp/core";
-import type { UnifiedProfileRecord, UnifiedProfileStore } from "./profile-store";
+import {
+	QueryCompiler,
+	type SqlDialect,
+	type SqlExecutor,
+} from "@stateful-mcp/core";
+import type {
+	UnifiedProfileRecord,
+	UnifiedProfileStore,
+} from "./profile-store";
 
 /** Durable unified profile store. DDL is compiled with the PostgreSQL dialect. */
 export class SqlProfileStore implements UnifiedProfileStore {
@@ -17,14 +24,20 @@ export class SqlProfileStore implements UnifiedProfileStore {
 
 	async get(profileId: string): Promise<UnifiedProfileRecord | null> {
 		await this.ready;
-		const query = this.compiler.compileSelect({ table: this.table, where: [{ column: "profile_id", op: "eq", value: profileId }] });
+		const query = this.compiler.compileSelect({
+			table: this.table,
+			where: [{ column: "profile_id", op: "eq", value: profileId }],
+		});
 		const row = await this.executor.queryOne(query.sql, query.params);
 		return row ? fromRow(row) : null;
 	}
 
 	async list(): Promise<UnifiedProfileRecord[]> {
 		await this.ready;
-		const query = this.compiler.compileSelect({ table: this.table, orderBy: [{ column: "profile_id", direction: "ASC" }] });
+		const query = this.compiler.compileSelect({
+			table: this.table,
+			orderBy: [{ column: "profile_id", direction: "ASC" }],
+		});
 		const rows = await this.executor.query(query.sql, query.params);
 		return rows.map(fromRow);
 	}
@@ -64,7 +77,12 @@ export class SqlProfileStore implements UnifiedProfileStore {
 			columns: [
 				{ name: "profile_id", type: "text", nullable: false },
 				{ name: "kind", type: "text", nullable: false },
-				{ name: "is_default", type: "boolean", nullable: false, default: "false" },
+				{
+					name: "is_default",
+					type: "boolean",
+					nullable: false,
+					default: "false",
+				},
 				{ name: "active", type: "boolean", nullable: false, default: "true" },
 				{ name: "metadata", type: "text", nullable: false },
 				{ name: "payload", type: "text", nullable: false },

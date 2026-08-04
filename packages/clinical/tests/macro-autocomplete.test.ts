@@ -385,7 +385,11 @@ describe("MacroAutocomplete", () => {
 					version: 1,
 					status: "published",
 					active: true,
-					root: { roleName: "obs", targetSchema: "Obs", outputCellKind: "structured" },
+					root: {
+						roleName: "obs",
+						targetSchema: "Obs",
+						outputCellKind: "structured",
+					},
 					arguments: [
 						{
 							argumentId: "a1",
@@ -394,17 +398,17 @@ describe("MacroAutocomplete", () => {
 							target: { targetSchema: "Obs", targetPath: "severity" },
 							extraction: {
 								kind: "enum",
-								patterns: ["mild", "moderate", "severe"]
-							}
-						}
-					]
-				}
+								patterns: ["mild", "moderate", "severe"],
+							},
+						},
+					],
+				},
 			];
 			const service = new MacroAutocomplete({ macros: makeMacroStore(macros) });
 			const results = await service.suggest({
 				query: "mi",
 				macroName: "obs",
-				argumentName: "severity"
+				argumentName: "severity",
 			});
 			expect(results).toHaveLength(1);
 			expect(results[0].value).toBe("mild");
@@ -418,7 +422,11 @@ describe("MacroAutocomplete", () => {
 					version: 1,
 					status: "published",
 					active: true,
-					root: { roleName: "obs", targetSchema: "Obs", outputCellKind: "structured" },
+					root: {
+						roleName: "obs",
+						targetSchema: "Obs",
+						outputCellKind: "structured",
+					},
 					arguments: [
 						{
 							argumentId: "a1",
@@ -427,17 +435,17 @@ describe("MacroAutocomplete", () => {
 							target: { targetSchema: "Obs", targetPath: "level" },
 							extraction: {
 								kind: "scalar",
-								numericBounds: { min: 2, max: 8, step: 2 }
-							}
-						}
-					]
-				}
+								numericBounds: { min: 2, max: 8, step: 2 },
+							},
+						},
+					],
+				},
 			];
 			const service = new MacroAutocomplete({ macros: makeMacroStore(macros) });
 			const results = await service.suggest({
 				query: "4",
 				macroName: "obs",
-				argumentName: "level"
+				argumentName: "level",
 			});
 			expect(results).toHaveLength(1);
 			expect(results[0].value).toBe("4");

@@ -3,9 +3,13 @@ import type { Key } from "ink";
 import type { DocumentAction } from "./document";
 import type { DomainAction } from "./domain";
 import { EditorAction } from "./editor-action";
-import type { EditorAction as KernelEditorAction } from "./kernel";
-import { chordMatches, isSpecialChord, SpecialKeys } from "./editor-keymap-profile";
 import type { EditorKeymapProfile } from "./editor-keymap-profile";
+import {
+	chordMatches,
+	isSpecialChord,
+	SpecialKeys,
+} from "./editor-keymap-profile";
+import type { EditorAction as KernelEditorAction } from "./kernel";
 
 export type KeyResolution =
 	| { kind: "generic"; action: KernelEditorAction }
@@ -151,26 +155,49 @@ export function resolveKey(
 	// NORMAL mode: resolve multi-key sequences first, then single chords.
 	const { normal, sequences } = profile;
 
-	if (chordMatches(sequences.deleteCell, input, key) || `${pendingSequence}${input}` === sequences.deleteCell)
+	if (
+		chordMatches(sequences.deleteCell, input, key) ||
+		`${pendingSequence}${input}` === sequences.deleteCell
+	)
 		return { action: EditorAction.DeleteCell, nextPending: "" };
-	if (chordMatches(sequences.yankCell, input, key) || `${pendingSequence}${input}` === sequences.yankCell)
+	if (
+		chordMatches(sequences.yankCell, input, key) ||
+		`${pendingSequence}${input}` === sequences.yankCell
+	)
 		return { action: EditorAction.YankCell, nextPending: "" };
-	if (chordMatches(sequences.previousError, input, key) || `${pendingSequence}${input}` === sequences.previousError)
+	if (
+		chordMatches(sequences.previousError, input, key) ||
+		`${pendingSequence}${input}` === sequences.previousError
+	)
 		return { action: EditorAction.PrevError, nextPending: "" };
-	if (chordMatches(sequences.nextError, input, key) || `${pendingSequence}${input}` === sequences.nextError)
+	if (
+		chordMatches(sequences.nextError, input, key) ||
+		`${pendingSequence}${input}` === sequences.nextError
+	)
 		return { action: EditorAction.NextError, nextPending: "" };
-	if (chordMatches(sequences.workspace, input, key) || `${pendingSequence}${input}` === sequences.workspace)
+	if (
+		chordMatches(sequences.workspace, input, key) ||
+		`${pendingSequence}${input}` === sequences.workspace
+	)
 		return { action: EditorAction.OpenWorkspace, nextPending: "" };
-	if (chordMatches(sequences.pasteAbove, input, key) || `${pendingSequence}${input}` === sequences.pasteAbove)
+	if (
+		chordMatches(sequences.pasteAbove, input, key) ||
+		`${pendingSequence}${input}` === sequences.pasteAbove
+	)
 		return { action: EditorAction.PasteCellAbove, nextPending: "" };
 
 	// If the pending+input forms a strict prefix of a configured sequence, await more input.
 	if (pendingSequence) {
 		const seq = pendingSequence + input;
 		if (
-			[sequences.deleteCell, sequences.yankCell, sequences.previousError, sequences.nextError, sequences.workspace, sequences.pasteAbove].some(
-				(s) => s.startsWith(seq) && s !== seq,
-			)
+			[
+				sequences.deleteCell,
+				sequences.yankCell,
+				sequences.previousError,
+				sequences.nextError,
+				sequences.workspace,
+				sequences.pasteAbove,
+			].some((s) => s.startsWith(seq) && s !== seq)
 		) {
 			return { action: null, nextPending: seq };
 		}
@@ -214,12 +241,22 @@ export function resolveKey(
 			return { action: EditorAction.OpenCommandLine, nextPending: "" };
 		if (chordMatches(normal.macro, input, key))
 			return { action: EditorAction.OpenMacroInput, nextPending: "" };
-		if (chordMatches(normal.search, input, key) || chordMatches(normal.searchAlt, input, key))
+		if (
+			chordMatches(normal.search, input, key) ||
+			chordMatches(normal.searchAlt, input, key)
+		)
 			return { action: EditorAction.Search, nextPending: "" };
 
 		// Sequence starters that are not also single actions produce pending state.
 		const starters = new Set(
-			[sequences.deleteCell, sequences.yankCell, sequences.previousError, sequences.nextError, sequences.workspace, sequences.pasteAbove]
+			[
+				sequences.deleteCell,
+				sequences.yankCell,
+				sequences.previousError,
+				sequences.nextError,
+				sequences.workspace,
+				sequences.pasteAbove,
+			]
 				.map((s) => s[0])
 				.filter((c): c is string => Boolean(c)),
 		);

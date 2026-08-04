@@ -1,16 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { resolveKey } from "../src/lib/editor/keymap";
-import { SpecialKeys } from "../src/lib/editor/editor-keymap-profile";
 import {
 	defaultEditorKeymapProfile,
 	mergeEditorKeymap,
 } from "../src/bootstrap/editor-keymap-defaults";
+import { SpecialKeys } from "../src/lib/editor/editor-keymap-profile";
+import { resolveKey } from "../src/lib/editor/keymap";
 
 const defaults = defaultEditorKeymapProfile;
 
 describe("resolveKey (profile-driven)", () => {
 	test("default macro key enters macro mode", () => {
-		expect(resolveKey("^", {}, "NORMAL", "", defaults).action).toBe("ENTER_MACRO");
+		expect(resolveKey("^", {}, "NORMAL", "", defaults).action).toBe(
+			"ENTER_MACRO",
+		);
 	});
 
 	test("default command key opens command line", () => {
@@ -23,12 +25,16 @@ describe("resolveKey (profile-driven)", () => {
 		const profile = mergeEditorKeymap(defaults, {
 			normal: { ...defaults.normal, macro: "~" },
 		});
-		expect(resolveKey("~", {}, "NORMAL", "", profile).action).toBe("ENTER_MACRO");
+		expect(resolveKey("~", {}, "NORMAL", "", profile).action).toBe(
+			"ENTER_MACRO",
+		);
 		expect(resolveKey("^", {}, "NORMAL", "", profile).action).toBeNull();
 	});
 
 	test("single movement keys resolve", () => {
-		expect(resolveKey("j", {}, "NORMAL", "", defaults).action).toBe("MOVE_DOWN");
+		expect(resolveKey("j", {}, "NORMAL", "", defaults).action).toBe(
+			"MOVE_DOWN",
+		);
 		expect(resolveKey("k", {}, "NORMAL", "", defaults).action).toBe("MOVE_UP");
 	});
 
@@ -47,7 +53,9 @@ describe("resolveKey (profile-driven)", () => {
 	});
 
 	test("default p pastes below, P previews", () => {
-		expect(resolveKey("p", {}, "NORMAL", "", defaults).action).toBe("PASTE_CELL");
+		expect(resolveKey("p", {}, "NORMAL", "", defaults).action).toBe(
+			"PASTE_CELL",
+		);
 		expect(resolveKey("P", {}, "NORMAL", "", defaults).action).toBe(
 			"PREVIEW_CELL",
 		);

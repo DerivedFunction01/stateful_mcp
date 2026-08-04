@@ -8,18 +8,28 @@
  * to the input parser and value normalization to the value services.
  */
 
+import { type PipelineDiagnostic, validatePipeline } from "@stateful-mcp/core";
+import type {
+	LearningObservationMode,
+	LearningOutcome,
+} from "../learning/interfaces";
+import {
+	buildMacroLearningFeatures,
+	type MacroLearningTrace,
+	type MacroLearningTraceArgument,
+} from "../learning/macro-learning-types";
+import type { MacroParseLearningStore } from "../learning/macro-parse-learning-store";
 import { validateTargetPath } from "../schemas/schema-path-validator";
 import type { SchemaRegistry } from "../schemas/schema-registry";
+import type { SchemaField } from "../schemas/schema-types";
 import type { ConceptLookup } from "../values/concept-value";
 import { resolveConceptValue } from "../values/concept-value";
 import {
 	type MeasurementConstraint,
+	type MeasurementResolverDiagnostic,
 	validateMeasurementConstraints,
 } from "../values/measurement-resolver";
-import {
-	type PipelineDiagnostic,
-	validatePipeline,
-} from "@stateful-mcp/core";
+import type { TypedValue, ValueEvidence } from "../values/typed-value";
 import { bindMacro } from "./macro-binder";
 import type { MacroBindingIssue, MacroInput } from "./macro-binding";
 import type { MacroArgumentSpec, MacroDefinition } from "./macro-definition";
@@ -32,8 +42,6 @@ import { MacroDefinitionValidator } from "./macro-validator";
 import type { ValueExtractDiagnostic } from "./macro-value-extractor";
 import { extractTypedValue } from "./macro-value-extractor";
 
-import type { MacroParseLearningStore } from "../learning/macro-parse-learning-store";
-
 export interface MacroCompilerDeps {
 	registry: SchemaRegistry;
 	dictionary?: ConceptLookup;
@@ -45,6 +53,7 @@ export interface MacroCompileResult {
 	groupId: string;
 	diagnostics: string[];
 	confidence?: Record<string, { score: number; sampleSize: number }>;
+	learningTrace?: MacroLearningTrace;
 }
 
 export type CompileDiagnostic = ValueExtractDiagnostic | MacroBindingIssue;
@@ -54,6 +63,12 @@ export interface MacroCompilerOptions {
 	scope?: MacroExecutionPlan["scope"];
 	sourceLine?: number;
 	expectedFingerprint?: string;
+	personnelId?: string;
+	profileId?: string;
+	sessionId?: string;
+	observationMode?: LearningObservationMode;
+	outcome?: LearningOutcome;
+	correlationId?: string;
 }
 
 export type FailureStage =
@@ -117,6 +132,7 @@ export class MacroCompiler {
 		}
 
 		const operations: MacroTargetOperation[] = [];
+		const learningArguments: MacroLearningTraceArgument[] = [];
 		for (const bindingEntry of binding.bindings) {
 			const spec = definition.arguments.find(
 				(a) => a.argumentId === bindingEntry.argumentId,
@@ -185,6 +201,17 @@ export class MacroCompiler {
 				sourceArgument: spec.position,
 				evidence,
 			});
+			learningArguments.push({
+				argumentId: spec.argumentId,
+				roleName: spec.roleName,
+				position: spec.position,
+				rawTerm: bindingEntry.rawValue,
+				parsedValue: canonicalValue,
+				source: bindingEntry.source,
+				start: bindingEntry.start,
+				end: bindingEntry.end,
+				features: buildMacroLearningFeatures(canonicalValue),
+			});
 		}
 
 		const fingerprint = this.fingerprint(definition, operations);
@@ -220,7 +247,8 @@ export class MacroCompiler {
 			diagnostics,
 		};
 
-		const confidence: Record<string, { score: number; sampleSize: number }> = {};
+		const confidence: Record<string, { score: number; sampleSize: number }> =
+			{};
 		if (this.deps.macroParseStore) {
 			for (const bindingEntry of binding.bindings) {
 				const spec = definition.arguments.find(
@@ -231,18 +259,32 @@ export class MacroCompiler {
 				const op = operations.find((o) => o.sourceArgument === spec.position);
 				if (!op) continue;
 
-				const parsedValueStr = typeof op.value === "string" ? op.value : JSON.stringify(op.value);
+				const parsedValueStr =
+					typeof op.value === "string" ? op.value : JSON.stringify(op.value);
 				const res = await this.deps.macroParseStore.getConfidence(
 					definition.macroId,
 					spec.argumentId,
 					bindingEntry.rawValue,
-					parsedValueStr
+					parsedValueStr,
 				);
 				confidence[spec.argumentId] = res;
 			}
 		}
 
-		return { plan, groupId, diagnostics, confidence };
+		const learningTrace: MacroLearningTrace = {
+			macroId: definition.macroId,
+			macroVersion: definition.version,
+			macroName: definition.macroName,
+			arguments: learningArguments,
+			personnelId: options.personnelId,
+			profileId: options.profileId,
+			sessionId: options.sessionId,
+			observationMode: options.observationMode,
+			outcome: options.outcome,
+			correlationId: options.correlationId,
+		};
+
+		return { plan, groupId, diagnostics, confidence, learningTrace };
 	}
 
 	private evaluateCondition(
@@ -264,10 +306,10 @@ export class MacroCompiler {
 	}
 
 	private validateConstraints(
-		value: import("../values/typed-value").TypedValue,
+		value: TypedValue,
 		spec: MacroArgumentSpec,
-		field?: import("../schemas/schema-types").SchemaField,
-	): import("../values/measurement-resolver").MeasurementResolverDiagnostic[] {
+		field?: SchemaField,
+	): MeasurementResolverDiagnostic[] {
 		if (value.kind !== "measurement") return [];
 		const constraint: MeasurementConstraint = {
 			dimension:
@@ -296,9 +338,7 @@ export class MacroCompiler {
 		);
 	}
 
-	private canonicalizeValue(
-		value: import("../values/typed-value").TypedValue,
-	): import("../values/typed-value").TypedValue {
+	private canonicalizeValue(value: TypedValue): TypedValue {
 		if (value.kind === "measurement" && value.normalized) {
 			return {
 				...value,
@@ -318,10 +358,8 @@ export class MacroCompiler {
 			captures?: Record<string, string | undefined>;
 		},
 		extraction: { diagnostics: unknown[] },
-	): import("../values/typed-value").ValueEvidence[] {
-		const evidence: import("../values/typed-value").ValueEvidence[] = [
-			{ source: spec.extraction.kind },
-		];
+	): ValueEvidence[] {
+		const evidence: ValueEvidence[] = [{ source: spec.extraction.kind }];
 		if (bindingEntry.captures) {
 			for (const [key, value] of Object.entries(bindingEntry.captures)) {
 				if (value !== undefined) {

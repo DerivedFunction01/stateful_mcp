@@ -107,8 +107,8 @@ export function createCommandSyntaxProfile(
 			profile.variableCommandMappings ??
 			defaults?.variableCommandMappings ??
 			{},
-		expressionToken: profile.expressionToken ?? defaults?.expressionToken ?? "@",
-		conceptToken: profile.conceptToken ?? defaults?.conceptToken ?? "#",
+		expressionToken: profile.expressionToken ?? defaults?.expressionToken ?? "",
+		conceptToken: profile.conceptToken ?? defaults?.conceptToken ?? "",
 	};
 }
 

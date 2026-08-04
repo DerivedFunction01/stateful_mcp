@@ -27,7 +27,12 @@ export async function getVariableCommandSuggestions(
 	if (!rest.includes(" ") && !rest.endsWith("\t"))
 		return Object.entries(profile.variableCommandMappings)
 			.filter(([label]) => label.startsWith(operationPrefix))
-			.map(([label, operation]) => ({ kind: "operation", label, insertText: label, operation }));
+			.map(([label, operation]) => ({
+				kind: "operation",
+				label,
+				insertText: label,
+				operation,
+			}));
 	const operation = profile.variableCommandMappings[parts[0] ?? ""];
 	// Operation values are locale-neutral semantic enums; the typed command
 	// token comes from the active profile mapping, not an English keyword.
@@ -36,6 +41,8 @@ export async function getVariableCommandSuggestions(
 		(operation === "set" || operation === "update") &&
 		rest.trimEnd().endsWith(parts[0]!)
 	)
-		return [{ kind: "variable-name", label: "name=", insertText: "name=", operation }];
+		return [
+			{ kind: "variable-name", label: "name=", insertText: "name=", operation },
+		];
 	return [];
 }

@@ -29,7 +29,6 @@ export interface QuantityDisplayProfile {
 	>;
 }
 
-
 export interface NamedGroupContract {
 	required?: string[];
 	allowed?: string[];

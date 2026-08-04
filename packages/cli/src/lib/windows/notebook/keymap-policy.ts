@@ -7,14 +7,20 @@ import type {
 	KeyResolution,
 } from "../../editor";
 import { EditorAction as ClinicalAction } from "../../editor/editor-action";
-import { resolveKey } from "../../editor/keymap";
 import type { EditorKeymapProfile } from "../../editor/editor-keymap-profile";
+import { resolveKey } from "../../editor/keymap";
 
 /** Classified output of a resolved clinical editor action. */
 interface Classification {
 	document?: DocumentAction;
 	domain?: DomainAction;
-	generic?: "ENTER_INSERT" | "ENTER_COMMAND" | "ENTER_MACRO" | "CANCEL" | "SEARCH" | "SUBMIT_MACRO";
+	generic?:
+		| "ENTER_INSERT"
+		| "ENTER_COMMAND"
+		| "ENTER_MACRO"
+		| "CANCEL"
+		| "SEARCH"
+		| "SUBMIT_MACRO";
 	char?: string;
 }
 
@@ -127,10 +133,10 @@ export class NotebookKeymapPolicy implements KeymapPolicy {
 			return { kind: "domain", action: classified.domain };
 		}
 		if (classified.generic) {
-		return {
-			kind: "generic",
-			action: { type: classified.generic },
-		};
+			return {
+				kind: "generic",
+				action: { type: classified.generic },
+			};
 		}
 		return { kind: "none", nextPending: "" };
 	}

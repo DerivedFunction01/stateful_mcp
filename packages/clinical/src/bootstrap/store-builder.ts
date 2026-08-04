@@ -27,24 +27,39 @@ import {
 	KvClinicalDocumentProjectionStore,
 	KvSignedDocumentArchive,
 } from "../clinical/clinical-document-types";
+import { KvMacroTransitionStore } from "../learning/autocomplete/kv-transition-store";
+import { SqlMacroTransitionStore } from "../learning/autocomplete/sql-transition-store";
+import type { CommandHistoryStore } from "../learning/command-history";
+import type {
+	MacroTransitionStore,
+	SystemWeightStore,
+} from "../learning/interfaces";
+import { KvCommandHistoryStore } from "../learning/kv-command-history-store";
+import { KvMacroParseLearningStore } from "../learning/kv-macro-parse-learning-store";
+import {
+	type MacroParseLearningStore,
+	SqlMacroParseLearningStore,
+} from "../learning/macro-parse-learning-store";
+import { SqlCommandHistoryStore } from "../learning/sql-command-history-store";
+import {
+	KvBackendSystemWeightStore,
+	SqlBackendSystemWeightStore,
+} from "../learning/weight-store";
 import { KvMacroStore } from "../macros/kv-macro-store";
 import type { MacroStore } from "../macros/macro-definition";
 import { SqlMacroStore } from "../macros/sql-macro-store";
-import { KvProfileStore } from "../stores/profiles/kv-profile-store";
-import { SqlProfileStore } from "../stores/profiles/sql-profile-store";
-import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
 import { KvNotebookSessionStore } from "../notebook/kv-notebook-session-store";
 import type { NotebookSessionStore } from "../notebook/notebook-session-store";
 import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store";
+import { KvProfileStore } from "../stores/profiles/kv-profile-store";
+import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
+import { SqlProfileStore } from "../stores/profiles/sql-profile-store";
 import { KvTransactionJournal } from "../transactions/kv-transaction-journal";
 import { SqlTransactionJournal } from "../transactions/sql-transaction-journal";
 import type { TransactionJournal } from "../transactions/transaction-types";
 import { KvWorkspaceStore } from "../workspaces/kv-workspace-store";
 import { SqlWorkspaceStore } from "../workspaces/sql-workspace-store";
 import type { WorkspaceStore } from "../workspaces/workspace-store";
-import { KvCommandHistoryStore } from "../learning/kv-command-history-store";
-import type { CommandHistoryStore } from "../learning/command-history";
-import { SqlCommandHistoryStore } from "../learning/sql-command-history-store";
 
 export type StoreBackend = "memory" | "sqlite" | "jsonl";
 
@@ -64,6 +79,9 @@ export interface StoreBuilderResult {
 	projectionStore: ClinicalDocumentProjectionStore;
 	archiveStore: SignedDocumentArchive;
 	commandHistoryStore: CommandHistoryStore;
+	macroParseLearningStore: MacroParseLearningStore;
+	macroTransitionStore: MacroTransitionStore;
+	systemWeightStore: SystemWeightStore;
 }
 
 export class StoreBuilder {
@@ -109,6 +127,9 @@ async function createMemoryStores(): Promise<StoreBuilderResult> {
 		projectionStore: new InMemoryClinicalDocumentProjectionStore(),
 		archiveStore: new InMemorySignedDocumentArchive(),
 		commandHistoryStore: new KvCommandHistoryStore(backend),
+		macroParseLearningStore: new KvMacroParseLearningStore(backend),
+		macroTransitionStore: new KvMacroTransitionStore(backend),
+		systemWeightStore: new KvBackendSystemWeightStore(backend),
 	};
 }
 
@@ -134,6 +155,9 @@ async function createJsonlStores(
 		projectionStore: new KvClinicalDocumentProjectionStore(backend),
 		archiveStore: new KvSignedDocumentArchive(backend),
 		commandHistoryStore: new KvCommandHistoryStore(backend),
+		macroParseLearningStore: new KvMacroParseLearningStore(backend),
+		macroTransitionStore: new KvMacroTransitionStore(backend),
+		systemWeightStore: new KvBackendSystemWeightStore(backend),
 	};
 }
 
@@ -153,6 +177,9 @@ async function createSqliteStores(dbPath: string): Promise<StoreBuilderResult> {
 		projectionStore: new SqlClinicalDocumentProjectionStore(dialect, executor),
 		archiveStore: new SqlSignedDocumentArchive(dialect, executor),
 		commandHistoryStore: new SqlCommandHistoryStore(dialect, executor),
+		macroParseLearningStore: new SqlMacroParseLearningStore(dialect, executor),
+		macroTransitionStore: new SqlMacroTransitionStore(dialect, executor),
+		systemWeightStore: new SqlBackendSystemWeightStore(dialect, executor),
 	};
 }
 

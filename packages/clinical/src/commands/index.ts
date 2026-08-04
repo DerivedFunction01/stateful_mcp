@@ -4,6 +4,6 @@ export * from "./command-bar-types";
 export * from "./command-syntax-profile";
 export * from "./direct-command-parser";
 export * from "./variable-command";
-export * from "./variable-command-service";
 export * from "./variable-command-autocomplete";
+export * from "./variable-command-service";
 export * from "./variable-result";

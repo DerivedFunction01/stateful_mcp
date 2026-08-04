@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { INITIAL__NOTEBOOK_EDITOR_STATE, reduceNotebookEditor } from "../src/notebook/notebook-state";
+import {
+	INITIAL__NOTEBOOK_EDITOR_STATE,
+	reduceNotebookEditor,
+} from "../src/notebook/notebook-state";
 
 const cells = [
 	{ cellId: "one" },
@@ -18,7 +21,12 @@ describe("notebook visual selection bounds", () => {
 	});
 
 	test("does not cycle past the last visible cell", () => {
-		const state = { ...INITIAL__NOTEBOOK_EDITOR_STATE, cells, visualStart: 2, visualEnd: 2 };
+		const state = {
+			...INITIAL__NOTEBOOK_EDITOR_STATE,
+			cells,
+			visualStart: 2,
+			visualEnd: 2,
+		};
 		const next = reduceNotebookEditor(state, {
 			type: "set_visual_selection",
 			start: state.visualStart,

@@ -4,9 +4,9 @@ import {
 	bootstrapNumericalDefaults,
 } from "../src/bootstrap/bootstrap-config";
 import { resolveFrequency } from "../src/values/frequency-resolver";
+import { createNumericalSyntaxProfile } from "../src/values/numerical-syntax-profile";
 import { recognizeTemporalExpression } from "../src/values/temporal-recognizer";
 import { resolveTemporalExpression } from "../src/values/temporal-resolver";
-import { createNumericalSyntaxProfile } from "../src/values/numerical-syntax-profile";
 
 const anchor = {
 	referenceInstant: "2026-08-03T17:30:30-04:00",
@@ -106,7 +106,10 @@ describe(" temporal values", () => {
 			{ profileId: "v2-numerical-default" },
 			bootstrapNumericalDefaults,
 		);
-		const expression = recognizeTemporalExpression("2026-08-03", profile).expression;
+		const expression = recognizeTemporalExpression(
+			"2026-08-03",
+			profile,
+		).expression;
 		expect(expression).toEqual({
 			kind: "absolute_instant",
 			instant: "2026-08-03T00:00:00.000Z",
@@ -151,8 +154,12 @@ describe(" temporal values", () => {
 			{ profileId: "v2-numerical-default" },
 			bootstrapNumericalDefaults,
 		);
-		expect(recognizeTemporalExpression("2026-13-01", profile).expression).toBeUndefined();
-		expect(recognizeTemporalExpression("2026-08-99", profile).expression).toBeUndefined();
+		expect(
+			recognizeTemporalExpression("2026-13-01", profile).expression,
+		).toBeUndefined();
+		expect(
+			recognizeTemporalExpression("2026-08-99", profile).expression,
+		).toBeUndefined();
 	});
 
 	it("explicit precision option overrides HH-presence inference", () => {
@@ -172,7 +179,10 @@ describe(" temporal values", () => {
 				rangeDelimiters: [],
 			},
 		});
-		const expression = recognizeTemporalExpression("03/08/2026 17:30", profile).expression;
+		const expression = recognizeTemporalExpression(
+			"03/08/2026 17:30",
+			profile,
+		).expression;
 		expect(expression).toEqual({
 			kind: "absolute_instant",
 			instant: "2026-08-03T17:30:00.000Z",

@@ -1,10 +1,10 @@
-import type { AutocompleteSuggestion } from "./autocomplete";
-import type { CommandDescriptor } from "./command-descriptor";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 import type {
 	ArgumentAutocompleteContext,
 	ArgumentCompletionCandidate,
 } from "./argument-autocomplete-types";
+import type { AutocompleteSuggestion } from "./autocomplete";
+import type { CommandDescriptor } from "./command-descriptor";
 
 /** Semantic cap mirroring V1 `MAX_SUGGESTIONS = 12`. */
 export const MAX_SUGGESTIONS = 12;
@@ -25,8 +25,10 @@ export function historySuggestions(
 			const countDelta =
 				b.sessionCount + b.allCount - (a.sessionCount + a.allCount);
 			if (countDelta !== 0) return countDelta;
-			return Date.parse(b.sessionLastUsedAt ?? b.allLastUsedAt ?? "") -
-				Date.parse(a.sessionLastUsedAt ?? a.allLastUsedAt ?? "");
+			return (
+				Date.parse(b.sessionLastUsedAt ?? b.allLastUsedAt ?? "") -
+				Date.parse(a.sessionLastUsedAt ?? a.allLastUsedAt ?? "")
+			);
 		})
 		.slice(0, limit)
 		.map((candidate) => {
@@ -146,7 +148,9 @@ export function argumentSuggestions(
 	const argument = descriptor?.args?.[argIndex];
 	if (!descriptor || !argument?.completions) return [];
 	return argument.completions
-		.filter((value) => value.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase()))
+		.filter((value) =>
+			value.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase()),
+		)
 		.slice(0, MAX_SUGGESTIONS)
 		.map((value) => ({
 			label: value,
@@ -185,7 +189,10 @@ export function rankArgumentSuggestions(
 		if (!existing) {
 			mergedMap.set(candidate.value, { ...candidate });
 		} else {
-			existing.baseScore = Math.max(existing.baseScore ?? 0, candidate.baseScore ?? 0);
+			existing.baseScore = Math.max(
+				existing.baseScore ?? 0,
+				candidate.baseScore ?? 0,
+			);
 			if (candidate.source === "scope") {
 				existing.source = "scope";
 			}
@@ -233,7 +240,11 @@ export function rankArgumentSuggestions(
 			verb: candidate.value,
 			completionText: candidate.value,
 			group: "v2",
-			source: (candidate.source === "scope" ? "clinical" : "editor") as "editor" | "clinical" | "macro" | "context",
+			source: (candidate.source === "scope" ? "clinical" : "editor") as
+				| "editor"
+				| "clinical"
+				| "macro"
+				| "context",
 			hasArgs: false,
 			kind: "arg" as const,
 			argIndex: context.argumentIndex,
@@ -243,4 +254,3 @@ export function rankArgumentSuggestions(
 		};
 	});
 }
-

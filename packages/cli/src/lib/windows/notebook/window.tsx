@@ -1,3 +1,4 @@
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
@@ -30,7 +31,7 @@ export interface NotebookWindowDeps {
 	message?: string | null;
 	macroSuggestions?: AutocompleteSuggestion[];
 	/** Active syntax profile for canonical descriptor/knownVerbs derivation. */
-	syntaxProfile?: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
+	syntaxProfile?: CommandSyntaxProfile;
 }
 
 /**

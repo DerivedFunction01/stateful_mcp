@@ -1,3 +1,8 @@
+import type {
+	CommandHistoryStore,
+	CommandSyntaxProfile,
+	UnifiedProfileStore,
+} from "@stateful-mcp/clinical";
 import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { ClinicalBootstrap } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { createMockCaseIdentity } from "@stateful-mcp/clinical/bootstrap/mock-patient";
@@ -7,14 +12,14 @@ import { VariableCommandService } from "@stateful-mcp/clinical/commands/variable
 import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
 import {
-	createNotebookSession,
-	type NotebookSession,
-} from "./notebook-session";
-import {
 	defaultEditorKeymapProfile,
 	mergeEditorKeymap,
 } from "../../bootstrap/editor-keymap-defaults";
 import type { EditorKeymapProfile } from "../../lib/editor/editor-keymap-profile";
+import {
+	createNotebookSession,
+	type NotebookSession,
+} from "./notebook-session";
 import { resolveInitialSession } from "./resolver";
 
 export interface Cli2BootstrapResult {
@@ -24,10 +29,10 @@ export interface Cli2BootstrapResult {
 	notebookSessionStore: NotebookSessionStore;
 	notebook: NotebookSession;
 	sessionId: string;
-	syntaxProfile: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
+	syntaxProfile: CommandSyntaxProfile;
 	editorKeymap: EditorKeymapProfile;
-	profileStore: import("@stateful-mcp/clinical/stores/profiles/profile-store").UnifiedProfileStore;
-	commandHistoryStore: import("@stateful-mcp/clinical/learning/command-history").CommandHistoryStore;
+	profileStore: UnifiedProfileStore;
+	commandHistoryStore: CommandHistoryStore;
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
 	bootstrapStatus: "created" | "resumed" | "error";
 	bootstrapError?: string;
@@ -35,7 +40,7 @@ export interface Cli2BootstrapResult {
 
 export interface Cli2BootstrapOptions {
 	sessionId?: string;
-	syntaxProfile?: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
+	syntaxProfile?: CommandSyntaxProfile;
 	editorKeymap?: EditorKeymapProfile;
 	stores?: ClinicalBootstrapResult["stores"];
 	clinical?: ClinicalBootstrapResult;
@@ -112,7 +117,10 @@ export async function buildCli2Bootstrap(
 	const profileStore = stores?.profileStore ?? clinical.stores.profileStore;
 	const commandHistoryStore =
 		stores?.commandHistoryStore ?? clinical.stores.commandHistoryStore;
-	const sessionId = await resolveInitialSession(sessionStore, options.sessionId);
+	const sessionId = await resolveInitialSession(
+		sessionStore,
+		options.sessionId,
+	);
 	const existingSession = await sessionStore.get(sessionId);
 	const caseIdentity = createMockCaseIdentity(sessionId);
 	let bootstrapStatus: Cli2BootstrapResult["bootstrapStatus"] = "resumed";

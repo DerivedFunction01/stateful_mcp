@@ -1,9 +1,9 @@
 import { Box, Text, useInput } from "ink";
 import type { CommandDescriptor } from "../lib/editor/command-descriptor";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
+import { t } from "../lib/shared/i18n";
 import { KeyBindingsList } from "../lib/ui/HelpBindings";
 import { palette } from "../lib/ui/palette";
-import { t } from "../lib/shared/i18n";
 
 interface HelpScreenProps {
 	editorDescriptors: CommandDescriptor[];

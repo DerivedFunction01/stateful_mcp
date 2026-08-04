@@ -1,5 +1,6 @@
 import type { ConceptFilterStore } from "@stateful-mcp/core";
 import { isConceptAllowed } from "@stateful-mcp/core";
+import type { MacroLearningService } from "../learning/macro-learning-service";
 import type { ConceptLookup } from "../values/concept-value";
 import type { MacroStore } from "./macro-definition";
 
@@ -31,12 +32,18 @@ export interface AutocompleteRequest {
 	macroName?: string;
 	namespaceCode?: string;
 	enumValues?: readonly string[];
+	macroId?: string;
+	macroVersion?: number;
+	filledSlots?: readonly string[];
+	previousSlot?: string;
+	personnelId?: string;
 }
 
 export interface AutocompleteServiceDeps {
 	macros: MacroStore;
 	dictionary?: ConceptLookup;
 	filterStore?: ConceptFilterStore;
+	learningService?: MacroLearningService;
 }
 
 const MACRO_START_TOKEN = "^";
@@ -87,7 +94,12 @@ export class MacroAutocomplete {
 		}
 
 		if (query.startsWith("@")) {
-			return this.suggestConcepts(query.slice(1), namespaceCode, macroName, argumentName);
+			return this.suggestConcepts(
+				query.slice(1),
+				namespaceCode,
+				macroName,
+				argumentName,
+			);
 		}
 
 		// 2. Argument value autocompletion if argumentName and macroName are known
@@ -97,8 +109,10 @@ export class MacroAutocomplete {
 				const arg = macro.arguments.find(
 					(a) =>
 						a.name.toLowerCase() === argumentName.toLowerCase() ||
-						a.aliases?.some((alias) => alias.toLowerCase() === argumentName.toLowerCase()) ||
-						a.roleName.toLowerCase() === argumentName.toLowerCase()
+						a.aliases?.some(
+							(alias) => alias.toLowerCase() === argumentName.toLowerCase(),
+						) ||
+						a.roleName.toLowerCase() === argumentName.toLowerCase(),
 				);
 				if (arg) {
 					return this.suggestValueForArgument(arg, query);
@@ -108,13 +122,18 @@ export class MacroAutocomplete {
 
 		// 3. Fallbacks to scopes
 		if (scope === "argument" && macroName) {
-			return this.suggestArguments(macroName, query, argumentName);
+			return this.suggestArguments(macroName, query, argumentName, req);
 		}
 		if (scope === "enum") {
 			return this.suggestEnums(query, enumValues);
 		}
 		if (scope === "concept") {
-			return this.suggestConcepts(query, namespaceCode, macroName, argumentName);
+			return this.suggestConcepts(
+				query,
+				namespaceCode,
+				macroName,
+				argumentName,
+			);
 		}
 
 		if (startsWithToken(query)) {
@@ -126,7 +145,7 @@ export class MacroAutocomplete {
 
 	private async suggestValueForArgument(
 		arg: any,
-		query: string
+		query: string,
 	): Promise<AutocompleteSuggestion[]> {
 		const spec = arg.extraction;
 		if (!spec) return [];
@@ -160,7 +179,13 @@ export class MacroAutocomplete {
 
 		// Concept types
 		if (spec.kind === "concept" || spec.kind === "concept_array") {
-			return this.suggestConcepts(query, undefined, undefined, arg.name, arg.roleName);
+			return this.suggestConcepts(
+				query,
+				undefined,
+				undefined,
+				arg.name,
+				arg.roleName,
+			);
 		}
 
 		// Pattern-based literal template prefixes
@@ -200,26 +225,56 @@ export class MacroAutocomplete {
 		macroName: string,
 		prefix: string,
 		argumentName?: string,
+		req?: AutocompleteRequest,
 	): Promise<AutocompleteSuggestion[]> {
 		const macro = await this.deps.macros.get(macroName);
 		if (!macro) return [];
 
 		const targetArgumentName =
 			argumentName?.toLowerCase() ?? prefix.toLowerCase();
-		const suggestions: AutocompleteSuggestion[] = macro.arguments
-			.filter((arg) => {
-				if (matchesPrefix(arg.name, targetArgumentName)) return true;
-				if (arg.aliases?.some((a) => matchesPrefix(a, targetArgumentName)))
-					return true;
-				return matchesPrefix(arg.roleName, targetArgumentName);
-			})
+		const matchingArguments = macro.arguments.filter((arg) => {
+			if (req?.filledSlots?.includes(arg.argumentId)) return false;
+			if (matchesPrefix(arg.name, targetArgumentName)) return true;
+			if (arg.aliases?.some((a) => matchesPrefix(a, targetArgumentName)))
+				return true;
+			return matchesPrefix(arg.roleName, targetArgumentName);
+		});
+		const ranked =
+			this.deps.learningService && req
+				? await this.deps.learningService.rankCandidates(
+						{
+							macroId: req.macroId ?? macro.macroId,
+							macroVersion: req.macroVersion ?? macro.version,
+							previousSlot: req.previousSlot,
+							filledSlots: req.filledSlots ?? [],
+							personnelId: req.personnelId,
+						},
+						matchingArguments.map((argument) => ({
+							argumentId: argument.argumentId,
+						})),
+					)
+				: matchingArguments.map((argument) => ({
+						candidate: { argumentId: argument.argumentId },
+						score: 0,
+						features: {},
+					}));
+		const suggestions: AutocompleteSuggestion[] = ranked
+			.map(
+				({ candidate }) =>
+					macro.arguments.find(
+						(arg) => arg.argumentId === candidate.argumentId,
+					)!,
+			)
 			.map((arg) => ({
 				label: arg.name,
 				value: arg.name,
 				type: "argument" as const,
 				detail: arg.roleName,
 			}))
-			.sort(sortSuggestions)
+			.sort((a, b) => {
+				if (this.deps.learningService && req) return 0;
+				return sortSuggestions(a, b);
+			})
 			.slice(0, MAX_SUGGESTIONS);
 		return suggestions;
 	}
@@ -272,8 +327,10 @@ export class MacroAutocomplete {
 			const arg = macro?.arguments.find(
 				(a) =>
 					a.name.toLowerCase() === argumentName.toLowerCase() ||
-					a.aliases?.some((alias) => alias.toLowerCase() === argumentName.toLowerCase()) ||
-					a.roleName.toLowerCase() === argumentName.toLowerCase()
+					a.aliases?.some(
+						(alias) => alias.toLowerCase() === argumentName.toLowerCase(),
+					) ||
+					a.roleName.toLowerCase() === argumentName.toLowerCase(),
 			);
 			if (arg) roleName = arg.roleName;
 		}
@@ -281,7 +338,10 @@ export class MacroAutocomplete {
 		if (roleName && this.deps.filterStore) {
 			const allowed: any[] = [];
 			for (const c of candidates) {
-				const filters = await this.deps.filterStore.listForConceptRole(c.id, roleName);
+				const filters = await this.deps.filterStore.listForConceptRole(
+					c.id,
+					roleName,
+				);
 				if (isConceptAllowed(filters, roleName)) {
 					allowed.push(c);
 				}
@@ -301,11 +361,16 @@ export class MacroAutocomplete {
 			.slice(0, MAX_SUGGESTIONS);
 
 		// Record impressions for candidates in the suggestion list
-		if (this.deps.dictionary && typeof (this.deps.dictionary as any).recordImpression === "function") {
+		if (
+			this.deps.dictionary &&
+			typeof (this.deps.dictionary as any).recordImpression === "function"
+		) {
 			const dictStore = this.deps.dictionary as any;
 			const scope = { level: "global" };
 			try {
-				const exprs = dictStore.expressionStore ? await dictStore.expressionStore.list(scope, true) : [];
+				const exprs = dictStore.expressionStore
+					? await dictStore.expressionStore.list(scope, true)
+					: [];
 				for (const c of candidates) {
 					const matchingExprs = exprs.filter((e: any) => e.conceptId === c.id);
 					for (const expr of matchingExprs) {

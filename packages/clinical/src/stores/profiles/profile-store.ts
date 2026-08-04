@@ -1,4 +1,9 @@
-export type UnifiedProfileKind = "command" | "numerical" | "value" | "macro" | "dictionary";
+export type UnifiedProfileKind =
+	| "command"
+	| "numerical"
+	| "value"
+	| "macro"
+	| "dictionary";
 
 export interface UnifiedProfileRecord {
 	profileId: string;

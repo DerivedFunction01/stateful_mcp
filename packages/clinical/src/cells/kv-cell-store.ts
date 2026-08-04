@@ -1,8 +1,8 @@
 import type { KvBackend } from "@stateful-mcp/core";
 import { createCell, editCell, supersedeCell } from "./cell-factory";
 import type { CellStore, CreateCellRequest } from "./cell-service-types";
-import { isStructuredCellRecord } from "./structured-cell-validation";
 import type { StructuredCell } from "./structured-cell";
+import { isStructuredCellRecord } from "./structured-cell-validation";
 
 export class KvCellStore implements CellStore {
 	constructor(

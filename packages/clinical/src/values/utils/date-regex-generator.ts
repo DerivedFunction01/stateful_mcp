@@ -1,5 +1,5 @@
-import { getCompiledRegex } from "./_compiled-regex";
 import type { TimePrecisionLevel } from "../../schemas/schemas-interface/time";
+import { getCompiledRegex } from "./_compiled-regex";
 
 export type DateTimeToken =
 	| "YYYY"

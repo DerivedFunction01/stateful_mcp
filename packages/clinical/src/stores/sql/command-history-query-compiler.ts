@@ -8,7 +8,7 @@ import type { CommandHistoryQuery } from "../../learning/command-history";
 export class CommandHistoryQueryCompiler {
 	private readonly compiler: QueryCompiler;
 
-	constructor(private readonly dialect: SqlDialect) {
+	constructor(readonly dialect: SqlDialect) {
 		this.compiler = new QueryCompiler(dialect);
 	}
 
@@ -94,25 +94,26 @@ export class CommandHistoryQueryCompiler {
 		];
 	}
 
-	compileInsert(
-		table: string,
-		event: Record<string, unknown>,
-	): CompiledQuery {
+	compileInsert(table: string, event: Record<string, unknown>): CompiledQuery {
 		return this.compiler.compileInsert({ table, values: event });
 	}
 
-	compileQuery(
-		table: string,
-		input: CommandHistoryQuery,
-	): CompiledQuery {
-		const scope = input.scope === "merged" || !input.scope ? undefined : input.scope;
+	compileQuery(table: string, input: CommandHistoryQuery): CompiledQuery {
+		const scope =
+			input.scope === "merged" || !input.scope ? undefined : input.scope;
 		const where = [
 			...(scope ? [{ column: "scope", op: "eq" as const, value: scope }] : []),
 			...(scope === "session"
 				? [{ column: "scope_key", op: "eq" as const, value: input.sessionId }]
 				: []),
 			...(input.prefix
-				? [{ column: "command_text", op: "starts_with" as const, value: input.prefix }]
+				? [
+						{
+							column: "command_text",
+							op: "starts_with" as const,
+							value: input.prefix,
+						},
+					]
 				: []),
 		];
 		return this.compiler.compileSelect({
@@ -126,7 +127,10 @@ export class CommandHistoryQueryCompiler {
 			],
 			where,
 			orderBy: [{ column: "executed_at", direction: "DESC" }],
-			limit: input.scope === "merged" || !input.scope ? undefined : input.limit ?? 100,
+			limit:
+				input.scope === "merged" || !input.scope
+					? undefined
+					: (input.limit ?? 100),
 		});
 	}
 
@@ -141,10 +145,10 @@ export class CommandHistoryQueryCompiler {
 				{ column: "canonical_verb" },
 				{ column: "command_id" },
 				{ column: "executed_at" },
-				{ column: "outcome" }
+				{ column: "outcome" },
 			],
 			orderBy: [{ column: "executed_at", direction: "ASC" }],
-			limit
+			limit,
 		});
 	}
 
@@ -155,23 +159,23 @@ export class CommandHistoryQueryCompiler {
 				{ column: "event_id" },
 				{ column: "argument_index" },
 				{ column: "argument_name" },
-				{ column: "argument_value" }
+				{ column: "argument_value" },
 			],
-			where: [{ column: "event_id", op: "in_set" as const, values: eventIds }]
+			where: [{ column: "event_id", op: "in_set" as const, values: eventIds }],
 		});
 	}
 
 	compileCount(table: string): CompiledQuery {
 		return this.compiler.compileSelect({
 			table,
-			select: [{ raw: "COUNT(*) as count" }]
+			select: [{ raw: "COUNT(*) as count" }],
 		});
 	}
 
 	compileDelete(table: string, eventIds: string[]): CompiledQuery {
 		return this.compiler.compileDelete({
 			table,
-			where: [{ column: "event_id", op: "in_set" as const, values: eventIds }]
+			where: [{ column: "event_id", op: "in_set" as const, values: eventIds }],
 		});
 	}
 
@@ -183,7 +187,7 @@ export class CommandHistoryQueryCompiler {
 		commandId: string | null,
 		successCount: number,
 		failureCount: number,
-		lastUsedAt: string
+		lastUsedAt: string,
 	): CompiledQuery {
 		return this.compiler.compileInsert({
 			table: "command_history_aggregates",
@@ -195,16 +199,18 @@ export class CommandHistoryQueryCompiler {
 				command_id: commandId,
 				success_count: successCount,
 				failure_count: failureCount,
-				last_used_at: lastUsedAt
+				last_used_at: lastUsedAt,
 			},
 			onConflict: {
 				conflictColumns: ["command_text", "scope", "scope_key"],
 				update: {
 					success_count: { raw: "success_count + EXCLUDED.success_count" },
 					failure_count: { raw: "failure_count + EXCLUDED.failure_count" },
-					last_used_at: { raw: "CASE WHEN EXCLUDED.last_used_at > last_used_at THEN EXCLUDED.last_used_at ELSE last_used_at END" }
-				}
-			}
+					last_used_at: {
+						raw: "CASE WHEN EXCLUDED.last_used_at > last_used_at THEN EXCLUDED.last_used_at ELSE last_used_at END",
+					},
+				},
+			},
 		});
 	}
 
@@ -216,7 +222,7 @@ export class CommandHistoryQueryCompiler {
 		scope: string,
 		scopeKey: string,
 		useCount: number,
-		lastUsedAt: string
+		lastUsedAt: string,
 	): CompiledQuery {
 		return this.compiler.compileInsert({
 			table: "command_history_argument_aggregates",
@@ -228,27 +234,42 @@ export class CommandHistoryQueryCompiler {
 				scope,
 				scope_key: scopeKey,
 				use_count: useCount,
-				last_used_at: lastUsedAt
+				last_used_at: lastUsedAt,
 			},
 			onConflict: {
-				conflictColumns: ["command_id", "argument_index", "argument_value", "scope", "scope_key"],
+				conflictColumns: [
+					"command_id",
+					"argument_index",
+					"argument_value",
+					"scope",
+					"scope_key",
+				],
 				update: {
 					use_count: { raw: "use_count + EXCLUDED.use_count" },
-					last_used_at: { raw: "CASE WHEN EXCLUDED.last_used_at > last_used_at THEN EXCLUDED.last_used_at ELSE last_used_at END" }
-				}
-			}
+					last_used_at: {
+						raw: "CASE WHEN EXCLUDED.last_used_at > last_used_at THEN EXCLUDED.last_used_at ELSE last_used_at END",
+					},
+				},
+			},
 		});
 	}
 
 	compileAggregateQuery(input: CommandHistoryQuery): CompiledQuery {
-		const scope = input.scope === "merged" || !input.scope ? undefined : input.scope;
+		const scope =
+			input.scope === "merged" || !input.scope ? undefined : input.scope;
 		const where = [
 			...(scope ? [{ column: "scope", op: "eq" as const, value: scope }] : []),
 			...(scope === "session"
 				? [{ column: "scope_key", op: "eq" as const, value: input.sessionId }]
 				: []),
 			...(input.prefix
-				? [{ column: "command_text", op: "starts_with" as const, value: input.prefix }]
+				? [
+						{
+							column: "command_text",
+							op: "starts_with" as const,
+							value: input.prefix,
+						},
+					]
 				: []),
 		];
 		return this.compiler.compileSelect({
@@ -260,9 +281,9 @@ export class CommandHistoryQueryCompiler {
 				{ column: "scope" },
 				{ column: "success_count" },
 				{ column: "failure_count" },
-				{ column: "last_used_at" }
+				{ column: "last_used_at" },
 			],
-			where
+			where,
 		});
 	}
 
@@ -274,10 +295,20 @@ export class CommandHistoryQueryCompiler {
 		const targetCmd = input.commandId.toLowerCase().replace(/^[:^]/, "");
 		const where = [
 			{ column: "command_id", op: "eq" as const, value: targetCmd },
-			{ column: "argument_index", op: "eq" as const, value: input.argumentIndex },
+			{
+				column: "argument_index",
+				op: "eq" as const,
+				value: input.argumentIndex,
+			},
 			...(input.prefix
-				? [{ column: "argument_value", op: "starts_with" as const, value: input.prefix }]
-				: [])
+				? [
+						{
+							column: "argument_value",
+							op: "starts_with" as const,
+							value: input.prefix,
+						},
+					]
+				: []),
 		];
 		return this.compiler.compileSelect({
 			table: "command_history_argument_aggregates",
@@ -286,9 +317,9 @@ export class CommandHistoryQueryCompiler {
 				{ column: "scope" },
 				{ column: "scope_key" },
 				{ column: "use_count" },
-				{ column: "last_used_at" }
+				{ column: "last_used_at" },
 			],
-			where
+			where,
 		});
 	}
 }

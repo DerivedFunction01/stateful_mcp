@@ -1,6 +1,6 @@
 import {
-	SpecialKeys,
 	type EditorKeymapProfile,
+	SpecialKeys,
 } from "../lib/editor/editor-keymap-profile";
 
 export const defaultEditorKeymapProfile: EditorKeymapProfile = {
@@ -63,11 +63,24 @@ export const editorKeymapHelpGroups = [
 	},
 	{
 		labelKey: "help.keyGroup.sequences",
-		bindings: [["deleteCell"], ["yankCell"], ["previousError"], ["nextError"], ["workspace"], ["pasteAbove"]] as const,
+		bindings: [
+			["deleteCell"],
+			["yankCell"],
+			["previousError"],
+			["nextError"],
+			["workspace"],
+			["pasteAbove"],
+		] as const,
 	},
 	{
 		labelKey: "help.keyGroup.visual",
-		bindings: [["deleteSelection"], ["yankSelection"], ["pasteSelection"], ["extendDown", "extendUp"], ["swapAnchor"]] as const,
+		bindings: [
+			["deleteSelection"],
+			["yankSelection"],
+			["pasteSelection"],
+			["extendDown", "extendUp"],
+			["swapAnchor"],
+		] as const,
 	},
 ] as const;
 

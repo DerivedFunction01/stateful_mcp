@@ -375,13 +375,14 @@ export class InMemoryConceptResolver implements ConceptResolver {
 						}
 						const totalWeight = userWeight + globalWeight;
 						const normUser = totalWeight > 0 ? userWeight / totalWeight : 0.7;
-						const normGlobal = totalWeight > 0 ? globalWeight / totalWeight : 0.3;
+						const normGlobal =
+							totalWeight > 0 ? globalWeight / totalWeight : 0.3;
 
 						finalCTR = normUser * userCTR + normGlobal * globalCTR;
 					} else {
 						const usageCount = metric ? metric.usageCount : 0;
 						const impressionCount = metric
-							? metric.impressionCount ?? metric.usageCount
+							? (metric.impressionCount ?? metric.usageCount)
 							: 0;
 						finalCTR = (usageCount + 1) / (impressionCount + 2);
 					}

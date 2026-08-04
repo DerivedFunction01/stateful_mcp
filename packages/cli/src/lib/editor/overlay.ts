@@ -1,4 +1,9 @@
-export type WindowOverlayRoute = "help" | "preview" | "info" | "search" | "history";
+export type WindowOverlayRoute =
+	| "help"
+	| "preview"
+	| "info"
+	| "search"
+	| "history";
 
 export interface WindowOverlay {
 	route: WindowOverlayRoute;

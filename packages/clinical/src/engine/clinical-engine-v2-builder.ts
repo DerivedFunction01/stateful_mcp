@@ -4,6 +4,7 @@ import {
 	type VariableService,
 	VariableServiceStore,
 } from "@stateful-mcp/core";
+import type { CellCompileContext } from "../cells/cell-compiler";
 import type { CellStore } from "../cells/cell-service-types";
 import { StructuredCellService } from "../cells/structured-cell-service";
 import { VariableCellService } from "../cells/variable-cell-service";
@@ -25,7 +26,9 @@ import {
 	createCommandSyntaxProfile,
 } from "../commands/command-syntax-profile";
 import { VariableCommandService } from "../commands/variable-command-service";
+import type { MacroLearningService } from "../learning/macro-learning-service";
 import type { MacroStore } from "../macros/macro-definition";
+import type { MacroExecutionPlan } from "../macros/macro-plan";
 import {
 	createClinicalProjection,
 	createSyncProjection,
@@ -64,11 +67,12 @@ export class ClinicalEngineBuilder {
 	private dictionaryStore?: DictionaryStore;
 	private cellCompiler?: (
 		rawText: string,
-		context?: import("../cells/cell-compiler").CellCompileContext,
+		context?: CellCompileContext,
 	) => Promise<{
-		plan?: import("../macros/macro-plan").MacroExecutionPlan;
+		plan?: MacroExecutionPlan;
 		diagnostics: string[];
 		fingerprint: string;
+		learningTrace?: import("../learning/macro-learning-types").MacroLearningTrace;
 	}>;
 	private syncConfig?: SyncConfig;
 	private cellStore?: CellStore;
@@ -80,6 +84,7 @@ export class ClinicalEngineBuilder {
 	private extraParticipants: TransactionParticipant[] = [];
 	private syntaxProfile?: CommandSyntaxProfile;
 	private variableService?: VariableService;
+	private macroLearningService?: MacroLearningService;
 
 	withEventStore(store: EventStore): this {
 		this.eventStore = store;
@@ -109,11 +114,12 @@ export class ClinicalEngineBuilder {
 	withCellCompiler(
 		compile: (
 			rawText: string,
-			context?: import("../cells/cell-compiler").CellCompileContext,
+			context?: CellCompileContext,
 		) => Promise<{
-			plan?: import("../macros/macro-plan").MacroExecutionPlan;
+			plan?: MacroExecutionPlan;
 			diagnostics: string[];
 			fingerprint: string;
+			learningTrace?: import("../learning/macro-learning-types").MacroLearningTrace;
 		}>,
 	): this {
 		this.cellCompiler = compile;
@@ -157,6 +163,11 @@ export class ClinicalEngineBuilder {
 
 	withVariableService(service: VariableService): this {
 		this.variableService = service;
+		return this;
+	}
+
+	withMacroLearningService(service: MacroLearningService): this {
+		this.macroLearningService = service;
 		return this;
 	}
 
@@ -215,6 +226,7 @@ export class ClinicalEngineBuilder {
 		const cellService = new StructuredCellService({
 			store: cellStore,
 			compile: this.cellCompiler,
+			learningService: this.macroLearningService,
 		});
 
 		const viewStore = this.viewStore ?? new InMemoryWorkspaceViewStateStore();
@@ -280,6 +292,9 @@ export class ClinicalEngineBuilder {
 				new VariableCommandService(variables),
 				syntaxProfile,
 			),
+			learning: this.macroLearningService
+				? { macro: this.macroLearningService }
+				: undefined,
 		};
 
 		const engine = new ClinicalEngine(

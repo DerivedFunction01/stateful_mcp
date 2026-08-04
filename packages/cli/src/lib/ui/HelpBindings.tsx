@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
-import type { EditorKeymapProfile } from "../editor/editor-keymap-profile";
 import { editorKeymapHelpGroups } from "../../bootstrap/editor-keymap-defaults";
+import type { EditorKeymapProfile } from "../editor/editor-keymap-profile";
 import { t } from "../shared/i18n";
 import { palette } from "./palette";
 
@@ -29,7 +29,12 @@ export function bindingGroups(profile: EditorKeymapProfile) {
 		rows: group.bindings.map((binding) => ({
 			labelKey: `help.binding.${binding[0]}`,
 			combos: binding.map((name) => {
-				const section = name in profile.normal ? profile.normal : name in profile.sequences ? profile.sequences : profile.visual;
+				const section =
+					name in profile.normal
+						? profile.normal
+						: name in profile.sequences
+							? profile.sequences
+							: profile.visual;
 				return section[name as keyof typeof section] as string;
 			}),
 		})),
@@ -44,14 +49,25 @@ export function KeyBindingsList({
 	if (!profile) return null;
 	return (
 		<Box flexDirection="column" paddingTop={1} paddingLeft={1}>
-			<Text bold underline color={palette.header}>{t("help.keysTitle")}</Text>
+			<Text bold underline color={palette.header}>
+				{t("help.keysTitle")}
+			</Text>
 			{bindingGroups(profile).map((group) => (
 				<Box key={group.labelKey} flexDirection="column" paddingTop={1}>
-					<Text bold color={palette.header}>{t(group.labelKey)}</Text>
+					<Text bold color={palette.header}>
+						{t(group.labelKey)}
+					</Text>
 					{group.rows.map((row) => (
-						<Box key={row.labelKey} paddingLeft={2} flexDirection="row" flexWrap="wrap">
-							<Text bold color={palette.emphasized}>{displayCombos(row.combos)}</Text>
-							<Text color={palette.muted}>  {t(row.labelKey)}</Text>
+						<Box
+							key={row.labelKey}
+							paddingLeft={2}
+							flexDirection="row"
+							flexWrap="wrap"
+						>
+							<Text bold color={palette.emphasized}>
+								{displayCombos(row.combos)}
+							</Text>
+							<Text color={palette.muted}> {t(row.labelKey)}</Text>
 						</Box>
 					))}
 				</Box>

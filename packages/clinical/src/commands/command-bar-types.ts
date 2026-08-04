@@ -76,6 +76,12 @@ export interface CommandAutocompleteContext {
 	documentId?: string;
 	activeCellId?: string;
 	branches?: ReadonlyArray<{ id: string; commandAlias?: string; name: string }>;
+	personnelId?: string;
+	macroId?: string;
+	macroVersion?: number;
+	filledSlots?: readonly string[];
+	previousSlot?: string;
+	observationMode?: "live" | "preview" | "execution";
 }
 
 export interface CommandSuggestion {
@@ -88,4 +94,8 @@ export interface CommandSuggestion {
 	argIndex?: number;
 	argName?: string;
 	descriptionKey?: string;
+	macroId?: string;
+	macroVersion?: number;
+	argumentId?: string;
+	parsedValue?: unknown;
 }

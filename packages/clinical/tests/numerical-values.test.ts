@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { UNIT_DISPLAY_MAP } from "../src/schemas/schemas-interface/measurement";
 import { bootstrapNumericalDefaults } from "../src/bootstrap/bootstrap-config";
+import { UNIT_DISPLAY_MAP } from "../src/schemas/schemas-interface/measurement";
 import {
 	createNumericalSyntaxProfile,
 	normalizeNumberWords,
@@ -119,7 +119,9 @@ describe("NumericalSyntaxProfile", () => {
 		expect(bootstrapNumericalDefaults.numberWords).toBeNull();
 		expect(bootstrapNumericalDefaults.unitDisplay).toEqual({});
 		expect(bootstrapNumericalDefaults.temporal.rangeDelimiters).toContain("..");
-		expect(bootstrapNumericalDefaults.temporal.relativeDayAliases.today).toBe(0);
+		expect(bootstrapNumericalDefaults.temporal.relativeDayAliases.today).toBe(
+			0,
+		);
 	});
 
 	it("recognizeTemporalExpression accepts NumericalSyntaxProfile directly", () => {

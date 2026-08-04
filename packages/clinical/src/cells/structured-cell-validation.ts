@@ -1,6 +1,8 @@
 import type { StructuredCell } from "./structured-cell";
 
-export function isStructuredCellRecord(value: unknown): value is StructuredCell {
+export function isStructuredCellRecord(
+	value: unknown,
+): value is StructuredCell {
 	if (!value || typeof value !== "object") return false;
 	const record = value as Record<string, unknown>;
 	const source = record.source as Record<string, unknown> | undefined;

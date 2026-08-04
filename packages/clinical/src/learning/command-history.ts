@@ -78,4 +78,3 @@ export interface CommandHistoryStore {
 export function normalizeCommandText(commandText: string): string {
 	return commandText.trim().toLocaleLowerCase();
 }
-

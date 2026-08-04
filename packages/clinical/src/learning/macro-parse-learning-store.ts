@@ -1,7 +1,7 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import type { MacroValueSpecKind } from "../macros/macro-definition";
-import type { HistoryPruningConfig } from "./command-history";
 import { MacroParseQueryCompiler } from "../stores/sql/macro-parse-query-compiler";
+import type { HistoryPruningConfig } from "./command-history";
 
 export interface MacroParseFeedbackRecord {
 	id: string;
@@ -23,12 +23,14 @@ export interface MacroConfidenceResult {
 }
 
 export interface MacroParseLearningStore {
-	recordFeedback(feedback: Omit<MacroParseFeedbackRecord, "id" | "timestamp">): Promise<void>;
+	recordFeedback(
+		feedback: Omit<MacroParseFeedbackRecord, "id" | "timestamp">,
+	): Promise<void>;
 	getConfidence(
 		macroId: string,
 		argumentName: string,
 		rawTerm: string,
-		parsedValue: string
+		parsedValue: string,
 	): Promise<MacroConfidenceResult>;
 }
 
@@ -38,7 +40,7 @@ export class SqlMacroParseLearningStore implements MacroParseLearningStore {
 	private readonly ready: Promise<void>;
 
 	constructor(
-		private readonly dialect: SqlDialect,
+		readonly dialect: SqlDialect,
 		private readonly executor: SqlExecutor,
 		private readonly pruningConfig?: HistoryPruningConfig,
 	) {
@@ -52,7 +54,9 @@ export class SqlMacroParseLearningStore implements MacroParseLearningStore {
 		}
 	}
 
-	async recordFeedback(feedback: Omit<MacroParseFeedbackRecord, "id" | "timestamp">): Promise<void> {
+	async recordFeedback(
+		feedback: Omit<MacroParseFeedbackRecord, "id" | "timestamp">,
+	): Promise<void> {
 		await this.ready;
 		const id = crypto.randomUUID();
 		const timestamp = new Date().toISOString();
@@ -69,7 +73,7 @@ export class SqlMacroParseLearningStore implements MacroParseLearningStore {
 			corrected_value: feedback.correctedValue ?? null,
 			outcome: feedback.outcome,
 			personnel_id: feedback.personnelId ?? null,
-			timestamp
+			timestamp,
 		});
 		await this.executor.exec(insertQuery.sql, insertQuery.params);
 
@@ -82,29 +86,38 @@ export class SqlMacroParseLearningStore implements MacroParseLearningStore {
 	private async consolidateAndPrune(): Promise<void> {
 		if (!this.pruningConfig) return;
 		const countQuery = this.compiler.compileCount(this.table);
-		const countRows = await this.executor.query(countQuery.sql, countQuery.params);
+		const countRows = await this.executor.query(
+			countQuery.sql,
+			countQuery.params,
+		);
 		const total = Number(countRows[0]?.count ?? 0);
 		if (total <= this.pruningConfig.maxHistoryRows) return;
 
 		const batchSize = this.pruningConfig.pruneBatchSize;
-		const pruneSelectQuery = this.compiler.compilePruneSelect(this.table, batchSize);
+		const pruneSelectQuery = this.compiler.compilePruneSelect(
+			this.table,
+			batchSize,
+		);
 		const oldEvents = await this.executor.query(
 			pruneSelectQuery.sql,
-			pruneSelectQuery.params
+			pruneSelectQuery.params,
 		);
 		if (oldEvents.length === 0) return;
 
 		const eventIds = oldEvents.map((r: any) => String(r.id));
 
 		for (const ev of oldEvents) {
-			const parsedValueStr = typeof ev.parsed_value === "string" ? ev.parsed_value : JSON.stringify(ev.parsed_value);
+			const parsedValueStr =
+				typeof ev.parsed_value === "string"
+					? ev.parsed_value
+					: JSON.stringify(ev.parsed_value);
 			const upsertQuery = this.compiler.compileUpsertAggregate(
 				ev.macro_id,
 				ev.argument_name,
 				ev.raw_term,
 				parsedValueStr,
 				ev.outcome as "accepted" | "corrected" | "rejected",
-				ev.timestamp
+				ev.timestamp,
 			);
 			await this.executor.exec(upsertQuery.sql, upsertQuery.params);
 		}
@@ -118,16 +131,21 @@ export class SqlMacroParseLearningStore implements MacroParseLearningStore {
 		macroId: string,
 		argumentName: string,
 		rawTerm: string,
-		parsedValue: string
+		parsedValue: string,
 	): Promise<MacroConfidenceResult> {
 		await this.ready;
-		
+
 		let accepted = 0;
 		let corrected = 0;
 		let rejected = 0;
 
 		// 1. Query aggregate hot table
-		const lookup = this.compiler.compileConfidenceLookup(macroId, argumentName, rawTerm, parsedValue);
+		const lookup = this.compiler.compileConfidenceLookup(
+			macroId,
+			argumentName,
+			rawTerm,
+			parsedValue,
+		);
 		const rows = await this.executor.query(lookup.sql, lookup.params);
 		if (rows.length > 0) {
 			const first = rows[0]!;
@@ -137,7 +155,12 @@ export class SqlMacroParseLearningStore implements MacroParseLearningStore {
 		}
 
 		// 2. Query remaining active event logs
-		const rawLookup = this.compiler.compileRawConfidenceLookup(macroId, argumentName, rawTerm, parsedValue);
+		const rawLookup = this.compiler.compileRawConfidenceLookup(
+			macroId,
+			argumentName,
+			rawTerm,
+			parsedValue,
+		);
 		const rawRows = await this.executor.query(rawLookup.sql, rawLookup.params);
 		for (const r of rawRows) {
 			const count = Number(r.count ?? 0);

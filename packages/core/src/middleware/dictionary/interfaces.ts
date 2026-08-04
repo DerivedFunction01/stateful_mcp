@@ -4,15 +4,14 @@ import type {
 	ConceptFilter,
 	ConceptRelation,
 	CustomExpression,
+	DictionaryCandidate,
 	Namespace,
 	RelatedConceptResult,
 	TraversalDirection,
 } from "./types";
 
 export interface DictionarySource {
-	lookup(
-		request: ExpressionSearchRequest,
-	): Promise<import("./types").DictionaryCandidate[]>;
+	lookup(request: ExpressionSearchRequest): DictionaryCandidate[];
 }
 
 export interface DictionarySyncState {

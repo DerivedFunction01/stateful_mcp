@@ -2,8 +2,8 @@ import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import { createCell, editCell, supersedeCell } from "./cell-factory";
 import { CellQueryCompiler } from "./cell-query-compiler";
 import type { CellStore, CreateCellRequest } from "./cell-service-types";
-import { isStructuredCellRecord } from "./structured-cell-validation";
 import type { StructuredCell } from "./structured-cell";
+import { isStructuredCellRecord } from "./structured-cell-validation";
 
 export class SqlCellStore implements CellStore {
 	private readonly compiler: CellQueryCompiler;
@@ -29,7 +29,9 @@ export class SqlCellStore implements CellStore {
 		await this.ready;
 		const query = this.compiler.listBySessionQuery(sessionId, this.table);
 		const rows = await this.executor.query(query.sql, query.params);
-		return rows.map((row) => this.fromRow(row)).filter((cell): cell is StructuredCell => Boolean(cell));
+		return rows
+			.map((row) => this.fromRow(row))
+			.filter((cell): cell is StructuredCell => Boolean(cell));
 	}
 
 	async listByCollection(
@@ -44,7 +46,9 @@ export class SqlCellStore implements CellStore {
 			this.table,
 		);
 		const rows = await this.executor.query(query.sql, query.params);
-		return rows.map((row) => this.fromRow(row)).filter((cell): cell is StructuredCell => Boolean(cell));
+		return rows
+			.map((row) => this.fromRow(row))
+			.filter((cell): cell is StructuredCell => Boolean(cell));
 	}
 
 	async save(cell: StructuredCell): Promise<void> {

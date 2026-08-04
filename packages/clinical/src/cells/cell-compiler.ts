@@ -1,3 +1,5 @@
+import type { MacroLearningTrace } from "../learning/macro-learning-types";
+import type { MacroParseLearningStore } from "../learning/macro-parse-learning-store";
 import { MacroCompiler } from "../macros/macro-compiler";
 import type { MacroStore } from "../macros/macro-definition";
 import { parseMacroLine } from "../macros/macro-input-parser";
@@ -11,12 +13,16 @@ export interface CellCompileContext {
 	sessionId?: string;
 	workspaceId?: string;
 	documentId?: string;
+	observationMode?: import("../learning/interfaces").LearningObservationMode;
+	outcome?: import("../learning/interfaces").LearningOutcome;
+	correlationId?: string;
 }
 
 export interface CellCompileResult {
 	plan?: MacroExecutionPlan;
 	diagnostics: string[];
 	fingerprint: string;
+	learningTrace?: MacroLearningTrace;
 }
 
 export class CellCompiler {
@@ -30,9 +36,14 @@ export class CellCompiler {
 		profile: SyntaxProfile = createSyntaxProfile({
 			profileId: "v2-default",
 		}),
+		macroParseStore?: MacroParseLearningStore,
 	) {
 		this.profile = profile;
-		this.compiler = new MacroCompiler({ registry, dictionary });
+		this.compiler = new MacroCompiler({
+			registry,
+			dictionary,
+			macroParseStore,
+		});
 	}
 
 	async compile(
@@ -88,13 +99,22 @@ export class CellCompiler {
 						kind: "clinical_document" as const,
 						sessionId: context.sessionId ?? "",
 					};
-		const result = await this.compiler.compile(parsed, definition, { scope });
+		const result = await this.compiler.compile(parsed, definition, {
+			scope,
+			sessionId: context.sessionId,
+			personnelId: this.profile.personnelId,
+			profileId: this.profile.profileId,
+			observationMode: context.observationMode,
+			outcome: context.outcome,
+			correlationId: context.correlationId,
+		});
 		return {
 			plan: result.plan,
 			diagnostics: result.diagnostics,
 			fingerprint:
 				result.plan?.fingerprint.value ??
 				fingerprint(rawText, definition.macroId),
+			learningTrace: result.learningTrace,
 		};
 	}
 }

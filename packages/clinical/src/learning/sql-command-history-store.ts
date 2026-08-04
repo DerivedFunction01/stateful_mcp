@@ -1,4 +1,6 @@
 import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
+import { CommandHistoryQueryCompiler } from "../stores/sql/command-history-query-compiler";
+import type { HistoryPruningConfig } from "./command-history";
 import {
 	type ArgumentUsageRecord,
 	type CommandHistoryCandidate,
@@ -7,9 +9,6 @@ import {
 	type CommandHistoryStore,
 	normalizeCommandText,
 } from "./command-history";
-import { CommandHistoryQueryCompiler } from "../stores/sql/command-history-query-compiler";
-
-import type { HistoryPruningConfig } from "./command-history";
 
 export class SqlCommandHistoryStore implements CommandHistoryStore {
 	private readonly compiler: CommandHistoryQueryCompiler;
@@ -35,15 +34,21 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 	private async consolidateAndPrune(): Promise<void> {
 		if (!this.pruningConfig) return;
 		const countQuery = this.compiler.compileCount(this.table);
-		const countRows = await this.executor.query(countQuery.sql, countQuery.params);
+		const countRows = await this.executor.query(
+			countQuery.sql,
+			countQuery.params,
+		);
 		const total = Number(countRows[0]?.count ?? 0);
 		if (total <= this.pruningConfig.maxHistoryRows) return;
 
 		const batchSize = this.pruningConfig.pruneBatchSize;
-		const pruneSelectQuery = this.compiler.compilePruneSelect(this.table, batchSize);
+		const pruneSelectQuery = this.compiler.compilePruneSelect(
+			this.table,
+			batchSize,
+		);
 		const oldEvents = await this.executor.query(
 			pruneSelectQuery.sql,
-			pruneSelectQuery.params
+			pruneSelectQuery.params,
 		);
 		if (oldEvents.length === 0) return;
 
@@ -60,12 +65,15 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 				ev.command_id ?? null,
 				isSuccess,
 				isFailure,
-				ev.executed_at
+				ev.executed_at,
 			);
 			await this.executor.exec(upsertQuery.sql, upsertQuery.params);
 
 			const getArgsQuery = this.compiler.compileGetArguments([ev.event_id]);
-			const args = await this.executor.query(getArgsQuery.sql, getArgsQuery.params);
+			const args = await this.executor.query(
+				getArgsQuery.sql,
+				getArgsQuery.params,
+			);
 			for (const arg of args) {
 				const upsertArgQuery = this.compiler.compileUpsertArgumentAggregate(
 					ev.command_id ?? ev.canonical_verb ?? "unknown",
@@ -75,13 +83,16 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 					ev.scope,
 					ev.scope_key,
 					1,
-					ev.executed_at
+					ev.executed_at,
 				);
 				await this.executor.exec(upsertArgQuery.sql, upsertArgQuery.params);
 			}
 		}
 
-		const deleteArgsQuery = this.compiler.compileDelete("command_history_arguments", eventIds);
+		const deleteArgsQuery = this.compiler.compileDelete(
+			"command_history_arguments",
+			eventIds,
+		);
 		const deleteEventsQuery = this.compiler.compileDelete(this.table, eventIds);
 		await this.executor.exec(deleteArgsQuery.sql, deleteArgsQuery.params);
 		await this.executor.exec(deleteEventsQuery.sql, deleteEventsQuery.params);
@@ -133,12 +144,15 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 
 			if (input.args) {
 				for (const arg of input.args) {
-					const argQuery = this.compiler.compileInsert("command_history_arguments", {
-						event_id: event.eventId,
-						argument_index: arg.index,
-						argument_name: arg.name ?? null,
-						argument_value: arg.value,
-					});
+					const argQuery = this.compiler.compileInsert(
+						"command_history_arguments",
+						{
+							event_id: event.eventId,
+							argument_index: arg.index,
+							argument_name: arg.name ?? null,
+							argument_value: arg.value,
+						},
+					);
 					await this.executor.exec(argQuery.sql, argQuery.params);
 				}
 			}
@@ -170,13 +184,17 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 			if (row.scope === "session") {
 				current.sessionCount += 1;
 				current.sessionLastUsedAt = current.sessionLastUsedAt
-					? (row.executed_at > current.sessionLastUsedAt ? row.executed_at : current.sessionLastUsedAt)
-					: row.executed_at as string;
+					? row.executed_at > current.sessionLastUsedAt
+						? row.executed_at
+						: current.sessionLastUsedAt
+					: (row.executed_at as string);
 			} else {
 				current.allCount += 1;
 				current.allLastUsedAt = current.allLastUsedAt
-					? (row.executed_at > current.allLastUsedAt ? row.executed_at : current.allLastUsedAt)
-					: row.executed_at as string;
+					? row.executed_at > current.allLastUsedAt
+						? row.executed_at
+						: current.allLastUsedAt
+					: (row.executed_at as string);
 			}
 			candidates.set(commandText, current);
 		}
@@ -190,17 +208,22 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 				sessionCount: 0,
 				allCount: 0,
 			};
-			const total = Number(row.success_count ?? 0) + Number(row.failure_count ?? 0);
+			const total =
+				Number(row.success_count ?? 0) + Number(row.failure_count ?? 0);
 			if (row.scope === "session") {
 				current.sessionCount += total;
 				current.sessionLastUsedAt = current.sessionLastUsedAt
-					? (row.last_used_at > current.sessionLastUsedAt ? row.last_used_at : current.sessionLastUsedAt)
-					: row.last_used_at as string;
+					? row.last_used_at > current.sessionLastUsedAt
+						? row.last_used_at
+						: current.sessionLastUsedAt
+					: (row.last_used_at as string);
 			} else {
 				current.allCount += total;
 				current.allLastUsedAt = current.allLastUsedAt
-					? (row.last_used_at > current.allLastUsedAt ? row.last_used_at : current.allLastUsedAt)
-					: row.last_used_at as string;
+					? row.last_used_at > current.allLastUsedAt
+						? row.last_used_at
+						: current.allLastUsedAt
+					: (row.last_used_at as string);
 			}
 			candidates.set(commandText, current);
 		}
@@ -237,7 +260,11 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 			JOIN command_history_arguments val ON e.event_id = val.event_id AND val.argument_index = ?
 		`;
 
-		const params: any[] = [input.sessionId, input.sessionId, input.argumentIndex];
+		const params: any[] = [
+			input.sessionId,
+			input.sessionId,
+			input.argumentIndex,
+		];
 
 		if (input.priorArguments && input.priorArguments.length > 0) {
 			for (let i = 0; i < input.priorArguments.length; i++) {
@@ -285,8 +312,12 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 				argumentValue: val,
 				sessionCount: Number(row.session_count),
 				allCount: Number(row.all_count),
-				sessionLastUsedAt: row.session_last_used_at ? String(row.session_last_used_at) : undefined,
-				allLastUsedAt: row.all_last_used_at ? String(row.all_last_used_at) : undefined,
+				sessionLastUsedAt: row.session_last_used_at
+					? String(row.session_last_used_at)
+					: undefined,
+				allLastUsedAt: row.all_last_used_at
+					? String(row.all_last_used_at)
+					: undefined,
 			});
 		}
 
@@ -303,13 +334,21 @@ export class SqlCommandHistoryStore implements CommandHistoryStore {
 			if (row.scope === "session" && row.scope_key === input.sessionId) {
 				existing.sessionCount += count;
 				existing.sessionLastUsedAt = existing.sessionLastUsedAt
-					? (row.last_used_at > existing.sessionLastUsedAt ? row.last_used_at : existing.sessionLastUsedAt)
-					: row.last_used_at ? String(row.last_used_at) : undefined;
+					? row.last_used_at > existing.sessionLastUsedAt
+						? row.last_used_at
+						: existing.sessionLastUsedAt
+					: row.last_used_at
+						? String(row.last_used_at)
+						: undefined;
 			} else {
 				existing.allCount += count;
 				existing.allLastUsedAt = existing.allLastUsedAt
-					? (row.last_used_at > existing.allLastUsedAt ? row.last_used_at : existing.allLastUsedAt)
-					: row.last_used_at ? String(row.last_used_at) : undefined;
+					? row.last_used_at > existing.allLastUsedAt
+						? row.last_used_at
+						: existing.allLastUsedAt
+					: row.last_used_at
+						? String(row.last_used_at)
+						: undefined;
 			}
 			usageMap.set(val, existing);
 		}

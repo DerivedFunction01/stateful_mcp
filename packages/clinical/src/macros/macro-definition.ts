@@ -7,6 +7,7 @@
  * are reference material for Phase 3 and MUST NOT be imported by .
  */
 
+import type { PipelineStep } from "@stateful-mcp/core";
 import type { MergeStrategy } from "../values/merge";
 import type { TemporalValueType, TypedValueKind } from "../values/typed-value";
 
@@ -55,7 +56,7 @@ export interface MeasurementConstraintSpec {
 }
 
 export interface PipelineConditionSpec {
-	pipeline: import("@stateful-mcp/core").PipelineStep[];
+	pipeline: PipelineStep[];
 	message?: string;
 }
 

@@ -1,73 +1,65 @@
-// ── Autocomplete Transition Store ───────────────────────────────────────────
+// ── Macro transition learning ────────────────────────────────────────────────
 
-export interface AutocompleteFeature {
-	key: string;
-	value: string | null;
-	numericalValue: number | null;
-}
+import type { AutocompleteSuggestionKind } from "../stores/auto-complete/interfaces";
 
-export interface AutocompleteTransitionKey {
-	personnelId: string;
-	templateId: string;
-	fromSlot: string;
-	toSlot: string;
-	featureKey: string;
-	featureValue?: string;
-}
+export type LearningScope = "personal" | "global";
+export type LearningObservationMode = "live" | "preview" | "execution";
+export type LearningOutcome = "positive" | "negative" | "corrected";
 
-export interface AutocompleteTransitionRecord {
-	personnelId: string;
-	templateId: string;
+export interface MacroTransitionKey {
+	macroId: string;
+	macroVersion: number;
 	fromSlot: string;
 	toSlot: string;
 	featureKey: string;
 	featureValue: string | null;
-	numericalValue: number | null;
-	selectionCount: number;
+	scope: LearningScope;
+	scopeKey: string;
+	observationMode: LearningObservationMode;
+}
+
+export interface MacroTransitionObservation extends MacroTransitionKey {
+	numericalValue?: number | null;
+	outcome?: LearningOutcome;
+	occurredAt?: string;
+	sessionId?: string;
+	observationId?: string;
+}
+
+export interface MacroTransitionRecord extends MacroTransitionKey {
+	transitionCount: number;
 	lastUpdatedAt: string;
 }
 
-export interface AutocompleteTransitionInsertPlan {
-	table: string;
-	personnelId: string;
-	templateId: string;
-	fromSlot: string;
-	toSlot: string;
-	featureKey: string;
-	featureValue: string | null;
-	numericalValue: number | null;
-	selectionCount: number;
-	lastUpdatedAt: string;
+export interface NumericFeatureStatistics {
+	count: number;
+	mean: number;
+	standardDeviationPopulation: number | null;
+	lastUpdatedAt?: string;
 }
 
-export interface AutocompleteTransitionDecayedAggregatePlan {
-	table: string;
-	personnelId: string;
-	templateId: string;
+export interface MacroTransitionQuery {
+	macroId: string;
+	macroVersion: number;
 	fromSlot: string;
-	halfLifeDays: number;
+	scope: LearningScope;
+	scopeKey: string;
+	observationModes?: readonly LearningObservationMode[];
+	featureKey?: string;
+	featureValue?: string | null;
+	toSlots?: readonly string[];
 }
 
-export interface AutocompleteTransitionContinuousAggregatePlan {
-	table: string;
-	personnelId: string;
-	templateId: string;
-	fromSlot: string;
-	featureKey: string;
+export interface MacroTransitionStore {
+	increment(observation: MacroTransitionObservation): Promise<void>;
+	getByFromSlot(query: MacroTransitionQuery): Promise<MacroTransitionRecord[]>;
+	getNumericStatistics(
+		query: MacroTransitionQuery,
+	): Promise<Record<string, NumericFeatureStatistics>>;
 }
 
-export interface AutocompleteTransitionStore {
-	increment(plan: AutocompleteTransitionInsertPlan): Promise<void>;
-	getByFromSlot(
-		key: AutocompleteTransitionKey,
-	): Promise<AutocompleteTransitionRecord[]>;
-	getDecayedAggregate(
-		plan: AutocompleteTransitionDecayedAggregatePlan,
-	): Promise<Record<string, number>>;
-	getContinuousAggregate(
-		plan: AutocompleteTransitionContinuousAggregatePlan,
-	): Promise<Record<string, { mu: number; sigmaSq: number }>>;
-}
+/** Compatibility name for the previously declared, unused interface. */
+export type AutocompleteTransitionStore = MacroTransitionStore;
 
 export interface SystemWeightStore {
 	getWeight(category: string, key: string, subKey?: string): Promise<number>;
@@ -83,10 +75,23 @@ export interface SystemWeightStore {
 		delta: number,
 		subKey?: string,
 	): Promise<void>;
+	applyFeedback(update: SystemWeightFeedbackUpdate): Promise<number>;
 	getWeightsForCategory(
 		category: string,
 		key: string,
 	): Promise<Record<string, number>>;
+}
+
+export interface SystemWeightFeedbackUpdate {
+	category: string;
+	key: string;
+	subKey?: string;
+	delta: number;
+	learningRate?: number;
+	min?: number;
+	max?: number;
+	signal: LearningOutcome;
+	correlationId?: string;
 }
 
 // ── N-Gram Store ──────────────────────────────────────────────────────────────
@@ -94,7 +99,7 @@ export interface SystemWeightStore {
 export interface NgramRecord {
 	ngram: string;
 	n: 1 | 2 | 3;
-	kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind;
+	kind: AutocompleteSuggestionKind;
 	frequency: number;
 	lastUpdatedAt: string;
 	templateId?: string;
@@ -104,7 +109,7 @@ export interface NgramRecord {
 export interface NgramSuggestion {
 	ngram: string;
 	n: 1 | 2 | 3;
-	kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind;
+	kind: AutocompleteSuggestionKind;
 	frequency: number;
 	lastUpdatedAt: string;
 }
@@ -113,12 +118,12 @@ export interface NgramStore {
 	increment(
 		ngram: string,
 		n: 1 | 2 | 3,
-		kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind,
+		kind: AutocompleteSuggestionKind,
 		ctx?: { templateId?: string; slotName?: string },
 	): Promise<void>;
 	suggest(prefix: string, limit?: number): Promise<NgramSuggestion[]>;
 	getTopByKind(
-		kind: import("../stores/auto-complete/interfaces").AutocompleteSuggestionKind,
+		kind: AutocompleteSuggestionKind,
 		limit?: number,
 	): Promise<NgramSuggestion[]>;
 }

@@ -8,7 +8,9 @@ import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
 import type { ClinicalEngine } from "../engine/clinical-engine-v2";
 import { ClinicalEngineBuilder } from "../engine/clinical-engine-v2-builder";
 import type { ClinicalRuntime } from "../engine/clinical-runtime-v2";
+import { MacroLearningService } from "../learning/macro-learning-service";
 import { createSyntaxProfile } from "../macros/macro-profile";
+import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
 import {
 	type ColdStartOptions,
 	type ColdStartState,
@@ -24,7 +26,7 @@ export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
 	dbPath?: string;
 	syntaxProfile?: CommandSyntaxProfile;
-	numericalProfile?: import("../values/numerical-syntax-profile").NumericalSyntaxProfile;
+	numericalProfile?: NumericalSyntaxProfile;
 	dictionaryConfig?: DictionaryConfig;
 	valueRules?: ColdStartOptions["valueRules"];
 }
@@ -36,6 +38,7 @@ export interface ClinicalBootstrapResult {
 	runtime: ClinicalRuntime;
 	dictionary: DictionaryStore;
 	syntaxProfile: CommandSyntaxProfile;
+	learningService: MacroLearningService;
 }
 
 export class ClinicalBootstrap {
@@ -99,6 +102,12 @@ async function buildClinicalBootstrap(
 	});
 
 	const commandProfile = coldStart.commandProfile;
+	await seedMacroLearningWeights(stores.systemWeightStore);
+	const learningService = new MacroLearningService({
+		transitionStore: stores.macroTransitionStore,
+		weightStore: stores.systemWeightStore,
+		parseStore: stores.macroParseLearningStore,
+	});
 	const cellCompiler = new CellCompiler(
 		stores.macroStore,
 		coldStart.schemaRegistry,
@@ -107,6 +116,7 @@ async function buildClinicalBootstrap(
 			...commandProfile,
 			profileId: commandProfile.profileId,
 		}),
+		stores.macroParseLearningStore,
 	);
 
 	const engine = new ClinicalEngineBuilder()
@@ -117,6 +127,7 @@ async function buildClinicalBootstrap(
 		.withWorkspaceStore(stores.workspaceStore)
 		.withCellStore(stores.cellStore)
 		.withCellCompiler(cellCompiler.compile.bind(cellCompiler))
+		.withMacroLearningService(learningService)
 		.withProjectionStore(stores.projectionStore)
 		.withArchiveStore(stores.archiveStore)
 		.withJournal(stores.journal)
@@ -130,5 +141,26 @@ async function buildClinicalBootstrap(
 		runtime: engine.getRuntime(),
 		dictionary,
 		syntaxProfile: commandProfile,
+		learningService,
 	};
+}
+
+async function seedMacroLearningWeights(
+	store: StoreBuilderResult["systemWeightStore"],
+): Promise<void> {
+	const weights: ReadonlyArray<[string, string, string, number]> = [
+		["macro.transition", "scope", "personal", 0.7],
+		["macro.transition", "scope", "global", 0.3],
+		["macro.transition", "mode", "live", 0.25],
+		["macro.transition", "mode", "preview", 0.5],
+		["macro.transition", "mode", "execution", 1],
+		["macro.rank", "feature", "transition", 1],
+		["macro.rank", "feature", "numericFit", 1],
+		["macro.rank", "feature", "parseConfidence", 1],
+		["macro.rank", "feature", "recency", 1],
+	];
+	for (const [category, key, subKey, value] of weights) {
+		const current = await store.getWeight(category, key, subKey);
+		if (current === 1) await store.setWeight(category, key, value, subKey);
+	}
 }

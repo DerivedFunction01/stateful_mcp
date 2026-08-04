@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { KvBackend } from "@stateful-mcp/core";
-import type { AutocompleteSuggestionKind } from "../src/stores/auto-complete/interfaces";
 import { KvNgramStore } from "../src/learning/autocomplete/kv-ngram-store";
+import type { AutocompleteSuggestionKind } from "../src/stores/auto-complete/interfaces";
 
 class CountingKvBackend implements KvBackend {
 	data: Record<string, unknown> = {};

@@ -19,7 +19,13 @@ export interface ArgumentCompletionCandidate {
 	value: string;
 	label?: string;
 	detailKey?: string;
-	source: "static" | "history" | "scope" | "dictionary" | "transition" | "profile";
+	source:
+		| "static"
+		| "history"
+		| "scope"
+		| "dictionary"
+		| "transition"
+		| "profile";
 	valid: boolean;
 	baseScore?: number;
 }
@@ -32,5 +38,8 @@ export interface ArgumentCompletionProvider {
 }
 
 export interface VariableScopeReader {
-	getScope(sessionId: string, blockInstanceId?: string): Promise<Record<string, unknown>>;
+	getScope(
+		sessionId: string,
+		blockInstanceId?: string,
+	): Promise<Record<string, unknown>>;
 }

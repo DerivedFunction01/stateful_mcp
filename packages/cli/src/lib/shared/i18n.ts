@@ -80,7 +80,8 @@ const en: Record<string, string> = {
 	"help.binding.extendUp": "extend up",
 	"help.binding.swapAnchor": "swap selection anchor",
 	"help.workspaceTitle": "WORKSPACE HELP",
-	"help.workspace.hints": "Enter newline · Ctrl-Enter submit · Tab/arrows completion · Esc cancel/back",
+	"help.workspace.hints":
+		"Enter newline · Ctrl-Enter submit · Tab/arrows completion · Esc cancel/back",
 
 	// Cell info inspector
 	"inspector.title": "CELL INSPECTOR",
@@ -165,7 +166,8 @@ const en: Record<string, string> = {
 	"history.time.daysAgo": "{value}d ago",
 	"history.empty": "No command history",
 	"history.noMatches": "No matching commands",
-	"history.hints": "↑/↓ move  Enter insert  Tab scope  s sort  / filter  Esc close",
+	"history.hints":
+		"↑/↓ move  Enter insert  Tab scope  s sort  / filter  Esc close",
 
 	// Editor command args
 	"arg.mode.executionMode": "preview|execute",

@@ -34,7 +34,9 @@ export class KvMacroParseLearningStore implements MacroParseLearningStore {
 		return next;
 	}
 
-	async recordFeedback(feedback: Omit<MacroParseFeedbackRecord, "id" | "timestamp">): Promise<void> {
+	async recordFeedback(
+		feedback: Omit<MacroParseFeedbackRecord, "id" | "timestamp">,
+	): Promise<void> {
 		await this.enqueueWrite(async () => {
 			const data = await this.ensureLoaded();
 			const id = crypto.randomUUID();
@@ -98,10 +100,10 @@ export class KvMacroParseLearningStore implements MacroParseLearningStore {
 		macroId: string,
 		argumentName: string,
 		rawTerm: string,
-		parsedValue: string
+		parsedValue: string,
 	): Promise<MacroConfidenceResult> {
 		const data = await this.ensureLoaded();
-		
+
 		let accepted = 0;
 		let corrected = 0;
 		let rejected = 0;

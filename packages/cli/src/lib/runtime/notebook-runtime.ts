@@ -65,7 +65,10 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 					await opts.executeVariableCommand(`:var ${rest}`.trim()),
 				);
 			}
-			if (verb.toLowerCase() === "cell" && rest.trim().toLowerCase() === "cancel") {
+			if (
+				verb.toLowerCase() === "cell" &&
+				rest.trim().toLowerCase() === "cancel"
+			) {
 				const success = await notebook.cancelActive();
 				return commandResultToEffects({
 					success,

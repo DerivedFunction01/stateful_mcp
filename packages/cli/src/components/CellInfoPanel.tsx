@@ -60,46 +60,29 @@ export function CellInfoPanel({ cell, onClose }: CellInfoPanelProps) {
 				</Text>
 			)}
 			{cell.provenance.compatibilitySignature && (
-				<Text>
-					compatibility:{" "}
-					{cell.provenance.compatibilitySignature}
-				</Text>
+				<Text>compatibility: {cell.provenance.compatibilitySignature}</Text>
 			)}
 			{cell.relationships.supersedesCellId && (
-				<Box
-					flexDirection="column"
-					marginTop={1}
-				>
+				<Box flexDirection="column" marginTop={1}>
 					<Text bold color="cyan">
 						Relationships
 					</Text>
-					<Text>
-						supersedes:{" "}
-						{cell.relationships.supersedesCellId}
-					</Text>
+					<Text>supersedes: {cell.relationships.supersedesCellId}</Text>
 				</Box>
 			)}
-			{cell.relationships.links &&
-				cell.relationships.links.length > 0 && (
-					<Box
-						flexDirection="column"
-						marginTop={1}
-					>
-						<Text bold color="cyan">
-							Links
+			{cell.relationships.links && cell.relationships.links.length > 0 && (
+				<Box flexDirection="column" marginTop={1}>
+					<Text bold color="cyan">
+						Links
+					</Text>
+					{cell.relationships.links.map((link, linkIndex) => (
+						<Text key={link.linkId}>
+							{link.targetSchema}/{link.targetField}: {link.targetCellId} (
+							{link.mergeStrategy})
 						</Text>
-						{cell.relationships.links.map(
-							(link, linkIndex) => (
-								<Text key={link.linkId}>
-									{link.targetSchema}/
-									{link.targetField}:{" "}
-									{link.targetCellId} (
-									{link.mergeStrategy})
-								</Text>
-							),
-						)}
-					</Box>
-				)}
+					))}
+				</Box>
+			)}
 			<Text color="gray">Esc/Enter to close</Text>
 		</Box>
 	);

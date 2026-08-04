@@ -9,9 +9,7 @@ export interface SessionState {
 	notebook: any;
 }
 
-export function useSession(
-	preferredSessionId?: string,
-): SessionState | null {
+export function useSession(preferredSessionId?: string): SessionState | null {
 	const [state, setState] = useState<SessionState | null>(null);
 
 	useEffect(() => {

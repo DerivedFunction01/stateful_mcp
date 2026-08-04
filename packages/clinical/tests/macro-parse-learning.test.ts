@@ -1,12 +1,18 @@
 import { describe, expect, it } from "bun:test";
-import { SqlMacroParseLearningStore, type MacroParseLearningStore } from "../src/learning/macro-parse-learning-store";
+import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import { KvMacroParseLearningStore } from "../src/learning/kv-macro-parse-learning-store";
+import {
+	type MacroParseLearningStore,
+	SqlMacroParseLearningStore,
+} from "../src/learning/macro-parse-learning-store";
 import { MacroCompiler } from "../src/macros/macro-compiler";
 import type { MacroDefinition } from "../src/macros/macro-definition";
 import { createDefaultSchemaRegistry } from "../src/schemas/default-registry";
-import { SqlBackend, SqlExecutor, MemoryKvBackend } from "@stateful-mcp/core";
 
-async function makeSqlStore(maxHistoryRows?: number, pruneBatchSize?: number): Promise<{ store: MacroParseLearningStore; executor: SqlExecutor }> {
+async function makeSqlStore(
+	maxHistoryRows?: number,
+	pruneBatchSize?: number,
+): Promise<{ store: MacroParseLearningStore; executor: SqlExecutor }> {
 	const backend = await SqlBackend.connect("sqlite", ":memory:");
 	const executor = new SqlExecutor(backend);
 	const store = new SqlMacroParseLearningStore(
@@ -14,17 +20,20 @@ async function makeSqlStore(maxHistoryRows?: number, pruneBatchSize?: number): P
 		executor,
 		maxHistoryRows !== undefined && pruneBatchSize !== undefined
 			? { maxHistoryRows, pruneBatchSize }
-			: undefined
+			: undefined,
 	);
 	return { store, executor };
 }
 
-function makeKvStore(maxHistoryRows?: number, pruneBatchSize?: number): MacroParseLearningStore {
+function makeKvStore(
+	maxHistoryRows?: number,
+	pruneBatchSize?: number,
+): MacroParseLearningStore {
 	return new KvMacroParseLearningStore(
 		new MemoryKvBackend(),
 		maxHistoryRows !== undefined && pruneBatchSize !== undefined
 			? { maxHistoryRows, pruneBatchSize }
-			: undefined
+			: undefined,
 	);
 }
 
@@ -41,7 +50,7 @@ describe("macro parse feedback learning store", () => {
 			rawTerm: "2hr",
 			parsedValue: '{"value":2,"unit":"h"}',
 			correctedValue: null,
-			outcome: "accepted"
+			outcome: "accepted",
 		});
 
 		await store.recordFeedback({
@@ -52,10 +61,13 @@ describe("macro parse feedback learning store", () => {
 			rawTerm: "2hr",
 			parsedValue: '{"value":2,"unit":"h"}',
 			correctedValue: null,
-			outcome: "accepted"
+			outcome: "accepted",
 		});
 
-		let rawCount = await executor.query("SELECT COUNT(*) as count FROM macro_parse_events", []);
+		let rawCount = await executor.query(
+			"SELECT COUNT(*) as count FROM macro_parse_events",
+			[],
+		);
 		expect(Number(rawCount[0].count)).toBe(2);
 
 		// Record 3rd -> triggers prune
@@ -67,18 +79,29 @@ describe("macro parse feedback learning store", () => {
 			rawTerm: "2hr",
 			parsedValue: '{"value":2,"unit":"h"}',
 			correctedValue: "3hr",
-			outcome: "corrected"
+			outcome: "corrected",
 		});
 
-		rawCount = await executor.query("SELECT COUNT(*) as count FROM macro_parse_events", []);
+		rawCount = await executor.query(
+			"SELECT COUNT(*) as count FROM macro_parse_events",
+			[],
+		);
 		expect(Number(rawCount[0].count)).toBe(2);
 
-		const aggregates = await executor.query("SELECT accepted_count, corrected_count FROM macro_parse_aggregates", []);
+		const aggregates = await executor.query(
+			"SELECT accepted_count, corrected_count FROM macro_parse_aggregates",
+			[],
+		);
 		expect(aggregates).toHaveLength(1);
 		expect(Number(aggregates[0].accepted_count)).toBe(1);
 		expect(Number(aggregates[0].corrected_count)).toBe(0);
 
-		const confidence = await store.getConfidence("onset_macro", "onset", "2hr", '{"value":2,"unit":"h"}');
+		const confidence = await store.getConfidence(
+			"onset_macro",
+			"onset",
+			"2hr",
+			'{"value":2,"unit":"h"}',
+		);
 		expect(confidence.sampleSize).toBe(3);
 		expect(confidence.score).toBe((2 + 1) / (3 + 2));
 	});
@@ -95,7 +118,7 @@ describe("macro parse feedback learning store", () => {
 			rawTerm: "2hr",
 			parsedValue: '{"value":2,"unit":"h"}',
 			correctedValue: null,
-			outcome: "accepted"
+			outcome: "accepted",
 		});
 
 		await store.recordFeedback({
@@ -106,10 +129,15 @@ describe("macro parse feedback learning store", () => {
 			rawTerm: "2hr",
 			parsedValue: '{"value":2,"unit":"h"}',
 			correctedValue: null,
-			outcome: "accepted"
+			outcome: "accepted",
 		});
 
-		let confidence = await store.getConfidence("onset_macro", "onset", "2hr", '{"value":2,"unit":"h"}');
+		let confidence = await store.getConfidence(
+			"onset_macro",
+			"onset",
+			"2hr",
+			'{"value":2,"unit":"h"}',
+		);
 		expect(confidence.sampleSize).toBe(2);
 		expect(confidence.score).toBe((2 + 1) / (2 + 2));
 
@@ -122,10 +150,15 @@ describe("macro parse feedback learning store", () => {
 			rawTerm: "2hr",
 			parsedValue: '{"value":2,"unit":"h"}',
 			correctedValue: "3hr",
-			outcome: "corrected"
+			outcome: "corrected",
 		});
 
-		confidence = await store.getConfidence("onset_macro", "onset", "2hr", '{"value":2,"unit":"h"}');
+		confidence = await store.getConfidence(
+			"onset_macro",
+			"onset",
+			"2hr",
+			'{"value":2,"unit":"h"}',
+		);
 		expect(confidence.sampleSize).toBe(3);
 		expect(confidence.score).toBe((2 + 1) / (3 + 2));
 	});
@@ -139,15 +172,16 @@ describe("macro parse feedback learning store", () => {
 			argumentName: "onset",
 			argumentKind: "temporal",
 			rawTerm: "2d",
-			parsedValue: '{"kind":"temporal","temporalType":"duration","value":"2d","rawText":"2d","evidence":[{"source":"temporal_pattern"}]}',
+			parsedValue:
+				'{"kind":"temporal","temporalType":"duration","value":"2d","rawText":"2d","evidence":[{"source":"temporal_pattern"}]}',
 			correctedValue: null,
-			outcome: "accepted"
+			outcome: "accepted",
 		});
 
 		const registry = createDefaultSchemaRegistry();
 		const compiler = new MacroCompiler({
 			registry,
-			macroParseStore: store
+			macroParseStore: store,
 		});
 
 		const definition: MacroDefinition = {
@@ -173,22 +207,28 @@ describe("macro parse feedback learning store", () => {
 					},
 					target: {
 						targetSchema: "Observation",
-						targetPath: "duration"
-					}
-				}
-			]
+						targetPath: "duration",
+					},
+				},
+			],
 		};
 
 		const result = await compiler.compile(
 			{
 				macroName: "onset",
 				sourceLines: [{ line: 1, raw: "onset 2d" }],
-				arguments: [{ rawValue: "2d", source: "positional", position: 0, start: 6, end: 8 }]
+				arguments: [
+					{
+						rawValue: "2d",
+						source: "positional",
+						position: 0,
+						start: 6,
+						end: 8,
+					},
+				],
 			},
-			definition
+			definition,
 		);
-
-
 
 		expect(result.confidence).toBeDefined();
 		expect(result.confidence?.onset).toBeDefined();

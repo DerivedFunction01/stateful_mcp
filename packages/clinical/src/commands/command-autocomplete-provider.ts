@@ -1,3 +1,5 @@
+import type { MacroLearningService } from "../learning/macro-learning-service";
+import { MacroAutocomplete } from "../macros/macro-autocomplete";
 import type { MacroStore } from "../macros/macro-definition";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import type {
@@ -9,18 +11,27 @@ import {
 	createCommandSyntaxProfile,
 } from "./command-syntax-profile";
 
-import { MacroAutocomplete } from "../macros/macro-autocomplete";
-
 export async function getCommandBarSuggestions(
 	context: CommandAutocompleteContext,
-	options: { macroStore?: MacroStore; schemaRegistry?: SchemaRegistry; dictionary?: any } = {},
+	options: {
+		macroStore?: MacroStore;
+		schemaRegistry?: SchemaRegistry;
+		dictionary?: any;
+		learningService?: MacroLearningService;
+	} = {},
 	profile: CommandSyntaxProfile = createCommandSyntaxProfile({
 		profileId: "v2-default",
 	}),
 ): Promise<CommandSuggestion[]> {
 	const input = context.input.slice(0, context.cursorOffset);
 	if (input.startsWith(profile.macroStartToken))
-		return macroSuggestions(input, options.macroStore, profile, options);
+		return macroSuggestions(
+			input,
+			options.macroStore,
+			profile,
+			context,
+			options,
+		);
 	if (!input.startsWith(profile.directCommandToken)) return [];
 	const commandText = input.slice(profile.directCommandToken.length);
 	const [verb = "", ...args] = commandText.split(/\s+/);
@@ -93,24 +104,38 @@ async function macroSuggestions(
 	input: string,
 	store: MacroStore | undefined,
 	profile: CommandSyntaxProfile,
-	options: { macroStore?: MacroStore; schemaRegistry?: SchemaRegistry; dictionary?: any } = {},
+	context: CommandAutocompleteContext,
+	options: {
+		macroStore?: MacroStore;
+		schemaRegistry?: SchemaRegistry;
+		dictionary?: any;
+		learningService?: MacroLearningService;
+	} = {},
 ): Promise<CommandSuggestion[]> {
 	if (!store) return [];
 	const prefix =
 		input.slice(profile.macroStartToken.length).split(/\s+/)[0] ?? "";
 	const definitions = await store.list();
-	const macroName = input.slice(profile.macroStartToken.length).trim().split(/\s+/)[0] ?? "";
+	const macroName =
+		input.slice(profile.macroStartToken.length).trim().split(/\s+/)[0] ?? "";
 	if (input.slice(profile.macroStartToken.length).includes(" ")) {
-		const definition = definitions.find((item) => item.active && item.macroName === macroName);
+		const definition = definitions.find(
+			(item) => item.active && item.macroName === macroName,
+		);
 		if (!definition) return [];
 
 		const lastSpaceIndex = input.lastIndexOf(" ");
-		const currentWord = lastSpaceIndex === -1 ? "" : input.slice(lastSpaceIndex + 1);
+		const currentWord =
+			lastSpaceIndex === -1 ? "" : input.slice(lastSpaceIndex + 1);
 
 		const autocompleter = new MacroAutocomplete({
 			macros: store,
 			dictionary: options.dictionary,
-			filterStore: options.dictionary?.resolver?.options?.filterStore || options.dictionary?.filterStore || options.dictionary?.resolver?.filterStore
+			filterStore:
+				options.dictionary?.resolver?.options?.filterStore ||
+				options.dictionary?.filterStore ||
+				options.dictionary?.resolver?.filterStore,
+			learningService: options.learningService,
 		});
 
 		// A. Explicit value autocomplete: e.g. argName=val
@@ -123,22 +148,44 @@ async function macroSuggestions(
 				query: valuePrefix,
 				macroName,
 				argumentName,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+				filledSlots: context.filledSlots,
+				previousSlot: context.previousSlot,
+				personnelId: context.personnelId,
 			});
 
 			return suggestions.map((s) => ({
 				label: s.label,
-				insertText: input.slice(0, lastSpaceIndex + 1) + argumentName + "=" + s.value,
+				insertText:
+					input.slice(0, lastSpaceIndex + 1) + argumentName + "=" + s.value,
 				kind: "value" as const,
 				detail: s.detail,
 				source: "context" as const,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+				argumentId: definition.arguments.find(
+					(argument) =>
+						argument.name === argumentName ||
+						argument.roleName === argumentName ||
+						argument.aliases?.includes(argumentName),
+				)?.argumentId,
 			}));
 		}
 
 		// B. Token-based overrides (e.g. starting with @ or #)
-		if (currentWord.startsWith(profile.conceptToken) || currentWord.startsWith(profile.expressionToken)) {
+		if (
+			currentWord.startsWith(profile.conceptToken) ||
+			currentWord.startsWith(profile.expressionToken)
+		) {
 			const suggestions = await autocompleter.suggest({
 				query: currentWord,
 				macroName,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+				filledSlots: context.filledSlots,
+				previousSlot: context.previousSlot,
+				personnelId: context.personnelId,
 			});
 			return suggestions.map((s) => ({
 				label: s.label,
@@ -146,13 +193,18 @@ async function macroSuggestions(
 				kind: "value" as const,
 				detail: s.detail,
 				source: "context" as const,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
 			}));
 		}
 
 		// C. Suggest allowed values of all arguments matching prefix (natural typing)
 		const valueSuggestions: CommandSuggestion[] = [];
 		for (const argument of definition.arguments) {
-			const suggestions = await (autocompleter as any).suggestValueForArgument(argument, currentWord);
+			const suggestions = await (autocompleter as any).suggestValueForArgument(
+				argument,
+				currentWord,
+			);
 			for (const s of suggestions) {
 				valueSuggestions.push({
 					label: s.label,
@@ -168,13 +220,28 @@ async function macroSuggestions(
 			return valueSuggestions;
 		}
 
-		return definition.arguments.map((argument) => ({
-			label: `${argument.roleName}=`,
-			insertText: `${argument.roleName}=`,
+		const argumentSuggestions = await autocompleter.suggest({
+			query: currentWord,
+			scope: "argument",
+			macroName,
+			macroId: definition.macroId,
+			macroVersion: definition.version,
+			filledSlots: context.filledSlots,
+			previousSlot: context.previousSlot,
+			personnelId: context.personnelId,
+		});
+		return argumentSuggestions.map((suggestion) => ({
+			label: `${suggestion.label}=`,
+			insertText: `${suggestion.value}=`,
 			kind: "argument" as const,
-			detail: definition.description,
+			detail: suggestion.detail ?? definition.description,
 			source: "context" as const,
-			argName: argument.roleName,
+			argName: suggestion.value,
+			macroId: definition.macroId,
+			macroVersion: definition.version,
+			argumentId: definition.arguments.find(
+				(argument) => argument.name === suggestion.value,
+			)?.argumentId,
 		}));
 	}
 	return definitions

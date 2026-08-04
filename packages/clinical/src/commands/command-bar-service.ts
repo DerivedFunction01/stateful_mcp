@@ -124,26 +124,45 @@ export class CommandBarService {
 					let value: unknown;
 					if (this.variableCellService) {
 						({ value } = await this.variableCellService.execute(
-						input.sessionId,
-						{ kind: "notebook", collectionId: input.sessionId },
-						input.rawText,
+							input.sessionId,
+							{ kind: "notebook", collectionId: input.sessionId },
+							input.rawText,
 						));
 					} else {
 						if (!this.variableService)
-							return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: "variable service is not configured" };
-						value = await this.variableService.execute(input.sessionId, preview.intent.variableStatement);
+							return {
+								status: "failed",
+								transactionId: "",
+								planFingerprint: preview.fingerprint,
+								error: "variable service is not configured",
+							};
+						value = await this.variableService.execute(
+							input.sessionId,
+							preview.intent.variableStatement,
+						);
 					}
 					const statement = preview.intent.variableStatement;
 					const operation = statement.kind;
-					const name = "target" in statement ? statement.target.name : undefined;
+					const name =
+						"target" in statement ? statement.target.name : undefined;
 					return {
 						status: "committed",
 						transactionId: `variable:${input.sessionId}`,
 						planFingerprint: preview.fingerprint,
-						variable: { operation, name, value, serialized: serializeVariableValue(value) },
+						variable: {
+							operation,
+							name,
+							value,
+							serialized: serializeVariableValue(value),
+						},
 					};
 				} catch (error) {
-					return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: error instanceof Error ? error.message : String(error) };
+					return {
+						status: "failed",
+						transactionId: "",
+						planFingerprint: preview.fingerprint,
+						error: error instanceof Error ? error.message : String(error),
+					};
 				}
 			}
 			return {

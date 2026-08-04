@@ -1,11 +1,14 @@
-import type { TemporalDirection, TimePrecisionLevel } from "../schemas/schemas-interface/time";
 import { UNIT_DISPLAY_MAP } from "../schemas/schemas-interface/measurement";
+import type {
+	TemporalDirection,
+	TimePrecisionLevel,
+} from "../schemas/schemas-interface/time";
+import type { NumericFieldFormatOptions } from "../stores/interfaces";
 import type { DateTimeFormatConfig } from "./utils/date-regex-generator";
 import {
-	NumberWordNormalizer,
 	type NumberWordConfig,
+	NumberWordNormalizer,
 } from "./utils/number-word-normalizer";
-import type { NumericFieldFormatOptions } from "../stores/interfaces";
 
 /** The temporal configuration sub-object embedded in NumericalSyntaxProfile. */
 export interface TemporalSyntaxConfig {
@@ -44,7 +47,8 @@ export interface NumericalSyntaxProfile {
 }
 
 export function createNumericalSyntaxProfile(
-	profile: Partial<NumericalSyntaxProfile> & Pick<NumericalSyntaxProfile, "profileId">,
+	profile: Partial<NumericalSyntaxProfile> &
+		Pick<NumericalSyntaxProfile, "profileId">,
 	defaults?: NumericalSyntaxProfileDefaults,
 ): NumericalSyntaxProfile {
 	const temporal: TemporalSyntaxConfig = {

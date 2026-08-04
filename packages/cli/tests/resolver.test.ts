@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { resolveInitialSession } from "../src/lib/session/resolver";
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
+import { resolveInitialSession } from "../src/lib/session/resolver";
 
 function createStore(
 	records: { sessionId: string; updatedAt: string }[],

@@ -1,4 +1,6 @@
 import type { ExecutionResult } from "../engine/clinical-engine-v2";
+import type { MacroLearningService } from "../learning/macro-learning-service";
+import type { MacroLearningTrace } from "../learning/macro-learning-types";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
 import type { DeleteEligibility } from "../notebook/notebook-state";
 import { NotebookPreviewWorkflow } from "../notebook/preview-workflow";
@@ -27,9 +29,11 @@ export interface StructuredCellServiceDeps {
 		plan?: MacroExecutionPlan;
 		diagnostics: string[];
 		fingerprint: string;
+		learningTrace?: MacroLearningTrace;
 	}>;
 	previewWorkflow?: NotebookPreviewWorkflow;
 	executePlan?: (plan: MacroExecutionPlan) => Promise<ExecutionResult>;
+	learningService?: MacroLearningService;
 }
 
 export class StructuredCellService {
@@ -37,6 +41,7 @@ export class StructuredCellService {
 	private readonly compile: StructuredCellServiceDeps["compile"];
 	private readonly previewWorkflow: NotebookPreviewWorkflow;
 	private executePlan?: StructuredCellServiceDeps["executePlan"];
+	private readonly learningService?: MacroLearningService;
 
 	constructor(deps: StructuredCellServiceDeps) {
 		this.store = deps.store;
@@ -45,6 +50,7 @@ export class StructuredCellService {
 			deps.previewWorkflow ??
 			new NotebookPreviewWorkflow({ compile: deps.compile });
 		this.executePlan = deps.executePlan;
+		this.learningService = deps.learningService;
 	}
 
 	setPlanExecutor(
@@ -127,6 +133,14 @@ export class StructuredCellService {
 			throw new Error(
 				`Cell '${cell.cellId}' did not produce an execution plan`,
 			);
+		if (compiled.learningTrace && this.learningService) {
+			await this.learningService.recordTrace({
+				...compiled.learningTrace,
+				observationMode: "execution",
+				outcome: "positive",
+				correlationId: request.idempotencyKey,
+			});
+		}
 		if (!this.executePlan)
 			throw new Error("StructuredCellService execution is not configured");
 		const plan: MacroExecutionPlan = {

@@ -4,6 +4,7 @@ import type {
 	CommandSuggestion,
 } from "../commands/command-bar-types";
 import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import type { MacroLearningService } from "../learning/macro-learning-service";
 import type { MacroStore } from "../macros/macro-definition";
 import type { SchemaRegistry } from "../schemas/schema-registry";
 
@@ -13,6 +14,7 @@ export function getNotebookAutocomplete(
 	dependencies: {
 		macroStore?: MacroStore;
 		schemaRegistry?: SchemaRegistry;
+		learningService?: MacroLearningService;
 		profile?: CommandSyntaxProfile;
 	} = {},
 ): Promise<CommandSuggestion[]> {

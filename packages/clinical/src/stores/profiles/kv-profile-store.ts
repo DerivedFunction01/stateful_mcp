@@ -1,8 +1,14 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { UnifiedProfileRecord, UnifiedProfileStore } from "./profile-store";
+import type {
+	UnifiedProfileRecord,
+	UnifiedProfileStore,
+} from "./profile-store";
 
 export class KvProfileStore implements UnifiedProfileStore {
-	constructor(private readonly backend: KvBackend, private readonly prefix = "v2:profile:") {}
+	constructor(
+		private readonly backend: KvBackend,
+		private readonly prefix = "v2:profile:",
+	) {}
 
 	async get(profileId: string): Promise<UnifiedProfileRecord | null> {
 		const data = await this.backend.load();
@@ -19,7 +25,10 @@ export class KvProfileStore implements UnifiedProfileStore {
 	}
 
 	async set(profile: UnifiedProfileRecord): Promise<void> {
-		await this.backend.set(`${this.prefix}${profile.profileId}`, JSON.stringify(profile));
+		await this.backend.set(
+			`${this.prefix}${profile.profileId}`,
+			JSON.stringify(profile),
+		);
 		await this.backend.save();
 	}
 
@@ -30,5 +39,7 @@ export class KvProfileStore implements UnifiedProfileStore {
 }
 
 function parse(value: unknown): UnifiedProfileRecord {
-	return typeof value === "string" ? JSON.parse(value) as UnifiedProfileRecord : value as UnifiedProfileRecord;
+	return typeof value === "string"
+		? (JSON.parse(value) as UnifiedProfileRecord)
+		: (value as UnifiedProfileRecord);
 }

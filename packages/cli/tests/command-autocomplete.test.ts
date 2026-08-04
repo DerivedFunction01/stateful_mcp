@@ -150,7 +150,10 @@ describe("CLI2 command autocomplete", () => {
 				"w",
 				TOKEN,
 			);
-			expect(suggestions.map((suggestion) => suggestion.verb)).toEqual(["wq", "w"]);
+			expect(suggestions.map((suggestion) => suggestion.verb)).toEqual([
+				"wq",
+				"w",
+			]);
 			expect(suggestions[0]?.descriptionKey).toBeUndefined();
 		});
 	});
@@ -202,9 +205,9 @@ describe("CLI2 command autocomplete", () => {
 				bootstrapCommandDefaults,
 			);
 			const descriptors = descriptorsFor(localized);
-			expect(argumentSuggestions("var est", descriptors).map((s) => s.label)).toEqual([
-				"establecer",
-			]);
+			expect(
+				argumentSuggestions("var est", descriptors).map((s) => s.label),
+			).toEqual(["establecer"]);
 		});
 	});
 
@@ -269,7 +272,12 @@ describe("CLI2 command autocomplete", () => {
 		it("ranks exact prefix matches first and applies weights", () => {
 			const candidates = [
 				{ value: "baseline_date", source: "static" as const, valid: true },
-				{ value: "patient.weight", source: "history" as const, valid: true, baseScore: 50 },
+				{
+					value: "patient.weight",
+					source: "history" as const,
+					valid: true,
+					baseScore: 50,
+				},
 				{ value: "patient.height", source: "scope" as const, valid: true },
 			];
 			const context = {

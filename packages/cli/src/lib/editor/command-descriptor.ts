@@ -18,4 +18,3 @@ export interface CommandDescriptor {
 	argsRequired?: boolean[];
 	args?: CommandArgumentDescriptor[];
 }
-

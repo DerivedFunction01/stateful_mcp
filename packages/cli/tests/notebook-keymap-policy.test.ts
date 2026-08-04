@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { NotebookKeymapPolicy } from "../src/lib/windows/notebook/keymap-policy";
 import { defaultEditorKeymapProfile } from "../src/bootstrap/editor-keymap-defaults";
+import { NotebookKeymapPolicy } from "../src/lib/windows/notebook/keymap-policy";
 
 const policy = new NotebookKeymapPolicy(defaultEditorKeymapProfile);
 
@@ -84,7 +84,9 @@ describe("NotebookKeymapPolicy", () => {
 	});
 
 	test("MACRO Ctrl+Enter resolves to submit-macro", () => {
-		expect(policy.resolve("\r", { ctrl: true, return: true }, "MACRO", "")).toEqual({
+		expect(
+			policy.resolve("\r", { ctrl: true, return: true }, "MACRO", ""),
+		).toEqual({
 			kind: "generic",
 			action: { type: "SUBMIT_MACRO" },
 		});
