@@ -7,6 +7,7 @@ import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-
 import { createNotebookSession, type NotebookSession } from "./notebook-session";
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
 import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
 
 export interface Cli2BootstrapResult {
 	engine: ClinicalEngine;
@@ -15,14 +16,14 @@ export interface Cli2BootstrapResult {
 	notebookSessionStore: NotebookSessionStore;
 	notebook: NotebookSession;
 	sessionId: string;
-	syntaxProfile: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
+	syntaxProfile: CommandSyntaxProfile;
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
 	bootstrapStatus: "created" | "resumed";
 }
 
 export interface Cli2BootstrapOptions {
 	sessionId?: string;
-	syntaxProfile?: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
+	syntaxProfile?: CommandSyntaxProfile;
 	stores?: ClinicalBootstrapResult["stores"];
 	clinical?: ClinicalBootstrapResult;
 }
@@ -53,14 +54,12 @@ export class Cli2BootstrapBuilder {
 		stores: ClinicalBootstrapResult["stores"],
 		options: Omit<Cli2BootstrapOptions, "stores" | "clinical"> = {},
 	): Promise<Cli2BootstrapResult> {
-		return buildCli2Bootstrap({
-			...options,
-			clinical: await ClinicalBootstrap.fromConfig({
-				backend: "memory",
+		return this.withClinical(
+			await ClinicalBootstrap.fromStores(stores, {
 				syntaxProfile: options.syntaxProfile,
 			}),
-			stores,
-		});
+			options,
+		);
 	}
 
 	static async withClinical(

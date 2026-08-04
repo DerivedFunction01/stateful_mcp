@@ -1,4 +1,4 @@
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
+import type { CommandDescriptor } from "../lib/editor/command-descriptor";
 import { Box, Text, useInput } from "ink";
 import { t } from "../lib/shared/i18n";
 

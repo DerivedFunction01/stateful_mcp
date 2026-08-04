@@ -1,4 +1,4 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import type { AutocompleteSuggestion } from "./autocomplete";
 
 export const MAX_VERB = 8;
 export const MAX_ARG = 4;

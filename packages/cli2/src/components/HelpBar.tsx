@@ -1,5 +1,5 @@
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
-import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
+import type { CommandDescriptor } from "../lib/editor/command-descriptor";
+import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { Box, Text } from "ink";
 import { useMemo } from "react";
 import { t } from "../lib/shared/i18n";

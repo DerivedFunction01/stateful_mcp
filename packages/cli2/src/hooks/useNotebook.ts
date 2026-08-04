@@ -1,24 +1,15 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import type {
-	ExecutionPolicy,
-	NotebookAction,
-	NotebookState,
-} from "@stateful-mcp/clinical/notebook/notebook-state";
+import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
+import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import {
-	INITIAL_NOTEBOOK_STATE,
-	notebookReducer,
+	INITIAL__NOTEBOOK_EDITOR_STATE,
+	reduceNotebookEditor,
+	type NotebookEditorAction,
+	type NotebookEditorState,
+	type NotebookRunMode,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
-import type { Cell } from "@stateful-mcp/clinical/session/cell";
-import type { PreviewCandidate } from "@stateful-mcp/clinical/session/preview-candidate";
-import { useCallback, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import type { SessionState } from "./useSession";
-
-export type {
-	AutocompleteSuggestion,
-	ExecutionPolicy,
-	NotebookAction,
-	NotebookState,
-};
+import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 
 export interface CellSuggestion {
 	text: string;
@@ -27,19 +18,18 @@ export interface CellSuggestion {
 }
 
 export interface UseNotebookReturn {
-	state: NotebookState;
-	dispatch: (action: NotebookAction) => void;
-	insertBelow(sessionId: string): void;
-	insertAbove(sessionId: string): void;
-	createCell(sessionId: string, rawInput?: string): Cell;
-	runCell(cell: Cell): Promise<void>;
-	previewCell(cell: Cell): Promise<void>;
-	acceptPreview(candidate: PreviewCandidate): Promise<void>;
-	setSessionMode(mode: ExecutionPolicy): void;
+	state: NotebookEditorState;
+	dispatch: (action: NotebookEditorAction) => void;
+	insertBelow(): Promise<void>;
+	insertAbove(): Promise<void>;
+	createCell(rawInput?: string): Promise<StructuredCell | null>;
+	runCell(cell: StructuredCell): Promise<void>;
+	previewCell(cell: StructuredCell): Promise<void>;
+	acceptPreview(preview: CellPreview): Promise<void>;
+	setSessionMode(mode: NotebookRunMode): void;
 	dispatchCommand(line: string): Promise<{
 		success: boolean;
 		message?: string;
-		action?: string;
 		data?: unknown;
 	}>;
 	nextErrorIndex(): number | null;
@@ -48,94 +38,147 @@ export interface UseNotebookReturn {
 	cellSuggestions: CellSuggestion[];
 }
 
-/**
- * CLI2 editor adapter. The reducer and legacy Cell shape remain presentation
- * compatibility for the copied Ink shell; all domain execution is -owned.
- */
+export type { NotebookEditorAction, NotebookEditorState };
+export type { AutocompleteSuggestion };
+
 export function useNotebook(session: SessionState | null): UseNotebookReturn {
-	const [state, dispatch] = useReducer(notebookReducer, INITIAL_NOTEBOOK_STATE);
+	const [state, dispatch] = useReducer(
+		reduceNotebookEditor,
+		INITIAL__NOTEBOOK_EDITOR_STATE,
+	);
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
 
+	const loadSnapshot = useCallback(async () => {
+		if (!session) return;
+		dispatch({ type: "set_loading", loading: true });
+		try {
+			const snapshot = await session.v2.notebook.loadEditorSnapshot();
+			dispatch({ type: "set_cells", cells: snapshot.cells });
+			const activeIndex = snapshot.activeCellId
+				? snapshot.cells.findIndex(
+					(cell) => cell.cellId === snapshot.activeCellId,
+				)
+				: -1;
+			if (activeIndex >= 0) dispatch({ type: "set_active", index: activeIndex });
+			dispatch({ type: "set_draft", text: snapshot.record.draftText ?? "" });
+			dispatch({
+				type: "set_command_history",
+				history: snapshot.record.commandHistory,
+			});
+			if (snapshot.record.editorMode)
+				dispatch({ type: "set_mode", mode: snapshot.record.editorMode });
+			dispatch({ type: "mark_clean" });
+			dispatch({ type: "set_message", message: undefined });
+		} catch (error) {
+			dispatch({
+				type: "set_message",
+				message: error instanceof Error ? error.message : String(error),
+			});
+		} finally {
+			dispatch({ type: "set_loading", loading: false });
+		}
+	}, [session]);
+
+	useEffect(() => {
+		void loadSnapshot();
+	}, [loadSnapshot]);
+
+	const saveEditorState = useCallback(async () => {
+		if (!session) return;
+		const snapshot = await session.v2.notebook.loadEditorSnapshot();
+		await session.v2.notebook.saveEditorSnapshot({
+			cellOrder: state.cells.map((cell) => cell.cellId),
+			activeCellId: state.cells[state.activeIndex]?.cellId,
+			draftText: state.draftText,
+			editorMode: state.mode,
+			commandHistory: state.commandHistory,
+			expectedRevision: snapshot.record.revision,
+		});
+	}, [session, state]);
+
 	const createCell = useCallback(
-		(sessionId: string, rawInput = ""): Cell => ({
-			cellId: `cli2-cell-${crypto.randomUUID()}`,
-			sessionId,
-			collection: { kind: "notebook", collectionId: sessionId },
-			intentKind: "prose",
-			mode: "cdsl",
-			rawInput,
-			routing: { scope: "global", targetSchema: null },
-			parsedOutput: null,
-			status: "draft",
-			updatedAt: new Date().toISOString(),
-			context: { objects: {} },
-		}),
-		[],
-	);
-
-	const insertBelow = useCallback(
-		(sessionId: string) => {
-			dispatch({
-				type: "INSERT_CELL",
-				cell: createCell(sessionId),
-				position: state.activeIndex + 1,
-			});
+		async (rawInput = ""): Promise<StructuredCell | null> => {
+			if (!session) return null;
+			try {
+				const cell = await session.v2.notebook.createCell({
+					collection: {
+						kind: "notebook",
+						collectionId: session.sessionId,
+					},
+					rawText: rawInput,
+				});
+				dispatch({ type: "set_cells", cells: [...state.cells, cell] });
+				dispatch({ type: "set_active", index: state.cells.length });
+				return cell;
+			} catch (error) {
+				dispatch({
+					type: "set_message",
+					message: error instanceof Error ? error.message : String(error),
+				});
+				return null;
+			}
 		},
-		[createCell, state.activeIndex],
+		[session, state.cells],
 	);
 
-	const insertAbove = useCallback(
-		(sessionId: string) => {
-			dispatch({
-				type: "INSERT_CELL",
-				cell: createCell(sessionId),
-				position: state.activeIndex,
-			});
-		},
-		[createCell, state.activeIndex],
-	);
+	const insertBelow = useCallback(async () => {
+		if (!session) return;
+		const cell = await session.v2.notebook.createCell({
+			collection: { kind: "notebook", collectionId: session.sessionId },
+			rawText: "",
+			position: state.activeIndex + 1,
+		});
+		dispatch({ type: "set_cells", cells: [...state.cells.slice(0, state.activeIndex + 1), cell, ...state.cells.slice(state.activeIndex + 1)] });
+		dispatch({ type: "set_active", index: state.activeIndex + 1 });
+	}, [session, state.activeIndex, state.cells]);
 
-	const runCell = useCallback(async (cell: Cell) => {
-		void cell;
+	const insertAbove = useCallback(async () => {
+		if (!session) return;
+		const cell = await session.v2.notebook.createCell({
+			collection: { kind: "notebook", collectionId: session.sessionId },
+			rawText: "",
+			position: state.activeIndex,
+		});
+		dispatch({ type: "set_cells", cells: [...state.cells.slice(0, state.activeIndex), cell, ...state.cells.slice(state.activeIndex)] });
+		dispatch({ type: "set_active", index: state.activeIndex });
+	}, [session, state.activeIndex, state.cells]);
+
+	const runCell = useCallback(async (cell: StructuredCell) => {
 		dispatch({
-			type: "SET_MESSAGE",
-			message: "CLI2  cell execution is not wired yet",
+			type: "set_message",
+			message: `Cell ${cell.cellId} execution is deferred until the V2 cell transaction seam is complete`,
 		});
 	}, []);
 
-	const previewCell = useCallback(async (cell: Cell) => {
-		void cell;
+	const previewCell = useCallback(async (cell: StructuredCell) => {
 		dispatch({
-			type: "SET_MESSAGE",
-			message: "CLI2  cell preview is not wired yet",
+			type: "set_message",
+			message: `Cell ${cell.cellId} preview is deferred until the V2 notebook preview workflow is connected`,
 		});
 	}, []);
 
-	const acceptPreview = useCallback(async (candidate: PreviewCandidate) => {
-		void candidate;
-		dispatch({ type: "CLEAR_PREVIEW" });
+	const acceptPreview = useCallback(async (_preview: CellPreview) => {
+		dispatch({ type: "set_preview", preview: undefined });
 	}, []);
 
 	const dispatchCommand = useCallback(
 		async (line: string) => {
-			if (!session) return { success: false, message: " session is not ready" };
-			const profile = session.v2.syntaxProfile;
-			if (!line.trim().startsWith(profile.directCommandToken)) {
-				return {
-					success: false,
-					message: "CLI2  accepts direct ':' commands or '^' macros",
-				};
-			}
+			if (!session)
+				return { success: false, message: "CLI2 session is not ready" };
+			const snapshot = await session.v2.notebook.loadEditorSnapshot();
 			const result = await session.v2.commandBar.execute({
 				rawText: line,
 				sessionId: session.sessionId,
+				workspaceId: snapshot.record.workspaceId,
+				documentId: snapshot.record.documentId,
+				cellId: snapshot.activeCellId,
 			});
-			dispatch({ type: "EXIT_COMMAND_MODE" });
 			const message =
 				result.status === "committed"
-					? " command committed"
-					: (result.error ?? " command failed");
-			dispatch({ type: "SET_MESSAGE", message });
+					? "V2 command committed"
+					: (result.error ?? "V2 command failed");
+			dispatch({ type: "EXIT_COMMAND_MODE" });
+			dispatch({ type: "set_message", message });
 			return { success: result.status === "committed", message, data: result };
 		},
 		[session],
@@ -156,10 +199,13 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 							...profile.editorCommandMappings,
 							...profile.directCommandMappings,
 							[profile.variableCommandName]: "variable",
-						};
+					  };
 			return Object.keys(mappings)
 				.filter((alias) => alias.startsWith(partial))
 				.map((alias) => ({
+					label: alias,
+					value: `${token}${alias}`,
+					type: "verb" as const,
 					verb: alias,
 					completionText: `${token}${alias}`,
 					group: state.mode === "MACRO" ? "macro" : "v2",
@@ -172,14 +218,14 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 	);
 
 	const nextErrorIndex = useCallback((): number | null => {
-		for (let i = state.activeIndex + 1; i < state.cells.length; i += 1)
-			if (state.cells[i]?.status === "error") return i;
+		for (let index = state.activeIndex + 1; index < state.cells.length; index += 1)
+			if (state.cells[index]?.lifecycle.status === "failed") return index;
 		return null;
 	}, [state.activeIndex, state.cells]);
 
 	const prevErrorIndex = useCallback((): number | null => {
-		for (let i = state.activeIndex - 1; i >= 0; i -= 1)
-			if (state.cells[i]?.status === "error") return i;
+		for (let index = state.activeIndex - 1; index >= 0; index -= 1)
+			if (state.cells[index]?.lifecycle.status === "failed") return index;
 		return null;
 	}, [state.activeIndex, state.cells]);
 
@@ -192,7 +238,7 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		runCell,
 		previewCell,
 		acceptPreview,
-		setSessionMode: (mode) => dispatch({ type: "SET_SESSION_MODE", mode }),
+		setSessionMode: (mode) => dispatch({ type: "set_run_mode", mode }),
 		dispatchCommand,
 		nextErrorIndex,
 		prevErrorIndex,

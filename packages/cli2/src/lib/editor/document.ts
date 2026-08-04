@@ -1,7 +1,7 @@
-import type { Cell } from "@stateful-mcp/clinical/session/cell";
+import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 
 export interface DocumentView {
-	cells: Cell[];
+	cells: StructuredCell[];
 	activeIndex: number;
 	selection?: { start: number; end: number } | null;
 }

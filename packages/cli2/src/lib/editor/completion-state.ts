@@ -1,4 +1,4 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import type { AutocompleteSuggestion } from "./autocomplete";
 
 export type CompletionMode = "verb" | "arg";
 

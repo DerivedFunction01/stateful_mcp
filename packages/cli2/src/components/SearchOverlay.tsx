@@ -11,12 +11,12 @@ export type SearchAction =
 	| {
 			type: "OPEN";
 			query?: string;
-			cells: { cellId: string; rawInput: string }[];
+            cells: { cellId: string; authored: { rawText: string } }[];
 	  }
 	| {
 			type: "UPDATE_QUERY";
 			query: string;
-			cells: { cellId: string; rawInput: string }[];
+            cells: { cellId: string; authored: { rawText: string } }[];
 	  }
 	| { type: "NEXT" }
 	| { type: "PREV" }
@@ -32,12 +32,12 @@ export const INITIAL_SEARCH_STATE: SearchState = {
 
 export function getSearchMatches(
 	query: string,
-	cells: { cellId: string; rawInput: string }[],
+    cells: { cellId: string; authored: { rawText: string } }[],
 ): string[] {
 	if (!query) return [];
 	const lowerQuery = query.toLowerCase();
 	return cells
-		.filter((cell) => cell.rawInput?.toLowerCase().includes(lowerQuery))
+        .filter((cell) => cell.authored.rawText.toLowerCase().includes(lowerQuery))
 		.map((cell) => cell.cellId);
 }
 

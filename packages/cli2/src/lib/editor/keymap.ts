@@ -1,5 +1,5 @@
-import { EditorAction } from "@stateful-mcp/clinical/session/editor-action";
-import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
+import { EditorAction } from "./editor-action";
+import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { Key } from "ink";
 import type { DocumentAction } from "./document";
 import type { DomainAction } from "./domain";

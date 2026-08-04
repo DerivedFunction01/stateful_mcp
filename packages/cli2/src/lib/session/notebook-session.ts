@@ -46,7 +46,9 @@ export interface NotebookSession {
 	loadEditorSnapshot(): Promise<NotebookEditorSnapshot>;
 	saveEditorSnapshot(input: SaveNotebookEditorSnapshotInput): Promise<void>;
 	listCells(): Promise<StructuredCell[]>;
-	createCell(input: Omit<CreateCellRequest, "sessionId">): Promise<StructuredCell>;
+	createCell(
+		input: Omit<CreateCellRequest, "sessionId"> & { position?: number },
+	): Promise<StructuredCell>;
 	getAutocomplete(
 		context: CommandAutocompleteContext,
 	): Promise<CommandSuggestion[]>;
@@ -96,7 +98,7 @@ export function createNotebookSession(input: {
 		);
 	};
 	const createCell = async (
-		request: Omit<CreateCellRequest, "sessionId">,
+		request: Omit<CreateCellRequest, "sessionId"> & { position?: number },
 	): Promise<StructuredCell> => {
 		const cell = await input.engine.getCellService().create({
 			...request,
@@ -105,10 +107,15 @@ export function createNotebookSession(input: {
 		const record = await input.sessionStore.get(input.sessionId);
 		if (!record)
 			throw new Error(`Notebook session '${input.sessionId}' was not found`);
+		const nextOrder = [...record.cellOrder];
+		const position = request.position;
+		if (position === undefined || position < 0 || position > nextOrder.length)
+			nextOrder.push(cell.cellId);
+		else nextOrder.splice(position, 0, cell.cellId);
 		await input.sessionStore.save(
 			{
 				...record,
-				cellOrder: [...record.cellOrder, cell.cellId],
+				cellOrder: nextOrder,
 				activeCellId: cell.cellId,
 				updatedAt: new Date().toISOString(),
 			},

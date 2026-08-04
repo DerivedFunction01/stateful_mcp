@@ -1,4 +1,4 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { Box, useInput } from "ink";
 import { type ReactElement, useReducer } from "react";
 import {

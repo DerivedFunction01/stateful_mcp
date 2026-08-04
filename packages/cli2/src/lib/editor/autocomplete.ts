@@ -1,0 +1,17 @@
+export interface AutocompleteSuggestion {
+	label: string;
+	value: string;
+	type: "macro" | "argument" | "concept" | "enum" | "measurement" | "duration" | "text" | "boolean" | "date" | "number" | "command" | "value" | "field" | "verb" | "arg";
+	detail?: string;
+	verb: string;
+	completionText: string;
+	group: string;
+	source: "editor" | "clinical" | "macro" | "context";
+	hasArgs: boolean;
+	kind: "verb" | "argument" | "value" | "field";
+	argNames?: string[];
+	argsRequired?: boolean[];
+	argHints?: string[][];
+	argIndex?: number;
+	descriptionKey?: string;
+}

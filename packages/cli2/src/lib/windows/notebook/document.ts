@@ -1,6 +1,6 @@
 import type {
-	NotebookAction,
-	NotebookState,
+	NotebookEditorAction,
+	NotebookEditorState,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { DocumentAction, DocumentPort, DocumentView } from "../../editor";
 
@@ -21,8 +21,8 @@ export interface NotebookDocumentDeps {
  */
 export class NotebookDocumentPort implements DocumentPort {
 	constructor(
-		private readonly state: NotebookState,
-		private readonly send: (action: NotebookAction) => void,
+		private readonly state: NotebookEditorState,
+		private readonly send: (action: NotebookEditorAction) => void,
 		private readonly deps?: NotebookDocumentDeps,
 	) {}
 
@@ -43,12 +43,12 @@ export class NotebookDocumentPort implements DocumentPort {
 		if (act) this.send(act);
 	}
 
-	private toNotebook(action: DocumentAction): NotebookAction | null {
+	private toNotebook(action: DocumentAction): NotebookEditorAction | null {
 		switch (action.type) {
 			case "move":
-				return { type: "MOVE_CURSOR", delta: action.delta };
+				return { type: "set_active", index: this.state.activeIndex + action.delta };
 			case "setActive":
-				return { type: "SET_ACTIVE_INDEX", index: action.index };
+				return { type: "set_active", index: action.index };
 			case "insertBelow":
 				this.deps?.insertBelow();
 				return null;
@@ -56,36 +56,44 @@ export class NotebookDocumentPort implements DocumentPort {
 				this.deps?.insertAbove();
 				return null;
 			case "deleteActive":
-				return { type: "DELETE_ACTIVE_CELL" };
+				return null;
 			case "yankActive":
-				return { type: "YANK_CELL" };
+				return null;
 			case "paste":
-				return { type: "PASTE_CELL" };
+				return null;
 			case "undo":
-				return { type: "UNDO" };
+				return null;
 			case "redo":
-				return { type: "REDO" };
+				return null;
 			case "enterVisual":
 				return { type: "ENTER_VISUAL_MODE" };
 			case "extendSelection":
-				return { type: "EXTEND_SELECTION", delta: action.delta };
+				return {
+					type: "set_visual_selection",
+					start: this.state.visualStart,
+					end: this.state.visualEnd + action.delta,
+				};
 			case "swapAnchor":
-				return { type: "SWAP_SELECTION_ANCHOR" };
+				return {
+					type: "set_visual_selection",
+					start: this.state.visualEnd,
+					end: this.state.visualStart,
+				};
 			case "deleteSelection":
-				return { type: "DELETE_SELECTION" };
+				return null;
 			case "yankSelection":
-				return { type: "YANK_SELECTION" };
+				return null;
 			case "nextError": {
 				const index = this.deps?.nextError?.();
 				return index === null || index === undefined
 					? null
-					: { type: "SET_ACTIVE_INDEX", index };
+					: { type: "set_active", index };
 			}
 			case "prevError": {
 				const index = this.deps?.prevError?.();
 				return index === null || index === undefined
 					? null
-					: { type: "SET_ACTIVE_INDEX", index };
+					: { type: "set_active", index };
 			}
 		}
 	}

@@ -1,5 +1,5 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
+import type { AutocompleteSuggestion } from "../../editor/autocomplete";
+import type { CommandDescriptor } from "../../editor/command-descriptor";
 import type { CommandCatalog, EditorContext } from "../../editor";
 
 /**

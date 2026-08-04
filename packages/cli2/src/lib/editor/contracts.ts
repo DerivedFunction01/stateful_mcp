@@ -1,14 +1,11 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import type {
-	CellCollectionRef,
-	CellIntentKind,
-} from "@stateful-mcp/clinical/session/cell";
-import type { CellInputSegment } from "@stateful-mcp/clinical/session/cell-input-segmentation";
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
+import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
+import type { CellIntent } from "@stateful-mcp/clinical/cells/cell-intent";
+import type { AutocompleteSuggestion } from "./autocomplete";
+import type { CommandDescriptor } from "./command-descriptor";
 
 export interface EditorContext {
 	hostKind: string;
-	collection: CellCollectionRef;
+	collection: StructuredCell["collection"];
 	sessionId: string;
 	activeBranchId?: string;
 }
@@ -26,13 +23,16 @@ export interface SubmissionPort {
 	submit(plan: CellSubmissionPlan, context: EditorContext): Promise<void>;
 }
 
-export interface CellSubmissionSegment extends CellInputSegment {
+export interface CellSubmissionSegment {
+	rawText: string;
+	start: number;
+	end: number;
 	cellId?: string;
-	intentKind: CellIntentKind;
+	intent?: CellIntent;
 }
 
 export interface CellSubmissionPlan {
 	submissionId: string;
-	collection: CellCollectionRef;
+	collection: StructuredCell["collection"];
 	segments: CellSubmissionSegment[];
 }

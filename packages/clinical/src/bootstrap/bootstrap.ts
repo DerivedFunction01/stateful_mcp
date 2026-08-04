@@ -34,6 +34,13 @@ export interface ClinicalBootstrapResult {
 }
 
 export class ClinicalBootstrap {
+	static async fromStores(
+		stores: StoreBuilderResult,
+		options: Omit<ClinicalBootstrapConfig, "backend" | "dbPath"> = {},
+	): Promise<ClinicalBootstrapResult> {
+		return buildClinicalBootstrap(stores, options);
+	}
+
 	static async fromConfig(
 		config: ClinicalBootstrapConfig,
 	): Promise<ClinicalBootstrapResult> {
@@ -41,12 +48,27 @@ export class ClinicalBootstrap {
 			backend: config.backend,
 			dbPath: config.dbPath,
 		});
+		return buildClinicalBootstrap(stores, config);
+	}
 
-		const dictionary = new DictionaryStore(
-			new InMemoryConceptResolver(),
-		);
+	static async withDefaultBackend(
+		backend: StoreBuilderConfig["backend"],
+		options: Omit<ClinicalBootstrapConfig, "backend"> & { dbPath?: string } = {},
+	): Promise<ClinicalBootstrapResult> {
+		return this.fromConfig({
+			...options,
+			backend,
+		});
+	}
+}
 
-		const coldStart = await initializeColdStart({
+async function buildClinicalBootstrap(
+	stores: StoreBuilderResult,
+	config: Omit<ClinicalBootstrapConfig, "backend">,
+): Promise<ClinicalBootstrapResult> {
+	const dictionary = new DictionaryStore(new InMemoryConceptResolver());
+
+	const coldStart = await initializeColdStart({
 			dictionary,
 			macroStore: stores.macroStore as ColdStartOptions["macroStore"],
 			commandProfile: config.syntaxProfile,
@@ -55,8 +77,8 @@ export class ClinicalBootstrap {
 			valueRules: config.valueRules,
 		});
 
-		const commandProfile = coldStart.commandProfile;
-		const cellCompiler = new CellCompiler(
+	const commandProfile = coldStart.commandProfile;
+	const cellCompiler = new CellCompiler(
 			stores.macroStore,
 			coldStart.schemaRegistry,
 			dictionary,
@@ -66,7 +88,7 @@ export class ClinicalBootstrap {
 			}),
 		);
 
-		const engine = new ClinicalEngineBuilder()
+	const engine = new ClinicalEngineBuilder()
 			.withEventStore(stores.eventStore)
 			.withSchemaRegistry(coldStart.schemaRegistry)
 			.withMacroStore(stores.macroStore)
@@ -80,23 +102,12 @@ export class ClinicalBootstrap {
 			.withSyntaxProfile(commandProfile)
 			.build();
 
-		return {
+	return {
 			stores,
 			coldStart,
 			engine,
 			runtime: engine.getRuntime(),
 			dictionary,
 			syntaxProfile: commandProfile,
-		};
-	}
-
-	static async withDefaultBackend(
-		backend: StoreBuilderConfig["backend"],
-		options: Omit<ClinicalBootstrapConfig, "backend"> & { dbPath?: string } = {},
-	): Promise<ClinicalBootstrapResult> {
-		return this.fromConfig({
-			...options,
-			backend,
-		});
-	}
+	};
 }

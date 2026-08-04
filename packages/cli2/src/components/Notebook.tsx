@@ -77,10 +77,10 @@ export function Notebook() {
 		onCommandResultAccepted: () => {
 			setCompletion({ status: "idle" });
 			setShowHelp(false);
-			dispatch({ type: "EXIT_COMMAND_MODE" });
+			dispatch({ type: "set_mode", mode: "NORMAL" });
 		},
 		onAppQuit: () => exit(),
-		onMessage: (message) => dispatch({ type: "SET_MESSAGE", message }),
+			onMessage: (message) => dispatch({ type: "set_message", message }),
 		executeVariableCommand: async (line) => {
 			try {
 				await session?.result?.engine?.executeVariableCell?.(
@@ -160,7 +160,7 @@ export function Notebook() {
 	// TODO(cli2-v2): replace the retired V1 engine/macro completion hooks with
 	//  notebook autocomplete and NotebookPreviewWorkflow presentation.
 	const loading = false;
-	const engineCandidates = [];
+	const engineCandidates: import("../lib/editor/autocomplete").AutocompleteSuggestion[] = [];
 	const mergedCandidates = staticCandidates;
 
 	// Sync engine suggestions ref
@@ -196,7 +196,7 @@ export function Notebook() {
 			const activeCellId = searchState.matches[searchState.matchIndex];
 			const index = state.cells.findIndex((c) => c.cellId === activeCellId);
 			if (index >= 0 && index !== state.activeIndex) {
-				dispatch({ type: "SET_ACTIVE_INDEX", index });
+				dispatch({ type: "set_active", index });
 			}
 		}
 	}, [
@@ -211,8 +211,8 @@ export function Notebook() {
 	const documentPort = useMemo(
 		() =>
 			new NotebookDocumentPort(state, dispatch, {
-				insertBelow: () => notebook.insertBelow(session?.sessionId ?? ""),
-				insertAbove: () => notebook.insertAbove(session?.sessionId ?? ""),
+				insertBelow: () => { void notebook.insertBelow(); },
+				insertAbove: () => { void notebook.insertAbove(); },
 				nextError: notebook.nextErrorIndex,
 				prevError: notebook.prevErrorIndex,
 			}),
@@ -225,7 +225,7 @@ export function Notebook() {
 				runActive: () => {
 					const cell = state.cells[state.activeIndex];
 					if (!cell) return Promise.resolve();
-					return state.sessionMode === "preview"
+					return state.runMode === "preview"
 						? notebook.previewCell(cell)
 						: notebook.runCell(cell);
 				},
@@ -233,7 +233,7 @@ export function Notebook() {
 					for (const idx of indexes) {
 						const cell = state.cells[idx];
 						if (!cell) continue;
-						if (state.sessionMode === "preview")
+						if (state.runMode === "preview")
 							await notebook.previewCell(cell);
 						else await notebook.runCell(cell);
 					}
@@ -242,7 +242,7 @@ export function Notebook() {
 					for (const id of cellIds) {
 						const cell = state.cells.find((c) => c.cellId === id);
 						if (!cell) continue;
-						if (state.sessionMode === "preview")
+						if (state.runMode === "preview")
 							await notebook.previewCell(cell);
 						else await notebook.runCell(cell);
 					}
@@ -263,7 +263,7 @@ export function Notebook() {
 		mode: state.mode as CellEditorMode,
 		draftText: state.mode === "COMMAND" ? state.commandLine : state.draftText,
 		completion,
-		error: state.message,
+		error: state.message ?? null,
 		showHelp: showHelp || state.showHelp || overlay !== null,
 	};
 
@@ -274,11 +274,7 @@ export function Notebook() {
 				if (overlay?.route === "preview") {
 					const cellId = (overlay.payload as any)?.cellId;
 					if (cellId) {
-						dispatch({
-							type: "UPDATE_CELL",
-							cellId,
-							updater: (c) => ({ ...c, status: "draft" as const }),
-						});
+						dispatch({ type: "set_preview", preview: undefined });
 					}
 				}
 				return;
@@ -290,8 +286,8 @@ export function Notebook() {
 				return;
 			case "edit":
 				setOverlay(null);
-				dispatch({ type: "CLEAR_PREVIEW" });
-				dispatch({ type: "ENTER_INSERT_MODE" });
+				dispatch({ type: "set_preview", preview: undefined });
+				dispatch({ type: "set_mode", mode: "INSERT" });
 				return;
 			default:
 				return;
@@ -314,17 +310,17 @@ export function Notebook() {
 			if (!cell) return null;
 			return (
 				<CellInfoPanel
-					summary={session.result.processor.getCellInterpretationSummary(cell)}
+					cell={cell}
 					onClose={() => onOverlayAction("close")}
 				/>
 			);
 		}
 		if (o.route === "preview") {
-			const candidate = (o.payload ?? state.preview) as any;
-			if (!candidate) return null;
+			const preview = (o.payload ?? state.preview) as import("@stateful-mcp/clinical/cells/cell-service-types").CellPreview | undefined;
+			if (!preview) return null;
 			return (
 				<PreviewScreen
-					candidate={candidate}
+					preview={preview}
 					onAccept={() => onOverlayAction("accept")}
 					onEdit={() => onOverlayAction("edit")}
 					onCancel={() => onOverlayAction("close")}
@@ -349,7 +345,7 @@ export function Notebook() {
 								(c) => c.cellId === activeCellId,
 							);
 							if (index >= 0) {
-								dispatch({ type: "SET_ACTIVE_INDEX", index });
+								dispatch({ type: "set_active", index });
 							}
 						}
 						setOverlay(null);
@@ -367,61 +363,46 @@ export function Notebook() {
 	const onEditorAction = (action: EditorAction) => {
 		switch (action.type) {
 			case "ENTER_INSERT":
-				dispatch({ type: "ENTER_INSERT_MODE" });
+				dispatch({ type: "set_mode", mode: "INSERT" });
 				return;
 			case "ENTER_COMMAND":
-				dispatch({ type: "ENTER_COMMAND_MODE" });
+				dispatch({ type: "set_mode", mode: "COMMAND" });
 				return;
 			case "ENTER_MACRO":
-				dispatch({ type: "ENTER_MACRO_MODE" });
+				dispatch({ type: "set_mode", mode: "MACRO" });
 				return;
 			case "INSERT_TEXT":
-				if (state.mode === "COMMAND")
-					dispatch({ type: "COMMAND_APPEND", char: action.text });
-				else dispatch({ type: "TYPE_CHAR", char: action.text });
+				dispatch({ type: "append_text", text: action.text });
 				return;
 			case "NEWLINE":
-				dispatch({ type: "TYPE_CHAR", char: "\n" });
+				dispatch({ type: "append_text", text: "\n" });
 				return;
 			case "BACKSPACE":
-				if (state.mode === "COMMAND") dispatch({ type: "COMMAND_BACKSPACE" });
-				else if (state.mode === "MACRO") dispatch({ type: "BACKSPACE" });
-				else dispatch({ type: "BACKSPACE" });
+				dispatch({ type: "backspace" });
 				return;
 			case "SUBMIT_MACRO": {
 				if (state.mode !== "MACRO" || !state.draftText.trim()) return;
-				const macroCell = {
-					...notebook.createCell(session?.sessionId ?? "", state.draftText),
-					intentKind: "macro_command" as const,
-					mode: "macro" as const,
-					macro: {
-						batchId: `batch:${Date.now()}`,
-						definitionIds: [],
-						status: "pending_commit" as const,
-					},
-				};
-				dispatch({
-					type: "INSERT_CELL",
-					cell: macroCell,
-					position: state.activeIndex + 1,
+				void notebook.createCell(state.draftText).then((macroCell) => {
+					if (!macroCell) return;
+					dispatch({ type: "set_mode", mode: "NORMAL" });
+					void notebook.runCell(macroCell);
 				});
-				dispatch({ type: "EXIT_MACRO_MODE" });
-				void notebook.runCell(macroCell);
 				return;
 			}
 			case "SET_COMPLETION":
 				setCompletion(action.completion);
 				return;
 			case "HISTORY_PREV":
-				dispatch({ type: "COMMAND_HISTORY_PREV" });
+				dispatch({ type: "set_message", message: undefined });
 				return;
 			case "HISTORY_NEXT":
-				dispatch({ type: "COMMAND_HISTORY_NEXT" });
+				dispatch({ type: "set_message", message: undefined });
 				return;
 			case "COMMIT_COMPLETION":
-				if (state.mode === "MACRO")
-					dispatch({ type: "SET_MACRO_TEXT", text: action.line });
-				else dispatch({ type: "COMMAND_SET", text: action.line });
+				dispatch({
+					type: state.mode === "MACRO" ? "set_draft" : "set_command",
+					text: action.line,
+				});
 				return;
 			case "SHOW_HELP":
 				setShowHelp(true);
@@ -431,12 +412,7 @@ export function Notebook() {
 				searchDispatch({ type: "OPEN", query: "", cells: state.cells });
 				return;
 			case "CANCEL":
-				if (state.mode === "COMMAND") dispatch({ type: "EXIT_COMMAND_MODE" });
-				else if (state.mode === "MACRO") dispatch({ type: "EXIT_MACRO_MODE" });
-				else if (state.mode === "INSERT")
-					dispatch({ type: "EXIT_INSERT_MODE" });
-				else if (state.mode === "VISUAL")
-					dispatch({ type: "EXIT_VISUAL_MODE" });
+				dispatch({ type: "set_mode", mode: "NORMAL" });
 				setCompletion({ status: "idle" });
 				return;
 		}
@@ -451,11 +427,10 @@ export function Notebook() {
 		lastEditCellId: state.lastEditCellId,
 		cellSuggestions,
 		dirty: state.dirty,
-		sessionMode: state.sessionMode,
-		defaultSection: state.defaultSection,
-		defaultSchema: state.defaultSchema,
+		sessionMode: state.runMode,
+		defaultSection: undefined,
+		defaultSchema: undefined,
 		message: state.message,
-		macroPreview: undefined,
 		macroSuggestions: mergedCandidates,
 	});
 
@@ -478,7 +453,7 @@ export function Notebook() {
 			return Promise.resolve();
 		},
 		dispatchCommand: async (line: string) => {
-			dispatch({ type: "COMMAND_SUBMIT", line });
+			dispatch({ type: "set_command", text: line });
 			await runtime.dispatchCommandLine(line);
 			return { success: true };
 		},

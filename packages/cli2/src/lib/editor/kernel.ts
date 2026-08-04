@@ -1,4 +1,4 @@
-import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
+import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { CompletionState } from "./completion-state";
 
 export type CellEditorMode = EditorMode;
