@@ -63,6 +63,7 @@ export * from "./macros/macro-binding";
 export * from "./macros/macro-compiler";
 export * from "./macros/macro-definition";
 export * from "./macros/macro-input-parser";
+export * from "./macros/macro-template-matcher";
 export * from "./macros/macro-plan";
 export * from "./macros/macro-profile";
 export * from "./macros/macro-query-compiler";

@@ -29,4 +29,12 @@ export interface AutocompleteSuggestion {
 	argHints?: string[][];
 	argIndex?: number;
 	descriptionKey?: string;
+	macroEvidence?: {
+		score?: number;
+		observationCount?: number;
+		scope?: "personal" | "global";
+		observationMode?: "live" | "preview" | "execution";
+		reason?: "transition" | "numericFit" | "parseConfidence" | "static";
+		featureKeys?: readonly string[];
+	};
 }

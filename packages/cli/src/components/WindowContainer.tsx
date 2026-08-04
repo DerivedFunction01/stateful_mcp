@@ -15,6 +15,7 @@ import {
 	type WindowOverlayAction,
 } from "../lib/editor";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
+import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { reduceCompletion } from "../lib/editor/completion-state";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
 import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
@@ -35,6 +36,8 @@ export interface WindowContainerProps {
 	/** Renders the content for an active overlay (window-specific). */
 	renderOverlay?: (overlay: WindowOverlay) => ReactElement | null;
 	completionProvider?: (partial: string) => AutocompleteSuggestion[];
+	macroSlots?: MacroSlotProjection[];
+	onMacroNavigate?: (direction: 1 | -1) => void;
 }
 
 /**
@@ -59,6 +62,8 @@ export function WindowContainer({
 	onOverlayAction,
 	renderOverlay,
 	completionProvider,
+	macroSlots,
+	onMacroNavigate,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -135,6 +140,18 @@ export function WindowContainer({
 				emit({ type: "BACKSPACE" });
 				return;
 			}
+			if (key.leftArrow || key.rightArrow) {
+				emit({ type: "MOVE_CURSOR", delta: key.leftArrow ? -1 : 1 });
+				return;
+			}
+			if (key.home) {
+				emit({ type: "CURSOR_HOME" });
+				return;
+			}
+			if (key.end) {
+				emit({ type: "CURSOR_END" });
+				return;
+			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {
 				emit({ type: "INSERT_TEXT", text: _input });
 			}
@@ -150,7 +167,15 @@ export function WindowContainer({
 				emit({ type: "SUBMIT_MACRO" });
 				return;
 			}
+			if (key.ctrl && _input === "u") {
+				emit({ type: "UNLOCK_MACRO" });
+				return;
+			}
 			if (key.return) {
+				if (macroSlots?.length && onMacroNavigate) {
+					emit({ type: "LOCK_MACRO" });
+					return;
+				}
 				emit({ type: "NEWLINE" });
 				return;
 			}
@@ -158,7 +183,23 @@ export function WindowContainer({
 				emit({ type: "BACKSPACE" });
 				return;
 			}
+			if (key.leftArrow || key.rightArrow) {
+				emit({ type: "MOVE_CURSOR", delta: key.leftArrow ? -1 : 1 });
+				return;
+			}
+			if (key.home) {
+				emit({ type: "CURSOR_HOME" });
+				return;
+			}
+			if (key.end) {
+				emit({ type: "CURSOR_END" });
+				return;
+			}
 			if (key.tab && completionProvider) {
+				if (macroSlots?.length && onMacroNavigate) {
+					onMacroNavigate(key.shift ? -1 : 1);
+					return;
+				}
 				const transition = reduceCompletion(
 					current.completion,
 					{ kind: "tab", shift: Boolean(key.shift) },

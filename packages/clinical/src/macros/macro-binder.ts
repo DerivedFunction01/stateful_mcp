@@ -61,6 +61,8 @@ export function bindMacro(
 				code: "DUPLICATE_ARGUMENT",
 				argumentId: spec.argumentId,
 				message: `Duplicate assignment to '${spec.name}'`,
+				start: arg.start,
+				end: arg.end,
 			});
 			return;
 		}
@@ -70,6 +72,8 @@ export function bindMacro(
 				code: "EMPTY_VALUE",
 				argumentId: spec.argumentId,
 				message: `Argument '${spec.name}' cannot be blank`,
+				start: arg.start,
+				end: arg.end,
 			});
 		}
 		bindings.push({
@@ -81,6 +85,9 @@ export function bindMacro(
 			source: arg.source,
 			start: arg.start,
 			end: arg.end,
+			match: arg.match
+				? { ...arg.match, argumentId: spec.argumentId }
+				: undefined,
 		});
 	});
 
@@ -119,9 +126,18 @@ function resolveSpec(
 		return definition.arguments.find((spec) => spec.position === arg.position);
 	}
 	if (
+		arg.match?.argumentId &&
+		(arg.source === "rule" || arg.source === "inferred")
+	) {
+		return definition.arguments.find(
+			(spec) => spec.argumentId === arg.match?.argumentId,
+		);
+	}
+	if (
 		arg.source === "named" ||
 		arg.source === "inferred" ||
-		arg.source === "rule"
+		arg.source === "rule" ||
+		arg.source === "friendly"
 	) {
 		if (arg.name) {
 			const byName = definition.arguments.find(

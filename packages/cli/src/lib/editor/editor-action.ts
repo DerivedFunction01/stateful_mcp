@@ -1,6 +1,11 @@
 export const EditorAction = {
 	ExitInsertMode: "EXIT_INSERT",
 	SubmitMacro: "SUBMIT_MACRO",
+	UnlockMacro: "UNLOCK_MACRO",
+	LockMacro: "LOCK_MACRO",
+	MoveCursor: "MOVE_CURSOR",
+	CursorHome: "CURSOR_HOME",
+	CursorEnd: "CURSOR_END",
 	TypeChar: "TYPE_CHAR",
 	Backspace: "BACKSPACE",
 	Redo: "REDO",

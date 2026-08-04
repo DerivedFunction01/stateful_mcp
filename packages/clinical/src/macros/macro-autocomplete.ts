@@ -1,6 +1,8 @@
 import type { ConceptFilterStore } from "@stateful-mcp/core";
 import { isConceptAllowed } from "@stateful-mcp/core";
 import type { MacroLearningService } from "../learning/macro-learning-service";
+import type { MacroLearningRankedCandidate } from "../learning/macro-learning-types";
+import type { TypedValue } from "../values/typed-value";
 import type { ConceptLookup } from "../values/concept-value";
 import type { MacroStore } from "./macro-definition";
 
@@ -23,6 +25,21 @@ export interface AutocompleteSuggestion {
 	value: string;
 	type: AutocompleteType;
 	detail?: string;
+	macro?: {
+		macroId: string;
+		macroVersion: number;
+		argumentId?: string;
+		evidence?: MacroSuggestionEvidence;
+	};
+}
+
+export interface MacroSuggestionEvidence {
+	score?: number;
+	observationCount?: number;
+	scope?: "personal" | "global";
+	observationMode?: "live" | "preview" | "execution";
+	reason?: "transition" | "numericFit" | "parseConfidence" | "static";
+	featureKeys?: readonly string[];
 }
 
 export interface AutocompleteRequest {
@@ -115,7 +132,7 @@ export class MacroAutocomplete {
 						a.roleName.toLowerCase() === argumentName.toLowerCase(),
 				);
 				if (arg) {
-					return this.suggestValueForArgument(arg, query);
+					return this.suggestValueForArgument(arg, query, macro, req);
 				}
 			}
 		}
@@ -146,6 +163,8 @@ export class MacroAutocomplete {
 	private async suggestValueForArgument(
 		arg: any,
 		query: string,
+		macro?: any,
+		req?: AutocompleteRequest,
 	): Promise<AutocompleteSuggestion[]> {
 		const spec = arg.extraction;
 		if (!spec) return [];
@@ -155,7 +174,12 @@ export class MacroAutocomplete {
 		// Enum types
 		if (spec.kind === "enum") {
 			const allowed = spec.patterns ?? [];
-			return this.suggestEnums(query, allowed);
+			return this.rankValueSuggestions(
+				arg,
+				this.suggestEnums(query, allowed),
+				macro,
+				req,
+			);
 		}
 
 		// Scalar types with bounds
@@ -173,18 +197,28 @@ export class MacroAutocomplete {
 						});
 					}
 				}
-				return suggestions.sort(sortSuggestions).slice(0, MAX_SUGGESTIONS);
+				return this.rankValueSuggestions(
+					arg,
+					suggestions.sort(sortSuggestions).slice(0, MAX_SUGGESTIONS),
+					macro,
+					req,
+				);
 			}
 		}
 
 		// Concept types
 		if (spec.kind === "concept" || spec.kind === "concept_array") {
-			return this.suggestConcepts(
-				query,
-				undefined,
-				undefined,
-				arg.name,
-				arg.roleName,
+			return this.rankValueSuggestions(
+				arg,
+				await this.suggestConcepts(
+					query,
+					undefined,
+					undefined,
+					arg.name,
+					arg.roleName,
+				),
+				macro,
+				req,
 			);
 		}
 
@@ -203,6 +237,76 @@ export class MacroAutocomplete {
 		}
 
 		return suggestions.sort(sortSuggestions).slice(0, MAX_SUGGESTIONS);
+	}
+
+	private async rankValueSuggestions(
+		arg: any,
+		suggestions: AutocompleteSuggestion[],
+		macro?: any,
+		req?: AutocompleteRequest,
+	): Promise<AutocompleteSuggestion[]> {
+		if (!suggestions.length || !this.deps.learningService || !macro || !req) {
+			return suggestions;
+		}
+		const candidates = suggestions.map((suggestion) => ({
+			argumentId: arg.argumentId,
+			value:
+				arg.extraction.kind === "enum"
+					? ({ kind: "enum", value: suggestion.value } as TypedValue)
+					: arg.extraction.kind === "concept" || arg.extraction.kind === "concept_array"
+						? ({
+								kind: "concept",
+								concept: {
+									conceptId: suggestion.value,
+									display: suggestion.label,
+								},
+							} as TypedValue)
+						: ({
+							kind: "scalar",
+							scalarType: "number",
+							value: Number(suggestion.value),
+						} as TypedValue),
+		}));
+		const ranked = await this.deps.learningService.rankCandidates(
+			{
+				macroId: req.macroId ?? macro.macroId,
+				macroVersion: req.macroVersion ?? macro.version,
+				previousSlot: req.previousSlot,
+				filledSlots: req.filledSlots ?? [],
+				personnelId: req.personnelId,
+			},
+			candidates,
+		);
+		const byValue = new Map(suggestions.map((suggestion) => [suggestion.value, suggestion]));
+		return ranked.flatMap(({ candidate, score, features, evidence }) => {
+			const value = candidate.value && "value" in candidate.value
+				? String(candidate.value.value)
+				: candidate.value && "concept" in candidate.value
+					? candidate.value.concept.conceptId
+					: undefined;
+			const suggestion = value ? byValue.get(value) : undefined;
+			if (!suggestion) return [];
+			return [{
+				...suggestion,
+				macro: {
+					macroId: macro.macroId,
+					macroVersion: macro.version,
+					argumentId: arg.argumentId,
+					evidence: evidence
+						? {
+							score,
+							observationCount: evidence.observationCount,
+							scope: evidence.scope,
+							observationMode: evidence.observationMode,
+							reason: (features.numericFit ?? 0) > (features.transition ?? 0)
+								? ("numericFit" as const)
+								: ("transition" as const),
+							featureKeys: evidence.featureKeys,
+						}
+						: undefined,
+				},
+			}];
+		});
 	}
 
 	private async suggestMacros(
@@ -239,7 +343,7 @@ export class MacroAutocomplete {
 				return true;
 			return matchesPrefix(arg.roleName, targetArgumentName);
 		});
-		const ranked =
+		const ranked: MacroLearningRankedCandidate[] =
 			this.deps.learningService && req
 				? await this.deps.learningService.rankCandidates(
 						{
@@ -259,18 +363,37 @@ export class MacroAutocomplete {
 						features: {},
 					}));
 		const suggestions: AutocompleteSuggestion[] = ranked
-			.map(
-				({ candidate }) =>
-					macro.arguments.find(
-						(arg) => arg.argumentId === candidate.argumentId,
-					)!,
-			)
-			.map((arg) => ({
-				label: arg.name,
-				value: arg.name,
-				type: "argument" as const,
-				detail: arg.roleName,
-			}))
+			.map(({ candidate, score, features, evidence }) => {
+				const arg = macro.arguments.find(
+					(item) => item.argumentId === candidate.argumentId,
+				)!;
+				return {
+					label: arg.name,
+					value: arg.name,
+					type: "argument" as const,
+					detail: arg.roleName,
+					...(evidence
+						? {
+					macro: {
+						macroId: macro.macroId,
+						macroVersion: macro.version,
+						argumentId: arg.argumentId,
+						evidence: {
+							score,
+							observationCount: evidence?.observationCount,
+							scope: evidence?.scope,
+							observationMode: evidence?.observationMode,
+							reason: (features.numericFit ?? 0) >
+								(features.transition ?? 0)
+								? ("numericFit" as const)
+								: ("transition" as const),
+							featureKeys: evidence?.featureKeys,
+						},
+					},
+						}
+						: {}),
+				};
+			})
 			.sort((a, b) => {
 				if (this.deps.learningService && req) return 0;
 				return sortSuggestions(a, b);

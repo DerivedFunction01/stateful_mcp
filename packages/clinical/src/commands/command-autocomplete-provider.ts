@@ -170,6 +170,7 @@ async function macroSuggestions(
 						argument.roleName === argumentName ||
 						argument.aliases?.includes(argumentName),
 				)?.argumentId,
+				macroEvidence: s.macro?.evidence,
 			}));
 		}
 
@@ -195,6 +196,7 @@ async function macroSuggestions(
 				source: "context" as const,
 				macroId: definition.macroId,
 				macroVersion: definition.version,
+				macroEvidence: s.macro?.evidence,
 			}));
 		}
 
@@ -239,9 +241,10 @@ async function macroSuggestions(
 			argName: suggestion.value,
 			macroId: definition.macroId,
 			macroVersion: definition.version,
-			argumentId: definition.arguments.find(
+				argumentId: definition.arguments.find(
 				(argument) => argument.name === suggestion.value,
-			)?.argumentId,
+				)?.argumentId,
+				macroEvidence: suggestion.macro?.evidence,
 		}));
 	}
 	return definitions

@@ -16,6 +16,11 @@ export type EditorAction =
 	| { type: "ENTER_COMMAND" }
 	| { type: "ENTER_MACRO" }
 	| { type: "SUBMIT_MACRO" }
+	| { type: "UNLOCK_MACRO" }
+	| { type: "LOCK_MACRO" }
+	| { type: "MOVE_CURSOR"; delta: -1 | 1 }
+	| { type: "CURSOR_HOME" }
+	| { type: "CURSOR_END" }
 	| { type: "INSERT_TEXT"; text: string }
 	| { type: "NEWLINE" }
 	| { type: "BACKSPACE" }
@@ -63,6 +68,14 @@ export function reduceEditorKernel(
 			};
 		case "SUBMIT_MACRO":
 			return { ...state, mode: "NORMAL", completion: { status: "idle" } };
+		case "UNLOCK_MACRO":
+			return state;
+		case "LOCK_MACRO":
+			return state;
+		case "MOVE_CURSOR":
+		case "CURSOR_HOME":
+		case "CURSOR_END":
+			return state;
 		case "INSERT_TEXT":
 			return {
 				...state,

@@ -80,6 +80,14 @@ describe("macro-input-parser", () => {
 			magnitude: "2",
 			unit: "hours",
 		});
+		expect(result?.matches?.[0]).toMatchObject({
+			argumentId: "duration",
+			extraction: { start: 22, end: 29 },
+		});
+		expect(result?.matches?.[0]?.captureSpans).toEqual([
+			{ name: "magnitude", value: "2", start: 22, end: 23 },
+			{ name: "unit", value: "hours", start: 24, end: 29 },
+		]);
 	});
 
 	test("preserves quotes for expressions that use quotes themselves", () => {
@@ -100,6 +108,188 @@ describe("macro-input-parser", () => {
 		expect(result?.arguments).toHaveLength(2);
 		expect(result?.arguments[0]?.rawValue).toBe("shortness of breath");
 		expect(result?.arguments[1]?.rawValue).toBe("2 hours");
+	});
+
+	test("matches a friendly form by argumentId and exposes anchor/extraction spans", () => {
+		const definition: MacroDefinition = {
+			...OBSERVATION,
+			arguments: [
+				{
+					...OBSERVATION.arguments[1]!,
+					forms: [
+						{
+							formId: "duration-hours",
+							kind: "friendly",
+							argumentId: "duration",
+							template: {
+								version: 1,
+								parts: [
+									{ kind: "literal", text: "duration of " },
+									{
+										kind: "slot",
+										argumentId: "duration",
+										occurrence: 0,
+									},
+								],
+							},
+						},
+					],
+				},
+			],
+		};
+		const result = parseMacroLine("^observation duration of 2 hours", 0, {
+			definition,
+		});
+		expect(result?.matches).toHaveLength(1);
+		expect(result?.matches?.[0]).toMatchObject({
+			argumentId: "duration",
+			formId: "duration-hours",
+			source: "friendly",
+			anchor: { start: 13, end: 25 },
+			extraction: { start: 25, end: 32 },
+			rawValue: "2 hours",
+		});
+	});
+
+	test("uses friendly-form precedence for overlapping successful matches", () => {
+		const makeArgument = (argumentId: string, precedence: number) => ({
+			...OBSERVATION.arguments[1]!,
+			argumentId,
+			name: argumentId,
+			extraction: { kind: "scalar" as const, patterns: [`(?<value>\\d+)`] },
+			forms: [
+				{
+					formId: `${argumentId}-form`,
+					kind: "friendly" as const,
+					argumentId,
+					precedence,
+					template: {
+						version: 1 as const,
+						parts: [
+							{ kind: "literal" as const, text: "value " },
+							{ kind: "slot" as const, argumentId, occurrence: 0 },
+						],
+					},
+				},
+			],
+		});
+		const result = parseMacroLine("^observation value 120", 0, {
+			definition: {
+				...OBSERVATION,
+				arguments: [makeArgument("low", 1), makeArgument("high", 2)],
+			},
+		});
+		expect(result?.matches?.map((match) => match.argumentId)).toEqual(["high"]);
+	});
+
+	test("does not project or lock a friendly form when extraction fails", () => {
+		const definition: MacroDefinition = {
+			...OBSERVATION,
+			arguments: [
+				{
+					...OBSERVATION.arguments[1]!,
+					extraction: { kind: "scalar", patterns: [`(?<value>\\d+)`] },
+					forms: [
+						{
+							formId: "duration-of",
+							kind: "friendly",
+							argumentId: "duration",
+							template: {
+								version: 1,
+								parts: [
+									{ kind: "literal", text: "duration of " },
+									{
+										kind: "slot",
+										argumentId: "duration",
+										occurrence: 0,
+									},
+								],
+							},
+						},
+					],
+				},
+			],
+		};
+		const result = parseMacroLine("^observation duration of unknown", 0, {
+			definition,
+		});
+		expect(result?.matches).toEqual([]);
+	});
+
+	test("projects each slot in a multi-slot friendly form", () => {
+		const definition: MacroDefinition = {
+			...OBSERVATION,
+			arguments: OBSERVATION.arguments.map((argument) => ({
+				...argument,
+				extraction: {
+					...argument.extraction,
+					patterns:
+						argument.argumentId === "concept"
+							? [`(?<concept>[a-z]+)`]
+							: [`(?<duration>\\d+)`],
+				},
+				forms:
+					argument.argumentId === "concept"
+						? [
+								{
+									formId: "concept-and-duration",
+									kind: "friendly" as const,
+									argumentId: "concept",
+									template: {
+										version: 1 as const,
+										parts: [
+											{ kind: "slot" as const, argumentId: "concept", occurrence: 0 },
+											{ kind: "literal" as const, text: " at " },
+											{ kind: "slot" as const, argumentId: "duration", occurrence: 0 },
+										],
+									},
+								},
+							]
+						: undefined,
+			})),
+		};
+		const result = parseMacroLine("^observation shortness at 2", 0, {
+			definition,
+		});
+		expect(result?.matches?.map((match) => match.argumentId)).toEqual([
+			"concept",
+			"duration",
+		]);
+	});
+
+	test("matches top-level templates and alternate extraction patterns", () => {
+		const definition: MacroDefinition = {
+			...OBSERVATION,
+			arguments: [
+				OBSERVATION.arguments[0]!,
+				{
+					...OBSERVATION.arguments[1]!,
+					extraction: {
+						...OBSERVATION.arguments[1]!.extraction,
+						patterns: ["(?<invalid>[a-z]+)", "(?<value>\\d+)"]
+					},
+				},
+			],
+			authoringTemplates: [
+				{
+					version: 1,
+					parts: [
+						{ kind: "literal", text: "duration of " },
+						{ kind: "slot", argumentId: "duration", occurrence: 0 },
+					],
+				},
+			],
+		};
+		const result = parseMacroLine("^observation duration of 120", 0, {
+			definition,
+		});
+		expect(result?.matches).toHaveLength(1);
+		expect(result?.matches?.[0]).toMatchObject({
+			argumentId: "duration",
+			formId: "template:0:duration:0",
+			rawValue: "120",
+			captures: { value: "120" },
+		});
 	});
 
 	test("supports equals inside a quoted expression", () => {

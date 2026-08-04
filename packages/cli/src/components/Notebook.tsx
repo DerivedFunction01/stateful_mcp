@@ -20,6 +20,8 @@ import { WindowDomainPort } from "../lib/windows/notebook/domain";
 import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension";
 import { NotebookKeymapPolicy } from "../lib/windows/notebook/keymap-policy";
 import { notebookWindow } from "../lib/windows/notebook/window";
+import { nextMacroSlot } from "../lib/editor/macro-slots";
+import { activeMacroSlot } from "../lib/editor/macro-slots";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
 import { HistoryOverlay } from "./HistoryOverlay";
@@ -439,15 +441,24 @@ export function Notebook({
 						index: state.cells.length,
 					});
 					notebook.setEditingCell(superseded.cellId);
-					dispatch({ type: "set_mode", mode: "INSERT" });
 					dispatch({
-						type: "set_draft",
+						type: "begin_edit",
+						cellId: superseded.cellId,
+						mode: "INSERT",
 						text: superseded.authored.rawText,
 					});
 					return;
 				}
-				notebook.setEditingCell(state.cells[state.activeIndex]?.cellId ?? null);
-				dispatch({ type: "set_mode", mode: "INSERT" });
+				const editableCell = state.cells[state.activeIndex];
+				notebook.setEditingCell(editableCell?.cellId ?? null);
+				if (editableCell) {
+					dispatch({
+						type: "begin_edit",
+						cellId: editableCell.cellId,
+						mode: "INSERT",
+						text: editableCell.authored.rawText,
+					});
+				}
 				return;
 			}
 			case "ENTER_COMMAND":
@@ -458,7 +469,12 @@ export function Notebook({
 				});
 				return;
 			case "ENTER_MACRO":
-				dispatch({ type: "set_mode", mode: "MACRO" });
+				dispatch({
+					type: "begin_edit",
+					cellId: state.cells[state.activeIndex]?.cellId ?? "macro-input",
+					mode: "MACRO",
+					text: session.v2.syntaxProfile.macroStartToken,
+				});
 				return;
 			case "INSERT_TEXT":
 				dispatch({ type: "append_text", text: action.text });
@@ -469,15 +485,31 @@ export function Notebook({
 			case "BACKSPACE":
 				dispatch({ type: "backspace" });
 				return;
+			case "MOVE_CURSOR":
+				dispatch({ type: "move_cursor", delta: action.delta });
+				return;
+			case "CURSOR_HOME":
+				dispatch({ type: "cursor_home" });
+				return;
+			case "CURSOR_END":
+				dispatch({ type: "cursor_end" });
+				return;
 			case "SUBMIT_MACRO": {
 				if (state.mode !== "MACRO" || !state.draftText.trim()) return;
 				void notebook.createCell(state.draftText).then((macroCell) => {
 					if (!macroCell) return;
+					dispatch({ type: "end_edit" });
 					dispatch({ type: "set_mode", mode: "NORMAL" });
 					void notebook.runCell(macroCell);
 				});
 				return;
 			}
+			case "UNLOCK_MACRO":
+				notebook.unlockActiveMacroSlot();
+				return;
+			case "LOCK_MACRO":
+				notebook.lockActiveMacroSlot();
+				return;
 			case "SET_COMPLETION":
 				setCompletion(action.completion);
 				return;
@@ -504,10 +536,16 @@ export function Notebook({
 				if (state.mode === "INSERT") {
 					await notebook.commitEditorDraft();
 				}
+				dispatch({ type: "end_edit" });
 				dispatch({ type: "set_mode", mode: "NORMAL" });
 				setCompletion({ status: "idle" });
 				return;
 		}
+	};
+
+	const navigateMacroSlots = (direction: 1 | -1) => {
+		const next = nextMacroSlot(notebook.macroSlots, state.cursorOffset, direction);
+		if (next) dispatch({ type: "set_cursor", offset: next.start });
 	};
 
 	const definition = notebookWindow({
@@ -524,6 +562,12 @@ export function Notebook({
 		defaultSchema: undefined,
 		message: state.message,
 		macroSuggestions: mergedCandidates,
+		macroSlots: notebook.macroSlots,
+		activeMacroArgumentId: activeMacroSlot(
+			notebook.macroSlots,
+			state.mode === "MACRO" ? state.cursorOffset : -1,
+		)?.argumentId,
+		cursorOffset: state.cursorOffset,
 		syntaxProfile: session.v2.syntaxProfile,
 	});
 
@@ -582,7 +626,9 @@ export function Notebook({
 			overlay={overlay}
 			onOverlayAction={onOverlayAction}
 			renderOverlay={renderOverlay}
-			completionProvider={() => mergedCandidates}
+		completionProvider={() => mergedCandidates}
+			macroSlots={notebook.macroSlots}
+			onMacroNavigate={navigateMacroSlots}
 		/>
 	);
 }

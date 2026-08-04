@@ -1,11 +1,14 @@
 import type {
 	MacroArgumentInput,
+	MacroArgumentMatch,
+	MacroCaptureSpan,
 	MacroInput,
 	MacroListItemInput,
 	MacroSourceLine,
 } from "./macro-binding";
 import type { MacroArgumentSpec, MacroDefinition } from "./macro-definition";
 import type { SyntaxProfile } from "./macro-profile";
+import { matchFriendlyMacroForms } from "./macro-template-matcher";
 
 export interface ParseMacroLineOptions {
 	macroStartToken?: string;
@@ -22,6 +25,8 @@ export interface MacroParseDiagnostic {
 	message: string;
 	start: number;
 	end: number;
+	argumentId?: string;
+	formId?: string;
 }
 
 export function parseMacroLine(
@@ -61,6 +66,9 @@ export function parseMacroLine(
 		macroName,
 		sourceLines,
 		arguments: arguments_,
+		matches: arguments_.flatMap((argument) =>
+			argument.match ? [argument.match] : [],
+		),
 		diagnostics: diagnostics.length ? diagnostics : undefined,
 	};
 }
@@ -110,7 +118,29 @@ function matchDefinitionArguments(
 			source: matched ? "rule" : "named",
 			start: matched?.start ?? segment.valueStart,
 			end: matched?.end ?? segment.end,
+			match: matched
+				? createMatch(spec, "named", matched)
+				: undefined,
 		});
+	}
+	const friendlyMatches = matchFriendlyMacroForms(raw, bodyStart, definition);
+	for (const match of friendlyMatches) {
+		arguments_.push({
+			name: definition.arguments.find(
+				(argument) => argument.argumentId === match.argumentId,
+			)?.name,
+			rawValue: match.rawValue,
+			captures: match.captures,
+			source: "friendly",
+			start: match.extraction.start,
+			end: match.extraction.end,
+			match,
+		});
+	}
+	if (friendlyMatches.length > 0) {
+		return arguments_.sort(
+			(left, right) => (left.start ?? 0) - (right.start ?? 0),
+		);
 	}
 
 	// Unnamed text is matched by declared positional expressions, never split by whitespace.
@@ -155,6 +185,7 @@ function matchDefinitionArguments(
 				source: "rule",
 				start: matched.start,
 				end: matched.end,
+				match: createMatch(spec, "rule", matched),
 			});
 			cursor = matched.end;
 			if (cursor < region.end) cursor = skipWhitespace(raw, cursor);
@@ -230,7 +261,7 @@ function scanNamedAssignments(
 			});
 	}
 	if (quote)
-		diagnostics.push({
+				diagnostics.push({
 			code: "UNTERMINATED_QUOTE",
 			message: "Unterminated quote",
 			start,
@@ -379,6 +410,7 @@ function matchSpec(
 	| {
 			rawValue: string;
 			captures: Record<string, string | undefined>;
+			captureSpans: MacroCaptureSpan[];
 			start: number;
 			end: number;
 	  }
@@ -387,14 +419,28 @@ function matchSpec(
 	if (!patterns.length) return undefined;
 	for (const pattern of patterns) {
 		try {
-			const expression = new RegExp(`^(?:${pattern})`, "i");
+			const expression = new RegExp(`^(?:${pattern})`, "id");
 			const match = expression.exec(text);
 			if (match) {
+				const captureSpans = Object.entries(match.groups ?? {}).flatMap(
+					([name, value]) => {
+						const index = match.indices?.groups?.[name];
+						return index
+							? [{
+									name,
+									value,
+									start: offset + index[0],
+									end: offset + index[1],
+								}]
+							: [];
+					},
+				);
 				return {
 					rawValue: match[0].trim(),
 					captures: match.groups ?? {},
 					start: offset,
 					end: offset + match[0].length,
+					captureSpans,
 				};
 			}
 		} catch {
@@ -402,11 +448,33 @@ function matchSpec(
 				code: "INVALID_PATTERN",
 				message: `Invalid extraction pattern for '${spec.name}'`,
 				start: offset,
-				end: offset + text.length,
-			});
+					end: offset + text.length,
+					argumentId: spec.argumentId,
+				});
 		}
 	}
 	return undefined;
+}
+
+function createMatch(
+	spec: MacroArgumentSpec,
+	source: MacroArgumentMatch["source"],
+	matched: {
+		rawValue: string;
+		captures: Record<string, string | undefined>;
+		captureSpans: MacroCaptureSpan[];
+		start: number;
+		end: number;
+	},
+): MacroArgumentMatch {
+	return {
+		argumentId: spec.argumentId,
+		source,
+		extraction: { start: matched.start, end: matched.end },
+		rawValue: matched.rawValue,
+		captures: matched.captures,
+		captureSpans: matched.captureSpans,
+	};
 }
 
 function resolveNamedSpec(

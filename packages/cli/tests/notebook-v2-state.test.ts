@@ -54,8 +54,146 @@ describe("isolated notebook v2 state contract", () => {
 		expect(state.cells[0]?.rawInput).toBe("existing text");
 	});
 
-	test("append_text in command mode builds command line and marks dirty", () => {
+	test("inserts, moves, and deletes at the cursor offset", () => {
 		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "set_mode",
+			mode: "INSERT",
+		});
+		state = reduceNotebookEditor(state, { type: "append_text", text: "abcd" });
+		state = reduceNotebookEditor(state, { type: "set_cursor", offset: 2 });
+		state = reduceNotebookEditor(state, { type: "append_text", text: "X" });
+		expect(state.draftText).toBe("abXcd");
+		expect(state.cursorOffset).toBe(3);
+		state = reduceNotebookEditor(state, { type: "backspace" });
+		expect(state.draftText).toBe("abcd");
+		expect(state.cursorOffset).toBe(2);
+	});
+
+	test("locks the draft buffer to the cell that opened editing", () => {
+		const state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "cell_1",
+			mode: "MACRO",
+			text: "^assessment",
+		});
+		expect(state.inputLock).toEqual({ cellId: "cell_1", mode: "MACRO" });
+		expect(state.draftText).toBe("^assessment");
+		const ended = reduceNotebookEditor(state, { type: "end_edit" });
+		expect(ended.inputLock).toBeNull();
+		expect(ended.cursorOffset).toBe(0);
+	});
+
+	test("adds, removes, and replaces macro locks at spans", () => {
+		const lock = {
+			argumentId: "severity",
+			macroId: "assessment",
+			macroVersion: 3,
+			start: 24,
+			end: 27,
+			source: "explicit" as const,
+		};
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "cell_1",
+			mode: "MACRO",
+			text: "ABCDEFGHIJKLMNOPQRSTUVWX120",
+		});
+		state = reduceNotebookEditor(state, { type: "add_macro_lock", lock });
+		expect(state.macroLocks).toHaveLength(1);
+		state = reduceNotebookEditor(state, { type: "add_macro_lock", lock });
+		expect(state.macroLocks).toHaveLength(1);
+		state = reduceNotebookEditor(state, {
+			type: "replace_locked_slot",
+			lock,
+			text: "999",
+		});
+		expect(state.draftText).toBe("ABCDEFGHIJKLMNOPQRSTUVWX999");
+		expect(state.macroLocks).toHaveLength(0);
+		expect(state.cursorOffset).toBe(27);
+	});
+
+	test("removing a macro lock does not alter draft text", () => {
+		const lock = {
+			argumentId: "severity",
+			macroId: "assessment",
+			macroVersion: 3,
+			start: 24,
+			end: 27,
+			source: "explicit" as const,
+		};
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "cell_1",
+			mode: "MACRO",
+			text: "^assessment severity 120",
+		});
+		state = reduceNotebookEditor(state, { type: "add_macro_lock", lock });
+		const removed = reduceNotebookEditor(state, {
+			type: "remove_macro_lock",
+			lock,
+		});
+		expect(removed.macroLocks).toHaveLength(0);
+		expect(removed.draftText).toBe("^assessment severity 120");
+	});
+
+	test("undo and redo preserve macro lock state", () => {
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "set_cells",
+			cells: [cell, { ...cell, cellId: "cell_2" }],
+		});
+		state = reduceNotebookEditor(state, {
+			type: "begin_edit",
+			cellId: "cell_1",
+			mode: "MACRO",
+			text: "ABCDEFGHIJKLMNOPQRSTUVWX120",
+		});
+		const lock = {
+			argumentId: "severity",
+			macroId: "assessment",
+			macroVersion: 3,
+			start: 24,
+			end: 27,
+			source: "explicit" as const,
+		};
+		state = reduceNotebookEditor(state, { type: "add_macro_lock", lock });
+		state = reduceNotebookEditor(state, {
+			type: "move_cell",
+			cellId: "cell_1",
+			targetIndex: 1,
+		});
+		expect(state.macroLocks).toHaveLength(1);
+		state = reduceNotebookEditor(state, { type: "undo" });
+		expect(state.macroLocks).toHaveLength(1);
+		state = reduceNotebookEditor(state, { type: "redo" });
+		expect(state.macroLocks).toHaveLength(1);
+	});
+
+	test("typing on a locked slot replaces the whole value atomically", () => {
+		const draftText = "ABCDEFGHIJKLMNOPQRSTUVWX120";
+		const lock = {
+			argumentId: "severity",
+			macroId: "assessment",
+			macroVersion: 3,
+			start: 24,
+			end: 27,
+			source: "explicit" as const,
+		};
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "cell_1",
+			mode: "MACRO",
+			text: draftText,
+		});
+		state = reduceNotebookEditor(state, { type: "add_macro_lock", lock });
+		// Place cursor inside the locked span, then type.
+		state = reduceNotebookEditor(state, { type: "set_cursor", offset: 25 });
+		state = reduceNotebookEditor(state, { type: "append_text", text: "9" });
+		expect(state.draftText).toBe("ABCDEFGHIJKLMNOPQRSTUVWX9");
+		expect(state.macroLocks).toHaveLength(0);
+		expect(state.cursorOffset).toBe(25);
+	});
+
+	test("append_text in command mode builds command line and marks dirty", () => {		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
 			type: "set_cells",
 			cells: [cell],
 		});

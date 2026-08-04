@@ -18,10 +18,35 @@ export interface MacroArgumentInput {
 	rawValue: string;
 	captures?: Record<string, string | undefined>;
 	items?: MacroListItemInput[];
-	source: "named" | "positional" | "inferred" | "rule";
+	source: "named" | "positional" | "inferred" | "rule" | "friendly";
 	line?: number;
 	start?: number;
 	end?: number;
+	match?: MacroArgumentMatch;
+}
+
+export interface MacroSpan {
+	start: number;
+	end: number;
+}
+
+export interface MacroCaptureSpan extends MacroSpan {
+	name: string;
+	value?: string;
+}
+
+/** A successful definition-driven match that is eligible for UI projection. */
+export interface MacroArgumentMatch {
+	argumentId: string;
+	occurrence?: number;
+	formId?: string;
+	source: "named" | "friendly" | "positional" | "inferred" | "rule";
+	anchor?: MacroSpan;
+	extraction: MacroSpan;
+	friendlyText?: string;
+	rawValue: string;
+	captures?: Record<string, string | undefined>;
+	captureSpans?: MacroCaptureSpan[];
 }
 
 export interface MacroListItemInput {
@@ -35,6 +60,8 @@ export interface MacroInput {
 	macroName: string;
 	sourceLines: MacroSourceLine[];
 	arguments: MacroArgumentInput[];
+	/** Successful matches only; failed extraction candidates are not projections. */
+	matches?: MacroArgumentMatch[];
 }
 
 export type MacroBindingErrorCode =
@@ -48,6 +75,8 @@ export interface MacroBindingIssue {
 	code: MacroBindingErrorCode;
 	argumentId?: string;
 	message: string;
+	start?: number;
+	end?: number;
 }
 
 export interface MacroArgumentBinding {
@@ -56,9 +85,10 @@ export interface MacroArgumentBinding {
 	rawValue: string;
 	captures?: Record<string, string | undefined>;
 	items?: MacroListItemInput[];
-	source: "named" | "positional" | "inferred" | "rule";
+	source: "named" | "positional" | "inferred" | "rule" | "friendly";
 	start?: number;
 	end?: number;
+	match?: MacroArgumentMatch;
 }
 
 export interface MacroBindingResult {

@@ -12,6 +12,20 @@ export const NOTEBOOK_STATE = [
 export type NotebookEditorMode = (typeof NOTEBOOK_STATE)[number];
 export type NotebookRunMode = "preview" | "execute";
 
+export interface NotebookEditorInputLock {
+	cellId: string;
+	mode: "INSERT" | "MACRO";
+}
+
+export interface NotebookMacroLock {
+	argumentId: string;
+	macroId: string;
+	macroVersion: number;
+	start: number;
+	end: number;
+	source: "explicit" | "accepted";
+}
+
 export interface NotebookYankBuffer {
 	sourceCellIds: string[];
 	snapshots: StructuredCell[];
@@ -29,6 +43,8 @@ export interface NotebookEditorUndoSnapshot {
 	cellOrder: string[];
 	activeIndex: number;
 	draftText: string;
+	cursorOffset?: number;
+	macroLocks: NotebookMacroLock[];
 	commandHistory: string[];
 	authoredRevision: number;
 	restorableDrafts: StructuredCell[];
@@ -39,6 +55,9 @@ export interface NotebookEditorState {
 	cells: StructuredCell[];
 	activeIndex: number;
 	draftText: string;
+	cursorOffset: number;
+	inputLock: NotebookEditorInputLock | null;
+	macroLocks: NotebookMacroLock[];
 	commandLine: string;
 	commandHistory: string[];
 	commandHistoryIndex: number;
@@ -62,6 +81,9 @@ export const INITIAL__NOTEBOOK_EDITOR_STATE: NotebookEditorState = {
 	cells: [],
 	activeIndex: 0,
 	draftText: "",
+	cursorOffset: 0,
+	inputLock: null,
+	macroLocks: [],
 	commandLine: "",
 	commandHistory: [],
 	commandHistoryIndex: -1,
@@ -86,6 +108,15 @@ export type NotebookEditorAction =
 	| { type: "replace_cell"; cell: StructuredCell }
 	| { type: "set_active"; index: number }
 	| { type: "set_draft"; text: string }
+	| { type: "begin_edit"; cellId: string; mode: "INSERT" | "MACRO"; text: string }
+	| { type: "end_edit" }
+	| { type: "replace_locked_slot"; lock: NotebookMacroLock; text: string }
+	| { type: "remove_macro_lock"; lock: NotebookMacroLock }
+	| { type: "add_macro_lock"; lock: NotebookMacroLock }
+	| { type: "set_cursor"; offset: number }
+	| { type: "move_cursor"; delta: -1 | 1 }
+	| { type: "cursor_home" }
+	| { type: "cursor_end" }
 	| { type: "set_command"; text: string }
 	| { type: "append_text"; text: string }
 	| { type: "backspace" }
@@ -137,11 +168,36 @@ export function reduceNotebookEditor(
 					commandLine: state.commandLine + text,
 					authoredRevision: state.authoredRevision + 1,
 				}
-			: {
+			: (() => {
+				const lockedAt = state.macroLocks.find(
+					(lock) =>
+						state.cursorOffset >= lock.start && state.cursorOffset <= lock.end,
+				);
+				if (lockedAt) {
+					const draftText =
+						state.draftText.slice(0, lockedAt.start) +
+						text +
+						state.draftText.slice(lockedAt.end);
+					return {
+						...state,
+						draftText,
+						cursorOffset: lockedAt.start + text.length,
+						macroLocks: state.macroLocks.filter(
+							(lock) => lock !== lockedAt,
+						),
+						authoredRevision: state.authoredRevision + 1,
+					};
+				}
+				return {
 					...state,
-					draftText: state.draftText + text,
+					draftText:
+						state.draftText.slice(0, state.cursorOffset) +
+						text +
+						state.draftText.slice(state.cursorOffset),
+					cursorOffset: state.cursorOffset + text.length,
 					authoredRevision: state.authoredRevision + 1,
 				};
+			})();
 
 	const withSnapshot = (
 		next: NotebookEditorState,
@@ -190,8 +246,82 @@ export function reduceNotebookEditor(
 			return {
 				...state,
 				draftText: action.text,
+				cursorOffset: action.text.length,
 				authoredRevision: state.authoredRevision + 1,
 			};
+		case "begin_edit":
+			return {
+				...state,
+				mode: action.mode,
+				draftText: action.text,
+				cursorOffset: action.text.length,
+				inputLock: { cellId: action.cellId, mode: action.mode },
+				authoredRevision: state.authoredRevision + 1,
+			};
+		case "end_edit":
+			return { ...state, inputLock: null, cursorOffset: 0 };
+		case "replace_locked_slot": {
+			const start = Math.max(0, Math.min(action.lock.start, state.draftText.length));
+			const end = Math.max(start, Math.min(action.lock.end, state.draftText.length));
+			return {
+				...state,
+				draftText:
+					state.draftText.slice(0, start) +
+					action.text +
+					state.draftText.slice(end),
+				cursorOffset: start + action.text.length,
+				macroLocks: state.macroLocks.filter(
+					(lock) =>
+						!(
+							lock.start === action.lock.start &&
+							lock.end === action.lock.end &&
+							lock.argumentId === action.lock.argumentId
+						),
+				),
+				authoredRevision: state.authoredRevision + 1,
+			};
+		}
+		case "remove_macro_lock":
+			return {
+				...state,
+				macroLocks: state.macroLocks.filter(
+					(lock) =>
+						!(
+							lock.start === action.lock.start &&
+							lock.end === action.lock.end &&
+							lock.argumentId === action.lock.argumentId
+						),
+				),
+			};
+		case "add_macro_lock":
+			if (
+				state.macroLocks.some(
+					(lock) =>
+						lock.start === action.lock.start &&
+						lock.end === action.lock.end &&
+						lock.argumentId === action.lock.argumentId,
+				)
+			) {
+				return state;
+			}
+			return { ...state, macroLocks: [...state.macroLocks, action.lock] };
+		case "set_cursor":
+			return {
+				...state,
+				cursorOffset: Math.max(0, Math.min(action.offset, state.draftText.length)),
+			};
+		case "move_cursor":
+			return {
+				...state,
+				cursorOffset: Math.max(
+					0,
+					Math.min(state.draftText.length, state.cursorOffset + action.delta),
+				),
+			};
+		case "cursor_home":
+			return { ...state, cursorOffset: 0 };
+		case "cursor_end":
+			return { ...state, cursorOffset: state.draftText.length };
 		case "set_command":
 			return {
 				...state,
@@ -209,7 +339,10 @@ export function reduceNotebookEditor(
 					}
 				: {
 						...state,
-						draftText: state.draftText.slice(0, -1),
+						draftText:
+							state.draftText.slice(0, Math.max(0, state.cursorOffset - 1)) +
+							state.draftText.slice(state.cursorOffset),
+						cursorOffset: Math.max(0, state.cursorOffset - 1),
 						authoredRevision: state.authoredRevision + 1,
 					};
 		case "set_mode":
@@ -244,6 +377,7 @@ export function reduceNotebookEditor(
 				cellOrder: state.cells.map((c) => c.cellId),
 				activeIndex: state.activeIndex,
 				draftText: state.draftText,
+				macroLocks: state.macroLocks,
 				commandHistory: state.commandHistory,
 				authoredRevision: state.authoredRevision,
 				restorableDrafts: state.cells
@@ -283,6 +417,7 @@ export function reduceNotebookEditor(
 				cellOrder: state.cells.map((c) => c.cellId),
 				activeIndex: state.activeIndex,
 				draftText: state.draftText,
+				macroLocks: state.macroLocks,
 				commandHistory: state.commandHistory,
 				authoredRevision: state.authoredRevision,
 				restorableDrafts: action.cells,
@@ -317,6 +452,7 @@ export function reduceNotebookEditor(
 				activeIndex:
 					state.activeIndex === fromIndex ? toIndex : state.activeIndex,
 				draftText: state.draftText,
+				macroLocks: state.macroLocks,
 				commandHistory: state.commandHistory,
 				authoredRevision: state.authoredRevision,
 				restorableDrafts: [],
@@ -337,6 +473,7 @@ export function reduceNotebookEditor(
 				cells: action.cells,
 				activeIndex: clampIndex(action.activeIndex, action.cells.length),
 				draftText: action.draftText,
+				cursorOffset: action.draftText.length,
 				commandHistory: action.commandHistory,
 				mode: action.mode,
 				persistedAuthoredRevision: state.authoredRevision,
@@ -349,6 +486,7 @@ export function reduceNotebookEditor(
 				cellOrder: state.cells.map((c) => c.cellId),
 				activeIndex: state.activeIndex,
 				draftText: state.draftText,
+				macroLocks: state.macroLocks,
 				commandHistory: state.commandHistory,
 				authoredRevision: state.authoredRevision,
 				restorableDrafts: [],
@@ -358,6 +496,8 @@ export function reduceNotebookEditor(
 				cells: reconstructCells(previous.cellOrder, previous.restorableDrafts),
 				activeIndex: previous.activeIndex,
 				draftText: previous.draftText,
+				cursorOffset: previous.draftText.length,
+				macroLocks: previous.macroLocks,
 				commandHistory: previous.commandHistory,
 				undoStack: state.undoStack.slice(0, -1),
 				redoStack: [...state.redoStack, currentSnapshot],
@@ -371,6 +511,7 @@ export function reduceNotebookEditor(
 				cellOrder: state.cells.map((c) => c.cellId),
 				activeIndex: state.activeIndex,
 				draftText: state.draftText,
+				macroLocks: state.macroLocks,
 				commandHistory: state.commandHistory,
 				authoredRevision: state.authoredRevision,
 				restorableDrafts: [],
@@ -380,6 +521,8 @@ export function reduceNotebookEditor(
 				cells: reconstructCells(next.cellOrder, next.restorableDrafts),
 				activeIndex: next.activeIndex,
 				draftText: next.draftText,
+				cursorOffset: next.draftText.length,
+				macroLocks: next.macroLocks,
 				commandHistory: next.commandHistory,
 				undoStack: [...state.undoStack, currentSnapshot],
 				redoStack: state.redoStack.slice(0, -1),

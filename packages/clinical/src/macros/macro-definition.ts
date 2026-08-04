@@ -81,6 +81,37 @@ export interface ValueSpec {
 	condition?: PipelineConditionSpec;
 }
 
+export interface SlotSuggestion {
+	label: string;
+	value: string;
+	[key: string]: unknown;
+}
+
+export type CommandMacroTemplatePart =
+	| { kind: "literal"; text: string }
+	| {
+			kind: "slot";
+			argumentId: string;
+			occurrence: number;
+			displayText?: string;
+			suggestions?: readonly SlotSuggestion[];
+	  };
+
+/** A definition-owned friendly authoring form. */
+export interface CommandMacroAuthoringTemplate {
+	version: 1;
+	parts: readonly CommandMacroTemplatePart[];
+}
+
+export interface MacroArgumentForm {
+	formId: string;
+	kind: "friendly";
+	argumentId: string;
+	template: CommandMacroAuthoringTemplate;
+	precedence?: number;
+	compatibility?: readonly string[];
+}
+
 export interface MacroArgumentSpec {
 	argumentId: string;
 	name: string;
@@ -96,6 +127,8 @@ export interface MacroArgumentSpec {
 		minPrefixLength?: number;
 		limit?: number;
 	};
+	/** Additional definition-driven forms; canonical name=value remains implicit. */
+	forms?: readonly MacroArgumentForm[];
 }
 
 export interface MacroChildDefinition {
@@ -143,6 +176,7 @@ export interface MacroDefinition {
 		argumentDelimiter?: string;
 		proseBoundaryToken?: string;
 	};
+	authoringTemplates?: readonly CommandMacroAuthoringTemplate[];
 }
 
 export interface MacroStore {

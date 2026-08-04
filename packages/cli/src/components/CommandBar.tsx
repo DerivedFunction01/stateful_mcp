@@ -17,9 +17,21 @@ interface CommandBarProps {
 	 * verbs that are genuinely known but produced no argument suggestions.
 	 */
 	knownVerbs?: Set<string>;
+	showCursor?: boolean;
 }
 
 const NO_MATCH_THRESHOLD = 0;
+
+function evidenceLabel(suggestion: AutocompleteSuggestion): string {
+	const evidence = suggestion.macroEvidence;
+	if (!evidence) return "";
+	const parts: string[] = [];
+	if (evidence.score !== undefined) parts.push(`score ${evidence.score.toFixed(2)}`);
+	if (evidence.observationCount !== undefined)
+		parts.push(`n=${evidence.observationCount}`);
+	if (evidence.scope) parts.push(evidence.scope);
+	return parts.length ? ` [${parts.join(" ")}]` : "";
+}
 
 export function CommandBar({
 	commandLine,
@@ -28,6 +40,7 @@ export function CommandBar({
 	highlightedCandidate,
 	completionPrefix,
 	knownVerbs,
+	showCursor = true,
 }: CommandBarProps) {
 	const { stdout } = useStdout();
 	const columns = stdout?.columns ?? 80;
@@ -119,6 +132,7 @@ export function CommandBar({
 											({s.group}){" "}
 										</Text>
 										{s.verb}
+										{evidenceLabel(s)}
 									</Text>
 								) : (
 									<Text>
@@ -173,7 +187,7 @@ export function CommandBar({
 			>
 				<Text bold>{commandLine}</Text>
 				{ghost && <Text color="gray">{ghost}</Text>}
-				<Text color="green">█</Text>
+				{showCursor && <Text color="green">█</Text>}
 			</Box>
 		</Box>
 	);

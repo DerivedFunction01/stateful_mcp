@@ -11,6 +11,7 @@ import type {
 	WindowRegion,
 } from "../../editor";
 import type { AutocompleteSuggestion } from "../../editor/autocomplete";
+import type { MacroSlotProjection } from "../../editor/macro-slots";
 import { knownVerbs } from "../../editor/command-autocomplete";
 import { buildCommandDescriptors } from "../../editor/command-descriptors";
 import type { NotebookDocumentPort } from "./document";
@@ -30,6 +31,9 @@ export interface NotebookWindowDeps {
 	defaultSchema?: string | null;
 	message?: string | null;
 	macroSuggestions?: AutocompleteSuggestion[];
+	macroSlots?: MacroSlotProjection[];
+	activeMacroArgumentId?: string;
+	cursorOffset?: number;
 	/** Active syntax profile for canonical descriptor/knownVerbs derivation. */
 	syntaxProfile?: CommandSyntaxProfile;
 }
@@ -69,6 +73,9 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							visualStart={view.selection?.start ?? 0}
 							visualEnd={view.selection?.end ?? 0}
 							cellSuggestions={deps.cellSuggestions ?? []}
+							macroSlots={deps.macroSlots}
+							activeMacroArgumentId={deps.activeMacroArgumentId}
+							cursorOffset={deps.cursorOffset}
 						/>
 					);
 				},
@@ -126,6 +133,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								highlightedCandidate={highlightedCandidate}
 								completionPrefix={completionPrefix}
 								knownVerbs={known}
+								showCursor={deps.editorState.mode === "MACRO"}
 							/>
 						);
 					},

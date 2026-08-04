@@ -3,6 +3,7 @@ import type { SchemaRegistry } from "../schemas/schema-registry";
 import { MERGE_STRATEGIES } from "../values/merge";
 import type { TypedValueKind } from "../values/typed-value";
 import type { MacroDefinition, MacroValueSpecKind } from "./macro-definition";
+import { validateMacroAuthoringTemplates } from "./macro-template-matcher";
 
 export type MacroValidationSeverity = "error" | "warning";
 
@@ -64,9 +65,24 @@ export class MacroDefinitionValidator {
 		this.validateExecutionPolicy(def, issues);
 		this.validateChildren(def, issues);
 		this.validateMergePolicies(def, issues);
+		this.validateAuthoringTemplates(def, issues);
 
 		const valid = issues.every((issue) => issue.severity !== "error");
 		return { valid, definition: def, issues };
+	}
+
+	private validateAuthoringTemplates(
+		def: MacroDefinition,
+		issues: MacroValidationIssue[],
+	): void {
+		for (const issue of validateMacroAuthoringTemplates(def)) {
+			issues.push({
+				severity: "error",
+				code: issue.code,
+				message: issue.message,
+				argumentId: issue.argumentId,
+			});
+		}
 	}
 
 	private validateStructure(

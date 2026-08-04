@@ -79,6 +79,14 @@ export interface MacroLearningRankedCandidate<
 	candidate: T;
 	score: number;
 	features: Record<string, number>;
+	evidence?: MacroLearningEvidence;
+}
+
+export interface MacroLearningEvidence {
+	observationCount: number;
+	scope: LearningScope;
+	observationMode: LearningObservationMode;
+	featureKeys?: readonly string[];
 }
 
 export type MacroLearningDefinition = Pick<

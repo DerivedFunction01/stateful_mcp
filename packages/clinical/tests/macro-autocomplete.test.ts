@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
 import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
+import type { MacroLearningService } from "../src/learning/macro-learning-service";
 import type {
 	MacroDefinition,
 	MacroStore,
@@ -204,6 +205,46 @@ describe("MacroAutocomplete", () => {
 
 			expect(results).toHaveLength(1);
 			expect(results[0]!.label).toBe("concept");
+		});
+
+		test("exposes bounded learning evidence when ranking is available", async () => {
+			const learningService = {
+				async rankCandidates() {
+					return [
+						{
+							candidate: { argumentId: "a1" },
+							score: 0.86,
+							features: { transition: 0.8, numericFit: 0.1 },
+							evidence: {
+								observationCount: 24,
+								scope: "personal" as const,
+								observationMode: "live" as const,
+								featureKeys: ["argument.kind"],
+							},
+						},
+					];
+				},
+			} as unknown as MacroLearningService;
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore(SAMPLE_MACROS),
+				learningService,
+			});
+			const result = await service.suggest({
+				query: "con",
+				scope: "argument",
+				macroName: "observation",
+				macroId: "m1",
+				macroVersion: 1,
+			});
+
+			expect(result[0]?.macro?.evidence).toEqual({
+			score: 0.86,
+			observationCount: 24,
+			scope: "personal",
+			observationMode: "live",
+			reason: "transition",
+			featureKeys: ["argument.kind"],
+		});
 		});
 
 		test("matches by roleName prefix", async () => {

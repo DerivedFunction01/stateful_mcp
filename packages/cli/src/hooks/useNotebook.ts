@@ -1,10 +1,12 @@
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
+import { parseMacroLine } from "@stateful-mcp/clinical";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 import {
 	INITIAL__NOTEBOOK_EDITOR_STATE,
 	type NotebookEditorAction,
 	type NotebookEditorState,
+	type NotebookMacroLock,
 	type NotebookRunMode,
 	reduceNotebookEditor,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
@@ -19,6 +21,12 @@ import {
 } from "../lib/editor/command-autocomplete";
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
 import type { SessionState } from "./useSession";
+import {
+	activeMacroSlot,
+	applyMacroLocks,
+	projectMacroSlots,
+	type MacroSlotProjection,
+} from "../lib/editor/macro-slots";
 
 export interface CellSuggestion {
 	text: string;
@@ -52,7 +60,10 @@ export interface UseNotebookReturn {
 	getAutocomplete(partial: string): AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
 	macroSuggestions: AutocompleteSuggestion[];
-	refreshSnapshot(): Promise<void>;
+	macroSlots: MacroSlotProjection[];
+	macroLocks: NotebookMacroLock[];
+	unlockActiveMacroSlot(): void;
+	lockActiveMacroSlot(): void;	refreshSnapshot(): Promise<void>;
 	commitEditorDraft(): Promise<void>;
 	setEditingCell(cellId: string | null): void;
 	supersedeActiveCell(): Promise<StructuredCell | null>;
@@ -79,6 +90,7 @@ export function useNotebook(
 	const [macroSuggestions, setMacroSuggestions] = useState<
 		AutocompleteSuggestion[]
 	>([]);
+	const [macroSlots, setMacroSlots] = useState<MacroSlotProjection[]>([]);
 	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
 	>([]);
@@ -178,17 +190,27 @@ export function useNotebook(
 		void session.v2.notebook
 			.loadEditorSnapshot()
 			.then(async (snapshot) => {
-				const suggestions = await session.v2.notebook.getAutocomplete({
+				const activeProjection = activeMacroSlot(
+					macroSlots,
+					state.cursorOffset,
+				);
+				const recommendations = await session.v2.notebook.getAutocomplete({
 					input: state.draftText,
-					cursorOffset: state.draftText.length,
+					cursorOffset: state.cursorOffset,
 					sessionId: session.sessionId,
 					workspaceId: snapshot.record.workspaceId,
 					documentId: snapshot.record.documentId,
 					activeCellId: snapshot.activeCellId,
+					macroId: activeProjection?.macroId,
+					macroVersion: activeProjection?.macroVersion,
+					filledSlots: macroSlots
+						.filter((slot) => slot.argumentId !== activeProjection?.argumentId)
+						.map((slot) => slot.argumentId),
+					previousSlot: activeProjection?.argumentId,
 				});
 				if (cancelled) return;
 				setMacroSuggestions(
-					suggestions
+					recommendations
 						.filter(
 							(suggestion) =>
 								suggestion.kind === "macro" ||
@@ -219,6 +241,7 @@ export function useNotebook(
 											? "value"
 											: "verb",
 							detail: suggestion.detail,
+							macroEvidence: suggestion.macroEvidence,
 						})),
 				);
 			})
@@ -228,7 +251,74 @@ export function useNotebook(
 		return () => {
 			cancelled = true;
 		};
-	}, [session, state.mode, state.draftText]);
+	}, [session, state.mode, state.draftText, state.cursorOffset, macroSlots]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!session || state.mode !== "MACRO" || !state.draftText) {
+			setMacroSlots([]);
+			return () => {
+				cancelled = true;
+			};
+		}
+		const envelope = parseMacroLine(state.draftText);
+		if (!envelope) {
+			setMacroSlots([]);
+			return () => {
+				cancelled = true;
+			};
+		}
+		void session.v2.engine
+			.getRuntime()
+			.macros.defs.get(envelope.macroName)
+			.then((definition) => {
+				if (!cancelled)
+					setMacroSlots(
+						applyMacroLocks(
+							projectMacroSlots(state.draftText, definition),
+							state.macroLocks,
+						),
+					);
+			})
+			.catch(() => {
+				if (!cancelled) setMacroSlots([]);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [session, state.mode, state.draftText, state.macroLocks]);
+
+	const unlockActiveMacroSlot = useCallback(() => {
+		const active = activeMacroSlot(macroSlots, state.cursorOffset);
+		if (!active) return;
+		dispatch({
+			type: "remove_macro_lock",
+			lock: {
+				argumentId: active.argumentId,
+				macroId: active.macroId,
+				macroVersion: active.macroVersion,
+				start: active.start,
+				end: active.end,
+				source: "explicit",
+			},
+		});
+	}, [macroSlots, state.cursorOffset, dispatch]);
+
+	const lockActiveMacroSlot = useCallback(() => {
+		const active = activeMacroSlot(macroSlots, state.cursorOffset);
+		if (!active) return;
+		dispatch({
+			type: "add_macro_lock",
+			lock: {
+				argumentId: active.argumentId,
+				macroId: active.macroId,
+				macroVersion: active.macroVersion,
+				start: active.start,
+				end: active.end,
+				source: "explicit",
+			},
+		});
+	}, [macroSlots, state.cursorOffset, dispatch]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -337,11 +427,12 @@ export function useNotebook(
 		if (cell.lifecycle.status === "committed") return;
 		if (state.draftText === cell.authored.rawText) return;
 		try {
-			await session.v2.notebook.editCell({
+			const updated = await session.v2.notebook.editCell({
 				cellId: editingCellId,
 				rawText: state.draftText,
 				expectedRevision: editingRevisionRef.current,
 			});
+			dispatch({ type: "replace_cell", cell: updated });
 			editingCellIdRef.current = null;
 		} catch (error) {
 			if (
@@ -749,6 +840,10 @@ export function useNotebook(
 		getAutocomplete,
 		cellSuggestions,
 		macroSuggestions,
+		macroSlots,
+		macroLocks: state.macroLocks,
+		unlockActiveMacroSlot,
+		lockActiveMacroSlot,
 		refreshSnapshot,
 		commitEditorDraft,
 		setEditingCell: (cellId) => {

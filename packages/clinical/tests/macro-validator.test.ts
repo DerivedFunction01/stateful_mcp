@@ -70,6 +70,31 @@ describe(" macro validator", () => {
 		expect(result.issues).toHaveLength(0);
 	});
 
+	test("template slots must reference definition argumentIds", () => {
+		const result = validateMacroDefinition(
+			baseMacro({
+				authoringTemplates: [
+					{
+						version: 1,
+						parts: [
+							{ kind: "literal", text: "unknown " },
+							{
+								kind: "slot",
+								argumentId: "missing",
+								occurrence: 0,
+							},
+						],
+					},
+				],
+			}),
+			buildRegistry(),
+		);
+		expect(findIssue(result, "UNKNOWN_TEMPLATE_ARGUMENT")?.argumentId).toBe(
+			"missing",
+		);
+		expect(result.valid).toBe(false);
+	});
+
 	test("unknown schema emits UNKNOWN_SCHEMA error", () => {
 		const registry = buildRegistry();
 		const def = baseMacro({
