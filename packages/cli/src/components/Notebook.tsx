@@ -3,6 +3,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import type {
+	AutocompleteSuggestion,
 	CellEditorMode,
 	EditorAction,
 	EditorKernelState,
@@ -155,16 +156,18 @@ export function Notebook() {
 	}, [scope, session?.sessionId, getAutocomplete]);
 
 	const staticCandidates = useMemo(() => {
-		if (state.mode !== "COMMAND") return [];
-		return getAutocomplete(state.commandLine.slice(1));
-	}, [state.mode, state.commandLine, session?.sessionId, getAutocomplete]);
+		if (state.mode !== "COMMAND" && state.mode !== "MACRO") return [];
+		const input = state.mode === "MACRO" ? state.draftText : state.commandLine;
+		return getAutocomplete(input.slice(1));
+	}, [state.mode, state.commandLine, state.draftText, session?.sessionId, getAutocomplete]);
 
 	// TODO(cli2-v2): replace the retired V1 engine/macro completion hooks with
 	//  notebook autocomplete and NotebookPreviewWorkflow presentation.
 	const loading = false;
-	const engineCandidates: import("../lib/editor/autocomplete").AutocompleteSuggestion[] =
-		[];
-	const mergedCandidates = staticCandidates;
+	const engineCandidates = useMemo<
+		AutocompleteSuggestion[]
+	>(() => [], []);
+	const mergedCandidates = state.mode === "MACRO" ? notebook.macroSuggestions : staticCandidates;
 
 	// Sync engine suggestions ref
 	useEffect(() => {
@@ -389,6 +392,10 @@ export function Notebook() {
 				return;
 			case "ENTER_COMMAND":
 				dispatch({ type: "set_mode", mode: "COMMAND" });
+				dispatch({
+					type: "set_command",
+					text: session?.v2.syntaxProfile.directCommandToken ?? ":",
+				});
 				return;
 			case "ENTER_MACRO":
 				dispatch({ type: "set_mode", mode: "MACRO" });

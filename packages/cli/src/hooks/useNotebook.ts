@@ -44,6 +44,7 @@ export interface UseNotebookReturn {
 	prevErrorIndex(): number | null;
 	getAutocomplete(partial: string): AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
+	macroSuggestions: AutocompleteSuggestion[];
 }
 
 export type {
@@ -58,6 +59,49 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		INITIAL__NOTEBOOK_EDITOR_STATE,
 	);
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
+	const [macroSuggestions, setMacroSuggestions] = useState<AutocompleteSuggestion[]>([]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!session || state.mode !== "MACRO") {
+			setMacroSuggestions([]);
+			return () => {
+				cancelled = true;
+			};
+		}
+		void session.v2.notebook.loadEditorSnapshot().then(async (snapshot) => {
+			const suggestions = await session.v2.notebook.getAutocomplete({
+				input: state.draftText,
+				cursorOffset: state.draftText.length,
+				sessionId: session.sessionId,
+				workspaceId: snapshot.record.workspaceId,
+				documentId: snapshot.record.documentId,
+				activeCellId: snapshot.activeCellId,
+			});
+			if (cancelled) return;
+			setMacroSuggestions(
+				suggestions
+					.filter((suggestion) => suggestion.kind === "macro" || suggestion.kind === "argument" || suggestion.kind === "field" || suggestion.kind === "value")
+					.map((suggestion) => ({
+						label: suggestion.label,
+						value: suggestion.insertText,
+						type: suggestion.kind === "macro" ? "macro" : suggestion.kind === "branch" ? "argument" : suggestion.kind,
+						verb: suggestion.label,
+						completionText: suggestion.insertText,
+						group: "macro",
+						source: "macro",
+						hasArgs: suggestion.kind === "macro",
+						kind: suggestion.kind === "argument" || suggestion.kind === "branch" ? "arg" : suggestion.kind === "field" ? "field" : suggestion.kind === "value" ? "value" : "verb",
+						detail: suggestion.detail,
+					})),
+			);
+		}).catch(() => {
+			if (!cancelled) setMacroSuggestions([]);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [session, state.mode, state.draftText]);
 
 	const loadSnapshot = useCallback(async () => {
 		if (!session) return;
@@ -432,5 +476,6 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		prevErrorIndex,
 		getAutocomplete,
 		cellSuggestions,
+		macroSuggestions,
 	};
 }
