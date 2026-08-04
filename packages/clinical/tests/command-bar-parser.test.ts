@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createCommandSyntaxProfile } from "../src/commands/command-syntax-profile";
 import { parseDirectCommand } from "../src/commands/direct-command-parser";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 
 const workspace = {
 	id: "ws-1",
@@ -35,6 +36,11 @@ const context = {
 	},
 };
 
+const defaultProfile = createCommandSyntaxProfile(
+	{ profileId: "v2-default" },
+	bootstrapCommandDefaults,
+);
+
 describe(" direct command-bar parser", () => {
 	it("compiles confirmation into a typed workspace operation", async () => {
 		const intent = await parseDirectCommand(
@@ -45,6 +51,7 @@ describe(" direct command-bar parser", () => {
 				actorId: "user-1",
 			},
 			context,
+			defaultProfile,
 		);
 		expect(intent.kind).toBe("workspace_operation");
 		expect(intent.operation).toEqual({
@@ -65,6 +72,7 @@ describe(" direct command-bar parser", () => {
 				cellId: "cell-1",
 			},
 			context,
+			defaultProfile,
 		);
 		expect(intent.operation).toEqual({
 			kind: "complete",
@@ -78,12 +86,14 @@ describe(" direct command-bar parser", () => {
 		const missing = await parseDirectCommand(
 			{ rawText: ":close", sessionId: "s1" },
 			context,
+			defaultProfile,
 		);
 		expect(missing.diagnostics[0]?.code).toBe("missing_context");
 
 		const invalid = await parseDirectCommand(
 			{ rawText: ":confirm unknown", sessionId: "s1", workspaceId: "ws-1" },
 			context,
+			defaultProfile,
 		);
 		expect(invalid.diagnostics[0]?.code).toBe("missing_context");
 	});
@@ -92,17 +102,21 @@ describe(" direct command-bar parser", () => {
 		const intent = await parseDirectCommand(
 			{ rawText: ":branch New", sessionId: "s1", workspaceId: "ws-1" },
 			context,
+			defaultProfile,
 		);
 		expect(intent.kind).toBe("unsupported");
 		expect(intent.diagnostics[0]?.code).toBe("invalid_argument");
 	});
 
 	it("uses configured command tokens and aliases", async () => {
-		const profile = createCommandSyntaxProfile({
-			profileId: "custom",
-			directCommandToken: "/",
-			directCommandMappings: { ok: "confirm" },
-		});
+		const profile = createCommandSyntaxProfile(
+			{
+				profileId: "custom",
+				directCommandToken: "/",
+				directCommandMappings: { ok: "confirm" },
+			},
+			bootstrapCommandDefaults,
+		);
 		const intent = await parseDirectCommand(
 			{ rawText: "/ok b1", sessionId: "s1", workspaceId: "ws-1" },
 			context,

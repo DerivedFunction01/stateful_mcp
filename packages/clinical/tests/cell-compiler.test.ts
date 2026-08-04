@@ -1,12 +1,21 @@
 import { describe, expect, it } from "bun:test";
 import { createDefaultSchemaRegistry } from "../src/schemas/default-registry";
 import { CellCompiler } from "../src/cells/cell-compiler";
+import { createSyntaxProfile } from "../src/macros/macro-profile";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
+
+const defaultProfile = createSyntaxProfile(
+	{ profileId: "v2-default" },
+	bootstrapCommandDefaults,
+);
 
 describe(" cell compiler", () => {
 	it("returns a typed diagnostic for an undefined macro", async () => {
 		const compiler = new CellCompiler(
 			{ get: async () => null, list: async () => [] },
 			createDefaultSchemaRegistry(),
+			undefined,
+			defaultProfile,
 		);
 		const result = await compiler.compile("^unknown value=1", {
 			sessionId: "s1",
@@ -20,6 +29,8 @@ describe(" cell compiler", () => {
 		const compiler = new CellCompiler(
 			{ get: async () => null, list: async () => [] },
 			createDefaultSchemaRegistry(),
+			undefined,
+			defaultProfile,
 		);
 		const result = await compiler.compile(":confirm branch-1");
 		expect(result.plan).toBeUndefined();

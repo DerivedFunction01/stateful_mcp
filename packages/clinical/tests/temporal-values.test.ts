@@ -3,6 +3,8 @@ import { resolveFrequency } from "../src/values/frequency-resolver";
 import { recognizeTemporalExpression } from "../src/values/temporal-recognizer";
 import { resolveTemporalExpression } from "../src/values/temporal-resolver";
 import { createTemporalSyntaxProfile } from "../src/values/temporal-syntax-profile";
+import { bootstrapTemporalDefaults } from "../src/bootstrap/bootstrap-config";
+import { bootstrapFrequencyDefaults } from "../src/bootstrap/bootstrap-config";
 
 const anchor = {
 	referenceInstant: "2026-08-03T17:30:30-04:00",
@@ -11,23 +13,31 @@ const anchor = {
 
 describe(" temporal values", () => {
 	it("recognizes configurable relative-day aliases", () => {
-		expect(recognizeTemporalExpression("today").expression).toEqual({
+		const profile = createTemporalSyntaxProfile(
+			{ profileId: "v2-temporal-default" },
+			bootstrapTemporalDefaults,
+		);
+		expect(recognizeTemporalExpression("today", profile).expression).toEqual({
 			kind: "relative_day",
 			offsetDays: 0,
 		});
-		expect(recognizeTemporalExpression("yesterday").expression).toEqual({
+		expect(recognizeTemporalExpression("yesterday", profile).expression).toEqual({
 			kind: "relative_day",
 			offsetDays: -1,
 		});
-		expect(recognizeTemporalExpression("tomorrow").expression).toEqual({
+		expect(recognizeTemporalExpression("tomorrow", profile).expression).toEqual({
 			kind: "relative_day",
 			offsetDays: 1,
 		});
-		expect(recognizeTemporalExpression("now").expression).toBeUndefined();
+		expect(recognizeTemporalExpression("now", profile).expression).toBeUndefined();
 	});
 
 	it("resolves relative days against an explicit anchor", () => {
-		const expression = recognizeTemporalExpression("today").expression!;
+		const profile = createTemporalSyntaxProfile(
+			{ profileId: "v2-temporal-default" },
+			bootstrapTemporalDefaults,
+		);
+		const expression = recognizeTemporalExpression("today", profile).expression!;
 		const result = resolveTemporalExpression(expression, anchor);
 		expect(result.diagnostics).toEqual([]);
 		expect(result.value?.time?.startDatetime?.assertedTimestampUtc).toBe(
@@ -39,7 +49,11 @@ describe(" temporal values", () => {
 	});
 
 	it("preserves relative mathematical semantics", () => {
-		const expression = recognizeTemporalExpression("3 days ago").expression!;
+		const profile = createTemporalSyntaxProfile(
+			{ profileId: "v2-temporal-default" },
+			bootstrapTemporalDefaults,
+		);
+		const expression = recognizeTemporalExpression("3 days ago", profile).expression!;
 		expect(
 			resolveTemporalExpression(expression, anchor).value?.relativeEstimate,
 		).toEqual({
@@ -50,18 +64,21 @@ describe(" temporal values", () => {
 	});
 
 	it("uses profile date rules instead of hardcoded date formats", () => {
-		const profile = createTemporalSyntaxProfile({
-			profileId: "date-profile",
-			dateRecognitionRules: [
-				{
-					pattern: "^(?<day>\\d{2})/(?<month>\\d{2})/(?<year>\\d{4})$",
-					precision: "day",
-					yearGroup: "year",
-					monthGroup: "month",
-					dayGroup: "day",
-				},
-			],
-		});
+		const profile = createTemporalSyntaxProfile(
+			{
+				profileId: "date-profile",
+				dateRecognitionRules: [
+					{
+						pattern: "^(?<day>\\d{2})/(?<month>\\d{2})/(?<year>\\d{4})$",
+						precision: "day",
+						yearGroup: "year",
+						monthGroup: "month",
+						dayGroup: "day",
+					},
+				],
+			},
+			bootstrapTemporalDefaults,
+		);
 		const expression = recognizeTemporalExpression(
 			"03/08/2026",
 			profile,
@@ -75,12 +92,15 @@ describe(" temporal values", () => {
 
 	it("resolves configured frequency shorthand without parser dependencies", () => {
 		expect(
-			resolveFrequency({
-				alias: "BID",
-				prn: true,
-				eventAnchor: "with_meal",
-				prnReason: { conceptId: "pain", display: "Pain" },
-			}),
+			resolveFrequency(
+				{
+					alias: "BID",
+					prn: true,
+					eventAnchor: "with_meal",
+					prnReason: { conceptId: "pain", display: "Pain" },
+				},
+				bootstrapFrequencyDefaults,
+			),
 		).toEqual({
 			cadenceType: "event_anchored",
 			interval: undefined,

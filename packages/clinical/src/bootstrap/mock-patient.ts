@@ -7,9 +7,9 @@ export interface MockCaseIdentity {
 }
 
 /**
- * Creates the in-memory subject fixture used by the CLI2 V2 bootstrap.
+ * Creates the in-memory subject fixture used by the CLI2  bootstrap.
  *
- * There is intentionally no patient store in V2 yet. The profile is therefore
+ * There is intentionally no patient store in  yet. The profile is therefore
  * bootstrap context only; the clinical document stores its patient ID, while
  * the notebook session stores the document/workspace bindings.
  */

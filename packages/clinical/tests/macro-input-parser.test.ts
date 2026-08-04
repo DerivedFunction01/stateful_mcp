@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { MacroDefinition } from "../src/macros/macro-definition";
 import { parseMacroLine } from "../src/macros/macro-input-parser";
 import { createSyntaxProfile } from "../src/macros/macro-profile";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 
 const OBSERVATION: MacroDefinition = {
 	macroId: "obs",
@@ -109,10 +110,13 @@ describe("macro-input-parser", () => {
 	});
 
 	test("uses profile defaults without requiring a delimiter", () => {
-		const profile = createSyntaxProfile({
-			profileId: "default",
-			macroArgDelimiter: ";",
-		});
+		const profile = createSyntaxProfile(
+			{
+				profileId: "default",
+				macroArgDelimiter: ";",
+			},
+			bootstrapCommandDefaults,
+		);
 		const result = parseMacroLine("^observation duration=2 hours", 0, {
 			definition: OBSERVATION,
 			profile,

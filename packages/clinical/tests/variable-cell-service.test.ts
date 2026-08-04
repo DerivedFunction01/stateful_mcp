@@ -4,6 +4,7 @@ import { KvCellStore } from "../src/cells/kv-cell-store";
 import { VariableCellService } from "../src/cells/variable-cell-service";
 import { createCommandSyntaxProfile } from "../src/commands/command-syntax-profile";
 import { VariableCommandService } from "../src/commands/variable-command-service";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 
 describe(" variable cell service", () => {
 	it("records a successful variable command as a committed structured cell", async () => {
@@ -11,7 +12,10 @@ describe(" variable cell service", () => {
 		const service = new VariableCellService(
 			new KvCellStore(new MemoryKvBackend()),
 			new VariableCommandService(variables),
-			createCommandSyntaxProfile({ profileId: "test" }),
+			createCommandSyntaxProfile(
+				{ profileId: "test" },
+				bootstrapCommandDefaults,
+			),
 		);
 		const result = await service.execute(
 			"s1",
@@ -30,7 +34,10 @@ describe(" variable cell service", () => {
 		const service = new VariableCellService(
 			store,
 			new VariableCommandService(new VariableServiceStore()),
-			createCommandSyntaxProfile({ profileId: "test" }),
+			createCommandSyntaxProfile(
+				{ profileId: "test" },
+				bootstrapCommandDefaults,
+			),
 		);
 		await expect(
 			service.execute(

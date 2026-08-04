@@ -1,5 +1,8 @@
 import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
-import { createCommandSyntaxProfile } from "../commands/command-syntax-profile";
+import {
+	type CommandSyntaxProfileDefaults,
+	createCommandSyntaxProfile,
+} from "../commands/command-syntax-profile";
 
 export interface SyntaxProfile extends Partial<CommandSyntaxProfile> {
 	profileId: string;
@@ -17,14 +20,15 @@ export interface SyntaxProfile extends Partial<CommandSyntaxProfile> {
 }
 
 export function createSyntaxProfile(
-    profile: Omit<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator"> &
-        Partial<Pick<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator">>,
+	profile: Omit<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator"> &
+		Partial<Pick<SyntaxProfile, "macroStartToken" | "conceptCodeSeparator">>,
+	defaults?: CommandSyntaxProfileDefaults,
 ): SyntaxProfile {
-    const commandProfile = createCommandSyntaxProfile(profile);
-    return {
-        ...profile,
-        ...commandProfile,
-        macroStartToken: profile.macroStartToken ?? "",
-        conceptCodeSeparator: profile.conceptCodeSeparator ?? "",
-    };
+	const commandProfile = createCommandSyntaxProfile(profile, defaults);
+	return {
+		...profile,
+		...commandProfile,
+		macroStartToken: commandProfile.macroStartToken,
+		conceptCodeSeparator: profile.conceptCodeSeparator ?? "::",
+	};
 }

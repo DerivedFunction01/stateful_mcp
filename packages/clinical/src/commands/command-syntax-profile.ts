@@ -60,22 +60,59 @@ export interface CommandSyntaxProfile {
 	variableNamePattern: string;
 	variableCommandMappings: Readonly<Record<string, VariableCommandVerb>>;
 }
+
+export interface CommandSyntaxProfileDefaults {
+	directCommandToken?: string;
+	macroStartToken?: string;
+	directCommandMappings?: Readonly<Record<string, DirectCommandVerb>>;
+	editorCommandMappings?: Readonly<Record<string, EditorCommandVerb>>;
+	variableCommandToken?: string;
+	variableCommandName?: string;
+	variableAssignmentDelimiter?: string;
+	variableNamePattern?: string;
+	variableCommandMappings?: Readonly<Record<string, VariableCommandVerb>>;
+}
+
 export function createCommandSyntaxProfile(
-    profile: Partial<CommandSyntaxProfile> &
-        Pick<CommandSyntaxProfile, "profileId">,
+	profile: Partial<CommandSyntaxProfile> &
+		Pick<CommandSyntaxProfile, "profileId">,
+	defaults?: CommandSyntaxProfileDefaults,
 ): CommandSyntaxProfile {
-    return {
-        ...profile,
-        directCommandToken: profile.directCommandToken ?? "",
-        macroStartToken: profile.macroStartToken ?? "",
-        directCommandMappings: profile.directCommandMappings ?? {},
-        editorCommandMappings: profile.editorCommandMappings ?? {},
-        variableCommandToken: profile.variableCommandToken ?? "",
-        variableCommandName: profile.variableCommandName ?? "",
-        variableAssignmentDelimiter: profile.variableAssignmentDelimiter ?? "",
-        variableNamePattern: profile.variableNamePattern ?? ({} as any), // or a default RegExp/string depending on type
-        variableCommandMappings: profile.variableCommandMappings ?? {},
-    };
+	return {
+		...profile,
+		directCommandToken:
+			profile.directCommandToken ?? defaults?.directCommandToken ?? "",
+		macroStartToken:
+			profile.macroStartToken ?? defaults?.macroStartToken ?? "",
+		directCommandMappings:
+			profile.directCommandMappings ??
+			defaults?.directCommandMappings ??
+			{},
+		editorCommandMappings:
+			profile.editorCommandMappings ??
+			defaults?.editorCommandMappings ??
+			{},
+		variableCommandToken:
+			profile.variableCommandToken ??
+			defaults?.variableCommandToken ??
+			"",
+		variableCommandName:
+			profile.variableCommandName ??
+			defaults?.variableCommandName ??
+			"",
+		variableAssignmentDelimiter:
+			profile.variableAssignmentDelimiter ??
+			defaults?.variableAssignmentDelimiter ??
+			"",
+		variableNamePattern:
+			profile.variableNamePattern ??
+			defaults?.variableNamePattern ??
+			({} as any),
+		variableCommandMappings:
+			profile.variableCommandMappings ??
+			defaults?.variableCommandMappings ??
+			{},
+	};
 }
 
 export function resolveCommandSyntaxProfile(

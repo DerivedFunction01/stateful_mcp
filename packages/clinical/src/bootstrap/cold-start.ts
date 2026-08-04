@@ -9,6 +9,7 @@ import {
 } from "../macros/default-macros";
 import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
 import { createDefaultSchemaRegistry } from "../schemas/default-registry";
+import { bootstrapCommandDefaults, bootstrapTemporalDefaults } from "./bootstrap-config";
 import {
 	createTemporalSyntaxProfile,
 	type TemporalSyntaxProfile,
@@ -41,16 +42,22 @@ export async function initializeColdStart(
 ): Promise<ColdStartState> {
 	const commandProfile =
 		options.commandProfile ??
-		createCommandSyntaxProfile({
-			profileId: "v2-default",
-			active: true,
-			default: true,
-		});
+		createCommandSyntaxProfile(
+			{
+				profileId: "v2-default",
+				active: true,
+				default: true,
+			},
+			bootstrapCommandDefaults,
+		);
 	const temporalProfile =
 		options.temporalProfile ??
-		createTemporalSyntaxProfile({
-			profileId: `${commandProfile.profileId}:temporal`,
-		});
+		createTemporalSyntaxProfile(
+			{
+				profileId: `${commandProfile.profileId}:temporal`,
+			},
+			bootstrapTemporalDefaults,
+		);
 	await options.dictionary.loadConfig({
 		allowedTargetAssignments: [
 			"PrimaryDiagnosis.id",

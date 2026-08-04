@@ -23,17 +23,34 @@ export interface TemporalSyntaxProfile {
 		Record<string, "start" | "end" | "include" | "exclude">
 	>;
 }
+export interface TemporalSyntaxProfileDefaults {
+	dateRecognitionRules?: readonly DateRecognitionRule[];
+	relativeDayAliases?: Readonly<Record<string, number>>;
+	unitAliases?: Readonly<Record<string, TimePrecisionLevel>>;
+	directionAliases?: Readonly<Record<string, TemporalDirection>>;
+	rangeDelimiters?: readonly string[];
+	boundaryAliases?: Readonly<
+		Record<string, "start" | "end" | "include" | "exclude">
+	>;
+}
 export function createTemporalSyntaxProfile(
 	profile: Partial<TemporalSyntaxProfile> &
 		Pick<TemporalSyntaxProfile, "profileId">,
+	defaults?: TemporalSyntaxProfileDefaults,
 ): TemporalSyntaxProfile {
 	return {
 		...profile,
-		dateRecognitionRules: profile.dateRecognitionRules ?? [],
-		relativeDayAliases: profile.relativeDayAliases ?? {},
-		unitAliases: profile.unitAliases ?? {},
-		directionAliases: profile.directionAliases ?? {},
-		rangeDelimiters: profile.rangeDelimiters ?? [],
-		boundaryAliases: profile.boundaryAliases ?? {},
+		dateRecognitionRules:
+			profile.dateRecognitionRules ?? defaults?.dateRecognitionRules ?? [],
+		relativeDayAliases:
+			profile.relativeDayAliases ?? defaults?.relativeDayAliases ?? {},
+		unitAliases:
+			profile.unitAliases ?? defaults?.unitAliases ?? {},
+		directionAliases:
+			profile.directionAliases ?? defaults?.directionAliases ?? {},
+		rangeDelimiters:
+			profile.rangeDelimiters ?? defaults?.rangeDelimiters ?? [],
+		boundaryAliases:
+			profile.boundaryAliases ?? defaults?.boundaryAliases ?? {},
 	};
 }
