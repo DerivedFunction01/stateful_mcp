@@ -19,7 +19,7 @@ import {
 import {
 	type PipelineDiagnostic,
 	validatePipeline,
-} from "../values/pipeline-evaluator";
+} from "@stateful-mcp/core";
 import { bindMacro } from "./macro-binder";
 import type { MacroBindingIssue, MacroInput } from "./macro-binding";
 import type { MacroArgumentSpec, MacroDefinition } from "./macro-definition";

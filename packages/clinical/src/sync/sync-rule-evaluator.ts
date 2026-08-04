@@ -1,5 +1,4 @@
-import type { PipelineStep } from "@stateful-mcp/core";
-import { evaluatePipeline } from "../values/pipeline-evaluator";
+import { executePipeline, type PipelineStep } from "@stateful-mcp/core";
 import type { SyncResult, SyncRuleMatch } from "./sync-rule-config";
 
 /**
@@ -75,40 +74,17 @@ function resolvePath(obj: Record<string, unknown>, path: string): unknown {
 
 /**
  * Apply a pipeline transform to a source value.
- * Seeds source value and flattened inputs as pipeline variables.
+ * Seeds source value (as "value") and all inputs as the row passed to
+ * core's executePipeline — args can reference them via { $var: "key" }.
  */
 function applyPipeline(
 	steps: PipelineStep[],
 	sourceValue: unknown,
 	inputs: Record<string, unknown>,
 ): unknown {
-	const variables = new Map<string, string | number | boolean | null>();
-	if (
-		sourceValue !== undefined &&
-		(typeof sourceValue === "string" ||
-			typeof sourceValue === "number" ||
-			typeof sourceValue === "boolean" ||
-			sourceValue === null)
-	) {
-		variables.set("value", sourceValue as string | number | boolean | null);
+	const row: Record<string, unknown> = { ...inputs };
+	if (sourceValue !== undefined) {
+		row["value"] = sourceValue;
 	}
-	for (const [key, value] of Object.entries(inputs)) {
-		if (
-			typeof value === "string" ||
-			typeof value === "number" ||
-			typeof value === "boolean" ||
-			value === null
-		) {
-			variables.set(key, value as string | number | boolean | null);
-		}
-	}
-	const context = {
-		variables,
-		inputs: Object.fromEntries(variables) as Record<
-			string,
-			string | number | boolean | null
-		>,
-	};
-	const result = evaluatePipeline(steps, context);
-	return result.value;
+	return executePipeline(steps, row, {});
 }

@@ -101,7 +101,6 @@ export * from "./values/frequency-resolver";
 export * from "./values/measurement-resolver";
 export * from "./values/measurement-value";
 export * from "./values/merge";
-export * from "./values/pipeline-evaluator";
 export * from "./values/temporal-expression";
 export * from "./values/temporal-recognizer";
 export * from "./values/temporal-resolver";

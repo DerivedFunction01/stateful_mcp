@@ -1,4 +1,73 @@
+import { OPS } from "./types";
 import type { ArgRef, PipelineStep } from "./types";
+
+// ---------------------------------------------------------------------------
+// Pipeline diagnostics & validation
+// ---------------------------------------------------------------------------
+
+export interface PipelineDiagnostic {
+	code:
+		| "unsupported_op"
+		| "max_depth_exceeded"
+		| "undefined_variable"
+		| "invalid_argument"
+		| "missing_return_var"
+		| "duplicate_return_var"
+		| "pipeline_too_deep";
+	step: number;
+	message: string;
+}
+
+const MAX_PIPELINE_DEPTH = 20;
+
+/** Statically validate a pipeline: op names, variable forward-references, depth. */
+export function validatePipeline(steps: PipelineStep[]): PipelineDiagnostic[] {
+	const diagnostics: PipelineDiagnostic[] = [];
+	if (steps.length > MAX_PIPELINE_DEPTH) {
+		diagnostics.push({
+			code: "pipeline_too_deep",
+			step: steps.length,
+			message: `Pipeline exceeds maximum depth of ${MAX_PIPELINE_DEPTH}`,
+		});
+	}
+	const definedVars = new Set<string>();
+	for (const [index, step] of steps.entries()) {
+		if (!OPS.includes(step.op as (typeof OPS)[number])) {
+			diagnostics.push({
+				code: "unsupported_op",
+				step: index,
+				message: `Unsupported operation '${String(step.op)}'`,
+			});
+		}
+		for (const arg of step.args) {
+			if (arg && typeof arg === "object" && "$var" in arg) {
+				const varName = String((arg as { $var: string }).$var);
+				if (!definedVars.has(varName)) {
+					diagnostics.push({
+						code: "undefined_variable",
+						step: index,
+						message: `Variable '${varName}' must refer to an earlier return_var`,
+					});
+				}
+			}
+		}
+		if (step.return_var) {
+			if (definedVars.has(step.return_var)) {
+				diagnostics.push({
+					code: "duplicate_return_var",
+					step: index,
+					message: `Variable '${step.return_var}' is already defined`,
+				});
+			}
+			definedVars.add(step.return_var);
+		}
+	}
+	return diagnostics;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline execution
+// ---------------------------------------------------------------------------
 
 // Resolve one argument reference against the execution environment
 function resolveArg(
