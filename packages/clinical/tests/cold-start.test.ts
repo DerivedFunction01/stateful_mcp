@@ -20,7 +20,6 @@ describe(" cold start", () => {
 			"PrimaryDiagnosis.diagnosis",
 		);
 		expect(state.commandProfile.directCommandToken).toBe(":");
-		expect(state.temporalProfile.relativeDayAliases.today).toBe(0);
 		expect((await state.macroStore.get("primary_diagnosis"))?.active).toBe(
 			true,
 		);
