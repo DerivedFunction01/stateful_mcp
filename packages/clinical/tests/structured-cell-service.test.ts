@@ -6,7 +6,11 @@ import { SqlCellStore } from "../src/cells/sql-cell-store";
 import { StructuredCellService } from "../src/cells/structured-cell-service";
 
 async function compile(rawText: string) {
-	return { plan: {}, diagnostics: [], fingerprint: `fp_${rawText.length}` };
+	return {
+		plan: { operations: [], generatedCells: [] },
+		diagnostics: [],
+		fingerprint: `fp_${rawText.length}`,
+	};
 }
 
 function kvStore(): CellStore {
@@ -164,10 +168,15 @@ describe.each([
 		expect(await service.get(created.cellId)).toEqual(created);
 	});
 
-	it("executes a draft cell and transitions to pending_commit", async () => {
+	it("executes a draft cell and transitions to committed", async () => {
 		const service = new StructuredCellService({
 			store: await makeStore(),
 			compile,
+			executePlan: async () => ({
+				status: "committed",
+				transactionId: "tx-test",
+				planFingerprint: "fp-test",
+			}),
 		});
 		const created = await service.create({
 			sessionId: "s1",
@@ -187,11 +196,11 @@ describe.each([
 			idempotencyKey: "idem-execute-1",
 		});
 
-		expect(result.status).toBe("pending_commit");
-		expect(result.transactionId).toBeTruthy();
+		expect(result.status).toBe("committed");
+		expect(result.transactionId).toBe("tx-test");
 
 		const updated = await service.get(created.cellId);
-		expect(updated?.lifecycle.status).toBe("pending_commit");
+		expect(updated?.lifecycle.status).toBe("committed");
 	});
 
 	it("rejects execute with wrong revision", async () => {
