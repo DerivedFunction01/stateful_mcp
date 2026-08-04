@@ -62,31 +62,6 @@ export interface NamedGroupContract {
 	disallowed?: string[];
 }
 
-export interface CalibrationException {
-	exceptionId: string;
-	personnelId: string;
-	rawTerm: string;
-	contextSnippet?: string;
-	suggestedConceptId?: string;
-	status: "pending" | "mapped" | "ignored";
-	createdAt: string;
-}
-
-export interface CalibrationStore {
-	logException(
-		exception: Omit<
-			CalibrationException,
-			"exceptionId" | "createdAt" | "status"
-		>,
-	): Promise<string>;
-	listPending(personnelId?: string): Promise<CalibrationException[]>;
-	resolve(
-		exceptionId: string,
-		status: "mapped" | "ignored",
-		conceptId?: string,
-	): Promise<void>;
-}
-
 import type { PipelineStep } from "@stateful-mcp/core";
 import type { Position } from "./auto-complete/interfaces";
 
