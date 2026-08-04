@@ -2,6 +2,8 @@ import type { StructuredCellService } from "@stateful-mcp/clinical/cells/structu
 import type {
 	CreateCellRequest,
 	CellStore,
+	CellPreview,
+	CellExecutionResult,
 } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
@@ -49,6 +51,8 @@ export interface NotebookSession {
 	createCell(
 		input: Omit<CreateCellRequest, "sessionId"> & { position?: number },
 	): Promise<StructuredCell>;
+	previewCell(cellId: string): Promise<CellPreview>;
+	executeCell(cellId: string, preview: CellPreview): Promise<CellExecutionResult>;
 	getAutocomplete(
 		context: CommandAutocompleteContext,
 	): Promise<CommandSuggestion[]>;
@@ -123,6 +127,42 @@ export function createNotebookSession(input: {
 		);
 		return cell;
 	};
+	const getCellContext = async (cellId: string) => {
+		const record = await input.sessionStore.get(input.sessionId);
+		const cell = await input.engine.getCell(cellId);
+		if (!record) throw new Error(`Notebook session '${input.sessionId}' was not found`);
+		if (!cell) throw new Error(`Cell '${cellId}' was not found`);
+		return {
+			cell,
+			context: {
+				sessionId: input.sessionId,
+				workspaceId: record.workspaceId,
+				documentId: record.documentId,
+			},
+		};
+	};
+	const previewCell = async (cellId: string): Promise<CellPreview> => {
+		const { cell, context } = await getCellContext(cellId);
+		return input.engine.getCellService().preview({
+			cellId,
+			expectedRevision: cell.lifecycle.revision,
+			context,
+		});
+	};
+	const executeCell = async (
+		cellId: string,
+		preview: CellPreview,
+	): Promise<CellExecutionResult> => {
+		const { cell, context } = await getCellContext(cellId);
+		return input.engine.getCellService().execute({
+			cellId,
+			expectedRevision: cell.lifecycle.revision,
+			previewId: preview.previewId,
+			planFingerprint: preview.planFingerprint,
+			idempotencyKey: `cell_${cellId}_${preview.planFingerprint}`,
+			context,
+		});
+	};
 	return {
 		...input,
 		cellService: input.engine.getCellService(),
@@ -131,6 +171,8 @@ export function createNotebookSession(input: {
 		saveEditorSnapshot,
 		listCells,
 		createCell,
+		previewCell,
+		executeCell,
 		getAutocomplete: (context) =>
 			getCommandBarSuggestions(
 				context,

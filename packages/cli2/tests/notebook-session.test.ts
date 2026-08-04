@@ -59,4 +59,26 @@ describe("NotebookSession", () => {
 		expect(snapshot.record.cellOrder.indexOf(second.cellId)).toBe(0);
 		expect(snapshot.record.cellOrder.indexOf(first.cellId)).toBe(1);
 	});
+
+	it("previews and executes a macro through the V2 engine", async () => {
+		const bootstrapped = await bootstrapSession({
+			sessionId: `cli2-notebook-execution-${Date.now()}`,
+		});
+		const notebook = bootstrapped.notebook;
+		const cell = await notebook.createCell({
+			collection: { kind: "notebook", collectionId: bootstrapped.sessionId },
+			rawText: "^primary_diagnosis id=dx-1 diagnosis=Pneumonia",
+		});
+		const preview = await notebook.previewCell(cell.cellId);
+		expect(preview.status).toBe("valid");
+		expect(preview.planFingerprint).not.toBe("");
+		const execution = await notebook.executeCell(cell.cellId, preview);
+		expect(execution.status).toBe("committed");
+		const committed = await bootstrapped.engine.getCell(cell.cellId);
+		expect(committed?.lifecycle.status).toBe("committed");
+		const document = await bootstrapped.engine.getDocument(
+			bootstrapped.caseIdentity.documentId,
+		);
+		expect(Object.keys(document?.records ?? {}).length).toBeGreaterThan(0);
+	});
 });

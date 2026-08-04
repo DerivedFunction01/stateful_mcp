@@ -1,4 +1,5 @@
 import type { StructuredCell } from "./structured-cell";
+import type { CellCompileContext } from "./cell-compiler";
 
 export interface CellStore {
 	get(cellId: string): Promise<StructuredCell | null>;
@@ -39,6 +40,7 @@ export interface EditCellRequest {
 export interface PreviewCellRequest {
 	cellId: string;
 	expectedRevision: number;
+	context?: CellCompileContext;
 }
 
 export interface ExecuteCellRequest {
@@ -47,6 +49,7 @@ export interface ExecuteCellRequest {
 	previewId: string;
 	planFingerprint: string;
 	idempotencyKey: string;
+	context?: CellCompileContext;
 }
 
 export interface CancelCellRequest {

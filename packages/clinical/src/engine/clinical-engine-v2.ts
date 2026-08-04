@@ -69,7 +69,9 @@ export class ClinicalEngine {
 		participants?: readonly TransactionParticipant[],
 	): Promise<PreparedTransaction> {
 		const effective = participants ?? this.participants;
-		const enriched = await this.enrichIfComposite(plan);
+		const enriched = await this.enrichExpectedVersions(
+			await this.enrichIfComposite(plan),
+		);
 		return this.coordinator.prepare({
 			idempotencyKey: `plan_${enriched.fingerprint.value}`,
 			sourceCellId: plan.operations[0]?.cellRef ?? "",
@@ -190,5 +192,58 @@ export class ClinicalEngine {
 		);
 		if (!workspace) return plan;
 		return enrichPlanWithCompletionLinkage(plan, workspace);
+	}
+
+	private async enrichExpectedVersions(
+		plan: MacroExecutionPlan,
+	): Promise<MacroExecutionPlan> {
+		const expectedVersions = [...plan.expectedVersions];
+		const addExpected = (
+			aggregateKind: "document" | "workspace",
+			aggregateId: string | undefined,
+			version: number,
+			head: string | undefined,
+		) => {
+			if (!aggregateId) return;
+			if (
+				expectedVersions.some(
+					(item) =>
+						item.aggregateKind === aggregateKind &&
+						item.aggregateId === aggregateId,
+				)
+			)
+				return;
+			expectedVersions.push({
+				aggregateKind,
+				aggregateId,
+				expectedVersion: version,
+				expectedHead: head,
+			});
+		};
+		if (plan.scope.documentId) {
+			const document = await this.clinicalService.getDocument(
+				plan.scope.documentId,
+			);
+			if (document)
+				addExpected(
+					"document",
+					plan.scope.documentId,
+					document.version,
+					document.eventHead,
+				);
+		}
+		if (plan.scope.workspaceId) {
+			const workspace = await this.workspaceService.getWorkspace(
+				plan.scope.workspaceId,
+			);
+			if (workspace)
+				addExpected(
+					"workspace",
+					plan.scope.workspaceId,
+					workspace.version,
+					workspace.eventHead,
+				);
+		}
+		return { ...plan, expectedVersions };
 	}
 }

@@ -10,21 +10,36 @@ import type {
 	SupersedeCellRequest,
 } from "./cell-service-types";
 import type { StructuredCell } from "./structured-cell";
+import type { CellCompileContext } from "./cell-compiler";
+import type { MacroExecutionPlan } from "../macros/macro-plan";
+import type { ExecutionResult } from "../engine/clinical-engine-v2";
+import { NotebookPreviewWorkflow } from "../notebook/preview-workflow";
 
 export interface StructuredCellServiceDeps {
 	store: CellStore;
 	compile: (
 		rawText: string,
-	) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>;
+		context?: CellCompileContext,
+	) => Promise<{ plan?: MacroExecutionPlan; diagnostics: string[]; fingerprint: string }>;
+	previewWorkflow?: NotebookPreviewWorkflow;
+	executePlan?: (plan: MacroExecutionPlan) => Promise<ExecutionResult>;
 }
 
 export class StructuredCellService {
 	private readonly store: CellStore;
 	private readonly compile: StructuredCellServiceDeps["compile"];
+	private readonly previewWorkflow: NotebookPreviewWorkflow;
+	private executePlan?: StructuredCellServiceDeps["executePlan"];
 
 	constructor(deps: StructuredCellServiceDeps) {
 		this.store = deps.store;
 		this.compile = deps.compile;
+		this.previewWorkflow = deps.previewWorkflow ?? new NotebookPreviewWorkflow({ compile: deps.compile });
+		this.executePlan = deps.executePlan;
+	}
+
+	setPlanExecutor(executePlan: NonNullable<StructuredCellServiceDeps["executePlan"]>): void {
+		this.executePlan = executePlan;
 	}
 
 	async create(request: CreateCellRequest): Promise<StructuredCell> {
@@ -59,7 +74,7 @@ export class StructuredCellService {
 				status: "valid",
 			};
 		}
-		const result = await this.compile(cell.authored.rawText);
+		const result = await this.previewWorkflow.preview(cell, request.context);
 		const previewId = `preview_${cell.cellId}_${cell.lifecycle.revision}`;
 		const status: CellPreview["status"] =
 			result.diagnostics.length > 0 ? "invalid" : "valid";
@@ -67,7 +82,7 @@ export class StructuredCellService {
 			previewId,
 			cellId: cell.cellId,
 			planFingerprint: result.fingerprint,
-			diagnostics: result.diagnostics,
+			diagnostics: [...result.diagnostics],
 			status,
 		};
 	}
@@ -90,13 +105,23 @@ export class StructuredCellService {
 		if (expectedPreviewId !== request.previewId) {
 			throw new Error(`Cell '${request.cellId}' preview mismatch`);
 		}
-		const compiled = await this.compile(cell.authored.rawText);
+		const compiled = await this.compile(cell.authored.rawText, request.context);
 		if (compiled.fingerprint !== request.planFingerprint) {
 			throw new Error(`Cell '${request.cellId}' plan fingerprint mismatch`);
 		}
 		if (compiled.diagnostics.length > 0) {
 			throw new Error(`Cell '${request.cellId}' preview is invalid`);
 		}
+		if (!compiled.plan) throw new Error(`Cell '${cell.cellId}' did not produce an execution plan`);
+		if (!this.executePlan)
+			throw new Error("StructuredCellService execution is not configured");
+		const plan: MacroExecutionPlan = {
+			...compiled.plan,
+			operations: compiled.plan.operations.map((operation) => ({
+				...operation,
+				cellRef: operation.cellRef ?? cell.cellId,
+			})),
+		};
 		const now = new Date().toISOString();
 		const updated: StructuredCell = {
 			...cell,
@@ -112,11 +137,31 @@ export class StructuredCellService {
 			},
 		};
 		await this.store.save(updated);
+		const result = await this.executePlan(plan);
+		const finalStatus = result.status === "committed" ? "committed" : "failed";
+		const finalCell: StructuredCell = {
+			...updated,
+			lifecycle: {
+				...updated.lifecycle,
+				status: finalStatus,
+				revision: updated.lifecycle.revision + 1,
+			},
+			source: { ...updated.source, updatedAt: new Date().toISOString() },
+			execution: {
+				...updated.execution,
+				planFingerprint: compiled.fingerprint,
+				committedAt: result.status === "committed" ? new Date().toISOString() : undefined,
+			},
+			diagnostics: result.error
+				? [{ code: "execution", severity: "error", message: result.error }]
+				: [],
+		};
+		await this.store.save(finalCell);
 		return {
-			transactionId: updated.execution.transactionId ?? "",
-			status: "pending_commit",
-			generatedCellIds: [],
-			diagnostics: [],
+			transactionId: result.transactionId,
+			status: result.status === "committed" ? "committed" : "failed",
+			generatedCellIds: plan.generatedCells.map((generated) => generated.cellRef),
+			diagnostics: result.error ? [result.error] : [],
 		};
 	}
 

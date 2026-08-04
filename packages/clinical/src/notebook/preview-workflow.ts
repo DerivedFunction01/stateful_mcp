@@ -15,7 +15,7 @@ export interface CellPreview {
 
 /** Native  replacement for the V1 PreviewWorkflow/PreviewCandidate pair. */
 export class NotebookPreviewWorkflow {
-	constructor(private readonly compiler: CellCompiler) {}
+	constructor(private readonly compiler: Pick<CellCompiler, "compile">) {}
 
 	async preview(
 		cell: StructuredCell,

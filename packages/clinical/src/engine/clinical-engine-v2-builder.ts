@@ -64,7 +64,8 @@ export class ClinicalEngineBuilder {
 	private dictionaryStore?: DictionaryStore;
 	private cellCompiler?: (
 		rawText: string,
-	) => Promise<{ plan?: unknown; diagnostics: string[]; fingerprint: string }>;
+		context?: import("../cells/cell-compiler").CellCompileContext,
+	) => Promise<{ plan?: import("../macros/macro-plan").MacroExecutionPlan; diagnostics: string[]; fingerprint: string }>;
 	private syncConfig?: SyncConfig;
 	private cellStore?: CellStore;
 	private workspaceStore?: WorkspaceStore;
@@ -102,8 +103,8 @@ export class ClinicalEngineBuilder {
 	}
 
 	withCellCompiler(
-		compile: (rawText: string) => Promise<{
-			plan?: unknown;
+		compile: (rawText: string, context?: import("../cells/cell-compiler").CellCompileContext) => Promise<{
+			plan?: import("../macros/macro-plan").MacroExecutionPlan;
 			diagnostics: string[];
 			fingerprint: string;
 		}>,
@@ -274,7 +275,7 @@ export class ClinicalEngineBuilder {
 			),
 		};
 
-		return new ClinicalEngine(
+		const engine = new ClinicalEngine(
 			runtime,
 			coordinator,
 			participants,
@@ -286,6 +287,8 @@ export class ClinicalEngineBuilder {
 			syncEngine,
 			syncApplication,
 		);
+		cellService.setPlanExecutor((plan) => engine.executePlan(plan));
+		return engine;
 	}
 
 	private requireStore<T>(store: T | undefined, name: string): T {

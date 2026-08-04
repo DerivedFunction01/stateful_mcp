@@ -144,18 +144,45 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 	}, [session, state.activeIndex, state.cells]);
 
 	const runCell = useCallback(async (cell: StructuredCell) => {
-		dispatch({
-			type: "set_message",
-			message: `Cell ${cell.cellId} execution is deferred until the V2 cell transaction seam is complete`,
-		});
-	}, []);
+		if (!session) return;
+		try {
+			const preview = await session.v2.notebook.previewCell(cell.cellId);
+			if (preview.status !== "valid") {
+				dispatch({ type: "set_preview", preview });
+				dispatch({ type: "set_message", message: "Cell preview is invalid" });
+				return;
+			}
+			const result = await session.v2.notebook.executeCell(cell.cellId, preview);
+			const updated = await session.v2.engine.getCell(cell.cellId);
+			if (updated) dispatch({ type: "replace_cell", cell: updated });
+			dispatch({
+				type: "set_message",
+				message: result.status === "committed" ? "Cell committed" : result.diagnostics.join("; "),
+			});
+		} catch (error) {
+			dispatch({
+				type: "set_message",
+				message: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}, [session]);
 
 	const previewCell = useCallback(async (cell: StructuredCell) => {
-		dispatch({
-			type: "set_message",
-			message: `Cell ${cell.cellId} preview is deferred until the V2 notebook preview workflow is connected`,
-		});
-	}, []);
+		if (!session) return;
+		try {
+			const preview = await session.v2.notebook.previewCell(cell.cellId);
+			dispatch({ type: "set_preview", preview });
+			dispatch({
+				type: "set_message",
+				message: preview.status === "valid" ? "Cell preview ready" : "Cell preview is invalid",
+			});
+		} catch (error) {
+			dispatch({
+				type: "set_message",
+				message: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}, [session]);
 
 	const acceptPreview = useCallback(async (_preview: CellPreview) => {
 		dispatch({ type: "set_preview", preview: undefined });
