@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { bootstrapSession } from "../src/lib/session/bootstrap-session";
+import { CellCompiler, createSyntaxProfile } from "@stateful-mcp/clinical";
 
 describe("cli2  macro execution", () => {
 	it("compiles a seeded macro, records a structured cell, and commits a clinical document", async () => {
