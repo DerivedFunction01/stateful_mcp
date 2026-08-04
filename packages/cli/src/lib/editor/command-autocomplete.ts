@@ -80,3 +80,42 @@ export function knownVerbs(descriptors: CommandDescriptor[]): Set<string> {
 	}
 	return set;
 }
+
+/** Generic synchronous positional argument completion for command bars. */
+export function argumentSuggestions(
+	partial: string,
+	descriptors: CommandDescriptor[],
+	group = "v2",
+): AutocompleteSuggestion[] {
+	const spaceIndex = partial.indexOf(" ");
+	if (spaceIndex < 0) return [];
+	const verb = partial.slice(0, spaceIndex);
+	const argumentText = partial.slice(spaceIndex + 1);
+	const parts = argumentText.split(/\s+/);
+	const argIndex = Math.max(0, parts.length - 1);
+	const prefix = parts[argIndex] ?? "";
+	const descriptor = descriptors.find((candidate) =>
+		[candidate.verb, ...candidate.aliases].some(
+			(name) => name.toLocaleLowerCase() === verb.toLocaleLowerCase(),
+		),
+	);
+	const argument = descriptor?.args?.[argIndex];
+	if (!descriptor || !argument?.completions) return [];
+	return argument.completions
+		.filter((value) => value.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase()))
+		.slice(0, MAX_SUGGESTIONS)
+		.map((value) => ({
+			label: value,
+			value,
+			type: "arg" as const,
+			verb: value,
+			completionText: value,
+			group: descriptor.group ?? group,
+			source: "editor" as const,
+			hasArgs: false,
+			kind: "arg" as const,
+			argIndex,
+			argName: argument.name,
+			descriptionKey: argument.descriptionKey,
+		}));
+}

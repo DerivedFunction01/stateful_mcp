@@ -167,7 +167,7 @@ export function Notebook() {
 	const engineCandidates = useMemo<
 		AutocompleteSuggestion[]
 	>(() => [], []);
-	const mergedCandidates = state.mode === "MACRO" ? notebook.macroSuggestions : [...staticCandidates, ...notebook.variableSuggestions];
+	const mergedCandidates = state.mode === "MACRO" ? notebook.macroSuggestions : staticCandidates;
 
 	// Sync engine suggestions ref
 	useEffect(() => {

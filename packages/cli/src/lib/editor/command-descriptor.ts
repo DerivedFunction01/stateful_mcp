@@ -9,6 +9,6 @@ export interface CommandDescriptor {
 		name: string;
 		required?: boolean;
 		descriptionKey?: string;
-		completions?: unknown;
+		completions?: readonly string[];
 	}>;
 }

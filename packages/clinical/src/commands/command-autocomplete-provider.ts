@@ -106,6 +106,7 @@ async function macroSuggestions(
 			kind: "argument" as const,
 			detail: definition.description,
 			source: "context" as const,
+			argName: argument.roleName,
 		}));
 	}
 	return definitions

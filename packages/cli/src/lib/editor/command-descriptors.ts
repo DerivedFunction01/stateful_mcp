@@ -49,12 +49,18 @@ export function buildCommandDescriptors(
 
 	// Variable command (mirrors V1 VariableCommandProvider).
 	if (options.variableName) {
+		const operationEntries = Object.entries(profile.variableCommandMappings);
 		descriptors.push({
 			verb: options.variableName,
 			aliases: options.variableAliases ?? [],
 			group: "cell",
 			descriptionKey: "command.variable",
-			args: [],
+			args: [{
+				name: "operation",
+				required: true,
+				descriptionKey: "arg.variable.operation",
+				completions: operationEntries.map(([label]) => label),
+			}],
 		});
 	}
 

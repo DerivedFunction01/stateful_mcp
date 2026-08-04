@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { bootstrapCommandDefaults } from "@stateful-mcp/clinical/bootstrap/bootstrap-config";
 import { createCommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import {
+	argumentSuggestions,
 	dedupeCanonicalSuggestions,
 	knownVerbs,
 	MAX_SUGGESTIONS,
@@ -139,6 +140,44 @@ describe("CLI2 command autocomplete", () => {
 			const descriptors = descriptorsFor();
 			const suggestions = dedupeCanonicalSuggestions(descriptors, "var", TOKEN);
 			expect(suggestions.some((s) => s.verb === "var")).toBe(true);
+		});
+
+		it("completes variable operations through the generic argument path", () => {
+			const descriptors = descriptorsFor();
+			const all = argumentSuggestions("var ", descriptors);
+			expect(all.map((suggestion) => suggestion.label)).toEqual([
+				"set",
+				"update",
+				"eval",
+				"assert",
+				"remove",
+			]);
+			expect(argumentSuggestions("var s", descriptors)[0]).toMatchObject({
+				kind: "arg",
+				argIndex: 0,
+				argName: "operation",
+				label: "set",
+			});
+		});
+
+		it("uses localized profile mapping labels as operation completions", () => {
+			const localized = createCommandSyntaxProfile(
+				{
+					profileId: "es",
+					variableCommandMappings: {
+						establecer: "set",
+						actualizar: "update",
+						evaluar: "eval",
+						afirmar: "assert",
+						eliminar: "remove",
+					},
+				},
+				bootstrapCommandDefaults,
+			);
+			const descriptors = descriptorsFor(localized);
+			expect(argumentSuggestions("var est", descriptors).map((s) => s.label)).toEqual([
+				"establecer",
+			]);
 		});
 	});
 

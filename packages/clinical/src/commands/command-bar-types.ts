@@ -85,4 +85,7 @@ export interface CommandSuggestion {
 	detail?: string;
 	score?: number;
 	source: "static" | "context";
+	argIndex?: number;
+	argName?: string;
+	descriptionKey?: string;
 }
