@@ -391,11 +391,36 @@ export function Notebook({
 		return null;
 	};
 
-	const onEditorAction = (action: EditorAction) => {
+	const onEditorAction = async (action: EditorAction) => {
 		switch (action.type) {
-			case "ENTER_INSERT":
+			case "ENTER_INSERT": {
+				const cell = state.cells[state.activeIndex];
+				if (cell && cell.lifecycle.status === "committed") {
+					const superseded =
+						await notebook.supersedeActiveCell();
+					if (!superseded) return;
+					dispatch({
+						type: "set_cells",
+						cells: [...state.cells, superseded],
+					});
+					dispatch({
+						type: "set_active",
+						index: state.cells.length,
+					});
+					notebook.setEditingCell(superseded.cellId);
+					dispatch({ type: "set_mode", mode: "INSERT" });
+					dispatch({
+						type: "set_draft",
+						text: superseded.authored.rawText,
+					});
+					return;
+				}
+				notebook.setEditingCell(
+					state.cells[state.activeIndex]?.cellId ?? null,
+				);
 				dispatch({ type: "set_mode", mode: "INSERT" });
 				return;
+			}
 			case "ENTER_COMMAND":
 				dispatch({ type: "set_mode", mode: "COMMAND" });
 				dispatch({
@@ -447,6 +472,9 @@ export function Notebook({
 				searchDispatch({ type: "OPEN", query: "", cells: state.cells });
 				return;
 			case "CANCEL":
+				if (state.mode === "INSERT") {
+					await notebook.commitEditorDraft();
+				}
 				dispatch({ type: "set_mode", mode: "NORMAL" });
 				setCompletion({ status: "idle" });
 				return;

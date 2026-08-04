@@ -46,10 +46,12 @@ describe("cli2  notebook session seam", () => {
 
 	it("reconciles persisted order without losing unlisted cells", () => {
 		const cells = [{ cellId: "a" }, { cellId: "b" }, { cellId: "c" }] as any;
-		expect(
-			reconcileNotebookCells(cells, ["missing", "c", "c", "a"]).map(
-				(cell) => cell.cellId,
-			),
-		).toEqual(["c", "a", "b"]);
+		const { cells: ordered } = reconcileNotebookCells(cells, [
+			"missing",
+			"c",
+			"c",
+			"a",
+		]);
+		expect(ordered.map((cell) => cell.cellId)).toEqual(["c", "a", "b"]);
 	});
 });

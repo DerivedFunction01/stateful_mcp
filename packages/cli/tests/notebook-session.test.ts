@@ -36,7 +36,7 @@ describe("NotebookSession", () => {
 
 	it("reconciles persisted order without duplicating or fabricating cells", () => {
 		const cell = (cellId: string) => ({ cellId }) as any;
-		const ordered = reconcileNotebookCells(
+		const { cells: ordered } = reconcileNotebookCells(
 			[cell("b"), cell("a"), cell("c")],
 			["missing", "a", "a", "c"],
 		);

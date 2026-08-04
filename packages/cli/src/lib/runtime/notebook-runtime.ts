@@ -65,6 +65,24 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 					await opts.executeVariableCommand(`:var ${rest}`.trim()),
 				);
 			}
+			if (verb.toLowerCase() === "cell" && rest.trim().toLowerCase() === "cancel") {
+				const success = await notebook.cancelActive();
+				return commandResultToEffects({
+					success,
+					message: success ? "Cell cancelled" : "Cancellation failed",
+				});
+			}
+			if (verb.toLowerCase() === "cell") {
+				const moveMatch = rest.trim().match(/^move\s+(up|down)$/i);
+				if (moveMatch) {
+					const delta = moveMatch[1]!.toLowerCase() === "up" ? -1 : 1;
+					await notebook.moveActive(delta);
+					return commandResultToEffects({
+						success: true,
+						message: `Cell moved ${moveMatch[1]}`,
+					});
+				}
+			}
 			const result = await notebook.dispatchCommand(
 				`:${`${verb} ${rest}`.trim()}`,
 			);

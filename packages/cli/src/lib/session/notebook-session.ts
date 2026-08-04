@@ -1,8 +1,10 @@
 import type {
 	CellExecutionResult,
+	CellLoadDiagnostic,
 	CellPreview,
 	CellStore,
 	CreateCellRequest,
+	EditCellRequest,
 } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { StructuredCellService } from "@stateful-mcp/clinical/cells/structured-cell-service";
@@ -25,6 +27,7 @@ export interface NotebookEditorSnapshot {
 	record: NotebookSessionRecord;
 	cells: StructuredCell[];
 	activeCellId?: string;
+	diagnostics: CellLoadDiagnostic[];
 }
 
 export interface SaveNotebookEditorSnapshotInput {
@@ -90,6 +93,14 @@ export interface NotebookSession {
 		cellId: string,
 		preview: CellPreview,
 	): Promise<CellExecutionResult>;
+	editCell(request: EditCellRequest): Promise<StructuredCell>;
+	supersedeCell(
+		cellId: string,
+		newRawText: string,
+		expectedRevision: number,
+	): Promise<StructuredCell>;
+	cancelCell(cellId: string, expectedRevision: number): Promise<StructuredCell>;
+	moveCells(cellIds: string[], targetIndex: number): Promise<void>;
 	getAutocomplete(
 		context: CommandAutocompleteContext,
 	): Promise<CommandSuggestion[]>;
@@ -109,7 +120,10 @@ export function createNotebookSession(input: {
 		const record = await input.sessionStore.get(input.sessionId);
 		if (!record)
 			throw new Error(`Notebook session '${input.sessionId}' was not found`);
-		const cells = reconcileNotebookCells(await listCells(), record.cellOrder);
+		const { cells, diagnostics } = reconcileNotebookCells(
+			await listCells(),
+			record.cellOrder,
+		);
 		const cellIds = new Set(cells.map((cell) => cell.cellId));
 		const activeCellId =
 			record.activeCellId && cellIds.has(record.activeCellId)
@@ -119,6 +133,7 @@ export function createNotebookSession(input: {
 			record,
 			cells,
 			activeCellId,
+			diagnostics,
 		};
 	};
 	const saveEditorSnapshot = async (
@@ -318,6 +333,60 @@ export function createNotebookSession(input: {
 			context,
 		});
 	};
+	const editCell = async (
+		request: EditCellRequest,
+	): Promise<StructuredCell> => {
+		return input.engine.getCellService().edit(request);
+	};
+	const supersedeCell = async (
+		cellId: string,
+		newRawText: string,
+		expectedRevision: number,
+	): Promise<StructuredCell> => {
+		return input.engine.getCellService().supersede({
+			cellId,
+			newRawText,
+			expectedRevision,
+		});
+	};
+	const cancelCell = async (
+		cellId: string,
+		expectedRevision: number,
+	): Promise<StructuredCell> => {
+		return input.engine.getCellService().cancel({
+			cellId,
+			expectedRevision,
+		});
+	};
+	const moveCells = async (
+		cellIds: string[],
+		targetIndex: number,
+	): Promise<void> => {
+		const record = await input.sessionStore.get(input.sessionId);
+		if (!record)
+			throw new Error(
+				`Notebook session '${input.sessionId}' was not found`,
+			);
+		const nextOrder = [...record.cellOrder];
+		for (const cellId of cellIds) {
+			const fromIndex = nextOrder.indexOf(cellId);
+			if (fromIndex < 0) continue;
+			nextOrder.splice(fromIndex, 1);
+		}
+		const insertAt = Math.max(
+			0,
+			Math.min(targetIndex, nextOrder.length),
+		);
+		nextOrder.splice(insertAt, 0, ...cellIds);
+		await input.sessionStore.save(
+			{
+				...record,
+				cellOrder: nextOrder,
+				updatedAt: new Date().toISOString(),
+			},
+			record.revision,
+		);
+	};
 	return {
 		...input,
 		cellService: input.engine.getCellService(),
@@ -333,6 +402,10 @@ export function createNotebookSession(input: {
 		restoreCell,
 		previewCell,
 		executeCell,
+		editCell,
+		supersedeCell,
+		cancelCell,
+		moveCells,
 		getAutocomplete: (context) =>
 			getCommandBarSuggestions(
 				context,
@@ -348,15 +421,22 @@ export function createNotebookSession(input: {
 export function reconcileNotebookCells(
 	cells: readonly StructuredCell[],
 	cellOrder: readonly string[],
-): StructuredCell[] {
+): { cells: StructuredCell[]; diagnostics: CellLoadDiagnostic[] } {
 	const byId = new Map(cells.map((cell) => [cell.cellId, cell]));
 	const seen = new Set<string>();
 	const ordered: StructuredCell[] = [];
+	const diagnostics: CellLoadDiagnostic[] = [];
 	for (const cellId of cellOrder) {
 		const cell = byId.get(cellId);
 		if (cell && !seen.has(cellId)) {
 			ordered.push(cell);
 			seen.add(cellId);
+		} else if (!seen.has(cellId)) {
+			diagnostics.push({
+				kind: "invalid_record",
+				cellId,
+				reason: "stale cellOrder entry not found in cell store",
+			});
 		}
 	}
 	for (const cell of cells) {
@@ -365,5 +445,5 @@ export function reconcileNotebookCells(
 			seen.add(cell.cellId);
 		}
 	}
-	return ordered;
+	return { cells: ordered, diagnostics };
 }

@@ -7,7 +7,7 @@ import {
 	type NotebookRunMode,
 	reduceNotebookEditor,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { argumentSuggestions, dedupeCanonicalSuggestions } from "../lib/editor/command-autocomplete";
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
@@ -45,6 +45,13 @@ export interface UseNotebookReturn {
 	getAutocomplete(partial: string): AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
 	macroSuggestions: AutocompleteSuggestion[];
+	refreshSnapshot(): Promise<void>;
+	commitEditorDraft(): Promise<void>;
+	setEditingCell(cellId: string | null): void;
+	supersedeActiveCell(): Promise<StructuredCell | null>;
+	cancelActive(): Promise<boolean>;
+	moveActive(delta: -1 | 1): Promise<void>;
+	moveSelection(delta: -1 | 1): Promise<void>;
 }
 
 export type {
@@ -60,6 +67,8 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 	);
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
 	const [macroSuggestions, setMacroSuggestions] = useState<AutocompleteSuggestion[]>([]);
+	const editingCellIdRef = useRef<string | null>(null);
+	const editingRevisionRef = useRef<number>(0);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -108,23 +117,28 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		dispatch({ type: "set_loading", loading: true });
 		try {
 			const snapshot = await session.v2.notebook.loadEditorSnapshot();
-			dispatch({ type: "set_cells", cells: snapshot.cells });
 			const activeIndex = snapshot.activeCellId
 				? snapshot.cells.findIndex(
 						(cell) => cell.cellId === snapshot.activeCellId,
 					)
 				: -1;
-			if (activeIndex >= 0)
-				dispatch({ type: "set_active", index: activeIndex });
-			dispatch({ type: "set_draft", text: snapshot.record.draftText ?? "" });
 			dispatch({
-				type: "set_command_history",
-				history: snapshot.record.commandHistory,
+				type: "hydrate_snapshot",
+				cells: snapshot.cells,
+				activeIndex: activeIndex >= 0 ? activeIndex : 0,
+				draftText: snapshot.record.draftText ?? "",
+				commandHistory: snapshot.record.commandHistory,
+				mode: snapshot.record.editorMode ?? "NORMAL",
 			});
-			if (snapshot.record.editorMode)
-				dispatch({ type: "set_mode", mode: snapshot.record.editorMode });
-			dispatch({ type: "mark_clean" });
-			dispatch({ type: "set_message", message: undefined });
+			if (snapshot.diagnostics.length > 0) {
+				const messages = snapshot.diagnostics
+					.map((d) => d.reason)
+					.join("; ");
+				dispatch({
+					type: "set_message",
+					message: `Cell load warnings: ${messages}`,
+				});
+			}
 		} catch (error) {
 			dispatch({
 				type: "set_message",
@@ -151,6 +165,56 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 			expectedRevision: snapshot.record.revision,
 		});
 	}, [session, state]);
+
+	const refreshSnapshot = useCallback(async () => {
+		if (!session) return;
+		try {
+			const snapshot = await session.v2.notebook.loadEditorSnapshot();
+			const activeIndex = snapshot.activeCellId
+				? snapshot.cells.findIndex(
+						(cell) => cell.cellId === snapshot.activeCellId,
+					)
+				: -1;
+			dispatch({
+				type: "hydrate_snapshot",
+				cells: snapshot.cells,
+				activeIndex: activeIndex >= 0 ? activeIndex : 0,
+				draftText:
+					state.mode === "INSERT" ? state.draftText : snapshot.record.draftText ?? "",
+				commandHistory: snapshot.record.commandHistory,
+				mode: snapshot.record.editorMode ?? "NORMAL",
+			});
+		} catch {
+			// refresh failures are non-fatal; the editor retains its current state
+		}
+	}, [session, state]);
+
+	const commitEditorDraft = useCallback(async () => {
+		if (!session) return;
+		const editingCellId = editingCellIdRef.current;
+		if (!editingCellId) return;
+		const cell = state.cells.find((c) => c.cellId === editingCellId);
+		if (!cell) return;
+		if (cell.lifecycle.status === "committed") return;
+		if (state.draftText === cell.authored.rawText) return;
+		try {
+			await session.v2.notebook.editCell({
+				cellId: editingCellId,
+				rawText: state.draftText,
+				expectedRevision: editingRevisionRef.current,
+			});
+			editingCellIdRef.current = null;
+		} catch (error) {
+			if (error instanceof Error && error.message.includes("revision mismatch")) {
+				await refreshSnapshot();
+			} else {
+				dispatch({
+					type: "set_message",
+					message: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+	}, [session, state.cells, state.draftText, refreshSnapshot]);
 
 	const createCell = useCallback(
 		async (rawInput = ""): Promise<StructuredCell | null> => {
@@ -487,5 +551,101 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		getAutocomplete,
 		cellSuggestions,
 		macroSuggestions,
+		refreshSnapshot,
+		commitEditorDraft,
+	setEditingCell: (cellId) => {
+			editingCellIdRef.current = cellId;
+			const cell = state.cells.find((c) => c.cellId === cellId);
+			if (cell) editingRevisionRef.current = cell.lifecycle.revision;
+		},
+		supersedeActiveCell: async () => {
+			if (!session) return null;
+			const cell = state.cells[state.activeIndex];
+			if (!cell || cell.lifecycle.status !== "committed") return null;
+			try {
+				const superseded = await session.v2.notebook.supersedeCell(
+					cell.cellId,
+					cell.authored.rawText,
+					cell.lifecycle.revision,
+				);
+				return superseded;
+			} catch (error) {
+				dispatch({
+					type: "set_message",
+					message:
+						error instanceof Error ? error.message : String(error),
+				});
+				return null;
+			}
+		},
+		cancelActive: async () => {
+			if (!session) return false;
+			const cell = state.cells[state.activeIndex];
+			if (!cell) return false;
+			if (
+				cell.lifecycle.status === "committed" ||
+				cell.lifecycle.status === "deleted" ||
+				cell.lifecycle.status === "cancelled"
+			) {
+				dispatch({
+					type: "set_message",
+					message: `Cell ${cell.cellId} is not eligible for cancellation`,
+				});
+				return false;
+			}
+			try {
+				const updated = await session.v2.notebook.cancelCell(
+					cell.cellId,
+					cell.lifecycle.revision,
+				);
+				dispatch({ type: "replace_cell", cell: updated });
+				dispatch({
+					type: "set_message",
+					message: `Cell ${cell.cellId} cancelled`,
+				});
+				return true;
+			} catch (error) {
+				dispatch({
+					type: "set_message",
+					message:
+						error instanceof Error ? error.message : String(error),
+				});
+				return false;
+			}
+		},
+		moveActive: async (delta) => {
+			if (!session) return;
+			const cell = state.cells[state.activeIndex];
+			if (!cell) return;
+			const currentIndex = state.cells.indexOf(cell);
+			const targetIndex = currentIndex + delta;
+			if (targetIndex < 0 || targetIndex >= state.cells.length) return;
+			await session.v2.notebook.moveCells(
+				[cell.cellId],
+				targetIndex,
+			);
+			dispatch({
+				type: "move_cell",
+				cellId: cell.cellId,
+				targetIndex,
+			});
+		},
+		moveSelection: async (delta) => {
+			if (!session) return;
+			const lo = Math.min(state.visualStart, state.visualEnd);
+			const hi = Math.max(state.visualStart, state.visualEnd);
+			const selected = state.cells.slice(lo, hi + 1);
+			if (selected.length === 0) return;
+			const cellIds = selected.map((c) => c.cellId);
+			const firstIndex = state.cells.indexOf(selected[0]!);
+			const targetIndex = firstIndex + delta;
+			if (targetIndex < 0 || targetIndex >= state.cells.length) return;
+			await session.v2.notebook.moveCells(cellIds, targetIndex);
+			dispatch({
+				type: "move_cell",
+				cellId: cellIds[0]!,
+				targetIndex,
+			});
+		},
 	};
 }

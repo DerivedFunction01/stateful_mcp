@@ -82,6 +82,17 @@ export interface CellPreview {
 	status: "valid" | "invalid" | "ambiguous";
 }
 
+export interface CellLoadDiagnostic {
+	kind: "invalid_record";
+	cellId: string | null;
+	reason: string;
+}
+
+export interface CellLoadResult {
+	cells: StructuredCell[];
+	diagnostics: CellLoadDiagnostic[];
+}
+
 export interface CellExecutionResult {
 	transactionId: string;
 	status: "pending_commit" | "committed" | "failed" | "recovery_required";

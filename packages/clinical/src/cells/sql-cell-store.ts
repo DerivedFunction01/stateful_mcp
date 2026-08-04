@@ -2,6 +2,7 @@ import type { SqlDialect, SqlExecutor } from "@stateful-mcp/core";
 import { createCell, editCell, supersedeCell } from "./cell-factory";
 import { CellQueryCompiler } from "./cell-query-compiler";
 import type { CellStore, CreateCellRequest } from "./cell-service-types";
+import { isStructuredCellRecord } from "./structured-cell-validation";
 import type { StructuredCell } from "./structured-cell";
 
 export class SqlCellStore implements CellStore {
@@ -28,7 +29,7 @@ export class SqlCellStore implements CellStore {
 		await this.ready;
 		const query = this.compiler.listBySessionQuery(sessionId, this.table);
 		const rows = await this.executor.query(query.sql, query.params);
-		return rows.map((row) => this.fromRow(row));
+		return rows.map((row) => this.fromRow(row)).filter((cell): cell is StructuredCell => Boolean(cell));
 	}
 
 	async listByCollection(
@@ -43,7 +44,7 @@ export class SqlCellStore implements CellStore {
 			this.table,
 		);
 		const rows = await this.executor.query(query.sql, query.params);
-		return rows.map((row) => this.fromRow(row));
+		return rows.map((row) => this.fromRow(row)).filter((cell): cell is StructuredCell => Boolean(cell));
 	}
 
 	async save(cell: StructuredCell): Promise<void> {
@@ -116,9 +117,17 @@ export class SqlCellStore implements CellStore {
 		};
 	}
 
-	private fromRow(row: Record<string, unknown>): StructuredCell {
-		if (typeof row.cellJson === "string")
-			return JSON.parse(row.cellJson) as StructuredCell;
-		return row.cellJson as StructuredCell;
+	private fromRow(row: Record<string, unknown>): StructuredCell | null {
+		let parsed: unknown;
+		try {
+			parsed =
+				typeof row.cellJson === "string"
+					? JSON.parse(row.cellJson)
+					: row.cellJson;
+		} catch {
+			return null;
+		}
+		if (!isStructuredCellRecord(parsed)) return null;
+		return parsed as StructuredCell;
 	}
 }

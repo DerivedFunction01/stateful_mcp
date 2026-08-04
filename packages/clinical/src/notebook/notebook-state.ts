@@ -103,6 +103,8 @@ export type NotebookEditorAction =
 	| { type: "yank_cells"; cellIds: string[]; snapshots: StructuredCell[] }
 	| { type: "paste_cells"; cells: StructuredCell[]; insertIndex: number }
 	| { type: "set_persisted_revision"; revision: number }
+	| { type: "move_cell"; cellId: string; targetIndex: number }
+	| { type: "hydrate_snapshot"; cells: StructuredCell[]; activeIndex: number; draftText: string; commandHistory: string[]; mode: NotebookEditorMode }
 	| { type: "undo" }
 	| { type: "redo" }
 	| { type: "clear_yank_buffer" }
@@ -290,6 +292,54 @@ export function reduceNotebookEditor(
 		}
 		case "set_persisted_revision":
 			return { ...state, persistedAuthoredRevision: action.revision };
+		case "move_cell": {
+			const fromIndex = state.cells.findIndex(
+				(c) => c.cellId === action.cellId,
+			);
+			if (fromIndex < 0) return state;
+			const nextCells = [...state.cells];
+			const moved = nextCells.splice(fromIndex, 1)[0];
+			if (!moved) return state;
+			const toIndex = Math.max(
+				0,
+				Math.min(action.targetIndex, nextCells.length),
+			);
+			nextCells.splice(toIndex, 0, moved);
+			const snapshot: NotebookEditorUndoSnapshot = {
+				cellOrder: nextCells.map((c) => c.cellId),
+				activeIndex:
+					state.activeIndex === fromIndex
+						? toIndex
+						: state.activeIndex,
+				draftText: state.draftText,
+				commandHistory: state.commandHistory,
+				authoredRevision: state.authoredRevision,
+				restorableDrafts: [],
+			};
+			return withSnapshot(
+				{
+					...state,
+					cells: nextCells,
+					activeIndex: clampIndex(
+						state.activeIndex,
+						nextCells.length,
+					),
+					authoredRevision: state.authoredRevision + 1,
+				},
+				snapshot,
+			);
+		}
+		case "hydrate_snapshot":
+			return {
+				...state,
+				cells: action.cells,
+				activeIndex: clampIndex(action.activeIndex, action.cells.length),
+				draftText: action.draftText,
+				commandHistory: action.commandHistory,
+				mode: action.mode,
+				persistedAuthoredRevision: state.authoredRevision,
+				loading: false,
+			};
 		case "undo": {
 			if (state.undoStack.length === 0) return state;
 			const previous = state.undoStack[state.undoStack.length - 1]!;
