@@ -97,4 +97,5 @@ export const bootstrapCommandDefaults: CommandSyntaxProfile = {
 		assert: "assert",
 		remove: "remove",
 	},
+	variableConceptToken: "@",
 };

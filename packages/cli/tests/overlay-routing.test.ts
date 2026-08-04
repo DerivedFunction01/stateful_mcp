@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { Key } from "ink";
 import { NotebookKeymapPolicy } from "../src/lib/windows/notebook/keymap-policy";
+import { defaultEditorKeymapProfile } from "../src/bootstrap/editor-keymap-defaults";
 
 describe("P4 Overlay and Router key mappings", () => {
-	const policy = new NotebookKeymapPolicy();
+	const policy = new NotebookKeymapPolicy(defaultEditorKeymapProfile);
 
 	test("resolves gw key to openWorkspace domain action", () => {
 		const res = policy.resolve("w", {} as Key, "NORMAL", "g");

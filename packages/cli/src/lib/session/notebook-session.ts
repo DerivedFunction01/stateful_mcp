@@ -8,6 +8,7 @@ import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cel
 import type { StructuredCellService } from "@stateful-mcp/clinical/cells/structured-cell-service";
 import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
 import { getCommandBarSuggestions } from "@stateful-mcp/clinical/commands/command-autocomplete-provider";
+import { getVariableCommandSuggestions } from "@stateful-mcp/clinical/commands/variable-command-autocomplete";
 import type { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
 import type {
 	CommandAutocompleteContext,
@@ -93,6 +94,7 @@ export interface NotebookSession {
 	getAutocomplete(
 		context: CommandAutocompleteContext,
 	): Promise<CommandSuggestion[]>;
+	getVariableAutocomplete(input: string, cursorOffset: number): Promise<CommandSuggestion[]>;
 }
 
 export function createNotebookSession(input: {
@@ -337,6 +339,18 @@ export function createNotebookSession(input: {
 				},
 				input.syntaxProfile,
 			),
+		getVariableAutocomplete: async (inputText, cursorOffset) =>
+			(await getVariableCommandSuggestions({
+				input: inputText,
+				cursorOffset,
+				profile: input.syntaxProfile,
+			})).map((suggestion) => ({
+				label: suggestion.label,
+				insertText: suggestion.insertText,
+				kind: suggestion.kind === "operation" ? "command" : "argument",
+				detail: suggestion.detail,
+				source: "static",
+			})),
 	};
 }
 

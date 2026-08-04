@@ -59,6 +59,7 @@ export interface CommandSyntaxProfile {
 	variableAssignmentDelimiter: string;
 	variableNamePattern: string;
 	variableCommandMappings: Readonly<Record<string, VariableCommandVerb>>;
+	variableConceptToken: string;
 }
 
 export interface CommandSyntaxProfileDefaults {
@@ -71,6 +72,7 @@ export interface CommandSyntaxProfileDefaults {
 	variableAssignmentDelimiter?: string;
 	variableNamePattern?: string;
 	variableCommandMappings?: Readonly<Record<string, VariableCommandVerb>>;
+	variableConceptToken?: string;
 }
 
 export function createCommandSyntaxProfile(
@@ -103,6 +105,7 @@ export function createCommandSyntaxProfile(
 			profile.variableCommandMappings ??
 			defaults?.variableCommandMappings ??
 			{},
+		variableConceptToken: profile.variableConceptToken ?? defaults?.variableConceptToken ?? "@",
 	};
 }
 

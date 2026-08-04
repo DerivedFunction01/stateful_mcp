@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { NotebookKeymapPolicy } from "../src/lib/windows/notebook/keymap-policy";
+import { defaultEditorKeymapProfile } from "../src/bootstrap/editor-keymap-defaults";
 
-const policy = new NotebookKeymapPolicy();
+const policy = new NotebookKeymapPolicy(defaultEditorKeymapProfile);
 
 describe("NotebookKeymapPolicy", () => {
 	test("NORMAL j/k resolve to document move actions", () => {
@@ -30,7 +31,10 @@ describe("NotebookKeymapPolicy", () => {
 	});
 
 	test("NORMAL macro token follows the active syntax profile", () => {
-		const configuredPolicy = new NotebookKeymapPolicy({ macroStartToken: "~" } as any);
+		const configuredPolicy = new NotebookKeymapPolicy({
+			...defaultEditorKeymapProfile,
+			normal: { ...defaultEditorKeymapProfile.normal, macro: "~" },
+		});
 		expect(configuredPolicy.resolve("~", {}, "NORMAL", "")).toEqual({
 			kind: "generic",
 			action: { type: "ENTER_MACRO" },

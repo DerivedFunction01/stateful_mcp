@@ -26,6 +26,12 @@ export interface ExecutionResult {
 	planFingerprint: string;
 	committed?: CommittedTransaction;
 	error?: string;
+	variable?: {
+		operation: string;
+		name?: string;
+		value?: unknown;
+		serialized?: string;
+	};
 }
 
 /**

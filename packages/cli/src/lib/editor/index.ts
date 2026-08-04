@@ -31,7 +31,18 @@ export {
 	replaceCurrentLine,
 } from "./kernel";
 export type { InspectorAction, KeymapPolicy, KeyResolution } from "./keymap";
-export { resolveInspectorKey } from "./keymap";
+export { resolveInspectorKey, resolveKey } from "./keymap";
+export {
+	chordMatches,
+	isSpecialChord,
+	SpecialKeys,
+} from "./editor-keymap-profile";
+export type {
+	EditorKeymapNormalBindings,
+	EditorKeymapProfile,
+	EditorKeymapSequenceBindings,
+	EditorKeymapVisualBindings,
+} from "./editor-keymap-profile";
 
 export type {
 	WindowOverlay,

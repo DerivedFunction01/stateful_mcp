@@ -4,6 +4,8 @@ import type { DocumentAction } from "./document";
 import type { DomainAction } from "./domain";
 import { EditorAction } from "./editor-action";
 import type { EditorAction as KernelEditorAction } from "./kernel";
+import { chordMatches, isSpecialChord, SpecialKeys } from "./editor-keymap-profile";
+import type { EditorKeymapProfile } from "./editor-keymap-profile";
 
 export type KeyResolution =
 	| { kind: "generic"; action: KernelEditorAction }
@@ -85,7 +87,7 @@ export function resolveKey(
 	key: Key,
 	mode: EditorMode,
 	pendingSequence: string,
-	macroStartToken = "^",
+	profile: EditorKeymapProfile,
 ): { action: EditorAction | null; nextPending: string; char?: string } {
 	if (mode === "COMMAND") {
 		return { action: null, nextPending: "" };
@@ -118,104 +120,113 @@ export function resolveKey(
 		return { action: null, nextPending: pendingSequence };
 	}
 
-	// Ctrl-R in any non-INSERT mode
-	if (key.ctrl && (input === "\x12" || input === "r")) {
-		return { action: EditorAction.Redo, nextPending: "" };
-	}
-
 	if (mode === "VISUAL") {
-		if (key.escape)
+		const v = profile.visual;
+		if (chordMatches(SpecialKeys.Escape, input, key))
 			return { action: EditorAction.ExitVisualMode, nextPending: "" };
-		if (input === "V" || input === "v") {
-			return { action: null, nextPending: "", char: undefined };
-		}
-		if (input === "d")
+		if (
+			!isSpecialChord(v.deleteSelection) &&
+			chordMatches(v.deleteSelection, input, key)
+		)
 			return { action: EditorAction.DeleteSelection, nextPending: "" };
-		if (input === "y")
+		if (chordMatches(v.yankSelection, input, key))
 			return { action: EditorAction.YankSelection, nextPending: "" };
-		if (input === "p")
+		if (chordMatches(v.pasteSelection, input, key))
 			return { action: EditorAction.PasteCell, nextPending: "" };
-		if (input === "r") return { action: EditorAction.RunCell, nextPending: "" };
-		if (input === "j" || key.downArrow)
+		if (chordMatches(profile.normal.runCell, input, key))
+			return { action: EditorAction.RunCell, nextPending: "" };
+		if (chordMatches(v.extendDown, input, key) || key.downArrow)
 			return { action: EditorAction.ExtendSelectionDown, nextPending: "" };
-		if (input === "k" || key.upArrow)
+		if (chordMatches(v.extendUp, input, key) || key.upArrow)
 			return { action: EditorAction.ExtendSelectionUp, nextPending: "" };
-		if (input === "o")
+		if (chordMatches(v.swapAnchor, input, key))
 			return { action: EditorAction.SwapSelectionAnchor, nextPending: "" };
-		if (input === ":")
+		if (chordMatches(profile.normal.command, input, key))
 			return { action: EditorAction.OpenCommandLine, nextPending: "" };
-		if (input === "q") return { action: EditorAction.Quit, nextPending: "" };
+		if (chordMatches(profile.normal.quit, input, key))
+			return { action: EditorAction.Quit, nextPending: "" };
 		return { action: null, nextPending: "" };
 	}
 
-	// NORMAL mode
-	const seq = pendingSequence + input;
+	// NORMAL mode: resolve multi-key sequences first, then single chords.
+	const { normal, sequences } = profile;
 
-	if (seq === "dd") return { action: EditorAction.DeleteCell, nextPending: "" };
-	if (seq === "yy") return { action: EditorAction.YankCell, nextPending: "" };
-	if (seq === "[e") return { action: EditorAction.PrevError, nextPending: "" };
-	if (seq === "]e") return { action: EditorAction.NextError, nextPending: "" };
-	if (seq === "gw")
+	if (chordMatches(sequences.deleteCell, input, key) || `${pendingSequence}${input}` === sequences.deleteCell)
+		return { action: EditorAction.DeleteCell, nextPending: "" };
+	if (chordMatches(sequences.yankCell, input, key) || `${pendingSequence}${input}` === sequences.yankCell)
+		return { action: EditorAction.YankCell, nextPending: "" };
+	if (chordMatches(sequences.previousError, input, key) || `${pendingSequence}${input}` === sequences.previousError)
+		return { action: EditorAction.PrevError, nextPending: "" };
+	if (chordMatches(sequences.nextError, input, key) || `${pendingSequence}${input}` === sequences.nextError)
+		return { action: EditorAction.NextError, nextPending: "" };
+	if (chordMatches(sequences.workspace, input, key) || `${pendingSequence}${input}` === sequences.workspace)
 		return { action: EditorAction.OpenWorkspace, nextPending: "" };
-	if (seq === "gp")
+	if (chordMatches(sequences.pasteAbove, input, key) || `${pendingSequence}${input}` === sequences.pasteAbove)
 		return { action: EditorAction.PasteCellAbove, nextPending: "" };
 
-	if (seq.length >= 2) return { action: null, nextPending: "" };
-
-	if (seq.length === 1) {
-		switch (seq) {
-			case "j":
-				return { action: EditorAction.MoveDown, nextPending: "" };
-			case "k":
-				return { action: EditorAction.MoveUp, nextPending: "" };
-			case "i":
-				return { action: EditorAction.EnterInsertMode, nextPending: "" };
-			case "o":
-				return { action: EditorAction.InsertBelow, nextPending: "" };
-			case "O":
-				return { action: EditorAction.InsertAbove, nextPending: "" };
-			case "I":
-				return { action: EditorAction.Info, nextPending: "" };
-			case "d":
-				return { action: null, nextPending: "d" };
-			case "y":
-				return { action: null, nextPending: "y" };
-			case "[":
-				return { action: null, nextPending: "[" };
-			case "]":
-				return { action: null, nextPending: "]" };
-			case "g":
-				return { action: null, nextPending: "g" };
-			case "p":
-				return { action: EditorAction.PasteCell, nextPending: "" };
-			case "P":
-				return { action: EditorAction.PreviewCell, nextPending: "" };
-			case "u":
-				return { action: EditorAction.Undo, nextPending: "" };
-			case "r":
-				return { action: EditorAction.RunCell, nextPending: "" };
-			case ":":
-				return { action: EditorAction.OpenCommandLine, nextPending: "" };
-			case macroStartToken:
-				return { action: EditorAction.OpenMacroInput, nextPending: "" };
-			case "s":
-				return { action: EditorAction.Search, nextPending: "" };
-			case "/":
-				return { action: EditorAction.Search, nextPending: "" };
-			case "V":
-				return { action: EditorAction.EnterVisualMode, nextPending: "" };
-			default:
-				return { action: null, nextPending: "" };
+	// If the pending+input forms a strict prefix of a configured sequence, await more input.
+	if (pendingSequence) {
+		const seq = pendingSequence + input;
+		if (
+			[sequences.deleteCell, sequences.yankCell, sequences.previousError, sequences.nextError, sequences.workspace, sequences.pasteAbove].some(
+				(s) => s.startsWith(seq) && s !== seq,
+			)
+		) {
+			return { action: null, nextPending: seq };
 		}
 	}
 
+	// Tab/ctrl handled by caller; arrow keys mapped to navigation.
 	if (key.downArrow) return { action: EditorAction.MoveDown, nextPending: "" };
 	if (key.upArrow) return { action: EditorAction.MoveUp, nextPending: "" };
 	if (key.return)
 		return { action: EditorAction.EnterInsertMode, nextPending: "" };
 	if (key.escape) return { action: null, nextPending: "" };
 	if (key.backspace) return { action: null, nextPending: "" };
-	if (key.delete) return { action: EditorAction.DeleteCell, nextPending: "" };
+	if (chordMatches(normal.redo, input, key))
+		return { action: EditorAction.Redo, nextPending: "" };
+
+	// Single-character NORMAL bindings.
+	if (input.length === 1 && !key.ctrl && !key.meta) {
+		if (chordMatches(normal.moveDown, input, key))
+			return { action: EditorAction.MoveDown, nextPending: "" };
+		if (chordMatches(normal.moveUp, input, key))
+			return { action: EditorAction.MoveUp, nextPending: "" };
+		if (chordMatches(normal.enterInsert, input, key))
+			return { action: EditorAction.EnterInsertMode, nextPending: "" };
+		if (chordMatches(normal.insertBelow, input, key))
+			return { action: EditorAction.InsertBelow, nextPending: "" };
+		if (chordMatches(normal.insertAbove, input, key))
+			return { action: EditorAction.InsertAbove, nextPending: "" };
+		if (chordMatches(normal.enterVisual, input, key))
+			return { action: EditorAction.EnterVisualMode, nextPending: "" };
+		if (chordMatches(normal.pasteBelow, input, key))
+			return { action: EditorAction.PasteCell, nextPending: "" };
+		if (chordMatches(normal.previewCell, input, key))
+			return { action: EditorAction.PreviewCell, nextPending: "" };
+		if (chordMatches(normal.runCell, input, key))
+			return { action: EditorAction.RunCell, nextPending: "" };
+		if (chordMatches(normal.undo, input, key))
+			return { action: EditorAction.Undo, nextPending: "" };
+		if (chordMatches(normal.info, input, key))
+			return { action: EditorAction.Info, nextPending: "" };
+		if (chordMatches(normal.command, input, key))
+			return { action: EditorAction.OpenCommandLine, nextPending: "" };
+		if (chordMatches(normal.macro, input, key))
+			return { action: EditorAction.OpenMacroInput, nextPending: "" };
+		if (chordMatches(normal.search, input, key) || chordMatches(normal.searchAlt, input, key))
+			return { action: EditorAction.Search, nextPending: "" };
+
+		// Sequence starters that are not also single actions produce pending state.
+		const starters = new Set(
+			[sequences.deleteCell, sequences.yankCell, sequences.previousError, sequences.nextError, sequences.workspace, sequences.pasteAbove]
+				.map((s) => s[0])
+				.filter((c): c is string => Boolean(c)),
+		);
+		if (starters.has(input) && pendingSequence === "") {
+			return { action: null, nextPending: input };
+		}
+	}
 
 	return { action: null, nextPending: "" };
 }

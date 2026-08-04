@@ -96,6 +96,18 @@ async function macroSuggestions(
 	const prefix =
 		input.slice(profile.macroStartToken.length).split(/\s+/)[0] ?? "";
 	const definitions = await store.list();
+	const macroName = input.slice(profile.macroStartToken.length).trim().split(/\s+/)[0] ?? "";
+	if (input.slice(profile.macroStartToken.length).includes(" ")) {
+		const definition = definitions.find((item) => item.active && item.macroName === macroName);
+		if (!definition) return [];
+		return definition.arguments.map((argument) => ({
+			label: `${argument.roleName}=`,
+			insertText: `${argument.roleName}=`,
+			kind: "argument" as const,
+			detail: definition.description,
+			source: "context" as const,
+		}));
+	}
 	return definitions
 		.filter(
 			(definition) =>

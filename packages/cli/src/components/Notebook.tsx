@@ -167,7 +167,7 @@ export function Notebook() {
 	const engineCandidates = useMemo<
 		AutocompleteSuggestion[]
 	>(() => [], []);
-	const mergedCandidates = state.mode === "MACRO" ? notebook.macroSuggestions : staticCandidates;
+	const mergedCandidates = state.mode === "MACRO" ? notebook.macroSuggestions : [...staticCandidates, ...notebook.variableSuggestions];
 
 	// Sync engine suggestions ref
 	useEffect(() => {
@@ -498,7 +498,7 @@ export function Notebook() {
 	return (
 		<WindowContainer
 			definition={definition}
-			keymap={new NotebookKeymapPolicy(session?.v2.syntaxProfile)}
+			keymap={new NotebookKeymapPolicy(session?.v2.editorKeymap)}
 			document={documentPort}
 			domain={containerDomain as any}
 			catalog={catalog}

@@ -2,6 +2,7 @@ import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/no
 import type { Key } from "ink";
 import type { KeymapPolicy, KeyResolution } from "../../editor";
 import { NotebookKeymapPolicy } from "../notebook/keymap-policy";
+import { defaultEditorKeymapProfile } from "../../../bootstrap/editor-keymap-defaults";
 
 /**
  * Workspace key policy. Cell editing remains shared with the notebook, but
@@ -9,7 +10,7 @@ import { NotebookKeymapPolicy } from "../notebook/keymap-policy";
  * not reopen the workspace from inside itself.
  */
 export class WorkspaceKeymapPolicy implements KeymapPolicy {
-	private readonly shared = new NotebookKeymapPolicy();
+	private readonly shared = new NotebookKeymapPolicy(defaultEditorKeymapProfile);
 
 	resolve(
 		input: string,

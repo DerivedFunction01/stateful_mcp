@@ -10,6 +10,11 @@ import {
 	createNotebookSession,
 	type NotebookSession,
 } from "./notebook-session";
+import {
+	defaultEditorKeymapProfile,
+	mergeEditorKeymap,
+} from "../../bootstrap/editor-keymap-defaults";
+import type { EditorKeymapProfile } from "../../lib/editor/editor-keymap-profile";
 
 export interface Cli2BootstrapResult {
 	engine: ClinicalEngine;
@@ -19,6 +24,7 @@ export interface Cli2BootstrapResult {
 	notebook: NotebookSession;
 	sessionId: string;
 	syntaxProfile: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
+	editorKeymap: EditorKeymapProfile;
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
 	bootstrapStatus: "created" | "resumed";
 }
@@ -26,6 +32,7 @@ export interface Cli2BootstrapResult {
 export interface Cli2BootstrapOptions {
 	sessionId?: string;
 	syntaxProfile?: import("@stateful-mcp/clinical/commands/command-syntax-profile").CommandSyntaxProfile;
+	editorKeymap?: EditorKeymapProfile;
 	stores?: ClinicalBootstrapResult["stores"];
 	clinical?: ClinicalBootstrapResult;
 }
@@ -85,6 +92,10 @@ export async function buildCli2Bootstrap(
 	const { clinical, stores } = options;
 	const engine = clinical.engine;
 	const runtime = clinical.runtime;
+	const editorKeymap = mergeEditorKeymap(
+		defaultEditorKeymapProfile,
+		options.editorKeymap,
+	);
 	const commandBar = new CommandBarService(
 		engine,
 		engine.getWorkspaceService(),
@@ -158,6 +169,7 @@ export async function buildCli2Bootstrap(
 		notebook,
 		sessionId,
 		syntaxProfile: clinical.syntaxProfile,
+		editorKeymap,
 		caseIdentity,
 		bootstrapStatus,
 	};

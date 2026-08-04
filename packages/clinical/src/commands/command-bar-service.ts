@@ -19,6 +19,7 @@ import {
 import { parseDirectCommand } from "./direct-command-parser";
 import { parseVariableCommand } from "./variable-command";
 import type { VariableCommandService } from "./variable-command-service";
+import { serializeVariableValue } from "./variable-result";
 
 export class CommandBarService {
 	constructor(
@@ -119,34 +120,31 @@ export class CommandBarService {
 				preview.intent.kind === "variable_operation" &&
 				preview.intent.variableStatement
 			) {
-				if (this.variableCellService) {
-					await this.variableCellService.execute(
+				try {
+					let value: unknown;
+					if (this.variableCellService) {
+						({ value } = await this.variableCellService.execute(
 						input.sessionId,
 						{ kind: "notebook", collectionId: input.sessionId },
 						input.rawText,
-					);
+						));
+					} else {
+						if (!this.variableService)
+							return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: "variable service is not configured" };
+						value = await this.variableService.execute(input.sessionId, preview.intent.variableStatement);
+					}
+					const statement = preview.intent.variableStatement;
+					const operation = statement.kind;
+					const name = "target" in statement ? statement.target.name : undefined;
 					return {
 						status: "committed",
 						transactionId: `variable:${input.sessionId}`,
 						planFingerprint: preview.fingerprint,
+						variable: { operation, name, value, serialized: serializeVariableValue(value) },
 					};
+				} catch (error) {
+					return { status: "failed", transactionId: "", planFingerprint: preview.fingerprint, error: error instanceof Error ? error.message : String(error) };
 				}
-				if (!this.variableService)
-					return {
-						status: "failed",
-						transactionId: "",
-						planFingerprint: preview.fingerprint,
-						error: " variable service is not configured",
-					};
-				await this.variableService.execute(
-					input.sessionId,
-					preview.intent.variableStatement,
-				);
-				return {
-					status: "committed",
-					transactionId: `variable:${input.sessionId}`,
-					planFingerprint: preview.fingerprint,
-				};
 			}
 			return {
 				status: "failed",

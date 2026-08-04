@@ -1,5 +1,4 @@
 import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
-import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import type { Key } from "ink";
 import type {
 	DocumentAction,
@@ -9,6 +8,7 @@ import type {
 } from "../../editor";
 import { EditorAction as ClinicalAction } from "../../editor/editor-action";
 import { resolveKey } from "../../editor/keymap";
+import type { EditorKeymapProfile } from "../../editor/editor-keymap-profile";
 
 /** Classified output of a resolved clinical editor action. */
 interface Classification {
@@ -84,7 +84,7 @@ function classify(action: ClinicalAction): Classification {
 }
 
 export class NotebookKeymapPolicy implements KeymapPolicy {
-	constructor(private readonly syntaxProfile?: CommandSyntaxProfile) {}
+	constructor(private readonly profile: EditorKeymapProfile) {}
 
 	resolve(
 		input: string,
@@ -97,7 +97,7 @@ export class NotebookKeymapPolicy implements KeymapPolicy {
 			key,
 			mode,
 			pending,
-			this.syntaxProfile?.macroStartToken,
+			this.profile,
 		);
 
 		// Multi-key sequence awaiting a second key (dd, yy, [e, gw, ...).

@@ -45,6 +45,7 @@ export interface UseNotebookReturn {
 	getAutocomplete(partial: string): AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
 	macroSuggestions: AutocompleteSuggestion[];
+	variableSuggestions: AutocompleteSuggestion[];
 }
 
 export type {
@@ -60,6 +61,7 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 	);
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
 	const [macroSuggestions, setMacroSuggestions] = useState<AutocompleteSuggestion[]>([]);
+	const [variableSuggestions, setVariableSuggestions] = useState<AutocompleteSuggestion[]>([]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -102,6 +104,34 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 			cancelled = true;
 		};
 	}, [session, state.mode, state.draftText]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!session || state.mode !== "COMMAND") {
+			setVariableSuggestions((previous) => previous.length === 0 ? previous : []);
+			return () => { cancelled = true; };
+		}
+		void session.v2.notebook.getVariableAutocomplete(state.commandLine.slice(1), state.commandLine.length - 1)
+			.then((suggestions) => { if (!cancelled) setVariableSuggestions((previous) => {
+				const next: AutocompleteSuggestion[] = suggestions.map((suggestion) => ({
+					label: suggestion.label,
+					value: suggestion.insertText,
+					type: suggestion.kind === "argument" ? "arg" : "verb",
+					verb: suggestion.label,
+					completionText: suggestion.insertText,
+					group: "variable",
+					source: "editor" as const,
+					hasArgs: suggestion.kind === "command",
+					kind: suggestion.kind === "argument" ? "arg" as const : "verb" as const,
+					detail: suggestion.detail,
+				}));
+				return previous.length === next.length && previous.every((item, index) =>
+					item.label === next[index]?.label && item.value === next[index]?.value && item.kind === next[index]?.kind
+				) ? previous : next;
+			}); })
+			.catch(() => { if (!cancelled) setVariableSuggestions([]); });
+		return () => { cancelled = true; };
+	}, [session, state.mode, state.commandLine]);
 
 	const loadSnapshot = useCallback(async () => {
 		if (!session) return;
@@ -285,8 +315,16 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 				documentId: snapshot.record.documentId,
 				cellId: snapshot.activeCellId,
 			});
-			const message =
-				result.status === "committed"
+			const variable = result.variable;
+			const message = variable
+				? variable.operation === "assert"
+					? "assert passed"
+					: variable.operation === "remove"
+						? `removed ${variable.name ?? ""}`.trim()
+						: variable.operation === "eval"
+							? (variable.serialized ?? "undefined")
+							: `${variable.operation} ${variable.name ?? ""} = ${variable.serialized ?? "undefined"}`.trim()
+				: result.status === "committed"
 					? "V2 command committed"
 					: (result.error ?? "V2 command failed");
 			dispatch({ type: "set_mode", mode: "NORMAL" });
@@ -477,5 +515,6 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 		getAutocomplete,
 		cellSuggestions,
 		macroSuggestions,
+		variableSuggestions,
 	};
 }
