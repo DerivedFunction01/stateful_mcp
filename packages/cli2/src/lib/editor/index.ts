@@ -26,6 +26,12 @@ export type { InspectorAction, KeymapPolicy, KeyResolution } from "./keymap";
 export { resolveInspectorKey } from "./keymap";
 export type { AutocompleteSuggestion } from "./autocomplete";
 export type { CommandDescriptor } from "./command-descriptor";
+export { buildCommandDescriptors } from "./command-descriptors";
+export {
+	dedupeCanonicalSuggestions,
+	knownVerbs,
+	MAX_SUGGESTIONS,
+} from "./command-autocomplete";
 
 export type {
 	WindowOverlay,

@@ -11,6 +11,12 @@ interface CommandBarProps {
 	suggestionIndex: number;
 	highlightedCandidate: AutocompleteSuggestion | null;
 	completionPrefix: string;
+	/**
+	 * Optional set of known canonical verbs (lowercased) from the rebuilt
+	 * descriptor list. When provided, the no-match warning is suppressed for
+	 * verbs that are genuinely known but produced no argument suggestions.
+	 */
+	knownVerbs?: Set<string>;
 }
 
 const NO_MATCH_THRESHOLD = 0;
@@ -21,6 +27,7 @@ export function CommandBar({
 	suggestionIndex,
 	highlightedCandidate,
 	completionPrefix,
+	knownVerbs,
 }: CommandBarProps) {
 	const { stdout } = useStdout();
 	const columns = stdout?.columns ?? 80;
@@ -37,16 +44,20 @@ export function CommandBar({
 
 	const noMatch = useMemo(() => {
 		if (suggestions.length > NO_MATCH_THRESHOLD) return null;
-		const partial = commandLine.slice(1).trim();
-		if (!partial) return null;
-		// Check if the typed prefix represents a command argument space (contains space).
-		// If the user has typed a valid verb followed by space, don't show the warning.
-		const spaceIdx = partial.indexOf(" ");
+		// Use the raw (untrimmed) partial so trailing spaces are detected as
+		// argument-space (V1 parity: suppress warning when a space is present).
+		const rawPartial = commandLine.slice(1);
+		if (!rawPartial.trim()) return null;
+		const spaceIdx = rawPartial.indexOf(" ");
 		if (spaceIdx >= 0) {
 			return null;
 		}
+		const partial = rawPartial.trim();
+		// Hardening: suppress the warning when the typed verb is genuinely known
+		// from the rebuilt canonical vocabulary but produced no arg suggestions.
+		if (knownVerbs?.has(partial.toLowerCase())) return null;
 		return partial;
-	}, [suggestions.length, commandLine]);
+	}, [suggestions.length, commandLine, knownVerbs]);
 
 	// Inline command-details line: the active verb suggestion's args + description.
 	const details = useMemo(() => {

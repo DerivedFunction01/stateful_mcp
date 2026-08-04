@@ -31,20 +31,30 @@ export function CellList({
 	return (
 		<Box flexDirection="column" flexGrow={1} paddingLeft={1} paddingTop={1}>
 			{cells.length === 0 && (
-				<Box paddingLeft={2}><Text>{has("celllist.empty") ? t("celllist.empty") : "No cells"}</Text></Box>
+				<Box paddingLeft={2}>
+					<Text>
+						{has("celllist.empty")
+							? t("celllist.empty", { key: t("celllist.empty.key") })
+							: "No cells"}
+					</Text>
+				</Box>
 			)}
-			{cells.filter((cell): cell is StructuredCell => Boolean(cell)).map((cell, index) => (
-				<CellComponent
-					key={cell.cellId}
-					cell={cell}
-					index={index}
-					isActive={index === activeIndex}
-					mode={mode}
-					draftText={index === activeIndex ? draftText : undefined}
-					isSelected={mode === "VISUAL" && index >= lo && index <= hi}
-					suggestions={cell.cellId === lastEditCellId ? cellSuggestions : undefined}
-				/>
-			))}
+			{cells
+				.filter((cell): cell is StructuredCell => Boolean(cell))
+				.map((cell, index) => (
+					<CellComponent
+						key={cell.cellId}
+						cell={cell}
+						index={index}
+						isActive={index === activeIndex}
+						mode={mode}
+						draftText={index === activeIndex ? draftText : undefined}
+						isSelected={mode === "VISUAL" && index >= lo && index <= hi}
+						suggestions={
+							cell.cellId === lastEditCellId ? cellSuggestions : undefined
+						}
+					/>
+				))}
 		</Box>
 	);
 }

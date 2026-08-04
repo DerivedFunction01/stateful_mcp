@@ -430,6 +430,7 @@ export function Notebook() {
 		defaultSchema: undefined,
 		message: state.message,
 		macroSuggestions: mergedCandidates,
+		syntaxProfile: session.v2.syntaxProfile,
 	});
 
 	const containerDomain = {

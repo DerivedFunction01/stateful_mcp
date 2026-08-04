@@ -10,6 +10,8 @@ import {
 import { useCallback, useEffect, useReducer, useState } from "react";
 import type { SessionState } from "./useSession";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
+import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
+import { dedupeCanonicalSuggestions } from "../lib/editor/command-autocomplete";
 
 export interface CellSuggestion {
 	text: string;
@@ -219,27 +221,21 @@ export function useNotebook(session: SessionState | null): UseNotebookReturn {
 				state.mode === "MACRO"
 					? profile.macroStartToken
 					: profile.directCommandToken;
-			const mappings =
-				state.mode === "MACRO"
-					? {}
-					: {
-							...profile.editorCommandMappings,
-							...profile.directCommandMappings,
-							[profile.variableCommandName]: "variable",
-					  };
-			return Object.keys(mappings)
-				.filter((alias) => alias.startsWith(partial))
-				.map((alias) => ({
-					label: alias,
-					value: `${token}${alias}`,
-					type: "verb" as const,
-					verb: alias,
-					completionText: `${token}${alias}`,
-					group: state.mode === "MACRO" ? "macro" : "v2",
-					source: "editor" as const,
-					hasArgs: false,
-					kind: "verb" as const,
-				}));
+			// Build canonical CommandDescriptors from the active syntax profile.
+			// In MACRO mode, only macro names are suggested (V1 parity).
+			const descriptors = buildCommandDescriptors(profile, {
+				variableName:
+					state.mode === "MACRO" ? undefined : profile.variableCommandName,
+				variableAliases:
+					state.mode === "MACRO" ? undefined : ["variable"],
+			});
+			return dedupeCanonicalSuggestions(
+				descriptors,
+				partial,
+				token,
+				state.mode === "MACRO" ? "macro" : "editor",
+				state.mode === "MACRO" ? "macro" : "v2",
+			);
 		},
 		[session, state.mode],
 	);
