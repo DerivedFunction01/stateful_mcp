@@ -85,6 +85,7 @@ export function resolveKey(
 	key: Key,
 	mode: EditorMode,
 	pendingSequence: string,
+	macroStartToken = "^",
 ): { action: EditorAction | null; nextPending: string; char?: string } {
 	if (mode === "COMMAND") {
 		return { action: null, nextPending: "" };
@@ -195,7 +196,7 @@ export function resolveKey(
 				return { action: EditorAction.RunCell, nextPending: "" };
 			case ":":
 				return { action: EditorAction.OpenCommandLine, nextPending: "" };
-			case "^":
+			case macroStartToken:
 				return { action: EditorAction.OpenMacroInput, nextPending: "" };
 			case "s":
 				return { action: EditorAction.Search, nextPending: "" };

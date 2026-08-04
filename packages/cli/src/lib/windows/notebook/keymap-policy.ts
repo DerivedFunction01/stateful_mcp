@@ -1,4 +1,5 @@
 import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import type { Key } from "ink";
 import type {
 	DocumentAction,
@@ -13,7 +14,7 @@ import { resolveKey } from "../../editor/keymap";
 interface Classification {
 	document?: DocumentAction;
 	domain?: DomainAction;
-	generic?: "ENTER_INSERT" | "ENTER_COMMAND" | "CANCEL" | "SEARCH";
+	generic?: "ENTER_INSERT" | "ENTER_COMMAND" | "ENTER_MACRO" | "CANCEL" | "SEARCH";
 	char?: string;
 }
 
@@ -67,6 +68,8 @@ function classify(action: ClinicalAction): Classification {
 			return { generic: "CANCEL" };
 		case ClinicalAction.OpenCommandLine:
 			return { generic: "ENTER_COMMAND" };
+		case ClinicalAction.OpenMacroInput:
+			return { generic: "ENTER_MACRO" };
 		case ClinicalAction.OpenWorkspace:
 			return { domain: { type: "openWorkspace" } };
 		case ClinicalAction.Info:
@@ -81,13 +84,21 @@ function classify(action: ClinicalAction): Classification {
 }
 
 export class NotebookKeymapPolicy implements KeymapPolicy {
+	constructor(private readonly syntaxProfile?: CommandSyntaxProfile) {}
+
 	resolve(
 		input: string,
 		key: Key,
 		mode: EditorMode,
 		pending: string,
 	): KeyResolution {
-		const { action, nextPending, char } = resolveKey(input, key, mode, pending);
+		const { action, nextPending, char } = resolveKey(
+			input,
+			key,
+			mode,
+			pending,
+			this.syntaxProfile?.macroStartToken,
+		);
 
 		// Multi-key sequence awaiting a second key (dd, yy, [e, gw, ...).
 		if (action === null && nextPending) {
@@ -114,7 +125,10 @@ export class NotebookKeymapPolicy implements KeymapPolicy {
 			return { kind: "domain", action: classified.domain };
 		}
 		if (classified.generic) {
-			return { kind: "generic", action: { type: classified.generic } };
+		return {
+			kind: "generic",
+			action: { type: classified.generic },
+		};
 		}
 		return { kind: "none", nextPending: "" };
 	}

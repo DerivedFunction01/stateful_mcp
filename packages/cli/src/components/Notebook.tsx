@@ -498,7 +498,7 @@ export function Notebook() {
 	return (
 		<WindowContainer
 			definition={definition}
-			keymap={new NotebookKeymapPolicy()}
+			keymap={new NotebookKeymapPolicy(session?.v2.syntaxProfile)}
 			document={documentPort}
 			domain={containerDomain as any}
 			catalog={catalog}

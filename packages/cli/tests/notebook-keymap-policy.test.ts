@@ -29,6 +29,15 @@ describe("NotebookKeymapPolicy", () => {
 		});
 	});
 
+	test("NORMAL macro token follows the active syntax profile", () => {
+		const configuredPolicy = new NotebookKeymapPolicy({ macroStartToken: "~" } as any);
+		expect(configuredPolicy.resolve("~", {}, "NORMAL", "")).toEqual({
+			kind: "generic",
+			action: { type: "ENTER_MACRO" },
+		});
+		expect(configuredPolicy.resolve("^", {}, "NORMAL", "").kind).toBe("none");
+	});
+
 	test("dd pending sequence returns none with nextPending", () => {
 		expect(policy.resolve("d", {}, "NORMAL", "")).toEqual({
 			kind: "none",
