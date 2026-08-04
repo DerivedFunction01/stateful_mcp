@@ -270,6 +270,8 @@ export interface SelectQuery {
 export interface InsertQuery {
 	table: string;
 	values?: Record<string, any> | Record<string, any>[];
+	/** Insert rows produced by a SELECT AST instead of bound VALUES. */
+	select?: SelectQuery;
 	columns?: string[];
 	columnLiterals?: Record<string, string>;
 	returning?: string[];
@@ -1129,8 +1131,12 @@ export class QueryCompiler {
 		let quotedCols = "";
 		let valueStrings: string[] = [];
 		let activeColumns: string[] = [];
+		let selectSql: string | undefined;
 
 		if (query.values) {
+			if (query.select) {
+				throw new Error("InsertQuery cannot use both 'values' and 'select'");
+			}
 			const { columns, rows } = this.getKeysAndValues(query.values);
 			if (columns.length === 0) {
 				throw new Error("InsertQuery requires at least one value column");
@@ -1142,7 +1148,20 @@ export class QueryCompiler {
 				return `(${placeholders.join(", ")})`;
 			});
 		}
-		if (query.columns) {
+		if (query.select) {
+			if (query.values) {
+				throw new Error("InsertQuery cannot use both 'values' and 'select'");
+			}
+			if (!query.columns || query.columns.length === 0) {
+				throw new Error(
+					"InsertQuery with 'select' requires at least one target column",
+				);
+			}
+			activeColumns = query.columns;
+			quotedCols = query.columns.map((c) => this.quoteIdent(c)).join(", ");
+			selectSql = this.compileSelectInternal(query.select, ctx);
+		}
+		if (query.columns && !query.select) {
 			if (query.columns.length === 0) {
 				throw new Error("InsertQuery requires at least one column");
 			}
@@ -1153,8 +1172,10 @@ export class QueryCompiler {
 			);
 			valueStrings = [`(${placeholders.join(", ")})`];
 		}
-		if (!query.columns && !query.values) {
-			throw new Error("InsertQuery requires either 'values' or 'columns'");
+		if (!query.columns && !query.values && !query.select) {
+			throw new Error(
+				"InsertQuery requires either 'values', 'columns', or 'select'",
+			);
 		}
 
 		let insertKeyword = "INSERT";
@@ -1213,7 +1234,9 @@ export class QueryCompiler {
 			onConflictClause = query.onConflict;
 		}
 
-		let sql = `${insertKeyword} INTO ${this.quoteIdent(query.table)} (${quotedCols})\nVALUES ${valueStrings.join(", ")}`;
+		let sql = `${insertKeyword} INTO ${this.quoteIdent(query.table)} (${quotedCols})\n${
+			selectSql ? selectSql : `VALUES ${valueStrings.join(", ")}`
+		}`;
 
 		if (onConflictClause) {
 			sql += `\n${onConflictClause}`;
