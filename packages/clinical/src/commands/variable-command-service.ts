@@ -12,6 +12,13 @@ export class VariableCommandService {
 		private readonly resolveConcept?: VariableConceptResolver,
 	) {}
 
+	async getScope(
+		sessionId: string,
+		blockInstanceId?: string,
+	): Promise<Record<string, unknown>> {
+		return this.variables.getScope(sessionId, blockInstanceId);
+	}
+
 	async execute(
 		sessionId: string,
 		statement: VariableStatement,

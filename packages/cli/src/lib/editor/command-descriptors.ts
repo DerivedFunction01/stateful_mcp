@@ -63,12 +63,28 @@ export function buildCommandDescriptors(
 			aliases: options.variableAliases ?? [],
 			group: "cell",
 			descriptionKey: "command.variable",
-			args: [{
-				name: "operation",
-				required: true,
-				descriptionKey: "arg.variable.operation",
-				completions: operationEntries.map(([label]) => label),
-			}],
+			args: [
+				{
+					name: "operation",
+					required: true,
+					descriptionKey: "arg.variable.operation",
+					completions: operationEntries.map(([label]) => label),
+					type: "enum",
+				},
+				{
+					name: "name",
+					required: true,
+					descriptionKey: "variable.autocomplete.name",
+					type: "identifier",
+					providerKey: "variable",
+				},
+				{
+					name: "value",
+					required: false,
+					descriptionKey: "variable.autocomplete.expression",
+					type: "expression",
+				},
+			],
 		});
 	}
 

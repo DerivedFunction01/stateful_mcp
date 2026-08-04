@@ -44,6 +44,17 @@ export class CommandHistoryQueryCompiler {
 				name: `idx_${table}_command`,
 				columns: ["scope", "scope_key", "command_text"],
 			}),
+			this.compiler.compileCreateTable({
+				table: "command_history_arguments",
+				ifNotExists: true,
+				columns: [
+					{ name: "event_id", type: "uuid", nullable: false },
+					{ name: "argument_index", type: "integer", nullable: false },
+					{ name: "argument_name", type: "TEXT", nullable: true },
+					{ name: "argument_value", type: "TEXT", nullable: false },
+				],
+				primaryKey: ["event_id", "argument_index"],
+			}),
 		];
 	}
 

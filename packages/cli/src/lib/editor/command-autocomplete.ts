@@ -1,6 +1,10 @@
 import type { AutocompleteSuggestion } from "./autocomplete";
 import type { CommandDescriptor } from "./command-descriptor";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
+import type {
+	ArgumentAutocompleteContext,
+	ArgumentCompletionCandidate,
+} from "./argument-autocomplete-types";
 
 /** Semantic cap mirroring V1 `MAX_SUGGESTIONS = 12`. */
 export const MAX_SUGGESTIONS = 12;
@@ -159,3 +163,84 @@ export function argumentSuggestions(
 			descriptionKey: argument.descriptionKey,
 		}));
 }
+
+export interface RankingOptions {
+	sessionWeight?: number;
+	allWeight?: number;
+}
+
+export function rankArgumentSuggestions(
+	candidates: ArgumentCompletionCandidate[],
+	context: ArgumentAutocompleteContext,
+	options: RankingOptions = {},
+): AutocompleteSuggestion[] {
+	const sessionWeight = options.sessionWeight ?? 2.0;
+	const allWeight = options.allWeight ?? 1.0;
+
+	const validCandidates = candidates.filter((c) => c.valid !== false);
+
+	const mergedMap = new Map<string, ArgumentCompletionCandidate>();
+	for (const candidate of validCandidates) {
+		const existing = mergedMap.get(candidate.value);
+		if (!existing) {
+			mergedMap.set(candidate.value, { ...candidate });
+		} else {
+			existing.baseScore = Math.max(existing.baseScore ?? 0, candidate.baseScore ?? 0);
+			if (candidate.source === "scope") {
+				existing.source = "scope";
+			}
+		}
+	}
+
+	const prefix = context.argumentPrefix.toLowerCase();
+
+	const scored = [...mergedMap.values()].map((candidate) => {
+		const valLower = candidate.value.toLowerCase();
+
+		let prefixScore = 0;
+		if (valLower === prefix) {
+			prefixScore = 1000;
+		} else if (valLower.startsWith(prefix)) {
+			prefixScore = 500;
+		}
+
+		const usageScore = candidate.baseScore ?? 0;
+
+		let sourcePriority = 0;
+		if (candidate.source === "scope") {
+			sourcePriority = 100;
+		} else if (candidate.source === "static") {
+			sourcePriority = 50;
+		}
+
+		const totalScore = prefixScore + usageScore + sourcePriority;
+
+		return {
+			candidate,
+			score: totalScore,
+		};
+	});
+
+	scored.sort((a, b) => b.score - a.score);
+
+	return scored.map(({ candidate }) => {
+		const argName = context.argumentDescriptor?.name;
+		const descKey = context.argumentDescriptor?.descriptionKey;
+		return {
+			label: candidate.label ?? candidate.value,
+			value: candidate.value,
+			type: "arg" as const,
+			verb: candidate.value,
+			completionText: candidate.value,
+			group: "v2",
+			source: (candidate.source === "scope" ? "clinical" : "editor") as "editor" | "clinical" | "macro" | "context",
+			hasArgs: false,
+			kind: "arg" as const,
+			argIndex: context.argumentIndex,
+			argName: argName,
+			descriptionKey: descKey,
+			detail: candidate.detailKey,
+		};
+	});
+}
+

@@ -7,6 +7,7 @@ import {
 	historySuggestions,
 	knownVerbs,
 	MAX_SUGGESTIONS,
+	rankArgumentSuggestions,
 } from "../src/lib/editor/command-autocomplete";
 import { buildCommandDescriptors } from "../src/lib/editor/command-descriptors";
 import { has, t } from "../src/lib/shared/i18n";
@@ -261,6 +262,33 @@ describe("CLI2 command autocomplete", () => {
 			const rendered = t("command.noMatch", { partial: "xyz" });
 			expect(rendered).toContain("xyz");
 			expect(rendered).not.toContain("{partial}");
+		});
+	});
+
+	describe("argument suggestions ranking", () => {
+		it("ranks exact prefix matches first and applies weights", () => {
+			const candidates = [
+				{ value: "baseline_date", source: "static" as const, valid: true },
+				{ value: "patient.weight", source: "history" as const, valid: true, baseScore: 50 },
+				{ value: "patient.height", source: "scope" as const, valid: true },
+			];
+			const context = {
+				commandId: "var",
+				commandVerb: "var",
+				argumentIndex: 1,
+				argumentPrefix: "patient",
+				priorArguments: ["set"],
+				allArguments: ["set", "patient"],
+				sessionId: "sess-1",
+			};
+			const suggestions = rankArgumentSuggestions(candidates, context);
+			expect(suggestions).toHaveLength(3);
+			// "patient.weight" is a prefix match and has history baseScore (50) + source priority (0) = 50 + 500 = 550
+			// "patient.height" has source priority (100) + prefix match (500) = 600.
+			// "baseline_date" doesn't match the prefix "patient".
+			expect(suggestions[0]?.value).toBe("patient.height");
+			expect(suggestions[1]?.value).toBe("patient.weight");
+			expect(suggestions[2]?.value).toBe("baseline_date");
 		});
 	});
 });

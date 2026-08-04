@@ -10,6 +10,12 @@ export interface CommandHistoryEvent {
 	commandId?: string;
 	executedAt: string;
 	outcome: "success" | "failure" | "cancelled";
+	args?: Array<{
+		index: number;
+		name?: string;
+		value: string;
+		normalizedValue?: string;
+	}>;
 }
 
 export interface CommandHistoryCandidate {
@@ -29,6 +35,16 @@ export interface CommandHistoryQuery {
 	limit?: number;
 }
 
+export interface ArgumentUsageRecord {
+	commandId: string;
+	argumentIndex: number;
+	argumentValue: string;
+	sessionCount: number;
+	allCount: number;
+	sessionLastUsedAt?: string;
+	allLastUsedAt?: string;
+}
+
 export interface CommandHistoryStore {
 	recordSuccess(input: {
 		sessionId: string;
@@ -36,10 +52,25 @@ export interface CommandHistoryStore {
 		canonicalVerb?: string;
 		commandId?: string;
 		executedAt?: string;
+		args?: Array<{
+			index: number;
+			name?: string;
+			value: string;
+			normalizedValue?: string;
+		}>;
 	}): Promise<void>;
 	query(input: CommandHistoryQuery): Promise<CommandHistoryCandidate[]>;
+	queryArgumentUsage(input: {
+		sessionId: string;
+		commandId: string;
+		argumentIndex: number;
+		priorArguments?: string[];
+		prefix?: string;
+		limit?: number;
+	}): Promise<ArgumentUsageRecord[]>;
 }
 
 export function normalizeCommandText(commandText: string): string {
 	return commandText.trim().toLocaleLowerCase();
 }
+

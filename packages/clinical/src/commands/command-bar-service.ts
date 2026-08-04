@@ -28,7 +28,7 @@ export class CommandBarService {
 		private readonly syntaxProfile: CommandSyntaxProfile = createCommandSyntaxProfile(
 			{ profileId: "v2-default" },
 		),
-		private readonly variableService?: VariableCommandService,
+		public readonly variableService?: VariableCommandService,
 		private readonly variableCellService?: VariableCellService,
 	) {}
 

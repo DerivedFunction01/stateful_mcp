@@ -11,9 +11,11 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import {
 	argumentSuggestions,
-	 dedupeCanonicalSuggestions,
+	dedupeCanonicalSuggestions,
 	historySuggestions,
+	rankArgumentSuggestions,
 } from "../lib/editor/command-autocomplete";
+import { globalRegistry } from "../lib/editor/argument-autocomplete-registry";
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
 import type { SessionState } from "./useSession";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
@@ -76,8 +78,86 @@ export function useNotebook(
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
 	const [macroSuggestions, setMacroSuggestions] = useState<AutocompleteSuggestion[]>([]);
 	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<CommandHistoryCandidate[]>([]);
+	const [argumentSuggestionsList, setArgumentSuggestionsList] = useState<AutocompleteSuggestion[]>([]);
 	const editingCellIdRef = useRef<string | null>(null);
 	const editingRevisionRef = useRef<number>(0);
+
+	useEffect(() => {
+		if (session) {
+			globalRegistry.setHistoryStore(session.v2.commandHistoryStore);
+			if (session.v2.commandBar.variableService) {
+				globalRegistry.setVariableReader(session.v2.commandBar.variableService);
+			}
+		}
+	}, [session]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!session || !state.draftText) {
+			setArgumentSuggestionsList([]);
+			return;
+		}
+
+		const profile = session.v2.syntaxProfile;
+		const descriptors = buildCommandDescriptors(profile, {
+			variableName: state.mode === "MACRO" ? undefined : profile.variableCommandName,
+			variableAliases: state.mode === "MACRO" ? undefined : ["variable"],
+		});
+
+		const partial = state.draftText;
+		const spaceIndex = partial.indexOf(" ");
+		if (spaceIndex < 0) {
+			setArgumentSuggestionsList([]);
+			return;
+		}
+
+		const verb = partial.slice(0, spaceIndex);
+		const argumentText = partial.slice(spaceIndex + 1);
+		const parts = argumentText.split(/\s+/);
+		const argIndex = Math.max(0, parts.length - 1);
+		const prefix = parts[argIndex] ?? "";
+		const priorArguments = parts.slice(0, argIndex);
+
+		const descriptor = descriptors.find((candidate) =>
+			[candidate.verb, ...candidate.aliases].some(
+				(name) => name.toLocaleLowerCase() === verb.toLocaleLowerCase(),
+			),
+		);
+		const argumentDescriptor = descriptor?.args?.[argIndex];
+
+		if (!descriptor || !argumentDescriptor) {
+			setArgumentSuggestionsList([]);
+			return;
+		}
+
+		const blockInstanceId = state.cells[state.activeIndex]?.cellId;
+
+		const context = {
+			commandId: descriptor.commandId ?? descriptor.verb,
+			commandVerb: descriptor.verb,
+			argumentIndex: argIndex,
+			argumentPrefix: prefix,
+			priorArguments,
+			allArguments: parts,
+			sessionId: session.sessionId,
+			blockInstanceId,
+			argumentDescriptor,
+		};
+
+		globalRegistry.getSuggestions(context)
+			.then((candidates) => {
+				if (cancelled) return;
+				const ranked = rankArgumentSuggestions(candidates, context);
+				setArgumentSuggestionsList(ranked);
+			})
+			.catch(() => {
+				if (!cancelled) setArgumentSuggestionsList([]);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [session, state.draftText, state.activeIndex, state.cells, state.mode]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -407,11 +487,19 @@ export function useNotebook(
 					...state.commandHistory.filter((entry) => entry !== normalizedLine),
 				].slice(0, 50);
 				dispatch({ type: "set_command_history", history: commandHistory });
+				const spaceIdx = normalizedLine.indexOf(" ");
+				const args = spaceIdx >= 0
+					? normalizedLine.slice(spaceIdx + 1).trim().split(/\s+/).filter(Boolean).map((part, index) => ({
+						index,
+						value: part,
+					}))
+					: [];
 				await session.v2.commandHistoryStore.recordSuccess({
 					sessionId: session.sessionId,
 					commandText: normalizedLine,
 					canonicalVerb,
 					commandId: canonicalVerb ? `editor.command.${canonicalVerb}` : undefined,
+					args,
 				});
 			}
 			dispatch({ type: "set_mode", mode: "NORMAL" });
@@ -437,8 +525,11 @@ export function useNotebook(
 					state.mode === "MACRO" ? undefined : profile.variableCommandName,
 				variableAliases: state.mode === "MACRO" ? undefined : ["variable"],
 			});
-			const argumentCandidates = argumentSuggestions(partial, descriptors);
-			if (argumentCandidates.length > 0) return argumentCandidates;
+			if (partial.includes(" ")) {
+				if (argumentSuggestionsList.length > 0) return argumentSuggestionsList;
+				const staticArgs = argumentSuggestions(partial, descriptors);
+				if (staticArgs.length > 0) return staticArgs;
+			}
 			const staticSuggestions = dedupeCanonicalSuggestions(
 				descriptors,
 				partial,
@@ -457,7 +548,7 @@ export function useNotebook(
 					all.findIndex((candidate) => candidate.value === suggestion.value) === index,
 			).slice(0, 12);
 		},
-		[commandHistoryCandidates, session, state.mode],
+		[commandHistoryCandidates, argumentSuggestionsList, session, state.mode],
 	);
 
 	const nextErrorIndex = useCallback((): number | null => {
