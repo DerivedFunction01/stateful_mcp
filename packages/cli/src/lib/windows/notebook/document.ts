@@ -83,14 +83,10 @@ export class NotebookDocumentPort implements DocumentPort {
 			case "enterVisual":
 				return { type: "set_mode", mode: "VISUAL" };
 			case "extendSelection":
-				const end = Math.max(
-					0,
-					Math.min(this.state.visualEnd + action.delta, this.state.cells.length - 1),
-				);
 				return {
 					type: "set_visual_selection",
 					start: this.state.visualStart,
-					end,
+					end: this.state.visualEnd + action.delta,
 				};
 			case "swapAnchor":
 				return {
