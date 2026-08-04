@@ -1,15 +1,20 @@
 import { Box, Text, useInput } from "ink";
 import type { CommandDescriptor } from "../lib/editor/command-descriptor";
+import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
+import { KeyBindingsList } from "../lib/ui/HelpBindings";
+import { palette } from "../lib/ui/palette";
 
 import { t } from "../lib/shared/i18n";
 
 interface WorkspaceHelpScreenProps {
 	descriptors: CommandDescriptor[];
+	keymapProfile?: EditorKeymapProfile;
 	onClose: () => void;
 }
 
 export function WorkspaceHelpScreen({
 	descriptors,
+	keymapProfile,
 	onClose,
 }: WorkspaceHelpScreenProps) {
 	useInput((_input, key) => {
@@ -21,9 +26,9 @@ export function WorkspaceHelpScreen({
 			<Box>
 				<Text bold inverse>
 					{" "}
-					Workspace Help{" "}
+					{t("help.workspaceTitle")}{" "}
 				</Text>
-				<Text> Esc: close</Text>
+				<Text>{t("help.close", { esc: t("help.key.escape") })}</Text>
 			</Box>
 			<Box flexDirection="column" paddingLeft={1} paddingTop={1}>
 				{descriptors.map((descriptor) => (
@@ -33,23 +38,25 @@ export function WorkspaceHelpScreen({
 						flexDirection="row"
 						flexWrap="wrap"
 					>
-						<Text bold color="cyan">
+						<Text bold color={palette.emphasized}>
 							:{descriptor.verb}
 							{descriptor.aliases && descriptor.aliases.length > 0
 								? ` (${descriptor.aliases.map((a) => `:${a}`).join(", ")})`
 								: ""}
 						</Text>
 						{descriptor.descriptionKey && (
-							<Text color="white"> - {t(descriptor.descriptionKey)}</Text>
+							<Text color={palette.description}>
+								{" "}
+								- {t(descriptor.descriptionKey)}
+							</Text>
 						)}
-						<Text color="gray"> ({descriptor.group})</Text>
+						<Text color={palette.muted}> ({descriptor.group})</Text>
 					</Box>
 				))}
 			</Box>
+			<KeyBindingsList profile={keymapProfile} />
 			<Box paddingTop={1} paddingLeft={1} flexDirection="column">
-				<Text color="gray">i/a: edit</Text>
-				<Text color="gray">Enter: newline · Ctrl-Enter: submit</Text>
-				<Text color="gray">Tab/arrows: completion · Esc: cancel/back</Text>
+				<Text color={palette.muted}>{t("help.workspace.hints")}</Text>
 			</Box>
 		</Box>
 	);

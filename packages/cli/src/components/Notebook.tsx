@@ -328,6 +328,7 @@ export function Notebook() {
 				<HelpScreen
 					editorDescriptors={descs.filter((d) => d.group === "editor") as any}
 					cellDescriptors={descs.filter((d) => d.group !== "editor") as any}
+					keymapProfile={session?.v2.editorKeymap}
 					onClose={() => onOverlayAction("close")}
 				/>
 			);
@@ -435,7 +436,7 @@ export function Notebook() {
 				});
 				return;
 			case "SHOW_HELP":
-				setShowHelp(true);
+				setShowHelp(action.show);
 				return;
 			case "SEARCH":
 				setOverlay({ route: "search" });
@@ -487,7 +488,8 @@ export function Notebook() {
 			const general = dispatchGeneralWindowCommand(line);
 			if (general) {
 				if (general.action === "quit") exit();
-				if (general.action === "show_help") setShowHelp(true);
+				if (general.action === "show_help")
+					setOverlay({ route: "help", originCellId: undefined });
 				if (general.action === "save" || general.action === "save_quit")
 					dispatch({ type: "set_message", message: "saved" });
 				if (general.action === "save_quit") exit();
@@ -509,6 +511,7 @@ export function Notebook() {
 		<WindowContainer
 			definition={definition}
 			keymap={new NotebookKeymapPolicy(session?.v2.editorKeymap)}
+			keymapProfile={session?.v2.editorKeymap}
 			document={documentPort}
 			domain={containerDomain as any}
 			catalog={catalog}

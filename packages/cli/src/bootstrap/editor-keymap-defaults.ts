@@ -42,6 +42,35 @@ export const defaultEditorKeymapProfile: EditorKeymapProfile = {
 	},
 };
 
+export const editorKeymapHelpGroups = [
+	{
+		labelKey: "help.keyGroup.normal",
+		bindings: [
+			["moveDown", "moveUp"],
+			["enterInsert", "insertBelow", "insertAbove"],
+			["enterVisual"],
+			["pasteBelow"],
+			["previewCell"],
+			["runCell"],
+			["undo"],
+			["redo"],
+			["command"],
+			["macro"],
+			["search", "searchAlt"],
+			["info"],
+			["quit"],
+		] as const,
+	},
+	{
+		labelKey: "help.keyGroup.sequences",
+		bindings: [["deleteCell"], ["yankCell"], ["previousError"], ["nextError"], ["workspace"], ["pasteAbove"]] as const,
+	},
+	{
+		labelKey: "help.keyGroup.visual",
+		bindings: [["deleteSelection"], ["yankSelection"], ["pasteSelection"], ["extendDown", "extendUp"], ["swapAnchor"]] as const,
+	},
+] as const;
+
 export function mergeEditorKeymap(
 	base: EditorKeymapProfile,
 	override: Partial<EditorKeymapProfile> | undefined,
