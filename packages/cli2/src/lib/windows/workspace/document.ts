@@ -1,13 +1,9 @@
-import type {
-	Cell,
-	CellCollectionRef,
-} from "@stateful-mcp/clinical/session/cell";
-import type { WorkspaceCellSummary } from "@stateful-mcp/clinical/session/workspace-read-model";
+import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { DocumentAction, DocumentPort, DocumentView } from "../../editor";
 
 export interface WorkspaceDocumentDeps {
 	/** The workspace's cell collection; used by insertion intents. */
-	collection: CellCollectionRef;
+	collection: StructuredCell["collection"];
 	/** Injectable session-aware insertion hooks (mirrors the notebook port). */
 	insertBelow?(): void;
 	insertAbove?(): void;
@@ -23,28 +19,28 @@ export interface WorkspaceDocumentDeps {
  */
 export class WorkspaceDocumentPort implements DocumentPort {
 	private currentSelection: { start: number; end: number } | null = null;
-	private workingCells: WorkspaceCellSummary[] | null = null;
+	private workingCells: StructuredCell[] | null = null;
 	private workingActiveIndex: number | null = null;
-	private yankBuffer: WorkspaceCellSummary[] = [];
+	private yankBuffer: StructuredCell[] = [];
 	private undoStack: Array<{
-		cells: WorkspaceCellSummary[];
+		cells: StructuredCell[];
 		activeIndex: number;
 		selection: { start: number; end: number } | null;
 	}> = [];
 	private redoStack: Array<{
-		cells: WorkspaceCellSummary[];
+		cells: StructuredCell[];
 		activeIndex: number;
 		selection: { start: number; end: number } | null;
 	}> = [];
 
 	constructor(
 		private readonly deps: WorkspaceDocumentDeps,
-		private readonly cells: () => WorkspaceCellSummary[],
+		private readonly cells: () => StructuredCell[],
 		private readonly activeIndex: () => number,
 		private readonly selection?: () => { start: number; end: number } | null,
 	) {}
 
-	private currentCells(): WorkspaceCellSummary[] {
+	private currentCells(): StructuredCell[] {
 		return this.workingCells ?? this.cells();
 	}
 
@@ -59,7 +55,7 @@ export class WorkspaceDocumentPort implements DocumentPort {
 		);
 	}
 
-	private ensureWorkingCopy(): WorkspaceCellSummary[] {
+	private ensureWorkingCopy(): StructuredCell[] {
 		if (!this.workingCells) {
 			this.workingCells = structuredClone(this.cells());
 			this.workingActiveIndex = this.activeIndex();
@@ -83,7 +79,7 @@ export class WorkspaceDocumentPort implements DocumentPort {
 
 	getView(): DocumentView {
 		return {
-			cells: this.currentCells() as unknown as Cell[],
+			cells: this.currentCells(),
 			activeIndex: this.currentActiveIndex(),
 			selection: this.currentSelection ?? this.selection?.() ?? null,
 		};

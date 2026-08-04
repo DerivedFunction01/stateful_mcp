@@ -1,7 +1,6 @@
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
-import { WorkspaceCommandProvider } from "@stateful-mcp/clinical/session/workspace-command-provider";
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
-import type { ParserSyntaxProfile } from "@stateful-mcp/clinical/store/interfaces";
+import type { CommandDescriptor } from "../../editor/command-descriptor";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import type {
 	EditorExtension,
 	WindowEffect,
@@ -12,7 +11,7 @@ import { descriptorsToContributions } from "../notebook/extension";
 import { getSharedCellCommandDescriptors } from "../shared-cell-commands";
 
 export interface WorkspaceProfileDeps {
-	profile: ParserSyntaxProfile;
+	profile: CommandSyntaxProfile;
 	snapshot: WorkspaceSnapshot | null;
 	/** Shared editor (core/command-input) descriptor contributions. */
 	editorDescriptors: CommandDescriptor[];
@@ -29,8 +28,11 @@ export interface WorkspaceProfileDeps {
 export function buildWorkspaceExtension(
 	deps: WorkspaceProfileDeps,
 ): EditorExtension {
-	const workspaceProvider = new WorkspaceCommandProvider(deps.profile);
-	const workspaceDescriptors = workspaceProvider.getDescriptors();
+	const workspaceDescriptors: CommandDescriptor[] = [
+		{ verb: "branch", aliases: [], group: "workspace", descriptionKey: "workspace.branch", args: [] },
+		{ verb: "confirm", aliases: [], group: "workspace", descriptionKey: "workspace.confirm", args: [] },
+		{ verb: "complete", aliases: [], group: "workspace", descriptionKey: "workspace.complete", args: [] },
+	];
 	const variableDescriptors = getSharedCellCommandDescriptors();
 
 	const editorContribs = descriptorsToContributions(

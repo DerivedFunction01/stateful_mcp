@@ -1,7 +1,6 @@
-import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
-import type { ParserSyntaxProfile } from "@stateful-mcp/clinical/store/interfaces";
-import { useMemo, useRef } from "react";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
+import { useMemo } from "react";
 import type { WindowOverlayRoute } from "../editor/overlay";
 import { commandResultToEffects } from "../windows/notebook/extension";
 import { buildWorkspaceExtension } from "../windows/workspace/extension";
@@ -23,7 +22,7 @@ import {
 
 export interface WorkspaceRuntimeOptions {
 	sessionId: string;
-	profile: ParserSyntaxProfile | null;
+	profile: CommandSyntaxProfile | null;
 	snapshot: WorkspaceSnapshot | null;
 	/** Host-side execution of a workspace command line → result. */
 	onCommand(line: string): Promise<{
@@ -52,7 +51,6 @@ export function useWorkspaceRuntime(opts: WorkspaceRuntimeOptions): {
 	toIntent(line: string): WindowIntent | null;
 } {
 	const { sessionId, profile, snapshot } = opts;
-	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
 
 	const scope: WindowScope = {
 		windowKind: "workspace",
@@ -76,15 +74,10 @@ export function useWorkspaceRuntime(opts: WorkspaceRuntimeOptions): {
 
 	const extensions = useMemo<EditorExtension[]>(() => {
 		const editorDescriptors: any[] = [];
-		try {
-			editorDescriptors.push(...editorRegistryRef.current.getDescriptors());
-		} catch {
-			/* ignore */
-		}
 		return [
 			...builtinExtensions,
 			buildWorkspaceExtension({
-				profile: profile ?? ({} as ParserSyntaxProfile),
+				profile: profile ?? ({} as CommandSyntaxProfile),
 				snapshot,
 				editorDescriptors,
 				onCommand,

@@ -5,4 +5,10 @@ export interface CommandDescriptor {
 	descriptionKey?: string;
 	argNames?: string[];
 	argsRequired?: boolean[];
+	args?: Array<{
+		name: string;
+		required?: boolean;
+		descriptionKey?: string;
+		completions?: unknown;
+	}>;
 }

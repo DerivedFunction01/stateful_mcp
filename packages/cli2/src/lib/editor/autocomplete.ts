@@ -8,7 +8,7 @@ export interface AutocompleteSuggestion {
 	group: string;
 	source: "editor" | "clinical" | "macro" | "context";
 	hasArgs: boolean;
-	kind: "verb" | "argument" | "value" | "field";
+	kind: "verb" | "argument" | "value" | "field" | "arg";
 	argNames?: string[];
 	argsRequired?: boolean[];
 	argHints?: string[][];

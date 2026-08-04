@@ -1,10 +1,7 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import type {
-	Cell,
-	CellCollectionRef,
-} from "@stateful-mcp/clinical/session/cell";
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
-import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
+import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
+import type { AutocompleteSuggestion } from "../editor/autocomplete";
+import type { CommandDescriptor } from "../editor/command-descriptor";
+import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { Key } from "ink";
 import type { ReactElement } from "react";
 import type { DocumentAction, EditorAction } from "../editor";
@@ -32,7 +29,7 @@ export type CapabilityId =
 export interface WindowScope {
 	windowKind: string;
 	sessionId: string;
-	collection: CellCollectionRef;
+	collection: StructuredCell["collection"];
 	activeBranchId?: string;
 }
 
@@ -169,7 +166,7 @@ export interface EditorKernelStateLike {
 
 export interface DocumentServices {
 	getView(): {
-		cells: Cell[];
+		cells: StructuredCell[];
 		activeIndex: number;
 		selection?: { start: number; end: number } | null;
 	};

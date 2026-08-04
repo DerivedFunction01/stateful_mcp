@@ -1,6 +1,4 @@
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
-import { CommandGroup } from "@stateful-mcp/clinical/session/command-descriptor";
-import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
+import type { CommandDescriptor } from "../../editor/command-descriptor";
 
 // TODO(cli2-v2): replace descriptor conversion and editor-registry dispatch
 // with the CLI2 editor catalog plus CommandBarService.
@@ -30,17 +28,17 @@ export function descriptorsToContributions(
 		id: d.verb,
 		intentType: `${intentTypePrefix}${d.group}.${d.verb}`,
 		aliases: d.aliases,
-		args: d.args.map((a) => ({
+		args: (d.args ?? []).map((a) => ({
 			name: a.name,
-			required: a.required,
+			required: a.required ?? false,
 			descriptionKey: a.descriptionKey,
-			completions: a.completions,
+			completions: Array.isArray(a.completions) ? a.completions.filter((value): value is string => typeof value === "string") : undefined,
 		})),
 		source,
-		durable: d.group === CommandGroup.Cell,
+		durable: d.group === "cell",
 		capability:
-			d.group === CommandGroup.Workspace ? "workspace.branch" : undefined,
-		descriptionKey: d.descriptionKey,
+			d.group === "workspace" ? "workspace.branch" : undefined,
+		descriptionKey: d.descriptionKey ?? "",
 		group: d.group,
 	}));
 }
@@ -143,11 +141,9 @@ export function dispatchGeneralWindowCommand(line: string): {
 	const tokens = line.replace(/^:+/, "").trim().split(/\s+/).filter(Boolean);
 	const verb = tokens[0];
 	if (!verb) return null;
-	const result = EditorCommandRegistry.createDefault().dispatch(
-		verb,
-		tokens.slice(1),
-	);
-	return result.success ? result : null;
+	if (verb === "q" || verb === "quit") return { success: true, action: "quit" };
+	if (verb === "help" || verb === "h") return { success: true, action: "show_help" };
+	return null;
 }
 
 /**

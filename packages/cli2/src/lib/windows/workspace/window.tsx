@@ -1,4 +1,4 @@
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
 import { StatusBar } from "../../../components/StatusBar";

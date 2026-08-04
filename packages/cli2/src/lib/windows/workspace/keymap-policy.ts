@@ -1,4 +1,4 @@
-import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
+import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { Key } from "ink";
 import type { KeymapPolicy, KeyResolution } from "../../editor";
 import { NotebookKeymapPolicy } from "../notebook/keymap-policy";

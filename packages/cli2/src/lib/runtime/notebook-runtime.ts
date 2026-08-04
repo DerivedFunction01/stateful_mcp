@@ -1,12 +1,10 @@
-import { EditorCommandRegistry } from "@stateful-mcp/clinical/session/editor-command-registry";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { UseNotebookReturn } from "../../hooks/useNotebook";
 import type { WindowOverlayRoute } from "../editor/overlay";
 import {
 	buildNotebookExtension,
 	commandResultToEffects,
 } from "../windows/notebook/extension";
-import { getSharedCellCommandDescriptors } from "../windows/shared-cell-commands";
 
 // TODO(cli2-v2): retain editor effects/keymaps, but remove the legacy editor
 // registry and shared V1 cell descriptors after the  catalog is wired.
@@ -51,7 +49,6 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 	toIntent(line: string): WindowIntent | null;
 } {
 	const { sessionId, notebook, cellDescriptors } = opts;
-	const editorRegistryRef = useRef(EditorCommandRegistry.createDefault());
 
 	const scope: WindowScope = {
 		windowKind: "notebook",
@@ -83,11 +80,6 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 	const extensions = useMemo<EditorExtension[]>(() => {
 		const ds: any[] = [];
 		try {
-			ds.push(...editorRegistryRef.current.getDescriptors());
-		} catch {
-			/* ignore */
-		}
-		try {
 			ds.push(...(cellDescriptors.getDescriptors() ?? []));
 		} catch {
 			/* ignore */
@@ -97,7 +89,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 			buildNotebookExtension({
 				editorDescriptors: ds,
 				cellDescriptors: ds,
-				sharedCellDescriptors: getSharedCellCommandDescriptors(),
+					sharedCellDescriptors: [],
 				onCommand,
 			}),
 		];
@@ -117,9 +109,8 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 					}
 					case "editor.defaultInsert":
 						notebook.dispatch({
-							type: "SET_DEFAULT_INSERT",
-							section: effect.section,
-							schema: effect.schema,
+							type: "set_message",
+							message: `default insert: ${effect.section}${effect.schema ? `/${effect.schema}` : ""}`,
 						});
 						break;
 					case "router.open": {

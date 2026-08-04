@@ -1,4 +1,4 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
+import type { AutocompleteSuggestion } from "../editor/autocomplete";
 import type {
 	CommandContribution,
 	CompletionContribution,
@@ -189,9 +189,13 @@ export function autocompleteFromCommands(
 		if (hasPrefixMatch) {
 			seen.add(canonicalVerb);
 			out.push({
+				label: c.id,
+				value: c.id,
+				type: "command",
+				completionText: c.id,
 				verb: c.id,
 				group: c.group,
-				source,
+				source: source === "cell" ? "clinical" : source,
 				hasArgs: c.args.length > 0,
 				argNames: c.args.map((a) => a.name),
 				argHints: c.args.map((a) => a.completions ?? []),

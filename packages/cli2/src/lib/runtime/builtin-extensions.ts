@@ -1,4 +1,4 @@
-import type { EditorMode } from "@stateful-mcp/clinical/session/editor-mode";
+import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { EditorExtension } from "./extension";
 
 /** Core editor mode transitions and basic text editing. */

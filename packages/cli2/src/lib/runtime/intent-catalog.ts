@@ -1,5 +1,5 @@
-import type { AutocompleteSuggestion } from "@stateful-mcp/clinical/notebook/command-autocomplete";
-import type { CommandDescriptor } from "@stateful-mcp/clinical/session/command-descriptor";
+import type { AutocompleteSuggestion } from "../editor/autocomplete";
+import type { CommandDescriptor } from "../editor/command-descriptor";
 import type {
 	CommandContribution,
 	CommandSource,
@@ -59,9 +59,13 @@ export class IntentCatalog {
 			.filter((v) => v.startsWith(prefix))
 			.slice(0, 12)
 			.map((v) => ({
+				label: v,
+				value: v,
+				type: "argument" as const,
+				completionText: v,
 				verb: v,
 				group: matched.group,
-				source: "cell" as const,
+				source: "clinical" as const,
 				hasArgs: false,
 				kind: "arg" as const,
 				argIndex,

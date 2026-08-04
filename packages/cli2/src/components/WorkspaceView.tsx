@@ -1,6 +1,5 @@
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/session/workspace-read-model";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 import { Box, Text } from "ink";
-import { formatParsedItem } from "../formatter/format-parsed";
 import { t } from "../lib/shared/i18n";
 import { StatusBadge } from "./StatusBadge";
 
@@ -22,22 +21,11 @@ function GlobalFactsStrip({
 			<Text bold underline>
 				{t("workspace.globalFacts")}
 			</Text>
-			{facts.map((f, i) => {
-				const fmt = formatParsedItem({
-					targetSchema: f.targetSchema,
-					rawText: f.rawText ?? "",
-					tag: "",
-					extractedData: f.extractedData ?? {},
-					concept: [],
-					attributes: {},
-				});
+			{facts.map((fact) => {
 				return (
-					<Box key={i} paddingLeft={2}>
+					<Box key={fact.factId} paddingLeft={2}>
 						<Text dimColor>
-							◆{" "}
-							{fmt.fields
-								.map((f) => `${f.field}=${String(f.value)}`)
-								.join(" · ")}
+							◆ {fact.targetSchema}: {fact.concept?.display ?? fact.certainty}
 						</Text>
 					</Box>
 				);
@@ -76,7 +64,7 @@ function BranchCard({
 				</Text>
 				<Text color="gray">
 					{" "}
-					{branch.supportingCount}+ / {branch.refutingCount}-
+					{branch.supportingConcepts.length}+ / {branch.refutingConcepts.length}-
 				</Text>
 			</Box>
 			{branch.hypothesisConcept && (
@@ -88,23 +76,23 @@ function BranchCard({
 					</Text>
 				</Box>
 			)}
-			{showDetails && branch.supporting.length > 0 && (
+			{showDetails && (branch.supportingConcepts.length > 0 || branch.refutingConcepts.length > 0) && (
 				<Box paddingLeft={3} flexDirection="column">
-					{branch.supporting.map((s, i) => (
-						<Box key={`s${i}`}>
-							<Text color="green">+ {s}</Text>
+					{branch.supportingConcepts.map((concept) => (
+						<Box key={concept.conceptId ?? concept.display}>
+							<Text color="green">+ {concept.display ?? concept.conceptId}</Text>
 						</Box>
 					))}
-					{branch.refuting.map((r, i) => (
-						<Box key={`r${i}`}>
-							<Text color="red">– {r}</Text>
+					{branch.refutingConcepts.map((concept) => (
+						<Box key={concept.conceptId ?? concept.display}>
+							<Text color="red">– {concept.display ?? concept.conceptId}</Text>
 						</Box>
 					))}
 				</Box>
 			)}
 			{showDetails &&
-				branch.supporting.length === 0 &&
-				branch.refuting.length === 0 && (
+				branch.supportingConcepts.length === 0 &&
+				branch.refutingConcepts.length === 0 && (
 					<Box paddingLeft={3}>
 						<Text color="gray">{t("workspace.noFindings")}</Text>
 					</Box>
@@ -142,7 +130,7 @@ export function WorkspaceView({
 					{focused ? ` · ${t("workspace.focused")}` : ""}
 					{" · i/a: edit · Esc: back"}
 				</Text>
-				{snapshot?.lifecycle.closeRequested && (
+				{snapshot?.closeRequested && (
 					<Text color="yellow">{" · CLOSE REQUESTED"}</Text>
 				)}
 			</Box>
