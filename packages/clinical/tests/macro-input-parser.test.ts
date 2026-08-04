@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 import type { MacroDefinition } from "../src/macros/macro-definition";
 import { parseMacroLine } from "../src/macros/macro-input-parser";
 import { createSyntaxProfile } from "../src/macros/macro-profile";
-import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 
 const OBSERVATION: MacroDefinition = {
 	macroId: "obs",

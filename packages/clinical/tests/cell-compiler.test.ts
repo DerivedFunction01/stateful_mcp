@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { createDefaultSchemaRegistry } from "../src/schemas/default-registry";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 import { CellCompiler } from "../src/cells/cell-compiler";
 import { createSyntaxProfile } from "../src/macros/macro-profile";
-import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
+import { createDefaultSchemaRegistry } from "../src/schemas/default-registry";
 
 const defaultProfile = createSyntaxProfile(
 	{ profileId: "v2-default" },

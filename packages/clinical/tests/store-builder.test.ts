@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
-	StoreBuilder,
 	createStoreBuilder,
+	StoreBuilder,
 } from "../src/bootstrap/store-builder";
 
 describe(" store builder", () => {

@@ -1,7 +1,7 @@
-import type { CommandDescriptor } from "../lib/editor/command-descriptor";
 import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { Box, Text } from "ink";
 import { useMemo } from "react";
+import type { CommandDescriptor } from "../lib/editor/command-descriptor";
 import { t } from "../lib/shared/i18n";
 
 interface HelpBarProps {

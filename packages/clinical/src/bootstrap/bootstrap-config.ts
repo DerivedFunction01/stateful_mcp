@@ -1,5 +1,5 @@
-import type { FrequencyProfile } from "../values/frequency-resolver";
 import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
+import type { FrequencyProfile } from "../values/frequency-resolver";
 import type { TemporalSyntaxProfile } from "../values/temporal-syntax-profile";
 
 export const bootstrapTemporalDefaults: TemporalSyntaxProfile = {

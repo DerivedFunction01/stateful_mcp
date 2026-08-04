@@ -1,4 +1,3 @@
-import type { AutocompleteSuggestion } from "../../editor/autocomplete";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
@@ -10,8 +9,9 @@ import type {
 	WindowDefinition,
 	WindowRegion,
 } from "../../editor";
-import { buildCommandDescriptors } from "../../editor/command-descriptors";
+import type { AutocompleteSuggestion } from "../../editor/autocomplete";
 import { knownVerbs } from "../../editor/command-autocomplete";
+import { buildCommandDescriptors } from "../../editor/command-descriptors";
 import type { NotebookDocumentPort } from "./document";
 import type { NotebookDomainPort } from "./domain";
 
@@ -92,43 +92,43 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								deps.editorState.completion.highlightIndex
 							] ?? null)
 						: null;
-			const completionPrefix =
-				deps.editorState.completion.status === "cycling"
-					? deps.editorState.completion.session.prefix
-					: commandLine.slice(1);
+				const completionPrefix =
+					deps.editorState.completion.status === "cycling"
+						? deps.editorState.completion.session.prefix
+						: commandLine.slice(1);
 
-			// Derive knownVerbs from the active syntax profile so the no-match
-			// warning is suppressed for recognized verbs (e.g. `var`) that
-			// produced no argument suggestions.
-			const known = deps.syntaxProfile
-				? knownVerbs(
-						buildCommandDescriptors(deps.syntaxProfile, {
-							variableName: deps.syntaxProfile.variableCommandName,
-							variableAliases: ["variable"],
-						}),
-					)
-				: undefined;
+				// Derive knownVerbs from the active syntax profile so the no-match
+				// warning is suppressed for recognized verbs (e.g. `var`) that
+				// produced no argument suggestions.
+				const known = deps.syntaxProfile
+					? knownVerbs(
+							buildCommandDescriptors(deps.syntaxProfile, {
+								variableName: deps.syntaxProfile.variableCommandName,
+								variableAliases: ["variable"],
+							}),
+						)
+					: undefined;
 
-			regions.push({
-				slot: "command",
-				key: "command-prompt",
-				render() {
-					return (
-						<CommandBar
-							commandLine={commandLine}
-							suggestions={suggestions}
-							suggestionIndex={
-								deps.editorState.completion.status === "cycling"
-									? deps.editorState.completion.highlightIndex
-									: -1
-							}
-							highlightedCandidate={highlightedCandidate}
-							completionPrefix={completionPrefix}
-							knownVerbs={known}
-						/>
-					);
-				},
-			});
+				regions.push({
+					slot: "command",
+					key: "command-prompt",
+					render() {
+						return (
+							<CommandBar
+								commandLine={commandLine}
+								suggestions={suggestions}
+								suggestionIndex={
+									deps.editorState.completion.status === "cycling"
+										? deps.editorState.completion.highlightIndex
+										: -1
+								}
+								highlightedCandidate={highlightedCandidate}
+								completionPrefix={completionPrefix}
+								knownVerbs={known}
+							/>
+						);
+					},
+				});
 			}
 
 			// TODO(cli2-v2): add a NotebookPreviewWorkflow presentation region.

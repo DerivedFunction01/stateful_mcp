@@ -32,8 +32,9 @@ describe("workspace editor composition", () => {
 		);
 
 		expect(confirm?.kind).toBe("verb");
-		expect(confirm?.source).toBe("cell");
+		expect(confirm?.source).toBe("clinical");
 		expect(confirm?.argNames).toEqual(["branch"]);
+		expect(confirm?.hasArgs).toBe(true);
 		expect(catalog.getSuggestions("var ", context).length).toBeGreaterThan(0);
 	});
 });

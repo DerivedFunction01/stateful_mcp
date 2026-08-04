@@ -75,10 +75,11 @@ export function Notebook() {
 			dispatch({ type: "set_mode", mode: "NORMAL" });
 		},
 		onAppQuit: () => exit(),
-			onMessage: (message) => dispatch({ type: "set_message", message }),
+		onMessage: (message) => dispatch({ type: "set_message", message }),
 		executeVariableCommand: async (line) => {
 			try {
-				if (!session) return { success: false, message: "CLI2 session is not ready" };
+				if (!session)
+					return { success: false, message: "CLI2 session is not ready" };
 				const snapshot = await session.v2.notebook.loadEditorSnapshot();
 				const result = await session.v2.commandBar.execute({
 					rawText: line,
@@ -87,7 +88,10 @@ export function Notebook() {
 					documentId: snapshot.record.documentId,
 					cellId: snapshot.activeCellId,
 				});
-				return { success: result.status === "committed", message: result.error };
+				return {
+					success: result.status === "committed",
+					message: result.error,
+				};
 			} catch (error) {
 				return {
 					success: false,
@@ -158,7 +162,8 @@ export function Notebook() {
 	// TODO(cli2-v2): replace the retired V1 engine/macro completion hooks with
 	//  notebook autocomplete and NotebookPreviewWorkflow presentation.
 	const loading = false;
-	const engineCandidates: import("../lib/editor/autocomplete").AutocompleteSuggestion[] = [];
+	const engineCandidates: import("../lib/editor/autocomplete").AutocompleteSuggestion[] =
+		[];
 	const mergedCandidates = staticCandidates;
 
 	// Sync engine suggestions ref
@@ -209,10 +214,32 @@ export function Notebook() {
 	const documentPort = useMemo(
 		() =>
 			new NotebookDocumentPort(state, dispatch, {
-				insertBelow: () => { void notebook.insertBelow(); },
-				insertAbove: () => { void notebook.insertAbove(); },
+				insertBelow: () => {
+					void notebook.insertBelow();
+				},
+				insertAbove: () => {
+					void notebook.insertAbove();
+				},
 				nextError: notebook.nextErrorIndex,
 				prevError: notebook.prevErrorIndex,
+				deleteActive: () => {
+					void notebook.deleteActive();
+				},
+				yankActive: () => {
+					void notebook.yankActive();
+				},
+				paste: () => {
+					void notebook.pasteActive();
+				},
+				pasteAbove: () => {
+					void notebook.pasteAbove();
+				},
+				deleteSelection: () => {
+					void notebook.deleteSelection();
+				},
+				yankSelection: () => {
+					void notebook.yankSelection();
+				},
 			}),
 		[state, dispatch, notebook, session],
 	);
@@ -231,8 +258,7 @@ export function Notebook() {
 					for (const idx of indexes) {
 						const cell = state.cells[idx];
 						if (!cell) continue;
-						if (state.runMode === "preview")
-							await notebook.previewCell(cell);
+						if (state.runMode === "preview") await notebook.previewCell(cell);
 						else await notebook.runCell(cell);
 					}
 				},
@@ -240,8 +266,7 @@ export function Notebook() {
 					for (const id of cellIds) {
 						const cell = state.cells.find((c) => c.cellId === id);
 						if (!cell) continue;
-						if (state.runMode === "preview")
-							await notebook.previewCell(cell);
+						if (state.runMode === "preview") await notebook.previewCell(cell);
 						else await notebook.runCell(cell);
 					}
 				},
@@ -307,14 +332,13 @@ export function Notebook() {
 			const cell = state.cells[state.activeIndex];
 			if (!cell) return null;
 			return (
-				<CellInfoPanel
-					cell={cell}
-					onClose={() => onOverlayAction("close")}
-				/>
+				<CellInfoPanel cell={cell} onClose={() => onOverlayAction("close")} />
 			);
 		}
 		if (o.route === "preview") {
-			const preview = (o.payload ?? state.preview) as import("@stateful-mcp/clinical/cells/cell-service-types").CellPreview | undefined;
+			const preview = (o.payload ?? state.preview) as
+				| import("@stateful-mcp/clinical/cells/cell-service-types").CellPreview
+				| undefined;
 			if (!preview) return null;
 			return (
 				<PreviewScreen
@@ -424,7 +448,7 @@ export function Notebook() {
 		editorState,
 		lastEditCellId: state.lastEditCellId,
 		cellSuggestions,
-		dirty: state.dirty,
+		dirty: state.authoredRevision !== state.persistedAuthoredRevision,
 		sessionMode: state.runMode,
 		defaultSection: undefined,
 		defaultSchema: undefined,

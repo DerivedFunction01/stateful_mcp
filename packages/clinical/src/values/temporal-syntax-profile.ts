@@ -44,13 +44,10 @@ export function createTemporalSyntaxProfile(
 			profile.dateRecognitionRules ?? defaults?.dateRecognitionRules ?? [],
 		relativeDayAliases:
 			profile.relativeDayAliases ?? defaults?.relativeDayAliases ?? {},
-		unitAliases:
-			profile.unitAliases ?? defaults?.unitAliases ?? {},
+		unitAliases: profile.unitAliases ?? defaults?.unitAliases ?? {},
 		directionAliases:
 			profile.directionAliases ?? defaults?.directionAliases ?? {},
-		rangeDelimiters:
-			profile.rangeDelimiters ?? defaults?.rangeDelimiters ?? [],
-		boundaryAliases:
-			profile.boundaryAliases ?? defaults?.boundaryAliases ?? {},
+		rangeDelimiters: profile.rangeDelimiters ?? defaults?.rangeDelimiters ?? [],
+		boundaryAliases: profile.boundaryAliases ?? defaults?.boundaryAliases ?? {},
 	};
 }

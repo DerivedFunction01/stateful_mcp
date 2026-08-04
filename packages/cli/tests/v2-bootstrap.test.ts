@@ -17,7 +17,9 @@ describe("cli2  bootstrap", () => {
 		const session = await result.notebookSessionStore.get(result.sessionId);
 		expect(session?.documentId).toBe(result.caseIdentity.documentId);
 		expect(session?.workspaceId).toBe(result.caseIdentity.workspaceId);
-		const document = await result.engine.getDocument(result.caseIdentity.documentId);
+		const document = await result.engine.getDocument(
+			result.caseIdentity.documentId,
+		);
 		expect(document?.patientId).toBe(result.caseIdentity.patient.id);
 		const workspace = await result.engine
 			.getWorkspaceService()
@@ -79,6 +81,8 @@ describe("cli2  bootstrap", () => {
 		});
 		expect(first.bootstrapStatus).toBe("created");
 		expect(second.bootstrapStatus).toBe("resumed");
-		expect(second.caseIdentity.workspaceId).toBe(first.caseIdentity.workspaceId);
+		expect(second.caseIdentity.workspaceId).toBe(
+			first.caseIdentity.workspaceId,
+		);
 	});
 });

@@ -65,7 +65,11 @@ export class ClinicalEngineBuilder {
 	private cellCompiler?: (
 		rawText: string,
 		context?: import("../cells/cell-compiler").CellCompileContext,
-	) => Promise<{ plan?: import("../macros/macro-plan").MacroExecutionPlan; diagnostics: string[]; fingerprint: string }>;
+	) => Promise<{
+		plan?: import("../macros/macro-plan").MacroExecutionPlan;
+		diagnostics: string[];
+		fingerprint: string;
+	}>;
 	private syncConfig?: SyncConfig;
 	private cellStore?: CellStore;
 	private workspaceStore?: WorkspaceStore;
@@ -103,7 +107,10 @@ export class ClinicalEngineBuilder {
 	}
 
 	withCellCompiler(
-		compile: (rawText: string, context?: import("../cells/cell-compiler").CellCompileContext) => Promise<{
+		compile: (
+			rawText: string,
+			context?: import("../cells/cell-compiler").CellCompileContext,
+		) => Promise<{
 			plan?: import("../macros/macro-plan").MacroExecutionPlan;
 			diagnostics: string[];
 			fingerprint: string;

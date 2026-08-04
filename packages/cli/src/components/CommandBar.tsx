@@ -1,6 +1,6 @@
-import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { Box, Text, useStdout } from "ink";
 import { useMemo } from "react";
+import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { completionRemainder } from "../lib/editor/completion-state";
 import { capSuggestions } from "../lib/editor/palette";
 import { t } from "../lib/shared/i18n";

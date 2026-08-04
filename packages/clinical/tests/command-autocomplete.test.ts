@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 import { getCommandBarSuggestions } from "../src/commands/command-autocomplete-provider";
 import { createCommandSyntaxProfile } from "../src/commands/command-syntax-profile";
-import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 
 const defaultProfile = createCommandSyntaxProfile(
 	{ profileId: "v2-default" },

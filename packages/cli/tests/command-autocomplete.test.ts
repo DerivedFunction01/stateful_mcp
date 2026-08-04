@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { createCommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import { bootstrapCommandDefaults } from "@stateful-mcp/clinical/bootstrap/bootstrap-config";
-import { buildCommandDescriptors } from "../src/lib/editor/command-descriptors";
+import { createCommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import {
 	dedupeCanonicalSuggestions,
 	knownVerbs,
 	MAX_SUGGESTIONS,
 } from "../src/lib/editor/command-autocomplete";
-import { t, has } from "../src/lib/shared/i18n";
+import { buildCommandDescriptors } from "../src/lib/editor/command-descriptors";
+import { has, t } from "../src/lib/shared/i18n";
 
 const defaultProfile = createCommandSyntaxProfile(
 	{ profileId: "v2-default" },
@@ -72,11 +72,7 @@ describe("CLI2 command autocomplete", () => {
 	describe("canonical dedup (V1 parity)", () => {
 		it("emits one chip per canonical verb, not one per alias", () => {
 			const descriptors = descriptorsFor();
-			const suggestions = dedupeCanonicalSuggestions(
-				descriptors,
-				"w",
-				TOKEN,
-			);
+			const suggestions = dedupeCanonicalSuggestions(descriptors, "w", TOKEN);
 			// Typing `w` matches both `write` (alias `w`) and `write_quit`
 			// (alias `wq`). We get one chip per canonical verb (2), not one per
 			// alias (4: w, write, wq, write_quit).
@@ -93,22 +89,14 @@ describe("CLI2 command autocomplete", () => {
 		it("matches by alias but emits canonical verb", () => {
 			const descriptors = descriptorsFor();
 			// `q` is an alias for `quit`; typing `q` yields canonical `quit`.
-			const suggestions = dedupeCanonicalSuggestions(
-				descriptors,
-				"q",
-				TOKEN,
-			);
+			const suggestions = dedupeCanonicalSuggestions(descriptors, "q", TOKEN);
 			expect(suggestions).toHaveLength(1);
 			expect(suggestions[0]?.verb).toBe("quit");
 		});
 
 		it("matches `wq` alias to canonical `write_quit`", () => {
 			const descriptors = descriptorsFor();
-			const suggestions = dedupeCanonicalSuggestions(
-				descriptors,
-				"wq",
-				TOKEN,
-			);
+			const suggestions = dedupeCanonicalSuggestions(descriptors, "wq", TOKEN);
 			expect(suggestions).toHaveLength(1);
 			expect(suggestions[0]?.verb).toBe("write_quit");
 		});
@@ -117,11 +105,7 @@ describe("CLI2 command autocomplete", () => {
 			const descriptors = descriptorsFor();
 			// Typing `w` matches both `write` (exact alias `w`→canonical `write`)
 			// and `write_quit` (alias `wq`). `write` is shorter → first.
-			const suggestions = dedupeCanonicalSuggestions(
-				descriptors,
-				"w",
-				TOKEN,
-			);
+			const suggestions = dedupeCanonicalSuggestions(descriptors, "w", TOKEN);
 			expect(suggestions[0]?.verb).toBe("write");
 		});
 
@@ -131,21 +115,13 @@ describe("CLI2 command autocomplete", () => {
 			const empty = dedupeCanonicalSuggestions(descriptors, "", TOKEN);
 			expect(empty).toEqual([]);
 			// A broad prefix like `c` should be capped.
-			const suggestions = dedupeCanonicalSuggestions(
-				descriptors,
-				"c",
-				TOKEN,
-			);
+			const suggestions = dedupeCanonicalSuggestions(descriptors, "c", TOKEN);
 			expect(suggestions.length).toBeLessThanOrEqual(MAX_SUGGESTIONS);
 		});
 
 		it("completionText is the canonical verb (no token prefix)", () => {
 			const descriptors = descriptorsFor();
-			const suggestions = dedupeCanonicalSuggestions(
-				descriptors,
-				"w",
-				TOKEN,
-			);
+			const suggestions = dedupeCanonicalSuggestions(descriptors, "w", TOKEN);
 			// completionText is the bare verb; mergeCandidate prepends the token.
 			expect(suggestions[0]?.completionText).toBe("write");
 		});
@@ -161,11 +137,7 @@ describe("CLI2 command autocomplete", () => {
 
 		it("typing `var` yields a var suggestion (not flagged unknown)", () => {
 			const descriptors = descriptorsFor();
-			const suggestions = dedupeCanonicalSuggestions(
-				descriptors,
-				"var",
-				TOKEN,
-			);
+			const suggestions = dedupeCanonicalSuggestions(descriptors, "var", TOKEN);
 			expect(suggestions.some((s) => s.verb === "var")).toBe(true);
 		});
 	});
@@ -189,10 +161,7 @@ describe("CLI2 command autocomplete", () => {
 				"macro",
 				"macro",
 			);
-			expect(suggestions.map((s) => s.verb)).toEqual([
-				"obs",
-				"observation",
-			]);
+			expect(suggestions.map((s) => s.verb)).toEqual(["obs", "observation"]);
 		});
 	});
 
@@ -225,7 +194,7 @@ describe("CLI2 command autocomplete", () => {
 
 		it("command.noMatch interpolates the {partial} placeholder", () => {
 			const rendered = t("command.noMatch", { partial: "xyz" });
-			expect(rendered).toContain('xyz');
+			expect(rendered).toContain("xyz");
 			expect(rendered).not.toContain("{partial}");
 		});
 	});

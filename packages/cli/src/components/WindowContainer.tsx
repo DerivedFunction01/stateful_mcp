@@ -1,4 +1,3 @@
-import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { Box, useInput } from "ink";
 import { type ReactElement, useReducer } from "react";
 import {
@@ -15,6 +14,7 @@ import {
 	type WindowOverlay,
 	type WindowOverlayAction,
 } from "../lib/editor";
+import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { reduceCompletion } from "../lib/editor/completion-state";
 import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 

@@ -18,6 +18,8 @@ export function isSharedVariableCommand(verb: string): boolean {
 	return VARIABLE_COMMANDS.some(
 		(descriptor) =>
 			descriptor.verb.toLowerCase() === verb.toLowerCase() ||
-			descriptor.aliases.some((alias) => alias.toLowerCase() === verb.toLowerCase()),
+			descriptor.aliases.some(
+				(alias) => alias.toLowerCase() === verb.toLowerCase(),
+			),
 	);
 }

@@ -1,11 +1,11 @@
-import type { StructuredCellService } from "@stateful-mcp/clinical/cells/structured-cell-service";
 import type {
-	CreateCellRequest,
-	CellStore,
-	CellPreview,
 	CellExecutionResult,
+	CellPreview,
+	CellStore,
+	CreateCellRequest,
 } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
+import type { StructuredCellService } from "@stateful-mcp/clinical/cells/structured-cell-service";
 import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
 import { getCommandBarSuggestions } from "@stateful-mcp/clinical/commands/command-autocomplete-provider";
 import type { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
@@ -36,6 +36,35 @@ export interface SaveNotebookEditorSnapshotInput {
 	expectedRevision: number;
 }
 
+export interface PasteCellInput {
+	sourceCellId?: string;
+	rawText: string;
+	sessionId: string;
+	collection: StructuredCell["collection"];
+	insertIndex?: number;
+	provenanceOrigin?: "yank" | "paste";
+}
+
+export interface PasteCellsInput {
+	sourceCellIds?: string[];
+	rawTexts: string[];
+	sessionId: string;
+	collection: StructuredCell["collection"];
+	insertIndex?: number;
+	provenanceOrigin?: "yank" | "paste";
+}
+
+export interface DeleteCellResult {
+	cellId: string;
+	success: boolean;
+	reason?: string;
+}
+
+export interface DeleteCellsResult {
+	results: DeleteCellResult[];
+	skipped: { cellId: string; reason: string }[];
+}
+
 export interface NotebookSession {
 	sessionId: string;
 	engine: ClinicalEngine;
@@ -51,8 +80,16 @@ export interface NotebookSession {
 	createCell(
 		input: Omit<CreateCellRequest, "sessionId"> & { position?: number },
 	): Promise<StructuredCell>;
+	createPastedCell(input: PasteCellInput): Promise<StructuredCell>;
+	createPastedCells(input: PasteCellsInput): Promise<StructuredCell[]>;
+	removeCell(cellId: string): Promise<DeleteCellResult>;
+	removeCells(cellIds: string[]): Promise<DeleteCellsResult>;
+	restoreCell(cellId: string): Promise<StructuredCell>;
 	previewCell(cellId: string): Promise<CellPreview>;
-	executeCell(cellId: string, preview: CellPreview): Promise<CellExecutionResult>;
+	executeCell(
+		cellId: string,
+		preview: CellPreview,
+	): Promise<CellExecutionResult>;
 	getAutocomplete(
 		context: CommandAutocompleteContext,
 	): Promise<CommandSuggestion[]>;
@@ -72,10 +109,7 @@ export function createNotebookSession(input: {
 		const record = await input.sessionStore.get(input.sessionId);
 		if (!record)
 			throw new Error(`Notebook session '${input.sessionId}' was not found`);
-		const cells = reconcileNotebookCells(
-			await listCells(),
-			record.cellOrder,
-		);
+		const cells = reconcileNotebookCells(await listCells(), record.cellOrder);
 		return {
 			record,
 			cells,
@@ -127,10 +161,126 @@ export function createNotebookSession(input: {
 		);
 		return cell;
 	};
+	const createPastedCell = async (
+		request: PasteCellInput,
+	): Promise<StructuredCell> => {
+		const cell = await input.engine.getCellService().create({
+			sessionId: request.sessionId,
+			collection: request.collection,
+			rawText: request.rawText,
+		});
+		const now = new Date().toISOString();
+		const updated: StructuredCell = {
+			...cell,
+			provenance: {
+				...cell.provenance,
+				parentCellId: request.sourceCellId,
+			},
+			lifecycle: {
+				...cell.lifecycle,
+				status: "draft",
+			},
+			source: {
+				...cell.source,
+				origin:
+					request.provenanceOrigin === "yank" ? "imported" : cell.source.origin,
+			},
+		};
+		await runtime.stores.cellStore.save(updated);
+		const record = await input.sessionStore.get(input.sessionId);
+		if (!record)
+			throw new Error(`Notebook session '${input.sessionId}' was not found`);
+		const nextOrder = [...record.cellOrder];
+		const position = request.insertIndex;
+		if (position === undefined || position < 0 || position > nextOrder.length)
+			nextOrder.push(cell.cellId);
+		else nextOrder.splice(position, 0, cell.cellId);
+		await input.sessionStore.save(
+			{
+				...record,
+				cellOrder: nextOrder,
+				activeCellId: cell.cellId,
+				updatedAt: now,
+			},
+			record.revision,
+		);
+		return updated;
+	};
+	const createPastedCells = async (
+		request: PasteCellsInput,
+	): Promise<StructuredCell[]> => {
+		const results: StructuredCell[] = [];
+		for (let i = 0; i < request.rawTexts.length; i++) {
+			const cell = await createPastedCell({
+				sourceCellId: request.sourceCellIds?.[i],
+				rawText: request.rawTexts[i] ?? "",
+				sessionId: request.sessionId,
+				collection: request.collection,
+				insertIndex:
+					request.insertIndex !== undefined
+						? request.insertIndex + i
+						: undefined,
+				provenanceOrigin: request.provenanceOrigin,
+			});
+			results.push(cell);
+		}
+		return results;
+	};
+	const removeCell = async (cellId: string): Promise<DeleteCellResult> => {
+		const cell = await input.engine.getCellService().get(cellId);
+		if (!cell) return { cellId, success: false, reason: "not found" };
+		const eligibility = input.engine.getCellService().canDelete(cell);
+		if (!eligibility.eligible) {
+			return { cellId, success: false, reason: eligibility.reason };
+		}
+		try {
+			await input.engine
+				.getCellService()
+				.markDeleted({ cellId, expectedRevision: cell.lifecycle.revision });
+			const record = await input.sessionStore.get(input.sessionId);
+			if (!record)
+				throw new Error(`Notebook session '${input.sessionId}' was not found`);
+			const nextOrder = record.cellOrder.filter((id) => id !== cellId);
+			await input.sessionStore.save(
+				{
+					...record,
+					cellOrder: nextOrder,
+					updatedAt: new Date().toISOString(),
+				},
+				record.revision,
+			);
+			return { cellId, success: true };
+		} catch (error) {
+			return {
+				cellId,
+				success: false,
+				reason: error instanceof Error ? error.message : String(error),
+			};
+		}
+	};
+	const removeCells = async (cellIds: string[]): Promise<DeleteCellsResult> => {
+		const results: DeleteCellResult[] = [];
+		const skipped: { cellId: string; reason: string }[] = [];
+		for (const cellId of cellIds) {
+			const result = await removeCell(cellId);
+			if (result.success) results.push(result);
+			else if (result.reason) skipped.push({ cellId, reason: result.reason });
+		}
+		return { results, skipped };
+	};
+	const restoreCell = async (cellId: string): Promise<StructuredCell> => {
+		const cell = await input.engine.getCellService().get(cellId);
+		if (!cell) throw new Error(`Cell '${cellId}' not found`);
+		return input.engine.getCellService().restoreDraftCell({
+			cellId,
+			expectedRevision: cell.lifecycle.revision,
+		});
+	};
 	const getCellContext = async (cellId: string) => {
 		const record = await input.sessionStore.get(input.sessionId);
 		const cell = await input.engine.getCell(cellId);
-		if (!record) throw new Error(`Notebook session '${input.sessionId}' was not found`);
+		if (!record)
+			throw new Error(`Notebook session '${input.sessionId}' was not found`);
 		if (!cell) throw new Error(`Cell '${cellId}' was not found`);
 		return {
 			cell,
@@ -171,6 +321,11 @@ export function createNotebookSession(input: {
 		saveEditorSnapshot,
 		listCells,
 		createCell,
+		createPastedCell,
+		createPastedCells,
+		removeCell,
+		removeCells,
+		restoreCell,
 		previewCell,
 		executeCell,
 		getAutocomplete: (context) =>

@@ -1,5 +1,5 @@
-import type { StructuredCell } from "./structured-cell";
 import type { CellCompileContext } from "./cell-compiler";
+import type { StructuredCell } from "./structured-cell";
 
 export interface CellStore {
 	get(cellId: string): Promise<StructuredCell | null>;
@@ -62,6 +62,16 @@ export interface SupersedeCellRequest {
 	newRawText: string;
 	expectedRevision: number;
 	authorId?: string;
+}
+
+export interface MarkDeletedRequest {
+	cellId: string;
+	expectedRevision: number;
+}
+
+export interface RestoreDraftCellRequest {
+	cellId: string;
+	expectedRevision: number;
 }
 
 export interface CellPreview {

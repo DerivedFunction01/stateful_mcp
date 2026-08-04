@@ -82,24 +82,15 @@ export function createCommandSyntaxProfile(
 		...profile,
 		directCommandToken:
 			profile.directCommandToken ?? defaults?.directCommandToken ?? "",
-		macroStartToken:
-			profile.macroStartToken ?? defaults?.macroStartToken ?? "",
+		macroStartToken: profile.macroStartToken ?? defaults?.macroStartToken ?? "",
 		directCommandMappings:
-			profile.directCommandMappings ??
-			defaults?.directCommandMappings ??
-			{},
+			profile.directCommandMappings ?? defaults?.directCommandMappings ?? {},
 		editorCommandMappings:
-			profile.editorCommandMappings ??
-			defaults?.editorCommandMappings ??
-			{},
+			profile.editorCommandMappings ?? defaults?.editorCommandMappings ?? {},
 		variableCommandToken:
-			profile.variableCommandToken ??
-			defaults?.variableCommandToken ??
-			"",
+			profile.variableCommandToken ?? defaults?.variableCommandToken ?? "",
 		variableCommandName:
-			profile.variableCommandName ??
-			defaults?.variableCommandName ??
-			"",
+			profile.variableCommandName ?? defaults?.variableCommandName ?? "",
 		variableAssignmentDelimiter:
 			profile.variableAssignmentDelimiter ??
 			defaults?.variableAssignmentDelimiter ??

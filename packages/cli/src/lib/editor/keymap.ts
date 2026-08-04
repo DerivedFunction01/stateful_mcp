@@ -1,8 +1,8 @@
-import { EditorAction } from "./editor-action";
 import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { Key } from "ink";
 import type { DocumentAction } from "./document";
 import type { DomainAction } from "./domain";
+import { EditorAction } from "./editor-action";
 import type { EditorAction as KernelEditorAction } from "./kernel";
 
 export type KeyResolution =
@@ -132,6 +132,8 @@ export function resolveKey(
 			return { action: EditorAction.DeleteSelection, nextPending: "" };
 		if (input === "y")
 			return { action: EditorAction.YankSelection, nextPending: "" };
+		if (input === "p")
+			return { action: EditorAction.PasteCell, nextPending: "" };
 		if (input === "r") return { action: EditorAction.RunCell, nextPending: "" };
 		if (input === "j" || key.downArrow)
 			return { action: EditorAction.ExtendSelectionDown, nextPending: "" };
@@ -154,6 +156,8 @@ export function resolveKey(
 	if (seq === "]e") return { action: EditorAction.NextError, nextPending: "" };
 	if (seq === "gw")
 		return { action: EditorAction.OpenWorkspace, nextPending: "" };
+	if (seq === "gp")
+		return { action: EditorAction.PasteCellAbove, nextPending: "" };
 
 	if (seq.length >= 2) return { action: null, nextPending: "" };
 

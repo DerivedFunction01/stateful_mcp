@@ -1,7 +1,20 @@
 import { describe, expect, it } from "bun:test";
-import { MASS_CONCENTRATION_UNITS, MEASUREMENT_OPERATORS, VALUE_TYPES, type MeasurementOperator, type SingleMeasurement, type ValueType } from "../src/schemas/schemas-interface/measurement";
-import { type ObservationEvent, OBSERVATION_TRAJECTORIES } from "../src/schemas/schemas-interface/observation";
-import { type TimeMeasurement, TIME_PRECISION_LEVELS } from "../src/schemas/schemas-interface/time";
+import {
+	MASS_CONCENTRATION_UNITS,
+	MEASUREMENT_OPERATORS,
+	type MeasurementOperator,
+	type SingleMeasurement,
+	VALUE_TYPES,
+	type ValueType,
+} from "../src/schemas/schemas-interface/measurement";
+import {
+	OBSERVATION_TRAJECTORIES,
+	type ObservationEvent,
+} from "../src/schemas/schemas-interface/observation";
+import {
+	TIME_PRECISION_LEVELS,
+	type TimeMeasurement,
+} from "../src/schemas/schemas-interface/time";
 
 describe("redesigned measurement contracts", () => {
 	it("exposes statistical types and operators as runtime metadata", () => {

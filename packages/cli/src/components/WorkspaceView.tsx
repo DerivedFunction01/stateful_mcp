@@ -64,7 +64,8 @@ function BranchCard({
 				</Text>
 				<Text color="gray">
 					{" "}
-					{branch.supportingConcepts.length}+ / {branch.refutingConcepts.length}-
+					{branch.supportingConcepts.length}+ / {branch.refutingConcepts.length}
+					-
 				</Text>
 			</Box>
 			{branch.hypothesisConcept && (
@@ -76,20 +77,26 @@ function BranchCard({
 					</Text>
 				</Box>
 			)}
-			{showDetails && (branch.supportingConcepts.length > 0 || branch.refutingConcepts.length > 0) && (
-				<Box paddingLeft={3} flexDirection="column">
-					{branch.supportingConcepts.map((concept) => (
-						<Box key={concept.conceptId ?? concept.display}>
-							<Text color="green">+ {concept.display ?? concept.conceptId}</Text>
-						</Box>
-					))}
-					{branch.refutingConcepts.map((concept) => (
-						<Box key={concept.conceptId ?? concept.display}>
-							<Text color="red">– {concept.display ?? concept.conceptId}</Text>
-						</Box>
-					))}
-				</Box>
-			)}
+			{showDetails &&
+				(branch.supportingConcepts.length > 0 ||
+					branch.refutingConcepts.length > 0) && (
+					<Box paddingLeft={3} flexDirection="column">
+						{branch.supportingConcepts.map((concept) => (
+							<Box key={concept.conceptId ?? concept.display}>
+								<Text color="green">
+									+ {concept.display ?? concept.conceptId}
+								</Text>
+							</Box>
+						))}
+						{branch.refutingConcepts.map((concept) => (
+							<Box key={concept.conceptId ?? concept.display}>
+								<Text color="red">
+									– {concept.display ?? concept.conceptId}
+								</Text>
+							</Box>
+						))}
+					</Box>
+				)}
 			{showDetails &&
 				branch.supportingConcepts.length === 0 &&
 				branch.refutingConcepts.length === 0 && (

@@ -1,8 +1,5 @@
+import type { CellCompileContext, CellCompiler } from "../cells/cell-compiler";
 import type { StructuredCell } from "../cells/structured-cell";
-import type {
-	CellCompileContext,
-	CellCompiler,
-} from "../cells/cell-compiler";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
 
 export interface CellPreview {

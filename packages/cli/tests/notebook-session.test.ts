@@ -10,7 +10,9 @@ describe("NotebookSession", () => {
 		const notebook = bootstrapped.notebook;
 
 		const initial = await notebook.loadEditorSnapshot();
-		expect(initial.record.documentId).toBe(bootstrapped.caseIdentity.documentId);
+		expect(initial.record.documentId).toBe(
+			bootstrapped.caseIdentity.documentId,
+		);
 		const initialCellIds = initial.cells
 			.map((item) => item.cellId)
 			.filter((cellId): cellId is string => Boolean(cellId));

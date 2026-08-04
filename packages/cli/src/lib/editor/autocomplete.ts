@@ -1,7 +1,22 @@
 export interface AutocompleteSuggestion {
 	label: string;
 	value: string;
-	type: "macro" | "argument" | "concept" | "enum" | "measurement" | "duration" | "text" | "boolean" | "date" | "number" | "command" | "value" | "field" | "verb" | "arg";
+	type:
+		| "macro"
+		| "argument"
+		| "concept"
+		| "enum"
+		| "measurement"
+		| "duration"
+		| "text"
+		| "boolean"
+		| "date"
+		| "number"
+		| "command"
+		| "value"
+		| "field"
+		| "verb"
+		| "arg";
 	detail?: string;
 	verb: string;
 	completionText: string;

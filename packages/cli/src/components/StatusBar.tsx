@@ -1,4 +1,7 @@
-import type { NotebookEditorMode, NotebookRunMode } from "@stateful-mcp/clinical/notebook/notebook-state";
+import type {
+	NotebookEditorMode,
+	NotebookRunMode,
+} from "@stateful-mcp/clinical/notebook/notebook-state";
 import { Box, Text } from "ink";
 import { t } from "../lib/shared/i18n";
 

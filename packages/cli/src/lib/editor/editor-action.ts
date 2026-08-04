@@ -25,6 +25,7 @@ export const EditorAction = {
 	InsertAbove: "INSERT_ABOVE",
 	Info: "INFO",
 	PasteCell: "PASTE_CELL",
+	PasteCellAbove: "PASTE_CELL_ABOVE",
 	PreviewCell: "PREVIEW_CELL",
 	Undo: "UNDO",
 	OpenMacroInput: "ENTER_MACRO",

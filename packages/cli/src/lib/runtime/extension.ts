@@ -1,10 +1,10 @@
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
-import type { AutocompleteSuggestion } from "../editor/autocomplete";
-import type { CommandDescriptor } from "../editor/command-descriptor";
 import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { Key } from "ink";
 import type { ReactElement } from "react";
 import type { DocumentAction, EditorAction } from "../editor";
+import type { AutocompleteSuggestion } from "../editor/autocomplete";
+import type { CommandDescriptor } from "../editor/command-descriptor";
 import type { CompletionState } from "../editor/completion-state";
 
 // ── Capabilities ─────────────────────────────────────────────────────────────

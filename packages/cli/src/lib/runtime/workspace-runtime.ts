@@ -1,5 +1,5 @@
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 import { useMemo } from "react";
 import type { WindowOverlayRoute } from "../editor/overlay";
 import { commandResultToEffects } from "../windows/notebook/extension";

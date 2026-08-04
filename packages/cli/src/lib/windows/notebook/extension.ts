@@ -32,12 +32,15 @@ export function descriptorsToContributions(
 			name: a.name,
 			required: a.required ?? false,
 			descriptionKey: a.descriptionKey,
-			completions: Array.isArray(a.completions) ? a.completions.filter((value): value is string => typeof value === "string") : undefined,
+			completions: Array.isArray(a.completions)
+				? a.completions.filter(
+						(value): value is string => typeof value === "string",
+					)
+				: undefined,
 		})),
 		source,
 		durable: d.group === "cell",
-		capability:
-			d.group === "workspace" ? "workspace.branch" : undefined,
+		capability: d.group === "workspace" ? "workspace.branch" : undefined,
 		descriptionKey: d.descriptionKey ?? "",
 		group: d.group,
 	}));
@@ -142,7 +145,8 @@ export function dispatchGeneralWindowCommand(line: string): {
 	const verb = tokens[0];
 	if (!verb) return null;
 	if (verb === "q" || verb === "quit") return { success: true, action: "quit" };
-	if (verb === "help" || verb === "h") return { success: true, action: "show_help" };
+	if (verb === "help" || verb === "h")
+		return { success: true, action: "show_help" };
 	return null;
 }
 

@@ -1,6 +1,6 @@
 import {
-	Cli2BootstrapBuilder,
 	buildCli2Bootstrap,
+	Cli2BootstrapBuilder,
 	type Cli2BootstrapOptions,
 	type Cli2BootstrapResult,
 } from "./cli2-bootstrap";
@@ -15,8 +15,8 @@ export async function bootstrapSession(
 		...options,
 		clinical:
 			options.clinical ??
-			(await import("@stateful-mcp/clinical/bootstrap/bootstrap").then(
-				(m) => m.ClinicalBootstrap.withDefaultBackend("memory", {
+			(await import("@stateful-mcp/clinical/bootstrap/bootstrap").then((m) =>
+				m.ClinicalBootstrap.withDefaultBackend("memory", {
 					syntaxProfile: options.syntaxProfile,
 				}),
 			)),

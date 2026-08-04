@@ -1,13 +1,16 @@
-import { createMockCaseIdentity } from "@stateful-mcp/clinical/bootstrap/mock-patient";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
+import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { ClinicalBootstrap } from "@stateful-mcp/clinical/bootstrap/bootstrap";
-import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
+import { createMockCaseIdentity } from "@stateful-mcp/clinical/bootstrap/mock-patient";
+import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
 import { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
 import { VariableCommandService } from "@stateful-mcp/clinical/commands/variable-command-service";
-import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
-import { createNotebookSession, type NotebookSession } from "./notebook-session";
+import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
-import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
-import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
+import {
+	createNotebookSession,
+	type NotebookSession,
+} from "./notebook-session";
 
 export interface Cli2BootstrapResult {
 	engine: ClinicalEngine;
@@ -45,16 +48,21 @@ export class Cli2BootstrapBuilder {
 
 	static async withDefaultBackend(
 		backend: "memory" | "sqlite" | "jsonl",
-		options: Omit<Cli2BootstrapOptions, "stores" | "clinical"> & { dbPath?: string } = {},
+		options: Omit<Cli2BootstrapOptions, "stores" | "clinical"> & {
+			dbPath?: string;
+		} = {},
 	): Promise<Cli2BootstrapResult> {
-		return this.fromConfig({ backend, dbPath: options.dbPath }, options);
+		return Cli2BootstrapBuilder.fromConfig(
+			{ backend, dbPath: options.dbPath },
+			options,
+		);
 	}
 
 	static async withStores(
 		stores: ClinicalBootstrapResult["stores"],
 		options: Omit<Cli2BootstrapOptions, "stores" | "clinical"> = {},
 	): Promise<Cli2BootstrapResult> {
-		return this.withClinical(
+		return Cli2BootstrapBuilder.withClinical(
 			await ClinicalBootstrap.fromStores(stores, {
 				syntaxProfile: options.syntaxProfile,
 			}),
@@ -85,8 +93,7 @@ export async function buildCli2Bootstrap(
 	);
 	const sessionId = options.sessionId ?? `cli2-${Date.now()}`;
 	const sessionStore =
-		stores?.notebookSessionStore ??
-		clinical.stores.notebookSessionStore;
+		stores?.notebookSessionStore ?? clinical.stores.notebookSessionStore;
 	const existingSession = await sessionStore.get(sessionId);
 	const caseIdentity = createMockCaseIdentity(sessionId);
 	let bootstrapStatus: Cli2BootstrapResult["bootstrapStatus"] = "resumed";
@@ -124,9 +131,13 @@ export async function buildCli2Bootstrap(
 			.getWorkspaceService()
 			.getWorkspace(existingSession.workspaceId);
 		if (!document)
-			throw new Error(`CLI2 document '${existingSession.documentId}' was not found`);
+			throw new Error(
+				`CLI2 document '${existingSession.documentId}' was not found`,
+			);
 		if (!workspace)
-			throw new Error(`CLI2 workspace '${existingSession.workspaceId}' was not found`);
+			throw new Error(
+				`CLI2 workspace '${existingSession.workspaceId}' was not found`,
+			);
 		if (workspace.sourceDocumentId !== existingSession.documentId)
 			throw new Error(`CLI2 session '${sessionId}' binding is inconsistent`);
 	}

@@ -1,32 +1,3 @@
-import { KvCellStore } from "../cells/kv-cell-store";
-import { SqlCellStore } from "../cells/sql-cell-store";
-import type { CellStore } from "../cells/cell-service-types";
-import {
-	InMemoryClinicalDocumentProjectionStore,
-	InMemorySignedDocumentArchive,
-	KvClinicalDocumentProjectionStore,
-	KvSignedDocumentArchive,
-} from "../clinical/clinical-document-types";
-import type {
-	ClinicalDocumentProjectionStore,
-	SignedDocumentArchive,
-} from "../clinical/clinical-document-types";
-import {
-	SqlClinicalDocumentProjectionStore,
-	SqlSignedDocumentArchive,
-} from "../clinical/clinical-document-sql-stores";
-import { KvMacroStore } from "../macros/kv-macro-store";
-import { SqlMacroStore } from "../macros/sql-macro-store";
-import type { MacroStore } from "../macros/macro-definition";
-import { KvNotebookSessionStore } from "../notebook/kv-notebook-session-store";
-import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store";
-import type { NotebookSessionStore } from "../notebook/notebook-session-store";
-import { KvTransactionJournal } from "../transactions/kv-transaction-journal";
-import { SqlTransactionJournal } from "../transactions/sql-transaction-journal";
-import type { TransactionJournal } from "../transactions/transaction-types";
-import { KvWorkspaceStore } from "../workspaces/kv-workspace-store";
-import { SqlWorkspaceStore } from "../workspaces/sql-workspace-store";
-import type { WorkspaceStore } from "../workspaces/workspace-store";
 import {
 	EventStore,
 	JsonlKvBackend,
@@ -34,11 +5,40 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
-import type { SqlDialect } from "@stateful-mcp/core/translation/sql-compiler";
-import { createEventStore as createSqlEventStore } from "@stateful-mcp/core/adapters/storage/sql/create-event-store";
 import { createEventStore as createSimpleEventStore } from "@stateful-mcp/core/adapters/storage/simple/create-event-store";
 import { JsonlKvBackend as SimpleJsonlKvBackend } from "@stateful-mcp/core/adapters/storage/simple/jsonl/backend";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
+import { createEventStore as createSqlEventStore } from "@stateful-mcp/core/adapters/storage/sql/create-event-store";
+import type { SqlDialect } from "@stateful-mcp/core/translation/sql-compiler";
+import type { CellStore } from "../cells/cell-service-types";
+import { KvCellStore } from "../cells/kv-cell-store";
+import { SqlCellStore } from "../cells/sql-cell-store";
+import {
+	SqlClinicalDocumentProjectionStore,
+	SqlSignedDocumentArchive,
+} from "../clinical/clinical-document-sql-stores";
+import type {
+	ClinicalDocumentProjectionStore,
+	SignedDocumentArchive,
+} from "../clinical/clinical-document-types";
+import {
+	InMemoryClinicalDocumentProjectionStore,
+	InMemorySignedDocumentArchive,
+	KvClinicalDocumentProjectionStore,
+	KvSignedDocumentArchive,
+} from "../clinical/clinical-document-types";
+import { KvMacroStore } from "../macros/kv-macro-store";
+import type { MacroStore } from "../macros/macro-definition";
+import { SqlMacroStore } from "../macros/sql-macro-store";
+import { KvNotebookSessionStore } from "../notebook/kv-notebook-session-store";
+import type { NotebookSessionStore } from "../notebook/notebook-session-store";
+import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store";
+import { KvTransactionJournal } from "../transactions/kv-transaction-journal";
+import { SqlTransactionJournal } from "../transactions/sql-transaction-journal";
+import type { TransactionJournal } from "../transactions/transaction-types";
+import { KvWorkspaceStore } from "../workspaces/kv-workspace-store";
+import { SqlWorkspaceStore } from "../workspaces/sql-workspace-store";
+import type { WorkspaceStore } from "../workspaces/workspace-store";
 
 export type StoreBackend = "memory" | "sqlite" | "jsonl";
 
@@ -86,7 +86,9 @@ export async function createStoreBuilder(
 }
 
 async function createMemoryStores(): Promise<StoreBuilderResult> {
-	const eventStorage = await createSimpleEventStore(new SimpleMemoryKvBackend());
+	const eventStorage = await createSimpleEventStore(
+		new SimpleMemoryKvBackend(),
+	);
 	const backend = new MemoryKvBackend();
 	return {
 		eventStore: createEventStore(eventStorage),
@@ -100,7 +102,9 @@ async function createMemoryStores(): Promise<StoreBuilderResult> {
 	};
 }
 
-async function createJsonlStores(basePath: string): Promise<StoreBuilderResult> {
+async function createJsonlStores(
+	basePath: string,
+): Promise<StoreBuilderResult> {
 	const eventStorage = await createSimpleEventStore(
 		new SimpleJsonlKvBackend(
 			`${basePath}.events.jsonl`,

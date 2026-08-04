@@ -9,7 +9,6 @@ import {
 } from "../macros/default-macros";
 import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
 import { createDefaultSchemaRegistry } from "../schemas/default-registry";
-import { bootstrapCommandDefaults, bootstrapTemporalDefaults } from "./bootstrap-config";
 import {
 	createTemporalSyntaxProfile,
 	type TemporalSyntaxProfile,
@@ -18,6 +17,10 @@ import {
 	type ValueRule,
 	ValueRuleRegistry,
 } from "../values/value-rule-registry";
+import {
+	bootstrapCommandDefaults,
+	bootstrapTemporalDefaults,
+} from "./bootstrap-config";
 
 export interface ColdStartOptions {
 	dictionary: DictionaryStore;

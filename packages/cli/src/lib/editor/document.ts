@@ -14,6 +14,7 @@ export type DocumentAction =
 	| { type: "deleteActive" }
 	| { type: "yankActive" }
 	| { type: "paste" }
+	| { type: "pasteAbove" }
 	| { type: "undo" }
 	| { type: "redo" }
 	| { type: "enterVisual" }

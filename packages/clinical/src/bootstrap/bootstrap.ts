@@ -1,19 +1,24 @@
-import { DictionaryStore, InMemoryConceptResolver, type DictionaryConfig } from "@stateful-mcp/core";
 import {
-	createCommandSyntaxProfile,
-	type CommandSyntaxProfile,
-} from "../commands/command-syntax-profile";
+	type DictionaryConfig,
+	DictionaryStore,
+	InMemoryConceptResolver,
+} from "@stateful-mcp/core";
 import { CellCompiler } from "../cells/cell-compiler";
+import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
 import type { ClinicalEngine } from "../engine/clinical-engine-v2";
 import { ClinicalEngineBuilder } from "../engine/clinical-engine-v2-builder";
 import type { ClinicalRuntime } from "../engine/clinical-runtime-v2";
 import { createSyntaxProfile } from "../macros/macro-profile";
 import {
-	initializeColdStart,
 	type ColdStartOptions,
 	type ColdStartState,
+	initializeColdStart,
 } from "./cold-start";
-import { StoreBuilder, type StoreBuilderConfig, type StoreBuilderResult } from "./store-builder";
+import {
+	StoreBuilder,
+	type StoreBuilderConfig,
+	type StoreBuilderResult,
+} from "./store-builder";
 
 export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
@@ -53,9 +58,11 @@ export class ClinicalBootstrap {
 
 	static async withDefaultBackend(
 		backend: StoreBuilderConfig["backend"],
-		options: Omit<ClinicalBootstrapConfig, "backend"> & { dbPath?: string } = {},
+		options: Omit<ClinicalBootstrapConfig, "backend"> & {
+			dbPath?: string;
+		} = {},
 	): Promise<ClinicalBootstrapResult> {
-		return this.fromConfig({
+		return ClinicalBootstrap.fromConfig({
 			...options,
 			backend,
 		});
@@ -69,45 +76,45 @@ async function buildClinicalBootstrap(
 	const dictionary = new DictionaryStore(new InMemoryConceptResolver());
 
 	const coldStart = await initializeColdStart({
-			dictionary,
-			macroStore: stores.macroStore as ColdStartOptions["macroStore"],
-			commandProfile: config.syntaxProfile,
-			temporalProfile: config.temporalProfile,
-			dictionaryConfig: config.dictionaryConfig,
-			valueRules: config.valueRules,
-		});
+		dictionary,
+		macroStore: stores.macroStore as ColdStartOptions["macroStore"],
+		commandProfile: config.syntaxProfile,
+		temporalProfile: config.temporalProfile,
+		dictionaryConfig: config.dictionaryConfig,
+		valueRules: config.valueRules,
+	});
 
 	const commandProfile = coldStart.commandProfile;
 	const cellCompiler = new CellCompiler(
-			stores.macroStore,
-			coldStart.schemaRegistry,
-			dictionary,
-			createSyntaxProfile({
-				...commandProfile,
-				profileId: commandProfile.profileId,
-			}),
-		);
+		stores.macroStore,
+		coldStart.schemaRegistry,
+		dictionary,
+		createSyntaxProfile({
+			...commandProfile,
+			profileId: commandProfile.profileId,
+		}),
+	);
 
 	const engine = new ClinicalEngineBuilder()
-			.withEventStore(stores.eventStore)
-			.withSchemaRegistry(coldStart.schemaRegistry)
-			.withMacroStore(stores.macroStore)
-			.withDictionary(dictionary)
-			.withWorkspaceStore(stores.workspaceStore)
-			.withCellStore(stores.cellStore)
-			.withCellCompiler(cellCompiler.compile.bind(cellCompiler))
-			.withProjectionStore(stores.projectionStore)
-			.withArchiveStore(stores.archiveStore)
-			.withJournal(stores.journal)
-			.withSyntaxProfile(commandProfile)
-			.build();
+		.withEventStore(stores.eventStore)
+		.withSchemaRegistry(coldStart.schemaRegistry)
+		.withMacroStore(stores.macroStore)
+		.withDictionary(dictionary)
+		.withWorkspaceStore(stores.workspaceStore)
+		.withCellStore(stores.cellStore)
+		.withCellCompiler(cellCompiler.compile.bind(cellCompiler))
+		.withProjectionStore(stores.projectionStore)
+		.withArchiveStore(stores.archiveStore)
+		.withJournal(stores.journal)
+		.withSyntaxProfile(commandProfile)
+		.build();
 
 	return {
-			stores,
-			coldStart,
-			engine,
-			runtime: engine.getRuntime(),
-			dictionary,
-			syntaxProfile: commandProfile,
+		stores,
+		coldStart,
+		engine,
+		runtime: engine.getRuntime(),
+		dictionary,
+		syntaxProfile: commandProfile,
 	};
 }

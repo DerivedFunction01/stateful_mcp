@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 import { createCommandSyntaxProfile } from "../src/commands/command-syntax-profile";
 import { parseDirectCommand } from "../src/commands/direct-command-parser";
-import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 
 const workspace = {
 	id: "ws-1",

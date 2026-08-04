@@ -8,6 +8,12 @@
  * isolated compatibility adapter.
  */
 
+export * from "./bootstrap";
+export * from "./bootstrap/bootstrap-config";
+export * from "./bootstrap/cold-start";
+export * from "./bootstrap/mock-patient";
+export * from "./bootstrap/store-builder";
+export * from "./cells/cell-compiler";
 export * from "./cells/cell-factory";
 export * from "./cells/cell-intent";
 export * from "./cells/cell-query-compiler";
@@ -17,7 +23,6 @@ export * from "./cells/kv-cell-store";
 export * from "./cells/sql-cell-store";
 export * from "./cells/structured-cell";
 export * from "./cells/structured-cell-service";
-export * from "./cells/cell-compiler";
 export * from "./cells/variable-cell-service";
 export * from "./clinical/clinical-document-reducer";
 export * from "./clinical/clinical-document-service";
@@ -61,11 +66,6 @@ export * from "./notebook/notebook-session-query-compiler";
 export * from "./notebook/notebook-session-store";
 export * from "./notebook/notebook-state";
 export * from "./notebook/sql-notebook-session-store";
-export * from "./bootstrap";
-export * from "./bootstrap/bootstrap-config";
-export * from "./bootstrap/cold-start";
-export * from "./bootstrap/mock-patient";
-export * from "./bootstrap/store-builder";
 export * from "./presentation/field-types";
 export * from "./presentation/policies";
 export * from "./presentation/quantity-format";

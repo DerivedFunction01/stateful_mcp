@@ -15,7 +15,9 @@ export function useSession(): SessionState | null {
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const { bootstrapSession } = await import("../lib/session/bootstrap-session");
+			const { bootstrapSession } = await import(
+				"../lib/session/bootstrap-session"
+			);
 			const v2 = await bootstrapSession();
 			if (cancelled) return;
 			setState({

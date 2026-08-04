@@ -1,5 +1,5 @@
-import type { CommandDescriptor } from "../lib/editor/command-descriptor";
 import { Box, Text, useInput } from "ink";
+import type { CommandDescriptor } from "../lib/editor/command-descriptor";
 import { t } from "../lib/shared/i18n";
 
 interface HelpScreenProps {

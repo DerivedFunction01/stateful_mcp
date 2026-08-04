@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import {
+	bootstrapFrequencyDefaults,
+	bootstrapTemporalDefaults,
+} from "../src/bootstrap/bootstrap-config";
 import { resolveFrequency } from "../src/values/frequency-resolver";
 import { recognizeTemporalExpression } from "../src/values/temporal-recognizer";
 import { resolveTemporalExpression } from "../src/values/temporal-resolver";
 import { createTemporalSyntaxProfile } from "../src/values/temporal-syntax-profile";
-import { bootstrapTemporalDefaults } from "../src/bootstrap/bootstrap-config";
-import { bootstrapFrequencyDefaults } from "../src/bootstrap/bootstrap-config";
 
 const anchor = {
 	referenceInstant: "2026-08-03T17:30:30-04:00",
@@ -21,15 +23,21 @@ describe(" temporal values", () => {
 			kind: "relative_day",
 			offsetDays: 0,
 		});
-		expect(recognizeTemporalExpression("yesterday", profile).expression).toEqual({
+		expect(
+			recognizeTemporalExpression("yesterday", profile).expression,
+		).toEqual({
 			kind: "relative_day",
 			offsetDays: -1,
 		});
-		expect(recognizeTemporalExpression("tomorrow", profile).expression).toEqual({
-			kind: "relative_day",
-			offsetDays: 1,
-		});
-		expect(recognizeTemporalExpression("now", profile).expression).toBeUndefined();
+		expect(recognizeTemporalExpression("tomorrow", profile).expression).toEqual(
+			{
+				kind: "relative_day",
+				offsetDays: 1,
+			},
+		);
+		expect(
+			recognizeTemporalExpression("now", profile).expression,
+		).toBeUndefined();
 	});
 
 	it("resolves relative days against an explicit anchor", () => {
@@ -37,7 +45,8 @@ describe(" temporal values", () => {
 			{ profileId: "v2-temporal-default" },
 			bootstrapTemporalDefaults,
 		);
-		const expression = recognizeTemporalExpression("today", profile).expression!;
+		const expression = recognizeTemporalExpression("today", profile)
+			.expression!;
 		const result = resolveTemporalExpression(expression, anchor);
 		expect(result.diagnostics).toEqual([]);
 		expect(result.value?.time?.startDatetime?.assertedTimestampUtc).toBe(
@@ -53,7 +62,8 @@ describe(" temporal values", () => {
 			{ profileId: "v2-temporal-default" },
 			bootstrapTemporalDefaults,
 		);
-		const expression = recognizeTemporalExpression("3 days ago", profile).expression!;
+		const expression = recognizeTemporalExpression("3 days ago", profile)
+			.expression!;
 		expect(
 			resolveTemporalExpression(expression, anchor).value?.relativeEstimate,
 		).toEqual({

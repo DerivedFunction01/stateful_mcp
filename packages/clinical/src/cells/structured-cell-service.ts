@@ -1,3 +1,8 @@
+import type { ExecutionResult } from "../engine/clinical-engine-v2";
+import type { MacroExecutionPlan } from "../macros/macro-plan";
+import type { DeleteEligibility } from "../notebook/notebook-state";
+import { NotebookPreviewWorkflow } from "../notebook/preview-workflow";
+import type { CellCompileContext } from "./cell-compiler";
 import type {
 	CancelCellRequest,
 	CellExecutionResult,
@@ -6,21 +11,23 @@ import type {
 	CreateCellRequest,
 	EditCellRequest,
 	ExecuteCellRequest,
+	MarkDeletedRequest,
 	PreviewCellRequest,
+	RestoreDraftCellRequest,
 	SupersedeCellRequest,
 } from "./cell-service-types";
 import type { StructuredCell } from "./structured-cell";
-import type { CellCompileContext } from "./cell-compiler";
-import type { MacroExecutionPlan } from "../macros/macro-plan";
-import type { ExecutionResult } from "../engine/clinical-engine-v2";
-import { NotebookPreviewWorkflow } from "../notebook/preview-workflow";
 
 export interface StructuredCellServiceDeps {
 	store: CellStore;
 	compile: (
 		rawText: string,
 		context?: CellCompileContext,
-	) => Promise<{ plan?: MacroExecutionPlan; diagnostics: string[]; fingerprint: string }>;
+	) => Promise<{
+		plan?: MacroExecutionPlan;
+		diagnostics: string[];
+		fingerprint: string;
+	}>;
 	previewWorkflow?: NotebookPreviewWorkflow;
 	executePlan?: (plan: MacroExecutionPlan) => Promise<ExecutionResult>;
 }
@@ -34,11 +41,15 @@ export class StructuredCellService {
 	constructor(deps: StructuredCellServiceDeps) {
 		this.store = deps.store;
 		this.compile = deps.compile;
-		this.previewWorkflow = deps.previewWorkflow ?? new NotebookPreviewWorkflow({ compile: deps.compile });
+		this.previewWorkflow =
+			deps.previewWorkflow ??
+			new NotebookPreviewWorkflow({ compile: deps.compile });
 		this.executePlan = deps.executePlan;
 	}
 
-	setPlanExecutor(executePlan: NonNullable<StructuredCellServiceDeps["executePlan"]>): void {
+	setPlanExecutor(
+		executePlan: NonNullable<StructuredCellServiceDeps["executePlan"]>,
+	): void {
 		this.executePlan = executePlan;
 	}
 
@@ -112,7 +123,10 @@ export class StructuredCellService {
 		if (compiled.diagnostics.length > 0) {
 			throw new Error(`Cell '${request.cellId}' preview is invalid`);
 		}
-		if (!compiled.plan) throw new Error(`Cell '${cell.cellId}' did not produce an execution plan`);
+		if (!compiled.plan)
+			throw new Error(
+				`Cell '${cell.cellId}' did not produce an execution plan`,
+			);
 		if (!this.executePlan)
 			throw new Error("StructuredCellService execution is not configured");
 		const plan: MacroExecutionPlan = {
@@ -150,7 +164,8 @@ export class StructuredCellService {
 			execution: {
 				...updated.execution,
 				planFingerprint: compiled.fingerprint,
-				committedAt: result.status === "committed" ? new Date().toISOString() : undefined,
+				committedAt:
+					result.status === "committed" ? new Date().toISOString() : undefined,
 			},
 			diagnostics: result.error
 				? [{ code: "execution", severity: "error", message: result.error }]
@@ -160,7 +175,9 @@ export class StructuredCellService {
 		return {
 			transactionId: result.transactionId,
 			status: result.status === "committed" ? "committed" : "failed",
-			generatedCellIds: plan.generatedCells.map((generated) => generated.cellRef),
+			generatedCellIds: plan.generatedCells.map(
+				(generated) => generated.cellRef,
+			),
 			diagnostics: result.error ? [result.error] : [],
 		};
 	}
@@ -191,5 +208,60 @@ export class StructuredCellService {
 			request.expectedRevision,
 			request.authorId,
 		);
+	}
+
+	canDelete(cell: StructuredCell): DeleteEligibility {
+		switch (cell.lifecycle.status) {
+			case "committed":
+			case "locked":
+			case "deleted":
+				return { eligible: false, reason: cell.lifecycle.status };
+			case "pending_commit":
+				return { eligible: false, reason: "pending_commit" };
+			default:
+				return { eligible: true };
+		}
+	}
+
+	async markDeleted(request: MarkDeletedRequest): Promise<StructuredCell> {
+		const cell = await this.store.get(request.cellId);
+		if (!cell) throw new Error(`Cell '${request.cellId}' not found`);
+		const eligibility = this.canDelete(cell);
+		if (!eligibility.eligible) {
+			throw new Error(
+				`Cell '${request.cellId}' is not eligible for deletion: ${eligibility.reason}`,
+			);
+		}
+		const now = new Date().toISOString();
+		const updated: StructuredCell = {
+			...cell,
+			lifecycle: {
+				...cell.lifecycle,
+				status: "deleted",
+				revision: cell.lifecycle.revision + 1,
+			},
+			source: { ...cell.source, updatedAt: now },
+		};
+		await this.store.save(updated);
+		return updated;
+	}
+
+	async restoreDraftCell(
+		request: RestoreDraftCellRequest,
+	): Promise<StructuredCell> {
+		const cell = await this.store.get(request.cellId);
+		if (!cell) throw new Error(`Cell '${request.cellId}' not found`);
+		const now = new Date().toISOString();
+		const updated: StructuredCell = {
+			...cell,
+			lifecycle: {
+				...cell.lifecycle,
+				status: "draft",
+				revision: cell.lifecycle.revision + 1,
+			},
+			source: { ...cell.source, updatedAt: now },
+		};
+		await this.store.save(updated);
+		return updated;
 	}
 }

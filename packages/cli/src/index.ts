@@ -27,7 +27,9 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 		const backendArg = args.find((arg) => arg.startsWith("--backend="));
 		const pathArg = args.find((arg) => arg.startsWith("--path="));
 		const backend = (backendArg?.slice("--backend=".length) ?? "memory") as
-			"memory" | "sqlite" | "jsonl";
+			| "memory"
+			| "sqlite"
+			| "jsonl";
 		if (!["memory", "sqlite", "jsonl"].includes(backend)) {
 			console.error(`cli2: unsupported init backend '${backend}'`);
 			process.exitCode = 2;

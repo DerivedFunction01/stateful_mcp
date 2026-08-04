@@ -10,6 +10,12 @@ export interface NotebookDocumentDeps {
 	insertAbove(): void;
 	nextError?(): number | null;
 	prevError?(): number | null;
+	deleteActive?(): void;
+	yankActive?(): void;
+	paste?(): void;
+	pasteAbove?(): void;
+	deleteSelection?(): void;
+	yankSelection?(): void;
 }
 
 /**
@@ -46,7 +52,10 @@ export class NotebookDocumentPort implements DocumentPort {
 	private toNotebook(action: DocumentAction): NotebookEditorAction | null {
 		switch (action.type) {
 			case "move":
-				return { type: "set_active", index: this.state.activeIndex + action.delta };
+				return {
+					type: "set_active",
+					index: this.state.activeIndex + action.delta,
+				};
 			case "setActive":
 				return { type: "set_active", index: action.index };
 			case "insertBelow":
@@ -56,17 +65,23 @@ export class NotebookDocumentPort implements DocumentPort {
 				this.deps?.insertAbove();
 				return null;
 			case "deleteActive":
+				this.deps?.deleteActive?.();
 				return null;
 			case "yankActive":
+				this.deps?.yankActive?.();
 				return null;
 			case "paste":
+				this.deps?.paste?.();
+				return null;
+			case "pasteAbove":
+				this.deps?.pasteAbove?.();
 				return null;
 			case "undo":
-				return null;
+				return { type: "undo" };
 			case "redo":
-				return null;
+				return { type: "redo" };
 			case "enterVisual":
-				return { type: "ENTER_VISUAL_MODE" };
+				return { type: "set_mode", mode: "VISUAL" };
 			case "extendSelection":
 				return {
 					type: "set_visual_selection",
@@ -80,8 +95,10 @@ export class NotebookDocumentPort implements DocumentPort {
 					end: this.state.visualStart,
 				};
 			case "deleteSelection":
+				this.deps?.deleteSelection?.();
 				return null;
 			case "yankSelection":
+				this.deps?.yankSelection?.();
 				return null;
 			case "nextError": {
 				const index = this.deps?.nextError?.();

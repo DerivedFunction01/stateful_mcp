@@ -1,6 +1,4 @@
-import type { TemporalDirection, TimePrecisionLevel } from "./schemas/schemas-interface/time";
 import type { FrequencyProfile } from "./values/frequency-resolver";
-import type { CommandSyntaxProfile } from "./commands/command-syntax-profile";
 import type { TemporalSyntaxProfile } from "./values/temporal-syntax-profile";
 
 /**

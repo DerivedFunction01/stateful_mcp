@@ -1,5 +1,5 @@
-import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { CellIntent } from "@stateful-mcp/clinical/cells/cell-intent";
+import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { AutocompleteSuggestion } from "./autocomplete";
 import type { CommandDescriptor } from "./command-descriptor";
 

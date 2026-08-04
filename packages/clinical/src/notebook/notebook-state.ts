@@ -12,6 +12,28 @@ export const NOTEBOOK_STATE = [
 export type NotebookEditorMode = (typeof NOTEBOOK_STATE)[number];
 export type NotebookRunMode = "preview" | "execute";
 
+export interface NotebookYankBuffer {
+	sourceCellIds: string[];
+	snapshots: StructuredCell[];
+	copiedAt: string;
+}
+
+export type DeleteEligibility =
+	| { eligible: true }
+	| {
+			eligible: false;
+			reason: "committed" | "locked" | "deleted" | "pending_commit" | "unknown";
+	  };
+
+export interface NotebookEditorUndoSnapshot {
+	cellOrder: string[];
+	activeIndex: number;
+	draftText: string;
+	commandHistory: string[];
+	authoredRevision: number;
+	restorableDrafts: StructuredCell[];
+}
+
 /** Editor state; domain truth remains in CellStore and StructuredCellService. */
 export interface NotebookEditorState {
 	cells: StructuredCell[];
@@ -19,9 +41,11 @@ export interface NotebookEditorState {
 	draftText: string;
 	commandLine: string;
 	commandHistory: string[];
+	commandHistoryIndex: number;
 	mode: NotebookEditorMode;
 	runMode: NotebookRunMode;
-	dirty: boolean;
+	authoredRevision: number;
+	persistedAuthoredRevision: number;
 	loading: boolean;
 	message?: string;
 	preview?: CellPreview;
@@ -29,6 +53,9 @@ export interface NotebookEditorState {
 	visualStart: number;
 	visualEnd: number;
 	lastEditCellId: string | null;
+	undoStack: NotebookEditorUndoSnapshot[];
+	redoStack: NotebookEditorUndoSnapshot[];
+	yankBuffer: NotebookYankBuffer | null;
 }
 
 export const INITIAL__NOTEBOOK_EDITOR_STATE: NotebookEditorState = {
@@ -37,9 +64,11 @@ export const INITIAL__NOTEBOOK_EDITOR_STATE: NotebookEditorState = {
 	draftText: "",
 	commandLine: "",
 	commandHistory: [],
+	commandHistoryIndex: -1,
 	mode: "NORMAL",
 	runMode: "execute",
-	dirty: false,
+	authoredRevision: 0,
+	persistedAuthoredRevision: 0,
 	loading: false,
 	message: undefined,
 	preview: undefined,
@@ -47,6 +76,9 @@ export const INITIAL__NOTEBOOK_EDITOR_STATE: NotebookEditorState = {
 	visualStart: 0,
 	visualEnd: 0,
 	lastEditCellId: null,
+	undoStack: [],
+	redoStack: [],
+	yankBuffer: null,
 };
 
 export type NotebookEditorAction =
@@ -67,31 +99,15 @@ export type NotebookEditorAction =
 	| { type: "set_command_history"; history: string[] }
 	| { type: "set_last_edit_cell"; cellId: string | null }
 	| { type: "mark_clean" }
-	| { type: "SET_ACTIVE_INDEX"; index: number }
-	| { type: "SET_MESSAGE"; message?: string }
-	| { type: "SET_SESSION_MODE"; mode: NotebookRunMode }
-	| { type: "SET_LOADING"; loading: boolean }
-	| { type: "CLEAR_PREVIEW" }
-	| { type: "SET_PREVIEW"; preview?: CellPreview }
-	| { type: "ENTER_INSERT_MODE" }
-	| { type: "EXIT_INSERT_MODE" }
-	| { type: "ENTER_COMMAND_MODE" }
-	| { type: "EXIT_COMMAND_MODE" }
-	| { type: "ENTER_MACRO_MODE" }
-	| { type: "EXIT_MACRO_MODE" }
-	| { type: "ENTER_VISUAL_MODE" }
-	| { type: "EXIT_VISUAL_MODE" }
-	| { type: "TYPE_CHAR"; char: string }
-	| { type: "COMMAND_APPEND"; char: string }
-	| { type: "COMMAND_BACKSPACE" }
-	| { type: "COMMAND_SET"; text: string }
-	| { type: "SET_MACRO_TEXT"; text: string }
-	| { type: "BACKSPACE" }
+	| { type: "remove_cells"; cellIds: string[] }
+	| { type: "yank_cells"; cellIds: string[]; snapshots: StructuredCell[] }
+	| { type: "paste_cells"; cells: StructuredCell[]; insertIndex: number }
+	| { type: "set_persisted_revision"; revision: number }
+	| { type: "undo" }
+	| { type: "redo" }
+	| { type: "clear_yank_buffer" }
 	| { type: "COMMAND_HISTORY_PREV" }
-	| { type: "COMMAND_HISTORY_NEXT" }
-	| { type: "SET_ACTIVE"; index: number }
-	| { type: "SET_CELLS"; cells: StructuredCell[] }
-	| { type: "REPLACE_CELL"; cell: StructuredCell };
+	| { type: "COMMAND_HISTORY_NEXT" };
 
 export function reduceNotebookEditor(
 	state: NotebookEditorState,
@@ -107,19 +123,52 @@ export function reduceNotebookEditor(
 	});
 	const typeText = (text: string): NotebookEditorState =>
 		state.mode === "COMMAND"
-			? { ...state, commandLine: state.commandLine + text, dirty: true }
-			: { ...state, draftText: state.draftText + text, dirty: true };
+			? {
+					...state,
+					commandLine: state.commandLine + text,
+					authoredRevision: state.authoredRevision + 1,
+				}
+			: {
+					...state,
+					draftText: state.draftText + text,
+					authoredRevision: state.authoredRevision + 1,
+				};
+
+	const withSnapshot = (
+		next: NotebookEditorState,
+		snapshot: NotebookEditorUndoSnapshot,
+	): NotebookEditorState => ({
+		...next,
+		undoStack: [...state.undoStack, snapshot],
+		redoStack: [],
+	});
+
+	const reconstructCells = (
+		order: string[],
+		restorableDrafts: StructuredCell[],
+	): StructuredCell[] => {
+		const byId = new Map<string, StructuredCell>();
+		for (const c of state.cells) byId.set(c.cellId, c);
+		for (const c of restorableDrafts) byId.set(c.cellId, c);
+		const result: StructuredCell[] = [];
+		const seen = new Set<string>();
+		for (const id of order) {
+			if (!seen.has(id) && byId.has(id)) {
+				result.push(byId.get(id)!);
+				seen.add(id);
+			}
+		}
+		return result;
+	};
 
 	switch (action.type) {
 		case "set_cells":
-		case "SET_CELLS":
 			return {
 				...state,
 				cells: action.cells,
 				activeIndex: clampIndex(state.activeIndex, action.cells.length),
 			};
 		case "replace_cell":
-		case "REPLACE_CELL":
 			return {
 				...state,
 				cells: state.cells.map((cell) =>
@@ -127,42 +176,43 @@ export function reduceNotebookEditor(
 				),
 			};
 		case "set_active":
-		case "SET_ACTIVE_INDEX":
-		case "SET_ACTIVE":
 			return setActive(action.index);
 		case "set_draft":
-			return { ...state, draftText: action.text, dirty: true };
+			return {
+				...state,
+				draftText: action.text,
+				authoredRevision: state.authoredRevision + 1,
+			};
 		case "set_command":
-		case "COMMAND_SET":
-			return { ...state, commandLine: action.text, dirty: true };
+			return {
+				...state,
+				commandLine: action.text,
+				authoredRevision: state.authoredRevision + 1,
+			};
 		case "append_text":
-		case "TYPE_CHAR":
-			return typeText(action.type === "append_text" ? action.text : action.char);
-		case "COMMAND_APPEND":
-			return { ...state, commandLine: state.commandLine + action.char, dirty: true };
+			return typeText(action.text);
 		case "backspace":
-		case "BACKSPACE":
 			return state.mode === "COMMAND"
-				? { ...state, commandLine: state.commandLine.slice(0, -1), dirty: true }
-				: { ...state, draftText: state.draftText.slice(0, -1), dirty: true };
-		case "COMMAND_BACKSPACE":
-			return { ...state, commandLine: state.commandLine.slice(0, -1), dirty: true };
+				? {
+						...state,
+						commandLine: state.commandLine.slice(0, -1),
+						authoredRevision: state.authoredRevision + 1,
+					}
+				: {
+						...state,
+						draftText: state.draftText.slice(0, -1),
+						authoredRevision: state.authoredRevision + 1,
+					};
 		case "set_mode":
 			return setMode(action.mode);
 		case "set_run_mode":
-		case "SET_SESSION_MODE":
 			return { ...state, runMode: action.mode };
 		case "set_message":
-		case "SET_MESSAGE":
 			return { ...state, message: action.message };
 		case "set_loading":
-		case "SET_LOADING":
 			return { ...state, loading: action.loading };
 		case "set_preview":
-		case "SET_PREVIEW":
 			return { ...state, preview: action.preview };
-		case "CLEAR_PREVIEW":
-			return { ...state, preview: undefined };
 		case "set_show_help":
 			return { ...state, showHelp: action.show };
 		case "set_visual_selection":
@@ -175,30 +225,121 @@ export function reduceNotebookEditor(
 			return { ...state, commandHistory: action.history };
 		case "set_last_edit_cell":
 			return { ...state, lastEditCellId: action.cellId };
-		case "SET_MACRO_TEXT":
-			return { ...state, draftText: action.text, dirty: true };
+		case "mark_clean":
+			return { ...state, persistedAuthoredRevision: state.authoredRevision };
+		case "remove_cells": {
+			const nextCells = state.cells.filter(
+				(c) => !action.cellIds.includes(c.cellId),
+			);
+			const snapshot: NotebookEditorUndoSnapshot = {
+				cellOrder: state.cells.map((c) => c.cellId),
+				activeIndex: state.activeIndex,
+				draftText: state.draftText,
+				commandHistory: state.commandHistory,
+				authoredRevision: state.authoredRevision,
+				restorableDrafts: state.cells
+					.filter((c) => action.cellIds.includes(c.cellId))
+					.map((c) => clearExecutionState(c)),
+			};
+			return withSnapshot(
+				{
+					...state,
+					cells: nextCells,
+					activeIndex: clampIndex(state.activeIndex, nextCells.length),
+					authoredRevision: state.authoredRevision + 1,
+				},
+				snapshot,
+			);
+		}
+		case "yank_cells": {
+			const snapshots = state.cells
+				.filter((c) => action.cellIds.includes(c.cellId))
+				.map((c) => clearExecutionState(c));
+			return {
+				...state,
+				yankBuffer: {
+					sourceCellIds: action.cellIds,
+					snapshots,
+					copiedAt: new Date().toISOString(),
+				},
+			};
+		}
+		case "paste_cells": {
+			const nextCells = [
+				...state.cells.slice(0, action.insertIndex),
+				...action.cells,
+				...state.cells.slice(action.insertIndex),
+			];
+			const snapshot: NotebookEditorUndoSnapshot = {
+				cellOrder: state.cells.map((c) => c.cellId),
+				activeIndex: state.activeIndex,
+				draftText: state.draftText,
+				commandHistory: state.commandHistory,
+				authoredRevision: state.authoredRevision,
+				restorableDrafts: action.cells,
+			};
+			return withSnapshot(
+				{
+					...state,
+					cells: nextCells,
+					activeIndex: clampIndex(action.insertIndex, nextCells.length),
+					authoredRevision: state.authoredRevision + 1,
+				},
+				snapshot,
+			);
+		}
+		case "set_persisted_revision":
+			return { ...state, persistedAuthoredRevision: action.revision };
+		case "undo": {
+			if (state.undoStack.length === 0) return state;
+			const previous = state.undoStack[state.undoStack.length - 1]!;
+			const currentSnapshot: NotebookEditorUndoSnapshot = {
+				cellOrder: state.cells.map((c) => c.cellId),
+				activeIndex: state.activeIndex,
+				draftText: state.draftText,
+				commandHistory: state.commandHistory,
+				authoredRevision: state.authoredRevision,
+				restorableDrafts: [],
+			};
+			return {
+				...state,
+				cells: reconstructCells(previous.cellOrder, previous.restorableDrafts),
+				activeIndex: previous.activeIndex,
+				draftText: previous.draftText,
+				commandHistory: previous.commandHistory,
+				undoStack: state.undoStack.slice(0, -1),
+				redoStack: [...state.redoStack, currentSnapshot],
+				authoredRevision: previous.authoredRevision,
+			};
+		}
+		case "redo": {
+			if (state.redoStack.length === 0) return state;
+			const next = state.redoStack[state.redoStack.length - 1]!;
+			const currentSnapshot: NotebookEditorUndoSnapshot = {
+				cellOrder: state.cells.map((c) => c.cellId),
+				activeIndex: state.activeIndex,
+				draftText: state.draftText,
+				commandHistory: state.commandHistory,
+				authoredRevision: state.authoredRevision,
+				restorableDrafts: [],
+			};
+			return {
+				...state,
+				cells: reconstructCells(next.cellOrder, next.restorableDrafts),
+				activeIndex: next.activeIndex,
+				draftText: next.draftText,
+				commandHistory: next.commandHistory,
+				undoStack: [...state.undoStack, currentSnapshot],
+				redoStack: state.redoStack.slice(0, -1),
+				authoredRevision: next.authoredRevision,
+			};
+		}
+		case "clear_yank_buffer":
+			return { ...state, yankBuffer: null };
 		case "COMMAND_HISTORY_PREV":
 			return historyMove(state, -1);
 		case "COMMAND_HISTORY_NEXT":
 			return historyMove(state, 1);
-		case "ENTER_INSERT_MODE":
-			return setMode("INSERT");
-		case "EXIT_INSERT_MODE":
-			return setMode("NORMAL");
-		case "ENTER_COMMAND_MODE":
-			return setMode("COMMAND");
-		case "EXIT_COMMAND_MODE":
-			return { ...setMode("NORMAL"), commandLine: "" };
-		case "ENTER_MACRO_MODE":
-			return { ...setMode("MACRO"), draftText: "" };
-		case "EXIT_MACRO_MODE":
-			return { ...setMode("NORMAL"), draftText: "" };
-		case "ENTER_VISUAL_MODE":
-			return { ...setMode("VISUAL"), visualStart: state.activeIndex, visualEnd: state.activeIndex };
-		case "EXIT_VISUAL_MODE":
-			return setMode("NORMAL");
-		case "mark_clean":
-			return { ...state, dirty: false };
 	}
 }
 
@@ -213,8 +354,26 @@ function historyMove(
 	if (state.commandHistory.length === 0) return state;
 	const current = state.commandHistory.indexOf(state.commandLine);
 	const index = clampIndex(
-		(current < 0 ? (direction < 0 ? state.commandHistory.length : -1) : current) + direction,
+		(current < 0
+			? direction < 0
+				? state.commandHistory.length
+				: -1
+			: current) + direction,
 		state.commandHistory.length,
 	);
 	return { ...state, commandLine: state.commandHistory[index] ?? "" };
+}
+
+function clearExecutionState(cell: StructuredCell): StructuredCell {
+	return {
+		...cell,
+		execution: {
+			previewId: undefined,
+			transactionId: undefined,
+			planFingerprint: undefined,
+			committedAt: undefined,
+			generatedCellIds: undefined,
+			resultRefs: undefined,
+		},
+	};
 }

@@ -65,7 +65,9 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 					await opts.executeVariableCommand(`:var ${rest}`.trim()),
 				);
 			}
-			const result = await notebook.dispatchCommand(`:${`${verb} ${rest}`.trim()}`);
+			const result = await notebook.dispatchCommand(
+				`:${`${verb} ${rest}`.trim()}`,
+			);
 			return commandResultToEffects({
 				success: result.success,
 				message: result.message,
@@ -86,7 +88,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 			buildNotebookExtension({
 				editorDescriptors: ds,
 				cellDescriptors: ds,
-					sharedCellDescriptors: [],
+				sharedCellDescriptors: [],
 				onCommand,
 			}),
 		];
@@ -101,7 +103,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 						notebook.dispatch(effect.action as any);
 						break;
 					case "editor.mode": {
-						notebook.dispatch({ type: "SET_SESSION_MODE", mode: effect.mode });
+						notebook.dispatch({ type: "set_run_mode", mode: effect.mode });
 						break;
 					}
 					case "editor.defaultInsert":
@@ -126,7 +128,7 @@ export function useNotebookRuntime(opts: NotebookRuntimeOptions): {
 						if (opts.onMessage) opts.onMessage(effect.message);
 						else
 							notebook.dispatch({
-								type: "SET_MESSAGE",
+								type: "set_message",
 								message: effect.message,
 							});
 						break;

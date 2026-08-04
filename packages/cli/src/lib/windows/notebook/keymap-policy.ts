@@ -1,4 +1,3 @@
-import { EditorAction as ClinicalAction } from "../../editor/editor-action";
 import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { Key } from "ink";
 import type {
@@ -7,6 +6,7 @@ import type {
 	KeymapPolicy,
 	KeyResolution,
 } from "../../editor";
+import { EditorAction as ClinicalAction } from "../../editor/editor-action";
 import { resolveKey } from "../../editor/keymap";
 
 /** Classified output of a resolved clinical editor action. */
@@ -33,6 +33,8 @@ function classify(action: ClinicalAction): Classification {
 			return { document: { type: "yankActive" } };
 		case ClinicalAction.PasteCell:
 			return { document: { type: "paste" } };
+		case ClinicalAction.PasteCellAbove:
+			return { document: { type: "pasteAbove" } };
 		case ClinicalAction.Undo:
 			return { document: { type: "undo" } };
 		case ClinicalAction.Redo:

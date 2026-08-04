@@ -1,6 +1,6 @@
+import type { CommandCatalog, EditorContext } from "../../editor";
 import type { AutocompleteSuggestion } from "../../editor/autocomplete";
 import type { CommandDescriptor } from "../../editor/command-descriptor";
-import type { CommandCatalog, EditorContext } from "../../editor";
 
 /**
  * Adapts the notebook's existing `getAutocomplete(partial)` into a

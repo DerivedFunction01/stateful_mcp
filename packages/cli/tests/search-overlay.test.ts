@@ -7,9 +7,9 @@ import {
 import { commandResultToEffects } from "../src/lib/windows/notebook/extension";
 
 const mockCells = [
-	{ cellId: "c1", rawInput: "Patient complains of chest pain" },
-	{ cellId: "c2", rawInput: "Heart rate is elevated" },
-	{ cellId: "c3", rawInput: "Prescribed aspirin for pain" },
+	{ cellId: "c1", authored: { rawText: "Patient complains of chest pain" } },
+	{ cellId: "c2", authored: { rawText: "Heart rate is elevated" } },
+	{ cellId: "c3", authored: { rawText: "Prescribed aspirin for pain" } },
 ];
 
 describe("Search overlay state & mapping", () => {

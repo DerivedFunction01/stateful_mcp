@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend, VariableServiceStore } from "@stateful-mcp/core";
+import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 import { KvCellStore } from "../src/cells/kv-cell-store";
 import { VariableCellService } from "../src/cells/variable-cell-service";
 import { createCommandSyntaxProfile } from "../src/commands/command-syntax-profile";
 import { VariableCommandService } from "../src/commands/variable-command-service";
-import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
 
 describe(" variable cell service", () => {
 	it("records a successful variable command as a committed structured cell", async () => {

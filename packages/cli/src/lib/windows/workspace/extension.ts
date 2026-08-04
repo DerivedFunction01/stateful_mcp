@@ -1,6 +1,6 @@
-import type { CommandDescriptor } from "../../editor/command-descriptor";
-import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
+import type { CommandDescriptor } from "../../editor/command-descriptor";
 import type {
 	EditorExtension,
 	WindowEffect,
@@ -29,9 +29,27 @@ export function buildWorkspaceExtension(
 	deps: WorkspaceProfileDeps,
 ): EditorExtension {
 	const workspaceDescriptors: CommandDescriptor[] = [
-		{ verb: "branch", aliases: [], group: "workspace", descriptionKey: "workspace.branch", args: [] },
-		{ verb: "confirm", aliases: [], group: "workspace", descriptionKey: "workspace.confirm", args: [] },
-		{ verb: "complete", aliases: [], group: "workspace", descriptionKey: "workspace.complete", args: [] },
+		{
+			verb: "branch",
+			aliases: [],
+			group: "workspace",
+			descriptionKey: "workspace.branch",
+			args: [],
+		},
+		{
+			verb: "confirm",
+			aliases: [],
+			group: "workspace",
+			descriptionKey: "workspace.confirm",
+			args: [],
+		},
+		{
+			verb: "complete",
+			aliases: [],
+			group: "workspace",
+			descriptionKey: "workspace.complete",
+			args: [],
+		},
 	];
 	const variableDescriptors = getSharedCellCommandDescriptors();
 
