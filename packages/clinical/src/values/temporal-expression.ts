@@ -3,7 +3,6 @@ import type {
 	TemporalDirection,
 	TimePrecisionLevel,
 } from "../schemas/schemas-interface/time";
-import type { TemporalSyntaxProfile } from "./temporal-syntax-profile";
 
 export type TemporalExpression =
 	| { kind: "absolute_instant"; instant: string; precision: TimePrecisionLevel }
@@ -28,8 +27,6 @@ export interface TemporalAnchor {
 	timezone: string;
 	locale?: string;
 }
-
-export type TemporalRecognitionProfile = TemporalSyntaxProfile;
 
 export interface TemporalResolveResult {
 	value?: ClinicalDateRange;

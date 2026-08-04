@@ -1,4 +1,5 @@
 import { getCompiledRegex } from "./_compiled-regex";
+import type { TimePrecisionLevel } from "../../schemas/schemas-interface/time";
 
 export type DateTimeToken =
 	| "YYYY"
@@ -24,6 +25,8 @@ export interface DateTimeFormatConfig {
 			am: string[];
 			pm: string[];
 		};
+		/** Override the precision inferred from token presence (default: "second" when HH is present, "day" otherwise). */
+		precision?: TimePrecisionLevel;
 	};
 }
 

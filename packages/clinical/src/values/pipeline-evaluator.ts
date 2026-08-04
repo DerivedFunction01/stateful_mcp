@@ -1,4 +1,4 @@
-import type { OpName, PipelineStep } from "@stateful-mcp/core";
+import { OPS, type OpName, type PipelineStep } from "@stateful-mcp/core";
 
 export type PipelineVariable = string;
 export type PipelineValue = string | number | boolean | null;
@@ -27,46 +27,6 @@ export interface PipelineResult {
 }
 
 const MAX_PIPELINE_DEPTH = 20;
-const ALLOWED_OPS = new Set<OpName>([
-	"neg",
-	"not",
-	"add",
-	"sub",
-	"mul",
-	"div",
-	"mod",
-	"exp",
-	"lt",
-	"leq",
-	"eq",
-	"neq",
-	"geq",
-	"gt",
-	"in_set",
-	"not_in_set",
-	"and",
-	"or",
-	"year",
-	"month",
-	"day",
-	"quarter",
-	"date_diff",
-	"get",
-	"json_parse",
-	"to_string",
-	"to_number",
-	"round",
-	"ceil",
-	"floor",
-	"starts_with",
-	"ends_with",
-	"str_contains",
-	"substring",
-	"trim",
-	"lower",
-	"upper",
-	"concat",
-]);
 
 export function validatePipeline(steps: PipelineStep[]): PipelineDiagnostic[] {
 	const diagnostics: PipelineDiagnostic[] = [];
@@ -79,7 +39,7 @@ export function validatePipeline(steps: PipelineStep[]): PipelineDiagnostic[] {
 	}
 	const definedVars = new Set<PipelineVariable>();
 	for (const [index, step] of steps.entries()) {
-		if (!ALLOWED_OPS.has(step.op)) {
+		if (!OPS.includes(step.op)) {
 			diagnostics.push({
 				code: "unsupported_op",
 				step: index,

@@ -10,30 +10,30 @@ import {
 import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
 import { createDefaultSchemaRegistry } from "../schemas/default-registry";
 import {
-	createTemporalSyntaxProfile,
-	type TemporalSyntaxProfile,
-} from "../values/temporal-syntax-profile";
+	createNumericalSyntaxProfile,
+	type NumericalSyntaxProfile,
+} from "../values/numerical-syntax-profile";
 import {
 	type ValueRule,
 	ValueRuleRegistry,
 } from "../values/value-rule-registry";
 import {
 	bootstrapCommandDefaults,
-	bootstrapTemporalDefaults,
+	bootstrapNumericalDefaults,
 } from "./bootstrap-config";
 
 export interface ColdStartOptions {
 	dictionary: DictionaryStore;
 	macroStore: MacroStore & { set(macro: MacroDefinition): Promise<void> };
 	commandProfile?: CommandSyntaxProfile;
-	temporalProfile?: TemporalSyntaxProfile;
+	numericalProfile?: NumericalSyntaxProfile;
 	valueRules?: readonly ValueRule[];
 	dictionaryConfig?: DictionaryConfig;
 }
 export interface ColdStartState {
 	schemaRegistry: ReturnType<typeof createDefaultSchemaRegistry>;
 	commandProfile: CommandSyntaxProfile;
-	temporalProfile: TemporalSyntaxProfile;
+	numericalProfile: NumericalSyntaxProfile;
 	valueRules: ValueRuleRegistry;
 	macroStore: ColdStartOptions["macroStore"];
 	dictionary: DictionaryStore;
@@ -53,13 +53,13 @@ export async function initializeColdStart(
 			},
 			bootstrapCommandDefaults,
 		);
-	const temporalProfile =
-		options.temporalProfile ??
-		createTemporalSyntaxProfile(
+	const numericalProfile =
+		options.numericalProfile ??
+		createNumericalSyntaxProfile(
 			{
-				profileId: `${commandProfile.profileId}:temporal`,
+				profileId: `${commandProfile.profileId}:numerical`,
 			},
-			bootstrapTemporalDefaults,
+			bootstrapNumericalDefaults,
 		);
 	await options.dictionary.loadConfig({
 		allowedTargetAssignments: [
@@ -89,7 +89,7 @@ export async function initializeColdStart(
 	return {
 		schemaRegistry: createDefaultSchemaRegistry(),
 		commandProfile,
-		temporalProfile,
+		numericalProfile,
 		valueRules,
 		macroStore: options.macroStore,
 		dictionary: options.dictionary,

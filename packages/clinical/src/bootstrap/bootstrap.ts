@@ -24,7 +24,7 @@ export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
 	dbPath?: string;
 	syntaxProfile?: CommandSyntaxProfile;
-	temporalProfile?: import("../values/temporal-syntax-profile").TemporalSyntaxProfile;
+	numericalProfile?: import("../values/numerical-syntax-profile").NumericalSyntaxProfile;
 	dictionaryConfig?: DictionaryConfig;
 	valueRules?: ColdStartOptions["valueRules"];
 }
@@ -79,7 +79,7 @@ async function buildClinicalBootstrap(
 		dictionary,
 		macroStore: stores.macroStore as ColdStartOptions["macroStore"],
 		commandProfile: config.syntaxProfile,
-		temporalProfile: config.temporalProfile,
+		numericalProfile: config.numericalProfile,
 		dictionaryConfig: config.dictionaryConfig,
 		valueRules: config.valueRules,
 	});
@@ -91,11 +91,11 @@ async function buildClinicalBootstrap(
 		payload: coldStart.commandProfile,
 	});
 	await stores.profileStore.set({
-		profileId: coldStart.temporalProfile.profileId,
-		kind: "temporal",
-		isDefault: coldStart.temporalProfile.profileId.endsWith(":temporal"),
+		profileId: coldStart.numericalProfile.profileId,
+		kind: "numerical",
+		isDefault: coldStart.numericalProfile.profileId.endsWith(":numerical"),
 		active: true,
-		payload: coldStart.temporalProfile,
+		payload: coldStart.numericalProfile,
 	});
 
 	const commandProfile = coldStart.commandProfile;

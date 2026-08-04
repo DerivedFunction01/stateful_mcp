@@ -1,27 +1,28 @@
 import { TIME_UNITS, type TimePrecisionLevel, type TimeUnit } from "../schemas/schemas-interface/time";
 import type { TemporalExpression } from "./temporal-expression";
 import {
-	createTemporalSyntaxProfile,
-	type TemporalSyntaxProfile,
-} from "./temporal-syntax-profile";
+	createNumericalSyntaxProfile,
+	type NumericalSyntaxProfile,
+} from "./numerical-syntax-profile";
 import { buildDatePatternString, buildDayPeriodMap, buildMonthNameMap } from "./utils/date-regex-generator";
 
 export function recognizeTemporalExpression(
 	text: string,
-	profile: TemporalSyntaxProfile = createTemporalSyntaxProfile({
-		profileId: "v2-temporal-default",
+	profile: NumericalSyntaxProfile = createNumericalSyntaxProfile({
+		profileId: "v2-numerical-default",
 	}),
 ): { expression?: TemporalExpression; diagnostics: string[] } {
 	const input = text.trim();
 	if (!input) return { diagnostics: ["Temporal expression is empty"] };
 	const lower = input.toLocaleLowerCase();
-	const alias = profile.relativeDayAliases[lower];
+	const t = profile.temporal;
+	const alias = t.relativeDayAliases[lower];
 	if (alias !== undefined)
 		return {
 			expression: { kind: "relative_day", offsetDays: alias },
 			diagnostics: [],
 		};
-	for (const delimiter of profile.rangeDelimiters) {
+	for (const delimiter of t.rangeDelimiters) {
 		const index = lower.indexOf(delimiter);
 		if (index > 0) {
 			const left = recognizeTemporalExpression(input.slice(0, index), profile);
@@ -45,26 +46,7 @@ export function recognizeTemporalExpression(
 				};
 		}
 	}
-	for (const rule of profile.dateRecognitionRules) {
-		const match = new RegExp(rule.pattern, "u").exec(input);
-		if (!match?.groups) continue;
-		const year = match.groups[rule.yearGroup];
-		const month = match.groups[rule.monthGroup];
-		const day = match.groups[rule.dayGroup];
-		if (!year || !month || !day) continue;
-		const time = rule.timeGroup ? match.groups[rule.timeGroup] : undefined;
-		return {
-			expression: {
-				kind: "absolute_instant",
-				instant: time
-					? `${year}-${month}-${day}T${time}`
-					: `${year}-${month}-${day}T00:00:00.000Z`,
-				precision: rule.precision,
-			},
-			diagnostics: [],
-		};
-	}
-	for (const format of profile.dateTimeFormats ?? []) {
+	for (const format of t.dateTimeFormats) {
 		const generated = buildDatePatternString(format.tokens, format.separators, format.options);
 		const match = new RegExp(generated.pattern, "u").exec(input);
 		if (!match?.groups) continue;
@@ -87,19 +69,21 @@ export function recognizeTemporalExpression(
 		const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
 		const instant = groups.tz ? `${date}T${time}${groups.tz}` : `${date}T${time}.000Z`;
 		if (Number.isNaN(new Date(instant).getTime())) continue;
-		return { expression: { kind: "absolute_instant", instant, precision: format.tokens.includes("HH") ? "second" : "day" }, diagnostics: [] };
+		const precision: TimePrecisionLevel =
+			format.options?.precision ?? (format.tokens.includes("HH") ? "second" : "day");
+		return { expression: { kind: "absolute_instant", instant, precision }, diagnostics: [] };
 	}
 	const tokens = lower.split(/\s+/);
 	const direction =
-		profile.directionAliases[tokens[0] ?? ""] ??
-		profile.directionAliases[tokens.at(-1) ?? ""];
+		t.directionAliases[tokens[0] ?? ""] ??
+		t.directionAliases[tokens.at(-1) ?? ""];
 	const numericIndex =
-		direction === "prospective" && profile.directionAliases[tokens[0] ?? ""]
+		direction === "prospective" && t.directionAliases[tokens[0] ?? ""]
 			? 1
 			: 0;
 	const amount = Number(tokens[numericIndex]);
 	const unitToken = tokens[numericIndex + 1];
-	const unit = unitToken ? profile.unitAliases[unitToken] : undefined;
+	const unit = unitToken ? t.unitAliases[unitToken] : undefined;
 	if (Number.isFinite(amount) && unit)
 		return {
 			expression: {

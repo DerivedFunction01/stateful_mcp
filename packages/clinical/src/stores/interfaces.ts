@@ -29,32 +29,6 @@ export interface QuantityDisplayProfile {
 	>;
 }
 
-export type DateTimeToken =
-	| "YYYY"
-	| "YY"
-	| "MM"
-	| "MM_name"
-	| "DD"
-	| "HH"
-	| "min"
-	| "SS"
-	| "ampm"
-	| "tz";
-
-export interface DateTimeFormatConfig {
-	tokens: DateTimeToken[];
-	separators: string[];
-	options?: {
-		centuryDecades?: Record<string, string>;
-		is24Hour?: boolean;
-		exact?: boolean;
-		dayPeriods?: {
-			am: string[];
-			pm: string[];
-		};
-		monthNames?: string[];
-	};
-}
 
 export interface NamedGroupContract {
 	required?: string[];

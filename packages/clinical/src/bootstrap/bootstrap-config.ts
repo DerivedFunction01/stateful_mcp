@@ -1,52 +1,65 @@
 import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
 import type { FrequencyProfile } from "../values/frequency-resolver";
-import type { TemporalSyntaxProfile } from "../values/temporal-syntax-profile";
+import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
 
-export const bootstrapTemporalDefaults: TemporalSyntaxProfile = {
-	profileId: "v2-temporal-default",
-	dateRecognitionRules: [
-		{
-			pattern:
-				"^(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})(?:T(?<time>[^\\s]+))?$",
-			precision: "day",
-			yearGroup: "year",
-			monthGroup: "month",
-			dayGroup: "day",
-			timeGroup: "time",
+export const bootstrapNumericalDefaults: NumericalSyntaxProfile = {
+	profileId: "v2-numerical-default",
+	temporal: {
+		dateTimeFormats: [
+			// ISO date-only: YYYY-MM-DD  →  precision day (explicit)
+			{
+				tokens: ["YYYY", "MM", "DD"],
+				separators: ["-", "-"],
+				options: { exact: true, precision: "day" },
+			},
+			// ISO date-time with timezone: YYYY-MM-DDTHH:mm:SS tz  →  precision second (inferred)
+			{
+				tokens: ["YYYY", "MM", "DD", "HH", "min", "SS", "tz"],
+				separators: ["-", "-", "T", ":", ":", " "],
+				options: { exact: true, is24Hour: true },
+			},
+			// ISO date-time without timezone: YYYY-MM-DDTHH:mm:SS  →  precision second (inferred)
+			{
+				tokens: ["YYYY", "MM", "DD", "HH", "min", "SS"],
+				separators: ["-", "-", "T", ":", ":"],
+				options: { exact: true, is24Hour: true },
+			},
+		],
+		relativeDayAliases: { today: 0, yesterday: -1, tomorrow: 1 },
+		unitAliases: {
+			second: "second",
+			seconds: "second",
+			minute: "minute",
+			minutes: "minute",
+			hour: "hour",
+			hours: "hour",
+			day: "day",
+			days: "day",
+			week: "week",
+			weeks: "week",
+			month: "month",
+			months: "month",
+			year: "year",
+			years: "year",
 		},
-	],
-	relativeDayAliases: { today: 0, yesterday: -1, tomorrow: 1 },
-	unitAliases: {
-		second: "second",
-		seconds: "second",
-		minute: "minute",
-		minutes: "minute",
-		hour: "hour",
-		hours: "hour",
-		day: "day",
-		days: "day",
-		week: "week",
-		weeks: "week",
-		month: "month",
-		months: "month",
-		year: "year",
-		years: "year",
+		directionAliases: {
+			ago: "retrospective",
+			before: "retrospective",
+			after: "prospective",
+			in: "prospective",
+		},
+		rangeDelimiters: ["..", " to "],
+		boundaryAliases: {
+			start: "start",
+			beginning: "start",
+			end: "end",
+			until: "end",
+			include: "include",
+			exclude: "exclude",
+		},
 	},
-	directionAliases: {
-		ago: "retrospective",
-		before: "retrospective",
-		after: "prospective",
-		in: "prospective",
-	},
-	rangeDelimiters: ["..", " to "],
-	boundaryAliases: {
-		start: "start",
-		beginning: "start",
-		end: "end",
-		until: "end",
-		include: "include",
-		exclude: "exclude",
-	},
+	numberWords: null,
+	unitDisplay: {},
 };
 
 export const bootstrapFrequencyDefaults: FrequencyProfile = {
