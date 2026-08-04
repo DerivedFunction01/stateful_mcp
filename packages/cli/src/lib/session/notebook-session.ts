@@ -110,10 +110,15 @@ export function createNotebookSession(input: {
 		if (!record)
 			throw new Error(`Notebook session '${input.sessionId}' was not found`);
 		const cells = reconcileNotebookCells(await listCells(), record.cellOrder);
+		const cellIds = new Set(cells.map((cell) => cell.cellId));
+		const activeCellId =
+			record.activeCellId && cellIds.has(record.activeCellId)
+				? record.activeCellId
+				: record.cellOrder[0] ?? cells[0]?.cellId;
 		return {
 			record,
 			cells,
-			activeCellId: record.activeCellId,
+			activeCellId,
 		};
 	};
 	const saveEditorSnapshot = async (

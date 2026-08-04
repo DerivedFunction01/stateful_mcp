@@ -28,7 +28,8 @@ export interface Cli2BootstrapResult {
 	editorKeymap: EditorKeymapProfile;
 	profileStore: import("@stateful-mcp/clinical/stores/profiles/profile-store").UnifiedProfileStore;
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
-	bootstrapStatus: "created" | "resumed";
+	bootstrapStatus: "created" | "resumed" | "error";
+	bootstrapError?: string;
 }
 
 export interface Cli2BootstrapOptions {
@@ -112,6 +113,7 @@ export async function buildCli2Bootstrap(
 	const existingSession = await sessionStore.get(sessionId);
 	const caseIdentity = createMockCaseIdentity(sessionId);
 	let bootstrapStatus: Cli2BootstrapResult["bootstrapStatus"] = "resumed";
+	let bootstrapError: string | undefined;
 	if (!existingSession) {
 		const document = await engine.initializeClinicalDocument({
 			kind: "document_initialized",
@@ -139,22 +141,30 @@ export async function buildCli2Bootstrap(
 		});
 		bootstrapStatus = "created";
 	} else {
-		if (!existingSession.workspaceId || !existingSession.documentId)
-			throw new Error(`CLI2 session '${sessionId}' has no persisted binding`);
-		const document = await engine.getDocument(existingSession.documentId);
-		const workspace = await engine
-			.getWorkspaceService()
-			.getWorkspace(existingSession.workspaceId);
-		if (!document)
-			throw new Error(
-				`CLI2 document '${existingSession.documentId}' was not found`,
-			);
-		if (!workspace)
-			throw new Error(
-				`CLI2 workspace '${existingSession.workspaceId}' was not found`,
-			);
-		if (workspace.sourceDocumentId !== existingSession.documentId)
-			throw new Error(`CLI2 session '${sessionId}' binding is inconsistent`);
+		try {
+			if (!existingSession.workspaceId || !existingSession.documentId) {
+				bootstrapStatus = "error";
+				bootstrapError = `CLI2 session '${sessionId}' has no persisted binding`;
+			} else {
+				const document = await engine.getDocument(existingSession.documentId);
+				const workspace = await engine
+					.getWorkspaceService()
+					.getWorkspace(existingSession.workspaceId);
+				if (!document) {
+					bootstrapStatus = "error";
+					bootstrapError = `CLI2 document '${existingSession.documentId}' was not found`;
+				} else if (!workspace) {
+					bootstrapStatus = "error";
+					bootstrapError = `CLI2 workspace '${existingSession.workspaceId}' was not found`;
+				} else if (workspace.sourceDocumentId !== existingSession.documentId) {
+					bootstrapStatus = "error";
+					bootstrapError = `CLI2 session '${sessionId}' binding is inconsistent`;
+				}
+			}
+		} catch (cause) {
+			bootstrapStatus = "error";
+			bootstrapError = `CLI2 session '${sessionId}' recovery: ${cause instanceof Error ? cause.message : String(cause)}`;
+		}
 	}
 	const notebook = createNotebookSession({
 		sessionId,
@@ -176,5 +186,6 @@ export async function buildCli2Bootstrap(
 		profileStore,
 		caseIdentity,
 		bootstrapStatus,
+		bootstrapError,
 	};
 }
