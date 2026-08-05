@@ -1,9 +1,6 @@
-import {
-	compileMacroDraftPreview,
-	MacroCompiler,
-	type MacroDefinition,
-	type MacroDraftPreview,
-	parseMacroLine,
+import type {
+	MacroDefinition,
+	MacroDraftPreview,
 } from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
@@ -29,9 +26,8 @@ import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
 import {
 	activeMacroSlot,
 	activeMacroTemplateArgument,
-	applyMacroLocks,
+	createExplicitMacroLock,
 	type MacroSlotProjection,
-	projectMacroSlots,
 } from "../lib/editor/macro-slots";
 import type { SessionState } from "./useSession";
 
@@ -41,43 +37,7 @@ export interface CellSuggestion {
 	detail?: string;
 }
 
-interface ExpressionCandidate {
-	id: string;
-	term: string;
-	lookupTerm?: string;
-	conceptId?: string;
-}
-
-export function selectUnambiguousExpression(
-	expressions: readonly ExpressionCandidate[],
-	input: string,
-): ExpressionCandidate | undefined {
-	const normalizedInput = input.trim().toLocaleLowerCase();
-	if (!normalizedInput) return undefined;
-	const matches = expressions
-		.filter((candidate) => {
-			if (!candidate.conceptId) return false;
-			const term = (candidate.lookupTerm ?? candidate.term).toLocaleLowerCase();
-			return (
-				term.length > 0 &&
-				normalizedInput.length >= term.length &&
-				normalizedInput.startsWith(term) &&
-				/\s|$/.test(normalizedInput[term.length] ?? "")
-			);
-		})
-		.sort(
-			(left, right) =>
-				(right.lookupTerm ?? right.term).length -
-				(left.lookupTerm ?? left.term).length,
-		);
-	const expression = matches[0];
-	if (!expression) return undefined;
-	const longerContinuation = expressions.some((candidate) => {
-		const term = (candidate.lookupTerm ?? candidate.term).toLocaleLowerCase();
-		return term.startsWith(`${normalizedInput} `) && term !== normalizedInput;
-	});
-	return longerContinuation ? undefined : expression;
-}
+export { selectUnambiguousExpression } from "@stateful-mcp/clinical";
 
 export interface UseNotebookReturn {
 	state: NotebookEditorState;
@@ -378,57 +338,20 @@ export function useNotebook(
 				cancelled = true;
 			};
 		}
-		const envelope = parseMacroLine(state.draftText);
-		if (!envelope) {
-			setMacroSlots([]);
-			setActiveDefinition(null);
-			setChildDefinitions([]);
-			return () => {
-				cancelled = true;
-			};
-		}
 		void session.v2.engine
 			.getRuntime()
-			.macros.defs.get(envelope.macroName)
-			.then(async (definition) => {
+			.macros.authoring.inspectDraft(state.draftText, state.macroLocks)
+			.then((inspection) => {
 				if (cancelled) return;
-				if (!definition) {
+				if (!inspection) {
 					setMacroSlots([]);
 					setActiveDefinition(null);
 					setChildDefinitions([]);
 					return;
 				}
-				setActiveDefinition(definition);
-				setMacroSlots(
-					applyMacroLocks(
-						projectMacroSlots(state.draftText, definition, {
-							...session.v2.syntaxProfile,
-							conceptCodeSeparator:
-								session.v2.syntaxProfile.conceptCodeSeparator ?? "",
-						}),
-						state.macroLocks,
-						undefined,
-						state.draftText,
-						definition,
-					),
-				);
-				// Resolve child macro definitions for chain suggestions
-				const children = definition.children ?? [];
-				if (children.length === 0) {
-					setChildDefinitions([]);
-					return;
-				}
-				const runtime = session.v2.engine.getRuntime();
-				const resolved = await Promise.all(
-					children.map((c) =>
-						runtime.macros.defs.get(c.childMacroName).catch(() => null),
-					),
-				);
-				if (!cancelled) {
-					setChildDefinitions(
-						resolved.filter((d): d is MacroDefinition => d !== null),
-					);
-				}
+				setActiveDefinition(inspection.definition);
+				setMacroSlots(inspection.slots);
+				setChildDefinitions(inspection.childDefinitions);
 			})
 			.catch(() => {
 				if (!cancelled) {
@@ -449,166 +372,21 @@ export function useNotebook(
 				cancelled = true;
 			};
 
-		const dictionary = session.v2.engine.getRuntime().macros.dictionary;
-		if (typeof dictionary.searchExpressionCandidates !== "function")
-			return () => {
-				cancelled = true;
-			};
-
-		const expressionTokens = [
-			session.v2.syntaxProfile.expressionToken,
-			session.v2.syntaxProfile.conceptToken,
-		].filter((token): token is string => Boolean(token));
-		const conceptArguments = activeDefinition.arguments.filter(
-			(argument) =>
-				argument.extraction.kind === "concept" ||
-				argument.extraction.kind === "concept_array",
-		);
-		const tokenMatches = [...state.draftText.matchAll(/\S+/g)].map((match) => ({
-			start: match.index ?? 0,
-			end: (match.index ?? 0) + match[0].length,
-		}));
-		void Promise.all(
-			conceptArguments.flatMap((argument) =>
-				tokenMatches.map(async (token) => {
-					if (cancelled) return;
-					const tokenText = state.draftText.slice(token.start, token.end);
-					const configuredToken = expressionTokens.find((value) =>
-						tokenText.toLocaleLowerCase().startsWith(value.toLocaleLowerCase()),
-					);
-					const lookupStart = configuredToken
-						? token.start + configuredToken.length
-						: token.start;
-					const prefix = state.draftText.slice(lookupStart, token.end);
-					if (!prefix.trim()) return;
-					const expressions = await dictionary.searchExpressionCandidates!({
-						lookupPrefix: prefix.toLocaleLowerCase(),
-						targetAssignments: [argument.roleName],
-						activeOnly: true,
-						limit: 20,
-					});
-					const expression = selectUnambiguousExpression(
-						expressions,
-						state.draftText.slice(lookupStart),
-					);
-					if (cancelled || !expression?.conceptId) return;
-					const lookupTerm = expression.lookupTerm ?? expression.term;
-					const rawText = state.draftText.slice(
-						token.start,
-						lookupStart + lookupTerm.length,
-					);
-					dispatch({
-						type: "add_macro_lock",
-						lock: {
-							argumentId: argument.argumentId,
-							macroId: activeDefinition.macroId,
-							macroVersion: activeDefinition.version,
-							start: token.start,
-							end: token.start + rawText.length,
-							rawText,
-							source: "accepted",
-							binding: {
-								kind: "custom-expression",
-								conceptId: expression.conceptId,
-								expressionId: expression.id,
-								lookupTerm,
-								displayValue: expression.term,
-							},
-						},
-					});
-				}),
-			),
-		).catch(() => undefined);
-
-		const pending = macroSlots.flatMap((slot) => {
-			const argument = activeDefinition.arguments.find(
-				(candidate) => candidate.argumentId === slot.argumentId,
-			);
-			if (
-				!argument ||
-				(argument.extraction.kind !== "concept" &&
-					argument.extraction.kind !== "concept_array") ||
-				slot.status === "locked" ||
-				!slot.rawText.trim()
+		const authoring = session.v2.engine.getRuntime().macros.authoring;
+		void authoring
+			.resolveExpressionLocks(
+				state.draftText,
+				activeDefinition,
+				macroSlots,
+				state.macroLocks,
 			)
-				return [];
-			// Only attempt auto-lock on slots that were explicitly typed with an expression
-			// token or matched by a friendly/rule form. Positional/inferred matches without
-			// a token prefix are unvalidated — the user hasn't confirmed the value.
-			const hasExpressionToken = expressionTokens.some((token) =>
-				slot.rawText
-					.trimStart()
-					.toLocaleLowerCase()
-					.startsWith(token.toLocaleLowerCase()),
-			);
-			const isExplicitSource =
-				slot.bindingSource === "friendly" ||
-				slot.bindingSource === "rule" ||
-				slot.bindingSource === "accepted" ||
-				slot.bindingSource === "named" ||
-				hasExpressionToken;
-			if (!isExplicitSource) return [];
-			const lookupTerm = slot.rawText
-				.trim()
-				.startsWith(session.v2.syntaxProfile.expressionToken)
-				? slot.rawText
-						.trim()
-						.slice(session.v2.syntaxProfile.expressionToken.length)
-						.trim()
-				: slot.rawText.trim();
-			return [{ slot, lookupTerm, roleName: argument.roleName }];
-		});
-
-		void Promise.all(
-			pending.map(async ({ slot, lookupTerm, roleName }) => {
-				const expressions = await dictionary.searchExpressionCandidates!({
-					lookupPrefix: lookupTerm.toLocaleLowerCase().split(/\s+/)[0],
-					targetAssignments: [roleName],
-					activeOnly: true,
-					limit: 20,
-				});
-				const expression = selectUnambiguousExpression(
-					expressions,
-					lookupTerm,
-				);
-				if (cancelled || !expression?.conceptId) return;
-				const expressionToken = session.v2.syntaxProfile.expressionToken ?? "";
-				const expressionText = expression.lookupTerm ?? expression.term;
-				const lockedRawText = slot.rawText
-					.trimStart()
-					.startsWith(expressionToken)
-					? `${expressionToken}${expressionText}`
-					: expressionText;
-				const alreadyLocked = state.macroLocks.some(
-					(lock) =>
-						lock.macroId === slot.macroId &&
-						lock.macroVersion === slot.macroVersion &&
-						lock.argumentId === slot.argumentId &&
-						lock.start === slot.start &&
-						lock.end === slot.end,
-				);
-				if (alreadyLocked) return;
-				dispatch({
-					type: "add_macro_lock",
-					lock: {
-						argumentId: slot.argumentId,
-						macroId: slot.macroId,
-						macroVersion: slot.macroVersion,
-						start: slot.start,
-						end: slot.start + lockedRawText.length,
-						rawText: lockedRawText,
-						source: "accepted",
-						binding: {
-							kind: "custom-expression",
-							conceptId: expression.conceptId,
-							expressionId: expression.id,
-							lookupTerm: expressionText,
-							displayValue: expression.term,
-						},
-					},
-				});
-			}),
-		).catch(() => undefined);
+			.then((locks) => {
+				if (cancelled) return;
+				for (const lock of locks) {
+					dispatch({ type: "add_macro_lock", lock });
+				}
+			})
+			.catch(() => undefined);
 
 		return () => {
 			cancelled = true;
@@ -631,32 +409,16 @@ export function useNotebook(
 				cancelled = true;
 			};
 		}
-		const input = parseMacroLine(state.draftText, 0, {
-			definition: activeDefinition,
-			profile: {
-				...session.v2.syntaxProfile,
-				conceptCodeSeparator:
-					session.v2.syntaxProfile.conceptCodeSeparator ?? "",
-			},
-		});
-		if (!input) {
-			setMacroDraftPreview(undefined);
-			return () => {
-				cancelled = true;
-			};
-		}
 		const runtime = session.v2.engine.getRuntime();
-		const compiler = new MacroCompiler({
-			registry: runtime.macros.schemaRegistry,
-			dictionary: runtime.macros.dictionary,
-		});
-		void compileMacroDraftPreview(compiler, input, activeDefinition, {
-			groupId: `draft_${activeDefinition.macroId}`,
-			profileId: session.v2.syntaxProfile.profileId,
-			sessionId: session.sessionId,
-		}).then((preview) => {
-			if (!cancelled) setMacroDraftPreview(preview);
-		});
+		void runtime.macros.authoring
+			.compileDraft(state.draftText, {
+				groupId: `draft_${activeDefinition.macroId}`,
+				profileId: session.v2.syntaxProfile.profileId,
+				sessionId: session.sessionId,
+			})
+			.then((preview) => {
+				if (!cancelled) setMacroDraftPreview(preview);
+			});
 		return () => {
 			cancelled = true;
 		};
@@ -688,33 +450,14 @@ export function useNotebook(
 	const lockActiveMacroSlot = useCallback(() => {
 		const active = activeMacroSlot(macroSlots, state.cursorOffset);
 		if (!active) return;
+		const suggestion = macroSuggestions.find(
+			(candidate) =>
+				candidate.lookupTerm === active.rawText ||
+				candidate.value === active.rawText,
+		);
 		dispatch({
 			type: "add_macro_lock",
-			lock: {
-				argumentId: active.argumentId,
-				macroId: active.macroId,
-				macroVersion: active.macroVersion,
-				start: active.start,
-				end: active.end,
-				source: "explicit",
-				binding: (() => {
-					const suggestion = macroSuggestions.find(
-						(candidate) =>
-							candidate.lookupTerm === active.rawText ||
-							candidate.value === active.rawText,
-					);
-					if (!suggestion?.conceptId) return undefined;
-					return {
-						kind: suggestion.expressionId
-							? ("custom-expression" as const)
-							: ("concept" as const),
-						conceptId: suggestion.conceptId,
-						expressionId: suggestion.expressionId,
-						lookupTerm: suggestion.lookupTerm,
-						displayValue: suggestion.label,
-					};
-				})(),
-			},
+			lock: createExplicitMacroLock(active, suggestion),
 		});
 	}, [macroSlots, macroSuggestions, state.cursorOffset, dispatch]);
 

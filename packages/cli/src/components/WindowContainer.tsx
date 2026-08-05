@@ -3,6 +3,7 @@ import type {
 	CommandSyntaxProfile,
 	MacroDefinition,
 } from "@stateful-mcp/clinical";
+import { findNextMacroChild } from "@stateful-mcp/clinical";
 import { Box, useInput } from "ink";
 import { type ReactElement, useEffect, useReducer, useRef } from "react";
 import {
@@ -155,19 +156,7 @@ export function WindowContainer({
 	 */
 	const buildChainPrefix = (): string | null => {
 		if (!childDefinitions.length || !macroSlots) return null;
-		const nextChild = childDefinitions.find((childDef) => {
-			const childSlots = macroSlots.filter(
-				(s) => s.macroId === childDef.macroId,
-			);
-			const allLocked =
-				childDef.arguments.length > 0 &&
-				childDef.arguments.every((arg) =>
-					childSlots.some(
-						(s) => s.argumentId === arg.argumentId && s.status === "locked",
-					),
-				);
-			return !allLocked;
-		});
+		const nextChild = findNextMacroChild(childDefinitions, macroSlots);
 		if (!nextChild) return null;
 		const tmpl = nextChild.authoringTemplates?.[0];
 		if (tmpl) {
@@ -236,12 +225,8 @@ export function WindowContainer({
 				emit({ type: "CANCEL" });
 				return;
 			}
-			if (key.return && !key.ctrl && !key.meta) {
+			if (key.return) {
 				emit({ type: "NEWLINE" });
-				return;
-			}
-			if (key.return && key.ctrl) {
-				emit({ type: "CANCEL" });
 				return;
 			}
 			if (key.backspace) {
@@ -282,40 +267,12 @@ export function WindowContainer({
 				emit({ type: "CANCEL" });
 				return;
 			}
-			if (key.return && key.ctrl) {
+			if (key.return) {
 				emit({ type: "SUBMIT_MACRO" });
 				return;
 			}
 			if (key.ctrl && _input === "u") {
 				emit({ type: "UNLOCK_MACRO" });
-				return;
-			}
-			if (key.return) {
-				if (current.completion.status === "cycling") {
-					const transition = reduceCompletion(
-						current.completion,
-						{ kind: "enter" },
-						current.draftText,
-						completionProvider || (() => []),
-						syntaxProfile,
-					);
-					emit({
-						type: "SET_COMPLETION",
-						completion: transition.completionState,
-					});
-					if (transition.executeLine) {
-						emit({
-							type: "COMMIT_COMPLETION",
-							line: transition.executeLine,
-						});
-					}
-					return;
-				}
-				if (macroSlots?.length && onMacroNavigate) {
-					emit({ type: "LOCK_MACRO" });
-					return;
-				}
-				emit({ type: "NEWLINE" });
 				return;
 			}
 			if (

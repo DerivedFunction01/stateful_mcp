@@ -19,6 +19,20 @@ export const soapNoteSchema = defineSchema({
 			cardinality: "one",
 			required: true,
 		},
+		pageNum: {
+			path: "pageNum",
+			valueKind: "scalar",
+			scalarType: "integer",
+			cardinality: "one",
+			required: false,
+		},
+		year: {
+			path: "year",
+			valueKind: "scalar",
+			scalarType: "integer",
+			cardinality: "one",
+			required: false,
+		},
 		createdAt: {
 			path: "createdAt",
 			valueKind: "temporal",

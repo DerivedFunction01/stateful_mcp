@@ -100,10 +100,8 @@ export function resolveKey(
 	if (mode === "MACRO") {
 		if (key.escape)
 			return { action: EditorAction.ExitInsertMode, nextPending: "" };
-		if (key.ctrl && key.return)
-			return { action: EditorAction.SubmitMacro, nextPending: "" };
 		if (key.return)
-			return { action: EditorAction.TypeChar, nextPending: "", char: "\n" };
+			return { action: EditorAction.SubmitMacro, nextPending: "" };
 		if (key.backspace)
 			return { action: EditorAction.Backspace, nextPending: "" };
 		if (input.length === 1 && !key.ctrl && !key.meta)

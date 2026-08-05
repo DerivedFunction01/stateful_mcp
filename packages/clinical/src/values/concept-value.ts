@@ -20,6 +20,7 @@ export interface ConceptLookup {
 export interface ConceptResolutionOptions {
 	required?: boolean;
 	allowedNamespaces?: readonly string[];
+	targetAssignment?: string;
 	limit?: number;
 	evidence?: ValueEvidence[];
 }
@@ -41,18 +42,44 @@ export async function resolveConceptValue(
 ): Promise<ConceptResolutionResult> {
 	const text = rawText.trim();
 	const coordinate = parseCoordinate(text);
-	const candidates = await dictionary.search(
+	let candidates = await dictionary.search(
 		coordinate.code ?? text,
 		coordinate.namespace,
 		options.limit ?? 20,
 	);
-	const exact = candidates.find((candidate) =>
+	let exact = candidates.find((candidate) =>
 		coordinate.namespace
 			? candidate.namespaceCode === coordinate.namespace &&
 				candidate.standardCode === coordinate.code
 			: candidate.display.toLowerCase() === text.toLowerCase() ||
-				candidate.standardCode === text,
+				candidate.standardCode.toLowerCase() === text.toLowerCase(),
 	);
+	if (!exact && !coordinate.namespace && dictionary.searchExpressionCandidates) {
+		const expressions = await dictionary.searchExpressionCandidates({
+			lookupPrefix: text.toLocaleLowerCase(),
+			targetAssignments: options.targetAssignment
+				? [options.targetAssignment]
+				: undefined,
+			activeOnly: true,
+			limit: options.limit ?? 20,
+		});
+		const expression = expressions.find(
+			(candidate) =>
+				(candidate.lookupTerm ?? candidate.term).toLocaleLowerCase() ===
+					text.toLocaleLowerCase() ||
+				candidate.term.toLocaleLowerCase() === text.toLocaleLowerCase(),
+		);
+		if (expression?.conceptId) {
+			candidates = await dictionary.search(
+				expression.term,
+				undefined,
+				options.limit ?? 20,
+			);
+			exact = candidates.find(
+				(candidate) => candidate.id === expression.conceptId,
+			);
+		}
+	}
 	if (!exact || exact.active === false) {
 		return {
 			diagnostics:

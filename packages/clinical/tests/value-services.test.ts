@@ -73,6 +73,46 @@ describe(" value foundations", () => {
 		expect(rejected.diagnostics[0]?.code).toBe("concept_namespace_invalid");
 	});
 
+	it("resolves exact custom expression aliases to their canonical concept", async () => {
+		const dictionary = {
+			search: async (query: string) =>
+				query.toLowerCase() === "harry potter"
+					? [
+							{
+								id: "c-harry-potter",
+								namespaceCode: "BOOK",
+								standardCode: "HP",
+								display: "Harry Potter",
+								active: true,
+							},
+						]
+					: [],
+			searchExpressionCandidates: async () => [
+				{
+					id: "expr-hp",
+					term: "Harry Potter",
+					lookupTerm: "hp",
+					regexPattern: "\\\\bhp\\\\b",
+					isCaseInsensitive: true,
+					targetAssignment: "note.title",
+					conceptId: "c-harry-potter",
+					priorityWeight: 1,
+					active: true,
+				},
+			],
+		};
+
+		const resolved = await resolveConceptValue("hp", dictionary, {
+			targetAssignment: "note.title",
+		});
+
+		expect(resolved.diagnostics).toEqual([]);
+		expect(resolved.value?.concept).toEqual({
+			conceptId: "c-harry-potter",
+			display: "Harry Potter",
+		});
+	});
+
 	it("keeps value extraction rules profile-driven and deterministically ordered", () => {
 		const registry = new ValueRuleRegistry();
 		registry.register("clinical-en", [

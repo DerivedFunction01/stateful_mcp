@@ -82,6 +82,16 @@ export class CellCompiler {
 				diagnostics: [` macro '${parsed.macroName}' is not defined`],
 				fingerprint: fingerprint(rawText, parsed.macroName),
 			};
+		const definitionAwareInput = parseMacroLine(input, 0, {
+			definition,
+			profile: this.profile,
+		});
+		if (!definitionAwareInput) {
+			return {
+				diagnostics: [`Unable to parse macro '${definition.macroName}'`],
+				fingerprint: fingerprint(rawText, definition.macroId),
+			};
+		}
 		const scope = context.documentId
 			? {
 					kind: "composite" as const,
@@ -99,15 +109,19 @@ export class CellCompiler {
 						kind: "clinical_document" as const,
 						sessionId: context.sessionId ?? "",
 					};
-		const result = await this.compiler.compile(parsed, definition, {
-			scope,
-			sessionId: context.sessionId,
-			personnelId: this.profile.personnelId,
-			profileId: this.profile.profileId,
-			observationMode: context.observationMode,
-			outcome: context.outcome,
-			correlationId: context.correlationId,
-		});
+		const result = await this.compiler.compile(
+			definitionAwareInput,
+			definition,
+			{
+				scope,
+				sessionId: context.sessionId,
+				personnelId: this.profile.personnelId,
+				profileId: this.profile.profileId,
+				observationMode: context.observationMode,
+				outcome: context.outcome,
+				correlationId: context.correlationId,
+			},
+		);
 		return {
 			plan: result.plan,
 			diagnostics: result.diagnostics,

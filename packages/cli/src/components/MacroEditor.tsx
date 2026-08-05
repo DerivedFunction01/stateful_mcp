@@ -4,6 +4,11 @@ import type {
 	MacroDefinition,
 	MacroDraftPreview,
 } from "@stateful-mcp/clinical";
+import {
+	findNextMacroChild,
+	getMacroArgumentStatuses,
+	isMacroSlotResolved,
+} from "@stateful-mcp/clinical";
 import { Box, Text, useStdout } from "ink";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import { buildMacroRenderSegments } from "../lib/editor/macro-render";
@@ -41,19 +46,10 @@ export function MacroEditor({
 	const columns = stdout?.columns ?? 80;
 	const isNarrow = columns < 80;
 
-	const isConceptSlot = (slot: MacroSlotProjection): boolean => {
-		const argument = activeDefinition?.arguments.find(
-			(candidate) => candidate.argumentId === slot.argumentId,
-		);
-		return (
-			argument?.extraction.kind === "concept" ||
-			argument?.extraction.kind === "concept_array"
-		);
-	};
 	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
-		slot.status === "locked" ||
-		Boolean(slot.binding) ||
-		(!isConceptSlot(slot) && slot.status !== "invalid");
+		activeDefinition !== null &&
+		activeDefinition !== undefined &&
+		isMacroSlotResolved(slot, activeDefinition);
 	const renderableMacroSlots = macroSlots.filter(isResolvedSlot);
 	const activeSlot =
 		macroSlots.find(
@@ -67,40 +63,9 @@ export function MacroEditor({
 		showCursor,
 	);
 
-	// Compute statuses for all arguments
-	interface ArgStatus {
-		name: string;
-		status: "locked" | "broken" | "remaining";
-		message?: string;
-	}
-	const statuses: ArgStatus[] = [];
-	if (activeDefinition) {
-		for (const arg of activeDefinition.arguments) {
-			const slot =
-				macroSlots.find(
-					(s) => s.argumentId === arg.argumentId && isResolvedSlot(s),
-				) ?? macroSlots.find((s) => s.argumentId === arg.argumentId);
-			if (slot && isResolvedSlot(slot)) {
-				if (slot.diagnostics?.length > 0) {
-					statuses.push({
-						name: arg.name,
-						status: "broken",
-						message: slot.diagnostics[0],
-					});
-				} else {
-					statuses.push({
-						name: arg.name,
-						status: "locked",
-					});
-				}
-			} else {
-				statuses.push({
-					name: arg.name,
-					status: "remaining",
-				});
-			}
-		}
-	}
+	const statuses = activeDefinition
+		? getMacroArgumentStatuses(activeDefinition, macroSlots)
+		: [];
 
 	// Determine the Hint Bar text dynamically
 	let hintText = t("macro.chooseArg");
@@ -186,24 +151,7 @@ export function MacroEditor({
 				// Check for chain continuation — find the first child definition
 				// whose macroName is not already fully represented in macroSlots
 				if (childDefinitions.length > 0) {
-					// The parent's children[] defines the chain order.
-					// Find the first child definition whose arguments are not all
-					// yet present as locked slots in the current draft.
-					const nextChild = childDefinitions.find((childDef) => {
-						// Check if any slot for this child macro is still unbound
-						const childSlots = macroSlots.filter(
-							(s) => s.macroId === childDef.macroId,
-						);
-						const allLocked =
-							childDef.arguments.length > 0 &&
-							childDef.arguments.every((arg) =>
-								childSlots.some(
-									(s) =>
-										s.argumentId === arg.argumentId && s.status === "locked",
-								),
-							);
-						return !allLocked;
-					});
+					const nextChild = findNextMacroChild(childDefinitions, macroSlots);
 					if (nextChild) {
 						// Find its first authoring template or fall back to macroName
 						const tmpl = nextChild.authoringTemplates?.[0];

@@ -1,5 +1,11 @@
 import type { CellPreview } from "../cells/cell-service-types";
 import type { StructuredCell } from "../cells/structured-cell";
+import {
+	removeMacroLock,
+	shiftMacroLocksForDeletion,
+	shiftMacroLocksForInsertion,
+	upsertMacroLock,
+} from "../macros/macro-slots";
 
 export const NOTEBOOK_STATE = [
 	"NORMAL",
@@ -183,21 +189,14 @@ export function reduceNotebookEditor(
 					commandLine: state.commandLine + text,
 					authoredRevision: state.authoredRevision + 1,
 				}
-				: (() => {
+			: (() => {
 					const cursorOffset = state.cursorOffset;
 					const insertedLength = text.length;
-					const macroLocks = state.macroLocks.flatMap((lock) => {
-						// Editing inside a lock invalidates its binding, but insertion at
-						// either boundary remains ordinary text editing.
-						if (cursorOffset > lock.start && cursorOffset < lock.end) return [];
-						if (cursorOffset <= lock.start)
-							return [{
-								...lock,
-								start: lock.start + insertedLength,
-								end: lock.end + insertedLength,
-							}];
-						return [lock];
-					});
+					const macroLocks = shiftMacroLocksForInsertion(
+						state.macroLocks,
+						cursorOffset,
+						insertedLength,
+					);
 					return {
 						...state,
 						draftText:
@@ -294,49 +293,20 @@ export function reduceNotebookEditor(
 					action.text +
 					state.draftText.slice(end),
 				cursorOffset: start + action.text.length,
-				macroLocks: state.macroLocks.filter(
-					(lock) =>
-						!(
-							lock.start === action.lock.start &&
-							lock.end === action.lock.end &&
-							lock.argumentId === action.lock.argumentId
-						),
-				),
+				macroLocks: removeMacroLock(state.macroLocks, action.lock),
 				authoredRevision: state.authoredRevision + 1,
 			};
 		}
 		case "remove_macro_lock":
 			return {
 				...state,
-				macroLocks: state.macroLocks.filter(
-					(lock) =>
-						!(
-							lock.start === action.lock.start &&
-							lock.end === action.lock.end &&
-							lock.argumentId === action.lock.argumentId
-						),
-				),
+				macroLocks: removeMacroLock(state.macroLocks, action.lock),
 			};
 		case "add_macro_lock": {
-			const existingLockIndex = state.macroLocks.findIndex(
-				(lock) =>
-					lock.macroId === action.lock.macroId &&
-					lock.macroVersion === action.lock.macroVersion &&
-					lock.start === action.lock.start &&
-					lock.argumentId === action.lock.argumentId,
-			);
-			if (
-				existingLockIndex >= 0 &&
-				state.macroLocks[existingLockIndex]?.rawText === action.lock.rawText
-			) {
-				return state;
-			}
-			if (existingLockIndex >= 0) {
-				const macroLocks = [...state.macroLocks];
-				macroLocks[existingLockIndex] = action.lock;
-				return { ...state, macroLocks };
-			}
-			return { ...state, macroLocks: [...state.macroLocks, action.lock] };
+			return {
+				...state,
+				macroLocks: upsertMacroLock(state.macroLocks, action.lock),
+			};
 		}
 		case "set_cursor":
 			return {
@@ -374,35 +344,24 @@ export function reduceNotebookEditor(
 						authoredRevision: state.authoredRevision + 1,
 					}
 				: (() => {
-					if (state.cursorOffset === 0) return state;
-					const deleteStart = Math.max(0, state.cursorOffset - 1);
-					const deleteEnd = state.cursorOffset;
-					const macroLocks = state.macroLocks.flatMap((lock) => {
-						if (
-							deleteStart < lock.end &&
-							deleteEnd > lock.start
-						)
-							return [];
-						if (lock.start >= deleteEnd)
-							return [
-								{
-									...lock,
-									start: lock.start - 1,
-									end: lock.end - 1,
-								},
-							];
-						return [lock];
-					});
-					return {
-						...state,
-						draftText:
-							state.draftText.slice(0, deleteStart) +
-							state.draftText.slice(deleteEnd),
-						cursorOffset: deleteStart,
-						macroLocks,
-						authoredRevision: state.authoredRevision + 1,
-					};
-				})();
+						if (state.cursorOffset === 0) return state;
+						const deleteStart = Math.max(0, state.cursorOffset - 1);
+						const deleteEnd = state.cursorOffset;
+						const macroLocks = shiftMacroLocksForDeletion(
+							state.macroLocks,
+							deleteStart,
+							deleteEnd,
+						);
+						return {
+							...state,
+							draftText:
+								state.draftText.slice(0, deleteStart) +
+								state.draftText.slice(deleteEnd),
+							cursorOffset: deleteStart,
+							macroLocks,
+							authoredRevision: state.authoredRevision + 1,
+						};
+					})();
 		case "set_mode":
 			return setMode(action.mode);
 		case "set_run_mode":

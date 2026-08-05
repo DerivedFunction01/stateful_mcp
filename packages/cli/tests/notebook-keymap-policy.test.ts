@@ -83,10 +83,21 @@ describe("NotebookKeymapPolicy", () => {
 		});
 	});
 
-	test("MACRO Ctrl+Enter resolves to submit-macro", () => {
+	test("INSERT Enter remains newline regardless of Ctrl modifier", () => {
+		expect(policy.resolve("\r", { return: true }, "INSERT", "")).toEqual({
+			kind: "generic",
+			action: { type: "INSERT_TEXT", text: "\n" },
+		});
 		expect(
-			policy.resolve("\r", { ctrl: true, return: true }, "MACRO", ""),
+			policy.resolve("\r", { return: true, ctrl: true }, "INSERT", ""),
 		).toEqual({
+			kind: "generic",
+			action: { type: "INSERT_TEXT", text: "\n" },
+		});
+	});
+
+	test("MACRO Enter resolves to submit-macro", () => {
+		expect(policy.resolve("\r", { return: true }, "MACRO", "")).toEqual({
 			kind: "generic",
 			action: { type: "SUBMIT_MACRO" },
 		});

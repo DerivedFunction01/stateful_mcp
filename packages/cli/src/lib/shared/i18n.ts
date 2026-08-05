@@ -81,7 +81,7 @@ const en: Record<string, string> = {
 	"help.binding.swapAnchor": "swap selection anchor",
 	"help.workspaceTitle": "WORKSPACE HELP",
 	"help.workspace.hints":
-		"Enter newline · Ctrl-Enter submit · Tab/arrows completion · Esc cancel/back",
+		"Enter submit · Tab/arrows completion · Esc cancel/back",
 
 	// Cell info inspector
 	"inspector.title": "CELL INSPECTOR",
@@ -210,7 +210,7 @@ const en: Record<string, string> = {
 	"macro.chooseArg": "Choose or type an argument name",
 	"macro.remaining": "Remaining: {names}{example}",
 	"macro.example": " (e.g. type '{name}={placeholder}')",
-	"macro.allCaptured": "All arguments captured. Press Ctrl+Enter to submit.",
+	"macro.allCaptured": "All arguments captured. Press Enter to submit.",
 	"macro.status": "Status: ",
 	"macro.suggestions": "{arg} suggestions",
 	"macro.arguments": "{macro} arguments",

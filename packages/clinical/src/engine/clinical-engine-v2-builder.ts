@@ -27,8 +27,10 @@ import {
 } from "../commands/command-syntax-profile";
 import { VariableCommandService } from "../commands/variable-command-service";
 import type { MacroLearningService } from "../learning/macro-learning-service";
+import { MacroAuthoringService } from "../macros/macro-authoring-service";
 import type { MacroStore } from "../macros/macro-definition";
 import type { MacroExecutionPlan } from "../macros/macro-plan";
+import { createSyntaxProfile } from "../macros/macro-profile";
 import {
 	createClinicalProjection,
 	createSyncProjection,
@@ -261,6 +263,15 @@ export class ClinicalEngineBuilder {
 				default: true,
 				active: true,
 			});
+		const macroAuthoring = new MacroAuthoringService({
+			macros: macroStore,
+			registry: schemaRegistry,
+			dictionary: dictionaryStore,
+			profile: createSyntaxProfile({
+				...syntaxProfile,
+				profileId: syntaxProfile.profileId,
+			}),
+		});
 
 		const registry = new ProjectionRegistry();
 		registry.register(createClinicalProjection(clinicalService));
@@ -284,6 +295,7 @@ export class ClinicalEngineBuilder {
 				schemaRegistry,
 				defs: macroStore,
 				dictionary: dictionaryStore,
+				authoring: macroAuthoring,
 			},
 			syntaxProfile,
 			variables,
