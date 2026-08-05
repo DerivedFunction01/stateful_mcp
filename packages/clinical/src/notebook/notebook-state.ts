@@ -320,8 +320,9 @@ export function reduceNotebookEditor(
 		case "add_macro_lock": {
 			const existingLockIndex = state.macroLocks.findIndex(
 				(lock) =>
+					lock.macroId === action.lock.macroId &&
+					lock.macroVersion === action.lock.macroVersion &&
 					lock.start === action.lock.start &&
-					lock.end === action.lock.end &&
 					lock.argumentId === action.lock.argumentId,
 			);
 			if (

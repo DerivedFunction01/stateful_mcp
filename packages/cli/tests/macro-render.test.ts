@@ -39,9 +39,11 @@ describe("macro render segments", () => {
 		expect(
 			segments.filter((segment) => segment.kind === "cursor"),
 		).toHaveLength(1);
-		expect(segments.find((segment) => segment.kind === "slot")).toMatchObject({
-			text: "120",
-		});
+		expect(
+			segments
+				.filter((segment) => segment.kind === "slot")
+				.map((segment) => segment.text),
+		).toEqual(["1", "20"]);
 	});
 
 	test("preserves locked status in the render model", () => {

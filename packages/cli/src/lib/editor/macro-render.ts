@@ -33,12 +33,25 @@ export function buildMacroRenderSegments(
 			result.push({ kind: "text", text: text.slice(offset, start) });
 		}
 		const end = Math.max(start, Math.min(slot.end, text.length));
-		result.push({
-			kind: "slot",
-			text: text.slice(start, end),
-			status: slot.status,
-		});
-		if (cursor > start && cursor < end) addCursor();
+		if (cursor > start && cursor < end) {
+			result.push({
+				kind: "slot",
+				text: text.slice(start, cursor),
+				status: slot.status,
+			});
+			addCursor();
+			result.push({
+				kind: "slot",
+				text: text.slice(cursor, end),
+				status: slot.status,
+			});
+		} else {
+			result.push({
+				kind: "slot",
+				text: text.slice(start, end),
+				status: slot.status,
+			});
+		}
 		offset = end;
 	}
 	if (cursor >= offset && cursor <= text.length) {

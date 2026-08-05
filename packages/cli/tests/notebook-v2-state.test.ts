@@ -4,6 +4,7 @@ import {
 	type NotebookEditorState,
 	reduceNotebookEditor,
 } from "@stateful-mcp/clinical/notebook/notebook-state";
+import { selectUnambiguousExpression } from "../src/hooks/useNotebook";
 
 const cell = {
 	cellId: "cell_1",
@@ -34,6 +35,37 @@ function beginMacroState(text: string): NotebookEditorState {
 }
 
 describe("isolated notebook v2 state contract", () => {
+	test("does not auto-lock a shorter expression while a longer one is possible", () => {
+		const expressions = [
+			{
+				id: "short",
+				term: "harry potter",
+				conceptId: "c-short",
+			},
+			{
+				id: "long",
+				term: "harry potter and the deathly hallows",
+				conceptId: "c-long",
+			},
+		];
+
+		expect(selectUnambiguousExpression(expressions, "harry potter")).toBeUndefined();
+		expect(
+			selectUnambiguousExpression(
+				expressions,
+				"harry potter and the deathly hallows",
+			)?.id,
+		).toBe("long");
+		expect(
+			selectUnambiguousExpression(
+				expressions,
+				"harry potter and teh deathly hallows",
+			)?.id,
+		).toBe("short");
+		expect(selectUnambiguousExpression(expressions, "harry potter 1")?.id).toBe(
+			"short",
+		);
+	});
 	test("set_mode changes editor mode without mutating cells", () => {
 		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
 			type: "set_cells",
@@ -139,8 +171,14 @@ describe("isolated notebook v2 state contract", () => {
 		state = reduceNotebookEditor(state, { type: "add_macro_lock", lock });
 		expect(state.macroLocks).toHaveLength(1);
 		state = reduceNotebookEditor(state, {
+			type: "add_macro_lock",
+			lock: { ...lock, end: 29, rawText: "12000" },
+		});
+		expect(state.macroLocks).toHaveLength(1);
+		expect(state.macroLocks[0]).toMatchObject({ end: 29, rawText: "12000" });
+		state = reduceNotebookEditor(state, {
 			type: "replace_locked_slot",
-			lock,
+			lock: { ...lock, end: 29, rawText: "12000" },
 			text: "999",
 		});
 		expect(state.draftText).toBe("ABCDEFGHIJKLMNOPQRSTUVWX999");

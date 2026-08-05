@@ -41,6 +41,44 @@ export interface CellSuggestion {
 	detail?: string;
 }
 
+interface ExpressionCandidate {
+	id: string;
+	term: string;
+	lookupTerm?: string;
+	conceptId?: string;
+}
+
+export function selectUnambiguousExpression(
+	expressions: readonly ExpressionCandidate[],
+	input: string,
+): ExpressionCandidate | undefined {
+	const normalizedInput = input.trim().toLocaleLowerCase();
+	if (!normalizedInput) return undefined;
+	const matches = expressions
+		.filter((candidate) => {
+			if (!candidate.conceptId) return false;
+			const term = (candidate.lookupTerm ?? candidate.term).toLocaleLowerCase();
+			return (
+				term.length > 0 &&
+				normalizedInput.length >= term.length &&
+				normalizedInput.startsWith(term) &&
+				/\s|$/.test(normalizedInput[term.length] ?? "")
+			);
+		})
+		.sort(
+			(left, right) =>
+				(right.lookupTerm ?? right.term).length -
+				(left.lookupTerm ?? left.term).length,
+		);
+	const expression = matches[0];
+	if (!expression) return undefined;
+	const longerContinuation = expressions.some((candidate) => {
+		const term = (candidate.lookupTerm ?? candidate.term).toLocaleLowerCase();
+		return term.startsWith(`${normalizedInput} `) && term !== normalizedInput;
+	});
+	return longerContinuation ? undefined : expression;
+}
+
 export interface UseNotebookReturn {
 	state: NotebookEditorState;
 	dispatch: (action: NotebookEditorAction) => void;
@@ -433,16 +471,7 @@ export function useNotebook(
 		void Promise.all(
 			conceptArguments.flatMap((argument) =>
 				tokenMatches.map(async (token) => {
-					const existing = state.macroLocks.some(
-						(lock) => lock.argumentId === argument.argumentId,
-					);
-					const hasCurrentBinding = state.macroLocks.some(
-						(lock) =>
-							lock.argumentId === argument.argumentId &&
-							(!lock.rawText ||
-								state.draftText.slice(lock.start, lock.end) === lock.rawText),
-					);
-					if ((existing && hasCurrentBinding) || cancelled) return;
+					if (cancelled) return;
 					const tokenText = state.draftText.slice(token.start, token.end);
 					const configuredToken = expressionTokens.find((value) =>
 						tokenText.toLocaleLowerCase().startsWith(value.toLocaleLowerCase()),
@@ -458,23 +487,10 @@ export function useNotebook(
 						activeOnly: true,
 						limit: 20,
 					});
-					const expression = expressions
-						.filter((candidate) => {
-							if (!candidate.conceptId) return false;
-							const term = (
-								candidate.lookupTerm ?? candidate.term
-							).toLocaleLowerCase();
-							const remaining = state.draftText.slice(lookupStart);
-							return (
-								remaining.toLocaleLowerCase().startsWith(term) &&
-								/\s|$/.test(remaining[term.length] ?? "")
-							);
-						})
-						.sort(
-							(left, right) =>
-								(right.lookupTerm ?? right.term).length -
-								(left.lookupTerm ?? left.term).length,
-						)[0];
+					const expression = selectUnambiguousExpression(
+						expressions,
+						state.draftText.slice(lookupStart),
+					);
 					if (cancelled || !expression?.conceptId) return;
 					const lookupTerm = expression.lookupTerm ?? expression.term;
 					const rawText = state.draftText.slice(
@@ -551,34 +567,10 @@ export function useNotebook(
 					activeOnly: true,
 					limit: 20,
 				});
-				const normalizedLookupTerm = lookupTerm.toLocaleLowerCase();
-				const expression = expressions
-					.filter((candidate) => {
-						if (!candidate.conceptId) return false;
-						const candidateTerm = (
-							candidate.lookupTerm ?? candidate.term
-						).toLocaleLowerCase();
-						return (
-							normalizedLookupTerm === candidateTerm ||
-							(normalizedLookupTerm.startsWith(`${candidateTerm} `) &&
-								candidateTerm.length > 0)
-						);
-					})
-					.sort(
-						(left, right) =>
-							(right.lookupTerm ?? right.term).length -
-							(left.lookupTerm ?? left.term).length,
-					)[0];
-				const hasLongerContinuation = expressions.some((candidate) => {
-					const candidateTerm = (
-						candidate.lookupTerm ?? candidate.term
-					).toLocaleLowerCase();
-					return (
-						candidateTerm.startsWith(`${normalizedLookupTerm} `) &&
-						candidateTerm !== normalizedLookupTerm
-					);
-				});
-				if (hasLongerContinuation) return;
+				const expression = selectUnambiguousExpression(
+					expressions,
+					lookupTerm,
+				);
 				if (cancelled || !expression?.conceptId) return;
 				const expressionToken = session.v2.syntaxProfile.expressionToken ?? "";
 				const expressionText = expression.lookupTerm ?? expression.term;
