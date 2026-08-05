@@ -2,6 +2,10 @@ import type {
 	MacroDefinition,
 	MacroDraftPreview,
 } from "@stateful-mcp/clinical";
+import {
+	MacroAuthoringSession,
+	type MacroAuthoringSnapshot,
+} from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
@@ -79,6 +83,9 @@ export interface UseNotebookReturn {
 	moveSelection(delta: -1 | 1): Promise<void>;
 	activeDefinition: MacroDefinition | null;
 	childDefinitions: MacroDefinition[];
+	macroSession?: MacroAuthoringSession;
+	macroSnapshot?: MacroAuthoringSnapshot;
+	onMacroSessionChange: (snapshot: MacroAuthoringSnapshot) => void;
 }
 
 export type {
@@ -110,6 +117,31 @@ export function useNotebook(
 	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
 	>([]);
+
+	const macroSessionRef = useRef<MacroAuthoringSession | undefined>(undefined);
+	const [macroSnapshot, setMacroSnapshot] = useState<
+		MacroAuthoringSnapshot | undefined
+	>(undefined);
+
+	useEffect(() => {
+		if (session?.v2.syntaxProfile) {
+			const prof = session.v2.syntaxProfile;
+			const sess = new MacroAuthoringSession({
+				profile: {
+					profileId: prof.profileId ?? "default",
+					macroStartToken: prof.macroStartToken,
+					directCommandToken: prof.directCommandToken,
+					expressionToken: prof.expressionToken,
+					conceptToken: prof.conceptToken,
+					conceptCodeSeparator: prof.conceptCodeSeparator ?? ":",
+				},
+				initialText: state.draftText,
+				initialCursor: state.cursorOffset,
+			});
+			macroSessionRef.current = sess;
+			setMacroSnapshot(sess.getSnapshot());
+		}
+	}, [session?.v2.syntaxProfile]);
 	const [argumentSuggestionsList, setArgumentSuggestionsList] = useState<
 		AutocompleteSuggestion[]
 	>([]);
@@ -257,6 +289,10 @@ export function useNotebook(
 						? undefined
 						: templateArgumentId;
 
+				const requestId = macroSessionRef.current
+					? macroSessionRef.current.getNextRequestId()
+					: 0;
+
 				const recommendations = await session.v2.notebook.getAutocomplete({
 					input: state.draftText,
 					cursorOffset: state.cursorOffset,
@@ -272,46 +308,54 @@ export function useNotebook(
 					activeArgumentId,
 				});
 				if (cancelled) return;
-				setMacroSuggestions(
-					recommendations
-						.filter(
-							(suggestion) =>
-								suggestion.kind === "macro" ||
-								suggestion.kind === "argument" ||
-								suggestion.kind === "field" ||
-								suggestion.kind === "value",
-						)
-						.map((suggestion) => ({
-							label: suggestion.label,
-							value: suggestion.insertText,
-							type:
-								suggestion.kind === "macro"
-									? "macro"
-									: suggestion.kind === "branch"
-										? "argument"
-										: suggestion.kind,
-							verb: suggestion.label,
-							completionText: suggestion.insertText,
-							group: "macro",
-							source: "macro",
-							hasArgs: suggestion.kind === "macro",
-							kind:
-								suggestion.kind === "argument" || suggestion.kind === "branch"
-									? "arg"
-									: suggestion.kind === "field"
-										? "field"
-										: suggestion.kind === "value"
-											? "value"
-											: "verb",
-							detail: suggestion.detail,
-							macroEvidence: suggestion.macroEvidence,
-							provenance: suggestion.provenance,
-							targetArgument: suggestion.argumentId,
-							expressionId: suggestion.expressionId,
-							conceptId: suggestion.conceptId,
-							lookupTerm: suggestion.lookupTerm,
-						})),
-				);
+				const suggestions: AutocompleteSuggestion[] = recommendations
+					.filter(
+						(suggestion) =>
+							suggestion.kind === "macro" ||
+							suggestion.kind === "argument" ||
+							suggestion.kind === "field" ||
+							suggestion.kind === "value",
+					)
+					.map((suggestion) => ({
+						label: suggestion.label,
+						value: suggestion.insertText,
+						type:
+							suggestion.kind === "macro"
+								? "macro"
+								: suggestion.kind === "branch"
+									? "argument"
+									: suggestion.kind,
+						verb: suggestion.label,
+						completionText: suggestion.insertText,
+						group: "macro",
+						source: "macro",
+						hasArgs: suggestion.kind === "macro",
+						kind:
+							suggestion.kind === "argument" || suggestion.kind === "branch"
+								? "arg"
+								: suggestion.kind === "field"
+									? "field"
+									: suggestion.kind === "value"
+										? "value"
+										: "verb",
+						detail: suggestion.detail,
+						macroEvidence: suggestion.macroEvidence,
+						provenance: suggestion.provenance,
+						targetArgument: suggestion.argumentId,
+						expressionId: suggestion.expressionId,
+						conceptId: suggestion.conceptId,
+						lookupTerm: suggestion.lookupTerm,
+					}));
+
+				setMacroSuggestions(suggestions);
+				if (macroSessionRef.current) {
+					macroSessionRef.current.dispatch({
+						type: "suggestions_resolved",
+						requestId,
+						candidates: suggestions as any,
+					});
+					setMacroSnapshot(macroSessionRef.current.getSnapshot());
+				}
 			})
 			.catch(() => {
 				if (!cancelled) setMacroSuggestions([]);
@@ -1079,5 +1123,8 @@ export function useNotebook(
 			});
 		},
 		childDefinitions,
+		macroSession: macroSessionRef.current,
+		macroSnapshot,
+		onMacroSessionChange: setMacroSnapshot,
 	};
 }

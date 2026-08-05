@@ -1,6 +1,7 @@
 import type {
 	CommandMacroTemplatePart,
 	CommandSyntaxProfile,
+	MacroAuthoringSession,
 	MacroDefinition,
 } from "@stateful-mcp/clinical";
 import { findNextMacroChild } from "@stateful-mcp/clinical";
@@ -49,6 +50,10 @@ export interface WindowContainerProps {
 	cursorOffset?: number;
 	syntaxProfile: CommandSyntaxProfile;
 	childDefinitions?: MacroDefinition[];
+	macroSession?: MacroAuthoringSession;
+	onMacroSessionChange?: (
+		snapshot: ReturnType<MacroAuthoringSession["getSnapshot"]>,
+	) => void;
 }
 
 /**
@@ -77,6 +82,8 @@ export function WindowContainer({
 	cursorOffset,
 	syntaxProfile,
 	childDefinitions = [],
+	macroSession,
+	onMacroSessionChange,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -254,6 +261,9 @@ export function WindowContainer({
 		if (current.mode === "MACRO") {
 			if (key.escape) {
 				clearAutocompleteTimeout();
+				if (macroSession) {
+					onMacroSessionChange?.(macroSession.dispatch({ type: "escape" }));
+				}
 				if (current.completion.status === "cycling") {
 					emit({
 						type: "SET_COMPLETION",
@@ -268,37 +278,81 @@ export function WindowContainer({
 				return;
 			}
 			if (key.return) {
+				if (macroSession) {
+					onMacroSessionChange?.(macroSession.dispatch({ type: "submit" }));
+				}
 				emit({ type: "SUBMIT_MACRO" });
 				return;
 			}
 			if (key.ctrl && _input === "u") {
+				if (macroSession) {
+					onMacroSessionChange?.(
+						macroSession.dispatch({ type: "unlock_active" }),
+					);
+				}
 				emit({ type: "UNLOCK_MACRO" });
 				return;
 			}
-			if (
-				(key.upArrow || key.downArrow) &&
-				current.completion.status === "cycling" &&
-				completionProvider
-			) {
-				const transition = reduceCompletion(
-					current.completion,
-					{ kind: key.upArrow ? "up" : "down" },
-					current.draftText,
-					completionProvider,
-					syntaxProfile,
-				);
-				emit({
-					type: "SET_COMPLETION",
-					completion: transition.completionState,
-				});
-				return;
+			if (key.upArrow || key.downArrow) {
+				if (macroSession) {
+					const snap = macroSession.dispatch({
+						type: key.upArrow ? "arrow_up" : "arrow_down",
+					});
+					onMacroSessionChange?.(snap);
+					if (snap.rawText !== current.draftText) {
+						emit({ type: "SET_DRAFT", text: snap.rawText });
+					}
+					if (snap.completion.status === "cycling") {
+						emit({
+							type: "SET_COMPLETION",
+							completion: {
+								status: "cycling",
+								candidates: snap.completion.candidates as any,
+								highlightIndex: snap.completion.highlightIndex,
+								session: snap.completion.session,
+							},
+						});
+						return;
+					}
+				}
+				if (completionProvider) {
+					if (
+						(cursorOffset ?? current.draftText.length) !==
+						current.draftText.length
+					) {
+						return;
+					}
+					const transition = reduceCompletion(
+						current.completion,
+						{ kind: key.upArrow ? "up" : "down" },
+						current.draftText,
+						completionProvider,
+						syntaxProfile,
+					);
+					emit({
+						type: "SET_COMPLETION",
+						completion: transition.completionState,
+					});
+					return;
+				}
 			}
 			if (key.backspace) {
+				if (macroSession) {
+					onMacroSessionChange?.(macroSession.dispatch({ type: "backspace" }));
+				}
 				emit({ type: "BACKSPACE" });
 				triggerAutocomplete(current.draftText.slice(0, -1), "macro");
 				return;
 			}
 			if (key.leftArrow || key.rightArrow) {
+				if (macroSession) {
+					onMacroSessionChange?.(
+						macroSession.dispatch({
+							type: "move_cursor",
+							delta: key.leftArrow ? -1 : 1,
+						}),
+					);
+				}
 				if (current.completion.status === "cycling") {
 					emit({
 						type: "SET_COMPLETION",
@@ -309,75 +363,119 @@ export function WindowContainer({
 				return;
 			}
 			if (key.home) {
+				if (macroSession) {
+					onMacroSessionChange?.(
+						macroSession.dispatch({ type: "cursor_home" }),
+					);
+				}
 				emit({ type: "CURSOR_HOME" });
 				return;
 			}
 			if (key.end) {
+				if (macroSession) {
+					onMacroSessionChange?.(macroSession.dispatch({ type: "cursor_end" }));
+				}
 				emit({ type: "CURSOR_END" });
 				return;
 			}
-			if (key.tab && completionProvider) {
-				if (
-					(cursorOffset ?? current.draftText.length) !==
-					current.draftText.length
-				) {
-					if (current.completion.status === "cycling") {
+			if (key.tab) {
+				if (macroSession) {
+					const sessionSnapshot = macroSession.getSnapshot();
+					const hasSessionCandidates =
+						sessionSnapshot.completion.candidates.length > 0;
+					if (!hasSessionCandidates) {
+						// Suggestions may still be held by the provider while the
+						// session is waiting for its async result. Let the provider
+						// path below handle this Tab press instead of swallowing it.
+					} else {
+						const snap = macroSession.dispatch({
+							type: "tab",
+							shift: Boolean(key.shift),
+						});
+						onMacroSessionChange?.(snap);
+						if (snap.completion.status === "cycling") {
+							emit({
+								type: "SET_COMPLETION",
+								completion: {
+									status: "cycling",
+									candidates: snap.completion.candidates as any,
+									highlightIndex: snap.completion.highlightIndex,
+									session: snap.completion.session,
+								},
+							});
+							return;
+						}
 						emit({
 							type: "SET_COMPLETION",
 							completion: { status: "idle" },
 						});
+						return;
 					}
-					return;
 				}
-				const isCycling = current.completion.status === "cycling";
-				if (isCycling) {
-					const transition = reduceCompletion(
-						current.completion,
-						{ kind: "tab", shift: Boolean(key.shift) },
-						current.draftText,
-						completionProvider,
-						syntaxProfile,
-					);
-					emit({
-						type: "SET_COMPLETION",
-						completion: transition.completionState,
-					});
-					if (transition.committedLine) {
+				if (completionProvider) {
+					if (
+						(cursorOffset ?? current.draftText.length) !==
+						current.draftText.length
+					) {
+						if (current.completion.status === "cycling") {
+							emit({
+								type: "SET_COMPLETION",
+								completion: { status: "idle" },
+							});
+						}
+						return;
+					}
+					const isCycling = current.completion.status === "cycling";
+					if (isCycling) {
+						const transition = reduceCompletion(
+							current.completion,
+							{ kind: "tab", shift: Boolean(key.shift) },
+							current.draftText,
+							completionProvider,
+							syntaxProfile,
+						);
 						emit({
-							type: "COMMIT_COMPLETION",
-							line: transition.committedLine,
+							type: "SET_COMPLETION",
+							completion: transition.completionState,
 						});
+						if (transition.committedLine) {
+							emit({
+								type: "COMMIT_COMPLETION",
+								line: transition.committedLine,
+							});
+						}
+						return;
 					}
-					return;
-				}
-				const partial = current.draftText;
-				const suggestions = completionProvider(partial);
-				if (suggestions.length > 0) {
-					const transition = reduceCompletion(
-						current.completion,
-						{ kind: "tab", shift: Boolean(key.shift) },
-						current.draftText,
-						completionProvider,
-						syntaxProfile,
-					);
-					emit({
-						type: "SET_COMPLETION",
-						completion: transition.completionState,
-					});
-					if (transition.committedLine) {
+					const partial = current.draftText;
+					const suggestions = completionProvider(partial);
+					if (suggestions.length > 0) {
+						const transition = reduceCompletion(
+							current.completion,
+							{ kind: "tab", shift: Boolean(key.shift) },
+							current.draftText,
+							completionProvider,
+							syntaxProfile,
+						);
 						emit({
-							type: "COMMIT_COMPLETION",
-							line: transition.committedLine,
+							type: "SET_COMPLETION",
+							completion: transition.completionState,
 						});
+						if (transition.committedLine) {
+							emit({
+								type: "COMMIT_COMPLETION",
+								line: transition.committedLine,
+							});
+						}
+						return;
 					}
-					return;
+					// Chain expansion: if all slots are filled, append next child prefix
+					const chainPrefix = buildChainPrefix();
+					if (chainPrefix) {
+						emit({ type: "INSERT_TEXT", text: ` ${chainPrefix}` });
+						return;
+					}
 				}
-				// Chain expansion: if all slots are filled, append next child prefix
-				const chainPrefix = buildChainPrefix();
-				if (chainPrefix) {
-					emit({ type: "INSERT_TEXT", text: ` ${chainPrefix}` });
-					return;
-				}
+				return;
 			}
 			if (_input === " " && current.mode === "MACRO") {
 				emit({

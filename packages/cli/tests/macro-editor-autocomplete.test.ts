@@ -40,12 +40,12 @@ const mockSyntaxProfile = {
 } as any;
 
 describe("macro autocomplete state transitions", () => {
-	test("Tab highlights and returns the first candidate for insertion", () => {
+	test("Tab accepts the highlighted candidate for insertion", () => {
 		const provider = () => suggestions;
-		// 1. Initial tab from idle state
+		// Down opens the menu at the first candidate.
 		let state = reduceCompletion(
 			{ status: "idle" },
-			{ kind: "tab", shift: false },
+			{ kind: "down" },
 			"^vi",
 			provider,
 			mockSyntaxProfile,
@@ -55,12 +55,11 @@ describe("macro autocomplete state transitions", () => {
 			expect(state.completionState.highlightIndex).toBe(0);
 			expect(state.completionState.candidates).toHaveLength(2);
 		}
-		expect(state.committedLine).toBe("^vitals ");
 
-		// 2. Next tab cycles index
+		// Down moves the highlight to the second candidate.
 		state = reduceCompletion(
 			state.completionState,
-			{ kind: "tab", shift: false },
+			{ kind: "down" },
 			"^vi",
 			provider,
 			mockSyntaxProfile,
@@ -70,25 +69,34 @@ describe("macro autocomplete state transitions", () => {
 			expect(state.completionState.highlightIndex).toBe(1);
 		}
 
-		// 3. Shift+Tab cycles backward
+		// Tab accepts the highlighted second candidate, rather than advancing.
 		state = reduceCompletion(
 			state.completionState,
+			{ kind: "tab", shift: false },
+			"^vi",
+			provider,
+			mockSyntaxProfile,
+		);
+		expect(state.completionState.status).toBe("idle");
+		expect(state.committedLine).toBe("^physical_exam ");
+
+		// Shift+Tab from idle selects the last candidate when opening directly.
+		state = reduceCompletion(
+			{ status: "idle" },
 			{ kind: "tab", shift: true },
 			"^vi",
 			provider,
 			mockSyntaxProfile,
 		);
-		expect(state.completionState.status).toBe("cycling");
-		if (state.completionState.status === "cycling") {
-			expect(state.completionState.highlightIndex).toBe(0);
-		}
+		expect(state.completionState.status).toBe("idle");
+		expect(state.committedLine).toBe("^physical_exam ");
 	});
 
 	test("Enter accepts the highlighted candidate and returns executeLine", () => {
 		const provider = () => suggestions;
 		const transition = reduceCompletion(
 			{ status: "idle" },
-			{ kind: "tab", shift: false },
+			{ kind: "down" },
 			"^vi",
 			provider,
 			mockSyntaxProfile,
@@ -104,5 +112,32 @@ describe("macro autocomplete state transitions", () => {
 		);
 		expect(enterTransition.completionState.status).toBe("idle");
 		expect(enterTransition.executeLine).toBe("^vitals");
+	});
+
+	test("Up and Down open an idle suggestion list with edge highlights", () => {
+		const provider = () => suggestions;
+		const down = reduceCompletion(
+			{ status: "idle" },
+			{ kind: "down" },
+			"^vi",
+			provider,
+			mockSyntaxProfile,
+		);
+		const up = reduceCompletion(
+			{ status: "idle" },
+			{ kind: "up" },
+			"^vi",
+			provider,
+			mockSyntaxProfile,
+		);
+
+		expect(down.completionState).toMatchObject({
+			status: "cycling",
+			highlightIndex: 0,
+		});
+		expect(up.completionState).toMatchObject({
+			status: "cycling",
+			highlightIndex: suggestions.length - 1,
+		});
 	});
 });

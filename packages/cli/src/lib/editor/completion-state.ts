@@ -132,25 +132,24 @@ export function reduceCompletion(
 				? syntaxProfile?.macroStartToken
 				: syntaxProfile?.directCommandToken;
 			const partial = commandLine.slice(token.length);
-			const suggestions = getSuggestions(partial);
+			const suggestions =
+				current.status === "cycling"
+					? current.candidates
+					: getSuggestions(partial);
 			if (suggestions.length === 0)
 				return { completionState: { status: "idle" } };
-			const currentIdx =
-				current.status === "cycling" ? current.highlightIndex : -1;
-			const nextIdx = cycleIndex(
-				currentIdx,
-				suggestions.length,
-				key.shift ? -1 : 1,
-			);
+			const selectedIdx =
+				current.status === "cycling"
+					? current.highlightIndex
+					: key.shift
+						? suggestions.length - 1
+						: 0;
 			const session = deriveCompletionSession(commandLine, syntaxProfile);
 			if (!session) return { completionState: { status: "idle" } };
-			const candidate = suggestions[nextIdx];
+			const candidate = suggestions[selectedIdx];
 			return {
 				completionState: {
-					status: "cycling",
-					candidates: suggestions,
-					highlightIndex: nextIdx,
-					session,
+					status: "idle",
 				},
 				committedLine: candidate
 					? mergeCandidate(
@@ -176,6 +175,21 @@ export function reduceCompletion(
 						candidates: current.candidates,
 						highlightIndex: nextIdx,
 						session: current.session,
+					},
+				};
+			}
+			const token = commandLine.startsWith(syntaxProfile.macroStartToken)
+				? syntaxProfile.macroStartToken
+				: syntaxProfile.directCommandToken;
+			const suggestions = getSuggestions(commandLine.slice(token.length));
+			const session = deriveCompletionSession(commandLine, syntaxProfile);
+			if (suggestions.length > 0 && session) {
+				return {
+					completionState: {
+						status: "cycling",
+						candidates: suggestions,
+						highlightIndex: key.kind === "down" ? 0 : suggestions.length - 1,
+						session,
 					},
 				};
 			}

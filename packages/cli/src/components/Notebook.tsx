@@ -48,7 +48,15 @@ export function Notebook({
 		onOpenHistory: () => setOverlay({ route: "history" }),
 	});
 	const { exit } = useApp();
-	const { state, dispatch, cellSuggestions, getAutocomplete } = notebook;
+	const {
+		state,
+		dispatch,
+		cellSuggestions,
+		getAutocomplete,
+		macroSession,
+		macroSnapshot,
+		onMacroSessionChange,
+	} = notebook;
 	const [completion, setCompletion] = useState<CompletionState>({
 		status: "idle",
 	});
@@ -64,6 +72,23 @@ export function Notebook({
 	const [historyCandidates, setHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
 	>([]);
+
+	useEffect(() => {
+		if (!macroSession || state.mode !== "MACRO") return;
+		const current = macroSession.getSnapshot();
+		if (
+			current.rawText !== state.draftText ||
+			current.cursorOffset !== state.cursorOffset
+		) {
+			onMacroSessionChange(
+				macroSession.dispatch({
+					type: "set_text",
+					text: state.draftText,
+					cursorOffset: state.cursorOffset,
+				}),
+			);
+		}
+	}, [macroSession, state.mode, state.draftText, state.cursorOffset]);
 
 	useEffect(() => {
 		if (!session || overlay?.route !== "history") return;
@@ -335,10 +360,25 @@ export function Notebook({
 
 	if (!session) return null;
 
+	const macroCompletion =
+		state.mode === "MACRO" && macroSnapshot?.completion.status === "cycling"
+			? macroSnapshot.completion
+			: undefined;
+	const renderedMacroSuggestions = macroCompletion
+		? (macroCompletion.candidates as AutocompleteSuggestion[])
+		: completionCandidates;
+
 	const editorState: EditorKernelState = {
 		mode: state.mode as CellEditorMode,
 		draftText: state.mode === "COMMAND" ? state.commandLine : state.draftText,
-		completion,
+		completion: macroCompletion
+			? {
+					status: "cycling",
+					candidates: renderedMacroSuggestions,
+					highlightIndex: macroCompletion.highlightIndex,
+					session: macroCompletion.session,
+				}
+			: completion,
 		error: state.message ?? null,
 		showHelp: showHelp || state.showHelp || overlay !== null,
 	};
@@ -580,7 +620,7 @@ export function Notebook({
 		defaultSection: undefined,
 		defaultSchema: undefined,
 		message: state.message,
-		macroSuggestions: completionCandidates,
+		macroSuggestions: renderedMacroSuggestions,
 		macroSlots: notebook.macroSlots,
 		activeMacroArgumentId: getActiveMacroArgumentId(
 			state.draftText,
@@ -656,6 +696,8 @@ export function Notebook({
 			cursorOffset={state.cursorOffset}
 			syntaxProfile={session.v2.syntaxProfile}
 			childDefinitions={notebook.childDefinitions}
+			macroSession={notebook.macroSession}
+			onMacroSessionChange={onMacroSessionChange}
 		/>
 	);
 }
