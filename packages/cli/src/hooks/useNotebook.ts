@@ -232,9 +232,11 @@ export function useNotebook(
 					activeCellId: snapshot.activeCellId,
 					macroId: activeProjection?.macroId,
 					macroVersion: activeProjection?.macroVersion,
-					filledSlots: macroSlots
-						.filter((slot) => slot.argumentId !== activeProjection?.argumentId)
-						.map((slot) => slot.argumentId),
+					filledSlots: activeProjection
+						? macroSlots
+								.filter((slot) => slot.argumentId !== activeProjection.argumentId)
+								.map((slot) => slot.argumentId)
+						: [],
 					previousSlot: activeProjection?.argumentId,
 					activeArgumentId: activeProjection?.argumentId,
 				});
