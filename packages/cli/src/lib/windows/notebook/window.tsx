@@ -110,18 +110,30 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				const authoringPreview = authoringTemplate
 					? renderMacroAuthoringTemplate(
 							authoringTemplate,
-							(deps.macroSlots ?? []).map(
-								(slot): MacroAuthoringValue => ({
+							(deps.macroSlots ?? []).map((slot): MacroAuthoringValue => {
+								const argSpec = deps.activeDefinition?.arguments.find(
+									(a) => a.argumentId === slot.argumentId,
+								);
+								const isConceptArg =
+									argSpec?.extraction.kind === "concept" ||
+									argSpec?.extraction.kind === "concept_array";
+								// Concept slots require an explicit binding with conceptId to be "bound".
+								// A plain positional/inferred parser match is not a validated concept.
+								const isBound = slot.status === "locked"
+									? true
+									: isConceptArg
+										? Boolean(slot.binding?.conceptId)
+										: Boolean(slot.binding) || slot.status === "bound";
+								return {
 									argumentId: slot.argumentId,
-									value: slot.binding?.displayValue ?? slot.rawText,
-									status:
-										slot.status === "locked" || slot.binding
-											? "bound"
-											: slot.status === "invalid"
-												? "invalid"
-												: "unresolved",
-								}),
-							),
+									value: slot.binding?.displayValue ?? (isBound ? slot.rawText : undefined),
+									status: isBound
+										? "bound"
+										: slot.status === "invalid"
+											? "invalid"
+											: "unresolved",
+								};
+							}),
 						)
 					: undefined;
 

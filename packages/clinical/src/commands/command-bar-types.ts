@@ -82,6 +82,7 @@ export interface CommandAutocompleteContext {
 	filledSlots?: readonly string[];
 	previousSlot?: string;
 	observationMode?: "live" | "preview" | "execution";
+	activeArgumentId?: string;
 }
 
 export interface CommandSuggestion {
@@ -107,6 +108,7 @@ export interface CommandSuggestion {
 		featureKeys?: readonly string[];
 	};
 	sourceKind?: "macro" | "dictionary" | "custom-expression" | "template";
+	provenance?: "template" | "expression" | "numeric" | "argument-name";
 	expressionId?: string;
 	conceptId?: string;
 	lookupTerm?: string;

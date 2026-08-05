@@ -38,6 +38,8 @@ export interface AutocompleteSuggestion {
 		reason?: "transition" | "numericFit" | "parseConfidence" | "static";
 		featureKeys?: readonly string[];
 	};
+	provenance?: "template" | "expression" | "numeric" | "argument-name";
+	targetArgument?: string;
 	expressionId?: string;
 	conceptId?: string;
 	lookupTerm?: string;

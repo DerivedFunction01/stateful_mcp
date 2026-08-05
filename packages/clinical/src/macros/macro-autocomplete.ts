@@ -30,6 +30,7 @@ export interface AutocompleteSuggestion {
 	expressionId?: string;
 	conceptId?: string;
 	lookupTerm?: string;
+	argumentId?: string;
 	macro?: {
 		macroId: string;
 		macroVersion: number;
@@ -224,6 +225,7 @@ export class MacroAutocomplete {
 
 		// Scalar types with bounds
 		if (spec.kind === "scalar") {
+			if (!query.trim()) return [];
 			const bounds = spec.numericBounds;
 			if (bounds && bounds.min !== undefined && bounds.max !== undefined) {
 				const step = bounds.step ?? 1;
@@ -250,7 +252,7 @@ export class MacroAutocomplete {
 		if (spec.kind === "concept" || spec.kind === "concept_array") {
 			return this.rankValueSuggestions(
 				arg,
-				await this.suggestCustomExpressions(query, arg.roleName),
+				await this.suggestCustomExpressions(query, arg.roleName, undefined, undefined, true),
 				macro,
 				req,
 			);
@@ -628,12 +630,16 @@ export class MacroAutocomplete {
 					if (part.kind === "slot") break;
 					literal += part.text;
 				}
+				const slot = template.parts.find((p) => p.kind === "slot");
+				const targetArgId =
+					slot && slot.kind === "slot" ? slot.argumentId : undefined;
 				return {
 					label: literal,
 					value: literal,
 					type: "text" as const,
 					detail: "template",
 					source: "template" as const,
+					argumentId: targetArgId,
 				};
 			})
 			.filter(

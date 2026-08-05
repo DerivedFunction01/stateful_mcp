@@ -76,16 +76,8 @@ export function activeMacroSlot(
 	projections: readonly MacroSlotProjection[],
 	cursorOffset: number,
 ): MacroSlotProjection | undefined {
-	return (
-		projections.find(
-			(slot) => cursorOffset >= slot.start && cursorOffset <= slot.end,
-		) ??
-		projections
-			.filter((slot) => slot.start > cursorOffset)
-			.sort((left, right) => left.start - right.start)[0] ??
-		projections
-			.filter((slot) => slot.end <= cursorOffset)
-			.sort((left, right) => right.end - left.end)[0]
+	return projections.find(
+		(slot) => cursorOffset >= slot.start && cursorOffset <= slot.end,
 	);
 }
 

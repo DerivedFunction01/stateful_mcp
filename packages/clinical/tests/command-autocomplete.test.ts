@@ -52,4 +52,151 @@ describe(" command-bar autocomplete", () => {
 		);
 		expect(suggestions).toEqual([]);
 	});
+
+	describe("gated suggestions and collision zone", () => {
+		it("suggests only expressions for concept active slot", async () => {
+			const def = {
+				macroId: "note",
+				macroName: "note",
+				version: 1,
+				active: true,
+				arguments: [
+					{
+						argumentId: "title",
+						name: "title",
+						roleName: "note.title",
+						extraction: { kind: "concept", patterns: [] },
+					},
+					{
+						argumentId: "page_num",
+						name: "page_num",
+						roleName: "note.page_num",
+						extraction: { kind: "scalar", numericBounds: { min: 1, max: 100 } },
+					},
+				],
+			};
+			const suggestions = await getCommandBarSuggestions(
+				{
+					input: "^note title=h",
+					cursorOffset: 14,
+					sessionId: "s1",
+					activeArgumentId: "title",
+				},
+				{
+					macroStore: {
+						get: async () => def,
+						list: async () => [def],
+					} as any,
+					dictionary: {
+						searchExpressionCandidates: async () => [
+							{
+								id: "expr-hp",
+								term: "Harry Potter",
+								lookupTerm: "hp",
+								conceptId: "c-hp",
+								active: true,
+							},
+						],
+					} as any,
+				},
+				defaultProfile,
+			);
+			expect(suggestions.every(s => s.provenance === "expression")).toBe(true);
+			expect(suggestions.map(s => s.label)).toContain("Harry Potter");
+		});
+
+		it("suggests only numeric values for integer active slot", async () => {
+			const def = {
+				macroId: "note",
+				macroName: "note",
+				version: 1,
+				active: true,
+				arguments: [
+					{
+						argumentId: "title",
+						name: "title",
+						roleName: "note.title",
+						extraction: { kind: "concept", patterns: [] },
+					},
+					{
+						argumentId: "page_num",
+						name: "page_num",
+						roleName: "note.page_num",
+						extraction: { kind: "scalar", numericBounds: { min: 1, max: 10 } },
+					},
+				],
+			};
+			const suggestions = await getCommandBarSuggestions(
+				{
+					input: "^note page_num=1",
+					cursorOffset: 16,
+					sessionId: "s1",
+					activeArgumentId: "page_num",
+				},
+				{
+					macroStore: {
+						get: async () => def,
+						list: async () => [def],
+					} as any,
+				},
+				defaultProfile,
+			);
+			expect(suggestions.every(s => s.provenance === "numeric")).toBe(true);
+			expect(suggestions.map(s => s.label)).toContain("1");
+		});
+
+		it("suggests mixed candidates in collision zone when active slot is none", async () => {
+			const def = {
+				macroId: "note",
+				macroName: "note",
+				version: 1,
+				active: true,
+				arguments: [
+					{
+						argumentId: "title",
+						name: "title",
+						roleName: "note.title",
+						extraction: { kind: "concept", patterns: [] },
+					},
+				],
+				authoringTemplates: [
+					{
+						parts: [
+							{ kind: "literal", text: "has page # " },
+							{ kind: "slot", argumentId: "page_num", occurrence: 0 },
+						],
+					},
+				],
+			};
+			const suggestions = await getCommandBarSuggestions(
+				{
+					input: "^note ",
+					cursorOffset: 6,
+					sessionId: "s1",
+				},
+				{
+					macroStore: {
+						get: async () => def,
+						list: async () => [def],
+					} as any,
+					dictionary: {
+						searchExpressionCandidates: async () => [
+							{
+								id: "expr-hp",
+								term: "Harry Potter",
+								lookupTerm: "hp",
+								conceptId: "c-hp",
+								active: true,
+							},
+						],
+					} as any,
+				},
+				defaultProfile,
+			);
+			const provenances = suggestions.map(s => s.provenance);
+			expect(provenances).toContain("expression");
+			expect(provenances).toContain("template");
+			expect(provenances).toContain("argument-name");
+		});
+	});
 });

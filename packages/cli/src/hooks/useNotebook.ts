@@ -224,6 +224,7 @@ export function useNotebook(
 						.filter((slot) => slot.argumentId !== activeProjection?.argumentId)
 						.map((slot) => slot.argumentId),
 					previousSlot: activeProjection?.argumentId,
+					activeArgumentId: activeProjection?.argumentId,
 				});
 				if (cancelled) return;
 				setMacroSuggestions(
@@ -259,6 +260,8 @@ export function useNotebook(
 											: "verb",
 							detail: suggestion.detail,
 							macroEvidence: suggestion.macroEvidence,
+							provenance: suggestion.provenance,
+							targetArgument: suggestion.argumentId,
 							expressionId: suggestion.expressionId,
 							conceptId: suggestion.conceptId,
 							lookupTerm: suggestion.lookupTerm,
@@ -459,6 +462,18 @@ export function useNotebook(
 				!slot.rawText.trim()
 			)
 				return [];
+			// Only attempt auto-lock on slots that were explicitly typed with an expression
+			// token or matched by a friendly/rule form. Positional/inferred matches without
+			// a token prefix are unvalidated — the user hasn't confirmed the value.
+			const hasExpressionToken = expressionTokens.some((token) =>
+				slot.rawText.trimStart().toLocaleLowerCase().startsWith(token.toLocaleLowerCase()),
+			);
+			const isExplicitSource =
+				slot.bindingSource === "friendly" ||
+				slot.bindingSource === "rule" ||
+				slot.bindingSource === "accepted" ||
+				hasExpressionToken;
+			if (!isExplicitSource) return [];
 			const lookupTerm = slot.rawText
 				.trim()
 				.startsWith(session.v2.syntaxProfile.expressionToken)

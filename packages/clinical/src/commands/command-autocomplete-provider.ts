@@ -217,73 +217,168 @@ async function macroSuggestions(
 			}));
 		}
 
+		// Find active argument if specified
+		const activeArg = context.activeArgumentId
+			? definition.arguments.find((a) => a.argumentId === context.activeArgumentId)
+			: undefined;
+
+		const isActiveArgConcept =
+			activeArg &&
+			(activeArg.extraction.kind === "concept" ||
+				activeArg.extraction.kind === "concept_array");
+
+		// B. Concept-token override.
+		const isTokenMatch =
+			(profile.conceptToken &&
+				currentWord
+					.toLocaleLowerCase()
+					.startsWith(profile.conceptToken.toLocaleLowerCase())) ||
+			(profile.expressionToken &&
+				currentWord
+					.toLocaleLowerCase()
+					.startsWith(profile.expressionToken.toLocaleLowerCase()));
+
+		if (isTokenMatch && (!context.activeArgumentId || isActiveArgConcept)) {
+			const suggestions = await autocompleter.suggest({
+				query: currentWord,
+				macroName,
+				argumentName: activeArg?.name,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+				filledSlots: context.filledSlots,
+				previousSlot: context.previousSlot,
+				personnelId: context.personnelId,
+			});
+			return suggestions.map((s) => ({
+				label: s.label,
+				insertText: input.slice(0, lastSpaceIndex + 1) + s.value,
+				kind: "value" as const,
+				detail: s.detail,
+				source: "context" as const,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+				argumentId: activeArg?.argumentId,
+				macroEvidence: s.macro?.evidence,
+				sourceKind: s.source,
+				provenance: "expression" as const,
+				expressionId: s.expressionId,
+				conceptId: s.conceptId,
+				lookupTerm: s.lookupTerm,
+			}));
+		}
+
 		// C. Suggest allowed values of all arguments matching prefix (natural typing)
+		// Only run value suggestions when there is an actual query to filter by.
+		// Empty query in discovery mode is handled by templates + argument names below.
 		const valueSuggestions: CommandSuggestion[] = [];
-		for (const argument of definition.arguments) {
-			const suggestions = await (autocompleter as any).suggestValueForArgument(
-				argument,
-				currentWord,
-			);
-			for (const s of suggestions) {
+		if (context.activeArgumentId) {
+			if (activeArg) {
+				const suggestions = await (
+					autocompleter as any
+				).suggestValueForArgument(activeArg, currentWord);
+				const isConcept =
+					activeArg.extraction.kind === "concept" ||
+					activeArg.extraction.kind === "concept_array";
+				for (const s of suggestions) {
+					valueSuggestions.push({
+						label: s.label,
+						insertText: input.slice(0, lastSpaceIndex + 1) + s.value,
+						kind: "value" as const,
+						detail: `${activeArg.roleName}: ${s.detail || ""}`,
+						source: "context" as const,
+						sourceKind: s.source,
+						provenance: isConcept
+							? "expression"
+							: activeArg.extraction.kind === "scalar"
+								? "numeric"
+								: "argument-name",
+						argumentId: activeArg.argumentId,
+						expressionId: s.expressionId,
+						conceptId: s.conceptId,
+						lookupTerm: s.lookupTerm,
+					});
+				}
+			}
+		} else if (currentWord.trim()) {
+			// Discovery mode: only suggest values when there is a non-empty prefix to filter by
+			for (const argument of definition.arguments) {
+				const suggestions = await (
+					autocompleter as any
+				).suggestValueForArgument(argument, currentWord);
+				const isConcept =
+					argument.extraction.kind === "concept" ||
+					argument.extraction.kind === "concept_array";
+				for (const s of suggestions) {
+					valueSuggestions.push({
+						label: s.label,
+						insertText: input.slice(0, lastSpaceIndex + 1) + s.value,
+						kind: "value" as const,
+						detail: `${argument.roleName}: ${s.detail || ""}`,
+						source: "context" as const,
+						sourceKind: s.source,
+						provenance: isConcept
+							? "expression"
+							: argument.extraction.kind === "scalar"
+								? "numeric"
+								: "argument-name",
+						argumentId: argument.argumentId,
+						expressionId: s.expressionId,
+						conceptId: s.conceptId,
+						lookupTerm: s.lookupTerm,
+					});
+				}
+			}
+			const templateSuggestions = await autocompleter.suggest({
+				query: currentWord,
+				scope: "template",
+				macroName,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+			});
+			for (const suggestion of templateSuggestions) {
 				valueSuggestions.push({
-					label: s.label,
-					insertText: input.slice(0, lastSpaceIndex + 1) + s.value,
+					label: suggestion.label,
+					insertText: input.slice(0, lastSpaceIndex + 1) + suggestion.value,
 					kind: "value" as const,
-					detail: `${argument.roleName}: ${s.detail || ""}`,
+					detail: suggestion.detail,
 					source: "context" as const,
-					sourceKind: s.source,
-					expressionId: s.expressionId,
-					conceptId: s.conceptId,
-					lookupTerm: s.lookupTerm,
+					sourceKind: suggestion.source,
+					provenance: "template" as const,
+					argumentId: suggestion.argumentId,
 				});
 			}
 		}
-		const templateSuggestions = await autocompleter.suggest({
-			query: currentWord,
-			scope: "template",
-			macroName,
-			macroId: definition.macroId,
-			macroVersion: definition.version,
-		});
-		for (const suggestion of templateSuggestions) {
-			valueSuggestions.push({
-				label: suggestion.label,
-				insertText: input.slice(0, lastSpaceIndex + 1) + suggestion.value,
-				kind: "value" as const,
-				detail: suggestion.detail,
-				source: "context" as const,
-				sourceKind: suggestion.source,
+
+		if (!context.activeArgumentId) {
+			const argumentSuggestions = await autocompleter.suggest({
+				query: currentWord,
+				scope: "argument",
+				macroName,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+				filledSlots: context.filledSlots,
+				previousSlot: context.previousSlot,
+				personnelId: context.personnelId,
 			});
+			const mappedArgs = argumentSuggestions.map((suggestion) => ({
+				label: `${suggestion.label}=`,
+				insertText: `${suggestion.value}=`,
+				kind: "argument" as const,
+				detail: suggestion.detail ?? definition.description,
+				source: "context" as const,
+				argName: suggestion.value,
+				macroId: definition.macroId,
+				macroVersion: definition.version,
+				argumentId: definition.arguments.find(
+					(argument) => argument.name === suggestion.value,
+				)?.argumentId,
+				macroEvidence: suggestion.macro?.evidence,
+				provenance: "argument-name" as const,
+			}));
+			return [...valueSuggestions, ...mappedArgs];
 		}
 
-		if (valueSuggestions.length > 0) {
-			return valueSuggestions;
-		}
-
-		const argumentSuggestions = await autocompleter.suggest({
-			query: currentWord,
-			scope: "argument",
-			macroName,
-			macroId: definition.macroId,
-			macroVersion: definition.version,
-			filledSlots: context.filledSlots,
-			previousSlot: context.previousSlot,
-			personnelId: context.personnelId,
-		});
-		return argumentSuggestions.map((suggestion) => ({
-			label: `${suggestion.label}=`,
-			insertText: `${suggestion.value}=`,
-			kind: "argument" as const,
-			detail: suggestion.detail ?? definition.description,
-			source: "context" as const,
-			argName: suggestion.value,
-			macroId: definition.macroId,
-			macroVersion: definition.version,
-			argumentId: definition.arguments.find(
-				(argument) => argument.name === suggestion.value,
-			)?.argumentId,
-			macroEvidence: suggestion.macro?.evidence,
-		}));
+		return valueSuggestions;
 	}
 	return definitions
 		.filter(

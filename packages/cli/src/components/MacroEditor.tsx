@@ -263,7 +263,7 @@ export function MacroEditor({
 			}
 			return suggestions;
 		}
-		return suggestions.filter((s) => s.kind === "arg");
+		return suggestions;
 	})();
 
 	// Title for suggestions box — use effectiveArgumentId so a satisfied
@@ -295,7 +295,7 @@ export function MacroEditor({
 		? t("macro.suggestions", { arg: effectiveArgumentIdForTitle })
 		: !activeDefinition
 			? t("macro.suggestionsTitle")
-			: t("macro.arguments", { macro: activeDefinition.macroName });
+			: "suggestions";
 
 	const visibleSuggestions = filteredSuggestions.slice(0, 8); // Show top 8 suggestions
 
@@ -303,7 +303,17 @@ export function MacroEditor({
 	const getSuggestionLabelAndDetail = (suggestion: AutocompleteSuggestion) => {
 		const label = suggestion.label;
 		let detail = suggestion.detail || "";
-		if (!activeMacroArgumentId && activeDefinition) {
+		if (suggestion.provenance === "template") {
+			detail = suggestion.targetArgument
+				? `template → ${suggestion.targetArgument}`
+				: "template";
+		} else if (suggestion.provenance === "expression") {
+			detail = suggestion.detail || "expression";
+		} else if (suggestion.provenance === "numeric") {
+			detail = "(within bounds)";
+		} else if (suggestion.provenance === "argument-name") {
+			detail = suggestion.detail || "argument";
+		} else if (!activeMacroArgumentId && activeDefinition) {
 			const argSpec = activeDefinition.arguments.find(
 				(a) => a.name === suggestion.label || a.argumentId === suggestion.label,
 			);
@@ -322,6 +332,81 @@ export function MacroEditor({
 		}
 		return { label, detail };
 	};
+
+	// Diagnostic status warnings
+	const duplicateSlotsByArg = (() => {
+		const grouped = new Map<string, typeof macroSlots>();
+		for (const slot of macroSlots) {
+			const list = grouped.get(slot.argumentId) ?? [];
+			list.push(slot);
+			grouped.set(slot.argumentId, list);
+		}
+		const duplicates: {
+			argumentId: string;
+			name: string;
+			first: string;
+			second: string;
+		}[] = [];
+		for (const [argId, list] of grouped.entries()) {
+			if (list.length > 1) {
+				const argName =
+					activeDefinition?.arguments.find((a) => a.argumentId === argId)
+						?.name ?? argId;
+				duplicates.push({
+					argumentId: argId,
+					name: argName,
+					first: list[0]?.rawText ?? "",
+					second: list[1]?.rawText ?? "",
+				});
+			}
+		}
+		return duplicates;
+	})();
+
+	const activeSlotDiagnostics =
+		activeSlot &&
+		(activeSlot.status === "invalid" ||
+			(activeSlot.diagnostics && activeSlot.diagnostics.length > 0))
+			? (activeSlot.diagnostics || []).map((d) => ({
+					rawText: activeSlot.rawText,
+					message: d,
+				}))
+			: [];
+
+	const activeArgSpec = activeDefinition?.arguments.find(
+		(a) => a.argumentId === activeMacroArgumentId,
+	);
+	const isActiveSlotConcept =
+		activeArgSpec &&
+		(activeArgSpec.extraction.kind === "concept" ||
+			activeArgSpec.extraction.kind === "concept_array");
+	const isUnresolvedConcept =
+		isActiveSlotConcept &&
+		activeSlot &&
+		activeSlot.status !== "locked" &&
+		activeSlot.status !== "bound" &&
+		activeSlot.rawText &&
+		visibleSuggestions.length === 0;
+
+	const showTypeHint =
+		activeSlot &&
+		visibleSuggestions.length === 0 &&
+		!isUnresolvedConcept &&
+		activeSlotDiagnostics.length === 0;
+	const typeHintText = (() => {
+		if (!showTypeHint || !activeArgSpec) return "";
+		if (activeArgSpec.extraction.kind === "scalar") {
+			return `Type an integer (Range: ${activeArgSpec.extraction.numericBounds?.min ?? ""}-${activeArgSpec.extraction.numericBounds?.max ?? ""})`;
+		}
+		return `Type a value for ${activeArgSpec.name}`;
+	})();
+
+	const shouldShowSuggestionsPanel =
+		visibleSuggestions.length > 0 ||
+		duplicateSlotsByArg.length > 0 ||
+		activeSlotDiagnostics.length > 0 ||
+		isUnresolvedConcept ||
+		Boolean(typeHintText);
 
 	return (
 		<Box flexDirection="column" width="100%">
@@ -409,7 +494,7 @@ export function MacroEditor({
 			</Box>
 
 			{/* Suggestions Panel */}
-			{visibleSuggestions.length > 0 && (
+			{shouldShowSuggestionsPanel && (
 				<Box
 					flexDirection="column"
 					borderStyle="single"
@@ -421,6 +506,55 @@ export function MacroEditor({
 						┌─ {suggestionsTitle}{" "}
 						──────────────────────────────────────────────────────────┐
 					</Text>
+
+					{/* Duplicate Warnings */}
+					{duplicateSlotsByArg.map((dup, idx) => (
+						<Box
+							key={`dup-${idx}`}
+							flexDirection="column"
+							paddingLeft={1}
+							marginBottom={1}
+						>
+							<Text color="yellow" bold>
+								⚠ Duplicate argument: {dup.name} assigned twice
+							</Text>
+							<Text color="gray">first: {dup.first}</Text>
+							<Text color="gray">second: {dup.second}</Text>
+							<Text color="yellow">Remove one to continue.</Text>
+						</Box>
+					))}
+
+					{/* Active Slot Diagnostics */}
+					{activeSlotDiagnostics.map((diag, idx) => (
+						<Box key={`diag-${idx}`} paddingLeft={1} marginBottom={1}>
+							<Text color="yellow" bold>
+								⚠ "{diag.rawText}" — {diag.message}
+							</Text>
+						</Box>
+					))}
+
+					{/* Unresolved Concept Warning */}
+					{isUnresolvedConcept && (
+						<Box paddingLeft={1} flexDirection="column" marginBottom={1}>
+							<Text color="gray" italic>
+								(no matches)
+							</Text>
+							<Text color="yellow" bold>
+								⚠ "{activeSlot.rawText}" — no expression or concept found
+							</Text>
+						</Box>
+					)}
+
+					{/* Type Hints */}
+					{Boolean(typeHintText) && (
+						<Box paddingLeft={1} marginBottom={1}>
+							<Text color="gray" italic>
+								{typeHintText}
+							</Text>
+						</Box>
+					)}
+
+					{/* Visible Suggestions */}
 					{visibleSuggestions.map((suggestion, index) => {
 						const isActive = index === suggestionIndex;
 						const { label, detail } = getSuggestionLabelAndDetail(suggestion);
@@ -446,6 +580,10 @@ export function MacroEditor({
 						}
 
 						const description = !isNarrow && detail ? `  — ${detail}` : "";
+						const badge =
+							!isNarrow && suggestion.provenance
+								? `  [${suggestion.provenance}]`
+								: "";
 
 						return (
 							<Box key={index} paddingLeft={1}>
@@ -458,6 +596,7 @@ export function MacroEditor({
 									{label}
 									{description}
 									{evidenceStr}
+									{badge}
 								</Text>
 							</Box>
 						);
