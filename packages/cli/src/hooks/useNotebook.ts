@@ -306,7 +306,11 @@ export function useNotebook(
 				setActiveDefinition(definition);
 				setMacroSlots(
 					applyMacroLocks(
-						projectMacroSlots(state.draftText, definition),
+						projectMacroSlots(state.draftText, definition, {
+							...session.v2.syntaxProfile,
+							conceptCodeSeparator:
+								session.v2.syntaxProfile.conceptCodeSeparator ?? "",
+						}),
 						state.macroLocks,
 						undefined,
 						state.draftText,
@@ -420,6 +424,13 @@ export function useNotebook(
 				});
 				if (hasLongerContinuation) return;
 				if (cancelled || !expression?.conceptId) return;
+				const expressionToken = session.v2.syntaxProfile.expressionToken ?? "";
+				const expressionText = expression.lookupTerm ?? expression.term;
+				const lockedRawText = slot.rawText
+					.trimStart()
+					.startsWith(expressionToken)
+					? `${expressionToken}${expressionText}`
+					: expressionText;
 				const alreadyLocked = state.macroLocks.some(
 					(lock) =>
 						lock.macroId === slot.macroId &&
@@ -436,14 +447,14 @@ export function useNotebook(
 						macroId: slot.macroId,
 						macroVersion: slot.macroVersion,
 						start: slot.start,
-						end: slot.start + (expression.lookupTerm ?? expression.term).length,
-						rawText: slot.rawText,
+						end: slot.start + lockedRawText.length,
+						rawText: lockedRawText,
 						source: "accepted",
 						binding: {
 							kind: "custom-expression",
 							conceptId: expression.conceptId,
 							expressionId: expression.id,
-							lookupTerm: expression.lookupTerm ?? lookupTerm,
+							lookupTerm: expressionText,
 							displayValue: expression.term,
 						},
 					},

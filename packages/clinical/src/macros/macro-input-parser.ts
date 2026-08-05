@@ -181,6 +181,7 @@ function matchDefinitionArguments(
 			region,
 			remainingSpecs,
 			diagnostics,
+			profile,
 		);
 		for (const { spec, matched } of inferred) {
 			remainingSpecs.splice(remainingSpecs.indexOf(spec), 1);
@@ -216,6 +217,7 @@ function inferPositionalMatches(
 	region: { start: number; end: number },
 	specs: readonly MacroArgumentSpec[],
 	diagnostics: MacroParseDiagnostic[],
+	profile?: SyntaxProfile,
 ): PositionalMatch[] {
 	const tokens: Array<{ start: number; end: number }> = [];
 	let tokenStart = skipWhitespace(raw, region.start);
@@ -228,7 +230,16 @@ function inferPositionalMatches(
 		tokens.flatMap((token, startToken) =>
 			tokens.slice(startToken).flatMap((_, relativeEndToken) => {
 				const endToken = startToken + relativeEndToken;
-				const start = token.start;
+				const lookupToken =
+					spec.extraction.kind === "concept" ||
+					spec.extraction.kind === "concept_array"
+						? [profile?.expressionToken, profile?.conceptToken].find(
+								(value) => value && raw.startsWith(value, token.start),
+							)
+						: undefined;
+				const start = lookupToken
+					? skipWhitespace(raw, token.start + lookupToken.length)
+					: token.start;
 				const end = tokens[endToken]!.end;
 				const matched = matchSpec(
 					raw.slice(start, end),
@@ -236,7 +247,20 @@ function inferPositionalMatches(
 					spec,
 					diagnostics,
 				);
-				return matched?.end === end ? [{ spec, matched, startToken }] : [];
+				if (!matched || matched.end !== end) return [];
+				return [
+					{
+						spec,
+						matched: lookupToken
+							? {
+									...matched,
+									start: token.start,
+									rawValue: raw.slice(token.start, end),
+								}
+							: matched,
+						startToken,
+					},
+				];
 			}),
 		),
 	);

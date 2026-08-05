@@ -503,6 +503,26 @@ describe("macro-input-parser", () => {
 		});
 	});
 
+	test("matches a configured expression token attached to a concept value", () => {
+		const profile = createSyntaxProfile(
+			{
+				profileId: "expression-token",
+				expressionToken: "#",
+			},
+			bootstrapCommandDefaults,
+		);
+		const result = parseMacroLine("^note #hp", 0, {
+			definition: NOTE_MACRO,
+			profile,
+		});
+
+		expect(result?.arguments[0]).toMatchObject({
+			rawValue: "#hp",
+			start: 6,
+			end: 9,
+		});
+	});
+
 	test("preserves configured list item spans for a value rule", () => {
 		const definition: MacroDefinition = {
 			...OBSERVATION,

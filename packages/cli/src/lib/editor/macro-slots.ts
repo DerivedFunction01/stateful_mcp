@@ -4,6 +4,7 @@ import {
 	type MacroDefinition,
 	parseMacroLine,
 } from "@stateful-mcp/clinical";
+import type { SyntaxProfile } from "@stateful-mcp/clinical/macros/macro-profile";
 
 export interface MacroSlotProjection {
 	macroId: string;
@@ -51,9 +52,10 @@ export interface MacroLockState {
 export function projectMacroSlots(
 	draftText: string,
 	definition: MacroDefinition | null | undefined,
+	profile?: SyntaxProfile,
 ): MacroSlotProjection[] {
 	if (!definition) return [];
-	const parsed = parseMacroLine(draftText, 0, { definition });
+	const parsed = parseMacroLine(draftText, 0, { definition, profile });
 	if (!parsed?.matches?.length) return [];
 	return parsed.matches.flatMap((match) => {
 		const argument = definition.arguments.find(
