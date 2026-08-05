@@ -101,6 +101,17 @@ export type CommandMacroTemplatePart =
 export interface CommandMacroAuthoringTemplate {
 	version: 1;
 	parts: readonly CommandMacroTemplatePart[];
+	/** Stable store identity for named-template migration and preview selection. */
+	templateId?: string;
+	/** Named-placeholder form used by the authoring renderer. */
+	templateText?: string;
+	slots?: Record<string, MacroAuthoringSlot>;
+}
+
+export interface MacroAuthoringSlot {
+	argumentId: string;
+	occurrence: number;
+	displayText?: string;
 }
 
 export interface MacroArgumentForm {

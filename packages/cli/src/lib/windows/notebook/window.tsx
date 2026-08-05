@@ -2,6 +2,10 @@ import type {
 	CommandSyntaxProfile,
 	MacroDefinition,
 } from "@stateful-mcp/clinical";
+import {
+	type MacroAuthoringValue,
+	renderMacroAuthoringTemplate,
+} from "@stateful-mcp/clinical";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
@@ -94,6 +98,25 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					deps.editorState.completion.status === "cycling"
 						? deps.editorState.completion.highlightIndex
 						: -1;
+				const authoringTemplate =
+					deps.activeDefinition?.authoringTemplates?.[0];
+				const authoringPreview = authoringTemplate
+					? renderMacroAuthoringTemplate(
+							authoringTemplate,
+							(deps.macroSlots ?? []).map(
+								(slot): MacroAuthoringValue => ({
+									argumentId: slot.argumentId,
+									value: slot.rawText,
+									status:
+										slot.status === "locked" || slot.binding
+											? "bound"
+											: slot.status === "invalid"
+												? "invalid"
+												: "unresolved",
+								}),
+							),
+						)
+					: undefined;
 
 				regions.push({
 					slot: "command",
@@ -109,6 +132,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								activeMacroArgumentId={deps.activeMacroArgumentId}
 								activeDefinition={deps.activeDefinition}
 								childDefinitions={deps.childDefinitions}
+								authoringPreview={authoringPreview}
 								showCursor={true}
 							/>
 						);

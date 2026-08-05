@@ -57,6 +57,7 @@ export * from "./learning/sql-command-history-store";
 export * from "./learning/weight-store";
 export * from "./macros/default-macros";
 export * from "./macros/kv-macro-store";
+export * from "./macros/macro-authoring-renderer";
 export * from "./macros/macro-autocomplete";
 export * from "./macros/macro-binder";
 export * from "./macros/macro-binding";

@@ -1,5 +1,6 @@
 import type {
 	CommandMacroTemplatePart,
+	MacroAuthoringRender,
 	MacroDefinition,
 } from "@stateful-mcp/clinical";
 import { Box, Text, useStdout } from "ink";
@@ -17,6 +18,7 @@ interface MacroEditorProps {
 	activeMacroArgumentId?: string;
 	activeDefinition?: MacroDefinition | null;
 	childDefinitions?: MacroDefinition[];
+	authoringPreview?: MacroAuthoringRender;
 	showCursor?: boolean;
 }
 
@@ -29,6 +31,7 @@ export function MacroEditor({
 	activeMacroArgumentId,
 	activeDefinition,
 	childDefinitions = [],
+	authoringPreview,
 	showCursor = true,
 }: MacroEditorProps) {
 	const { stdout } = useStdout();
@@ -454,6 +457,28 @@ export function MacroEditor({
 					<Text bold color="cyan">
 						└──────────────────────────────────────────────────────────────────────────────┘
 					</Text>
+				</Box>
+			)}
+			{authoringPreview && (
+				<Box
+					flexDirection="column"
+					borderStyle="single"
+					borderColor="gray"
+					paddingX={1}
+					width="100%"
+				>
+					<Text bold color="gray">
+						Preview
+					</Text>
+					<Text>{authoringPreview.text}</Text>
+					{(authoringPreview.missing.length > 0 ||
+						authoringPreview.invalid.length > 0) && (
+						<Text color="yellow">
+							{authoringPreview.missing.length > 0
+								? `Missing: ${authoringPreview.missing.join(", ")}`
+								: `Invalid: ${authoringPreview.invalid.join(", ")}`}
+						</Text>
+					)}
 				</Box>
 			)}
 		</Box>
