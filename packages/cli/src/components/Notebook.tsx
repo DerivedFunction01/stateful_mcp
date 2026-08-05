@@ -14,7 +14,6 @@ import type {
 	WindowOverlayAction,
 } from "../lib/cell-editor";
 import type { CompletionState } from "../lib/editor/completion-state";
-import { nextMacroSlot } from "../lib/editor/macro-slots";
 import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { NotebookCommandCatalog } from "../lib/windows/notebook/catalog";
 import { NotebookDocumentPort } from "../lib/windows/notebook/document";
@@ -196,6 +195,29 @@ export function Notebook({
 	const engineCandidates = useMemo<AutocompleteSuggestion[]>(() => [], []);
 	const mergedCandidates =
 		state.mode === "MACRO" ? notebook.macroSuggestions : staticCandidates;
+	const completionCandidates = useMemo(() => {
+		if (state.mode !== "MACRO") return mergedCandidates;
+		const beforeCursor = state.draftText.slice(0, state.cursorOffset);
+		const acceptedTemplateTargets = new Set(
+			mergedCandidates
+				.filter(
+					(candidate) =>
+						candidate.provenance === "template" &&
+						candidate.targetArgument &&
+						Boolean(candidate.label.trim()) &&
+						beforeCursor.endsWith(candidate.label.trim()),
+				)
+				.map((candidate) => candidate.targetArgument),
+		);
+		return mergedCandidates.filter((candidate) => {
+			if (!candidate.targetArgument) return true;
+			if (!acceptedTemplateTargets.has(candidate.targetArgument)) return true;
+			return (
+				candidate.provenance !== "template" &&
+				candidate.provenance !== "argument-name"
+			);
+		});
+	}, [mergedCandidates, state.mode, state.draftText, state.cursorOffset]);
 
 	// Sync engine suggestions ref
 	useEffect(() => {
@@ -214,11 +236,11 @@ export function Notebook({
 					...prev,
 					loading,
 					engineCandidates,
-					candidates: mergedCandidates,
+					candidates: completionCandidates,
 				};
 			});
 		}
-	}, [loading, engineCandidates, mergedCandidates, state.mode]);
+	}, [loading, engineCandidates, completionCandidates, state.mode]);
 
 	// Sync active index with search matches
 	useEffect(() => {
@@ -545,15 +567,6 @@ export function Notebook({
 		}
 	};
 
-	const navigateMacroSlots = (direction: 1 | -1) => {
-		const next = nextMacroSlot(
-			notebook.macroSlots,
-			state.cursorOffset,
-			direction,
-		);
-		if (next) dispatch({ type: "set_cursor", offset: next.start });
-	};
-
 	const definition = notebookWindow({
 		document: documentPort,
 		domain: domainPort,
@@ -567,7 +580,7 @@ export function Notebook({
 		defaultSection: undefined,
 		defaultSchema: undefined,
 		message: state.message,
-		macroSuggestions: mergedCandidates,
+		macroSuggestions: completionCandidates,
 		macroSlots: notebook.macroSlots,
 		activeMacroArgumentId: getActiveMacroArgumentId(
 			state.draftText,
@@ -638,9 +651,9 @@ export function Notebook({
 			overlay={overlay}
 			onOverlayAction={onOverlayAction}
 			renderOverlay={renderOverlay}
-			completionProvider={() => mergedCandidates}
+			completionProvider={() => completionCandidates}
 			macroSlots={notebook.macroSlots}
-			onMacroNavigate={navigateMacroSlots}
+			cursorOffset={state.cursorOffset}
 			syntaxProfile={session.v2.syntaxProfile}
 			childDefinitions={notebook.childDefinitions}
 		/>

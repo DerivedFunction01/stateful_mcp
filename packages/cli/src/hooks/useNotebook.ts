@@ -251,9 +251,11 @@ export function useNotebook(
 						slot.argumentId === templateArgumentId &&
 						(slot.status === "locked" || Boolean(slot.binding)),
 				);
-				const activeArgumentId =
-					activeProjection?.argumentId ??
-					(templateArgumentIsSatisfied ? undefined : templateArgumentId);
+				const activeArgumentId = isExplicitActiveArg
+					? undefined
+					: templateArgumentIsSatisfied
+						? undefined
+						: templateArgumentId;
 
 				const recommendations = await session.v2.notebook.getAutocomplete({
 					input: state.draftText,
@@ -265,9 +267,7 @@ export function useNotebook(
 					macroId: activeProjection?.macroId ?? activeDefinition?.macroId,
 					macroVersion:
 						activeProjection?.macroVersion ?? activeDefinition?.version,
-					filledSlots: [...filledArgumentIds].filter(
-						(argumentId) => argumentId !== activeArgumentId,
-					),
+					filledSlots: [...filledArgumentIds],
 					previousSlot: activeArgumentId,
 					activeArgumentId,
 				});

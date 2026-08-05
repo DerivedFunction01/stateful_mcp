@@ -40,7 +40,7 @@ const mockSyntaxProfile = {
 } as any;
 
 describe("macro autocomplete state transitions", () => {
-	test("Tab cycling cycles candidates without mutating draft in reduceCompletion", () => {
+	test("Tab highlights and returns the first candidate for insertion", () => {
 		const provider = () => suggestions;
 		// 1. Initial tab from idle state
 		let state = reduceCompletion(
@@ -55,6 +55,7 @@ describe("macro autocomplete state transitions", () => {
 			expect(state.completionState.highlightIndex).toBe(0);
 			expect(state.completionState.candidates).toHaveLength(2);
 		}
+		expect(state.committedLine).toBe("^vitals ");
 
 		// 2. Next tab cycles index
 		state = reduceCompletion(

@@ -46,7 +46,7 @@ export interface WindowContainerProps {
 	renderOverlay?: (overlay: WindowOverlay) => ReactElement | null;
 	completionProvider?: (partial: string) => AutocompleteSuggestion[];
 	macroSlots?: MacroSlotProjection[];
-	onMacroNavigate?: (direction: 1 | -1) => void;
+	cursorOffset?: number;
 	syntaxProfile: CommandSyntaxProfile;
 	childDefinitions?: MacroDefinition[];
 }
@@ -74,7 +74,7 @@ export function WindowContainer({
 	renderOverlay,
 	completionProvider,
 	macroSlots,
-	onMacroNavigate,
+	cursorOffset,
 	syntaxProfile,
 	childDefinitions = [],
 }: WindowContainerProps) {
@@ -299,6 +299,12 @@ export function WindowContainer({
 				return;
 			}
 			if (key.leftArrow || key.rightArrow) {
+				if (current.completion.status === "cycling") {
+					emit({
+						type: "SET_COMPLETION",
+						completion: { status: "idle" },
+					});
+				}
 				emit({ type: "MOVE_CURSOR", delta: key.leftArrow ? -1 : 1 });
 				return;
 			}
@@ -311,6 +317,18 @@ export function WindowContainer({
 				return;
 			}
 			if (key.tab && completionProvider) {
+				if (
+					(cursorOffset ?? current.draftText.length) !==
+					current.draftText.length
+				) {
+					if (current.completion.status === "cycling") {
+						emit({
+							type: "SET_COMPLETION",
+							completion: { status: "idle" },
+						});
+					}
+					return;
+				}
 				const isCycling = current.completion.status === "cycling";
 				if (isCycling) {
 					const transition = reduceCompletion(
@@ -324,19 +342,14 @@ export function WindowContainer({
 						type: "SET_COMPLETION",
 						completion: transition.completionState,
 					});
+					if (transition.committedLine) {
+						emit({
+							type: "COMMIT_COMPLETION",
+							line: transition.committedLine,
+						});
+					}
 					return;
 				}
-				if (macroSlots?.length && onMacroNavigate) {
-					onMacroNavigate(key.shift ? -1 : 1);
-					return;
-				}
-				// Chain expansion: if all slots are filled, append next child prefix
-				const chainPrefix = buildChainPrefix();
-				if (chainPrefix) {
-					emit({ type: "INSERT_TEXT", text: ` ${chainPrefix}` });
-					return;
-				}
-				// Otherwise start cycling if suggestions exist
 				const partial = current.draftText;
 				const suggestions = completionProvider(partial);
 				if (suggestions.length > 0) {
@@ -351,6 +364,18 @@ export function WindowContainer({
 						type: "SET_COMPLETION",
 						completion: transition.completionState,
 					});
+					if (transition.committedLine) {
+						emit({
+							type: "COMMIT_COMPLETION",
+							line: transition.committedLine,
+						});
+					}
+					return;
+				}
+				// Chain expansion: if all slots are filled, append next child prefix
+				const chainPrefix = buildChainPrefix();
+				if (chainPrefix) {
+					emit({ type: "INSERT_TEXT", text: ` ${chainPrefix}` });
 					return;
 				}
 			}
@@ -394,6 +419,12 @@ export function WindowContainer({
 					type: "SET_COMPLETION",
 					completion: transition.completionState,
 				});
+				if (transition.committedLine) {
+					emit({
+						type: "COMMIT_COMPLETION",
+						line: transition.committedLine,
+					});
+				}
 				return;
 			}
 			if (key.return) {
