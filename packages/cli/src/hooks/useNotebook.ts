@@ -71,6 +71,7 @@ export interface UseNotebookReturn {
 	moveActive(delta: -1 | 1): Promise<void>;
 	moveSelection(delta: -1 | 1): Promise<void>;
 	activeDefinition: MacroDefinition | null;
+	childDefinitions: MacroDefinition[];
 }
 
 export type {
@@ -93,6 +94,7 @@ export function useNotebook(
 	>([]);
 	const [macroSlots, setMacroSlots] = useState<MacroSlotProjection[]>([]);
 	const [activeDefinition, setActiveDefinition] = useState<MacroDefinition | null>(null);
+	const [childDefinitions, setChildDefinitions] = useState<MacroDefinition[]>([]);
 	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
 	>([]);
@@ -260,6 +262,7 @@ export function useNotebook(
 		if (!session || state.mode !== "MACRO" || !state.draftText) {
 			setMacroSlots([]);
 			setActiveDefinition(null);
+			setChildDefinitions([]);
 			return () => {
 				cancelled = true;
 			};
@@ -268,6 +271,7 @@ export function useNotebook(
 		if (!envelope) {
 			setMacroSlots([]);
 			setActiveDefinition(null);
+			setChildDefinitions([]);
 			return () => {
 				cancelled = true;
 			};
@@ -275,21 +279,42 @@ export function useNotebook(
 		void session.v2.engine
 			.getRuntime()
 			.macros.defs.get(envelope.macroName)
-			.then((definition) => {
+			.then(async (definition) => {
+				if (cancelled) return;
+				if (!definition) {
+					setMacroSlots([]);
+					setActiveDefinition(null);
+					setChildDefinitions([]);
+					return;
+				}
+				setActiveDefinition(definition);
+				setMacroSlots(
+					applyMacroLocks(
+						projectMacroSlots(state.draftText, definition),
+						state.macroLocks,
+					),
+				);
+				// Resolve child macro definitions for chain suggestions
+				const children = definition.children ?? [];
+				if (children.length === 0) {
+					setChildDefinitions([]);
+					return;
+				}
+				const runtime = session.v2.engine.getRuntime();
+				const resolved = await Promise.all(
+					children.map((c) =>
+						runtime.macros.defs.get(c.childMacroName).catch(() => null),
+					),
+				);
 				if (!cancelled) {
-					setActiveDefinition(definition);
-					setMacroSlots(
-						applyMacroLocks(
-							projectMacroSlots(state.draftText, definition),
-							state.macroLocks,
-						),
-					);
+					setChildDefinitions(resolved.filter((d): d is MacroDefinition => d !== null));
 				}
 			})
 			.catch(() => {
 				if (!cancelled) {
 					setMacroSlots([]);
 					setActiveDefinition(null);
+					setChildDefinitions([]);
 				}
 			});
 		return () => {
@@ -945,5 +970,6 @@ export function useNotebook(
 				targetIndex,
 			});
 		},
+		childDefinitions,
 	};
 }

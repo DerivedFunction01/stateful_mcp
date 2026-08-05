@@ -1,5 +1,5 @@
 import { Box, useInput } from "ink";
-import { type ReactElement, useReducer } from "react";
+import { type ReactElement, useReducer, useEffect, useRef } from "react";
 import {
 	type CommandCatalog,
 	createEditorKernelState,
@@ -16,9 +16,9 @@ import {
 } from "../lib/editor";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
-import { reduceCompletion } from "../lib/editor/completion-state";
+import { reduceCompletion, deriveCompletionSession } from "../lib/editor/completion-state";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
-import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
+import type { CommandSyntaxProfile, MacroDefinition, CommandMacroTemplatePart } from "@stateful-mcp/clinical";
 import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 
 export interface WindowContainerProps {
@@ -40,6 +40,7 @@ export interface WindowContainerProps {
 	macroSlots?: MacroSlotProjection[];
 	onMacroNavigate?: (direction: 1 | -1) => void;
 	syntaxProfile: CommandSyntaxProfile;
+	childDefinitions?: MacroDefinition[];
 }
 
 /**
@@ -67,6 +68,7 @@ export function WindowContainer({
 	macroSlots,
 	onMacroNavigate,
 	syntaxProfile,
+	childDefinitions = [],
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -78,6 +80,96 @@ export function WindowContainer({
 	const emit = (action: EditorAction) => {
 		if (onEditorAction) onEditorAction(action);
 		else dispatch(action);
+	};
+
+	const autocompleteTimeoutRef = useRef<any>(null);
+
+	const triggerAutocomplete = (newLine: string, type: "macro" | "command") => {
+		if (autocompleteTimeoutRef.current) {
+			clearTimeout(autocompleteTimeoutRef.current);
+		}
+		autocompleteTimeoutRef.current = setTimeout(() => {
+			const token = type === "macro" ? syntaxProfile.macroStartToken : syntaxProfile.directCommandToken;
+			if (!newLine.startsWith(token)) {
+				emit({
+					type: "SET_COMPLETION",
+					completion: { status: "idle" },
+				});
+				return;
+			}
+			const partial = newLine.slice(token.length);
+			const getSg = type === "macro"
+				? (completionProvider || (() => []))
+				: ((p: string) => catalog.getSuggestions(p, context));
+			const suggestions = getSg(partial);
+			if (suggestions.length > 0) {
+				const session = deriveCompletionSession(newLine, syntaxProfile);
+				if (session) {
+					emit({
+						type: "SET_COMPLETION",
+						completion: {
+							status: "cycling",
+							candidates: suggestions,
+							highlightIndex: -1,
+							session,
+						},
+					});
+					return;
+				}
+			}
+			emit({
+				type: "SET_COMPLETION",
+				completion: { status: "idle" },
+			});
+		}, 200);
+	};
+
+	const clearAutocompleteTimeout = () => {
+		if (autocompleteTimeoutRef.current) {
+			clearTimeout(autocompleteTimeoutRef.current);
+		}
+	};
+
+	useEffect(() => {
+		return () => {
+			if (autocompleteTimeoutRef.current) {
+				clearTimeout(autocompleteTimeoutRef.current);
+			}
+		};
+	}, []);
+
+	/**
+	 * Returns the prefix string (from the next unbound child macro's authoring
+	 * template) to append for chain expansion, or null if no chain is pending.
+	 */
+	const buildChainPrefix = (): string | null => {
+		if (!childDefinitions.length || !macroSlots) return null;
+		const nextChild = childDefinitions.find((childDef) => {
+			const childSlots = macroSlots.filter((s) => s.macroId === childDef.macroId);
+			const allLocked =
+				childDef.arguments.length > 0 &&
+				childDef.arguments.every((arg) =>
+					childSlots.some(
+						(s) => s.argumentId === arg.argumentId && s.status === "locked",
+					),
+				);
+			return !allLocked;
+		});
+		if (!nextChild) return null;
+		const tmpl = nextChild.authoringTemplates?.[0];
+		if (tmpl) {
+			// Build the literal prefix up to (not including) the first slot
+			const literalPrefix: string[] = [];
+			for (const p of tmpl.parts as CommandMacroTemplatePart[]) {
+				if (p.kind === "literal") {
+					literalPrefix.push(p.text);
+				} else {
+					break; // stop at first slot — user fills the rest
+				}
+			}
+			return literalPrefix.join("") || null;
+		}
+		return null;
 	};
 
 	const applyKeyResolution = async (
@@ -163,6 +255,7 @@ export function WindowContainer({
 
 		if (current.mode === "MACRO") {
 			if (key.escape) {
+				clearAutocompleteTimeout();
 				if (current.completion.status === "cycling") {
 					emit({
 						type: "SET_COMPLETION",
@@ -172,6 +265,7 @@ export function WindowContainer({
 				return;
 			}
 			if (key.ctrl && (_input === "c" || _input === "q")) {
+				clearAutocompleteTimeout();
 				emit({ type: "CANCEL" });
 				return;
 			}
@@ -227,6 +321,7 @@ export function WindowContainer({
 			}
 			if (key.backspace) {
 				emit({ type: "BACKSPACE" });
+				triggerAutocomplete(current.draftText.slice(0, -1), "macro");
 				return;
 			}
 			if (key.leftArrow || key.rightArrow) {
@@ -259,6 +354,12 @@ export function WindowContainer({
 				}
 				if (macroSlots?.length && onMacroNavigate) {
 					onMacroNavigate(key.shift ? -1 : 1);
+					return;
+				}
+				// Chain expansion: if all slots are filled, append next child prefix
+				const chainPrefix = buildChainPrefix();
+				if (chainPrefix) {
+					emit({ type: "INSERT_TEXT", text: ` ${chainPrefix}` });
 					return;
 				}
 				// Otherwise start cycling if suggestions exist
@@ -301,12 +402,14 @@ export function WindowContainer({
 			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {
 				emit({ type: "INSERT_TEXT", text: _input });
+				triggerAutocomplete(current.draftText + _input, "macro");
 			}
 			return;
 		}
 
 		if (current.mode === "COMMAND") {
 			if (key.escape) {
+				clearAutocompleteTimeout();
 				emit({ type: "CANCEL" });
 				return;
 			}
@@ -351,6 +454,7 @@ export function WindowContainer({
 			}
 			if (key.backspace) {
 				emit({ type: "BACKSPACE" });
+				triggerAutocomplete(current.draftText.slice(0, -1), "command");
 				return;
 			}
 			if (_input === " ") {
@@ -377,6 +481,7 @@ export function WindowContainer({
 			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {
 				emit({ type: "INSERT_TEXT", text: _input });
+				triggerAutocomplete(current.draftText + _input, "command");
 			}
 			return;
 		}

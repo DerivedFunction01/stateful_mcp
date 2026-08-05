@@ -38,6 +38,7 @@ export interface NotebookWindowDeps {
 	/** Active syntax profile for canonical descriptor/knownVerbs derivation. */
 	syntaxProfile?: CommandSyntaxProfile;
 	activeDefinition?: MacroDefinition | null;
+	childDefinitions?: MacroDefinition[];
 }
 
 /**
@@ -104,6 +105,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								macroSlots={deps.macroSlots}
 								activeMacroArgumentId={deps.activeMacroArgumentId}
 								activeDefinition={deps.activeDefinition}
+								childDefinitions={deps.childDefinitions}
 								showCursor={true}
 							/>
 						);

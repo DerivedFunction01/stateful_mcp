@@ -572,6 +572,7 @@ export function Notebook({
 		cursorOffset: state.cursorOffset,
 		syntaxProfile: session.v2.syntaxProfile,
 		activeDefinition: notebook.activeDefinition,
+		childDefinitions: notebook.childDefinitions,
 	});
 
 	const containerDomain = {
@@ -633,6 +634,7 @@ export function Notebook({
 			macroSlots={notebook.macroSlots}
 			onMacroNavigate={navigateMacroSlots}
 			syntaxProfile={session.v2.syntaxProfile}
+			childDefinitions={notebook.childDefinitions}
 		/>
 	);
 }

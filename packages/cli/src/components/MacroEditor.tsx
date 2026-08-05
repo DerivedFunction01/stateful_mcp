@@ -1,5 +1,5 @@
 import { Box, Text, useStdout } from "ink";
-import type { MacroDefinition } from "@stateful-mcp/clinical";
+import type { MacroDefinition, CommandMacroTemplatePart } from "@stateful-mcp/clinical";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { buildMacroRenderSegments } from "../lib/editor/macro-render";
@@ -13,6 +13,7 @@ interface MacroEditorProps {
 	macroSlots?: MacroSlotProjection[];
 	activeMacroArgumentId?: string;
 	activeDefinition?: MacroDefinition | null;
+	childDefinitions?: MacroDefinition[];
 	showCursor?: boolean;
 }
 
@@ -24,6 +25,7 @@ export function MacroEditor({
 	macroSlots = [],
 	activeMacroArgumentId,
 	activeDefinition,
+	childDefinitions = [],
 	showCursor = true,
 }: MacroEditorProps) {
 	const { stdout } = useStdout();
@@ -132,6 +134,43 @@ export function MacroEditor({
 				hintText = t("macro.remaining", { names: remainingNames, example });
 			} else {
 				hintText = t("macro.allCaptured");
+				// Check for chain continuation — find the first child definition
+				// whose macroName is not already fully represented in macroSlots
+				if (childDefinitions.length > 0) {
+					// The parent's children[] defines the chain order.
+					// Find the first child definition whose arguments are not all
+					// yet present as locked slots in the current draft.
+					const nextChild = childDefinitions.find((childDef) => {
+						// Check if any slot for this child macro is still unbound
+						const childSlots = macroSlots.filter(
+							(s) => s.macroId === childDef.macroId,
+						);
+						const allLocked =
+							childDef.arguments.length > 0 &&
+							childDef.arguments.every((arg) =>
+								childSlots.some(
+									(s) =>
+										s.argumentId === arg.argumentId &&
+										s.status === "locked",
+								),
+							);
+						return !allLocked;
+					});
+					if (nextChild) {
+						// Find its first authoring template or fall back to macroName
+						const tmpl = nextChild.authoringTemplates?.[0];
+						const nextLabel = tmpl
+							? tmpl.parts
+									.map((p: CommandMacroTemplatePart) =>
+										p.kind === "literal"
+											? p.text
+											: `__${p.displayText ?? "SLOT"}__`,
+									)
+									.join("")
+							: nextChild.macroName;
+						hintText = t("macro.chainSuggestion", { next: nextLabel });
+					}
+				}
 			}
 		}
 	}
@@ -142,6 +181,29 @@ export function MacroEditor({
 			return suggestions;
 		}
 		if (activeMacroArgumentId) {
+			const argSpec = activeDefinition.arguments.find(
+				(a) => a.argumentId === activeMacroArgumentId,
+			);
+			if (argSpec) {
+				const isPlural =
+					argSpec.extraction.kind === "concept_array" ||
+					argSpec.extraction.kind === "array";
+				if (!isPlural) {
+					if (activeSlot && activeSlot.status === "locked") {
+						return [];
+					}
+					const first = suggestions[0];
+					if (
+						suggestions.length === 1 &&
+						activeSlot &&
+						first &&
+						(first.value === activeSlot.displayText ||
+							first.label === activeSlot.displayText)
+					) {
+						return [];
+					}
+				}
+			}
 			return suggestions;
 		}
 		return suggestions.filter((s) => s.kind === "arg");
