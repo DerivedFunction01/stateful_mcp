@@ -19,7 +19,13 @@ export interface MacroSlotProjection {
 	extractionPattern?: string;
 	rawText: string;
 	displayText: string;
-	bindingSource?: "named" | "positional" | "inferred" | "rule" | "friendly";
+	bindingSource?:
+		| "named"
+		| "positional"
+		| "inferred"
+		| "rule"
+		| "friendly"
+		| "accepted";
 	status: "unbound" | "bound" | "invalid" | "locked";
 	binding?: MacroSlotBinding;
 	diagnostics: string[];
@@ -133,8 +139,9 @@ export function applyMacroLocks(
 	locks: readonly MacroLockLike[],
 	activeArgumentId?: string,
 	draftText?: string,
+	definition?: MacroDefinition | null,
 ): MacroSlotProjection[] {
-	return projections.map((projection) => {
+	const projected = projections.map((projection) => {
 		const lock = locks.find(
 			(lock) =>
 				lock.macroId === projection.macroId &&
@@ -164,6 +171,43 @@ export function applyMacroLocks(
 					: projection.status,
 		};
 	});
+	if (!definition) return projected;
+	for (const lock of locks) {
+		if (
+			lock.rawText &&
+			draftText !== undefined &&
+			draftText.slice(lock.start, lock.end) !== lock.rawText
+		)
+			continue;
+		if (
+			projected.some(
+				(slot) =>
+					slot.argumentId === lock.argumentId &&
+					slot.start === lock.start &&
+					slot.end === lock.end,
+			)
+		)
+			continue;
+		const argument = definition.arguments.find(
+			(candidate) => candidate.argumentId === lock.argumentId,
+		);
+		if (!argument || !lock.rawText || !lock.binding) continue;
+		projected.push({
+			macroId: definition.macroId,
+			macroVersion: definition.version,
+			argumentId: argument.argumentId,
+			roleName: argument.roleName,
+			start: lock.start,
+			end: lock.end,
+			rawText: lock.rawText,
+			displayText: lock.binding.displayValue ?? lock.rawText,
+			bindingSource: "accepted",
+			status: "locked",
+			diagnostics: [],
+			binding: lock.binding,
+		});
+	}
+	return projected.sort((left, right) => left.start - right.start);
 }
 
 function toProjection(

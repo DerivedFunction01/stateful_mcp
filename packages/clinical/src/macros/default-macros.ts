@@ -334,6 +334,19 @@ export const NOTE_MACRO: MacroDefinition = {
 		},
 		{
 			version: 1,
+			templateId: "note-has-a-page",
+			parts: [
+				{ kind: "literal", text: "has a page # " },
+				{
+					kind: "slot",
+					argumentId: "page_num",
+					occurrence: 0,
+					displayText: "page",
+				},
+			],
+		},
+		{
+			version: 1,
 			parts: [
 				{ kind: "literal", text: "during " },
 				{ kind: "slot", argumentId: "year", occurrence: 0 },

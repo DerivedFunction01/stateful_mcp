@@ -41,9 +41,6 @@ export function MacroEditor({
 	const columns = stdout?.columns ?? 80;
 	const isNarrow = columns < 80;
 
-	const activeSlot = macroSlots.find(
-		(slot) => slot.argumentId === activeMacroArgumentId,
-	);
 	const isConceptSlot = (slot: MacroSlotProjection): boolean => {
 		const argument = activeDefinition?.arguments.find(
 			(candidate) => candidate.argumentId === slot.argumentId,
@@ -58,6 +55,11 @@ export function MacroEditor({
 		Boolean(slot.binding) ||
 		(!isConceptSlot(slot) && slot.status !== "invalid");
 	const renderableMacroSlots = macroSlots.filter(isResolvedSlot);
+	const activeSlot =
+		macroSlots.find(
+			(slot) =>
+				slot.argumentId === activeMacroArgumentId && isResolvedSlot(slot),
+		) ?? macroSlots.find((slot) => slot.argumentId === activeMacroArgumentId);
 	const segments = buildMacroRenderSegments(
 		draftText,
 		renderableMacroSlots,
@@ -74,7 +76,10 @@ export function MacroEditor({
 	const statuses: ArgStatus[] = [];
 	if (activeDefinition) {
 		for (const arg of activeDefinition.arguments) {
-			const slot = macroSlots.find((s) => s.argumentId === arg.argumentId);
+			const slot =
+				macroSlots.find(
+					(s) => s.argumentId === arg.argumentId && isResolvedSlot(s),
+				) ?? macroSlots.find((s) => s.argumentId === arg.argumentId);
 			if (slot && isResolvedSlot(slot)) {
 				if (slot.diagnostics?.length > 0) {
 					statuses.push({

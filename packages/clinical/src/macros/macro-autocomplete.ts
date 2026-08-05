@@ -17,6 +17,7 @@ export const AUTOCOMPL = [
 	"boolean",
 	"date",
 	"number",
+	"template",
 ];
 export type AutocompleteType = (typeof AUTOCOMPL)[number];
 
@@ -25,7 +26,7 @@ export interface AutocompleteSuggestion {
 	value: string;
 	type: AutocompleteType;
 	detail?: string;
-	source?: "macro" | "dictionary" | "custom-expression";
+	source?: "macro" | "dictionary" | "custom-expression" | "template";
 	expressionId?: string;
 	conceptId?: string;
 	lookupTerm?: string;
@@ -123,7 +124,11 @@ export class MacroAutocomplete {
 
 		// Direct concept search is driven by the active syntax profile.
 		const conceptToken = this.deps.conceptToken;
-		if (lookupArgument && conceptToken && query.startsWith(conceptToken)) {
+		if (
+			lookupArgument &&
+			conceptToken &&
+			query.toLocaleLowerCase().startsWith(conceptToken.toLocaleLowerCase())
+		) {
 			const after = query.slice(conceptToken.length);
 			const separator = this.deps.conceptCodeSeparator ?? "";
 			const separatorIndex = separator ? after.indexOf(separator) : -1;
@@ -140,7 +145,7 @@ export class MacroAutocomplete {
 		if (
 			lookupArgument &&
 			expressionToken &&
-			query.startsWith(expressionToken)
+			query.toLocaleLowerCase().startsWith(expressionToken.toLocaleLowerCase())
 		) {
 			return this.suggestCustomExpressions(
 				query.slice(expressionToken.length),
@@ -183,6 +188,9 @@ export class MacroAutocomplete {
 				macroName,
 				argumentName,
 			);
+		}
+		if (scope === "template" && macroName) {
+			return this.suggestTemplates(macroName, query);
 		}
 
 		if (startsWithToken(query)) {
@@ -468,6 +476,13 @@ export class MacroAutocomplete {
 			namespaceCode,
 			MAX_SUGGESTIONS * 2, // Search a bit more to allow room for filtered out items
 		);
+		if (candidates.length === 0 && query !== lowerQuery) {
+			candidates = await this.deps.dictionary.search(
+				lowerQuery,
+				namespaceCode,
+				MAX_SUGGESTIONS * 2,
+			);
+		}
 		if (lowerQuery) {
 			candidates = candidates.filter(
 				(c) =>
@@ -596,6 +611,36 @@ export class MacroAutocomplete {
 					return rightValue.length - leftValue.length;
 				return sortSuggestions(left, right);
 			})
+			.slice(0, MAX_SUGGESTIONS);
+	}
+
+	private async suggestTemplates(
+		macroName: string,
+		query: string,
+	): Promise<AutocompleteSuggestion[]> {
+		const macro = await this.deps.macros.get(macroName);
+		if (!macro) return [];
+		const normalizedQuery = query.trim().toLocaleLowerCase();
+		return (macro.authoringTemplates ?? [])
+			.map((template) => {
+				let literal = "";
+				for (const part of template.parts) {
+					if (part.kind === "slot") break;
+					literal += part.text;
+				}
+				return {
+					label: literal,
+					value: literal,
+					type: "text" as const,
+					detail: "template",
+					source: "template" as const,
+				};
+			})
+			.filter(
+				(suggestion) =>
+					Boolean(suggestion.value) &&
+					suggestion.value.toLocaleLowerCase().startsWith(normalizedQuery),
+			)
 			.slice(0, MAX_SUGGESTIONS);
 	}
 }

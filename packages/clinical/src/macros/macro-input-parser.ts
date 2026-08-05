@@ -146,11 +146,9 @@ function matchDefinitionArguments(
 			match,
 		});
 	}
-	if (friendlyMatches.length > 0) {
-		return arguments_.sort(
-			(left, right) => (left.start ?? 0) - (right.start ?? 0),
-		);
-	}
+	const friendlyArgumentIds = new Set(
+		friendlyMatches.map((match) => match.argumentId),
+	);
 
 	// Unnamed text is matched by declared positional expressions, never split by whitespace.
 	const unnamed = scanUnnamedRegions(
@@ -158,11 +156,16 @@ function matchDefinitionArguments(
 		bodyStart,
 		named,
 		definition.syntax?.argumentDelimiter,
+		friendlyMatches.map((match) => ({
+			start: match.anchor?.start ?? match.extraction.start,
+			end: match.extraction.end,
+		})),
 	);
 	const positional = definition.arguments
 		.filter(
 			(spec) =>
 				spec.position !== undefined &&
+				!friendlyArgumentIds.has(spec.argumentId) &&
 				!named.some(
 					(part) =>
 						resolveNamedSpec(part.name, definition.arguments)?.argumentId ===
@@ -449,14 +452,19 @@ function scanUnnamedRegions(
 	start: number,
 	named: NamedSegment[],
 	delimiter?: string,
+	blocked: Array<{ start: number; end: number }> = [],
 ): Array<{ start: number; end: number }> {
 	const regions: Array<{ start: number; end: number }> = [];
 	let cursor = start;
-	for (const segment of named) {
+	const boundaries = [
+		...named.map((segment) => ({ start: segment.start, end: segment.end })),
+		...blocked,
+	].sort((left, right) => left.start - right.start);
+	for (const segment of boundaries) {
 		const end = segment.start;
 		if (skipWhitespace(raw, cursor) < end)
 			regions.push({ start: skipWhitespace(raw, cursor), end });
-		cursor = segment.end;
+		cursor = Math.max(cursor, segment.end);
 	}
 	if (skipWhitespace(raw, cursor) < raw.length)
 		regions.push({ start: skipWhitespace(raw, cursor), end: raw.length });

@@ -693,5 +693,72 @@ describe("MacroAutocomplete", () => {
 				}),
 			).toEqual([]);
 		});
+
+		test("combines template and expression candidates for a shared prefix", async () => {
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore([NOTE_MACRO]),
+				dictionary: makeExpressionDictionary(
+					[],
+					[
+						{
+							id: "expr-hp",
+							term: "Harry Potter",
+							lookupTerm: "hp",
+							regexPattern: "\\bhp\\b",
+							isCaseInsensitive: true,
+							targetAssignment: "note.title",
+							conceptId: "c-hp",
+							priorityWeight: 1,
+							active: true,
+						},
+					],
+				),
+			});
+			const expressions = await service.suggest({
+				query: "h",
+				macroName: "note",
+				argumentName: "title",
+			});
+			const templates = await service.suggest({
+				query: "h",
+				scope: "template",
+				macroName: "note",
+			});
+
+			expect(expressions[0]?.lookupTerm).toBe("hp");
+			expect(templates[0]).toMatchObject({
+				value: "has page # ",
+				source: "template",
+			});
+		});
+
+		test("matches configured expression tokens case-insensitively", async () => {
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore([NOTE_MACRO]),
+				expressionToken: "#",
+				dictionary: makeExpressionDictionary(
+					[],
+					[
+						{
+							id: "expr-hp",
+							term: "Harry Potter",
+							lookupTerm: "hp",
+							regexPattern: "\\bhp\\b",
+							isCaseInsensitive: true,
+							targetAssignment: "note.title",
+							conceptId: "c-hp",
+							priorityWeight: 1,
+							active: true,
+						},
+					],
+				),
+			});
+			const results = await service.suggest({
+				query: "#H",
+				macroName: "note",
+				argumentName: "title",
+			});
+			expect(results[0]?.lookupTerm).toBe("hp");
+		});
 	});
 });

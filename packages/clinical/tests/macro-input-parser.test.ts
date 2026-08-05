@@ -268,6 +268,25 @@ describe("macro-input-parser", () => {
 		expect(result?.arguments[0]?.match?.argumentId).toBe("year");
 	});
 
+	test("continues positional parsing after a completed template span", () => {
+		const result = parseMacroLine("^note has page # 2004 2005", 0, {
+			definition: NOTE_MACRO,
+		});
+
+		expect(
+			result?.arguments.some(
+				(argument) =>
+					argument.source === "friendly" && argument.rawValue === "2004",
+			),
+		).toBe(true);
+		expect(
+			result?.arguments.some(
+				(argument) =>
+					argument.source === "inferred" && argument.rawValue === "2005",
+			),
+		).toBe(true);
+	});
+
 	test("preserves quotes for expressions that use quotes themselves", () => {
 		const result = parseMacroLine(
 			'^observation concept="shortness of breath"',

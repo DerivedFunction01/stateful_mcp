@@ -314,6 +314,7 @@ export function useNotebook(
 						state.macroLocks,
 						undefined,
 						state.draftText,
+						definition,
 					),
 				);
 				// Resolve child macro definitions for chain suggestions
@@ -348,12 +349,7 @@ export function useNotebook(
 
 	useEffect(() => {
 		let cancelled = false;
-		if (
-			!session ||
-			state.mode !== "MACRO" ||
-			!activeDefinition ||
-			macroSlots.length === 0
-		)
+		if (!session || state.mode !== "MACRO" || !activeDefinition)
 			return () => {
 				cancelled = true;
 			};
@@ -363,6 +359,93 @@ export function useNotebook(
 			return () => {
 				cancelled = true;
 			};
+
+		const expressionTokens = [
+			session.v2.syntaxProfile.expressionToken,
+			session.v2.syntaxProfile.conceptToken,
+		].filter((token): token is string => Boolean(token));
+		const conceptArguments = activeDefinition.arguments.filter(
+			(argument) =>
+				argument.extraction.kind === "concept" ||
+				argument.extraction.kind === "concept_array",
+		);
+		const tokenMatches = [...state.draftText.matchAll(/\S+/g)].map((match) => ({
+			start: match.index ?? 0,
+			end: (match.index ?? 0) + match[0].length,
+		}));
+		void Promise.all(
+			conceptArguments.flatMap((argument) =>
+				tokenMatches.map(async (token) => {
+					const existing = state.macroLocks.some(
+						(lock) => lock.argumentId === argument.argumentId,
+					);
+					const hasCurrentBinding = state.macroLocks.some(
+						(lock) =>
+							lock.argumentId === argument.argumentId &&
+							(!lock.rawText ||
+								state.draftText.slice(lock.start, lock.end) === lock.rawText),
+					);
+					if ((existing && hasCurrentBinding) || cancelled) return;
+					const tokenText = state.draftText.slice(token.start, token.end);
+					const configuredToken = expressionTokens.find((value) =>
+						tokenText.toLocaleLowerCase().startsWith(value.toLocaleLowerCase()),
+					);
+					const lookupStart = configuredToken
+						? token.start + configuredToken.length
+						: token.start;
+					const prefix = state.draftText.slice(lookupStart, token.end);
+					if (!prefix.trim()) return;
+					const expressions = await dictionary.searchExpressionCandidates!({
+						lookupPrefix: prefix.toLocaleLowerCase(),
+						targetAssignments: [argument.roleName],
+						activeOnly: true,
+						limit: 20,
+					});
+					const expression = expressions
+						.filter((candidate) => {
+							if (!candidate.conceptId) return false;
+							const term = (
+								candidate.lookupTerm ?? candidate.term
+							).toLocaleLowerCase();
+							const remaining = state.draftText.slice(lookupStart);
+							return (
+								remaining.toLocaleLowerCase().startsWith(term) &&
+								/\s|$/.test(remaining[term.length] ?? "")
+							);
+						})
+						.sort(
+							(left, right) =>
+								(right.lookupTerm ?? right.term).length -
+								(left.lookupTerm ?? left.term).length,
+						)[0];
+					if (cancelled || !expression?.conceptId) return;
+					const lookupTerm = expression.lookupTerm ?? expression.term;
+					const rawText = state.draftText.slice(
+						token.start,
+						lookupStart + lookupTerm.length,
+					);
+					dispatch({
+						type: "add_macro_lock",
+						lock: {
+							argumentId: argument.argumentId,
+							macroId: activeDefinition.macroId,
+							macroVersion: activeDefinition.version,
+							start: token.start,
+							end: token.start + rawText.length,
+							rawText,
+							source: "accepted",
+							binding: {
+								kind: "custom-expression",
+								conceptId: expression.conceptId,
+								expressionId: expression.id,
+								lookupTerm,
+								displayValue: expression.term,
+							},
+						},
+					});
+				}),
+			),
+		).catch(() => undefined);
 
 		const pending = macroSlots.flatMap((slot) => {
 			const argument = activeDefinition.arguments.find(
@@ -471,6 +554,7 @@ export function useNotebook(
 		state.macroLocks,
 		activeDefinition,
 		macroSlots,
+		state.draftText,
 		dispatch,
 	]);
 

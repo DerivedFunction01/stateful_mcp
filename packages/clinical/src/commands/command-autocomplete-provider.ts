@@ -183,9 +183,14 @@ async function macroSuggestions(
 
 		// B. Concept-token override. Custom-expression tokens are not concept searches.
 		if (
-			(profile.conceptToken && currentWord.startsWith(profile.conceptToken)) ||
+			(profile.conceptToken &&
+				currentWord
+					.toLocaleLowerCase()
+					.startsWith(profile.conceptToken.toLocaleLowerCase())) ||
 			(profile.expressionToken &&
-				currentWord.startsWith(profile.expressionToken))
+				currentWord
+					.toLocaleLowerCase()
+					.startsWith(profile.expressionToken.toLocaleLowerCase()))
 		) {
 			const suggestions = await autocompleter.suggest({
 				query: currentWord,
@@ -232,6 +237,23 @@ async function macroSuggestions(
 					lookupTerm: s.lookupTerm,
 				});
 			}
+		}
+		const templateSuggestions = await autocompleter.suggest({
+			query: currentWord,
+			scope: "template",
+			macroName,
+			macroId: definition.macroId,
+			macroVersion: definition.version,
+		});
+		for (const suggestion of templateSuggestions) {
+			valueSuggestions.push({
+				label: suggestion.label,
+				insertText: input.slice(0, lastSpaceIndex + 1) + suggestion.value,
+				kind: "value" as const,
+				detail: suggestion.detail,
+				source: "context" as const,
+				sourceKind: suggestion.source,
+			});
 		}
 
 		if (valueSuggestions.length > 0) {

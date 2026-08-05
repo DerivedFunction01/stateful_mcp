@@ -22,6 +22,7 @@ export interface AutocompleteSuggestion {
 	completionText: string;
 	group: string;
 	source: "editor" | "clinical" | "macro" | "context";
+	sourceKind?: "macro" | "dictionary" | "custom-expression" | "template";
 	hasArgs: boolean;
 	kind: "verb" | "argument" | "value" | "field" | "arg";
 	argNames?: string[];

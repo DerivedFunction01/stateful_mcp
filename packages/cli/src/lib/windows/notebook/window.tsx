@@ -100,8 +100,13 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					deps.editorState.completion.status === "cycling"
 						? deps.editorState.completion.highlightIndex
 						: -1;
+				const matchedTemplateIndex = deps.macroSlots
+					?.find((slot) => slot.formId?.startsWith("template:"))
+					?.formId?.match(/^template:(\d+)/)?.[1];
 				const authoringTemplate =
-					deps.activeDefinition?.authoringTemplates?.[0];
+					deps.activeDefinition?.authoringTemplates?.[
+						matchedTemplateIndex ? Number(matchedTemplateIndex) : 0
+					];
 				const authoringPreview = authoringTemplate
 					? renderMacroAuthoringTemplate(
 							authoringTemplate,
