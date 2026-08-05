@@ -49,4 +49,19 @@ describe("macro authoring renderer", () => {
 		expect(result.missing).toEqual([]);
 		expect(result.invalid).toEqual(["title"]);
 	});
+
+	test("uses resolved display values while keeping lookup text separate", () => {
+		const template: CommandMacroAuthoringTemplate = {
+			version: 1,
+			parts: [
+				{ kind: "literal", text: "Book: " },
+				{ kind: "slot", argumentId: "title", occurrence: 0 },
+			],
+		};
+		const result = renderMacroAuthoringTemplate(template, [
+			{ argumentId: "title", value: "Harry Potter", status: "bound" },
+		]);
+
+		expect(result.text).toBe("Book: Harry Potter");
+	});
 });

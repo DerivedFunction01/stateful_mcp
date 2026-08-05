@@ -32,6 +32,7 @@ export interface MacroSlotBinding {
 	conceptId: string;
 	expressionId?: string;
 	lookupTerm?: string;
+	displayValue?: string;
 	canonicalValue?: string;
 }
 
@@ -132,29 +133,28 @@ export function applyMacroLocks(
 	draftText?: string,
 ): MacroSlotProjection[] {
 	return projections.map((projection) => {
-		const locked = locks.some(
+		const lock = locks.find(
 			(lock) =>
 				lock.macroId === projection.macroId &&
 				lock.macroVersion === projection.macroVersion &&
 				lock.argumentId === projection.argumentId &&
-				lock.start === projection.start &&
-				lock.end === projection.end &&
+				lock.start >= projection.start &&
+				lock.end <= projection.end &&
 				(!lock.rawText ||
 					draftText === undefined ||
 					draftText.slice(lock.start, lock.end) === lock.rawText),
 		);
+		const locked = lock !== undefined;
 		return {
 			...projection,
-			binding: locked
-				? locks.find(
-						(lock) =>
-							lock.macroId === projection.macroId &&
-							lock.macroVersion === projection.macroVersion &&
-							lock.argumentId === projection.argumentId &&
-							lock.start === projection.start &&
-							lock.end === projection.end,
-					)?.binding
-				: projection.binding,
+			...(lock
+				? {
+						start: lock.start,
+						end: lock.end,
+						rawText: lock.rawText ?? projection.rawText,
+					}
+				: {}),
+			binding: locked ? lock?.binding : projection.binding,
 			status: locked
 				? "locked"
 				: projection.argumentId === activeArgumentId

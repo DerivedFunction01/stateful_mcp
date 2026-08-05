@@ -299,6 +299,34 @@ export const NOTE_MACRO: MacroDefinition = {
 	authoringTemplates: [
 		{
 			version: 1,
+			templateId: "note-favorite-book",
+			parts: [
+				{ kind: "literal", text: "My favorite book is " },
+				{
+					kind: "slot",
+					argumentId: "title",
+					occurrence: 0,
+					displayText: "title",
+				},
+				{ kind: "literal", text: " when I read it in the year " },
+				{
+					kind: "slot",
+					argumentId: "year",
+					occurrence: 0,
+					displayText: "year",
+				},
+				{ kind: "literal", text: " and I got to page " },
+				{
+					kind: "slot",
+					argumentId: "page_num",
+					occurrence: 0,
+					displayText: "page",
+				},
+				{ kind: "literal", text: "." },
+			],
+		},
+		{
+			version: 1,
 			parts: [
 				{ kind: "literal", text: "has page # " },
 				{ kind: "slot", argumentId: "page_num", occurrence: 0 },

@@ -377,18 +377,29 @@ export function useNotebook(
 		void Promise.all(
 			pending.map(async ({ slot, lookupTerm, roleName }) => {
 				const expressions = await dictionary.searchExpressionCandidates!({
-					lookupPrefix: lookupTerm.toLocaleLowerCase(),
+					lookupPrefix: lookupTerm.toLocaleLowerCase().split(/\s+/)[0],
 					targetAssignments: [roleName],
 					activeOnly: true,
 					limit: 20,
 				});
 				const normalizedLookupTerm = lookupTerm.toLocaleLowerCase();
-				const expression = expressions.find(
-					(candidate) =>
-						candidate.conceptId &&
-						(candidate.lookupTerm ?? candidate.term).toLocaleLowerCase() ===
-							normalizedLookupTerm,
-				);
+				const expression = expressions
+					.filter((candidate) => {
+						if (!candidate.conceptId) return false;
+						const candidateTerm = (
+							candidate.lookupTerm ?? candidate.term
+						).toLocaleLowerCase();
+						return (
+							normalizedLookupTerm === candidateTerm ||
+							(normalizedLookupTerm.startsWith(`${candidateTerm} `) &&
+								candidateTerm.length > 0)
+						);
+					})
+					.sort(
+						(left, right) =>
+							(right.lookupTerm ?? right.term).length -
+							(left.lookupTerm ?? left.term).length,
+					)[0];
 				const hasLongerContinuation = expressions.some((candidate) => {
 					const candidateTerm = (
 						candidate.lookupTerm ?? candidate.term
@@ -416,7 +427,7 @@ export function useNotebook(
 						macroId: slot.macroId,
 						macroVersion: slot.macroVersion,
 						start: slot.start,
-						end: slot.end,
+						end: slot.start + (expression.lookupTerm ?? expression.term).length,
 						rawText: slot.rawText,
 						source: "accepted",
 						binding: {
@@ -424,6 +435,7 @@ export function useNotebook(
 							conceptId: expression.conceptId,
 							expressionId: expression.id,
 							lookupTerm: expression.lookupTerm ?? lookupTerm,
+							displayValue: expression.term,
 						},
 					},
 				});
@@ -485,6 +497,7 @@ export function useNotebook(
 						conceptId: suggestion.conceptId,
 						expressionId: suggestion.expressionId,
 						lookupTerm: suggestion.lookupTerm,
+						displayValue: suggestion.label,
 					};
 				})(),
 			},

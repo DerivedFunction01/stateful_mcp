@@ -30,6 +30,7 @@ export interface NotebookMacroLock {
 		conceptId: string;
 		expressionId?: string;
 		lookupTerm?: string;
+		displayValue?: string;
 		canonicalValue?: string;
 	};
 }

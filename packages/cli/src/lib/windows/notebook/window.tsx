@@ -106,7 +106,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							(deps.macroSlots ?? []).map(
 								(slot): MacroAuthoringValue => ({
 									argumentId: slot.argumentId,
-									value: slot.rawText,
+									value: slot.binding?.displayValue ?? slot.rawText,
 									status:
 										slot.status === "locked" || slot.binding
 											? "bound"
