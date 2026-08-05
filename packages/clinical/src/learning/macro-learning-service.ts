@@ -144,11 +144,13 @@ export class MacroLearningService {
 			let transitionScore = 0;
 			let numericScore = 0;
 			let numericWeight = 0;
-			let strongestEvidence: {
-				count: number;
-				scope: (typeof scopes)[number]["scope"];
-				mode: LearningObservationMode;
-			} | undefined;
+			let strongestEvidence:
+				| {
+						count: number;
+						scope: (typeof scopes)[number]["scope"];
+						mode: LearningObservationMode;
+				  }
+				| undefined;
 			for (const scope of scopes) {
 				for (const mode of modes) {
 					const query = {
@@ -162,7 +164,10 @@ export class MacroLearningService {
 					};
 					const rows = await this.deps.transitionStore.getByFromSlot(query);
 					const count = rows.reduce((sum, row) => sum + row.transitionCount, 0);
-					if (count > 0 && (!strongestEvidence || count > strongestEvidence.count)) {
+					if (
+						count > 0 &&
+						(!strongestEvidence || count > strongestEvidence.count)
+					) {
 						strongestEvidence = { count, scope: scope.scope, mode };
 					}
 					const probability = (count + 1) / (count + totalCandidates);
@@ -210,11 +215,11 @@ export class MacroLearningService {
 				},
 				evidence: strongestEvidence
 					? {
-						observationCount: strongestEvidence.count,
-						scope: strongestEvidence.scope,
-						observationMode: strongestEvidence.mode,
-						featureKeys: features.map((feature) => feature.key),
-					}
+							observationCount: strongestEvidence.count,
+							scope: strongestEvidence.scope,
+							observationMode: strongestEvidence.mode,
+							featureKeys: features.map((feature) => feature.key),
+						}
 					: undefined,
 			});
 		}

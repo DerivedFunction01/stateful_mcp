@@ -1,5 +1,6 @@
 import type {
 	VariableConceptResolver,
+	VariableExpressionResolver,
 	VariableScopeRef,
 	VariableService,
 	VariableStatement,
@@ -10,6 +11,7 @@ export class VariableCommandService {
 	constructor(
 		private readonly variables: VariableService,
 		private readonly resolveConcept?: VariableConceptResolver,
+		private readonly resolveExpression?: VariableExpressionResolver,
 	) {}
 
 	async getScope(
@@ -25,9 +27,13 @@ export class VariableCommandService {
 		scope?: VariableScopeRef,
 	): Promise<unknown> {
 		const blockInstanceId = formatBlockId(scope);
-		const context = this.resolveConcept
-			? { resolveConcept: this.resolveConcept }
-			: undefined;
+		const context =
+			this.resolveConcept || this.resolveExpression
+				? {
+						resolveConcept: this.resolveConcept,
+						resolveExpression: this.resolveExpression,
+					}
+				: undefined;
 		switch (statement.kind) {
 			case "set": {
 				const value = await this.variables.evaluateExpression(

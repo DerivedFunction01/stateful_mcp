@@ -45,13 +45,23 @@ export function parseVariableCommand(
 				body
 					.slice(separator + profile.variableAssignmentDelimiter.length)
 					.trim(),
+				{
+					expressionToken: profile.expressionToken,
+					conceptToken: profile.conceptToken,
+				},
 			),
 		};
 	}
 	if (operation === "eval" || operation === "assert") {
 		if (!body)
 			throw new VariableCommandParseError("missing_variable_expression");
-		return { kind: operation, expression: parseVariableExpression(body) };
+		return {
+			kind: operation,
+			expression: parseVariableExpression(body, {
+				expressionToken: profile.expressionToken,
+				conceptToken: profile.conceptToken,
+			}),
+		};
 	}
 	throw new VariableCommandParseError("unsupported_variable_operation");
 }

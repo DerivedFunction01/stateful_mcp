@@ -136,6 +136,7 @@ async function macroSuggestions(
 				options.dictionary?.filterStore ||
 				options.dictionary?.resolver?.filterStore,
 			learningService: options.learningService,
+			conceptToken: profile.conceptToken,
 		});
 
 		// A. Explicit value autocomplete: e.g. argName=val
@@ -174,11 +175,8 @@ async function macroSuggestions(
 			}));
 		}
 
-		// B. Token-based overrides (e.g. starting with @ or #)
-		if (
-			currentWord.startsWith(profile.conceptToken) ||
-			currentWord.startsWith(profile.expressionToken)
-		) {
+		// B. Concept-token override. Custom-expression tokens are not concept searches.
+		if (profile.conceptToken && currentWord.startsWith(profile.conceptToken)) {
 			const suggestions = await autocompleter.suggest({
 				query: currentWord,
 				macroName,
@@ -241,10 +239,10 @@ async function macroSuggestions(
 			argName: suggestion.value,
 			macroId: definition.macroId,
 			macroVersion: definition.version,
-				argumentId: definition.arguments.find(
+			argumentId: definition.arguments.find(
 				(argument) => argument.name === suggestion.value,
-				)?.argumentId,
-				macroEvidence: suggestion.macro?.evidence,
+			)?.argumentId,
+			macroEvidence: suggestion.macro?.evidence,
 		}));
 	}
 	return definitions

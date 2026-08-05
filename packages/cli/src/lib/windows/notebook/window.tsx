@@ -1,8 +1,11 @@
-import type { CommandSyntaxProfile, MacroDefinition } from "@stateful-mcp/clinical";
+import type {
+	CommandSyntaxProfile,
+	MacroDefinition,
+} from "@stateful-mcp/clinical";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
-import { MacroEditor } from "../../../components/MacroEditor";
 import { HelpBar } from "../../../components/HelpBar";
+import { MacroEditor } from "../../../components/MacroEditor";
 import { StatusBar } from "../../../components/StatusBar";
 import type { CellSuggestion } from "../../../hooks/useNotebook";
 import type {
@@ -12,9 +15,9 @@ import type {
 	WindowRegion,
 } from "../../editor";
 import type { AutocompleteSuggestion } from "../../editor/autocomplete";
-import type { MacroSlotProjection } from "../../editor/macro-slots";
 import { knownVerbs } from "../../editor/command-autocomplete";
 import { buildCommandDescriptors } from "../../editor/command-descriptors";
+import type { MacroSlotProjection } from "../../editor/macro-slots";
 import type { NotebookDocumentPort } from "./document";
 import type { NotebookDomainPort } from "./domain";
 

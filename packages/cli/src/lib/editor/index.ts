@@ -41,6 +41,8 @@ export {
 	reduceEditorKernel,
 	replaceCurrentLine,
 } from "./kernel";
+export type { InspectorAction, KeymapPolicy, KeyResolution } from "./keymap";
+export { resolveInspectorKey, resolveKey } from "./keymap";
 export type { MacroLockState, MacroSlotProjection } from "./macro-slots";
 export {
 	activeMacroSlot,
@@ -49,8 +51,6 @@ export {
 	nextMacroSlot,
 	projectMacroSlots,
 } from "./macro-slots";
-export type { InspectorAction, KeymapPolicy, KeyResolution } from "./keymap";
-export { resolveInspectorKey, resolveKey } from "./keymap";
 
 export type {
 	WindowOverlay,

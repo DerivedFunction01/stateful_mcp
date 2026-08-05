@@ -238,9 +238,17 @@ describe("macro-input-parser", () => {
 									template: {
 										version: 1 as const,
 										parts: [
-											{ kind: "slot" as const, argumentId: "concept", occurrence: 0 },
+											{
+												kind: "slot" as const,
+												argumentId: "concept",
+												occurrence: 0,
+											},
 											{ kind: "literal" as const, text: " at " },
-											{ kind: "slot" as const, argumentId: "duration", occurrence: 0 },
+											{
+												kind: "slot" as const,
+												argumentId: "duration",
+												occurrence: 0,
+											},
 										],
 									},
 								},
@@ -266,7 +274,7 @@ describe("macro-input-parser", () => {
 					...OBSERVATION.arguments[1]!,
 					extraction: {
 						...OBSERVATION.arguments[1]!.extraction,
-						patterns: ["(?<invalid>[a-z]+)", "(?<value>\\d+)"]
+						patterns: ["(?<invalid>[a-z]+)", "(?<value>\\d+)"],
 					},
 				},
 			],

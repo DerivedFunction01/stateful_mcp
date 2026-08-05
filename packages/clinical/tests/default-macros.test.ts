@@ -4,9 +4,9 @@ import {
 	PHYSICAL_EXAM_MACRO,
 	VITALS_MACRO,
 } from "../src/macros/default-macros";
+import type { MacroStore } from "../src/macros/macro-definition";
 import { parseMacroLine } from "../src/macros/macro-input-parser";
 import { validateMacroAuthoringTemplates } from "../src/macros/macro-template-matcher";
-import type { MacroStore } from "../src/macros/macro-definition";
 import type { ConceptLookup } from "../src/values/concept-value";
 
 const STORE: MacroStore = {
@@ -14,9 +14,11 @@ const STORE: MacroStore = {
 		return [VITALS_MACRO, ASSESSMENT_MACRO, PHYSICAL_EXAM_MACRO];
 	},
 	async get(name: string) {
-		return [VITALS_MACRO, ASSESSMENT_MACRO, PHYSICAL_EXAM_MACRO].find(
-			(macro) => macro.macroName === name,
-		) ?? null;
+		return (
+			[VITALS_MACRO, ASSESSMENT_MACRO, PHYSICAL_EXAM_MACRO].find(
+				(macro) => macro.macroName === name,
+			) ?? null
+		);
 	},
 };
 
@@ -71,9 +73,13 @@ describe("bootstrapped macros", () => {
 	});
 
 	test("assessment multi-slot friendly form projects both slots", () => {
-		const result = parseMacroLine("^assessment shortness of breath at severity 7", 0, {
-			definition: ASSESSMENT_MACRO,
-		});
+		const result = parseMacroLine(
+			"^assessment shortness of breath at severity 7",
+			0,
+			{
+				definition: ASSESSMENT_MACRO,
+			},
+		);
 		expect(result?.matches?.map((m) => m.argumentId)).toEqual([
 			"concept",
 			"severity",
@@ -83,11 +89,21 @@ describe("bootstrapped macros", () => {
 	});
 
 	test("physical_exam multi-slot friendly template projects weight and height", () => {
-		const result = parseMacroLine("^physical_exam weight of 72 kg and height of 1.82 m", 0, {
-			definition: PHYSICAL_EXAM_MACRO,
-		});
-		expect(result?.matches?.map((m) => m.argumentId)).toEqual(["weight", "height"]);
-		expect(result?.matches?.map((m) => m.rawValue)).toEqual(["72 kg", "1.82 m"]);
+		const result = parseMacroLine(
+			"^physical_exam weight of 72 kg and height of 1.82 m",
+			0,
+			{
+				definition: PHYSICAL_EXAM_MACRO,
+			},
+		);
+		expect(result?.matches?.map((m) => m.argumentId)).toEqual([
+			"weight",
+			"height",
+		]);
+		expect(result?.matches?.map((m) => m.rawValue)).toEqual([
+			"72 kg",
+			"1.82 m",
+		]);
 	});
 
 	test("bootstrapped authoring templates pass template validation", () => {

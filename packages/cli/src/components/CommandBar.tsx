@@ -26,7 +26,8 @@ function evidenceLabel(suggestion: AutocompleteSuggestion): string {
 	const evidence = suggestion.macroEvidence;
 	if (!evidence) return "";
 	const parts: string[] = [];
-	if (evidence.score !== undefined) parts.push(`score ${evidence.score.toFixed(2)}`);
+	if (evidence.score !== undefined)
+		parts.push(`score ${evidence.score.toFixed(2)}`);
 	if (evidence.observationCount !== undefined)
 		parts.push(`n=${evidence.observationCount}`);
 	if (evidence.scope) parts.push(evidence.scope);

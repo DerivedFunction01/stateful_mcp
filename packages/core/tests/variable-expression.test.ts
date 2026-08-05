@@ -18,9 +18,10 @@ describe("variable expression AST", () => {
 	});
 
 	test("supports concept literals through a resolver", async () => {
-		const expression = new VariableExpressionParser(
-			'@"pulmonary embolism"',
-		).parse();
+		const expression = new VariableExpressionParser('@"pulmonary embolism"', {
+			expressionToken: "#",
+			conceptToken: "@",
+		}).parse();
 		const lowered = await lowerVariableExpression(expression, {
 			resolveConcept: async (query) => ({
 				conceptId: "PE",
@@ -31,6 +32,48 @@ describe("variable expression AST", () => {
 		expect(lowered.resultRef).toEqual({
 			$literal: { conceptId: "PE", display: "pulmonary embolism" },
 		});
+	});
+
+	test("routes configured tokens to their distinct lookup resolvers", async () => {
+		const tokens = { expressionToken: "#", conceptToken: "@" };
+		const expression = new VariableExpressionParser(
+			'#"custom phrase"',
+			tokens,
+		).parse();
+		const concept = new VariableExpressionParser(
+			'@"concept phrase"',
+			tokens,
+		).parse();
+
+		expect(expression.kind).toBe("expression");
+		expect(concept.kind).toBe("concept");
+		const resolved = await Promise.all([
+			lowerVariableExpression(expression, {
+				resolveExpression: async (query) => `expression:${query}`,
+			}),
+			lowerVariableExpression(concept, {
+				resolveConcept: async (query) => `concept:${query}`,
+			}),
+		]);
+		expect(resolved[0]?.resultRef).toEqual({
+			$literal: "expression:custom phrase",
+		});
+		expect(resolved[1]?.resultRef).toEqual({
+			$literal: "concept:concept phrase",
+		});
+	});
+
+	test("token roles follow swapped configured literals", () => {
+		const expression = new VariableExpressionParser("@term", {
+			expressionToken: "@",
+			conceptToken: "#",
+		}).parse();
+		const concept = new VariableExpressionParser("#term", {
+			expressionToken: "@",
+			conceptToken: "#",
+		}).parse();
+		expect(expression.kind).toBe("expression");
+		expect(concept.kind).toBe("concept");
 	});
 });
 

@@ -2,8 +2,8 @@ import type { ConceptFilterStore } from "@stateful-mcp/core";
 import { isConceptAllowed } from "@stateful-mcp/core";
 import type { MacroLearningService } from "../learning/macro-learning-service";
 import type { MacroLearningRankedCandidate } from "../learning/macro-learning-types";
-import type { TypedValue } from "../values/typed-value";
 import type { ConceptLookup } from "../values/concept-value";
+import type { TypedValue } from "../values/typed-value";
 import type { MacroStore } from "./macro-definition";
 
 export const AUTOCOMPL = [
@@ -61,6 +61,7 @@ export interface AutocompleteServiceDeps {
 	dictionary?: ConceptLookup;
 	filterStore?: ConceptFilterStore;
 	learningService?: MacroLearningService;
+	conceptToken?: string;
 }
 
 const MACRO_START_TOKEN = "^";
@@ -97,9 +98,10 @@ export class MacroAutocomplete {
 		const { query, scope, argumentName, macroName, namespaceCode, enumValues } =
 			req;
 
-		// 1. Direct concept search overrides via tokens
-		if (query.startsWith("#")) {
-			const after = query.slice(1);
+		// Direct concept search is driven by the active syntax profile.
+		const conceptToken = this.deps.conceptToken;
+		if (conceptToken && query.startsWith(conceptToken)) {
+			const after = query.slice(conceptToken.length);
 			const colonIndex = after.indexOf(":");
 			let ns = namespaceCode;
 			let conceptQuery = after;
@@ -108,15 +110,6 @@ export class MacroAutocomplete {
 				conceptQuery = after.slice(colonIndex + 1);
 			}
 			return this.suggestConcepts(conceptQuery, ns, macroName, argumentName);
-		}
-
-		if (query.startsWith("@")) {
-			return this.suggestConcepts(
-				query.slice(1),
-				namespaceCode,
-				macroName,
-				argumentName,
-			);
 		}
 
 		// 2. Argument value autocompletion if argumentName and macroName are known
@@ -253,7 +246,8 @@ export class MacroAutocomplete {
 			value:
 				arg.extraction.kind === "enum"
 					? ({ kind: "enum", value: suggestion.value } as TypedValue)
-					: arg.extraction.kind === "concept" || arg.extraction.kind === "concept_array"
+					: arg.extraction.kind === "concept" ||
+							arg.extraction.kind === "concept_array"
 						? ({
 								kind: "concept",
 								concept: {
@@ -262,10 +256,10 @@ export class MacroAutocomplete {
 								},
 							} as TypedValue)
 						: ({
-							kind: "scalar",
-							scalarType: "number",
-							value: Number(suggestion.value),
-						} as TypedValue),
+								kind: "scalar",
+								scalarType: "number",
+								value: Number(suggestion.value),
+							} as TypedValue),
 		}));
 		const ranked = await this.deps.learningService.rankCandidates(
 			{
@@ -277,35 +271,41 @@ export class MacroAutocomplete {
 			},
 			candidates,
 		);
-		const byValue = new Map(suggestions.map((suggestion) => [suggestion.value, suggestion]));
+		const byValue = new Map(
+			suggestions.map((suggestion) => [suggestion.value, suggestion]),
+		);
 		return ranked.flatMap(({ candidate, score, features, evidence }) => {
-			const value = candidate.value && "value" in candidate.value
-				? String(candidate.value.value)
-				: candidate.value && "concept" in candidate.value
-					? candidate.value.concept.conceptId
-					: undefined;
+			const value =
+				candidate.value && "value" in candidate.value
+					? String(candidate.value.value)
+					: candidate.value && "concept" in candidate.value
+						? candidate.value.concept.conceptId
+						: undefined;
 			const suggestion = value ? byValue.get(value) : undefined;
 			if (!suggestion) return [];
-			return [{
-				...suggestion,
-				macro: {
-					macroId: macro.macroId,
-					macroVersion: macro.version,
-					argumentId: arg.argumentId,
-					evidence: evidence
-						? {
-							score,
-							observationCount: evidence.observationCount,
-							scope: evidence.scope,
-							observationMode: evidence.observationMode,
-							reason: (features.numericFit ?? 0) > (features.transition ?? 0)
-								? ("numericFit" as const)
-								: ("transition" as const),
-							featureKeys: evidence.featureKeys,
-						}
-						: undefined,
+			return [
+				{
+					...suggestion,
+					macro: {
+						macroId: macro.macroId,
+						macroVersion: macro.version,
+						argumentId: arg.argumentId,
+						evidence: evidence
+							? {
+									score,
+									observationCount: evidence.observationCount,
+									scope: evidence.scope,
+									observationMode: evidence.observationMode,
+									reason:
+										(features.numericFit ?? 0) > (features.transition ?? 0)
+											? ("numericFit" as const)
+											: ("transition" as const),
+									featureKeys: evidence.featureKeys,
+								}
+							: undefined,
+					},
 				},
-			}];
+			];
 		});
 	}
 
@@ -374,23 +374,23 @@ export class MacroAutocomplete {
 					detail: arg.roleName,
 					...(evidence
 						? {
-					macro: {
-						macroId: macro.macroId,
-						macroVersion: macro.version,
-						argumentId: arg.argumentId,
-						evidence: {
-							score,
-							observationCount: evidence?.observationCount,
-							scope: evidence?.scope,
-							observationMode: evidence?.observationMode,
-							reason: (features.numericFit ?? 0) >
-								(features.transition ?? 0)
-								? ("numericFit" as const)
-								: ("transition" as const),
-							featureKeys: evidence?.featureKeys,
-						},
-					},
-						}
+								macro: {
+									macroId: macro.macroId,
+									macroVersion: macro.version,
+									argumentId: arg.argumentId,
+									evidence: {
+										score,
+										observationCount: evidence?.observationCount,
+										scope: evidence?.scope,
+										observationMode: evidence?.observationMode,
+										reason:
+											(features.numericFit ?? 0) > (features.transition ?? 0)
+												? ("numericFit" as const)
+												: ("transition" as const),
+										featureKeys: evidence?.featureKeys,
+									},
+								},
+							}
 						: {}),
 				};
 			})

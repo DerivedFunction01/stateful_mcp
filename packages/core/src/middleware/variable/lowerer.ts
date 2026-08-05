@@ -30,6 +30,17 @@ export async function lowerVariableExpression(
 				}
 				return { $literal: await context.resolveConcept(node.query) };
 			}
+			case "expression": {
+				if (!context.resolveExpression) {
+					diagnostics.push({
+						message: `expression resolver is not configured for '${node.query}'`,
+						span: node.sourceSpan,
+						code: "EXPRESSION_RESOLVER_NOT_CONFIGURED",
+					});
+					return { $literal: node.query };
+				}
+				return { $literal: await context.resolveExpression(node.query) };
+			}
 			case "variable":
 				return { $var: node.name };
 			case "array": {

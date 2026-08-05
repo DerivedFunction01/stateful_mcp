@@ -12,6 +12,7 @@ export type VariableLiteral = string | number | boolean | null;
 export type VariableExpression =
 	| { kind: "literal"; value: VariableLiteral; sourceSpan?: VariableSourceSpan }
 	| { kind: "concept"; query: string; sourceSpan?: VariableSourceSpan }
+	| { kind: "expression"; query: string; sourceSpan?: VariableSourceSpan }
 	| { kind: "variable"; name: string; sourceSpan?: VariableSourceSpan }
 	| {
 			kind: "array";
@@ -169,9 +170,11 @@ export interface LoweredVariableExpression {
 }
 
 export type VariableConceptResolver = (query: string) => Promise<unknown>;
+export type VariableExpressionResolver = (query: string) => Promise<unknown>;
 
 export interface VariableLoweringContext {
 	resolveConcept?: VariableConceptResolver;
+	resolveExpression?: VariableExpressionResolver;
 	variablePrefix?: string;
 }
 

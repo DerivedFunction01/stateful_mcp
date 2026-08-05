@@ -11,6 +11,7 @@ type TokenKind =
 	| "number"
 	| "string"
 	| "concept"
+	| "expression"
 	| "operator"
 	| "punctuation";
 
@@ -79,7 +80,15 @@ function span(start: number, end: number): VariableSourceSpan {
 	return { start, end };
 }
 
-function tokenize(input: string): Token[] {
+export interface VariableReferenceTokens {
+	expressionToken: string;
+	conceptToken: string;
+}
+
+function tokenize(
+	input: string,
+	tokensConfig: VariableReferenceTokens,
+): Token[] {
 	const tokens: Token[] = [];
 	let index = 0;
 	while (index < input.length) {
@@ -111,8 +120,20 @@ function tokenize(input: string): Token[] {
 			tokens.push({ kind: "string", value, start, end: index });
 			continue;
 		}
-		if (char === "@") {
-			index++;
+		const referenceKind =
+			tokensConfig.expressionToken &&
+			input.startsWith(tokensConfig.expressionToken, index)
+				? "expression"
+				: tokensConfig.conceptToken &&
+						input.startsWith(tokensConfig.conceptToken, index)
+					? "concept"
+					: undefined;
+		if (referenceKind) {
+			const token =
+				referenceKind === "expression"
+					? tokensConfig.expressionToken
+					: tokensConfig.conceptToken;
+			index += token.length;
 			if (input[index] === '"' || input[index] === "'") {
 				const quote = input[index++];
 				let value = "";
@@ -122,18 +143,18 @@ function tokenize(input: string): Token[] {
 				}
 				if (input[index] !== quote) {
 					throw new VariableExpressionParseError(
-						"unterminated concept reference",
+						"unterminated reference",
 						span(start, index),
 					);
 				}
 				index++;
-				tokens.push({ kind: "concept", value, start, end: index });
+				tokens.push({ kind: referenceKind, value, start, end: index });
 				continue;
 			}
 			while (index < input.length && !/[\s(),[\]]/.test(input[index]!)) index++;
 			tokens.push({
-				kind: "concept",
-				value: input.slice(start + 1, index),
+				kind: referenceKind,
+				value: input.slice(start + token.length, index),
 				start,
 				end: index,
 			});
@@ -199,8 +220,16 @@ export class VariableExpressionParser {
 	private index = 0;
 	private readonly tokens: Token[];
 
-	constructor(input: string) {
-		this.tokens = tokenize(input);
+	constructor(
+		input: string,
+		tokens: VariableReferenceTokens = { expressionToken: "", conceptToken: "" },
+	) {
+		if (
+			tokens.expressionToken &&
+			tokens.expressionToken === tokens.conceptToken
+		)
+			throw new Error("expression and concept tokens must be distinct");
+		this.tokens = tokenize(input, tokens);
 	}
 
 	parse(): VariableExpression {
@@ -292,10 +321,10 @@ export class VariableExpressionParser {
 				value: token.value,
 				sourceSpan: span(token.start, token.end),
 			};
-		} else if (token.kind === "concept") {
+		} else if (token.kind === "concept" || token.kind === "expression") {
 			this.consume();
 			expression = {
-				kind: "concept",
+				kind: token.kind,
 				query: token.value,
 				sourceSpan: span(token.start, token.end),
 			};
@@ -428,6 +457,9 @@ export class VariableExpressionParser {
 	}
 }
 
-export function parseVariableExpression(input: string): VariableExpression {
-	return new VariableExpressionParser(input).parse();
+export function parseVariableExpression(
+	input: string,
+	tokens: VariableReferenceTokens = { expressionToken: "", conceptToken: "" },
+): VariableExpression {
+	return new VariableExpressionParser(input, tokens).parse();
 }

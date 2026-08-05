@@ -118,9 +118,7 @@ function matchDefinitionArguments(
 			source: matched ? "rule" : "named",
 			start: matched?.start ?? segment.valueStart,
 			end: matched?.end ?? segment.end,
-			match: matched
-				? createMatch(spec, "named", matched)
-				: undefined,
+			match: matched ? createMatch(spec, "named", matched) : undefined,
 		});
 	}
 	const friendlyMatches = matchFriendlyMacroForms(raw, bodyStart, definition);
@@ -261,7 +259,7 @@ function scanNamedAssignments(
 			});
 	}
 	if (quote)
-				diagnostics.push({
+		diagnostics.push({
 			code: "UNTERMINATED_QUOTE",
 			message: "Unterminated quote",
 			start,
@@ -426,12 +424,14 @@ function matchSpec(
 					([name, value]) => {
 						const index = match.indices?.groups?.[name];
 						return index
-							? [{
-									name,
-									value,
-									start: offset + index[0],
-									end: offset + index[1],
-								}]
+							? [
+									{
+										name,
+										value,
+										start: offset + index[0],
+										end: offset + index[1],
+									},
+								]
 							: [];
 					},
 				);
@@ -448,9 +448,9 @@ function matchSpec(
 				code: "INVALID_PATTERN",
 				message: `Invalid extraction pattern for '${spec.name}'`,
 				start: offset,
-					end: offset + text.length,
-					argumentId: spec.argumentId,
-				});
+				end: offset + text.length,
+				argumentId: spec.argumentId,
+			});
 		}
 	}
 	return undefined;

@@ -13,6 +13,7 @@ import type {
 	WindowOverlayAction,
 } from "../lib/cell-editor";
 import type { CompletionState } from "../lib/editor/completion-state";
+import { activeMacroSlot, nextMacroSlot } from "../lib/editor/macro-slots";
 import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { NotebookCommandCatalog } from "../lib/windows/notebook/catalog";
 import { NotebookDocumentPort } from "../lib/windows/notebook/document";
@@ -20,8 +21,6 @@ import { WindowDomainPort } from "../lib/windows/notebook/domain";
 import { dispatchGeneralWindowCommand } from "../lib/windows/notebook/extension";
 import { NotebookKeymapPolicy } from "../lib/windows/notebook/keymap-policy";
 import { notebookWindow } from "../lib/windows/notebook/window";
-import { nextMacroSlot } from "../lib/editor/macro-slots";
-import { activeMacroSlot } from "../lib/editor/macro-slots";
 import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
 import { HistoryOverlay } from "./HistoryOverlay";
@@ -546,7 +545,11 @@ export function Notebook({
 	};
 
 	const navigateMacroSlots = (direction: 1 | -1) => {
-		const next = nextMacroSlot(notebook.macroSlots, state.cursorOffset, direction);
+		const next = nextMacroSlot(
+			notebook.macroSlots,
+			state.cursorOffset,
+			direction,
+		);
 		if (next) dispatch({ type: "set_cursor", offset: next.start });
 	};
 
@@ -630,7 +633,7 @@ export function Notebook({
 			overlay={overlay}
 			onOverlayAction={onOverlayAction}
 			renderOverlay={renderOverlay}
-		completionProvider={() => mergedCandidates}
+			completionProvider={() => mergedCandidates}
 			macroSlots={notebook.macroSlots}
 			onMacroNavigate={navigateMacroSlots}
 			syntaxProfile={session.v2.syntaxProfile}

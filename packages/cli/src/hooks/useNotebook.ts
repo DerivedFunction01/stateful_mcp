@@ -1,6 +1,6 @@
+import { type MacroDefinition, parseMacroLine } from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
-import { parseMacroLine, type MacroDefinition } from "@stateful-mcp/clinical";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 import {
 	INITIAL__NOTEBOOK_EDITOR_STATE,
@@ -20,13 +20,13 @@ import {
 	rankArgumentSuggestions,
 } from "../lib/editor/command-autocomplete";
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
-import type { SessionState } from "./useSession";
 import {
 	activeMacroSlot,
 	applyMacroLocks,
-	projectMacroSlots,
 	type MacroSlotProjection,
+	projectMacroSlots,
 } from "../lib/editor/macro-slots";
+import type { SessionState } from "./useSession";
 
 export interface CellSuggestion {
 	text: string;
@@ -63,7 +63,8 @@ export interface UseNotebookReturn {
 	macroSlots: MacroSlotProjection[];
 	macroLocks: NotebookMacroLock[];
 	unlockActiveMacroSlot(): void;
-	lockActiveMacroSlot(): void;	refreshSnapshot(): Promise<void>;
+	lockActiveMacroSlot(): void;
+	refreshSnapshot(): Promise<void>;
 	commitEditorDraft(): Promise<void>;
 	setEditingCell(cellId: string | null): void;
 	supersedeActiveCell(): Promise<StructuredCell | null>;
@@ -93,8 +94,11 @@ export function useNotebook(
 		AutocompleteSuggestion[]
 	>([]);
 	const [macroSlots, setMacroSlots] = useState<MacroSlotProjection[]>([]);
-	const [activeDefinition, setActiveDefinition] = useState<MacroDefinition | null>(null);
-	const [childDefinitions, setChildDefinitions] = useState<MacroDefinition[]>([]);
+	const [activeDefinition, setActiveDefinition] =
+		useState<MacroDefinition | null>(null);
+	const [childDefinitions, setChildDefinitions] = useState<MacroDefinition[]>(
+		[],
+	);
 	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
 	>([]);
@@ -307,7 +311,9 @@ export function useNotebook(
 					),
 				);
 				if (!cancelled) {
-					setChildDefinitions(resolved.filter((d): d is MacroDefinition => d !== null));
+					setChildDefinitions(
+						resolved.filter((d): d is MacroDefinition => d !== null),
+					);
 				}
 			})
 			.catch(() => {

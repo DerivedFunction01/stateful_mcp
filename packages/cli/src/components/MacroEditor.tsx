@@ -1,8 +1,11 @@
+import type {
+	CommandMacroTemplatePart,
+	MacroDefinition,
+} from "@stateful-mcp/clinical";
 import { Box, Text, useStdout } from "ink";
-import type { MacroDefinition, CommandMacroTemplatePart } from "@stateful-mcp/clinical";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
-import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { buildMacroRenderSegments } from "../lib/editor/macro-render";
+import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { t } from "../lib/shared/i18n";
 
 interface MacroEditorProps {
@@ -83,7 +86,9 @@ export function MacroEditor({
 		// falls through to the "remaining" discovery path instead of re-showing
 		// the already-satisfied argument.
 		const rawActiveArgSpec = activeMacroArgumentId
-			? activeDefinition.arguments.find((a) => a.argumentId === activeMacroArgumentId)
+			? activeDefinition.arguments.find(
+					(a) => a.argumentId === activeMacroArgumentId,
+				)
 			: undefined;
 		const isActiveSingularSatisfied =
 			rawActiveArgSpec !== undefined &&
@@ -91,7 +96,9 @@ export function MacroEditor({
 			rawActiveArgSpec.extraction.kind !== "array" &&
 			activeSlot !== undefined &&
 			(activeSlot.status === "bound" || activeSlot.status === "locked");
-		const effectiveArgumentId = isActiveSingularSatisfied ? undefined : activeMacroArgumentId;
+		const effectiveArgumentId = isActiveSingularSatisfied
+			? undefined
+			: activeMacroArgumentId;
 		if (effectiveArgumentId) {
 			const argSpec = activeDefinition.arguments.find(
 				(a) => a.argumentId === effectiveArgumentId,
@@ -102,7 +109,9 @@ export function MacroEditor({
 				// Try to derive placeholder text directly from matched template part
 				let templateDisplayText: string | undefined;
 				if (activeSlot?.formId && argSpec.forms) {
-					const form = argSpec.forms.find((f) => f.formId === activeSlot.formId);
+					const form = argSpec.forms.find(
+						(f) => f.formId === activeSlot.formId,
+					);
 					const slotPart = form?.template.parts.find(
 						(p) => p.kind === "slot" && p.argumentId === activeMacroArgumentId,
 					);
@@ -163,8 +172,7 @@ export function MacroEditor({
 							childDef.arguments.every((arg) =>
 								childSlots.some(
 									(s) =>
-										s.argumentId === arg.argumentId &&
-										s.status === "locked",
+										s.argumentId === arg.argumentId && s.status === "locked",
 								),
 							);
 						return !allLocked;
@@ -230,7 +238,8 @@ export function MacroEditor({
 	// Title for suggestions box — use effectiveArgumentId so a satisfied
 	// singular arg doesn't keep its own title visible.
 	const effectiveArgumentIdForTitle = (() => {
-		if (!activeMacroArgumentId || !activeDefinition) return activeMacroArgumentId;
+		if (!activeMacroArgumentId || !activeDefinition)
+			return activeMacroArgumentId;
 		const argSpec = activeDefinition.arguments.find(
 			(a) => a.argumentId === activeMacroArgumentId,
 		);
@@ -238,7 +247,11 @@ export function MacroEditor({
 		const isPlural =
 			argSpec.extraction.kind === "concept_array" ||
 			argSpec.extraction.kind === "array";
-		if (!isPlural && activeSlot && (activeSlot.status === "bound" || activeSlot.status === "locked")) {
+		if (
+			!isPlural &&
+			activeSlot &&
+			(activeSlot.status === "bound" || activeSlot.status === "locked")
+		) {
 			return undefined;
 		}
 		return activeMacroArgumentId;
@@ -286,7 +299,8 @@ export function MacroEditor({
 				width="100%"
 			>
 				<Text bold color="green">
-					┌─ Macro editor ───────────────────────────────────────────────────────────────┐
+					┌─ Macro editor
+					───────────────────────────────────────────────────────────────┐
 				</Text>
 				<Box paddingLeft={1} flexDirection="column">
 					<Text bold>
@@ -318,8 +332,7 @@ export function MacroEditor({
 										}
 										bold
 									>
-										[{segment.text}]
-										{slot?.status === "locked" ? "*" : ""}
+										[{segment.text}]{slot?.status === "locked" ? "*" : ""}
 									</Text>
 								);
 							}
@@ -370,7 +383,8 @@ export function MacroEditor({
 					width="100%"
 				>
 					<Text bold color="cyan">
-						┌─ {suggestionsTitle} ──────────────────────────────────────────────────────────┐
+						┌─ {suggestionsTitle}{" "}
+						──────────────────────────────────────────────────────────┐
 					</Text>
 					{visibleSuggestions.map((suggestion, index) => {
 						const isActive = index === suggestionIndex;
@@ -396,8 +410,7 @@ export function MacroEditor({
 							}
 						}
 
-						const description =
-							!isNarrow && detail ? `  — ${detail}` : "";
+						const description = !isNarrow && detail ? `  — ${detail}` : "";
 
 						return (
 							<Box key={index} paddingLeft={1}>

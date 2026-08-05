@@ -1,8 +1,8 @@
 import {
-	parseMacroLine,
 	type MacroArgumentMatch,
-	type MacroDefinition,
 	type MacroCaptureSpan,
+	type MacroDefinition,
+	parseMacroLine,
 } from "@stateful-mcp/clinical";
 
 export interface MacroSlotProjection {
@@ -18,12 +18,7 @@ export interface MacroSlotProjection {
 	extractionPattern?: string;
 	rawText: string;
 	displayText: string;
-	bindingSource?:
-		| "named"
-		| "positional"
-		| "inferred"
-		| "rule"
-		| "friendly";
+	bindingSource?: "named" | "positional" | "inferred" | "rule" | "friendly";
 	status: "unbound" | "bound" | "invalid" | "locked";
 	diagnostics: string[];
 	occurrence?: number;
@@ -79,12 +74,12 @@ export function nextMacroSlot(
 	cursorOffset: number,
 	direction: 1 | -1 = 1,
 ): MacroSlotProjection | undefined {
-	const ordered = [...projections].sort((left, right) => left.start - right.start);
+	const ordered = [...projections].sort(
+		(left, right) => left.start - right.start,
+	);
 	if (!ordered.length) return undefined;
 	if (direction > 0) {
-		return (
-			ordered.find((slot) => slot.start > cursorOffset) ?? ordered[0]
-		);
+		return ordered.find((slot) => slot.start > cursorOffset) ?? ordered[0];
 	}
 	return (
 		[...ordered].reverse().find((slot) => slot.end < cursorOffset) ??
@@ -158,7 +153,7 @@ function toProjection(
 		anchorStart: match.anchor?.start,
 		anchorEnd: match.anchor?.end,
 		friendlyText: match.friendlyText,
-		extractionPattern: argument.extraction.patterns?.join("|") ,
+		extractionPattern: argument.extraction.patterns?.join("|"),
 		rawText,
 		displayText: rawText,
 		bindingSource: match.source,

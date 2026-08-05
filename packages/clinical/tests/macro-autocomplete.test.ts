@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
-import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
 import type { MacroLearningService } from "../src/learning/macro-learning-service";
+import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
 import type {
 	MacroDefinition,
 	MacroStore,
@@ -238,13 +238,13 @@ describe("MacroAutocomplete", () => {
 			});
 
 			expect(result[0]?.macro?.evidence).toEqual({
-			score: 0.86,
-			observationCount: 24,
-			scope: "personal",
-			observationMode: "live",
-			reason: "transition",
-			featureKeys: ["argument.kind"],
-		});
+				score: 0.86,
+				observationCount: 24,
+				scope: "personal",
+				observationMode: "live",
+				reason: "transition",
+				featureKeys: ["argument.kind"],
+			});
 		});
 
 		test("matches by roleName prefix", async () => {
@@ -492,26 +492,38 @@ describe("MacroAutocomplete", () => {
 			expect(results[0].value).toBe("4");
 		});
 
-		test("supports direct concept search with # prefix and namespace parsing", async () => {
+		test("does not use # custom-expression prefix for concept search", async () => {
 			const service = new MacroAutocomplete({
 				macros: makeMacroStore(SAMPLE_MACROS),
 				dictionary: makeDictionary(SAMPLE_CONCEPTS),
+				conceptToken: "@",
 			});
 			const results = await service.suggest({
 				query: "#snomed:che",
 			});
-			expect(results).toHaveLength(2);
-			expect(results.every((r) => r.type === "concept")).toBe(true);
+			expect(results).toEqual([]);
 		});
 
 		test("supports expression search override with @ prefix", async () => {
 			const service = new MacroAutocomplete({
 				macros: makeMacroStore(SAMPLE_MACROS),
 				dictionary: makeDictionary(SAMPLE_CONCEPTS),
+				conceptToken: "@",
 			});
 			const results = await service.suggest({
 				query: "@che",
 			});
+			expect(results).toHaveLength(2);
+			expect(results.every((r) => r.type === "concept")).toBe(true);
+		});
+
+		test("uses the configured concept token and its full length", async () => {
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore(SAMPLE_MACROS),
+				dictionary: makeDictionary(SAMPLE_CONCEPTS),
+				conceptToken: "concept:",
+			});
+			const results = await service.suggest({ query: "concept:che" });
 			expect(results).toHaveLength(2);
 			expect(results.every((r) => r.type === "concept")).toBe(true);
 		});

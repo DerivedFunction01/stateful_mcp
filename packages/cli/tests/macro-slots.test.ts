@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { VITALS_MACRO, type MacroDefinition } from "@stateful-mcp/clinical";
+import { type MacroDefinition, VITALS_MACRO } from "@stateful-mcp/clinical";
 import {
 	activeMacroSlot,
 	applyMacroLocks,

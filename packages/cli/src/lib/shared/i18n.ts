@@ -215,7 +215,8 @@ const en: Record<string, string> = {
 	"macro.suggestions": "{arg} suggestions",
 	"macro.arguments": "{macro} arguments",
 	"macro.suggestionsTitle": "Macro suggestions",
-	"macro.chainSuggestion": "Continue with: {next}. Press TAB to expand or ESC to skip.",
+	"macro.chainSuggestion":
+		"Continue with: {next}. Press TAB to expand or ESC to skip.",
 };
 
 export type Locale = typeof en;

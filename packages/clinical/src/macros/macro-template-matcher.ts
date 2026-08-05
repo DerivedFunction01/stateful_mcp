@@ -4,10 +4,9 @@ import type {
 	MacroSpan,
 } from "./macro-binding";
 import type {
-	CommandMacroAuthoringTemplate,
 	CommandMacroTemplatePart,
-	MacroDefinition,
 	MacroArgumentForm,
+	MacroDefinition,
 } from "./macro-definition";
 
 export interface MacroTemplateValidationIssue {
@@ -79,7 +78,7 @@ export function matchFriendlyMacroForms(
 ): MacroArgumentMatch[] {
 	const candidates: MacroArgumentMatch[] = [];
 	for (const form of definitionForms(definition)) {
-			candidates.push(...matchForm(raw, bodyStart, form, definition));
+		candidates.push(...matchForm(raw, bodyStart, form, definition));
 	}
 	return resolveMacroArgumentMatches(candidates, definition);
 }
@@ -89,7 +88,8 @@ export function resolveMacroArgumentMatches(
 	definition: MacroDefinition,
 ): MacroArgumentMatch[] {
 	const formById = new Map<string, MacroArgumentForm>();
-	for (const form of definitionForms(definition)) formById.set(form.formId, form);
+	for (const form of definitionForms(definition))
+		formById.set(form.formId, form);
 	return [...matches]
 		.sort((left, right) => {
 			const leftForm = left.formId ? formById.get(left.formId) : undefined;
@@ -99,11 +99,15 @@ export function resolveMacroArgumentMatches(
 				(left.formId ?? "").localeCompare(right.formId ?? "")
 			);
 		})
-		.filter((candidate, index, all) =>
-			!all.slice(0, index).some((winner) =>
-				overlaps(candidate.extraction, winner.extraction) &&
-				!isCompatible(candidate, winner, formById),
-			),
+		.filter(
+			(candidate, index, all) =>
+				!all
+					.slice(0, index)
+					.some(
+						(winner) =>
+							overlaps(candidate.extraction, winner.extraction) &&
+							!isCompatible(candidate, winner, formById),
+					),
 		)
 		.sort((left, right) => left.extraction.start - right.extraction.start);
 }
@@ -132,48 +136,52 @@ function matchForm(
 		let expression: RegExp;
 		try {
 			expression = new RegExp(
-			form.template.parts
-				.map((part) => {
-					if (part.kind === "literal") return escapeRegex(part.text);
-					const index = slots.indexOf(part);
-					return `(?<${groupNames[index]}>${patterns[index]})`;
-				})
-				.join(""),
-			"idg",
+				form.template.parts
+					.map((part) => {
+						if (part.kind === "literal") return escapeRegex(part.text);
+						const index = slots.indexOf(part);
+						return `(?<${groupNames[index]}>${patterns[index]})`;
+					})
+					.join(""),
+				"idg",
 			);
 		} catch {
 			continue;
 		}
 		for (const match of execAll(expression, raw.slice(bodyStart))) {
-		if (!match.indices) continue;
-		const matchStart = bodyStart + match.index;
-		for (const [index, slot] of slots.entries()) {
-			const span = match.indices.groups?.[groupNames[index]!];
-			if (!span) continue;
-			const extractionStart = matchStart + span[0];
-			const extractionEnd = matchStart + span[1];
-			const anchorStart = matchStart;
-			results.push({
-				argumentId: slot.argumentId,
-				occurrence: slot.occurrence,
-				formId: form.formId,
-				source: "friendly",
-				anchor: { start: anchorStart, end: extractionStart },
-				extraction: { start: extractionStart, end: extractionEnd },
-				friendlyText: raw.slice(anchorStart, extractionStart),
-				rawValue: raw.slice(extractionStart, extractionEnd),
-				captures: filteredCaptures(match, groupNames),
-				captureSpans: captureSpans(match, matchStart, groupNames),
-			});
+			if (!match.indices) continue;
+			const matchStart = bodyStart + match.index;
+			for (const [index, slot] of slots.entries()) {
+				const span = match.indices.groups?.[groupNames[index]!];
+				if (!span) continue;
+				const extractionStart = matchStart + span[0];
+				const extractionEnd = matchStart + span[1];
+				const anchorStart = matchStart;
+				results.push({
+					argumentId: slot.argumentId,
+					occurrence: slot.occurrence,
+					formId: form.formId,
+					source: "friendly",
+					anchor: { start: anchorStart, end: extractionStart },
+					extraction: { start: extractionStart, end: extractionEnd },
+					friendlyText: raw.slice(anchorStart, extractionStart),
+					rawValue: raw.slice(extractionStart, extractionEnd),
+					captures: filteredCaptures(match, groupNames),
+					captureSpans: captureSpans(match, matchStart, groupNames),
+				});
+			}
 		}
-	}
 	}
 	return results;
 }
 
 function definitionForms(definition: MacroDefinition): MacroArgumentForm[] {
-	const forms = definition.arguments.flatMap((argument) => argument.forms ?? []);
-	for (const [index, template] of (definition.authoringTemplates ?? []).entries()) {
+	const forms = definition.arguments.flatMap(
+		(argument) => argument.forms ?? [],
+	);
+	for (const [index, template] of (
+		definition.authoringTemplates ?? []
+	).entries()) {
 		const part = template.parts.find((candidate) => candidate.kind === "slot");
 		if (part?.kind !== "slot") continue;
 		forms.push({
@@ -189,19 +197,20 @@ function definitionForms(definition: MacroDefinition): MacroArgumentForm[] {
 function cartesian<T>(values: readonly (readonly T[])[]): T[][] {
 	return values.reduce<T[][]>(
 		(results, current) =>
-			results.flatMap((prefix) =>
-				current.map((value) => [...prefix, value]),
-			),
+			results.flatMap((prefix) => current.map((value) => [...prefix, value])),
 		[[]],
 	);
 }
 
 function execAll(expression: RegExp, text: string): RegExpExecArray[] {
 	const matches: RegExpExecArray[] = [];
-	let match: RegExpExecArray | null;
-	while ((match = expression.exec(text))) {
+	let match = expression.exec(text);
+	while (match !== null) {
 		matches.push(match);
-		if (match[0].length === 0) expression.lastIndex += 1;
+		if (match[0].length === 0) {
+			expression.lastIndex += 1;
+		}
+		match = expression.exec(text); // Re-assign at the end of the loop
 	}
 	return matches;
 }

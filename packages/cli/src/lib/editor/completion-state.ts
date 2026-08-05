@@ -1,5 +1,5 @@
-import type { AutocompleteSuggestion } from "./autocomplete";
 import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
+import type { AutocompleteSuggestion } from "./autocomplete";
 
 export type CompletionMode = "verb" | "arg";
 
@@ -129,8 +129,8 @@ export function reduceCompletion(
 	switch (key.kind) {
 		case "tab": {
 			const token = commandLine.startsWith(syntaxProfile?.macroStartToken)
-				? (syntaxProfile?.macroStartToken)
-				: (syntaxProfile?.directCommandToken);
+				? syntaxProfile?.macroStartToken
+				: syntaxProfile?.directCommandToken;
 			const partial = commandLine.slice(token.length);
 			const suggestions = getSuggestions(partial);
 			if (suggestions.length === 0)
@@ -190,7 +190,12 @@ export function reduceCompletion(
 				if (candidate) {
 					return {
 						completionState: { status: "idle" },
-						committedLine: mergeCandidate(commandLine, candidate.verb, true, syntaxProfile),
+						committedLine: mergeCandidate(
+							commandLine,
+							candidate.verb,
+							true,
+							syntaxProfile,
+						),
 					};
 				}
 			}

@@ -109,7 +109,12 @@ export type NotebookEditorAction =
 	| { type: "set_active"; index: number }
 	| { type: "set_draft"; text: string }
 	| { type: "set_draft_and_cursor"; text: string; cursorOffset: number }
-	| { type: "begin_edit"; cellId: string; mode: "INSERT" | "MACRO"; text: string }
+	| {
+			type: "begin_edit";
+			cellId: string;
+			mode: "INSERT" | "MACRO";
+			text: string;
+	  }
 	| { type: "end_edit" }
 	| { type: "replace_locked_slot"; lock: NotebookMacroLock; text: string }
 	| { type: "remove_macro_lock"; lock: NotebookMacroLock }
@@ -170,35 +175,34 @@ export function reduceNotebookEditor(
 					authoredRevision: state.authoredRevision + 1,
 				}
 			: (() => {
-				const lockedAt = state.macroLocks.find(
-					(lock) =>
-						state.cursorOffset >= lock.start && state.cursorOffset <= lock.end,
-				);
-				if (lockedAt) {
-					const draftText =
-						state.draftText.slice(0, lockedAt.start) +
-						text +
-						state.draftText.slice(lockedAt.end);
+					const lockedAt = state.macroLocks.find(
+						(lock) =>
+							state.cursorOffset >= lock.start &&
+							state.cursorOffset <= lock.end,
+					);
+					if (lockedAt) {
+						const draftText =
+							state.draftText.slice(0, lockedAt.start) +
+							text +
+							state.draftText.slice(lockedAt.end);
+						return {
+							...state,
+							draftText,
+							cursorOffset: lockedAt.start + text.length,
+							macroLocks: state.macroLocks.filter((lock) => lock !== lockedAt),
+							authoredRevision: state.authoredRevision + 1,
+						};
+					}
 					return {
 						...state,
-						draftText,
-						cursorOffset: lockedAt.start + text.length,
-						macroLocks: state.macroLocks.filter(
-							(lock) => lock !== lockedAt,
-						),
+						draftText:
+							state.draftText.slice(0, state.cursorOffset) +
+							text +
+							state.draftText.slice(state.cursorOffset),
+						cursorOffset: state.cursorOffset + text.length,
 						authoredRevision: state.authoredRevision + 1,
 					};
-				}
-				return {
-					...state,
-					draftText:
-						state.draftText.slice(0, state.cursorOffset) +
-						text +
-						state.draftText.slice(state.cursorOffset),
-					cursorOffset: state.cursorOffset + text.length,
-					authoredRevision: state.authoredRevision + 1,
-				};
-			})();
+				})();
 
 	const withSnapshot = (
 		next: NotebookEditorState,
@@ -269,8 +273,14 @@ export function reduceNotebookEditor(
 		case "end_edit":
 			return { ...state, inputLock: null, cursorOffset: 0 };
 		case "replace_locked_slot": {
-			const start = Math.max(0, Math.min(action.lock.start, state.draftText.length));
-			const end = Math.max(start, Math.min(action.lock.end, state.draftText.length));
+			const start = Math.max(
+				0,
+				Math.min(action.lock.start, state.draftText.length),
+			);
+			const end = Math.max(
+				start,
+				Math.min(action.lock.end, state.draftText.length),
+			);
 			return {
 				...state,
 				draftText:
@@ -316,7 +326,10 @@ export function reduceNotebookEditor(
 		case "set_cursor":
 			return {
 				...state,
-				cursorOffset: Math.max(0, Math.min(action.offset, state.draftText.length)),
+				cursorOffset: Math.max(
+					0,
+					Math.min(action.offset, state.draftText.length),
+				),
 			};
 		case "move_cursor":
 			return {

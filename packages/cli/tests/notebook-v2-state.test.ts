@@ -193,7 +193,8 @@ describe("isolated notebook v2 state contract", () => {
 		expect(state.cursorOffset).toBe(25);
 	});
 
-	test("append_text in command mode builds command line and marks dirty", () => {		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+	test("append_text in command mode builds command line and marks dirty", () => {
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
 			type: "set_cells",
 			cells: [cell],
 		});

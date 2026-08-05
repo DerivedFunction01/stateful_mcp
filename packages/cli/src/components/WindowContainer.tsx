@@ -1,5 +1,10 @@
+import type {
+	CommandMacroTemplatePart,
+	CommandSyntaxProfile,
+	MacroDefinition,
+} from "@stateful-mcp/clinical";
 import { Box, useInput } from "ink";
-import { type ReactElement, useReducer, useEffect, useRef } from "react";
+import { type ReactElement, useEffect, useReducer, useRef } from "react";
 import {
 	type CommandCatalog,
 	createEditorKernelState,
@@ -15,10 +20,12 @@ import {
 	type WindowOverlayAction,
 } from "../lib/editor";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
-import type { MacroSlotProjection } from "../lib/editor/macro-slots";
-import { reduceCompletion, deriveCompletionSession } from "../lib/editor/completion-state";
+import {
+	deriveCompletionSession,
+	reduceCompletion,
+} from "../lib/editor/completion-state";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
-import type { CommandSyntaxProfile, MacroDefinition, CommandMacroTemplatePart } from "@stateful-mcp/clinical";
+import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 
 export interface WindowContainerProps {
@@ -89,7 +96,10 @@ export function WindowContainer({
 			clearTimeout(autocompleteTimeoutRef.current);
 		}
 		autocompleteTimeoutRef.current = setTimeout(() => {
-			const token = type === "macro" ? syntaxProfile.macroStartToken : syntaxProfile.directCommandToken;
+			const token =
+				type === "macro"
+					? syntaxProfile.macroStartToken
+					: syntaxProfile.directCommandToken;
 			if (!newLine.startsWith(token)) {
 				emit({
 					type: "SET_COMPLETION",
@@ -98,9 +108,10 @@ export function WindowContainer({
 				return;
 			}
 			const partial = newLine.slice(token.length);
-			const getSg = type === "macro"
-				? (completionProvider || (() => []))
-				: ((p: string) => catalog.getSuggestions(p, context));
+			const getSg =
+				type === "macro"
+					? completionProvider || (() => [])
+					: (p: string) => catalog.getSuggestions(p, context);
 			const suggestions = getSg(partial);
 			if (suggestions.length > 0) {
 				const session = deriveCompletionSession(newLine, syntaxProfile);
@@ -145,7 +156,9 @@ export function WindowContainer({
 	const buildChainPrefix = (): string | null => {
 		if (!childDefinitions.length || !macroSlots) return null;
 		const nextChild = childDefinitions.find((childDef) => {
-			const childSlots = macroSlots.filter((s) => s.macroId === childDef.macroId);
+			const childSlots = macroSlots.filter(
+				(s) => s.macroId === childDef.macroId,
+			);
 			const allLocked =
 				childDef.arguments.length > 0 &&
 				childDef.arguments.every((arg) =>
@@ -305,7 +318,11 @@ export function WindowContainer({
 				emit({ type: "NEWLINE" });
 				return;
 			}
-			if ((key.upArrow || key.downArrow) && current.completion.status === "cycling" && completionProvider) {
+			if (
+				(key.upArrow || key.downArrow) &&
+				current.completion.status === "cycling" &&
+				completionProvider
+			) {
 				const transition = reduceCompletion(
 					current.completion,
 					{ kind: key.upArrow ? "up" : "down" },
@@ -380,7 +397,11 @@ export function WindowContainer({
 					return;
 				}
 			}
-			if (_input === " " && current.completion.status === "cycling" && completionProvider) {
+			if (
+				_input === " " &&
+				current.completion.status === "cycling" &&
+				completionProvider
+			) {
 				const transition = reduceCompletion(
 					current.completion,
 					{ kind: "space" },

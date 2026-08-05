@@ -110,6 +110,6 @@ export const bootstrapCommandDefaults: CommandSyntaxProfile = {
 		assert: "assert",
 		remove: "remove",
 	},
-	expressionToken: "@",
-	conceptToken: "#",
+	expressionToken: "#",
+	conceptToken: "@",
 };
