@@ -78,12 +78,25 @@ export function MacroEditor({
 	// Determine the Hint Bar text dynamically
 	let hintText = t("macro.chooseArg");
 	if (activeDefinition) {
-		if (activeMacroArgumentId) {
+		// If the cursor is on a singular (non-plural) argument that is already
+		// bound or locked, treat it as if no argument is active so the hint bar
+		// falls through to the "remaining" discovery path instead of re-showing
+		// the already-satisfied argument.
+		const rawActiveArgSpec = activeMacroArgumentId
+			? activeDefinition.arguments.find((a) => a.argumentId === activeMacroArgumentId)
+			: undefined;
+		const isActiveSingularSatisfied =
+			rawActiveArgSpec !== undefined &&
+			rawActiveArgSpec.extraction.kind !== "concept_array" &&
+			rawActiveArgSpec.extraction.kind !== "array" &&
+			activeSlot !== undefined &&
+			(activeSlot.status === "bound" || activeSlot.status === "locked");
+		const effectiveArgumentId = isActiveSingularSatisfied ? undefined : activeMacroArgumentId;
+		if (effectiveArgumentId) {
 			const argSpec = activeDefinition.arguments.find(
-				(a) => a.argumentId === activeMacroArgumentId,
+				(a) => a.argumentId === effectiveArgumentId,
 			);
 			if (argSpec) {
-				const spec = argSpec.extraction;
 				const label = argSpec.name;
 
 				// Try to derive placeholder text directly from matched template part
@@ -175,7 +188,8 @@ export function MacroEditor({
 		}
 	}
 
-	// Filter suggestions
+	// Filter suggestions: suppress the panel for singular args that are already
+	// bound/locked (effectiveArgumentId logic mirrors the hint bar above).
 	const filteredSuggestions = (() => {
 		if (!activeDefinition) {
 			return suggestions;
@@ -189,7 +203,11 @@ export function MacroEditor({
 					argSpec.extraction.kind === "concept_array" ||
 					argSpec.extraction.kind === "array";
 				if (!isPlural) {
-					if (activeSlot && activeSlot.status === "locked") {
+					// Suppress if already bound or locked (satisfied singular arg)
+					if (
+						activeSlot &&
+						(activeSlot.status === "locked" || activeSlot.status === "bound")
+					) {
 						return [];
 					}
 					const first = suggestions[0];
@@ -209,9 +227,24 @@ export function MacroEditor({
 		return suggestions.filter((s) => s.kind === "arg");
 	})();
 
-	// Title for suggestions box
-	const suggestionsTitle = activeMacroArgumentId
-		? t("macro.suggestions", { arg: activeMacroArgumentId })
+	// Title for suggestions box — use effectiveArgumentId so a satisfied
+	// singular arg doesn't keep its own title visible.
+	const effectiveArgumentIdForTitle = (() => {
+		if (!activeMacroArgumentId || !activeDefinition) return activeMacroArgumentId;
+		const argSpec = activeDefinition.arguments.find(
+			(a) => a.argumentId === activeMacroArgumentId,
+		);
+		if (!argSpec) return activeMacroArgumentId;
+		const isPlural =
+			argSpec.extraction.kind === "concept_array" ||
+			argSpec.extraction.kind === "array";
+		if (!isPlural && activeSlot && (activeSlot.status === "bound" || activeSlot.status === "locked")) {
+			return undefined;
+		}
+		return activeMacroArgumentId;
+	})();
+	const suggestionsTitle = effectiveArgumentIdForTitle
+		? t("macro.suggestions", { arg: effectiveArgumentIdForTitle })
 		: !activeDefinition
 			? t("macro.suggestionsTitle")
 			: t("macro.arguments", { macro: activeDefinition.macroName });
