@@ -19,7 +19,6 @@ import type {
 	WindowDefinition,
 	WindowRegion,
 } from "../../editor";
-import type { AutocompleteSuggestion } from "../../editor/autocomplete";
 import { knownVerbs } from "../../editor/command-autocomplete";
 import { buildCommandDescriptors } from "../../editor/command-descriptors";
 import type { MacroSlotProjection } from "../../editor/macro-slots";
@@ -39,7 +38,6 @@ export interface NotebookWindowDeps {
 	defaultSection?: string;
 	defaultSchema?: string | null;
 	message?: string | null;
-	macroSuggestions?: AutocompleteSuggestion[];
 	macroSlots?: MacroSlotProjection[];
 	activeMacroArgumentId?: string;
 	cursorOffset?: number;
@@ -95,11 +93,6 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 
 			if (deps.editorState.mode === "MACRO") {
 				const draftText = deps.editorState.draftText;
-				const suggestions = deps.macroSuggestions ?? [];
-				const suggestionIndex =
-					deps.editorState.completion.status === "cycling"
-						? deps.editorState.completion.highlightIndex
-						: -1;
 				const matchedTemplateIndex = deps.macroSlots
 					?.find((slot) => slot.formId?.startsWith("template:"))
 					?.formId?.match(/^template:(\d+)/)?.[1];
@@ -148,8 +141,6 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							<MacroEditor
 								draftText={draftText}
 								cursorOffset={deps.cursorOffset ?? draftText.length}
-								suggestions={suggestions}
-								suggestionIndex={suggestionIndex}
 								macroSlots={deps.macroSlots}
 								activeMacroArgumentId={deps.activeMacroArgumentId}
 								activeDefinition={deps.activeDefinition}

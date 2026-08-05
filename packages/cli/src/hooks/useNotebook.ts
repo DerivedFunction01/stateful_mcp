@@ -2,10 +2,7 @@ import type {
 	MacroDefinition,
 	MacroDraftPreview,
 } from "@stateful-mcp/clinical";
-import {
-	MacroAuthoringSession,
-	type MacroAuthoringSnapshot,
-} from "@stateful-mcp/clinical";
+import { MacroAuthoringSession } from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
@@ -29,7 +26,6 @@ import {
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
 import {
 	activeMacroSlot,
-	activeMacroTemplateArgument,
 	createExplicitMacroLock,
 	type MacroSlotProjection,
 } from "../lib/editor/macro-slots";
@@ -68,7 +64,6 @@ export interface UseNotebookReturn {
 	prevErrorIndex(): number | null;
 	getAutocomplete(partial: string): AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
-	macroSuggestions: AutocompleteSuggestion[];
 	macroDraftPreview?: MacroDraftPreview;
 	macroSlots: MacroSlotProjection[];
 	macroLocks: NotebookMacroLock[];
@@ -84,8 +79,6 @@ export interface UseNotebookReturn {
 	activeDefinition: MacroDefinition | null;
 	childDefinitions: MacroDefinition[];
 	macroSession?: MacroAuthoringSession;
-	macroSnapshot?: MacroAuthoringSnapshot;
-	onMacroSessionChange: (snapshot: MacroAuthoringSnapshot) => void;
 }
 
 export type {
@@ -103,9 +96,6 @@ export function useNotebook(
 		INITIAL__NOTEBOOK_EDITOR_STATE,
 	);
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
-	const [macroSuggestions, setMacroSuggestions] = useState<
-		AutocompleteSuggestion[]
-	>([]);
 	const [macroSlots, setMacroSlots] = useState<MacroSlotProjection[]>([]);
 	const [macroDraftPreview, setMacroDraftPreview] =
 		useState<MacroDraftPreview>();
@@ -119,9 +109,6 @@ export function useNotebook(
 	>([]);
 
 	const macroSessionRef = useRef<MacroAuthoringSession | undefined>(undefined);
-	const [macroSnapshot, setMacroSnapshot] = useState<
-		MacroAuthoringSnapshot | undefined
-	>(undefined);
 
 	useEffect(() => {
 		if (session?.v2.syntaxProfile) {
@@ -139,7 +126,6 @@ export function useNotebook(
 				initialCursor: state.cursorOffset,
 			});
 			macroSessionRef.current = sess;
-			setMacroSnapshot(sess.getSnapshot());
 		}
 	}, [session?.v2.syntaxProfile]);
 	const [argumentSuggestionsList, setArgumentSuggestionsList] = useState<
@@ -159,16 +145,15 @@ export function useNotebook(
 
 	useEffect(() => {
 		let cancelled = false;
-		if (!session || !state.draftText) {
+		if (!session || state.mode === "MACRO" || !state.draftText) {
 			setArgumentSuggestionsList([]);
 			return;
 		}
 
 		const profile = session.v2.syntaxProfile;
 		const descriptors = buildCommandDescriptors(profile, {
-			variableName:
-				state.mode === "MACRO" ? undefined : profile.variableCommandName,
-			variableAliases: state.mode === "MACRO" ? undefined : ["variable"],
+			variableName: profile.variableCommandName,
+			variableAliases: ["variable"],
 		});
 
 		const partial = state.draftText;
@@ -226,151 +211,6 @@ export function useNotebook(
 			cancelled = true;
 		};
 	}, [session, state.draftText, state.activeIndex, state.cells, state.mode]);
-
-	useEffect(() => {
-		let cancelled = false;
-		if (!session || state.mode !== "MACRO") {
-			setMacroSuggestions([]);
-			return () => {
-				cancelled = true;
-			};
-		}
-		void session.v2.notebook
-			.loadEditorSnapshot()
-			.then(async (snapshot) => {
-				const rawActiveProjection = activeMacroSlot(
-					macroSlots,
-					state.cursorOffset,
-				);
-				const isConceptSlot = (slot: MacroSlotProjection) => {
-					const argument = activeDefinition?.arguments.find(
-						(candidate) => candidate.argumentId === slot.argumentId,
-					);
-					return (
-						argument?.extraction.kind === "concept" ||
-						argument?.extraction.kind === "concept_array"
-					);
-				};
-				const filledArgumentIds = new Set(
-					macroSlots
-						.filter(
-							(slot) =>
-								slot.status === "locked" ||
-								Boolean(slot.binding) ||
-								(!isConceptSlot(slot) && slot.status !== "invalid"),
-						)
-						.map((slot) => slot.argumentId),
-				);
-				const isExplicitActiveArg =
-					rawActiveProjection &&
-					(rawActiveProjection.status === "locked" ||
-						Boolean(rawActiveProjection.binding) ||
-						rawActiveProjection.bindingSource === "named" ||
-						rawActiveProjection.bindingSource === "friendly" ||
-						rawActiveProjection.bindingSource === "rule" ||
-						rawActiveProjection.bindingSource === "accepted");
-				const activeProjection = isExplicitActiveArg
-					? rawActiveProjection
-					: undefined;
-				const templateArgumentId = activeMacroTemplateArgument(
-					state.draftText,
-					state.cursorOffset,
-					activeDefinition,
-					session.v2.syntaxProfile,
-				);
-				const templateArgumentIsSatisfied = macroSlots.some(
-					(slot) =>
-						slot.argumentId === templateArgumentId &&
-						(slot.status === "locked" || Boolean(slot.binding)),
-				);
-				const activeArgumentId = isExplicitActiveArg
-					? undefined
-					: templateArgumentIsSatisfied
-						? undefined
-						: templateArgumentId;
-
-				const requestId = macroSessionRef.current
-					? macroSessionRef.current.getNextRequestId()
-					: 0;
-
-				const recommendations = await session.v2.notebook.getAutocomplete({
-					input: state.draftText,
-					cursorOffset: state.cursorOffset,
-					sessionId: session.sessionId,
-					workspaceId: snapshot.record.workspaceId,
-					documentId: snapshot.record.documentId,
-					activeCellId: snapshot.activeCellId,
-					macroId: activeProjection?.macroId ?? activeDefinition?.macroId,
-					macroVersion:
-						activeProjection?.macroVersion ?? activeDefinition?.version,
-					filledSlots: [...filledArgumentIds],
-					previousSlot: activeArgumentId,
-					activeArgumentId,
-				});
-				if (cancelled) return;
-				const suggestions: AutocompleteSuggestion[] = recommendations
-					.filter(
-						(suggestion) =>
-							suggestion.kind === "macro" ||
-							suggestion.kind === "argument" ||
-							suggestion.kind === "field" ||
-							suggestion.kind === "value",
-					)
-					.map((suggestion) => ({
-						label: suggestion.label,
-						value: suggestion.insertText,
-						type:
-							suggestion.kind === "macro"
-								? "macro"
-								: suggestion.kind === "branch"
-									? "argument"
-									: suggestion.kind,
-						verb: suggestion.label,
-						completionText: suggestion.insertText,
-						group: "macro",
-						source: "macro",
-						hasArgs: suggestion.kind === "macro",
-						kind:
-							suggestion.kind === "argument" || suggestion.kind === "branch"
-								? "arg"
-								: suggestion.kind === "field"
-									? "field"
-									: suggestion.kind === "value"
-										? "value"
-										: "verb",
-						detail: suggestion.detail,
-						macroEvidence: suggestion.macroEvidence,
-						provenance: suggestion.provenance,
-						targetArgument: suggestion.argumentId,
-						expressionId: suggestion.expressionId,
-						conceptId: suggestion.conceptId,
-						lookupTerm: suggestion.lookupTerm,
-					}));
-
-				setMacroSuggestions(suggestions);
-				if (macroSessionRef.current) {
-					macroSessionRef.current.dispatch({
-						type: "suggestions_resolved",
-						requestId,
-						candidates: suggestions as any,
-					});
-					setMacroSnapshot(macroSessionRef.current.getSnapshot());
-				}
-			})
-			.catch(() => {
-				if (!cancelled) setMacroSuggestions([]);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [
-		session,
-		state.mode,
-		state.draftText,
-		state.cursorOffset,
-		macroSlots,
-		activeDefinition,
-	]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -459,6 +299,7 @@ export function useNotebook(
 				groupId: `draft_${activeDefinition.macroId}`,
 				profileId: session.v2.syntaxProfile.profileId,
 				sessionId: session.sessionId,
+				locks: state.macroLocks,
 			})
 			.then((preview) => {
 				if (!cancelled) setMacroDraftPreview(preview);
@@ -494,16 +335,11 @@ export function useNotebook(
 	const lockActiveMacroSlot = useCallback(() => {
 		const active = activeMacroSlot(macroSlots, state.cursorOffset);
 		if (!active) return;
-		const suggestion = macroSuggestions.find(
-			(candidate) =>
-				candidate.lookupTerm === active.rawText ||
-				candidate.value === active.rawText,
-		);
 		dispatch({
 			type: "add_macro_lock",
-			lock: createExplicitMacroLock(active, suggestion),
+			lock: createExplicitMacroLock(active),
 		});
-	}, [macroSlots, macroSuggestions, state.cursorOffset, dispatch]);
+	}, [macroSlots, state.cursorOffset, dispatch]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -1024,7 +860,6 @@ export function useNotebook(
 		prevErrorIndex,
 		getAutocomplete,
 		cellSuggestions,
-		macroSuggestions,
 		macroDraftPreview,
 		macroSlots,
 		macroLocks: state.macroLocks,
@@ -1124,7 +959,5 @@ export function useNotebook(
 		},
 		childDefinitions,
 		macroSession: macroSessionRef.current,
-		macroSnapshot,
-		onMacroSessionChange: setMacroSnapshot,
 	};
 }

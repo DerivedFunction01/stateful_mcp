@@ -9,8 +9,7 @@ import {
 	getMacroArgumentStatuses,
 	isMacroSlotResolved,
 } from "@stateful-mcp/clinical";
-import { Box, Text, useStdout } from "ink";
-import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
+import { Box, Text } from "ink";
 import { buildMacroRenderSegments } from "../lib/editor/macro-render";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { t } from "../lib/shared/i18n";
@@ -18,8 +17,6 @@ import { t } from "../lib/shared/i18n";
 interface MacroEditorProps {
 	draftText: string;
 	cursorOffset: number;
-	suggestions: AutocompleteSuggestion[];
-	suggestionIndex: number;
 	macroSlots?: MacroSlotProjection[];
 	activeMacroArgumentId?: string;
 	activeDefinition?: MacroDefinition | null;
@@ -32,8 +29,6 @@ interface MacroEditorProps {
 export function MacroEditor({
 	draftText,
 	cursorOffset,
-	suggestions,
-	suggestionIndex,
 	macroSlots = [],
 	activeMacroArgumentId,
 	activeDefinition,
@@ -42,10 +37,6 @@ export function MacroEditor({
 	draftPreview,
 	showCursor = true,
 }: MacroEditorProps) {
-	const { stdout } = useStdout();
-	const columns = stdout?.columns ?? 80;
-	const isNarrow = columns < 80;
-
 	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
 		activeDefinition !== null &&
 		activeDefinition !== undefined &&
@@ -171,116 +162,6 @@ export function MacroEditor({
 		}
 	}
 
-	// Filter suggestions: suppress the panel for singular args that are already
-	// bound/locked (effectiveArgumentId logic mirrors the hint bar above).
-	const filteredSuggestions = (() => {
-		if (!activeDefinition) {
-			return suggestions;
-		}
-		if (activeMacroArgumentId) {
-			const argSpec = activeDefinition.arguments.find(
-				(a) => a.argumentId === activeMacroArgumentId,
-			);
-			if (argSpec) {
-				const isPlural =
-					argSpec.extraction.kind === "concept_array" ||
-					argSpec.extraction.kind === "array";
-				if (!isPlural) {
-					// Suppress if already bound or locked (satisfied singular arg)
-					if (
-						activeSlot &&
-						(activeSlot.status === "locked" ||
-							(activeSlot.status === "bound" &&
-								argSpec.extraction.kind !== "concept" &&
-								argSpec.extraction.kind !== "concept_array") ||
-							(activeSlot.status === "bound" && Boolean(activeSlot.binding)))
-					) {
-						return [];
-					}
-					const first = suggestions[0];
-					if (
-						suggestions.length === 1 &&
-						activeSlot &&
-						first &&
-						(first.value === activeSlot.displayText ||
-							first.label === activeSlot.displayText)
-					) {
-						return [];
-					}
-				}
-			}
-			return suggestions;
-		}
-		return suggestions;
-	})();
-
-	// Title for suggestions box — use effectiveArgumentId so a satisfied
-	// singular arg doesn't keep its own title visible.
-	const effectiveArgumentIdForTitle = (() => {
-		if (!activeMacroArgumentId || !activeDefinition)
-			return activeMacroArgumentId;
-		const argSpec = activeDefinition.arguments.find(
-			(a) => a.argumentId === activeMacroArgumentId,
-		);
-		if (!argSpec) return activeMacroArgumentId;
-		const isPlural =
-			argSpec.extraction.kind === "concept_array" ||
-			argSpec.extraction.kind === "array";
-		if (
-			!isPlural &&
-			activeSlot &&
-			(activeSlot.status === "locked" ||
-				(activeSlot.status === "bound" &&
-					argSpec.extraction.kind !== "concept" &&
-					argSpec.extraction.kind !== "concept_array") ||
-				(activeSlot.status === "bound" && Boolean(activeSlot.binding)))
-		) {
-			return undefined;
-		}
-		return activeMacroArgumentId;
-	})();
-	const suggestionsTitle = effectiveArgumentIdForTitle
-		? t("macro.suggestions", { arg: effectiveArgumentIdForTitle })
-		: !activeDefinition
-			? t("macro.suggestionsTitle")
-			: "suggestions";
-
-	const visibleSuggestions = filteredSuggestions.slice(0, 8); // Show top 8 suggestions
-
-	// Helper to format suggestion text and inject details for arguments
-	const getSuggestionLabelAndDetail = (suggestion: AutocompleteSuggestion) => {
-		const label = suggestion.label;
-		let detail = suggestion.detail || "";
-		if (suggestion.provenance === "template") {
-			detail = suggestion.targetArgument
-				? `template → ${suggestion.targetArgument}`
-				: "template";
-		} else if (suggestion.provenance === "expression") {
-			detail = suggestion.detail || "expression";
-		} else if (suggestion.provenance === "numeric") {
-			detail = "(within bounds)";
-		} else if (suggestion.provenance === "argument-name") {
-			detail = suggestion.detail || "argument";
-		} else if (!activeMacroArgumentId && activeDefinition) {
-			const argSpec = activeDefinition.arguments.find(
-				(a) => a.name === suggestion.label || a.argumentId === suggestion.label,
-			);
-			if (argSpec) {
-				const spec = argSpec.extraction;
-				if (spec.numericBounds) {
-					const { min, max, step } = spec.numericBounds;
-					detail = `(Range: ${min ?? ""}-${max ?? ""}, Step: ${step ?? 1})`;
-				} else if (spec.kind === "measurement") {
-					const allowed = spec.measurement?.allowedUnits?.join(", ") ?? "";
-					detail = `(Allowed: ${allowed})`;
-				} else if (spec.kind === "temporal") {
-					detail = `(Temporal/Date)`;
-				}
-			}
-		}
-		return { label, detail };
-	};
-
 	// Diagnostic status warnings
 	const duplicateSlotsByArg = (() => {
 		const grouped = new Map<string, typeof macroSlots>();
@@ -333,14 +214,10 @@ export function MacroEditor({
 		activeSlot &&
 		activeSlot.status !== "locked" &&
 		activeSlot.status !== "bound" &&
-		activeSlot.rawText &&
-		visibleSuggestions.length === 0;
+		Boolean(activeSlot.rawText);
 
 	const showTypeHint =
-		activeSlot &&
-		visibleSuggestions.length === 0 &&
-		!isUnresolvedConcept &&
-		activeSlotDiagnostics.length === 0;
+		activeSlot && !isUnresolvedConcept && activeSlotDiagnostics.length === 0;
 	const typeHintText = (() => {
 		if (!showTypeHint || !activeArgSpec) return "";
 		if (activeArgSpec.extraction.kind === "scalar") {
@@ -349,26 +226,24 @@ export function MacroEditor({
 		return `Type a value for ${activeArgSpec.name}`;
 	})();
 
-	const shouldShowSuggestionsPanel =
-		visibleSuggestions.length > 0 ||
+	const shouldShowDiagnosticsPanel =
 		duplicateSlotsByArg.length > 0 ||
 		activeSlotDiagnostics.length > 0 ||
 		isUnresolvedConcept ||
 		Boolean(typeHintText);
 
 	return (
-		<Box flexDirection="column" width="100%">
+		<Box
+			flexDirection="column"
+			borderStyle="single"
+			borderColor={draftPreview?.status === "invalid" ? "yellow" : "green"}
+			paddingX={1}
+			width="100%"
+		>
 			{/* Macro editor input surface */}
-			<Box
-				flexDirection="column"
-				borderStyle="single"
-				borderColor="green"
-				paddingX={1}
-				width="100%"
-			>
+			<Box flexDirection="column" width="100%">
 				<Text bold color="green">
-					┌─ Macro editor
-					───────────────────────────────────────────────────────────────┐
+					Macro editor
 				</Text>
 				<Box paddingLeft={1} flexDirection="column">
 					<Text bold>
@@ -436,23 +311,13 @@ export function MacroEditor({
 						</Text>
 					</Box>
 				</Box>
-				<Text bold color="green">
-					└──────────────────────────────────────────────────────────────────────────────┘
-				</Text>
 			</Box>
 
 			{/* Suggestions Panel */}
-			{shouldShowSuggestionsPanel && (
-				<Box
-					flexDirection="column"
-					borderStyle="single"
-					borderColor="cyan"
-					paddingX={1}
-					width="100%"
-				>
+			{shouldShowDiagnosticsPanel && (
+				<Box flexDirection="column" width="100%">
 					<Text bold color="cyan">
-						┌─ {suggestionsTitle}{" "}
-						──────────────────────────────────────────────────────────┐
+						Diagnostics
 					</Text>
 
 					{/* Duplicate Warnings */}
@@ -501,67 +366,10 @@ export function MacroEditor({
 							</Text>
 						</Box>
 					)}
-
-					{/* Visible Suggestions */}
-					{visibleSuggestions.map((suggestion, index) => {
-						const isActive = index === suggestionIndex;
-						const { label, detail } = getSuggestionLabelAndDetail(suggestion);
-
-						// Format evidence
-						let evidenceStr = "";
-						const evidence = suggestion.macroEvidence;
-						if (evidence) {
-							if (isNarrow) {
-								evidenceStr = " [learned]";
-							} else {
-								const parts: string[] = [];
-								if (evidence.score !== undefined)
-									parts.push(`score ${evidence.score.toFixed(2)}`);
-								if (evidence.observationCount !== undefined)
-									parts.push(`n=${evidence.observationCount}`);
-								if (evidence.scope) parts.push(evidence.scope);
-								if (evidence.reason) parts.push(evidence.reason);
-								if (parts.length) {
-									evidenceStr = `  ${parts.join("  ")}`;
-								}
-							}
-						}
-
-						const description = !isNarrow && detail ? `  — ${detail}` : "";
-						const badge =
-							!isNarrow && suggestion.provenance
-								? `  [${suggestion.provenance}]`
-								: "";
-
-						return (
-							<Box key={index} paddingLeft={1}>
-								<Text
-									inverse={isActive}
-									bold={isActive}
-									color={isActive ? "yellow" : undefined}
-								>
-									{isActive ? "> " : "  "}
-									{label}
-									{description}
-									{evidenceStr}
-									{badge}
-								</Text>
-							</Box>
-						);
-					})}
-					<Text bold color="cyan">
-						└──────────────────────────────────────────────────────────────────────────────┘
-					</Text>
 				</Box>
 			)}
 			{authoringPreview && (
-				<Box
-					flexDirection="column"
-					borderStyle="single"
-					borderColor="gray"
-					paddingX={1}
-					width="100%"
-				>
+				<Box flexDirection="column" width="100%">
 					<Text bold color="gray">
 						Preview
 					</Text>
@@ -577,13 +385,7 @@ export function MacroEditor({
 				</Box>
 			)}
 			{draftPreview && (
-				<Box
-					flexDirection="column"
-					borderStyle="single"
-					borderColor={draftPreview.status === "valid" ? "green" : "yellow"}
-					paddingX={1}
-					width="100%"
-				>
+				<Box flexDirection="column" width="100%">
 					<Text
 						bold
 						color={draftPreview.status === "valid" ? "green" : "yellow"}

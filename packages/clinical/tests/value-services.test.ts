@@ -113,6 +113,40 @@ describe(" value foundations", () => {
 		});
 	});
 
+	it("resolves a canonical concept prefix when no longer expression continues it", async () => {
+		const dictionary = {
+			search: async () => [
+				{
+					id: "c-harry-potter",
+					namespaceCode: "BOOK",
+					standardCode: "HP",
+					display: "Harry Potter",
+					active: true,
+				},
+			],
+			searchExpressionCandidates: async () => [
+				{
+					id: "expr-hp",
+					term: "Harry Potter",
+					lookupTerm: "harry potter",
+					conceptId: "c-harry-potter",
+					active: true,
+				},
+			],
+		};
+
+		const resolved = await resolveConceptValue(
+			"harry potter and the",
+			dictionary,
+			{
+				targetAssignment: "note.title",
+			},
+		);
+
+		expect(resolved.diagnostics).toEqual([]);
+		expect(resolved.value?.concept.conceptId).toBe("c-harry-potter");
+	});
+
 	it("keeps value extraction rules profile-driven and deterministically ordered", () => {
 		const registry = new ValueRuleRegistry();
 		registry.register("clinical-en", [

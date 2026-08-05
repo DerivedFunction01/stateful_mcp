@@ -212,9 +212,7 @@ const en: Record<string, string> = {
 	"macro.example": " (e.g. type '{name}={placeholder}')",
 	"macro.allCaptured": "All arguments captured. Press Enter to submit.",
 	"macro.status": "Status: ",
-	"macro.suggestions": "{arg} suggestions",
 	"macro.arguments": "{macro} arguments",
-	"macro.suggestionsTitle": "Macro suggestions",
 	"macro.chainSuggestion":
 		"Continue with: {next}. Press TAB to expand or ESC to skip.",
 };

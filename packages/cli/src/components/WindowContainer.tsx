@@ -51,9 +51,6 @@ export interface WindowContainerProps {
 	syntaxProfile: CommandSyntaxProfile;
 	childDefinitions?: MacroDefinition[];
 	macroSession?: MacroAuthoringSession;
-	onMacroSessionChange?: (
-		snapshot: ReturnType<MacroAuthoringSession["getSnapshot"]>,
-	) => void;
 }
 
 /**
@@ -83,7 +80,6 @@ export function WindowContainer({
 	syntaxProfile,
 	childDefinitions = [],
 	macroSession,
-	onMacroSessionChange,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -262,7 +258,7 @@ export function WindowContainer({
 			if (key.escape) {
 				clearAutocompleteTimeout();
 				if (macroSession) {
-					onMacroSessionChange?.(macroSession.dispatch({ type: "escape" }));
+					macroSession.dispatch({ type: "escape" });
 				}
 				if (current.completion.status === "cycling") {
 					emit({
@@ -279,79 +275,34 @@ export function WindowContainer({
 			}
 			if (key.return) {
 				if (macroSession) {
-					onMacroSessionChange?.(macroSession.dispatch({ type: "submit" }));
+					macroSession.dispatch({ type: "submit" });
 				}
 				emit({ type: "SUBMIT_MACRO" });
 				return;
 			}
 			if (key.ctrl && _input === "u") {
 				if (macroSession) {
-					onMacroSessionChange?.(
-						macroSession.dispatch({ type: "unlock_active" }),
-					);
+					macroSession.dispatch({ type: "unlock_active" });
 				}
 				emit({ type: "UNLOCK_MACRO" });
 				return;
 			}
 			if (key.upArrow || key.downArrow) {
-				if (macroSession) {
-					const snap = macroSession.dispatch({
-						type: key.upArrow ? "arrow_up" : "arrow_down",
-					});
-					onMacroSessionChange?.(snap);
-					if (snap.rawText !== current.draftText) {
-						emit({ type: "SET_DRAFT", text: snap.rawText });
-					}
-					if (snap.completion.status === "cycling") {
-						emit({
-							type: "SET_COMPLETION",
-							completion: {
-								status: "cycling",
-								candidates: snap.completion.candidates as any,
-								highlightIndex: snap.completion.highlightIndex,
-								session: snap.completion.session,
-							},
-						});
-						return;
-					}
-				}
-				if (completionProvider) {
-					if (
-						(cursorOffset ?? current.draftText.length) !==
-						current.draftText.length
-					) {
-						return;
-					}
-					const transition = reduceCompletion(
-						current.completion,
-						{ kind: key.upArrow ? "up" : "down" },
-						current.draftText,
-						completionProvider,
-						syntaxProfile,
-					);
-					emit({
-						type: "SET_COMPLETION",
-						completion: transition.completionState,
-					});
-					return;
-				}
+				return;
 			}
 			if (key.backspace) {
 				if (macroSession) {
-					onMacroSessionChange?.(macroSession.dispatch({ type: "backspace" }));
+					macroSession.dispatch({ type: "backspace" });
 				}
 				emit({ type: "BACKSPACE" });
-				triggerAutocomplete(current.draftText.slice(0, -1), "macro");
 				return;
 			}
 			if (key.leftArrow || key.rightArrow) {
 				if (macroSession) {
-					onMacroSessionChange?.(
-						macroSession.dispatch({
-							type: "move_cursor",
-							delta: key.leftArrow ? -1 : 1,
-						}),
-					);
+					macroSession.dispatch({
+						type: "move_cursor",
+						delta: key.leftArrow ? -1 : 1,
+					});
 				}
 				if (current.completion.status === "cycling") {
 					emit({
@@ -364,115 +315,27 @@ export function WindowContainer({
 			}
 			if (key.home) {
 				if (macroSession) {
-					onMacroSessionChange?.(
-						macroSession.dispatch({ type: "cursor_home" }),
-					);
+					macroSession.dispatch({ type: "cursor_home" });
 				}
 				emit({ type: "CURSOR_HOME" });
 				return;
 			}
 			if (key.end) {
 				if (macroSession) {
-					onMacroSessionChange?.(macroSession.dispatch({ type: "cursor_end" }));
+					macroSession.dispatch({ type: "cursor_end" });
 				}
 				emit({ type: "CURSOR_END" });
 				return;
 			}
 			if (key.tab) {
-				if (macroSession) {
-					const sessionSnapshot = macroSession.getSnapshot();
-					const hasSessionCandidates =
-						sessionSnapshot.completion.candidates.length > 0;
-					if (!hasSessionCandidates) {
-						// Suggestions may still be held by the provider while the
-						// session is waiting for its async result. Let the provider
-						// path below handle this Tab press instead of swallowing it.
-					} else {
-						const snap = macroSession.dispatch({
-							type: "tab",
-							shift: Boolean(key.shift),
-						});
-						onMacroSessionChange?.(snap);
-						if (snap.completion.status === "cycling") {
-							emit({
-								type: "SET_COMPLETION",
-								completion: {
-									status: "cycling",
-									candidates: snap.completion.candidates as any,
-									highlightIndex: snap.completion.highlightIndex,
-									session: snap.completion.session,
-								},
-							});
-							return;
-						}
-						emit({
-							type: "SET_COMPLETION",
-							completion: { status: "idle" },
-						});
-						return;
-					}
-				}
-				if (completionProvider) {
-					if (
-						(cursorOffset ?? current.draftText.length) !==
-						current.draftText.length
-					) {
-						if (current.completion.status === "cycling") {
-							emit({
-								type: "SET_COMPLETION",
-								completion: { status: "idle" },
-							});
-						}
-						return;
-					}
-					const isCycling = current.completion.status === "cycling";
-					if (isCycling) {
-						const transition = reduceCompletion(
-							current.completion,
-							{ kind: "tab", shift: Boolean(key.shift) },
-							current.draftText,
-							completionProvider,
-							syntaxProfile,
-						);
-						emit({
-							type: "SET_COMPLETION",
-							completion: transition.completionState,
-						});
-						if (transition.committedLine) {
-							emit({
-								type: "COMMIT_COMPLETION",
-								line: transition.committedLine,
-							});
-						}
-						return;
-					}
-					const partial = current.draftText;
-					const suggestions = completionProvider(partial);
-					if (suggestions.length > 0) {
-						const transition = reduceCompletion(
-							current.completion,
-							{ kind: "tab", shift: Boolean(key.shift) },
-							current.draftText,
-							completionProvider,
-							syntaxProfile,
-						);
-						emit({
-							type: "SET_COMPLETION",
-							completion: transition.completionState,
-						});
-						if (transition.committedLine) {
-							emit({
-								type: "COMMIT_COMPLETION",
-								line: transition.committedLine,
-							});
-						}
-						return;
-					}
-					// Chain expansion: if all slots are filled, append next child prefix
+				// Child expansion is the only remaining Tab behavior in Macro mode.
+				if (
+					(cursorOffset ?? current.draftText.length) ===
+					current.draftText.length
+				) {
 					const chainPrefix = buildChainPrefix();
 					if (chainPrefix) {
 						emit({ type: "INSERT_TEXT", text: ` ${chainPrefix}` });
-						return;
 					}
 				}
 				return;
@@ -483,12 +346,10 @@ export function WindowContainer({
 					completion: { status: "idle" },
 				});
 				emit({ type: "INSERT_TEXT", text: " " });
-				triggerAutocomplete(current.draftText + " ", "macro");
 				return;
 			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {
 				emit({ type: "INSERT_TEXT", text: _input });
-				triggerAutocomplete(current.draftText + _input, "macro");
 			}
 			return;
 		}

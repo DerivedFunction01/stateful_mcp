@@ -4,6 +4,7 @@ import {
 	type MacroExpressionCandidate,
 	selectUnambiguousExpression,
 } from "./macro-authoring-projection";
+import type { MacroInput } from "./macro-binding";
 import { MacroCompiler, type MacroCompilerOptions } from "./macro-compiler";
 import type { MacroDefinition, MacroStore } from "./macro-definition";
 import type { MacroDraftPreview } from "./macro-draft-preview";
@@ -26,6 +27,7 @@ export interface MacroAuthoringServiceDeps {
 
 export interface MacroDraftCompileOptions extends MacroCompilerOptions {
 	personnelId?: string;
+	locks?: readonly MacroLockLike[];
 }
 
 export interface MacroDraftInspection {
@@ -237,6 +239,48 @@ export class MacroAuthoringService {
 			profile: this.deps.profile,
 		});
 		if (!parsed) return undefined;
-		return compileMacroDraftPreview(this.compiler, parsed, definition, options);
+		const lockedInput = applyLocksToParsedInput(parsed, options.locks ?? []);
+		return compileMacroDraftPreview(
+			this.compiler,
+			lockedInput,
+			definition,
+			options,
+		);
 	}
+}
+
+function applyLocksToParsedInput(
+	input: MacroInput,
+	locks: readonly MacroLockLike[],
+): MacroInput {
+	if (locks.length === 0) return input;
+	const arguments_ = input.arguments.map((argument) => {
+		const lock = locks.find(
+			(candidate) =>
+				candidate.argumentId === argument.match?.argumentId &&
+				candidate.rawText !== undefined,
+		);
+		if (!lock) return argument;
+		const match = argument.match
+			? {
+					...argument.match,
+					rawValue: lock.rawText ?? argument.rawValue,
+					extraction: { start: lock.start, end: lock.end },
+				}
+			: argument.match;
+		return {
+			...argument,
+			rawValue: lock.rawText ?? argument.rawValue,
+			start: lock.start,
+			end: lock.end,
+			match,
+		};
+	});
+	return {
+		...input,
+		arguments: arguments_,
+		matches: arguments_.flatMap((argument) =>
+			argument.match ? [argument.match] : [],
+		),
+	};
 }

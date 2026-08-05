@@ -54,21 +54,38 @@ export async function resolveConceptValue(
 			: candidate.display.toLowerCase() === text.toLowerCase() ||
 				candidate.standardCode.toLowerCase() === text.toLowerCase(),
 	);
-	if (!exact && !coordinate.namespace && dictionary.searchExpressionCandidates) {
+	if (
+		!exact &&
+		!coordinate.namespace &&
+		dictionary.searchExpressionCandidates
+	) {
+		const normalizedText = text.toLocaleLowerCase();
 		const expressions = await dictionary.searchExpressionCandidates({
-			lookupPrefix: text.toLocaleLowerCase(),
+			lookupPrefix: normalizedText.split(/\s+/)[0] ?? normalizedText,
 			targetAssignments: options.targetAssignment
 				? [options.targetAssignment]
 				: undefined,
 			activeOnly: true,
 			limit: options.limit ?? 20,
 		});
-		const expression = expressions.find(
-			(candidate) =>
-				(candidate.lookupTerm ?? candidate.term).toLocaleLowerCase() ===
-					text.toLocaleLowerCase() ||
-				candidate.term.toLocaleLowerCase() === text.toLocaleLowerCase(),
-		);
+		const expressionMatches = expressions
+			.filter((candidate) => {
+				const term = (
+					candidate.lookupTerm ?? candidate.term
+				).toLocaleLowerCase();
+				return normalizedText === term || normalizedText.startsWith(`${term} `);
+			})
+			.sort(
+				(left, right) =>
+					(right.lookupTerm ?? right.term).length -
+					(left.lookupTerm ?? left.term).length,
+			);
+		const expression = expressions.find((candidate) => {
+			const term = (candidate.lookupTerm ?? candidate.term).toLocaleLowerCase();
+			return term.startsWith(`${normalizedText} `);
+		})
+			? undefined
+			: expressionMatches[0];
 		if (expression?.conceptId) {
 			candidates = await dictionary.search(
 				expression.term,

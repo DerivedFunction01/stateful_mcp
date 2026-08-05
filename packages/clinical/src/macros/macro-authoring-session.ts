@@ -1,11 +1,4 @@
 import {
-	type CompletionKey,
-	type CompletionSession,
-	cycleIndex,
-	deriveCompletionSession,
-	mergeCandidate,
-} from "./completion-session-helper";
-import {
 	getMacroArgumentStatuses,
 	type MacroArgumentStatus,
 } from "./macro-authoring-projection";
@@ -13,7 +6,6 @@ import {
 	type MacroAuthoringRender,
 	renderMacroAuthoringTemplate,
 } from "./macro-authoring-renderer";
-import type { AutocompleteSuggestion } from "./macro-autocomplete";
 import type { MacroCompileResult as MacroCompilationResult } from "./macro-compiler";
 import type { MacroDefinition } from "./macro-definition";
 import type { MacroDraftPreview } from "./macro-draft-preview";
@@ -32,16 +24,6 @@ export interface MacroAuthoringDiagnostic {
 	level: "error" | "warning" | "info";
 }
 
-export type MacroCompletionState =
-	| { status: "idle"; candidates: AutocompleteSuggestion[] }
-	| {
-			status: "cycling";
-			candidates: AutocompleteSuggestion[];
-			highlightIndex: number;
-			session: CompletionSession;
-			requestId: number;
-	  };
-
 export interface MacroAuthoringSnapshot {
 	mode: "idle" | "macro";
 	rawText: string;
@@ -53,14 +35,12 @@ export interface MacroAuthoringSnapshot {
 	activeArgumentId?: string;
 	childDefinitions: MacroDefinition[];
 
-	completion: MacroCompletionState;
 	diagnostics: MacroAuthoringDiagnostic[];
 	statuses: MacroArgumentStatus[];
 
 	authoringPreview?: MacroAuthoringRender;
 	executablePreview?: MacroDraftPreview;
 	compilation?: MacroCompilationResult;
-	requestId: number;
 }
 
 export type MacroAuthoringAction =
@@ -73,18 +53,9 @@ export type MacroAuthoringAction =
 	| { type: "cursor_end" }
 	| { type: "lock_active" }
 	| { type: "unlock_active" }
-	| { type: "completion_key"; key: CompletionKey }
-	| { type: "tab"; shift?: boolean }
-	| { type: "arrow_up" }
-	| { type: "arrow_down" }
 	| { type: "arrow_left" }
 	| { type: "arrow_right" }
 	| { type: "escape" }
-	| {
-			type: "suggestions_resolved";
-			requestId: number;
-			candidates: AutocompleteSuggestion[];
-	  }
 	| {
 			type: "inspection_resolved";
 			definition?: MacroDefinition;
@@ -102,7 +73,6 @@ export interface CreateMacroAuthoringSessionOptions {
 export class MacroAuthoringSession {
 	private snapshot: MacroAuthoringSnapshot;
 	private readonly profile: SyntaxProfile;
-	private currentRequestId = 0;
 
 	constructor(options: CreateMacroAuthoringSessionOptions) {
 		this.profile = options.profile;
@@ -117,25 +87,14 @@ export class MacroAuthoringSession {
 			slots: [],
 			locks: options.locks ?? [],
 			childDefinitions: [],
-			completion: { status: "idle", candidates: [] },
 			diagnostics: [],
 			statuses: [],
-			requestId: 0,
 		};
 		this.recomputeProjections();
 	}
 
 	public getSnapshot(): MacroAuthoringSnapshot {
 		return this.snapshot;
-	}
-
-	public getNextRequestId(): number {
-		this.currentRequestId += 1;
-		this.snapshot = {
-			...this.snapshot,
-			requestId: this.currentRequestId,
-		};
-		return this.currentRequestId;
 	}
 
 	public dispatch(action: MacroAuthoringAction): MacroAuthoringSnapshot {
@@ -148,7 +107,6 @@ export class MacroAuthoringSession {
 					mode: isMacro ? "macro" : "idle",
 					rawText: action.text,
 					cursorOffset,
-					completion: { status: "idle", candidates: [] },
 				};
 				this.recomputeProjections();
 				break;
@@ -180,7 +138,6 @@ export class MacroAuthoringSession {
 					mode: isMacro ? "macro" : "idle",
 					rawText: newText,
 					cursorOffset: newCursor,
-					completion: { status: "idle", candidates: [] },
 				};
 				this.recomputeProjections();
 				break;
@@ -201,7 +158,6 @@ export class MacroAuthoringSession {
 					mode: isMacro ? "macro" : "idle",
 					rawText: newText,
 					cursorOffset: newCursor,
-					completion: { status: "idle", candidates: [] },
 				};
 				this.recomputeProjections();
 				break;
@@ -217,13 +173,6 @@ export class MacroAuthoringSession {
 				this.snapshot = {
 					...this.snapshot,
 					cursorOffset: newCursor,
-					completion:
-						this.snapshot.completion.status === "cycling"
-							? {
-									status: "idle",
-									candidates: this.snapshot.completion.candidates,
-								}
-							: this.snapshot.completion,
 				};
 				this.recomputeProjections();
 				break;
@@ -232,7 +181,6 @@ export class MacroAuthoringSession {
 				this.snapshot = {
 					...this.snapshot,
 					cursorOffset: 0,
-					completion: { status: "idle", candidates: [] },
 				};
 				this.recomputeProjections();
 				break;
@@ -241,7 +189,6 @@ export class MacroAuthoringSession {
 				this.snapshot = {
 					...this.snapshot,
 					cursorOffset: this.snapshot.rawText.length,
-					completion: { status: "idle", candidates: [] },
 				};
 				this.recomputeProjections();
 				break;
@@ -249,7 +196,6 @@ export class MacroAuthoringSession {
 			case "escape": {
 				this.snapshot = {
 					...this.snapshot,
-					completion: { status: "idle", candidates: [] },
 				};
 				break;
 			}
@@ -259,111 +205,6 @@ export class MacroAuthoringSession {
 			}
 			case "arrow_right": {
 				this.dispatch({ type: "move_cursor", delta: 1 });
-				break;
-			}
-			case "arrow_up":
-			case "arrow_down": {
-				const direction = action.type === "arrow_up" ? -1 : 1;
-				const atEnd =
-					this.snapshot.cursorOffset === this.snapshot.rawText.length;
-				if (atEnd) {
-					const comp = this.snapshot.completion;
-					if (comp.status === "cycling" && comp.candidates.length > 0) {
-						const nextIdx = cycleIndex(
-							comp.highlightIndex,
-							comp.candidates.length,
-							direction,
-						);
-						this.snapshot = {
-							...this.snapshot,
-							completion: {
-								...comp,
-								highlightIndex: nextIdx,
-							},
-						};
-					} else if (comp.status === "idle" && comp.candidates.length > 0) {
-						const initialIdx =
-							action.type === "arrow_down" ? 0 : comp.candidates.length - 1;
-						const session = deriveCompletionSession(
-							this.snapshot.rawText,
-							this.profile,
-						);
-						if (session) {
-							this.snapshot = {
-								...this.snapshot,
-								completion: {
-									status: "cycling",
-									candidates: comp.candidates,
-									highlightIndex: initialIdx,
-									session,
-									requestId: this.snapshot.requestId,
-								},
-							};
-						}
-					}
-				}
-				break;
-			}
-			case "tab": {
-				const atEnd =
-					this.snapshot.cursorOffset === this.snapshot.rawText.length;
-				if (!atEnd) {
-					this.snapshot = {
-						...this.snapshot,
-						completion: { status: "idle", candidates: [] },
-					};
-					break;
-				}
-
-				const comp = this.snapshot.completion;
-				const candidates = comp.candidates;
-				if (candidates.length > 0) {
-					const selectedIdx =
-						comp.status === "cycling"
-							? comp.highlightIndex
-							: action.shift
-								? candidates.length - 1
-								: 0;
-					const candidate = candidates[selectedIdx];
-					const session =
-						comp.status === "cycling"
-							? comp.session
-							: deriveCompletionSession(this.snapshot.rawText, this.profile);
-
-					if (candidate && session) {
-						const committedVal = candidate.value ?? candidate.label;
-						const committedText = mergeCandidate(
-							this.snapshot.rawText,
-							committedVal,
-							true,
-							this.profile,
-						);
-
-						this.snapshot = {
-							...this.snapshot,
-							rawText: committedText,
-							cursorOffset: committedText.length,
-							completion: { status: "idle", candidates: [] },
-						};
-						this.recomputeProjections();
-					}
-				}
-				break;
-			}
-			case "suggestions_resolved": {
-				if (action.requestId < this.snapshot.requestId) {
-					break;
-				}
-				if (this.snapshot.completion.status === "cycling") {
-					break;
-				}
-				this.snapshot = {
-					...this.snapshot,
-					completion: {
-						status: "idle",
-						candidates: action.candidates,
-					},
-				};
 				break;
 			}
 			case "inspection_resolved": {

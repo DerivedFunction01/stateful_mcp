@@ -48,15 +48,8 @@ export function Notebook({
 		onOpenHistory: () => setOverlay({ route: "history" }),
 	});
 	const { exit } = useApp();
-	const {
-		state,
-		dispatch,
-		cellSuggestions,
-		getAutocomplete,
-		macroSession,
-		macroSnapshot,
-		onMacroSessionChange,
-	} = notebook;
+	const { state, dispatch, cellSuggestions, getAutocomplete, macroSession } =
+		notebook;
 	const [completion, setCompletion] = useState<CompletionState>({
 		status: "idle",
 	});
@@ -80,13 +73,11 @@ export function Notebook({
 			current.rawText !== state.draftText ||
 			current.cursorOffset !== state.cursorOffset
 		) {
-			onMacroSessionChange(
-				macroSession.dispatch({
-					type: "set_text",
-					text: state.draftText,
-					cursorOffset: state.cursorOffset,
-				}),
-			);
+			macroSession.dispatch({
+				type: "set_text",
+				text: state.draftText,
+				cursorOffset: state.cursorOffset,
+			});
 		}
 	}, [macroSession, state.mode, state.draftText, state.cursorOffset]);
 
@@ -218,31 +209,10 @@ export function Notebook({
 	//  notebook autocomplete and NotebookPreviewWorkflow presentation.
 	const loading = false;
 	const engineCandidates = useMemo<AutocompleteSuggestion[]>(() => [], []);
-	const mergedCandidates =
-		state.mode === "MACRO" ? notebook.macroSuggestions : staticCandidates;
+	const mergedCandidates = state.mode === "COMMAND" ? staticCandidates : [];
 	const completionCandidates = useMemo(() => {
-		if (state.mode !== "MACRO") return mergedCandidates;
-		const beforeCursor = state.draftText.slice(0, state.cursorOffset);
-		const acceptedTemplateTargets = new Set(
-			mergedCandidates
-				.filter(
-					(candidate) =>
-						candidate.provenance === "template" &&
-						candidate.targetArgument &&
-						Boolean(candidate.label.trim()) &&
-						beforeCursor.endsWith(candidate.label.trim()),
-				)
-				.map((candidate) => candidate.targetArgument),
-		);
-		return mergedCandidates.filter((candidate) => {
-			if (!candidate.targetArgument) return true;
-			if (!acceptedTemplateTargets.has(candidate.targetArgument)) return true;
-			return (
-				candidate.provenance !== "template" &&
-				candidate.provenance !== "argument-name"
-			);
-		});
-	}, [mergedCandidates, state.mode, state.draftText, state.cursorOffset]);
+		return mergedCandidates;
+	}, [mergedCandidates]);
 
 	// Sync engine suggestions ref
 	useEffect(() => {
@@ -360,25 +330,10 @@ export function Notebook({
 
 	if (!session) return null;
 
-	const macroCompletion =
-		state.mode === "MACRO" && macroSnapshot?.completion.status === "cycling"
-			? macroSnapshot.completion
-			: undefined;
-	const renderedMacroSuggestions = macroCompletion
-		? (macroCompletion.candidates as AutocompleteSuggestion[])
-		: completionCandidates;
-
 	const editorState: EditorKernelState = {
 		mode: state.mode as CellEditorMode,
 		draftText: state.mode === "COMMAND" ? state.commandLine : state.draftText,
-		completion: macroCompletion
-			? {
-					status: "cycling",
-					candidates: renderedMacroSuggestions,
-					highlightIndex: macroCompletion.highlightIndex,
-					session: macroCompletion.session,
-				}
-			: completion,
+		completion,
 		error: state.message ?? null,
 		showHelp: showHelp || state.showHelp || overlay !== null,
 	};
@@ -620,7 +575,6 @@ export function Notebook({
 		defaultSection: undefined,
 		defaultSchema: undefined,
 		message: state.message,
-		macroSuggestions: renderedMacroSuggestions,
 		macroSlots: notebook.macroSlots,
 		activeMacroArgumentId: getActiveMacroArgumentId(
 			state.draftText,
@@ -697,7 +651,6 @@ export function Notebook({
 			syntaxProfile={session.v2.syntaxProfile}
 			childDefinitions={notebook.childDefinitions}
 			macroSession={notebook.macroSession}
-			onMacroSessionChange={onMacroSessionChange}
 		/>
 	);
 }

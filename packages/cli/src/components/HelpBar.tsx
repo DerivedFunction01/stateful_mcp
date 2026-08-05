@@ -27,7 +27,7 @@ export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
 			});
 		}
 		if (mode === "MACRO")
-			return "Enter submit  Tab accept/expand at end  Esc cancel";
+			return "Enter submit  Tab expand child at end  Esc cancel";
 		if (mode === "VISUAL") {
 			return t("help.visual", {
 				delKey: "d",
