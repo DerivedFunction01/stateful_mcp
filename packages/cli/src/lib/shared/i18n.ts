@@ -205,6 +205,16 @@ const en: Record<string, string> = {
 	"arg.link.targetField": "target field",
 	"arg.parent.cellId": "parent cell id",
 	"arg.workspace.action": "workspace command verb",
+
+	// Macro Editor
+	"macro.chooseArg": "Choose or type an argument name",
+	"macro.remaining": "Remaining: {names}{example}",
+	"macro.example": " (e.g. type '{name}={placeholder}')",
+	"macro.allCaptured": "All arguments captured. Press Ctrl+Enter to submit.",
+	"macro.status": "Status: ",
+	"macro.suggestions": "{arg} suggestions",
+	"macro.arguments": "{macro} arguments",
+	"macro.suggestionsTitle": "Macro suggestions",
 };
 
 export type Locale = typeof en;

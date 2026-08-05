@@ -41,35 +41,97 @@ export function MacroEditor({
 		(slot) => slot.argumentId === activeMacroArgumentId,
 	);
 
-	// Determine the Hint Bar text dynamically
-	let hintText = "Choose or type an argument name";
-	if (activeMacroArgumentId && activeDefinition) {
-		const argSpec = activeDefinition.arguments.find(
-			(a) => a.argumentId === activeMacroArgumentId,
-		);
-		if (argSpec) {
-			const spec = argSpec.extraction;
-			const label = argSpec.name;
+	// Compute statuses for all arguments
+	interface ArgStatus {
+		name: string;
+		status: "locked" | "broken" | "remaining";
+		message?: string;
+	}
+	const statuses: ArgStatus[] = [];
+	if (activeDefinition) {
+		for (const arg of activeDefinition.arguments) {
+			const slot = macroSlots.find((s) => s.argumentId === arg.argumentId);
+			if (slot) {
+				if (slot.diagnostics?.length > 0) {
+					statuses.push({
+						name: arg.name,
+						status: "broken",
+						message: slot.diagnostics[0],
+					});
+				} else {
+					statuses.push({
+						name: arg.name,
+						status: "locked",
+					});
+				}
+			} else {
+				statuses.push({
+					name: arg.name,
+					status: "remaining",
+				});
+			}
+		}
+	}
 
-			// Try to derive placeholder text directly from matched template part
-			let templateDisplayText: string | undefined;
-			if (activeSlot?.formId && argSpec.forms) {
-				const form = argSpec.forms.find((f) => f.formId === activeSlot.formId);
-				const slotPart = form?.template.parts.find(
-					(p) => p.kind === "slot" && p.argumentId === activeMacroArgumentId,
-				);
-				if (slotPart && slotPart.kind === "slot") {
-					templateDisplayText = slotPart.displayText;
+	// Determine the Hint Bar text dynamically
+	let hintText = t("macro.chooseArg");
+	if (activeDefinition) {
+		if (activeMacroArgumentId) {
+			const argSpec = activeDefinition.arguments.find(
+				(a) => a.argumentId === activeMacroArgumentId,
+			);
+			if (argSpec) {
+				const spec = argSpec.extraction;
+				const label = argSpec.name;
+
+				// Try to derive placeholder text directly from matched template part
+				let templateDisplayText: string | undefined;
+				if (activeSlot?.formId && argSpec.forms) {
+					const form = argSpec.forms.find((f) => f.formId === activeSlot.formId);
+					const slotPart = form?.template.parts.find(
+						(p) => p.kind === "slot" && p.argumentId === activeMacroArgumentId,
+					);
+					if (slotPart && slotPart.kind === "slot") {
+						templateDisplayText = slotPart.displayText;
+					}
+				}
+
+				if (templateDisplayText) {
+					hintText = `${label} [${templateDisplayText}]`;
+				} else {
+					const groups = activeSlot?.captureSpans
+						?.map((s) => `<${s.name}>`)
+						.join(" ");
+					hintText = `${label} ${groups || "<value>"}`;
 				}
 			}
-
-			if (templateDisplayText) {
-				hintText = `${label} [${templateDisplayText}]`;
+		} else {
+			// Argument Discovery Mode: List remaining arguments and construct usage examples
+			const remaining = statuses.filter((s) => s.status === "remaining");
+			if (remaining.length > 0) {
+				const remainingNames = remaining.map((r) => r.name).join(", ");
+				// Generate dynamic usage recommendation for the first remaining argument
+				const firstRemaining = remaining[0]?.name;
+				const argSpec = activeDefinition.arguments.find(
+					(a) => a.argumentId === firstRemaining || a.name === firstRemaining,
+				);
+				let example = "";
+				if (argSpec) {
+					const nameOrAlias = argSpec.aliases?.[0] || argSpec.name;
+					let placeholder = "<value>";
+					if (argSpec.forms?.[0]) {
+						const slotPart = argSpec.forms[0].template.parts.find(
+							(p) => p.kind === "slot",
+						);
+						if (slotPart && slotPart.kind === "slot" && slotPart.displayText) {
+							placeholder = `[${slotPart.displayText}]`;
+						}
+					}
+					example = t("macro.example", { name: nameOrAlias, placeholder });
+				}
+				hintText = t("macro.remaining", { names: remainingNames, example });
 			} else {
-				const groups = activeSlot?.captureSpans
-					?.map((s) => `<${s.name}>`)
-					.join(" ");
-				hintText = `${label} ${groups}`;
+				hintText = t("macro.allCaptured");
 			}
 		}
 	}
@@ -87,10 +149,10 @@ export function MacroEditor({
 
 	// Title for suggestions box
 	const suggestionsTitle = activeMacroArgumentId
-		? `${activeMacroArgumentId} suggestions`
+		? t("macro.suggestions", { arg: activeMacroArgumentId })
 		: !activeDefinition
-			? "Macro suggestions"
-			: `${activeDefinition.macroName} arguments`;
+			? t("macro.suggestionsTitle")
+			: t("macro.arguments", { macro: activeDefinition.macroName });
 
 	const visibleSuggestions = filteredSuggestions.slice(0, 8); // Show top 8 suggestions
 
@@ -169,6 +231,28 @@ export function MacroEditor({
 							return <Text key={index}>{segment.text}</Text>;
 						})}
 					</Text>
+					{/* Status Checklist */}
+					{statuses.length > 0 && (
+						<Box flexDirection="row" marginTop={1} gap={2}>
+							<Text bold>{t("macro.status")}</Text>
+							{statuses.map((item, index) => {
+								let color = "gray";
+								let prefix = "✗";
+								if (item.status === "locked") {
+									color = "green";
+									prefix = "✓";
+								} else if (item.status === "broken") {
+									color = "yellow";
+									prefix = "⚠";
+								}
+								return (
+									<Text key={index} color={color} bold>
+										{prefix} {item.name}
+									</Text>
+								);
+							})}
+						</Box>
+					)}
 					{/* Hint Bar */}
 					<Box marginTop={1}>
 						<Text color="yellow" bold>
