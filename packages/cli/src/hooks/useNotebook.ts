@@ -1,4 +1,10 @@
-import { type MacroDefinition, parseMacroLine } from "@stateful-mcp/clinical";
+import {
+	compileMacroDraftPreview,
+	MacroCompiler,
+	type MacroDefinition,
+	type MacroDraftPreview,
+	parseMacroLine,
+} from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
@@ -60,6 +66,7 @@ export interface UseNotebookReturn {
 	getAutocomplete(partial: string): AutocompleteSuggestion[];
 	cellSuggestions: CellSuggestion[];
 	macroSuggestions: AutocompleteSuggestion[];
+	macroDraftPreview?: MacroDraftPreview;
 	macroSlots: MacroSlotProjection[];
 	macroLocks: NotebookMacroLock[];
 	unlockActiveMacroSlot(): void;
@@ -94,6 +101,8 @@ export function useNotebook(
 		AutocompleteSuggestion[]
 	>([]);
 	const [macroSlots, setMacroSlots] = useState<MacroSlotProjection[]>([]);
+	const [macroDraftPreview, setMacroDraftPreview] =
+		useState<MacroDraftPreview>();
 	const [activeDefinition, setActiveDefinition] =
 		useState<MacroDefinition | null>(null);
 	const [childDefinitions, setChildDefinitions] = useState<MacroDefinition[]>(
@@ -452,6 +461,51 @@ export function useNotebook(
 		activeDefinition,
 		macroSlots,
 		dispatch,
+	]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!session || state.mode !== "MACRO" || !activeDefinition) {
+			setMacroDraftPreview(undefined);
+			return () => {
+				cancelled = true;
+			};
+		}
+		const input = parseMacroLine(state.draftText, 0, {
+			definition: activeDefinition,
+			profile: {
+				...session.v2.syntaxProfile,
+				conceptCodeSeparator:
+					session.v2.syntaxProfile.conceptCodeSeparator ?? "",
+			},
+		});
+		if (!input) {
+			setMacroDraftPreview(undefined);
+			return () => {
+				cancelled = true;
+			};
+		}
+		const runtime = session.v2.engine.getRuntime();
+		const compiler = new MacroCompiler({
+			registry: runtime.macros.schemaRegistry,
+			dictionary: runtime.macros.dictionary,
+		});
+		void compileMacroDraftPreview(compiler, input, activeDefinition, {
+			groupId: `draft_${activeDefinition.macroId}`,
+			profileId: session.v2.syntaxProfile.profileId,
+			sessionId: session.sessionId,
+		}).then((preview) => {
+			if (!cancelled) setMacroDraftPreview(preview);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		session,
+		state.mode,
+		state.draftText,
+		activeDefinition,
+		state.macroLocks,
 	]);
 
 	const unlockActiveMacroSlot = useCallback(() => {
@@ -1024,6 +1078,7 @@ export function useNotebook(
 		getAutocomplete,
 		cellSuggestions,
 		macroSuggestions,
+		macroDraftPreview,
 		macroSlots,
 		macroLocks: state.macroLocks,
 		activeDefinition,

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { type MacroDefinition, VITALS_MACRO } from "@stateful-mcp/clinical";
+import {
+	type MacroDefinition,
+	NOTE_MACRO,
+	VITALS_MACRO,
+} from "@stateful-mcp/clinical";
 import {
 	activeMacroSlot,
 	applyMacroLocks,
@@ -113,5 +117,43 @@ describe("macro slot CLI integration", () => {
 		expect(active?.argumentId).toBe("heart_rate");
 		const next = nextMacroSlot(slots, first.end, 1);
 		expect(next?.argumentId).toBe("blood_pressure");
+	});
+
+	test("allows a validated expression lock to claim a prefix of a broad span", () => {
+		const text = "^note hp p";
+		const slots = projectMacroSlots(text, NOTE_MACRO);
+		const title = slots.find((slot) => slot.argumentId === "title");
+		expect(title?.rawText).toBe("hp p");
+
+		const projected = applyMacroLocks(
+			slots,
+			[
+				{
+					argumentId: "title",
+					macroId: NOTE_MACRO.macroId,
+					macroVersion: NOTE_MACRO.version,
+					start: title!.start,
+					end: title!.start + 2,
+					rawText: "hp",
+					binding: {
+						kind: "custom-expression",
+						conceptId: "c-hp",
+						expressionId: "expr-hp",
+						displayValue: "Harry Potter",
+					},
+				},
+			],
+			undefined,
+			text,
+		);
+
+		expect(projected.find((slot) => slot.argumentId === "title")).toMatchObject(
+			{
+				start: title!.start,
+				end: title!.start + 2,
+				rawText: "hp",
+				status: "locked",
+			},
+		);
 	});
 });

@@ -67,7 +67,7 @@ export interface AutocompleteServiceDeps {
 	learningService?: MacroLearningService;
 	conceptToken?: string;
 	expressionToken?: string;
-	conceptNamespaceSeparator?: string;
+	conceptCodeSeparator?: string;
 }
 
 const MACRO_START_TOKEN = "^";
@@ -125,7 +125,7 @@ export class MacroAutocomplete {
 		const conceptToken = this.deps.conceptToken;
 		if (lookupArgument && conceptToken && query.startsWith(conceptToken)) {
 			const after = query.slice(conceptToken.length);
-			const separator = this.deps.conceptNamespaceSeparator ?? "";
+			const separator = this.deps.conceptCodeSeparator ?? "";
 			const separatorIndex = separator ? after.indexOf(separator) : -1;
 			let ns = namespaceCode;
 			let conceptQuery = after;

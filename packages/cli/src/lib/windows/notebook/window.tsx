@@ -1,6 +1,7 @@
 import type {
 	CommandSyntaxProfile,
 	MacroDefinition,
+	MacroDraftPreview,
 } from "@stateful-mcp/clinical";
 import {
 	type MacroAuthoringValue,
@@ -46,6 +47,7 @@ export interface NotebookWindowDeps {
 	syntaxProfile?: CommandSyntaxProfile;
 	activeDefinition?: MacroDefinition | null;
 	childDefinitions?: MacroDefinition[];
+	draftPreview?: MacroDraftPreview;
 }
 
 /**
@@ -133,6 +135,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								activeDefinition={deps.activeDefinition}
 								childDefinitions={deps.childDefinitions}
 								authoringPreview={authoringPreview}
+								draftPreview={deps.draftPreview}
 								showCursor={true}
 							/>
 						);

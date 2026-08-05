@@ -603,7 +603,7 @@ describe("MacroAutocomplete", () => {
 			const service = new MacroAutocomplete({
 				macros: makeMacroStore(SAMPLE_MACROS),
 				conceptToken: "@",
-				conceptNamespaceSeparator: "|",
+				conceptCodeSeparator: "|",
 				dictionary: {
 					async search(query, namespaceCode) {
 						receivedQuery = query;

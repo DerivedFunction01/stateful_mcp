@@ -576,6 +576,7 @@ export function Notebook({
 		syntaxProfile: session.v2.syntaxProfile,
 		activeDefinition: notebook.activeDefinition,
 		childDefinitions: notebook.childDefinitions,
+		draftPreview: notebook.macroDraftPreview,
 	});
 
 	const containerDomain = {

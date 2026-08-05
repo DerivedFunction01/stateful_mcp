@@ -138,7 +138,7 @@ async function macroSuggestions(
 			learningService: options.learningService,
 			conceptToken: profile.conceptToken,
 			expressionToken: profile.expressionToken,
-			conceptNamespaceSeparator: profile.conceptNamespaceSeparator,
+			conceptCodeSeparator: profile.conceptCodeSeparator,
 		});
 
 		// A. Explicit value autocomplete: e.g. argName=val

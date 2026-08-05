@@ -2,6 +2,7 @@ import type {
 	CommandMacroTemplatePart,
 	MacroAuthoringRender,
 	MacroDefinition,
+	MacroDraftPreview,
 } from "@stateful-mcp/clinical";
 import { Box, Text, useStdout } from "ink";
 import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
@@ -19,6 +20,7 @@ interface MacroEditorProps {
 	activeDefinition?: MacroDefinition | null;
 	childDefinitions?: MacroDefinition[];
 	authoringPreview?: MacroAuthoringRender;
+	draftPreview?: MacroDraftPreview;
 	showCursor?: boolean;
 }
 
@@ -32,6 +34,7 @@ export function MacroEditor({
 	activeDefinition,
 	childDefinitions = [],
 	authoringPreview,
+	draftPreview,
 	showCursor = true,
 }: MacroEditorProps) {
 	const { stdout } = useStdout();
@@ -479,6 +482,30 @@ export function MacroEditor({
 								: `Invalid: ${authoringPreview.invalid.join(", ")}`}
 						</Text>
 					)}
+				</Box>
+			)}
+			{draftPreview && (
+				<Box
+					flexDirection="column"
+					borderStyle="single"
+					borderColor={draftPreview.status === "valid" ? "green" : "yellow"}
+					paddingX={1}
+					width="100%"
+				>
+					<Text
+						bold
+						color={draftPreview.status === "valid" ? "green" : "yellow"}
+					>
+						Execution preview: {draftPreview.status}
+					</Text>
+					{draftPreview.rendered?.lines.map((line) => (
+						<Text key={line}>{line}</Text>
+					))}
+					{draftPreview.diagnostics.map((diagnostic) => (
+						<Text key={diagnostic} color="red">
+							{diagnostic}
+						</Text>
+					))}
 				</Box>
 			)}
 		</Box>
