@@ -141,11 +141,36 @@ async function macroSuggestions(
 			conceptCodeSeparator: profile.conceptCodeSeparator,
 		});
 
+		// B. Concept-token override. Custom-expression tokens are not concept searches.
+
+		// Find active argument if specified
+		const activeArg = context.activeArgumentId
+			? definition.arguments.find(
+					(a) => a.argumentId === context.activeArgumentId,
+				)
+			: undefined;
+
+		const isActiveArgConcept =
+			activeArg &&
+			(activeArg.extraction.kind === "concept" ||
+				activeArg.extraction.kind === "concept_array");
+
 		// A. Explicit value autocomplete: e.g. argName=val
 		if (currentWord.includes("=")) {
 			const eqIndex = currentWord.indexOf("=");
 			const argumentName = currentWord.slice(0, eqIndex);
 			const valuePrefix = currentWord.slice(eqIndex + 1);
+
+			const targetArgSpec = definition.arguments.find(
+				(a) =>
+					a.name === argumentName ||
+					a.roleName === argumentName ||
+					a.aliases?.includes(argumentName),
+			);
+			const targetArgConcept =
+				targetArgSpec &&
+				(targetArgSpec.extraction.kind === "concept" ||
+					targetArgSpec.extraction.kind === "concept_array");
 
 			const suggestions = await autocompleter.suggest({
 				query: valuePrefix,
@@ -167,65 +192,19 @@ async function macroSuggestions(
 				source: "context" as const,
 				macroId: definition.macroId,
 				macroVersion: definition.version,
-				argumentId: definition.arguments.find(
-					(argument) =>
-						argument.name === argumentName ||
-						argument.roleName === argumentName ||
-						argument.aliases?.includes(argumentName),
-				)?.argumentId,
+				argumentId: targetArgSpec?.argumentId,
 				macroEvidence: s.macro?.evidence,
 				sourceKind: s.source,
+				provenance: targetArgConcept
+					? ("expression" as const)
+					: targetArgSpec?.extraction?.kind === "scalar"
+						? ("numeric" as const)
+						: ("argument-name" as const),
 				expressionId: s.expressionId,
 				conceptId: s.conceptId,
 				lookupTerm: s.lookupTerm,
 			}));
 		}
-
-		// B. Concept-token override. Custom-expression tokens are not concept searches.
-		if (
-			(profile.conceptToken &&
-				currentWord
-					.toLocaleLowerCase()
-					.startsWith(profile.conceptToken.toLocaleLowerCase())) ||
-			(profile.expressionToken &&
-				currentWord
-					.toLocaleLowerCase()
-					.startsWith(profile.expressionToken.toLocaleLowerCase()))
-		) {
-			const suggestions = await autocompleter.suggest({
-				query: currentWord,
-				macroName,
-				macroId: definition.macroId,
-				macroVersion: definition.version,
-				filledSlots: context.filledSlots,
-				previousSlot: context.previousSlot,
-				personnelId: context.personnelId,
-			});
-			return suggestions.map((s) => ({
-				label: s.label,
-				insertText: input.slice(0, lastSpaceIndex + 1) + s.value,
-				kind: "value" as const,
-				detail: s.detail,
-				source: "context" as const,
-				macroId: definition.macroId,
-				macroVersion: definition.version,
-				macroEvidence: s.macro?.evidence,
-				sourceKind: s.source,
-				expressionId: s.expressionId,
-				conceptId: s.conceptId,
-				lookupTerm: s.lookupTerm,
-			}));
-		}
-
-		// Find active argument if specified
-		const activeArg = context.activeArgumentId
-			? definition.arguments.find((a) => a.argumentId === context.activeArgumentId)
-			: undefined;
-
-		const isActiveArgConcept =
-			activeArg &&
-			(activeArg.extraction.kind === "concept" ||
-				activeArg.extraction.kind === "concept_array");
 
 		// B. Concept-token override.
 		const isTokenMatch =
@@ -299,33 +278,35 @@ async function macroSuggestions(
 					});
 				}
 			}
-		} else if (currentWord.trim()) {
-			// Discovery mode: only suggest values when there is a non-empty prefix to filter by
-			for (const argument of definition.arguments) {
-				const suggestions = await (
-					autocompleter as any
-				).suggestValueForArgument(argument, currentWord);
-				const isConcept =
-					argument.extraction.kind === "concept" ||
-					argument.extraction.kind === "concept_array";
-				for (const s of suggestions) {
-					valueSuggestions.push({
-						label: s.label,
-						insertText: input.slice(0, lastSpaceIndex + 1) + s.value,
-						kind: "value" as const,
-						detail: `${argument.roleName}: ${s.detail || ""}`,
-						source: "context" as const,
-						sourceKind: s.source,
-						provenance: isConcept
-							? "expression"
-							: argument.extraction.kind === "scalar"
-								? "numeric"
-								: "argument-name",
-						argumentId: argument.argumentId,
-						expressionId: s.expressionId,
-						conceptId: s.conceptId,
-						lookupTerm: s.lookupTerm,
-					});
+		} else {
+			if (currentWord.trim()) {
+				// Discovery mode: only suggest values when there is a non-empty prefix to filter by
+				for (const argument of definition.arguments) {
+					const suggestions = await (
+						autocompleter as any
+					).suggestValueForArgument(argument, currentWord);
+					const isConcept =
+						argument.extraction.kind === "concept" ||
+						argument.extraction.kind === "concept_array";
+					for (const s of suggestions) {
+						valueSuggestions.push({
+							label: s.label,
+							insertText: input.slice(0, lastSpaceIndex + 1) + s.value,
+							kind: "value" as const,
+							detail: `${argument.roleName}: ${s.detail || ""}`,
+							source: "context" as const,
+							sourceKind: s.source,
+							provenance: isConcept
+								? "expression"
+								: argument.extraction.kind === "scalar"
+									? "numeric"
+									: "argument-name",
+							argumentId: argument.argumentId,
+							expressionId: s.expressionId,
+							conceptId: s.conceptId,
+							lookupTerm: s.lookupTerm,
+						});
+					}
 				}
 			}
 			const templateSuggestions = await autocompleter.suggest({

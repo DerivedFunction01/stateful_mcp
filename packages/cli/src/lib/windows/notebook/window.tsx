@@ -119,14 +119,17 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 									argSpec?.extraction.kind === "concept_array";
 								// Concept slots require an explicit binding with conceptId to be "bound".
 								// A plain positional/inferred parser match is not a validated concept.
-								const isBound = slot.status === "locked"
-									? true
-									: isConceptArg
-										? Boolean(slot.binding?.conceptId)
-										: Boolean(slot.binding) || slot.status === "bound";
+								const isBound =
+									slot.status === "locked"
+										? true
+										: isConceptArg
+											? Boolean(slot.binding?.conceptId)
+											: Boolean(slot.binding) || slot.status === "bound";
 								return {
 									argumentId: slot.argumentId,
-									value: slot.binding?.displayValue ?? (isBound ? slot.rawText : undefined),
+									value:
+										slot.binding?.displayValue ??
+										(isBound ? slot.rawText : undefined),
 									status: isBound
 										? "bound"
 										: slot.status === "invalid"

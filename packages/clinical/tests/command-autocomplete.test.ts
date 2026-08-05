@@ -101,8 +101,10 @@ describe(" command-bar autocomplete", () => {
 				},
 				defaultProfile,
 			);
-			expect(suggestions.every(s => s.provenance === "expression")).toBe(true);
-			expect(suggestions.map(s => s.label)).toContain("Harry Potter");
+			expect(suggestions.every((s) => s.provenance === "expression")).toBe(
+				true,
+			);
+			expect(suggestions.map((s) => s.label)).toContain("Harry Potter");
 		});
 
 		it("suggests only numeric values for integer active slot", async () => {
@@ -141,8 +143,8 @@ describe(" command-bar autocomplete", () => {
 				},
 				defaultProfile,
 			);
-			expect(suggestions.every(s => s.provenance === "numeric")).toBe(true);
-			expect(suggestions.map(s => s.label)).toContain("1");
+			expect(suggestions.every((s) => s.provenance === "numeric")).toBe(true);
+			expect(suggestions.map((s) => s.label)).toContain("1");
 		});
 
 		it("suggests mixed candidates in collision zone when active slot is none", async () => {
@@ -158,6 +160,12 @@ describe(" command-bar autocomplete", () => {
 						roleName: "note.title",
 						extraction: { kind: "concept", patterns: [] },
 					},
+					{
+						argumentId: "headline",
+						name: "headline",
+						roleName: "note.headline",
+						extraction: { kind: "concept", patterns: [] },
+					},
 				],
 				authoringTemplates: [
 					{
@@ -170,8 +178,8 @@ describe(" command-bar autocomplete", () => {
 			};
 			const suggestions = await getCommandBarSuggestions(
 				{
-					input: "^note ",
-					cursorOffset: 6,
+					input: "^note h",
+					cursorOffset: 7,
 					sessionId: "s1",
 				},
 				{
@@ -193,7 +201,7 @@ describe(" command-bar autocomplete", () => {
 				},
 				defaultProfile,
 			);
-			const provenances = suggestions.map(s => s.provenance);
+			const provenances = suggestions.map((s) => s.provenance);
 			expect(provenances).toContain("expression");
 			expect(provenances).toContain("template");
 			expect(provenances).toContain("argument-name");

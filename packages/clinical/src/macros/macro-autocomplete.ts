@@ -252,7 +252,13 @@ export class MacroAutocomplete {
 		if (spec.kind === "concept" || spec.kind === "concept_array") {
 			return this.rankValueSuggestions(
 				arg,
-				await this.suggestCustomExpressions(query, arg.roleName, undefined, undefined, true),
+				await this.suggestCustomExpressions(
+					query,
+					arg.roleName,
+					undefined,
+					undefined,
+					true,
+				),
 				macro,
 				req,
 			);

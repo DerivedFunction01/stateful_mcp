@@ -207,10 +207,22 @@ export function useNotebook(
 		void session.v2.notebook
 			.loadEditorSnapshot()
 			.then(async (snapshot) => {
-				const activeProjection = activeMacroSlot(
+				const rawActiveProjection = activeMacroSlot(
 					macroSlots,
 					state.cursorOffset,
 				);
+				const isExplicitActiveArg =
+					rawActiveProjection &&
+					(rawActiveProjection.status === "locked" ||
+						Boolean(rawActiveProjection.binding) ||
+						rawActiveProjection.bindingSource === "named" ||
+						rawActiveProjection.bindingSource === "friendly" ||
+						rawActiveProjection.bindingSource === "rule" ||
+						rawActiveProjection.bindingSource === "accepted");
+				const activeProjection = isExplicitActiveArg
+					? rawActiveProjection
+					: undefined;
+
 				const recommendations = await session.v2.notebook.getAutocomplete({
 					input: state.draftText,
 					cursorOffset: state.cursorOffset,
@@ -466,12 +478,16 @@ export function useNotebook(
 			// token or matched by a friendly/rule form. Positional/inferred matches without
 			// a token prefix are unvalidated — the user hasn't confirmed the value.
 			const hasExpressionToken = expressionTokens.some((token) =>
-				slot.rawText.trimStart().toLocaleLowerCase().startsWith(token.toLocaleLowerCase()),
+				slot.rawText
+					.trimStart()
+					.toLocaleLowerCase()
+					.startsWith(token.toLocaleLowerCase()),
 			);
 			const isExplicitSource =
 				slot.bindingSource === "friendly" ||
 				slot.bindingSource === "rule" ||
 				slot.bindingSource === "accepted" ||
+				slot.bindingSource === "named" ||
 				hasExpressionToken;
 			if (!isExplicitSource) return [];
 			const lookupTerm = slot.rawText

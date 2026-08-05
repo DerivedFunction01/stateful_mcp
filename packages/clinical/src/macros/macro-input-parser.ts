@@ -103,6 +103,8 @@ function matchDefinitionArguments(
 			segment.valueStart,
 			spec,
 			diagnostics,
+			true,
+			false,
 		);
 		if (!matched) {
 			const invalidEnd = scanUntilWhitespace(raw, segment.valueStart);
@@ -249,6 +251,8 @@ function inferPositionalMatches(
 					start,
 					spec,
 					diagnostics,
+					false,
+					Boolean(lookupToken),
 				);
 				if (!matched || matched.end !== end) return [];
 				return [
@@ -564,6 +568,8 @@ function matchSpec(
 	offset: number,
 	spec: MacroArgumentSpec,
 	diagnostics: MacroParseDiagnostic[],
+	isNamedAssignment = false,
+	hasLookupToken = false,
 ):
 	| {
 			rawValue: string;
@@ -574,7 +580,28 @@ function matchSpec(
 	  }
 	| undefined {
 	const patterns = spec.extraction.patterns ?? [];
-	if (!patterns.length) return undefined;
+	const isConcept =
+		spec.extraction.kind === "concept" ||
+		spec.extraction.kind === "concept_array";
+
+	if (!patterns.length) {
+		const trimmed = text.trim();
+		if (!trimmed) return undefined;
+
+		// Concept slots require an explicit named assignment (e.g. title=hp), an expression token
+		// (e.g. #hp), or explicit patterns before positionally consuming arbitrary prose.
+		if (isConcept && !isNamedAssignment && !hasLookupToken) {
+			return undefined;
+		}
+
+		return {
+			rawValue: text,
+			captures: { concept: text, value: text },
+			start: offset,
+			end: offset + text.length,
+			captureSpans: [],
+		};
+	}
 	for (const pattern of patterns) {
 		try {
 			const expression = new RegExp(`^(?:${pattern})`, "id");
