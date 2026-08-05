@@ -18,6 +18,7 @@ import type { AutocompleteSuggestion } from "../lib/editor/autocomplete";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { reduceCompletion } from "../lib/editor/completion-state";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
 import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 
 export interface WindowContainerProps {
@@ -38,6 +39,7 @@ export interface WindowContainerProps {
 	completionProvider?: (partial: string) => AutocompleteSuggestion[];
 	macroSlots?: MacroSlotProjection[];
 	onMacroNavigate?: (direction: 1 | -1) => void;
+	syntaxProfile: CommandSyntaxProfile;
 }
 
 /**
@@ -64,6 +66,7 @@ export function WindowContainer({
 	completionProvider,
 	macroSlots,
 	onMacroNavigate,
+	syntaxProfile,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -187,6 +190,7 @@ export function WindowContainer({
 						{ kind: "enter" },
 						current.draftText,
 						completionProvider || (() => []),
+						syntaxProfile,
 					);
 					emit({
 						type: "SET_COMPLETION",
@@ -213,6 +217,7 @@ export function WindowContainer({
 					{ kind: key.upArrow ? "up" : "down" },
 					current.draftText,
 					completionProvider,
+					syntaxProfile,
 				);
 				emit({
 					type: "SET_COMPLETION",
@@ -244,6 +249,7 @@ export function WindowContainer({
 						{ kind: "tab", shift: Boolean(key.shift) },
 						current.draftText,
 						completionProvider,
+						syntaxProfile,
 					);
 					emit({
 						type: "SET_COMPLETION",
@@ -264,6 +270,7 @@ export function WindowContainer({
 						{ kind: "tab", shift: Boolean(key.shift) },
 						current.draftText,
 						completionProvider,
+						syntaxProfile,
 					);
 					emit({
 						type: "SET_COMPLETION",
@@ -278,6 +285,7 @@ export function WindowContainer({
 					{ kind: "space" },
 					current.draftText,
 					completionProvider,
+					syntaxProfile,
 				);
 				emit({
 					type: "SET_COMPLETION",
@@ -314,6 +322,7 @@ export function WindowContainer({
 					{ kind: "tab", shift: Boolean(key.shift) },
 					current.draftText,
 					(partial) => catalog.getSuggestions(partial, context),
+					syntaxProfile,
 				);
 				emit({
 					type: "SET_COMPLETION",
@@ -327,6 +336,7 @@ export function WindowContainer({
 					{ kind: "enter" },
 					current.draftText,
 					(partial) => catalog.getSuggestions(partial, context),
+					syntaxProfile,
 				);
 				emit({
 					type: "SET_COMPLETION",
@@ -349,6 +359,7 @@ export function WindowContainer({
 					{ kind: "space" },
 					current.draftText,
 					(partial) => catalog.getSuggestions(partial, context),
+					syntaxProfile,
 				);
 				emit({
 					type: "SET_COMPLETION",

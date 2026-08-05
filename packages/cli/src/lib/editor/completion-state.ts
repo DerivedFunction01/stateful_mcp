@@ -1,4 +1,5 @@
 import type { AutocompleteSuggestion } from "./autocomplete";
+import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
 
 export type CompletionMode = "verb" | "arg";
 
@@ -32,8 +33,12 @@ export function cycleIndex(
 
 export function deriveCompletionSession(
 	commandLine: string,
+	syntaxProfile: CommandSyntaxProfile,
 ): CompletionSession | null {
-	const partial = commandLine.slice(1);
+	const token = commandLine.startsWith(syntaxProfile.macroStartToken)
+		? syntaxProfile.macroStartToken
+		: syntaxProfile.directCommandToken;
+	const partial = commandLine.slice(token.length);
 	if (!partial) return null;
 	const spaceIdx = partial.indexOf(" ");
 	if (spaceIdx < 0) {
@@ -68,17 +73,24 @@ export function mergeCandidate(
 	commandLine: string,
 	candidate: string,
 	trailingSpace: boolean,
+	syntaxProfile: CommandSyntaxProfile,
 ): string {
-	const partial = commandLine.slice(1);
+	const token = commandLine.startsWith(syntaxProfile.macroStartToken)
+		? syntaxProfile.macroStartToken
+		: syntaxProfile.directCommandToken;
+	if (token && candidate.startsWith(token)) {
+		return `${candidate}${trailingSpace ? " " : ""}`;
+	}
+	const partial = commandLine.slice(token.length);
 	const spaceIdx = partial.indexOf(" ");
 	if (spaceIdx >= 0) {
 		const verb = partial.slice(0, spaceIdx);
 		const afterVerb = partial.slice(spaceIdx + 1);
 		const lastSpace = afterVerb.lastIndexOf(" ");
 		const prevArgs = lastSpace >= 0 ? afterVerb.slice(0, lastSpace + 1) : "";
-		return `${commandLine[0] ?? ":"}${verb} ${prevArgs}${candidate}${trailingSpace ? " " : ""}`;
+		return `${token}${verb} ${prevArgs}${candidate}${trailingSpace ? " " : ""}`;
 	}
-	return `${commandLine[0] ?? ":"}${candidate}${trailingSpace ? " " : ""}`;
+	return `${token}${candidate}${trailingSpace ? " " : ""}`;
 }
 
 export type CompletionKey =
@@ -104,6 +116,7 @@ export function reduceCompletion(
 	key: CompletionKey,
 	commandLine: string,
 	getSuggestions: (partial: string) => AutocompleteSuggestion[],
+	syntaxProfile: CommandSyntaxProfile,
 ): CompletionTransitionResult {
 	// Staleness guard: if commandLine changed since session creation, reset.
 	if (
@@ -115,7 +128,10 @@ export function reduceCompletion(
 
 	switch (key.kind) {
 		case "tab": {
-			const partial = commandLine.slice(1);
+			const token = commandLine.startsWith(syntaxProfile?.macroStartToken)
+				? (syntaxProfile?.macroStartToken)
+				: (syntaxProfile?.directCommandToken);
+			const partial = commandLine.slice(token.length);
 			const suggestions = getSuggestions(partial);
 			if (suggestions.length === 0)
 				return { completionState: { status: "idle" } };
@@ -126,7 +142,7 @@ export function reduceCompletion(
 				suggestions.length,
 				key.shift ? -1 : 1,
 			);
-			const session = deriveCompletionSession(commandLine);
+			const session = deriveCompletionSession(commandLine, syntaxProfile);
 			if (!session) return { completionState: { status: "idle" } };
 			const candidate = suggestions[nextIdx];
 			return {
@@ -141,6 +157,7 @@ export function reduceCompletion(
 							commandLine,
 							candidate.completionText ?? candidate.verb,
 							true,
+							syntaxProfile,
 						)
 					: undefined,
 			};
@@ -173,7 +190,7 @@ export function reduceCompletion(
 				if (candidate) {
 					return {
 						completionState: { status: "idle" },
-						committedLine: mergeCandidate(commandLine, candidate.verb, true),
+						committedLine: mergeCandidate(commandLine, candidate.verb, true, syntaxProfile),
 					};
 				}
 			}
@@ -192,6 +209,7 @@ export function reduceCompletion(
 							commandLine,
 							candidate.completionText ?? candidate.verb,
 							false,
+							syntaxProfile,
 						),
 					};
 				}

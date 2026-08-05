@@ -632,6 +632,7 @@ export function Notebook({
 		completionProvider={() => mergedCandidates}
 			macroSlots={notebook.macroSlots}
 			onMacroNavigate={navigateMacroSlots}
+			syntaxProfile={session.v2.syntaxProfile}
 		/>
 	);
 }
