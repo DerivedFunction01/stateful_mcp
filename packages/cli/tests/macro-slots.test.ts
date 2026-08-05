@@ -85,6 +85,7 @@ describe("macro slot CLI integration", () => {
 			macroVersion: 3,
 			start: 24,
 			end: 27,
+			rawText: "120",
 			lockedAtRevision: 7,
 			source: "explicit",
 		});

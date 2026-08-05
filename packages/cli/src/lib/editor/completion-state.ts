@@ -155,7 +155,7 @@ export function reduceCompletion(
 				committedLine: candidate
 					? mergeCandidate(
 							commandLine,
-							candidate.completionText ?? candidate.verb,
+							candidate.completionText ?? candidate.value ?? candidate.verb,
 							true,
 							syntaxProfile,
 						)
@@ -192,7 +192,7 @@ export function reduceCompletion(
 						completionState: { status: "idle" },
 						committedLine: mergeCandidate(
 							commandLine,
-							candidate.verb,
+							candidate.completionText ?? candidate.value ?? candidate.verb,
 							true,
 							syntaxProfile,
 						),
@@ -212,7 +212,7 @@ export function reduceCompletion(
 						completionState: { status: "idle" },
 						executeLine: mergeCandidate(
 							commandLine,
-							candidate.completionText ?? candidate.verb,
+							candidate.completionText ?? candidate.value ?? candidate.verb,
 							false,
 							syntaxProfile,
 						),

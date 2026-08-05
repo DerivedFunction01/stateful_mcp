@@ -61,6 +61,7 @@ export interface CommandSyntaxProfile {
 	variableCommandMappings: Readonly<Record<string, VariableCommandVerb>>;
 	expressionToken: string;
 	conceptToken: string;
+	conceptNamespaceSeparator?: string;
 }
 
 export interface CommandSyntaxProfileDefaults {
@@ -75,6 +76,7 @@ export interface CommandSyntaxProfileDefaults {
 	variableCommandMappings?: Readonly<Record<string, VariableCommandVerb>>;
 	expressionToken?: string;
 	conceptToken?: string;
+	conceptNamespaceSeparator?: string;
 }
 
 export function createCommandSyntaxProfile(
@@ -109,6 +111,10 @@ export function createCommandSyntaxProfile(
 			{},
 		expressionToken: profile.expressionToken ?? defaults?.expressionToken ?? "",
 		conceptToken: profile.conceptToken ?? defaults?.conceptToken ?? "",
+		conceptNamespaceSeparator:
+			profile.conceptNamespaceSeparator ??
+			defaults?.conceptNamespaceSeparator ??
+			"",
 	};
 }
 

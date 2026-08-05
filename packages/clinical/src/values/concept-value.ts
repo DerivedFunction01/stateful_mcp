@@ -1,4 +1,8 @@
-import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
+import type { ExpressionSearchRequest } from "@stateful-mcp/core/middleware/dictionary/interfaces";
+import type {
+	Concept,
+	CustomExpression,
+} from "@stateful-mcp/core/middleware/dictionary/types";
 import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 import type { ConceptValue, ValueEvidence } from "./typed-value";
 
@@ -8,6 +12,9 @@ export interface ConceptLookup {
 		namespaceCode?: string,
 		limit?: number,
 	): Promise<Concept[]>;
+	searchExpressionCandidates?(
+		request: ExpressionSearchRequest,
+	): Promise<CustomExpression[]>;
 }
 
 export interface ConceptResolutionOptions {

@@ -35,15 +35,28 @@ export function MacroEditor({
 	const columns = stdout?.columns ?? 80;
 	const isNarrow = columns < 80;
 
-	const segments = buildMacroRenderSegments(
-		draftText,
-		macroSlots,
-		cursorOffset,
-		showCursor,
-	);
-
 	const activeSlot = macroSlots.find(
 		(slot) => slot.argumentId === activeMacroArgumentId,
+	);
+	const isConceptSlot = (slot: MacroSlotProjection): boolean => {
+		const argument = activeDefinition?.arguments.find(
+			(candidate) => candidate.argumentId === slot.argumentId,
+		);
+		return (
+			argument?.extraction.kind === "concept" ||
+			argument?.extraction.kind === "concept_array"
+		);
+	};
+	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
+		slot.status === "locked" ||
+		Boolean(slot.binding) ||
+		(!isConceptSlot(slot) && slot.status !== "invalid");
+	const renderableMacroSlots = macroSlots.filter(isResolvedSlot);
+	const segments = buildMacroRenderSegments(
+		draftText,
+		renderableMacroSlots,
+		cursorOffset,
+		showCursor,
 	);
 
 	// Compute statuses for all arguments
@@ -56,7 +69,7 @@ export function MacroEditor({
 	if (activeDefinition) {
 		for (const arg of activeDefinition.arguments) {
 			const slot = macroSlots.find((s) => s.argumentId === arg.argumentId);
-			if (slot) {
+			if (slot && isResolvedSlot(slot)) {
 				if (slot.diagnostics?.length > 0) {
 					statuses.push({
 						name: arg.name,
@@ -95,7 +108,10 @@ export function MacroEditor({
 			rawActiveArgSpec.extraction.kind !== "concept_array" &&
 			rawActiveArgSpec.extraction.kind !== "array" &&
 			activeSlot !== undefined &&
-			(activeSlot.status === "bound" || activeSlot.status === "locked");
+			(activeSlot.status === "locked" ||
+				(activeSlot.status === "bound" &&
+					rawActiveArgSpec.extraction.kind !== "concept") ||
+				(activeSlot.status === "bound" && Boolean(activeSlot.binding)));
 		const effectiveArgumentId = isActiveSingularSatisfied
 			? undefined
 			: activeMacroArgumentId;
@@ -214,7 +230,11 @@ export function MacroEditor({
 					// Suppress if already bound or locked (satisfied singular arg)
 					if (
 						activeSlot &&
-						(activeSlot.status === "locked" || activeSlot.status === "bound")
+						(activeSlot.status === "locked" ||
+							(activeSlot.status === "bound" &&
+								argSpec.extraction.kind !== "concept" &&
+								argSpec.extraction.kind !== "concept_array") ||
+							(activeSlot.status === "bound" && Boolean(activeSlot.binding)))
 					) {
 						return [];
 					}
@@ -250,7 +270,11 @@ export function MacroEditor({
 		if (
 			!isPlural &&
 			activeSlot &&
-			(activeSlot.status === "bound" || activeSlot.status === "locked")
+			(activeSlot.status === "locked" ||
+				(activeSlot.status === "bound" &&
+					argSpec.extraction.kind !== "concept" &&
+					argSpec.extraction.kind !== "concept_array") ||
+				(activeSlot.status === "bound" && Boolean(activeSlot.binding)))
 		) {
 			return undefined;
 		}

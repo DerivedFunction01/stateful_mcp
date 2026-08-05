@@ -23,7 +23,15 @@ export interface NotebookMacroLock {
 	macroVersion: number;
 	start: number;
 	end: number;
+	rawText?: string;
 	source: "explicit" | "accepted";
+	binding?: {
+		kind: "concept" | "custom-expression";
+		conceptId: string;
+		expressionId?: string;
+		lookupTerm?: string;
+		canonicalValue?: string;
+	};
 }
 
 export interface NotebookYankBuffer {
@@ -177,8 +185,7 @@ export function reduceNotebookEditor(
 			: (() => {
 					const lockedAt = state.macroLocks.find(
 						(lock) =>
-							state.cursorOffset >= lock.start &&
-							state.cursorOffset <= lock.end,
+							state.cursorOffset >= lock.start && state.cursorOffset < lock.end,
 					);
 					if (lockedAt) {
 						const draftText =
@@ -311,18 +318,26 @@ export function reduceNotebookEditor(
 						),
 				),
 			};
-		case "add_macro_lock":
+		case "add_macro_lock": {
+			const existingLockIndex = state.macroLocks.findIndex(
+				(lock) =>
+					lock.start === action.lock.start &&
+					lock.end === action.lock.end &&
+					lock.argumentId === action.lock.argumentId,
+			);
 			if (
-				state.macroLocks.some(
-					(lock) =>
-						lock.start === action.lock.start &&
-						lock.end === action.lock.end &&
-						lock.argumentId === action.lock.argumentId,
-				)
+				existingLockIndex >= 0 &&
+				state.macroLocks[existingLockIndex]?.rawText === action.lock.rawText
 			) {
 				return state;
 			}
+			if (existingLockIndex >= 0) {
+				const macroLocks = [...state.macroLocks];
+				macroLocks[existingLockIndex] = action.lock;
+				return { ...state, macroLocks };
+			}
 			return { ...state, macroLocks: [...state.macroLocks, action.lock] };
+		}
 		case "set_cursor":
 			return {
 				...state,

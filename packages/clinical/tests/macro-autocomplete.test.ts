@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { Concept } from "@stateful-mcp/core/middleware/dictionary/types";
+import type {
+	Concept,
+	CustomExpression,
+} from "@stateful-mcp/core/middleware/dictionary/types";
 import type { MacroLearningService } from "../src/learning/macro-learning-service";
+import { NOTE_MACRO } from "../src/macros/default-macros";
 import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
 import type {
 	MacroDefinition,
@@ -23,6 +27,29 @@ function makeDictionary(concepts: Concept[]): ConceptLookup {
 	return {
 		async search(_query: string, _namespaceCode?: string, _limit?: number) {
 			return concepts;
+		},
+	};
+}
+
+function makeExpressionDictionary(
+	concepts: Concept[],
+	expressions: CustomExpression[],
+): ConceptLookup {
+	return {
+		async search(_query: string, _namespaceCode?: string, _limit?: number) {
+			return concepts;
+		},
+		async searchExpressionCandidates(request) {
+			return expressions.filter(
+				(expression) =>
+					(expression.lookupTerm ?? expression.term).startsWith(
+						request.lookupPrefix ?? "",
+					) &&
+					(!request.targetAssignments?.length ||
+						request.targetAssignments.includes(
+							expression.targetAssignment ?? "",
+						)),
+			);
 		},
 	};
 }
@@ -526,6 +553,145 @@ describe("MacroAutocomplete", () => {
 			const results = await service.suggest({ query: "concept:che" });
 			expect(results).toHaveLength(2);
 			expect(results.every((r) => r.type === "concept")).toBe(true);
+		});
+
+		test("suggests only bounded custom expressions for natural concept input", async () => {
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore(SAMPLE_MACROS),
+				dictionary: makeExpressionDictionary(SAMPLE_CONCEPTS, [
+					{
+						id: "expr-1",
+						term: "shortness of breath",
+						lookupTerm: "sob",
+						regexPattern: "\\bsob\\b",
+						isCaseInsensitive: true,
+						targetAssignment: "observation.concept",
+						conceptId: "c1",
+						priorityWeight: 1,
+						active: true,
+					},
+					{
+						id: "expr-unbound",
+						term: "unbound",
+						lookupTerm: "unbound",
+						regexPattern: "\\bunbound\\b",
+						isCaseInsensitive: true,
+						targetAssignment: "observation.concept",
+						priorityWeight: 1,
+						active: true,
+					},
+				]),
+			});
+			const results = await service.suggest({
+				query: "sob",
+				macroName: "observation",
+				argumentName: "concept",
+			});
+			expect(results).toHaveLength(1);
+			expect(results[0]).toMatchObject({
+				label: "shortness of breath",
+				value: "sob",
+				expressionId: "expr-1",
+				conceptId: "c1",
+				source: "custom-expression",
+			});
+		});
+
+		test("uses a configured namespace separator instead of colon", async () => {
+			let receivedNamespace: string | undefined;
+			let receivedQuery = "";
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore(SAMPLE_MACROS),
+				conceptToken: "@",
+				conceptNamespaceSeparator: "|",
+				dictionary: {
+					async search(query, namespaceCode) {
+						receivedQuery = query;
+						receivedNamespace = namespaceCode;
+						return SAMPLE_CONCEPTS;
+					},
+				},
+			});
+			await service.suggest({ query: "@ICD-10|R.18" });
+			expect(receivedNamespace).toBe("ICD-10");
+			expect(receivedQuery).toBe("R.18");
+		});
+
+		test("ranks overlapping expressions by exactness then specificity", async () => {
+			const expressions: CustomExpression[] = [
+				{
+					id: "short",
+					term: "Harry Potter",
+					lookupTerm: "harry potter",
+					regexPattern: "harry potter",
+					isCaseInsensitive: true,
+					targetAssignment: "note.title",
+					conceptId: "short-concept",
+					priorityWeight: 1,
+					active: true,
+				},
+				{
+					id: "long",
+					term: "Harry Potter and the Deathly Hallows",
+					lookupTerm: "harry potter and the deathly hallows",
+					regexPattern: "harry potter and the deathly hallows",
+					isCaseInsensitive: true,
+					targetAssignment: "note.title",
+					conceptId: "long-concept",
+					priorityWeight: 1,
+					active: true,
+				},
+			];
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore([NOTE_MACRO]),
+				dictionary: makeExpressionDictionary([], expressions),
+			});
+			const prefix = await service.suggest({
+				query: "harry p",
+				macroName: "note",
+				argumentName: "title",
+			});
+			expect(prefix.map((suggestion) => suggestion.lookupTerm)).toEqual([
+				"harry potter and the deathly hallows",
+				"harry potter",
+			]);
+			const exact = await service.suggest({
+				query: "harry potter",
+				macroName: "note",
+				argumentName: "title",
+			});
+			expect(exact[0]?.lookupTerm).toBe("harry potter");
+		});
+
+		test("does not route lookup tokens from non-concept arguments", async () => {
+			const service = new MacroAutocomplete({
+				macros: makeMacroStore([NOTE_MACRO]),
+				expressionToken: "#",
+				dictionary: makeExpressionDictionary(
+					[],
+					[
+						{
+							id: "expr-hp",
+							term: "Harry Potter",
+							lookupTerm: "hp",
+							regexPattern: "\\bhp\\b",
+							isCaseInsensitive: true,
+							targetAssignment: "note.title",
+							conceptId: "c-hp",
+							priorityWeight: 1,
+							active: true,
+						},
+					],
+				),
+			});
+
+			expect(
+				await service.suggest({
+					query: "#hp",
+					macroName: "note",
+					argumentName: "page_num",
+				}),
+			).toEqual([]);
 		});
 	});
 });

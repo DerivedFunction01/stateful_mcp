@@ -20,10 +20,19 @@ export interface MacroSlotProjection {
 	displayText: string;
 	bindingSource?: "named" | "positional" | "inferred" | "rule" | "friendly";
 	status: "unbound" | "bound" | "invalid" | "locked";
+	binding?: MacroSlotBinding;
 	diagnostics: string[];
 	occurrence?: number;
 	formId?: string;
 	captureSpans?: MacroCaptureSpan[];
+}
+
+export interface MacroSlotBinding {
+	kind: "concept" | "custom-expression";
+	conceptId: string;
+	expressionId?: string;
+	lookupTerm?: string;
+	canonicalValue?: string;
 }
 
 export interface MacroLockState {
@@ -32,8 +41,10 @@ export interface MacroLockState {
 	macroVersion: number;
 	start: number;
 	end: number;
+	rawText?: string;
 	lockedAtRevision: number;
 	source: "explicit" | "accepted";
+	binding?: MacroSlotBinding;
 }
 
 export function projectMacroSlots(
@@ -98,6 +109,7 @@ export function lockMacroSlot(
 		macroVersion: projection.macroVersion,
 		start: projection.start,
 		end: projection.end,
+		rawText: projection.rawText,
 		lockedAtRevision,
 		source,
 	};
@@ -109,12 +121,15 @@ export interface MacroLockLike {
 	macroVersion: number;
 	start: number;
 	end: number;
+	rawText?: string;
+	binding?: MacroSlotBinding;
 }
 
 export function applyMacroLocks(
 	projections: readonly MacroSlotProjection[],
 	locks: readonly MacroLockLike[],
 	activeArgumentId?: string,
+	draftText?: string,
 ): MacroSlotProjection[] {
 	return projections.map((projection) => {
 		const locked = locks.some(
@@ -123,10 +138,23 @@ export function applyMacroLocks(
 				lock.macroVersion === projection.macroVersion &&
 				lock.argumentId === projection.argumentId &&
 				lock.start === projection.start &&
-				lock.end === projection.end,
+				lock.end === projection.end &&
+				(!lock.rawText ||
+					draftText === undefined ||
+					draftText.slice(lock.start, lock.end) === lock.rawText),
 		);
 		return {
 			...projection,
+			binding: locked
+				? locks.find(
+						(lock) =>
+							lock.macroId === projection.macroId &&
+							lock.macroVersion === projection.macroVersion &&
+							lock.argumentId === projection.argumentId &&
+							lock.start === projection.start &&
+							lock.end === projection.end,
+					)?.binding
+				: projection.binding,
 			status: locked
 				? "locked"
 				: projection.argumentId === activeArgumentId

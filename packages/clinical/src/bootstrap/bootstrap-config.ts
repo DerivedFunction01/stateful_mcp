@@ -111,5 +111,5 @@ export const bootstrapCommandDefaults: CommandSyntaxProfile = {
 		remove: "remove",
 	},
 	expressionToken: "#",
-	conceptToken: "@",
+	conceptToken: "",
 };

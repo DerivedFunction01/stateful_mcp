@@ -137,6 +137,8 @@ async function macroSuggestions(
 				options.dictionary?.resolver?.filterStore,
 			learningService: options.learningService,
 			conceptToken: profile.conceptToken,
+			expressionToken: profile.expressionToken,
+			conceptNamespaceSeparator: profile.conceptNamespaceSeparator,
 		});
 
 		// A. Explicit value autocomplete: e.g. argName=val
@@ -172,11 +174,19 @@ async function macroSuggestions(
 						argument.aliases?.includes(argumentName),
 				)?.argumentId,
 				macroEvidence: s.macro?.evidence,
+				sourceKind: s.source,
+				expressionId: s.expressionId,
+				conceptId: s.conceptId,
+				lookupTerm: s.lookupTerm,
 			}));
 		}
 
 		// B. Concept-token override. Custom-expression tokens are not concept searches.
-		if (profile.conceptToken && currentWord.startsWith(profile.conceptToken)) {
+		if (
+			(profile.conceptToken && currentWord.startsWith(profile.conceptToken)) ||
+			(profile.expressionToken &&
+				currentWord.startsWith(profile.expressionToken))
+		) {
 			const suggestions = await autocompleter.suggest({
 				query: currentWord,
 				macroName,
@@ -195,6 +205,10 @@ async function macroSuggestions(
 				macroId: definition.macroId,
 				macroVersion: definition.version,
 				macroEvidence: s.macro?.evidence,
+				sourceKind: s.source,
+				expressionId: s.expressionId,
+				conceptId: s.conceptId,
+				lookupTerm: s.lookupTerm,
 			}));
 		}
 
@@ -212,6 +226,10 @@ async function macroSuggestions(
 					kind: "value" as const,
 					detail: `${argument.roleName}: ${s.detail || ""}`,
 					source: "context" as const,
+					sourceKind: s.source,
+					expressionId: s.expressionId,
+					conceptId: s.conceptId,
+					lookupTerm: s.lookupTerm,
 				});
 			}
 		}

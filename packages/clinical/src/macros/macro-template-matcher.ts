@@ -154,8 +154,8 @@ function matchForm(
 			for (const [index, slot] of slots.entries()) {
 				const span = match.indices.groups?.[groupNames[index]!];
 				if (!span) continue;
-				const extractionStart = matchStart + span[0];
-				const extractionEnd = matchStart + span[1];
+				const extractionStart = bodyStart + span[0];
+				const extractionEnd = bodyStart + span[1];
 				const anchorStart = matchStart;
 				results.push({
 					argumentId: slot.argumentId,
@@ -167,7 +167,7 @@ function matchForm(
 					friendlyText: raw.slice(anchorStart, extractionStart),
 					rawValue: raw.slice(extractionStart, extractionEnd),
 					captures: filteredCaptures(match, groupNames),
-					captureSpans: captureSpans(match, matchStart, groupNames),
+					captureSpans: captureSpans(match, bodyStart, groupNames),
 				});
 			}
 		}

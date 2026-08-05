@@ -28,6 +28,11 @@ function setMode(
 	return reduceNotebookEditor(state, { type: "set_mode", mode });
 }
 
+function beginMacroState(text: string): NotebookEditorState {
+	const state = setMode(INITIAL__NOTEBOOK_EDITOR_STATE, "MACRO");
+	return reduceNotebookEditor(state, { type: "set_draft", text });
+}
+
 describe("isolated notebook v2 state contract", () => {
 	test("set_mode changes editor mode without mutating cells", () => {
 		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
@@ -52,6 +57,37 @@ describe("isolated notebook v2 state contract", () => {
 			state.persistedAuthoredRevision,
 		);
 		expect(state.cells[0]?.rawInput).toBe("existing text");
+	});
+
+	test("typing after a locked slot preserves the slot text and lock", () => {
+		let state = beginMacroState("^note hp");
+		state = reduceNotebookEditor(state, {
+			type: "add_macro_lock",
+			lock: {
+				argumentId: "title",
+				macroId: "note",
+				macroVersion: 1,
+				start: 6,
+				end: 8,
+				lockedAtRevision: 1,
+				source: "accepted",
+				binding: {
+					kind: "custom-expression",
+					conceptId: "concept-hp",
+					expressionId: "expression-hp",
+					lookupTerm: "hp",
+				},
+			},
+		});
+		state = reduceNotebookEditor(state, { type: "cursor_end" });
+		state = reduceNotebookEditor(state, {
+			type: "append_text",
+			text: " ",
+		});
+
+		expect(state.draftText).toBe("^note hp ");
+		expect(state.macroLocks).toHaveLength(1);
+		expect(state.macroLocks[0]?.binding?.expressionId).toBe("expression-hp");
 	});
 
 	test("inserts, moves, and deletes at the cursor offset", () => {

@@ -106,4 +106,8 @@ export interface CommandSuggestion {
 		reason?: "transition" | "numericFit" | "parseConfidence" | "static";
 		featureKeys?: readonly string[];
 	};
+	sourceKind?: "macro" | "dictionary" | "custom-expression";
+	expressionId?: string;
+	conceptId?: string;
+	lookupTerm?: string;
 }

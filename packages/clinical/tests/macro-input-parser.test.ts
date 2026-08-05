@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
+import { NOTE_MACRO } from "../src/macros/default-macros";
 import type { MacroDefinition } from "../src/macros/macro-definition";
 import { parseMacroLine } from "../src/macros/macro-input-parser";
 import { createSyntaxProfile } from "../src/macros/macro-profile";
@@ -68,6 +69,42 @@ describe("macro-input-parser", () => {
 		expect(argument?.captures).toEqual({ concept: "shortness of breath" });
 	});
 
+	test("infers unnamed argument order from matching extraction patterns", () => {
+		const definition: MacroDefinition = {
+			...OBSERVATION,
+			arguments: [
+				{
+					...OBSERVATION.arguments[1]!,
+					argumentId: "severity",
+					name: "severity",
+					position: 0,
+					extraction: {
+						kind: "scalar",
+						patterns: ["(?<value>\\d{1,2})"],
+					},
+				},
+				{
+					...OBSERVATION.arguments[0]!,
+					argumentId: "concept",
+					name: "concept",
+					position: 1,
+					extraction: {
+						kind: "concept",
+						patterns: ["(?<concept>[A-Za-z ]+)"],
+					},
+				},
+			],
+		};
+		const result = parseMacroLine("^observation sob 10", 0, { definition });
+		expect(result?.arguments.map((argument) => argument.position)).toEqual([
+			1, 0,
+		]);
+		expect(result?.arguments.map((argument) => argument.rawValue)).toEqual([
+			"sob",
+			"10",
+		]);
+	});
+
 	test("lets the measurement expression own its internal whitespace", () => {
 		const result = parseMacroLine("^observation duration=2 hours", 0, {
 			definition: OBSERVATION,
@@ -88,6 +125,147 @@ describe("macro-input-parser", () => {
 			{ name: "magnitude", value: "2", start: 22, end: 23 },
 			{ name: "unit", value: "hours", start: 24, end: 29 },
 		]);
+	});
+
+	test("captures note arguments in compatible positional order", () => {
+		const result = parseMacroLine("^note 10 hp 2024", 0, {
+			definition: NOTE_MACRO,
+		});
+
+		expect(result?.arguments.map((argument) => argument.position)).toEqual([
+			1, 0, 2,
+		]);
+		expect(result?.arguments.map((argument) => argument.rawValue)).toEqual([
+			"10",
+			"hp",
+			"2024",
+		]);
+	});
+
+	test("preserves named assignments while inferring remaining values", () => {
+		const result = parseMacroLine("^note hp page_num=10 2024", 0, {
+			definition: NOTE_MACRO,
+		});
+
+		expect(result?.arguments.map((argument) => argument.name)).toEqual([
+			undefined,
+			"page_num",
+			undefined,
+		]);
+		expect(result?.arguments.map((argument) => argument.rawValue)).toEqual([
+			"hp",
+			"10",
+			"2024",
+		]);
+	});
+
+	test("preserves separator whitespace outside positional spans", () => {
+		const text = "^note hp  10  2024";
+		const result = parseMacroLine(text, 0, { definition: NOTE_MACRO });
+
+		expect(result?.arguments.map((argument) => argument.rawValue)).toEqual([
+			"hp",
+			"10",
+			"2024",
+		]);
+		expect(
+			text.slice(result?.arguments[0]?.end, result?.arguments[1]?.start),
+		).toBe("  ");
+	});
+
+	test("does not let an unmatched leading token block later numeric slots", () => {
+		const result = parseMacroLine("^note # 10 2004", 0, {
+			definition: NOTE_MACRO,
+		});
+
+		expect(result?.arguments.map((argument) => argument.position)).toEqual([
+			1, 2,
+		]);
+		expect(result?.arguments.map((argument) => argument.rawValue)).toEqual([
+			"10",
+			"2004",
+		]);
+	});
+
+	test("does not let an invalid named value consume later positional values", () => {
+		const result = parseMacroLine("^note title=2004 2004 60", 0, {
+			definition: NOTE_MACRO,
+		});
+
+		expect(result?.arguments.map((argument) => argument.name)).toEqual([
+			"title",
+			undefined,
+			undefined,
+		]);
+		expect(result?.arguments.map((argument) => argument.rawValue)).toEqual([
+			"2004",
+			"2004",
+			"60",
+		]);
+	});
+
+	test("keeps later values independent of invalid multi-word named text", () => {
+		const result = parseMacroLine(
+			"^note title=not a matching book 2004 60",
+			0,
+			{ definition: NOTE_MACRO },
+		);
+
+		expect(result?.arguments[0]?.rawValue).toBe("not a matching book");
+		expect(result?.arguments.map((argument) => argument.rawValue)).toContain(
+			"2004",
+		);
+	});
+
+	test("keeps an unmatched lookup token in a non-lookup capture", () => {
+		const definition: MacroDefinition = {
+			...NOTE_MACRO,
+			arguments: [
+				{
+					...NOTE_MACRO.arguments[0]!,
+					argumentId: "text",
+					name: "text",
+					roleName: "note.text",
+					extraction: {
+						kind: "prose",
+						patterns: ["(?<text>.+)"],
+					},
+				},
+			],
+		};
+		const result = parseMacroLine("^note #favorite book", 0, {
+			definition,
+		});
+
+		expect(result?.arguments[0]).toMatchObject({
+			rawValue: "#favorite book",
+		});
+	});
+
+	test("extracts a named argument after an incomplete template prefix", () => {
+		const result = parseMacroLine("^note has page # year=2024", 0, {
+			definition: NOTE_MACRO,
+		});
+
+		expect(result?.arguments).toHaveLength(1);
+		expect(result?.arguments[0]).toMatchObject({
+			name: "year",
+			rawValue: "2024",
+			source: "rule",
+		});
+	});
+
+	test("matches a valid year template without treating it as a page value", () => {
+		const result = parseMacroLine("^note has page # during 2024", 0, {
+			definition: NOTE_MACRO,
+		});
+
+		expect(result?.arguments).toHaveLength(1);
+		expect(result?.arguments[0]).toMatchObject({
+			rawValue: "2024",
+			source: "friendly",
+		});
+		expect(result?.arguments[0]?.match?.argumentId).toBe("year");
 	});
 
 	test("preserves quotes for expressions that use quotes themselves", () => {

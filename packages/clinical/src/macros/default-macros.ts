@@ -242,11 +242,84 @@ export const PHYSICAL_EXAM_MACRO: MacroDefinition = {
 	],
 };
 
+export const NOTE_MACRO: MacroDefinition = {
+	macroId: "v2-note-1",
+	macroName: "note",
+	version: 1,
+	status: "published",
+	active: true,
+	description: "A note with a title, page number, and year",
+	root: {
+		roleName: "note",
+		targetSchema: "Note",
+		outputCellKind: "structured",
+	},
+	arguments: [
+		{
+			argumentId: "title",
+			name: "title",
+			roleName: "note.title",
+			position: 0,
+			target: { targetSchema: "Note", targetPath: "title" },
+			extraction: {
+				kind: "concept",
+				patterns: ["(?<title>[A-Za-z][A-Za-z ]*)"],
+				required: true,
+			},
+			required: true,
+			autocomplete: { source: "dictionary" },
+		},
+		{
+			argumentId: "page_num",
+			name: "page_num",
+			roleName: "note.page_num",
+			position: 1,
+			target: { targetSchema: "Note", targetPath: "pageNum" },
+			extraction: {
+				kind: "scalar",
+				patterns: ["(?<page_num>\\d{1,4})"],
+				numericBounds: { min: 1, max: 5000, step: 1 },
+				required: false,
+			},
+		},
+		{
+			argumentId: "year",
+			name: "year",
+			roleName: "note.year",
+			position: 2,
+			target: { targetSchema: "Note", targetPath: "year" },
+			extraction: {
+				kind: "scalar",
+				patterns: ["(?<year>\\d{4})"],
+				numericBounds: { min: 1, max: 9999, step: 1 },
+				required: false,
+			},
+		},
+	],
+	authoringTemplates: [
+		{
+			version: 1,
+			parts: [
+				{ kind: "literal", text: "has page # " },
+				{ kind: "slot", argumentId: "page_num", occurrence: 0 },
+			],
+		},
+		{
+			version: 1,
+			parts: [
+				{ kind: "literal", text: "during " },
+				{ kind: "slot", argumentId: "year", occurrence: 0 },
+			],
+		},
+	],
+};
+
 export const DEFAULT_MACROS: MacroDefinition[] = [
 	_PRIMARY_DIAGNOSIS_MACRO,
 	VITALS_MACRO,
 	ASSESSMENT_MACRO,
 	PHYSICAL_EXAM_MACRO,
+	NOTE_MACRO,
 ];
 
 export async function seedDefaultMacros(store: {

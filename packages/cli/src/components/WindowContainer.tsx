@@ -397,28 +397,13 @@ export function WindowContainer({
 					return;
 				}
 			}
-			if (
-				_input === " " &&
-				current.completion.status === "cycling" &&
-				completionProvider
-			) {
-				const transition = reduceCompletion(
-					current.completion,
-					{ kind: "space" },
-					current.draftText,
-					completionProvider,
-					syntaxProfile,
-				);
+			if (_input === " " && current.mode === "MACRO") {
 				emit({
 					type: "SET_COMPLETION",
-					completion: transition.completionState,
+					completion: { status: "idle" },
 				});
-				if (transition.committedLine) {
-					emit({
-						type: "COMMIT_COMPLETION",
-						line: transition.committedLine,
-					});
-				}
+				emit({ type: "INSERT_TEXT", text: " " });
+				triggerAutocomplete(current.draftText + " ", "macro");
 				return;
 			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {

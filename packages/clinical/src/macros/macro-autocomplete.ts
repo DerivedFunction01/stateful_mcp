@@ -25,6 +25,10 @@ export interface AutocompleteSuggestion {
 	value: string;
 	type: AutocompleteType;
 	detail?: string;
+	source?: "macro" | "dictionary" | "custom-expression";
+	expressionId?: string;
+	conceptId?: string;
+	lookupTerm?: string;
 	macro?: {
 		macroId: string;
 		macroVersion: number;
@@ -62,6 +66,8 @@ export interface AutocompleteServiceDeps {
 	filterStore?: ConceptFilterStore;
 	learningService?: MacroLearningService;
 	conceptToken?: string;
+	expressionToken?: string;
+	conceptNamespaceSeparator?: string;
 }
 
 const MACRO_START_TOKEN = "^";
@@ -97,19 +103,52 @@ export class MacroAutocomplete {
 	async suggest(req: AutocompleteRequest): Promise<AutocompleteSuggestion[]> {
 		const { query, scope, argumentName, macroName, namespaceCode, enumValues } =
 			req;
+		let activeArgumentKind: string | undefined;
+		if (macroName && argumentName) {
+			const macro = await this.deps.macros.get(macroName);
+			const argument = macro?.arguments.find(
+				(candidate) =>
+					candidate.name.toLowerCase() === argumentName.toLowerCase() ||
+					candidate.aliases?.some(
+						(alias) => alias.toLowerCase() === argumentName.toLowerCase(),
+					) ||
+					candidate.roleName.toLowerCase() === argumentName.toLowerCase(),
+			);
+			activeArgumentKind = argument?.extraction.kind;
+		}
+		const lookupArgument =
+			!activeArgumentKind ||
+			activeArgumentKind === "concept" ||
+			activeArgumentKind === "concept_array";
 
 		// Direct concept search is driven by the active syntax profile.
 		const conceptToken = this.deps.conceptToken;
-		if (conceptToken && query.startsWith(conceptToken)) {
+		if (lookupArgument && conceptToken && query.startsWith(conceptToken)) {
 			const after = query.slice(conceptToken.length);
-			const colonIndex = after.indexOf(":");
+			const separator = this.deps.conceptNamespaceSeparator ?? "";
+			const separatorIndex = separator ? after.indexOf(separator) : -1;
 			let ns = namespaceCode;
 			let conceptQuery = after;
-			if (colonIndex !== -1) {
-				ns = after.slice(0, colonIndex);
-				conceptQuery = after.slice(colonIndex + 1);
+			if (separatorIndex !== -1) {
+				ns = after.slice(0, separatorIndex);
+				conceptQuery = after.slice(separatorIndex + separator.length);
 			}
 			return this.suggestConcepts(conceptQuery, ns, macroName, argumentName);
+		}
+
+		const expressionToken = this.deps.expressionToken;
+		if (
+			lookupArgument &&
+			expressionToken &&
+			query.startsWith(expressionToken)
+		) {
+			return this.suggestCustomExpressions(
+				query.slice(expressionToken.length),
+				undefined,
+				macroName,
+				argumentName,
+				true,
+			);
 		}
 
 		// 2. Argument value autocompletion if argumentName and macroName are known
@@ -203,13 +242,7 @@ export class MacroAutocomplete {
 		if (spec.kind === "concept" || spec.kind === "concept_array") {
 			return this.rankValueSuggestions(
 				arg,
-				await this.suggestConcepts(
-					query,
-					undefined,
-					undefined,
-					arg.name,
-					arg.roleName,
-				),
+				await this.suggestCustomExpressions(query, arg.roleName),
 				macro,
 				req,
 			);
@@ -506,5 +539,63 @@ export class MacroAutocomplete {
 		}
 
 		return suggestions;
+	}
+
+	private async suggestCustomExpressions(
+		query: string,
+		roleName?: string,
+		macroName?: string,
+		argumentName?: string,
+		allowEmpty = false,
+	): Promise<AutocompleteSuggestion[]> {
+		const search = this.deps.dictionary?.searchExpressionCandidates;
+		if (!search || (!allowEmpty && !query.trim())) return [];
+		if (!roleName && macroName && argumentName) {
+			const macro = await this.deps.macros.get(macroName);
+			const argument = macro?.arguments.find(
+				(candidate) =>
+					candidate.name.toLowerCase() === argumentName.toLowerCase() ||
+					candidate.aliases?.some(
+						(alias) => alias.toLowerCase() === argumentName.toLowerCase(),
+					) ||
+					candidate.roleName.toLowerCase() === argumentName.toLowerCase(),
+			);
+			roleName = argument?.roleName;
+		}
+		const expressions = await search({
+			lookupPrefix: query.trim().toLocaleLowerCase(),
+			targetAssignments: roleName ? [roleName] : undefined,
+			activeOnly: true,
+			limit: MAX_SUGGESTIONS,
+		});
+		const normalizedQuery = query.trim().toLocaleLowerCase();
+		return expressions
+			.filter(
+				(expression) =>
+					expression.active &&
+					Boolean(expression.conceptId) &&
+					Boolean(expression.lookupTerm ?? expression.term),
+			)
+			.map((expression) => ({
+				label: expression.term,
+				value: expression.lookupTerm ?? expression.term,
+				type: "concept" as const,
+				detail: "custom expression",
+				source: "custom-expression" as const,
+				expressionId: expression.id,
+				conceptId: expression.conceptId,
+				lookupTerm: expression.lookupTerm ?? expression.term,
+			}))
+			.sort((left, right) => {
+				const leftValue = left.lookupTerm?.toLocaleLowerCase() ?? "";
+				const rightValue = right.lookupTerm?.toLocaleLowerCase() ?? "";
+				const leftExact = leftValue === normalizedQuery;
+				const rightExact = rightValue === normalizedQuery;
+				if (leftExact !== rightExact) return leftExact ? -1 : 1;
+				if (leftValue.length !== rightValue.length)
+					return rightValue.length - leftValue.length;
+				return sortSuggestions(left, right);
+			})
+			.slice(0, MAX_SUGGESTIONS);
 	}
 }

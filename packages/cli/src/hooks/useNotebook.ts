@@ -250,6 +250,9 @@ export function useNotebook(
 											: "verb",
 							detail: suggestion.detail,
 							macroEvidence: suggestion.macroEvidence,
+							expressionId: suggestion.expressionId,
+							conceptId: suggestion.conceptId,
+							lookupTerm: suggestion.lookupTerm,
 						})),
 				);
 			})
@@ -296,6 +299,8 @@ export function useNotebook(
 					applyMacroLocks(
 						projectMacroSlots(state.draftText, definition),
 						state.macroLocks,
+						undefined,
+						state.draftText,
 					),
 				);
 				// Resolve child macro definitions for chain suggestions
@@ -328,6 +333,115 @@ export function useNotebook(
 		};
 	}, [session, state.mode, state.draftText, state.macroLocks]);
 
+	useEffect(() => {
+		let cancelled = false;
+		if (
+			!session ||
+			state.mode !== "MACRO" ||
+			!activeDefinition ||
+			macroSlots.length === 0
+		)
+			return () => {
+				cancelled = true;
+			};
+
+		const dictionary = session.v2.engine.getRuntime().macros.dictionary;
+		if (typeof dictionary.searchExpressionCandidates !== "function")
+			return () => {
+				cancelled = true;
+			};
+
+		const pending = macroSlots.flatMap((slot) => {
+			const argument = activeDefinition.arguments.find(
+				(candidate) => candidate.argumentId === slot.argumentId,
+			);
+			if (
+				!argument ||
+				(argument.extraction.kind !== "concept" &&
+					argument.extraction.kind !== "concept_array") ||
+				slot.status === "locked" ||
+				!slot.rawText.trim()
+			)
+				return [];
+			const lookupTerm = slot.rawText
+				.trim()
+				.startsWith(session.v2.syntaxProfile.expressionToken)
+				? slot.rawText
+						.trim()
+						.slice(session.v2.syntaxProfile.expressionToken.length)
+						.trim()
+				: slot.rawText.trim();
+			return [{ slot, lookupTerm, roleName: argument.roleName }];
+		});
+
+		void Promise.all(
+			pending.map(async ({ slot, lookupTerm, roleName }) => {
+				const expressions = await dictionary.searchExpressionCandidates!({
+					lookupPrefix: lookupTerm.toLocaleLowerCase(),
+					targetAssignments: [roleName],
+					activeOnly: true,
+					limit: 20,
+				});
+				const normalizedLookupTerm = lookupTerm.toLocaleLowerCase();
+				const expression = expressions.find(
+					(candidate) =>
+						candidate.conceptId &&
+						(candidate.lookupTerm ?? candidate.term).toLocaleLowerCase() ===
+							normalizedLookupTerm,
+				);
+				const hasLongerContinuation = expressions.some((candidate) => {
+					const candidateTerm = (
+						candidate.lookupTerm ?? candidate.term
+					).toLocaleLowerCase();
+					return (
+						candidateTerm.startsWith(`${normalizedLookupTerm} `) &&
+						candidateTerm !== normalizedLookupTerm
+					);
+				});
+				if (hasLongerContinuation) return;
+				if (cancelled || !expression?.conceptId) return;
+				const alreadyLocked = state.macroLocks.some(
+					(lock) =>
+						lock.macroId === slot.macroId &&
+						lock.macroVersion === slot.macroVersion &&
+						lock.argumentId === slot.argumentId &&
+						lock.start === slot.start &&
+						lock.end === slot.end,
+				);
+				if (alreadyLocked) return;
+				dispatch({
+					type: "add_macro_lock",
+					lock: {
+						argumentId: slot.argumentId,
+						macroId: slot.macroId,
+						macroVersion: slot.macroVersion,
+						start: slot.start,
+						end: slot.end,
+						rawText: slot.rawText,
+						source: "accepted",
+						binding: {
+							kind: "custom-expression",
+							conceptId: expression.conceptId,
+							expressionId: expression.id,
+							lookupTerm: expression.lookupTerm ?? lookupTerm,
+						},
+					},
+				});
+			}),
+		).catch(() => undefined);
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		session,
+		state.mode,
+		state.macroLocks,
+		activeDefinition,
+		macroSlots,
+		dispatch,
+	]);
+
 	const unlockActiveMacroSlot = useCallback(() => {
 		const active = activeMacroSlot(macroSlots, state.cursorOffset);
 		if (!active) return;
@@ -339,6 +453,7 @@ export function useNotebook(
 				macroVersion: active.macroVersion,
 				start: active.start,
 				end: active.end,
+				rawText: active.rawText,
 				source: "explicit",
 			},
 		});
@@ -356,9 +471,25 @@ export function useNotebook(
 				start: active.start,
 				end: active.end,
 				source: "explicit",
+				binding: (() => {
+					const suggestion = macroSuggestions.find(
+						(candidate) =>
+							candidate.lookupTerm === active.rawText ||
+							candidate.value === active.rawText,
+					);
+					if (!suggestion?.conceptId) return undefined;
+					return {
+						kind: suggestion.expressionId
+							? ("custom-expression" as const)
+							: ("concept" as const),
+						conceptId: suggestion.conceptId,
+						expressionId: suggestion.expressionId,
+						lookupTerm: suggestion.lookupTerm,
+					};
+				})(),
 			},
 		});
-	}, [macroSlots, state.cursorOffset, dispatch]);
+	}, [macroSlots, macroSuggestions, state.cursorOffset, dispatch]);
 
 	useEffect(() => {
 		let cancelled = false;

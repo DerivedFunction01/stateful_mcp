@@ -5,7 +5,11 @@ import {
 } from "../../adapters/storage/simple/factories";
 import type { OwnerScope } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
-import type { ConceptStore, PersistentExpressionStore } from "./interfaces";
+import type {
+	ConceptStore,
+	ExpressionSearchRequest,
+	PersistentExpressionStore,
+} from "./interfaces";
 import type { ConceptResolver, ResolveResponse } from "./resolver";
 import type {
 	Concept,
@@ -48,6 +52,40 @@ export class DictionaryStore {
 		limit: number = 50,
 	): Promise<Concept[]> {
 		return this.conceptStore.search(query, namespaceCode, limit);
+	}
+
+	public async searchExpressionCandidates(
+		request: ExpressionSearchRequest,
+		context?: Record<string, any>,
+	): Promise<CustomExpression[]> {
+		const scope: OwnerScope = context?.user_id
+			? { level: "user", userId: context.user_id }
+			: { level: "global" };
+		if (this.expressionStore.searchCandidates) {
+			return this.expressionStore.searchCandidates({
+				...request,
+				scope: request.scope ?? scope,
+			});
+		}
+		const expressions = await this.expressionStore.list(scope, true);
+		const prefix = request.lookupPrefix?.toLocaleLowerCase();
+		return expressions
+			.filter((expression) => (request.activeOnly ? expression.active : true))
+			.filter((expression) =>
+				request.targetAssignments?.length
+					? request.targetAssignments.includes(
+							expression.targetAssignment ?? "",
+						)
+					: true,
+			)
+			.filter((expression) =>
+				prefix
+					? (expression.lookupTerm ?? expression.term)
+							.toLocaleLowerCase()
+							.startsWith(prefix)
+					: true,
+			)
+			.slice(0, request.limit ?? 50);
 	}
 
 	public async loadConfig(config: DictionaryConfig): Promise<void> {

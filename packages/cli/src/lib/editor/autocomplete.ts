@@ -37,4 +37,7 @@ export interface AutocompleteSuggestion {
 		reason?: "transition" | "numericFit" | "parseConfidence" | "static";
 		featureKeys?: readonly string[];
 	};
+	expressionId?: string;
+	conceptId?: string;
+	lookupTerm?: string;
 }

@@ -104,11 +104,18 @@ function matchDefinitionArguments(
 			spec,
 			diagnostics,
 		);
-		const items = splitListItems(
-			segment.value,
-			segment.valueStart,
-			spec.extraction.itemDelimiter,
-		);
+		if (!matched) {
+			const invalidEnd = scanUntilWhitespace(raw, segment.valueStart);
+			segment.value = raw.slice(segment.valueStart, invalidEnd);
+			segment.end = invalidEnd;
+		}
+		const items = matched
+			? splitListItems(
+					segment.value,
+					segment.valueStart,
+					spec.extraction.itemDelimiter,
+				)
+			: undefined;
 		arguments_.push({
 			name: segment.name,
 			position: spec.position,
@@ -120,6 +127,10 @@ function matchDefinitionArguments(
 			end: matched?.end ?? segment.end,
 			match: matched ? createMatch(spec, "named", matched) : undefined,
 		});
+		if (matched) {
+			segment.value = matched.rawValue;
+			segment.end = matched.end;
+		}
 	}
 	const friendlyMatches = matchFriendlyMacroForms(raw, bodyStart, definition);
 	for (const match of friendlyMatches) {
@@ -159,18 +170,20 @@ function matchDefinitionArguments(
 				),
 		)
 		.sort((left, right) => (left.position ?? 0) - (right.position ?? 0));
-	let specIndex = 0;
+	const remainingSpecs = [...positional];
 	for (const region of unnamed) {
-		let cursor = region.start;
-		while (cursor < region.end && specIndex < positional.length) {
-			const spec = positional[specIndex++]!;
-			const matched = matchSpec(
-				raw.slice(cursor, region.end),
-				cursor,
-				spec,
-				diagnostics,
-			);
-			if (!matched) break;
+		if (
+			isPendingTemplatePrefix(raw.slice(region.start, region.end), definition)
+		)
+			continue;
+		const inferred = inferPositionalMatches(
+			raw,
+			region,
+			remainingSpecs,
+			diagnostics,
+		);
+		for (const { spec, matched } of inferred) {
+			remainingSpecs.splice(remainingSpecs.indexOf(spec), 1);
 			arguments_.push({
 				position: spec.position,
 				rawValue: matched.rawValue,
@@ -180,18 +193,133 @@ function matchDefinitionArguments(
 					matched.start,
 					spec.extraction.itemDelimiter,
 				),
-				source: "rule",
+				source: "inferred",
 				start: matched.start,
 				end: matched.end,
-				match: createMatch(spec, "rule", matched),
+				match: createMatch(spec, "inferred", matched),
 			});
-			cursor = matched.end;
-			if (cursor < region.end) cursor = skipWhitespace(raw, cursor);
 		}
 	}
 	return arguments_.sort(
 		(left, right) => (left.start ?? 0) - (right.start ?? 0),
 	);
+}
+
+interface PositionalMatch {
+	spec: MacroArgumentSpec;
+	matched: NonNullable<ReturnType<typeof matchSpec>>;
+	startToken: number;
+}
+
+function inferPositionalMatches(
+	raw: string,
+	region: { start: number; end: number },
+	specs: readonly MacroArgumentSpec[],
+	diagnostics: MacroParseDiagnostic[],
+): PositionalMatch[] {
+	const tokens: Array<{ start: number; end: number }> = [];
+	let tokenStart = skipWhitespace(raw, region.start);
+	while (tokenStart < region.end) {
+		const tokenEnd = scanUntilWhitespace(raw, tokenStart);
+		tokens.push({ start: tokenStart, end: tokenEnd });
+		tokenStart = skipWhitespace(raw, tokenEnd);
+	}
+	const candidates = specs.flatMap((spec) =>
+		tokens.flatMap((token, startToken) =>
+			tokens.slice(startToken).flatMap((_, relativeEndToken) => {
+				const endToken = startToken + relativeEndToken;
+				const start = token.start;
+				const end = tokens[endToken]!.end;
+				const matched = matchSpec(
+					raw.slice(start, end),
+					start,
+					spec,
+					diagnostics,
+				);
+				return matched?.end === end ? [{ spec, matched, startToken }] : [];
+			}),
+		),
+	);
+
+	let best: PositionalMatch[] = [];
+	const visit = (specIndex: number, selected: PositionalMatch[]) => {
+		if (specIndex >= specs.length) {
+			if (isBetterAssignment(selected, best)) best = selected;
+			return;
+		}
+		visit(specIndex + 1, selected);
+		for (const candidate of candidates.filter(
+			(item) => item.spec === specs[specIndex],
+		)) {
+			if (
+				selected.some(
+					(item) =>
+						item.matched.start < candidate.matched.end &&
+						candidate.matched.start < item.matched.end,
+				)
+			)
+				continue;
+			visit(specIndex + 1, [...selected, candidate]);
+		}
+	};
+	visit(0, []);
+	return best.sort((left, right) => left.matched.start - right.matched.start);
+}
+
+function isBetterAssignment(
+	left: PositionalMatch[],
+	right: PositionalMatch[],
+): boolean {
+	const leftRequired = left.filter(
+		(item) => item.spec.required ?? item.spec.extraction.required,
+	).length;
+	const rightRequired = right.filter(
+		(item) => item.spec.required ?? item.spec.extraction.required,
+	).length;
+	if (left.length !== right.length) return left.length > right.length;
+	if (leftRequired !== rightRequired) return leftRequired > rightRequired;
+	const positionCost = (items: PositionalMatch[]) =>
+		items.reduce(
+			(total, item) =>
+				total + Math.abs((item.spec.position ?? 0) - item.startToken),
+			0,
+		);
+	const leftPositionCost = positionCost(left);
+	const rightPositionCost = positionCost(right);
+	if (leftPositionCost !== rightPositionCost)
+		return leftPositionCost < rightPositionCost;
+	const spanLength = (items: PositionalMatch[]) =>
+		items.reduce(
+			(total, item) => total + (item.matched.end - item.matched.start),
+			0,
+		);
+	return spanLength(left) > spanLength(right);
+}
+
+function isPendingTemplatePrefix(
+	text: string,
+	definition: MacroDefinition,
+): boolean {
+	const templates = [
+		...(definition.authoringTemplates ?? []),
+		...definition.arguments.flatMap((argument) =>
+			(argument.forms ?? []).map((form) => form.template),
+		),
+	];
+	return templates.some((template) => {
+		let literalPrefix = "";
+		for (const part of template.parts) {
+			if (part.kind === "slot") break;
+			literalPrefix += part.text;
+		}
+		const normalizedText = text.trimEnd();
+		const normalizedPrefix = literalPrefix.trimEnd();
+		return (
+			Boolean(normalizedPrefix) &&
+			(normalizedPrefix.startsWith(normalizedText) ||
+				normalizedText.startsWith(normalizedPrefix))
+		);
+	});
 }
 
 interface NamedSegment {
@@ -435,11 +563,12 @@ function matchSpec(
 							: [];
 					},
 				);
+				const matchedEnd = trimEnd(text, 0, match[0].length);
 				return {
-					rawValue: match[0].trim(),
+					rawValue: text.slice(0, matchedEnd),
 					captures: match.groups ?? {},
 					start: offset,
-					end: offset + match[0].length,
+					end: offset + matchedEnd,
 					captureSpans,
 				};
 			}
