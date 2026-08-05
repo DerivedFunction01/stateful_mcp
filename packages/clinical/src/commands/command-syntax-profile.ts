@@ -1,49 +1,38 @@
-export type DirectCommandVerb =
-	| "branch"
-	| "confirm"
-	| "rule_out"
-	| "suspend"
-	| "re_activate"
-	| "close"
-	| "complete";
+export const _DIRECT_COMMANDS = [
+    "branch",
+    "confirm",
+    "rule_out",
+    "suspend",
+    "re_activate",
+    "close",
+    "complete",
+	"elevate"
+] as const;
 
-export type EditorCommandVerb =
-	| "write"
-	| "quit"
-	| "write_quit"
-	| "help"
-	| "mode"
-	| "undo"
-	| "redo"
-	| "render";
+export type DirectCommandVerb = typeof _DIRECT_COMMANDS[number];
 
-export type VariableCommandVerb =
-	| "set"
-	| "update"
-	| "eval"
-	| "assert"
-	| "remove";
+export const _EDITOR_COMMANDS = [
+    "write",
+    "quit",
+    "write_quit",
+    "help",
+    "mode",
+    "undo",
+    "redo",
+    "render",
+] as const;
 
-export const _DIRECT_COMMANDS: readonly DirectCommandVerb[] = [
-	"branch",
-	"confirm",
-	"rule_out",
-	"suspend",
-	"re_activate",
-	"close",
-	"complete",
-];
+export type EditorCommandVerb = typeof _EDITOR_COMMANDS[number];
 
-export const _EDITOR_COMMANDS: readonly EditorCommandVerb[] = [
-	"write",
-	"quit",
-	"write_quit",
-	"help",
-	"mode",
-	"undo",
-	"redo",
-	"render",
-];
+export const _VARIABLE_COMMANDS = [
+    "set",
+    "update",
+    "eval",
+    "assert",
+    "remove",
+] as const;
+
+export type VariableCommandVerb = typeof _VARIABLE_COMMANDS[number];
 
 export interface CommandSyntaxProfile {
 	profileId: string;

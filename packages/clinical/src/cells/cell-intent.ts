@@ -12,19 +12,12 @@ import type {
 	MacroArgumentInput,
 	MacroSourceLine,
 } from "../macros/macro-binding";
+import type { DirectCommandVerb } from "../commands/command-syntax-profile";
 
-export type WorkspaceCommandVerb =
-	| "branch"
-	| "rule_out"
-	| "confirm"
-	| "suspend"
-	| "re_activate"
-	| "elevate"
-	| "close";
 
 /** Typed workspace command payload (-local; workspace service compiles it). */
 export interface WorkspaceCommandIntentPayload {
-	verb: WorkspaceCommandVerb;
+	verb: DirectCommandVerb;
 	branchName?: string;
 	branchRef?: string;
 	conceptRef?: string;
