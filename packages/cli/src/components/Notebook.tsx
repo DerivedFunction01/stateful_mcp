@@ -568,10 +568,21 @@ export function Notebook({
 		message: state.message,
 		macroSuggestions: mergedCandidates,
 		macroSlots: notebook.macroSlots,
-		activeMacroArgumentId: activeMacroSlot(
-			notebook.macroSlots,
-			state.mode === "MACRO" ? state.cursorOffset : -1,
-		)?.argumentId,
+		activeMacroArgumentId: (() => {
+			const activeSlot = activeMacroSlot(
+				notebook.macroSlots,
+				state.mode === "MACRO" ? state.cursorOffset : -1,
+			);
+			if (!activeSlot) return undefined;
+			const isExplicit =
+				activeSlot.status === "locked" ||
+				Boolean(activeSlot.binding) ||
+				activeSlot.bindingSource === "named" ||
+				activeSlot.bindingSource === "friendly" ||
+				activeSlot.bindingSource === "rule" ||
+				activeSlot.bindingSource === "accepted";
+			return isExplicit ? activeSlot.argumentId : undefined;
+		})(),
 		cursorOffset: state.cursorOffset,
 		syntaxProfile: session.v2.syntaxProfile,
 		activeDefinition: notebook.activeDefinition,

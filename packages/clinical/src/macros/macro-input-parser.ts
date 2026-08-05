@@ -594,6 +594,17 @@ function matchSpec(
 			return undefined;
 		}
 
+		// Scalar/numeric slots require a valid numeric format or named assignment before positionally consuming prose
+		if (spec.extraction.kind === "scalar" && !isNamedAssignment) {
+			const num = Number(trimmed);
+			if (Number.isNaN(num)) return undefined;
+			if (spec.extraction.numericBounds) {
+				const { min, max } = spec.extraction.numericBounds;
+				if (min !== undefined && num < min) return undefined;
+				if (max !== undefined && num > max) return undefined;
+			}
+		}
+
 		return {
 			rawValue: text,
 			captures: { concept: text, value: text },
