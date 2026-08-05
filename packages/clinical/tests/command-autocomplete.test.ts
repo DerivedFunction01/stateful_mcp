@@ -87,17 +87,22 @@ describe(" command-bar autocomplete", () => {
 						get: async () => def,
 						list: async () => [def],
 					} as any,
-					dictionary: {
-						searchExpressionCandidates: async () => [
-							{
-								id: "expr-hp",
-								term: "Harry Potter",
-								lookupTerm: "hp",
-								conceptId: "c-hp",
-								active: true,
-							},
-						],
-					} as any,
+				dictionary: {
+					expressionStore: true,
+					async searchExpressionCandidates(this: { expressionStore: boolean }) {
+						return this.expressionStore
+							? [
+									{
+										id: "expr-hp",
+										term: "Harry Potter",
+										lookupTerm: "hp",
+										conceptId: "c-hp",
+										active: true,
+									},
+								]
+							: [];
+					},
+				} as any,
 				},
 				defaultProfile,
 			);
@@ -312,6 +317,138 @@ describe(" command-bar autocomplete", () => {
 			expect(provenances).toContain("expression");
 			expect(provenances).toContain("template");
 			expect(provenances).toContain("argument-name");
+		});
+
+		it("removes templates and argument names for already filled slots", async () => {
+			const def = {
+				macroId: "note",
+				macroName: "note",
+				version: 1,
+				active: true,
+				arguments: [
+					{
+						argumentId: "title",
+						name: "title",
+						roleName: "note.title",
+						extraction: { kind: "concept", patterns: [] },
+					},
+					{
+						argumentId: "page_num",
+						name: "page_num",
+						roleName: "note.page_num",
+						extraction: { kind: "scalar" },
+					},
+					{
+						argumentId: "year",
+						name: "year",
+						roleName: "note.year",
+						extraction: { kind: "scalar" },
+					},
+				],
+				authoringTemplates: [
+					{
+						parts: [
+							{ kind: "literal", text: "My favorite book is " },
+							{ kind: "slot", argumentId: "title", occurrence: 0 },
+						],
+					},
+					{
+						parts: [
+							{ kind: "literal", text: "has page # " },
+							{ kind: "slot", argumentId: "page_num", occurrence: 0 },
+						],
+					},
+				],
+			};
+			const suggestions = await getCommandBarSuggestions(
+				{
+					input: "^note ",
+					cursorOffset: 6,
+					sessionId: "s1",
+					filledSlots: ["page_num", "year"],
+				},
+				{
+					macroStore: {
+						get: async () => def,
+						list: async () => [def],
+					} as any,
+				},
+				defaultProfile,
+			);
+			const labels = suggestions.map((suggestion) => suggestion.label);
+			expect(labels).toContain("My favorite book is ");
+			expect(labels).not.toContain("has page #");
+			expect(labels).toContain("title=");
+			expect(labels).not.toContain("page_num=");
+			expect(labels).not.toContain("year=");
+		});
+
+		it("keeps a matching multi-word prefix before falling back to its last word", async () => {
+			const def = {
+				macroId: "note",
+				macroName: "note",
+				version: 1,
+				active: true,
+				arguments: [
+					{
+						argumentId: "title",
+						name: "title",
+						roleName: "note.title",
+						extraction: { kind: "concept", patterns: [] },
+					},
+					{
+						argumentId: "page_num",
+						name: "page_num",
+						roleName: "note.page_num",
+						extraction: { kind: "scalar" },
+					},
+				],
+				authoringTemplates: [
+					{
+						parts: [
+							{ kind: "literal", text: "My favorite book is " },
+							{ kind: "slot", argumentId: "title", occurrence: 0 },
+						],
+					},
+					{
+						parts: [
+							{ kind: "literal", text: "has page # " },
+							{ kind: "slot", argumentId: "page_num", occurrence: 0 },
+						],
+					},
+				],
+			};
+			const options = {
+				macroStore: {
+					get: async () => def,
+					list: async () => [def],
+				} as any,
+			};
+			const phraseMatches = await getCommandBarSuggestions(
+				{
+					input: "^note My ",
+					cursorOffset: 9,
+					sessionId: "s1",
+				},
+				options,
+				defaultProfile,
+			);
+			expect(phraseMatches.map((suggestion) => suggestion.label)).toEqual([
+				"My favorite book is ",
+			]);
+
+			const fallbackMatches = await getCommandBarSuggestions(
+				{
+					input: "^note My has",
+					cursorOffset: 13,
+					sessionId: "s1",
+				},
+				options,
+				defaultProfile,
+			);
+			expect(fallbackMatches.map((suggestion) => suggestion.label)).toContain(
+				"has page # ",
+			);
 		});
 	});
 });

@@ -81,6 +81,46 @@ export function activeMacroSlot(
 	);
 }
 
+export function activeMacroTemplateArgument(
+	draftText: string,
+	cursorOffset: number,
+	definition: MacroDefinition | null | undefined,
+	profile?: Pick<SyntaxProfile, "macroStartToken">,
+): string | undefined {
+	if (!definition?.authoringTemplates?.length) return undefined;
+	const marker = profile?.macroStartToken ?? "^";
+	const leading = draftText.search(/\S/);
+	if (leading < 0 || !draftText.startsWith(marker, leading)) return undefined;
+	const nameStart = leading + marker.length;
+	const nameEnd = scanUntilWhitespace(draftText, nameStart);
+	if (!draftText.slice(nameStart, nameEnd)) return undefined;
+	const bodyStart = skipWhitespace(draftText, nameEnd);
+	const body = draftText.slice(bodyStart, Math.min(cursorOffset, draftText.length));
+
+	for (const template of definition.authoringTemplates) {
+		let bodyOffset = 0;
+		const parts = template.parts;
+		for (let index = 0; index < parts.length; index += 1) {
+			const part = parts[index]!;
+			if (part.kind === "literal") {
+				if (!body.startsWith(part.text, bodyOffset)) break;
+				bodyOffset += part.text.length;
+				continue;
+			}
+
+			const nextLiteral = parts
+				.slice(index + 1)
+				.find((candidate) => candidate.kind === "literal");
+			if (!nextLiteral || nextLiteral.kind !== "literal")
+				return part.argumentId;
+			const nextLiteralOffset = body.indexOf(nextLiteral.text, bodyOffset);
+			if (nextLiteralOffset < 0) return part.argumentId;
+			bodyOffset = nextLiteralOffset + nextLiteral.text.length;
+		}
+	}
+	return undefined;
+}
+
 export function nextMacroSlot(
 	projections: readonly MacroSlotProjection[],
 	cursorOffset: number,
@@ -229,4 +269,16 @@ function toProjection(
 		formId: match.formId,
 		captureSpans: match.captureSpans,
 	};
+}
+
+function scanUntilWhitespace(text: string, start: number): number {
+	let index = start;
+	while (index < text.length && !/\s/.test(text[index]!)) index += 1;
+	return index;
+}
+
+function skipWhitespace(text: string, start: number): number {
+	let index = start;
+	while (index < text.length && /\s/.test(text[index]!)) index += 1;
+	return index;
 }

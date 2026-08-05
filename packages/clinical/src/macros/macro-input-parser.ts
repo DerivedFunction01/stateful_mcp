@@ -346,9 +346,7 @@ function isPendingTemplatePrefix(
 		const normalizedText = text.trimEnd();
 		const normalizedPrefix = literalPrefix.trimEnd();
 		return (
-			Boolean(normalizedPrefix) &&
-			(normalizedPrefix.startsWith(normalizedText) ||
-				normalizedText.startsWith(normalizedPrefix))
+			Boolean(normalizedPrefix) && normalizedPrefix.startsWith(normalizedText)
 		);
 	});
 }

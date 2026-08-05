@@ -191,7 +191,7 @@ export class MacroAutocomplete {
 			);
 		}
 		if (scope === "template" && macroName) {
-			return this.suggestTemplates(macroName, query);
+			return this.suggestTemplates(macroName, query, req);
 		}
 
 		if (startsWithToken(query)) {
@@ -571,7 +571,9 @@ export class MacroAutocomplete {
 		argumentName?: string,
 		allowEmpty = false,
 	): Promise<AutocompleteSuggestion[]> {
-		const search = this.deps.dictionary?.searchExpressionCandidates;
+		const search = this.deps.dictionary?.searchExpressionCandidates?.bind(
+			this.deps.dictionary,
+		);
 		if (!search || (!allowEmpty && !query.trim())) return [];
 		if (!roleName && macroName && argumentName) {
 			const macro = await this.deps.macros.get(macroName);
@@ -625,6 +627,7 @@ export class MacroAutocomplete {
 	private async suggestTemplates(
 		macroName: string,
 		query: string,
+		req?: AutocompleteRequest,
 	): Promise<AutocompleteSuggestion[]> {
 		const macro = await this.deps.macros.get(macroName);
 		if (!macro) return [];
@@ -648,11 +651,16 @@ export class MacroAutocomplete {
 					argumentId: targetArgId,
 				};
 			})
-			.filter(
-				(suggestion) =>
-					Boolean(suggestion.value) &&
-					suggestion.value.toLocaleLowerCase().startsWith(normalizedQuery),
-			)
+			.filter((suggestion) => {
+				if (!suggestion.value) return false;
+				if (
+					suggestion.argumentId &&
+					req?.filledSlots?.includes(suggestion.argumentId)
+				) {
+					return false;
+				}
+				return suggestion.value.toLocaleLowerCase().startsWith(normalizedQuery);
+			})
 			.slice(0, MAX_SUGGESTIONS);
 	}
 }

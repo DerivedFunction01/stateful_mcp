@@ -187,6 +187,30 @@ describe("macro-input-parser", () => {
 		]);
 	});
 
+	test("continues positional inference after a partial template literal", () => {
+		const result = parseMacroLine(
+			"^note My favorite book is hp 2004 10",
+			0,
+			{ definition: NOTE_MACRO },
+		);
+
+		expect(result?.arguments.map((argument) => argument.name)).toEqual([
+			undefined,
+			undefined,
+			undefined,
+		]);
+		expect(result?.arguments.map((argument) => argument.rawValue)).toEqual([
+			"My favorite book is hp",
+			"2004",
+			"10",
+		]);
+		expect(result?.arguments.map((argument) => argument.position)).toEqual([
+			0,
+			2,
+			1,
+		]);
+	});
+
 	test("does not let an invalid named value consume later positional values", () => {
 		const result = parseMacroLine("^note title=2004 2004 60", 0, {
 			definition: NOTE_MACRO,

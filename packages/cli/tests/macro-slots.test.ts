@@ -6,6 +6,7 @@ import {
 } from "@stateful-mcp/clinical";
 import {
 	activeMacroSlot,
+	activeMacroTemplateArgument,
 	applyMacroLocks,
 	lockMacroSlot,
 	nextMacroSlot,
@@ -155,5 +156,18 @@ describe("macro slot CLI integration", () => {
 				status: "locked",
 			},
 		);
+	});
+
+	test("targets an incomplete template slot before value validation", () => {
+		expect(
+			activeMacroTemplateArgument(
+				"^note My favorite book is h",
+				26,
+				NOTE_MACRO,
+			),
+		).toBe("title");
+		expect(
+			activeMacroTemplateArgument("^note My has", 12, NOTE_MACRO),
+		).toBeUndefined();
 	});
 });

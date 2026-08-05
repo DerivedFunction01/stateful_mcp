@@ -46,6 +46,7 @@ export { resolveInspectorKey, resolveKey } from "./keymap";
 export type { MacroLockState, MacroSlotProjection } from "./macro-slots";
 export {
 	activeMacroSlot,
+	activeMacroTemplateArgument,
 	applyMacroLocks,
 	lockMacroSlot,
 	nextMacroSlot,

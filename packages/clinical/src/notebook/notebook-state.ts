@@ -183,31 +183,29 @@ export function reduceNotebookEditor(
 					commandLine: state.commandLine + text,
 					authoredRevision: state.authoredRevision + 1,
 				}
-			: (() => {
-					const lockedAt = state.macroLocks.find(
-						(lock) =>
-							state.cursorOffset >= lock.start && state.cursorOffset < lock.end,
-					);
-					if (lockedAt) {
-						const draftText =
-							state.draftText.slice(0, lockedAt.start) +
-							text +
-							state.draftText.slice(lockedAt.end);
-						return {
-							...state,
-							draftText,
-							cursorOffset: lockedAt.start + text.length,
-							macroLocks: state.macroLocks.filter((lock) => lock !== lockedAt),
-							authoredRevision: state.authoredRevision + 1,
-						};
-					}
+				: (() => {
+					const cursorOffset = state.cursorOffset;
+					const insertedLength = text.length;
+					const macroLocks = state.macroLocks.flatMap((lock) => {
+						// Editing inside a lock invalidates its binding, but insertion at
+						// either boundary remains ordinary text editing.
+						if (cursorOffset > lock.start && cursorOffset < lock.end) return [];
+						if (cursorOffset <= lock.start)
+							return [{
+								...lock,
+								start: lock.start + insertedLength,
+								end: lock.end + insertedLength,
+							}];
+						return [lock];
+					});
 					return {
 						...state,
 						draftText:
-							state.draftText.slice(0, state.cursorOffset) +
+							state.draftText.slice(0, cursorOffset) +
 							text +
-							state.draftText.slice(state.cursorOffset),
-						cursorOffset: state.cursorOffset + text.length,
+							state.draftText.slice(cursorOffset),
+						cursorOffset: cursorOffset + insertedLength,
+						macroLocks,
 						authoredRevision: state.authoredRevision + 1,
 					};
 				})();
@@ -374,14 +372,36 @@ export function reduceNotebookEditor(
 						commandLine: state.commandLine.slice(0, -1),
 						authoredRevision: state.authoredRevision + 1,
 					}
-				: {
+				: (() => {
+					if (state.cursorOffset === 0) return state;
+					const deleteStart = Math.max(0, state.cursorOffset - 1);
+					const deleteEnd = state.cursorOffset;
+					const macroLocks = state.macroLocks.flatMap((lock) => {
+						if (
+							deleteStart < lock.end &&
+							deleteEnd > lock.start
+						)
+							return [];
+						if (lock.start >= deleteEnd)
+							return [
+								{
+									...lock,
+									start: lock.start - 1,
+									end: lock.end - 1,
+								},
+							];
+						return [lock];
+					});
+					return {
 						...state,
 						draftText:
-							state.draftText.slice(0, Math.max(0, state.cursorOffset - 1)) +
-							state.draftText.slice(state.cursorOffset),
-						cursorOffset: Math.max(0, state.cursorOffset - 1),
+							state.draftText.slice(0, deleteStart) +
+							state.draftText.slice(deleteEnd),
+						cursorOffset: deleteStart,
+						macroLocks,
 						authoredRevision: state.authoredRevision + 1,
 					};
+				})();
 		case "set_mode":
 			return setMode(action.mode);
 		case "set_run_mode":

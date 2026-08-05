@@ -13,7 +13,11 @@ import type {
 	WindowOverlayAction,
 } from "../lib/cell-editor";
 import type { CompletionState } from "../lib/editor/completion-state";
-import { activeMacroSlot, nextMacroSlot } from "../lib/editor/macro-slots";
+import {
+	activeMacroSlot,
+	activeMacroTemplateArgument,
+	nextMacroSlot,
+} from "../lib/editor/macro-slots";
 import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { NotebookCommandCatalog } from "../lib/windows/notebook/catalog";
 import { NotebookDocumentPort } from "../lib/windows/notebook/document";
@@ -568,21 +572,34 @@ export function Notebook({
 		message: state.message,
 		macroSuggestions: mergedCandidates,
 		macroSlots: notebook.macroSlots,
-		activeMacroArgumentId: (() => {
-			const activeSlot = activeMacroSlot(
-				notebook.macroSlots,
-				state.mode === "MACRO" ? state.cursorOffset : -1,
-			);
-			if (!activeSlot) return undefined;
-			const isExplicit =
-				activeSlot.status === "locked" ||
-				Boolean(activeSlot.binding) ||
-				activeSlot.bindingSource === "named" ||
-				activeSlot.bindingSource === "friendly" ||
-				activeSlot.bindingSource === "rule" ||
-				activeSlot.bindingSource === "accepted";
-			return isExplicit ? activeSlot.argumentId : undefined;
-		})(),
+			activeMacroArgumentId: (() => {
+				const activeSlot = activeMacroSlot(
+					notebook.macroSlots,
+					state.mode === "MACRO" ? state.cursorOffset : -1,
+				);
+				const isExplicit =
+					activeSlot &&
+					(activeSlot.status === "locked" ||
+						Boolean(activeSlot.binding) ||
+						activeSlot.bindingSource === "named" ||
+						activeSlot.bindingSource === "friendly" ||
+						activeSlot.bindingSource === "rule" ||
+						activeSlot.bindingSource === "accepted");
+				if (activeSlot && isExplicit) return activeSlot.argumentId;
+				const templateArgumentId = activeMacroTemplateArgument(
+					state.draftText,
+					state.mode === "MACRO" ? state.cursorOffset : -1,
+					notebook.activeDefinition,
+					session.v2.syntaxProfile,
+				);
+				return notebook.macroSlots.some(
+					(slot) =>
+						slot.argumentId === templateArgumentId &&
+						(slot.status === "locked" || Boolean(slot.binding)),
+				)
+					? undefined
+					: templateArgumentId;
+			})(),
 		cursorOffset: state.cursorOffset,
 		syntaxProfile: session.v2.syntaxProfile,
 		activeDefinition: notebook.activeDefinition,

@@ -204,7 +204,7 @@ describe("isolated notebook v2 state contract", () => {
 		expect(state.macroLocks).toHaveLength(1);
 	});
 
-	test("typing on a locked slot replaces the whole value atomically", () => {
+	test("typing inside a locked slot inserts plain text and removes its lock", () => {
 		const draftText = "ABCDEFGHIJKLMNOPQRSTUVWX120";
 		const lock = {
 			argumentId: "severity",
@@ -224,8 +224,34 @@ describe("isolated notebook v2 state contract", () => {
 		// Place cursor inside the locked span, then type.
 		state = reduceNotebookEditor(state, { type: "set_cursor", offset: 25 });
 		state = reduceNotebookEditor(state, { type: "append_text", text: "9" });
-		expect(state.draftText).toBe("ABCDEFGHIJKLMNOPQRSTUVWX9");
+		expect(state.draftText).toBe("ABCDEFGHIJKLMNOPQRSTUVWX1920");
 		expect(state.macroLocks).toHaveLength(0);
+		expect(state.cursorOffset).toBe(26);
+	});
+
+	test("typing at the start of a locked slot inserts before it", () => {
+		const draftText = "ABCDEFGHIJKLMNOPQRSTUVWXhp";
+		const lock = {
+			argumentId: "title",
+			macroId: "note",
+			macroVersion: 1,
+			start: 24,
+			end: 26,
+			source: "accepted" as const,
+		};
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "cell_1",
+			mode: "MACRO",
+			text: draftText,
+		});
+		state = reduceNotebookEditor(state, { type: "add_macro_lock", lock });
+		state = reduceNotebookEditor(state, { type: "set_cursor", offset: 24 });
+		state = reduceNotebookEditor(state, { type: "append_text", text: "s" });
+
+		expect(state.draftText).toBe("ABCDEFGHIJKLMNOPQRSTUVWXshp");
+		expect(state.macroLocks).toHaveLength(1);
+		expect(state.macroLocks[0]).toMatchObject({ start: 25, end: 27 });
 		expect(state.cursorOffset).toBe(25);
 	});
 

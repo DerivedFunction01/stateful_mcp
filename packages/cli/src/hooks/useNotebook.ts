@@ -28,6 +28,7 @@ import {
 import { buildCommandDescriptors } from "../lib/editor/command-descriptors";
 import {
 	activeMacroSlot,
+	activeMacroTemplateArgument,
 	applyMacroLocks,
 	type MacroSlotProjection,
 	projectMacroSlots,
@@ -211,6 +212,25 @@ export function useNotebook(
 					macroSlots,
 					state.cursorOffset,
 				);
+				const isConceptSlot = (slot: MacroSlotProjection) => {
+					const argument = activeDefinition?.arguments.find(
+						(candidate) => candidate.argumentId === slot.argumentId,
+					);
+					return (
+						argument?.extraction.kind === "concept" ||
+						argument?.extraction.kind === "concept_array"
+					);
+				};
+				const filledArgumentIds = new Set(
+					macroSlots
+						.filter(
+							(slot) =>
+								slot.status === "locked" ||
+								Boolean(slot.binding) ||
+								(!isConceptSlot(slot) && slot.status !== "invalid"),
+						)
+						.map((slot) => slot.argumentId),
+				);
 				const isExplicitActiveArg =
 					rawActiveProjection &&
 					(rawActiveProjection.status === "locked" ||
@@ -222,6 +242,20 @@ export function useNotebook(
 				const activeProjection = isExplicitActiveArg
 					? rawActiveProjection
 					: undefined;
+				const templateArgumentId = activeMacroTemplateArgument(
+					state.draftText,
+					state.cursorOffset,
+					activeDefinition,
+					session.v2.syntaxProfile,
+				);
+				const templateArgumentIsSatisfied = macroSlots.some(
+					(slot) =>
+						slot.argumentId === templateArgumentId &&
+						(slot.status === "locked" || Boolean(slot.binding)),
+				);
+				const activeArgumentId =
+					activeProjection?.argumentId ??
+					(templateArgumentIsSatisfied ? undefined : templateArgumentId);
 
 				const recommendations = await session.v2.notebook.getAutocomplete({
 					input: state.draftText,
@@ -230,15 +264,14 @@ export function useNotebook(
 					workspaceId: snapshot.record.workspaceId,
 					documentId: snapshot.record.documentId,
 					activeCellId: snapshot.activeCellId,
-					macroId: activeProjection?.macroId,
-					macroVersion: activeProjection?.macroVersion,
-					filledSlots: activeProjection
-						? macroSlots
-								.filter((slot) => slot.argumentId !== activeProjection.argumentId)
-								.map((slot) => slot.argumentId)
-						: [],
-					previousSlot: activeProjection?.argumentId,
-					activeArgumentId: activeProjection?.argumentId,
+					macroId: activeProjection?.macroId ?? activeDefinition?.macroId,
+					macroVersion:
+						activeProjection?.macroVersion ?? activeDefinition?.version,
+					filledSlots: [...filledArgumentIds].filter(
+						(argumentId) => argumentId !== activeArgumentId,
+					),
+					previousSlot: activeArgumentId,
+					activeArgumentId,
 				});
 				if (cancelled) return;
 				setMacroSuggestions(
@@ -288,7 +321,14 @@ export function useNotebook(
 		return () => {
 			cancelled = true;
 		};
-	}, [session, state.mode, state.draftText, state.cursorOffset, macroSlots]);
+	}, [
+		session,
+		state.mode,
+		state.draftText,
+		state.cursorOffset,
+		macroSlots,
+		activeDefinition,
+	]);
 
 	useEffect(() => {
 		let cancelled = false;

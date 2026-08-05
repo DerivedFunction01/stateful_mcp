@@ -250,6 +250,78 @@ async function macroSuggestions(
 		// Only run value suggestions when there is an actual query to filter by.
 		// Empty query in discovery mode is handled by templates + argument names below.
 		const valueSuggestions: CommandSuggestion[] = [];
+		if (!context.activeArgumentId) {
+			const macroBodyStart =
+				profile.macroStartToken.length + macroName.length;
+			const macroBody = input.slice(macroBodyStart);
+			const phraseQuery = macroBody.trim();
+			const leadingWhitespace = macroBody.match(/^\s*/)?.[0] ?? " ";
+			const phraseInsertPrefix =
+				input.slice(0, macroBodyStart) +
+				(leadingWhitespace || " ");
+
+			// Preserve a multi-word prefix while it still matches a template or
+			// expression. If it stops matching, discovery falls back to the last
+			// word below (for example, `My has` -> `has page #`).
+			if (phraseQuery && phraseQuery !== currentWord) {
+				const phraseTemplates = await autocompleter.suggest({
+					query: phraseQuery,
+					scope: "template",
+					macroName,
+					macroId: definition.macroId,
+					macroVersion: definition.version,
+					filledSlots: context.filledSlots,
+				});
+				const phraseValues = await Promise.all(
+					definition.arguments
+						.filter(
+							(argument) =>
+								!context.filledSlots?.includes(argument.argumentId),
+						)
+						.map(async (argument) => ({
+							argument,
+							suggestions: await (
+								autocompleter as any
+							).suggestValueForArgument(argument, phraseQuery),
+						})),
+				);
+				const phraseMatches: CommandSuggestion[] = [
+					...phraseTemplates.map((suggestion) => ({
+						label: suggestion.label,
+						insertText: phraseInsertPrefix + suggestion.value,
+						kind: "value" as const,
+						detail: suggestion.detail,
+						source: "context" as const,
+						sourceKind: suggestion.source,
+						provenance: "template" as const,
+						argumentId: suggestion.argumentId,
+					})),
+					...phraseValues.flatMap(({ argument, suggestions }) => {
+						const isConcept =
+							argument.extraction.kind === "concept" ||
+							argument.extraction.kind === "concept_array";
+						return suggestions.map((suggestion: any) => ({
+							label: suggestion.label,
+							insertText: phraseInsertPrefix + suggestion.value,
+							kind: "value" as const,
+							detail: suggestion.detail,
+							source: "context" as const,
+							sourceKind: suggestion.source,
+							provenance: isConcept
+								? ("expression" as const)
+								: argument.extraction.kind === "scalar"
+									? ("numeric" as const)
+									: ("argument-name" as const),
+							argumentId: argument.argumentId,
+							expressionId: suggestion.expressionId,
+							conceptId: suggestion.conceptId,
+							lookupTerm: suggestion.lookupTerm,
+						}));
+					}),
+				];
+				if (phraseMatches.length > 0) return phraseMatches;
+			}
+		}
 		if (context.activeArgumentId) {
 			if (activeArg) {
 				const suggestions = await (
@@ -315,6 +387,7 @@ async function macroSuggestions(
 				macroName,
 				macroId: definition.macroId,
 				macroVersion: definition.version,
+				filledSlots: context.filledSlots,
 			});
 			for (const suggestion of templateSuggestions) {
 				valueSuggestions.push({
