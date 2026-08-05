@@ -1,6 +1,7 @@
-import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
+import type { CommandSyntaxProfile, MacroDefinition } from "@stateful-mcp/clinical";
 import { CellList } from "../../../components/CellList";
 import { CommandBar } from "../../../components/CommandBar";
+import { MacroEditor } from "../../../components/MacroEditor";
 import { HelpBar } from "../../../components/HelpBar";
 import { StatusBar } from "../../../components/StatusBar";
 import type { CellSuggestion } from "../../../hooks/useNotebook";
@@ -36,6 +37,7 @@ export interface NotebookWindowDeps {
 	cursorOffset?: number;
 	/** Active syntax profile for canonical descriptor/knownVerbs derivation. */
 	syntaxProfile?: CommandSyntaxProfile;
+	activeDefinition?: MacroDefinition | null;
 }
 
 /**
@@ -81,19 +83,39 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				},
 			});
 
-			if (
-				deps.editorState.mode === "COMMAND" ||
-				deps.editorState.mode === "MACRO"
-			) {
+			if (deps.editorState.mode === "MACRO") {
+				const draftText = deps.editorState.draftText;
+				const suggestions = deps.macroSuggestions ?? [];
+				const suggestionIndex =
+					deps.editorState.completion.status === "cycling"
+						? deps.editorState.completion.highlightIndex
+						: -1;
+
+				regions.push({
+					slot: "command",
+					key: "macro-editor",
+					render() {
+						return (
+							<MacroEditor
+								draftText={draftText}
+								cursorOffset={deps.cursorOffset ?? draftText.length}
+								suggestions={suggestions}
+								suggestionIndex={suggestionIndex}
+								macroSlots={deps.macroSlots}
+								activeMacroArgumentId={deps.activeMacroArgumentId}
+								activeDefinition={deps.activeDefinition}
+								showCursor={true}
+							/>
+						);
+					},
+				});
+			} else if (deps.editorState.mode === "COMMAND") {
 				const commandLine = deps.editorState.draftText;
 				const catalogSuggestions = deps.catalog.getSuggestions(
 					commandLine.slice(1),
 					context,
 				);
-				const suggestions =
-					deps.editorState.mode === "MACRO" && deps.macroSuggestions
-						? deps.macroSuggestions
-						: catalogSuggestions;
+				const suggestions = catalogSuggestions;
 				const highlightedCandidate =
 					deps.editorState.completion.status === "cycling"
 						? (deps.editorState.completion.candidates[
@@ -133,7 +155,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								highlightedCandidate={highlightedCandidate}
 								completionPrefix={completionPrefix}
 								knownVerbs={known}
-								showCursor={deps.editorState.mode === "MACRO"}
+								showCursor={false}
 							/>
 						);
 					},

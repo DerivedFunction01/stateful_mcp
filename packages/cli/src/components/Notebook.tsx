@@ -441,10 +441,11 @@ export function Notebook({
 						index: state.cells.length,
 					});
 					notebook.setEditingCell(superseded.cellId);
+					const isMacro = Boolean(superseded.provenance?.macroDefinitionId);
 					dispatch({
 						type: "begin_edit",
 						cellId: superseded.cellId,
-						mode: "INSERT",
+						mode: isMacro ? "MACRO" : "INSERT",
 						text: superseded.authored.rawText,
 					});
 					return;
@@ -452,10 +453,11 @@ export function Notebook({
 				const editableCell = state.cells[state.activeIndex];
 				notebook.setEditingCell(editableCell?.cellId ?? null);
 				if (editableCell) {
+					const isMacro = Boolean(editableCell.provenance?.macroDefinitionId);
 					dispatch({
 						type: "begin_edit",
 						cellId: editableCell.cellId,
-						mode: "INSERT",
+						mode: isMacro ? "MACRO" : "INSERT",
 						text: editableCell.authored.rawText,
 					});
 				}
@@ -569,6 +571,7 @@ export function Notebook({
 		)?.argumentId,
 		cursorOffset: state.cursorOffset,
 		syntaxProfile: session.v2.syntaxProfile,
+		activeDefinition: notebook.activeDefinition,
 	});
 
 	const containerDomain = {

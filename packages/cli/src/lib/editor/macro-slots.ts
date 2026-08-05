@@ -2,6 +2,7 @@ import {
 	parseMacroLine,
 	type MacroArgumentMatch,
 	type MacroDefinition,
+	type MacroCaptureSpan,
 } from "@stateful-mcp/clinical";
 
 export interface MacroSlotProjection {
@@ -27,6 +28,7 @@ export interface MacroSlotProjection {
 	diagnostics: string[];
 	occurrence?: number;
 	formId?: string;
+	captureSpans?: MacroCaptureSpan[];
 }
 
 export interface MacroLockState {
@@ -164,5 +166,6 @@ function toProjection(
 		diagnostics: [],
 		occurrence: match.occurrence,
 		formId: match.formId,
+		captureSpans: match.captureSpans,
 	};
 }

@@ -160,6 +160,15 @@ export function WindowContainer({
 
 		if (current.mode === "MACRO") {
 			if (key.escape) {
+				if (current.completion.status === "cycling") {
+					emit({
+						type: "SET_COMPLETION",
+						completion: { status: "idle" },
+					});
+				}
+				return;
+			}
+			if (key.ctrl && (_input === "c" || _input === "q")) {
 				emit({ type: "CANCEL" });
 				return;
 			}
@@ -172,11 +181,43 @@ export function WindowContainer({
 				return;
 			}
 			if (key.return) {
+				if (current.completion.status === "cycling") {
+					const transition = reduceCompletion(
+						current.completion,
+						{ kind: "enter" },
+						current.draftText,
+						completionProvider || (() => []),
+					);
+					emit({
+						type: "SET_COMPLETION",
+						completion: transition.completionState,
+					});
+					if (transition.executeLine) {
+						emit({
+							type: "COMMIT_COMPLETION",
+							line: transition.executeLine,
+						});
+					}
+					return;
+				}
 				if (macroSlots?.length && onMacroNavigate) {
 					emit({ type: "LOCK_MACRO" });
 					return;
 				}
 				emit({ type: "NEWLINE" });
+				return;
+			}
+			if ((key.upArrow || key.downArrow) && current.completion.status === "cycling" && completionProvider) {
+				const transition = reduceCompletion(
+					current.completion,
+					{ kind: key.upArrow ? "up" : "down" },
+					current.draftText,
+					completionProvider,
+				);
+				emit({
+					type: "SET_COMPLETION",
+					completion: transition.completionState,
+				});
 				return;
 			}
 			if (key.backspace) {
@@ -196,13 +237,45 @@ export function WindowContainer({
 				return;
 			}
 			if (key.tab && completionProvider) {
+				const isCycling = current.completion.status === "cycling";
+				if (isCycling) {
+					const transition = reduceCompletion(
+						current.completion,
+						{ kind: "tab", shift: Boolean(key.shift) },
+						current.draftText,
+						completionProvider,
+					);
+					emit({
+						type: "SET_COMPLETION",
+						completion: transition.completionState,
+					});
+					return;
+				}
 				if (macroSlots?.length && onMacroNavigate) {
 					onMacroNavigate(key.shift ? -1 : 1);
 					return;
 				}
+				// Otherwise start cycling if suggestions exist
+				const partial = current.draftText;
+				const suggestions = completionProvider(partial);
+				if (suggestions.length > 0) {
+					const transition = reduceCompletion(
+						current.completion,
+						{ kind: "tab", shift: Boolean(key.shift) },
+						current.draftText,
+						completionProvider,
+					);
+					emit({
+						type: "SET_COMPLETION",
+						completion: transition.completionState,
+					});
+					return;
+				}
+			}
+			if (_input === " " && current.completion.status === "cycling" && completionProvider) {
 				const transition = reduceCompletion(
 					current.completion,
-					{ kind: "tab", shift: Boolean(key.shift) },
+					{ kind: "space" },
 					current.draftText,
 					completionProvider,
 				);
@@ -210,10 +283,12 @@ export function WindowContainer({
 					type: "SET_COMPLETION",
 					completion: transition.completionState,
 				});
-				if (transition.committedLine)
-					emit({ type: "COMMIT_COMPLETION", line: transition.committedLine });
-				else if (transition.shouldAppend)
-					emit({ type: "INSERT_TEXT", text: transition.shouldAppend });
+				if (transition.committedLine) {
+					emit({
+						type: "COMMIT_COMPLETION",
+						line: transition.committedLine,
+					});
+				}
 				return;
 			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {

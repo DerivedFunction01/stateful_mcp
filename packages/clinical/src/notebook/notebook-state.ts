@@ -108,6 +108,7 @@ export type NotebookEditorAction =
 	| { type: "replace_cell"; cell: StructuredCell }
 	| { type: "set_active"; index: number }
 	| { type: "set_draft"; text: string }
+	| { type: "set_draft_and_cursor"; text: string; cursorOffset: number }
 	| { type: "begin_edit"; cellId: string; mode: "INSERT" | "MACRO"; text: string }
 	| { type: "end_edit" }
 	| { type: "replace_locked_slot"; lock: NotebookMacroLock; text: string }
@@ -247,6 +248,13 @@ export function reduceNotebookEditor(
 				...state,
 				draftText: action.text,
 				cursorOffset: action.text.length,
+				authoredRevision: state.authoredRevision + 1,
+			};
+		case "set_draft_and_cursor":
+			return {
+				...state,
+				draftText: action.text,
+				cursorOffset: action.cursorOffset,
 				authoredRevision: state.authoredRevision + 1,
 			};
 		case "begin_edit":

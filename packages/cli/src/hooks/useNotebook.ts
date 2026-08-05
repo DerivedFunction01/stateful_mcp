@@ -1,6 +1,6 @@
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
-import { parseMacroLine } from "@stateful-mcp/clinical";
+import { parseMacroLine, type MacroDefinition } from "@stateful-mcp/clinical";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
 import {
 	INITIAL__NOTEBOOK_EDITOR_STATE,
@@ -70,6 +70,7 @@ export interface UseNotebookReturn {
 	cancelActive(): Promise<boolean>;
 	moveActive(delta: -1 | 1): Promise<void>;
 	moveSelection(delta: -1 | 1): Promise<void>;
+	activeDefinition: MacroDefinition | null;
 }
 
 export type {
@@ -91,6 +92,7 @@ export function useNotebook(
 		AutocompleteSuggestion[]
 	>([]);
 	const [macroSlots, setMacroSlots] = useState<MacroSlotProjection[]>([]);
+	const [activeDefinition, setActiveDefinition] = useState<MacroDefinition | null>(null);
 	const [commandHistoryCandidates, setCommandHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
 	>([]);
@@ -257,6 +259,7 @@ export function useNotebook(
 		let cancelled = false;
 		if (!session || state.mode !== "MACRO" || !state.draftText) {
 			setMacroSlots([]);
+			setActiveDefinition(null);
 			return () => {
 				cancelled = true;
 			};
@@ -264,6 +267,7 @@ export function useNotebook(
 		const envelope = parseMacroLine(state.draftText);
 		if (!envelope) {
 			setMacroSlots([]);
+			setActiveDefinition(null);
 			return () => {
 				cancelled = true;
 			};
@@ -272,16 +276,21 @@ export function useNotebook(
 			.getRuntime()
 			.macros.defs.get(envelope.macroName)
 			.then((definition) => {
-				if (!cancelled)
+				if (!cancelled) {
+					setActiveDefinition(definition);
 					setMacroSlots(
 						applyMacroLocks(
 							projectMacroSlots(state.draftText, definition),
 							state.macroLocks,
 						),
 					);
+				}
 			})
 			.catch(() => {
-				if (!cancelled) setMacroSlots([]);
+				if (!cancelled) {
+					setMacroSlots([]);
+					setActiveDefinition(null);
+				}
 			});
 		return () => {
 			cancelled = true;
@@ -842,6 +851,7 @@ export function useNotebook(
 		macroSuggestions,
 		macroSlots,
 		macroLocks: state.macroLocks,
+		activeDefinition,
 		unlockActiveMacroSlot,
 		lockActiveMacroSlot,
 		refreshSnapshot,
