@@ -147,6 +147,113 @@ describe(" command-bar autocomplete", () => {
 			expect(suggestions.map((s) => s.label)).toContain("1");
 		});
 
+		it("returns expression suggestions for #h token in discovery mode (no activeArgumentId)", async () => {
+			const def = {
+				macroId: "note",
+				macroName: "note",
+				version: 1,
+				active: true,
+				arguments: [
+					{
+						argumentId: "title",
+						name: "title",
+						roleName: "note.title",
+						extraction: { kind: "concept", patterns: [] },
+					},
+					{
+						argumentId: "page_num",
+						name: "page_num",
+						roleName: "note.page_num",
+						extraction: { kind: "scalar", numericBounds: { min: 1, max: 100 } },
+					},
+				],
+			};
+			const suggestions = await getCommandBarSuggestions(
+				{
+					input: "^note #h",
+					cursorOffset: 8,
+					sessionId: "s1",
+					// No activeArgumentId — discovery mode
+				},
+				{
+					macroStore: {
+						get: async () => def,
+						list: async () => [def],
+					} as any,
+					dictionary: {
+						searchExpressionCandidates: async () => [
+							{
+								id: "expr-hp",
+								term: "Harry Potter",
+								lookupTerm: "hp",
+								conceptId: "c-hp",
+								active: true,
+							},
+							{
+								id: "expr-hg",
+								term: "Hunger Games",
+								lookupTerm: "hg",
+								conceptId: "c-hg",
+								active: true,
+							},
+						],
+					} as any,
+				},
+				defaultProfile,
+			);
+			expect(suggestions.length).toBeGreaterThan(0);
+			expect(suggestions.every((s) => s.provenance === "expression")).toBe(true);
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("Harry Potter");
+			expect(labels).toContain("Hunger Games");
+		});
+
+		it("returns expression suggestions for #h token in gated mode (activeArgumentId = title)", async () => {
+			const def = {
+				macroId: "note",
+				macroName: "note",
+				version: 1,
+				active: true,
+				arguments: [
+					{
+						argumentId: "title",
+						name: "title",
+						roleName: "note.title",
+						extraction: { kind: "concept", patterns: [] },
+					},
+				],
+			};
+			const suggestions = await getCommandBarSuggestions(
+				{
+					input: "^note #h",
+					cursorOffset: 8,
+					sessionId: "s1",
+					activeArgumentId: "title",
+				},
+				{
+					macroStore: {
+						get: async () => def,
+						list: async () => [def],
+					} as any,
+					dictionary: {
+						searchExpressionCandidates: async () => [
+							{
+								id: "expr-hp",
+								term: "Harry Potter",
+								lookupTerm: "hp",
+								conceptId: "c-hp",
+								active: true,
+							},
+						],
+					} as any,
+				},
+				defaultProfile,
+			);
+			expect(suggestions.length).toBeGreaterThan(0);
+			expect(suggestions.every((s) => s.provenance === "expression")).toBe(true);
+			expect(suggestions.map((s) => s.label)).toContain("Harry Potter");
+		});
+
 		it("suggests mixed candidates in collision zone when active slot is none", async () => {
 			const def = {
 				macroId: "note",
