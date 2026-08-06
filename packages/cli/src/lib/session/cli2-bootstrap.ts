@@ -2,10 +2,12 @@ import type {
 	ClinicalProseTemplateStore,
 	CommandHistoryStore,
 	CommandSyntaxProfile,
+	PatientStore,
 	ProseRenderContext,
 	ProseTemplateUsageStore,
 	UnifiedProfileStore,
 } from "@stateful-mcp/clinical";
+import { createPatientRenderContext } from "@stateful-mcp/clinical";
 import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { ClinicalBootstrap } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { createMockCaseIdentity } from "@stateful-mcp/clinical/bootstrap/mock-patient";
@@ -39,6 +41,8 @@ export interface Cli2BootstrapResult {
 	proseTemplateStore: ClinicalProseTemplateStore;
 	proseTemplateUsageStore: ProseTemplateUsageStore;
 	proseRenderContext: ProseRenderContext;
+	patientStore: PatientStore;
+	patient: ReturnType<typeof createMockCaseIdentity>["patient"];
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
 	bootstrapStatus: "created" | "resumed" | "error";
 	bootstrapError?: string;
@@ -123,12 +127,18 @@ export async function buildCli2Bootstrap(
 	const profileStore = stores?.profileStore ?? clinical.stores.profileStore;
 	const commandHistoryStore =
 		stores?.commandHistoryStore ?? clinical.stores.commandHistoryStore;
+	const patientStore = stores?.patientStore ?? clinical.stores.patientStore;
 	const sessionId = await resolveInitialSession(
 		sessionStore,
 		options.sessionId,
 	);
 	const existingSession = await sessionStore.get(sessionId);
 	const caseIdentity = createMockCaseIdentity(sessionId);
+	let patient = await patientStore.get(caseIdentity.patient.id);
+	if (!patient) {
+		patient = caseIdentity.patient;
+		await patientStore.set(patient);
+	}
 	let bootstrapStatus: Cli2BootstrapResult["bootstrapStatus"] = "resumed";
 	let bootstrapError: string | undefined;
 	if (!existingSession) {
@@ -183,6 +193,17 @@ export async function buildCli2Bootstrap(
 			bootstrapError = `CLI2 session '${sessionId}' recovery: ${cause instanceof Error ? cause.message : String(cause)}`;
 		}
 	}
+	if (existingSession?.documentId) {
+		const persistedDocument = await engine.getDocument(
+			existingSession.documentId,
+		);
+		if (persistedDocument) {
+			const persistedPatient = await patientStore.get(
+				persistedDocument.patientId,
+			);
+			if (persistedPatient) patient = persistedPatient;
+		}
+	}
 	const notebook = createNotebookSession({
 		sessionId,
 		engine,
@@ -207,7 +228,12 @@ export async function buildCli2Bootstrap(
 		proseTemplateUsageStore:
 			stores?.proseTemplateUsageStore ??
 			clinical.stores.proseTemplateUsageStore,
-		proseRenderContext: clinical.proseRenderContext,
+		proseRenderContext: createPatientRenderContext(
+			clinical.proseRenderContext,
+			patient,
+		),
+		patientStore,
+		patient,
 		caseIdentity,
 		bootstrapStatus,
 		bootstrapError,

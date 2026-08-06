@@ -183,30 +183,6 @@ export function SoapWorkspace({
 					{message}
 				</Text>
 			</Box>
-			<Box
-				width={32}
-				flexDirection="column"
-				borderStyle="single"
-				borderColor="gray"
-				paddingX={1}
-			>
-				<Text bold color="yellow">
-					ROOT ASSEMBLIES
-				</Text>
-				<Text dimColor>j/k preview Enter confirm</Text>
-				{roots.map((root, index) => (
-					<Text key={root.templateId} inverse={index === rootIndex}>
-						{index === rootIndex ? "▸ " : "  "}
-						{root.templateName}
-					</Text>
-				))}
-				{selectedRoot && (
-					<Text dimColor wrap="truncate">
-						Target: {selectedRoot.targetSchema}
-					</Text>
-				)}
-				<Text dimColor>Esc cancels preview</Text>
-			</Box>
 		</Box>
 	);
 }

@@ -308,8 +308,8 @@ export function WindowContainer({
 			}
 			return;
 		}
-		// Alt+1..3 switch the right-hand sidebar activity bar view.
-		if (key.meta && _input.length === 1 && _input >= "1" && _input <= "3") {
+		// Alt+1..5 switch the right-hand sidebar activity bar view.
+		if (key.meta && _input.length === 1 && _input >= "1" && _input <= "5") {
 			const tab = sidebarTabForAlt(_input);
 			if (tab) {
 				emit({ type: "SET_SIDEBAR_TAB", tab });

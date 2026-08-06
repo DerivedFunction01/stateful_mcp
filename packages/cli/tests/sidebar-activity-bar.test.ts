@@ -13,19 +13,22 @@ describe("sidebar activity bar", () => {
 			"branches",
 			"slots",
 			"history",
+			"patient",
+			"soap",
 		]);
 	});
 
-	test("maps Alt+1 through Alt+3 to manual views", () => {
+	test("maps Alt+1 through Alt+5 to manual views", () => {
 		expect(sidebarTabForAlt("1")).toBe("branches");
 		expect(sidebarTabForAlt("2")).toBe("slots");
 		expect(sidebarTabForAlt("3")).toBe("history");
-		expect(sidebarTabForAlt("4")).toBeNull();
+		expect(sidebarTabForAlt("4")).toBe("patient");
+		expect(sidebarTabForAlt("5")).toBe("soap");
 	});
 
-	test("cycles manual views without an automatic context tab", () => {
+	test("cycles all contextual views", () => {
 		expect(nextSidebarTab("branches")).toBe("slots");
-		expect(nextSidebarTab("history")).toBe("branches");
-		expect(nextSidebarTab("branches", -1)).toBe("history");
+		expect(nextSidebarTab("history")).toBe("patient");
+		expect(nextSidebarTab("branches", -1)).toBe("soap");
 	});
 });

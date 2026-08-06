@@ -51,6 +51,9 @@ import { SqlMacroStore } from "../macros/sql-macro-store";
 import { KvNotebookSessionStore } from "../notebook/kv-notebook-session-store";
 import type { NotebookSessionStore } from "../notebook/notebook-session-store";
 import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store";
+import type { PatientStore } from "../stores/patients/interfaces";
+import { KvPatientStore } from "../stores/patients/kv-patient-store";
+import { SqlPatientStore } from "../stores/patients/sql-patient-store";
 import { KvProfileStore } from "../stores/profiles/kv-profile-store";
 import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
 import { SqlProfileStore } from "../stores/profiles/sql-profile-store";
@@ -90,6 +93,7 @@ export interface StoreBuilderResult {
 	systemWeightStore: SystemWeightStore;
 	proseTemplateStore: ClinicalProseTemplateStore;
 	proseTemplateUsageStore: ProseTemplateUsageStore;
+	patientStore: PatientStore;
 }
 
 export class StoreBuilder {
@@ -140,6 +144,7 @@ async function createMemoryStores(): Promise<StoreBuilderResult> {
 		systemWeightStore: new KvBackendSystemWeightStore(backend),
 		proseTemplateStore: new KvClinicalProseTemplateStore(backend),
 		proseTemplateUsageStore: new KvClinicalProseTemplateUsageStore(backend),
+		patientStore: new KvPatientStore(backend),
 	};
 }
 
@@ -170,6 +175,7 @@ async function createJsonlStores(
 		systemWeightStore: new KvBackendSystemWeightStore(backend),
 		proseTemplateStore: new KvClinicalProseTemplateStore(backend),
 		proseTemplateUsageStore: new KvClinicalProseTemplateUsageStore(backend),
+		patientStore: new KvPatientStore(backend),
 	};
 }
 
@@ -197,6 +203,7 @@ async function createSqliteStores(dbPath: string): Promise<StoreBuilderResult> {
 			dialect,
 			executor,
 		),
+		patientStore: new SqlPatientStore(backend, executor),
 	};
 }
 

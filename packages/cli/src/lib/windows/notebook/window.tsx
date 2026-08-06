@@ -82,6 +82,8 @@ export interface NotebookWindowDeps {
 	workspaceError?: string | null;
 	workspaceFocused?: boolean;
 	soapContent?: ReactElement | null;
+	patientSidebarContent?: ReactElement | null;
+	soapSidebarContent?: ReactElement | null;
 }
 
 /**
@@ -235,6 +237,14 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							branchDetail
 						) : sidebarTab === "slots" ? (
 							<MacroDetailPanel {...macroEditorProps} />
+						) : sidebarTab === "patient" ? (
+							(deps.patientSidebarContent ?? (
+								<Text color="gray">Patient search unavailable</Text>
+							))
+						) : sidebarTab === "soap" ? (
+							(deps.soapSidebarContent ?? (
+								<Text color="gray">SOAP templates unavailable</Text>
+							))
 						) : deps.activeHistoryCell ? (
 							<HistoryDetailPanel cell={deps.activeHistoryCell} />
 						) : (
@@ -323,6 +333,14 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							snapshot={deps.workspaceSnapshot ?? null}
 							activeBranchId={deps.selectedBranchId ?? undefined}
 						/>
+					) : sidebarTab === "patient" ? (
+						(deps.patientSidebarContent ?? (
+							<Text color="gray">Patient search unavailable</Text>
+						))
+					) : sidebarTab === "soap" ? (
+						(deps.soapSidebarContent ?? (
+							<Text color="gray">SOAP templates unavailable</Text>
+						))
 					) : sidebarTab === "history" ? (
 						<Box padding={1}>
 							<Text color="gray">No active history entry</Text>

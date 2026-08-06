@@ -4,7 +4,12 @@ import type { CompletionState } from "./completion-state";
 export type CellEditorMode = EditorMode;
 
 /** Right-hand sidebar activity bar views. */
-export type SidebarViewTab = "branches" | "slots" | "history";
+export type SidebarViewTab =
+	| "branches"
+	| "slots"
+	| "history"
+	| "patient"
+	| "soap";
 
 export interface EditorKernelState {
 	mode: CellEditorMode;

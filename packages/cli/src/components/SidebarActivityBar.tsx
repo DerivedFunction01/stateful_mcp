@@ -34,6 +34,20 @@ export const SIDEBAR_TABS: readonly SidebarTabMeta[] = [
 		label: "History & Journal",
 		altKey: "3",
 	},
+	{
+		id: "patient",
+		index: 3,
+		icon: "P",
+		label: "Patient Search",
+		altKey: "4",
+	},
+	{
+		id: "soap",
+		index: 4,
+		icon: "S",
+		label: "SOAP Templates",
+		altKey: "5",
+	},
 ];
 
 export const DEFAULT_SIDEBAR_TAB: SidebarViewTab = "branches";

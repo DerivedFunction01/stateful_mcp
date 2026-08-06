@@ -35,6 +35,7 @@ import { PreviewScreen } from "./PreviewScreen";
 import { RapidScratchpadOverlay } from "./RapidScratchpadOverlay";
 import { INITIAL_SEARCH_STATE, searchReducer } from "./SearchOverlay";
 import { DEFAULT_SIDEBAR_TAB, type SidebarViewTab } from "./SidebarActivityBar";
+import { PatientSidebar, SoapTemplateSidebar } from "./SoapSidebar";
 import { SoapWorkspace } from "./SoapWorkspace";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
@@ -1012,6 +1013,13 @@ export function Notebook({
 				usageStore={session.v2.proseTemplateUsageStore}
 			/>
 		) : null,
+		patientSidebarContent: session ? (
+			<PatientSidebar
+				store={session.v2.patientStore}
+				activePatient={session.v2.patient}
+			/>
+		) : null,
+		soapSidebarContent: <SoapTemplateSidebar templates={soapTemplates} />,
 	});
 
 	const containerDomain = {
