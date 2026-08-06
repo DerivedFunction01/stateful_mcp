@@ -32,21 +32,21 @@ function classify(action: ClinicalAction): Classification {
 		case ClinicalAction.MoveDown:
 			return { document: { type: "move", delta: 1 } };
 		case ClinicalAction.InsertBelow:
-			return { document: { type: "insertBelow" } };
+			return { generic: "ENTER_MACRO" };
 		case ClinicalAction.InsertAbove:
-			return { document: { type: "insertAbove" } };
+			return { generic: "ENTER_MACRO" };
 		case ClinicalAction.DeleteCell:
-			return { document: { type: "deleteActive" } };
+			return {};
 		case ClinicalAction.YankCell:
-			return { document: { type: "yankActive" } };
+			return {};
 		case ClinicalAction.PasteCell:
-			return { document: { type: "paste" } };
+			return {};
 		case ClinicalAction.PasteCellAbove:
-			return { document: { type: "pasteAbove" } };
+			return {};
 		case ClinicalAction.Undo:
 			return { document: { type: "undo" } };
 		case ClinicalAction.Redo:
-			return { document: { type: "redo" } };
+			return {};
 		case ClinicalAction.EnterVisualMode:
 			return { document: { type: "enterVisual" } };
 		case ClinicalAction.ExtendSelectionDown:
@@ -56,19 +56,19 @@ function classify(action: ClinicalAction): Classification {
 		case ClinicalAction.SwapSelectionAnchor:
 			return { document: { type: "swapAnchor" } };
 		case ClinicalAction.DeleteSelection:
-			return { document: { type: "deleteSelection" } };
+			return {};
 		case ClinicalAction.YankSelection:
-			return { document: { type: "yankSelection" } };
+			return {};
 		case ClinicalAction.PrevError:
 			return { document: { type: "prevError" } };
 		case ClinicalAction.NextError:
 			return { document: { type: "nextError" } };
 		case ClinicalAction.RunCell:
-			return { domain: { type: "run" } };
+			return {};
 		case ClinicalAction.PreviewCell:
-			return { domain: { type: "preview" } };
+			return {};
 		case ClinicalAction.EnterInsertMode:
-			return { generic: "ENTER_INSERT" };
+			return { generic: "ENTER_MACRO" };
 		case ClinicalAction.ExitInsertMode:
 			return { generic: "CANCEL" };
 		case ClinicalAction.ExitVisualMode:
@@ -82,7 +82,7 @@ function classify(action: ClinicalAction): Classification {
 		case ClinicalAction.OpenWorkspace:
 			return { domain: { type: "openWorkspace" } };
 		case ClinicalAction.Info:
-			return { domain: { type: "showInfo" } };
+			return {};
 		case ClinicalAction.Quit:
 			return { domain: { type: "quit" } };
 		case ClinicalAction.Search:

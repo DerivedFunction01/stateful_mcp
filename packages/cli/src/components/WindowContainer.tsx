@@ -230,33 +230,7 @@ export function WindowContainer({
 		if (current.showHelp || overlay) return;
 
 		if (current.mode === "INSERT" && current.commandKind !== "macro") {
-			if (key.escape) {
-				emit({ type: "CANCEL" });
-				return;
-			}
-			if (key.return) {
-				emit({ type: "NEWLINE" });
-				return;
-			}
-			if (key.backspace) {
-				emit({ type: "BACKSPACE" });
-				return;
-			}
-			if (key.leftArrow || key.rightArrow) {
-				emit({ type: "MOVE_CURSOR", delta: key.leftArrow ? -1 : 1 });
-				return;
-			}
-			if (key.home) {
-				emit({ type: "CURSOR_HOME" });
-				return;
-			}
-			if (key.end) {
-				emit({ type: "CURSOR_END" });
-				return;
-			}
-			if (_input.length === 1 && !key.ctrl && !key.meta) {
-				emit({ type: "INSERT_TEXT", text: _input });
-			}
+			emit({ type: key.escape ? "CANCEL" : "ENTER_MACRO" });
 			return;
 		}
 
@@ -279,6 +253,7 @@ export function WindowContainer({
 						completion: { status: "idle" },
 					});
 				}
+				emit({ type: "CANCEL" });
 				return;
 			}
 			if (key.ctrl && (_input === "c" || _input === "q")) {
@@ -379,7 +354,7 @@ export function WindowContainer({
 				});
 				return;
 			}
-			if (_input === "d") {
+			if (_input === "d" || _input === "c") {
 				emit({ type: "DELETE_VISUAL" });
 				return;
 			}

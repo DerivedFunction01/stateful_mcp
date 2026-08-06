@@ -85,6 +85,8 @@ export type MacroAuthoringAction =
 			type: "inspection_resolved";
 			definition?: MacroDefinition;
 			childDefinitions?: MacroDefinition[];
+			slots?: MacroSlotProjection[];
+			authoringPreview?: MacroAuthoringRender;
 	  }
 	| { type: "submit" };
 
@@ -238,7 +240,23 @@ export class MacroAuthoringSession {
 					definition: action.definition,
 					childDefinitions: action.childDefinitions ?? [],
 				};
-				this.recomputeProjections();
+				if (action.slots) {
+					this.snapshot = {
+						...this.snapshot,
+						mode: "macro",
+						slots: action.slots,
+						statuses: action.definition
+							? getMacroArgumentStatuses(action.definition, action.slots)
+							: [],
+						authoringPreview: action.authoringPreview,
+						activeArgumentId: activeMacroSlot(
+							action.slots,
+							this.snapshot.cursorOffset,
+						)?.argumentId,
+					};
+				} else {
+					this.recomputeProjections();
+				}
 				break;
 			}
 			case "lock_active": {

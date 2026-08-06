@@ -79,31 +79,14 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 									? "NORMAL"
 									: deps.editorState.mode
 							}
-							draftText={
-								deps.editorState.mode === "INSERT" &&
-								deps.editorState.commandKind !== "macro"
-									? deps.editorState.draftText
-									: ""
-							}
-							lastEditCellId={deps.lastEditCellId}
 							visualStart={view.selection?.start ?? 0}
 							visualEnd={view.selection?.end ?? 0}
-							cellSuggestions={deps.cellSuggestions ?? []}
-							macroSlots={deps.macroSlots}
-							activeMacroArgumentId={deps.activeMacroArgumentId}
-							cursorOffset={deps.cursorOffset}
 						/>
 					);
 				},
 			});
 
-			if (
-				deps.editorState.mode === "MACRO" ||
-				(deps.editorState.mode === "INSERT" &&
-					deps.editorState.commandKind === "macro") ||
-				(deps.editorState.mode === "VISUAL" &&
-					deps.editorState.commandKind === "macro")
-			) {
+			if (deps.editorState.mode !== "COMMAND") {
 				const draftText = deps.editorState.draftText;
 				const matchedTemplateIndex = deps.macroSlots
 					?.find((slot) => slot.formId?.startsWith("template:"))
@@ -170,7 +153,10 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 										? deps.editorState.visualEnd
 										: undefined
 								}
-								showCursor={true}
+								showCursor={
+									deps.editorState.mode === "INSERT" &&
+									deps.editorState.commandKind === "macro"
+								}
 							/>
 						);
 					},

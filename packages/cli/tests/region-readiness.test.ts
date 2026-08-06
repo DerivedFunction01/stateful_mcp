@@ -38,12 +38,12 @@ function slotsOf(def: WindowDefinition): WindowSlot[] {
 }
 
 describe("Phase P5 — region/registry readiness", () => {
-	test("notebook window has primary/status/footer slots in NORMAL mode", () => {
+	test("notebook window keeps the Macro editor mounted in NORMAL mode", () => {
 		const slots = slotsOf(stubNotebook());
 		expect(slots).toContain("primary");
 		expect(slots).toContain("status");
 		expect(slots).toContain("footer");
-		expect(slots).not.toContain("command");
+		expect(slots).toContain("command");
 	});
 
 	test("notebook window includes command slot in COMMAND mode", () => {
@@ -51,14 +51,14 @@ describe("Phase P5 — region/registry readiness", () => {
 		expect(slots).toContain("command");
 	});
 
-	test("notebook window excludes command slot in INSERT mode", () => {
+	test("notebook window keeps the Macro editor mounted in INSERT mode", () => {
 		const slots = slotsOf(stubNotebook({ mode: "INSERT" }));
-		expect(slots).not.toContain("command");
+		expect(slots).toContain("command");
 	});
 
-	test("notebook window excludes command slot in VISUAL mode", () => {
+	test("notebook window keeps the Macro editor mounted in VISUAL mode", () => {
 		const slots = slotsOf(stubNotebook({ mode: "VISUAL" }));
-		expect(slots).not.toContain("command");
+		expect(slots).toContain("command");
 	});
 
 	test("plan window adds a sidebar slot with no container change required", () => {

@@ -113,6 +113,22 @@ describe("isolated notebook v2 state contract", () => {
 		expect(state.visualEnd).toBe(11);
 	});
 
+	test("leaving Macro INSERT preserves the editor buffer for NORMAL mode", () => {
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "macro-persistent",
+			mode: "INSERT",
+			commandKind: "macro",
+			text: "^note title=Example",
+		});
+		state = reduceNotebookEditor(state, { type: "end_edit" });
+		state = reduceNotebookEditor(state, { type: "set_mode", mode: "NORMAL" });
+
+		expect(state.mode).toBe("NORMAL");
+		expect(state.draftText).toBe("^note title=Example");
+		expect(state.inputLock).toBeNull();
+	});
+
 	test("append_text in insert mode builds draft text and marks dirty", () => {
 		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
 			type: "set_cells",

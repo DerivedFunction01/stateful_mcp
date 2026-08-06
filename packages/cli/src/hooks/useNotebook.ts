@@ -245,6 +245,7 @@ export function useNotebook(
 					type: "inspection_resolved",
 					definition: inspection.definition,
 					childDefinitions: inspection.childDefinitions,
+					slots: inspection.slots,
 				});
 			})
 			.catch(() => {
@@ -330,6 +331,20 @@ export function useNotebook(
 
 	const commitMacro = useCallback(async () => {
 		if (!session || !isMacroAuthoring) return;
+		macroSessionRef.current?.dispatch({
+			type: "set_text",
+			text: state.draftText,
+			cursorOffset: state.cursorOffset,
+		});
+		if (activeDefinition) {
+			macroSessionRef.current?.dispatch({
+				type: "inspection_resolved",
+				definition: activeDefinition,
+				childDefinitions,
+				slots: macroSlots,
+			});
+		}
+		macroSessionRef.current?.setExecutablePreview(macroDraftPreview);
 		const finalized = macroSessionRef.current?.finalize();
 		if (!finalized || !finalized.ok) {
 			dispatch({
@@ -372,7 +387,17 @@ export function useNotebook(
 				message: error instanceof Error ? error.message : String(error),
 			});
 		}
-	}, [session, state.mode, state.cells]);
+	}, [
+		session,
+		state.mode,
+		state.cells,
+		state.draftText,
+		state.cursorOffset,
+		activeDefinition,
+		childDefinitions,
+		macroSlots,
+		macroDraftPreview,
+	]);
 
 	const reverseActiveMacro = useCallback(async () => {
 		if (!session) return;

@@ -291,12 +291,6 @@ export function Notebook({
 	const documentPort = useMemo(
 		() =>
 			new NotebookDocumentPort(state, dispatch, {
-				insertBelow: () => {
-					void notebook.insertBelow();
-				},
-				insertAbove: () => {
-					void notebook.insertAbove();
-				},
 				nextError: notebook.nextErrorIndex,
 				prevError: notebook.prevErrorIndex,
 				deleteActive: () => {
@@ -490,52 +484,13 @@ export function Notebook({
 	const onEditorAction = async (action: EditorAction) => {
 		switch (action.type) {
 			case "ENTER_INSERT": {
-				const cell = state.cells[state.activeIndex];
-				if (cell?.authored.finalizedMacro) {
-					notebook.setEditingCell(null);
-					dispatch({
-						type: "begin_edit",
-						cellId: "macro-rerun",
-						mode: "INSERT",
-						commandKind: "macro",
-						text: cell.authored.finalizedMacro.authoredText,
-					});
-					return;
-				}
-				if (cell && cell.lifecycle.status === "committed") {
-					const superseded = await notebook.supersedeActiveCell();
-					if (!superseded) return;
-					dispatch({
-						type: "set_cells",
-						cells: [...state.cells, superseded],
-					});
-					dispatch({
-						type: "set_active",
-						index: state.cells.length,
-					});
-					notebook.setEditingCell(superseded.cellId);
-					const isMacro = Boolean(superseded.provenance?.macroDefinitionId);
-					dispatch({
-						type: "begin_edit",
-						cellId: superseded.cellId,
-						mode: "INSERT",
-						commandKind: isMacro ? "macro" : "direct",
-						text: superseded.authored.rawText,
-					});
-					return;
-				}
-				const editableCell = state.cells[state.activeIndex];
-				notebook.setEditingCell(editableCell?.cellId ?? null);
-				if (editableCell) {
-					const isMacro = Boolean(editableCell.provenance?.macroDefinitionId);
-					dispatch({
-						type: "begin_edit",
-						cellId: editableCell.cellId,
-						mode: "INSERT",
-						commandKind: isMacro ? "macro" : "direct",
-						text: editableCell.authored.rawText,
-					});
-				}
+				dispatch({
+					type: "begin_edit",
+					cellId: "macro-input",
+					mode: "INSERT",
+					commandKind: "macro",
+					text: state.draftText || session.v2.syntaxProfile.macroStartToken,
+				});
 				return;
 			}
 			case "ENTER_COMMAND":
@@ -551,7 +506,7 @@ export function Notebook({
 					cellId: state.cells[state.activeIndex]?.cellId ?? "macro-input",
 					mode: "INSERT",
 					commandKind: "macro",
-					text: session.v2.syntaxProfile.macroStartToken,
+					text: state.draftText || session.v2.syntaxProfile.macroStartToken,
 				});
 				return;
 			case "INSERT_TEXT":
@@ -652,9 +607,6 @@ export function Notebook({
 				if (state.mode === "VISUAL" && state.commandKind === "macro") {
 					dispatch({ type: "set_mode", mode: "INSERT" });
 					return;
-				}
-				if (state.mode === "INSERT" && !isMacroAuthoring) {
-					await notebook.commitEditorDraft();
 				}
 				dispatch({ type: "end_edit" });
 				dispatch({ type: "set_mode", mode: "NORMAL" });

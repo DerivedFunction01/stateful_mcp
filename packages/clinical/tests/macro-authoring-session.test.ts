@@ -3,6 +3,7 @@ import type { SyntaxProfile } from "../src";
 import { VITALS_MACRO } from "../src/macros/default-macros";
 import { MacroAuthoringSession } from "../src/macros/macro-authoring-session";
 import type { MacroExecutionPlan } from "../src/macros/macro-plan";
+import type { MacroSlotProjection } from "../src/macros/macro-slots";
 
 const profile: SyntaxProfile = {
 	profileId: "test",
@@ -101,6 +102,54 @@ describe("MacroAuthoringSession", () => {
 		expect(Object.isFrozen(result)).toBe(true);
 		expect(Object.isFrozen(result.bindings)).toBe(true);
 		expect(Object.isFrozen(result.plan)).toBe(true);
+	});
+
+	test("uses the inspected authoring projection when its syntax differs from the parser", () => {
+		const text = "^vitals [72] [120/80] [16]";
+		const slot = (
+			argumentId: string,
+			rawText: string,
+			start: number,
+		): MacroSlotProjection => ({
+			macroId: VITALS_MACRO.macroId,
+			macroVersion: VITALS_MACRO.version,
+			argumentId,
+			roleName: `vitals.${argumentId}`,
+			start,
+			end: start + rawText.length,
+			rawText,
+			displayText: rawText,
+			bindingSource: "friendly",
+			status: "bound",
+			diagnostics: [],
+		});
+		const session = new MacroAuthoringSession({ profile, initialText: text });
+		session.dispatch({
+			type: "inspection_resolved",
+			definition: VITALS_MACRO,
+			slots: [
+				slot("heart_rate", "72", text.indexOf("72")),
+				slot("blood_pressure", "120/80", text.indexOf("120/80")),
+				slot("respiration", "16", text.indexOf("16")),
+			],
+		});
+		session.setExecutablePreview({
+			status: "valid",
+			macroName: "vitals",
+			macroId: VITALS_MACRO.macroId,
+			macroVersion: VITALS_MACRO.version,
+			plan: plan(),
+			diagnostics: [],
+		});
+
+		const result = session.finalize();
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.bindings.map((binding) => binding.rawValue)).toEqual([
+			"72",
+			"120/80",
+			"16",
+		]);
 	});
 
 	test("rejects incomplete authoring without a finalized plan", () => {

@@ -16,11 +16,28 @@ describe("NotebookKeymapPolicy", () => {
 		});
 	});
 
-	test("NORMAL i resolves to generic enter-insert", () => {
+	test("NORMAL i resolves to the transient Macro editor", () => {
 		expect(policy.resolve("i", {}, "NORMAL", "")).toEqual({
 			kind: "generic",
-			action: { type: "ENTER_INSERT" },
+			action: { type: "ENTER_MACRO" },
 		});
+	});
+
+	test("NORMAL o and O open the transient Macro editor instead of cells", () => {
+		expect(policy.resolve("o", {}, "NORMAL", "")).toEqual({
+			kind: "generic",
+			action: { type: "ENTER_MACRO" },
+		});
+		expect(policy.resolve("O", {}, "NORMAL", "")).toEqual({
+			kind: "generic",
+			action: { type: "ENTER_MACRO" },
+		});
+	});
+
+	test("cell run, preview, and info keys are inert", () => {
+		expect(policy.resolve("r", {}, "NORMAL", "").kind).toBe("none");
+		expect(policy.resolve("P", {}, "NORMAL", "").kind).toBe("none");
+		expect(policy.resolve("I", {}, "NORMAL", "").kind).toBe("none");
 	});
 
 	test("NORMAL ':' resolves to generic enter-command", () => {
@@ -48,19 +65,12 @@ describe("NotebookKeymapPolicy", () => {
 			nextPending: "d",
 		});
 		const second = policy.resolve("d", {}, "NORMAL", "d");
-		// dd deletes the active cell.
-		expect(second.kind).toBe("document");
-		if (second.kind === "document") {
-			expect(second.action.type).toBe("deleteActive");
-		}
+		expect(second.kind).toBe("none");
 	});
 
-	test("r resolves to domain run", () => {
+	test("r is inert because cells are history records", () => {
 		const result = policy.resolve("r", {}, "NORMAL", "");
-		expect(result.kind).toBe("domain");
-		if (result.kind === "domain") {
-			expect(result.action.type).toBe("run");
-		}
+		expect(result.kind).toBe("none");
 	});
 
 	test("[e and ]e resolve to error-navigation document actions", () => {
@@ -74,26 +84,15 @@ describe("NotebookKeymapPolicy", () => {
 		});
 	});
 
-	test("INSERT char resolves to generic insert-text", () => {
+	test("INSERT without a Macro command kind does not edit a cell", () => {
 		const result = policy.resolve("x", {}, "INSERT", "");
-		expect(result.kind).toBe("generic");
-		expect(result).toEqual({
-			kind: "generic",
-			action: { type: "INSERT_TEXT", text: "x" },
-		});
+		expect(result.kind).toBe("none");
 	});
 
-	test("INSERT Enter remains newline regardless of Ctrl modifier", () => {
-		expect(policy.resolve("\r", { return: true }, "INSERT", "")).toEqual({
-			kind: "generic",
-			action: { type: "INSERT_TEXT", text: "\n" },
-		});
-		expect(
-			policy.resolve("\r", { return: true, ctrl: true }, "INSERT", ""),
-		).toEqual({
-			kind: "generic",
-			action: { type: "INSERT_TEXT", text: "\n" },
-		});
+	test("INSERT Enter does not submit or edit a cell without Macro context", () => {
+		expect(policy.resolve("\r", { return: true }, "INSERT", "").kind).toBe(
+			"none",
+		);
 	});
 
 	test("MACRO Enter resolves to submit-macro", () => {

@@ -6,8 +6,8 @@ import type { DocumentAction, DocumentPort, DocumentView } from "../../editor";
 
 export interface NotebookDocumentDeps {
 	/** Insert a new cell below/above the active cell (session-aware). */
-	insertBelow(): void;
-	insertAbove(): void;
+	insertBelow?(): void;
+	insertAbove?(): void;
 	nextError?(): number | null;
 	prevError?(): number | null;
 	deleteActive?(): void;
@@ -70,7 +70,6 @@ export class NotebookDocumentPort implements DocumentPort {
 			action.type === "pasteAbove" ||
 			action.type === "deleteSelection" ||
 			action.type === "yankSelection" ||
-			action.type === "enterVisual" ||
 			action.type === "undo" ||
 			action.type === "redo"
 		);
@@ -86,10 +85,10 @@ export class NotebookDocumentPort implements DocumentPort {
 			case "setActive":
 				return { type: "set_active", index: action.index };
 			case "insertBelow":
-				this.deps?.insertBelow();
+				this.deps?.insertBelow?.();
 				return null;
 			case "insertAbove":
-				this.deps?.insertAbove();
+				this.deps?.insertAbove?.();
 				return null;
 			case "deleteActive":
 				this.deps?.deleteActive?.();

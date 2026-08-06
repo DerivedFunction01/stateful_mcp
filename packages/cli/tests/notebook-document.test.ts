@@ -191,6 +191,6 @@ describe("NotebookDocumentPort", () => {
 		port.dispatch({ type: "deleteActive" });
 		port.dispatch({ type: "enterVisual" });
 		expect(called).toBe(false);
-		expect(actions).toEqual([]);
+		expect(actions).toEqual([{ type: "set_mode", mode: "VISUAL" }]);
 	});
 });
