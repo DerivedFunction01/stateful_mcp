@@ -1,6 +1,11 @@
 import type { BranchStatus } from "../../commands/command-syntax-profile";
 import type { ScoreMeasurement } from "./measurement";
-import type { AnatomicalLocation, Certainty, CodeableConcept } from "./shared";
+import type {
+	AnatomicalLocation,
+	Certainty,
+	CodeableConcept,
+} from "./shared";
+import type { ClinicalObservationFinding } from "./observation";
 import type { ClinicalDateRange } from "./time";
 
 export const ALGORITHMIC_EVALUATION_TYPES = [
@@ -92,8 +97,8 @@ export interface DifferentialDiagnosisEntry {
 	rank: number;
 	diagnosis: CodeableConcept;
 	confidence: Certainty;
-	supportingConcepts?: CodeableConcept[];
-	refutingConcepts?: CodeableConcept[];
+	supportingConcepts?: Array<ClinicalObservationFinding | CodeableConcept>;
+	refutingConcepts?: Array<ClinicalObservationFinding | CodeableConcept>;
 	relatedMedications?: CodeableConcept[];
 	anatomyLocations?: AnatomicalLocation[];
 	dateRange?: ClinicalDateRange;

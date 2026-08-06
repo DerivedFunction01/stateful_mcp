@@ -18,6 +18,7 @@ import type {
 import type { WorkspaceService } from "../workspaces/workspace-service";
 import type { WorkspaceAggregate } from "../workspaces/workspace-types";
 import type { WorkspaceViewService } from "../workspaces/workspace-view-state";
+import type { ConceptLookup } from "../values/concept-value";
 import type { ClinicalRuntime } from "./clinical-runtime-v2";
 
 export interface ExecutionResult {
@@ -54,6 +55,10 @@ export class ClinicalEngine {
 
 	getRuntime(): ClinicalRuntime {
 		return this.runtime;
+	}
+
+	getConceptLookup(): ConceptLookup {
+		return this.runtime.macros.dictionary;
 	}
 
 	getWorkspaceService(): WorkspaceService {

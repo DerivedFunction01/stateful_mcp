@@ -1,7 +1,9 @@
 import {
 	type BranchStatus,
 	type CommandSyntaxProfile,
+	type ConceptLookup,
 	DIRECT_VERB_TO_BRANCH_STATUS,
+	resolveConceptValue,
 } from "@stateful-mcp/clinical";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 
@@ -196,6 +198,49 @@ export function parseShorthandLine(
 		supportingFindings,
 		refutingFindings,
 	};
+}
+
+export async function resolveShorthandLine(
+	line: string,
+	syntaxProfile?: CommandSyntaxProfile,
+	conceptLookup?: ConceptLookup,
+): Promise<ParsedDifferentialLine> {
+	const parsed = parseShorthandLine(line, syntaxProfile);
+	if (!conceptLookup || !parsed.rawInput) return parsed;
+
+	const resolveText = async (text: string) => {
+		try {
+			const res = await resolveConceptValue(text, conceptLookup);
+			if (res.value?.concept) {
+				return { display: res.value.concept.display, conceptId: res.value.concept.conceptId };
+			}
+		} catch {}
+		return { display: text, conceptId: undefined };
+	};
+
+	const hypRes = await resolveText(parsed.conceptDisplay);
+	if (hypRes.conceptId) {
+		parsed.conceptDisplay = hypRes.display;
+		parsed.conceptId = hypRes.conceptId;
+	}
+
+	for (const item of parsed.supportingFindings) {
+		const itemRes = await resolveText(item.display);
+		if (itemRes.conceptId) {
+			item.display = itemRes.display;
+			item.conceptId = itemRes.conceptId;
+		}
+	}
+
+	for (const item of parsed.refutingFindings) {
+		const itemRes = await resolveText(item.display);
+		if (itemRes.conceptId) {
+			item.display = itemRes.display;
+			item.conceptId = itemRes.conceptId;
+		}
+	}
+
+	return parsed;
 }
 
 export interface DeduplicatedLine {

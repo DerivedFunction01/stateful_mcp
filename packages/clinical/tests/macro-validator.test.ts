@@ -25,15 +25,16 @@ function baseMacro(overrides: Partial<MacroDefinition> = {}): MacroDefinition {
 			name: "concept",
 			roleName: "observation.concept",
 			target: { targetSchema: "Observation", targetPath: "concept" },
-			extraction: { kind: "concept", required: true },
-			required: true,
+			extraction: { kind: "concept", required: false },
+			required: false,
 		},
 		{
 			argumentId: "score",
 			name: "score",
 			roleName: "observation.severity.score",
 			target: { targetSchema: "Observation", targetPath: "severity.score" },
-			extraction: { kind: "scalar", required: true },
+			extraction: { kind: "scalar", required: false },
+			required: false,
 		},
 	];
 	return {

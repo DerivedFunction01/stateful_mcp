@@ -18,21 +18,24 @@ export const OBSERVATION_TRAJECTORIES = [
 
 export type ObservationTrajectory = (typeof OBSERVATION_TRAJECTORIES)[number];
 
-export interface ObservationEvent {
-	id: string;
+export interface ClinicalObservationFinding {
 	concept: CodeableConcept;
-	rawTerm: string;
-	sourceType: ClinicalSourceType;
-	certainty?: Certainty;
 	status?: Status;
-	severity: {
+	certainty?: Certainty;
+	rawTerm?: string;
+	sourceType?: ClinicalSourceType;
+	qualifiers?: CodeableConcept[];
+	anatomyLocations?: AnatomicalLocation[];
+	dateRange?: ClinicalDateRange;
+}
+
+export interface ObservationEvent extends ClinicalObservationFinding {
+	id: string;
+	severity?: {
 		score: number;
 		maxScore: number;
 		normalizedScore: number;
 	};
-	duration: TimeMeasurement[];
-	trajectory: ObservationTrajectory;
-	qualifiers?: CodeableConcept[];
-	anatomyLocations?: AnatomicalLocation[];
-	dateRange?: ClinicalDateRange;
+	duration?: TimeMeasurement[];
+	trajectory?: ObservationTrajectory;
 }

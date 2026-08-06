@@ -468,6 +468,7 @@ export function Notebook({
 						workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`
 					}
 					syntaxProfile={session.v2.syntaxProfile}
+					conceptLookup={session.v2.engine.getConceptLookup()}
 					onApplyOperations={async (scratchOps: WorkspaceOperation[]) => {
 						const existingBranches = workspace.snapshot?.branches ?? [];
 						const resolvedOps: WorkspaceOperation[] = [];

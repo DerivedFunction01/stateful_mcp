@@ -1,18 +1,20 @@
-import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
+import type { CommandSyntaxProfile, ConceptLookup } from "@stateful-mcp/clinical";
 import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { Box, Text, useInput } from "ink";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { t } from "../lib/shared/i18n";
 import {
 	type DeduplicatedLine,
 	deduplicateParsedLines,
 	type ParsedDifferentialLine,
 	parseShorthandLine,
+	resolveShorthandLine,
 } from "../lib/workspace/assessment-workspace-view";
 
 interface RapidScratchpadOverlayProps {
 	workspaceId: string;
 	syntaxProfile?: CommandSyntaxProfile;
+	conceptLookup?: ConceptLookup;
 	onApplyOperations(operations: WorkspaceOperation[]): Promise<void>;
 	onClose(): void;
 }
@@ -20,19 +22,38 @@ interface RapidScratchpadOverlayProps {
 export function RapidScratchpadOverlay({
 	workspaceId,
 	syntaxProfile,
+	conceptLookup,
 	onApplyOperations,
 	onClose,
 }: RapidScratchpadOverlayProps) {
 	const [lines, setLines] = useState<string[]>([""]);
 	const [activeLineIndex, setActiveLineIndex] = useState(0);
+	const [resolvedLines, setResolvedLines] = useState<ParsedDifferentialLine[]>([]);
 
 	const parsedLines = useMemo<ParsedDifferentialLine[]>(() => {
 		return lines.map((line) => parseShorthandLine(line, syntaxProfile));
 	}, [lines, syntaxProfile]);
 
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			const res = await Promise.all(
+				lines.map((line) =>
+					resolveShorthandLine(line, syntaxProfile, conceptLookup),
+				),
+			);
+			if (!cancelled) setResolvedLines(res);
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [lines, syntaxProfile, conceptLookup]);
+
+	const activeParsedLines = resolvedLines.length === lines.length ? resolvedLines : parsedLines;
+
 	const deduplicatedLines = useMemo<DeduplicatedLine[]>(() => {
-		return deduplicateParsedLines(parsedLines);
-	}, [parsedLines]);
+		return deduplicateParsedLines(activeParsedLines);
+	}, [activeParsedLines]);
 
 	useInput((input, key) => {
 		if (key.escape) {
