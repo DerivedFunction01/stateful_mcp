@@ -19,6 +19,7 @@ interface NotebookWorkspaceProps {
 	assessmentSubTab?: AssessmentSubTabId;
 	scratchpadContent?: ReactNode;
 	selectedBranchId?: string | null;
+	selectedBranchIds?: readonly string[];
 	assessmentSearchOpen?: boolean;
 	assessmentSearchQuery?: string;
 }
@@ -32,6 +33,7 @@ export function NotebookWorkspace({
 	assessmentSubTab = "default",
 	scratchpadContent,
 	selectedBranchId,
+	selectedBranchIds,
 	assessmentSearchOpen = false,
 	assessmentSearchQuery = "",
 }: NotebookWorkspaceProps) {
@@ -56,6 +58,7 @@ export function NotebookWorkspace({
 								error={error}
 								focused={focused}
 								selectedBranchId={selectedBranchId}
+								selectedBranchIds={selectedBranchIds}
 								searchOpen={assessmentSearchOpen}
 								searchQuery={assessmentSearchQuery}
 							/>

@@ -41,6 +41,7 @@ export type EditorAction =
 	| { type: "OPEN_HISTORY" }
 	| { type: "TOGGLE_SIDEBAR" }
 	| { type: "NEXT_WORKSPACE_TAB" }
+	| { type: "PREVIOUS_WORKSPACE_TAB" }
 	| { type: "NEXT_ASSESSMENT_TAB" }
 	| { type: "PREVIOUS_ASSESSMENT_TAB" }
 	| { type: "ENTER_VISUAL" }
@@ -146,6 +147,7 @@ export function reduceEditorKernel(
 		case "OPEN_HISTORY":
 		case "TOGGLE_SIDEBAR":
 		case "NEXT_WORKSPACE_TAB":
+		case "PREVIOUS_WORKSPACE_TAB":
 		case "NEXT_ASSESSMENT_TAB":
 		case "PREVIOUS_ASSESSMENT_TAB":
 		case "OPEN_SCRATCHPAD":

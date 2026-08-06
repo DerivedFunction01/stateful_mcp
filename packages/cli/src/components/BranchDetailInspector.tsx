@@ -45,7 +45,6 @@ export function BranchDetailInspector({
 					<Text bold color="green">
 						{branch.name}
 					</Text>
-					<Text color="gray"> (ID: {branch.branchId})</Text>
 				</Box>
 				<Box marginTop={1}>
 					<Text color="gray">Status: </Text>
@@ -97,6 +96,10 @@ export function BranchDetailInspector({
 						</Box>
 					))
 				)}
+			</Box>
+
+			<Box marginTop={1}>
+				<Text dimColor>Branch ID: {branch.branchId}</Text>
 			</Box>
 		</Box>
 	);

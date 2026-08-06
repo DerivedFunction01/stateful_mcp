@@ -3,6 +3,7 @@ import {
 	ASSESSMENT_TABS,
 	nextAssessmentSubTab,
 	nextWorkspaceTab,
+	previousWorkspaceTab,
 	WORKSPACE_TABS,
 } from "../src/components/WorkspaceTabs";
 
@@ -30,5 +31,7 @@ describe("workspace tabs", () => {
 		]);
 		expect(nextAssessmentSubTab("default")).toBe("scratchpad");
 		expect(nextAssessmentSubTab("scratchpad", -1)).toBe("default");
+		expect(nextWorkspaceTab("assessment")).toBe("soap");
+		expect(previousWorkspaceTab("assessment")).toBe("notebook");
 	});
 });

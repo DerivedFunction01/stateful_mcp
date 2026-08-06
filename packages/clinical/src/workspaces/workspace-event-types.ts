@@ -32,6 +32,7 @@ export type WorkspaceEvent =
 			name: string;
 			parentBranchId: string | null;
 			hypothesisConcept: CodeableConcept;
+			status?: BranchStatus;
 			commandAlias?: string;
 			metadata?: WorkspaceEventMetadata;
 	  }
@@ -53,6 +54,14 @@ export type WorkspaceEvent =
 			branchId: string;
 			fact: TypedFact;
 			conceptType: "supporting" | "refuting";
+			metadata?: WorkspaceEventMetadata;
+	  }
+	| {
+			kind: "concept_removed";
+			workspaceId: string;
+			branchId: string;
+			factId: string;
+			reason?: string;
 			metadata?: WorkspaceEventMetadata;
 	  }
 	| {

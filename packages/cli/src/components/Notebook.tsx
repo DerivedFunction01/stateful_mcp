@@ -39,6 +39,7 @@ import {
 	type AssessmentSubTabId,
 	nextAssessmentSubTab,
 	nextWorkspaceTab,
+	previousWorkspaceTab,
 	type WorkspaceTabId,
 } from "./WorkspaceTabs";
 
@@ -85,6 +86,7 @@ export function Notebook({
 	const isAssessmentNavigation =
 		workspaceTab === "assessment" && assessmentSubTab === "default";
 	const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+	const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
 	const [assessmentSearchState, assessmentSearchDispatch] = useReducer(
 		searchReducer,
 		INITIAL_SEARCH_STATE,
@@ -124,6 +126,11 @@ export function Notebook({
 				workspace.snapshot?.activeBranchId ?? branches[0]?.branchId ?? null
 			);
 		});
+		setSelectedBranchIds((current) =>
+			current.filter((branchId) =>
+				branches.some((branch) => branch.branchId === branchId),
+			),
+		);
 	}, [workspace.snapshot?.branches, workspace.snapshot?.activeBranchId]);
 
 	useEffect(() => {
@@ -156,6 +163,34 @@ export function Notebook({
 		);
 		setSelectedBranchId(ids[nextIndex] ?? null);
 	};
+
+	const toggleSelectedBranch = () => {
+		if (!selectedBranchId) return;
+		setSelectedBranchIds((current) =>
+			current.includes(selectedBranchId)
+				? current.filter((branchId) => branchId !== selectedBranchId)
+				: [...current, selectedBranchId],
+		);
+	};
+
+	const selectAllBranches = () => {
+		setSelectedBranchIds(
+			(workspace.snapshot?.branches ?? []).map((branch) => branch.branchId),
+		);
+	};
+
+	const clearBranchSelection = () => setSelectedBranchIds([]);
+	const targetBranchIds = selectedBranchIds;
+	const targetBranches = (workspace.snapshot?.branches ?? []).filter((branch) =>
+		targetBranchIds.includes(branch.branchId),
+	);
+	const targetScopeLabel =
+		selectedBranchIds.length === (workspace.snapshot?.branches.length ?? 0) &&
+		selectedBranchIds.length > 0
+			? "All branches"
+			: selectedBranchIds.length > 0
+				? "Selected branches"
+				: "New differential branches";
 	const engineSuggestionsRef = useRef<any[]>([]);
 	const [historyCandidates, setHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
@@ -489,12 +524,100 @@ export function Notebook({
 
 	const applyScratchpadOperations = async (
 		scratchOps: WorkspaceOperation[],
+		targetIds: readonly string[] = [],
 	): Promise<void> => {
 		const existingBranches = workspace.snapshot?.branches ?? [];
 		const resolvedOps: WorkspaceOperation[] = [];
+		const targetBranches = existingBranches.filter((branch) =>
+			targetIds.includes(branch.branchId),
+		);
+		const plannedEvidence = new Set<string>();
+
+		const addFindingIfNeeded = (
+			branch: (typeof existingBranches)[number],
+			finding: {
+				conceptId?: string;
+				display: string;
+				certainty: "supporting" | "refuting";
+			},
+		) => {
+			const conceptId = (finding.conceptId ?? finding.display)
+				.trim()
+				.toLowerCase();
+			const plannedKey = `${branch.branchId}:${finding.certainty}:${conceptId}`;
+			if (plannedEvidence.has(plannedKey)) return;
+			const same = (
+				finding.certainty === "supporting"
+					? branch.supportingConcepts
+					: branch.refutingConcepts
+			).some(
+				(concept) =>
+					(concept.conceptId ?? concept.display ?? "").toLowerCase() ===
+					conceptId,
+			);
+			if (same) return;
+
+			const opposite = (
+				finding.certainty === "supporting"
+					? branch.refutingConcepts
+					: branch.supportingConcepts
+			).some(
+				(concept) =>
+					(concept.conceptId ?? concept.display ?? "").toLowerCase() ===
+					conceptId,
+			);
+			if (opposite) {
+				resolvedOps.push({
+					kind: "remove_fact",
+					workspaceId:
+						workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`,
+					branchId: branch.branchId,
+					factId: conceptId,
+					reason: "Scratchpad evidence polarity replacement",
+				});
+			}
+			resolvedOps.push({
+				kind: "add_fact",
+				workspaceId:
+					workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`,
+				branchId: branch.branchId,
+				fact: {
+					factId: finding.conceptId ?? finding.display,
+					targetSchema: "ObservationEvent",
+					concept: {
+						conceptId,
+						display: finding.display,
+					},
+					certainty: finding.certainty,
+					provenance: {},
+				},
+			});
+			plannedEvidence.add(plannedKey);
+		};
+		const normalizeFinding = (
+			finding: any,
+			certainty: "supporting" | "refuting",
+		) => ({
+			conceptId:
+				finding.concept?.conceptId ?? finding.conceptId ?? finding.display,
+			display: finding.concept?.display ?? finding.display,
+			certainty,
+		});
 
 		for (const op of scratchOps) {
 			if (op.kind === "create_branch") {
+				if (targetBranches.length > 0) {
+					for (const branch of targetBranches) {
+						for (const finding of (op as any).supportingFindings ?? [])
+							addFindingIfNeeded(
+								branch,
+								normalizeFinding(finding, "supporting"),
+							);
+						for (const finding of (op as any).refutingFindings ?? [])
+							addFindingIfNeeded(branch, normalizeFinding(finding, "refuting"));
+					}
+					continue;
+				}
 				const conceptKey = (op.concept?.conceptId ?? op.name).toLowerCase();
 				const nameKey = op.name.toLowerCase();
 				const existing = existingBranches.find(
@@ -518,44 +641,10 @@ export function Notebook({
 						});
 					}
 
-					for (const f of (op as any).supportingFindings ?? []) {
-						resolvedOps.push({
-							kind: "add_fact",
-							workspaceId:
-								workspace.snapshot?.workspaceId ??
-								`workspace-${session.sessionId}`,
-							branchId: existing.branchId,
-							fact: {
-								factId: `fact-${crypto.randomUUID()}`,
-								targetSchema: "ObservationEvent",
-								concept: {
-									conceptId: f.conceptId ?? f.display,
-									display: f.display,
-								},
-								certainty: "supporting",
-								provenance: {},
-							},
-						});
-					}
-					for (const f of (op as any).refutingFindings ?? []) {
-						resolvedOps.push({
-							kind: "add_fact",
-							workspaceId:
-								workspace.snapshot?.workspaceId ??
-								`workspace-${session.sessionId}`,
-							branchId: existing.branchId,
-							fact: {
-								factId: `fact-${crypto.randomUUID()}`,
-								targetSchema: "ObservationEvent",
-								concept: {
-									conceptId: f.conceptId ?? f.display,
-									display: f.display,
-								},
-								certainty: "refuting",
-								provenance: {},
-							},
-						});
-					}
+					for (const f of (op as any).supportingFindings ?? [])
+						addFindingIfNeeded(existing, normalizeFinding(f, "supporting"));
+					for (const f of (op as any).refutingFindings ?? [])
+						addFindingIfNeeded(existing, normalizeFinding(f, "refuting"));
 				} else {
 					resolvedOps.push(op);
 				}
@@ -783,6 +872,9 @@ export function Notebook({
 				setWorkspaceTab(nextWorkspaceTab);
 				return;
 			}
+			case "PREVIOUS_WORKSPACE_TAB":
+				setWorkspaceTab(previousWorkspaceTab);
+				return;
 			case "OPEN_SCRATCHPAD":
 				setWorkspaceTab("assessment");
 				setAssessmentSubTab("scratchpad");
@@ -805,6 +897,9 @@ export function Notebook({
 			workspaceId={
 				workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`
 			}
+			targetBranchIds={targetBranchIds}
+			targetBranchNames={targetBranches.map((branch) => branch.name)}
+			targetScopeLabel={targetScopeLabel}
 			syntaxProfile={session.v2.syntaxProfile}
 			conceptLookup={session.v2.engine.getConceptLookup()}
 			onApplyOperations={applyScratchpadOperations}
@@ -819,6 +914,7 @@ export function Notebook({
 			onApplyError={(message) => dispatch({ type: "set_message", message })}
 			onClose={() => setAssessmentSubTab("default")}
 			onNavigatePrevious={() => setAssessmentSubTab("default")}
+			onNavigateNext={() => setWorkspaceTab(nextWorkspaceTab(workspaceTab))}
 		/>
 	);
 
@@ -856,6 +952,7 @@ export function Notebook({
 		assessmentSubTab,
 		scratchpadContent,
 		selectedBranchId,
+		selectedBranchIds,
 		assessmentSearchOpen: assessmentSearchState.open,
 		assessmentSearchQuery: assessmentSearchState.query,
 		historySearchQuery: searchState.query,
@@ -968,6 +1065,15 @@ export function Notebook({
 			onNavigationMove={
 				isAssessmentNavigation ? moveAssessmentBranch : undefined
 			}
+			onNavigationToggleSelection={
+				isAssessmentNavigation ? toggleSelectedBranch : undefined
+			}
+			onNavigationSelectAll={
+				isAssessmentNavigation ? selectAllBranches : undefined
+			}
+			onNavigationClearSelection={
+				isAssessmentNavigation ? clearBranchSelection : undefined
+			}
 			onNavigationSearchOpen={
 				isAssessmentNavigation
 					? () =>
@@ -982,8 +1088,6 @@ export function Notebook({
 			suspendEditorInput={
 				workspaceTab === "assessment" && assessmentSubTab === "scratchpad"
 			}
-			sidebarOpen={sidebarOpen}
-			onSidebarClose={() => setSidebarOpen(false)}
 			historySearchOpen={searchState.open}
 			historySearchQuery={searchState.query}
 			onHistorySearchQuery={(query) =>

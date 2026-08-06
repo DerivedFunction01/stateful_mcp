@@ -70,6 +70,7 @@ export interface NotebookWindowDeps {
 	assessmentSubTab?: AssessmentSubTabId;
 	scratchpadContent?: ReactElement | null;
 	selectedBranchId?: string | null;
+	selectedBranchIds?: readonly string[];
 	assessmentSearchOpen?: boolean;
 	assessmentSearchQuery?: string;
 	historySearchQuery?: string;
@@ -137,6 +138,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 						assessmentSubTab={deps.assessmentSubTab}
 						scratchpadContent={deps.scratchpadContent}
 						selectedBranchId={deps.selectedBranchId}
+						selectedBranchIds={deps.selectedBranchIds}
 						assessmentSearchOpen={deps.assessmentSearchOpen}
 						assessmentSearchQuery={deps.assessmentSearchQuery}
 					/>

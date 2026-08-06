@@ -9,6 +9,10 @@ interface WorkspaceViewProps {
 	error: string | null;
 	focused: boolean;
 	selectedBranchId?: string | null;
+	selectedBranchIds?: readonly string[];
+	onToggleBranch?: (branchId: string) => void;
+	onSelectAllBranches?: () => void;
+	onClearBranchSelection?: () => void;
 	searchOpen?: boolean;
 	searchQuery?: string;
 }
@@ -42,11 +46,13 @@ function BranchCard({
 	isActive,
 	isSelected,
 	isFocused,
+	selectedForBatch,
 }: {
 	branch: WorkspaceSnapshot["branches"][number];
 	isActive: boolean;
 	isSelected: boolean;
 	isFocused: boolean;
+	selectedForBatch: boolean;
 }) {
 	const showDetails = isSelected || isActive || !isFocused;
 	return (
@@ -60,6 +66,7 @@ function BranchCard({
 		>
 			<Box>
 				<Text bold={isActive} color={isActive ? "green" : undefined}>
+					{selectedForBatch ? "[x] " : "[ ] "}
 					{isSelected ? "► " : isActive ? "· " : "  "}
 				</Text>
 				<Text bold>{branch.name}</Text>
@@ -124,6 +131,7 @@ export function WorkspaceView({
 	error,
 	focused,
 	selectedBranchId,
+	selectedBranchIds = [],
 	searchOpen = false,
 	searchQuery = "",
 }: WorkspaceViewProps) {
@@ -157,7 +165,7 @@ export function WorkspaceView({
 						plural: branches.length !== 1 ? "es" : "",
 					})}
 					{focused ? ` · ${t("workspace.focused")}` : ""}
-					{" · i/a: edit · Esc: back"}
+					{" · j/k or ↑/↓: navigate · Space: select · n: scratchpad"}
 				</Text>
 				{snapshot?.closeRequested && (
 					<Text color="yellow">{" · CLOSE REQUESTED"}</Text>
@@ -170,6 +178,12 @@ export function WorkspaceView({
 					</Text>
 					<Text color="gray">_ Esc close · ↑/↓ select</Text>
 				</Box>
+			)}
+			{branches.length > 0 && (
+				<Text color="gray">
+					Targets: {selectedBranchIds.length || "active branch"} · Space select
+					· a all · u clear · n scratchpad
+				</Text>
 			)}
 
 			{loading && (
@@ -204,6 +218,7 @@ export function WorkspaceView({
 							branch={b}
 							isActive={isActive}
 							isSelected={isSelected}
+							selectedForBatch={selectedBranchIds.includes(b.branchId)}
 							isFocused={focused}
 						/>
 					);

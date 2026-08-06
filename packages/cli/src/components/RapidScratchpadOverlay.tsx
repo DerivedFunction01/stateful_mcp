@@ -17,19 +17,29 @@ import {
 interface RapidScratchpadOverlayProps {
 	active?: boolean;
 	workspaceId: string;
+	targetBranchIds?: readonly string[];
+	targetBranchNames?: readonly string[];
+	targetScopeLabel?: string;
 	syntaxProfile?: CommandSyntaxProfile;
 	conceptLookup?: ConceptLookup;
-	onApplyOperations(operations: WorkspaceOperation[]): Promise<void>;
+	onApplyOperations(
+		operations: WorkspaceOperation[],
+		targetBranchIds?: readonly string[],
+	): Promise<void>;
 	onApplySuccess?: (operationCount: number) => void;
 	onApplyError?: (message: string) => void;
 	onPreviewLines?: (deduped: DeduplicatedLine[]) => void;
 	onClose(): void;
 	onNavigatePrevious?: () => void;
+	onNavigateNext?: () => void;
 }
 
 export function RapidScratchpadOverlay({
 	active = true,
 	workspaceId,
+	targetBranchIds = [],
+	targetBranchNames = [],
+	targetScopeLabel = "Active branch",
 	syntaxProfile,
 	conceptLookup,
 	onApplyOperations,
@@ -38,6 +48,7 @@ export function RapidScratchpadOverlay({
 	onPreviewLines,
 	onClose,
 	onNavigatePrevious,
+	onNavigateNext,
 }: RapidScratchpadOverlayProps) {
 	const [lines, setLines] = useState<string[]>([""]);
 	const [activeLineIndex, setActiveLineIndex] = useState(0);
@@ -94,8 +105,20 @@ export function RapidScratchpadOverlay({
 								display: p.conceptDisplay,
 							},
 							initialStatus: p.status,
-							supportingFindings: p.supportingFindings,
-							refutingFindings: p.refutingFindings,
+							supportingFindings: p.supportingFindings.map((finding) => ({
+								concept: {
+									conceptId: finding.conceptId ?? finding.display,
+									display: finding.display,
+								},
+								certainty: "supporting" as const,
+							})),
+							refutingFindings: p.refutingFindings.map((finding) => ({
+								concept: {
+									conceptId: finding.conceptId ?? finding.display,
+									display: finding.display,
+								},
+								certainty: "refuting" as const,
+							})),
 						}) as any,
 				);
 
@@ -104,7 +127,7 @@ export function RapidScratchpadOverlay({
 					return;
 				}
 
-				void onApplyOperations(validOps)
+				void onApplyOperations(validOps, targetBranchIds)
 					.then(() => {
 						setLines([""]);
 						setActiveLineIndex(0);
@@ -123,6 +146,10 @@ export function RapidScratchpadOverlay({
 			if (key.tab) {
 				if (key.shift) {
 					onNavigatePrevious?.();
+					return;
+				}
+				if (onNavigateNext) {
+					onNavigateNext();
 					return;
 				}
 				setLines((prev) => {
@@ -190,6 +217,17 @@ export function RapidScratchpadOverlay({
 					ex3: "r/o acs",
 				})}
 			</Text>
+			<Box flexDirection="column" marginTop={1}>
+				<Text bold color="yellow">
+					Apply to: {targetScopeLabel}
+					{targetBranchIds.length > 0 ? ` (${targetBranchIds.length})` : ""}
+				</Text>
+				{targetBranchNames.map((name) => (
+					<Text key={name} color="gray">
+						{name}
+					</Text>
+				))}
+			</Box>
 
 			<Box flexDirection="column" marginTop={1} marginBottom={1}>
 				{lines.map((line, idx) => {

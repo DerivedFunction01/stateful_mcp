@@ -61,8 +61,6 @@ export interface WindowContainerProps {
 	macroSession?: MacroAuthoringSession;
 	assessmentSubTabsActive?: boolean;
 	suspendEditorInput?: boolean;
-	sidebarOpen?: boolean;
-	onSidebarClose?: () => void;
 	historySearchOpen?: boolean;
 	historySearchQuery?: string;
 	onHistorySearchQuery?: (query: string) => void;
@@ -80,6 +78,9 @@ export interface WindowContainerProps {
 	onNavigationSearchClose?: () => void;
 	onNavigationMove?: (direction: NavigationDirection) => void;
 	onNavigationSearchOpen?: () => void;
+	onNavigationToggleSelection?: () => void;
+	onNavigationSelectAll?: () => void;
+	onNavigationClearSelection?: () => void;
 }
 
 /**
@@ -111,8 +112,6 @@ export function WindowContainer({
 	macroSession,
 	assessmentSubTabsActive = false,
 	suspendEditorInput = false,
-	sidebarOpen = false,
-	onSidebarClose,
 	historySearchOpen = false,
 	historySearchQuery = "",
 	onHistorySearchQuery,
@@ -130,6 +129,9 @@ export function WindowContainer({
 	onNavigationSearchClose,
 	onNavigationMove,
 	onNavigationSearchOpen,
+	onNavigationToggleSelection,
+	onNavigationSelectAll,
+	onNavigationClearSelection,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -344,11 +346,18 @@ export function WindowContainer({
 				if (direction) onNavigationMove?.(direction);
 				return;
 			}
-		}
-
-		if (sidebarOpen && key.escape) {
-			onSidebarClose?.();
-			return;
+			if (_input === " " && !key.ctrl && !key.meta) {
+				onNavigationToggleSelection?.();
+				return;
+			}
+			if (_input === "a" && !key.ctrl && !key.meta) {
+				onNavigationSelectAll?.();
+				return;
+			}
+			if (_input === "u" && !key.ctrl && !key.meta) {
+				onNavigationClearSelection?.();
+				return;
+			}
 		}
 
 		if (current.mode === "INSERT" && current.commandKind !== "macro") {
@@ -574,10 +583,10 @@ export function WindowContainer({
 
 		if (current.mode === "NORMAL" && key.tab) {
 			emit({
-				type: assessmentSubTabsActive
-					? key.shift
+				type: key.shift
+					? assessmentSubTabsActive
 						? "PREVIOUS_ASSESSMENT_TAB"
-						: "NEXT_ASSESSMENT_TAB"
+						: "PREVIOUS_WORKSPACE_TAB"
 					: "NEXT_WORKSPACE_TAB",
 			});
 			return;

@@ -48,7 +48,7 @@ export function reduceWorkspaceEvent(
 				id: event.branchId,
 				parentId: event.parentBranchId,
 				name: event.name,
-				status: "active",
+				status: event.status ?? "active",
 				hypothesisConcept: event.hypothesisConcept,
 				commandAlias: event.commandAlias,
 				supportingConcepts: [],
@@ -76,6 +76,20 @@ export function reduceWorkspaceEvent(
 					? branch.refutingConcepts
 					: branch.supportingConcepts
 				).push(event.fact.concept);
+			return next;
+		}
+		case "concept_removed": {
+			const branch = next.branches.find((item) => item.id === event.branchId);
+			if (!branch)
+				throw new Error(
+					`Branch '${event.branchId}' was not found during replay`,
+				);
+			const factKey = event.factId.trim().toLowerCase();
+			const keep = (concept: { conceptId?: string; display?: string }) =>
+				(concept.conceptId ?? concept.display ?? "").trim().toLowerCase() !==
+				factKey;
+			branch.supportingConcepts = branch.supportingConcepts.filter(keep);
+			branch.refutingConcepts = branch.refutingConcepts.filter(keep);
 			return next;
 		}
 		case "global_fact_added":

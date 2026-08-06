@@ -114,6 +114,204 @@ describe(" workspace service with core DAG event store", () => {
 		expect(rebuilt).toEqual(updated);
 	});
 
+	it("replaces branch evidence without leaving the old polarity", async () => {
+		const pair = await corePair();
+		const service = new WorkspaceService(pair.store, pair.events);
+		const created = await service.createWorkspace({
+			sessionId: "session-replace",
+			sourceDocumentId: "document-replace",
+			workspaceId: "workspace-replace",
+			initialBranches: [
+				{
+					name: "Hypothesis",
+					hypothesisConcept: { conceptId: "hypothesis", display: "Hypothesis" },
+				},
+			],
+		});
+		const branchId = created.activeBranchId!;
+		const withSupporting = await service.applyOperations(
+			created.id,
+			[
+				{
+					kind: "add_fact",
+					workspaceId: created.id,
+					branchId,
+					fact: {
+						factId: "fever",
+						targetSchema: "ObservationEvent",
+						concept: { conceptId: "fever", display: "Fever" },
+						certainty: "supporting",
+						provenance: {},
+					},
+				},
+			],
+			created.version,
+		);
+
+		const replaced = await service.applyOperations(
+			created.id,
+			[
+				{
+					kind: "remove_fact",
+					workspaceId: created.id,
+					branchId,
+					factId: "fever",
+				},
+				{
+					kind: "add_fact",
+					workspaceId: created.id,
+					branchId,
+					fact: {
+						factId: "fever",
+						targetSchema: "ObservationEvent",
+						concept: { conceptId: "fever", display: "Fever" },
+						certainty: "refuting",
+						provenance: {},
+					},
+				},
+			],
+			withSupporting.version,
+		);
+
+		expect(replaced.branches[0]?.supportingConcepts).toEqual([]);
+		expect(replaced.branches[0]?.refutingConcepts).toEqual([
+			{ conceptId: "fever", display: "Fever" },
+		]);
+	});
+
+	it("creates separate branches with their inline findings", async () => {
+		const pair = await corePair();
+		const service = new WorkspaceService(pair.store, pair.events);
+		const created = await service.createWorkspace({
+			sessionId: "session-differential",
+			sourceDocumentId: "document-differential",
+			workspaceId: "workspace-differential",
+		});
+
+		const updated = await service.applyOperations(
+			created.id,
+			[
+				{
+					kind: "create_branch",
+					workspaceId: created.id,
+					name: "HP",
+					concept: { conceptId: "hp", display: "HP" },
+					supportingFindings: [
+						{
+							concept: { conceptId: "hg", display: "HG" },
+							certainty: "supporting",
+						},
+					],
+				},
+				{
+					kind: "create_branch",
+					workspaceId: created.id,
+					name: "HG",
+					concept: { conceptId: "hg", display: "HG" },
+					refutingFindings: [
+						{
+							concept: { conceptId: "hp", display: "HP" },
+							certainty: "refuting",
+						},
+					],
+				},
+			],
+			created.version,
+		);
+
+		expect(updated.branches).toHaveLength(2);
+		expect(updated.branches[0]?.name).toBe("HP");
+		expect(updated.branches[0]?.supportingConcepts).toEqual([
+			{ conceptId: "hg", display: "HG" },
+		]);
+		expect(updated.branches[1]?.name).toBe("HG");
+		expect(updated.branches[1]?.refutingConcepts).toEqual([
+			{ conceptId: "hp", display: "HP" },
+		]);
+	});
+
+	it("allows the same evidence concept on separate target branches", async () => {
+		const pair = await corePair();
+		const service = new WorkspaceService(pair.store, pair.events);
+		const created = await service.createWorkspace({
+			sessionId: "session-fanout",
+			sourceDocumentId: "document-fanout",
+			workspaceId: "workspace-fanout",
+			initialBranches: [
+				{
+					name: "HP",
+					hypothesisConcept: { conceptId: "hp", display: "HP" },
+				},
+				{
+					name: "HG",
+					hypothesisConcept: { conceptId: "hg", display: "HG" },
+				},
+			],
+		});
+		const branches = created.branches.map((branch) => branch.id);
+		const updated = await service.applyOperations(
+			created.id,
+			branches.map((branchId) => ({
+				kind: "add_fact" as const,
+				workspaceId: created.id,
+				branchId,
+				fact: {
+					factId: "tachycardia",
+					targetSchema: "ObservationEvent",
+					concept: { conceptId: "tachycardia", display: "Tachycardia" },
+					certainty: "supporting" as const,
+					provenance: {},
+				},
+			})),
+			created.version,
+		);
+
+		expect(updated.branches[0]?.supportingConcepts).toEqual([
+			{ conceptId: "tachycardia", display: "Tachycardia" },
+		]);
+		expect(updated.branches[1]?.supportingConcepts).toEqual([
+			{ conceptId: "tachycardia", display: "Tachycardia" },
+		]);
+	});
+
+	it("records evidence that has the same concept as the hypothesis", async () => {
+		const pair = await corePair();
+		const service = new WorkspaceService(pair.store, pair.events);
+		const created = await service.createWorkspace({
+			sessionId: "session-hypothesis-evidence",
+			sourceDocumentId: "document-hypothesis-evidence",
+			workspaceId: "workspace-hypothesis-evidence",
+			initialBranches: [
+				{
+					name: "HP",
+					hypothesisConcept: { conceptId: "hp", display: "HP" },
+				},
+			],
+		});
+		const branchId = created.activeBranchId!;
+		const refuting = await service.applyOperations(
+			created.id,
+			[
+				{
+					kind: "add_fact",
+					workspaceId: created.id,
+					branchId,
+					fact: {
+						factId: "hp",
+						targetSchema: "ObservationEvent",
+						concept: { conceptId: "hp", display: "HP" },
+						certainty: "refuting",
+						provenance: {},
+					},
+				},
+			],
+			created.version,
+		);
+		expect(refuting.branches[0]?.refutingConcepts).toEqual([
+			{ conceptId: "hp", display: "HP" },
+		]);
+	});
+
 	it("rejects stale versions and invalid transitions", async () => {
 		const pair = await corePair();
 		const service = new WorkspaceService(pair.store, pair.events);

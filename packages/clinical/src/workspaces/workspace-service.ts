@@ -334,7 +334,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 				);
 			if (
 				operation.kind === "add_fact" &&
-				this.hasFact(aggregate, operation.fact.factId)
+				this.hasFact(aggregate, operation.fact.factId, operation.branchId)
 			)
 				continue;
 			if (operation.kind === "close" && aggregate.closeRequested) continue;
@@ -342,6 +342,47 @@ export class WorkspaceService implements WorkspaceServiceContract {
 			events.push(event);
 			aggregate = reduceWorkspaceEvent(aggregate, event);
 			aggregate.version = initial.version + events.length;
+			if (
+				operation.kind === "create_branch" &&
+				event.kind === "branch_created"
+			) {
+				const findings = [
+					...(operation.supportingFindings ?? []).map((finding) => ({
+						...finding,
+						certainty: "supporting" as const,
+					})),
+					...(operation.refutingFindings ?? []).map((finding) => ({
+						...finding,
+						certainty: "refuting" as const,
+					})),
+				];
+				for (const finding of findings) {
+					const factOperation: WorkspaceOperation = {
+						kind: "add_fact",
+						workspaceId: aggregate.id,
+						branchId: event.branchId,
+						fact: {
+							factId: finding.concept.conceptId ?? finding.concept.display,
+							targetSchema: "ObservationEvent",
+							concept: finding.concept,
+							certainty: finding.certainty,
+							provenance: {},
+						},
+					};
+					if (
+						this.hasFact(
+							aggregate,
+							factOperation.fact.factId,
+							factOperation.branchId,
+						)
+					)
+						continue;
+					const factEvent = this.toEvent(aggregate, factOperation);
+					events.push(factEvent);
+					aggregate = reduceWorkspaceEvent(aggregate, factEvent);
+					aggregate.version = initial.version + events.length;
+				}
+			}
 		}
 		return { aggregate, events };
 	}
@@ -380,6 +421,7 @@ export class WorkspaceService implements WorkspaceServiceContract {
 					name: operation.name,
 					parentBranchId: parent?.id ?? aggregate.activeBranchId,
 					hypothesisConcept: operation.concept,
+					status: operation.initialStatus,
 					commandAlias: operation.commandAlias,
 					metadata: { logicalKey: `branch:${branchId}` },
 				};
@@ -414,6 +456,24 @@ export class WorkspaceService implements WorkspaceServiceContract {
 				};
 			}
 			case "remove_fact":
+				if (operation.branchId) {
+					this.validateFact(
+						aggregate,
+						{ factId: operation.factId } as TypedFact,
+						operation.branchId,
+					);
+					return {
+						kind: "concept_removed",
+						workspaceId: aggregate.id,
+						branchId: operation.branchId,
+						factId: operation.factId,
+						reason: operation.reason,
+						metadata: {
+							logicalKey: `fact:${operation.branchId}:${operation.factId}`,
+							reason: operation.reason,
+						},
+					};
+				}
 				return {
 					kind: "global_fact_removed",
 					workspaceId: aggregate.id,
@@ -500,19 +560,23 @@ export class WorkspaceService implements WorkspaceServiceContract {
 			throw new WorkspaceOperationError("Branch was not found");
 	}
 
-	private hasFact(aggregate: WorkspaceAggregate, factId: string): boolean {
-		return (
-			aggregate.globalFacts.some((fact) => fact.factId === factId) ||
-			aggregate.branches.some(
-				(branch) =>
-					branch.supportingConcepts.some(
-						(concept) => concept.conceptId === factId,
-					) ||
-					branch.refutingConcepts.some(
-						(concept) => concept.conceptId === factId,
-					),
-			)
-		);
+	private hasFact(
+		aggregate: WorkspaceAggregate,
+		factId: string,
+		branchId?: string,
+	): boolean {
+		if (branchId) {
+			const branch = this.branch(aggregate, branchId);
+			const key = factId.trim().toLowerCase();
+			const matches = (concept: TypedFact["concept"]): boolean =>
+				(concept?.conceptId ?? concept?.display ?? "").trim().toLowerCase() ===
+				key;
+			return Boolean(
+				branch?.supportingConcepts.some(matches) ||
+					branch?.refutingConcepts.some(matches),
+			);
+		}
+		return aggregate.globalFacts.some((fact) => fact.factId === factId);
 	}
 
 	private validateTransition(

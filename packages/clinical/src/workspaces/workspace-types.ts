@@ -38,6 +38,11 @@ export interface WorkspaceAggregate {
 
 export type FactCertainty = "supporting" | "refuting" | "neutral";
 
+export interface WorkspaceEvidenceInput {
+	concept: CodeableConcept;
+	certainty: Exclude<FactCertainty, "neutral">;
+}
+
 export interface TypedFact {
 	factId: string;
 	targetSchema: string;
@@ -69,6 +74,7 @@ export type WorkspaceOperation =
 			kind: "remove_fact";
 			workspaceId: string;
 			factId: string;
+			branchId?: string;
 			reason?: string;
 	  }
 	| {
@@ -78,6 +84,9 @@ export type WorkspaceOperation =
 			concept: CodeableConcept;
 			parentBranchId?: string;
 			commandAlias?: string;
+			initialStatus?: BranchLifecycleState;
+			supportingFindings?: WorkspaceEvidenceInput[];
+			refutingFindings?: WorkspaceEvidenceInput[];
 	  }
 	| {
 			kind: "branch_transition";

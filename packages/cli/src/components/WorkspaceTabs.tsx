@@ -22,6 +22,12 @@ export function nextWorkspaceTab(active: WorkspaceTabId): WorkspaceTabId {
 	return WORKSPACE_TABS[(index + 1) % WORKSPACE_TABS.length]?.id ?? active;
 }
 
+export function previousWorkspaceTab(active: WorkspaceTabId): WorkspaceTabId {
+	const index = WORKSPACE_TABS.findIndex((tab) => tab.id === active);
+	const previous = (index - 1 + WORKSPACE_TABS.length) % WORKSPACE_TABS.length;
+	return WORKSPACE_TABS[previous]?.id ?? active;
+}
+
 export function nextAssessmentSubTab(
 	active: AssessmentSubTabId,
 	direction: 1 | -1 = 1,
