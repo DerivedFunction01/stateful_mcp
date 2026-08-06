@@ -1,5 +1,5 @@
 export const WIDE_LAYOUT_BREAKPOINT = 110;
-export const HISTORY_PANE_WIDTH = 28;
+export const HISTORY_PANE_WIDTH = 34;
 export const DETAILS_PANE_MAX_WIDTH = 44;
 export const MACRO_EDITOR_ROWS = 3;
 export const STATUS_ROWS = 1;

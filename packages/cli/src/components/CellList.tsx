@@ -53,6 +53,7 @@ export function CellList({
 							isSelected={
 								mode === "VISUAL" && cellIndex >= lo && cellIndex <= hi
 							}
+							compact
 						/>
 					);
 				})}

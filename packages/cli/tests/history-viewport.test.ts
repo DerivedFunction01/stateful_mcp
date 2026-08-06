@@ -30,9 +30,9 @@ function cell(diagnosticCount = 0): StructuredCell {
 }
 
 describe("history viewport", () => {
-	test("accounts for diagnostic rows", () => {
+	test("keeps every compact history row to one line", () => {
 		expect(historyRowHeight(cell(0))).toBe(1);
-		expect(historyRowHeight(cell(2))).toBe(3);
+		expect(historyRowHeight(cell(2))).toBe(1);
 	});
 
 	test("keeps the active cell visible in a bounded range", () => {

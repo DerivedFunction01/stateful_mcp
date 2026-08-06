@@ -28,6 +28,7 @@ export interface MacroAuthoringServiceDeps {
 export interface MacroDraftCompileOptions extends MacroCompilerOptions {
 	personnelId?: string;
 	locks?: readonly MacroLockLike[];
+	slots?: readonly MacroSlotProjection[];
 }
 
 export interface MacroDraftInspection {
@@ -239,7 +240,10 @@ export class MacroAuthoringService {
 			profile: this.deps.profile,
 		});
 		if (!parsed) return undefined;
-		const lockedInput = applyLocksToParsedInput(parsed, options.locks ?? []);
+		const lockedInput = applyLocksToParsedInput(
+			parsed,
+			resolvedSlotLocks(options.slots ?? [], options.locks ?? []),
+		);
 		return compileMacroDraftPreview(
 			this.compiler,
 			lockedInput,
@@ -247,6 +251,31 @@ export class MacroAuthoringService {
 			options,
 		);
 	}
+}
+
+function resolvedSlotLocks(
+	slots: readonly MacroSlotProjection[],
+	locks: readonly MacroLockLike[],
+): MacroLockLike[] {
+	const slotLocks = slots.flatMap((slot) => {
+		const displayValue = slot.binding?.displayValue;
+		if (!displayValue || slot.start === undefined || slot.end === undefined) {
+			return [];
+		}
+		return [
+			{
+				argumentId: slot.argumentId,
+				macroId: slot.macroId,
+				macroVersion: slot.macroVersion,
+				start: slot.start,
+				end: slot.end,
+				rawText: displayValue,
+				source: "accepted" as const,
+				binding: slot.binding,
+			},
+		];
+	});
+	return [...slotLocks, ...locks];
 }
 
 function applyLocksToParsedInput(

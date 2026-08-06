@@ -57,6 +57,9 @@ export interface NotebookWindowDeps {
 	activeHistoryCell?: StructuredCell | null;
 	workspaceTab?: WorkspaceTabId;
 	historySearchQuery?: string;
+	historySearchOpen?: boolean;
+	historySearchMatches?: string[];
+	historySearchMatchIndex?: number;
 }
 
 /**
@@ -93,6 +96,9 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							visualStart={view.selection?.start ?? 0}
 							visualEnd={view.selection?.end ?? 0}
 							searchQuery={deps.historySearchQuery}
+							searchOpen={deps.historySearchOpen}
+							searchMatches={deps.historySearchMatches}
+							searchMatchIndex={deps.historySearchMatchIndex}
 						/>
 					);
 				},
@@ -169,6 +175,11 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 						deps.editorState.mode === "INSERT" &&
 						deps.editorState.commandKind === "macro",
 				};
+				const showLiveMacroDetails =
+					deps.editorState.commandKind === "macro" &&
+					(deps.editorState.mode === "INSERT" ||
+						deps.editorState.mode === "VISUAL") &&
+					draftText.trim().length > 0;
 
 				regions.push({
 					slot: "command",
@@ -180,9 +191,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				if (deps.sidebarOpen) {
 					const detail =
 						deps.sidebarContent ??
-						(deps.editorState.commandKind === "macro" &&
-						(deps.editorState.mode === "INSERT" ||
-							deps.editorState.mode === "VISUAL") ? (
+						(showLiveMacroDetails ? (
 							<MacroDetailPanel {...macroEditorProps} />
 						) : deps.activeHistoryCell ? (
 							<HistoryDetailPanel cell={deps.activeHistoryCell} />

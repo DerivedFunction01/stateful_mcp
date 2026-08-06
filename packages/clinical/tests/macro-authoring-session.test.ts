@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { SyntaxProfile } from "../src";
-import { VITALS_MACRO } from "../src/macros/default-macros";
+import { NOTE_MACRO, VITALS_MACRO } from "../src/macros/default-macros";
 import { MacroAuthoringSession } from "../src/macros/macro-authoring-session";
 import type { MacroExecutionPlan } from "../src/macros/macro-plan";
 import type { MacroSlotProjection } from "../src/macros/macro-slots";
@@ -69,6 +69,42 @@ describe("MacroAuthoringSession", () => {
 		expect(snap.slots).toHaveLength(2);
 		expect(snap.slots[0]?.argumentId).toBe("heart_rate");
 		expect(snap.slots[1]?.argumentId).toBe("blood_pressure");
+	});
+
+	test("preserves natural preview when inspection supplies explicit slots", () => {
+		const session = new MacroAuthoringSession({
+			profile,
+			initialText: "^note hg 10 2004",
+		});
+		session.dispatch({
+			type: "inspection_resolved",
+			definition: NOTE_MACRO,
+		});
+		const slots = session.getSnapshot().slots.map((slot) =>
+			slot.argumentId === "title"
+				? {
+						...slot,
+						status: "bound" as const,
+						binding: {
+							kind: "concept" as const,
+							conceptId: "concept:hunger-games",
+							displayValue: "Hunger Games",
+						},
+					}
+				: slot,
+		);
+		session.dispatch({
+			type: "inspection_resolved",
+			definition: NOTE_MACRO,
+			slots,
+		});
+
+		expect(session.getSnapshot().authoringPreview?.text).toContain(
+			"My favorite book is",
+		);
+		expect(session.getSnapshot().authoringPreview?.text).toContain(
+			"Hunger Games",
+		);
 	});
 
 	test("finalizes one immutable snapshot from the current slots and plan", () => {

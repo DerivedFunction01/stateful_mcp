@@ -55,6 +55,13 @@ export interface WindowContainerProps {
 	macroSession?: MacroAuthoringSession;
 	sidebarOpen?: boolean;
 	onSidebarClose?: () => void;
+	historySearchOpen?: boolean;
+	historySearchQuery?: string;
+	onHistorySearchQuery?: (query: string) => void;
+	onHistorySearchNext?: () => void;
+	onHistorySearchPrev?: () => void;
+	onHistorySearchSelect?: () => void;
+	onHistorySearchClose?: () => void;
 }
 
 /**
@@ -86,6 +93,13 @@ export function WindowContainer({
 	macroSession,
 	sidebarOpen = false,
 	onSidebarClose,
+	historySearchOpen = false,
+	historySearchQuery = "",
+	onHistorySearchQuery,
+	onHistorySearchNext,
+	onHistorySearchPrev,
+	onHistorySearchSelect,
+	onHistorySearchClose,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -235,6 +249,33 @@ export function WindowContainer({
 
 	useInput(async (_input, key) => {
 		if (current.showHelp || overlay) return;
+		if (historySearchOpen) {
+			if (key.escape) {
+				onHistorySearchClose?.();
+				return;
+			}
+			if (key.return) {
+				onHistorySearchSelect?.();
+				return;
+			}
+			if (key.backspace || key.delete) {
+				onHistorySearchQuery?.(historySearchQuery.slice(0, -1));
+				return;
+			}
+			if (key.upArrow || (key.ctrl && _input === "p")) {
+				onHistorySearchPrev?.();
+				return;
+			}
+			if (key.downArrow || (key.ctrl && _input === "n")) {
+				onHistorySearchNext?.();
+				return;
+			}
+			if (_input.length === 1 && !key.ctrl && !key.meta && _input >= " ") {
+				onHistorySearchQuery?.(historySearchQuery + _input);
+				return;
+			}
+			return;
+		}
 		if (sidebarOpen && key.escape) {
 			onSidebarClose?.();
 			return;

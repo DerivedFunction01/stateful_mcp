@@ -25,11 +25,7 @@ import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
 import { HistoryOverlay } from "./HistoryOverlay";
 import { PreviewScreen } from "./PreviewScreen";
-import {
-	INITIAL_SEARCH_STATE,
-	SearchOverlay,
-	searchReducer,
-} from "./SearchOverlay";
+import { INITIAL_SEARCH_STATE, searchReducer } from "./SearchOverlay";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
 import { nextWorkspaceTab, type WorkspaceTabId } from "./WorkspaceTabs";
@@ -167,6 +163,7 @@ export function Notebook({
 			if (route === "search") {
 				const term = (payload as any)?.query ?? "";
 				searchDispatch({ type: "OPEN", query: term, cells: state.cells });
+				return;
 			}
 			setOverlay((prev) => {
 				const originCellId =
@@ -428,36 +425,6 @@ export function Notebook({
 				/>
 			);
 		}
-		if (o.route === "search") {
-			return (
-				<SearchOverlay
-					query={searchState.query}
-					matchIndex={searchState.matchIndex}
-					matchCount={searchState.matches.length}
-					onChangeQuery={(query) =>
-						searchDispatch({ type: "UPDATE_QUERY", query, cells: state.cells })
-					}
-					onNext={() => searchDispatch({ type: "NEXT" })}
-					onPrev={() => searchDispatch({ type: "PREV" })}
-					onSelect={() => {
-						if (searchState.matches.length > 0 && searchState.matchIndex >= 0) {
-							const activeCellId = searchState.matches[searchState.matchIndex];
-							const index = state.cells.findIndex(
-								(c) => c.cellId === activeCellId,
-							);
-							if (index >= 0) {
-								dispatch({ type: "set_active", index });
-							}
-						}
-						setOverlay(null);
-					}}
-					onClose={() => {
-						searchDispatch({ type: "CLEAR" });
-						setOverlay(null);
-					}}
-				/>
-			);
-		}
 		if (o.route === "history") {
 			return (
 				<HistoryOverlay
@@ -600,7 +567,6 @@ export function Notebook({
 				setShowHelp(action.show);
 				return;
 			case "SEARCH":
-				setOverlay({ route: "search" });
 				searchDispatch({ type: "OPEN", query: "", cells: state.cells });
 				return;
 			case "OPEN_HISTORY":
@@ -655,6 +621,9 @@ export function Notebook({
 		activeHistoryCell: state.cells[state.activeIndex] ?? null,
 		workspaceTab,
 		historySearchQuery: searchState.query,
+		historySearchOpen: searchState.open,
+		historySearchMatches: searchState.matches,
+		historySearchMatchIndex: searchState.matchIndex,
 	});
 
 	const containerDomain = {
@@ -720,6 +689,15 @@ export function Notebook({
 			macroSession={notebook.macroSession}
 			sidebarOpen={sidebarOpen}
 			onSidebarClose={() => setSidebarOpen(false)}
+			historySearchOpen={searchState.open}
+			historySearchQuery={searchState.query}
+			onHistorySearchQuery={(query) =>
+				searchDispatch({ type: "UPDATE_QUERY", query, cells: state.cells })
+			}
+			onHistorySearchNext={() => searchDispatch({ type: "NEXT" })}
+			onHistorySearchPrev={() => searchDispatch({ type: "PREV" })}
+			onHistorySearchSelect={() => searchDispatch({ type: "CLOSE" })}
+			onHistorySearchClose={() => searchDispatch({ type: "CLEAR" })}
 		/>
 	);
 }

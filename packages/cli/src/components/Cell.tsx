@@ -6,6 +6,7 @@ interface CellProps {
 	index: number;
 	isActive: boolean;
 	isSelected?: boolean;
+	compact?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -44,6 +45,7 @@ export function CellComponent({
 	index,
 	isActive,
 	isSelected,
+	compact = false,
 }: CellProps) {
 	const status = cell.lifecycle.status;
 	const displayText = cell.authored.rawText;
@@ -57,6 +59,23 @@ export function CellComponent({
 		(item) => item.severity !== "info",
 	);
 	const compactText = displayText.replace(/\s*\n\s*/g, " ");
+	const statusSymbol = STATUS_SYMBOLS[status] ?? "•";
+	const hasDiagnostics = diagnostics.length > 0;
+
+	if (compact) {
+		return (
+			<Box paddingLeft={1} height={1} width="100%" overflow="hidden">
+				<Text bold color={isActive ? "cyan" : undefined} wrap="truncate-end">
+					{prefix} {String(index + 1).padStart(2, "0")}{" "}
+					<Text color={statusColor}>
+						{statusSymbol}
+						{hasDiagnostics ? "!" : ""}
+					</Text>{" "}
+					{compactText || "(empty)"}
+				</Text>
+			</Box>
+		);
+	}
 
 	return (
 		<Box flexDirection="column" paddingLeft={1}>

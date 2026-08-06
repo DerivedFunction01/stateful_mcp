@@ -311,6 +311,7 @@ export function useNotebook(
 				profileId: session.v2.syntaxProfile.profileId,
 				sessionId: session.sessionId,
 				locks: state.macroLocks,
+				slots: macroSlots,
 			})
 			.then((preview) => {
 				if (!cancelled) {
@@ -344,7 +345,15 @@ export function useNotebook(
 				slots: macroSlots,
 			});
 		}
-		macroSessionRef.current?.setExecutablePreview(macroDraftPreview);
+		const authoring = session.v2.engine.getRuntime().macros.authoring;
+		const finalizedPreview = await authoring.compileDraft(state.draftText, {
+			groupId: `draft_${activeDefinition?.macroId ?? "macro"}`,
+			profileId: session.v2.syntaxProfile.profileId,
+			sessionId: session.sessionId,
+			locks: state.macroLocks,
+			slots: macroSlots,
+		});
+		macroSessionRef.current?.setExecutablePreview(finalizedPreview);
 		const finalized = macroSessionRef.current?.finalize();
 		if (!finalized || !finalized.ok) {
 			dispatch({
@@ -405,7 +414,6 @@ export function useNotebook(
 		activeDefinition,
 		childDefinitions,
 		macroSlots,
-		macroDraftPreview,
 	]);
 
 	const reverseActiveMacro = useCallback(async () => {

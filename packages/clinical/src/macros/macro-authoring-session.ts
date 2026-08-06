@@ -241,6 +241,11 @@ export class MacroAuthoringSession {
 					childDefinitions: action.childDefinitions ?? [],
 				};
 				if (action.slots) {
+					const authoringPreview =
+						action.authoringPreview ??
+						(action.definition
+							? this.renderAuthoringPreview(action.definition, action.slots)
+							: undefined);
 					this.snapshot = {
 						...this.snapshot,
 						mode: "macro",
@@ -248,7 +253,7 @@ export class MacroAuthoringSession {
 						statuses: action.definition
 							? getMacroArgumentStatuses(action.definition, action.slots)
 							: [],
-						authoringPreview: action.authoringPreview,
+						authoringPreview,
 						activeArgumentId: activeMacroSlot(
 							action.slots,
 							this.snapshot.cursorOffset,
@@ -347,25 +352,32 @@ export class MacroAuthoringSession {
 			);
 			this.snapshot.activeArgumentId = activeSlot?.argumentId;
 
-			const authoringTemplate =
-				this.snapshot.definition.authoringTemplates?.[0];
-			if (authoringTemplate) {
-				const values = this.snapshot.slots.map((s) => ({
-					argumentId: s.argumentId,
-					value: s.rawText,
-					status:
-						s.status === "locked" || s.binding
-							? ("bound" as const)
-							: s.status === "invalid"
-								? ("invalid" as const)
-								: ("unresolved" as const),
-				}));
-				this.snapshot.authoringPreview = renderMacroAuthoringTemplate(
-					authoringTemplate,
-					values,
-				);
-			}
+			this.snapshot.authoringPreview = this.renderAuthoringPreview(
+				this.snapshot.definition,
+				this.snapshot.slots,
+			);
 		}
+	}
+
+	private renderAuthoringPreview(
+		definition: MacroDefinition,
+		slots: readonly MacroSlotProjection[],
+	): MacroAuthoringRender | undefined {
+		const authoringTemplate = definition.authoringTemplates?.[0];
+		if (!authoringTemplate) return undefined;
+		return renderMacroAuthoringTemplate(
+			authoringTemplate,
+			slots.map((slot) => ({
+				argumentId: slot.argumentId,
+				value: slot.binding?.displayValue ?? slot.rawText,
+				status:
+					slot.status === "locked" || slot.binding
+						? ("bound" as const)
+						: slot.status === "invalid"
+							? ("invalid" as const)
+							: ("unresolved" as const),
+			})),
+		);
 	}
 
 	public setCompilation(result: MacroCompilationResult | undefined): void {

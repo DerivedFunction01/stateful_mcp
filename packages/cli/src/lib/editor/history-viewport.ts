@@ -6,8 +6,8 @@ export interface HistoryViewport {
 	rows: number;
 }
 
-export function historyRowHeight(cell: StructuredCell): number {
-	return 1 + cell.diagnostics.filter((item) => item.severity !== "info").length;
+export function historyRowHeight(_cell: StructuredCell): number {
+	return 1;
 }
 
 export function getHistoryViewport(
