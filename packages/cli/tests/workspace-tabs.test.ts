@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+	ASSESSMENT_TABS,
+	nextAssessmentSubTab,
 	nextWorkspaceTab,
 	WORKSPACE_TABS,
 } from "../src/components/WorkspaceTabs";
@@ -19,5 +21,14 @@ describe("workspace tabs", () => {
 			"document",
 			"concepts",
 		]);
+	});
+
+	test("provides default and scratchpad Assessment sub-tabs", () => {
+		expect(ASSESSMENT_TABS.map((tab) => tab.id)).toEqual([
+			"default",
+			"scratchpad",
+		]);
+		expect(nextAssessmentSubTab("default")).toBe("scratchpad");
+		expect(nextAssessmentSubTab("scratchpad", -1)).toBe("default");
 	});
 });

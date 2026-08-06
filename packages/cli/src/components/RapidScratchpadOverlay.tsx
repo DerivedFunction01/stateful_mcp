@@ -1,4 +1,7 @@
-import type { CommandSyntaxProfile, ConceptLookup } from "@stateful-mcp/clinical";
+import type {
+	CommandSyntaxProfile,
+	ConceptLookup,
+} from "@stateful-mcp/clinical";
 import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useMemo, useState } from "react";
@@ -12,25 +15,35 @@ import {
 } from "../lib/workspace/assessment-workspace-view";
 
 interface RapidScratchpadOverlayProps {
+	active?: boolean;
 	workspaceId: string;
 	syntaxProfile?: CommandSyntaxProfile;
 	conceptLookup?: ConceptLookup;
 	onApplyOperations(operations: WorkspaceOperation[]): Promise<void>;
+	onApplySuccess?: (operationCount: number) => void;
+	onApplyError?: (message: string) => void;
 	onPreviewLines?: (deduped: DeduplicatedLine[]) => void;
 	onClose(): void;
+	onNavigatePrevious?: () => void;
 }
 
 export function RapidScratchpadOverlay({
+	active = true,
 	workspaceId,
 	syntaxProfile,
 	conceptLookup,
 	onApplyOperations,
+	onApplySuccess,
+	onApplyError,
 	onPreviewLines,
 	onClose,
+	onNavigatePrevious,
 }: RapidScratchpadOverlayProps) {
 	const [lines, setLines] = useState<string[]>([""]);
 	const [activeLineIndex, setActiveLineIndex] = useState(0);
-	const [resolvedLines, setResolvedLines] = useState<ParsedDifferentialLine[]>([]);
+	const [resolvedLines, setResolvedLines] = useState<ParsedDifferentialLine[]>(
+		[],
+	);
 
 	const parsedLines = useMemo<ParsedDifferentialLine[]>(() => {
 		return lines.map((line) => parseShorthandLine(line, syntaxProfile));
@@ -51,7 +64,8 @@ export function RapidScratchpadOverlay({
 		};
 	}, [lines, syntaxProfile, conceptLookup]);
 
-	const activeParsedLines = resolvedLines.length === lines.length ? resolvedLines : parsedLines;
+	const activeParsedLines =
+		resolvedLines.length === lines.length ? resolvedLines : parsedLines;
 
 	const deduplicatedLines = useMemo<DeduplicatedLine[]>(() => {
 		return deduplicateParsedLines(activeParsedLines);
@@ -61,80 +75,102 @@ export function RapidScratchpadOverlay({
 		onPreviewLines?.(deduplicatedLines);
 	}, [deduplicatedLines, onPreviewLines]);
 
-	useInput((input, key) => {
-		if (key.escape) {
-			onClose();
-			return;
-		}
-
-		if (key.return) {
-			const validOps: WorkspaceOperation[] = deduplicatedLines.map(
-				({ parsed: p }) =>
-					({
-						kind: "create_branch",
-						workspaceId,
-						name: p.conceptDisplay,
-						concept: {
-							conceptId: p.conceptId ?? p.rawInput.trim(),
-							display: p.conceptDisplay,
-						},
-						initialStatus: p.status,
-						supportingFindings: p.supportingFindings,
-						refutingFindings: p.refutingFindings,
-					}) as any,
-			);
-
-			if (validOps.length > 0) {
-				void onApplyOperations(validOps).then(() => onClose());
-			} else {
+	useInput(
+		(input, key) => {
+			if (key.escape) {
 				onClose();
+				return;
 			}
-			return;
-		}
 
-		if (key.tab) {
-			setLines((prev) => {
-				const next = [...prev];
-				next.splice(activeLineIndex + 1, 0, "");
-				return next;
-			});
-			setActiveLineIndex((idx) => idx + 1);
-			return;
-		}
+			if (key.return) {
+				const validOps: WorkspaceOperation[] = deduplicatedLines.map(
+					({ parsed: p }) =>
+						({
+							kind: "create_branch",
+							workspaceId,
+							name: p.conceptDisplay,
+							concept: {
+								conceptId: p.conceptId ?? p.rawInput.trim(),
+								display: p.conceptDisplay,
+							},
+							initialStatus: p.status,
+							supportingFindings: p.supportingFindings,
+							refutingFindings: p.refutingFindings,
+						}) as any,
+				);
 
-		if (key.backspace || key.delete) {
-			const currentLine = lines[activeLineIndex] ?? "";
-			if (currentLine.length === 0 && lines.length > 1) {
-				setLines((prev) => prev.filter((_, idx) => idx !== activeLineIndex));
+				if (validOps.length === 0) {
+					onApplyError?.("No valid scratchpad operations to apply");
+					return;
+				}
+
+				void onApplyOperations(validOps)
+					.then(() => {
+						setLines([""]);
+						setActiveLineIndex(0);
+						setResolvedLines([]);
+						if (onApplySuccess) onApplySuccess(validOps.length);
+						else onClose();
+					})
+					.catch((error: unknown) => {
+						onApplyError?.(
+							error instanceof Error ? error.message : String(error),
+						);
+					});
+				return;
+			}
+
+			if (key.tab) {
+				if (key.shift) {
+					onNavigatePrevious?.();
+					return;
+				}
+				setLines((prev) => {
+					const next = [...prev];
+					next.splice(activeLineIndex + 1, 0, "");
+					return next;
+				});
+				setActiveLineIndex((idx) => idx + 1);
+				return;
+			}
+
+			if (key.backspace || key.delete) {
+				const currentLine = lines[activeLineIndex] ?? "";
+				if (currentLine.length === 0 && lines.length > 1) {
+					setLines((prev) => prev.filter((_, idx) => idx !== activeLineIndex));
+					setActiveLineIndex((idx) => Math.max(0, idx - 1));
+					return;
+				}
+				setLines((prev) => {
+					const next = [...prev];
+					next[activeLineIndex] = (next[activeLineIndex] ?? "").slice(0, -1);
+					return next;
+				});
+				return;
+			}
+
+			if (key.upArrow) {
 				setActiveLineIndex((idx) => Math.max(0, idx - 1));
 				return;
 			}
-			setLines((prev) => {
-				const next = [...prev];
-				next[activeLineIndex] = (next[activeLineIndex] ?? "").slice(0, -1);
-				return next;
-			});
-			return;
-		}
 
-		if (key.upArrow) {
-			setActiveLineIndex((idx) => Math.max(0, idx - 1));
-			return;
-		}
+			if (key.downArrow) {
+				setActiveLineIndex((idx) => Math.min(lines.length - 1, idx + 1));
+				return;
+			}
 
-		if (key.downArrow) {
-			setActiveLineIndex((idx) => Math.min(lines.length - 1, idx + 1));
-			return;
-		}
+			if (input.length === 1 && !key.ctrl && !key.meta) {
+				setLines((prev) => {
+					const next = [...prev];
+					next[activeLineIndex] = (next[activeLineIndex] ?? "") + input;
+					return next;
+				});
+			}
+		},
+		{ isActive: active },
+	);
 
-		if (input.length === 1 && !key.ctrl && !key.meta) {
-			setLines((prev) => {
-				const next = [...prev];
-				next[activeLineIndex] = (next[activeLineIndex] ?? "") + input;
-				return next;
-			});
-		}
-	});
+	if (!active) return null;
 
 	return (
 		<Box
@@ -179,7 +215,9 @@ export function RapidScratchpadOverlay({
 						<Box key={idx} flexDirection="column" marginBottom={1}>
 							<Box>
 								<Text color="cyan">{idx + 1}. </Text>
-								<Text color="magenta">[{parsed.macroId ?? "implicit-active"}] </Text>
+								<Text color="magenta">
+									[{parsed.macroId ?? "implicit-active"}]{" "}
+								</Text>
 								<Text color="yellow">[{parsed.rawInput}] </Text>
 								<Text>➜ {parsed.conceptDisplay} </Text>
 								<Text color="gray">

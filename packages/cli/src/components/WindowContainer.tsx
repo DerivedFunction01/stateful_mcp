@@ -28,6 +28,11 @@ import {
 } from "../lib/editor/completion-state";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
+import {
+	type NavigationContext,
+	type NavigationDirection,
+	navigationDirectionFor,
+} from "../lib/editor/navigation";
 import { deriveWindowLayout } from "../lib/editor/window-layout";
 import { sidebarTabForAlt } from "./SidebarActivityBar";
 import { WindowLayoutContext } from "./WindowLayoutContext";
@@ -54,6 +59,8 @@ export interface WindowContainerProps {
 	syntaxProfile: CommandSyntaxProfile;
 	childDefinitions?: MacroDefinition[];
 	macroSession?: MacroAuthoringSession;
+	assessmentSubTabsActive?: boolean;
+	suspendEditorInput?: boolean;
 	sidebarOpen?: boolean;
 	onSidebarClose?: () => void;
 	historySearchOpen?: boolean;
@@ -63,6 +70,16 @@ export interface WindowContainerProps {
 	onHistorySearchPrev?: () => void;
 	onHistorySearchSelect?: () => void;
 	onHistorySearchClose?: () => void;
+	navigationContext?: NavigationContext;
+	navigationSearchOpen?: boolean;
+	navigationSearchQuery?: string;
+	onNavigationSearchQuery?: (query: string) => void;
+	onNavigationSearchNext?: () => void;
+	onNavigationSearchPrev?: () => void;
+	onNavigationSearchSelect?: () => void;
+	onNavigationSearchClose?: () => void;
+	onNavigationMove?: (direction: NavigationDirection) => void;
+	onNavigationSearchOpen?: () => void;
 }
 
 /**
@@ -92,6 +109,8 @@ export function WindowContainer({
 	syntaxProfile,
 	childDefinitions = [],
 	macroSession,
+	assessmentSubTabsActive = false,
+	suspendEditorInput = false,
 	sidebarOpen = false,
 	onSidebarClose,
 	historySearchOpen = false,
@@ -101,6 +120,16 @@ export function WindowContainer({
 	onHistorySearchPrev,
 	onHistorySearchSelect,
 	onHistorySearchClose,
+	navigationContext,
+	navigationSearchOpen = false,
+	navigationSearchQuery = "",
+	onNavigationSearchQuery,
+	onNavigationSearchNext,
+	onNavigationSearchPrev,
+	onNavigationSearchSelect,
+	onNavigationSearchClose,
+	onNavigationMove,
+	onNavigationSearchOpen,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -250,38 +279,33 @@ export function WindowContainer({
 
 	useInput(async (_input, key) => {
 		if (current.showHelp || overlay) return;
-		if (historySearchOpen) {
+		if (navigationSearchOpen) {
 			if (key.escape) {
-				onHistorySearchClose?.();
+				onNavigationSearchClose?.();
 				return;
 			}
 			if (key.return) {
-				onHistorySearchSelect?.();
+				onNavigationSearchSelect?.();
 				return;
 			}
 			if (key.backspace || key.delete) {
-				onHistorySearchQuery?.(historySearchQuery.slice(0, -1));
+				onNavigationSearchQuery?.(navigationSearchQuery.slice(0, -1));
 				return;
 			}
 			if (key.upArrow || (key.ctrl && _input === "p")) {
-				onHistorySearchPrev?.();
+				onNavigationSearchPrev?.();
 				return;
 			}
 			if (key.downArrow || (key.ctrl && _input === "n")) {
-				onHistorySearchNext?.();
+				onNavigationSearchNext?.();
 				return;
 			}
 			if (_input.length === 1 && !key.ctrl && !key.meta && _input >= " ") {
-				onHistorySearchQuery?.(historySearchQuery + _input);
+				onNavigationSearchQuery?.(navigationSearchQuery + _input);
 				return;
 			}
 			return;
 		}
-		if (sidebarOpen && key.escape) {
-			onSidebarClose?.();
-			return;
-		}
-
 		// Alt+1..3 switch the right-hand sidebar activity bar view.
 		if (key.meta && _input.length === 1 && _input >= "1" && _input <= "3") {
 			const tab = sidebarTabForAlt(_input);
@@ -289,6 +313,42 @@ export function WindowContainer({
 				emit({ type: "SET_SIDEBAR_TAB", tab });
 				return;
 			}
+		}
+
+		if (suspendEditorInput) return;
+
+		if (
+			current.mode === "NORMAL" &&
+			navigationContext &&
+			(onNavigationMove || onNavigationSearchOpen)
+		) {
+			const navigationResolution = keymap.resolve(
+				_input,
+				key,
+				current.mode,
+				"",
+				current.commandKind,
+			);
+			if (
+				navigationResolution.kind === "generic" &&
+				navigationResolution.action.type === "SEARCH"
+			) {
+				onNavigationSearchOpen?.();
+				return;
+			}
+			if (
+				navigationResolution.kind === "document" &&
+				navigationResolution.action.type === "move"
+			) {
+				const direction = navigationDirectionFor(navigationResolution.action);
+				if (direction) onNavigationMove?.(direction);
+				return;
+			}
+		}
+
+		if (sidebarOpen && key.escape) {
+			onSidebarClose?.();
+			return;
 		}
 
 		if (current.mode === "INSERT" && current.commandKind !== "macro") {
@@ -513,7 +573,13 @@ export function WindowContainer({
 		}
 
 		if (current.mode === "NORMAL" && key.tab) {
-			emit({ type: "NEXT_WORKSPACE_TAB" });
+			emit({
+				type: assessmentSubTabsActive
+					? key.shift
+						? "PREVIOUS_ASSESSMENT_TAB"
+						: "NEXT_ASSESSMENT_TAB"
+					: "NEXT_WORKSPACE_TAB",
+			});
 			return;
 		}
 

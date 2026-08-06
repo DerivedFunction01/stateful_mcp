@@ -8,6 +8,9 @@ interface WorkspaceViewProps {
 	loading: boolean;
 	error: string | null;
 	focused: boolean;
+	selectedBranchId?: string | null;
+	searchOpen?: boolean;
+	searchQuery?: string;
 }
 
 function GlobalFactsStrip({
@@ -37,25 +40,27 @@ function GlobalFactsStrip({
 function BranchCard({
 	branch,
 	isActive,
+	isSelected,
 	isFocused,
 }: {
 	branch: WorkspaceSnapshot["branches"][number];
 	isActive: boolean;
+	isSelected: boolean;
 	isFocused: boolean;
 }) {
-	const showDetails = isActive || !isFocused;
+	const showDetails = isSelected || isActive || !isFocused;
 	return (
 		<Box
 			flexDirection="column"
 			borderStyle="single"
-			borderColor={isActive ? "green" : "gray"}
+			borderColor={isSelected ? "cyan" : isActive ? "green" : "gray"}
 			paddingLeft={1}
 			paddingRight={1}
 			marginBottom={1}
 		>
 			<Box>
 				<Text bold={isActive} color={isActive ? "green" : undefined}>
-					{isActive ? "► " : "  "}
+					{isSelected ? "► " : isActive ? "· " : "  "}
 				</Text>
 				<Text bold>{branch.name}</Text>
 				<Text color="gray">
@@ -118,8 +123,25 @@ export function WorkspaceView({
 	loading,
 	error,
 	focused,
+	selectedBranchId,
+	searchOpen = false,
+	searchQuery = "",
 }: WorkspaceViewProps) {
 	const branches = snapshot?.branches ?? [];
+	const visibleBranches = searchQuery
+		? branches.filter((branch) => {
+				const haystack = [
+					branch.name,
+					branch.hypothesisConcept?.display,
+					...branch.supportingConcepts.map((concept) => concept.display),
+					...branch.refutingConcepts.map((concept) => concept.display),
+				]
+					.filter(Boolean)
+					.join(" ")
+					.toLowerCase();
+				return haystack.includes(searchQuery.toLowerCase());
+			})
+		: branches;
 	return (
 		<Box flexDirection="column" width="100%" height="100%" paddingLeft={1}>
 			<Box>
@@ -141,6 +163,14 @@ export function WorkspaceView({
 					<Text color="yellow">{" · CLOSE REQUESTED"}</Text>
 				)}
 			</Box>
+			{searchOpen && (
+				<Box borderStyle="single" borderColor="cyan" paddingX={1}>
+					<Text bold color="cyan">
+						Search: {searchQuery}
+					</Text>
+					<Text color="gray">_ Esc close · ↑/↓ select</Text>
+				</Box>
+			)}
 
 			{loading && (
 				<Box paddingLeft={1}>
@@ -154,7 +184,7 @@ export function WorkspaceView({
 				</Box>
 			)}
 
-			{snapshot && branches.length === 0 && !loading && (
+			{snapshot && visibleBranches.length === 0 && !loading && (
 				<Box paddingLeft={1}>
 					<Text color="gray">
 						{t("workspace.noBranches", { cmd: t("workspace.branchCmd") })}
@@ -165,13 +195,15 @@ export function WorkspaceView({
 			<GlobalFactsStrip facts={snapshot?.globalFacts ?? []} />
 
 			<Box flexDirection="column" paddingTop={1}>
-				{branches.map((b) => {
+				{visibleBranches.map((b) => {
 					const isActive = b.branchId === snapshot?.activeBranchId;
+					const isSelected = b.branchId === selectedBranchId;
 					return (
 						<BranchCard
 							key={b.branchId}
 							branch={b}
 							isActive={isActive}
+							isSelected={isSelected}
 							isFocused={focused}
 						/>
 					);

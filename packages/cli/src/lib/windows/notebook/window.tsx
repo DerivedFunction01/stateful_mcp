@@ -21,7 +21,10 @@ import { MacroEditor } from "../../../components/MacroEditor";
 import { NotebookWorkspace } from "../../../components/NotebookWorkspace";
 import { SidebarContainer } from "../../../components/SidebarContainer";
 import { StatusBar } from "../../../components/StatusBar";
-import type { WorkspaceTabId } from "../../../components/WorkspaceTabs";
+import type {
+	AssessmentSubTabId,
+	WorkspaceTabId,
+} from "../../../components/WorkspaceTabs";
 import type { CellSuggestion } from "../../../hooks/useNotebook";
 import type {
 	CommandCatalog,
@@ -64,6 +67,11 @@ export interface NotebookWindowDeps {
 	onSelectSidebarTab?(tab: SidebarViewTab): void;
 	activeHistoryCell?: StructuredCell | null;
 	workspaceTab?: WorkspaceTabId;
+	assessmentSubTab?: AssessmentSubTabId;
+	scratchpadContent?: ReactElement | null;
+	selectedBranchId?: string | null;
+	assessmentSearchOpen?: boolean;
+	assessmentSearchQuery?: string;
 	historySearchQuery?: string;
 	historySearchOpen?: boolean;
 	historySearchMatches?: string[];
@@ -72,7 +80,6 @@ export interface NotebookWindowDeps {
 	workspaceLoading?: boolean;
 	workspaceError?: string | null;
 	workspaceFocused?: boolean;
-	scratchpadPreview?: import("../../../lib/workspace/assessment-workspace-view").DeduplicatedLine[];
 }
 
 /**
@@ -127,6 +134,11 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 						loading={deps.workspaceLoading}
 						error={deps.workspaceError}
 						focused={deps.workspaceFocused}
+						assessmentSubTab={deps.assessmentSubTab}
+						scratchpadContent={deps.scratchpadContent}
+						selectedBranchId={deps.selectedBranchId}
+						assessmentSearchOpen={deps.assessmentSearchOpen}
+						assessmentSearchQuery={deps.assessmentSearchQuery}
 					/>
 				),
 			});
@@ -210,7 +222,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					const branchDetail = (
 						<BranchDetailInspector
 							snapshot={deps.workspaceSnapshot ?? null}
-							scratchpadPreview={deps.scratchpadPreview}
+							activeBranchId={deps.selectedBranchId ?? undefined}
 						/>
 					);
 					const manualDetail =
@@ -305,7 +317,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					) : sidebarTab === "branches" ? (
 						<BranchDetailInspector
 							snapshot={deps.workspaceSnapshot ?? null}
-							scratchpadPreview={deps.scratchpadPreview}
+							activeBranchId={deps.selectedBranchId ?? undefined}
 						/>
 					) : sidebarTab === "history" ? (
 						<Box padding={1}>
