@@ -21,6 +21,7 @@ interface Classification {
 		| "CANCEL"
 		| "SEARCH"
 		| "OPEN_HISTORY"
+		| "TOGGLE_SIDEBAR"
 		| "SUBMIT_MACRO";
 	char?: string;
 }
@@ -82,7 +83,7 @@ function classify(action: ClinicalAction): Classification {
 		case ClinicalAction.OpenWorkspace:
 			return { domain: { type: "openWorkspace" } };
 		case ClinicalAction.Info:
-			return {};
+			return { generic: "TOGGLE_SIDEBAR" };
 		case ClinicalAction.Quit:
 			return { domain: { type: "quit" } };
 		case ClinicalAction.Search:
@@ -112,6 +113,8 @@ export class NotebookKeymapPolicy implements KeymapPolicy {
 			this.profile,
 			commandKind,
 		);
+		if (action === ClinicalAction.EnterInsertMode && key.return)
+			return { kind: "none", nextPending: "" };
 
 		// Multi-key sequence awaiting a second key (dd, yy, [e, gw, ...).
 		if (action === null && nextPending) {

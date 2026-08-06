@@ -14,7 +14,7 @@ import { buildMacroRenderSegments } from "../lib/editor/macro-render";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { t } from "../lib/shared/i18n";
 
-interface MacroEditorProps {
+export interface MacroEditorProps {
 	draftText: string;
 	cursorOffset: number;
 	macroSlots?: MacroSlotProjection[];
@@ -27,6 +27,8 @@ interface MacroEditorProps {
 	selectionStart?: number;
 	selectionEnd?: number;
 	showCursor?: boolean;
+	inputOnly?: boolean;
+	detailsOnly?: boolean;
 }
 
 export function MacroEditor({
@@ -42,6 +44,8 @@ export function MacroEditor({
 	selectionStart,
 	selectionEnd,
 	showCursor = true,
+	inputOnly = false,
+	detailsOnly = false,
 }: MacroEditorProps) {
 	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
 		activeDefinition !== null &&
@@ -238,6 +242,51 @@ export function MacroEditor({
 		isUnresolvedConcept ||
 		Boolean(typeHintText);
 
+	if (inputOnly) {
+		return (
+			<Box
+				flexDirection="column"
+				borderStyle="single"
+				borderColor="green"
+				height={3}
+				width="100%"
+				overflow="hidden"
+			>
+				<Text bold>
+					{segments.map((segment, index) => {
+						if (segment.kind === "cursor")
+							return (
+								<Text key={index} color="green">
+									{segment.text}
+								</Text>
+							);
+						if (segment.kind === "slot")
+							return (
+								<Text
+									key={index}
+									inverse
+									color={segment.status === "locked" ? "magenta" : "cyan"}
+									bold
+								>
+									[{segment.text}]
+								</Text>
+							);
+						return <Text key={index}>{segment.text}</Text>;
+					})}
+				</Text>
+				{selectionStart !== undefined && selectionEnd !== undefined && (
+					<Text color="cyan">
+						Selection:{" "}
+						{draftText.slice(
+							Math.min(selectionStart, selectionEnd),
+							Math.max(selectionStart, selectionEnd),
+						)}
+					</Text>
+				)}
+			</Box>
+		);
+	}
+
 	return (
 		<Box
 			flexDirection="column"
@@ -246,87 +295,89 @@ export function MacroEditor({
 			paddingX={1}
 			width="100%"
 		>
-			{/* Macro editor input surface */}
-			<Box flexDirection="column" width="100%">
-				<Text bold color="green">
-					Macro editor
-				</Text>
-				<Box paddingLeft={1} flexDirection="column">
-					<Text bold>
-						{segments.map((segment, index) => {
-							if (segment.kind === "cursor") {
-								return (
-									<Text key={index} color="green">
-										{segment.text}
-									</Text>
-								);
-							}
-							if (segment.kind === "slot") {
-								const slot = macroSlots.find(
-									(candidate) =>
-										candidate.start <= draftText.indexOf(segment.text) &&
-										candidate.end >=
-											draftText.indexOf(segment.text) + segment.text.length,
-								);
-								return (
-									<Text
-										key={index}
-										inverse
-										color={
-											slot?.status === "locked"
-												? "magenta"
-												: slot?.argumentId === activeMacroArgumentId
-													? "yellow"
-													: "cyan"
-										}
-										bold
-									>
-										[{segment.text}]{slot?.status === "locked" ? "*" : ""}
-									</Text>
-								);
-							}
-							return <Text key={index}>{segment.text}</Text>;
-						})}
+			{!detailsOnly && (
+				/* Macro editor input surface */
+				<Box flexDirection="column" width="100%">
+					<Text bold color="green">
+						Macro editor
 					</Text>
-					{selectionStart !== undefined && selectionEnd !== undefined && (
-						<Text color="cyan">
-							Selection:{" "}
-							{draftText.slice(
-								Math.min(selectionStart, selectionEnd),
-								Math.max(selectionStart, selectionEnd),
-							)}
-						</Text>
-					)}
-					{/* Status Checklist */}
-					{statuses.length > 0 && (
-						<Box flexDirection="row" marginTop={1} gap={2}>
-							<Text bold>{t("macro.status")}</Text>
-							{statuses.map((item, index) => {
-								let color = "gray";
-								let prefix = "✗";
-								if (item.status === "locked") {
-									color = "green";
-									prefix = "✓";
-								} else if (item.status === "broken") {
-									color = "yellow";
-									prefix = "⚠";
+					<Box paddingLeft={1} flexDirection="column">
+						<Text bold>
+							{segments.map((segment, index) => {
+								if (segment.kind === "cursor") {
+									return (
+										<Text key={index} color="green">
+											{segment.text}
+										</Text>
+									);
 								}
-								return (
-									<Text key={index} color={color} bold>
-										{prefix} {item.name}
-									</Text>
-								);
+								if (segment.kind === "slot") {
+									const slot = macroSlots.find(
+										(candidate) =>
+											candidate.start <= draftText.indexOf(segment.text) &&
+											candidate.end >=
+												draftText.indexOf(segment.text) + segment.text.length,
+									);
+									return (
+										<Text
+											key={index}
+											inverse
+											color={
+												slot?.status === "locked"
+													? "magenta"
+													: slot?.argumentId === activeMacroArgumentId
+														? "yellow"
+														: "cyan"
+											}
+											bold
+										>
+											[{segment.text}]{slot?.status === "locked" ? "*" : ""}
+										</Text>
+									);
+								}
+								return <Text key={index}>{segment.text}</Text>;
 							})}
-						</Box>
-					)}
-					{/* Hint Bar */}
-					<Box marginTop={1}>
-						<Text color="yellow" bold>
-							{hintText}
 						</Text>
+						{selectionStart !== undefined && selectionEnd !== undefined && (
+							<Text color="cyan">
+								Selection:{" "}
+								{draftText.slice(
+									Math.min(selectionStart, selectionEnd),
+									Math.max(selectionStart, selectionEnd),
+								)}
+							</Text>
+						)}
+						{/* Status Checklist */}
+						{statuses.length > 0 && (
+							<Box flexDirection="row" marginTop={1} gap={2}>
+								<Text bold>{t("macro.status")}</Text>
+								{statuses.map((item, index) => {
+									let color = "gray";
+									let prefix = "✗";
+									if (item.status === "locked") {
+										color = "green";
+										prefix = "✓";
+									} else if (item.status === "broken") {
+										color = "yellow";
+										prefix = "⚠";
+									}
+									return (
+										<Text key={index} color={color} bold>
+											{prefix} {item.name}
+										</Text>
+									);
+								})}
+							</Box>
+						)}
+						{/* Hint Bar */}
+						<Box marginTop={1}>
+							<Text color="yellow" bold>
+								{hintText}
+							</Text>
+						</Box>
 					</Box>
 				</Box>
-			</Box>
+			)}
 
 			{/* Suggestions Panel */}
 			{shouldShowDiagnosticsPanel && (

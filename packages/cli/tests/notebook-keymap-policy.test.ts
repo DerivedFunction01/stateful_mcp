@@ -34,10 +34,20 @@ describe("NotebookKeymapPolicy", () => {
 		});
 	});
 
-	test("cell run, preview, and info keys are inert", () => {
+	test("NORMAL Enter does not submit the persistent editor buffer", () => {
+		expect(policy.resolve("\r", { return: true }, "NORMAL", "")).toEqual({
+			kind: "none",
+			nextPending: "",
+		});
+	});
+
+	test("cell run and preview keys are inert while I toggles detail", () => {
 		expect(policy.resolve("r", {}, "NORMAL", "").kind).toBe("none");
 		expect(policy.resolve("P", {}, "NORMAL", "").kind).toBe("none");
-		expect(policy.resolve("I", {}, "NORMAL", "").kind).toBe("none");
+		expect(policy.resolve("I", {}, "NORMAL", "")).toEqual({
+			kind: "generic",
+			action: { type: "TOGGLE_SIDEBAR" },
+		});
 	});
 
 	test("NORMAL ':' resolves to generic enter-command", () => {

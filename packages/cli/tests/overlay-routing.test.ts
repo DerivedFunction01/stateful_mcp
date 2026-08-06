@@ -12,9 +12,12 @@ describe("P4 Overlay and Router key mappings", () => {
 		expect(res.action).toEqual({ type: "openWorkspace" } as any);
 	});
 
-	test("I key is inert because cells are history records", () => {
+	test("I key toggles the on-demand detail sidebar", () => {
 		const res = policy.resolve("I", {} as Key, "NORMAL", "");
-		expect(res.kind).toBe("none");
+		expect(res).toEqual({
+			kind: "generic",
+			action: { type: "TOGGLE_SIDEBAR" },
+		});
 	});
 
 	test("resolves q key to quit domain action in VISUAL mode", () => {

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 
 export type WindowSlot =
+	| "navigation"
 	| "primary"
 	| "command"
 	| "status"

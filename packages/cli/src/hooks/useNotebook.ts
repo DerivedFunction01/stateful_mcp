@@ -381,6 +381,15 @@ export function useNotebook(
 						? "Macro committed"
 						: result.diagnostics.join("; "),
 			});
+			if (result.status === "committed") {
+				macroSessionRef.current?.dispatch({
+					type: "set_text",
+					text: "",
+					cursorOffset: 0,
+				});
+				dispatch({ type: "set_draft", text: "" });
+				dispatch({ type: "set_mode", mode: "NORMAL" });
+			}
 		} catch (error) {
 			dispatch({
 				type: "set_message",

@@ -5,7 +5,7 @@ import type {
 	MacroDefinition,
 } from "@stateful-mcp/clinical";
 import { findNextMacroChild } from "@stateful-mcp/clinical";
-import { Box, useInput } from "ink";
+import { Box, useInput, useStdout } from "ink";
 import { type ReactElement, useEffect, useReducer, useRef } from "react";
 import {
 	type CommandCatalog,
@@ -28,6 +28,8 @@ import {
 } from "../lib/editor/completion-state";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
+import { deriveWindowLayout } from "../lib/editor/window-layout";
+import { WindowLayoutContext } from "./WindowLayoutContext";
 import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 
 export interface WindowContainerProps {
@@ -51,6 +53,8 @@ export interface WindowContainerProps {
 	syntaxProfile: CommandSyntaxProfile;
 	childDefinitions?: MacroDefinition[];
 	macroSession?: MacroAuthoringSession;
+	sidebarOpen?: boolean;
+	onSidebarClose?: () => void;
 }
 
 /**
@@ -80,6 +84,8 @@ export function WindowContainer({
 	syntaxProfile,
 	childDefinitions = [],
 	macroSession,
+	sidebarOpen = false,
+	onSidebarClose,
 }: WindowContainerProps) {
 	const [kernel, dispatch] = useReducer(
 		reduceEditorKernel,
@@ -88,6 +94,7 @@ export function WindowContainer({
 	);
 	const view = document?.getView();
 	const current = editorState ?? kernel;
+	const { stdout } = useStdout();
 	const emit = (action: EditorAction) => {
 		if (onEditorAction) onEditorAction(action);
 		else dispatch(action);
@@ -228,6 +235,10 @@ export function WindowContainer({
 
 	useInput(async (_input, key) => {
 		if (current.showHelp || overlay) return;
+		if (sidebarOpen && key.escape) {
+			onSidebarClose?.();
+			return;
+		}
 
 		if (current.mode === "INSERT" && current.commandKind !== "macro") {
 			emit({ type: key.escape ? "CANCEL" : "ENTER_MACRO" });
@@ -450,12 +461,25 @@ export function WindowContainer({
 			return;
 		}
 
+		if (current.mode === "NORMAL" && key.tab) {
+			emit({ type: "NEXT_WORKSPACE_TAB" });
+			return;
+		}
+
 		const mode = view?.selection ? "VISUAL" : "NORMAL";
 		await applyKeyResolution(_input, key, mode);
 	});
 
 	const regions = definition.regions();
 	const bySlot = (slot: string) => regions.filter((r) => r.slot === slot);
+	const navigationRegions = bySlot("navigation");
+	const primaryRegions = bySlot("primary");
+	const sidebarRegions = bySlot("sidebar");
+	const layout = deriveWindowLayout({
+		columns: stdout.columns ?? 80,
+		rows: stdout.rows ?? 24,
+		sidebarOpen: sidebarRegions.length > 0,
+	});
 
 	// Modal overlay: the overlay content owns input; the editor is not rendered
 	// and the container does not process keys while it is active.
@@ -473,40 +497,89 @@ export function WindowContainer({
 		);
 	}
 
-	return (
-		<Box flexDirection="column" width="100%" height="100%">
-			<Box flexDirection="row" flexGrow={1} width="100%">
-				<Box flexDirection="column" flexGrow={1}>
-					{bySlot("primary").map((r) => (
-						<Box key={r.key} flexGrow={1}>
-							{r.render()}
-						</Box>
-					))}
-				</Box>
-				{bySlot("sidebar").length > 0 &&
-					(() => {
-						const content = bySlot("sidebar")
-							.map((r) => ({ key: r.key, content: r.render() }))
-							.filter((r) => r.content !== null);
-						if (content.length === 0) return null;
-						return (
-							<Box flexDirection="column" width={30} borderStyle="single">
-								{content.map((r) => (
-									<Box key={r.key}>{r.content}</Box>
-								))}
-							</Box>
-						);
-					})()}
-			</Box>
+	const renderRegions = (target: typeof regions) =>
+		target.map((region) => <Box key={region.key}>{region.render()}</Box>);
+	const renderBottomRegions = () => (
+		<>
 			{bySlot("command").map((r) => (
-				<Box key={r.key}>{r.render()}</Box>
+				<Box key={r.key} width="100%">
+					{r.render()}
+				</Box>
 			))}
 			{bySlot("status").map((r) => (
-				<Box key={r.key}>{r.render()}</Box>
+				<Box key={r.key} width="100%">
+					{r.render()}
+				</Box>
 			))}
 			{bySlot("footer").map((r) => (
-				<Box key={r.key}>{r.render()}</Box>
+				<Box key={r.key} width="100%">
+					{r.render()}
+				</Box>
 			))}
-		</Box>
+		</>
+	);
+
+	return (
+		<WindowLayoutContext.Provider value={layout}>
+			<Box width="100%" height={layout.rows}>
+				{layout.wide ? (
+					<>
+						<Box
+							flexDirection="column"
+							width={layout.historyWidth + layout.centerWidth}
+							height={layout.rows}
+						>
+							<Box
+								flexDirection="row"
+								height={layout.workspaceRows}
+								width="100%"
+							>
+								<Box width={layout.historyWidth} height="100%">
+									{renderRegions(navigationRegions)}
+								</Box>
+								<Box width={layout.centerWidth} height="100%">
+									{renderRegions(primaryRegions)}
+								</Box>
+							</Box>
+							{renderBottomRegions()}
+						</Box>
+						{sidebarRegions.length > 0 && (
+							<Box
+								flexDirection="column"
+								width={layout.detailsWidth}
+								height={layout.detailsRows}
+								borderStyle="single"
+							>
+								{sidebarRegions.map((region) => (
+									<Box key={region.key} flexGrow={1} overflow="hidden">
+										{region.render()}
+									</Box>
+								))}
+							</Box>
+						)}
+					</>
+				) : (
+					<Box flexDirection="column" width="100%" height={layout.rows}>
+						<Box height={layout.workspaceRows} width="100%">
+							{sidebarRegions.length > 0 ? (
+								<Box height="100%" width="100%" borderStyle="single">
+									{sidebarRegions.map((region) => region.render())}
+								</Box>
+							) : (
+								<Box flexDirection="column" height="100%" width="100%">
+									<Box
+										height={Math.max(1, Math.floor(layout.workspaceRows / 2))}
+									>
+										{renderRegions(navigationRegions)}
+									</Box>
+									<Box flexGrow={1}>{renderRegions(primaryRegions)}</Box>
+								</Box>
+							)}
+						</Box>
+						{renderBottomRegions()}
+					</Box>
+				)}
+			</Box>
+		</WindowLayoutContext.Provider>
 	);
 }

@@ -201,11 +201,18 @@ describe.each([
 			created.cellId,
 			"idem-reversal",
 		);
+		const repeated = await service.reverseFinalizedMacro(
+			created.cellId,
+			"idem-reversal",
+		);
 		const updated = await service.get(created.cellId);
 		expect(result.status).toBe("committed");
+		expect(repeated.transactionId).toBe("tx-reversal");
 		expect(reversed).toBe(1);
 		expect(updated?.authored.rawText).toBe(finalized.authoredText);
 		expect(updated?.execution.reversalTransactionId).toBe("tx-reversal");
+		expect(updated?.execution.reversedAt).toBeTruthy();
+		expect(updated?.lifecycle.revision).toBe(created.lifecycle.revision + 1);
 	});
 
 	it("lists cells by session", async () => {

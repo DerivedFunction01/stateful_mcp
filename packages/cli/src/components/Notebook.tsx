@@ -32,6 +32,7 @@ import {
 } from "./SearchOverlay";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
+import { nextWorkspaceTab, type WorkspaceTabId } from "./WorkspaceTabs";
 
 /**
  * Independent notebook root. Owns a separate useSession/useNotebook and runs
@@ -44,6 +45,8 @@ export function Notebook({
 }) {
 	const session = useSession(preferredSessionId);
 	const [overlay, setOverlay] = useState<WindowOverlay | null>(null);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTabId>("notebook");
 	const notebook = useNotebook(session, {
 		onOpenHistory: () => setOverlay({ route: "history" }),
 	});
@@ -603,6 +606,13 @@ export function Notebook({
 			case "OPEN_HISTORY":
 				setOverlay({ route: "history" });
 				return;
+			case "TOGGLE_SIDEBAR":
+				setSidebarOpen((open) => !open);
+				return;
+			case "NEXT_WORKSPACE_TAB": {
+				setWorkspaceTab(nextWorkspaceTab);
+				return;
+			}
 			case "CANCEL":
 				if (state.mode === "VISUAL" && state.commandKind === "macro") {
 					dispatch({ type: "set_mode", mode: "INSERT" });
@@ -641,6 +651,10 @@ export function Notebook({
 		activeDefinition: notebook.activeDefinition,
 		childDefinitions: notebook.childDefinitions,
 		draftPreview: notebook.macroDraftPreview,
+		sidebarOpen,
+		activeHistoryCell: state.cells[state.activeIndex] ?? null,
+		workspaceTab,
+		historySearchQuery: searchState.query,
 	});
 
 	const containerDomain = {
@@ -704,6 +718,8 @@ export function Notebook({
 			syntaxProfile={session.v2.syntaxProfile}
 			childDefinitions={notebook.childDefinitions}
 			macroSession={notebook.macroSession}
+			sidebarOpen={sidebarOpen}
+			onSidebarClose={() => setSidebarOpen(false)}
 		/>
 	);
 }

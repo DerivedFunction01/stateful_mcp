@@ -36,6 +36,8 @@ export const EditorAction = {
 	OpenMacroInput: "ENTER_MACRO",
 	Search: "SEARCH",
 	OpenHistory: "OPEN_HISTORY",
+	ToggleSidebar: "TOGGLE_SIDEBAR",
+	NextWorkspaceTab: "NEXT_WORKSPACE_TAB",
 	EnterVisualMode: "ENTER_VISUAL",
 } as const;
 

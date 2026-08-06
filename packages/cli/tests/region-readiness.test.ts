@@ -11,6 +11,7 @@ function stubNotebook(
 	overrides?: Partial<{
 		mode: "NORMAL" | "INSERT" | "COMMAND" | "VISUAL";
 		lastEditCellId: string | null;
+		sidebarOpen: boolean;
 	}>,
 ): WindowDefinition {
 	const mode = overrides?.mode ?? "NORMAL";
@@ -30,6 +31,7 @@ function stubNotebook(
 			showHelp: false,
 		},
 		lastEditCellId: overrides?.lastEditCellId ?? null,
+		sidebarOpen: overrides?.sidebarOpen ?? false,
 	});
 }
 
@@ -49,6 +51,11 @@ describe("Phase P5 — region/registry readiness", () => {
 	test("notebook window includes command slot in COMMAND mode", () => {
 		const slots = slotsOf(stubNotebook({ mode: "COMMAND" }));
 		expect(slots).toContain("command");
+	});
+
+	test("notebook window adds sidebar only when detail is open", () => {
+		expect(slotsOf(stubNotebook())).not.toContain("sidebar");
+		expect(slotsOf(stubNotebook({ sidebarOpen: true }))).toContain("sidebar");
 	});
 
 	test("notebook window keeps the Macro editor mounted in INSERT mode", () => {
@@ -73,6 +80,7 @@ describe("Phase P5 — region/registry readiness", () => {
 
 	test("all expected slots are representable", () => {
 		expect(PLAN_SLOTS).toEqual([
+			"navigation",
 			"primary",
 			"command",
 			"status",

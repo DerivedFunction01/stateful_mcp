@@ -36,6 +36,8 @@ export type EditorAction =
 	| { type: "CANCEL" }
 	| { type: "SEARCH" }
 	| { type: "OPEN_HISTORY" }
+	| { type: "TOGGLE_SIDEBAR" }
+	| { type: "NEXT_WORKSPACE_TAB" }
 	| { type: "ENTER_VISUAL" }
 	| { type: "EXTEND_VISUAL"; delta: -1 | 1 }
 	| { type: "DELETE_VISUAL" }
@@ -135,6 +137,8 @@ export function reduceEditorKernel(
 			return state;
 		case "SEARCH":
 		case "OPEN_HISTORY":
+		case "TOGGLE_SIDEBAR":
+		case "NEXT_WORKSPACE_TAB":
 			return state;
 		case "ENTER_VISUAL":
 			return { ...state, mode: "VISUAL" };

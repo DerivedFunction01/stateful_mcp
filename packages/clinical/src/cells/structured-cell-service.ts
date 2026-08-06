@@ -325,6 +325,8 @@ export class StructuredCellService {
 		if (!cell) throw new Error(`Cell '${cellId}' not found`);
 		if (!cell.authored.finalizedMacro || !cell.execution.transactionId)
 			throw new Error(`Cell '${cellId}' has no committed Macro transaction`);
+		if (cell.lifecycle.status !== "committed")
+			throw new Error(`Cell '${cellId}' has no committed Macro transaction`);
 		if (cell.execution.reversalTransactionId) {
 			return {
 				status: "committed",

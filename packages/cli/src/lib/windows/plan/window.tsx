@@ -1,6 +1,7 @@
 import type { WindowDefinition, WindowSlot } from "../../editor";
 
 export const PLAN_SLOTS: WindowSlot[] = [
+	"navigation",
 	"primary",
 	"command",
 	"status",

@@ -7,11 +7,17 @@ import {
 	type MacroAuthoringValue,
 	renderMacroAuthoringTemplate,
 } from "@stateful-mcp/clinical";
-import { CellList } from "../../../components/CellList";
+import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
+import type { ReactElement } from "react";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
+import { HistoryDetailPanel } from "../../../components/HistoryDetailPanel";
+import { HistoryNavigation } from "../../../components/HistoryNavigation";
+import { MacroDetailPanel } from "../../../components/MacroDetailPanel";
 import { MacroEditor } from "../../../components/MacroEditor";
+import { NotebookWorkspace } from "../../../components/NotebookWorkspace";
 import { StatusBar } from "../../../components/StatusBar";
+import type { WorkspaceTabId } from "../../../components/WorkspaceTabs";
 import type { CellSuggestion } from "../../../hooks/useNotebook";
 import type {
 	CommandCatalog,
@@ -46,6 +52,11 @@ export interface NotebookWindowDeps {
 	activeDefinition?: MacroDefinition | null;
 	childDefinitions?: MacroDefinition[];
 	draftPreview?: MacroDraftPreview;
+	sidebarOpen?: boolean;
+	sidebarContent?: ReactElement | null;
+	activeHistoryCell?: StructuredCell | null;
+	workspaceTab?: WorkspaceTabId;
+	historySearchQuery?: string;
 }
 
 /**
@@ -66,11 +77,11 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 			const regions: WindowRegion[] = [];
 
 			regions.push({
-				slot: "primary",
-				key: "cell-list",
+				slot: "navigation",
+				key: "history-navigation",
 				render() {
 					return (
-						<CellList
+						<HistoryNavigation
 							cells={view.cells}
 							activeIndex={view.activeIndex}
 							mode={
@@ -81,9 +92,18 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							}
 							visualStart={view.selection?.start ?? 0}
 							visualEnd={view.selection?.end ?? 0}
+							searchQuery={deps.historySearchQuery}
 						/>
 					);
 				},
+			});
+
+			regions.push({
+				slot: "primary",
+				key: "notebook-workspace",
+				render: () => (
+					<NotebookWorkspace activeTab={deps.workspaceTab ?? "notebook"} />
+				),
 			});
 
 			if (deps.editorState.mode !== "COMMAND") {
@@ -127,40 +147,54 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							}),
 						)
 					: undefined;
+				const macroEditorProps = {
+					draftText,
+					cursorOffset: deps.cursorOffset ?? draftText.length,
+					macroSlots: deps.macroSlots,
+					activeMacroArgumentId: deps.activeMacroArgumentId,
+					activeDefinition: deps.activeDefinition,
+					childDefinitions: deps.childDefinitions,
+					authoringPreview,
+					draftPreview: deps.draftPreview,
+					executionMessage: deps.message,
+					selectionStart:
+						deps.editorState.mode === "VISUAL"
+							? deps.editorState.visualStart
+							: undefined,
+					selectionEnd:
+						deps.editorState.mode === "VISUAL"
+							? deps.editorState.visualEnd
+							: undefined,
+					showCursor:
+						deps.editorState.mode === "INSERT" &&
+						deps.editorState.commandKind === "macro",
+				};
 
 				regions.push({
 					slot: "command",
 					key: "macro-editor",
 					render() {
-						return (
-							<MacroEditor
-								draftText={draftText}
-								cursorOffset={deps.cursorOffset ?? draftText.length}
-								macroSlots={deps.macroSlots}
-								activeMacroArgumentId={deps.activeMacroArgumentId}
-								activeDefinition={deps.activeDefinition}
-								childDefinitions={deps.childDefinitions}
-								authoringPreview={authoringPreview}
-								draftPreview={deps.draftPreview}
-								executionMessage={deps.message}
-								selectionStart={
-									deps.editorState.mode === "VISUAL"
-										? deps.editorState.visualStart
-										: undefined
-								}
-								selectionEnd={
-									deps.editorState.mode === "VISUAL"
-										? deps.editorState.visualEnd
-										: undefined
-								}
-								showCursor={
-									deps.editorState.mode === "INSERT" &&
-									deps.editorState.commandKind === "macro"
-								}
-							/>
-						);
+						return <MacroEditor {...macroEditorProps} inputOnly />;
 					},
 				});
+				if (deps.sidebarOpen) {
+					const detail =
+						deps.sidebarContent ??
+						(deps.editorState.commandKind === "macro" &&
+						(deps.editorState.mode === "INSERT" ||
+							deps.editorState.mode === "VISUAL") ? (
+							<MacroDetailPanel {...macroEditorProps} />
+						) : deps.activeHistoryCell ? (
+							<HistoryDetailPanel cell={deps.activeHistoryCell} />
+						) : (
+							<MacroDetailPanel {...macroEditorProps} />
+						));
+					regions.push({
+						slot: "sidebar",
+						key: "macro-details",
+						render: () => detail,
+					});
+				}
 			} else if (deps.editorState.mode === "COMMAND") {
 				const commandLine = deps.editorState.draftText;
 				const catalogSuggestions = deps.catalog.getSuggestions(
@@ -211,6 +245,17 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 							/>
 						);
 					},
+				});
+			}
+			if (
+				deps.sidebarOpen &&
+				deps.editorState.mode === "COMMAND" &&
+				deps.activeHistoryCell
+			) {
+				regions.push({
+					slot: "sidebar",
+					key: "history-details-command",
+					render: () => <HistoryDetailPanel cell={deps.activeHistoryCell!} />,
 				});
 			}
 
