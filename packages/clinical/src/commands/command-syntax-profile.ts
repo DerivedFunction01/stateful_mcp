@@ -92,6 +92,8 @@ export interface CommandSyntaxProfile {
 	conceptToken: string;
 	conceptCodeSeparator?: string;
 	evidenceSyntax?: EvidenceSyntaxConfig;
+	actionMacroMappings?: Readonly<Partial<Record<DirectCommandVerb, string>>>;
+	implicitDefaultVerb?: DirectCommandVerb;
 }
 
 export type CommandAliasMappings<V extends string> = Readonly<

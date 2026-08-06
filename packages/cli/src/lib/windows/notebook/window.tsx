@@ -66,6 +66,7 @@ export interface NotebookWindowDeps {
 	workspaceLoading?: boolean;
 	workspaceError?: string | null;
 	workspaceFocused?: boolean;
+	scratchpadPreview?: import("../../../lib/workspace/assessment-workspace-view").DeduplicatedLine[];
 }
 
 /**
@@ -203,9 +204,10 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				if (deps.sidebarOpen) {
 					const detail =
 						deps.sidebarContent ??
-						(deps.workspaceTab === "assessment" ? (
+						(deps.workspaceTab === "assessment" || deps.scratchpadPreview?.length ? (
 							<BranchDetailInspector
 								snapshot={deps.workspaceSnapshot ?? null}
+								scratchpadPreview={deps.scratchpadPreview}
 							/>
 						) : showLiveMacroDetails ? (
 							<MacroDetailPanel {...macroEditorProps} />

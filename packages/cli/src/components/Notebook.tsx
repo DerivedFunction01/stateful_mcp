@@ -47,6 +47,9 @@ export function Notebook({
 }) {
 	const session = useSession(preferredSessionId);
 	const [overlay, setOverlay] = useState<WindowOverlay | null>(null);
+	const [scratchpadPreview, setScratchpadPreview] = useState<
+		import("../lib/workspace/assessment-workspace-view").DeduplicatedLine[]
+	>([]);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTabId>("notebook");
 	const notebook = useNotebook(session, {
@@ -469,6 +472,7 @@ export function Notebook({
 					}
 					syntaxProfile={session.v2.syntaxProfile}
 					conceptLookup={session.v2.engine.getConceptLookup()}
+					onPreviewLines={(preview) => setScratchpadPreview(preview)}
 					onApplyOperations={async (scratchOps: WorkspaceOperation[]) => {
 						const existingBranches = workspace.snapshot?.branches ?? [];
 						const resolvedOps: WorkspaceOperation[] = [];
@@ -741,6 +745,7 @@ export function Notebook({
 		workspaceLoading: workspace.loading,
 		workspaceError: workspace.error,
 		workspaceFocused: workspace.focused,
+		scratchpadPreview,
 	});
 
 	const containerDomain = {

@@ -355,12 +355,86 @@ export const NOTE_MACRO: MacroDefinition = {
 	],
 };
 
+export const DIFFERENTIAL_ACTIVE_MACRO: MacroDefinition = {
+	macroId: "v2-differential-active-1",
+	macroName: "differential_active",
+	version: 1,
+	status: "published",
+	active: true,
+	description: "Active differential hypothesis creation & evidence linking",
+	root: {
+		roleName: "differential_active",
+		targetSchema: "DifferentialDiagnosis",
+		outputCellKind: "structured",
+	},
+	arguments: [
+		{
+			argumentId: "diagnosis",
+			name: "diagnosis",
+			roleName: "differential.diagnosis",
+			position: 0,
+			target: { targetSchema: "DifferentialDiagnosis", targetPath: "diagnosis" },
+			extraction: { kind: "concept", required: true },
+			required: true,
+		},
+		{
+			argumentId: "supportingConcepts",
+			name: "supportingConcepts",
+			roleName: "differential.supportingConcepts",
+			position: 1,
+			target: { targetSchema: "DifferentialDiagnosis", targetPath: "supportingConcepts" },
+			extraction: { kind: "concept_array", required: false },
+		},
+		{
+			argumentId: "refutingConcepts",
+			name: "refutingConcepts",
+			roleName: "differential.refutingConcepts",
+			position: 2,
+			target: { targetSchema: "DifferentialDiagnosis", targetPath: "refutingConcepts" },
+			extraction: { kind: "concept_array", required: false },
+		},
+	],
+};
+
+export const DIFFERENTIAL_RULE_OUT_MACRO: MacroDefinition = {
+	...DIFFERENTIAL_ACTIVE_MACRO,
+	macroId: "v2-differential-rule-out-1",
+	macroName: "differential_rule_out",
+	description: "Rule out differential hypothesis action macro",
+};
+
+export const DIFFERENTIAL_CONFIRM_MACRO: MacroDefinition = {
+	...DIFFERENTIAL_ACTIVE_MACRO,
+	macroId: "v2-differential-confirm-1",
+	macroName: "differential_confirm",
+	description: "Confirm differential hypothesis action macro",
+};
+
+export const DIFFERENTIAL_SUSPEND_MACRO: MacroDefinition = {
+	...DIFFERENTIAL_ACTIVE_MACRO,
+	macroId: "v2-differential-suspend-1",
+	macroName: "differential_suspend",
+	description: "Suspend differential hypothesis action macro",
+};
+
+export const DIFFERENTIAL_CLOSE_MACRO: MacroDefinition = {
+	...DIFFERENTIAL_ACTIVE_MACRO,
+	macroId: "v2-differential-close-1",
+	macroName: "differential_close",
+	description: "Close differential hypothesis action macro",
+};
+
 export const DEFAULT_MACROS: MacroDefinition[] = [
 	_PRIMARY_DIAGNOSIS_MACRO,
 	VITALS_MACRO,
 	ASSESSMENT_MACRO,
 	PHYSICAL_EXAM_MACRO,
 	NOTE_MACRO,
+	DIFFERENTIAL_ACTIVE_MACRO,
+	DIFFERENTIAL_RULE_OUT_MACRO,
+	DIFFERENTIAL_CONFIRM_MACRO,
+	DIFFERENTIAL_SUSPEND_MACRO,
+	DIFFERENTIAL_CLOSE_MACRO,
 ];
 
 export async function seedDefaultMacros(store: {

@@ -16,6 +16,7 @@ interface RapidScratchpadOverlayProps {
 	syntaxProfile?: CommandSyntaxProfile;
 	conceptLookup?: ConceptLookup;
 	onApplyOperations(operations: WorkspaceOperation[]): Promise<void>;
+	onPreviewLines?: (deduped: DeduplicatedLine[]) => void;
 	onClose(): void;
 }
 
@@ -24,6 +25,7 @@ export function RapidScratchpadOverlay({
 	syntaxProfile,
 	conceptLookup,
 	onApplyOperations,
+	onPreviewLines,
 	onClose,
 }: RapidScratchpadOverlayProps) {
 	const [lines, setLines] = useState<string[]>([""]);
@@ -54,6 +56,10 @@ export function RapidScratchpadOverlay({
 	const deduplicatedLines = useMemo<DeduplicatedLine[]>(() => {
 		return deduplicateParsedLines(activeParsedLines);
 	}, [activeParsedLines]);
+
+	useEffect(() => {
+		onPreviewLines?.(deduplicatedLines);
+	}, [deduplicatedLines, onPreviewLines]);
 
 	useInput((input, key) => {
 		if (key.escape) {
@@ -173,6 +179,7 @@ export function RapidScratchpadOverlay({
 						<Box key={idx} flexDirection="column" marginBottom={1}>
 							<Box>
 								<Text color="cyan">{idx + 1}. </Text>
+								<Text color="magenta">[{parsed.macroId ?? "implicit-active"}] </Text>
 								<Text color="yellow">[{parsed.rawInput}] </Text>
 								<Text>➜ {parsed.conceptDisplay} </Text>
 								<Text color="gray">

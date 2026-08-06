@@ -1,16 +1,60 @@
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 import { Box, Text } from "ink";
+import type { DeduplicatedLine } from "../lib/workspace/assessment-workspace-view";
 import { StatusBadge } from "./StatusBadge";
 
 interface BranchDetailInspectorProps {
 	snapshot: WorkspaceSnapshot | null;
 	activeBranchId?: string;
+	scratchpadPreview?: DeduplicatedLine[];
 }
 
 export function BranchDetailInspector({
 	snapshot,
 	activeBranchId,
+	scratchpadPreview,
 }: BranchDetailInspectorProps) {
+	if (scratchpadPreview && scratchpadPreview.length > 0) {
+		return (
+			<Box flexDirection="column" padding={1} width="100%">
+				<Box marginBottom={1}>
+					<Text bold underline color="cyan">
+						LIVE SCRATCHPAD RESOLUTION
+					</Text>
+				</Box>
+				<Box flexDirection="column">
+					{scratchpadPreview.map(({ parsed, mergedCount }, idx) => (
+						<Box key={idx} flexDirection="column" marginBottom={1}>
+							<Box>
+								<Text color="cyan">{idx + 1}. </Text>
+								<Text color="magenta">[{parsed.macroId ?? "implicit-active"}] </Text>
+								<Text color="yellow">[{parsed.rawInput}] </Text>
+							</Box>
+							<Box paddingLeft={1}>
+								<Text>➜ {parsed.conceptDisplay} </Text>
+								<Text color="gray">| STATUS: </Text>
+								<StatusBadge status={parsed.status} />
+								{mergedCount > 1 && (
+									<Text color="magenta"> · (merged {mergedCount})</Text>
+								)}
+							</Box>
+							{parsed.supportingFindings.map((f, fIdx) => (
+								<Box key={`supp-${fIdx}`} paddingLeft={2}>
+									<Text color="green">├─ + {f.display}</Text>
+								</Box>
+							))}
+							{parsed.refutingFindings.map((f, fIdx) => (
+								<Box key={`refut-${fIdx}`} paddingLeft={2}>
+									<Text color="red">└─ ── {f.display}</Text>
+								</Box>
+							))}
+						</Box>
+					))}
+				</Box>
+			</Box>
+		);
+	}
+
 	if (!snapshot) {
 		return (
 			<Box flexDirection="column" padding={1}>

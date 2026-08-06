@@ -3,6 +3,7 @@ import {
 	type CommandSyntaxProfile,
 	type ConceptLookup,
 	DIRECT_VERB_TO_BRANCH_STATUS,
+	type DirectCommandVerb,
 	resolveConceptValue,
 } from "@stateful-mcp/clinical";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
@@ -50,6 +51,8 @@ export interface ParsedDifferentialLine {
 	conceptDisplay: string;
 	conceptId?: string;
 	status: BranchStatus;
+	macroName?: string;
+	macroId?: string;
 	supportingFindings: EvidenceFindingItem[];
 	refutingFindings: EvidenceFindingItem[];
 }
@@ -89,6 +92,8 @@ export function parseShorthandLine(
 
 	// Parse status alias leading verb
 	let status: BranchStatus = "active";
+	let actionVerb: DirectCommandVerb =
+		syntaxProfile?.implicitDefaultVerb ?? "branch";
 	let remainingText = trimmed;
 
 	const firstSpaceIdx = trimmed.indexOf(" ");
@@ -96,10 +101,16 @@ export function parseShorthandLine(
 		const firstWord = trimmed.slice(0, firstSpaceIdx).toLowerCase();
 		const mappedVerb = syntaxProfile.directCommandMappings[firstWord];
 		if (mappedVerb && DIRECT_VERB_TO_BRANCH_STATUS[mappedVerb]) {
+			actionVerb = mappedVerb;
 			status = DIRECT_VERB_TO_BRANCH_STATUS[mappedVerb]!;
 			remainingText = trimmed.slice(firstSpaceIdx + 1).trim();
 		}
 	}
+
+	const macroName = `differential_${actionVerb.replace("_", "")}`;
+	const macroId =
+		syntaxProfile?.actionMacroMappings?.[actionVerb] ??
+		`v2-differential-${actionVerb.replace("_", "-")}-1`;
 
 	// Build delimiter regex for supporting and refuting evidence tokens with whitespace boundaries
 	const buildDelimRegex = (tokens: readonly string[]) => {
@@ -195,6 +206,8 @@ export function parseShorthandLine(
 		rawInput: trimmed,
 		conceptDisplay: titleCased || "Unknown Condition",
 		status,
+		macroName,
+		macroId,
 		supportingFindings,
 		refutingFindings,
 	};
