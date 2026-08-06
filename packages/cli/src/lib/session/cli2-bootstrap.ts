@@ -1,6 +1,9 @@
 import type {
+	ClinicalProseTemplateStore,
 	CommandHistoryStore,
 	CommandSyntaxProfile,
+	ProseRenderContext,
+	ProseTemplateUsageStore,
 	UnifiedProfileStore,
 } from "@stateful-mcp/clinical";
 import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
@@ -33,6 +36,9 @@ export interface Cli2BootstrapResult {
 	editorKeymap: EditorKeymapProfile;
 	profileStore: UnifiedProfileStore;
 	commandHistoryStore: CommandHistoryStore;
+	proseTemplateStore: ClinicalProseTemplateStore;
+	proseTemplateUsageStore: ProseTemplateUsageStore;
+	proseRenderContext: ProseRenderContext;
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
 	bootstrapStatus: "created" | "resumed" | "error";
 	bootstrapError?: string;
@@ -196,6 +202,12 @@ export async function buildCli2Bootstrap(
 		editorKeymap,
 		profileStore,
 		commandHistoryStore,
+		proseTemplateStore:
+			stores?.proseTemplateStore ?? clinical.stores.proseTemplateStore,
+		proseTemplateUsageStore:
+			stores?.proseTemplateUsageStore ??
+			clinical.stores.proseTemplateUsageStore,
+		proseRenderContext: clinical.proseRenderContext,
 		caseIdentity,
 		bootstrapStatus,
 		bootstrapError,

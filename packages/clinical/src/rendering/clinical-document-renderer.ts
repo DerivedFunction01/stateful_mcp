@@ -2,8 +2,17 @@ import type { ClinicalDocumentReadModel } from "../clinical/clinical-document-ty
 import type { PresentationItem } from "../presentation/field-types";
 import { PresentationPolicyRegistry } from "../presentation/policies";
 import { createRecordPresentation } from "../presentation/record-projector";
+import { ProseRenderLookupCache } from "./prose-render-context";
 import { TemplateRenderer } from "./template-renderer";
-import type { ClinicalProseTemplate } from "./template-types";
+import type {
+	ClinicalProseTemplate,
+	ProseRenderContext,
+} from "./template-types";
+
+export interface ClinicalDocumentRenderOptions {
+	rootTemplateId?: string;
+	slotOverrides?: Record<string, string>;
+}
 
 export interface RenderedClinicalDocument {
 	documentId: string;
@@ -16,6 +25,25 @@ export interface RenderedClinicalDocument {
 
 /** Renders the final projected  clinical schema without mutating it. */
 export class ClinicalDocumentRenderer {
+	static async renderRecordAsync(
+		values: Record<string, unknown>,
+		schemaName: string,
+		templates: readonly ClinicalProseTemplate[],
+		context: ProseRenderContext = {},
+		rootTemplateId?: string,
+		lookupCache = new ProseRenderLookupCache(context),
+	): Promise<string | null> {
+		return TemplateRenderer.renderObjectAsync(
+			values,
+			templates,
+			schemaName,
+			context,
+			{
+				rootTemplateId,
+				lookupCache,
+			},
+		);
+	}
 	private readonly policies: PresentationPolicyRegistry;
 
 	constructor(policies?: PresentationPolicyRegistry) {
@@ -25,6 +53,7 @@ export class ClinicalDocumentRenderer {
 	render(
 		document: ClinicalDocumentReadModel,
 		templates: readonly ClinicalProseTemplate[] = [],
+		options: ClinicalDocumentRenderOptions = {},
 	): RenderedClinicalDocument {
 		const sections = {
 			subjective: [],
@@ -43,6 +72,7 @@ export class ClinicalDocumentRenderer {
 					record.values,
 					templates,
 					record.schemaName,
+					options,
 				);
 				if (prose)
 					sections[this.sectionFor(record.schemaName, templates)].push(prose);

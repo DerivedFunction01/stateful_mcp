@@ -14,6 +14,7 @@ import {
 export interface TemporalSyntaxConfig {
 	dateTimeFormats: readonly DateTimeFormatConfig[];
 	relativeDayAliases: Readonly<Record<string, number>>;
+	relativeDayDisplayLabels?: Readonly<Record<string, string>>;
 	unitAliases: Readonly<Record<string, TimePrecisionLevel>>;
 	directionAliases: Readonly<Record<string, TemporalDirection>>;
 	rangeDelimiters: readonly string[];
@@ -60,6 +61,9 @@ export function createNumericalSyntaxProfile(
 			profile.temporal?.relativeDayAliases ??
 			defaults?.temporal?.relativeDayAliases ??
 			{},
+		relativeDayDisplayLabels:
+			profile.temporal?.relativeDayDisplayLabels ??
+			defaults?.temporal?.relativeDayDisplayLabels,
 		unitAliases:
 			profile.temporal?.unitAliases ?? defaults?.temporal?.unitAliases ?? {},
 		directionAliases:

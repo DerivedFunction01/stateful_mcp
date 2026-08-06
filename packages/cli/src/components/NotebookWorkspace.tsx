@@ -22,6 +22,7 @@ interface NotebookWorkspaceProps {
 	selectedBranchIds?: readonly string[];
 	assessmentSearchOpen?: boolean;
 	assessmentSearchQuery?: string;
+	soapContent?: ReactNode;
 }
 
 export function NotebookWorkspace({
@@ -36,6 +37,7 @@ export function NotebookWorkspace({
 	selectedBranchIds,
 	assessmentSearchOpen = false,
 	assessmentSearchQuery = "",
+	soapContent,
 }: NotebookWorkspaceProps) {
 	const layout = useWindowLayout();
 	const label =
@@ -65,6 +67,8 @@ export function NotebookWorkspace({
 						)}
 						{scratchpadContent}
 					</>
+				) : activeTab === "soap" ? (
+					(soapContent ?? <Text color="gray">SOAP workspace unavailable</Text>)
 				) : (
 					<Text color="gray">{label}</Text>
 				)}

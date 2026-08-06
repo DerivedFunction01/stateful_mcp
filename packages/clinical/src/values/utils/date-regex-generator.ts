@@ -14,6 +14,7 @@ export type DateTimeToken =
 	| "tz";
 
 export interface DateTimeFormatConfig {
+	id?: string;
 	tokens: DateTimeToken[];
 	separators: string[];
 	options?: {
@@ -27,6 +28,8 @@ export interface DateTimeFormatConfig {
 		};
 		/** Override the precision inferred from token presence (default: "second" when HH is present, "day" otherwise). */
 		precision?: TimePrecisionLevel;
+		locale?: string;
+		timeZone?: string;
 	};
 }
 

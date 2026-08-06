@@ -35,41 +35,16 @@ export interface NamedGroupContract {
 	disallowed?: string[];
 }
 
-import type { PipelineStep } from "@stateful-mcp/core";
-import type { Position } from "./auto-complete/interfaces";
-
-export interface SlotCondition {
-	pipeline: PipelineStep[];
-}
-
-export interface OutputProseSlot {
-	sourcePath: string;
-	format?: string;
-	fallback?: string;
-	conditionalDelegates?: {
-		delegateTemplateId: string;
-		conditions: SlotCondition;
-	}[];
-	defaultDelegateTemplateId?: string;
-	listOptions?: {
-		delimiter: string;
-		lastDelimiter?: string;
-	};
-	conditions?: SlotCondition;
-	transform?: { pipeline: PipelineStep[] };
-}
-
-export interface ClinicalProseTemplate {
-	templateId: string;
-	parentTemplateId?: string;
-	targetSchema: string; // e.g. 'ObservationEvent'
-	targetConceptId?: string; // e.g. 'SNOMED::29857009'
-	workspaceId?: string;
-	specialtyId?: string;
-	slotPosition: Position;
-	templateText: string;
-	slots: Record<string, OutputProseSlot>;
-}
+export type {
+	ClinicalProseTemplate,
+	OutputProseSlot,
+	ProseRenderContext,
+	ProseTemplateContract,
+	ProseTemplateKind,
+	ProseValueSpec,
+	SlotCondition,
+	SoapSection,
+} from "../rendering/template-types";
 
 export interface SignedSoapNoteRecord {
 	noteId: string;

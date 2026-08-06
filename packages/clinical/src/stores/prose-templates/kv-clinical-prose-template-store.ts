@@ -1,7 +1,9 @@
 import type { KvBackend } from "@stateful-mcp/core";
-import type { Position } from "../auto-complete/interfaces";
-import type { ClinicalProseTemplate } from "../interfaces";
-import type { ClinicalProseTemplateStore } from "./interfaces";
+import type { ClinicalProseTemplate } from "../../rendering/template-types";
+import type {
+	ClinicalProseTemplateStore,
+	ProseTemplateListContext,
+} from "./interfaces";
 
 export class KvClinicalProseTemplateStore
 	implements ClinicalProseTemplateStore
@@ -11,19 +13,16 @@ export class KvClinicalProseTemplateStore
 	constructor(private readonly backend: KvBackend) {}
 
 	private key(template: {
+		templateId: string;
+		kind: string;
 		targetSchema: string;
-		targetConceptId?: string;
-		workspaceId?: string;
-		slotPosition: string;
 	}): string {
-		const cId = template.targetConceptId ?? "base";
-		const wId = template.workspaceId ?? "global";
-		return `${this.prefix}${template.targetSchema}:${cId}:${wId}:${template.slotPosition}`;
+		return `${this.prefix}${template.kind}:${template.targetSchema}:${template.templateId}`;
 	}
 
 	async get(
 		schema: string,
-		position: Position,
+		position: ClinicalProseTemplate["slotPosition"],
 		conceptId?: string,
 		workspaceId?: string,
 	): Promise<ClinicalProseTemplate | null> {
@@ -31,7 +30,12 @@ export class KvClinicalProseTemplateStore
 
 		const entries = Object.values(data) as ClinicalProseTemplate[];
 		for (const t of entries) {
-			if (t.targetSchema !== schema || t.slotPosition !== position) continue;
+			if (
+				t.targetSchema !== schema ||
+				t.slotPosition !== position ||
+				t.active === false
+			)
+				continue;
 			if (conceptId && t.targetConceptId !== conceptId) continue;
 			if (!conceptId && t.targetConceptId != null) continue;
 			if (workspaceId && t.workspaceId !== workspaceId) continue;
@@ -51,22 +55,49 @@ export class KvClinicalProseTemplateStore
 
 	async listBySchema(
 		schema: string,
-		position?: Position,
+		position?: ClinicalProseTemplate["slotPosition"],
 	): Promise<ClinicalProseTemplate[]> {
 		const data = await this.backend.load();
 		const entries = Object.values(data) as ClinicalProseTemplate[];
 		return entries.filter((t) => {
 			if (t.targetSchema !== schema) return false;
 			if (position && t.slotPosition !== position) return false;
-			return true;
+			return t.active !== false;
 		});
 	}
 
-	async list(): Promise<ClinicalProseTemplate[]> {
+	async list(
+		context: ProseTemplateListContext = {},
+	): Promise<ClinicalProseTemplate[]> {
 		const data = await this.backend.load();
 		return Object.entries(data)
 			.filter(([k]) => k.startsWith(this.prefix))
-			.map(([, v]) => v as ClinicalProseTemplate);
+			.map(([, v]) => v as ClinicalProseTemplate)
+			.filter(
+				(template) =>
+					(context.kind === undefined || template.kind === context.kind) &&
+					(context.section === undefined ||
+						template.section === context.section) &&
+					(context.slotKey === undefined ||
+						template.slotKey === context.slotKey) &&
+					(context.targetSchema === undefined ||
+						template.targetSchema === context.targetSchema) &&
+					(context.workspaceId === undefined ||
+						template.workspaceId === context.workspaceId) &&
+					(context.specialtyId === undefined ||
+						template.specialtyId === context.specialtyId) &&
+					(!context.activeOnly || template.active !== false),
+			);
+	}
+
+	async listRoots(context: Omit<ProseTemplateListContext, "kind"> = {}) {
+		return this.list({ ...context, kind: "root", activeOnly: true });
+	}
+
+	async listComponents(
+		context: Omit<ProseTemplateListContext, "kind"> & { slotKey: string },
+	) {
+		return this.list({ ...context, kind: "component", activeOnly: true });
 	}
 
 	async set(template: ClinicalProseTemplate): Promise<void> {

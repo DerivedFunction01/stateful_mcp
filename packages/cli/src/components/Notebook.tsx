@@ -3,7 +3,9 @@ import {
 	getActiveMacroArgumentId,
 } from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
+import type { ClinicalDocumentReadModel } from "@stateful-mcp/clinical/clinical/clinical-document-types";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
+import type { ClinicalProseTemplate } from "@stateful-mcp/clinical/rendering/template-types";
 import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { useApp } from "ink";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -33,6 +35,7 @@ import { PreviewScreen } from "./PreviewScreen";
 import { RapidScratchpadOverlay } from "./RapidScratchpadOverlay";
 import { INITIAL_SEARCH_STATE, searchReducer } from "./SearchOverlay";
 import { DEFAULT_SIDEBAR_TAB, type SidebarViewTab } from "./SidebarActivityBar";
+import { SoapWorkspace } from "./SoapWorkspace";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
 import {
@@ -83,6 +86,40 @@ export function Notebook({
 		soapNoteId: session?.sessionId ?? "",
 		session,
 	});
+	const [soapDocument, setSoapDocument] =
+		useState<ClinicalDocumentReadModel | null>(null);
+	const [soapTemplates, setSoapTemplates] = useState<ClinicalProseTemplate[]>(
+		[],
+	);
+	const [soapLoading, setSoapLoading] = useState(false);
+	const [soapError, setSoapError] = useState<string | null>(null);
+	useEffect(() => {
+		if (!session) return;
+		let cancelled = false;
+		setSoapLoading(true);
+		setSoapError(null);
+		void Promise.all([
+			session.v2.notebookSessionStore.get(session.sessionId),
+			session.v2.proseTemplateStore.list(),
+		])
+			.then(async ([record, templates]) => {
+				const document = record?.documentId
+					? await session.v2.engine.getDocument(record.documentId)
+					: null;
+				if (cancelled) return;
+				setSoapDocument(document);
+				setSoapTemplates(templates);
+				setSoapLoading(false);
+			})
+			.catch((cause) => {
+				if (cancelled) return;
+				setSoapError(cause instanceof Error ? cause.message : String(cause));
+				setSoapLoading(false);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [session]);
 	const isAssessmentNavigation =
 		workspaceTab === "assessment" && assessmentSubTab === "default";
 	const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
@@ -963,6 +1000,18 @@ export function Notebook({
 		workspaceLoading: workspace.loading,
 		workspaceError: workspace.error,
 		workspaceFocused: workspace.focused,
+		soapContent: session ? (
+			<SoapWorkspace
+				document={soapDocument}
+				templates={soapTemplates}
+				renderContext={session.v2.proseRenderContext}
+				loading={soapLoading}
+				error={soapError}
+				sessionId={session.sessionId}
+				workspaceId={workspace.snapshot?.workspaceId}
+				usageStore={session.v2.proseTemplateUsageStore}
+			/>
+		) : null,
 	});
 
 	const containerDomain = {

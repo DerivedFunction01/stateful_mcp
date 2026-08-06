@@ -262,7 +262,8 @@ export class ReferenceQueryCompiler {
 			ifNotExists: true,
 			columns: [
 				{ name: "templateId", type: "text", primaryKey: true },
-				{ name: "parentTemplateId", type: "text" },
+				{ name: "templateName", type: "text", nullable: false },
+				{ name: "kind", type: "text", nullable: false },
 				{ name: "targetSchema", type: "text", nullable: false },
 				{ name: "targetConceptId", type: "text" },
 				{ name: "workspaceId", type: "text" },
@@ -271,6 +272,8 @@ export class ReferenceQueryCompiler {
 					type: "text",
 					raw: "REFERENCES specialties(specialtyId)",
 				},
+				{ name: "section", type: "text" },
+				{ name: "slotKey", type: "text" },
 				{
 					name: "slotPosition",
 					type: "text",
@@ -278,6 +281,7 @@ export class ReferenceQueryCompiler {
 				},
 				{ name: "templateText", type: "text", nullable: false },
 				{ name: "slotsBlob", type: "json", nullable: false },
+				{ name: "active", type: "integer", nullable: false, default: 1 },
 				{
 					name: "source",
 					type: "text",
@@ -291,7 +295,12 @@ export class ReferenceQueryCompiler {
 			name: `idx_${table}_schema_concept`,
 			columns: ["targetSchema", "targetConceptId"],
 		});
-		return [mainDDL, idx];
+		const kindIdx = this.compiler.compileCreateIndex({
+			table,
+			name: `idx_${table}_kind_section_slot`,
+			columns: ["kind", "section", "slotKey"],
+		});
+		return [mainDDL, idx, kindIdx];
 	}
 
 	public compileGetClinicalProseTemplate(

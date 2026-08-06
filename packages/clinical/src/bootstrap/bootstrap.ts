@@ -10,7 +10,13 @@ import { ClinicalEngineBuilder } from "../engine/clinical-engine-v2-builder";
 import type { ClinicalRuntime } from "../engine/clinical-runtime-v2";
 import { MacroLearningService } from "../learning/macro-learning-service";
 import { createSyntaxProfile } from "../macros/macro-profile";
+import { createEnumDisplayResolver } from "../rendering/prose-render-context";
+import type {
+	ProseEnumMaps,
+	ProseRenderContext,
+} from "../rendering/template-types";
 import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
+import { renderClinicalDateRange } from "../values/utils/date-format-renderer";
 import {
 	type ColdStartOptions,
 	type ColdStartState,
@@ -21,6 +27,7 @@ import {
 	type StoreBuilderConfig,
 	type StoreBuilderResult,
 } from "./store-builder";
+import { EXAMPLE_PROSE_TEMPLATES } from "./templates/example-templates";
 
 export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
@@ -29,6 +36,7 @@ export interface ClinicalBootstrapConfig {
 	numericalProfile?: NumericalSyntaxProfile;
 	dictionaryConfig?: DictionaryConfig;
 	valueRules?: ColdStartOptions["valueRules"];
+	proseEnumMaps?: ProseEnumMaps;
 }
 
 export interface ClinicalBootstrapResult {
@@ -39,6 +47,7 @@ export interface ClinicalBootstrapResult {
 	dictionary: DictionaryStore;
 	syntaxProfile: CommandSyntaxProfile;
 	learningService: MacroLearningService;
+	proseRenderContext: ProseRenderContext;
 }
 
 export class ClinicalBootstrap {
@@ -93,6 +102,10 @@ async function buildClinicalBootstrap(
 		active: coldStart.commandProfile.active,
 		payload: coldStart.commandProfile,
 	});
+	for (const template of EXAMPLE_PROSE_TEMPLATES) {
+		if (!(await stores.proseTemplateStore.getById(template.templateId)))
+			await stores.proseTemplateStore.set(template);
+	}
 	await stores.profileStore.set({
 		profileId: coldStart.numericalProfile.profileId,
 		kind: "numerical",
@@ -142,6 +155,28 @@ async function buildClinicalBootstrap(
 		dictionary,
 		syntaxProfile: commandProfile,
 		learningService,
+		proseRenderContext: {
+			dictionary,
+			enumMaps: config.proseEnumMaps,
+			displayEnum: config.proseEnumMaps
+				? createEnumDisplayResolver(config.proseEnumMaps)
+				: undefined,
+			formatDateRange: (range, options) => {
+				const format =
+					coldStart.numericalProfile.temporal.dateTimeFormats.find(
+						(candidate) => candidate.id === options.dateFormat,
+					) ?? coldStart.numericalProfile.temporal.dateTimeFormats[0];
+				if (!format) return "[unformatted date]";
+				return renderClinicalDateRange(range, format, {
+					mode: options.mode,
+					relativeLabels: options.relativeLabels,
+					timeZone: options.timeZone,
+					locale: options.locale,
+					relativeDayDisplayLabels:
+						coldStart.numericalProfile.temporal.relativeDayDisplayLabels,
+				});
+			},
+		},
 	};
 }
 

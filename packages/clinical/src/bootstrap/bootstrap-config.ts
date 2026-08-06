@@ -25,6 +25,11 @@ export const bootstrapNumericalDefaults: NumericalSyntaxProfile = {
 			},
 		],
 		relativeDayAliases: { today: 0, yesterday: -1, tomorrow: 1 },
+		relativeDayDisplayLabels: {
+			"-1": "yesterday",
+			"0": "today",
+			"1": "tomorrow",
+		},
 		unitAliases: {
 			second: "second",
 			seconds: "second",

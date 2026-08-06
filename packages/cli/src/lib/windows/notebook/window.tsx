@@ -81,6 +81,7 @@ export interface NotebookWindowDeps {
 	workspaceLoading?: boolean;
 	workspaceError?: string | null;
 	workspaceFocused?: boolean;
+	soapContent?: ReactElement | null;
 }
 
 /**
@@ -137,6 +138,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 						focused={deps.workspaceFocused}
 						assessmentSubTab={deps.assessmentSubTab}
 						scratchpadContent={deps.scratchpadContent}
+						soapContent={deps.soapContent}
 						selectedBranchId={deps.selectedBranchId}
 						selectedBranchIds={deps.selectedBranchIds}
 						assessmentSearchOpen={deps.assessmentSearchOpen}

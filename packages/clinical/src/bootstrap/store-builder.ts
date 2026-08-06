@@ -54,6 +54,12 @@ import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store"
 import { KvProfileStore } from "../stores/profiles/kv-profile-store";
 import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
 import { SqlProfileStore } from "../stores/profiles/sql-profile-store";
+import type { ClinicalProseTemplateStore } from "../stores/prose-templates/interfaces";
+import { KvClinicalProseTemplateStore } from "../stores/prose-templates/kv-clinical-prose-template-store";
+import { KvClinicalProseTemplateUsageStore } from "../stores/prose-templates/kv-clinical-prose-template-usage-store";
+import { SqlClinicalProseTemplateStore } from "../stores/prose-templates/sql-clinical-prose-template-store";
+import { SqlClinicalProseTemplateUsageStore } from "../stores/prose-templates/sql-clinical-prose-template-usage-store";
+import type { ProseTemplateUsageStore } from "../stores/prose-templates/usage";
 import { KvTransactionJournal } from "../transactions/kv-transaction-journal";
 import { SqlTransactionJournal } from "../transactions/sql-transaction-journal";
 import type { TransactionJournal } from "../transactions/transaction-types";
@@ -82,6 +88,8 @@ export interface StoreBuilderResult {
 	macroParseLearningStore: MacroParseLearningStore;
 	macroTransitionStore: MacroTransitionStore;
 	systemWeightStore: SystemWeightStore;
+	proseTemplateStore: ClinicalProseTemplateStore;
+	proseTemplateUsageStore: ProseTemplateUsageStore;
 }
 
 export class StoreBuilder {
@@ -130,6 +138,8 @@ async function createMemoryStores(): Promise<StoreBuilderResult> {
 		macroParseLearningStore: new KvMacroParseLearningStore(backend),
 		macroTransitionStore: new KvMacroTransitionStore(backend),
 		systemWeightStore: new KvBackendSystemWeightStore(backend),
+		proseTemplateStore: new KvClinicalProseTemplateStore(backend),
+		proseTemplateUsageStore: new KvClinicalProseTemplateUsageStore(backend),
 	};
 }
 
@@ -158,6 +168,8 @@ async function createJsonlStores(
 		macroParseLearningStore: new KvMacroParseLearningStore(backend),
 		macroTransitionStore: new KvMacroTransitionStore(backend),
 		systemWeightStore: new KvBackendSystemWeightStore(backend),
+		proseTemplateStore: new KvClinicalProseTemplateStore(backend),
+		proseTemplateUsageStore: new KvClinicalProseTemplateUsageStore(backend),
 	};
 }
 
@@ -180,6 +192,11 @@ async function createSqliteStores(dbPath: string): Promise<StoreBuilderResult> {
 		macroParseLearningStore: new SqlMacroParseLearningStore(dialect, executor),
 		macroTransitionStore: new SqlMacroTransitionStore(dialect, executor),
 		systemWeightStore: new SqlBackendSystemWeightStore(dialect, executor),
+		proseTemplateStore: new SqlClinicalProseTemplateStore(dialect, executor),
+		proseTemplateUsageStore: new SqlClinicalProseTemplateUsageStore(
+			dialect,
+			executor,
+		),
 	};
 }
 
