@@ -113,7 +113,7 @@ function groupMappingsByCanonical(
 	const groups = new Map<string, string[]>();
 	for (const [alias, canonical] of Object.entries(mappings)) {
 		if (!groups.has(canonical)) groups.set(canonical, []);
-		if (alias !== canonical) {
+		if (alias !== canonical && !groups.get(canonical)?.includes(alias)) {
 			groups.get(canonical)?.push(alias);
 		}
 	}

@@ -57,21 +57,28 @@ export function useWorkspace({
 		};
 	}, [service, sessionId, showWorkspace, soapNoteId]);
 
-	const apply = useCallback(
-		async (operation: WorkspaceOperation) => {
-			if (!service || !workspaceIdRef.current)
-				throw new Error(" workspace is not ready");
+	const applyOperations = useCallback(
+		async (operations: WorkspaceOperation[]) => {
+			if (!service || !workspaceIdRef.current || operations.length === 0)
+				return;
 			const current = await service.getWorkspace(workspaceIdRef.current);
 			if (!current) throw new Error(" workspace was not found");
 			await service.applyOperations(
 				current.id,
-				[operation],
+				operations,
 				current.version,
 				current.eventHead,
 			);
 			await refresh();
 		},
 		[refresh, service],
+	);
+
+	const apply = useCallback(
+		async (operation: WorkspaceOperation) => {
+			await applyOperations([operation]);
+		},
+		[applyOperations],
 	);
 
 	const complete = useCallback(
@@ -139,6 +146,7 @@ export function useWorkspace({
 		complete,
 		close,
 		addBranch,
+		applyOperations,
 		executeCommand,
 		focusBranch: async (branchRef: string) => {
 			if (

@@ -1,4 +1,3 @@
-import type { CommandSyntaxProfile } from "../commands/command-syntax-profile";
 import type { FrequencyProfile } from "../values/frequency-resolver";
 import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
 
@@ -71,18 +70,19 @@ export const bootstrapFrequencyDefaults: FrequencyProfile = {
 	},
 };
 
-export const bootstrapCommandDefaults: CommandSyntaxProfile = {
-	profileId: "v2-default",
+import type { CommandSyntaxProfileDefaults } from "../commands/command-syntax-profile";
+
+export const bootstrapCommandDefaults: CommandSyntaxProfileDefaults = {
 	directCommandToken: ":",
 	macroStartToken: "^",
 	directCommandMappings: {
-		branch: "branch",
-		confirm: "confirm",
-		rule_out: "rule_out",
-		suspend: "suspend",
-		re_activate: "re_activate",
-		close: "close",
-		complete: "complete",
+		branch: ["branch", "b"],
+		confirm: ["confirm", "dx"],
+		rule_out: ["rule_out", "r/o", "rule-out", "ruleout"],
+		suspend: ["suspend", "susp"],
+		re_activate: ["re_activate", "reactivate"],
+		close: ["close"],
+		complete: ["complete"],
 	},
 	editorCommandMappings: {
 		write: "write",

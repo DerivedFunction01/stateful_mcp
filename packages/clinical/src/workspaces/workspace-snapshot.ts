@@ -1,12 +1,8 @@
+import type { BranchStatus } from "../commands/command-syntax-profile";
 import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 import type { WorkspaceAggregate } from "./workspace-types";
 
-export type WorkspaceSnapshotBranchStatus =
-	| "active"
-	| "suspended"
-	| "confirmed"
-	| "ruled_out"
-	| "closed";
+export type WorkspaceSnapshotBranchStatus = BranchStatus;
 
 export interface WorkspaceSnapshotBranch {
 	branchId: string;

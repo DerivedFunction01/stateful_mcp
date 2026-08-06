@@ -39,6 +39,7 @@ export const EditorAction = {
 	ToggleSidebar: "TOGGLE_SIDEBAR",
 	NextWorkspaceTab: "NEXT_WORKSPACE_TAB",
 	EnterVisualMode: "ENTER_VISUAL",
+	OpenScratchpad: "OPEN_SCRATCHPAD",
 } as const;
 
 export type EditorAction = (typeof EditorAction)[keyof typeof EditorAction];

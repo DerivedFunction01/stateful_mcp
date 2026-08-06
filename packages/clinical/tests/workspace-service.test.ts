@@ -39,23 +39,18 @@ async function corePair(): Promise<BackendPair> {
 }
 
 describe(" workspace service with core DAG event store", () => {
-	it("creates a workspace and records an initialization event", async () => {
+	it("creates a workspace with empty initial branches by default", async () => {
 		const pair = await corePair();
 		const service = new WorkspaceService(pair.store, pair.events);
 		const workspace = await service.createWorkspace({
 			sessionId: "session-1",
 			sourceDocumentId: "document-1",
 			workspaceId: "workspace-1",
-			initialBranches: [
-				{
-					name: "Chest pain",
-					hypothesisConcept: { conceptId: "chest-pain", display: "Chest pain" },
-				},
-			],
 		});
 
 		expect(workspace.version).toBe(1);
-		expect(workspace.activeBranchId).toBeTruthy();
+		expect(workspace.branches).toHaveLength(0);
+		expect(workspace.activeBranchId).toBeNull();
 		expect(
 			(
 				await pair.events.project(
@@ -74,6 +69,15 @@ describe(" workspace service with core DAG event store", () => {
 			sessionId: "session-1",
 			sourceDocumentId: "document-1",
 			workspaceId: "workspace-2",
+			initialBranches: [
+				{
+					name: "Hypothesis",
+					hypothesisConcept: {
+						conceptId: "hypothesis_default",
+						display: "Hypothesis",
+					},
+				},
+			],
 		});
 		const branchId = created.activeBranchId!;
 		const updated = await service.applyOperations(
@@ -116,6 +120,15 @@ describe(" workspace service with core DAG event store", () => {
 		const created = await service.createWorkspace({
 			sessionId: "session-1",
 			sourceDocumentId: "document-1",
+			initialBranches: [
+				{
+					name: "Hypothesis",
+					hypothesisConcept: {
+						conceptId: "hypothesis_default",
+						display: "Hypothesis",
+					},
+				},
+			],
 		});
 
 		await expect(
@@ -329,6 +342,15 @@ describe(" workspace transaction participant", () => {
 			sessionId: "session-void",
 			sourceDocumentId: "document-void",
 			workspaceId: "workspace-void",
+			initialBranches: [
+				{
+					name: "Hypothesis",
+					hypothesisConcept: {
+						conceptId: "hypothesis_default",
+						display: "Hypothesis",
+					},
+				},
+			],
 		});
 		const ruledOut = await service.applyOperations(
 			root.id,
@@ -401,7 +423,7 @@ describe(" workspace transaction participant", () => {
 				},
 			],
 			root.version,
-			root.eventHead,
+			root.eventHead!,
 		);
 		const view = new WorkspaceViewService(
 			service,
@@ -424,6 +446,15 @@ describe(" workspace transaction participant", () => {
 			sessionId: "session-1",
 			sourceDocumentId: "document-1",
 			workspaceId: "workspace-transaction",
+			initialBranches: [
+				{
+					name: "Hypothesis",
+					hypothesisConcept: {
+						conceptId: "hypothesis_default",
+						display: "Hypothesis",
+					},
+				},
+			],
 		});
 		const plan: MacroExecutionPlan = {
 			groupId: "group-1",

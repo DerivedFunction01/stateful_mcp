@@ -1,3 +1,4 @@
+import type { BranchStatus } from "../../commands/command-syntax-profile";
 import type { ScoreMeasurement } from "./measurement";
 import type { AnatomicalLocation, Certainty, CodeableConcept } from "./shared";
 import type { ClinicalDateRange } from "./time";
@@ -86,32 +87,15 @@ export interface PrimaryDiagnosisEntry {
 // Ranked list of hypotheses considered during the assessment.
 // =====================================================================
 
-export const DIFFERENTIAL_DIAGNOSIS_STATUSES = [
-	"active",
-	"ruled_out",
-	"abandoned",
-] as const;
-
-export type DifferentialDiagnosisStatus =
-	(typeof DIFFERENTIAL_DIAGNOSIS_STATUSES)[number];
-
 export interface DifferentialDiagnosisEntry {
 	id: string;
-	/**
-	 * Mandatory rank — the differential array must be sorted by this value.
-	 * Lower rank = higher clinical suspicion (rank 1 = most likely).
-	 */
 	rank: number;
 	diagnosis: CodeableConcept;
 	confidence: Certainty;
 	supportingConcepts?: CodeableConcept[];
 	refutingConcepts?: CodeableConcept[];
-	/**
-	 * Medications causally or contextually linked to this differential candidate.
-	 * Same semantics as PrimaryDiagnosisEntry.relatedMedications.
-	 */
 	relatedMedications?: CodeableConcept[];
 	anatomyLocations?: AnatomicalLocation[];
 	dateRange?: ClinicalDateRange;
-	status?: DifferentialDiagnosisStatus;
+	status?: BranchStatus;
 }

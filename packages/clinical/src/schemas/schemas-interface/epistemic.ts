@@ -1,16 +1,7 @@
+import type { BranchStatus } from "../../commands/command-syntax-profile";
 import type { AcuityLevel } from "./assessment";
 import type { Certainty, CodeableConcept } from "./shared";
 import type { TemporalBoundary } from "./time";
-
-export const BRANCH_LIFECYCLE_STATES = [
-	"active",
-	"suspended",
-	"confirmed",
-	"ruled_out",
-	"abandoned",
-] as const;
-
-export type BranchLifecycleState = (typeof BRANCH_LIFECYCLE_STATES)[number];
 
 export interface ClinicalBranch {
 	id: string;
@@ -18,7 +9,7 @@ export interface ClinicalBranch {
 	name: string;
 	commandAlias?: string;
 	hypothesisConcept: CodeableConcept;
-	status: BranchLifecycleState;
+	status: BranchStatus;
 	supportingConcepts: CodeableConcept[];
 	refutingConcepts: CodeableConcept[];
 	rank?: number;

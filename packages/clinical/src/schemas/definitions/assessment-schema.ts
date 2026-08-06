@@ -1,8 +1,8 @@
+import { BRANCH_STATUSES } from "../../commands/command-syntax-profile";
 import { defineSchema } from "../schema-factory";
 import {
 	ACUITY_LEVELS,
 	ALGORITHMIC_EVALUATION_TYPES,
-	DIFFERENTIAL_DIAGNOSIS_STATUSES,
 	SEVERITY_TIERS,
 } from "../schemas-interface/assessment";
 import { CERTAINTIES } from "../schemas-interface/shared";
@@ -157,7 +157,7 @@ export const differentialDiagnosisSchema = defineSchema({
 			valueKind: "enum",
 			cardinality: "one",
 			required: false,
-			enumValues: DIFFERENTIAL_DIAGNOSIS_STATUSES,
+			enumValues: BRANCH_STATUSES,
 		},
 	},
 });

@@ -3,7 +3,8 @@ export type WindowOverlayRoute =
 	| "preview"
 	| "info"
 	| "search"
-	| "history";
+	| "history"
+	| "scratchpad";
 
 export interface WindowOverlay {
 	route: WindowOverlayRoute;

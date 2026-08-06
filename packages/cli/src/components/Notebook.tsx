@@ -1,10 +1,15 @@
-import { getActiveMacroArgumentId } from "@stateful-mcp/clinical";
+import {
+	BRANCH_STATUS_TO_TRANSITION,
+	getActiveMacroArgumentId,
+} from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
+import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { useApp } from "ink";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
+import { useWorkspace } from "../hooks/useWorkspace";
 import type {
 	AutocompleteSuggestion,
 	CellEditorMode,
@@ -25,6 +30,7 @@ import { CellInfoPanel } from "./CellInfoPanel";
 import { HelpScreen } from "./HelpScreen";
 import { HistoryOverlay } from "./HistoryOverlay";
 import { PreviewScreen } from "./PreviewScreen";
+import { RapidScratchpadOverlay } from "./RapidScratchpadOverlay";
 import { INITIAL_SEARCH_STATE, searchReducer } from "./SearchOverlay";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
@@ -59,6 +65,13 @@ export function Notebook({
 	const [activeWindow, setActiveWindow] = useState<"notebook" | "workspace">(
 		"notebook",
 	);
+	const workspace = useWorkspace({
+		showWorkspace:
+			activeWindow === "workspace" || workspaceTab === "assessment",
+		sessionId: session?.sessionId ?? "",
+		soapNoteId: session?.sessionId ?? "",
+		session,
+	});
 	const [searchState, searchDispatch] = useReducer(
 		searchReducer,
 		INITIAL_SEARCH_STATE,
@@ -448,6 +461,102 @@ export function Notebook({
 				/>
 			);
 		}
+		if (o.route === "scratchpad") {
+			return (
+				<RapidScratchpadOverlay
+					workspaceId={
+						workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`
+					}
+					syntaxProfile={session.v2.syntaxProfile}
+					onApplyOperations={async (scratchOps: WorkspaceOperation[]) => {
+						const existingBranches = workspace.snapshot?.branches ?? [];
+						const resolvedOps: WorkspaceOperation[] = [];
+
+						for (const op of scratchOps) {
+							if (op.kind === "create_branch") {
+								const conceptKey = (
+									op.concept?.conceptId ?? op.name
+								).toLowerCase();
+								const nameKey = op.name.toLowerCase();
+								const existing = existingBranches.find(
+									(b) =>
+										(b.hypothesisConcept?.conceptId ?? "").toLowerCase() ===
+											conceptKey || b.name.toLowerCase() === nameKey,
+								);
+
+								if (existing) {
+									const targetStatus = ((op as any).initialStatus ??
+										"active") as keyof typeof BRANCH_STATUS_TO_TRANSITION;
+									const transition = BRANCH_STATUS_TO_TRANSITION[targetStatus];
+									if (transition && existing.status !== targetStatus) {
+										resolvedOps.push({
+											kind: "branch_transition",
+											workspaceId:
+												workspace.snapshot?.workspaceId ??
+												`workspace-${session.sessionId}`,
+											branchId: existing.branchId,
+											transition,
+										});
+									}
+
+									// Add supporting findings
+									const supps = (op as any).supportingFindings ?? [];
+									for (const f of supps) {
+										resolvedOps.push({
+											kind: "add_fact",
+											workspaceId:
+												workspace.snapshot?.workspaceId ??
+												`workspace-${session.sessionId}`,
+											branchId: existing.branchId,
+											fact: {
+												factId: `fact-${crypto.randomUUID()}`,
+												targetSchema: "ObservationEvent",
+												concept: {
+													conceptId: f.conceptId ?? f.display,
+													display: f.display,
+												},
+												certainty: "supporting",
+												provenance: {},
+											},
+										});
+									}
+									// Add refuting findings
+									const refuts = (op as any).refutingFindings ?? [];
+									for (const f of refuts) {
+										resolvedOps.push({
+											kind: "add_fact",
+											workspaceId:
+												workspace.snapshot?.workspaceId ??
+												`workspace-${session.sessionId}`,
+											branchId: existing.branchId,
+											fact: {
+												factId: `fact-${crypto.randomUUID()}`,
+												targetSchema: "ObservationEvent",
+												concept: {
+													conceptId: f.conceptId ?? f.display,
+													display: f.display,
+												},
+												certainty: "refuting",
+												provenance: {},
+											},
+										});
+									}
+								} else {
+									resolvedOps.push(op);
+								}
+							} else {
+								resolvedOps.push(op);
+							}
+						}
+
+						if (resolvedOps.length > 0) {
+							await workspace.applyOperations(resolvedOps);
+						}
+					}}
+					onClose={() => setOverlay(null)}
+				/>
+			);
+		}
 		return null;
 	};
 
@@ -579,6 +688,9 @@ export function Notebook({
 				setWorkspaceTab(nextWorkspaceTab);
 				return;
 			}
+			case "OPEN_SCRATCHPAD":
+				setOverlay({ route: "scratchpad" });
+				return;
 			case "CANCEL":
 				if (state.mode === "VISUAL" && state.commandKind === "macro") {
 					dispatch({ type: "set_mode", mode: "INSERT" });
@@ -624,6 +736,10 @@ export function Notebook({
 		historySearchOpen: searchState.open,
 		historySearchMatches: searchState.matches,
 		historySearchMatchIndex: searchState.matchIndex,
+		workspaceSnapshot: workspace.snapshot,
+		workspaceLoading: workspace.loading,
+		workspaceError: workspace.error,
+		workspaceFocused: workspace.focused,
 	});
 
 	const containerDomain = {

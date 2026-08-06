@@ -42,7 +42,8 @@ export type EditorAction =
 	| { type: "EXTEND_VISUAL"; delta: -1 | 1 }
 	| { type: "DELETE_VISUAL" }
 	| { type: "YANK_VISUAL" }
-	| { type: "COMMIT_COMPLETION"; line: string };
+	| { type: "COMMIT_COMPLETION"; line: string }
+	| { type: "OPEN_SCRATCHPAD" };
 
 export function createEditorKernelState(): EditorKernelState {
 	return {
@@ -139,6 +140,7 @@ export function reduceEditorKernel(
 		case "OPEN_HISTORY":
 		case "TOGGLE_SIDEBAR":
 		case "NEXT_WORKSPACE_TAB":
+		case "OPEN_SCRATCHPAD":
 			return state;
 		case "ENTER_VISUAL":
 			return { ...state, mode: "VISUAL" };

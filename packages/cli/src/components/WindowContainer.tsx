@@ -507,6 +507,16 @@ export function WindowContainer({
 			return;
 		}
 
+		if (
+			current.mode === "NORMAL" &&
+			(_input === "n" || _input === "N") &&
+			!key.ctrl &&
+			!key.meta
+		) {
+			emit({ type: "OPEN_SCRATCHPAD" } as any);
+			return;
+		}
+
 		const mode = view?.selection ? "VISUAL" : "NORMAL";
 		await applyKeyResolution(_input, key, mode);
 	});

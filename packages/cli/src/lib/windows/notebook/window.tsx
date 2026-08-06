@@ -8,7 +8,9 @@ import {
 	renderMacroAuthoringTemplate,
 } from "@stateful-mcp/clinical";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
+import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
 import type { ReactElement } from "react";
+import { BranchDetailInspector } from "../../../components/BranchDetailInspector";
 import { CommandBar } from "../../../components/CommandBar";
 import { HelpBar } from "../../../components/HelpBar";
 import { HistoryDetailPanel } from "../../../components/HistoryDetailPanel";
@@ -60,6 +62,10 @@ export interface NotebookWindowDeps {
 	historySearchOpen?: boolean;
 	historySearchMatches?: string[];
 	historySearchMatchIndex?: number;
+	workspaceSnapshot?: WorkspaceSnapshot | null;
+	workspaceLoading?: boolean;
+	workspaceError?: string | null;
+	workspaceFocused?: boolean;
 }
 
 /**
@@ -108,7 +114,13 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				slot: "primary",
 				key: "notebook-workspace",
 				render: () => (
-					<NotebookWorkspace activeTab={deps.workspaceTab ?? "notebook"} />
+					<NotebookWorkspace
+						activeTab={deps.workspaceTab ?? "notebook"}
+						snapshot={deps.workspaceSnapshot}
+						loading={deps.workspaceLoading}
+						error={deps.workspaceError}
+						focused={deps.workspaceFocused}
+					/>
 				),
 			});
 
@@ -191,7 +203,11 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				if (deps.sidebarOpen) {
 					const detail =
 						deps.sidebarContent ??
-						(showLiveMacroDetails ? (
+						(deps.workspaceTab === "assessment" ? (
+							<BranchDetailInspector
+								snapshot={deps.workspaceSnapshot ?? null}
+							/>
+						) : showLiveMacroDetails ? (
 							<MacroDetailPanel {...macroEditorProps} />
 						) : deps.activeHistoryCell ? (
 							<HistoryDetailPanel cell={deps.activeHistoryCell} />

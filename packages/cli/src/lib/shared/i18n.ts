@@ -108,19 +108,28 @@ const en: Record<string, string> = {
 	"statusbar.cell": "cell {current}/{total}",
 	"statusbar.ins": "ins@{label}",
 
-	// Workspace screen
-	"workspace.title": "WORKSPACE",
+	// Workspace & Assessment
+	"workspace.title": "ASSESSMENT WORKSPACE",
 	"workspace.branches": "{count} branch{plural}",
-	"workspace.loading": "loading workspace...",
-	"workspace.noBranches":
-		"no branches — type a hypothesis to create one, or {cmd}",
-	"workspace.branchCmd": "branch <name> <concept>",
-	"workspace.globalFacts": "GLOBAL FACTS",
-	"workspace.hypothesis": "hypothesis: {value}",
-	"workspace.noFindings": "(no findings yet)",
+	"workspace.focused": "FOCUSED",
+	"workspace.loading": "Loading workspace...",
+	"workspace.noBranches": "No differential branches recorded yet.",
+	"workspace.branchCmd": "N (scratchpad) / :hypothesis [code]",
+	"workspace.globalFacts": "Global facts",
+	"workspace.hypothesis": "Hypothesis: {value}",
+	"workspace.noFindings": "No evidence recorded",
+	"workspace.inspectorTitle": "BRANCH INSPECTOR",
+	"workspace.noSnapshot": "No workspace snapshot available",
+	"workspace.selectBranch": "Select a branch to inspect details.",
+	"workspace.scratchpadTitle": "RAPID CLINICAL DIFFERENTIAL SCRATCHPAD",
+	"workspace.scratchpadSubtitle":
+		"Type shorthand notes (e.g. '{ex1}', '{ex2}', '{ex3}'). Line-by-line entry.",
+	"workspace.scratchpadPreviewHeader":
+		"CANONICAL CONCEPT & ALIAS RESOLUTION PREVIEW:",
+	"workspace.scratchpadFooter":
+		"[ Tab / ↓ ] Next Line  │  [ Enter ] Apply Operations  │  [ Esc ] Close (Keeps Draft)",
 	"workspace.inputHint": "type a finding, hypothesis, or command...",
 	"workspace.ruledOut": "✗ ruled_out",
-	"workspace.focused": "FOCUSED",
 	"workspace.strip.full":
 		"workspace: {id} · branch: {name} · {status} · +{sup} / -{ref}",
 	"workspace.strip.short": "workspace {id} · {name} {status}",

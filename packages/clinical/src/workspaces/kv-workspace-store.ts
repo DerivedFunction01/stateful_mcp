@@ -32,10 +32,10 @@ export class KvWorkspaceStore implements WorkspaceStore {
 		return Object.values(data)
 			.map((value) => this.read(value))
 			.filter((aggregate): aggregate is WorkspaceAggregate =>
-				Boolean(aggregate),
+				Boolean(aggregate && typeof aggregate.id === "string"),
 			)
 			.filter((aggregate) => aggregate.sessionId === sessionId)
-			.sort((left, right) => left.id.localeCompare(right.id));
+			.sort((left, right) => (left.id ?? "").localeCompare(right.id ?? ""));
 	}
 
 	async save(aggregate: WorkspaceAggregate): Promise<void> {

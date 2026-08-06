@@ -1,3 +1,4 @@
+import type { BranchStatus } from "../commands/command-syntax-profile";
 import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 import type { Branch, TypedFact } from "./workspace-types";
 
@@ -38,8 +39,8 @@ export type WorkspaceEvent =
 			kind: "branch_lifecycle_transitioned";
 			workspaceId: string;
 			branchId: string;
-			fromStatus: "active" | "suspended" | "confirmed" | "ruled_out" | "closed";
-			toStatus: "active" | "suspended" | "confirmed" | "ruled_out" | "closed";
+			fromStatus: BranchStatus;
+			toStatus: BranchStatus;
 			reason?: string;
 			actorId?: string;
 			sourceCellId?: string;

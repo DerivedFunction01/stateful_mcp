@@ -9,17 +9,7 @@ export function createWorkspace(
 	now = new Date().toISOString(),
 ): WorkspaceAggregate {
 	const workspaceId = request.workspaceId ?? `work_${crypto.randomUUID()}`;
-	const initialBranches = request.initialBranches?.length
-		? request.initialBranches
-		: [
-				{
-					name: "Hypothesis",
-					hypothesisConcept: {
-						conceptId: "hypothesis_default",
-						display: "Hypothesis",
-					},
-				},
-			];
+	const initialBranches = request.initialBranches ?? [];
 	const branches: Branch[] = initialBranches.map((branch, index) => ({
 		id: `branch_${workspaceId}_${index}_${crypto.randomUUID()}`,
 		parentId: null,

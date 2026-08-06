@@ -6,14 +6,10 @@
  * `WorkspaceStore(parser)` and `ParsedItem`-based fact extraction are not used.
  */
 
+import type { BranchStatus } from "../commands/command-syntax-profile";
 import type { CodeableConcept } from "../schemas/schemas-interface/shared";
 
-export type BranchLifecycleState =
-	| "active"
-	| "suspended"
-	| "confirmed"
-	| "ruled_out"
-	| "closed";
+export type BranchLifecycleState = BranchStatus;
 
 export interface Branch {
 	id: string;
