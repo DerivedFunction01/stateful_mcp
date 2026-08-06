@@ -6,9 +6,11 @@ import {
 	type MacroAuthoringRender,
 	renderMacroAuthoringTemplate,
 } from "./macro-authoring-renderer";
+import type { MacroBinding } from "./macro-binding";
 import type { MacroCompileResult as MacroCompilationResult } from "./macro-compiler";
 import type { MacroDefinition } from "./macro-definition";
 import type { MacroDraftPreview } from "./macro-draft-preview";
+import type { MacroExecutionPlan } from "./macro-plan";
 import type { SyntaxProfile } from "./macro-profile";
 import {
 	activeMacroSlot,
@@ -23,6 +25,29 @@ export interface MacroAuthoringDiagnostic {
 	message: string;
 	level: "error" | "warning" | "info";
 }
+
+export interface FinalizedMacroCommit {
+	authoredText: string;
+	macroDefinitionId: string;
+	macroDefinitionVersion: number;
+	bindings: MacroBinding[];
+	plan: MacroExecutionPlan;
+	naturalPreview?: MacroAuthoringRender;
+	machinePreview?: MacroDraftPreview;
+	diagnostics: MacroAuthoringDiagnostic[];
+	fingerprint: string;
+}
+
+export interface FinalizationFailure {
+	ok: false;
+	diagnostics: MacroAuthoringDiagnostic[];
+}
+
+export interface FinalizationSuccess extends FinalizedMacroCommit {
+	ok: true;
+}
+
+export type MacroFinalization = FinalizationSuccess | FinalizationFailure;
 
 export interface MacroAuthoringSnapshot {
 	mode: "idle" | "macro";
@@ -332,6 +357,116 @@ export class MacroAuthoringSession {
 		};
 	}
 
+	public setExecutablePreview(preview: MacroDraftPreview | undefined): void {
+		this.snapshot = {
+			...this.snapshot,
+			executablePreview: preview,
+		};
+	}
+
+	public finalize(): MacroFinalization {
+		const diagnostics: MacroAuthoringDiagnostic[] = [];
+		if (this.snapshot.mode !== "macro") {
+			diagnostics.push({
+				code: "NOT_MACRO",
+				message: "The active command is not a Macro",
+				level: "error",
+			});
+		}
+		if (!this.snapshot.definition) {
+			diagnostics.push({
+				code: "MISSING_DEFINITION",
+				message: "The Macro definition is not resolved",
+				level: "error",
+			});
+		}
+		for (const status of this.snapshot.statuses) {
+			if (status.status === "remaining") {
+				diagnostics.push({
+					code: "INCOMPLETE_ARGUMENT",
+					message: `${status.name} is incomplete`,
+					level: "error",
+				});
+			}
+			if (status.status === "broken") {
+				diagnostics.push({
+					code: "INVALID_ARGUMENT",
+					message: status.message ?? `${status.name} is invalid`,
+					level: "error",
+				});
+			}
+		}
+
+		const preview = this.snapshot.executablePreview;
+		if (preview && preview.status !== "valid") {
+			diagnostics.push({
+				code: "INVALID_PREVIEW",
+				message: "The Macro execution preview is invalid",
+				level: "error",
+			});
+		}
+		for (const message of preview?.diagnostics ??
+			this.snapshot.compilation?.diagnostics ??
+			[]) {
+			diagnostics.push({
+				code: "COMPILATION",
+				message,
+				level: "error",
+			});
+		}
+		const plan = preview?.plan;
+		if (!plan) {
+			diagnostics.push({
+				code: "MISSING_PLAN",
+				message: "The Macro has no finalized execution plan",
+				level: "error",
+			});
+		}
+		if (diagnostics.length > 0 || !this.snapshot.definition || !plan) {
+			return { ok: false, diagnostics };
+		}
+
+		const definition = this.snapshot.definition;
+		const bindings = this.snapshot.slots.map((slot): MacroBinding => {
+			const source = slot.bindingSource ?? "inferred";
+			const matchSource = source === "accepted" ? "inferred" : source;
+			return {
+				argumentId: slot.argumentId,
+				name: slot.roleName,
+				rawValue: slot.rawText,
+				source,
+				start: slot.start,
+				end: slot.end,
+				match: {
+					argumentId: slot.argumentId,
+					occurrence: slot.occurrence,
+					formId: slot.formId,
+					source: matchSource,
+					anchor:
+						slot.anchorStart !== undefined && slot.anchorEnd !== undefined
+							? { start: slot.anchorStart, end: slot.anchorEnd }
+							: undefined,
+					extraction: { start: slot.start, end: slot.end },
+					friendlyText: slot.friendlyText,
+					rawValue: slot.rawText,
+					captureSpans: slot.captureSpans,
+				},
+			};
+		});
+		return deepFreeze({
+			ok: true,
+			authoredText: this.snapshot.rawText,
+			macroDefinitionId: definition.macroId,
+			macroDefinitionVersion: definition.version,
+			bindings,
+			plan,
+			naturalPreview: this.snapshot.authoringPreview,
+			machinePreview: preview,
+			diagnostics: [],
+			fingerprint: plan.fingerprint.value,
+		});
+	}
+
 	public isExecutable(): boolean {
 		if (this.snapshot.mode !== "macro" || !this.snapshot.definition)
 			return false;
@@ -341,4 +476,13 @@ export class MacroAuthoringSession {
 		);
 		return remaining.length === 0;
 	}
+}
+
+function deepFreeze<T>(value: T): T {
+	if (value && typeof value === "object" && !Object.isFrozen(value)) {
+		Object.freeze(value);
+		for (const child of Object.values(value as Record<string, unknown>))
+			deepFreeze(child);
+	}
+	return value;
 }

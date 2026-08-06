@@ -87,22 +87,24 @@ describe(" command-bar autocomplete", () => {
 						get: async () => def,
 						list: async () => [def],
 					} as any,
-				dictionary: {
-					expressionStore: true,
-					async searchExpressionCandidates(this: { expressionStore: boolean }) {
-						return this.expressionStore
-							? [
-									{
-										id: "expr-hp",
-										term: "Harry Potter",
-										lookupTerm: "hp",
-										conceptId: "c-hp",
-										active: true,
-									},
-								]
-							: [];
-					},
-				} as any,
+					dictionary: {
+						expressionStore: true,
+						async searchExpressionCandidates(this: {
+							expressionStore: boolean;
+						}) {
+							return this.expressionStore
+								? [
+										{
+											id: "expr-hp",
+											term: "Harry Potter",
+											lookupTerm: "hp",
+											conceptId: "c-hp",
+											active: true,
+										},
+									]
+								: [];
+						},
+					} as any,
 				},
 				defaultProfile,
 			);
@@ -207,7 +209,9 @@ describe(" command-bar autocomplete", () => {
 				defaultProfile,
 			);
 			expect(suggestions.length).toBeGreaterThan(0);
-			expect(suggestions.every((s) => s.provenance === "expression")).toBe(true);
+			expect(suggestions.every((s) => s.provenance === "expression")).toBe(
+				true,
+			);
 			const labels = suggestions.map((s) => s.label);
 			expect(labels).toContain("Harry Potter");
 			expect(labels).toContain("Hunger Games");
@@ -255,7 +259,9 @@ describe(" command-bar autocomplete", () => {
 				defaultProfile,
 			);
 			expect(suggestions.length).toBeGreaterThan(0);
-			expect(suggestions.every((s) => s.provenance === "expression")).toBe(true);
+			expect(suggestions.every((s) => s.provenance === "expression")).toBe(
+				true,
+			);
 			expect(suggestions.map((s) => s.label)).toContain("Harry Potter");
 		});
 

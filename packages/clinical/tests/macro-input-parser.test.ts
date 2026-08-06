@@ -188,11 +188,9 @@ describe("macro-input-parser", () => {
 	});
 
 	test("continues positional inference after a partial template literal", () => {
-		const result = parseMacroLine(
-			"^note My favorite book is hp 2004 10",
-			0,
-			{ definition: NOTE_MACRO },
-		);
+		const result = parseMacroLine("^note My favorite book is hp 2004 10", 0, {
+			definition: NOTE_MACRO,
+		});
 
 		expect(result?.arguments.map((argument) => argument.name)).toEqual([
 			undefined,
@@ -205,9 +203,7 @@ describe("macro-input-parser", () => {
 			"10",
 		]);
 		expect(result?.arguments.map((argument) => argument.position)).toEqual([
-			0,
-			2,
-			1,
+			0, 2, 1,
 		]);
 	});
 

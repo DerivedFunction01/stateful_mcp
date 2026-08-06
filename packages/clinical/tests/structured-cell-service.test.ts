@@ -4,12 +4,38 @@ import type { CellStore } from "../src/cells/cell-service-types";
 import { KvCellStore } from "../src/cells/kv-cell-store";
 import { SqlCellStore } from "../src/cells/sql-cell-store";
 import { StructuredCellService } from "../src/cells/structured-cell-service";
+import type { FinalizedMacroCommit } from "../src/macros/macro-authoring-session";
 
 async function compile(rawText: string) {
 	return {
 		plan: { operations: [], generatedCells: [] },
 		diagnostics: [],
 		fingerprint: `fp_${rawText.length}`,
+	};
+}
+
+function finalizedMacro(): FinalizedMacroCommit {
+	return {
+		authoredText: "^observation duration=2 hours",
+		macroDefinitionId: "macro-observation",
+		macroDefinitionVersion: 1,
+		bindings: [],
+		plan: {
+			groupId: "group-1",
+			scope: { kind: "clinical_document", sessionId: "s1" },
+			macroDefinitions: [],
+			operations: [],
+			links: [],
+			generatedCells: [],
+			expectedVersions: [],
+			fingerprint: {
+				value: "finalized-fingerprint",
+				algorithm: "v2-plan-fingerprint-v1",
+			},
+			diagnostics: [],
+		},
+		diagnostics: [],
+		fingerprint: "finalized-fingerprint",
 	};
 }
 
@@ -59,6 +85,127 @@ describe.each([
 		const fetched = await service.get(created.cellId);
 		expect(fetched).not.toBeNull();
 		expect(fetched?.cellId).toBe(created.cellId);
+	});
+
+	it("creates and persists a finalized Macro cell as pending", async () => {
+		const service = new StructuredCellService({
+			store: await makeStore(),
+			compile,
+		});
+		const finalized = finalizedMacro();
+		const cell = await service.create({
+			sessionId: "s1",
+			collection: { kind: "notebook", collectionId: "n1" },
+			rawText: finalized.authoredText,
+			finalizedMacro: finalized,
+		});
+
+		expect(cell.lifecycle.status).toBe("pending_commit");
+		expect(cell.execution.planFingerprint).toBe("finalized-fingerprint");
+		expect(cell.authored.finalizedMacro).toEqual(finalized);
+		expect(await service.get(cell.cellId)).toEqual(cell);
+	});
+
+	it("executes a finalized Macro plan without recompiling raw text", async () => {
+		let compileCalls = 0;
+		const service = new StructuredCellService({
+			store: await makeStore(),
+			compile: async (rawText) => {
+				compileCalls += 1;
+				return compile(rawText);
+			},
+			executePlan: async (executionPlan) => ({
+				status: "committed",
+				transactionId: "tx-finalized",
+				planFingerprint: executionPlan.fingerprint.value,
+			}),
+		});
+		const finalized = finalizedMacro();
+		const cell = await service.create({
+			sessionId: "s1",
+			collection: { kind: "notebook", collectionId: "n1" },
+			rawText: finalized.authoredText,
+			finalizedMacro: finalized,
+		});
+
+		const result = await service.executeFinalizedMacro(
+			cell.cellId,
+			"idem-finalized-1",
+		);
+		expect(result.status).toBe("committed");
+		expect(result.transactionId).toBe("tx-finalized");
+		expect(compileCalls).toBe(0);
+		expect((await service.get(cell.cellId))?.lifecycle.status).toBe(
+			"committed",
+		);
+	});
+
+	it("rejects a finalized Macro when its plan fingerprint is stale", async () => {
+		const service = new StructuredCellService({
+			store: await makeStore(),
+			compile,
+			executePlan: async () => ({
+				status: "committed",
+				transactionId: "tx-finalized",
+				planFingerprint: "finalized-fingerprint",
+			}),
+		});
+		const finalized = finalizedMacro();
+		const cell = await service.create({
+			sessionId: "s1",
+			collection: { kind: "notebook", collectionId: "n1" },
+			rawText: finalized.authoredText,
+			finalizedMacro: { ...finalized, fingerprint: "stale-fingerprint" },
+		});
+
+		await expect(
+			service.executeFinalizedMacro(cell.cellId, "idem-finalized-2"),
+		).rejects.toThrow("fingerprint mismatch");
+	});
+
+	it("records a committed Macro reversal without changing the authored cell", async () => {
+		let reversed = 0;
+		const store = await makeStore();
+		const service = new StructuredCellService({
+			store,
+			compile,
+			reversePlan: async (transactionId, idempotencyKey) => {
+				reversed += 1;
+				expect(transactionId).toBe("tx-original");
+				expect(idempotencyKey).toBe("idem-reversal");
+				return {
+					status: "committed",
+					transactionId: "tx-reversal",
+					planFingerprint: "reversal-fingerprint",
+				};
+			},
+		});
+		const finalized = finalizedMacro();
+		const created = await service.create({
+			sessionId: "s1",
+			collection: { kind: "notebook", collectionId: "n1" },
+			rawText: finalized.authoredText,
+			finalizedMacro: finalized,
+		});
+		await store.save({
+			...created,
+			lifecycle: { ...created.lifecycle, status: "committed" },
+			execution: {
+				...created.execution,
+				transactionId: "tx-original",
+				committedAt: new Date().toISOString(),
+			},
+		});
+
+		const result = await service.reverseFinalizedMacro(
+			created.cellId,
+			"idem-reversal",
+		);
+		const updated = await service.get(created.cellId);
+		expect(result.status).toBe("committed");
+		expect(reversed).toBe(1);
+		expect(updated?.authored.rawText).toBe(finalized.authoredText);
+		expect(updated?.execution.reversalTransactionId).toBe("tx-reversal");
 	});
 
 	it("lists cells by session", async () => {

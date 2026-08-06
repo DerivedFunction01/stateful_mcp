@@ -32,7 +32,14 @@ export interface StructuredCellServiceDeps {
 		learningTrace?: MacroLearningTrace;
 	}>;
 	previewWorkflow?: NotebookPreviewWorkflow;
-	executePlan?: (plan: MacroExecutionPlan) => Promise<ExecutionResult>;
+	executePlan?: (
+		plan: MacroExecutionPlan,
+		idempotencyKey?: string,
+	) => Promise<ExecutionResult>;
+	reversePlan?: (
+		transactionId: string,
+		idempotencyKey: string,
+	) => Promise<ExecutionResult>;
 	learningService?: MacroLearningService;
 }
 
@@ -41,6 +48,7 @@ export class StructuredCellService {
 	private readonly compile: StructuredCellServiceDeps["compile"];
 	private readonly previewWorkflow: NotebookPreviewWorkflow;
 	private executePlan?: StructuredCellServiceDeps["executePlan"];
+	private reversePlan?: StructuredCellServiceDeps["reversePlan"];
 	private readonly learningService?: MacroLearningService;
 
 	constructor(deps: StructuredCellServiceDeps) {
@@ -50,6 +58,7 @@ export class StructuredCellService {
 			deps.previewWorkflow ??
 			new NotebookPreviewWorkflow({ compile: deps.compile });
 		this.executePlan = deps.executePlan;
+		this.reversePlan = deps.reversePlan;
 		this.learningService = deps.learningService;
 	}
 
@@ -57,6 +66,12 @@ export class StructuredCellService {
 		executePlan: NonNullable<StructuredCellServiceDeps["executePlan"]>,
 	): void {
 		this.executePlan = executePlan;
+	}
+
+	setPlanReverser(
+		reversePlan: NonNullable<StructuredCellServiceDeps["reversePlan"]>,
+	): void {
+		this.reversePlan = reversePlan;
 	}
 
 	async create(request: CreateCellRequest): Promise<StructuredCell> {
@@ -82,6 +97,20 @@ export class StructuredCellService {
 	async preview(request: PreviewCellRequest): Promise<CellPreview> {
 		const cell = await this.store.get(request.cellId);
 		if (!cell) throw new Error(`Cell '${request.cellId}' not found`);
+		if (cell.authored.finalizedMacro) {
+			return {
+				previewId: `preview_${cell.cellId}_${cell.lifecycle.revision}`,
+				cellId: cell.cellId,
+				planFingerprint: cell.authored.finalizedMacro.fingerprint,
+				diagnostics: cell.authored.finalizedMacro.diagnostics.map(
+					(diagnostic) => diagnostic.message,
+				),
+				status:
+					cell.authored.finalizedMacro.diagnostics.length === 0
+						? "valid"
+						: "invalid",
+			};
+		}
 		if (cell.lifecycle.status === "committed") {
 			return {
 				previewId: `preview_${cell.cellId}_${cell.lifecycle.revision}`,
@@ -107,6 +136,9 @@ export class StructuredCellService {
 	async execute(request: ExecuteCellRequest): Promise<CellExecutionResult> {
 		const cell = await this.store.get(request.cellId);
 		if (!cell) throw new Error(`Cell '${request.cellId}' not found`);
+		if (cell.authored.finalizedMacro) {
+			return this.executeFinalizedMacro(request.cellId, request.idempotencyKey);
+		}
 		if (cell.lifecycle.status === "committed") {
 			return {
 				transactionId: "",
@@ -165,7 +197,7 @@ export class StructuredCellService {
 			},
 		};
 		await this.store.save(updated);
-		const result = await this.executePlan(plan);
+		const result = await this.executePlan(plan, request.idempotencyKey);
 		const finalStatus = result.status === "committed" ? "committed" : "failed";
 		const finalCell: StructuredCell = {
 			...updated,
@@ -192,6 +224,140 @@ export class StructuredCellService {
 			generatedCellIds: plan.generatedCells.map(
 				(generated) => generated.cellRef,
 			),
+			diagnostics: result.error ? [result.error] : [],
+		};
+	}
+
+	/** Execute the exact plan captured by the Macro authoring session. */
+	async executeFinalizedMacro(
+		cellId: string,
+		idempotencyKey: string,
+	): Promise<CellExecutionResult> {
+		const cell = await this.store.get(cellId);
+		if (!cell) throw new Error(`Cell '${cellId}' not found`);
+		const finalized = cell.authored.finalizedMacro;
+		if (!finalized) {
+			throw new Error(`Cell '${cellId}' has no finalized Macro snapshot`);
+		}
+		if (finalized.diagnostics.length > 0) {
+			throw new Error(`Cell '${cellId}' finalized Macro is invalid`);
+		}
+		if (finalized.fingerprint !== finalized.plan.fingerprint.value) {
+			throw new Error(`Cell '${cellId}' finalized Macro fingerprint mismatch`);
+		}
+		if (cell.execution.planFingerprint !== finalized.fingerprint) {
+			throw new Error(`Cell '${cellId}' stored plan fingerprint mismatch`);
+		}
+		if (cell.lifecycle.status === "committed") {
+			return {
+				transactionId: cell.execution.transactionId ?? "",
+				status: "committed",
+				generatedCellIds: cell.execution.generatedCellIds ?? [],
+				diagnostics: ["Cell is already committed; rerun creates a new cell"],
+			};
+		}
+		if (!this.executePlan)
+			throw new Error("StructuredCellService execution is not configured");
+
+		const plan: MacroExecutionPlan = {
+			...finalized.plan,
+			operations: finalized.plan.operations.map((operation) => ({
+				...operation,
+				cellRef: operation.cellRef ?? cell.cellId,
+			})),
+		};
+		const now = new Date().toISOString();
+		const updated: StructuredCell = {
+			...cell,
+			lifecycle: {
+				...cell.lifecycle,
+				status: "pending_commit",
+				revision: cell.lifecycle.revision + 1,
+			},
+			source: { ...cell.source, updatedAt: now },
+			execution: {
+				...cell.execution,
+				transactionId:
+					cell.execution.transactionId ?? `tx_${crypto.randomUUID()}`,
+			},
+		};
+		await this.store.save(updated);
+		const result = await this.executePlan(plan, idempotencyKey);
+		const finalStatus = result.status === "committed" ? "committed" : "failed";
+		const finalCell: StructuredCell = {
+			...updated,
+			lifecycle: {
+				...updated.lifecycle,
+				status: finalStatus,
+				revision: updated.lifecycle.revision + 1,
+			},
+			source: { ...updated.source, updatedAt: new Date().toISOString() },
+			execution: {
+				...updated.execution,
+				planFingerprint: finalized.fingerprint,
+				transactionId: result.transactionId,
+				committedAt:
+					result.status === "committed" ? new Date().toISOString() : undefined,
+				generatedCellIds: plan.generatedCells.map(
+					(generated) => generated.cellRef,
+				),
+			},
+			diagnostics: result.error
+				? [{ code: "execution", severity: "error", message: result.error }]
+				: [],
+		};
+		await this.store.save(finalCell);
+		return {
+			transactionId: result.transactionId,
+			status: finalStatus,
+			generatedCellIds: plan.generatedCells.map(
+				(generated) => generated.cellRef,
+			),
+			diagnostics: result.error ? [result.error] : [],
+		};
+	}
+
+	async reverseFinalizedMacro(
+		cellId: string,
+		idempotencyKey: string,
+	): Promise<CellExecutionResult> {
+		const cell = await this.store.get(cellId);
+		if (!cell) throw new Error(`Cell '${cellId}' not found`);
+		if (!cell.authored.finalizedMacro || !cell.execution.transactionId)
+			throw new Error(`Cell '${cellId}' has no committed Macro transaction`);
+		if (cell.execution.reversalTransactionId) {
+			return {
+				status: "committed",
+				transactionId: cell.execution.reversalTransactionId,
+				generatedCellIds: [],
+				diagnostics: ["Macro was already reversed"],
+			};
+		}
+		if (!this.reversePlan)
+			throw new Error("StructuredCellService reversal is not configured");
+		const result = await this.reversePlan(
+			cell.execution.transactionId,
+			idempotencyKey,
+		);
+		if (result.status === "committed") {
+			await this.store.save({
+				...cell,
+				source: { ...cell.source, updatedAt: new Date().toISOString() },
+				execution: {
+					...cell.execution,
+					reversalTransactionId: result.transactionId,
+					reversedAt: new Date().toISOString(),
+				},
+				lifecycle: {
+					...cell.lifecycle,
+					revision: cell.lifecycle.revision + 1,
+				},
+			});
+		}
+		return {
+			status: result.status,
+			transactionId: result.transactionId,
+			generatedCellIds: [],
 			diagnostics: result.error ? [result.error] : [],
 		};
 	}

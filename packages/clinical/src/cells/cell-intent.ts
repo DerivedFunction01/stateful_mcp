@@ -8,12 +8,11 @@
  */
 
 import type { VariableStatement } from "@stateful-mcp/core";
+import type { DirectCommandVerb } from "../commands/command-syntax-profile";
 import type {
 	MacroArgumentInput,
 	MacroSourceLine,
 } from "../macros/macro-binding";
-import type { DirectCommandVerb } from "../commands/command-syntax-profile";
-
 
 /** Typed workspace command payload (-local; workspace service compiles it). */
 export interface WorkspaceCommandIntentPayload {

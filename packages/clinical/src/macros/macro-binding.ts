@@ -85,11 +85,20 @@ export interface MacroArgumentBinding {
 	rawValue: string;
 	captures?: Record<string, string | undefined>;
 	items?: MacroListItemInput[];
-	source: "named" | "positional" | "inferred" | "rule" | "friendly";
+	source:
+		| "named"
+		| "positional"
+		| "inferred"
+		| "rule"
+		| "friendly"
+		| "accepted";
 	start?: number;
 	end?: number;
 	match?: MacroArgumentMatch;
 }
+
+/** A finalized argument binding carried by a committed Macro snapshot. */
+export type MacroBinding = MacroArgumentBinding;
 
 export interface MacroBindingResult {
 	input: MacroInput;

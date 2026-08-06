@@ -1,3 +1,4 @@
+import type { FinalizedMacroCommit } from "../macros/macro-authoring-session";
 import type { CellCompileContext } from "./cell-compiler";
 import type { StructuredCell } from "./structured-cell";
 
@@ -28,6 +29,7 @@ export interface CreateCellRequest {
 	sessionId: string;
 	collection: StructuredCell["collection"];
 	rawText: string;
+	finalizedMacro?: FinalizedMacroCommit;
 	authorId?: string;
 }
 

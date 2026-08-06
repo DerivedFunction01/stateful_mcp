@@ -16,6 +16,7 @@ export interface NotebookDocumentDeps {
 	pasteAbove?(): void;
 	deleteSelection?(): void;
 	yankSelection?(): void;
+	reverseMacro?(): void;
 }
 
 /**
@@ -45,8 +46,34 @@ export class NotebookDocumentPort implements DocumentPort {
 	}
 
 	dispatch(action: DocumentAction): void {
+		if (
+			action.type === "undo" &&
+			this.state.cells[this.state.activeIndex]?.authored.finalizedMacro
+		) {
+			this.deps?.reverseMacro?.();
+			return;
+		}
+		if (this.isFinalizedMacroHistoryAction(action)) return;
 		const act = this.toNotebook(action);
 		if (act) this.send(act);
+	}
+
+	private isFinalizedMacroHistoryAction(action: DocumentAction): boolean {
+		const active = this.state.cells[this.state.activeIndex];
+		if (!active?.authored.finalizedMacro) return false;
+		return (
+			action.type === "insertBelow" ||
+			action.type === "insertAbove" ||
+			action.type === "deleteActive" ||
+			action.type === "yankActive" ||
+			action.type === "paste" ||
+			action.type === "pasteAbove" ||
+			action.type === "deleteSelection" ||
+			action.type === "yankSelection" ||
+			action.type === "enterVisual" ||
+			action.type === "undo" ||
+			action.type === "redo"
+		);
 	}
 
 	private toNotebook(action: DocumentAction): NotebookEditorAction | null {

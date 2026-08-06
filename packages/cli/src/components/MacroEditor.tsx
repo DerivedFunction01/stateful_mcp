@@ -23,6 +23,9 @@ interface MacroEditorProps {
 	childDefinitions?: MacroDefinition[];
 	authoringPreview?: MacroAuthoringRender;
 	draftPreview?: MacroDraftPreview;
+	executionMessage?: string | null;
+	selectionStart?: number;
+	selectionEnd?: number;
 	showCursor?: boolean;
 }
 
@@ -35,6 +38,9 @@ export function MacroEditor({
 	childDefinitions = [],
 	authoringPreview,
 	draftPreview,
+	executionMessage,
+	selectionStart,
+	selectionEnd,
 	showCursor = true,
 }: MacroEditorProps) {
 	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
@@ -282,6 +288,15 @@ export function MacroEditor({
 							return <Text key={index}>{segment.text}</Text>;
 						})}
 					</Text>
+					{selectionStart !== undefined && selectionEnd !== undefined && (
+						<Text color="cyan">
+							Selection:{" "}
+							{draftText.slice(
+								Math.min(selectionStart, selectionEnd),
+								Math.max(selectionStart, selectionEnd),
+							)}
+						</Text>
+					)}
 					{/* Status Checklist */}
 					{statuses.length > 0 && (
 						<Box flexDirection="row" marginTop={1} gap={2}>
@@ -401,6 +416,9 @@ export function MacroEditor({
 						</Text>
 					))}
 				</Box>
+			)}
+			{executionMessage && (
+				<Text color="cyan">Execution: {executionMessage}</Text>
 			)}
 		</Box>
 	);

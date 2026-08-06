@@ -49,7 +49,9 @@ describe("isolated notebook v2 state contract", () => {
 			},
 		];
 
-		expect(selectUnambiguousExpression(expressions, "harry potter")).toBeUndefined();
+		expect(
+			selectUnambiguousExpression(expressions, "harry potter"),
+		).toBeUndefined();
 		expect(
 			selectUnambiguousExpression(
 				expressions,
@@ -75,6 +77,40 @@ describe("isolated notebook v2 state contract", () => {
 		expect(state.mode).toBe("INSERT");
 		expect(state.draftText).toBe("");
 		expect(state.cells[0]?.rawInput).toBe("existing text");
+	});
+
+	test("Macro authoring uses INSERT with a macro command kind", () => {
+		const state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "macro-rerun",
+			mode: "INSERT",
+			commandKind: "macro",
+			text: "^note",
+		});
+
+		expect(state.mode).toBe("INSERT");
+		expect(state.commandKind).toBe("macro");
+	});
+
+	test("Macro VISUAL selection uses command-buffer offsets", () => {
+		let state = reduceNotebookEditor(INITIAL__NOTEBOOK_EDITOR_STATE, {
+			type: "begin_edit",
+			cellId: "macro-visual",
+			mode: "INSERT",
+			commandKind: "macro",
+			text: "^note title=Example",
+		});
+		state = reduceNotebookEditor(state, {
+			type: "set_visual_selection",
+			start: 6,
+			end: 11,
+		});
+		state = reduceNotebookEditor(state, { type: "set_mode", mode: "VISUAL" });
+
+		expect(state.mode).toBe("VISUAL");
+		expect(state.commandKind).toBe("macro");
+		expect(state.visualStart).toBe(6);
+		expect(state.visualEnd).toBe(11);
 	});
 
 	test("append_text in insert mode builds draft text and marks dirty", () => {

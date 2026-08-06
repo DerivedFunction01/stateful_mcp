@@ -7,6 +7,7 @@
  * execution mode.
  */
 
+import type { FinalizedMacroCommit } from "../macros/macro-authoring-session";
 import type { MergeStrategy } from "../values/merge";
 import type { CellIntent } from "./cell-intent";
 import type { CellResultRef } from "./cell-results";
@@ -77,6 +78,7 @@ export interface StructuredCell {
 	authored: {
 		rawText: string;
 		intent?: CellIntent;
+		finalizedMacro?: FinalizedMacroCommit;
 	};
 	lifecycle: {
 		status: CellLifecycleStatus;
@@ -90,6 +92,8 @@ export interface StructuredCell {
 		committedAt?: string;
 		generatedCellIds?: string[];
 		resultRefs?: CellResultRef[];
+		reversalTransactionId?: string;
+		reversedAt?: string;
 	};
 	provenance: CellProvenance;
 	relationships: CellRelationships;

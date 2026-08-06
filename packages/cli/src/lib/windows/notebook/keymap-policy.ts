@@ -20,6 +20,7 @@ interface Classification {
 		| "ENTER_MACRO"
 		| "CANCEL"
 		| "SEARCH"
+		| "OPEN_HISTORY"
 		| "SUBMIT_MACRO";
 	char?: string;
 }
@@ -86,6 +87,8 @@ function classify(action: ClinicalAction): Classification {
 			return { domain: { type: "quit" } };
 		case ClinicalAction.Search:
 			return { generic: "SEARCH" };
+		case ClinicalAction.OpenHistory:
+			return { generic: "OPEN_HISTORY" };
 		default:
 			throw new Error(`Unclassified editor action: ${action}`);
 	}
@@ -99,6 +102,7 @@ export class NotebookKeymapPolicy implements KeymapPolicy {
 		key: Key,
 		mode: EditorMode,
 		pending: string,
+		commandKind?: "macro" | "direct" | "variable",
 	): KeyResolution {
 		const { action, nextPending, char } = resolveKey(
 			input,
@@ -106,6 +110,7 @@ export class NotebookKeymapPolicy implements KeymapPolicy {
 			mode,
 			pending,
 			this.profile,
+			commandKind,
 		);
 
 		// Multi-key sequence awaiting a second key (dd, yy, [e, gw, ...).

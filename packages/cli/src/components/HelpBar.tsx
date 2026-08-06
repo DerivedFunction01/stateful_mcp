@@ -6,11 +6,18 @@ import { t } from "../lib/shared/i18n";
 
 interface HelpBarProps {
 	mode: EditorMode;
+	commandKind?: "macro" | "direct" | "variable";
 	editorDescriptors: CommandDescriptor[];
 }
 
-export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
+export function HelpBar({
+	mode,
+	commandKind,
+	editorDescriptors,
+}: HelpBarProps) {
 	const line = useMemo(() => {
+		if (commandKind === "macro" && (mode === "INSERT" || mode === "MACRO"))
+			return "Enter submit  Tab expand child at end  Esc cancel";
 		if (mode === "INSERT") {
 			return t("help.insert", {
 				saveCmd: ":w",
@@ -45,7 +52,7 @@ export function HelpBar({ mode, editorDescriptors }: HelpBarProps) {
 			})
 			.join("  ");
 		return cmdLine ? `gw workspace  ${cmdLine}` : "gw workspace";
-	}, [mode, editorDescriptors]);
+	}, [mode, commandKind, editorDescriptors]);
 
 	return (
 		<Box width="100%" height={1} paddingLeft={1} paddingRight={1}>

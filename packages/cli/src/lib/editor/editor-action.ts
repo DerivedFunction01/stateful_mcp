@@ -35,6 +35,7 @@ export const EditorAction = {
 	Undo: "UNDO",
 	OpenMacroInput: "ENTER_MACRO",
 	Search: "SEARCH",
+	OpenHistory: "OPEN_HISTORY",
 	EnterVisualMode: "ENTER_VISUAL",
 } as const;
 

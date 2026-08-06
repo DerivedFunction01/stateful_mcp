@@ -362,4 +362,106 @@ describe(" clinical document service", () => {
 				?.values,
 		).toEqual({ value: 9 });
 	});
+
+	it("captures and applies a clinical Macro reversal against the committed head", async () => {
+		const { service } = await makeService();
+		const created = await service.initDocument({
+			kind: "document_initialized",
+			documentId: "doc-reversal",
+			sessionId: "session-reversal",
+			patientId: "patient-reversal",
+		});
+		const existing = await service.appendOperations(
+			created.documentId,
+			[
+				{
+					kind: "record_upserted",
+					documentId: created.documentId,
+					schemaName: "FutureObservation",
+					schemaVersion: 1,
+					recordId: "obs-reversal",
+					values: { value: 1 },
+				},
+			],
+			created.version,
+			created.eventHead!,
+		);
+		const plan: MacroExecutionPlan = {
+			groupId: "reversal-group",
+			scope: {
+				kind: "clinical_document",
+				sessionId: existing.sessionId,
+				documentId: existing.documentId,
+			},
+			macroDefinitions: [],
+			operations: [
+				{
+					operationId: "op-reversal-id",
+					groupId: "reversal-group",
+					macroDefinitionId: "macro-reversal",
+					targetSchema: "FutureObservation",
+					targetPath: "id",
+					value: { kind: "scalar", value: "obs-reversal" },
+					rawValue: "obs-reversal",
+					sourceLine: 1,
+					evidence: [],
+				},
+				{
+					operationId: "op-reversal-value",
+					groupId: "reversal-group",
+					macroDefinitionId: "macro-reversal",
+					targetSchema: "FutureObservation",
+					targetPath: "value",
+					value: { kind: "scalar", value: 2 },
+					rawValue: "2",
+					sourceLine: 1,
+					evidence: [],
+				},
+			],
+			links: [],
+			generatedCells: [],
+			expectedVersions: [
+				{
+					aggregateKind: "document",
+					aggregateId: existing.documentId,
+					expectedVersion: existing.version,
+					expectedHead: existing.eventHead,
+				},
+			],
+			fingerprint: {
+				value: "reversal-macro-plan",
+				algorithm: "v2-plan-fingerprint-v1",
+			},
+			diagnostics: [],
+		};
+		const coordinator = new TransactionCoordinator({
+			journal: new InMemoryTransactionJournal(),
+		});
+		const participant = new ClinicalTransactionParticipant(service);
+		const prepared = await coordinator.prepare({
+			idempotencyKey: "macro-reversal-original",
+			sourceCellId: "cell-reversal",
+			sourceCellRevision: 1,
+			plan,
+			participants: [participant],
+		});
+		await coordinator.commit(prepared.transactionId, [participant]);
+		const committed = await service.getDocument(existing.documentId);
+		expect(committed?.records["obs-reversal"]?.values).toEqual({
+			id: "obs-reversal",
+			value: 2,
+		});
+		const stored = (await coordinator.get(prepared.transactionId))!;
+		expect(stored.plan.reversal?.clinicalOperations).toHaveLength(1);
+
+		await coordinator.reverse(
+			prepared.transactionId,
+			[participant],
+			"macro-reversal",
+		);
+		expect(
+			(await service.getDocument(existing.documentId))?.records["obs-reversal"]
+				?.values,
+		).toEqual({ value: 1 });
+	});
 });

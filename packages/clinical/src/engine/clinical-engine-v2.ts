@@ -73,13 +73,14 @@ export class ClinicalEngine {
 	async prepare(
 		plan: MacroExecutionPlan,
 		participants?: readonly TransactionParticipant[],
+		idempotencyKey?: string,
 	): Promise<PreparedTransaction> {
 		const effective = participants ?? this.participants;
 		const enriched = await this.enrichExpectedVersions(
 			await this.enrichIfComposite(plan),
 		);
 		return this.coordinator.prepare({
-			idempotencyKey: `plan_${enriched.fingerprint.value}`,
+			idempotencyKey: idempotencyKey ?? `plan_${enriched.fingerprint.value}`,
 			sourceCellId: plan.operations[0]?.cellRef ?? "",
 			sourceCellRevision: 1,
 			plan: enriched,
@@ -136,9 +137,47 @@ export class ClinicalEngine {
 	async executePlan(
 		plan: MacroExecutionPlan,
 		participants?: readonly TransactionParticipant[],
+		idempotencyKey?: string,
 	): Promise<ExecutionResult> {
-		const prepared = await this.prepare(plan, participants);
+		const prepared = await this.prepare(plan, participants, idempotencyKey);
 		return this.commit(prepared.transactionId, participants);
+	}
+
+	async reverse(
+		transactionId: string,
+		idempotencyKey: string,
+		participants?: readonly TransactionParticipant[],
+	): Promise<ExecutionResult> {
+		const effective = participants ?? this.participants;
+		try {
+			const committed = await this.coordinator.reverse(
+				transactionId,
+				effective,
+				idempotencyKey,
+			);
+			const transaction = await this.coordinator.get(committed.transactionId);
+			if (this.projectionRegistry && transaction) {
+				await this.projectionRegistry.onCommitted({
+					transactionId: committed.transactionId,
+					plan: transaction.plan,
+					participantStates: transaction.participants,
+					syncConfig: this.runtime.stores.syncConfig,
+				});
+			}
+			return {
+				status: "committed",
+				transactionId: committed.transactionId,
+				planFingerprint: transaction?.plan.fingerprint.value ?? "",
+				committed,
+			};
+		} catch (error) {
+			return {
+				status: "failed",
+				transactionId,
+				planFingerprint: "",
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
 	}
 
 	async recover(transactionId: string): Promise<RecoveryResult> {

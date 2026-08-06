@@ -183,7 +183,13 @@ export function WindowContainer({
 		mode: "NORMAL" | "VISUAL",
 	) => {
 		const pending = "";
-		const resolution = keymap.resolve(input, key, mode, pending);
+		const resolution = keymap.resolve(
+			input,
+			key,
+			mode,
+			pending,
+			current.commandKind,
+		);
 		switch (resolution.kind) {
 			case "generic":
 				emit(resolution.action as EditorAction);
@@ -223,7 +229,7 @@ export function WindowContainer({
 	useInput(async (_input, key) => {
 		if (current.showHelp || overlay) return;
 
-		if (current.mode === "INSERT") {
+		if (current.mode === "INSERT" && current.commandKind !== "macro") {
 			if (key.escape) {
 				emit({ type: "CANCEL" });
 				return;
@@ -254,7 +260,14 @@ export function WindowContainer({
 			return;
 		}
 
-		if (current.mode === "MACRO") {
+		if (
+			current.mode === "MACRO" ||
+			(current.mode === "INSERT" && current.commandKind === "macro")
+		) {
+			if (_input === "v" && !key.ctrl && !key.meta) {
+				emit({ type: "ENTER_VISUAL" });
+				return;
+			}
 			if (key.escape) {
 				clearAutocompleteTimeout();
 				if (macroSession) {
@@ -350,6 +363,29 @@ export function WindowContainer({
 			}
 			if (_input.length === 1 && !key.ctrl && !key.meta) {
 				emit({ type: "INSERT_TEXT", text: _input });
+			}
+			return;
+		}
+
+		if (current.mode === "VISUAL" && current.commandKind === "macro") {
+			if (key.escape) {
+				emit({ type: "CANCEL" });
+				return;
+			}
+			if (key.leftArrow || key.rightArrow || key.upArrow || key.downArrow) {
+				emit({
+					type: "EXTEND_VISUAL",
+					delta: key.leftArrow || key.upArrow ? -1 : 1,
+				});
+				return;
+			}
+			if (_input === "d") {
+				emit({ type: "DELETE_VISUAL" });
+				return;
+			}
+			if (_input === "y") {
+				emit({ type: "YANK_VISUAL" });
+				return;
 			}
 			return;
 		}

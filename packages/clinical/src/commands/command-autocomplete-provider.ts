@@ -251,14 +251,12 @@ async function macroSuggestions(
 		// Empty query in discovery mode is handled by templates + argument names below.
 		const valueSuggestions: CommandSuggestion[] = [];
 		if (!context.activeArgumentId) {
-			const macroBodyStart =
-				profile.macroStartToken.length + macroName.length;
+			const macroBodyStart = profile.macroStartToken.length + macroName.length;
 			const macroBody = input.slice(macroBodyStart);
 			const phraseQuery = macroBody.trim();
 			const leadingWhitespace = macroBody.match(/^\s*/)?.[0] ?? " ";
 			const phraseInsertPrefix =
-				input.slice(0, macroBodyStart) +
-				(leadingWhitespace || " ");
+				input.slice(0, macroBodyStart) + (leadingWhitespace || " ");
 
 			// Preserve a multi-word prefix while it still matches a template or
 			// expression. If it stops matching, discovery falls back to the last
@@ -275,14 +273,14 @@ async function macroSuggestions(
 				const phraseValues = await Promise.all(
 					definition.arguments
 						.filter(
-							(argument) =>
-								!context.filledSlots?.includes(argument.argumentId),
+							(argument) => !context.filledSlots?.includes(argument.argumentId),
 						)
 						.map(async (argument) => ({
 							argument,
-							suggestions: await (
-								autocompleter as any
-							).suggestValueForArgument(argument, phraseQuery),
+							suggestions: await (autocompleter as any).suggestValueForArgument(
+								argument,
+								phraseQuery,
+							),
 						})),
 				);
 				const phraseMatches: CommandSuggestion[] = [

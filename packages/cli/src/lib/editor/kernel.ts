@@ -5,10 +5,13 @@ export type CellEditorMode = EditorMode;
 
 export interface EditorKernelState {
 	mode: CellEditorMode;
+	commandKind?: "macro" | "direct" | "variable";
 	draftText: string;
 	completion: CompletionState;
 	error: string | null;
 	showHelp: boolean;
+	visualStart?: number;
+	visualEnd?: number;
 }
 
 export type EditorAction =
@@ -32,11 +35,17 @@ export type EditorAction =
 	| { type: "HISTORY_NEXT" }
 	| { type: "CANCEL" }
 	| { type: "SEARCH" }
+	| { type: "OPEN_HISTORY" }
+	| { type: "ENTER_VISUAL" }
+	| { type: "EXTEND_VISUAL"; delta: -1 | 1 }
+	| { type: "DELETE_VISUAL" }
+	| { type: "YANK_VISUAL" }
 	| { type: "COMMIT_COMPLETION"; line: string };
 
 export function createEditorKernelState(): EditorKernelState {
 	return {
 		mode: "NORMAL",
+		commandKind: "direct",
 		draftText: "",
 		completion: { status: "idle" },
 		error: null,
@@ -50,11 +59,12 @@ export function reduceEditorKernel(
 ): EditorKernelState {
 	switch (action.type) {
 		case "ENTER_INSERT":
-			return { ...state, mode: "INSERT", error: null };
+			return { ...state, mode: "INSERT", commandKind: "direct", error: null };
 		case "ENTER_COMMAND":
 			return {
 				...state,
 				mode: "COMMAND",
+				commandKind: "direct",
 				draftText: ":",
 				completion: { status: "idle" },
 			};
@@ -62,12 +72,18 @@ export function reduceEditorKernel(
 			return {
 				...state,
 				mode: "MACRO",
+				commandKind: "macro",
 				draftText: "^",
 				completion: { status: "idle" },
 				error: null,
 			};
 		case "SUBMIT_MACRO":
-			return { ...state, mode: "NORMAL", completion: { status: "idle" } };
+			return {
+				...state,
+				mode: "NORMAL",
+				commandKind: "direct",
+				completion: { status: "idle" },
+			};
 		case "UNLOCK_MACRO":
 			return state;
 		case "LOCK_MACRO":
@@ -118,6 +134,13 @@ export function reduceEditorKernel(
 		case "HISTORY_NEXT":
 			return state;
 		case "SEARCH":
+		case "OPEN_HISTORY":
+			return state;
+		case "ENTER_VISUAL":
+			return { ...state, mode: "VISUAL" };
+		case "EXTEND_VISUAL":
+		case "DELETE_VISUAL":
+		case "YANK_VISUAL":
 			return state;
 		case "CANCEL":
 			return {

@@ -23,6 +23,7 @@ export interface KeymapPolicy {
 		key: Key,
 		mode: EditorMode,
 		pending: string,
+		commandKind?: "macro" | "direct" | "variable",
 	): KeyResolution;
 }
 
@@ -92,16 +93,19 @@ export function resolveKey(
 	mode: EditorMode,
 	pendingSequence: string,
 	profile: EditorKeymapProfile,
+	commandKind?: "macro" | "direct" | "variable",
 ): { action: EditorAction | null; nextPending: string; char?: string } {
 	if (mode === "COMMAND") {
 		return { action: null, nextPending: "" };
 	}
 
-	if (mode === "MACRO") {
+	if (mode === "MACRO" || (mode === "INSERT" && commandKind === "macro")) {
 		if (key.escape)
 			return { action: EditorAction.ExitInsertMode, nextPending: "" };
 		if (key.return)
 			return { action: EditorAction.SubmitMacro, nextPending: "" };
+		if (input === "v" && !key.ctrl && !key.meta)
+			return { action: EditorAction.EnterVisualMode, nextPending: "" };
 		if (key.backspace)
 			return { action: EditorAction.Backspace, nextPending: "" };
 		if (input.length === 1 && !key.ctrl && !key.meta)
@@ -210,6 +214,8 @@ export function resolveKey(
 	if (key.backspace) return { action: null, nextPending: "" };
 	if (chordMatches(normal.redo, input, key))
 		return { action: EditorAction.Redo, nextPending: "" };
+	if (input === "h" && !key.ctrl && !key.meta)
+		return { action: EditorAction.OpenHistory, nextPending: "" };
 
 	// Single-character NORMAL bindings.
 	if (input.length === 1 && !key.ctrl && !key.meta) {

@@ -120,6 +120,62 @@ export class TransactionCoordinator {
 		};
 	}
 
+	async reverse(
+		transactionId: string,
+		participants: readonly TransactionParticipant[],
+		idempotencyKey: string,
+	): Promise<CommittedTransaction> {
+		const original = await this.requireTransaction(transactionId);
+		if (original.status !== "committed")
+			throw new TransactionConflictError(
+				`Transaction '${transactionId}' is not committed and cannot be reversed`,
+			);
+		const reversal = original.plan.reversal;
+		if (!reversal?.clinicalOperations.length)
+			throw new TransactionConflictError(
+				`Transaction '${transactionId}' has no reversible clinical operations`,
+			);
+		const existing = await this.journal.getByIdempotencyKey(idempotencyKey);
+		if (existing) {
+			if (existing.sourceCellId !== original.sourceCellId)
+				throw new TransactionIdempotencyError(
+					`Idempotency key '${idempotencyKey}' belongs to another source cell`,
+				);
+			return this.committed(existing);
+		}
+		const plan = {
+			...original.plan,
+			groupId: `${original.plan.groupId}:reversal`,
+			operations: [],
+			clinicalOperations: reversal.clinicalOperations,
+			reversal: undefined,
+			expectedVersions:
+				reversal.expectedHead && reversal.expectedVersion !== undefined
+					? [
+							{
+								aggregateKind: "document" as const,
+								aggregateId: reversal.clinicalOperations[0]!.documentId,
+								expectedVersion: reversal.expectedVersion,
+								expectedHead: reversal.expectedHead,
+							},
+						]
+					: [],
+			fingerprint: {
+				value: `${original.plan.fingerprint.value}:reversal`,
+				algorithm: original.plan.fingerprint.algorithm,
+			},
+		};
+		const prepared = await this.prepare({
+			idempotencyKey,
+			sourceCellId: original.sourceCellId,
+			sourceCellRevision: original.sourceCellRevision,
+			plan,
+			participants,
+			skipSourceCellRevision: true,
+		});
+		return this.commit(prepared.transactionId, participants);
+	}
+
 	async commit(
 		transactionId: string,
 		participants: readonly TransactionParticipant[],
@@ -280,7 +336,7 @@ export class TransactionCoordinator {
 	private async assertExpectedVersions(
 		request: PrepareTransactionRequest,
 	): Promise<void> {
-		if (this.readCellRevision) {
+		if (this.readCellRevision && !request.skipSourceCellRevision) {
 			const current = await this.readCellRevision(request.sourceCellId);
 			if (current !== request.sourceCellRevision)
 				throw new TransactionConflictError(

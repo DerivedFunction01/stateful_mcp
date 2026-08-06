@@ -73,9 +73,15 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 						<CellList
 							cells={view.cells}
 							activeIndex={view.activeIndex}
-							mode={deps.editorState.mode}
+							mode={
+								deps.editorState.commandKind === "macro" &&
+								deps.editorState.mode === "VISUAL"
+									? "NORMAL"
+									: deps.editorState.mode
+							}
 							draftText={
-								deps.editorState.mode === "INSERT"
+								deps.editorState.mode === "INSERT" &&
+								deps.editorState.commandKind !== "macro"
 									? deps.editorState.draftText
 									: ""
 							}
@@ -91,7 +97,13 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 				},
 			});
 
-			if (deps.editorState.mode === "MACRO") {
+			if (
+				deps.editorState.mode === "MACRO" ||
+				(deps.editorState.mode === "INSERT" &&
+					deps.editorState.commandKind === "macro") ||
+				(deps.editorState.mode === "VISUAL" &&
+					deps.editorState.commandKind === "macro")
+			) {
 				const draftText = deps.editorState.draftText;
 				const matchedTemplateIndex = deps.macroSlots
 					?.find((slot) => slot.formId?.startsWith("template:"))
@@ -147,6 +159,17 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 								childDefinitions={deps.childDefinitions}
 								authoringPreview={authoringPreview}
 								draftPreview={deps.draftPreview}
+								executionMessage={deps.message}
+								selectionStart={
+									deps.editorState.mode === "VISUAL"
+										? deps.editorState.visualStart
+										: undefined
+								}
+								selectionEnd={
+									deps.editorState.mode === "VISUAL"
+										? deps.editorState.visualEnd
+										: undefined
+								}
 								showCursor={true}
 							/>
 						);
@@ -215,6 +238,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					return (
 						<HelpBar
 							mode={deps.editorState.mode}
+							commandKind={deps.editorState.commandKind}
 							editorDescriptors={editorDescriptors}
 						/>
 					);

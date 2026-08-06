@@ -31,6 +31,11 @@ const base = (
 	...partial,
 });
 
+const finalizedMacroCell = {
+	cellId: "macro-cell",
+	authored: { rawText: "^note title=Example", finalizedMacro: {} },
+} as NotebookEditorState["cells"][number];
+
 describe("NotebookDocumentPort", () => {
 	test("move dispatches set_active with delta", () => {
 		const actions: NotebookEditorAction[] = [];
@@ -164,5 +169,28 @@ describe("NotebookDocumentPort", () => {
 		});
 		port.dispatch({ type: "yankSelection" });
 		expect(selectionYanked).toBe(true);
+	});
+
+	test("blocks cell lifecycle actions for finalized Macro history", () => {
+		let called = false;
+		const actions: NotebookEditorAction[] = [];
+		const port = new NotebookDocumentPort(
+			base({ cells: [finalizedMacroCell] }),
+			(action) => actions.push(action),
+			{
+				insertBelow: () => {
+					called = true;
+				},
+				deleteActive: () => {
+					called = true;
+				},
+			},
+		);
+
+		port.dispatch({ type: "insertBelow" });
+		port.dispatch({ type: "deleteActive" });
+		port.dispatch({ type: "enterVisual" });
+		expect(called).toBe(false);
+		expect(actions).toEqual([]);
 	});
 });

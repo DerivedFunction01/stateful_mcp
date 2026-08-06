@@ -19,9 +19,17 @@ export function createCell(
 			createdAt: now,
 			updatedAt: now,
 		},
-		authored: { rawText: request.rawText },
-		lifecycle: { status: "draft", revision: 1 },
-		execution: {},
+		authored: {
+			rawText: request.rawText,
+			finalizedMacro: request.finalizedMacro,
+		},
+		lifecycle: {
+			status: request.finalizedMacro ? "pending_commit" : "draft",
+			revision: 1,
+		},
+		execution: request.finalizedMacro
+			? { planFingerprint: request.finalizedMacro.fingerprint }
+			: {},
 		provenance: {},
 		relationships: {},
 		diagnostics: [],

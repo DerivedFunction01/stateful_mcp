@@ -16,6 +16,7 @@ export const NOTEBOOK_STATE = [
 ] as const;
 
 export type NotebookEditorMode = (typeof NOTEBOOK_STATE)[number];
+export type NotebookCommandKind = "macro" | "direct" | "variable";
 export type NotebookRunMode = "preview" | "execute";
 
 export interface NotebookEditorInputLock {
@@ -77,6 +78,7 @@ export interface NotebookEditorState {
 	commandHistory: string[];
 	commandHistoryIndex: number;
 	mode: NotebookEditorMode;
+	commandKind?: NotebookCommandKind;
 	runMode: NotebookRunMode;
 	authoredRevision: number;
 	persistedAuthoredRevision: number;
@@ -103,6 +105,7 @@ export const INITIAL__NOTEBOOK_EDITOR_STATE: NotebookEditorState = {
 	commandHistory: [],
 	commandHistoryIndex: -1,
 	mode: "NORMAL",
+	commandKind: "direct",
 	runMode: "execute",
 	authoredRevision: 0,
 	persistedAuthoredRevision: 0,
@@ -128,6 +131,7 @@ export type NotebookEditorAction =
 			type: "begin_edit";
 			cellId: string;
 			mode: "INSERT" | "MACRO";
+			commandKind?: NotebookCommandKind;
 			text: string;
 	  }
 	| { type: "end_edit" }
@@ -142,6 +146,7 @@ export type NotebookEditorAction =
 	| { type: "append_text"; text: string }
 	| { type: "backspace" }
 	| { type: "set_mode"; mode: NotebookEditorMode }
+	| { type: "set_command_kind"; commandKind: NotebookCommandKind }
 	| { type: "set_run_mode"; mode: NotebookRunMode }
 	| { type: "set_message"; message?: string }
 	| { type: "set_loading"; loading: boolean }
@@ -270,6 +275,8 @@ export function reduceNotebookEditor(
 			return {
 				...state,
 				mode: action.mode,
+				commandKind:
+					action.commandKind ?? (action.mode === "MACRO" ? "macro" : "direct"),
 				draftText: action.text,
 				cursorOffset: action.text.length,
 				inputLock: { cellId: action.cellId, mode: action.mode },
@@ -363,7 +370,17 @@ export function reduceNotebookEditor(
 						};
 					})();
 		case "set_mode":
-			return setMode(action.mode);
+			return {
+				...setMode(action.mode),
+				commandKind:
+					action.mode === "MACRO"
+						? "macro"
+						: action.mode === "INSERT" || action.mode === "VISUAL"
+							? state.commandKind
+							: "direct",
+			};
+		case "set_command_kind":
+			return { ...state, commandKind: action.commandKind };
 		case "set_run_mode":
 			return { ...state, runMode: action.mode };
 		case "set_message":
@@ -374,12 +391,18 @@ export function reduceNotebookEditor(
 			return { ...state, preview: action.preview };
 		case "set_show_help":
 			return { ...state, showHelp: action.show };
-		case "set_visual_selection":
+		case "set_visual_selection": {
+			const max =
+				state.commandKind === "macro" &&
+				(state.mode === "INSERT" || state.mode === "VISUAL")
+					? state.draftText.length
+					: Math.max(0, state.cells.length - 1);
 			return {
 				...state,
-				visualStart: clampIndex(action.start, state.cells.length),
-				visualEnd: clampIndex(action.end, state.cells.length),
+				visualStart: Math.max(0, Math.min(action.start, max)),
+				visualEnd: Math.max(0, Math.min(action.end, max)),
 			};
+		}
 		case "set_command_history":
 			return { ...state, commandHistory: action.history };
 		case "set_last_edit_cell":
@@ -493,6 +516,7 @@ export function reduceNotebookEditor(
 				cursorOffset: action.draftText.length,
 				commandHistory: action.commandHistory,
 				mode: action.mode,
+				commandKind: "direct",
 				persistedAuthoredRevision: state.authoredRevision,
 				loading: false,
 			};

@@ -93,6 +93,14 @@ export interface NotebookSession {
 		cellId: string,
 		preview: CellPreview,
 	): Promise<CellExecutionResult>;
+	executeFinalizedMacro(
+		cellId: string,
+		idempotencyKey: string,
+	): Promise<CellExecutionResult>;
+	reverseFinalizedMacro(
+		cellId: string,
+		idempotencyKey: string,
+	): Promise<CellExecutionResult>;
 	editCell(request: EditCellRequest): Promise<StructuredCell>;
 	supersedeCell(
 		cellId: string,
@@ -333,6 +341,16 @@ export function createNotebookSession(input: {
 			context,
 		});
 	};
+	const executeFinalizedMacro = async (
+		cellId: string,
+		idempotencyKey: string,
+	): Promise<CellExecutionResult> =>
+		input.engine.getCellService().executeFinalizedMacro(cellId, idempotencyKey);
+	const reverseFinalizedMacro = async (
+		cellId: string,
+		idempotencyKey: string,
+	): Promise<CellExecutionResult> =>
+		input.engine.getCellService().reverseFinalizedMacro(cellId, idempotencyKey);
 	const editCell = async (
 		request: EditCellRequest,
 	): Promise<StructuredCell> => {
@@ -397,6 +415,8 @@ export function createNotebookSession(input: {
 		restoreCell,
 		previewCell,
 		executeCell,
+		executeFinalizedMacro,
+		reverseFinalizedMacro,
 		editCell,
 		supersedeCell,
 		cancelCell,

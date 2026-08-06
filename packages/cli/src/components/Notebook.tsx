@@ -50,6 +50,9 @@ export function Notebook({
 	const { exit } = useApp();
 	const { state, dispatch, cellSuggestions, getAutocomplete, macroSession } =
 		notebook;
+	const isMacroAuthoring =
+		(state.mode === "INSERT" && state.commandKind === "macro") ||
+		state.mode === "MACRO";
 	const [completion, setCompletion] = useState<CompletionState>({
 		status: "idle",
 	});
@@ -65,9 +68,28 @@ export function Notebook({
 	const [historyCandidates, setHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
 	>([]);
+	const historyEntries = useMemo(() => {
+		const macroEntries: CommandHistoryCandidate[] = state.cells
+			.filter((cell) => Boolean(cell.authored.finalizedMacro))
+			.map((cell) => ({
+				commandText: cell.authored.finalizedMacro!.authoredText,
+				canonicalVerb: cell.authored.finalizedMacro!.macroDefinitionId,
+				commandId: cell.authored.finalizedMacro!.macroDefinitionId,
+				sessionCount: 1,
+				allCount: 1,
+				sessionLastUsedAt: cell.source.createdAt,
+				allLastUsedAt: cell.source.createdAt,
+			}));
+		const seen = new Set<string>();
+		return [...macroEntries, ...historyCandidates].filter((entry) => {
+			if (seen.has(entry.commandText)) return false;
+			seen.add(entry.commandText);
+			return true;
+		});
+	}, [historyCandidates, state.cells]);
 
 	useEffect(() => {
-		if (!macroSession || state.mode !== "MACRO") return;
+		if (!macroSession || !isMacroAuthoring) return;
 		const current = macroSession.getSnapshot();
 		if (
 			current.rawText !== state.draftText ||
@@ -79,7 +101,7 @@ export function Notebook({
 				cursorOffset: state.cursorOffset,
 			});
 		}
-	}, [macroSession, state.mode, state.draftText, state.cursorOffset]);
+	}, [macroSession, isMacroAuthoring, state.draftText, state.cursorOffset]);
 
 	useEffect(() => {
 		if (!session || overlay?.route !== "history") return;
@@ -90,14 +112,14 @@ export function Notebook({
 	}, [overlay?.route, session]);
 
 	useEffect(() => {
-		if (state.preview && !overlay) {
+		if (state.preview && !isMacroAuthoring && !overlay) {
 			setOverlay({
 				route: "preview",
 				payload: state.preview,
 				originCellId: state.preview.cellId,
 			});
 		}
-	}, [state.preview, overlay]);
+	}, [state.preview, isMacroAuthoring, overlay]);
 
 	const cellDescriptors = useMemo(
 		() => ({ getDescriptors: () => [] as any[] }),
@@ -194,11 +216,12 @@ export function Notebook({
 	}, [scope, session?.sessionId, getAutocomplete]);
 
 	const staticCandidates = useMemo(() => {
-		if (state.mode !== "COMMAND" && state.mode !== "MACRO") return [];
-		const input = state.mode === "MACRO" ? state.draftText : state.commandLine;
+		if (state.mode !== "COMMAND" && !isMacroAuthoring) return [];
+		const input = isMacroAuthoring ? state.draftText : state.commandLine;
 		return getAutocomplete(input.slice(1));
 	}, [
 		state.mode,
+		state.commandKind,
 		state.commandLine,
 		state.draftText,
 		session?.sessionId,
@@ -222,7 +245,7 @@ export function Notebook({
 	// Sync completion state with loading/engineCandidates
 	useEffect(() => {
 		if (
-			(state.mode === "COMMAND" || state.mode === "MACRO") &&
+			(state.mode === "COMMAND" || isMacroAuthoring) &&
 			completion.status === "cycling"
 		) {
 			setCompletion((prev) => {
@@ -235,7 +258,13 @@ export function Notebook({
 				};
 			});
 		}
-	}, [loading, engineCandidates, completionCandidates, state.mode]);
+	}, [
+		loading,
+		engineCandidates,
+		completionCandidates,
+		state.mode,
+		isMacroAuthoring,
+	]);
 
 	// Sync active index with search matches
 	useEffect(() => {
@@ -288,6 +317,9 @@ export function Notebook({
 				yankSelection: () => {
 					void notebook.yankSelection();
 				},
+				reverseMacro: () => {
+					void notebook.reverseActiveMacro();
+				},
 			}),
 		[state, dispatch, notebook, session],
 	);
@@ -332,10 +364,13 @@ export function Notebook({
 
 	const editorState: EditorKernelState = {
 		mode: state.mode as CellEditorMode,
+		commandKind: state.commandKind,
 		draftText: state.mode === "COMMAND" ? state.commandLine : state.draftText,
 		completion,
 		error: state.message ?? null,
 		showHelp: showHelp || state.showHelp || overlay !== null,
+		visualStart: state.visualStart,
+		visualEnd: state.visualEnd,
 	};
 
 	const onOverlayAction = (action: WindowOverlayAction) => {
@@ -429,10 +464,20 @@ export function Notebook({
 		if (o.route === "history") {
 			return (
 				<HistoryOverlay
-					candidates={historyCandidates}
+					candidates={historyEntries}
 					onInsert={(command) => {
-						dispatch({ type: "set_command", text: command });
-						dispatch({ type: "set_mode", mode: "COMMAND" });
+						if (command.startsWith(session.v2.syntaxProfile.macroStartToken)) {
+							dispatch({
+								type: "begin_edit",
+								cellId: "macro-history",
+								mode: "INSERT",
+								commandKind: "macro",
+								text: command,
+							});
+						} else {
+							dispatch({ type: "set_command", text: command });
+							dispatch({ type: "set_mode", mode: "COMMAND" });
+						}
 						setOverlay(null);
 					}}
 					onClose={() => setOverlay(null)}
@@ -446,6 +491,17 @@ export function Notebook({
 		switch (action.type) {
 			case "ENTER_INSERT": {
 				const cell = state.cells[state.activeIndex];
+				if (cell?.authored.finalizedMacro) {
+					notebook.setEditingCell(null);
+					dispatch({
+						type: "begin_edit",
+						cellId: "macro-rerun",
+						mode: "INSERT",
+						commandKind: "macro",
+						text: cell.authored.finalizedMacro.authoredText,
+					});
+					return;
+				}
 				if (cell && cell.lifecycle.status === "committed") {
 					const superseded = await notebook.supersedeActiveCell();
 					if (!superseded) return;
@@ -462,7 +518,8 @@ export function Notebook({
 					dispatch({
 						type: "begin_edit",
 						cellId: superseded.cellId,
-						mode: isMacro ? "MACRO" : "INSERT",
+						mode: "INSERT",
+						commandKind: isMacro ? "macro" : "direct",
 						text: superseded.authored.rawText,
 					});
 					return;
@@ -474,7 +531,8 @@ export function Notebook({
 					dispatch({
 						type: "begin_edit",
 						cellId: editableCell.cellId,
-						mode: isMacro ? "MACRO" : "INSERT",
+						mode: "INSERT",
+						commandKind: isMacro ? "macro" : "direct",
 						text: editableCell.authored.rawText,
 					});
 				}
@@ -491,7 +549,8 @@ export function Notebook({
 				dispatch({
 					type: "begin_edit",
 					cellId: state.cells[state.activeIndex]?.cellId ?? "macro-input",
-					mode: "MACRO",
+					mode: "INSERT",
+					commandKind: "macro",
 					text: session.v2.syntaxProfile.macroStartToken,
 				});
 				return;
@@ -514,15 +573,50 @@ export function Notebook({
 				dispatch({ type: "cursor_end" });
 				return;
 			case "SUBMIT_MACRO": {
-				if (state.mode !== "MACRO" || !state.draftText.trim()) return;
-				void notebook.createCell(state.draftText).then((macroCell) => {
-					if (!macroCell) return;
-					dispatch({ type: "end_edit" });
-					dispatch({ type: "set_mode", mode: "NORMAL" });
-					void notebook.runCell(macroCell);
-				});
+				if (!isMacroAuthoring || !state.draftText.trim()) return;
+				void notebook.commitMacro();
 				return;
 			}
+			case "ENTER_VISUAL":
+				if (isMacroAuthoring) {
+					dispatch({
+						type: "set_visual_selection",
+						start: state.cursorOffset,
+						end: state.cursorOffset,
+					});
+					dispatch({ type: "set_mode", mode: "VISUAL" });
+				}
+				return;
+			case "EXTEND_VISUAL":
+				if (state.mode === "VISUAL" && state.commandKind === "macro")
+					dispatch({
+						type: "set_visual_selection",
+						start: state.visualStart,
+						end: state.visualEnd + action.delta,
+					});
+				return;
+			case "DELETE_VISUAL": {
+				if (state.mode !== "VISUAL" || state.commandKind !== "macro") return;
+				const start = Math.min(state.visualStart, state.visualEnd);
+				const end = Math.max(state.visualStart, state.visualEnd);
+				dispatch({
+					type: "set_draft_and_cursor",
+					text: state.draftText.slice(0, start) + state.draftText.slice(end),
+					cursorOffset: start,
+				});
+				dispatch({ type: "set_mode", mode: "INSERT" });
+				return;
+			}
+			case "YANK_VISUAL":
+				if (state.mode === "VISUAL" && state.commandKind === "macro")
+					dispatch({
+						type: "set_message",
+						message: `Selected: ${state.draftText.slice(
+							Math.min(state.visualStart, state.visualEnd),
+							Math.max(state.visualStart, state.visualEnd),
+						)}`,
+					});
+				return;
 			case "UNLOCK_MACRO":
 				notebook.unlockActiveMacroSlot();
 				return;
@@ -540,7 +634,7 @@ export function Notebook({
 				return;
 			case "COMMIT_COMPLETION":
 				dispatch({
-					type: state.mode === "MACRO" ? "set_draft" : "set_command",
+					type: isMacroAuthoring ? "set_draft" : "set_command",
 					text: action.line,
 				});
 				return;
@@ -551,8 +645,15 @@ export function Notebook({
 				setOverlay({ route: "search" });
 				searchDispatch({ type: "OPEN", query: "", cells: state.cells });
 				return;
+			case "OPEN_HISTORY":
+				setOverlay({ route: "history" });
+				return;
 			case "CANCEL":
-				if (state.mode === "INSERT") {
+				if (state.mode === "VISUAL" && state.commandKind === "macro") {
+					dispatch({ type: "set_mode", mode: "INSERT" });
+					return;
+				}
+				if (state.mode === "INSERT" && !isMacroAuthoring) {
 					await notebook.commitEditorDraft();
 				}
 				dispatch({ type: "end_edit" });
@@ -578,7 +679,7 @@ export function Notebook({
 		macroSlots: notebook.macroSlots,
 		activeMacroArgumentId: getActiveMacroArgumentId(
 			state.draftText,
-			state.mode === "MACRO" ? state.cursorOffset : -1,
+			isMacroAuthoring ? state.cursorOffset : -1,
 			notebook.macroSlots,
 			notebook.activeDefinition,
 			session.v2.syntaxProfile,

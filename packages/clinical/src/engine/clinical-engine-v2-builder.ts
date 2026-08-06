@@ -321,7 +321,12 @@ export class ClinicalEngineBuilder {
 			syncEngine,
 			syncApplication,
 		);
-		cellService.setPlanExecutor((plan) => engine.executePlan(plan));
+		cellService.setPlanExecutor((plan, idempotencyKey) =>
+			engine.executePlan(plan, undefined, idempotencyKey),
+		);
+		cellService.setPlanReverser((transactionId, idempotencyKey) =>
+			engine.reverse(transactionId, idempotencyKey),
+		);
 		return engine;
 	}
 

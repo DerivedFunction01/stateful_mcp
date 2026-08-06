@@ -101,6 +101,12 @@ export interface MacroExecutionPlan {
 	generatedCells: GeneratedCellPlan[];
 	workspaceOperations?: WorkspaceOperation[];
 	clinicalOperations?: ClinicalOperation[];
+	/** Compensating operations captured against the pre-commit document state. */
+	reversal?: {
+		clinicalOperations: ClinicalOperation[];
+		expectedVersion?: number;
+		expectedHead?: string;
+	};
 	/** Macro-bar execution-mode merge policy; per-operation overrides win. */
 	writePolicy?: ClinicalWritePolicy;
 	expectedVersions: ExpectedAggregateVersion[];

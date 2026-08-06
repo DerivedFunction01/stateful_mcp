@@ -30,6 +30,11 @@ export interface PreparedClinicalMutation {
 	baseVersion: number;
 }
 
+export interface CompiledMacroTargetMutation {
+	operations: ClinicalOperation[];
+	inverseOperations: ClinicalOperation[];
+}
+
 export class ClinicalDocumentService {
 	constructor(
 		private readonly events: StreamEventStore<
@@ -88,6 +93,74 @@ export class ClinicalDocumentService {
 			writePolicy,
 			existing,
 		});
+	}
+
+	async compileMacroTargetsWithReversal(
+		documentId: string,
+		operations: readonly MacroTargetOperation[],
+		writePolicy?: ClinicalWritePolicy,
+	): Promise<CompiledMacroTargetMutation> {
+		const document = await this.projections.get(documentId);
+		const existing = document
+			? Object.fromEntries(
+					Object.entries(document.records)
+						.filter(([, record]) => !record.removed)
+						.map(([recordId, record]) => [recordId, record]),
+				)
+			: {};
+		const compiled = this.compiler.compileMacroTargets(documentId, operations, {
+			writePolicy,
+			existing: Object.fromEntries(
+				Object.entries(existing).map(([recordId, record]) => [
+					recordId,
+					{ values: record.values },
+				]),
+			),
+		});
+		const inverseOperations: ClinicalOperation[] = [];
+		const reversed = new Set<string>();
+		for (const operation of compiled) {
+			if (
+				operation.kind !== "record_upserted" &&
+				operation.kind !== "record_patched" &&
+				operation.kind !== "record_removed"
+			)
+				continue;
+			const record = (
+				existing as Record<
+					string,
+					| {
+							recordId: string;
+							schemaName: string;
+							schemaVersion: number;
+							values: Record<string, unknown>;
+					  }
+					| undefined
+				>
+			)[operation.recordId];
+			if (reversed.has(operation.recordId)) continue;
+			reversed.add(operation.recordId);
+			inverseOperations.push(
+				record
+					? {
+							kind: "record_upserted",
+							documentId,
+							schemaName: record.schemaName,
+							schemaVersion: record.schemaVersion,
+							recordId: record.recordId,
+							values: structuredClone(record.values),
+						}
+					: {
+							kind: "record_removed",
+							documentId,
+							schemaName: operation.schemaName,
+							schemaVersion: operation.schemaVersion,
+							recordId: operation.recordId,
+							reason: "Macro reversal",
+						},
+			);
+		}
+		return { operations: compiled, inverseOperations };
 	}
 
 	async appendOperations(

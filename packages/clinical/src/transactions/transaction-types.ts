@@ -78,6 +78,7 @@ export interface PrepareTransactionRequest {
 	sourceCellRevision: number;
 	plan: MacroExecutionPlan;
 	participants: readonly TransactionParticipant[];
+	skipSourceCellRevision?: boolean;
 }
 
 export interface CommittedTransaction {

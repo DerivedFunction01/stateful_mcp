@@ -71,6 +71,8 @@ export interface UseNotebookReturn {
 	lockActiveMacroSlot(): void;
 	refreshSnapshot(): Promise<void>;
 	commitEditorDraft(): Promise<void>;
+	commitMacro(): Promise<void>;
+	reverseActiveMacro(): Promise<void>;
 	setEditingCell(cellId: string | null): void;
 	supersedeActiveCell(): Promise<StructuredCell | null>;
 	cancelActive(): Promise<boolean>;
@@ -95,6 +97,9 @@ export function useNotebook(
 		reduceNotebookEditor,
 		INITIAL__NOTEBOOK_EDITOR_STATE,
 	);
+	const isMacroAuthoring =
+		(state.mode === "INSERT" && state.commandKind === "macro") ||
+		state.mode === "MACRO";
 	const [cellSuggestions] = useState<CellSuggestion[]>([]);
 	const [macroSlots, setMacroSlots] = useState<MacroSlotProjection[]>([]);
 	const [macroDraftPreview, setMacroDraftPreview] =
@@ -145,7 +150,7 @@ export function useNotebook(
 
 	useEffect(() => {
 		let cancelled = false;
-		if (!session || state.mode === "MACRO" || !state.draftText) {
+		if (!session || isMacroAuthoring || !state.draftText) {
 			setArgumentSuggestionsList([]);
 			return;
 		}
@@ -214,7 +219,7 @@ export function useNotebook(
 
 	useEffect(() => {
 		let cancelled = false;
-		if (!session || state.mode !== "MACRO" || !state.draftText) {
+		if (!session || !isMacroAuthoring || !state.draftText) {
 			setMacroSlots([]);
 			setActiveDefinition(null);
 			setChildDefinitions([]);
@@ -236,6 +241,11 @@ export function useNotebook(
 				setActiveDefinition(inspection.definition);
 				setMacroSlots(inspection.slots);
 				setChildDefinitions(inspection.childDefinitions);
+				macroSessionRef.current?.dispatch({
+					type: "inspection_resolved",
+					definition: inspection.definition,
+					childDefinitions: inspection.childDefinitions,
+				});
 			})
 			.catch(() => {
 				if (!cancelled) {
@@ -251,7 +261,7 @@ export function useNotebook(
 
 	useEffect(() => {
 		let cancelled = false;
-		if (!session || state.mode !== "MACRO" || !activeDefinition)
+		if (!session || !isMacroAuthoring || !activeDefinition)
 			return () => {
 				cancelled = true;
 			};
@@ -287,7 +297,7 @@ export function useNotebook(
 
 	useEffect(() => {
 		let cancelled = false;
-		if (!session || state.mode !== "MACRO" || !activeDefinition) {
+		if (!session || !isMacroAuthoring || !activeDefinition) {
 			setMacroDraftPreview(undefined);
 			return () => {
 				cancelled = true;
@@ -302,7 +312,10 @@ export function useNotebook(
 				locks: state.macroLocks,
 			})
 			.then((preview) => {
-				if (!cancelled) setMacroDraftPreview(preview);
+				if (!cancelled) {
+					setMacroDraftPreview(preview);
+					macroSessionRef.current?.setExecutablePreview(preview);
+				}
 			});
 		return () => {
 			cancelled = true;
@@ -314,6 +327,78 @@ export function useNotebook(
 		activeDefinition,
 		state.macroLocks,
 	]);
+
+	const commitMacro = useCallback(async () => {
+		if (!session || !isMacroAuthoring) return;
+		const finalized = macroSessionRef.current?.finalize();
+		if (!finalized || !finalized.ok) {
+			dispatch({
+				type: "set_message",
+				message:
+					finalized?.diagnostics
+						.map((diagnostic) => diagnostic.message)
+						.join("; ") ?? "Macro is not ready",
+			});
+			return;
+		}
+		try {
+			const cell = await session.v2.notebook.createCell({
+				collection: {
+					kind: "notebook",
+					collectionId: session.sessionId,
+				},
+				rawText: finalized.authoredText,
+				finalizedMacro: finalized,
+			});
+			dispatch({ type: "set_cells", cells: [...state.cells, cell] });
+			dispatch({ type: "set_active", index: state.cells.length });
+			dispatch({ type: "set_message", message: "Macro execution pending" });
+			const result = await session.v2.notebook.executeFinalizedMacro(
+				cell.cellId,
+				`macro_${cell.cellId}_${finalized.fingerprint}`,
+			);
+			const updated = await session.v2.engine.getCell(cell.cellId);
+			if (updated) dispatch({ type: "replace_cell", cell: updated });
+			dispatch({
+				type: "set_message",
+				message:
+					result.status === "committed"
+						? "Macro committed"
+						: result.diagnostics.join("; "),
+			});
+		} catch (error) {
+			dispatch({
+				type: "set_message",
+				message: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}, [session, state.mode, state.cells]);
+
+	const reverseActiveMacro = useCallback(async () => {
+		if (!session) return;
+		const cell = state.cells[state.activeIndex];
+		if (!cell?.authored.finalizedMacro) return;
+		try {
+			const result = await session.v2.notebook.reverseFinalizedMacro(
+				cell.cellId,
+				`reverse_${cell.cellId}_${cell.execution.transactionId ?? "unknown"}`,
+			);
+			const updated = await session.v2.engine.getCell(cell.cellId);
+			if (updated) dispatch({ type: "replace_cell", cell: updated });
+			dispatch({
+				type: "set_message",
+				message:
+					result.status === "committed"
+						? "Macro reversed"
+						: result.diagnostics.join("; "),
+			});
+		} catch (error) {
+			dispatch({
+				type: "set_message",
+				message: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}, [session, state.activeIndex, state.cells]);
 
 	const unlockActiveMacroSlot = useCallback(() => {
 		const active = activeMacroSlot(macroSlots, state.cursorOffset);
@@ -567,6 +652,14 @@ export function useNotebook(
 	const previewCell = useCallback(
 		async (cell: StructuredCell) => {
 			if (!session) return;
+			if (cell.authored.finalizedMacro) {
+				dispatch({
+					type: "set_message",
+					message:
+						"Finalized Macro plans are already previewed in the authoring panel",
+				});
+				return;
+			}
 			try {
 				const preview = await session.v2.notebook.previewCell(cell.cellId);
 				dispatch({ type: "set_preview", preview });
@@ -666,16 +759,16 @@ export function useNotebook(
 		(partial: string): AutocompleteSuggestion[] => {
 			if (!session) return [];
 			const profile = session.v2.syntaxProfile;
-			const token =
-				state.mode === "MACRO"
-					? profile.macroStartToken
-					: profile.directCommandToken;
+			const token = isMacroAuthoring
+				? profile.macroStartToken
+				: profile.directCommandToken;
 			// Build canonical CommandDescriptors from the active syntax profile.
 			// In MACRO mode, only macro names are suggested (V1 parity).
 			const descriptors = buildCommandDescriptors(profile, {
-				variableName:
-					state.mode === "MACRO" ? undefined : profile.variableCommandName,
-				variableAliases: state.mode === "MACRO" ? undefined : ["variable"],
+				variableName: isMacroAuthoring
+					? undefined
+					: profile.variableCommandName,
+				variableAliases: isMacroAuthoring ? undefined : ["variable"],
 			});
 			if (partial.includes(" ")) {
 				if (argumentSuggestionsList.length > 0) return argumentSuggestionsList;
@@ -686,10 +779,10 @@ export function useNotebook(
 				descriptors,
 				partial,
 				token,
-				state.mode === "MACRO" ? "macro" : "editor",
-				state.mode === "MACRO" ? "macro" : "v2",
+				isMacroAuthoring ? "macro" : "editor",
+				isMacroAuthoring ? "macro" : "v2",
 			);
-			if (state.mode === "MACRO") return staticSuggestions;
+			if (isMacroAuthoring) return staticSuggestions;
 			const learnedSuggestions = historySuggestions(
 				commandHistoryCandidates,
 				partial,
@@ -704,7 +797,13 @@ export function useNotebook(
 				)
 				.slice(0, 12);
 		},
-		[commandHistoryCandidates, argumentSuggestionsList, session, state.mode],
+		[
+			commandHistoryCandidates,
+			argumentSuggestionsList,
+			session,
+			state.mode,
+			state.commandKind,
+		],
 	);
 
 	const nextErrorIndex = useCallback((): number | null => {
@@ -868,6 +967,8 @@ export function useNotebook(
 		lockActiveMacroSlot,
 		refreshSnapshot,
 		commitEditorDraft,
+		commitMacro,
+		reverseActiveMacro,
 		setEditingCell: (cellId) => {
 			editingCellIdRef.current = cellId;
 			const cell = state.cells.find((c) => c.cellId === cellId);
@@ -930,6 +1031,13 @@ export function useNotebook(
 			if (!session) return;
 			const cell = state.cells[state.activeIndex];
 			if (!cell) return;
+			if (cell.authored.finalizedMacro) {
+				dispatch({
+					type: "set_message",
+					message: "Finalized Macro history cannot reorder cells",
+				});
+				return;
+			}
 			const currentIndex = state.cells.indexOf(cell);
 			const targetIndex = currentIndex + delta;
 			if (targetIndex < 0 || targetIndex >= state.cells.length) return;
@@ -942,6 +1050,14 @@ export function useNotebook(
 		},
 		moveSelection: async (delta) => {
 			if (!session) return;
+			const active = state.cells[state.activeIndex];
+			if (active?.authored.finalizedMacro) {
+				dispatch({
+					type: "set_message",
+					message: "Finalized Macro history cannot reorder cells",
+				});
+				return;
+			}
 			const lo = Math.min(state.visualStart, state.visualEnd);
 			const hi = Math.max(state.visualStart, state.visualEnd);
 			const selected = state.cells.slice(lo, hi + 1);

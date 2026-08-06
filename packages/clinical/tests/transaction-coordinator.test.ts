@@ -24,6 +24,21 @@ const plan: MacroExecutionPlan = {
 	diagnostics: [],
 };
 
+const reversiblePlan: MacroExecutionPlan = {
+	...plan,
+	reversal: {
+		clinicalOperations: [
+			{
+				kind: "record_removed",
+				documentId: "doc1",
+				schemaName: "Observation",
+				schemaVersion: 1,
+				recordId: "record1",
+			},
+		],
+	},
+};
+
 function participant(
 	id: string,
 	kind: "clinical_events" | "workspace_events" | "projection",
@@ -265,5 +280,42 @@ describe(" transaction coordinator", () => {
 		expect(
 			await sql.list({ sourceCellId: "cell1", statuses: ["prepared"] }),
 		).toEqual([transaction]);
+	});
+
+	it("creates an idempotent compensating transaction for a committed plan", async () => {
+		const journal = new InMemoryTransactionJournal();
+		let sequence = 0;
+		const coordinator = new TransactionCoordinator({
+			journal,
+			createTransactionId: () => `tx-${++sequence}`,
+		});
+		const counters = { appends: 0, projections: 0 };
+		const clinical = participant("clinical", "clinical_events", counters);
+		const prepared = await coordinator.prepare({
+			idempotencyKey: "idem-original",
+			sourceCellId: "cell1",
+			sourceCellRevision: 1,
+			plan: reversiblePlan,
+			participants: [clinical],
+		});
+		await coordinator.commit(prepared.transactionId, [clinical]);
+
+		const reversed = await coordinator.reverse(
+			prepared.transactionId,
+			[clinical],
+			"idem-reversal",
+		);
+		const repeated = await coordinator.reverse(
+			prepared.transactionId,
+			[clinical],
+			"idem-reversal",
+		);
+
+		expect(reversed.status).toBe("committed");
+		expect(repeated.transactionId).toBe(reversed.transactionId);
+		expect(counters.appends).toBe(2);
+		expect((await journal.get(prepared.transactionId))?.plan.reversal).toEqual(
+			reversiblePlan.reversal,
+		);
 	});
 });
