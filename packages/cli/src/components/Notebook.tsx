@@ -642,8 +642,35 @@ export function Notebook({
 			certainty,
 		});
 
+		const applyCrossBranchEffects = (findings: any[]) => {
+			for (const finding of findings) {
+				const effects = finding.crossBranchEffects ?? [];
+				for (const effect of effects) {
+					const targetKey = effect.targetBranch.toLowerCase();
+					const targetBranch = existingBranches.find(
+						(b) =>
+							b.name.toLowerCase() === targetKey ||
+							(b.hypothesisConcept?.conceptId ?? "").toLowerCase() === targetKey ||
+							b.name.toLowerCase().includes(targetKey),
+					);
+					if (targetBranch) {
+						resolvedOps.push({
+							kind: "branch_transition",
+							workspaceId:
+								workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`,
+							branchId: targetBranch.branchId,
+							transition: effect.transition,
+						});
+					}
+				}
+			}
+		};
+
 		for (const op of scratchOps) {
 			if (op.kind === "create_branch") {
+				applyCrossBranchEffects((op as any).supportingFindings ?? []);
+				applyCrossBranchEffects((op as any).refutingFindings ?? []);
+
 				if (targetBranches.length > 0) {
 					for (const branch of targetBranches) {
 						for (const finding of (op as any).supportingFindings ?? [])

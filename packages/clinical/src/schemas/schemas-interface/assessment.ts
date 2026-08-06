@@ -1,12 +1,17 @@
-import type { BranchStatus } from "../../commands/command-syntax-profile";
+import {
+	type BranchStatus,
+	type BranchTransitionKind,
+} from "../../commands/command-syntax-profile";
 import type { ScoreMeasurement } from "./measurement";
 import type {
 	AnatomicalLocation,
 	Certainty,
 	CodeableConcept,
 } from "./shared";
-import type { ClinicalObservationFinding } from "./observation";
+import type { ClinicalObservationFinding, ObservationEvent } from "./observation";
 import type { ClinicalDateRange } from "./time";
+import type { PhysicalExamObject, VitalsEvent, VitalsMeasurementEvent } from "./vitals";
+import type { DeviceDiagnosticObject, LabPanelResult } from "./diagnostic";
 
 export const ALGORITHMIC_EVALUATION_TYPES = [
 	"diagnostic_inference",
@@ -70,21 +75,42 @@ export const ACUITY_LEVELS = [
 
 export type AcuityLevel = (typeof ACUITY_LEVELS)[number];
 
-export interface PrimaryDiagnosisEntry {
+export type AssessmentFinding =
+	| ObservationEvent
+	| VitalsEvent
+	| PhysicalExamObject
+	| LabPanelResult
+	| DeviceDiagnosticObject;
+
+export interface ImpliedBranchTransition {
+	targetBranch: string;
+	transition: BranchTransitionKind;
+	rationale?: string;
+}
+
+export interface ClinicalFindingRef {
+	targetSchema?: string;
+	recordId?: string;
+	concept: CodeableConcept;
+	detail?: AssessmentFinding;
+	crossBranchEffects?: ImpliedBranchTransition[];
+}
+
+export type ClinicalFinding = ClinicalFindingRef | AssessmentFinding | CodeableConcept;
+
+export interface BaseDiagnosisEntry {
 	id: string;
 	diagnosis: CodeableConcept; // Normalized disease concept (ICD-10 / SNOMED-CT)
-	acuityLevel?: AcuityLevel;
-	supportingConcepts?: CodeableConcept[];
+	supportingConcepts?: ClinicalFinding[];
+	refutingConcepts?: ClinicalFinding[];
 	comorbidities?: CodeableConcept[];
-	anatomyLocations?: AnatomicalLocation[];
-	/**
-	 * Medications causally or contextually linked to this diagnosis.
-	 * These are concept pointers (references) — not clinical orders.
-	 * Full medication detail lives in subjective.patientHistories.currentMedications.
-	 * Examples: "ACE inhibitor-induced cough", "metformin-induced lactic acidosis".
-	 */
 	relatedMedications?: CodeableConcept[];
+	anatomyLocations?: AnatomicalLocation[];
 	dateRange?: ClinicalDateRange;
+}
+
+export interface PrimaryDiagnosisEntry extends BaseDiagnosisEntry {
+	acuityLevel?: AcuityLevel;
 }
 
 // =====================================================================
@@ -92,15 +118,8 @@ export interface PrimaryDiagnosisEntry {
 // Ranked list of hypotheses considered during the assessment.
 // =====================================================================
 
-export interface DifferentialDiagnosisEntry {
-	id: string;
+export interface DifferentialDiagnosisEntry extends BaseDiagnosisEntry {
 	rank: number;
-	diagnosis: CodeableConcept;
 	confidence: Certainty;
-	supportingConcepts?: Array<ClinicalObservationFinding | CodeableConcept>;
-	refutingConcepts?: Array<ClinicalObservationFinding | CodeableConcept>;
-	relatedMedications?: CodeableConcept[];
-	anatomyLocations?: AnatomicalLocation[];
-	dateRange?: ClinicalDateRange;
 	status?: BranchStatus;
 }

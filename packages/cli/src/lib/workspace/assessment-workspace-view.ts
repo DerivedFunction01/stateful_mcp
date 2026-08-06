@@ -4,6 +4,7 @@ import {
 	type ConceptLookup,
 	DIRECT_VERB_TO_BRANCH_STATUS,
 	type DirectCommandVerb,
+	type ImpliedBranchTransition,
 	resolveConceptValue,
 } from "@stateful-mcp/clinical";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
@@ -44,6 +45,7 @@ export interface EvidenceFindingItem {
 	display: string;
 	conceptId?: string;
 	certainty: "supporting" | "refuting";
+	crossBranchEffects?: ImpliedBranchTransition[];
 }
 
 export interface ParsedDifferentialLine {
@@ -73,21 +75,10 @@ export function parseShorthandLine(
 	}
 
 	const supportingTokens = syntaxProfile?.evidenceSyntax?.supportingTokens ?? [
-		"+",
-		"++",
-		"with",
-		"s/b",
 	];
 	const refutingTokens = syntaxProfile?.evidenceSyntax?.refutingTokens ?? [
-		"-",
-		"--",
-		"w/o",
-		"without",
 	];
 	const listDelimiters = syntaxProfile?.evidenceSyntax?.listDelimiters ?? [
-		",",
-		";",
-		"&",
 	];
 
 	// Parse status alias leading verb
@@ -110,7 +101,7 @@ export function parseShorthandLine(
 	const macroName = `differential_${actionVerb.replace("_", "")}`;
 	const macroId =
 		syntaxProfile?.actionMacroMappings?.[actionVerb] ??
-		`v2-differential-${actionVerb.replace("_", "-")}-1`;
+		`${actionVerb.replace("_", "-")}`;
 
 	// Build delimiter regex for supporting and refuting evidence tokens with whitespace boundaries
 	const buildDelimRegex = (tokens: readonly string[]) => {
@@ -174,7 +165,42 @@ export function parseShorthandLine(
 				.filter(Boolean);
 
 			for (const item of items) {
-				const display = item
+				let mainText = item;
+				const crossEffects: ImpliedBranchTransition[] = [];
+
+				// Check for nested cross-branch directive in parentheses e.g. "normal d-dimer (r/o pe)" or "(rules out pe)"
+				const directiveMatch = item.match(/\(([^)]+)\)$/);
+				if (directiveMatch && directiveMatch[1]) {
+					const matchIdx = directiveMatch.index ?? 0;
+					mainText = item.slice(0, matchIdx).trim();
+					const dirContent = directiveMatch[1].trim();
+					const parts = dirContent.split(/\s+/);
+					const verbCandidate = (parts[0] ?? "").toLowerCase();
+					if (parts.length >= 2 && verbCandidate) {
+						const targetBranch = parts.slice(1).join(" ");
+						const transitionKind =
+							(syntaxProfile && syntaxProfile.directCommandMappings[verbCandidate]) ??
+							(verbCandidate === "rules" && (parts[1] ?? "").toLowerCase() === "out"
+								? "rule_out"
+								: null);
+
+						if (transitionKind) {
+							const target =
+								verbCandidate === "rules" && parts[1]?.toLowerCase() === "out"
+									? parts.slice(2).join(" ")
+									: targetBranch;
+							if (target) {
+								crossEffects.push({
+									targetBranch: target,
+									transition: transitionKind === "rule_out" ? "rule_out" : "rule_out",
+									rationale: dirContent,
+								});
+							}
+						}
+					}
+				}
+
+				const display = mainText
 					.split(/\s+/)
 					.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
 					.join(" ");
@@ -183,6 +209,7 @@ export function parseShorthandLine(
 					rawText: item,
 					display,
 					certainty: currentType,
+					crossBranchEffects: crossEffects.length > 0 ? crossEffects : undefined,
 				};
 
 				if (currentType === "supporting") supportingFindings.push(finding);

@@ -114,6 +114,17 @@ export interface HeightVitalEvent
 	measurement: DistanceMeasurement;
 }
 
+// Polymorphic union
+
+export type VitalsEvent = 
+	| BloodPressureVitalEvent
+	| HeartRateVitalEvent
+	| RespiratoryRateVitalEvent
+	| OxygenSaturationVitalEvent
+	| TemperatureVitalEvent
+	| WeightVitalEvent
+	| HeightVitalEvent
+
 // =====================================================================
 // PHYSICAL EXAMINATION
 // =====================================================================

@@ -99,6 +99,7 @@ export * from "./rendering/template-types";
 export * from "./rendering/template-walker";
 export * from "./schemas/default-registry";
 export * from "./schemas/definitions";
+export * from "./schemas/schemas-interface/assessment";
 export * from "./schemas/schema-defaults";
 export * from "./schemas/schema-factory";
 export * from "./schemas/schema-path-validator";

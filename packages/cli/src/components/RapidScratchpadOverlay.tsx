@@ -279,11 +279,23 @@ export function RapidScratchpadOverlay({
 							{parsed.supportingFindings.map((f, fIdx) => (
 								<Box key={`supp-${fIdx}`} paddingLeft={3}>
 									<Text color="green">├─ + {f.display}</Text>
+									{f.crossBranchEffects?.map((effect, eIdx) => (
+										<Text key={eIdx} color="magenta">
+											{" "}
+											(Side-effect: {effect.transition} {effect.targetBranch})
+										</Text>
+									))}
 								</Box>
 							))}
 							{parsed.refutingFindings.map((f, fIdx) => (
 								<Box key={`refut-${fIdx}`} paddingLeft={3}>
 									<Text color="red">└─ ── {f.display}</Text>
+									{f.crossBranchEffects?.map((effect, eIdx) => (
+										<Text key={eIdx} color="magenta">
+											{" "}
+											(Side-effect: {effect.transition} {effect.targetBranch})
+										</Text>
+									))}
 								</Box>
 							))}
 						</Box>

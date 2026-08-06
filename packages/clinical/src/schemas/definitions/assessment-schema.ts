@@ -35,9 +35,28 @@ export const primaryDiagnosisSchema = defineSchema({
 		},
 		supportingConcepts: {
 			path: "supportingConcepts",
-			valueKind: "concept_array",
+			valueKind: "composite",
 			cardinality: "many",
 			required: false,
+		},
+		"supportingConcepts[].concept": {
+			path: "supportingConcepts[].concept",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
+			conceptResolution: { required: true },
+		},
+		refutingConcepts: {
+			path: "refutingConcepts",
+			valueKind: "composite",
+			cardinality: "many",
+			required: false,
+		},
+		"refutingConcepts[].concept": {
+			path: "refutingConcepts[].concept",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
 			conceptResolution: { required: true },
 		},
 		comorbidities: {
@@ -113,16 +132,28 @@ export const differentialDiagnosisSchema = defineSchema({
 		},
 		supportingConcepts: {
 			path: "supportingConcepts",
-			valueKind: "concept_array",
+			valueKind: "composite",
 			cardinality: "many",
 			required: false,
+		},
+		"supportingConcepts[].concept": {
+			path: "supportingConcepts[].concept",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
 			conceptResolution: { required: true },
 		},
 		refutingConcepts: {
 			path: "refutingConcepts",
-			valueKind: "concept_array",
+			valueKind: "composite",
 			cardinality: "many",
 			required: false,
+		},
+		"refutingConcepts[].concept": {
+			path: "refutingConcepts[].concept",
+			valueKind: "concept",
+			cardinality: "one",
+			required: true,
 			conceptResolution: { required: true },
 		},
 		relatedMedications: {
