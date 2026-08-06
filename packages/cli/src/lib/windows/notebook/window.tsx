@@ -9,6 +9,7 @@ import {
 } from "@stateful-mcp/clinical";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
+import { Box, Text } from "ink";
 import type { ReactElement } from "react";
 import { BranchDetailInspector } from "../../../components/BranchDetailInspector";
 import { CommandBar } from "../../../components/CommandBar";
@@ -18,6 +19,7 @@ import { HistoryNavigation } from "../../../components/HistoryNavigation";
 import { MacroDetailPanel } from "../../../components/MacroDetailPanel";
 import { MacroEditor } from "../../../components/MacroEditor";
 import { NotebookWorkspace } from "../../../components/NotebookWorkspace";
+import { SidebarContainer } from "../../../components/SidebarContainer";
 import { StatusBar } from "../../../components/StatusBar";
 import type { WorkspaceTabId } from "../../../components/WorkspaceTabs";
 import type { CellSuggestion } from "../../../hooks/useNotebook";
@@ -29,6 +31,7 @@ import type {
 } from "../../editor";
 import { knownVerbs } from "../../editor/command-autocomplete";
 import { buildCommandDescriptors } from "../../editor/command-descriptors";
+import type { SidebarViewTab } from "../../editor/kernel";
 import type { MacroSlotProjection } from "../../editor/macro-slots";
 import type { NotebookDocumentPort } from "./document";
 import type { NotebookDomainPort } from "./domain";
@@ -56,6 +59,9 @@ export interface NotebookWindowDeps {
 	draftPreview?: MacroDraftPreview;
 	sidebarOpen?: boolean;
 	sidebarContent?: ReactElement | null;
+	/** Active right-hand sidebar activity bar view. */
+	sidebarTab?: SidebarViewTab;
+	onSelectSidebarTab?(tab: SidebarViewTab): void;
 	activeHistoryCell?: StructuredCell | null;
 	workspaceTab?: WorkspaceTabId;
 	historySearchQuery?: string;
@@ -188,11 +194,9 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 						deps.editorState.mode === "INSERT" &&
 						deps.editorState.commandKind === "macro",
 				};
-				const showLiveMacroDetails =
+				const isMacroInsertMode =
 					deps.editorState.commandKind === "macro" &&
-					(deps.editorState.mode === "INSERT" ||
-						deps.editorState.mode === "VISUAL") &&
-					draftText.trim().length > 0;
+					deps.editorState.mode === "INSERT";
 
 				regions.push({
 					slot: "command",
@@ -202,24 +206,42 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					},
 				});
 				if (deps.sidebarOpen) {
-					const detail =
+					const sidebarTab = deps.sidebarTab ?? "branches";
+					const branchDetail = (
+						<BranchDetailInspector
+							snapshot={deps.workspaceSnapshot ?? null}
+							scratchpadPreview={deps.scratchpadPreview}
+						/>
+					);
+					const manualDetail =
 						deps.sidebarContent ??
-						(deps.workspaceTab === "assessment" || deps.scratchpadPreview?.length ? (
-							<BranchDetailInspector
-								snapshot={deps.workspaceSnapshot ?? null}
-								scratchpadPreview={deps.scratchpadPreview}
-							/>
-						) : showLiveMacroDetails ? (
+						(sidebarTab === "branches" ? (
+							branchDetail
+						) : sidebarTab === "slots" ? (
 							<MacroDetailPanel {...macroEditorProps} />
 						) : deps.activeHistoryCell ? (
 							<HistoryDetailPanel cell={deps.activeHistoryCell} />
 						) : (
-							<MacroDetailPanel {...macroEditorProps} />
+							<Box padding={1}>
+								<Text color="gray">No active history entry</Text>
+							</Box>
 						));
+					const detail = isMacroInsertMode ? (
+						<MacroDetailPanel {...macroEditorProps} />
+					) : (
+						manualDetail
+					);
 					regions.push({
 						slot: "sidebar",
 						key: "macro-details",
-						render: () => detail,
+						render: () => (
+							<SidebarContainer
+								activeTab={sidebarTab}
+								onSelectTab={deps.onSelectSidebarTab}
+							>
+								{detail}
+							</SidebarContainer>
+						),
 					});
 				}
 			} else if (deps.editorState.mode === "COMMAND") {
@@ -274,15 +296,39 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					},
 				});
 			}
-			if (
-				deps.sidebarOpen &&
-				deps.editorState.mode === "COMMAND" &&
-				deps.activeHistoryCell
-			) {
+			if (deps.sidebarOpen && deps.editorState.mode === "COMMAND") {
+				const sidebarTab = deps.sidebarTab ?? "branches";
+				const detail =
+					deps.sidebarContent ??
+					(sidebarTab === "history" && deps.activeHistoryCell ? (
+						<HistoryDetailPanel cell={deps.activeHistoryCell} />
+					) : sidebarTab === "branches" ? (
+						<BranchDetailInspector
+							snapshot={deps.workspaceSnapshot ?? null}
+							scratchpadPreview={deps.scratchpadPreview}
+						/>
+					) : sidebarTab === "history" ? (
+						<Box padding={1}>
+							<Text color="gray">No active history entry</Text>
+						</Box>
+					) : (
+						<Box padding={1}>
+							<Text color="gray">
+								Macro slots are available while authoring a macro.
+							</Text>
+						</Box>
+					));
 				regions.push({
 					slot: "sidebar",
 					key: "history-details-command",
-					render: () => <HistoryDetailPanel cell={deps.activeHistoryCell!} />,
+					render: () => (
+						<SidebarContainer
+							activeTab={sidebarTab}
+							onSelectTab={deps.onSelectSidebarTab}
+						>
+							{detail}
+						</SidebarContainer>
+					),
 				});
 			}
 

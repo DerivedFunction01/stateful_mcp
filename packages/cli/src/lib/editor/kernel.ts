@@ -3,6 +3,9 @@ import type { CompletionState } from "./completion-state";
 
 export type CellEditorMode = EditorMode;
 
+/** Right-hand sidebar activity bar views. */
+export type SidebarViewTab = "branches" | "slots" | "history";
+
 export interface EditorKernelState {
 	mode: CellEditorMode;
 	commandKind?: "macro" | "direct" | "variable";
@@ -43,7 +46,8 @@ export type EditorAction =
 	| { type: "DELETE_VISUAL" }
 	| { type: "YANK_VISUAL" }
 	| { type: "COMMIT_COMPLETION"; line: string }
-	| { type: "OPEN_SCRATCHPAD" };
+	| { type: "OPEN_SCRATCHPAD" }
+	| { type: "SET_SIDEBAR_TAB"; tab: SidebarViewTab };
 
 export function createEditorKernelState(): EditorKernelState {
 	return {
@@ -141,6 +145,7 @@ export function reduceEditorKernel(
 		case "TOGGLE_SIDEBAR":
 		case "NEXT_WORKSPACE_TAB":
 		case "OPEN_SCRATCHPAD":
+		case "SET_SIDEBAR_TAB":
 			return state;
 		case "ENTER_VISUAL":
 			return { ...state, mode: "VISUAL" };

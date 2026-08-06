@@ -32,6 +32,7 @@ import { HistoryOverlay } from "./HistoryOverlay";
 import { PreviewScreen } from "./PreviewScreen";
 import { RapidScratchpadOverlay } from "./RapidScratchpadOverlay";
 import { INITIAL_SEARCH_STATE, searchReducer } from "./SearchOverlay";
+import { DEFAULT_SIDEBAR_TAB, type SidebarViewTab } from "./SidebarActivityBar";
 import { WindowContainer } from "./WindowContainer";
 import { Workspace } from "./Workspace";
 import { nextWorkspaceTab, type WorkspaceTabId } from "./WorkspaceTabs";
@@ -51,6 +52,8 @@ export function Notebook({
 		import("../lib/workspace/assessment-workspace-view").DeduplicatedLine[]
 	>([]);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [sidebarTab, setSidebarTab] =
+		useState<SidebarViewTab>(DEFAULT_SIDEBAR_TAB);
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTabId>("notebook");
 	const notebook = useNotebook(session, {
 		onOpenHistory: () => setOverlay({ route: "history" }),
@@ -689,6 +692,10 @@ export function Notebook({
 			case "TOGGLE_SIDEBAR":
 				setSidebarOpen((open) => !open);
 				return;
+			case "SET_SIDEBAR_TAB":
+				setSidebarOpen(true);
+				setSidebarTab(action.tab);
+				return;
 			case "NEXT_WORKSPACE_TAB": {
 				setWorkspaceTab(nextWorkspaceTab);
 				return;
@@ -735,6 +742,8 @@ export function Notebook({
 		childDefinitions: notebook.childDefinitions,
 		draftPreview: notebook.macroDraftPreview,
 		sidebarOpen,
+		sidebarTab,
+		onSelectSidebarTab: setSidebarTab,
 		activeHistoryCell: state.cells[state.activeIndex] ?? null,
 		workspaceTab,
 		historySearchQuery: searchState.query,

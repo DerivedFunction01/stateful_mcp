@@ -29,6 +29,7 @@ import {
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import { deriveWindowLayout } from "../lib/editor/window-layout";
+import { sidebarTabForAlt } from "./SidebarActivityBar";
 import { WindowLayoutContext } from "./WindowLayoutContext";
 import { WorkspaceHelpScreen } from "./WorkspaceHelpScreen";
 
@@ -279,6 +280,15 @@ export function WindowContainer({
 		if (sidebarOpen && key.escape) {
 			onSidebarClose?.();
 			return;
+		}
+
+		// Alt+1..3 switch the right-hand sidebar activity bar view.
+		if (key.meta && _input.length === 1 && _input >= "1" && _input <= "3") {
+			const tab = sidebarTabForAlt(_input);
+			if (tab) {
+				emit({ type: "SET_SIDEBAR_TAB", tab });
+				return;
+			}
 		}
 
 		if (current.mode === "INSERT" && current.commandKind !== "macro") {
