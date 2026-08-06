@@ -32,17 +32,11 @@ const STATUS_SYMBOLS: Record<string, string> = {
 	locked: "🔒",
 };
 
-function relativeTime(iso: string): string {
-	const seconds = Math.max(
-		0,
-		Math.floor((Date.now() - new Date(iso).getTime()) / 1000),
-	);
-	if (seconds < 60) return "just now";
-	const minutes = Math.floor(seconds / 60);
-	if (minutes < 60) return `${minutes}m ago`;
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours}h ago`;
-	return `${Math.floor(hours / 24)}d ago`;
+function timestamp(iso: string): string {
+	const parsed = new Date(iso);
+	if (Number.isNaN(parsed.getTime())) return iso;
+	const pad = (value: number) => String(value).padStart(2, "0");
+	return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}:${pad(parsed.getSeconds())}`;
 }
 
 export function CellComponent({
@@ -54,7 +48,6 @@ export function CellComponent({
 	const status = cell.lifecycle.status;
 	const displayText = cell.authored.rawText;
 	const statusColor = STATUS_COLORS[status] ?? "white";
-	const symbol = STATUS_SYMBOLS[status] ?? "?";
 	const prefix = isActive ? "▸" : isSelected ? ">" : " ";
 	const collection =
 		cell.collection.kind === "workspace"
@@ -63,41 +56,20 @@ export function CellComponent({
 	const diagnostics = cell.diagnostics.filter(
 		(item) => item.severity !== "info",
 	);
+	const compactText = displayText.replace(/\s*\n\s*/g, " ");
 
 	return (
-		<Box
-			flexDirection="column"
-			marginBottom={1}
-			borderStyle="single"
-			borderColor={isActive ? "green" : isSelected ? "magenta" : "gray"}
-			paddingX={1}
-		>
+		<Box flexDirection="column" paddingLeft={1}>
 			<Box>
-				<Text bold>
-					{prefix}[{String(index + 1).padStart(2, "0")}] {cell.collection.kind}
+				<Text bold color={isActive ? "cyan" : undefined}>
+					{prefix}[{String(index + 1).padStart(2, "0")}]{" "}
+					{timestamp(cell.source.updatedAt)} {cell.collection.kind}
 					{collection}
 				</Text>
-			</Box>
-			<Box
-				flexDirection="column"
-				borderStyle="single"
-				borderColor={isActive ? "cyan" : "gray"}
-				paddingX={1}
-			>
-				{displayText.split("\n").map((row, rowIndex) => (
-					<Text key={rowIndex} bold={isActive}>
-						{row || " "}
-					</Text>
-				))}
-				{displayText.length === 0 && <Text color="gray">(empty)</Text>}
+				<Text color="gray"> {compactText || "(empty)"}</Text>
 			</Box>
 			{diagnostics.length > 0 && (
-				<Box
-					flexDirection="column"
-					borderStyle="single"
-					borderColor="red"
-					paddingX={1}
-				>
+				<Box flexDirection="column" paddingLeft={5}>
 					{diagnostics.map((diagnostic, diagnosticIndex) => (
 						<Text key={diagnosticIndex} color="red">
 							{diagnostic.code}: {diagnostic.message}
@@ -105,12 +77,6 @@ export function CellComponent({
 					))}
 				</Box>
 			)}
-			<Box marginTop={1}>
-				<Text color={statusColor}>
-					{symbol} {status} · revision {cell.lifecycle.revision} ·{" "}
-					{relativeTime(cell.source.updatedAt)}
-				</Text>
-			</Box>
 		</Box>
 	);
 }
