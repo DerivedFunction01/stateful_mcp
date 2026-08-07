@@ -69,6 +69,25 @@ export interface NotebookWindowDeps {
 	workspaceTab?: WorkspaceTabId;
 	assessmentSubTab?: AssessmentSubTabId;
 	scratchpadContent?: ReactElement | null;
+	editorContent?: ReactElement | null;
+	sectionContent?: Partial<
+		Record<
+			"subjective" | "objective" | "assessment" | "plan",
+			ReactElement | null
+		>
+	>;
+	sectionScratchpadContent?: Partial<
+		Record<
+			"subjective" | "objective" | "assessment" | "plan",
+			ReactElement | null
+		>
+	>;
+	sectionEditorContent?: Partial<
+		Record<
+			"subjective" | "objective" | "assessment" | "plan",
+			ReactElement | null
+		>
+	>;
 	selectedBranchId?: string | null;
 	selectedBranchIds?: readonly string[];
 	assessmentSearchOpen?: boolean;
@@ -140,6 +159,10 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 						focused={deps.workspaceFocused}
 						assessmentSubTab={deps.assessmentSubTab}
 						scratchpadContent={deps.scratchpadContent}
+						editorContent={deps.editorContent}
+						sectionContent={deps.sectionContent}
+						sectionScratchpadContent={deps.sectionScratchpadContent}
+						sectionEditorContent={deps.sectionEditorContent}
 						soapContent={deps.soapContent}
 						selectedBranchId={deps.selectedBranchId}
 						selectedBranchIds={deps.selectedBranchIds}

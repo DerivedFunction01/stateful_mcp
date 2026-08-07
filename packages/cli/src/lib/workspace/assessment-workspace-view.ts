@@ -62,6 +62,7 @@ export interface ParsedDifferentialLine {
 export function parseShorthandLine(
 	line: string,
 	syntaxProfile?: CommandSyntaxProfile,
+	pinnedMacroId?: string,
 ): ParsedDifferentialLine {
 	const trimmed = line.trim();
 	if (!trimmed) {
@@ -74,17 +75,21 @@ export function parseShorthandLine(
 		};
 	}
 
-	const supportingTokens = syntaxProfile?.evidenceSyntax?.supportingTokens ?? [
-	];
-	const refutingTokens = syntaxProfile?.evidenceSyntax?.refutingTokens ?? [
-	];
-	const listDelimiters = syntaxProfile?.evidenceSyntax?.listDelimiters ?? [
-	];
+	const supportingTokens =
+		syntaxProfile?.evidenceSyntax?.supportingTokens ?? [];
+	const refutingTokens = syntaxProfile?.evidenceSyntax?.refutingTokens ?? [];
+	const listDelimiters = syntaxProfile?.evidenceSyntax?.listDelimiters ?? [];
 
 	// Parse status alias leading verb
-	let status: BranchStatus = "active";
+	const pinnedAction = Object.entries(
+		syntaxProfile?.actionMacroMappings ?? {},
+	).find(([, macroId]) => macroId === pinnedMacroId)?.[0] as
+		| DirectCommandVerb
+		| undefined;
+	let status: BranchStatus =
+		(pinnedAction && DIRECT_VERB_TO_BRANCH_STATUS[pinnedAction]) ?? "active";
 	let actionVerb: DirectCommandVerb =
-		syntaxProfile?.implicitDefaultVerb ?? "branch";
+		pinnedAction ?? syntaxProfile?.implicitDefaultVerb ?? "branch";
 	let remainingText = trimmed;
 
 	const firstSpaceIdx = trimmed.indexOf(" ");
@@ -100,6 +105,7 @@ export function parseShorthandLine(
 
 	const macroName = `differential_${actionVerb.replace("_", "")}`;
 	const macroId =
+		pinnedMacroId ??
 		syntaxProfile?.actionMacroMappings?.[actionVerb] ??
 		`${actionVerb.replace("_", "-")}`;
 
@@ -179,8 +185,10 @@ export function parseShorthandLine(
 					if (parts.length >= 2 && verbCandidate) {
 						const targetBranch = parts.slice(1).join(" ");
 						const transitionKind =
-							(syntaxProfile && syntaxProfile.directCommandMappings[verbCandidate]) ??
-							(verbCandidate === "rules" && (parts[1] ?? "").toLowerCase() === "out"
+							(syntaxProfile &&
+								syntaxProfile.directCommandMappings[verbCandidate]) ??
+							(verbCandidate === "rules" &&
+							(parts[1] ?? "").toLowerCase() === "out"
 								? "rule_out"
 								: null);
 
@@ -192,7 +200,8 @@ export function parseShorthandLine(
 							if (target) {
 								crossEffects.push({
 									targetBranch: target,
-									transition: transitionKind === "rule_out" ? "rule_out" : "rule_out",
+									transition:
+										transitionKind === "rule_out" ? "rule_out" : "rule_out",
 									rationale: dirContent,
 								});
 							}
@@ -209,7 +218,8 @@ export function parseShorthandLine(
 					rawText: item,
 					display,
 					certainty: currentType,
-					crossBranchEffects: crossEffects.length > 0 ? crossEffects : undefined,
+					crossBranchEffects:
+						crossEffects.length > 0 ? crossEffects : undefined,
 				};
 
 				if (currentType === "supporting") supportingFindings.push(finding);
@@ -244,15 +254,19 @@ export async function resolveShorthandLine(
 	line: string,
 	syntaxProfile?: CommandSyntaxProfile,
 	conceptLookup?: ConceptLookup,
+	pinnedMacroId?: string,
 ): Promise<ParsedDifferentialLine> {
-	const parsed = parseShorthandLine(line, syntaxProfile);
+	const parsed = parseShorthandLine(line, syntaxProfile, pinnedMacroId);
 	if (!conceptLookup || !parsed.rawInput) return parsed;
 
 	const resolveText = async (text: string) => {
 		try {
 			const res = await resolveConceptValue(text, conceptLookup);
 			if (res.value?.concept) {
-				return { display: res.value.concept.display, conceptId: res.value.concept.conceptId };
+				return {
+					display: res.value.concept.display,
+					conceptId: res.value.concept.conceptId,
+				};
 			}
 		} catch {}
 		return { display: text, conceptId: undefined };

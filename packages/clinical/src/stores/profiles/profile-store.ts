@@ -3,7 +3,38 @@ export type UnifiedProfileKind =
 	| "numerical"
 	| "value"
 	| "macro"
-	| "dictionary";
+	| "dictionary"
+	| "ide";
+
+export interface ScratchpadCellTemplate {
+	pinnedMacroIds: readonly string[];
+	explicitPins?: boolean;
+}
+
+export interface MacroFavorite {
+	favoriteId: string;
+	macroId: string;
+	profileId?: string;
+	label?: string;
+	description?: string;
+	order: number;
+	targetMode: "configured" | "active_slot" | "unbound";
+}
+
+export interface ClinicalIdeProfile {
+	profileId: string;
+	name: string;
+	macroProfileId?: string;
+	sectionPalettes: Record<string, string[]>;
+	scratchpadDefaults?: Record<string, ScratchpadCellTemplate[]>;
+	favorites: MacroFavorite[];
+	keybindings: Record<string, string>;
+	historyPolicy: {
+		includeMacroInvocations: boolean;
+		includeRawCommands: boolean;
+		maxEntries?: number;
+	};
+}
 
 export interface UnifiedProfileRecord {
 	profileId: string;

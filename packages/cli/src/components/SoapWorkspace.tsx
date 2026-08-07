@@ -4,10 +4,17 @@ import {
 	ProseRenderLookupCache,
 } from "@stateful-mcp/clinical";
 import type { ClinicalDocumentReadModel } from "@stateful-mcp/clinical/clinical/clinical-document-types";
+import type { SoapSection } from "@stateful-mcp/clinical/rendering/template-types";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { t } from "../lib/shared/i18n";
 
-const SECTIONS = ["subjective", "objective", "assessment", "plan"] as const;
+const SECTIONS: readonly SoapSection[] = [
+	"subjective",
+	"objective",
+	"assessment",
+	"plan",
+];
 
 export function SoapWorkspace({
 	document,
@@ -146,8 +153,6 @@ export function SoapWorkspace({
 			cancelled = true;
 		};
 	}, [document, previewRootId, renderContext, roots, templates]);
-	const selectedRoot = roots[rootIndex];
-
 	return (
 		<Box flexDirection="row" width="100%" height="100%">
 			<Box
@@ -165,11 +170,11 @@ export function SoapWorkspace({
 					SECTIONS.map((section) => (
 						<Box key={section} flexDirection="column" marginBottom={1}>
 							<Text bold color="cyan">
-								{section.toUpperCase()}
+								{t(`section.${section}`)}
 							</Text>
 							{(renderedSections[section].length
 								? renderedSections[section]
-								: ["No content"]
+								: [t("workspace.noContent")]
 							).map((line, index) => (
 								<Text key={`${section}-${index}`} wrap="truncate-end">
 									{" "}

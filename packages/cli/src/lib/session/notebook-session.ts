@@ -20,6 +20,7 @@ import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engi
 import type {
 	NotebookSessionRecord,
 	NotebookSessionStore,
+	NotebookUiState,
 } from "@stateful-mcp/clinical/notebook/notebook-session-store";
 import type { NotebookEditorMode as EditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 
@@ -36,6 +37,11 @@ export interface SaveNotebookEditorSnapshotInput {
 	draftText?: string;
 	editorMode?: EditorMode;
 	commandHistory: string[];
+	expectedRevision: number;
+}
+
+export interface SaveNotebookUiStateInput {
+	uiState: NotebookUiState;
 	expectedRevision: number;
 }
 
@@ -79,6 +85,7 @@ export interface NotebookSession {
 	sessionStore: NotebookSessionStore;
 	loadEditorSnapshot(): Promise<NotebookEditorSnapshot>;
 	saveEditorSnapshot(input: SaveNotebookEditorSnapshotInput): Promise<void>;
+	saveUiState(input: SaveNotebookUiStateInput): Promise<void>;
 	listCells(): Promise<StructuredCell[]>;
 	createCell(
 		input: Omit<CreateCellRequest, "sessionId"> & { position?: number },
@@ -161,6 +168,23 @@ export function createNotebookSession(input: {
 				updatedAt: new Date().toISOString(),
 			},
 			snapshot.expectedRevision,
+		);
+	};
+	const saveUiState = async ({
+		uiState,
+		expectedRevision,
+	}: SaveNotebookUiStateInput): Promise<void> => {
+		const record = await input.sessionStore.get(input.sessionId);
+		if (!record)
+			throw new Error(`Notebook session '${input.sessionId}' was not found`);
+		await input.sessionStore.save(
+			{
+				...record,
+				uiState,
+				revision: record.revision + 1,
+				updatedAt: new Date().toISOString(),
+			},
+			expectedRevision,
 		);
 	};
 	const createCell = async (
@@ -406,6 +430,7 @@ export function createNotebookSession(input: {
 		cellStore: runtime.stores.cellStore,
 		loadEditorSnapshot,
 		saveEditorSnapshot,
+		saveUiState,
 		listCells,
 		createCell,
 		createPastedCell,

@@ -2,24 +2,29 @@ import type {
 	CommandSyntaxProfile,
 	ConceptLookup,
 } from "@stateful-mcp/clinical";
+import type { ScratchpadCell } from "@stateful-mcp/clinical/notebook/notebook-session-store";
 import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useMemo, useState } from "react";
+import type { DifferentialScratchpadAdapter } from "../lib/scratchpad/differential-scratchpad-adapter";
+import { useScratchpadCells } from "../lib/scratchpad/use-scratchpad-cells";
 import { t } from "../lib/shared/i18n";
-import {
-	type DeduplicatedLine,
-	deduplicateParsedLines,
-	type ParsedDifferentialLine,
-	parseShorthandLine,
-	resolveShorthandLine,
+import type {
+	DeduplicatedLine,
+	ParsedDifferentialLine,
 } from "../lib/workspace/assessment-workspace-view";
 
 interface RapidScratchpadOverlayProps {
-	active?: boolean;
+	active: boolean;
+	initialCells: readonly ScratchpadCell[];
+	createCellId(): string;
+	onCellsChange(cells: readonly ScratchpadCell[]): void;
+	onNavigatePreviousTab(): void;
+	adapter: DifferentialScratchpadAdapter;
 	workspaceId: string;
-	targetBranchIds?: readonly string[];
-	targetBranchNames?: readonly string[];
-	targetScopeLabel?: string;
+	targetBranchIds: readonly string[];
+	targetBranchNames: readonly string[];
+	targetScopeLabel: string;
 	syntaxProfile?: CommandSyntaxProfile;
 	conceptLookup?: ConceptLookup;
 	onApplyOperations(
@@ -33,11 +38,16 @@ interface RapidScratchpadOverlayProps {
 }
 
 export function RapidScratchpadOverlay({
-	active = true,
+	active,
+	initialCells,
+	createCellId,
+	onCellsChange,
+	onNavigatePreviousTab,
+	adapter,
 	workspaceId,
-	targetBranchIds = [],
-	targetBranchNames = [],
-	targetScopeLabel = "Active branch",
+	targetBranchIds,
+	targetBranchNames,
+	targetScopeLabel,
 	syntaxProfile,
 	conceptLookup,
 	onApplyOperations,
@@ -46,37 +56,42 @@ export function RapidScratchpadOverlay({
 	onPreviewLines,
 	onClose,
 }: RapidScratchpadOverlayProps) {
-	const [lines, setLines] = useState<string[]>([""]);
-	const [activeLineIndex, setActiveLineIndex] = useState(0);
+	const {
+		cells,
+		activeCellIndex: activeLineIndex,
+		activeCell,
+		setActiveCellText,
+		duplicateActiveCell,
+		moveActiveCell,
+		movePreviousCell,
+		clearTexts,
+	} = useScratchpadCells(initialCells, onCellsChange);
 	const [resolvedLines, setResolvedLines] = useState<ParsedDifferentialLine[]>(
 		[],
 	);
+	const lines = cells.map((cell) => cell.text);
 
 	const parsedLines = useMemo<ParsedDifferentialLine[]>(() => {
-		return lines.map((line) => parseShorthandLine(line, syntaxProfile));
-	}, [lines, syntaxProfile]);
+		return adapter.parse(cells, syntaxProfile);
+	}, [adapter, cells, syntaxProfile]);
 
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const res = await Promise.all(
-				lines.map((line) =>
-					resolveShorthandLine(line, syntaxProfile, conceptLookup),
-				),
-			);
+			const res = await adapter.resolve(cells, syntaxProfile, conceptLookup);
 			if (!cancelled) setResolvedLines(res);
 		})();
 		return () => {
 			cancelled = true;
 		};
-	}, [lines, syntaxProfile, conceptLookup]);
+	}, [adapter, cells, syntaxProfile, conceptLookup]);
 
 	const activeParsedLines =
-		resolvedLines.length === lines.length ? resolvedLines : parsedLines;
+		resolvedLines.length === parsedLines.length ? resolvedLines : parsedLines;
 
 	const deduplicatedLines = useMemo<DeduplicatedLine[]>(() => {
-		return deduplicateParsedLines(activeParsedLines);
-	}, [activeParsedLines]);
+		return adapter.deduplicate(activeParsedLines);
+	}, [activeParsedLines, adapter]);
 
 	useEffect(() => {
 		onPreviewLines?.(deduplicatedLines);
@@ -90,43 +105,19 @@ export function RapidScratchpadOverlay({
 			}
 
 			if (key.return) {
-				const validOps: WorkspaceOperation[] = deduplicatedLines.map(
-					({ parsed: p }) =>
-						({
-							kind: "create_branch",
-							workspaceId,
-							name: p.conceptDisplay,
-							concept: {
-								conceptId: p.conceptId ?? p.rawInput.trim(),
-								display: p.conceptDisplay,
-							},
-							initialStatus: p.status,
-							supportingFindings: p.supportingFindings.map((finding) => ({
-								concept: {
-									conceptId: finding.conceptId ?? finding.display,
-									display: finding.display,
-								},
-								certainty: "supporting" as const,
-							})),
-							refutingFindings: p.refutingFindings.map((finding) => ({
-								concept: {
-									conceptId: finding.conceptId ?? finding.display,
-									display: finding.display,
-								},
-								certainty: "refuting" as const,
-							})),
-						}) as any,
+				const validOps: WorkspaceOperation[] = adapter.buildOperations(
+					deduplicatedLines,
+					workspaceId,
 				);
 
 				if (validOps.length === 0) {
-					onApplyError?.("No valid scratchpad operations to apply");
+					onApplyError?.(t("workspace.scratchpad.noOperations"));
 					return;
 				}
 
 				void onApplyOperations(validOps, targetBranchIds)
 					.then(() => {
-						setLines([""]);
-						setActiveLineIndex(0);
+						clearTexts();
 						setResolvedLines([]);
 						if (onApplySuccess) onApplySuccess(validOps.length);
 						else onClose();
@@ -139,48 +130,32 @@ export function RapidScratchpadOverlay({
 				return;
 			}
 
-			if (key.tab) {
-				if (key.shift) return;
-				setLines((prev) => {
-					const next = [...prev];
-					next.splice(activeLineIndex + 1, 0, "");
-					return next;
-				});
-				setActiveLineIndex((idx) => idx + 1);
+			if (key.tab && !key.meta && !key.ctrl) {
+				if (key.shift) {
+					onNavigatePreviousTab();
+					return;
+				}
+				duplicateActiveCell(createCellId());
 				return;
 			}
 
 			if (key.backspace || key.delete) {
-				const currentLine = lines[activeLineIndex] ?? "";
-				if (currentLine.length === 0 && lines.length > 1) {
-					setLines((prev) => prev.filter((_, idx) => idx !== activeLineIndex));
-					setActiveLineIndex((idx) => Math.max(0, idx - 1));
-					return;
-				}
-				setLines((prev) => {
-					const next = [...prev];
-					next[activeLineIndex] = (next[activeLineIndex] ?? "").slice(0, -1);
-					return next;
-				});
+				setActiveCellText((activeCell?.text ?? "").slice(0, -1));
 				return;
 			}
 
 			if (key.upArrow) {
-				setActiveLineIndex((idx) => Math.max(0, idx - 1));
+				moveActiveCell(-1);
 				return;
 			}
 
 			if (key.downArrow) {
-				setActiveLineIndex((idx) => Math.min(lines.length - 1, idx + 1));
+				moveActiveCell(1);
 				return;
 			}
 
 			if (input.length === 1 && !key.ctrl && !key.meta) {
-				setLines((prev) => {
-					const next = [...prev];
-					next[activeLineIndex] = (next[activeLineIndex] ?? "") + input;
-					return next;
-				});
+				setActiveCellText((activeCell?.text ?? "") + input);
 			}
 		},
 		{ isActive: active },
@@ -199,17 +174,14 @@ export function RapidScratchpadOverlay({
 			<Text bold color="cyan">
 				{t("workspace.scratchpadTitle")}
 			</Text>
-			<Text color="gray">
-				{t("workspace.scratchpadSubtitle", {
-					ex1: "pe",
-					ex2: "pna",
-					ex3: "r/o acs",
-				})}
-			</Text>
+			<Text color="gray">{t("workspace.scratchpadSubtitle")}</Text>
 			<Box flexDirection="column" marginTop={1}>
 				<Text bold color="yellow">
-					Apply to: {targetScopeLabel}
-					{targetBranchIds.length > 0 ? ` (${targetBranchIds.length})` : ""}
+					{t("workspace.scratchpad.applyTo", {
+						value: targetScopeLabel,
+						count:
+							targetBranchIds.length > 0 ? ` (${targetBranchIds.length})` : "",
+					})}
 				</Text>
 				{targetBranchNames.map((name) => (
 					<Text key={name} color="gray">
@@ -223,7 +195,9 @@ export function RapidScratchpadOverlay({
 					const isActive = idx === activeLineIndex;
 					return (
 						<Box key={idx}>
-							<Text color={isActive ? "yellow" : "gray"}>Line {idx + 1}: </Text>
+							<Text color={isActive ? "yellow" : "gray"}>
+								{t("workspace.scratchpad.line", { value: idx + 1 })}
+							</Text>
 							<Text bold={isActive} color={isActive ? "white" : undefined}>
 								{line}
 								{isActive ? "█" : ""}
@@ -243,12 +217,12 @@ export function RapidScratchpadOverlay({
 							<Box>
 								<Text color="cyan">{idx + 1}. </Text>
 								<Text color="magenta">
-									[{parsed.macroId ?? "implicit-active"}]{" "}
+									[{parsed.macroId ?? t("workspace.scratchpad.implicitMacro")}]{" "}
 								</Text>
 								<Text color="yellow">[{parsed.rawInput}] </Text>
 								<Text>➜ {parsed.conceptDisplay} </Text>
 								<Text color="gray">
-									| STATUS:{" "}
+									| {t("workspace.scratchpad.status")}
 									<Text
 										color={
 											parsed.status === "ruled_out"
@@ -258,31 +232,45 @@ export function RapidScratchpadOverlay({
 													: "gray"
 										}
 									>
-										{parsed.status}
+										{t(`workspace.scratchpad.status.${parsed.status}`)}
 									</Text>
 								</Text>
 								{mergedCount > 1 && (
-									<Text color="magenta"> · (merged {mergedCount} lines)</Text>
+									<Text color="magenta">
+										· {t("workspace.scratchpad.merged", { value: mergedCount })}
+									</Text>
 								)}
 							</Box>
 							{parsed.supportingFindings.map((f, fIdx) => (
 								<Box key={`supp-${fIdx}`} paddingLeft={3}>
-									<Text color="green">├─ + {f.display}</Text>
+									<Text color="green">
+										├─ +{" "}
+										{t("workspace.scratchpad.supporting", { value: f.display })}
+									</Text>
 									{f.crossBranchEffects?.map((effect, eIdx) => (
 										<Text key={eIdx} color="magenta">
 											{" "}
-											(Side-effect: {effect.transition} {effect.targetBranch})
+											{t("workspace.scratchpad.sideEffect", {
+												transition: effect.transition,
+												branch: effect.targetBranch,
+											})}
 										</Text>
 									))}
 								</Box>
 							))}
 							{parsed.refutingFindings.map((f, fIdx) => (
 								<Box key={`refut-${fIdx}`} paddingLeft={3}>
-									<Text color="red">└─ ── {f.display}</Text>
+									<Text color="red">
+										└─ ──{" "}
+										{t("workspace.scratchpad.refuting", { value: f.display })}
+									</Text>
 									{f.crossBranchEffects?.map((effect, eIdx) => (
 										<Text key={eIdx} color="magenta">
 											{" "}
-											(Side-effect: {effect.transition} {effect.targetBranch})
+											{t("workspace.scratchpad.sideEffect", {
+												transition: effect.transition,
+												branch: effect.targetBranch,
+											})}
 										</Text>
 									))}
 								</Box>

@@ -1,3 +1,4 @@
+import type { MacroDefinition } from "@stateful-mcp/clinical";
 import {
 	BRANCH_STATUS_TO_TRANSITION,
 	getActiveMacroArgumentId,
@@ -5,10 +6,24 @@ import {
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { ClinicalDocumentReadModel } from "@stateful-mcp/clinical/clinical/clinical-document-types";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
-import type { ClinicalProseTemplate } from "@stateful-mcp/clinical/rendering/template-types";
+import type {
+	NotebookUiState,
+	ScratchpadCell,
+} from "@stateful-mcp/clinical/notebook/notebook-session-store";
+import type {
+	ClinicalProseTemplate,
+	SoapSection,
+} from "@stateful-mcp/clinical/rendering/template-types";
 import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { useApp } from "ink";
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useReducer,
+	useRef,
+	useState,
+} from "react";
 import { useNotebook } from "../hooks/useNotebook";
 import { useSession } from "../hooks/useSession";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -22,6 +37,8 @@ import type {
 } from "../lib/cell-editor";
 import type { CompletionState } from "../lib/editor/completion-state";
 import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
+import { createDifferentialScratchpadAdapter } from "../lib/scratchpad/differential-scratchpad-adapter";
+import { t } from "../lib/shared/i18n";
 import { NotebookCommandCatalog } from "../lib/windows/notebook/catalog";
 import { NotebookDocumentPort } from "../lib/windows/notebook/document";
 import { WindowDomainPort } from "../lib/windows/notebook/domain";
@@ -33,7 +50,9 @@ import { HelpScreen } from "./HelpScreen";
 import { HistoryOverlay } from "./HistoryOverlay";
 import { PreviewScreen } from "./PreviewScreen";
 import { RapidScratchpadOverlay } from "./RapidScratchpadOverlay";
+import { ScratchpadEditor } from "./ScratchpadEditor";
 import { INITIAL_SEARCH_STATE, searchReducer } from "./SearchOverlay";
+import { SectionScratchpad } from "./SectionScratchpad";
 import { DEFAULT_SIDEBAR_TAB, type SidebarViewTab } from "./SidebarActivityBar";
 import { PatientSidebar, SoapTemplateSidebar } from "./SoapSidebar";
 import { SoapWorkspace } from "./SoapWorkspace";
@@ -64,6 +83,13 @@ export function Notebook({
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTabId>("notebook");
 	const [assessmentSubTab, setAssessmentSubTab] =
 		useState<AssessmentSubTabId>("default");
+	useEffect(() => {
+		if (workspaceTab !== "assessment" && assessmentSubTab === "default")
+			setAssessmentSubTab("scratchpad");
+	}, [workspaceTab, assessmentSubTab]);
+	const navigatePreviousSubtab = useCallback(() => {
+		setAssessmentSubTab((tab) => nextAssessmentSubTab(tab, -1));
+	}, []);
 	const notebook = useNotebook(session, {
 		onOpenHistory: () => setOverlay({ route: "history" }),
 	});
@@ -92,8 +118,25 @@ export function Notebook({
 	const [soapTemplates, setSoapTemplates] = useState<ClinicalProseTemplate[]>(
 		[],
 	);
+	const [scratchpadMacros, setScratchpadMacros] = useState<MacroDefinition[]>(
+		[],
+	);
+	const differentialScratchpadAdapter = useMemo(
+		() => createDifferentialScratchpadAdapter(),
+		[],
+	);
 	const [soapLoading, setSoapLoading] = useState(false);
 	const [soapError, setSoapError] = useState<string | null>(null);
+	const [assessmentScratchpadCells, setAssessmentScratchpadCells] = useState<
+		ScratchpadCell[]
+	>([]);
+	const [sectionCells, setSectionCells] = useState<
+		Partial<Record<SoapSection, ScratchpadCell[]>>
+	>({});
+	const [assessmentScratchpadReady, setAssessmentScratchpadReady] =
+		useState(false);
+	const notebookUiStateRef = useRef<NotebookUiState | undefined>(undefined);
+	const notebookRevisionRef = useRef(0);
 	useEffect(() => {
 		if (!session) return;
 		let cancelled = false;
@@ -102,14 +145,34 @@ export function Notebook({
 		void Promise.all([
 			session.v2.notebookSessionStore.get(session.sessionId),
 			session.v2.proseTemplateStore.list(),
+			session.v2.macroStore.list(),
 		])
-			.then(async ([record, templates]) => {
+			.then(async ([record, templates, macros]) => {
 				const document = record?.documentId
 					? await session.v2.engine.getDocument(record.documentId)
 					: null;
 				if (cancelled) return;
 				setSoapDocument(document);
 				setSoapTemplates(templates);
+				setScratchpadMacros(
+					macros.filter((macro) => macro.active && macro.status !== "retired"),
+				);
+				const assessmentState = record?.uiState?.soap?.sections.assessment;
+				if (assessmentState) {
+					notebookUiStateRef.current = record.uiState;
+					notebookRevisionRef.current = record.revision;
+					setAssessmentScratchpadCells(assessmentState.cells);
+					setAssessmentScratchpadReady(true);
+				}
+				if (record?.uiState?.soap?.sections) {
+					setSectionCells(
+						Object.fromEntries(
+							Object.entries(record.uiState.soap.sections).map(
+								([section, state]) => [section, state?.cells ?? []],
+							),
+						) as Partial<Record<SoapSection, ScratchpadCell[]>>,
+					);
+				}
 				setSoapLoading(false);
 			})
 			.catch((cause) => {
@@ -121,8 +184,143 @@ export function Notebook({
 			cancelled = true;
 		};
 	}, [session]);
-	const isAssessmentNavigation =
-		workspaceTab === "assessment" && assessmentSubTab === "default";
+	const persistAssessmentScratchpad = useCallback(
+		(cells: readonly ScratchpadCell[]) => {
+			setAssessmentScratchpadCells([...cells]);
+			const current = notebookUiStateRef.current;
+			if (!current?.soap) return;
+			const assessment = current.soap.sections.assessment;
+			if (!assessment) return;
+			const next: NotebookUiState = {
+				...current,
+				soap: {
+					...current.soap,
+					sections: {
+						...current.soap.sections,
+						assessment: { ...assessment, cells: [...cells] },
+					},
+				},
+			};
+			notebookUiStateRef.current = next;
+			void session?.v2.notebook.saveUiState({
+				uiState: next,
+				expectedRevision: notebookRevisionRef.current,
+			});
+			notebookRevisionRef.current += 1;
+		},
+		[session],
+	);
+	const persistSectionScratchpad = useCallback(
+		(section: SoapSection, cells: readonly ScratchpadCell[]) => {
+			setSectionCells((current) => ({ ...current, [section]: [...cells] }));
+			const current = notebookUiStateRef.current;
+			const state = current?.soap?.sections[section];
+			if (!current?.soap || !state || !session) return;
+			const next: NotebookUiState = {
+				...current,
+				soap: {
+					...current.soap,
+					sections: {
+						...current.soap.sections,
+						[section]: { ...state, cells: [...cells] },
+					},
+				},
+			};
+			notebookUiStateRef.current = next;
+			void session.v2.notebook.saveUiState({
+				uiState: next,
+				expectedRevision: notebookRevisionRef.current,
+			});
+			notebookRevisionRef.current += 1;
+		},
+		[session],
+	);
+	const persistSubjectiveScratchpad = useCallback(
+		(cells: readonly ScratchpadCell[]) =>
+			persistSectionScratchpad("subjective", cells),
+		[persistSectionScratchpad],
+	);
+	const persistObjectiveScratchpad = useCallback(
+		(cells: readonly ScratchpadCell[]) =>
+			persistSectionScratchpad("objective", cells),
+		[persistSectionScratchpad],
+	);
+	const persistPlanScratchpad = useCallback(
+		(cells: readonly ScratchpadCell[]) =>
+			persistSectionScratchpad("plan", cells),
+		[persistSectionScratchpad],
+	);
+	const executeSectionScratchpad = useCallback(async (section: SoapSection) => {
+		dispatch({
+			type: "set_message",
+			message: t("workspace.sectionScratchpad.executionPending", {
+				section: t(`section.${section}`),
+			}),
+		});
+	}, []);
+	const sectionScratchpadContent = {
+		subjective: sectionCells.subjective ? (
+			<SectionScratchpad
+				active={
+					workspaceTab === "subjective" && assessmentSubTab === "scratchpad"
+				}
+				cells={sectionCells.subjective}
+				createCellId={() => crypto.randomUUID()}
+				onCellsChange={persistSubjectiveScratchpad}
+				onNavigatePreviousTab={navigatePreviousSubtab}
+				onExecute={() => executeSectionScratchpad("subjective")}
+			/>
+		) : null,
+		objective: sectionCells.objective ? (
+			<SectionScratchpad
+				active={
+					workspaceTab === "objective" && assessmentSubTab === "scratchpad"
+				}
+				cells={sectionCells.objective}
+				createCellId={() => crypto.randomUUID()}
+				onCellsChange={persistObjectiveScratchpad}
+				onNavigatePreviousTab={navigatePreviousSubtab}
+				onExecute={() => executeSectionScratchpad("objective")}
+			/>
+		) : null,
+		plan: sectionCells.plan ? (
+			<SectionScratchpad
+				active={workspaceTab === "plan" && assessmentSubTab === "scratchpad"}
+				cells={sectionCells.plan}
+				createCellId={() => crypto.randomUUID()}
+				onCellsChange={persistPlanScratchpad}
+				onNavigatePreviousTab={navigatePreviousSubtab}
+				onExecute={() => executeSectionScratchpad("plan")}
+			/>
+		) : null,
+	};
+	const sectionEditorContent = {
+		subjective: sectionCells.subjective ? (
+			<ScratchpadEditor
+				active={workspaceTab === "subjective" && assessmentSubTab === "editor"}
+				cells={sectionCells.subjective}
+				macros={scratchpadMacros}
+				onCellsChange={persistSubjectiveScratchpad}
+			/>
+		) : null,
+		objective: sectionCells.objective ? (
+			<ScratchpadEditor
+				active={workspaceTab === "objective" && assessmentSubTab === "editor"}
+				cells={sectionCells.objective}
+				macros={scratchpadMacros}
+				onCellsChange={persistObjectiveScratchpad}
+			/>
+		) : null,
+		plan: sectionCells.plan ? (
+			<ScratchpadEditor
+				active={workspaceTab === "plan" && assessmentSubTab === "editor"}
+				cells={sectionCells.plan}
+				macros={scratchpadMacros}
+				onCellsChange={persistPlanScratchpad}
+			/>
+		) : null,
+	};
+	const isAssessmentNavigation = workspaceTab === "assessment";
 	const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 	const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
 	const [assessmentSearchState, assessmentSearchDispatch] = useReducer(
@@ -225,10 +423,10 @@ export function Notebook({
 	const targetScopeLabel =
 		selectedBranchIds.length === (workspace.snapshot?.branches.length ?? 0) &&
 		selectedBranchIds.length > 0
-			? "All branches"
+			? t("workspace.scope.all")
 			: selectedBranchIds.length > 0
-				? "Selected branches"
-				: "New differential branches";
+				? t("workspace.scope.selected")
+				: t("workspace.scope.differential");
 	const engineSuggestionsRef = useRef<any[]>([]);
 	const [historyCandidates, setHistoryCandidates] = useState<
 		CommandHistoryCandidate[]
@@ -778,11 +976,21 @@ export function Notebook({
 			);
 		}
 		if (o.route === "scratchpad") {
+			if (!assessmentScratchpadReady) return null;
 			return (
 				<RapidScratchpadOverlay
+					active
+					initialCells={assessmentScratchpadCells}
+					createCellId={() => crypto.randomUUID()}
+					onCellsChange={persistAssessmentScratchpad}
+					onNavigatePreviousTab={navigatePreviousSubtab}
+					adapter={differentialScratchpadAdapter}
 					workspaceId={
 						workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`
 					}
+					targetBranchIds={targetBranchIds}
+					targetBranchNames={targetBranches.map((branch) => branch.name)}
+					targetScopeLabel={targetScopeLabel}
 					syntaxProfile={session.v2.syntaxProfile}
 					conceptLookup={session.v2.engine.getConceptLookup()}
 					onApplyOperations={applyScratchpadOperations}
@@ -958,9 +1166,14 @@ export function Notebook({
 		}
 	};
 
-	const scratchpadContent = (
+	const scratchpadContent = assessmentScratchpadReady ? (
 		<RapidScratchpadOverlay
 			active={assessmentSubTab === "scratchpad"}
+			initialCells={assessmentScratchpadCells}
+			createCellId={() => crypto.randomUUID()}
+			onCellsChange={persistAssessmentScratchpad}
+			onNavigatePreviousTab={navigatePreviousSubtab}
+			adapter={differentialScratchpadAdapter}
 			workspaceId={
 				workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`
 			}
@@ -973,15 +1186,15 @@ export function Notebook({
 			onApplySuccess={(operationCount) =>
 				dispatch({
 					type: "set_message",
-					message: `Applied ${operationCount} scratchpad operation${
-						operationCount === 1 ? "" : "s"
-					}`,
+					message: t("workspace.scratchpad.applied", {
+						count: operationCount,
+					}),
 				})
 			}
 			onApplyError={(message) => dispatch({ type: "set_message", message })}
 			onClose={() => setAssessmentSubTab("default")}
 		/>
-	);
+	) : null;
 
 	const definition = notebookWindow({
 		document: documentPort,
@@ -1016,6 +1229,16 @@ export function Notebook({
 		workspaceTab,
 		assessmentSubTab,
 		scratchpadContent,
+		editorContent: (
+			<ScratchpadEditor
+				active={assessmentSubTab === "editor"}
+				cells={assessmentScratchpadCells}
+				macros={scratchpadMacros}
+				onCellsChange={persistAssessmentScratchpad}
+			/>
+		),
+		sectionScratchpadContent,
+		sectionEditorContent,
 		selectedBranchId,
 		selectedBranchIds,
 		assessmentSearchOpen: assessmentSearchState.open,
@@ -1168,9 +1391,18 @@ export function Notebook({
 							})
 					: undefined
 			}
-			assessmentSubTabsActive={workspaceTab === "assessment"}
+			assessmentSubTabsActive={
+				workspaceTab === "subjective" ||
+				workspaceTab === "objective" ||
+				workspaceTab === "assessment" ||
+				workspaceTab === "plan"
+			}
 			suspendEditorInput={
-				workspaceTab === "assessment" && assessmentSubTab === "scratchpad"
+				(workspaceTab === "subjective" ||
+					workspaceTab === "objective" ||
+					workspaceTab === "assessment" ||
+					workspaceTab === "plan") &&
+				assessmentSubTab === "scratchpad"
 			}
 			historySearchOpen={searchState.open}
 			historySearchQuery={searchState.query}

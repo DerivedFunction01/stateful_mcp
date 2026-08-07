@@ -27,6 +27,7 @@ import {
 	type StoreBuilderConfig,
 	type StoreBuilderResult,
 } from "./store-builder";
+import { DEFAULT_DIFFERENTIAL_ACTION_MACRO_MAPPINGS } from "./syntax-profile-defaults";
 import { EXAMPLE_PROSE_TEMPLATES } from "./templates/example-templates";
 
 export interface ClinicalBootstrapConfig {
@@ -114,7 +115,12 @@ async function buildClinicalBootstrap(
 		payload: coldStart.numericalProfile,
 	});
 
-	const commandProfile = coldStart.commandProfile;
+	const commandProfile = {
+		...coldStart.commandProfile,
+		actionMacroMappings:
+			coldStart.commandProfile.actionMacroMappings ??
+			DEFAULT_DIFFERENTIAL_ACTION_MACRO_MAPPINGS,
+	};
 	await seedMacroLearningWeights(stores.systemWeightStore);
 	const learningService = new MacroLearningService({
 		transitionStore: stores.macroTransitionStore,

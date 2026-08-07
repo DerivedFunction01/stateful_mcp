@@ -18,6 +18,55 @@ describe("bootstrapSession", () => {
 		const session = await result.notebookSessionStore.get(result.sessionId);
 		expect(session?.documentId).toBe(result.caseIdentity.documentId);
 		expect(session?.workspaceId).toBe(result.caseIdentity.workspaceId);
+		expect(session?.uiState?.soap?.sections.assessment?.cells).toHaveLength(1);
+		expect(Object.keys(session?.uiState?.soap?.sections ?? {})).toEqual([
+			"subjective",
+			"objective",
+			"assessment",
+			"plan",
+		]);
+	});
+
+	test("persists notebook-local scratchpad state separately from bootstrap defaults", async () => {
+		const result = await bootstrapSession({
+			sessionId: `cli2-scratchpad-state-${Date.now()}`,
+		});
+		const session = await result.notebookSessionStore.get(result.sessionId);
+		if (!session?.uiState?.soap?.sections.assessment)
+			throw new Error("Assessment scratchpad state was not bootstrapped");
+		const assessment = session.uiState.soap.sections.assessment;
+		const nextUiState = {
+			...session.uiState,
+			soap: {
+				...session.uiState.soap,
+				sections: {
+					...session.uiState.soap.sections,
+					assessment: {
+						...assessment,
+						cells: [
+							{
+								...assessment.cells[0]!,
+								text: "clinical text",
+								pinnedMacroIds: ["active-v2"],
+								explicitPins: true,
+							},
+						],
+					},
+				},
+			},
+		};
+		await result.notebook.saveUiState({
+			uiState: nextUiState,
+			expectedRevision: session.revision,
+		});
+		const restored = await result.notebookSessionStore.get(result.sessionId);
+		expect(
+			restored?.uiState?.soap?.sections.assessment?.cells[0],
+		).toMatchObject({
+			text: "clinical text",
+			pinnedMacroIds: ["active-v2"],
+			explicitPins: true,
+		});
 	});
 
 	test("resumes an explicitly selected session via sessionId option", async () => {

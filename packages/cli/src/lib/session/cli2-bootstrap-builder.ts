@@ -1,7 +1,8 @@
-import type { CommandSyntaxProfile } from "@stateful-mcp/clinical";
+import type { CommandSyntaxProfile, MacroStore } from "@stateful-mcp/clinical";
 import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { ClinicalBootstrap } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { createMockCaseIdentity } from "@stateful-mcp/clinical/bootstrap/mock-patient";
+import { createDefaultNotebookUiState } from "@stateful-mcp/clinical/bootstrap/notebook-ui-defaults";
 import type { VariableCellService } from "@stateful-mcp/clinical/cells/variable-cell-service";
 import { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-service";
 import { VariableCommandService } from "@stateful-mcp/clinical/commands/variable-command-service";
@@ -16,6 +17,7 @@ export interface Cli2BootstrapResult {
 	engine: ClinicalEngine;
 	commandBar: CommandBarService;
 	variableCells: VariableCellService;
+	macroStore: MacroStore;
 	notebookSessionStore: NotebookSessionStore;
 	notebook: NotebookSession;
 	sessionId: string;
@@ -119,6 +121,7 @@ export async function buildCli2Bootstrap(
 			workspaceId: workspace.id,
 			documentId: document.documentId,
 			commandHistory: [],
+			uiState: createDefaultNotebookUiState(sessionId),
 			revision: 0,
 			updatedAt: new Date().toISOString(),
 		});
@@ -153,6 +156,7 @@ export async function buildCli2Bootstrap(
 		engine,
 		commandBar,
 		variableCells: runtime.variableCells,
+		macroStore: clinical.stores.macroStore,
 		notebookSessionStore: sessionStore,
 		notebook,
 		sessionId,

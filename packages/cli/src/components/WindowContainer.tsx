@@ -582,6 +582,18 @@ export function WindowContainer({
 		}
 
 		if (current.mode === "NORMAL" && key.tab) {
+			if (key.meta) {
+				emit({
+					type: key.shift ? "PREVIOUS_WORKSPACE_TAB" : "NEXT_WORKSPACE_TAB",
+				});
+				return;
+			}
+			if (key.ctrl && assessmentSubTabsActive) {
+				emit({
+					type: key.shift ? "PREVIOUS_ASSESSMENT_TAB" : "NEXT_ASSESSMENT_TAB",
+				});
+				return;
+			}
 			emit({
 				type: key.shift
 					? assessmentSubTabsActive
