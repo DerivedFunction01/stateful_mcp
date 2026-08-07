@@ -650,14 +650,16 @@ export function Notebook({
 					const targetBranch = existingBranches.find(
 						(b) =>
 							b.name.toLowerCase() === targetKey ||
-							(b.hypothesisConcept?.conceptId ?? "").toLowerCase() === targetKey ||
+							(b.hypothesisConcept?.conceptId ?? "").toLowerCase() ===
+								targetKey ||
 							b.name.toLowerCase().includes(targetKey),
 					);
 					if (targetBranch) {
 						resolvedOps.push({
 							kind: "branch_transition",
 							workspaceId:
-								workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`,
+								workspace.snapshot?.workspaceId ??
+								`workspace-${session.sessionId}`,
 							branchId: targetBranch.branchId,
 							transition: effect.transition,
 						});
@@ -978,8 +980,6 @@ export function Notebook({
 			}
 			onApplyError={(message) => dispatch({ type: "set_message", message })}
 			onClose={() => setAssessmentSubTab("default")}
-			onNavigatePrevious={() => setAssessmentSubTab("default")}
-			onNavigateNext={() => setWorkspaceTab(nextWorkspaceTab(workspaceTab))}
 		/>
 	);
 

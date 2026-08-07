@@ -127,7 +127,7 @@ const en: Record<string, string> = {
 	"workspace.scratchpadPreviewHeader":
 		"CANONICAL CONCEPT & ALIAS RESOLUTION PREVIEW:",
 	"workspace.scratchpadFooter":
-		"[ ↑/↓ ] Lines  │  [ Tab ] Next Workspace  │  [ Shift+Tab ] Default  │  [ Enter ] Apply  │  [ Esc ] Close",
+		"[ ↑/↓ ] Lines  │  [ Tab ] New Line  │  [ Enter ] Apply  │  [ Esc ] Default",
 	"workspace.inputHint": "type a finding, hypothesis, or command...",
 	"workspace.ruledOut": "✗ ruled_out",
 	"workspace.strip.full":

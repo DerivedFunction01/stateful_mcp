@@ -30,8 +30,6 @@ interface RapidScratchpadOverlayProps {
 	onApplyError?: (message: string) => void;
 	onPreviewLines?: (deduped: DeduplicatedLine[]) => void;
 	onClose(): void;
-	onNavigatePrevious?: () => void;
-	onNavigateNext?: () => void;
 }
 
 export function RapidScratchpadOverlay({
@@ -47,8 +45,6 @@ export function RapidScratchpadOverlay({
 	onApplyError,
 	onPreviewLines,
 	onClose,
-	onNavigatePrevious,
-	onNavigateNext,
 }: RapidScratchpadOverlayProps) {
 	const [lines, setLines] = useState<string[]>([""]);
 	const [activeLineIndex, setActiveLineIndex] = useState(0);
@@ -144,14 +140,7 @@ export function RapidScratchpadOverlay({
 			}
 
 			if (key.tab) {
-				if (key.shift) {
-					onNavigatePrevious?.();
-					return;
-				}
-				if (onNavigateNext) {
-					onNavigateNext();
-					return;
-				}
+				if (key.shift) return;
 				setLines((prev) => {
 					const next = [...prev];
 					next.splice(activeLineIndex + 1, 0, "");
