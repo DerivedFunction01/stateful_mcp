@@ -36,6 +36,7 @@ import { knownVerbs } from "../../editor/command-autocomplete";
 import { buildCommandDescriptors } from "../../editor/command-descriptors";
 import type { SidebarViewTab } from "../../editor/kernel";
 import type { MacroSlotProjection } from "../../editor/macro-slots";
+import type { EditorFocusTarget } from "../../editor/interaction-state";
 import type { NotebookDocumentPort } from "./document";
 import type { NotebookDomainPort } from "./domain";
 
@@ -102,6 +103,7 @@ export interface NotebookWindowDeps {
 	workspaceFocused?: boolean;
 	soapContent?: ReactElement | null;
 	consoleFocused?: boolean;
+	focusTarget?: EditorFocusTarget;
 	patientSidebarContent?: ReactElement | null;
 	soapSidebarContent?: ReactElement | null;
 }
@@ -224,16 +226,20 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					authoringPreview,
 					draftPreview: deps.draftPreview,
 					executionMessage: deps.message,
-					consoleFocused: deps.consoleFocused,
+					consoleFocused:
+						deps.focusTarget === "macro-console" || deps.consoleFocused === true,
 					selectionStart:
+						deps.focusTarget === "macro-console" &&
 						deps.editorState.mode === "VISUAL"
 							? deps.editorState.visualStart
 							: undefined,
 					selectionEnd:
+						deps.focusTarget === "macro-console" &&
 						deps.editorState.mode === "VISUAL"
 							? deps.editorState.visualEnd
 							: undefined,
 					showCursor:
+						deps.focusTarget === "macro-console" &&
 						deps.editorState.mode === "INSERT" &&
 						deps.editorState.commandKind === "macro",
 				};

@@ -21,6 +21,7 @@ export type TextSelection = {
 
 export interface EditorInteractionState {
 	focus: EditorFocusTarget;
+	returnFocus: EditorFocusTarget;
 	mode: NotebookEditorMode;
 	cellSelection: CellSelection | null;
 	textSelection: TextSelection | null;
@@ -38,6 +39,7 @@ export type EditorInteractionAction =
 
 export const INITIAL_EDITOR_INTERACTION_STATE: EditorInteractionState = {
 	focus: "history",
+	returnFocus: "history",
 	mode: "NORMAL",
 	cellSelection: null,
 	textSelection: null,
@@ -70,16 +72,19 @@ export function reduceEditorInteraction(
 			return {
 				...state,
 				focus: action.target,
+				returnFocus:
+					action.target === "macro-console" ? state.returnFocus : action.target,
 				mode: normalizeModeForFocus(action.target, state.mode),
 				cellSelection: null,
 				textSelection: null,
 			};
 		case "toggle-console": {
-				const target =
-					state.focus === "macro-console" ? "history" : "macro-console";
+				const opening = state.focus !== "macro-console";
+				const target = opening ? "macro-console" : state.returnFocus;
 				return {
 					...state,
 					focus: target,
+					returnFocus: opening ? state.focus : state.returnFocus,
 					mode: "NORMAL",
 					cellSelection: null,
 					textSelection: null,

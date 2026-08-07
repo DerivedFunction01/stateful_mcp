@@ -367,9 +367,20 @@ export function WindowContainer({
 			emit({ type: "ENTER_MACRO" });
 			return;
 		}
+		if (
+			focusTarget === "macro-console" &&
+			current.mode === "NORMAL" &&
+			_input === "v" &&
+			!key.ctrl &&
+			!key.meta
+		) {
+			emit({ type: "ENTER_VISUAL" });
+			return;
+		}
 
 		if (
 			current.mode === "NORMAL" &&
+			focusTarget !== "macro-console" &&
 			navigationContext &&
 			(onNavigationMove || onNavigationSearchOpen)
 		) {

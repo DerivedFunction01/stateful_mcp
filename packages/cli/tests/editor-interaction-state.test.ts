@@ -87,5 +87,7 @@ describe("editor interaction state", () => {
 		expect(toggled.focus).toBe("macro-console");
 		expect(toggled.mode).toBe("NORMAL");
 		expect(toggled.cellSelection).toBeNull();
+		const returned = reduceEditorInteraction(toggled, { type: "toggle-console" });
+		expect(returned.focus).toBe("assessment-scratchpad");
 	});
 });

@@ -87,6 +87,8 @@ export function Notebook({
 	const [consoleFocused, setConsoleFocused] = useState(false);
 	const [focusTarget, setFocusTarget] =
 		useState<EditorFocusTarget>("history");
+	const consoleReturnFocusRef = useRef<EditorFocusTarget>("history");
+	const consoleReturnModeRef = useRef<CellEditorMode>("NORMAL");
 	const [assessmentSubTab, setAssessmentSubTab] =
 		useState<AssessmentSubTabId | null>(null);
 	useEffect(() => {
@@ -306,7 +308,24 @@ export function Notebook({
 	const toggleConsoleFocus = useCallback(() => {
 		const focused = !consoleFocused;
 		setConsoleFocused(focused);
-		setFocusTarget(focused ? "macro-console" : "history");
+		if (focused) {
+			consoleReturnFocusRef.current = focusTarget;
+			consoleReturnModeRef.current = state.mode;
+			setFocusTarget("macro-console");
+			if (state.commandKind !== "macro") {
+				dispatch({
+					type: "begin_edit",
+					cellId: "macro-console",
+					mode: "INSERT",
+					commandKind: "macro",
+					text: state.draftText || session?.v2.syntaxProfile.macroStartToken || "",
+				});
+			}
+		} else {
+			setFocusTarget(consoleReturnFocusRef.current);
+			dispatch({ type: "set_command_kind", commandKind: "direct" });
+			dispatch({ type: "set_mode", mode: consoleReturnModeRef.current });
+		}
 		const current = notebookUiStateRef.current;
 		if (!current || !session) return;
 		const next: NotebookUiState = {
@@ -319,7 +338,7 @@ export function Notebook({
 			expectedRevision: notebookRevisionRef.current,
 		});
 		notebookRevisionRef.current += 1;
-	}, [consoleFocused, session]);
+	}, [consoleFocused, focusTarget, session, state.commandKind, state.draftText, state.mode]);
 	useEffect(() => {
 		if (consoleFocused) return;
 		if (assessmentSubTab !== "scratchpad") {
@@ -1366,6 +1385,7 @@ export function Notebook({
 		workspaceTab,
 		assessmentSubTab: assessmentSubTab ?? undefined,
 		consoleFocused,
+		focusTarget,
 		scratchpadContent,
 		editorContent: (
 			<ScratchpadEditor
