@@ -101,6 +101,7 @@ export interface NotebookWindowDeps {
 	workspaceError?: string | null;
 	workspaceFocused?: boolean;
 	soapContent?: ReactElement | null;
+	consoleFocused?: boolean;
 	patientSidebarContent?: ReactElement | null;
 	soapSidebarContent?: ReactElement | null;
 }
@@ -223,6 +224,7 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					authoringPreview,
 					draftPreview: deps.draftPreview,
 					executionMessage: deps.message,
+					consoleFocused: deps.consoleFocused,
 					selectionStart:
 						deps.editorState.mode === "VISUAL"
 							? deps.editorState.visualStart

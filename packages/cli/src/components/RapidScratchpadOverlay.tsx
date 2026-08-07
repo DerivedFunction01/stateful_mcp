@@ -7,6 +7,7 @@ import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/works
 import { Box, Text, useInput } from "ink";
 import { useEffect, useMemo, useState } from "react";
 import type { DifferentialScratchpadAdapter } from "../lib/scratchpad/differential-scratchpad-adapter";
+import type { NotebookEditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { useScratchpadCells } from "../lib/scratchpad/use-scratchpad-cells";
 import { t } from "../lib/shared/i18n";
 import type {
@@ -19,7 +20,6 @@ interface RapidScratchpadOverlayProps {
 	initialCells: readonly ScratchpadCell[];
 	createCellId(): string;
 	onCellsChange(cells: readonly ScratchpadCell[]): void;
-	onNavigatePreviousTab(): void;
 	adapter: DifferentialScratchpadAdapter;
 	workspaceId: string;
 	targetBranchIds: readonly string[];
@@ -35,6 +35,8 @@ interface RapidScratchpadOverlayProps {
 	onApplyError?: (message: string) => void;
 	onPreviewLines?: (deduped: DeduplicatedLine[]) => void;
 	onClose(): void;
+	mode?: NotebookEditorMode;
+	onModeChange?(mode: NotebookEditorMode): void;
 }
 
 export function RapidScratchpadOverlay({
@@ -42,7 +44,6 @@ export function RapidScratchpadOverlay({
 	initialCells,
 	createCellId,
 	onCellsChange,
-	onNavigatePreviousTab,
 	adapter,
 	workspaceId,
 	targetBranchIds,
@@ -55,6 +56,8 @@ export function RapidScratchpadOverlay({
 	onApplyError,
 	onPreviewLines,
 	onClose,
+	mode = "INSERT",
+	onModeChange,
 }: RapidScratchpadOverlayProps) {
 	const {
 		cells,
@@ -69,6 +72,10 @@ export function RapidScratchpadOverlay({
 	const [resolvedLines, setResolvedLines] = useState<ParsedDifferentialLine[]>(
 		[],
 	);
+	const [visualRange, setVisualRange] = useState({
+		start: activeLineIndex,
+		end: activeLineIndex,
+	});
 	const lines = cells.map((cell) => cell.text);
 
 	const parsedLines = useMemo<ParsedDifferentialLine[]>(() => {
@@ -99,8 +106,68 @@ export function RapidScratchpadOverlay({
 
 	useInput(
 		(input, key) => {
+			if (mode === "NORMAL") {
+				if (input === "i" && !key.ctrl && !key.meta) {
+					onModeChange?.("INSERT");
+					return;
+				}
+				if (key.return) {
+					onModeChange?.("INSERT");
+					return;
+				}
+				if (input === "v" && !key.ctrl && !key.meta) {
+					setVisualRange({ start: activeLineIndex, end: activeLineIndex });
+					onModeChange?.("VISUAL");
+					return;
+				}
+				if (key.upArrow || key.downArrow) {
+					moveActiveCell(key.upArrow ? -1 : 1);
+					return;
+				}
+				return;
+			}
+			if (mode === "VISUAL") {
+				if (key.escape) {
+					onModeChange?.("NORMAL");
+					return;
+				}
+				if (key.upArrow || key.downArrow) {
+					const delta = key.upArrow ? -1 : 1;
+					setVisualRange((range) => ({
+						...range,
+						end: Math.max(0, Math.min(cells.length - 1, range.end + delta)),
+					}));
+					return;
+				}
+				if (key.return) {
+					const start = Math.min(visualRange.start, visualRange.end);
+					const end = Math.max(visualRange.start, visualRange.end);
+					const selected = cells
+						.slice(start, end + 1)
+						.filter((cell) => cell.text.trim().length > 0);
+					if (selected.length === 0) return;
+					const validOps = adapter.buildOperations(
+						adapter.deduplicate(
+							resolvedLines.filter((_, index) => index >= start && index <= end),
+						),
+						workspaceId,
+					);
+					if (validOps.length === 0) return;
+					void onApplyOperations(validOps, targetBranchIds)
+						.then(() => {
+							clearTexts();
+							onModeChange?.("NORMAL");
+							onApplySuccess?.(validOps.length);
+						})
+						.catch((error: unknown) =>
+							onApplyError?.(error instanceof Error ? error.message : String(error)),
+						);
+					return;
+				}
+				return;
+			}
 			if (key.escape) {
-				onClose();
+				onModeChange?.("NORMAL");
 				return;
 			}
 
@@ -131,10 +198,7 @@ export function RapidScratchpadOverlay({
 			}
 
 			if (key.tab && !key.meta && !key.ctrl) {
-				if (key.shift) {
-					onNavigatePreviousTab();
-					return;
-				}
+				if (key.shift) return;
 				duplicateActiveCell(createCellId());
 				return;
 			}

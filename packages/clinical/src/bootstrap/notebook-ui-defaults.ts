@@ -13,22 +13,27 @@ export function createDefaultNotebookUiState(
 		explicitPins: false,
 	});
 	const sections = {
-		subjective: createSectionState(createCell("subjective")),
-		objective: createSectionState(createCell("objective")),
-		assessment: createSectionState(createCell("assessment")),
-		plan: createSectionState(createCell("plan")),
+		subjective: createSectionState(createCell("subjective"), "scratchpad"),
+		objective: createSectionState(createCell("objective"), "scratchpad"),
+		assessment: createSectionState(createCell("assessment"), "default"),
+		plan: createSectionState(createCell("plan"), "scratchpad"),
 	};
 
 	return {
+		workspace: { activeTab: "notebook" },
+		console: { focused: false },
 		soap: {
 			sections,
 		},
 	};
 }
 
-function createSectionState(cell: ScratchpadCell) {
+function createSectionState(
+	cell: ScratchpadCell,
+	activeTab: "default" | "scratchpad" | "editor",
+) {
 	return {
-		activeTab: "scratchpad" as const,
+		activeTab,
 		activeCellId: cell.cellId,
 		cells: [cell],
 	};

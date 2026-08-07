@@ -29,6 +29,7 @@ export interface MacroEditorProps {
 	showCursor?: boolean;
 	inputOnly?: boolean;
 	detailsOnly?: boolean;
+	consoleFocused?: boolean;
 }
 
 export function MacroEditor({
@@ -46,6 +47,7 @@ export function MacroEditor({
 	showCursor = true,
 	inputOnly = false,
 	detailsOnly = false,
+	consoleFocused = false,
 }: MacroEditorProps) {
 	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
 		activeDefinition !== null &&
@@ -247,11 +249,12 @@ export function MacroEditor({
 			<Box
 				flexDirection="column"
 				borderStyle="single"
-				borderColor="green"
+				borderColor={consoleFocused ? "cyan" : "green"}
 				height={3}
 				width="100%"
 				overflow="hidden"
 			>
+				<Text dimColor>{t("console.label")}</Text>
 				<Text bold>
 					{segments.map((segment, index) => {
 						if (segment.kind === "cursor")

@@ -17,6 +17,8 @@ import type {
 } from "@stateful-mcp/clinical/commands/command-bar-types";
 import type { CommandSyntaxProfile } from "@stateful-mcp/clinical/commands/command-syntax-profile";
 import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
+import { MacroAuthoringSession } from "@stateful-mcp/clinical/macros/macro-authoring-session";
+import type { SyntaxProfile } from "@stateful-mcp/clinical/macros/macro-profile";
 import type {
 	NotebookSessionRecord,
 	NotebookSessionStore,
@@ -43,6 +45,12 @@ export interface SaveNotebookEditorSnapshotInput {
 export interface SaveNotebookUiStateInput {
 	uiState: NotebookUiState;
 	expectedRevision: number;
+}
+
+export interface ExecuteMacroInvocationInput {
+	macroId: string;
+	text: string;
+	position?: number;
 }
 
 export interface PasteCellInput {
@@ -86,6 +94,7 @@ export interface NotebookSession {
 	loadEditorSnapshot(): Promise<NotebookEditorSnapshot>;
 	saveEditorSnapshot(input: SaveNotebookEditorSnapshotInput): Promise<void>;
 	saveUiState(input: SaveNotebookUiStateInput): Promise<void>;
+	executeMacroInvocation(input: ExecuteMacroInvocationInput): Promise<void>;
 	listCells(): Promise<StructuredCell[]>;
 	createCell(
 		input: Omit<CreateCellRequest, "sessionId"> & { position?: number },
@@ -130,6 +139,12 @@ export function createNotebookSession(input: {
 	sessionStore: NotebookSessionStore;
 }): NotebookSession {
 	const runtime = input.engine.getRuntime();
+	let sessionWriteQueue: Promise<void> = Promise.resolve();
+	const enqueueSessionWrite = (write: () => Promise<void>): Promise<void> => {
+		const operation = sessionWriteQueue.then(write, write);
+		sessionWriteQueue = operation.catch(() => undefined);
+		return operation;
+	};
 	const listCells = () => input.engine.getCellService().list(input.sessionId);
 	const loadEditorSnapshot = async (): Promise<NotebookEditorSnapshot> => {
 		const record = await input.sessionStore.get(input.sessionId);
@@ -154,38 +169,100 @@ export function createNotebookSession(input: {
 	const saveEditorSnapshot = async (
 		snapshot: SaveNotebookEditorSnapshotInput,
 	): Promise<void> => {
-		const record = await input.sessionStore.get(input.sessionId);
-		if (!record)
-			throw new Error(`Notebook session '${input.sessionId}' was not found`);
-		await input.sessionStore.save(
-			{
-				...record,
-				cellOrder: snapshot.cellOrder,
-				activeCellId: snapshot.activeCellId,
-				draftText: snapshot.draftText,
-				editorMode: snapshot.editorMode,
-				commandHistory: snapshot.commandHistory,
-				updatedAt: new Date().toISOString(),
-			},
-			snapshot.expectedRevision,
-		);
+		await enqueueSessionWrite(async () => {
+			const record = await input.sessionStore.get(input.sessionId);
+			if (!record)
+				throw new Error(`Notebook session '${input.sessionId}' was not found`);
+			const expectedRevision =
+				record.revision === snapshot.expectedRevision
+					? snapshot.expectedRevision
+					: record.revision;
+			await input.sessionStore.save(
+				{
+					...record,
+					cellOrder: snapshot.cellOrder,
+					activeCellId: snapshot.activeCellId,
+					draftText: snapshot.draftText,
+					editorMode: snapshot.editorMode,
+					commandHistory: snapshot.commandHistory,
+					revision: record.revision + 1,
+					updatedAt: new Date().toISOString(),
+				},
+				expectedRevision,
+			);
+		});
 	};
 	const saveUiState = async ({
 		uiState,
 		expectedRevision,
 	}: SaveNotebookUiStateInput): Promise<void> => {
-		const record = await input.sessionStore.get(input.sessionId);
-		if (!record)
-			throw new Error(`Notebook session '${input.sessionId}' was not found`);
-		await input.sessionStore.save(
-			{
-				...record,
-				uiState,
-				revision: record.revision + 1,
-				updatedAt: new Date().toISOString(),
-			},
-			expectedRevision,
+		await enqueueSessionWrite(async () => {
+			const record = await input.sessionStore.get(input.sessionId);
+			if (!record)
+				throw new Error(`Notebook session '${input.sessionId}' was not found`);
+			const revision =
+				record.revision === expectedRevision
+					? expectedRevision
+					: record.revision;
+			await input.sessionStore.save(
+				{
+					...record,
+					uiState,
+					revision: record.revision + 1,
+					updatedAt: new Date().toISOString(),
+				},
+				revision,
+			);
+		});
+	};
+	const executeMacroInvocation = async ({
+		macroId,
+		text,
+		position,
+	}: ExecuteMacroInvocationInput): Promise<void> => {
+		const definitions = await runtime.macros.defs.list();
+		const definition = definitions.find(
+			(candidate) => candidate.macroId === macroId,
 		);
+		if (!definition) throw new Error(`Macro '${macroId}' is not available`);
+		const rawText =
+			`${input.syntaxProfile.macroStartToken}${definition.macroName} ${text}`.trim();
+		const authoring = runtime.macros.authoring;
+		const inspection = await authoring.inspectDraft(rawText, [], undefined);
+		if (!inspection)
+			throw new Error(`Macro '${macroId}' could not be inspected`);
+		const preview = await authoring.compileDraft(rawText, {
+			profileId: input.syntaxProfile.profileId,
+			sessionId: input.sessionId,
+		});
+		const authoringSession = new MacroAuthoringSession({
+			profile: input.syntaxProfile as unknown as SyntaxProfile,
+			initialText: rawText,
+		});
+		authoringSession.dispatch({
+			type: "inspection_resolved",
+			definition: inspection.definition,
+			childDefinitions: inspection.childDefinitions,
+			slots: inspection.slots,
+		});
+		authoringSession.setExecutablePreview(preview);
+		const finalized = authoringSession.finalize();
+		if (!finalized.ok)
+			throw new Error(
+				finalized.diagnostics.map((item) => item.message).join("; "),
+			);
+		const cell = await createCell({
+			collection: { kind: "notebook", collectionId: input.sessionId },
+			rawText: finalized.authoredText,
+			finalizedMacro: finalized,
+			position,
+		});
+		const result = await executeFinalizedMacro(
+			cell.cellId,
+			`macro_${cell.cellId}_${finalized.fingerprint}`,
+		);
+		if (result.status !== "committed")
+			throw new Error(result.diagnostics.join("; "));
 	};
 	const createCell = async (
 		request: Omit<CreateCellRequest, "sessionId"> & { position?: number },
@@ -431,6 +508,7 @@ export function createNotebookSession(input: {
 		loadEditorSnapshot,
 		saveEditorSnapshot,
 		saveUiState,
+		executeMacroInvocation,
 		listCells,
 		createCell,
 		createPastedCell,

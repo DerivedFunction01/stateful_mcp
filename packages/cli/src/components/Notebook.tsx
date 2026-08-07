@@ -35,6 +35,8 @@ import type {
 	WindowOverlay,
 	WindowOverlayAction,
 } from "../lib/cell-editor";
+import type { EditorFocusTarget } from "../lib/editor/interaction-state";
+import { focusForSection } from "../lib/editor/interaction-state";
 import type { CompletionState } from "../lib/editor/completion-state";
 import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { createDifferentialScratchpadAdapter } from "../lib/scratchpad/differential-scratchpad-adapter";
@@ -63,6 +65,7 @@ import {
 	nextAssessmentSubTab,
 	nextWorkspaceTab,
 	previousWorkspaceTab,
+	WORKSPACE_TABS,
 	type WorkspaceTabId,
 } from "./WorkspaceTabs";
 
@@ -81,15 +84,67 @@ export function Notebook({
 	const [sidebarTab, setSidebarTab] =
 		useState<SidebarViewTab>(DEFAULT_SIDEBAR_TAB);
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTabId>("notebook");
+	const [consoleFocused, setConsoleFocused] = useState(false);
+	const [focusTarget, setFocusTarget] =
+		useState<EditorFocusTarget>("history");
 	const [assessmentSubTab, setAssessmentSubTab] =
-		useState<AssessmentSubTabId>("default");
+		useState<AssessmentSubTabId | null>(null);
 	useEffect(() => {
-		if (workspaceTab !== "assessment" && assessmentSubTab === "default")
+		if (
+			workspaceTab !== "assessment" &&
+			workspaceTab !== "subjective" &&
+			workspaceTab !== "objective" &&
+			workspaceTab !== "plan"
+		)
+			return;
+		if (assessmentSubTab === "default" && workspaceTab !== "assessment")
 			setAssessmentSubTab("scratchpad");
 	}, [workspaceTab, assessmentSubTab]);
-	const navigatePreviousSubtab = useCallback(() => {
-		setAssessmentSubTab((tab) => nextAssessmentSubTab(tab, -1));
-	}, []);
+	useEffect(() => {
+		const current = notebookUiStateRef.current;
+		if (!session || !current || current.workspace?.activeTab === workspaceTab)
+			return;
+		const next: NotebookUiState = {
+			...current,
+			workspace: { ...current.workspace, activeTab: workspaceTab },
+		};
+		notebookUiStateRef.current = next;
+		void session.v2.notebook.saveUiState({
+			uiState: next,
+			expectedRevision: notebookRevisionRef.current,
+		});
+		notebookRevisionRef.current += 1;
+	}, [session, workspaceTab]);
+	useEffect(() => {
+		const current = notebookUiStateRef.current;
+		if (!session || !current || !assessmentSubTab) return;
+		if (
+			workspaceTab !== "subjective" &&
+			workspaceTab !== "objective" &&
+			workspaceTab !== "assessment" &&
+			workspaceTab !== "plan"
+		)
+			return;
+		const section = workspaceTab as SoapSection;
+		const state = current.soap?.sections[section];
+		if (!current.soap || !state || state.activeTab === assessmentSubTab) return;
+		const next: NotebookUiState = {
+			...current,
+			soap: {
+				...current.soap,
+				sections: {
+					...current.soap.sections,
+					[section]: { ...state, activeTab: assessmentSubTab },
+				},
+			},
+		};
+		notebookUiStateRef.current = next;
+		void session.v2.notebook.saveUiState({
+			uiState: next,
+			expectedRevision: notebookRevisionRef.current,
+		});
+		notebookRevisionRef.current += 1;
+	}, [assessmentSubTab, session, workspaceTab]);
 	const notebook = useNotebook(session, {
 		onOpenHistory: () => setOverlay({ route: "history" }),
 	});
@@ -157,12 +212,25 @@ export function Notebook({
 				setScratchpadMacros(
 					macros.filter((macro) => macro.active && macro.status !== "retired"),
 				);
+				const savedWorkspaceTab = record?.uiState?.workspace?.activeTab;
+				if (
+					savedWorkspaceTab &&
+					WORKSPACE_TABS.some((tab) => tab.id === savedWorkspaceTab)
+				)
+					setWorkspaceTab(savedWorkspaceTab as WorkspaceTabId);
+				setConsoleFocused(record?.uiState?.console?.focused === true);
+				setFocusTarget(
+					record?.uiState?.console?.focused
+						? "macro-console"
+						: "history",
+				);
 				const assessmentState = record?.uiState?.soap?.sections.assessment;
 				if (assessmentState) {
 					notebookUiStateRef.current = record.uiState;
 					notebookRevisionRef.current = record.revision;
 					setAssessmentScratchpadCells(assessmentState.cells);
 					setAssessmentScratchpadReady(true);
+					setAssessmentSubTab(assessmentState.activeTab as AssessmentSubTabId);
 				}
 				if (record?.uiState?.soap?.sections) {
 					setSectionCells(
@@ -235,6 +303,37 @@ export function Notebook({
 		},
 		[session],
 	);
+	const toggleConsoleFocus = useCallback(() => {
+		const focused = !consoleFocused;
+		setConsoleFocused(focused);
+		setFocusTarget(focused ? "macro-console" : "history");
+		const current = notebookUiStateRef.current;
+		if (!current || !session) return;
+		const next: NotebookUiState = {
+			...current,
+			console: { ...current.console, focused },
+		};
+		notebookUiStateRef.current = next;
+		void session.v2.notebook.saveUiState({
+			uiState: next,
+			expectedRevision: notebookRevisionRef.current,
+		});
+		notebookRevisionRef.current += 1;
+	}, [consoleFocused, session]);
+	useEffect(() => {
+		if (consoleFocused) return;
+		if (assessmentSubTab !== "scratchpad") {
+			setFocusTarget("history");
+			return;
+		}
+		if (
+			workspaceTab === "assessment" ||
+			workspaceTab === "subjective" ||
+			workspaceTab === "objective" ||
+			workspaceTab === "plan"
+		)
+			setFocusTarget(focusForSection(workspaceTab));
+	}, [assessmentSubTab, consoleFocused, workspaceTab]);
 	const persistSubjectiveScratchpad = useCallback(
 		(cells: readonly ScratchpadCell[]) =>
 			persistSectionScratchpad("subjective", cells),
@@ -250,14 +349,42 @@ export function Notebook({
 			persistSectionScratchpad("plan", cells),
 		[persistSectionScratchpad],
 	);
-	const executeSectionScratchpad = useCallback(async (section: SoapSection) => {
-		dispatch({
-			type: "set_message",
-			message: t("workspace.sectionScratchpad.executionPending", {
-				section: t(`section.${section}`),
-			}),
-		});
-	}, []);
+	const executeSectionScratchpad = useCallback(
+		async (section: SoapSection, cells: readonly ScratchpadCell[]) => {
+			let invocationCount = 0;
+			try {
+				for (const cell of cells) {
+					for (const macroId of cell.pinnedMacroIds) {
+						if (!session) throw new Error(t("workspace.sessionUnavailable"));
+						await session.v2.notebook.executeMacroInvocation({
+							macroId,
+							text: cell.text,
+						});
+						invocationCount += 1;
+					}
+				}
+				if (invocationCount === 0)
+					throw new Error(t("workspace.sectionScratchpad.noPinnedMacros"));
+				dispatch({
+					type: "set_message",
+					message: t("workspace.sectionScratchpad.executed", {
+						count: invocationCount,
+						section: t(`section.${section}`),
+					}),
+				});
+			} catch (error) {
+				dispatch({
+					type: "set_message",
+					message:
+						error instanceof Error
+							? error.message
+							: t("workspace.sectionScratchpad.executionFailed"),
+				});
+				throw error;
+			}
+		},
+		[session],
+	);
 	const sectionScratchpadContent = {
 		subjective: sectionCells.subjective ? (
 			<SectionScratchpad
@@ -266,9 +393,10 @@ export function Notebook({
 				}
 				cells={sectionCells.subjective}
 				createCellId={() => crypto.randomUUID()}
-				onCellsChange={persistSubjectiveScratchpad}
-				onNavigatePreviousTab={navigatePreviousSubtab}
-				onExecute={() => executeSectionScratchpad("subjective")}
+					onCellsChange={persistSubjectiveScratchpad}
+					onExecute={(cells) => executeSectionScratchpad("subjective", cells)}
+					mode={state.mode}
+					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 			/>
 		) : null,
 		objective: sectionCells.objective ? (
@@ -278,9 +406,10 @@ export function Notebook({
 				}
 				cells={sectionCells.objective}
 				createCellId={() => crypto.randomUUID()}
-				onCellsChange={persistObjectiveScratchpad}
-				onNavigatePreviousTab={navigatePreviousSubtab}
-				onExecute={() => executeSectionScratchpad("objective")}
+					onCellsChange={persistObjectiveScratchpad}
+					onExecute={(cells) => executeSectionScratchpad("objective", cells)}
+					mode={state.mode}
+					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 			/>
 		) : null,
 		plan: sectionCells.plan ? (
@@ -288,9 +417,10 @@ export function Notebook({
 				active={workspaceTab === "plan" && assessmentSubTab === "scratchpad"}
 				cells={sectionCells.plan}
 				createCellId={() => crypto.randomUUID()}
-				onCellsChange={persistPlanScratchpad}
-				onNavigatePreviousTab={navigatePreviousSubtab}
-				onExecute={() => executeSectionScratchpad("plan")}
+					onCellsChange={persistPlanScratchpad}
+					onExecute={(cells) => executeSectionScratchpad("plan", cells)}
+					mode={state.mode}
+					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 			/>
 		) : null,
 	};
@@ -983,7 +1113,6 @@ export function Notebook({
 					initialCells={assessmentScratchpadCells}
 					createCellId={() => crypto.randomUUID()}
 					onCellsChange={persistAssessmentScratchpad}
-					onNavigatePreviousTab={navigatePreviousSubtab}
 					adapter={differentialScratchpadAdapter}
 					workspaceId={
 						workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`
@@ -993,6 +1122,8 @@ export function Notebook({
 					targetScopeLabel={targetScopeLabel}
 					syntaxProfile={session.v2.syntaxProfile}
 					conceptLookup={session.v2.engine.getConceptLookup()}
+					mode={state.mode}
+					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 					onApplyOperations={applyScratchpadOperations}
 					onClose={() => setOverlay(null)}
 				/>
@@ -1053,7 +1184,7 @@ export function Notebook({
 				return;
 			}
 			case "ENTER_VISUAL":
-				if (isMacroAuthoring) {
+				if (isMacroAuthoring || focusTarget === "macro-console") {
 					dispatch({
 						type: "set_visual_selection",
 						start: state.cursorOffset,
@@ -1138,10 +1269,12 @@ export function Notebook({
 				setSidebarTab(action.tab);
 				return;
 			case "NEXT_ASSESSMENT_TAB":
-				setAssessmentSubTab((tab) => nextAssessmentSubTab(tab));
+				setAssessmentSubTab((tab) => (tab ? nextAssessmentSubTab(tab) : tab));
 				return;
 			case "PREVIOUS_ASSESSMENT_TAB":
-				setAssessmentSubTab((tab) => nextAssessmentSubTab(tab, -1));
+				setAssessmentSubTab((tab) =>
+					tab ? nextAssessmentSubTab(tab, -1) : tab,
+				);
 				return;
 			case "NEXT_WORKSPACE_TAB": {
 				setWorkspaceTab(nextWorkspaceTab);
@@ -1153,6 +1286,9 @@ export function Notebook({
 			case "OPEN_SCRATCHPAD":
 				setWorkspaceTab("assessment");
 				setAssessmentSubTab("scratchpad");
+				setFocusTarget("assessment-scratchpad");
+				setConsoleFocused(false);
+				dispatch({ type: "set_mode", mode: "NORMAL" });
 				return;
 			case "CANCEL":
 				if (state.mode === "VISUAL" && state.commandKind === "macro") {
@@ -1172,7 +1308,6 @@ export function Notebook({
 			initialCells={assessmentScratchpadCells}
 			createCellId={() => crypto.randomUUID()}
 			onCellsChange={persistAssessmentScratchpad}
-			onNavigatePreviousTab={navigatePreviousSubtab}
 			adapter={differentialScratchpadAdapter}
 			workspaceId={
 				workspace.snapshot?.workspaceId ?? `workspace-${session.sessionId}`
@@ -1182,6 +1317,8 @@ export function Notebook({
 			targetScopeLabel={targetScopeLabel}
 			syntaxProfile={session.v2.syntaxProfile}
 			conceptLookup={session.v2.engine.getConceptLookup()}
+			mode={state.mode}
+			onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 			onApplyOperations={applyScratchpadOperations}
 			onApplySuccess={(operationCount) =>
 				dispatch({
@@ -1227,7 +1364,8 @@ export function Notebook({
 		onSelectSidebarTab: setSidebarTab,
 		activeHistoryCell: state.cells[state.activeIndex] ?? null,
 		workspaceTab,
-		assessmentSubTab,
+		assessmentSubTab: assessmentSubTab ?? undefined,
+		consoleFocused,
 		scratchpadContent,
 		editorContent: (
 			<ScratchpadEditor
@@ -1397,13 +1535,16 @@ export function Notebook({
 				workspaceTab === "assessment" ||
 				workspaceTab === "plan"
 			}
+			focusTarget={focusTarget}
 			suspendEditorInput={
-				(workspaceTab === "subjective" ||
-					workspaceTab === "objective" ||
-					workspaceTab === "assessment" ||
-					workspaceTab === "plan") &&
-				assessmentSubTab === "scratchpad"
-			}
+					(workspaceTab === "subjective" ||
+						workspaceTab === "objective" ||
+						workspaceTab === "assessment" ||
+						workspaceTab === "plan") &&
+					assessmentSubTab === "scratchpad" &&
+					!consoleFocused
+				}
+			onToggleConsoleFocus={toggleConsoleFocus}
 			historySearchOpen={searchState.open}
 			historySearchQuery={searchState.query}
 			onHistorySearchQuery={(query) =>

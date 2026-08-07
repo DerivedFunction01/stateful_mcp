@@ -11,7 +11,7 @@ export interface ScratchpadCell {
 }
 
 export interface SoapSectionUiState {
-	activeTab: NotebookUiTab;
+	activeTab: "default" | NotebookUiTab;
 	activeCellId?: string;
 	cells: ScratchpadCell[];
 }
@@ -22,11 +22,17 @@ export interface SoapWorkspaceUiState {
 
 export interface NotebookUiState {
 	soap?: SoapWorkspaceUiState;
+	workspace?: {
+		activeTab?: string;
+	};
+	console?: {
+		focused?: boolean;
+		previousPane?: string;
+	};
 	sidebar?: {
 		activeTab?: string;
 		open?: boolean;
 	};
-	workspace?: Record<string, unknown>;
 }
 
 export interface NotebookSessionRecord {

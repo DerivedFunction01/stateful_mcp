@@ -111,6 +111,7 @@ const en: Record<string, string> = {
 	// Workspace & Assessment
 	"workspace.title": "ASSESSMENT WORKSPACE",
 	"workspace.mainNotebook": "Main notebook workspace",
+	"console.label": "Console",
 	"workspace.tabWorkspace": "{value} workspace",
 	"workspace.tab.notebook": "Notebook",
 	"workspace.tab.assessment": "Assessment",
@@ -166,8 +167,13 @@ const en: Record<string, string> = {
 	"workspace.sectionScratchpad.cell": "Cell {value}: ",
 	"workspace.sectionScratchpad.footer":
 		"[ ↑/↓ ] Cells  [ Tab ] New cell  [ Enter ] Execute  [ Esc ] Cancel",
-	"workspace.sectionScratchpad.executionPending":
-		"{section} macro execution is pending adapter wiring.",
+	"workspace.sectionScratchpad.noPinnedMacros":
+		"No pinned macros are available for execution.",
+	"workspace.sectionScratchpad.executed":
+		"Executed {count} {section} macro invocations.",
+	"workspace.sectionScratchpad.executionFailed":
+		"Section macro execution failed.",
+	"workspace.sessionUnavailable": "Clinical session is unavailable.",
 	"workspace.scope.all": "All branches",
 	"workspace.scope.selected": "Selected branches",
 	"workspace.scope.differential": "New differential branches",

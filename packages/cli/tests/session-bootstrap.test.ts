@@ -69,6 +69,36 @@ describe("bootstrapSession", () => {
 		});
 	});
 
+	test("serializes consecutive notebook UI saves without revision collisions", async () => {
+		const result = await bootstrapSession({
+			sessionId: `cli2-ui-save-queue-${Date.now()}`,
+		});
+		const session = await result.notebookSessionStore.get(result.sessionId);
+		if (!session?.uiState)
+			throw new Error("Notebook UI state was not bootstrapped");
+		const first = {
+			...session.uiState,
+			console: { focused: true },
+		};
+		const second = {
+			...session.uiState,
+			console: { focused: false },
+		};
+		await Promise.all([
+			result.notebook.saveUiState({
+				uiState: first,
+				expectedRevision: session.revision,
+			}),
+			result.notebook.saveUiState({
+				uiState: second,
+				expectedRevision: session.revision,
+			}),
+		]);
+		const saved = await result.notebookSessionStore.get(result.sessionId);
+		expect(saved?.uiState?.console?.focused).toBe(false);
+		expect(saved?.revision).toBe(session.revision + 2);
+	});
+
 	test("resumes an explicitly selected session via sessionId option", async () => {
 		const dbPath = `/tmp/kilo/cli2-multi-${Date.now()}.sqlite`;
 		const first = await Cli2BootstrapBuilder.withDefaultBackend("sqlite", {

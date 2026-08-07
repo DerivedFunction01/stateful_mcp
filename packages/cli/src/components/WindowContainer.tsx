@@ -27,6 +27,7 @@ import {
 	reduceCompletion,
 } from "../lib/editor/completion-state";
 import type { EditorKeymapProfile } from "../lib/editor/editor-keymap-profile";
+import type { EditorFocusTarget } from "../lib/editor/interaction-state";
 import type { MacroSlotProjection } from "../lib/editor/macro-slots";
 import {
 	type NavigationContext,
@@ -60,7 +61,9 @@ export interface WindowContainerProps {
 	childDefinitions?: MacroDefinition[];
 	macroSession?: MacroAuthoringSession;
 	assessmentSubTabsActive?: boolean;
+	focusTarget?: EditorFocusTarget;
 	suspendEditorInput?: boolean;
+	onToggleConsoleFocus?: () => void;
 	historySearchOpen?: boolean;
 	historySearchQuery?: string;
 	onHistorySearchQuery?: (query: string) => void;
@@ -111,7 +114,9 @@ export function WindowContainer({
 	childDefinitions = [],
 	macroSession,
 	assessmentSubTabsActive = false,
+	focusTarget = "history",
 	suspendEditorInput = false,
+	onToggleConsoleFocus,
 	historySearchOpen = false,
 	historySearchQuery = "",
 	onHistorySearchQuery,
@@ -316,8 +321,52 @@ export function WindowContainer({
 				return;
 			}
 		}
+		if (key.ctrl && (_input === "`" || _input === "~")) {
+			onToggleConsoleFocus?.();
+			return;
+		}
+
+		if (current.mode === "NORMAL" && key.ctrl && key.leftArrow) {
+			emit({ type: "PREVIOUS_WORKSPACE_TAB" });
+			return;
+		}
+		if (current.mode === "NORMAL" && key.ctrl && key.rightArrow) {
+			emit({ type: "NEXT_WORKSPACE_TAB" });
+			return;
+		}
+		if (
+			current.mode === "NORMAL" &&
+			key.ctrl &&
+			(key.upArrow || key.downArrow) &&
+			assessmentSubTabsActive
+		) {
+			emit({
+				type: key.upArrow ? "PREVIOUS_ASSESSMENT_TAB" : "NEXT_ASSESSMENT_TAB",
+			});
+			return;
+		}
+		if (
+			current.mode === "NORMAL" &&
+			key.shift &&
+			(key.leftArrow || key.rightArrow) &&
+			assessmentSubTabsActive
+		) {
+			emit({
+				type: key.leftArrow ? "PREVIOUS_ASSESSMENT_TAB" : "NEXT_ASSESSMENT_TAB",
+			});
+			return;
+		}
 
 		if (suspendEditorInput) return;
+
+		if (
+			focusTarget === "macro-console" &&
+			current.mode === "NORMAL" &&
+			key.return
+		) {
+			emit({ type: "ENTER_MACRO" });
+			return;
+		}
 
 		if (
 			current.mode === "NORMAL" &&
@@ -578,29 +627,6 @@ export function WindowContainer({
 				emit({ type: "INSERT_TEXT", text: _input });
 				triggerAutocomplete(current.draftText + _input, "command");
 			}
-			return;
-		}
-
-		if (current.mode === "NORMAL" && key.tab) {
-			if (key.meta) {
-				emit({
-					type: key.shift ? "PREVIOUS_WORKSPACE_TAB" : "NEXT_WORKSPACE_TAB",
-				});
-				return;
-			}
-			if (key.ctrl && assessmentSubTabsActive) {
-				emit({
-					type: key.shift ? "PREVIOUS_ASSESSMENT_TAB" : "NEXT_ASSESSMENT_TAB",
-				});
-				return;
-			}
-			emit({
-				type: key.shift
-					? assessmentSubTabsActive
-						? "PREVIOUS_ASSESSMENT_TAB"
-						: "PREVIOUS_WORKSPACE_TAB"
-					: "NEXT_WORKSPACE_TAB",
-			});
 			return;
 		}
 

@@ -52,6 +52,21 @@ export {
 	nextMacroSlot,
 	projectMacroSlots,
 } from "./macro-slots";
+export type {
+	CellSelection,
+	EditorFocusTarget,
+	EditorInteractionAction,
+	EditorInteractionState,
+	TextSelection,
+} from "./interaction-state";
+export {
+	focusForSection,
+	INITIAL_EDITOR_INTERACTION_STATE,
+	normalizeModeForFocus,
+	reduceEditorInteraction,
+	selectionBounds,
+	supportsVisual,
+} from "./interaction-state";
 
 export type {
 	WindowOverlay,
