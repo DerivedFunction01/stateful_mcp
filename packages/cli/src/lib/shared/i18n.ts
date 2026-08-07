@@ -136,7 +136,7 @@ const en: Record<string, string> = {
 	"workspace.scratchpadTitle": "RAPID CLINICAL DIFFERENTIAL SCRATCHPAD",
 	"workspace.scratchpadSubtitle": "Enter clinical text one cell at a time.",
 	"workspace.scratchpad.applyTo": "Apply to: {value}{count}",
-	"workspace.scratchpad.line": "Cell {value}: ",
+	"workspace.scratchpad.line": "[{value}] ",
 	"workspace.scratchpad.implicitMacro": "implicit",
 	"workspace.scratchpad.status": "status: ",
 	"workspace.scratchpad.status.active": "active",
@@ -164,7 +164,7 @@ const en: Record<string, string> = {
 	"workspace.scratchpad.noPins": "no pins",
 	"workspace.sectionScratchpad.title": "SECTION SCRATCHPAD",
 	"workspace.sectionScratchpad.hint": "Enter text for the pinned macro cells.",
-	"workspace.sectionScratchpad.cell": "Cell {value}: ",
+	"workspace.sectionScratchpad.cell": "[{value}] ",
 	"workspace.sectionScratchpad.footer":
 		"[ ↑/↓ ] Cells  [ Tab ] New cell  [ Enter ] Execute  [ Esc ] Cancel",
 	"workspace.sectionScratchpad.noPinnedMacros":

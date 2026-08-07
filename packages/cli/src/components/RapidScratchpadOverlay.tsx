@@ -266,6 +266,12 @@ export function RapidScratchpadOverlay({
 								{line}
 								{isActive ? "█" : ""}
 							</Text>
+							<Text dimColor>
+								{" ["}
+								{cells[idx]?.pinnedMacroIds.join(", ") ||
+									t("workspace.scratchpad.noPins")}
+								{"]"}
+							</Text>
 						</Box>
 					);
 				})}
