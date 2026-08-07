@@ -132,6 +132,7 @@ export interface MacroArgumentSpec {
 	target: { targetSchema: string; targetPath: string };
 	extraction: ValueSpec;
 	required?: boolean;
+	defaultValue?: string;
 	blankPolicy?: "reject" | "allow" | "skip";
 	autocomplete?: {
 		source: "dictionary" | "static" | "attribute_rules";

@@ -88,4 +88,61 @@ describe(" cell compiler", () => {
 			]),
 		);
 	});
+
+	it("compiles zero-argument macros with prefilled defaultValue strings through pattern extraction", async () => {
+		const ZERO_ARG_VITALS_MACRO = {
+			macroId: "v2-zero-vitals-1",
+			macroName: "normal_vitals",
+			version: 1,
+			status: "published" as const,
+			active: true,
+			root: {
+				roleName: "vitals",
+				targetSchema: "Observation",
+				outputCellKind: "structured" as const,
+			},
+			arguments: [
+				{
+					argumentId: "heart_rate",
+					name: "heart_rate",
+					roleName: "vitals.heart_rate",
+					target: { targetSchema: "Observation", targetPath: "rawTerm" },
+					defaultValue: "72",
+					extraction: {
+						kind: "scalar" as const,
+						patterns: ["(?<value>\\d{1,3})"],
+					},
+				},
+				{
+					argumentId: "blood_pressure",
+					name: "blood_pressure",
+					roleName: "vitals.blood_pressure",
+					target: { targetSchema: "Observation", targetPath: "rawTerm" },
+					defaultValue: "120/80",
+					extraction: {
+						kind: "scalar" as const,
+						patterns: ["(?<value>\\d{1,3}\\/\\d{1,3})"],
+					},
+				},
+			],
+		};
+
+		const compiler = new CellCompiler(
+			{
+				get: async (name: string) =>
+					name === "normal_vitals" ? ZERO_ARG_VITALS_MACRO : null,
+				list: async () => [ZERO_ARG_VITALS_MACRO],
+			},
+			createDefaultSchemaRegistry(),
+			undefined,
+			defaultProfile,
+		);
+
+		const result = await compiler.compile("^normal_vitals");
+		expect(result.plan).toBeDefined();
+		expect(result.diagnostics).toEqual([]);
+		expect(result.plan?.operations.length).toBe(2);
+		expect(result.plan?.operations[0]?.rawValue).toBe("72");
+		expect(result.plan?.operations[1]?.rawValue).toBe("120/80");
+	});
 });

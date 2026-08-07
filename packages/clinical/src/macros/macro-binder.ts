@@ -91,6 +91,19 @@ export function bindMacro(
 		});
 	});
 
+	// Apply default values for unsupplied arguments
+	for (const spec of definition.arguments) {
+		if (!boundIds.has(spec.argumentId) && spec.defaultValue !== undefined) {
+			boundIds.add(spec.argumentId);
+			bindings.push({
+				argumentId: spec.argumentId,
+				name: spec.name,
+				rawValue: spec.defaultValue,
+				source: "default",
+			});
+		}
+	}
+
 	// Enforce required arguments
 	for (const spec of definition.arguments) {
 		const required = spec.required ?? spec.extraction.required ?? false;
@@ -127,7 +140,7 @@ function resolveSpec(
 	}
 	if (
 		arg.match?.argumentId &&
-		(arg.source === "rule" || arg.source === "inferred")
+		(arg.source === "rule" || arg.source === "inferred" || arg.source === "default")
 	) {
 		return definition.arguments.find(
 			(spec) => spec.argumentId === arg.match?.argumentId,

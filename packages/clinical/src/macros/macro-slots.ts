@@ -1,4 +1,4 @@
-import type { MacroArgumentMatch, MacroCaptureSpan } from "./macro-binding";
+import type { MacroArgumentMatch, MacroArgumentSource, MacroCaptureSpan } from "./macro-binding";
 import type { MacroDefinition as Definition } from "./macro-definition";
 import { parseMacroLine } from "./macro-input-parser";
 import type { SyntaxProfile } from "./macro-profile";
@@ -16,13 +16,7 @@ export interface MacroSlotProjection {
 	extractionPattern?: string;
 	rawText: string;
 	displayText: string;
-	bindingSource?:
-		| "named"
-		| "positional"
-		| "inferred"
-		| "rule"
-		| "friendly"
-		| "accepted";
+	bindingSource?: MacroArgumentSource;
 	status: "unbound" | "bound" | "invalid" | "locked";
 	binding?: MacroSlotBinding;
 	diagnostics: string[];

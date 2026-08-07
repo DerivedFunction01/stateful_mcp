@@ -206,6 +206,35 @@ function matchDefinitionArguments(
 			});
 		}
 	}
+	// Match default values for unsupplied arguments
+	const matchedArgumentIds = new Set(
+		arguments_.map(
+			(arg) =>
+				arg.match?.argumentId ??
+				resolveNamedSpec(arg.name ?? "", definition.arguments)?.argumentId,
+		).filter(Boolean),
+	);
+	for (const spec of definition.arguments) {
+		if (!matchedArgumentIds.has(spec.argumentId) && spec.defaultValue !== undefined) {
+			const matched = matchSpec(
+				spec.defaultValue,
+				0,
+				spec,
+				[],
+				false,
+				false,
+			);
+			arguments_.push({
+				name: spec.name,
+				position: spec.position,
+				rawValue: matched?.rawValue ?? spec.defaultValue,
+				captures: matched?.captures,
+				source: "default",
+				match: matched ? createMatch(spec, "default", matched) : undefined,
+			});
+		}
+	}
+
 	return arguments_.sort(
 		(left, right) => (left.start ?? 0) - (right.start ?? 0),
 	);

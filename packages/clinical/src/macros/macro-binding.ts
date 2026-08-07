@@ -12,13 +12,22 @@ export interface MacroSourceLine {
 	macroName?: string;
 }
 
+export type MacroArgumentSource =
+	| "named"
+	| "positional"
+	| "inferred"
+	| "rule"
+	| "friendly"
+	| "accepted"
+	| "default";
+
 export interface MacroArgumentInput {
 	name?: string;
 	position?: number;
 	rawValue: string;
 	captures?: Record<string, string | undefined>;
 	items?: MacroListItemInput[];
-	source: "named" | "positional" | "inferred" | "rule" | "friendly";
+	source: MacroArgumentSource;
 	line?: number;
 	start?: number;
 	end?: number;
@@ -40,7 +49,7 @@ export interface MacroArgumentMatch {
 	argumentId: string;
 	occurrence?: number;
 	formId?: string;
-	source: "named" | "friendly" | "positional" | "inferred" | "rule";
+	source: MacroArgumentSource;
 	anchor?: MacroSpan;
 	extraction: MacroSpan;
 	friendlyText?: string;
@@ -85,13 +94,7 @@ export interface MacroArgumentBinding {
 	rawValue: string;
 	captures?: Record<string, string | undefined>;
 	items?: MacroListItemInput[];
-	source:
-		| "named"
-		| "positional"
-		| "inferred"
-		| "rule"
-		| "friendly"
-		| "accepted";
+	source: MacroArgumentSource;
 	start?: number;
 	end?: number;
 	match?: MacroArgumentMatch;
