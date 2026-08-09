@@ -690,6 +690,7 @@ export async function createRepo(config: RepoConfig): Promise<RepoAdapter> {
 			adapter.conceptStore,
 			adapter.persistentExpressionStore,
 			optimizedResolver,
+			adapter.conceptFilterStore,
 		);
 	}
 

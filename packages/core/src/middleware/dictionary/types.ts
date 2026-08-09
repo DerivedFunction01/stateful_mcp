@@ -100,9 +100,6 @@ export interface RelatedConceptResult {
 	depth: number;
 }
 
-/** Classification defining the type of target assignment (e.g. 'MAIN_TERM' or 'METRIC') */
-export type TargetAssignment = string;
-
 /**
  * Defines a custom keyword pattern or alias mapping to map shorthand terms to concepts.
  */
@@ -117,8 +114,6 @@ export interface CustomExpression {
 	regexPattern: string;
 	/** If true, regex matches ignore letter casing (case-insensitive flag) */
 	isCaseInsensitive: boolean;
-	/** Domain-specific role/assignment classification for this expression */
-	targetAssignment?: TargetAssignment;
 	/** The target Concept ID this expression resolves/maps to */
 	conceptId?: string;
 	/** Static base scoring priority (higher values rank higher) */
@@ -219,8 +214,8 @@ export interface DictionaryConfig {
 	relations?: ConceptRelation[];
 	/** Pre-seeded shorthand-to-concept expression mappings */
 	expressions?: CustomExpression[];
-	/** List of allowed values for targetAssignment validation */
-	allowedTargetAssignments?: string[];
+	/** Role-scoped concept eligibility filters */
+	conceptFilters?: ConceptFilter[];
 	/** The default namespace identifier used for newly registered dynamic concepts */
 	defaultDynamicNamespace?: string;
 	/** Predefined set of valid workspace scopes */

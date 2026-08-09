@@ -28,7 +28,7 @@ export interface ExpressionSearchRequest {
 	query?: string;
 	lookupTerm?: string;
 	lookupPrefix?: string;
-	targetAssignments?: string[];
+	roleName?: string;
 	activeOnly?: boolean;
 	scope?: OwnerScope;
 	limit?: number;
@@ -54,6 +54,7 @@ export interface ConceptStore {
 		query: string,
 		namespaceCode?: string,
 		limit?: number,
+		roleName?: string,
 	): Promise<Concept[]>;
 
 	/**

@@ -24,7 +24,6 @@ const expression: CustomExpression = {
 	term: "example",
 	regexPattern: "\\bexample\\b",
 	isCaseInsensitive: true,
-	targetAssignment: "MAIN_TERM",
 	conceptId: "c1",
 	priorityWeight: 1,
 	active: true,
@@ -41,13 +40,35 @@ describe("dictionary resolver integration", () => {
 			filterId: "deny",
 			conceptId: "c1",
 			policy: "blacklist",
-			roleName: "MAIN_TERM",
+			roleName: "ObservationEvent.concept",
 		});
 		const result = await new InMemoryConceptResolver({
 			filterStore: filters,
-			filterRole: "MAIN_TERM",
+			filterRole: "ObservationEvent.concept",
 		}).resolve("example", concepts, expressions, []);
 		expect(result.status).toBe("NOT_FOUND");
+	});
+
+	test("shares expressions while whitelisting concepts by role", async () => {
+		const concepts = createMemoryConceptStore();
+		const expressions = createMemoryExpressionStore();
+		await concepts.addConcept(concept);
+		await expressions.save(expression, { level: "global" });
+		const filters = new InMemoryConceptFilterStore();
+		await filters.set({
+			filterId: "allow",
+			conceptId: "c1",
+			policy: "whitelist",
+			roleName: "ObservationEvent.concept",
+		});
+
+		const result = await new InMemoryConceptResolver({
+			filterStore: filters,
+			filterRole: "ObservationEvent.concept",
+		}).resolve("example", concepts, expressions, []);
+
+		expect(result.status).toBe("FOUND");
+		expect(result.results[0]?.conceptId).toBe("c1");
 	});
 
 	test("falls back to a dictionary source on local miss", async () => {

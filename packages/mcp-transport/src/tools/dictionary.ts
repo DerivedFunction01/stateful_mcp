@@ -8,6 +8,7 @@ import {
 	buildLimitField,
 	clampLimit,
 	DictionaryStore,
+	InMemoryConceptFilterStore,
 	InMemoryConceptResolver,
 	loadMiddlewareConfig,
 	resolveAboutOrExamples,
@@ -107,6 +108,84 @@ function registerAllTools(
 					isError: true,
 				};
 			}
+		},
+	);
+
+	server.registerTool(
+		"dictionary_set_concept_filter",
+		{
+			description:
+				"Allow or block a concept for a canonical schema-field role.",
+			inputSchema: {
+				filter_id: z.string().min(1).describe("Stable filter identifier."),
+				concept_ref: z.string().min(1).describe("Concept ID or namespace::code."),
+				role_name: z.string().min(1).describe("Canonical schema-field role."),
+				policy: z.enum(["whitelist", "blacklist"]),
+				active: z.boolean().optional().default(true),
+			},
+		},
+		async ({ filter_id, concept_ref, role_name, policy, active }) => {
+			try {
+				const filters = store.getConceptFilterStore();
+				if (!filters) throw new Error("Concept filters are not configured.");
+				const conceptId = await store.resolveConceptId(concept_ref);
+				if (!conceptId)
+					throw new Error(`Concept reference "${concept_ref}" not found.`);
+				await filters.set({
+					filterId: filter_id,
+					conceptId,
+					roleName: role_name,
+					policy,
+					active,
+				});
+				return { content: [{ type: "text" as const, text: JSON.stringify({ filter_id }) }] };
+			} catch (err: any) {
+				return {
+					content: [{ type: "text" as const, text: err.message || String(err) }],
+					isError: true,
+				};
+			}
+		},
+	);
+
+	server.registerTool(
+		"dictionary_list_concept_filters",
+		{
+			description: "List concept eligibility filters for a schema-field role.",
+			inputSchema: {
+				role_name: z.string().min(1).describe("Canonical schema-field role."),
+			},
+		},
+		async ({ role_name }) => {
+			const filters = store.getConceptFilterStore();
+			if (!filters)
+				return {
+					content: [{ type: "text" as const, text: "Concept filters are not configured." }],
+					isError: true,
+				};
+			return {
+				content: [
+					{ type: "text" as const, text: JSON.stringify(await filters.listByRole(role_name)) },
+				],
+			};
+		},
+	);
+
+	server.registerTool(
+		"dictionary_delete_concept_filter",
+		{
+			description: "Delete a concept eligibility filter.",
+			inputSchema: { filter_id: z.string().describe("Filter identifier.") },
+		},
+		async ({ filter_id }) => {
+			const filters = store.getConceptFilterStore();
+			if (!filters)
+				return {
+					content: [{ type: "text" as const, text: "Concept filters are not configured." }],
+					isError: true,
+				};
+			await filters.delete(filter_id);
+			return { content: [{ type: "text" as const, text: JSON.stringify({ filter_id }) }] };
 		},
 	);
 
@@ -245,11 +324,6 @@ function registerAllTools(
 			.describe(
 				"The target Concept reference (UUID or 'NAMESPACE::CODE' coordinate).",
 			),
-		target_assignment: z
-			.string()
-			.optional()
-			.default("MAIN_TERM")
-			.describe("The role/assignment classification."),
 		regex_pattern: z
 			.string()
 			.optional()
@@ -291,7 +365,6 @@ function registerAllTools(
 				const {
 					term,
 					concept_ref,
-					target_assignment,
 					regex_pattern,
 					priority_weight,
 					is_case_insensitive,
@@ -312,7 +385,6 @@ function registerAllTools(
 						term,
 						regexPattern: regex_pattern || term,
 						isCaseInsensitive: is_case_insensitive !== false,
-						targetAssignment: target_assignment || "MAIN_TERM",
 						conceptId,
 						priorityWeight: priority_weight || 1,
 						active: true,
@@ -354,10 +426,6 @@ function registerAllTools(
 			.describe(
 				"New target Concept reference (UUID or 'NAMESPACE::CODE' coordinate).",
 			),
-		target_assignment: z
-			.string()
-			.optional()
-			.describe("New target assignment classification."),
 		regex_pattern: z
 			.string()
 			.optional()
@@ -398,7 +466,6 @@ function registerAllTools(
 					dict_entry_id,
 					term,
 					concept_ref,
-					target_assignment,
 					regex_pattern,
 					priority_weight,
 					is_case_insensitive,
@@ -413,8 +480,6 @@ function registerAllTools(
 				if (regex_pattern !== undefined) updates.regexPattern = regex_pattern;
 				if (is_case_insensitive !== undefined)
 					updates.isCaseInsensitive = is_case_insensitive;
-				if (target_assignment !== undefined)
-					updates.targetAssignment = target_assignment;
 				if (priority_weight !== undefined)
 					updates.priorityWeight = priority_weight;
 
@@ -766,8 +831,15 @@ async function main() {
 	config = await loadMiddlewareConfig(workspaceRoot);
 	validateMiddlewareConfig(config);
 
-	const dictResolver = new InMemoryConceptResolver();
-	dictionaryStore = new DictionaryStore(dictResolver);
+	const conceptFilterStore = new InMemoryConceptFilterStore();
+	const dictResolver = new InMemoryConceptResolver({ filterStore: conceptFilterStore });
+	dictionaryStore = new DictionaryStore(
+		dictResolver,
+		undefined,
+		undefined,
+		undefined,
+		conceptFilterStore,
+	);
 
 	if (config.dictionary_state) {
 		try {

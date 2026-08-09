@@ -5,6 +5,10 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
+import type { ConceptFilterStore } from "@stateful-mcp/core";
+import { InMemoryConceptFilterStore } from "@stateful-mcp/core/middleware/dictionary/filters";
+import { KvConceptFilterStore } from "@stateful-mcp/core/adapters/storage/simple/create-concept-filter-store";
+import { SqlConceptFilterStore } from "@stateful-mcp/core/adapters/storage/sql/dict-filter-store";
 import { createEventStore as createSimpleEventStore } from "@stateful-mcp/core/adapters/storage/simple/create-event-store";
 import { JsonlKvBackend as SimpleJsonlKvBackend } from "@stateful-mcp/core/adapters/storage/simple/jsonl/backend";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
@@ -53,6 +57,12 @@ import type { NotebookSessionStore } from "../notebook/notebook-session-store";
 import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store";
 import type { PatientStore } from "../stores/patients/interfaces";
 import { KvPatientStore } from "../stores/patients/kv-patient-store";
+import {
+	KvSetupSourceStore,
+	MemorySetupSourceStore,
+	SqlSetupSourceStore,
+	type SetupSourceStore,
+} from "../setup";
 import { SqlPatientStore } from "../stores/patients/sql-patient-store";
 import { KvProfileStore } from "../stores/profiles/kv-profile-store";
 import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
@@ -78,6 +88,8 @@ export interface StoreBuilderConfig {
 }
 
 export interface StoreBuilderResult {
+	conceptFilterStore: ConceptFilterStore;
+	setupSourceStore: SetupSourceStore;
 	eventStore: EventStore;
 	workspaceStore: WorkspaceStore;
 	cellStore: CellStore;
@@ -129,6 +141,8 @@ async function createMemoryStores(): Promise<StoreBuilderResult> {
 	);
 	const backend = new MemoryKvBackend();
 	return {
+		conceptFilterStore: new InMemoryConceptFilterStore(),
+		setupSourceStore: new MemorySetupSourceStore(),
 		eventStore: createEventStore(eventStorage),
 		workspaceStore: new KvWorkspaceStore(backend),
 		cellStore: new KvCellStore(backend),
@@ -159,7 +173,19 @@ async function createJsonlStores(
 	);
 	const backend = new JsonlKvBackend({ dataFilePath: `${basePath}.v2.jsonl` });
 	await backend.load();
+	const filterBackend = new SimpleJsonlKvBackend(
+		`${basePath}.concept-filters.jsonl`,
+		`${basePath}.concept-filters.jsonl`,
+	);
+	await filterBackend.load();
+	const setupBackend = new SimpleJsonlKvBackend(
+		`${basePath}.setup.jsonl`,
+		`${basePath}.setup.jsonl`,
+	);
+	await setupBackend.load();
 	return {
+		conceptFilterStore: new KvConceptFilterStore(filterBackend),
+		setupSourceStore: new KvSetupSourceStore(setupBackend),
 		eventStore: createEventStore(eventStorage),
 		workspaceStore: new KvWorkspaceStore(backend),
 		cellStore: new KvCellStore(backend),
@@ -184,7 +210,11 @@ async function createSqliteStores(dbPath: string): Promise<StoreBuilderResult> {
 	const backend = await SqlBackend.connect(dialect, dbPath);
 	const executor = new SqlExecutor(backend);
 	const eventStorage = await createSqlEventStore(dialect, dbPath, backend);
+	const conceptFilterStore = new SqlConceptFilterStore(backend);
+	await conceptFilterStore.initialize();
 	return {
+		conceptFilterStore,
+		setupSourceStore: new SqlSetupSourceStore(dialect, executor),
 		eventStore: createEventStore(eventStorage),
 		workspaceStore: new SqlWorkspaceStore(dialect, executor),
 		cellStore: new SqlCellStore(dialect, executor),

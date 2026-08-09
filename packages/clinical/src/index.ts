@@ -113,6 +113,7 @@ export * from "./stores/patients/kv-patient-store";
 export * from "./stores/patients/sql-patient-store";
 export * from "./stores/profiles/kv-profile-store";
 export * from "./stores/profiles/profile-store";
+export * from "./setup";
 export * from "./stores/profiles/sql-profile-store";
 export * from "./stores/prose-templates/interfaces";
 export * from "./stores/prose-templates/kv-clinical-prose-template-store";

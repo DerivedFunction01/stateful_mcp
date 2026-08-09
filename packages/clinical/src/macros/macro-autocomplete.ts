@@ -587,12 +587,29 @@ export class MacroAutocomplete {
 			);
 			roleName = argument?.roleName;
 		}
-		const expressions = await search({
+		let expressions = await search({
 			lookupPrefix: query.trim().toLocaleLowerCase(),
-			targetAssignments: roleName ? [roleName] : undefined,
+			roleName,
 			activeOnly: true,
 			limit: MAX_SUGGESTIONS,
 		});
+		if (roleName && this.deps.filterStore) {
+			expressions = await Promise.all(
+				expressions.map(async (expression) => {
+					if (!expression.conceptId) return null;
+					const filters = await this.deps.filterStore!.listForConceptRole(
+						expression.conceptId,
+						roleName!,
+					);
+					return isConceptAllowed(filters, roleName!) ? expression : null;
+				}),
+			).then((items) =>
+				items.filter(
+					(expression): expression is (typeof expressions)[number] =>
+						Boolean(expression),
+				),
+			);
+		}
 		const normalizedQuery = query.trim().toLocaleLowerCase();
 		return expressions
 			.filter(

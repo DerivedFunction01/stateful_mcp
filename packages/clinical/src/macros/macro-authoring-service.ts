@@ -120,7 +120,7 @@ export class MacroAuthoringService {
 				if (!prefix.trim()) continue;
 				const expressions = (await search.call(this.deps.dictionary, {
 					lookupPrefix: prefix.toLocaleLowerCase(),
-					targetAssignments: [argument.roleName],
+					roleName: argument.roleName,
 					activeOnly: true,
 					limit: 20,
 				})) as MacroExpressionCandidate[];
@@ -183,7 +183,7 @@ export class MacroAuthoringService {
 				: slot.rawText.trim();
 			const expressions = (await search.call(this.deps.dictionary, {
 				lookupPrefix: lookupTerm.toLocaleLowerCase().split(/\s+/)[0],
-				targetAssignments: [argument.roleName],
+				roleName: argument.roleName,
 				activeOnly: true,
 				limit: 20,
 			})) as MacroExpressionCandidate[];

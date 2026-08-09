@@ -44,11 +44,7 @@ function makeExpressionDictionary(
 				(expression) =>
 					(expression.lookupTerm ?? expression.term).startsWith(
 						request.lookupPrefix ?? "",
-					) &&
-					(!request.targetAssignments?.length ||
-						request.targetAssignments.includes(
-							expression.targetAssignment ?? "",
-						)),
+					),
 			);
 		},
 	};
@@ -565,7 +561,6 @@ describe("MacroAutocomplete", () => {
 						lookupTerm: "sob",
 						regexPattern: "\\bsob\\b",
 						isCaseInsensitive: true,
-						targetAssignment: "observation.concept",
 						conceptId: "c1",
 						priorityWeight: 1,
 						active: true,
@@ -576,7 +571,6 @@ describe("MacroAutocomplete", () => {
 						lookupTerm: "unbound",
 						regexPattern: "\\bunbound\\b",
 						isCaseInsensitive: true,
-						targetAssignment: "observation.concept",
 						priorityWeight: 1,
 						active: true,
 					},
@@ -625,7 +619,6 @@ describe("MacroAutocomplete", () => {
 					lookupTerm: "harry potter",
 					regexPattern: "harry potter",
 					isCaseInsensitive: true,
-					targetAssignment: "note.title",
 					conceptId: "short-concept",
 					priorityWeight: 1,
 					active: true,
@@ -636,7 +629,6 @@ describe("MacroAutocomplete", () => {
 					lookupTerm: "harry potter and the deathly hallows",
 					regexPattern: "harry potter and the deathly hallows",
 					isCaseInsensitive: true,
-					targetAssignment: "note.title",
 					conceptId: "long-concept",
 					priorityWeight: 1,
 					active: true,
@@ -676,7 +668,6 @@ describe("MacroAutocomplete", () => {
 							lookupTerm: "hp",
 							regexPattern: "\\bhp\\b",
 							isCaseInsensitive: true,
-							targetAssignment: "note.title",
 							conceptId: "c-hp",
 							priorityWeight: 1,
 							active: true,
@@ -706,7 +697,6 @@ describe("MacroAutocomplete", () => {
 							lookupTerm: "hp",
 							regexPattern: "\\bhp\\b",
 							isCaseInsensitive: true,
-							targetAssignment: "note.title",
 							conceptId: "c-hp",
 							priorityWeight: 1,
 							active: true,
@@ -745,7 +735,6 @@ describe("MacroAutocomplete", () => {
 							lookupTerm: "hp",
 							regexPattern: "\\bhp\\b",
 							isCaseInsensitive: true,
-							targetAssignment: "note.title",
 							conceptId: "c-hp",
 							priorityWeight: 1,
 							active: true,

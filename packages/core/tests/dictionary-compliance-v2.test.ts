@@ -17,7 +17,6 @@ const expression = (
 	term,
 	regexPattern: term,
 	isCaseInsensitive: true,
-	targetAssignment: "MAIN_TERM",
 	conceptId,
 	priorityWeight: 1,
 	active: true,

@@ -94,7 +94,6 @@ describe(" value foundations", () => {
 					lookupTerm: "hp",
 					regexPattern: "\\\\bhp\\\\b",
 					isCaseInsensitive: true,
-					targetAssignment: "note.title",
 					conceptId: "c-harry-potter",
 					priorityWeight: 1,
 					active: true,
@@ -103,7 +102,6 @@ describe(" value foundations", () => {
 		};
 
 		const resolved = await resolveConceptValue("hp", dictionary, {
-			targetAssignment: "note.title",
 		});
 
 		expect(resolved.diagnostics).toEqual([]);
@@ -111,6 +109,32 @@ describe(" value foundations", () => {
 			conceptId: "c-harry-potter",
 			display: "Harry Potter",
 		});
+	});
+
+	it("rejects unrestricted ambiguous concept text", async () => {
+		const dictionary = {
+			search: async () => [
+				{
+					id: "c-right-anatomy",
+					namespaceCode: "SNOMED",
+					standardCode: "R-ANATOMY",
+					display: "Right",
+					active: true,
+				},
+				{
+					id: "c-right-direction",
+					namespaceCode: "LOCAL",
+					standardCode: "R-DIRECTION",
+					display: "Right",
+					active: true,
+				},
+			],
+		};
+
+		const result = await resolveConceptValue("right", dictionary);
+
+		expect(result.value).toBeUndefined();
+		expect(result.diagnostics[0]?.code).toBe("concept_ambiguous");
 	});
 
 	it("resolves a canonical concept prefix when no longer expression continues it", async () => {
@@ -139,7 +163,6 @@ describe(" value foundations", () => {
 			"harry potter and the",
 			dictionary,
 			{
-				targetAssignment: "note.title",
 			},
 		);
 

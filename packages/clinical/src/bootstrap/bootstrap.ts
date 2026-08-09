@@ -86,11 +86,18 @@ async function buildClinicalBootstrap(
 	stores: StoreBuilderResult,
 	config: Omit<ClinicalBootstrapConfig, "backend">,
 ): Promise<ClinicalBootstrapResult> {
-	const dictionary = new DictionaryStore(new InMemoryConceptResolver());
+	const dictionary = new DictionaryStore(
+		new InMemoryConceptResolver({ filterStore: stores.conceptFilterStore }),
+		undefined,
+		undefined,
+		undefined,
+		stores.conceptFilterStore,
+	);
 
 	const coldStart = await initializeColdStart({
 		dictionary,
 		macroStore: stores.macroStore as ColdStartOptions["macroStore"],
+		conceptFilterStore: stores.conceptFilterStore,
 		commandProfile: config.syntaxProfile,
 		numericalProfile: config.numericalProfile,
 		dictionaryConfig: config.dictionaryConfig,

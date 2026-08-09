@@ -65,7 +65,6 @@ describe(" cell compiler", () => {
 						lookupTerm: "hp",
 						regexPattern: "\\\\bhp\\\\b",
 						isCaseInsensitive: true,
-						targetAssignment: "note.title",
 						conceptId: "c-harry-potter",
 						priorityWeight: 1,
 						active: true,

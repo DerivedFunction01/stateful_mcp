@@ -415,7 +415,7 @@ export class SimplePersistentExpressionStore
 		query?: string;
 		lookupTerm?: string;
 		lookupPrefix?: string;
-		targetAssignments?: string[];
+		roleName?: string;
 		activeOnly?: boolean;
 		scope?: { level: string; userId?: string | null };
 		limit?: number;
@@ -435,11 +435,6 @@ export class SimplePersistentExpressionStore
 		return visible
 			.filter((expression) => {
 				if (request.activeOnly && !expression.active) return false;
-				if (
-					request.targetAssignments?.length &&
-					!request.targetAssignments.includes(expression.targetAssignment ?? "")
-				)
-					return false;
 				const key = normalizeLookupTerm(
 					expression.lookupTerm ?? expression.term,
 				);

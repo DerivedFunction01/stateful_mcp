@@ -22,12 +22,13 @@ import type {
 	TraversalDirection,
 	WorkspaceDefinition,
 } from "./types";
+import type { ConceptFilterStore } from "./interfaces";
+import { isConceptAllowed } from "./filters";
 
 // REFERENCE: docs/dictionary.md
 export class DictionaryStore {
 	private relations: ConceptRelation[] = [];
 	private metrics: ResolutionMetric[] = [];
-	private allowedTargetAssignments?: string[];
 	private workspaces: WorkspaceDefinition[] = [];
 	private allowedTags?: string[];
 	private exposeTagsAsEnum = false;
@@ -44,14 +45,31 @@ export class DictionaryStore {
 			term: string,
 			context?: Record<string, any>,
 		) => Promise<ResolveResponse | null>,
+		private filterStore?: ConceptFilterStore,
 	) {}
+
+	public getConceptFilterStore(): ConceptFilterStore | undefined {
+		return this.filterStore;
+	}
 
 	public async search(
 		query: string,
 		namespaceCode?: string,
 		limit: number = 50,
+		roleName?: string,
 	): Promise<Concept[]> {
-		return this.conceptStore.search(query, namespaceCode, limit);
+		const concepts = await this.conceptStore.search(query, namespaceCode, limit);
+		if (!roleName || !this.filterStore) return concepts;
+		const allowed = await Promise.all(
+			concepts.map(async (concept) => {
+				const filters = await this.filterStore!.listForConceptRole(
+					concept.id,
+					roleName,
+				);
+				return isConceptAllowed(filters, roleName) ? concept : null;
+			}),
+		);
+		return allowed.filter((concept): concept is Concept => Boolean(concept));
 	}
 
 	public async searchExpressionCandidates(
@@ -61,23 +79,31 @@ export class DictionaryStore {
 		const scope: OwnerScope = context?.user_id
 			? { level: "user", userId: context.user_id }
 			: { level: "global" };
-		if (this.expressionStore.searchCandidates) {
-			return this.expressionStore.searchCandidates({
+		let expressions = this.expressionStore.searchCandidates
+			? await this.expressionStore.searchCandidates({
 				...request,
 				scope: request.scope ?? scope,
-			});
+			})
+			: await this.expressionStore.list(scope, true);
+		if (request.roleName && this.filterStore) {
+			expressions = await Promise.all(
+				expressions.map(async (expression) => {
+					if (!expression.conceptId) return null;
+					const filters = await this.filterStore!.listForConceptRole(
+						expression.conceptId,
+						request.roleName!,
+					);
+					return isConceptAllowed(filters, request.roleName!)
+						? expression
+						: null;
+				}),
+			).then((items) =>
+				items.filter((expression): expression is CustomExpression => Boolean(expression)),
+			);
 		}
-		const expressions = await this.expressionStore.list(scope, true);
 		const prefix = request.lookupPrefix?.toLocaleLowerCase();
 		return expressions
 			.filter((expression) => (request.activeOnly ? expression.active : true))
-			.filter((expression) =>
-				request.targetAssignments?.length
-					? request.targetAssignments.includes(
-							expression.targetAssignment ?? "",
-						)
-					: true,
-			)
 			.filter((expression) =>
 				prefix
 					? (expression.lookupTerm ?? expression.term)
@@ -89,9 +115,6 @@ export class DictionaryStore {
 	}
 
 	public async loadConfig(config: DictionaryConfig): Promise<void> {
-		if (config.allowedTargetAssignments) {
-			this.allowedTargetAssignments = config.allowedTargetAssignments;
-		}
 		if (config.workspaces) {
 			this.workspaces = config.workspaces;
 		}
@@ -137,6 +160,11 @@ export class DictionaryStore {
 		if (config.expressions) {
 			for (const expr of config.expressions) {
 				await this.addExpression(expr);
+			}
+		}
+		if (config.conceptFilters && this.filterStore) {
+			for (const filter of config.conceptFilters) {
+				await this.filterStore.set(filter);
 			}
 		}
 	}
@@ -187,10 +215,6 @@ export class DictionaryStore {
 
 	public getAllowedTags(): string[] {
 		return this.allowedTags || [];
-	}
-
-	public getAllowedTargetAssignments(): string[] | undefined {
-		return this.allowedTargetAssignments;
 	}
 
 	public shouldExposeTagsAsEnum(): boolean {
@@ -413,18 +437,6 @@ export class DictionaryStore {
 	): Promise<string> {
 		this.checkScopeAccess(expr.context, callerContext);
 
-		if (
-			this.allowedTargetAssignments &&
-			this.allowedTargetAssignments.length > 0
-		) {
-			if (
-				!this.allowedTargetAssignments.includes(expr.targetAssignment ?? "")
-			) {
-				throw new Error(
-					`Target assignment "${expr.targetAssignment}" is not in the allowed list of assignments: [${this.allowedTargetAssignments.join(", ")}]`,
-				);
-			}
-		}
 		const workspaceId = expr.context?.workspace_id || "global";
 		if (this.workspaces.length > 0 && workspaceId !== "global") {
 			const exists = this.workspaces.some((w) => w.id === workspaceId);
@@ -488,19 +500,6 @@ export class DictionaryStore {
 			expr.regexPattern = updates.regexPattern;
 		if (updates.isCaseInsensitive !== undefined)
 			expr.isCaseInsensitive = updates.isCaseInsensitive;
-		if (updates.targetAssignment !== undefined) {
-			if (
-				this.allowedTargetAssignments &&
-				this.allowedTargetAssignments.length > 0
-			) {
-				if (!this.allowedTargetAssignments.includes(updates.targetAssignment)) {
-					throw new Error(
-						`Target assignment "${updates.targetAssignment}" is not in the allowed list of assignments: [${this.allowedTargetAssignments.join(", ")}]`,
-					);
-				}
-			}
-			expr.targetAssignment = updates.targetAssignment;
-		}
 		if (updates.conceptId !== undefined) expr.conceptId = updates.conceptId;
 		if (updates.priorityWeight !== undefined)
 			expr.priorityWeight = updates.priorityWeight;

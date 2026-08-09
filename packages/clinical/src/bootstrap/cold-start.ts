@@ -1,4 +1,9 @@
-import type { DictionaryConfig, DictionaryStore } from "@stateful-mcp/core";
+import type {
+	ConceptFilter,
+	ConceptFilterStore,
+	DictionaryConfig,
+	DictionaryStore,
+} from "@stateful-mcp/core";
 import {
 	type CommandSyntaxProfile,
 	createCommandSyntaxProfile,
@@ -24,6 +29,7 @@ import {
 
 export interface ColdStartOptions {
 	dictionary: DictionaryStore;
+	conceptFilterStore?: ConceptFilterStore;
 	macroStore: MacroStore & { set(macro: MacroDefinition): Promise<void> };
 	commandProfile?: CommandSyntaxProfile;
 	numericalProfile?: NumericalSyntaxProfile;
@@ -62,15 +68,6 @@ export async function initializeColdStart(
 			bootstrapNumericalDefaults,
 		);
 	await options.dictionary.loadConfig({
-		allowedTargetAssignments: [
-			"PrimaryDiagnosis.id",
-			"PrimaryDiagnosis.diagnosis",
-			"primary_diagnosis.diagnosis",
-			"assessment.concept",
-			"note.title",
-			"Observation.concept",
-			"Medication.medication",
-		],
 		allowedTags: ["clinical", "workspace", "v2"],
 		defaultWorkspaceId: "global",
 		concepts: [
@@ -180,7 +177,6 @@ export async function initializeColdStart(
 				lookupTerm: "sob",
 				regexPattern: "\\bsob\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "assessment.concept",
 				conceptId: "c-sob",
 				priorityWeight: 1,
 				active: true,
@@ -192,7 +188,6 @@ export async function initializeColdStart(
 				lookupTerm: "dyspnea",
 				regexPattern: "\\bdyspnea\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "assessment.concept",
 				conceptId: "c-sob",
 				priorityWeight: 1,
 				active: true,
@@ -204,7 +199,6 @@ export async function initializeColdStart(
 				lookupTerm: "febrile",
 				regexPattern: "\\bfebrile\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "primary_diagnosis.diagnosis",
 				conceptId: "c-fever",
 				priorityWeight: 1,
 				active: true,
@@ -216,7 +210,6 @@ export async function initializeColdStart(
 				lookupTerm: "cp",
 				regexPattern: "\\bcp\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "primary_diagnosis.diagnosis",
 				conceptId: "c-chest-pain",
 				priorityWeight: 1,
 				active: true,
@@ -228,7 +221,6 @@ export async function initializeColdStart(
 				lookupTerm: "harry potter",
 				regexPattern: "\\bharry\\s+potter\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "note.title",
 				conceptId: "c-harry-potter",
 				priorityWeight: 1,
 				active: true,
@@ -241,7 +233,6 @@ export async function initializeColdStart(
 				regexPattern:
 					"\\bharry\\s+potter\\s+and\\s+the\\s+deathly\\s+hallows\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "note.title",
 				conceptId: "c-deathly-hallows",
 				priorityWeight: 2,
 				active: true,
@@ -253,7 +244,6 @@ export async function initializeColdStart(
 				lookupTerm: "hp",
 				regexPattern: "\\bhp\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "note.title",
 				conceptId: "c-harry-potter",
 				priorityWeight: 1,
 				active: true,
@@ -265,7 +255,6 @@ export async function initializeColdStart(
 				lookupTerm: "lotr",
 				regexPattern: "\\blotr\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "note.title",
 				conceptId: "c-lord-of-the-rings",
 				priorityWeight: 1,
 				active: true,
@@ -277,7 +266,6 @@ export async function initializeColdStart(
 				lookupTerm: "hg",
 				regexPattern: "\\bhg\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "note.title",
 				conceptId: "c-hunger-games",
 				priorityWeight: 1,
 				active: true,
@@ -286,6 +274,30 @@ export async function initializeColdStart(
 		],
 		...options.dictionaryConfig,
 	});
+	if (options.conceptFilterStore) {
+		const defaultClinicalConcepts = [
+			"c-pneumonia",
+			"c-sob",
+			"c-fever",
+			"c-chest-pain",
+			"c-cough",
+			"c-headache",
+		];
+		const roles = ["ObservationEvent.concept", "PrimaryDiagnosis.diagnosis"];
+		for (const roleName of roles) {
+			for (const conceptId of defaultClinicalConcepts) {
+				if (!(await options.dictionary.getConcept(conceptId))) continue;
+				const filter: ConceptFilter = {
+					filterId: `cold-start:${roleName}:${conceptId}`,
+					conceptId,
+					policy: "whitelist",
+					roleName,
+					active: true,
+				};
+				await options.conceptFilterStore.set(filter);
+			}
+		}
+	}
 	await seedDefaultMacros(options.macroStore);
 	const valueRules = new ValueRuleRegistry();
 	if (options.valueRules?.length)

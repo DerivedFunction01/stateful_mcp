@@ -25,13 +25,11 @@ export async function runDictionaryTests() {
 				term: "heart attack",
 				regexPattern: "\\bheart\\s+attack\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "c_mi",
 				priorityWeight: 5,
 				active: true,
 			},
 		],
-		allowedTargetAssignments: ["MAIN_TERM", "METRIC"],
 		defaultDynamicNamespace: "LOCAL_CLINIC",
 		workspaces: [{ id: "dept_cardiology", name: "Cardiology" }],
 		allowedTags: ["clinical", "cardiology"],
@@ -55,36 +53,12 @@ export async function runDictionaryTests() {
 	}
 	console.log("✓ Dictionary successfully loaded concept description.");
 
-	// Verify allowedTargetAssignments validation
-	try {
-		await dictStore.addExpression({
-			term: "unsupported assignment test",
-			regexPattern: "test",
-			isCaseInsensitive: true,
-			targetAssignment: "UNSUPPORTED",
-			conceptId: "c_mi",
-			priorityWeight: 1,
-			active: true,
-		});
-		throw new Error(
-			"Should have thrown error on unsupported target assignment",
-		);
-	} catch (err: any) {
-		if (!err.message.includes("is not in the allowed list of assignments")) {
-			throw err;
-		}
-	}
-	console.log(
-		"✓ Dictionary successfully validated targetAssignment against allowed list.",
-	);
-
 	// Verify workspace validation
 	try {
 		await dictStore.addExpression({
 			term: "unsupported workspace test",
 			regexPattern: "test",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_mi",
 			priorityWeight: 1,
 			active: true,
@@ -108,7 +82,6 @@ export async function runDictionaryTests() {
 			term: "unsupported tag test",
 			regexPattern: "test",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_mi",
 			priorityWeight: 1,
 			active: true,
@@ -206,7 +179,6 @@ export async function runDictionaryTests() {
 				term: "heart attack",
 				regexPattern: "\\bheart\\s+attack\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "p_c_mi",
 				priorityWeight: 5,
 				active: true,
@@ -241,7 +213,6 @@ export async function runDictionaryTests() {
 				term: "heart attack",
 				regexPattern: "\\bheart\\s+attack\\b",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "g_c_mi",
 				priorityWeight: 5,
 				active: true,
@@ -456,7 +427,6 @@ export async function runDictionaryTests() {
 			term: "temp term",
 			regexPattern: "temp",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_1",
 			active: true,
 			priorityWeight: 1,
@@ -478,7 +448,6 @@ export async function runDictionaryTests() {
 			term: "used term",
 			regexPattern: "used",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_1",
 			active: true,
 			priorityWeight: 1,
@@ -503,7 +472,6 @@ export async function runDictionaryTests() {
 			term: "another term",
 			regexPattern: "another",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_1",
 			active: true,
 			priorityWeight: 1,
@@ -577,7 +545,6 @@ export async function runDictionaryTests() {
 				term: "test",
 				regexPattern: "test",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "c_global",
 				priorityWeight: 1,
 				active: true,
@@ -602,7 +569,6 @@ export async function runDictionaryTests() {
 				term: "test",
 				regexPattern: "test",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "c_workspace",
 				priorityWeight: 1,
 				active: true,
@@ -626,7 +592,6 @@ export async function runDictionaryTests() {
 			term: "user term",
 			regexPattern: "user",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_user",
 			priorityWeight: 1,
 			active: true,
@@ -658,7 +623,6 @@ export async function runDictionaryTests() {
 			term: "symptom",
 			regexPattern: "symptom",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_global",
 			priorityWeight: 1,
 			active: true,
@@ -672,7 +636,6 @@ export async function runDictionaryTests() {
 			term: "symptom",
 			regexPattern: "symptom",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_workspace",
 			priorityWeight: 1,
 			active: true,
@@ -686,7 +649,6 @@ export async function runDictionaryTests() {
 			term: "symptom",
 			regexPattern: "symptom",
 			isCaseInsensitive: true,
-			targetAssignment: "MAIN_TERM",
 			conceptId: "c_user",
 			priorityWeight: 1,
 			active: true,
@@ -882,7 +844,6 @@ export async function runDictionaryTests() {
 				term: "test term",
 				regexPattern: "test",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "c_a",
 				priorityWeight: 50,
 				active: true,
@@ -892,7 +853,6 @@ export async function runDictionaryTests() {
 				term: "test term",
 				regexPattern: "test",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "c_b",
 				priorityWeight: 20,
 				active: true,
@@ -967,7 +927,6 @@ export async function runDictionaryTests() {
 				term: "test term",
 				regexPattern: "test",
 				isCaseInsensitive: true,
-				targetAssignment: "MAIN_TERM",
 				conceptId: "c_a",
 				priorityWeight: 50,
 				active: true,

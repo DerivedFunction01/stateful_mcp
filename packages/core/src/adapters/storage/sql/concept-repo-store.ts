@@ -299,11 +299,6 @@ export class ExpressionRepoStore implements PersistentExpressionStore {
 				if (request.lookupTerm && key !== request.lookupTerm) return false;
 				if (request.lookupPrefix && !key.startsWith(request.lookupPrefix))
 					return false;
-				if (
-					request.targetAssignments?.length &&
-					!request.targetAssignments.includes(expression.targetAssignment ?? "")
-				)
-					return false;
 				return !request.activeOnly || expression.active;
 			})
 			.map(({ expression }) => expression)

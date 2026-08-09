@@ -11,6 +11,7 @@ export interface ConceptLookup {
 		query: string,
 		namespaceCode?: string,
 		limit?: number,
+		roleName?: string,
 	): Promise<Concept[]>;
 	searchExpressionCandidates?(
 		request: ExpressionSearchRequest,
@@ -20,13 +21,16 @@ export interface ConceptLookup {
 export interface ConceptResolutionOptions {
 	required?: boolean;
 	allowedNamespaces?: readonly string[];
-	targetAssignment?: string;
+	roleName?: string;
 	limit?: number;
 	evidence?: ValueEvidence[];
 }
 
 export interface ConceptResolutionDiagnostic {
-	code: "concept_unresolved" | "concept_namespace_invalid";
+	code:
+		| "concept_unresolved"
+		| "concept_ambiguous"
+		| "concept_namespace_invalid";
 	message: string;
 }
 
@@ -46,14 +50,26 @@ export async function resolveConceptValue(
 		coordinate.code ?? text,
 		coordinate.namespace,
 		options.limit ?? 20,
+		options.roleName,
 	);
-	let exact = candidates.find((candidate) =>
+	const exactMatches = candidates.filter((candidate) =>
 		coordinate.namespace
 			? candidate.namespaceCode === coordinate.namespace &&
 				candidate.standardCode === coordinate.code
 			: candidate.display.toLowerCase() === text.toLowerCase() ||
 				candidate.standardCode.toLowerCase() === text.toLowerCase(),
 	);
+	if (exactMatches.length > 1) {
+		return {
+			diagnostics: [
+				{
+					code: "concept_ambiguous",
+					message: `Concept '${rawText}' matched multiple concepts`,
+				},
+			],
+		};
+	}
+	let exact = exactMatches[0];
 	if (
 		!exact &&
 		!coordinate.namespace &&
@@ -62,9 +78,7 @@ export async function resolveConceptValue(
 		const normalizedText = text.toLocaleLowerCase();
 		const expressions = await dictionary.searchExpressionCandidates({
 			lookupPrefix: normalizedText.split(/\s+/)[0] ?? normalizedText,
-			targetAssignments: options.targetAssignment
-				? [options.targetAssignment]
-				: undefined,
+			roleName: options.roleName,
 			activeOnly: true,
 			limit: options.limit ?? 20,
 		});
@@ -80,17 +94,29 @@ export async function resolveConceptValue(
 					(right.lookupTerm ?? right.term).length -
 					(left.lookupTerm ?? left.term).length,
 			);
-		const expression = expressions.find((candidate) => {
+		const hasLongerExpression = expressions.some((candidate) => {
 			const term = (candidate.lookupTerm ?? candidate.term).toLocaleLowerCase();
 			return term.startsWith(`${normalizedText} `);
-		})
+		});
+		const expression = hasLongerExpression
 			? undefined
-			: expressionMatches[0];
+			: selectUnambiguousExpression(expressionMatches);
+		if (!expression && !hasLongerExpression && expressionMatches.length > 0) {
+			return {
+				diagnostics: [
+					{
+						code: "concept_ambiguous",
+						message: `Concept '${rawText}' matched multiple expressions`,
+					},
+				],
+			};
+		}
 		if (expression?.conceptId) {
 			candidates = await dictionary.search(
-				expression.term,
-				undefined,
-				options.limit ?? 20,
+						expression.term,
+						undefined,
+						options.limit ?? 20,
+						options.roleName,
 			);
 			exact = candidates.find(
 				(candidate) => candidate.id === expression.conceptId,
@@ -131,6 +157,24 @@ export async function resolveConceptValue(
 		value: { kind: "concept", concept, rawText, evidence: options.evidence },
 		diagnostics: [],
 	};
+}
+
+function selectUnambiguousExpression(
+	expressions: readonly CustomExpression[],
+): CustomExpression | undefined {
+	if (expressions.length === 0) return undefined;
+	const longestLength = Math.max(
+		...expressions.map((expression) =>
+			(expression.lookupTerm ?? expression.term).length,
+		),
+	);
+	const longest = expressions.filter(
+		(expression) =>
+			(expression.lookupTerm ?? expression.term).length === longestLength,
+	);
+	return new Set(longest.map((expression) => expression.conceptId)).size > 1
+		? undefined
+		: longest[0];
 }
 
 function parseCoordinate(value: string): { namespace?: string; code?: string } {

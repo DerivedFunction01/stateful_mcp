@@ -385,7 +385,7 @@ export class MacroCompiler {
 		}
 		const resolved = await resolveConceptValue(raw, this.deps.dictionary, {
 			required: spec.extraction.required ?? spec.required ?? true,
-			targetAssignment: spec.roleName,
+				roleName: spec.roleName,
 		});
 		return {
 			concept: resolved.value?.concept,
