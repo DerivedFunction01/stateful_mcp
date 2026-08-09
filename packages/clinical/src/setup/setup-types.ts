@@ -13,7 +13,12 @@ export type SetupBlockKind =
 	| "comparison"
 	| "target-alias";
 
-export type SetupPublicationStatus = "draft" | "published" | "retired";
+export type SetupPublicationStatus =
+	| "draft"
+	| "validated"
+	| "published"
+	| "active"
+	| "retired";
 
 export interface SetupPrimitiveProfile {
 	profileId: string;
@@ -172,6 +177,10 @@ export interface SetupSourceDocument {
 	macros: SetupMacroComposition[];
 	updatedAt: string;
 	updatedBy?: string;
+	/** Lifecycle is optional so sources written before lifecycle support remain readable. */
+	status?: SetupPublicationStatus;
+	publishedAt?: string;
+	activatedAt?: string;
 }
 
 export interface SetupDiagnostic {

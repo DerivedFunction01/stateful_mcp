@@ -9,6 +9,10 @@ import {
 	MemorySetupSourceStore,
 	validateSetupSource,
 	materializeSetupSource,
+	publishSetupSource,
+	activateSetupSource,
+	rollbackSetupSource,
+	diffSetupSources,
 } from "../src/setup";
 import { bootstrapNumericalDefaults } from "../src/bootstrap/bootstrap-config";
 import { ClinicalBootstrap } from "../src/bootstrap/bootstrap";
@@ -132,6 +136,42 @@ describe("interactive setup source", () => {
 		const bootstrap = await ClinicalBootstrap.fromStores(stores);
 
 		expect(await bootstrap.dictionary.getConcept("c-activation")).not.toBeNull();
+	});
+
+	it("publishes and activates exactly one source", async () => {
+		const store = new MemorySetupSourceStore();
+		const first = await publishSetupSource(store, createDefaultSetupSource("first"));
+		const second = await publishSetupSource(store, createDefaultSetupSource("second"));
+
+		expect(first.status).toBe("published");
+		expect((await activateSetupSource(store, first.sourceId)).status).toBe("active");
+		expect((await activateSetupSource(store, second.sourceId)).status).toBe("active");
+		expect((await store.get(first.sourceId))?.status).toBe("retired");
+		expect((await rollbackSetupSource(store, first.sourceId)).status).toBe("active");
+	});
+
+	it("does not bootstrap a merely published source", async () => {
+		const stores = await StoreBuilder.fromConfig({ backend: "memory" });
+		const source = await publishSetupSource(stores.setupSourceStore, createDefaultSetupSource("published-only"));
+		source.concepts.push({
+			conceptId: "c-published-only",
+			namespaceCode: "LOCAL",
+			standardCode: "published-only",
+			display: "Published only",
+		});
+		await stores.setupSourceStore.set(source);
+		const bootstrap = await ClinicalBootstrap.fromStores(stores);
+
+		expect(await bootstrap.dictionary.getConcept("c-published-only")).toBeUndefined();
+	});
+
+	it("reports semantic source changes", () => {
+		const left = createDefaultSetupSource("left");
+		const right = createDefaultSetupSource("right");
+		right.primitiveProfile.decimalSeparator = ",";
+		right.concepts.push({ conceptId: "c", namespaceCode: "LOCAL", standardCode: "c", display: "C" });
+
+		expect(diffSetupSources(left, right).changes).toEqual(["primitiveProfile", "concepts"]);
 	});
 
 	it("compiles selected blocks into the existing macro contract", () => {

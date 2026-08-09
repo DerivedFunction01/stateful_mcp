@@ -52,8 +52,10 @@ export function compileSetupMacro(
 		macroId: composition.macroId,
 		macroName: composition.macroName,
 		version: composition.version,
-		status: composition.status,
-		active: composition.status === "published",
+		status: composition.status === "active" || composition.status === "validated"
+			? "published"
+			: composition.status,
+		active: composition.status === "published" || composition.status === "active",
 		root: {
 			roleName: composition.targetSchema,
 			targetSchema: composition.targetSchema,

@@ -6,3 +6,4 @@ export * from "./setup-types";
 export * from "./setup-validator";
 export * from "./sql-setup-store";
 export * from "./setup-materializer";
+export * from "./setup-lifecycle";

@@ -30,6 +30,7 @@ import {
 import { DEFAULT_DIFFERENTIAL_ACTION_MACRO_MAPPINGS } from "./syntax-profile-defaults";
 import { EXAMPLE_PROSE_TEMPLATES } from "./templates/example-templates";
 import { materializeSetupSource } from "../setup/setup-materializer";
+import { selectBootstrapSetupSource } from "../setup/setup-lifecycle";
 
 export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
@@ -105,9 +106,7 @@ async function buildClinicalBootstrap(
 		valueRules: config.valueRules,
 	});
 	const setupSources = await stores.setupSourceStore.list();
-	const setupSource = [...setupSources].sort((left, right) =>
-		right.updatedAt.localeCompare(left.updatedAt),
-	)[0];
+	const setupSource = selectBootstrapSetupSource(setupSources);
 	if (setupSource) {
 		const materialized = await materializeSetupSource(setupSource, {
 			dictionary,

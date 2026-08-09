@@ -1,11 +1,32 @@
 import type { KvBackend } from "@stateful-mcp/core/adapters/storage/simple/kv-backend";
-import type { SetupSourceDocument } from "./setup-types";
+import type { SetupPublicationStatus, SetupSourceDocument } from "./setup-types";
 
 export interface SetupSourceStore {
 	get(sourceId: string): Promise<SetupSourceDocument | null>;
 	set(source: SetupSourceDocument): Promise<void>;
 	delete(sourceId: string): Promise<void>;
 	list(): Promise<SetupSourceDocument[]>;
+}
+
+export function isActiveSetupSource(source: SetupSourceDocument): boolean {
+	return source.status === "active";
+}
+
+export function isLegacySetupSource(source: SetupSourceDocument): boolean {
+	return source.status === undefined;
+}
+
+export function withSetupStatus(
+	source: SetupSourceDocument,
+	status: SetupPublicationStatus,
+	now = new Date().toISOString(),
+): SetupSourceDocument {
+	return {
+		...structuredClone(source),
+		status,
+		...(status === "published" ? { publishedAt: now } : {}),
+		...(status === "active" ? { activatedAt: now, publishedAt: source.publishedAt ?? now } : {}),
+	};
 }
 
 export class MemorySetupSourceStore implements SetupSourceStore {
