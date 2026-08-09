@@ -7,3 +7,5 @@ export * from "./setup-validator";
 export * from "./sql-setup-store";
 export * from "./setup-materializer";
 export * from "./setup-lifecycle";
+export * from "./date-format-authoring";
+export * from "./setup-profile";

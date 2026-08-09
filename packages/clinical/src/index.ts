@@ -149,6 +149,7 @@ export * from "./values/temporal-resolver";
 export * from "./values/temporal-value";
 export * from "./values/typed-value";
 export * from "./values/utils/date-format-renderer";
+export type { DateTimeFormatConfig, DateTimeToken } from "./values/utils/date-regex-generator";
 export * from "./values/utils/number-word-normalizer";
 export * from "./values/value-rule-registry";
 export * from "./workspaces/core-workspace-event-store";

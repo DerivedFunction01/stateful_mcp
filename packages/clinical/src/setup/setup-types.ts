@@ -1,6 +1,7 @@
 import type { ConceptFilter, CustomExpression } from "@stateful-mcp/core";
 import type { MacroDefinition } from "../macros/macro-definition";
 import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
+import type { DateTimeFormatConfig } from "../values/utils/date-regex-generator";
 import type { SchemaCardinality } from "../schemas/schema-types";
 
 export type SetupBlockKind =
@@ -25,12 +26,18 @@ export interface SetupPrimitiveProfile {
 	version: number;
 	dateExamples: string[];
 	preferredDateFormat?: string;
+	dateTimeFormats?: DateTimeFormatConfig[];
+	dateFormatExamples?: Record<string, string[]>;
 	timeExamples: string[];
 	measurementExamples: string[];
-	decimalSeparator: "." | ",";
+	decimalSeparator?: "." | ",";
 	thousandsSeparator?: "," | "." | " " | "none";
-	measurementUnitOrder: "before" | "after";
-	comparisonOperators: string[];
+	measurementUnitOrder?: "before" | "after";
+	comparisonOperators?: string[];
+	temporalAliases?: Record<string, string>;
+	unitAliases?: Record<string, string>;
+	rangeDelimiters?: string[];
+	measurementOperatorAliases?: Record<string, string>;
 	baseNumericalProfile?: NumericalSyntaxProfile;
 }
 

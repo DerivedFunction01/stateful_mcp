@@ -1,5 +1,6 @@
 import type { SchemaRegistry } from "../schemas/schema-registry";
 import type { SetupSourceDocument, SetupValidationResult } from "./setup-types";
+import { findAmbiguousDateExamples, previewDateTimeFormat } from "./date-format-authoring";
 
 export function validateSetupSource(
 	source: SetupSourceDocument,
@@ -10,6 +11,23 @@ export function validateSetupSource(
 	const blockIds = new Set<string>();
 	const expressionIds = new Set<string>();
 	const conceptIds = new Set(source.concepts.map((concept) => concept.conceptId));
+	if (!source.primitiveProfile.dateTimeFormats?.length)
+		diagnostics.push({ severity: "warning", code: "unset_date_format", message: "No confirmed date/time format has been configured", path: "primitiveProfile.dateTimeFormats" });
+	if (!source.primitiveProfile.decimalSeparator)
+		diagnostics.push({ severity: "warning", code: "unset_decimal_separator", message: "Decimal separator is not configured", path: "primitiveProfile.decimalSeparator" });
+	if (!source.primitiveProfile.measurementUnitOrder)
+		diagnostics.push({ severity: "warning", code: "unset_measurement_unit_order", message: "Measurement unit order is not configured", path: "primitiveProfile.measurementUnitOrder" });
+	for (const format of source.primitiveProfile.dateTimeFormats ?? []) {
+		const examples = source.primitiveProfile.dateFormatExamples?.[format.id ?? ""] ??
+			((source.primitiveProfile.dateTimeFormats ?? []).length === 1 ? source.primitiveProfile.dateExamples : []);
+		for (const diagnostic of previewDateTimeFormat(format, examples).diagnostics)
+			diagnostics.push({ severity: "error", code: `date_format_${diagnostic.code}`, message: diagnostic.message, path: `primitiveProfile.dateTimeFormats.${format.id ?? "unnamed"}` });
+		for (const example of examples) {
+			const matches = findAmbiguousDateExamples(source.primitiveProfile.dateTimeFormats ?? [], example);
+			if (matches.length > 1)
+				diagnostics.push({ severity: "error", code: "ambiguous_date_format", message: `Example '${example}' matches multiple date formats: ${matches.join(", ")}`, path: "primitiveProfile.dateTimeFormats" });
+		}
+	}
 
 	for (const expression of source.expressions) {
 		if (expressionIds.has(expression.id))

@@ -31,6 +31,8 @@ import { DEFAULT_DIFFERENTIAL_ACTION_MACRO_MAPPINGS } from "./syntax-profile-def
 import { EXAMPLE_PROSE_TEMPLATES } from "./templates/example-templates";
 import { materializeSetupSource } from "../setup/setup-materializer";
 import { selectBootstrapSetupSource } from "../setup/setup-lifecycle";
+import { applySetupPrimitiveProfile } from "../setup/setup-profile";
+import { bootstrapNumericalDefaults } from "./bootstrap-config";
 
 export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
@@ -95,18 +97,24 @@ async function buildClinicalBootstrap(
 		undefined,
 		stores.conceptFilterStore,
 	);
+	const setupSources = await stores.setupSourceStore.list();
+	const setupSource = selectBootstrapSetupSource(setupSources);
+	const numericalProfile = setupSource
+		? applySetupPrimitiveProfile(
+			config.numericalProfile ?? bootstrapNumericalDefaults,
+			setupSource.primitiveProfile,
+		)
+		: config.numericalProfile;
 
 	const coldStart = await initializeColdStart({
 		dictionary,
 		macroStore: stores.macroStore as ColdStartOptions["macroStore"],
 		conceptFilterStore: stores.conceptFilterStore,
 		commandProfile: config.syntaxProfile,
-		numericalProfile: config.numericalProfile,
+		numericalProfile,
 		dictionaryConfig: config.dictionaryConfig,
 		valueRules: config.valueRules,
 	});
-	const setupSources = await stores.setupSourceStore.list();
-	const setupSource = selectBootstrapSetupSource(setupSources);
 	if (setupSource) {
 		const materialized = await materializeSetupSource(setupSource, {
 			dictionary,

@@ -13,6 +13,8 @@ import {
 	activateSetupSource,
 	rollbackSetupSource,
 	diffSetupSources,
+	applySetupPrimitiveProfile,
+	previewDateTimeFormat,
 } from "../src/setup";
 import { bootstrapNumericalDefaults } from "../src/bootstrap/bootstrap-config";
 import { ClinicalBootstrap } from "../src/bootstrap/bootstrap";
@@ -116,7 +118,7 @@ describe("interactive setup source", () => {
 		const result = validateSetupSource(source);
 
 		expect(result.valid).toBe(false);
-		expect(result.diagnostics.map((item) => item.code)).toEqual([
+		expect(result.diagnostics.filter((item) => item.severity === "error").map((item) => item.code)).toEqual([
 			"missing_macro_placement",
 			"missing_macro_block",
 		]);
@@ -172,6 +174,26 @@ describe("interactive setup source", () => {
 		right.concepts.push({ conceptId: "c", namespaceCode: "LOCAL", standardCode: "c", display: "C" });
 
 		expect(diffSetupSources(left, right).changes).toEqual(["primitiveProfile", "concepts"]);
+	});
+
+	it("materializes only confirmed primitive values over runtime defaults", () => {
+		const format = {
+			id: "custom-date",
+			tokens: ["DD", "MM", "YYYY"] as const,
+			separators: [".", "."],
+			options: { exact: true, centuryDecades: { "19": "\\d", "20": "\\d" } },
+		};
+		const source = createDefaultSetupSource("profile-overlay");
+		source.primitiveProfile.dateTimeFormats = [format];
+		source.primitiveProfile.dateFormatExamples = { "custom-date": ["31.01.2026"] };
+		source.primitiveProfile.decimalSeparator = ",";
+
+		const profile = applySetupPrimitiveProfile(bootstrapNumericalDefaults, source.primitiveProfile);
+
+		expect(profile.temporal.dateTimeFormats).toEqual([format]);
+		expect(profile.numericFormat?.decimalPoint).toBe(",");
+		expect(profile.temporal.relativeDayAliases.today).toBe(0);
+		expect(previewDateTimeFormat(format, ["31.01.2026"]).valid).toBe(true);
 	});
 
 	it("compiles selected blocks into the existing macro contract", () => {

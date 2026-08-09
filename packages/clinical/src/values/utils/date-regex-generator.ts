@@ -22,6 +22,8 @@ export interface DateTimeFormatConfig {
 		is24Hour?: boolean;
 		exact?: boolean;
 		monthNames?: string[];
+		/** Aliases grouped by semantic month number (index 0 = January/month 1). */
+		monthAliases?: string[][];
 		dayPeriods?: {
 			am: string[];
 			pm: string[];
@@ -87,20 +89,8 @@ export function buildDatePatternString(
 		centuryDecades = { "20": "\\d", "21": "\\d" },
 		is24Hour = true,
 		exact = false,
-		monthNames = [
-			"January",
-			"February",
-			"March",
-			"April",
-			"May",
-			"June",
-			"July",
-			"August",
-			"September",
-			"October",
-			"November",
-			"December",
-		],
+		monthNames,
+		monthAliases,
 		dayPeriods,
 	} = options;
 
@@ -137,8 +127,10 @@ export function buildDatePatternString(
 	const yyPattern = "\\d{2}";
 
 	const mmPattern = "(?:0?[1-9]|1[0-2])";
-	const mmNamePattern =
-		monthNames.length > 0 ? `(?:${monthNames.join("|")})` : mmPattern;
+	const configuredMonthNames = monthAliases?.flat() ?? monthNames ?? [];
+	const mmNamePattern = configuredMonthNames.length > 0
+		? `(?:${configuredMonthNames.map(escapeRegex).join("|")})`
+		: mmPattern;
 	const ddPattern = "(?:0?[1-9]|[12]\\d|3[01])";
 	const hhPattern = is24Hour ? "(?:[01]\\d|2[0-3])" : "(?:0?[1-9]|1[0-2])";
 	const minSecPattern = "[0-5]\\d";
@@ -190,7 +182,15 @@ export function buildDatePatternString(
 
 export function buildMonthNameMap(
 	monthNames?: string[],
+	monthAliases?: string[][],
 ): Record<string, number> {
+	if (monthAliases) {
+		const map: Record<string, number> = {};
+		monthAliases.forEach((aliases, index) => {
+			for (const name of aliases) map[name.toLowerCase()] = index + 1;
+		});
+		return map;
+	}
 	if (!monthNames || monthNames.length === 0) return {};
 	const map: Record<string, number> = {};
 	monthNames.forEach((name, idx) => {

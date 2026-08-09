@@ -67,7 +67,7 @@ export function recognizeTemporalExpression(
 		const groups = match.groups;
 		const year = groups.yyyy ?? groups.yy;
 		const month = groups.mm_name
-			? buildMonthNameMap(format.options?.monthNames)[
+			? buildMonthNameMap(format.options?.monthNames, format.options?.monthAliases)[
 					groups.mm_name.toLocaleLowerCase()
 				]
 			: Number(groups.mm);
