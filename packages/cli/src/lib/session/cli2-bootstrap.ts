@@ -20,6 +20,9 @@ import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engi
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
 import type { SetupSourceStore } from "@stateful-mcp/clinical";
 import type { DocumentPlacementRef } from "@stateful-mcp/clinical";
+import type { MacroDefinition } from "@stateful-mcp/clinical";
+import type { DictionaryStore } from "@stateful-mcp/core";
+import type { ConceptFilterStore } from "@stateful-mcp/core";
 import {
 	defaultEditorKeymapProfile,
 	mergeEditorKeymap,
@@ -49,7 +52,7 @@ export interface Cli2BootstrapResult {
 	engine: ClinicalEngine;
 	commandBar: CommandBarService;
 	variableCells: VariableCellService;
-	macroStore: MacroStore;
+	macroStore: MacroStore & { set(macro: MacroDefinition): Promise<void> };
 	notebookSessionStore: NotebookSessionStore;
 	notebook: NotebookSession;
 	sessionId: string;
@@ -63,6 +66,8 @@ export interface Cli2BootstrapResult {
 	proseRenderContext: ProseRenderContext;
 	patientStore: PatientStore;
 	setupSourceStore: SetupSourceStore;
+	dictionary: DictionaryStore;
+	conceptFilterStore: ConceptFilterStore;
 	documentPlacements: DocumentPlacementRef[];
 	patient: ReturnType<typeof createMockCaseIdentity>["patient"];
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
@@ -273,6 +278,8 @@ export async function buildCli2Bootstrap(
 		),
 		patientStore,
 		setupSourceStore: setupStore,
+		dictionary: clinical.dictionary,
+		conceptFilterStore: stores?.conceptFilterStore ?? clinical.stores.conceptFilterStore,
 		documentPlacements,
 		patient,
 		caseIdentity,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { DictionaryStore, InMemoryConceptFilterStore, InMemoryConceptResolver } from "@stateful-mcp/core";
 import {
 	createDefaultSetupSource,
 	compileSetupMacro,
@@ -7,6 +8,7 @@ import {
 	matchTemporalGrammar,
 	MemorySetupSourceStore,
 	validateSetupSource,
+	materializeSetupSource,
 } from "../src/setup";
 import { bootstrapNumericalDefaults } from "../src/bootstrap/bootstrap-config";
 
@@ -18,6 +20,57 @@ describe("interactive setup source", () => {
 
 		expect(await store.get("draft-1")).toEqual(source);
 		expect(await store.list()).toHaveLength(1);
+	});
+
+	it("materializes concepts, expressions, filters, and generated macros", async () => {
+		const source = createDefaultSetupSource("materialize");
+		source.concepts.push({
+			conceptId: "c-pneumonia",
+			namespaceCode: "SNOMED",
+			standardCode: "233604007",
+			display: "Pneumonia",
+		});
+		source.expressions.push({
+			id: "expr-pna",
+			term: "pna",
+			lookupTerm: "pna",
+			regexPattern: "pna",
+			isCaseInsensitive: true,
+			conceptId: "c-pneumonia",
+			priorityWeight: 1,
+			active: true,
+		});
+		source.conceptFilters.push({
+			filterId: "filter-pneumonia",
+			conceptId: "c-pneumonia",
+			roleName: "Observation.concept",
+			policy: "whitelist",
+			active: true,
+		});
+		const filterStore = new InMemoryConceptFilterStore();
+		const dictionary = new DictionaryStore(
+			new InMemoryConceptResolver({ filterStore }),
+			undefined,
+			undefined,
+			undefined,
+			filterStore,
+		);
+		const macros = new Map<string, unknown>();
+		const result = await materializeSetupSource(source, {
+			dictionary,
+			conceptFilterStore: filterStore,
+			macroStore: {
+				async get() { return null; },
+				async list() { return []; },
+				async set(macro) { macros.set(macro.macroId, macro); },
+			},
+		});
+
+		expect(result.applied).toBe(true);
+		expect(result.concepts).toBe(1);
+		expect(result.expressions).toBe(1);
+		expect(await dictionary.getConcept("c-pneumonia")).not.toBeNull();
+		expect(await filterStore.get("filter-pneumonia")).not.toBeNull();
 	});
 
 	it("validates block and placement references before publication", () => {

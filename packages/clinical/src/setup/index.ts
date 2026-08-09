@@ -5,3 +5,4 @@ export * from "./temporal-grammar-compiler";
 export * from "./setup-types";
 export * from "./setup-validator";
 export * from "./sql-setup-store";
+export * from "./setup-materializer";

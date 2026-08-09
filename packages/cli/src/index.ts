@@ -72,8 +72,21 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 			const clinical = await Cli2BootstrapBuilder.withDefaultBackend(backend, {
 				dbPath: pathArg?.slice("--path=".length),
 			});
+			const { materializeSetupSource } = await import(
+				"@stateful-mcp/clinical"
+			);
+			const materialized = await materializeSetupSource(source, {
+				dictionary: clinical.dictionary,
+				conceptFilterStore: clinical.conceptFilterStore,
+				macroStore: clinical.macroStore,
+			});
+			if (!materialized.applied) {
+				console.error(JSON.stringify(materialized.diagnostics, null, 2));
+				process.exitCode = 2;
+				return;
+			}
 			await clinical.setupSourceStore.set(source);
-			console.log(`Applied setup source ${source.sourceId}`);
+			console.log(JSON.stringify({ sourceId: source.sourceId, ...materialized }, null, 2));
 			return;
 		}
 		const clinical = await Cli2BootstrapBuilder.withDefaultBackend(backend, {

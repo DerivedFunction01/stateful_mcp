@@ -50,7 +50,7 @@ import {
 	SqlBackendSystemWeightStore,
 } from "../learning/weight-store";
 import { KvMacroStore } from "../macros/kv-macro-store";
-import type { MacroStore } from "../macros/macro-definition";
+import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
 import { SqlMacroStore } from "../macros/sql-macro-store";
 import { KvNotebookSessionStore } from "../notebook/kv-notebook-session-store";
 import type { NotebookSessionStore } from "../notebook/notebook-session-store";
@@ -94,7 +94,7 @@ export interface StoreBuilderResult {
 	workspaceStore: WorkspaceStore;
 	cellStore: CellStore;
 	notebookSessionStore: NotebookSessionStore;
-	macroStore: MacroStore;
+	macroStore: MacroStore & { set(macro: MacroDefinition): Promise<void> };
 	profileStore: UnifiedProfileStore;
 	journal: TransactionJournal;
 	projectionStore: ClinicalDocumentProjectionStore;
