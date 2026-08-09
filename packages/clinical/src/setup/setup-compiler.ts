@@ -60,9 +60,27 @@ export function compileSetupMacro(
 			outputCellKind: "structured",
 		},
 		arguments: argumentsList,
+		children: createDateChildren(composition),
 		execution: { atomic: true },
 		description: `Generated from setup composition ${composition.macroId}`,
 	};
+}
+
+function createDateChildren(
+	composition: SetupMacroComposition,
+): MacroDefinition["children"] {
+	const policy = composition.dateChild;
+	if (!policy || policy.mode === "none") return undefined;
+	return [
+		{
+			childMacroName: policy.mode === "shared"
+				? "date-range"
+				: policy.childMacroId!,
+			parentRoleName: `${composition.targetSchema}.${policy.targetPath ?? "dateRange"}`,
+			parentTargetPath: policy.targetPath ?? "dateRange",
+			mergeStrategy: policy.mergeStrategy ?? "replace",
+		},
+	];
 }
 
 export function expandSetupPlacements(

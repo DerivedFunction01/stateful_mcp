@@ -10,6 +10,7 @@ export type TemporalExpression =
 			kind: "relative";
 			direction: TemporalDirection;
 			amount: number;
+			upperAmount?: number;
 			unit: TimePrecisionLevel;
 	  }
 	| { kind: "relative_day"; offsetDays: number }

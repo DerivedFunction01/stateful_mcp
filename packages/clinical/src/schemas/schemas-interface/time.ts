@@ -76,6 +76,8 @@ export interface TimeInterval {
 	repeat?: {
 		multiplier: number;
 		level: TimePrecisionLevel;
+		weekdays?: DayOfWeek[];
+		partsOfDay?: PartOfDay[];
 	};
 }
 

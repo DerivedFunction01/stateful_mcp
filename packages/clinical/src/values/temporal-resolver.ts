@@ -60,6 +60,7 @@ function resolve(
 				relativeEstimate: {
 					direction: expression.direction,
 					firstValue: expression.amount,
+					secondValue: expression.upperAmount,
 					precisionUnit: expression.unit,
 				},
 			};

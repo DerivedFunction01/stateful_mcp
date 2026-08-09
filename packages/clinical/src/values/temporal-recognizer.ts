@@ -13,6 +13,8 @@ import {
 	buildDayPeriodMap,
 	buildMonthNameMap,
 } from "./utils/date-regex-generator";
+import { parseQuantity } from "./quantity-grammar";
+import { resolveTemporalEnum } from "./temporal-enum-resolver";
 
 export function recognizeTemporalExpression(
 	text: string,
@@ -96,23 +98,42 @@ export function recognizeTemporalExpression(
 		};
 	}
 	const tokens = lower.split(/\s+/);
-	const direction =
-		t.directionAliases[tokens[0] ?? ""] ??
-		t.directionAliases[tokens.at(-1) ?? ""];
-	const numericIndex =
-		direction === "prospective" && t.directionAliases[tokens[0] ?? ""] ? 1 : 0;
-	const amount = Number(tokens[numericIndex]);
-	const unitToken = tokens[numericIndex + 1];
-	const unit = unitToken ? t.unitAliases[unitToken] : undefined;
-	if (Number.isFinite(amount) && unit)
+	const leadingDirection = resolveTemporalEnum(tokens[0] ?? "", "direction", t);
+	const trailingDirection = resolveTemporalEnum(tokens.at(-1) ?? "", "direction", t);
+	const direction = (leadingDirection ?? trailingDirection) as
+		| "retrospective"
+		| "prospective"
+		| "static_approximate"
+		| undefined;
+	const quantityText = leadingDirection
+		? tokens.slice(1).join(" ")
+		: trailingDirection
+			? tokens.slice(0, -1).join(" ")
+			: lower;
+	const quantity = parseQuantity(
+		quantityText,
+		{
+			unitAliases: t.unitAliases,
+			rangeDelimiters: t.rangeDelimiters,
+		},
+		{
+			allowedUnits: Object.values(t.unitAliases),
+			allowRange: true,
+			allowOperator: false,
+			statistics: "reject",
+			allowDataPointCount: false,
+		},
+	);
+	if (quantity.value)
 		return {
 			expression: {
 				kind: "relative",
 				direction: direction ?? "static_approximate",
-				amount,
-				unit,
+				amount: quantity.value.lower,
+				upperAmount: quantity.value.upper,
+				unit: quantity.value.unit as TimePrecisionLevel,
 			},
-			diagnostics: [],
+			diagnostics: quantity.diagnostics.map((diagnostic) => diagnostic.message),
 		};
 	return { diagnostics: [`Unable to recognize temporal expression '${text}'`] };
 }

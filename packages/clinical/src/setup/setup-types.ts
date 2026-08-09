@@ -65,6 +65,42 @@ export interface SetupBlockRecipe {
 	flexibleWhitespace?: boolean;
 }
 
+export interface SetupGapConstraint {
+	gapId: string;
+	fromSlot: string;
+	toSlot: string;
+	min?: number;
+	max?: number;
+	unit: "items" | "words" | "chars";
+	skipStopWords?: boolean;
+	crossBoundaries?: boolean;
+	boundaryDelimiterOverride?: string;
+	boundaryTransitionalWords?: string[];
+	allowedWords?: string[];
+	forbiddenWords?: string[];
+}
+
+export type SetupCompositionTemplatePart =
+	| { kind: "literal"; text: string; optional?: boolean }
+	| {
+			kind: "slot";
+			slotId: string;
+			blockId: string;
+			required: boolean;
+			repeatable?: boolean;
+	  };
+
+export interface SetupCompositionTemplate {
+	templateId: string;
+	version: number;
+	parts: SetupCompositionTemplatePart[];
+	gaps: SetupGapConstraint[];
+	whitespace: "exact" | "flexible";
+	punctuation: "exact" | "flexible";
+	precedence: number;
+	status: SetupPublicationStatus;
+}
+
 export interface SetupGrammarBlock {
 	blockId: string;
 	version: number;
@@ -92,6 +128,13 @@ export interface SetupMacroParameter {
 	placementId?: string;
 }
 
+export interface SetupDateChildPolicy {
+	mode: "none" | "shared" | "custom";
+	childMacroId?: string;
+	targetPath?: string;
+	mergeStrategy?: "replace" | "append" | "deep_merge" | "partial_fill";
+}
+
 export interface SetupMacroComposition {
 	macroId: string;
 	version: number;
@@ -101,6 +144,8 @@ export interface SetupMacroComposition {
 	allowedPlacementIds: string[];
 	defaultPlacementId?: string;
 	parameters: SetupMacroParameter[];
+	dateChild?: SetupDateChildPolicy;
+	templates?: SetupCompositionTemplate[];
 	childMacroIds?: string[];
 	status: SetupPublicationStatus;
 	generatedMacro?: MacroDefinition;

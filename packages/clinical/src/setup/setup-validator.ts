@@ -66,6 +66,36 @@ export function validateSetupSource(
 	}
 
 	for (const macro of source.macros) {
+		if (macro.dateChild?.mode === "custom" && !macro.dateChild.childMacroId)
+			diagnostics.push({
+				severity: "error",
+				code: "missing_date_child_macro",
+				message: `Macro '${macro.macroId}' selects a custom date child without a child macro ID`,
+				path: `macros.${macro.macroId}.dateChild`,
+			});
+		for (const template of macro.templates ?? []) {
+			const slotIds = new Set<string>();
+			for (const part of template.parts) {
+				if (part.kind !== "slot") continue;
+				if (slotIds.has(part.slotId))
+					diagnostics.push({
+						severity: "error",
+						code: "duplicate_template_slot",
+						message: `Template '${template.templateId}' contains duplicate slot '${part.slotId}'`,
+						path: `macros.${macro.macroId}.templates.${template.templateId}`,
+					});
+				slotIds.add(part.slotId);
+			}
+			for (const gap of template.gaps) {
+				if (gap.min !== undefined && gap.max !== undefined && gap.min > gap.max)
+					diagnostics.push({
+						severity: "error",
+						code: "invalid_gap",
+						message: `Gap '${gap.gapId}' has a minimum greater than its maximum`,
+						path: `macros.${macro.macroId}.templates.${template.templateId}`,
+					});
+			}
+		}
 		for (const placementId of macro.allowedPlacementIds) {
 			if (!placementIds.has(placementId))
 				diagnostics.push({

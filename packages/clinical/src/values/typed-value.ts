@@ -82,6 +82,11 @@ export interface MeasurementValue {
 	dataPointCount?: number;
 	/** Value normalized to the dimension's canonical base unit, when known. */
 	normalized?: { magnitude: number; unit: string };
+	range?: {
+		lower: number;
+		upper: number;
+		unit: string;
+	};
 	rawText?: string;
 	evidence?: ValueEvidence[];
 }

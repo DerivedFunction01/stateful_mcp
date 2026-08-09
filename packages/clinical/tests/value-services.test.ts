@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { createAnatomyValue } from "../src/values/anatomy-value";
 import { resolveConceptValue } from "../src/values/concept-value";
+import {
+	createCompoundMeasurementValue,
+	createMeasurementValueFromQuantity,
+} from "../src/values/measurement-value";
 import { createMeasurementValue } from "../src/values/measurement-value";
 import {
 	createCadenceValue,
@@ -135,6 +139,73 @@ describe(" value foundations", () => {
 
 		expect(result.value).toBeUndefined();
 		expect(result.diagnostics[0]?.code).toBe("concept_ambiguous");
+	});
+
+	it("converts a shared scalar quantity into a measurement value", () => {
+		const result = createMeasurementValueFromQuantity(
+			{
+				lower: 20,
+				unit: "cm",
+				rawText: "20 cm",
+			},
+			{ dimension: "length" },
+			{ allowRange: false, statistics: "reject", allowDataPointCount: false },
+		);
+
+		expect(result.diagnostics).toEqual([]);
+		expect(result.value).toMatchObject({
+			kind: "measurement",
+			magnitude: 20,
+			unit: "cm",
+			dimension: "length",
+		});
+	});
+
+	it("preserves an allowed quantity range in a measurement value", () => {
+		const result = createMeasurementValueFromQuantity(
+			{
+				lower: 3,
+				upper: 6,
+				unit: "month",
+				rawText: "3 to 6 months",
+			},
+			{ dimension: "time" },
+			{ allowRange: true, statistics: "reject", allowDataPointCount: false },
+		);
+
+		expect(result.diagnostics).toEqual([]);
+		expect(result.value?.range).toEqual({
+			lower: 3,
+			upper: 6,
+			unit: "month",
+		});
+	});
+
+	it("composes compound measurements without discarding components", () => {
+		const result = createCompoundMeasurementValue([
+			{
+				key: "systolic",
+				value: {
+					kind: "measurement",
+					dimension: "pressure",
+					magnitude: 120,
+					unit: "mmHg",
+				},
+			},
+			{
+				key: "diastolic",
+				value: {
+					kind: "measurement",
+					dimension: "pressure",
+					magnitude: 80,
+					unit: "mmHg",
+				},
+			},
+		]);
+
+		expect(result.diagnostics).toEqual([]);
+		expect(result.value?.values.systolic).toMatchObject({ magnitude: 120 });
+		expect(result.value?.values.diastolic).toMatchObject({ magnitude: 80 });
 	});
 
 	it("resolves a canonical concept prefix when no longer expression continues it", async () => {

@@ -7,6 +7,13 @@ import { resolveFrequency } from "../src/values/frequency-resolver";
 import { createNumericalSyntaxProfile } from "../src/values/numerical-syntax-profile";
 import { recognizeTemporalExpression } from "../src/values/temporal-recognizer";
 import { resolveTemporalExpression } from "../src/values/temporal-resolver";
+import { assembleClinicalDateRange } from "../src/values/date-range-assembler";
+import { parseQuantity } from "../src/values/quantity-grammar";
+import {
+	resolveTemporalEnum,
+	resolveTemporalEnumFromText,
+	compileTemporalEnumPattern,
+} from "../src/values/temporal-enum-resolver";
 
 const anchor = {
 	referenceInstant: "2026-08-03T17:30:30-04:00",
@@ -40,6 +47,49 @@ describe(" temporal values", () => {
 		).toBeUndefined();
 	});
 
+	it("resolves temporal enums only through profile-owned aliases", () => {
+		const profile = createNumericalSyntaxProfile(
+			{ profileId: "v2-numerical-default" },
+			bootstrapNumericalDefaults,
+		).temporal;
+
+		expect(resolveTemporalEnum("Monday", "day-of-week", profile)).toBe("monday");
+		expect(resolveTemporalEnum("morning", "part-of-day", profile)).toBe("morning");
+		expect(resolveTemporalEnum("Spring", "season", profile)).toBe("spring");
+		expect(resolveTemporalEnum("unknown", "season", profile)).toBeUndefined();
+		expect(resolveTemporalEnumFromText("document date", "anchor", profile)).toEqual({
+			value: "document-date",
+			matchedText: "document date",
+		});
+	});
+
+	it("compiles enum variants with configured boundaries and case policy", () => {
+		const profile = createNumericalSyntaxProfile({
+			profileId: "enum-profile",
+			temporal: {
+				dateTimeFormats: [],
+				relativeDayAliases: {},
+				unitAliases: {},
+				directionAliases: {},
+				rangeDelimiters: [],
+				dayOfWeekAliases: {
+					monday: {
+						value: "monday",
+						aliases: ["Mon", "Monday"],
+						caseSensitive: false,
+						wordBoundary: "both",
+					},
+				},
+			},
+		}).temporal;
+		const compiled = compileTemporalEnumPattern("day-of-week", profile);
+		const matcher = new RegExp(`^${compiled.pattern}$`, compiled.flags);
+
+		expect(matcher.test("mon")).toBe(true);
+		expect(matcher.test("Mondayish")).toBe(false);
+		expect(compiled.aliases).toHaveLength(2);
+	});
+
 	it("resolves relative days against an explicit anchor", () => {
 		const profile = createNumericalSyntaxProfile(
 			{ profileId: "v2-numerical-default" },
@@ -70,6 +120,79 @@ describe(" temporal values", () => {
 			direction: "retrospective",
 			firstValue: 3,
 			precisionUnit: "day",
+		});
+	});
+
+	it("parses ranged duration quantities for relative estimates", () => {
+		const profile = createNumericalSyntaxProfile(
+			{ profileId: "v2-numerical-default" },
+			bootstrapNumericalDefaults,
+		);
+		const expression = recognizeTemporalExpression("3 to 6 months ago", profile)
+			.expression!;
+
+		expect(expression).toEqual({
+			kind: "relative",
+			direction: "retrospective",
+			amount: 3,
+			upperAmount: 6,
+			unit: "month",
+		});
+		expect(resolveTemporalExpression(expression, anchor).value?.relativeEstimate)
+			.toEqual({
+				direction: "retrospective",
+				firstValue: 3,
+				secondValue: 6,
+				precisionUnit: "month",
+			});
+	});
+
+	it("rejects statistical quantity metadata for duration consumers", () => {
+		const result = parseQuantity(
+			"mean 3 to 6 months",
+			{
+				unitAliases: { month: "month", months: "month" },
+				rangeDelimiters: ["to"],
+				statisticalAliases: { mean: "mean" },
+			},
+			{
+				allowRange: true,
+				allowOperator: false,
+				statistics: "reject",
+				allowDataPointCount: false,
+			},
+		);
+
+		expect(result.value).toBeUndefined();
+		expect(result.diagnostics[0]?.code).toBe("statistics_not_allowed");
+	});
+
+	it("assembles recurrence and relative estimate slots into ClinicalDateRange", () => {
+		const result = assembleClinicalDateRange({
+			repeat: { lower: 2, unit: "week", rawText: "2 weeks" },
+			weekdays: ["monday"],
+			partsOfDay: ["morning"],
+			relativeEstimate: {
+				direction: "retrospective",
+				quantity: { lower: 3, upper: 6, unit: "month", rawText: "3 to 6 months" },
+			},
+		});
+
+		expect(result.diagnostics).toEqual([]);
+		expect(result.value).toMatchObject({
+			time: {
+				repeat: {
+					multiplier: 2,
+					level: "week",
+					weekdays: ["monday"],
+					partsOfDay: ["morning"],
+				},
+			},
+			relativeEstimate: {
+				firstValue: 3,
+				secondValue: 6,
+				precisionUnit: "month",
+			},
 		});
 	});
 

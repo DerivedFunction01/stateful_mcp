@@ -1,5 +1,8 @@
 import { UNIT_DISPLAY_MAP } from "../schemas/schemas-interface/measurement";
 import type {
+	DayOfWeek,
+	PartOfDay,
+	Season,
 	TemporalDirection,
 	TimePrecisionLevel,
 } from "../schemas/schemas-interface/time";
@@ -16,11 +19,26 @@ export interface TemporalSyntaxConfig {
 	relativeDayAliases: Readonly<Record<string, number>>;
 	relativeDayDisplayLabels?: Readonly<Record<string, string>>;
 	unitAliases: Readonly<Record<string, TimePrecisionLevel>>;
-	directionAliases: Readonly<Record<string, TemporalDirection>>;
+	directionAliases: Readonly<Record<string, TemporalDirection | TemporalAliasRule>>;
 	rangeDelimiters: readonly string[];
 	boundaryAliases?: Readonly<
 		Record<string, "start" | "end" | "include" | "exclude">
 	>;
+	dayOfWeekAliases?: Readonly<Record<string, DayOfWeek | TemporalAliasRule>>;
+	partOfDayAliases?: Readonly<Record<string, PartOfDay | TemporalAliasRule>>;
+	seasonAliases?: Readonly<Record<string, Season | TemporalAliasRule>>;
+	anchorAliases?: Readonly<
+		Record<string, "now" | "document-date" | "encounter-date" | TemporalAliasRule>
+	>;
+}
+
+export type TemporalWordBoundary = "none" | "before" | "after" | "both";
+
+export interface TemporalAliasRule {
+	value: string;
+	aliases: readonly string[];
+	caseSensitive?: boolean;
+	wordBoundary?: TemporalWordBoundary;
 }
 
 /** Defaults bag (all fields optional) for createNumericalSyntaxProfile. */
@@ -78,6 +96,18 @@ export function createNumericalSyntaxProfile(
 			profile.temporal?.boundaryAliases ??
 			defaults?.temporal?.boundaryAliases ??
 			{},
+		dayOfWeekAliases:
+			profile.temporal?.dayOfWeekAliases ??
+			defaults?.temporal?.dayOfWeekAliases ??
+			{},
+		partOfDayAliases:
+			profile.temporal?.partOfDayAliases ??
+			defaults?.temporal?.partOfDayAliases ??
+			{},
+		seasonAliases:
+			profile.temporal?.seasonAliases ?? defaults?.temporal?.seasonAliases ?? {},
+		anchorAliases:
+			profile.temporal?.anchorAliases ?? defaults?.temporal?.anchorAliases ?? {},
 	};
 	return {
 		...profile,
