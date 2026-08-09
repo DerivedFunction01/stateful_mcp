@@ -227,10 +227,11 @@ export function useNotebook(
 				cancelled = true;
 			};
 		}
-		void session.v2.engine
-			.getRuntime()
-			.macros.authoring.inspectDraft(state.draftText, state.macroLocks)
-			.then((inspection) => {
+		const timer = setTimeout(() => {
+			void session.v2.engine
+				.getRuntime()
+				.macros.authoring.inspectDraft(state.draftText, state.macroLocks)
+				.then((inspection) => {
 				if (cancelled) return;
 				if (!inspection) {
 					setMacroSlots([]);
@@ -247,16 +248,18 @@ export function useNotebook(
 					childDefinitions: inspection.childDefinitions,
 					slots: inspection.slots,
 				});
-			})
-			.catch(() => {
+				})
+				.catch(() => {
 				if (!cancelled) {
 					setMacroSlots([]);
 					setActiveDefinition(null);
 					setChildDefinitions([]);
 				}
-			});
+				});
+		}, session.v2.ideProfile.performance.parseDebounceMs);
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
 		};
 	}, [session, state.mode, state.draftText, state.macroLocks]);
 
@@ -267,24 +270,27 @@ export function useNotebook(
 				cancelled = true;
 			};
 
-		const authoring = session.v2.engine.getRuntime().macros.authoring;
-		void authoring
-			.resolveExpressionLocks(
-				state.draftText,
-				activeDefinition,
-				macroSlots,
-				state.macroLocks,
-			)
-			.then((locks) => {
-				if (cancelled) return;
-				for (const lock of locks) {
-					dispatch({ type: "add_macro_lock", lock });
-				}
-			})
-			.catch(() => undefined);
+		const timer = setTimeout(() => {
+			const authoring = session.v2.engine.getRuntime().macros.authoring;
+			void authoring
+				.resolveExpressionLocks(
+					state.draftText,
+					activeDefinition,
+					macroSlots,
+					state.macroLocks,
+				)
+				.then((locks) => {
+					if (cancelled) return;
+					for (const lock of locks) {
+						dispatch({ type: "add_macro_lock", lock });
+					}
+				})
+				.catch(() => undefined);
+		}, session.v2.ideProfile.performance.parseDebounceMs);
 
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
 		};
 	}, [
 		session,
@@ -304,23 +310,26 @@ export function useNotebook(
 				cancelled = true;
 			};
 		}
-		const runtime = session.v2.engine.getRuntime();
-		void runtime.macros.authoring
-			.compileDraft(state.draftText, {
-				groupId: `draft_${activeDefinition.macroId}`,
-				profileId: session.v2.syntaxProfile.profileId,
-				sessionId: session.sessionId,
-				locks: state.macroLocks,
-				slots: macroSlots,
-			})
-			.then((preview) => {
-				if (!cancelled) {
-					setMacroDraftPreview(preview);
-					macroSessionRef.current?.setExecutablePreview(preview);
-				}
-			});
+		const timer = setTimeout(() => {
+			const runtime = session.v2.engine.getRuntime();
+			void runtime.macros.authoring
+				.compileDraft(state.draftText, {
+					groupId: `draft_${activeDefinition.macroId}`,
+					profileId: session.v2.syntaxProfile.profileId,
+					sessionId: session.sessionId,
+					locks: state.macroLocks,
+					slots: macroSlots,
+				})
+				.then((preview) => {
+					if (!cancelled) {
+						setMacroDraftPreview(preview);
+						macroSessionRef.current?.setExecutablePreview(preview);
+					}
+				});
+		}, session.v2.ideProfile.performance.parseDebounceMs);
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
 		};
 	}, [
 		session,

@@ -24,10 +24,24 @@ import {
 } from "../../bootstrap/editor-keymap-defaults";
 import type { EditorKeymapProfile } from "../../lib/editor/editor-keymap-profile";
 import {
+	DEFAULT_CLINICAL_IDE_PROFILE,
+	type ClinicalIdeProfile,
+} from "@stateful-mcp/clinical";
+import {
 	createNotebookSession,
 	type NotebookSession,
 } from "./notebook-session";
 import { resolveInitialSession } from "./resolver";
+
+function hasIdePerformance(payload: unknown): payload is ClinicalIdeProfile {
+	if (typeof payload !== "object" || payload === null) return false;
+	const performance = (payload as Record<string, unknown>).performance;
+	return (
+		typeof performance === "object" &&
+		performance !== null &&
+		typeof (performance as Record<string, unknown>).parseDebounceMs === "number"
+	);
+}
 
 export interface Cli2BootstrapResult {
 	engine: ClinicalEngine;
@@ -40,6 +54,7 @@ export interface Cli2BootstrapResult {
 	syntaxProfile: CommandSyntaxProfile;
 	editorKeymap: EditorKeymapProfile;
 	profileStore: UnifiedProfileStore;
+	ideProfile: ClinicalIdeProfile;
 	commandHistoryStore: CommandHistoryStore;
 	proseTemplateStore: ClinicalProseTemplateStore;
 	proseTemplateUsageStore: ProseTemplateUsageStore;
@@ -128,6 +143,17 @@ export async function buildCli2Bootstrap(
 	const sessionStore =
 		stores?.notebookSessionStore ?? clinical.stores.notebookSessionStore;
 	const profileStore = stores?.profileStore ?? clinical.stores.profileStore;
+	const ideProfileRecords = await profileStore.list();
+	const ideProfileRecord =
+		ideProfileRecords.find((profile) => profile.kind === "ide" && profile.active) ??
+		ideProfileRecords.find(
+			(profile) => profile.profileId === DEFAULT_CLINICAL_IDE_PROFILE.profileId,
+		);
+	const ideProfile =
+		ideProfileRecord?.kind === "ide" &&
+		hasIdePerformance(ideProfileRecord.payload)
+			? (ideProfileRecord.payload as ClinicalIdeProfile)
+			: DEFAULT_CLINICAL_IDE_PROFILE;
 	const commandHistoryStore =
 		stores?.commandHistoryStore ?? clinical.stores.commandHistoryStore;
 	const patientStore = stores?.patientStore ?? clinical.stores.patientStore;
@@ -227,6 +253,7 @@ export async function buildCli2Bootstrap(
 		syntaxProfile: clinical.syntaxProfile,
 		editorKeymap,
 		profileStore,
+		ideProfile,
 		commandHistoryStore,
 		proseTemplateStore:
 			stores?.proseTemplateStore ?? clinical.stores.proseTemplateStore,

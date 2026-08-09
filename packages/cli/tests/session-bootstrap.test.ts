@@ -3,6 +3,14 @@ import { bootstrapSession } from "../src/lib/session/bootstrap-session";
 import { Cli2BootstrapBuilder } from "../src/lib/session/cli2-bootstrap";
 
 describe("bootstrapSession", () => {
+	test("exposes bootstrap-owned IDE performance settings", async () => {
+		const result = await bootstrapSession({
+			sessionId: `cli2-ide-profile-${Date.now()}`,
+		});
+
+		expect(result.ideProfile.performance.parseDebounceMs).toBeGreaterThan(0);
+	});
+
 	test("constructs the V2 clinical runtime and notebook session", async () => {
 		const result = await bootstrapSession({
 			sessionId: `cli2-bootstrap-test-${Date.now()}`,

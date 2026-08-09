@@ -29,6 +29,9 @@ export interface ClinicalIdeProfile {
 	scratchpadDefaults?: Record<string, ScratchpadCellTemplate[]>;
 	favorites: MacroFavorite[];
 	keybindings: Record<string, string>;
+	performance: {
+		parseDebounceMs: number;
+	};
 	historyPolicy: {
 		includeMacroInvocations: boolean;
 		includeRawCommands: boolean;

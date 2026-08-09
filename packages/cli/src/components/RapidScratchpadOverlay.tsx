@@ -10,6 +10,7 @@ import type { DifferentialScratchpadAdapter } from "../lib/scratchpad/differenti
 import type { NotebookEditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { useScratchpadCells } from "../lib/scratchpad/use-scratchpad-cells";
 import { t } from "../lib/shared/i18n";
+import { useDebouncedValue } from "../lib/shared/use-debounced-value";
 import type {
 	DeduplicatedLine,
 	ParsedDifferentialLine,
@@ -37,6 +38,7 @@ interface RapidScratchpadOverlayProps {
 	onClose(): void;
 	mode?: NotebookEditorMode;
 	onModeChange?(mode: NotebookEditorMode): void;
+	parseDebounceMs: number;
 }
 
 export function RapidScratchpadOverlay({
@@ -58,6 +60,7 @@ export function RapidScratchpadOverlay({
 	onClose,
 	mode = "INSERT",
 	onModeChange,
+	parseDebounceMs,
 }: RapidScratchpadOverlayProps) {
 	const {
 		cells,
@@ -77,21 +80,26 @@ export function RapidScratchpadOverlay({
 		end: activeLineIndex,
 	});
 	const lines = cells.map((cell) => cell.text);
+	const parsedCells = useDebouncedValue(cells, parseDebounceMs);
 
 	const parsedLines = useMemo<ParsedDifferentialLine[]>(() => {
-		return adapter.parse(cells, syntaxProfile);
-	}, [adapter, cells, syntaxProfile]);
+		return adapter.parse(parsedCells, syntaxProfile);
+	}, [adapter, parsedCells, syntaxProfile]);
 
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const res = await adapter.resolve(cells, syntaxProfile, conceptLookup);
+			const res = await adapter.resolve(
+				parsedCells,
+				syntaxProfile,
+				conceptLookup,
+			);
 			if (!cancelled) setResolvedLines(res);
 		})();
 		return () => {
 			cancelled = true;
 		};
-	}, [adapter, cells, syntaxProfile, conceptLookup]);
+	}, [adapter, parsedCells, syntaxProfile, conceptLookup]);
 
 	const activeParsedLines =
 		resolvedLines.length === parsedLines.length ? resolvedLines : parsedLines;

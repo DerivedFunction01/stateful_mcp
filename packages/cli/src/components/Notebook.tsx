@@ -1143,6 +1143,7 @@ export function Notebook({
 					conceptLookup={session.v2.engine.getConceptLookup()}
 					mode={state.mode}
 					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
+					parseDebounceMs={session.v2.ideProfile.performance.parseDebounceMs}
 					onApplyOperations={applyScratchpadOperations}
 					onClose={() => setOverlay(null)}
 				/>
@@ -1338,6 +1339,7 @@ export function Notebook({
 			conceptLookup={session.v2.engine.getConceptLookup()}
 			mode={state.mode}
 			onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
+			parseDebounceMs={session.v2.ideProfile.performance.parseDebounceMs}
 			onApplyOperations={applyScratchpadOperations}
 			onApplySuccess={(operationCount) =>
 				dispatch({

@@ -30,6 +30,8 @@ export interface MacroEditorProps {
 	inputOnly?: boolean;
 	detailsOnly?: boolean;
 	consoleFocused?: boolean;
+	/** Show slot brackets and semantic slot highlighting when explicitly enabled. */
+	showSlotDecorations?: boolean;
 }
 
 export function MacroEditor({
@@ -48,6 +50,7 @@ export function MacroEditor({
 	inputOnly = false,
 	detailsOnly = false,
 	consoleFocused = false,
+	showSlotDecorations = false,
 }: MacroEditorProps) {
 	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
 		activeDefinition !== null &&
@@ -263,6 +266,8 @@ export function MacroEditor({
 									{segment.text}
 								</Text>
 							);
+						if (segment.kind === "slot" && !showSlotDecorations)
+							return <Text key={index}>{segment.text}</Text>;
 						if (segment.kind === "slot")
 							return (
 								<Text
@@ -313,6 +318,9 @@ export function MacroEditor({
 											{segment.text}
 										</Text>
 									);
+								}
+								if (segment.kind === "slot" && !showSlotDecorations) {
+									return <Text key={index}>{segment.text}</Text>;
 								}
 								if (segment.kind === "slot") {
 									const slot = macroSlots.find(

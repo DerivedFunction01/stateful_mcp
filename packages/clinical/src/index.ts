@@ -15,6 +15,7 @@ export * from "./bootstrap/mock-patient";
 export * from "./bootstrap/notebook-ui-defaults";
 export * from "./bootstrap/store-builder";
 export * from "./bootstrap/syntax-profile-defaults";
+export * from "./bootstrap/ide-profile-defaults";
 export * from "./bootstrap/templates/example-templates";
 export * from "./cells/cell-compiler";
 export * from "./cells/cell-factory";
