@@ -133,7 +133,7 @@ const en: Record<string, string> = {
 	"workspace.inspectorTitle": "BRANCH INSPECTOR",
 	"workspace.noSnapshot": "No workspace snapshot available",
 	"workspace.selectBranch": "Select a branch to inspect details.",
-	"workspace.scratchpadTitle": "RAPID CLINICAL DIFFERENTIAL SCRATCHPAD",
+	"workspace.scratchpadTitle": "Differential Scratchpad",
 	"workspace.scratchpadSubtitle": "Enter clinical text one cell at a time.",
 	"workspace.scratchpad.applyTo": "Apply to: {value}{count}",
 	"workspace.scratchpad.line": "[{value}] ",
@@ -149,7 +149,7 @@ const en: Record<string, string> = {
 	"workspace.scratchpad.sideEffect": "side effect: {transition} {branch}",
 	"workspace.scratchpad.noOperations": "No valid scratchpad operations.",
 	"workspace.scratchpadPreviewHeader":
-		"CANONICAL CONCEPT & ALIAS RESOLUTION PREVIEW:",
+		"PREVIEW:",
 	"workspace.scratchpadFooter":
 		"[ ↑/↓ ] Cells  │  [ Tab ] Duplicate  │  [ Enter ] Apply  │  [ Esc ] Close",
 	"workspace.scratchpad.applied": "Applied {count} scratchpad operations.",
