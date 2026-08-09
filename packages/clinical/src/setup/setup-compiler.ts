@@ -63,6 +63,13 @@ export function compileSetupMacro(
 		children: createDateChildren(composition),
 		execution: { atomic: true },
 		description: `Generated from setup composition ${composition.macroId}`,
+		placementPolicy: {
+			allowedPlacementIds: composition.allowedPlacementIds,
+			defaultPlacementId: composition.defaultPlacementId,
+			allowFanOut: composition.parameters.some(
+				(parameter) => parameter.placementMode === "fan_out",
+			),
+		},
 	};
 }
 

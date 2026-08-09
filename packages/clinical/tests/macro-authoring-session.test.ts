@@ -3,6 +3,7 @@ import type { SyntaxProfile } from "../src";
 import { NOTE_MACRO, VITALS_MACRO } from "../src/macros/default-macros";
 import { MacroAuthoringSession } from "../src/macros/macro-authoring-session";
 import type { MacroExecutionPlan } from "../src/macros/macro-plan";
+import type { DocumentPlacementRef } from "../src/macros/macro-plan";
 import type { MacroSlotProjection } from "../src/macros/macro-slots";
 
 const profile: SyntaxProfile = {
@@ -14,6 +15,22 @@ const profile: SyntaxProfile = {
 };
 
 describe("MacroAuthoringSession", () => {
+	test("keeps the selected document placement in authoring state", () => {
+		const placement: DocumentPlacementRef = {
+			placementId: "objective",
+			documentSchema: "SoapNote",
+			documentPath: "objective.clinicalObservations[]",
+			targetSchema: "Observation",
+			targetSchemaVersion: 1,
+			cardinality: "many",
+		};
+		const session = new MacroAuthoringSession({ profile });
+
+		expect(session.dispatch({ type: "set_placement", placement }).placement).toEqual(
+			placement,
+		);
+	});
+
 	function plan(): MacroExecutionPlan {
 		return {
 			groupId: "group-1",

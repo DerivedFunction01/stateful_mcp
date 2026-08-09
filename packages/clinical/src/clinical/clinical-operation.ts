@@ -10,6 +10,8 @@ export interface ClinicalProvenance {
 	transactionId?: string;
 	logicalRecordKey?: string;
 	sourcePath?: string;
+	documentPath?: string;
+	placementId?: string;
 	sourceMacroId?: string;
 }
 

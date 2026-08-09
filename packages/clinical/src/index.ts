@@ -117,6 +117,7 @@ export * from "./setup";
 export * from "./values/quantity-grammar";
 export * from "./values/temporal-enum-resolver";
 export * from "./values/date-range-assembler";
+export * from "./macros/macro-placement";
 export * from "./stores/profiles/sql-profile-store";
 export * from "./stores/prose-templates/interfaces";
 export * from "./stores/prose-templates/kv-clinical-prose-template-store";

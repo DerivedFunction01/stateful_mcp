@@ -36,6 +36,7 @@ import { knownVerbs } from "../../editor/command-autocomplete";
 import { buildCommandDescriptors } from "../../editor/command-descriptors";
 import type { SidebarViewTab } from "../../editor/kernel";
 import type { MacroSlotProjection } from "../../editor/macro-slots";
+import type { DocumentPlacementRef } from "@stateful-mcp/clinical";
 import type { EditorFocusTarget } from "../../editor/interaction-state";
 import type { NotebookDocumentPort } from "./document";
 import type { NotebookDomainPort } from "./domain";
@@ -59,6 +60,9 @@ export interface NotebookWindowDeps {
 	/** Active syntax profile for canonical descriptor/knownVerbs derivation. */
 	syntaxProfile?: CommandSyntaxProfile;
 	activeDefinition?: MacroDefinition | null;
+	availablePlacements?: DocumentPlacementRef[];
+	selectedPlacement?: DocumentPlacementRef;
+	selectPlacement?(placementId: string): void;
 	childDefinitions?: MacroDefinition[];
 	draftPreview?: MacroDraftPreview;
 	sidebarOpen?: boolean;
@@ -222,6 +226,9 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					macroSlots: deps.macroSlots,
 					activeMacroArgumentId: deps.activeMacroArgumentId,
 					activeDefinition: deps.activeDefinition,
+					availablePlacements: deps.availablePlacements,
+					selectedPlacement: deps.selectedPlacement,
+					onSelectPlacement: deps.selectPlacement,
 					childDefinitions: deps.childDefinitions,
 					authoringPreview,
 					draftPreview: deps.draftPreview,

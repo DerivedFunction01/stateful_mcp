@@ -11,6 +11,7 @@ import type { MacroCompileResult as MacroCompilationResult } from "./macro-compi
 import type { MacroDefinition } from "./macro-definition";
 import type { MacroDraftPreview } from "./macro-draft-preview";
 import type { MacroExecutionPlan } from "./macro-plan";
+import type { DocumentPlacementRef } from "./macro-plan";
 import type { SyntaxProfile } from "./macro-profile";
 import {
 	activeMacroSlot,
@@ -66,6 +67,7 @@ export interface MacroAuthoringSnapshot {
 	authoringPreview?: MacroAuthoringRender;
 	executablePreview?: MacroDraftPreview;
 	compilation?: MacroCompilationResult;
+	placement?: DocumentPlacementRef;
 }
 
 export type MacroAuthoringAction =
@@ -87,7 +89,9 @@ export type MacroAuthoringAction =
 			childDefinitions?: MacroDefinition[];
 			slots?: MacroSlotProjection[];
 			authoringPreview?: MacroAuthoringRender;
-	  }
+			placement?: DocumentPlacementRef;
+		  }
+	| { type: "set_placement"; placement?: DocumentPlacementRef }
 	| { type: "submit" };
 
 export interface CreateMacroAuthoringSessionOptions {
@@ -95,6 +99,7 @@ export interface CreateMacroAuthoringSessionOptions {
 	initialText?: string;
 	initialCursor?: number;
 	locks?: MacroLockLike[];
+	placement?: DocumentPlacementRef;
 }
 
 export class MacroAuthoringSession {
@@ -116,6 +121,7 @@ export class MacroAuthoringSession {
 			childDefinitions: [],
 			diagnostics: [],
 			statuses: [],
+			placement: options.placement,
 		};
 		this.recomputeProjections();
 	}
@@ -126,6 +132,10 @@ export class MacroAuthoringSession {
 
 	public dispatch(action: MacroAuthoringAction): MacroAuthoringSnapshot {
 		switch (action.type) {
+			case "set_placement": {
+				this.snapshot = { ...this.snapshot, placement: action.placement };
+				break;
+			}
 			case "set_text": {
 				const isMacro = action.text.startsWith(this.profile.macroStartToken);
 				const cursorOffset = action.cursorOffset ?? action.text.length;
@@ -238,7 +248,8 @@ export class MacroAuthoringSession {
 				this.snapshot = {
 					...this.snapshot,
 					definition: action.definition,
-					childDefinitions: action.childDefinitions ?? [],
+						childDefinitions: action.childDefinitions ?? [],
+						placement: action.placement ?? this.snapshot.placement,
 				};
 				if (action.slots) {
 					const authoringPreview =

@@ -10,7 +10,7 @@ import type { ClinicalOperation } from "../clinical/clinical-operation";
 import type { ClinicalWritePolicy, MergeStrategy } from "../values/merge";
 import type { TypedValue } from "../values/typed-value";
 import type { WorkspaceOperation } from "../workspaces/workspace-types";
-import type { MacroDefinitionRef } from "./macro-definition";
+import type { MacroDefinition, MacroDefinitionRef } from "./macro-definition";
 
 export interface MacroEvidence {
 	source: string;
@@ -31,6 +31,16 @@ export interface ExecutionScope {
 	branchId?: string;
 }
 
+export interface DocumentPlacementRef {
+	placementId: string;
+	documentSchema: string;
+	documentPath: string;
+	targetSchema: string;
+	targetSchemaVersion: number;
+	cardinality: "one" | "many";
+	recordMode?: "create" | "update" | "upsert";
+}
+
 export interface MacroTargetOperation {
 	operationId: string;
 	groupId: string;
@@ -38,6 +48,7 @@ export interface MacroTargetOperation {
 	cellRef?: string;
 	targetSchema: string;
 	targetPath: string;
+	placement?: DocumentPlacementRef;
 	value: TypedValue;
 	rawValue: string;
 	sourceLine: number;
@@ -52,6 +63,33 @@ export interface MacroTargetOperation {
 		| "compilation"
 		| "projection"
 		| "execution";
+}
+
+export function expandMacroOperationsByPlacement(
+	operations: readonly MacroTargetOperation[],
+	placements: readonly DocumentPlacementRef[],
+	policy?: MacroDefinition["placementPolicy"],
+): MacroTargetOperation[] {
+	if (policy) {
+		const unauthorized = placements.find(
+			(placement) => !policy.allowedPlacementIds.includes(placement.placementId),
+		);
+		if (unauthorized)
+			throw new Error(
+				`Placement '${unauthorized.placementId}' is not allowed by the macro placement policy`,
+			);
+		if (placements.length > 1 && !policy.allowFanOut)
+			throw new Error("Macro placement policy does not allow fan-out");
+	}
+	return operations.flatMap((operation) =>
+		placements.map((placement, index) => ({
+			...operation,
+			operationId: `${operation.operationId}:${placement.placementId}`,
+			placement,
+			groupId: `${operation.groupId}:${placement.placementId}`,
+			sourceArgument: operation.sourceArgument ?? index,
+		})),
+	);
 }
 
 export interface MacroLinkOperation {

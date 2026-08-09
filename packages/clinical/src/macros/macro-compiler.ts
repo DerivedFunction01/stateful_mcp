@@ -37,6 +37,7 @@ import type {
 	MacroExecutionPlan,
 	MacroPlanFingerprint,
 	MacroTargetOperation,
+	DocumentPlacementRef,
 } from "./macro-plan";
 import { MacroDefinitionValidator } from "./macro-validator";
 import type { ValueExtractDiagnostic } from "./macro-value-extractor";
@@ -69,6 +70,7 @@ export interface MacroCompilerOptions {
 	observationMode?: LearningObservationMode;
 	outcome?: LearningOutcome;
 	correlationId?: string;
+	placement?: DocumentPlacementRef;
 }
 
 export type FailureStage =
@@ -120,6 +122,23 @@ export class MacroCompiler {
 			});
 		}
 		if (!validation.valid) return { groupId, diagnostics };
+		if (options.placement && definition.placementPolicy) {
+			if (
+				!definition.placementPolicy.allowedPlacementIds.includes(
+					options.placement.placementId,
+				)
+			) {
+				const message = `Placement '${options.placement.placementId}' is not allowed for macro '${definition.macroId}'`;
+				diagnostics.push(message);
+				stageDiagnostics.push({ stage: "validation", message });
+				return { groupId, diagnostics };
+			}
+		} else if (definition.placementPolicy) {
+			const message = `Macro '${definition.macroId}' requires an allowlisted document placement`;
+			diagnostics.push(message);
+			stageDiagnostics.push({ stage: "validation", message });
+			return { groupId, diagnostics };
+		}
 
 		const binding = bindMacro(input, definition);
 		for (const issue of binding.issues) {
@@ -195,6 +214,7 @@ export class MacroCompiler {
 				macroDefinitionId: definition.macroId,
 				targetSchema: spec.target.targetSchema,
 				targetPath: spec.target.targetPath,
+				placement: options.placement,
 				value: canonicalValue,
 				rawValue: bindingEntry.rawValue,
 				sourceLine: options.sourceLine ?? input.sourceLines[0]?.line ?? 0,

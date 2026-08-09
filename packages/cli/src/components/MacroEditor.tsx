@@ -3,6 +3,7 @@ import type {
 	MacroAuthoringRender,
 	MacroDefinition,
 	MacroDraftPreview,
+	DocumentPlacementRef,
 } from "@stateful-mcp/clinical";
 import {
 	findNextMacroChild,
@@ -32,6 +33,9 @@ export interface MacroEditorProps {
 	consoleFocused?: boolean;
 	/** Show slot brackets and semantic slot highlighting when explicitly enabled. */
 	showSlotDecorations?: boolean;
+	selectedPlacement?: DocumentPlacementRef;
+	availablePlacements?: DocumentPlacementRef[];
+	onSelectPlacement?(placementId: string): void;
 }
 
 export function MacroEditor({
@@ -51,6 +55,9 @@ export function MacroEditor({
 	detailsOnly = false,
 	consoleFocused = false,
 	showSlotDecorations = false,
+	selectedPlacement,
+	availablePlacements = [],
+	onSelectPlacement,
 }: MacroEditorProps) {
 	const isResolvedSlot = (slot: MacroSlotProjection): boolean =>
 		activeDefinition !== null &&
@@ -72,6 +79,7 @@ export function MacroEditor({
 	const statuses = activeDefinition
 		? getMacroArgumentStatuses(activeDefinition, macroSlots)
 		: [];
+	const placementAware = Boolean(activeDefinition?.placementPolicy);
 
 	// Determine the Hint Bar text dynamically
 	let hintText = t("macro.chooseArg");
@@ -387,6 +395,31 @@ export function MacroEditor({
 							</Text>
 						</Box>
 					</Box>
+				</Box>
+			)}
+			{placementAware && (selectedPlacement || availablePlacements.length > 0) && (
+				<Box flexDirection="column" marginTop={1}>
+					<Text bold color="cyan">Document placement</Text>
+					{selectedPlacement ? (
+						<Text>
+							{selectedPlacement.placementId} - {selectedPlacement.documentPath}
+						</Text>
+					) : (
+						<Text color="yellow">Select an allowlisted placement before execution</Text>
+					)}
+					{availablePlacements.length > 0 && (
+						<>
+							{availablePlacements.map((placement, index) => (
+								<Text key={placement.placementId} dimColor>
+									{index + 1}. {placement.placementId} - {placement.documentPath}
+									{placement.placementId === selectedPlacement?.placementId ? " [selected]" : ""}
+								</Text>
+							))}
+							{onSelectPlacement && (
+								<Text dimColor>Placement selection is available from the active macro context.</Text>
+							)}
+						</>
+					)}
 				</Box>
 			)}
 

@@ -1,8 +1,12 @@
 import type {
 	MacroDefinition,
 	MacroDraftPreview,
+	DocumentPlacementRef,
 } from "@stateful-mcp/clinical";
-import { MacroAuthoringSession } from "@stateful-mcp/clinical";
+import {
+	MacroAuthoringSession,
+	selectMacroPlacement,
+} from "@stateful-mcp/clinical";
 import type { CellPreview } from "@stateful-mcp/clinical/cells/cell-service-types";
 import type { StructuredCell } from "@stateful-mcp/clinical/cells/structured-cell";
 import type { CommandHistoryCandidate } from "@stateful-mcp/clinical/learning/command-history";
@@ -81,6 +85,9 @@ export interface UseNotebookReturn {
 	activeDefinition: MacroDefinition | null;
 	childDefinitions: MacroDefinition[];
 	macroSession?: MacroAuthoringSession;
+	availablePlacements: DocumentPlacementRef[];
+	selectedPlacement?: DocumentPlacementRef;
+	selectPlacement(placementId: string): void;
 }
 
 export type {
@@ -106,6 +113,10 @@ export function useNotebook(
 		useState<MacroDraftPreview>();
 	const [activeDefinition, setActiveDefinition] =
 		useState<MacroDefinition | null>(null);
+	const [selectedPlacement, setSelectedPlacement] = useState<
+		ReturnType<typeof selectMacroPlacement>["placement"]
+	>();
+	const availablePlacements = session?.v2.documentPlacements ?? [];
 	const [childDefinitions, setChildDefinitions] = useState<MacroDefinition[]>(
 		[],
 	);
@@ -114,6 +125,26 @@ export function useNotebook(
 	>([]);
 
 	const macroSessionRef = useRef<MacroAuthoringSession | undefined>(undefined);
+
+	useEffect(() => {
+		if (!activeDefinition?.placementPolicy) {
+			setSelectedPlacement(undefined);
+			return;
+		}
+		const selection = selectMacroPlacement(
+			activeDefinition,
+			availablePlacements,
+			selectedPlacement?.placementId,
+		);
+		setSelectedPlacement(selection.placement);
+	}, [activeDefinition, availablePlacements, selectedPlacement?.placementId]);
+
+	useEffect(() => {
+		macroSessionRef.current?.dispatch({
+			type: "set_placement",
+			placement: selectedPlacement,
+		});
+	}, [selectedPlacement]);
 
 	useEffect(() => {
 		if (session?.v2.syntaxProfile) {
@@ -319,6 +350,7 @@ export function useNotebook(
 					sessionId: session.sessionId,
 					locks: state.macroLocks,
 					slots: macroSlots,
+					placement: selectedPlacement,
 				})
 				.then((preview) => {
 					if (!cancelled) {
@@ -337,6 +369,7 @@ export function useNotebook(
 		state.draftText,
 		activeDefinition,
 		state.macroLocks,
+		selectedPlacement,
 	]);
 
 	const commitMacro = useCallback(async () => {
@@ -1126,5 +1159,15 @@ export function useNotebook(
 		},
 		childDefinitions,
 		macroSession: macroSessionRef.current,
+		availablePlacements,
+		selectedPlacement,
+		selectPlacement: (placementId: string) => {
+			const selection = selectMacroPlacement(
+				activeDefinition!,
+				availablePlacements,
+				placementId,
+			);
+			if (selection.placement) setSelectedPlacement(selection.placement);
+		},
 	};
 }

@@ -189,6 +189,11 @@ export interface MacroDefinition {
 		proseBoundaryToken?: string;
 	};
 	authoringTemplates?: readonly CommandMacroAuthoringTemplate[];
+	placementPolicy?: {
+		allowedPlacementIds: readonly string[];
+		defaultPlacementId?: string;
+		allowFanOut: boolean;
+	};
 }
 
 export interface MacroStore {

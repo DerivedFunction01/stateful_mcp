@@ -19,6 +19,7 @@ import { VariableCommandService } from "@stateful-mcp/clinical/commands/variable
 import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
 import type { SetupSourceStore } from "@stateful-mcp/clinical";
+import type { DocumentPlacementRef } from "@stateful-mcp/clinical";
 import {
 	defaultEditorKeymapProfile,
 	mergeEditorKeymap,
@@ -62,6 +63,7 @@ export interface Cli2BootstrapResult {
 	proseRenderContext: ProseRenderContext;
 	patientStore: PatientStore;
 	setupSourceStore: SetupSourceStore;
+	documentPlacements: DocumentPlacementRef[];
 	patient: ReturnType<typeof createMockCaseIdentity>["patient"];
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
 	bootstrapStatus: "created" | "resumed" | "error";
@@ -244,6 +246,9 @@ export async function buildCli2Bootstrap(
 		syntaxProfile: clinical.syntaxProfile,
 		sessionStore,
 	});
+	const setupStore = stores?.setupSourceStore ?? clinical.stores.setupSourceStore;
+	const setupSources = await setupStore.list();
+	const documentPlacements = setupSources[0]?.placements ?? [];
 	return {
 		engine,
 		commandBar,
@@ -267,7 +272,8 @@ export async function buildCli2Bootstrap(
 			patient,
 		),
 		patientStore,
-		setupSourceStore: stores?.setupSourceStore ?? clinical.stores.setupSourceStore,
+		setupSourceStore: setupStore,
+		documentPlacements,
 		patient,
 		caseIdentity,
 		bootstrapStatus,
