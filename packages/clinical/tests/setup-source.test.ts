@@ -11,6 +11,8 @@ import {
 	materializeSetupSource,
 } from "../src/setup";
 import { bootstrapNumericalDefaults } from "../src/bootstrap/bootstrap-config";
+import { ClinicalBootstrap } from "../src/bootstrap/bootstrap";
+import { StoreBuilder } from "../src/bootstrap/store-builder";
 
 describe("interactive setup source", () => {
 	it("round-trips a draft through the source store", async () => {
@@ -47,7 +49,18 @@ describe("interactive setup source", () => {
 			policy: "whitelist",
 			active: true,
 		});
-		const filterStore = new InMemoryConceptFilterStore();
+		source.blocks.push({
+			blockId: "possible-block",
+			version: 1,
+			label: "possible",
+			kind: "enum",
+			target: { targetSchema: "Observation", targetPath: "certainty" },
+			valueKind: "enum",
+			source: { kind: "generated", recipe: { phrases: ["possible"], caseSensitive: false } },
+			schemaVersion: 1,
+			status: "draft",
+		});
+	const filterStore = new InMemoryConceptFilterStore();
 		const dictionary = new DictionaryStore(
 			new InMemoryConceptResolver({ filterStore }),
 			undefined,
@@ -56,6 +69,8 @@ describe("interactive setup source", () => {
 			filterStore,
 		);
 		const macros = new Map<string, unknown>();
+		const valueRules = new (await import("../src/values/value-rule-registry")).ValueRuleRegistry();
+		const profiles = new Map<string, unknown>();
 		const result = await materializeSetupSource(source, {
 			dictionary,
 			conceptFilterStore: filterStore,
@@ -64,6 +79,13 @@ describe("interactive setup source", () => {
 				async list() { return []; },
 				async set(macro) { macros.set(macro.macroId, macro); },
 			},
+			profileStore: {
+				async get(id) { return (profiles.get(id) as any) ?? null; },
+				async list() { return [...profiles.values()] as any[]; },
+				async set(profile) { profiles.set(profile.profileId, profile); },
+				async delete(id) { profiles.delete(id); },
+			},
+			valueRules,
 		});
 
 		expect(result.applied).toBe(true);
@@ -71,6 +93,7 @@ describe("interactive setup source", () => {
 		expect(result.expressions).toBe(1);
 		expect(await dictionary.getConcept("c-pneumonia")).not.toBeNull();
 		expect(await filterStore.get("filter-pneumonia")).not.toBeNull();
+		expect(valueRules.get("default-clinical:values", "possible-block")).not.toBeNull();
 	});
 
 	it("validates block and placement references before publication", () => {
@@ -93,6 +116,22 @@ describe("interactive setup source", () => {
 			"missing_macro_placement",
 			"missing_macro_block",
 		]);
+	});
+
+	it("activates the newest persisted setup source during bootstrap", async () => {
+		const stores = await StoreBuilder.fromConfig({ backend: "memory" });
+		const source = createDefaultSetupSource("bootstrap-activation");
+		source.concepts.push({
+			conceptId: "c-activation",
+			namespaceCode: "LOCAL",
+			standardCode: "activation",
+			display: "Activation concept",
+		});
+		await stores.setupSourceStore.set(source);
+
+		const bootstrap = await ClinicalBootstrap.fromStores(stores);
+
+		expect(await bootstrap.dictionary.getConcept("c-activation")).not.toBeNull();
 	});
 
 	it("compiles selected blocks into the existing macro contract", () => {

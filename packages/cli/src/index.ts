@@ -79,6 +79,8 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 				dictionary: clinical.dictionary,
 				conceptFilterStore: clinical.conceptFilterStore,
 				macroStore: clinical.macroStore,
+				profileStore: clinical.profileStore,
+				valueRules: clinical.valueRules,
 			});
 			if (!materialized.applied) {
 				console.error(JSON.stringify(materialized.diagnostics, null, 2));

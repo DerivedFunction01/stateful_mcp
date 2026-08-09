@@ -29,6 +29,7 @@ import {
 } from "./store-builder";
 import { DEFAULT_DIFFERENTIAL_ACTION_MACRO_MAPPINGS } from "./syntax-profile-defaults";
 import { EXAMPLE_PROSE_TEMPLATES } from "./templates/example-templates";
+import { materializeSetupSource } from "../setup/setup-materializer";
 
 export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
@@ -103,6 +104,23 @@ async function buildClinicalBootstrap(
 		dictionaryConfig: config.dictionaryConfig,
 		valueRules: config.valueRules,
 	});
+	const setupSources = await stores.setupSourceStore.list();
+	const setupSource = [...setupSources].sort((left, right) =>
+		right.updatedAt.localeCompare(left.updatedAt),
+	)[0];
+	if (setupSource) {
+		const materialized = await materializeSetupSource(setupSource, {
+			dictionary,
+			conceptFilterStore: stores.conceptFilterStore,
+			macroStore: stores.macroStore as ColdStartOptions["macroStore"],
+			profileStore: stores.profileStore,
+			valueRules: coldStart.valueRules,
+		});
+		if (!materialized.applied)
+			throw new Error(
+				`Unable to activate setup source '${setupSource.sourceId}': ${materialized.diagnostics.join("; ")}`,
+			);
+	}
 	await stores.profileStore.set({
 		profileId: coldStart.commandProfile.profileId,
 		kind: "command",

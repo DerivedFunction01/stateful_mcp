@@ -23,6 +23,7 @@ import type { DocumentPlacementRef } from "@stateful-mcp/clinical";
 import type { MacroDefinition } from "@stateful-mcp/clinical";
 import type { DictionaryStore } from "@stateful-mcp/core";
 import type { ConceptFilterStore } from "@stateful-mcp/core";
+import type { ValueRuleRegistry } from "@stateful-mcp/clinical";
 import {
 	defaultEditorKeymapProfile,
 	mergeEditorKeymap,
@@ -68,6 +69,7 @@ export interface Cli2BootstrapResult {
 	setupSourceStore: SetupSourceStore;
 	dictionary: DictionaryStore;
 	conceptFilterStore: ConceptFilterStore;
+	valueRules: ValueRuleRegistry;
 	documentPlacements: DocumentPlacementRef[];
 	patient: ReturnType<typeof createMockCaseIdentity>["patient"];
 	caseIdentity: ReturnType<typeof createMockCaseIdentity>;
@@ -280,6 +282,7 @@ export async function buildCli2Bootstrap(
 		setupSourceStore: setupStore,
 		dictionary: clinical.dictionary,
 		conceptFilterStore: stores?.conceptFilterStore ?? clinical.stores.conceptFilterStore,
+		valueRules: clinical.coldStart.valueRules,
 		documentPlacements,
 		patient,
 		caseIdentity,
