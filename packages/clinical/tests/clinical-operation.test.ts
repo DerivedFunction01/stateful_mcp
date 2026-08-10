@@ -5,11 +5,11 @@ import { ClinicalOperationCompiler } from "../src/clinical/clinical-operation-co
 import { ClinicalSchemaAdapterRegistry } from "../src/clinical/clinical-schema-adapter";
 import { CoreClinicalEventStore } from "../src/clinical/core-clinical-event-store";
 import { CoreStreamEventStore } from "../src/events/core-stream-event-store";
-import type { MacroTargetOperation } from "../src/macros/macro-plan";
 import type {
 	StreamEventCodec,
 	StreamEventRecord,
 } from "../src/events/stream-event-store";
+import type { MacroTargetOperation } from "../src/macros/macro-plan";
 
 async function eventStore(): Promise<EventStore> {
 	const storage = await createEventStore(new SimpleMemoryKvBackend());
@@ -37,8 +37,29 @@ describe(" clinical operations", () => {
 			evidence: [],
 		};
 		const operations = [
-			{ ...base, placement: { placementId: "subjective", documentSchema: "SoapNote", documentPath: "subjective.presentingComplaint", targetSchema: "Observation", targetSchemaVersion: 1, cardinality: "one" as const } },
-			{ ...base, operationId: "op-2", placement: { placementId: "objective", documentSchema: "SoapNote", documentPath: "objective.clinicalObservations[]", targetSchema: "Observation", targetSchemaVersion: 1, cardinality: "many" as const } },
+			{
+				...base,
+				placement: {
+					placementId: "subjective",
+					documentSchema: "SoapNote",
+					documentPath: "subjective.presentingComplaint",
+					targetSchema: "Observation",
+					targetSchemaVersion: 1,
+					cardinality: "one" as const,
+				},
+			},
+			{
+				...base,
+				operationId: "op-2",
+				placement: {
+					placementId: "objective",
+					documentSchema: "SoapNote",
+					documentPath: "objective.clinicalObservations[]",
+					targetSchema: "Observation",
+					targetSchemaVersion: 1,
+					cardinality: "many" as const,
+				},
+			},
 		];
 
 		const events = compiler.compileMacroTargets("doc-1", operations);
@@ -46,7 +67,9 @@ describe(" clinical operations", () => {
 		expect(events).toHaveLength(2);
 		expect(events[0]?.recordId).not.toBe(events[1]?.recordId);
 		expect(events[0]?.provenance?.placementId).toBe("subjective");
-		expect(events[1]?.provenance?.documentPath).toBe("objective.clinicalObservations[]");
+		expect(events[1]?.provenance?.documentPath).toBe(
+			"objective.clinicalObservations[]",
+		);
 	});
 
 	it("compiles schema records without schema-specific event union variants", async () => {

@@ -12,9 +12,10 @@ export function applySetupPrimitiveProfile(
 			.filter(([, value]) => Number.isFinite(value)),
 	);
 	const unitAliases = Object.fromEntries(
-		Object.entries(primitive.unitAliases ?? {})
-			.filter(([, value]) => value.length > 0),
-		) as NumericalSyntaxProfile["temporal"]["unitAliases"];
+		Object.entries(primitive.unitAliases ?? {}).filter(
+			([, value]) => value.length > 0,
+		),
+	) as NumericalSyntaxProfile["temporal"]["unitAliases"];
 	return {
 		...base,
 		temporal: {
@@ -23,7 +24,12 @@ export function applySetupPrimitiveProfile(
 				? { dateTimeFormats: primitive.dateTimeFormats }
 				: {}),
 			...(Object.keys(temporalAliases).length > 0
-				? { relativeDayAliases: { ...base.temporal.relativeDayAliases, ...temporalAliases } }
+				? {
+						relativeDayAliases: {
+							...base.temporal.relativeDayAliases,
+							...temporalAliases,
+						},
+					}
 				: {}),
 			...(primitive.rangeDelimiters?.length
 				? { rangeDelimiters: primitive.rangeDelimiters }
@@ -33,8 +39,12 @@ export function applySetupPrimitiveProfile(
 			? {
 					numericFormat: {
 						...base.numericFormat,
-						...(primitive.decimalSeparator ? { decimalPoint: primitive.decimalSeparator } : {}),
-						...(primitive.thousandsSeparator ? { thousandsSeparator: primitive.thousandsSeparator } : {}),
+						...(primitive.decimalSeparator
+							? { decimalPoint: primitive.decimalSeparator }
+							: {}),
+						...(primitive.thousandsSeparator
+							? { thousandsSeparator: primitive.thousandsSeparator }
+							: {}),
 					},
 				}
 			: {}),

@@ -1,24 +1,28 @@
 import { describe, expect, it } from "bun:test";
-import { DictionaryStore, InMemoryConceptFilterStore, InMemoryConceptResolver } from "@stateful-mcp/core";
 import {
-	createDefaultSetupSource,
-	compileSetupMacro,
-	expandSetupPlacements,
-	compileTemporalGrammar,
-	matchTemporalGrammar,
-	MemorySetupSourceStore,
-	validateSetupSource,
-	materializeSetupSource,
-	publishSetupSource,
-	activateSetupSource,
-	rollbackSetupSource,
-	diffSetupSources,
-	applySetupPrimitiveProfile,
-	previewDateTimeFormat,
-} from "../src/setup";
-import { bootstrapNumericalDefaults } from "../src/bootstrap/bootstrap-config";
+	DictionaryStore,
+	InMemoryConceptFilterStore,
+	InMemoryConceptResolver,
+} from "@stateful-mcp/core";
 import { ClinicalBootstrap } from "../src/bootstrap/bootstrap";
+import { bootstrapNumericalDefaults } from "../src/bootstrap/bootstrap-config";
 import { StoreBuilder } from "../src/bootstrap/store-builder";
+import {
+	activateSetupSource,
+	applySetupPrimitiveProfile,
+	compileSetupMacro,
+	compileTemporalGrammar,
+	createDefaultSetupSource,
+	diffSetupSources,
+	expandSetupPlacements,
+	MemorySetupSourceStore,
+	matchTemporalGrammar,
+	materializeSetupSource,
+	previewDateTimeFormat,
+	publishSetupSource,
+	rollbackSetupSource,
+	validateSetupSource,
+} from "../src/setup";
 
 describe("interactive setup source", () => {
 	it("round-trips a draft through the source store", async () => {
@@ -62,11 +66,14 @@ describe("interactive setup source", () => {
 			kind: "enum",
 			target: { targetSchema: "Observation", targetPath: "certainty" },
 			valueKind: "enum",
-			source: { kind: "generated", recipe: { phrases: ["possible"], caseSensitive: false } },
+			source: {
+				kind: "generated",
+				recipe: { phrases: ["possible"], caseSensitive: false },
+			},
 			schemaVersion: 1,
 			status: "draft",
 		});
-	const filterStore = new InMemoryConceptFilterStore();
+		const filterStore = new InMemoryConceptFilterStore();
 		const dictionary = new DictionaryStore(
 			new InMemoryConceptResolver({ filterStore }),
 			undefined,
@@ -75,21 +82,37 @@ describe("interactive setup source", () => {
 			filterStore,
 		);
 		const macros = new Map<string, unknown>();
-		const valueRules = new (await import("../src/values/value-rule-registry")).ValueRuleRegistry();
+		const valueRules = new (
+			await import("../src/values/value-rule-registry")
+		).ValueRuleRegistry();
 		const profiles = new Map<string, unknown>();
 		const result = await materializeSetupSource(source, {
 			dictionary,
 			conceptFilterStore: filterStore,
 			macroStore: {
-				async get() { return null; },
-				async list() { return []; },
-				async set(macro) { macros.set(macro.macroId, macro); },
+				async get() {
+					return null;
+				},
+				async list() {
+					return [];
+				},
+				async set(macro) {
+					macros.set(macro.macroId, macro);
+				},
 			},
 			profileStore: {
-				async get(id) { return (profiles.get(id) as any) ?? null; },
-				async list() { return [...profiles.values()] as any[]; },
-				async set(profile) { profiles.set(profile.profileId, profile); },
-				async delete(id) { profiles.delete(id); },
+				async get(id) {
+					return (profiles.get(id) as any) ?? null;
+				},
+				async list() {
+					return [...profiles.values()] as any[];
+				},
+				async set(profile) {
+					profiles.set(profile.profileId, profile);
+				},
+				async delete(id) {
+					profiles.delete(id);
+				},
 			},
 			valueRules,
 		});
@@ -99,7 +122,9 @@ describe("interactive setup source", () => {
 		expect(result.expressions).toBe(1);
 		expect(await dictionary.getConcept("c-pneumonia")).not.toBeNull();
 		expect(await filterStore.get("filter-pneumonia")).not.toBeNull();
-		expect(valueRules.get("default-clinical:values", "possible-block")).not.toBeNull();
+		expect(
+			valueRules.get("default-clinical:values", "possible-block"),
+		).not.toBeNull();
 	});
 
 	it("validates block and placement references before publication", () => {
@@ -118,10 +143,11 @@ describe("interactive setup source", () => {
 		const result = validateSetupSource(source);
 
 		expect(result.valid).toBe(false);
-		expect(result.diagnostics.filter((item) => item.severity === "error").map((item) => item.code)).toEqual([
-			"missing_macro_placement",
-			"missing_macro_block",
-		]);
+		expect(
+			result.diagnostics
+				.filter((item) => item.severity === "error")
+				.map((item) => item.code),
+		).toEqual(["missing_macro_placement", "missing_macro_block"]);
 	});
 
 	it("activates the newest persisted setup source during bootstrap", async () => {
@@ -137,24 +163,41 @@ describe("interactive setup source", () => {
 
 		const bootstrap = await ClinicalBootstrap.fromStores(stores);
 
-		expect(await bootstrap.dictionary.getConcept("c-activation")).not.toBeNull();
+		expect(
+			await bootstrap.dictionary.getConcept("c-activation"),
+		).not.toBeNull();
 	});
 
 	it("publishes and activates exactly one source", async () => {
 		const store = new MemorySetupSourceStore();
-		const first = await publishSetupSource(store, createDefaultSetupSource("first"));
-		const second = await publishSetupSource(store, createDefaultSetupSource("second"));
+		const first = await publishSetupSource(
+			store,
+			createDefaultSetupSource("first"),
+		);
+		const second = await publishSetupSource(
+			store,
+			createDefaultSetupSource("second"),
+		);
 
 		expect(first.status).toBe("published");
-		expect((await activateSetupSource(store, first.sourceId)).status).toBe("active");
-		expect((await activateSetupSource(store, second.sourceId)).status).toBe("active");
+		expect((await activateSetupSource(store, first.sourceId)).status).toBe(
+			"active",
+		);
+		expect((await activateSetupSource(store, second.sourceId)).status).toBe(
+			"active",
+		);
 		expect((await store.get(first.sourceId))?.status).toBe("retired");
-		expect((await rollbackSetupSource(store, first.sourceId)).status).toBe("active");
+		expect((await rollbackSetupSource(store, first.sourceId)).status).toBe(
+			"active",
+		);
 	});
 
 	it("does not bootstrap a merely published source", async () => {
 		const stores = await StoreBuilder.fromConfig({ backend: "memory" });
-		const source = await publishSetupSource(stores.setupSourceStore, createDefaultSetupSource("published-only"));
+		const source = await publishSetupSource(
+			stores.setupSourceStore,
+			createDefaultSetupSource("published-only"),
+		);
 		source.concepts.push({
 			conceptId: "c-published-only",
 			namespaceCode: "LOCAL",
@@ -164,16 +207,26 @@ describe("interactive setup source", () => {
 		await stores.setupSourceStore.set(source);
 		const bootstrap = await ClinicalBootstrap.fromStores(stores);
 
-		expect(await bootstrap.dictionary.getConcept("c-published-only")).toBeUndefined();
+		expect(
+			await bootstrap.dictionary.getConcept("c-published-only"),
+		).toBeUndefined();
 	});
 
 	it("reports semantic source changes", () => {
 		const left = createDefaultSetupSource("left");
 		const right = createDefaultSetupSource("right");
 		right.primitiveProfile.decimalSeparator = ",";
-		right.concepts.push({ conceptId: "c", namespaceCode: "LOCAL", standardCode: "c", display: "C" });
+		right.concepts.push({
+			conceptId: "c",
+			namespaceCode: "LOCAL",
+			standardCode: "c",
+			display: "C",
+		});
 
-		expect(diffSetupSources(left, right).changes).toEqual(["primitiveProfile", "concepts"]);
+		expect(diffSetupSources(left, right).changes).toEqual([
+			"primitiveProfile",
+			"concepts",
+		]);
 	});
 
 	it("materializes only confirmed primitive values over runtime defaults", () => {
@@ -185,10 +238,15 @@ describe("interactive setup source", () => {
 		};
 		const source = createDefaultSetupSource("profile-overlay");
 		source.primitiveProfile.dateTimeFormats = [format];
-		source.primitiveProfile.dateFormatExamples = { "custom-date": ["31.01.2026"] };
+		source.primitiveProfile.dateFormatExamples = {
+			"custom-date": ["31.01.2026"],
+		};
 		source.primitiveProfile.decimalSeparator = ",";
 
-		const profile = applySetupPrimitiveProfile(bootstrapNumericalDefaults, source.primitiveProfile);
+		const profile = applySetupPrimitiveProfile(
+			bootstrapNumericalDefaults,
+			source.primitiveProfile,
+		);
 
 		expect(profile.temporal.dateTimeFormats).toEqual([format]);
 		expect(profile.numericFormat?.decimalPoint).toBe(",");
@@ -296,7 +354,11 @@ describe("interactive setup source", () => {
 			allowedPlacementIds: ["subjective", "objective"],
 			defaultPlacementId: "subjective",
 			parameters: [
-				{ argumentId: "concept", blockId: "concept", placementMode: "fan_out" as const },
+				{
+					argumentId: "concept",
+					blockId: "concept",
+					placementMode: "fan_out" as const,
+				},
 				{ argumentId: "certainty", blockId: "certainty" },
 			],
 			status: "draft" as const,
@@ -318,7 +380,12 @@ describe("interactive setup source", () => {
 				templateId: "exclusion-first",
 				version: 1,
 				parts: [
-					{ kind: "slot", slotId: "exclusion", blockId: "exclude", required: true },
+					{
+						kind: "slot",
+						slotId: "exclusion",
+						blockId: "exclude",
+						required: true,
+					},
 					{ kind: "slot", slotId: "start", blockId: "start", required: true },
 					{ kind: "slot", slotId: "end", blockId: "end", required: true },
 				],
@@ -338,16 +405,30 @@ describe("interactive setup source", () => {
 				status: "draft",
 			},
 			slotPatterns: {
-				exclusion: { blockId: "exclude", targetPath: "excludedDatetimes", pattern: "Friday" },
-				start: { blockId: "start", targetPath: "time.startDatetime", pattern: "Spring\\s+2023" },
-				end: { blockId: "end", targetPath: "time.endDatetime", pattern: "Autumn\\s+2023" },
+				exclusion: {
+					blockId: "exclude",
+					targetPath: "excludedDatetimes",
+					pattern: "Friday",
+				},
+				start: {
+					blockId: "start",
+					targetPath: "time.startDatetime",
+					pattern: "Spring\\s+2023",
+				},
+				end: {
+					blockId: "end",
+					targetPath: "time.endDatetime",
+					pattern: "Autumn\\s+2023",
+				},
 			},
 		});
 
 		expect(grammar.alternatives[0]?.pattern).toContain("exclusion");
-		expect(new RegExp(grammar.alternatives[0]!.pattern, "u").test(
-			"Friday before Spring 2023Autumn 2023",
-		)).toBe(true);
+		expect(
+			new RegExp(grammar.alternatives[0]!.pattern, "u").test(
+				"Friday before Spring 2023Autumn 2023",
+			),
+		).toBe(true);
 	});
 
 	it("builds enum slot patterns from the active temporal profile", () => {
@@ -356,7 +437,14 @@ describe("interactive setup source", () => {
 			template: {
 				templateId: "weekday-template",
 				version: 1,
-				parts: [{ kind: "slot", slotId: "weekday", blockId: "weekday", required: true }],
+				parts: [
+					{
+						kind: "slot",
+						slotId: "weekday",
+						blockId: "weekday",
+						required: true,
+					},
+				],
 				gaps: [],
 				whitespace: "flexible",
 				punctuation: "flexible",
@@ -373,7 +461,10 @@ describe("interactive setup source", () => {
 			profile: bootstrapNumericalDefaults.temporal,
 		});
 
-		const matcher = new RegExp(grammar.alternatives[0]!.pattern, grammar.alternatives[0]!.flags);
+		const matcher = new RegExp(
+			grammar.alternatives[0]!.pattern,
+			grammar.alternatives[0]!.flags,
+		);
 		expect(matcher.test("Monday")).toBe(true);
 		expect(matcher.test("Mondayish")).toBe(false);
 	});
@@ -384,7 +475,9 @@ describe("interactive setup source", () => {
 			template: {
 				templateId: "date-template",
 				version: 1,
-				parts: [{ kind: "slot", slotId: "date", blockId: "date", required: true }],
+				parts: [
+					{ kind: "slot", slotId: "date", blockId: "date", required: true },
+				],
 				gaps: [],
 				whitespace: "flexible",
 				punctuation: "flexible",
@@ -404,7 +497,10 @@ describe("interactive setup source", () => {
 			},
 		});
 
-		const matcher = new RegExp(grammar.alternatives[0]!.pattern, grammar.alternatives[0]!.flags);
+		const matcher = new RegExp(
+			grammar.alternatives[0]!.pattern,
+			grammar.alternatives[0]!.flags,
+		);
 		expect(matcher.test("31/01/2026")).toBe(true);
 		expect(matcher.test("2026-01-31")).toBe(false);
 		expect(matchTemporalGrammar(grammar, "31/01/2026")).toEqual({

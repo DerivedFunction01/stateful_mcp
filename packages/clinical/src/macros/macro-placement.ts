@@ -17,13 +17,19 @@ export function selectMacroPlacement(
 		requestedPlacementId ?? definition.placementPolicy.defaultPlacementId;
 	if (!placementId)
 		return {
-			diagnostics: [`Macro '${definition.macroId}' requires a document placement`],
+			diagnostics: [
+				`Macro '${definition.macroId}' requires a document placement`,
+			],
 		};
 	if (!definition.placementPolicy.allowedPlacementIds.includes(placementId))
 		return {
-			diagnostics: [`Placement '${placementId}' is not allowed for macro '${definition.macroId}'`],
+			diagnostics: [
+				`Placement '${placementId}' is not allowed for macro '${definition.macroId}'`,
+			],
 		};
-	const placement = placements.find((candidate) => candidate.placementId === placementId);
+	const placement = placements.find(
+		(candidate) => candidate.placementId === placementId,
+	);
 	if (!placement)
 		return { diagnostics: [`Placement '${placementId}' is not available`] };
 	return { placement, diagnostics: [] };

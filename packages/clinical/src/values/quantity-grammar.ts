@@ -59,7 +59,8 @@ export function parseQuantity(
 	let text = rawText;
 	let operator: MeasurementOperator | undefined;
 	for (const [alias, mapped] of Object.entries(config.operatorAliases ?? {})) {
-		if (!text.toLocaleLowerCase().startsWith(alias.toLocaleLowerCase())) continue;
+		if (!text.toLocaleLowerCase().startsWith(alias.toLocaleLowerCase()))
+			continue;
 		const remainder = text.slice(alias.length).trimStart();
 		if (!remainder) continue;
 		operator = mapped;
@@ -73,8 +74,11 @@ export function parseQuantity(
 		);
 
 	let statisticalType: ValueType | undefined;
-	for (const [alias, mapped] of Object.entries(config.statisticalAliases ?? {})) {
-		if (!text.toLocaleLowerCase().startsWith(alias.toLocaleLowerCase())) continue;
+	for (const [alias, mapped] of Object.entries(
+		config.statisticalAliases ?? {},
+	)) {
+		if (!text.toLocaleLowerCase().startsWith(alias.toLocaleLowerCase()))
+			continue;
 		const remainder = text.slice(alias.length).trimStart();
 		if (!remainder) continue;
 		statisticalType = mapped;
@@ -89,9 +93,12 @@ export function parseQuantity(
 
 	const dataPointMatch = text.match(/^(\d+)\s+/u);
 	let dataPointCount: number | undefined;
-	if (dataPointMatch && config.dataPointCountAliases?.some((alias) =>
-		text.toLocaleLowerCase().includes(` ${alias.toLocaleLowerCase()}`),
-	)) {
+	if (
+		dataPointMatch &&
+		config.dataPointCountAliases?.some((alias) =>
+			text.toLocaleLowerCase().includes(` ${alias.toLocaleLowerCase()}`),
+		)
+	) {
 		dataPointCount = Number(dataPointMatch[1]);
 		text = text.slice(dataPointMatch[0].length).trimStart();
 	}
@@ -103,7 +110,10 @@ export function parseQuantity(
 
 	const range = splitRange(text, config.rangeDelimiters);
 	if (range && !policy.allowRange)
-		return diagnostic("range_not_allowed", "Ranges are not allowed for this field");
+		return diagnostic(
+			"range_not_allowed",
+			"Ranges are not allowed for this field",
+		);
 	const lowerText = range?.[0] ?? text;
 	const upperText = range?.[1];
 	const upperParsed = upperText
@@ -111,7 +121,9 @@ export function parseQuantity(
 		: undefined;
 	const lowerParsed =
 		parseNumberAndUnit(lowerText, config) ??
-		(upperParsed ? parseNumberOnly(lowerText, upperParsed.unit, config) : undefined);
+		(upperParsed
+			? parseNumberOnly(lowerText, upperParsed.unit, config)
+			: undefined);
 	if (!lowerParsed || (upperText && !upperParsed))
 		return diagnostic(
 			"invalid_quantity",
@@ -159,10 +171,15 @@ function parseNumberAndUnit(
 	config: QuantityGrammarConfig,
 ): { value: number; unit: string } | undefined {
 	const decimal = config.decimalSeparator ?? ".";
-	const numberPattern = decimal === "," ? "[+-]?\\d+(?:,\\d+)?" : "[+-]?\\d+(?:\\.\\d+)?";
-	const match = input.trim().match(new RegExp(`^(${numberPattern})\\s*(.+)$`, "u"));
+	const numberPattern =
+		decimal === "," ? "[+-]?\\d+(?:,\\d+)?" : "[+-]?\\d+(?:\\.\\d+)?";
+	const match = input
+		.trim()
+		.match(new RegExp(`^(${numberPattern})\\s*(.+)$`, "u"));
 	if (!match) return undefined;
-	const value = Number(decimal === "," ? match[1]!.replace(",", ".") : match[1]);
+	const value = Number(
+		decimal === "," ? match[1]!.replace(",", ".") : match[1],
+	);
 	const key = match[2]!.trim().toLocaleLowerCase();
 	const unit = config.unitAliases[key] ?? config.unitAliases[match[2]!.trim()!];
 	return unit && Number.isFinite(value) ? { value, unit } : undefined;
@@ -174,10 +191,13 @@ function parseNumberOnly(
 	config: QuantityGrammarConfig,
 ): { value: number; unit: string } | undefined {
 	const decimal = config.decimalSeparator ?? ".";
-	const pattern = decimal === "," ? "^[+-]?\\d+(?:,\\d+)?$" : "^[+-]?\\d+(?:\\.\\d+)?$";
+	const pattern =
+		decimal === "," ? "^[+-]?\\d+(?:,\\d+)?$" : "^[+-]?\\d+(?:\\.\\d+)?$";
 	const normalized = input.trim();
 	if (!new RegExp(pattern, "u").test(normalized)) return undefined;
-	const value = Number(decimal === "," ? normalized.replace(",", ".") : normalized);
+	const value = Number(
+		decimal === "," ? normalized.replace(",", ".") : normalized,
+	);
 	return Number.isFinite(value) ? { value, unit } : undefined;
 }
 
@@ -186,7 +206,9 @@ function splitRange(
 	delimiters: readonly string[],
 ): [string, string] | undefined {
 	for (const delimiter of delimiters) {
-		const index = input.toLocaleLowerCase().indexOf(delimiter.toLocaleLowerCase());
+		const index = input
+			.toLocaleLowerCase()
+			.indexOf(delimiter.toLocaleLowerCase());
 		if (index <= 0) continue;
 		const left = input.slice(0, index).trim();
 		const right = input.slice(index + delimiter.length).trim();

@@ -3,11 +3,11 @@ import type {
 	ConceptLookup,
 } from "@stateful-mcp/clinical";
 import type { ScratchpadCell } from "@stateful-mcp/clinical/notebook/notebook-session-store";
+import type { NotebookEditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import type { WorkspaceOperation } from "@stateful-mcp/clinical/workspaces/workspace-types";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useMemo, useState } from "react";
 import type { DifferentialScratchpadAdapter } from "../lib/scratchpad/differential-scratchpad-adapter";
-import type { NotebookEditorMode } from "@stateful-mcp/clinical/notebook/notebook-state";
 import { useScratchpadCells } from "../lib/scratchpad/use-scratchpad-cells";
 import { t } from "../lib/shared/i18n";
 import { useDebouncedValue } from "../lib/shared/use-debounced-value";
@@ -156,7 +156,9 @@ export function RapidScratchpadOverlay({
 					if (selected.length === 0) return;
 					const validOps = adapter.buildOperations(
 						adapter.deduplicate(
-							resolvedLines.filter((_, index) => index >= start && index <= end),
+							resolvedLines.filter(
+								(_, index) => index >= start && index <= end,
+							),
 						),
 						workspaceId,
 					);
@@ -168,7 +170,9 @@ export function RapidScratchpadOverlay({
 							onApplySuccess?.(validOps.length);
 						})
 						.catch((error: unknown) =>
-							onApplyError?.(error instanceof Error ? error.message : String(error)),
+							onApplyError?.(
+								error instanceof Error ? error.message : String(error),
+							),
 						);
 					return;
 				}

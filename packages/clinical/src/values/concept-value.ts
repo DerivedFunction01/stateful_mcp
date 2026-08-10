@@ -113,10 +113,10 @@ export async function resolveConceptValue(
 		}
 		if (expression?.conceptId) {
 			candidates = await dictionary.search(
-						expression.term,
-						undefined,
-						options.limit ?? 20,
-						options.roleName,
+				expression.term,
+				undefined,
+				options.limit ?? 20,
+				options.roleName,
 			);
 			exact = candidates.find(
 				(candidate) => candidate.id === expression.conceptId,
@@ -164,8 +164,8 @@ function selectUnambiguousExpression(
 ): CustomExpression | undefined {
 	if (expressions.length === 0) return undefined;
 	const longestLength = Math.max(
-		...expressions.map((expression) =>
-			(expression.lookupTerm ?? expression.term).length,
+		...expressions.map(
+			(expression) => (expression.lookupTerm ?? expression.term).length,
 		),
 	);
 	const longest = expressions.filter(

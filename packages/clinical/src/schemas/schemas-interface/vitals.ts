@@ -116,14 +116,14 @@ export interface HeightVitalEvent
 
 // Polymorphic union
 
-export type VitalsEvent = 
+export type VitalsEvent =
 	| BloodPressureVitalEvent
 	| HeartRateVitalEvent
 	| RespiratoryRateVitalEvent
 	| OxygenSaturationVitalEvent
 	| TemperatureVitalEvent
 	| WeightVitalEvent
-	| HeightVitalEvent
+	| HeightVitalEvent;
 
 // =====================================================================
 // PHYSICAL EXAMINATION

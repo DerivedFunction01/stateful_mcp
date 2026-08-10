@@ -35,9 +35,9 @@ import type {
 	WindowOverlay,
 	WindowOverlayAction,
 } from "../lib/cell-editor";
+import type { CompletionState } from "../lib/editor/completion-state";
 import type { EditorFocusTarget } from "../lib/editor/interaction-state";
 import { focusForSection } from "../lib/editor/interaction-state";
-import type { CompletionState } from "../lib/editor/completion-state";
 import { useNotebookRuntime } from "../lib/runtime/notebook-runtime";
 import { createDifferentialScratchpadAdapter } from "../lib/scratchpad/differential-scratchpad-adapter";
 import { t } from "../lib/shared/i18n";
@@ -85,8 +85,7 @@ export function Notebook({
 		useState<SidebarViewTab>(DEFAULT_SIDEBAR_TAB);
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTabId>("notebook");
 	const [consoleFocused, setConsoleFocused] = useState(false);
-	const [focusTarget, setFocusTarget] =
-		useState<EditorFocusTarget>("history");
+	const [focusTarget, setFocusTarget] = useState<EditorFocusTarget>("history");
 	const consoleReturnFocusRef = useRef<EditorFocusTarget>("history");
 	const consoleReturnModeRef = useRef<CellEditorMode>("NORMAL");
 	const [assessmentSubTab, setAssessmentSubTab] =
@@ -222,9 +221,7 @@ export function Notebook({
 					setWorkspaceTab(savedWorkspaceTab as WorkspaceTabId);
 				setConsoleFocused(record?.uiState?.console?.focused === true);
 				setFocusTarget(
-					record?.uiState?.console?.focused
-						? "macro-console"
-						: "history",
+					record?.uiState?.console?.focused ? "macro-console" : "history",
 				);
 				const assessmentState = record?.uiState?.soap?.sections.assessment;
 				if (assessmentState) {
@@ -318,7 +315,8 @@ export function Notebook({
 					cellId: "macro-console",
 					mode: "INSERT",
 					commandKind: "macro",
-					text: state.draftText || session?.v2.syntaxProfile.macroStartToken || "",
+					text:
+						state.draftText || session?.v2.syntaxProfile.macroStartToken || "",
 				});
 			}
 		} else {
@@ -338,7 +336,14 @@ export function Notebook({
 			expectedRevision: notebookRevisionRef.current,
 		});
 		notebookRevisionRef.current += 1;
-	}, [consoleFocused, focusTarget, session, state.commandKind, state.draftText, state.mode]);
+	}, [
+		consoleFocused,
+		focusTarget,
+		session,
+		state.commandKind,
+		state.draftText,
+		state.mode,
+	]);
 	useEffect(() => {
 		if (consoleFocused) return;
 		if (assessmentSubTab !== "scratchpad") {
@@ -412,10 +417,10 @@ export function Notebook({
 				}
 				cells={sectionCells.subjective}
 				createCellId={() => crypto.randomUUID()}
-					onCellsChange={persistSubjectiveScratchpad}
-					onExecute={(cells) => executeSectionScratchpad("subjective", cells)}
-					mode={state.mode}
-					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
+				onCellsChange={persistSubjectiveScratchpad}
+				onExecute={(cells) => executeSectionScratchpad("subjective", cells)}
+				mode={state.mode}
+				onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 			/>
 		) : null,
 		objective: sectionCells.objective ? (
@@ -425,10 +430,10 @@ export function Notebook({
 				}
 				cells={sectionCells.objective}
 				createCellId={() => crypto.randomUUID()}
-					onCellsChange={persistObjectiveScratchpad}
-					onExecute={(cells) => executeSectionScratchpad("objective", cells)}
-					mode={state.mode}
-					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
+				onCellsChange={persistObjectiveScratchpad}
+				onExecute={(cells) => executeSectionScratchpad("objective", cells)}
+				mode={state.mode}
+				onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 			/>
 		) : null,
 		plan: sectionCells.plan ? (
@@ -436,10 +441,10 @@ export function Notebook({
 				active={workspaceTab === "plan" && assessmentSubTab === "scratchpad"}
 				cells={sectionCells.plan}
 				createCellId={() => crypto.randomUUID()}
-					onCellsChange={persistPlanScratchpad}
-					onExecute={(cells) => executeSectionScratchpad("plan", cells)}
-					mode={state.mode}
-					onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
+				onCellsChange={persistPlanScratchpad}
+				onExecute={(cells) => executeSectionScratchpad("plan", cells)}
+				mode={state.mode}
+				onModeChange={(mode) => dispatch({ type: "set_mode", mode })}
 			/>
 		) : null,
 	};
@@ -1562,13 +1567,13 @@ export function Notebook({
 			}
 			focusTarget={focusTarget}
 			suspendEditorInput={
-					(workspaceTab === "subjective" ||
-						workspaceTab === "objective" ||
-						workspaceTab === "assessment" ||
-						workspaceTab === "plan") &&
-					assessmentSubTab === "scratchpad" &&
-					!consoleFocused
-				}
+				(workspaceTab === "subjective" ||
+					workspaceTab === "objective" ||
+					workspaceTab === "assessment" ||
+					workspaceTab === "plan") &&
+				assessmentSubTab === "scratchpad" &&
+				!consoleFocused
+			}
 			onToggleConsoleFocus={toggleConsoleFocus}
 			historySearchOpen={searchState.open}
 			historySearchQuery={searchState.query}

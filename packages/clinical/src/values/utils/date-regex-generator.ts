@@ -128,9 +128,10 @@ export function buildDatePatternString(
 
 	const mmPattern = "(?:0?[1-9]|1[0-2])";
 	const configuredMonthNames = monthAliases?.flat() ?? monthNames ?? [];
-	const mmNamePattern = configuredMonthNames.length > 0
-		? `(?:${configuredMonthNames.map(escapeRegex).join("|")})`
-		: mmPattern;
+	const mmNamePattern =
+		configuredMonthNames.length > 0
+			? `(?:${configuredMonthNames.map(escapeRegex).join("|")})`
+			: mmPattern;
 	const ddPattern = "(?:0?[1-9]|[12]\\d|3[01])";
 	const hhPattern = is24Hour ? "(?:[01]\\d|2[0-3])" : "(?:0?[1-9]|1[0-2])";
 	const minSecPattern = "[0-5]\\d";

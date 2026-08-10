@@ -1,11 +1,11 @@
-import { Notebook } from "./components/Notebook";
-import { SetupWorkspace } from "./components/SetupWorkspace";
 import {
 	createDefaultSetupSource,
-	type SetupSourceStore,
 	type SetupSourceDocument,
+	type SetupSourceStore,
 } from "@stateful-mcp/clinical";
 import { useEffect, useState } from "react";
+import { Notebook } from "./components/Notebook";
+import { SetupWorkspace } from "./components/SetupWorkspace";
 
 export function NotebookApp({
 	preferredSessionId,

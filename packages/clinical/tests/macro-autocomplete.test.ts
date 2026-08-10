@@ -40,11 +40,10 @@ function makeExpressionDictionary(
 			return concepts;
 		},
 		async searchExpressionCandidates(request) {
-			return expressions.filter(
-				(expression) =>
-					(expression.lookupTerm ?? expression.term).startsWith(
-						request.lookupPrefix ?? "",
-					),
+			return expressions.filter((expression) =>
+				(expression.lookupTerm ?? expression.term).startsWith(
+					request.lookupPrefix ?? "",
+				),
 			);
 		},
 	};

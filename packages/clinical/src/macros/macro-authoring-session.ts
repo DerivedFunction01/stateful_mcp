@@ -10,8 +10,7 @@ import type { MacroBinding } from "./macro-binding";
 import type { MacroCompileResult as MacroCompilationResult } from "./macro-compiler";
 import type { MacroDefinition } from "./macro-definition";
 import type { MacroDraftPreview } from "./macro-draft-preview";
-import type { MacroExecutionPlan } from "./macro-plan";
-import type { DocumentPlacementRef } from "./macro-plan";
+import type { DocumentPlacementRef, MacroExecutionPlan } from "./macro-plan";
 import type { SyntaxProfile } from "./macro-profile";
 import {
 	activeMacroSlot,
@@ -90,7 +89,7 @@ export type MacroAuthoringAction =
 			slots?: MacroSlotProjection[];
 			authoringPreview?: MacroAuthoringRender;
 			placement?: DocumentPlacementRef;
-		  }
+	  }
 	| { type: "set_placement"; placement?: DocumentPlacementRef }
 	| { type: "submit" };
 
@@ -248,8 +247,8 @@ export class MacroAuthoringSession {
 				this.snapshot = {
 					...this.snapshot,
 					definition: action.definition,
-						childDefinitions: action.childDefinitions ?? [],
-						placement: action.placement ?? this.snapshot.placement,
+					childDefinitions: action.childDefinitions ?? [],
+					placement: action.placement ?? this.snapshot.placement,
 				};
 				if (action.slots) {
 					const authoringPreview =

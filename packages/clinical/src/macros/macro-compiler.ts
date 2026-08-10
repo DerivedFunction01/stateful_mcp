@@ -34,11 +34,11 @@ import { bindMacro } from "./macro-binder";
 import type { MacroBindingIssue, MacroInput } from "./macro-binding";
 import type { MacroArgumentSpec, MacroDefinition } from "./macro-definition";
 import type {
+	DocumentPlacementRef,
 	MacroExecutionPlan,
+	MacroLinkOperation,
 	MacroPlanFingerprint,
 	MacroTargetOperation,
-	MacroLinkOperation,
-	DocumentPlacementRef,
 } from "./macro-plan";
 import { MacroDefinitionValidator } from "./macro-validator";
 import type { ValueExtractDiagnostic } from "./macro-value-extractor";
@@ -239,7 +239,9 @@ export class MacroCompiler {
 		if (definition.children?.length) {
 			for (const childDef of definition.children) {
 				const parentOp = operations[0];
-				const parentRef = parentOp ? parentOp.operationId : `op_parent_${definition.macroId}`;
+				const parentRef = parentOp
+					? parentOp.operationId
+					: `op_parent_${definition.macroId}`;
 				const childRef = `op_child_${childDef.childMacroName}`;
 				links.push({
 					linkId: `link_${parentRef}_${childRef}`,
@@ -424,7 +426,7 @@ export class MacroCompiler {
 		}
 		const resolved = await resolveConceptValue(raw, this.deps.dictionary, {
 			required: spec.extraction.required ?? spec.required ?? true,
-				roleName: spec.roleName,
+			roleName: spec.roleName,
 		});
 		return {
 			concept: resolved.value?.concept,

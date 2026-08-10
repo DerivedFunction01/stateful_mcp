@@ -604,9 +604,8 @@ export class MacroAutocomplete {
 					return isConceptAllowed(filters, roleName!) ? expression : null;
 				}),
 			).then((items) =>
-				items.filter(
-					(expression): expression is (typeof expressions)[number] =>
-						Boolean(expression),
+				items.filter((expression): expression is (typeof expressions)[number] =>
+					Boolean(expression),
 				),
 			);
 		}

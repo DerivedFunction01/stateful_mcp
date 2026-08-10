@@ -41,9 +41,14 @@ export function escapeRegex(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-export function applyWordBoundary(pattern: string, boundary: WordBoundaryMode = "none"): string {
-	const prefix = boundary === "before" || boundary === "both" ? "(?<![\\p{L}\\p{N}_])" : "";
-	const suffix = boundary === "after" || boundary === "both" ? "(?![\\p{L}\\p{N}_])" : "";
+export function applyWordBoundary(
+	pattern: string,
+	boundary: WordBoundaryMode = "none",
+): string {
+	const prefix =
+		boundary === "before" || boundary === "both" ? "(?<![\\p{L}\\p{N}_])" : "";
+	const suffix =
+		boundary === "after" || boundary === "both" ? "(?![\\p{L}\\p{N}_])" : "";
 	return `${prefix}${pattern}${suffix}`;
 }
 
@@ -63,25 +68,33 @@ export function buildPatternWithAnchors(
 
 	// 2. Negative lookbehinds (phrases to ignore/reject if directly preceding)
 	if (options.ignoreLookbehinds?.length) {
-		const lookbehindPattern = options.ignoreLookbehinds.map(escapeRegex).join("|");
+		const lookbehindPattern = options.ignoreLookbehinds
+			.map(escapeRegex)
+			.join("|");
 		result = `(?<!(?:${lookbehindPattern})\\s*)${result}`;
 	}
 
 	// 3. Positive lookbehinds (phrases that must precede)
 	if (options.requiredLookbehinds?.length) {
-		const lookbehindPattern = options.requiredLookbehinds.map(escapeRegex).join("|");
+		const lookbehindPattern = options.requiredLookbehinds
+			.map(escapeRegex)
+			.join("|");
 		result = `(?<=(?:${lookbehindPattern})\\s*)${result}`;
 	}
 
 	// 4. Negative lookaheads (phrases to ignore/reject if directly following)
 	if (options.ignoreLookaheads?.length) {
-		const lookaheadPattern = options.ignoreLookaheads.map(escapeRegex).join("|");
+		const lookaheadPattern = options.ignoreLookaheads
+			.map(escapeRegex)
+			.join("|");
 		result = `${result}(?!\\s*(?:${lookaheadPattern}))`;
 	}
 
 	// 5. Positive lookaheads (phrases that must follow)
 	if (options.requiredLookaheads?.length) {
-		const lookaheadPattern = options.requiredLookaheads.map(escapeRegex).join("|");
+		const lookaheadPattern = options.requiredLookaheads
+			.map(escapeRegex)
+			.join("|");
 		result = `${result}(?=\\s*(?:${lookaheadPattern}))`;
 	}
 
@@ -89,7 +102,10 @@ export function buildPatternWithAnchors(
 	if (options.precedingAnchor) {
 		const dist = options.precedingAnchor.maxDistance ?? 0;
 		const unit = options.precedingAnchor.unit ?? "words";
-		const gap = unit === "chars" ? `.{0,${dist}}` : `(?:\\s+[^\\s\\p{P}]+){0,${dist}}\\s*`;
+		const gap =
+			unit === "chars"
+				? `.{0,${dist}}`
+				: `(?:\\s+[^\\s\\p{P}]+){0,${dist}}\\s*`;
 		result = `(?:${options.precedingAnchor.pattern})${gap}${result}`;
 	}
 
@@ -97,7 +113,10 @@ export function buildPatternWithAnchors(
 	if (options.followingAnchor) {
 		const dist = options.followingAnchor.maxDistance ?? 0;
 		const unit = options.followingAnchor.unit ?? "words";
-		const gap = unit === "chars" ? `.{0,${dist}}` : `(?:\\s+[^\\s\\p{P}]+){0,${dist}}\\s*`;
+		const gap =
+			unit === "chars"
+				? `.{0,${dist}}`
+				: `(?:\\s+[^\\s\\p{P}]+){0,${dist}}\\s*`;
 		result = `${result}${gap}(?:${options.followingAnchor.pattern})`;
 	}
 

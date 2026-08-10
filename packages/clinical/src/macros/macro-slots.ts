@@ -1,4 +1,8 @@
-import type { MacroArgumentMatch, MacroArgumentSource, MacroCaptureSpan } from "./macro-binding";
+import type {
+	MacroArgumentMatch,
+	MacroArgumentSource,
+	MacroCaptureSpan,
+} from "./macro-binding";
 import type { MacroDefinition as Definition } from "./macro-definition";
 import { parseMacroLine } from "./macro-input-parser";
 import type { SyntaxProfile } from "./macro-profile";

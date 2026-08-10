@@ -1,14 +1,15 @@
-import type { DictionaryStore, ConceptFilterStore } from "@stateful-mcp/core";
-import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
-import type { ValueRule } from "../values/value-rule-registry";
-import { ValueRuleRegistry } from "../values/value-rule-registry";
+import type { ConceptFilterStore, DictionaryStore } from "@stateful-mcp/core";
 import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
-import { compileSetupMacro } from "./setup-compiler";
-import { validateSetupSource } from "./setup-validator";
-import type { SetupSourceDocument } from "./setup-types";
-import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
+import type { UnifiedProfileStore } from "../stores/profiles/profile-store";
 import { createNumericalSyntaxProfile } from "../values/numerical-syntax-profile";
+import type {
+	ValueRule,
+	ValueRuleRegistry,
+} from "../values/value-rule-registry";
+import { compileSetupMacro } from "./setup-compiler";
 import { applySetupPrimitiveProfile } from "./setup-profile";
+import type { SetupSourceDocument } from "./setup-types";
+import { validateSetupSource } from "./setup-validator";
 
 export interface SetupMaterializerDeps {
 	dictionary: DictionaryStore;
@@ -39,7 +40,9 @@ export async function materializeSetupSource(
 			expressions: 0,
 			filters: 0,
 			macros: 0,
-			diagnostics: validation.diagnostics.map((diagnostic) => diagnostic.message),
+			diagnostics: validation.diagnostics.map(
+				(diagnostic) => diagnostic.message,
+			),
 		};
 	}
 
@@ -58,7 +61,9 @@ export async function materializeSetupSource(
 		if (deps.profileStore) {
 			const baseProfile =
 				source.primitiveProfile.baseNumericalProfile ??
-				createNumericalSyntaxProfile({ profileId: `${source.profileId}:numerical` });
+				createNumericalSyntaxProfile({
+					profileId: `${source.profileId}:numerical`,
+				});
 			await deps.profileStore.set({
 				profileId: `${source.profileId}:numerical`,
 				kind: "numerical",
@@ -82,7 +87,8 @@ export async function materializeSetupSource(
 				await deps.conceptFilterStore.set(filter);
 		}
 		for (const composition of source.macros) {
-			const macro = composition.generatedMacro ??
+			const macro =
+				composition.generatedMacro ??
 				compileSetupMacro(composition, source.blocks);
 			await deps.macroStore.set(macro);
 		}
@@ -106,22 +112,29 @@ export async function materializeSetupSource(
 	}
 }
 
-function toGeneratedValueRules(block: SetupSourceDocument["blocks"][number]): ValueRule[] {
+function toGeneratedValueRules(
+	block: SetupSourceDocument["blocks"][number],
+): ValueRule[] {
 	if (block.source.kind !== "generated" || !block.source.recipe.phrases?.length)
 		return [];
 	const boundary = block.source.recipe.wordBoundary ?? "none";
-	const prefix = boundary === "before" || boundary === "both" ? "(?<![\\p{L}\\p{N}_])" : "";
-	const suffix = boundary === "after" || boundary === "both" ? "(?![\\p{L}\\p{N}_])" : "";
+	const prefix =
+		boundary === "before" || boundary === "both" ? "(?<![\\p{L}\\p{N}_])" : "";
+	const suffix =
+		boundary === "after" || boundary === "both" ? "(?![\\p{L}\\p{N}_])" : "";
 	const patterns = block.source.recipe.phrases.map(
-		(phrase) => `${prefix}${phrase.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}${suffix}`,
+		(phrase) =>
+			`${prefix}${phrase.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}${suffix}`,
 	);
-	return [{
-		ruleId: block.blockId,
-		targetSchema: block.target.targetSchema,
-		targetPath: block.target.targetPath,
-		valueKind: block.valueKind as ValueRule["valueKind"],
-		patterns,
-		caseInsensitive: block.source.recipe.caseSensitive !== true,
-		priority: block.version,
-	}];
+	return [
+		{
+			ruleId: block.blockId,
+			targetSchema: block.target.targetSchema,
+			targetPath: block.target.targetPath,
+			valueKind: block.valueKind as ValueRule["valueKind"],
+			patterns,
+			caseInsensitive: block.source.recipe.caseSensitive !== true,
+			priority: block.version,
+		},
+	];
 }

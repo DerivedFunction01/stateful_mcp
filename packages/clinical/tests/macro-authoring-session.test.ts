@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import type { SyntaxProfile } from "../src";
 import { NOTE_MACRO, VITALS_MACRO } from "../src/macros/default-macros";
 import { MacroAuthoringSession } from "../src/macros/macro-authoring-session";
-import type { MacroExecutionPlan } from "../src/macros/macro-plan";
-import type { DocumentPlacementRef } from "../src/macros/macro-plan";
+import type {
+	DocumentPlacementRef,
+	MacroExecutionPlan,
+} from "../src/macros/macro-plan";
 import type { MacroSlotProjection } from "../src/macros/macro-slots";
 
 const profile: SyntaxProfile = {
@@ -26,9 +28,9 @@ describe("MacroAuthoringSession", () => {
 		};
 		const session = new MacroAuthoringSession({ profile });
 
-		expect(session.dispatch({ type: "set_placement", placement }).placement).toEqual(
-			placement,
-		);
+		expect(
+			session.dispatch({ type: "set_placement", placement }).placement,
+		).toEqual(placement);
 	});
 
 	function plan(): MacroExecutionPlan {

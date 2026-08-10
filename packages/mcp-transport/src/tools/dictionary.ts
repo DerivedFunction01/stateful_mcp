@@ -118,7 +118,10 @@ function registerAllTools(
 				"Allow or block a concept for a canonical schema-field role.",
 			inputSchema: {
 				filter_id: z.string().min(1).describe("Stable filter identifier."),
-				concept_ref: z.string().min(1).describe("Concept ID or namespace::code."),
+				concept_ref: z
+					.string()
+					.min(1)
+					.describe("Concept ID or namespace::code."),
 				role_name: z.string().min(1).describe("Canonical schema-field role."),
 				policy: z.enum(["whitelist", "blacklist"]),
 				active: z.boolean().optional().default(true),
@@ -138,10 +141,16 @@ function registerAllTools(
 					policy,
 					active,
 				});
-				return { content: [{ type: "text" as const, text: JSON.stringify({ filter_id }) }] };
+				return {
+					content: [
+						{ type: "text" as const, text: JSON.stringify({ filter_id }) },
+					],
+				};
 			} catch (err: any) {
 				return {
-					content: [{ type: "text" as const, text: err.message || String(err) }],
+					content: [
+						{ type: "text" as const, text: err.message || String(err) },
+					],
 					isError: true,
 				};
 			}
@@ -160,12 +169,20 @@ function registerAllTools(
 			const filters = store.getConceptFilterStore();
 			if (!filters)
 				return {
-					content: [{ type: "text" as const, text: "Concept filters are not configured." }],
+					content: [
+						{
+							type: "text" as const,
+							text: "Concept filters are not configured.",
+						},
+					],
 					isError: true,
 				};
 			return {
 				content: [
-					{ type: "text" as const, text: JSON.stringify(await filters.listByRole(role_name)) },
+					{
+						type: "text" as const,
+						text: JSON.stringify(await filters.listByRole(role_name)),
+					},
 				],
 			};
 		},
@@ -181,11 +198,20 @@ function registerAllTools(
 			const filters = store.getConceptFilterStore();
 			if (!filters)
 				return {
-					content: [{ type: "text" as const, text: "Concept filters are not configured." }],
+					content: [
+						{
+							type: "text" as const,
+							text: "Concept filters are not configured.",
+						},
+					],
 					isError: true,
 				};
 			await filters.delete(filter_id);
-			return { content: [{ type: "text" as const, text: JSON.stringify({ filter_id }) }] };
+			return {
+				content: [
+					{ type: "text" as const, text: JSON.stringify({ filter_id }) },
+				],
+			};
 		},
 	);
 
@@ -832,7 +858,9 @@ async function main() {
 	validateMiddlewareConfig(config);
 
 	const conceptFilterStore = new InMemoryConceptFilterStore();
-	const dictResolver = new InMemoryConceptResolver({ filterStore: conceptFilterStore });
+	const dictResolver = new InMemoryConceptResolver({
+		filterStore: conceptFilterStore,
+	});
 	dictionaryStore = new DictionaryStore(
 		dictResolver,
 		undefined,

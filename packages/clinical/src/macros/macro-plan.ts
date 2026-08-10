@@ -72,7 +72,8 @@ export function expandMacroOperationsByPlacement(
 ): MacroTargetOperation[] {
 	if (policy) {
 		const unauthorized = placements.find(
-			(placement) => !policy.allowedPlacementIds.includes(placement.placementId),
+			(placement) =>
+				!policy.allowedPlacementIds.includes(placement.placementId),
 		);
 		if (unauthorized)
 			throw new Error(

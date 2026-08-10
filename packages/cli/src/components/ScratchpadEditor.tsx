@@ -97,8 +97,7 @@ export function ScratchpadEditor({
 						inverse={focus === "cells" && index === cellIndex}
 					>
 						{t("workspace.scratchpad.line", { value: index + 1 })}
-						{cell.text || t("workspace.scratchpad.emptyCell")}
-						{" "}
+						{cell.text || t("workspace.scratchpad.emptyCell")}{" "}
 						<Text dimColor>
 							[
 							{cell.pinnedMacroIds.join(", ") ||

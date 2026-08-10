@@ -14,7 +14,9 @@ describe("explicit date format authoring", () => {
 			options: { exact: true, is24Hour: true, precision: "minute" as const },
 		};
 
-		const result = previewDateTimeFormat(format, ["23 day 3 month 2016 at 14:05"]);
+		const result = previewDateTimeFormat(format, [
+			"23 day 3 month 2016 at 14:05",
+		]);
 
 		expect(result.valid).toBe(true);
 		expect(result.matches[0]?.captures.dd).toBe("23");
@@ -28,7 +30,9 @@ describe("explicit date format authoring", () => {
 			separators: [" ", ", "],
 			options: {
 				exact: true,
-				monthAliases: Array.from({ length: 12 }, (_, index) => index === 0 ? ["Jan", "January", "Januarry"] : [`m${index + 1}`]),
+				monthAliases: Array.from({ length: 12 }, (_, index) =>
+					index === 0 ? ["Jan", "January", "Januarry"] : [`m${index + 1}`],
+				),
 			},
 		};
 
@@ -39,11 +43,14 @@ describe("explicit date format authoring", () => {
 	});
 
 	it("rejects a configured format without a passing example or aliases", () => {
-		const result = previewDateTimeFormat({
-			id: "unconfirmed",
-			tokens: ["MM_name"],
-			separators: [],
-		}, []);
+		const result = previewDateTimeFormat(
+			{
+				id: "unconfirmed",
+				tokens: ["MM_name"],
+				separators: [],
+			},
+			[],
+		);
 
 		expect(result.valid).toBe(false);
 		expect(result.diagnostics.map((item) => item.code)).toEqual([
@@ -54,11 +61,24 @@ describe("explicit date format authoring", () => {
 
 	it("detects ambiguity across explicitly configured formats", () => {
 		const formats = [
-			{ id: "day-first", tokens: ["DD", "MM", "YYYY"] as const, separators: ["/", "/"], options: { exact: true } },
-			{ id: "month-first", tokens: ["MM", "DD", "YYYY"] as const, separators: ["/", "/"], options: { exact: true } },
+			{
+				id: "day-first",
+				tokens: ["DD", "MM", "YYYY"] as const,
+				separators: ["/", "/"],
+				options: { exact: true },
+			},
+			{
+				id: "month-first",
+				tokens: ["MM", "DD", "YYYY"] as const,
+				separators: ["/", "/"],
+				options: { exact: true },
+			},
 		];
 
-		expect(findAmbiguousDateExamples(formats, "03/04/2026")).toEqual(["day-first", "month-first"]);
+		expect(findAmbiguousDateExamples(formats, "03/04/2026")).toEqual([
+			"day-first",
+			"month-first",
+		]);
 	});
 
 	it("does not initialize setup numeric or unit conventions", () => {

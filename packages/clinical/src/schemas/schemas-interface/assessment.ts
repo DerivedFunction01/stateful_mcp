@@ -1,17 +1,13 @@
-import {
-	type BranchStatus,
-	type BranchTransitionKind,
-} from "../../commands/command-syntax-profile";
-import type { ScoreMeasurement } from "./measurement";
 import type {
-	AnatomicalLocation,
-	Certainty,
-	CodeableConcept,
-} from "./shared";
-import type { ClinicalObservationFinding, ObservationEvent } from "./observation";
-import type { ClinicalDateRange } from "./time";
-import type { PhysicalExamObject, VitalsEvent, VitalsMeasurementEvent } from "./vitals";
+	BranchStatus,
+	BranchTransitionKind,
+} from "../../commands/command-syntax-profile";
 import type { DeviceDiagnosticObject, LabPanelResult } from "./diagnostic";
+import type { ScoreMeasurement } from "./measurement";
+import type { ObservationEvent } from "./observation";
+import type { AnatomicalLocation, Certainty, CodeableConcept } from "./shared";
+import type { ClinicalDateRange } from "./time";
+import type { PhysicalExamObject, VitalsEvent } from "./vitals";
 
 export const ALGORITHMIC_EVALUATION_TYPES = [
 	"diagnostic_inference",
@@ -96,7 +92,10 @@ export interface ClinicalFindingRef {
 	crossBranchEffects?: ImpliedBranchTransition[];
 }
 
-export type ClinicalFinding = ClinicalFindingRef | AssessmentFinding | CodeableConcept;
+export type ClinicalFinding =
+	| ClinicalFindingRef
+	| AssessmentFinding
+	| CodeableConcept;
 
 export interface BaseDiagnosisEntry {
 	id: string;

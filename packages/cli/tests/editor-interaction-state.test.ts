@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-	INITIAL_EDITOR_INTERACTION_STATE,
 	focusForSection,
+	INITIAL_EDITOR_INTERACTION_STATE,
 	reduceEditorInteraction,
 	selectionBounds,
 } from "../src/lib/editor/interaction-state";
@@ -13,10 +13,10 @@ describe("editor interaction state", () => {
 	});
 
 	test("n-style scratchpad focus remains Normal until Insert is explicit", () => {
-		const focused = reduceEditorInteraction(
-			INITIAL_EDITOR_INTERACTION_STATE,
-			{ type: "focus", target: "assessment-scratchpad" },
-		);
+		const focused = reduceEditorInteraction(INITIAL_EDITOR_INTERACTION_STATE, {
+			type: "focus",
+			target: "assessment-scratchpad",
+		});
 		expect(focused.focus).toBe("assessment-scratchpad");
 		expect(focused.mode).toBe("NORMAL");
 		const inserted = reduceEditorInteraction(focused, { type: "enter-insert" });
@@ -25,10 +25,10 @@ describe("editor interaction state", () => {
 
 	test("cell Visual mode owns a cell range", () => {
 		const visual = reduceEditorInteraction(
-			reduceEditorInteraction(
-				INITIAL_EDITOR_INTERACTION_STATE,
-				{ type: "focus", target: "assessment-scratchpad" },
-			),
+			reduceEditorInteraction(INITIAL_EDITOR_INTERACTION_STATE, {
+				type: "focus",
+				target: "assessment-scratchpad",
+			}),
 			{ type: "enter-visual", anchor: 2 },
 		);
 		const extended = reduceEditorInteraction(visual, {
@@ -36,7 +36,10 @@ describe("editor interaction state", () => {
 			delta: -1,
 		});
 		expect(extended.cellSelection).toEqual({ anchor: 2, active: 1 });
-		expect(selectionBounds(extended.cellSelection!)).toEqual({ start: 1, end: 2 });
+		expect(selectionBounds(extended.cellSelection!)).toEqual({
+			start: 1,
+			end: 2,
+		});
 	});
 
 	test("Macro console Visual mode owns a text range", () => {
@@ -56,20 +59,20 @@ describe("editor interaction state", () => {
 	});
 
 	test("Escape returns to target-local Normal and clears selection", () => {
-		const visual = reduceEditorInteraction(
-			INITIAL_EDITOR_INTERACTION_STATE,
-			{ type: "enter-visual", anchor: 1 },
-		);
+		const visual = reduceEditorInteraction(INITIAL_EDITOR_INTERACTION_STATE, {
+			type: "enter-visual",
+			anchor: 1,
+		});
 		const normal = reduceEditorInteraction(visual, { type: "exit-to-normal" });
 		expect(normal.mode).toBe("NORMAL");
 		expect(normal.cellSelection).toBeNull();
 	});
 
 	test("unsupported workspace panes normalize Visual to Normal", () => {
-		const focused = reduceEditorInteraction(
-			INITIAL_EDITOR_INTERACTION_STATE,
-			{ type: "focus", target: "workspace-pane" },
-		);
+		const focused = reduceEditorInteraction(INITIAL_EDITOR_INTERACTION_STATE, {
+			type: "focus",
+			target: "workspace-pane",
+		});
 		const mode = reduceEditorInteraction(focused, {
 			type: "enter-visual",
 			anchor: 0,
@@ -83,11 +86,15 @@ describe("editor interaction state", () => {
 			INITIAL_EDITOR_INTERACTION_STATE,
 			{ type: "focus", target: "assessment-scratchpad" },
 		);
-		const toggled = reduceEditorInteraction(scratchpad, { type: "toggle-console" });
+		const toggled = reduceEditorInteraction(scratchpad, {
+			type: "toggle-console",
+		});
 		expect(toggled.focus).toBe("macro-console");
 		expect(toggled.mode).toBe("NORMAL");
 		expect(toggled.cellSelection).toBeNull();
-		const returned = reduceEditorInteraction(toggled, { type: "toggle-console" });
+		const returned = reduceEditorInteraction(toggled, {
+			type: "toggle-console",
+		});
 		expect(returned.focus).toBe("assessment-scratchpad");
 	});
 });

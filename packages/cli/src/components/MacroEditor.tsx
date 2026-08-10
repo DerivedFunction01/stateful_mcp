@@ -1,9 +1,9 @@
 import type {
 	CommandMacroTemplatePart,
+	DocumentPlacementRef,
 	MacroAuthoringRender,
 	MacroDefinition,
 	MacroDraftPreview,
-	DocumentPlacementRef,
 } from "@stateful-mcp/clinical";
 import {
 	findNextMacroChild,
@@ -397,31 +397,43 @@ export function MacroEditor({
 					</Box>
 				</Box>
 			)}
-			{placementAware && (selectedPlacement || availablePlacements.length > 0) && (
-				<Box flexDirection="column" marginTop={1}>
-					<Text bold color="cyan">Document placement</Text>
-					{selectedPlacement ? (
-						<Text>
-							{selectedPlacement.placementId} - {selectedPlacement.documentPath}
+			{placementAware &&
+				(selectedPlacement || availablePlacements.length > 0) && (
+					<Box flexDirection="column" marginTop={1}>
+						<Text bold color="cyan">
+							Document placement
 						</Text>
-					) : (
-						<Text color="yellow">Select an allowlisted placement before execution</Text>
-					)}
-					{availablePlacements.length > 0 && (
-						<>
-							{availablePlacements.map((placement, index) => (
-								<Text key={placement.placementId} dimColor>
-									{index + 1}. {placement.placementId} - {placement.documentPath}
-									{placement.placementId === selectedPlacement?.placementId ? " [selected]" : ""}
-								</Text>
-							))}
-							{onSelectPlacement && (
-								<Text dimColor>Placement selection is available from the active macro context.</Text>
-							)}
-						</>
-					)}
-				</Box>
-			)}
+						{selectedPlacement ? (
+							<Text>
+								{selectedPlacement.placementId} -{" "}
+								{selectedPlacement.documentPath}
+							</Text>
+						) : (
+							<Text color="yellow">
+								Select an allowlisted placement before execution
+							</Text>
+						)}
+						{availablePlacements.length > 0 && (
+							<>
+								{availablePlacements.map((placement, index) => (
+									<Text key={placement.placementId} dimColor>
+										{index + 1}. {placement.placementId} -{" "}
+										{placement.documentPath}
+										{placement.placementId === selectedPlacement?.placementId
+											? " [selected]"
+											: ""}
+									</Text>
+								))}
+								{onSelectPlacement && (
+									<Text dimColor>
+										Placement selection is available from the active macro
+										context.
+									</Text>
+								)}
+							</>
+						)}
+					</Box>
+				)}
 
 			{/* Suggestions Panel */}
 			{shouldShowDiagnosticsPanel && (

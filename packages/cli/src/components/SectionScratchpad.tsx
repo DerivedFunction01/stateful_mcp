@@ -152,8 +152,7 @@ export function SectionScratchpad({
 					>
 						{t("workspace.scratchpad.line", { value: index + 1 })}
 						{cell.text}
-						{index === activeCellIndex ? "█" : ""}
-						{" "}
+						{index === activeCellIndex ? "█" : ""}{" "}
 						<Text dimColor>
 							[
 							{cell.pinnedMacroIds.join(", ") ||

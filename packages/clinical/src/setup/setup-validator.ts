@@ -1,6 +1,9 @@
 import type { SchemaRegistry } from "../schemas/schema-registry";
+import {
+	findAmbiguousDateExamples,
+	previewDateTimeFormat,
+} from "./date-format-authoring";
 import type { SetupSourceDocument, SetupValidationResult } from "./setup-types";
-import { findAmbiguousDateExamples, previewDateTimeFormat } from "./date-format-authoring";
 
 export function validateSetupSource(
 	source: SetupSourceDocument,
@@ -10,22 +13,56 @@ export function validateSetupSource(
 	const placementIds = new Set<string>();
 	const blockIds = new Set<string>();
 	const expressionIds = new Set<string>();
-	const conceptIds = new Set(source.concepts.map((concept) => concept.conceptId));
+	const conceptIds = new Set(
+		source.concepts.map((concept) => concept.conceptId),
+	);
 	if (!source.primitiveProfile.dateTimeFormats?.length)
-		diagnostics.push({ severity: "warning", code: "unset_date_format", message: "No confirmed date/time format has been configured", path: "primitiveProfile.dateTimeFormats" });
+		diagnostics.push({
+			severity: "warning",
+			code: "unset_date_format",
+			message: "No confirmed date/time format has been configured",
+			path: "primitiveProfile.dateTimeFormats",
+		});
 	if (!source.primitiveProfile.decimalSeparator)
-		diagnostics.push({ severity: "warning", code: "unset_decimal_separator", message: "Decimal separator is not configured", path: "primitiveProfile.decimalSeparator" });
+		diagnostics.push({
+			severity: "warning",
+			code: "unset_decimal_separator",
+			message: "Decimal separator is not configured",
+			path: "primitiveProfile.decimalSeparator",
+		});
 	if (!source.primitiveProfile.measurementUnitOrder)
-		diagnostics.push({ severity: "warning", code: "unset_measurement_unit_order", message: "Measurement unit order is not configured", path: "primitiveProfile.measurementUnitOrder" });
+		diagnostics.push({
+			severity: "warning",
+			code: "unset_measurement_unit_order",
+			message: "Measurement unit order is not configured",
+			path: "primitiveProfile.measurementUnitOrder",
+		});
 	for (const format of source.primitiveProfile.dateTimeFormats ?? []) {
-		const examples = source.primitiveProfile.dateFormatExamples?.[format.id ?? ""] ??
-			((source.primitiveProfile.dateTimeFormats ?? []).length === 1 ? source.primitiveProfile.dateExamples : []);
-		for (const diagnostic of previewDateTimeFormat(format, examples).diagnostics)
-			diagnostics.push({ severity: "error", code: `date_format_${diagnostic.code}`, message: diagnostic.message, path: `primitiveProfile.dateTimeFormats.${format.id ?? "unnamed"}` });
+		const examples =
+			source.primitiveProfile.dateFormatExamples?.[format.id ?? ""] ??
+			((source.primitiveProfile.dateTimeFormats ?? []).length === 1
+				? source.primitiveProfile.dateExamples
+				: []);
+		for (const diagnostic of previewDateTimeFormat(format, examples)
+			.diagnostics)
+			diagnostics.push({
+				severity: "error",
+				code: `date_format_${diagnostic.code}`,
+				message: diagnostic.message,
+				path: `primitiveProfile.dateTimeFormats.${format.id ?? "unnamed"}`,
+			});
 		for (const example of examples) {
-			const matches = findAmbiguousDateExamples(source.primitiveProfile.dateTimeFormats ?? [], example);
+			const matches = findAmbiguousDateExamples(
+				source.primitiveProfile.dateTimeFormats ?? [],
+				example,
+			);
 			if (matches.length > 1)
-				diagnostics.push({ severity: "error", code: "ambiguous_date_format", message: `Example '${example}' matches multiple date formats: ${matches.join(", ")}`, path: "primitiveProfile.dateTimeFormats" });
+				diagnostics.push({
+					severity: "error",
+					code: "ambiguous_date_format",
+					message: `Example '${example}' matches multiple date formats: ${matches.join(", ")}`,
+					path: "primitiveProfile.dateTimeFormats",
+				});
 		}
 	}
 
@@ -56,7 +93,10 @@ export function validateSetupSource(
 				path: `placements.${placement.placementId}`,
 			});
 		placementIds.add(placement.placementId);
-		if (registry && !registry.get(placement.targetSchema, placement.targetSchemaVersion))
+		if (
+			registry &&
+			!registry.get(placement.targetSchema, placement.targetSchemaVersion)
+		)
 			diagnostics.push({
 				severity: "error",
 				code: "missing_schema",
@@ -74,7 +114,10 @@ export function validateSetupSource(
 				path: `blocks.${block.blockId}`,
 			});
 		blockIds.add(block.blockId);
-		if (block.source.kind === "concept" && !conceptIds.has(block.source.conceptId))
+		if (
+			block.source.kind === "concept" &&
+			!conceptIds.has(block.source.conceptId)
+		)
 			diagnostics.push({
 				severity: "error",
 				code: "missing_block_concept",
@@ -131,7 +174,10 @@ export function validateSetupSource(
 					message: `Macro '${macro.macroId}' references missing block '${parameter.blockId}'`,
 					path: `macros.${macro.macroId}`,
 				});
-			if (parameter.placementMode === "fan_out" && macro.allowedPlacementIds.length < 2)
+			if (
+				parameter.placementMode === "fan_out" &&
+				macro.allowedPlacementIds.length < 2
+			)
 				diagnostics.push({
 					severity: "error",
 					code: "invalid_fan_out",
@@ -141,5 +187,8 @@ export function validateSetupSource(
 		}
 	}
 
-	return { valid: !diagnostics.some((diagnostic) => diagnostic.severity === "error"), diagnostics };
+	return {
+		valid: !diagnostics.some((diagnostic) => diagnostic.severity === "error"),
+		diagnostics,
+	};
 }

@@ -3,9 +3,9 @@ import { createAnatomyValue } from "../src/values/anatomy-value";
 import { resolveConceptValue } from "../src/values/concept-value";
 import {
 	createCompoundMeasurementValue,
+	createMeasurementValue,
 	createMeasurementValueFromQuantity,
 } from "../src/values/measurement-value";
-import { createMeasurementValue } from "../src/values/measurement-value";
 import {
 	createCadenceValue,
 	createDateRangeValue,
@@ -105,8 +105,7 @@ describe(" value foundations", () => {
 			],
 		};
 
-		const resolved = await resolveConceptValue("hp", dictionary, {
-		});
+		const resolved = await resolveConceptValue("hp", dictionary, {});
 
 		expect(resolved.diagnostics).toEqual([]);
 		expect(resolved.value?.concept).toEqual({
@@ -233,8 +232,7 @@ describe(" value foundations", () => {
 		const resolved = await resolveConceptValue(
 			"harry potter and the",
 			dictionary,
-			{
-			},
+			{},
 		);
 
 		expect(resolved.diagnostics).toEqual([]);

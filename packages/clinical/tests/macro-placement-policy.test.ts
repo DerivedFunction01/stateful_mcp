@@ -28,11 +28,10 @@ const placement = (placementId: string) => ({
 describe("macro placement policy", () => {
 	it("rejects an unauthorized placement", () => {
 		expect(() =>
-			expandMacroOperationsByPlacement(
-				[operation],
-				[placement("objective")],
-				{ allowedPlacementIds: ["subjective"], allowFanOut: false },
-			),
+			expandMacroOperationsByPlacement([operation], [placement("objective")], {
+				allowedPlacementIds: ["subjective"],
+				allowFanOut: false,
+			}),
 		).toThrow("not allowed");
 	});
 
@@ -41,7 +40,10 @@ describe("macro placement policy", () => {
 			expandMacroOperationsByPlacement(
 				[operation],
 				[placement("subjective"), placement("objective")],
-				{ allowedPlacementIds: ["subjective", "objective"], allowFanOut: false },
+				{
+					allowedPlacementIds: ["subjective", "objective"],
+					allowFanOut: false,
+				},
 			),
 		).toThrow("does not allow fan-out");
 	});

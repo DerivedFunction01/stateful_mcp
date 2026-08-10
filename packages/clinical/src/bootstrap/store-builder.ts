@@ -1,3 +1,4 @@
+import type { ConceptFilterStore } from "@stateful-mcp/core";
 import {
 	EventStore,
 	JsonlKvBackend,
@@ -5,14 +6,13 @@ import {
 	SqlBackend,
 	SqlExecutor,
 } from "@stateful-mcp/core";
-import type { ConceptFilterStore } from "@stateful-mcp/core";
-import { InMemoryConceptFilterStore } from "@stateful-mcp/core/middleware/dictionary/filters";
 import { KvConceptFilterStore } from "@stateful-mcp/core/adapters/storage/simple/create-concept-filter-store";
-import { SqlConceptFilterStore } from "@stateful-mcp/core/adapters/storage/sql/dict-filter-store";
 import { createEventStore as createSimpleEventStore } from "@stateful-mcp/core/adapters/storage/simple/create-event-store";
 import { JsonlKvBackend as SimpleJsonlKvBackend } from "@stateful-mcp/core/adapters/storage/simple/jsonl/backend";
 import { MemoryKvBackend as SimpleMemoryKvBackend } from "@stateful-mcp/core/adapters/storage/simple/memory/backend";
 import { createEventStore as createSqlEventStore } from "@stateful-mcp/core/adapters/storage/sql/create-event-store";
+import { SqlConceptFilterStore } from "@stateful-mcp/core/adapters/storage/sql/dict-filter-store";
+import { InMemoryConceptFilterStore } from "@stateful-mcp/core/middleware/dictionary/filters";
 import type { SqlDialect } from "@stateful-mcp/core/translation/sql-compiler";
 import type { CellStore } from "../cells/cell-service-types";
 import { KvCellStore } from "../cells/kv-cell-store";
@@ -55,14 +55,14 @@ import { SqlMacroStore } from "../macros/sql-macro-store";
 import { KvNotebookSessionStore } from "../notebook/kv-notebook-session-store";
 import type { NotebookSessionStore } from "../notebook/notebook-session-store";
 import { SqlNotebookSessionStore } from "../notebook/sql-notebook-session-store";
-import type { PatientStore } from "../stores/patients/interfaces";
-import { KvPatientStore } from "../stores/patients/kv-patient-store";
 import {
 	KvSetupSourceStore,
 	MemorySetupSourceStore,
-	SqlSetupSourceStore,
 	type SetupSourceStore,
+	SqlSetupSourceStore,
 } from "../setup";
+import type { PatientStore } from "../stores/patients/interfaces";
+import { KvPatientStore } from "../stores/patients/kv-patient-store";
 import { SqlPatientStore } from "../stores/patients/sql-patient-store";
 import { KvProfileStore } from "../stores/profiles/kv-profile-store";
 import type { UnifiedProfileStore } from "../stores/profiles/profile-store";

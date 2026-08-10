@@ -1,5 +1,8 @@
 import type { KvBackend } from "@stateful-mcp/core/adapters/storage/simple/kv-backend";
-import type { SetupPublicationStatus, SetupSourceDocument } from "./setup-types";
+import type {
+	SetupPublicationStatus,
+	SetupSourceDocument,
+} from "./setup-types";
 
 export interface SetupSourceStore {
 	get(sourceId: string): Promise<SetupSourceDocument | null>;
@@ -25,7 +28,9 @@ export function withSetupStatus(
 		...structuredClone(source),
 		status,
 		...(status === "published" ? { publishedAt: now } : {}),
-		...(status === "active" ? { activatedAt: now, publishedAt: source.publishedAt ?? now } : {}),
+		...(status === "active"
+			? { activatedAt: now, publishedAt: source.publishedAt ?? now }
+			: {}),
 	};
 }
 
@@ -55,23 +60,35 @@ export class KvSetupSourceStore implements SetupSourceStore {
 	constructor(private readonly backend: KvBackend) {}
 
 	async get(sourceId: string): Promise<SetupSourceDocument | null> {
-		const value = await this.backend.getPersistentState(`${this.prefix}${sourceId}`, { level: "global" });
+		const value = await this.backend.getPersistentState(
+			`${this.prefix}${sourceId}`,
+			{ level: "global" },
+		);
 		return value as SetupSourceDocument | null;
 	}
 
 	async set(source: SetupSourceDocument): Promise<void> {
-		await this.backend.setPersistentState(`${this.prefix}${source.sourceId}`, { level: "global" }, source);
+		await this.backend.setPersistentState(
+			`${this.prefix}${source.sourceId}`,
+			{ level: "global" },
+			source,
+		);
 		await this.backend.save();
 	}
 
 	async delete(sourceId: string): Promise<void> {
-		await this.backend.deletePersistentState(`${this.prefix}${sourceId}`, { level: "global" });
+		await this.backend.deletePersistentState(`${this.prefix}${sourceId}`, {
+			level: "global",
+		});
 		await this.backend.save();
 	}
 
 	async list(): Promise<SetupSourceDocument[]> {
 		const values: SetupSourceDocument[] = [];
-		for await (const value of this.backend.scanPersistentStates({ level: "global" }, true)) {
+		for await (const value of this.backend.scanPersistentStates(
+			{ level: "global" },
+			true,
+		)) {
 			if (typeof value.sourceId === "string" && value.sourceId.length > 0)
 				values.push(value as SetupSourceDocument);
 		}

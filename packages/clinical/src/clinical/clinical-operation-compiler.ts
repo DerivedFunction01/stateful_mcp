@@ -208,7 +208,8 @@ export class ClinicalOperationCompiler {
 	): string {
 		const identity = group.find((operation) => operation.targetPath === "id");
 		const value = identity ? unwrapTypedValue(identity.value) : undefined;
-		const base = typeof value === "string" && value.length > 0 ? value : fallback;
+		const base =
+			typeof value === "string" && value.length > 0 ? value : fallback;
 		const placement = group[0]?.placement?.placementId;
 		return placement ? `${placement}:${base}` : base;
 	}
@@ -231,7 +232,7 @@ export class ClinicalOperationCompiler {
 			provenance: {
 				operationId: operation.operationId,
 				sourceCellId: operation.cellRef,
-				 sourcePath: operation.targetPath,
+				sourcePath: operation.targetPath,
 				documentPath: operation.placement?.documentPath,
 				placementId: operation.placement?.placementId,
 				sourceMacroId: operation.macroDefinitionId ?? operation.groupId,
@@ -257,7 +258,7 @@ export class ClinicalOperationCompiler {
 			provenance: {
 				operationId: operation.operationId,
 				sourceCellId: operation.cellRef,
-				 sourcePath: operation.targetPath,
+				sourcePath: operation.targetPath,
 				documentPath: operation.placement?.documentPath,
 				placementId: operation.placement?.placementId,
 				sourceMacroId: operation.macroDefinitionId ?? operation.groupId,

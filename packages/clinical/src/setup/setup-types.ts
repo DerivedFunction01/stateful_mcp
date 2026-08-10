@@ -1,8 +1,8 @@
 import type { ConceptFilter, CustomExpression } from "@stateful-mcp/core";
 import type { MacroDefinition } from "../macros/macro-definition";
+import type { SchemaCardinality } from "../schemas/schema-types";
 import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
 import type { DateTimeFormatConfig } from "../values/utils/date-regex-generator";
-import type { SchemaCardinality } from "../schemas/schema-types";
 
 export type SetupBlockKind =
 	| "concept"

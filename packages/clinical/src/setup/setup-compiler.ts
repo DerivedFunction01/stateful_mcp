@@ -5,9 +5,9 @@ import type {
 	ValueSpec,
 } from "../macros/macro-definition";
 import type {
+	SetupDocumentPlacement,
 	SetupGrammarBlock,
 	SetupMacroComposition,
-	SetupDocumentPlacement,
 } from "./setup-types";
 
 export interface SetupPlacementOperation {
@@ -39,9 +39,10 @@ export function compileSetupMacro(
 					required: extraction.required,
 					blankPolicy: extraction.required ? "reject" : "skip",
 					autocomplete: {
-						source: block.kind === "concept" || block.kind === "expression"
-							? "dictionary"
-							: "static",
+						source:
+							block.kind === "concept" || block.kind === "expression"
+								? "dictionary"
+								: "static",
 					},
 				},
 			];
@@ -52,10 +53,12 @@ export function compileSetupMacro(
 		macroId: composition.macroId,
 		macroName: composition.macroName,
 		version: composition.version,
-		status: composition.status === "active" || composition.status === "validated"
-			? "published"
-			: composition.status,
-		active: composition.status === "published" || composition.status === "active",
+		status:
+			composition.status === "active" || composition.status === "validated"
+				? "published"
+				: composition.status,
+		active:
+			composition.status === "published" || composition.status === "active",
 		root: {
 			roleName: composition.targetSchema,
 			targetSchema: composition.targetSchema,
@@ -82,9 +85,8 @@ function createDateChildren(
 	if (!policy || policy.mode === "none") return undefined;
 	return [
 		{
-			childMacroName: policy.mode === "shared"
-				? "date-range"
-				: policy.childMacroId!,
+			childMacroName:
+				policy.mode === "shared" ? "date-range" : policy.childMacroId!,
 			parentRoleName: `${composition.targetSchema}.${policy.targetPath ?? "dateRange"}`,
 			parentTargetPath: policy.targetPath ?? "dateRange",
 			mergeStrategy: policy.mergeStrategy ?? "replace",
@@ -96,40 +98,47 @@ export function expandSetupPlacements(
 	composition: SetupMacroComposition,
 	placements: readonly SetupDocumentPlacement[],
 ): SetupPlacementOperation[] {
-	const byId = new Map(placements.map((placement) => [placement.placementId, placement]));
+	const byId = new Map(
+		placements.map((placement) => [placement.placementId, placement]),
+	);
 	return composition.parameters.flatMap((parameter) => {
 		const mode = parameter.placementMode ?? "single";
-		const ids = mode === "fan_out"
-			? composition.allowedPlacementIds
-			: [parameter.placementId ?? composition.defaultPlacementId].filter(
-					(value): value is string => Boolean(value),
-				);
+		const ids =
+			mode === "fan_out"
+				? composition.allowedPlacementIds
+				: [parameter.placementId ?? composition.defaultPlacementId].filter(
+						(value): value is string => Boolean(value),
+					);
 		return ids.flatMap((placementId) => {
 			const placement = byId.get(placementId);
 			if (!placement) return [];
-			return [{
-				argumentId: parameter.argumentId,
-				blockId: parameter.blockId,
-				placementId,
-				documentPath: placement.documentPath,
-				mode,
-			}];
+			return [
+				{
+					argumentId: parameter.argumentId,
+					blockId: parameter.blockId,
+					placementId,
+					documentPath: placement.documentPath,
+					mode,
+				},
+			];
 		});
 	});
 }
 
 function createValueSpec(block: SetupGrammarBlock): ValueSpec {
 	const kind = toMacroKind(block.kind);
-	const patterns = block.source.kind === "generated"
-		? block.source.recipe.phrases
-		: undefined;
+	const patterns =
+		block.source.kind === "generated" ? block.source.recipe.phrases : undefined;
 	return {
 		kind,
 		valueKind: block.valueKind as ValueSpec["valueKind"],
 		patterns,
 		target: block.target,
 		required: block.kind === "concept" || block.kind === "expression",
-		blankPolicy: block.kind === "concept" || block.kind === "expression" ? "reject" : "skip",
+		blankPolicy:
+			block.kind === "concept" || block.kind === "expression"
+				? "reject"
+				: "skip",
 	};
 }
 

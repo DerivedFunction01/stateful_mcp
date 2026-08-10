@@ -19,7 +19,9 @@ export interface TemporalSyntaxConfig {
 	relativeDayAliases: Readonly<Record<string, number>>;
 	relativeDayDisplayLabels?: Readonly<Record<string, string>>;
 	unitAliases: Readonly<Record<string, TimePrecisionLevel>>;
-	directionAliases: Readonly<Record<string, TemporalDirection | TemporalAliasRule>>;
+	directionAliases: Readonly<
+		Record<string, TemporalDirection | TemporalAliasRule>
+	>;
 	rangeDelimiters: readonly string[];
 	boundaryAliases?: Readonly<
 		Record<string, "start" | "end" | "include" | "exclude">
@@ -28,7 +30,10 @@ export interface TemporalSyntaxConfig {
 	partOfDayAliases?: Readonly<Record<string, PartOfDay | TemporalAliasRule>>;
 	seasonAliases?: Readonly<Record<string, Season | TemporalAliasRule>>;
 	anchorAliases?: Readonly<
-		Record<string, "now" | "document-date" | "encounter-date" | TemporalAliasRule>
+		Record<
+			string,
+			"now" | "document-date" | "encounter-date" | TemporalAliasRule
+		>
 	>;
 }
 
@@ -105,9 +110,13 @@ export function createNumericalSyntaxProfile(
 			defaults?.temporal?.partOfDayAliases ??
 			{},
 		seasonAliases:
-			profile.temporal?.seasonAliases ?? defaults?.temporal?.seasonAliases ?? {},
+			profile.temporal?.seasonAliases ??
+			defaults?.temporal?.seasonAliases ??
+			{},
 		anchorAliases:
-			profile.temporal?.anchorAliases ?? defaults?.temporal?.anchorAliases ?? {},
+			profile.temporal?.anchorAliases ??
+			defaults?.temporal?.anchorAliases ??
+			{},
 	};
 	return {
 		...profile,

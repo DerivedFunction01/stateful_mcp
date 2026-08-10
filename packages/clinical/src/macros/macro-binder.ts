@@ -140,7 +140,9 @@ function resolveSpec(
 	}
 	if (
 		arg.match?.argumentId &&
-		(arg.source === "rule" || arg.source === "inferred" || arg.source === "default")
+		(arg.source === "rule" ||
+			arg.source === "inferred" ||
+			arg.source === "default")
 	) {
 		return definition.arguments.find(
 			(spec) => spec.argumentId === arg.match?.argumentId,

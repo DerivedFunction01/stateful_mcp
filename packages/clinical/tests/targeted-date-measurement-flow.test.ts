@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { DateRangeChildExecutor } from "../src/macros/child-executors/date-range-child-executor";
 import { applySetupPrimitiveProfile } from "../src/setup/setup-profile";
+import {
+	compileTemporalGrammar,
+	matchTemporalGrammar,
+} from "../src/setup/temporal-grammar-compiler";
 import { createNumericalSyntaxProfile } from "../src/values/numerical-syntax-profile";
 import { parseQuantity } from "../src/values/quantity-grammar";
-import { assembleClinicalDateRange } from "../src/values/date-range-assembler";
-import { compileTemporalGrammar, matchTemporalGrammar } from "../src/setup/temporal-grammar-compiler";
-import { DateRangeChildExecutor } from "../src/macros/child-executors/date-range-child-executor";
 
 describe("Targeted Date, Measurement, and Child Macro Flow", () => {
 	test("Phase 1: setup primitive profile overlay preserves numerical profile separation", () => {
@@ -59,7 +61,12 @@ describe("Targeted Date, Measurement, and Child Macro Flow", () => {
 					{ kind: "literal", text: "to" },
 					{ kind: "slot", slotId: "end", blockId: "date_b", required: true },
 					{ kind: "literal", text: "except", optional: true },
-					{ kind: "slot", slotId: "exclude", blockId: "date_b", required: false },
+					{
+						kind: "slot",
+						slotId: "exclude",
+						blockId: "date_b",
+						required: false,
+					},
 				],
 				gaps: [],
 				whitespace: "flexible",
@@ -68,18 +75,36 @@ describe("Targeted Date, Measurement, and Child Macro Flow", () => {
 				status: "published",
 			},
 			slotPatterns: {
-				start: { blockId: "date_b", targetPath: "time.start", pattern: "\\d{2}\\.\\d{2}\\.\\d{4}" },
-				end: { blockId: "date_b", targetPath: "time.end", pattern: "\\d{2}\\.\\d{2}\\.\\d{4}" },
-				exclude: { blockId: "date_b", targetPath: "time.excluded", pattern: "\\d{2}\\.\\d{2}\\.\\d{4}" },
+				start: {
+					blockId: "date_b",
+					targetPath: "time.start",
+					pattern: "\\d{2}\\.\\d{2}\\.\\d{4}",
+				},
+				end: {
+					blockId: "date_b",
+					targetPath: "time.end",
+					pattern: "\\d{2}\\.\\d{2}\\.\\d{4}",
+				},
+				exclude: {
+					blockId: "date_b",
+					targetPath: "time.excluded",
+					pattern: "\\d{2}\\.\\d{2}\\.\\d{4}",
+				},
 			},
 		});
 
-		const matchPos = matchTemporalGrammar(grammar, "31.01.2026 to 05.02.2026 except 02.02.2026");
+		const matchPos = matchTemporalGrammar(
+			grammar,
+			"31.01.2026 to 05.02.2026 except 02.02.2026",
+		);
 		expect(matchPos.match).toBeDefined();
 		expect(matchPos.match?.slots["start"]).toBe("31.01.2026");
 		expect(matchPos.match?.slots["exclude"]).toBe("02.02.2026");
 
-		const matchNeg = matchTemporalGrammar(grammar, "all usual symptoms except SOB");
+		const matchNeg = matchTemporalGrammar(
+			grammar,
+			"all usual symptoms except SOB",
+		);
 		expect(matchNeg.match).toBeUndefined();
 	});
 
@@ -102,16 +127,32 @@ describe("Targeted Date, Measurement, and Child Macro Flow", () => {
 				status: "published",
 			},
 			slotPatterns: {
-				start: { blockId: "date_b", targetPath: "time.start", pattern: "\\d{2}\\.\\d{2}\\.\\d{4}" },
-				end: { blockId: "date_b", targetPath: "time.end", pattern: "\\d{2}\\.\\d{2}\\.\\d{4}" },
+				start: {
+					blockId: "date_b",
+					targetPath: "time.start",
+					pattern: "\\d{2}\\.\\d{2}\\.\\d{4}",
+				},
+				end: {
+					blockId: "date_b",
+					targetPath: "time.end",
+					pattern: "\\d{2}\\.\\d{2}\\.\\d{4}",
+				},
 			},
 		});
 
 		const result = await executor.execute({
 			parentInput: {
 				macroName: "observation",
-				sourceLines: [{ line: 1, raw: "^observation pneumonia 31.01.2026 to 05.02.2026" }],
-				arguments: [{ position: 0, rawValue: "31.01.2026 to 05.02.2026", source: "positional" }],
+				sourceLines: [
+					{ line: 1, raw: "^observation pneumonia 31.01.2026 to 05.02.2026" },
+				],
+				arguments: [
+					{
+						position: 0,
+						rawValue: "31.01.2026 to 05.02.2026",
+						source: "positional",
+					},
+				],
 			},
 			parentDefinition: {
 				macroId: "observation",
@@ -119,7 +160,11 @@ describe("Targeted Date, Measurement, and Child Macro Flow", () => {
 				version: 1,
 				status: "published",
 				active: true,
-				root: { roleName: "observation", targetSchema: "Observation", outputCellKind: "structured" },
+				root: {
+					roleName: "observation",
+					targetSchema: "Observation",
+					outputCellKind: "structured",
+				},
 				arguments: [],
 			},
 			childDefinition: {

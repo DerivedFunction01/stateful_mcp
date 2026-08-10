@@ -1,14 +1,14 @@
-import type {
-	SetupCompositionTemplate,
-	SetupGapConstraint,
-} from "./setup-types";
+import type { TemporalSyntaxConfig } from "../values/numerical-syntax-profile";
 import type { TemporalEnumKind } from "../values/temporal-enum-resolver";
 import { compileTemporalEnumPattern } from "../values/temporal-enum-resolver";
-import type { TemporalSyntaxConfig } from "../values/numerical-syntax-profile";
 import {
 	buildDatePatternString,
 	type DateTimeFormatConfig,
 } from "../values/utils/date-regex-generator";
+import type {
+	SetupCompositionTemplate,
+	SetupGapConstraint,
+} from "./setup-types";
 
 export interface CompiledTemporalGrammarPart {
 	pattern: string;
@@ -18,11 +18,14 @@ export interface CompiledTemporalGrammarPart {
 export interface CompiledTemporalGrammar {
 	grammarId: string;
 	version: number;
-	slots: Record<string, {
-		blockId: string;
-		targetPath: string;
-		matcher: { pattern: string; groupName: string; flags: string };
-	}>;
+	slots: Record<
+		string,
+		{
+			blockId: string;
+			targetPath: string;
+			matcher: { pattern: string; groupName: string; flags: string };
+		}
+	>;
 	alternatives: Array<{
 		alternativeId: string;
 		parts: CompiledTemporalGrammarPart[];
@@ -36,13 +39,16 @@ export interface CompiledTemporalGrammar {
 export interface TemporalGrammarCompileInput {
 	grammarId: string;
 	template: SetupCompositionTemplate;
-	slotPatterns: Record<string, {
-		blockId: string;
-		targetPath: string;
-		pattern?: string;
-		enumKind?: TemporalEnumKind;
-		dateTimeConfig?: DateTimeFormatConfig;
-	}>;
+	slotPatterns: Record<
+		string,
+		{
+			blockId: string;
+			targetPath: string;
+			pattern?: string;
+			enumKind?: TemporalEnumKind;
+			dateTimeConfig?: DateTimeFormatConfig;
+		}
+	>;
 	stopWords?: readonly string[];
 	profile?: TemporalSyntaxConfig;
 }
@@ -58,7 +64,9 @@ export function matchTemporalGrammar(
 	input: string,
 ): { match?: TemporalGrammarMatch; diagnostics: string[] } {
 	const matches = grammar.alternatives.flatMap((alternative) => {
-		const result = new RegExp(alternative.pattern, alternative.flags).exec(input);
+		const result = new RegExp(alternative.pattern, alternative.flags).exec(
+			input,
+		);
 		if (!result?.groups) return [];
 		const slots = Object.fromEntries(
 			Object.entries(grammar.slots).flatMap(([slotId, slot]) => {
@@ -66,24 +74,31 @@ export function matchTemporalGrammar(
 				return value === undefined ? [] : [[slotId, value]];
 			}),
 		);
-		return [{
-			alternativeId: alternative.alternativeId,
-			slots,
-			precedence: alternative.precedence,
-		}];
+		return [
+			{
+				alternativeId: alternative.alternativeId,
+				slots,
+				precedence: alternative.precedence,
+			},
+		];
 	});
 	if (matches.length === 0)
-		return { diagnostics: [`Input does not match temporal grammar '${grammar.grammarId}'`] };
-	const ordered = [...matches].sort((left, right) => right.precedence - left.precedence);
+		return {
+			diagnostics: [
+				`Input does not match temporal grammar '${grammar.grammarId}'`,
+			],
+		};
+	const ordered = [...matches].sort(
+		(left, right) => right.precedence - left.precedence,
+	);
 	if (ordered.length > 1 && ordered[0]!.precedence === ordered[1]!.precedence)
-		return { diagnostics: [`Input matches multiple temporal grammar alternatives`] };
+		return {
+			diagnostics: [`Input matches multiple temporal grammar alternatives`],
+		};
 	return { match: ordered[0], diagnostics: [] };
 }
 
-import {
-	buildPatternWithAnchors,
-	escapeRegex,
-} from "./regex-builder-helper";
+import { buildPatternWithAnchors, escapeRegex } from "./regex-builder-helper";
 
 export function compileTemporalGrammar(
 	input: TemporalGrammarCompileInput,
@@ -97,28 +112,38 @@ export function compileTemporalGrammar(
 			continue;
 		}
 		const slot = input.slotPatterns[part.slotId];
-		if (!slot) throw new Error(`Missing temporal slot pattern '${part.slotId}'`);
+		if (!slot)
+			throw new Error(`Missing temporal slot pattern '${part.slotId}'`);
 		const enumPattern = slot.enumKind
 			? (() => {
-				if (!input.profile)
-					throw new Error(`Missing temporal profile for enum slot '${part.slotId}'`);
-				return compileTemporalEnumPattern(slot.enumKind, input.profile);
-			})()
+					if (!input.profile)
+						throw new Error(
+							`Missing temporal profile for enum slot '${part.slotId}'`,
+						);
+					return compileTemporalEnumPattern(slot.enumKind, input.profile);
+				})()
 			: undefined;
 		const datePattern = slot.dateTimeConfig
-			? stripAnchors(buildDatePatternString(
-				slot.dateTimeConfig.tokens,
-				slot.dateTimeConfig.separators,
-				slot.dateTimeConfig.options,
-			).pattern)
+			? stripAnchors(
+					buildDatePatternString(
+						slot.dateTimeConfig.tokens,
+						slot.dateTimeConfig.separators,
+						slot.dateTimeConfig.options,
+					).pattern,
+				)
 			: undefined;
 		const slotPattern = slot.pattern ?? enumPattern?.pattern ?? datePattern;
-		if (!slotPattern) throw new Error(`Missing pattern for temporal slot '${part.slotId}'`);
+		if (!slotPattern)
+			throw new Error(`Missing pattern for temporal slot '${part.slotId}'`);
 		const groupName = safeGroupName(part.slotId);
 		slots[part.slotId] = {
 			blockId: slot.blockId,
 			targetPath: slot.targetPath,
-			matcher: { pattern: slotPattern, groupName, flags: enumPattern?.flags ?? "u" },
+			matcher: {
+				pattern: slotPattern,
+				groupName,
+				flags: enumPattern?.flags ?? "u",
+			},
 		};
 		parts.push({
 			slotId: part.slotId,
@@ -128,7 +153,8 @@ export function compileTemporalGrammar(
 		if (next?.kind === "slot") {
 			const gap = input.template.gaps.find(
 				(candidate) =>
-					candidate.fromSlot === part.slotId && candidate.toSlot === next.slotId,
+					candidate.fromSlot === part.slotId &&
+					candidate.toSlot === next.slotId,
 			);
 			if (gap) parts.push({ pattern: compileGap(gap, input.stopWords) });
 		}
@@ -143,13 +169,15 @@ export function compileTemporalGrammar(
 		grammarId: input.grammarId,
 		version: input.template.version,
 		slots,
-		alternatives: [{
-			alternativeId: input.template.templateId,
-			parts,
-			pattern,
-			flags: collectFlags(slots),
-			precedence: input.template.precedence,
-		}],
+		alternatives: [
+			{
+				alternativeId: input.template.templateId,
+				parts,
+				pattern,
+				flags: collectFlags(slots),
+				precedence: input.template.precedence,
+			},
+		],
 		generatedAt: new Date().toISOString(),
 	};
 }
@@ -188,7 +216,10 @@ function compileGap(
 	const word = vocabulary?.length
 		? `(?:${vocabulary.map(escapeRegex).join("|")})`
 		: "[^\\s\\p{P}]+";
-	const token = gap.unit === "items" ? `${forbiddenLookahead}${word}` : `\\s+${forbiddenLookahead}${word}`;
+	const token =
+		gap.unit === "items"
+			? `${forbiddenLookahead}${word}`
+			: `\\s+${forbiddenLookahead}${word}`;
 	return `(?:${token}){${min},${max}}\\s*`;
 }
 

@@ -15,8 +15,12 @@ import type {
 	ProseEnumMaps,
 	ProseRenderContext,
 } from "../rendering/template-types";
+import { selectBootstrapSetupSource } from "../setup/setup-lifecycle";
+import { materializeSetupSource } from "../setup/setup-materializer";
+import { applySetupPrimitiveProfile } from "../setup/setup-profile";
 import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
 import { renderClinicalDateRange } from "../values/utils/date-format-renderer";
+import { bootstrapNumericalDefaults } from "./bootstrap-config";
 import {
 	type ColdStartOptions,
 	type ColdStartState,
@@ -29,10 +33,6 @@ import {
 } from "./store-builder";
 import { DEFAULT_DIFFERENTIAL_ACTION_MACRO_MAPPINGS } from "./syntax-profile-defaults";
 import { EXAMPLE_PROSE_TEMPLATES } from "./templates/example-templates";
-import { materializeSetupSource } from "../setup/setup-materializer";
-import { selectBootstrapSetupSource } from "../setup/setup-lifecycle";
-import { applySetupPrimitiveProfile } from "../setup/setup-profile";
-import { bootstrapNumericalDefaults } from "./bootstrap-config";
 
 export interface ClinicalBootstrapConfig {
 	backend: StoreBuilderConfig["backend"];
@@ -101,9 +101,9 @@ async function buildClinicalBootstrap(
 	const setupSource = selectBootstrapSetupSource(setupSources);
 	const numericalProfile = setupSource
 		? applySetupPrimitiveProfile(
-			config.numericalProfile ?? bootstrapNumericalDefaults,
-			setupSource.primitiveProfile,
-		)
+				config.numericalProfile ?? bootstrapNumericalDefaults,
+				setupSource.primitiveProfile,
+			)
 		: config.numericalProfile;
 
 	const coldStart = await initializeColdStart({

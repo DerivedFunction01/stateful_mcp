@@ -5,7 +5,9 @@ import {
 } from "../../adapters/storage/simple/factories";
 import type { OwnerScope } from "../../config/types";
 import { ErrorCode, StatefulFrameworkError } from "../../errors/types";
+import { isConceptAllowed } from "./filters";
 import type {
+	ConceptFilterStore,
 	ConceptStore,
 	ExpressionSearchRequest,
 	PersistentExpressionStore,
@@ -22,8 +24,6 @@ import type {
 	TraversalDirection,
 	WorkspaceDefinition,
 } from "./types";
-import type { ConceptFilterStore } from "./interfaces";
-import { isConceptAllowed } from "./filters";
 
 // REFERENCE: docs/dictionary.md
 export class DictionaryStore {
@@ -58,7 +58,11 @@ export class DictionaryStore {
 		limit: number = 50,
 		roleName?: string,
 	): Promise<Concept[]> {
-		const concepts = await this.conceptStore.search(query, namespaceCode, limit);
+		const concepts = await this.conceptStore.search(
+			query,
+			namespaceCode,
+			limit,
+		);
 		if (!roleName || !this.filterStore) return concepts;
 		const allowed = await Promise.all(
 			concepts.map(async (concept) => {
@@ -81,9 +85,9 @@ export class DictionaryStore {
 			: { level: "global" };
 		let expressions = this.expressionStore.searchCandidates
 			? await this.expressionStore.searchCandidates({
-				...request,
-				scope: request.scope ?? scope,
-			})
+					...request,
+					scope: request.scope ?? scope,
+				})
 			: await this.expressionStore.list(scope, true);
 		if (request.roleName && this.filterStore) {
 			expressions = await Promise.all(
@@ -98,7 +102,9 @@ export class DictionaryStore {
 						: null;
 				}),
 			).then((items) =>
-				items.filter((expression): expression is CustomExpression => Boolean(expression)),
+				items.filter((expression): expression is CustomExpression =>
+					Boolean(expression),
+				),
 			);
 		}
 		const prefix = request.lookupPrefix?.toLocaleLowerCase();

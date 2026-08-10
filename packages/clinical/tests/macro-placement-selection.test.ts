@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { selectMacroPlacement } from "../src/macros/macro-placement";
 import type { MacroDefinition } from "../src/macros/macro-definition";
+import { selectMacroPlacement } from "../src/macros/macro-placement";
 import type { DocumentPlacementRef } from "../src/macros/macro-plan";
 
 const definition: MacroDefinition = {
@@ -51,7 +51,9 @@ describe("macro placement selection", () => {
 	it("selects an explicitly allowlisted placement", () => {
 		const result = selectMacroPlacement(definition, placements, "objective");
 		expect(result.diagnostics).toEqual([]);
-		expect(result.placement?.documentPath).toBe("objective.clinicalObservations[]");
+		expect(result.placement?.documentPath).toBe(
+			"objective.clinicalObservations[]",
+		);
 	});
 
 	it("rejects a placement outside the published allowlist", () => {

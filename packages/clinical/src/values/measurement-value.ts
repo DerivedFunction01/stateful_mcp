@@ -6,8 +6,8 @@ import {
 	type MeasurementResolverDiagnostic,
 	validateMeasurementConstraints,
 } from "./measurement-resolver";
-import type { CompositeValue, MeasurementValue } from "./typed-value";
 import type { QuantityGrammarResult } from "./quantity-grammar";
+import type { CompositeValue, MeasurementValue } from "./typed-value";
 
 export interface MeasurementValueInput {
 	dimension: string;
@@ -110,7 +110,10 @@ export function createCompoundMeasurementValue(
 
 export function createMeasurementValueFromQuantity(
 	quantity: QuantityGrammarResult,
-	input: Omit<MeasurementValueInput, "magnitude" | "unit" | "statisticalType" | "operator" | "dataPointCount">,
+	input: Omit<
+		MeasurementValueInput,
+		"magnitude" | "unit" | "statisticalType" | "operator" | "dataPointCount"
+	>,
 	policy: MeasurementQuantityPolicy,
 ): MeasurementValueResult {
 	const diagnostics: MeasurementDiagnostic[] = [];
@@ -139,7 +142,8 @@ export function createMeasurementValueFromQuantity(
 		unit: quantity.unit,
 		upperMagnitude: policy.allowRange ? quantity.upper : undefined,
 		operator: quantity.operator,
-		statisticalType: policy.statistics === "accept" ? quantity.statisticalType : undefined,
+		statisticalType:
+			policy.statistics === "accept" ? quantity.statisticalType : undefined,
 		dataPointCount: quantity.dataPointCount,
 		rawText: quantity.rawText,
 	});
@@ -191,11 +195,13 @@ export function createMeasurementValue(
 	}
 	if (
 		input.upperMagnitude !== undefined &&
-		(!Number.isFinite(input.upperMagnitude) || input.upperMagnitude < input.magnitude)
+		(!Number.isFinite(input.upperMagnitude) ||
+			input.upperMagnitude < input.magnitude)
 	) {
 		diagnostics.push({
 			code: "invalid_magnitude",
-			message: "Measurement upper bound must be finite and not below the lower bound",
+			message:
+				"Measurement upper bound must be finite and not below the lower bound",
 		});
 	}
 	if (!input.unit) {
@@ -262,10 +268,10 @@ export function createMeasurementValue(
 				input.upperMagnitude === undefined
 					? undefined
 					: {
-						lower: input.magnitude,
-						upper: input.upperMagnitude,
-						unit: input.unit,
-					},
+							lower: input.magnitude,
+							upper: input.upperMagnitude,
+							unit: input.unit,
+						},
 			operator: input.operator,
 			isApproximate: input.isApproximate,
 			dataPointCount: input.dataPointCount,

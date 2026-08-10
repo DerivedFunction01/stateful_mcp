@@ -79,19 +79,24 @@ export function reduceEditorInteraction(
 				textSelection: null,
 			};
 		case "toggle-console": {
-				const opening = state.focus !== "macro-console";
-				const target = opening ? "macro-console" : state.returnFocus;
-				return {
-					...state,
-					focus: target,
-					returnFocus: opening ? state.focus : state.returnFocus,
-					mode: "NORMAL",
-					cellSelection: null,
-					textSelection: null,
-				};
-			}
+			const opening = state.focus !== "macro-console";
+			const target = opening ? "macro-console" : state.returnFocus;
+			return {
+				...state,
+				focus: target,
+				returnFocus: opening ? state.focus : state.returnFocus,
+				mode: "NORMAL",
+				cellSelection: null,
+				textSelection: null,
+			};
+		}
 		case "enter-insert":
-			return { ...state, mode: "INSERT", cellSelection: null, textSelection: null };
+			return {
+				...state,
+				mode: "INSERT",
+				cellSelection: null,
+				textSelection: null,
+			};
 		case "enter-visual":
 			if (!supportsVisual(state.focus)) return { ...state, mode: "NORMAL" };
 			return state.focus === "macro-console"
@@ -112,35 +117,43 @@ export function reduceEditorInteraction(
 						},
 					};
 		case "extend-visual":
-				if (state.mode !== "VISUAL") return state;
-				if (state.focus === "macro-console" && state.textSelection) {
-					return {
-						...state,
-						textSelection: {
-							...state.textSelection,
-							active: Math.max(0, state.textSelection.active + action.delta),
-						},
-					};
-				}
-				if (state.cellSelection) {
-					return {
-						...state,
-						cellSelection: {
-							...state.cellSelection,
-							active: Math.max(0, state.cellSelection.active + action.delta),
-						},
-					};
-				}
-				return state;
+			if (state.mode !== "VISUAL") return state;
+			if (state.focus === "macro-console" && state.textSelection) {
+				return {
+					...state,
+					textSelection: {
+						...state.textSelection,
+						active: Math.max(0, state.textSelection.active + action.delta),
+					},
+				};
+			}
+			if (state.cellSelection) {
+				return {
+					...state,
+					cellSelection: {
+						...state.cellSelection,
+						active: Math.max(0, state.cellSelection.active + action.delta),
+					},
+				};
+			}
+			return state;
 		case "set-text-active":
 			return state.textSelection
 				? {
 						...state,
-						textSelection: { ...state.textSelection, active: Math.max(0, action.active) },
+						textSelection: {
+							...state.textSelection,
+							active: Math.max(0, action.active),
+						},
 					}
 				: state;
 		case "exit-to-normal":
-			return { ...state, mode: "NORMAL", cellSelection: null, textSelection: null };
+			return {
+				...state,
+				mode: "NORMAL",
+				cellSelection: null,
+				textSelection: null,
+			};
 		case "set-mode":
 			return {
 				...state,

@@ -3,17 +3,17 @@ import {
 	bootstrapFrequencyDefaults,
 	bootstrapNumericalDefaults,
 } from "../src/bootstrap/bootstrap-config";
+import { assembleClinicalDateRange } from "../src/values/date-range-assembler";
 import { resolveFrequency } from "../src/values/frequency-resolver";
 import { createNumericalSyntaxProfile } from "../src/values/numerical-syntax-profile";
-import { recognizeTemporalExpression } from "../src/values/temporal-recognizer";
-import { resolveTemporalExpression } from "../src/values/temporal-resolver";
-import { assembleClinicalDateRange } from "../src/values/date-range-assembler";
 import { parseQuantity } from "../src/values/quantity-grammar";
 import {
+	compileTemporalEnumPattern,
 	resolveTemporalEnum,
 	resolveTemporalEnumFromText,
-	compileTemporalEnumPattern,
 } from "../src/values/temporal-enum-resolver";
+import { recognizeTemporalExpression } from "../src/values/temporal-recognizer";
+import { resolveTemporalExpression } from "../src/values/temporal-resolver";
 
 const anchor = {
 	referenceInstant: "2026-08-03T17:30:30-04:00",
@@ -53,11 +53,17 @@ describe(" temporal values", () => {
 			bootstrapNumericalDefaults,
 		).temporal;
 
-		expect(resolveTemporalEnum("Monday", "day-of-week", profile)).toBe("monday");
-		expect(resolveTemporalEnum("morning", "part-of-day", profile)).toBe("morning");
+		expect(resolveTemporalEnum("Monday", "day-of-week", profile)).toBe(
+			"monday",
+		);
+		expect(resolveTemporalEnum("morning", "part-of-day", profile)).toBe(
+			"morning",
+		);
 		expect(resolveTemporalEnum("Spring", "season", profile)).toBe("spring");
 		expect(resolveTemporalEnum("unknown", "season", profile)).toBeUndefined();
-		expect(resolveTemporalEnumFromText("document date", "anchor", profile)).toEqual({
+		expect(
+			resolveTemporalEnumFromText("document date", "anchor", profile),
+		).toEqual({
 			value: "document-date",
 			matchedText: "document date",
 		});
@@ -138,13 +144,14 @@ describe(" temporal values", () => {
 			upperAmount: 6,
 			unit: "month",
 		});
-		expect(resolveTemporalExpression(expression, anchor).value?.relativeEstimate)
-			.toEqual({
-				direction: "retrospective",
-				firstValue: 3,
-				secondValue: 6,
-				precisionUnit: "month",
-			});
+		expect(
+			resolveTemporalExpression(expression, anchor).value?.relativeEstimate,
+		).toEqual({
+			direction: "retrospective",
+			firstValue: 3,
+			secondValue: 6,
+			precisionUnit: "month",
+		});
 	});
 
 	it("rejects statistical quantity metadata for duration consumers", () => {
@@ -174,7 +181,12 @@ describe(" temporal values", () => {
 			partsOfDay: ["morning"],
 			relativeEstimate: {
 				direction: "retrospective",
-				quantity: { lower: 3, upper: 6, unit: "month", rawText: "3 to 6 months" },
+				quantity: {
+					lower: 3,
+					upper: 6,
+					unit: "month",
+					rawText: "3 to 6 months",
+				},
 			},
 		});
 

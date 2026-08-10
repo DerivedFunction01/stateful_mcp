@@ -208,22 +208,20 @@ function matchDefinitionArguments(
 	}
 	// Match default values for unsupplied arguments
 	const matchedArgumentIds = new Set(
-		arguments_.map(
-			(arg) =>
-				arg.match?.argumentId ??
-				resolveNamedSpec(arg.name ?? "", definition.arguments)?.argumentId,
-		).filter(Boolean),
+		arguments_
+			.map(
+				(arg) =>
+					arg.match?.argumentId ??
+					resolveNamedSpec(arg.name ?? "", definition.arguments)?.argumentId,
+			)
+			.filter(Boolean),
 	);
 	for (const spec of definition.arguments) {
-		if (!matchedArgumentIds.has(spec.argumentId) && spec.defaultValue !== undefined) {
-			const matched = matchSpec(
-				spec.defaultValue,
-				0,
-				spec,
-				[],
-				false,
-				false,
-			);
+		if (
+			!matchedArgumentIds.has(spec.argumentId) &&
+			spec.defaultValue !== undefined
+		) {
+			const matched = matchSpec(spec.defaultValue, 0, spec, [], false, false);
 			arguments_.push({
 				name: spec.name,
 				position: spec.position,

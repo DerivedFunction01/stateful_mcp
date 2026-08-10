@@ -1,5 +1,6 @@
 import type {
 	CommandSyntaxProfile,
+	DocumentPlacementRef,
 	MacroDefinition,
 	MacroDraftPreview,
 } from "@stateful-mcp/clinical";
@@ -34,10 +35,9 @@ import type {
 } from "../../editor";
 import { knownVerbs } from "../../editor/command-autocomplete";
 import { buildCommandDescriptors } from "../../editor/command-descriptors";
+import type { EditorFocusTarget } from "../../editor/interaction-state";
 import type { SidebarViewTab } from "../../editor/kernel";
 import type { MacroSlotProjection } from "../../editor/macro-slots";
-import type { DocumentPlacementRef } from "@stateful-mcp/clinical";
-import type { EditorFocusTarget } from "../../editor/interaction-state";
 import type { NotebookDocumentPort } from "./document";
 import type { NotebookDomainPort } from "./domain";
 
@@ -234,7 +234,8 @@ export function notebookWindow(deps: NotebookWindowDeps): WindowDefinition {
 					draftPreview: deps.draftPreview,
 					executionMessage: deps.message,
 					consoleFocused:
-						deps.focusTarget === "macro-console" || deps.consoleFocused === true,
+						deps.focusTarget === "macro-console" ||
+						deps.consoleFocused === true,
 					selectionStart:
 						deps.focusTarget === "macro-console" &&
 						deps.editorState.mode === "VISUAL"

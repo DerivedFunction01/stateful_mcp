@@ -373,7 +373,10 @@ export const DIFFERENTIAL_ACTIVE_MACRO: MacroDefinition = {
 			name: "diagnosis",
 			roleName: "differential.diagnosis",
 			position: 0,
-			target: { targetSchema: "DifferentialDiagnosis", targetPath: "diagnosis" },
+			target: {
+				targetSchema: "DifferentialDiagnosis",
+				targetPath: "diagnosis",
+			},
 			extraction: { kind: "concept", required: true },
 			required: true,
 		},
@@ -382,7 +385,10 @@ export const DIFFERENTIAL_ACTIVE_MACRO: MacroDefinition = {
 			name: "supportingConcepts",
 			roleName: "differential.supportingConcepts",
 			position: 1,
-			target: { targetSchema: "DifferentialDiagnosis", targetPath: "supportingConcepts" },
+			target: {
+				targetSchema: "DifferentialDiagnosis",
+				targetPath: "supportingConcepts",
+			},
 			extraction: { kind: "concept_array", required: false },
 		},
 		{
@@ -390,7 +396,10 @@ export const DIFFERENTIAL_ACTIVE_MACRO: MacroDefinition = {
 			name: "refutingConcepts",
 			roleName: "differential.refutingConcepts",
 			position: 2,
-			target: { targetSchema: "DifferentialDiagnosis", targetPath: "refutingConcepts" },
+			target: {
+				targetSchema: "DifferentialDiagnosis",
+				targetPath: "refutingConcepts",
+			},
 			extraction: { kind: "concept_array", required: false },
 		},
 	],

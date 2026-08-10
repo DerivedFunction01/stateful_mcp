@@ -1,7 +1,7 @@
 import type {
+	DocumentPlacementRef,
 	MacroDefinition,
 	MacroDraftPreview,
-	DocumentPlacementRef,
 } from "@stateful-mcp/clinical";
 import {
 	MacroAuthoringSession,
@@ -113,9 +113,8 @@ export function useNotebook(
 		useState<MacroDraftPreview>();
 	const [activeDefinition, setActiveDefinition] =
 		useState<MacroDefinition | null>(null);
-	const [selectedPlacement, setSelectedPlacement] = useState<
-		ReturnType<typeof selectMacroPlacement>["placement"]
-	>();
+	const [selectedPlacement, setSelectedPlacement] =
+		useState<ReturnType<typeof selectMacroPlacement>["placement"]>();
 	const availablePlacements = session?.v2.documentPlacements ?? [];
 	const [childDefinitions, setChildDefinitions] = useState<MacroDefinition[]>(
 		[],
@@ -263,29 +262,29 @@ export function useNotebook(
 				.getRuntime()
 				.macros.authoring.inspectDraft(state.draftText, state.macroLocks)
 				.then((inspection) => {
-				if (cancelled) return;
-				if (!inspection) {
-					setMacroSlots([]);
-					setActiveDefinition(null);
-					setChildDefinitions([]);
-					return;
-				}
-				setActiveDefinition(inspection.definition);
-				setMacroSlots(inspection.slots);
-				setChildDefinitions(inspection.childDefinitions);
-				macroSessionRef.current?.dispatch({
-					type: "inspection_resolved",
-					definition: inspection.definition,
-					childDefinitions: inspection.childDefinitions,
-					slots: inspection.slots,
-				});
+					if (cancelled) return;
+					if (!inspection) {
+						setMacroSlots([]);
+						setActiveDefinition(null);
+						setChildDefinitions([]);
+						return;
+					}
+					setActiveDefinition(inspection.definition);
+					setMacroSlots(inspection.slots);
+					setChildDefinitions(inspection.childDefinitions);
+					macroSessionRef.current?.dispatch({
+						type: "inspection_resolved",
+						definition: inspection.definition,
+						childDefinitions: inspection.childDefinitions,
+						slots: inspection.slots,
+					});
 				})
 				.catch(() => {
-				if (!cancelled) {
-					setMacroSlots([]);
-					setActiveDefinition(null);
-					setChildDefinitions([]);
-				}
+					if (!cancelled) {
+						setMacroSlots([]);
+						setActiveDefinition(null);
+						setChildDefinitions([]);
+					}
 				});
 		}, session.v2.ideProfile.performance.parseDebounceMs);
 		return () => {

@@ -52,47 +52,85 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 		}
 		const action = args[1];
 		const sourceArg = args.find((arg) => arg.startsWith("--source="));
-		if (action && ["validate", "plan", "apply", "publish", "diff"].includes(action)) {
+		if (
+			action &&
+			["validate", "plan", "apply", "publish", "diff"].includes(action)
+		) {
 			if (!sourceArg) {
 				console.error("clinical setup requires --source=FILE");
 				process.exitCode = 2;
 				return;
 			}
 			const { readFile } = await import("node:fs/promises");
-			const { diffSetupSources, publishSetupSource, validateSetupSource } = await import(
-				"@stateful-mcp/clinical"
-			);
+			const { diffSetupSources, publishSetupSource, validateSetupSource } =
+				await import("@stateful-mcp/clinical");
 			const source = JSON.parse(
 				await readFile(sourceArg.slice("--source=".length), "utf8"),
 			);
 			const validation = validateSetupSource(source);
 			if (action === "diff") {
-				const clinical = await Cli2BootstrapBuilder.withDefaultBackend(backend, {
-					dbPath: pathArg?.slice("--path=".length),
-				});
-				const active = (await clinical.setupSourceStore.list()).find((item) => item.status === "active");
-				console.log(JSON.stringify({ action, sourceId: source.sourceId, against: active?.sourceId ?? null, ...(active ? diffSetupSources(active, source) : { changes: [] }) }, null, 2));
+				const clinical = await Cli2BootstrapBuilder.withDefaultBackend(
+					backend,
+					{
+						dbPath: pathArg?.slice("--path=".length),
+					},
+				);
+				const active = (await clinical.setupSourceStore.list()).find(
+					(item) => item.status === "active",
+				);
+				console.log(
+					JSON.stringify(
+						{
+							action,
+							sourceId: source.sourceId,
+							against: active?.sourceId ?? null,
+							...(active ? diffSetupSources(active, source) : { changes: [] }),
+						},
+						null,
+						2,
+					),
+				);
 				return;
 			}
-			console.log(JSON.stringify({ action, valid: validation.valid, diagnostics: validation.diagnostics }, null, 2));
+			console.log(
+				JSON.stringify(
+					{
+						action,
+						valid: validation.valid,
+						diagnostics: validation.diagnostics,
+					},
+					null,
+					2,
+				),
+			);
 			if (!validation.valid || action === "validate" || action === "plan") {
 				if (!validation.valid) process.exitCode = 2;
 				return;
 			}
 			if (action === "publish") {
-				const clinical = await Cli2BootstrapBuilder.withDefaultBackend(backend, {
-					dbPath: pathArg?.slice("--path=".length),
-				});
-				const published = await publishSetupSource(clinical.setupSourceStore, source);
-				console.log(JSON.stringify({ action, sourceId: published.sourceId, status: published.status }, null, 2));
+				const clinical = await Cli2BootstrapBuilder.withDefaultBackend(
+					backend,
+					{
+						dbPath: pathArg?.slice("--path=".length),
+					},
+				);
+				const published = await publishSetupSource(
+					clinical.setupSourceStore,
+					source,
+				);
+				console.log(
+					JSON.stringify(
+						{ action, sourceId: published.sourceId, status: published.status },
+						null,
+						2,
+					),
+				);
 				return;
 			}
 			const clinical = await Cli2BootstrapBuilder.withDefaultBackend(backend, {
 				dbPath: pathArg?.slice("--path=".length),
 			});
-			const { materializeSetupSource } = await import(
-				"@stateful-mcp/clinical"
-			);
+			const { materializeSetupSource } = await import("@stateful-mcp/clinical");
 			const materialized = await materializeSetupSource(source, {
 				dictionary: clinical.dictionary,
 				conceptFilterStore: clinical.conceptFilterStore,
@@ -106,7 +144,9 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 				return;
 			}
 			await clinical.setupSourceStore.set(source);
-			console.log(JSON.stringify({ sourceId: source.sourceId, ...materialized }, null, 2));
+			console.log(
+				JSON.stringify({ sourceId: source.sourceId, ...materialized }, null, 2),
+			);
 			return;
 		}
 		if (action && ["activate", "deactivate", "rollback"].includes(action)) {
@@ -118,11 +158,26 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 			const clinical = await Cli2BootstrapBuilder.withDefaultBackend(backend, {
 				dbPath: pathArg?.slice("--path=".length),
 			});
-			const { activateSetupSource, deactivateSetupSource, rollbackSetupSource } = await import("@stateful-mcp/clinical");
+			const {
+				activateSetupSource,
+				deactivateSetupSource,
+				rollbackSetupSource,
+			} = await import("@stateful-mcp/clinical");
 			const sourceId = sourceArg.slice("--source=".length);
-			const transition = action === "activate" ? activateSetupSource : action === "deactivate" ? deactivateSetupSource : rollbackSetupSource;
+			const transition =
+				action === "activate"
+					? activateSetupSource
+					: action === "deactivate"
+						? deactivateSetupSource
+						: rollbackSetupSource;
 			const result = await transition(clinical.setupSourceStore, sourceId);
-			console.log(JSON.stringify({ action, sourceId: result.sourceId, status: result.status }, null, 2));
+			console.log(
+				JSON.stringify(
+					{ action, sourceId: result.sourceId, status: result.status },
+					null,
+					2,
+				),
+			);
 			return;
 		}
 		const clinical = await Cli2BootstrapBuilder.withDefaultBackend(backend, {

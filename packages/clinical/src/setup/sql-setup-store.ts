@@ -1,6 +1,10 @@
-import { QueryCompiler, type SqlDialect, type SqlExecutor } from "@stateful-mcp/core";
-import type { SetupSourceDocument } from "./setup-types";
+import {
+	QueryCompiler,
+	type SqlDialect,
+	type SqlExecutor,
+} from "@stateful-mcp/core";
 import type { SetupSourceStore } from "./setup-store";
+import type { SetupSourceDocument } from "./setup-types";
 
 export class SqlSetupSourceStore implements SetupSourceStore {
 	private readonly compiler: QueryCompiler;
@@ -22,7 +26,9 @@ export class SqlSetupSourceStore implements SetupSourceStore {
 			where: [{ column: "source_id", op: "eq", value: sourceId }],
 		});
 		const row = await this.executor.queryOne(query.sql, query.params);
-		return row ? JSON.parse(String(row.payload)) as SetupSourceDocument : null;
+		return row
+			? (JSON.parse(String(row.payload)) as SetupSourceDocument)
+			: null;
 	}
 
 	async set(source: SetupSourceDocument): Promise<void> {
@@ -58,7 +64,9 @@ export class SqlSetupSourceStore implements SetupSourceStore {
 			orderBy: [{ column: "source_id", direction: "ASC" }],
 		});
 		const rows = await this.executor.query(query.sql, query.params);
-		return rows.map((row) => JSON.parse(String(row.payload)) as SetupSourceDocument);
+		return rows.map(
+			(row) => JSON.parse(String(row.payload)) as SetupSourceDocument,
+		);
 	}
 
 	private async ensureTable(): Promise<void> {

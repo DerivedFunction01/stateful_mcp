@@ -51,7 +51,7 @@ export function compileAnchorDistance(
 						crossBoundaries,
 						forbiddenWords: anchor.forbiddenWords,
 						allowedWords: anchor.allowedWords,
-				  }
+					}
 				: undefined,
 		rightGap:
 			anchor.maxRight !== undefined
@@ -63,7 +63,7 @@ export function compileAnchorDistance(
 						crossBoundaries,
 						forbiddenWords: anchor.forbiddenWords,
 						allowedWords: anchor.allowedWords,
-				  }
+					}
 				: undefined,
 	};
 }
@@ -88,6 +88,8 @@ export function anchorDistanceToGapConstraint(
 			? [...anchor.boundaryTransitionalWords]
 			: undefined,
 		allowedWords: anchor.allowedWords ? [...anchor.allowedWords] : undefined,
-		forbiddenWords: anchor.forbiddenWords ? [...anchor.forbiddenWords] : undefined,
+		forbiddenWords: anchor.forbiddenWords
+			? [...anchor.forbiddenWords]
+			: undefined,
 	};
 }

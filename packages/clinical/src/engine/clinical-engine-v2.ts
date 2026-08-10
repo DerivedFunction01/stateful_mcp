@@ -15,10 +15,10 @@ import type {
 	RecoveryResult,
 	TransactionParticipant,
 } from "../transactions/transaction-types";
+import type { ConceptLookup } from "../values/concept-value";
 import type { WorkspaceService } from "../workspaces/workspace-service";
 import type { WorkspaceAggregate } from "../workspaces/workspace-types";
 import type { WorkspaceViewService } from "../workspaces/workspace-view-state";
-import type { ConceptLookup } from "../values/concept-value";
 import type { ClinicalRuntime } from "./clinical-runtime-v2";
 
 export interface ExecutionResult {

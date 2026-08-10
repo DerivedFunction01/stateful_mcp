@@ -148,8 +148,7 @@ const en: Record<string, string> = {
 	"workspace.scratchpad.refuting": "refuting: {value}",
 	"workspace.scratchpad.sideEffect": "side effect: {transition} {branch}",
 	"workspace.scratchpad.noOperations": "No valid scratchpad operations.",
-	"workspace.scratchpadPreviewHeader":
-		"PREVIEW:",
+	"workspace.scratchpadPreviewHeader": "PREVIEW:",
 	"workspace.scratchpadFooter":
 		"[ ↑/↓ ] Cells  │  [ Tab ] Duplicate  │  [ Enter ] Apply  │  [ Esc ] Close",
 	"workspace.scratchpad.applied": "Applied {count} scratchpad operations.",

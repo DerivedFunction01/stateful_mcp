@@ -7,14 +7,14 @@ import {
 	createNumericalSyntaxProfile,
 	type NumericalSyntaxProfile,
 } from "./numerical-syntax-profile";
+import { parseQuantity } from "./quantity-grammar";
+import { resolveTemporalEnum } from "./temporal-enum-resolver";
 import type { TemporalExpression } from "./temporal-expression";
 import {
 	buildDatePatternString,
 	buildDayPeriodMap,
 	buildMonthNameMap,
 } from "./utils/date-regex-generator";
-import { parseQuantity } from "./quantity-grammar";
-import { resolveTemporalEnum } from "./temporal-enum-resolver";
 
 export function recognizeTemporalExpression(
 	text: string,
@@ -67,9 +67,10 @@ export function recognizeTemporalExpression(
 		const groups = match.groups;
 		const year = groups.yyyy ?? groups.yy;
 		const month = groups.mm_name
-			? buildMonthNameMap(format.options?.monthNames, format.options?.monthAliases)[
-					groups.mm_name.toLocaleLowerCase()
-				]
+			? buildMonthNameMap(
+					format.options?.monthNames,
+					format.options?.monthAliases,
+				)[groups.mm_name.toLocaleLowerCase()]
 			: Number(groups.mm);
 		const day = Number(groups.dd);
 		if (!year || !month || !day) continue;
@@ -99,7 +100,11 @@ export function recognizeTemporalExpression(
 	}
 	const tokens = lower.split(/\s+/);
 	const leadingDirection = resolveTemporalEnum(tokens[0] ?? "", "direction", t);
-	const trailingDirection = resolveTemporalEnum(tokens.at(-1) ?? "", "direction", t);
+	const trailingDirection = resolveTemporalEnum(
+		tokens.at(-1) ?? "",
+		"direction",
+		t,
+	);
 	const direction = (leadingDirection ?? trailingDirection) as
 		| "retrospective"
 		| "prospective"

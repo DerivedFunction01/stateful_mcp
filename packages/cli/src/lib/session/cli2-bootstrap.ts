@@ -2,13 +2,21 @@ import type {
 	ClinicalProseTemplateStore,
 	CommandHistoryStore,
 	CommandSyntaxProfile,
+	DocumentPlacementRef,
+	MacroDefinition,
 	MacroStore,
 	PatientStore,
 	ProseRenderContext,
 	ProseTemplateUsageStore,
+	SetupSourceStore,
 	UnifiedProfileStore,
+	ValueRuleRegistry,
 } from "@stateful-mcp/clinical";
-import { createPatientRenderContext } from "@stateful-mcp/clinical";
+import {
+	type ClinicalIdeProfile,
+	createPatientRenderContext,
+	DEFAULT_CLINICAL_IDE_PROFILE,
+} from "@stateful-mcp/clinical";
 import type { ClinicalBootstrapResult } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { ClinicalBootstrap } from "@stateful-mcp/clinical/bootstrap/bootstrap";
 import { createMockCaseIdentity } from "@stateful-mcp/clinical/bootstrap/mock-patient";
@@ -18,21 +26,12 @@ import { CommandBarService } from "@stateful-mcp/clinical/commands/command-bar-s
 import { VariableCommandService } from "@stateful-mcp/clinical/commands/variable-command-service";
 import type { ClinicalEngine } from "@stateful-mcp/clinical/engine/clinical-engine-v2";
 import type { NotebookSessionStore } from "@stateful-mcp/clinical/notebook/notebook-session-store";
-import type { SetupSourceStore } from "@stateful-mcp/clinical";
-import type { DocumentPlacementRef } from "@stateful-mcp/clinical";
-import type { MacroDefinition } from "@stateful-mcp/clinical";
-import type { DictionaryStore } from "@stateful-mcp/core";
-import type { ConceptFilterStore } from "@stateful-mcp/core";
-import type { ValueRuleRegistry } from "@stateful-mcp/clinical";
+import type { ConceptFilterStore, DictionaryStore } from "@stateful-mcp/core";
 import {
 	defaultEditorKeymapProfile,
 	mergeEditorKeymap,
 } from "../../bootstrap/editor-keymap-defaults";
 import type { EditorKeymapProfile } from "../../lib/editor/editor-keymap-profile";
-import {
-	DEFAULT_CLINICAL_IDE_PROFILE,
-	type ClinicalIdeProfile,
-} from "@stateful-mcp/clinical";
 import {
 	createNotebookSession,
 	type NotebookSession,
@@ -156,7 +155,9 @@ export async function buildCli2Bootstrap(
 	const profileStore = stores?.profileStore ?? clinical.stores.profileStore;
 	const ideProfileRecords = await profileStore.list();
 	const ideProfileRecord =
-		ideProfileRecords.find((profile) => profile.kind === "ide" && profile.active) ??
+		ideProfileRecords.find(
+			(profile) => profile.kind === "ide" && profile.active,
+		) ??
 		ideProfileRecords.find(
 			(profile) => profile.profileId === DEFAULT_CLINICAL_IDE_PROFILE.profileId,
 		);
@@ -253,7 +254,8 @@ export async function buildCli2Bootstrap(
 		syntaxProfile: clinical.syntaxProfile,
 		sessionStore,
 	});
-	const setupStore = stores?.setupSourceStore ?? clinical.stores.setupSourceStore;
+	const setupStore =
+		stores?.setupSourceStore ?? clinical.stores.setupSourceStore;
 	const setupSources = await setupStore.list();
 	const documentPlacements = setupSources[0]?.placements ?? [];
 	return {
@@ -281,7 +283,8 @@ export async function buildCli2Bootstrap(
 		patientStore,
 		setupSourceStore: setupStore,
 		dictionary: clinical.dictionary,
-		conceptFilterStore: stores?.conceptFilterStore ?? clinical.stores.conceptFilterStore,
+		conceptFilterStore:
+			stores?.conceptFilterStore ?? clinical.stores.conceptFilterStore,
 		valueRules: clinical.coldStart.valueRules,
 		documentPlacements,
 		patient,

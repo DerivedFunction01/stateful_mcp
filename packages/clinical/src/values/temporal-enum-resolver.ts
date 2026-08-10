@@ -24,7 +24,7 @@ export type TemporalEnumKind =
 	| "part-of-day"
 	| "season"
 	| "direction"
-  | "anchor";
+	| "anchor";
 
 export interface CompiledTemporalAliasPattern {
 	pattern: string;
@@ -38,18 +38,23 @@ export function resolveTemporalEnum(
 	profile: TemporalSyntaxConfig,
 ): TemporalEnumValue | undefined {
 	const normalized = text.trim().toLocaleLowerCase();
-	const aliases: Readonly<Record<string, TemporalEnumValue | TemporalAliasRule>> =
+	const aliases: Readonly<
+		Record<string, TemporalEnumValue | TemporalAliasRule>
+	> =
 		kind === "day-of-week"
-			? profile.dayOfWeekAliases ?? {}
+			? (profile.dayOfWeekAliases ?? {})
 			: kind === "part-of-day"
-				? profile.partOfDayAliases ?? {}
+				? (profile.partOfDayAliases ?? {})
 				: kind === "season"
-					? profile.seasonAliases ?? {}
+					? (profile.seasonAliases ?? {})
 					: kind === "direction"
 						? profile.directionAliases
-						: profile.anchorAliases ?? {};
+						: (profile.anchorAliases ?? {});
 	const entry = aliases[normalized];
-	if (entry) return typeof entry === "string" ? entry : entry.value as TemporalEnumValue;
+	if (entry)
+		return typeof entry === "string"
+			? entry
+			: (entry.value as TemporalEnumValue);
 	for (const raw of Object.values(aliases)) {
 		if (typeof raw === "string") continue;
 		if (!isTemporalAliasRule(raw)) continue;
@@ -98,11 +103,12 @@ export function compileTemporalEnumPattern(
 	let flags = "u";
 	let caseSensitive: boolean | undefined;
 	for (const [key, raw] of Object.entries(aliases)) {
-		const rule: TemporalAliasRule = typeof raw === "string"
-			? { value: raw, aliases: [key] }
-			: isTemporalAliasRule(raw)
-				? raw
-				: { value: key, aliases: [] };
+		const rule: TemporalAliasRule =
+			typeof raw === "string"
+				? { value: raw, aliases: [key] }
+				: isTemporalAliasRule(raw)
+					? raw
+					: { value: key, aliases: [] };
 		const ruleCaseSensitive = rule.caseSensitive ?? false;
 		if (caseSensitive !== undefined && caseSensitive !== ruleCaseSensitive)
 			throw new Error(
@@ -124,17 +130,20 @@ function aliasTable(
 	kind: TemporalEnumKind,
 ): Readonly<Record<string, unknown>> {
 	return kind === "day-of-week"
-		? profile.dayOfWeekAliases ?? {}
+		? (profile.dayOfWeekAliases ?? {})
 		: kind === "part-of-day"
-			? profile.partOfDayAliases ?? {}
+			? (profile.partOfDayAliases ?? {})
 			: kind === "season"
-				? profile.seasonAliases ?? {}
+				? (profile.seasonAliases ?? {})
 				: kind === "direction"
 					? profile.directionAliases
-					: profile.anchorAliases ?? {};
+					: (profile.anchorAliases ?? {});
 }
 
-function applyBoundary(pattern: string, boundary: TemporalWordBoundary): string {
+function applyBoundary(
+	pattern: string,
+	boundary: TemporalWordBoundary,
+): string {
 	const before = boundary === "before" || boundary === "both";
 	const after = boundary === "after" || boundary === "both";
 	const left = before ? "(?<![\\p{L}\\p{N}_])" : "";
