@@ -80,6 +80,11 @@ export function matchTemporalGrammar(
 	return { match: ordered[0], diagnostics: [] };
 }
 
+import {
+	buildPatternWithAnchors,
+	escapeRegex,
+} from "./regex-builder-helper";
+
 export function compileTemporalGrammar(
 	input: TemporalGrammarCompileInput,
 ): CompiledTemporalGrammar {
@@ -130,8 +135,10 @@ export function compileTemporalGrammar(
 	}
 
 	const body = parts.map((part) => part.pattern).join("\\s*");
-	const whitespace = input.template.whitespace === "flexible" ? "\\s*" : "";
-	const pattern = `^${whitespace}${body}${whitespace}$`;
+	const pattern = buildPatternWithAnchors(body, {
+		anchorStart: true,
+		anchorEnd: true,
+	});
 	return {
 		grammarId: input.grammarId,
 		version: input.template.version,
@@ -188,10 +195,6 @@ function compileGap(
 function safeGroupName(value: string): string {
 	const name = value.replace(/[^A-Za-z0-9_]/gu, "_");
 	return /^[A-Za-z_]/u.test(name) ? name : `slot_${name}`;
-}
-
-function escapeRegex(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function stripAnchors(pattern: string): string {
