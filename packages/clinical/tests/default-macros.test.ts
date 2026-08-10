@@ -3,7 +3,7 @@ import {
 	ASSESSMENT_MACRO,
 	PHYSICAL_EXAM_MACRO,
 	VITALS_MACRO,
-} from "../src/macros/default-macros";
+} from "../src/bootstrap/default-macros";
 import type { MacroStore } from "../src/macros/macro-definition";
 import { parseMacroLine } from "../src/macros/macro-input-parser";
 import { validateMacroAuthoringTemplates } from "../src/macros/macro-template-matcher";

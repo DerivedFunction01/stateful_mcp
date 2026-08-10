@@ -1,4 +1,4 @@
-import type { MacroDefinition } from "./macro-definition";
+import type { MacroDefinition } from "../macros/macro-definition";
 
 export const _PRIMARY_DIAGNOSIS_MACRO: MacroDefinition = {
 	macroId: "v2-primary-diagnosis-1",

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
-import { NOTE_MACRO } from "../src/macros/default-macros";
+import { NOTE_MACRO } from "../src/bootstrap/default-macros";
 import type { MacroDefinition } from "../src/macros/macro-definition";
 import { parseMacroLine } from "../src/macros/macro-input-parser";
 import { createSyntaxProfile } from "../src/macros/macro-profile";

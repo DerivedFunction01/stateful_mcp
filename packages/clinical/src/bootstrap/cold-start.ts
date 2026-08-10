@@ -11,7 +11,7 @@ import {
 import {
 	_PRIMARY_DIAGNOSIS_MACRO,
 	seedDefaultMacros,
-} from "../macros/default-macros";
+} from "./default-macros";
 import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
 import { createDefaultSchemaRegistry } from "../schemas/default-registry";
 import {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryKvBackend } from "@stateful-mcp/core";
-import { _PRIMARY_DIAGNOSIS_MACRO } from "../src/macros/default-macros";
+import { _PRIMARY_DIAGNOSIS_MACRO } from "../src/bootstrap/default-macros";
 import { KvMacroStore } from "../src/macros/kv-macro-store";
 import { MacroQueryCompiler } from "../src/macros/macro-query-compiler";
 

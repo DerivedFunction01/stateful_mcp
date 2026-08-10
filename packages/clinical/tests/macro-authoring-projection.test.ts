@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { NOTE_MACRO } from "../src/macros/default-macros";
+import { NOTE_MACRO } from "../src/bootstrap/default-macros";
 import {
 	findNextMacroChild,
 	getActiveMacroArgumentId,

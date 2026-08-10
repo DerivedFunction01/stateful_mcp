@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { SyntaxProfile } from "../src";
-import { NOTE_MACRO, VITALS_MACRO } from "../src/macros/default-macros";
+import { NOTE_MACRO, VITALS_MACRO } from "../src/bootstrap/default-macros";
 import { MacroAuthoringSession } from "../src/macros/macro-authoring-session";
 import type {
 	DocumentPlacementRef,

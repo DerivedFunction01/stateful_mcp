@@ -4,7 +4,7 @@ import type {
 	CustomExpression,
 } from "@stateful-mcp/core/middleware/dictionary/types";
 import type { MacroLearningService } from "../src/learning/macro-learning-service";
-import { NOTE_MACRO } from "../src/macros/default-macros";
+import { NOTE_MACRO } from "../src/bootstrap/default-macros";
 import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
 import type {
 	MacroDefinition,
