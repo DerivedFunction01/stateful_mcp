@@ -89,7 +89,11 @@ export async function materializeSetupSource(
 		for (const composition of source.macros) {
 			const macro =
 				composition.generatedMacro ??
-				compileSetupMacro(composition, source.blocks);
+				compileSetupMacro(
+					composition,
+					source.blocks,
+					source.primitiveProfile.quantityProfiles,
+				);
 			await deps.macroStore.set(macro);
 		}
 		return {

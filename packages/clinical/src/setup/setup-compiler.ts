@@ -4,6 +4,8 @@ import type {
 	MacroValueSpecKind,
 	ValueSpec,
 } from "../macros/macro-definition";
+import type { QuantityGrammarProfile } from "../values/quantity-profile-types";
+import { buildScopedParameterRegex } from "./quantity-grammar-compiler";
 import type {
 	SetupDocumentPlacement,
 	SetupGrammarBlock,
@@ -21,13 +23,14 @@ export interface SetupPlacementOperation {
 export function compileSetupMacro(
 	composition: SetupMacroComposition,
 	blocks: readonly SetupGrammarBlock[],
+	quantityProfiles?: readonly QuantityGrammarProfile[],
 ): MacroDefinition {
 	const blockById = new Map(blocks.map((block) => [block.blockId, block]));
 	const argumentsList: MacroArgumentSpec[] = composition.parameters.flatMap(
 		(parameter, position) => {
 			const block = blockById.get(parameter.blockId);
 			if (!block) return [];
-			const extraction = createValueSpec(block);
+			const extraction = createValueSpec(block, quantityProfiles);
 			return [
 				{
 					argumentId: parameter.argumentId,
@@ -125,10 +128,31 @@ export function expandSetupPlacements(
 	});
 }
 
-function createValueSpec(block: SetupGrammarBlock): ValueSpec {
+function createValueSpec(
+	block: SetupGrammarBlock,
+	quantityProfiles?: readonly QuantityGrammarProfile[],
+): ValueSpec {
 	const kind = toMacroKind(block.kind);
-	const patterns =
+	let patterns =
 		block.source.kind === "generated" ? block.source.recipe.phrases : undefined;
+
+	if (
+		block.kind === "measurement" &&
+		block.quantityProfileId &&
+		quantityProfiles
+	) {
+		const profile = quantityProfiles.find(
+			(p) => p.profileId === block.quantityProfileId,
+		);
+		if (profile) {
+			const scopedPattern = buildScopedParameterRegex(profile, {
+				activeUnits: block.activeUnits,
+				fullSpanAnchor: false,
+			});
+			patterns = [scopedPattern];
+		}
+	}
+
 	return {
 		kind,
 		valueKind: block.valueKind as ValueSpec["valueKind"],

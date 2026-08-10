@@ -21,6 +21,8 @@ export type SetupPublicationStatus =
 	| "active"
 	| "retired";
 
+import type { QuantityGrammarProfile } from "../values/quantity-profile-types";
+
 export interface SetupPrimitiveProfile {
 	profileId: string;
 	version: number;
@@ -39,6 +41,7 @@ export interface SetupPrimitiveProfile {
 	rangeDelimiters?: string[];
 	measurementOperatorAliases?: Record<string, string>;
 	baseNumericalProfile?: NumericalSyntaxProfile;
+	quantityProfiles?: QuantityGrammarProfile[];
 }
 
 export interface SetupDocumentPlacement {
@@ -129,6 +132,8 @@ export interface SetupGrammarBlock {
 	primitiveProfileVersion?: number;
 	schemaVersion: number;
 	status: SetupPublicationStatus;
+	quantityProfileId?: string;
+	activeUnits?: string[];
 }
 
 export type SetupArgumentPlacementMode = "single" | "fan_out";
