@@ -11,6 +11,7 @@
 export * from "./bootstrap";
 export * from "./bootstrap/bootstrap-config";
 export * from "./bootstrap/cold-start";
+export * from "./bootstrap/default-macros";
 export * from "./bootstrap/ide-profile-defaults";
 export * from "./bootstrap/mock-patient";
 export * from "./bootstrap/notebook-ui-defaults";
@@ -60,7 +61,6 @@ export * from "./learning/macro-parse-learning-store";
 export * from "./learning/sql-command-history-store";
 export * from "./learning/weight-store";
 export * from "./macros/completion-session-helper";
-export * from "./bootstrap/default-macros";
 export * from "./macros/kv-macro-store";
 export * from "./macros/macro-authoring-projection";
 export * from "./macros/macro-authoring-renderer";

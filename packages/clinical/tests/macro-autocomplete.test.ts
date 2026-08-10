@@ -3,8 +3,8 @@ import type {
 	Concept,
 	CustomExpression,
 } from "@stateful-mcp/core/middleware/dictionary/types";
-import type { MacroLearningService } from "../src/learning/macro-learning-service";
 import { NOTE_MACRO } from "../src/bootstrap/default-macros";
+import type { MacroLearningService } from "../src/learning/macro-learning-service";
 import { MacroAutocomplete } from "../src/macros/macro-autocomplete";
 import type {
 	MacroDefinition,

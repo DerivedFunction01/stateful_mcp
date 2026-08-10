@@ -79,6 +79,7 @@ export interface ValueSpec {
 	valueKind?: TypedValueKind;
 	measurement?: MeasurementConstraintSpec;
 	condition?: PipelineConditionSpec;
+	enumMapping?: Record<string, string>;
 }
 
 export interface SlotSuggestion {

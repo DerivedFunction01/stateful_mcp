@@ -134,6 +134,7 @@ export interface SetupGrammarBlock {
 	status: SetupPublicationStatus;
 	quantityProfileId?: string;
 	activeUnits?: string[];
+	enumMapping?: Record<string, string>;
 }
 
 export type SetupArgumentPlacementMode = "single" | "fan_out";

@@ -8,10 +8,6 @@ import {
 	type CommandSyntaxProfile,
 	createCommandSyntaxProfile,
 } from "../commands/command-syntax-profile";
-import {
-	_PRIMARY_DIAGNOSIS_MACRO,
-	seedDefaultMacros,
-} from "./default-macros";
 import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
 import { createDefaultSchemaRegistry } from "../schemas/default-registry";
 import {
@@ -26,6 +22,7 @@ import {
 	bootstrapCommandDefaults,
 	bootstrapNumericalDefaults,
 } from "./bootstrap-config";
+import { _PRIMARY_DIAGNOSIS_MACRO, seedDefaultMacros } from "./default-macros";
 
 export interface ColdStartOptions {
 	dictionary: DictionaryStore;

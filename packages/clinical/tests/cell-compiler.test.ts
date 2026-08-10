@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { bootstrapCommandDefaults } from "../src/bootstrap/bootstrap-config";
-import { CellCompiler } from "../src/cells/cell-compiler";
 import { NOTE_MACRO } from "../src/bootstrap/default-macros";
+import { CellCompiler } from "../src/cells/cell-compiler";
 import { createSyntaxProfile } from "../src/macros/macro-profile";
 import { createDefaultSchemaRegistry } from "../src/schemas/default-registry";
 

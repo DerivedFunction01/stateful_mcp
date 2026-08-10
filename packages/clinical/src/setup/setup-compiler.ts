@@ -157,6 +157,7 @@ function createValueSpec(
 		kind,
 		valueKind: block.valueKind as ValueSpec["valueKind"],
 		patterns,
+		enumMapping: block.enumMapping,
 		target: block.target,
 		required: block.kind === "concept" || block.kind === "expression",
 		blankPolicy:

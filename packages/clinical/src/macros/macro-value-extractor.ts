@@ -156,8 +156,20 @@ export async function extractTypedValue(
 			};
 		}
 		case "enum": {
-			const enumText =
-				options.captures?.value ?? options.captures?.enum ?? text;
+			let enumText = options.captures?.value ?? options.captures?.enum ?? text;
+
+			if (spec.extraction.enumMapping) {
+				const lowercaseInput = enumText.toLowerCase();
+				const mapped =
+					spec.extraction.enumMapping[lowercaseInput] ??
+					Object.entries(spec.extraction.enumMapping).find(
+						([k]) => k.toLowerCase() === lowercaseInput,
+					)?.[1];
+				if (mapped) {
+					enumText = mapped;
+				}
+			}
+
 			const allowed = options.field?.enumValues;
 			if (allowed && allowed.length > 0 && !allowed.includes(enumText)) {
 				return {
