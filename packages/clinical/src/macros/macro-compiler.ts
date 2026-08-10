@@ -37,6 +37,7 @@ import type {
 	MacroExecutionPlan,
 	MacroPlanFingerprint,
 	MacroTargetOperation,
+	MacroLinkOperation,
 	DocumentPlacementRef,
 } from "./macro-plan";
 import { MacroDefinitionValidator } from "./macro-validator";
@@ -234,6 +235,24 @@ export class MacroCompiler {
 			});
 		}
 
+		const links: MacroLinkOperation[] = [];
+		if (definition.children?.length) {
+			for (const childDef of definition.children) {
+				const parentOp = operations[0];
+				const parentRef = parentOp ? parentOp.operationId : `op_parent_${definition.macroId}`;
+				const childRef = `op_child_${childDef.childMacroName}`;
+				links.push({
+					linkId: `link_${parentRef}_${childRef}`,
+					parentRef,
+					childRef,
+					parentRoleName: childDef.parentRoleName,
+					parentTargetPath: childDef.parentTargetPath,
+					mergeStrategy: childDef.mergeStrategy,
+					sourceLine: options.sourceLine ?? input.sourceLines[0]?.line ?? 0,
+				});
+			}
+		}
+
 		const fingerprint = this.fingerprint(definition, operations);
 
 		if (
@@ -260,7 +279,7 @@ export class MacroCompiler {
 				},
 			],
 			operations,
-			links: [],
+			links,
 			generatedCells: [],
 			expectedVersions: [],
 			fingerprint,

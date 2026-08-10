@@ -69,6 +69,7 @@ export interface MacroInput {
 	macroName: string;
 	sourceLines: MacroSourceLine[];
 	arguments: MacroArgumentInput[];
+	body?: { start: number; end: number; raw: string };
 	/** Successful matches only; failed extraction candidates are not projections. */
 	matches?: MacroArgumentMatch[];
 }

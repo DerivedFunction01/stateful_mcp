@@ -129,7 +129,7 @@ export function compileTemporalGrammar(
 		}
 	}
 
-	const body = parts.map((part) => part.pattern).join("");
+	const body = parts.map((part) => part.pattern).join("\\s*");
 	const whitespace = input.template.whitespace === "flexible" ? "\\s*" : "";
 	const pattern = `^${whitespace}${body}${whitespace}$`;
 	return {
@@ -158,7 +158,7 @@ function collectFlags(slots: CompiledTemporalGrammar["slots"]): string {
 
 function compileLiteral(text: string, optional = false): string {
 	const escaped = escapeRegex(text).replace(/\s+/gu, "\\s+");
-	return optional ? `(?:${escaped})?` : escaped;
+	return optional ? `(?:\\s+${escaped})?` : escaped;
 }
 
 function compileGap(
@@ -170,6 +170,9 @@ function compileGap(
 	if (gap.unit === "chars") {
 		return `.{${min},${max}}`;
 	}
+	const forbiddenLookahead = gap.forbiddenWords?.length
+		? `(?!\\s*(?:${gap.forbiddenWords.map(escapeRegex).join("|")})\\b)`
+		: "";
 	const vocabulary = gap.allowedWords?.length
 		? gap.allowedWords
 		: gap.skipStopWords
@@ -178,7 +181,7 @@ function compileGap(
 	const word = vocabulary?.length
 		? `(?:${vocabulary.map(escapeRegex).join("|")})`
 		: "[^\\s\\p{P}]+";
-	const token = gap.unit === "items" ? word : `\\s+${word}`;
+	const token = gap.unit === "items" ? `${forbiddenLookahead}${word}` : `\\s+${forbiddenLookahead}${word}`;
 	return `(?:${token}){${min},${max}}\\s*`;
 }
 

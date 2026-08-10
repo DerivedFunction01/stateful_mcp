@@ -25,9 +25,6 @@ export function applySetupPrimitiveProfile(
 			...(Object.keys(temporalAliases).length > 0
 				? { relativeDayAliases: { ...base.temporal.relativeDayAliases, ...temporalAliases } }
 				: {}),
-			...(Object.keys(unitAliases).length > 0
-				? { unitAliases: { ...base.temporal.unitAliases, ...unitAliases } }
-				: {}),
 			...(primitive.rangeDelimiters?.length
 				? { rangeDelimiters: primitive.rangeDelimiters }
 				: {}),

@@ -76,6 +76,34 @@ export function assembleClinicalDateRange(
 				message: `Unit '${slots.relativeEstimate.quantity.unit}' is not a temporal estimate unit`,
 			});
 	}
+	const includedWindows: Array<{ time: NonNullable<ClinicalDateRange["time"]> }> = [];
+	if (slots.included?.length) {
+		for (const inc of slots.included) {
+			const res = assembleClinicalDateRange(inc);
+			if (res.diagnostics.length > 0 || !res.value?.time) {
+				diagnostics.push(...(res.diagnostics.length > 0 ? res.diagnostics : [{
+					code: "missing_range_endpoint" as const,
+					message: "Included window DateRange assembly failed",
+				}]));
+			} else {
+				includedWindows.push({ time: res.value.time });
+			}
+		}
+	}
+	const excludedWindows: Array<{ time: NonNullable<ClinicalDateRange["time"]> }> = [];
+	if (slots.excluded?.length) {
+		for (const exc of slots.excluded) {
+			const res = assembleClinicalDateRange(exc);
+			if (res.diagnostics.length > 0 || !res.value?.time) {
+				diagnostics.push(...(res.diagnostics.length > 0 ? res.diagnostics : [{
+					code: "missing_range_endpoint" as const,
+					message: "Excluded window DateRange assembly failed",
+				}]));
+			} else {
+				excludedWindows.push({ time: res.value.time });
+			}
+		}
+	}
 	if (diagnostics.length > 0) return { diagnostics };
 
 	const value: ClinicalDateRange = {};
@@ -93,8 +121,8 @@ export function assembleClinicalDateRange(
 				: undefined,
 		};
 	}
-	if (slots.included?.length) value.includedDatetimes = slots.included.map(toWindow);
-	if (slots.excluded?.length) value.excludedDatetimes = slots.excluded.map(toWindow);
+	if (includedWindows.length) value.includedDatetimes = includedWindows;
+	if (excludedWindows.length) value.excludedDatetimes = excludedWindows;
 	if (slots.relativeEstimate) {
 		value.relativeEstimate = {
 			direction: slots.relativeEstimate.direction,

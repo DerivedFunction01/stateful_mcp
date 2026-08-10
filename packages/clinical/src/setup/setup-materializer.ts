@@ -6,6 +6,8 @@ import type { MacroDefinition, MacroStore } from "../macros/macro-definition";
 import { compileSetupMacro } from "./setup-compiler";
 import { validateSetupSource } from "./setup-validator";
 import type { SetupSourceDocument } from "./setup-types";
+import type { NumericalSyntaxProfile } from "../values/numerical-syntax-profile";
+import { createNumericalSyntaxProfile } from "../values/numerical-syntax-profile";
 import { applySetupPrimitiveProfile } from "./setup-profile";
 
 export interface SetupMaterializerDeps {
@@ -54,16 +56,17 @@ export async function materializeSetupSource(
 			conceptFilters: source.conceptFilters,
 		});
 		if (deps.profileStore) {
+			const baseProfile =
+				source.primitiveProfile.baseNumericalProfile ??
+				createNumericalSyntaxProfile({ profileId: `${source.profileId}:numerical` });
 			await deps.profileStore.set({
 				profileId: `${source.profileId}:numerical`,
 				kind: "numerical",
 				active: true,
-			payload: source.primitiveProfile.baseNumericalProfile
-				? applySetupPrimitiveProfile(
-					source.primitiveProfile.baseNumericalProfile,
+				payload: applySetupPrimitiveProfile(
+					baseProfile,
 					source.primitiveProfile,
-				)
-				: source.primitiveProfile,
+				),
 			});
 		}
 		const generatedRules = source.blocks.flatMap(toGeneratedValueRules);

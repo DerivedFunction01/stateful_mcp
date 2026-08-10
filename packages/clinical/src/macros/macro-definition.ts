@@ -143,11 +143,19 @@ export interface MacroArgumentSpec {
 	forms?: readonly MacroArgumentForm[];
 }
 
+export interface MacroChildInputContract {
+	mode: "named" | "positional" | "standalone";
+	argumentId?: string;
+	aliases?: readonly string[];
+	position?: number;
+}
+
 export interface MacroChildDefinition {
 	childMacroName: string;
 	parentRoleName: string;
 	parentTargetPath: string;
 	mergeStrategy: MergeStrategy;
+	input?: MacroChildInputContract;
 	repeatable?: boolean;
 	renderTemplateId?: string;
 	renderMode?: "omit" | "inline" | "group" | "separate";
