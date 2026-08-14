@@ -16,5 +16,5 @@ export interface ParseListener {
 	onParsed: (
 		result: MacroParseResult,
 		context: ParseListenerContext,
-	) => ParseListenerOutput | void;
+	) => ParseListenerOutput | undefined;
 }
