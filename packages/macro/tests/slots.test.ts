@@ -11,6 +11,7 @@ import type { MacroSpec } from "../src/contracts/macro";
 const spec: MacroSpec = {
 	id: "note",
 	name: "note",
+	syntax: { macroStartToken: "^" },
 	matching: { positionalFallback: true },
 	arguments: [
 		{ argumentId: "year", name: "year", path: "args.year", matcher: { kind: "pattern", pattern: "(?<value>20\\d{2})" }, scalarType: "integer" },

@@ -5,10 +5,3 @@ export interface MacroSyntax {
 	groupOpen?: string;
 	groupClose?: string;
 }
-
-export const defaultMacroSyntax: MacroSyntax = {
-	macroStartToken: "^",
-	quoteCharacters: ['"', "'"],
-	groupOpen: "[",
-	groupClose: "]",
-};

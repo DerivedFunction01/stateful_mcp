@@ -12,7 +12,6 @@ import type {
 	MacroParseOptions,
 	MacroSpec,
 } from "../contracts/macro";
-import { defaultMacroSyntax } from "../contracts/syntax";
 import { matchFriendlyMacroForms, resolveMacroArgumentMatches } from "../matcher/friendly";
 
 export interface ParseMacroLineResult extends MacroInput {
@@ -24,7 +23,8 @@ export function parseMacroLine(
 	spec: MacroSpec,
 	options: MacroParseOptions = {},
 ): ParseMacroLineResult | null {
-	const syntax = { ...defaultMacroSyntax, ...spec.syntax, ...options.profile };
+	const syntax = { ...spec.syntax, ...options.profile };
+	if (!syntax.macroStartToken) return null;
 	const leading = raw.search(/\S/u);
 	if (leading < 0 || !raw.startsWith(syntax.macroStartToken, leading)) return null;
 	const nameStart = leading + syntax.macroStartToken.length;
@@ -36,7 +36,7 @@ export function parseMacroLine(
 
 	const diagnostics: MacroDiagnostic[] = [];
 	const bodyStart = skipWhitespace(raw, nameEnd);
-	const named = scanNamedAssignments(raw, bodyStart, diagnostics, syntax.argumentDelimiter);
+	const named = scanNamedAssignments(raw, bodyStart, diagnostics, syntax);
 	const arguments_: MacroArgumentInput[] = [];
 	const matches: MacroArgumentMatch[] = [];
 	const used = new Set<string>();
@@ -346,8 +346,10 @@ function scanNamedAssignments(
 	raw: string,
 	start: number,
 	diagnostics: MacroDiagnostic[],
-	delimiter?: string,
+	syntax: Pick<NonNullable<MacroSpec["syntax"]>, "argumentDelimiter" | "quoteCharacters" | "groupOpen" | "groupClose">,
 ): NamedSegment[] {
+	const delimiter = syntax.argumentDelimiter;
+	const quoteCharacters = new Set(syntax.quoteCharacters ?? []);
 	const markers: Array<{ name: string; start: number; equals: number }> = [];
 	let quote = "";
 	let escaped = false;
@@ -366,15 +368,15 @@ function scanNamedAssignments(
 			if (char === quote) quote = "";
 			continue;
 		}
-		if (char === '"' || char === "'") {
+		if (quoteCharacters.has(char)) {
 			quote = char;
 			continue;
 		}
-		if (char === "[") {
+		if (syntax.groupOpen && char === syntax.groupOpen) {
 			depth += 1;
 			continue;
 		}
-		if (char === "]") {
+		if (syntax.groupClose && char === syntax.groupClose) {
 			depth = Math.max(0, depth - 1);
 			continue;
 		}
@@ -396,7 +398,7 @@ function scanNamedAssignments(
 		let valueEnd = trimEnd(raw, valueStart, delimiterEnd);
 		const first = raw[valueStart];
 		const last = raw[valueEnd - 1];
-		if ((first === '"' || first === "'") && last === first) {
+		if (first && quoteCharacters.has(first) && last === first) {
 			valueStart += 1;
 			valueEnd -= 1;
 		}

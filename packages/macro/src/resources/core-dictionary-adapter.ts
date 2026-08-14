@@ -358,8 +358,11 @@ export async function createJsonlDictionaryResource(
 export async function createConfiguredDictionaryResource(
 	options: CoreDictionaryResourceOptions = {},
 ): Promise<DictionaryResource> {
-	const conceptSpec = options.concept ?? options.conceptBackend ?? options.backend ?? { type: "memory" as const };
-	const expressionSpec = options.expression ?? options.expressionBackend ?? options.backend ?? { type: "memory" as const };
+	const conceptSpec = options.concept ?? options.conceptBackend ?? options.backend;
+	const expressionSpec = options.expression ?? options.expressionBackend ?? options.backend;
+	if (!conceptSpec || !expressionSpec) {
+		throw new Error("A dictionary backend must be explicitly configured for both concepts and expressions");
+	}
 	const [concepts, expressions] = await Promise.all([
 		openConceptStore(conceptSpec),
 		openExpressionStore(expressionSpec),
@@ -391,7 +394,7 @@ async function openConceptStore(spec: DictionaryBackendSpec): Promise<LoadableCo
 		case "memory":
 			return createMemoryConceptStore() as LoadableConceptStore;
 		case "jsonl":
-			return createJsonlConceptStore(spec.target ?? "./concepts.jsonl") as LoadableConceptStore;
+			return createJsonlConceptStore(requiredTarget(spec)) as LoadableConceptStore;
 		case "localstorage": {
 			const module = await import("@stateful-mcp/core/adapters/storage/simple/localstorage/factories");
 			return module.createLocalStorageConceptStore() as LoadableConceptStore;
@@ -413,7 +416,7 @@ async function openExpressionStore(spec: DictionaryBackendSpec): Promise<Loadabl
 		case "memory":
 			return createMemoryExpressionStoreFromCore() as LoadableExpressionStore;
 		case "jsonl":
-			return createJsonlExpressionStoreFromCore(spec.target ?? "./expressions.jsonl") as LoadableExpressionStore;
+			return createJsonlExpressionStoreFromCore(requiredTarget(spec)) as LoadableExpressionStore;
 		case "localstorage": {
 			const module = await import("@stateful-mcp/core/adapters/storage/simple/localstorage/factories");
 			return module.createLocalStorageExpressionStore() as LoadableExpressionStore;
@@ -438,8 +441,9 @@ async function openSqlConceptStore(spec: DictionaryBackendSpec): Promise<Loadabl
 		import(factoryModulePath),
 	]);
 	const dialect = sqlDialect(spec.type as SqlBackendType);
-	const backend = await SqlBackend.connect(dialect, spec.target ?? "", sqlPolicy(spec));
-	return await factory.createConceptStore(dialect, spec.target ?? "", backend) as LoadableConceptStore;
+	const target = requiredTarget(spec);
+	const backend = await SqlBackend.connect(dialect, target, sqlPolicy(spec));
+	return await factory.createConceptStore(dialect, target, backend) as LoadableConceptStore;
 }
 
 async function openSqlExpressionStore(spec: DictionaryBackendSpec): Promise<LoadableExpressionStore> {
@@ -450,8 +454,9 @@ async function openSqlExpressionStore(spec: DictionaryBackendSpec): Promise<Load
 		import(factoryModulePath),
 	]);
 	const dialect = sqlDialect(spec.type as SqlBackendType);
-	const backend = await SqlBackend.connect(dialect, spec.target ?? "", sqlPolicy(spec));
-	return await factory.createExpressionStore(dialect, spec.target ?? "", backend) as LoadableExpressionStore;
+	const target = requiredTarget(spec);
+	const backend = await SqlBackend.connect(dialect, target, sqlPolicy(spec));
+	return await factory.createExpressionStore(dialect, target, backend) as LoadableExpressionStore;
 }
 
 type SqlBackendType = Extract<DictionaryBackendSpec["type"], "sqlite" | "postgres" | "duckdb" | "opfs">;
@@ -468,6 +473,11 @@ function sqlPolicy(spec: DictionaryBackendSpec): Record<string, unknown> {
 		permissions: spec.permissions,
 		schemaMode: spec.schemaMode,
 	};
+}
+
+function requiredTarget(spec: DictionaryBackendSpec): string {
+	if (!spec.target?.trim()) throw new Error(`Backend '${spec.type}' requires an explicit target`);
+	return spec.target;
 }
 
 function namespaceId(owner: string, id: string): string {

@@ -10,6 +10,7 @@ const backend = createExpressionBackendFixture([
 const spec: MacroSpec = {
 	id: "note",
 	name: "note",
+	syntax: { macroStartToken: "^" },
 	matching: { mode: "unordered", positionalFallback: true },
 	arguments: [
 		{

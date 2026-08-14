@@ -14,6 +14,12 @@ const books = createExpressionBackendFixture([
 const spec: MacroSpec = {
 	id: "note",
 	name: "note",
+	syntax: {
+		macroStartToken: "^",
+		quoteCharacters: ['"', "'"],
+		groupOpen: "[",
+		groupClose: "]",
+	},
 	arguments: [
 		{
 			argumentId: "title",
@@ -68,5 +74,19 @@ describe("neutral macro parser", () => {
 
 	test("returns null for non-macro input", () => {
 		expect(parseMacroLine("note title=hp", spec)).toBeNull();
+	});
+
+	test("does not infer a macro token when syntax is absent", () => {
+		const withoutSyntax = { ...spec, syntax: undefined };
+		expect(parseMacroLine("^note title=hp", withoutSyntax, { backends: { books } })).toBeNull();
+	});
+
+	test("uses caller-provided syntax tokens", () => {
+		const custom = {
+			...spec,
+			syntax: { macroStartToken: "@", quoteCharacters: ["`"], groupOpen: "{", groupClose: "}" },
+		};
+		expect(parseMacroLine("^note title=hp", custom, { backends: { books } })).toBeNull();
+		expect(parseMacroLine("@note title=hp", custom, { backends: { books } })?.macroName).toBe("note");
 	});
 });

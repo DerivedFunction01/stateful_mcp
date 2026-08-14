@@ -26,6 +26,12 @@ const seed: DictionarySeed = {
 };
 
 describe("core-backed dictionary resources", () => {
+	test("requires explicit configuration for the generic resource opener", async () => {
+		const factory = createDictionaryResourceFactory("books");
+		await expect(factory.open()).rejects.toThrow("backend must be explicitly configured");
+		await expect(factory.open({ backend: { type: "jsonl" } })).rejects.toThrow("requires an explicit target");
+	});
+
 	test("seeds dependency order, reports idempotency, and exposes a synchronous backend", async () => {
 		const resource = await openMemoryDictionary({ ownerExtensionId: "books" });
 		const first = await resource.seed(seed);
@@ -56,6 +62,7 @@ describe("core-backed dictionary resources", () => {
 		const spec: MacroSpec = {
 			id: "read",
 			name: "read",
+			syntax: { macroStartToken: "^" },
 			arguments: [{ argumentId: "book", name: "book", path: "book", matcher: { kind: "expression", backendId: resource.id }, required: true }],
 			matching: { positionalFallback: true },
 		};
