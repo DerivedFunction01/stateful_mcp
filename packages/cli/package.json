@@ -25,6 +25,7 @@
 	"dependencies": {
 		"@stateful-mcp/clinical": "workspace:^",
 		"@stateful-mcp/core": "workspace:^",
+		"@stateful-mcp/macro": "workspace:^",
 		"ink": "^7.1.1",
 		"react": "^19.2.8"
 	},

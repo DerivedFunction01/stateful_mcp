@@ -20,6 +20,8 @@
 		"paths": {
 			"@stateful-mcp/core": ["../core/src/index.ts"],
 			"@stateful-mcp/core/*": ["../core/src/*"],
+			"@stateful-mcp/macro": ["../macro/src/index.ts"],
+			"@stateful-mcp/macro/*": ["../macro/src/*"],
 			"@stateful-mcp/clinical": ["../clinical/src/index.ts"],
 			"@stateful-mcp/clinical/*": ["../clinical/src/*"],
 			"@stateful-mcp/cli/*": ["./src/*"],

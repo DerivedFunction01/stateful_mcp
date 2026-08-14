@@ -1,4 +1,4 @@
-import { Cli2BootstrapBuilder } from "./lib/session/cli2-bootstrap";
+import { runHeadless } from "./headless";
 
 async function main() {
 	const args = process.argv.slice(2);
@@ -26,6 +26,10 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 
 	// ── notebook command — boot the Ink TUI ─────────────────────────
 	if (command === "notebook") {
+		if (args[1] === "--headless") {
+			process.exitCode = await runHeadless(args);
+			return;
+		}
 		const sessionArg = args.find((arg) => arg.startsWith("--session="));
 		const preferredSessionId = sessionArg?.slice("--session=".length);
 		const { render } = await import("ink");
@@ -39,6 +43,9 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 	}
 
 	if (command === "setup") {
+		const { Cli2BootstrapBuilder } = await import(
+			"./lib/session/cli2-bootstrap"
+		);
 		const backendArg = args.find((arg) => arg.startsWith("--backend="));
 		const pathArg = args.find((arg) => arg.startsWith("--path="));
 		const backend = (backendArg?.slice("--backend=".length) ?? "memory") as
@@ -194,6 +201,9 @@ Legacy eval/session/profile commands are disabled in cli2.`);
 	}
 
 	if (command === "init") {
+		const { Cli2BootstrapBuilder } = await import(
+			"./lib/session/cli2-bootstrap"
+		);
 		const backendArg = args.find((arg) => arg.startsWith("--backend="));
 		const pathArg = args.find((arg) => arg.startsWith("--path="));
 		const backend = (backendArg?.slice("--backend=".length) ?? "memory") as
