@@ -1,18 +1,23 @@
-import type { MacroArgumentMatch } from "../contracts/matching";
-import type { MacroParseResult, ArgumentState } from "../contracts/payload";
 import type { MacroDiagnostic } from "../contracts/input";
 import type {
 	MacroArgumentSpec,
 	MacroParseOptions,
 	MacroSpec,
 } from "../contracts/macro";
+import type { MacroArgumentMatch } from "../contracts/matching";
+import type { ArgumentState, MacroParseResult } from "../contracts/payload";
+import type { AcceptedMacroLock } from "../contracts/slots";
 import type { GenericValue } from "../contracts/values";
 import { parseMacroLine } from "../parser/macro-parser";
+
+export interface MacroPayloadCompileOptions extends MacroParseOptions {
+	acceptedLocks?: readonly AcceptedMacroLock[];
+}
 
 export function compileMacroPayload(
 	spec: MacroSpec,
 	raw: string,
-	options: MacroParseOptions = {},
+	options: MacroPayloadCompileOptions = {},
 ): MacroParseResult {
 	const parsed = parseMacroLine(raw, spec, options);
 	if (!parsed) {
@@ -26,9 +31,22 @@ export function compileMacroPayload(
 	}
 
 	const diagnostics: MacroDiagnostic[] = [...parsed.diagnostics];
+	const matches = materializeAcceptedLocks(
+		spec,
+		raw,
+		parsed.matches,
+		options.acceptedLocks ?? [],
+	);
 	const results = spec.arguments.map((argument) => {
-		const match = parsed.matches.find((candidate) => candidate.argumentId === argument.argumentId);
-		return createArgumentResult(argument, match, options.mode ?? "live", diagnostics);
+		const match = matches.find(
+			(candidate) => candidate.argumentId === argument.argumentId,
+		);
+		return createArgumentResult(
+			argument,
+			match,
+			options.mode ?? "live",
+			diagnostics,
+		);
 	});
 	const payload: Record<string, unknown> = {};
 	for (const result of results) {
@@ -38,9 +56,17 @@ export function compileMacroPayload(
 	}
 
 	const hasInvalid = diagnostics.some((diagnostic) =>
-		["INVALID_PATTERN", "NORMALIZATION_FAILED", "PATH_CONFLICT", "INVALID_PATH", "AMBIGUOUS_MATCH"].includes(diagnostic.code),
+		[
+			"INVALID_PATTERN",
+			"NORMALIZATION_FAILED",
+			"PATH_CONFLICT",
+			"INVALID_PATH",
+			"AMBIGUOUS_MATCH",
+		].includes(diagnostic.code),
 	);
-	const hasIncomplete = results.some((result) => result.state === "pending" || result.state === "unset");
+	const hasIncomplete = results.some(
+		(result) => result.state === "pending" || result.state === "unset",
+	);
 	return {
 		status: hasInvalid ? "invalid" : hasIncomplete ? "incomplete" : "matched",
 		macro: { id: spec.id, name: spec.name },
@@ -48,6 +74,40 @@ export function compileMacroPayload(
 		payload,
 		diagnostics,
 	};
+}
+
+function materializeAcceptedLocks(
+	spec: MacroSpec,
+	raw: string,
+	matches: readonly MacroArgumentMatch[],
+	locks: readonly AcceptedMacroLock[],
+): MacroArgumentMatch[] {
+	const currentVersion = spec.version ?? 1;
+	const result = [...matches];
+	for (const lock of locks) {
+		if (lock.macroId !== spec.id || lock.macroVersion !== currentVersion)
+			continue;
+		if (raw.slice(lock.start, lock.end) !== lock.rawText) continue;
+		const existing = result.findIndex(
+			(match) =>
+				match.argumentId === lock.argumentId &&
+				(match.occurrence ?? 0) === lock.occurrence,
+		);
+		const match: MacroArgumentMatch = {
+			argumentId: lock.argumentId,
+			occurrence: lock.occurrence,
+			source: "accepted",
+			extraction: { start: lock.start, end: lock.end },
+			rawValue: lock.rawText,
+			canonicalValue: lock.binding?.canonicalValue,
+			sourceId: lock.candidateId,
+			backendId: lock.binding?.backendId,
+			matchKind: "exact",
+		};
+		if (existing >= 0) result[existing] = match;
+		else result.push(match);
+	}
+	return result;
 }
 
 function createArgumentResult(
@@ -68,13 +128,17 @@ function createArgumentResult(
 		match.matchKind === "prefix" && mode === "live" ? "pending" : "locked";
 	let value: unknown = match.canonicalValue ?? match.rawValue;
 	try {
-		if (argument.normalize) value = argument.normalize(match.rawValue, match.captures ?? {});
+		if (argument.normalize)
+			value = argument.normalize(match.rawValue, match.captures ?? {});
 		else value = normalizeValue(argument, value);
 	} catch (error) {
 		diagnostics.push({
 			code: "NORMALIZATION_FAILED",
 			argumentId: argument.argumentId,
-			message: error instanceof Error ? error.message : `Unable to normalize '${argument.name}'`,
+			message:
+				error instanceof Error
+					? error.message
+					: `Unable to normalize '${argument.name}'`,
 		});
 		return {
 			argumentId: argument.argumentId,
@@ -97,16 +161,23 @@ function createArgumentResult(
 }
 
 function normalizeValue(argument: MacroArgumentSpec, value: unknown): unknown {
-	if (argument.valueKind === "quantity" || argument.valueKind === "date-time" || argument.valueKind === "custom") return value;
+	if (
+		argument.valueKind === "quantity" ||
+		argument.valueKind === "date-time" ||
+		argument.valueKind === "custom"
+	)
+		return value;
 	if (argument.scalarType === "integer") {
 		const parsed = Number.parseInt(String(value), 10);
-		if (!Number.isInteger(parsed)) throw new Error(`Argument '${argument.name}' is not an integer`);
+		if (!Number.isInteger(parsed))
+			throw new Error(`Argument '${argument.name}' is not an integer`);
 		checkBounds(argument, parsed);
 		return parsed;
 	}
 	if (argument.scalarType === "number") {
 		const parsed = Number(value);
-		if (!Number.isFinite(parsed)) throw new Error(`Argument '${argument.name}' is not a number`);
+		if (!Number.isFinite(parsed))
+			throw new Error(`Argument '${argument.name}' is not a number`);
 		checkBounds(argument, parsed);
 		return parsed;
 	}
@@ -116,15 +187,27 @@ function normalizeValue(argument: MacroArgumentSpec, value: unknown): unknown {
 		if (String(value).toLocaleLowerCase() === "false") return false;
 		throw new Error(`Argument '${argument.name}' is not boolean`);
 	}
-	if (argument.repeatable) return String(value).split(argument.itemDelimiter ?? ",").map((item) => item.trim()).filter(Boolean);
+	if (argument.repeatable)
+		return String(value)
+			.split(argument.itemDelimiter ?? ",")
+			.map((item) => item.trim())
+			.filter(Boolean);
 	return value;
 }
 
 function checkBounds(argument: MacroArgumentSpec, value: number): void {
 	const bounds = argument.numericBounds;
 	if (!bounds) return;
-	if (bounds.min !== undefined && (bounds.inclusiveMin === false ? value <= bounds.min : value < bounds.min)) throw new Error(`Argument '${argument.name}' is below its minimum`);
-	if (bounds.max !== undefined && (bounds.inclusiveMax === false ? value >= bounds.max : value > bounds.max)) throw new Error(`Argument '${argument.name}' is above its maximum`);
+	if (
+		bounds.min !== undefined &&
+		(bounds.inclusiveMin === false ? value <= bounds.min : value < bounds.min)
+	)
+		throw new Error(`Argument '${argument.name}' is below its minimum`);
+	if (
+		bounds.max !== undefined &&
+		(bounds.inclusiveMax === false ? value >= bounds.max : value > bounds.max)
+	)
+		throw new Error(`Argument '${argument.name}' is above its maximum`);
 }
 
 function writePath(
@@ -136,7 +219,11 @@ function writePath(
 ): void {
 	const parts = path.split(".");
 	if (!parts.length || parts.some((part) => !part)) {
-		diagnostics.push({ code: "INVALID_PATH", argumentId: result.argumentId, message: `Invalid payload path '${path}'` });
+		diagnostics.push({
+			code: "INVALID_PATH",
+			argumentId: result.argumentId,
+			message: `Invalid payload path '${path}'`,
+		});
 		return;
 	}
 	let current: Record<string, unknown> = payload;
@@ -149,13 +236,21 @@ function writePath(
 		} else if (isRecord(existing)) {
 			current = existing;
 		} else {
-			diagnostics.push({ code: "PATH_CONFLICT", argumentId: result.argumentId, message: `Payload path '${path}' conflicts with an existing value` });
+			diagnostics.push({
+				code: "PATH_CONFLICT",
+				argumentId: result.argumentId,
+				message: `Payload path '${path}' conflicts with an existing value`,
+			});
 			return;
 		}
 	}
 	const leaf = parts[parts.length - 1]!;
 	if (current[leaf] !== undefined) {
-		diagnostics.push({ code: "PATH_CONFLICT", argumentId: result.argumentId, message: `Payload path '${path}' was written more than once` });
+		diagnostics.push({
+			code: "PATH_CONFLICT",
+			argumentId: result.argumentId,
+			message: `Payload path '${path}' was written more than once`,
+		});
 		return;
 	}
 	current[leaf] = toJsonValue(value);

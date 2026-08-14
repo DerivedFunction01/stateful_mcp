@@ -1,5 +1,5 @@
-import type { QuantityGrammarResult } from "./quantity";
 import type { QuantityValue } from "../contracts/values";
+import type { QuantityGrammarResult } from "./quantity";
 
 export interface MeasurementValueOptions {
 	rawText?: string;
@@ -30,7 +30,12 @@ export function createMeasurementValueFromQuantity(
 		...options,
 		rawText: options.rawText ?? quantity.rawText,
 	});
-	if (quantity.upper !== undefined) value.range = { lower: quantity.lower, upper: quantity.upper, unit: quantity.unit };
+	if (quantity.upper !== undefined)
+		value.range = {
+			lower: quantity.lower,
+			upper: quantity.upper,
+			unit: quantity.unit,
+		};
 	if (quantity.operator) value.operator = quantity.operator;
 	return value;
 }

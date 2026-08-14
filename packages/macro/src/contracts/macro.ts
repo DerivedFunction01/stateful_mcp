@@ -1,6 +1,4 @@
-import type {
-	ExpressionBackend,
-} from "./backends";
+import type { ExpressionBackend } from "./backends";
 import type {
 	MacroArgumentForm,
 	MacroAuthoringTemplate,
@@ -15,7 +13,7 @@ export type MacroMatcher =
 			pattern: string | RegExp;
 			flags?: string;
 			namedGroups?: NamedGroupContract;
-		}
+	  }
 	| { kind: "literal"; text: string; value?: unknown }
 	| { kind: "expression"; backendId: string };
 
@@ -33,8 +31,12 @@ export interface MacroArgumentSpec {
 	required?: boolean;
 	repeatable?: boolean;
 	itemDelimiter?: string;
+	defaultValue?: string;
 	blankPolicy?: "reject" | "allow" | "skip";
-	normalize?: (raw: string, captures: Record<string, string | undefined>) => unknown;
+	normalize?: (
+		raw: string,
+		captures: Record<string, string | undefined>,
+	) => unknown;
 }
 
 export interface MacroMatchingOptions {

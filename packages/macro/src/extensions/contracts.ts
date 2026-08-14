@@ -13,17 +13,25 @@ export interface ExtensionActivation {
 
 export interface MacroExtension {
 	manifest: MacroExtensionManifest;
-	activate(context: ExtensionContext): Promise<ExtensionActivation> | ExtensionActivation;
+	activate(
+		context: ExtensionContext,
+	): Promise<ExtensionActivation> | ExtensionActivation;
 }
 
 export interface DefineExtensionOptions extends MacroExtensionManifest {
-	activate(context: ExtensionContext): Promise<ExtensionActivation> | ExtensionActivation;
+	activate(
+		context: ExtensionContext,
+	): Promise<ExtensionActivation> | ExtensionActivation;
 }
 
-export function defineExtension(options: DefineExtensionOptions): MacroExtension {
+export function defineExtension(
+	options: DefineExtensionOptions,
+): MacroExtension {
 	const { id, version, requires, activate } = options;
 	if (!id || !version || typeof activate !== "function") {
-		throw new Error("An extension requires an id, version, and activate function");
+		throw new Error(
+			"An extension requires an id, version, and activate function",
+		);
 	}
 	return {
 		manifest: { id, version, ...(requires ? { requires: [...requires] } : {}) },

@@ -33,12 +33,16 @@ export class ResourceScope {
 	async close(): Promise<void> {
 		if (this.closed) return;
 		this.closed = true;
-		for (const resource of [...this.resources].reverse()) await resource.close();
+		for (const resource of [...this.resources].reverse())
+			await resource.close();
 		this.resources.clear();
 		this.backends.clear();
 	}
 
 	private assertOpen(): void {
-		if (this.closed) throw new Error(`Resource scope for '${this.ownerExtensionId}' is closed`);
+		if (this.closed)
+			throw new Error(
+				`Resource scope for '${this.ownerExtensionId}' is closed`,
+			);
 	}
 }

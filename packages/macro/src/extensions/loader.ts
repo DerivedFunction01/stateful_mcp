@@ -1,8 +1,12 @@
 import { readdir } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { ExtensionError, extensionDiagnostic, type ExtensionDiagnostic } from "./errors";
 import type { LoadedExtension, MacroExtension } from "./contracts";
+import {
+	type ExtensionDiagnostic,
+	ExtensionError,
+	extensionDiagnostic,
+} from "./errors";
 
 export interface ExtensionLoaderOptions {
 	directory: string;
@@ -12,16 +16,23 @@ export class ExtensionLoader {
 	constructor(private readonly options: ExtensionLoaderOptions) {}
 
 	async discover(): Promise<string[]> {
-		const entries = await readdir(this.options.directory, { withFileTypes: true });
+		const entries = await readdir(this.options.directory, {
+			withFileTypes: true,
+		});
 		return entries
-			.filter((entry) => !entry.name.startsWith(".") && entry.isFile() && [".ts", ".js"].includes(extname(entry.name)))
+			.filter(
+				(entry) =>
+					!entry.name.startsWith(".") &&
+					entry.isFile() &&
+					[".ts", ".js"].includes(extname(entry.name)),
+			)
 			.map((entry) => join(this.options.directory, entry.name))
 			.sort((left, right) => left.localeCompare(right));
 	}
 
 	async importFiles(files?: string[]): Promise<LoadedExtension[]> {
 		const loaded: LoadedExtension[] = [];
-		for (const sourceFile of files ?? await this.discover()) {
+		for (const sourceFile of files ?? (await this.discover())) {
 			try {
 				const module = await import(pathToFileURL(resolve(sourceFile)).href);
 				const extension = module.default as MacroExtension | undefined;
@@ -42,11 +53,15 @@ export class ExtensionLoader {
 	}
 }
 
-export async function discoverExtensionFiles(directory: string): Promise<string[]> {
+export async function discoverExtensionFiles(
+	directory: string,
+): Promise<string[]> {
 	return new ExtensionLoader({ directory }).discover();
 }
 
-export async function loadExtensionFiles(directory: string): Promise<LoadedExtension[]> {
+export async function loadExtensionFiles(
+	directory: string,
+): Promise<LoadedExtension[]> {
 	return new ExtensionLoader({ directory }).importFiles();
 }
 
@@ -54,7 +69,12 @@ export function validateExtensionExport(
 	extension: MacroExtension | undefined,
 	sourceFile?: string,
 ): asserts extension is MacroExtension {
-	if (!extension || typeof extension !== "object" || !extension.manifest || typeof extension.activate !== "function") {
+	if (
+		!extension ||
+		typeof extension !== "object" ||
+		!extension.manifest ||
+		typeof extension.activate !== "function"
+	) {
 		throw new ExtensionError(
 			`Extension file '${sourceFile ?? "unknown"}' must default-export an extension`,
 			"EXTENSION_EXPORT_MISSING",

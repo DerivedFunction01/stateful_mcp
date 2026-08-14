@@ -10,13 +10,27 @@ export interface MacroCaptureSpan extends MacroSpan {
 	value?: string;
 }
 
+export interface ParsedTextValue {
+	sourceText: string;
+	valueText: string;
+	sourceSpan: MacroSpan;
+	valueSpan: MacroSpan;
+}
+
+export interface MacroListItemInput {
+	rawValue: string;
+	start: number;
+	end: number;
+}
+
 export type MacroArgumentSource =
 	| "named"
 	| "positional"
 	| "inferred"
 	| "friendly"
 	| "expression"
-	| "accepted";
+	| "accepted"
+	| "default";
 
 export interface MacroSourceLine {
 	line: number;
@@ -33,6 +47,11 @@ export interface MacroArgumentInput {
 	line?: number;
 	start?: number;
 	end?: number;
+	sourceSpan?: MacroSpan;
+	valueSpan?: MacroSpan;
+	sourceText?: string;
+	valueText?: string;
+	items?: MacroListItemInput[];
 	match?: MacroArgumentMatch;
 }
 
@@ -42,6 +61,8 @@ export interface MacroInput {
 	arguments: MacroArgumentInput[];
 	body?: MacroSpan & { raw: string };
 	matches: MacroArgumentMatch[];
+	candidates?: MacroArgumentMatch[];
+	candidateMatches?: MacroArgumentMatch[];
 }
 
 export type MacroDiagnosticCode =

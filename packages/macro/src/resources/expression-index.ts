@@ -23,7 +23,9 @@ export class ExpressionIndex implements ExpressionBackend {
 	private expressions: IndexedExpression[] = [];
 	private diagnostics: ResourceDiagnostic[] = [];
 
-	rebuild(records: readonly IndexedExpression[]): readonly ResourceDiagnostic[] {
+	rebuild(
+		records: readonly IndexedExpression[],
+	): readonly ResourceDiagnostic[] {
 		this.expressions = [];
 		this.diagnostics = [];
 		for (const record of records) {
@@ -40,7 +42,10 @@ export class ExpressionIndex implements ExpressionBackend {
 				});
 				continue;
 			}
-			this.expressions.push({ ...record, lookupTerm: normalizeLookupTerm(record.lookupTerm) });
+			this.expressions.push({
+				...record,
+				lookupTerm: normalizeLookupTerm(record.lookupTerm),
+			});
 		}
 		this.expressions.sort(compareExpressions);
 		return this.diagnostics;
@@ -59,19 +64,40 @@ export class ExpressionIndex implements ExpressionBackend {
 			for (const match of execAll(regex, request.text)) {
 				const start = match.index;
 				const end = start + match[0].length;
-				if (end <= start || !hasWordBoundaries(request.text, start, end)) continue;
-				candidates.push(candidate(expression, request.text, start, end, "exact"));
+				if (end <= start || !hasWordBoundaries(request.text, start, end))
+					continue;
+				candidates.push(
+					candidate(expression, request.text, start, end, "exact"),
+				);
 			}
 
 			for (const alias of new Set([expression.term, expression.lookupTerm])) {
-				const normalizedAlias = normalizeForExpression(alias, expression.isCaseInsensitive);
+				const normalizedAlias = normalizeForExpression(
+					alias,
+					expression.isCaseInsensitive,
+				);
 				if (!normalizedAlias) continue;
 				for (const start of boundaryStarts(request.text)) {
 					const partial = request.text.slice(start).trimEnd();
-					const normalizedPartial = normalizeForExpression(partial, expression.isCaseInsensitive);
-					if (!normalizedPartial || normalizedPartial.length >= normalizedAlias.length) continue;
+					const normalizedPartial = normalizeForExpression(
+						partial,
+						expression.isCaseInsensitive,
+					);
+					if (
+						!normalizedPartial ||
+						normalizedPartial.length >= normalizedAlias.length
+					)
+						continue;
 					if (startsWith(normalizedPartial, normalizedAlias)) {
-						candidates.push(candidate(expression, request.text, start, request.text.length, "prefix"));
+						candidates.push(
+							candidate(
+								expression,
+								request.text,
+								start,
+								request.text.length,
+								"prefix",
+							),
+						);
 					}
 				}
 			}
@@ -84,7 +110,9 @@ export class ExpressionIndex implements ExpressionBackend {
 	}
 }
 
-export function indexedExpressionFromSeed(seed: ExpressionSeed): IndexedExpression {
+export function indexedExpressionFromSeed(
+	seed: ExpressionSeed,
+): IndexedExpression {
 	return {
 		id: seed.id,
 		term: seed.term,
@@ -119,14 +147,26 @@ function candidate(
 	};
 }
 
-function compareExpressions(left: IndexedExpression, right: IndexedExpression): number {
-	return right.priorityWeight - left.priorityWeight || left.id.localeCompare(right.id);
+function compareExpressions(
+	left: IndexedExpression,
+	right: IndexedExpression,
+): number {
+	return (
+		right.priorityWeight - left.priorityWeight ||
+		left.id.localeCompare(right.id)
+	);
 }
 
-function compareCandidates(left: ExpressionCandidate, right: ExpressionCandidate): number {
-	return (right.priority ?? 0) - (left.priority ?? 0) ||
-		(right.end - right.start) - (left.end - left.start) ||
-		left.start - right.start || left.id.localeCompare(right.id);
+function compareCandidates(
+	left: ExpressionCandidate,
+	right: ExpressionCandidate,
+): number {
+	return (
+		(right.priority ?? 0) - (left.priority ?? 0) ||
+		right.end - right.start - (left.end - left.start) ||
+		left.start - right.start ||
+		left.id.localeCompare(right.id)
+	);
 }
 
 function execAll(expression: RegExp, text: string): RegExpExecArray[] {
@@ -149,8 +189,10 @@ function boundaryStarts(text: string): number[] {
 }
 
 function hasWordBoundaries(text: string, start: number, end: number): boolean {
-	return (start === 0 || /\s/u.test(text[start - 1]!)) &&
-		(end === text.length || /\s/u.test(text[end]!));
+	return (
+		(start === 0 || /\s/u.test(text[start - 1]!)) &&
+		(end === text.length || /\s/u.test(text[end]!))
+	);
 }
 
 function startsWith(value: string, prefix: string): boolean {

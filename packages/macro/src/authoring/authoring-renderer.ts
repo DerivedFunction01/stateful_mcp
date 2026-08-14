@@ -1,4 +1,7 @@
-import type { MacroAuthoringTemplate, MacroAuthoringSlot } from "../contracts/matching";
+import type {
+	MacroAuthoringSlot,
+	MacroAuthoringTemplate,
+} from "../contracts/matching";
 
 export interface MacroAuthoringValue {
 	argumentId: string;
@@ -45,7 +48,11 @@ export function renderMacroAuthoringTemplate(
 
 	return {
 		text: template.parts
-			.map((part) => (part.kind === "literal" ? part.text : renderSlot(part, part.displayText ?? part.argumentId)))
+			.map((part) =>
+				part.kind === "literal"
+					? part.text
+					: renderSlot(part, part.displayText ?? part.argumentId),
+			)
 			.join(""),
 		missing,
 		invalid,

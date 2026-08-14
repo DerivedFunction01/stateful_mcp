@@ -1,10 +1,10 @@
+import type { MacroCaptureSpan, MacroSpan } from "../contracts/input";
+import type { MacroSpec } from "../contracts/macro";
 import type {
 	MacroArgumentForm,
 	MacroArgumentMatch,
 	MacroAuthoringTemplatePart,
 } from "../contracts/matching";
-import type { MacroCaptureSpan, MacroSpan } from "../contracts/input";
-import type { MacroSpec } from "../contracts/macro";
 
 export interface TemplateValidationIssue {
 	code:
@@ -19,7 +19,9 @@ export function validateMacroTemplates(
 	spec: MacroSpec,
 ): TemplateValidationIssue[] {
 	const issues: TemplateValidationIssue[] = [];
-	const argumentIds = new Set(spec.arguments.map((argument) => argument.argumentId));
+	const argumentIds = new Set(
+		spec.arguments.map((argument) => argument.argumentId),
+	);
 	for (const form of definitionForms(spec)) {
 		const slots = form.template.parts.filter(isSlot);
 		if (!slots.length) {
@@ -68,7 +70,9 @@ export function resolveMacroArgumentMatches(
 	matches: readonly MacroArgumentMatch[],
 	spec: MacroSpec,
 ): MacroArgumentMatch[] {
-	const forms = new Map(definitionForms(spec).map((form) => [form.formId, form]));
+	const forms = new Map(
+		definitionForms(spec).map((form) => [form.formId, form]),
+	);
 	return [...matches]
 		.sort((left, right) => {
 			const leftForm = left.formId ? forms.get(left.formId) : undefined;
@@ -76,17 +80,21 @@ export function resolveMacroArgumentMatches(
 			return (
 				(right.priority ?? rightForm?.precedence ?? 0) -
 					(left.priority ?? leftForm?.precedence ?? 0) ||
-				(right.extraction.end - right.extraction.start) -
+				right.extraction.end -
+					right.extraction.start -
 					(left.extraction.end - left.extraction.start) ||
 				(left.formId ?? "").localeCompare(right.formId ?? "")
 			);
 		})
-		.filter((candidate, index, all) =>
-			!all.slice(0, index).some(
-				(winner) =>
-					spansOverlap(candidate.extraction, winner.extraction) &&
-					!isCompatible(candidate, winner, forms),
-			),
+		.filter(
+			(candidate, index, all) =>
+				!all
+					.slice(0, index)
+					.some(
+						(winner) =>
+							spansOverlap(candidate.extraction, winner.extraction) &&
+							!isCompatible(candidate, winner, forms),
+					),
 		)
 		.sort((left, right) => left.extraction.start - right.extraction.start);
 }
@@ -106,9 +114,7 @@ function matchForm(
 		return argument?.matcher
 			? asMatchers(argument.matcher)
 					.filter((matcher) => matcher.kind === "pattern")
-					.map((matcher) =>
-						typePattern(matcher.pattern),
-					)
+					.map((matcher) => typePattern(matcher.pattern))
 			: [];
 	});
 	if (patterns.some((values) => values.length === 0)) return [];
@@ -144,7 +150,7 @@ function matchForm(
 					occurrence: slot.occurrence,
 					formId: form.formId,
 					source: "friendly",
-					anchor: { start: matchStart, end: bodyStart + match.index + match[0].length },
+					anchor: { start: matchStart, end: start },
 					extraction: { start, end },
 					friendlyText: raw.slice(matchStart, start),
 					rawValue: raw.slice(start, end),
@@ -214,7 +220,9 @@ function filteredCaptures(
 	excludedNames: readonly string[],
 ): Record<string, string | undefined> {
 	return Object.fromEntries(
-		Object.entries(match.groups ?? {}).filter(([name]) => !excludedNames.includes(name)),
+		Object.entries(match.groups ?? {}).filter(
+			([name]) => !excludedNames.includes(name),
+		),
 	);
 }
 
@@ -226,7 +234,9 @@ function captureSpans(
 	return Object.entries(match.groups ?? {}).flatMap(([name, value]) => {
 		if (excludedNames.includes(name)) return [];
 		const span = match.indices?.groups?.[name];
-		return span ? [{ name, value, start: offset + span[0], end: offset + span[1] }] : [];
+		return span
+			? [{ name, value, start: offset + span[0], end: offset + span[1] }]
+			: [];
 	});
 }
 

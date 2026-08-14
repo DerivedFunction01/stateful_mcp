@@ -6,17 +6,17 @@ import {
 	createJsonlExpressionStore as createJsonlExpressionStoreFromCore,
 	createMemoryExpressionStore as createMemoryExpressionStoreFromCore,
 } from "@stateful-mcp/core/adapters/storage/simple/create-expression-store";
+import type { OwnerScope } from "@stateful-mcp/core/config/types";
 import type {
 	ConceptStore,
 	PersistentExpressionStore,
 } from "@stateful-mcp/core/middleware/dictionary/interfaces";
 import type {
-	Concept as CoreConcept,
 	ConceptRelation,
+	Concept as CoreConcept,
 	CustomExpression,
 	Namespace,
 } from "@stateful-mcp/core/middleware/dictionary/types";
-import type { OwnerScope } from "@stateful-mcp/core/config/types";
 import type {
 	ExpressionBackend,
 	ExpressionCandidate,
@@ -25,15 +25,15 @@ import type {
 import type {
 	ConceptSearchOptions,
 	ConceptSeed,
+	DictionaryBackendSpec,
 	DictionaryResource,
 	DictionaryResourceOptions,
-	DictionaryBackendSpec,
 	DictionarySeed,
 	DictionarySeedReport,
 	ExpressionSeed,
 	NeutralConcept,
 	ResourceDiagnostic,
-	} from "./contracts";
+} from "./contracts";
 import {
 	addDiagnostic,
 	createSeedReport,
@@ -42,10 +42,7 @@ import {
 	sameRecord,
 	seedRecords,
 } from "./dictionary-seed";
-import {
-	ExpressionIndex,
-	type IndexedExpression,
-} from "./expression-index";
+import { ExpressionIndex, type IndexedExpression } from "./expression-index";
 
 interface LoadableConceptStore extends ConceptStore {
 	load?(): Promise<void>;
@@ -62,7 +59,8 @@ export interface CoreDictionaryStores {
 	expressions: LoadableExpressionStore;
 }
 
-export interface CoreDictionaryResourceOptions extends DictionaryResourceOptions {
+export interface CoreDictionaryResourceOptions
+	extends DictionaryResourceOptions {
 	stores?: CoreDictionaryStores;
 }
 
@@ -75,7 +73,10 @@ export class CoreDictionaryResource implements DictionaryResource {
 	private readonly allowUnresolvedExpressions: boolean;
 	private readonly strict: boolean;
 	private readonly index = new ExpressionIndex();
-	private readonly conceptExtras = new Map<string, Pick<ConceptSeed, "value" | "metadata">>();
+	private readonly conceptExtras = new Map<
+		string,
+		Pick<ConceptSeed, "value" | "metadata">
+	>();
 	private readonly ownedIds = new Set<string>();
 	private closed = false;
 
@@ -88,10 +89,12 @@ export class CoreDictionaryResource implements DictionaryResource {
 		this.id = namespaceId(owner, options.id ?? "dictionary");
 		this.conceptStore = stores.concepts;
 		this.expressionStore = stores.expressions;
-		this.scope = options.defaultScope === "global" || !options.defaultScope
-			? { level: "global" }
-			: options.defaultScope;
-		this.allowUnresolvedExpressions = options.allowUnresolvedExpressions ?? false;
+		this.scope =
+			options.defaultScope === "global" || !options.defaultScope
+				? { level: "global" }
+				: options.defaultScope;
+		this.allowUnresolvedExpressions =
+			options.allowUnresolvedExpressions ?? false;
 		this.strict = options.strict ?? false;
 	}
 
@@ -115,11 +118,21 @@ export class CoreDictionaryResource implements DictionaryResource {
 		this.assertOpen();
 		const report = createSeedReport();
 		const records = seedRecords(seed);
-		const namespaceMap = new Map((await this.conceptStore.listNamespaces()).map((item) => [item.code, item]));
+		const namespaceMap = new Map(
+			(await this.conceptStore.listNamespaces()).map((item) => [
+				item.code,
+				item,
+			]),
+		);
 
 		for (const item of records.namespaces) {
 			if (!validId(item.code)) {
-				invalid(report.diagnostics, "namespace", item.code, "Namespace code is required");
+				invalid(
+					report.diagnostics,
+					"namespace",
+					item.code,
+					"Namespace code is required",
+				);
 				report.skipped.namespace += 1;
 				continue;
 			}
@@ -144,7 +157,12 @@ export class CoreDictionaryResource implements DictionaryResource {
 
 		for (const item of records.concepts) {
 			if (!validId(item.id)) {
-				invalid(report.diagnostics, "concept", item.id, "Concept ID is required");
+				invalid(
+					report.diagnostics,
+					"concept",
+					item.id,
+					"Concept ID is required",
+				);
 				report.skipped.concept += 1;
 				continue;
 			}
@@ -169,12 +187,24 @@ export class CoreDictionaryResource implements DictionaryResource {
 		}
 
 		for (const item of records.relations) {
-			if (!validId(item.id) || !validId(item.conceptId) || !validId(item.linkedId)) {
-				invalid(report.diagnostics, "relation", item.id, "Relation ID and both concept endpoints are required");
+			if (
+				!validId(item.id) ||
+				!validId(item.conceptId) ||
+				!validId(item.linkedId)
+			) {
+				invalid(
+					report.diagnostics,
+					"relation",
+					item.id,
+					"Relation ID and both concept endpoints are required",
+				);
 				report.skipped.relation += 1;
 				continue;
 			}
-			if (!(await this.conceptStore.getById(item.conceptId)) || !(await this.conceptStore.getById(item.linkedId))) {
+			if (
+				!(await this.conceptStore.getById(item.conceptId)) ||
+				!(await this.conceptStore.getById(item.linkedId))
+			) {
 				addDiagnostic(report.diagnostics, {
 					code: "MISSING_RELATION_ENDPOINT",
 					message: `Relation '${item.id}' references a missing concept endpoint`,
@@ -194,13 +224,26 @@ export class CoreDictionaryResource implements DictionaryResource {
 				report.skipped.relation += 1;
 				continue;
 			}
-			if (!["EQUIVALENT", "NARROWER_THAN", "WIDER_THAN"].includes(item.relationshipType)) {
-				invalid(report.diagnostics, "relation", item.id, `Unsupported relationship type '${item.relationshipType}'`);
+			if (
+				!["EQUIVALENT", "NARROWER_THAN", "WIDER_THAN"].includes(
+					item.relationshipType,
+				)
+			) {
+				invalid(
+					report.diagnostics,
+					"relation",
+					item.id,
+					`Unsupported relationship type '${item.relationshipType}'`,
+				);
 				report.skipped.relation += 1;
 				continue;
 			}
 			const expected = toCoreRelation(item);
-			const existing = await findRelation(this.conceptStore, item.id, item.conceptId);
+			const existing = await findRelation(
+				this.conceptStore,
+				item.id,
+				item.conceptId,
+			);
 			if (!existing) {
 				await this.conceptStore.addRelation(expected);
 				report.inserted.relation += 1;
@@ -232,15 +275,25 @@ export class CoreDictionaryResource implements DictionaryResource {
 			const concept = await this.conceptStore.getById(id);
 			return concept ? this.toNeutralConcept(concept) : undefined;
 		},
-		search: async (query: string, options: ConceptSearchOptions = {}): Promise<NeutralConcept[]> => {
+		search: async (
+			query: string,
+			options: ConceptSearchOptions = {},
+		): Promise<NeutralConcept[]> => {
 			this.assertOpen();
-			const results = await this.conceptStore.search(query, options.namespaceCode, options.limit, options.roleName);
+			const results = await this.conceptStore.search(
+				query,
+				options.namespaceCode,
+				options.limit,
+				options.roleName,
+			);
 			return results.map((concept) => this.toNeutralConcept(concept));
 		},
 	};
 
 	expressions = {
-		search: (request: ExpressionSearchRequest): readonly ExpressionCandidate[] => {
+		search: (
+			request: ExpressionSearchRequest,
+		): readonly ExpressionCandidate[] => {
 			this.assertOpen();
 			return this.index.search(request);
 		},
@@ -261,13 +314,21 @@ export class CoreDictionaryResource implements DictionaryResource {
 		this.index.rebuild([]);
 	}
 
-	private async seedExpression(item: ExpressionSeed, report: DictionarySeedReport): Promise<void> {
+	private async seedExpression(
+		item: ExpressionSeed,
+		report: DictionarySeedReport,
+	): Promise<void> {
 		if (!validId(item.id) || !item.term) {
-			invalid(report.diagnostics, "expression", item.id, "Expression ID and term are required");
+			invalid(
+				report.diagnostics,
+				"expression",
+				item.id,
+				"Expression ID and term are required",
+			);
 			report.skipped.expression += 1;
 			return;
 		}
-			const pattern = item.regexPattern ?? escapeSeedRegex(item.term);
+		const pattern = item.regexPattern ?? escapeSeedRegex(item.term);
 		try {
 			new RegExp(pattern, item.isCaseInsensitive ? "i" : "");
 		} catch (error) {
@@ -277,10 +338,15 @@ export class CoreDictionaryResource implements DictionaryResource {
 				recordType: "expression",
 				recordId: item.id,
 			});
-			if (this.strict) throw new Error(`Invalid expression regex for '${item.id}'`);
+			if (this.strict)
+				throw new Error(`Invalid expression regex for '${item.id}'`);
 			return;
 		}
-		if (item.conceptId && !this.allowUnresolvedExpressions && !(await this.conceptStore.getById(item.conceptId))) {
+		if (
+			item.conceptId &&
+			!this.allowUnresolvedExpressions &&
+			!(await this.conceptStore.getById(item.conceptId))
+		) {
 			addDiagnostic(report.diagnostics, {
 				code: "MISSING_EXPRESSION_CONCEPT",
 				message: `Expression '${item.id}' references missing concept '${item.conceptId}'`,
@@ -304,7 +370,10 @@ export class CoreDictionaryResource implements DictionaryResource {
 			this.ownedIds.add(`expression:${item.id}`);
 		} else if (sameExpression(existing, expected)) {
 			report.skipped.expression += 1;
-		} else if (this.ownedIds.has(`expression:${item.id}`) || existingOwner === this.ownerExtensionId) {
+		} else if (
+			this.ownedIds.has(`expression:${item.id}`) ||
+			existingOwner === this.ownerExtensionId
+		) {
 			await this.expressionStore.save(expected, this.scope);
 			report.updated.expression += 1;
 		} else {
@@ -313,95 +382,139 @@ export class CoreDictionaryResource implements DictionaryResource {
 		}
 	}
 
-	private async rebuildIndex(diagnostics: ResourceDiagnostic[] = []): Promise<void> {
+	private async rebuildIndex(
+		diagnostics: ResourceDiagnostic[] = [],
+	): Promise<void> {
 		const expressions = await this.expressionStore.list(this.scope, true);
 		const records = expressions.map(toIndexedExpression);
 		const indexDiagnostics = this.index.rebuild(records);
 		diagnostics.push(...indexDiagnostics);
-		if (this.strict && indexDiagnostics.length) throw new Error(indexDiagnostics[0]!.message);
+		if (this.strict && indexDiagnostics.length)
+			throw new Error(indexDiagnostics[0]!.message);
 	}
 
 	private rememberConcept(seed: ConceptSeed): void {
-		this.conceptExtras.set(seed.id, { value: seed.value, metadata: seed.metadata });
+		this.conceptExtras.set(seed.id, {
+			value: seed.value,
+			metadata: seed.metadata,
+		});
 	}
 
 	private toNeutralConcept(concept: CoreConcept): NeutralConcept {
-		return { ...concept, active: concept.active !== false, ...this.conceptExtras.get(concept.id) };
+		return {
+			...concept,
+			active: concept.active !== false,
+			...this.conceptExtras.get(concept.id),
+		};
 	}
 
 	private assertOpen(): void {
-		if (this.closed) throw new Error(`Dictionary resource '${this.id}' is closed`);
+		if (this.closed)
+			throw new Error(`Dictionary resource '${this.id}' is closed`);
 	}
 }
 
 export async function createMemoryDictionaryResource(
 	options: CoreDictionaryResourceOptions = {},
 ): Promise<DictionaryResource> {
-	return CoreDictionaryResource.open({
-		concepts: createMemoryConceptStore() as LoadableConceptStore,
-		expressions: createMemoryExpressionStoreFromCore() as LoadableExpressionStore,
-		...options.stores,
-	}, options);
+	return CoreDictionaryResource.open(
+		{
+			concepts: createMemoryConceptStore() as LoadableConceptStore,
+			expressions:
+				createMemoryExpressionStoreFromCore() as LoadableExpressionStore,
+			...options.stores,
+		},
+		options,
+	);
 }
 
 export async function createJsonlDictionaryResource(
 	path: string,
 	options: CoreDictionaryResourceOptions = {},
 ): Promise<DictionaryResource> {
-	return CoreDictionaryResource.open({
-		concepts: createJsonlConceptStore(`${path}.concepts`) as LoadableConceptStore,
-		expressions: createJsonlExpressionStoreFromCore(`${path}.expressions`) as LoadableExpressionStore,
-		...options.stores,
-	}, options);
+	return CoreDictionaryResource.open(
+		{
+			concepts: createJsonlConceptStore(
+				`${path}.concepts`,
+			) as LoadableConceptStore,
+			expressions: createJsonlExpressionStoreFromCore(
+				`${path}.expressions`,
+			) as LoadableExpressionStore,
+			...options.stores,
+		},
+		options,
+	);
 }
 
 export async function createConfiguredDictionaryResource(
 	options: CoreDictionaryResourceOptions = {},
 ): Promise<DictionaryResource> {
-	const conceptSpec = options.concept ?? options.conceptBackend ?? options.backend;
-	const expressionSpec = options.expression ?? options.expressionBackend ?? options.backend;
+	const conceptSpec =
+		options.concept ?? options.conceptBackend ?? options.backend;
+	const expressionSpec =
+		options.expression ?? options.expressionBackend ?? options.backend;
 	if (!conceptSpec || !expressionSpec) {
-		throw new Error("A dictionary backend must be explicitly configured for both concepts and expressions");
+		throw new Error(
+			"A dictionary backend must be explicitly configured for both concepts and expressions",
+		);
 	}
 	const [concepts, expressions] = await Promise.all([
 		openConceptStore(conceptSpec),
 		openExpressionStore(expressionSpec),
 	]);
-	return CoreDictionaryResource.open({
-		concepts,
-		expressions,
-	}, options);
+	return CoreDictionaryResource.open(
+		{
+			concepts,
+			expressions,
+		},
+		options,
+	);
 }
 
 export function createCoreDictionaryResourceFactory(
 	ownerExtensionId: string,
 	defaults: DictionaryResourceOptions = {},
 ) {
-	const options = (requested: DictionaryResourceOptions = {}): DictionaryResourceOptions => ({
+	const options = (
+		requested: DictionaryResourceOptions = {},
+	): DictionaryResourceOptions => ({
 		...defaults,
 		...requested,
 		ownerExtensionId,
 	});
 	return {
-		open: (requested: DictionaryResourceOptions = {}) => createConfiguredDictionaryResource(options(requested)),
-		memory: (requested: DictionaryResourceOptions = {}) => createMemoryDictionaryResource(options(requested)),
-		jsonl: (path: string, requested: DictionaryResourceOptions = {}) => createJsonlDictionaryResource(path, options(requested)),
+		open: (requested: DictionaryResourceOptions = {}) =>
+			createConfiguredDictionaryResource(options(requested)),
+		memory: (requested: DictionaryResourceOptions = {}) =>
+			createMemoryDictionaryResource(options(requested)),
+		jsonl: (path: string, requested: DictionaryResourceOptions = {}) =>
+			createJsonlDictionaryResource(path, options(requested)),
 	};
 }
 
-async function openConceptStore(spec: DictionaryBackendSpec): Promise<LoadableConceptStore> {
+async function openConceptStore(
+	spec: DictionaryBackendSpec,
+): Promise<LoadableConceptStore> {
 	switch (spec.type) {
 		case "memory":
 			return createMemoryConceptStore() as LoadableConceptStore;
 		case "jsonl":
-			return createJsonlConceptStore(requiredTarget(spec)) as LoadableConceptStore;
+			return createJsonlConceptStore(
+				requiredTarget(spec),
+			) as LoadableConceptStore;
 		case "localstorage": {
-			const module = await import("@stateful-mcp/core/adapters/storage/simple/localstorage/factories");
+			const module = await import(
+				"@stateful-mcp/core/adapters/storage/simple/localstorage/factories"
+			);
 			return module.createLocalStorageConceptStore() as LoadableConceptStore;
 		}
 		case "indexeddb": {
-			const module = await import("@stateful-mcp/core/adapters/storage/simple/indexeddb/factories");
-			return module.createIndexedDbConceptStore(spec.target) as LoadableConceptStore;
+			const module = await import(
+				"@stateful-mcp/core/adapters/storage/simple/indexeddb/factories"
+			);
+			return module.createIndexedDbConceptStore(
+				spec.target,
+			) as LoadableConceptStore;
 		}
 		case "sqlite":
 		case "postgres":
@@ -411,19 +524,29 @@ async function openConceptStore(spec: DictionaryBackendSpec): Promise<LoadableCo
 	}
 }
 
-async function openExpressionStore(spec: DictionaryBackendSpec): Promise<LoadableExpressionStore> {
+async function openExpressionStore(
+	spec: DictionaryBackendSpec,
+): Promise<LoadableExpressionStore> {
 	switch (spec.type) {
 		case "memory":
 			return createMemoryExpressionStoreFromCore() as LoadableExpressionStore;
 		case "jsonl":
-			return createJsonlExpressionStoreFromCore(requiredTarget(spec)) as LoadableExpressionStore;
+			return createJsonlExpressionStoreFromCore(
+				requiredTarget(spec),
+			) as LoadableExpressionStore;
 		case "localstorage": {
-			const module = await import("@stateful-mcp/core/adapters/storage/simple/localstorage/factories");
+			const module = await import(
+				"@stateful-mcp/core/adapters/storage/simple/localstorage/factories"
+			);
 			return module.createLocalStorageExpressionStore() as LoadableExpressionStore;
 		}
 		case "indexeddb": {
-			const module = await import("@stateful-mcp/core/adapters/storage/simple/indexeddb/factories");
-			return module.createIndexedDbExpressionStore(spec.target) as LoadableExpressionStore;
+			const module = await import(
+				"@stateful-mcp/core/adapters/storage/simple/indexeddb/factories"
+			);
+			return module.createIndexedDbExpressionStore(
+				spec.target,
+			) as LoadableExpressionStore;
 		}
 		case "sqlite":
 		case "postgres":
@@ -433,9 +556,12 @@ async function openExpressionStore(spec: DictionaryBackendSpec): Promise<Loadabl
 	}
 }
 
-async function openSqlConceptStore(spec: DictionaryBackendSpec): Promise<LoadableConceptStore> {
+async function openSqlConceptStore(
+	spec: DictionaryBackendSpec,
+): Promise<LoadableConceptStore> {
 	const backendModulePath = "@stateful-mcp/core/adapters/storage/sql/backend";
-	const factoryModulePath = "@stateful-mcp/core/adapters/storage/sql/create-concept-store";
+	const factoryModulePath =
+		"@stateful-mcp/core/adapters/storage/sql/create-concept-store";
 	const [{ SqlBackend }, factory] = await Promise.all([
 		import(backendModulePath),
 		import(factoryModulePath),
@@ -443,12 +569,19 @@ async function openSqlConceptStore(spec: DictionaryBackendSpec): Promise<Loadabl
 	const dialect = sqlDialect(spec.type as SqlBackendType);
 	const target = requiredTarget(spec);
 	const backend = await SqlBackend.connect(dialect, target, sqlPolicy(spec));
-	return await factory.createConceptStore(dialect, target, backend) as LoadableConceptStore;
+	return (await factory.createConceptStore(
+		dialect,
+		target,
+		backend,
+	)) as LoadableConceptStore;
 }
 
-async function openSqlExpressionStore(spec: DictionaryBackendSpec): Promise<LoadableExpressionStore> {
+async function openSqlExpressionStore(
+	spec: DictionaryBackendSpec,
+): Promise<LoadableExpressionStore> {
 	const backendModulePath = "@stateful-mcp/core/adapters/storage/sql/backend";
-	const factoryModulePath = "@stateful-mcp/core/adapters/storage/sql/create-expression-store";
+	const factoryModulePath =
+		"@stateful-mcp/core/adapters/storage/sql/create-expression-store";
 	const [{ SqlBackend }, factory] = await Promise.all([
 		import(backendModulePath),
 		import(factoryModulePath),
@@ -456,10 +589,17 @@ async function openSqlExpressionStore(spec: DictionaryBackendSpec): Promise<Load
 	const dialect = sqlDialect(spec.type as SqlBackendType);
 	const target = requiredTarget(spec);
 	const backend = await SqlBackend.connect(dialect, target, sqlPolicy(spec));
-	return await factory.createExpressionStore(dialect, target, backend) as LoadableExpressionStore;
+	return (await factory.createExpressionStore(
+		dialect,
+		target,
+		backend,
+	)) as LoadableExpressionStore;
 }
 
-type SqlBackendType = Extract<DictionaryBackendSpec["type"], "sqlite" | "postgres" | "duckdb" | "opfs">;
+type SqlBackendType = Extract<
+	DictionaryBackendSpec["type"],
+	"sqlite" | "postgres" | "duckdb" | "opfs"
+>;
 
 function sqlDialect(type: SqlBackendType): "sqlite" | "postgres" | "duckdb" {
 	if (type === "postgres") return "postgres";
@@ -476,7 +616,8 @@ function sqlPolicy(spec: DictionaryBackendSpec): Record<string, unknown> {
 }
 
 function requiredTarget(spec: DictionaryBackendSpec): string {
-	if (!spec.target?.trim()) throw new Error(`Backend '${spec.type}' requires an explicit target`);
+	if (!spec.target?.trim())
+		throw new Error(`Backend '${spec.type}' requires an explicit target`);
 	return spec.target;
 }
 
@@ -488,11 +629,25 @@ function validId(value: string | undefined): value is string {
 	return Boolean(value?.trim());
 }
 
-function invalid(diagnostics: ResourceDiagnostic[], type: ResourceDiagnostic["recordType"], id: string, message: string): void {
-	addDiagnostic(diagnostics, { code: "INVALID_SEED_RECORD", message, recordType: type, recordId: id });
+function invalid(
+	diagnostics: ResourceDiagnostic[],
+	type: ResourceDiagnostic["recordType"],
+	id: string,
+	message: string,
+): void {
+	addDiagnostic(diagnostics, {
+		code: "INVALID_SEED_RECORD",
+		message,
+		recordType: type,
+		recordId: id,
+	});
 }
 
-function conflict(diagnostics: ResourceDiagnostic[], type: ResourceDiagnostic["recordType"], id: string): void {
+function conflict(
+	diagnostics: ResourceDiagnostic[],
+	type: ResourceDiagnostic["recordType"],
+	id: string,
+): void {
 	addDiagnostic(diagnostics, {
 		code: "OWNERSHIP_CONFLICT",
 		message: `Cannot replace an existing ${type} '${id}' owned by another resource`,
@@ -501,7 +656,9 @@ function conflict(diagnostics: ResourceDiagnostic[], type: ResourceDiagnostic["r
 	});
 }
 
-function toCoreNamespace(seed: NonNullable<DictionarySeed["namespaces"]>[number]): Namespace {
+function toCoreNamespace(
+	seed: NonNullable<DictionarySeed["namespaces"]>[number],
+): Namespace {
 	return {
 		code: seed.code,
 		description: seed.description,
@@ -523,21 +680,30 @@ function toCoreConcept(seed: ConceptSeed, owner: string): CoreConcept {
 		standardCode: seed.standardCode ?? seed.id,
 		display: seed.display ?? seed.id,
 		active: seed.active !== false,
-		...(seed.metadata?.description ? { description: String(seed.metadata.description) } : {}),
+		...(seed.metadata?.description
+			? { description: String(seed.metadata.description) }
+			: {}),
 	};
 }
 
-function toCoreRelation(seed: NonNullable<DictionarySeed["relations"]>[number]): ConceptRelation {
+function toCoreRelation(
+	seed: NonNullable<DictionarySeed["relations"]>[number],
+): ConceptRelation {
 	return {
 		id: seed.id,
 		conceptId: seed.conceptId,
 		linkedId: seed.linkedId,
-		relationshipType: seed.relationshipType as ConceptRelation["relationshipType"],
+		relationshipType:
+			seed.relationshipType as ConceptRelation["relationshipType"],
 		active: seed.active !== false,
 	};
 }
 
-function toCoreExpression(seed: ExpressionSeed, owner: string, pattern: string): CustomExpression & Record<string, unknown> {
+function toCoreExpression(
+	seed: ExpressionSeed,
+	owner: string,
+	pattern: string,
+): CustomExpression & Record<string, unknown> {
 	return {
 		id: seed.id,
 		term: seed.term,
@@ -576,7 +742,10 @@ function toIndexedExpression(expression: CustomExpression): IndexedExpression {
 		id: record.id,
 		term: record.term,
 		lookupTerm: record.lookupTerm ?? record.term,
-		regexPattern: typeof record.regexPattern === "string" ? record.regexPattern : escapeSeedRegex(record.term),
+		regexPattern:
+			typeof record.regexPattern === "string"
+				? record.regexPattern
+				: escapeSeedRegex(record.term),
 		isCaseInsensitive: record.isCaseInsensitive === true,
 		conceptId: record.conceptId,
 		canonicalValue: record.canonicalValue ?? record.conceptId,
@@ -586,9 +755,15 @@ function toIndexedExpression(expression: CustomExpression): IndexedExpression {
 	};
 }
 
-async function findRelation(store: ConceptStore, id: string, conceptId: string): Promise<ConceptRelation | undefined> {
+async function findRelation(
+	store: ConceptStore,
+	id: string,
+	conceptId: string,
+): Promise<ConceptRelation | undefined> {
 	if (!store.getRelations) return undefined;
-	return (await store.getRelations(conceptId, "both")).find((relation) => relation.id === id);
+	return (await store.getRelations(conceptId, "both")).find(
+		(relation) => relation.id === id,
+	);
 }
 
 async function closeStore(store: unknown): Promise<void> {

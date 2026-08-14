@@ -1,14 +1,28 @@
 import type { ExpressionBackend } from "../contracts/backends";
 import type { ParseListener } from "../contracts/listeners";
 import type { MacroSpec } from "../contracts/macro";
-import type { ExtensionDependencyResolver } from "./dependency-resolver";
-import type { DictionaryResource, DictionaryResourceFactory } from "../resources/contracts";
+import type {
+	DictionaryResource,
+	DictionaryResourceFactory,
+} from "../resources/contracts";
 import type { ResourceScope } from "../resources/resource-scope";
+import type { ExtensionDependencyResolver } from "./dependency-resolver";
 
 export interface MatcherFactory {
-	expression(resource: DictionaryResource): Extract<NonNullable<MacroSpec["arguments"][number]["matcher"]>, { kind: "expression" }>;
-	literal(text: string, value?: unknown): { kind: "literal"; text: string; value?: unknown };
-	pattern(pattern: string | RegExp, flags?: string): { kind: "pattern"; pattern: string | RegExp; flags?: string };
+	expression(
+		resource: DictionaryResource,
+	): Extract<
+		NonNullable<MacroSpec["arguments"][number]["matcher"]>,
+		{ kind: "expression" }
+	>;
+	literal(
+		text: string,
+		value?: unknown,
+	): { kind: "literal"; text: string; value?: unknown };
+	pattern(
+		pattern: string | RegExp,
+		flags?: string,
+	): { kind: "pattern"; pattern: string | RegExp; flags?: string };
 }
 
 export interface MacroRegistryWriter {

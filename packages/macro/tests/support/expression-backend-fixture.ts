@@ -28,7 +28,11 @@ export function createExpressionBackendFixture(
 					if (exactStart >= 0) {
 						const end = exactStart + term.length;
 						const boundary = normalizedText[end] ?? "";
-						if ((exactStart === 0 || /\s/u.test(normalizedText[exactStart - 1]!)) && (!boundary || /\s/u.test(boundary))) {
+						if (
+							(exactStart === 0 ||
+								/\s/u.test(normalizedText[exactStart - 1]!)) &&
+							(!boundary || /\s/u.test(boundary))
+						) {
 							candidates.push({
 								id: record.id,
 								term: request.text.slice(exactStart, end),
@@ -46,7 +50,11 @@ export function createExpressionBackendFixture(
 				}
 				for (const start of boundaryStarts(normalizedText)) {
 					const partial = normalizedText.slice(start);
-					if (partial.length > 0 && partial.length < term.length && term.startsWith(partial)) {
+					if (
+						partial.length > 0 &&
+						partial.length < term.length &&
+						term.startsWith(partial)
+					) {
 						candidates.push({
 							id: record.id,
 							term: request.text.slice(start),

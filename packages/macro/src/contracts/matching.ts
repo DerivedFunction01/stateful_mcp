@@ -7,11 +7,14 @@ export interface MacroArgumentMatch {
 	source: MacroArgumentSource;
 	anchor?: MacroSpan;
 	extraction: MacroSpan;
+	sourceSpan?: MacroSpan;
+	valueSpan?: MacroSpan;
 	friendlyText?: string;
 	rawValue: string;
 	captures?: Record<string, string | undefined>;
 	captureSpans?: MacroCaptureSpan[];
 	canonicalValue?: unknown;
+	backendId?: string;
 	sourceId?: string;
 	conceptId?: string;
 	priority?: number;
@@ -41,7 +44,7 @@ export type MacroAuthoringTemplatePart =
 			argumentId: string;
 			occurrence: number;
 			displayText?: string;
-		};
+	  };
 
 export interface MacroAuthoringSlot {
 	argumentId: string;

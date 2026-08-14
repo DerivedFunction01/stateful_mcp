@@ -1,6 +1,6 @@
-import type { MacroArgumentMatch } from "./matching";
 import type { MacroDiagnostic } from "./input";
 import type { MacroSpec } from "./macro";
+import type { MacroArgumentMatch } from "./matching";
 
 export type ArgumentState = "pending" | "locked" | "unset" | "invalid";
 
@@ -27,5 +27,9 @@ export interface PayloadCompileOptions {
 }
 
 export interface PayloadCompiler {
-	compile(spec: MacroSpec, raw: string, options?: PayloadCompileOptions): MacroParseResult;
+	compile(
+		spec: MacroSpec,
+		raw: string,
+		options?: PayloadCompileOptions,
+	): MacroParseResult;
 }

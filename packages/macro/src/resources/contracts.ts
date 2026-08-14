@@ -106,11 +106,16 @@ export interface DictionaryResource {
 
 	concepts: {
 		getById(id: string): Promise<NeutralConcept | undefined>;
-		search(query: string, options?: ConceptSearchOptions): Promise<NeutralConcept[]>;
+		search(
+			query: string,
+			options?: ConceptSearchOptions,
+		): Promise<NeutralConcept[]>;
 	};
 
 	expressions: {
-		search(request: DictionaryExpressionSearchRequest): readonly ExpressionCandidate[];
+		search(
+			request: DictionaryExpressionSearchRequest,
+		): readonly ExpressionCandidate[];
 	};
 
 	expressionBackend(): ExpressionBackend;
@@ -153,5 +158,8 @@ export interface DictionaryBackendSpec {
 export interface DictionaryResourceFactory {
 	open(options?: DictionaryResourceOptions): Promise<DictionaryResource>;
 	memory(options?: DictionaryResourceOptions): Promise<DictionaryResource>;
-	jsonl(path: string, options?: DictionaryResourceOptions): Promise<DictionaryResource>;
+	jsonl(
+		path: string,
+		options?: DictionaryResourceOptions,
+	): Promise<DictionaryResource>;
 }

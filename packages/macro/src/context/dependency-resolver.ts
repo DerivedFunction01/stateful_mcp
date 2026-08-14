@@ -13,7 +13,9 @@ export function createDependencyResolver(
 	return {
 		require(id: string): ActiveExtension {
 			if (!declared.includes(id)) {
-				throw new Error(`Extension '${ownerExtensionId}' has not declared dependency '${id}'`);
+				throw new Error(
+					`Extension '${ownerExtensionId}' has not declared dependency '${id}'`,
+				);
 			}
 			const extension = dependencies.get(id);
 			if (!extension) throw new Error(`Dependency '${id}' is not active`);

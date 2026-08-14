@@ -20,4 +20,7 @@ export interface ExpressionCandidate {
 
 export interface ExpressionBackend {
 	search(request: ExpressionSearchRequest): readonly ExpressionCandidate[];
+	/** Stable identity used to invalidate accepted bindings when resources change. */
+	version?: string;
+	backendVersion?: string;
 }
