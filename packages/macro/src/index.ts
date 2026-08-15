@@ -30,7 +30,6 @@ export * from "./matcher/friendly";
 export * from "./parser/macro-parser";
 export * from "./payload/payload-compiler";
 export * from "./rendering/contracts";
-export * from "./rendering/sample-renderers";
 export * from "./resources/contracts";
 export * from "./resources/core-dictionary-adapter";
 export * from "./resources/dictionary-resource";

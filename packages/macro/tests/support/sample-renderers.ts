@@ -1,5 +1,5 @@
-import type { MacroExecutionAttempt } from "../history/contracts";
-import type { MacroOutputRenderer } from "./contracts";
+import type { MacroExecutionAttempt } from "../../src/history/contracts";
+import type { MacroOutputRenderer } from "../../src/rendering/contracts";
 
 export function createListOutputRenderer(options: {
 	id?: string;
