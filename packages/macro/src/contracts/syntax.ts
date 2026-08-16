@@ -1,8 +1,6 @@
 export interface MacroSyntax {
 	macroStartToken: string;
 	argumentDelimiter?: string;
-	macroArgDelimiter?: string;
-	fallbackBoundaryDelimiter?: string;
 	quoteCharacters?: readonly string[];
 	quotePairs?: readonly (readonly [open: string, close: string])[];
 	groupOpen?: string;
@@ -14,17 +12,7 @@ export interface MacroSyntax {
 }
 
 export function resolveArgumentDelimiter(
-	syntax?:
-		| Partial<MacroSyntax>
-		| {
-				readonly argumentDelimiter?: string;
-				readonly macroArgDelimiter?: string;
-				readonly fallbackBoundaryDelimiter?: string;
-		  },
+	syntax?: Partial<MacroSyntax>,
 ): string | undefined {
-	return (
-		syntax?.argumentDelimiter ??
-		syntax?.macroArgDelimiter ??
-		syntax?.fallbackBoundaryDelimiter
-	);
+	return syntax?.argumentDelimiter;
 }

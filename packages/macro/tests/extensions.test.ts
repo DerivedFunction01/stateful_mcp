@@ -188,10 +188,10 @@ describe("extension runtime", () => {
 		// Does NOT parse with default start token ("^")
 		expect(runtime.parse("^note")).toBeNull();
 
-		// Default runtime context uses "^"
+		// An unconfigured runtime context has no macro marker.
 		const defaultRuntime = new ExtensionRuntime();
 		await defaultRuntime.activate([loaded(ext)]);
-		expect(defaultRuntime.parse("^note")?.macroName).toBe("note");
+		expect(defaultRuntime.parse("^note")).toBeNull();
 		expect(defaultRuntime.parse("!note")).toBeNull();
 
 		await runtime.dispose();
@@ -229,6 +229,7 @@ describe("extension runtime", () => {
 				},
 			});
 			const runtime = new ExtensionRuntime({
+				context: createMacroRuntimeContext({ macroStartToken: "^" }),
 				settings: {
 					"configured-notes": {
 						values: { precision: 2 },
@@ -356,7 +357,9 @@ describe("extension runtime", () => {
 			},
 		});
 
-		const runtime = new ExtensionRuntime();
+		const runtime = new ExtensionRuntime({
+			context: createMacroRuntimeContext({ macroStartToken: "^" }),
+		});
 		await runtime.activate([loaded(ext)]);
 
 		// Generate draft with preview at version 1 (or initial version after seed)
@@ -397,7 +400,9 @@ describe("extension runtime", () => {
 			},
 		});
 
-		const runtime = new ExtensionRuntime();
+		const runtime = new ExtensionRuntime({
+			context: createMacroRuntimeContext({ macroStartToken: "^" }),
+		});
 		await runtime.activate([loaded(ext)]);
 
 		const draft = await runtime.parseAdapter(

@@ -1,4 +1,4 @@
-import { type MacroSyntax, resolveArgumentDelimiter } from "./syntax";
+import type { MacroSyntax } from "./syntax";
 
 export interface MacroRuntimeContext {
 	readonly syntax: MacroSyntax;
@@ -7,12 +7,13 @@ export interface MacroRuntimeContext {
 export function createMacroRuntimeContext(
 	syntax?: Partial<MacroSyntax>,
 ): MacroRuntimeContext {
-	const startToken = syntax?.macroStartToken ?? "^";
-	const delimiter = resolveArgumentDelimiter(syntax);
+	const startToken = syntax?.macroStartToken ?? "";
 
 	const resolvedSyntax: MacroSyntax = {
 		macroStartToken: startToken,
-		...(delimiter !== undefined ? { argumentDelimiter: delimiter } : {}),
+		...(syntax?.argumentDelimiter !== undefined
+			? { argumentDelimiter: syntax.argumentDelimiter }
+			: {}),
 		...(syntax?.quoteCharacters
 			? { quoteCharacters: syntax.quoteCharacters }
 			: {}),

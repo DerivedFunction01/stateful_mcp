@@ -7,8 +7,19 @@ import {
 	splitListItems,
 	tokenizePositionalTokens,
 } from "../src/parser/macro-scanner";
+import { resolveArgumentDelimiter } from "../src/contracts/syntax";
 
 describe("shared lexical scanner", () => {
+	test("uses only the explicitly configured argument delimiter", () => {
+		expect(resolveArgumentDelimiter({ argumentDelimiter: ";" })).toBe(";");
+		expect(
+			resolveArgumentDelimiter({
+				macroArgDelimiter: ";",
+				fallbackBoundaryDelimiter: "/",
+			} as Record<string, string>),
+		).toBeUndefined();
+	});
+
 	test("scans basic named assignments and preserves exact spans", () => {
 		const diagnostics: MacroDiagnostic[] = [];
 		const raw = "^macro name=harry year=2004";

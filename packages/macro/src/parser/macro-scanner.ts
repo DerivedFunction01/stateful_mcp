@@ -19,8 +19,6 @@ export interface NamedSegment {
 export interface ScannerSyntax {
 	readonly macroStartToken?: string;
 	readonly argumentDelimiter?: string;
-	readonly macroArgDelimiter?: string;
-	readonly fallbackBoundaryDelimiter?: string;
 	readonly quoteCharacters?: readonly string[];
 	readonly quotePairs?: readonly (readonly [open: string, close: string])[];
 	readonly groupOpen?: string;
@@ -95,7 +93,7 @@ export function traverseLexicalTokens(
 	raw: string,
 	region: MacroSpan,
 	syntax: ScannerSyntax | Partial<MacroSyntax> | undefined,
-	callback: (state: LexicalState) => boolean | undefined,
+	callback: (state: LexicalState) => boolean | void,
 	diagnostics?: MacroDiagnostic[],
 ): { quote: string; depth: number } {
 	const quoteOpenMap = resolveQuoteOpenMap(syntax);

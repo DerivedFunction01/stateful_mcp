@@ -276,7 +276,7 @@ describe("generic quantity conversion", () => {
 		const draft = await parseMacroWithAdapter(
 			adapter,
 			"^convert quantity=125 cm",
-			{ context: createMacroRuntimeContext() },
+			{ context: createMacroRuntimeContext({ macroStartToken: "^" }) },
 		);
 		expect(draft.preview.text).toBe("canonical: 1.25 m");
 		expect(draft.executionPreview?.status).toBe("valid");
