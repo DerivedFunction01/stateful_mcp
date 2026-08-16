@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 
 export function ScratchpadView({ workspace }: { workspace: MacroWorkspace }) {
@@ -6,26 +6,26 @@ export function ScratchpadView({ workspace }: { workspace: MacroWorkspace }) {
 	const lines = workspace.editor.buffer.getLines();
 	const projected = workspace.scratchpad.getProjectedLines();
 	return (
-		<Box flexDirection="column" paddingLeft={1} paddingRight={1}>
+		<box flexDirection="column" paddingLeft={1} paddingRight={1}>
 			{lines.map((line, index) => {
 				const projection = projected[index];
 				const isActive = cursor.line === index;
 				return (
-					<Box key={`${index}-${line}`} flexDirection="column">
-						<Text inverse={isActive}>
+					<box key={`${index}-${line}`} flexDirection="column">
+						<text attributes={isActive ? TextAttributes.INVERSE : 0}>
 							{String(index + 1).padStart(3, " ")} │ {line || " "}
-						</Text>
+						</text>
 						{projection?.preview && (
-							<Text color={projection.isValid ? "green" : "yellow"}>
+							<text fg={projection.isValid ? "green" : "yellow"}>
 								    ↳ {projection.preview.text}
-							</Text>
+							</text>
 						)}
 						{projection && !projection.isValid && projection.diagnostics.length > 0 && (
-							<Text color="red">    ! {projection.diagnostics[0]?.message}</Text>
+							<text fg="red">    ! {projection.diagnostics[0]?.message}</text>
 						)}
-					</Box>
+					</box>
 				);
 			})}
-		</Box>
+		</box>
 	);
 }

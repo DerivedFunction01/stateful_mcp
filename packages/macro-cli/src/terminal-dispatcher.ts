@@ -67,7 +67,10 @@ export async function dispatchTerminalInput(
 	}
 	if (event.meta && /^[1-9]$/u.test(input)) {
 		const container = workspace.views.getContainerForAltKey(input);
-		if (container) workspace.layout.setActiveContainer(container.id);
+		if (container) {
+			if ((container.region ?? "activity") === "activity") workspace.layout.setActiveActivityContainer(container.id);
+			else workspace.layout.setActiveInspectorContainer(container.id);
+		}
 		return container ? "handled" : "ignored";
 	}
 	if (event.meta && input.toLowerCase() === "p") {
@@ -116,6 +119,16 @@ export async function dispatchTerminalInput(
 			},
 		);
 		if (result === "handled") return "handled";
+	}
+
+	if (layout.activeTabId === "scratchpad" && chordMatches(keymap.window.nextTab, chordEvent)) {
+		if (workspace.scratchpad.createPinnedMacroLine()) return "handled";
+		workspace.layout.nextTab(1);
+		return "handled";
+	}
+	if (chordMatches(keymap.window.prevTab, chordEvent)) {
+		workspace.layout.nextTab(-1);
+		return "handled";
 	}
 
 	return workspace.editor.handleKey({

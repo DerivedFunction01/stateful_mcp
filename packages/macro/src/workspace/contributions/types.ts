@@ -8,6 +8,33 @@ export interface ViewContainerContribution {
 	readonly icon: string;
 	readonly altKey?: string;
 	readonly order?: number;
+	readonly region?: WorkspaceRegionId;
+}
+
+export type WorkspaceRegionId = "activity" | "inspector";
+export type WorkspaceDock = "start" | "end";
+
+export type WorkspaceContextKey =
+	| "activeTabId"
+	| "activeExtensionId"
+	| "selectedResourceType"
+	| "selectedResourceId"
+	| "focusedPane"
+	| "hasDiagnostics";
+
+export type ContextExpression =
+	| { readonly key: WorkspaceContextKey; readonly equals: string | boolean }
+	| { readonly allOf: readonly ContextExpression[] }
+	| { readonly anyOf: readonly ContextExpression[] }
+	| { readonly not: ContextExpression };
+
+export interface WorkspaceContext {
+	readonly activeTabId: string;
+	readonly activeExtensionId?: string;
+	readonly selectedResourceType?: string;
+	readonly selectedResourceId?: string;
+	readonly focusedPane: string;
+	readonly hasDiagnostics: boolean;
 }
 
 export interface ViewContribution {
@@ -16,6 +43,9 @@ export interface ViewContribution {
 	readonly containerId: string;
 	readonly defaultExpanded?: boolean;
 	readonly order?: number;
+	readonly region?: WorkspaceRegionId;
+	readonly priority?: number;
+	readonly when?: ContextExpression;
 }
 
 export interface WorkspaceTabContribution {

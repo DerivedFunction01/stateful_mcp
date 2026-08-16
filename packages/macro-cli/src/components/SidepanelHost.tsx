@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 import type { MacroCliViewProvider } from "../renderer";
 import { JournalView } from "./JournalView";
@@ -13,7 +13,7 @@ export function SidepanelHost({
 	height: number;
 }) {
 	const container = workspace.views.getContainer(
-		workspace.layout.getSnapshot().activeContainerId,
+		workspace.layout.getSnapshot().activeInspectorContainerId,
 	);
 	if (container?.id === "journal") return <JournalView workspace={workspace} />;
 	const view = workspace.views
@@ -35,9 +35,9 @@ export function SidepanelHost({
 		});
 	}
 	return (
-		<Box padding={1} flexDirection="column">
-			<Text bold>{container?.title ?? "Sidepanel"}</Text>
-			<Text dimColor>Core view ready for contributed content.</Text>
-		</Box>
+		<box padding={1} flexDirection="column">
+			<text attributes={TextAttributes.BOLD}>{container?.title ?? "Sidepanel"}</text>
+			<text attributes={TextAttributes.DIM}>Core view ready for contributed content.</text>
+		</box>
 	);
 }

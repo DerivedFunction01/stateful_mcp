@@ -2,7 +2,7 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"baseUrl": ".",
-		"jsxImportSource": "react",
+		"jsxImportSource": "@opentui/react",
 		"paths": {
 			"@stateful-mcp/macro": ["../macro/src/index.ts"],
 			"@stateful-mcp/macro/*": ["../macro/src/*"],

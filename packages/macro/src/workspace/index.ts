@@ -13,7 +13,7 @@ import {
 	type WindowLayoutStateSnapshot,
 } from "./layout/window-layout-state";
 import { CommandPaletteController } from "./palette/command-palette";
-import { ScratchpadSession } from "./scratchpad/scratchpad-session";
+import { ScratchpadSession, type ScratchpadSessionOptions } from "./scratchpad/scratchpad-session";
 
 export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
@@ -43,6 +43,7 @@ export interface MacroWorkspaceOptions {
 	readonly runtime?: ExtensionRuntime;
 	readonly profile?: UserMacroProfile;
 	readonly journal?: import("./journal/workspace-journal").WorkspaceJournalOptions;
+	readonly scratchpad?: ScratchpadSessionOptions;
 }
 
 export interface MacroWorkspace {
@@ -78,7 +79,7 @@ export function createMacroWorkspace(
 		options?.initialLayout,
 	);
 	const editor = new EditorKernel(options?.initialText ?? "");
-	const scratchpad = new ScratchpadSession(runtime, editor.buffer);
+	const scratchpad = new ScratchpadSession(runtime, editor.buffer, 50, options?.scratchpad);
 	const palette = new CommandPaletteController(commands, layout, tabs);
 	const contributions = new ExtensionContributionManager(views, tabs, commands);
 	const workspace: MacroWorkspace = {

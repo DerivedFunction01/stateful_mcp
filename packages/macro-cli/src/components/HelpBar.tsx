@@ -1,9 +1,9 @@
-import { Box, Text } from "ink";
+import { TextAttributes } from "@opentui/core";
 
 export function HelpBar() {
 	return (
-		<Box paddingLeft={1}>
-			<Text dimColor>Ctrl+P Palette · Ctrl+B Sidepanel · Alt+P Pin · Ctrl+Enter Run · Ctrl+C Quit</Text>
-		</Box>
+		<box paddingLeft={1}>
+			<text attributes={TextAttributes.DIM}>Ctrl+P Palette · Ctrl+B Sidepanel · Alt+P Pin · Ctrl+Enter Run · Ctrl+C Quit</text>
+		</box>
 	);
 }

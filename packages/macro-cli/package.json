@@ -10,19 +10,21 @@
 	},
 	"files": ["dist"],
 	"scripts": {
-		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' --external 'ink' --external 'react' --external 'react-devtools-core' --external 'react-reconciler' --external 'scheduler' && tsc --emitDeclarationOnly --declaration --outDir dist",
+		"build": "bun build ./src/index.ts --outfile=dist/index.js --target=bun --format=esm --packages=external && tsc --emitDeclarationOnly --declaration --outDir dist",
 		"check": "tsc --noEmit",
 		"test": "bun test"
 	},
 	"dependencies": {
 		"@stateful-mcp/macro": "workspace:^",
-		"ink": "^7.1.1",
-		"react": "^19.2.8"
+		"@opentui/core": "latest",
+		"@opentui/keymap": "latest",
+		"@opentui/react": "latest",
+		"react": "^19.2.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/node": "^20",
-		"@types/react": "^19.2.18",
+		"@types/react": "^19.2.0",
 		"typescript": "^5"
 	}
 }

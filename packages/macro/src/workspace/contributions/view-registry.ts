@@ -2,6 +2,8 @@ import type {
 	ExtensionViewProvider,
 	ViewContainerContribution,
 	ViewContribution,
+	WorkspaceContext,
+	WorkspaceRegionId,
 } from "./types";
 
 export interface RegisteredViewContainer extends ViewContainerContribution {
@@ -26,6 +28,7 @@ export class ViewRegistry {
 			icon: "📁",
 			altKey: "1",
 			order: 10,
+			region: "activity",
 		});
 		this.registerContainer({
 			id: "slots",
@@ -33,6 +36,7 @@ export class ViewRegistry {
 			icon: "▧",
 			altKey: "2",
 			order: 20,
+			region: "inspector",
 		});
 		this.registerContainer({
 			id: "journal",
@@ -40,6 +44,7 @@ export class ViewRegistry {
 			icon: "◷",
 			altKey: "3",
 			order: 30,
+			region: "activity",
 		});
 	}
 
@@ -72,6 +77,10 @@ export class ViewRegistry {
 		return Array.from(this.containers.values()).sort(
 			(a, b) => (a.order ?? 100) - (b.order ?? 100),
 		);
+	}
+
+	getContainersForRegion(region: WorkspaceRegionId): readonly RegisteredViewContainer[] {
+		return this.getContainers().filter((container) => (container.region ?? "activity") === region);
 	}
 
 	getContainer(containerId: string): RegisteredViewContainer | undefined {
@@ -122,6 +131,15 @@ export class ViewRegistry {
 			.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
 	}
 
+	getViewsForRegion(region: WorkspaceRegionId, context?: WorkspaceContext): readonly RegisteredView[] {
+		return this.getAllViews()
+			.filter((view) => {
+				const container = this.getContainer(view.containerId);
+				return (view.region ?? container?.region ?? "activity") === region && (!view.when || matchesContext(view.when, context));
+			})
+			.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || (a.order ?? 100) - (b.order ?? 100));
+	}
+
 	getView(viewId: string): RegisteredView | undefined {
 		return this.views.get(viewId);
 	}
@@ -144,4 +162,14 @@ export class ViewRegistry {
 			}
 		}
 	}
+}
+
+function matchesContext(expression: import("./types").ContextExpression, context?: WorkspaceContext): boolean {
+	if (!context) return true;
+	if ("key" in expression) {
+		return String(context[expression.key]) === String(expression.equals);
+	}
+	if ("allOf" in expression) return expression.allOf.every((item) => matchesContext(item, context));
+	if ("anyOf" in expression) return expression.anyOf.some((item) => matchesContext(item, context));
+	return !matchesContext(expression.not, context);
 }

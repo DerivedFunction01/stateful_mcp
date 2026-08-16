@@ -1,4 +1,4 @@
-import { Box, Text, useStdout } from "ink";
+import type { CliRenderer } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 import { ActivityBar } from "./ActivityBar";
 import { CommandPaletteModal } from "./CommandPaletteModal";
@@ -10,39 +10,38 @@ import { StatusBar } from "./StatusBar";
 import { TabHost } from "./TabHost";
 import { WorkspaceTabs } from "./WorkspaceTabs";
 
-export function WindowContainer({ workspace }: { workspace: MacroWorkspace }) {
-	const { stdout } = useStdout();
+export function WindowContainer({ workspace, renderer }: { workspace: MacroWorkspace; renderer: CliRenderer }) {
 	const snapshot = workspace.layout.getSnapshot();
-	const columns = stdout.columns ?? 100;
-	const sidepanelWidth = Math.max(24, Math.floor(columns * snapshot.sidepanelWidthRatio));
+	const columns = renderer.width;
+	const sidepanelWidth = Math.max(24, Math.floor(columns * snapshot.regions.inspector.widthRatio));
 	const paletteWidth = Math.max(30, Math.floor(columns * 0.6));
 	const paletteMargin = Math.max(0, Math.floor(columns * 0.2));
-	const activeContainer = workspace.views.getContainer(snapshot.activeContainerId);
+	const rows = renderer.height;
 	return (
-		<Box flexDirection="column" width="100%" height="100%">
+		<box flexDirection="column" width="100%" height="100%">
 			<WorkspaceTabs workspace={workspace} />
-			<Box flexGrow={1} flexDirection="row">
+			<box flexGrow={1} flexDirection="row">
 				<ActivityBar workspace={workspace} />
-				<Box flexGrow={1} flexDirection="column">
+				<box flexGrow={1} flexDirection="column">
 					{snapshot.activeTabId === "scratchpad" ? (
 						<ScratchpadView workspace={workspace} />
 					) : (
-						<TabHost workspace={workspace} width={columns} height={stdout.rows ?? 24} />
+						<TabHost workspace={workspace} width={columns} height={rows} />
 					)}
-				</Box>
-				{snapshot.sidepanelOpen && (
-					<Box width={sidepanelWidth} borderStyle="single" borderColor="gray">
-						<SidepanelHost workspace={workspace} width={sidepanelWidth} height={stdout.rows ?? 24} />
-					</Box>
+				</box>
+				{snapshot.regions.inspector.open && (
+					<box width={sidepanelWidth} borderStyle="single" borderColor="gray">
+						<SidepanelHost workspace={workspace} width={sidepanelWidth} height={rows} />
+					</box>
 				)}
-			</Box>
+			</box>
 			<StatusBar workspace={workspace} />
 			<HelpBar />
 			{workspace.palette.getIsOpen() && (
-					<Box position="absolute" width={paletteWidth} marginLeft={paletteMargin} marginTop={2}>
+					<box position="absolute" width={paletteWidth} marginLeft={paletteMargin} marginTop={2}>
 					<CommandPaletteModal workspace={workspace} />
-				</Box>
+					</box>
 			)}
-		</Box>
+		</box>
 	);
 }

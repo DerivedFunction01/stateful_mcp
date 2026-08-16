@@ -1,21 +1,21 @@
-import { Box, Text } from "ink";
+import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 
 export function JournalView({ workspace }: { workspace: MacroWorkspace }) {
 	const entries = workspace.journal.getEntries();
 	return (
-		<Box flexDirection="column" padding={1}>
-			<Text bold>Journal</Text>
-			{entries.length === 0 && <Text dimColor>No committed entries.</Text>}
+		<box flexDirection="column" padding={1}>
+			<text attributes={TextAttributes.BOLD}>Journal</text>
+			{entries.length === 0 && <text attributes={TextAttributes.DIM}>No committed entries.</text>}
 			{entries.map((entry) => (
-				<Box key={entry.id} flexDirection="column">
-					<Text color={entry.status === "committed" ? "green" : "yellow"}>
+				<box key={entry.id} flexDirection="column">
+					<text fg={entry.status === "committed" ? "green" : "yellow"}>
 						[{entry.status}] {entry.macroName} · line {entry.lineNumber}
-					</Text>
-					<Text dimColor>  {entry.fingerprint.slice(0, 16)} · {entry.rawText}</Text>
-					{entry.reversalReason && <Text color="yellow">  reason: {entry.reversalReason}</Text>}
-				</Box>
+					</text>
+					<text attributes={TextAttributes.DIM}>  {entry.fingerprint.slice(0, 16)} · {entry.rawText}</text>
+					{entry.reversalReason && <text fg="yellow">  reason: {entry.reversalReason}</text>}
+				</box>
 			))}
-		</Box>
+		</box>
 	);
 }

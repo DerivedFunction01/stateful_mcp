@@ -21,6 +21,11 @@ export async function saveWindowLayoutState(
 		sidepanelPosition: snapshot.sidepanelPosition,
 		sidepanelWidthRatio: snapshot.sidepanelWidthRatio,
 		activeContainerId: snapshot.activeContainerId,
+		regions: snapshot.regions,
+		activeActivityContainerId: snapshot.activeActivityContainerId,
+		activeInspectorContainerId: snapshot.activeInspectorContainerId,
+		inspectorMode: snapshot.inspectorMode,
+		pinnedInspectorViewId: snapshot.pinnedInspectorViewId,
 	};
 	await storage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(serializable));
 }

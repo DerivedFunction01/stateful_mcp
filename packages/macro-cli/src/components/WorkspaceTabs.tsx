@@ -1,15 +1,15 @@
-import { Box, Text } from "ink";
+import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 
 export function WorkspaceTabs({ workspace }: { workspace: MacroWorkspace }) {
 	const active = workspace.layout.getSnapshot().activeTabId;
 	return (
-		<Box height={1} paddingLeft={1} overflow="hidden">
+		<box height={1} paddingLeft={1} overflow="hidden">
 			{workspace.tabs.getTabs().map((tab, index) => (
-				<Text key={tab.id} inverse={tab.id === active}>
+				<text key={tab.id} attributes={tab.id === active ? TextAttributes.INVERSE : 0}>
 					{index ? "  " : ""}[{tab.icon ?? " "} {tab.label}]
-				</Text>
+				</text>
 			))}
-		</Box>
+		</box>
 	);
 }

@@ -24,8 +24,13 @@ export function createFixture(fixture: DomainFixture = "core"): PrototypeWorkspa
 	return {
 		fixture,
 		activeTabId: "scratchpad",
-		activeViewId: "explorer",
-		sidepanelOpen: true,
+		activeActivityViewId: "workspace",
+		activeInspectorViewId: "explorer",
+		inspectorMode: "follow",
+		panelRegions: {
+			activity: { open: true, dock: "start" },
+			inspector: { open: true, dock: "end" },
+		},
 		paletteOpen: false,
 		paletteQuery: "",
 		paletteSelection: 0,

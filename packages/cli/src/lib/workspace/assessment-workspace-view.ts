@@ -8,6 +8,7 @@ import {
 	resolveConceptValue,
 } from "@stateful-mcp/clinical";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
+import type { ExtensionProjection, PinnedMacroLineContext } from "@stateful-mcp/macro";
 
 export interface AssessmentGlobalFactView {
 	id: string;
@@ -301,6 +302,46 @@ export interface DeduplicatedLine {
 	parsed: ParsedDifferentialLine;
 	mergedCount: number;
 	lineIndices: number[];
+}
+
+export interface ClinicalDifferentialProjectionData {
+	readonly conceptDisplay: string;
+	readonly conceptId?: string;
+	readonly status: BranchStatus;
+	readonly supportingFindings: readonly EvidenceFindingItem[];
+	readonly refutingFindings: readonly EvidenceFindingItem[];
+	readonly mergedCount: number;
+	readonly lineIndices: readonly number[];
+}
+
+export function toClinicalDifferentialProjection(
+	line: DeduplicatedLine,
+	ownerExtensionId = "@stateful-mcp/clinical",
+): ExtensionProjection {
+	return {
+		id: `clinical.differential.${line.parsed.macroId ?? line.parsed.conceptDisplay}`,
+		ownerExtensionId,
+		kind: "clinical.differential",
+		data: {
+			conceptDisplay: line.parsed.conceptDisplay,
+			conceptId: line.parsed.conceptId,
+			status: line.parsed.status,
+			supportingFindings: line.parsed.supportingFindings,
+			refutingFindings: line.parsed.refutingFindings,
+			mergedCount: line.mergedCount,
+			lineIndices: line.lineIndices,
+		} satisfies ClinicalDifferentialProjectionData,
+	};
+}
+
+export function createClinicalPinnedLineSeed(
+	context: PinnedMacroLineContext,
+	syntaxProfile?: CommandSyntaxProfile,
+): string {
+	const action = Object.entries(syntaxProfile?.actionMacroMappings ?? {}).find(
+		(([, macroId]) => macroId === context.macroId),
+	)?.[0];
+	return `${action ?? context.macroName} `;
 }
 
 export function deduplicateParsedLines(

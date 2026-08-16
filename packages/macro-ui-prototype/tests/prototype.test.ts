@@ -8,6 +8,9 @@ describe("macro UI prototype fixtures", () => {
 		const retail = createFixture("retail");
 		expect(core.fixture).toBe("core");
 		expect(core.activeTabId).toBe("scratchpad");
+		expect(core.activeActivityViewId).toBe("workspace");
+		expect(core.activeInspectorViewId).toBe("explorer");
+		expect(core.inspectorMode).toBe("follow");
 		expect(retail.fixture).toBe("retail");
 		expect(retail.scratchpadLines[0]?.text).toContain("product");
 	});
@@ -20,8 +23,19 @@ describe("macro UI prototype interaction reducer", () => {
 		state = reducePrototypeState(state, { type: "view", id: "journal" });
 		state = reducePrototypeState(state, { type: "toggle-panel" });
 		expect(state.activeTabId).toBe("notebook");
-		expect(state.activeViewId).toBe("journal");
-		expect(state.sidepanelOpen).toBe(false);
+		expect(state.activeInspectorViewId).toBe("journal");
+		state = reducePrototypeState(state, { type: "inspector-pin" });
+		state = reducePrototypeState(state, { type: "tab", id: "pos" });
+		expect(state.inspectorMode).toBe("pinned");
+		expect(state.activeInspectorViewId).toBe("journal");
+		state = reducePrototypeState(state, { type: "inspector-pin" });
+		expect(state.inspectorMode).toBe("follow");
+		expect(state.panelRegions.inspector.open).toBe(false);
+		state = reducePrototypeState(state, { type: "dock-region", region: "activity", dock: "end" });
+		expect(state.panelRegions.activity.dock).toBe("end");
+		state = reducePrototypeState(state, { type: "activity-view", id: "sessions" });
+		expect(state.activeActivityViewId).toBe("sessions");
+		expect(state.activeInspectorViewId).toBe("journal");
 	});
 
 	test("filters and navigates command palette items", () => {

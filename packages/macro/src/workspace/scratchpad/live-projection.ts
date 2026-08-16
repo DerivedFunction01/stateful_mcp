@@ -7,6 +7,13 @@ import {
 	type InteractiveTokenChip,
 } from "../editor/chips";
 
+export interface ExtensionProjection {
+	readonly id: string;
+	readonly ownerExtensionId: string;
+	readonly kind: string;
+	readonly data: unknown;
+}
+
 export interface ProjectedMacroLine {
 	readonly lineNumber: number;
 	readonly rawText: string;
@@ -18,6 +25,7 @@ export interface ProjectedMacroLine {
 	readonly preview?: MacroAuthoringRender;
 	readonly executionPreview?: MacroExecutionPreview;
 	readonly diagnostics: readonly MacroDiagnostic[];
+	readonly extensionProjections?: readonly ExtensionProjection[];
 }
 
 export function createEmptyProjectedLine(
@@ -43,6 +51,7 @@ export function synthesizeProjectedLine(
 	preview?: MacroAuthoringRender,
 	executionPreview?: MacroExecutionPreview,
 	diagnostics: readonly MacroDiagnostic[] = [],
+	extensionProjections: readonly ExtensionProjection[] = [],
 ): ProjectedMacroLine {
 	const chips = extractTokenChipsFromProjections(projections);
 	const hasErrors =
@@ -59,5 +68,6 @@ export function synthesizeProjectedLine(
 		preview,
 		executionPreview,
 		diagnostics,
+		extensionProjections,
 	};
 }

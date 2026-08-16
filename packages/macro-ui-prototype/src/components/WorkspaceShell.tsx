@@ -1,12 +1,13 @@
 import { useState, type Dispatch, type KeyboardEvent } from "react";
 import { filteredCommands } from "../reducer";
-import type { PanelId, PrototypeAction, PrototypeCommand, PrototypeJournalEntry, PrototypeWorkspaceState } from "../model";
+import type { ActivityViewId, PanelId, PrototypeAction, PrototypeCommand, PrototypeJournalEntry, PrototypeWorkspaceState } from "../model";
 
 type Send = Dispatch<PrototypeAction>;
 
-export function ActivityRail({ active, onSelect }: { active: PanelId; onSelect: (id: PanelId) => void }) {
-	return <nav className="activity-rail" aria-label="Workspace views">
-		{(["explorer", "slots", "journal", "domain"] as PanelId[]).map((id, index) => <button className={active === id ? "rail-item active" : "rail-item"} key={id} onClick={() => onSelect(id)} title={`Alt+${index + 1} ${id}`}><span>{["⌂", "▧", "◷", "◇"][index]}</span><small>{index + 1}</small></button>)}
+export function ActivityRail({ active, onSelect }: { active: ActivityViewId; onSelect: (id: ActivityViewId) => void }) {
+	return <nav className="activity-rail" aria-label="Activity panel">
+		<div className="region-label">ACTIVITY</div>
+		{(["workspace", "extensions", "sessions", "settings"] as ActivityViewId[]).map((id, index) => <button className={active === id ? "rail-item active" : "rail-item"} key={id} onClick={() => onSelect(id)} title={`Alt+${index + 1} ${id}`}><span>{["⌂", "▧", "◷", "⚙"][index]}</span><small>{index + 1}</small></button>)}
 	</nav>;
 }
 
@@ -16,6 +17,16 @@ export function SidepanelActivityRail({ active, onSelect }: { active: PanelId; o
 
 export function WorkspaceTabs({ active, onSelect }: { active: string; onSelect: (id: string) => void }) {
 	return <div className="workspace-tabs" role="tablist">{["scratchpad", "notebook", "pos", "settings"].map((id) => <button className={active === id ? "workspace-tab active" : "workspace-tab"} key={id} onClick={() => onSelect(id)} role="tab" aria-selected={active === id}>{id === "pos" ? "POS app" : id}</button>)}</div>;
+}
+
+export function ActivityPanel({ active, dispatch }: { active: ActivityViewId; dispatch: Send }) {
+	const content = {
+		workspace: { title: "Workspace", body: "Scratchpads, notebooks, and open application tabs live here." },
+		extensions: { title: "Extensions", body: "Loaded contributions and their available capabilities." },
+		sessions: { title: "Sessions", body: "Switch between workspace sessions without changing the inspector." },
+		settings: { title: "Workspace settings", body: "Core profile, keymap, locale, and panel layout configuration." },
+	}[active];
+	return <section className="activity-content"><div className="panel-title"><span>{content.title}</span><button className="icon-button" onClick={() => dispatch({ type: "toggle-region", region: "activity" })}>×</button></div><div className="activity-content-list"><button onClick={() => dispatch({ type: "tab", id: "scratchpad" })}>Macro Scratchpad</button><button onClick={() => dispatch({ type: "tab", id: "notebook" })}>Notebook</button><button onClick={() => dispatch({ type: "tab", id: "pos" })}>POS application</button></div><p>{content.body}</p></section>;
 }
 
 export function MainStage({ state, dispatch }: { state: PrototypeWorkspaceState; dispatch: Send }) {
@@ -45,7 +56,7 @@ export function ScratchpadSurface({ state }: { state: PrototypeWorkspaceState })
 }
 
 export function Sidepanel({ state, dispatch }: { state: PrototypeWorkspaceState; dispatch: Send }) {
-	return <aside className="sidepanel"><div className="sidepanel-heading"><span className="eyebrow">{state.activeViewId}</span><button className="icon-button" onClick={() => dispatch({ type: "toggle-panel" })}>×</button></div>{state.activeViewId === "journal" ? <JournalPanel entries={state.journalEntries} /> : state.fixture === "retail" && state.activeViewId === "domain" ? <FormPanel state={state} dispatch={dispatch} /> : state.fixture === "engineering" && state.activeViewId === "domain" ? <DiagramPanel state={state} dispatch={dispatch} /> : state.activeViewId === "explorer" ? <EmptyState title="Branch inspector" message="Select a branch to inspect details." /> : <EmptyState title="Macro slots" message="Projected slots will appear here." />}</aside>;
+	return <aside className="sidepanel"><div className="sidepanel-heading"><span><span className="region-label inline">INSPECTOR</span><span className="eyebrow">{state.activeInspectorViewId} · {state.inspectorMode}</span></span><span><button className="icon-button" title={state.inspectorMode === "pinned" ? "Unpin inspector" : "Pin inspector"} onClick={() => dispatch({ type: "inspector-pin" })}>{state.inspectorMode === "pinned" ? "●" : "○"}</button><button className="icon-button" onClick={() => dispatch({ type: "toggle-panel" })}>×</button></span></div>{state.activeInspectorViewId === "journal" ? <JournalPanel entries={state.journalEntries} /> : state.fixture === "retail" && state.activeInspectorViewId === "domain" ? <FormPanel state={state} dispatch={dispatch} /> : state.fixture === "engineering" && state.activeInspectorViewId === "domain" ? <DiagramPanel state={state} dispatch={dispatch} /> : state.activeInspectorViewId === "explorer" ? <EmptyState title="Branch inspector" message="Select a branch to inspect details." /> : <EmptyState title="Macro slots" message="Projected slots will appear here." />}</aside>;
 }
 
 export function CommandPaletteModal({ state, commands, dispatch }: { state: PrototypeWorkspaceState; commands: readonly PrototypeCommand[]; dispatch: Send }) {

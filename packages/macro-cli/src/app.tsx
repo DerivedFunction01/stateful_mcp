@@ -1,5 +1,5 @@
-import { useApp, useInput } from "ink";
 import { useEffect, useSyncExternalStore } from "react";
+import type { CliRenderer } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import { dispatchTerminalInput } from "./terminal-dispatcher";
 import { WindowContainer } from "./components/WindowContainer";
@@ -7,13 +7,14 @@ import { WindowContainer } from "./components/WindowContainer";
 export function MacroCliApp({
 	workspace,
 	keymap,
+	renderer,
 	onExit,
 }: {
 	workspace: MacroWorkspace;
 	keymap: EditorKeymapProfile;
+	renderer: CliRenderer;
 	onExit?: () => void;
 }) {
-	const { exit } = useApp();
 	const subscribe = (listener: () => void) => {
 		const unsubscribers = [
 			workspace.editor.subscribe(listener),
@@ -50,37 +51,25 @@ export function MacroCliApp({
 		},
 		[workspace],
 	);
-	useInput((input, key) => {
-		void dispatchTerminalInput(workspace, keymap, {
-			input,
-			name: key.return
-				? "return"
-				: key.escape
-					? "escape"
-					: key.upArrow
-						? "up"
-						: key.downArrow
-							? "down"
-							: key.leftArrow
-								? "left"
-								: key.rightArrow
-									? "right"
-									: key.backspace
-										? "backspace"
-										: key.delete
-											? "delete"
-												: key.tab
-													? "tab"
-														: undefined,
-			ctrl: key.ctrl,
-			meta: key.meta,
-			shift: key.shift,
-		}).then((result) => {
-			if (result === "quit") {
-				onExit?.();
-				exit();
-			}
-		});
-	});
-	return <WindowContainer workspace={workspace} />;
+	useEffect(() => {
+		const handleKeypress = (key: { name: string; sequence: string; ctrl: boolean; meta: boolean; shift: boolean }) => {
+			void dispatchTerminalInput(workspace, keymap, {
+				input: key.sequence,
+				name: key.name,
+				ctrl: key.ctrl,
+				meta: key.meta,
+				shift: key.shift,
+			}).then((result) => {
+				if (result === "quit") {
+					onExit?.();
+					renderer.destroy();
+				}
+			});
+		};
+		renderer.keyInput.on("keypress", handleKeypress);
+		return () => {
+			renderer.keyInput.off("keypress", handleKeypress);
+		};
+	}, [keymap, onExit, renderer, workspace]);
+	return <WindowContainer workspace={workspace} renderer={renderer} />;
 }

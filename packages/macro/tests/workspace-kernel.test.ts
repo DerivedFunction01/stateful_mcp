@@ -82,6 +82,23 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(restored?.activeTabId).toBe("settings");
 			expect(restored?.sidepanelWidthRatio).toBe(0.45);
 		});
+
+		test("keeps activity and inspector regions independent with pinning", () => {
+			const manager = new WindowLayoutStateManager();
+			manager.setActiveActivityContainer("explorer");
+			manager.setActiveInspectorContainer("slots");
+			manager.setRegionDock("activity", "end");
+			manager.setInspectorMode("pinned");
+			manager.setPinnedInspectorView("slots.detail");
+
+			const snapshot = manager.getSnapshot();
+			expect(snapshot.activeActivityContainerId).toBe("explorer");
+			expect(snapshot.activeInspectorContainerId).toBe("slots");
+			expect(snapshot.regions.activity.dock).toBe("end");
+			expect(snapshot.regions.inspector.dock).toBe("end");
+			expect(snapshot.inspectorMode).toBe("pinned");
+			expect(snapshot.pinnedInspectorViewId).toBe("slots.detail");
+		});
 	});
 
 	describe("CursorBuffer & Vim Motions", () => {
@@ -165,7 +182,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 		});
 	});
 
-	describe("Contribution Registries & Command Palette", () => {
+		describe("Contribution Registries & Command Palette", () => {
 		test("ViewRegistry and TabRegistry dynamic contributions", () => {
 			const viewReg = new ViewRegistry();
 			viewReg.registerContainer(
@@ -191,6 +208,11 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 				"Custom Panel",
 			);
 			expect(viewReg.getViewsForContainer("customContainer")).toHaveLength(1);
+			expect(viewReg.getContainersForRegion("activity").some((container) => container.id === "customContainer")).toBe(true);
+			viewReg.registerContainer({ id: "inspectorContainer", title: "Inspector", icon: "◈", region: "inspector" });
+			viewReg.registerView({ id: "diagnostics", name: "Diagnostics", containerId: "inspectorContainer", region: "inspector", when: { key: "hasDiagnostics", equals: true }, priority: 10 }, { render: () => "Diagnostics" });
+			expect(viewReg.getViewsForRegion("inspector", { activeTabId: "scratchpad", focusedPane: "main", hasDiagnostics: true })).toHaveLength(1);
+			expect(viewReg.getViewsForRegion("inspector", { activeTabId: "scratchpad", focusedPane: "main", hasDiagnostics: false })).toHaveLength(0);
 
 			const tabReg = new TabRegistry();
 			tabReg.registerTab(
@@ -495,8 +517,14 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(pinnedSession.getPinnedMacro()).toBe("evaluacion");
 
 			pinnedProjected = await pinnedSession.parseAllLines();
-			expect(pinnedProjected[0]?.isValid).toBe(true);
-			expect(pinnedProjected[0]?.macroName).toBe("evaluacion");
+			expect(pinnedProjected[0]?.isValid).toBe(false);
+		pinnedBuffer.setCursor(0, pinnedBuffer.getLine(0).length);
+		const inserted = pinnedSession.createPinnedMacroLine();
+			expect(inserted?.insertedText).toBe("^evaluacion ");
+			expect(pinnedBuffer.getLine(1)).toBe("^evaluacion ");
+			expect(pinnedBuffer.getCursor()).toEqual({ line: 1, col: "^evaluacion ".length });
+		pinnedProjected = await pinnedSession.parseAllLines();
+		expect(pinnedProjected[1]?.macroName).toBe("evaluacion");
 		});
 	});
 

@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 
 export function StatusBar({ workspace }: { workspace: MacroWorkspace }) {
@@ -7,17 +7,17 @@ export function StatusBar({ workspace }: { workspace: MacroWorkspace }) {
 	const valid = workspace.scratchpad.getValidLineCount();
 	const total = workspace.scratchpad.getTotalLineCount();
 	return (
-		<Box borderStyle="single" borderTop paddingLeft={1} paddingRight={1}>
-			<Text bold color={mode === "NORMAL" ? "green" : "yellow"}>
+		<box borderStyle="single" paddingLeft={1} paddingRight={1}>
+			<text attributes={TextAttributes.BOLD} fg={mode === "NORMAL" ? "green" : "yellow"}>
 				{mode}
-			</Text>
-			<Text> Ln {cursor.line + 1}, Col {cursor.col + 1} </Text>
-			<Text> | {valid}/{total} valid </Text>
+			</text>
+			<text> Ln {cursor.line + 1}, Col {cursor.col + 1} </text>
+			<text> | {valid}/{total} valid </text>
 			{workspace.scratchpad.getPinnedMacro() && (
-				<Text color="cyan"> | Pinned: {workspace.scratchpad.getPinnedMacro()}</Text>
+				<text fg="cyan"> | Pinned: {workspace.scratchpad.getPinnedMacro()}</text>
 			)}
-			<Box flexGrow={1} />
-			<Text dimColor>{workspace.i18n.getActiveLocale()}</Text>
-		</Box>
+			<box flexGrow={1} />
+			<text attributes={TextAttributes.DIM}>{workspace.i18n.getActiveLocale()}</text>
+		</box>
 	);
 }

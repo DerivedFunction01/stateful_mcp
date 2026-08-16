@@ -1,4 +1,3 @@
-import { Box, Text } from "ink";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 import type { MacroCliTabProvider } from "../renderer";
 
@@ -28,8 +27,8 @@ export function TabHost({
 		});
 	}
 	return (
-		<Box padding={1}>
-			<Text>{tab?.label ?? "Tab"} is not implemented yet.</Text>
-		</Box>
+		<box padding={1}>
+			<text>{tab?.label ?? "Tab"} is not implemented yet.</text>
+		</box>
 	);
 }

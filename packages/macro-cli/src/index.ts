@@ -1,5 +1,7 @@
-import { render } from "ink";
-import React from "react";
+import "@opentui/react/runtime-plugin-support";
+import { createCliRenderer, CliRenderEvents } from "@opentui/core";
+import { createElement } from "@opentui/react";
+import { createRoot } from "@opentui/react";
 import { MacroCliApp } from "./app";
 import { loadMacroCliWorkspace, type LoadMacroCliOptions } from "./workspace-loader";
 
@@ -15,11 +17,25 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 	}
 	const options = parseArgs(args);
 	const loaded = await loadMacroCliWorkspace(options);
-	const app = render(React.createElement(MacroCliApp, {
-		workspace: loaded.workspace,
-		keymap: loaded.keymap,
-	}));
-	await app.waitUntilExit();
+	const renderer = await createCliRenderer({
+		exitOnCtrlC: false,
+		useMouse: true,
+		autoFocus: true,
+		useKittyKeyboard: {},
+		onDestroy: () => {
+			void loaded.workspace.dispose();
+		},
+	});
+	createRoot(renderer).render(
+		createElement(MacroCliApp, { workspace: loaded.workspace, keymap: loaded.keymap, renderer }),
+	);
+	await new Promise<void>((resolve) => {
+		if (!renderer.isRunning) {
+			resolve();
+			return;
+		}
+		renderer.once(CliRenderEvents.DESTROY, resolve);
+	});
 }
 
 export function parseArgs(args: readonly string[]): LoadMacroCliOptions {

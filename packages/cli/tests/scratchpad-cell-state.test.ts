@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createDifferentialScratchpadAdapter } from "../src/lib/scratchpad/differential-scratchpad-adapter";
+import { createClinicalPinnedLineSeed, toClinicalDifferentialProjection } from "../src/lib/workspace/assessment-workspace-view";
 import {
 	clearScratchpadCellTexts,
 	duplicateScratchpadCell,
@@ -43,6 +44,30 @@ describe("scratchpad cell state", () => {
 		);
 		expect(parsed[0]?.macroId).toBe("v2-differential-rule-out-1");
 		expect(parsed[0]?.status).toBe("ruled_out");
+	});
+
+	test("creates an explicit clinical pinned-line seed without changing authored text", async () => {
+		const session = await bootstrapSession({
+			sessionId: `scratchpad-seed-${Date.now()}`,
+		});
+		const seed = createClinicalPinnedLineSeed({
+			macroId: "v2-differential-rule-out-1",
+			macroName: "differential_ruleout",
+			macroStartToken: "^",
+		}, session.syntaxProfile);
+		expect(seed).toBe("rule_out ");
+	});
+
+	test("adapts differential lines into an extension-owned projection", async () => {
+		const session = await bootstrapSession({ sessionId: `scratchpad-projection-${Date.now()}` });
+		const adapter = createDifferentialScratchpadAdapter();
+		const parsed = adapter.parse([
+			{ cellId: "assessment", text: "rule_out pulmonary embolism", pinnedMacroIds: [], explicitPins: false },
+		], session.syntaxProfile);
+		const projection = toClinicalDifferentialProjection(adapter.deduplicate(parsed)[0]!);
+		expect(projection.ownerExtensionId).toBe("@stateful-mcp/clinical");
+		expect(projection.kind).toBe("clinical.differential");
+		expect((projection.data as { status: string }).status).toBe("ruled_out");
 	});
 
 	test("duplicates pins but never text", () => {

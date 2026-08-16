@@ -17,6 +17,21 @@ export interface ScratchpadExecutionReceipt {
 	readonly executedAt: number;
 }
 
+export interface PinnedMacroLineContext {
+	readonly macroId: string;
+	readonly macroName: string;
+	readonly macroStartToken: string;
+}
+
+export interface PinnedMacroLineResult {
+	readonly insertedText: string;
+	readonly macroId: string;
+}
+
+export interface ScratchpadSessionOptions {
+	readonly createPinnedLineSeed?: (context: PinnedMacroLineContext) => string;
+}
+
 export class ScratchpadSession {
 	private projectedLines: ProjectedMacroLine[] = [];
 	private pinnedMacroId: string | null = null;
@@ -27,6 +42,7 @@ export class ScratchpadSession {
 		public readonly runtime: ExtensionRuntime,
 		public readonly buffer: CursorBuffer,
 		private readonly debounceMs = 50,
+		private readonly options: ScratchpadSessionOptions = {},
 	) {
 		this.projectedLines = this.buffer
 			.getLines()
@@ -49,6 +65,28 @@ export class ScratchpadSession {
 			this.pinnedMacroId = macroId;
 			this.parseAllLinesSync();
 		}
+	}
+
+	createPinnedMacroLine(): PinnedMacroLineResult | null {
+		if (!this.pinnedMacroId) return null;
+		const matching = this.runtime.adapters.list().find(
+			(adapter) =>
+				adapter.adapter.definition.id === this.pinnedMacroId ||
+				adapter.adapter.definition.name === this.pinnedMacroId,
+		);
+		if (!matching) return null;
+		const macroId = matching.adapter.definition.id;
+		const macroName = matching.adapter.definition.name;
+		const context: PinnedMacroLineContext = {
+			macroId,
+			macroName,
+			macroStartToken: this.runtime.context.syntax.macroStartToken,
+		};
+		const insertedText = this.options.createPinnedLineSeed?.(context) ??
+			`${context.macroStartToken}${context.macroName} `;
+		this.buffer.splitLine();
+		this.buffer.insertText(insertedText);
+		return { insertedText, macroId };
 	}
 
 	getProjectedLines(): readonly ProjectedMacroLine[] {
@@ -83,15 +121,6 @@ export class ScratchpadSession {
 				let matching = registeredAdapters.find((a) =>
 					matchesMacroVerb(trimmed, a.adapter.definition.name, prefix),
 				);
-
-				// 2. Implicit / Pinned macro match (e.g. SOB 4hr 4/10)
-				if (!matching && this.pinnedMacroId) {
-					matching = registeredAdapters.find(
-						(a) =>
-							a.adapter.definition.id === this.pinnedMacroId ||
-							a.adapter.definition.name === this.pinnedMacroId,
-					);
-				}
 
 				if (!matching) {
 					return createEmptyProjectedLine(index + 1, lineText);
