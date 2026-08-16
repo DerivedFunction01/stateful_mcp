@@ -16,6 +16,7 @@ export interface ScratchpadExecutionReceipt {
 
 export class ScratchpadSession {
 	private projectedLines: ProjectedMacroLine[] = [];
+	private pinnedMacroId: string | null = null;
 	private parseDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners = new Set<() => void>();
 
@@ -34,6 +35,17 @@ export class ScratchpadSession {
 
 		// Initial parse
 		this.parseAllLinesSync();
+	}
+
+	getPinnedMacro(): string | null {
+		return this.pinnedMacroId;
+	}
+
+	setPinnedMacro(macroId: string | null): void {
+		if (this.pinnedMacroId !== macroId) {
+			this.pinnedMacroId = macroId;
+			this.parseAllLinesSync();
+		}
 	}
 
 	getProjectedLines(): readonly ProjectedMacroLine[] {
@@ -55,6 +67,7 @@ export class ScratchpadSession {
 	async parseAllLines(): Promise<readonly ProjectedMacroLine[]> {
 		const lines = this.buffer.getLines();
 		const registeredAdapters = this.runtime.adapters.list();
+		const prefix = this.runtime.context.syntax.macroStartToken;
 
 		const results = await Promise.all(
 			lines.map(async (lineText, index) => {
@@ -63,12 +76,24 @@ export class ScratchpadSession {
 					return createEmptyProjectedLine(index + 1, lineText);
 				}
 
-				// Find matching adapter for this line
-				const matching = registeredAdapters.find(
+				// 1. Explicit macro name match (e.g. ^vitals ...)
+				let matching = registeredAdapters.find(
 					(a) =>
 						trimmed.startsWith(a.adapter.definition.name) ||
+						(prefix
+							? trimmed.startsWith(`${prefix}${a.adapter.definition.name}`)
+							: false) ||
 						trimmed.includes(a.adapter.definition.name),
 				);
+
+				// 2. Implicit / Pinned macro match (e.g. SOB 4hr 4/10)
+				if (!matching && this.pinnedMacroId) {
+					matching = registeredAdapters.find(
+						(a) =>
+							a.adapter.definition.id === this.pinnedMacroId ||
+							a.adapter.definition.name === this.pinnedMacroId,
+					);
+				}
 
 				if (!matching) {
 					return createEmptyProjectedLine(index + 1, lineText);
@@ -76,7 +101,16 @@ export class ScratchpadSession {
 
 				try {
 					const adapterId = matching.adapter.definition.id;
-					const draft = await this.runtime.parseAdapter(adapterId, lineText);
+					const macroName = matching.adapter.definition.name;
+					const parseText =
+						trimmed.startsWith(macroName) ||
+						(prefix ? trimmed.startsWith(`${prefix}${macroName}`) : false)
+							? lineText
+							: prefix
+								? `${prefix}${macroName} ${lineText}`
+								: `${macroName} ${lineText}`;
+
+					const draft = await this.runtime.parseAdapter(adapterId, parseText);
 					if (!draft || !draft.input) {
 						return createEmptyProjectedLine(index + 1, lineText);
 					}
@@ -99,7 +133,7 @@ export class ScratchpadSession {
 
 		this.projectedLines = results;
 		this.notify();
-		return this.projectedLines;
+		return results;
 	}
 
 	private parseAllLinesSync(): void {
@@ -111,7 +145,6 @@ export class ScratchpadSession {
 			clearTimeout(this.parseDebounceTimer);
 		}
 		this.parseDebounceTimer = setTimeout(() => {
-			this.parseDebounceTimer = null;
 			void this.parseAllLines();
 		}, this.debounceMs);
 	}
@@ -120,15 +153,22 @@ export class ScratchpadSession {
 		lineIndex: number,
 	): Promise<ScratchpadExecutionReceipt | null> {
 		const line = this.projectedLines[lineIndex];
-		if (!line || !line.isValid || !line.macroName || !line.adapterId) {
+		if (!line || !line.isValid || !line.adapterId || !line.macroName) {
 			return null;
 		}
 
 		try {
-			const draft = await this.runtime.parseAdapter(
-				line.adapterId,
-				line.rawText,
-			);
+			const prefix = this.runtime.context.syntax.macroStartToken;
+			const trimmed = line.rawText.trim();
+			const parseText =
+				trimmed.startsWith(line.macroName) ||
+				(prefix ? trimmed.startsWith(`${prefix}${line.macroName}`) : false)
+					? line.rawText
+					: prefix
+						? `${prefix}${line.macroName} ${line.rawText}`
+						: `${line.macroName} ${line.rawText}`;
+
+			const draft = await this.runtime.parseAdapter(line.adapterId, parseText);
 			const result = await this.runtime.executeAdapter(line.adapterId, draft);
 			return {
 				lineNumber: line.lineNumber,
@@ -137,14 +177,17 @@ export class ScratchpadSession {
 				result,
 				executedAt: Date.now(),
 			};
-		} catch {
+		} catch (error) {
+			console.error(
+				`Execution failed for scratchpad line ${line.lineNumber}:`,
+				error,
+			);
 			return null;
 		}
 	}
 
 	async executeAllValidLines(): Promise<readonly ScratchpadExecutionReceipt[]> {
 		const receipts: ScratchpadExecutionReceipt[] = [];
-
 		for (let i = 0; i < this.projectedLines.length; i++) {
 			const line = this.projectedLines[i];
 			if (line?.isValid) {
@@ -154,7 +197,6 @@ export class ScratchpadSession {
 				}
 			}
 		}
-
 		return receipts;
 	}
 

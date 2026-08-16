@@ -471,6 +471,23 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			const allReceipts = await session.executeAllValidLines();
 			expect(allReceipts).toHaveLength(2);
 			expect((allReceipts[1]?.result as any)!.dx).toBe("bronquitis");
+
+			// Pinned Macro Mode test
+			const pinnedBuffer = new CursorBuffer("#asma con #sibilancias");
+			const pinnedSession = new ScratchpadSession(runtime, pinnedBuffer, 10);
+			expect(pinnedSession.getPinnedMacro()).toBeNull();
+
+			// Initially invalid without prefix
+			let pinnedProjected = await pinnedSession.parseAllLines();
+			expect(pinnedProjected[0]?.isValid).toBe(false);
+
+			// Pin to evaluacion macro
+			pinnedSession.setPinnedMacro("evaluacion");
+			expect(pinnedSession.getPinnedMacro()).toBe("evaluacion");
+
+			pinnedProjected = await pinnedSession.parseAllLines();
+			expect(pinnedProjected[0]?.isValid).toBe(true);
+			expect(pinnedProjected[0]?.macroName).toBe("evaluacion");
 		});
 	});
 
