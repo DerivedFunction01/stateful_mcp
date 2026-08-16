@@ -1,13 +1,16 @@
 import type { ExtensionContext } from "../context/extension-context";
+import type { MacroDefinitionAdapter } from "../contracts/composition";
 
 export interface MacroExtensionManifest {
 	id: string;
 	version: string;
 	requires?: readonly string[];
+	configDefaults?: Readonly<Record<string, unknown>>;
 }
 
 export interface ExtensionActivation {
 	exports?: Record<string, unknown>;
+	adapters?: readonly MacroDefinitionAdapter[];
 	dispose?(): Promise<void> | void;
 }
 
@@ -27,14 +30,19 @@ export interface DefineExtensionOptions extends MacroExtensionManifest {
 export function defineExtension(
 	options: DefineExtensionOptions,
 ): MacroExtension {
-	const { id, version, requires, activate } = options;
+	const { id, version, requires, configDefaults, activate } = options;
 	if (!id || !version || typeof activate !== "function") {
 		throw new Error(
 			"An extension requires an id, version, and activate function",
 		);
 	}
 	return {
-		manifest: { id, version, ...(requires ? { requires: [...requires] } : {}) },
+		manifest: {
+			id,
+			version,
+			...(requires ? { requires: [...requires] } : {}),
+			...(configDefaults ? { configDefaults } : {}),
+		},
 		activate,
 	};
 }

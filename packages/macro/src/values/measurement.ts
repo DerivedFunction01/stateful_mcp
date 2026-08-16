@@ -4,6 +4,7 @@ import type { QuantityGrammarResult } from "./quantity";
 export interface MeasurementValueOptions {
 	rawText?: string;
 	evidence?: QuantityValue["evidence"];
+	dimension?: QuantityValue["dimension"];
 	normalized?: { magnitude: number; unit: string };
 }
 
@@ -16,6 +17,7 @@ export function createMeasurementValue(
 		kind: "quantity",
 		magnitude,
 		unit,
+		dimension: options.dimension,
 		rawText: options.rawText,
 		evidence: options.evidence,
 		normalized: options.normalized,

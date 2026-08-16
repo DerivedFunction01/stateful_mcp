@@ -7,6 +7,8 @@ import type {
 } from "../resources/contracts";
 import type { ResourceScope } from "../resources/resource-scope";
 import type { ExtensionDependencyResolver } from "./dependency-resolver";
+import type { ExtensionConfig } from "../extensions/config";
+import type { ExtensionSeedServices } from "../extensions/seed";
 
 export interface MatcherFactory {
 	expression(
@@ -52,6 +54,7 @@ export interface ExtensionContext {
 		version: string;
 		rootDirectory: string;
 	};
+	config: ExtensionConfig;
 	dictionaries: DictionaryResourceFactory;
 	matchers: MatcherFactory;
 	macros: MacroRegistryWriter;
@@ -59,6 +62,7 @@ export interface ExtensionContext {
 	dependencies: ExtensionDependencyResolver;
 	storage: ExtensionStorageServices;
 	logger: ExtensionLogger;
+	seed: ExtensionSeedServices;
 }
 
 export interface ContextInternals {

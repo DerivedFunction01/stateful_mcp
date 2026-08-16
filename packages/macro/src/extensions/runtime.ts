@@ -8,6 +8,7 @@ import type {
 	MatcherFactory,
 } from "../context/extension-context";
 import type { ExpressionBackend } from "../contracts/backends";
+import type { MacroAdapterDraft, MacroDefinitionAdapter } from "../contracts/composition";
 import {
 	createMacroRuntimeContext,
 	type MacroRuntimeContext,
@@ -20,6 +21,10 @@ import {
 } from "../parser/macro-parser";
 import { createDictionaryResourceFactory } from "../resources/dictionary-resource";
 import { ResourceScope } from "../resources/resource-scope";
+import {
+	resolveExtensionConfig,
+	type ExtensionConfig,
+} from "./config";
 import type {
 	ActiveExtension,
 	LoadedExtension,
@@ -31,12 +36,26 @@ import {
 	extensionDiagnostic,
 } from "./errors";
 import { ExtensionLoader } from "./loader";
-import { ExtensionRegistry, MacroRegistryStore } from "./registry";
+import { createExtensionSeedServices } from "./seed";
+import {
+	AdapterRegistry,
+	ExtensionRegistry,
+	MacroRegistryStore,
+} from "./registry";
+import {
+	executeMacroWithAdapter,
+	parseMacroWithAdapter,
+	type MacroAdapterExecutionOptions,
+	type MacroRuntimeOptions,
+} from "../runtime/macro-runtime";
 
 export interface ExtensionRuntimeOptions {
 	rootDirectory?: string;
 	logger?: ExtensionLogger;
 	context?: MacroRuntimeContext;
+	settings?: Readonly<
+		Record<string, Readonly<Record<string, unknown>>>
+	>;
 }
 
 export interface ActivationResult {
@@ -47,11 +66,15 @@ export interface ActivationResult {
 export class ExtensionRuntime {
 	readonly extensions = new ExtensionRegistry();
 	readonly macros = new MacroRegistryStore();
+	readonly adapters = new AdapterRegistry();
 	readonly context: MacroRuntimeContext;
 	private readonly contexts = new Map<string, ExtensionContext>();
 	private readonly listeners = new Map<string, ParseListener[]>();
 	readonly options: Required<Pick<ExtensionRuntimeOptions, "rootDirectory">> & {
 		logger: ExtensionLogger;
+		settings: Readonly<
+			Record<string, Readonly<Record<string, unknown>>>
+		>;
 	};
 	private loaded: LoadedExtension[] = [];
 
@@ -59,6 +82,7 @@ export class ExtensionRuntime {
 		this.options = {
 			rootDirectory: options.rootDirectory ?? process.cwd(),
 			logger: options.logger ?? consoleLogger,
+			settings: options.settings ?? {},
 		};
 		this.context = options.context ?? createMacroRuntimeContext();
 	}
@@ -116,14 +140,12 @@ export class ExtensionRuntime {
 		const { extension, sourceFile } = item;
 		const manifest = extension.manifest;
 		const scope = new ResourceScope(manifest.id);
-		const registeredMacros: string[] = [];
 		const localListeners: ParseListener[] = [];
 		const backendRecord = (): Readonly<Record<string, ExpressionBackend>> =>
 			scope.listBackends();
 		const macroWriter: MacroRegistryWriter = {
 			register: (spec: MacroSpec) => {
 				this.macros.register(spec, manifest.id, backendRecord());
-				registeredMacros.push(spec.name);
 			},
 			define: (spec: MacroSpec) => macroWriter.register(spec),
 		};
@@ -161,9 +183,22 @@ export class ExtensionRuntime {
 			matcherFactory,
 			this.extensions,
 			this.options,
+			resolveExtensionConfig(
+				manifest.configDefaults,
+				this.options.settings[manifest.id],
+			),
 		);
 		try {
 			const activation = await extension.activate(context);
+			for (const adapter of activation?.adapters ?? []) {
+				registerAdapter(
+					this.macros,
+					this.adapters,
+					adapter,
+					manifest.id,
+					backendRecord(),
+				);
+			}
 			const active: ActiveExtension = {
 				manifest,
 				sourceFile,
@@ -172,6 +207,7 @@ export class ExtensionRuntime {
 					try {
 						await activation?.dispose?.();
 					} finally {
+						this.adapters.unregisterOwner(manifest.id);
 						this.macros.unregisterOwner(manifest.id);
 						this.listeners.delete(manifest.id);
 						this.contexts.delete(manifest.id);
@@ -219,6 +255,33 @@ export class ExtensionRuntime {
 		return [...this.listeners.values()].flat();
 	}
 
+	async parseAdapter(
+		adapterId: string,
+		text: string,
+		options: Omit<MacroRuntimeOptions, "context"> = {},
+	): Promise<MacroAdapterDraft> {
+		const registered = this.adapters.get(adapterId);
+		if (!registered) throw new Error(`Adapter '${adapterId}' is unavailable`);
+		return parseMacroWithAdapter(registered.adapter, text, {
+			...options,
+			context: this.context,
+			backends: this.macros.backendsRecord(),
+		});
+	}
+
+	async executeAdapter(
+		adapterId: string,
+		draft: MacroAdapterDraft,
+		options: MacroAdapterExecutionOptions = {},
+	): Promise<unknown> {
+		const registered = this.adapters.get(adapterId);
+		if (!registered) throw new Error(`Adapter '${adapterId}' is unavailable`);
+		return executeMacroWithAdapter(registered.adapter, draft, {
+			...options,
+			context: this.context,
+		});
+	}
+
 	parse(
 		raw: string,
 		macroName?: string,
@@ -254,6 +317,7 @@ function createContext(
 	matchers: MatcherFactory,
 	registry: ExtensionRegistry,
 	options: ExtensionRuntime["options"],
+	config: ExtensionConfig,
 ): ExtensionContext {
 	const rootDirectory = options.rootDirectory;
 	const extensionRoot = dirname(resolve(sourceFile));
@@ -263,6 +327,7 @@ function createContext(
 			version: manifest.version,
 			rootDirectory: extensionRoot,
 		},
+		config,
 		dictionaries: {
 			open: async (resourceOptions = {}) =>
 				scope.trackResource(
@@ -296,7 +361,39 @@ function createContext(
 			resolvePath: (path) => resolvePath(rootDirectory, sourceFile, path),
 		},
 		logger: options.logger,
+		seed: createExtensionSeedServices(extensionRoot),
 	};
+}
+
+function registerAdapter(
+	macros: MacroRegistryStore,
+	adapters: AdapterRegistry,
+	adapter: MacroDefinitionAdapter,
+	ownerExtensionId: string,
+	backends: Readonly<Record<string, ExpressionBackend>>,
+): void {
+	for (const argument of adapter.definition.arguments) {
+		if (!adapter.children[argument.argumentId]) {
+			throw new Error(
+				`Adapter '${adapter.definition.id}' is missing child handler '${argument.argumentId}'`,
+			);
+		}
+	}
+	const registered = macros.getRegistered(adapter.definition.name);
+	if (registered) {
+		if (
+			registered.ownerExtensionId !== ownerExtensionId ||
+			registered.id !== adapter.definition.id ||
+			(registered.version ?? 1) !== (adapter.definition.version ?? 1)
+		) {
+			throw new Error(
+				`Adapter '${adapter.definition.id}' does not own the registered macro '${adapter.definition.name}'`,
+			);
+		}
+	} else {
+		macros.register(adapter.definition, ownerExtensionId, backends);
+	}
+	adapters.register(adapter, ownerExtensionId);
 }
 
 function resolvePath(

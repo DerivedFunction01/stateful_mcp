@@ -73,6 +73,7 @@ export interface QuantityValue {
 	kind: "quantity";
 	magnitude: number;
 	unit: string;
+	dimension?: string;
 	operator?: string;
 	range?: { lower: number; upper: number; unit: string };
 	normalized?: { magnitude: number; unit: string };

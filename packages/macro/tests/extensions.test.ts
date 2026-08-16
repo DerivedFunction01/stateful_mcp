@@ -9,6 +9,7 @@ import {
 	type LoadedExtension,
 	type MacroExtension,
 } from "../src/index";
+import { noteAdapter } from "./support/composed-macro-fixtures";
 
 function loaded(
 	extension: MacroExtension,
@@ -196,5 +197,102 @@ describe("extension runtime", () => {
 		await runtime.dispose();
 		await defaultRuntime.dispose();
 	});
-});
 
+	test("resolves config, seeds resources, and owns returned adapters", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "macro-integration-"));
+		const seedPath = join(directory, "seed.json");
+		await writeFile(
+			seedPath,
+			JSON.stringify({
+				expressions: [
+					{ id: "book", term: "book", canonicalValue: "book" },
+				],
+			}),
+		);
+		let observedConfig: Readonly<Record<string, unknown>> | undefined;
+		try {
+			const extension = defineExtension({
+				id: "configured-notes",
+				version: "1",
+				configDefaults: {
+					values: { decimalPoint: ".", precision: 1 },
+					formats: ["default"],
+				},
+				activate: async (context) => {
+					observedConfig = context.config;
+					const seed = await context.seed.load("seed.json");
+					const dictionary = await context.dictionaries.memory();
+					await dictionary.seed(seed);
+					context.macros.register(noteAdapter.definition);
+					return {
+						adapters: [noteAdapter],
+						exports: { dictionary },
+					};
+				},
+			});
+			const runtime = new ExtensionRuntime({
+				settings: {
+					"configured-notes": {
+						values: { precision: 2 },
+						formats: ["custom"],
+					},
+				},
+			});
+			const result = await runtime.activate([
+				loaded(extension, join(directory, "extension.ts")),
+			]);
+
+			expect(result.diagnostics).toHaveLength(0);
+			expect(observedConfig).toMatchObject({
+				values: { decimalPoint: ".", precision: 2 },
+				formats: ["custom"],
+			});
+			expect(Object.isFrozen(observedConfig)).toBe(true);
+			expect(Object.isFrozen(observedConfig?.values)).toBe(true);
+			expect(runtime.adapters.get(noteAdapter.definition.id)).toBeDefined();
+
+		const draft = await runtime.parseAdapter(
+			noteAdapter.definition.id,
+			"^note title=Harry Potter page=42 year=2004",
+		);
+		await expect(
+			runtime.executeAdapter(noteAdapter.definition.id, draft),
+		).resolves.toEqual({
+			kind: "note",
+			values: ["Harry Potter", "42", "2004"],
+		});
+
+		await expect(
+			runtime.parseAdapter("missing-adapter", "^note"),
+		).rejects.toThrow("unavailable");
+		await runtime.dispose("configured-notes");
+		expect(runtime.adapters.get(noteAdapter.definition.id)).toBeUndefined();
+		expect(runtime.macros.get("note")).toBeUndefined();
+
+		await expect(
+			new ExtensionRuntime({
+				logger: { debug() {}, info() {}, warn() {}, error() {} },
+			}).activate([
+				loaded(
+					defineExtension({
+						id: "bad-seed",
+						version: "1",
+						activate: async (context) => {
+							await context.seed.load("../outside.json");
+							return {};
+						},
+					}),
+					join(directory, "nested", "extension.ts"),
+				),
+			]),
+		).resolves.toMatchObject({
+			active: [],
+			diagnostics: [
+				{ code: "EXTENSION_ACTIVATION_FAILED", extensionId: "bad-seed" },
+			],
+		});
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
+});

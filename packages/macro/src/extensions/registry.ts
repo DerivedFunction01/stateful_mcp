@@ -1,4 +1,5 @@
 import type { ExpressionBackend } from "../contracts/backends";
+import type { MacroDefinitionAdapter } from "../contracts/composition";
 import type { MacroRegistry, MacroSpec } from "../contracts/macro";
 import type { ActiveExtension, MacroExtensionManifest } from "./contracts";
 
@@ -43,6 +44,10 @@ export class MacroRegistryStore implements MacroRegistry {
 		return this.macros.get(name);
 	}
 
+	getRegistered(name: string): RegisteredMacro | undefined {
+		return this.macros.get(name);
+	}
+
 	list(): readonly MacroSpec[] {
 		return [...this.macros.values()].sort((left, right) =>
 			left.name.localeCompare(right.name),
@@ -55,6 +60,40 @@ export class MacroRegistryStore implements MacroRegistry {
 
 	backendsRecord(): Readonly<Record<string, ExpressionBackend>> {
 		return Object.fromEntries(this.backends);
+	}
+}
+
+export interface RegisteredAdapter {
+	adapter: MacroDefinitionAdapter;
+	ownerExtensionId: string;
+}
+
+export class AdapterRegistry {
+	private readonly adapters = new Map<string, RegisteredAdapter>();
+
+	register(adapter: MacroDefinitionAdapter, ownerExtensionId: string): void {
+		const id = adapter.definition.id;
+		if (!id) throw new Error("An adapter requires a definition ID");
+		if (this.adapters.has(id))
+			throw new Error(`Adapter '${id}' is already registered`);
+		this.adapters.set(id, { adapter, ownerExtensionId });
+	}
+
+	get(id: string): RegisteredAdapter | undefined {
+		return this.adapters.get(id);
+	}
+
+	list(): readonly RegisteredAdapter[] {
+		return [...this.adapters.values()].sort((left, right) =>
+			left.adapter.definition.id.localeCompare(right.adapter.definition.id),
+		);
+	}
+
+	unregisterOwner(ownerExtensionId: string): void {
+		for (const [id, registered] of this.adapters) {
+			if (registered.ownerExtensionId === ownerExtensionId)
+				this.adapters.delete(id);
+		}
 	}
 }
 
