@@ -1,9 +1,10 @@
 import type { ParseListener } from "../contracts/listeners";
+import type { MacroRunMode } from "../contracts/macro";
 import type { MacroDraftDiagnostic } from "../contracts/slots";
 import type { MacroExecutionAttempt } from "../history/contracts";
 
 export interface MacroListenerContext {
-	mode: "execute" | "replay";
+	mode: MacroRunMode;
 	sequence?: number;
 	history: readonly MacroExecutionAttempt[];
 }

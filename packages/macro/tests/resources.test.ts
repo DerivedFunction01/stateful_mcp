@@ -146,13 +146,12 @@ describe("core-backed dictionary resources", () => {
 		expect(() => resource.expressionBackend()).toThrow("closed");
 	});
 
-	test("connects the resource backend to the Phase 1 parser", async () => {
+	test("connects the resource backend to the parser", async () => {
 		const resource = await openMemoryDictionary({ ownerExtensionId: "books" });
 		await resource.seed(seed);
 		const spec: MacroSpec = {
 			id: "read",
 			name: "read",
-			syntax: { macroStartToken: "^" },
 			arguments: [
 				{
 					argumentId: "book",
@@ -165,6 +164,7 @@ describe("core-backed dictionary resources", () => {
 			matching: { positionalFallback: true },
 		};
 		const parsed = parseMacroLine("^read first book", spec, {
+			context: { syntax: { macroStartToken: "^" } },
 			backends: { [resource.id]: resource.expressionBackend() },
 		});
 		expect(parsed?.matches[0]).toMatchObject({

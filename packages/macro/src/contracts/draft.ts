@@ -1,5 +1,7 @@
 import type { ParseMacroLineResult } from "../parser/macro-parser";
 import type { ExpressionBackend } from "./backends";
+import type { MacroCandidateSnapshot } from "./composition";
+import type { MacroRuntimeContext } from "./context";
 import type { MacroSpec } from "./macro";
 import type { MacroParseResult } from "./payload";
 import type {
@@ -27,8 +29,10 @@ export interface MacroDraftSnapshot {
 
 export interface CreateMacroDraftSessionOptions {
 	spec: MacroSpec;
-	syntax: MacroSyntax;
+	context?: MacroRuntimeContext;
+	syntax?: MacroSyntax;
 	backends?: Readonly<Record<string, ExpressionBackend>>;
+	candidateSnapshots?: readonly MacroCandidateSnapshot[];
 	initialText?: string;
 	initialCursor?: number;
 	locks?: readonly AcceptedMacroLock[];
@@ -36,8 +40,10 @@ export interface CreateMacroDraftSessionOptions {
 
 export interface MacroDraftInputs {
 	spec: MacroSpec;
-	syntax: MacroSyntax;
+	context?: MacroRuntimeContext;
+	syntax?: MacroSyntax;
 	backends?: Readonly<Record<string, ExpressionBackend>>;
+	candidateSnapshots?: readonly MacroCandidateSnapshot[];
 }
 
 export interface MacroDraftSession {

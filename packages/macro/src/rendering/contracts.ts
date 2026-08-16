@@ -1,9 +1,10 @@
+import type { MacroRunMode } from "../contracts/macro";
 import type { MacroDraftDiagnostic } from "../contracts/slots";
 import type { MacroExecutionAttempt } from "../history/contracts";
 import type { MacroListenerOutput } from "../listeners/listener-registry";
 
 export interface MacroRenderContext {
-	mode: "live" | "execute" | "replay";
+	mode: MacroRunMode;
 	sequence?: number;
 	listenerOutputs: readonly MacroListenerOutput[];
 }

@@ -1,10 +1,12 @@
-import type { MacroCaptureSpan, MacroSpan } from "../contracts/input";
+import type { MacroCaptureSpan } from "../contracts/input";
 import type { MacroSpec } from "../contracts/macro";
-import type {
-	MacroArgumentForm,
-	MacroArgumentMatch,
-	MacroAuthoringTemplatePart,
+import {
+	type MacroArgumentForm,
+	type MacroArgumentMatch,
+	type MacroAuthoringTemplatePart,
+	spansOverlap,
 } from "../contracts/matching";
+import { escapeRegex, execAll } from "../values/regex";
 
 export interface TemplateValidationIssue {
 	code:
@@ -204,17 +206,6 @@ function cartesian<T>(values: readonly (readonly T[])[]): T[][] {
 	);
 }
 
-function execAll(expression: RegExp, text: string): RegExpExecArray[] {
-	const matches: RegExpExecArray[] = [];
-	let match = expression.exec(text);
-	while (match) {
-		matches.push(match);
-		if (match[0].length === 0) expression.lastIndex += 1;
-		match = expression.exec(text);
-	}
-	return matches;
-}
-
 function filteredCaptures(
 	match: RegExpExecArray,
 	excludedNames: readonly string[],
@@ -251,12 +242,4 @@ function isCompatible(
 		leftForm?.compatibility?.includes(right.formId ?? "") ||
 			rightForm?.compatibility?.includes(left.formId ?? ""),
 	);
-}
-
-function spansOverlap(left: MacroSpan, right: MacroSpan): boolean {
-	return left.start < right.end && right.start < left.end;
-}
-
-function escapeRegex(text: string): string {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

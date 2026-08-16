@@ -10,12 +10,16 @@ export interface ExpressionFixtureRecord {
 	canonicalValue: unknown;
 	priority?: number;
 	active?: boolean;
+	metadata?: Record<string, unknown>;
 }
 
 export function createExpressionBackendFixture(
 	records: readonly ExpressionFixtureRecord[],
+	options?: { version?: string; backendVersion?: string },
 ): ExpressionBackend {
 	return {
+		version: options?.version,
+		backendVersion: options?.backendVersion ?? options?.version,
 		search(request: ExpressionSearchRequest): readonly ExpressionCandidate[] {
 			const normalizedText = request.text.toLocaleLowerCase();
 			const candidates: ExpressionCandidate[] = [];
@@ -41,6 +45,7 @@ export function createExpressionBackendFixture(
 								matchKind: "exact",
 								priority: record.priority,
 								canonicalValue: record.canonicalValue,
+								metadata: record.metadata,
 							});
 						}
 						cursor = end;
@@ -63,6 +68,7 @@ export function createExpressionBackendFixture(
 							matchKind: "prefix",
 							priority: record.priority,
 							canonicalValue: record.canonicalValue,
+							metadata: record.metadata,
 						});
 					}
 				}

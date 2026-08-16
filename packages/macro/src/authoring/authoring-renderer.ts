@@ -5,6 +5,7 @@ import type {
 
 export interface MacroAuthoringValue {
 	argumentId: string;
+	previewKey?: string;
 	value?: string;
 	status?: "bound" | "unresolved" | "invalid" | "missing";
 }
@@ -19,11 +20,13 @@ export function renderMacroAuthoringTemplate(
 	template: MacroAuthoringTemplate,
 	values: readonly MacroAuthoringValue[],
 ): MacroAuthoringRender {
-	const byArgument = new Map(values.map((value) => [value.argumentId, value]));
+	const byKey = new Map(
+		values.map((value) => [value.previewKey ?? value.argumentId, value]),
+	);
 	const missing: string[] = [];
 	const invalid: string[] = [];
 	const renderSlot = (slot: MacroAuthoringSlot, fallbackName: string) => {
-		const value = byArgument.get(slot.argumentId);
+		const value = byKey.get(slot.previewKey ?? slot.argumentId);
 		if (value?.status === "invalid") {
 			if (!invalid.includes(slot.argumentId)) invalid.push(slot.argumentId);
 			return `<invalid: ${slot.displayText ?? fallbackName}>`;

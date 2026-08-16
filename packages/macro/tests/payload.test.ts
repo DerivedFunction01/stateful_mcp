@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createMacroRuntimeContext } from "../src/contracts/context";
 import type { MacroSpec } from "../src/contracts/macro";
 import { compileMacroPayload } from "../src/payload/payload-compiler";
 import { createExpressionBackendFixture } from "./support/expression-backend-fixture";
@@ -7,10 +8,11 @@ const backend = createExpressionBackendFixture([
 	{ id: "hp", term: "hp", canonicalValue: { id: "book-series" } },
 ]);
 
+const context = createMacroRuntimeContext({ macroStartToken: "^" });
+
 const spec: MacroSpec = {
 	id: "note",
 	name: "note",
-	syntax: { macroStartToken: "^" },
 	matching: { mode: "unordered", positionalFallback: true },
 	arguments: [
 		{
@@ -32,6 +34,7 @@ const spec: MacroSpec = {
 describe("neutral payload compiler", () => {
 	test("materializes nested paths from typed and backend values", () => {
 		const result = compileMacroPayload(spec, "^note year=2004 title=hp", {
+			context,
 			backends: { books: backend },
 			mode: "execute",
 		});
@@ -46,6 +49,7 @@ describe("neutral payload compiler", () => {
 			{ id: "hp", term: "harry potter", canonicalValue: "series" },
 		]);
 		const result = compileMacroPayload(spec, "^note harry pot", {
+			context,
 			backends: { books: prefixBackend },
 		});
 		expect(result.status).toBe("incomplete");
@@ -66,7 +70,7 @@ describe("neutral payload compiler", () => {
 		const result = compileMacroPayload(
 			conflictSpec,
 			"^note year=2004 title=hp",
-			{ backends: { books: backend }, mode: "execute" },
+			{ context, backends: { books: backend }, mode: "execute" },
 		);
 		expect(
 			result.diagnostics.some(

@@ -1,4 +1,5 @@
 import type { ExpressionCandidate } from "../contracts/backends";
+import { createMacroRuntimeContext } from "../contracts/context";
 import type {
 	MacroArgumentInput,
 	MacroDiagnostic,
@@ -12,11 +13,21 @@ import type {
 	MacroSpec,
 } from "../contracts/macro";
 import type { MacroArgumentMatch } from "../contracts/matching";
+import { spansOverlap } from "../contracts/matching";
 import type { MacroSyntax } from "../contracts/syntax";
 import {
 	matchFriendlyMacroForms,
 	resolveMacroArgumentMatches,
 } from "../matcher/friendly";
+import { escapeRegex, execAll } from "../values/regex";
+import {
+	scanNamedAssignments,
+	scanUntilWhitespace,
+	skipWhitespace,
+	splitByDelimiter,
+	splitListItems,
+	uniqueMatches,
+} from "./macro-scanner";
 
 export interface MacroEnvelope {
 	macroName: string;
@@ -31,8 +42,13 @@ export interface ParseMacroLineResult extends MacroInput {
 
 export function parseMacroEnvelope(
 	raw: string,
-	syntax: Pick<MacroSyntax, "macroStartToken"> | Partial<MacroSyntax>,
+	syntaxOrContext:
+		| Pick<MacroSyntax, "macroStartToken">
+		| Partial<MacroSyntax>
+		| { syntax: MacroSyntax },
 ): MacroEnvelope | null {
+	const syntax =
+		"syntax" in syntaxOrContext ? syntaxOrContext.syntax : syntaxOrContext;
 	const marker = syntax.macroStartToken;
 	if (!marker) return null;
 	const leading = raw.search(/\S/u);
@@ -54,22 +70,21 @@ export function parseMacroLine(
 	spec: MacroSpec,
 	options: MacroParseOptions = {},
 ): ParseMacroLineResult | null {
-	const syntax = resolveSyntax(spec, options);
+	const syntax = resolveEffectiveSyntax(options);
 	const envelope = parseMacroEnvelope(raw, syntax);
 	if (
 		!envelope ||
 		envelope.macroName.toLocaleLowerCase() !== spec.name.toLocaleLowerCase()
-	)
+	) {
 		return null;
+	}
 
 	const diagnostics: MacroDiagnostic[] = [];
-	const delimiter = resolveArgumentDelimiter(spec, options);
-	const scanSyntax = { ...syntax, argumentDelimiter: delimiter };
 	const named = scanNamedAssignments(
 		raw,
 		envelope.body.start,
 		diagnostics,
-		scanSyntax,
+		syntax,
 	);
 	const arguments_: MacroArgumentInput[] = [];
 	const allCandidates: MacroArgumentMatch[] = [];
@@ -98,7 +113,7 @@ export function parseMacroLine(
 			});
 			continue;
 		}
-		used.add(argument.argumentId);
+
 		const sourceValue = raw.slice(
 			segment.sourceSpan.start,
 			segment.sourceSpan.end,
@@ -127,7 +142,24 @@ export function parseMacroLine(
 		]);
 		allCandidates.push(...candidateMatches);
 		const matched = candidateMatches.sort(compareMatches)[0];
+
 		if (matched) {
+			used.add(argument.argumentId);
+			if (matched.extraction.end < segment.valueSpan.end) {
+				segment.end = matched.extraction.end;
+				segment.sourceSpan = {
+					start: segment.sourceSpan.start,
+					end: matched.extraction.end,
+				};
+				segment.valueSpan = {
+					start: segment.valueSpan.start,
+					end: matched.extraction.end,
+				};
+				segment.value = raw.slice(
+					segment.valueSpan.start,
+					matched.extraction.end,
+				);
+			}
 			matched.sourceSpan = segment.sourceSpan;
 			matched.valueSpan = segment.valueSpan;
 			selectedMatches.push(matched);
@@ -146,9 +178,12 @@ export function parseMacroLine(
 				match: matched,
 			});
 		} else {
-			// Consume only the first source value for an invalid named assignment.
+			// Consume only the first token for an invalid named assignment.
 			// This leaves later positional values eligible for inference.
-			const invalidEnd = scanUntilWhitespace(raw, segment.valueSpan.start);
+			let invalidEnd = scanUntilWhitespace(raw, segment.valueSpan.start);
+			if (invalidEnd === segment.valueSpan.start) {
+				invalidEnd = segment.valueSpan.end;
+			}
 			segment.end = invalidEnd;
 			segment.sourceSpan = { start: segment.sourceSpan.start, end: invalidEnd };
 			segment.valueSpan = { start: segment.valueSpan.start, end: invalidEnd };
@@ -166,7 +201,7 @@ export function parseMacroLine(
 		const argument = spec.arguments.find(
 			(item) => item.argumentId === match.argumentId,
 		);
-		if (argument) arguments_.push(matchInput(argument, match));
+		if (argument) arguments_.push(matchInput(argument, match, syntax));
 	}
 
 	const blocked = [
@@ -180,7 +215,7 @@ export function parseMacroLine(
 		raw,
 		envelope.body.start,
 		blocked,
-		delimiter,
+		syntax.argumentDelimiter,
 		syntax,
 	);
 	if (regions.length && (spec.matching?.positionalFallback ?? false)) {
@@ -188,13 +223,15 @@ export function parseMacroLine(
 			(argument) => !used.has(argument.argumentId),
 		);
 		const inferred = regions.flatMap((region) => {
-			if (isPendingTemplatePrefix(raw.slice(region.start, region.end), spec))
+			if (isPendingTemplatePrefix(raw.slice(region.start, region.end), spec)) {
 				return [];
+			}
 			return inferPositionalMatches(
 				raw,
 				region,
 				remaining,
-				{ ...options, profile: syntax },
+				options,
+				syntax,
 				diagnostics,
 			);
 		});
@@ -206,19 +243,20 @@ export function parseMacroLine(
 			const argument = spec.arguments.find(
 				(candidate) => candidate.argumentId === item.match.argumentId,
 			);
-			if (argument) arguments_.push(matchInput(argument, item.match));
+			if (argument) arguments_.push(matchInput(argument, item.match, syntax));
 		}
 	}
 
 	for (const argument of spec.arguments) {
 		if (used.has(argument.argumentId)) continue;
 		if (argument.defaultValue === undefined) {
-			if (argument.required)
+			if (argument.required) {
 				diagnostics.push({
 					code: "MISSING_REQUIRED",
 					argumentId: argument.argumentId,
 					message: `Required argument '${argument.name}' is missing`,
 				});
+			}
 			continue;
 		}
 		const defaultMatch = matchDefault(
@@ -231,7 +269,7 @@ export function parseMacroLine(
 		selectedMatches.push(defaultMatch);
 		allCandidates.push(defaultMatch);
 		used.add(argument.argumentId);
-		arguments_.push(matchInput(argument, defaultMatch));
+		arguments_.push(matchInput(argument, defaultMatch, syntax));
 	}
 
 	const matches = resolveMacroArgumentMatches(selectedMatches, spec);
@@ -266,30 +304,14 @@ interface PositionalInference {
 	candidates: MacroArgumentMatch[];
 }
 
-function resolveSyntax(
-	spec: MacroSpec,
-	options: MacroParseOptions,
-): Partial<MacroSyntax> {
-	return {
-		...spec.syntax,
-		...options.profile,
-		macroStartToken:
-			options.profile?.macroStartToken ?? spec.syntax?.macroStartToken,
-	};
-}
-
-function resolveArgumentDelimiter(
-	spec: MacroSpec,
-	options: MacroParseOptions,
-): string | undefined {
-	return (
-		spec.syntax?.argumentDelimiter ??
-		spec.syntax?.macroArgDelimiter ??
-		options.profile?.argumentDelimiter ??
-		options.profile?.macroArgDelimiter ??
-		options.profile?.fallbackBoundaryDelimiter ??
-		spec.syntax?.fallbackBoundaryDelimiter
-	);
+function resolveEffectiveSyntax(options: MacroParseOptions): MacroSyntax {
+	if (options.context) {
+		return options.context.syntax;
+	}
+	if (options.profile) {
+		return createMacroRuntimeContext(options.profile).syntax;
+	}
+	return createMacroRuntimeContext().syntax;
 }
 
 function inferPositionalMatches(
@@ -297,6 +319,7 @@ function inferPositionalMatches(
 	region: MacroSpan,
 	specs: readonly MacroArgumentSpec[],
 	options: MacroParseOptions,
+	syntax: MacroSyntax,
 	diagnostics: MacroDiagnostic[],
 ): PositionalInference[] {
 	const tokens: MacroSpan[] = [];
@@ -312,12 +335,7 @@ function inferPositionalMatches(
 				const endToken = startToken + relativeEndToken;
 				const sourceStart = token.start;
 				const sourceEnd = tokens[endToken]!.end;
-				const tokenPrefix = findLookupToken(
-					raw,
-					sourceStart,
-					argument,
-					options.profile,
-				);
+				const tokenPrefix = findLookupToken(raw, sourceStart, argument, syntax);
 				const lookupStart = tokenPrefix
 					? sourceStart + tokenPrefix.length
 					: sourceStart;
@@ -378,8 +396,9 @@ function inferPositionalMatches(
 				selected.some((item) =>
 					spansOverlap(item.extraction, candidate.extraction),
 				)
-			)
+			) {
 				continue;
+			}
 			visit(index + 1, [...selected, candidate]);
 		}
 	};
@@ -401,8 +420,9 @@ function isBetterAssignment(
 				specs.find((spec) => spec.argumentId === item.argumentId)?.required,
 		).length;
 	if (left.length !== right.length) return left.length > right.length;
-	if (required(left) !== required(right))
+	if (required(left) !== required(right)) {
 		return required(left) > required(right);
+	}
 	const positionCost = (items: readonly MacroArgumentMatch[]) =>
 		items.reduce((total, item) => {
 			const token = tokens.findIndex(
@@ -419,8 +439,9 @@ function isBetterAssignment(
 				)
 			);
 		}, 0);
-	if (positionCost(left) !== positionCost(right))
+	if (positionCost(left) !== positionCost(right)) {
 		return positionCost(left) < positionCost(right);
+	}
 	return (
 		left.reduce(
 			(total, item) => total + item.extraction.end - item.extraction.start,
@@ -437,15 +458,16 @@ function findLookupToken(
 	raw: string,
 	start: number,
 	argument: MacroArgumentSpec,
-	profile?: Partial<MacroSyntax>,
+	syntax?: Partial<MacroSyntax>,
 ): string | undefined {
 	if (
 		!asMatchers(argument.matcher).some(
 			(matcher) => matcher.kind === "expression",
 		)
-	)
+	) {
 		return undefined;
-	return [profile?.expressionToken, profile?.conceptToken].find((token) =>
+	}
+	return [syntax?.expressionToken, syntax?.conceptToken].find((token) =>
 		Boolean(token && raw.startsWith(token, start)),
 	);
 }
@@ -500,26 +522,94 @@ function findArgumentMatches(
 	return asMatchers(argument.matcher).flatMap((matcher) => {
 		if (matcher.kind === "expression") {
 			const backend = options.backends?.[matcher.backendId];
-			if (!backend) {
-				diagnostics.push({
-					code: "BACKEND_MISSING",
-					argumentId: argument.argumentId,
-					message: `Expression backend '${matcher.backendId}' is not available`,
-				});
-				return [];
+			const snapshot = options.candidateSnapshots?.find(
+				(candidateSet) =>
+					candidateSet.resolverId === matcher.backendId &&
+					candidateSet.argumentId === argument.argumentId,
+			);
+
+			if (snapshot) {
+				if (backend) {
+					const backendVersion = backend.backendVersion ?? backend.version;
+					if (backendVersion && snapshot.version !== backendVersion) {
+						diagnostics.push({
+							code: "STALE_SNAPSHOT",
+							argumentId: argument.argumentId,
+							message: `Candidate snapshot version '${snapshot.version}' is stale for resolver '${matcher.backendId}' (current: '${backendVersion}')`,
+						});
+						// Invalidate and fallback to live backend lookup
+						const candidates = backend.search({
+							backendId: matcher.backendId,
+							argumentId: argument.argumentId,
+							text: raw.slice(region.start, region.end),
+							offset: region.start,
+						});
+						return candidates
+							.filter(
+								(candidate) =>
+									candidate.start >= 0 &&
+									candidate.end <= region.end - region.start,
+							)
+							.map((candidate) =>
+								expressionMatch(
+									argument,
+									candidate,
+									region.start,
+									matcher.backendId,
+									backendVersion,
+								),
+							);
+					}
+				}
+				// Snapshot is primary and valid
+				return snapshot.candidates
+					.filter(
+						(candidate) =>
+							candidate.start >= 0 &&
+							candidate.end <= region.end - region.start,
+					)
+					.map((candidate) =>
+						expressionMatch(
+							argument,
+							candidate,
+							region.start,
+							matcher.backendId,
+							snapshot.version,
+						),
+					);
 			}
-			return backend
-				.search({
+
+			if (backend) {
+				const backendVersion = backend.backendVersion ?? backend.version;
+				const candidates = backend.search({
 					backendId: matcher.backendId,
 					argumentId: argument.argumentId,
 					text: raw.slice(region.start, region.end),
 					offset: region.start,
-				})
-				.filter(
-					(candidate) =>
-						candidate.start >= 0 && candidate.end <= region.end - region.start,
-				)
-				.map((candidate) => expressionMatch(argument, candidate, region.start));
+				});
+				return candidates
+					.filter(
+						(candidate) =>
+							candidate.start >= 0 &&
+							candidate.end <= region.end - region.start,
+					)
+					.map((candidate) =>
+						expressionMatch(
+							argument,
+							candidate,
+							region.start,
+							matcher.backendId,
+							backendVersion,
+						),
+					);
+			}
+
+			diagnostics.push({
+				code: "BACKEND_MISSING",
+				argumentId: argument.argumentId,
+				message: `Expression backend '${matcher.backendId}' is not available`,
+			});
+			return [];
 		}
 		return scanPatternMatches(argument, matcher, raw, region, diagnostics);
 	});
@@ -616,6 +706,8 @@ function expressionMatch(
 	argument: MacroArgumentSpec,
 	candidate: ExpressionCandidate,
 	offset: number,
+	resolverId: string,
+	resolverVersion?: string,
 ): MacroArgumentMatch {
 	return {
 		argumentId: argument.argumentId,
@@ -626,13 +718,15 @@ function expressionMatch(
 		},
 		rawValue: candidate.term,
 		canonicalValue: candidate.canonicalValue,
-		backendId: asMatchers(argument.matcher).find(isExpressionMatcher)
-			?.backendId,
+		backendId: resolverId,
+		resolverId,
+		resolverVersion,
 		sourceId: candidate.id,
 		conceptId: candidate.conceptId,
 		priority: candidate.priority,
 		matchKind: candidate.matchKind,
 		captures: { value: candidate.term },
+		metadata: candidate.metadata,
 	};
 }
 
@@ -641,12 +735,6 @@ function asMatchers(matcher: MacroArgumentSpec["matcher"]): MacroMatcher[] {
 	return Array.isArray(matcher)
 		? Array.from(matcher)
 		: [matcher as MacroMatcher];
-}
-
-function isExpressionMatcher(
-	matcher: MacroMatcher,
-): matcher is Extract<MacroMatcher, { kind: "expression" }> {
-	return matcher.kind === "expression";
 }
 
 function resolveArgument(
@@ -675,120 +763,19 @@ function findUnmatchedRegions(
 	let cursor = start;
 	const regions: MacroSpan[] = [];
 	for (const span of sorted) {
-		if (span.start > cursor && skipWhitespace(raw, cursor) < span.start)
+		if (span.start > cursor && skipWhitespace(raw, cursor) < span.start) {
 			regions.push({ start: skipWhitespace(raw, cursor), end: span.start });
+		}
 		cursor = Math.max(cursor, span.end);
 	}
-	if (skipWhitespace(raw, cursor) < raw.length)
+	if (skipWhitespace(raw, cursor) < raw.length) {
 		regions.push({ start: skipWhitespace(raw, cursor), end: raw.length });
+	}
 	return delimiter
 		? regions.flatMap((region) =>
 				splitByDelimiter(raw, region, delimiter, syntax),
 			)
 		: regions;
-}
-
-function scanNamedAssignments(
-	raw: string,
-	start: number,
-	diagnostics: MacroDiagnostic[],
-	syntax: Pick<
-		MacroSyntax,
-		"argumentDelimiter" | "quoteCharacters" | "groupOpen" | "groupClose"
-	>,
-): NamedSegment[] {
-	const delimiter = syntax.argumentDelimiter;
-	const quoteCharacters = new Set(syntax.quoteCharacters ?? []);
-	const markers: Array<{ name: string; start: number; equals: number }> = [];
-	let quote = "";
-	let escaped = false;
-	let depth = 0;
-	for (let index = start; index < raw.length; index += 1) {
-		const char = raw[index]!;
-		if (escaped) {
-			escaped = false;
-			continue;
-		}
-		if (char === "\\" && quote) {
-			escaped = true;
-			continue;
-		}
-		if (quote) {
-			if (char === quote) quote = "";
-			continue;
-		}
-		if (quoteCharacters.has(char)) {
-			quote = char;
-			continue;
-		}
-		if (syntax.groupOpen && char === syntax.groupOpen) {
-			depth += 1;
-			continue;
-		}
-		if (syntax.groupClose && char === syntax.groupClose) {
-			depth = Math.max(0, depth - 1);
-			continue;
-		}
-		if (!depth && delimiter && raw.startsWith(delimiter, index)) {
-			index += delimiter.length - 1;
-			continue;
-		}
-		const followsDelimiter =
-			delimiter !== undefined &&
-			raw.slice(index - delimiter.length, index) === delimiter;
-		if (
-			depth ||
-			(index > start && !/\s/u.test(raw[index - 1]!) && !followsDelimiter)
-		)
-			continue;
-		const match = /^[A-Za-z_][\w-]*=/.exec(raw.slice(index));
-		if (match)
-			markers.push({
-				name: match[0].slice(0, -1),
-				start: index,
-				equals: index + match[0].length - 1,
-			});
-	}
-	if (quote)
-		diagnostics.push({
-			code: "UNTERMINATED_QUOTE",
-			message: "Unterminated quote",
-			start,
-			end: raw.length,
-		});
-	if (depth)
-		diagnostics.push({
-			code: "UNTERMINATED_GROUP",
-			message: "Unterminated grouped value",
-			start,
-			end: raw.length,
-		});
-	return markers.map((marker, index) => {
-		const nextStart = markers[index + 1]?.start ?? raw.length;
-		const sourceEnd =
-			delimiter &&
-			raw.slice(nextStart - delimiter.length, nextStart) === delimiter
-				? nextStart - delimiter.length
-				: nextStart;
-		const sourceStart = skipWhitespace(raw, marker.equals + 1);
-		let valueStart = sourceStart;
-		let valueEnd = trimEnd(raw, valueStart, sourceEnd);
-		const first = raw[valueStart];
-		const last = raw[valueEnd - 1];
-		if (first && quoteCharacters.has(first) && last === first) {
-			valueStart += 1;
-			valueEnd -= 1;
-		}
-		return {
-			name: marker.name,
-			value: raw.slice(valueStart, valueEnd),
-			start: marker.start,
-			valueStart,
-			end: valueEnd,
-			sourceSpan: { start: sourceStart, end: valueEnd },
-			valueSpan: { start: valueStart, end: valueEnd },
-		};
-	});
 }
 
 function segmentInput(
@@ -812,6 +799,7 @@ function segmentInput(
 function matchInput(
 	argument: MacroArgumentSpec,
 	match: MacroArgumentMatch,
+	syntax?: Partial<MacroSyntax>,
 ): MacroArgumentInput {
 	return {
 		name: argument.name,
@@ -829,68 +817,21 @@ function matchInput(
 					match.rawValue,
 					match.extraction.start,
 					argument.itemDelimiter,
+					syntax,
 				)
 			: undefined,
 		match,
 	};
 }
 
-function splitListItems(
-	text: string,
-	offset: number,
-	delimiter: string,
-): Array<{ rawValue: string; start: number; end: number }> {
-	const items: Array<{ rawValue: string; start: number; end: number }> = [];
-	let start = 0;
-	let quote = "";
-	let depth = 0;
-	for (let index = 0; index < text.length; index += 1) {
-		const char = text[index]!;
-		if (char === '"' || char === "'") {
-			quote = quote ? (quote === char ? "" : quote) : char;
-			continue;
-		}
-		if (quote) continue;
-		if (char === "[") {
-			depth += 1;
-			continue;
-		}
-		if (char === "]") {
-			depth = Math.max(0, depth - 1);
-			continue;
-		}
-		if (!depth && text.startsWith(delimiter, index)) {
-			pushListItem(items, text, start, index, offset);
-			index += delimiter.length - 1;
-			start = index + 1;
-		}
-	}
-	pushListItem(items, text, start, text.length, offset);
-	return items;
-}
-
-function pushListItem(
-	items: Array<{ rawValue: string; start: number; end: number }>,
-	text: string,
-	start: number,
-	end: number,
-	offset: number,
-): void {
-	const valueStart = skipWhitespace(text, start);
-	const valueEnd = trimEnd(text, valueStart, end);
-	if (valueStart < valueEnd)
-		items.push({
-			rawValue: text.slice(valueStart, valueEnd),
-			start: offset + valueStart,
-			end: offset + valueEnd,
-		});
-}
-
 function compareMatches(
 	left: MacroArgumentMatch,
 	right: MacroArgumentMatch,
 ): number {
+	const kindScore = (m: MacroArgumentMatch) =>
+		m.matchKind === "prefix" ? 0 : 1;
 	return (
+		kindScore(right) - kindScore(left) ||
 		(right.priority ?? 0) - (left.priority ?? 0) ||
 		right.extraction.end -
 			right.extraction.start -
@@ -916,102 +857,4 @@ function isPendingTemplatePrefix(text: string, spec: MacroSpec): boolean {
 			Boolean(prefix.trimEnd()) && prefix.trimEnd().startsWith(text.trimEnd())
 		);
 	});
-}
-
-function splitByDelimiter(
-	raw: string,
-	region: MacroSpan,
-	delimiter: string,
-	syntax?: Partial<MacroSyntax>,
-): MacroSpan[] {
-	const parts: MacroSpan[] = [];
-	let start = region.start;
-	let quote = "";
-	let escaped = false;
-	let depth = 0;
-	const quoteCharacters = new Set(syntax?.quoteCharacters ?? []);
-	for (let index = region.start; index < region.end; index += 1) {
-		const char = raw[index]!;
-		if (escaped) {
-			escaped = false;
-			continue;
-		}
-		if (char === "\\" && quote) {
-			escaped = true;
-			continue;
-		}
-		if (quote) {
-			if (char === quote) quote = "";
-			continue;
-		}
-		if (quoteCharacters.has(char)) {
-			quote = char;
-			continue;
-		}
-		if (syntax?.groupOpen && char === syntax.groupOpen) {
-			depth += 1;
-			continue;
-		}
-		if (syntax?.groupClose && char === syntax.groupClose) {
-			depth = Math.max(0, depth - 1);
-			continue;
-		}
-		if (!depth && raw.startsWith(delimiter, index)) {
-			const end = trimEnd(raw, start, index);
-			if (skipWhitespace(raw, start) < end)
-				parts.push({ start: skipWhitespace(raw, start), end });
-			index += delimiter.length - 1;
-			start = index + 1;
-		}
-	}
-	const end = trimEnd(raw, start, region.end);
-	if (skipWhitespace(raw, start) < end)
-		parts.push({ start: skipWhitespace(raw, start), end });
-	return parts;
-}
-
-function spansOverlap(left: MacroSpan, right: MacroSpan): boolean {
-	return left.start < right.end && right.start < left.end;
-}
-
-function uniqueMatches(
-	matches: readonly MacroArgumentMatch[],
-): MacroArgumentMatch[] {
-	const seen = new Set<string>();
-	return matches.filter((match) => {
-		const key = `${match.argumentId}:${match.extraction.start}:${match.extraction.end}:${match.source}:${match.sourceId ?? ""}:${match.rawValue}`;
-		if (seen.has(key)) return false;
-		seen.add(key);
-		return true;
-	});
-}
-
-function execAll(expression: RegExp, text: string): RegExpExecArray[] {
-	const results: RegExpExecArray[] = [];
-	let match = expression.exec(text);
-	while (match) {
-		results.push(match);
-		if (!match[0].length) expression.lastIndex += 1;
-		match = expression.exec(text);
-	}
-	return results;
-}
-
-function escapeRegex(text: string): string {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function scanUntilWhitespace(text: string, start: number): number {
-	let index = start;
-	while (index < text.length && !/\s/u.test(text[index]!)) index += 1;
-	return index;
-}
-function skipWhitespace(text: string, start: number): number {
-	let index = start;
-	while (index < text.length && /\s/u.test(text[index]!)) index += 1;
-	return index;
-}
-function trimEnd(text: string, start: number, end: number): number {
-	let index = end;
-	while (index > start && /\s/u.test(text[index - 1]!)) index -= 1;
-	return index;
 }

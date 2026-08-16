@@ -8,8 +8,13 @@ import type {
 	MatcherFactory,
 } from "../context/extension-context";
 import type { ExpressionBackend } from "../contracts/backends";
+import {
+	createMacroRuntimeContext,
+	type MacroRuntimeContext,
+} from "../contracts/context";
 import type { ParseListener } from "../contracts/listeners";
 import type { MacroParseOptions, MacroSpec } from "../contracts/macro";
+import type { MacroSyntax } from "../contracts/syntax";
 import {
 	type ParseMacroLineResult,
 	parseMacroLine,
@@ -32,6 +37,8 @@ import { ExtensionRegistry, MacroRegistryStore } from "./registry";
 export interface ExtensionRuntimeOptions {
 	rootDirectory?: string;
 	logger?: ExtensionLogger;
+	context?: MacroRuntimeContext;
+	syntax?: MacroSyntax;
 }
 
 export interface ActivationResult {
@@ -42,6 +49,7 @@ export interface ActivationResult {
 export class ExtensionRuntime {
 	readonly extensions = new ExtensionRegistry();
 	readonly macros = new MacroRegistryStore();
+	readonly context: MacroRuntimeContext;
 	private readonly contexts = new Map<string, ExtensionContext>();
 	private readonly listeners = new Map<string, ParseListener[]>();
 	readonly options: Required<Pick<ExtensionRuntimeOptions, "rootDirectory">> & {
@@ -54,6 +62,7 @@ export class ExtensionRuntime {
 			rootDirectory: options.rootDirectory ?? process.cwd(),
 			logger: options.logger ?? consoleLogger,
 		};
+		this.context = options.context ?? createMacroRuntimeContext(options.syntax);
 	}
 
 	async load(directory: string): Promise<readonly LoadedExtension[]> {
@@ -222,6 +231,7 @@ export class ExtensionRuntime {
 			: this.macros.list().find((candidate) => raw.includes(candidate.name));
 		if (!spec) return null;
 		return parseMacroLine(raw, spec, {
+			context: this.context,
 			...options,
 			backends: this.macros.backendsRecord(),
 		});

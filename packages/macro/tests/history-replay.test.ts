@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { MemoryHistoryStore } from "@stateful-mcp/core";
 import {
-	createListOutputRenderer,
 	type MacroExecutionAttempt,
 	MacroExecutionHistory,
 	MacroListenerRegistry,
 	MacroRendererRegistry,
 	MacroReplayService,
 } from "../src/index";
+import { createListOutputRenderer } from "./support/sample-renderers";
 
 const attempt = (id: string, sequenceValue: string): MacroExecutionAttempt => ({
 	attemptId: id,

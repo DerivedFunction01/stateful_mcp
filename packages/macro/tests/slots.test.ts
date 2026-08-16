@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createMacroRuntimeContext } from "../src/contracts/context";
 import type { MacroSpec } from "../src/contracts/macro";
 import {
 	applyMacroLocks,
@@ -8,10 +9,11 @@ import {
 	shiftMacroLocksForInsertion,
 } from "../src/slots/macro-slots";
 
+const context = createMacroRuntimeContext({ macroStartToken: "^" });
+
 const spec: MacroSpec = {
 	id: "note",
 	name: "note",
-	syntax: { macroStartToken: "^" },
 	matching: { positionalFallback: true },
 	arguments: [
 		{
@@ -26,7 +28,10 @@ const spec: MacroSpec = {
 
 describe("neutral macro slots", () => {
 	test("projects matches and shifts locks", () => {
-		const slots = projectMacroSlots("^note 2004", spec, { mode: "live" });
+		const slots = projectMacroSlots("^note 2004", spec, {
+			context,
+			mode: "live",
+		});
 		expect(slots[0]?.status).toBe("bound");
 		const lock = lockMacroSlot(slots[0]!, 1);
 		expect(shiftMacroLocksForInsertion([lock], 6, 2)[0]?.start).toBe(

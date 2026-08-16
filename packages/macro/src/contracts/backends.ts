@@ -5,12 +5,15 @@ export interface ExpressionSearchRequest {
 	offset: number;
 }
 
+export const EXPRESSION_MATCH_KINDS = ["exact", "prefix"] as const;
+export type ExpressionMatchKind = (typeof EXPRESSION_MATCH_KINDS)[number];
+
 export interface ExpressionCandidate {
 	id: string;
 	term: string;
 	start: number;
 	end: number;
-	matchKind: "exact" | "prefix";
+	matchKind: ExpressionMatchKind;
 	priority?: number;
 	canonicalValue: unknown;
 	conceptId?: string;

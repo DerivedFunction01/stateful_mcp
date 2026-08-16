@@ -1,4 +1,7 @@
 import type { ExpressionBackend } from "../contracts/backends";
+import type { MacroCandidateSnapshot } from "../contracts/composition";
+import type { MacroRuntimeContext } from "../contracts/context";
+import { createMacroRuntimeContext } from "../contracts/context";
 import type {
 	CreateMacroDraftSessionOptions,
 	MacroDraftInputs,
@@ -14,11 +17,11 @@ import type {
 	MacroDraftDiagnostic,
 	MacroTextEdit,
 } from "../contracts/slots";
-import type { MacroSyntax } from "../contracts/syntax";
 import {
 	type ParseMacroLineResult,
 	parseMacroLine,
 } from "../parser/macro-parser";
+import { skipWhitespace, uniqueMatches } from "../parser/macro-scanner";
 import { compileMacroPayload } from "../payload/payload-compiler";
 import {
 	activeMacroSlot,
@@ -30,8 +33,9 @@ import {
 
 export class MacroDraftSession implements MacroDraftSessionContract {
 	private spec: MacroSpec;
-	private syntax: MacroSyntax;
+	private context: MacroRuntimeContext;
 	private backends: Readonly<Record<string, ExpressionBackend>>;
+	private candidateSnapshots: readonly MacroCandidateSnapshot[];
 	private text: string;
 	private cursorOffset: number;
 	private revision = 0;
@@ -40,8 +44,9 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 
 	constructor(options: CreateMacroDraftSessionOptions) {
 		this.spec = options.spec;
-		this.syntax = options.syntax;
+		this.context = options.context ?? createMacroRuntimeContext(options.syntax);
 		this.backends = options.backends ?? {};
+		this.candidateSnapshots = options.candidateSnapshots ?? [];
 		this.text = options.initialText ?? "";
 		this.cursorOffset = clamp(
 			options.initialCursor ?? this.text.length,
@@ -54,8 +59,13 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 
 	replaceInputs(inputs: MacroDraftInputs): MacroDraftSnapshot {
 		this.spec = inputs.spec;
-		this.syntax = inputs.syntax;
+		if (inputs.context) {
+			this.context = inputs.context;
+		} else if (inputs.syntax) {
+			this.context = createMacroRuntimeContext(inputs.syntax);
+		}
 		this.backends = inputs.backends ?? {};
+		this.candidateSnapshots = inputs.candidateSnapshots ?? [];
 		const diagnostics: MacroDraftDiagnostic[] = [];
 		this.locks = this.locks.filter((lock) => {
 			if (
@@ -66,8 +76,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 				return false;
 			}
 			if (lock.backendVersion && lock.candidateId) {
-				const backend = this.backendForLock(lock);
-				const version = backend?.backendVersion ?? backend?.version;
+				const version = this.versionForLock(lock);
 				if (version && version !== lock.backendVersion) {
 					diagnostics.push(staleLockDiagnostic(lock));
 					return false;
@@ -97,8 +106,9 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 		const inserted = edit.text.length;
 		let nextLocks = this.locks;
 		if (deleted) nextLocks = shiftMacroLocksForDeletion(nextLocks, start, end);
-		if (inserted)
+		if (inserted) {
 			nextLocks = shiftMacroLocksForInsertion(nextLocks, start, inserted);
+		}
 		this.text = this.text.slice(0, start) + edit.text + this.text.slice(end);
 		this.cursorOffset = clamp(start + inserted, 0, this.text.length);
 		this.revision += 1;
@@ -158,31 +168,36 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 
 	commit(): MacroParseResult {
 		const result = compileMacroPayload(this.spec, this.text, {
-			profile: this.syntax,
+			context: this.context,
 			backends: this.backends,
+			candidateSnapshots: this.candidateSnapshots,
 			mode: "execute",
 			acceptedLocks: this.locks,
 		});
 		if (result.status !== "invalid") {
 			const parsed = parseMacroLine(this.text, this.spec, {
-				profile: this.syntax,
+				context: this.context,
 				backends: this.backends,
+				candidateSnapshots: this.candidateSnapshots,
 				mode: "execute",
 			});
 			for (const match of parsed?.matches ?? []) {
 				if (
 					match.source === "default" ||
 					match.extraction.end <= match.extraction.start
-				)
+				) {
 					continue;
+				}
 				const lock = this.lockForMatch(match, "accepted");
-				if (!this.locks.some((item) => item.lockId === lock.lockId))
+				if (!this.locks.some((item) => item.lockId === lock.lockId)) {
 					this.locks.push(lock);
+				}
 			}
 			this.current = this.recompute([]);
 			return compileMacroPayload(this.spec, this.text, {
-				profile: this.syntax,
+				context: this.context,
 				backends: this.backends,
+				candidateSnapshots: this.candidateSnapshots,
 				mode: "execute",
 				acceptedLocks: this.locks,
 			});
@@ -202,19 +217,21 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 				extraDiagnostics.push(staleLockDiagnostic(lock));
 				return false;
 			}
-			const backend = this.backendForLock(lock);
-			const version = backend?.backendVersion ?? backend?.version;
+			const version = this.versionForLock(lock);
 			if (lock.backendVersion && version && lock.backendVersion !== version) {
 				extraDiagnostics.push(staleLockDiagnostic(lock));
 				return false;
 			}
 			return true;
 		});
+
 		const parsed = parseMacroLine(this.text, this.spec, {
-			profile: this.syntax,
+			context: this.context,
 			backends: this.backends,
+			candidateSnapshots: this.candidateSnapshots,
 			mode: "live",
 		});
+
 		if (!parsed) {
 			return {
 				mode: "idle",
@@ -228,6 +245,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 				diagnostics: [...extraDiagnostics],
 			};
 		}
+
 		const resolutions = resolveCandidates(parsed, this.text, this.spec);
 		const diagnostics: MacroDraftDiagnostic[] = [
 			...parsed.diagnostics,
@@ -240,23 +258,42 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 					message: "Candidate is visible but not accepted during live preview",
 				})),
 		];
+
 		const rawProjections = projectMacroSlots(this.text, this.spec, {
-			profile: this.syntax,
+			context: this.context,
 			backends: this.backends,
+			candidateSnapshots: this.candidateSnapshots,
 			mode: "live",
 		});
+
+		// Map resolutions into projection status
+		const adjustedProjections = rawProjections.map((proj) => {
+			const resolution = resolutions.find(
+				(res) =>
+					res.argumentId === proj.argumentId &&
+					(res.occurrence ?? 0) === (proj.occurrence ?? 0),
+			);
+			if (resolution && resolution.disposition === "unstable") {
+				return { ...proj, status: "pending" as const };
+			}
+			return proj;
+		});
+
 		const projections = applyMacroLocks(
-			rawProjections,
+			adjustedProjections,
 			this.locks,
 			undefined,
 			this.text,
 		);
+
 		const payloadPreview = compileMacroPayload(this.spec, this.text, {
-			profile: this.syntax,
+			context: this.context,
 			backends: this.backends,
+			candidateSnapshots: this.candidateSnapshots,
 			mode: "live",
 			acceptedLocks: this.locks,
 		});
+
 		for (const resolution of resolutions) {
 			if (resolution.disposition !== "unstable") continue;
 			if (
@@ -265,13 +302,17 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 						lock.argumentId === resolution.argumentId &&
 						lock.occurrence === resolution.occurrence,
 				)
-			)
+			) {
 				continue;
+			}
 			const result = payloadPreview.arguments.find(
 				(item) => item.argumentId === resolution.argumentId,
 			);
-			if (result && result.state === "locked") result.state = "pending";
+			if (result && result.state === "locked") {
+				result.state = "pending";
+			}
 		}
+
 		const active = activeMacroSlot(projections, this.cursorOffset);
 		return {
 			mode: "macro",
@@ -316,29 +357,44 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 				candidateId: match.sourceId,
 				displayValue: match.rawValue,
 				canonicalValue: match.canonicalValue,
-				metadata: argument ? { argumentName: argument.name } : undefined,
+				metadata:
+					match.metadata ??
+					(argument ? { argumentName: argument.name } : undefined),
 			},
 			source,
 			acceptedAtRevision: this.revision,
-			backendVersion: backend?.backendVersion ?? backend?.version,
+			backendVersion:
+				match.resolverVersion ?? backend?.backendVersion ?? backend?.version,
 		};
 	}
 
-	private backendForLock(
-		lock: AcceptedMacroLock,
-	): ExpressionBackend | undefined {
-		if (lock.binding?.backendId) return this.backends[lock.binding.backendId];
+	private versionForLock(lock: AcceptedMacroLock): string | undefined {
+		if (lock.binding?.backendId) {
+			const backend = this.backends[lock.binding.backendId];
+			if (backend) return backend.backendVersion ?? backend.version;
+			const snapshot = this.candidateSnapshots.find(
+				(item) =>
+					item.resolverId === lock.binding?.backendId &&
+					item.argumentId === lock.argumentId,
+			);
+			if (snapshot) return snapshot.version;
+		}
 		const match = this.current?.parse?.matches.find(
 			(item) =>
 				item.argumentId === lock.argumentId &&
 				item.sourceId === lock.candidateId,
 		);
-		return match?.backendId
-			? this.backends[match.backendId]
-			: Object.values(this.backends).find(
-					(backend) =>
-						(backend.backendVersion ?? backend.version) === lock.backendVersion,
-				);
+		if (match?.backendId) {
+			const backend = this.backends[match.backendId];
+			if (backend) return backend.backendVersion ?? backend.version;
+		}
+		const snapshot = this.candidateSnapshots.find(
+			(item) => item.argumentId === lock.argumentId,
+		);
+		if (snapshot) return snapshot.version;
+		return Object.values(this.backends)
+			.map((backend) => backend.backendVersion ?? backend.version)
+			.find((v) => v === lock.backendVersion);
 	}
 }
 
@@ -350,6 +406,7 @@ function resolveCandidates(
 	const candidates = uniqueMatches(parsed.candidates ?? parsed.matches);
 	const selected = parsed.matches;
 	const result: CandidateResolution[] = [];
+
 	for (const match of selected) {
 		const occurrence = match.occurrence ?? 0;
 		const sameSpan = candidates.filter(
@@ -387,14 +444,17 @@ function resolveCandidates(
 			reason: disposition === "unstable" ? "longer-continuation" : undefined,
 		});
 	}
+
 	for (const argument of spec.arguments) {
-		if (!result.some((item) => item.argumentId === argument.argumentId))
+		if (!result.some((item) => item.argumentId === argument.argumentId)) {
 			result.push({
 				argumentId: argument.argumentId,
 				occurrence: 0,
 				disposition: "none",
 			});
+		}
 	}
+
 	return result.sort(
 		(left, right) =>
 			(left.match?.extraction.start ?? Number.MAX_SAFE_INTEGER) -
@@ -417,24 +477,6 @@ function isUnmatchedTrailingText(
 	);
 }
 
-function skipWhitespace(text: string, start: number): number {
-	let offset = start;
-	while (offset < text.length && /\s/u.test(text[offset]!)) offset += 1;
-	return offset;
-}
-
-function uniqueMatches(
-	matches: readonly MacroArgumentMatch[],
-): MacroArgumentMatch[] {
-	const seen = new Set<string>();
-	return matches.filter((match) => {
-		const key = `${match.argumentId}:${match.occurrence ?? 0}:${match.extraction.start}:${match.extraction.end}:${match.source}:${match.sourceId ?? ""}:${match.formId ?? ""}:${match.rawValue}`;
-		if (seen.has(key)) return false;
-		seen.add(key);
-		return true;
-	});
-}
-
 function sameMatch(
 	left: MacroArgumentMatch,
 	right: MacroArgumentMatch,
@@ -453,6 +495,7 @@ function sameMatch(
 function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(value, max));
 }
+
 function staleLockDiagnostic(lock: AcceptedMacroLock): MacroDraftDiagnostic {
 	return {
 		code: "STALE_LOCK",
@@ -462,6 +505,7 @@ function staleLockDiagnostic(lock: AcceptedMacroLock): MacroDraftDiagnostic {
 		end: lock.end,
 	};
 }
+
 function invalidAcceptanceDiagnostic(
 	argumentId: string,
 	occurrence: number,

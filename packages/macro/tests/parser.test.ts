@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createMacroRuntimeContext } from "../src/contracts/context";
 import type { MacroSpec } from "../src/contracts/macro";
 import { parseMacroLine } from "../src/parser/macro-parser";
 import { createExpressionBackendFixture } from "./support/expression-backend-fixture";
@@ -31,15 +32,16 @@ const books = createExpressionBackendFixture([
 	},
 ]);
 
+const defaultContext = createMacroRuntimeContext({
+	macroStartToken: "^",
+	quoteCharacters: ['"', "'"],
+	groupOpen: "[",
+	groupClose: "]",
+});
+
 const spec: MacroSpec = {
 	id: "note",
 	name: "note",
-	syntax: {
-		macroStartToken: "^",
-		quoteCharacters: ['"', "'"],
-		groupOpen: "[",
-		groupClose: "]",
-	},
 	arguments: [
 		{
 			argumentId: "title",
@@ -64,7 +66,7 @@ describe("neutral macro parser", () => {
 		const result = parseMacroLine(
 			'  ^note title="harry potter" year=2004',
 			spec,
-			{ backends: { books } },
+			{ context: defaultContext, backends: { books } },
 		);
 		expect(result?.macroName).toBe("note");
 		expect(result?.arguments.map((argument) => argument.name)).toEqual([
@@ -78,6 +80,7 @@ describe("neutral macro parser", () => {
 
 	test("matches unordered expression and numeric arguments", () => {
 		const result = parseMacroLine("^note 2004 hp", spec, {
+			context: defaultContext,
 			backends: { books },
 		});
 		expect(result?.matches.map((match) => match.argumentId)).toEqual([
@@ -94,7 +97,7 @@ describe("neutral macro parser", () => {
 		const result = parseMacroLine(
 			"^note harry potter and the deathly hallows",
 			spec,
-			{ backends: { books } },
+			{ context: defaultContext, backends: { books } },
 		);
 		expect(
 			result?.matches.filter((match) => match.argumentId === "title"),
@@ -104,6 +107,7 @@ describe("neutral macro parser", () => {
 
 	test("reports a prefix expression for live pending state", () => {
 		const result = parseMacroLine("^note harry pot", spec, {
+			context: defaultContext,
 			backends: { books },
 		});
 		expect(result?.matches[0]?.matchKind).toBe("prefix");
@@ -111,6 +115,7 @@ describe("neutral macro parser", () => {
 
 	test("reports unknown named arguments and ignores inactive expressions", () => {
 		const result = parseMacroLine("^note disabled bogus=value", spec, {
+			context: defaultContext,
 			backends: { books },
 		});
 		expect(
@@ -124,32 +129,29 @@ describe("neutral macro parser", () => {
 	});
 
 	test("returns null for non-macro input", () => {
-		expect(parseMacroLine("note title=hp", spec)).toBeNull();
-	});
-
-	test("does not infer a macro token when syntax is absent", () => {
-		const withoutSyntax = { ...spec, syntax: undefined };
 		expect(
-			parseMacroLine("^note title=hp", withoutSyntax, { backends: { books } }),
+			parseMacroLine("note title=hp", spec, { context: defaultContext }),
 		).toBeNull();
 	});
 
-	test("uses caller-provided syntax tokens", () => {
-		const custom = {
-			...spec,
-			syntax: {
-				macroStartToken: "@",
-				quoteCharacters: ["`"],
-				groupOpen: "{",
-				groupClose: "}",
-			},
-		};
+	test("uses caller-provided syntax context tokens", () => {
+		const customContext = createMacroRuntimeContext({
+			macroStartToken: "@",
+			quoteCharacters: ["`"],
+			groupOpen: "{",
+			groupClose: "}",
+		});
 		expect(
-			parseMacroLine("^note title=hp", custom, { backends: { books } }),
+			parseMacroLine("^note title=hp", spec, {
+				context: customContext,
+				backends: { books },
+			}),
 		).toBeNull();
 		expect(
-			parseMacroLine("@note title=hp", custom, { backends: { books } })
-				?.macroName,
+			parseMacroLine("@note title=hp", spec, {
+				context: customContext,
+				backends: { books },
+			})?.macroName,
 		).toBe("note");
 	});
 });

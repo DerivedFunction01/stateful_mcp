@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { MacroDraftSession } from "../src/authoring/macro-draft-session";
+import { createMacroRuntimeContext } from "../src/contracts/context";
 import type { MacroSpec } from "../src/contracts/macro";
 import { createExpressionBackendFixture } from "./support/expression-backend-fixture";
 
@@ -13,16 +14,17 @@ const backend = createExpressionBackendFixture([
 	},
 ]);
 
+const context = createMacroRuntimeContext({
+	macroStartToken: "^",
+	quoteCharacters: ['"', "'"],
+	groupOpen: "[",
+	groupClose: "]",
+});
+
 const spec: MacroSpec = {
 	id: "note",
 	name: "note",
 	version: 1,
-	syntax: {
-		macroStartToken: "^",
-		quoteCharacters: ['"', "'"],
-		groupOpen: "[",
-		groupClose: "]",
-	},
 	matching: { positionalFallback: true },
 	arguments: [
 		{
@@ -37,7 +39,7 @@ const spec: MacroSpec = {
 function session(initialText: string): MacroDraftSession {
 	return new MacroDraftSession({
 		spec,
-		syntax: spec.syntax as { macroStartToken: string },
+		context,
 		backends: { books: backend },
 		initialText,
 	});

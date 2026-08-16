@@ -1,11 +1,24 @@
 import type { ExpressionBackend } from "./backends";
+import type { MacroRuntimeContext } from "./context";
 import type {
 	MacroArgumentForm,
 	MacroAuthoringTemplate,
 	NamedGroupContract,
 } from "./matching";
 import type { MacroSyntax } from "./syntax";
-import type { NumericBounds, ValueKind } from "./values";
+import type { NumericBounds, ScalarType, ValueKind } from "./values";
+
+export const MACRO_RUN_MODES = ["live", "execute", "replay"] as const;
+export type MacroRunMode = (typeof MACRO_RUN_MODES)[number];
+
+export const MACRO_MATCHING_MODES = ["unordered", "declared"] as const;
+export type MacroMatchingMode = (typeof MACRO_MATCHING_MODES)[number];
+
+export const MACRO_OVERLAP_STRATEGIES = ["precedence", "longest"] as const;
+export type MacroOverlapStrategy = (typeof MACRO_OVERLAP_STRATEGIES)[number];
+
+export const MACRO_BLANK_POLICIES = ["reject", "allow", "skip"] as const;
+export type MacroBlankPolicy = (typeof MACRO_BLANK_POLICIES)[number];
 
 export type MacroMatcher =
 	| {
@@ -26,13 +39,13 @@ export interface MacroArgumentSpec {
 	matcher?: MacroMatcher | readonly MacroMatcher[];
 	forms?: readonly MacroArgumentForm[];
 	valueKind?: ValueKind;
-	scalarType?: "string" | "integer" | "number" | "boolean";
+	scalarType?: ScalarType;
 	numericBounds?: NumericBounds;
 	required?: boolean;
 	repeatable?: boolean;
 	itemDelimiter?: string;
 	defaultValue?: string;
-	blankPolicy?: "reject" | "allow" | "skip";
+	blankPolicy?: MacroBlankPolicy;
 	normalize?: (
 		raw: string,
 		captures: Record<string, string | undefined>,
@@ -40,9 +53,9 @@ export interface MacroArgumentSpec {
 }
 
 export interface MacroMatchingOptions {
-	mode?: "unordered" | "declared";
+	mode?: MacroMatchingMode;
 	positionalFallback?: boolean;
-	overlap?: "precedence" | "longest";
+	overlap?: MacroOverlapStrategy;
 }
 
 export interface MacroSpec {
@@ -50,7 +63,6 @@ export interface MacroSpec {
 	name: string;
 	version?: number;
 	arguments: readonly MacroArgumentSpec[];
-	syntax?: Partial<MacroSyntax>;
 	authoringTemplates?: readonly MacroAuthoringTemplate[];
 	matching?: MacroMatchingOptions;
 	metadata?: Record<string, unknown>;
@@ -63,8 +75,13 @@ export interface MacroRegistry {
 }
 
 export interface MacroParseOptions {
+	context?: MacroRuntimeContext;
 	lineNumber?: number;
-	mode?: "live" | "execute";
+	mode?: MacroRunMode;
+	/**
+	 * @deprecated Transitional compatibility only. Supply `context` instead.
+	 */
 	profile?: Partial<MacroSyntax>;
 	backends?: Readonly<Record<string, ExpressionBackend>>;
+	candidateSnapshots?: readonly import("./composition").MacroCandidateSnapshot[];
 }

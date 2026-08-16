@@ -28,7 +28,10 @@ export function projectMacroSlots(
 				end: match.extraction.end,
 				rawText: match.rawValue,
 				displayText: match.rawValue,
-				status: match.matchKind === "prefix" ? "pending" : "bound",
+				status:
+					match.matchKind === "prefix" || match.stability === "unstable"
+						? "pending"
+						: "bound",
 				occurrence: match.occurrence,
 				formId: match.formId,
 				bindingSource: match.source,

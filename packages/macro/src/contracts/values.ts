@@ -1,13 +1,23 @@
-export type ScalarType = "string" | "integer" | "number" | "boolean";
+export const MACRO_SCALAR_TYPES = [
+	"string",
+	"integer",
+	"number",
+	"boolean",
+] as const;
+export type ScalarType = (typeof MACRO_SCALAR_TYPES)[number];
+export type MacroScalarType = ScalarType;
 
-export type ValueKind =
-	| "scalar"
-	| "enum"
-	| "array"
-	| "composite"
-	| "quantity"
-	| "date-time"
-	| "custom";
+export const MACRO_VALUE_KINDS = [
+	"scalar",
+	"enum",
+	"array",
+	"composite",
+	"quantity",
+	"date-time",
+	"custom",
+] as const;
+export type ValueKind = (typeof MACRO_VALUE_KINDS)[number];
+export type MacroValueKind = ValueKind;
 
 export interface NumericBounds {
 	min?: number;

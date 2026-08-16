@@ -1,7 +1,8 @@
-import type { MacroDiagnostic } from "../contracts/input";
+import type { MacroDiagnostic, MacroDiagnosticCode } from "../contracts/input";
 import type {
 	MacroArgumentSpec,
 	MacroParseOptions,
+	MacroRunMode,
 	MacroSpec,
 } from "../contracts/macro";
 import type { MacroArgumentMatch } from "../contracts/matching";
@@ -9,6 +10,15 @@ import type { ArgumentState, MacroParseResult } from "../contracts/payload";
 import type { AcceptedMacroLock } from "../contracts/slots";
 import type { GenericValue } from "../contracts/values";
 import { parseMacroLine } from "../parser/macro-parser";
+
+const INVALID_PAYLOAD_DIAGNOSTICS: ReadonlySet<MacroDiagnosticCode> =
+	new Set<MacroDiagnosticCode>([
+		"INVALID_PATTERN",
+		"NORMALIZATION_FAILED",
+		"PATH_CONFLICT",
+		"INVALID_PATH",
+		"AMBIGUOUS_MATCH",
+	]);
 
 export interface MacroPayloadCompileOptions extends MacroParseOptions {
 	acceptedLocks?: readonly AcceptedMacroLock[];
@@ -56,13 +66,7 @@ export function compileMacroPayload(
 	}
 
 	const hasInvalid = diagnostics.some((diagnostic) =>
-		[
-			"INVALID_PATTERN",
-			"NORMALIZATION_FAILED",
-			"PATH_CONFLICT",
-			"INVALID_PATH",
-			"AMBIGUOUS_MATCH",
-		].includes(diagnostic.code),
+		INVALID_PAYLOAD_DIAGNOSTICS.has(diagnostic.code),
 	);
 	const hasIncomplete = results.some(
 		(result) => result.state === "pending" || result.state === "unset",
@@ -113,7 +117,7 @@ function materializeAcceptedLocks(
 function createArgumentResult(
 	argument: MacroArgumentSpec,
 	match: MacroArgumentMatch | undefined,
-	mode: "live" | "execute",
+	mode: MacroRunMode,
 	diagnostics: MacroDiagnostic[],
 ) {
 	if (!match) {
@@ -125,7 +129,10 @@ function createArgumentResult(
 		};
 	}
 	const state: ArgumentState =
-		match.matchKind === "prefix" && mode === "live" ? "pending" : "locked";
+		(match.matchKind === "prefix" || match.stability === "unstable") &&
+		mode === "live"
+			? "pending"
+			: "locked";
 	let value: unknown = match.canonicalValue ?? match.rawValue;
 	try {
 		if (argument.normalize)

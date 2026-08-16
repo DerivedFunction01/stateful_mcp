@@ -3,6 +3,8 @@ export * from "./authoring/macro-draft-session";
 export * from "./context/dependency-resolver";
 export * from "./context/extension-context";
 export * from "./contracts/backends";
+export * from "./contracts/composition";
+export * from "./contracts/context";
 export type {
 	CreateMacroDraftSessionOptions,
 	MacroDraftInputs,
@@ -28,6 +30,7 @@ export * from "./history/replay-service";
 export * from "./listeners/listener-registry";
 export * from "./matcher/friendly";
 export * from "./parser/macro-parser";
+export * from "./parser/macro-scanner";
 export * from "./payload/payload-compiler";
 export * from "./rendering/contracts";
 export * from "./resources/contracts";
@@ -36,9 +39,5 @@ export * from "./resources/dictionary-resource";
 export * from "./resources/dictionary-seed";
 export * from "./resources/expression-index";
 export * from "./resources/resource-scope";
+export * from "./runtime/macro-runtime";
 export * from "./slots/macro-slots";
-export * from "./values/date-time";
-export * from "./values/measurement";
-export * from "./values/numeric";
-export * from "./values/quantity";
-export * from "./values/regex";

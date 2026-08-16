@@ -23,14 +23,16 @@ export interface MacroListItemInput {
 	end: number;
 }
 
-export type MacroArgumentSource =
-	| "named"
-	| "positional"
-	| "inferred"
-	| "friendly"
-	| "expression"
-	| "accepted"
-	| "default";
+export const MACRO_ARGUMENT_SOURCES = [
+	"named",
+	"positional",
+	"inferred",
+	"friendly",
+	"expression",
+	"accepted",
+	"default",
+] as const;
+export type MacroArgumentSource = (typeof MACRO_ARGUMENT_SOURCES)[number];
 
 export interface MacroSourceLine {
 	line: number;
@@ -65,19 +67,22 @@ export interface MacroInput {
 	candidateMatches?: MacroArgumentMatch[];
 }
 
-export type MacroDiagnosticCode =
-	| "UNTERMINATED_QUOTE"
-	| "UNTERMINATED_GROUP"
-	| "INVALID_PATTERN"
-	| "UNKNOWN_ARGUMENT"
-	| "DUPLICATE_ARGUMENT"
-	| "MISSING_REQUIRED"
-	| "AMBIGUOUS_MATCH"
-	| "NO_MATCH"
-	| "INVALID_PATH"
-	| "PATH_CONFLICT"
-	| "NORMALIZATION_FAILED"
-	| "BACKEND_MISSING";
+export const MACRO_DIAGNOSTIC_CODES = [
+	"UNTERMINATED_QUOTE",
+	"UNTERMINATED_GROUP",
+	"INVALID_PATTERN",
+	"UNKNOWN_ARGUMENT",
+	"DUPLICATE_ARGUMENT",
+	"MISSING_REQUIRED",
+	"AMBIGUOUS_MATCH",
+	"NO_MATCH",
+	"INVALID_PATH",
+	"PATH_CONFLICT",
+	"NORMALIZATION_FAILED",
+	"BACKEND_MISSING",
+	"STALE_SNAPSHOT",
+] as const;
+export type MacroDiagnosticCode = (typeof MACRO_DIAGNOSTIC_CODES)[number];
 
 export interface MacroDiagnostic {
 	code: MacroDiagnosticCode;

@@ -1,8 +1,15 @@
 import type { MacroDiagnostic } from "./input";
-import type { MacroSpec } from "./macro";
+import type { MacroRunMode, MacroSpec } from "./macro";
 import type { MacroArgumentMatch } from "./matching";
 
-export type ArgumentState = "pending" | "locked" | "unset" | "invalid";
+export const MACRO_ARGUMENT_STATES = [
+	"pending",
+	"locked",
+	"unset",
+	"invalid",
+] as const;
+export type ArgumentState = (typeof MACRO_ARGUMENT_STATES)[number];
+export type MacroArgumentState = ArgumentState;
 
 export interface MacroArgumentResult {
 	argumentId: string;
@@ -14,8 +21,15 @@ export interface MacroArgumentResult {
 	match?: MacroArgumentMatch;
 }
 
+export const MACRO_PARSE_STATUSES = [
+	"matched",
+	"incomplete",
+	"invalid",
+] as const;
+export type MacroParseStatus = (typeof MACRO_PARSE_STATUSES)[number];
+
 export interface MacroParseResult {
-	status: "matched" | "incomplete" | "invalid";
+	status: MacroParseStatus;
 	macro: { id: string; name: string };
 	arguments: MacroArgumentResult[];
 	payload: Record<string, unknown>;
@@ -23,7 +37,7 @@ export interface MacroParseResult {
 }
 
 export interface PayloadCompileOptions {
-	mode?: "live" | "execute";
+	mode?: MacroRunMode;
 }
 
 export interface PayloadCompiler {
