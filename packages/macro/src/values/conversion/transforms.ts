@@ -5,15 +5,15 @@ export function multiplicativeTransform(factor: number): UnitTransform {
 		throw new Error("A multiplicative conversion factor must be finite and non-zero");
 	return {
 		kind: "multiplicative",
-		toCanonical: (value) => value * factor,
-		fromCanonical: (value) => value / factor,
+		toBase: (value) => value * factor,
+		fromBase: (value) => value / factor,
 	};
 }
 
 export function functionalTransform(
-	toCanonical: (value: number) => number,
-	fromCanonical: (value: number) => number,
+	toBase: (value: number) => number,
+	fromBase: (value: number) => number,
 	kind: Exclude<UnitTransform["kind"], "multiplicative"> = "nonlinear",
 ): UnitTransform {
-	return { kind, toCanonical, fromCanonical };
+	return { kind, toBase, fromBase };
 }

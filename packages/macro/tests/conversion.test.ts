@@ -7,7 +7,9 @@ import {
 } from "../src/runtime/macro-runtime";
 import {
 	QuantityConversionRegistry,
+	createCommonConversionRegistry,
 	functionalTransform,
+	getCommonUnitExpression,
 	multiplicativeTransform,
 } from "../src/values/conversion";
 import { createMeasurementValue } from "../src/values/measurement";
@@ -273,5 +275,142 @@ describe("generic quantity conversion", () => {
 			magnitude: 1.25,
 			unit: "m",
 		});
+	});
+
+	test("loads common symbols opt-in with logical canonical units", () => {
+		const empty = new QuantityConversionRegistry();
+		expect(empty.getDimensions()).toEqual([]);
+
+		const registry = createCommonConversionRegistry();
+		expect(registry.getUnit("meters")).toBeUndefined();
+		expect(registry.convertToCanonical("mass", "mg", 1000)).toBe(0.001);
+		expect(registry.convertToCanonical("volume", "mL", 1)).toBe(0.001);
+		expect(registry.convertToCanonical("time", "s", 86_400)).toBe(1);
+		expect(registry.convertToCanonical("time", "wk", 1)).toBe(7);
+		expect(registry.convertToCanonical("time", "mo", 1)).toBeCloseTo(30.436875);
+		expect(registry.convertToCanonical("time", "a", 1)).toBeCloseTo(365.2425);
+		expect(registry.convertToCanonical("length", "[ft_i]", 1)).toBe(0.3048);
+		expect(registry.convertToCanonical("mass", "[lb_av]", 1)).toBeCloseTo(
+		0.45359237,
+	);
+	});
+
+	test("supports selected common bundles and canonical overrides", () => {
+		const registry = createCommonConversionRegistry({
+			bundles: ["us-customary"],
+			canonicalUnits: { mass: "kg" },
+		});
+		expect(registry.getUnit("[ft_i]")).toBeDefined();
+		expect(registry.getUnit("m")).toBeDefined();
+		expect(registry.getUnit("meters")).toBeUndefined();
+		expect(registry.convertToCanonical("mass", "[lb_av]", 1)).toBeCloseTo(
+		0.45359237,
+	);
+	});
+
+	test("converts common derived units across physical dimensions", () => {
+		const registry = createCommonConversionRegistry();
+		expect(
+			registry.convert(
+				getCommonUnitExpression("m/s"),
+				getCommonUnitExpression("km/h"),
+				1,
+			),
+		).toBeCloseTo(3.6);
+		expect(
+			registry.convert(
+				getCommonUnitExpression("[mi_i]/h"),
+				getCommonUnitExpression("m/s"),
+				1,
+			),
+		).toBeCloseTo(0.44704);
+		expect(
+			registry.convert(
+				getCommonUnitExpression("m/s2"),
+				getCommonUnitExpression("km/h2"),
+				1,
+			),
+		).toBeCloseTo(12_960);
+		expect(
+			registry.convert(
+				getCommonUnitExpression("L/min"),
+				getCommonUnitExpression("mL/s"),
+				1,
+			),
+		).toBeCloseTo(16.6666666667);
+		expect(
+			registry.convert(
+				getCommonUnitExpression("kg/s"),
+				getCommonUnitExpression("[lb_av]/h"),
+				1,
+			),
+		).toBeCloseTo(7_936.641438, 3);
+		expect(
+			registry.convert(
+				{ factors: [{ unitId: "mL", exponent: 1 }] },
+				{ factors: [{ unitId: "cm", exponent: 3 }] },
+				1,
+			),
+		).toBeCloseTo(1);
+		expect(
+			registry.convert(
+				{ factors: [{ unitId: "J", exponent: 1 }] },
+				{
+					factors: [
+						{ unitId: "N", exponent: 1 },
+						{ unitId: "m", exponent: 1 },
+					],
+				},
+				1,
+			),
+		).toBeCloseTo(1);
+		expect(
+			registry.convert(
+				{ factors: [{ unitId: "kPa", exponent: 1 }] },
+				{
+					factors: [
+						{ unitId: "N", exponent: 1 },
+						{ unitId: "m", exponent: -2 },
+					],
+				},
+				1,
+			),
+		).toBeCloseTo(1000);
+		expect(
+			registry.convert(
+				{
+					factors: [
+						{ unitId: "mg", exponent: 1 },
+						{ unitId: "dL", exponent: -1 },
+					],
+				},
+				{
+					factors: [
+						{ unitId: "g", exponent: 1 },
+						{ unitId: "L", exponent: -1 },
+					],
+				},
+				1,
+			),
+		).toBeCloseTo(0.01);
+		expect(
+			registry.convert(
+				{
+					factors: [
+						{ unitId: "[lbf_av]", exponent: 1 },
+						{ unitId: "[ft_i]", exponent: 1 },
+					],
+				},
+				{ factors: [{ unitId: "J", exponent: 1 }] },
+				1,
+			),
+		).toBeCloseTo(1.355817948, 8);
+		expect(
+			registry.convert(
+				getCommonUnitExpression("m2"),
+				getCommonUnitExpression("cm2"),
+				1,
+			),
+		).toBeCloseTo(10_000);
 	});
 });

@@ -32,7 +32,11 @@ export class QuantityConversionRegistry {
 		this.canonicalUnits.set(unit.dimension, unit.canonicalUnit);
 		const stored = Object.freeze({
 			...unit,
+			baseUnit: unit.baseUnit ?? unit.canonicalUnit,
 			transform: Object.freeze({ ...unit.transform }),
+			baseDimensionVector: unit.baseDimensionVector
+				? Object.freeze({ ...unit.baseDimensionVector })
+				: undefined,
 		});
 		let dimensionUnits = this.dimensions.get(unit.dimension);
 		if (!dimensionUnits) {
@@ -60,9 +64,12 @@ export class QuantityConversionRegistry {
 		value: number,
 	): number | undefined {
 		if (!Number.isFinite(value)) return undefined;
-		const unit = this.get(dimension, sourceUnit);
-		if (!unit) return undefined;
-		const converted = unit.transform.toCanonical(value);
+		const source = this.get(dimension, sourceUnit);
+		const canonicalId = this.canonicalUnits.get(dimension);
+		const canonical = canonicalId ? this.get(dimension, canonicalId) : undefined;
+		if (!source || !canonical) return undefined;
+		const baseValue = source.transform.toBase(value);
+		const converted = canonical.transform.fromBase(baseValue);
 		return Number.isFinite(converted) ? converted : undefined;
 	}
 
@@ -72,9 +79,12 @@ export class QuantityConversionRegistry {
 		value: number,
 	): number | undefined {
 		if (!Number.isFinite(value)) return undefined;
-		const unit = this.get(dimension, targetUnit);
-		if (!unit) return undefined;
-		const converted = unit.transform.fromCanonical(value);
+		const target = this.get(dimension, targetUnit);
+		const canonicalId = this.canonicalUnits.get(dimension);
+		const canonical = canonicalId ? this.get(dimension, canonicalId) : undefined;
+		if (!target || !canonical) return undefined;
+		const baseValue = canonical.transform.toBase(value);
+		const converted = target.transform.fromBase(baseValue);
 		return Number.isFinite(converted) ? converted : undefined;
 	}
 
@@ -118,13 +128,35 @@ export class QuantityConversionRegistry {
 			.sort(([left], [right]) => left.localeCompare(right))
 			.map(([unitId, exponent]) => ({ unitId, exponent }));
 		const dimensionVector: Record<string, number> = {};
+		const baseDimensionVector: Record<string, number> = {};
+		let hasUnknownUnit = false;
+		let hasIncompleteBaseVector = false;
 		for (const factor of factors) {
 			const unit = this.getUnit(factor.unitId);
-			if (!unit) continue;
+			if (!unit) {
+				hasUnknownUnit = true;
+				continue;
+			}
 			dimensionVector[unit.dimension] =
 				(dimensionVector[unit.dimension] ?? 0) + factor.exponent;
+			if (!unit.baseDimensionVector) {
+				hasIncompleteBaseVector = true;
+				continue;
+			}
+			for (const [dimension, exponent] of Object.entries(
+				unit.baseDimensionVector,
+			)) {
+				baseDimensionVector[dimension] =
+					(baseDimensionVector[dimension] ?? 0) + exponent * factor.exponent;
+			}
 		}
-		return { factors, dimensionVector };
+		return {
+			factors,
+			dimensionVector: removeZeroEntries(dimensionVector),
+			...(hasUnknownUnit || hasIncompleteBaseVector
+				? {}
+				: { baseDimensionVector: removeZeroEntries(baseDimensionVector) }),
+		};
 	}
 
 	private expressionScale(expression: NormalizedUnitExpression): number | undefined {
@@ -137,7 +169,7 @@ export class QuantityConversionRegistry {
 				unit.transform.kind !== "multiplicative"
 			)
 				return undefined;
-			const unitScale = unit.transform.toCanonical(1);
+			const unitScale = unit.transform.toBase(1);
 			if (!Number.isFinite(unitScale) || unitScale === 0) return undefined;
 			scale *= unitScale ** factor.exponent;
 		}
@@ -145,20 +177,34 @@ export class QuantityConversionRegistry {
 	}
 }
 
+function removeZeroEntries(
+	vector: Record<string, number>,
+): Readonly<Record<string, number>> {
+	return Object.fromEntries(
+		Object.entries(vector)
+			.filter(([, value]) => value !== 0)
+			.sort(([left], [right]) => left.localeCompare(right)),
+	);
+}
+
 function sameDimensionVector(
 	left: NormalizedUnitExpression,
 	right: NormalizedUnitExpression,
 ): boolean {
-	const dimensions = new Set([
-		...Object.keys(left.dimensionVector),
-		...Object.keys(right.dimensionVector),
-	]);
+	const leftBase = left.baseDimensionVector;
+	const rightBase = right.baseDimensionVector;
+	if (leftBase || rightBase)
+		return Boolean(leftBase && rightBase) && vectorsEqual(leftBase!, rightBase!);
+	return vectorsEqual(left.dimensionVector, right.dimensionVector);
+}
+
+function vectorsEqual(
+	left: Readonly<Record<string, number>>,
+	right: Readonly<Record<string, number>>,
+): boolean {
+	const dimensions = new Set([...Object.keys(left), ...Object.keys(right)]);
 	for (const dimension of dimensions) {
-		if (
-			(left.dimensionVector[dimension] ?? 0) !==
-			(right.dimensionVector[dimension] ?? 0)
-		)
-			return false;
+		if ((left[dimension] ?? 0) !== (right[dimension] ?? 0)) return false;
 	}
 	return true;
 }

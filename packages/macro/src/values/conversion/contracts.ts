@@ -4,16 +4,18 @@ export type UnitTransformKind = "multiplicative" | "affine" | "nonlinear";
 
 export interface UnitTransform {
 	kind: UnitTransformKind;
-	toCanonical(value: number): number;
-	fromCanonical(value: number): number;
+	toBase(value: number): number;
+	fromBase(value: number): number;
 }
 
 export interface AtomicUnitDefinition {
 	id: UnitId;
 	dimension: QuantityDimension;
 	canonicalUnit: UnitId;
+	baseUnit?: UnitId;
 	transform: UnitTransform;
 	composable: boolean;
+	baseDimensionVector?: Readonly<Record<string, number>>;
 }
 
 export interface UnitFactor {
@@ -27,4 +29,5 @@ export interface UnitExpression {
 
 export interface NormalizedUnitExpression extends UnitExpression {
 	dimensionVector: Readonly<Record<QuantityDimension, number>>;
+	baseDimensionVector?: Readonly<Record<string, number>>;
 }
