@@ -230,7 +230,7 @@ function resolveUnit(
 			return canonicalUnit;
 		}
 	}
-	return undefined;
+	return input.trim();
 }
 
 function diagnostic(code: string, message: string): QuantityGrammarResolution {
