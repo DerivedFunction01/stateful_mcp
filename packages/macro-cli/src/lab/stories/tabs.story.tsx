@@ -1,27 +1,44 @@
 import type { TuiStory } from "../story-contract";
 import { TuiTabs, type TuiTabItem } from "../../ui/primitives/TuiTabs";
 
-const TABS: readonly TuiTabItem[] = [
+const STATUS_TABS: readonly TuiTabItem[] = [
 	{ id: "scratchpad", label: "Scratchpad", icon: "📝" },
 	{ id: "notebook", label: "Notebook", icon: "📓", isDirty: true },
 	{ id: "pos", label: "POS App", icon: "💳" },
-	{ id: "settings", label: "Settings", icon: "⚙️" },
+	{ id: "settings", label: "Settings", icon: "⚙️", status: "error" },
 ];
 
 export const tabsStory: TuiStory = {
 	id: "workspace-tabs",
 	title: "Workspace Tabs",
 	category: "Core",
-	states: ["first-tab-active", "dirty-tab-active", "brackets-style"],
+	states: ["opencode-solid-accent", "browser-prototype-card", "vscode-pipes"],
 	render(context) {
-		const activeId = context.stateId === "dirty-tab-active" ? "notebook" : "scratchpad";
-		const style = context.stateId === "brackets-style" ? "brackets" : "standard";
+		if (context.stateId === "vscode-pipes") {
+			return (
+				<TuiTabs
+					tabs={STATUS_TABS}
+					activeTabId="notebook"
+					variant="vscode"
+				/>
+			);
+		}
+
+		if (context.stateId === "browser-prototype-card") {
+			return (
+				<TuiTabs
+					tabs={STATUS_TABS}
+					activeTabId="scratchpad"
+					variant="browser"
+				/>
+			);
+		}
 
 		return (
 			<TuiTabs
-				tabs={TABS}
-				activeTabId={activeId}
-				style={style}
+				tabs={STATUS_TABS}
+				activeTabId="scratchpad"
+				variant="opencode"
 			/>
 		);
 	},

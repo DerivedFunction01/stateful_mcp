@@ -98,6 +98,17 @@ export function parseArgs(args: readonly string[]): LoadMacroCliOptions {
 				inspectTarget = rawValue;
 			}
 		}
+	} else if (args[0] === "inspect") {
+		inspect = true;
+		const sub1 = args[1];
+		const sub2 = args[2];
+		if (!sub1 || sub1 === "gallery") {
+			inspectTarget = undefined;
+		} else if (sub1 === "component" || sub1 === "view" || sub1 === "tab") {
+			inspectTarget = sub2;
+		} else {
+			inspectTarget = sub1;
+		}
 	}
 
 	return {

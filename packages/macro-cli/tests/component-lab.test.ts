@@ -28,6 +28,16 @@ describe("macro-cli --inspect argument parsing", () => {
 		expect(parseArgs(["--inspect=view=journal"]).inspectTarget).toBe("journal");
 		expect(parseArgs(["--inspect=tab=scratchpad"]).inspectTarget).toBe("scratchpad");
 	});
+
+	test("parses positional inspect subcommands", () => {
+		expect(parseArgs(["inspect"]).inspect).toBe(true);
+		expect(parseArgs(["inspect"]).inspectTarget).toBeUndefined();
+		expect(parseArgs(["inspect", "gallery"]).inspectTarget).toBeUndefined();
+		expect(parseArgs(["inspect", "component", "command-palette"]).inspectTarget).toBe("command-palette");
+		expect(parseArgs(["inspect", "view", "journal"]).inspectTarget).toBe("journal");
+		expect(parseArgs(["inspect", "tab", "pos"]).inspectTarget).toBe("pos");
+		expect(parseArgs(["inspect", "scratchpad"]).inspectTarget).toBe("scratchpad");
+	});
 });
 
 describe("TuiStoryRegistry", () => {

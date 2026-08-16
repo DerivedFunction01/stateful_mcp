@@ -43,7 +43,6 @@ export function ComponentLabApp({
 	const [showBounds, setShowBounds] = useState(false);
 	const [reloadCount, setReloadCount] = useState(0);
 
-	// In-memory mock workspace for isolated deterministic rendering
 	const [fixtureWorkspace, setFixtureWorkspace] = useState(() =>
 		initialWorkspace && initialKeymap
 			? { workspace: initialWorkspace, keymap: initialKeymap }
@@ -126,7 +125,7 @@ export function ComponentLabApp({
 
 	const renderedStory = currentStory ? currentStory.render(storyContext) : null;
 
-	const navWidth = Math.min(26, Math.max(20, Math.floor(renderer.width * 0.22)));
+	const navWidth = Math.min(32, Math.max(28, Math.floor(renderer.width * 0.24)));
 	const previewWidth = renderer.width - navWidth - 1;
 	const bodyHeight = Math.max(10, renderer.height - 4);
 
@@ -138,8 +137,8 @@ export function ComponentLabApp({
 					{translate(fixtureWorkspace.workspace.i18n, "lab.title", "Macro CLI Component Lab")}
 				</text>
 				<box flexGrow={1} />
-				<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
-					preset: {currentPreset.name} ({effectiveSize.columns}×{effectiveSize.rows})
+				<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+					[preset: {currentPreset.name} ({effectiveSize.columns}×{effectiveSize.rows})]
 				</text>
 			</box>
 
@@ -164,12 +163,15 @@ export function ComponentLabApp({
 						const isSelected = idx === storyIndex;
 						return (
 							<box key={s.id} height={1}>
-								<text
-									attributes={isSelected ? TextAttributes.INVERSE | TextAttributes.BOLD : 0}
-									fg={isSelected ? "yellow" : TuiNamedColors.primary}
-								>
-									{isSelected ? "> " : "  "}{s.title}
-								</text>
+								{isSelected ? (
+									<text fg="cyan" attributes={TextAttributes.BOLD}>
+										&gt; {s.title}
+									</text>
+								) : (
+									<text fg={TuiNamedColors.muted}>
+										  {s.title}
+									</text>
+								)}
 							</box>
 						);
 					})}
@@ -189,12 +191,12 @@ export function ComponentLabApp({
 						<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
 							{currentStory?.title ?? "Story"}
 						</text>
-						<text fg="yellow">
+						<text fg={TuiNamedColors.amber} attributes={TextAttributes.BOLD}>
 							{" "}[state: {currentState}]
 						</text>
 						{showBounds && (
-							<text fg="magenta" attributes={TextAttributes.DIM}>
-								{" "}[bounds ON]
+							<text fg="magenta" attributes={TextAttributes.BOLD}>
+								{" "}[bounds: ON]
 							</text>
 						)}
 						<box flexGrow={1} />
@@ -216,19 +218,19 @@ export function ComponentLabApp({
 						Story:{" "}
 					</text>
 					<text fg={TuiNamedColors.primary}>
-						{currentStory?.id}  
+						{currentStory?.id}   
 					</text>
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						State:{" "}
 					</text>
 					<text fg={TuiNamedColors.primary}>
-						{currentState}  
+						{currentState}   
 					</text>
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						Size:{" "}
 					</text>
 					<text fg={TuiNamedColors.primary}>
-						{effectiveSize.columns}×{effectiveSize.rows}  
+						{effectiveSize.columns}×{effectiveSize.rows}   
 					</text>
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						Bounds:{" "}
@@ -237,10 +239,24 @@ export function ComponentLabApp({
 						{showBounds ? "ON" : "OFF"}
 					</text>
 				</box>
-				<box height={1}>
-					<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
-						{translate(fixtureWorkspace.workspace.i18n, "lab.shortcuts", "↑↓ component  ←→ state  s size  b bounds  r reload  Esc exit")}
-					</text>
+				<box height={1} flexDirection="row">
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ ↑/↓ ]</text>
+					<text fg={TuiNamedColors.muted}> Component </text>
+					<text fg={TuiNamedColors.border}>│ </text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ ←/→ ]</text>
+					<text fg={TuiNamedColors.muted}> State </text>
+					<text fg={TuiNamedColors.border}>│ </text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ s ]</text>
+					<text fg={TuiNamedColors.muted}> Size </text>
+					<text fg={TuiNamedColors.border}>│ </text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ b ]</text>
+					<text fg={TuiNamedColors.muted}> Bounds </text>
+					<text fg={TuiNamedColors.border}>│ </text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ r ]</text>
+					<text fg={TuiNamedColors.muted}> Reload </text>
+					<text fg={TuiNamedColors.border}>│ </text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ Esc ]</text>
+					<text fg={TuiNamedColors.muted}> Exit</text>
 				</box>
 			</box>
 		</box>
