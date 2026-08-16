@@ -96,6 +96,7 @@ export function createAssertionMacro(
 	const subjectArg: MacroArgumentSpec = {
 		argumentId: spec.subjectSlotId,
 		name: spec.subjectSlotId,
+		position: 0,
 		path: `${spec.macroName}.${spec.subjectSlotId}`,
 		matcher: { kind: "pattern", pattern: subjectPattern },
 		required: true,
@@ -166,6 +167,9 @@ export function createAssertionMacro(
 		id: spec.id ?? `macro:${spec.macroName}`,
 		name: spec.macroName,
 		arguments: [subjectArg, ...clauseArgs],
+		matching: {
+			positionalFallback: true,
+		},
 		authoringTemplates: [
 			{
 				version: 1,
@@ -175,14 +179,6 @@ export function createAssertionMacro(
 						argumentId: spec.subjectSlotId,
 						occurrence: 0,
 					},
-					...spec.clauses.flatMap((c) => [
-						{ kind: "literal" as const, text: ` ${c.slotId} ` },
-						{
-							kind: "slot" as const,
-							argumentId: c.slotId,
-							occurrence: 0,
-						},
-					]),
 				],
 			},
 		],

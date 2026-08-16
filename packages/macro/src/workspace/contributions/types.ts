@@ -1,0 +1,87 @@
+/**
+ * Declarative extension UI contribution schemas and polymorphic view provider contracts.
+ */
+
+export interface ViewContainerContribution {
+	readonly id: string;
+	readonly title: string;
+	readonly icon: string;
+	readonly altKey?: string;
+	readonly order?: number;
+}
+
+export interface ViewContribution {
+	readonly id: string;
+	readonly name: string;
+	readonly containerId: string;
+	readonly defaultExpanded?: boolean;
+	readonly order?: number;
+}
+
+export interface WorkspaceTabContribution {
+	readonly id: string;
+	readonly label: string;
+	readonly order?: number;
+	readonly defaultVisible?: boolean;
+	readonly icon?: string;
+}
+
+export interface CommandContribution {
+	readonly command: string;
+	readonly title: string;
+	readonly category?: string;
+	readonly keybinding?: string;
+	readonly when?: string;
+}
+
+export interface LocalizationContribution {
+	readonly languageId: string;
+	readonly translations: readonly {
+		readonly id: string;
+		readonly path: string;
+	}[];
+}
+
+export interface MacroExtensionUIContributions {
+	readonly viewsContainers?: {
+		readonly activitybar?: readonly ViewContainerContribution[];
+	};
+	readonly views?: Readonly<Record<string, readonly ViewContribution[]>>;
+	readonly workspaceTabs?: readonly WorkspaceTabContribution[];
+	readonly commands?: readonly CommandContribution[];
+	readonly localizations?: readonly LocalizationContribution[];
+}
+
+export interface ExtensionViewRenderContext<TState = unknown> {
+	readonly viewId: string;
+	readonly isFocused: boolean;
+	readonly width?: number;
+	readonly height?: number;
+	readonly state?: TState;
+	onEmitAction?(actionId: string, payload?: unknown): void;
+}
+
+export interface ExtensionTabRenderContext<TState = unknown> {
+	readonly tabId: string;
+	readonly isFocused: boolean;
+	readonly state?: TState;
+	onEmitAction?(actionId: string, payload?: unknown): void;
+}
+
+export interface ExtensionViewProvider<
+	TRenderResult = unknown,
+	TState = unknown,
+> {
+	render(context: ExtensionViewRenderContext<TState>): TRenderResult;
+}
+
+export interface ExtensionTabProvider<
+	TRenderResult = unknown,
+	TState = unknown,
+> {
+	render(context: ExtensionTabRenderContext<TState>): TRenderResult;
+}
+
+export interface CommandHandler {
+	execute(...args: unknown[]): Promise<unknown> | unknown;
+}

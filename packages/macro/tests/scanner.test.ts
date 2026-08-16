@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { MacroDiagnostic } from "../src/contracts/input";
+import { resolveArgumentDelimiter } from "../src/contracts/syntax";
 import {
 	scanConceptTokenParts,
 	scanNamedAssignments,
@@ -7,7 +8,6 @@ import {
 	splitListItems,
 	tokenizePositionalTokens,
 } from "../src/parser/macro-scanner";
-import { resolveArgumentDelimiter } from "../src/contracts/syntax";
 
 describe("shared lexical scanner", () => {
 	test("uses only the explicitly configured argument delimiter", () => {

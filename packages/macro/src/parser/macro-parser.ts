@@ -708,10 +708,9 @@ function scanPatternMatches(
 			? (matcher.flags ?? (typeof pattern === "string" ? "" : pattern.flags))
 			: "";
 	try {
-		const expression = new RegExp(
-			`(?:${source})`,
-			`${flags.replace(/g/g, "")}gid`,
-		);
+		const cleanFlags = flags.replace(/g/g, "");
+		const withU = cleanFlags.includes("u") ? cleanFlags : `${cleanFlags}u`;
+		const expression = new RegExp(`(?:${source})`, `${withU}gid`);
 		return execAll(expression, raw.slice(region.start)).flatMap((match) => {
 			if (!match.indices) return [];
 			const start = region.start + match.index;

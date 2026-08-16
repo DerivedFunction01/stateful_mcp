@@ -57,3 +57,4 @@ export * from "./values/numeric";
 export * from "./values/pattern-compiler";
 export * from "./values/quantity";
 export * from "./values/regex";
+export * from "./workspace";

@@ -22,7 +22,8 @@
 				"noImplicitAnyLet": "off",
 				"noNonNullAssertedOptionalChain": "off",
 				"noThenProperty": "off",
-				"noControlCharactersInRegex": "off"
+				"noControlCharactersInRegex": "off",
+				"noConfusingVoidType": "off"
 			},
 			"style": {
 				"useNodejsImportProtocol": "off",

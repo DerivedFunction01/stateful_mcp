@@ -31,6 +31,7 @@ import {
 	type MacroRuntimeOptions,
 	parseMacroWithAdapter,
 } from "../runtime/macro-runtime";
+import type { I18nKernel } from "../workspace/i18n/i18n-kernel";
 import {
 	compileDomainConfig,
 	type ExtensionConfig,
@@ -60,6 +61,7 @@ export interface ExtensionRuntimeOptions {
 	context?: MacroRuntimeContext;
 	profile?: UserMacroProfile;
 	settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+	i18n?: I18nKernel;
 }
 
 export interface ActivationResult {
@@ -72,6 +74,7 @@ export class ExtensionRuntime {
 	readonly macros = new MacroRegistryStore();
 	readonly adapters = new AdapterRegistry();
 	readonly context: MacroRuntimeContext;
+	readonly i18n?: I18nKernel;
 	private readonly contexts = new Map<string, ExtensionContext>();
 	private readonly listeners = new Map<string, ParseListener[]>();
 	readonly options: Required<Pick<ExtensionRuntimeOptions, "rootDirectory">> & {
@@ -89,6 +92,7 @@ export class ExtensionRuntime {
 			settings: options.settings ?? {},
 		};
 		this.context = options.context ?? createMacroRuntimeContext();
+		this.i18n = options.i18n;
 	}
 
 	async load(directory: string): Promise<readonly LoadedExtension[]> {
@@ -191,6 +195,7 @@ export class ExtensionRuntime {
 				manifest.configDefaults,
 				this.options.settings[manifest.id],
 			),
+			this.i18n,
 		);
 		try {
 			const activation = await extension.activate(context);
@@ -206,6 +211,13 @@ export class ExtensionRuntime {
 					backendRecord(),
 				);
 			}
+			for (const loc of activation?.localizations ?? []) {
+				this.i18n?.registerTranslations(
+					loc.languageId,
+					loc.dictionary,
+					manifest.id,
+				);
+			}
 			const active: ActiveExtension = {
 				manifest,
 				sourceFile,
@@ -216,6 +228,7 @@ export class ExtensionRuntime {
 					} finally {
 						this.adapters.unregisterOwner(manifest.id);
 						this.macros.unregisterOwner(manifest.id);
+						this.i18n?.unregisterOwner(manifest.id);
 						this.listeners.delete(manifest.id);
 						this.contexts.delete(manifest.id);
 						await scope.close();
@@ -229,6 +242,7 @@ export class ExtensionRuntime {
 		} catch (error) {
 			this.adapters.unregisterOwner(manifest.id);
 			this.macros.unregisterOwner(manifest.id);
+			this.i18n?.unregisterOwner(manifest.id);
 			this.listeners.delete(manifest.id);
 			this.contexts.delete(manifest.id);
 			await scope.close();
@@ -336,6 +350,7 @@ function createContext(
 	registry: ExtensionRegistry,
 	options: ExtensionRuntime["options"],
 	config: ExtensionConfig,
+	i18n?: I18nKernel,
 ): ExtensionContext {
 	const rootDirectory = options.rootDirectory;
 	const extensionRoot = dirname(resolve(sourceFile));
@@ -386,6 +401,14 @@ function createContext(
 		},
 		logger: options.logger,
 		seed: createExtensionSeedServices(extensionRoot),
+		i18n: i18n
+			? {
+					registerTranslations: (languageId, dictionary) =>
+						i18n.registerTranslations(languageId, dictionary, manifest.id),
+					t: (key, params) => i18n.t(key, params),
+					getActiveLocale: () => i18n.getActiveLocale(),
+				}
+			: undefined,
 	};
 }
 

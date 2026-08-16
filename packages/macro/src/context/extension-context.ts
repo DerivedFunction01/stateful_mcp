@@ -54,6 +54,15 @@ import type {
 	UserMacroProfile,
 } from "../contracts/extension-config";
 
+export interface ExtensionI18nWriter {
+	registerTranslations(
+		languageId: string,
+		dictionary: Record<string, string>,
+	): void;
+	t(key: string, params?: Record<string, unknown>): string;
+	getActiveLocale(): string;
+}
+
 export interface ExtensionContext {
 	extension: {
 		id: string;
@@ -72,6 +81,7 @@ export interface ExtensionContext {
 	storage: ExtensionStorageServices;
 	logger: ExtensionLogger;
 	seed: ExtensionSeedServices;
+	i18n?: ExtensionI18nWriter;
 }
 
 export interface ContextInternals {

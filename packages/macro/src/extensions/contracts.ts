@@ -1,6 +1,12 @@
 import type { ExtensionContext } from "../context/extension-context";
 import type { MacroDefinitionAdapter } from "../contracts/composition";
 import type { ExtensionDomainConfig } from "../contracts/extension-config";
+import type { MacroExtensionUIContributions } from "../workspace/contributions/types";
+
+export interface ExtensionLocaleBundle {
+	readonly languageId: string;
+	readonly dictionary: Record<string, string>;
+}
 
 export interface MacroExtensionManifest {
 	id: string;
@@ -8,11 +14,13 @@ export interface MacroExtensionManifest {
 	requires?: readonly string[];
 	configDefaults?: Readonly<Record<string, unknown>>;
 	domainConfig?: ExtensionDomainConfig;
+	contributes?: MacroExtensionUIContributions;
 }
 
 export interface ExtensionActivation {
 	exports?: Record<string, unknown>;
 	adapters?: readonly MacroDefinitionAdapter[];
+	localizations?: readonly ExtensionLocaleBundle[];
 	dispose?(): Promise<void> | void;
 }
 
