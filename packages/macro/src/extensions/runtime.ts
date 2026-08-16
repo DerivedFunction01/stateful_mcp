@@ -222,6 +222,7 @@ export class ExtensionRuntime {
 				manifest,
 				sourceFile,
 				exports: activation?.exports ?? {},
+				contributions: activation?.contributions,
 				dispose: async () => {
 					try {
 						await activation?.dispose?.();

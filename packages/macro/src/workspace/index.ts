@@ -1,6 +1,7 @@
 import type { UserMacroProfile } from "../contracts/extension-config";
 import { ExtensionRuntime } from "../extensions/runtime";
 import { CommandRegistry } from "./contributions/command-registry";
+import { ExtensionContributionManager } from "./contributions/extension-contribution-manager";
 import { TabRegistry } from "./contributions/tab-registry";
 import { ViewRegistry } from "./contributions/view-registry";
 import { EditorKernel } from "./editor/editor-kernel";
@@ -17,6 +18,7 @@ import { ScratchpadSession } from "./scratchpad/scratchpad-session";
 export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
 export * from "./contributions/command-registry";
+export * from "./contributions/extension-contribution-manager";
 export * from "./contributions/tab-registry";
 export * from "./contributions/types";
 export * from "./contributions/view-registry";
@@ -54,6 +56,8 @@ export interface MacroWorkspace {
 	readonly commands: CommandRegistry;
 	readonly i18n: I18nKernel;
 	readonly runtime: ExtensionRuntime;
+	readonly contributions: ExtensionContributionManager;
+	dispose(): Promise<void>;
 }
 
 export function createMacroWorkspace(
@@ -76,8 +80,8 @@ export function createMacroWorkspace(
 	const editor = new EditorKernel(options?.initialText ?? "");
 	const scratchpad = new ScratchpadSession(runtime, editor.buffer);
 	const palette = new CommandPaletteController(commands, layout, tabs);
-
-	return {
+	const contributions = new ExtensionContributionManager(views, tabs, commands);
+	const workspace: MacroWorkspace = {
 		layout,
 		editor,
 		scratchpad,
@@ -88,5 +92,12 @@ export function createMacroWorkspace(
 		commands,
 		i18n,
 		runtime,
+		contributions,
+		dispose: async () => {
+			contributions.dispose();
+			await runtime.dispose();
+		},
 	};
+
+	return workspace;
 }

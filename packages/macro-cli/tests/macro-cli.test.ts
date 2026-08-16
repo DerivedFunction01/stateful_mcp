@@ -67,6 +67,62 @@ describe("macro-cli workspace loading", () => {
 			"version mismatch",
 		);
 	});
+
+	test("rejects discovered extension modules that are not allowlisted", async () => {
+		const root = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "macro-cli-"));
+		const extensions = join(root, "extensions");
+		await mkdir(extensions);
+		await writeFile(join(extensions, "listed.ts"), "export default { manifest: { id: 'listed', version: '1.0.0' }, activate() { return {}; } };\n");
+		await writeFile(join(extensions, "unlisted.ts"), "export default { manifest: { id: 'unlisted', version: '1.0.0' }, activate() { return {}; } };\n");
+		const manifestPath = join(root, "workspace.json");
+		await writeFile(manifestPath, JSON.stringify({
+			extensions: [{ id: "listed", source: "./extensions/listed.ts", version: "1.0.0" }],
+		}));
+		await expect(loadMacroCliWorkspace({ workspacePath: manifestPath })).rejects.toThrow(
+			"discovered but not listed",
+		);
+	});
+
+	test("installs executable contributions and removes them with workspace disposal", async () => {
+		const root = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "macro-cli-"));
+		const source = join(root, "retail.ts");
+		await writeFile(
+			source,
+			`export default {
+				manifest: {
+					id: "retail", version: "1.0.0",
+					contributes: {
+						viewsContainers: { activitybar: [{ id: "retail", title: "Retail", icon: "R", altKey: "4" }] },
+						views: { retail: [{ id: "retail.lookup", name: "Lookup", containerId: "retail" }] },
+						commands: [{ command: "retail.lookup", title: "Lookup SKU" }]
+					}
+				},
+				activate() {
+					return {
+						contributions: {
+							views: { "retail.lookup": { render() { return null; }, handleInput() { return "handled"; } } },
+							commands: { "retail.lookup": { execute() { return "ok"; } } }
+						}
+					};
+				}
+			};\n`,
+		);
+		const manifestPath = join(root, "workspace.json");
+		await writeFile(manifestPath, JSON.stringify({
+			extensions: [{ id: "retail", source: "./retail.ts", version: "1.0.0" }],
+		}));
+
+		const loaded = await loadMacroCliWorkspace({ workspacePath: manifestPath });
+		expect(loaded.workspace.views.getContainer("retail")?.extensionId).toBe("retail");
+		expect(loaded.workspace.views.getView("retail.lookup")?.provider).toBeDefined();
+		expect(await loaded.workspace.commands.executeCommand<string>("retail.lookup")).toBe("ok");
+		loaded.workspace.layout.setActiveContainer("retail");
+		loaded.workspace.layout.setFocusedPane("sidepanel");
+		expect(await dispatchTerminalInput(loaded.workspace, DEFAULT_EDITOR_KEYMAP_PROFILE, { input: "j" })).toBe("handled");
+		await loaded.workspace.dispose();
+		expect(loaded.workspace.views.getContainer("retail")).toBeUndefined();
+		expect(loaded.workspace.commands.getCommand("retail.lookup")).toBeUndefined();
+	});
 });
 
 describe("macro-cli terminal dispatcher", () => {

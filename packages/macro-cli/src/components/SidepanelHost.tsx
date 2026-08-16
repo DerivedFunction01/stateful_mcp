@@ -21,14 +21,17 @@ export function SidepanelHost({
 		.find((candidate) => candidate.provider);
 	if (view?.provider) {
 		const provider = view.provider as unknown as MacroCliViewProvider;
-		return provider({
+		const emitAction = (actionId: string, payload?: unknown) => {
+			void workspace.commands.executeCommand(actionId, payload);
+		};
+		return provider.render({
 			viewId: view.id,
 			workspace,
 			width,
 			height,
 			isFocused: workspace.layout.getSnapshot().focusedPane === "sidepanel",
-			emitAction: () => undefined,
-			onEmitAction: () => undefined,
+			emitAction,
+			onEmitAction: emitAction,
 		});
 	}
 	return (

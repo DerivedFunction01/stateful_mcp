@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type {
 	LoadedExtension,
@@ -70,7 +70,13 @@ export async function loadMacroCliWorkspace(
 		initialLocale: options.locale ?? profile?.locale ?? "en",
 		profile,
 	});
-	await workspace.runtime.activate(loadedExtensions);
+	const activation = await workspace.runtime.activate(loadedExtensions);
+	try {
+		workspace.contributions.install(activation.active);
+	} catch (error) {
+		await workspace.dispose();
+		throw error;
+	}
 	// The workspace parses once during construction, before extensions are active.
 	// Re-project now so initial buffer content is immediately extension-aware.
 	await workspace.scratchpad.parseAllLines();
@@ -121,6 +127,17 @@ async function loadManifestExtensions(
 	const files = manifest.extensions.map((entry) =>
 		resolve(manifestDirectory, entry.source),
 	);
+	const listedPaths = new Set(files);
+	for (const discovered of await discoverExtensionModules(resolve(manifestDirectory, "extensions"))) {
+		if (!listedPaths.has(discovered)) {
+			throw new ExtensionError(
+				`Extension module '${discovered}' is discovered but not listed in the workspace manifest`,
+				"WORKSPACE_EXTENSION_UNLISTED",
+				undefined,
+				discovered,
+			);
+		}
+	}
 	const loaded = await new MacroExtensionLoader({ directory: manifestDirectory }).importFiles(files);
 	const byId = new Map(manifest.extensions.map((entry) => [entry.id, entry]));
 	for (const item of loaded) {
@@ -156,6 +173,30 @@ async function loadManifestExtensions(
 		}
 	}
 	return loaded;
+}
+
+async function discoverExtensionModules(directory: string): Promise<string[]> {
+	const discovered: string[] = [];
+	let entries;
+	try {
+		entries = await readdir(directory, { withFileTypes: true });
+	} catch (error) {
+		if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+		throw error;
+	}
+	for (const entry of entries) {
+		const path = resolve(directory, entry.name);
+		if (entry.isDirectory()) {
+			discovered.push(...await discoverExtensionModules(path));
+			continue;
+		}
+		if (!entry.isFile()) continue;
+		if (/\.(?:ts|js|mjs)$/u.test(entry.name) &&
+			(entry.name.startsWith("index.") || directory.endsWith("/extensions"))) {
+			discovered.push(path);
+		}
+	}
+	return discovered;
 }
 
 async function readJsonFile<T>(path: string): Promise<T> {

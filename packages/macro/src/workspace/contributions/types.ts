@@ -71,17 +71,56 @@ export interface ExtensionTabRenderContext<TState = unknown> {
 export interface ExtensionViewProvider<
 	TRenderResult = unknown,
 	TState = unknown,
-> {
+> extends ExtensionInteractionProvider {
 	render(context: ExtensionViewRenderContext<TState>): TRenderResult;
 }
 
 export interface ExtensionTabProvider<
 	TRenderResult = unknown,
 	TState = unknown,
-> {
+> extends ExtensionInteractionProvider {
 	render(context: ExtensionTabRenderContext<TState>): TRenderResult;
 }
 
 export interface CommandHandler {
 	execute(...args: unknown[]): Promise<unknown> | unknown;
+}
+
+export interface WorkspaceInputEvent {
+	readonly type: "key" | "pointer" | "wheel";
+	readonly key?: string;
+	readonly input?: string;
+	readonly ctrl?: boolean;
+	readonly meta?: boolean;
+	readonly shift?: boolean;
+	readonly x?: number;
+	readonly y?: number;
+	readonly delta?: number;
+}
+
+export type WorkspaceInputResult = "handled" | "ignored";
+
+export interface ExtensionInteraction {
+	readonly id: string;
+	readonly role: "button" | "select" | "checkbox" | "text" | "diagram" | "menu";
+	readonly label: string;
+	readonly focusable?: boolean;
+	readonly value?: unknown;
+	readonly actions?: readonly string[];
+}
+
+export interface ExtensionInteractionContext {
+	readonly scopeId: string;
+	readonly focusedInteractionId?: string;
+	readonly emitAction: (actionId: string, payload?: unknown) => void;
+}
+
+export interface ExtensionInteractionProvider {
+	getInteractionModel?(
+		context: ExtensionInteractionContext,
+	): readonly ExtensionInteraction[];
+	handleInput?(
+		event: WorkspaceInputEvent,
+		context: ExtensionInteractionContext,
+	): Promise<WorkspaceInputResult> | WorkspaceInputResult;
 }

@@ -86,6 +86,38 @@ export async function dispatchTerminalInput(
 		return "handled";
 	}
 
+	const layout = workspace.layout.getSnapshot();
+	const contribution =
+		layout.focusedPane === "sidepanel"
+			? workspace.views
+					.getViewsForContainer(layout.activeContainerId)
+					.find((view) => view.provider)?.provider
+			: layout.activeTabId === "scratchpad"
+				? undefined
+				: workspace.tabs.getTab(layout.activeTabId)?.provider;
+	if (contribution?.handleInput) {
+		const result = await contribution.handleInput(
+			{
+				type: "key",
+				key: name,
+				input,
+				ctrl: event.ctrl,
+				meta: event.meta,
+				shift: event.shift,
+			},
+			{
+				scopeId:
+					layout.focusedPane === "sidepanel"
+						? layout.activeContainerId
+						: layout.activeTabId,
+				emitAction: (actionId, payload) => {
+					void workspace.commands.executeCommand(actionId, payload);
+				},
+			},
+		);
+		if (result === "handled") return "handled";
+	}
+
 	return workspace.editor.handleKey({
 		char: input,
 		name,

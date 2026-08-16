@@ -1,7 +1,12 @@
 import type { ExtensionContext } from "../context/extension-context";
 import type { MacroDefinitionAdapter } from "../contracts/composition";
 import type { ExtensionDomainConfig } from "../contracts/extension-config";
-import type { MacroExtensionUIContributions } from "../workspace/contributions/types";
+import type {
+	CommandHandler,
+	ExtensionTabProvider,
+	ExtensionViewProvider,
+	MacroExtensionUIContributions,
+} from "../workspace/contributions/types";
 
 export interface ExtensionLocaleBundle {
 	readonly languageId: string;
@@ -21,6 +26,11 @@ export interface ExtensionActivation {
 	exports?: Record<string, unknown>;
 	adapters?: readonly MacroDefinitionAdapter[];
 	localizations?: readonly ExtensionLocaleBundle[];
+	contributions?: {
+		readonly views?: Readonly<Record<string, ExtensionViewProvider>>;
+		readonly tabs?: Readonly<Record<string, ExtensionTabProvider>>;
+		readonly commands?: Readonly<Record<string, CommandHandler>>;
+	};
 	dispose?(): Promise<void> | void;
 }
 
@@ -40,7 +50,15 @@ export interface DefineExtensionOptions extends MacroExtensionManifest {
 export function defineExtension(
 	options: DefineExtensionOptions,
 ): MacroExtension {
-	const { id, version, requires, configDefaults, domainConfig, activate } =
+	const {
+		id,
+		version,
+		requires,
+		configDefaults,
+		domainConfig,
+		contributes,
+		activate,
+	} =
 		options;
 	if (!id || !version || typeof activate !== "function") {
 		throw new Error(
@@ -54,6 +72,7 @@ export function defineExtension(
 			...(requires ? { requires: [...requires] } : {}),
 			...(configDefaults ? { configDefaults } : {}),
 			...(domainConfig ? { domainConfig } : {}),
+			...(contributes ? { contributes } : {}),
 		},
 		activate,
 	};
@@ -68,5 +87,6 @@ export interface ActiveExtension {
 	manifest: MacroExtensionManifest;
 	sourceFile: string;
 	exports: Record<string, unknown>;
+	readonly contributions?: ExtensionActivation["contributions"];
 	dispose(): Promise<void>;
 }

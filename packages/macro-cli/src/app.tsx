@@ -44,7 +44,12 @@ export function MacroCliApp({
 			journal: workspace.journal.getEntries(),
 		});
 	});
-	useEffect(() => () => void workspace.runtime.dispose(), [workspace.runtime]);
+	useEffect(
+		() => () => {
+			void workspace.dispose();
+		},
+		[workspace],
+	);
 	useInput((input, key) => {
 		void dispatchTerminalInput(workspace, keymap, {
 			input,

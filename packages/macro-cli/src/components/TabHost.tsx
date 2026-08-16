@@ -14,14 +14,17 @@ export function TabHost({
 	const tab = workspace.tabs.getTab(workspace.layout.getSnapshot().activeTabId);
 	if (tab?.provider) {
 		const provider = tab.provider as unknown as MacroCliTabProvider;
-		return provider({
+		const emitAction = (actionId: string, payload?: unknown) => {
+			void workspace.commands.executeCommand(actionId, payload);
+		};
+		return provider.render({
 			tabId: tab.id,
 			workspace,
 			width,
 			height,
 			isFocused: workspace.layout.getSnapshot().focusedPane === "main",
-			emitAction: () => undefined,
-			onEmitAction: () => undefined,
+			emitAction,
+			onEmitAction: emitAction,
 		});
 	}
 	return (
