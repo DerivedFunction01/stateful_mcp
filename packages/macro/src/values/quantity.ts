@@ -1,5 +1,5 @@
 export interface QuantityGrammarConfig {
-	unitAliases: Readonly<Record<string, string>>;
+	unitAliases: Readonly<Record<string, readonly string[]>>;
 	rangeDelimiters: readonly string[];
 	operatorAliases?: Readonly<Record<string, string>>;
 	statisticalAliases?: Readonly<Record<string, string>>;
@@ -181,12 +181,29 @@ function parseNumberOnly(
 
 function resolveUnit(
 	input: string,
-	aliases: Readonly<Record<string, string>>,
+	aliases: Readonly<Record<string, readonly string[]>>,
 ): string | undefined {
 	const normalized = input.trim().toLocaleLowerCase();
-	return Object.entries(aliases).find(
-		([alias]) => alias.toLocaleLowerCase() === normalized,
-	)?.[1];
+	for (const [canonicalUnit, aliasList] of Object.entries(aliases)) {
+		if (canonicalUnit.toLocaleLowerCase() === normalized) {
+			return canonicalUnit;
+		}
+		if (Array.isArray(aliasList)) {
+			if (
+				aliasList.some(
+					(alias) => alias.toLocaleLowerCase() === normalized,
+				)
+			) {
+				return canonicalUnit;
+			}
+		} else if (
+			typeof aliasList === "string" &&
+			(aliasList as string).toLocaleLowerCase() === normalized
+		) {
+			return canonicalUnit;
+		}
+	}
+	return undefined;
 }
 
 function diagnostic(code: string, message: string): QuantityGrammarResolution {

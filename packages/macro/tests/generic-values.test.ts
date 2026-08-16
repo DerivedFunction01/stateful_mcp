@@ -19,7 +19,7 @@ describe("topic-agnostic value primitives", () => {
 		const result = parseQuantity(
 			"1.5 canonical",
 			{
-				unitAliases: { canonical: "unit-x" },
+				unitAliases: { "unit-x": ["canonical", "unit-x"] },
 				rangeDelimiters: [" to "],
 			},
 			{
@@ -33,6 +33,21 @@ describe("topic-agnostic value primitives", () => {
 		expect(
 			createMeasurementValueFromQuantity(result.value!).range,
 		).toBeUndefined();
+
+		const result2 = parseQuantity(
+			"2.5 kg",
+			{
+				unitAliases: { kg: ["kilogram", "kilograms", "kg"] },
+				rangeDelimiters: ["-"],
+			},
+			{
+				allowRange: false,
+				allowOperator: false,
+				statistics: "reject",
+				allowDataPointCount: false,
+			},
+		);
+		expect(result2.value).toMatchObject({ lower: 2.5, unit: "kg" });
 	});
 
 	test("builds date patterns from caller supplied tokens", () => {
