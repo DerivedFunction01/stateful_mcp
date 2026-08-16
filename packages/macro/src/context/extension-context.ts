@@ -48,6 +48,12 @@ export interface ExtensionLogger {
 	error(message: string, details?: unknown): void;
 }
 
+import type {
+	CompiledDomainGrammar,
+	ExtensionDomainConfig,
+	UserMacroProfile,
+} from "../contracts/extension-config";
+
 export interface ExtensionContext {
 	extension: {
 		id: string;
@@ -55,6 +61,9 @@ export interface ExtensionContext {
 		rootDirectory: string;
 	};
 	config: ExtensionConfig;
+	profile?: UserMacroProfile;
+	domainConfig?: ExtensionDomainConfig;
+	compiledDomainGrammar?: CompiledDomainGrammar;
 	dictionaries: DictionaryResourceFactory;
 	matchers: MatcherFactory;
 	macros: MacroRegistryWriter;

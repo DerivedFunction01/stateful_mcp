@@ -3,12 +3,14 @@ import type {
 	ExpressionCandidate,
 	ExpressionSearchRequest,
 } from "../contracts/backends";
+import type { LocalizationPolicyConfig } from "../contracts/extension-config";
 import type {
 	ExpressionSeed,
 	ResourceDiagnostic,
 	ResourceIdentity,
 } from "./contracts";
 import { escapeSeedRegex, normalizeLookupTerm } from "./dictionary-seed";
+import { UniversalWordSegmenter } from "../values/localization";
 
 export interface IndexedExpression {
 	id: string;
@@ -26,10 +28,25 @@ export interface IndexedExpression {
 export class ExpressionIndex implements ExpressionBackend {
 	private expressions: IndexedExpression[] = [];
 	private diagnostics: ResourceDiagnostic[] = [];
+	private segmenter = new UniversalWordSegmenter();
 	ownerExtensionId?: string;
 	resourceId?: string;
 	resolverId?: string;
 	version: string | number = 1;
+
+	constructor(localization?: LocalizationPolicyConfig) {
+		if (localization) {
+			this.configureLocalization(localization);
+		}
+	}
+
+	configureLocalization(localization?: LocalizationPolicyConfig): void {
+		this.segmenter = new UniversalWordSegmenter(
+			localization?.locale,
+			localization?.boundaryPolicy ?? "standard",
+			localization?.customBoundaryRegex,
+		);
+	}
 
 	get backendVersion(): string | number {
 		return this.version;
@@ -56,7 +73,7 @@ export class ExpressionIndex implements ExpressionBackend {
 		for (const record of records) {
 			if (!record.active) continue;
 			try {
-				new RegExp(record.regexPattern, record.isCaseInsensitive ? "i" : "");
+				new RegExp(record.regexPattern, record.isCaseInsensitive ? "iu" : "u");
 			} catch (error) {
 				this.diagnostics.push({
 					code: "INVALID_EXPRESSION_REGEX",
@@ -79,7 +96,7 @@ export class ExpressionIndex implements ExpressionBackend {
 	search(request: ExpressionSearchRequest): readonly ExpressionCandidate[] {
 		const candidates: ExpressionCandidate[] = [];
 		for (const expression of this.expressions) {
-			const flags = expression.isCaseInsensitive ? "gi" : "g";
+			const flags = expression.isCaseInsensitive ? "giu" : "gu";
 			let regex: RegExp;
 			try {
 				regex = new RegExp(expression.regexPattern, flags);
@@ -89,7 +106,7 @@ export class ExpressionIndex implements ExpressionBackend {
 			for (const match of execAll(regex, request.text)) {
 				const start = match.index;
 				const end = start + match[0].length;
-				if (end <= start || !hasWordBoundaries(request.text, start, end))
+				if (end <= start || !this.segmenter.isWordBoundary(request.text, start, end))
 					continue;
 				candidates.push(
 					candidate(expression, request.text, start, end, "exact", this),
@@ -102,7 +119,7 @@ export class ExpressionIndex implements ExpressionBackend {
 					expression.isCaseInsensitive,
 				);
 				if (!normalizedAlias) continue;
-				for (const start of boundaryStarts(request.text)) {
+				for (const start of boundaryStarts(request.text, this.segmenter)) {
 					const partial = request.text.slice(start).trimEnd();
 					const normalizedPartial = normalizeForExpression(
 						partial,
@@ -215,19 +232,19 @@ function execAll(expression: RegExp, text: string): RegExpExecArray[] {
 	return matches;
 }
 
-function boundaryStarts(text: string): number[] {
-	const starts = [0];
-	for (let index = 1; index < text.length; index += 1) {
-		if (/\s/u.test(text[index - 1]!)) starts.push(index);
+function boundaryStarts(text: string, segmenter: UniversalWordSegmenter): number[] {
+	const starts: number[] = [];
+	for (let index = 0; index < text.length; index += 1) {
+		if (/\s/u.test(text[index]!)) continue;
+		if (
+			index === 0 ||
+			/\s/u.test(text[index - 1]!) ||
+			segmenter.isWordBoundary(text, index, index)
+		) {
+			starts.push(index);
+		}
 	}
 	return starts;
-}
-
-function hasWordBoundaries(text: string, start: number, end: number): boolean {
-	return (
-		(start === 0 || /\s/u.test(text[start - 1]!)) &&
-		(end === text.length || /\s/u.test(text[end]!))
-	);
 }
 
 function startsWith(value: string, prefix: string): boolean {

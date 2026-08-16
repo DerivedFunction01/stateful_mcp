@@ -21,7 +21,9 @@ import {
 } from "../parser/macro-parser";
 import { createDictionaryResourceFactory } from "../resources/dictionary-resource";
 import { ResourceScope } from "../resources/resource-scope";
+import type { UserMacroProfile } from "../contracts/extension-config";
 import {
+	compileDomainConfig,
 	resolveExtensionConfig,
 	type ExtensionConfig,
 } from "./config";
@@ -53,6 +55,7 @@ export interface ExtensionRuntimeOptions {
 	rootDirectory?: string;
 	logger?: ExtensionLogger;
 	context?: MacroRuntimeContext;
+	profile?: UserMacroProfile;
 	settings?: Readonly<
 		Record<string, Readonly<Record<string, unknown>>>
 	>;
@@ -72,6 +75,7 @@ export class ExtensionRuntime {
 	private readonly listeners = new Map<string, ParseListener[]>();
 	readonly options: Required<Pick<ExtensionRuntimeOptions, "rootDirectory">> & {
 		logger: ExtensionLogger;
+		profile?: UserMacroProfile;
 		settings: Readonly<
 			Record<string, Readonly<Record<string, unknown>>>
 		>;
@@ -82,6 +86,7 @@ export class ExtensionRuntime {
 		this.options = {
 			rootDirectory: options.rootDirectory ?? process.cwd(),
 			logger: options.logger ?? consoleLogger,
+			profile: options.profile,
 			settings: options.settings ?? {},
 		};
 		this.context = options.context ?? createMacroRuntimeContext();
@@ -342,6 +347,12 @@ function createContext(
 			rootDirectory: extensionRoot,
 		},
 		config,
+		profile: options.profile,
+		domainConfig: manifest.domainConfig,
+		compiledDomainGrammar: compileDomainConfig(
+			options.profile,
+			manifest.domainConfig,
+		),
 		dictionaries: {
 			open: async (resourceOptions = {}) =>
 				scope.trackResource(

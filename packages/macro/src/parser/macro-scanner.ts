@@ -19,8 +19,10 @@ export interface ScannerSyntax {
 	readonly macroArgDelimiter?: string;
 	readonly fallbackBoundaryDelimiter?: string;
 	readonly quoteCharacters?: readonly string[];
+	readonly quotePairs?: readonly (readonly [open: string, close: string])[];
 	readonly groupOpen?: string;
 	readonly groupClose?: string;
+	readonly groupPairs?: readonly (readonly [open: string, close: string])[];
 	readonly expressionToken?: string;
 	readonly conceptToken?: string;
 	readonly conceptCodeSeparator?: string;
@@ -46,6 +48,44 @@ export function resolveQuoteCharacters(
 	return new Set(DEFAULT_QUOTE_CHARACTERS);
 }
 
+export function resolveQuoteOpenMap(
+	syntax?: Partial<MacroSyntax> | ScannerSyntax,
+): Map<string, string> {
+	const map = new Map<string, string>();
+	if (syntax?.quotePairs && syntax.quotePairs.length > 0) {
+		for (const [open, close] of syntax.quotePairs) {
+			map.set(open, close);
+		}
+		return map;
+	}
+	if (syntax?.quoteCharacters && syntax.quoteCharacters.length > 0) {
+		for (const q of syntax.quoteCharacters) {
+			map.set(q, q);
+		}
+		return map;
+	}
+	for (const q of DEFAULT_QUOTE_CHARACTERS) {
+		map.set(q, q);
+	}
+	return map;
+}
+
+export function resolveGroupMaps(
+	syntax?: Partial<MacroSyntax> | ScannerSyntax,
+): { openSet: Set<string>; closeSet: Set<string> } {
+	const openSet = new Set<string>();
+	const closeSet = new Set<string>();
+	if (syntax?.groupPairs && syntax.groupPairs.length > 0) {
+		for (const [open, close] of syntax.groupPairs) {
+			openSet.add(open);
+			closeSet.add(close);
+		}
+	}
+	if (syntax?.groupOpen) openSet.add(syntax.groupOpen);
+	if (syntax?.groupClose) closeSet.add(syntax.groupClose);
+	return { openSet, closeSet };
+}
+
 export { resolveArgumentDelimiter };
 
 export function traverseLexicalTokens(
@@ -55,7 +95,8 @@ export function traverseLexicalTokens(
 	callback: (state: LexicalState) => boolean | void,
 	diagnostics?: MacroDiagnostic[],
 ): { quote: string; depth: number } {
-	const quoteCharacters = resolveQuoteCharacters(syntax);
+	const quoteOpenMap = resolveQuoteOpenMap(syntax);
+	const { openSet: groupOpenSet, closeSet: groupCloseSet } = resolveGroupMaps(syntax);
 	let quote = "";
 	let escaped = false;
 	let depth = 0;
@@ -77,7 +118,7 @@ export function traverseLexicalTokens(
 			continue;
 		}
 
-		if (char === "\\" && (quote || syntax?.groupOpen)) {
+		if (char === "\\" && (quote || groupOpenSet.size > 0)) {
 			escaped = true;
 			const shouldContinue = callback({
 				index,
@@ -107,8 +148,8 @@ export function traverseLexicalTokens(
 			continue;
 		}
 
-		if (quoteCharacters.has(char)) {
-			quote = char;
+		if (quoteOpenMap.has(char)) {
+			quote = quoteOpenMap.get(char)!;
 			const shouldContinue = callback({
 				index,
 				char,
@@ -121,7 +162,7 @@ export function traverseLexicalTokens(
 			continue;
 		}
 
-		if (syntax?.groupOpen && char === syntax.groupOpen) {
+		if (groupOpenSet.has(char)) {
 			depth += 1;
 			const shouldContinue = callback({
 				index,
@@ -135,7 +176,7 @@ export function traverseLexicalTokens(
 			continue;
 		}
 
-		if (syntax?.groupClose && char === syntax.groupClose) {
+		if (groupCloseSet.has(char)) {
 			depth = Math.max(0, depth - 1);
 			const shouldContinue = callback({
 				index,

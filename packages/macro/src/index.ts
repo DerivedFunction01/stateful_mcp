@@ -5,6 +5,7 @@ export * from "./context/extension-context";
 export * from "./contracts/backends";
 export * from "./contracts/composition";
 export * from "./contracts/context";
+export * from "./contracts/extension-config";
 export type {
 	CreateMacroDraftSessionOptions,
 	MacroDraftInputs,
@@ -19,8 +20,11 @@ export * from "./contracts/payload";
 export * from "./contracts/slots";
 export * from "./contracts/syntax";
 export * from "./contracts/values";
+export * from "./values/compound";
 export * from "./values/conversion";
+export * from "./values/currency";
 export * from "./values/date-time";
+export * from "./values/localization";
 export * from "./values/measurement";
 export * from "./values/numeric";
 export * from "./values/quantity";

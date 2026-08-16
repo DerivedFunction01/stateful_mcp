@@ -1,11 +1,13 @@
 import type { ExtensionContext } from "../context/extension-context";
 import type { MacroDefinitionAdapter } from "../contracts/composition";
+import type { ExtensionDomainConfig } from "../contracts/extension-config";
 
 export interface MacroExtensionManifest {
 	id: string;
 	version: string;
 	requires?: readonly string[];
 	configDefaults?: Readonly<Record<string, unknown>>;
+	domainConfig?: ExtensionDomainConfig;
 }
 
 export interface ExtensionActivation {
@@ -30,7 +32,8 @@ export interface DefineExtensionOptions extends MacroExtensionManifest {
 export function defineExtension(
 	options: DefineExtensionOptions,
 ): MacroExtension {
-	const { id, version, requires, configDefaults, activate } = options;
+	const { id, version, requires, configDefaults, domainConfig, activate } =
+		options;
 	if (!id || !version || typeof activate !== "function") {
 		throw new Error(
 			"An extension requires an id, version, and activate function",
@@ -42,6 +45,7 @@ export function defineExtension(
 			version,
 			...(requires ? { requires: [...requires] } : {}),
 			...(configDefaults ? { configDefaults } : {}),
+			...(domainConfig ? { domainConfig } : {}),
 		},
 		activate,
 	};

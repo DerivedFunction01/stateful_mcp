@@ -1,17 +1,25 @@
 export interface QuantityGrammarConfig {
 	unitAliases: Readonly<Record<string, readonly string[]>>;
 	rangeDelimiters: readonly string[];
-	operatorAliases?: Readonly<Record<string, string>>;
-	statisticalAliases?: Readonly<Record<string, string>>;
+	operatorAliases?: Readonly<Record<string, readonly string[]>>;
+	statisticalAliases?: Readonly<Record<string, readonly string[]>>;
 	dataPointCountAliases?: readonly string[];
 	decimalSeparator?: "." | ",";
 }
+
+export const QUANTITY_STATISTICS_POLICIES = [
+	"accept",
+	"ignore",
+	"reject",
+] as const;
+export type QuantityStatisticsPolicy =
+	(typeof QUANTITY_STATISTICS_POLICIES)[number];
 
 export interface QuantityConsumerPolicy {
 	allowedUnits?: readonly string[];
 	allowRange: boolean;
 	allowOperator: boolean;
-	statistics: "accept" | "ignore" | "reject";
+	statistics: QuantityStatisticsPolicy;
 	allowDataPointCount: boolean;
 }
 
@@ -116,16 +124,35 @@ export function parseQuantity(
 
 function consumeAlias(
 	text: string,
-	aliases?: Readonly<Record<string, string>>,
+	aliases?: Readonly<Record<string, readonly string[] | string>>,
 ): { value: string; remainder: string } | undefined {
-	for (const [alias, value] of Object.entries(aliases ?? {}).sort(
-		(left, right) => right[0].length - left[0].length,
-	)) {
-		if (
-			text.toLocaleLowerCase().startsWith(alias.toLocaleLowerCase()) &&
-			text.slice(alias.length).trim()
-		)
-			return { value, remainder: text.slice(alias.length).trimStart() };
+	if (!aliases) return undefined;
+	const candidates: Array<{ canonical: string; alias: string }> = [];
+	for (const [canonical, aliasVal] of Object.entries(aliases)) {
+		candidates.push({ canonical, alias: canonical });
+		if (Array.isArray(aliasVal)) {
+			for (const alias of aliasVal) {
+				if (alias.toLocaleLowerCase() !== canonical.toLocaleLowerCase()) {
+					candidates.push({ canonical, alias });
+				}
+			}
+		} else if (typeof aliasVal === "string") {
+			if (aliasVal.toLocaleLowerCase() !== canonical.toLocaleLowerCase()) {
+				candidates.push({ canonical, alias: aliasVal });
+			}
+		}
+	}
+	candidates.sort((left, right) => right.alias.length - left.alias.length);
+
+	const lowerText = text.toLocaleLowerCase();
+	for (const { canonical, alias } of candidates) {
+		const lowerAlias = alias.toLocaleLowerCase();
+		if (lowerText.startsWith(lowerAlias)) {
+			const remainder = text.slice(alias.length).trimStart();
+			if (remainder.length > 0 || alias.length === text.length) {
+				return { value: canonical, remainder };
+			}
+		}
 	}
 	return undefined;
 }

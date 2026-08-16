@@ -56,7 +56,7 @@ export function buildNumericPatternString(
 	const currency = currencySymbols.length
 		? `(?:${currencySymbols.map(escapeRegex).join("|")})?`
 		: "";
-	const sign = allowNegative ? "-?" : "";
+	const sign = allowNegative ? "[-\\u2212\\u2013]?" : "";
 	const standard =
 		currencyPosition === "prefix"
 			? `${sign}${currency}${numeric}`
@@ -70,7 +70,7 @@ export function buildNumericPatternString(
 	return wrap && groupName ? `(?<${groupName}>${result})` : result;
 }
 
-export function compileNumericRegex(pattern: string, flags = "gi"): RegExp {
+export function compileNumericRegex(pattern: string, flags = "giu"): RegExp {
 	return getCompiledRegex(pattern, flags);
 }
 

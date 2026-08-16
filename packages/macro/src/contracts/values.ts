@@ -13,6 +13,7 @@ export const MACRO_VALUE_KINDS = [
 	"array",
 	"composite",
 	"quantity",
+	"currency",
 	"date-time",
 	"custom",
 ] as const;
@@ -81,6 +82,17 @@ export interface QuantityValue {
 	evidence?: ValueEvidence[];
 }
 
+export interface CurrencyValue {
+	kind: "currency";
+	amount: number;
+	currency: string;
+	subunits?: number;
+	symbol?: string;
+	formatted?: string;
+	rawText?: string;
+	evidence?: ValueEvidence[];
+}
+
 export interface DateTimeValue {
 	kind: "date-time";
 	value: string | Record<string, unknown>;
@@ -95,4 +107,5 @@ export type GenericValue =
 	| CompositeValue
 	| CustomValue
 	| QuantityValue
+	| CurrencyValue
 	| DateTimeValue;

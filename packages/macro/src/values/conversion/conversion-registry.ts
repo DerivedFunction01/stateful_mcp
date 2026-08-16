@@ -73,6 +73,18 @@ export class QuantityConversionRegistry {
 		return Number.isFinite(converted) ? converted : undefined;
 	}
 
+	convertToCanonicalByUnit(
+		unitId: UnitId,
+		value: number,
+	): { canonicalAmount: number; canonicalUnit: UnitId; dimension: QuantityDimension } | undefined {
+		const unit = this.units.get(unitId);
+		if (!unit) return undefined;
+		const canonicalAmount = this.convertToCanonical(unit.dimension, unitId, value);
+		if (canonicalAmount === undefined) return undefined;
+		const canonicalUnit = this.canonicalUnits.get(unit.dimension) ?? unit.canonicalUnit;
+		return { canonicalAmount, canonicalUnit, dimension: unit.dimension };
+	}
+
 	convertFromCanonical(
 		dimension: QuantityDimension,
 		targetUnit: UnitId,
@@ -86,6 +98,15 @@ export class QuantityConversionRegistry {
 		const baseValue = canonical.transform.toBase(value);
 		const converted = target.transform.fromBase(baseValue);
 		return Number.isFinite(converted) ? converted : undefined;
+	}
+
+	convertFromCanonicalByUnit(
+		targetUnit: UnitId,
+		value: number,
+	): number | undefined {
+		const unit = this.units.get(targetUnit);
+		if (!unit) return undefined;
+		return this.convertFromCanonical(unit.dimension, targetUnit, value);
 	}
 
 	convert(

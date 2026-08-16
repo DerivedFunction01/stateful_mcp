@@ -12,8 +12,16 @@ export type DateTimeToken =
 	| "ampm"
 	| "tz";
 
+export interface TwoDigitYearCenturyConfig {
+	readonly pivotYear?: number;
+	readonly currentCentury?: number;
+	readonly previousCentury?: number;
+	readonly centuryDecades?: Readonly<Record<string, string>>;
+}
+
 export interface DateTimeFormatOptions {
 	centuryDecades?: Record<string, string>;
+	twoDigitYear?: TwoDigitYearCenturyConfig;
 	is24Hour?: boolean;
 	exact?: boolean;
 	monthNames?: string[];
@@ -29,6 +37,19 @@ export interface DateTimeFormatConfig {
 	tokens: DateTimeToken[];
 	separators: string[];
 	options?: DateTimeFormatOptions;
+}
+
+export function resolveTwoDigitYear(
+	rawYear: number | string,
+	config?: TwoDigitYearCenturyConfig,
+): number {
+	const numeric = typeof rawYear === "string" ? parseInt(rawYear, 10) : rawYear;
+	if (isNaN(numeric)) return NaN;
+	if (numeric >= 100) return numeric;
+	const pivot = config?.pivotYear ?? 50;
+	const currentCentury = config?.currentCentury ?? 2000;
+	const previousCentury = config?.previousCentury ?? 1900;
+	return numeric <= pivot ? currentCentury + numeric : previousCentury + numeric;
 }
 
 export interface DatePatternResult {
@@ -76,13 +97,15 @@ export function buildDatePatternString(
 				`${index ? escapeRegex(separators[index - 1]!) : ""}${tokenPatterns[token]}`,
 		)
 		.join("");
+	const boundaryStart = exact ? "^" : "(?<![\\p{L}\\p{N}])";
+	const boundaryEnd = exact ? "$" : "(?![\\p{L}\\p{N}])";
 	return {
-		pattern: `${exact ? "^" : "\\b"}${assembled}${exact ? "$" : "\\b"}`,
+		pattern: `${boundaryStart}${assembled}${boundaryEnd}`,
 		groupNames: [...new Set(tokens.map((token) => token.toLowerCase()))],
 	};
 }
 
-export function compileDateRegex(pattern: string, flags = "gi"): RegExp {
+export function compileDateRegex(pattern: string, flags = "giu"): RegExp {
 	return getCompiledRegex(pattern, flags);
 }
 

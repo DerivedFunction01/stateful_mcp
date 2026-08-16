@@ -345,7 +345,7 @@ export class CoreDictionaryResource implements DictionaryResource {
 		}
 		const pattern = item.regexPattern ?? escapeSeedRegex(item.term);
 		try {
-			new RegExp(pattern, item.isCaseInsensitive ? "i" : "");
+			new RegExp(pattern, item.isCaseInsensitive ? "iu" : "u");
 		} catch (error) {
 			addDiagnostic(report.diagnostics, {
 				code: "INVALID_EXPRESSION_REGEX",

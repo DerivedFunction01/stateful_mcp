@@ -1,10 +1,12 @@
 const cache = new Map<string, RegExp>();
 
-export function getCompiledRegex(pattern: string, flags = ""): RegExp {
-	const key = `${pattern}\x00${flags}`;
+export function getCompiledRegex(pattern: string, flags = "u"): RegExp {
+	const effectiveFlags =
+		flags.includes("u") || flags.includes("v") ? flags : `${flags}u`;
+	const key = `${pattern}\x00${effectiveFlags}`;
 	const cached = cache.get(key);
 	if (cached) return cached;
-	const compiled = new RegExp(pattern, flags);
+	const compiled = new RegExp(pattern, effectiveFlags);
 	cache.set(key, compiled);
 	return compiled;
 }
