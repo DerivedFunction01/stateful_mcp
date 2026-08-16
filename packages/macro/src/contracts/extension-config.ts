@@ -1,5 +1,6 @@
-import type { NumericBounds } from "./values";
 import type { ConceptSeed, ExpressionSeed } from "../resources/contracts";
+import type { MultiUnitCanonicalTarget } from "../values/compound";
+import type { CurrencyFormatConfig } from "../values/currency";
 import type {
 	DateTimeFormatConfig,
 	TwoDigitYearCenturyConfig,
@@ -9,8 +10,7 @@ import type {
 	QuantityGrammarConfig,
 	QuantityStatisticsPolicy,
 } from "../values/quantity";
-import type { CurrencyFormatConfig } from "../values/currency";
-import type { MultiUnitCanonicalTarget } from "../values/compound";
+import type { NumericBounds } from "./values";
 
 export type WordBoundaryPolicy =
 	| "standard"
@@ -18,10 +18,7 @@ export type WordBoundaryPolicy =
 	| "loose-substring"
 	| "custom";
 
-export type DigitNormalizationPolicy =
-	| "auto"
-	| "ascii-only"
-	| "custom";
+export type DigitNormalizationPolicy = "auto" | "ascii-only" | "custom";
 
 export interface LocalizationPolicyConfig {
 	readonly locale?: string;
@@ -50,10 +47,10 @@ export interface NumberWordConfig {
 }
 
 export type {
-	TwoDigitYearCenturyConfig,
-	QuantityStatisticsPolicy,
 	CurrencyFormatConfig,
 	MultiUnitCanonicalTarget,
+	QuantityStatisticsPolicy,
+	TwoDigitYearCenturyConfig,
 };
 
 export interface UserMacroProfile {

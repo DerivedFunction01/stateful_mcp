@@ -4,13 +4,13 @@ import type {
 	ExpressionSearchRequest,
 } from "../contracts/backends";
 import type { LocalizationPolicyConfig } from "../contracts/extension-config";
+import { UniversalWordSegmenter } from "../values/localization";
 import type {
 	ExpressionSeed,
 	ResourceDiagnostic,
 	ResourceIdentity,
 } from "./contracts";
 import { escapeSeedRegex, normalizeLookupTerm } from "./dictionary-seed";
-import { UniversalWordSegmenter } from "../values/localization";
 
 export interface IndexedExpression {
 	id: string;
@@ -106,7 +106,10 @@ export class ExpressionIndex implements ExpressionBackend {
 			for (const match of execAll(regex, request.text)) {
 				const start = match.index;
 				const end = start + match[0].length;
-				if (end <= start || !this.segmenter.isWordBoundary(request.text, start, end))
+				if (
+					end <= start ||
+					!this.segmenter.isWordBoundary(request.text, start, end)
+				)
 					continue;
 				candidates.push(
 					candidate(expression, request.text, start, end, "exact", this),
@@ -192,7 +195,7 @@ function candidate(
 			? { ownerExtensionId: index.ownerExtensionId }
 			: {}),
 		...(index?.resourceId ? { resourceId: index.resourceId } : {}),
-		...(index?.resolverId ?? index?.resourceId
+		...((index?.resolverId ?? index?.resourceId)
 			? { resolverId: index?.resolverId ?? index?.resourceId }
 			: {}),
 		...(index?.version !== undefined ? { resolverVersion: index.version } : {}),
@@ -232,7 +235,10 @@ function execAll(expression: RegExp, text: string): RegExpExecArray[] {
 	return matches;
 }
 
-function boundaryStarts(text: string, segmenter: UniversalWordSegmenter): number[] {
+function boundaryStarts(
+	text: string,
+	segmenter: UniversalWordSegmenter,
+): number[] {
 	const starts: number[] = [];
 	for (let index = 0; index < text.length; index += 1) {
 		if (/\s/u.test(text[index]!)) continue;

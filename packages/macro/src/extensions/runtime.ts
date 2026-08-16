@@ -8,11 +8,15 @@ import type {
 	MatcherFactory,
 } from "../context/extension-context";
 import type { ExpressionBackend } from "../contracts/backends";
-import type { MacroAdapterDraft, MacroDefinitionAdapter } from "../contracts/composition";
+import type {
+	MacroAdapterDraft,
+	MacroDefinitionAdapter,
+} from "../contracts/composition";
 import {
 	createMacroRuntimeContext,
 	type MacroRuntimeContext,
 } from "../contracts/context";
+import type { UserMacroProfile } from "../contracts/extension-config";
 import type { ParseListener } from "../contracts/listeners";
 import type { MacroParseOptions, MacroSpec } from "../contracts/macro";
 import {
@@ -21,11 +25,16 @@ import {
 } from "../parser/macro-parser";
 import { createDictionaryResourceFactory } from "../resources/dictionary-resource";
 import { ResourceScope } from "../resources/resource-scope";
-import type { UserMacroProfile } from "../contracts/extension-config";
+import {
+	executeMacroWithAdapter,
+	type MacroAdapterExecutionOptions,
+	type MacroRuntimeOptions,
+	parseMacroWithAdapter,
+} from "../runtime/macro-runtime";
 import {
 	compileDomainConfig,
-	resolveExtensionConfig,
 	type ExtensionConfig,
+	resolveExtensionConfig,
 } from "./config";
 import type {
 	ActiveExtension,
@@ -38,27 +47,19 @@ import {
 	extensionDiagnostic,
 } from "./errors";
 import { ExtensionLoader } from "./loader";
-import { createExtensionSeedServices } from "./seed";
 import {
 	AdapterRegistry,
 	ExtensionRegistry,
 	MacroRegistryStore,
 } from "./registry";
-import {
-	executeMacroWithAdapter,
-	parseMacroWithAdapter,
-	type MacroAdapterExecutionOptions,
-	type MacroRuntimeOptions,
-} from "../runtime/macro-runtime";
+import { createExtensionSeedServices } from "./seed";
 
 export interface ExtensionRuntimeOptions {
 	rootDirectory?: string;
 	logger?: ExtensionLogger;
 	context?: MacroRuntimeContext;
 	profile?: UserMacroProfile;
-	settings?: Readonly<
-		Record<string, Readonly<Record<string, unknown>>>
-	>;
+	settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
 export interface ActivationResult {
@@ -76,9 +77,7 @@ export class ExtensionRuntime {
 	readonly options: Required<Pick<ExtensionRuntimeOptions, "rootDirectory">> & {
 		logger: ExtensionLogger;
 		profile?: UserMacroProfile;
-		settings: Readonly<
-			Record<string, Readonly<Record<string, unknown>>>
-		>;
+		settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 	};
 	private loaded: LoadedExtension[] = [];
 

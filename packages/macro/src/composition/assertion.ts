@@ -34,6 +34,7 @@ export interface AssertionClauseSpec {
 	readonly slotId: string;
 	readonly valueKind: AssertionClauseValueKind;
 	readonly repeatable?: boolean;
+	readonly itemDelimiter?: string;
 	readonly connectors?: readonly string[];
 }
 
@@ -155,6 +156,8 @@ export function createAssertionMacro(
 			path: `${spec.macroName}.${clause.slotId}`,
 			matcher: { kind: "pattern", pattern },
 			required: false,
+			repeatable: clause.repeatable,
+			itemDelimiter: clause.itemDelimiter,
 			forms: forms.length > 0 ? forms : undefined,
 		};
 	});
@@ -249,9 +252,8 @@ export function createAssertionMacro(
 			_bindings: readonly MacroChildBinding[],
 			input: MacroInput,
 		) => {
-			let subjectValue: unknown = undefined;
-			let polarity: AssertionPolarity =
-				spec.defaultPolarity ?? "affirmative";
+			let subjectValue: unknown;
+			let polarity: AssertionPolarity = spec.defaultPolarity ?? "affirmative";
 			const qualifiers: Record<string, unknown> = {};
 			const evidence: AssertionClauseBinding[] = [];
 			const transitions: AssertionClauseBinding[] = [];
@@ -272,36 +274,39 @@ export function createAssertionMacro(
 			for (const clause of spec.clauses) {
 				const matchingInputs = input.arguments.filter(
 					(a) =>
-						a.match?.argumentId === clause.slotId ||
-						a.name === clause.slotId,
+						a.match?.argumentId === clause.slotId || a.name === clause.slotId,
 				);
 				for (const match of matchingInputs) {
-					const parsed = compiler.parseClauseValue(
-						clause.valueKind,
-						match.rawValue,
-					);
-					const clauseBinding: AssertionClauseBinding = {
-						role: clause.role,
-						slotId: clause.slotId,
-						rawValue: match.rawValue,
-						value: parsed,
-					};
+					const rawItems =
+						match.items && match.items.length > 0
+							? match.items.map((it) => it.rawValue)
+							: [match.rawValue];
 
-					if (clause.role === "qualifier") {
-						qualifiers[clause.slotId] = parsed;
-						if (
-							clause.slotId === "polarity" &&
-							match.rawValue.toLowerCase().includes("rule")
+					for (const rawItem of rawItems) {
+						const parsed = compiler.parseClauseValue(clause.valueKind, rawItem);
+						const clauseBinding: AssertionClauseBinding = {
+							role: clause.role,
+							slotId: clause.slotId,
+							rawValue: rawItem,
+							value: parsed,
+						};
+
+						if (clause.role === "qualifier") {
+							qualifiers[clause.slotId] = parsed;
+							if (
+								clause.slotId === "polarity" &&
+								(parsed === "ruled_out" || parsed === "affirmative")
+							) {
+								polarity = parsed;
+							}
+						} else if (
+							clause.role === "supporting" ||
+							clause.role === "refuting"
 						) {
-							polarity = "ruled_out";
+							evidence.push(clauseBinding);
+						} else if (clause.role === "transition") {
+							transitions.push(clauseBinding);
 						}
-					} else if (
-						clause.role === "supporting" ||
-						clause.role === "refuting"
-					) {
-						evidence.push(clauseBinding);
-					} else if (clause.role === "transition") {
-						transitions.push(clauseBinding);
 					}
 				}
 			}

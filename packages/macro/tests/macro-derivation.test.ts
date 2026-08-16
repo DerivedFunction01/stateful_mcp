@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { deriveMacroAdapter } from "../src/composition/derivation";
-import type { MacroChildBinding, MacroDefinitionAdapter } from "../src/contracts/composition";
+import type {
+	MacroChildBinding,
+	MacroDefinitionAdapter,
+} from "../src/contracts/composition";
 import type { MacroInput } from "../src/contracts/input";
 
 describe("Macro Derivation & Schema Invariance (deriveMacroAdapter)", () => {
@@ -45,7 +48,9 @@ describe("Macro Derivation & Schema Invariance (deriveMacroAdapter)", () => {
 				type: "concept",
 				validate: ({ input }) => ({
 					status: "accepted",
-					binding: { canonicalValue: { conceptId: input.rawValue.replace(/^#/, "") } },
+					binding: {
+						canonicalValue: { conceptId: input.rawValue.replace(/^#/, "") },
+					},
 				}),
 			},
 			rationale: {
@@ -63,10 +68,19 @@ describe("Macro Derivation & Schema Invariance (deriveMacroAdapter)", () => {
 				}),
 			},
 		},
-		compile: async (bindings: readonly MacroChildBinding[], input: MacroInput) => {
-			const cond = input.arguments.find((a) => a.name === "condition" || a.match?.argumentId === "condition");
-			const rat = input.arguments.find((a) => a.name === "rationale" || a.match?.argumentId === "rationale");
-			const conf = input.arguments.find((a) => a.name === "confidence" || a.match?.argumentId === "confidence");
+		compile: async (
+			bindings: readonly MacroChildBinding[],
+			input: MacroInput,
+		) => {
+			const cond = input.arguments.find(
+				(a) => a.name === "condition" || a.match?.argumentId === "condition",
+			);
+			const rat = input.arguments.find(
+				(a) => a.name === "rationale" || a.match?.argumentId === "rationale",
+			);
+			const conf = input.arguments.find(
+				(a) => a.name === "confidence" || a.match?.argumentId === "confidence",
+			);
 
 			return {
 				kind: "rule_out_assertion",
@@ -141,11 +155,19 @@ describe("Macro Derivation & Schema Invariance (deriveMacroAdapter)", () => {
 				},
 			],
 			mapBindings: (_derivedBindings, derivedInput) => {
-				const condInput = derivedInput.arguments.find((a) => a.name === "condition");
-				const evInput = derivedInput.arguments.find((a) => a.name === "evidence");
+				const condInput = derivedInput.arguments.find(
+					(a) => a.name === "condition",
+				);
+				const evInput = derivedInput.arguments.find(
+					(a) => a.name === "evidence",
+				);
 
 				const projectedArgs = [
-					condInput ?? { name: "condition", rawValue: "#unknown", source: "named" as const },
+					condInput ?? {
+						name: "condition",
+						rawValue: "#unknown",
+						source: "named" as const,
+					},
 					{
 						name: "rationale",
 						rawValue: `Confirmed by evidence: ${evInput?.rawValue ?? "none"}`,
@@ -167,7 +189,9 @@ describe("Macro Derivation & Schema Invariance (deriveMacroAdapter)", () => {
 
 		const mockInput: MacroInput = {
 			macroName: "definite-ro",
-			sourceLines: [{ line: 1, raw: "^definite-ro #dvt evidence negative-ultrasound" }],
+			sourceLines: [
+				{ line: 1, raw: "^definite-ro #dvt evidence negative-ultrasound" },
+			],
 			arguments: [
 				{ name: "condition", rawValue: "#dvt", source: "named" },
 				{ name: "evidence", rawValue: "negative-ultrasound", source: "named" },

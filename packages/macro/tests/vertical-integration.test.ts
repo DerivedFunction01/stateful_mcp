@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type {
-	MacroChildHandler,
-	MacroDefinitionAdapter,
-	MacroPreviewValue,
-} from "../src/contracts/composition";
+import type { MacroDefinitionAdapter } from "../src/contracts/composition";
 import { createMacroRuntimeContext } from "../src/contracts/context";
 import type {
 	ExtensionDomainConfig,
@@ -16,12 +12,12 @@ import {
 } from "../src/extensions/config";
 import { defineExtension } from "../src/extensions/contracts";
 import { ExtensionRuntime } from "../src/extensions/runtime";
-import { checkNumericBounds } from "../src/values/numeric";
-import { parseQuantity } from "../src/values/quantity";
 import {
 	buildDatePatternString,
 	resolveTwoDigitYear,
 } from "../src/values/date-time";
+import { checkNumericBounds } from "../src/values/numeric";
+import { parseQuantity } from "../src/values/quantity";
 
 describe("Phase 3D — Generic vertical integration", () => {
 	// ─── TIER 1: User / Host Profile ──────────────────────────────────────
@@ -53,7 +49,12 @@ describe("Phase 3D — Generic vertical integration", () => {
 			pallet: ["pallets", "pallet", "plt"],
 		},
 		bounds: {
-			orderQuantity: { min: 1, max: 1000, inclusiveMin: true, inclusiveMax: true },
+			orderQuantity: {
+				min: 1,
+				max: 1000,
+				inclusiveMin: true,
+				inclusiveMax: true,
+			},
 			leadTimeDays: { min: 1, max: 90 },
 		},
 		macros: {
@@ -257,7 +258,9 @@ describe("Phase 3D — Generic vertical integration", () => {
 						item: {
 							type: "expression",
 							validate: ({ input, candidates }) => {
-								const snapshot = candidates.find((c) => c.argumentId === "item");
+								const snapshot = candidates.find(
+									(c) => c.argumentId === "item",
+								);
 								const candidate = snapshot?.candidates[0] ?? input.match;
 								const canonicalValue =
 									candidate?.canonicalValue ??
@@ -271,26 +274,36 @@ describe("Phase 3D — Generic vertical integration", () => {
 										canonicalValue,
 										displayValue: input.rawValue,
 									},
-									previewValues: [{ argumentId: "item", value: input.rawValue }],
+									previewValues: [
+										{ argumentId: "item", value: input.rawValue },
+									],
 								};
 							},
 						},
 						qty: {
 							type: "quantity",
 							validate: ({ input }) => {
-								const parsed = parseQuantity(input.rawValue, grammar.quantity, qtyPolicy.policy);
+								const parsed = parseQuantity(
+									input.rawValue,
+									grammar.quantity,
+									qtyPolicy.policy,
+								);
 								if (!parsed.value) {
 									return {
 										status: "invalid",
 										diagnostics: [
 											{
 												code: "NORMALIZATION_FAILED" as const,
-												message: parsed.diagnostics[0]?.message ?? "Invalid quantity",
+												message:
+													parsed.diagnostics[0]?.message ?? "Invalid quantity",
 											},
 										],
 									};
 								}
-								if (qtyPolicy.bounds && !checkNumericBounds(parsed.value.lower, qtyPolicy.bounds)) {
+								if (
+									qtyPolicy.bounds &&
+									!checkNumericBounds(parsed.value.lower, qtyPolicy.bounds)
+								) {
 									return {
 										status: "invalid",
 										diagnostics: [
@@ -304,17 +317,27 @@ describe("Phase 3D — Generic vertical integration", () => {
 								return {
 									status: "accepted",
 									binding: {
-										canonicalValue: { magnitude: parsed.value.lower, unit: parsed.value.unit },
+										canonicalValue: {
+											magnitude: parsed.value.lower,
+											unit: parsed.value.unit,
+										},
 										displayValue: `${parsed.value.lower} ${parsed.value.unit}`,
 									},
-									previewValues: [{ argumentId: "qty", value: `${parsed.value.lower} ${parsed.value.unit}` }],
+									previewValues: [
+										{
+											argumentId: "qty",
+											value: `${parsed.value.lower} ${parsed.value.unit}`,
+										},
+									],
 								};
 							},
 						},
 						date: {
 							type: "date",
 							validate: ({ input }) => {
-								const match = input.rawValue.match(/^(?<MM>\d{2})\/(?<DD>\d{2})\/(?<YY>\d{2})$/);
+								const match = input.rawValue.match(
+									/^(?<MM>\d{2})\/(?<DD>\d{2})\/(?<YY>\d{2})$/,
+								);
 								if (!match?.groups) {
 									return {
 										status: "invalid",
@@ -340,9 +363,17 @@ describe("Phase 3D — Generic vertical integration", () => {
 						},
 					},
 					compile: (bindings) => {
-						const item = bindings.find((b) => b.binding?.backendId === dictionary.id)?.binding?.canonicalValue as { sku: string; name: string };
-						const qty = bindings.find((b) => b.binding?.canonicalValue && "magnitude" in (b.binding.canonicalValue as any))?.binding?.canonicalValue;
-						const date = bindings.find((b) => typeof b.binding?.canonicalValue === "string")?.binding?.canonicalValue;
+						const item = bindings.find(
+							(b) => b.binding?.backendId === dictionary.id,
+						)?.binding?.canonicalValue as { sku: string; name: string };
+						const qty = bindings.find(
+							(b) =>
+								b.binding?.canonicalValue &&
+								"magnitude" in (b.binding.canonicalValue as any),
+						)?.binding?.canonicalValue;
+						const date = bindings.find(
+							(b) => typeof b.binding?.canonicalValue === "string",
+						)?.binding?.canonicalValue;
 						return {
 							action: "create_inventory_order",
 							item,
@@ -360,7 +391,10 @@ describe("Phase 3D — Generic vertical integration", () => {
 
 		// Activate
 		const activation = await runtime.activate([
-			{ extension: inventoryExtension, sourceFile: "/workspace/extensions/inventory/index.ts" },
+			{
+				extension: inventoryExtension,
+				sourceFile: "/workspace/extensions/inventory/index.ts",
+			},
 		]);
 		expect(activation.active.length).toBe(1);
 
@@ -370,10 +404,15 @@ describe("Phase 3D — Generic vertical integration", () => {
 			'^order item="Widget Pro" qty="25 boxes" date="08/16/26"',
 		);
 		expect(draftValid.executionPreview?.status).toBe("valid");
-		expect(draftValid.preview.text).toBe("Order: Widget Pro | Qty: 25 box | Req Date: 2026-08-16");
+		expect(draftValid.preview.text).toBe(
+			"Order: Widget Pro | Qty: 25 box | Req Date: 2026-08-16",
+		);
 
 		// Execute with adapter parity
-		const executionResult = await runtime.executeAdapter("inventory.order", draftValid);
+		const executionResult = await runtime.executeAdapter(
+			"inventory.order",
+			draftValid,
+		);
 		expect(executionResult).toEqual({
 			action: "create_inventory_order",
 			item: { sku: "WID-001", name: "Widget Pro" },
@@ -387,9 +426,14 @@ describe("Phase 3D — Generic vertical integration", () => {
 			'^order item="Sensor Hub" qty="100 pcs" date="05/20/95"',
 		);
 		expect(draftPast.executionPreview?.status).toBe("valid");
-		expect(draftPast.preview.text).toBe("Order: Sensor Hub | Qty: 100 ea | Req Date: 1995-05-20");
+		expect(draftPast.preview.text).toBe(
+			"Order: Sensor Hub | Qty: 100 ea | Req Date: 1995-05-20",
+		);
 
-		const pastExecution = await runtime.executeAdapter("inventory.order", draftPast);
+		const pastExecution = await runtime.executeAdapter(
+			"inventory.order",
+			draftPast,
+		);
 		expect(pastExecution).toEqual({
 			action: "create_inventory_order",
 			item: { sku: "SNS-002", name: "Sensor Hub" },
@@ -404,7 +448,9 @@ describe("Phase 3D — Generic vertical integration", () => {
 		);
 		expect(draftDisallowedUnit.executionPreview?.status).toBe("invalid");
 		expect(draftDisallowedUnit.bindings.qty?.status).toBe("invalid");
-		expect(draftDisallowedUnit.bindings.qty?.diagnostics?.[0]?.code).toBe("NORMALIZATION_FAILED");
+		expect(draftDisallowedUnit.bindings.qty?.diagnostics?.[0]?.code).toBe(
+			"NORMALIZATION_FAILED",
+		);
 
 		// ─── Test 4: Numeric Bounds Violation (quantity > 1000) ───
 		const draftOutOfBounds = await runtime.parseAdapter(
@@ -413,7 +459,9 @@ describe("Phase 3D — Generic vertical integration", () => {
 		);
 		expect(draftOutOfBounds.executionPreview?.status).toBe("invalid");
 		expect(draftOutOfBounds.bindings.qty?.status).toBe("invalid");
-		expect(draftOutOfBounds.bindings.qty?.diagnostics?.[0]?.code).toBe("NORMALIZATION_FAILED");
+		expect(draftOutOfBounds.bindings.qty?.diagnostics?.[0]?.code).toBe(
+			"NORMALIZATION_FAILED",
+		);
 
 		// ─── Test 5: Disposal Invalidation ───
 		await runtime.dispose("inventory");

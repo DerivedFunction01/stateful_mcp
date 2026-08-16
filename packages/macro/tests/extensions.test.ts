@@ -204,9 +204,7 @@ describe("extension runtime", () => {
 		await writeFile(
 			seedPath,
 			JSON.stringify({
-				expressions: [
-					{ id: "book", term: "book", canonicalValue: "book" },
-				],
+				expressions: [{ id: "book", term: "book", canonicalValue: "book" }],
 			}),
 		);
 		let observedConfig: Readonly<Record<string, unknown>> | undefined;
@@ -251,46 +249,46 @@ describe("extension runtime", () => {
 			expect(Object.isFrozen(observedConfig?.values)).toBe(true);
 			expect(runtime.adapters.get(noteAdapter.definition.id)).toBeDefined();
 
-		const draft = await runtime.parseAdapter(
-			noteAdapter.definition.id,
-			"^note title=Harry Potter page=42 year=2004",
-		);
-		await expect(
-			runtime.executeAdapter(noteAdapter.definition.id, draft),
-		).resolves.toEqual({
-			kind: "note",
-			values: ["Harry Potter", "42", "2004"],
-		});
+			const draft = await runtime.parseAdapter(
+				noteAdapter.definition.id,
+				"^note title=Harry Potter page=42 year=2004",
+			);
+			await expect(
+				runtime.executeAdapter(noteAdapter.definition.id, draft),
+			).resolves.toEqual({
+				kind: "note",
+				values: ["Harry Potter", "42", "2004"],
+			});
 
-		await expect(
-			runtime.parseAdapter("missing-adapter", "^note"),
-		).rejects.toThrow("unavailable");
-		await runtime.dispose("configured-notes");
-		expect(runtime.adapters.get(noteAdapter.definition.id)).toBeUndefined();
-		expect(runtime.macros.get("note")).toBeUndefined();
+			await expect(
+				runtime.parseAdapter("missing-adapter", "^note"),
+			).rejects.toThrow("unavailable");
+			await runtime.dispose("configured-notes");
+			expect(runtime.adapters.get(noteAdapter.definition.id)).toBeUndefined();
+			expect(runtime.macros.get("note")).toBeUndefined();
 
-		await expect(
-			new ExtensionRuntime({
-				logger: { debug() {}, info() {}, warn() {}, error() {} },
-			}).activate([
-				loaded(
-					defineExtension({
-						id: "bad-seed",
-						version: "1",
-						activate: async (context) => {
-							await context.seed.load("../outside.json");
-							return {};
-						},
-					}),
-					join(directory, "nested", "extension.ts"),
-				),
-			]),
-		).resolves.toMatchObject({
-			active: [],
-			diagnostics: [
-				{ code: "EXTENSION_ACTIVATION_FAILED", extensionId: "bad-seed" },
-			],
-		});
+			await expect(
+				new ExtensionRuntime({
+					logger: { debug() {}, info() {}, warn() {}, error() {} },
+				}).activate([
+					loaded(
+						defineExtension({
+							id: "bad-seed",
+							version: "1",
+							activate: async (context) => {
+								await context.seed.load("../outside.json");
+								return {};
+							},
+						}),
+						join(directory, "nested", "extension.ts"),
+					),
+				]),
+			).resolves.toMatchObject({
+				active: [],
+				diagnostics: [
+					{ code: "EXTENSION_ACTIVATION_FAILED", extensionId: "bad-seed" },
+				],
+			});
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
@@ -341,7 +339,9 @@ describe("extension runtime", () => {
 									backendId: dictionary.id,
 									canonicalValue: "Harry Potter",
 								},
-								previewValues: [{ argumentId: "concept", value: "Harry Potter" }],
+								previewValues: [
+									{ argumentId: "concept", value: "Harry Potter" },
+								],
 							}),
 						},
 					},

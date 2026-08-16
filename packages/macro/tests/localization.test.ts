@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import type { NumberWordConfig } from "../src/contracts/extension-config";
+import { traverseLexicalTokens } from "../src/parser/macro-scanner";
+import { ExpressionIndex } from "../src/resources/expression-index";
 import {
 	normalizeUnicodeDigits,
 	UniversalNumberParser,
 	UniversalWordSegmenter,
 } from "../src/values/localization";
-import { ExpressionIndex } from "../src/resources/expression-index";
-import { traverseLexicalTokens } from "../src/parser/macro-scanner";
-import type { NumberWordConfig } from "../src/contracts/extension-config";
 
 describe("Declarative Universal Localization & Future-Proof Unicode Engine", () => {
 	describe("1. Universal Unicode Decimal Digit Normalization", () => {
@@ -27,9 +27,7 @@ describe("Declarative Universal Localization & Future-Proof Unicode Engine", () 
 
 		test("supports policy override (ascii-only and custom maps)", () => {
 			expect(normalizeUnicodeDigits("١٢.٥", "ascii-only")).toBe("١٢.٥");
-			expect(
-				normalizeUnicodeDigits("XII", "custom", { XII: "12" }),
-			).toBe("12");
+			expect(normalizeUnicodeDigits("XII", "custom", { XII: "12" })).toBe("12");
 		});
 	});
 
@@ -124,7 +122,7 @@ describe("Declarative Universal Localization & Future-Proof Unicode Engine", () 
 			expect(segmenter.isWordBoundary(textEs, 9, 13)).toBe(true); // "años"
 
 			// German Sharp S / uppercase Straße
-			const regexDe = new RegExp("straße", "giu");
+			const regexDe = /straße/giu;
 			expect(regexDe.test("STRAẞE")).toBe(true);
 		});
 	});
@@ -196,7 +194,10 @@ describe("Declarative Universal Localization & Future-Proof Unicode Engine", () 
 			const res = parser.normalize("give three hundred and twenty five units");
 			expect(res.normalizedText).toBe("give 325 units");
 			expect(res.matches).toEqual([
-				expect.objectContaining({ original: "three hundred and twenty five", value: 325 }),
+				expect.objectContaining({
+					original: "three hundred and twenty five",
+					value: 325,
+				}),
 			]);
 		});
 
@@ -211,9 +212,7 @@ describe("Declarative Universal Localization & Future-Proof Unicode Engine", () 
 					"25": "veinticinco",
 					"300": "trescientos",
 				},
-				scales: [
-					{ word: "mil", value: 1000, type: "major" },
-				],
+				scales: [{ word: "mil", value: 1000, type: "major" }],
 				conjunctions: ["y"],
 			};
 

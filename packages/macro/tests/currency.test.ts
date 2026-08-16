@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import type { CurrencyFormatConfig } from "../src/values/currency";
 import {
 	buildCurrencyPatternString,
 	createCurrencyValue,
 	parseCurrency,
-	toSubunits,
-	STANDARD_CURRENCY_CATALOG,
 } from "../src/values/currency";
-import type { CurrencyFormatConfig } from "../src/values/currency";
 
 describe("First-class Currency Value System", () => {
 	const usProfile: CurrencyFormatConfig = {
@@ -25,9 +23,13 @@ describe("First-class Currency Value System", () => {
 				denominations: [
 					{ id: "dollar", factor: 1.0, aliases: ["dollar", "dollars", "USD"] },
 					{ id: "quarter", factor: 0.25, aliases: ["quarter", "quarters"] },
-					{ id: "dime", factor: 0.10, aliases: ["dime", "dimes"] },
+					{ id: "dime", factor: 0.1, aliases: ["dime", "dimes"] },
 					{ id: "nickel", factor: 0.05, aliases: ["nickel", "nickels"] },
-					{ id: "cent", factor: 0.01, aliases: ["cent", "cents", "penny", "pennies", "¢"] },
+					{
+						id: "cent",
+						factor: 0.01,
+						aliases: ["cent", "cents", "penny", "pennies", "¢"],
+					},
 				],
 			},
 			{
@@ -44,7 +46,11 @@ describe("First-class Currency Value System", () => {
 				decimals: 2,
 				symbols: ["£"],
 				denominations: [
-					{ id: "pound", factor: 1.0, aliases: ["pound", "pounds", "quid", "GBP"] },
+					{
+						id: "pound",
+						factor: 1.0,
+						aliases: ["pound", "pounds", "quid", "GBP"],
+					},
 					{ id: "penny", factor: 0.01, aliases: ["penny", "pence", "p"] },
 				],
 			},

@@ -10,7 +10,10 @@ export interface RegisteredMacro extends MacroSpec {
 export class MacroRegistryStore implements MacroRegistry {
 	private readonly macros = new Map<string, RegisteredMacro>();
 	private readonly backends = new Map<string, ExpressionBackend>();
-	private readonly ownerBackends = new Map<string, Map<string, ExpressionBackend>>();
+	private readonly ownerBackends = new Map<
+		string,
+		Map<string, ExpressionBackend>
+	>();
 
 	register(
 		spec: MacroSpec,

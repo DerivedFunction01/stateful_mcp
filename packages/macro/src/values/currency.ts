@@ -70,7 +70,7 @@ export const STANDARD_CURRENCY_CATALOG: readonly CurrencyDefinition[] = [
 ];
 
 export function toSubunits(amount: number, decimals = 2): number {
-	const factor = Math.pow(10, decimals);
+	const factor = 10 ** decimals;
 	return Math.round(amount * factor);
 }
 
@@ -92,11 +92,15 @@ export function buildCurrencyPatternString(config: CurrencyFormatConfig = {}): {
 		return { pattern: "", groupNames: [] };
 	}
 
-	const sortedSymbols = Array.from(allSymbols).sort((a, b) => b.length - a.length);
+	const sortedSymbols = Array.from(allSymbols).sort(
+		(a, b) => b.length - a.length,
+	);
 	const symbolPattern = `(?<currency>${sortedSymbols.map(escapeRegex).join("|")})`;
 
 	const dec = config.decimalSeparator === "," ? "," : "\\.";
-	const thousand = config.thousandsSeparator ? escapeRegex(config.thousandsSeparator) : ",";
+	const thousand = config.thousandsSeparator
+		? escapeRegex(config.thousandsSeparator)
+		: ",";
 	const numPattern = `(?<amount>(?:\\d{1,3}(?:${thousand}\\d{3})+|\\d+)(?:${dec}\\d+)?)`;
 
 	const prefixForm = `${symbolPattern}\\s*${numPattern}`;
@@ -130,7 +134,12 @@ export function parseCurrency(
 	policy: CurrencyConsumerPolicy = {},
 ): CurrencyResolution {
 	const rawText = input.trim();
-	if (!rawText) return { diagnostics: [{ code: "EMPTY_CURRENCY", message: "Currency text is empty" }] };
+	if (!rawText)
+		return {
+			diagnostics: [
+				{ code: "EMPTY_CURRENCY", message: "Currency text is empty" },
+			],
+		};
 
 	const catalog = config.definitions ?? STANDARD_CURRENCY_CATALOG;
 	const decimal = config.decimalSeparator ?? ".";
@@ -139,7 +148,10 @@ export function parseCurrency(
 	const denominationResult = parseDenominationChain(rawText, catalog, config);
 	if (denominationResult) {
 		const { amount, currency, symbol } = denominationResult;
-		if (policy.allowedCurrencies && !policy.allowedCurrencies.includes(currency)) {
+		if (
+			policy.allowedCurrencies &&
+			!policy.allowedCurrencies.includes(currency)
+		) {
 			return {
 				diagnostics: [
 					{
@@ -175,7 +187,9 @@ export function parseCurrency(
 
 	// 2. Symbolic / formatted parsing: e.g. "$450.00", "€1,200.50", "($50.00)", "-$50"
 	const isParenthesized = /^\s*\((.*)\)\s*$/u.test(rawText);
-	const unwrapped = isParenthesized ? rawText.replace(/^\s*\(|\)\s*$/gu, "").trim() : rawText;
+	const unwrapped = isParenthesized
+		? rawText.replace(/^\s*\(|\)\s*$/gu, "").trim()
+		: rawText;
 
 	const isNegativeSign = /^\s*-\s*/u.test(unwrapped);
 	const textWithoutSign = unwrapped.replace(/^\s*-\s*/u, "").trim();
@@ -183,7 +197,12 @@ export function parseCurrency(
 	const isNegative = isParenthesized || isNegativeSign;
 
 	// Resolve currency symbol and amount
-	const symbolMatch = matchSymbolAndNumber(textWithoutSign, catalog, config, decimal);
+	const symbolMatch = matchSymbolAndNumber(
+		textWithoutSign,
+		catalog,
+		config,
+		decimal,
+	);
 	if (!symbolMatch) {
 		return {
 			diagnostics: [
@@ -199,7 +218,10 @@ export function parseCurrency(
 	const finalAmount = isNegative ? -rawAmount : rawAmount;
 	const currency = symbolMatch.currency;
 
-	if (policy.allowedCurrencies && !policy.allowedCurrencies.includes(currency)) {
+	if (
+		policy.allowedCurrencies &&
+		!policy.allowedCurrencies.includes(currency)
+	) {
 		return {
 			diagnostics: [
 				{
@@ -269,7 +291,8 @@ function matchSymbolAndNumber(
 ): { amount: number; currency: string; symbol: string } | undefined {
 	const candidates: Array<{ symbol: string; code: string }> = [];
 	for (const def of catalog) {
-		for (const s of def.symbols ?? []) candidates.push({ symbol: s, code: def.code });
+		for (const s of def.symbols ?? [])
+			candidates.push({ symbol: s, code: def.code });
 		candidates.push({ symbol: def.code, code: def.code });
 	}
 	if (config.currencies) {
@@ -285,20 +308,34 @@ function matchSymbolAndNumber(
 		// Prefix match: "$ 100" or "$100"
 		if (lower.startsWith(symLower)) {
 			const remainder = text.slice(symbol.length).trim();
-			const parsed = parseNumber(remainder, decimalSeparator, config.thousandsSeparator);
-			if (parsed !== undefined) return { amount: parsed, currency: code, symbol };
+			const parsed = parseNumber(
+				remainder,
+				decimalSeparator,
+				config.thousandsSeparator,
+			);
+			if (parsed !== undefined)
+				return { amount: parsed, currency: code, symbol };
 		}
 		// Suffix match: "100 €" or "100€"
 		if (lower.endsWith(symLower)) {
 			const remainder = text.slice(0, text.length - symbol.length).trim();
-			const parsed = parseNumber(remainder, decimalSeparator, config.thousandsSeparator);
-			if (parsed !== undefined) return { amount: parsed, currency: code, symbol };
+			const parsed = parseNumber(
+				remainder,
+				decimalSeparator,
+				config.thousandsSeparator,
+			);
+			if (parsed !== undefined)
+				return { amount: parsed, currency: code, symbol };
 		}
 	}
 
 	// Default fallback currency if no symbol matches and pure number is supplied
 	if (config.defaultCurrency) {
-		const parsed = parseNumber(text, decimalSeparator, config.thousandsSeparator);
+		const parsed = parseNumber(
+			text,
+			decimalSeparator,
+			config.thousandsSeparator,
+		);
 		if (parsed !== undefined) {
 			const def = catalog.find((c) => c.code === config.defaultCurrency);
 			return {
@@ -312,7 +349,11 @@ function matchSymbolAndNumber(
 	return undefined;
 }
 
-function parseNumber(text: string, decimalSep: string, thousandsSep?: string): number | undefined {
+function parseNumber(
+	text: string,
+	decimalSep: string,
+	thousandsSep?: string,
+): number | undefined {
 	let cleaned = text.trim();
 	if (thousandsSep) {
 		cleaned = cleaned.replaceAll(thousandsSep, "");
@@ -354,14 +395,19 @@ function parseDenominationChain(
 	for (const match of matches) {
 		const valueStr = match[1]!;
 		const rawUnit = match[2]!;
-		const normalizedValueStr = config.decimalSeparator === "," ? valueStr.replace(",", ".") : valueStr;
+		const normalizedValueStr =
+			config.decimalSeparator === "," ? valueStr.replace(",", ".") : valueStr;
 		const value = Number(normalizedValueStr);
 		if (!Number.isFinite(value)) return undefined;
 
 		let matched = false;
 		for (const def of activeCatalog) {
 			for (const denom of def.denominations ?? []) {
-				if (denom.aliases.some((a) => a.toLocaleLowerCase() === rawUnit.toLocaleLowerCase())) {
+				if (
+					denom.aliases.some(
+						(a) => a.toLocaleLowerCase() === rawUnit.toLocaleLowerCase(),
+					)
+				) {
 					if (detectedCurrency && detectedCurrency !== def.code) {
 						return undefined; // Mixed currency mismatch
 					}

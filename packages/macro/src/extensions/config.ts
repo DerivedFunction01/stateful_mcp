@@ -4,18 +4,17 @@ import type {
 	ExtensionDomainConfig,
 	LocalizationPolicyConfig,
 	MacroArgumentPolicy,
-	NumberWordConfig,
 	UserMacroProfile,
 } from "../contracts/extension-config";
 import type { NumericBounds } from "../contracts/values";
 import type {
-	QuantityConsumerPolicy,
-	QuantityGrammarConfig,
-} from "../values/quantity";
-import type {
 	CurrencyDefinition,
 	CurrencyFormatConfig,
 } from "../values/currency";
+import type {
+	QuantityConsumerPolicy,
+	QuantityGrammarConfig,
+} from "../values/quantity";
 import { escapeRegex } from "../values/regex";
 
 export type ExtensionConfig = Readonly<Record<string, unknown>>;
@@ -146,11 +145,17 @@ export function compileDomainConfig(
 
 	if (profileCurrency || domainCurrency || overrideCurrency) {
 		const combinedCurrencies: Record<string, string[]> = {};
-		for (const src of [profileCurrency?.currencies, domainCurrency?.currencies, overrideCurrency?.currencies]) {
+		for (const src of [
+			profileCurrency?.currencies,
+			domainCurrency?.currencies,
+			overrideCurrency?.currencies,
+		]) {
 			if (!src) continue;
 			for (const [code, aliases] of Object.entries(src)) {
 				if (combinedCurrencies[code]) {
-					combinedCurrencies[code] = Array.from(new Set([...combinedCurrencies[code], ...aliases]));
+					combinedCurrencies[code] = Array.from(
+						new Set([...combinedCurrencies[code], ...aliases]),
+					);
 				} else {
 					combinedCurrencies[code] = [...aliases];
 				}
@@ -172,14 +177,36 @@ export function compileDomainConfig(
 		);
 
 		currency = {
-			defaultCurrency: overrideCurrency?.defaultCurrency ?? domainCurrency?.defaultCurrency ?? profileCurrency?.defaultCurrency,
-			position: overrideCurrency?.position ?? domainCurrency?.position ?? profileCurrency?.position,
-			negativeStyle: overrideCurrency?.negativeStyle ?? domainCurrency?.negativeStyle ?? profileCurrency?.negativeStyle,
-			thousandsSeparator: overrideCurrency?.thousandsSeparator ?? domainCurrency?.thousandsSeparator ?? profileCurrency?.thousandsSeparator,
-			decimalSeparator: overrideCurrency?.decimalSeparator ?? domainCurrency?.decimalSeparator ?? profileCurrency?.decimalSeparator ?? decimalSeparator,
-			...(Object.keys(combinedCurrencies).length ? { currencies: combinedCurrencies } : {}),
-			...(combinedDefinitions.length ? { definitions: combinedDefinitions } : {}),
-			...(combinedChainDelimiters.length ? { chainDelimiters: combinedChainDelimiters } : {}),
+			defaultCurrency:
+				overrideCurrency?.defaultCurrency ??
+				domainCurrency?.defaultCurrency ??
+				profileCurrency?.defaultCurrency,
+			position:
+				overrideCurrency?.position ??
+				domainCurrency?.position ??
+				profileCurrency?.position,
+			negativeStyle:
+				overrideCurrency?.negativeStyle ??
+				domainCurrency?.negativeStyle ??
+				profileCurrency?.negativeStyle,
+			thousandsSeparator:
+				overrideCurrency?.thousandsSeparator ??
+				domainCurrency?.thousandsSeparator ??
+				profileCurrency?.thousandsSeparator,
+			decimalSeparator:
+				overrideCurrency?.decimalSeparator ??
+				domainCurrency?.decimalSeparator ??
+				profileCurrency?.decimalSeparator ??
+				decimalSeparator,
+			...(Object.keys(combinedCurrencies).length
+				? { currencies: combinedCurrencies }
+				: {}),
+			...(combinedDefinitions.length
+				? { definitions: combinedDefinitions }
+				: {}),
+			...(combinedChainDelimiters.length
+				? { chainDelimiters: combinedChainDelimiters }
+				: {}),
 		};
 	}
 
@@ -189,24 +216,53 @@ export function compileDomainConfig(
 	const overrideLocalization = config?.overrides?.localization;
 
 	let localization: LocalizationPolicyConfig | undefined;
-	if (profileLocalization || domainLocalization || overrideLocalization || profile?.locale) {
+	if (
+		profileLocalization ||
+		domainLocalization ||
+		overrideLocalization ||
+		profile?.locale
+	) {
 		localization = {
-			locale: overrideLocalization?.locale ?? domainLocalization?.locale ?? profileLocalization?.locale ?? profile?.locale,
-			boundaryPolicy: overrideLocalization?.boundaryPolicy ?? domainLocalization?.boundaryPolicy ?? profileLocalization?.boundaryPolicy ?? "standard",
-			customBoundaryRegex: overrideLocalization?.customBoundaryRegex ?? domainLocalization?.customBoundaryRegex ?? profileLocalization?.customBoundaryRegex,
-			digitPolicy: overrideLocalization?.digitPolicy ?? domainLocalization?.digitPolicy ?? profileLocalization?.digitPolicy ?? "auto",
+			locale:
+				overrideLocalization?.locale ??
+				domainLocalization?.locale ??
+				profileLocalization?.locale ??
+				profile?.locale,
+			boundaryPolicy:
+				overrideLocalization?.boundaryPolicy ??
+				domainLocalization?.boundaryPolicy ??
+				profileLocalization?.boundaryPolicy ??
+				"standard",
+			customBoundaryRegex:
+				overrideLocalization?.customBoundaryRegex ??
+				domainLocalization?.customBoundaryRegex ??
+				profileLocalization?.customBoundaryRegex,
+			digitPolicy:
+				overrideLocalization?.digitPolicy ??
+				domainLocalization?.digitPolicy ??
+				profileLocalization?.digitPolicy ??
+				"auto",
 			customDigitMap: {
 				...(profileLocalization?.customDigitMap ?? {}),
 				...(domainLocalization?.customDigitMap ?? {}),
 				...(overrideLocalization?.customDigitMap ?? {}),
 			},
-			quotePairs: overrideLocalization?.quotePairs ?? domainLocalization?.quotePairs ?? profileLocalization?.quotePairs,
-			groupBrackets: overrideLocalization?.groupBrackets ?? domainLocalization?.groupBrackets ?? profileLocalization?.groupBrackets,
+			quotePairs:
+				overrideLocalization?.quotePairs ??
+				domainLocalization?.quotePairs ??
+				profileLocalization?.quotePairs,
+			groupBrackets:
+				overrideLocalization?.groupBrackets ??
+				domainLocalization?.groupBrackets ??
+				profileLocalization?.groupBrackets,
 		};
 	}
 
 	// Merge number words
-	const numberWords = config?.overrides?.numberWords ?? config?.numberWords ?? profile?.numberWords;
+	const numberWords =
+		config?.overrides?.numberWords ??
+		config?.numberWords ??
+		profile?.numberWords;
 
 	const excludePrefixes = Array.from(
 		new Set([
@@ -298,9 +354,9 @@ function cloneValue(value: unknown): unknown {
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(
 		value &&
-		typeof value === "object" &&
-		!Array.isArray(value) &&
-		Object.getPrototypeOf(value) === Object.prototype,
+			typeof value === "object" &&
+			!Array.isArray(value) &&
+			Object.getPrototypeOf(value) === Object.prototype,
 	);
 }
 

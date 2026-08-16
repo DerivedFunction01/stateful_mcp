@@ -5,10 +5,7 @@ import type {
 } from "../contracts/composition";
 import type { MacroInput } from "../contracts/input";
 import type { MacroArgumentSpec, MacroSpec } from "../contracts/macro";
-import type {
-	MacroArgumentForm,
-	MacroAuthoringTemplate,
-} from "../contracts/matching";
+import type { MacroAuthoringTemplate } from "../contracts/matching";
 
 export interface MacroDerivationOptions {
 	/** The new unique macro name (e.g. "ro", "dx", "quick-incident") */
@@ -40,7 +37,9 @@ export interface MacroDerivationOptions {
 	};
 
 	/** Specific child validator / handler overrides */
-	readonly overrideChildren?: Readonly<Record<string, Partial<MacroChildHandler>>>;
+	readonly overrideChildren?: Readonly<
+		Record<string, Partial<MacroChildHandler>>
+	>;
 }
 
 /**
@@ -55,7 +54,9 @@ export function deriveMacroAdapter(
 		...base.definition,
 		id: options.macroName,
 		name: options.macroName,
-		arguments: options.arguments ? [...options.arguments] : base.definition.arguments,
+		arguments: options.arguments
+			? [...options.arguments]
+			: base.definition.arguments,
 		...(options.authoringTemplates
 			? { authoringTemplates: options.authoringTemplates }
 			: base.definition.authoringTemplates
@@ -67,7 +68,9 @@ export function deriveMacroAdapter(
 		...base.children,
 	};
 	if (options.overrideChildren) {
-		for (const [key, handlerOverride] of Object.entries(options.overrideChildren)) {
+		for (const [key, handlerOverride] of Object.entries(
+			options.overrideChildren,
+		)) {
 			if (mergedChildren[key]) {
 				mergedChildren[key] = {
 					...mergedChildren[key],

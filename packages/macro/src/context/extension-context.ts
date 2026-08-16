@@ -1,14 +1,14 @@
 import type { ExpressionBackend } from "../contracts/backends";
 import type { ParseListener } from "../contracts/listeners";
 import type { MacroSpec } from "../contracts/macro";
+import type { ExtensionConfig } from "../extensions/config";
+import type { ExtensionSeedServices } from "../extensions/seed";
 import type {
 	DictionaryResource,
 	DictionaryResourceFactory,
 } from "../resources/contracts";
 import type { ResourceScope } from "../resources/resource-scope";
 import type { ExtensionDependencyResolver } from "./dependency-resolver";
-import type { ExtensionConfig } from "../extensions/config";
-import type { ExtensionSeedServices } from "../extensions/seed";
 
 export interface MatcherFactory {
 	expression(

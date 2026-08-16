@@ -6,11 +6,11 @@ import {
 	parseMacroWithAdapter,
 } from "../src/runtime/macro-runtime";
 import {
-	QuantityConversionRegistry,
 	createCommonConversionRegistry,
 	functionalTransform,
 	getCommonUnitExpression,
 	multiplicativeTransform,
+	QuantityConversionRegistry,
 } from "../src/values/conversion";
 import { createMeasurementValue } from "../src/values/measurement";
 
@@ -145,7 +145,12 @@ describe("generic quantity conversion", () => {
 		expect(
 			registry.convert(
 				{ factors: [{ unitId: "C", exponent: 1 }] },
-				{ factors: [{ unitId: "C", exponent: 1 }, { unitId: "s", exponent: -1 }] },
+				{
+					factors: [
+						{ unitId: "C", exponent: 1 },
+						{ unitId: "s", exponent: -1 },
+					],
+				},
 				1,
 			),
 		).toBeUndefined();
@@ -240,10 +245,12 @@ describe("generic quantity conversion", () => {
 						if (canonical === undefined) {
 							return {
 								status: "invalid",
-								diagnostics: [{
-									code: "NO_MATCH",
-									message: `Unknown unit '${unit}'`,
-								}],
+								diagnostics: [
+									{
+										code: "NO_MATCH",
+										message: `Unknown unit '${unit}'`,
+									},
+								],
 							};
 						}
 						return {
@@ -251,12 +258,14 @@ describe("generic quantity conversion", () => {
 							binding: {
 								canonicalValue: { magnitude: canonical, unit: "m" },
 							},
-							previewValues: [{
-								argumentId: "quantity",
-								previewKey: "canonical",
-								value: `${canonical} m`,
-								status: "bound",
-							}],
+							previewValues: [
+								{
+									argumentId: "quantity",
+									previewKey: "canonical",
+									value: `${canonical} m`,
+									status: "bound",
+								},
+							],
 						};
 					},
 				},
@@ -291,8 +300,8 @@ describe("generic quantity conversion", () => {
 		expect(registry.convertToCanonical("time", "a", 1)).toBeCloseTo(365.2425);
 		expect(registry.convertToCanonical("length", "[ft_i]", 1)).toBe(0.3048);
 		expect(registry.convertToCanonical("mass", "[lb_av]", 1)).toBeCloseTo(
-		0.45359237,
-	);
+			0.45359237,
+		);
 	});
 
 	test("supports selected common bundles and canonical overrides", () => {
@@ -304,8 +313,8 @@ describe("generic quantity conversion", () => {
 		expect(registry.getUnit("m")).toBeDefined();
 		expect(registry.getUnit("meters")).toBeUndefined();
 		expect(registry.convertToCanonical("mass", "[lb_av]", 1)).toBeCloseTo(
-		0.45359237,
-	);
+			0.45359237,
+		);
 	});
 
 	test("converts common derived units across physical dimensions", () => {

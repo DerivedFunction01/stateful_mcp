@@ -44,8 +44,14 @@ describe("Generic Multi-Unit Chained Measurements & Modulus Decomposition", () =
 			dimension: "length",
 		});
 		expect(resPunct.value?.chain).toHaveLength(2);
-		expect(resPunct.value?.chain[0]).toMatchObject({ value: 5, unit: "[ft_i]" });
-		expect(resPunct.value?.chain[1]).toMatchObject({ value: 11, unit: "[in_i]" });
+		expect(resPunct.value?.chain[0]).toMatchObject({
+			value: 5,
+			unit: "[ft_i]",
+		});
+		expect(resPunct.value?.chain[1]).toMatchObject({
+			value: 11,
+			unit: "[in_i]",
+		});
 
 		// Word form 5 ft 11 in
 		const resWords = parseMultiUnitChain("5 ft 11 in", registry, {

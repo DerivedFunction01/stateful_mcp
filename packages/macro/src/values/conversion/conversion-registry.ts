@@ -66,7 +66,9 @@ export class QuantityConversionRegistry {
 		if (!Number.isFinite(value)) return undefined;
 		const source = this.get(dimension, sourceUnit);
 		const canonicalId = this.canonicalUnits.get(dimension);
-		const canonical = canonicalId ? this.get(dimension, canonicalId) : undefined;
+		const canonical = canonicalId
+			? this.get(dimension, canonicalId)
+			: undefined;
 		if (!source || !canonical) return undefined;
 		const baseValue = source.transform.toBase(value);
 		const converted = canonical.transform.fromBase(baseValue);
@@ -76,12 +78,23 @@ export class QuantityConversionRegistry {
 	convertToCanonicalByUnit(
 		unitId: UnitId,
 		value: number,
-	): { canonicalAmount: number; canonicalUnit: UnitId; dimension: QuantityDimension } | undefined {
+	):
+		| {
+				canonicalAmount: number;
+				canonicalUnit: UnitId;
+				dimension: QuantityDimension;
+		  }
+		| undefined {
 		const unit = this.units.get(unitId);
 		if (!unit) return undefined;
-		const canonicalAmount = this.convertToCanonical(unit.dimension, unitId, value);
+		const canonicalAmount = this.convertToCanonical(
+			unit.dimension,
+			unitId,
+			value,
+		);
 		if (canonicalAmount === undefined) return undefined;
-		const canonicalUnit = this.canonicalUnits.get(unit.dimension) ?? unit.canonicalUnit;
+		const canonicalUnit =
+			this.canonicalUnits.get(unit.dimension) ?? unit.canonicalUnit;
 		return { canonicalAmount, canonicalUnit, dimension: unit.dimension };
 	}
 
@@ -93,7 +106,9 @@ export class QuantityConversionRegistry {
 		if (!Number.isFinite(value)) return undefined;
 		const target = this.get(dimension, targetUnit);
 		const canonicalId = this.canonicalUnits.get(dimension);
-		const canonical = canonicalId ? this.get(dimension, canonicalId) : undefined;
+		const canonical = canonicalId
+			? this.get(dimension, canonicalId)
+			: undefined;
 		if (!target || !canonical) return undefined;
 		const baseValue = canonical.transform.toBase(value);
 		const converted = target.transform.fromBase(baseValue);
@@ -117,10 +132,12 @@ export class QuantityConversionRegistry {
 		if (!Number.isFinite(value)) return undefined;
 		const sourceExpression = this.normalize(source);
 		const targetExpression = this.normalize(target);
-		if (!sameDimensionVector(sourceExpression, targetExpression)) return undefined;
+		if (!sameDimensionVector(sourceExpression, targetExpression))
+			return undefined;
 		const sourceScale = this.expressionScale(sourceExpression);
 		const targetScale = this.expressionScale(targetExpression);
-		if (sourceScale === undefined || targetScale === undefined) return undefined;
+		if (sourceScale === undefined || targetScale === undefined)
+			return undefined;
 		const converted = (value * sourceScale) / targetScale;
 		return Number.isFinite(converted) ? converted : undefined;
 	}
@@ -180,15 +197,13 @@ export class QuantityConversionRegistry {
 		};
 	}
 
-	private expressionScale(expression: NormalizedUnitExpression): number | undefined {
+	private expressionScale(
+		expression: NormalizedUnitExpression,
+	): number | undefined {
 		let scale = 1;
 		for (const factor of expression.factors) {
 			const unit = this.getUnit(factor.unitId);
-			if (
-				!unit ||
-				!unit.composable ||
-				unit.transform.kind !== "multiplicative"
-			)
+			if (!unit || !unit.composable || unit.transform.kind !== "multiplicative")
 				return undefined;
 			const unitScale = unit.transform.toBase(1);
 			if (!Number.isFinite(unitScale) || unitScale === 0) return undefined;
@@ -215,7 +230,9 @@ function sameDimensionVector(
 	const leftBase = left.baseDimensionVector;
 	const rightBase = right.baseDimensionVector;
 	if (leftBase || rightBase)
-		return Boolean(leftBase && rightBase) && vectorsEqual(leftBase!, rightBase!);
+		return (
+			Boolean(leftBase && rightBase) && vectorsEqual(leftBase!, rightBase!)
+		);
 	return vectorsEqual(left.dimensionVector, right.dimensionVector);
 }
 

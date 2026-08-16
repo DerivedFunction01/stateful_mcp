@@ -44,12 +44,14 @@ export function resolveTwoDigitYear(
 	config?: TwoDigitYearCenturyConfig,
 ): number {
 	const numeric = typeof rawYear === "string" ? parseInt(rawYear, 10) : rawYear;
-	if (isNaN(numeric)) return NaN;
+	if (Number.isNaN(numeric)) return NaN;
 	if (numeric >= 100) return numeric;
 	const pivot = config?.pivotYear ?? 50;
 	const currentCentury = config?.currentCentury ?? 2000;
 	const previousCentury = config?.previousCentury ?? 1900;
-	return numeric <= pivot ? currentCentury + numeric : previousCentury + numeric;
+	return numeric <= pivot
+		? currentCentury + numeric
+		: previousCentury + numeric;
 }
 
 export interface DatePatternResult {

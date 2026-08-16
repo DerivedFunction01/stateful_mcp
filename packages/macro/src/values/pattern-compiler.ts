@@ -2,7 +2,7 @@ import type {
 	CompiledDomainGrammar,
 	UserMacroProfile,
 } from "../contracts/extension-config";
-import type { QuantityValue, ValueKind } from "../contracts/values";
+import type { ValueKind } from "../contracts/values";
 import type { ScannerSyntax } from "../parser/macro-scanner";
 import type { CurrencyFormatConfig } from "./currency";
 import { buildCurrencyPatternString, parseCurrency } from "./currency";
@@ -13,11 +13,7 @@ import {
 	createMeasurementValue,
 	createMeasurementValueFromQuantity,
 } from "./measurement";
-import { buildNumericPatternString } from "./numeric";
-import type {
-	QuantityConsumerPolicy,
-	QuantityGrammarConfig,
-} from "./quantity";
+import type { QuantityConsumerPolicy, QuantityGrammarConfig } from "./quantity";
 import { parseQuantity } from "./quantity";
 import { escapeRegex } from "./regex";
 
@@ -57,7 +53,9 @@ export class ValuePatternCompiler {
 				rangeDelimiters: profile?.rangeDelimiters ?? [],
 				operatorAliases: profile?.operatorAliases ?? {},
 				statisticalAliases: profile?.statisticalAliases ?? {},
-				...(profile?.decimalSeparator ? { decimalSeparator: profile.decimalSeparator } : {}),
+				...(profile?.decimalSeparator
+					? { decimalSeparator: profile.decimalSeparator }
+					: {}),
 			};
 			this.currencyConfig = profile?.currency;
 			this.dateConfig = profile?.date;
@@ -88,21 +86,29 @@ export class ValuePatternCompiler {
 
 		// Operator prefixes
 		const opAliases: string[] = [];
-		for (const aliases of Object.values(this.quantityConfig.operatorAliases ?? {})) {
+		for (const aliases of Object.values(
+			this.quantityConfig.operatorAliases ?? {},
+		)) {
 			opAliases.push(...aliases);
 		}
 		const opPattern = opAliases.length
-			? `(?:${[...opAliases, ">=", "<=", ">", "<", "="].sort((a, b) => b.length - a.length).map(escapeRegex).join("|")}\\s*)?`
+			? `(?:${[...opAliases, ">=", "<=", ">", "<", "="]
+					.sort((a, b) => b.length - a.length)
+					.map(escapeRegex)
+					.join("|")}\\s*)?`
 			: `(?:[><]=?|=)?\\s*`;
 
 		// Unit suffixes
 		const unitPattern = `(?:[\\p{L}\\p{Sc}_°'%/]+|\\[[a-zA-Z0-9_]+\\])?`;
 
 		// Range connectors (only if configured)
-		const rangeDels = (this.quantityConfig.rangeDelimiters ?? []).map(escapeRegex);
-		const rangePattern = rangeDels.length > 0
-			? `(?:\\s*(?:${rangeDels.join("|")})\\s*${num}\\s*${unitPattern})?`
-			: "";
+		const rangeDels = (this.quantityConfig.rangeDelimiters ?? []).map(
+			escapeRegex,
+		);
+		const rangePattern =
+			rangeDels.length > 0
+				? `(?:\\s*(?:${rangeDels.join("|")})\\s*${num}\\s*${unitPattern})?`
+				: "";
 
 		return `${opPattern}${num}\\s*${unitPattern}${rangePattern}`;
 	}
@@ -111,7 +117,10 @@ export class ValuePatternCompiler {
 	 * Builds a dynamic currency pattern from the active currency configuration.
 	 */
 	compileCurrencyPattern(): string {
-		if (this.currencyConfig && Object.keys(this.currencyConfig.currencies ?? {}).length > 0) {
+		if (
+			this.currencyConfig &&
+			Object.keys(this.currencyConfig.currencies ?? {}).length > 0
+		) {
 			const compiled = buildCurrencyPatternString(this.currencyConfig);
 			if (compiled.pattern) return compiled.pattern;
 		}
@@ -125,7 +134,11 @@ export class ValuePatternCompiler {
 	 * Builds a dynamic date pattern from the active date configuration if configured.
 	 */
 	compileDatePattern(): string {
-		if (this.dateConfig && this.dateConfig.tokens && this.dateConfig.tokens.length > 0) {
+		if (
+			this.dateConfig &&
+			this.dateConfig.tokens &&
+			this.dateConfig.tokens.length > 0
+		) {
 			const separators =
 				this.dateConfig.separators.length === this.dateConfig.tokens.length - 1
 					? this.dateConfig.separators
@@ -178,7 +191,18 @@ export class ValuePatternCompiler {
 		const normalized = normalizeUnicodeDigits(trimmed);
 
 		if (kind === "concept") {
-			const term = trimmed.replace(/^[#@]/u, "");
+			let term = trimmed;
+			if (
+				this.syntax?.expressionToken &&
+				term.startsWith(this.syntax.expressionToken)
+			) {
+				term = term.slice(this.syntax.expressionToken.length);
+			} else if (
+				this.syntax?.conceptToken &&
+				term.startsWith(this.syntax.conceptToken)
+			) {
+				term = term.slice(this.syntax.conceptToken.length);
+			}
 			return {
 				conceptId: term,
 				term,
@@ -214,7 +238,12 @@ export class ValuePatternCompiler {
 					rawText: trimmed,
 				};
 			}
-			return { kind: "currency", amount: 0, currency: "USD", rawText: trimmed };
+			return {
+				kind: "currency",
+				amount: 0,
+				currency: this.currencyConfig?.defaultCurrency ?? "",
+				rawText: trimmed,
+			};
 		}
 
 		if (kind === "date" || kind === "date-time") {
@@ -223,7 +252,7 @@ export class ValuePatternCompiler {
 
 		if (kind === "number") {
 			const num = Number(normalized);
-			return isNaN(num) ? normalized : num;
+			return Number.isNaN(num) ? normalized : num;
 		}
 
 		return trimmed;

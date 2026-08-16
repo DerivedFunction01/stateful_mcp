@@ -216,11 +216,7 @@ function resolveUnit(
 			return canonicalUnit;
 		}
 		if (Array.isArray(aliasList)) {
-			if (
-				aliasList.some(
-					(alias) => alias.toLocaleLowerCase() === normalized,
-				)
-			) {
+			if (aliasList.some((alias) => alias.toLocaleLowerCase() === normalized)) {
 				return canonicalUnit;
 			}
 		} else if (

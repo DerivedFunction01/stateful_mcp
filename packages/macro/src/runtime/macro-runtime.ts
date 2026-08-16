@@ -14,10 +14,7 @@ import type { MacroDiagnostic, MacroInput } from "../contracts/input";
 import type { MacroParseOptions } from "../contracts/macro";
 import type { MacroLockLike } from "../contracts/slots";
 import { parseMacroLine } from "../parser/macro-parser";
-import {
-	applyMacroLocks,
-	projectMacroSlots,
-} from "../slots/macro-slots";
+import { applyMacroLocks, projectMacroSlots } from "../slots/macro-slots";
 
 export interface MacroRuntimeOptions extends MacroParseOptions {
 	candidates?: readonly MacroCandidateSnapshot[];
@@ -127,7 +124,8 @@ export async function executeMacroWithAdapter(
 ): Promise<unknown> {
 	if (!draft.input || !adapter.compile) return undefined;
 	const executionPreview = draft.executionPreview;
-	if (!executionPreview) throw new Error("Macro draft has no execution preview");
+	if (!executionPreview)
+		throw new Error("Macro draft has no execution preview");
 	if (executionPreview.status !== "valid")
 		throw new Error("Macro draft contains non-executable bindings");
 	if (executionPreview.macroId !== adapter.definition.id)
@@ -231,13 +229,12 @@ function createExecutionPreview(
 				? [{ start: item.input.start, end: item.input.end }]
 				: [],
 	);
-	const contextFingerprint = stableFingerprint(
-		options.context.syntax,
-	);
-	const status = bindings.some((item) => item.binding.status !== "accepted")
-		|| allDiagnostics.length > 0
-		? "invalid"
-		: "valid";
+	const contextFingerprint = stableFingerprint(options.context.syntax);
+	const status =
+		bindings.some((item) => item.binding.status !== "accepted") ||
+		allDiagnostics.length > 0
+			? "invalid"
+			: "valid";
 	const artifact = {
 		macroId: adapter.definition.id,
 		macroVersion: adapter.definition.version ?? 1,

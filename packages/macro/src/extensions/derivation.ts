@@ -1,10 +1,7 @@
 import type { ExtensionContext } from "../context/extension-context";
 import type { MacroDefinitionAdapter } from "../contracts/composition";
 import type { ExtensionDomainConfig } from "../contracts/extension-config";
-import type {
-	ExtensionActivation,
-	MacroExtension,
-} from "./contracts";
+import type { ExtensionActivation, MacroExtension } from "./contracts";
 import { defineExtension } from "./contracts";
 
 export interface ExtendExtensionOptions {
@@ -48,7 +45,9 @@ export function extendExtension(
 			...(baseExtension.manifest.configDefaults ?? {}),
 		},
 		domainConfig: mergedDomainConfig,
-		activate: async (context: ExtensionContext): Promise<ExtensionActivation> => {
+		activate: async (
+			context: ExtensionContext,
+		): Promise<ExtensionActivation> => {
 			// 1. Activate the base extension
 			const baseActivation = await baseExtension.activate(context);
 

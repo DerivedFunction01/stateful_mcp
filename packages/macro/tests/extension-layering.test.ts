@@ -84,7 +84,9 @@ describe("Extension Layering & Inheritance (extendExtension)", () => {
 
 		expect(oncologyExtension.manifest.id).toBe("oncology-pack");
 		expect(oncologyExtension.manifest.requires).toContain("core-observations");
-		expect(oncologyExtension.manifest.domainConfig?.domainUnits).toHaveProperty("mg/m2");
+		expect(oncologyExtension.manifest.domainConfig?.domainUnits).toHaveProperty(
+			"mg/m2",
+		);
 
 		// Simulate registry
 		const registry = new ExtensionRegistry();
@@ -108,7 +110,9 @@ describe("Extension Layering & Inheritance (extendExtension)", () => {
 		expect(activatedBase.adapters![0]?.definition.name).toBe("obs");
 
 		expect(activatedDerived.adapters).toHaveLength(2);
-		const adapterNames = activatedDerived.adapters!.map((a) => a.definition.name);
+		const adapterNames = activatedDerived.adapters!.map(
+			(a) => a.definition.name,
+		);
 		expect(adapterNames).toContain("obs");
 		expect(adapterNames).toContain("chemo-obs");
 		expect(activatedDerived.exports).toEqual({ coreService: true });
@@ -147,7 +151,9 @@ describe("Extension Layering & Inheritance (extendExtension)", () => {
 		const compiled = await activation.adapters![0]?.compile!([], {
 			macroName: "obs",
 			sourceLines: [],
-			arguments: [{ name: "concept", rawValue: "#carboplatin", source: "named" }],
+			arguments: [
+				{ name: "concept", rawValue: "#carboplatin", source: "named" },
+			],
 			matches: [],
 		});
 

@@ -32,10 +32,8 @@ export function createExtensionSeedServices(
 
 function isDictionarySeed(value: unknown): value is DictionarySeed {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-	return ["namespaces", "concepts", "relations", "expressions"].every(
-		(key) => {
-			const candidate = (value as Record<string, unknown>)[key];
-			return candidate === undefined || Array.isArray(candidate);
-		},
-	);
+	return ["namespaces", "concepts", "relations", "expressions"].every((key) => {
+		const candidate = (value as Record<string, unknown>)[key];
+		return candidate === undefined || Array.isArray(candidate);
+	});
 }

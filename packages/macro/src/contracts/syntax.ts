@@ -14,11 +14,13 @@ export interface MacroSyntax {
 }
 
 export function resolveArgumentDelimiter(
-	syntax?: Partial<MacroSyntax> | {
-		readonly argumentDelimiter?: string;
-		readonly macroArgDelimiter?: string;
-		readonly fallbackBoundaryDelimiter?: string;
-	},
+	syntax?:
+		| Partial<MacroSyntax>
+		| {
+				readonly argumentDelimiter?: string;
+				readonly macroArgDelimiter?: string;
+				readonly fallbackBoundaryDelimiter?: string;
+		  },
 ): string | undefined {
 	return (
 		syntax?.argumentDelimiter ??

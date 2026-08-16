@@ -193,7 +193,10 @@ export function parseMacroLine(
 					invalidEnd = segment.valueSpan.end;
 				}
 				segment.end = invalidEnd;
-				segment.sourceSpan = { start: segment.sourceSpan.start, end: invalidEnd };
+				segment.sourceSpan = {
+					start: segment.sourceSpan.start,
+					end: invalidEnd,
+				};
 				segment.valueSpan = { start: segment.valueSpan.start, end: invalidEnd };
 				segment.value = raw.slice(segment.valueSpan.start, invalidEnd);
 			}
@@ -614,8 +617,7 @@ function findArgumentMatches(
 							return false;
 						}
 						return (
-							candidate.start >= 0 &&
-							candidate.end <= region.end - region.start
+							candidate.start >= 0 && candidate.end <= region.end - region.start
 						);
 					})
 					.map((candidate) =>

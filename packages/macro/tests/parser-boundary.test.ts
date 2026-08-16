@@ -356,12 +356,16 @@ describe("Phase 2 parser boundary hardening", () => {
 				quoteCharacters: ['"'],
 			});
 			// Without conceptToken @, ordinary text with :: is not split
-			const result = parseMacroLine('^book concept="harry::HP1" 2004 10', librarySpec, {
-				context: conceptContext,
-				backends: { books: booksBackend },
-			});
-		expect(result?.arguments[0]?.rawValue).toBe("harry::HP1");
-	});
+			const result = parseMacroLine(
+				'^book concept="harry::HP1" 2004 10',
+				librarySpec,
+				{
+					context: conceptContext,
+					backends: { books: booksBackend },
+				},
+			);
+			expect(result?.arguments[0]?.rawValue).toBe("harry::HP1");
+		});
 	});
 
 	describe("7. Parser uses syntax-aware positional tokenization", () => {
@@ -447,4 +451,3 @@ describe("Phase 2 parser boundary hardening", () => {
 		});
 	});
 });
-

@@ -7,11 +7,7 @@ export interface QuantitySegment {
 	readonly canonicalValue: number;
 }
 
-export type MultiUnitCanonicalTarget =
-	| "base"
-	| "primary"
-	| "discrete"
-	| string;
+export type MultiUnitCanonicalTarget = "base" | "primary" | "discrete" | string;
 
 export interface ChainedQuantityResult {
 	readonly kind: "quantity";
@@ -50,13 +46,22 @@ export function parseMultiUnitChain(
 ): ChainedQuantityResolution {
 	const rawText = input.trim();
 	if (!rawText) {
-		return { diagnostics: [{ code: "EMPTY_INPUT", message: "Input is empty" }] };
+		return {
+			diagnostics: [{ code: "EMPTY_INPUT", message: "Input is empty" }],
+		};
 	}
 
 	// 1. Scan segments: handles numbers + units separated by connectors, whitespace, or shorthand punctuation
 	const segments = extractRawSegments(rawText, options);
 	if (segments.length === 0) {
-		return { diagnostics: [{ code: "NO_SEGMENTS_FOUND", message: `No unit segments found in '${rawText}'` }] };
+		return {
+			diagnostics: [
+				{
+					code: "NO_SEGMENTS_FOUND",
+					message: `No unit segments found in '${rawText}'`,
+				},
+			],
+		};
 	}
 
 	let chainDimension: string | undefined;
@@ -65,7 +70,11 @@ export function parseMultiUnitChain(
 	const resolvedChain: QuantitySegment[] = [];
 
 	for (const { rawValue, rawUnit } of segments) {
-		const resolvedUnitId = resolveUnitAlias(rawUnit, options.unitAliases, registry);
+		const resolvedUnitId = resolveUnitAlias(
+			rawUnit,
+			options.unitAliases,
+			registry,
+		);
 		if (!resolvedUnitId) {
 			return {
 				diagnostics: [
@@ -101,7 +110,10 @@ export function parseMultiUnitChain(
 		}
 
 		chainDimension = unitDef.dimension;
-		const canonicalInfo = registry.convertToCanonicalByUnit(resolvedUnitId, rawValue);
+		const canonicalInfo = registry.convertToCanonicalByUnit(
+			resolvedUnitId,
+			rawValue,
+		);
 		if (!canonicalInfo) {
 			return {
 				diagnostics: [
@@ -123,7 +135,11 @@ export function parseMultiUnitChain(
 	}
 
 	if (!chainDimension || !baseCanonicalUnit) {
-		return { diagnostics: [{ code: "EMPTY_CHAIN", message: "Failed to resolve chain dimensions" }] };
+		return {
+			diagnostics: [
+				{ code: "EMPTY_CHAIN", message: "Failed to resolve chain dimensions" },
+			],
+		};
 	}
 
 	if (
@@ -147,16 +163,27 @@ export function parseMultiUnitChain(
 	const targetChoice = options.targetCanonical ?? "base";
 	if (targetChoice === "primary") {
 		finalUnit = resolvedChain[0]!.unit;
-		const converted = registry.convertFromCanonicalByUnit(finalUnit, totalCanonicalScalar);
+		const converted = registry.convertFromCanonicalByUnit(
+			finalUnit,
+			totalCanonicalScalar,
+		);
 		if (converted !== undefined) finalMagnitude = converted;
 	} else if (targetChoice === "discrete") {
 		finalUnit = resolvedChain[resolvedChain.length - 1]!.unit;
-		const converted = registry.convertFromCanonicalByUnit(finalUnit, totalCanonicalScalar);
+		const converted = registry.convertFromCanonicalByUnit(
+			finalUnit,
+			totalCanonicalScalar,
+		);
 		if (converted !== undefined) finalMagnitude = converted;
 	} else if (targetChoice !== "base") {
 		// Custom target unit ID e.g. "days", "cm", "USD"
-		const resolvedTarget = resolveUnitAlias(targetChoice, options.unitAliases, registry) ?? targetChoice;
-		const converted = registry.convertFromCanonicalByUnit(resolvedTarget, totalCanonicalScalar);
+		const resolvedTarget =
+			resolveUnitAlias(targetChoice, options.unitAliases, registry) ??
+			targetChoice;
+		const converted = registry.convertFromCanonicalByUnit(
+			resolvedTarget,
+			totalCanonicalScalar,
+		);
 		if (converted !== undefined) {
 			finalUnit = resolvedTarget;
 			finalMagnitude = converted;
@@ -188,7 +215,10 @@ export function decomposeScalarToChain(
 ): QuantitySegment[] {
 	if (!Number.isFinite(amount) || targetUnitIds.length === 0) return [];
 
-	const sourceConversion = registry.convertToCanonicalByUnit(sourceUnit, amount);
+	const sourceConversion = registry.convertToCanonicalByUnit(
+		sourceUnit,
+		amount,
+	);
 	if (!sourceConversion) return [];
 
 	const baseAmount = sourceConversion.canonicalAmount;
@@ -199,7 +229,11 @@ export function decomposeScalarToChain(
 	for (const unitId of targetUnitIds) {
 		const targetDef = registry.getUnit(unitId);
 		if (!targetDef || targetDef.dimension !== dimension) continue;
-		const oneUnitCanonical = registry.convertToCanonical(dimension, unitId, 1.0);
+		const oneUnitCanonical = registry.convertToCanonical(
+			dimension,
+			unitId,
+			1.0,
+		);
 		if (oneUnitCanonical !== undefined && oneUnitCanonical > 0) {
 			targetUnitsWithFactors.push({ unitId, factor: oneUnitCanonical });
 		}
@@ -261,7 +295,10 @@ function extractRawSegments(
 	const matches = Array.from(text.matchAll(segmentRegex));
 
 	for (const match of matches) {
-		const numStr = options.decimalSeparator === "," ? match[1]!.replace(",", ".") : match[1]!;
+		const numStr =
+			options.decimalSeparator === ","
+				? match[1]!.replace(",", ".")
+				: match[1]!;
 		const val = Number(numStr);
 		const rawUnit = match[2]!.trim();
 		if (Number.isFinite(val) && rawUnit) {

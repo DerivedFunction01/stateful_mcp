@@ -49,20 +49,37 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 					recordType: "clinical_assessment",
 					primaryDiagnosis: graph.subject,
 					acuity: graph.qualifiers.acuity ?? "standard",
-					supportingEvidence: graph.evidence.filter((e) => e.role === "supporting"),
-					refutedAlternatives: graph.evidence.filter((e) => e.role === "refuting"),
+					supportingEvidence: graph.evidence.filter(
+						(e) => e.role === "supporting",
+					),
+					refutedAlternatives: graph.evidence.filter(
+						(e) => e.role === "refuting",
+					),
 					planActions: graph.transitions.map((t) => t.value),
 				};
+			},
+			{
+				syntax: {
+					expressionToken: "#",
+					conceptToken: "@",
+				},
 			},
 		);
 
 		expect(clinicalAssessmentMacro.definition.name).toBe("assessment");
-		expect(clinicalAssessmentMacro.definition.arguments.length).toBeGreaterThan(4);
+		expect(clinicalAssessmentMacro.definition.arguments.length).toBeGreaterThan(
+			4,
+		);
 
 		// Simulating parsed input from macro parser
 		const mockInput: MacroInput = {
 			macroName: "assessment",
-			sourceLines: [{ line: 1, raw: "^assessment #asthma acuity acute with #wheezing vitals 92% refuting #pe triggers #albuterol" }],
+			sourceLines: [
+				{
+					line: 1,
+					raw: "^assessment #asthma acuity acute with #wheezing vitals 92% refuting #pe triggers #albuterol",
+				},
+			],
 			arguments: [
 				{ name: "diagnosis", rawValue: "#asthma", source: "named" },
 				{ name: "acuity", rawValue: "acute", source: "friendly" },
@@ -74,7 +91,10 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 			matches: [],
 		};
 
-		const result = (await clinicalAssessmentMacro.compile!([], mockInput)) as Record<string, unknown>;
+		const result = (await clinicalAssessmentMacro.compile!(
+			[],
+			mockInput,
+		)) as Record<string, unknown>;
 		expect(result.recordType).toBe("clinical_assessment");
 		expect(result.primaryDiagnosis).toEqual({
 			conceptId: "asthma",
@@ -149,15 +169,29 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 				incidentType: "production_triage",
 				affectedService: (graph.subject as { term: string }).term,
 				severity: graph.qualifiers.severity,
-				corroboratingMetrics: graph.evidence.filter((e) => e.role === "supporting").map((e) => e.value),
-				ruledOutCauses: graph.evidence.filter((e) => e.role === "refuting").map((e) => e.value),
+				corroboratingMetrics: graph.evidence
+					.filter((e) => e.role === "supporting")
+					.map((e) => e.value),
+				ruledOutCauses: graph.evidence
+					.filter((e) => e.role === "refuting")
+					.map((e) => e.value),
 				automatedDispatches: graph.transitions.map((t) => t.value),
 			}),
+			{
+				syntax: {
+					expressionToken: "#",
+				},
+			},
 		);
 
 		const mockInput: MacroInput = {
 			macroName: "incident",
-			sourceLines: [{ line: 1, raw: "^incident #auth-service severity P1 with latency 1200ms refuting #db-failure triggers #restart-pods" }],
+			sourceLines: [
+				{
+					line: 1,
+					raw: "^incident #auth-service severity P1 with latency 1200ms refuting #db-failure triggers #restart-pods",
+				},
+			],
 			arguments: [
 				{ name: "service", rawValue: "#auth-service", source: "named" },
 				{ name: "severity", rawValue: "P1", source: "friendly" },
@@ -168,18 +202,30 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 			matches: [],
 		};
 
-		const result = (await devopsIncidentMacro.compile!([], mockInput)) as Record<string, unknown>;
+		const result = (await devopsIncidentMacro.compile!(
+			[],
+			mockInput,
+		)) as Record<string, unknown>;
 		expect(result.incidentType).toBe("production_triage");
 		expect(result.affectedService).toBe("auth-service");
 		expect(result.severity).toBe("P1");
 		expect(result.corroboratingMetrics).toEqual([
-			{ kind: "quantity", magnitude: 1200, unit: "ms", rawText: "1200ms" },
+			{
+				kind: "quantity",
+				magnitude: 1200,
+				unit: "ms",
+				rawText: "1200ms",
+			},
 		]);
 		expect(result.ruledOutCauses).toEqual([
 			{ conceptId: "db-failure", term: "db-failure", rawText: "#db-failure" },
 		]);
 		expect(result.automatedDispatches).toEqual([
-			{ conceptId: "restart-pods", term: "restart-pods", rawText: "#restart-pods" },
+			{
+				conceptId: "restart-pods",
+				term: "restart-pods",
+				rawText: "#restart-pods",
+			},
 		]);
 	});
 
@@ -221,12 +267,20 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 						currencies: { USD: ["$"] },
 					},
 				},
+				syntax: {
+					expressionToken: "#",
+				},
 			},
 		);
 
 		const mockInput: MacroInput = {
 			macroName: "fraud_flag",
-			sourceLines: [{ line: 1, raw: "^fraud_flag #acc-9843 with amount $500,000 refuting #whitelisted triggers #freeze-account" }],
+			sourceLines: [
+				{
+					line: 1,
+					raw: "^fraud_flag #acc-9843 with amount $500,000 refuting #whitelisted triggers #freeze-account",
+				},
+			],
 			arguments: [
 				{ name: "account", rawValue: "#acc-9843", source: "named" },
 				{ name: "amount", rawValue: "$500,000", source: "friendly" },
@@ -236,7 +290,10 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 			matches: [],
 		};
 
-		const result = (await fraudFlagMacro.compile!([], mockInput)) as Record<string, unknown>;
+		const result = (await fraudFlagMacro.compile!([], mockInput)) as Record<
+			string,
+			unknown
+		>;
 		expect(result.auditKind).toBe("anti_money_laundering");
 		expect(result.account).toBe("acc-9843");
 		expect(result.amount).toMatchObject({
@@ -245,5 +302,130 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 			currency: "USD",
 			subunits: 50000000,
 		});
+	});
+
+	test("Repeatable & List Clauses: supports comma-separated list items and repeated clause occurrences", async () => {
+		const multiEvidenceMacro = createAssertionMacro(
+			{
+				macroName: "triage",
+				subjectSlotId: "target",
+				clauses: [
+					{
+						role: "supporting",
+						slotId: "findings",
+						valueKind: "concept",
+						repeatable: true,
+						itemDelimiter: ",",
+						connectors: ["with", "supporting"],
+					},
+					{
+						role: "refuting",
+						slotId: "rule_outs",
+						valueKind: "concept",
+						repeatable: true,
+						itemDelimiter: ",",
+						connectors: ["refuting", "not"],
+					},
+				],
+			},
+			(graph) => ({
+				target: (graph.subject as { term: string }).term,
+				supportingCount: graph.evidence.filter((e) => e.role === "supporting")
+					.length,
+				supportingTerms: graph.evidence
+					.filter((e) => e.role === "supporting")
+					.map((e) => (e.value as { term: string }).term),
+				refutingCount: graph.evidence.filter((e) => e.role === "refuting")
+					.length,
+				refutingTerms: graph.evidence
+					.filter((e) => e.role === "refuting")
+					.map((e) => (e.value as { term: string }).term),
+			}),
+			{
+				syntax: {
+					expressionToken: "#",
+				},
+			},
+		);
+
+		// Case 1: Comma-separated list items within single argument input
+		const listInput: MacroInput = {
+			macroName: "triage",
+			sourceLines: [
+				{
+					line: 1,
+					raw: "^triage #asthma with #wheezing, #cough, #dyspnea refuting #pe, #pneumonia",
+				},
+			],
+			arguments: [
+				{
+					name: "target",
+					rawValue: "#asthma",
+					source: "named",
+				},
+				{
+					name: "findings",
+					rawValue: "#wheezing, #cough, #dyspnea",
+					source: "friendly",
+					items: [
+						{ rawValue: "#wheezing", start: 0, end: 9 },
+						{ rawValue: "#cough", start: 11, end: 17 },
+						{ rawValue: "#dyspnea", start: 19, end: 27 },
+					],
+				},
+				{
+					name: "rule_outs",
+					rawValue: "#pe, #pneumonia",
+					source: "friendly",
+					items: [
+						{ rawValue: "#pe", start: 0, end: 3 },
+						{ rawValue: "#pneumonia", start: 5, end: 15 },
+					],
+				},
+			],
+			matches: [],
+		};
+
+		const listResult = (await multiEvidenceMacro.compile!(
+			[],
+			listInput,
+		)) as Record<string, unknown>;
+		expect(listResult.target).toBe("asthma");
+		expect(listResult.supportingCount).toBe(3);
+		expect(listResult.supportingTerms).toEqual([
+			"wheezing",
+			"cough",
+			"dyspnea",
+		]);
+		expect(listResult.refutingCount).toBe(2);
+		expect(listResult.refutingTerms).toEqual(["pe", "pneumonia"]);
+
+		// Case 2: Multiple distinct clause arguments repeated across sentence
+		const repeatedArgsInput: MacroInput = {
+			macroName: "triage",
+			sourceLines: [
+				{
+					line: 1,
+					raw: "^triage #asthma with #wheezing with #cough refuting #pe refuting #pneumothorax",
+				},
+			],
+			arguments: [
+				{ name: "target", rawValue: "#asthma", source: "named" },
+				{ name: "findings", rawValue: "#wheezing", source: "friendly" },
+				{ name: "findings", rawValue: "#cough", source: "friendly" },
+				{ name: "rule_outs", rawValue: "#pe", source: "friendly" },
+				{ name: "rule_outs", rawValue: "#pneumothorax", source: "friendly" },
+			],
+			matches: [],
+		};
+
+		const repeatedResult = (await multiEvidenceMacro.compile!(
+			[],
+			repeatedArgsInput,
+		)) as Record<string, unknown>;
+		expect(repeatedResult.supportingCount).toBe(2);
+		expect(repeatedResult.supportingTerms).toEqual(["wheezing", "cough"]);
+		expect(repeatedResult.refutingCount).toBe(2);
+		expect(repeatedResult.refutingTerms).toEqual(["pe", "pneumothorax"]);
 	});
 });

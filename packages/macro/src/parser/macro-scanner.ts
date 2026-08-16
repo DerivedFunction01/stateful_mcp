@@ -1,5 +1,8 @@
 import type { MacroDiagnostic, MacroSpan } from "../contracts/input";
-import { type MacroSyntax, resolveArgumentDelimiter } from "../contracts/syntax";
+import {
+	type MacroSyntax,
+	resolveArgumentDelimiter,
+} from "../contracts/syntax";
 
 export interface NamedSegment {
 	name: string;
@@ -92,11 +95,12 @@ export function traverseLexicalTokens(
 	raw: string,
 	region: MacroSpan,
 	syntax: ScannerSyntax | Partial<MacroSyntax> | undefined,
-	callback: (state: LexicalState) => boolean | void,
+	callback: (state: LexicalState) => boolean | undefined,
 	diagnostics?: MacroDiagnostic[],
 ): { quote: string; depth: number } {
 	const quoteOpenMap = resolveQuoteOpenMap(syntax);
-	const { openSet: groupOpenSet, closeSet: groupCloseSet } = resolveGroupMaps(syntax);
+	const { openSet: groupOpenSet, closeSet: groupCloseSet } =
+		resolveGroupMaps(syntax);
 	let quote = "";
 	let escaped = false;
 	let depth = 0;
@@ -312,7 +316,11 @@ export function scanNamedAssignments(
 				syntax,
 				(state) => {
 					if (state.index === sourceStart) return;
-					if (state.quote === "" && state.char === firstChar && !state.escaped) {
+					if (
+						state.quote === "" &&
+						state.char === firstChar &&
+						!state.escaped
+					) {
 						closedIndex = state.index;
 						return false;
 					}
@@ -392,22 +400,17 @@ export function splitByDelimiter(
 	const parts: MacroSpan[] = [];
 	let currentStart = region.start;
 
-	traverseLexicalTokens(
-		raw,
-		region,
-		syntax,
-		(state) => {
-			if (state.isInsideQuoteOrGroup) return;
+	traverseLexicalTokens(raw, region, syntax, (state) => {
+		if (state.isInsideQuoteOrGroup) return;
 
-			if (raw.startsWith(delimiter, state.index)) {
-				const end = trimEnd(raw, currentStart, state.index);
-				if (skipWhitespace(raw, currentStart) < end) {
-					parts.push({ start: skipWhitespace(raw, currentStart), end });
-				}
-				currentStart = state.index + delimiter.length;
+		if (raw.startsWith(delimiter, state.index)) {
+			const end = trimEnd(raw, currentStart, state.index);
+			if (skipWhitespace(raw, currentStart) < end) {
+				parts.push({ start: skipWhitespace(raw, currentStart), end });
 			}
-		},
-	);
+			currentStart = state.index + delimiter.length;
+		}
+	});
 
 	const end = trimEnd(raw, currentStart, region.end);
 	if (skipWhitespace(raw, currentStart) < end) {
@@ -528,36 +531,31 @@ function scanPositionalTokenEnd(
 
 	let tokenEnd = limit;
 
-	traverseLexicalTokens(
-		raw,
-		{ start, end: limit },
-		syntax,
-		(state) => {
-			if (state.index === start) return;
+	traverseLexicalTokens(raw, { start, end: limit }, syntax, (state) => {
+		if (state.index === start) return;
 
-			if (state.isInsideQuoteOrGroup) return;
+		if (state.isInsideQuoteOrGroup) return;
 
-			if (/\s/u.test(state.char)) {
-				tokenEnd = state.index;
-				return false;
-			}
+		if (/\s/u.test(state.char)) {
+			tokenEnd = state.index;
+			return false;
+		}
 
-			if (delimiter && raw.startsWith(delimiter, state.index)) {
-				tokenEnd = state.index;
-				return false;
-			}
+		if (delimiter && raw.startsWith(delimiter, state.index)) {
+			tokenEnd = state.index;
+			return false;
+		}
 
-			if (exprToken && raw.startsWith(exprToken, state.index)) {
-				tokenEnd = state.index;
-				return false;
-			}
+		if (exprToken && raw.startsWith(exprToken, state.index)) {
+			tokenEnd = state.index;
+			return false;
+		}
 
-			if (conceptToken && raw.startsWith(conceptToken, state.index)) {
-				tokenEnd = state.index;
-				return false;
-			}
-		},
-	);
+		if (conceptToken && raw.startsWith(conceptToken, state.index)) {
+			tokenEnd = state.index;
+			return false;
+		}
+	});
 
 	return tokenEnd;
 }
