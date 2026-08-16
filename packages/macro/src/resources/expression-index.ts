@@ -3,7 +3,11 @@ import type {
 	ExpressionCandidate,
 	ExpressionSearchRequest,
 } from "../contracts/backends";
-import type { ExpressionSeed, ResourceDiagnostic } from "./contracts";
+import type {
+	ExpressionSeed,
+	ResourceDiagnostic,
+	ResourceIdentity,
+} from "./contracts";
 import { escapeSeedRegex, normalizeLookupTerm } from "./dictionary-seed";
 
 export interface IndexedExpression {
@@ -22,10 +26,31 @@ export interface IndexedExpression {
 export class ExpressionIndex implements ExpressionBackend {
 	private expressions: IndexedExpression[] = [];
 	private diagnostics: ResourceDiagnostic[] = [];
+	ownerExtensionId?: string;
+	resourceId?: string;
+	resolverId?: string;
+	version: string | number = 1;
+
+	get backendVersion(): string | number {
+		return this.version;
+	}
+
+	get identity(): ResourceIdentity | undefined {
+		if (!this.ownerExtensionId || !this.resourceId) return undefined;
+		return {
+			extensionId: this.ownerExtensionId,
+			resourceId: this.resourceId,
+			version: this.version,
+		};
+	}
 
 	rebuild(
 		records: readonly IndexedExpression[],
+		version?: string | number,
 	): readonly ResourceDiagnostic[] {
+		if (version !== undefined) {
+			this.version = version;
+		}
 		this.expressions = [];
 		this.diagnostics = [];
 		for (const record of records) {
@@ -67,7 +92,7 @@ export class ExpressionIndex implements ExpressionBackend {
 				if (end <= start || !hasWordBoundaries(request.text, start, end))
 					continue;
 				candidates.push(
-					candidate(expression, request.text, start, end, "exact"),
+					candidate(expression, request.text, start, end, "exact", this),
 				);
 			}
 
@@ -96,6 +121,7 @@ export class ExpressionIndex implements ExpressionBackend {
 								start,
 								request.text.length,
 								"prefix",
+								this,
 							),
 						);
 					}
@@ -133,6 +159,7 @@ function candidate(
 	start: number,
 	end: number,
 	matchKind: "exact" | "prefix",
+	index?: ExpressionIndex,
 ): ExpressionCandidate {
 	return {
 		id: expression.id,
@@ -144,6 +171,14 @@ function candidate(
 		canonicalValue: expression.canonicalValue ?? expression.conceptId,
 		conceptId: expression.conceptId,
 		metadata: expression.metadata,
+		...(index?.ownerExtensionId
+			? { ownerExtensionId: index.ownerExtensionId }
+			: {}),
+		...(index?.resourceId ? { resourceId: index.resourceId } : {}),
+		...(index?.resolverId ?? index?.resourceId
+			? { resolverId: index?.resolverId ?? index?.resourceId }
+			: {}),
+		...(index?.version !== undefined ? { resolverVersion: index.version } : {}),
 	};
 }
 

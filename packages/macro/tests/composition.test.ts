@@ -238,4 +238,126 @@ describe("composed macro runtime", () => {
 			}),
 		).rejects.toThrow("context is stale");
 	});
+
+	test("rejects candidate snapshot when owner extension or resource is mismatched", () => {
+		const result = parseMacroLine(
+			"^lookup hp",
+			{
+				id: "fixture.lookup",
+				name: "lookup",
+				version: 1,
+				arguments: [
+					{
+						argumentId: "concept",
+						name: "concept",
+						path: "fixture.lookup.concept",
+						matcher: { kind: "expression", backendId: "books" },
+					},
+				],
+				matching: { positionalFallback: true },
+			},
+			{
+				context: testMacroContext,
+				backends: {
+					books: {
+						ownerExtensionId: "books-extension",
+						resourceId: "books-resource",
+						version: "1",
+						search: () => [],
+					},
+				},
+				candidateSnapshots: [
+					{
+						resolverId: "books",
+						argumentId: "concept",
+						version: "1",
+						ownerExtensionId: "foreign-extension",
+						candidates: [
+							{
+								id: "hp",
+								term: "hp",
+								start: 0,
+								end: 2,
+								matchKind: "exact",
+								canonicalValue: "series",
+							},
+						],
+					},
+				],
+			},
+		);
+
+		expect(result?.diagnostics).toEqual([
+			expect.objectContaining({
+				code: "CROSS_RESOURCE_CANDIDATE_REJECTED",
+				argumentId: "concept",
+			}),
+		]);
+		expect(result?.matches).toHaveLength(0);
+	});
+
+	test("diagnoses resolver version mismatch and rejects execution with updated backend", async () => {
+		const candidates = [
+			{
+				resolverId: "books",
+				argumentId: "concept",
+				version: "1",
+				candidates: [
+					{
+						id: "hp",
+						term: "hp",
+						start: 0,
+						end: 2,
+						matchKind: "exact" as const,
+						canonicalValue: "series",
+					},
+				],
+			},
+		];
+
+		const mockBackendV1 = {
+			ownerExtensionId: "books-extension",
+			resourceId: "books",
+			version: "1",
+			search: () => [],
+		};
+
+		const mockBackendV2 = {
+			ownerExtensionId: "books-extension",
+			resourceId: "books",
+			version: "2",
+			search: () => [],
+		};
+
+		const draft = await parseMacroWithAdapter(
+			observationAdapter,
+			"^observation concept=hp severity=5/10",
+			{
+				context: testMacroContext,
+				backends: { books: mockBackendV1 },
+				candidates,
+			},
+		);
+
+		// Execution with current backend v1 succeeds
+		await expect(
+			executeMacroWithAdapter(observationAdapter, draft, {
+				backends: { books: mockBackendV1 },
+			}),
+		).resolves.toBeDefined();
+
+		// Execution with updated backend v2 rejects due to stale resolver version
+		await expect(
+			executeMacroWithAdapter(observationAdapter, draft, {
+				backends: { books: mockBackendV2 },
+			}),
+		).rejects.toThrow("stale");
+
+		// Execution with missing backend rejects
+		await expect(
+			executeMacroWithAdapter(observationAdapter, draft, {
+				backends: {},
+			}),
+		).rejects.toThrow("unavailable");
+	});
 });

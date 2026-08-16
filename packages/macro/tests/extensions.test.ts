@@ -295,4 +295,231 @@ describe("extension runtime", () => {
 			await rm(directory, { recursive: true, force: true });
 		}
 	});
+
+	test("preview followed by resource reseed/reload rejects execution due to stale resolver version", async () => {
+		let dictionaryRef: any;
+		const ext = defineExtension({
+			id: "library",
+			version: "1",
+			activate: async (context) => {
+				const dictionary = await context.dictionaries.memory({ id: "books" });
+				await dictionary.seed({
+					expressions: [
+						{ id: "hp", term: "hp", canonicalValue: "Harry Potter" },
+					],
+				});
+				dictionaryRef = dictionary;
+				const macroSpec = {
+					id: "fixture.lookup",
+					name: "lookup",
+					version: 1,
+					arguments: [
+						{
+							argumentId: "concept",
+							name: "concept",
+							path: "fixture.lookup.concept",
+							matcher: context.matchers.expression(dictionary),
+						},
+					],
+					matching: { positionalFallback: true },
+				};
+				const adapter = {
+					definition: macroSpec,
+					previewTemplate: {
+						version: 1 as const,
+						parts: [
+							{ kind: "literal" as const, text: "concept: " },
+							{ kind: "slot" as const, argumentId: "concept", occurrence: 1 },
+						],
+					},
+					children: {
+						concept: {
+							type: "expression",
+							validate: (ctx: any) => ({
+								status: "accepted" as const,
+								binding: {
+									backendId: dictionary.id,
+									canonicalValue: "Harry Potter",
+								},
+								previewValues: [{ argumentId: "concept", value: "Harry Potter" }],
+							}),
+						},
+					},
+					compile: (bindings: any) => ({
+						kind: "lookup",
+						concept: bindings[0]?.binding?.canonicalValue,
+					}),
+				};
+				return {
+					adapters: [adapter],
+				};
+			},
+		});
+
+		const runtime = new ExtensionRuntime();
+		await runtime.activate([loaded(ext)]);
+
+		// Generate draft with preview at version 1 (or initial version after seed)
+		const draft = await runtime.parseAdapter("fixture.lookup", "^lookup hp");
+		expect(draft.executionPreview?.status).toBe("valid");
+
+		// Execute succeeds initially
+		await expect(
+			runtime.executeAdapter("fixture.lookup", draft),
+		).resolves.toEqual({
+			kind: "lookup",
+			concept: "Harry Potter",
+		});
+
+		// Now re-seed the dictionary, advancing its version
+		await dictionaryRef.seed({
+			expressions: [
+				{ id: "lotr", term: "lotr", canonicalValue: "Lord of the Rings" },
+			],
+		});
+
+		// Executing the old preview is rejected as stale
+		await expect(
+			runtime.executeAdapter("fixture.lookup", draft),
+		).rejects.toThrow("stale");
+
+		await runtime.dispose();
+	});
+
+	test("preview followed by extension disposal rejects execution and adapter lookup fails", async () => {
+		const ext = defineExtension({
+			id: "notes-ext",
+			version: "1",
+			activate: async (context) => {
+				return {
+					adapters: [noteAdapter],
+				};
+			},
+		});
+
+		const runtime = new ExtensionRuntime();
+		await runtime.activate([loaded(ext)]);
+
+		const draft = await runtime.parseAdapter(
+			noteAdapter.definition.id,
+			"^note title=Harry Potter page=42 year=2004",
+		);
+		expect(draft.executionPreview?.status).toBe("valid");
+
+		// Dispose the extension
+		await runtime.dispose("notes-ext");
+
+		// Adapter lookup fails
+		expect(runtime.adapters.get(noteAdapter.definition.id)).toBeUndefined();
+		await expect(
+			runtime.parseAdapter(noteAdapter.definition.id, "^note"),
+		).rejects.toThrow("unavailable");
+		await expect(
+			runtime.executeAdapter(noteAdapter.definition.id, draft),
+		).rejects.toThrow("unavailable");
+	});
+
+	test("owner-scoped backend resolution isolates unrelated integrations without declared dependency", async () => {
+		const extA = defineExtension({
+			id: "extA",
+			version: "1",
+			activate: async (context) => {
+				const dictA = await context.dictionaries.memory({ id: "dictA" });
+				await dictA.seed({
+					expressions: [{ id: "alpha", term: "alpha", canonicalValue: "A" }],
+				});
+				context.matchers.expression(dictA);
+				return {};
+			},
+		});
+
+		const extB = defineExtension({
+			id: "extB",
+			version: "1",
+			activate: async (context) => {
+				const dictB = await context.dictionaries.memory({ id: "dictB" });
+				await dictB.seed({
+					expressions: [{ id: "beta", term: "beta", canonicalValue: "B" }],
+				});
+				context.matchers.expression(dictB);
+				return {};
+			},
+		});
+
+		const runtime = new ExtensionRuntime();
+		await runtime.activate([loaded(extA), loaded(extB)]);
+
+		const backendsA = runtime.getScopedBackends("extA");
+		const backendsB = runtime.getScopedBackends("extB");
+
+		expect(Object.keys(backendsA)).toEqual(["extA:dictA"]);
+		expect(Object.keys(backendsB)).toEqual(["extB:dictB"]);
+		expect(backendsA["extB:dictB"]).toBeUndefined();
+		expect(backendsB["extA:dictA"]).toBeUndefined();
+
+		await runtime.dispose();
+	});
+
+	test("failed activation leaves zero partial registry state (complete rollback)", async () => {
+		let resourceClosed = false;
+		const invalidExt = defineExtension({
+			id: "fail-ext",
+			version: "1",
+			activate: async (context) => {
+				const dict = await context.dictionaries.memory({ id: "fail-dict" });
+				const originalClose = dict.close.bind(dict);
+				dict.close = async () => {
+					resourceClosed = true;
+					await originalClose();
+				};
+				context.matchers.expression(dict);
+				context.macros.register({
+					id: "fail-macro",
+					name: "fail-macro",
+					arguments: [],
+				});
+				context.listeners.register({
+					id: "fail-listener",
+					onParsed: () => undefined,
+				});
+				// Invalid adapter missing child handler will fail during registerAdapter
+				return {
+					adapters: [
+						{
+							definition: {
+								id: "bad-adapter",
+								name: "bad-macro",
+								version: 1,
+								arguments: [
+									{
+										argumentId: "arg1",
+										name: "arg1",
+										path: "test.arg1",
+									},
+								],
+							},
+							previewTemplate: { version: 1, parts: [] },
+							children: {}, // missing arg1 handler!
+						},
+					],
+				};
+			},
+		});
+
+		const runtime = new ExtensionRuntime({
+			logger: { debug() {}, info() {}, warn() {}, error() {} },
+		});
+		const result = await runtime.activate([loaded(invalidExt)]);
+
+		expect(result.active).toHaveLength(0);
+		expect(result.diagnostics).toHaveLength(1);
+		expect(result.diagnostics[0]?.code).toBe("EXTENSION_ACTIVATION_FAILED");
+
+		// Everything must be rolled back:
+		expect(runtime.macros.get("fail-macro")).toBeUndefined();
+		expect(runtime.adapters.get("bad-adapter")).toBeUndefined();
+		expect(runtime.getListeners()).toHaveLength(0);
+		expect(runtime.getScopedBackends("fail-ext")).toEqual({});
+		expect(resourceClosed).toBe(true);
+	});
 });

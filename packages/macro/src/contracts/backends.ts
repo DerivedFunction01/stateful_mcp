@@ -19,11 +19,24 @@ export interface ExpressionCandidate {
 	conceptId?: string;
 	displayValue?: string;
 	metadata?: Record<string, unknown>;
+	ownerExtensionId?: string;
+	resourceId?: string;
+	resolverId?: string;
+	resolverVersion?: string | number;
+	snapshotVersion?: string | number;
 }
 
 export interface ExpressionBackend {
 	search(request: ExpressionSearchRequest): readonly ExpressionCandidate[];
 	/** Stable identity used to invalidate accepted bindings when resources change. */
-	version?: string;
-	backendVersion?: string;
+	version?: string | number;
+	backendVersion?: string | number;
+	ownerExtensionId?: string;
+	resourceId?: string;
+	resolverId?: string;
+	identity?: {
+		extensionId: string;
+		resourceId: string;
+		version: string | number;
+	};
 }

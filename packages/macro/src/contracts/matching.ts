@@ -43,7 +43,10 @@ export interface MacroArgumentMatch {
 	canonicalValue?: unknown;
 	backendId?: string;
 	resolverId?: string;
-	resolverVersion?: string;
+	resolverVersion?: string | number;
+	snapshotVersion?: string | number;
+	ownerExtensionId?: string;
+	resourceId?: string;
 	sourceId?: string;
 	conceptId?: string;
 	priority?: number;

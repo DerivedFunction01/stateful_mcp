@@ -93,7 +93,7 @@ export interface AcceptedMacroLock {
 	binding?: SlotBinding;
 	source: MacroLockSource;
 	acceptedAtRevision: number;
-	backendVersion?: string;
+	backendVersion?: string | number;
 }
 
 export interface MacroTextEdit {

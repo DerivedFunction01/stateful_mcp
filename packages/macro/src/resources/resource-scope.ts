@@ -19,6 +19,12 @@ export class ResourceScope {
 		if (this.backends.has(id) && this.backends.get(id) !== backend) {
 			throw new Error(`Expression backend '${id}' is already registered`);
 		}
+		if (!backend.ownerExtensionId) {
+			backend.ownerExtensionId = this.ownerExtensionId;
+		}
+		if (!backend.resourceId) {
+			backend.resourceId = id;
+		}
 		this.backends.set(id, backend);
 	}
 

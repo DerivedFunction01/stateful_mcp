@@ -33,6 +33,7 @@ import type {
 	ExpressionSeed,
 	NeutralConcept,
 	ResourceDiagnostic,
+	ResourceIdentity,
 } from "./contracts";
 import {
 	addDiagnostic,
@@ -67,6 +68,7 @@ export interface CoreDictionaryResourceOptions
 export class CoreDictionaryResource implements DictionaryResource {
 	readonly id: string;
 	readonly ownerExtensionId: string;
+	version: number = 1;
 	private readonly conceptStore: LoadableConceptStore;
 	private readonly expressionStore: LoadableExpressionStore;
 	private readonly scope: OwnerScope;
@@ -80,6 +82,14 @@ export class CoreDictionaryResource implements DictionaryResource {
 	private readonly ownedIds = new Set<string>();
 	private closed = false;
 
+	get identity(): ResourceIdentity {
+		return {
+			extensionId: this.ownerExtensionId,
+			resourceId: this.id,
+			version: this.version,
+		};
+	}
+
 	private constructor(
 		stores: CoreDictionaryStores,
 		options: CoreDictionaryResourceOptions,
@@ -87,6 +97,10 @@ export class CoreDictionaryResource implements DictionaryResource {
 		const owner = options.ownerExtensionId ?? "anonymous";
 		this.ownerExtensionId = owner;
 		this.id = namespaceId(owner, options.id ?? "dictionary");
+		this.index.ownerExtensionId = this.ownerExtensionId;
+		this.index.resourceId = this.id;
+		this.index.resolverId = this.id;
+		this.index.version = this.version;
 		this.conceptStore = stores.concepts;
 		this.expressionStore = stores.expressions;
 		this.scope =
@@ -265,6 +279,7 @@ export class CoreDictionaryResource implements DictionaryResource {
 
 		await this.conceptStore.save?.();
 		await this.expressionStore.flush?.();
+		this.version += 1;
 		await this.rebuildIndex(report.diagnostics);
 		return report;
 	}
@@ -387,7 +402,7 @@ export class CoreDictionaryResource implements DictionaryResource {
 	): Promise<void> {
 		const expressions = await this.expressionStore.list(this.scope, true);
 		const records = expressions.map(toIndexedExpression);
-		const indexDiagnostics = this.index.rebuild(records);
+		const indexDiagnostics = this.index.rebuild(records, this.version);
 		diagnostics.push(...indexDiagnostics);
 		if (this.strict && indexDiagnostics.length)
 			throw new Error(indexDiagnostics[0]!.message);

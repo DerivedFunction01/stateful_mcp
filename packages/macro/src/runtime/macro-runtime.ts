@@ -1,4 +1,5 @@
 import { renderMacroAuthoringTemplate } from "../authoring/authoring-renderer";
+import type { ExpressionBackend } from "../contracts/backends";
 import type {
 	MacroAdapterDraft,
 	MacroCandidateSnapshot,
@@ -28,6 +29,7 @@ export interface MacroAdapterExecutionOptions {
 	text?: string;
 	context?: MacroRuntimeContext;
 	candidates?: readonly MacroCandidateSnapshot[];
+	backends?: Readonly<Record<string, ExpressionBackend>>;
 }
 
 export async function parseMacroWithAdapter(
@@ -148,6 +150,46 @@ export async function executeMacroWithAdapter(
 			stableFingerprint(executionPreview.candidateSnapshots)
 	)
 		throw new Error("Macro execution preview candidates are stale");
+	if (options.backends) {
+		for (const snapshot of executionPreview.candidateSnapshots) {
+			const backend = options.backends[snapshot.resolverId];
+			if (!backend) {
+				throw new Error(
+					`Macro execution preview resolver '${snapshot.resolverId}' is unavailable`,
+				);
+			}
+			const backendVersion = backend.backendVersion ?? backend.version;
+			if (
+				backendVersion !== undefined &&
+				String(backendVersion) !== String(snapshot.version)
+			) {
+				throw new Error(
+					`Macro execution preview resolver '${snapshot.resolverId}' is stale (snapshot: '${snapshot.version}', current: '${backendVersion}')`,
+				);
+			}
+		}
+		for (const item of executionPreview.bindings) {
+			const match = item.input.match;
+			if (match?.resolverId) {
+				const backend = options.backends[match.resolverId];
+				if (!backend) {
+					throw new Error(
+						`Macro execution preview resolver '${match.resolverId}' is unavailable`,
+					);
+				}
+				const backendVersion = backend.backendVersion ?? backend.version;
+				if (
+					match.resolverVersion !== undefined &&
+					backendVersion !== undefined &&
+					String(backendVersion) !== String(match.resolverVersion)
+				) {
+					throw new Error(
+						`Macro execution preview resolver '${match.resolverId}' is stale`,
+					);
+				}
+			}
+		}
+	}
 	const childResults: unknown[] = [];
 	for (const { argumentId, input, binding } of executionPreview.bindings) {
 		const child = adapter.children[argumentId];

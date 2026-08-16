@@ -13,7 +13,11 @@ import type { MacroLockLike, MacroSlotProjection, SlotBinding } from "./slots";
 export interface MacroCandidateSnapshot {
 	resolverId: string;
 	argumentId: string;
-	version: string;
+	version: string | number;
+	ownerExtensionId?: string;
+	resourceId?: string;
+	resolverVersion?: string | number;
+	snapshotVersion?: string | number;
 	candidates: readonly ExpressionCandidate[];
 }
 

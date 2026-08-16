@@ -10,6 +10,7 @@ export interface RegisteredMacro extends MacroSpec {
 export class MacroRegistryStore implements MacroRegistry {
 	private readonly macros = new Map<string, RegisteredMacro>();
 	private readonly backends = new Map<string, ExpressionBackend>();
+	private readonly ownerBackends = new Map<string, Map<string, ExpressionBackend>>();
 
 	register(
 		spec: MacroSpec,
@@ -23,21 +24,55 @@ export class MacroRegistryStore implements MacroRegistry {
 				throw new Error(`Expression backend '${backendId}' is not available`);
 			}
 		}
-		for (const [id, backend] of Object.entries(backends))
+		let ownerMap = this.ownerBackends.get(ownerExtensionId);
+		if (!ownerMap) {
+			ownerMap = new Map();
+			this.ownerBackends.set(ownerExtensionId, ownerMap);
+		}
+		for (const [id, backend] of Object.entries(backends)) {
+			if (!backend.ownerExtensionId) {
+				backend.ownerExtensionId = ownerExtensionId;
+			}
+			if (!backend.resourceId) {
+				backend.resourceId = id;
+			}
 			this.backends.set(id, backend);
+			ownerMap.set(id, backend);
+		}
 		this.macros.set(spec.name, { ...spec, ownerExtensionId });
+	}
+
+	registerBackend(
+		id: string,
+		backend: ExpressionBackend,
+		ownerExtensionId: string,
+	): void {
+		let ownerMap = this.ownerBackends.get(ownerExtensionId);
+		if (!ownerMap) {
+			ownerMap = new Map();
+			this.ownerBackends.set(ownerExtensionId, ownerMap);
+		}
+		if (!backend.ownerExtensionId) {
+			backend.ownerExtensionId = ownerExtensionId;
+		}
+		if (!backend.resourceId) {
+			backend.resourceId = id;
+		}
+		this.backends.set(id, backend);
+		ownerMap.set(id, backend);
 	}
 
 	unregisterOwner(ownerExtensionId: string): void {
 		for (const [name, macro] of this.macros) {
 			if (macro.ownerExtensionId === ownerExtensionId) this.macros.delete(name);
 		}
-		const ownedBackendIds = new Set<string>();
-		for (const macro of this.macros.values()) {
-			for (const id of referencedBackends(macro)) ownedBackendIds.add(id);
+		this.ownerBackends.delete(ownerExtensionId);
+		this.backends.clear();
+		for (const ownerMap of this.ownerBackends.values()) {
+			for (const [id, backend] of ownerMap) {
+				this.backends.set(id, backend);
+			}
 		}
-		for (const id of this.backends.keys())
-			if (!ownedBackendIds.has(id)) this.backends.delete(id);
 	}
 
 	get(name: string): MacroSpec | undefined {
@@ -60,6 +95,23 @@ export class MacroRegistryStore implements MacroRegistry {
 
 	backendsRecord(): Readonly<Record<string, ExpressionBackend>> {
 		return Object.fromEntries(this.backends);
+	}
+
+	getBackendsForOwner(
+		ownerExtensionId: string,
+		dependencyIds: readonly string[] = [],
+	): Readonly<Record<string, ExpressionBackend>> {
+		const result: Record<string, ExpressionBackend> = {};
+		const allowed = new Set([ownerExtensionId, ...dependencyIds]);
+		for (const id of allowed) {
+			const ownerMap = this.ownerBackends.get(id);
+			if (ownerMap) {
+				for (const [backendId, backend] of ownerMap) {
+					result[backendId] = backend;
+				}
+			}
+		}
+		return result;
 	}
 }
 

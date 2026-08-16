@@ -363,7 +363,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 		};
 	}
 
-	private versionForLock(lock: AcceptedMacroLock): string | undefined {
+	private versionForLock(lock: AcceptedMacroLock): string | number | undefined {
 		if (lock.binding?.backendId) {
 			const backend = this.backends[lock.binding.backendId];
 			if (backend) return backend.backendVersion ?? backend.version;

@@ -190,6 +190,9 @@ export class ExtensionRuntime {
 		);
 		try {
 			const activation = await extension.activate(context);
+			for (const [id, backend] of Object.entries(backendRecord())) {
+				this.macros.registerBackend(id, backend, manifest.id);
+			}
 			for (const adapter of activation?.adapters ?? []) {
 				registerAdapter(
 					this.macros,
@@ -220,8 +223,10 @@ export class ExtensionRuntime {
 			this.extensions.set(active);
 			return active;
 		} catch (error) {
+			this.adapters.unregisterOwner(manifest.id);
 			this.macros.unregisterOwner(manifest.id);
 			this.listeners.delete(manifest.id);
+			this.contexts.delete(manifest.id);
 			await scope.close();
 			throw new ExtensionError(
 				`Activation failed for extension '${manifest.id}' from '${sourceFile}': ${error instanceof Error ? error.message : String(error)}`,
@@ -255,6 +260,14 @@ export class ExtensionRuntime {
 		return [...this.listeners.values()].flat();
 	}
 
+	getScopedBackends(
+		extensionId: string,
+	): Readonly<Record<string, ExpressionBackend>> {
+		const active = this.extensions.get(extensionId);
+		const dependencies = active?.manifest.requires ?? [];
+		return this.macros.getBackendsForOwner(extensionId, dependencies);
+	}
+
 	async parseAdapter(
 		adapterId: string,
 		text: string,
@@ -265,7 +278,7 @@ export class ExtensionRuntime {
 		return parseMacroWithAdapter(registered.adapter, text, {
 			...options,
 			context: this.context,
-			backends: this.macros.backendsRecord(),
+			backends: this.getScopedBackends(registered.ownerExtensionId),
 		});
 	}
 
@@ -279,6 +292,7 @@ export class ExtensionRuntime {
 		return executeMacroWithAdapter(registered.adapter, draft, {
 			...options,
 			context: this.context,
+			backends: this.getScopedBackends(registered.ownerExtensionId),
 		});
 	}
 

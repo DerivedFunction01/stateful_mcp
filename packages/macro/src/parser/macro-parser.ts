@@ -1,4 +1,7 @@
-import type { ExpressionCandidate } from "../contracts/backends";
+import type {
+	ExpressionBackend,
+	ExpressionCandidate,
+} from "../contracts/backends";
 import type {
 	MacroArgumentInput,
 	MacroDiagnostic,
@@ -533,9 +536,37 @@ function findArgumentMatches(
 			);
 
 			if (snapshot) {
+				if (
+					snapshot.ownerExtensionId &&
+					backend?.ownerExtensionId &&
+					snapshot.ownerExtensionId !== backend.ownerExtensionId
+				) {
+					diagnostics.push({
+						code: "CROSS_RESOURCE_CANDIDATE_REJECTED",
+						argumentId: argument.argumentId,
+						message: `Candidate snapshot from extension '${snapshot.ownerExtensionId}' rejected for resolver '${matcher.backendId}' owned by '${backend.ownerExtensionId}'`,
+					});
+					return [];
+				}
+				if (
+					snapshot.resourceId &&
+					backend?.resourceId &&
+					snapshot.resourceId !== backend.resourceId
+				) {
+					diagnostics.push({
+						code: "CROSS_RESOURCE_CANDIDATE_REJECTED",
+						argumentId: argument.argumentId,
+						message: `Candidate snapshot from resource '${snapshot.resourceId}' rejected for resolver '${matcher.backendId}'`,
+					});
+					return [];
+				}
+
 				if (backend) {
 					const backendVersion = backend.backendVersion ?? backend.version;
-					if (backendVersion && snapshot.version !== backendVersion) {
+					if (
+						backendVersion !== undefined &&
+						String(snapshot.version) !== String(backendVersion)
+					) {
 						diagnostics.push({
 							code: "STALE_SNAPSHOT",
 							argumentId: argument.argumentId,
@@ -561,24 +592,42 @@ function findArgumentMatches(
 									region.start,
 									matcher.backendId,
 									backendVersion,
+									undefined,
+									backend,
 								),
 							);
 					}
 				}
 				// Snapshot is primary and valid
 				return snapshot.candidates
-					.filter(
-						(candidate) =>
+					.filter((candidate) => {
+						if (
+							candidate.ownerExtensionId &&
+							backend?.ownerExtensionId &&
+							candidate.ownerExtensionId !== backend.ownerExtensionId
+						) {
+							diagnostics.push({
+								code: "CROSS_RESOURCE_CANDIDATE_REJECTED",
+								argumentId: argument.argumentId,
+								message: `Candidate '${candidate.id}' from extension '${candidate.ownerExtensionId}' rejected for resolver '${matcher.backendId}'`,
+							});
+							return false;
+						}
+						return (
 							candidate.start >= 0 &&
-							candidate.end <= region.end - region.start,
-					)
+							candidate.end <= region.end - region.start
+						);
+					})
 					.map((candidate) =>
 						expressionMatch(
 							argument,
 							candidate,
 							region.start,
 							matcher.backendId,
+							snapshot.resolverVersion ?? snapshot.version,
 							snapshot.version,
+							backend,
+							snapshot,
 						),
 					);
 			}
@@ -604,6 +653,8 @@ function findArgumentMatches(
 							region.start,
 							matcher.backendId,
 							backendVersion,
+							undefined,
+							backend,
 						),
 					);
 			}
@@ -711,8 +762,17 @@ function expressionMatch(
 	candidate: ExpressionCandidate,
 	offset: number,
 	resolverId: string,
-	resolverVersion?: string,
+	resolverVersion?: string | number,
+	snapshotVersion?: string | number,
+	backend?: ExpressionBackend,
+	snapshot?: import("../contracts/composition").MacroCandidateSnapshot,
 ): MacroArgumentMatch {
+	const ownerExtensionId =
+		candidate.ownerExtensionId ??
+		snapshot?.ownerExtensionId ??
+		backend?.ownerExtensionId;
+	const resourceId =
+		candidate.resourceId ?? snapshot?.resourceId ?? backend?.resourceId;
 	return {
 		argumentId: argument.argumentId,
 		source: "expression",
@@ -725,6 +785,9 @@ function expressionMatch(
 		backendId: resolverId,
 		resolverId,
 		resolverVersion,
+		snapshotVersion,
+		ownerExtensionId,
+		resourceId,
 		sourceId: candidate.id,
 		conceptId: candidate.conceptId,
 		priority: candidate.priority,

@@ -6,10 +6,18 @@ import type {
 
 export type DictionaryExpressionSearchRequest = MacroExpressionSearchRequest;
 
+export const DICTIONARY_RECORD_TYPES = [
+	"namespace",
+	"concept",
+	"relation",
+	"expression",
+] as const;
+export type DictionaryRecordType = (typeof DICTIONARY_RECORD_TYPES)[number];
+
 export interface ResourceDiagnostic {
 	code: string;
 	message: string;
-	recordType?: "namespace" | "concept" | "relation" | "expression";
+	recordType?: DictionaryRecordType;
 	recordId?: string;
 	severity?: "warning" | "error";
 }
@@ -66,12 +74,6 @@ export interface DictionarySeed {
 	expressions?: readonly ExpressionSeed[];
 }
 
-export type DictionaryRecordType =
-	| "namespace"
-	| "concept"
-	| "relation"
-	| "expression";
-
 export type SeedCount = Record<DictionaryRecordType, number>;
 
 export interface DictionarySeedReport {
@@ -98,9 +100,17 @@ export interface ConceptSearchOptions {
 	roleName?: string;
 }
 
+export interface ResourceIdentity {
+	extensionId: string;
+	resourceId: string;
+	version: string | number;
+}
+
 export interface DictionaryResource {
 	readonly id: string;
 	readonly ownerExtensionId: string;
+	readonly version: string | number;
+	readonly identity: ResourceIdentity;
 
 	seed(seed: DictionarySeed): Promise<DictionarySeedReport>;
 
