@@ -5,7 +5,6 @@ import type {
 	MacroAuthoringTemplate,
 	NamedGroupContract,
 } from "./matching";
-import type { MacroSyntax } from "./syntax";
 import type { NumericBounds, ScalarType, ValueKind } from "./values";
 
 export const MACRO_RUN_MODES = ["live", "execute", "replay"] as const;
@@ -75,13 +74,9 @@ export interface MacroRegistry {
 }
 
 export interface MacroParseOptions {
-	context?: MacroRuntimeContext;
+	context: MacroRuntimeContext;
 	lineNumber?: number;
 	mode?: MacroRunMode;
-	/**
-	 * @deprecated Transitional compatibility only. Supply `context` instead.
-	 */
-	profile?: Partial<MacroSyntax>;
 	backends?: Readonly<Record<string, ExpressionBackend>>;
 	candidateSnapshots?: readonly import("./composition").MacroCandidateSnapshot[];
 }

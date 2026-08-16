@@ -27,7 +27,7 @@ export interface MacroPayloadCompileOptions extends MacroParseOptions {
 export function compileMacroPayload(
 	spec: MacroSpec,
 	raw: string,
-	options: MacroPayloadCompileOptions = {},
+	options: MacroPayloadCompileOptions,
 ): MacroParseResult {
 	const parsed = parseMacroLine(raw, spec, options);
 	if (!parsed) {

@@ -1,5 +1,4 @@
 import type { ExpressionCandidate } from "../contracts/backends";
-import { createMacroRuntimeContext } from "../contracts/context";
 import type {
 	MacroArgumentInput,
 	MacroDiagnostic,
@@ -21,11 +20,13 @@ import {
 } from "../matcher/friendly";
 import { escapeRegex, execAll } from "../values/regex";
 import {
+	scanConceptTokenParts,
 	scanNamedAssignments,
 	scanUntilWhitespace,
 	skipWhitespace,
 	splitByDelimiter,
 	splitListItems,
+	tokenizePositionalTokens,
 	uniqueMatches,
 } from "./macro-scanner";
 
@@ -68,9 +69,9 @@ export function parseMacroEnvelope(
 export function parseMacroLine(
 	raw: string,
 	spec: MacroSpec,
-	options: MacroParseOptions = {},
+	options: MacroParseOptions,
 ): ParseMacroLineResult | null {
-	const syntax = resolveEffectiveSyntax(options);
+	const syntax = options.context.syntax;
 	const envelope = parseMacroEnvelope(raw, syntax);
 	if (
 		!envelope ||
@@ -180,14 +181,19 @@ export function parseMacroLine(
 		} else {
 			// Consume only the first token for an invalid named assignment.
 			// This leaves later positional values eligible for inference.
-			let invalidEnd = scanUntilWhitespace(raw, segment.valueSpan.start);
-			if (invalidEnd === segment.valueSpan.start) {
-				invalidEnd = segment.valueSpan.end;
+			const isQuoted = segment.valueSpan.start > segment.sourceSpan.start;
+			if (isQuoted) {
+				segment.end = segment.sourceSpan.end;
+			} else {
+				let invalidEnd = scanUntilWhitespace(raw, segment.valueSpan.start);
+				if (invalidEnd === segment.valueSpan.start) {
+					invalidEnd = segment.valueSpan.end;
+				}
+				segment.end = invalidEnd;
+				segment.sourceSpan = { start: segment.sourceSpan.start, end: invalidEnd };
+				segment.valueSpan = { start: segment.valueSpan.start, end: invalidEnd };
+				segment.value = raw.slice(segment.valueSpan.start, invalidEnd);
 			}
-			segment.end = invalidEnd;
-			segment.sourceSpan = { start: segment.sourceSpan.start, end: invalidEnd };
-			segment.valueSpan = { start: segment.valueSpan.start, end: invalidEnd };
-			segment.value = raw.slice(segment.valueSpan.start, invalidEnd);
 			arguments_.push(segmentInput(raw, segment, "named"));
 		}
 	}
@@ -304,16 +310,6 @@ interface PositionalInference {
 	candidates: MacroArgumentMatch[];
 }
 
-function resolveEffectiveSyntax(options: MacroParseOptions): MacroSyntax {
-	if (options.context) {
-		return options.context.syntax;
-	}
-	if (options.profile) {
-		return createMacroRuntimeContext(options.profile).syntax;
-	}
-	return createMacroRuntimeContext().syntax;
-}
-
 function inferPositionalMatches(
 	raw: string,
 	region: MacroSpan,
@@ -322,13 +318,7 @@ function inferPositionalMatches(
 	syntax: MacroSyntax,
 	diagnostics: MacroDiagnostic[],
 ): PositionalInference[] {
-	const tokens: MacroSpan[] = [];
-	let tokenStart = skipWhitespace(raw, region.start);
-	while (tokenStart < region.end) {
-		const tokenEnd = scanUntilWhitespace(raw, tokenStart);
-		tokens.push({ start: tokenStart, end: tokenEnd });
-		tokenStart = skipWhitespace(raw, tokenEnd);
-	}
+	const tokens = tokenizePositionalTokens(raw, region, syntax);
 	const candidates = specs.flatMap((argument) =>
 		tokens.flatMap((token, startToken) => {
 			return tokens.slice(startToken).flatMap((_, relativeEndToken) => {
@@ -336,12 +326,25 @@ function inferPositionalMatches(
 				const sourceStart = token.start;
 				const sourceEnd = tokens[endToken]!.end;
 				const tokenPrefix = findLookupToken(raw, sourceStart, argument, syntax);
-				const lookupStart = tokenPrefix
-					? sourceStart + tokenPrefix.length
-					: sourceStart;
+				const isConceptToken = Boolean(
+					tokenPrefix && tokenPrefix === syntax.conceptToken,
+				);
+				const conceptParts = isConceptToken
+					? scanConceptTokenParts(
+							raw.slice(sourceStart, sourceEnd),
+							sourceStart,
+							syntax,
+						)
+					: undefined;
+				const lookupStart = conceptParts
+					? conceptParts.termSpan.start
+					: tokenPrefix
+						? sourceStart + tokenPrefix.length
+						: sourceStart;
+				const lookupEnd = conceptParts ? conceptParts.termSpan.end : sourceEnd;
 				const matches = matchArgument(
 					argument,
-					raw.slice(lookupStart, sourceEnd),
+					raw.slice(lookupStart, lookupEnd),
 					lookupStart,
 					false,
 					options,
@@ -349,7 +352,7 @@ function inferPositionalMatches(
 				).filter(
 					(match) =>
 						match.extraction.start === lookupStart &&
-						match.extraction.end === sourceEnd,
+						match.extraction.end === lookupEnd,
 				);
 				return matches.map(
 					(match) =>
@@ -357,11 +360,12 @@ function inferPositionalMatches(
 							...match,
 							extraction: {
 								start: tokenPrefix ? sourceStart : match.extraction.start,
-								end: match.extraction.end,
+								end: tokenPrefix ? sourceEnd : match.extraction.end,
 							},
 							rawValue: tokenPrefix
 								? raw.slice(sourceStart, sourceEnd)
 								: match.rawValue,
+							conceptId: conceptParts?.conceptCode ?? match.conceptId,
 							lookupToken: tokenPrefix,
 						}) as MacroArgumentMatch & { lookupToken?: string },
 				);

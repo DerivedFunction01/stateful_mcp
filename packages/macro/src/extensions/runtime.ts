@@ -14,7 +14,6 @@ import {
 } from "../contracts/context";
 import type { ParseListener } from "../contracts/listeners";
 import type { MacroParseOptions, MacroSpec } from "../contracts/macro";
-import type { MacroSyntax } from "../contracts/syntax";
 import {
 	type ParseMacroLineResult,
 	parseMacroLine,
@@ -38,7 +37,6 @@ export interface ExtensionRuntimeOptions {
 	rootDirectory?: string;
 	logger?: ExtensionLogger;
 	context?: MacroRuntimeContext;
-	syntax?: MacroSyntax;
 }
 
 export interface ActivationResult {
@@ -62,7 +60,7 @@ export class ExtensionRuntime {
 			rootDirectory: options.rootDirectory ?? process.cwd(),
 			logger: options.logger ?? consoleLogger,
 		};
-		this.context = options.context ?? createMacroRuntimeContext(options.syntax);
+		this.context = options.context ?? createMacroRuntimeContext();
 	}
 
 	async load(directory: string): Promise<readonly LoadedExtension[]> {
@@ -224,15 +222,15 @@ export class ExtensionRuntime {
 	parse(
 		raw: string,
 		macroName?: string,
-		options: Omit<MacroParseOptions, "backends"> = {},
+		options: Omit<MacroParseOptions, "context" | "backends"> = {},
 	): ParseMacroLineResult | null {
 		const spec = macroName
 			? this.macros.get(macroName)
 			: this.macros.list().find((candidate) => raw.includes(candidate.name));
 		if (!spec) return null;
 		return parseMacroLine(raw, spec, {
-			context: this.context,
 			...options,
+			context: this.context,
 			backends: this.macros.backendsRecord(),
 		});
 	}

@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	createMacroRuntimeContext,
 	defineExtension,
 	ExtensionRuntime,
 	type LoadedExtension,
@@ -163,4 +164,37 @@ describe("extension runtime", () => {
 			await rm(directory, { recursive: true, force: true });
 		}
 	});
+
+	test("enforces runtime-owned context invariant for parsing", async () => {
+		const customContext = createMacroRuntimeContext({ macroStartToken: "!" });
+		const runtime = new ExtensionRuntime({ context: customContext });
+		const ext = defineExtension({
+			id: "notes",
+			version: "1",
+			activate: (context) => {
+				context.macros.register({
+					id: "note",
+					name: "note",
+					arguments: [],
+				});
+				return {};
+			},
+		});
+		await runtime.activate([loaded(ext)]);
+
+		// Parses with runtime custom context ("!")
+		expect(runtime.parse("!note")?.macroName).toBe("note");
+		// Does NOT parse with default start token ("^")
+		expect(runtime.parse("^note")).toBeNull();
+
+		// Default runtime context uses "^"
+		const defaultRuntime = new ExtensionRuntime();
+		await defaultRuntime.activate([loaded(ext)]);
+		expect(defaultRuntime.parse("^note")?.macroName).toBe("note");
+		expect(defaultRuntime.parse("!note")).toBeNull();
+
+		await runtime.dispose();
+		await defaultRuntime.dispose();
+	});
 });
+

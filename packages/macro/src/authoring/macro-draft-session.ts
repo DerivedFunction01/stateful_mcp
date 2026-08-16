@@ -1,7 +1,6 @@
 import type { ExpressionBackend } from "../contracts/backends";
 import type { MacroCandidateSnapshot } from "../contracts/composition";
 import type { MacroRuntimeContext } from "../contracts/context";
-import { createMacroRuntimeContext } from "../contracts/context";
 import type {
 	CreateMacroDraftSessionOptions,
 	MacroDraftInputs,
@@ -44,7 +43,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 
 	constructor(options: CreateMacroDraftSessionOptions) {
 		this.spec = options.spec;
-		this.context = options.context ?? createMacroRuntimeContext(options.syntax);
+		this.context = options.context;
 		this.backends = options.backends ?? {};
 		this.candidateSnapshots = options.candidateSnapshots ?? [];
 		this.text = options.initialText ?? "";
@@ -59,11 +58,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 
 	replaceInputs(inputs: MacroDraftInputs): MacroDraftSnapshot {
 		this.spec = inputs.spec;
-		if (inputs.context) {
-			this.context = inputs.context;
-		} else if (inputs.syntax) {
-			this.context = createMacroRuntimeContext(inputs.syntax);
-		}
+		this.context = inputs.context;
 		this.backends = inputs.backends ?? {};
 		this.candidateSnapshots = inputs.candidateSnapshots ?? [];
 		const diagnostics: MacroDraftDiagnostic[] = [];

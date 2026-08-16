@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { MacroDiagnostic } from "../src/contracts/input";
 import {
+	scanConceptTokenParts,
 	scanNamedAssignments,
 	splitByDelimiter,
 	splitListItems,
@@ -149,13 +150,75 @@ describe("shared lexical scanner", () => {
 		expect(items[0]?.start).toBe(10);
 	});
 
-	test("tokenizes positional regions", () => {
-		const raw = "^cmd foo bar baz";
-		const tokens = tokenizePositionalTokens(raw, { start: 5, end: raw.length });
+	test("tokenizes positional regions with syntax-aware barriers", () => {
+		const raw = "^cmd #hp; @harry::HP1; [foo; bar]";
+		const tokens = tokenizePositionalTokens(
+			raw,
+			{ start: 5, end: raw.length },
+			{
+				argumentDelimiter: ";",
+				expressionToken: "#",
+				conceptToken: "@",
+				conceptCodeSeparator: "::",
+				groupOpen: "[",
+				groupClose: "]",
+			},
+		);
 		expect(tokens.map((t) => raw.slice(t.start, t.end))).toEqual([
-			"foo",
-			"bar",
-			"baz",
+			"#hp",
+			"@harry::HP1",
+			"[foo; bar]",
 		]);
+	});
+
+	test("scans concept token parts and preserves exact spans", () => {
+		const syntax = {
+			conceptToken: "@",
+			conceptCodeSeparator: "::",
+			quoteCharacters: ['"'],
+			groupOpen: "[",
+			groupClose: "]",
+		};
+
+		// 1. Standard @concept::CODE
+		const parsed = scanConceptTokenParts("@harry::HP1", 10, syntax);
+		expect(parsed).toMatchObject({
+			raw: "@harry::HP1",
+			hasConceptToken: true,
+			term: "harry",
+			termSpan: { start: 11, end: 16 },
+			conceptCode: "HP1",
+			codeSpan: { start: 18, end: 21 },
+			separatorSpan: { start: 16, end: 18 },
+		});
+
+		// 2. Separator without concept token -> not split
+		const noConceptToken = scanConceptTokenParts("harry::HP1", 0, syntax);
+		expect(noConceptToken).toMatchObject({
+			hasConceptToken: false,
+			term: "harry::HP1",
+			termSpan: { start: 0, end: 10 },
+		});
+		expect(noConceptToken.conceptCode).toBeUndefined();
+
+		// 3. Quoted separator -> not split inside quotes
+		const quoted = scanConceptTokenParts('@"harry::HP1"', 0, syntax);
+		expect(quoted).toMatchObject({
+			hasConceptToken: true,
+			term: '"harry::HP1"',
+		});
+		expect(quoted.conceptCode).toBeUndefined();
+
+		// 4. Grouped separator -> not split inside groups
+		const grouped = scanConceptTokenParts("@[harry::HP1]", 0, syntax);
+		expect(grouped).toMatchObject({
+			hasConceptToken: true,
+			term: "[harry::HP1]",
+		});
+		expect(grouped.conceptCode).toBeUndefined();
+
+		// 5. Escaped separator -> not treated as separator
+		const escaped = scanConceptTokenParts("@harry\\:\\:HP1", 0, syntax);
+		expect(escaped.conceptCode).toBeUndefined();
 	});
 });

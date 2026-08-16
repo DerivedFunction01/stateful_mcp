@@ -1,4 +1,4 @@
-import type { MacroSyntax } from "./syntax";
+import { type MacroSyntax, resolveArgumentDelimiter } from "./syntax";
 
 export interface MacroRuntimeContext {
 	readonly syntax: MacroSyntax;
@@ -8,10 +8,7 @@ export function createMacroRuntimeContext(
 	syntax?: Partial<MacroSyntax>,
 ): MacroRuntimeContext {
 	const startToken = syntax?.macroStartToken ?? "^";
-	const delimiter =
-		syntax?.argumentDelimiter ??
-		syntax?.macroArgDelimiter ??
-		syntax?.fallbackBoundaryDelimiter;
+	const delimiter = resolveArgumentDelimiter(syntax);
 
 	const resolvedSyntax: MacroSyntax = {
 		macroStartToken: startToken,

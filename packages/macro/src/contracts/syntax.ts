@@ -10,3 +10,17 @@ export interface MacroSyntax {
 	conceptToken?: string;
 	conceptCodeSeparator?: string;
 }
+
+export function resolveArgumentDelimiter(
+	syntax?: Partial<MacroSyntax> | {
+		readonly argumentDelimiter?: string;
+		readonly macroArgDelimiter?: string;
+		readonly fallbackBoundaryDelimiter?: string;
+	},
+): string | undefined {
+	return (
+		syntax?.argumentDelimiter ??
+		syntax?.macroArgDelimiter ??
+		syntax?.fallbackBoundaryDelimiter
+	);
+}

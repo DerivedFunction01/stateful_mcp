@@ -9,7 +9,7 @@ import { parseMacroLine } from "../parser/macro-parser";
 export function projectMacroSlots(
 	draftText: string,
 	spec: MacroSpec | null | undefined,
-	options: Parameters<typeof parseMacroLine>[2] = {},
+	options: Parameters<typeof parseMacroLine>[2],
 ): MacroSlotProjection[] {
 	if (!spec) return [];
 	const parsed = parseMacroLine(draftText, spec, options);

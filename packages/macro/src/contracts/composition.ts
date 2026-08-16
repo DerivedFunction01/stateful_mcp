@@ -1,6 +1,11 @@
 import type { MacroAuthoringRender } from "../authoring/authoring-renderer";
 import type { ExpressionCandidate } from "./backends";
-import type { MacroArgumentInput, MacroDiagnostic, MacroInput } from "./input";
+import type {
+	MacroArgumentInput,
+	MacroDiagnostic,
+	MacroInput,
+	MacroSpan,
+} from "./input";
 import type { MacroSpec } from "./macro";
 import type { MacroAuthoringTemplate } from "./matching";
 import type { MacroLockLike, MacroSlotProjection, SlotBinding } from "./slots";
@@ -51,6 +56,25 @@ export interface MacroPreviewValue {
 	status?: MacroPreviewValueStatus;
 }
 
+export interface MacroExecutionBinding {
+	argumentId: string;
+	input: MacroArgumentInput;
+	binding: MacroChildBinding;
+}
+
+export interface MacroExecutionPreview {
+	status: "valid" | "invalid";
+	macroId: string;
+	macroVersion: number;
+	rawText: string;
+	contextFingerprint: string;
+	bindings: readonly MacroExecutionBinding[];
+	spans: readonly MacroSpan[];
+	candidateSnapshots: readonly MacroCandidateSnapshot[];
+	fingerprint: string;
+	diagnostics: readonly MacroDiagnostic[];
+}
+
 export interface MacroChildHandler {
 	type: string;
 	validate(
@@ -82,6 +106,7 @@ export interface MacroAdapterDraft {
 	bindings: Readonly<Record<string, MacroChildBinding>>;
 	locks: readonly MacroLockLike[];
 	projections: readonly MacroSlotProjection[];
+	executionPreview?: MacroExecutionPreview;
 	preview: MacroAuthoringRender;
 	diagnostics: readonly MacroDiagnostic[];
 }

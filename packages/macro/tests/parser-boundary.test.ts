@@ -325,4 +325,126 @@ describe("Phase 2 parser boundary hardening", () => {
 			expect(insideEdit.locks).toHaveLength(0);
 		});
 	});
+
+	describe("6. Token barriers and conceptCodeSeparator parsing", () => {
+		test("parses concept token and code separator into conceptId and full rawValue", () => {
+			const conceptContext = createMacroRuntimeContext({
+				macroStartToken: "^",
+				conceptToken: "@",
+				conceptCodeSeparator: "::",
+			});
+			const result = parseMacroLine("^book @harry::HP1 2004 10", librarySpec, {
+				context: conceptContext,
+				backends: { books: booksBackend },
+			});
+			expect(result).not.toBeNull();
+			expect(result?.matches[0]).toMatchObject({
+				argumentId: "concept",
+				rawValue: "@harry::HP1",
+				canonicalValue: "harry-series",
+				conceptId: "HP1",
+			});
+			expect(result?.matches[1]?.rawValue).toBe("2004");
+			expect(result?.matches[2]?.rawValue).toBe("10");
+		});
+
+		test("ignores conceptCodeSeparator when inside quotes or when no concept token is present", () => {
+			const conceptContext = createMacroRuntimeContext({
+				macroStartToken: "^",
+				conceptToken: "@",
+				conceptCodeSeparator: "::",
+				quoteCharacters: ['"'],
+			});
+			// Without conceptToken @, ordinary text with :: is not split
+			const result = parseMacroLine('^book concept="harry::HP1" 2004 10', librarySpec, {
+				context: conceptContext,
+				backends: { books: booksBackend },
+			});
+		expect(result?.arguments[0]?.rawValue).toBe("harry::HP1");
+	});
+	});
+
+	describe("7. Parser uses syntax-aware positional tokenization", () => {
+		const phraseSpec: MacroSpec = {
+			id: "test.phrase",
+			name: "phrase",
+			version: 1,
+			arguments: [
+				{
+					argumentId: "title",
+					name: "title",
+					path: "title",
+					matcher: { kind: "pattern", pattern: "(?<title>.+)" },
+				},
+				{
+					argumentId: "year",
+					name: "year",
+					path: "year",
+					matcher: { kind: "pattern", pattern: "(?<year>\\d{4})" },
+				},
+			],
+			matching: { mode: "declared", positionalFallback: true },
+		};
+
+		test("keeps a quoted positional value as a single token", () => {
+			const result = parseMacroLine('^phrase "Harry Potter" 2004', phraseSpec, {
+				context,
+			});
+			expect(result).not.toBeNull();
+			expect(result?.arguments.map((argument) => argument.name)).toEqual([
+				"title",
+				"year",
+			]);
+			expect(result?.arguments[0]?.rawValue).toContain("Harry Potter");
+		});
+
+		test("keeps a grouped positional value as a single token", () => {
+			const result = parseMacroLine("^phrase [Harry Potter] 2004", phraseSpec, {
+				context,
+			});
+			expect(result?.arguments.map((argument) => argument.name)).toEqual([
+				"title",
+				"year",
+			]);
+			expect(result?.arguments[0]?.rawValue).toContain("Harry Potter");
+		});
+
+		test("does not split an ordinary concept-code-like token without a concept token", () => {
+			const result = parseMacroLine("^phrase harry::HP1 2004", phraseSpec, {
+				context,
+			});
+			expect(result?.arguments[0]?.rawValue).toBe("harry::HP1");
+		});
+
+		test("treats an expression token as a single positional token", () => {
+			const exprContext = createMacroRuntimeContext({
+				macroStartToken: "^",
+				argumentDelimiter: " ",
+				expressionToken: "#",
+			});
+			const result = parseMacroLine("^book #harry 2004 10", librarySpec, {
+				context: exprContext,
+				backends: { books: booksBackend },
+			});
+			expect(result?.matches[0]?.rawValue).toBe("#harry");
+			expect(result?.matches[1]?.rawValue).toBe("2004");
+			expect(result?.matches[2]?.rawValue).toBe("10");
+		});
+
+		test("honors a custom multichar argument delimiter outside quotes and groups", () => {
+			const delimContext = createMacroRuntimeContext({
+				macroStartToken: "^",
+				argumentDelimiter: ";;",
+				quoteCharacters: ['"'],
+				groupOpen: "[",
+				groupClose: "]",
+			});
+			const result = parseMacroLine('^phrase "one;; two" ;; 2004', phraseSpec, {
+				context: delimContext,
+			});
+			expect(result?.arguments[0]?.rawValue).toContain("one;; two");
+			expect(result?.arguments[1]?.rawValue).toBe("2004");
+		});
+	});
 });
+

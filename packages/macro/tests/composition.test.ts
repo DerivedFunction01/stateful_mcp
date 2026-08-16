@@ -119,11 +119,11 @@ describe("composed macro runtime", () => {
 			"title: Harry Potter, page: 42, year: 2004",
 		);
 		expect(draft.diagnostics).toEqual([]);
-		expect(draft.locks.map((lock) => lock.argumentId)).toEqual([
-			"title",
-			"page",
-			"year",
-		]);
+		expect(draft.locks).toEqual([]);
+		expect(draft.executionPreview?.status).toBe("valid");
+		expect(
+			draft.executionPreview?.bindings.map((item) => item.argumentId),
+		).toEqual(["title", "page", "year"]);
 
 		await expect(executeMacroWithAdapter(noteAdapter, draft)).resolves.toEqual({
 			kind: "note",
@@ -145,10 +145,8 @@ describe("composed macro runtime", () => {
 			"concept",
 			"severity",
 		]);
-		expect(draft.locks.map((lock) => lock.argumentId)).toEqual([
-			"concept",
-			"severity",
-		]);
+		expect(draft.locks).toEqual([]);
+		expect(draft.executionPreview?.status).toBe("valid");
 
 		await expect(
 			executeMacroWithAdapter(observationAdapter, draft),
@@ -175,5 +173,69 @@ describe("composed macro runtime", () => {
 		expect(draft.preview.text).toBe(
 			"title: Harry Potter, page: 42, year: <blank: year>",
 		);
+	});
+
+	test("rejects execution when the preview text is stale", async () => {
+		const draft = await parseMacroWithAdapter(
+			noteAdapter,
+			"^note title=Harry Potter page=42 year=2004",
+			{ context: testMacroContext },
+		);
+
+		await expect(
+			executeMacroWithAdapter(noteAdapter, draft, {
+				text: "^note title=Changed page=42 year=2004",
+			}),
+		).rejects.toThrow("text is stale");
+	});
+
+	test("keeps candidate snapshots in the executable preview", async () => {
+		const candidates = [
+			{
+				resolverId: "fixture",
+				argumentId: "title",
+				version: "fixture-v1",
+				candidates: [],
+			},
+		] as const;
+		const draft = await parseMacroWithAdapter(
+			noteAdapter,
+			"^note title=Harry Potter page=42 year=2004",
+			{ context: testMacroContext, candidates },
+		);
+
+		expect(draft.executionPreview?.candidateSnapshots).toEqual(candidates);
+		await expect(
+			executeMacroWithAdapter(noteAdapter, draft, { candidates }),
+		).resolves.toEqual({
+			kind: "note",
+			values: ["Harry Potter", "42", "2004"],
+		});
+		await expect(
+			executeMacroWithAdapter(noteAdapter, draft, {
+				candidates: [
+					{
+						...candidates[0],
+						version: "fixture-v2",
+					},
+				],
+			}),
+		).rejects.toThrow("candidates are stale");
+	});
+
+	test("rejects execution when the runtime context changes", async () => {
+		const draft = await parseMacroWithAdapter(
+			noteAdapter,
+			"^note title=Harry Potter page=42 year=2004",
+			{ context: testMacroContext },
+		);
+
+		await expect(
+			executeMacroWithAdapter(noteAdapter, draft, {
+				context: createMacroRuntimeContext({
+					macroStartToken: "!",
+				}),
+			}),
+		).rejects.toThrow("context is stale");
 	});
 });

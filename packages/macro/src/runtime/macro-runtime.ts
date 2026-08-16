@@ -5,13 +5,16 @@ import type {
 	MacroChildBinding,
 	MacroChildValidationContext,
 	MacroDefinitionAdapter,
+	MacroExecutionBinding,
+	MacroExecutionPreview,
 } from "../contracts/composition";
+import type { MacroRuntimeContext } from "../contracts/context";
+import type { MacroDiagnostic, MacroInput } from "../contracts/input";
 import type { MacroParseOptions } from "../contracts/macro";
 import type { MacroLockLike } from "../contracts/slots";
 import { parseMacroLine } from "../parser/macro-parser";
 import {
 	applyMacroLocks,
-	lockMacroSlot,
 	projectMacroSlots,
 } from "../slots/macro-slots";
 
@@ -21,10 +24,16 @@ export interface MacroRuntimeOptions extends MacroParseOptions {
 	revision?: number;
 }
 
+export interface MacroAdapterExecutionOptions {
+	text?: string;
+	context?: MacroRuntimeContext;
+	candidates?: readonly MacroCandidateSnapshot[];
+}
+
 export async function parseMacroWithAdapter(
 	adapter: MacroDefinitionAdapter,
 	text: string,
-	options: MacroRuntimeOptions = {},
+	options: MacroRuntimeOptions,
 ): Promise<MacroAdapterDraft> {
 	const candidates = options.candidates ?? options.candidateSnapshots ?? [];
 	const input = parseMacroLine(text, adapter.definition, {
@@ -37,6 +46,7 @@ export async function parseMacroWithAdapter(
 			bindings: {},
 			locks: options.locks ?? [],
 			projections: [],
+			executionPreview: undefined,
 			preview: { text: "", missing: [], invalid: [] },
 			diagnostics: [],
 		};
@@ -45,20 +55,21 @@ export async function parseMacroWithAdapter(
 	const bindings: Record<string, MacroChildBinding> = {};
 	const previewValues = [];
 	const diagnostics = [...input.diagnostics];
-	const projections = applyMacroLocks(
-		projectMacroSlots(text, adapter.definition, {
-			...options,
-			candidateSnapshots: candidates,
-		}),
-		options.locks ?? [],
-		undefined,
-		text,
-	);
 	const locks = [...(options.locks ?? [])].filter(
 		(lock) =>
 			lock.rawText === undefined ||
 			text.slice(lock.start, lock.end) === lock.rawText,
 	);
+	const projections = applyMacroLocks(
+		projectMacroSlots(text, adapter.definition, {
+			...options,
+			candidateSnapshots: candidates,
+		}),
+		locks,
+		undefined,
+		text,
+	);
+	const executionBindings: MacroExecutionBinding[] = [];
 
 	for (const argument of input.arguments) {
 		if (!argument.match) continue;
@@ -78,25 +89,7 @@ export async function parseMacroWithAdapter(
 		};
 		const binding = await child.validate(context);
 		bindings[argumentId] = binding;
-		if (binding.status === "accepted") {
-			const projection = projections.find(
-				(slot) => slot.argumentId === argumentId && slot.status !== "pending",
-			);
-			if (
-				projection &&
-				!locks.some(
-					(lock) =>
-						lock.argumentId === argumentId &&
-						lock.start === projection.start &&
-						lock.end === projection.end,
-				)
-			) {
-				locks.push({
-					...lockMacroSlot(projection, options.revision ?? 0, "accepted"),
-					binding: binding.binding,
-				});
-			}
-		}
+		executionBindings.push({ argumentId, input: argument, binding });
 		if (binding.diagnostics) diagnostics.push(...binding.diagnostics);
 		if (binding.previewValues) previewValues.push(...binding.previewValues);
 		if (child.preview) previewValues.push(...child.preview(binding, context));
@@ -106,11 +99,20 @@ export async function parseMacroWithAdapter(
 		adapter.previewTemplate,
 		previewValues,
 	);
+	const executionPreview = createExecutionPreview(
+		adapter,
+		text,
+		options,
+		executionBindings,
+		input,
+		diagnostics,
+	);
 	return {
 		input,
 		bindings,
 		locks,
-		projections: applyMacroLocks(projections, locks, undefined, text),
+		projections,
+		executionPreview,
 		preview,
 		diagnostics,
 	};
@@ -119,37 +121,127 @@ export async function parseMacroWithAdapter(
 export async function executeMacroWithAdapter(
 	adapter: MacroDefinitionAdapter,
 	draft: MacroAdapterDraft,
+	options: MacroAdapterExecutionOptions = {},
 ): Promise<unknown> {
 	if (!draft.input || !adapter.compile) return undefined;
-	if (
-		Object.values(draft.bindings).some(
-			(binding) => binding.status !== "accepted",
-		)
-	) {
+	const executionPreview = draft.executionPreview;
+	if (!executionPreview) throw new Error("Macro draft has no execution preview");
+	if (executionPreview.status !== "valid")
 		throw new Error("Macro draft contains non-executable bindings");
-	}
+	if (executionPreview.macroId !== adapter.definition.id)
+		throw new Error("Macro execution preview belongs to a different macro");
+	if (executionPreview.macroVersion !== (adapter.definition.version ?? 1))
+		throw new Error("Macro execution preview is stale");
+	if (executionPreview.rawText !== draft.input.sourceLines[0]?.raw)
+		throw new Error("Macro execution preview text is stale");
+	if (options.text !== undefined && options.text !== executionPreview.rawText)
+		throw new Error("Macro execution preview text is stale");
+	if (
+		options.context &&
+		stableFingerprint(options.context.syntax) !==
+			executionPreview.contextFingerprint
+	)
+		throw new Error("Macro execution preview context is stale");
+	if (
+		options.candidates &&
+		stableFingerprint(options.candidates) !==
+			stableFingerprint(executionPreview.candidateSnapshots)
+	)
+		throw new Error("Macro execution preview candidates are stale");
 	const childResults: unknown[] = [];
-	for (const [argumentId, binding] of Object.entries(draft.bindings)) {
+	for (const { argumentId, input, binding } of executionPreview.bindings) {
 		const child = adapter.children[argumentId];
 		if (!child?.execute) continue;
-		const input = draft.input.arguments.find(
-			(argument) => argument.match?.argumentId === argumentId,
-		);
-		if (!input) continue;
 		childResults.push(
 			await child.execute(binding, {
-				text: draft.input.body?.raw ?? "",
+				text: executionPreview.rawText,
 				input,
 				definition: adapter.definition,
-				candidates: [],
+				candidates: executionPreview.candidateSnapshots.filter(
+					(candidate) => candidate.argumentId === argumentId,
+				),
 			}),
 		);
 	}
 	return adapter.compile(
-		Object.values(draft.bindings),
+		executionPreview.bindings.map((item) => item.binding),
 		draft.input,
 		childResults,
 	);
+}
+
+function createExecutionPreview(
+	adapter: MacroDefinitionAdapter,
+	rawText: string,
+	options: MacroRuntimeOptions,
+	bindings: readonly MacroExecutionBinding[],
+	input: MacroInput,
+	diagnostics: readonly MacroDiagnostic[],
+): MacroExecutionPreview {
+	const bindingDiagnostics = bindings.flatMap(
+		(item) => item.binding.diagnostics ?? [],
+	);
+	const allDiagnostics = [...diagnostics, ...bindingDiagnostics];
+	const spans = bindings.flatMap((item) =>
+		item.input.sourceSpan
+			? [item.input.sourceSpan]
+			: item.input.start !== undefined && item.input.end !== undefined
+				? [{ start: item.input.start, end: item.input.end }]
+				: [],
+	);
+	const contextFingerprint = stableFingerprint(
+		options.context.syntax,
+	);
+	const status = bindings.some((item) => item.binding.status !== "accepted")
+		|| allDiagnostics.length > 0
+		? "invalid"
+		: "valid";
+	const artifact = {
+		macroId: adapter.definition.id,
+		macroVersion: adapter.definition.version ?? 1,
+		rawText,
+		contextFingerprint,
+		bindings,
+		spans,
+		candidateSnapshots: options.candidates ?? options.candidateSnapshots ?? [],
+	};
+	return deepFreeze({
+		...artifact,
+		status,
+		fingerprint: stableFingerprint(artifact),
+		diagnostics: allDiagnostics,
+	});
+}
+
+function stableFingerprint(value: unknown): string {
+	const serialized = stableSerialize(value);
+	let hash = 2166136261;
+	for (let index = 0; index < serialized.length; index += 1) {
+		hash ^= serialized.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	return `macro-preview-v1-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function stableSerialize(value: unknown): string {
+	if (value === undefined) return "undefined";
+	if (value === null || typeof value !== "object") return JSON.stringify(value);
+	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
+	const record = value as Record<string, unknown>;
+	return `{${Object.keys(record)
+		.sort()
+		.map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
+		.join(",")}}`;
+}
+
+function deepFreeze<T>(value: T): T {
+	if (!value || typeof value !== "object") return value;
+	Object.freeze(value);
+	for (const child of Object.values(value as Record<string, unknown>)) {
+		if (child && typeof child === "object" && !Object.isFrozen(child))
+			deepFreeze(child);
+	}
+	return value;
 }
 
 function resolveArgumentId(

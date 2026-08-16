@@ -11,7 +11,6 @@ import type {
 	MacroSlotProjection,
 	MacroTextEdit,
 } from "./slots";
-import type { MacroSyntax } from "./syntax";
 
 export interface MacroDraftSnapshot {
 	mode: "idle" | "macro";
@@ -29,8 +28,7 @@ export interface MacroDraftSnapshot {
 
 export interface CreateMacroDraftSessionOptions {
 	spec: MacroSpec;
-	context?: MacroRuntimeContext;
-	syntax?: MacroSyntax;
+	context: MacroRuntimeContext;
 	backends?: Readonly<Record<string, ExpressionBackend>>;
 	candidateSnapshots?: readonly MacroCandidateSnapshot[];
 	initialText?: string;
@@ -40,8 +38,7 @@ export interface CreateMacroDraftSessionOptions {
 
 export interface MacroDraftInputs {
 	spec: MacroSpec;
-	context?: MacroRuntimeContext;
-	syntax?: MacroSyntax;
+	context: MacroRuntimeContext;
 	backends?: Readonly<Record<string, ExpressionBackend>>;
 	candidateSnapshots?: readonly MacroCandidateSnapshot[];
 }
