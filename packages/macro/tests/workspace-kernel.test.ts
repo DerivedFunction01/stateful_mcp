@@ -352,6 +352,15 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			// Translation unregister cleans up cleanly
 			expect(i18n.t("cardio.ecg.title")).toBe("cardio.ecg.title");
 		});
+
+		test("restores a previous translation when an owner is disposed", () => {
+			const i18n = new I18nKernel("en");
+			i18n.registerTranslations("en", { greeting: "Built-in" });
+			i18n.registerTranslations("en", { greeting: "Extension" }, "ext");
+			expect(i18n.t("greeting")).toBe("Extension");
+			i18n.unregisterOwner("ext");
+			expect(i18n.t("greeting")).toBe("Built-in");
+		});
 	});
 
 	describe("Token Chips & Slot Projections", () => {
@@ -514,12 +523,14 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 				lineNumber: 1,
 				rawText: "^evaluacion #asma",
 				macroName: "evaluacion",
+				success: true,
 				result: { dx: "asma" },
 				executedAt: Date.now(),
 			};
 
 			const entry = await journal.recordExecution(receipt);
 			expect(entry.status).toBe("committed");
+			expect(entry.fingerprint).toMatch(/^[0-9a-f]{64}$/);
 			expect(journal.getEntries()).toHaveLength(1);
 			expect(journal.getCommittedEntries()).toHaveLength(1);
 			expect(notified).toBe(1);
@@ -531,6 +542,9 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			);
 			expect(reversed?.status).toBe("reversed");
 			expect(reversed?.reversalReason).toBe("Incorrect diagnostic");
+			expect(await journal.reverseEntry(entry.id, "Repeated request")).toEqual(
+				reversed,
+		);
 			expect(journal.getCommittedEntries()).toHaveLength(0);
 			expect(journal.getEntries()).toHaveLength(1); // Audit record retained
 		});
@@ -590,7 +604,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 	});
 
 	describe("createMacroWorkspace Full Factory", () => {
-		test("instantiates complete observable workspace", () => {
+		test("instantiates complete observable workspace with scratchpad session", () => {
 			const ws = createMacroWorkspace({
 				initialText: "^note #test",
 				initialLocale: "en",
@@ -601,6 +615,50 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(ws.views.getContainers()).toHaveLength(3);
 			expect(ws.i18n.t("shell.mode.normal")).toBe("NORMAL");
 			expect(ws.journal.getEntries()).toHaveLength(0);
+			expect(ws.scratchpad).toBeDefined();
+			expect(ws.runtime).toBeDefined();
+			expect(ws.scratchpad.getTotalLineCount()).toBe(1);
+		});
+
+		test("strict macro verb matching prevents false substring matches", async () => {
+			const runtime = new ExtensionRuntime({
+				context: createMacroRuntimeContext({ macroStartToken: "^" }),
+			});
+			const bookExt = {
+				manifest: { id: "book-pack", version: "1.0.0" },
+				activate: () => ({
+					adapters: [
+						createAssertionMacro(
+							{
+								macroName: "book",
+								subjectSlotId: "title",
+								clauses: [],
+							},
+							(graph) => ({ title: (graph.subject as any).term }),
+						),
+					],
+				}),
+			};
+
+			await runtime.activate([
+				{ sourceFile: "/ext/book/index.ts", extension: bookExt as any },
+			]);
+
+			const buffer = new CursorBuffer(
+				"^book #harry_potter\nthis is my notebook\n#bookkeeping notes",
+			);
+			const session = new ScratchpadSession(runtime, buffer, 10);
+			const projected = await session.parseAllLines();
+
+			// Line 1: ^book #harry_potter -> VALID
+			expect(projected[0]?.isValid).toBe(true);
+			expect(projected[0]?.macroName).toBe("book");
+
+			// Line 2: notebook -> INVALID (does NOT match 'book')
+			expect(projected[1]?.isValid).toBe(false);
+
+			// Line 3: #bookkeeping -> INVALID (does NOT match 'book')
+			expect(projected[2]?.isValid).toBe(false);
 		});
 	});
 });

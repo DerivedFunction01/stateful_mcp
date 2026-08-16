@@ -8,6 +8,7 @@ export interface JournalEntry {
 	readonly macroName: string;
 	readonly rawText: string;
 	readonly result: unknown;
+	readonly fingerprint: string;
 	readonly executedAt: number;
 	readonly status: JournalEntryStatus;
 	readonly reversalReason?: string;
@@ -77,6 +78,7 @@ export class WorkspaceJournal {
 			macroName: receipt.macroName,
 			rawText: receipt.rawText,
 			result: receipt.result,
+			fingerprint: await fingerprintReceipt(receipt),
 			executedAt: receipt.executedAt,
 			status: "committed",
 		};
@@ -99,7 +101,9 @@ export class WorkspaceJournal {
 		if (idx === -1) return null;
 
 		const current = this.entries[idx];
-		if (!current || current.status !== "committed") return null;
+		if (!current) return null;
+		if (current.status === "reversed") return current;
+		if (current.status !== "committed") return null;
 
 		const reversed: JournalEntry = {
 			...current,
@@ -140,4 +144,39 @@ export class WorkspaceJournal {
 			}
 		}
 	}
+}
+
+async function fingerprintReceipt(
+	receipt: ScratchpadExecutionReceipt,
+): Promise<string> {
+	const canonical = JSON.stringify(
+		canonicalize({
+			lineNumber: receipt.lineNumber,
+			rawText: receipt.rawText,
+			macroName: receipt.macroName,
+			success: receipt.success,
+			result: receipt.result,
+			error: receipt.error,
+			executedAt: receipt.executedAt,
+		}),
+	);
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(canonical),
+	);
+	return Array.from(new Uint8Array(digest), (byte) =>
+		byte.toString(16).padStart(2, "0"),
+	).join("");
+}
+
+function canonicalize(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(canonicalize);
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>)
+				.sort(([left], [right]) => left.localeCompare(right))
+				.map(([key, item]) => [key, canonicalize(item)]),
+		);
+	}
+	return value;
 }

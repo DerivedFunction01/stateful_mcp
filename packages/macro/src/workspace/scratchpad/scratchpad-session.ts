@@ -1,4 +1,5 @@
 import type { ExtensionRuntime } from "../../extensions/runtime";
+import { extractTokenChipsFromProjections } from "../editor/chips";
 import type { CursorBuffer } from "../editor/cursor-buffer";
 import {
 	createEmptyProjectedLine,
@@ -10,7 +11,9 @@ export interface ScratchpadExecutionReceipt {
 	readonly lineNumber: number;
 	readonly rawText: string;
 	readonly macroName: string;
-	readonly result: unknown;
+	readonly success: boolean;
+	readonly result?: unknown;
+	readonly error?: string;
 	readonly executedAt: number;
 }
 
@@ -76,14 +79,9 @@ export class ScratchpadSession {
 					return createEmptyProjectedLine(index + 1, lineText);
 				}
 
-				// 1. Explicit macro name match (e.g. ^vitals ...)
-				let matching = registeredAdapters.find(
-					(a) =>
-						trimmed.startsWith(a.adapter.definition.name) ||
-						(prefix
-							? trimmed.startsWith(`${prefix}${a.adapter.definition.name}`)
-							: false) ||
-						trimmed.includes(a.adapter.definition.name),
+				// 1. Explicit macro name match with strict word boundaries
+				let matching = registeredAdapters.find((a) =>
+					matchesMacroVerb(trimmed, a.adapter.definition.name, prefix),
 				);
 
 				// 2. Implicit / Pinned macro match (e.g. SOB 4hr 4/10)
@@ -99,20 +97,35 @@ export class ScratchpadSession {
 					return createEmptyProjectedLine(index + 1, lineText);
 				}
 
+				const adapterId = matching.adapter.definition.id;
+				const macroName = matching.adapter.definition.name;
+
 				try {
-					const adapterId = matching.adapter.definition.id;
-					const macroName = matching.adapter.definition.name;
-					const parseText =
-						trimmed.startsWith(macroName) ||
-						(prefix ? trimmed.startsWith(`${prefix}${macroName}`) : false)
-							? lineText
-							: prefix
-								? `${prefix}${macroName} ${lineText}`
-								: `${macroName} ${lineText}`;
+					const parseText = matchesMacroVerb(trimmed, macroName, prefix)
+						? lineText
+						: prefix
+							? `${prefix}${macroName} ${lineText}`
+							: `${macroName} ${lineText}`;
 
 					const draft = await this.runtime.parseAdapter(adapterId, parseText);
 					if (!draft || !draft.input) {
-						return createEmptyProjectedLine(index + 1, lineText);
+						return {
+							lineNumber: index + 1,
+							rawText: lineText,
+							macroName,
+							adapterId,
+							isValid: false,
+							projections: draft?.projections ?? [],
+							chips: extractTokenChipsFromProjections(draft?.projections ?? []),
+							diagnostics: draft?.diagnostics ?? [
+								{
+									code: "NO_MATCH",
+									message: `Failed to parse arguments for macro '${macroName}'`,
+									severity: "error",
+									span: { start: 0, end: lineText.length },
+								},
+							],
+						};
 					}
 
 					return synthesizeProjectedLine(
@@ -125,8 +138,24 @@ export class ScratchpadSession {
 						draft.executionPreview,
 						draft.diagnostics,
 					);
-				} catch {
-					return createEmptyProjectedLine(index + 1, lineText);
+				} catch (error) {
+					return {
+						lineNumber: index + 1,
+						rawText: lineText,
+						macroName,
+						adapterId,
+						isValid: false,
+						projections: [],
+						chips: [],
+						diagnostics: [
+							{
+								code: "NO_MATCH" as const,
+								message: error instanceof Error ? error.message : String(error),
+								severity: "error" as const,
+								span: { start: 0, end: lineText.length },
+							},
+						],
+					};
 				}
 			}),
 		);
@@ -160,13 +189,11 @@ export class ScratchpadSession {
 		try {
 			const prefix = this.runtime.context.syntax.macroStartToken;
 			const trimmed = line.rawText.trim();
-			const parseText =
-				trimmed.startsWith(line.macroName) ||
-				(prefix ? trimmed.startsWith(`${prefix}${line.macroName}`) : false)
-					? line.rawText
-					: prefix
-						? `${prefix}${line.macroName} ${line.rawText}`
-						: `${line.macroName} ${line.rawText}`;
+			const parseText = matchesMacroVerb(trimmed, line.macroName, prefix)
+				? line.rawText
+				: prefix
+					? `${prefix}${line.macroName} ${line.rawText}`
+					: `${line.macroName} ${line.rawText}`;
 
 			const draft = await this.runtime.parseAdapter(line.adapterId, parseText);
 			const result = await this.runtime.executeAdapter(line.adapterId, draft);
@@ -174,15 +201,25 @@ export class ScratchpadSession {
 				lineNumber: line.lineNumber,
 				rawText: line.rawText,
 				macroName: line.macroName,
+				success: true,
 				result,
 				executedAt: Date.now(),
 			};
 		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			console.error(
 				`Execution failed for scratchpad line ${line.lineNumber}:`,
 				error,
 			);
-			return null;
+			return {
+				lineNumber: line.lineNumber,
+				rawText: line.rawText,
+				macroName: line.macroName,
+				success: false,
+				error: errorMessage,
+				executedAt: Date.now(),
+			};
 		}
 	}
 
@@ -214,4 +251,32 @@ export class ScratchpadSession {
 			}
 		}
 	}
+}
+
+/**
+ * Strictly tests if text starts with a macro verb without false substring matches.
+ */
+function matchesMacroVerb(
+	trimmed: string,
+	macroName: string,
+	prefix: string,
+): boolean {
+	if (prefix && trimmed.startsWith(prefix)) {
+		const withoutPrefix = trimmed.slice(prefix.length);
+		return (
+			withoutPrefix === macroName ||
+			withoutPrefix.startsWith(`${macroName} `) ||
+			withoutPrefix.startsWith(`${macroName}\t`) ||
+			withoutPrefix.startsWith(`${macroName}\n`) ||
+			withoutPrefix.startsWith(`${macroName}=`)
+		);
+	}
+
+	return (
+		trimmed === macroName ||
+		trimmed.startsWith(`${macroName} `) ||
+		trimmed.startsWith(`${macroName}\t`) ||
+		trimmed.startsWith(`${macroName}\n`) ||
+		trimmed.startsWith(`${macroName}=`)
+	);
 }

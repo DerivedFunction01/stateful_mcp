@@ -1,3 +1,5 @@
+import type { UserMacroProfile } from "../contracts/extension-config";
+import { ExtensionRuntime } from "../extensions/runtime";
 import { CommandRegistry } from "./contributions/command-registry";
 import { TabRegistry } from "./contributions/tab-registry";
 import { ViewRegistry } from "./contributions/view-registry";
@@ -10,6 +12,7 @@ import {
 	type WindowLayoutStateSnapshot,
 } from "./layout/window-layout-state";
 import { CommandPaletteController } from "./palette/command-palette";
+import { ScratchpadSession } from "./scratchpad/scratchpad-session";
 
 export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
@@ -35,17 +38,22 @@ export interface MacroWorkspaceOptions {
 	readonly initialText?: string;
 	readonly initialLocale?: string;
 	readonly initialLayout?: Partial<WindowLayoutStateSnapshot>;
+	readonly runtime?: ExtensionRuntime;
+	readonly profile?: UserMacroProfile;
+	readonly journal?: import("./journal/workspace-journal").WorkspaceJournalOptions;
 }
 
 export interface MacroWorkspace {
 	readonly layout: WindowLayoutStateManager;
 	readonly editor: EditorKernel;
+	readonly scratchpad: ScratchpadSession;
 	readonly palette: CommandPaletteController;
 	readonly journal: WorkspaceJournal;
 	readonly tabs: TabRegistry;
 	readonly views: ViewRegistry;
 	readonly commands: CommandRegistry;
 	readonly i18n: I18nKernel;
+	readonly runtime: ExtensionRuntime;
 }
 
 export function createMacroWorkspace(
@@ -54,8 +62,11 @@ export function createMacroWorkspace(
 	const tabs = new TabRegistry();
 	const views = new ViewRegistry();
 	const commands = new CommandRegistry();
-	const journal = new WorkspaceJournal();
+	const journal = new WorkspaceJournal(options?.journal);
 	const i18n = createDefaultI18nKernel(options?.initialLocale ?? "en");
+	const runtime =
+		options?.runtime ??
+		new ExtensionRuntime({ profile: options?.profile, i18n });
 
 	const layout = new WindowLayoutStateManager(
 		tabs,
@@ -63,16 +74,19 @@ export function createMacroWorkspace(
 		options?.initialLayout,
 	);
 	const editor = new EditorKernel(options?.initialText ?? "");
+	const scratchpad = new ScratchpadSession(runtime, editor.buffer);
 	const palette = new CommandPaletteController(commands, layout, tabs);
 
 	return {
 		layout,
 		editor,
+		scratchpad,
 		palette,
 		journal,
 		tabs,
 		views,
 		commands,
 		i18n,
+		runtime,
 	};
 }

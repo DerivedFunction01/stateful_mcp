@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"jsxImportSource": "react",
+		"paths": {
+			"@stateful-mcp/macro": ["../macro/src/index.ts"],
+			"@stateful-mcp/macro/*": ["../macro/src/*"],
+			"@stateful-mcp/core": ["../core/src/index.ts"],
+			"@stateful-mcp/core/*": ["../core/src/*"]
+		}
+	},
+	"include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
+	"exclude": ["node_modules", "dist"]
+}

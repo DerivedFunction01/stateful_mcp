@@ -1,0 +1,28 @@
+{
+	"name": "@stateful-mcp/macro-cli",
+	"version": "0.1.0",
+	"description": "Generic terminal UI for the Stateful macro workspace",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"bin": {
+		"macro-cli": "./dist/index.js"
+	},
+	"files": ["dist"],
+	"scripts": {
+		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm --external '*.node' --external 'ink' --external 'react' --external 'react-devtools-core' --external 'react-reconciler' --external 'scheduler' && tsc --emitDeclarationOnly --declaration --outDir dist",
+		"check": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@stateful-mcp/macro": "workspace:^",
+		"ink": "^7.1.1",
+		"react": "^19.2.8"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/node": "^20",
+		"@types/react": "^19.2.18",
+		"typescript": "^5"
+	}
+}
