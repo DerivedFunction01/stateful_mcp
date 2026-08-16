@@ -1,0 +1,36 @@
+export const EN_LOCALE_CLI: Record<string, string> = {
+	"palette.title": "Commands",
+	"palette.dismissHint": "esc",
+	"palette.searchPrompt": ">",
+	"palette.placeholder": "Search commands...",
+	"palette.noMatchingCommands": "No matching commands found.",
+	"palette.category.suggested": "Suggested",
+	"palette.category.system": "System",
+	"palette.category.workspace": "Workspace",
+	"palette.category.general": "Commands",
+
+	"list.empty": "No items available.",
+	"statusBar.validRatio": "{valid}/{total} valid",
+	"statusBar.pinned": "Pinned: {macro}",
+	"statusBar.errors": "E:{count}",
+	"statusBar.warnings": "W:{count}",
+	"statusBar.locale": "locale: {locale}",
+
+	"helpBar.default": "Commands · Sidepanel · Pin · Execute · Quit",
+	"helpBar.esc": "Normal Mode",
+	"helpBar.navigate": "Navigate",
+	"helpBar.apply": "Apply",
+	"helpBar.close": "Close",
+	"helpBar.duplicate": "Duplicate",
+
+	"inspector.title": "Sidepanel",
+	"inspector.empty": "Core view ready for contributed content.",
+	"journal.title": "Journal",
+	"journal.empty": "No committed entries.",
+	"tab.unimplemented": "{label} is not implemented yet.",
+
+	"lab.title": "Macro CLI Component Lab",
+	"lab.components": "Components",
+	"lab.preview": "Preview",
+	"lab.shortcuts": "↑↓ component  ←→ state  s size  b bounds  r reload  Esc exit",
+};

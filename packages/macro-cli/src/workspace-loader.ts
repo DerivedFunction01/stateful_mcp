@@ -13,6 +13,7 @@ import {
 	type EditorKeymapProfile,
 	type MacroWorkspace,
 } from "@stateful-mcp/macro";
+import { registerCliLocales } from "./locales";
 
 export interface WorkspaceExtensionSpec {
 	readonly id: string;
@@ -40,6 +41,8 @@ export interface LoadMacroCliOptions {
 	readonly keymapPath?: string;
 	readonly locale?: string;
 	readonly initialText?: string;
+	readonly inspect?: boolean;
+	readonly inspectTarget?: string;
 }
 
 export async function loadMacroCliWorkspace(
@@ -70,6 +73,9 @@ export async function loadMacroCliWorkspace(
 		initialLocale: options.locale ?? profile?.locale ?? "en",
 		profile,
 	});
+
+	registerCliLocales(workspace.i18n);
+
 	const activation = await workspace.runtime.activate(loadedExtensions);
 	try {
 		workspace.contributions.install(activation.active);

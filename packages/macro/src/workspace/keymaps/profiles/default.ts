@@ -54,5 +54,6 @@ export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 		openCommandPalette: SpecialKeys.CtrlP,
 		nextTab: SpecialKeys.Tab,
 		prevTab: SpecialKeys.ShiftTab,
+		pinMacro: SpecialKeys.AltP,
 	},
 };

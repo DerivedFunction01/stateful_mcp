@@ -7,6 +7,8 @@ export const SpecialKeys = {
 	CtrlP: "CTRL_P",
 	CtrlB: "CTRL_B",
 	CtrlW: "CTRL_W",
+	AltP: "ALT_P",
+	CtrlEnter: "CTRL_ENTER",
 	Enter: "ENTER",
 	Escape: "ESC",
 	Delete: "DELETE",
@@ -75,6 +77,7 @@ export interface EditorKeymapWindowBindings {
 	readonly openCommandPalette: KeyChord;
 	readonly nextTab: KeyChord;
 	readonly prevTab: KeyChord;
+	readonly pinMacro?: KeyChord;
 }
 
 export interface EditorKeymapProfile {

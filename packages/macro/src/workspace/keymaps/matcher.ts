@@ -55,6 +55,16 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 					Boolean(event.ctrl) &&
 					(event.char?.toLowerCase() === "w" || event.name === "w")
 				);
+			case "ALT_P":
+				return (
+					Boolean(event.meta) &&
+					(event.char?.toLowerCase() === "p" || event.name === "p")
+				);
+			case "CTRL_ENTER":
+				return (
+					Boolean(event.ctrl) &&
+					(event.name === "return" || event.name === "enter")
+				);
 			case SpecialKeys.Up:
 				return event.name === "up" || event.name === "upArrow";
 			case SpecialKeys.Down:

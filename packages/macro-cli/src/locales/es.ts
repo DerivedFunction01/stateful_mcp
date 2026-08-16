@@ -1,0 +1,36 @@
+export const ES_LOCALE_CLI: Record<string, string> = {
+	"palette.title": "Comandos",
+	"palette.dismissHint": "esc",
+	"palette.searchPrompt": ">",
+	"palette.placeholder": "Buscar comandos...",
+	"palette.noMatchingCommands": "No se encontraron comandos coincidentes.",
+	"palette.category.suggested": "Sugeridos",
+	"palette.category.system": "Sistema",
+	"palette.category.workspace": "Espacio de trabajo",
+	"palette.category.general": "Comandos",
+
+	"list.empty": "No hay elementos disponibles.",
+	"statusBar.validRatio": "{valid}/{total} válidos",
+	"statusBar.pinned": "Fijado: {macro}",
+	"statusBar.errors": "E:{count}",
+	"statusBar.warnings": "W:{count}",
+	"statusBar.locale": "idioma: {locale}",
+
+	"helpBar.default": "Comandos · Panel lateral · Fijar · Ejecutar · Salir",
+	"helpBar.esc": "Modo Normal",
+	"helpBar.navigate": "Navegar",
+	"helpBar.apply": "Aplicar",
+	"helpBar.close": "Cerrar",
+	"helpBar.duplicate": "Duplicar",
+
+	"inspector.title": "Panel lateral",
+	"inspector.empty": "Vista principal lista para contenido aportado.",
+	"journal.title": "Diario",
+	"journal.empty": "No hay entradas confirmadas.",
+	"tab.unimplemented": "{label} aún no está implementado.",
+
+	"lab.title": "Laboratorio de Componentes Macro CLI",
+	"lab.components": "Componentes",
+	"lab.preview": "Vista previa",
+	"lab.shortcuts": "↑↓ componente  ←→ estado  s tamaño  b límites  r recargar  Esc salir",
+};
