@@ -71,29 +71,30 @@ export function ScratchpadView({
 							: TuiNamedColors.muted;
 
 				const rowBg = isActive ? TuiColors.bgHighlight : undefined;
+				const leftBarColor = isActive ? "cyan" : hasError ? "red" : "transparent";
 
 				const pinnedBadge = isPinned
 					? translate(i18n, "scratchpad.pinnedBadge", `[pinned to ${pinned}]`, { macro: pinned })
 					: "";
 
 				return (
-					<box key={`${index}-${line}`} flexDirection="column" marginBottom={1}>
-						{/* Main Command Line: Left Accent + Sign + Line Number + Right Pipe + Command Text */}
-						<box flexDirection="row" backgroundColor={rowBg}>
-							{/* Left accent bar */}
+					<box key={`${index}-${line}`} flexDirection="column">
+						{/* Row 1: Main Command Input (1 char left bar + 3 chars sign + 3 chars lineNum = 7 chars before pipe) */}
+						<box flexDirection="row" backgroundColor={rowBg} height={1}>
+							{/* Left accent pillar (1 char) */}
 							<text
-								fg={isActive ? "cyan" : hasError ? "red" : "transparent"}
+								fg={leftBarColor}
 								attributes={TextAttributes.BOLD}
 							>
 								{isActive || hasError ? "▎" : " "}
 							</text>
 
-							{/* Sign column */}
+							{/* Sign column (3 chars) */}
 							<text fg={signColor} attributes={TextAttributes.BOLD}>
 								{" "}{signChar}{" "}
 							</text>
 
-							{/* Line Number */}
+							{/* Line Number (3 chars) */}
 							<text
 								fg={isActive ? "yellow" : TuiNamedColors.muted}
 								attributes={isActive ? TextAttributes.BOLD : 0}
@@ -101,7 +102,7 @@ export function ScratchpadView({
 								{lineNumStr}{" "}
 							</text>
 
-							{/* Right pipe divider */}
+							{/* Continuous vertical pipe divider */}
 							<text fg={TuiNamedColors.border}>│ </text>
 
 							{/* Command Input Text */}
@@ -126,32 +127,35 @@ export function ScratchpadView({
 							{/* Pinned Tag */}
 							{isPinned && (
 								<text fg={TuiNamedColors.accent} attributes={TextAttributes.DIM}>
-									{"  "}{pinnedBadge}
+									{"  "}[pinned]
 								</text>
 							)}
 						</box>
 
-						{/* Projection Preview Row with connected pipe */}
-						{projection?.preview && (
-							<box flexDirection="row">
-								<text fg="transparent">       </text>
-								<text fg={TuiNamedColors.border}>│ </text>
-								<text fg={projection.isValid ? TuiNamedColors.success : TuiNamedColors.amber}>
-									↳ {projection.preview.text}
-								</text>
-							</box>
-						)}
-
-						{/* Diagnostic Error Row with connected pipe */}
-						{hasError && (
-							<box flexDirection="row">
-								<text fg="transparent">       </text>
-								<text fg={TuiNamedColors.border}>│ </text>
+						{/* Row 2: Fixed-Height Projection Tray (1 char left bar + 6 chars gutter space = 7 chars before pipe) */}
+						<box flexDirection="row" backgroundColor={rowBg} height={1}>
+							<text
+								fg={leftBarColor}
+								attributes={TextAttributes.BOLD}
+							>
+								{isActive || hasError ? "▎" : " "}
+							</text>
+							<text fg="transparent">      </text>
+							<text fg={TuiNamedColors.border}>│ </text>
+							{hasError ? (
 								<text fg={TuiNamedColors.error}>
 									! {projection.diagnostics[0]?.message}
 								</text>
-							</box>
-						)}
+							) : projection?.preview ? (
+								<text fg={projection.isValid ? TuiNamedColors.success : TuiNamedColors.amber}>
+									↳ {projection.preview.text}
+								</text>
+							) : (
+								<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+									{" "}
+								</text>
+							)}
+						</box>
 					</box>
 				);
 			})}
