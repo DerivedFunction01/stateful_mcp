@@ -177,6 +177,11 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(await dispatchTerminalInput(workspace, keymap, { name: "enter" })).toBe("handled");
 		expect(workspace.editor.getMode()).toBe("NORMAL");
 
+		// In NORMAL mode, ':' opens Command Palette modal
+		workspace.editor.setMode("NORMAL");
+		expect(await dispatchTerminalInput(workspace, keymap, { input: ":" })).toBe("handled");
+		expect(workspace.palette.getIsOpen()).toBe(true);
+
 		await workspace.runtime.dispose();
 	});
 });

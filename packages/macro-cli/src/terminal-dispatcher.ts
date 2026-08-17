@@ -141,10 +141,15 @@ export async function dispatchTerminalInput(
 		}
 
 		// NORMAL Mode:
+		// - ':' opens Command Palette modal
 		// - Enter: enters INSERT mode on current line
 		// - 'r': executes current/all valid macrolines
 		// - Tab / Shift+Tab: cycles top-level workspace tabs
 		if (currentMode === "NORMAL") {
+			if (input === ":" || (keymap.normal.command && chordMatches(keymap.normal.command, chordEvent))) {
+				workspace.palette.open();
+				return "handled";
+			}
 			if (isEnter && !event.ctrl && !event.meta) {
 				workspace.editor.setMode("INSERT");
 				return "handled";
