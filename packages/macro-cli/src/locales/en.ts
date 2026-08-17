@@ -9,6 +9,11 @@ export const EN_LOCALE_CLI: Record<string, string> = {
 	"palette.category.workspace": "Workspace",
 	"palette.category.general": "Commands",
 
+	"scratchpad.emptyPlaceholder": "Type {trigger} for macro autocomplete or start typing...",
+	"scratchpad.pinnedLabel": "PINNED: {macro}",
+	"scratchpad.pinnedHint": "(Press {key} to toggle)",
+	"scratchpad.pinnedBadge": "[pinned to {macro}]",
+
 	"list.empty": "No items available.",
 	"statusBar.validRatio": "{valid}/{total} valid",
 	"statusBar.pinned": "Pinned: {macro}",

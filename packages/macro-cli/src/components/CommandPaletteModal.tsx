@@ -1,18 +1,29 @@
-import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
+import { TuiCommandPalette, type TuiPaletteCommand } from "../ui/primitives/TuiCommandPalette";
 
-export function CommandPaletteModal({ workspace }: { workspace: MacroWorkspace }) {
-	const items = workspace.palette.getItems();
+export function CommandPaletteModal({
+	workspace,
+	width = 64,
+}: {
+	workspace: MacroWorkspace;
+	width?: number;
+}) {
+	const items: readonly TuiPaletteCommand[] = workspace.palette.getItems().map((item) => ({
+		id: item.id,
+		title: item.title,
+		category: item.category,
+		shortcut: item.keybinding,
+	}));
 	const selected = workspace.palette.getSelectedIndex();
+	const query = workspace.palette.getQuery();
+
 	return (
-		<box flexDirection="column" borderStyle="rounded" borderColor="cyan" padding={1}>
-			<text attributes={TextAttributes.BOLD} fg="cyan">Command Palette</text>
-			<text> &gt; {workspace.palette.getQuery()}</text>
-			{items.slice(0, 8).map((item, index) => (
-				<text key={item.id} attributes={index === selected ? TextAttributes.INVERSE : 0}>
-					{item.category ? `${item.category}: ` : ""}{item.title}
-				</text>
-			))}
-		</box>
+		<TuiCommandPalette
+			query={query}
+			items={items}
+			selectedIndex={selected}
+			width={width}
+			i18n={workspace.i18n}
+		/>
 	);
 }

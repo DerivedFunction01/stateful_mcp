@@ -1,27 +1,156 @@
 import { TextAttributes } from "@opentui/core";
-import type { MacroWorkspace } from "@stateful-mcp/macro";
+import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
+import { translate } from "../locales";
+import { formatKeyDisplay } from "../ui/primitives/TuiHelpBar";
+import { TuiColors, TuiNamedColors } from "../ui/tokens";
 
-export function ScratchpadView({ workspace }: { workspace: MacroWorkspace }) {
+export function ScratchpadView({
+	workspace,
+	keymap,
+}: {
+	workspace: MacroWorkspace;
+	keymap?: EditorKeymapProfile;
+}) {
 	const cursor = workspace.editor.buffer.getCursor();
 	const lines = workspace.editor.buffer.getLines();
 	const projected = workspace.scratchpad.getProjectedLines();
+	const pinned = workspace.scratchpad.getPinnedMacro();
+	const i18n = workspace.i18n;
+
+	const isEmptyBuffer = lines.length === 1 && lines[0] === "";
+	const pinChord = formatKeyDisplay(keymap?.window.pinMacro || "Alt+P");
+	const trigger = workspace.runtime?.context?.syntax?.macroStartToken || "^";
+
+	const placeholderText = translate(
+		i18n,
+		"scratchpad.emptyPlaceholder",
+		`Type ${trigger} for macro autocomplete or start typing...`,
+		{ trigger },
+	);
+
+	const pinnedLabel = pinned
+		? translate(i18n, "scratchpad.pinnedLabel", `PINNED: ${pinned}`, { macro: pinned })
+		: "";
+
+	const pinnedHint = translate(
+		i18n,
+		"scratchpad.pinnedHint",
+		`(${pinChord} to toggle)`,
+		{ key: pinChord },
+	);
+
 	return (
-		<box flexDirection="column" paddingLeft={1} paddingRight={1}>
+		<box flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={1}>
+			{/* Top Pinned Macro Banner if active */}
+			{pinned && (
+				<box height={1} marginBottom={1} flexDirection="row">
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+						📌 {pinnedLabel}
+					</text>
+					<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+						{"  "}{pinnedHint}
+					</text>
+				</box>
+			)}
+
 			{lines.map((line, index) => {
 				const projection = projected[index];
 				const isActive = cursor.line === index;
+				const isPinned = pinned && projection?.macroName === pinned;
+				const hasError = projection && !projection.isValid && projection.diagnostics.length > 0;
+				const isValid = projection?.isValid ?? false;
+
+				const lineNumStr = String(index + 1).padStart(2, "0");
+				const signChar = isActive ? "●" : hasError ? "!" : isValid ? "✓" : " ";
+				const signColor = isActive
+					? "cyan"
+					: hasError
+						? "red"
+						: isValid
+							? "green"
+							: TuiNamedColors.muted;
+
+				const rowBg = isActive ? TuiColors.bgHighlight : undefined;
+
+				const pinnedBadge = isPinned
+					? translate(i18n, "scratchpad.pinnedBadge", `[pinned to ${pinned}]`, { macro: pinned })
+					: "";
+
 				return (
-					<box key={`${index}-${line}`} flexDirection="column">
-						<text attributes={isActive ? TextAttributes.INVERSE : 0}>
-							{String(index + 1).padStart(3, " ")} │ {line || " "}
-						</text>
-						{projection?.preview && (
-							<text fg={projection.isValid ? "green" : "yellow"}>
-								    ↳ {projection.preview.text}
+					<box key={`${index}-${line}`} flexDirection="column" marginBottom={1}>
+						{/* Main Command Line: Left Accent + Sign + Line Number + Right Pipe + Command Text */}
+						<box flexDirection="row" backgroundColor={rowBg}>
+							{/* Left accent bar */}
+							<text
+								fg={isActive ? "cyan" : hasError ? "red" : "transparent"}
+								attributes={TextAttributes.BOLD}
+							>
+								{isActive || hasError ? "▎" : " "}
 							</text>
+
+							{/* Sign column */}
+							<text fg={signColor} attributes={TextAttributes.BOLD}>
+								{" "}{signChar}{" "}
+							</text>
+
+							{/* Line Number */}
+							<text
+								fg={isActive ? "yellow" : TuiNamedColors.muted}
+								attributes={isActive ? TextAttributes.BOLD : 0}
+							>
+								{lineNumStr}{" "}
+							</text>
+
+							{/* Right pipe divider */}
+							<text fg={TuiNamedColors.border}>│ </text>
+
+							{/* Command Input Text */}
+							{isEmptyBuffer && isActive ? (
+								<box flexDirection="row">
+									<text fg="white" attributes={TextAttributes.INVERSE}>
+										{" "}
+									</text>
+									<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+										{" "}{placeholderText}
+									</text>
+								</box>
+							) : (
+								<text
+									fg={isActive ? "white" : TuiNamedColors.primary}
+									attributes={isActive ? TextAttributes.BOLD : 0}
+								>
+									{line || " "}
+								</text>
+							)}
+
+							{/* Pinned Tag */}
+							{isPinned && (
+								<text fg={TuiNamedColors.accent} attributes={TextAttributes.DIM}>
+									{"  "}{pinnedBadge}
+								</text>
+							)}
+						</box>
+
+						{/* Projection Preview Row with connected pipe */}
+						{projection?.preview && (
+							<box flexDirection="row">
+								<text fg="transparent">       </text>
+								<text fg={TuiNamedColors.border}>│ </text>
+								<text fg={projection.isValid ? TuiNamedColors.success : TuiNamedColors.amber}>
+									↳ {projection.preview.text}
+								</text>
+							</box>
 						)}
-						{projection && !projection.isValid && projection.diagnostics.length > 0 && (
-							<text fg="red">    ! {projection.diagnostics[0]?.message}</text>
+
+						{/* Diagnostic Error Row with connected pipe */}
+						{hasError && (
+							<box flexDirection="row">
+								<text fg="transparent">       </text>
+								<text fg={TuiNamedColors.border}>│ </text>
+								<text fg={TuiNamedColors.error}>
+									! {projection.diagnostics[0]?.message}
+								</text>
+							</box>
 						)}
 					</box>
 				);

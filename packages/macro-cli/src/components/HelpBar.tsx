@@ -1,9 +1,17 @@
-import { TextAttributes } from "@opentui/core";
+import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
+import { TuiHelpBar } from "../ui/primitives/TuiHelpBar";
 
-export function HelpBar() {
+export function HelpBar({
+	keymap,
+	workspace,
+}: {
+	keymap?: EditorKeymapProfile;
+	workspace?: MacroWorkspace;
+}) {
 	return (
-		<box paddingLeft={1}>
-			<text attributes={TextAttributes.DIM}>Ctrl+P Palette · Ctrl+B Sidepanel · Alt+P Pin · Ctrl+Enter Run · Ctrl+C Quit</text>
-		</box>
+		<TuiHelpBar
+			keymap={keymap}
+			i18n={workspace?.i18n}
+		/>
 	);
 }

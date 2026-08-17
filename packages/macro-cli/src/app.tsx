@@ -27,6 +27,7 @@ export function MacroCliApp({
 		];
 		return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 	};
+
 	useSyncExternalStore(subscribe, () => {
 		const layout = workspace.layout.getSnapshot();
 		const cursor = workspace.editor.buffer.getCursor();
@@ -45,12 +46,14 @@ export function MacroCliApp({
 			journal: workspace.journal.getEntries(),
 		});
 	});
+
 	useEffect(
 		() => () => {
 			void workspace.dispose();
 		},
 		[workspace],
 	);
+
 	useEffect(() => {
 		const handleKeypress = (key: { name: string; sequence: string; ctrl: boolean; meta: boolean; shift: boolean }) => {
 			void dispatchTerminalInput(workspace, keymap, {
@@ -71,5 +74,6 @@ export function MacroCliApp({
 			renderer.keyInput.off("keypress", handleKeypress);
 		};
 	}, [keymap, onExit, renderer, workspace]);
-	return <WindowContainer workspace={workspace} renderer={renderer} />;
+
+	return <WindowContainer workspace={workspace} keymap={keymap} renderer={renderer} />;
 }

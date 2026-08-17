@@ -22,11 +22,11 @@ export interface TuiTabsProps {
 
 /**
  * Modern Segmented Tab Bar for terminal character cells.
- * Features a seamless connected tab strip with zero gaps:
- * - Active: Vibrant Cyan accent bar with elevated background
- * - Inactive: Subtle Dim Border accent bar with surface background
- * - Dirty: Amber accent bar with dirty bullet
- * - Error: Red accent bar with error status
+ * Uses a thin vertical accent bar (▎ / ▏) to maximize horizontal density and allow more tabs.
+ * - Active: Vibrant Cyan thin bar with elevated background
+ * - Inactive: Subtle Dim thin bar with surface background
+ * - Dirty: Amber thin bar with dirty bullet
+ * - Error: Red thin bar with error status
  */
 export function TuiTabs({
 	tabs,
@@ -64,7 +64,6 @@ export function TuiTabs({
 						accentColorNamed = TuiNamedColors.info;
 						break;
 					default:
-						// Subtle border for inactive tabs to maintain uniform layout and visual framing
 						accentColorHex = TuiColors.borderDim;
 						accentColorNamed = TuiNamedColors.border;
 						break;
@@ -76,7 +75,7 @@ export function TuiTabs({
 				const closeStr = tab.isCloseable ? " ×" : "";
 				const labelText = `${iconStr}${tab.label}${badgeStr}${dirtyStr}${closeStr}`;
 
-				// OpenCode variant: connected tab strip with zero gap between tabs
+				// OpenCode variant: compact connected card strip with thin vertical bar (▎)
 				if (variant === "opencode") {
 					const tabBg = isActive ? TuiColors.bgActive : TuiColors.bgSurface;
 
@@ -85,20 +84,18 @@ export function TuiTabs({
 							key={tab.id}
 							flexDirection="row"
 							backgroundColor={tabBg}
+							paddingRight={1}
 						>
-							{/* Left accent / border column (creates seamless boundary between connected tabs) */}
-							<box
-								width={1}
-								backgroundColor={accentColorHex}
-							/>
-							<box paddingLeft={1} paddingRight={1}>
-								<text
-									fg={isActive ? "white" : TuiNamedColors.muted}
-									attributes={isActive ? TextAttributes.BOLD : 0}
-								>
-									{labelText}
-								</text>
-							</box>
+							{/* Thin vertical accent bar */}
+							<text fg={accentColorHex} attributes={isActive ? TextAttributes.BOLD : 0}>
+								▎{" "}
+							</text>
+							<text
+								fg={isActive ? "white" : TuiNamedColors.muted}
+								attributes={isActive ? TextAttributes.BOLD : 0}
+							>
+								{labelText}
+							</text>
 						</box>
 					);
 				}
