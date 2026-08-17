@@ -1,10 +1,16 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
+import { useEffect, useState } from "react";
 import { translate } from "../locales";
 import {
 	TuiScratchpadBody,
 	type TuiScratchpadLineModel,
 } from "../ui/compositions";
+import {
+	createScratchpadGeometry,
+	scratchpadColumnAtX,
+	scratchpadLineAtY,
+} from "../ui/compositions/scratchpad-geometry";
 import { TuiCursor } from "../ui/primitives/TuiCursor";
 import { formatKeyDisplay } from "../ui/primitives/TuiHelpBar";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
@@ -13,10 +19,12 @@ export function ScratchpadView({
 	workspace,
 	keymap,
 	theme,
+	height = 20,
 }: {
 	workspace: MacroWorkspace;
 	keymap?: EditorKeymapProfile;
 	theme?: TuiThemeDefinition;
+	height?: number;
 }) {
 	const activeTheme = theme ?? GlobalThemeRegistry.getActive();
 	const c = activeTheme.colors;
@@ -28,6 +36,25 @@ export function ScratchpadView({
 	const selection = workspace.editor.buffer.getSelection();
 	const i18n = workspace.i18n;
 	const isVisualMode = mode === "VISUAL";
+	const viewportSize = Math.max(1, Math.floor((height - (pinned ? 2 : 0)) / 2));
+	const [viewportOffset, setViewportOffset] = useState(0);
+	const lineCount = authoredLines.length;
+	const clampOffset = (offset: number) =>
+		Math.max(
+			0,
+			Math.min(Math.max(0, lineCount - viewportSize), Math.floor(offset)),
+		);
+	const revealLine = (line: number) => {
+		setViewportOffset((current) => {
+			if (line < current) return clampOffset(line);
+			if (line >= current + viewportSize)
+				return clampOffset(line - viewportSize + 1);
+			return clampOffset(current);
+		});
+	};
+	useEffect(() => {
+		revealLine(cursor.line);
+	}, [cursor.line, viewportSize, lineCount]);
 	const minSelectedLine = selection
 		? Math.min(selection.start.line, selection.end.line)
 		: -1;
@@ -92,6 +119,37 @@ export function ScratchpadView({
 			};
 		},
 	);
+	const geometry = createScratchpadGeometry(lineModels, true);
+	const pointerLine = (event: MouseEvent) =>
+		clampOffset(scratchpadLineAtY(geometry, viewportOffset, event.y));
+	const pointerCol = (event: MouseEvent) =>
+		scratchpadColumnAtX(geometry, event.x);
+	const handleMouseDown = (event: MouseEvent) => {
+		if (event.button !== 0) return;
+		const line = pointerLine(event);
+		workspace.layout.setFocusedPane("main");
+		workspace.editor.clickAt(line, pointerCol(event));
+		revealLine(line);
+	};
+	const handleMouseDrag = (event: MouseEvent) => {
+		if (!event.isDragging || event.button !== 0) return;
+		const line = pointerLine(event);
+		workspace.editor.dragSelection(workspace.editor.buffer.getCursor(), {
+			line,
+			col: pointerCol(event),
+		});
+		revealLine(line);
+	};
+	const handleMouseScroll = (event: MouseEvent) => {
+		if (event.type !== "scroll" || !event.scroll) return;
+		const direction =
+			event.scroll.direction === "down" || event.scroll.direction === "right"
+				? 1
+				: -1;
+		setViewportOffset((current) =>
+			clampOffset(current + direction * Math.max(1, event.scroll?.delta ?? 1)),
+		);
+	};
 
 	return (
 		<box flexDirection="column">
@@ -109,6 +167,11 @@ export function ScratchpadView({
 
 			<TuiScratchpadBody
 				lines={lineModels}
+				viewportOffset={viewportOffset}
+				viewportSize={viewportSize}
+				onMouseDown={handleMouseDown}
+				onMouseDrag={handleMouseDrag}
+				onMouseScroll={handleMouseScroll}
 				activeLineId={String(cursor.line)}
 				theme={theme}
 				renderAuthoredContent={(line) => {

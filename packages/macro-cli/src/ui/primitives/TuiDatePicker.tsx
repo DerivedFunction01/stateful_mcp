@@ -1,4 +1,10 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
+import {
+	type DateTimeFormatConfig,
+	formatDateTimeValue,
+	type I18nKernel,
+} from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,26 +38,15 @@ export interface TuiDatePickerProps {
 	readonly rangeEnd?: TuiDatePickerDate;
 	/** Theme override */
 	readonly theme?: TuiThemeDefinition;
+	readonly dateFormat?: DateTimeFormatConfig;
+	readonly i18n?: I18nKernel;
+	readonly onOpenChange?: (open: boolean) => void;
+	readonly onCursorDateChange?: (date: TuiDatePickerDate) => void;
+	readonly onSelectDate?: (date: TuiDatePickerDate) => void;
+	readonly onMonthChange?: (year: number, month: number) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const MONTH_NAMES = [
-	"January",
-	"February",
-	"March",
-	"April",
-	"May",
-	"June",
-	"July",
-	"August",
-	"September",
-	"October",
-	"November",
-	"December",
-];
-
-const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function getDaysInMonth(year: number, month: number): number {
 	return new Date(year, month, 0).getDate();
@@ -59,12 +54,6 @@ function getDaysInMonth(year: number, month: number): number {
 
 function getFirstDayOfMonth(year: number, month: number): number {
 	return new Date(year, month - 1, 1).getDay();
-}
-
-function formatDate(date: TuiDatePickerDate): string {
-	const mm = String(date.month).padStart(2, "0");
-	const dd = String(date.day).padStart(2, "0");
-	return `${date.year}-${mm}-${dd}`;
 }
 
 function datesEqual(a: TuiDatePickerDate, b: TuiDatePickerDate): boolean {
@@ -94,18 +83,33 @@ export function TuiDatePicker({
 	width = 36,
 	rangeEnd,
 	theme,
+	dateFormat,
+	i18n,
+	onOpenChange,
+	onCursorDateChange,
+	onSelectDate,
+	onMonthChange,
 }: TuiDatePickerProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const borderColor = isFocused || isOpen ? c.borderActive : c.borderDefault;
 	const triggerBg = isOpen ? c.bgElevated : c.bgSurface;
+	const locale = dateFormat?.options?.locale;
+	const formatDate = (date: TuiDatePickerDate) =>
+		dateFormat
+			? formatDateTimeValue(date, dateFormat)
+			: new Intl.DateTimeFormat(locale, { dateStyle: "short" }).format(
+					new Date(date.year, date.month - 1, date.day),
+				);
+	const placeholder = translate(i18n, "datePicker.placeholder", "Date");
+	const today = new Date();
 
 	// Display date in trigger
-	const displayText = value ? formatDate(value) : "YYYY-MM-DD";
+	const displayText = value ? formatDate(value) : placeholder;
 	const displayFg = value ? c.fgPrimary : c.fgDim;
 
 	// ── SEGMENTS variant: spin-box year / month / day fields ─────────────────
 	if (variant === "segments") {
-		const year = value?.year ?? 2025;
+		const year = value?.year ?? today.getFullYear();
 		const month = value?.month ?? 1;
 		const day = value?.day ?? 1;
 		const activeField = isFocused ? "day" : "none"; // in real usage, tracked in parent state
@@ -169,6 +173,9 @@ export function TuiDatePicker({
 			flexDirection="row"
 			paddingLeft={1}
 			paddingRight={1}
+			onMouseDown={(event: MouseEvent) => {
+				if (event.button === 0) onOpenChange?.(!isOpen);
+			}}
 		>
 			<text fg={c.fgMuted}>📅 </text>
 			<text
@@ -213,11 +220,37 @@ export function TuiDatePicker({
 	}
 
 	// ── Calendar grid ─────────────────────────────────────────────────────────
-	const viewDate = cursorDate ?? value ?? { year: 2025, month: 8, day: 1 };
+	const viewDate = cursorDate ??
+		value ?? {
+			year: today.getFullYear(),
+			month: today.getMonth() + 1,
+			day: today.getDate(),
+		};
 	const { year, month } = viewDate;
 	const daysInMonth = getDaysInMonth(year, month);
-	const firstDay = getFirstDayOfMonth(year, month); // 0=Sun
-	const monthName = MONTH_NAMES[month - 1] ?? "";
+	const firstDayOfWeek =
+		dateFormat?.options?.firstDayOfWeek ??
+		(locale?.toLowerCase().startsWith("en-us") ? 0 : 1);
+	const firstDay = (getFirstDayOfMonth(year, month) - firstDayOfWeek + 7) % 7;
+	const monthName = new Intl.DateTimeFormat(locale, {
+		month: "long",
+		year: "numeric",
+	}).format(new Date(year, month - 1, 1));
+	const dayNames = Array.from({ length: 7 }, (_, index) =>
+		new Intl.DateTimeFormat(locale, { weekday: "short" }).format(
+			new Date(2024, 0, 7 + ((firstDayOfWeek + index) % 7)),
+		),
+	);
+	const selectDay = (day: number) => {
+		const date = { year, month, day };
+		onCursorDateChange?.(date);
+		onSelectDate?.(date);
+	};
+	const dayMouseProps = (day: number) => ({
+		onMouseDown: (event: MouseEvent) => {
+			if (event.button === 0) selectDay(day);
+		},
+	});
 
 	// Build calendar grid rows (6 weeks max)
 	const calendarCells: Array<number | null> = [
@@ -242,7 +275,25 @@ export function TuiDatePicker({
 			paddingRight={1}
 		>
 			{/* Month/Year Navigation Header */}
-			<box flexDirection="row" height={1} marginTop={0}>
+			<box
+				flexDirection="row"
+				height={1}
+				marginTop={0}
+				onMouseDown={(event: MouseEvent) => {
+					if (event.button !== 0) return;
+					const previous = event.x < 3;
+					const nextMonth = month + (previous ? -1 : 1);
+					const normalizedMonth =
+						nextMonth < 1 ? 12 : nextMonth > 12 ? 1 : nextMonth;
+					const normalizedYear =
+						month + (previous ? -1 : 1) < 1
+							? year - 1
+							: month + (previous ? -1 : 1) > 12
+								? year + 1
+								: year;
+					onMonthChange?.(normalizedYear, normalizedMonth);
+				}}
+			>
 				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 					◀{" "}
 				</text>
@@ -262,8 +313,9 @@ export function TuiDatePicker({
 
 			{/* Day-of-week headers */}
 			<box flexDirection="row" height={1}>
-				{DAY_NAMES.map((d, i) => {
-					const isWeekend = i === 0 || i === 6;
+				{dayNames.map((d, i) => {
+					const weekday = (firstDayOfWeek + i) % 7;
+					const isWeekend = weekday === 0 || weekday === 6;
 					return (
 						<text
 							key={d}
@@ -314,6 +366,7 @@ export function TuiDatePicker({
 									key={dIdx}
 									backgroundColor={c.accentPrimary}
 									marginRight={1}
+									{...dayMouseProps(day)}
 								>
 									<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
 										{dayStr}
@@ -323,7 +376,12 @@ export function TuiDatePicker({
 						}
 						if (isCursor) {
 							return (
-								<box key={dIdx} backgroundColor={c.bgActive} marginRight={1}>
+								<box
+									key={dIdx}
+									backgroundColor={c.bgActive}
+									marginRight={1}
+									{...dayMouseProps(day)}
+								>
 									<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 										{dayStr}
 									</text>
@@ -332,7 +390,12 @@ export function TuiDatePicker({
 						}
 						if (isInRange) {
 							return (
-								<box key={dIdx} backgroundColor={c.bgHover} marginRight={1}>
+								<box
+									key={dIdx}
+									backgroundColor={c.bgHover}
+									marginRight={1}
+									{...dayMouseProps(day)}
+								>
 									<text fg={c.accentPrimary}>{dayStr}</text>
 								</box>
 							);
@@ -343,6 +406,7 @@ export function TuiDatePicker({
 									key={dIdx}
 									fg={c.accentAmber}
 									attributes={TextAttributes.BOLD}
+									{...dayMouseProps(day)}
 								>
 									{dayStr}{" "}
 								</text>
@@ -350,7 +414,11 @@ export function TuiDatePicker({
 						}
 
 						return (
-							<text key={dIdx} fg={isWeekend ? c.accentPeach : c.fgSecondary}>
+							<text
+								key={dIdx}
+								fg={isWeekend ? c.accentPeach : c.fgSecondary}
+								{...dayMouseProps(day)}
+							>
 								{dayStr}{" "}
 							</text>
 						);
@@ -364,7 +432,11 @@ export function TuiDatePicker({
 			</box>
 			<box height={1}>
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-					hjkl Move Enter Select [ ] Months Esc Close
+					{translate(
+						i18n,
+						"datePicker.keyboardHints",
+						"Use arrows to move, Enter to select, Esc to close",
+					)}
 				</text>
 			</box>
 		</box>

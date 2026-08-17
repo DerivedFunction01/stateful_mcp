@@ -1,4 +1,4 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiTabStatus =
@@ -23,6 +23,7 @@ export interface TuiTabsProps {
 	readonly tabs: readonly TuiTabItem[];
 	readonly activeTabId?: string;
 	readonly onSelectTab?: (id: string) => void;
+	readonly onMouseDown?: (tabId: string, event: MouseEvent) => void;
 	readonly variant?: "opencode" | "browser" | "vscode" | "minimal";
 	readonly theme?: TuiThemeDefinition;
 }
@@ -34,6 +35,8 @@ export interface TuiTabsProps {
 export function TuiTabs({
 	tabs,
 	activeTabId,
+	onSelectTab,
+	onMouseDown,
 	variant = "opencode",
 	theme,
 }: TuiTabsProps) {
@@ -72,6 +75,12 @@ export function TuiTabs({
 						paddingLeft={0}
 						paddingRight={1}
 						marginRight={0}
+						onMouseDown={(event) => {
+							if (event.button === 0) {
+								onSelectTab?.(tab.id);
+								onMouseDown?.(tab.id, event);
+							}
+						}}
 					>
 						{/* Thin vertical accent bar */}
 						<text fg={accentColor} attributes={TextAttributes.BOLD}>

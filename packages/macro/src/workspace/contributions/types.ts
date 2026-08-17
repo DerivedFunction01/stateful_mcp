@@ -102,7 +102,11 @@ export type WorkspaceSaveResult =
 	| { readonly status: "unchanged" }
 	| { readonly status: "skipped"; readonly reason?: string }
 	| { readonly status: "needsConfirmation"; readonly message: string }
-	| { readonly status: "failed"; readonly message: string; readonly error?: unknown };
+	| {
+			readonly status: "failed";
+			readonly message: string;
+			readonly error?: unknown;
+	  };
 
 export interface LocalizationContribution {
 	readonly languageId: string;
@@ -156,6 +160,8 @@ export interface CommandHandler {
 
 export interface WorkspaceInputEvent {
 	readonly type: "key" | "pointer" | "wheel";
+	readonly action?: "press" | "release" | "move" | "drag";
+	readonly button?: "left" | "middle" | "right";
 	readonly key?: string;
 	readonly input?: string;
 	readonly ctrl?: boolean;

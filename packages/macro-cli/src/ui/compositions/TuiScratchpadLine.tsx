@@ -1,6 +1,10 @@
 import { TextAttributes } from "@opentui/core";
 import type { ReactNode } from "react";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
+import {
+	padScratchpadCell,
+	type TuiScratchpadGeometry,
+} from "./scratchpad-geometry";
 
 export type TuiScratchpadLineState =
 	| "normal"
@@ -26,6 +30,7 @@ export interface TuiScratchpadLineProps {
 	readonly projectionContent?: ReactNode;
 	readonly showProjection?: boolean;
 	readonly theme?: TuiThemeDefinition;
+	readonly geometry?: TuiScratchpadGeometry;
 }
 
 export function TuiScratchpadLine({
@@ -34,6 +39,7 @@ export function TuiScratchpadLine({
 	projectionContent,
 	showProjection = true,
 	theme,
+	geometry,
 }: TuiScratchpadLineProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const isActive = line.state === "active" || line.state === "selected";
@@ -54,22 +60,42 @@ export function TuiScratchpadLine({
 				: c.fgMuted;
 	const sign =
 		line.sign ?? (hasError ? "!" : isActive ? "●" : isValid ? "✓" : " ");
+	const metrics = geometry ?? {
+		markerWidth: 1,
+		signWidth: 3,
+		lineNumberWidth: Math.max(1, line.lineNumber.length),
+		separatorWidth: 2,
+		contentStartColumn: 1 + 3 + Math.max(1, line.lineNumber.length) + 1 + 2,
+		authoredRowHeight: 1,
+		projectionRowHeight: showProjection ? 1 : 0,
+	};
+	const marker = isActive || hasError ? "▎" : " ";
+	const gutter = `${padScratchpadCell(marker, metrics.markerWidth)}${padScratchpadCell(` ${sign} `, metrics.signWidth)}${padScratchpadCell(line.lineNumber, metrics.lineNumberWidth)} │ `;
+	const projectionGutter = `${padScratchpadCell(marker, metrics.markerWidth)}${" ".repeat(metrics.signWidth + metrics.lineNumberWidth + 1)}│ `;
 
 	return (
 		<box flexDirection="column">
 			<box flexDirection="row" backgroundColor={rowBg} height={1}>
 				<text fg={accentColor} attributes={TextAttributes.BOLD}>
-					{isActive || hasError ? "▎" : " "}
+					{gutter.slice(0, metrics.markerWidth)}
 				</text>
 				<text fg={signColor} attributes={TextAttributes.BOLD}>
-					{" "}
-					{sign}{" "}
+					{gutter.slice(
+						metrics.markerWidth,
+						metrics.markerWidth + metrics.signWidth,
+					)}
 				</text>
 				<text
 					fg={isActive ? c.accentAmber : c.fgMuted}
 					attributes={isActive ? TextAttributes.BOLD : 0}
 				>
-					{line.lineNumber}{" "}
+					{gutter.slice(
+						metrics.markerWidth + metrics.signWidth,
+						metrics.markerWidth +
+							metrics.signWidth +
+							metrics.lineNumberWidth +
+							1,
+					)}
 				</text>
 				<text fg={c.borderDefault}>│ </text>
 				{authoredContent ?? (
@@ -85,9 +111,17 @@ export function TuiScratchpadLine({
 			{showProjection && (
 				<box flexDirection="row" backgroundColor={rowBg} height={1}>
 					<text fg={accentColor} attributes={TextAttributes.BOLD}>
-						{isActive || hasError ? "▎" : " "}
+						{projectionGutter.slice(0, metrics.markerWidth)}
 					</text>
-					<text fg="transparent"> </text>
+					<text fg="transparent">
+						{projectionGutter.slice(
+							metrics.markerWidth,
+							metrics.markerWidth +
+								metrics.signWidth +
+								metrics.lineNumberWidth +
+								1,
+						)}
+					</text>
 					<text fg={c.borderDefault}>│ </text>
 					{projectionContent ?? (
 						<text

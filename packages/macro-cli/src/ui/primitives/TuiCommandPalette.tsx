@@ -1,4 +1,4 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
 import type { I18nKernel } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
@@ -30,6 +30,8 @@ export interface TuiCommandPaletteProps {
 	readonly emptyMessage?: string;
 	readonly blinkCursor?: boolean;
 	readonly theme?: TuiThemeDefinition;
+	readonly onHighlightChange?: (index: number) => void;
+	readonly onSelect?: (id: string, index: number) => void;
 }
 
 export function TuiCommandPalette({
@@ -44,6 +46,8 @@ export function TuiCommandPalette({
 	emptyMessage,
 	blinkCursor = true,
 	theme,
+	onHighlightChange,
+	onSelect,
 }: TuiCommandPaletteProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const title = translate(i18n, "palette.title", "Commands");
@@ -73,7 +77,12 @@ export function TuiCommandPalette({
 	let flatIndex = 0;
 	const renderedRows: Array<
 		| { type: "header"; category: string }
-		| { type: "item"; item: TuiPaletteCommand; isSelected: boolean }
+		| {
+				type: "item";
+				item: TuiPaletteCommand;
+				isSelected: boolean;
+				index: number;
+		  }
 	> = [];
 
 	for (const cat of categories) {
@@ -90,6 +99,7 @@ export function TuiCommandPalette({
 				type: "item",
 				item,
 				isSelected: flatIndex === selectedIndex,
+				index: flatIndex,
 			});
 			flatIndex++;
 		}
@@ -189,7 +199,7 @@ export function TuiCommandPalette({
 						);
 					}
 
-					const { item, isSelected } = row;
+					const { item, isSelected, index } = row;
 					return (
 						<box
 							key={item.id}
@@ -198,6 +208,12 @@ export function TuiCommandPalette({
 							paddingLeft={1}
 							paddingRight={1}
 							flexDirection="row"
+							onMouseDown={(event: MouseEvent) => {
+								if (event.button === 0) {
+									onHighlightChange?.(index);
+									onSelect?.(item.id, index);
+								}
+							}}
 						>
 							<text
 								fg={isSelected ? activeSelectionFg : c.fgPrimary}

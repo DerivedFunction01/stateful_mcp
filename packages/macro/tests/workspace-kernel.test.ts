@@ -20,16 +20,16 @@ import {
 	I18nKernel,
 	loadWindowLayoutState,
 	mergeEditorKeymap,
-	validateEditorKeymap,
-	WorkspaceSaveCoordinator,
 	normalizeSelection,
 	ScratchpadSession,
 	SpecialKeys,
 	saveWindowLayoutState,
 	TabRegistry,
 	ViewRegistry,
+	validateEditorKeymap,
 	WindowLayoutStateManager,
 	WorkspaceJournal,
+	WorkspaceSaveCoordinator,
 } from "../src/workspace";
 
 describe("Headless Workspace Kernel — Phase 3F.1", () => {
@@ -741,17 +741,45 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 		test("normal and sequence keymap validation distinguishes duplicates", () => {
 			const diagnostics = validateEditorKeymap({
 				...DEFAULT_EDITOR_KEYMAP_PROFILE,
-				normal: { ...DEFAULT_EDITOR_KEYMAP_PROFILE.normal, moveDown: "x", moveUp: "x" },
+				normal: {
+					...DEFAULT_EDITOR_KEYMAP_PROFILE.normal,
+					moveDown: "x",
+					moveUp: "x",
+				},
 			});
-			expect(diagnostics.some((diagnostic) => diagnostic.code === "duplicate-binding")).toBe(true);
-			expect(validateEditorKeymap(DEFAULT_EDITOR_KEYMAP_PROFILE, { allowSequencePrefixes: true })).toHaveLength(0);
+			expect(
+				diagnostics.some(
+					(diagnostic) => diagnostic.code === "duplicate-binding",
+				),
+			).toBe(true);
+			expect(
+				validateEditorKeymap(DEFAULT_EDITOR_KEYMAP_PROFILE, {
+					allowSequencePrefixes: true,
+				}),
+			).toHaveLength(0);
 		});
 
 		test("save coordinator skips clean participants and blocks failed saves", async () => {
 			const coordinator = new WorkspaceSaveCoordinator();
 			let calls = 0;
-			coordinator.register({ id: "clean", scope: "tab", isDirty: () => false, save: async () => { calls++; return { status: "saved" }; } });
-			coordinator.register({ id: "dirty", scope: "workspace", isDirty: () => true, save: async () => { calls++; return { status: "failed", message: "nope" }; } });
+			coordinator.register({
+				id: "clean",
+				scope: "tab",
+				isDirty: () => false,
+				save: async () => {
+					calls++;
+					return { status: "saved" };
+				},
+			});
+			coordinator.register({
+				id: "dirty",
+				scope: "workspace",
+				isDirty: () => true,
+				save: async () => {
+					calls++;
+					return { status: "failed", message: "nope" };
+				},
+			});
 			const summary = await coordinator.saveAll();
 			expect(calls).toBe(1);
 			expect(summary.blocked).toBe(true);

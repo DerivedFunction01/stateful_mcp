@@ -1,8 +1,12 @@
-import type { CliRenderer } from "@opentui/core";
+import type { CliRenderer, MouseEvent } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import { useEffect, useSyncExternalStore } from "react";
 import { WindowContainer } from "./components/WindowContainer";
-import { dispatchTerminalInput } from "./terminal-dispatcher";
+import { normalizeOpenTuiMouseEvent } from "./input/mouse";
+import {
+	dispatchTerminalInput,
+	dispatchTerminalMouseInput,
+} from "./terminal-dispatcher";
 
 import type { TuiThemeDefinition } from "./ui/theme";
 
@@ -90,6 +94,12 @@ export function MacroCliApp({
 			workspace={workspace}
 			keymap={keymap}
 			renderer={renderer}
+			onMouse={(event: MouseEvent) =>
+				void dispatchTerminalMouseInput(
+					workspace,
+					normalizeOpenTuiMouseEvent(event),
+				)
+			}
 			theme={theme}
 		/>
 	);

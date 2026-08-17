@@ -31,6 +31,11 @@ export function CommandPaletteModal({
 			query={query}
 			items={items}
 			selectedIndex={selected}
+			onHighlightChange={(index) => workspace.palette.setSelectedIndex(index)}
+			onSelect={async (_id, index) => {
+				workspace.palette.setSelectedIndex(index);
+				await workspace.palette.executeSelected();
+			}}
 			width={width}
 			i18n={workspace.i18n}
 			theme={theme}

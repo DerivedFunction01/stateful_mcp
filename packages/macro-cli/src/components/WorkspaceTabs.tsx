@@ -25,6 +25,10 @@ export function WorkspaceTabs({
 		<TuiTabs
 			tabs={tabs}
 			activeTabId={active}
+			onSelectTab={(id) => {
+				workspace.layout.setActiveTab(id);
+				workspace.layout.setFocusedPane("main");
+			}}
 			variant="opencode"
 			theme={theme}
 		/>

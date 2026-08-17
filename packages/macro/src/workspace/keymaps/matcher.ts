@@ -122,7 +122,11 @@ export function mergeEditorKeymap(
 
 export interface KeymapDiagnostic {
 	readonly severity: "error" | "warning";
-	readonly code: "duplicate-binding" | "sequence-prefix-conflict" | "invalid-chord" | "reserved-binding";
+	readonly code:
+		| "duplicate-binding"
+		| "sequence-prefix-conflict"
+		| "invalid-chord"
+		| "reserved-binding";
 	readonly message: string;
 	readonly bindings: readonly string[];
 	readonly paths: readonly string[];
@@ -144,24 +148,52 @@ export function validateEditorKeymap(
 		for (const [action, chord] of Object.entries(profile[mode])) {
 			if (!chord) continue;
 			const normalized = normalizeChord(chord);
-			if (!normalized && (mode !== "sequences" || !/^[\[\]a-zA-Z]+$/u.test(chord))) {
-				diagnostics.push({ severity: "error", code: "invalid-chord", message: `Unknown chord '${chord}'.`, bindings: [chord], paths: [`${mode}.${action}`] });
+			if (
+				!normalized &&
+				(mode !== "sequences" || !/^[[\]a-zA-Z]+$/u.test(chord))
+			) {
+				diagnostics.push({
+					severity: "error",
+					code: "invalid-chord",
+					message: `Unknown chord '${chord}'.`,
+					bindings: [chord],
+					paths: [`${mode}.${action}`],
+				});
 				continue;
 			}
 			const key = normalized ?? chord;
 			const prior = seen.get(key);
 			if (prior && prior[1] !== action) {
-				diagnostics.push({ severity: "error", code: "duplicate-binding", message: `Chord '${chord}' is bound to both '${prior[1]}' and '${action}'.`, bindings: [prior[0], chord], paths: [`${mode}.${prior[1]}`, `${mode}.${action}`] });
+				diagnostics.push({
+					severity: "error",
+					code: "duplicate-binding",
+					message: `Chord '${chord}' is bound to both '${prior[1]}' and '${action}'.`,
+					bindings: [prior[0], chord],
+					paths: [`${mode}.${prior[1]}`, `${mode}.${action}`],
+				});
 			} else seen.set(key, [chord, action]);
 		}
 	}
-	const sequences = Object.entries(profile.sequences).filter(([, value]) => Boolean(value));
+	const sequences = Object.entries(profile.sequences).filter(([, value]) =>
+		Boolean(value),
+	);
 	for (let i = 0; i < sequences.length; i++) {
 		for (let j = i + 1; j < sequences.length; j++) {
 			const [a, first] = sequences[i]!;
 			const [b, second] = sequences[j]!;
-			if (first === second || first.startsWith(second) || second.startsWith(first)) {
-				if (first === second || !options.allowSequencePrefixes) diagnostics.push({ severity: "error", code: "sequence-prefix-conflict", message: `Sequences '${first}' and '${second}' conflict.`, bindings: [first, second], paths: [`sequences.${a}`, `sequences.${b}`] });
+			if (
+				first === second ||
+				first.startsWith(second) ||
+				second.startsWith(first)
+			) {
+				if (first === second || !options.allowSequencePrefixes)
+					diagnostics.push({
+						severity: "error",
+						code: "sequence-prefix-conflict",
+						message: `Sequences '${first}' and '${second}' conflict.`,
+						bindings: [first, second],
+						paths: [`sequences.${a}`, `sequences.${b}`],
+					});
 			}
 		}
 	}

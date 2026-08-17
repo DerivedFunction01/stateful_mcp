@@ -1,4 +1,8 @@
 import { TextAttributes } from "@opentui/core";
+import {
+	formatNumericValue,
+	type NumericFormatOptions,
+} from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── 1. STANDARD HORIZONTAL BAR CHART ─────────────────────────────────
@@ -16,6 +20,7 @@ export interface TuiBarChartProps {
 	readonly maxBarWidth?: number;
 	readonly showValues?: boolean;
 	readonly theme?: TuiThemeDefinition;
+	readonly formatOptions?: NumericFormatOptions;
 }
 
 export function TuiBarChart({
@@ -24,6 +29,7 @@ export function TuiBarChart({
 	maxBarWidth = 24,
 	showValues = true,
 	theme,
+	formatOptions,
 }: TuiBarChartProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -45,7 +51,8 @@ export function TuiBarChart({
 				const barStr = "█".repeat(barLen);
 				const barColor = item.color ?? c.accentPrimary;
 				const padLabel = item.label.padEnd(maxLabelLen, " ");
-				const displayVal = item.formattedValue ?? String(item.value);
+				const displayVal =
+					item.formattedValue ?? formatNumericValue(item.value, formatOptions);
 
 				return (
 					<box key={item.label} flexDirection="row" height={1}>

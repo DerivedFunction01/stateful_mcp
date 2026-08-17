@@ -33,19 +33,35 @@ export function commandSuggestions(
 		const names = [descriptor.verb, ...(descriptor.aliases ?? [])].filter(
 			(value): value is string => Boolean(value),
 		);
-		const name = names.find((candidate) => candidate.toLowerCase() === verb) ?? names.find((candidate) => candidate.toLowerCase().startsWith(verb));
+		const name =
+			names.find((candidate) => candidate.toLowerCase() === verb) ??
+			names.find((candidate) => candidate.toLowerCase().startsWith(verb));
 		if (!name) return [];
 		if (parts.length > 1 && descriptor.args?.[0]?.completions) {
 			return descriptor.args[0].completions
-				.filter((candidate) => candidate.toLowerCase().startsWith(argText.toLowerCase()))
-				.map((candidate) => ({ descriptor, value: `${name} ${candidate}`, detail: descriptor.args?.[0]?.description }));
+				.filter((candidate) =>
+					candidate.toLowerCase().startsWith(argText.toLowerCase()),
+				)
+				.map((candidate) => ({
+					descriptor,
+					value: `${name} ${candidate}`,
+					detail: descriptor.args?.[0]?.description,
+				}));
 		}
 		return [{ descriptor, value: name, detail: descriptor.description }];
 	});
 	const historical = history
 		.filter((entry) => entry.toLowerCase().startsWith(trimmed.toLowerCase()))
-		.flatMap((entry) => descriptors[0] ? [{ descriptor: descriptors[0], value: entry, detail: "History" }] : []);
+		.flatMap((entry) =>
+			descriptors[0]
+				? [{ descriptor: descriptors[0], value: entry, detail: "History" }]
+				: [],
+		);
 	return [...matches, ...historical]
-		.sort((a, b) => Number(a.value.toLowerCase() !== trimmed.toLowerCase()) - Number(b.value.toLowerCase() !== trimmed.toLowerCase()))
+		.sort(
+			(a, b) =>
+				Number(a.value.toLowerCase() !== trimmed.toLowerCase()) -
+				Number(b.value.toLowerCase() !== trimmed.toLowerCase()),
+		)
 		.slice(0, limit);
 }

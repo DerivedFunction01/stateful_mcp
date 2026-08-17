@@ -1,4 +1,8 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
+import {
+	formatNumericValue,
+	type NumericFormatOptions,
+} from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── TUI SLIDER ───────────────────────────────────────────────────────────────
@@ -15,6 +19,8 @@ export interface TuiSliderProps {
 	readonly intent?: "primary" | "warning" | "success" | "danger";
 	readonly disabled?: boolean;
 	readonly theme?: TuiThemeDefinition;
+	readonly onChange?: (value: number) => void;
+	readonly formatOptions?: NumericFormatOptions;
 }
 
 export function TuiSlider({
@@ -22,12 +28,15 @@ export function TuiSlider({
 	value,
 	min = 0,
 	max = 100,
+	step = 1,
 	unit = "%",
 	width = 32,
 	isFocused = false,
 	intent = "primary",
 	disabled = false,
 	theme,
+	onChange,
+	formatOptions,
 }: TuiSliderProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -49,6 +58,19 @@ export function TuiSlider({
 	// Active track before thumb: ━, Thumb: ●, Inactive track after thumb: ─
 	const leftTrack = "━".repeat(thumbPos);
 	const rightTrack = "─".repeat(Math.max(0, trackWidth - thumbPos - 1));
+	const displayValue = `${formatNumericValue(clampedValue, formatOptions)}${unit}`;
+	const updateFromPointer = (event: MouseEvent) => {
+		if (disabled || (event.button !== 0 && !event.isDragging)) return;
+		const ratio = Math.max(
+			0,
+			Math.min(1, (event.x - 1) / Math.max(1, trackWidth - 1)),
+		);
+		const raw = min + ratio * (max - min);
+		const stepped =
+			Math.round(raw / Math.max(step, Number.EPSILON)) *
+			Math.max(step, Number.EPSILON);
+		onChange?.(Math.max(min, Math.min(max, stepped)));
+	};
 
 	return (
 		<box flexDirection="column">
@@ -65,8 +87,7 @@ export function TuiSlider({
 						fg={isFocused ? intentColor : c.fgMuted}
 						attributes={TextAttributes.BOLD}
 					>
-						{clampedValue}
-						{unit}
+						{displayValue}
 					</text>
 				</box>
 			)}
@@ -76,6 +97,8 @@ export function TuiSlider({
 				backgroundColor={isFocused ? c.bgActive : undefined}
 				paddingLeft={1}
 				paddingRight={1}
+				onMouseDown={updateFromPointer}
+				onMouseDrag={updateFromPointer}
 			>
 				<text
 					fg={disabled ? c.fgDim : isFocused ? intentColor : c.borderDefault}
@@ -106,8 +129,7 @@ export function TuiSlider({
 						attributes={TextAttributes.BOLD}
 					>
 						{"  "}
-						{clampedValue}
-						{unit}
+						{displayValue}
 					</text>
 				)}
 			</box>
@@ -127,6 +149,8 @@ export interface TuiRangeSliderProps {
 	readonly isFocused?: boolean;
 	readonly activeThumb?: "start" | "end";
 	readonly theme?: TuiThemeDefinition;
+	readonly onChange?: (range: readonly [number, number]) => void;
+	readonly formatOptions?: NumericFormatOptions;
 }
 
 export function TuiRangeSlider({
@@ -139,6 +163,8 @@ export function TuiRangeSlider({
 	isFocused = false,
 	activeThumb = "end",
 	theme,
+	onChange,
+	formatOptions,
 }: TuiRangeSliderProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -153,6 +179,19 @@ export function TuiRangeSlider({
 	const preTrack = "─".repeat(startPos);
 	const inSpan = "━".repeat(Math.max(0, endPos - startPos - 1));
 	const postTrack = "─".repeat(Math.max(0, trackWidth - endPos - 1));
+	const displayRange = `${formatNumericValue(range[0], formatOptions)}${unit} - ${formatNumericValue(range[1], formatOptions)}${unit}`;
+	const updateFromPointer = (event: MouseEvent) => {
+		if (event.button !== 0 && !event.isDragging) return;
+		const ratio = Math.max(
+			0,
+			Math.min(1, (event.x - 1) / Math.max(1, trackWidth - 1)),
+		);
+		const value = min + ratio * (max - min);
+		const next: [number, number] = [...range] as [number, number];
+		next[activeThumb === "start" ? 0 : 1] = Math.max(min, Math.min(max, value));
+		if (next[0] > next[1]) [next[0], next[1]] = [next[1], next[0]];
+		onChange?.(next);
+	};
 
 	return (
 		<box flexDirection="column">
@@ -166,9 +205,7 @@ export function TuiRangeSlider({
 					</text>
 					<box flexGrow={1} />
 					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-						{range[0]}
-						{unit} - {range[1]}
-						{unit}
+						{displayRange}
 					</text>
 				</box>
 			)}
@@ -178,6 +215,8 @@ export function TuiRangeSlider({
 				backgroundColor={isFocused ? c.bgActive : undefined}
 				paddingLeft={1}
 				paddingRight={1}
+				onMouseDown={updateFromPointer}
+				onMouseDrag={updateFromPointer}
 			>
 				<text fg={c.borderDefault}>├</text>
 				<text fg={c.borderDefault}>{preTrack}</text>

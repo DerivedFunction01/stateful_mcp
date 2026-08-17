@@ -3,6 +3,7 @@ import {
 	type EditorKeymapProfile,
 	type MacroWorkspace,
 } from "@stateful-mcp/macro";
+import type { NormalizedMouseEvent } from "./input/mouse";
 
 export interface TerminalKeyEvent {
 	readonly input?: string;
@@ -11,6 +12,43 @@ export interface TerminalKeyEvent {
 	readonly ctrl?: boolean;
 	readonly meta?: boolean;
 	readonly shift?: boolean;
+}
+
+export type TerminalMouseEvent = NormalizedMouseEvent;
+
+export async function dispatchTerminalMouseInput(
+	workspace: MacroWorkspace,
+	event: TerminalMouseEvent,
+): Promise<"handled" | "ignored"> {
+	const layout = workspace.layout.getSnapshot();
+	if (workspace.palette.getIsOpen()) {
+		if (event.type === "wheel") {
+			workspace.palette.moveSelection(event.delta && event.delta > 0 ? 1 : -1);
+			return "handled";
+		}
+		return "ignored";
+	}
+
+	const contribution =
+		layout.focusedPane === "sidepanel"
+			? workspace.views
+					.getViewsForContainer(layout.activeContainerId)
+					.find((view) => view.provider)?.provider
+			: layout.focusedPane === "main" && layout.activeTabId !== "scratchpad"
+				? workspace.tabs.getTab(layout.activeTabId)?.provider
+				: undefined;
+	if (contribution?.handleInput) {
+		const result = await contribution.handleInput(event, {
+			scopeId:
+				layout.focusedPane === "sidepanel"
+					? layout.activeContainerId
+					: layout.activeTabId,
+			emitAction: (actionId, payload) =>
+				void workspace.commands.executeCommand(actionId, payload),
+		});
+		if (result === "handled") return "handled";
+	}
+	return "ignored";
 }
 
 export async function dispatchTerminalInput(
@@ -61,16 +99,32 @@ export async function dispatchTerminalInput(
 			workspace.layout.setFocusedPane("main");
 			return "handled";
 		}
-		const handled = workspace.editor.handleKey({ char: input, name, ctrl: event.ctrl, meta: event.meta, shift: event.shift });
+		const handled = workspace.editor.handleKey({
+			char: input,
+			name,
+			ctrl: event.ctrl,
+			meta: event.meta,
+			shift: event.shift,
+		});
 		const submitted = workspace.editor.consumeSubmittedCommand();
 		if (submitted !== null) {
 			const [verb, ...args] = submitted.split(/\s+/u).filter(Boolean);
 			const command = verb ? workspace.commands.resolveVerb(verb) : undefined;
 			if (!command) return "handled";
 			try {
-				const result = await workspace.commands.executeCommand(command.command, ...args);
+				const result = await workspace.commands.executeCommand(
+					command.command,
+					...args,
+				);
 				workspace.layout.setFocusedPane("main");
-				if (verb && ["q", "quit", "qa", "quitall", "wq", "wqa"].includes(verb.toLowerCase()) && !(result as { blocked?: boolean } | undefined)?.blocked) return "quit";
+				if (
+					verb &&
+					["q", "quit", "qa", "quitall", "wq", "wqa"].includes(
+						verb.toLowerCase(),
+					) &&
+					!(result as { blocked?: boolean } | undefined)?.blocked
+				)
+					return "quit";
 			} catch {
 				return "handled";
 			}
@@ -259,8 +313,17 @@ export async function dispatchTerminalInput(
 		// - 'r': executes current/all valid macrolines
 		// - Tab / Shift+Tab: cycles top-level workspace tabs
 		if (currentMode === "NORMAL") {
-			if (keymap.normal.command && chordMatches(keymap.normal.command, chordEvent)) {
-				const handled = workspace.editor.handleKey({ char: input, name, ctrl: event.ctrl, meta: event.meta, shift: event.shift });
+			if (
+				keymap.normal.command &&
+				chordMatches(keymap.normal.command, chordEvent)
+			) {
+				const handled = workspace.editor.handleKey({
+					char: input,
+					name,
+					ctrl: event.ctrl,
+					meta: event.meta,
+					shift: event.shift,
+				});
 				workspace.layout.setFocusedPane("command");
 				return handled ? "handled" : "ignored";
 			}

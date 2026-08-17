@@ -21,9 +21,14 @@ export function SidepanelHost({
 	const container = workspace.views.getContainer(
 		snapshot.activeInspectorContainerId,
 	);
+	const focusSidepanel = () => workspace.layout.setFocusedPane("sidepanel");
 
 	if (container?.id === "journal") {
-		return <JournalView workspace={workspace} />;
+		return (
+			<box width="100%" height="100%" onMouseDown={focusSidepanel}>
+				<JournalView workspace={workspace} />
+			</box>
+		);
 	}
 
 	const view = workspace.views
@@ -35,15 +40,19 @@ export function SidepanelHost({
 		const emitAction = (actionId: string, payload?: unknown) => {
 			void workspace.commands.executeCommand(actionId, payload);
 		};
-		return provider.render({
-			viewId: view.id,
-			workspace,
-			width,
-			height,
-			isFocused: snapshot.focusedPane === "sidepanel",
-			emitAction,
-			onEmitAction: emitAction,
-		});
+		return (
+			<box width="100%" height="100%" onMouseDown={focusSidepanel}>
+				{provider.render({
+					viewId: view.id,
+					workspace,
+					width,
+					height,
+					isFocused: snapshot.focusedPane === "sidepanel",
+					emitAction,
+					onEmitAction: emitAction,
+				})}
+			</box>
+		);
 	}
 
 	// Default Node / Slot Inspector details
@@ -52,7 +61,7 @@ export function SidepanelHost({
 	const activeProjection = projected[activeLineIndex];
 
 	return (
-		<box flexDirection="column">
+		<box flexDirection="column" onMouseDown={focusSidepanel}>
 			{activeProjection ? (
 				<box flexDirection="column">
 					<box height={1} marginBottom={1}>

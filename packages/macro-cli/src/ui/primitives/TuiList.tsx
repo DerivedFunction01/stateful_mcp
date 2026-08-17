@@ -1,5 +1,7 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
+import type { I18nKernel } from "@stateful-mcp/macro";
 import type { ReactNode } from "react";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export interface TuiListItem {
@@ -21,23 +23,31 @@ export interface TuiListProps {
 	readonly emptyMessage?: string;
 	readonly renderItem?: (item: TuiListItem, isSelected: boolean) => ReactNode;
 	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly onHighlightChange?: (index: number) => void;
+	readonly onSelect?: (id: string, index: number) => void;
 }
 
 export function TuiList({
 	items,
 	selectedIndex = -1,
 	maxVisible,
-	emptyMessage = "No items available.",
+	emptyMessage,
 	renderItem,
 	theme,
+	onHighlightChange,
+	onSelect,
+	i18n,
 }: TuiListProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const effectiveEmptyMessage =
+		emptyMessage ?? translate(i18n, "list.empty", "No items available");
 
 	if (items.length === 0) {
 		return (
 			<box padding={1}>
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{emptyMessage}
+					{effectiveEmptyMessage}
 				</text>
 			</box>
 		);
@@ -70,6 +80,12 @@ export function TuiList({
 						backgroundColor={rowBg}
 						paddingLeft={0}
 						paddingRight={1}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) {
+								onHighlightChange?.(index);
+								onSelect?.(item.id, index);
+							}
+						}}
 					>
 						{/* Left accent indicator */}
 						<text fg={pillarColor} attributes={TextAttributes.BOLD}>

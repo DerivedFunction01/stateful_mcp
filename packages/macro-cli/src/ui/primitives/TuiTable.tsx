@@ -1,5 +1,11 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
+import type { I18nKernel } from "@stateful-mcp/macro";
+import {
+	formatNumericValue,
+	type NumericFormatOptions,
+} from "@stateful-mcp/macro";
 import type { ReactNode } from "react";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiTableVariant = "modern" | "office-grid" | "zebra" | "compact";
@@ -30,6 +36,10 @@ export interface TuiTableProps<T = Record<string, unknown>> {
 	readonly title?: string;
 	readonly emptyMessage?: string;
 	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly formatOptions?: NumericFormatOptions;
+	readonly onSelectRow?: (index: number) => void;
+	readonly onSelectCell?: (cell: TuiTableCellCoord) => void;
 }
 
 function padCell(
@@ -56,17 +66,27 @@ export function TuiTable<T extends Record<string, unknown>>({
 	selectedCell,
 	variant = "modern",
 	title,
-	emptyMessage = "No data available.",
+	emptyMessage,
 	theme,
+	onSelectRow,
+	onSelectCell,
+	i18n,
+	formatOptions,
 }: TuiTableProps<T>) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const effectiveEmptyMessage =
+		emptyMessage ?? translate(i18n, "table.empty", "No data available");
+	const formatCellValue = (value: unknown) =>
+		typeof value === "number"
+			? formatNumericValue(value, formatOptions)
+			: String(value ?? "");
 
 	// Resolve column widths
 	const resolvedWidths = columns.map((col) => {
 		if (col.width) return col.width;
 		let maxLen = col.header.length;
 		for (const row of data) {
-			const val = String(row[col.id] ?? "");
+			const val = formatCellValue(row[col.id]);
 			if (val.length > maxLen) maxLen = val.length;
 		}
 		return Math.max(8, maxLen + 2);
@@ -76,13 +96,22 @@ export function TuiTable<T extends Record<string, unknown>>({
 		return (
 			<box padding={1}>
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{emptyMessage}
+					{effectiveEmptyMessage}
 				</text>
 			</box>
 		);
 	}
 
 	const activeRowIdx = selectedCell ? selectedCell.row : selectedIndex;
+	const handlePointer = (event: MouseEvent) => {
+		if (event.button !== 0) return;
+		const row = Math.max(0, Math.min(data.length - 1, Math.floor(event.y)));
+		onSelectRow?.(row);
+		onSelectCell?.({
+			row,
+			col: Math.max(0, Math.min(columns.length - 1, Math.floor(event.x / 10))),
+		});
+	};
 
 	// ─── 1. OFFICE-GRID THEME (Classic MS Office / Excel Box-Drawing Grid) ─
 	if (variant === "office-grid") {
@@ -94,7 +123,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 			"└" + resolvedWidths.map((w) => "─".repeat(w + 2)).join("┴") + "┘";
 
 		return (
-			<box flexDirection="column">
+			<box flexDirection="column" onMouseDown={handlePointer}>
 				{title && (
 					<box height={1} marginBottom={1}>
 						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
@@ -156,7 +185,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 							<text fg={c.borderActive}>│</text>
 							{columns.map((col, cIdx) => {
 								const width = resolvedWidths[cIdx]!;
-								const rawVal = String(row[col.id] ?? "");
+								const rawVal = formatCellValue(row[col.id]);
 								const cellStr = padCell(rawVal, width, col.align);
 
 								const isCellSelected = selectedCell
@@ -208,7 +237,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 	// ─── 2. ZEBRA STRIPED THEME ──────────────────────────────────────────
 	if (variant === "zebra") {
 		return (
-			<box flexDirection="column">
+			<box flexDirection="column" onMouseDown={handlePointer}>
 				{title && (
 					<box height={1} marginBottom={1}>
 						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
@@ -265,7 +294,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 							</text>
 							{columns.map((col, cIdx) => {
 								const width = resolvedWidths[cIdx]!;
-								const rawVal = String(row[col.id] ?? "");
+								const rawVal = formatCellValue(row[col.id]);
 								const cellStr = padCell(rawVal, width, col.align);
 
 								const isCellSelected = selectedCell
@@ -304,7 +333,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 	// ─── 3. COMPACT MINIMAL THEME ─────────────────────────────────────────
 	if (variant === "compact") {
 		return (
-			<box flexDirection="column">
+			<box flexDirection="column" onMouseDown={handlePointer}>
 				{/* Header */}
 				<box flexDirection="row" height={1}>
 					{columns.map((col, idx) => {
@@ -325,7 +354,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 						<box key={rIdx} flexDirection="row" height={1}>
 							{columns.map((col, cIdx) => {
 								const width = resolvedWidths[cIdx]!;
-								const rawVal = String(row[col.id] ?? "");
+								const rawVal = formatCellValue(row[col.id]);
 								const cellStr = padCell(rawVal, width, col.align);
 
 								const isCellSelected = selectedCell
@@ -366,7 +395,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 	const totalTableWidth = resolvedWidths.reduce((a, b) => a + b + 2, 0);
 
 	return (
-		<box flexDirection="column">
+		<box flexDirection="column" onMouseDown={handlePointer}>
 			{title && (
 				<box height={1} marginBottom={1}>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
@@ -418,7 +447,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 						</text>
 						{columns.map((col, cIdx) => {
 							const width = resolvedWidths[cIdx]!;
-							const rawVal = String(row[col.id] ?? "");
+							const rawVal = formatCellValue(row[col.id]);
 							const cellStr = padCell(rawVal, width, col.align);
 
 							const isCellSelected = selectedCell

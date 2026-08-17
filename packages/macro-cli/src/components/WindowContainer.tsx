@@ -1,4 +1,4 @@
-import type { CliRenderer } from "@opentui/core";
+import type { CliRenderer, MouseEvent } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import type { MacroCliViewProvider } from "../renderer";
 import { TuiWorkspaceSurface } from "../ui/compositions";
@@ -18,11 +18,13 @@ export function WindowContainer({
 	keymap,
 	renderer,
 	theme,
+	onMouse,
 }: {
 	workspace: MacroWorkspace;
 	keymap?: EditorKeymapProfile;
 	renderer: CliRenderer;
 	theme?: TuiThemeDefinition;
+	onMouse?: (event: MouseEvent) => void;
 }) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const snapshot = workspace.layout.getSnapshot();
@@ -79,7 +81,7 @@ export function WindowContainer({
 		}));
 
 	return (
-		<box width="100%" height="100%">
+		<box width="100%" height="100%" onMouse={onMouse}>
 			<TuiWorkspaceSurface
 				header={<WorkspaceTabs workspace={workspace} theme={theme} />}
 				startRegion={
@@ -90,6 +92,7 @@ export function WindowContainer({
 						onSelectRail={(id) =>
 							workspace.layout.setActiveActivityContainer(id)
 						}
+						onMouseDownRail={() => workspace.layout.setFocusedPane("activity")}
 						title={activeActivityContainer?.title ?? "Activity"}
 						closeHint={
 							activeActivityContainer?.altKey
@@ -131,6 +134,7 @@ export function WindowContainer({
 							<ScratchpadView
 								workspace={workspace}
 								keymap={keymap}
+								height={Math.max(1, rows - 5)}
 								theme={theme}
 							/>
 						) : (
@@ -146,6 +150,7 @@ export function WindowContainer({
 						onSelectRail={(id) =>
 							workspace.layout.setActiveInspectorContainer(id)
 						}
+						onMouseDownRail={() => workspace.layout.setFocusedPane("sidepanel")}
 						title={activeInspectorContainer?.title ?? "Inspector"}
 						closeHint={
 							activeInspectorContainer?.altKey

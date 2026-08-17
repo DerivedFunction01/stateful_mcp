@@ -1,5 +1,5 @@
-import type { CommandContribution, CommandHandler } from "./types";
 import type { WorkspaceCommandDescriptor } from "../commands/command-descriptor";
+import type { CommandContribution, CommandHandler } from "./types";
 
 export interface RegisteredCommand extends CommandContribution {
 	readonly extensionId?: string;
@@ -66,7 +66,9 @@ export class CommandRegistry {
 	resolveVerb(verb: string): RegisteredCommand | undefined {
 		const value = verb.toLowerCase();
 		return this.getCommands().find((command) =>
-			[command.verb, ...(command.aliases ?? [])].some((candidate) => candidate?.toLowerCase() === value),
+			[command.verb, ...(command.aliases ?? [])].some(
+				(candidate) => candidate?.toLowerCase() === value,
+			),
 		);
 	}
 

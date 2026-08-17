@@ -1,4 +1,4 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export interface TuiActivityItem {
@@ -14,6 +14,7 @@ export interface TuiActivityRailProps {
 	readonly items: readonly TuiActivityItem[];
 	readonly activeId?: string;
 	readonly onSelect?: (id: string) => void;
+	readonly onMouseDown?: (id: string, event: MouseEvent) => void;
 	/** Whether this rail's region currently has keyboard input focus */
 	readonly isFocused?: boolean;
 	readonly theme?: TuiThemeDefinition;
@@ -73,6 +74,8 @@ export function TuiActivityRail({
 	items,
 	activeId,
 	isFocused = false,
+	onSelect,
+	onMouseDown,
 	theme,
 }: TuiActivityRailProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
@@ -105,6 +108,12 @@ export function TuiActivityRail({
 						width={4}
 						backgroundColor={itemBg}
 						marginBottom={1}
+						onMouseDown={(event) => {
+							if (event.button === 0) {
+								onSelect?.(item.id);
+								onMouseDown?.(item.id, event);
+							}
+						}}
 					>
 						{/* Row 1: Left Pillar (1 char) + Centered Icon (3 chars) */}
 						<box height={1} flexDirection="row" width={4}>

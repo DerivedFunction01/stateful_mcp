@@ -1,4 +1,4 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,6 +37,8 @@ export interface TuiInputProps {
 	readonly width?: number;
 	/** Theme override */
 	readonly theme?: TuiThemeDefinition;
+	readonly onFocus?: () => void;
+	readonly onPointerPosition?: (position: number) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -57,6 +59,8 @@ export function TuiInput({
 	cursorPos,
 	width = 32,
 	theme,
+	onFocus,
+	onPointerPosition,
 }: TuiInputProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -129,6 +133,13 @@ export function TuiInput({
 	}
 	// Pad to exact inner width so the input box is consistently sized
 	const paddedText = visibleText.padEnd(innerWidth, " ");
+	const handlePointer = (event: MouseEvent) => {
+		if (event.button !== 0 || disabled) return;
+		onFocus?.();
+		onPointerPosition?.(
+			Math.max(0, Math.min(value.length, Math.floor(event.x))),
+		);
+	};
 
 	// Insert blinking cursor character
 	let renderText = paddedText;
@@ -155,7 +166,7 @@ export function TuiInput({
 	if (variant === "underline") {
 		const underlineChar = isFocused ? "▔" : "─";
 		return (
-			<box flexDirection="column" width={width}>
+			<box flexDirection="column" width={width} onMouseDown={handlePointer}>
 				{label && (
 					<box height={1}>
 						<text
@@ -207,7 +218,7 @@ export function TuiInput({
 	// ── FILLED VARIANT ───────────────────────────────────────────────────────
 	if (variant === "filled") {
 		return (
-			<box flexDirection="column" width={width}>
+			<box flexDirection="column" width={width} onMouseDown={handlePointer}>
 				{label && (
 					<box height={1}>
 						<text fg={labelFg} attributes={TextAttributes.BOLD}>
@@ -252,7 +263,7 @@ export function TuiInput({
 	// ── GHOST VARIANT ────────────────────────────────────────────────────────
 	if (variant === "ghost") {
 		return (
-			<box flexDirection="column" width={width}>
+			<box flexDirection="column" width={width} onMouseDown={handlePointer}>
 				{label && (
 					<box height={1}>
 						<text fg={labelFg}>{label}</text>
@@ -288,7 +299,7 @@ export function TuiInput({
 
 	// ── BORDERED VARIANT (Default) ────────────────────────────────────────────
 	return (
-		<box flexDirection="column" width={width}>
+		<box flexDirection="column" width={width} onMouseDown={handlePointer}>
 			{label && (
 				<box height={1}>
 					<text fg={labelFg} attributes={TextAttributes.BOLD}>

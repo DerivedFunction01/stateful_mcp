@@ -1,3 +1,4 @@
+import type { MouseEvent } from "@opentui/core";
 import type { ReactNode } from "react";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 import { type TuiActivityItem, TuiActivityRail } from "./TuiActivityRail";
@@ -10,6 +11,7 @@ export interface TuiPanelRegionProps {
 	readonly railItems: readonly TuiActivityItem[];
 	readonly activeRailId?: string;
 	readonly onSelectRail?: (id: string) => void;
+	readonly onMouseDownRail?: (id: string, event: MouseEvent) => void;
 	readonly title: string;
 	readonly closeHint?: string;
 	readonly panelWidth?: number;
@@ -36,6 +38,7 @@ export function TuiPanelRegion({
 	railItems,
 	activeRailId,
 	onSelectRail,
+	onMouseDownRail,
 	title,
 	closeHint = "×",
 	panelWidth = 30,
@@ -54,6 +57,7 @@ export function TuiPanelRegion({
 			items={railItems}
 			activeId={activeRailId}
 			onSelect={onSelectRail}
+			onMouseDown={onMouseDownRail}
 			isFocused={isFocused}
 			theme={theme}
 		/>

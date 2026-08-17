@@ -40,6 +40,9 @@
 				"noUnusedVariables": "off",
 				"noUnusedFunctionParameters": "off",
 				"noConstAssign": "off"
+			},
+			"a11y": {
+				"noStaticElementInteractions": "off"
 			}
 		}
 	},

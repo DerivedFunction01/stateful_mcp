@@ -1,4 +1,6 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
+import type { I18nKernel } from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,6 +43,10 @@ export interface TuiDropdownProps {
 	readonly width?: number;
 	/** Theme override */
 	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly onOpenChange?: (open: boolean) => void;
+	readonly onHighlightChange?: (index: number) => void;
+	readonly onSelect?: (id: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -52,13 +58,19 @@ export function TuiDropdown({
 	isOpen = false,
 	isFocused = false,
 	label,
-	placeholder = "Select an option…",
+	placeholder,
 	maxVisible = 6,
 	variant = "bordered",
 	width = 32,
 	theme,
+	i18n,
+	onOpenChange,
+	onHighlightChange,
+	onSelect,
 }: TuiDropdownProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const effectivePlaceholder =
+		placeholder ?? translate(i18n, "dropdown.placeholder", "Select an option");
 
 	const selectedOption = options.find((o) => o.id === selectedId);
 	const borderColor = isFocused || isOpen ? c.borderActive : c.borderDefault;
@@ -67,7 +79,7 @@ export function TuiDropdown({
 	// ── Trigger label text ────────────────────────────────────────────────────
 	const triggerText = selectedOption
 		? `${selectedOption.icon ? selectedOption.icon + " " : ""}${selectedOption.label}`
-		: placeholder;
+		: effectivePlaceholder;
 	const triggerFg = selectedOption ? c.fgPrimary : c.fgDim;
 	const innerWidth = Math.max(6, width - 6); // account for border + padding + chevron
 	const truncatedTrigger = triggerText
@@ -198,6 +210,11 @@ export function TuiDropdown({
 						backgroundColor={optionBg}
 						paddingLeft={0}
 						paddingRight={1}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button !== 0 || opt.disabled || opt.divider) return;
+							onHighlightChange?.(idx);
+							onSelect?.(opt.id);
+						}}
 					>
 						<text fg={pillarFg} attributes={TextAttributes.BOLD}>
 							{pillar}
@@ -245,7 +262,13 @@ export function TuiDropdown({
 					</text>
 				</box>
 			)}
-			{renderTrigger()}
+			<box
+				onMouseDown={(event: MouseEvent) => {
+					if (event.button === 0) onOpenChange?.(!isOpen);
+				}}
+			>
+				{renderTrigger()}
+			</box>
 			{isOpen && renderPopover()}
 		</box>
 	);

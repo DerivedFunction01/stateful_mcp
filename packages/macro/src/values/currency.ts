@@ -1,4 +1,5 @@
 import type { CurrencyValue, ValueEvidence } from "../contracts/values";
+import { formatNumericValue } from "./numeric";
 import { escapeRegex } from "./regex";
 
 export interface CurrencyDenomination {
@@ -24,6 +25,27 @@ export interface CurrencyFormatConfig {
 	readonly thousandsSeparator?: string;
 	readonly decimalSeparator?: "." | ",";
 	readonly allowSpace?: boolean;
+}
+
+export function formatCurrencyValue(
+	amount: number,
+	currency: string,
+	config: CurrencyFormatConfig = {},
+): string {
+	const definition = (config.definitions ?? STANDARD_CURRENCY_CATALOG).find(
+		(item) => item.code === currency,
+	);
+	const symbol =
+		definition?.symbols?.[0] ?? config.currencies?.[currency]?.[0] ?? currency;
+	return formatNumericValue(amount, {
+		decimalDigits: definition?.decimals ?? 2,
+		exact: true,
+		decimalPoint: config.decimalSeparator,
+		thousandsSeparator: config.thousandsSeparator,
+		currencySymbols: [symbol],
+		currencyPosition: config.position === "suffix" ? "suffix" : "prefix",
+		negativeStyle: config.negativeStyle,
+	});
 }
 
 export interface CurrencyConsumerPolicy {

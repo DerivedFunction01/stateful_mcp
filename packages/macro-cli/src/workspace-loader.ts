@@ -59,10 +59,16 @@ export async function loadMacroCliWorkspace(
 		DEFAULT_EDITOR_KEYMAP_PROFILE,
 		keymapOverride,
 	);
-	const keymapDiagnostics = validateEditorKeymap(keymap, { allowSequencePrefixes: true });
-	const keymapErrors = keymapDiagnostics.filter((diagnostic) => diagnostic.severity === "error");
+	const keymapDiagnostics = validateEditorKeymap(keymap, {
+		allowSequencePrefixes: true,
+	});
+	const keymapErrors = keymapDiagnostics.filter(
+		(diagnostic) => diagnostic.severity === "error",
+	);
 	if (keymapErrors.length > 0) {
-		throw new Error(`Invalid editor keymap: ${keymapErrors.map((diagnostic) => diagnostic.message).join("; ")}`);
+		throw new Error(
+			`Invalid editor keymap: ${keymapErrors.map((diagnostic) => diagnostic.message).join("; ")}`,
+		);
 	}
 
 	const loadedExtensions = manifestResult

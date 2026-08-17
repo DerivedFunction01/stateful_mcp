@@ -31,3 +31,4 @@ export * from "./primitives/TuiToggle";
 export * from "./primitives/TuiTree";
 export * from "./theme";
 export * from "./tokens";
+export * from "./viewport";

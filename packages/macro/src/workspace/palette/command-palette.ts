@@ -87,7 +87,9 @@ export class CommandPaletteController {
 				id: cmd.command,
 				title: cmd.title,
 				category: cmd.category ?? "Command",
-				keybinding: cmd.keybinding ?? [cmd.verb, ...(cmd.aliases ?? [])].filter(Boolean).join(", "),
+				keybinding:
+					cmd.keybinding ??
+					[cmd.verb, ...(cmd.aliases ?? [])].filter(Boolean).join(", "),
 				execute: () => this.commandRegistry.executeCommand(cmd.command),
 			});
 		}
@@ -135,7 +137,8 @@ export class CommandPaletteController {
 
 		return allItems.filter((item) => {
 			const command = this.commandRegistry.getCommand(item.id);
-			const text = `${item.category ?? ""} ${item.title} ${item.id} ${item.keybinding ?? ""} ${command?.aliases?.join(" ") ?? ""}`.toLowerCase();
+			const text =
+				`${item.category ?? ""} ${item.title} ${item.id} ${item.keybinding ?? ""} ${command?.aliases?.join(" ") ?? ""}`.toLowerCase();
 			return text.includes(q);
 		});
 	}

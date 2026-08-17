@@ -33,6 +33,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 			autoFocus: true,
 			useKittyKeyboard: {},
 		});
+		renderer.start();
 
 		createRoot(renderer).render(
 			createElement(ComponentLabApp, {
@@ -61,6 +62,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 			void loaded.workspace.dispose();
 		},
 	});
+	renderer.start();
 
 	createRoot(renderer).render(
 		createElement(MacroCliApp, {

@@ -30,6 +30,7 @@ export interface DateTimeFormatOptions {
 	precision?: string;
 	locale?: string;
 	timeZone?: string;
+	firstDayOfWeek?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 export interface DateTimeFormatConfig {
@@ -37,6 +38,64 @@ export interface DateTimeFormatConfig {
 	tokens: DateTimeToken[];
 	separators: string[];
 	options?: DateTimeFormatOptions;
+}
+
+export interface DateTimeDisplayValue {
+	readonly year: number;
+	readonly month: number;
+	readonly day: number;
+}
+
+export function formatDateTimeValue(
+	value: Date | DateTimeDisplayValue,
+	config: DateTimeFormatConfig,
+): string {
+	const date =
+		value instanceof Date
+			? value
+			: new Date(value.year, value.month - 1, value.day);
+	const options = config.options;
+	const zonedParts = new Intl.DateTimeFormat("en-CA", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hourCycle: "h23",
+		timeZone: options?.timeZone,
+	})
+		.formatToParts(date)
+		.reduce<Record<string, string>>((result, part) => {
+			if (part.type !== "literal") result[part.type] = part.value;
+			return result;
+		}, {});
+	const fields: Record<DateTimeToken, string> = {
+		YYYY: zonedParts.year ?? String(date.getFullYear()).padStart(4, "0"),
+		YY: (zonedParts.year ?? String(date.getFullYear())).slice(-2),
+		MM: zonedParts.month ?? String(date.getMonth() + 1).padStart(2, "0"),
+		MM_name:
+			options?.monthNames?.[date.getMonth()] ??
+			new Intl.DateTimeFormat(options?.locale, {
+				month: "long",
+				timeZone: options?.timeZone,
+			}).format(date),
+		DD: zonedParts.day ?? String(date.getDate()).padStart(2, "0"),
+		HH: zonedParts.hour ?? String(date.getHours()).padStart(2, "0"),
+		min: zonedParts.minute ?? String(date.getMinutes()).padStart(2, "0"),
+		SS: zonedParts.second ?? String(date.getSeconds()).padStart(2, "0"),
+		ampm:
+			Number(zonedParts.hour ?? date.getHours()) >= 12
+				? (options?.dayPeriods?.pm?.[0] ?? "PM")
+				: (options?.dayPeriods?.am?.[0] ?? "AM"),
+		tz: options?.timeZone ?? "",
+	};
+	return config.tokens
+		.map(
+			(token, index) =>
+				`${index === 0 ? "" : (config.separators[index - 1] ?? "")}${fields[token]}`,
+		)
+		.join("");
 }
 
 export function resolveTwoDigitYear(
