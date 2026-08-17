@@ -135,6 +135,7 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			{ key: "v", action: "Visual" },
 			{ key: "dd", action: "Delete" },
 			{ key: "Ctrl+P", action: "Command Palette" },
+			{ key: "Ctrl+E", action: "Activity" },
 			{ key: "Ctrl+B", action: "Inspector" },
 			{ key: "Ctrl+W", action: "Focus Pane" },
 			{ key: "Alt+P", action: "Pin" },
