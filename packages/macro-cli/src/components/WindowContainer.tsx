@@ -28,6 +28,7 @@ export function WindowContainer({
 	const columns = renderer.width;
 	const rows = renderer.height;
 
+	const mainFocused = snapshot.focusedPane === "main";
 	const activityFocused = snapshot.focusedPane === "activity";
 	const inspectorFocused = snapshot.focusedPane === "sidepanel";
 
@@ -64,8 +65,13 @@ export function WindowContainer({
 
 	return (
 		<box flexDirection="column" width="100%" height="100%" backgroundColor={c.bgCanvas}>
-			{/* Top Workspace Tab Strip */}
-			<WorkspaceTabs workspace={workspace} theme={theme} />
+			{/* Top Workspace Tab Strip (Elevated Shelf) & Connecting Baseline Divider (▔) */}
+			<box backgroundColor={c.bgSurface} height={1}>
+				<WorkspaceTabs workspace={workspace} theme={theme} />
+			</box>
+			<box height={1}>
+				<text fg={c.borderSubtle}>{"▔".repeat(columns)}</text>
+			</box>
 
 			{/* Main Triple-Region Row: [ Primary Activity ] | [ Central Stage ] | [ Secondary Inspector ] */}
 			<box flexGrow={1} flexDirection="row">
@@ -101,8 +107,19 @@ export function WindowContainer({
 					)}
 				</TuiPanelRegion>
 
-				{/* 2. Central Editor Stage (Scratchpad / Active Tab) */}
-				<box flexGrow={1} flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={1}>
+				{/* 2. Central Editor Stage (Scratchpad / Active Tab) with Elevated Canvas & Light Border */}
+				<box
+					flexGrow={1}
+					flexDirection="column"
+					backgroundColor={c.bgElevated}
+					borderStyle="single"
+					borderColor={mainFocused ? c.borderActive : c.borderSubtle}
+					paddingLeft={1}
+					paddingRight={1}
+					paddingTop={0}
+					marginLeft={1}
+					marginRight={1}
+				>
 					{snapshot.activeTabId === "scratchpad" ? (
 						<ScratchpadView workspace={workspace} keymap={keymap} theme={theme} />
 					) : (

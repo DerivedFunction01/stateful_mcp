@@ -50,7 +50,7 @@ export function ScratchpadView({
 	);
 
 	return (
-		<box flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={1}>
+		<box flexDirection="column">
 			{/* Top Pinned Macro Banner if active */}
 			{pinned && (
 				<box height={1} marginBottom={1} flexDirection="row">

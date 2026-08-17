@@ -1,238 +1,325 @@
 import { TextAttributes } from "@opentui/core";
 import type { TuiStory } from "../story-contract";
-import { TuiTree, type TuiTreeNode } from "../../ui/primitives/TuiTree";
-import { TuiColors, TuiNamedColors } from "../../ui/tokens";
+import { TuiTabs, type TuiTabItem } from "../../ui/primitives/TuiTabs";
+import { TuiPanelRegion } from "../../ui/primitives/TuiPanelRegion";
+import { TuiHelpBar } from "../../ui/primitives/TuiHelpBar";
+import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
+import { GlobalThemeRegistry } from "../../ui/theme";
+
+const DEMO_TABS: readonly TuiTabItem[] = [
+	{ id: "scratchpad", label: "Scratchpad", icon: "✏", isDirty: true },
+	{ id: "notebook", label: "Notebook", icon: "📓" },
+	{ id: "settings", label: "Settings", icon: "⚙" },
+];
+
+const DEMO_LINES = [
+	{
+		num: "01",
+		sign: "●",
+		text: "^deploy service=api env=staging region=us-east-1",
+		projection: "↳ Deploying service 'api' to environment 'staging' [ready]",
+		isValid: true,
+		isActive: true,
+	},
+	{
+		num: "02",
+		sign: " ",
+		text: "^charge amount=250 currency=USD customer=cust_981",
+		projection: "↳ Charge scheduled: $250.00 USD via Stripe [pending]",
+		isValid: true,
+		isActive: false,
+	},
+	{
+		num: "03",
+		sign: " ",
+		text: "^notify channel=#deployments msg=\"Staging deployment ready\"",
+		projection: "↳ Slack notification queued for #deployments",
+		isValid: true,
+		isActive: false,
+	},
+];
 
 export const scratchpadStory: TuiStory = {
 	id: "scratchpad",
-	title: "Scratchpad Editor & Projections",
+	title: "Scratchpad Editor Framing & Boundaries",
 	category: "Scratchpad",
 	states: [
-		"fixed-2row-rhythm",
-		"clinical-tree-unified",
-		"diagnostic-cell-unified",
-		"pinned-macro-unified",
+		"elevated-baseline-hybrid", // Hybrid: Elevated shelf tab strip + top-flush ▔ baseline + framed scratchpad
+		"hybrid-subtle-border",     // Hybrid with distinct subtle frame border box around scratchpad
+		"hybrid-seamless-panel",    // Hybrid with seamless elevated background fill and vertical pipe delimiters
+		"grounded-baseline",        // Baseline only without shelf
+		"elevated-shelf",           // Shelf only without baseline
 	],
 	render(context) {
+		const stateId = context.stateId;
 		const width = context.size.columns;
+		const theme = GlobalThemeRegistry.getActive();
+		const c = theme.colors;
 
-		// 1. Fixed 2-Row Rhythm: Perfectly aligned vertical pipe at 7 characters
-		if (context.stateId === "fixed-2row-rhythm") {
-			const lines = [
-				{
-					num: "01",
-					sign: "●",
-					text: "^deploy service=api env=staging region=us-east-1",
-					projection: "↳ Deploying service 'api' to environment 'staging' [ready]",
-					isValid: true,
-					isActive: true,
-				},
-				{
-					num: "02",
-					sign: " ",
-					text: "",
-					projection: "",
-					isValid: false,
-					isActive: false,
-				},
-				{
-					num: "03",
-					sign: " ",
-					text: "",
-					projection: "",
-					isValid: false,
-					isActive: false,
-				},
-			];
+		const leftRailItems = [
+			{ id: "explorer", label: "Explorer", icon: "📁", altKey: "1", isActive: true },
+			{ id: "journal", label: "Journal", icon: "◷", altKey: "3" },
+		];
 
-			return (
-				<box flexDirection="column" padding={1} width={width}>
-					{lines.map((line) => {
-						const rowBg = line.isActive ? TuiColors.bgHighlight : undefined;
-						const leftColor = line.isActive ? "cyan" : "transparent";
+		const rightRailItems = [
+			{ id: "slots", label: "Macro Slots", icon: "▧", altKey: "2", isActive: true },
+		];
 
-						return (
-							<box key={line.num} flexDirection="column">
-								{/* Row 1: Command input (1 char pillar + 3 chars sign + 3 chars lineNum = 7 chars before pipe) */}
-								<box flexDirection="row" backgroundColor={rowBg} height={1}>
-									<text fg={leftColor} attributes={TextAttributes.BOLD}>
-										{line.isActive ? "▎" : " "}
-									</text>
-									<text
-										fg={line.isActive ? "cyan" : TuiNamedColors.muted}
-										attributes={TextAttributes.BOLD}
-									>
-										{" "}{line.sign}{" "}
-									</text>
-									<text
-										fg={line.isActive ? "yellow" : TuiNamedColors.muted}
-										attributes={line.isActive ? TextAttributes.BOLD : 0}
-									>
-										{line.num}{" "}
-									</text>
-									<text fg={TuiNamedColors.border}>│ </text>
-									<text
-										fg={line.isActive ? "white" : TuiNamedColors.primary}
-										attributes={line.isActive ? TextAttributes.BOLD : 0}
-									>
-										{line.text || " "}
-									</text>
-								</box>
+		// Left Panel
+		const leftPanel = (
+			<TuiPanelRegion
+				dock="start"
+				railItems={leftRailItems}
+				activeRailId="explorer"
+				title="Explorer"
+				closeHint="Ctrl+E"
+				panelWidth={26}
+				isOpen={true}
+				theme={theme}
+			>
+				<box flexDirection="column">
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>workspace/</text>
+					<text fg={c.fgPrimary}>  ├─ schema.macro</text>
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>  ├─ deploy.macro</text>
+					<text fg={c.fgPrimary}>  └─ config.json</text>
+				</box>
+			</TuiPanelRegion>
+		);
 
-								{/* Row 2: Fixed-height projection tray (1 char pillar + 6 chars space = 7 chars before pipe) */}
+		// Right Panel
+		const rightPanel = (
+			<TuiPanelRegion
+				dock="end"
+				railItems={rightRailItems}
+				activeRailId="slots"
+				title="Macro Slots"
+				closeHint="Alt+2"
+				panelWidth={28}
+				cards={[
+					{ id: "s1", title: "service", subtitle: "api", badge: "string", isActive: true },
+					{ id: "s2", title: "env", subtitle: "staging", badge: "enum" },
+					{ id: "s3", title: "region", subtitle: "us-east-1", badge: "opt" },
+				]}
+				isOpen={true}
+				theme={theme}
+			/>
+		);
+
+		// Shared Editor Line Renderer
+		const renderEditorLines = (extraBg?: string) => (
+			<box flexDirection="column" flexGrow={1} backgroundColor={extraBg ?? c.bgCanvas}>
+				{DEMO_LINES.map((line) => {
+					const rowBg = line.isActive ? c.bgActive : undefined;
+					const leftColor = line.isActive ? c.accentPrimary : "transparent";
+
+					return (
+						<box key={line.num} flexDirection="column">
+							{/* Row 1: Command text */}
+							<box flexDirection="row" backgroundColor={rowBg} height={1}>
+								<text fg={leftColor} attributes={TextAttributes.BOLD}>
+									{line.isActive ? "▎" : " "}
+								</text>
+								<text fg={line.isActive ? c.accentPrimary : c.fgMuted} attributes={TextAttributes.BOLD}>
+									{" "}{line.sign}{" "}
+								</text>
+								<text fg={line.isActive ? c.accentAmber : c.fgDim} attributes={line.isActive ? TextAttributes.BOLD : 0}>
+									{line.num}{" "}
+								</text>
+								<text fg={c.borderDefault}>│ </text>
+								<text fg={c.fgPrimary} attributes={line.isActive ? TextAttributes.BOLD : 0}>
+									{line.text}
+								</text>
+							</box>
+
+							{/* Row 2: Live projection line */}
+							{line.projection && (
 								<box flexDirection="row" backgroundColor={rowBg} height={1}>
 									<text fg={leftColor} attributes={TextAttributes.BOLD}>
 										{line.isActive ? "▎" : " "}
 									</text>
 									<text fg="transparent">      </text>
-									<text fg={TuiNamedColors.border}>│ </text>
-									{line.projection ? (
-										<text fg={line.isValid ? TuiNamedColors.success : TuiNamedColors.error}>
-											{line.projection}
-										</text>
-									) : (
-										<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
-											{" "}
-										</text>
-									)}
+									<text fg={c.borderDefault}>│ </text>
+									<text fg={c.statusSuccess}>
+										{line.projection}
+									</text>
 								</box>
-							</box>
-						);
-					})}
-				</box>
-			);
-		}
+							)}
+						</box>
+					);
+				})}
+			</box>
+		);
 
-		// 2. Clinical Tree Unified
-		if (context.stateId === "clinical-tree-unified") {
-			const treeNodes: readonly TuiTreeNode[] = [
-				{
-					id: "node-1",
-					label: "+ supporting: Lisinopril 20mg oral daily (BP normalized to 120/80)",
-					variant: "supporting",
-				},
-				{
-					id: "node-2",
-					label: "— refuting: Atenolol 50mg (contraindicated by asthma history)",
-					variant: "refuting",
-				},
-			];
-
+		// ─── HYBRID: Grounded Baseline + Elevated Shelf ────────────────
+		if (stateId === "elevated-baseline-hybrid") {
 			return (
-				<box flexDirection="column" padding={1} width={width}>
-					<box height={1} marginBottom={1} flexDirection="row">
-						<text fg={TuiNamedColors.amber} attributes={TextAttributes.BOLD}>
-							Context: Clinical Decision Support
-						</text>
-						<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
-							{"  "}[patient: PT-9042]
-						</text>
+				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
+					{/* 1. Elevated Shelf Header Bar with Tabs */}
+					<box backgroundColor={c.bgSurface} height={1} paddingLeft={0} paddingRight={1}>
+						<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
 					</box>
 
-					{/* Cell 1 (Active) */}
-					<box flexDirection="column">
-						<box flexDirection="row" backgroundColor={TuiColors.bgHighlight} height={1}>
-							<text fg="cyan" attributes={TextAttributes.BOLD}>▎ </text>
-							<text fg="cyan" attributes={TextAttributes.BOLD}>● </text>
-							<text fg="yellow" attributes={TextAttributes.BOLD}>01 </text>
-							<text fg={TuiNamedColors.border}>│ </text>
-							<text fg="white" attributes={TextAttributes.BOLD}>
-								@differential hypertension_stage_2
-							</text>
-						</box>
-						<box flexDirection="row" backgroundColor={TuiColors.bgHighlight} paddingTop={1} paddingBottom={1}>
-							<text fg="cyan" attributes={TextAttributes.BOLD}>▎ </text>
-							<text fg="transparent">     </text>
-							<text fg={TuiNamedColors.border}>│ </text>
-							<TuiTree nodes={treeNodes} />
-						</box>
+					{/* 2. Top-Flush Upper Baseline Divider (▔) */}
+					<box height={1}>
+						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
 					</box>
 
-					{/* Cell 2 (Inactive) */}
-					<box flexDirection="column">
-						<box flexDirection="row" height={1}>
-							<text fg="transparent">▎ </text>
-							<text fg="green" attributes={TextAttributes.BOLD}>✓ </text>
-							<text fg={TuiNamedColors.muted}>02 </text>
-							<text fg={TuiNamedColors.border}>│ </text>
-							<text fg={TuiNamedColors.primary}>
-								@plan schedule_followup in=2_weeks
-							</text>
+					{/* 3. Triple Region Workspace */}
+					<box flexDirection="row" flexGrow={1} marginBottom={1}>
+						{leftPanel}
+
+						{/* Center Scratchpad: Elevated background with subtle single border */}
+						<box
+							flexGrow={1}
+							flexDirection="column"
+							backgroundColor={c.bgElevated}
+							borderStyle="single"
+							borderColor={c.borderSubtle}
+							paddingLeft={1}
+							paddingRight={1}
+							marginLeft={1}
+							marginRight={1}
+						>
+							{renderEditorLines(c.bgElevated)}
 						</box>
-						<box flexDirection="row" height={1}>
-							<text fg="transparent">▎ </text>
-							<text fg="transparent">     </text>
-							<text fg={TuiNamedColors.border}>│ </text>
-							<text fg={TuiNamedColors.success}>
-								↳ Appointment booked: 2026-08-30 with Dr. Martinez
-							</text>
-						</box>
+
+						{rightPanel}
 					</box>
+
+					<TuiHelpBar variant="nano-grid" theme={theme} />
+					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
 				</box>
 			);
 		}
 
-		// 3. Diagnostic Cell Unified
-		if (context.stateId === "diagnostic-cell-unified") {
+		// ─── HYBRID: Subtle Border Framing ────────────────────────────
+		if (stateId === "hybrid-subtle-border") {
 			return (
-				<box flexDirection="column" padding={1} width={width}>
-					<box flexDirection="column">
-						<box flexDirection="row" backgroundColor={TuiColors.bgHighlight} height={1}>
-							<text fg="red" attributes={TextAttributes.BOLD}>▎ </text>
-							<text fg="red" attributes={TextAttributes.BOLD}>! </text>
-							<text fg="yellow" attributes={TextAttributes.BOLD}>01 </text>
-							<text fg={TuiNamedColors.border}>│ </text>
-							<text fg="white" attributes={TextAttributes.BOLD}>
-								^charge amount=NaN currency=USD
-							</text>
-						</box>
-						<box flexDirection="row" backgroundColor={TuiColors.bgHighlight} height={1}>
-							<text fg="red" attributes={TextAttributes.BOLD}>▎ </text>
-							<text fg="transparent">      </text>
-							<text fg={TuiNamedColors.border}>│ </text>
-							<text fg={TuiNamedColors.error} attributes={TextAttributes.BOLD}>
-								! Error: Parameter 'amount' must be a positive decimal number.
-							</text>
-						</box>
+				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
+					{/* Elevated Shelf */}
+					<box backgroundColor={c.bgSurface} height={1}>
+						<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
 					</box>
+					<box height={1}>
+						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
+					</box>
+
+					<box flexDirection="row" flexGrow={1} marginBottom={1}>
+						{leftPanel}
+
+						{/* Center Scratchpad on canvas with crisp border */}
+						<box
+							flexGrow={1}
+							flexDirection="column"
+							backgroundColor={c.bgCanvas}
+							borderStyle="single"
+							borderColor={c.borderSubtle}
+							paddingLeft={1}
+							paddingRight={1}
+						>
+							{renderEditorLines(c.bgCanvas)}
+						</box>
+
+						{rightPanel}
+					</box>
+
+					<TuiHelpBar variant="nano-grid" theme={theme} />
+					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
 				</box>
 			);
 		}
 
-		// 4. Pinned Macro Unified
+		// ─── HYBRID: Seamless Panel Depth ─────────────────────────────
+		if (stateId === "hybrid-seamless-panel") {
+			return (
+				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
+					<box backgroundColor={c.bgSurface} height={1}>
+						<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
+					</box>
+					<box height={1}>
+						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
+					</box>
+
+					<box flexDirection="row" flexGrow={1} marginBottom={1}>
+						{leftPanel}
+						<box width={1}><text fg={c.borderSubtle}>│</text></box>
+
+						<box
+							flexGrow={1}
+							flexDirection="column"
+							backgroundColor={c.bgElevated}
+							paddingLeft={1}
+							paddingRight={1}
+							paddingTop={0}
+						>
+							{renderEditorLines(c.bgElevated)}
+						</box>
+
+						<box width={1}><text fg={c.borderSubtle}>│</text></box>
+						{rightPanel}
+					</box>
+
+					<TuiHelpBar variant="nano-grid" theme={theme} />
+					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
+				</box>
+			);
+		}
+
+		// ─── GROUNDED BASELINE (No shelf) ─────────────────────────────
+		if (stateId === "grounded-baseline") {
+			return (
+				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
+					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
+					<box height={1} marginBottom={0}>
+						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
+					</box>
+
+					<box flexDirection="row" flexGrow={1} marginBottom={1}>
+						{leftPanel}
+						<box width={1}><text fg={c.borderSubtle}>│</text></box>
+
+						<box flexGrow={1} flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={0}>
+							{renderEditorLines()}
+						</box>
+
+						<box width={1}><text fg={c.borderSubtle}>│</text></box>
+						{rightPanel}
+					</box>
+
+					<TuiHelpBar variant="nano-grid" theme={theme} />
+					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
+				</box>
+			);
+		}
+
+		// ─── ELEVATED SHELF (No baseline) ─────────────────────────────
 		return (
-			<box flexDirection="column" padding={1} width={width}>
-				<box height={1} marginBottom={1} flexDirection="row">
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
-						📌 PINNED: @medication
-					</text>
-					<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
-						{"  "}(Press Alt+P to unpin)
-					</text>
+			<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
+				<box backgroundColor={c.bgSurface} paddingLeft={1} paddingRight={1} height={1} marginBottom={1}>
+					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
 				</box>
 
-				<box flexDirection="column">
-					<box flexDirection="row" backgroundColor={TuiColors.bgHighlight} height={1}>
-						<text fg="cyan" attributes={TextAttributes.BOLD}>▎ </text>
-						<text fg="cyan" attributes={TextAttributes.BOLD}>● </text>
-						<text fg="yellow" attributes={TextAttributes.BOLD}>01 </text>
-						<text fg={TuiNamedColors.border}>│ </text>
-						<text fg="white" attributes={TextAttributes.BOLD}>
-							lisinopril 20mg oral daily
-						</text>
-						<text fg={TuiNamedColors.accent} attributes={TextAttributes.DIM}>
-							{"  "}[pinned to @medication]
-						</text>
+				<box flexDirection="row" flexGrow={1} marginBottom={1}>
+					{leftPanel}
+
+					<box
+						flexGrow={1}
+						flexDirection="column"
+						backgroundColor={c.bgElevated}
+						paddingLeft={1}
+						paddingRight={1}
+						paddingTop={1}
+						marginLeft={1}
+						marginRight={1}
+					>
+						{renderEditorLines(c.bgElevated)}
 					</box>
-					<box flexDirection="row" backgroundColor={TuiColors.bgHighlight} height={1}>
-						<text fg="cyan" attributes={TextAttributes.BOLD}>▎ </text>
-						<text fg="transparent">      </text>
-						<text fg={TuiNamedColors.border}>│ </text>
-						<text fg={TuiNamedColors.success}>
-							↳ Rx: Lisinopril 20mg | Route: Oral | Sig: 1 tab daily | Refills: 3
-						</text>
-					</box>
+
+					{rightPanel}
 				</box>
+
+				<TuiHelpBar variant="nano-grid" theme={theme} />
+				<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
 			</box>
 		);
 	},

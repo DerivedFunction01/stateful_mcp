@@ -100,9 +100,10 @@ export const inspectorRegionStory: TuiStory = {
 
 		return (
 			<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-				{/* Top Workspace Tab Strip */}
-				<box marginBottom={1}>
-					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
+				{/* Top Workspace Tab Strip & Connecting Baseline Divider */}
+				<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
+				<box height={1}>
+					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
 				</box>
 
 				{/* Main Triple Column Frame with Composable Swapping */}
@@ -110,22 +111,15 @@ export const inspectorRegionStory: TuiStory = {
 					{/* Left Region (Primary if default, Secondary if swapped) */}
 					{isSwapped ? secondaryRegion : primaryRegion}
 
-					{/* Center Stage — shows focus outline when editor is focused */}
+					{/* Center Stage — light border framing */}
 					<box
 						flexGrow={1}
 						flexDirection="column"
-						backgroundColor={c.bgElevated}
+						borderStyle="single"
+						borderColor={mainFocused ? c.borderActive : c.borderSubtle}
 						paddingLeft={1}
 						paddingRight={1}
-						marginLeft={1}
-						marginRight={1}
 					>
-						{/* Focus Indicator Bar at top of editor */}
-						{mainFocused && (
-							<box height={1}>
-								<text fg={editorBorderColor}>{"─".repeat(36)}</text>
-							</box>
-						)}
 						{/* Line 1 (Active) */}
 						<box flexDirection="row" backgroundColor={c.bgActive} height={1}>
 							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
