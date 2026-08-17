@@ -109,7 +109,7 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			workspace.commands.getCommand("workspace.switchSession")?.title,
 		).toBe("Switch session");
 		expect(keymap.profileId).toBe("default");
-		expect(keymap.window.pinMacro).toBe("ALT_P");
+		expect(keymap.window.pinMacro).toBe("meta+p");
 
 		// Test i18n translation from workspace
 		const translatedCommands = translate(

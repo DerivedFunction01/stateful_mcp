@@ -22,7 +22,6 @@ import {
 	mergeEditorKeymap,
 	normalizeSelection,
 	ScratchpadSession,
-	SpecialKeys,
 	saveWindowLayoutState,
 	TabRegistry,
 	ViewRegistry,
@@ -621,7 +620,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.normal.enterInsert).toBe("i");
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.sequences.deleteCell).toBe("dd");
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.window.openCommandPalette).toBe(
-				"CTRL_P",
+				"ctrl+p",
 			);
 		});
 
@@ -631,22 +630,29 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(chordMatches("j", { char: "j", ctrl: true })).toBe(false);
 
 			// Ctrl+R redo chord
-			expect(chordMatches(SpecialKeys.CtrlR, { char: "r", ctrl: true })).toBe(
-				true,
-			);
-			expect(chordMatches(SpecialKeys.CtrlR, { char: "r", ctrl: false })).toBe(
-				false,
-			);
+			expect(chordMatches("ctrl+r", { char: "r", ctrl: true })).toBe(true);
+			expect(chordMatches("ctrl+r", { char: "r", ctrl: false })).toBe(false);
+
+			// Dynamic chords without enum modifications
+			expect(
+				chordMatches("ctrl+shift+q", {
+					char: "q",
+					ctrl: true,
+					shift: true,
+				}),
+			).toBe(true);
+			expect(chordMatches("meta+p", { char: "p", meta: true })).toBe(true);
+			expect(
+				chordMatches("ctrl+shift+r", { char: "r", ctrl: true, shift: true }),
+			).toBe(true);
 
 			// Special keys (Enter, Esc, Tab, Shift-Tab)
-			expect(chordMatches(SpecialKeys.Enter, { name: "return" })).toBe(true);
-			expect(chordMatches(SpecialKeys.Escape, { name: "escape" })).toBe(true);
-			expect(chordMatches("SHIFT_TAB", { name: "tab", shift: true })).toBe(
+			expect(chordMatches("enter", { name: "return" })).toBe(true);
+			expect(chordMatches("escape", { name: "escape" })).toBe(true);
+			expect(chordMatches("shift+tab", { name: "tab", shift: true })).toBe(
 				true,
 			);
-			expect(chordMatches(SpecialKeys.Tab, { name: "tab", shift: false })).toBe(
-				true,
-			);
+			expect(chordMatches("tab", { name: "tab", shift: false })).toBe(true);
 		});
 
 		test("merges keymap overrides without mutating defaults", () => {

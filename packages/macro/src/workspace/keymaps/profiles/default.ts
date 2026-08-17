@@ -1,7 +1,7 @@
-import { type EditorKeymapProfile, SpecialKeys } from "../types";
+import type { EditorKeymapProfile } from "../types";
 
 /**
- * Standard default keymap profile for Macro Workspace (Vim-inspired).
+ * Standard default keymap profile for Macro Workspace using strict canonical chords.
  * This declarative configuration can be edited directly or ejected into .macro/keymap.json.
  */
 export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
@@ -22,7 +22,7 @@ export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 		previewCell: "P",
 		runCell: "r",
 		undo: "u",
-		redo: SpecialKeys.CtrlR,
+		redo: "ctrl+r",
 		command: ":",
 		macro: "^",
 		search: "s",
@@ -49,12 +49,12 @@ export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 		swapAnchor: "o",
 	},
 	window: {
-		toggleSidepanel: SpecialKeys.CtrlB,
-		toggleActivityPanel: SpecialKeys.CtrlE,
-		switchSplitFocus: SpecialKeys.CtrlW,
-		openCommandPalette: SpecialKeys.CtrlP,
-		nextTab: SpecialKeys.Tab,
-		prevTab: SpecialKeys.ShiftTab,
-		pinMacro: SpecialKeys.AltP,
+		toggleSidepanel: "ctrl+b",
+		toggleActivityPanel: "ctrl+e",
+		switchSplitFocus: "ctrl+w",
+		openCommandPalette: "ctrl+p",
+		nextTab: "tab",
+		prevTab: "shift+tab",
+		pinMacro: "meta+p",
 	},
 };

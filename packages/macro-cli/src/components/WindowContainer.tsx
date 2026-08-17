@@ -1,7 +1,10 @@
 import type { CliRenderer, MouseEvent } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import type { MacroCliViewProvider } from "../renderer";
-import { TuiWorkspaceSurface } from "../ui/compositions";
+import {
+	resolveTuiWorkspaceLayout,
+	TuiWorkspaceSurface,
+} from "../ui/compositions";
 import type { TuiActivityItem } from "../ui/primitives/TuiActivityRail";
 import { TuiMenuBar, type TuiMenuGroup } from "../ui/primitives/TuiMenuBar";
 import { TuiPanelRegion } from "../ui/primitives/TuiPanelRegion";
@@ -143,6 +146,17 @@ export function WindowContainer({
 		},
 	];
 
+	const layoutResult = resolveTuiWorkspaceLayout({
+		width: columns,
+		activityWidth,
+		inspectorWidth,
+		activityOpen: snapshot.regions.activity.open,
+		inspectorOpen: snapshot.regions.inspector.open,
+		outerPadding: 0,
+	});
+	const contentWidth = Math.max(20, layoutResult.bodyWidth - 4);
+	const contentHeight = Math.max(1, rows - 6);
+
 	return (
 		<box width="100%" height="100%" onMouse={onMouse}>
 			<TuiWorkspaceSurface
@@ -205,11 +219,15 @@ export function WindowContainer({
 							<ScratchpadView
 								workspace={workspace}
 								keymap={keymap}
-								height={Math.max(1, rows - 6)}
+								height={contentHeight}
 								theme={theme}
 							/>
 						) : (
-							<TabHost workspace={workspace} width={columns} height={rows} />
+							<TabHost
+								workspace={workspace}
+								width={contentWidth}
+								height={contentHeight}
+							/>
 						)}
 					</box>
 				}

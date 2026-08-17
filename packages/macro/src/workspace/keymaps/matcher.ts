@@ -1,4 +1,8 @@
-import { type EditorKeymapProfile, SpecialKeys } from "./types";
+import {
+	ALL_CANONICAL_KEYS,
+	type CanonicalKey,
+	type EditorKeymapProfile,
+} from "./types";
 
 export interface KeyInputEvent {
 	readonly char?: string;
@@ -8,118 +12,166 @@ export interface KeyInputEvent {
 	readonly shift?: boolean;
 }
 
-const SPECIAL_TOKENS = new Set<string>(Object.values(SpecialKeys));
-
-export function normalizeChord(chord: string): string | null {
-	const value = chord.trim();
-	if (!value) return null;
-	const normalizedName = value
-		.toUpperCase()
-		.replace(/\+/gu, "_")
-		.replace(/^(CTRL|SHIFT)-/u, "$1_");
-	if (SPECIAL_TOKENS.has(normalizedName)) return normalizedName;
-	if (value.length === 1 && !/[\s\u0000]/u.test(value)) return value;
-	return null;
+export interface ParsedKeyChord {
+	readonly ctrl: boolean;
+	readonly meta: boolean;
+	readonly shift: boolean;
+	readonly key: CanonicalKey;
 }
 
-export function isSpecialChord(chord: string): boolean {
-	const normalized = normalizeChord(chord);
-	return normalized !== null && SPECIAL_TOKENS.has(normalized);
-}
+const TERMINAL_KEY_MAP: Readonly<Record<string, CanonicalKey>> = {
+	return: "enter",
+	enter: "enter",
+	"\r": "enter",
+	"\n": "enter",
+	escape: "escape",
+	"\x1b": "escape",
+	tab: "tab",
+	"\t": "tab",
+	"\x1b[z": "tab",
+	backspace: "backspace",
+	"\b": "backspace",
+	"\x7f": "backspace",
+	delete: "delete",
+	uparrow: "up",
+	up: "up",
+	downarrow: "down",
+	down: "down",
+	leftarrow: "left",
+	left: "left",
+	rightarrow: "right",
+	right: "right",
+	pageup: "pageup",
+	page_up: "pageup",
+	pagedown: "pagedown",
+	page_down: "pagedown",
+	home: "home",
+	end: "end",
+};
 
 /**
- * Platform-neutral chord matcher checking an incoming key event against a configured chord.
+ * Strict parser for canonical key chords.
+ * Follows the grammar: [ctrl+][meta+][shift+]<canonical_key> or single character (including uppercase for Shift).
  */
-export function chordMatches(chord: string, event: KeyInputEvent): boolean {
-	chord = normalizeChord(chord) ?? chord;
-	if (isSpecialChord(chord)) {
-		switch (chord) {
-			case SpecialKeys.CtrlR:
-				return (
-					Boolean(event.ctrl) &&
-					(event.char?.toLowerCase() === "r" || event.name === "r")
-				);
-			case SpecialKeys.CtrlS:
-				return (
-					Boolean(event.ctrl) &&
-					!event.shift &&
-					(event.char?.toLowerCase() === "s" || event.name === "s")
-				);
-			case SpecialKeys.CtrlShiftR:
-				return (
-					Boolean(event.ctrl) &&
-					Boolean(event.shift) &&
-					(event.char?.toLowerCase() === "r" || event.name === "r")
-				);
-			case SpecialKeys.CtrlAltR:
-				return (
-					Boolean(event.ctrl) &&
-					Boolean(event.meta) &&
-					(event.char?.toLowerCase() === "r" || event.name === "r")
-				);
-			case SpecialKeys.Enter:
-				return event.name === "return" || event.name === "enter";
-			case SpecialKeys.Escape:
-				return event.name === "escape" || event.char === "\x1b";
-			case SpecialKeys.Delete:
-				return event.name === "delete";
-			case SpecialKeys.Backspace:
-				return event.name === "backspace";
-			case SpecialKeys.Tab:
-				return event.name === "tab" && !event.shift && event.char !== "\x1b[Z";
-			case "SHIFT_TAB":
-				return (
-					(event.name === "tab" && Boolean(event.shift)) ||
-					event.char === "\x1b[Z"
-				);
-			case "CTRL_P":
-				return (
-					Boolean(event.ctrl) &&
-					(event.char?.toLowerCase() === "p" || event.name === "p")
-				);
-			case "CTRL_B":
-				return (
-					Boolean(event.ctrl) &&
-					(event.char?.toLowerCase() === "b" || event.name === "b")
-				);
-			case "CTRL_W":
-				return (
-					Boolean(event.ctrl) &&
-					(event.char?.toLowerCase() === "w" || event.name === "w")
-				);
-			case "ALT_P":
-				return (
-					Boolean(event.meta) &&
-					(event.char?.toLowerCase() === "p" || event.name === "p")
-				);
-			case "CTRL_ENTER":
-				return (
-					Boolean(event.ctrl) &&
-					(event.name === "return" || event.name === "enter")
-				);
-			case SpecialKeys.Up:
-				return event.name === "up" || event.name === "upArrow";
-			case SpecialKeys.Down:
-				return event.name === "down" || event.name === "downArrow";
-			case SpecialKeys.Left:
-				return event.name === "left" || event.name === "leftArrow";
-			case SpecialKeys.Right:
-				return event.name === "right" || event.name === "rightArrow";
-			case SpecialKeys.PageUp:
-				return event.name === "pageUp" || event.name === "pageup";
-			case SpecialKeys.PageDown:
-				return event.name === "pageDown" || event.name === "pagedown";
-			case SpecialKeys.Home:
-				return event.name === "home";
-			case SpecialKeys.End:
-				return event.name === "end";
-			default:
-				return false;
+export function parseChord(chord: string): ParsedKeyChord | null {
+	const raw = chord.trim();
+	if (!raw) return null;
+
+	// Single uppercase letter represents Shift + lowercase key
+	if (raw.length === 1 && raw >= "A" && raw <= "Z") {
+		return {
+			ctrl: false,
+			meta: false,
+			shift: true,
+			key: raw.toLowerCase() as CanonicalKey,
+		};
+	}
+
+	// Single canonical key
+	if (raw.length === 1 && ALL_CANONICAL_KEYS.has(raw)) {
+		return {
+			ctrl: false,
+			meta: false,
+			shift: false,
+			key: raw as CanonicalKey,
+		};
+	}
+
+	const parts = raw
+		.toLowerCase()
+		.split("+")
+		.map((p) => p.trim())
+		.filter(Boolean);
+	if (parts.length === 0) return null;
+
+	let ctrl = false;
+	let meta = false;
+	let shift = false;
+	let key: CanonicalKey | undefined;
+
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i]!;
+		if (i < parts.length - 1) {
+			if (part === "ctrl") {
+				ctrl = true;
+			} else if (part === "meta" || part === "alt") {
+				meta = true;
+			} else if (part === "shift") {
+				shift = true;
+			} else {
+				return null;
+			}
+		} else {
+			// Final token is the base key
+			if (ALL_CANONICAL_KEYS.has(part)) {
+				key = part as CanonicalKey;
+			} else {
+				return null;
+			}
 		}
 	}
 
-	// Plain single character without modifiers
-	return event.char === chord && !event.ctrl && !event.meta;
+	if (!key) return null;
+	return { ctrl, meta, shift, key };
+}
+
+/**
+ * Formats a parsed chord back into strict canonical string format.
+ */
+export function formatParsedChord(parsed: ParsedKeyChord): string {
+	const parts: string[] = [];
+	if (parsed.ctrl) parts.push("ctrl");
+	if (parsed.meta) parts.push("meta");
+	if (parsed.shift) parts.push("shift");
+	parts.push(parsed.key);
+	return parts.join("+");
+}
+
+/**
+ * Normalizes any valid chord string into strict canonical format.
+ */
+export function normalizeChord(chord: string): string | null {
+	const parsed = parseChord(chord);
+	return parsed ? formatParsedChord(parsed) : null;
+}
+
+export function isSpecialChord(chord: string): boolean {
+	const parsed = parseChord(chord);
+	if (!parsed) return false;
+	return parsed.ctrl || parsed.meta || parsed.shift || parsed.key.length > 1;
+}
+
+/**
+ * Platform-neutral dynamic chord matcher checking incoming terminal events against canonical chords.
+ */
+export function chordMatches(chord: string, event: KeyInputEvent): boolean {
+	const target = parseChord(chord);
+	if (!target) return false;
+
+	// Check ctrl and meta modifiers
+	if (Boolean(event.ctrl) !== target.ctrl) return false;
+	if (Boolean(event.meta) !== target.meta) return false;
+
+	// Check shift modifier
+	const isCharUppercase = Boolean(
+		event.char &&
+			event.char.length === 1 &&
+			event.char >= "A" &&
+			event.char <= "Z",
+	);
+	const eventHasShift = Boolean(event.shift) || isCharUppercase;
+	if (eventHasShift !== target.shift) return false;
+
+	// Canonicalize incoming event key name or character via map
+	const rawName = (event.name ?? "").toLowerCase();
+	const rawChar = (event.char ?? "").toLowerCase();
+
+	const eventKey =
+		TERMINAL_KEY_MAP[rawName] ??
+		TERMINAL_KEY_MAP[rawChar] ??
+		(rawChar || rawName);
+
+	return eventKey === target.key;
 }
 
 export function mergeEditorKeymap(
@@ -173,7 +225,7 @@ export function validateEditorKeymap(
 				diagnostics.push({
 					severity: "error",
 					code: "invalid-chord",
-					message: `Unknown chord '${chord}'.`,
+					message: `Unknown chord '${chord}'. Must conform to canonical grammar [ctrl+][meta+][shift+]<canonical_key>.`,
 					bindings: [chord],
 					paths: [`${mode}.${action}`],
 				});

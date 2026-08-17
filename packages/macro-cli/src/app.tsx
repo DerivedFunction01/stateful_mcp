@@ -54,6 +54,7 @@ export function MacroCliApp({
 			projected: workspace.scratchpad.getProjectedLines(),
 			pinned: workspace.scratchpad.getPinnedMacro(),
 			journal: workspace.journal.getEntries(),
+			settingsNavigation: workspace.settingsNavigation.getSnapshot(),
 			settings: workspace.settings
 				? {
 						raw: workspace.settings.getRawText(),

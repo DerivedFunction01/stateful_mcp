@@ -34,25 +34,37 @@ export interface TuiHelpBarProps {
 }
 
 export function formatKeyDisplay(chord: string): string {
-	const map: Record<string, string> = {
-		CTRL_P: "Ctrl+P",
-		CTRL_B: "Ctrl+B",
-		CTRL_E: "Ctrl+E",
-		CTRL_W: "Ctrl+W",
-		CTRL_R: "Ctrl+R",
-		CTRL_S: "Ctrl+S",
-		CTRL_SHIFT_R: "Ctrl+Shift+R",
-		CTRL_ALT_R: "Ctrl+Alt+R",
-		ALT_P: "Alt+P",
-		CTRL_ENTER: "Ctrl+Enter",
-		TAB: "Tab",
-		SHIFT_TAB: "Shift+Tab",
-		ESC: "Esc",
-		ENTER: "Enter",
-		DELETE: "Del",
-		BACKSPACE: "Bksp",
-	};
-	return map[chord] ?? chord;
+	const parts = chord.trim().split("+");
+	if (parts.length === 1) {
+		const single = parts[0]!;
+		const lower = single.toLowerCase();
+		if (lower === "escape" || lower === "esc") return "Esc";
+		if (lower === "enter" || lower === "return") return "Enter";
+		if (lower === "tab") return "Tab";
+		if (lower === "backspace") return "Bksp";
+		if (lower === "delete") return "Del";
+		if (lower === "pageup") return "PgUp";
+		if (lower === "pagedown") return "PgDn";
+		if (lower === "up") return "Up";
+		if (lower === "down") return "Down";
+		if (lower === "left") return "Left";
+		if (lower === "right") return "Right";
+		return single;
+	}
+	const formatted = parts.map((part) => {
+		const lower = part.toLowerCase();
+		if (lower === "ctrl") return "Ctrl";
+		if (lower === "meta" || lower === "alt") return "Alt";
+		if (lower === "shift") return "Shift";
+		if (lower === "escape" || lower === "esc") return "Esc";
+		if (lower === "enter" || lower === "return") return "Enter";
+		if (lower === "tab") return "Tab";
+		if (lower === "backspace") return "Bksp";
+		if (lower === "delete") return "Del";
+		if (lower.length === 1) return lower.toUpperCase();
+		return lower.charAt(0).toUpperCase() + lower.slice(1);
+	});
+	return formatted.join("+");
 }
 
 export function buildDynamicKeymapHints(

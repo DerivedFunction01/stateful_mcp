@@ -419,6 +419,61 @@ describe("macro-cli terminal dispatcher", () => {
 
 		await workspace.runtime.dispose();
 	});
+
+	test("navigates and modifies settings tab with keyboard commands", async () => {
+		const loaded = await loadMacroCliWorkspace();
+		const { workspace, keymap } = loaded;
+
+		// 1. Open settings tab
+		workspace.layout.setActiveTab("settings");
+		workspace.layout.setFocusedPane("main");
+		expect(workspace.layout.getSnapshot().activeTabId).toBe("settings");
+
+		// 2. Navigate down sections with 'j' and 'down'
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "j" })).toBe(
+			"handled",
+		);
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe("locale");
+
+		expect(
+			await dispatchTerminalInput(workspace, keymap, { name: "down" }),
+		).toBe("handled");
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe("dateTime");
+
+		// 3. Navigate up with 'k' and 'up'
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "k" })).toBe(
+			"handled",
+		);
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe("locale");
+
+		expect(await dispatchTerminalInput(workspace, keymap, { name: "up" })).toBe(
+			"handled",
+		);
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe("theme");
+
+		// 4. Focus content region with 'l' or 'right'
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "l" })).toBe(
+			"handled",
+		);
+
+		// 5. Toggle or cycle settings value with Enter
+		expect(
+			await dispatchTerminalInput(workspace, keymap, { name: "enter" }),
+		).toBe("handled");
+
+		// 6. Return focus to navigation with 'h'
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "h" })).toBe(
+			"handled",
+		);
+
+		// 7. Escape from navigation returns to scratchpad editor
+		expect(
+			await dispatchTerminalInput(workspace, keymap, { name: "escape" }),
+		).toBe("handled");
+		expect(workspace.layout.getSnapshot().activeTabId).toBe("scratchpad");
+
+		await workspace.dispose();
+	});
 });
 
 describe("macro-cli argument parsing", () => {
