@@ -6,6 +6,7 @@ export const SpecialKeys = {
 	CtrlR: "CTRL_R",
 	CtrlP: "CTRL_P",
 	CtrlB: "CTRL_B",
+	CtrlE: "CTRL_E",
 	CtrlW: "CTRL_W",
 	AltP: "ALT_P",
 	CtrlEnter: "CTRL_ENTER",
@@ -73,6 +74,7 @@ export interface EditorKeymapVisualBindings {
 
 export interface EditorKeymapWindowBindings {
 	readonly toggleSidepanel: KeyChord;
+	readonly toggleActivityPanel?: KeyChord;
 	readonly switchSplitFocus: KeyChord;
 	readonly openCommandPalette: KeyChord;
 	readonly nextTab: KeyChord;

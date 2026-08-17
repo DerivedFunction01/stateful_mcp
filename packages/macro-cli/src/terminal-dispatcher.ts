@@ -58,6 +58,13 @@ export async function dispatchTerminalInput(
 		workspace.palette.open();
 		return "handled";
 	}
+	if (
+		(keymap.window.toggleActivityPanel && chordMatches(keymap.window.toggleActivityPanel, chordEvent)) ||
+		(event.ctrl && (name === "e" || input.toLowerCase() === "e"))
+	) {
+		workspace.layout.toggleRegion("activity");
+		return "handled";
+	}
 	if (chordMatches(keymap.window.toggleSidepanel, chordEvent)) {
 		workspace.layout.toggleSidepanel();
 		return "handled";
@@ -101,7 +108,8 @@ export async function dispatchTerminalInput(
 			const isAlreadyFocused = layout.focusedPane === targetPane;
 
 			if (isRegionOpen && isSameContainer && isAlreadyFocused) {
-				// Scenario D: already focused on this container -> dismiss focus back to editor
+				// Scenario D: already focused on this container -> toggle/collapse panel and return focus to main
+				workspace.layout.setRegionOpen(targetRegion, false);
 				workspace.layout.setFocusedPane("main");
 			} else {
 				// Scenarios A, B, C: open if closed, select container, and grant focus

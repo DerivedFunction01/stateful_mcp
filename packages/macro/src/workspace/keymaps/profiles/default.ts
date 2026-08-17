@@ -50,6 +50,7 @@ export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 	},
 	window: {
 		toggleSidepanel: SpecialKeys.CtrlB,
+		toggleActivityPanel: SpecialKeys.CtrlE,
 		switchSplitFocus: SpecialKeys.CtrlW,
 		openCommandPalette: SpecialKeys.CtrlP,
 		nextTab: SpecialKeys.Tab,

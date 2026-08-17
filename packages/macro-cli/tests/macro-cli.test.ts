@@ -154,7 +154,7 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(workspace.runtime.context.syntax.macroStartToken).toBe("!");
 	});
 
-	test("selects activity containers and manages focus through Alt-number and Ctrl+W input", async () => {
+	test("selects activity containers and manages focus through Alt-number, Ctrl+E, and Ctrl+W input", async () => {
 		const workspace = createMacroWorkspace();
 		const keymap = DEFAULT_EDITOR_KEYMAP_PROFILE;
 
@@ -162,16 +162,25 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(await dispatchTerminalInput(workspace, keymap, { input: "3", meta: true })).toBe("handled");
 		expect(workspace.layout.getSnapshot().activeActivityContainerId).toBe("journal");
 		expect(workspace.layout.getSnapshot().focusedPane).toBe("activity");
+		expect(workspace.layout.getSnapshot().regions.activity.open).toBe(true);
 
-		// 2. Second Alt+3 dismisses focus back to editor
+		// 2. Second Alt+3 when focused toggles/closes the activity region and returns focus to main
 		expect(await dispatchTerminalInput(workspace, keymap, { input: "3", meta: true })).toBe("handled");
+		expect(workspace.layout.getSnapshot().regions.activity.open).toBe(false);
 		expect(workspace.layout.getSnapshot().focusedPane).toBe("main");
 
-		// 3. Ctrl+W cycles focus between panes
+		// 3. Ctrl+E toggles activity panel open/closed
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "e", ctrl: true })).toBe("handled");
+		expect(workspace.layout.getSnapshot().regions.activity.open).toBe(true);
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "e", ctrl: true })).toBe("handled");
+		expect(workspace.layout.getSnapshot().regions.activity.open).toBe(false);
+
+		// 4. Reopen and test Ctrl+W focus cycling
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "e", ctrl: true })).toBe("handled");
 		expect(await dispatchTerminalInput(workspace, keymap, { input: "w", ctrl: true })).toBe("handled");
 		expect(workspace.layout.getSnapshot().focusedPane).toBe("activity");
 
-		// 4. Escape from panel drops focus back to main
+		// 5. Escape from panel drops focus back to main
 		expect(await dispatchTerminalInput(workspace, keymap, { name: "escape" })).toBe("handled");
 		expect(workspace.layout.getSnapshot().focusedPane).toBe("main");
 

@@ -37,6 +37,7 @@ export function formatKeyDisplay(chord: string): string {
 	const map: Record<string, string> = {
 		CTRL_P: "Ctrl+P",
 		CTRL_B: "Ctrl+B",
+		CTRL_E: "Ctrl+E",
 		CTRL_W: "Ctrl+W",
 		CTRL_R: "Ctrl+R",
 		ALT_P: "Alt+P",
@@ -105,7 +106,7 @@ export function buildDynamicKeymapHints(
 			action: translate(i18n, "helpBar.nextTab", "Next Tab"),
 		},
 		{
-			key: `${formatKeyDisplay(keymap.normal.enterInsert || "i")} / Enter`,
+			key: formatKeyDisplay(keymap.normal.enterInsert || "i"),
 			action: translate(i18n, "helpBar.insert", "Insert"),
 		},
 		{
@@ -121,7 +122,7 @@ export function buildDynamicKeymapHints(
 			action: translate(i18n, "palette.title", "Command Palette"),
 		},
 		{
-			key: "Alt+1",
+			key: formatKeyDisplay(keymap.window.toggleActivityPanel || "Ctrl+E"),
 			action: translate(i18n, "helpBar.activity", "Activity"),
 		},
 		{

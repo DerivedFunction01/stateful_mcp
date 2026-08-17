@@ -4,11 +4,11 @@ import { GlobalThemeRegistry } from "../../ui/theme";
 
 const NORMAL_HINTS: readonly TuiShortcutHint[] = [
 	{ key: "Tab", action: "Next Tab" },
-	{ key: "i / Enter", action: "Insert" },
+	{ key: "i", action: "Insert" },
 	{ key: "v", action: "Visual" },
 	{ key: "dd", action: "Delete" },
 	{ key: "Ctrl+P", action: "Command Palette" },
-	{ key: "Alt+1", action: "Activity" },
+	{ key: "Ctrl+E", action: "Activity" },
 	{ key: "Ctrl+B", action: "Inspector" },
 	{ key: "Ctrl+W", action: "Focus Pane" },
 	{ key: "Alt+P", action: "Pin" },
