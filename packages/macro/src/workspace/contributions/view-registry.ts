@@ -46,7 +46,7 @@ export class ViewRegistry {
 			contextualHints: [
 				{ key: "↑/↓", label: "Navigate", i18nKey: "helpBar.navigate" },
 				{ key: "Enter", label: "Execute", i18nKey: "helpBar.apply" },
-				{ key: "Ctrl+B", label: "Close", i18nKey: "helpBar.close" },
+				{ key: "Alt+2", label: "Close", i18nKey: "helpBar.close" },
 				{ key: "Ctrl+W", label: "Focus Pane", i18nKey: "helpBar.switchFocus" },
 				{ key: "Esc", label: "Editor", i18nKey: "helpBar.editor" },
 			],

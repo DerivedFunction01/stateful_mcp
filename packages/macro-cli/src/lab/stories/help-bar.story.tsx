@@ -24,7 +24,7 @@ const ACTIVITY_PANEL_HINTS: readonly TuiShortcutHint[] = [
 const INSPECTOR_PANEL_HINTS: readonly TuiShortcutHint[] = [
 	{ key: "↑/↓", action: "Navigate" },
 	{ key: "Enter", action: "Execute" },
-	{ key: "Ctrl+B", action: "Close" },
+	{ key: "Alt+2", action: "Close" },
 	{ key: "Ctrl+W", action: "Focus Pane" },
 	{ key: "Esc", action: "Editor" },
 ];

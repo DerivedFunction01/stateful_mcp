@@ -219,10 +219,11 @@ export function buildContextualHelpBarHints(
 			}));
 		}
 
+		const closeKey = container?.altKey ? `Alt+${container.altKey}` : "Ctrl+B";
 		return [
 			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
 			{ key: "Enter", action: translate(i18n, "helpBar.apply", "Execute") },
-			{ key: "Ctrl+B", action: translate(i18n, "helpBar.close", "Close") },
+			{ key: closeKey, action: translate(i18n, "helpBar.close", "Close") },
 			{ key: "Ctrl+W", action: translate(i18n, "helpBar.switchFocus", "Focus Pane") },
 			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
 		];

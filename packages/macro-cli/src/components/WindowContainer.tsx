@@ -76,7 +76,7 @@ export function WindowContainer({
 					activeRailId={snapshot.activeActivityContainerId}
 					onSelectRail={(id) => workspace.layout.setActiveActivityContainer(id)}
 					title={activeActivityContainer?.title ?? "Activity"}
-					closeHint="Alt+1"
+					closeHint={activeActivityContainer?.altKey ? `Alt+${activeActivityContainer.altKey}` : "×"}
 					panelWidth={activityWidth}
 					isOpen={snapshot.regions.activity.open}
 					isFocused={activityFocused}
@@ -117,7 +117,7 @@ export function WindowContainer({
 					activeRailId={snapshot.activeInspectorContainerId}
 					onSelectRail={(id) => workspace.layout.setActiveInspectorContainer(id)}
 					title={activeInspectorContainer?.title ?? "Inspector"}
-					closeHint="Ctrl+B"
+					closeHint={activeInspectorContainer?.altKey ? `Alt+${activeInspectorContainer.altKey}` : (keymap?.window.toggleSidepanel || "Ctrl+B")}
 					panelWidth={inspectorWidth}
 					isOpen={snapshot.regions.inspector.open}
 					isFocused={inspectorFocused}
