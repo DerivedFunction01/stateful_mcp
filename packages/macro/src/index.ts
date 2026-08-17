@@ -62,6 +62,7 @@ export * from "./values/quantity";
 export * from "./values/rates";
 export * from "./values/regex";
 export * from "./values/statistics";
+export * from "./values/template-compiler";
 export * from "./values/time-zone";
 export * from "./values/token-matcher";
 export * from "./workspace";
