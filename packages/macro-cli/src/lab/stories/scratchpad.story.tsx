@@ -44,11 +44,9 @@ export const scratchpadStory: TuiStory = {
 	title: "Scratchpad Editor Framing & Boundaries",
 	category: "Scratchpad",
 	states: [
-		"elevated-baseline-hybrid", // Hybrid: Elevated shelf tab strip + top-flush ▔ baseline + framed scratchpad
-		"hybrid-subtle-border",     // Hybrid with distinct subtle frame border box around scratchpad
-		"hybrid-seamless-panel",    // Hybrid with seamless elevated background fill and vertical pipe delimiters
-		"grounded-baseline",        // Baseline only without shelf
-		"elevated-shelf",           // Shelf only without baseline
+		"full-workspace",
+		"framed-scratchpad",
+		"focus-mode-no-rails",
 	],
 	render(context) {
 		const stateId = context.stateId;
@@ -150,8 +148,8 @@ export const scratchpadStory: TuiStory = {
 			</box>
 		);
 
-		// ─── HYBRID: Grounded Baseline + Elevated Shelf ────────────────
-		if (stateId === "elevated-baseline-hybrid") {
+		// ─── 1. FULL WORKSPACE (Grounded Baseline + Elevated Shelf Hybrid) ─
+		if (stateId === "full-workspace") {
 			return (
 				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
 					{/* 1. Elevated Shelf Header Bar with Tabs */}
@@ -192,11 +190,10 @@ export const scratchpadStory: TuiStory = {
 			);
 		}
 
-		// ─── HYBRID: Subtle Border Framing ────────────────────────────
-		if (stateId === "hybrid-subtle-border") {
+		// ─── 2. FRAMED SCRATCHPAD ─────────────────────────────────────
+		if (stateId === "framed-scratchpad") {
 			return (
 				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-					{/* Elevated Shelf */}
 					<box backgroundColor={c.bgSurface} height={1}>
 						<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
 					</box>
@@ -207,7 +204,6 @@ export const scratchpadStory: TuiStory = {
 					<box flexDirection="row" flexGrow={1} marginBottom={1}>
 						{leftPanel}
 
-						{/* Center Scratchpad on canvas with crisp border */}
 						<box
 							flexGrow={1}
 							flexDirection="column"
@@ -229,93 +225,27 @@ export const scratchpadStory: TuiStory = {
 			);
 		}
 
-		// ─── HYBRID: Seamless Panel Depth ─────────────────────────────
-		if (stateId === "hybrid-seamless-panel") {
-			return (
-				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-					<box backgroundColor={c.bgSurface} height={1}>
-						<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
-					</box>
-					<box height={1}>
-						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
-					</box>
-
-					<box flexDirection="row" flexGrow={1} marginBottom={1}>
-						{leftPanel}
-						<box width={1}><text fg={c.borderSubtle}>│</text></box>
-
-						<box
-							flexGrow={1}
-							flexDirection="column"
-							backgroundColor={c.bgElevated}
-							paddingLeft={1}
-							paddingRight={1}
-							paddingTop={0}
-						>
-							{renderEditorLines(c.bgElevated)}
-						</box>
-
-						<box width={1}><text fg={c.borderSubtle}>│</text></box>
-						{rightPanel}
-					</box>
-
-					<TuiHelpBar variant="nano-grid" theme={theme} />
-					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
-				</box>
-			);
-		}
-
-		// ─── GROUNDED BASELINE (No shelf) ─────────────────────────────
-		if (stateId === "grounded-baseline") {
-			return (
-				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
-					<box height={1} marginBottom={0}>
-						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
-					</box>
-
-					<box flexDirection="row" flexGrow={1} marginBottom={1}>
-						{leftPanel}
-						<box width={1}><text fg={c.borderSubtle}>│</text></box>
-
-						<box flexGrow={1} flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={0}>
-							{renderEditorLines()}
-						</box>
-
-						<box width={1}><text fg={c.borderSubtle}>│</text></box>
-						{rightPanel}
-					</box>
-
-					<TuiHelpBar variant="nano-grid" theme={theme} />
-					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
-				</box>
-			);
-		}
-
-		// ─── ELEVATED SHELF (No baseline) ─────────────────────────────
+		// ─── 3. FOCUS MODE (NO RAILS) ──────────────────────────────────
 		return (
 			<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-				<box backgroundColor={c.bgSurface} paddingLeft={1} paddingRight={1} height={1} marginBottom={1}>
+				<box backgroundColor={c.bgSurface} height={1}>
 					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
 				</box>
+				<box height={1} marginBottom={1}>
+					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
+				</box>
 
-				<box flexDirection="row" flexGrow={1} marginBottom={1}>
-					{leftPanel}
-
-					<box
-						flexGrow={1}
-						flexDirection="column"
-						backgroundColor={c.bgElevated}
-						paddingLeft={1}
-						paddingRight={1}
-						paddingTop={1}
-						marginLeft={1}
-						marginRight={1}
-					>
-						{renderEditorLines(c.bgElevated)}
-					</box>
-
-					{rightPanel}
+				<box
+					flexGrow={1}
+					flexDirection="column"
+					backgroundColor={c.bgElevated}
+					borderStyle="single"
+					borderColor={c.borderSubtle}
+					paddingLeft={1}
+					paddingRight={1}
+					marginBottom={1}
+				>
+					{renderEditorLines(c.bgElevated)}
 				</box>
 
 				<TuiHelpBar variant="nano-grid" theme={theme} />

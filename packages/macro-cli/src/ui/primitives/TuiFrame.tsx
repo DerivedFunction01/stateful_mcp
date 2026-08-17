@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core";
 import type { ReactNode } from "react";
-import { TuiNamedColors } from "../tokens";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiDimension = number | `${number}%` | "auto";
 
@@ -22,6 +22,7 @@ export interface TuiFrameProps {
 	readonly paddingTop?: number;
 	readonly paddingBottom?: number;
 	readonly children?: ReactNode;
+	readonly theme?: TuiThemeDefinition;
 }
 
 export function TuiFrame({
@@ -42,10 +43,12 @@ export function TuiFrame({
 	paddingTop,
 	paddingBottom,
 	children,
+	theme,
 }: TuiFrameProps) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const resolvedBorderColor = showBounds
 		? "magenta"
-		: borderColor ?? (borderStyle === "rounded" ? "cyan" : TuiNamedColors.border);
+		: borderColor ?? (borderStyle === "rounded" ? c.accentPrimary : c.borderDefault);
 
 	return (
 		<box
@@ -58,21 +61,21 @@ export function TuiFrame({
 			borderStyle={borderStyle === "ascii" ? "single" : borderStyle}
 			borderColor={resolvedBorderColor}
 		>
-			{(title || meta || showBounds) && (
-				<box height={1} paddingLeft={1} paddingRight={1} flexDirection="row">
+			{(title || meta) && (
+				<box
+					height={1}
+					flexDirection="row"
+					paddingLeft={1}
+					paddingRight={1}
+				>
 					{title && (
-						<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 							{title}
-						</text>
-					)}
-					{showBounds && (
-						<text fg="magenta" attributes={TextAttributes.DIM}>
-							{" "}[bounds: {String(width ?? "auto")}×{String(height ?? "auto")}]
 						</text>
 					)}
 					<box flexGrow={1} />
 					{meta && (
-						<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 							{meta}
 						</text>
 					)}

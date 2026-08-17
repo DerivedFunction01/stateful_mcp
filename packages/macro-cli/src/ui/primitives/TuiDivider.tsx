@@ -1,11 +1,12 @@
 import { TextAttributes } from "@opentui/core";
-import { TuiNamedColors } from "../tokens";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export interface TuiDividerProps {
 	readonly direction?: "horizontal" | "vertical";
 	readonly label?: string;
 	readonly length?: number;
-	readonly style?: "single" | "double" | "ascii";
+	readonly style?: "single" | "double" | "ascii" | "upper";
+	readonly theme?: TuiThemeDefinition;
 }
 
 export function TuiDivider({
@@ -13,8 +14,10 @@ export function TuiDivider({
 	label,
 	length,
 	style = "single",
+	theme,
 }: TuiDividerProps) {
-	const char = style === "double" ? "═" : style === "ascii" ? "-" : "─";
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const char = style === "double" ? "═" : style === "upper" ? "▔" : style === "ascii" ? "-" : "─";
 	const vertChar = style === "double" ? "║" : style === "ascii" ? "|" : "│";
 
 	if (direction === "vertical") {
@@ -22,7 +25,7 @@ export function TuiDivider({
 		return (
 			<box flexDirection="column" width={1} height={h}>
 				{Array.from({ length: h }).map((_, i) => (
-					<text key={i} fg={TuiNamedColors.border}>
+					<text key={i} fg={c.borderDefault}>
 						{vertChar}
 					</text>
 				))}
@@ -31,16 +34,16 @@ export function TuiDivider({
 	}
 
 	if (label) {
-		const lineLen = Math.max(2, (length ?? 30) - label.length - 4);
+		const lineLen = Math.max(2, (length ?? 32) - label.length - 4);
 		const left = char.repeat(2);
 		const right = char.repeat(lineLen);
 		return (
-			<box height={1}>
-				<text fg={TuiNamedColors.border}>{left} </text>
-				<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+			<box height={1} flexDirection="row">
+				<text fg={c.borderSubtle}>{left} </text>
+				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 					{label}
 				</text>
-				<text fg={TuiNamedColors.border}> {right}</text>
+				<text fg={c.borderSubtle}> {right}</text>
 			</box>
 		);
 	}
@@ -48,7 +51,7 @@ export function TuiDivider({
 	const len = length ?? 40;
 	return (
 		<box height={1}>
-			<text fg={TuiNamedColors.border}>{char.repeat(len)}</text>
+			<text fg={c.borderSubtle}>{char.repeat(len)}</text>
 		</box>
 	);
 }

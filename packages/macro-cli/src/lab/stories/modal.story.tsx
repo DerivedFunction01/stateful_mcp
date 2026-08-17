@@ -2,70 +2,244 @@ import { TextAttributes } from "@opentui/core";
 import type { TuiStory } from "../story-contract";
 import { TuiButton } from "../../ui/primitives/TuiButton";
 import { TuiModal } from "../../ui/primitives/TuiModal";
-import { TuiNamedColors } from "../../ui/tokens";
+import { TuiProgressBar } from "../../ui/primitives/TuiProgressBar";
+import { GlobalThemeRegistry } from "../../ui/theme";
 
 export const modalStory: TuiStory = {
 	id: "modal",
-	title: "Modal Windows",
+	title: "Modal Windows & Dialogs",
 	category: "Modals",
-	states: ["confirmation-dialog", "payment-checkout", "alert-error"],
+	states: [
+		"confirmation-dialog",
+		"payment-checkout",
+		"alert-error",
+		"wizard-deploy",
+	],
 	render(context) {
-		const width = Math.min(56, context.size.columns - 4);
+		const width = Math.min(62, context.size.columns - 4);
+		const theme = GlobalThemeRegistry.getActive();
+		const c = theme.colors;
 
-		if (context.stateId === "payment-checkout") {
+		// 1. CONFIRMATION DIALOG (Default — Balanced Equal-Sized Action Buttons)
+		if (context.stateId === "confirmation-dialog") {
 			return (
-				<TuiModal title="Payment Checkout" dismissHint="esc" width={width}>
-					<box flexDirection="column">
-						<text fg={TuiNamedColors.primary}>Order: #4092-A</text>
-						<text fg={TuiNamedColors.primary}>Total Amount: $49.50</text>
-						<box height={1} marginTop={1} marginBottom={1}>
-							<text fg={TuiNamedColors.border}>{"─".repeat(width - 4)}</text>
+				<TuiModal
+					title="Discard Unsaved Changes?"
+					icon="❓"
+					subtitle="Scratchpad buffer has unsaved edits"
+					dismissHint="Esc"
+					width={width}
+					theme={theme}
+					footer={
+						<box flexDirection="row" alignItems="center">
+							<TuiButton
+								label="Keep Editing"
+								shortcut="Esc"
+								variant="outline-to-solid"
+								width={22}
+								theme={theme}
+							/>
+							<box width={2} />
+							<TuiButton
+								label="Discard & Revert"
+								shortcut="Enter"
+								variant="outline-to-solid"
+								intent="danger"
+								isSelected={true}
+								width={22}
+								theme={theme}
+							/>
 						</box>
-						<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
-							Select Payment Method:
+					}
+				>
+					<box flexDirection="column">
+						<text fg={c.fgPrimary}>
+							Are you sure you want to discard your draft session?
 						</text>
-						<box marginTop={1} flexDirection="row">
-							<TuiButton label="Credit Card" isFocused={true} />
-							<text> </text>
-							<TuiButton label="Cash" />
-							<text> </text>
-							<TuiButton label="Gift Card" />
+						<text fg={c.fgDim} attributes={TextAttributes.DIM} marginTop={1}>
+							All 3 pending macro cell modifications will be lost permanently.
+						</text>
+					</box>
+				</TuiModal>
+			);
+		}
+
+		// 2. PAYMENT CHECKOUT MODAL
+		if (context.stateId === "payment-checkout") {
+			const cardWidth = width - 4;
+			return (
+				<TuiModal
+					title="Payment Checkout"
+					icon="💳"
+					subtitle="Order #4092-A · Total: $49.50"
+					dismissHint="Esc"
+					width={width}
+					theme={theme}
+					footer={
+						<box flexDirection="row" alignItems="center">
+							<TuiButton
+								label="Cancel"
+								shortcut="Esc"
+								variant="outline-to-solid"
+								width={22}
+								theme={theme}
+							/>
+							<box width={2} />
+							<TuiButton
+								label="Confirm & Pay"
+								shortcut="Enter"
+								variant="outline-to-solid"
+								intent="success"
+								isSelected={true}
+								width={22}
+								theme={theme}
+							/>
+						</box>
+					}
+				>
+					<box flexDirection="column">
+						<box marginBottom={1}>
+							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+								Select Payment Method:
+							</text>
+						</box>
+						<box flexDirection="column">
+							<TuiButton
+								label="Credit Card (•••• 9841)"
+								variant="outline-to-solid"
+								isSelected={true}
+								width={cardWidth}
+								align="left"
+								theme={theme}
+							/>
+							<box height={1} />
+							<TuiButton
+								label="Cash / Check"
+								variant="outline-to-solid"
+								width={cardWidth}
+								align="left"
+								theme={theme}
+							/>
+							<box height={1} />
+							<TuiButton
+								label="Apple Pay / Mobile Wallet"
+								variant="outline-to-solid"
+								width={cardWidth}
+								align="left"
+								theme={theme}
+							/>
 						</box>
 					</box>
 				</TuiModal>
 			);
 		}
 
+		// 3. ALERT / ERROR DIALOG
 		if (context.stateId === "alert-error") {
 			return (
-				<TuiModal title="Execution Error" dismissHint="esc" width={width} borderColor="red">
-					<box flexDirection="column">
-						<text fg={TuiNamedColors.error} attributes={TextAttributes.BOLD}>
-							Failed to execute macro plan:
-						</text>
-						<text fg={TuiNamedColors.primary} marginTop={1}>
-							Extension 'retail.checkout' returned invalid status code 500.
-						</text>
-						<box marginTop={2} flexDirection="row">
-							<TuiButton label="Retry" isFocused={true} />
-							<text> </text>
-							<TuiButton label="Dismiss" />
+				<TuiModal
+					title="Execution Failure"
+					icon="⚠"
+					subtitle="Macro runtime exception"
+					dismissHint="Esc"
+					variant="alert"
+					width={width}
+					theme={theme}
+					footer={
+						<box flexDirection="row" alignItems="center">
+							<TuiButton
+								label="Dismiss"
+								shortcut="Esc"
+								variant="outline-to-solid"
+								width={20}
+								theme={theme}
+							/>
+							<box width={2} />
+							<TuiButton
+								label="Retry Action"
+								shortcut="Enter"
+								variant="outline-to-solid"
+								intent="danger"
+								isSelected={true}
+								width={20}
+								theme={theme}
+							/>
 						</box>
+					}
+				>
+					<box flexDirection="column">
+						<text fg={c.statusError} attributes={TextAttributes.BOLD}>
+							Extension 'retail.checkout' failed to execute:
+						</text>
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM} marginTop={1}>
+							HTTP 500: Internal server error while provisioning token.
+						</text>
 					</box>
 				</TuiModal>
 			);
 		}
 
+		// 4. WIZARD STEP MODAL
+		const optionWidth = width - 4;
 		return (
-			<TuiModal title="Confirm Action" dismissHint="esc" width={width}>
+			<TuiModal
+				title="Deploy Pipeline Wizard"
+				icon="🚀"
+				subtitle="Step 2 of 4: Environment Target"
+				dismissHint="Esc"
+				width={width}
+				theme={theme}
+				footer={
+					<box flexDirection="row" alignItems="center">
+						<TuiButton
+							label="Back"
+							variant="outline-to-solid"
+							width={16}
+							theme={theme}
+						/>
+						<box width={2} />
+						<TuiButton
+							label="Next: Target"
+							shortcut="Enter"
+							variant="outline-to-solid"
+							intent="primary"
+							isSelected={true}
+							width={20}
+							theme={theme}
+						/>
+					</box>
+				}
+			>
 				<box flexDirection="column">
-					<text fg={TuiNamedColors.primary}>
-						Are you sure you want to discard unsaved scratchpad modifications?
-					</text>
-					<box marginTop={2} flexDirection="row">
-						<TuiButton label="Cancel" />
-						<text> </text>
-						<TuiButton label="Discard" isFocused={true} />
+					<TuiProgressBar
+						value={50}
+						total={100}
+						label="Deployment Configuration Progress"
+						width={width - 8}
+						variant="continuous"
+						theme={theme}
+					/>
+					<box marginTop={1} marginBottom={1} flexDirection="column">
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>Select Target Cluster:</text>
+						<box marginTop={1} flexDirection="column">
+							<TuiButton
+								label="Staging (us-east-1a)"
+								variant="outline-to-solid"
+								isSelected={true}
+								width={optionWidth}
+								align="left"
+								theme={theme}
+							/>
+							<box height={1} />
+							<TuiButton
+								label="Production (us-west-2b)"
+								variant="outline-to-solid"
+								intent="warning"
+								width={optionWidth}
+								align="left"
+								theme={theme}
+							/>
+						</box>
 					</box>
 				</box>
 			</TuiModal>

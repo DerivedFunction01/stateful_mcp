@@ -1,5 +1,6 @@
 import { TextAttributes } from "@opentui/core";
-import { TuiGlyphs, TuiNamedColors } from "../tokens";
+import { TuiGlyphs } from "../tokens";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export interface TuiTreeNode {
 	readonly id: string;
@@ -14,13 +15,17 @@ export interface TuiTreeProps {
 	readonly depth?: number;
 	readonly prefix?: string;
 	readonly isLast?: boolean;
+	readonly theme?: TuiThemeDefinition;
 }
 
 export function TuiTree({
 	nodes,
 	depth = 0,
 	prefix = "",
+	theme,
 }: TuiTreeProps) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+
 	return (
 		<box flexDirection="column">
 			{nodes.map((node, index) => {
@@ -31,26 +36,26 @@ export function TuiTree({
 						? TuiGlyphs.connectors.treeLast
 						: TuiGlyphs.connectors.treeBranch;
 
-				let fg: string = TuiNamedColors.primary;
+				let fg: string = c.fgPrimary;
 				let attributes = 0;
 
 				switch (node.variant) {
 					case "supporting":
-						fg = TuiNamedColors.success;
+						fg = c.statusSuccess;
 						break;
 					case "refuting":
-						fg = TuiNamedColors.error;
+						fg = c.statusError;
 						break;
 					case "accent":
-						fg = TuiNamedColors.accent;
+						fg = c.accentPrimary;
 						attributes = TextAttributes.BOLD;
 						break;
 					case "dim":
-						fg = TuiNamedColors.muted;
+						fg = c.fgMuted;
 						attributes = TextAttributes.DIM;
 						break;
 					default:
-						fg = TuiNamedColors.primary;
+						fg = c.fgPrimary;
 						break;
 				}
 
@@ -61,16 +66,14 @@ export function TuiTree({
 				return (
 					<box key={node.id} flexDirection="column">
 						<box flexDirection="row" height={1}>
-							{depth > 0 && (
-								<text fg={TuiNamedColors.border}>
-									{prefix}{branch}
-								</text>
-							)}
+							<text fg={c.borderSubtle}>
+								{prefix}{branch}
+							</text>
 							<text fg={fg} attributes={attributes}>
 								{node.label}
 							</text>
 							{node.meta && (
-								<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+								<text fg={c.fgDim} attributes={TextAttributes.DIM}>
 									{"  "}{node.meta}
 								</text>
 							)}
@@ -80,6 +83,7 @@ export function TuiTree({
 								nodes={node.children}
 								depth={depth + 1}
 								prefix={nextPrefix}
+								theme={theme}
 							/>
 						)}
 					</box>

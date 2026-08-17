@@ -3,6 +3,7 @@ import { activityRailStory } from "./activity-rail.story";
 import { commandPaletteStory } from "./command-palette.story";
 import { completionPopupStory } from "./completion-popup.story";
 import { emptyStateStory } from "./empty-state.story";
+import { formInputsStory } from "./form-inputs.story";
 import { helpBarStory } from "./help-bar.story";
 import { inspectorRegionStory } from "./inspector-region.story";
 import { journalStory } from "./journal.story";
@@ -26,6 +27,7 @@ export function registerCoreStories(registry: TuiStoryRegistry = globalStoryRegi
 	registry.register(modalStory);
 	registry.register(completionPopupStory);
 	registry.register(primitivesStory);
+	registry.register(formInputsStory);
 	registry.register(emptyStateStory);
 }
 
@@ -37,6 +39,7 @@ export {
 	commandPaletteStory,
 	completionPopupStory,
 	emptyStateStory,
+	formInputsStory,
 	helpBarStory,
 	inspectorRegionStory,
 	journalStory,
