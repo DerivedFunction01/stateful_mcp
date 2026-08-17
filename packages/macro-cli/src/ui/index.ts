@@ -16,3 +16,6 @@ export * from "./primitives/TuiHelpBar";
 export * from "./primitives/TuiModal";
 export * from "./primitives/TuiCommandPalette";
 export * from "./primitives/TuiCompletionPopup";
+export * from "./primitives/TuiActivityRail";
+export * from "./primitives/TuiSidepanel";
+export * from "./primitives/TuiPanelRegion";

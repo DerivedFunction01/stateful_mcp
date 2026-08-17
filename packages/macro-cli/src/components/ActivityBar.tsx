@@ -1,32 +1,30 @@
-import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
-import { TuiNamedColors } from "../ui/tokens";
+import { TuiActivityRail, type TuiActivityItem } from "../ui/primitives/TuiActivityRail";
+import type { TuiThemeDefinition } from "../ui/theme";
 
-export function ActivityBar({ workspace }: { workspace: MacroWorkspace }) {
+export function ActivityBar({
+	workspace,
+	theme,
+}: {
+	workspace: MacroWorkspace;
+	theme?: TuiThemeDefinition;
+}) {
 	const active = workspace.layout.getSnapshot().activeActivityContainerId;
+	const containers = workspace.views.getContainersForRegion("activity");
+
+	const items: readonly TuiActivityItem[] = containers.map((c) => ({
+		id: c.id,
+		label: c.title,
+		icon: c.icon ?? "⌂",
+		altKey: c.altKey,
+		isActive: c.id === active,
+	}));
 
 	return (
-		<box
-			flexDirection="column"
-			width={6}
-			borderStyle="single"
-			borderColor={TuiNamedColors.border}
-			paddingLeft={1}
-			paddingTop={1}
-		>
-			{workspace.views.getContainersForRegion("activity").map((container) => {
-				const isActive = container.id === active;
-				return (
-					<box key={container.id} height={1} marginBottom={1}>
-						<text
-							attributes={isActive ? TextAttributes.BOLD : 0}
-							fg={isActive ? "cyan" : TuiNamedColors.muted}
-						>
-							{isActive ? ">" : " "}{container.altKey ?? " "}{container.icon}
-						</text>
-					</box>
-				);
-			})}
-		</box>
+		<TuiActivityRail
+			items={items}
+			activeId={active}
+			theme={theme}
+		/>
 	);
 }
