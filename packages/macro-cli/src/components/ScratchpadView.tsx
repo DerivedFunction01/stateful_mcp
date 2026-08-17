@@ -1,16 +1,20 @@
 import { TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import { translate } from "../locales";
+import { TuiCursor } from "../ui/primitives/TuiCursor";
 import { formatKeyDisplay } from "../ui/primitives/TuiHelpBar";
-import { TuiColors, TuiNamedColors } from "../ui/tokens";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 
 export function ScratchpadView({
 	workspace,
 	keymap,
+	theme,
 }: {
 	workspace: MacroWorkspace;
 	keymap?: EditorKeymapProfile;
+	theme?: TuiThemeDefinition;
 }) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const cursor = workspace.editor.buffer.getCursor();
 	const lines = workspace.editor.buffer.getLines();
 	const projected = workspace.scratchpad.getProjectedLines();
@@ -50,10 +54,10 @@ export function ScratchpadView({
 			{/* Top Pinned Macro Banner if active */}
 			{pinned && (
 				<box height={1} marginBottom={1} flexDirection="row">
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+					<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
 						📌 {pinnedLabel}
 					</text>
-					<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 						{"  "}{pinnedHint}
 					</text>
 				</box>
@@ -81,24 +85,29 @@ export function ScratchpadView({
 								: " ";
 
 				const signColor = isHighlighted
-					? "cyan"
+					? c.accentPrimary
 					: hasError
-						? "red"
+						? c.statusError
 						: isValid
-							? "green"
-							: TuiNamedColors.muted;
+							? c.statusSuccess
+							: c.fgMuted;
 
 				const rowBg = isSelectedInVisual
-					? TuiColors.bgActive
+					? c.bgActive
 					: isActive
-						? TuiColors.bgHighlight
+						? c.bgElevated
 						: undefined;
 
-				const leftBarColor = isHighlighted ? "cyan" : hasError ? "red" : "transparent";
+				const leftBarColor = isHighlighted ? c.accentPrimary : hasError ? c.statusError : "transparent";
 
 				const pinnedBadge = isPinned
 					? translate(i18n, "scratchpad.pinnedBadge", `[pinned to ${pinned}]`, { macro: pinned })
 					: "";
+
+				// Parse cursor position on active line
+				const beforeCursor = line.slice(0, cursor.col);
+				const cursorChar = line.slice(cursor.col, cursor.col + 1) || " ";
+				const afterCursor = line.slice(cursor.col + 1);
 
 				return (
 					<box key={`${index}-${line}`} flexDirection="column">
@@ -119,28 +128,40 @@ export function ScratchpadView({
 
 							{/* Line Number (3 chars) */}
 							<text
-								fg={isHighlighted ? "yellow" : TuiNamedColors.muted}
+								fg={isHighlighted ? c.accentAmber : c.fgMuted}
 								attributes={isHighlighted ? TextAttributes.BOLD : 0}
 							>
 								{lineNumStr}{" "}
 							</text>
 
 							{/* Continuous vertical pipe divider */}
-							<text fg={TuiNamedColors.border}>│ </text>
+							<text fg={c.borderDefault}>│ </text>
 
-							{/* Command Input Text */}
+							{/* Command Input Text with Precise Inline Blinking Cursor */}
 							{isEmptyBuffer && isActive ? (
 								<box flexDirection="row">
-									<text fg="white" attributes={TextAttributes.INVERSE}>
-										{" "}
+									<TuiCursor char={placeholderText.slice(0, 1)} isPlaceholder={true} theme={theme} />
+									<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+										{placeholderText.slice(1)}
 									</text>
-									<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
-										{" "}{placeholderText}
-									</text>
+								</box>
+							) : isActive ? (
+								<box flexDirection="row">
+									{beforeCursor.length > 0 && (
+										<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+											{beforeCursor}
+										</text>
+									)}
+									<TuiCursor char={cursorChar} theme={theme} />
+									{afterCursor.length > 0 && (
+										<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+											{afterCursor}
+										</text>
+									)}
 								</box>
 							) : (
 								<text
-									fg={isHighlighted ? "white" : TuiNamedColors.primary}
+									fg={isHighlighted ? c.fgPrimary : c.fgSecondary}
 									attributes={isHighlighted ? TextAttributes.BOLD : 0}
 								>
 									{line || " "}
@@ -149,7 +170,7 @@ export function ScratchpadView({
 
 							{/* Pinned Tag */}
 							{isPinned && (
-								<text fg={TuiNamedColors.accent} attributes={TextAttributes.DIM}>
+								<text fg={c.accentAmber} attributes={TextAttributes.DIM}>
 									{"  "}[pinned]
 								</text>
 							)}
@@ -164,17 +185,17 @@ export function ScratchpadView({
 								{isHighlighted || hasError ? "▎" : " "}
 							</text>
 							<text fg="transparent">      </text>
-							<text fg={TuiNamedColors.border}>│ </text>
+							<text fg={c.borderDefault}>│ </text>
 							{hasError ? (
-								<text fg={TuiNamedColors.error}>
+								<text fg={c.statusError}>
 									! {projection.diagnostics[0]?.message}
 								</text>
 							) : projection?.preview ? (
-								<text fg={projection.isValid ? TuiNamedColors.success : TuiNamedColors.amber}>
+								<text fg={projection.isValid ? c.statusSuccess : c.statusWarning}>
 									↳ {projection.preview.text}
 								</text>
 							) : (
-								<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+								<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 									{" "}
 								</text>
 							)}

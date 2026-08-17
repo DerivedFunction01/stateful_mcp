@@ -4,15 +4,19 @@ import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import { dispatchTerminalInput } from "./terminal-dispatcher";
 import { WindowContainer } from "./components/WindowContainer";
 
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "./ui/theme";
+
 export function MacroCliApp({
 	workspace,
 	keymap,
 	renderer,
+	theme,
 	onExit,
 }: {
 	workspace: MacroWorkspace;
 	keymap: EditorKeymapProfile;
 	renderer: CliRenderer;
+	theme?: TuiThemeDefinition;
 	onExit?: () => void;
 }) {
 	const subscribe = (listener: () => void) => {
@@ -75,5 +79,5 @@ export function MacroCliApp({
 		};
 	}, [keymap, onExit, renderer, workspace]);
 
-	return <WindowContainer workspace={workspace} keymap={keymap} renderer={renderer} />;
+	return <WindowContainer workspace={workspace} keymap={keymap} renderer={renderer} theme={theme} />;
 }

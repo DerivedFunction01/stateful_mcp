@@ -1,12 +1,15 @@
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 import { TuiCommandPalette, type TuiPaletteCommand } from "../ui/primitives/TuiCommandPalette";
+import type { TuiThemeDefinition } from "../ui/theme";
 
 export function CommandPaletteModal({
 	workspace,
-	width = 64,
+	width = 68,
+	theme,
 }: {
 	workspace: MacroWorkspace;
 	width?: number;
+	theme?: TuiThemeDefinition;
 }) {
 	const items: readonly TuiPaletteCommand[] = workspace.palette.getItems().map((item) => ({
 		id: item.id,
@@ -19,11 +22,13 @@ export function CommandPaletteModal({
 
 	return (
 		<TuiCommandPalette
+			variant="opencode-bordered"
 			query={query}
 			items={items}
 			selectedIndex={selected}
 			width={width}
 			i18n={workspace.i18n}
+			theme={theme}
 		/>
 	);
 }

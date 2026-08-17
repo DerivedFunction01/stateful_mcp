@@ -1,7 +1,15 @@
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 import { TuiTabs, type TuiTabItem } from "../ui/primitives/TuiTabs";
 
-export function WorkspaceTabs({ workspace }: { workspace: MacroWorkspace }) {
+import type { TuiThemeDefinition } from "../ui/theme";
+
+export function WorkspaceTabs({
+	workspace,
+	theme,
+}: {
+	workspace: MacroWorkspace;
+	theme?: TuiThemeDefinition;
+}) {
 	const active = workspace.layout.getSnapshot().activeTabId;
 	const tabs: readonly TuiTabItem[] = workspace.tabs.getTabs().map((tab) => ({
 		id: tab.id,
@@ -15,6 +23,7 @@ export function WorkspaceTabs({ workspace }: { workspace: MacroWorkspace }) {
 			tabs={tabs}
 			activeTabId={active}
 			variant="opencode"
+			theme={theme}
 		/>
 	);
 }

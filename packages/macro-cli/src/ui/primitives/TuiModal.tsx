@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core";
 import type { ReactNode } from "react";
-import { TuiNamedColors } from "../tokens";
+import { TuiColors, TuiNamedColors } from "../tokens";
 
 export interface TuiModalProps {
 	readonly title?: string;
@@ -8,6 +8,8 @@ export interface TuiModalProps {
 	readonly width?: number;
 	readonly height?: number;
 	readonly borderColor?: string;
+	readonly borderStyle?: "single" | "rounded" | "double" | "none";
+	readonly backgroundColor?: string;
 	readonly children?: ReactNode;
 	readonly footer?: ReactNode;
 }
@@ -15,9 +17,11 @@ export interface TuiModalProps {
 export function TuiModal({
 	title,
 	dismissHint = "esc",
-	width = 60,
+	width = 64,
 	height,
-	borderColor = "cyan",
+	borderColor,
+	borderStyle = "none",
+	backgroundColor = TuiColors.bgSurface,
 	children,
 	footer,
 }: TuiModalProps) {
@@ -25,11 +29,14 @@ export function TuiModal({
 		<box
 			width={width}
 			height={height}
-			borderStyle="rounded"
+			borderStyle={borderStyle === "none" ? undefined : borderStyle}
 			borderColor={borderColor}
+			backgroundColor={backgroundColor}
 			flexDirection="column"
-			paddingLeft={1}
-			paddingRight={1}
+			paddingLeft={2}
+			paddingRight={2}
+			paddingTop={1}
+			paddingBottom={1}
 		>
 			{(title || dismissHint) && (
 				<box height={1} flexDirection="row" marginBottom={1}>

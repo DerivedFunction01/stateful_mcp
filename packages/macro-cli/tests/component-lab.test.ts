@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { parseArgs } from "../src/index";
+import { GlobalThemeRegistry, parseArgs } from "../src/index";
 import { TuiStoryRegistry } from "../src/lab/story-registry";
 import { createMockWorkspace } from "../src/lab/mock-workspace";
 import { buildDynamicKeymapHints } from "../src/ui/primitives/TuiHelpBar";
+import {
+	GITHUB_DARK_THEME,
+	generateCssThemeVariables,
+	type TuiThemeDefinition,
+} from "../src/ui/theme";
 import { translate } from "../src/locales";
 
 describe("macro-cli --inspect argument parsing", () => {
@@ -133,5 +138,37 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			{ key: "Ctrl+B", action: "Sidepanel" },
 			{ key: "Alt+P", action: "Pin" },
 		]);
+	});
+});
+
+describe("Theme System & CSS Generation", () => {
+	test("provides light, dark, opencode, monokai, and nord themes", () => {
+		const themes = GlobalThemeRegistry.list();
+		expect(themes.map((t) => t.id)).toContain("github-dark");
+		expect(themes.map((t) => t.id)).toContain("github-light");
+		expect(themes.map((t) => t.id)).toContain("opencode-dark");
+		expect(themes.map((t) => t.id)).toContain("monokai");
+		expect(themes.map((t) => t.id)).toContain("nord");
+	});
+
+	test("switches active theme and retrieves colors", () => {
+		expect(GlobalThemeRegistry.setActive("github-light")).toBe(true);
+		const light = GlobalThemeRegistry.getActive();
+		expect(light.mode).toBe("light");
+		expect(light.colors.bgCanvas).toBe("#ffffff");
+		expect(light.colors.fgPrimary).toBe("#1f2328");
+
+		GlobalThemeRegistry.setActive("github-dark");
+		const dark = GlobalThemeRegistry.getActive();
+		expect(dark.mode).toBe("dark");
+		expect(dark.colors.bgCanvas).toBe("#0d1117");
+	});
+
+	test("generates browser CSS variables from theme definition", () => {
+		const css = generateCssThemeVariables(GITHUB_DARK_THEME);
+		expect(css).toContain("--theme-id: \"github-dark\"");
+		expect(css).toContain("--color-bg-canvas: #0d1117");
+		expect(css).toContain("--color-fg-primary: #f0f6fc");
+		expect(css).toContain("--color-accent-primary: #38bdf8");
 	});
 });

@@ -11,6 +11,7 @@ import { primitivesStory } from "./primitives.story";
 import { scratchpadStory } from "./scratchpad.story";
 import { statusBarStory } from "./status-bar.story";
 import { tabsStory } from "./tabs.story";
+import { themesStory } from "./themes.story";
 
 export function registerCoreStories(registry: TuiStoryRegistry = globalStoryRegistry): void {
 	registry.register(commandPaletteStory);
@@ -18,6 +19,7 @@ export function registerCoreStories(registry: TuiStoryRegistry = globalStoryRegi
 	registry.register(statusBarStory);
 	registry.register(helpBarStory);
 	registry.register(tabsStory);
+	registry.register(themesStory);
 	registry.register(activityRailStory);
 	registry.register(inspectorRegionStory);
 	registry.register(journalStory);
@@ -43,4 +45,5 @@ export {
 	scratchpadStory,
 	statusBarStory,
 	tabsStory,
+	themesStory,
 };

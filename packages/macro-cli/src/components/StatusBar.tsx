@@ -1,7 +1,14 @@
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 import { TuiStatusBar } from "../ui/primitives/TuiStatusBar";
+import type { TuiThemeDefinition } from "../ui/theme";
 
-export function StatusBar({ workspace }: { workspace: MacroWorkspace }) {
+export function StatusBar({
+	workspace,
+	theme,
+}: {
+	workspace: MacroWorkspace;
+	theme?: TuiThemeDefinition;
+}) {
 	const cursor = workspace.editor.buffer.getCursor();
 	const mode = workspace.editor.getMode();
 	const valid = workspace.scratchpad.getValidLineCount();
@@ -19,6 +26,7 @@ export function StatusBar({ workspace }: { workspace: MacroWorkspace }) {
 			totalCount={total}
 			pinnedMacro={pinned}
 			locale={locale}
+			theme={theme}
 		/>
 	);
 }

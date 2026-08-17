@@ -8,17 +8,20 @@ import { SidepanelHost } from "./SidepanelHost";
 import { StatusBar } from "./StatusBar";
 import { TabHost } from "./TabHost";
 import { WorkspaceTabs } from "./WorkspaceTabs";
-import { TuiNamedColors } from "../ui/tokens";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 
 export function WindowContainer({
 	workspace,
 	keymap,
 	renderer,
+	theme,
 }: {
 	workspace: MacroWorkspace;
 	keymap?: EditorKeymapProfile;
 	renderer: CliRenderer;
+	theme?: TuiThemeDefinition;
 }) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const snapshot = workspace.layout.getSnapshot();
 	const columns = renderer.width;
 	const rows = renderer.height;
@@ -28,37 +31,37 @@ export function WindowContainer({
 	const paletteMargin = Math.max(0, Math.floor((columns - paletteWidth) / 2));
 
 	return (
-		<box flexDirection="column" width="100%" height="100%">
+		<box flexDirection="column" width="100%" height="100%" backgroundColor={c.bgCanvas}>
 			{/* Top Workspace Tab Strip */}
-			<WorkspaceTabs workspace={workspace} />
+			<WorkspaceTabs workspace={workspace} theme={theme} />
 
 			{/* Main Workspace Row: Activity Rail | Editor/Tab Host | Sidepanel */}
 			<box flexGrow={1} flexDirection="row">
 				<ActivityBar workspace={workspace} />
 				<box flexGrow={1} flexDirection="column" paddingLeft={1} paddingRight={1} paddingTop={1}>
 					{snapshot.activeTabId === "scratchpad" ? (
-						<ScratchpadView workspace={workspace} keymap={keymap} />
+						<ScratchpadView workspace={workspace} keymap={keymap} theme={theme} />
 					) : (
 						<TabHost workspace={workspace} width={columns} height={rows} />
 					)}
 				</box>
 				{snapshot.regions.inspector.open && (
-					<box width={sidepanelWidth} borderStyle="single" borderColor={TuiNamedColors.border}>
+					<box width={sidepanelWidth} borderStyle="single" borderColor={c.borderDefault}>
 						<SidepanelHost workspace={workspace} width={sidepanelWidth} height={rows} />
 					</box>
 				)}
 			</box>
 
 			{/* Dynamic Keymap Help Bar (Contextual Action Hints) */}
-			<HelpBar keymap={keymap} workspace={workspace} />
+			<HelpBar keymap={keymap} workspace={workspace} variant="nano-grid" theme={theme} />
 
 			{/* Solid Segmented Lualine Status Bar (Bottom Window Anchor) */}
-			<StatusBar workspace={workspace} />
+			<StatusBar workspace={workspace} theme={theme} />
 
 			{/* Floating Centered Command Palette */}
 			{workspace.palette.getIsOpen() && (
 				<box position="absolute" width={paletteWidth} marginLeft={paletteMargin} marginTop={2}>
-					<CommandPaletteModal workspace={workspace} width={paletteWidth} />
+					<CommandPaletteModal workspace={workspace} width={paletteWidth} theme={theme} />
 				</box>
 			)}
 		</box>

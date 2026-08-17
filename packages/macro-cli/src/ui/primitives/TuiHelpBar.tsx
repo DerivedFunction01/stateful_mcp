@@ -1,11 +1,11 @@
 import { TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, I18nKernel } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
-import { TuiColors, TuiNamedColors } from "../tokens";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiHelpBarVariant =
-	| "lualine-pills"
 	| "nano-grid"
+	| "lualine-pills"
 	| "opencode-compact"
 	| "bracket-chips"
 	| "subtle-text";
@@ -24,6 +24,7 @@ export interface TuiHelpBarProps {
 	readonly mode?: TuiHelpBarMode;
 	readonly hints?: readonly TuiShortcutHint[];
 	readonly customText?: string;
+	readonly theme?: TuiThemeDefinition;
 }
 
 export function formatKeyDisplay(chord: string): string {
@@ -131,11 +132,14 @@ export function TuiHelpBar({
 	mode = "NORMAL",
 	hints,
 	customText,
+	theme,
 }: TuiHelpBarProps) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+
 	if (customText) {
 		return (
 			<box height={1} paddingLeft={0} paddingRight={1}>
-				<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 					{customText}
 				</text>
 			</box>
@@ -144,30 +148,19 @@ export function TuiHelpBar({
 
 	const resolvedHints = hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n, mode) : []);
 
-	// 1. Lualine Continuous Ribbon with Glyph Dividers & Zero Gaps
-	if (variant === "lualine-pills") {
+	// 1. Nano / Htop High-Contrast Inverse Badges (Default)
+	if (variant === "nano-grid") {
 		return (
 			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 				{resolvedHints.map((hint) => (
-					<box
-						key={`${hint.key}-${hint.action}`}
-						flexDirection="row"
-						backgroundColor={TuiColors.bgSurface}
-						paddingLeft={0}
-						paddingRight={1}
-						marginRight={0}
-					>
-						<text fg="cyan" attributes={TextAttributes.BOLD}>
-							▎
-						</text>
-						<text fg="cyan" attributes={TextAttributes.BOLD}>
-							{" "}{hint.key}
-						</text>
-						<text fg={TuiNamedColors.primary}>
-							{" "}{hint.action}{" "}
-						</text>
-						<text fg={TuiNamedColors.border}>
-							│
+					<box key={`${hint.key}-${hint.action}`} flexDirection="row" marginRight={2}>
+						<box backgroundColor={c.accentPrimary} paddingLeft={1} paddingRight={1}>
+							<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
+								{hint.key}
+							</text>
+						</box>
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+							{" "}{hint.action}
 						</text>
 					</box>
 				))}
@@ -175,19 +168,30 @@ export function TuiHelpBar({
 		);
 	}
 
-	// 2. Nano / Htop High-Contrast Inverse Badges (Flush with StatusBar column 0)
-	if (variant === "nano-grid") {
+	// 2. Lualine Continuous Ribbon with Glyph Dividers & Zero Gaps
+	if (variant === "lualine-pills") {
 		return (
 			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 				{resolvedHints.map((hint) => (
-					<box key={`${hint.key}-${hint.action}`} flexDirection="row" marginRight={2}>
-						<box backgroundColor="#38bdf8" paddingLeft={1} paddingRight={1}>
-							<text fg="#0d1117" attributes={TextAttributes.BOLD}>
-								{hint.key}
-							</text>
-						</box>
-						<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
-							{" "}{hint.action}
+					<box
+						key={`${hint.key}-${hint.action}`}
+						flexDirection="row"
+						backgroundColor={c.bgSurface}
+						paddingLeft={0}
+						paddingRight={1}
+						marginRight={0}
+					>
+						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+							▎
+						</text>
+						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+							{" "}{hint.key}
+						</text>
+						<text fg={c.fgPrimary}>
+							{" "}{hint.action}{" "}
+						</text>
+						<text fg={c.borderDefault}>
+							│
 						</text>
 					</box>
 				))}
@@ -201,11 +205,11 @@ export function TuiHelpBar({
 			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 				{resolvedHints.map((hint, index) => (
 					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-						{index > 0 && <text fg={TuiNamedColors.border}>  •  </text>}
-						<text fg="cyan" attributes={TextAttributes.BOLD}>
+						{index > 0 && <text fg={c.borderDefault}>  •  </text>}
+						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 							{hint.key}
 						</text>
-						<text fg={TuiNamedColors.muted}>
+						<text fg={c.fgMuted}>
 							{" "}{hint.action}
 						</text>
 					</box>
@@ -220,8 +224,8 @@ export function TuiHelpBar({
 			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 				{resolvedHints.map((hint, index) => (
 					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-						{index > 0 && <text fg={TuiNamedColors.border}>  ·  </text>}
-						<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+						{index > 0 && <text fg={c.borderDefault}>  ·  </text>}
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 							{hint.key}: {hint.action}
 						</text>
 					</box>
@@ -235,11 +239,11 @@ export function TuiHelpBar({
 		<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 			{resolvedHints.map((hint, index) => (
 				<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-					{index > 0 && <text fg={TuiNamedColors.border}> │ </text>}
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+					{index > 0 && <text fg={c.borderDefault}> │ </text>}
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 						[ {hint.key} ]
 					</text>
-					<text fg={TuiNamedColors.muted}>
+					<text fg={c.fgMuted}>
 						{" "}{hint.action}
 					</text>
 				</box>

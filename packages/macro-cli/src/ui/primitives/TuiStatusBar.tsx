@@ -1,5 +1,5 @@
 import { TextAttributes } from "@opentui/core";
-import { TuiColors, TuiNamedColors } from "../tokens";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiStatusBarVariant = "lualine" | "vscode" | "opencode" | "segmented";
 
@@ -15,6 +15,7 @@ export interface TuiStatusBarProps {
 	readonly sessionTitle?: string;
 	readonly diagnosticErrorCount?: number;
 	readonly diagnosticWarningCount?: number;
+	readonly theme?: TuiThemeDefinition;
 }
 
 export function TuiStatusBar({
@@ -29,23 +30,26 @@ export function TuiStatusBar({
 	sessionTitle,
 	diagnosticErrorCount = 0,
 	diagnosticWarningCount = 0,
+	theme,
 }: TuiStatusBarProps) {
-	// Mode colors
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+
+	// Mode colors from theme
 	const modeBg =
 		mode === "NORMAL"
-			? "#2ea043" // GitHub Emerald Green
+			? c.modeNormalBg
 			: mode === "INSERT"
-				? "#38bdf8" // Sky Blue
+				? c.modeInsertBg
 				: mode === "VISUAL"
-					? "#a371f7" // Purple
-					: "#f59e0b"; // Amber (COMMAND)
+					? c.modeVisualBg
+					: c.modeCommandBg;
 
-	const modeFg = "#0d1117"; // High-contrast black text on mode badge
+	const modeFg = c.modeBadgeFg;
 
 	// 1. Lualine / Neovim Powerline Style (Default)
 	if (variant === "lualine") {
 		return (
-			<box height={1} backgroundColor={TuiColors.bgSurface} flexDirection="row">
+			<box height={1} backgroundColor={c.bgSurface} flexDirection="row">
 				{/* Section A: High-Contrast Solid Mode Pill */}
 				<box backgroundColor={modeBg} paddingLeft={1} paddingRight={1}>
 					<text fg={modeFg} attributes={TextAttributes.BOLD}>
@@ -55,8 +59,8 @@ export function TuiStatusBar({
 
 				{/* Section B: Session or Context */}
 				{sessionTitle && (
-					<box paddingLeft={1} paddingRight={1} backgroundColor={TuiColors.bgHighlight}>
-						<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
+					<box paddingLeft={1} paddingRight={1} backgroundColor={c.bgElevated}>
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 							{sessionTitle}
 						</text>
 					</box>
@@ -65,7 +69,7 @@ export function TuiStatusBar({
 				{/* Section C: Metrics & Projections */}
 				{totalCount !== undefined && totalCount > 0 && (
 					<box paddingLeft={1} paddingRight={1} flexDirection="row">
-						<text fg={validCount === totalCount ? TuiNamedColors.success : TuiNamedColors.amber}>
+						<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
 							● {validCount ?? 0}/{totalCount} valid
 						</text>
 					</box>
@@ -74,7 +78,7 @@ export function TuiStatusBar({
 				{/* Diagnostics */}
 				{diagnosticErrorCount > 0 && (
 					<box paddingLeft={1} paddingRight={1} flexDirection="row">
-						<text fg={TuiNamedColors.error} attributes={TextAttributes.BOLD}>
+						<text fg={c.statusError} attributes={TextAttributes.BOLD}>
 							! {diagnosticErrorCount} err
 						</text>
 					</box>
@@ -82,7 +86,7 @@ export function TuiStatusBar({
 
 				{pinnedMacro && (
 					<box paddingLeft={1} paddingRight={1} flexDirection="row">
-						<text fg={TuiNamedColors.accent}>
+						<text fg={c.accentAmber}>
 							📌 {pinnedMacro}
 						</text>
 					</box>
@@ -92,16 +96,16 @@ export function TuiStatusBar({
 
 				{/* Section Y: Cursor Position */}
 				<box paddingLeft={1} paddingRight={1}>
-					<text fg={TuiNamedColors.muted}>
+					<text fg={c.fgMuted}>
 						Ln {cursorLine}, Col {cursorCol}
 					</text>
 				</box>
 
-				<text fg={TuiNamedColors.border}>│</text>
+				<text fg={c.borderDefault}>│</text>
 
 				{/* Section Z: Locale Badge */}
-				<box paddingLeft={1} paddingRight={1} backgroundColor={TuiColors.bgHighlight}>
-					<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
+				<box paddingLeft={1} paddingRight={1} backgroundColor={c.bgElevated}>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 						{locale.toUpperCase()}
 					</text>
 				</box>
@@ -112,55 +116,53 @@ export function TuiStatusBar({
 	// 2. VS Code Status Ribbon Style
 	if (variant === "vscode") {
 		return (
-			<box height={1} backgroundColor={TuiColors.bgSurface} paddingLeft={1} paddingRight={1} flexDirection="row">
-				{/* Left items */}
+			<box height={1} backgroundColor={c.bgSurface} paddingLeft={1} paddingRight={1} flexDirection="row">
 				<box flexDirection="row">
 					<text fg={modeBg} attributes={TextAttributes.BOLD}>
 						{mode}
 					</text>
-					<text fg={TuiNamedColors.border}> │ </text>
+					<text fg={c.borderDefault}> │ </text>
 
 					{totalCount !== undefined && totalCount > 0 && (
 						<box flexDirection="row">
-							<text fg={validCount === totalCount ? TuiNamedColors.success : TuiNamedColors.amber}>
+							<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
 								{validCount ?? 0}/{totalCount} valid
 							</text>
-							<text fg={TuiNamedColors.border}> │ </text>
+							<text fg={c.borderDefault}> │ </text>
 						</box>
 					)}
 
 					{diagnosticErrorCount > 0 && (
 						<box flexDirection="row">
-							<text fg={TuiNamedColors.error} attributes={TextAttributes.BOLD}>
+							<text fg={c.statusError} attributes={TextAttributes.BOLD}>
 								⊗ {diagnosticErrorCount}
 							</text>
-							<text fg={TuiNamedColors.border}> │ </text>
+							<text fg={c.borderDefault}> │ </text>
 						</box>
 					)}
 
 					{pinnedMacro && (
 						<box flexDirection="row">
-							<text fg={TuiNamedColors.accent}>
+							<text fg={c.accentAmber}>
 								📌 {pinnedMacro}
 							</text>
-							<text fg={TuiNamedColors.border}> │ </text>
+							<text fg={c.borderDefault}> │ </text>
 						</box>
 					)}
 				</box>
 
 				<box flexGrow={1} />
 
-				{/* Right items */}
 				<box flexDirection="row">
-					<text fg={TuiNamedColors.muted}>
+					<text fg={c.fgMuted}>
 						Ln {cursorLine}, Col {cursorCol}
 					</text>
-					<text fg={TuiNamedColors.border}> │ </text>
-					<text fg={TuiNamedColors.muted}>
+					<text fg={c.borderDefault}> │ </text>
+					<text fg={c.fgMuted}>
 						UTF-8
 					</text>
-					<text fg={TuiNamedColors.border}> │ </text>
-					<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
+					<text fg={c.borderDefault}> │ </text>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 						{locale.toUpperCase()}
 					</text>
 				</box>
@@ -175,33 +177,33 @@ export function TuiStatusBar({
 				<text fg={modeBg} attributes={TextAttributes.BOLD}>
 					● {mode}
 				</text>
-				<text fg={TuiNamedColors.border}>  │  </text>
+				<text fg={c.borderDefault}>  │  </text>
 
 				{totalCount !== undefined && totalCount > 0 && (
 					<box flexDirection="row">
-						<text fg={validCount === totalCount ? TuiNamedColors.success : TuiNamedColors.amber}>
+						<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
 							{validCount ?? 0}/{totalCount} valid
 						</text>
-						<text fg={TuiNamedColors.border}>  │  </text>
+						<text fg={c.borderDefault}>  │  </text>
 					</box>
 				)}
 
 				{pinnedMacro && (
 					<box flexDirection="row">
-						<text fg={TuiNamedColors.accent}>
+						<text fg={c.accentAmber}>
 							pinned: {pinnedMacro}
 						</text>
-						<text fg={TuiNamedColors.border}>  │  </text>
+						<text fg={c.borderDefault}>  │  </text>
 					</box>
 				)}
 
 				<box flexGrow={1} />
 
-				<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 					{cursorLine}:{cursorCol}
 				</text>
-				<text fg={TuiNamedColors.border}>  │  </text>
-				<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+				<text fg={c.borderDefault}>  │  </text>
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 					{locale}
 				</text>
 			</box>
@@ -211,23 +213,23 @@ export function TuiStatusBar({
 	// 4. Segmented Cards Style
 	return (
 		<box height={1} paddingLeft={1} paddingRight={1} flexDirection="row">
-			<box backgroundColor={TuiColors.bgHighlight} paddingLeft={1} paddingRight={1} marginRight={1}>
+			<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
 				<text fg={modeBg} attributes={TextAttributes.BOLD}>
 					{mode}
 				</text>
 			</box>
 
 			{totalCount !== undefined && totalCount > 0 && (
-				<box backgroundColor={TuiColors.bgHighlight} paddingLeft={1} paddingRight={1} marginRight={1}>
-					<text fg={validCount === totalCount ? TuiNamedColors.success : TuiNamedColors.amber}>
+				<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
 						{validCount ?? 0}/{totalCount} valid
 					</text>
 				</box>
 			)}
 
 			{pinnedMacro && (
-				<box backgroundColor={TuiColors.bgHighlight} paddingLeft={1} paddingRight={1} marginRight={1}>
-					<text fg={TuiNamedColors.accent}>
+				<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<text fg={c.accentAmber}>
 						📌 {pinnedMacro}
 					</text>
 				</box>
@@ -235,14 +237,14 @@ export function TuiStatusBar({
 
 			<box flexGrow={1} />
 
-			<box backgroundColor={TuiColors.bgHighlight} paddingLeft={1} paddingRight={1} marginRight={1}>
-				<text fg={TuiNamedColors.primary}>
+			<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
+				<text fg={c.fgPrimary}>
 					Ln {cursorLine}, Col {cursorCol}
 				</text>
 			</box>
 
-			<box backgroundColor={TuiColors.bgHighlight} paddingLeft={1} paddingRight={1}>
-				<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+			<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1}>
+				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 					{locale.toUpperCase()}
 				</text>
 			</box>
