@@ -1,4 +1,6 @@
 import type { QuantityConversionRegistry } from "./conversion/conversion-registry";
+import { parseNumericValue } from "./numeric";
+import { resolveUnitAlias as resolveQuantityUnit } from "./quantity";
 import { escapeRegex } from "./regex";
 
 export interface QuantitySegment {
@@ -289,20 +291,19 @@ function extractRawSegments(
 
 	// Unicode property escape regex matching number + unit tuples across Latin, Cyrillic, CJK, and shorthand punctuation
 	const segmentRegex = new RegExp(
-		`${connectorPrefix}([+-]?\\d+(?:${dec}\\d+)?)\\s*('(?:\\s*)|"(?:\\s*)|#|°|\\[[a-zA-Z0-9_]+\\]|[\\p{L}\\p{Sc}_]+(?:\\d+)?)`,
+		`${connectorPrefix}([+-]?[\\d\\p{Nd}]+(?:${dec}[\\d\\p{Nd}]+)?)\\s*('(?:\\s*)|"(?:\\s*)|#|°|\\[[a-zA-Z0-9_]+\\]|[\\p{L}\\p{Sc}_]+(?:\\d+)?)`,
 		"gu",
 	);
 	const matches = Array.from(text.matchAll(segmentRegex));
 
 	for (const match of matches) {
-		const numStr =
-			options.decimalSeparator === ","
-				? match[1]!.replace(",", ".")
-				: match[1]!;
-		const val = Number(numStr);
+		const rawNumStr = match[1]!;
+		const numRes = parseNumericValue(rawNumStr, {
+			decimalPoint: options.decimalSeparator,
+		});
 		const rawUnit = match[2]!.trim();
-		if (Number.isFinite(val) && rawUnit) {
-			segments.push({ rawValue: val, rawUnit });
+		if (numRes.parsed && rawUnit) {
+			segments.push({ rawValue: numRes.parsed.value, rawUnit });
 		}
 	}
 
@@ -320,15 +321,7 @@ function resolveUnitAlias(
 	if (registry?.getUnit(rawUnit)) return rawUnit;
 	if (registry?.getUnit(lower)) return lower;
 
-	// Check configured unit aliases
-	if (unitAliases) {
-		for (const [canonicalId, aliases] of Object.entries(unitAliases)) {
-			if (canonicalId.toLocaleLowerCase() === lower) return canonicalId;
-			if (aliases.some((a) => a.toLocaleLowerCase() === lower)) {
-				return canonicalId;
-			}
-		}
-	}
-
-	return undefined;
+	// Check configured unit aliases via centralized resolver
+	const resolved = resolveQuantityUnit(rawUnit, unitAliases);
+	return resolved?.canonicalUnit;
 }

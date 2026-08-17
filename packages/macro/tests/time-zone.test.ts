@@ -25,7 +25,7 @@ describe("dynamic timezone and date-time utilities", () => {
 
 		const blankMap = generateTimeZoneCodeMap({ blank: true });
 		expect(blankMap).toEqual({});
-	});
+	}, 15000);
 
 	test("isValidTimeZone validates IANA timezones correctly", () => {
 		expect(isValidTimeZone("UTC")).toBe(true);

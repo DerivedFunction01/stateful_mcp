@@ -623,3 +623,281 @@ export function generateDefaultMonthAliases(
 	}
 	return result;
 }
+
+// --------------------------------------------------------------------------
+// Chronological Extensions: 24-hr ISO Time Bounds & Anchor-Relative Evaluation
+// --------------------------------------------------------------------------
+
+export interface TimeOfDayWindow {
+	/** 24-hr ISO time start (e.g. "06:00") */
+	readonly start: string;
+	/** 24-hr ISO time end (e.g. "12:00") */
+	readonly end: string;
+}
+
+export interface PartOfDayConfig {
+	/** 24-hr ISO windows for parts of day */
+	readonly windows?: Readonly<Record<string, TimeOfDayWindow>>;
+	/** User-defined aliases mapped to part-of-day keys */
+	readonly aliases?: Readonly<Record<string, readonly string[]>>;
+	readonly locales?: string | readonly string[];
+}
+
+export interface MonthDayWindow {
+	/** 24-hr ISO Month-Day start (e.g. "01-01", "10-01", or "06-21") */
+	readonly startMonthDay: string;
+	/** 24-hr ISO Month-Day end (e.g. "03-31", "12-31", or "09-22") */
+	readonly endMonthDay: string;
+	/** Optional offset added to reference year for window start (e.g. -1 for US Gov Q1 relative to FY) */
+	readonly startYearOffset?: number;
+	/** Optional offset added to reference year for window end (e.g. +1 for seasons/quarters ending in next calendar year) */
+	readonly endYearOffset?: number;
+}
+
+export interface CalendarWindowConfig {
+	/** 24-hr ISO Month-Day bounds for standard quarters or custom fiscal quarters */
+	readonly quarters?: Readonly<
+		Record<"Q1" | "Q2" | "Q3" | "Q4" | string, MonthDayWindow>
+	>;
+	/** 24-hr ISO Month-Day bounds for seasons */
+	readonly seasons?: Readonly<Record<string, MonthDayWindow>>;
+	/** User-defined quarter aliases */
+	readonly quarterAliases?: Readonly<Record<string, readonly string[]>>;
+	/** User-defined season aliases */
+	readonly seasonAliases?: Readonly<Record<string, readonly string[]>>;
+	/** User-defined decade aliases */
+	readonly decadeAliases?: Readonly<Record<string, readonly string[]>>;
+	readonly locales?: string | readonly string[];
+}
+
+export type RelativeDirection = "past" | "future" | "current";
+
+export type RelativeTemporalUnit =
+	| "second"
+	| "minute"
+	| "hour"
+	| "day"
+	| "week"
+	| "month"
+	| "quarter"
+	| "season"
+	| "year"
+	| "decade";
+
+export interface RelativeTemporalSlot {
+	readonly direction: RelativeDirection;
+	readonly amount: number; // e.g. 3 in "3 hours ago" or 1 in "last summer"
+	readonly unit: RelativeTemporalUnit;
+	readonly specificQualifier?: string; // e.g. "summer" or "morning" or "Q2"
+	readonly referenceYear?: number; // e.g. 2026 in "last summer in 2026"
+}
+
+export interface ResolvedTemporalWindow {
+	readonly startIsoUtc: string;
+	readonly endIsoUtc: string;
+	readonly isInstantaneous: boolean;
+	readonly targetTimeZone: string;
+}
+
+/** Default 24-hr ISO windows for quarters */
+export const DEFAULT_QUARTER_WINDOWS: Readonly<
+	Record<"Q1" | "Q2" | "Q3" | "Q4", MonthDayWindow>
+> = {
+	Q1: { startMonthDay: "01-01", endMonthDay: "03-31" },
+	Q2: { startMonthDay: "04-01", endMonthDay: "06-30" },
+	Q3: { startMonthDay: "07-01", endMonthDay: "09-30" },
+	Q4: { startMonthDay: "10-01", endMonthDay: "12-31" },
+};
+
+/**
+ * Pure evaluation engine for anchor-relative temporal slots.
+ * Evaluates prospective/retrospective offsets into exact ISO UTC intervals using 24-hr ISO tables and system anchor.
+ */
+export function evaluateAnchorRelativeTemporal(
+	slot: RelativeTemporalSlot,
+	anchorTimestampUtc: string | Date | number,
+	options: {
+		timeZone?: string;
+		partOfDayConfig?: PartOfDayConfig;
+		calendarConfig?: CalendarWindowConfig;
+	} = {},
+): ResolvedTemporalWindow {
+	const anchorDate = new Date(anchorTimestampUtc);
+	const targetTimeZone =
+		options.timeZone ??
+		Intl.DateTimeFormat().resolvedOptions().timeZone ??
+		"UTC";
+
+	const sign =
+		slot.direction === "past" ? -1 : slot.direction === "future" ? 1 : 0;
+	const amount = slot.amount * sign;
+
+	// 1. Part of Day on anchor date (e.g. morning, afternoon, evening)
+	if (slot.specificQualifier && options.partOfDayConfig?.windows) {
+		const qualifierLower = slot.specificQualifier.toLocaleLowerCase();
+		let matchedWindow: TimeOfDayWindow | undefined;
+		for (const [key, win] of Object.entries(options.partOfDayConfig.windows)) {
+			if (key.toLocaleLowerCase() === qualifierLower) {
+				matchedWindow = win;
+				break;
+			}
+		}
+
+		if (matchedWindow) {
+			const targetDate = new Date(anchorDate.getTime() + amount * 86400000);
+			const yyyy = targetDate.getUTCFullYear();
+			const mm = String(targetDate.getUTCMonth() + 1).padStart(2, "0");
+			const dd = String(targetDate.getUTCDate()).padStart(2, "0");
+
+			const startIso = new Date(
+				`${yyyy}-${mm}-${dd}T${matchedWindow.start}:00Z`,
+			).toISOString();
+			const endIso = new Date(
+				`${yyyy}-${mm}-${dd}T${matchedWindow.end}:00Z`,
+			).toISOString();
+
+			return {
+				startIsoUtc: startIso,
+				endIsoUtc: endIso,
+				isInstantaneous: false,
+				targetTimeZone,
+			};
+		}
+	}
+
+	// 2. Instantaneous Unit Offsets (second, minute, hour, day, week) without specific window qualifier
+	if (
+		!slot.specificQualifier &&
+		(slot.unit === "second" ||
+			slot.unit === "minute" ||
+			slot.unit === "hour" ||
+			slot.unit === "day" ||
+			slot.unit === "week")
+	) {
+		let msOffset = 0;
+		switch (slot.unit) {
+			case "second":
+				msOffset = amount * 1000;
+				break;
+			case "minute":
+				msOffset = amount * 60 * 1000;
+				break;
+			case "hour":
+				msOffset = amount * 3600 * 1000;
+				break;
+			case "day":
+				msOffset = amount * 86400 * 1000;
+				break;
+			case "week":
+				msOffset = amount * 7 * 86400 * 1000;
+				break;
+		}
+
+		const resultTime = new Date(anchorDate.getTime() + msOffset);
+		const iso = resultTime.toISOString();
+		return {
+			startIsoUtc: iso,
+			endIsoUtc: iso,
+			isInstantaneous: true,
+			targetTimeZone,
+		};
+	}
+
+	// 3. Calendar Windows: Seasons / Quarters / Decades
+	const refYear =
+		slot.referenceYear ??
+		anchorDate.getUTCFullYear() +
+			(slot.unit === "year" || slot.unit === "season" || slot.unit === "quarter"
+				? amount
+				: 0);
+
+	// Decade: e.g. 2020s -> 2020 to 2029
+	if (slot.unit === "decade") {
+		const decadeStartYear = Math.floor(refYear / 10) * 10;
+		const startIso = new Date(
+			`${decadeStartYear}-01-01T00:00:00.000Z`,
+		).toISOString();
+		const endIso = new Date(
+			`${decadeStartYear + 9}-12-31T23:59:59.999Z`,
+		).toISOString();
+		return {
+			startIsoUtc: startIso,
+			endIsoUtc: endIso,
+			isInstantaneous: false,
+			targetTimeZone,
+		};
+	}
+
+	// Season: from calendarConfig.seasons
+	if (slot.specificQualifier && options.calendarConfig?.seasons) {
+		const sKey = slot.specificQualifier.toLocaleLowerCase();
+		let sWin: MonthDayWindow | undefined;
+		for (const [key, win] of Object.entries(options.calendarConfig.seasons)) {
+			if (key.toLocaleLowerCase() === sKey) {
+				sWin = win;
+				break;
+			}
+		}
+
+		if (sWin) {
+			const startYear = refYear + (sWin.startYearOffset ?? 0);
+			const endYear =
+				refYear +
+				(sWin.endYearOffset ?? (sWin.startMonthDay > sWin.endMonthDay ? 1 : 0));
+			const startIso = new Date(
+				`${startYear}-${sWin.startMonthDay}T00:00:00.000Z`,
+			).toISOString();
+			const endIso = new Date(
+				`${endYear}-${sWin.endMonthDay}T23:59:59.999Z`,
+			).toISOString();
+			return {
+				startIsoUtc: startIso,
+				endIsoUtc: endIso,
+				isInstantaneous: false,
+				targetTimeZone,
+			};
+		}
+	}
+
+	// Quarter: from calendarConfig.quarters or default
+	if (
+		slot.specificQualifier &&
+		(slot.unit === "quarter" || /^Q[1-4]$/i.test(slot.specificQualifier))
+	) {
+		const qKey = slot.specificQualifier.toUpperCase() as
+			| "Q1"
+			| "Q2"
+			| "Q3"
+			| "Q4";
+		const qWin =
+			options.calendarConfig?.quarters?.[qKey] ?? DEFAULT_QUARTER_WINDOWS[qKey];
+		if (qWin) {
+			const startYear = refYear + (qWin.startYearOffset ?? 0);
+			const endYear =
+				refYear +
+				(qWin.endYearOffset ?? (qWin.startMonthDay > qWin.endMonthDay ? 1 : 0));
+			const startIso = new Date(
+				`${startYear}-${qWin.startMonthDay}T00:00:00.000Z`,
+			).toISOString();
+			const endIso = new Date(
+				`${endYear}-${qWin.endMonthDay}T23:59:59.999Z`,
+			).toISOString();
+			return {
+				startIsoUtc: startIso,
+				endIsoUtc: endIso,
+				isInstantaneous: false,
+				targetTimeZone,
+			};
+		}
+	}
+
+	// Default Year Window
+	const startIso = new Date(`${refYear}-01-01T00:00:00.000Z`).toISOString();
+	const endIso = new Date(`${refYear}-12-31T23:59:59.999Z`).toISOString();
+	return {
+		startIsoUtc: startIso,
+		endIsoUtc: endIso,
+		isInstantaneous: false,
+		targetTimeZone,
+	};
+}

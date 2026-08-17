@@ -1,5 +1,5 @@
 import type { CurrencyValue, ValueEvidence } from "../contracts/values";
-import { formatNumericValue } from "./numeric";
+import { formatNumericValue, parseNumericValue } from "./numeric";
 import { escapeRegex } from "./regex";
 
 export interface CurrencyDenomination {
@@ -376,17 +376,11 @@ function parseNumber(
 	decimalSep: string,
 	thousandsSep?: string,
 ): number | undefined {
-	let cleaned = text.trim();
-	if (thousandsSep) {
-		cleaned = cleaned.replaceAll(thousandsSep, "");
-	} else {
-		cleaned = cleaned.replaceAll(",", "");
-	}
-	if (decimalSep === ",") {
-		cleaned = cleaned.replace(",", ".");
-	}
-	const num = Number(cleaned);
-	return Number.isFinite(num) ? num : undefined;
+	const res = parseNumericValue(text, {
+		decimalPoint: decimalSep,
+		thousandsSeparator: thousandsSep,
+	});
+	return res.parsed?.value;
 }
 
 function parseDenominationChain(

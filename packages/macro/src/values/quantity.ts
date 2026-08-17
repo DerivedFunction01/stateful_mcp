@@ -1,234 +1,492 @@
-export interface QuantityGrammarConfig {
-	unitAliases: Readonly<Record<string, readonly string[]>>;
-	rangeDelimiters: readonly string[];
-	operatorAliases?: Readonly<Record<string, readonly string[]>>;
-	statisticalAliases?: Readonly<Record<string, readonly string[]>>;
-	dataPointCountAliases?: readonly string[];
-	decimalSeparator?: "." | ",";
+import type { QuantityDimension, UnitId } from "./conversion/contracts";
+import type { QuantityConversionRegistry } from "./conversion/conversion-registry";
+import { type NumericParseOptions, parseNumericValue } from "./numeric";
+import {
+	type ExtractedOperatorResult,
+	extractOperator,
+	type OperatorConfig,
+	type OperatorMatch,
+} from "./operators";
+import {
+	type ExtractedQualifierResult,
+	extractStatisticalQualifier,
+	type StatisticalConfig,
+	type StatisticalConsumerPolicy,
+	type StatisticalQualifier,
+} from "./statistics";
+import {
+	extractPostfixAlias,
+	flattenAndSortAliases,
+	splitByDelimiters,
+} from "./token-matcher";
+
+export interface SingleQuantity {
+	readonly magnitude: number;
+	readonly unit: string;
+	readonly canonicalUnit?: UnitId;
+	readonly canonicalMagnitude?: number;
+	readonly rawText: string;
 }
 
-export const QUANTITY_STATISTICS_POLICIES = [
-	"accept",
-	"ignore",
-	"reject",
-] as const;
-export type QuantityStatisticsPolicy =
-	(typeof QUANTITY_STATISTICS_POLICIES)[number];
+export type RangeDirection = "ascending" | "descending" | "equal";
 
-export interface QuantityConsumerPolicy {
-	allowedUnits?: readonly string[];
-	allowRange: boolean;
-	allowOperator: boolean;
-	statistics: QuantityStatisticsPolicy;
-	allowDataPointCount: boolean;
+export interface QuantityRange {
+	readonly start: SingleQuantity;
+	readonly end: SingleQuantity;
+	readonly direction: RangeDirection;
+	readonly isHeterogeneousUnits?: boolean;
+	readonly chainedSteps?: readonly SingleQuantity[];
+	readonly rawText: string;
 }
 
 export interface QuantityGrammarResult {
-	lower: number;
-	upper?: number;
-	unit: string;
-	operator?: string;
-	statisticalType?: string;
-	dataPointCount?: number;
-	rawText: string;
+	readonly primaryQuantity: SingleQuantity;
+	readonly range?: QuantityRange;
+	readonly operator?: OperatorMatch;
+	readonly statisticalQualifier?: StatisticalQualifier;
+	readonly rawText: string;
+}
+
+export interface QuantityGrammarConfig extends NumericParseOptions {
+	/** Mapping of canonical UnitId to user/localized alias strings */
+	readonly unitAliases?: Readonly<Record<string, readonly string[]>>;
+	/** Range delimiters (e.g. ["-", "to", "until", "down to", "bis", "a", "至", "到"]) */
+	readonly rangeDelimiters?: readonly string[];
+	/** Operator extraction configuration */
+	readonly operatorConfig?: OperatorConfig;
+	/** Statistical qualifier configuration */
+	readonly statisticalConfig?: StatisticalConfig;
+	/** Conversion registry to validate dimensional compatibility and compute canonical magnitudes */
+	readonly conversionRegistry?: QuantityConversionRegistry;
+	/** Directional descending range delimiters (e.g. ["down to", "herunter auf", "descendiendo a"]) */
+	readonly descendingDelimiters?: readonly string[];
+	readonly locales?: string | readonly string[];
+}
+
+export interface QuantityConsumerPolicy {
+	/** Allowed unit IDs (e.g. ["mg", "g", "kg"]) */
+	readonly allowedUnits?: readonly string[];
+	/** Allowed physical dimensions (e.g. ["mass", "volume"]) */
+	readonly allowedDimensions?: readonly QuantityDimension[];
+	/** Whether ranges (min-max or start-end) are allowed */
+	readonly allowRange?: boolean;
+	/** Whether descending / directional ranges (e.g. 20 mg down to 5 mg) are allowed */
+	readonly allowDirectionalRange?: boolean;
+	/** Whether chained steps (e.g. 10 to 20 to 40 mg) are allowed */
+	readonly allowChainedSteps?: boolean;
+	/** Whether heterogeneous units in a range (e.g. 50 mg to 1 g) are allowed */
+	readonly allowHeterogeneousUnits?: boolean;
+	/** Whether prefix/postfix operators (e.g. >= 50 mg) are allowed */
+	readonly allowOperator?: boolean;
+	/** Granular statistical qualifier policy (e.g. point_estimate_only) */
+	readonly statisticsPolicy?: StatisticalConsumerPolicy;
+}
+
+export interface QuantityDiagnostic {
+	readonly code: string;
+	readonly message: string;
 }
 
 export interface QuantityGrammarResolution {
-	value?: QuantityGrammarResult;
-	diagnostics: Array<{ code: string; message: string }>;
+	readonly value?: QuantityGrammarResult;
+	readonly diagnostics: readonly QuantityDiagnostic[];
 }
 
+/**
+ * Resolves a unit token against user-configured unitAliases, returning the canonical UnitId if matched.
+ */
+export function resolveUnitAlias(
+	unitToken: string,
+	aliases?: Readonly<Record<string, readonly string[]>>,
+	locales?: string | readonly string[],
+): { canonicalUnit: string; matchedAlias: string } | undefined {
+	const trimmed = unitToken.trim();
+	if (!trimmed) return undefined;
+
+	if (!aliases) {
+		return { canonicalUnit: trimmed, matchedAlias: trimmed };
+	}
+
+	const lower = trimmed.toLocaleLowerCase(locales as string);
+	const sorted = flattenAndSortAliases(aliases, true);
+	for (const { key, alias } of sorted) {
+		if (alias.toLocaleLowerCase(locales as string) === lower) {
+			return { canonicalUnit: key, matchedAlias: alias };
+		}
+	}
+
+	// Fallback to literal unit string
+	return { canonicalUnit: trimmed, matchedAlias: trimmed };
+}
+
+/**
+ * Parses free text into a single quantity, heterogeneous range, directional range, or chained steps.
+ */
 export function parseQuantity(
 	input: string,
-	config: QuantityGrammarConfig,
-	policy: QuantityConsumerPolicy,
+	config: QuantityGrammarConfig = {},
+	policy: QuantityConsumerPolicy = {
+		allowRange: true,
+		allowOperator: true,
+	},
 ): QuantityGrammarResolution {
 	const rawText = input.trim();
-	if (!rawText) return diagnostic("invalid_quantity", "Quantity is empty");
-	let text = rawText;
-	const operator = consumeAlias(text, config.operatorAliases);
-	if (operator) text = operator.remainder;
-	if (operator && !policy.allowOperator)
-		return diagnostic("operator_not_allowed", "Operators are not allowed");
-	const statistic = consumeAlias(text, config.statisticalAliases);
-	if (statistic) text = statistic.remainder;
-	if (statistic && policy.statistics === "reject")
-		return diagnostic(
-			"statistics_not_allowed",
-			"Statistical qualifiers are not allowed",
-		);
-	const dataPointMatch = text.match(/^(\d+)\s+/u);
-	let dataPointCount: number | undefined;
-	if (
-		dataPointMatch &&
-		config.dataPointCountAliases?.some((alias) =>
-			text.toLocaleLowerCase().includes(` ${alias.toLocaleLowerCase()}`),
-		)
-	) {
-		dataPointCount = Number(dataPointMatch[1]);
-		text = text.slice(dataPointMatch[0].length).trimStart();
+	if (!rawText) {
+		return {
+			diagnostics: [
+				{ code: "invalid_quantity", message: "Quantity text is empty" },
+			],
+		};
 	}
-	if (dataPointCount !== undefined && !policy.allowDataPointCount)
-		return diagnostic(
-			"data_point_count_not_allowed",
-			"Data-point counts are not allowed",
+
+	let text = rawText;
+	const diagnostics: QuantityDiagnostic[] = [];
+
+	// 1. Extract Statistical Qualifier if configured
+	let statisticalQualifier: StatisticalQualifier | undefined;
+	if (config.statisticalConfig) {
+		const statResult: ExtractedQualifierResult = extractStatisticalQualifier(
+			text,
+			config.statisticalConfig,
+			policy.statisticsPolicy,
 		);
-	const range = splitRange(text, config.rangeDelimiters);
-	if (range && !policy.allowRange)
-		return diagnostic("range_not_allowed", "Ranges are not allowed");
-	const lower = parseNumberAndUnit(range?.[0] ?? text, config);
-	const upper = range?.[1]
-		? (parseNumberAndUnit(range[1], config) ??
-			parseNumberOnly(range[1], lower?.unit, config))
-		: undefined;
-	if (!lower || (range?.[1] && !upper))
-		return diagnostic(
-			"invalid_quantity",
-			`Unable to parse quantity '${rawText}'`,
+		if (statResult.diagnostics.length > 0) {
+			return { diagnostics: statResult.diagnostics };
+		}
+		if (statResult.qualifierMatch) {
+			statisticalQualifier = statResult.qualifierMatch;
+			text = statResult.remainderText;
+		}
+	}
+
+	// 2. Extract Operator if configured
+	let operatorMatch: OperatorMatch | undefined;
+	if (config.operatorConfig) {
+		const opResult: ExtractedOperatorResult = extractOperator(
+			text,
+			config.operatorConfig,
 		);
-	if (upper && upper.unit !== lower.unit)
-		return diagnostic(
-			"invalid_range",
-			"Range endpoints must use the same unit",
-		);
-	if (upper && upper.value < lower.value)
-		return diagnostic(
-			"invalid_range",
-			"Range lower bound must not exceed upper bound",
-		);
-	if (policy.allowedUnits && !policy.allowedUnits.includes(lower.unit))
-		return diagnostic(
-			"unit_not_allowed",
-			`Unit '${lower.unit}' is not allowed`,
-		);
-	const diagnostics: Array<{ code: string; message: string }> = [];
-	if (statistic && policy.statistics === "ignore")
-		diagnostics.push({
-			code: "statistics_ignored",
-			message: "Statistical qualifier was ignored",
-		});
+		if (opResult.operatorMatch) {
+			if (policy.allowOperator === false) {
+				return {
+					diagnostics: [
+						{
+							code: "operator_not_allowed",
+							message: `Operator '${opResult.operatorMatch.rawText}' is not permitted for this quantity`,
+						},
+					],
+				};
+			}
+			operatorMatch = opResult.operatorMatch;
+			text = opResult.remainderText;
+		}
+	}
+
+	// 3. Check for Range Delimiters
+	const rangeDelimiters = config.rangeDelimiters ?? ["-"];
+	const splitResult = splitQuantityRange(text, rangeDelimiters);
+
+	if (splitResult && splitResult.parts.length > 1) {
+		if (policy.allowRange === false) {
+			return {
+				diagnostics: [
+					{
+						code: "range_not_allowed",
+						message: "Quantity ranges are not permitted for this field",
+					},
+				],
+			};
+		}
+
+		if (splitResult.parts.length > 2 && policy.allowChainedSteps === false) {
+			return {
+				diagnostics: [
+					{
+						code: "chained_steps_not_allowed",
+						message: "Chained quantity sequences are not permitted",
+					},
+				],
+			};
+		}
+
+		// Parse each step in the range
+		const parsedSteps: SingleQuantity[] = [];
+		let trailingUnit: string | undefined;
+
+		// Scan from right to left to inherit trailing unit (e.g. "10 to 20 mg" -> 10 inherits mg)
+		for (let i = splitResult.parts.length - 1; i >= 0; i--) {
+			const part = splitResult.parts[i]?.trim();
+			if (!part) continue;
+
+			const parsedSingle = parseSingleQuantityPart(part, config, trailingUnit);
+			if (!parsedSingle) {
+				return {
+					diagnostics: [
+						{
+							code: "invalid_quantity",
+							message: `Unable to parse quantity segment '${part}'`,
+						},
+					],
+				};
+			}
+			trailingUnit = parsedSingle.unit;
+			parsedSteps.unshift(parsedSingle);
+		}
+
+		if (parsedSteps.length < 2) {
+			return {
+				diagnostics: [
+					{
+						code: "invalid_range",
+						message: `Invalid range format '${rawText}'`,
+					},
+				],
+			};
+		}
+
+		const firstStep = parsedSteps[0];
+		const lastStep = parsedSteps[parsedSteps.length - 1];
+		if (!firstStep || !lastStep) {
+			return {
+				diagnostics: [
+					{
+						code: "invalid_range",
+						message: `Invalid range format '${rawText}'`,
+					},
+				],
+			};
+		}
+
+		const isHeterogeneous = firstStep.unit !== lastStep.unit;
+		if (isHeterogeneous) {
+			if (policy.allowHeterogeneousUnits === false) {
+				return {
+					diagnostics: [
+						{
+							code: "heterogeneous_units_not_allowed",
+							message: `Heterogeneous units '${firstStep.unit}' and '${lastStep.unit}' are not permitted in range`,
+						},
+					],
+				};
+			}
+
+			// Validate dimensional compatibility via conversionRegistry
+			if (config.conversionRegistry) {
+				const unit1 = config.conversionRegistry.getUnit(
+					(firstStep.canonicalUnit ?? firstStep.unit) as UnitId,
+				);
+				const unit2 = config.conversionRegistry.getUnit(
+					(lastStep.canonicalUnit ?? lastStep.unit) as UnitId,
+				);
+				if (unit1 && unit2 && unit1.dimension !== unit2.dimension) {
+					return {
+						diagnostics: [
+							{
+								code: "incompatible_range_dimensions",
+								message: `Range endpoints have incompatible dimensions ('${unit1.dimension}' vs '${unit2.dimension}')`,
+							},
+						],
+					};
+				}
+			}
+		}
+
+		// Calculate direction
+		const startVal = firstStep.canonicalMagnitude ?? firstStep.magnitude;
+		const endVal = lastStep.canonicalMagnitude ?? lastStep.magnitude;
+		let direction: RangeDirection = "equal";
+		if (startVal < endVal) direction = "ascending";
+		else if (startVal > endVal) direction = "descending";
+
+		if (direction === "descending" && policy.allowDirectionalRange === false) {
+			return {
+				diagnostics: [
+					{
+						code: "descending_range_not_allowed",
+						message: `Range lower bound (${firstStep.magnitude}) must not exceed upper bound (${lastStep.magnitude})`,
+					},
+				],
+			};
+		}
+
+		// Validate policy allowed units and dimensions
+		for (const step of parsedSteps) {
+			const unitCheck = validateUnitPolicy(step, config, policy);
+			if (unitCheck.length > 0) {
+				return { diagnostics: unitCheck };
+			}
+		}
+
+		const rangeObj: QuantityRange = {
+			start: firstStep,
+			end: lastStep,
+			direction,
+			...(isHeterogeneous ? { isHeterogeneousUnits: true } : {}),
+			...(parsedSteps.length > 2 ? { chainedSteps: parsedSteps } : {}),
+			rawText,
+		};
+
+		return {
+			value: {
+				primaryQuantity: firstStep,
+				range: rangeObj,
+				...(operatorMatch ? { operator: operatorMatch } : {}),
+				...(statisticalQualifier ? { statisticalQualifier } : {}),
+				rawText,
+			},
+			diagnostics: [],
+		};
+	}
+
+	// 4. Single Quantity Parsing
+	const singleParsed = parseSingleQuantityPart(text, config);
+	if (!singleParsed) {
+		return {
+			diagnostics: [
+				{
+					code: "invalid_quantity",
+					message: `Unable to parse quantity '${rawText}'`,
+				},
+			],
+		};
+	}
+
+	const unitCheck = validateUnitPolicy(singleParsed, config, policy);
+	if (unitCheck.length > 0) {
+		return { diagnostics: unitCheck };
+	}
+
 	return {
 		value: {
-			lower: lower.value,
-			upper: upper?.value,
-			unit: lower.unit,
-			operator: operator?.value,
-			statisticalType:
-				policy.statistics === "accept" ? statistic?.value : undefined,
-			dataPointCount,
+			primaryQuantity: singleParsed,
+			...(operatorMatch ? { operator: operatorMatch } : {}),
+			...(statisticalQualifier ? { statisticalQualifier } : {}),
 			rawText,
 		},
-		diagnostics,
+		diagnostics: [],
 	};
 }
 
-function consumeAlias(
-	text: string,
-	aliases?: Readonly<Record<string, readonly string[] | string>>,
-): { value: string; remainder: string } | undefined {
-	if (!aliases) return undefined;
-	const candidates: Array<{ canonical: string; alias: string }> = [];
-	for (const [canonical, aliasVal] of Object.entries(aliases)) {
-		candidates.push({ canonical, alias: canonical });
-		if (Array.isArray(aliasVal)) {
-			for (const alias of aliasVal) {
-				if (alias.toLocaleLowerCase() !== canonical.toLocaleLowerCase()) {
-					candidates.push({ canonical, alias });
-				}
-			}
-		} else if (typeof aliasVal === "string") {
-			if (aliasVal.toLocaleLowerCase() !== canonical.toLocaleLowerCase()) {
-				candidates.push({ canonical, alias: aliasVal });
-			}
-		}
-	}
-	candidates.sort((left, right) => right.alias.length - left.alias.length);
-
-	const lowerText = text.toLocaleLowerCase();
-	for (const { canonical, alias } of candidates) {
-		const lowerAlias = alias.toLocaleLowerCase();
-		if (lowerText.startsWith(lowerAlias)) {
-			const remainder = text.slice(alias.length).trimStart();
-			if (remainder.length > 0 || alias.length === text.length) {
-				return { value: canonical, remainder };
-			}
-		}
-	}
-	return undefined;
-}
-
-function splitRange(
+function splitQuantityRange(
 	text: string,
 	delimiters: readonly string[],
-): [string, string] | undefined {
-	for (const delimiter of delimiters) {
-		const index = text.indexOf(delimiter);
-		if (index > 0 && index < text.length - delimiter.length)
-			return [
-				text.slice(0, index).trim(),
-				text.slice(index + delimiter.length).trim(),
-			];
-	}
-	return undefined;
+): { parts: string[]; delimiter: string } | undefined {
+	return splitByDelimiters(text, delimiters, { requireBoundaries: true });
 }
 
-function parseNumberAndUnit(
-	text: string,
+function parseSingleQuantityPart(
+	partText: string,
 	config: QuantityGrammarConfig,
-): { value: number; unit: string } | undefined {
-	const decimal = config.decimalSeparator ?? ".";
-	const match = text
-		.trim()
-		.match(
-			new RegExp(
-				`^([+-]?\\d+(?:${decimal === "," ? "," : "\\."}\\d+)?)\\s*(.+)$`,
-				"u",
-			),
+	inheritedUnit?: string,
+): SingleQuantity | undefined {
+	const trimmed = partText.trim();
+	if (!trimmed) return undefined;
+
+	// Check if part ends with a known unit or has a trailing word
+	let matchedUnit: string | undefined;
+	let numericPart = trimmed;
+
+	if (config.unitAliases) {
+		const sorted = flattenAndSortAliases(config.unitAliases, true);
+		const postMatch = extractPostfixAlias(trimmed, sorted, config.locales);
+		if (postMatch) {
+			numericPart = postMatch.remainderText;
+			matchedUnit = postMatch.key;
+		}
+	}
+
+	// If no unit matched, check split by trailing whitespace
+	if (!matchedUnit) {
+		const splitMatch = trimmed.match(
+			/^(?<num>.+?)\s+(?<unit>[^\d\p{Nd}\s]+)$/u,
 		);
-	if (!match) return undefined;
-	const unit = resolveUnit(match[2]!, config.unitAliases);
-	const value = Number(
-		decimal === "," ? match[1]!.replace(",", ".") : match[1],
-	);
-	return unit && Number.isFinite(value) ? { value, unit } : undefined;
-}
-
-function parseNumberOnly(
-	text: string,
-	unit: string | undefined,
-	config: QuantityGrammarConfig,
-): { value: number; unit: string } | undefined {
-	if (!unit) return undefined;
-	const decimal = config.decimalSeparator ?? ".";
-	const value = Number(
-		decimal === "," ? text.trim().replace(",", ".") : text.trim(),
-	);
-	return Number.isFinite(value) ? { value, unit } : undefined;
-}
-
-function resolveUnit(
-	input: string,
-	aliases: Readonly<Record<string, readonly string[]>>,
-): string | undefined {
-	const normalized = input.trim().toLocaleLowerCase();
-	for (const [canonicalUnit, aliasList] of Object.entries(aliases)) {
-		if (canonicalUnit.toLocaleLowerCase() === normalized) {
-			return canonicalUnit;
-		}
-		if (Array.isArray(aliasList)) {
-			if (aliasList.some((alias) => alias.toLocaleLowerCase() === normalized)) {
-				return canonicalUnit;
-			}
-		} else if (
-			typeof aliasList === "string" &&
-			(aliasList as string).toLocaleLowerCase() === normalized
-		) {
-			return canonicalUnit;
+		if (splitMatch?.groups?.num && splitMatch?.groups?.unit) {
+			numericPart = splitMatch.groups.num.trim();
+			const resolved = resolveUnitAlias(
+				splitMatch.groups.unit,
+				config.unitAliases,
+				config.locales,
+			);
+			matchedUnit = resolved?.canonicalUnit ?? splitMatch.groups.unit;
 		}
 	}
-	return input.trim();
+
+	// If still no unit, inherit from right-side range context
+	if (!matchedUnit && inheritedUnit) {
+		matchedUnit = inheritedUnit;
+	}
+
+	if (!matchedUnit) {
+		return undefined;
+	}
+
+	const numRes = parseNumericValue(numericPart, config);
+	if (!numRes.parsed) {
+		return undefined;
+	}
+
+	const magnitude = numRes.parsed.value;
+	let canonicalMagnitude: number | undefined;
+	let canonicalUnit: UnitId | undefined;
+
+	// Calculate canonical magnitude if conversion registry is present
+	if (config.conversionRegistry) {
+		try {
+			const conv = config.conversionRegistry.convertToCanonicalByUnit(
+				matchedUnit as UnitId,
+				magnitude,
+			);
+			if (conv) {
+				canonicalMagnitude = conv.canonicalAmount;
+				canonicalUnit = conv.canonicalUnit;
+			}
+		} catch {
+			// Non-fatal if unit not registered in conversion table
+		}
+	}
+
+	return {
+		magnitude,
+		unit: matchedUnit,
+		...(canonicalMagnitude !== undefined && canonicalUnit
+			? {
+					canonicalUnit,
+					canonicalMagnitude,
+				}
+			: {}),
+		rawText: trimmed,
+	};
 }
 
-function diagnostic(code: string, message: string): QuantityGrammarResolution {
-	return { diagnostics: [{ code, message }] };
+function validateUnitPolicy(
+	qty: SingleQuantity,
+	config: QuantityGrammarConfig,
+	policy: QuantityConsumerPolicy,
+): QuantityDiagnostic[] {
+	const diagnostics: QuantityDiagnostic[] = [];
+
+	if (policy.allowedUnits && policy.allowedUnits.length > 0) {
+		if (!policy.allowedUnits.includes(qty.unit)) {
+			diagnostics.push({
+				code: "unit_not_allowed",
+				message: `Unit '${qty.unit}' is not in the permitted unit list`,
+			});
+		}
+	}
+
+	if (
+		policy.allowedDimensions &&
+		policy.allowedDimensions.length > 0 &&
+		config.conversionRegistry
+	) {
+		const unitDef = config.conversionRegistry.getUnit(qty.unit as UnitId);
+		if (unitDef && !policy.allowedDimensions.includes(unitDef.dimension)) {
+			diagnostics.push({
+				code: "dimension_not_allowed",
+				message: `Physical dimension '${unitDef.dimension}' for unit '${qty.unit}' is not permitted`,
+			});
+		}
+	}
+
+	return diagnostics;
 }

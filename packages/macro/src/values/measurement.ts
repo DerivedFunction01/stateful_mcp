@@ -28,16 +28,27 @@ export function createMeasurementValueFromQuantity(
 	quantity: QuantityGrammarResult,
 	options: MeasurementValueOptions = {},
 ): QuantityValue {
-	const value = createMeasurementValue(quantity.lower, quantity.unit, {
+	const primary = quantity.primaryQuantity;
+	const value = createMeasurementValue(primary.magnitude, primary.unit, {
 		...options,
 		rawText: options.rawText ?? quantity.rawText,
+		normalized:
+			primary.canonicalMagnitude !== undefined && primary.canonicalUnit
+				? { magnitude: primary.canonicalMagnitude, unit: primary.canonicalUnit }
+				: options.normalized,
 	});
-	if (quantity.upper !== undefined)
+
+	if (quantity.range) {
 		value.range = {
-			lower: quantity.lower,
-			upper: quantity.upper,
-			unit: quantity.unit,
+			lower: quantity.range.start.magnitude,
+			upper: quantity.range.end.magnitude,
+			unit: quantity.range.start.unit,
 		};
-	if (quantity.operator) value.operator = quantity.operator;
+	}
+
+	if (quantity.operator) {
+		value.operator = quantity.operator.operator;
+	}
+
 	return value;
 }

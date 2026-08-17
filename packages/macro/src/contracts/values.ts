@@ -15,6 +15,7 @@ export const MACRO_VALUE_KINDS = [
 	"quantity",
 	"currency",
 	"date-time",
+	"frequency",
 	"custom",
 ] as const;
 export type ValueKind = (typeof MACRO_VALUE_KINDS)[number];
@@ -100,6 +101,13 @@ export interface DateTimeValue {
 	evidence?: ValueEvidence[];
 }
 
+export interface FrequencyValue {
+	kind: "frequency";
+	schedule: Record<string, unknown>;
+	rawText?: string;
+	evidence?: ValueEvidence[];
+}
+
 export type GenericValue =
 	| ScalarValue
 	| EnumValue
@@ -108,4 +116,5 @@ export type GenericValue =
 	| CustomValue
 	| QuantityValue
 	| CurrencyValue
-	| DateTimeValue;
+	| DateTimeValue
+	| FrequencyValue;
