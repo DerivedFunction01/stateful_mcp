@@ -1,0 +1,14 @@
+{
+  "$schema": "https://example.invalid/macro/workspace.schema.json",
+  "profiles": {
+    "sample": ["sample.runtime"]
+  },
+  "activeProfile": "sample",
+  "extensions": [
+    {
+      "id": "sample.runtime",
+      "source": "extensions/sample-runtime.ts",
+      "version": "1.0.0"
+    }
+  ]
+}

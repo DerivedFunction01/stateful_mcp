@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
 	createMacroRuntimeContext,
@@ -9,9 +9,46 @@ import {
 } from "@stateful-mcp/macro";
 import { parseArgs } from "../src/index";
 import { dispatchTerminalInput } from "../src/terminal-dispatcher";
-import { loadMacroCliWorkspace } from "../src/workspace-loader";
+import {
+	loadMacroCliWorkspace,
+	resolveWorkspaceExtensions,
+} from "../src/workspace-loader";
 
 describe("macro-cli workspace loading", () => {
+	test("resolves a named profile with automatic dependency closure", () => {
+		const resolved = resolveWorkspaceExtensions({
+			profiles: { clinical: ["pharmacy"] },
+			activeProfile: "clinical",
+			extensions: [
+				{ id: "observation", source: "observation.ts", version: "1.0.0" },
+				{
+					id: "pharmacy",
+					source: "pharmacy.ts",
+					version: "1.0.0",
+					requires: ["observation"],
+				},
+				{ id: "inventory", source: "inventory.ts", version: "1.0.0" },
+			],
+		});
+		expect(resolved.activeProfile).toBe("clinical");
+		expect(resolved.extensions.map((extension) => extension.id)).toEqual([
+			"observation",
+			"pharmacy",
+		]);
+	});
+
+	test("rejects unknown profiles before loading extension modules", () => {
+		expect(() =>
+			resolveWorkspaceExtensions({
+				profiles: { clinical: ["observation"] },
+				activeProfile: "retail",
+				extensions: [
+					{ id: "observation", source: "observation.ts", version: "1.0.0" },
+				],
+			}),
+		).toThrow("Unknown active workspace profile");
+	});
+
 	test("loads exactly the extensions listed by workspace.json", async () => {
 		const root = await mkdtemp(
 			join(process.env.TMPDIR ?? "/tmp", "macro-cli-"),
@@ -60,6 +97,56 @@ describe("macro-cli workspace loading", () => {
 			DEFAULT_EDITOR_KEYMAP_PROFILE.normal.moveUp,
 		);
 		await loaded.workspace.runtime.dispose();
+	});
+
+	test("persists namespaced extension settings and reloads them", async () => {
+		const root = await mkdtemp(
+			join(process.env.TMPDIR ?? "/tmp", "macro-cli-"),
+		);
+		const source = join(root, "settings.ts");
+		const profilePath = join(root, "profile.json");
+		const manifestPath = join(root, "workspace.json");
+		await writeFile(
+			source,
+			`export default { manifest: { id: "sample.runtime", version: "1.0.0", contributes: { settings: [{ namespace: "sample.runtime", title: "Sample", schema: [{ path: ["enabled"], type: "boolean", title: "Enabled" }], defaults: { enabled: true } }] } }, activate() { return {}; } };\n`,
+		);
+		await writeFile(profilePath, "{}");
+		await writeFile(
+			manifestPath,
+			JSON.stringify({
+				extensions: [
+					{ id: "sample.runtime", source: "./settings.ts", version: "1.0.0" },
+				],
+			}),
+		);
+		const loaded = await loadMacroCliWorkspace({
+			workspacePath: manifestPath,
+			profilePath,
+		});
+		const settings = loaded.workspace.settings!;
+		expect(settings.getPath(["extensions", "sample.runtime", "enabled"])).toBe(
+			true,
+		);
+		settings.setPath(["extensions", "sample.runtime", "enabled"], false);
+		expect((await settings.save()).status).toBe("saved");
+		await loaded.workspace.dispose();
+		expect(
+			JSON.parse(await readFile(profilePath, "utf8")).extensions[
+				"sample.runtime"
+			].enabled,
+		).toBe(false);
+		const reloaded = await loadMacroCliWorkspace({
+			workspacePath: manifestPath,
+			profilePath,
+		});
+		expect(
+			reloaded.workspace.settings?.getPath([
+				"extensions",
+				"sample.runtime",
+				"enabled",
+			]),
+		).toBe(false);
+		await reloaded.workspace.dispose();
 	});
 
 	test("rejects an extension version mismatch", async () => {

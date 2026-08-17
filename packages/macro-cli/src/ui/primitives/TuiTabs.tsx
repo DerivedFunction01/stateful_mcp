@@ -25,6 +25,7 @@ export interface TuiTabsProps {
 	readonly onSelectTab?: (id: string) => void;
 	readonly onMouseDown?: (tabId: string, event: MouseEvent) => void;
 	readonly variant?: "opencode" | "browser" | "vscode" | "minimal";
+	readonly rowHeight?: 1 | 2;
 	readonly theme?: TuiThemeDefinition;
 }
 
@@ -38,13 +39,14 @@ export function TuiTabs({
 	onSelectTab,
 	onMouseDown,
 	variant = "opencode",
+	rowHeight = 1,
 	theme,
 }: TuiTabsProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const activeId = activeTabId ?? tabs[0]?.id;
 
 	return (
-		<box height={1} flexDirection="row">
+		<box height={rowHeight} flexDirection="row" alignItems="center">
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeId;
 				const isDirty = tab.isDirty;
@@ -71,6 +73,8 @@ export function TuiTabs({
 					<box
 						key={tab.id}
 						backgroundColor={bg}
+						height={rowHeight}
+						alignItems="center"
 						flexDirection="row"
 						paddingLeft={0}
 						paddingRight={1}
@@ -82,10 +86,16 @@ export function TuiTabs({
 							}
 						}}
 					>
-						{/* Thin vertical accent bar */}
-						<text fg={accentColor} attributes={TextAttributes.BOLD}>
-							▎
-						</text>
+						{/* Full-height tab accent. */}
+						<box
+							width={1}
+							height={rowHeight}
+							backgroundColor={
+								isActive || isDirty || status !== "default"
+									? accentColor
+									: c.borderSubtle
+							}
+						/>
 
 						{/* Icon if provided */}
 						{tab.icon && (

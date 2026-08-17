@@ -3,6 +3,7 @@ import type { MultiUnitCanonicalTarget } from "../values/compound";
 import type { CurrencyFormatConfig } from "../values/currency";
 import type {
 	DateTimeFormatConfig,
+	DateTimeFormatRegistry,
 	TwoDigitYearCenturyConfig,
 } from "../values/date-time";
 import type {
@@ -59,6 +60,7 @@ export interface UserMacroProfile {
 	readonly numberWords?: NumberWordConfig;
 	readonly decimalSeparator?: "." | ",";
 	readonly date?: DateTimeFormatConfig;
+	readonly dateTime?: DateTimeFormatRegistry;
 	readonly currency?: CurrencyFormatConfig;
 	readonly excludePrefixes?: readonly string[];
 	/** Master general spelling aliases (e.g. British vs US spellings, standard SI/Imperial) */
@@ -148,6 +150,7 @@ export interface ExtensionDomainConfig {
 export interface CompiledDomainGrammar {
 	readonly quantity: QuantityGrammarConfig;
 	readonly date?: DateTimeFormatConfig;
+	readonly dateTime?: DateTimeFormatRegistry;
 	readonly currency?: CurrencyFormatConfig;
 	readonly localization?: LocalizationPolicyConfig;
 	readonly numberWords?: NumberWordConfig;

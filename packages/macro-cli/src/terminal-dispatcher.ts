@@ -2,6 +2,7 @@ import {
 	chordMatches,
 	type EditorKeymapProfile,
 	type MacroWorkspace,
+	surfaceKeybindingsForMode,
 } from "@stateful-mcp/macro";
 import type { NormalizedMouseEvent } from "./input/mouse";
 
@@ -43,6 +44,7 @@ export async function dispatchTerminalMouseInput(
 				layout.focusedPane === "sidepanel"
 					? layout.activeContainerId
 					: layout.activeTabId,
+			mode: workspace.editor.getMode(),
 			emitAction: (actionId, payload) =>
 				void workspace.commands.executeCommand(actionId, payload),
 		});
@@ -254,7 +256,10 @@ export async function dispatchTerminalInput(
 	}
 
 	// 6. Global Escape: return focus to main editor, or return to NORMAL mode if already in main
-	if (name === "escape") {
+	if (
+		name === "escape" &&
+		(layout.focusedPane !== "main" || layout.activeTabId === "scratchpad")
+	) {
 		if (layout.focusedPane !== "main") {
 			workspace.layout.setFocusedPane("main");
 			return "handled";
@@ -347,6 +352,34 @@ export async function dispatchTerminalInput(
 	}
 
 	// 7. View / Tab Contribution input handling
+	const registeredSurface =
+		layout.focusedPane === "sidepanel"
+			? workspace.views
+					.getViewsForContainer(layout.activeContainerId)
+					.find((view) => view.provider)
+			: layout.focusedPane === "main" && !isScratchpadActive
+				? workspace.tabs.getTab(layout.activeTabId)
+				: undefined;
+	const surfaceBinding = surfaceKeybindingsForMode(
+		registeredSurface?.keybindings,
+		currentMode,
+	).find((binding) => chordMatches(binding.key, chordEvent));
+	if (surfaceBinding && registeredSurface?.provider?.handleAction) {
+		const result = await registeredSurface.provider.handleAction(
+			surfaceBinding.action,
+			undefined,
+			{
+				scopeId:
+					layout.focusedPane === "sidepanel"
+						? layout.activeContainerId
+						: layout.activeTabId,
+				mode: currentMode,
+				emitAction: (actionId, payload) =>
+					void workspace.commands.executeCommand(actionId, payload),
+			},
+		);
+		if (result === "handled") return "handled";
+	}
 	const contribution =
 		layout.focusedPane === "sidepanel"
 			? workspace.views
@@ -371,6 +404,7 @@ export async function dispatchTerminalInput(
 					layout.focusedPane === "sidepanel"
 						? layout.activeContainerId
 						: layout.activeTabId,
+				mode: currentMode,
 				emitAction: (actionId, payload) => {
 					void workspace.commands.executeCommand(actionId, payload);
 				},

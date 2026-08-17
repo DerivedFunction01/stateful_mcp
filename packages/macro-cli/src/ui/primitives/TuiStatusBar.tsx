@@ -1,4 +1,5 @@
 import { TextAttributes } from "@opentui/core";
+import type { EditorMode } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiStatusBarVariant =
@@ -9,7 +10,7 @@ export type TuiStatusBarVariant =
 
 export interface TuiStatusBarProps {
 	readonly variant?: TuiStatusBarVariant;
-	readonly mode?: "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
+	readonly mode?: EditorMode;
 	readonly cursorLine?: number;
 	readonly cursorCol?: number;
 	readonly validCount?: number;

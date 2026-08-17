@@ -39,6 +39,24 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 					Boolean(event.ctrl) &&
 					(event.char?.toLowerCase() === "r" || event.name === "r")
 				);
+			case SpecialKeys.CtrlS:
+				return (
+					Boolean(event.ctrl) &&
+					!event.shift &&
+					(event.char?.toLowerCase() === "s" || event.name === "s")
+				);
+			case SpecialKeys.CtrlShiftR:
+				return (
+					Boolean(event.ctrl) &&
+					Boolean(event.shift) &&
+					(event.char?.toLowerCase() === "r" || event.name === "r")
+				);
+			case SpecialKeys.CtrlAltR:
+				return (
+					Boolean(event.ctrl) &&
+					Boolean(event.meta) &&
+					(event.char?.toLowerCase() === "r" || event.name === "r")
+				);
 			case SpecialKeys.Enter:
 				return event.name === "return" || event.name === "enter";
 			case SpecialKeys.Escape:

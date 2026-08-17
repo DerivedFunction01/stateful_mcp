@@ -32,6 +32,8 @@ export function MacroCliApp({
 			workspace.journal.subscribe(listener),
 			workspace.tabs.subscribe(listener),
 			workspace.views.subscribe(listener),
+			workspace.settingsNavigation.subscribe(listener),
+			workspace.settings?.subscribe(listener) ?? (() => undefined),
 		];
 		return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 	};
@@ -52,6 +54,12 @@ export function MacroCliApp({
 			projected: workspace.scratchpad.getProjectedLines(),
 			pinned: workspace.scratchpad.getPinnedMacro(),
 			journal: workspace.journal.getEntries(),
+			settings: workspace.settings
+				? {
+						raw: workspace.settings.getRawText(),
+						diagnostics: workspace.settings.getDiagnostics(),
+					}
+				: undefined,
 		});
 	});
 

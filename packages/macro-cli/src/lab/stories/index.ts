@@ -7,12 +7,16 @@ import { formInputsStory } from "./form-inputs.story";
 import { helpBarStory } from "./help-bar.story";
 import { inspectorRegionStory } from "./inspector-region.story";
 import { journalStory } from "./journal.story";
+import { menuBarStory } from "./menu-bar.story";
 import { modalStory } from "./modal.story";
+import { navigationPanelStory } from "./navigation-panel.story";
 import { primitivesStory } from "./primitives.story";
 import { scratchpadStory } from "./scratchpad.story";
+import { settingsWindowStory } from "./settings-window.story";
 import { statusBarStory } from "./status-bar.story";
 import { tabsStory } from "./tabs.story";
 import { themesStory } from "./themes.story";
+import { topChromeStory } from "./top-chrome.story";
 
 export function registerCoreStories(
 	registry: TuiStoryRegistry = globalStoryRegistry,
@@ -27,9 +31,13 @@ export function registerCoreStories(
 	registry.register(inspectorRegionStory);
 	registry.register(journalStory);
 	registry.register(modalStory);
+	registry.register(menuBarStory);
+	registry.register(topChromeStory);
 	registry.register(completionPopupStory);
 	registry.register(primitivesStory);
 	registry.register(formInputsStory);
+	registry.register(navigationPanelStory);
+	registry.register(settingsWindowStory);
 	registry.register(emptyStateStory);
 }
 
@@ -45,10 +53,14 @@ export {
 	helpBarStory,
 	inspectorRegionStory,
 	journalStory,
+	menuBarStory,
 	modalStory,
+	navigationPanelStory,
 	primitivesStory,
 	scratchpadStory,
+	settingsWindowStory,
 	statusBarStory,
 	tabsStory,
 	themesStory,
+	topChromeStory,
 };

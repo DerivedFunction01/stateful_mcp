@@ -2,10 +2,22 @@
  * Declarative extension UI contribution schemas and polymorphic view provider contracts.
  */
 
+import type { EditorMode } from "../editor/editor-kernel";
+
 export interface ContextualKeyHint {
 	readonly key: string;
 	readonly label?: string;
 	readonly i18nKey?: string;
+	readonly mode?: EditorMode;
+	readonly action?: string;
+}
+
+export interface SurfaceKeybinding {
+	readonly key: string;
+	readonly mode: EditorMode;
+	readonly action: string;
+	readonly label: string;
+	readonly when?: string;
 }
 
 export interface ViewContainerContribution {
@@ -16,6 +28,7 @@ export interface ViewContainerContribution {
 	readonly order?: number;
 	readonly region?: WorkspaceRegionId;
 	readonly contextualHints?: readonly ContextualKeyHint[];
+	readonly keybindings?: readonly SurfaceKeybinding[];
 }
 
 export type WorkspaceRegionId = "activity" | "inspector";
@@ -53,6 +66,7 @@ export interface ViewContribution {
 	readonly region?: WorkspaceRegionId;
 	readonly priority?: number;
 	readonly when?: ContextExpression;
+	readonly keybindings?: readonly SurfaceKeybinding[];
 }
 
 export interface WorkspaceTabContribution {
@@ -61,6 +75,7 @@ export interface WorkspaceTabContribution {
 	readonly order?: number;
 	readonly defaultVisible?: boolean;
 	readonly icon?: string;
+	readonly keybindings?: readonly SurfaceKeybinding[];
 }
 
 export interface CommandContribution {
@@ -124,6 +139,17 @@ export interface MacroExtensionUIContributions {
 	readonly workspaceTabs?: readonly WorkspaceTabContribution[];
 	readonly commands?: readonly CommandContribution[];
 	readonly localizations?: readonly LocalizationContribution[];
+	readonly settings?: readonly ExtensionSettingsContribution[];
+}
+
+export interface ExtensionSettingsContribution {
+	readonly namespace: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly schema: readonly import("../config/settings-service").SettingsSchemaEntry[];
+	readonly defaults?: Readonly<Record<string, unknown>>;
+	readonly localizationKeys?: readonly string[];
+	readonly restartRequired?: boolean;
 }
 
 export interface ExtensionViewRenderContext<TState = unknown> {
@@ -132,6 +158,8 @@ export interface ExtensionViewRenderContext<TState = unknown> {
 	readonly width?: number;
 	readonly height?: number;
 	readonly state?: TState;
+	readonly mode?: EditorMode;
+	readonly focusedInteractionId?: string;
 	onEmitAction?(actionId: string, payload?: unknown): void;
 }
 
@@ -139,6 +167,8 @@ export interface ExtensionTabRenderContext<TState = unknown> {
 	readonly tabId: string;
 	readonly isFocused: boolean;
 	readonly state?: TState;
+	readonly mode?: EditorMode;
+	readonly focusedInteractionId?: string;
 	onEmitAction?(actionId: string, payload?: unknown): void;
 }
 
@@ -186,10 +216,16 @@ export interface ExtensionInteraction {
 export interface ExtensionInteractionContext {
 	readonly scopeId: string;
 	readonly focusedInteractionId?: string;
+	readonly mode?: EditorMode;
 	readonly emitAction: (actionId: string, payload?: unknown) => void;
 }
 
 export interface ExtensionInteractionProvider {
+	handleAction?(
+		actionId: string,
+		payload: unknown,
+		context: ExtensionInteractionContext,
+	): Promise<WorkspaceInputResult> | WorkspaceInputResult;
 	getInteractionModel?(
 		context: ExtensionInteractionContext,
 	): readonly ExtensionInteraction[];

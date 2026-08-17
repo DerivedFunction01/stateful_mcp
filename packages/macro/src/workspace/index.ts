@@ -1,8 +1,12 @@
 import type { UserMacroProfile } from "../contracts/extension-config";
 import { ExtensionRuntime } from "../extensions/runtime";
 import { WorkspaceSaveCoordinator } from "./commands/save-coordinator";
+import type { OpenSettingsRequest } from "./config/settings-navigation";
+import { SettingsNavigationState } from "./config/settings-navigation";
+import type { WorkspaceSettingsService } from "./config/settings-service";
 import { CommandRegistry } from "./contributions/command-registry";
 import { ExtensionContributionManager } from "./contributions/extension-contribution-manager";
+import { SettingsContributionRegistry } from "./contributions/settings-registry";
 import { TabRegistry } from "./contributions/tab-registry";
 import { ViewRegistry } from "./contributions/view-registry";
 import { EditorKernel } from "./editor/editor-kernel";
@@ -23,8 +27,11 @@ export * from "./commands/command-descriptor";
 export * from "./commands/save-coordinator";
 export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
+export * from "./config/settings-navigation";
+export * from "./config/settings-service";
 export * from "./contributions/command-registry";
 export * from "./contributions/extension-contribution-manager";
+export * from "./contributions/settings-registry";
 export * from "./contributions/tab-registry";
 export * from "./contributions/types";
 export * from "./contributions/view-registry";
@@ -48,12 +55,14 @@ export interface MacroWorkspaceOptions {
 	readonly initialLayout?: Partial<WindowLayoutStateSnapshot>;
 	readonly runtime?: ExtensionRuntime;
 	readonly profile?: UserMacroProfile;
+	readonly settings?: WorkspaceSettingsService;
 	readonly journal?: import("./journal/workspace-journal").WorkspaceJournalOptions;
 	readonly scratchpad?: ScratchpadSessionOptions;
 }
 
 export interface MacroWorkspace {
 	readonly profile?: UserMacroProfile;
+	readonly settings?: WorkspaceSettingsService;
 	readonly layout: WindowLayoutStateManager;
 	readonly editor: EditorKernel;
 	readonly scratchpad: ScratchpadSession;
@@ -66,6 +75,8 @@ export interface MacroWorkspace {
 	readonly i18n: I18nKernel;
 	readonly runtime: ExtensionRuntime;
 	readonly contributions: ExtensionContributionManager;
+	readonly settingsContributions: SettingsContributionRegistry;
+	readonly settingsNavigation: SettingsNavigationState;
 	dispose(): Promise<void>;
 }
 
@@ -75,6 +86,8 @@ export function createMacroWorkspace(
 	const tabs = new TabRegistry();
 	const views = new ViewRegistry();
 	const commands = new CommandRegistry();
+	const settingsContributions = new SettingsContributionRegistry();
+	const settingsNavigation = new SettingsNavigationState();
 	const journal = new WorkspaceJournal(options?.journal);
 	const i18n = createDefaultI18nKernel(options?.initialLocale ?? "en");
 	const runtime =
@@ -95,6 +108,26 @@ export function createMacroWorkspace(
 	);
 	const palette = new CommandPaletteController(commands, layout, tabs);
 	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
+	if (options?.settings)
+		saveCoordinator.register({
+			id: "workspace.settings",
+			scope: "workspace",
+			isDirty: () => options.settings!.isDirty(),
+			save: async () => {
+				const result = await options.settings!.save();
+				return result.status === "saved"
+					? {
+							status: "saved",
+							message: result.restartRequired ? "Restart required" : undefined,
+						}
+					: {
+							status: "failed",
+							message: result.diagnostics
+								.map((diagnostic) => diagnostic.message)
+								.join("; "),
+						};
+			},
+		});
 	commands.registerCommand(
 		{
 			command: "workspace.saveActive",
@@ -162,9 +195,62 @@ export function createMacroWorkspace(
 		},
 		{ execute: () => layout.closeActiveTab() },
 	);
-	const contributions = new ExtensionContributionManager(views, tabs, commands);
+	commands.registerCommand(
+		{
+			command: "workspace.openSettings",
+			title: "Open Settings",
+			category: "Workspace",
+			verb: "settings",
+			aliases: ["config"],
+		},
+		{
+			execute: (request?: OpenSettingsRequest) => {
+				settingsNavigation.open(request);
+				layout.setActiveTab("settings");
+				layout.setFocusedPane("main");
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "workspace.openExtensions",
+			title: "Open Extensions",
+			category: "Workspace",
+			verb: "extensions",
+		},
+		{
+			execute: () => {
+				layout.setActiveTab("extensions");
+				layout.setFocusedPane("main");
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "workspace.toggleSidepanel",
+			title: "Toggle Sidepanel",
+			category: "View",
+			verb: "sidepanel",
+		},
+		{ execute: () => layout.toggleSidepanel() },
+	);
+	const contributions = new ExtensionContributionManager(
+		views,
+		tabs,
+		commands,
+		settingsContributions,
+	);
+	const refreshSettings = () =>
+		options?.settings?.reconfigure({
+			defaults: settingsContributions.getDefaults(),
+			schema: settingsContributions.getSchema(),
+		});
+	const unsubscribeSettingsContributions =
+		settingsContributions.subscribe(refreshSettings);
+	refreshSettings();
 	const workspace: MacroWorkspace = {
 		profile: options?.profile,
+		settings: options?.settings,
 		layout,
 		editor,
 		scratchpad,
@@ -177,7 +263,10 @@ export function createMacroWorkspace(
 		i18n,
 		runtime,
 		contributions,
+		settingsContributions,
+		settingsNavigation,
 		dispose: async () => {
+			unsubscribeSettingsContributions();
 			contributions.dispose();
 			await runtime.dispose();
 		},

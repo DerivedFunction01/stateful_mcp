@@ -1,15 +1,20 @@
 import type { ActiveExtension } from "../../extensions/contracts";
+import type { ExtensionRuntimeSnapshot } from "../../extensions/runtime-snapshot";
 import type { CommandRegistry } from "./command-registry";
+import type { SettingsContributionRegistry } from "./settings-registry";
+import { validateSurfaceKeybindings } from "./surface-keybindings";
 import type { TabRegistry } from "./tab-registry";
 import type { ViewRegistry } from "./view-registry";
 
 export class ExtensionContributionManager {
 	private readonly owned = new Map<string, OwnedContributions>();
+	private readonly active = new Map<string, ExtensionRuntimeSnapshot>();
 
 	constructor(
 		private readonly views: ViewRegistry,
 		private readonly tabs: TabRegistry,
 		private readonly commands: CommandRegistry,
+		private readonly settings?: SettingsContributionRegistry,
 	) {}
 
 	install(active: readonly ActiveExtension[]): void {
@@ -25,8 +30,27 @@ export class ExtensionContributionManager {
 			views: [],
 			tabs: [],
 			commands: [],
+			settings: [],
 		};
 		try {
+			const surfaceBindings = [
+				...(manifest?.viewsContainers?.activitybar ?? []).map(
+					(item) => item.keybindings,
+				),
+				...(manifest?.workspaceTabs ?? []).map((item) => item.keybindings),
+				...Object.values(manifest?.views ?? {}).flatMap((items) =>
+					items.map((item) => item.keybindings),
+				),
+			];
+			const keybindingDiagnostics = surfaceBindings.flatMap((bindings) =>
+				validateSurfaceKeybindings(bindings),
+			);
+			if (keybindingDiagnostics.length > 0)
+				throw new Error(keybindingDiagnostics[0]!.message);
+			for (const contribution of manifest?.settings ?? []) {
+				this.settings?.register(extension.manifest.id, contribution);
+				owned.settings.push(contribution.namespace);
+			}
 			for (const container of manifest?.viewsContainers?.activitybar ?? []) {
 				this.views.registerContainer(container, extension.manifest.id);
 				owned.containers.push(container.id);
@@ -73,8 +97,31 @@ export class ExtensionContributionManager {
 				owned.commands.push(command.command);
 			}
 			this.owned.set(extension.manifest.id, owned);
+			this.active.set(extension.manifest.id, {
+				id: extension.manifest.id,
+				version: extension.manifest.version,
+				sourceFile: extension.sourceFile,
+				state: "active",
+				dependencies: extension.manifest.requires ?? [],
+				contributions: {
+					containers: [...owned.containers],
+					views: [...owned.views],
+					tabs: [...owned.tabs],
+					commands: [...owned.commands],
+					localizations:
+						extension.manifest.contributes?.localizations?.map(
+							(item) => item.languageId,
+						) ?? [],
+					settings:
+						extension.manifest.contributes?.settings?.map(
+							(item) => item.namespace,
+						) ?? [],
+				},
+				diagnostics: [],
+			});
 		} catch (error) {
 			this.removeOwned(owned);
+			this.settings?.unregisterOwner(extension.manifest.id);
 			throw error;
 		}
 	}
@@ -84,6 +131,8 @@ export class ExtensionContributionManager {
 		if (!owned) return;
 		this.removeOwned(owned);
 		this.owned.delete(extensionId);
+		this.active.delete(extensionId);
+		this.settings?.unregisterOwner(extensionId);
 	}
 
 	dispose(): void {
@@ -92,11 +141,16 @@ export class ExtensionContributionManager {
 		}
 	}
 
+	getRuntimeSnapshots(): readonly ExtensionRuntimeSnapshot[] {
+		return [...this.active.values()].sort((a, b) => a.id.localeCompare(b.id));
+	}
+
 	private removeOwned(owned: OwnedContributions): void {
 		for (const id of owned.commands) this.commands.unregisterCommand(id);
 		for (const id of owned.tabs) this.tabs.unregisterTab(id);
 		for (const id of owned.views) this.views.unregisterView(id);
 		for (const id of owned.containers) this.views.unregisterContainer(id);
+		for (const id of owned.settings) this.settings?.unregister(id);
 	}
 }
 
@@ -105,4 +159,5 @@ interface OwnedContributions {
 	views: string[];
 	tabs: string[];
 	commands: string[];
+	settings: string[];
 }

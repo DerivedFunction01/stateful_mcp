@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+	createDateTimeRegistry,
 	formatCurrencyValue,
 	formatDateTimeValue,
 	formatNumericValue,
+	selectDateTimeFormats,
+	validateDateTimeRegistry,
 } from "../src";
 
 describe("macro display formatters", () => {
@@ -57,5 +60,63 @@ describe("macro display formatters", () => {
 				},
 			),
 		).toContain("August 2026");
+	});
+});
+
+describe("canonical date/time format registry", () => {
+	const registry = {
+		formats: {
+			monthYear: {
+				id: "monthYear",
+				kind: "date" as const,
+				tokens: ["MM", "YYYY"] as const,
+				separators: ["/"],
+			},
+			monthDayYear: {
+				id: "monthDayYear",
+				kind: "date" as const,
+				tokens: ["MM", "DD", "YYYY"] as const,
+				separators: ["/", "/"],
+			},
+			minutes: {
+				id: "minutes",
+				kind: "time" as const,
+				tokens: ["HH", "min"] as const,
+				separators: [":"],
+			},
+		},
+		display: { date: "monthDayYear", time: "minutes" },
+		parse: {
+			date: ["monthYear", "monthDayYear"],
+			time: ["minutes"],
+			datetime: [],
+		},
+	};
+
+	test("selects profile formats by required semantic fields", () => {
+		expect(
+			selectDateTimeFormats(registry, {
+				role: "date",
+				requiredFields: ["month", "year"],
+			}).map((format) => format.id),
+		).toEqual(["monthYear", "monthDayYear"]);
+		expect(
+			selectDateTimeFormats(registry, {
+				role: "date",
+				requiredFields: ["month", "day"],
+				allowAdditionalFields: true,
+			}).map((format) => format.id),
+		).toEqual(["monthDayYear"]);
+	});
+
+	test("validates registry references and migrates legacy date config", () => {
+		expect(validateDateTimeRegistry(registry)).toHaveLength(0);
+		expect(
+			createDateTimeRegistry({
+				id: "legacy",
+				tokens: ["MM", "DD"],
+				separators: ["/"],
+			}).parse.date,
+		).toEqual(["legacy"]);
 	});
 });

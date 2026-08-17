@@ -6,8 +6,8 @@ import type { ValueKind } from "../contracts/values";
 import type { ScannerSyntax } from "../parser/macro-scanner";
 import type { CurrencyFormatConfig } from "./currency";
 import { buildCurrencyPatternString, parseCurrency } from "./currency";
-import type { DateTimeFormatConfig } from "./date-time";
-import { buildDatePatternString } from "./date-time";
+import type { DateTimeFormatConfig, DateTimeFormatRegistry } from "./date-time";
+import { buildDatePatternString, createDateTimeRegistry } from "./date-time";
 import { normalizeUnicodeDigits } from "./localization";
 import {
 	createMeasurementValue,
@@ -37,6 +37,7 @@ export class ValuePatternCompiler {
 	private readonly quantityConfig: QuantityGrammarConfig;
 	private readonly currencyConfig?: CurrencyFormatConfig;
 	private readonly dateConfig?: DateTimeFormatConfig;
+	private readonly dateTimeRegistry?: DateTimeFormatRegistry;
 	private readonly syntax?: ScannerSyntax;
 
 	constructor(options: PatternCompilerOptions = {}) {
@@ -46,6 +47,7 @@ export class ValuePatternCompiler {
 			this.quantityConfig = grammar.quantity;
 			this.currencyConfig = grammar.currency;
 			this.dateConfig = grammar.date;
+			this.dateTimeRegistry = grammar.dateTime;
 		} else {
 			const profile = grammar as Partial<UserMacroProfile> | undefined;
 			this.quantityConfig = {
@@ -59,6 +61,7 @@ export class ValuePatternCompiler {
 			};
 			this.currencyConfig = profile?.currency;
 			this.dateConfig = profile?.date;
+			this.dateTimeRegistry = profile?.dateTime;
 		}
 	}
 
@@ -134,6 +137,27 @@ export class ValuePatternCompiler {
 	 * Builds a dynamic date pattern from the active date configuration if configured.
 	 */
 	compileDatePattern(): string {
+		const registry =
+			this.dateTimeRegistry ?? createDateTimeRegistry(this.dateConfig);
+		const registryPatterns = Object.values(registry.formats)
+			.filter(
+				(definition) =>
+					definition.parserEnabled !== false &&
+					(definition.kind === "date" || definition.kind === "datetime"),
+			)
+			.map(
+				(definition) =>
+					buildDatePatternString(
+						definition.tokens,
+						definition.separators,
+						definition.options,
+					).pattern,
+			)
+			.filter(Boolean);
+		if (registryPatterns.length > 0)
+			return registryPatterns.length === 1
+				? registryPatterns[0]!
+				: `(?:${registryPatterns.join("|")})`;
 		if (
 			this.dateConfig &&
 			this.dateConfig.tokens &&

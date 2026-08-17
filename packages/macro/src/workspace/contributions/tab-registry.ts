@@ -31,6 +31,81 @@ export class TabRegistry {
 			order: 90,
 			defaultVisible: true,
 			icon: "⚙",
+			keybindings: [
+				{
+					key: "j",
+					mode: "NORMAL",
+					action: "settings.navigate.down",
+					label: "Navigate down",
+				},
+				{
+					key: "k",
+					mode: "NORMAL",
+					action: "settings.navigate.up",
+					label: "Navigate up",
+				},
+				{
+					key: "h",
+					mode: "NORMAL",
+					action: "settings.navigate.left",
+					label: "Focus navigation",
+				},
+				{
+					key: "l",
+					mode: "NORMAL",
+					action: "settings.navigate.right",
+					label: "Focus content",
+				},
+				{
+					key: "ENTER",
+					mode: "NORMAL",
+					action: "settings.select",
+					label: "Select",
+				},
+				{
+					key: "ESC",
+					mode: "NORMAL",
+					action: "settings.back",
+					label: "Back to editor",
+				},
+				{
+					key: "CTRL_S",
+					mode: "NORMAL",
+					action: "settings.save",
+					label: "Save settings",
+				},
+				{
+					key: "CTRL_SHIFT_R",
+					mode: "NORMAL",
+					action: "settings.reset",
+					label: "Reset settings",
+				},
+				{
+					key: "CTRL_ALT_R",
+					mode: "NORMAL",
+					action: "settings.reload",
+					label: "Reload settings",
+				},
+				{
+					key: "ENTER",
+					mode: "INSERT",
+					action: "settings.commit",
+					label: "Commit field",
+				},
+				{
+					key: "ESC",
+					mode: "INSERT",
+					action: "settings.cancel",
+					label: "Cancel editing",
+				},
+			],
+		});
+		this.registerTab({
+			id: "extensions",
+			label: "Extensions",
+			order: 95,
+			defaultVisible: false,
+			icon: "▣",
 		});
 	}
 

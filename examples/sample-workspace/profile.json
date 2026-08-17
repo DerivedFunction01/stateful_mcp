@@ -1,0 +1,34 @@
+{
+  "locale": "en",
+  "dateTime": {
+    "formats": {
+      "sample.date.monthYear": {
+        "id": "sample.date.monthYear",
+        "kind": "date",
+        "tokens": ["MM", "YYYY"],
+        "separators": ["/"]
+      },
+      "sample.date.full": {
+        "id": "sample.date.full",
+        "kind": "date",
+        "tokens": ["MM", "DD", "YYYY"],
+        "separators": ["/", "/"]
+      },
+      "sample.time.minutes": {
+        "id": "sample.time.minutes",
+        "kind": "time",
+        "tokens": ["HH", "min"],
+        "separators": [":"]
+      }
+    },
+    "display": {
+      "date": "sample.date.full",
+      "time": "sample.time.minutes"
+    },
+    "parse": {
+      "date": ["sample.date.monthYear", "sample.date.full"],
+      "time": ["sample.time.minutes"],
+      "datetime": []
+    }
+  }
+}

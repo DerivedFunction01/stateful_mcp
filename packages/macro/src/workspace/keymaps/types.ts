@@ -4,6 +4,9 @@
 
 export const SpecialKeys = {
 	CtrlR: "CTRL_R",
+	CtrlS: "CTRL_S",
+	CtrlShiftR: "CTRL_SHIFT_R",
+	CtrlAltR: "CTRL_ALT_R",
 	CtrlP: "CTRL_P",
 	CtrlB: "CTRL_B",
 	CtrlE: "CTRL_E",

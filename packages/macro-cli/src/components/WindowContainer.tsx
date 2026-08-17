@@ -3,6 +3,7 @@ import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import type { MacroCliViewProvider } from "../renderer";
 import { TuiWorkspaceSurface } from "../ui/compositions";
 import type { TuiActivityItem } from "../ui/primitives/TuiActivityRail";
+import { TuiMenuBar, type TuiMenuGroup } from "../ui/primitives/TuiMenuBar";
 import { TuiPanelRegion } from "../ui/primitives/TuiPanelRegion";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 import { CommandPaletteModal } from "./CommandPaletteModal";
@@ -79,11 +80,81 @@ export function WindowContainer({
 			altKey: container.altKey,
 			isActive: container.id === snapshot.activeInspectorContainerId,
 		}));
+	const execute = (command: string) => {
+		void workspace.commands.executeCommand(command);
+	};
+	const menuGroups: readonly TuiMenuGroup[] = [
+		{
+			id: "file",
+			label: "File",
+			items: [
+				{
+					id: "save",
+					label: "Save",
+					shortcut: ":w",
+					onSelect: () => execute("workspace.saveActive"),
+				},
+				{
+					id: "settings",
+					label: "Settings",
+					onSelect: () => execute("workspace.openSettings"),
+				},
+				{
+					id: "extensions",
+					label: "Extensions",
+					onSelect: () => execute("workspace.openExtensions"),
+				},
+				{
+					id: "quit",
+					label: "Quit",
+					shortcut: ":q",
+					onSelect: () => execute("workspace.quit"),
+				},
+			],
+		},
+		{
+			id: "edit",
+			label: "Edit",
+			items: [
+				{
+					id: "palette",
+					label: "Command Palette",
+					shortcut: "Ctrl+P",
+					onSelect: () => workspace.palette.open(),
+				},
+			],
+		},
+		{
+			id: "view",
+			label: "View",
+			items: [
+				{
+					id: "sidepanel",
+					label: "Toggle Sidepanel",
+					shortcut: keymap?.window.toggleSidepanel,
+					onSelect: () => execute("workspace.toggleSidepanel"),
+				},
+			],
+		},
+		{
+			id: "help",
+			label: "Help",
+			items: [{ id: "help", label: "Keyboard Help" }],
+		},
+	];
 
 	return (
 		<box width="100%" height="100%" onMouse={onMouse}>
 			<TuiWorkspaceSurface
-				header={<WorkspaceTabs workspace={workspace} theme={theme} />}
+				menuBar={
+					<TuiMenuBar
+						groups={menuGroups}
+						width={columns}
+						theme={theme}
+						compact={columns < 80}
+					/>
+				}
+				tabBar={<WorkspaceTabs workspace={workspace} theme={theme} />}
 				startRegion={
 					<TuiPanelRegion
 						dock={snapshot.regions.activity.dock === "end" ? "end" : "start"}
@@ -134,7 +205,7 @@ export function WindowContainer({
 							<ScratchpadView
 								workspace={workspace}
 								keymap={keymap}
-								height={Math.max(1, rows - 5)}
+								height={Math.max(1, rows - 6)}
 								theme={theme}
 							/>
 						) : (
@@ -190,6 +261,7 @@ export function WindowContainer({
 					activityOpen: snapshot.regions.activity.open,
 					inspectorOpen: snapshot.regions.inspector.open,
 					bodyFrame: mainFocused ? "focused" : "subtle",
+					showHeaderDivider: false,
 				}}
 				theme={theme}
 			/>

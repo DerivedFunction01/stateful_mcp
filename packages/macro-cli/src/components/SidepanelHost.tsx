@@ -48,6 +48,7 @@ export function SidepanelHost({
 					width,
 					height,
 					isFocused: snapshot.focusedPane === "sidepanel",
+					mode: workspace.editor.getMode(),
 					emitAction,
 					onEmitAction: emitAction,
 				})}

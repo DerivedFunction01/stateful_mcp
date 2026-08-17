@@ -22,6 +22,7 @@ export function TabHost({
 			width,
 			height,
 			isFocused: workspace.layout.getSnapshot().focusedPane === "main",
+			mode: workspace.editor.getMode(),
 			emitAction,
 			onEmitAction: emitAction,
 		});

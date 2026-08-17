@@ -2,10 +2,12 @@ import { TextAttributes } from "@opentui/core";
 import type {
 	ContextualKeyHint,
 	EditorKeymapProfile,
+	EditorMode,
 	I18nKernel,
 	MacroWorkspace,
 	RegisteredView,
 } from "@stateful-mcp/macro";
+import { surfaceKeybindingsForMode } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
@@ -21,13 +23,11 @@ export interface TuiShortcutHint {
 	readonly action: string;
 }
 
-export type TuiHelpBarMode = "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
-
 export interface TuiHelpBarProps {
 	readonly variant?: TuiHelpBarVariant;
 	readonly keymap?: EditorKeymapProfile;
 	readonly i18n?: I18nKernel;
-	readonly mode?: TuiHelpBarMode;
+	readonly mode?: EditorMode;
 	readonly hints?: readonly TuiShortcutHint[];
 	readonly customText?: string;
 	readonly theme?: TuiThemeDefinition;
@@ -40,6 +40,9 @@ export function formatKeyDisplay(chord: string): string {
 		CTRL_E: "Ctrl+E",
 		CTRL_W: "Ctrl+W",
 		CTRL_R: "Ctrl+R",
+		CTRL_S: "Ctrl+S",
+		CTRL_SHIFT_R: "Ctrl+Shift+R",
+		CTRL_ALT_R: "Ctrl+Alt+R",
 		ALT_P: "Alt+P",
 		CTRL_ENTER: "Ctrl+Enter",
 		TAB: "Tab",
@@ -55,7 +58,7 @@ export function formatKeyDisplay(chord: string): string {
 export function buildDynamicKeymapHints(
 	keymap: EditorKeymapProfile,
 	i18n?: I18nKernel,
-	mode: TuiHelpBarMode = "NORMAL",
+	mode: EditorMode = "NORMAL",
 ): readonly TuiShortcutHint[] {
 	if (mode === "INSERT") {
 		return [
@@ -276,6 +279,19 @@ export function buildContextualHelpBarHints(
 			},
 			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
 		];
+	}
+
+	if (focusedPane === "main" && layout.activeTabId !== "scratchpad") {
+		const tab = workspace.tabs.getTab(layout.activeTabId);
+		const bindings = surfaceKeybindingsForMode(
+			tab?.keybindings,
+			workspace.editor.getMode(),
+		);
+		if (bindings.length > 0)
+			return bindings.map((binding) => ({
+				key: formatKeyDisplay(binding.key),
+				action: binding.label,
+			}));
 	}
 
 	return buildDynamicKeymapHints(

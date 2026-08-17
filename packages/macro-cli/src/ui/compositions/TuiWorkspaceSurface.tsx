@@ -16,6 +16,8 @@ export interface TuiWorkspaceSurfaceLayout {
 }
 
 export interface TuiWorkspaceSurfaceProps {
+	readonly menuBar?: ReactNode;
+	readonly tabBar?: ReactNode;
 	readonly header?: ReactNode;
 	readonly startRegion?: ReactNode;
 	readonly body: ReactNode;
@@ -29,6 +31,8 @@ export interface TuiWorkspaceSurfaceProps {
 
 export function TuiWorkspaceSurface({
 	header,
+	menuBar,
+	tabBar,
 	startRegion,
 	body,
 	endRegion,
@@ -60,7 +64,24 @@ export function TuiWorkspaceSurface({
 			backgroundColor={c.bgCanvas}
 			padding={outerPadding}
 		>
-			{header && (
+			{menuBar && (
+				<box height={1} backgroundColor={c.bgSurface}>
+					{menuBar}
+				</box>
+			)}
+			{menuBar && tabBar && (
+				<TuiDivider
+					style="single"
+					length={Math.max(0, resolvedLayout.outerWidth)}
+					theme={theme}
+				/>
+			)}
+			{tabBar && (
+				<box height={1} backgroundColor={c.bgSurface}>
+					{tabBar}
+				</box>
+			)}
+			{header && !menuBar && !tabBar && (
 				<box flexDirection="column">
 					<box backgroundColor={c.bgSurface} height={1}>
 						{header}
