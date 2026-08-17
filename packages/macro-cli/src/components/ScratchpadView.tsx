@@ -24,8 +24,12 @@ export function ScratchpadView({
 	const i18n = workspace.i18n;
 
 	const isVisualMode = mode === "VISUAL";
-	const minSelectedLine = selection ? Math.min(selection.start.line, selection.end.line) : -1;
-	const maxSelectedLine = selection ? Math.max(selection.start.line, selection.end.line) : -1;
+	const minSelectedLine = selection
+		? Math.min(selection.start.line, selection.end.line)
+		: -1;
+	const maxSelectedLine = selection
+		? Math.max(selection.start.line, selection.end.line)
+		: -1;
 
 	const isEmptyBuffer = lines.length === 1 && lines[0] === "";
 	const pinChord = formatKeyDisplay(keymap?.window.pinMacro || "Alt+P");
@@ -39,7 +43,9 @@ export function ScratchpadView({
 	);
 
 	const pinnedLabel = pinned
-		? translate(i18n, "scratchpad.pinnedLabel", `PINNED: ${pinned}`, { macro: pinned })
+		? translate(i18n, "scratchpad.pinnedLabel", `PINNED: ${pinned}`, {
+				macro: pinned,
+			})
 		: "";
 
 	const pinnedHint = translate(
@@ -58,7 +64,8 @@ export function ScratchpadView({
 						📌 {pinnedLabel}
 					</text>
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						{"  "}{pinnedHint}
+						{"  "}
+						{pinnedHint}
 					</text>
 				</box>
 			)}
@@ -66,11 +73,15 @@ export function ScratchpadView({
 			{lines.map((line, index) => {
 				const projection = projected[index];
 				const isActive = cursor.line === index;
-				const isSelectedInVisual = isVisualMode && index >= minSelectedLine && index <= maxSelectedLine;
+				const isSelectedInVisual =
+					isVisualMode && index >= minSelectedLine && index <= maxSelectedLine;
 				const isHighlighted = isActive || isSelectedInVisual;
 
 				const isPinned = pinned && projection?.macroName === pinned;
-				const hasError = projection && !projection.isValid && projection.diagnostics.length > 0;
+				const hasError =
+					projection &&
+					!projection.isValid &&
+					projection.diagnostics.length > 0;
 				const isValid = projection?.isValid ?? false;
 
 				const lineNumStr = String(index + 1).padStart(2, "0");
@@ -98,10 +109,16 @@ export function ScratchpadView({
 						? c.bgElevated
 						: undefined;
 
-				const leftBarColor = isHighlighted ? c.accentPrimary : hasError ? c.statusError : "transparent";
+				const leftBarColor = isHighlighted
+					? c.accentPrimary
+					: hasError
+						? c.statusError
+						: "transparent";
 
 				const pinnedBadge = isPinned
-					? translate(i18n, "scratchpad.pinnedBadge", `[pinned to ${pinned}]`, { macro: pinned })
+					? translate(i18n, "scratchpad.pinnedBadge", `[pinned to ${pinned}]`, {
+							macro: pinned,
+						})
 					: "";
 
 				// Parse cursor position on active line
@@ -114,16 +131,14 @@ export function ScratchpadView({
 						{/* Row 1: Main Command Input */}
 						<box flexDirection="row" backgroundColor={rowBg} height={1}>
 							{/* Left accent pillar (1 char) */}
-							<text
-								fg={leftBarColor}
-								attributes={TextAttributes.BOLD}
-							>
+							<text fg={leftBarColor} attributes={TextAttributes.BOLD}>
 								{isHighlighted || hasError ? "▎" : " "}
 							</text>
 
 							{/* Sign column (3 chars) */}
 							<text fg={signColor} attributes={TextAttributes.BOLD}>
-								{" "}{signChar}{" "}
+								{" "}
+								{signChar}{" "}
 							</text>
 
 							{/* Line Number (3 chars) */}
@@ -140,7 +155,11 @@ export function ScratchpadView({
 							{/* Command Input Text with Precise Inline Blinking Cursor */}
 							{isEmptyBuffer && isActive ? (
 								<box flexDirection="row">
-									<TuiCursor char={placeholderText.slice(0, 1)} isPlaceholder={true} theme={theme} />
+									<TuiCursor
+										char={placeholderText.slice(0, 1)}
+										isPlaceholder={true}
+										theme={theme}
+									/>
 									<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 										{placeholderText.slice(1)}
 									</text>
@@ -178,20 +197,19 @@ export function ScratchpadView({
 
 						{/* Row 2: Fixed-Height Projection Tray */}
 						<box flexDirection="row" backgroundColor={rowBg} height={1}>
-							<text
-								fg={leftBarColor}
-								attributes={TextAttributes.BOLD}
-							>
+							<text fg={leftBarColor} attributes={TextAttributes.BOLD}>
 								{isHighlighted || hasError ? "▎" : " "}
 							</text>
-							<text fg="transparent">      </text>
+							<text fg="transparent"> </text>
 							<text fg={c.borderDefault}>│ </text>
 							{hasError ? (
 								<text fg={c.statusError}>
 									! {projection.diagnostics[0]?.message}
 								</text>
 							) : projection?.preview ? (
-								<text fg={projection.isValid ? c.statusSuccess : c.statusWarning}>
+								<text
+									fg={projection.isValid ? c.statusSuccess : c.statusWarning}
+								>
 									↳ {projection.preview.text}
 								</text>
 							) : (

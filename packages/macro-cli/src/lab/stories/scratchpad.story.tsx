@@ -1,10 +1,10 @@
 import { TextAttributes } from "@opentui/core";
-import type { TuiStory } from "../story-contract";
-import { TuiTabs, type TuiTabItem } from "../../ui/primitives/TuiTabs";
-import { TuiPanelRegion } from "../../ui/primitives/TuiPanelRegion";
 import { TuiHelpBar } from "../../ui/primitives/TuiHelpBar";
+import { TuiPanelRegion } from "../../ui/primitives/TuiPanelRegion";
 import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
+import { type TuiTabItem, TuiTabs } from "../../ui/primitives/TuiTabs";
 import { GlobalThemeRegistry } from "../../ui/theme";
+import type { TuiStory } from "../story-contract";
 
 const DEMO_TABS: readonly TuiTabItem[] = [
 	{ id: "scratchpad", label: "Scratchpad", icon: "✏", isDirty: true },
@@ -32,7 +32,7 @@ const DEMO_LINES = [
 	{
 		num: "03",
 		sign: " ",
-		text: "^notify channel=#deployments msg=\"Staging deployment ready\"",
+		text: '^notify channel=#deployments msg="Staging deployment ready"',
 		projection: "↳ Slack notification queued for #deployments",
 		isValid: true,
 		isActive: false,
@@ -43,24 +43,31 @@ export const scratchpadStory: TuiStory = {
 	id: "scratchpad",
 	title: "Scratchpad Editor Framing & Boundaries",
 	category: "Scratchpad",
-	states: [
-		"full-workspace",
-		"framed-scratchpad",
-		"focus-mode-no-rails",
-	],
+	states: ["default"],
 	render(context) {
-		const stateId = context.stateId;
 		const width = context.size.columns;
 		const theme = GlobalThemeRegistry.getActive();
 		const c = theme.colors;
 
 		const leftRailItems = [
-			{ id: "explorer", label: "Explorer", icon: "📁", altKey: "1", isActive: true },
+			{
+				id: "explorer",
+				label: "Explorer",
+				icon: "📁",
+				altKey: "1",
+				isActive: true,
+			},
 			{ id: "journal", label: "Journal", icon: "◷", altKey: "3" },
 		];
 
 		const rightRailItems = [
-			{ id: "slots", label: "Macro Slots", icon: "▧", altKey: "2", isActive: true },
+			{
+				id: "slots",
+				label: "Macro Slots",
+				icon: "▧",
+				altKey: "2",
+				isActive: true,
+			},
 		];
 
 		// Left Panel
@@ -76,10 +83,15 @@ export const scratchpadStory: TuiStory = {
 				theme={theme}
 			>
 				<box flexDirection="column">
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>workspace/</text>
-					<text fg={c.fgPrimary}>  ├─ schema.macro</text>
-					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>  ├─ deploy.macro</text>
-					<text fg={c.fgPrimary}>  └─ config.json</text>
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						workspace/
+					</text>
+					<text fg={c.fgPrimary}> ├─ schema.macro</text>
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+						{" "}
+						├─ deploy.macro
+					</text>
+					<text fg={c.fgPrimary}> └─ config.json</text>
 				</box>
 			</TuiPanelRegion>
 		);
@@ -94,7 +106,13 @@ export const scratchpadStory: TuiStory = {
 				closeHint="Alt+2"
 				panelWidth={28}
 				cards={[
-					{ id: "s1", title: "service", subtitle: "api", badge: "string", isActive: true },
+					{
+						id: "s1",
+						title: "service",
+						subtitle: "api",
+						badge: "string",
+						isActive: true,
+					},
 					{ id: "s2", title: "env", subtitle: "staging", badge: "enum" },
 					{ id: "s3", title: "region", subtitle: "us-east-1", badge: "opt" },
 				]}
@@ -105,7 +123,11 @@ export const scratchpadStory: TuiStory = {
 
 		// Shared Editor Line Renderer
 		const renderEditorLines = (extraBg?: string) => (
-			<box flexDirection="column" flexGrow={1} backgroundColor={extraBg ?? c.bgCanvas}>
+			<box
+				flexDirection="column"
+				flexGrow={1}
+				backgroundColor={extraBg ?? c.bgCanvas}
+			>
 				{DEMO_LINES.map((line) => {
 					const rowBg = line.isActive ? c.bgActive : undefined;
 					const leftColor = line.isActive ? c.accentPrimary : "transparent";
@@ -117,14 +139,24 @@ export const scratchpadStory: TuiStory = {
 								<text fg={leftColor} attributes={TextAttributes.BOLD}>
 									{line.isActive ? "▎" : " "}
 								</text>
-								<text fg={line.isActive ? c.accentPrimary : c.fgMuted} attributes={TextAttributes.BOLD}>
-									{" "}{line.sign}{" "}
+								<text
+									fg={line.isActive ? c.accentPrimary : c.fgMuted}
+									attributes={TextAttributes.BOLD}
+								>
+									{" "}
+									{line.sign}{" "}
 								</text>
-								<text fg={line.isActive ? c.accentAmber : c.fgDim} attributes={line.isActive ? TextAttributes.BOLD : 0}>
+								<text
+									fg={line.isActive ? c.accentAmber : c.fgDim}
+									attributes={line.isActive ? TextAttributes.BOLD : 0}
+								>
 									{line.num}{" "}
 								</text>
 								<text fg={c.borderDefault}>│ </text>
-								<text fg={c.fgPrimary} attributes={line.isActive ? TextAttributes.BOLD : 0}>
+								<text
+									fg={c.fgPrimary}
+									attributes={line.isActive ? TextAttributes.BOLD : 0}
+								>
 									{line.text}
 								</text>
 							</box>
@@ -135,11 +167,9 @@ export const scratchpadStory: TuiStory = {
 									<text fg={leftColor} attributes={TextAttributes.BOLD}>
 										{line.isActive ? "▎" : " "}
 									</text>
-									<text fg="transparent">      </text>
+									<text fg="transparent"> </text>
 									<text fg={c.borderDefault}>│ </text>
-									<text fg={c.statusSuccess}>
-										{line.projection}
-									</text>
+									<text fg={c.statusSuccess}>{line.projection}</text>
 								</box>
 							)}
 						</box>
@@ -148,108 +178,53 @@ export const scratchpadStory: TuiStory = {
 			</box>
 		);
 
-		// ─── 1. FULL WORKSPACE (Grounded Baseline + Elevated Shelf Hybrid) ─
-		if (stateId === "full-workspace") {
-			return (
-				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-					{/* 1. Elevated Shelf Header Bar with Tabs */}
-					<box backgroundColor={c.bgSurface} height={1} paddingLeft={0} paddingRight={1}>
-						<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
-					</box>
-
-					{/* 2. Top-Flush Upper Baseline Divider (▔) */}
-					<box height={1}>
-						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
-					</box>
-
-					{/* 3. Triple Region Workspace */}
-					<box flexDirection="row" flexGrow={1} marginBottom={1}>
-						{leftPanel}
-
-						{/* Center Scratchpad: Elevated background with subtle single border */}
-						<box
-							flexGrow={1}
-							flexDirection="column"
-							backgroundColor={c.bgElevated}
-							borderStyle="single"
-							borderColor={c.borderSubtle}
-							paddingLeft={1}
-							paddingRight={1}
-							marginLeft={1}
-							marginRight={1}
-						>
-							{renderEditorLines(c.bgElevated)}
-						</box>
-
-						{rightPanel}
-					</box>
-
-					<TuiHelpBar variant="nano-grid" theme={theme} />
-					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
-				</box>
-			);
-		}
-
-		// ─── 2. FRAMED SCRATCHPAD ─────────────────────────────────────
-		if (stateId === "framed-scratchpad") {
-			return (
-				<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-					<box backgroundColor={c.bgSurface} height={1}>
-						<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
-					</box>
-					<box height={1}>
-						<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
-					</box>
-
-					<box flexDirection="row" flexGrow={1} marginBottom={1}>
-						{leftPanel}
-
-						<box
-							flexGrow={1}
-							flexDirection="column"
-							backgroundColor={c.bgCanvas}
-							borderStyle="single"
-							borderColor={c.borderSubtle}
-							paddingLeft={1}
-							paddingRight={1}
-						>
-							{renderEditorLines(c.bgCanvas)}
-						</box>
-
-						{rightPanel}
-					</box>
-
-					<TuiHelpBar variant="nano-grid" theme={theme} />
-					<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
-				</box>
-			);
-		}
-
-		// ─── 3. FOCUS MODE (NO RAILS) ──────────────────────────────────
 		return (
-			<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
-				<box backgroundColor={c.bgSurface} height={1}>
-					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
+			<box
+				flexDirection="column"
+				width={width}
+				backgroundColor={c.bgCanvas}
+				padding={1}
+			>
+				<box
+					backgroundColor={c.bgSurface}
+					height={1}
+					paddingLeft={0}
+					paddingRight={1}
+				>
+					<TuiTabs
+						tabs={DEMO_TABS}
+						activeTabId="scratchpad"
+						variant="opencode"
+						theme={theme}
+					/>
 				</box>
-				<box height={1} marginBottom={1}>
+				<box height={1}>
 					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
 				</box>
 
-				<box
-					flexGrow={1}
-					flexDirection="column"
-					backgroundColor={c.bgElevated}
-					borderStyle="single"
-					borderColor={c.borderSubtle}
-					paddingLeft={1}
-					paddingRight={1}
-					marginBottom={1}
-				>
-					{renderEditorLines(c.bgElevated)}
+				<box flexDirection="row" flexGrow={1} marginBottom={1}>
+					{leftPanel}
+					<box
+						flexGrow={1}
+						flexDirection="column"
+						backgroundColor={c.bgElevated}
+						paddingLeft={1}
+						paddingRight={1}
+						marginLeft={1}
+						marginRight={1}
+					>
+						{renderEditorLines(c.bgElevated)}
+					</box>
+					{rightPanel}
 				</box>
 
 				<TuiHelpBar variant="nano-grid" theme={theme} />
-				<TuiStatusBar mode="NORMAL" validCount={3} totalCount={3} theme={theme} />
+				<TuiStatusBar
+					mode="NORMAL"
+					validCount={3}
+					totalCount={3}
+					theme={theme}
+				/>
 			</box>
 		);
 	},

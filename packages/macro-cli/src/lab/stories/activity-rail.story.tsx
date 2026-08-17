@@ -1,13 +1,13 @@
-import type { TuiStory } from "../story-contract";
 import {
-	TuiActivityRail,
 	type TuiActivityItem,
+	TuiActivityRail,
 } from "../../ui/primitives/TuiActivityRail";
 import {
 	TuiSidepanel,
 	type TuiSidepanelCard,
 } from "../../ui/primitives/TuiSidepanel";
 import { GlobalThemeRegistry } from "../../ui/theme";
+import type { TuiStory } from "../story-contract";
 
 const RAIL_ITEMS: readonly TuiActivityItem[] = [
 	{ id: "1", altKey: "1", icon: "⌂", label: "Scratchpad" },
@@ -26,12 +26,7 @@ export const activityRailStory: TuiStory = {
 	id: "activity-rail",
 	title: "Activity Rail & Sidepanel",
 	category: "Core",
-	states: [
-		"item-1-active",
-		"item-2-active",
-		"item-3-active",
-		"item-4-active",
-	],
+	states: ["item-1-active", "item-2-active", "item-3-active", "item-4-active"],
 	render(context) {
 		const stateId = context.stateId;
 		const activeId =

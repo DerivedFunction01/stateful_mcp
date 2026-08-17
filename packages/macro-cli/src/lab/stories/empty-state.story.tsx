@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core";
-import type { TuiStory } from "../story-contract";
 import { TuiNamedColors } from "../../ui/tokens";
+import type { TuiStory } from "../story-contract";
 
 export const emptyStateStory: TuiStory = {
 	id: "empty-state",
@@ -25,13 +25,20 @@ export const emptyStateStory: TuiStory = {
 				</box>
 
 				{/* Central Prompt Box */}
-				<box borderStyle="single" borderColor="cyan" padding={1} flexDirection="column" marginBottom={1}>
+				<box
+					borderStyle="single"
+					borderColor="cyan"
+					padding={1}
+					flexDirection="column"
+					marginBottom={1}
+				>
 					<box flexDirection="row">
 						<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
-							&gt; 
+							&gt;
 						</text>
 						<text fg={TuiNamedColors.muted}>
-							{" "}Type ^ for macro suggestions, or author a scratchpad item...
+							{" "}
+							Type ^ for macro suggestions, or author a scratchpad item...
 						</text>
 					</box>
 				</box>
@@ -41,7 +48,7 @@ export const emptyStateStory: TuiStory = {
 					<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
 						tab
 					</text>
-					<text fg={TuiNamedColors.muted}> workspace tabs   </text>
+					<text fg={TuiNamedColors.muted}> workspace tabs </text>
 					<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
 						ctrl+p
 					</text>
@@ -54,7 +61,8 @@ export const emptyStateStory: TuiStory = {
 						● Tip:{" "}
 					</text>
 					<text fg={TuiNamedColors.muted}>
-						Run with --inspect=gallery to test individual components in isolation.
+						Run with --inspect=gallery to test individual components in
+						isolation.
 					</text>
 				</box>
 			</box>

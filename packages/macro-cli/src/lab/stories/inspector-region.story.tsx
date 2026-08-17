@@ -1,12 +1,12 @@
 import { TextAttributes } from "@opentui/core";
-import type { TuiStory } from "../story-contract";
 import type { TuiActivityItem } from "../../ui/primitives/TuiActivityRail";
-import type { TuiSidepanelCard } from "../../ui/primitives/TuiSidepanel";
-import { TuiPanelRegion } from "../../ui/primitives/TuiPanelRegion";
-import { TuiTabs, type TuiTabItem } from "../../ui/primitives/TuiTabs";
-import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
 import { TuiHelpBar } from "../../ui/primitives/TuiHelpBar";
+import { TuiPanelRegion } from "../../ui/primitives/TuiPanelRegion";
+import type { TuiSidepanelCard } from "../../ui/primitives/TuiSidepanel";
+import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
+import { type TuiTabItem, TuiTabs } from "../../ui/primitives/TuiTabs";
 import { GlobalThemeRegistry } from "../../ui/theme";
+import type { TuiStory } from "../story-contract";
 
 const PRIMARY_RAIL_ITEMS: readonly TuiActivityItem[] = [
 	{ id: "workspace", altKey: "1", icon: "⌂", label: "Workspace" },
@@ -26,9 +26,27 @@ const SECONDARY_RAIL_ITEMS: readonly TuiActivityItem[] = [
 ];
 
 const INSPECTOR_SLOT_CARDS: readonly TuiSidepanelCard[] = [
-	{ id: "service", title: "service: api", subtitle: "string · valid", badge: "✓", isActive: true },
-	{ id: "env", title: "env: production", subtitle: "enum [staging, prod] · valid", badge: "✓", isActive: false },
-	{ id: "replicas", title: "replicas: 4", subtitle: "number · default: 2", badge: "info", isActive: false },
+	{
+		id: "service",
+		title: "service: api",
+		subtitle: "string · valid",
+		badge: "✓",
+		isActive: true,
+	},
+	{
+		id: "env",
+		title: "env: production",
+		subtitle: "enum [staging, prod] · valid",
+		badge: "✓",
+		isActive: false,
+	},
+	{
+		id: "replicas",
+		title: "replicas: 4",
+		subtitle: "number · default: 2",
+		badge: "info",
+		isActive: false,
+	},
 ];
 
 const DEMO_TABS: readonly TuiTabItem[] = [
@@ -42,9 +60,9 @@ export const inspectorRegionStory: TuiStory = {
 	title: "Dual Panel & Inspector Region",
 	category: "Views",
 	states: [
-		"main-focused",         // Default: editor has focus, both panels unfocused
-		"activity-focused",     // Activity panel has keyboard focus
-		"inspector-focused",    // Inspector panel has keyboard focus
+		"main-focused", // Default: editor has focus, both panels unfocused
+		"activity-focused", // Activity panel has keyboard focus
+		"inspector-focused", // Inspector panel has keyboard focus
 		"swapped-dock-positions",
 		"collapsed-sidepanels",
 	],
@@ -99,9 +117,19 @@ export const inspectorRegionStory: TuiStory = {
 		);
 
 		return (
-			<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
+			<box
+				flexDirection="column"
+				width={width}
+				backgroundColor={c.bgCanvas}
+				padding={1}
+			>
 				{/* Top Workspace Tab Strip & Connecting Baseline Divider */}
-				<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
+				<TuiTabs
+					tabs={DEMO_TABS}
+					activeTabId="scratchpad"
+					variant="opencode"
+					theme={theme}
+				/>
 				<box height={1}>
 					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
 				</box>
@@ -126,7 +154,8 @@ export const inspectorRegionStory: TuiStory = {
 								▎
 							</text>
 							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-								{" "}●{" "}
+								{" "}
+								●{" "}
 							</text>
 							<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
 								01{" "}
@@ -141,7 +170,7 @@ export const inspectorRegionStory: TuiStory = {
 							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 								▎
 							</text>
-							<text fg="transparent">      </text>
+							<text fg="transparent"> </text>
 							<text fg={c.borderDefault}>│ </text>
 							<text fg={c.statusSuccess}>
 								↳ Deployment scheduled for 4 instances [healthy]

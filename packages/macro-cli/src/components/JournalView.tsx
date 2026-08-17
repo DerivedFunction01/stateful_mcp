@@ -1,9 +1,12 @@
 import { TextAttributes } from "@opentui/core";
-import type { MacroWorkspace } from "@stateful-mcp/macro";
-import { TuiStatusBadge, type TuiStatusType, getStatusMeta } from "../ui/primitives/TuiBadge";
-import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
+import type { I18nKernel, MacroWorkspace } from "@stateful-mcp/macro";
 import { translate } from "../locales";
-import type { I18nKernel } from "@stateful-mcp/macro";
+import {
+	getStatusMeta,
+	TuiStatusBadge,
+	type TuiStatusType,
+} from "../ui/primitives/TuiBadge";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 
 export interface JournalViewProps {
 	readonly workspace: MacroWorkspace;
@@ -42,17 +45,19 @@ export function JournalView({
 	const entries = workspace.journal.getEntries();
 	const i18n: I18nKernel | undefined = workspace.i18n;
 
-	const t = (key: string, fallback: string, params?: Readonly<Record<string, unknown>>) =>
-		translate(i18n, key, fallback, params);
+	const t = (
+		key: string,
+		fallback: string,
+		params?: Readonly<Record<string, unknown>>,
+	) => translate(i18n, key, fallback, params);
 
 	const title = t("journal.title", "Journal");
 	const emptyMsg = t("journal.empty", "No committed entries.");
 	const hintNavigate = t("journal.hint.navigate", "↑↓ Navigate · ↵ Inspect");
 
 	const count = entries.length;
-	const countLabel = count === 1
-		? t("journal.entry", "entry")
-		: t("journal.entries", "entries");
+	const countLabel =
+		count === 1 ? t("journal.entry", "entry") : t("journal.entries", "entries");
 
 	// Compute uniform gutter width based on max line number in this journal
 	const maxLineNum = Math.max(1, ...entries.map((e) => e.lineNumber));
@@ -62,11 +67,15 @@ export function JournalView({
 		<box flexDirection="column" padding={1}>
 			{/* Journal Section Header */}
 			<box height={1} marginBottom={1} flexDirection="row">
-				<text fg={isFocused ? c.accentPrimary : c.fgPrimary} attributes={TextAttributes.BOLD}>
+				<text
+					fg={isFocused ? c.accentPrimary : c.fgPrimary}
+					attributes={TextAttributes.BOLD}
+				>
 					📜 {title}
 				</text>
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-					{" "}({count} {countLabel})
+					{" "}
+					({count} {countLabel})
 				</text>
 				<box flexGrow={1} />
 				{isFocused && (
@@ -110,15 +119,20 @@ export function JournalView({
 							: undefined;
 
 				// Activity bar / sidepanel card border style
-				const cardBorderColor = isEntrySelected && isFocused ? c.borderActive : c.borderDefault;
+				const cardBorderColor =
+					isEntrySelected && isFocused ? c.borderActive : c.borderDefault;
 				const cardBg = isEntrySelected ? c.bgElevated : c.bgSurface;
 				const headerBg = isEntrySelected ? c.bgActive : c.bgElevated;
 
 				const outputLine = resultStr
-					? t("journal.output", `↳ Output: ${resultStr}`, { summary: resultStr })
+					? t("journal.output", `↳ Output: ${resultStr}`, {
+							summary: resultStr,
+						})
 					: null;
 				const reversalLine = entry.reversalReason
-					? t("journal.reversal", `↳ ▲ Reversal: ${entry.reversalReason}`, { reason: entry.reversalReason })
+					? t("journal.reversal", `↳ ▲ Reversal: ${entry.reversalReason}`, {
+							reason: entry.reversalReason,
+						})
 					: null;
 
 				return (
@@ -138,7 +152,12 @@ export function JournalView({
 							paddingLeft={1}
 							paddingRight={1}
 						>
-							<TuiStatusBadge status={statusType} variant="solid-glyph" theme={theme} i18n={i18n} />
+							<TuiStatusBadge
+								status={statusType}
+								variant="solid-glyph"
+								theme={theme}
+								i18n={i18n}
+							/>
 							<text fg={c.fgDim}> </text>
 							<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
 								⚡ {entry.macroName}
@@ -148,18 +167,30 @@ export function JournalView({
 								L{lineGutter.lineNumText}
 							</text>
 							<box flexGrow={1} />
-							<text fg={isEntrySelected ? c.fgPrimary : c.fgDim} attributes={isEntrySelected ? TextAttributes.BOLD : TextAttributes.DIM}>
+							<text
+								fg={isEntrySelected ? c.fgPrimary : c.fgDim}
+								attributes={
+									isEntrySelected ? TextAttributes.BOLD : TextAttributes.DIM
+								}
+							>
 								#{entry.fingerprint.slice(0, 10)} · {timeStr}
 							</text>
 						</box>
 
 						{/* 2. Scratchpad Code Line with Gutter & Vertical Pipe (Deterministic Alignment) */}
-						<box flexDirection="row" height={1} paddingLeft={1} paddingRight={1} marginTop={0}>
+						<box
+							flexDirection="row"
+							height={1}
+							paddingLeft={1}
+							paddingRight={1}
+							marginTop={0}
+						>
 							<text fg={statusColor} attributes={TextAttributes.BOLD}>
 								▎
 							</text>
 							<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
-								{" "}{lineGutter.lineNumText}{" "}
+								{" "}
+								{lineGutter.lineNumText}{" "}
 							</text>
 							<text fg={c.borderDefault}>│ </text>
 							<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
@@ -169,30 +200,34 @@ export function JournalView({
 
 						{/* 3. Output or Reversal Continuation Line (Aligned via empty gutter) */}
 						{reversalLine ? (
-							<box flexDirection="row" height={1} paddingLeft={1} paddingRight={1}>
+							<box
+								flexDirection="row"
+								height={1}
+								paddingLeft={1}
+								paddingRight={1}
+							>
 								<text fg={statusColor} attributes={TextAttributes.BOLD}>
 									▎
 								</text>
-								<text fg="transparent">
-									{" "}{emptyGutter.lineNumText}{" "}
-								</text>
+								<text fg="transparent"> {emptyGutter.lineNumText} </text>
 								<text fg={c.borderDefault}>│ </text>
 								<text fg={c.accentPeach} attributes={TextAttributes.BOLD}>
 									{reversalLine}
 								</text>
 							</box>
 						) : outputLine ? (
-							<box flexDirection="row" height={1} paddingLeft={1} paddingRight={1}>
+							<box
+								flexDirection="row"
+								height={1}
+								paddingLeft={1}
+								paddingRight={1}
+							>
 								<text fg={statusColor} attributes={TextAttributes.BOLD}>
 									▎
 								</text>
-								<text fg="transparent">
-									{" "}{emptyGutter.lineNumText}{" "}
-								</text>
+								<text fg="transparent"> {emptyGutter.lineNumText} </text>
 								<text fg={c.borderDefault}>│ </text>
-								<text fg={c.statusSuccess}>
-									{outputLine}
-								</text>
+								<text fg={c.statusSuccess}>{outputLine}</text>
 							</box>
 						) : null}
 					</box>

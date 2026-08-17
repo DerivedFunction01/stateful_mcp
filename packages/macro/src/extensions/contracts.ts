@@ -58,8 +58,7 @@ export function defineExtension(
 		domainConfig,
 		contributes,
 		activate,
-	} =
-		options;
+	} = options;
 	if (!id || !version || typeof activate !== "function") {
 		throw new Error(
 			"An extension requires an id, version, and activate function",

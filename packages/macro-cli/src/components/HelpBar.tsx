@@ -17,7 +17,9 @@ export function HelpBar({
 	variant?: TuiHelpBarVariant;
 	theme?: TuiThemeDefinition;
 }) {
-	const hints = workspace ? buildContextualHelpBarHints(workspace, keymap) : undefined;
+	const hints = workspace
+		? buildContextualHelpBarHints(workspace, keymap)
+		: undefined;
 	const mode = workspace?.editor.getMode();
 
 	return (

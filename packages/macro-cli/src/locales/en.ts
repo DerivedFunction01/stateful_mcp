@@ -9,7 +9,8 @@ export const EN_LOCALE_CLI: Record<string, string> = {
 	"palette.category.workspace": "Workspace",
 	"palette.category.general": "Commands",
 
-	"scratchpad.emptyPlaceholder": "Type {trigger} for macro autocomplete or start typing...",
+	"scratchpad.emptyPlaceholder":
+		"Type {trigger} for macro autocomplete or start typing...",
 	"scratchpad.pinnedLabel": "PINNED: {macro}",
 	"scratchpad.pinnedHint": "(Press {key} to toggle)",
 	"scratchpad.pinnedBadge": "[pinned to {macro}]",
@@ -73,7 +74,8 @@ export const EN_LOCALE_CLI: Record<string, string> = {
 	"completion.title": "Completions",
 	"completion.noMatches": "No matching completions",
 	"completion.headerHint": "{completeKey} Complete · {insertKey} Insert",
-	"completion.footerHint": "{navigateKey} Select candidate   {insertKey} Insert   {dismissKey} Dismiss",
+	"completion.footerHint":
+		"{navigateKey} Select candidate   {insertKey} Insert   {dismissKey} Dismiss",
 	"completion.parameters": "Parameters:",
 	"completion.snippet": "Snippet:",
 	"completion.noDetails": "No details available",
@@ -82,5 +84,6 @@ export const EN_LOCALE_CLI: Record<string, string> = {
 	"lab.title": "Macro CLI Component Lab",
 	"lab.components": "Components",
 	"lab.preview": "Preview",
-	"lab.shortcuts": "↑↓ component  ←→ state  s size  b bounds  r reload  Esc exit",
+	"lab.shortcuts":
+		"↑↓ component  ←→ state  s size  b bounds  r reload  Esc exit",
 };

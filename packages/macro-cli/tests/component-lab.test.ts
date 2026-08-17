@@ -1,14 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { GlobalThemeRegistry, parseArgs } from "../src/index";
-import { TuiStoryRegistry } from "../src/lab/story-registry";
 import { createMockWorkspace } from "../src/lab/mock-workspace";
-import { buildContextualHelpBarHints, buildDynamicKeymapHints } from "../src/ui/primitives/TuiHelpBar";
-import {
-	GITHUB_DARK_THEME,
-	generateCssThemeVariables,
-	type TuiThemeDefinition,
-} from "../src/ui/theme";
+import { TuiStoryRegistry } from "../src/lab/story-registry";
 import { translate } from "../src/locales";
+import {
+	buildContextualHelpBarHints,
+	buildDynamicKeymapHints,
+} from "../src/ui/primitives/TuiHelpBar";
+import { GITHUB_DARK_THEME, generateCssThemeVariables } from "../src/ui/theme";
 
 describe("macro-cli --inspect argument parsing", () => {
 	test("parses --inspect flag as gallery mode", () => {
@@ -31,17 +30,25 @@ describe("macro-cli --inspect argument parsing", () => {
 
 	test("parses --inspect=view=journal and --inspect=tab=scratchpad", () => {
 		expect(parseArgs(["--inspect=view=journal"]).inspectTarget).toBe("journal");
-		expect(parseArgs(["--inspect=tab=scratchpad"]).inspectTarget).toBe("scratchpad");
+		expect(parseArgs(["--inspect=tab=scratchpad"]).inspectTarget).toBe(
+			"scratchpad",
+		);
 	});
 
 	test("parses positional inspect subcommands", () => {
 		expect(parseArgs(["inspect"]).inspect).toBe(true);
 		expect(parseArgs(["inspect"]).inspectTarget).toBeUndefined();
 		expect(parseArgs(["inspect", "gallery"]).inspectTarget).toBeUndefined();
-		expect(parseArgs(["inspect", "component", "command-palette"]).inspectTarget).toBe("command-palette");
-		expect(parseArgs(["inspect", "view", "journal"]).inspectTarget).toBe("journal");
+		expect(
+			parseArgs(["inspect", "component", "command-palette"]).inspectTarget,
+		).toBe("command-palette");
+		expect(parseArgs(["inspect", "view", "journal"]).inspectTarget).toBe(
+			"journal",
+		);
 		expect(parseArgs(["inspect", "tab", "pos"]).inspectTarget).toBe("pos");
-		expect(parseArgs(["inspect", "scratchpad"]).inspectTarget).toBe("scratchpad");
+		expect(parseArgs(["inspect", "scratchpad"]).inspectTarget).toBe(
+			"scratchpad",
+		);
 	});
 });
 
@@ -97,12 +104,18 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 	test("creates mock workspace with registered commands and i18n support", () => {
 		const { workspace, keymap } = createMockWorkspace({ locale: "es" });
 		expect(workspace.editor.buffer.getLines()).toHaveLength(3);
-		expect(workspace.commands.getCommand("workspace.switchSession")?.title).toBe("Switch session");
+		expect(
+			workspace.commands.getCommand("workspace.switchSession")?.title,
+		).toBe("Switch session");
 		expect(keymap.profileId).toBe("default");
 		expect(keymap.window.pinMacro).toBe("ALT_P");
 
 		// Test i18n translation from workspace
-		const translatedCommands = translate(workspace.i18n, "palette.title", "Commands");
+		const translatedCommands = translate(
+			workspace.i18n,
+			"palette.title",
+			"Commands",
+		);
 		expect(translatedCommands).toBe("Paleta de Comandos");
 	});
 
@@ -110,7 +123,11 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 		const { workspace, keymap } = createMockWorkspace();
 
 		// INSERT mode hints
-		const insertHints = buildDynamicKeymapHints(keymap, workspace.i18n, "INSERT");
+		const insertHints = buildDynamicKeymapHints(
+			keymap,
+			workspace.i18n,
+			"INSERT",
+		);
 		expect(insertHints).toEqual([
 			{ key: "Tab", action: "New Line" },
 			{ key: "Enter", action: "Execute" },
@@ -119,7 +136,11 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 		]);
 
 		// VISUAL mode hints
-		const visualHints = buildDynamicKeymapHints(keymap, workspace.i18n, "VISUAL");
+		const visualHints = buildDynamicKeymapHints(
+			keymap,
+			workspace.i18n,
+			"VISUAL",
+		);
 		expect(visualHints).toEqual([
 			{ key: "↑/↓", action: "Select Range" },
 			{ key: "Enter", action: "Execute Selected" },
@@ -128,7 +149,11 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 		]);
 
 		// NORMAL mode hints
-		const normalHints = buildDynamicKeymapHints(keymap, workspace.i18n, "NORMAL");
+		const normalHints = buildDynamicKeymapHints(
+			keymap,
+			workspace.i18n,
+			"NORMAL",
+		);
 		expect(normalHints).toEqual([
 			{ key: "Tab", action: "Next Tab" },
 			{ key: "i", action: "Insert" },
@@ -163,7 +188,10 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 
 		// 3. When sidepanel (inspector) is focused, returns inspector contextual hints
 		workspace.layout.setFocusedPane("sidepanel");
-		const inspectorHints = buildContextualHelpBarHints(workspace as any, keymap);
+		const inspectorHints = buildContextualHelpBarHints(
+			workspace as any,
+			keymap,
+		);
 		expect(inspectorHints).toEqual([
 			{ key: "↑/↓", action: "Navigate" },
 			{ key: "Enter", action: "Execute" },
@@ -208,7 +236,7 @@ describe("Theme System & CSS Generation", () => {
 
 	test("generates browser CSS variables from theme definition", () => {
 		const css = generateCssThemeVariables(GITHUB_DARK_THEME);
-		expect(css).toContain("--theme-id: \"github-dark\"");
+		expect(css).toContain('--theme-id: "github-dark"');
 		expect(css).toContain("--color-bg-canvas: #0d1117");
 		expect(css).toContain("--color-fg-primary: #f0f6fc");
 		expect(css).toContain("--color-accent-primary: #38bdf8");

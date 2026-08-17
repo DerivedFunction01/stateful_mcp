@@ -61,30 +61,53 @@ export function TuiSlider({
 						{label}
 					</text>
 					<box flexGrow={1} />
-					<text fg={isFocused ? intentColor : c.fgMuted} attributes={TextAttributes.BOLD}>
-						{clampedValue}{unit}
+					<text
+						fg={isFocused ? intentColor : c.fgMuted}
+						attributes={TextAttributes.BOLD}
+					>
+						{clampedValue}
+						{unit}
 					</text>
 				</box>
 			)}
-			<box flexDirection="row" height={1} backgroundColor={isFocused ? c.bgActive : undefined} paddingLeft={1} paddingRight={1}>
-				<text fg={disabled ? c.fgDim : isFocused ? intentColor : c.borderDefault}>
+			<box
+				flexDirection="row"
+				height={1}
+				backgroundColor={isFocused ? c.bgActive : undefined}
+				paddingLeft={1}
+				paddingRight={1}
+			>
+				<text
+					fg={disabled ? c.fgDim : isFocused ? intentColor : c.borderDefault}
+				>
 					├
 				</text>
-				<text fg={disabled ? c.fgDim : intentColor} attributes={TextAttributes.BOLD}>
+				<text
+					fg={disabled ? c.fgDim : intentColor}
+					attributes={TextAttributes.BOLD}
+				>
 					{leftTrack}
 				</text>
-				<text fg={disabled ? c.fgDim : isFocused ? c.accentAmber : intentColor} attributes={TextAttributes.BOLD}>
+				<text
+					fg={disabled ? c.fgDim : isFocused ? c.accentAmber : intentColor}
+					attributes={TextAttributes.BOLD}
+				>
 					●
 				</text>
-				<text fg={disabled ? c.fgDim : c.borderDefault}>
-					{rightTrack}
-				</text>
-				<text fg={disabled ? c.fgDim : isFocused ? intentColor : c.borderDefault}>
+				<text fg={disabled ? c.fgDim : c.borderDefault}>{rightTrack}</text>
+				<text
+					fg={disabled ? c.fgDim : isFocused ? intentColor : c.borderDefault}
+				>
 					┤
 				</text>
 				{!label && (
-					<text fg={isFocused ? intentColor : c.fgMuted} attributes={TextAttributes.BOLD}>
-						{"  "}{clampedValue}{unit}
+					<text
+						fg={isFocused ? intentColor : c.fgMuted}
+						attributes={TextAttributes.BOLD}
+					>
+						{"  "}
+						{clampedValue}
+						{unit}
 					</text>
 				)}
 			</box>
@@ -135,25 +158,48 @@ export function TuiRangeSlider({
 		<box flexDirection="column">
 			{label && (
 				<box height={1} flexDirection="row">
-					<text fg={isFocused ? c.fgPrimary : c.fgSecondary} attributes={isFocused ? TextAttributes.BOLD : 0}>
+					<text
+						fg={isFocused ? c.fgPrimary : c.fgSecondary}
+						attributes={isFocused ? TextAttributes.BOLD : 0}
+					>
 						{label}
 					</text>
 					<box flexGrow={1} />
 					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-						{range[0]}{unit} - {range[1]}{unit}
+						{range[0]}
+						{unit} - {range[1]}
+						{unit}
 					</text>
 				</box>
 			)}
-			<box flexDirection="row" height={1} backgroundColor={isFocused ? c.bgActive : undefined} paddingLeft={1} paddingRight={1}>
+			<box
+				flexDirection="row"
+				height={1}
+				backgroundColor={isFocused ? c.bgActive : undefined}
+				paddingLeft={1}
+				paddingRight={1}
+			>
 				<text fg={c.borderDefault}>├</text>
 				<text fg={c.borderDefault}>{preTrack}</text>
-				<text fg={activeThumb === "start" && isFocused ? c.accentAmber : c.accentPrimary} attributes={TextAttributes.BOLD}>
+				<text
+					fg={
+						activeThumb === "start" && isFocused
+							? c.accentAmber
+							: c.accentPrimary
+					}
+					attributes={TextAttributes.BOLD}
+				>
 					●
 				</text>
 				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 					{inSpan}
 				</text>
-				<text fg={activeThumb === "end" && isFocused ? c.accentAmber : c.accentPrimary} attributes={TextAttributes.BOLD}>
+				<text
+					fg={
+						activeThumb === "end" && isFocused ? c.accentAmber : c.accentPrimary
+					}
+					attributes={TextAttributes.BOLD}
+				>
 					●
 				</text>
 				<text fg={c.borderDefault}>{postTrack}</text>

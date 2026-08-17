@@ -1,10 +1,10 @@
-import { useEffect, useSyncExternalStore } from "react";
 import type { CliRenderer } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
-import { dispatchTerminalInput } from "./terminal-dispatcher";
+import { useEffect, useSyncExternalStore } from "react";
 import { WindowContainer } from "./components/WindowContainer";
+import { dispatchTerminalInput } from "./terminal-dispatcher";
 
-import { GlobalThemeRegistry, type TuiThemeDefinition } from "./ui/theme";
+import type { TuiThemeDefinition } from "./ui/theme";
 
 export function MacroCliApp({
 	workspace,
@@ -59,7 +59,13 @@ export function MacroCliApp({
 	);
 
 	useEffect(() => {
-		const handleKeypress = (key: { name: string; sequence: string; ctrl: boolean; meta: boolean; shift: boolean }) => {
+		const handleKeypress = (key: {
+			name: string;
+			sequence: string;
+			ctrl: boolean;
+			meta: boolean;
+			shift: boolean;
+		}) => {
 			void dispatchTerminalInput(workspace, keymap, {
 				input: key.sequence,
 				name: key.name,
@@ -79,5 +85,12 @@ export function MacroCliApp({
 		};
 	}, [keymap, onExit, renderer, workspace]);
 
-	return <WindowContainer workspace={workspace} keymap={keymap} renderer={renderer} theme={theme} />;
+	return (
+		<WindowContainer
+			workspace={workspace}
+			keymap={keymap}
+			renderer={renderer}
+			theme={theme}
+		/>
+	);
 }

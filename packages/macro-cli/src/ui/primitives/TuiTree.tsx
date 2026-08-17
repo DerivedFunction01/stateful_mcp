@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core";
-import { TuiGlyphs } from "../tokens";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
+import { TuiGlyphs } from "../tokens";
 
 export interface TuiTreeNode {
 	readonly id: string;
@@ -30,11 +30,12 @@ export function TuiTree({
 		<box flexDirection="column">
 			{nodes.map((node, index) => {
 				const isLastChild = index === nodes.length - 1;
-				const branch = depth === 0
-					? ""
-					: isLastChild
-						? TuiGlyphs.connectors.treeLast
-						: TuiGlyphs.connectors.treeBranch;
+				const branch =
+					depth === 0
+						? ""
+						: isLastChild
+							? TuiGlyphs.connectors.treeLast
+							: TuiGlyphs.connectors.treeBranch;
 
 				let fg: string = c.fgPrimary;
 				let attributes = 0;
@@ -59,22 +60,26 @@ export function TuiTree({
 						break;
 				}
 
-				const nextPrefix = depth === 0
-					? ""
-					: prefix + (isLastChild ? "    " : TuiGlyphs.connectors.treeVertical);
+				const nextPrefix =
+					depth === 0
+						? ""
+						: prefix +
+							(isLastChild ? "    " : TuiGlyphs.connectors.treeVertical);
 
 				return (
 					<box key={node.id} flexDirection="column">
 						<box flexDirection="row" height={1}>
 							<text fg={c.borderSubtle}>
-								{prefix}{branch}
+								{prefix}
+								{branch}
 							</text>
 							<text fg={fg} attributes={attributes}>
 								{node.label}
 							</text>
 							{node.meta && (
 								<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-									{"  "}{node.meta}
+									{"  "}
+									{node.meta}
 								</text>
 							)}
 						</box>

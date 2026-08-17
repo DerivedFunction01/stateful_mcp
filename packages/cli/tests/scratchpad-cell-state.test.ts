@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { createDifferentialScratchpadAdapter } from "../src/lib/scratchpad/differential-scratchpad-adapter";
-import { createClinicalPinnedLineSeed, toClinicalDifferentialProjection } from "../src/lib/workspace/assessment-workspace-view";
 import {
 	clearScratchpadCellTexts,
 	duplicateScratchpadCell,
@@ -9,6 +8,10 @@ import {
 } from "../src/lib/scratchpad/scratchpad-cell-state";
 import type { ScratchpadCell } from "../src/lib/scratchpad/scratchpad-types";
 import { bootstrapSession } from "../src/lib/session/bootstrap-session";
+import {
+	createClinicalPinnedLineSeed,
+	toClinicalDifferentialProjection,
+} from "../src/lib/workspace/assessment-workspace-view";
 
 const cells: ScratchpadCell[] = [
 	{
@@ -50,21 +53,36 @@ describe("scratchpad cell state", () => {
 		const session = await bootstrapSession({
 			sessionId: `scratchpad-seed-${Date.now()}`,
 		});
-		const seed = createClinicalPinnedLineSeed({
-			macroId: "v2-differential-rule-out-1",
-			macroName: "differential_ruleout",
-			macroStartToken: "^",
-		}, session.syntaxProfile);
+		const seed = createClinicalPinnedLineSeed(
+			{
+				macroId: "v2-differential-rule-out-1",
+				macroName: "differential_ruleout",
+				macroStartToken: "^",
+			},
+			session.syntaxProfile,
+		);
 		expect(seed).toBe("rule_out ");
 	});
 
 	test("adapts differential lines into an extension-owned projection", async () => {
-		const session = await bootstrapSession({ sessionId: `scratchpad-projection-${Date.now()}` });
+		const session = await bootstrapSession({
+			sessionId: `scratchpad-projection-${Date.now()}`,
+		});
 		const adapter = createDifferentialScratchpadAdapter();
-		const parsed = adapter.parse([
-			{ cellId: "assessment", text: "rule_out pulmonary embolism", pinnedMacroIds: [], explicitPins: false },
-		], session.syntaxProfile);
-		const projection = toClinicalDifferentialProjection(adapter.deduplicate(parsed)[0]!);
+		const parsed = adapter.parse(
+			[
+				{
+					cellId: "assessment",
+					text: "rule_out pulmonary embolism",
+					pinnedMacroIds: [],
+					explicitPins: false,
+				},
+			],
+			session.syntaxProfile,
+		);
+		const projection = toClinicalDifferentialProjection(
+			adapter.deduplicate(parsed)[0]!,
+		);
 		expect(projection.ownerExtensionId).toBe("@stateful-mcp/clinical");
 		expect(projection.kind).toBe("clinical.differential");
 		expect((projection.data as { status: string }).status).toBe("ruled_out");

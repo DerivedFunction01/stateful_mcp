@@ -39,7 +39,10 @@ export function TuiTagInput({
 		<box flexDirection="column" width={width}>
 			{label && (
 				<box height={1} marginBottom={0}>
-					<text fg={isFocused ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>
+					<text
+						fg={isFocused ? c.accentPrimary : c.fgSecondary}
+						attributes={TextAttributes.BOLD}
+					>
 						{label}
 					</text>
 				</box>
@@ -56,7 +59,7 @@ export function TuiTagInput({
 				{tags.map((tag, idx) => {
 					const isTagActive = idx === activeIndex && isFocused;
 					const tagBg = isTagActive ? c.accentPrimary : c.bgActive;
-					const tagFg = isTagActive ? c.fgInverse : tag.color ?? c.fgPrimary;
+					const tagFg = isTagActive ? c.fgInverse : (tag.color ?? c.fgPrimary);
 
 					return (
 						<box
@@ -67,10 +70,16 @@ export function TuiTagInput({
 							paddingLeft={1}
 							paddingRight={1}
 						>
-							<text fg={tagFg} attributes={isTagActive ? TextAttributes.BOLD : 0}>
+							<text
+								fg={tagFg}
+								attributes={isTagActive ? TextAttributes.BOLD : 0}
+							>
 								{tag.label}
 							</text>
-							<text fg={isTagActive ? c.fgInverse : c.fgDim} attributes={TextAttributes.DIM}>
+							<text
+								fg={isTagActive ? c.fgInverse : c.fgDim}
+								attributes={TextAttributes.DIM}
+							>
 								{" ✕"}
 							</text>
 						</box>

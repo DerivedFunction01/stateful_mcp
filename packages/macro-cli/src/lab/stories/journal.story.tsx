@@ -1,15 +1,15 @@
 import { TextAttributes } from "@opentui/core";
-import type { TuiStory } from "../story-contract";
+import { formatJournalGutter } from "../../components/JournalView";
+import { translate } from "../../locales";
 import {
+	getStatusMeta,
 	TuiStatusBadge,
 	type TuiStatusType,
-	getStatusMeta,
 } from "../../ui/primitives/TuiBadge";
 import { TuiFrame } from "../../ui/primitives/TuiFrame";
 import { GlobalThemeRegistry } from "../../ui/theme";
 import { createMockWorkspace } from "../mock-workspace";
-import { translate } from "../../locales";
-import { formatJournalGutter } from "../../components/JournalView";
+import type { TuiStory } from "../story-contract";
 
 interface MockJournalEntry {
 	readonly id: string;
@@ -50,7 +50,7 @@ const ALL_ENTRIES: readonly MockJournalEntry[] = [
 		macroName: "^calc",
 		lineNumber: 3,
 		fingerprint: "7fe20918ca1280bb01",
-		rawText: "^calc expr=\"128 * 1024 / 4\"",
+		rawText: '^calc expr="128 * 1024 / 4"',
 		time: "14:28:40",
 		resultSummary: "32768",
 	},
@@ -94,7 +94,12 @@ export const journalStory: TuiStory = {
 
 		if (isEmpty) {
 			return (
-				<TuiFrame title={title} width={width} showBounds={context.showBounds} theme={theme}>
+				<TuiFrame
+					title={title}
+					width={width}
+					showBounds={context.showBounds}
+					theme={theme}
+				>
 					<box flexDirection="column" padding={1}>
 						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 							{emptyMsg}
@@ -116,12 +121,26 @@ export const journalStory: TuiStory = {
 		const maxLineNum = Math.max(1, ...entries.map((e) => e.lineNumber));
 		const gutterWidth = Math.max(2, String(maxLineNum).length);
 
-		const countLabel = entries.length === 1
-			? translate(i18n, "journal.entry", "entry")
-			: translate(i18n, "journal.entries", "entries");
-		const hintActions = translate(i18n, "journal.hint.actions", "↵ Inspect · r Replay · Del Revert");
-		const historyLabel = translate(i18n, "journal.historyLabel", "Transaction History");
-		const activeSelectionLabel = translate(i18n, "journal.activeSelection", `▶ Active: Entry ${selectedIndex + 1} (↑↓ to navigate)`, { n: selectedIndex + 1 });
+		const countLabel =
+			entries.length === 1
+				? translate(i18n, "journal.entry", "entry")
+				: translate(i18n, "journal.entries", "entries");
+		const hintActions = translate(
+			i18n,
+			"journal.hint.actions",
+			"↵ Inspect · r Replay · Del Revert",
+		);
+		const historyLabel = translate(
+			i18n,
+			"journal.historyLabel",
+			"Transaction History",
+		);
+		const activeSelectionLabel = translate(
+			i18n,
+			"journal.activeSelection",
+			`▶ Active: Entry ${selectedIndex + 1} (↑↓ to navigate)`,
+			{ n: selectedIndex + 1 },
+		);
 
 		return (
 			<TuiFrame
@@ -133,7 +152,10 @@ export const journalStory: TuiStory = {
 				<box flexDirection="column" padding={1}>
 					{/* Navigation Hint Header */}
 					<box height={1} marginBottom={1} flexDirection="row">
-						<text fg={isNavigating ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>
+						<text
+							fg={isNavigating ? c.accentPrimary : c.fgSecondary}
+							attributes={TextAttributes.BOLD}
+						>
 							{isNavigating ? activeSelectionLabel : historyLabel}
 						</text>
 						<box flexGrow={1} />
@@ -146,11 +168,16 @@ export const journalStory: TuiStory = {
 						const isEntrySelected = idx === selectedIndex;
 						const meta = getStatusMeta(entry.status);
 						const statusColor = c[meta.colorKey];
-						const lineGutter = formatJournalGutter(entry.lineNumber, gutterWidth);
+						const lineGutter = formatJournalGutter(
+							entry.lineNumber,
+							gutterWidth,
+						);
 						const emptyGutter = formatJournalGutter(null, gutterWidth);
 
 						// Border color: bright borderActive on selected item, subtle on unselected
-						const borderColor = isEntrySelected ? c.borderActive : c.borderDefault;
+						const borderColor = isEntrySelected
+							? c.borderActive
+							: c.borderDefault;
 						const cardBg = isEntrySelected ? c.bgElevated : c.bgSurface;
 						const headerBg = isEntrySelected ? c.bgActive : c.bgElevated;
 
@@ -171,9 +198,20 @@ export const journalStory: TuiStory = {
 									paddingLeft={1}
 									paddingRight={1}
 								>
-									<TuiStatusBadge status={entry.status} variant="solid-glyph" theme={theme} i18n={i18n} />
+									<TuiStatusBadge
+										status={entry.status}
+										variant="solid-glyph"
+										theme={theme}
+										i18n={i18n}
+									/>
 									<text fg={c.fgDim}> </text>
-									<box backgroundColor={isEntrySelected ? c.bgElevated : c.bgSurface} paddingLeft={1} paddingRight={1}>
+									<box
+										backgroundColor={
+											isEntrySelected ? c.bgElevated : c.bgSurface
+										}
+										paddingLeft={1}
+										paddingRight={1}
+									>
 										<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
 											⚡ {entry.macroName}
 										</text>
@@ -183,18 +221,30 @@ export const journalStory: TuiStory = {
 										L{lineGutter.lineNumText}
 									</text>
 									<box flexGrow={1} />
-									<text fg={isEntrySelected ? c.fgPrimary : c.fgDim} attributes={isEntrySelected ? TextAttributes.BOLD : TextAttributes.DIM}>
+									<text
+										fg={isEntrySelected ? c.fgPrimary : c.fgDim}
+										attributes={
+											isEntrySelected ? TextAttributes.BOLD : TextAttributes.DIM
+										}
+									>
 										#{entry.fingerprint.slice(0, 10)} · {entry.time}
 									</text>
 								</box>
 
 								{/* 2. Scratchpad Code Line with Gutter & Vertical Pipe (Deterministic Alignment) */}
-								<box flexDirection="row" height={1} paddingLeft={1} paddingRight={1} marginTop={0}>
+								<box
+									flexDirection="row"
+									height={1}
+									paddingLeft={1}
+									paddingRight={1}
+									marginTop={0}
+								>
 									<text fg={statusColor} attributes={TextAttributes.BOLD}>
 										▎
 									</text>
 									<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
-										{" "}{lineGutter.lineNumText}{" "}
+										{" "}
+										{lineGutter.lineNumText}{" "}
 									</text>
 									<text fg={c.borderDefault}>│ </text>
 									<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
@@ -204,29 +254,45 @@ export const journalStory: TuiStory = {
 
 								{/* 3. Output or Reversal Continuation Line (i18n) */}
 								{entry.reversalReason ? (
-									<box flexDirection="row" height={1} paddingLeft={1} paddingRight={1}>
+									<box
+										flexDirection="row"
+										height={1}
+										paddingLeft={1}
+										paddingRight={1}
+									>
 										<text fg={statusColor} attributes={TextAttributes.BOLD}>
 											▎
 										</text>
-										<text fg="transparent">
-											{" "}{emptyGutter.lineNumText}{" "}
-										</text>
+										<text fg="transparent"> {emptyGutter.lineNumText} </text>
 										<text fg={c.borderDefault}>│ </text>
 										<text fg={c.accentPeach} attributes={TextAttributes.BOLD}>
-											{translate(i18n, "journal.reversal", `↳ ▲ Reversal: ${entry.reversalReason}`, { reason: entry.reversalReason })}
+											{translate(
+												i18n,
+												"journal.reversal",
+												`↳ ▲ Reversal: ${entry.reversalReason}`,
+												{ reason: entry.reversalReason },
+											)}
 										</text>
 									</box>
 								) : entry.resultSummary ? (
-									<box flexDirection="row" height={1} paddingLeft={1} paddingRight={1}>
+									<box
+										flexDirection="row"
+										height={1}
+										paddingLeft={1}
+										paddingRight={1}
+									>
 										<text fg={statusColor} attributes={TextAttributes.BOLD}>
 											▎
 										</text>
-										<text fg="transparent">
-											{" "}{emptyGutter.lineNumText}{" "}
-										</text>
+										<text fg="transparent"> {emptyGutter.lineNumText} </text>
 										<text fg={c.borderDefault}>│ </text>
 										<text fg={c.statusSuccess}>
-											{translate(i18n, "journal.output", `↳ Output: ${entry.resultSummary}`, { summary: entry.resultSummary })}
+											{translate(
+												i18n,
+												"journal.output",
+												`↳ Output: ${entry.resultSummary}`,
+												{ summary: entry.resultSummary },
+											)}
 										</text>
 									</box>
 								) : null}

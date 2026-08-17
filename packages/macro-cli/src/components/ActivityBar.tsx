@@ -1,5 +1,8 @@
 import type { MacroWorkspace } from "@stateful-mcp/macro";
-import { TuiActivityRail, type TuiActivityItem } from "../ui/primitives/TuiActivityRail";
+import {
+	type TuiActivityItem,
+	TuiActivityRail,
+} from "../ui/primitives/TuiActivityRail";
 import type { TuiThemeDefinition } from "../ui/theme";
 
 export function ActivityBar({
@@ -20,11 +23,5 @@ export function ActivityBar({
 		isActive: c.id === active,
 	}));
 
-	return (
-		<TuiActivityRail
-			items={items}
-			activeId={active}
-			theme={theme}
-		/>
-	);
+	return <TuiActivityRail items={items} activeId={active} theme={theme} />;
 }

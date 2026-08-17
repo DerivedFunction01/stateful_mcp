@@ -1,9 +1,9 @@
 import { TextAttributes } from "@opentui/core";
 import type { MacroWorkspace } from "@stateful-mcp/macro";
 import type { MacroCliViewProvider } from "../renderer";
-import { JournalView } from "./JournalView";
 import type { TuiThemeDefinition } from "../ui/theme";
 import { GlobalThemeRegistry } from "../ui/theme";
+import { JournalView } from "./JournalView";
 
 export function SidepanelHost({
 	workspace,
@@ -60,8 +60,13 @@ export function SidepanelHost({
 							Node: {activeProjection.macroName}
 						</text>
 					</box>
-					<text fg={activeProjection.isValid ? c.statusSuccess : c.statusWarning} attributes={TextAttributes.BOLD}>
-						{activeProjection.isValid ? "✓ All slots satisfied" : "! Missing or invalid parameters"}
+					<text
+						fg={activeProjection.isValid ? c.statusSuccess : c.statusWarning}
+						attributes={TextAttributes.BOLD}
+					>
+						{activeProjection.isValid
+							? "✓ All slots satisfied"
+							: "! Missing or invalid parameters"}
 					</text>
 					{activeProjection.preview && (
 						<box marginTop={1}>

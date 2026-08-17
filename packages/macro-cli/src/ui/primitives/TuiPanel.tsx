@@ -42,7 +42,12 @@ export function TuiPanel({
 			flexDirection="column"
 		>
 			{(title || subtitle || headerRight) && (
-				<box height={1} paddingLeft={padding} paddingRight={padding} flexDirection="row">
+				<box
+					height={1}
+					paddingLeft={padding}
+					paddingRight={padding}
+					flexDirection="row"
+				>
 					{title && (
 						<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
 							{title}
@@ -50,7 +55,8 @@ export function TuiPanel({
 					)}
 					{subtitle && (
 						<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
-							{" "}{subtitle}
+							{" "}
+							{subtitle}
 						</text>
 					)}
 					<box flexGrow={1} />

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
+import type { ReactNode } from "react";
 
 export interface TerminalSize {
 	readonly columns: number;
@@ -19,7 +19,13 @@ export interface TuiStoryContext {
 export interface TuiStory {
 	readonly id: string;
 	readonly title: string;
-	readonly category?: "Core" | "Scratchpad" | "Primitives" | "Modals" | "Views" | "Extensions";
+	readonly category?:
+		| "Core"
+		| "Scratchpad"
+		| "Primitives"
+		| "Modals"
+		| "Views"
+		| "Extensions";
 	readonly ownerExtensionId?: string;
 	readonly states: readonly string[];
 	readonly sizes?: readonly TerminalSize[];

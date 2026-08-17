@@ -1,7 +1,11 @@
 import { TextAttributes } from "@opentui/core";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
-export type TuiStatusBarVariant = "lualine" | "vscode" | "opencode" | "segmented";
+export type TuiStatusBarVariant =
+	| "lualine"
+	| "vscode"
+	| "opencode"
+	| "segmented";
 
 export interface TuiStatusBarProps {
 	readonly variant?: TuiStatusBarVariant;
@@ -69,7 +73,9 @@ export function TuiStatusBar({
 				{/* Section C: Metrics & Projections */}
 				{totalCount !== undefined && totalCount > 0 && (
 					<box paddingLeft={1} paddingRight={1} flexDirection="row">
-						<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
+						<text
+							fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}
+						>
 							● {validCount ?? 0}/{totalCount} valid
 						</text>
 					</box>
@@ -86,9 +92,7 @@ export function TuiStatusBar({
 
 				{pinnedMacro && (
 					<box paddingLeft={1} paddingRight={1} flexDirection="row">
-						<text fg={c.accentAmber}>
-							📌 {pinnedMacro}
-						</text>
+						<text fg={c.accentAmber}>📌 {pinnedMacro}</text>
 					</box>
 				)}
 
@@ -116,7 +120,13 @@ export function TuiStatusBar({
 	// 2. VS Code Status Ribbon Style
 	if (variant === "vscode") {
 		return (
-			<box height={1} backgroundColor={c.bgSurface} paddingLeft={1} paddingRight={1} flexDirection="row">
+			<box
+				height={1}
+				backgroundColor={c.bgSurface}
+				paddingLeft={1}
+				paddingRight={1}
+				flexDirection="row"
+			>
 				<box flexDirection="row">
 					<text fg={modeBg} attributes={TextAttributes.BOLD}>
 						{mode}
@@ -125,7 +135,11 @@ export function TuiStatusBar({
 
 					{totalCount !== undefined && totalCount > 0 && (
 						<box flexDirection="row">
-							<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
+							<text
+								fg={
+									validCount === totalCount ? c.statusSuccess : c.statusWarning
+								}
+							>
 								{validCount ?? 0}/{totalCount} valid
 							</text>
 							<text fg={c.borderDefault}> │ </text>
@@ -143,9 +157,7 @@ export function TuiStatusBar({
 
 					{pinnedMacro && (
 						<box flexDirection="row">
-							<text fg={c.accentAmber}>
-								📌 {pinnedMacro}
-							</text>
+							<text fg={c.accentAmber}>📌 {pinnedMacro}</text>
 							<text fg={c.borderDefault}> │ </text>
 						</box>
 					)}
@@ -158,9 +170,7 @@ export function TuiStatusBar({
 						Ln {cursorLine}, Col {cursorCol}
 					</text>
 					<text fg={c.borderDefault}> │ </text>
-					<text fg={c.fgMuted}>
-						UTF-8
-					</text>
+					<text fg={c.fgMuted}>UTF-8</text>
 					<text fg={c.borderDefault}> │ </text>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 						{locale.toUpperCase()}
@@ -177,23 +187,23 @@ export function TuiStatusBar({
 				<text fg={modeBg} attributes={TextAttributes.BOLD}>
 					● {mode}
 				</text>
-				<text fg={c.borderDefault}>  │  </text>
+				<text fg={c.borderDefault}> │ </text>
 
 				{totalCount !== undefined && totalCount > 0 && (
 					<box flexDirection="row">
-						<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
+						<text
+							fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}
+						>
 							{validCount ?? 0}/{totalCount} valid
 						</text>
-						<text fg={c.borderDefault}>  │  </text>
+						<text fg={c.borderDefault}> │ </text>
 					</box>
 				)}
 
 				{pinnedMacro && (
 					<box flexDirection="row">
-						<text fg={c.accentAmber}>
-							pinned: {pinnedMacro}
-						</text>
-						<text fg={c.borderDefault}>  │  </text>
+						<text fg={c.accentAmber}>pinned: {pinnedMacro}</text>
+						<text fg={c.borderDefault}> │ </text>
 					</box>
 				)}
 
@@ -202,7 +212,7 @@ export function TuiStatusBar({
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 					{cursorLine}:{cursorCol}
 				</text>
-				<text fg={c.borderDefault}>  │  </text>
+				<text fg={c.borderDefault}> │ </text>
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 					{locale}
 				</text>
@@ -213,31 +223,51 @@ export function TuiStatusBar({
 	// 4. Segmented Cards Style
 	return (
 		<box height={1} paddingLeft={1} paddingRight={1} flexDirection="row">
-			<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
+			<box
+				backgroundColor={c.bgElevated}
+				paddingLeft={1}
+				paddingRight={1}
+				marginRight={1}
+			>
 				<text fg={modeBg} attributes={TextAttributes.BOLD}>
 					{mode}
 				</text>
 			</box>
 
 			{totalCount !== undefined && totalCount > 0 && (
-				<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
-					<text fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}>
+				<box
+					backgroundColor={c.bgElevated}
+					paddingLeft={1}
+					paddingRight={1}
+					marginRight={1}
+				>
+					<text
+						fg={validCount === totalCount ? c.statusSuccess : c.statusWarning}
+					>
 						{validCount ?? 0}/{totalCount} valid
 					</text>
 				</box>
 			)}
 
 			{pinnedMacro && (
-				<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
-					<text fg={c.accentAmber}>
-						📌 {pinnedMacro}
-					</text>
+				<box
+					backgroundColor={c.bgElevated}
+					paddingLeft={1}
+					paddingRight={1}
+					marginRight={1}
+				>
+					<text fg={c.accentAmber}>📌 {pinnedMacro}</text>
 				</box>
 			)}
 
 			<box flexGrow={1} />
 
-			<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
+			<box
+				backgroundColor={c.bgElevated}
+				paddingLeft={1}
+				paddingRight={1}
+				marginRight={1}
+			>
 				<text fg={c.fgPrimary}>
 					Ln {cursorLine}, Col {cursorCol}
 				</text>

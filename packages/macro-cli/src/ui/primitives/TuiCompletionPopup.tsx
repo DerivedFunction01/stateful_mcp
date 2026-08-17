@@ -1,7 +1,7 @@
 import { TextAttributes } from "@opentui/core";
 import type { I18nKernel } from "@stateful-mcp/macro";
-import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 import { translate } from "../../locales";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -15,7 +15,14 @@ export interface TuiCompletionParam {
 export interface TuiCompletionCandidate {
 	readonly id: string;
 	readonly label: string;
-	readonly kind?: "Macro" | "Slot" | "Snippet" | "Function" | "Variable" | "Property" | string;
+	readonly kind?:
+		| "Macro"
+		| "Slot"
+		| "Snippet"
+		| "Function"
+		| "Variable"
+		| "Property"
+		| string;
 	readonly detail?: string;
 	readonly documentation?: string;
 	readonly params?: readonly TuiCompletionParam[];
@@ -43,7 +50,15 @@ export interface TuiCompletionPopupProps {
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-function getKindIcon(kind?: string): { icon: string; defaultColorKey: "accentAmber" | "accentSecondary" | "statusSuccess" | "accentPrimary" | "fgMuted" } {
+function getKindIcon(kind?: string): {
+	icon: string;
+	defaultColorKey:
+		| "accentAmber"
+		| "accentSecondary"
+		| "statusSuccess"
+		| "accentPrimary"
+		| "fgMuted";
+} {
 	switch (kind?.toLowerCase()) {
 		case "macro":
 			return { icon: "⚡", defaultColorKey: "accentAmber" };
@@ -85,11 +100,20 @@ export function TuiCompletionPopup({
 
 	// Localized strings
 	const titleText = translate(i18n, "completion.title", "Completions");
-	const noMatchesText = translate(i18n, "completion.noMatches", "No matching completions");
-	const headerHint = translate(i18n, "completion.headerHint", `${completeKey} Complete · ${insertKey} Insert`, {
-		completeKey,
-		insertKey,
-	});
+	const noMatchesText = translate(
+		i18n,
+		"completion.noMatches",
+		"No matching completions",
+	);
+	const headerHint = translate(
+		i18n,
+		"completion.headerHint",
+		`${completeKey} Complete · ${insertKey} Insert`,
+		{
+			completeKey,
+			insertKey,
+		},
+	);
 	const footerHint = translate(
 		i18n,
 		"completion.footerHint",
@@ -102,7 +126,11 @@ export function TuiCompletionPopup({
 	);
 	const paramsLabel = translate(i18n, "completion.parameters", "Parameters:");
 	const snippetLabel = translate(i18n, "completion.snippet", "Snippet:");
-	const noDetailsText = translate(i18n, "completion.noDetails", "No details available");
+	const noDetailsText = translate(
+		i18n,
+		"completion.noDetails",
+		"No details available",
+	);
 
 	if (candidates.length === 0) {
 		return (
@@ -120,19 +148,27 @@ export function TuiCompletionPopup({
 		);
 	}
 
-	const safeSelectedIdx = Math.max(0, Math.min(candidates.length - 1, selectedIndex));
+	const safeSelectedIdx = Math.max(
+		0,
+		Math.min(candidates.length - 1, selectedIndex),
+	);
 	const selectedCandidate = candidates[safeSelectedIdx];
 
 	// Scroll window for visible candidates
 	const totalCandidates = candidates.length;
 	let startIdx = 0;
 	if (safeSelectedIdx >= maxVisible) {
-		startIdx = Math.min(safeSelectedIdx - maxVisible + 1, totalCandidates - maxVisible);
+		startIdx = Math.min(
+			safeSelectedIdx - maxVisible + 1,
+			totalCandidates - maxVisible,
+		);
 	}
 	const visibleCandidates = candidates.slice(startIdx, startIdx + maxVisible);
 
 	// Layout width calculations
-	const listWidth = showSidecar ? Math.max(26, Math.floor(width * 0.44)) : width;
+	const listWidth = showSidecar
+		? Math.max(26, Math.floor(width * 0.44))
+		: width;
 	const sidecarWidth = showSidecar ? Math.max(28, width - listWidth - 3) : 0;
 
 	return (
@@ -155,7 +191,8 @@ export function TuiCompletionPopup({
 					{titleText}
 				</text>
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-					{" "}({safeSelectedIdx + 1}/{totalCandidates})
+					{" "}
+					({safeSelectedIdx + 1}/{totalCandidates})
 				</text>
 				<box flexGrow={1} />
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
@@ -178,7 +215,9 @@ export function TuiCompletionPopup({
 
 						// Label highlighting against filterText
 						const labelStr = candidate.label;
-						const isMatched = filterText && labelStr.toLowerCase().startsWith(filterText.toLowerCase());
+						const isMatched =
+							filterText &&
+							labelStr.toLowerCase().startsWith(filterText.toLowerCase());
 
 						return (
 							<box
@@ -201,7 +240,13 @@ export function TuiCompletionPopup({
 
 								{/* Candidate Label */}
 								<text
-									fg={isSelected ? c.fgPrimary : isMatched ? c.accentAmber : c.fgSecondary}
+									fg={
+										isSelected
+											? c.fgPrimary
+											: isMatched
+												? c.accentAmber
+												: c.fgSecondary
+									}
 									attributes={isSelected || isMatched ? TextAttributes.BOLD : 0}
 								>
 									{labelStr}
@@ -213,7 +258,9 @@ export function TuiCompletionPopup({
 								{candidate.kind && (
 									<text
 										fg={isSelected ? kindColor : c.fgDim}
-										attributes={isSelected ? TextAttributes.BOLD : TextAttributes.DIM}
+										attributes={
+											isSelected ? TextAttributes.BOLD : TextAttributes.DIM
+										}
 									>
 										{candidate.kind}
 									</text>
@@ -227,9 +274,14 @@ export function TuiCompletionPopup({
 						<box height={1} paddingLeft={1} backgroundColor={c.bgSurface}>
 							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
 								{startIdx > 0 ? "▲ " : ""}
-								{translate(i18n, "completion.moreItems", `+${totalCandidates - maxVisible} more`, {
-									count: totalCandidates - maxVisible,
-								})}
+								{translate(
+									i18n,
+									"completion.moreItems",
+									`+${totalCandidates - maxVisible} more`,
+									{
+										count: totalCandidates - maxVisible,
+									},
+								)}
 								{startIdx + maxVisible < totalCandidates ? " ▼" : ""}
 							</text>
 						</box>
@@ -239,17 +291,25 @@ export function TuiCompletionPopup({
 				{/* Vertical Separator */}
 				{showSidecar && (
 					<box width={1} flexDirection="column">
-						{Array.from({ length: Math.max(visibleCandidates.length, 4) }, (_, i) => (
-							<text key={i} fg={c.borderSubtle}>
-								│
-							</text>
-						))}
+						{Array.from(
+							{ length: Math.max(visibleCandidates.length, 4) },
+							(_, i) => (
+								<text key={i} fg={c.borderSubtle}>
+									│
+								</text>
+							),
+						)}
 					</box>
 				)}
 
 				{/* 2. Documentation Sidecar Column */}
 				{showSidecar && (
-					<box flexDirection="column" width={sidecarWidth} paddingLeft={1} paddingRight={1}>
+					<box
+						flexDirection="column"
+						width={sidecarWidth}
+						paddingLeft={1}
+						paddingRight={1}
+					>
 						{selectedCandidate ? (
 							<>
 								{/* Signature Header */}
@@ -276,30 +336,33 @@ export function TuiCompletionPopup({
 								)}
 
 								{/* Structured Parameter Breakdown */}
-								{selectedCandidate.params && selectedCandidate.params.length > 0 && (
-									<box flexDirection="column" marginBottom={1}>
-										<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-											{paramsLabel}
-										</text>
-										{selectedCandidate.params.map((p) => (
-											<box key={p.name} flexDirection="row" height={1}>
-												<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
-													{" • "}{p.name}
-												</text>
-												{p.type && (
-													<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-														: {p.type}
+								{selectedCandidate.params &&
+									selectedCandidate.params.length > 0 && (
+										<box flexDirection="column" marginBottom={1}>
+											<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+												{paramsLabel}
+											</text>
+											{selectedCandidate.params.map((p) => (
+												<box key={p.name} flexDirection="row" height={1}>
+													<text
+														fg={c.accentAmber}
+														attributes={TextAttributes.BOLD}
+													>
+														{" • "}
+														{p.name}
 													</text>
-												)}
-												{p.description && (
-													<text fg={c.fgMuted}>
-														{" "}- {p.description}
-													</text>
-												)}
-											</box>
-										))}
-									</box>
-								)}
+													{p.type && (
+														<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+															: {p.type}
+														</text>
+													)}
+													{p.description && (
+														<text fg={c.fgMuted}> - {p.description}</text>
+													)}
+												</box>
+											))}
+										</box>
+									)}
 
 								{/* Code Snippet Preview */}
 								{selectedCandidate.snippet && (

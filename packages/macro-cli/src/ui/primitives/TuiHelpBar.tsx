@@ -163,60 +163,105 @@ export function buildContextualHelpBarHints(
 	}
 
 	if (focusedPane === "activity") {
-		const container = workspace.views.getContainer(layout.activeActivityContainerId);
-		const view = workspace.views.getViewsForContainer(container?.id ?? "").find((v: RegisteredView) => Boolean(v.provider));
+		const container = workspace.views.getContainer(
+			layout.activeActivityContainerId,
+		);
+		const view = workspace.views
+			.getViewsForContainer(container?.id ?? "")
+			.find((v: RegisteredView) => Boolean(v.provider));
 
-		if (view?.provider && "getContextualHints" in view.provider && typeof (view.provider as { getContextualHints?: Function }).getContextualHints === "function") {
-			const providerHints = (view.provider as { getContextualHints: Function }).getContextualHints({
+		if (
+			view?.provider &&
+			"getContextualHints" in view.provider &&
+			typeof (view.provider as { getContextualHints?: Function })
+				.getContextualHints === "function"
+		) {
+			const providerHints = (
+				view.provider as { getContextualHints: Function }
+			).getContextualHints({
 				workspace,
 				width: 30,
 				height: 20,
 				isFocused: true,
 				viewId: view.id,
-				emitAction: (id: string, payload?: unknown) => void workspace.commands.executeCommand(id, payload),
+				emitAction: (id: string, payload?: unknown) =>
+					void workspace.commands.executeCommand(id, payload),
 			});
-			if (providerHints && Array.isArray(providerHints) && providerHints.length > 0) {
-				return providerHints.map((h: { key: string; label: string }) => ({ key: h.key, action: h.label }));
+			if (
+				providerHints &&
+				Array.isArray(providerHints) &&
+				providerHints.length > 0
+			) {
+				return providerHints.map((h: { key: string; label: string }) => ({
+					key: h.key,
+					action: h.label,
+				}));
 			}
 		}
 
 		if (container?.contextualHints && container.contextualHints.length > 0) {
 			return container.contextualHints.map((h: ContextualKeyHint) => ({
 				key: h.key,
-				action: h.i18nKey ? translate(i18n, h.i18nKey, h.label ?? h.key) : (h.label ?? h.key),
+				action: h.i18nKey
+					? translate(i18n, h.i18nKey, h.label ?? h.key)
+					: (h.label ?? h.key),
 			}));
 		}
 
 		return [
 			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
 			{ key: "Enter", action: translate(i18n, "helpBar.open", "Open") },
-			{ key: "Ctrl+W", action: translate(i18n, "helpBar.switchFocus", "Focus Pane") },
+			{
+				key: "Ctrl+W",
+				action: translate(i18n, "helpBar.switchFocus", "Focus Pane"),
+			},
 			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
 		];
 	}
 
 	if (focusedPane === "sidepanel") {
-		const container = workspace.views.getContainer(layout.activeInspectorContainerId);
-		const view = workspace.views.getViewsForContainer(container?.id ?? "").find((v: RegisteredView) => Boolean(v.provider));
+		const container = workspace.views.getContainer(
+			layout.activeInspectorContainerId,
+		);
+		const view = workspace.views
+			.getViewsForContainer(container?.id ?? "")
+			.find((v: RegisteredView) => Boolean(v.provider));
 
-		if (view?.provider && "getContextualHints" in view.provider && typeof (view.provider as { getContextualHints?: Function }).getContextualHints === "function") {
-			const providerHints = (view.provider as { getContextualHints: Function }).getContextualHints({
+		if (
+			view?.provider &&
+			"getContextualHints" in view.provider &&
+			typeof (view.provider as { getContextualHints?: Function })
+				.getContextualHints === "function"
+		) {
+			const providerHints = (
+				view.provider as { getContextualHints: Function }
+			).getContextualHints({
 				workspace,
 				width: 30,
 				height: 20,
 				isFocused: true,
 				viewId: view.id,
-				emitAction: (id: string, payload?: unknown) => void workspace.commands.executeCommand(id, payload),
+				emitAction: (id: string, payload?: unknown) =>
+					void workspace.commands.executeCommand(id, payload),
 			});
-			if (providerHints && Array.isArray(providerHints) && providerHints.length > 0) {
-				return providerHints.map((h: { key: string; label: string }) => ({ key: h.key, action: h.label }));
+			if (
+				providerHints &&
+				Array.isArray(providerHints) &&
+				providerHints.length > 0
+			) {
+				return providerHints.map((h: { key: string; label: string }) => ({
+					key: h.key,
+					action: h.label,
+				}));
 			}
 		}
 
 		if (container?.contextualHints && container.contextualHints.length > 0) {
 			return container.contextualHints.map((h: ContextualKeyHint) => ({
 				key: h.key,
-				action: h.i18nKey ? translate(i18n, h.i18nKey, h.label ?? h.key) : (h.label ?? h.key),
+				action: h.i18nKey
+					? translate(i18n, h.i18nKey, h.label ?? h.key)
+					: (h.label ?? h.key),
 			}));
 		}
 
@@ -225,13 +270,23 @@ export function buildContextualHelpBarHints(
 			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
 			{ key: "Enter", action: translate(i18n, "helpBar.apply", "Execute") },
 			{ key: closeKey, action: translate(i18n, "helpBar.close", "Close") },
-			{ key: "Ctrl+W", action: translate(i18n, "helpBar.switchFocus", "Focus Pane") },
+			{
+				key: "Ctrl+W",
+				action: translate(i18n, "helpBar.switchFocus", "Focus Pane"),
+			},
 			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
 		];
 	}
 
 	return buildDynamicKeymapHints(
-		keymap ?? (workspace.runtime as any)?.context?.keymap ?? { window: {}, normal: {}, insert: {}, visual: {}, sequences: {} },
+		keymap ??
+			(workspace.runtime as any)?.context?.keymap ?? {
+				window: {},
+				normal: {},
+				insert: {},
+				visual: {},
+				sequences: {},
+			},
 		workspace.i18n,
 		workspace.editor.getMode(),
 	);
@@ -258,21 +313,31 @@ export function TuiHelpBar({
 		);
 	}
 
-	const resolvedHints = hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n, mode) : []);
+	const resolvedHints =
+		hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n, mode) : []);
 
 	// 1. Nano / Htop High-Contrast Inverse Badges (Default)
 	if (variant === "nano-grid") {
 		return (
 			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 				{resolvedHints.map((hint) => (
-					<box key={`${hint.key}-${hint.action}`} flexDirection="row" marginRight={2}>
-						<box backgroundColor={c.accentPrimary} paddingLeft={1} paddingRight={1}>
+					<box
+						key={`${hint.key}-${hint.action}`}
+						flexDirection="row"
+						marginRight={2}
+					>
+						<box
+							backgroundColor={c.accentPrimary}
+							paddingLeft={1}
+							paddingRight={1}
+						>
 							<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
 								{hint.key}
 							</text>
 						</box>
 						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-							{" "}{hint.action}
+							{" "}
+							{hint.action}
 						</text>
 					</box>
 				))}
@@ -297,14 +362,11 @@ export function TuiHelpBar({
 							▎
 						</text>
 						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-							{" "}{hint.key}
+							{" "}
+							{hint.key}
 						</text>
-						<text fg={c.fgPrimary}>
-							{" "}{hint.action}{" "}
-						</text>
-						<text fg={c.borderDefault}>
-							│
-						</text>
+						<text fg={c.fgPrimary}> {hint.action} </text>
+						<text fg={c.borderDefault}>│</text>
 					</box>
 				))}
 			</box>
@@ -317,13 +379,11 @@ export function TuiHelpBar({
 			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 				{resolvedHints.map((hint, index) => (
 					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-						{index > 0 && <text fg={c.borderDefault}>  •  </text>}
+						{index > 0 && <text fg={c.borderDefault}> • </text>}
 						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 							{hint.key}
 						</text>
-						<text fg={c.fgMuted}>
-							{" "}{hint.action}
-						</text>
+						<text fg={c.fgMuted}> {hint.action}</text>
 					</box>
 				))}
 			</box>
@@ -336,7 +396,7 @@ export function TuiHelpBar({
 			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 				{resolvedHints.map((hint, index) => (
 					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-						{index > 0 && <text fg={c.borderDefault}>  ·  </text>}
+						{index > 0 && <text fg={c.borderDefault}> · </text>}
 						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 							{hint.key}: {hint.action}
 						</text>
@@ -355,9 +415,7 @@ export function TuiHelpBar({
 					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
 						[ {hint.key} ]
 					</text>
-					<text fg={c.fgMuted}>
-						{" "}{hint.action}
-					</text>
+					<text fg={c.fgMuted}> {hint.action}</text>
 				</box>
 			))}
 		</box>

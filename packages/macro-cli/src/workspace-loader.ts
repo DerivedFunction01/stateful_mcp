@@ -1,17 +1,14 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type {
-	LoadedExtension,
-	UserMacroProfile,
-} from "@stateful-mcp/macro";
+import type { LoadedExtension, UserMacroProfile } from "@stateful-mcp/macro";
 import {
+	createMacroWorkspace,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
+	type EditorKeymapProfile,
 	ExtensionError,
 	ExtensionLoader as MacroExtensionLoader,
-	mergeEditorKeymap,
-	createMacroWorkspace,
-	type EditorKeymapProfile,
 	type MacroWorkspace,
+	mergeEditorKeymap,
 } from "@stateful-mcp/macro";
 import { registerCliLocales } from "./locales";
 
@@ -63,10 +60,7 @@ export async function loadMacroCliWorkspace(
 	);
 
 	const loadedExtensions = manifestResult
-		? await loadManifestExtensions(
-			manifestResult.manifest,
-			manifestResult.path,
-		)
+		? await loadManifestExtensions(manifestResult.manifest, manifestResult.path)
 		: [];
 	const workspace = createMacroWorkspace({
 		initialText: options.initialText,
@@ -115,7 +109,9 @@ export function validateWorkspaceManifest(
 	const ids = new Set<string>();
 	for (const entry of manifest.extensions) {
 		if (!entry || !entry.id || !entry.source || !entry.version) {
-			throw new Error("Each workspace extension requires id, source, and version");
+			throw new Error(
+				"Each workspace extension requires id, source, and version",
+			);
 		}
 		if (ids.has(entry.id)) {
 			throw new Error(`Duplicate workspace extension '${entry.id}'`);
@@ -134,7 +130,9 @@ async function loadManifestExtensions(
 		resolve(manifestDirectory, entry.source),
 	);
 	const listedPaths = new Set(files);
-	for (const discovered of await discoverExtensionModules(resolve(manifestDirectory, "extensions"))) {
+	for (const discovered of await discoverExtensionModules(
+		resolve(manifestDirectory, "extensions"),
+	)) {
 		if (!listedPaths.has(discovered)) {
 			throw new ExtensionError(
 				`Extension module '${discovered}' is discovered but not listed in the workspace manifest`,
@@ -144,7 +142,9 @@ async function loadManifestExtensions(
 			);
 		}
 	}
-	const loaded = await new MacroExtensionLoader({ directory: manifestDirectory }).importFiles(files);
+	const loaded = await new MacroExtensionLoader({
+		directory: manifestDirectory,
+	}).importFiles(files);
 	const byId = new Map(manifest.extensions.map((entry) => [entry.id, entry]));
 	for (const item of loaded) {
 		const expected = byId.get(item.extension.manifest.id);
@@ -187,18 +187,21 @@ async function discoverExtensionModules(directory: string): Promise<string[]> {
 	try {
 		entries = await readdir(directory, { withFileTypes: true });
 	} catch (error) {
-		if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+		if (error instanceof Error && "code" in error && error.code === "ENOENT")
+			return [];
 		throw error;
 	}
 	for (const entry of entries) {
 		const path = resolve(directory, entry.name);
 		if (entry.isDirectory()) {
-			discovered.push(...await discoverExtensionModules(path));
+			discovered.push(...(await discoverExtensionModules(path)));
 			continue;
 		}
 		if (!entry.isFile()) continue;
-		if (/\.(?:ts|js|mjs)$/u.test(entry.name) &&
-			(entry.name.startsWith("index.") || directory.endsWith("/extensions"))) {
+		if (
+			/\.(?:ts|js|mjs)$/u.test(entry.name) &&
+			(entry.name.startsWith("index.") || directory.endsWith("/extensions"))
+		) {
 			discovered.push(path);
 		}
 	}

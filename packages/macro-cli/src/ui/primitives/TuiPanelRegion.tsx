@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { TuiActivityRail, type TuiActivityItem } from "./TuiActivityRail";
-import { TuiSidepanel, type TuiSidepanelCard } from "./TuiSidepanel";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
+import { type TuiActivityItem, TuiActivityRail } from "./TuiActivityRail";
+import { TuiSidepanel, type TuiSidepanelCard } from "./TuiSidepanel";
 
 export type TuiPanelDock = "start" | "end";
 

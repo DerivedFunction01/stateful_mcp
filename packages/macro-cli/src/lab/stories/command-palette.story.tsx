@@ -1,8 +1,8 @@
-import type { TuiStory } from "../story-contract";
 import {
 	TuiCommandPalette,
 	type TuiPaletteCommand,
 } from "../../ui/primitives/TuiCommandPalette";
+import type { TuiStory } from "../story-contract";
 
 const PALETTE_COMMANDS: readonly TuiPaletteCommand[] = [
 	{
@@ -97,79 +97,14 @@ export const commandPaletteStory: TuiStory = {
 	id: "command-palette",
 	title: "Command Palette Modal",
 	category: "Modals",
-	states: [
-		"opencode-floating",
-		"opencode-search-active",
-		"opencode-bordered",
-		"vscode-quickpick",
-		"empty-results",
-	],
-	render(context) {
-		const stateId = context.stateId;
-
-		if (stateId === "opencode-search-active") {
-			const filtered = PALETTE_COMMANDS.filter((c) =>
-				c.title.toLowerCase().includes("switch"),
-			);
-			return (
-				<box padding={2} justifyContent="center" alignItems="center">
-					<TuiCommandPalette
-						variant="opencode"
-						query="switch"
-						items={filtered}
-						selectedIndex={0}
-						width={68}
-					/>
-				</box>
-			);
-		}
-
-		if (stateId === "opencode-bordered") {
-			return (
-				<box padding={2} justifyContent="center" alignItems="center">
-					<TuiCommandPalette
-						variant="opencode-bordered"
-						items={PALETTE_COMMANDS}
-						selectedIndex={1}
-						width={68}
-					/>
-				</box>
-			);
-		}
-
-		if (stateId === "vscode-quickpick") {
-			return (
-				<box padding={2} justifyContent="center" alignItems="center">
-					<TuiCommandPalette
-						variant="vscode-quickpick"
-						items={PALETTE_COMMANDS}
-						selectedIndex={0}
-						width={68}
-					/>
-				</box>
-			);
-		}
-
-		if (stateId === "empty-results") {
-			return (
-				<box padding={2} justifyContent="center" alignItems="center">
-					<TuiCommandPalette
-						variant="opencode"
-						query="unknown command xyz"
-						items={[]}
-						width={68}
-					/>
-				</box>
-			);
-		}
-
-		// Default: opencode-floating
+	states: ["default"],
+	render() {
 		return (
 			<box padding={2} justifyContent="center" alignItems="center">
 				<TuiCommandPalette
-					variant="opencode"
+					variant="opencode-bordered"
 					items={PALETTE_COMMANDS}
-					selectedIndex={0}
+					selectedIndex={1}
 					width={68}
 				/>
 			</box>

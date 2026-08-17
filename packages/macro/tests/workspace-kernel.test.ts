@@ -182,7 +182,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 		});
 	});
 
-		describe("Contribution Registries & Command Palette", () => {
+	describe("Contribution Registries & Command Palette", () => {
 		test("ViewRegistry and TabRegistry dynamic contributions", () => {
 			const viewReg = new ViewRegistry();
 			viewReg.registerContainer(
@@ -208,11 +208,42 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 				"Custom Panel",
 			);
 			expect(viewReg.getViewsForContainer("customContainer")).toHaveLength(1);
-			expect(viewReg.getContainersForRegion("activity").some((container) => container.id === "customContainer")).toBe(true);
-			viewReg.registerContainer({ id: "inspectorContainer", title: "Inspector", icon: "◈", region: "inspector" });
-			viewReg.registerView({ id: "diagnostics", name: "Diagnostics", containerId: "inspectorContainer", region: "inspector", when: { key: "hasDiagnostics", equals: true }, priority: 10 }, { render: () => "Diagnostics" });
-			expect(viewReg.getViewsForRegion("inspector", { activeTabId: "scratchpad", focusedPane: "main", hasDiagnostics: true })).toHaveLength(1);
-			expect(viewReg.getViewsForRegion("inspector", { activeTabId: "scratchpad", focusedPane: "main", hasDiagnostics: false })).toHaveLength(0);
+			expect(
+				viewReg
+					.getContainersForRegion("activity")
+					.some((container) => container.id === "customContainer"),
+			).toBe(true);
+			viewReg.registerContainer({
+				id: "inspectorContainer",
+				title: "Inspector",
+				icon: "◈",
+				region: "inspector",
+			});
+			viewReg.registerView(
+				{
+					id: "diagnostics",
+					name: "Diagnostics",
+					containerId: "inspectorContainer",
+					region: "inspector",
+					when: { key: "hasDiagnostics", equals: true },
+					priority: 10,
+				},
+				{ render: () => "Diagnostics" },
+			);
+			expect(
+				viewReg.getViewsForRegion("inspector", {
+					activeTabId: "scratchpad",
+					focusedPane: "main",
+					hasDiagnostics: true,
+				}),
+			).toHaveLength(1);
+			expect(
+				viewReg.getViewsForRegion("inspector", {
+					activeTabId: "scratchpad",
+					focusedPane: "main",
+					hasDiagnostics: false,
+				}),
+			).toHaveLength(0);
 
 			const tabReg = new TabRegistry();
 			tabReg.registerTab(
@@ -518,13 +549,16 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 
 			pinnedProjected = await pinnedSession.parseAllLines();
 			expect(pinnedProjected[0]?.isValid).toBe(false);
-		pinnedBuffer.setCursor(0, pinnedBuffer.getLine(0).length);
-		const inserted = pinnedSession.createPinnedMacroLine();
+			pinnedBuffer.setCursor(0, pinnedBuffer.getLine(0).length);
+			const inserted = pinnedSession.createPinnedMacroLine();
 			expect(inserted?.insertedText).toBe("^evaluacion ");
 			expect(pinnedBuffer.getLine(1)).toBe("^evaluacion ");
-			expect(pinnedBuffer.getCursor()).toEqual({ line: 1, col: "^evaluacion ".length });
-		pinnedProjected = await pinnedSession.parseAllLines();
-		expect(pinnedProjected[1]?.macroName).toBe("evaluacion");
+			expect(pinnedBuffer.getCursor()).toEqual({
+				line: 1,
+				col: "^evaluacion ".length,
+			});
+			pinnedProjected = await pinnedSession.parseAllLines();
+			expect(pinnedProjected[1]?.macroName).toBe("evaluacion");
 		});
 	});
 
@@ -572,7 +606,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(reversed?.reversalReason).toBe("Incorrect diagnostic");
 			expect(await journal.reverseEntry(entry.id, "Repeated request")).toEqual(
 				reversed,
-		);
+			);
 			expect(journal.getCommittedEntries()).toHaveLength(0);
 			expect(journal.getEntries()).toHaveLength(1); // Audit record retained
 		});

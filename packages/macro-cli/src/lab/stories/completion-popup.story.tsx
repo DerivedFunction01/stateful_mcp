@@ -1,10 +1,10 @@
-import type { TuiStory } from "../story-contract";
 import {
-	TuiCompletionPopup,
 	type TuiCompletionCandidate,
+	TuiCompletionPopup,
 } from "../../ui/primitives/TuiCompletionPopup";
 import { GlobalThemeRegistry } from "../../ui/theme";
 import { createMockWorkspace } from "../mock-workspace";
+import type { TuiStory } from "../story-contract";
 
 const CANDIDATES: readonly TuiCompletionCandidate[] = [
 	{
@@ -12,10 +12,21 @@ const CANDIDATES: readonly TuiCompletionCandidate[] = [
 		label: "^deploy",
 		kind: "Macro",
 		detail: "^deploy service=<id> env=<tier> [replicas=<n>]",
-		documentation: "Triggers blue-green deployment of the designated microservice container to the target environment cluster.",
+		documentation:
+			"Triggers blue-green deployment of the designated microservice container to the target environment cluster.",
 		params: [
-			{ name: "service", type: "string", description: "api | auth | worker", required: true },
-			{ name: "env", type: "string", description: "dev | staging | prod", required: true },
+			{
+				name: "service",
+				type: "string",
+				description: "api | auth | worker",
+				required: true,
+			},
+			{
+				name: "env",
+				type: "string",
+				description: "dev | staging | prod",
+				required: true,
+			},
 			{ name: "replicas", type: "number", description: "Default: 2" },
 		],
 		snippet: "^deploy service=api env=production replicas=3",
@@ -25,20 +36,32 @@ const CANDIDATES: readonly TuiCompletionCandidate[] = [
 		label: "^echo",
 		kind: "Macro",
 		detail: "^echo message=<string>",
-		documentation: "Prints an echo message or formatted JSON payload directly to the session output buffer.",
+		documentation:
+			"Prints an echo message or formatted JSON payload directly to the session output buffer.",
 		params: [
-			{ name: "message", type: "string", description: "Text or template expression", required: true },
+			{
+				name: "message",
+				type: "string",
+				description: "Text or template expression",
+				required: true,
+			},
 		],
-		snippet: "^echo message=\"Deployment started successfully\"",
+		snippet: '^echo message="Deployment started successfully"',
 	},
 	{
 		id: "c3",
 		label: "^calc",
 		kind: "Macro",
 		detail: "^calc expr=<math>",
-		documentation: "Evaluates mathematical expressions and unit conversions in an isolated V8 sandbox.",
+		documentation:
+			"Evaluates mathematical expressions and unit conversions in an isolated V8 sandbox.",
 		params: [
-			{ name: "expr", type: "string", description: "Arithmetic formula e.g. '128 * 1024'", required: true },
+			{
+				name: "expr",
+				type: "string",
+				description: "Arithmetic formula e.g. '128 * 1024'",
+				required: true,
+			},
 		],
 	},
 	{
@@ -46,7 +69,8 @@ const CANDIDATES: readonly TuiCompletionCandidate[] = [
 		label: "service",
 		kind: "Slot",
 		detail: "service: api | auth | worker | gateway",
-		documentation: "Designated microservice identifier registered in the active workspace schema.",
+		documentation:
+			"Designated microservice identifier registered in the active workspace schema.",
 	},
 	{
 		id: "c5",
@@ -60,7 +84,8 @@ const CANDIDATES: readonly TuiCompletionCandidate[] = [
 		label: "timeoutMs",
 		kind: "Property",
 		detail: "timeoutMs: number = 5000",
-		documentation: "Maximum execution time in milliseconds before aborting transaction.",
+		documentation:
+			"Maximum execution time in milliseconds before aborting transaction.",
 	},
 ];
 

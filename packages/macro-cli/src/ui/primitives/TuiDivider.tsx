@@ -17,7 +17,14 @@ export function TuiDivider({
 	theme,
 }: TuiDividerProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
-	const char = style === "double" ? "═" : style === "upper" ? "▔" : style === "ascii" ? "-" : "─";
+	const char =
+		style === "double"
+			? "═"
+			: style === "upper"
+				? "▔"
+				: style === "ascii"
+					? "-"
+					: "─";
 	const vertChar = style === "double" ? "║" : style === "ascii" ? "|" : "│";
 
 	if (direction === "vertical") {

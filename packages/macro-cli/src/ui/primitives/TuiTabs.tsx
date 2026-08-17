@@ -1,7 +1,13 @@
 import { TextAttributes } from "@opentui/core";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
-export type TuiTabStatus = "default" | "active" | "dirty" | "error" | "success" | "info";
+export type TuiTabStatus =
+	| "default"
+	| "active"
+	| "dirty"
+	| "error"
+	| "success"
+	| "info";
 
 export interface TuiTabItem {
 	readonly id: string;
@@ -75,7 +81,8 @@ export function TuiTabs({
 						{/* Icon if provided */}
 						{tab.icon && (
 							<text fg={isActive ? c.accentPrimary : c.fgMuted}>
-								{" "}{tab.icon}
+								{" "}
+								{tab.icon}
 							</text>
 						)}
 
@@ -84,27 +91,31 @@ export function TuiTabs({
 							fg={labelColor}
 							attributes={isActive ? TextAttributes.BOLD : 0}
 						>
-							{" "}{tab.label}
+							{" "}
+							{tab.label}
 						</text>
 
 						{/* Badge / Count */}
 						{tab.badge !== undefined && (
 							<text fg={c.accentSecondary} attributes={TextAttributes.DIM}>
-								{" "}({tab.badge})
+								{" "}
+								({tab.badge})
 							</text>
 						)}
 
 						{/* Dirty Indicator */}
 						{isDirty && (
 							<text fg={c.statusWarning} attributes={TextAttributes.BOLD}>
-								{" "}●
+								{" "}
+								●
 							</text>
 						)}
 
 						{/* Close button if closable */}
 						{tab.isCloseable && (
 							<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-								{" "}×
+								{" "}
+								×
 							</text>
 						)}
 					</box>

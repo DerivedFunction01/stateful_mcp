@@ -1,6 +1,9 @@
-import type { TuiStory } from "../story-contract";
-import { TuiHelpBar, type TuiShortcutHint } from "../../ui/primitives/TuiHelpBar";
+import {
+	TuiHelpBar,
+	type TuiShortcutHint,
+} from "../../ui/primitives/TuiHelpBar";
 import { GlobalThemeRegistry } from "../../ui/theme";
+import type { TuiStory } from "../story-contract";
 
 const NORMAL_HINTS: readonly TuiShortcutHint[] = [
 	{ key: "Tab", action: "Next Tab" },
@@ -14,61 +17,22 @@ const NORMAL_HINTS: readonly TuiShortcutHint[] = [
 	{ key: "Alt+P", action: "Pin" },
 ];
 
-const ACTIVITY_PANEL_HINTS: readonly TuiShortcutHint[] = [
-	{ key: "↑/↓", action: "Navigate" },
-	{ key: "Enter", action: "Open" },
-	{ key: "Ctrl+W", action: "Focus Pane" },
-	{ key: "Esc", action: "Editor" },
-];
-
-const INSPECTOR_PANEL_HINTS: readonly TuiShortcutHint[] = [
-	{ key: "↑/↓", action: "Navigate" },
-	{ key: "Enter", action: "Execute" },
-	{ key: "Alt+2", action: "Close" },
-	{ key: "Ctrl+W", action: "Focus Pane" },
-	{ key: "Esc", action: "Editor" },
-];
-
-const PALETTE_HINTS: readonly TuiShortcutHint[] = [
-	{ key: "↑/↓", action: "Navigate" },
-	{ key: "Enter", action: "Execute" },
-	{ key: "Esc", action: "Close" },
-];
-
 export const helpBarStory: TuiStory = {
 	id: "help-bar",
 	title: "Contextual Help Bar",
 	category: "Core",
-	states: [
-		"nano-grid",
-		"activity-focused",
-		"inspector-focused",
-		"palette-focused",
-		"lualine-pills",
-		"opencode-compact",
-		"bracket-chips",
-		"subtle-text",
-	],
+	states: ["default"],
 	render(context) {
-		const stateId = context.stateId;
 		const theme = GlobalThemeRegistry.getActive();
 
-		let hints = NORMAL_HINTS;
-		let variant: any = "nano-grid";
-
-		if (stateId === "activity-focused") {
-			hints = ACTIVITY_PANEL_HINTS;
-		} else if (stateId === "inspector-focused") {
-			hints = INSPECTOR_PANEL_HINTS;
-		} else if (stateId === "palette-focused") {
-			hints = PALETTE_HINTS;
-		} else if (stateId === "lualine-pills" || stateId === "opencode-compact" || stateId === "bracket-chips" || stateId === "subtle-text") {
-			variant = stateId;
-		}
-
 		return (
-			<box flexDirection="column" padding={1} width={context.size.columns} backgroundColor={theme.colors.bgCanvas}>
-				<TuiHelpBar variant={variant} hints={hints} theme={theme} />
+			<box
+				flexDirection="column"
+				padding={1}
+				width={context.size.columns}
+				backgroundColor={theme.colors.bgCanvas}
+			>
+				<TuiHelpBar variant="nano-grid" hints={NORMAL_HINTS} theme={theme} />
 			</box>
 		);
 	},

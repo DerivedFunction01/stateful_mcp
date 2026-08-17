@@ -9,7 +9,8 @@ export const ES_LOCALE_CLI: Record<string, string> = {
 	"palette.category.workspace": "Espacio de trabajo",
 	"palette.category.general": "Comandos",
 
-	"scratchpad.emptyPlaceholder": "Escriba {trigger} para autocompletar macros o empiece a escribir...",
+	"scratchpad.emptyPlaceholder":
+		"Escriba {trigger} para autocompletar macros o empiece a escribir...",
 	"scratchpad.pinnedLabel": "FIJADO: {macro}",
 	"scratchpad.pinnedHint": "(Presione {key} para alternar)",
 	"scratchpad.pinnedBadge": "[fijado a {macro}]",
@@ -73,7 +74,8 @@ export const ES_LOCALE_CLI: Record<string, string> = {
 	"completion.title": "Sugerencias",
 	"completion.noMatches": "No hay sugerencias coincidentes",
 	"completion.headerHint": "{completeKey} Completar · {insertKey} Insertar",
-	"completion.footerHint": "{navigateKey} Seleccionar sugerencia   {insertKey} Insertar   {dismissKey} Descartar",
+	"completion.footerHint":
+		"{navigateKey} Seleccionar sugerencia   {insertKey} Insertar   {dismissKey} Descartar",
 	"completion.parameters": "Parámetros:",
 	"completion.snippet": "Fragmento:",
 	"completion.noDetails": "Sin detalles disponibles",
@@ -82,5 +84,6 @@ export const ES_LOCALE_CLI: Record<string, string> = {
 	"lab.title": "Laboratorio de Componentes Macro CLI",
 	"lab.components": "Componentes",
 	"lab.preview": "Vista previa",
-	"lab.shortcuts": "↑↓ componente  ←→ estado  s tamaño  b límites  r recargar  Esc salir",
+	"lab.shortcuts":
+		"↑↓ componente  ←→ estado  s tamaño  b límites  r recargar  Esc salir",
 };

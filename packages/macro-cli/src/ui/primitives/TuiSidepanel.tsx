@@ -56,19 +56,21 @@ export function TuiSidepanel({
 			{/* Panel Header — accent color when focused, normal when just active */}
 			<box height={1} flexDirection="row" marginBottom={1}>
 				<text fg={titleColor} attributes={TextAttributes.BOLD}>
-					{isFocused ? "▌ " : "  "}{title}
+					{isFocused ? "▌ " : "  "}
+					{title}
 				</text>
 				<box flexGrow={1} />
-				<text fg={isFocused ? c.fgSecondary : c.fgMuted} attributes={TextAttributes.DIM}>
+				<text
+					fg={isFocused ? c.fgSecondary : c.fgMuted}
+					attributes={TextAttributes.DIM}
+				>
 					{closeHint}
 				</text>
 			</box>
 
 			{/* Divider — bright when focused, subtle when active but unfocused */}
 			<box height={1} marginBottom={1}>
-				<text fg={dividerColor}>
-					{"─".repeat(Math.max(4, width - 4))}
-				</text>
+				<text fg={dividerColor}>{"─".repeat(Math.max(4, width - 4))}</text>
 			</box>
 
 			{/* Custom Child Content or Rendered Cards */}
@@ -105,7 +107,10 @@ export function TuiSidepanel({
 									{card.badge && (
 										<>
 											<box flexGrow={1} />
-											<text fg={c.accentSecondary} attributes={TextAttributes.DIM}>
+											<text
+												fg={c.accentSecondary}
+												attributes={TextAttributes.DIM}
+											>
 												{card.badge}
 											</text>
 										</>

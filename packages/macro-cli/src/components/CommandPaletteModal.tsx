@@ -1,5 +1,8 @@
 import type { MacroWorkspace } from "@stateful-mcp/macro";
-import { TuiCommandPalette, type TuiPaletteCommand } from "../ui/primitives/TuiCommandPalette";
+import {
+	TuiCommandPalette,
+	type TuiPaletteCommand,
+} from "../ui/primitives/TuiCommandPalette";
 import type { TuiThemeDefinition } from "../ui/theme";
 
 export function CommandPaletteModal({
@@ -11,12 +14,14 @@ export function CommandPaletteModal({
 	width?: number;
 	theme?: TuiThemeDefinition;
 }) {
-	const items: readonly TuiPaletteCommand[] = workspace.palette.getItems().map((item) => ({
-		id: item.id,
-		title: item.title,
-		category: item.category,
-		shortcut: item.keybinding,
-	}));
+	const items: readonly TuiPaletteCommand[] = workspace.palette
+		.getItems()
+		.map((item) => ({
+			id: item.id,
+			title: item.title,
+			category: item.category,
+			shortcut: item.keybinding,
+		}));
 	const selected = workspace.palette.getSelectedIndex();
 	const query = workspace.palette.getQuery();
 

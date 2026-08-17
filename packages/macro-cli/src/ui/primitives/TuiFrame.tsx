@@ -48,7 +48,8 @@ export function TuiFrame({
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const resolvedBorderColor = showBounds
 		? "magenta"
-		: borderColor ?? (borderStyle === "rounded" ? c.accentPrimary : c.borderDefault);
+		: (borderColor ??
+			(borderStyle === "rounded" ? c.accentPrimary : c.borderDefault));
 
 	return (
 		<box
@@ -62,12 +63,7 @@ export function TuiFrame({
 			borderColor={resolvedBorderColor}
 		>
 			{(title || meta) && (
-				<box
-					height={1}
-					flexDirection="row"
-					paddingLeft={1}
-					paddingRight={1}
-				>
+				<box height={1} flexDirection="row" paddingLeft={1} paddingRight={1}>
 					{title && (
 						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 							{title}

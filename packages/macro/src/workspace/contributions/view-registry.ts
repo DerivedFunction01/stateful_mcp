@@ -98,8 +98,12 @@ export class ViewRegistry {
 		);
 	}
 
-	getContainersForRegion(region: WorkspaceRegionId): readonly RegisteredViewContainer[] {
-		return this.getContainers().filter((container) => (container.region ?? "activity") === region);
+	getContainersForRegion(
+		region: WorkspaceRegionId,
+	): readonly RegisteredViewContainer[] {
+		return this.getContainers().filter(
+			(container) => (container.region ?? "activity") === region,
+		);
 	}
 
 	getContainer(containerId: string): RegisteredViewContainer | undefined {
@@ -150,13 +154,23 @@ export class ViewRegistry {
 			.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
 	}
 
-	getViewsForRegion(region: WorkspaceRegionId, context?: WorkspaceContext): readonly RegisteredView[] {
+	getViewsForRegion(
+		region: WorkspaceRegionId,
+		context?: WorkspaceContext,
+	): readonly RegisteredView[] {
 		return this.getAllViews()
 			.filter((view) => {
 				const container = this.getContainer(view.containerId);
-				return (view.region ?? container?.region ?? "activity") === region && (!view.when || matchesContext(view.when, context));
+				return (
+					(view.region ?? container?.region ?? "activity") === region &&
+					(!view.when || matchesContext(view.when, context))
+				);
 			})
-			.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || (a.order ?? 100) - (b.order ?? 100));
+			.sort(
+				(a, b) =>
+					(b.priority ?? 0) - (a.priority ?? 0) ||
+					(a.order ?? 100) - (b.order ?? 100),
+			);
 	}
 
 	getView(viewId: string): RegisteredView | undefined {
@@ -183,12 +197,17 @@ export class ViewRegistry {
 	}
 }
 
-function matchesContext(expression: import("./types").ContextExpression, context?: WorkspaceContext): boolean {
+function matchesContext(
+	expression: import("./types").ContextExpression,
+	context?: WorkspaceContext,
+): boolean {
 	if (!context) return true;
 	if ("key" in expression) {
 		return String(context[expression.key]) === String(expression.equals);
 	}
-	if ("allOf" in expression) return expression.allOf.every((item) => matchesContext(item, context));
-	if ("anyOf" in expression) return expression.anyOf.some((item) => matchesContext(item, context));
+	if ("allOf" in expression)
+		return expression.allOf.every((item) => matchesContext(item, context));
+	if ("anyOf" in expression)
+		return expression.anyOf.some((item) => matchesContext(item, context));
 	return !matchesContext(expression.not, context);
 }

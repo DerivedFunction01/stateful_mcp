@@ -27,11 +27,26 @@ export interface TuiColorPickerProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Render a compact 40-stop hue spectrum bar using block characters */
-function renderHueBar(huePos: number, barWidth: number): { segments: Array<{ char: string; fg: string }> } {
+function renderHueBar(
+	huePos: number,
+	barWidth: number,
+): { segments: Array<{ char: string; fg: string }> } {
 	const stops = [
-		"#ff0000", "#ff4000", "#ff8000", "#ffbf00", "#ffff00",
-		"#80ff00", "#00ff00", "#00ff80", "#00ffff", "#0080ff",
-		"#0000ff", "#8000ff", "#ff00ff", "#ff0080", "#ff0040",
+		"#ff0000",
+		"#ff4000",
+		"#ff8000",
+		"#ffbf00",
+		"#ffff00",
+		"#80ff00",
+		"#00ff00",
+		"#00ff80",
+		"#00ffff",
+		"#0080ff",
+		"#0000ff",
+		"#8000ff",
+		"#ff00ff",
+		"#ff0080",
+		"#ff0040",
 	];
 	const segments: Array<{ char: string; fg: string }> = [];
 	for (let i = 0; i < barWidth; i++) {
@@ -44,7 +59,10 @@ function renderHueBar(huePos: number, barWidth: number): { segments: Array<{ cha
 }
 
 /** Render a saturation/lightness swatch preview row */
-function renderSwatchRow(baseColor: string, count: number): Array<{ char: string; fg: string }> {
+function renderSwatchRow(
+	baseColor: string,
+	count: number,
+): Array<{ char: string; fg: string }> {
 	// We can't do real HSL blending without math libs, so we simulate
 	// by showing the color at varying densities using block chars
 	const blocks = ["░", "▒", "▓", "█", "▓", "▒", "░"];
@@ -105,13 +123,20 @@ export function TuiColorPicker({
 			{/* Live color swatch preview block */}
 			<text fg={value}>{"██"}</text>
 			<text fg={c.fgMuted}> </text>
-			<text fg={isFocused ? c.fgPrimary : c.fgSecondary} attributes={isFocused ? TextAttributes.BOLD : 0}>
+			<text
+				fg={isFocused ? c.fgPrimary : c.fgSecondary}
+				attributes={isFocused ? TextAttributes.BOLD : 0}
+			>
 				{hexDisplay}
 			</text>
 			<text fg={c.fgMuted}> </text>
 			{/* Paste shortcut hint */}
-			<text fg={c.fgDim} attributes={TextAttributes.DIM}>[⌘V] </text>
-			<text fg={isFocused || isOpen ? c.accentPrimary : c.fgMuted}>{isOpen ? "▲" : "▼"}</text>
+			<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+				[⌘V]{" "}
+			</text>
+			<text fg={isFocused || isOpen ? c.accentPrimary : c.fgMuted}>
+				{isOpen ? "▲" : "▼"}
+			</text>
 		</box>
 	);
 
@@ -120,7 +145,10 @@ export function TuiColorPicker({
 			<box flexDirection="column" width={width}>
 				{label && (
 					<box height={1}>
-						<text fg={isFocused ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>
+						<text
+							fg={isFocused ? c.accentPrimary : c.fgSecondary}
+							attributes={TextAttributes.BOLD}
+						>
 							{label}
 						</text>
 					</box>
@@ -145,7 +173,9 @@ export function TuiColorPicker({
 		<box flexDirection="column" width={width}>
 			{label && (
 				<box height={1}>
-					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>{label}</text>
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+						{label}
+					</text>
 				</box>
 			)}
 			{trigger}
@@ -164,30 +194,54 @@ export function TuiColorPicker({
 			>
 				{/* Hue Title */}
 				<box height={1} marginTop={0}>
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>Hue  </text>
-					<text fg={hueColor} attributes={TextAttributes.BOLD}>{hue}°</text>
-					<text fg={c.fgDim} attributes={TextAttributes.DIM}>  ← → to adjust</text>
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						Hue{" "}
+					</text>
+					<text fg={hueColor} attributes={TextAttributes.BOLD}>
+						{hue}°
+					</text>
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						{" "}
+						← → to adjust
+					</text>
 				</box>
 
 				{/* Hue Spectrum Bar */}
 				<box height={1}>
 					{hueBar.segments.map((seg, i) => (
-						<text key={i} fg={seg.fg}>{seg.char}</text>
+						<text key={i} fg={seg.fg}>
+							{seg.char}
+						</text>
 					))}
 				</box>
 
 				{/* Saturation track */}
 				<box height={1} marginTop={0}>
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>Sat  </text>
-					<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>{saturation}%</text>
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						Sat{" "}
+					</text>
+					<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
+						{saturation}%
+					</text>
 				</box>
 				<box height={1}>
 					{Array.from({ length: barWidth }, (_, i) => {
 						const isCursor = i === satPos;
 						const density = i / barWidth;
-						const char = density < 0.25 ? "░" : density < 0.5 ? "▒" : density < 0.75 ? "▓" : "█";
+						const char =
+							density < 0.25
+								? "░"
+								: density < 0.5
+									? "▒"
+									: density < 0.75
+										? "▓"
+										: "█";
 						return (
-							<text key={i} fg={isCursor ? c.fgPrimary : hueColor} attributes={isCursor ? TextAttributes.BOLD : 0}>
+							<text
+								key={i}
+								fg={isCursor ? c.fgPrimary : hueColor}
+								attributes={isCursor ? TextAttributes.BOLD : 0}
+							>
 								{isCursor ? "▼" : char}
 							</text>
 						);
@@ -196,8 +250,12 @@ export function TuiColorPicker({
 
 				{/* Lightness track */}
 				<box height={1} marginTop={0}>
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>Lit  </text>
-					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>{lightness}%</text>
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						Lit{" "}
+					</text>
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+						{lightness}%
+					</text>
 				</box>
 				<box height={1}>
 					{Array.from({ length: barWidth }, (_, i) => {
@@ -205,7 +263,11 @@ export function TuiColorPicker({
 						const density = i / barWidth;
 						const char = density < 0.33 ? "░" : density < 0.66 ? "▒" : "█";
 						return (
-							<text key={i} fg={isCursor ? c.fgPrimary : hueColor} attributes={isCursor ? TextAttributes.BOLD : 0}>
+							<text
+								key={i}
+								fg={isCursor ? c.fgPrimary : hueColor}
+								attributes={isCursor ? TextAttributes.BOLD : 0}
+							>
 								{isCursor ? "▼" : char}
 							</text>
 						);
@@ -214,29 +276,41 @@ export function TuiColorPicker({
 
 				{/* Swatch Preview Row */}
 				<box height={1} marginTop={0}>
-					<text fg={c.fgDim} attributes={TextAttributes.DIM}>Gradient preview: </text>
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						Gradient preview:{" "}
+					</text>
 				</box>
 				<box height={1}>
 					{swatchRow.map((s, i) => (
-						<text key={i} fg={s.fg}>{s.char}</text>
+						<text key={i} fg={s.fg}>
+							{s.char}
+						</text>
 					))}
 				</box>
 
 				{/* Hex & Preset Swatches */}
 				<box height={1} marginTop={0} flexDirection="row">
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>Hex: </text>
-					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>{value.toUpperCase()}</text>
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						Hex:{" "}
+					</text>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{value.toUpperCase()}
+					</text>
 					<text fg={c.fgDim}> · </text>
 					{/* Quick preset color swatches */}
-					{["#ff0000", "#00ff80", "#38bdf8", "#ffd866", "#c084fc"].map((preset) => (
-						<text key={preset} fg={preset}>{"█"}</text>
-					))}
+					{["#ff0000", "#00ff80", "#38bdf8", "#ffd866", "#c084fc"].map(
+						(preset) => (
+							<text key={preset} fg={preset}>
+								{"█"}
+							</text>
+						),
+					)}
 				</box>
 
 				{/* Footer help */}
 				<box height={1}>
 					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						↑↓ Hue  ←→ Sat/Lit  Tab Switch  Enter Apply  Esc Dismiss
+						↑↓ Hue ←→ Sat/Lit Tab Switch Enter Apply Esc Dismiss
 					</text>
 				</box>
 			</box>

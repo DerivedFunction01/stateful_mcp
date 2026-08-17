@@ -29,7 +29,7 @@ export function TuiToggle({
 	// Visual switch glyphs
 	let switchVisual: string;
 	let switchFg = disabled ? c.fgDim : checked ? c.statusSuccess : c.fgDim;
-	let switchBg: string | undefined = undefined;
+	let switchBg: string | undefined;
 
 	if (variant === "pill") {
 		switchVisual = checked ? "( ──● )" : "( ●── )";
@@ -51,11 +51,20 @@ export function TuiToggle({
 
 	return (
 		<box flexDirection="column">
-			<box flexDirection="row" height={1} backgroundColor={isFocused ? c.bgActive : undefined}>
+			<box
+				flexDirection="row"
+				height={1}
+				backgroundColor={isFocused ? c.bgActive : undefined}
+			>
 				<text fg={focusFg} attributes={TextAttributes.BOLD}>
 					{focusPillar}
 				</text>
-				<box backgroundColor={switchBg} paddingLeft={1} paddingRight={1} marginRight={1}>
+				<box
+					backgroundColor={switchBg}
+					paddingLeft={1}
+					paddingRight={1}
+					marginRight={1}
+				>
 					<text fg={switchFg} attributes={TextAttributes.BOLD}>
 						{switchVisual}
 					</text>
@@ -107,12 +116,20 @@ export function TuiCheckbox({
 				: c.fgMuted;
 
 	return (
-		<box flexDirection="row" height={1} backgroundColor={isFocused ? c.bgActive : undefined}>
-			<text fg={isFocused ? c.accentPrimary : "transparent"} attributes={TextAttributes.BOLD}>
+		<box
+			flexDirection="row"
+			height={1}
+			backgroundColor={isFocused ? c.bgActive : undefined}
+		>
+			<text
+				fg={isFocused ? c.accentPrimary : "transparent"}
+				attributes={TextAttributes.BOLD}
+			>
 				{isFocused ? "▎" : " "}
 			</text>
 			<text fg={glyphFg} attributes={checked ? TextAttributes.BOLD : 0}>
-				{" "}{glyph}{" "}
+				{" "}
+				{glyph}{" "}
 			</text>
 			<text
 				fg={disabled ? c.fgDim : isFocused ? c.fgPrimary : c.fgSecondary}
@@ -223,21 +240,31 @@ export function TuiRadioGroup({
 						height={1}
 						backgroundColor={isFocused ? c.bgActive : undefined}
 					>
-						<text fg={isFocused ? c.accentPrimary : "transparent"} attributes={TextAttributes.BOLD}>
+						<text
+							fg={isFocused ? c.accentPrimary : "transparent"}
+							attributes={TextAttributes.BOLD}
+						>
 							{isFocused ? "▎" : " "}
 						</text>
-						<text fg={glyphFg} attributes={isSelected ? TextAttributes.BOLD : 0}>
-							{" "}{glyph}{" "}
+						<text
+							fg={glyphFg}
+							attributes={isSelected ? TextAttributes.BOLD : 0}
+						>
+							{" "}
+							{glyph}{" "}
 						</text>
 						<text
-							fg={opt.disabled ? c.fgDim : isFocused ? c.fgPrimary : c.fgSecondary}
+							fg={
+								opt.disabled ? c.fgDim : isFocused ? c.fgPrimary : c.fgSecondary
+							}
 							attributes={isFocused ? TextAttributes.BOLD : 0}
 						>
 							{opt.label}
 						</text>
 						{opt.meta && (
 							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-								{" "}{opt.meta}
+								{" "}
+								{opt.meta}
 							</text>
 						)}
 					</box>

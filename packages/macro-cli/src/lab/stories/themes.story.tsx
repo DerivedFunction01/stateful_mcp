@@ -1,21 +1,21 @@
 import { TextAttributes } from "@opentui/core";
-import type { TuiStory } from "../story-contract";
-import {
-	GlobalThemeRegistry,
-	type TuiThemeDefinition,
-} from "../../ui/theme";
-import { TuiTabs, type TuiTabItem } from "../../ui/primitives/TuiTabs";
-import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
-import { TuiHelpBar } from "../../ui/primitives/TuiHelpBar";
-import { TuiCommandPalette } from "../../ui/primitives/TuiCommandPalette";
-import { TuiTable, type TuiTableColumn } from "../../ui/primitives/TuiTable";
-import { TuiInput } from "../../ui/primitives/TuiInput";
-import { TuiDropdown } from "../../ui/primitives/TuiDropdown";
-import { TuiToggle } from "../../ui/primitives/TuiToggle";
-import { TuiSlider } from "../../ui/primitives/TuiSlider";
 import { TuiColorPicker } from "../../ui/primitives/TuiColorPicker";
+import { TuiCommandPalette } from "../../ui/primitives/TuiCommandPalette";
+import {
+	type TuiCompletionCandidate,
+	TuiCompletionPopup,
+} from "../../ui/primitives/TuiCompletionPopup";
 import { TuiDatePicker } from "../../ui/primitives/TuiDatePicker";
-import { TuiCompletionPopup, type TuiCompletionCandidate } from "../../ui/primitives/TuiCompletionPopup";
+import { TuiDropdown } from "../../ui/primitives/TuiDropdown";
+import { TuiHelpBar } from "../../ui/primitives/TuiHelpBar";
+import { TuiInput } from "../../ui/primitives/TuiInput";
+import { TuiSlider } from "../../ui/primitives/TuiSlider";
+import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
+import { TuiTable, type TuiTableColumn } from "../../ui/primitives/TuiTable";
+import { type TuiTabItem, TuiTabs } from "../../ui/primitives/TuiTabs";
+import { TuiToggle } from "../../ui/primitives/TuiToggle";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../../ui/theme";
+import type { TuiStory } from "../story-contract";
 
 const DEMO_TABS: readonly TuiTabItem[] = [
 	{ id: "scratchpad", label: "Scratchpad" },
@@ -40,9 +40,27 @@ const DEMO_TABLE_COLUMNS: readonly TuiTableColumn<ThemeTableDemoRow>[] = [
 ];
 
 const DEMO_TABLE_DATA: readonly ThemeTableDemoRow[] = [
-	{ id: "01", service: "api-gateway", env: "prod", status: "HEALTHY", cost: "$120.00" },
-	{ id: "02", service: "auth-service", env: "staging", status: "ACTIVE", cost: "$45.50" },
-	{ id: "03", service: "worker-pool", env: "prod", status: "IDLE", cost: "$210.00" },
+	{
+		id: "01",
+		service: "api-gateway",
+		env: "prod",
+		status: "HEALTHY",
+		cost: "$120.00",
+	},
+	{
+		id: "02",
+		service: "auth-service",
+		env: "staging",
+		status: "ACTIVE",
+		cost: "$45.50",
+	},
+	{
+		id: "03",
+		service: "worker-pool",
+		env: "prod",
+		status: "IDLE",
+		cost: "$210.00",
+	},
 ];
 
 const REGION_OPTIONS = [
@@ -104,7 +122,12 @@ export const themesStory: TuiStory = {
 		const c = theme.colors;
 
 		return (
-			<box flexDirection="column" width={width} backgroundColor={c.bgCanvas} padding={1}>
+			<box
+				flexDirection="column"
+				width={width}
+				backgroundColor={c.bgCanvas}
+				padding={1}
+			>
 				{/* Header: Theme Meta */}
 				<box height={1} marginBottom={1} flexDirection="row">
 					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
@@ -117,22 +140,52 @@ export const themesStory: TuiStory = {
 
 				{/* 1. Theme Color Swatches Bar */}
 				<box height={1} marginBottom={1} flexDirection="row">
-					<box backgroundColor={c.bgCanvas} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<box
+						backgroundColor={c.bgCanvas}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={1}
+					>
 						<text fg={c.fgPrimary}>canvas</text>
 					</box>
-					<box backgroundColor={c.bgSurface} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<box
+						backgroundColor={c.bgSurface}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={1}
+					>
 						<text fg={c.fgPrimary}>surface</text>
 					</box>
-					<box backgroundColor={c.bgElevated} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<box
+						backgroundColor={c.bgElevated}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={1}
+					>
 						<text fg={c.fgPrimary}>elevated</text>
 					</box>
-					<box backgroundColor={c.bgActive} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<box
+						backgroundColor={c.bgActive}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={1}
+					>
 						<text fg={c.fgPrimary}>active</text>
 					</box>
-					<box backgroundColor={c.accentPrimary} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<box
+						backgroundColor={c.accentPrimary}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={1}
+					>
 						<text fg={c.fgInverse}>accent</text>
 					</box>
-					<box backgroundColor={c.statusSuccess} paddingLeft={1} paddingRight={1} marginRight={1}>
+					<box
+						backgroundColor={c.statusSuccess}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={1}
+					>
 						<text fg={c.fgInverse}>success</text>
 					</box>
 					<box backgroundColor={c.statusError} paddingLeft={1} paddingRight={1}>
@@ -142,7 +195,12 @@ export const themesStory: TuiStory = {
 
 				{/* 2. Tab Bar with Elevated Shelf */}
 				<box backgroundColor={c.bgSurface} height={1}>
-					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" variant="opencode" theme={theme} />
+					<TuiTabs
+						tabs={DEMO_TABS}
+						activeTabId="scratchpad"
+						variant="opencode"
+						theme={theme}
+					/>
 				</box>
 				<box height={1} marginBottom={1}>
 					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
@@ -189,10 +247,21 @@ export const themesStory: TuiStory = {
 
 				<box flexDirection="row" marginBottom={1}>
 					<box flexDirection="column" marginRight={3}>
-						<TuiToggle label="Auto-deploy" checked={true} isFocused={true} theme={theme} />
+						<TuiToggle
+							label="Auto-deploy"
+							checked={true}
+							isFocused={true}
+							theme={theme}
+						/>
 					</box>
 					<box flexDirection="column" width={32}>
-						<TuiSlider label="CPU Limit" value={75} unit="%" isFocused={true} theme={theme} />
+						<TuiSlider
+							label="CPU Limit"
+							value={75}
+							unit="%"
+							isFocused={true}
+							theme={theme}
+						/>
 					</box>
 				</box>
 
@@ -222,8 +291,18 @@ export const themesStory: TuiStory = {
 					<TuiCommandPalette
 						variant="opencode-bordered"
 						items={[
-							{ id: "1", title: "Switch session", category: "Suggested", shortcut: "ctrl+x l" },
-							{ id: "2", title: "Switch theme", category: "System", shortcut: "ctrl+x t" },
+							{
+								id: "1",
+								title: "Switch session",
+								category: "Suggested",
+								shortcut: "ctrl+x l",
+							},
+							{
+								id: "2",
+								title: "Switch theme",
+								category: "System",
+								shortcut: "ctrl+x t",
+							},
 						]}
 						selectedIndex={0}
 						width={Math.min(68, width - 4)}

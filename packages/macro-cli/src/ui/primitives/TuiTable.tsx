@@ -14,7 +14,11 @@ export interface TuiTableColumn<T = Record<string, unknown>> {
 	readonly header: string;
 	readonly width?: number;
 	readonly align?: "left" | "right" | "center";
-	readonly render?: (item: T, isSelected: boolean, isCellSelected: boolean) => ReactNode;
+	readonly render?: (
+		item: T,
+		isSelected: boolean,
+		isCellSelected: boolean,
+	) => ReactNode;
 }
 
 export interface TuiTableProps<T = Record<string, unknown>> {
@@ -28,7 +32,11 @@ export interface TuiTableProps<T = Record<string, unknown>> {
 	readonly theme?: TuiThemeDefinition;
 }
 
-function padCell(content: string, width: number, align: "left" | "right" | "center" = "left"): string {
+function padCell(
+	content: string,
+	width: number,
+	align: "left" | "right" | "center" = "left",
+): string {
 	const len = content.length;
 	if (len >= width) return content.slice(0, width);
 	const diff = width - len;
@@ -78,9 +86,12 @@ export function TuiTable<T extends Record<string, unknown>>({
 
 	// ─── 1. OFFICE-GRID THEME (Classic MS Office / Excel Box-Drawing Grid) ─
 	if (variant === "office-grid") {
-		const topBorder = "┌" + resolvedWidths.map((w) => "─".repeat(w + 2)).join("┬") + "┐";
-		const midBorder = "├" + resolvedWidths.map((w) => "─".repeat(w + 2)).join("┼") + "┤";
-		const botBorder = "└" + resolvedWidths.map((w) => "─".repeat(w + 2)).join("┴") + "┘";
+		const topBorder =
+			"┌" + resolvedWidths.map((w) => "─".repeat(w + 2)).join("┬") + "┐";
+		const midBorder =
+			"├" + resolvedWidths.map((w) => "─".repeat(w + 2)).join("┼") + "┤";
+		const botBorder =
+			"└" + resolvedWidths.map((w) => "─".repeat(w + 2)).join("┴") + "┘";
 
 		return (
 			<box flexDirection="column">
@@ -92,7 +103,9 @@ export function TuiTable<T extends Record<string, unknown>>({
 					</box>
 				)}
 				{/* Top Grid Border */}
-				<box height={1}><text fg={c.borderActive}>{topBorder}</text></box>
+				<box height={1}>
+					<text fg={c.borderActive}>{topBorder}</text>
+				</box>
 
 				{/* Header Row (Elevated Background Fill) */}
 				<box flexDirection="row" height={1} backgroundColor={c.bgActive}>
@@ -100,12 +113,22 @@ export function TuiTable<T extends Record<string, unknown>>({
 					{columns.map((col, idx) => {
 						const width = resolvedWidths[idx]!;
 						const headerStr = padCell(col.header, width, col.align);
-						const isColSelected = selectedCell ? selectedCell.col === idx : false;
+						const isColSelected = selectedCell
+							? selectedCell.col === idx
+							: false;
 
 						return (
-							<box key={col.id} flexDirection="row" backgroundColor={isColSelected ? c.bgElevated : undefined}>
-								<text fg={isColSelected ? c.accentAmber : c.accentPrimary} attributes={TextAttributes.BOLD}>
-									{" "}{headerStr}{" "}
+							<box
+								key={col.id}
+								flexDirection="row"
+								backgroundColor={isColSelected ? c.bgElevated : undefined}
+							>
+								<text
+									fg={isColSelected ? c.accentAmber : c.accentPrimary}
+									attributes={TextAttributes.BOLD}
+								>
+									{" "}
+									{headerStr}{" "}
 								</text>
 								<text fg={c.borderActive}>│</text>
 							</box>
@@ -114,7 +137,9 @@ export function TuiTable<T extends Record<string, unknown>>({
 				</box>
 
 				{/* Header / Body Divider */}
-				<box height={1}><text fg={c.borderActive}>{midBorder}</text></box>
+				<box height={1}>
+					<text fg={c.borderActive}>{midBorder}</text>
+				</box>
 
 				{/* Data Rows */}
 				{data.map((row, rIdx) => {
@@ -122,7 +147,12 @@ export function TuiTable<T extends Record<string, unknown>>({
 					const rowBg = isRowSelected ? c.bgElevated : undefined;
 
 					return (
-						<box key={rIdx} flexDirection="row" height={1} backgroundColor={rowBg}>
+						<box
+							key={rIdx}
+							flexDirection="row"
+							height={1}
+							backgroundColor={rowBg}
+						>
 							<text fg={c.borderActive}>│</text>
 							{columns.map((col, cIdx) => {
 								const width = resolvedWidths[cIdx]!;
@@ -133,7 +163,9 @@ export function TuiTable<T extends Record<string, unknown>>({
 									? selectedCell.row === rIdx && selectedCell.col === cIdx
 									: false;
 
-								const cellBg = isCellSelected ? (c.bgSelect ?? c.accentPrimary) : undefined;
+								const cellBg = isCellSelected
+									? (c.bgSelect ?? c.accentPrimary)
+									: undefined;
 								const textFg = isCellSelected
 									? (c.bgSelectText ?? c.fgInverse)
 									: isRowSelected
@@ -141,9 +173,21 @@ export function TuiTable<T extends Record<string, unknown>>({
 										: c.fgMuted;
 
 								return (
-									<box key={col.id} flexDirection="row" backgroundColor={cellBg}>
-										<text fg={textFg} attributes={isCellSelected || isRowSelected ? TextAttributes.BOLD : 0}>
-											{" "}{cellStr}{" "}
+									<box
+										key={col.id}
+										flexDirection="row"
+										backgroundColor={cellBg}
+									>
+										<text
+											fg={textFg}
+											attributes={
+												isCellSelected || isRowSelected
+													? TextAttributes.BOLD
+													: 0
+											}
+										>
+											{" "}
+											{cellStr}{" "}
 										</text>
 										<text fg={c.borderActive}>│</text>
 									</box>
@@ -154,7 +198,9 @@ export function TuiTable<T extends Record<string, unknown>>({
 				})}
 
 				{/* Bottom Grid Border */}
-				<box height={1}><text fg={c.borderActive}>{botBorder}</text></box>
+				<box height={1}>
+					<text fg={c.borderActive}>{botBorder}</text>
+				</box>
 			</box>
 		);
 	}
@@ -171,13 +217,24 @@ export function TuiTable<T extends Record<string, unknown>>({
 					</box>
 				)}
 				{/* Header Row */}
-				<box flexDirection="row" height={1} backgroundColor={c.bgActive} paddingLeft={1} paddingRight={1}>
+				<box
+					flexDirection="row"
+					height={1}
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+				>
 					{columns.map((col, idx) => {
 						const width = resolvedWidths[idx]!;
 						const headerStr = padCell(col.header, width, col.align);
 						return (
-							<text key={col.id} fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-								{headerStr}{"  "}
+							<text
+								key={col.id}
+								fg={c.accentPrimary}
+								attributes={TextAttributes.BOLD}
+							>
+								{headerStr}
+								{"  "}
 							</text>
 						);
 					})}
@@ -187,11 +244,22 @@ export function TuiTable<T extends Record<string, unknown>>({
 				{data.map((row, rIdx) => {
 					const isRowSelected = rIdx === activeRowIdx;
 					const isEven = rIdx % 2 === 0;
-					const rowBg = isRowSelected ? c.bgActive : isEven ? c.bgSurface : c.bgCanvas;
+					const rowBg = isRowSelected
+						? c.bgActive
+						: isEven
+							? c.bgSurface
+							: c.bgCanvas;
 					const pillarColor = isRowSelected ? c.accentPrimary : "transparent";
 
 					return (
-						<box key={rIdx} flexDirection="row" height={1} backgroundColor={rowBg} paddingLeft={0} paddingRight={1}>
+						<box
+							key={rIdx}
+							flexDirection="row"
+							height={1}
+							backgroundColor={rowBg}
+							paddingLeft={0}
+							paddingRight={1}
+						>
 							<text fg={pillarColor} attributes={TextAttributes.BOLD}>
 								{isRowSelected ? "▎" : " "}
 							</text>
@@ -213,7 +281,14 @@ export function TuiTable<T extends Record<string, unknown>>({
 
 								return (
 									<box key={col.id} backgroundColor={cellBg} marginRight={1}>
-										<text fg={textFg} attributes={isCellSelected || isRowSelected ? TextAttributes.BOLD : 0}>
+										<text
+											fg={textFg}
+											attributes={
+												isCellSelected || isRowSelected
+													? TextAttributes.BOLD
+													: 0
+											}
+										>
 											{cellStr}
 										</text>
 									</box>
@@ -237,7 +312,8 @@ export function TuiTable<T extends Record<string, unknown>>({
 						const headerStr = padCell(col.header, width, col.align);
 						return (
 							<text key={col.id} fg={c.fgDim} attributes={TextAttributes.DIM}>
-								{headerStr}{"  "}
+								{headerStr}
+								{"  "}
 							</text>
 						);
 					})}
@@ -263,8 +339,19 @@ export function TuiTable<T extends Record<string, unknown>>({
 										: c.fgPrimary;
 
 								return (
-									<text key={col.id} fg={textFg} attributes={isCellSelected ? TextAttributes.BOLD | TextAttributes.UNDERLINE : isRowSelected ? TextAttributes.BOLD : 0}>
-										{cellStr}{"  "}
+									<text
+										key={col.id}
+										fg={textFg}
+										attributes={
+											isCellSelected
+												? TextAttributes.BOLD | TextAttributes.UNDERLINE
+												: isRowSelected
+													? TextAttributes.BOLD
+													: 0
+										}
+									>
+										{cellStr}
+										{"  "}
 									</text>
 								);
 							})}
@@ -293,8 +380,13 @@ export function TuiTable<T extends Record<string, unknown>>({
 					const width = resolvedWidths[idx]!;
 					const headerStr = padCell(col.header, width, col.align);
 					return (
-						<text key={col.id} fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-							{headerStr}{"  "}
+						<text
+							key={col.id}
+							fg={c.accentPrimary}
+							attributes={TextAttributes.BOLD}
+						>
+							{headerStr}
+							{"  "}
 						</text>
 					);
 				})}
@@ -302,7 +394,9 @@ export function TuiTable<T extends Record<string, unknown>>({
 
 			{/* Crisp Sub-header Rule */}
 			<box height={1}>
-				<text fg={c.borderSubtle}>{"─".repeat(Math.max(20, totalTableWidth))}</text>
+				<text fg={c.borderSubtle}>
+					{"─".repeat(Math.max(20, totalTableWidth))}
+				</text>
 			</box>
 
 			{/* Rows with Left Focus Pillar & Cell Highlighting */}
@@ -313,7 +407,12 @@ export function TuiTable<T extends Record<string, unknown>>({
 				const pillarFg = isRowSelected ? c.accentPrimary : "transparent";
 
 				return (
-					<box key={rIdx} flexDirection="row" height={1} backgroundColor={rowBg}>
+					<box
+						key={rIdx}
+						flexDirection="row"
+						height={1}
+						backgroundColor={rowBg}
+					>
 						<text fg={pillarFg} attributes={TextAttributes.BOLD}>
 							{pillar}
 						</text>
@@ -334,8 +433,18 @@ export function TuiTable<T extends Record<string, unknown>>({
 									: c.fgMuted;
 
 							return (
-								<box key={col.id} backgroundColor={cellBg} paddingLeft={1} paddingRight={1}>
-									<text fg={textFg} attributes={isCellSelected || isRowSelected ? TextAttributes.BOLD : 0}>
+								<box
+									key={col.id}
+									backgroundColor={cellBg}
+									paddingLeft={1}
+									paddingRight={1}
+								>
+									<text
+										fg={textFg}
+										attributes={
+											isCellSelected || isRowSelected ? TextAttributes.BOLD : 0
+										}
+									>
 										{cellStr}
 									</text>
 								</box>

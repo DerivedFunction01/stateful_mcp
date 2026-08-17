@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
-import { TextAttributes, type CliRenderer } from "@opentui/core";
+import { type CliRenderer, TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
+import { useEffect, useState } from "react";
 import { translate } from "../locales";
 import { TuiNamedColors } from "../ui/tokens";
 import { createMockWorkspace } from "./mock-workspace";
-import { globalStoryRegistry, type TuiStoryRegistry } from "./story-registry";
 import type { TerminalSize, TuiStoryContext } from "./story-contract";
+import { globalStoryRegistry, type TuiStoryRegistry } from "./story-registry";
 
 export interface ComponentLabAppProps {
 	readonly renderer: CliRenderer;
@@ -16,7 +16,10 @@ export interface ComponentLabAppProps {
 	readonly onExit?: () => void;
 }
 
-const SIZE_PRESETS: readonly { readonly name: string; readonly size: (w: number, h: number) => TerminalSize }[] = [
+const SIZE_PRESETS: readonly {
+	readonly name: string;
+	readonly size: (w: number, h: number) => TerminalSize;
+}[] = [
 	{ name: "Fill", size: (w, h) => ({ columns: w, rows: h }) },
 	{ name: "80×24", size: () => ({ columns: 80, rows: 24 }) },
 	{ name: "120×35", size: () => ({ columns: 120, rows: 35 }) },
@@ -34,7 +37,10 @@ export function ComponentLabApp({
 	const stories = registry.listStories();
 
 	const initialIndex = initialStoryId
-		? Math.max(0, stories.findIndex((s) => s.id === initialStoryId))
+		? Math.max(
+				0,
+				stories.findIndex((s) => s.id === initialStoryId),
+			)
 		: 0;
 
 	const [storyIndex, setStoryIndex] = useState(initialIndex);
@@ -61,7 +67,13 @@ export function ComponentLabApp({
 	}, [storyIndex]);
 
 	useEffect(() => {
-		const handleKeypress = (key: { name: string; sequence: string; ctrl: boolean; meta: boolean; shift: boolean }) => {
+		const handleKeypress = (key: {
+			name: string;
+			sequence: string;
+			ctrl: boolean;
+			meta: boolean;
+			shift: boolean;
+		}) => {
 			const name = key.name;
 			const input = key.sequence;
 
@@ -125,20 +137,35 @@ export function ComponentLabApp({
 
 	const renderedStory = currentStory ? currentStory.render(storyContext) : null;
 
-	const navWidth = Math.min(32, Math.max(28, Math.floor(renderer.width * 0.24)));
+	const navWidth = Math.min(
+		32,
+		Math.max(28, Math.floor(renderer.width * 0.24)),
+	);
 	const previewWidth = renderer.width - navWidth - 1;
 	const bodyHeight = Math.max(10, renderer.height - 4);
 
 	return (
 		<box flexDirection="column" width="100%" height="100%">
 			{/* Top Header */}
-			<box height={1} borderStyle="single" borderColor="cyan" paddingLeft={1} paddingRight={1} flexDirection="row">
+			<box
+				height={1}
+				borderStyle="single"
+				borderColor="cyan"
+				paddingLeft={1}
+				paddingRight={1}
+				flexDirection="row"
+			>
 				<text fg="cyan" attributes={TextAttributes.BOLD}>
-					{translate(fixtureWorkspace.workspace.i18n, "lab.title", "Macro CLI Component Lab")}
+					{translate(
+						fixtureWorkspace.workspace.i18n,
+						"lab.title",
+						"Macro CLI Component Lab",
+					)}
 				</text>
 				<box flexGrow={1} />
 				<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
-					[preset: {currentPreset.name} ({effectiveSize.columns}×{effectiveSize.rows})]
+					[preset: {currentPreset.name} ({effectiveSize.columns}×
+					{effectiveSize.rows})]
 				</text>
 			</box>
 
@@ -156,7 +183,12 @@ export function ComponentLabApp({
 				>
 					<box height={1} marginBottom={1}>
 						<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
-							{translate(fixtureWorkspace.workspace.i18n, "lab.components", "Components")} ({stories.length})
+							{translate(
+								fixtureWorkspace.workspace.i18n,
+								"lab.components",
+								"Components",
+							)}{" "}
+							({stories.length})
 						</text>
 					</box>
 					{stories.map((s, idx) => {
@@ -168,9 +200,7 @@ export function ComponentLabApp({
 										&gt; {s.title}
 									</text>
 								) : (
-									<text fg={TuiNamedColors.muted}>
-										  {s.title}
-									</text>
+									<text fg={TuiNamedColors.muted}>{s.title}</text>
 								)}
 							</box>
 						);
@@ -192,11 +222,13 @@ export function ComponentLabApp({
 							{currentStory?.title ?? "Story"}
 						</text>
 						<text fg={TuiNamedColors.amber} attributes={TextAttributes.BOLD}>
-							{" "}[state: {currentState}]
+							{" "}
+							[state: {currentState}]
 						</text>
 						{showBounds && (
 							<text fg="magenta" attributes={TextAttributes.BOLD}>
-								{" "}[bounds: ON]
+								{" "}
+								[bounds: ON]
 							</text>
 						)}
 						<box flexGrow={1} />
@@ -205,32 +237,38 @@ export function ComponentLabApp({
 						</text>
 					</box>
 
-					<box flexGrow={1} key={`${currentStory?.id}-${currentState}-${reloadCount}`}>
+					<box
+						flexGrow={1}
+						key={`${currentStory?.id}-${currentState}-${reloadCount}`}
+					>
 						{renderedStory}
 					</box>
 				</box>
 			</box>
 
 			{/* Bottom Status & Key Legend Bar */}
-			<box height={2} borderStyle="single" borderColor={TuiNamedColors.border} paddingLeft={1} paddingRight={1} flexDirection="column">
+			<box
+				height={2}
+				borderStyle="single"
+				borderColor={TuiNamedColors.border}
+				paddingLeft={1}
+				paddingRight={1}
+				flexDirection="column"
+			>
 				<box height={1} flexDirection="row">
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						Story:{" "}
 					</text>
-					<text fg={TuiNamedColors.primary}>
-						{currentStory?.id}   
-					</text>
+					<text fg={TuiNamedColors.primary}>{currentStory?.id}</text>
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						State:{" "}
 					</text>
-					<text fg={TuiNamedColors.primary}>
-						{currentState}   
-					</text>
+					<text fg={TuiNamedColors.primary}>{currentState}</text>
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						Size:{" "}
 					</text>
 					<text fg={TuiNamedColors.primary}>
-						{effectiveSize.columns}×{effectiveSize.rows}   
+						{effectiveSize.columns}×{effectiveSize.rows}
 					</text>
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						Bounds:{" "}
@@ -240,22 +278,34 @@ export function ComponentLabApp({
 					</text>
 				</box>
 				<box height={1} flexDirection="row">
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ ↑/↓ ]</text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+						[ ↑/↓ ]
+					</text>
 					<text fg={TuiNamedColors.muted}> Component </text>
 					<text fg={TuiNamedColors.border}>│ </text>
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ ←/→ ]</text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+						[ ←/→ ]
+					</text>
 					<text fg={TuiNamedColors.muted}> State </text>
 					<text fg={TuiNamedColors.border}>│ </text>
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ s ]</text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+						[ s ]
+					</text>
 					<text fg={TuiNamedColors.muted}> Size </text>
 					<text fg={TuiNamedColors.border}>│ </text>
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ b ]</text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+						[ b ]
+					</text>
 					<text fg={TuiNamedColors.muted}> Bounds </text>
 					<text fg={TuiNamedColors.border}>│ </text>
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ r ]</text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+						[ r ]
+					</text>
 					<text fg={TuiNamedColors.muted}> Reload </text>
 					<text fg={TuiNamedColors.border}>│ </text>
-					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>[ Esc ]</text>
+					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
+						[ Esc ]
+					</text>
 					<text fg={TuiNamedColors.muted}> Exit</text>
 				</box>
 			</box>

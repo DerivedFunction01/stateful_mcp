@@ -37,8 +37,18 @@ export interface TuiDatePickerProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = [
-	"January", "February", "March", "April", "May", "June",
-	"July", "August", "September", "October", "November", "December",
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December",
 ];
 
 const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -108,8 +118,18 @@ export function TuiDatePicker({
 				paddingLeft={1}
 				paddingRight={1}
 			>
-				<text fg={active ? c.fgPrimary : fg} attributes={active ? TextAttributes.BOLD : 0}>{val}</text>
-				{active && <text fg={c.accentPrimary} attributes={TextAttributes.BOLD}> ↕</text>}
+				<text
+					fg={active ? c.fgPrimary : fg}
+					attributes={active ? TextAttributes.BOLD : 0}
+				>
+					{val}
+				</text>
+				{active && (
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+						{" "}
+						↕
+					</text>
+				)}
 			</box>
 		);
 
@@ -117,7 +137,12 @@ export function TuiDatePicker({
 			<box flexDirection="column" width={width}>
 				{label && (
 					<box height={1}>
-						<text fg={isFocused ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>{label}</text>
+						<text
+							fg={isFocused ? c.accentPrimary : c.fgSecondary}
+							attributes={TextAttributes.BOLD}
+						>
+							{label}
+						</text>
 					</box>
 				)}
 				<box flexDirection="row" height={1}>
@@ -125,7 +150,11 @@ export function TuiDatePicker({
 					<text fg={c.fgDim}> - </text>
 					{renderSegment(String(month).padStart(2, "0"), false, c.fgSecondary)}
 					<text fg={c.fgDim}> - </text>
-					{renderSegment(String(day).padStart(2, "0"), isFocused, c.fgSecondary)}
+					{renderSegment(
+						String(day).padStart(2, "0"),
+						isFocused,
+						c.fgSecondary,
+					)}
 				</box>
 			</box>
 		);
@@ -142,17 +171,26 @@ export function TuiDatePicker({
 			paddingRight={1}
 		>
 			<text fg={c.fgMuted}>📅 </text>
-			<text fg={displayFg} attributes={value ? TextAttributes.BOLD : TextAttributes.DIM}>
+			<text
+				fg={displayFg}
+				attributes={value ? TextAttributes.BOLD : TextAttributes.DIM}
+			>
 				{displayText}
 			</text>
 			{rangeEnd && value && (
 				<>
 					<text fg={c.fgDim}> → </text>
-					<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>{formatDate(rangeEnd)}</text>
+					<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
+						{formatDate(rangeEnd)}
+					</text>
 				</>
 			)}
-			<text fg={c.fgDim} attributes={TextAttributes.DIM}>{"  "}</text>
-			<text fg={isFocused || isOpen ? c.accentPrimary : c.fgMuted}>{isOpen ? "▲" : "▼"}</text>
+			<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+				{"  "}
+			</text>
+			<text fg={isFocused || isOpen ? c.accentPrimary : c.fgMuted}>
+				{isOpen ? "▲" : "▼"}
+			</text>
 		</box>
 	);
 
@@ -161,7 +199,12 @@ export function TuiDatePicker({
 			<box flexDirection="column" width={width}>
 				{label && (
 					<box height={1}>
-						<text fg={isFocused ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>{label}</text>
+						<text
+							fg={isFocused ? c.accentPrimary : c.fgSecondary}
+							attributes={TextAttributes.BOLD}
+						>
+							{label}
+						</text>
 					</box>
 				)}
 				{trigger}
@@ -200,11 +243,16 @@ export function TuiDatePicker({
 		>
 			{/* Month/Year Navigation Header */}
 			<box flexDirection="row" height={1} marginTop={0}>
-				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>◀ </text>
+				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+					◀{" "}
+				</text>
 				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 					{monthName} {year}
 				</text>
-				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}> ▶</text>
+				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+					{" "}
+					▶
+				</text>
 			</box>
 
 			{/* Sub-header rule */}
@@ -217,7 +265,11 @@ export function TuiDatePicker({
 				{DAY_NAMES.map((d, i) => {
 					const isWeekend = i === 0 || i === 6;
 					return (
-						<text key={d} fg={isWeekend ? c.statusWarning : c.fgMuted} attributes={TextAttributes.DIM}>
+						<text
+							key={d}
+							fg={isWeekend ? c.statusWarning : c.fgMuted}
+							attributes={TextAttributes.DIM}
+						>
 							{d + " "}
 						</text>
 					);
@@ -229,33 +281,52 @@ export function TuiDatePicker({
 				<box key={rIdx} flexDirection="row" height={1}>
 					{row.map((day, dIdx) => {
 						if (!day) {
-							return <text key={dIdx} fg="transparent">{"   "}</text>;
+							return (
+								<text key={dIdx} fg="transparent">
+									{"   "}
+								</text>
+							);
 						}
 
 						const thisDate: TuiDatePickerDate = { year, month, day };
 						const isSelected = value ? datesEqual(thisDate, value) : false;
-						const isCursor = cursorDate ? datesEqual(thisDate, cursorDate) : false;
-						const isRangeEnd = rangeEnd ? datesEqual(thisDate, rangeEnd) : false;
+						const isCursor = cursorDate
+							? datesEqual(thisDate, cursorDate)
+							: false;
+						const isRangeEnd = rangeEnd
+							? datesEqual(thisDate, rangeEnd)
+							: false;
 						const isInRange =
 							value && rangeEnd
 								? dateInRange(thisDate, value, rangeEnd)
 								: false;
 						const isWeekend = dIdx === 0 || dIdx === 6;
-						const isToday = day === new Date().getDate() && month === new Date().getMonth() + 1 && year === new Date().getFullYear();
+						const isToday =
+							day === new Date().getDate() &&
+							month === new Date().getMonth() + 1 &&
+							year === new Date().getFullYear();
 
 						const dayStr = String(day).padStart(2, " ");
 
 						if (isSelected || isRangeEnd) {
 							return (
-								<box key={dIdx} backgroundColor={c.accentPrimary} marginRight={1}>
-									<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>{dayStr}</text>
+								<box
+									key={dIdx}
+									backgroundColor={c.accentPrimary}
+									marginRight={1}
+								>
+									<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
+										{dayStr}
+									</text>
 								</box>
 							);
 						}
 						if (isCursor) {
 							return (
 								<box key={dIdx} backgroundColor={c.bgActive} marginRight={1}>
-									<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>{dayStr}</text>
+									<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+										{dayStr}
+									</text>
 								</box>
 							);
 						}
@@ -268,7 +339,11 @@ export function TuiDatePicker({
 						}
 						if (isToday) {
 							return (
-								<text key={dIdx} fg={c.accentAmber} attributes={TextAttributes.BOLD}>
+								<text
+									key={dIdx}
+									fg={c.accentAmber}
+									attributes={TextAttributes.BOLD}
+								>
 									{dayStr}{" "}
 								</text>
 							);
@@ -289,7 +364,7 @@ export function TuiDatePicker({
 			</box>
 			<box height={1}>
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-					hjkl Move  Enter Select  [ ] Months  Esc Close
+					hjkl Move Enter Select [ ] Months Esc Close
 				</text>
 			</box>
 		</box>
@@ -301,7 +376,12 @@ export function TuiDatePicker({
 			<box flexDirection="column" width={width}>
 				{label && (
 					<box height={1}>
-						<text fg={isFocused ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>{label}</text>
+						<text
+							fg={isFocused ? c.accentPrimary : c.fgSecondary}
+							attributes={TextAttributes.BOLD}
+						>
+							{label}
+						</text>
 					</box>
 				)}
 				{renderCalendar()}
@@ -314,7 +394,12 @@ export function TuiDatePicker({
 		<box flexDirection="column" width={width}>
 			{label && (
 				<box height={1}>
-					<text fg={isFocused ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>{label}</text>
+					<text
+						fg={isFocused ? c.accentPrimary : c.fgSecondary}
+						attributes={TextAttributes.BOLD}
+					>
+						{label}
+					</text>
 				</box>
 			)}
 			{trigger}

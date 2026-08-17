@@ -70,7 +70,9 @@ export function TuiDropdown({
 		: placeholder;
 	const triggerFg = selectedOption ? c.fgPrimary : c.fgDim;
 	const innerWidth = Math.max(6, width - 6); // account for border + padding + chevron
-	const truncatedTrigger = triggerText.slice(0, innerWidth).padEnd(innerWidth, " ");
+	const truncatedTrigger = triggerText
+		.slice(0, innerWidth)
+		.padEnd(innerWidth, " ");
 
 	// Chevron state
 	const chevron = isOpen ? "▲" : "▼";
@@ -79,8 +81,17 @@ export function TuiDropdown({
 	// ── UNDERLINE trigger variant ─────────────────────────────────────────────
 	const renderTriggerUnderline = () => (
 		<box flexDirection="column">
-			<box flexDirection="row" backgroundColor={triggerBg} height={1} paddingLeft={1} paddingRight={1}>
-				<text fg={triggerFg} attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}>
+			<box
+				flexDirection="row"
+				backgroundColor={triggerBg}
+				height={1}
+				paddingLeft={1}
+				paddingRight={1}
+			>
+				<text
+					fg={triggerFg}
+					attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}
+				>
 					{truncatedTrigger}
 				</text>
 				<text fg={chevronFg}> {chevron}</text>
@@ -93,8 +104,17 @@ export function TuiDropdown({
 
 	// ── FILLED trigger variant ────────────────────────────────────────────────
 	const renderTriggerFilled = () => (
-		<box flexDirection="row" backgroundColor={isOpen ? c.bgActive : c.bgSurface} height={1} paddingLeft={1} paddingRight={1}>
-			<text fg={triggerFg} attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}>
+		<box
+			flexDirection="row"
+			backgroundColor={isOpen ? c.bgActive : c.bgSurface}
+			height={1}
+			paddingLeft={1}
+			paddingRight={1}
+		>
+			<text
+				fg={triggerFg}
+				attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}
+			>
 				{truncatedTrigger}
 			</text>
 			<text fg={chevronFg}> {chevron}</text>
@@ -111,7 +131,10 @@ export function TuiDropdown({
 			paddingLeft={1}
 			paddingRight={1}
 		>
-			<text fg={triggerFg} attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}>
+			<text
+				fg={triggerFg}
+				attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}
+			>
 				{truncatedTrigger}
 			</text>
 			<text fg={chevronFg}> {chevron}</text>
@@ -142,7 +165,9 @@ export function TuiDropdown({
 				if (opt.divider) {
 					return (
 						<box key={opt.id} height={1}>
-							<text fg={c.borderSubtle}>{"─".repeat(Math.max(4, width - 2))}</text>
+							<text fg={c.borderSubtle}>
+								{"─".repeat(Math.max(4, width - 2))}
+							</text>
 						</box>
 					);
 				}
@@ -161,16 +186,40 @@ export function TuiDropdown({
 				const checkFg = isSelected ? c.accentPrimary : "transparent";
 				const metaFg = c.fgDim;
 				const labelWidth = Math.max(4, width - 8);
-				const labelText = `${opt.icon ? opt.icon + " " : ""}${opt.label}`.slice(0, labelWidth).padEnd(labelWidth);
+				const labelText = `${opt.icon ? opt.icon + " " : ""}${opt.label}`
+					.slice(0, labelWidth)
+					.padEnd(labelWidth);
 
 				return (
-					<box key={opt.id} flexDirection="row" height={1} backgroundColor={optionBg} paddingLeft={0} paddingRight={1}>
-						<text fg={pillarFg} attributes={TextAttributes.BOLD}>{pillar}</text>
+					<box
+						key={opt.id}
+						flexDirection="row"
+						height={1}
+						backgroundColor={optionBg}
+						paddingLeft={0}
+						paddingRight={1}
+					>
+						<text fg={pillarFg} attributes={TextAttributes.BOLD}>
+							{pillar}
+						</text>
 						<text fg={checkFg}>{checkmark} </text>
-						<text fg={optFg} attributes={isHighlighted ? TextAttributes.BOLD : opt.disabled ? TextAttributes.DIM : 0}>
+						<text
+							fg={optFg}
+							attributes={
+								isHighlighted
+									? TextAttributes.BOLD
+									: opt.disabled
+										? TextAttributes.DIM
+										: 0
+							}
+						>
 							{labelText}
 						</text>
-						{opt.meta && <text fg={metaFg} attributes={TextAttributes.DIM}>{opt.meta.slice(0, 6)}</text>}
+						{opt.meta && (
+							<text fg={metaFg} attributes={TextAttributes.DIM}>
+								{opt.meta.slice(0, 6)}
+							</text>
+						)}
 					</box>
 				);
 			})}
@@ -188,7 +237,10 @@ export function TuiDropdown({
 		<box flexDirection="column" width={width}>
 			{label && (
 				<box height={1}>
-					<text fg={isFocused ? c.accentPrimary : c.fgSecondary} attributes={TextAttributes.BOLD}>
+					<text
+						fg={isFocused ? c.accentPrimary : c.fgSecondary}
+						attributes={TextAttributes.BOLD}
+					>
 						{label}
 					</text>
 				</box>

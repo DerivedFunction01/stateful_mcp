@@ -20,37 +20,55 @@ export class ExtensionContributionManager {
 		this.disposeOwner(extension.manifest.id);
 		const manifest = extension.manifest.contributes;
 		const activation = extension.contributions;
-		const owned: OwnedContributions = { containers: [], views: [], tabs: [], commands: [] };
+		const owned: OwnedContributions = {
+			containers: [],
+			views: [],
+			tabs: [],
+			commands: [],
+		};
 		try {
 			for (const container of manifest?.viewsContainers?.activitybar ?? []) {
 				this.views.registerContainer(container, extension.manifest.id);
 				owned.containers.push(container.id);
 			}
-			for (const [containerId, entries] of Object.entries(manifest?.views ?? {})) {
+			for (const [containerId, entries] of Object.entries(
+				manifest?.views ?? {},
+			)) {
 				if (!this.views.getContainer(containerId)) {
-					throw new Error(`View contribution '${containerId}' references an unknown container`);
+					throw new Error(
+						`View contribution '${containerId}' references an unknown container`,
+					);
 				}
 				for (const view of entries) {
-					if (this.views.getView(view.id)) throw new Error(`Duplicate view contribution '${view.id}'`);
+					if (this.views.getView(view.id))
+						throw new Error(`Duplicate view contribution '${view.id}'`);
 					const provider = activation?.views?.[view.id];
-					if (!provider) throw new Error(`View '${view.id}' has no activation provider`);
+					if (!provider)
+						throw new Error(`View '${view.id}' has no activation provider`);
 					this.views.registerView(view, provider, extension.manifest.id);
 					owned.views.push(view.id);
 				}
 			}
 			for (const tab of manifest?.workspaceTabs ?? []) {
-				if (this.tabs.getTab(tab.id)) throw new Error(`Duplicate tab contribution '${tab.id}'`);
+				if (this.tabs.getTab(tab.id))
+					throw new Error(`Duplicate tab contribution '${tab.id}'`);
 				const provider = activation?.tabs?.[tab.id];
-				if (!provider) throw new Error(`Tab '${tab.id}' has no activation provider`);
+				if (!provider)
+					throw new Error(`Tab '${tab.id}' has no activation provider`);
 				this.tabs.registerTab(tab, provider, extension.manifest.id);
 				owned.tabs.push(tab.id);
 			}
 			for (const command of manifest?.commands ?? []) {
 				if (this.commands.getCommand(command.command)) {
-					throw new Error(`Duplicate command contribution '${command.command}'`);
+					throw new Error(
+						`Duplicate command contribution '${command.command}'`,
+					);
 				}
 				const handler = activation?.commands?.[command.command];
-				if (!handler) throw new Error(`Command '${command.command}' has no activation handler`);
+				if (!handler)
+					throw new Error(
+						`Command '${command.command}' has no activation handler`,
+					);
 				this.commands.registerCommand(command, handler, extension.manifest.id);
 				owned.commands.push(command.command);
 			}
@@ -83,8 +101,8 @@ export class ExtensionContributionManager {
 }
 
 interface OwnedContributions {
-		containers: string[];
-		views: string[];
-		tabs: string[];
-		commands: string[];
+	containers: string[];
+	views: string[];
+	tabs: string[];
+	commands: string[];
 }

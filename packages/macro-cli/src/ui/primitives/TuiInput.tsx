@@ -72,7 +72,11 @@ export function TuiInput({
 						? c.borderActive
 						: c.borderDefault;
 
-	const labelFg = disabled ? c.fgDim : intent !== "default" ? intentColor : c.fgSecondary;
+	const labelFg = disabled
+		? c.fgDim
+		: intent !== "default"
+			? intentColor
+			: c.fgSecondary;
 	const hintFg =
 		intent === "error"
 			? c.statusError
@@ -100,7 +104,10 @@ export function TuiInput({
 	const frameChars = variant === "bordered" ? 2 : 0; // left + right border chars
 	const prefixChars = prefix ? prefix.length + 1 : 0;
 	const suffixChars = suffix ? suffix.length + 1 : 0;
-	const innerWidth = Math.max(6, width - frameChars - prefixChars - suffixChars - 2 /* inner padding */);
+	const innerWidth = Math.max(
+		6,
+		width - frameChars - prefixChars - suffixChars - 2 /* inner padding */,
+	);
 
 	// Scroll/truncate: keep cursor visible if cursorPos is set
 	let visibleText: string;
@@ -111,7 +118,13 @@ export function TuiInput({
 	} else {
 		// Scroll window: keep cursorPos centered
 		const cp = cursorPos ?? displayValue.length;
-		const start = Math.max(0, Math.min(cp - Math.floor(innerWidth / 2), displayValue.length - innerWidth));
+		const start = Math.max(
+			0,
+			Math.min(
+				cp - Math.floor(innerWidth / 2),
+				displayValue.length - innerWidth,
+			),
+		);
 		visibleText = displayValue.slice(start, start + innerWidth);
 	}
 	// Pad to exact inner width so the input box is consistently sized
@@ -136,11 +149,7 @@ export function TuiInput({
 				? c.fgDim
 				: c.fgPrimary;
 
-	const fieldBg = disabled
-		? undefined
-		: isFocused
-			? c.bgElevated
-			: c.bgSurface;
+	const fieldBg = disabled ? undefined : isFocused ? c.bgElevated : c.bgSurface;
 
 	// ── UNDERLINE VARIANT ────────────────────────────────────────────────────
 	if (variant === "underline") {
@@ -149,17 +158,34 @@ export function TuiInput({
 			<box flexDirection="column" width={width}>
 				{label && (
 					<box height={1}>
-						<text fg={labelFg} attributes={disabled ? TextAttributes.DIM : TextAttributes.BOLD}>
+						<text
+							fg={labelFg}
+							attributes={disabled ? TextAttributes.DIM : TextAttributes.BOLD}
+						>
 							{intentIcon} {label}
 						</text>
 					</box>
 				)}
-				<box flexDirection="row" backgroundColor={fieldBg} height={1} paddingLeft={1} paddingRight={1}>
+				<box
+					flexDirection="row"
+					backgroundColor={fieldBg}
+					height={1}
+					paddingLeft={1}
+					paddingRight={1}
+				>
 					{prefix && <text fg={intentColor}>{prefix} </text>}
 					{value.length === 0 ? (
-						<text fg={c.fgDim} attributes={TextAttributes.DIM}>{paddedText.slice(0, innerWidth).replace(/./g, " ").trimEnd() || placeholder.slice(0, innerWidth).padEnd(innerWidth)}</text>
+						<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+							{paddedText.slice(0, innerWidth).replace(/./g, " ").trimEnd() ||
+								placeholder.slice(0, innerWidth).padEnd(innerWidth)}
+						</text>
 					) : (
-						<text fg={isFocused ? c.fgPrimary : textFg} attributes={isFocused ? TextAttributes.BOLD : 0}>{renderText}</text>
+						<text
+							fg={isFocused ? c.fgPrimary : textFg}
+							attributes={isFocused ? TextAttributes.BOLD : 0}
+						>
+							{renderText}
+						</text>
 					)}
 					{suffix && <text fg={c.fgMuted}> {suffix}</text>}
 				</box>
@@ -168,7 +194,10 @@ export function TuiInput({
 				</box>
 				{hint && (
 					<box height={1}>
-						<text fg={hintFg} attributes={TextAttributes.DIM}> {hint}</text>
+						<text fg={hintFg} attributes={TextAttributes.DIM}>
+							{" "}
+							{hint}
+						</text>
 					</box>
 				)}
 			</box>
@@ -195,15 +224,25 @@ export function TuiInput({
 				>
 					{prefix && <text fg={intentColor}>{prefix} </text>}
 					{value.length === 0 ? (
-						<text fg={c.fgDim} attributes={TextAttributes.DIM}>{placeholder.slice(0, innerWidth).padEnd(innerWidth)}</text>
+						<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+							{placeholder.slice(0, innerWidth).padEnd(innerWidth)}
+						</text>
 					) : (
-						<text fg={isFocused ? c.fgPrimary : textFg} attributes={isFocused ? TextAttributes.BOLD : 0}>{renderText}</text>
+						<text
+							fg={isFocused ? c.fgPrimary : textFg}
+							attributes={isFocused ? TextAttributes.BOLD : 0}
+						>
+							{renderText}
+						</text>
 					)}
 					{suffix && <text fg={c.fgMuted}> {suffix}</text>}
 				</box>
 				{hint && (
 					<box height={1}>
-						<text fg={hintFg} attributes={TextAttributes.DIM}> {hint}</text>
+						<text fg={hintFg} attributes={TextAttributes.DIM}>
+							{" "}
+							{hint}
+						</text>
 					</box>
 				)}
 			</box>
@@ -222,16 +261,25 @@ export function TuiInput({
 				<box flexDirection="row" height={1} paddingLeft={1}>
 					{prefix && <text fg={intentColor}>{prefix} </text>}
 					{value.length === 0 ? (
-						<text fg={c.fgDim} attributes={TextAttributes.DIM}>{placeholder.slice(0, innerWidth)}</text>
+						<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+							{placeholder.slice(0, innerWidth)}
+						</text>
 					) : (
 						<text fg={textFg}>{renderText}</text>
 					)}
-					{isFocused && <text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>█</text>}
+					{isFocused && (
+						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+							█
+						</text>
+					)}
 					{suffix && <text fg={c.fgMuted}> {suffix}</text>}
 				</box>
 				{hint && (
 					<box height={1}>
-						<text fg={hintFg} attributes={TextAttributes.DIM}> {hint}</text>
+						<text fg={hintFg} attributes={TextAttributes.DIM}>
+							{" "}
+							{hint}
+						</text>
 					</box>
 				)}
 			</box>
@@ -256,17 +304,29 @@ export function TuiInput({
 				paddingLeft={1}
 				paddingRight={1}
 			>
-				{prefix && <text fg={isFocused ? c.accentPrimary : c.fgMuted}>{prefix} </text>}
+				{prefix && (
+					<text fg={isFocused ? c.accentPrimary : c.fgMuted}>{prefix} </text>
+				)}
 				{value.length === 0 ? (
-					<text fg={c.fgDim} attributes={TextAttributes.DIM}>{placeholder.slice(0, innerWidth).padEnd(innerWidth)}</text>
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						{placeholder.slice(0, innerWidth).padEnd(innerWidth)}
+					</text>
 				) : (
-					<text fg={isFocused ? c.fgPrimary : textFg} attributes={isFocused ? TextAttributes.BOLD : 0}>{renderText}</text>
+					<text
+						fg={isFocused ? c.fgPrimary : textFg}
+						attributes={isFocused ? TextAttributes.BOLD : 0}
+					>
+						{renderText}
+					</text>
 				)}
 				{suffix && <text fg={c.fgMuted}> {suffix}</text>}
 			</box>
 			{hint && (
 				<box height={1}>
-					<text fg={hintFg} attributes={TextAttributes.DIM}> {hint}</text>
+					<text fg={hintFg} attributes={TextAttributes.DIM}>
+						{" "}
+						{hint}
+					</text>
 				</box>
 			)}
 		</box>

@@ -48,13 +48,24 @@ export function TuiCommandPalette({
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const title = translate(i18n, "palette.title", "Commands");
 	const dismissHint = translate(i18n, "palette.dismissHint", "esc");
-	const effectivePlaceholder = placeholder ?? translate(i18n, "palette.placeholder", "Search");
-	const effectiveEmptyMessage = emptyMessage ?? translate(i18n, "palette.noMatchingCommands", "No matching commands found.");
+	const effectivePlaceholder =
+		placeholder ?? translate(i18n, "palette.placeholder", "Search");
+	const effectiveEmptyMessage =
+		emptyMessage ??
+		translate(
+			i18n,
+			"palette.noMatchingCommands",
+			"No matching commands found.",
+		);
 
 	// Group items by category
 	const categories = Array.from(
 		new Set(
-			items.map((item) => item.category ?? translate(i18n, "palette.category.general", "Commands")),
+			items.map(
+				(item) =>
+					item.category ??
+					translate(i18n, "palette.category.general", "Commands"),
+			),
 		),
 	);
 
@@ -68,7 +79,8 @@ export function TuiCommandPalette({
 	for (const cat of categories) {
 		const catItems = items.filter(
 			(item) =>
-				(item.category ?? translate(i18n, "palette.category.general", "Commands")) === cat,
+				(item.category ??
+					translate(i18n, "palette.category.general", "Commands")) === cat,
 		);
 		if (categories.length > 0) {
 			renderedRows.push({ type: "header", category: cat });
@@ -88,9 +100,14 @@ export function TuiCommandPalette({
 		maxVisible + (categories.length > 1 ? categories.length : 0),
 	);
 
-	const isBordered = variant === "opencode" || variant === "opencode-bordered" || variant === "vscode-quickpick";
-	const activeSelectionBg = variant === "vscode-quickpick" ? c.borderActive : c.bgSelect;
-	const activeSelectionFg = variant === "vscode-quickpick" ? c.fgInverse : c.bgSelectText;
+	const isBordered =
+		variant === "opencode" ||
+		variant === "opencode-bordered" ||
+		variant === "vscode-quickpick";
+	const activeSelectionBg =
+		variant === "vscode-quickpick" ? c.borderActive : c.bgSelect;
+	const activeSelectionFg =
+		variant === "vscode-quickpick" ? c.fgInverse : c.bgSelectText;
 
 	return (
 		<box
@@ -126,7 +143,12 @@ export function TuiCommandPalette({
 					</box>
 				) : (
 					<box flexDirection="row">
-						<TuiCursor char={effectivePlaceholder.slice(0, 1)} blink={blinkCursor} isPlaceholder={true} theme={theme} />
+						<TuiCursor
+							char={effectivePlaceholder.slice(0, 1)}
+							blink={blinkCursor}
+							isPlaceholder={true}
+							theme={theme}
+						/>
 						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 							{effectivePlaceholder.slice(1)}
 						</text>
@@ -189,7 +211,9 @@ export function TuiCommandPalette({
 							{item.shortcut && (
 								<text
 									fg={isSelected ? activeSelectionFg : c.fgMuted}
-									attributes={isSelected ? TextAttributes.BOLD : TextAttributes.DIM}
+									attributes={
+										isSelected ? TextAttributes.BOLD : TextAttributes.DIM
+									}
 								>
 									{item.shortcut}
 								</text>

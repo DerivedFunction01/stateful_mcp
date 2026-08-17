@@ -2,7 +2,11 @@ import { TextAttributes } from "@opentui/core";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiProgressIntent = "primary" | "success" | "warning" | "danger";
-export type TuiProgressVariant = "continuous" | "blocks" | "segmented" | "minimal";
+export type TuiProgressVariant =
+	| "continuous"
+	| "blocks"
+	| "segmented"
+	| "minimal";
 
 export interface TuiProgressBarProps {
 	readonly value: number;
@@ -52,7 +56,10 @@ export function TuiProgressBar({
 		const fullBlocks = Math.floor(totalEighths / 8);
 		const remainder = totalEighths % 8;
 		const partialBlock = remainder > 0 ? FRACTIONAL_BLOCKS[remainder] : "";
-		const emptyCount = Math.max(0, barWidth - fullBlocks - (remainder > 0 ? 1 : 0));
+		const emptyCount = Math.max(
+			0,
+			barWidth - fullBlocks - (remainder > 0 ? 1 : 0),
+		);
 
 		barVisual = "█".repeat(fullBlocks) + partialBlock;
 		emptyVisual = "░".repeat(emptyCount);
@@ -96,12 +103,11 @@ export function TuiProgressBar({
 				<text fg={fillFg} attributes={TextAttributes.BOLD}>
 					{barVisual}
 				</text>
-				<text fg={c.borderSubtle}>
-					{emptyVisual}
-				</text>
+				<text fg={c.borderSubtle}>{emptyVisual}</text>
 				{!label && showPercentage && (
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						{"  "}{percent}%
+						{"  "}
+						{percent}%
 					</text>
 				)}
 			</box>
@@ -145,7 +151,8 @@ export function TuiGauge({
 		<box flexDirection="row" height={1}>
 			{label && (
 				<text fg={c.fgMuted}>
-					{label}{"  "}
+					{label}
+					{"  "}
 				</text>
 			)}
 			<text fg={fillFg} attributes={TextAttributes.BOLD}>
@@ -155,7 +162,8 @@ export function TuiGauge({
 				{(emptyChar + " ").repeat(empty)}
 			</text>
 			<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-				{" "}{clamped}/{max}
+				{" "}
+				{clamped}/{max}
 			</text>
 		</box>
 	);

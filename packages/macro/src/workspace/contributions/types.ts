@@ -112,10 +112,8 @@ export interface ExtensionViewProvider<
 	render(context: ExtensionViewRenderContext<TState>): TRenderResult;
 }
 
-export interface ExtensionTabProvider<
-	TRenderResult = unknown,
-	TState = unknown,
-> extends ExtensionInteractionProvider {
+export interface ExtensionTabProvider<TRenderResult = unknown, TState = unknown>
+	extends ExtensionInteractionProvider {
 	render(context: ExtensionTabRenderContext<TState>): TRenderResult;
 }
 

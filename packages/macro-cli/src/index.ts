@@ -1,21 +1,25 @@
 import "@opentui/react/runtime-plugin-support";
-import { createCliRenderer, CliRenderEvents } from "@opentui/core";
-import { createElement } from "@opentui/react";
-import { createRoot } from "@opentui/react";
+import { CliRenderEvents, createCliRenderer } from "@opentui/core";
+import { createElement, createRoot } from "@opentui/react";
 import { MacroCliApp } from "./app";
 import { ComponentLabApp } from "./lab/ComponentLabApp";
-import { loadMacroCliWorkspace, type LoadMacroCliOptions } from "./workspace-loader";
+import {
+	type LoadMacroCliOptions,
+	loadMacroCliWorkspace,
+} from "./workspace-loader";
 
-export * from "./terminal-dispatcher";
-export * from "./workspace-loader";
-export * from "./renderer";
-export * from "./ui/index";
 export * from "./lab/index";
 export * from "./locales/index";
+export * from "./renderer";
+export * from "./terminal-dispatcher";
+export * from "./ui/index";
+export * from "./workspace-loader";
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
 	if (args.includes("--headless")) {
-		console.error("macro-cli --headless is reserved for a future run/batch interface");
+		console.error(
+			"macro-cli --headless is reserved for a future run/batch interface",
+		);
 		process.exitCode = 2;
 		return;
 	}
@@ -59,7 +63,11 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 	});
 
 	createRoot(renderer).render(
-		createElement(MacroCliApp, { workspace: loaded.workspace, keymap: loaded.keymap, renderer }),
+		createElement(MacroCliApp, {
+			workspace: loaded.workspace,
+			keymap: loaded.keymap,
+			renderer,
+		}),
 	);
 
 	await new Promise<void>((resolve) => {
@@ -81,7 +89,9 @@ export function parseArgs(args: readonly string[]): LoadMacroCliOptions {
 	let inspect = false;
 	let inspectTarget: string | undefined;
 
-	const inspectArg = args.find((arg) => arg === "--inspect" || arg.startsWith("--inspect="));
+	const inspectArg = args.find(
+		(arg) => arg === "--inspect" || arg.startsWith("--inspect="),
+	);
 	if (inspectArg) {
 		inspect = true;
 		if (inspectArg.startsWith("--inspect=")) {

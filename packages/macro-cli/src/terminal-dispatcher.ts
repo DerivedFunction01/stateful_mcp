@@ -21,7 +21,8 @@ export async function dispatchTerminalInput(
 	const input = event.input ?? event.char ?? "";
 	const name = event.name;
 	const chordEvent = { ...event, char: input };
-	const isEnter = name === "return" || name === "enter" || input === "\r" || input === "\n";
+	const isEnter =
+		name === "return" || name === "enter" || input === "\r" || input === "\n";
 	const layout = workspace.layout.getSnapshot();
 
 	// 1. Command Palette Modal Focus
@@ -59,7 +60,8 @@ export async function dispatchTerminalInput(
 		return "handled";
 	}
 	if (
-		(keymap.window.toggleActivityPanel && chordMatches(keymap.window.toggleActivityPanel, chordEvent)) ||
+		(keymap.window.toggleActivityPanel &&
+			chordMatches(keymap.window.toggleActivityPanel, chordEvent)) ||
 		(event.ctrl && (name === "e" || input.toLowerCase() === "e"))
 	) {
 		workspace.layout.toggleRegion("activity");
@@ -82,7 +84,10 @@ export async function dispatchTerminalInput(
 
 	// 3. Pinned Macro Toggle
 	const pinChord = keymap.window.pinMacro;
-	if ((pinChord && chordMatches(pinChord, chordEvent)) || (event.meta && input.toLowerCase() === "p")) {
+	if (
+		(pinChord && chordMatches(pinChord, chordEvent)) ||
+		(event.meta && input.toLowerCase() === "p")
+	) {
 		const line = workspace.scratchpad.getProjectedLine(
 			workspace.editor.buffer.getCursor().line,
 		);
@@ -100,9 +105,15 @@ export async function dispatchTerminalInput(
 	if (isAltChord && /^[1-9]$/u.test(cleanDigit)) {
 		const container = workspace.views.getContainerForAltKey(cleanDigit);
 		if (container) {
-			const targetRegion = (container.region ?? "activity") === "activity" ? "activity" : "inspector";
+			const targetRegion =
+				(container.region ?? "activity") === "activity"
+					? "activity"
+					: "inspector";
 			const targetPane = targetRegion === "activity" ? "activity" : "sidepanel";
-			const activeId = targetRegion === "activity" ? layout.activeActivityContainerId : layout.activeInspectorContainerId;
+			const activeId =
+				targetRegion === "activity"
+					? layout.activeActivityContainerId
+					: layout.activeInspectorContainerId;
 			const isRegionOpen = layout.regions[targetRegion].open;
 			const isSameContainer = activeId === container.id;
 			const isAlreadyFocused = layout.focusedPane === targetPane;
@@ -131,22 +142,32 @@ export async function dispatchTerminalInput(
 	const isAltNext = isAltChord && (cleanDigit === "]" || name === "pagedown");
 	const isAltPrev = isAltChord && (cleanDigit === "[" || name === "pageup");
 	if (isAltNext || isAltPrev) {
-		const region = layout.focusedPane === "sidepanel" ? "inspector" : "activity";
+		const region =
+			layout.focusedPane === "sidepanel" ? "inspector" : "activity";
 		const containers = workspace.views.getContainersForRegion(region);
 		if (containers.length > 0) {
-			const activeId = region === "activity" ? layout.activeActivityContainerId : layout.activeInspectorContainerId;
-			const currentIndex = Math.max(0, containers.findIndex((c) => c.id === activeId));
+			const activeId =
+				region === "activity"
+					? layout.activeActivityContainerId
+					: layout.activeInspectorContainerId;
+			const currentIndex = Math.max(
+				0,
+				containers.findIndex((c) => c.id === activeId),
+			);
 			const delta = isAltNext ? 1 : -1;
-			const nextIndex = (currentIndex + delta + containers.length) % containers.length;
+			const nextIndex =
+				(currentIndex + delta + containers.length) % containers.length;
 			const target = containers[nextIndex];
 			if (target) {
 				if (region === "activity") {
 					workspace.layout.setActiveActivityContainer(target.id);
-					if (!layout.regions.activity.open) workspace.layout.setRegionOpen("activity", true);
+					if (!layout.regions.activity.open)
+						workspace.layout.setRegionOpen("activity", true);
 					workspace.layout.setFocusedPane("activity");
 				} else {
 					workspace.layout.setActiveInspectorContainer(target.id);
-					if (!layout.regions.inspector.open) workspace.layout.setRegionOpen("inspector", true);
+					if (!layout.regions.inspector.open)
+						workspace.layout.setRegionOpen("inspector", true);
 					workspace.layout.setFocusedPane("sidepanel");
 				}
 			}
@@ -214,7 +235,11 @@ export async function dispatchTerminalInput(
 		// - 'r': executes current/all valid macrolines
 		// - Tab / Shift+Tab: cycles top-level workspace tabs
 		if (currentMode === "NORMAL") {
-			if (input === ":" || (keymap.normal.command && chordMatches(keymap.normal.command, chordEvent))) {
+			if (
+				input === ":" ||
+				(keymap.normal.command &&
+					chordMatches(keymap.normal.command, chordEvent))
+			) {
 				workspace.palette.open();
 				return "handled";
 			}
@@ -222,7 +247,11 @@ export async function dispatchTerminalInput(
 				workspace.editor.setMode("INSERT");
 				return "handled";
 			}
-			if (input === "r" || (keymap.normal.runCell && chordMatches(keymap.normal.runCell, chordEvent))) {
+			if (
+				input === "r" ||
+				(keymap.normal.runCell &&
+					chordMatches(keymap.normal.runCell, chordEvent))
+			) {
 				const cursor = workspace.editor.buffer.getCursor();
 				const receipt = await workspace.scratchpad.executeLine(cursor.line);
 				if (!receipt && workspace.scratchpad.getValidLineCount() > 0) {

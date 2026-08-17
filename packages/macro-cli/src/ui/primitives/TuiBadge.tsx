@@ -1,8 +1,8 @@
 import { TextAttributes } from "@opentui/core";
 import type { I18nKernel } from "@stateful-mcp/macro";
 import type { ReactNode } from "react";
-import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 import { translate } from "../../locales";
+import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── GENERAL BADGE TYPES ──────────────────────────────────────────────────────
 
@@ -16,12 +16,7 @@ export type TuiBadgeIntent =
 	| "amber"
 	| "peach";
 
-export type TuiBadgeStyle =
-	| "text"
-	| "bracketed"
-	| "solid"
-	| "outline"
-	| "pill";
+export type TuiBadgeStyle = "text" | "bracketed" | "solid" | "outline" | "pill";
 
 export interface TuiBadgeProps {
 	readonly label: ReactNode;
@@ -81,7 +76,8 @@ export function TuiBadge({
 		return (
 			<box backgroundColor={intentColor} paddingLeft={1} paddingRight={1}>
 				<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
-					{iconPrefix}{label}
+					{iconPrefix}
+					{label}
 				</text>
 			</box>
 		);
@@ -89,9 +85,15 @@ export function TuiBadge({
 
 	if (effectiveStyle === "outline") {
 		return (
-			<box borderStyle="single" borderColor={intentColor} paddingLeft={1} paddingRight={1}>
+			<box
+				borderStyle="single"
+				borderColor={intentColor}
+				paddingLeft={1}
+				paddingRight={1}
+			>
 				<text fg={intentColor} attributes={bold ? TextAttributes.BOLD : 0}>
-					{iconPrefix}{label}
+					{iconPrefix}
+					{label}
 				</text>
 			</box>
 		);
@@ -101,7 +103,8 @@ export function TuiBadge({
 		return (
 			<box flexDirection="row">
 				<text fg={intentColor} attributes={TextAttributes.BOLD}>
-					( {iconPrefix}{label} )
+					( {iconPrefix}
+					{label} )
 				</text>
 			</box>
 		);
@@ -111,7 +114,8 @@ export function TuiBadge({
 		return (
 			<box flexDirection="row">
 				<text fg={intentColor} attributes={bold ? TextAttributes.BOLD : 0}>
-					[ {iconPrefix}{label} ]
+					[ {iconPrefix}
+					{label} ]
 				</text>
 			</box>
 		);
@@ -119,7 +123,8 @@ export function TuiBadge({
 
 	return (
 		<text fg={intentColor} attributes={bold ? TextAttributes.BOLD : 0}>
-			{iconPrefix}{label}
+			{iconPrefix}
+			{label}
 		</text>
 	);
 }
@@ -139,16 +144,16 @@ export type TuiStatusType =
 	| "info";
 
 export type TuiStatusBadgeVariant =
-	| "solid-glyph"      // " ✓ " with solid background (ultra-compact wordless chip)
-	| "solid-pill"       // "▌✓▐" with solid pill background
-	| "glyph-only"       // "✓" / "↺" / "⊘" / "⚡" / "✗"
-	| "bracket-glyph"    // "[✓]" / "[↺]" / "[⊘]" / "[⚡]" / "[✗]"
-	| "outline-glyph"    // "[✓]" with outline border
-	| "dot-label"        // "● committed"
-	| "icon-label"       // "✓ committed"
-	| "solid-chip"       // "[ ✓ committed ]" with solid background
-	| "outline-chip"     // Single-border box with glyph & label
-	| "bracketed";       // "[ committed ]"
+	| "solid-glyph" // " ✓ " with solid background (ultra-compact wordless chip)
+	| "solid-pill" // "▌✓▐" with solid pill background
+	| "glyph-only" // "✓" / "↺" / "⊘" / "⚡" / "✗"
+	| "bracket-glyph" // "[✓]" / "[↺]" / "[⊘]" / "[⚡]" / "[✗]"
+	| "outline-glyph" // "[✓]" with outline border
+	| "dot-label" // "● committed"
+	| "icon-label" // "✓ committed"
+	| "solid-chip" // "[ ✓ committed ]" with solid background
+	| "outline-chip" // Single-border box with glyph & label
+	| "bracketed"; // "[ committed ]"
 
 export interface TuiStatusBadgeProps {
 	readonly status: TuiStatusType;
@@ -163,7 +168,15 @@ export function getStatusMeta(status: TuiStatusType): {
 	glyph: string;
 	fallbackLabel: string;
 	i18nKey: string;
-	colorKey: "statusSuccess" | "statusWarning" | "statusError" | "statusInfo" | "accentAmber" | "accentPeach" | "fgMuted" | "accentPrimary";
+	colorKey:
+		| "statusSuccess"
+		| "statusWarning"
+		| "statusError"
+		| "statusInfo"
+		| "accentAmber"
+		| "accentPeach"
+		| "fgMuted"
+		| "accentPrimary";
 } {
 	switch (status) {
 		case "committed":
@@ -239,7 +252,8 @@ export function TuiStatusBadge({
 	const meta = getStatusMeta(status);
 	const color = c[meta.colorKey];
 
-	const rawLabel = labelOverride ?? translate(i18n, meta.i18nKey, meta.fallbackLabel);
+	const rawLabel =
+		labelOverride ?? translate(i18n, meta.i18nKey, meta.fallbackLabel);
 	const labelText = uppercase ? rawLabel.toUpperCase() : rawLabel;
 
 	// 1. Solid Glyph Chip without Words (" ✓ " on solid color block)
@@ -289,7 +303,12 @@ export function TuiStatusBadge({
 	// 5. Outline Glyph (single border box around glyph)
 	if (variant === "outline-glyph") {
 		return (
-			<box borderStyle="single" borderColor={color} paddingLeft={0} paddingRight={0}>
+			<box
+				borderStyle="single"
+				borderColor={color}
+				paddingLeft={0}
+				paddingRight={0}
+			>
 				<text fg={color} attributes={TextAttributes.BOLD}>
 					{meta.glyph}
 				</text>
@@ -339,7 +358,12 @@ export function TuiStatusBadge({
 	// 9. Outline Box with Label
 	if (variant === "outline-chip") {
 		return (
-			<box borderStyle="single" borderColor={color} paddingLeft={1} paddingRight={1}>
+			<box
+				borderStyle="single"
+				borderColor={color}
+				paddingLeft={1}
+				paddingRight={1}
+			>
 				<text fg={color} attributes={TextAttributes.BOLD}>
 					{meta.glyph} {labelText}
 				</text>

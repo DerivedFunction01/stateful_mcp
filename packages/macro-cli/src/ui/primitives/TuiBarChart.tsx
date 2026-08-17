@@ -50,14 +50,16 @@ export function TuiBarChart({
 				return (
 					<box key={item.label} flexDirection="row" height={1}>
 						<text fg={c.fgMuted}>
-							{padLabel}{"  "}
+							{padLabel}
+							{"  "}
 						</text>
 						<text fg={barColor} attributes={TextAttributes.BOLD}>
 							{barStr}
 						</text>
 						{showValues && (
 							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-								{"  "}{displayVal}
+								{"  "}
+								{displayVal}
 							</text>
 						)}
 					</box>
@@ -109,21 +111,27 @@ export function TuiStackedBarChart({
 				</box>
 			)}
 			{items.map((item) => {
-				const total = item.segments.reduce((acc, s) => acc + Math.max(0, s.value), 0) || 1;
+				const total =
+					item.segments.reduce((acc, s) => acc + Math.max(0, s.value), 0) || 1;
 				const maxLabel = item.label.padEnd(maxLabelLen, " ");
 
 				return (
 					<box key={item.label} flexDirection="column" marginBottom={1}>
 						<box flexDirection="row" height={1}>
 							<text fg={c.fgMuted}>
-								{maxLabel}{"  "}
+								{maxLabel}
+								{"  "}
 							</text>
 							{item.segments.map((seg, idx) => {
 								const segRatio = Math.max(0, seg.value) / total;
 								const segLen = Math.max(1, Math.round(segRatio * totalWidth));
 								const char = seg.char ?? "█";
 								return (
-									<text key={idx} fg={seg.color} attributes={TextAttributes.BOLD}>
+									<text
+										key={idx}
+										fg={seg.color}
+										attributes={TextAttributes.BOLD}
+									>
 										{char.repeat(segLen)}
 									</text>
 								);
@@ -132,10 +140,13 @@ export function TuiStackedBarChart({
 						{showLegend && (
 							<box flexDirection="row" height={1} paddingLeft={maxLabelLen + 2}>
 								{item.segments.map((seg, idx) => {
-									const pct = Math.round((Math.max(0, seg.value) / total) * 100);
+									const pct = Math.round(
+										(Math.max(0, seg.value) / total) * 100,
+									);
 									return (
 										<text key={idx} fg={seg.color}>
-											{"■ "}{seg.label} ({pct}%){"  "}
+											{"■ "}
+											{seg.label} ({pct}%){"  "}
 										</text>
 									);
 								})}
@@ -194,11 +205,26 @@ export function TuiBoxPlot({
 				const boxColor = item.color ?? c.accentPrimary;
 
 				// Scale positions to character cells
-				const posMin = Math.max(0, Math.round(((item.min - globalMin) / range) * width));
-				const posQ1 = Math.max(posMin, Math.round(((item.q1 - globalMin) / range) * width));
-				const posMed = Math.max(posQ1, Math.round(((item.median - globalMin) / range) * width));
-				const posQ3 = Math.max(posMed, Math.round(((item.q3 - globalMin) / range) * width));
-				const posMax = Math.min(width, Math.max(posQ3, Math.round(((item.max - globalMin) / range) * width)));
+				const posMin = Math.max(
+					0,
+					Math.round(((item.min - globalMin) / range) * width),
+				);
+				const posQ1 = Math.max(
+					posMin,
+					Math.round(((item.q1 - globalMin) / range) * width),
+				);
+				const posMed = Math.max(
+					posQ1,
+					Math.round(((item.median - globalMin) / range) * width),
+				);
+				const posQ3 = Math.max(
+					posMed,
+					Math.round(((item.q3 - globalMin) / range) * width),
+				);
+				const posMax = Math.min(
+					width,
+					Math.max(posQ3, Math.round(((item.max - globalMin) / range) * width)),
+				);
 
 				const leftWhisker = "─".repeat(Math.max(0, posQ1 - posMin - 1));
 				const leftBox = "█".repeat(Math.max(0, posMed - posQ1 - 1));
@@ -210,22 +236,32 @@ export function TuiBoxPlot({
 					<box key={item.label} flexDirection="column" marginBottom={1}>
 						<box flexDirection="row" height={1}>
 							<text fg={c.fgMuted}>
-								{padLabel}{"  "}
+								{padLabel}
+								{"  "}
 							</text>
 							<text fg={c.fgDim}>{leading}</text>
 							<text fg={c.borderDefault}>├</text>
 							<text fg={c.borderDefault}>{leftWhisker}</text>
-							<text fg={boxColor} attributes={TextAttributes.BOLD}>[</text>
+							<text fg={boxColor} attributes={TextAttributes.BOLD}>
+								[
+							</text>
 							<text fg={boxColor}>{leftBox}</text>
-							<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>|</text>
+							<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+								|
+							</text>
 							<text fg={boxColor}>{rightBox}</text>
-							<text fg={boxColor} attributes={TextAttributes.BOLD}>]</text>
+							<text fg={boxColor} attributes={TextAttributes.BOLD}>
+								]
+							</text>
 							<text fg={c.borderDefault}>{rightWhisker}</text>
 							<text fg={c.borderDefault}>┤</text>
 						</box>
 						<box flexDirection="row" height={1} paddingLeft={maxLabelLen + 2}>
 							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-								min: {item.min}{item.unit ?? ""}  ·  med: {item.median}{item.unit ?? ""}  ·  max: {item.max}{item.unit ?? ""}
+								min: {item.min}
+								{item.unit ?? ""} · med: {item.median}
+								{item.unit ?? ""} · max: {item.max}
+								{item.unit ?? ""}
 							</text>
 						</box>
 					</box>
@@ -279,14 +315,16 @@ export function TuiHistogram({
 				return (
 					<box key={bin.bin} flexDirection="row" height={1}>
 						<text fg={c.fgMuted}>
-							{padLabel}{"  "}
+							{padLabel}
+							{"  "}
 						</text>
 						<text fg={c.borderDefault}>│ </text>
 						<text fg={barColor} attributes={TextAttributes.BOLD}>
 							{"█".repeat(barLen)}
 						</text>
 						<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-							{" "}({bin.count})
+							{" "}
+							({bin.count})
 						</text>
 					</box>
 				);
@@ -323,19 +361,20 @@ export function TuiSparkline({
 	const max = Math.max(...values);
 	const range = max - min || 1;
 
-	const sparkChars = values.map((val) => {
-		const norm = (val - min) / range;
-		const idx = Math.min(SPARK_CHARS.length - 1, Math.round(norm * (SPARK_CHARS.length - 1)));
-		return SPARK_CHARS[idx];
-	}).join("");
+	const sparkChars = values
+		.map((val) => {
+			const norm = (val - min) / range;
+			const idx = Math.min(
+				SPARK_CHARS.length - 1,
+				Math.round(norm * (SPARK_CHARS.length - 1)),
+			);
+			return SPARK_CHARS[idx];
+		})
+		.join("");
 
 	return (
 		<box flexDirection="row" height={1}>
-			{label && (
-				<text fg={c.fgMuted}>
-					{label}{" "}
-				</text>
-			)}
+			{label && <text fg={c.fgMuted}>{label} </text>}
 			<text fg={sparkColor} attributes={TextAttributes.BOLD}>
 				{sparkChars}
 			</text>

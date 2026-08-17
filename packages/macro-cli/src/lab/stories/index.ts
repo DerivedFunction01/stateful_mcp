@@ -1,4 +1,4 @@
-import { globalStoryRegistry, TuiStoryRegistry } from "../story-registry";
+import { globalStoryRegistry, type TuiStoryRegistry } from "../story-registry";
 import { activityRailStory } from "./activity-rail.story";
 import { commandPaletteStory } from "./command-palette.story";
 import { completionPopupStory } from "./completion-popup.story";
@@ -14,7 +14,9 @@ import { statusBarStory } from "./status-bar.story";
 import { tabsStory } from "./tabs.story";
 import { themesStory } from "./themes.story";
 
-export function registerCoreStories(registry: TuiStoryRegistry = globalStoryRegistry): void {
+export function registerCoreStories(
+	registry: TuiStoryRegistry = globalStoryRegistry,
+): void {
 	registry.register(commandPaletteStory);
 	registry.register(scratchpadStory);
 	registry.register(statusBarStory);

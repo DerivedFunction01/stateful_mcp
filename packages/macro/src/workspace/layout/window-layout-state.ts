@@ -1,8 +1,13 @@
 import type { TabRegistry } from "../contributions/tab-registry";
-import type { ViewRegistry } from "../contributions/view-registry";
 import type { WorkspaceDock, WorkspaceRegionId } from "../contributions/types";
+import type { ViewRegistry } from "../contributions/view-registry";
 
-export type FocusedPane = "main" | "activity" | "sidepanel" | "palette" | "modal";
+export type FocusedPane =
+	| "main"
+	| "activity"
+	| "sidepanel"
+	| "palette"
+	| "modal";
 export type SidepanelPosition = "left" | "right";
 export type InspectorMode = "follow" | "pinned";
 
@@ -68,19 +73,33 @@ export class WindowLayoutStateManager {
 		if (initialState?.focusedPane) this.focusedPane = initialState.focusedPane;
 		if (initialState?.regions) {
 			this.regions = {
-				activity: { ...this.regions.activity, ...initialState.regions.activity },
-				inspector: { ...this.regions.inspector, ...initialState.regions.inspector },
+				activity: {
+					...this.regions.activity,
+					...initialState.regions.activity,
+				},
+				inspector: {
+					...this.regions.inspector,
+					...initialState.regions.inspector,
+				},
 			};
 			this.sidepanelOpen = this.regions.inspector.open;
-			this.sidepanelPosition = this.regions.inspector.dock === "start" ? "left" : "right";
+			this.sidepanelPosition =
+				this.regions.inspector.dock === "start" ? "left" : "right";
 		}
 		if (initialState?.sidepanelOpen !== undefined && !initialState.regions) {
-			this.regions.inspector = { ...this.regions.inspector, open: initialState.sidepanelOpen };
+			this.regions.inspector = {
+				...this.regions.inspector,
+				open: initialState.sidepanelOpen,
+			};
 		}
-		if (initialState?.activeActivityContainerId) this.activeActivityContainerId = initialState.activeActivityContainerId;
-		if (initialState?.activeInspectorContainerId) this.activeInspectorContainerId = initialState.activeInspectorContainerId;
-		if (initialState?.inspectorMode) this.inspectorMode = initialState.inspectorMode;
-		if (initialState?.pinnedInspectorViewId !== undefined) this.pinnedInspectorViewId = initialState.pinnedInspectorViewId;
+		if (initialState?.activeActivityContainerId)
+			this.activeActivityContainerId = initialState.activeActivityContainerId;
+		if (initialState?.activeInspectorContainerId)
+			this.activeInspectorContainerId = initialState.activeInspectorContainerId;
+		if (initialState?.inspectorMode)
+			this.inspectorMode = initialState.inspectorMode;
+		if (initialState?.pinnedInspectorViewId !== undefined)
+			this.pinnedInspectorViewId = initialState.pinnedInspectorViewId;
 	}
 
 	getSnapshot(): WindowLayoutStateSnapshot {
@@ -92,7 +111,10 @@ export class WindowLayoutStateManager {
 			activeContainerId: this.activeContainerId,
 			focusedPane: this.focusedPane,
 			activeModal: this.modalStack[this.modalStack.length - 1] ?? null,
-			regions: { activity: { ...this.regions.activity }, inspector: { ...this.regions.inspector } },
+			regions: {
+				activity: { ...this.regions.activity },
+				inspector: { ...this.regions.inspector },
+			},
 			activeActivityContainerId: this.activeActivityContainerId,
 			activeInspectorContainerId: this.activeInspectorContainerId,
 			inspectorMode: this.inspectorMode,
@@ -121,7 +143,10 @@ export class WindowLayoutStateManager {
 
 	toggleSidepanel(): void {
 		this.sidepanelOpen = !this.sidepanelOpen;
-		this.regions.inspector = { ...this.regions.inspector, open: this.sidepanelOpen };
+		this.regions.inspector = {
+			...this.regions.inspector,
+			open: this.sidepanelOpen,
+		};
 		if (!this.sidepanelOpen && this.focusedPane === "sidepanel") {
 			this.focusedPane = "main";
 		}
@@ -142,7 +167,10 @@ export class WindowLayoutStateManager {
 	setSidepanelPosition(position: SidepanelPosition): void {
 		if (this.sidepanelPosition !== position) {
 			this.sidepanelPosition = position;
-			this.regions.inspector = { ...this.regions.inspector, dock: position === "left" ? "start" : "end" };
+			this.regions.inspector = {
+				...this.regions.inspector,
+				dock: position === "left" ? "start" : "end",
+			};
 			this.notify();
 		}
 	}
@@ -169,7 +197,10 @@ export class WindowLayoutStateManager {
 	}
 
 	setActiveInspectorContainer(containerId: string): void {
-		if (this.activeInspectorContainerId !== containerId || !this.regions.inspector.open) {
+		if (
+			this.activeInspectorContainerId !== containerId ||
+			!this.regions.inspector.open
+		) {
 			this.activeContainerId = containerId;
 			this.activeInspectorContainerId = containerId;
 			this.openRegion("inspector");
@@ -185,14 +216,20 @@ export class WindowLayoutStateManager {
 		if (this.regions[region].open === open) return;
 		this.regions[region] = { ...this.regions[region], open };
 		if (region === "inspector") this.sidepanelOpen = open;
-		if (!open && ((region === "inspector" && this.focusedPane === "sidepanel") || (region === "activity" && this.focusedPane === "activity"))) this.focusedPane = "main";
+		if (
+			!open &&
+			((region === "inspector" && this.focusedPane === "sidepanel") ||
+				(region === "activity" && this.focusedPane === "activity"))
+		)
+			this.focusedPane = "main";
 		this.notify();
 	}
 
 	setRegionDock(region: WorkspaceRegionId, dock: WorkspaceDock): void {
 		if (this.regions[region].dock !== dock) {
 			this.regions[region] = { ...this.regions[region], dock };
-			if (region === "inspector") this.sidepanelPosition = dock === "start" ? "left" : "right";
+			if (region === "inspector")
+				this.sidepanelPosition = dock === "start" ? "left" : "right";
 			this.notify();
 		}
 	}
@@ -235,7 +272,8 @@ export class WindowLayoutStateManager {
 	}
 
 	private openRegion(region: WorkspaceRegionId): void {
-		if (!this.regions[region].open) this.regions[region] = { ...this.regions[region], open: true };
+		if (!this.regions[region].open)
+			this.regions[region] = { ...this.regions[region], open: true };
 	}
 
 	setFocusedPane(pane: FocusedPane): void {

@@ -45,7 +45,10 @@ export function TuiAccordion({
 							paddingLeft={1}
 							paddingRight={1}
 						>
-							<text fg={isFocused ? c.accentPrimary : c.fgMuted} attributes={TextAttributes.BOLD}>
+							<text
+								fg={isFocused ? c.accentPrimary : c.fgMuted}
+								attributes={TextAttributes.BOLD}
+							>
 								{chevron}{" "}
 							</text>
 							<text
@@ -56,7 +59,8 @@ export function TuiAccordion({
 							</text>
 							{sec.subtitle && (
 								<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-									{"  "}{sec.subtitle}
+									{"  "}
+									{sec.subtitle}
 								</text>
 							)}
 							<box flexGrow={1} />
@@ -126,7 +130,8 @@ export function TuiBreadcrumbs({
 						</text>
 						{!isLast && (
 							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-								{" "}{separator}{" "}
+								{" "}
+								{separator}{" "}
 							</text>
 						)}
 					</box>
@@ -180,7 +185,13 @@ export function TuiStepper({ steps, theme }: TuiStepperProps) {
 							{glyph} {step.label}
 						</text>
 						{idx < lastIdx && (
-							<text fg={step.status === "completed" ? c.statusSuccess : c.borderDefault}>
+							<text
+								fg={
+									step.status === "completed"
+										? c.statusSuccess
+										: c.borderDefault
+								}
+							>
 								{" ─── "}
 							</text>
 						)}

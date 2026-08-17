@@ -79,23 +79,24 @@ export function TuiList({
 							fg={textColor}
 							attributes={isSelected ? TextAttributes.BOLD : 0}
 						>
-							{" "}{mainContent}
+							{" "}
+							{mainContent}
 						</text>
 						<box flexGrow={1} />
 						{item.meta && (
-							<text
-								fg={c.fgDim}
-								attributes={TextAttributes.DIM}
-							>
+							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
 								{item.meta}
 							</text>
 						)}
 						{item.shortcut && (
 							<text
 								fg={isSelected ? c.accentPrimary : c.fgDim}
-								attributes={isSelected ? TextAttributes.BOLD : TextAttributes.DIM}
+								attributes={
+									isSelected ? TextAttributes.BOLD : TextAttributes.DIM
+								}
 							>
-								{"  "}{item.shortcut}
+								{"  "}
+								{item.shortcut}
 							</text>
 						)}
 					</box>

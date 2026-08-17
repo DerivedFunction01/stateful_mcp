@@ -69,11 +69,13 @@ export class ScratchpadSession {
 
 	createPinnedMacroLine(): PinnedMacroLineResult | null {
 		if (!this.pinnedMacroId) return null;
-		const matching = this.runtime.adapters.list().find(
-			(adapter) =>
-				adapter.adapter.definition.id === this.pinnedMacroId ||
-				adapter.adapter.definition.name === this.pinnedMacroId,
-		);
+		const matching = this.runtime.adapters
+			.list()
+			.find(
+				(adapter) =>
+					adapter.adapter.definition.id === this.pinnedMacroId ||
+					adapter.adapter.definition.name === this.pinnedMacroId,
+			);
 		if (!matching) return null;
 		const macroId = matching.adapter.definition.id;
 		const macroName = matching.adapter.definition.name;
@@ -82,7 +84,8 @@ export class ScratchpadSession {
 			macroName,
 			macroStartToken: this.runtime.context.syntax.macroStartToken,
 		};
-		const insertedText = this.options.createPinnedLineSeed?.(context) ??
+		const insertedText =
+			this.options.createPinnedLineSeed?.(context) ??
 			`${context.macroStartToken}${context.macroName} `;
 		this.buffer.splitLine();
 		this.buffer.insertText(insertedText);
@@ -118,7 +121,7 @@ export class ScratchpadSession {
 				}
 
 				// 1. Explicit macro name match with strict word boundaries
-				let matching = registeredAdapters.find((a) =>
+				const matching = registeredAdapters.find((a) =>
 					matchesMacroVerb(trimmed, a.adapter.definition.name, prefix),
 				);
 

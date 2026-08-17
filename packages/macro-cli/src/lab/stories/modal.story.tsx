@@ -1,9 +1,9 @@
 import { TextAttributes } from "@opentui/core";
-import type { TuiStory } from "../story-contract";
 import { TuiButton } from "../../ui/primitives/TuiButton";
 import { TuiModal } from "../../ui/primitives/TuiModal";
 import { TuiProgressBar } from "../../ui/primitives/TuiProgressBar";
 import { GlobalThemeRegistry } from "../../ui/theme";
+import type { TuiStory } from "../story-contract";
 
 export const modalStory: TuiStory = {
 	id: "modal",
@@ -220,7 +220,9 @@ export const modalStory: TuiStory = {
 						theme={theme}
 					/>
 					<box marginTop={1} marginBottom={1} flexDirection="column">
-						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>Select Target Cluster:</text>
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+							Select Target Cluster:
+						</text>
 						<box marginTop={1} flexDirection="column">
 							<TuiButton
 								label="Staging (us-east-1a)"

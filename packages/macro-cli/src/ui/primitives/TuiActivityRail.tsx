@@ -28,7 +28,11 @@ export function getMonospaceWidth(str: string): number {
 	for (const char of str) {
 		const code = char.codePointAt(0) ?? 0;
 		// Zero-width characters & variation selectors (e.g. \uFE0F)
-		if (code === 0xfe0f || code === 0xfe0e || (code >= 0x200b && code <= 0x200f)) {
+		if (
+			code === 0xfe0f ||
+			code === 0xfe0e ||
+			(code >= 0x200b && code <= 0x200f)
+		) {
 			continue;
 		}
 		// Wide characters (Emojis, CJK, etc.)
@@ -72,7 +76,8 @@ export function TuiActivityRail({
 	theme,
 }: TuiActivityRailProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
-	const activeItemId = activeId ?? items.find((i) => i.isActive)?.id ?? items[0]?.id;
+	const activeItemId =
+		activeId ?? items.find((i) => i.isActive)?.id ?? items[0]?.id;
 	// Focused: bright accent pillar; Active-but-unfocused: dim accent pillar; Inactive: invisible
 	const pillarColor = isFocused ? c.fgPrimary : c.accentPrimary;
 
@@ -103,17 +108,26 @@ export function TuiActivityRail({
 					>
 						{/* Row 1: Left Pillar (1 char) + Centered Icon (3 chars) */}
 						<box height={1} flexDirection="row" width={4}>
-							<text fg={isActive ? pillarColor : "transparent"} attributes={TextAttributes.BOLD}>
+							<text
+								fg={isActive ? pillarColor : "transparent"}
+								attributes={TextAttributes.BOLD}
+							>
 								{isActive ? "▎" : " "}
 							</text>
-							<text fg={iconColor} attributes={isActive ? TextAttributes.BOLD : 0}>
+							<text
+								fg={iconColor}
+								attributes={isActive ? TextAttributes.BOLD : 0}
+							>
 								{centeredIcon}
 							</text>
 						</box>
 
 						{/* Row 2: Left Pillar (1 char) + Centered Alt-Key (3 chars) */}
 						<box height={1} flexDirection="row" width={4}>
-							<text fg={isActive ? c.accentPrimary : "transparent"} attributes={TextAttributes.BOLD}>
+							<text
+								fg={isActive ? c.accentPrimary : "transparent"}
+								attributes={TextAttributes.BOLD}
+							>
 								{isActive ? "▎" : " "}
 							</text>
 							<text

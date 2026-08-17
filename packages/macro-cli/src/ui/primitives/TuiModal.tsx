@@ -62,7 +62,10 @@ export function TuiModal({
 			{(title || dismissHint) && (
 				<box height={1} flexDirection="row" marginBottom={subtitle ? 0 : 0}>
 					{icon && (
-						<text fg={variant === "alert" ? c.statusError : c.accentPrimary} attributes={TextAttributes.BOLD}>
+						<text
+							fg={variant === "alert" ? c.statusError : c.accentPrimary}
+							attributes={TextAttributes.BOLD}
+						>
 							{icon}{" "}
 						</text>
 					)}
@@ -113,7 +116,11 @@ export function TuiModal({
 							</text>
 						</box>
 					)}
-					<box flexDirection="row" justifyContent="flex-end" alignItems="center">
+					<box
+						flexDirection="row"
+						justifyContent="flex-end"
+						alignItems="center"
+					>
 						{footer}
 					</box>
 				</box>
