@@ -17,6 +17,8 @@ export interface TuiPanelRegionProps {
 	readonly description?: string;
 	readonly children?: ReactNode;
 	readonly isOpen?: boolean;
+	/** Whether this region currently has keyboard input focus */
+	readonly isFocused?: boolean;
 	readonly theme?: TuiThemeDefinition;
 }
 
@@ -40,6 +42,7 @@ export function TuiPanelRegion({
 	description,
 	children,
 	isOpen = true,
+	isFocused = false,
 	theme,
 }: TuiPanelRegionProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
@@ -49,6 +52,7 @@ export function TuiPanelRegion({
 			items={railItems}
 			activeId={activeRailId}
 			onSelect={onSelectRail}
+			isFocused={isFocused}
 			theme={theme}
 		/>
 	);
@@ -75,6 +79,7 @@ export function TuiPanelRegion({
 			width={panelWidth}
 			cards={cards}
 			description={description}
+			isFocused={isFocused}
 			theme={theme}
 		>
 			{children}

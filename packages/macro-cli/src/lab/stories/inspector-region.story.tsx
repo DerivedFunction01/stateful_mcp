@@ -42,11 +42,11 @@ export const inspectorRegionStory: TuiStory = {
 	title: "Dual Panel & Inspector Region",
 	category: "Views",
 	states: [
-		"dual-panels-default",
+		"main-focused",         // Default: editor has focus, both panels unfocused
+		"activity-focused",     // Activity panel has keyboard focus
+		"inspector-focused",    // Inspector panel has keyboard focus
 		"swapped-dock-positions",
 		"collapsed-sidepanels",
-		"inspector-only",
-		"activity-only",
 	],
 	render(context) {
 		const stateId = context.stateId;
@@ -54,11 +54,18 @@ export const inspectorRegionStory: TuiStory = {
 
 		const isSwapped = stateId === "swapped-dock-positions";
 		const isCollapsed = stateId === "collapsed-sidepanels";
-		const showPrimary = stateId !== "inspector-only";
-		const showSecondary = stateId !== "activity-only";
+
+		// Focus State: determines which pane has keyboard input right now
+		const activityFocused = stateId === "activity-focused";
+		const inspectorFocused = stateId === "inspector-focused";
+		// "main-focused" and others: editor has focus, both panels are just "active" (selected but unfocused)
 
 		const theme = GlobalThemeRegistry.getActive();
 		const c = theme.colors;
+
+		// Center stage focus outline — bright border when editor has focus
+		const mainFocused = !activityFocused && !inspectorFocused;
+		const editorBorderColor = mainFocused ? c.borderActive : c.borderSubtle;
 
 		const primaryRegion = (
 			<TuiPanelRegion
@@ -66,10 +73,11 @@ export const inspectorRegionStory: TuiStory = {
 				railItems={PRIMARY_RAIL_ITEMS}
 				activeRailId="workspace"
 				title="Workspace"
-				closeHint="×"
+				closeHint="Alt+1"
 				panelWidth={26}
 				cards={PRIMARY_CARDS}
 				isOpen={!isCollapsed}
+				isFocused={activityFocused}
 				theme={theme}
 			/>
 		);
@@ -85,6 +93,7 @@ export const inspectorRegionStory: TuiStory = {
 				cards={INSPECTOR_SLOT_CARDS}
 				description="Inspecting ^deploy ast node parameters."
 				isOpen={!isCollapsed}
+				isFocused={inspectorFocused}
 				theme={theme}
 			/>
 		);
@@ -99,9 +108,9 @@ export const inspectorRegionStory: TuiStory = {
 				{/* Main Triple Column Frame with Composable Swapping */}
 				<box flexDirection="row" flexGrow={1} marginBottom={1}>
 					{/* Left Region (Primary if default, Secondary if swapped) */}
-					{isSwapped ? (showSecondary && secondaryRegion) : (showPrimary && primaryRegion)}
+					{isSwapped ? secondaryRegion : primaryRegion}
 
-					{/* Center Stage (Scratchpad Editor Surface) */}
+					{/* Center Stage — shows focus outline when editor is focused */}
 					<box
 						flexGrow={1}
 						flexDirection="column"
@@ -111,6 +120,12 @@ export const inspectorRegionStory: TuiStory = {
 						marginLeft={1}
 						marginRight={1}
 					>
+						{/* Focus Indicator Bar at top of editor */}
+						{mainFocused && (
+							<box height={1}>
+								<text fg={editorBorderColor}>{"─".repeat(36)}</text>
+							</box>
+						)}
 						{/* Line 1 (Active) */}
 						<box flexDirection="row" backgroundColor={c.bgActive} height={1}>
 							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
@@ -141,7 +156,7 @@ export const inspectorRegionStory: TuiStory = {
 					</box>
 
 					{/* Right Region (Secondary if default, Primary if swapped) */}
-					{isSwapped ? (showPrimary && primaryRegion) : (showSecondary && secondaryRegion)}
+					{isSwapped ? primaryRegion : secondaryRegion}
 				</box>
 
 				{/* Bottom Footer & Status Anchors */}

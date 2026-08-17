@@ -14,6 +14,8 @@ export interface TuiActivityRailProps {
 	readonly items: readonly TuiActivityItem[];
 	readonly activeId?: string;
 	readonly onSelect?: (id: string) => void;
+	/** Whether this rail's region currently has keyboard input focus */
+	readonly isFocused?: boolean;
 	readonly theme?: TuiThemeDefinition;
 }
 
@@ -66,10 +68,13 @@ export function centerInCell(content: string, targetWidth = 3): string {
 export function TuiActivityRail({
 	items,
 	activeId,
+	isFocused = false,
 	theme,
 }: TuiActivityRailProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const activeItemId = activeId ?? items.find((i) => i.isActive)?.id ?? items[0]?.id;
+	// Focused: bright accent pillar; Active-but-unfocused: dim accent pillar; Inactive: invisible
+	const pillarColor = isFocused ? c.fgPrimary : c.accentPrimary;
 
 	return (
 		<box
@@ -98,7 +103,7 @@ export function TuiActivityRail({
 					>
 						{/* Row 1: Left Pillar (1 char) + Centered Icon (3 chars) */}
 						<box height={1} flexDirection="row" width={4}>
-							<text fg={isActive ? c.accentPrimary : "transparent"} attributes={TextAttributes.BOLD}>
+							<text fg={isActive ? pillarColor : "transparent"} attributes={TextAttributes.BOLD}>
 								{isActive ? "▎" : " "}
 							</text>
 							<text fg={iconColor} attributes={isActive ? TextAttributes.BOLD : 0}>

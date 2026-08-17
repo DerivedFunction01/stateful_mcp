@@ -17,6 +17,7 @@ export interface MacroCliRenderContext {
 
 export type MacroCliViewProvider = ExtensionViewProvider<ReactElement | ReactNode | null> & {
 	render(context: MacroCliRenderContext & ExtensionViewRenderContext): ReactElement | ReactNode | null;
+	getContextualHints?(context: MacroCliRenderContext & ExtensionViewRenderContext): readonly { key: string; label: string }[];
 };
 
 export type MacroCliTabProvider = ExtensionTabProvider<ReactElement | ReactNode | null> & {

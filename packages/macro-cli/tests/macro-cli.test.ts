@@ -154,10 +154,27 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(workspace.runtime.context.syntax.macroStartToken).toBe("!");
 	});
 
-	test("selects activity containers through Alt-number input", async () => {
+	test("selects activity containers and manages focus through Alt-number and Ctrl+W input", async () => {
 		const workspace = createMacroWorkspace();
-		expect(await dispatchTerminalInput(workspace, DEFAULT_EDITOR_KEYMAP_PROFILE, { input: "3", meta: true })).toBe("handled");
-		expect(workspace.layout.getSnapshot().activeContainerId).toBe("journal");
+		const keymap = DEFAULT_EDITOR_KEYMAP_PROFILE;
+
+		// 1. Alt+3 opens journal and moves focus into activity
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "3", meta: true })).toBe("handled");
+		expect(workspace.layout.getSnapshot().activeActivityContainerId).toBe("journal");
+		expect(workspace.layout.getSnapshot().focusedPane).toBe("activity");
+
+		// 2. Second Alt+3 dismisses focus back to editor
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "3", meta: true })).toBe("handled");
+		expect(workspace.layout.getSnapshot().focusedPane).toBe("main");
+
+		// 3. Ctrl+W cycles focus between panes
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "w", ctrl: true })).toBe("handled");
+		expect(workspace.layout.getSnapshot().focusedPane).toBe("activity");
+
+		// 4. Escape from panel drops focus back to main
+		expect(await dispatchTerminalInput(workspace, keymap, { name: "escape" })).toBe("handled");
+		expect(workspace.layout.getSnapshot().focusedPane).toBe("main");
+
 		await workspace.runtime.dispose();
 	});
 

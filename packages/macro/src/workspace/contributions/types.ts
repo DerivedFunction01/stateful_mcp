@@ -2,6 +2,12 @@
  * Declarative extension UI contribution schemas and polymorphic view provider contracts.
  */
 
+export interface ContextualKeyHint {
+	readonly key: string;
+	readonly label?: string;
+	readonly i18nKey?: string;
+}
+
 export interface ViewContainerContribution {
 	readonly id: string;
 	readonly title: string;
@@ -9,6 +15,7 @@ export interface ViewContainerContribution {
 	readonly altKey?: string;
 	readonly order?: number;
 	readonly region?: WorkspaceRegionId;
+	readonly contextualHints?: readonly ContextualKeyHint[];
 }
 
 export type WorkspaceRegionId = "activity" | "inspector";

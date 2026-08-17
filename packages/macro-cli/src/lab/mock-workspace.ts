@@ -4,6 +4,7 @@ import {
 	type EditorKeymapProfile,
 	type MacroWorkspace,
 } from "@stateful-mcp/macro";
+import { registerCliLocales } from "../locales";
 
 export interface MockWorkspaceOptions {
 	readonly initialText?: string;
@@ -20,6 +21,7 @@ export function createMockWorkspace(options: MockWorkspaceOptions = {}): {
 		initialText: options.initialText ?? "^echo message=\"Hello Component Lab\"\n^deploy service=api env=staging\nplain text item",
 		initialLocale: options.locale ?? "en",
 	});
+	registerCliLocales(workspace.i18n);
 
 	// Register core sample commands into palette
 	workspace.commands.registerCommand({

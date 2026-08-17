@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { GlobalThemeRegistry, parseArgs } from "../src/index";
 import { TuiStoryRegistry } from "../src/lab/story-registry";
 import { createMockWorkspace } from "../src/lab/mock-workspace";
-import { buildDynamicKeymapHints } from "../src/ui/primitives/TuiHelpBar";
+import { buildContextualHelpBarHints, buildDynamicKeymapHints } from "../src/ui/primitives/TuiHelpBar";
 import {
 	GITHUB_DARK_THEME,
 	generateCssThemeVariables,
@@ -135,8 +135,50 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			{ key: "v", action: "Visual" },
 			{ key: "dd", action: "Delete" },
 			{ key: "Ctrl+P", action: "Command Palette" },
-			{ key: "Ctrl+B", action: "Sidepanel" },
+			{ key: "Alt+1", action: "Activity" },
+			{ key: "Ctrl+B", action: "Inspector" },
+			{ key: "Ctrl+W", action: "Focus Pane" },
 			{ key: "Alt+P", action: "Pin" },
+		]);
+	});
+
+	test("resolves contextual hints dynamically based on focused pane", () => {
+		const { workspace, keymap } = createMockWorkspace();
+
+		// 1. When main editor is focused, returns keymap hints
+		workspace.layout.setFocusedPane("main");
+		const mainHints = buildContextualHelpBarHints(workspace as any, keymap);
+		expect(mainHints.length).toBeGreaterThan(0);
+		expect(mainHints[0]).toEqual({ key: "Tab", action: "Next Tab" });
+
+		// 2. When activity pane is focused, returns container-level or provider contextual hints
+		workspace.layout.setFocusedPane("activity");
+		const activityHints = buildContextualHelpBarHints(workspace as any, keymap);
+		expect(activityHints).toEqual([
+			{ key: "↑/↓", action: "Navigate" },
+			{ key: "Enter", action: "Open" },
+			{ key: "Ctrl+W", action: "Focus Pane" },
+			{ key: "Esc", action: "Editor" },
+		]);
+
+		// 3. When sidepanel (inspector) is focused, returns inspector contextual hints
+		workspace.layout.setFocusedPane("sidepanel");
+		const inspectorHints = buildContextualHelpBarHints(workspace as any, keymap);
+		expect(inspectorHints).toEqual([
+			{ key: "↑/↓", action: "Navigate" },
+			{ key: "Enter", action: "Execute" },
+			{ key: "Ctrl+B", action: "Close" },
+			{ key: "Ctrl+W", action: "Focus Pane" },
+			{ key: "Esc", action: "Editor" },
+		]);
+
+		// 4. When palette is focused, returns palette navigation and execution hints
+		workspace.layout.setFocusedPane("palette");
+		const paletteHints = buildContextualHelpBarHints(workspace as any, keymap);
+		expect(paletteHints).toEqual([
+			{ key: "↑/↓", action: "Navigate" },
+			{ key: "Enter", action: "Execute" },
+			{ key: "Esc", action: "Close" },
 		]);
 	});
 });

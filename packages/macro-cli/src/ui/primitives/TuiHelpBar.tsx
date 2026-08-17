@@ -1,5 +1,11 @@
 import { TextAttributes } from "@opentui/core";
-import type { EditorKeymapProfile, I18nKernel } from "@stateful-mcp/macro";
+import type {
+	ContextualKeyHint,
+	EditorKeymapProfile,
+	I18nKernel,
+	MacroWorkspace,
+	RegisteredView,
+} from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
@@ -75,7 +81,7 @@ export function buildDynamicKeymapHints(
 		return [
 			{
 				key: "↑/↓",
-				action: translate(i18n, "helpBar.navigate", "Select Range"),
+				action: translate(i18n, "helpBar.selectRange", "Select Range"),
 			},
 			{
 				key: "Enter",
@@ -115,14 +121,118 @@ export function buildDynamicKeymapHints(
 			action: translate(i18n, "palette.title", "Command Palette"),
 		},
 		{
+			key: "Alt+1",
+			action: translate(i18n, "helpBar.activity", "Activity"),
+		},
+		{
 			key: formatKeyDisplay(keymap.window.toggleSidepanel),
-			action: translate(i18n, "inspector.title", "Sidepanel"),
+			action: translate(i18n, "inspector.title", "Inspector"),
+		},
+		{
+			key: formatKeyDisplay(keymap.window.switchSplitFocus || "Ctrl+W"),
+			action: translate(i18n, "helpBar.switchFocus", "Focus Pane"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.pinMacro || "Alt+P"),
 			action: translate(i18n, "helpBar.pin", "Pin"),
 		},
 	];
+}
+
+/**
+ * Resolves contextual shortcut hints dynamically based on the currently focused pane:
+ * - When in editor ('main'): returns mode-based keymap hints
+ * - When in 'palette': returns query navigation and execution hints
+ * - When in 'activity' or 'sidepanel': queries active view provider or container contextualHints
+ */
+export function buildContextualHelpBarHints(
+	workspace: MacroWorkspace,
+	keymap?: EditorKeymapProfile,
+): readonly TuiShortcutHint[] {
+	const layout = workspace.layout.getSnapshot();
+	const focusedPane = layout.focusedPane;
+	const i18n = workspace.i18n;
+
+	if (focusedPane === "palette") {
+		return [
+			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
+			{ key: "Enter", action: translate(i18n, "helpBar.apply", "Execute") },
+			{ key: "Esc", action: translate(i18n, "helpBar.close", "Close") },
+		];
+	}
+
+	if (focusedPane === "activity") {
+		const container = workspace.views.getContainer(layout.activeActivityContainerId);
+		const view = workspace.views.getViewsForContainer(container?.id ?? "").find((v: RegisteredView) => Boolean(v.provider));
+
+		if (view?.provider && "getContextualHints" in view.provider && typeof (view.provider as { getContextualHints?: Function }).getContextualHints === "function") {
+			const providerHints = (view.provider as { getContextualHints: Function }).getContextualHints({
+				workspace,
+				width: 30,
+				height: 20,
+				isFocused: true,
+				viewId: view.id,
+				emitAction: (id: string, payload?: unknown) => void workspace.commands.executeCommand(id, payload),
+			});
+			if (providerHints && Array.isArray(providerHints) && providerHints.length > 0) {
+				return providerHints.map((h: { key: string; label: string }) => ({ key: h.key, action: h.label }));
+			}
+		}
+
+		if (container?.contextualHints && container.contextualHints.length > 0) {
+			return container.contextualHints.map((h: ContextualKeyHint) => ({
+				key: h.key,
+				action: h.i18nKey ? translate(i18n, h.i18nKey, h.label ?? h.key) : (h.label ?? h.key),
+			}));
+		}
+
+		return [
+			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
+			{ key: "Enter", action: translate(i18n, "helpBar.open", "Open") },
+			{ key: "Ctrl+W", action: translate(i18n, "helpBar.switchFocus", "Focus Pane") },
+			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
+		];
+	}
+
+	if (focusedPane === "sidepanel") {
+		const container = workspace.views.getContainer(layout.activeInspectorContainerId);
+		const view = workspace.views.getViewsForContainer(container?.id ?? "").find((v: RegisteredView) => Boolean(v.provider));
+
+		if (view?.provider && "getContextualHints" in view.provider && typeof (view.provider as { getContextualHints?: Function }).getContextualHints === "function") {
+			const providerHints = (view.provider as { getContextualHints: Function }).getContextualHints({
+				workspace,
+				width: 30,
+				height: 20,
+				isFocused: true,
+				viewId: view.id,
+				emitAction: (id: string, payload?: unknown) => void workspace.commands.executeCommand(id, payload),
+			});
+			if (providerHints && Array.isArray(providerHints) && providerHints.length > 0) {
+				return providerHints.map((h: { key: string; label: string }) => ({ key: h.key, action: h.label }));
+			}
+		}
+
+		if (container?.contextualHints && container.contextualHints.length > 0) {
+			return container.contextualHints.map((h: ContextualKeyHint) => ({
+				key: h.key,
+				action: h.i18nKey ? translate(i18n, h.i18nKey, h.label ?? h.key) : (h.label ?? h.key),
+			}));
+		}
+
+		return [
+			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
+			{ key: "Enter", action: translate(i18n, "helpBar.apply", "Execute") },
+			{ key: "Ctrl+B", action: translate(i18n, "helpBar.close", "Close") },
+			{ key: "Ctrl+W", action: translate(i18n, "helpBar.switchFocus", "Focus Pane") },
+			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
+		];
+	}
+
+	return buildDynamicKeymapHints(
+		keymap ?? (workspace.runtime as any)?.context?.keymap ?? { window: {}, normal: {}, insert: {}, visual: {}, sequences: {} },
+		workspace.i18n,
+		workspace.editor.getMode(),
+	);
 }
 
 export function TuiHelpBar({

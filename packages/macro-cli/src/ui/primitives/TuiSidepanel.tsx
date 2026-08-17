@@ -17,6 +17,8 @@ export interface TuiSidepanelProps {
 	readonly cards?: readonly TuiSidepanelCard[];
 	readonly description?: string;
 	readonly children?: ReactNode;
+	/** Whether this panel currently has keyboard input focus (distinct from being the active/selected panel) */
+	readonly isFocused?: boolean;
 	readonly theme?: TuiThemeDefinition;
 }
 
@@ -32,9 +34,14 @@ export function TuiSidepanel({
 	cards,
 	description,
 	children,
+	isFocused = false,
 	theme,
 }: TuiSidepanelProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	// Focused: bright accent color on title and divider
+	// Active (not focused): normal fgPrimary title, subtle divider
+	const titleColor = isFocused ? c.accentPrimary : c.fgPrimary;
+	const dividerColor = isFocused ? c.borderActive : c.borderSubtle;
 
 	return (
 		<box
@@ -46,20 +53,20 @@ export function TuiSidepanel({
 			paddingTop={1}
 			paddingBottom={1}
 		>
-			{/* Panel Header */}
+			{/* Panel Header — accent color when focused, normal when just active */}
 			<box height={1} flexDirection="row" marginBottom={1}>
-				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-					{title}
+				<text fg={titleColor} attributes={TextAttributes.BOLD}>
+					{isFocused ? "▌ " : "  "}{title}
 				</text>
 				<box flexGrow={1} />
-				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+				<text fg={isFocused ? c.fgSecondary : c.fgMuted} attributes={TextAttributes.DIM}>
 					{closeHint}
 				</text>
 			</box>
 
-			{/* Subtle Horizontal Divider */}
+			{/* Divider — bright when focused, subtle when active but unfocused */}
 			<box height={1} marginBottom={1}>
-				<text fg={c.borderSubtle}>
+				<text fg={dividerColor}>
 					{"─".repeat(Math.max(4, width - 4))}
 				</text>
 			</box>

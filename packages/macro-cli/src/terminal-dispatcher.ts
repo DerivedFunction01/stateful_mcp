@@ -22,6 +22,7 @@ export async function dispatchTerminalInput(
 	const name = event.name;
 	const chordEvent = { ...event, char: input };
 	const isEnter = name === "return" || name === "enter" || input === "\r" || input === "\n";
+	const layout = workspace.layout.getSnapshot();
 
 	// 1. Command Palette Modal Focus
 	if (workspace.palette.getIsOpen()) {
@@ -61,6 +62,13 @@ export async function dispatchTerminalInput(
 		workspace.layout.toggleSidepanel();
 		return "handled";
 	}
+	if (
+		chordMatches(keymap.window.switchSplitFocus, chordEvent) ||
+		(event.ctrl && (name === "w" || input.toLowerCase() === "w"))
+	) {
+		workspace.layout.switchSplitFocus();
+		return "handled";
+	}
 	if (event.ctrl && (name === "c" || input.toLowerCase() === "c")) {
 		return "quit";
 	}
@@ -79,24 +87,76 @@ export async function dispatchTerminalInput(
 		return "handled";
 	}
 
-	// 4. Alt+Number activity / inspector switching
-	if (event.meta && input && /^[1-9]$/u.test(input)) {
-		const container = workspace.views.getContainerForAltKey(input);
+	// 4. Alt+Number JetBrains-style Focus & Navigation State Machine
+	const cleanDigit = (input.replace(/^\x1b/u, "") || name || "").trim();
+	const isAltChord = Boolean(event.meta || input.startsWith("\x1b"));
+	if (isAltChord && /^[1-9]$/u.test(cleanDigit)) {
+		const container = workspace.views.getContainerForAltKey(cleanDigit);
 		if (container) {
-			if ((container.region ?? "activity") === "activity") workspace.layout.setActiveActivityContainer(container.id);
-			else workspace.layout.setActiveInspectorContainer(container.id);
+			const targetRegion = (container.region ?? "activity") === "activity" ? "activity" : "inspector";
+			const targetPane = targetRegion === "activity" ? "activity" : "sidepanel";
+			const activeId = targetRegion === "activity" ? layout.activeActivityContainerId : layout.activeInspectorContainerId;
+			const isRegionOpen = layout.regions[targetRegion].open;
+			const isSameContainer = activeId === container.id;
+			const isAlreadyFocused = layout.focusedPane === targetPane;
+
+			if (isRegionOpen && isSameContainer && isAlreadyFocused) {
+				// Scenario D: already focused on this container -> dismiss focus back to editor
+				workspace.layout.setFocusedPane("main");
+			} else {
+				// Scenarios A, B, C: open if closed, select container, and grant focus
+				if (!isRegionOpen) {
+					workspace.layout.setRegionOpen(targetRegion, true);
+				}
+				if (targetRegion === "activity") {
+					workspace.layout.setActiveActivityContainer(container.id);
+				} else {
+					workspace.layout.setActiveInspectorContainer(container.id);
+				}
+				workspace.layout.setFocusedPane(targetPane);
+			}
+			return "handled";
 		}
-		return container ? "handled" : "ignored";
 	}
 
-	// 5. Global Escape returns to NORMAL mode
+	// 5. Alt+] / Alt+[ (or Alt+PgDn/PgUp) to cycle through all containers in current region
+	const isAltNext = isAltChord && (cleanDigit === "]" || name === "pagedown");
+	const isAltPrev = isAltChord && (cleanDigit === "[" || name === "pageup");
+	if (isAltNext || isAltPrev) {
+		const region = layout.focusedPane === "sidepanel" ? "inspector" : "activity";
+		const containers = workspace.views.getContainersForRegion(region);
+		if (containers.length > 0) {
+			const activeId = region === "activity" ? layout.activeActivityContainerId : layout.activeInspectorContainerId;
+			const currentIndex = Math.max(0, containers.findIndex((c) => c.id === activeId));
+			const delta = isAltNext ? 1 : -1;
+			const nextIndex = (currentIndex + delta + containers.length) % containers.length;
+			const target = containers[nextIndex];
+			if (target) {
+				if (region === "activity") {
+					workspace.layout.setActiveActivityContainer(target.id);
+					if (!layout.regions.activity.open) workspace.layout.setRegionOpen("activity", true);
+					workspace.layout.setFocusedPane("activity");
+				} else {
+					workspace.layout.setActiveInspectorContainer(target.id);
+					if (!layout.regions.inspector.open) workspace.layout.setRegionOpen("inspector", true);
+					workspace.layout.setFocusedPane("sidepanel");
+				}
+			}
+			return "handled";
+		}
+	}
+
+	// 6. Global Escape: return focus to main editor, or return to NORMAL mode if already in main
 	if (name === "escape") {
+		if (layout.focusedPane !== "main") {
+			workspace.layout.setFocusedPane("main");
+			return "handled";
+		}
 		workspace.editor.setMode("NORMAL");
 		return "handled";
 	}
 
 	const currentMode = workspace.editor.getMode();
-	const layout = workspace.layout.getSnapshot();
 	const isScratchpadActive = layout.activeTabId === "scratchpad";
 
 	// 6. Mode-Aware Scratchpad Execution & Navigation (Aligned with cli/clinical)

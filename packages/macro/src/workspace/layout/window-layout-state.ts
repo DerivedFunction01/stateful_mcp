@@ -245,6 +245,19 @@ export class WindowLayoutStateManager {
 		}
 	}
 
+	switchSplitFocus(): void {
+		const order: FocusedPane[] = ["main"];
+		if (this.regions.activity.open) order.push("activity");
+		if (this.regions.inspector.open) order.push("sidepanel");
+		if (order.length <= 1) {
+			this.setFocusedPane("main");
+			return;
+		}
+		const currentIndex = order.indexOf(this.focusedPane);
+		const nextIndex = (currentIndex + 1) % order.length;
+		this.setFocusedPane(order[nextIndex] ?? "main");
+	}
+
 	openModal(modal: ModalDescriptor): void {
 		this.modalStack.push(modal);
 		this.focusedPane = "modal";
