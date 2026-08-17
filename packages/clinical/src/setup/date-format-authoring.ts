@@ -28,6 +28,7 @@ const DATE_TOKENS = new Set<DateTimeToken>([
 	"MM",
 	"MM_name",
 	"DD",
+	"DDD",
 ]);
 const TIME_TOKENS = new Set<DateTimeToken>(["HH", "min", "SS", "ampm", "tz"]);
 

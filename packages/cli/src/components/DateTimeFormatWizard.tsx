@@ -1,8 +1,7 @@
-import type {
-	DateTimeFormatConfig,
-	DateTimeToken,
-} from "@stateful-mcp/clinical";
 import {
+	DATE_TIME_TOKENS,
+	type DateTimeFormatConfig,
+	type DateTimeToken,
 	findAmbiguousDateExamples,
 	previewDateTimeFormat,
 } from "@stateful-mcp/clinical";
@@ -26,18 +25,7 @@ type OptionName =
 	| "exact"
 	| "24-hour"
 	| "preferred";
-const TOKENS: DateTimeToken[] = [
-	"DD",
-	"MM",
-	"MM_name",
-	"YY",
-	"YYYY",
-	"HH",
-	"min",
-	"SS",
-	"ampm",
-	"tz",
-];
+const TOKENS: readonly DateTimeToken[] = DATE_TIME_TOKENS;
 const OPTION_NAMES: OptionName[] = [
 	"locale",
 	"timezone",

@@ -1,6 +1,7 @@
 export interface MacroSyntax {
 	macroStartToken: string;
 	argumentDelimiter?: string;
+	settingsListDelimiter?: string;
 	quoteCharacters?: readonly string[];
 	quotePairs?: readonly (readonly [open: string, close: string])[];
 	groupOpen?: string;
@@ -15,4 +16,10 @@ export function resolveArgumentDelimiter(
 	syntax?: Partial<MacroSyntax>,
 ): string | undefined {
 	return syntax?.argumentDelimiter;
+}
+
+export function resolveSettingsListDelimiter(
+	syntax?: Partial<MacroSyntax>,
+): string | undefined {
+	return syntax?.settingsListDelimiter;
 }

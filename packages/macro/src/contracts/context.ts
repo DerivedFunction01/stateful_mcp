@@ -14,6 +14,9 @@ export function createMacroRuntimeContext(
 		...(syntax?.argumentDelimiter !== undefined
 			? { argumentDelimiter: syntax.argumentDelimiter }
 			: {}),
+		...(syntax?.settingsListDelimiter !== undefined
+			? { settingsListDelimiter: syntax.settingsListDelimiter }
+			: {}),
 		...(syntax?.quoteCharacters
 			? { quoteCharacters: syntax.quoteCharacters }
 			: {}),

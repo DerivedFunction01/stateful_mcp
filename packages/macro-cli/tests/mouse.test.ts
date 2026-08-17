@@ -119,6 +119,7 @@ test("OpenTUI delivers a click to an interactive primitive", async () => {
 	setup.renderer.start();
 	await setup.flush();
 	await setup.mockMouse.click(15, 0);
+	await setup.flush();
 	expect(selected).toBe("second");
 	setup.renderer.destroy();
 });

@@ -1,17 +1,21 @@
 import type { TimePrecisionLevel } from "../../schemas/schemas-interface/time";
 import { getCompiledRegex } from "./_compiled-regex";
 
-export type DateTimeToken =
-	| "YYYY"
-	| "YY"
-	| "MM"
-	| "MM_name"
-	| "DD"
-	| "HH"
-	| "min"
-	| "SS"
-	| "ampm"
-	| "tz";
+export const DATE_TIME_TOKENS = [
+	"YYYY",
+	"YY",
+	"MM_name",
+	"MM",
+	"DDD",
+	"DD",
+	"HH",
+	"min",
+	"SS",
+	"ampm",
+	"tz",
+] as const;
+
+export type DateTimeToken = (typeof DATE_TIME_TOKENS)[number];
 
 export interface DateTimeFormatConfig {
 	id?: string;
@@ -133,6 +137,7 @@ export function buildDatePatternString(
 			? `(?:${configuredMonthNames.map(escapeRegex).join("|")})`
 			: mmPattern;
 	const ddPattern = "(?:0?[1-9]|[12]\\d|3[01])";
+	const dddPattern = "(?:00[1-9]|0[1-9]\\d|[12]\\d{2}|3[0-5]\\d|36[0-6])";
 	const hhPattern = is24Hour ? "(?:[01]\\d|2[0-3])" : "(?:0?[1-9]|1[0-2])";
 	const minSecPattern = "[0-5]\\d";
 	const ampmPattern = dayPeriods
@@ -147,6 +152,7 @@ export function buildDatePatternString(
 			MM: (name) => `(?<${name}>${mmPattern})`,
 			MM_name: (name) => `(?<${name}>${mmNamePattern})`,
 			DD: (name) => `(?<${name}>${ddPattern})`,
+			DDD: (name) => `(?<${name}>${dddPattern})`,
 			HH: (name) => `(?<${name}>${hhPattern})`,
 			min: (name) => `(?<${name}>${minSecPattern})`,
 			SS: (name) => `(?<${name}>${minSecPattern})`,
