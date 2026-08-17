@@ -37,6 +37,7 @@ export * from "./history/jsonl-history-store";
 export * from "./history/memory-history-store";
 export * from "./middleware/dictionary/filters";
 export * from "./middleware/dictionary/interfaces";
+export * from "./middleware/dictionary/memoized-store";
 export * from "./middleware/dictionary/resolver";
 export * from "./middleware/dictionary/store";
 export * from "./middleware/dictionary/types";

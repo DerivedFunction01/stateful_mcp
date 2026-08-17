@@ -263,6 +263,10 @@ export function parseWithTemplate<
 	tokenSpecs: Readonly<Record<string, TemplateTokenSpec>>,
 	options: CompileTemplateOptions = {},
 ): TemplateParseResult<TFields> {
-	const compiled = compileFormatTemplate<TFields>(template, tokenSpecs, options);
+	const compiled = compileFormatTemplate<TFields>(
+		template,
+		tokenSpecs,
+		options,
+	);
 	return parseTemplateString(input, compiled);
 }

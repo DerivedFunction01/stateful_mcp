@@ -28,8 +28,16 @@ describe("Universal Generic Format Template Compiler & Parser (template-compiler
 		test("parses friendly natural prose templates with literal words and punctuation", () => {
 			const tokens: Record<string, TemplateTokenSpec> = {
 				YYYY: { pattern: "\\d{4}", field: "year", transform: Number },
-				MM: { pattern: "(?:0?[1-9]|1[0-2])", field: "month", transform: Number },
-				DD: { pattern: "(?:0?[1-9]|[12]\\d|3[01])", field: "day", transform: Number },
+				MM: {
+					pattern: "(?:0?[1-9]|1[0-2])",
+					field: "month",
+					transform: Number,
+				},
+				DD: {
+					pattern: "(?:0?[1-9]|[12]\\d|3[01])",
+					field: "day",
+					transform: Number,
+				},
 			};
 
 			const template = "Year: YYYY, Month: MM, Day: DD";
@@ -106,20 +114,36 @@ describe("Universal Generic Format Template Compiler & Parser (template-compiler
 				DD: { pattern: "\\d{2}", field: "day" },
 			};
 
-			const template = "YYYY<regex:(?:[\\/\\-\\.]|\\s+)>MM<regex:(?:[\\/\\-\\.]|\\s+)>DD";
+			const template =
+				"YYYY<regex:(?:[\\/\\-\\.]|\\s+)>MM<regex:(?:[\\/\\-\\.]|\\s+)>DD";
 			const options = { allowRegexTokens: true };
 
-			const resDash = parseWithTemplate("2026-08-17", template, tokens, options);
+			const resDash = parseWithTemplate(
+				"2026-08-17",
+				template,
+				tokens,
+				options,
+			);
 			expect(resDash.matched).toBe(true);
 			expect(resDash.fields.year).toBe("2026");
 
-			const resSlash = parseWithTemplate("2026/08/17", template, tokens, options);
+			const resSlash = parseWithTemplate(
+				"2026/08/17",
+				template,
+				tokens,
+				options,
+			);
 			expect(resSlash.matched).toBe(true);
 
 			const resDot = parseWithTemplate("2026.08.17", template, tokens, options);
 			expect(resDot.matched).toBe(true);
 
-			const resSpace = parseWithTemplate("2026 08 17", template, tokens, options);
+			const resSpace = parseWithTemplate(
+				"2026 08 17",
+				template,
+				tokens,
+				options,
+			);
 			expect(resSpace.matched).toBe(true);
 		});
 
@@ -130,7 +154,11 @@ describe("Universal Generic Format Template Compiler & Parser (template-compiler
 
 			const template = "<regex:foo>TAG";
 			// Default allowRegexTokens: false
-			const resLiteral = parseWithTemplate("<regex:foo>alpha", template, tokens);
+			const resLiteral = parseWithTemplate(
+				"<regex:foo>alpha",
+				template,
+				tokens,
+			);
 			expect(resLiteral.matched).toBe(true);
 			expect(resLiteral.fields.tag).toBe("alpha");
 
@@ -193,12 +221,22 @@ describe("Universal Generic Format Template Compiler & Parser (template-compiler
 			const template = "AMOUNT<regex:\\s*(?:\\/|per)\\s*>DIVISOR";
 			const options = { allowRegexTokens: true };
 
-			const resSlash = parseWithTemplate("$50/hr", template, rateTokens, options);
+			const resSlash = parseWithTemplate(
+				"$50/hr",
+				template,
+				rateTokens,
+				options,
+			);
 			expect(resSlash.matched).toBe(true);
 			expect(resSlash.fields.amount).toBe("$50");
 			expect(resSlash.fields.divisor).toBe("hr");
 
-			const resPer = parseWithTemplate("$50 per hr", template, rateTokens, options);
+			const resPer = parseWithTemplate(
+				"$50 per hr",
+				template,
+				rateTokens,
+				options,
+			);
 			expect(resPer.matched).toBe(true);
 			expect(resPer.fields.amount).toBe("$50");
 			expect(resPer.fields.divisor).toBe("hr");
