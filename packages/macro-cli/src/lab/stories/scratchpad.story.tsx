@@ -1,4 +1,9 @@
 import { TextAttributes } from "@opentui/core";
+import {
+	TuiScratchpadBody,
+	type TuiScratchpadLineModel,
+	TuiWorkspaceSurface,
+} from "../../ui/compositions";
 import { TuiHelpBar } from "../../ui/primitives/TuiHelpBar";
 import { TuiPanelRegion } from "../../ui/primitives/TuiPanelRegion";
 import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
@@ -12,30 +17,27 @@ const DEMO_TABS: readonly TuiTabItem[] = [
 	{ id: "settings", label: "Settings", icon: "⚙" },
 ];
 
-const DEMO_LINES = [
+const DEMO_LINES: readonly TuiScratchpadLineModel[] = [
 	{
-		num: "01",
-		sign: "●",
+		id: "01",
+		lineNumber: "01",
 		text: "^deploy service=api env=staging region=us-east-1",
-		projection: "↳ Deploying service 'api' to environment 'staging' [ready]",
-		isValid: true,
-		isActive: true,
+		projection: "Deploying service 'api' to environment 'staging' [ready]",
+		state: "active",
 	},
 	{
-		num: "02",
-		sign: " ",
+		id: "02",
+		lineNumber: "02",
 		text: "^charge amount=250 currency=USD customer=cust_981",
-		projection: "↳ Charge scheduled: $250.00 USD via Stripe [pending]",
-		isValid: true,
-		isActive: false,
+		projection: "Charge scheduled: $250.00 USD via Stripe [pending]",
+		state: "valid",
 	},
 	{
-		num: "03",
-		sign: " ",
+		id: "03",
+		lineNumber: "03",
 		text: '^notify channel=#deployments msg="Staging deployment ready"',
-		projection: "↳ Slack notification queued for #deployments",
-		isValid: true,
-		isActive: false,
+		projection: "Slack notification queued for #deployments",
+		state: "valid",
 	},
 ];
 
@@ -46,39 +48,28 @@ export const scratchpadStory: TuiStory = {
 	states: ["default"],
 	render(context) {
 		const width = context.size.columns;
+		const height = context.size.rows;
 		const theme = GlobalThemeRegistry.getActive();
 		const c = theme.colors;
 
-		const leftRailItems = [
-			{
-				id: "explorer",
-				label: "Explorer",
-				icon: "📁",
-				altKey: "1",
-				isActive: true,
-			},
-			{ id: "journal", label: "Journal", icon: "◷", altKey: "3" },
-		];
-
-		const rightRailItems = [
-			{
-				id: "slots",
-				label: "Macro Slots",
-				icon: "▧",
-				altKey: "2",
-				isActive: true,
-			},
-		];
-
-		// Left Panel
 		const leftPanel = (
 			<TuiPanelRegion
 				dock="start"
-				railItems={leftRailItems}
+				railItems={[
+					{
+						id: "explorer",
+						label: "Explorer",
+						icon: "📁",
+						altKey: "1",
+						isActive: true,
+					},
+					{ id: "journal", label: "Journal", icon: "◷", altKey: "3" },
+				]}
 				activeRailId="explorer"
 				title="Explorer"
 				closeHint="Ctrl+E"
 				panelWidth={26}
+				height={height}
 				isOpen={true}
 				theme={theme}
 			>
@@ -88,7 +79,6 @@ export const scratchpadStory: TuiStory = {
 					</text>
 					<text fg={c.fgPrimary}> ├─ schema.macro</text>
 					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-						{" "}
 						├─ deploy.macro
 					</text>
 					<text fg={c.fgPrimary}> └─ config.json</text>
@@ -96,15 +86,23 @@ export const scratchpadStory: TuiStory = {
 			</TuiPanelRegion>
 		);
 
-		// Right Panel
 		const rightPanel = (
 			<TuiPanelRegion
 				dock="end"
-				railItems={rightRailItems}
+				railItems={[
+					{
+						id: "slots",
+						label: "Macro Slots",
+						icon: "▧",
+						altKey: "2",
+						isActive: true,
+					},
+				]}
 				activeRailId="slots"
 				title="Macro Slots"
 				closeHint="Alt+2"
 				panelWidth={28}
+				height={height}
 				cards={[
 					{
 						id: "s1",
@@ -121,111 +119,47 @@ export const scratchpadStory: TuiStory = {
 			/>
 		);
 
-		// Shared Editor Line Renderer
-		const renderEditorLines = (extraBg?: string) => (
-			<box
-				flexDirection="column"
-				flexGrow={1}
-				backgroundColor={extraBg ?? c.bgCanvas}
-			>
-				{DEMO_LINES.map((line) => {
-					const rowBg = line.isActive ? c.bgActive : undefined;
-					const leftColor = line.isActive ? c.accentPrimary : "transparent";
-
-					return (
-						<box key={line.num} flexDirection="column">
-							{/* Row 1: Command text */}
-							<box flexDirection="row" backgroundColor={rowBg} height={1}>
-								<text fg={leftColor} attributes={TextAttributes.BOLD}>
-									{line.isActive ? "▎" : " "}
-								</text>
-								<text
-									fg={line.isActive ? c.accentPrimary : c.fgMuted}
-									attributes={TextAttributes.BOLD}
-								>
-									{" "}
-									{line.sign}{" "}
-								</text>
-								<text
-									fg={line.isActive ? c.accentAmber : c.fgDim}
-									attributes={line.isActive ? TextAttributes.BOLD : 0}
-								>
-									{line.num}{" "}
-								</text>
-								<text fg={c.borderDefault}>│ </text>
-								<text
-									fg={c.fgPrimary}
-									attributes={line.isActive ? TextAttributes.BOLD : 0}
-								>
-									{line.text}
-								</text>
-							</box>
-
-							{/* Row 2: Live projection line */}
-							{line.projection && (
-								<box flexDirection="row" backgroundColor={rowBg} height={1}>
-									<text fg={leftColor} attributes={TextAttributes.BOLD}>
-										{line.isActive ? "▎" : " "}
-									</text>
-									<text fg="transparent"> </text>
-									<text fg={c.borderDefault}>│ </text>
-									<text fg={c.statusSuccess}>{line.projection}</text>
-								</box>
-							)}
-						</box>
-					);
-				})}
-			</box>
-		);
-
 		return (
-			<box
-				flexDirection="column"
-				width={width}
-				backgroundColor={c.bgCanvas}
-				padding={1}
-			>
-				<box
-					backgroundColor={c.bgSurface}
-					height={1}
-					paddingLeft={0}
-					paddingRight={1}
-				>
+			<TuiWorkspaceSurface
+				header={
 					<TuiTabs
 						tabs={DEMO_TABS}
 						activeTabId="scratchpad"
 						variant="opencode"
 						theme={theme}
 					/>
-				</box>
-				<box height={1}>
-					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
-				</box>
-
-				<box flexDirection="row" flexGrow={1} marginBottom={1}>
-					{leftPanel}
-					<box
-						flexGrow={1}
-						flexDirection="column"
-						backgroundColor={c.bgElevated}
-						paddingLeft={1}
-						paddingRight={1}
-						marginLeft={1}
-						marginRight={1}
-					>
-						{renderEditorLines(c.bgElevated)}
-					</box>
-					{rightPanel}
-				</box>
-
-				<TuiHelpBar variant="nano-grid" theme={theme} />
-				<TuiStatusBar
-					mode="NORMAL"
-					validCount={3}
-					totalCount={3}
-					theme={theme}
-				/>
-			</box>
+				}
+				startRegion={leftPanel}
+				body={
+					<TuiScratchpadBody
+						lines={DEMO_LINES}
+						activeLineId="01"
+						showProjections={true}
+						theme={theme}
+					/>
+				}
+				endRegion={rightPanel}
+				footer={
+					<>
+						<TuiHelpBar variant="nano-grid" theme={theme} />
+						<TuiStatusBar
+							mode="NORMAL"
+							validCount={3}
+							totalCount={3}
+							theme={theme}
+						/>
+					</>
+				}
+				width={width}
+				height={height}
+				layout={{
+					outerPadding: 1,
+					bodyFrame: "none",
+					activityWidth: 26,
+					inspectorWidth: 28,
+				}}
+				theme={theme}
+			/>
 		);
 	},
 };

@@ -1,4 +1,5 @@
 export * from "../locales";
+export * from "./compositions";
 export * from "./hooks/useCursorBlink";
 export * from "./primitives/TuiAccordion";
 export * from "./primitives/TuiActivityRail";

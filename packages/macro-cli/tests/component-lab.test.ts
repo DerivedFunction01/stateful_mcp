@@ -3,6 +3,7 @@ import { GlobalThemeRegistry, parseArgs } from "../src/index";
 import { createMockWorkspace } from "../src/lab/mock-workspace";
 import { TuiStoryRegistry } from "../src/lab/story-registry";
 import { translate } from "../src/locales";
+import { resolveTuiWorkspaceLayout } from "../src/ui/compositions/layout";
 import {
 	buildContextualHelpBarHints,
 	buildDynamicKeymapHints,
@@ -240,5 +241,49 @@ describe("Theme System & CSS Generation", () => {
 		expect(css).toContain("--color-bg-canvas: #0d1117");
 		expect(css).toContain("--color-fg-primary: #f0f6fc");
 		expect(css).toContain("--color-accent-primary: #38bdf8");
+	});
+});
+
+describe("Shared workspace composition layout", () => {
+	test("clamps panels in medium terminals and preserves a usable body", () => {
+		const layout = resolveTuiWorkspaceLayout({
+			width: 120,
+			activityWidth: 48,
+			inspectorWidth: 44,
+		});
+
+		expect(layout.mode).toBe("medium");
+		expect(layout.activityWidth).toBe(32);
+		expect(layout.inspectorWidth).toBe(32);
+		expect(layout.bodyWidth).toBe(54);
+		expect(layout.compactRails).toBe(false);
+	});
+
+	test("uses compact rails in narrow terminals and supports closed regions", () => {
+		const layout = resolveTuiWorkspaceLayout({
+			width: 80,
+			activityOpen: false,
+			inspectorOpen: true,
+		});
+
+		expect(layout.mode).toBe("narrow");
+		expect(layout.activityWidth).toBe(0);
+		expect(layout.inspectorWidth).toBe(5);
+		expect(layout.bodyWidth).toBe(74);
+		expect(layout.compactRails).toBe(true);
+	});
+
+	test("keeps wide terminal panel widths at or above shared minimums", () => {
+		const layout = resolveTuiWorkspaceLayout({
+			width: 160,
+			activityWidth: 30,
+			inspectorWidth: 36,
+			outerPadding: 2,
+		});
+
+		expect(layout.mode).toBe("wide");
+		expect(layout.activityWidth).toBe(30);
+		expect(layout.inspectorWidth).toBe(36);
+		expect(layout.bodyWidth).toBe(88);
 	});
 });

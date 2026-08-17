@@ -1,6 +1,10 @@
 import { TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import { translate } from "../locales";
+import {
+	TuiScratchpadBody,
+	type TuiScratchpadLineModel,
+} from "../ui/compositions";
 import { TuiCursor } from "../ui/primitives/TuiCursor";
 import { formatKeyDisplay } from "../ui/primitives/TuiHelpBar";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
@@ -14,15 +18,15 @@ export function ScratchpadView({
 	keymap?: EditorKeymapProfile;
 	theme?: TuiThemeDefinition;
 }) {
-	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const activeTheme = theme ?? GlobalThemeRegistry.getActive();
+	const c = activeTheme.colors;
 	const cursor = workspace.editor.buffer.getCursor();
-	const lines = workspace.editor.buffer.getLines();
+	const authoredLines = workspace.editor.buffer.getLines();
 	const projected = workspace.scratchpad.getProjectedLines();
 	const pinned = workspace.scratchpad.getPinnedMacro();
 	const mode = workspace.editor.getMode();
 	const selection = workspace.editor.buffer.getSelection();
 	const i18n = workspace.i18n;
-
 	const isVisualMode = mode === "VISUAL";
 	const minSelectedLine = selection
 		? Math.min(selection.start.line, selection.end.line)
@@ -30,11 +34,9 @@ export function ScratchpadView({
 	const maxSelectedLine = selection
 		? Math.max(selection.start.line, selection.end.line)
 		: -1;
-
-	const isEmptyBuffer = lines.length === 1 && lines[0] === "";
+	const isEmptyBuffer = authoredLines.length === 1 && authoredLines[0] === "";
 	const pinChord = formatKeyDisplay(keymap?.window.pinMacro || "Alt+P");
 	const trigger = workspace.runtime?.context?.syntax?.macroStartToken || "^";
-
 	const placeholderText = translate(
 		i18n,
 		"scratchpad.emptyPlaceholder",
@@ -47,17 +49,52 @@ export function ScratchpadView({
 				macro: pinned,
 			})
 		: "";
-
 	const pinnedHint = translate(
 		i18n,
 		"scratchpad.pinnedHint",
 		`(${pinChord} to toggle)`,
 		{ key: pinChord },
 	);
+	const pinnedBadge = translate(
+		i18n,
+		"scratchpad.pinnedBadge",
+		`[pinned to ${pinned ?? ""}]`,
+		{ macro: pinned ?? "" },
+	);
+
+	const lineModels: readonly TuiScratchpadLineModel[] = authoredLines.map(
+		(text, index) => {
+			const projection = projected[index];
+			const isActive = cursor.line === index;
+			const isSelected =
+				isVisualMode && index >= minSelectedLine && index <= maxSelectedLine;
+			const hasError =
+				projection && !projection.isValid && projection.diagnostics.length > 0;
+			const isPinned = pinned && projection?.macroName === pinned;
+
+			return {
+				id: String(index),
+				lineNumber: String(index + 1).padStart(2, "0"),
+				text,
+				projection: projection?.preview?.text,
+				diagnostic: hasError ? projection.diagnostics[0]?.message : undefined,
+				state: isActive
+					? "active"
+					: isSelected
+						? "selected"
+						: isPinned
+							? "pinned"
+							: projection?.isValid
+								? "valid"
+								: hasError
+									? "invalid"
+									: "normal",
+			};
+		},
+	);
 
 	return (
 		<box flexDirection="column">
-			{/* Top Pinned Macro Banner if active */}
 			{pinned && (
 				<box height={1} marginBottom={1} flexDirection="row">
 					<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
@@ -70,157 +107,96 @@ export function ScratchpadView({
 				</box>
 			)}
 
-			{lines.map((line, index) => {
-				const projection = projected[index];
-				const isActive = cursor.line === index;
-				const isSelectedInVisual =
-					isVisualMode && index >= minSelectedLine && index <= maxSelectedLine;
-				const isHighlighted = isActive || isSelectedInVisual;
-
-				const isPinned = pinned && projection?.macroName === pinned;
-				const hasError =
-					projection &&
-					!projection.isValid &&
-					projection.diagnostics.length > 0;
-				const isValid = projection?.isValid ?? false;
-
-				const lineNumStr = String(index + 1).padStart(2, "0");
-				const signChar = isSelectedInVisual
-					? "●"
-					: isActive
-						? "●"
-						: hasError
-							? "!"
-							: isValid
-								? "✓"
-								: " ";
-
-				const signColor = isHighlighted
-					? c.accentPrimary
-					: hasError
-						? c.statusError
-						: isValid
-							? c.statusSuccess
-							: c.fgMuted;
-
-				const rowBg = isSelectedInVisual
-					? c.bgActive
-					: isActive
-						? c.bgElevated
-						: undefined;
-
-				const leftBarColor = isHighlighted
-					? c.accentPrimary
-					: hasError
-						? c.statusError
-						: "transparent";
-
-				const pinnedBadge = isPinned
-					? translate(i18n, "scratchpad.pinnedBadge", `[pinned to ${pinned}]`, {
-							macro: pinned,
-						})
-					: "";
-
-				// Parse cursor position on active line
-				const beforeCursor = line.slice(0, cursor.col);
-				const cursorChar = line.slice(cursor.col, cursor.col + 1) || " ";
-				const afterCursor = line.slice(cursor.col + 1);
-
-				return (
-					<box key={`${index}-${line}`} flexDirection="column">
-						{/* Row 1: Main Command Input */}
-						<box flexDirection="row" backgroundColor={rowBg} height={1}>
-							{/* Left accent pillar (1 char) */}
-							<text fg={leftBarColor} attributes={TextAttributes.BOLD}>
-								{isHighlighted || hasError ? "▎" : " "}
-							</text>
-
-							{/* Sign column (3 chars) */}
-							<text fg={signColor} attributes={TextAttributes.BOLD}>
-								{" "}
-								{signChar}{" "}
-							</text>
-
-							{/* Line Number (3 chars) */}
-							<text
-								fg={isHighlighted ? c.accentAmber : c.fgMuted}
-								attributes={isHighlighted ? TextAttributes.BOLD : 0}
-							>
-								{lineNumStr}{" "}
-							</text>
-
-							{/* Continuous vertical pipe divider */}
-							<text fg={c.borderDefault}>│ </text>
-
-							{/* Command Input Text with Precise Inline Blinking Cursor */}
-							{isEmptyBuffer && isActive ? (
-								<box flexDirection="row">
-									<TuiCursor
-										char={placeholderText.slice(0, 1)}
-										isPlaceholder={true}
-										theme={theme}
-									/>
-									<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-										{placeholderText.slice(1)}
+			<TuiScratchpadBody
+				lines={lineModels}
+				activeLineId={String(cursor.line)}
+				theme={theme}
+				renderAuthoredContent={(line) => {
+					const index = Number(line.id);
+					const text = authoredLines[index] ?? "";
+					const isPinnedLine = Boolean(
+						pinned && projected[index]?.macroName === pinned,
+					);
+					if (index !== cursor.line) {
+						return (
+							<box flexDirection="row">
+								<text
+									fg={line.state === "selected" ? c.fgPrimary : c.fgSecondary}
+									attributes={
+										line.state === "selected" ? TextAttributes.BOLD : 0
+									}
+								>
+									{text || " "}
+								</text>
+								{isPinnedLine && (
+									<text fg={c.accentAmber} attributes={TextAttributes.DIM}>
+										{"  "}
+										{pinnedBadge}
 									</text>
-								</box>
-							) : isActive ? (
-								<box flexDirection="row">
-									{beforeCursor.length > 0 && (
-										<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-											{beforeCursor}
-										</text>
-									)}
-									<TuiCursor char={cursorChar} theme={theme} />
-									{afterCursor.length > 0 && (
-										<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-											{afterCursor}
-										</text>
-									)}
-								</box>
-							) : (
-								<text
-									fg={isHighlighted ? c.fgPrimary : c.fgSecondary}
-									attributes={isHighlighted ? TextAttributes.BOLD : 0}
-								>
-									{line || " "}
-								</text>
-							)}
+								)}
+							</box>
+						);
+					}
 
-							{/* Pinned Tag */}
-							{isPinned && (
-								<text fg={c.accentAmber} attributes={TextAttributes.DIM}>
-									{"  "}[pinned]
-								</text>
-							)}
-						</box>
-
-						{/* Row 2: Fixed-Height Projection Tray */}
-						<box flexDirection="row" backgroundColor={rowBg} height={1}>
-							<text fg={leftBarColor} attributes={TextAttributes.BOLD}>
-								{isHighlighted || hasError ? "▎" : " "}
-							</text>
-							<text fg="transparent"> </text>
-							<text fg={c.borderDefault}>│ </text>
-							{hasError ? (
-								<text fg={c.statusError}>
-									! {projection.diagnostics[0]?.message}
-								</text>
-							) : projection?.preview ? (
-								<text
-									fg={projection.isValid ? c.statusSuccess : c.statusWarning}
-								>
-									↳ {projection.preview.text}
-								</text>
-							) : (
+					const beforeCursor = text.slice(0, cursor.col);
+					const cursorChar = text.slice(cursor.col, cursor.col + 1) || " ";
+					const afterCursor = text.slice(cursor.col + 1);
+					if (isEmptyBuffer) {
+						return (
+							<box flexDirection="row">
+								<TuiCursor
+									char={placeholderText.slice(0, 1)}
+									isPlaceholder={true}
+									theme={theme}
+								/>
 								<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-									{" "}
+									{placeholderText.slice(1)}
+								</text>
+							</box>
+						);
+					}
+
+					return (
+						<box flexDirection="row">
+							{beforeCursor && (
+								<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+									{beforeCursor}
+								</text>
+							)}
+							<TuiCursor char={cursorChar} theme={theme} />
+							{afterCursor && (
+								<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+									{afterCursor}
+								</text>
+							)}
+							{isPinnedLine && (
+								<text fg={c.accentAmber} attributes={TextAttributes.DIM}>
+									{"  "}
+									{pinnedBadge}
 								</text>
 							)}
 						</box>
-					</box>
-				);
-			})}
+					);
+				}}
+				renderProjectionContent={(line) => {
+					const projection = projected[Number(line.id)];
+					if (line.diagnostic) {
+						return <text fg={c.statusError}>! {line.diagnostic}</text>;
+					}
+					if (projection?.preview) {
+						return (
+							<text fg={projection.isValid ? c.statusSuccess : c.statusWarning}>
+								↳ {projection.preview.text}
+							</text>
+						);
+					}
+					return (
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+							{" "}
+						</text>
+					);
+				}}
+			/>
 		</box>
 	);
 }

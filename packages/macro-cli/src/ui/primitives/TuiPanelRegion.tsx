@@ -13,6 +13,7 @@ export interface TuiPanelRegionProps {
 	readonly title: string;
 	readonly closeHint?: string;
 	readonly panelWidth?: number;
+	readonly height?: number;
 	readonly cards?: readonly TuiSidepanelCard[];
 	readonly description?: string;
 	readonly children?: ReactNode;
@@ -38,6 +39,7 @@ export function TuiPanelRegion({
 	title,
 	closeHint = "×",
 	panelWidth = 30,
+	height,
 	cards,
 	description,
 	children,
@@ -57,18 +59,19 @@ export function TuiPanelRegion({
 		/>
 	);
 
+	const dividerHeight = Math.max(1, height ?? 10);
 	const divider = (
-		<box width={1} flexDirection="column" alignItems="center">
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
-			<text fg={c.borderDefault}>│</text>
+		<box
+			width={1}
+			height={dividerHeight}
+			flexDirection="column"
+			alignItems="center"
+		>
+			{Array.from({ length: dividerHeight }).map((_, index) => (
+				<text key={index} fg={c.borderDefault}>
+					│
+				</text>
+			))}
 		</box>
 	);
 
