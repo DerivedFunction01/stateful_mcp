@@ -21,6 +21,7 @@ export class EditorKernel {
 	public readonly buffer: CursorBuffer;
 	private mode: EditorMode = "NORMAL";
 	private commandText = "";
+	private submittedCommand: string | null = null;
 	private yankBuffer = "";
 	private lastPendingKey = "";
 	private readonly listeners = new Set<() => void>();
@@ -55,6 +56,12 @@ export class EditorKernel {
 
 	getCommandText(): string {
 		return this.commandText;
+	}
+
+	consumeSubmittedCommand(): string | null {
+		const command = this.submittedCommand;
+		this.submittedCommand = null;
+		return command;
 	}
 
 	setCommandText(text: string): void {
@@ -135,7 +142,7 @@ export class EditorKernel {
 	private handleInsertKey(input: KeyInput): boolean {
 		const { name, char } = input;
 
-		if (name === "return") {
+		if (name === "return" || name === "enter") {
 			this.buffer.splitLine();
 			return true;
 		}
@@ -355,10 +362,10 @@ export class EditorKernel {
 	private handleCommandModeKey(input: KeyInput): boolean {
 		const { name, char } = input;
 
-		if (name === "return") {
+		if (name === "return" || name === "enter") {
 			const cmd = this.commandText.trim();
+			this.submittedCommand = cmd;
 			this.setMode("NORMAL");
-			// Dispatched via callback / command system
 			return true;
 		}
 		if (name === "backspace") {

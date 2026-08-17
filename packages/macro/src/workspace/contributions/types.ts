@@ -69,7 +69,40 @@ export interface CommandContribution {
 	readonly category?: string;
 	readonly keybinding?: string;
 	readonly when?: string;
+	readonly verb?: string;
+	readonly aliases?: readonly string[];
+	readonly description?: string;
+	readonly args?: readonly WorkspaceCommandArgument[];
 }
+
+export interface WorkspaceCommandArgument {
+	readonly name: string;
+	readonly required?: boolean;
+	readonly description?: string;
+	readonly completions?: readonly string[];
+	readonly type?: "enum" | "identifier" | "expression" | "text";
+}
+
+export interface WorkspacePersistenceParticipant {
+	readonly id: string;
+	readonly scope: "tab" | "workspace";
+	readonly tabId?: string;
+	readonly isDirty?: () => boolean;
+	save(request: WorkspaceSaveRequest): Promise<WorkspaceSaveResult>;
+}
+
+export interface WorkspaceSaveRequest {
+	readonly reason: "explicit" | "quit" | "close" | "shutdown";
+	readonly scope: "active" | "all";
+	readonly signal?: AbortSignal;
+}
+
+export type WorkspaceSaveResult =
+	| { readonly status: "saved"; readonly message?: string }
+	| { readonly status: "unchanged" }
+	| { readonly status: "skipped"; readonly reason?: string }
+	| { readonly status: "needsConfirmation"; readonly message: string }
+	| { readonly status: "failed"; readonly message: string; readonly error?: unknown };
 
 export interface LocalizationContribution {
 	readonly languageId: string;

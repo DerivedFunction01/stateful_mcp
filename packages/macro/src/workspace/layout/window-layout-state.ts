@@ -7,6 +7,7 @@ export type FocusedPane =
 	| "activity"
 	| "sidepanel"
 	| "palette"
+	| "command"
 	| "modal";
 export type SidepanelPosition = "left" | "right";
 export type InspectorMode = "follow" | "pinned";
@@ -127,6 +128,14 @@ export class WindowLayoutStateManager {
 			this.activeTabId = tabId;
 			this.notify();
 		}
+	}
+
+	closeActiveTab(): void {
+		if (!this.tabRegistry) return;
+		const tabs = this.tabRegistry.getTabs();
+		const index = tabs.findIndex((tab) => tab.id === this.activeTabId);
+		if (index < 0 || tabs.length < 2) return;
+		this.setActiveTab((tabs[index - 1] ?? tabs[index + 1])!.id);
 	}
 
 	nextTab(direction: 1 | -1 = 1): void {

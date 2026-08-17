@@ -210,6 +210,22 @@ describe("macro-cli terminal dispatcher", () => {
 		await workspace.runtime.dispose();
 	});
 
+	test("keeps command bar separate from palette and preserves Vim w", async () => {
+		const workspace = createMacroWorkspace({ initialText: "one two" });
+		const keymap = DEFAULT_EDITOR_KEYMAP_PROFILE;
+		await dispatchTerminalInput(workspace, keymap, { input: "w" });
+		expect(workspace.editor.buffer.getCursor().col).toBe(4);
+		await dispatchTerminalInput(workspace, keymap, { input: ":" });
+		expect(workspace.palette.getIsOpen()).toBe(false);
+		expect(workspace.editor.getMode()).toBe("COMMAND");
+		await dispatchTerminalInput(workspace, keymap, { input: "w" });
+		expect(workspace.editor.buffer.getCursor().col).toBe(4);
+		expect(workspace.editor.getCommandText()).toBe("w");
+		await dispatchTerminalInput(workspace, keymap, { name: "return" });
+		expect(workspace.editor.getMode()).toBe("NORMAL");
+		await workspace.dispose();
+	});
+
 	test("uses an explicitly configured macro marker without adding one implicitly", () => {
 		const workspace = createMacroWorkspace({
 			runtime: new ExtensionRuntime({
@@ -306,12 +322,13 @@ describe("macro-cli terminal dispatcher", () => {
 		).toBe("handled");
 		expect(workspace.editor.getMode()).toBe("NORMAL");
 
-		// In NORMAL mode, ':' opens Command Palette modal
+		// In NORMAL mode, ':' enters the command bar, not the palette.
 		workspace.editor.setMode("NORMAL");
 		expect(await dispatchTerminalInput(workspace, keymap, { input: ":" })).toBe(
 			"handled",
 		);
-		expect(workspace.palette.getIsOpen()).toBe(true);
+		expect(workspace.palette.getIsOpen()).toBe(false);
+		expect(workspace.editor.getMode()).toBe("COMMAND");
 
 		await workspace.runtime.dispose();
 	});

@@ -9,6 +9,7 @@ import {
 	ExtensionLoader as MacroExtensionLoader,
 	type MacroWorkspace,
 	mergeEditorKeymap,
+	validateEditorKeymap,
 } from "@stateful-mcp/macro";
 import { registerCliLocales } from "./locales";
 
@@ -58,6 +59,11 @@ export async function loadMacroCliWorkspace(
 		DEFAULT_EDITOR_KEYMAP_PROFILE,
 		keymapOverride,
 	);
+	const keymapDiagnostics = validateEditorKeymap(keymap, { allowSequencePrefixes: true });
+	const keymapErrors = keymapDiagnostics.filter((diagnostic) => diagnostic.severity === "error");
+	if (keymapErrors.length > 0) {
+		throw new Error(`Invalid editor keymap: ${keymapErrors.map((diagnostic) => diagnostic.message).join("; ")}`);
+	}
 
 	const loadedExtensions = manifestResult
 		? await loadManifestExtensions(manifestResult.manifest, manifestResult.path)

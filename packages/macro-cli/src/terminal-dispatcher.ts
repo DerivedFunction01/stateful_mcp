@@ -54,6 +54,30 @@ export async function dispatchTerminalInput(
 		return "ignored";
 	}
 
+	// Command-line input is a distinct modal surface and owns every key while open.
+	if (workspace.editor.getMode() === "COMMAND") {
+		if (name === "escape") {
+			workspace.editor.setMode("NORMAL");
+			workspace.layout.setFocusedPane("main");
+			return "handled";
+		}
+		const handled = workspace.editor.handleKey({ char: input, name, ctrl: event.ctrl, meta: event.meta, shift: event.shift });
+		const submitted = workspace.editor.consumeSubmittedCommand();
+		if (submitted !== null) {
+			const [verb, ...args] = submitted.split(/\s+/u).filter(Boolean);
+			const command = verb ? workspace.commands.resolveVerb(verb) : undefined;
+			if (!command) return "handled";
+			try {
+				const result = await workspace.commands.executeCommand(command.command, ...args);
+				workspace.layout.setFocusedPane("main");
+				if (verb && ["q", "quit", "qa", "quitall", "wq", "wqa"].includes(verb.toLowerCase()) && !(result as { blocked?: boolean } | undefined)?.blocked) return "quit";
+			} catch {
+				return "handled";
+			}
+		}
+		return handled ? "handled" : "ignored";
+	}
+
 	// 2. Global Hotkeys
 	if (chordMatches(keymap.window.openCommandPalette, chordEvent)) {
 		workspace.palette.open();
@@ -230,18 +254,15 @@ export async function dispatchTerminalInput(
 		}
 
 		// NORMAL Mode:
-		// - ':' opens Command Palette modal
+		// - ':' enters the command bar
 		// - Enter: enters INSERT mode on current line
 		// - 'r': executes current/all valid macrolines
 		// - Tab / Shift+Tab: cycles top-level workspace tabs
 		if (currentMode === "NORMAL") {
-			if (
-				input === ":" ||
-				(keymap.normal.command &&
-					chordMatches(keymap.normal.command, chordEvent))
-			) {
-				workspace.palette.open();
-				return "handled";
+			if (keymap.normal.command && chordMatches(keymap.normal.command, chordEvent)) {
+				const handled = workspace.editor.handleKey({ char: input, name, ctrl: event.ctrl, meta: event.meta, shift: event.shift });
+				workspace.layout.setFocusedPane("command");
+				return handled ? "handled" : "ignored";
 			}
 			if (isEnter && !event.ctrl && !event.meta) {
 				workspace.editor.setMode("INSERT");

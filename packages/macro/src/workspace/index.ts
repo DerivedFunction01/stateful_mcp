@@ -13,6 +13,7 @@ import {
 	type WindowLayoutStateSnapshot,
 } from "./layout/window-layout-state";
 import { CommandPaletteController } from "./palette/command-palette";
+import { WorkspaceSaveCoordinator } from "./commands/save-coordinator";
 import {
 	ScratchpadSession,
 	type ScratchpadSessionOptions,
@@ -36,6 +37,8 @@ export * from "./keymaps";
 export * from "./layout/persistence";
 export * from "./layout/window-layout-state";
 export * from "./palette/command-palette";
+export * from "./commands/command-descriptor";
+export * from "./commands/save-coordinator";
 export * from "./scratchpad/live-projection";
 export * from "./scratchpad/scratchpad-session";
 
@@ -54,6 +57,7 @@ export interface MacroWorkspace {
 	readonly editor: EditorKernel;
 	readonly scratchpad: ScratchpadSession;
 	readonly palette: CommandPaletteController;
+	readonly saveCoordinator: WorkspaceSaveCoordinator;
 	readonly journal: WorkspaceJournal;
 	readonly tabs: TabRegistry;
 	readonly views: ViewRegistry;
@@ -89,12 +93,21 @@ export function createMacroWorkspace(
 		options?.scratchpad,
 	);
 	const palette = new CommandPaletteController(commands, layout, tabs);
+	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
+	commands.registerCommand({ command: "workspace.saveActive", title: "Save Active Tab", category: "Workspace", verb: "write", aliases: ["w"] }, { execute: () => saveCoordinator.saveActive() });
+	commands.registerCommand({ command: "workspace.saveAll", title: "Save All Tabs", category: "Workspace", verb: "wall", aliases: ["wa"] }, { execute: () => saveCoordinator.saveAll() });
+	commands.registerCommand({ command: "workspace.saveActiveAndClose", title: "Save and Close", category: "Workspace", verb: "wq" }, { execute: () => saveCoordinator.saveActiveAndClose() });
+	commands.registerCommand({ command: "workspace.saveAllAndQuit", title: "Save All and Quit", category: "Workspace", verb: "wqa" }, { execute: () => saveCoordinator.saveAllAndQuit() });
+	commands.registerCommand({ command: "workspace.quit", title: "Quit Application", category: "Workspace", verb: "quit", aliases: ["q"] }, { execute: () => undefined });
+	commands.registerCommand({ command: "workspace.quitAll", title: "Quit All", category: "Workspace", verb: "quitall", aliases: ["qa"] }, { execute: () => saveCoordinator.saveAll("quit") });
+	commands.registerCommand({ command: "workspace.closeActiveTab", title: "Close Active Tab", category: "Workspace", verb: "tabclose" }, { execute: () => layout.closeActiveTab() });
 	const contributions = new ExtensionContributionManager(views, tabs, commands);
 	const workspace: MacroWorkspace = {
 		layout,
 		editor,
 		scratchpad,
 		palette,
+		saveCoordinator,
 		journal,
 		tabs,
 		views,

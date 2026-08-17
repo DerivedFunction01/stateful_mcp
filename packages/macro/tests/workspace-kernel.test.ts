@@ -20,6 +20,8 @@ import {
 	I18nKernel,
 	loadWindowLayoutState,
 	mergeEditorKeymap,
+	validateEditorKeymap,
+	WorkspaceSaveCoordinator,
 	normalizeSelection,
 	ScratchpadSession,
 	SpecialKeys,
@@ -721,6 +723,38 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 
 			// Line 3: #bookkeeping -> INVALID (does NOT match 'book')
 			expect(projected[2]?.isValid).toBe(false);
+		});
+	});
+
+	describe("Command surfaces, validation, and persistence", () => {
+		test("command mode preserves and submits text without entering normal handling", () => {
+			const editor = new EditorKernel("one two");
+			editor.setMode("COMMAND");
+			editor.handleKey({ char: "w" });
+			expect(editor.getCommandText()).toBe("w");
+			expect(editor.buffer.getCursor()).toEqual({ line: 0, col: 0 });
+			editor.handleKey({ name: "return" });
+			expect(editor.consumeSubmittedCommand()).toBe("w");
+			expect(editor.getMode()).toBe("NORMAL");
+		});
+
+		test("normal and sequence keymap validation distinguishes duplicates", () => {
+			const diagnostics = validateEditorKeymap({
+				...DEFAULT_EDITOR_KEYMAP_PROFILE,
+				normal: { ...DEFAULT_EDITOR_KEYMAP_PROFILE.normal, moveDown: "x", moveUp: "x" },
+			});
+			expect(diagnostics.some((diagnostic) => diagnostic.code === "duplicate-binding")).toBe(true);
+			expect(validateEditorKeymap(DEFAULT_EDITOR_KEYMAP_PROFILE, { allowSequencePrefixes: true })).toHaveLength(0);
+		});
+
+		test("save coordinator skips clean participants and blocks failed saves", async () => {
+			const coordinator = new WorkspaceSaveCoordinator();
+			let calls = 0;
+			coordinator.register({ id: "clean", scope: "tab", isDirty: () => false, save: async () => { calls++; return { status: "saved" }; } });
+			coordinator.register({ id: "dirty", scope: "workspace", isDirty: () => true, save: async () => { calls++; return { status: "failed", message: "nope" }; } });
+			const summary = await coordinator.saveAll();
+			expect(calls).toBe(1);
+			expect(summary.blocked).toBe(true);
 		});
 	});
 });

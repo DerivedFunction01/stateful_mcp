@@ -1,4 +1,5 @@
 import type { CommandContribution, CommandHandler } from "./types";
+import type { WorkspaceCommandDescriptor } from "../commands/command-descriptor";
 
 export interface RegisteredCommand extends CommandContribution {
 	readonly extensionId?: string;
@@ -46,6 +47,27 @@ export class CommandRegistry {
 
 	getCommand(commandId: string): RegisteredCommand | undefined {
 		return this.commands.get(commandId);
+	}
+
+	getDescriptors(): readonly WorkspaceCommandDescriptor[] {
+		return this.getCommands().map((command) => ({
+			id: command.command,
+			title: command.title,
+			verb: command.verb,
+			aliases: command.aliases,
+			category: command.category,
+			description: command.description,
+			keybinding: command.keybinding,
+			args: command.args,
+			execute: (args) => this.executeCommand(command.command, ...args),
+		}));
+	}
+
+	resolveVerb(verb: string): RegisteredCommand | undefined {
+		const value = verb.toLowerCase();
+		return this.getCommands().find((command) =>
+			[command.verb, ...(command.aliases ?? [])].some((candidate) => candidate?.toLowerCase() === value),
+		);
 	}
 
 	async executeCommand<T = unknown>(
