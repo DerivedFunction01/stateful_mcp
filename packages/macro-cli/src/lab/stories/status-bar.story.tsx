@@ -3,70 +3,121 @@ import { TuiStatusBar } from "../../ui/primitives/TuiStatusBar";
 
 export const statusBarStory: TuiStory = {
 	id: "status-bar",
-	title: "Status Bar Component",
+	title: "Status Bar",
 	category: "Core",
-	states: ["normal-mode", "insert-mode", "validation-errors", "pinned-macro", "spanish-locale"],
+	states: [
+		"lualine-powerline",
+		"vscode-ribbon",
+		"opencode-minimal",
+		"segmented-cards",
+		"visual-selection-mode",
+		"insert-typing-mode",
+	],
 	render(context) {
-		switch (context.stateId) {
-			case "insert-mode":
-				return (
+		const stateId = context.stateId;
+
+		// 1. Neovim Lualine / Powerline Style
+		if (stateId === "lualine-powerline") {
+			return (
+				<box flexDirection="column" padding={1} width={context.size.columns}>
 					<TuiStatusBar
-						mode="INSERT"
-						cursorLine={3}
-						cursorCol={12}
-						validCount={2}
-						totalCount={3}
-						locale="en"
-					/>
-				);
-			case "validation-errors":
-				return (
-					<TuiStatusBar
+						variant="lualine"
 						mode="NORMAL"
-						cursorLine={5}
-						cursorCol={1}
-						validCount={1}
-						totalCount={4}
-						diagnosticErrorCount={2}
-						diagnosticWarningCount={1}
-						locale="en"
-					/>
-				);
-			case "pinned-macro":
-				return (
-					<TuiStatusBar
-						mode="NORMAL"
-						cursorLine={1}
-						cursorCol={24}
+						sessionTitle="session-1"
 						validCount={3}
 						totalCount={3}
-						pinnedMacro="^deploy"
-						locale="en"
-					/>
-				);
-			case "spanish-locale":
-				return (
-					<TuiStatusBar
-						mode="NORMAL"
 						cursorLine={1}
 						cursorCol={1}
-						validCount={2}
-						totalCount={2}
-						locale="es"
-					/>
-				);
-			case "normal-mode":
-			default:
-				return (
-					<TuiStatusBar
-						mode="NORMAL"
-						cursorLine={1}
-						cursorCol={1}
-						validCount={3}
-						totalCount={3}
 						locale="en"
 					/>
-				);
+				</box>
+			);
 		}
+
+		// 2. VS Code Status Ribbon Style
+		if (stateId === "vscode-ribbon") {
+			return (
+				<box flexDirection="column" padding={1} width={context.size.columns}>
+					<TuiStatusBar
+						variant="vscode"
+						mode="NORMAL"
+						validCount={3}
+						totalCount={3}
+						cursorLine={12}
+						cursorCol={4}
+						locale="en"
+					/>
+				</box>
+			);
+		}
+
+		// 3. OpenCode Minimalist Style
+		if (stateId === "opencode-minimal") {
+			return (
+				<box flexDirection="column" padding={1} width={context.size.columns}>
+					<TuiStatusBar
+						variant="opencode"
+						mode="NORMAL"
+						validCount={3}
+						totalCount={3}
+						cursorLine={1}
+						cursorCol={1}
+						pinnedMacro="@medication"
+						locale="en"
+					/>
+				</box>
+			);
+		}
+
+		// 4. Segmented Cards Style
+		if (stateId === "segmented-cards") {
+			return (
+				<box flexDirection="column" padding={1} width={context.size.columns}>
+					<TuiStatusBar
+						variant="segmented"
+						mode="NORMAL"
+						validCount={2}
+						totalCount={3}
+						cursorLine={2}
+						cursorCol={8}
+						pinnedMacro="@vitals"
+						locale="en"
+					/>
+				</box>
+			);
+		}
+
+		// 5. Visual Selection Mode
+		if (stateId === "visual-selection-mode") {
+			return (
+				<box flexDirection="column" padding={1} width={context.size.columns}>
+					<TuiStatusBar
+						variant="lualine"
+						mode="VISUAL"
+						validCount={2}
+						totalCount={3}
+						cursorLine={3}
+						cursorCol={14}
+						locale="en"
+					/>
+				</box>
+			);
+		}
+
+		// 6. Insert Mode
+		return (
+			<box flexDirection="column" padding={1} width={context.size.columns}>
+				<TuiStatusBar
+					variant="lualine"
+					mode="INSERT"
+					validCount={3}
+					totalCount={4}
+					cursorLine={4}
+					cursorCol={22}
+					pinnedMacro="^deploy"
+					locale="es"
+				/>
+			</box>
+		);
 	},
 };

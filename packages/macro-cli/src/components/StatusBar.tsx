@@ -11,6 +11,7 @@ export function StatusBar({ workspace }: { workspace: MacroWorkspace }) {
 
 	return (
 		<TuiStatusBar
+			variant="lualine"
 			mode={mode}
 			cursorLine={cursor.line + 1}
 			cursorCol={cursor.col + 1}

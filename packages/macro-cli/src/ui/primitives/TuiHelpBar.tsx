@@ -1,7 +1,14 @@
 import { TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, I18nKernel } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
-import { TuiNamedColors } from "../tokens";
+import { TuiColors, TuiNamedColors } from "../tokens";
+
+export type TuiHelpBarVariant =
+	| "lualine-pills"
+	| "nano-grid"
+	| "opencode-compact"
+	| "bracket-chips"
+	| "subtle-text";
 
 export interface TuiShortcutHint {
 	readonly key: string;
@@ -11,6 +18,7 @@ export interface TuiShortcutHint {
 export type TuiHelpBarMode = "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
 
 export interface TuiHelpBarProps {
+	readonly variant?: TuiHelpBarVariant;
 	readonly keymap?: EditorKeymapProfile;
 	readonly i18n?: I18nKernel;
 	readonly mode?: TuiHelpBarMode;
@@ -103,7 +111,7 @@ export function buildDynamicKeymapHints(
 		},
 		{
 			key: formatKeyDisplay(keymap.window.openCommandPalette),
-			action: translate(i18n, "palette.title", "Commands"),
+			action: translate(i18n, "palette.title", "Command Palette"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.toggleSidepanel),
@@ -117,6 +125,7 @@ export function buildDynamicKeymapHints(
 }
 
 export function TuiHelpBar({
+	variant = "nano-grid",
 	keymap,
 	i18n,
 	mode = "NORMAL",
@@ -125,7 +134,7 @@ export function TuiHelpBar({
 }: TuiHelpBarProps) {
 	if (customText) {
 		return (
-			<box height={1} paddingLeft={1} paddingRight={1}>
+			<box height={1} paddingLeft={0} paddingRight={1}>
 				<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
 					{customText}
 				</text>
@@ -135,8 +144,95 @@ export function TuiHelpBar({
 
 	const resolvedHints = hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n, mode) : []);
 
+	// 1. Lualine Continuous Ribbon with Glyph Dividers & Zero Gaps
+	if (variant === "lualine-pills") {
+		return (
+			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
+				{resolvedHints.map((hint) => (
+					<box
+						key={`${hint.key}-${hint.action}`}
+						flexDirection="row"
+						backgroundColor={TuiColors.bgSurface}
+						paddingLeft={0}
+						paddingRight={1}
+						marginRight={0}
+					>
+						<text fg="cyan" attributes={TextAttributes.BOLD}>
+							▎
+						</text>
+						<text fg="cyan" attributes={TextAttributes.BOLD}>
+							{" "}{hint.key}
+						</text>
+						<text fg={TuiNamedColors.primary}>
+							{" "}{hint.action}{" "}
+						</text>
+						<text fg={TuiNamedColors.border}>
+							│
+						</text>
+					</box>
+				))}
+			</box>
+		);
+	}
+
+	// 2. Nano / Htop High-Contrast Inverse Badges (Flush with StatusBar column 0)
+	if (variant === "nano-grid") {
+		return (
+			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
+				{resolvedHints.map((hint) => (
+					<box key={`${hint.key}-${hint.action}`} flexDirection="row" marginRight={2}>
+						<box backgroundColor="#38bdf8" paddingLeft={1} paddingRight={1}>
+							<text fg="#0d1117" attributes={TextAttributes.BOLD}>
+								{hint.key}
+							</text>
+						</box>
+						<text fg={TuiNamedColors.primary} attributes={TextAttributes.BOLD}>
+							{" "}{hint.action}
+						</text>
+					</box>
+				))}
+			</box>
+		);
+	}
+
+	// 3. OpenCode Minimalist Compact Glyph Strip
+	if (variant === "opencode-compact") {
+		return (
+			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
+				{resolvedHints.map((hint, index) => (
+					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
+						{index > 0 && <text fg={TuiNamedColors.border}>  •  </text>}
+						<text fg="cyan" attributes={TextAttributes.BOLD}>
+							{hint.key}
+						</text>
+						<text fg={TuiNamedColors.muted}>
+							{" "}{hint.action}
+						</text>
+					</box>
+				))}
+			</box>
+		);
+	}
+
+	// 4. Subtle Clean Text Strip
+	if (variant === "subtle-text") {
+		return (
+			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
+				{resolvedHints.map((hint, index) => (
+					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
+						{index > 0 && <text fg={TuiNamedColors.border}>  ·  </text>}
+						<text fg={TuiNamedColors.muted} attributes={TextAttributes.DIM}>
+							{hint.key}: {hint.action}
+						</text>
+					</box>
+				))}
+			</box>
+		);
+	}
+
+	// 5. Bracket Chips (Original Clean Format)
 	return (
-		<box height={1} paddingLeft={1} paddingRight={1} flexDirection="row">
+		<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
 			{resolvedHints.map((hint, index) => (
 				<box key={`${hint.key}-${hint.action}`} flexDirection="row">
 					{index > 0 && <text fg={TuiNamedColors.border}> │ </text>}

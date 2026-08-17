@@ -49,11 +49,11 @@ export function WindowContainer({
 				)}
 			</box>
 
-			{/* Segmented Status Bar */}
-			<StatusBar workspace={workspace} />
-
-			{/* Dynamic Keymap Help Bar */}
+			{/* Dynamic Keymap Help Bar (Contextual Action Hints) */}
 			<HelpBar keymap={keymap} workspace={workspace} />
+
+			{/* Solid Segmented Lualine Status Bar (Bottom Window Anchor) */}
+			<StatusBar workspace={workspace} />
 
 			{/* Floating Centered Command Palette */}
 			{workspace.palette.getIsOpen() && (
