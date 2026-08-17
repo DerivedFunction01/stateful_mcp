@@ -8,10 +8,13 @@ export function HelpBar({
 	keymap?: EditorKeymapProfile;
 	workspace?: MacroWorkspace;
 }) {
+	const mode = workspace?.editor.getMode();
+
 	return (
 		<TuiHelpBar
 			keymap={keymap}
 			i18n={workspace?.i18n}
+			mode={mode}
 		/>
 	);
 }

@@ -160,6 +160,25 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(workspace.layout.getSnapshot().activeContainerId).toBe("journal");
 		await workspace.runtime.dispose();
 	});
+
+	test("executes scratchpad lines in NORMAL and VISUAL modes with r and Enter", async () => {
+		const workspace = createMacroWorkspace();
+		const keymap = DEFAULT_EDITOR_KEYMAP_PROFILE;
+
+		workspace.editor.buffer.setText("^echo msg=hello");
+		await workspace.scratchpad.parseAllLines();
+
+		// In NORMAL mode, 'r' handles execution
+		workspace.editor.setMode("NORMAL");
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "r" })).toBe("handled");
+
+		// In VISUAL mode, Enter handles execution and resets to NORMAL
+		workspace.editor.setMode("VISUAL");
+		expect(await dispatchTerminalInput(workspace, keymap, { name: "enter" })).toBe("handled");
+		expect(workspace.editor.getMode()).toBe("NORMAL");
+
+		await workspace.runtime.dispose();
+	});
 });
 
 describe("macro-cli argument parsing", () => {

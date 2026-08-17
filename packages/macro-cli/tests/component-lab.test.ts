@@ -101,15 +101,37 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 		expect(translatedCommands).toBe("Paleta de Comandos");
 	});
 
-	test("builds dynamic keymap hints from keymap profile", () => {
+	test("builds dynamic keymap hints from keymap profile by mode", () => {
 		const { workspace, keymap } = createMockWorkspace();
-		const hints = buildDynamicKeymapHints(keymap, workspace.i18n);
-		expect(hints).toEqual([
+
+		// INSERT mode hints
+		const insertHints = buildDynamicKeymapHints(keymap, workspace.i18n, "INSERT");
+		expect(insertHints).toEqual([
+			{ key: "Tab", action: "New Line" },
+			{ key: "Enter", action: "Execute" },
+			{ key: "↑/↓", action: "Navigate" },
+			{ key: "Esc", action: "Normal Mode" },
+		]);
+
+		// VISUAL mode hints
+		const visualHints = buildDynamicKeymapHints(keymap, workspace.i18n, "VISUAL");
+		expect(visualHints).toEqual([
+			{ key: "↑/↓", action: "Select Range" },
+			{ key: "Enter", action: "Execute Selected" },
+			{ key: "d", action: "Delete" },
+			{ key: "Esc", action: "Normal Mode" },
+		]);
+
+		// NORMAL mode hints
+		const normalHints = buildDynamicKeymapHints(keymap, workspace.i18n, "NORMAL");
+		expect(normalHints).toEqual([
+			{ key: "Tab", action: "Next Tab" },
+			{ key: "i / Enter", action: "Insert" },
+			{ key: "v", action: "Visual" },
+			{ key: "dd", action: "Delete" },
 			{ key: "Ctrl+P", action: "Command Palette" },
 			{ key: "Ctrl+B", action: "Sidepanel" },
 			{ key: "Alt+P", action: "Pin" },
-			{ key: "r", action: "Run" },
-			{ key: "q", action: "Quit" },
 		]);
 	});
 });

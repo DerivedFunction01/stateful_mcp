@@ -8,9 +8,12 @@ export interface TuiShortcutHint {
 	readonly action: string;
 }
 
+export type TuiHelpBarMode = "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
+
 export interface TuiHelpBarProps {
 	readonly keymap?: EditorKeymapProfile;
 	readonly i18n?: I18nKernel;
+	readonly mode?: TuiHelpBarMode;
 	readonly hints?: readonly TuiShortcutHint[];
 	readonly customText?: string;
 }
@@ -36,8 +39,68 @@ export function formatKeyDisplay(chord: string): string {
 export function buildDynamicKeymapHints(
 	keymap: EditorKeymapProfile,
 	i18n?: I18nKernel,
+	mode: TuiHelpBarMode = "NORMAL",
 ): readonly TuiShortcutHint[] {
+	if (mode === "INSERT") {
+		return [
+			{
+				key: formatKeyDisplay(keymap.window.nextTab || "Tab"),
+				action: translate(i18n, "helpBar.duplicate", "New Line"),
+			},
+			{
+				key: "Enter",
+				action: translate(i18n, "helpBar.apply", "Execute"),
+			},
+			{
+				key: "↑/↓",
+				action: translate(i18n, "helpBar.navigate", "Navigate"),
+			},
+			{
+				key: "Esc",
+				action: translate(i18n, "helpBar.esc", "Normal Mode"),
+			},
+		];
+	}
+
+	if (mode === "VISUAL") {
+		return [
+			{
+				key: "↑/↓",
+				action: translate(i18n, "helpBar.navigate", "Select Range"),
+			},
+			{
+				key: "Enter",
+				action: translate(i18n, "helpBar.applySelected", "Execute Selected"),
+			},
+			{
+				key: formatKeyDisplay(keymap.visual.deleteSelection || "d"),
+				action: translate(i18n, "helpBar.delete", "Delete"),
+			},
+			{
+				key: "Esc",
+				action: translate(i18n, "helpBar.esc", "Normal Mode"),
+			},
+		];
+	}
+
+	// NORMAL mode
 	return [
+		{
+			key: formatKeyDisplay(keymap.window.nextTab || "Tab"),
+			action: translate(i18n, "helpBar.nextTab", "Next Tab"),
+		},
+		{
+			key: `${formatKeyDisplay(keymap.normal.enterInsert || "i")} / Enter`,
+			action: translate(i18n, "helpBar.insert", "Insert"),
+		},
+		{
+			key: formatKeyDisplay(keymap.normal.enterVisual || "v"),
+			action: translate(i18n, "helpBar.visual", "Visual"),
+		},
+		{
+			key: formatKeyDisplay(keymap.sequences.deleteCell || "dd"),
+			action: translate(i18n, "helpBar.delete", "Delete"),
+		},
 		{
 			key: formatKeyDisplay(keymap.window.openCommandPalette),
 			action: translate(i18n, "palette.title", "Commands"),
@@ -50,20 +113,13 @@ export function buildDynamicKeymapHints(
 			key: formatKeyDisplay(keymap.window.pinMacro || "Alt+P"),
 			action: translate(i18n, "helpBar.pin", "Pin"),
 		},
-		{
-			key: formatKeyDisplay(keymap.normal.runCell || "Ctrl+Enter"),
-			action: translate(i18n, "helpBar.execute", "Run"),
-		},
-		{
-			key: formatKeyDisplay(keymap.normal.quit || "Ctrl+C"),
-			action: translate(i18n, "helpBar.quit", "Quit"),
-		},
 	];
 }
 
 export function TuiHelpBar({
 	keymap,
 	i18n,
+	mode = "NORMAL",
 	hints,
 	customText,
 }: TuiHelpBarProps) {
@@ -77,13 +133,13 @@ export function TuiHelpBar({
 		);
 	}
 
-	const resolvedHints = hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n) : []);
+	const resolvedHints = hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n, mode) : []);
 
 	return (
 		<box height={1} paddingLeft={1} paddingRight={1} flexDirection="row">
 			{resolvedHints.map((hint, index) => (
 				<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-					{index > 0 && <text fg={TuiNamedColors.border}> | </text>}
+					{index > 0 && <text fg={TuiNamedColors.border}> │ </text>}
 					<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
 						[ {hint.key} ]
 					</text>

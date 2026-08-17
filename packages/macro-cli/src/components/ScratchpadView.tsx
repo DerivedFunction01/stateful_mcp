@@ -15,7 +15,13 @@ export function ScratchpadView({
 	const lines = workspace.editor.buffer.getLines();
 	const projected = workspace.scratchpad.getProjectedLines();
 	const pinned = workspace.scratchpad.getPinnedMacro();
+	const mode = workspace.editor.getMode();
+	const selection = workspace.editor.buffer.getSelection();
 	const i18n = workspace.i18n;
+
+	const isVisualMode = mode === "VISUAL";
+	const minSelectedLine = selection ? Math.min(selection.start.line, selection.end.line) : -1;
+	const maxSelectedLine = selection ? Math.max(selection.start.line, selection.end.line) : -1;
 
 	const isEmptyBuffer = lines.length === 1 && lines[0] === "";
 	const pinChord = formatKeyDisplay(keymap?.window.pinMacro || "Alt+P");
@@ -56,13 +62,25 @@ export function ScratchpadView({
 			{lines.map((line, index) => {
 				const projection = projected[index];
 				const isActive = cursor.line === index;
+				const isSelectedInVisual = isVisualMode && index >= minSelectedLine && index <= maxSelectedLine;
+				const isHighlighted = isActive || isSelectedInVisual;
+
 				const isPinned = pinned && projection?.macroName === pinned;
 				const hasError = projection && !projection.isValid && projection.diagnostics.length > 0;
 				const isValid = projection?.isValid ?? false;
 
 				const lineNumStr = String(index + 1).padStart(2, "0");
-				const signChar = isActive ? "●" : hasError ? "!" : isValid ? "✓" : " ";
-				const signColor = isActive
+				const signChar = isSelectedInVisual
+					? "●"
+					: isActive
+						? "●"
+						: hasError
+							? "!"
+							: isValid
+								? "✓"
+								: " ";
+
+				const signColor = isHighlighted
 					? "cyan"
 					: hasError
 						? "red"
@@ -70,8 +88,13 @@ export function ScratchpadView({
 							? "green"
 							: TuiNamedColors.muted;
 
-				const rowBg = isActive ? TuiColors.bgHighlight : undefined;
-				const leftBarColor = isActive ? "cyan" : hasError ? "red" : "transparent";
+				const rowBg = isSelectedInVisual
+					? TuiColors.bgActive
+					: isActive
+						? TuiColors.bgHighlight
+						: undefined;
+
+				const leftBarColor = isHighlighted ? "cyan" : hasError ? "red" : "transparent";
 
 				const pinnedBadge = isPinned
 					? translate(i18n, "scratchpad.pinnedBadge", `[pinned to ${pinned}]`, { macro: pinned })
@@ -79,14 +102,14 @@ export function ScratchpadView({
 
 				return (
 					<box key={`${index}-${line}`} flexDirection="column">
-						{/* Row 1: Main Command Input (1 char left bar + 3 chars sign + 3 chars lineNum = 7 chars before pipe) */}
+						{/* Row 1: Main Command Input */}
 						<box flexDirection="row" backgroundColor={rowBg} height={1}>
 							{/* Left accent pillar (1 char) */}
 							<text
 								fg={leftBarColor}
 								attributes={TextAttributes.BOLD}
 							>
-								{isActive || hasError ? "▎" : " "}
+								{isHighlighted || hasError ? "▎" : " "}
 							</text>
 
 							{/* Sign column (3 chars) */}
@@ -96,8 +119,8 @@ export function ScratchpadView({
 
 							{/* Line Number (3 chars) */}
 							<text
-								fg={isActive ? "yellow" : TuiNamedColors.muted}
-								attributes={isActive ? TextAttributes.BOLD : 0}
+								fg={isHighlighted ? "yellow" : TuiNamedColors.muted}
+								attributes={isHighlighted ? TextAttributes.BOLD : 0}
 							>
 								{lineNumStr}{" "}
 							</text>
@@ -117,8 +140,8 @@ export function ScratchpadView({
 								</box>
 							) : (
 								<text
-									fg={isActive ? "white" : TuiNamedColors.primary}
-									attributes={isActive ? TextAttributes.BOLD : 0}
+									fg={isHighlighted ? "white" : TuiNamedColors.primary}
+									attributes={isHighlighted ? TextAttributes.BOLD : 0}
 								>
 									{line || " "}
 								</text>
@@ -132,13 +155,13 @@ export function ScratchpadView({
 							)}
 						</box>
 
-						{/* Row 2: Fixed-Height Projection Tray (1 char left bar + 6 chars gutter space = 7 chars before pipe) */}
+						{/* Row 2: Fixed-Height Projection Tray */}
 						<box flexDirection="row" backgroundColor={rowBg} height={1}>
 							<text
 								fg={leftBarColor}
 								attributes={TextAttributes.BOLD}
 							>
-								{isActive || hasError ? "▎" : " "}
+								{isHighlighted || hasError ? "▎" : " "}
 							</text>
 							<text fg="transparent">      </text>
 							<text fg={TuiNamedColors.border}>│ </text>
