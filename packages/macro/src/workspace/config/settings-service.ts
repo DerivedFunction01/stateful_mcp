@@ -1,11 +1,48 @@
+export type SettingsFormWidget =
+	| "toggle"
+	| "input"
+	| "dropdown"
+	| "slider"
+	| "color-picker"
+	| "date-picker"
+	| "tag-input"
+	| "table"
+	| "keymap"
+	| "json-editor"
+	| "custom";
+
+export interface EnumOptionDefinition {
+	readonly id: string;
+	readonly label: string;
+	readonly description?: string;
+	readonly meta?: string;
+}
+
 export interface SettingsSchemaEntry {
 	readonly path: readonly string[];
-	readonly type: "boolean" | "number" | "string" | "enum" | "json" | "keymap";
+	readonly type:
+		| "boolean"
+		| "number"
+		| "string"
+		| "enum"
+		| "array"
+		| "object"
+		| "json"
+		| "keymap";
 	readonly title: string;
 	readonly description?: string;
+	readonly widget?: SettingsFormWidget;
+	readonly category?: string;
+	readonly group?: string;
+	readonly order?: number;
+	readonly placeholder?: string;
 	readonly enumValues?: readonly string[];
+	readonly enumOptions?: readonly EnumOptionDefinition[];
 	readonly min?: number;
 	readonly max?: number;
+	readonly step?: number;
+	readonly tagDelimiters?: readonly string[];
+	readonly customWidgetId?: string;
 	readonly restartRequired?: boolean;
 	readonly sensitive?: boolean;
 }
@@ -50,11 +87,13 @@ export class WorkspaceSettingsService {
 	private rawParseValid = true;
 	private readonly listeners = new Set<() => void>();
 	private readonly coreDefaults: Readonly<Record<string, unknown>>;
+	private readonly coreSchema: readonly SettingsSchemaEntry[];
 	private defaults: Readonly<Record<string, unknown>>;
 	private schema: readonly SettingsSchemaEntry[];
 
 	constructor(private readonly options: WorkspaceSettingsServiceOptions) {
 		this.coreDefaults = options.defaults;
+		this.coreSchema = options.schema ?? [];
 		this.defaults = options.defaults;
 		this.schema = options.schema ?? [];
 		this.effective = clone(options.initial ?? options.defaults);
@@ -97,7 +136,9 @@ export class WorkspaceSettingsService {
 			this.draft = mergeMissing(this.draft, model.defaults);
 			this.rawText = JSON.stringify(this.draft, null, 2);
 		}
-		if (model.schema) this.schema = model.schema;
+		if (model.schema) {
+			this.schema = [...this.coreSchema, ...model.schema];
+		}
 		this.validate();
 		this.notify();
 	}

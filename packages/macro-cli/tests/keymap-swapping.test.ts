@@ -73,7 +73,7 @@ describe("profile-driven command keymaps", () => {
 			}),
 		).toBe("handled");
 		expect(loaded.workspace.settingsNavigation.getSnapshot().section).toBe(
-			"locale",
+			"values",
 		);
 		await loaded.workspace.runtime.dispose();
 	});

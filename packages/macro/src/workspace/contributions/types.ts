@@ -146,11 +146,33 @@ export interface ExtensionSettingsContribution {
 	readonly namespace: string;
 	readonly title: string;
 	readonly description?: string;
+	readonly category?: string;
+	readonly icon?: string;
+	readonly order?: number;
 	readonly schema: readonly import("../config/settings-service").SettingsSchemaEntry[];
 	readonly defaults?: Readonly<Record<string, unknown>>;
 	readonly localizationKeys?: readonly string[];
+	readonly customWidgetProviders?: Readonly<
+		Record<string, ExtensionSettingsWidgetProvider>
+	>;
 	readonly restartRequired?: boolean;
 }
+
+export interface ExtensionSettingsWidgetContext<T = unknown> {
+	readonly schema: import("../config/settings-service").SettingsSchemaEntry;
+	readonly value: T;
+	readonly effectiveValue: T;
+	readonly isFocused: boolean;
+	readonly width: number;
+	readonly theme: unknown;
+	readonly onChange: (value: T) => void;
+	readonly onReset: () => void;
+}
+
+export type ExtensionSettingsWidgetProvider<
+	TRenderResult = unknown,
+	T = unknown,
+> = (context: ExtensionSettingsWidgetContext<T>) => TRenderResult;
 
 export interface ExtensionViewRenderContext<TState = unknown> {
 	readonly viewId: string;

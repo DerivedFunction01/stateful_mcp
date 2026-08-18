@@ -19,12 +19,28 @@ import {
 	getDefaultSettingsSchema,
 } from "../config/default-settings";
 import { translate } from "../locales";
+import { TuiColorPicker } from "../ui/primitives/TuiColorPicker";
 import { TuiCursor } from "../ui/primitives/TuiCursor";
+import {
+	TuiDatePicker,
+	type TuiDatePickerDate,
+} from "../ui/primitives/TuiDatePicker";
 import { TuiDropdown } from "../ui/primitives/TuiDropdown";
 import { TuiInput } from "../ui/primitives/TuiInput";
+import { TuiSlider } from "../ui/primitives/TuiSlider";
+import { TuiTable } from "../ui/primitives/TuiTable";
 import { TuiTabs } from "../ui/primitives/TuiTabs";
+import { TuiTagInput } from "../ui/primitives/TuiTagInput";
 import { TuiToggle } from "../ui/primitives/TuiToggle";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
+
+function parseTuiDate(dateStr: string): TuiDatePickerDate | undefined {
+	const parts = dateStr.split("-").map((p) => parseInt(p, 10));
+	if (parts.length >= 3 && parts[0] && parts[1] && parts[2]) {
+		return { year: parts[0], month: parts[1], day: parts[2] };
+	}
+	return undefined;
+}
 
 export interface SettingsWindowProps {
 	readonly model: SettingsUiModel;
@@ -335,6 +351,17 @@ function SettingItemRow({
 }: SettingItemRowProps) {
 	const c = theme.colors;
 	const s = item.schema;
+	const widget =
+		s.widget ??
+		(s.type === "boolean"
+			? "toggle"
+			: s.type === "enum"
+				? "dropdown"
+				: s.type === "number" && s.min !== undefined && s.max !== undefined
+					? "slider"
+					: s.type === "array"
+						? "tag-input"
+						: "input");
 
 	const originBadge =
 		item.origin.kind === "overridden"
@@ -375,20 +402,108 @@ function SettingItemRow({
 			)}
 
 			<box marginTop={0}>
-				{s.type === "enum" && s.enumValues ? (
+				{widget === "slider" ? (
+					<TuiSlider
+						label=""
+						value={typeof item.value === "number" ? item.value : (s.min ?? 0)}
+						min={s.min ?? 0}
+						max={s.max ?? 100}
+						step={s.step ?? 1}
+						isFocused={isFocused}
+						theme={theme}
+						i18n={i18n}
+						width={Math.min(36, width)}
+						onChange={(val) => onChange(val)}
+					/>
+				) : widget === "tag-input" ? (
+					<TuiTagInput
+						label=""
+						tags={
+							Array.isArray(item.value)
+								? item.value.map((tag: unknown, i: number) => ({
+										id: String(i),
+										label: String(tag),
+									}))
+								: []
+						}
+						isFocused={isFocused}
+						theme={theme}
+						i18n={i18n}
+						width={Math.min(48, width)}
+						onAddTag={(newTag) => {
+							const current = Array.isArray(item.value) ? [...item.value] : [];
+							current.push(newTag);
+							onChange(current);
+						}}
+						onRemoveTag={(tagId) => {
+							const idx = parseInt(tagId, 10);
+							if (Array.isArray(item.value) && !Number.isNaN(idx)) {
+								const current = [...item.value];
+								current.splice(idx, 1);
+								onChange(current);
+							}
+						}}
+					/>
+				) : widget === "color-picker" ? (
+					<TuiColorPicker
+						label=""
+						value={String(item.value ?? "#38bdf8")}
+						isFocused={isFocused}
+						theme={theme}
+						i18n={i18n}
+						width={Math.min(36, width)}
+					/>
+				) : widget === "date-picker" ? (
+					<TuiDatePicker
+						label=""
+						value={parseTuiDate(String(item.value ?? ""))}
+						isFocused={isFocused}
+						theme={theme}
+						i18n={i18n}
+						width={Math.min(36, width)}
+						onSelectDate={(d) =>
+							onChange(
+								`${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`,
+							)
+						}
+					/>
+				) : widget === "table" ? (
+					<TuiTable
+						columns={[
+							{ id: "key", header: "Key" },
+							{ id: "value", header: "Value" },
+						]}
+						data={
+							Array.isArray(item.value)
+								? (item.value as Array<Record<string, unknown>>)
+								: typeof item.value === "object" && item.value !== null
+									? Object.entries(item.value).map(([k, v]) => ({
+											key: k,
+											value: Array.isArray(v) ? v.join(", ") : String(v),
+										}))
+									: []
+						}
+						theme={theme}
+					/>
+				) : widget === "dropdown" || s.type === "enum" ? (
 					<TuiDropdown
 						label=""
 						selectedId={String(item.value ?? "")}
-						options={s.enumValues.map((v) => ({ id: v, label: v }))}
+						options={
+							s.enumOptions ??
+							s.enumValues?.map((v) => ({ id: v, label: v })) ??
+							[]
+						}
 						onSelect={onChange}
 						isFocused={isFocused}
 						width={Math.min(32, width)}
 						theme={theme}
 					/>
-				) : s.type === "boolean" ? (
+				) : widget === "toggle" || s.type === "boolean" ? (
 					<TuiToggle
 						label=""
 						checked={Boolean(item.value)}
+						onToggle={(c) => onChange(c)}
 						isFocused={isFocused}
 						theme={theme}
 					/>
@@ -421,21 +536,28 @@ export function createSettingsTabProvider(
 	});
 
 	const service = workspace.settings ?? defaultService;
-	const uiModel = new SettingsUiModel(service);
+	const uiModel = new SettingsUiModel(service, workspace.i18n);
 	let focusedRegion: "navigation" | "content" | "search" = "navigation";
 	let selectedCategoryIndex = 0;
 	let selectedItemIndex = 0;
 
-	const SECTIONS = ["theme", "locale", "dateTime", "keymap", "raw"] as const;
+	function getActiveSections(): readonly string[] {
+		const snapshot = uiModel.getSnapshot();
+		const secIds = snapshot.sections.map((s) => s.id);
+		return secIds.length > 0 ? secIds : ["syntax"];
+	}
 
 	function syncNavigationState(): void {
-		const currentSecId = SECTIONS[selectedCategoryIndex] ?? "theme";
-		workspace.settingsNavigation.open({ section: currentSecId });
+		const sections = getActiveSections();
+		const currentSecId =
+			sections[selectedCategoryIndex] ?? sections[0] ?? "syntax";
+		workspace.settingsNavigation?.open?.({ section: currentSecId });
 	}
 
 	function navigateDown(): void {
+		const sections = getActiveSections();
 		if (focusedRegion === "navigation") {
-			selectedCategoryIndex = (selectedCategoryIndex + 1) % SECTIONS.length;
+			selectedCategoryIndex = (selectedCategoryIndex + 1) % sections.length;
 			selectedItemIndex = 0;
 			syncNavigationState();
 		} else {
@@ -451,9 +573,10 @@ export function createSettingsTabProvider(
 	}
 
 	function navigateUp(): void {
+		const sections = getActiveSections();
 		if (focusedRegion === "navigation") {
 			selectedCategoryIndex =
-				(selectedCategoryIndex - 1 + SECTIONS.length) % SECTIONS.length;
+				(selectedCategoryIndex - 1 + sections.length) % sections.length;
 			selectedItemIndex = 0;
 			syncNavigationState();
 		} else {

@@ -28,6 +28,9 @@ export function getDefaultSettingsSchema(
 		{
 			path: ["syntax", "macroStartToken"],
 			type: "string",
+			widget: "input",
+			category: "syntax",
+			group: "Tokens",
 			title: translate(
 				i18n,
 				"settings.schema.syntax.macroStartToken.title",
@@ -42,6 +45,9 @@ export function getDefaultSettingsSchema(
 		{
 			path: ["syntax", "conceptToken"],
 			type: "string",
+			widget: "input",
+			category: "syntax",
+			group: "Tokens",
 			title: translate(
 				i18n,
 				"settings.schema.syntax.conceptToken.title",
@@ -56,6 +62,9 @@ export function getDefaultSettingsSchema(
 		{
 			path: ["syntax", "delimiter"],
 			type: "string",
+			widget: "input",
+			category: "syntax",
+			group: "Delimiters",
 			title: translate(
 				i18n,
 				"settings.schema.syntax.delimiter.title",
@@ -70,6 +79,9 @@ export function getDefaultSettingsSchema(
 		{
 			path: ["values", "decimalSeparator"],
 			type: "enum",
+			widget: "dropdown",
+			category: "values",
+			group: "Numerics",
 			title: translate(
 				i18n,
 				"settings.schema.values.decimalSeparator.title",
@@ -85,6 +97,9 @@ export function getDefaultSettingsSchema(
 		{
 			path: ["values", "dateTimeFormat"],
 			type: "string",
+			widget: "input",
+			category: "values",
+			group: "Temporal",
 			title: translate(
 				i18n,
 				"settings.schema.values.dateTimeFormat.title",
@@ -99,6 +114,9 @@ export function getDefaultSettingsSchema(
 		{
 			path: ["appearance", "theme"],
 			type: "enum",
+			widget: "dropdown",
+			category: "appearance",
+			group: "Theme",
 			title: translate(
 				i18n,
 				"settings.schema.appearance.theme.title",
@@ -114,6 +132,9 @@ export function getDefaultSettingsSchema(
 		{
 			path: ["editor", "keymap"],
 			type: "enum",
+			widget: "dropdown",
+			category: "editor",
+			group: "Keybindings",
 			title: translate(
 				i18n,
 				"settings.schema.editor.keymap.title",

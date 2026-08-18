@@ -456,23 +456,25 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(await dispatchTerminalInput(workspace, keymap, { input: "j" })).toBe(
 			"handled",
 		);
-		expect(workspace.settingsNavigation.getSnapshot().section).toBe("locale");
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe("values");
 
 		expect(
 			await dispatchTerminalInput(workspace, keymap, { name: "down" }),
 		).toBe("handled");
-		expect(workspace.settingsNavigation.getSnapshot().section).toBe("dateTime");
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe(
+			"appearance",
+		);
 
 		// 3. Navigate up with 'k' and 'up'
 		expect(await dispatchTerminalInput(workspace, keymap, { input: "k" })).toBe(
 			"handled",
 		);
-		expect(workspace.settingsNavigation.getSnapshot().section).toBe("locale");
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe("values");
 
 		expect(await dispatchTerminalInput(workspace, keymap, { name: "up" })).toBe(
 			"handled",
 		);
-		expect(workspace.settingsNavigation.getSnapshot().section).toBe("theme");
+		expect(workspace.settingsNavigation.getSnapshot().section).toBe("syntax");
 
 		// 4. Focus content region with 'l' or 'right'
 		expect(await dispatchTerminalInput(workspace, keymap, { input: "l" })).toBe(

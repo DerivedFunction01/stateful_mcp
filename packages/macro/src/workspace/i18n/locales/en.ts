@@ -34,4 +34,10 @@ export const EN_LOCALE: WorkspaceLocaleDictionary = {
 	"command.settings.selectEntry": "Select Setting",
 	"command.settings.save": "Save Settings",
 	"command.settings.back": "Back to Editor",
+	"settings.category.syntax": "Core Syntax",
+	"settings.category.values": "Fundamentals & Values",
+	"settings.category.appearance": "Appearance & Theme",
+	"settings.category.editor": "Editor Configuration",
+	"settings.category.keymap": "Keybindings & Motions",
+	"settings.category.extensions": "Extensions",
 };

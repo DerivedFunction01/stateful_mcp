@@ -1,3 +1,4 @@
+import type { I18nKernel } from "../i18n/i18n-kernel";
 import type {
 	SettingsDiagnostic,
 	SettingsSchemaEntry,
@@ -28,11 +29,23 @@ export interface SettingsUiItem {
 	readonly diagnostics: readonly SettingsDiagnostic[];
 }
 
+export interface SettingsUiGroup {
+	readonly id: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly order?: number;
+	readonly items: readonly SettingsUiItem[];
+}
+
 export interface SettingsUiSection {
 	readonly id: string;
 	readonly title: string;
 	readonly category: string;
+	readonly icon?: string;
+	readonly description?: string;
+	readonly order?: number;
 	readonly items: readonly SettingsUiItem[];
+	readonly groups: readonly SettingsUiGroup[];
 }
 
 export interface SettingsUiSnapshot {
@@ -55,8 +68,12 @@ export class SettingsUiModel {
 	private isSplitJsonMode = false;
 	private readonly listeners = new Set<() => void>();
 
-	constructor(private readonly service: WorkspaceSettingsService) {
+	constructor(
+		private readonly service: WorkspaceSettingsService,
+		private readonly i18n?: I18nKernel,
+	) {
 		this.service.subscribe(() => this.notify());
+		this.i18n?.subscribe(() => this.notify());
 	}
 
 	getActiveProfileId(): string {
@@ -135,7 +152,7 @@ export class SettingsUiModel {
 		const diagnostics = this.service.getDiagnostics();
 		const query = this.searchQuery.trim().toLowerCase();
 
-		const sectionMap = new Map<string, SettingsUiItem[]>();
+		const sectionItemMap = new Map<string, SettingsUiItem[]>();
 		let totalModified = 0;
 
 		for (const entry of schema) {
@@ -156,7 +173,19 @@ export class SettingsUiModel {
 				const matchTitle = entry.title.toLowerCase().includes(query);
 				const matchDesc = entry.description?.toLowerCase().includes(query);
 				const matchPath = pathStr.toLowerCase().includes(query);
-				if (!matchTitle && !matchDesc && !matchPath) {
+				const matchGroup = entry.group?.toLowerCase().includes(query);
+				const matchCategory = entry.category?.toLowerCase().includes(query);
+				const matchOptions = entry.enumValues?.some((v) =>
+					v.toLowerCase().includes(query),
+				);
+				if (
+					!matchTitle &&
+					!matchDesc &&
+					!matchPath &&
+					!matchGroup &&
+					!matchCategory &&
+					!matchOptions
+				) {
 					continue;
 				}
 			}
@@ -186,21 +215,64 @@ export class SettingsUiModel {
 				diagnostics: itemDiagnostics,
 			};
 
-			const category = entry.path[0] ?? "general";
-			const items = sectionMap.get(category) ?? [];
+			const category =
+				entry.category ??
+				(entry.path[0] === "extensions" && entry.path[1]
+					? entry.path[1]
+					: (entry.path[0] ?? "general"));
+			const items = sectionItemMap.get(category) ?? [];
 			items.push(item);
-			sectionMap.set(category, items);
+			sectionItemMap.set(category, items);
 		}
 
+		const CORE_CATEGORY_ORDER: Record<string, number> = {
+			syntax: 10,
+			values: 20,
+			appearance: 30,
+			editor: 40,
+			keymap: 50,
+		};
+
 		const sections: SettingsUiSection[] = [];
-		for (const [cat, items] of sectionMap.entries()) {
+		for (const [cat, items] of sectionItemMap.entries()) {
+			// Sort items by entry.order or keep schema insertion order
+			const sortedItems = [...items].sort((a, b) => {
+				const orderA = a.schema.order ?? 100;
+				const orderB = b.schema.order ?? 100;
+				return orderA - orderB;
+			});
+
+			// Group items within section by group
+			const groupMap = new Map<string, SettingsUiItem[]>();
+			for (const it of sortedItems) {
+				const grpName = it.schema.group ?? "General";
+				const grpItems = groupMap.get(grpName) ?? [];
+				grpItems.push(it);
+				groupMap.set(grpName, grpItems);
+			}
+
+			const groups: SettingsUiGroup[] = [];
+			for (const [grpTitle, grpItems] of groupMap.entries()) {
+				groups.push({
+					id: grpTitle.toLowerCase().replace(/\s+/g, "-"),
+					title: grpTitle,
+					items: Object.freeze(grpItems),
+				});
+			}
+
+			const sectionOrder = CORE_CATEGORY_ORDER[cat] ?? 100;
 			sections.push({
 				id: cat,
-				title: formatCategoryTitle(cat),
+				title: formatCategoryTitle(cat, this.i18n),
 				category: cat,
-				items: Object.freeze(items),
+				order: sectionOrder,
+				items: Object.freeze(sortedItems),
+				groups: Object.freeze(groups),
 			});
 		}
+
+		// Sort sections by order
+		sections.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
 
 		return {
 			activeProfileId: this.activeProfileId,
@@ -227,11 +299,22 @@ export class SettingsUiModel {
 	}
 }
 
-function formatCategoryTitle(category: string): string {
+export function formatCategoryTitle(
+	category: string,
+	i18n?: I18nKernel,
+): string {
+	if (i18n) {
+		const key = `settings.category.${category}`;
+		const translated = i18n.t(key);
+		if (translated && translated !== key) {
+			return translated;
+		}
+	}
 	switch (category) {
 		case "syntax":
 			return "Core Syntax";
 		case "values":
+		case "fundamentals":
 			return "Fundamentals & Values";
 		case "appearance":
 			return "Appearance & Theme";
@@ -239,6 +322,8 @@ function formatCategoryTitle(category: string): string {
 			return "Editor Configuration";
 		case "keymap":
 			return "Keybindings & Motions";
+		case "extensions":
+			return "Extensions";
 		default:
 			return category.charAt(0).toUpperCase() + category.slice(1);
 	}
