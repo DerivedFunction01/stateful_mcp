@@ -269,11 +269,74 @@ export function TuiDatePicker({
 		<box
 			flexDirection="column"
 			borderStyle="single"
-			borderColor={c.borderActive}
-			backgroundColor={c.bgElevated}
-			paddingLeft={1}
-			paddingRight={1}
+			borderColor={c.borderDefault}
+			backgroundColor={c.bgSurface}
+			paddingLeft={2}
+			paddingRight={2}
+			paddingTop={1}
+			paddingBottom={1}
+			marginTop={1}
 		>
+			{/* Modal Header: Title + Dismiss Hint */}
+			<box height={1} flexDirection="row" marginBottom={1}>
+				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+					{translate(i18n, "datePicker.title", "Select Date")}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+					{translate(i18n, "palette.dismissHint", "esc")}
+				</text>
+			</box>
+
+			{/* Quick Preset Shortcuts */}
+			<box flexDirection="row" marginBottom={1}>
+				{[
+					{
+						label: translate(i18n, "datePicker.today", "Today"),
+						date: {
+							year: today.getFullYear(),
+							month: today.getMonth() + 1,
+							day: today.getDate(),
+						},
+					},
+					{
+						label: translate(i18n, "datePicker.yesterday", "Yesterday"),
+						date: {
+							year: today.getFullYear(),
+							month: today.getMonth() + 1,
+							day: Math.max(1, today.getDate() - 1),
+						},
+					},
+					{
+						label: translate(i18n, "datePicker.thisMonth", "This Month"),
+						date: {
+							year: today.getFullYear(),
+							month: today.getMonth() + 1,
+							day: 1,
+						},
+					},
+				].map((preset) => (
+					<box
+						key={preset.label}
+						backgroundColor={c.bgActive}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={1}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) {
+								onCursorDateChange?.(preset.date);
+								onSelectDate?.(preset.date);
+								onOpenChange?.(false);
+							}
+						}}
+					>
+						<text fg={c.fgSecondary} attributes={TextAttributes.DIM}>
+							{preset.label}
+						</text>
+					</box>
+				))}
+			</box>
+
 			{/* Month/Year Navigation Header */}
 			<box
 				flexDirection="row"
@@ -335,7 +398,7 @@ export function TuiDatePicker({
 						if (!day) {
 							return (
 								<text key={dIdx} fg="transparent">
-									{"   "}
+									{"    "}
 								</text>
 							);
 						}
@@ -358,14 +421,14 @@ export function TuiDatePicker({
 							month === new Date().getMonth() + 1 &&
 							year === new Date().getFullYear();
 
-						const dayStr = String(day).padStart(2, " ");
+						const dayStr = String(day).padStart(3, " ");
 
 						if (isSelected || isRangeEnd) {
 							return (
 								<box
 									key={dIdx}
 									backgroundColor={c.accentPrimary}
-									marginRight={1}
+									paddingRight={1}
 									{...dayMouseProps(day)}
 								>
 									<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
@@ -379,7 +442,7 @@ export function TuiDatePicker({
 								<box
 									key={dIdx}
 									backgroundColor={c.bgActive}
-									marginRight={1}
+									paddingRight={1}
 									{...dayMouseProps(day)}
 								>
 									<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
@@ -393,7 +456,7 @@ export function TuiDatePicker({
 								<box
 									key={dIdx}
 									backgroundColor={c.bgHover}
-									marginRight={1}
+									paddingRight={1}
 									{...dayMouseProps(day)}
 								>
 									<text fg={c.accentPrimary}>{dayStr}</text>
@@ -427,7 +490,7 @@ export function TuiDatePicker({
 			))}
 
 			{/* Footer: keyboard hints */}
-			<box height={1} marginTop={0}>
+			<box height={1} marginTop={1}>
 				<text fg={c.borderSubtle}>{"─".repeat(Math.max(20, width - 4))}</text>
 			</box>
 			<box height={1}>
@@ -463,7 +526,7 @@ export function TuiDatePicker({
 
 	// ── CALENDAR variant: trigger + popover ──────────────────────────────────
 	return (
-		<box flexDirection="column" width={width}>
+		<box flexDirection="column" width={isOpen ? 56 : width}>
 			{label && (
 				<box height={1}>
 					<text

@@ -1,4 +1,6 @@
 import { TextAttributes } from "@opentui/core";
+import type { I18nKernel } from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiProgressIntent = "primary" | "success" | "warning" | "danger";
@@ -165,6 +167,115 @@ export function TuiGauge({
 				{" "}
 				{clamped}/{max}
 			</text>
+		</box>
+	);
+}
+
+// ─── TASK & TELEMETRY PROGRESS MODAL ──────────────────────────────────
+
+export interface TuiProgressModalProps {
+	readonly title?: string;
+	readonly taskName: string;
+	readonly phase: string;
+	readonly progress: number;
+	readonly total?: number;
+	readonly elapsed?: string;
+	readonly rate?: string;
+	readonly width?: number;
+	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly onClose?: () => void;
+}
+
+export function TuiProgressModal({
+	title,
+	taskName,
+	phase,
+	progress,
+	total = 100,
+	elapsed = "4.2s",
+	rate = "12.4 MB/s",
+	width = 56,
+	theme,
+	i18n,
+	onClose,
+}: TuiProgressModalProps) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const effectiveTitle =
+		title ?? translate(i18n, "progress.title", "Active Operation Progress");
+	const percent = Math.round((progress / total) * 100);
+
+	return (
+		<box
+			width={width}
+			backgroundColor={c.bgSurface}
+			borderStyle="single"
+			borderColor={c.borderDefault}
+			flexDirection="column"
+			paddingLeft={2}
+			paddingRight={2}
+			paddingTop={1}
+			paddingBottom={1}
+		>
+			{/* Modal Header */}
+			<box height={1} flexDirection="row" marginBottom={1}>
+				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+					{effectiveTitle}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+					{translate(i18n, "palette.dismissHint", "esc")}
+				</text>
+			</box>
+
+			{/* Task Info */}
+			<box height={1} marginBottom={1} flexDirection="row">
+				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+					{taskName}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.fgSecondary}>{phase}</text>
+			</box>
+
+			{/* Progress Bar */}
+			<box marginBottom={1}>
+				<TuiProgressBar
+					value={progress}
+					total={total}
+					width={width - 8}
+					theme={theme}
+				/>
+			</box>
+
+			{/* Metrics */}
+			<box height={1} marginBottom={1} flexDirection="row">
+				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+					{translate(
+						i18n,
+						"progress.metrics",
+						`Elapsed: ${elapsed} · Transfer Rate: ${rate}`,
+						{ elapsed, rate },
+					)}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
+					{percent}%
+				</text>
+			</box>
+
+			{/* Close Action */}
+			<box flexDirection="row">
+				<box
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					onMouseDown={() => onClose?.()}
+				>
+					<text fg={c.statusError} attributes={TextAttributes.BOLD}>
+						{translate(i18n, "progress.cancel", "Cancel Operation")}
+					</text>
+				</box>
+			</box>
 		</box>
 	);
 }

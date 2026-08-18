@@ -23,6 +23,7 @@ export interface TextEditorLine {
 	readonly tokens: readonly TextEditorToken[];
 	readonly isCursorLine?: boolean;
 	readonly hasGutterMarker?: "dirty" | "error";
+	readonly previewText?: string;
 }
 
 export interface TextEditorDiagnostic {
@@ -30,6 +31,67 @@ export interface TextEditorDiagnostic {
 	readonly col: number;
 	readonly message: string;
 	readonly severity: "error" | "warning";
+}
+
+export interface TextEditorLineParserResult {
+	/** Highlight tokens for rendering the line */
+	readonly tokens: readonly TextEditorToken[];
+	/** Optional live preview or compiled output string */
+	readonly previewText?: string;
+	/** Whether this line represents a complete, runnable statement */
+	readonly isCompleteStatement?: boolean;
+	/** Optional syntax or validation diagnostic */
+	readonly diagnostic?: TextEditorDiagnostic;
+}
+
+/** Replaceable, pluggable line parser function */
+export type TextEditorLineParser = (
+	lineText: string,
+	lineNumber: number,
+	context?: unknown,
+) => TextEditorLineParserResult;
+
+export interface TuiEditorInstruction {
+	readonly text: string;
+	readonly variant?: "info" | "tip" | "warning";
+}
+
+export interface TuiEditorExampleHint {
+	readonly label: string;
+	readonly sample: string;
+	readonly description?: string;
+}
+
+/** Default generic tokenizer: splits strings, numbers, punctuation, and identifiers without assuming domain syntax */
+export function createGenericLineParser(): TextEditorLineParser {
+	return (lineText: string): TextEditorLineParserResult => {
+		const tokens: TextEditorToken[] = [];
+		if (!lineText) {
+			return { tokens: [{ text: "", color: undefined }] };
+		}
+
+		const regex =
+			/("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[^`]*`|\d+(?:\.\d+)?|[{}[\](),:;=]|\s+|[^\s{}[\](),:;="'`]+)/g;
+		let match: RegExpExecArray | null;
+		while (true) {
+			match = regex.exec(lineText);
+			if (match === null) break;
+			const text = match[0];
+			if (/^["'`]/.test(text)) {
+				tokens.push({ text, color: "string" });
+			} else if (/^\d/.test(text)) {
+				tokens.push({ text, color: "accent" });
+			} else if (/^[{}[\](),:;=]$/.test(text)) {
+				tokens.push({ text, color: "punct" });
+			} else if (/^[a-zA-Z_$][a-zA-Z0-9_$]*:/.test(text)) {
+				tokens.push({ text, color: "key" });
+			} else {
+				tokens.push({ text, color: undefined });
+			}
+		}
+
+		return { tokens };
+	};
 }
 
 export interface TextEditorWindowProps {
@@ -40,6 +102,10 @@ export interface TextEditorWindowProps {
 	readonly languageId?: string;
 	readonly isDirty?: boolean;
 	readonly diagnostics?: readonly TextEditorDiagnostic[];
+	readonly instructions?: readonly TuiEditorInstruction[];
+	readonly exampleHints?: readonly TuiEditorExampleHint[];
+	readonly livePreview?: string;
+	readonly lineParser?: TextEditorLineParser;
 	readonly width?: number;
 	readonly height?: number;
 	readonly theme?: TuiThemeDefinition;
@@ -54,6 +120,10 @@ export function TextEditorWindowView({
 	languageId = "JSON",
 	isDirty = false,
 	diagnostics = [],
+	instructions,
+	exampleHints,
+	livePreview,
+	lineParser,
 	width,
 	height,
 	theme: propTheme,
@@ -83,6 +153,18 @@ export function TextEditorWindowView({
 				return c.fgPrimary;
 		}
 	}
+
+	// Calculate active line preview if lineParser or line preview is present
+	const currentLineObj = lines.find((l) => l.num === cursorLine);
+	const activeLivePreview =
+		livePreview ??
+		currentLineObj?.previewText ??
+		(lineParser && currentLineObj
+			? lineParser(
+					currentLineObj.tokens.map((t) => t.text).join(""),
+					cursorLine,
+				).previewText
+			: undefined);
 
 	return (
 		<box
@@ -118,7 +200,77 @@ export function TextEditorWindowView({
 				)}
 			</box>
 
-			{/* 2. Multi-line Buffer Area */}
+			{/* 2. Optional Instructions Banner */}
+			{instructions && instructions.length > 0 && (
+				<box
+					flexDirection="column"
+					backgroundColor={c.bgSurface}
+					paddingLeft={2}
+					paddingRight={2}
+					paddingTop={0}
+					paddingBottom={0}
+					borderStyle="single"
+					borderColor={c.borderSubtle}
+				>
+					{instructions.map((inst, idx) => {
+						const icon =
+							inst.variant === "warning"
+								? "⚠️"
+								: inst.variant === "tip"
+									? "💡"
+									: "ℹ️";
+						const fgColor =
+							inst.variant === "warning"
+								? c.statusWarning
+								: inst.variant === "tip"
+									? c.accentSecondary
+									: c.accentPrimary;
+						return (
+							<box key={idx} height={1} flexDirection="row">
+								<text fg={fgColor} attributes={TextAttributes.BOLD}>
+									{icon}{" "}
+								</text>
+								<text fg={c.fgSecondary}>{inst.text}</text>
+							</box>
+						);
+					})}
+				</box>
+			)}
+
+			{/* 3. Optional Read-Only Reference Example Hints */}
+			{exampleHints && exampleHints.length > 0 && (
+				<box
+					flexDirection="column"
+					backgroundColor={c.bgActive}
+					paddingLeft={2}
+					paddingRight={2}
+					paddingTop={0}
+					paddingBottom={0}
+				>
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						{translate(
+							i18n,
+							"textEditor.references",
+							"Syntax & Format References:",
+						)}
+					</text>
+					{exampleHints.map((ex, idx) => (
+						<box key={idx} height={1} flexDirection="row">
+							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+								• {ex.label}:{" "}
+							</text>
+							<text fg={c.fgPrimary}>{ex.sample} </text>
+							{ex.description && (
+								<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+									({ex.description})
+								</text>
+							)}
+						</box>
+					))}
+				</box>
+			)}
+
+			{/* 4. Multi-line Buffer Area */}
 			<box
 				flexDirection="column"
 				flexGrow={1}
@@ -205,7 +357,28 @@ export function TextEditorWindowView({
 				)}
 			</box>
 
-			{/* 3. Bottom Status Bar */}
+			{/* 5. Live Statement Output Preview Box */}
+			{activeLivePreview && (
+				<box
+					height={1}
+					backgroundColor={c.bgActive}
+					paddingLeft={2}
+					paddingRight={2}
+					flexDirection="row"
+					alignItems="center"
+				>
+					<text fg={c.accentSecondary} attributes={TextAttributes.BOLD}>
+						{translate(
+							i18n,
+							"textEditor.liveOutput",
+							"Live Statement Output:",
+						)}{" "}
+					</text>
+					<text fg={c.fgPrimary}>{activeLivePreview}</text>
+				</box>
+			)}
+
+			{/* 6. Bottom Status Bar */}
 			<TuiStatusBar
 				mode="NORMAL"
 				sessionTitle={documentUri}

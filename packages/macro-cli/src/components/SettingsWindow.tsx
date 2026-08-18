@@ -28,6 +28,7 @@ import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 
 export interface SettingsWindowProps {
 	readonly model: SettingsUiModel;
+	readonly availableProfiles?: readonly string[];
 	readonly width?: number;
 	readonly height?: number;
 	readonly theme?: TuiThemeDefinition;
@@ -38,10 +39,12 @@ export interface SettingsWindowProps {
 	readonly onSelectCategory?: (categoryId: string) => void;
 	readonly onOpenJson?: () => void;
 	readonly onSwitchProfile?: (profileId: string) => void;
+	readonly onCreateProfile?: () => void;
 }
 
 export function SettingsWindowView({
 	model,
+	availableProfiles,
 	width = 100,
 	theme,
 	i18n,
@@ -51,6 +54,7 @@ export function SettingsWindowView({
 	onSelectCategory,
 	onOpenJson,
 	onSwitchProfile,
+	onCreateProfile,
 }: SettingsWindowProps) {
 	const activeTheme = theme ?? GlobalThemeRegistry.getActive();
 	const c = activeTheme.colors;
@@ -84,6 +88,33 @@ export function SettingsWindowView({
 		{ id: "folder", label: translate(i18n, "settings.scope.folder", "Folder") },
 	];
 
+	// Build profile options dynamically from availableProfiles with ZERO hardcoded names
+	const profileList =
+		availableProfiles && availableProfiles.length > 0
+			? availableProfiles
+			: [snapshot.activeProfileId];
+
+	const profileOptions = [
+		...profileList.map((pId) => ({
+			id: pId,
+			label:
+				pId === "base"
+					? translate(i18n, "settings.profile.base", "Base (Default)")
+					: pId,
+			meta: pId === snapshot.activeProfileId ? "active" : undefined,
+		})),
+		{ id: "div-new", label: "", divider: true },
+		{
+			id: "create-new",
+			label: translate(
+				i18n,
+				"settings.profile.createNew",
+				"+ Create New Profile…",
+			),
+			meta: "Action",
+		},
+	];
+
 	return (
 		<box
 			flexDirection="column"
@@ -93,7 +124,7 @@ export function SettingsWindowView({
 			paddingLeft={1}
 			paddingRight={1}
 		>
-			{/* 1. Header Toolbar: Search + Profile Switcher + Scope Tabs + JSON Toggle */}
+			{/* 1. Header Toolbar: Search + Profile Switcher Dropdown + Scope Tabs + JSON Toggle */}
 			<box
 				flexDirection="row"
 				alignItems="center"
@@ -107,8 +138,11 @@ export function SettingsWindowView({
 				height={3}
 				marginBottom={1}
 			>
-				<text fg={focusedRegion === "search" ? c.accentPrimary : c.fgMuted}>
-					🔍{" "}
+				<text
+					fg={focusedRegion === "search" ? c.accentPrimary : c.fgMuted}
+					attributes={TextAttributes.BOLD}
+				>
+					{translate(i18n, "settings.findPrompt", "Find:")}{" "}
 				</text>
 				{snapshot.searchQuery.length > 0 ? (
 					<box flexDirection="row">
@@ -144,19 +178,22 @@ export function SettingsWindowView({
 				)}
 				<box flexGrow={1} />
 
-				{/* Profile Switcher Pill */}
-				<box
-					flexDirection="row"
-					backgroundColor={c.bgActive}
-					paddingLeft={1}
-					paddingRight={1}
-					marginRight={1}
-				>
-					<text fg={c.accentSecondary} attributes={TextAttributes.BOLD}>
-						{snapshot.activeProfileId === "base"
-							? `📦 ${translate(i18n, "settings.profile.base", "Base (Default)")} ▾`
-							: `📦 ${snapshot.activeProfileId} ▾`}
-					</text>
+				{/* Profile Switcher Dropdown */}
+				<box marginRight={1}>
+					<TuiDropdown
+						label={translate(i18n, "settings.profileLabel", "Profile")}
+						options={profileOptions}
+						selectedId={snapshot.activeProfileId}
+						onSelect={(id) => {
+							if (id === "create-new") {
+								onSwitchProfile?.("custom-profile");
+							} else {
+								onSwitchProfile?.(id);
+							}
+						}}
+						width={26}
+						theme={theme}
+					/>
 				</box>
 
 				{/* JSON Tab Open Action Button */}
@@ -166,6 +203,7 @@ export function SettingsWindowView({
 					}
 					paddingLeft={1}
 					paddingRight={1}
+					onMouseDown={() => onOpenJson?.()}
 				>
 					<text
 						fg={snapshot.isSplitJsonMode ? c.bgCanvas : c.fgPrimary}
@@ -223,6 +261,7 @@ export function SettingsWindowView({
 								flexDirection="row"
 								backgroundColor={isSelected ? c.bgActive : undefined}
 								paddingLeft={1}
+								onMouseDown={() => onSelectCategory?.(sec.id)}
 							>
 								<text
 									fg={isSelected ? c.accentPrimary : c.fgSecondary}
@@ -249,21 +288,24 @@ export function SettingsWindowView({
 								</text>
 							</box>
 
-							{/* Section Items */}
-							{currentSection.items.map((item, idx) => (
-								<SettingItemRow
-									key={item.schema.path.join(".")}
-									item={item}
-									isFocused={
-										focusedRegion === "content" && idx === selectedItemIndex
-									}
-									theme={activeTheme}
-									i18n={i18n}
-									onReset={() => model.resetValue(item.schema.path)}
-									onChange={(val) => model.setValue(item.schema.path, val)}
-									width={45}
-								/>
-							))}
+							{/* Setting Item Cards */}
+							{currentSection.items.map((item, itemIdx) => {
+								const isFocused =
+									focusedRegion === "content" && itemIdx === selectedItemIndex;
+
+								return (
+									<SettingItemRow
+										key={item.schema.path.join(".")}
+										item={item}
+										isFocused={isFocused}
+										theme={activeTheme}
+										i18n={i18n}
+										width={width - sidebarWidth - 6}
+										onReset={() => model.resetValue(item.schema.path)}
+										onChange={(val) => model.setValue(item.schema.path, val)}
+									/>
+								);
+							})}
 						</box>
 					)}
 				</box>
@@ -294,6 +336,20 @@ function SettingItemRow({
 	const c = theme.colors;
 	const s = item.schema;
 
+	const originBadge =
+		item.origin.kind === "overridden"
+			? `[Overridden in ${item.origin.sourceProfileId}]`
+			: item.origin.kind === "appended"
+				? `[Appended (+${item.origin.appendedCount ?? 2})]`
+				: `[Default]`;
+
+	const originColor =
+		item.origin.kind === "overridden"
+			? c.accentPeach
+			: item.origin.kind === "appended"
+				? c.accentSecondary
+				: c.fgDim;
+
 	return (
 		<box
 			flexDirection="column"
@@ -306,22 +362,9 @@ function SettingItemRow({
 					{s.title}:{" "}
 				</text>
 				<box flexGrow={1} />
-				{/* Origin Attribution Badge */}
-				<text
-					fg={
-						item.origin.kind === "overridden"
-							? c.accentPeach
-							: item.origin.kind === "appended"
-								? c.accentSecondary
-								: c.fgDim
-					}
-					attributes={TextAttributes.DIM}
-				>
-					{item.origin.kind === "overridden"
-						? `🏷️ ${translate(i18n, "settings.origin.overridden", `Overridden in ${item.origin.sourceProfileId}`, { profile: item.origin.sourceProfileId })}`
-						: item.origin.kind === "appended"
-							? `🏷️ ${translate(i18n, "settings.origin.appended", `Appended (+${item.origin.appendedCount ?? 2} items)`, { count: item.origin.appendedCount ?? 2 })}`
-							: `🏷️ ${translate(i18n, "settings.origin.default", "Default (Core)")}`}
+				{/* Clean Text Origin Attribution Badge */}
+				<text fg={originColor} attributes={TextAttributes.DIM}>
+					{originBadge}
 				</text>
 			</box>
 

@@ -2,12 +2,15 @@ import { type MouseEvent, TextAttributes } from "@opentui/core";
 import type { I18nKernel } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
+import { TuiCursor } from "./TuiCursor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TuiDropdownOption {
 	readonly id: string;
 	readonly label: string;
+	/** Optional category for grouping */
+	readonly category?: string;
 	/** Optional icon/emoji rendered to the left of the label */
 	readonly icon?: string;
 	/** Optional right-side meta/description */
@@ -27,26 +30,33 @@ export interface TuiDropdownProps {
 	readonly selectedId?: string;
 	/** Index of the keyboard-highlighted option (while open) */
 	readonly highlightedIndex?: number;
-	/** Whether the dropdown popover is currently open */
+	/** Whether the dropdown popover/modal is currently open */
 	readonly isOpen?: boolean;
 	/** Whether the control has keyboard focus */
 	readonly isFocused?: boolean;
 	/** Label rendered above the control */
 	readonly label?: string;
+	/** Title for modal header */
+	readonly title?: string;
+	/** Search query string */
+	readonly query?: string;
 	/** Placeholder shown when nothing is selected */
 	readonly placeholder?: string;
-	/** Maximum number of visible rows in the open popover */
+	/** Maximum number of visible rows in the open popover/modal */
 	readonly maxVisible?: number;
 	/** Visual variant for the trigger control */
 	readonly variant?: TuiDropdownVariant;
 	/** Total width */
 	readonly width?: number;
+	/** Modal dialog width */
+	readonly modalWidth?: number;
 	/** Theme override */
 	readonly theme?: TuiThemeDefinition;
 	readonly i18n?: I18nKernel;
 	readonly onOpenChange?: (open: boolean) => void;
 	readonly onHighlightChange?: (index: number) => void;
 	readonly onSelect?: (id: string) => void;
+	readonly onQueryChange?: (query: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -58,10 +68,13 @@ export function TuiDropdown({
 	isOpen = false,
 	isFocused = false,
 	label,
+	title,
+	query = "",
 	placeholder,
-	maxVisible = 6,
+	maxVisible = 8,
 	variant = "bordered",
 	width = 32,
+	modalWidth = 56,
 	theme,
 	i18n,
 	onOpenChange,
@@ -71,6 +84,9 @@ export function TuiDropdown({
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const effectivePlaceholder =
 		placeholder ?? translate(i18n, "dropdown.placeholder", "Select an option");
+	const modalTitle =
+		title ?? label ?? translate(i18n, "dropdown.selectOption", "Select Option");
+	const dismissHint = translate(i18n, "palette.dismissHint", "esc");
 
 	const selectedOption = options.find((o) => o.id === selectedId);
 	const borderColor = isFocused || isOpen ? c.borderActive : c.borderDefault;
@@ -81,7 +97,7 @@ export function TuiDropdown({
 		? `${selectedOption.icon ? selectedOption.icon + " " : ""}${selectedOption.label}`
 		: effectivePlaceholder;
 	const triggerFg = selectedOption ? c.fgPrimary : c.fgDim;
-	const innerWidth = Math.max(6, width - 6); // account for border + padding + chevron
+	const innerWidth = Math.max(6, width - 6);
 	const truncatedTrigger = triggerText
 		.slice(0, innerWidth)
 		.padEnd(innerWidth, " ");
@@ -90,53 +106,22 @@ export function TuiDropdown({
 	const chevron = isOpen ? "▲" : "▼";
 	const chevronFg = isFocused || isOpen ? c.accentPrimary : c.fgMuted;
 
-	// ── UNDERLINE trigger variant ─────────────────────────────────────────────
-	const renderTriggerUnderline = () => (
-		<box flexDirection="column">
-			<box
-				flexDirection="row"
-				backgroundColor={triggerBg}
-				height={1}
-				paddingLeft={1}
-				paddingRight={1}
-			>
-				<text
-					fg={triggerFg}
-					attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}
-				>
-					{truncatedTrigger}
-				</text>
-				<text fg={chevronFg}> {chevron}</text>
-			</box>
-			<box height={1}>
-				<text fg={borderColor}>{"▔".repeat(width)}</text>
-			</box>
-		</box>
-	);
+	// ── Filtered options matching search query ─────────────────────────────────
+	const filteredOptions = query
+		? options.filter(
+				(o) =>
+					o.label.toLowerCase().includes(query.toLowerCase()) ||
+					(o.meta && o.meta.toLowerCase().includes(query.toLowerCase())),
+			)
+		: options;
 
-	// ── FILLED trigger variant ────────────────────────────────────────────────
-	const renderTriggerFilled = () => (
-		<box
-			flexDirection="row"
-			backgroundColor={isOpen ? c.bgActive : c.bgSurface}
-			height={1}
-			paddingLeft={1}
-			paddingRight={1}
-		>
-			<text
-				fg={triggerFg}
-				attributes={selectedOption ? TextAttributes.BOLD : TextAttributes.DIM}
-			>
-				{truncatedTrigger}
-			</text>
-			<text fg={chevronFg}> {chevron}</text>
-		</box>
-	);
+	const categories = Array.from(
+		new Set(filteredOptions.map((o) => o.category).filter(Boolean)),
+	) as string[];
 
-	// ── BORDERED trigger variant (Default) ────────────────────────────────────
-	const renderTriggerBordered = () => (
+	const renderTrigger = () => (
 		<box
-			borderStyle="single"
+			borderStyle={variant === "bordered" ? "single" : undefined}
 			borderColor={borderColor}
 			backgroundColor={triggerBg}
 			flexDirection="row"
@@ -153,105 +138,142 @@ export function TuiDropdown({
 		</box>
 	);
 
-	const renderTrigger = () => {
-		if (variant === "underline") return renderTriggerUnderline();
-		if (variant === "filled") return renderTriggerFilled();
-		return renderTriggerBordered();
-	};
-
-	// ── Popover option list ────────────────────────────────────────────────────
-	const visibleOptions = options.slice(0, maxVisible);
-
-	const renderPopover = () => (
+	// ── Command-Palette Style Modal Dialog ────────────────────────────────────
+	const renderModal = () => (
 		<box
-			flexDirection="column"
+			width={modalWidth}
+			backgroundColor={c.bgSurface}
 			borderStyle="single"
-			borderColor={c.borderActive}
-			backgroundColor={c.bgElevated}
-			width={width}
+			borderColor={c.borderDefault}
+			flexDirection="column"
+			paddingLeft={2}
+			paddingRight={2}
+			paddingTop={1}
+			paddingBottom={1}
+			marginTop={1}
 		>
-			{visibleOptions.map((opt, idx) => {
-				const isHighlighted = idx === highlightedIndex;
-				const isSelected = opt.id === selectedId;
+			{/* Header: Title + Dismiss Hint */}
+			<box height={1} flexDirection="row" marginBottom={1}>
+				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+					{modalTitle}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+					{dismissHint}
+				</text>
+			</box>
 
-				if (opt.divider) {
+			{/* Search Input Bar with Blinking Cursor */}
+			<box height={1} marginBottom={1} flexDirection="row">
+				{query.length > 0 ? (
+					<box flexDirection="row">
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+							{query}
+						</text>
+						<TuiCursor char=" " theme={theme} />
+					</box>
+				) : (
+					<box flexDirection="row">
+						<TuiCursor
+							char={effectivePlaceholder.slice(0, 1)}
+							isPlaceholder={true}
+							theme={theme}
+						/>
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+							{effectivePlaceholder.slice(1)}
+						</text>
+					</box>
+				)}
+			</box>
+
+			{/* Options List */}
+			<box flexDirection="column">
+				{filteredOptions.length === 0 && (
+					<box padding={1}>
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+							{translate(
+								i18n,
+								"dropdown.noOptions",
+								"No matching options found.",
+							)}
+						</text>
+					</box>
+				)}
+
+				{filteredOptions.slice(0, maxVisible).map((opt, idx) => {
+					const isHighlighted = idx === highlightedIndex;
+					const isSelected = opt.id === selectedId;
+
+					if (opt.divider) {
+						return (
+							<box key={opt.id} height={1}>
+								<text fg={c.borderSubtle}>
+									{"─".repeat(Math.max(4, modalWidth - 6))}
+								</text>
+							</box>
+						);
+					}
+
+					const optionBg = isHighlighted ? c.bgSelect : undefined;
+					const checkmark = isSelected ? "●" : "○";
+					const checkFg = isSelected ? c.accentPrimary : c.fgDim;
+					const optFg = isHighlighted
+						? c.bgSelectText
+						: opt.disabled
+							? c.fgDim
+							: c.fgPrimary;
+
 					return (
-						<box key={opt.id} height={1}>
-							<text fg={c.borderSubtle}>
-								{"─".repeat(Math.max(4, width - 2))}
+						<box
+							key={opt.id}
+							height={1}
+							backgroundColor={optionBg}
+							paddingLeft={1}
+							paddingRight={1}
+							flexDirection="row"
+							onMouseDown={(event: MouseEvent) => {
+								if (event.button !== 0 || opt.disabled || opt.divider) return;
+								onHighlightChange?.(idx);
+								onSelect?.(opt.id);
+								onOpenChange?.(false);
+							}}
+						>
+							<text fg={checkFg} attributes={TextAttributes.BOLD}>
+								{checkmark}{" "}
 							</text>
+							{opt.icon && <text fg={optFg}>{opt.icon} </text>}
+							<text
+								fg={optFg}
+								attributes={
+									isHighlighted || isSelected
+										? TextAttributes.BOLD
+										: opt.disabled
+											? TextAttributes.DIM
+											: 0
+								}
+							>
+								{opt.label}
+							</text>
+
+							<box flexGrow={1} />
+
+							{opt.meta && (
+								<text
+									fg={isHighlighted ? c.bgSelectText : c.fgMuted}
+									attributes={TextAttributes.DIM}
+								>
+									{opt.meta}
+								</text>
+							)}
 						</box>
 					);
-				}
-
-				const optionBg = isHighlighted ? c.bgActive : undefined;
-				const pillar = isHighlighted ? "▎" : " ";
-				const pillarFg = isHighlighted ? c.accentPrimary : "transparent";
-				const optFg = opt.disabled
-					? c.fgDim
-					: isHighlighted
-						? c.fgPrimary
-						: isSelected
-							? c.accentPrimary
-							: c.fgSecondary;
-				const checkmark = isSelected ? "●" : " ";
-				const checkFg = isSelected ? c.accentPrimary : "transparent";
-				const metaFg = c.fgDim;
-				const labelWidth = Math.max(4, width - 8);
-				const labelText = `${opt.icon ? opt.icon + " " : ""}${opt.label}`
-					.slice(0, labelWidth)
-					.padEnd(labelWidth);
-
-				return (
-					<box
-						key={opt.id}
-						flexDirection="row"
-						height={1}
-						backgroundColor={optionBg}
-						paddingLeft={0}
-						paddingRight={1}
-						onMouseDown={(event: MouseEvent) => {
-							if (event.button !== 0 || opt.disabled || opt.divider) return;
-							onHighlightChange?.(idx);
-							onSelect?.(opt.id);
-						}}
-					>
-						<text fg={pillarFg} attributes={TextAttributes.BOLD}>
-							{pillar}
-						</text>
-						<text fg={checkFg}>{checkmark} </text>
-						<text
-							fg={optFg}
-							attributes={
-								isHighlighted
-									? TextAttributes.BOLD
-									: opt.disabled
-										? TextAttributes.DIM
-										: 0
-							}
-						>
-							{labelText}
-						</text>
-						{opt.meta && (
-							<text fg={metaFg} attributes={TextAttributes.DIM}>
-								{opt.meta.slice(0, 6)}
-							</text>
-						)}
-					</box>
-				);
-			})}
-			{options.length > maxVisible && (
-				<box height={1} paddingLeft={2}>
-					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						+{options.length - maxVisible} more… ↑↓ to scroll
-					</text>
-				</box>
-			)}
+				})}
+			</box>
 		</box>
 	);
 
 	return (
-		<box flexDirection="column" width={width}>
+		<box flexDirection="column" width={isOpen ? modalWidth : width}>
 			{label && (
 				<box height={1}>
 					<text
@@ -269,7 +291,7 @@ export function TuiDropdown({
 			>
 				{renderTrigger()}
 			</box>
-			{isOpen && renderPopover()}
+			{isOpen && renderModal()}
 		</box>
 	);
 }

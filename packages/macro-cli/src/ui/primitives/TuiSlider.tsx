@@ -1,9 +1,12 @@
 import { type MouseEvent, TextAttributes } from "@opentui/core";
 import {
 	formatNumericValue,
+	type I18nKernel,
 	type NumericFormatOptions,
 } from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
+import { TuiCursor } from "./TuiCursor";
 
 // ─── TUI SLIDER ───────────────────────────────────────────────────────────────
 
@@ -15,11 +18,15 @@ export interface TuiSliderProps {
 	readonly step?: number;
 	readonly unit?: string;
 	readonly width?: number;
+	readonly modalWidth?: number;
 	readonly isFocused?: boolean;
+	readonly isOpen?: boolean;
 	readonly intent?: "primary" | "warning" | "success" | "danger";
 	readonly disabled?: boolean;
 	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
 	readonly onChange?: (value: number) => void;
+	readonly onOpenChange?: (open: boolean) => void;
 	readonly formatOptions?: NumericFormatOptions;
 }
 
@@ -31,11 +38,15 @@ export function TuiSlider({
 	step = 1,
 	unit = "%",
 	width = 32,
+	modalWidth = 56,
 	isFocused = false,
+	isOpen = false,
 	intent = "primary",
 	disabled = false,
 	theme,
+	i18n,
 	onChange,
+	onOpenChange,
 	formatOptions,
 }: TuiSliderProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
@@ -49,13 +60,15 @@ export function TuiSlider({
 					? c.statusSuccess
 					: c.accentPrimary;
 
-	const trackWidth = Math.max(8, width - (label ? 16 : 8));
+	const trackWidth = Math.max(
+		8,
+		(isOpen ? modalWidth - 8 : width) - (label ? 16 : 8),
+	);
 	const clampedValue = Math.max(min, Math.min(max, value));
 	const ratio = (clampedValue - min) / Math.max(1, max - min);
 	const thumbPos = Math.round(ratio * (trackWidth - 1));
 
 	// Build the track string
-	// Active track before thumb: ━, Thumb: ●, Inactive track after thumb: ─
 	const leftTrack = "━".repeat(thumbPos);
 	const rightTrack = "─".repeat(Math.max(0, trackWidth - thumbPos - 1));
 	const displayValue = `${formatNumericValue(clampedValue, formatOptions)}${unit}`;
@@ -72,7 +85,7 @@ export function TuiSlider({
 		onChange?.(Math.max(min, Math.min(max, stepped)));
 	};
 
-	return (
+	const trigger = (
 		<box flexDirection="column">
 			{label && (
 				<box height={1} flexDirection="row">
@@ -97,41 +110,117 @@ export function TuiSlider({
 				backgroundColor={isFocused ? c.bgActive : undefined}
 				paddingLeft={1}
 				paddingRight={1}
-				onMouseDown={updateFromPointer}
-				onMouseDrag={updateFromPointer}
+				onMouseDown={(event: MouseEvent) => {
+					if (event.button === 0) onOpenChange?.(!isOpen);
+				}}
 			>
-				<text
-					fg={disabled ? c.fgDim : isFocused ? intentColor : c.borderDefault}
-				>
-					├
+				<text fg={intentColor}>{leftTrack}</text>
+				<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+					{"●"}
 				</text>
-				<text
-					fg={disabled ? c.fgDim : intentColor}
-					attributes={TextAttributes.BOLD}
-				>
-					{leftTrack}
-				</text>
-				<text
-					fg={disabled ? c.fgDim : isFocused ? c.accentAmber : intentColor}
-					attributes={TextAttributes.BOLD}
-				>
-					●
-				</text>
-				<text fg={disabled ? c.fgDim : c.borderDefault}>{rightTrack}</text>
-				<text
-					fg={disabled ? c.fgDim : isFocused ? intentColor : c.borderDefault}
-				>
-					┤
-				</text>
+				<text fg={c.fgDim}>{rightTrack}</text>
 				{!label && (
-					<text
-						fg={isFocused ? intentColor : c.fgMuted}
-						attributes={TextAttributes.BOLD}
-					>
-						{"  "}
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						{" "}
 						{displayValue}
 					</text>
 				)}
+			</box>
+		</box>
+	);
+
+	if (!isOpen) {
+		return trigger;
+	}
+
+	return (
+		<box flexDirection="column" width={modalWidth}>
+			{trigger}
+
+			<box
+				flexDirection="column"
+				borderStyle="single"
+				borderColor={c.borderDefault}
+				backgroundColor={c.bgSurface}
+				paddingLeft={2}
+				paddingRight={2}
+				paddingTop={1}
+				paddingBottom={1}
+				marginTop={1}
+			>
+				{/* Modal Header */}
+				<box height={1} flexDirection="row" marginBottom={1}>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{translate(i18n, "slider.title", "Adjust Value")}
+					</text>
+					<box flexGrow={1} />
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						{translate(i18n, "palette.dismissHint", "esc")}
+					</text>
+				</box>
+
+				{/* Numeric Readout with Cursor */}
+				<box height={1} marginBottom={1} flexDirection="row">
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+						{displayValue}
+					</text>
+					<TuiCursor char=" " theme={theme} />
+					<box flexGrow={1} />
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						Min: {min} · Max: {max} · Step: {step}
+					</text>
+				</box>
+
+				{/* Interactive Track */}
+				<box
+					flexDirection="row"
+					height={1}
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					marginBottom={1}
+					onMouseDown={updateFromPointer}
+				>
+					<text fg={intentColor}>{leftTrack}</text>
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+						{"●"}
+					</text>
+					<text fg={c.fgDim}>{rightTrack}</text>
+				</box>
+
+				{/* Step Buttons */}
+				<box flexDirection="row">
+					<box
+						backgroundColor={c.bgActive}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={2}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) {
+								onChange?.(Math.max(min, clampedValue - step));
+							}
+						}}
+					>
+						<text fg={c.fgSecondary}>
+							{translate(i18n, "slider.stepDown", "[- Step Down]")}
+						</text>
+					</box>
+
+					<box
+						backgroundColor={c.bgActive}
+						paddingLeft={1}
+						paddingRight={1}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) {
+								onChange?.(Math.min(max, clampedValue + step));
+							}
+						}}
+					>
+						<text fg={c.fgSecondary}>
+							{translate(i18n, "slider.stepUp", "[+ Step Up]")}
+						</text>
+					</box>
+				</box>
 			</box>
 		</box>
 	);

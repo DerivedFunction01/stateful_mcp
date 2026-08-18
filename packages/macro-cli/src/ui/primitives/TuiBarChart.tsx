@@ -1,8 +1,10 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
 import {
 	formatNumericValue,
+	type I18nKernel,
 	type NumericFormatOptions,
 } from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── 1. STANDARD HORIZONTAL BAR CHART ─────────────────────────────────
@@ -385,6 +387,181 @@ export function TuiSparkline({
 			<text fg={sparkColor} attributes={TextAttributes.BOLD}>
 				{sparkChars}
 			</text>
+		</box>
+	);
+}
+
+// ─── 6. INTERACTIVE CHART DATA EXPLORER MODAL ─────────────────────────
+
+export interface TuiChartModalProps {
+	readonly title?: string;
+	readonly items: readonly TuiBarChartItem[];
+	readonly selectedIndex?: number;
+	readonly query?: string;
+	readonly width?: number;
+	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly onSelectIndex?: (index: number) => void;
+	readonly onClose?: () => void;
+}
+
+export function TuiChartModal({
+	title,
+	items,
+	selectedIndex = 0,
+	query = "",
+	width = 64,
+	theme,
+	i18n,
+	onSelectIndex,
+	onClose,
+}: TuiChartModalProps) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const totalValue = items.reduce((acc, it) => acc + it.value, 0);
+	const maxValue = Math.max(1, ...items.map((it) => it.value));
+	const minValue = Math.min(...items.map((it) => it.value));
+
+	const filteredItems = query
+		? items.filter((it) => it.label.toLowerCase().includes(query.toLowerCase()))
+		: items;
+
+	const activeItem = filteredItems[selectedIndex] ?? filteredItems[0];
+	const activePercent =
+		activeItem && totalValue > 0
+			? ((activeItem.value / totalValue) * 100).toFixed(1)
+			: "0.0";
+
+	return (
+		<box
+			width={width}
+			backgroundColor={c.bgSurface}
+			borderStyle="single"
+			borderColor={c.borderDefault}
+			flexDirection="column"
+			paddingLeft={2}
+			paddingRight={2}
+			paddingTop={1}
+			paddingBottom={1}
+		>
+			{/* Modal Header */}
+			<box height={1} flexDirection="row" marginBottom={1}>
+				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+					{title ?? translate(i18n, "chart.title", "Chart Data Explorer")}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+					{translate(i18n, "palette.dismissHint", "esc")}
+				</text>
+			</box>
+
+			{/* Filter Query Line */}
+			<box height={1} marginBottom={1} flexDirection="row">
+				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+					{query}
+				</text>
+				<text fg={c.accentPrimary}>▎</text>
+				<box flexGrow={1} />
+				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+					{translate(
+						i18n,
+						"chart.dataPoints",
+						`${filteredItems.length} series data points`,
+						{ count: filteredItems.length },
+					)}
+				</text>
+			</box>
+
+			{/* Data Series Bar Grid */}
+			<box flexDirection="column" marginBottom={1}>
+				{filteredItems.map((item, idx) => {
+					const isSelected = idx === selectedIndex;
+					const ratio = Math.max(0, item.value) / maxValue;
+					const barLen = Math.max(1, Math.round(ratio * 20));
+					const barColor = item.color ?? c.accentPrimary;
+
+					return (
+						<box
+							key={item.label}
+							height={1}
+							backgroundColor={isSelected ? c.bgSelect : undefined}
+							paddingLeft={1}
+							paddingRight={1}
+							flexDirection="row"
+							onMouseDown={(event: MouseEvent) => {
+								if (event.button === 0) onSelectIndex?.(idx);
+							}}
+						>
+							<text
+								fg={isSelected ? c.bgSelectText : c.fgPrimary}
+								attributes={isSelected ? TextAttributes.BOLD : 0}
+							>
+								{item.label.padEnd(16, " ")}
+							</text>
+							<text fg={barColor} attributes={TextAttributes.BOLD}>
+								{"█".repeat(barLen)}
+							</text>
+							<box flexGrow={1} />
+							<text
+								fg={isSelected ? c.bgSelectText : c.fgDim}
+								attributes={TextAttributes.DIM}
+							>
+								{item.formattedValue ?? item.value}
+							</text>
+						</box>
+					);
+				})}
+			</box>
+
+			{/* Granular Inspection Box */}
+			{activeItem && (
+				<box
+					flexDirection="column"
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					paddingTop={1}
+					paddingBottom={1}
+					marginBottom={1}
+				>
+					<box height={1} flexDirection="row">
+						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+							{translate(i18n, "chart.series", "Series:")} {activeItem.label}
+						</text>
+						<box flexGrow={1} />
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+							{translate(i18n, "chart.value", "Value:")}{" "}
+							{activeItem.formattedValue ?? activeItem.value}
+						</text>
+					</box>
+					<box height={1} flexDirection="row">
+						<text fg={c.fgSecondary} attributes={TextAttributes.DIM}>
+							{translate(i18n, "chart.percent", "Percent:")} {activePercent}% of
+							total
+						</text>
+						<box flexGrow={1} />
+						<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+							{translate(i18n, "chart.min", "Min:")} {minValue} ·{" "}
+							{translate(i18n, "chart.max", "Max:")} {maxValue}
+						</text>
+					</box>
+				</box>
+			)}
+
+			{/* Close Action */}
+			<box flexDirection="row">
+				<box
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					onMouseDown={(event: MouseEvent) => {
+						if (event.button === 0) onClose?.();
+					}}
+				>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{translate(i18n, "modal.cancel", "Cancel")}
+					</text>
+				</box>
+			</box>
 		</box>
 	);
 }

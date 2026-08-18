@@ -1,5 +1,8 @@
 import { TextAttributes } from "@opentui/core";
+import type { I18nKernel } from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
+import { TuiCursor } from "./TuiCursor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +25,7 @@ export interface TuiColorPickerProps {
 	readonly width?: number;
 	/** Theme override */
 	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,6 +106,7 @@ export function TuiColorPicker({
 	lightness = 60,
 	width = 36,
 	theme,
+	i18n,
 }: TuiColorPickerProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -110,7 +115,6 @@ export function TuiColorPicker({
 	const hexDisplay = value.toUpperCase().padEnd(7, " ");
 
 	// ── Color Swatch Trigger ──────────────────────────────────────────────────
-	const swatchWidth = 3; // "███" block
 	const trigger = (
 		<box
 			borderStyle="single"
@@ -158,56 +162,90 @@ export function TuiColorPicker({
 		);
 	}
 
-	// ── Open Picker Panel ─────────────────────────────────────────────────────
-	const barWidth = Math.max(12, width - 4);
+	// ── Expanded Color Picker Modal ───────────────────────────────────────────
+	const modalWidth = Math.max(54, width);
+	const barWidth = modalWidth - 10;
 	const hueBar = renderHueBar(hue, barWidth);
 	const hueColor = hueToHex(hue);
 	const swatchRow = renderSwatchRow(hueColor, barWidth);
 
-	// Saturation track: ░░░░▒▒▒▒▓▓▓▓████  with cursor
-	const satPos = Math.round((saturation / 100) * barWidth);
-	// Lightness track
-	const litPos = Math.round((lightness / 100) * barWidth);
-
 	return (
-		<box flexDirection="column" width={width}>
+		<box flexDirection="column" width={modalWidth}>
 			{label && (
 				<box height={1}>
-					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+					<text
+						fg={isFocused ? c.accentPrimary : c.fgSecondary}
+						attributes={TextAttributes.BOLD}
+					>
 						{label}
 					</text>
 				</box>
 			)}
 			{trigger}
 
-			{/* Picker Panel */}
 			<box
 				flexDirection="column"
 				borderStyle="single"
-				borderColor={c.borderActive}
-				backgroundColor={c.bgElevated}
-				paddingLeft={1}
-				paddingRight={1}
-				paddingTop={0}
-				paddingBottom={0}
-				width={width}
+				borderColor={c.borderDefault}
+				backgroundColor={c.bgSurface}
+				paddingLeft={2}
+				paddingRight={2}
+				paddingTop={1}
+				paddingBottom={1}
+				marginTop={1}
 			>
-				{/* Hue Title */}
-				<box height={1} marginTop={0}>
+				{/* Modal Header: Title + Dismiss Hint */}
+				<box height={1} flexDirection="row" marginBottom={1}>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{translate(i18n, "colorPicker.title", "Pick Color / Theme")}
+					</text>
+					<box flexGrow={1} />
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						Hue{" "}
-					</text>
-					<text fg={hueColor} attributes={TextAttributes.BOLD}>
-						{hue}°
-					</text>
-					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						{" "}
-						← → to adjust
+						{translate(i18n, "palette.dismissHint", "esc")}
 					</text>
 				</box>
 
+				{/* Hex & Live Preview Input Bar */}
+				<box height={1} marginBottom={1} flexDirection="row">
+					<text fg={value}>{"██ "}</text>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{value.toUpperCase()}
+					</text>
+					<TuiCursor char=" " theme={theme} />
+					<box flexGrow={1} />
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						{translate(
+							i18n,
+							"colorPicker.hexPlaceholder",
+							"Hex code (e.g. #388bfd)",
+						)}
+					</text>
+				</box>
+
+				{/* Preset Color Swatches */}
+				<box height={1} marginBottom={1} flexDirection="row">
+					<text fg={c.fgSecondary} attributes={TextAttributes.DIM}>
+						{translate(i18n, "colorPicker.themeColors", "Theme Colors")}:{" "}
+					</text>
+					{[
+						c.accentPrimary,
+						c.accentSecondary,
+						c.statusSuccess,
+						c.statusWarning,
+						c.statusError,
+						"#38bdf8",
+						"#a78bfa",
+						"#fb923c",
+					].map((preset) => (
+						<text key={preset} fg={preset}>
+							{"██ "}
+						</text>
+					))}
+				</box>
+
 				{/* Hue Spectrum Bar */}
-				<box height={1}>
+				<box height={1} flexDirection="row">
+					<text fg={c.fgDim}>Hue: </text>
 					{hueBar.segments.map((seg, i) => (
 						<text key={i} fg={seg.fg}>
 							{seg.char}
@@ -215,103 +253,14 @@ export function TuiColorPicker({
 					))}
 				</box>
 
-				{/* Saturation track */}
-				<box height={1} marginTop={0}>
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						Sat{" "}
-					</text>
-					<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
-						{saturation}%
-					</text>
-				</box>
-				<box height={1}>
-					{Array.from({ length: barWidth }, (_, i) => {
-						const isCursor = i === satPos;
-						const density = i / barWidth;
-						const char =
-							density < 0.25
-								? "░"
-								: density < 0.5
-									? "▒"
-									: density < 0.75
-										? "▓"
-										: "█";
-						return (
-							<text
-								key={i}
-								fg={isCursor ? c.fgPrimary : hueColor}
-								attributes={isCursor ? TextAttributes.BOLD : 0}
-							>
-								{isCursor ? "▼" : char}
-							</text>
-						);
-					})}
-				</box>
-
-				{/* Lightness track */}
-				<box height={1} marginTop={0}>
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						Lit{" "}
-					</text>
-					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-						{lightness}%
-					</text>
-				</box>
-				<box height={1}>
-					{Array.from({ length: barWidth }, (_, i) => {
-						const isCursor = i === litPos;
-						const density = i / barWidth;
-						const char = density < 0.33 ? "░" : density < 0.66 ? "▒" : "█";
-						return (
-							<text
-								key={i}
-								fg={isCursor ? c.fgPrimary : hueColor}
-								attributes={isCursor ? TextAttributes.BOLD : 0}
-							>
-								{isCursor ? "▼" : char}
-							</text>
-						);
-					})}
-				</box>
-
-				{/* Swatch Preview Row */}
-				<box height={1} marginTop={0}>
-					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						Gradient preview:{" "}
-					</text>
-				</box>
-				<box height={1}>
+				{/* Swatch Gradient Row */}
+				<box height={1} flexDirection="row" marginTop={1}>
+					<text fg={c.fgDim}>Grad: </text>
 					{swatchRow.map((s, i) => (
 						<text key={i} fg={s.fg}>
 							{s.char}
 						</text>
 					))}
-				</box>
-
-				{/* Hex & Preset Swatches */}
-				<box height={1} marginTop={0} flexDirection="row">
-					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						Hex:{" "}
-					</text>
-					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-						{value.toUpperCase()}
-					</text>
-					<text fg={c.fgDim}> · </text>
-					{/* Quick preset color swatches */}
-					{["#ff0000", "#00ff80", "#38bdf8", "#ffd866", "#c084fc"].map(
-						(preset) => (
-							<text key={preset} fg={preset}>
-								{"█"}
-							</text>
-						),
-					)}
-				</box>
-
-				{/* Footer help */}
-				<box height={1}>
-					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						↑↓ Hue ←→ Sat/Lit Tab Switch Enter Apply Esc Dismiss
-					</text>
 				</box>
 			</box>
 		</box>

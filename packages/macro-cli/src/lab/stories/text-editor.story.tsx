@@ -114,6 +114,7 @@ export const genericTextEditorStory: TuiStory = {
 		"dirty-unsaved",
 		"syntax-diagnostic",
 		"markdown-note",
+		"statement-preview",
 	],
 	render(context) {
 		const theme = GlobalThemeRegistry.getActive();
@@ -121,9 +122,81 @@ export const genericTextEditorStory: TuiStory = {
 		const isDiagnostic = state === "syntax-diagnostic";
 		const isDirty = state === "dirty-unsaved";
 		const isMarkdown = state === "markdown-note";
+		const isStatementPreview = state === "statement-preview";
 
 		const width = Math.min(108, context.size.columns - 4);
 		const height = Math.min(24, context.size.rows - 4);
+
+		if (isStatementPreview) {
+			const statementLines: readonly TextEditorLine[] = [
+				{
+					num: 1,
+					tokens: [
+						{ text: "^vitals ", color: "key" },
+						{ text: "heart_rate=", color: "accent" },
+						{ text: "88", color: "string" },
+						{ text: " bpm", color: "dim" },
+					],
+				},
+				{
+					num: 2,
+					isCursorLine: true,
+					hasGutterMarker: "dirty",
+					previewText:
+						'Compiled Statement: Observation(concept="Blood Pressure", systolic=120, diastolic=80, unit="mmHg")',
+					tokens: [
+						{ text: "^vitals ", color: "key" },
+						{ text: "bp=", color: "accent" },
+						{ text: '"120/80"', color: "string" },
+						{ text: " mmHg", color: "dim" },
+					],
+				},
+				{
+					num: 3,
+					tokens: [
+						{ text: "^note ", color: "key" },
+						{ text: "#plan ", color: "accent" },
+						{ text: '"Follow up in 2 weeks"', color: "string" },
+					],
+				},
+			];
+
+			return (
+				<TextEditorWindowView
+					documentUri="scratchpad://active-session.macro"
+					lines={statementLines}
+					cursorLine={2}
+					cursorCol={16}
+					languageId="MacroStatement"
+					isDirty={true}
+					instructions={[
+						{
+							text: "Enter macro expressions starting with ^ or standard slot assignments",
+							variant: "tip",
+						},
+						{
+							text: "Statements compile in real-time as you type without blocking input",
+							variant: "info",
+						},
+					]}
+					exampleHints={[
+						{
+							label: "Vitals Macro",
+							sample: "^vitals hr=88 bpm bp=120/80",
+							description: "Parses concept slots and units",
+						},
+						{
+							label: "Tagged Note",
+							sample: '^note #assessment "Stable condition"',
+							description: "Creates categorized clinical note",
+						},
+					]}
+					width={width}
+					height={height}
+					theme={theme}
+				/>
+			);
+		}
 
 		if (isMarkdown) {
 			const mdLines: readonly TextEditorLine[] = [

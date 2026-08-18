@@ -485,3 +485,91 @@ export function TuiTable<T extends Record<string, unknown>>({
 		</box>
 	);
 }
+
+// ─── RECORD DETAIL INSPECTOR MODAL ────────────────────────────────────
+
+export interface TuiTableModalProps<T = Record<string, unknown>> {
+	readonly title?: string;
+	readonly record: T;
+	readonly columns: readonly TuiTableColumn<T>[];
+	readonly width?: number;
+	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly onClose?: () => void;
+}
+
+export function TuiTableModal<T extends Record<string, unknown>>({
+	title,
+	record,
+	columns,
+	width = 56,
+	theme,
+	i18n,
+	onClose,
+}: TuiTableModalProps<T>) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+
+	return (
+		<box
+			width={width}
+			backgroundColor={c.bgSurface}
+			borderStyle="single"
+			borderColor={c.borderDefault}
+			flexDirection="column"
+			paddingLeft={2}
+			paddingRight={2}
+			paddingTop={1}
+			paddingBottom={1}
+		>
+			{/* Header */}
+			<box height={1} flexDirection="row" marginBottom={1}>
+				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+					{title ??
+						translate(i18n, "table.recordDetail", "Record Detail Inspector")}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+					{translate(i18n, "palette.dismissHint", "esc")}
+				</text>
+			</box>
+
+			{/* Fields Matrix */}
+			<box flexDirection="column" marginBottom={1}>
+				{columns.map((col) => {
+					const val = String(record[col.id] ?? "—");
+					return (
+						<box
+							key={col.id}
+							height={1}
+							flexDirection="row"
+							marginBottom={0}
+							paddingLeft={1}
+							paddingRight={1}
+						>
+							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+								{col.header.padEnd(16, " ")}
+							</text>
+							<text fg={c.fgPrimary}>{val}</text>
+						</box>
+					);
+				})}
+			</box>
+
+			{/* Close Action */}
+			<box flexDirection="row">
+				<box
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					onMouseDown={(event: MouseEvent) => {
+						if (event.button === 0) onClose?.();
+					}}
+				>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{translate(i18n, "modal.cancel", "Cancel")}
+					</text>
+				</box>
+			</box>
+		</box>
+	);
+}

@@ -11,6 +11,7 @@ import {
 } from "../../ui/primitives/TuiBadge";
 import {
 	TuiBoxPlot,
+	TuiChartModal,
 	TuiHistogram,
 	TuiSparkline,
 	TuiStackedBarChart,
@@ -19,9 +20,17 @@ import { TuiButton } from "../../ui/primitives/TuiButton";
 import { TuiDivider } from "../../ui/primitives/TuiDivider";
 import { TuiFrame } from "../../ui/primitives/TuiFrame";
 import { TuiList, type TuiListItem } from "../../ui/primitives/TuiList";
-import { TuiGauge, TuiProgressBar } from "../../ui/primitives/TuiProgressBar";
+import {
+	TuiGauge,
+	TuiProgressBar,
+	TuiProgressModal,
+} from "../../ui/primitives/TuiProgressBar";
 import { TuiRangeSlider, TuiSlider } from "../../ui/primitives/TuiSlider";
-import { TuiTable, type TuiTableColumn } from "../../ui/primitives/TuiTable";
+import {
+	TuiTable,
+	type TuiTableColumn,
+	TuiTableModal,
+} from "../../ui/primitives/TuiTable";
 import { TuiTagInput } from "../../ui/primitives/TuiTagInput";
 import {
 	TuiCheckboxGroup,
@@ -751,12 +760,26 @@ export const primitivesStory: TuiStory = {
 						</box>
 
 						<TuiDivider label="Zebra Striped Theme" theme={theme} />
-						<box marginTop={1}>
+						<box marginTop={1} marginBottom={1}>
 							<TuiTable
 								columns={TABLE_COLUMNS}
 								data={TABLE_DATA}
 								selectedIndex={2}
 								variant="zebra"
+								theme={theme}
+							/>
+						</box>
+
+						<TuiDivider
+							label="Record Detail Inspector Modal Dialog (Open State)"
+							theme={theme}
+						/>
+						<box marginTop={1}>
+							<TuiTableModal
+								title="Module Diagnostic Detail"
+								record={TABLE_DATA[1]!}
+								columns={TABLE_COLUMNS}
+								width={Math.min(58, width - 4)}
 								theme={theme}
 							/>
 						</box>
@@ -908,13 +931,40 @@ export const primitivesStory: TuiStory = {
 						</box>
 
 						<TuiDivider label="Real-Time Metrics Sparkline" theme={theme} />
-						<box flexDirection="column" marginTop={1}>
+						<box flexDirection="column" marginTop={1} marginBottom={1}>
 							<TuiSparkline
 								label="Throughput:"
 								values={[
 									12, 18, 32, 45, 68, 92, 85, 64, 78, 105, 120, 115, 98, 84,
 								]}
 								color={c.accentPrimary}
+								theme={theme}
+							/>
+						</box>
+
+						<TuiDivider
+							label="Chart Data Explorer Modal Dialog (Open State)"
+							theme={theme}
+						/>
+						<box marginTop={1}>
+							<TuiChartModal
+								title="HTTP Request Latency Explorer"
+								items={[
+									{
+										label: "GET /api/v1/auth",
+										value: 12,
+										formattedValue: "12ms",
+									},
+									{
+										label: "POST /transact",
+										value: 85,
+										formattedValue: "85ms",
+									},
+									{ label: "GET /macros", value: 34, formattedValue: "34ms" },
+									{ label: "PUT /settings", value: 58, formattedValue: "58ms" },
+								]}
+								selectedIndex={1}
+								width={Math.min(62, width - 4)}
 								theme={theme}
 							/>
 						</box>
@@ -954,7 +1004,7 @@ export const primitivesStory: TuiStory = {
 						</box>
 
 						<TuiDivider label="Segmented Meters & Gauges" theme={theme} />
-						<box flexDirection="column" marginTop={1}>
+						<box flexDirection="column" marginTop={1} marginBottom={1}>
 							<TuiGauge
 								label="CPU Cores Active:"
 								value={4}
@@ -968,6 +1018,23 @@ export const primitivesStory: TuiStory = {
 								value={5}
 								max={6}
 								intent="warning"
+								theme={theme}
+							/>
+						</box>
+
+						<TuiDivider
+							label="Active Operation Progress Modal Dialog (Open State)"
+							theme={theme}
+						/>
+						<box marginTop={1}>
+							<TuiProgressModal
+								taskName="Compiling V8 AST Snapshot"
+								phase="Optimizing bytecode trees..."
+								progress={72}
+								total={100}
+								elapsed="3.8s"
+								rate="18.2 MB/s"
+								width={Math.min(58, width - 4)}
 								theme={theme}
 							/>
 						</box>

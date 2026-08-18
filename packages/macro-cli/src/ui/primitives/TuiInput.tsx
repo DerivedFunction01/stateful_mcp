@@ -1,4 +1,6 @@
 import { type MouseEvent, TextAttributes } from "@opentui/core";
+import type { I18nKernel } from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -340,6 +342,280 @@ export function TuiInput({
 					</text>
 				</box>
 			)}
+		</box>
+	);
+}
+
+// ─── TEXT & FORMAT TEMPLATE INPUT MODAL ───────────────────────────────
+
+export interface TuiEditorInstruction {
+	readonly text: string;
+	readonly variant?: "info" | "tip" | "warning";
+}
+
+export interface TuiEditorExampleHint {
+	readonly label: string;
+	readonly sample: string;
+	readonly description?: string;
+}
+
+export interface TuiInputModalProps {
+	readonly title?: string;
+	readonly description?: string;
+	readonly value: string;
+	readonly placeholder?: string;
+	readonly multiline?: boolean;
+	readonly instructions?: readonly TuiEditorInstruction[];
+	readonly examples?: readonly TuiEditorExampleHint[];
+	readonly activeLineIndex?: number;
+	readonly previewValue?: string;
+	readonly previewLabel?: string;
+	readonly width?: number;
+	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly onConfirm?: () => void;
+	readonly onCancel?: () => void;
+	readonly onResetDefault?: () => void;
+}
+
+export function TuiInputModal({
+	title,
+	description,
+	value,
+	placeholder,
+	multiline = false,
+	instructions,
+	examples,
+	activeLineIndex = 0,
+	previewValue,
+	previewLabel,
+	width = 62,
+	theme,
+	i18n,
+	onConfirm,
+	onCancel,
+	onResetDefault,
+}: TuiInputModalProps) {
+	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
+	const effectiveTitle =
+		title ?? translate(i18n, "inputModal.title", "Edit Value");
+	const effectivePlaceholder =
+		placeholder ?? translate(i18n, "inputModal.placeholder", "Enter value…");
+	const effectivePreviewLabel =
+		previewLabel ?? translate(i18n, "inputModal.livePreview", "Live Preview:");
+	const lines = multiline ? value.split("\n") : [value];
+
+	return (
+		<box
+			width={width}
+			backgroundColor={c.bgSurface}
+			borderStyle="single"
+			borderColor={c.borderDefault}
+			flexDirection="column"
+			paddingLeft={2}
+			paddingRight={2}
+			paddingTop={1}
+			paddingBottom={1}
+		>
+			{/* Modal Header */}
+			<box height={1} flexDirection="row" marginBottom={1}>
+				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+					{effectiveTitle}
+				</text>
+				<box flexGrow={1} />
+				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+					{translate(i18n, "palette.dismissHint", "esc")}
+				</text>
+			</box>
+
+			{/* Description */}
+			{description && (
+				<box marginBottom={1}>
+					<text fg={c.fgSecondary} attributes={TextAttributes.DIM}>
+						{description}
+					</text>
+				</box>
+			)}
+
+			{/* Optional Read-Only Instructions Banner */}
+			{instructions && instructions.length > 0 && (
+				<box
+					flexDirection="column"
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					marginBottom={1}
+				>
+					{instructions.map((inst, idx) => {
+						const icon =
+							inst.variant === "warning"
+								? "⚠️"
+								: inst.variant === "tip"
+									? "💡"
+									: "ℹ️";
+						return (
+							<box key={idx} height={1} flexDirection="row">
+								<text fg={c.accentSecondary} attributes={TextAttributes.BOLD}>
+									{icon}{" "}
+								</text>
+								<text fg={c.fgSecondary}>{inst.text}</text>
+							</box>
+						);
+					})}
+				</box>
+			)}
+
+			{/* Optional Read-Only Reference Example Hints */}
+			{examples && examples.length > 0 && (
+				<box
+					flexDirection="column"
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					marginBottom={1}
+				>
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						{translate(
+							i18n,
+							"inputModal.references",
+							"Syntax & Format References:",
+						)}
+					</text>
+					{examples.map((ex, idx) => (
+						<box key={idx} height={1} flexDirection="row">
+							<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+								• {ex.label}:{" "}
+							</text>
+							<text fg={c.fgPrimary}>{ex.sample} </text>
+							{ex.description && (
+								<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+									({ex.description})
+								</text>
+							)}
+						</box>
+					))}
+				</box>
+			)}
+
+			{/* Input Buffer Area (Single Line or Multiline Buffer) */}
+			{multiline ? (
+				<box
+					flexDirection="column"
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					paddingTop={0}
+					paddingBottom={0}
+					marginBottom={1}
+				>
+					{lines.map((lineText, idx) => {
+						const isCurrent = idx === activeLineIndex;
+						return (
+							<box key={idx} height={1} flexDirection="row">
+								<text fg={isCurrent ? c.accentPrimary : c.fgDim}>
+									{String(idx + 1).padStart(2, "0")} │{" "}
+								</text>
+								<text
+									fg={c.fgPrimary}
+									attributes={isCurrent ? TextAttributes.BOLD : 0}
+								>
+									{lineText}
+								</text>
+								{isCurrent && <text fg={c.accentPrimary}>▎</text>}
+							</box>
+						);
+					})}
+				</box>
+			) : (
+				<box
+					height={1}
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					marginBottom={1}
+					flexDirection="row"
+				>
+					{value.length > 0 ? (
+						<>
+							<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+								{value}
+							</text>
+							<text fg={c.accentPrimary}>▎</text>
+						</>
+					) : (
+						<>
+							<text fg={c.accentPrimary}>▎</text>
+							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+								{effectivePlaceholder}
+							</text>
+						</>
+					)}
+				</box>
+			)}
+
+			{/* Live Dynamic Output Preview Box */}
+			{previewValue && (
+				<box
+					flexDirection="column"
+					backgroundColor={c.bgSurface}
+					borderStyle="single"
+					borderColor={c.borderSubtle}
+					paddingLeft={1}
+					paddingRight={1}
+					marginBottom={1}
+				>
+					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
+						{effectivePreviewLabel}
+					</text>
+					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
+						{previewValue}
+					</text>
+				</box>
+			)}
+
+			{/* Action Footer */}
+			<box flexDirection="row">
+				<box
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					marginRight={2}
+					onMouseDown={() => onConfirm?.()}
+				>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{translate(
+							i18n,
+							multiline ? "modal.confirmMultiline" : "modal.confirmEnter",
+							multiline ? "Confirm (Ctrl+Enter)" : "Confirm (Enter)",
+						)}
+					</text>
+				</box>
+
+				<box
+					backgroundColor={c.bgActive}
+					paddingLeft={1}
+					paddingRight={1}
+					marginRight={2}
+					onMouseDown={() => onCancel?.()}
+				>
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						{translate(i18n, "modal.cancelEsc", "Cancel (Esc)")}
+					</text>
+				</box>
+
+				{onResetDefault && (
+					<box
+						backgroundColor={c.bgActive}
+						paddingLeft={1}
+						paddingRight={1}
+						onMouseDown={() => onResetDefault?.()}
+					>
+						<text fg={c.statusWarning} attributes={TextAttributes.DIM}>
+							{translate(i18n, "modal.resetDefault", "Reset Default (Ctrl+R)")}
+						</text>
+					</box>
+				)}
+			</box>
 		</box>
 	);
 }

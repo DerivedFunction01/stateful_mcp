@@ -1,4 +1,6 @@
-import { TextAttributes } from "@opentui/core";
+import { type MouseEvent, TextAttributes } from "@opentui/core";
+import type { I18nKernel } from "@stateful-mcp/macro";
+import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── TUI TOGGLE / SWITCH ──────────────────────────────────────────────────────
@@ -11,8 +13,13 @@ export interface TuiToggleProps {
 	readonly variant?: TuiToggleVariant;
 	readonly description?: string;
 	readonly isFocused?: boolean;
+	readonly isOpen?: boolean;
 	readonly disabled?: boolean;
+	readonly modalWidth?: number;
 	readonly theme?: TuiThemeDefinition;
+	readonly i18n?: I18nKernel;
+	readonly onToggle?: (checked: boolean) => void;
+	readonly onOpenChange?: (open: boolean) => void;
 }
 
 export function TuiToggle({
@@ -21,8 +28,13 @@ export function TuiToggle({
 	variant = "switch",
 	description,
 	isFocused = false,
+	isOpen = false,
 	disabled = false,
+	modalWidth = 56,
 	theme,
+	i18n,
+	onToggle,
+	onOpenChange,
 }: TuiToggleProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -49,8 +61,15 @@ export function TuiToggle({
 	const focusPillar = isFocused ? "▎" : " ";
 	const focusFg = isFocused ? c.accentPrimary : "transparent";
 
-	return (
-		<box flexDirection="column">
+	const trigger = (
+		<box
+			flexDirection="column"
+			onMouseDown={(event: MouseEvent) => {
+				if (event.button === 0 && !disabled) {
+					onOpenChange?.(!isOpen);
+				}
+			}}
+		>
 			<box
 				flexDirection="row"
 				height={1}
@@ -83,6 +102,119 @@ export function TuiToggle({
 					</text>
 				</box>
 			)}
+		</box>
+	);
+
+	if (!isOpen) {
+		return trigger;
+	}
+
+	return (
+		<box flexDirection="column" width={modalWidth}>
+			{trigger}
+
+			<box
+				flexDirection="column"
+				borderStyle="single"
+				borderColor={c.borderDefault}
+				backgroundColor={c.bgSurface}
+				paddingLeft={2}
+				paddingRight={2}
+				paddingTop={1}
+				paddingBottom={1}
+				marginTop={1}
+			>
+				{/* Modal Header */}
+				<box height={1} flexDirection="row" marginBottom={1}>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{translate(i18n, "toggle.title", "Toggle Setting")}
+					</text>
+					<box flexGrow={1} />
+					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+						{translate(i18n, "palette.dismissHint", "esc")}
+					</text>
+				</box>
+
+				<box marginBottom={1}>
+					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+						{label}
+					</text>
+					{description && (
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+							{" — "}
+							{description}
+						</text>
+					)}
+				</box>
+
+				{/* Dual Segmented Toggle Pill */}
+				<box flexDirection="row" marginBottom={1}>
+					<box
+						backgroundColor={checked ? c.statusSuccess : c.bgActive}
+						paddingLeft={2}
+						paddingRight={2}
+						marginRight={2}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) onToggle?.(true);
+						}}
+					>
+						<text
+							fg={checked ? c.fgInverse : c.fgDim}
+							attributes={checked ? TextAttributes.BOLD : 0}
+						>
+							{checked ? "● " : "○ "}
+							{translate(i18n, "toggle.enabled", "Enabled")}
+						</text>
+					</box>
+
+					<box
+						backgroundColor={!checked ? c.borderActive : c.bgActive}
+						paddingLeft={2}
+						paddingRight={2}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) onToggle?.(false);
+						}}
+					>
+						<text
+							fg={!checked ? c.fgInverse : c.fgDim}
+							attributes={!checked ? TextAttributes.BOLD : 0}
+						>
+							{!checked ? "● " : "○ "}
+							{translate(i18n, "toggle.disabled", "Disabled")}
+						</text>
+					</box>
+				</box>
+
+				{/* Action Footer */}
+				<box flexDirection="row">
+					<box
+						backgroundColor={c.bgActive}
+						paddingLeft={1}
+						paddingRight={1}
+						marginRight={2}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) onOpenChange?.(false);
+						}}
+					>
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+							{translate(i18n, "modal.confirm", "Confirm")}
+						</text>
+					</box>
+
+					<box
+						backgroundColor={c.bgActive}
+						paddingLeft={1}
+						paddingRight={1}
+						onMouseDown={(event: MouseEvent) => {
+							if (event.button === 0) onOpenChange?.(false);
+						}}
+					>
+						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+							{translate(i18n, "modal.cancel", "Cancel")}
+						</text>
+					</box>
+				</box>
+			</box>
 		</box>
 	);
 }
