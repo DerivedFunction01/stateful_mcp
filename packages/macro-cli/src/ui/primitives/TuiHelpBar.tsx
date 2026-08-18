@@ -19,6 +19,7 @@ import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 export interface TuiShortcutHint {
 	readonly key: string;
 	readonly action: string;
+	readonly row?: 1 | 2;
 }
 
 export interface TuiHelpBarProps {
@@ -99,6 +100,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: nextTabChord,
 				action: translate(i18n, "helpBar.duplicate"),
+				row: 1,
 			});
 		}
 
@@ -107,6 +109,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: applyChord,
 				action: translate(i18n, "helpBar.apply"),
+				row: 1,
 			});
 		}
 
@@ -118,6 +121,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: navChord,
 				action: translate(i18n, "helpBar.navigate"),
+				row: 1,
 			});
 		}
 
@@ -128,6 +132,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: closeChord,
 				action: translate(i18n, "helpBar.esc"),
+				row: 1,
 			});
 		}
 
@@ -144,6 +149,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: selectRangeChord,
 				action: translate(i18n, "helpBar.selectRange"),
+				row: 1,
 			});
 		}
 
@@ -152,6 +158,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: applyChord,
 				action: translate(i18n, "helpBar.applySelected"),
+				row: 1,
 			});
 		}
 
@@ -162,6 +169,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: delChord,
 				action: translate(i18n, "helpBar.delete"),
+				row: 1,
 			});
 		}
 
@@ -172,6 +180,7 @@ export function buildDynamicKeymapHints(
 			hints.push({
 				key: closeChord,
 				action: translate(i18n, "helpBar.esc"),
+				row: 1,
 			});
 		}
 
@@ -179,11 +188,13 @@ export function buildDynamicKeymapHints(
 	}
 
 	// NORMAL mode
+	// Row 1: Editor & modal motion bindings
 	const nextTab = keymap.window?.nextTab;
 	if (nextTab) {
 		hints.push({
 			key: formatKeyDisplay(nextTab),
 			action: translate(i18n, "helpBar.nextTab"),
+			row: 1,
 		});
 	}
 
@@ -192,6 +203,7 @@ export function buildDynamicKeymapHints(
 		hints.push({
 			key: formatKeyDisplay(insert),
 			action: translate(i18n, "helpBar.insert"),
+			row: 1,
 		});
 	}
 
@@ -200,6 +212,7 @@ export function buildDynamicKeymapHints(
 		hints.push({
 			key: formatKeyDisplay(visual),
 			action: translate(i18n, "helpBar.visual"),
+			row: 1,
 		});
 	}
 
@@ -208,14 +221,17 @@ export function buildDynamicKeymapHints(
 		hints.push({
 			key: formatKeyDisplay(deleteCell),
 			action: translate(i18n, "helpBar.delete"),
+			row: 1,
 		});
 	}
 
+	// Row 2: Window, palette, and container bindings
 	const palette = keymap.window?.openCommandPalette;
 	if (palette) {
 		hints.push({
 			key: formatKeyDisplay(palette),
 			action: translate(i18n, "palette.title"),
+			row: 2,
 		});
 	}
 
@@ -224,6 +240,7 @@ export function buildDynamicKeymapHints(
 		hints.push({
 			key: formatKeyDisplay(activity),
 			action: translate(i18n, "helpBar.activity"),
+			row: 2,
 		});
 	}
 
@@ -232,6 +249,7 @@ export function buildDynamicKeymapHints(
 		hints.push({
 			key: formatKeyDisplay(sidepanel),
 			action: translate(i18n, "helpBar.inspector"),
+			row: 2,
 		});
 	}
 
@@ -240,6 +258,7 @@ export function buildDynamicKeymapHints(
 		hints.push({
 			key: formatKeyDisplay(switchSplit),
 			action: translate(i18n, "helpBar.switchFocus"),
+			row: 2,
 		});
 	}
 
@@ -248,6 +267,7 @@ export function buildDynamicKeymapHints(
 		hints.push({
 			key: formatKeyDisplay(pin),
 			action: translate(i18n, "helpBar.pin"),
+			row: 2,
 		});
 	}
 
@@ -293,19 +313,19 @@ export function buildContextualHelpBarHints(
 			allBindings.find((b) => b.command === "cursor.moveDown"),
 		);
 		if (navChord) {
-			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate"), row: 1 });
 		}
 		const applyChord = getPrimaryChord(
 			allBindings.find((b) => b.command === "editor.executeLine"),
 		);
 		if (applyChord) {
-			hints.push({ key: applyChord, action: translate(i18n, "helpBar.apply") });
+			hints.push({ key: applyChord, action: translate(i18n, "helpBar.apply"), row: 1 });
 		}
 		const closeChord = getPrimaryChord(
 			allBindings.find((b) => b.command === "editor.close"),
 		);
 		if (closeChord) {
-			hints.push({ key: closeChord, action: translate(i18n, "helpBar.close") });
+			hints.push({ key: closeChord, action: translate(i18n, "helpBar.close"), row: 1 });
 		}
 		return hints;
 	}
@@ -340,17 +360,19 @@ export function buildContextualHelpBarHints(
 				Array.isArray(providerHints) &&
 				providerHints.length > 0
 			) {
-				return providerHints.map((h: { key: string; label: string }) => ({
+				return providerHints.map((h: { key: string; label: string; row?: 1 | 2 }) => ({
 					key: h.key,
 					action: h.label,
+					row: h.row ?? 1,
 				}));
 			}
 		}
 
 		if (container?.contextualHints && container.contextualHints.length > 0) {
-			return container.contextualHints.map((h: ContextualKeyHint) => ({
+			return container.contextualHints.map((h: ContextualKeyHint & { row?: 1 | 2 }) => ({
 				key: h.key,
 				action: resolveLabel(i18n, h.i18nKey, h.label ?? h.key),
+				row: h.row ?? 1,
 			}));
 		}
 
@@ -360,13 +382,13 @@ export function buildContextualHelpBarHints(
 			allBindings.find((b) => b.command === "cursor.moveDown"),
 		);
 		if (navChord) {
-			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate"), row: 1 });
 		}
 		const openChord = getPrimaryChord(
 			allBindings.find((b) => b.command === "editor.executeLine"),
 		);
 		if (openChord) {
-			hints.push({ key: openChord, action: translate(i18n, "helpBar.open") });
+			hints.push({ key: openChord, action: translate(i18n, "helpBar.open"), row: 1 });
 		}
 		const switchFocusChord =
 			getPrimaryChord(
@@ -379,13 +401,14 @@ export function buildContextualHelpBarHints(
 			hints.push({
 				key: switchFocusChord,
 				action: translate(i18n, "helpBar.switchFocus"),
+				row: 2,
 			});
 		}
 		const closeChord = getPrimaryChord(
 			allBindings.find((b) => b.command === "editor.close"),
 		);
 		if (closeChord) {
-			hints.push({ key: closeChord, action: translate(i18n, "helpBar.editor") });
+			hints.push({ key: closeChord, action: translate(i18n, "helpBar.editor"), row: 2 });
 		}
 
 		return hints;
@@ -421,17 +444,19 @@ export function buildContextualHelpBarHints(
 				Array.isArray(providerHints) &&
 				providerHints.length > 0
 			) {
-				return providerHints.map((h: { key: string; label: string }) => ({
+				return providerHints.map((h: { key: string; label: string; row?: 1 | 2 }) => ({
 					key: h.key,
 					action: h.label,
+					row: h.row ?? 1,
 				}));
 			}
 		}
 
 		if (container?.contextualHints && container.contextualHints.length > 0) {
-			return container.contextualHints.map((h: ContextualKeyHint) => ({
+			return container.contextualHints.map((h: ContextualKeyHint & { row?: 1 | 2 }) => ({
 				key: h.key,
 				action: resolveLabel(i18n, h.i18nKey, h.label ?? h.key),
+				row: h.row ?? 1,
 			}));
 		}
 
@@ -441,13 +466,13 @@ export function buildContextualHelpBarHints(
 			allBindings.find((b) => b.command === "cursor.moveDown"),
 		);
 		if (navChord) {
-			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate"), row: 1 });
 		}
 		const applyChord = getPrimaryChord(
 			allBindings.find((b) => b.command === "editor.executeLine"),
 		);
 		if (applyChord) {
-			hints.push({ key: applyChord, action: translate(i18n, "helpBar.apply") });
+			hints.push({ key: applyChord, action: translate(i18n, "helpBar.apply"), row: 1 });
 		}
 
 		const closeKey = container?.altKey
@@ -456,7 +481,7 @@ export function buildContextualHelpBarHints(
 				? formatKeyDisplay(resolvedKeymap.window.toggleSidepanel)
 				: undefined;
 		if (closeKey) {
-			hints.push({ key: closeKey, action: translate(i18n, "helpBar.close") });
+			hints.push({ key: closeKey, action: translate(i18n, "helpBar.close"), row: 2 });
 		}
 
 		const switchFocusChord = resolvedKeymap.window?.switchSplitFocus
@@ -466,6 +491,7 @@ export function buildContextualHelpBarHints(
 			hints.push({
 				key: switchFocusChord,
 				action: translate(i18n, "helpBar.switchFocus"),
+				row: 2,
 			});
 		}
 
@@ -473,7 +499,7 @@ export function buildContextualHelpBarHints(
 			allBindings.find((b) => b.command === "editor.close"),
 		);
 		if (closeChord) {
-			hints.push({ key: closeChord, action: translate(i18n, "helpBar.editor") });
+			hints.push({ key: closeChord, action: translate(i18n, "helpBar.editor"), row: 2 });
 		}
 
 		return hints;
@@ -487,7 +513,7 @@ export function buildContextualHelpBarHints(
 				find("settings.navigateUp"),
 			);
 			if (navChord) {
-				hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+				hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate"), row: 1 });
 			}
 
 			const focusChord = formatPairedChords(
@@ -495,7 +521,7 @@ export function buildContextualHelpBarHints(
 				find("settings.focusContent"),
 			);
 			if (focusChord) {
-				hints.push({ key: focusChord, action: translate(i18n, "helpBar.switchFocus") });
+				hints.push({ key: focusChord, action: translate(i18n, "helpBar.switchFocus"), row: 1 });
 			}
 
 			const selectChord = getPrimaryChord(find("settings.selectEntry"));
@@ -503,6 +529,7 @@ export function buildContextualHelpBarHints(
 				hints.push({
 					key: selectChord,
 					action: translate(i18n, "command.settings.selectEntry"),
+					row: 1,
 				});
 			}
 
@@ -511,6 +538,7 @@ export function buildContextualHelpBarHints(
 				hints.push({
 					key: searchChord,
 					action: translate(i18n, "command.settings.focusSearch"),
+					row: 2,
 				});
 			}
 
@@ -519,6 +547,7 @@ export function buildContextualHelpBarHints(
 				hints.push({
 					key: saveChord,
 					action: translate(i18n, "command.settings.save"),
+					row: 2,
 				});
 			}
 
@@ -527,6 +556,7 @@ export function buildContextualHelpBarHints(
 				hints.push({
 					key: backChord,
 					action: translate(i18n, "command.settings.back"),
+					row: 2,
 				});
 			}
 
@@ -539,9 +569,10 @@ export function buildContextualHelpBarHints(
 			mode,
 		);
 		if (bindings.length > 0)
-			return bindings.map((binding) => ({
+			return bindings.map((binding, idx) => ({
 				key: formatKeyDisplay(binding.key),
 				action: binding.label,
+				row: idx < 4 ? 1 : 2,
 			}));
 	}
 
@@ -551,7 +582,10 @@ export function buildContextualHelpBarHints(
 export function mergeShortcutHints(
 	hints: readonly TuiShortcutHint[],
 ): readonly TuiShortcutHint[] {
-	const groups = new Map<string, { keys: string[]; action: string }>();
+	const groups = new Map<
+		string,
+		{ keys: string[]; action: string; row?: 1 | 2 }
+	>();
 
 	for (const hint of hints) {
 		const actionKey = hint.action.trim().toLowerCase();
@@ -564,6 +598,7 @@ export function mergeShortcutHints(
 			groups.set(actionKey, {
 				keys: [hint.key],
 				action: hint.action,
+				row: hint.row,
 			});
 		}
 	}
@@ -571,6 +606,7 @@ export function mergeShortcutHints(
 	return Array.from(groups.values()).map((g) => ({
 		key: g.keys.join("/"),
 		action: g.action,
+		row: g.row,
 	}));
 }
 
@@ -581,7 +617,7 @@ export function TuiHelpBar({
 	hints,
 	customText,
 	theme,
-	twoRow = false,
+	twoRow = true,
 }: TuiHelpBarProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -613,21 +649,22 @@ export function TuiHelpBar({
 		</box>
 	);
 
-	if (twoRow && resolvedHints.length > 3) {
-		const midpoint = Math.ceil(resolvedHints.length / 2);
-		const row1 = resolvedHints.slice(0, midpoint);
-		const row2 = resolvedHints.slice(midpoint);
+	if (twoRow) {
+		const row1 = resolvedHints.filter((h) => (h.row ?? 1) === 1);
+		const row2 = resolvedHints.filter((h) => h.row === 2);
 
-		return (
-			<box flexDirection="column" paddingLeft={0} paddingRight={1}>
-				<box height={1} flexDirection="row">
-					{row1.map(renderBadge)}
+		if (row2.length > 0) {
+			return (
+				<box height={2} flexDirection="column" paddingLeft={0} paddingRight={1}>
+					<box height={1} flexDirection="row">
+						{row1.map(renderBadge)}
+					</box>
+					<box height={1} flexDirection="row">
+						{row2.map(renderBadge)}
+					</box>
 				</box>
-				<box height={1} flexDirection="row">
-					{row2.map(renderBadge)}
-				</box>
-			</box>
-		);
+			);
+		}
 	}
 
 	return (
