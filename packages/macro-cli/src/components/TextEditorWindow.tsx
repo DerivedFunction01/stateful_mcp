@@ -424,6 +424,30 @@ export function createTextEditorTabProvider(
 			);
 		},
 
+		handleAction(
+			actionId: string,
+			_payload: unknown,
+			_context: ExtensionInteractionContext,
+		): WorkspaceInputResult {
+			switch (actionId) {
+				case "cursor.moveDown":
+					cursorLine = Math.min(lines.length, cursorLine + 1);
+					return "handled";
+				case "cursor.moveUp":
+					cursorLine = Math.max(1, cursorLine - 1);
+					return "handled";
+				case "cursor.moveLeft":
+					return "handled";
+				case "cursor.moveRight":
+					return "handled";
+				case "editor.save":
+					isDirty = false;
+					return "handled";
+				default:
+					return "ignored";
+			}
+		},
+
 		handleInput(
 			event: WorkspaceInputEvent,
 			context: ExtensionInteractionContext,
@@ -441,21 +465,6 @@ export function createTextEditorTabProvider(
 					1,
 					Math.min(lines.length, cursorLine + (delta > 0 ? 1 : -1)),
 				);
-				return "handled";
-			}
-
-			const key = (event.key || event.input || "").toLowerCase();
-			if (key === "j" || key === "down") {
-				cursorLine = Math.min(lines.length, cursorLine + 1);
-				return "handled";
-			}
-			if (key === "k" || key === "up") {
-				cursorLine = Math.max(1, cursorLine - 1);
-				return "handled";
-			}
-
-			if (key === "s" && event.ctrl) {
-				isDirty = false;
 				return "handled";
 			}
 

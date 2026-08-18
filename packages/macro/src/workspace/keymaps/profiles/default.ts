@@ -1,3 +1,4 @@
+import { DEFAULT_COMMAND_KEYBINDINGS } from "../default-bindings";
 import type { EditorKeymapProfile } from "../types";
 
 /**
@@ -57,4 +58,10 @@ export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 		prevTab: "shift+tab",
 		pinMacro: "meta+p",
 	},
+	keybindings: Object.fromEntries(
+		DEFAULT_COMMAND_KEYBINDINGS.map((binding) => [
+			binding.command,
+			binding.chords,
+		]),
+	),
 };

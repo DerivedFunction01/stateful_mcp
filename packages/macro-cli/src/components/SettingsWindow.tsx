@@ -464,7 +464,7 @@ export function createSettingsTabProvider(
 	// Register workbench commands for settings navigation
 	workspace.commands.registerCommand(
 		{
-			command: "settings.navigate.down",
+			command: "settings.navigateDown",
 			title: "Settings: Navigate Down",
 			category: "Preferences",
 		},
@@ -472,7 +472,7 @@ export function createSettingsTabProvider(
 	);
 	workspace.commands.registerCommand(
 		{
-			command: "settings.navigate.up",
+			command: "settings.navigateUp",
 			title: "Settings: Navigate Up",
 			category: "Preferences",
 		},
@@ -480,7 +480,7 @@ export function createSettingsTabProvider(
 	);
 	workspace.commands.registerCommand(
 		{
-			command: "settings.navigate.left",
+			command: "settings.focusNavigation",
 			title: "Settings: Focus Navigation",
 			category: "Preferences",
 		},
@@ -492,7 +492,7 @@ export function createSettingsTabProvider(
 	);
 	workspace.commands.registerCommand(
 		{
-			command: "settings.navigate.right",
+			command: "settings.focusContent",
 			title: "Settings: Focus Content",
 			category: "Preferences",
 		},
@@ -504,7 +504,7 @@ export function createSettingsTabProvider(
 	);
 	workspace.commands.registerCommand(
 		{
-			command: "settings.select",
+			command: "settings.selectEntry",
 			title: "Settings: Select / Toggle",
 			category: "Preferences",
 		},
@@ -562,21 +562,21 @@ export function createSettingsTabProvider(
 			context: ExtensionInteractionContext,
 		): WorkspaceInputResult {
 			switch (actionId) {
-				case "settings.navigate.down":
+				case "settings.navigateDown":
 					navigateDown();
 					return "handled";
-				case "settings.navigate.up":
+				case "settings.navigateUp":
 					navigateUp();
 					return "handled";
-				case "settings.navigate.left":
+				case "settings.focusNavigation":
 					focusedRegion = "navigation";
 					return "handled";
-				case "settings.navigate.right":
+				case "settings.focusContent":
 					focusedRegion = "content";
 					return "handled";
-				case "settings.select":
+				case "settings.selectEntry":
 					return "handled";
-				case "settings.search":
+				case "settings.focusSearch":
 					focusedRegion = "search";
 					return "handled";
 				case "settings.back":
@@ -653,56 +653,6 @@ export function createSettingsTabProvider(
 					uiModel.setSearchQuery(snapshot.searchQuery + event.input);
 					return "handled";
 				}
-				return "handled";
-			}
-
-			// Trigger search with '/'
-			if (key === "/") {
-				focusedRegion = "search";
-				return "handled";
-			}
-
-			if (key === "tab" || key === "\t") {
-				focusedRegion =
-					focusedRegion === "navigation" ? "content" : "navigation";
-				return "handled";
-			}
-
-			if (key === "j" || key === "down") {
-				navigateDown();
-				return "handled";
-			}
-
-			if (key === "k" || key === "up") {
-				navigateUp();
-				return "handled";
-			}
-
-			if (key === "h" || key === "left") {
-				focusedRegion = "navigation";
-				return "handled";
-			}
-
-			if (key === "l" || key === "right") {
-				focusedRegion = "content";
-				return "handled";
-			}
-
-			if (key === "enter") {
-				return "handled";
-			}
-
-			if (key === "escape") {
-				if (focusedRegion === "navigation") {
-					workspace.layout.setActiveTab("scratchpad");
-					return "handled";
-				}
-				focusedRegion = "navigation";
-				return "handled";
-			}
-
-			if (key === "s" && event.ctrl) {
-				void service.save();
 				return "handled";
 			}
 

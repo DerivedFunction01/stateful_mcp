@@ -138,6 +138,28 @@ export const ALL_CANONICAL_MODIFIERS = new Set<string>(
 );
 
 export type KeyChord = string;
+export type KeyChordVariants = readonly KeyChord[];
+
+import type { ContextExpression } from "../contributions/types";
+import type { EditorMode } from "../editor/editor-kernel";
+
+/** Canonical command-to-chord binding owned by the Macro keymap catalog. */
+export interface WorkspaceKeybinding {
+	readonly command: string;
+	readonly chords: KeyChordVariants;
+	readonly modes?: readonly EditorMode[];
+	readonly when?: ContextExpression;
+	readonly labelI18nKey?: string;
+}
+
+export interface KeymapContext {
+	readonly activeTabId?: string;
+	readonly activeViewId?: string;
+	readonly focusedPane?: string;
+	readonly focusedRegion?: string;
+	readonly editorMode: EditorMode;
+	readonly textInputOwner?: string;
+}
 
 export interface EditorKeymapNormalBindings {
 	readonly moveDown: KeyChord;
@@ -199,4 +221,6 @@ export interface EditorKeymapProfile {
 	readonly sequences: EditorKeymapSequenceBindings;
 	readonly visual: EditorKeymapVisualBindings;
 	readonly window: EditorKeymapWindowBindings;
+	/** Command-centric overrides. Presence replaces the command's defaults. */
+	readonly keybindings?: Readonly<Record<string, KeyChordVariants>>;
 }

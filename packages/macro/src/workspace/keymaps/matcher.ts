@@ -1,7 +1,11 @@
+import type { ContextExpression } from "../contributions/types";
+import { DEFAULT_COMMAND_KEYBINDINGS } from "./default-bindings";
 import {
 	ALL_CANONICAL_KEYS,
 	type CanonicalKey,
 	type EditorKeymapProfile,
+	type KeymapContext,
+	type WorkspaceKeybinding,
 } from "./types";
 
 export interface KeyInputEvent {
@@ -204,11 +208,151 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 	return eventKey === target.key;
 }
 
+function contextValue(
+	context: KeymapContext,
+	key: string,
+): string | boolean | undefined {
+	switch (key) {
+		case "activeTabId":
+			return context.activeTabId;
+		case "activeViewId":
+			return context.activeViewId;
+		case "focusedPane":
+			return context.focusedPane;
+		case "focusedRegion":
+			return context.focusedRegion;
+		case "textInputOwner":
+			return context.textInputOwner;
+		default:
+			return undefined;
+	}
+}
+
+export function contextMatches(
+	context: KeymapContext,
+	expression?: ContextExpression,
+): boolean {
+	if (!expression) return true;
+	if ("key" in expression)
+		return contextValue(context, expression.key) === expression.equals;
+	if ("allOf" in expression)
+		return expression.allOf.every((item) => contextMatches(context, item));
+	if ("anyOf" in expression)
+		return expression.anyOf.some((item) => contextMatches(context, item));
+	return !contextMatches(context, expression.not);
+}
+
+/** Return the effective command bindings after central defaults and overrides. */
+export function resolveKeymapBindings(
+	profile: EditorKeymapProfile,
+): readonly WorkspaceKeybinding[] {
+	const overrides = profile.keybindings ?? {};
+	const known = new Set(
+		DEFAULT_COMMAND_KEYBINDINGS.map((item) => item.command),
+	);
+	const bindings = DEFAULT_COMMAND_KEYBINDINGS.map((binding) => ({
+		...binding,
+		chords: Object.hasOwn(overrides, binding.command)
+			? (overrides[binding.command] ?? [])
+			: binding.chords,
+	}));
+	for (const [command, chords] of Object.entries(overrides)) {
+		if (known.has(command)) continue;
+		bindings.push({ command, chords });
+	}
+	return bindings;
+}
+
+export function matchKeymapCommand(
+	profile: EditorKeymapProfile,
+	event: KeyInputEvent,
+	context: KeymapContext,
+): string | undefined {
+	const candidates = resolveKeymapBindings(profile).filter(
+		(binding) =>
+			(!binding.modes || binding.modes.includes(context.editorMode)) &&
+			contextMatches(context, binding.when),
+	);
+	return candidates.find((binding) =>
+		binding.chords.some((chord) => chordMatches(chord, event)),
+	)?.command;
+}
+
+export function keymapBindingConflicts(
+	profile: EditorKeymapProfile,
+): readonly { chord: string; first: string; second: string }[] {
+	const conflicts: { chord: string; first: string; second: string }[] = [];
+	const seen: Array<{ normalized: string; binding: WorkspaceKeybinding }> = [];
+	for (const binding of resolveKeymapBindings(profile)) {
+		for (const chord of binding.chords) {
+			const normalized = normalizeChord(chord);
+			if (!normalized) continue;
+			for (const prior of seen) {
+				if (
+					prior.normalized === normalized &&
+					prior.binding.command !== binding.command &&
+					modesOverlap(prior.binding.modes, binding.modes) &&
+					contextsOverlap(prior.binding.when, binding.when)
+				)
+					conflicts.push({
+						chord,
+						first: prior.binding.command,
+						second: binding.command,
+					});
+			}
+			seen.push({ normalized, binding });
+		}
+	}
+	return conflicts;
+}
+
+function modesOverlap(
+	first: WorkspaceKeybinding["modes"],
+	second: WorkspaceKeybinding["modes"],
+): boolean {
+	return !first || !second || first.some((mode) => second.includes(mode));
+}
+
+function contextsOverlap(
+	first: WorkspaceKeybinding["when"],
+	second: WorkspaceKeybinding["when"],
+): boolean {
+	if (!first || !second) return true;
+	if ("not" in first && "key" in first.not && "key" in second)
+		return first.not.key !== second.key || first.not.equals !== second.equals;
+	if ("not" in second && "key" in second.not && "key" in first)
+		return second.not.key !== first.key || second.not.equals !== first.equals;
+	if ("key" in first && "key" in second)
+		return first.key !== second.key || first.equals === second.equals;
+	return true;
+}
+
+const LEGACY_COMMAND_PATHS: Readonly<Record<string, string>> = {
+	"normal.moveDown": "cursor.moveDown",
+	"normal.moveUp": "cursor.moveUp",
+	"normal.moveLeft": "cursor.moveLeft",
+	"normal.moveRight": "cursor.moveRight",
+	"window.nextTab": "workspace.nextTab",
+	"window.prevTab": "workspace.previousTab",
+};
+
 export function mergeEditorKeymap(
 	base: EditorKeymapProfile,
 	override?: Partial<EditorKeymapProfile>,
 ): EditorKeymapProfile {
 	if (!override) return base;
+	const keybindings = {
+		...(base.keybindings ?? {}),
+		...(override.keybindings ?? {}),
+	} as Record<string, readonly string[]>;
+	for (const [path, command] of Object.entries(LEGACY_COMMAND_PATHS)) {
+		const [group, action] = path.split(".");
+		const value = (override as Record<string, unknown>)[group!];
+		if (value && typeof value === "object" && action! in value) {
+			const chord = (value as Record<string, unknown>)[action!];
+			if (typeof chord === "string") keybindings[command] = [chord];
+		}
+	}
 	return {
 		profileId: override.profileId ?? base.profileId,
 		name: override.name ?? base.name,
@@ -217,6 +361,7 @@ export function mergeEditorKeymap(
 		sequences: { ...base.sequences, ...override.sequences },
 		visual: { ...base.visual, ...override.visual },
 		window: { ...base.window, ...override.window },
+		keybindings,
 	};
 }
 
@@ -242,6 +387,29 @@ export function validateEditorKeymap(
 	options: KeymapValidationOptions = {},
 ): readonly KeymapDiagnostic[] {
 	const diagnostics: KeymapDiagnostic[] = [];
+	for (const binding of resolveKeymapBindings(profile)) {
+		for (const chord of binding.chords) {
+			if (!normalizeChord(chord))
+				diagnostics.push({
+					severity: "error",
+					code: "invalid-chord",
+					message: `Unknown chord '${chord}' for command '${binding.command}'.`,
+					bindings: [chord],
+					paths: [`keybindings.${binding.command}`],
+				});
+		}
+	}
+	for (const conflict of keymapBindingConflicts(profile))
+		diagnostics.push({
+			severity: "error",
+			code: "duplicate-binding",
+			message: `Chord '${conflict.chord}' is bound to both '${conflict.first}' and '${conflict.second}'.`,
+			bindings: [conflict.chord],
+			paths: [
+				`keybindings.${conflict.first}`,
+				`keybindings.${conflict.second}`,
+			],
+		});
 	const modes = ["normal", "sequences", "visual", "window"] as const;
 	for (const mode of modes) {
 		const seen = new Map<string, [string, string]>();

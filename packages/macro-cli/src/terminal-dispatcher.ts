@@ -2,7 +2,7 @@ import {
 	chordMatches,
 	type EditorKeymapProfile,
 	type MacroWorkspace,
-	surfaceKeybindingsForMode,
+	matchKeymapCommand,
 } from "@stateful-mcp/macro";
 import type { NormalizedMouseEvent } from "./input/mouse";
 
@@ -140,39 +140,36 @@ export async function dispatchTerminalInput(
 		return "handled";
 	}
 	if (
-		(keymap.window.toggleActivityPanel &&
-			chordMatches(keymap.window.toggleActivityPanel, chordEvent)) ||
-		(event.ctrl && (name === "e" || input.toLowerCase() === "e"))
+		keymap.window.toggleActivityPanel &&
+		chordMatches(keymap.window.toggleActivityPanel, chordEvent)
 	) {
 		workspace.layout.toggleRegion("activity");
 		return "handled";
 	}
 	if (
-		(keymap.window.toggleSidepanel &&
-			chordMatches(keymap.window.toggleSidepanel, chordEvent)) ||
-		(event.ctrl &&
-			(name === "b" || input.toLowerCase() === "b" || input === "\x02"))
+		keymap.window.toggleSidepanel &&
+		chordMatches(keymap.window.toggleSidepanel, chordEvent)
 	) {
 		workspace.layout.toggleSidepanel();
 		return "handled";
 	}
-	if (
-		chordMatches(keymap.window.switchSplitFocus, chordEvent) ||
-		(event.ctrl && (name === "w" || input.toLowerCase() === "w"))
-	) {
+	if (chordMatches(keymap.window.switchSplitFocus, chordEvent)) {
 		workspace.layout.switchSplitFocus();
 		return "handled";
 	}
-	if (event.ctrl && (name === "c" || input.toLowerCase() === "c")) {
+	if (
+		matchKeymapCommand(keymap, chordEvent, {
+			activeTabId: layout.activeTabId,
+			focusedPane: layout.focusedPane,
+			editorMode: workspace.editor.getMode(),
+		}) === "workspace.quit"
+	) {
 		return "quit";
 	}
 
 	// 3. Pinned Macro Toggle
 	const pinChord = keymap.window.pinMacro;
-	if (
-		(pinChord && chordMatches(pinChord, chordEvent)) ||
-		(event.meta && input.toLowerCase() === "p")
-	) {
+	if (pinChord && chordMatches(pinChord, chordEvent)) {
 		const line = workspace.scratchpad.getProjectedLine(
 			workspace.editor.buffer.getCursor().line,
 		);
@@ -300,7 +297,11 @@ export async function dispatchTerminalInput(
 		// VISUAL Mode:
 		// - Enter or 'r': executes selected range of macrolines
 		if (currentMode === "VISUAL") {
-			if (isEnter || input === "r") {
+			if (
+				isEnter ||
+				(keymap.normal.runCell &&
+					chordMatches(keymap.normal.runCell, chordEvent))
+			) {
 				const sel = workspace.editor.buffer.getSelection();
 				if (sel) {
 					const startLine = Math.min(sel.start.line, sel.end.line);
@@ -342,9 +343,8 @@ export async function dispatchTerminalInput(
 				return "handled";
 			}
 			if (
-				input === "r" ||
-				(keymap.normal.runCell &&
-					chordMatches(keymap.normal.runCell, chordEvent))
+				keymap.normal.runCell &&
+				chordMatches(keymap.normal.runCell, chordEvent)
 			) {
 				const cursor = workspace.editor.buffer.getCursor();
 				const receipt = await workspace.scratchpad.executeLine(cursor.line);
@@ -357,34 +357,6 @@ export async function dispatchTerminalInput(
 	}
 
 	// 7. View / Tab Contribution input handling
-	const registeredSurface =
-		layout.focusedPane === "sidepanel"
-			? workspace.views
-					.getViewsForContainer(layout.activeContainerId)
-					.find((view) => view.provider)
-			: layout.focusedPane === "main" && !isScratchpadActive
-				? workspace.tabs.getTab(layout.activeTabId)
-				: undefined;
-	const surfaceBinding = surfaceKeybindingsForMode(
-		registeredSurface?.keybindings,
-		currentMode,
-	).find((binding) => chordMatches(binding.key, chordEvent));
-	if (surfaceBinding && registeredSurface?.provider?.handleAction) {
-		const result = await registeredSurface.provider.handleAction(
-			surfaceBinding.action,
-			undefined,
-			{
-				scopeId:
-					layout.focusedPane === "sidepanel"
-						? layout.activeContainerId
-						: layout.activeTabId,
-				mode: currentMode,
-				emitAction: (actionId, payload) =>
-					void workspace.commands.executeCommand(actionId, payload),
-			},
-		);
-		if (result === "handled") return "handled";
-	}
 	const contribution =
 		layout.focusedPane === "sidepanel"
 			? workspace.views
@@ -393,7 +365,23 @@ export async function dispatchTerminalInput(
 			: isScratchpadActive
 				? undefined
 				: workspace.tabs.getTab(layout.activeTabId)?.provider;
-
+	const profileCommand = matchKeymapCommand(keymap, chordEvent, {
+		activeTabId: layout.activeTabId,
+		focusedPane: layout.focusedPane,
+		editorMode: currentMode,
+	});
+	if (profileCommand && contribution?.handleAction) {
+		const result = await contribution.handleAction(profileCommand, undefined, {
+			scopeId:
+				layout.focusedPane === "sidepanel"
+					? layout.activeContainerId
+					: layout.activeTabId,
+			mode: currentMode,
+			emitAction: (actionId, payload) =>
+				void workspace.commands.executeCommand(actionId, payload),
+		});
+		if (result === "handled") return "handled";
+	}
 	if (contribution?.handleInput) {
 		const result = await contribution.handleInput(
 			{

@@ -7,7 +7,11 @@ import type {
 	MacroWorkspace,
 	RegisteredView,
 } from "@stateful-mcp/macro";
-import { surfaceKeybindingsForMode } from "@stateful-mcp/macro";
+import {
+	contextMatches,
+	resolveKeymapBindings,
+	surfaceKeybindingsForMode,
+} from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
@@ -280,6 +284,31 @@ export function buildContextualHelpBarHints(
 	}
 
 	if (focusedPane === "main" && layout.activeTabId !== "scratchpad") {
+		if (layout.activeTabId === "settings" && keymap) {
+			const settingsBindings = resolveKeymapBindings(keymap).filter(
+				(binding) =>
+					binding.modes?.includes(workspace.editor.getMode()) &&
+					contextMatches(
+						{
+							activeTabId: layout.activeTabId,
+							focusedPane,
+							editorMode: workspace.editor.getMode(),
+						},
+						binding.when,
+					),
+			);
+			if (settingsBindings.length > 0)
+				return settingsBindings.flatMap((binding) =>
+					binding.chords.map((chord) => ({
+						key: formatKeyDisplay(chord),
+						action: translate(
+							i18n,
+							binding.labelI18nKey ?? binding.command,
+							binding.command,
+						),
+					})),
+				);
+		}
 		const tab = workspace.tabs.getTab(layout.activeTabId);
 		const bindings = surfaceKeybindingsForMode(
 			tab?.keybindings,
