@@ -262,11 +262,7 @@ export function WindowContainer({
 				}
 				footer={
 					<>
-						<HelpBar
-							keymap={keymap}
-							workspace={workspace}
-							theme={theme}
-						/>
+						<HelpBar keymap={keymap} workspace={workspace} theme={theme} />
 						<StatusBar workspace={workspace} theme={theme} />
 					</>
 				}

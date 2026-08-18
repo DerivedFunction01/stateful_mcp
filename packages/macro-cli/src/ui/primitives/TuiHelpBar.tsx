@@ -360,16 +360,8 @@ export function TuiHelpBar({
 	const isTwoRow = twoRow ?? resolvedHints.length > 5;
 
 	const renderBadge = (hint: TuiShortcutHint) => (
-		<box
-			key={`${hint.key}-${hint.action}`}
-			flexDirection="row"
-			marginRight={2}
-		>
-			<box
-				backgroundColor={c.accentPrimary}
-				paddingLeft={1}
-				paddingRight={1}
-			>
+		<box key={`${hint.key}-${hint.action}`} flexDirection="row" marginRight={2}>
+			<box backgroundColor={c.accentPrimary} paddingLeft={1} paddingRight={1}>
 				<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
 					{hint.key}
 				</text>

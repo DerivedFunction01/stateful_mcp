@@ -1,12 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-	SettingsUiModel,
-	type SettingsScope,
-} from "../src/workspace/config/settings-ui-model";
-import {
-	WorkspaceSettingsService,
 	type SettingsSchemaEntry,
+	WorkspaceSettingsService,
 } from "../src/workspace/config/settings-service";
+import { SettingsUiModel } from "../src/workspace/config/settings-ui-model";
 
 describe("SettingsUiModel", () => {
 	const schema: SettingsSchemaEntry[] = [
@@ -99,7 +96,9 @@ describe("SettingsUiModel", () => {
 
 		expect(snapshot.sections.length).toBe(1);
 		expect(snapshot.sections[0]?.id).toBe("values");
-		expect(snapshot.sections[0]?.items[0]?.schema.title).toBe("Decimal Separator");
+		expect(snapshot.sections[0]?.items[0]?.schema.title).toBe(
+			"Decimal Separator",
+		);
 	});
 
 	test("toggles dual-mode split JSON", () => {

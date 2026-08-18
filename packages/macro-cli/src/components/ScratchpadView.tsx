@@ -1,12 +1,13 @@
 import { type MouseEvent, TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { translate } from "../locales";
 import {
 	TuiScratchpadBody,
 	type TuiScratchpadLineModel,
 } from "../ui/compositions";
 import {
+	clampScratchpadLine,
 	createScratchpadGeometry,
 	scratchpadColumnAtX,
 	scratchpadLineAtY,
@@ -120,25 +121,50 @@ export function ScratchpadView({
 		},
 	);
 	const geometry = createScratchpadGeometry(lineModels, true);
-	const pointerLine = (event: MouseEvent) =>
-		clampOffset(scratchpadLineAtY(geometry, viewportOffset, event.y));
-	const pointerCol = (event: MouseEvent) =>
-		scratchpadColumnAtX(geometry, event.x);
+	// Native OpenTUI mouse coordinates are terminal-relative; the scratchpad
+	// geometry helpers expect coordinates relative to the body's top-left.
+	// `currentTarget` is the TuiScratchpadBody box, whose screenX/screenY
+	// give the absolute origin of the rendered body at event time.
+	const localPoint = (event: MouseEvent) => {
+		const target = event.currentTarget;
+		const originX = target ? target.screenX : 0;
+		const originY = target ? target.screenY : 0;
+		return { x: event.x - originX, y: event.y - originY };
+	};
+	const pointerLine = (event: MouseEvent) => {
+		const { x, y } = localPoint(event);
+		return clampScratchpadLine(
+			scratchpadLineAtY(geometry, viewportOffset, y),
+			authoredLines.length,
+		);
+	};
+	const pointerCol = (event: MouseEvent) => {
+		const { x } = localPoint(event);
+		return scratchpadColumnAtX(geometry, x);
+	};
+	const dragAnchor = useRef<{ line: number; col: number } | null>(null);
 	const handleMouseDown = (event: MouseEvent) => {
 		if (event.button !== 0) return;
 		const line = pointerLine(event);
+		const col = pointerCol(event);
 		workspace.layout.setFocusedPane("main");
-		workspace.editor.clickAt(line, pointerCol(event));
+		workspace.editor.clickAt(line, col);
+		dragAnchor.current = { line, col };
 		revealLine(line);
 	};
 	const handleMouseDrag = (event: MouseEvent) => {
 		if (!event.isDragging || event.button !== 0) return;
+		const start = dragAnchor.current;
+		if (!start) return;
 		const line = pointerLine(event);
-		workspace.editor.dragSelection(workspace.editor.buffer.getCursor(), {
+		workspace.editor.dragSelection(start, {
 			line,
 			col: pointerCol(event),
 		});
 		revealLine(line);
+	};
+	const handleMouseUp = (event: MouseEvent) => {
+		if (event.button === 0) dragAnchor.current = null;
 	};
 	const handleMouseScroll = (event: MouseEvent) => {
 		if (event.type !== "scroll" || !event.scroll) return;
@@ -171,6 +197,7 @@ export function ScratchpadView({
 				viewportSize={viewportSize}
 				onMouseDown={handleMouseDown}
 				onMouseDrag={handleMouseDrag}
+				onMouseUp={handleMouseUp}
 				onMouseScroll={handleMouseScroll}
 				activeLineId={String(cursor.line)}
 				theme={theme}

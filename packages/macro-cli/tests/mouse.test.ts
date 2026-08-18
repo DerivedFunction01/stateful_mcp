@@ -2,8 +2,11 @@ import { describe, expect, test } from "bun:test";
 import type { MouseEvent } from "@opentui/core";
 import { createTestRenderer } from "@opentui/core/testing";
 import { createElement, createRoot } from "@opentui/react";
+import { createMacroWorkspace } from "@stateful-mcp/macro";
+import { ScratchpadView } from "../src/components/ScratchpadView";
 import { normalizeOpenTuiMouseEvent } from "../src/input/mouse";
 import {
+	clampScratchpadLine,
 	createScratchpadGeometry,
 	padScratchpadCell,
 	scratchpadColumnAtX,
@@ -95,6 +98,20 @@ describe("scratchpad geometry", () => {
 			3,
 		);
 	});
+
+	test("clamps pointer line indices independently from viewport offsets", () => {
+		const geometry = createScratchpadGeometry(
+			[line("01"), line("02"), line("03")],
+			true,
+		);
+
+		// Each authored row and its projection occupy two terminal rows.
+		expect(clampScratchpadLine(scratchpadLineAtY(geometry, 0, 0), 3)).toBe(0);
+		expect(clampScratchpadLine(scratchpadLineAtY(geometry, 0, 2), 3)).toBe(1);
+		expect(clampScratchpadLine(scratchpadLineAtY(geometry, 0, 4), 3)).toBe(2);
+		expect(clampScratchpadLine(scratchpadLineAtY(geometry, 0, 99), 3)).toBe(2);
+		expect(clampScratchpadLine(scratchpadLineAtY(geometry, 4, -1), 3)).toBe(2);
+	});
 });
 
 test("OpenTUI delivers a click to an interactive primitive", async () => {
@@ -122,4 +139,41 @@ test("OpenTUI delivers a click to an interactive primitive", async () => {
 	await setup.flush();
 	expect(selected).toBe("second");
 	setup.renderer.destroy();
+});
+
+test("scratchpad click selects the clicked line under a header offset", async () => {
+	const workspace = createMacroWorkspace({ initialText: "alpha\nbeta\ngamma" });
+	const setup = await createTestRenderer({
+		width: 60,
+		height: 20,
+		useMouse: true,
+	});
+	const root = createRoot(setup.renderer);
+	root.render(
+		createElement(
+			"box",
+			{ flexDirection: "column", height: 20 },
+			createElement(
+				"box",
+				{ height: 1 },
+				createElement("text", undefined, "HEADER"),
+			),
+			createElement(ScratchpadView, { workspace, height: 10 }),
+		),
+	);
+	setup.renderer.start();
+	await setup.flush();
+
+	// Body starts at terminal y=1; each authored row + projection row is 2 rows.
+	// Visual line 1 -> y=1, line 2 -> y=3, line 3 -> y=5.
+	await setup.mockMouse.click(5, 3);
+	await setup.flush();
+	expect(workspace.editor.buffer.getCursor().line).toBe(1);
+
+	await setup.mockMouse.click(5, 5);
+	await setup.flush();
+	expect(workspace.editor.buffer.getCursor().line).toBe(2);
+
+	setup.renderer.destroy();
+	await workspace.dispose();
 });

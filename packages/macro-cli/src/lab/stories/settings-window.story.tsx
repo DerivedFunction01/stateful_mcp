@@ -1,7 +1,4 @@
-import {
-	SettingsUiModel,
-	WorkspaceSettingsService,
-} from "@stateful-mcp/macro";
+import { SettingsUiModel, WorkspaceSettingsService } from "@stateful-mcp/macro";
 import { SettingsWindowView } from "../../components/SettingsWindow";
 import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
@@ -14,12 +11,7 @@ export const settingsWindowStory: TuiStory = {
 	id: "settings-window",
 	title: "Settings Window (VS Code Style)",
 	category: "Views",
-	states: [
-		"base-overview",
-		"derived-spanish",
-		"search-active",
-		"narrow",
-	],
+	states: ["base-overview", "derived-spanish", "search-active", "narrow"],
 	render(context) {
 		const theme = GlobalThemeRegistry.getActive();
 		const state = context.stateId;

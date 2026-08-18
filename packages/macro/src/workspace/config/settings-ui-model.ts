@@ -1,4 +1,3 @@
-import type { UserMacroProfile } from "../../contracts/extension-config";
 import type {
 	SettingsDiagnostic,
 	SettingsSchemaEntry,
@@ -115,9 +114,9 @@ export class SettingsUiModel {
 
 	resetValue(path: readonly string[]): void {
 		// Reset to default
-		const schemaEntry = this.service.getSchema().find(
-			(s) => s.path.join(".") === path.join("."),
-		);
+		const schemaEntry = this.service
+			.getSchema()
+			.find((s) => s.path.join(".") === path.join("."));
 		if (schemaEntry) {
 			const effective = this.service.getEffective();
 			const defaultVal = getAtPath(effective as Record<string, unknown>, path);

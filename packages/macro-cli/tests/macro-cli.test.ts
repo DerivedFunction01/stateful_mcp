@@ -366,14 +366,17 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(workspace.layout.getSnapshot().regions.activity.open).toBe(false);
 
 		// 3b. Test Ctrl+B toggles inspector / sidepanel
-		const initialInspectorOpen = workspace.layout.getSnapshot().regions.inspector.open;
+		const initialInspectorOpen =
+			workspace.layout.getSnapshot().regions.inspector.open;
 		expect(
 			await dispatchTerminalInput(workspace, keymap, {
 				name: "b",
 				ctrl: true,
 			}),
 		).toBe("handled");
-		expect(workspace.layout.getSnapshot().regions.inspector.open).toBe(!initialInspectorOpen);
+		expect(workspace.layout.getSnapshot().regions.inspector.open).toBe(
+			!initialInspectorOpen,
+		);
 
 		expect(
 			await dispatchTerminalInput(workspace, keymap, {
@@ -381,7 +384,9 @@ describe("macro-cli terminal dispatcher", () => {
 				ctrl: true,
 			}),
 		).toBe("handled");
-		expect(workspace.layout.getSnapshot().regions.inspector.open).toBe(initialInspectorOpen);
+		expect(workspace.layout.getSnapshot().regions.inspector.open).toBe(
+			initialInspectorOpen,
+		);
 
 		// 4. Reopen and test Ctrl+W focus cycling
 		expect(
@@ -534,12 +539,16 @@ describe("macro-cli terminal dispatcher", () => {
 
 		// Typing text on settings should NOT modify the background scratchpad buffer
 		await dispatchTerminalInput(workspace, keymap, { input: "x" });
-		expect(workspace.editor.buffer.getText()).toBe("^initial scratchpad content");
+		expect(workspace.editor.buffer.getText()).toBe(
+			"^initial scratchpad content",
+		);
 
 		// 'dd' should NOT delete scratchpad lines when settings tab is active
 		await dispatchTerminalInput(workspace, keymap, { input: "d" });
 		await dispatchTerminalInput(workspace, keymap, { input: "d" });
-		expect(workspace.editor.buffer.getText()).toBe("^initial scratchpad content");
+		expect(workspace.editor.buffer.getText()).toBe(
+			"^initial scratchpad content",
+		);
 
 		await workspace.dispose();
 	});

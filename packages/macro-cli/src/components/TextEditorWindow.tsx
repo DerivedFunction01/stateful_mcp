@@ -103,7 +103,9 @@ export function TextEditorWindowView({
 				alignItems="center"
 			>
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{documentUri.includes("://") ? documentUri.split("://")[0] + " › " : "file › "}
+					{documentUri.includes("://")
+						? documentUri.split("://")[0] + " › "
+						: "file › "}
 				</text>
 				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 					{documentUri.split("/").pop() ?? documentUri}
@@ -150,7 +152,9 @@ export function TextEditorWindowView({
 							<box width={4}>
 								<text
 									fg={isCurrent ? c.accentPrimary : c.fgDim}
-									attributes={isCurrent ? TextAttributes.BOLD : TextAttributes.DIM}
+									attributes={
+										isCurrent ? TextAttributes.BOLD : TextAttributes.DIM
+									}
 								>
 									{String(line.num).padStart(2, " ")}
 								</text>
@@ -188,9 +192,14 @@ export function TextEditorWindowView({
 							ⓧ{" "}
 						</text>
 						<text fg={c.fgPrimary}>
-							{translate(i18n, "textEditor.diagnostic", diagnostics[0]?.message ?? "", {
-								message: diagnostics[0]?.message ?? "",
-							})}
+							{translate(
+								i18n,
+								"textEditor.diagnostic",
+								diagnostics[0]?.message ?? "",
+								{
+									message: diagnostics[0]?.message ?? "",
+								},
+							)}
 						</text>
 					</box>
 				)}
@@ -202,7 +211,9 @@ export function TextEditorWindowView({
 				sessionTitle={documentUri}
 				cursorLine={cursorLine}
 				cursorCol={cursorCol}
-				diagnosticErrorCount={diagnostics.filter((d) => d.severity === "error").length}
+				diagnosticErrorCount={
+					diagnostics.filter((d) => d.severity === "error").length
+				}
 				theme={theme}
 			/>
 		</box>
@@ -216,7 +227,7 @@ export function createTextEditorTabProvider(
 	keymap?: EditorKeymapProfile,
 ): ExtensionTabProvider {
 	let cursorLine = 1;
-	let cursorCol = 1;
+	const cursorCol = 1;
 	let isDirty = false;
 
 	const rawLines = initialContent.split("\n");
@@ -253,7 +264,10 @@ export function createTextEditorTabProvider(
 
 			if (event.type === "wheel") {
 				const delta = event.delta ?? 1;
-				cursorLine = Math.max(1, Math.min(lines.length, cursorLine + (delta > 0 ? 1 : -1)));
+				cursorLine = Math.max(
+					1,
+					Math.min(lines.length, cursorLine + (delta > 0 ? 1 : -1)),
+				);
 				return "handled";
 			}
 

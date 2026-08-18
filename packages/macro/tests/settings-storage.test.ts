@@ -5,21 +5,19 @@ import {
 	SqlExecutor,
 	type SqlStatement,
 } from "@stateful-mcp/core";
+import type { UserMacroProfile } from "../src/contracts/extension-config";
 import {
 	exportSettingsBundle,
 	importSettingsBundle,
-	type SettingsBundle,
 } from "../src/workspace/config/bundle-manager";
 import {
 	computeSparseDelta,
-	mergeProfile,
 	resolveProfile,
 } from "../src/workspace/config/profile-resolver";
 import {
 	CoreKvSettingsStorageDriver,
 	CoreSqlSettingsStorageDriver,
 } from "../src/workspace/config/storage-driver";
-import type { UserMacroProfile } from "../src/contracts/extension-config";
 
 const createMockSqlBackend = (): SqlBackend => {
 	const tables: Record<string, Record<string, Record<string, any>>> = {
@@ -45,7 +43,10 @@ const createMockSqlBackend = (): SqlBackend => {
 			}
 			return [];
 		},
-		async queryOne(sql: string, params?: any[]): Promise<Record<string, any> | null> {
+		async queryOne(
+			sql: string,
+			params?: any[],
+		): Promise<Record<string, any> | null> {
 			if (sql.includes("FROM macro_workspace_settings WHERE key = ?")) {
 				const key = params?.[0] as string | undefined;
 				const row = key ? tables.macro_workspace_settings?.[key] : undefined;
@@ -135,7 +136,10 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		const kv = new MemoryKvBackend();
 		const driver = new CoreKvSettingsStorageDriver(kv);
 
-		await driver.saveSettings({ activeProfile: "spanish", theme: "dark-modern" });
+		await driver.saveSettings({
+			activeProfile: "spanish",
+			theme: "dark-modern",
+		});
 		const loadedSettings = await driver.loadSettings();
 		expect(loadedSettings.activeProfile).toBe("spanish");
 		expect(loadedSettings.theme).toBe("dark-modern");
@@ -147,7 +151,10 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 			unitAliases: { "mass::milligram": ["miligramos"] },
 			rangeDelimiters: ["hasta"],
 		};
-		await driver.saveProfile("spanish", { ...spanishDelta, extends: "base" } as any);
+		await driver.saveProfile("spanish", {
+			...spanishDelta,
+			extends: "base",
+		} as any);
 
 		const profiles = await driver.listProfiles();
 		expect(profiles).toContain("base");
@@ -171,7 +178,10 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		const executor = new SqlExecutor(mockSql);
 		const driver = new CoreSqlSettingsStorageDriver(executor);
 
-		await driver.saveSettings({ activeProfile: "cardio", density: "comfortable" });
+		await driver.saveSettings({
+			activeProfile: "cardio",
+			density: "comfortable",
+		});
 		const loadedSettings = await driver.loadSettings();
 		expect(loadedSettings.activeProfile).toBe("cardio");
 		expect(loadedSettings.density).toBe("comfortable");
@@ -188,7 +198,9 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 
 		const loadedCardio = await driver.loadProfile("cardio");
 		expect(loadedCardio).toBeDefined();
-		expect((loadedCardio as any).unitAliases?.["frequency::bpm"]).toContain("bpm");
+		expect((loadedCardio as any).unitAliases?.["frequency::bpm"]).toContain(
+			"bpm",
+		);
 	});
 
 	test("ProfileResolver resolves deep inheritance and unions additive aliases", async () => {
@@ -219,7 +231,10 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		expect(resolved.syntax?.conceptToken).toBe("#");
 
 		// Additive maps (unitAliases) are unioned
-		expect(resolved.unitAliases?.["mass::milligram"]).toEqual(["mg", "miligramos"]);
+		expect(resolved.unitAliases?.["mass::milligram"]).toEqual([
+			"mg",
+			"miligramos",
+		]);
 		expect(resolved.unitAliases?.["volume::milliliter"]).toEqual(["mL"]);
 		expect(resolved.unitAliases?.["packaging::box"]).toEqual(["caja"]);
 
@@ -234,7 +249,9 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		await driver.saveProfile("prof_a", { extends: "prof_b" } as any);
 		await driver.saveProfile("prof_b", { extends: "prof_a" } as any);
 
-		expect(resolveProfile("prof_a", driver)).rejects.toThrow("Circular profile inheritance detected");
+		expect(resolveProfile("prof_a", driver)).rejects.toThrow(
+			"Circular profile inheritance detected",
+		);
 	});
 
 	test("computeSparseDelta strips unmodified base properties", () => {
@@ -265,7 +282,10 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		const sourceKv = new MemoryKvBackend();
 		const sourceDriver = new CoreKvSettingsStorageDriver(sourceKv);
 
-		await sourceDriver.saveSettings({ activeProfile: "spanish", theme: "dark-modern" });
+		await sourceDriver.saveSettings({
+			activeProfile: "spanish",
+			theme: "dark-modern",
+		});
 		await sourceDriver.saveProfile("base", baseProfile);
 		await sourceDriver.saveProfile("spanish", {
 			extends: "base",

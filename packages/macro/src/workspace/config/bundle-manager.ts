@@ -1,5 +1,8 @@
 import type { UserMacroProfile } from "../../contracts/extension-config";
-import type { SettingsStorageDriver, WorkspaceSettings } from "./storage-driver";
+import type {
+	SettingsStorageDriver,
+	WorkspaceSettings,
+} from "./storage-driver";
 
 export interface SettingsBundle {
 	readonly $schema?: string;

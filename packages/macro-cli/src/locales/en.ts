@@ -108,17 +108,24 @@ export const EN_LOCALE_CLI: Record<string, string> = {
 	"settings.actions.openJson": "Open JSON",
 	"settings.filter.modified": "Modified ({count})",
 	"settings.schema.syntax.macroStartToken.title": "Expression Trigger Token",
-	"settings.schema.syntax.macroStartToken.desc": "Symbol used to initiate macro and expression invocations.",
+	"settings.schema.syntax.macroStartToken.desc":
+		"Symbol used to initiate macro and expression invocations.",
 	"settings.schema.syntax.conceptToken.title": "Concept Identifier Token",
-	"settings.schema.syntax.conceptToken.desc": "Symbol used for ontology concept entity references.",
+	"settings.schema.syntax.conceptToken.desc":
+		"Symbol used for ontology concept entity references.",
 	"settings.schema.syntax.delimiter.title": "Argument Assignment Delimiter",
-	"settings.schema.syntax.delimiter.desc": "Character separating argument names from values.",
+	"settings.schema.syntax.delimiter.desc":
+		"Character separating argument names from values.",
 	"settings.schema.values.decimalSeparator.title": "Decimal Separator",
-	"settings.schema.values.decimalSeparator.desc": "Radix point character used in numbers.",
-	"settings.schema.values.dateTimeFormat.title": "Date & Time Master Display Template",
-	"settings.schema.values.dateTimeFormat.desc": "Master display template with optional conditional brackets [YYYY[-MM[-DD]]][ HH:min[:SS]].",
+	"settings.schema.values.decimalSeparator.desc":
+		"Radix point character used in numbers.",
+	"settings.schema.values.dateTimeFormat.title":
+		"Date & Time Master Display Template",
+	"settings.schema.values.dateTimeFormat.desc":
+		"Master display template with optional conditional brackets [YYYY[-MM[-DD]]][ HH:min[:SS]].",
 	"settings.schema.appearance.theme.title": "Color Theme",
-	"settings.schema.appearance.theme.desc": "Active color palette for the terminal UI.",
+	"settings.schema.appearance.theme.desc":
+		"Active color palette for the terminal UI.",
 	"settings.schema.editor.keymap.title": "Editor Keymap",
 	"settings.schema.editor.keymap.desc": "Active modal keybindings profile.",
 

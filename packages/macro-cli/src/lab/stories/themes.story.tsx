@@ -100,13 +100,7 @@ export const themesStory: TuiStory = {
 	id: "themes",
 	title: "Theme & Palette Switcher",
 	category: "Core",
-	states: [
-		"github-dark",
-		"github-light",
-		"dark",
-		"monokai-pro",
-		"nord-polar",
-	],
+	states: ["github-dark", "github-light", "dark", "monokai-pro", "nord-polar"],
 	render(context) {
 		const stateId = context.stateId;
 		const width = context.size.columns;

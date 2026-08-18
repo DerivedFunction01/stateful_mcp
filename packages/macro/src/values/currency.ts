@@ -1,5 +1,9 @@
 import type { CurrencyValue, ValueEvidence } from "../contracts/values";
-import { EMPTY_DIAGNOSTICS, formatNumericValue, parseNumericValue } from "./numeric";
+import {
+	EMPTY_DIAGNOSTICS,
+	formatNumericValue,
+	parseNumericValue,
+} from "./numeric";
 import { escapeRegex } from "./regex";
 
 export interface CurrencyDenomination {

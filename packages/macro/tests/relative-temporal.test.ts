@@ -301,7 +301,9 @@ describe("User-Defined Relative & Retrospective/Prospective Date Grammar", () =>
 		it("rejects English phrases completely when config is empty (zero hardcoded fallback)", () => {
 			const emptyConfig: RelativeTemporalConfig = {};
 
-			expect(parseRelativeTemporal("last December", emptyConfig)).toBeUndefined();
+			expect(
+				parseRelativeTemporal("last December", emptyConfig),
+			).toBeUndefined();
 			expect(parseRelativeTemporal("next Friday", emptyConfig)).toBeUndefined();
 			expect(parseRelativeTemporal("3 days ago", emptyConfig)).toBeUndefined();
 			expect(parseRelativeTemporal("in 2 hours", emptyConfig)).toBeUndefined();

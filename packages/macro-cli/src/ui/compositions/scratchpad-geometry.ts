@@ -50,6 +50,10 @@ export function scratchpadLineAtY(
 	);
 }
 
+export function clampScratchpadLine(line: number, lineCount: number): number {
+	return Math.max(0, Math.min(Math.max(0, lineCount - 1), Math.floor(line)));
+}
+
 export function scratchpadColumnAtX(
 	geometry: TuiScratchpadGeometry,
 	x: number,

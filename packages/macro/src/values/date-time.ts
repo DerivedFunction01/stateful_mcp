@@ -1214,15 +1214,8 @@ export function parseRelativeTemporal(
 			if (rest) {
 				// 1. Check Month Aliases
 				if (config.monthAliases) {
-					const sortedMonths = flattenAndSortAliases(
-						config.monthAliases,
-						true,
-					);
-					const mMatch = extractPrefixAlias(
-						rest,
-						sortedMonths,
-						config.locales,
-					);
+					const sortedMonths = flattenAndSortAliases(config.monthAliases, true);
+					const mMatch = extractPrefixAlias(rest, sortedMonths, config.locales);
 					if (mMatch && !mMatch.remainderText) {
 						return {
 							direction: dir,
@@ -1257,11 +1250,7 @@ export function parseRelativeTemporal(
 				// 3. Check Unit Aliases (e.g. "week", "month", "year", "quarter", "season", "day")
 				if (config.unitAliases) {
 					const sortedUnits = flattenAndSortAliases(config.unitAliases, true);
-					const uMatch = extractPrefixAlias(
-						rest,
-						sortedUnits,
-						config.locales,
-					);
+					const uMatch = extractPrefixAlias(rest, sortedUnits, config.locales);
 					if (uMatch && !uMatch.remainderText) {
 						return {
 							direction: dir,

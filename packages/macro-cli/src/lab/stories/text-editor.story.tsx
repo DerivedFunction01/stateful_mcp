@@ -133,12 +133,22 @@ export const genericTextEditorStory: TuiStory = {
 				},
 				{
 					num: 2,
-					tokens: [{ text: "This workspace enforces SI units and sparse profile extensions.", color: "dim" }],
+					tokens: [
+						{
+							text: "This workspace enforces SI units and sparse profile extensions.",
+							color: "dim",
+						},
+					],
 				},
 				{
 					num: 3,
 					isCursorLine: true,
-					tokens: [{ text: "- Base profile defines physical dimensions and canonical operators.", color: "accent" }],
+					tokens: [
+						{
+							text: "- Base profile defines physical dimensions and canonical operators.",
+							color: "accent",
+						},
+					],
 				},
 			];
 

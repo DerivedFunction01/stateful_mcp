@@ -107,20 +107,30 @@ export const ES_LOCALE_CLI: Record<string, string> = {
 	"settings.actions.save": "Guardar Ajustes",
 	"settings.actions.openJson": "Abrir JSON",
 	"settings.filter.modified": "Modificados ({count})",
-	"settings.schema.syntax.macroStartToken.title": "Token de Inicio de Expresión",
-	"settings.schema.syntax.macroStartToken.desc": "Símbolo para iniciar invocaciones de macros y expresiones.",
-	"settings.schema.syntax.conceptToken.title": "Token Identificador de Concepto",
-	"settings.schema.syntax.conceptToken.desc": "Símbolo para referencias de conceptos ontológicos.",
+	"settings.schema.syntax.macroStartToken.title":
+		"Token de Inicio de Expresión",
+	"settings.schema.syntax.macroStartToken.desc":
+		"Símbolo para iniciar invocaciones de macros y expresiones.",
+	"settings.schema.syntax.conceptToken.title":
+		"Token Identificador de Concepto",
+	"settings.schema.syntax.conceptToken.desc":
+		"Símbolo para referencias de conceptos ontológicos.",
 	"settings.schema.syntax.delimiter.title": "Delimitador de Argumentos",
-	"settings.schema.syntax.delimiter.desc": "Carácter que separa nombres de argumentos de sus valores.",
+	"settings.schema.syntax.delimiter.desc":
+		"Carácter que separa nombres de argumentos de sus valores.",
 	"settings.schema.values.decimalSeparator.title": "Separador Decimal",
-	"settings.schema.values.decimalSeparator.desc": "Carácter de punto decimal usado en números.",
-	"settings.schema.values.dateTimeFormat.title": "Plantilla Maestra de Fecha y Hora",
-	"settings.schema.values.dateTimeFormat.desc": "Plantilla con corchetes condicionales [YYYY[-MM[-DD]]][ HH:min[:SS]].",
+	"settings.schema.values.decimalSeparator.desc":
+		"Carácter de punto decimal usado en números.",
+	"settings.schema.values.dateTimeFormat.title":
+		"Plantilla Maestra de Fecha y Hora",
+	"settings.schema.values.dateTimeFormat.desc":
+		"Plantilla con corchetes condicionales [YYYY[-MM[-DD]]][ HH:min[:SS]].",
 	"settings.schema.appearance.theme.title": "Tema de Color",
-	"settings.schema.appearance.theme.desc": "Paleta de color activa para la interfaz de terminal.",
+	"settings.schema.appearance.theme.desc":
+		"Paleta de color activa para la interfaz de terminal.",
 	"settings.schema.editor.keymap.title": "Mapa de Teclas del Editor",
-	"settings.schema.editor.keymap.desc": "Perfil modal activo de atajos de teclado.",
+	"settings.schema.editor.keymap.desc":
+		"Perfil modal activo de atajos de teclado.",
 
 	"textEditor.unsaved": "● Cambios sin guardar",
 	"textEditor.saved": "Guardado",

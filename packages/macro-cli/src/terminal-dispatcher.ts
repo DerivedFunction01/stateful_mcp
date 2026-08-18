@@ -150,7 +150,8 @@ export async function dispatchTerminalInput(
 	if (
 		(keymap.window.toggleSidepanel &&
 			chordMatches(keymap.window.toggleSidepanel, chordEvent)) ||
-		(event.ctrl && (name === "b" || input.toLowerCase() === "b" || input === "\x02"))
+		(event.ctrl &&
+			(name === "b" || input.toLowerCase() === "b" || input === "\x02"))
 	) {
 		workspace.layout.toggleSidepanel();
 		return "handled";

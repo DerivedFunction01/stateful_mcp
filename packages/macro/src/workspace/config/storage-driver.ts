@@ -1,7 +1,4 @@
-import type {
-	KvBackend,
-	SqlExecutor,
-} from "@stateful-mcp/core";
+import type { KvBackend, SqlExecutor } from "@stateful-mcp/core";
 import type { UserMacroProfile } from "../../contracts/extension-config";
 
 export interface WorkspaceSettings {
@@ -21,7 +18,10 @@ export interface SettingsStorageDriver {
 	listProfiles(): Promise<readonly string[]>;
 	deleteProfile(id: string): Promise<void>;
 	loadExtensionConfig(id: string): Promise<Record<string, unknown> | null>;
-	saveExtensionConfig(id: string, config: Record<string, unknown>): Promise<void>;
+	saveExtensionConfig(
+		id: string,
+		config: Record<string, unknown>,
+	): Promise<void>;
 	listExtensionConfigs(): Promise<readonly string[]>;
 }
 
@@ -207,7 +207,9 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 
 	async listProfiles(): Promise<readonly string[]> {
 		await this.ensureTables();
-		const rows = await this.sql.query("SELECT id FROM macro_profiles ORDER BY id ASC");
+		const rows = await this.sql.query(
+			"SELECT id FROM macro_profiles ORDER BY id ASC",
+		);
 		return Object.freeze(rows.map((r) => r.id as string));
 	}
 
@@ -249,7 +251,9 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 
 	async listExtensionConfigs(): Promise<readonly string[]> {
 		await this.ensureTables();
-		const rows = await this.sql.query("SELECT id FROM macro_extensions ORDER BY id ASC");
+		const rows = await this.sql.query(
+			"SELECT id FROM macro_extensions ORDER BY id ASC",
+		);
 		return Object.freeze(rows.map((r) => r.id as string));
 	}
 }

@@ -54,13 +54,28 @@ export function mergeProfile(
 
 		const baseVal = result[key];
 
-		if (key === "unitAliases" || key === "operatorAliases" || key === "statisticalAliases") {
-			result[key] = mergeRecords(baseVal, val as Record<string, readonly string[]>);
+		if (
+			key === "unitAliases" ||
+			key === "operatorAliases" ||
+			key === "statisticalAliases"
+		) {
+			result[key] = mergeRecords(
+				baseVal,
+				val as Record<string, readonly string[]>,
+			);
 		} else if (key === "rangeDelimiters" || key === "excludePrefixes") {
 			const bArr = Array.isArray(baseVal) ? baseVal : [];
 			const dArr = Array.isArray(val) ? val : [];
 			result[key] = Array.from(new Set([...bArr, ...dArr]));
-		} else if (key === "localization" || key === "numberWords" || key === "date" || key === "dateTime" || key === "relativeTemporal" || key === "currency" || key === "syntax") {
+		} else if (
+			key === "localization" ||
+			key === "numberWords" ||
+			key === "date" ||
+			key === "dateTime" ||
+			key === "relativeTemporal" ||
+			key === "currency" ||
+			key === "syntax"
+		) {
 			result[key] = mergeRecords(baseVal, val as Record<string, any>);
 		} else {
 			result[key] = val;
@@ -80,7 +95,9 @@ export async function resolveProfile(
 	visited: Set<string> = new Set(),
 ): Promise<UserMacroProfile> {
 	if (visited.has(targetId)) {
-		throw new Error(`Circular profile inheritance detected for profile "${targetId}"`);
+		throw new Error(
+			`Circular profile inheritance detected for profile "${targetId}"`,
+		);
 	}
 	visited.add(targetId);
 

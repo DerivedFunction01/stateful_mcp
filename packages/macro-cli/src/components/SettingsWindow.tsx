@@ -6,16 +6,14 @@ import {
 	type ExtensionTabRenderContext,
 	type I18nKernel,
 	type MacroWorkspace,
-	SettingsUiModel,
 	type SettingsScope,
 	type SettingsUiItem,
-	type SettingsUiSection,
-	type SettingsUiSnapshot,
+	SettingsUiModel,
 	type WorkspaceInputEvent,
 	type WorkspaceInputResult,
 	WorkspaceSettingsService,
 } from "@stateful-mcp/macro";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer } from "react";
 import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
@@ -69,7 +67,8 @@ export function SettingsWindowView({
 		return model.subscribe(forceUpdate);
 	}, [model]);
 
-	const activeCatId = selectedCategoryId ?? snapshot.sections[0]?.id ?? "syntax";
+	const activeCatId =
+		selectedCategoryId ?? snapshot.sections[0]?.id ?? "syntax";
 	const currentSection =
 		snapshot.sections.find((s) => s.id === activeCatId) ?? snapshot.sections[0];
 
@@ -78,7 +77,10 @@ export function SettingsWindowView({
 
 	const scopes: Array<{ id: SettingsScope; label: string }> = [
 		{ id: "user", label: translate(i18n, "settings.scope.user", "User") },
-		{ id: "workspace", label: translate(i18n, "settings.scope.workspace", "Workspace") },
+		{
+			id: "workspace",
+			label: translate(i18n, "settings.scope.workspace", "Workspace"),
+		},
 		{ id: "folder", label: translate(i18n, "settings.scope.folder", "Folder") },
 	];
 
@@ -96,21 +98,28 @@ export function SettingsWindowView({
 				flexDirection="row"
 				alignItems="center"
 				borderStyle="single"
-				borderColor={focusedRegion === "search" ? c.borderActive : c.borderDefault}
+				borderColor={
+					focusedRegion === "search" ? c.borderActive : c.borderDefault
+				}
 				backgroundColor={c.bgSurface}
 				paddingLeft={1}
 				paddingRight={1}
 				height={3}
 				marginBottom={1}
 			>
-				<text fg={focusedRegion === "search" ? c.accentPrimary : c.fgMuted}>🔍 </text>
+				<text fg={focusedRegion === "search" ? c.accentPrimary : c.fgMuted}>
+					🔍{" "}
+				</text>
 				{snapshot.searchQuery.length > 0 ? (
 					<box flexDirection="row">
 						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
 							{snapshot.searchQuery}
 						</text>
 						{focusedRegion === "search" && (
-							<TuiCursor char=" " theme={theme ?? GlobalThemeRegistry.getActive()} />
+							<TuiCursor
+								char=" "
+								theme={theme ?? GlobalThemeRegistry.getActive()}
+							/>
 						)}
 					</box>
 				) : (
@@ -152,7 +161,9 @@ export function SettingsWindowView({
 
 				{/* JSON Tab Open Action Button */}
 				<box
-					backgroundColor={snapshot.isSplitJsonMode ? c.accentPrimary : c.bgElevated}
+					backgroundColor={
+						snapshot.isSplitJsonMode ? c.accentPrimary : c.bgElevated
+					}
 					paddingLeft={1}
 					paddingRight={1}
 				>
@@ -175,10 +186,19 @@ export function SettingsWindowView({
 				<box flexGrow={1} />
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 					{snapshot.totalModifiedCount > 0
-						? translate(i18n, "settings.filter.modified", `Modified (${snapshot.totalModifiedCount})`, {
-								count: snapshot.totalModifiedCount,
-							})
-						: translate(i18n, "settings.origin.inherited", "Inherited from Base")}
+						? translate(
+								i18n,
+								"settings.filter.modified",
+								`Modified (${snapshot.totalModifiedCount})`,
+								{
+									count: snapshot.totalModifiedCount,
+								},
+							)
+						: translate(
+								i18n,
+								"settings.origin.inherited",
+								"Inherited from Base",
+							)}
 				</text>
 			</box>
 
@@ -190,7 +210,9 @@ export function SettingsWindowView({
 					flexDirection="column"
 					paddingRight={1}
 					borderStyle="single"
-					borderColor={focusedRegion === "navigation" ? c.borderActive : c.borderSubtle}
+					borderColor={
+						focusedRegion === "navigation" ? c.borderActive : c.borderSubtle
+					}
 				>
 					{snapshot.sections.map((sec) => {
 						const isSelected = sec.id === activeCatId;
@@ -232,7 +254,9 @@ export function SettingsWindowView({
 								<SettingItemRow
 									key={item.schema.path.join(".")}
 									item={item}
-									isFocused={focusedRegion === "content" && idx === selectedItemIndex}
+									isFocused={
+										focusedRegion === "content" && idx === selectedItemIndex
+									}
 									theme={activeTheme}
 									i18n={i18n}
 									onReset={() => model.resetValue(item.schema.path)}
@@ -481,7 +505,9 @@ export function createSettingsTabProvider(
 					selectedCategoryId={selectedCatId}
 					selectedItemIndex={selectedItemIndex}
 					onOpenJson={() => {
-						void workspace.commands.executeCommand("workbench.action.openSettingsJson");
+						void workspace.commands.executeCommand(
+							"workbench.action.openSettingsJson",
+						);
 					}}
 				/>
 			);
@@ -562,7 +588,12 @@ export function createSettingsTabProvider(
 
 			// If search region is focused, capture text input like command palette
 			if (focusedRegion === "search") {
-				if (key === "escape" || key === "enter" || key === "tab" || key === "\t") {
+				if (
+					key === "escape" ||
+					key === "enter" ||
+					key === "tab" ||
+					key === "\t"
+				) {
 					focusedRegion = "content";
 					return "handled";
 				}
@@ -570,7 +601,12 @@ export function createSettingsTabProvider(
 					uiModel.setSearchQuery(snapshot.searchQuery.slice(0, -1));
 					return "handled";
 				}
-				if (event.input && !event.ctrl && !event.meta && event.input.length === 1) {
+				if (
+					event.input &&
+					!event.ctrl &&
+					!event.meta &&
+					event.input.length === 1
+				) {
 					uiModel.setSearchQuery(snapshot.searchQuery + event.input);
 					return "handled";
 				}
@@ -584,7 +620,8 @@ export function createSettingsTabProvider(
 			}
 
 			if (key === "tab" || key === "\t") {
-				focusedRegion = focusedRegion === "navigation" ? "content" : "navigation";
+				focusedRegion =
+					focusedRegion === "navigation" ? "content" : "navigation";
 				return "handled";
 			}
 
