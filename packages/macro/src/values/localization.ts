@@ -68,6 +68,24 @@ const UNICODE_DIGIT_ZERO_BASES: readonly number[] = [
 	0x1d7f6, // Math monospace 0
 ];
 
+function findDigitBase(cp: number): number | undefined {
+	let low = 0;
+	let high = UNICODE_DIGIT_ZERO_BASES.length - 1;
+	while (low <= high) {
+		const mid = (low + high) >>> 1;
+		const base = UNICODE_DIGIT_ZERO_BASES[mid]!;
+		if (cp >= base && cp <= base + 9) {
+			return base;
+		}
+		if (cp < base) {
+			high = mid - 1;
+		} else {
+			low = mid + 1;
+		}
+	}
+	return undefined;
+}
+
 /**
  * Automatically normalizes any Unicode decimal digit across all 60+ world numeral scripts
  * (Arabic-Indic, Persian, Devanagari, Bengali, Thai, Khmer, Tibetan, Ethiopic, Fullwidth, etc.) to ASCII '0'..'9'.
@@ -91,12 +109,8 @@ export function normalizeUnicodeDigits(
 	return input.normalize("NFKC").replace(/\p{Nd}/gu, (char) => {
 		const cp = char.codePointAt(0);
 		if (cp === undefined) return char;
-		for (const base of UNICODE_DIGIT_ZERO_BASES) {
-			if (cp >= base && cp <= base + 9) {
-				return String(cp - base);
-			}
-		}
-		return char;
+		const base = findDigitBase(cp);
+		return base !== undefined ? String(cp - base) : char;
 	});
 }
 

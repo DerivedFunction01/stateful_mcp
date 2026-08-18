@@ -3,6 +3,7 @@ import type { QuantityConversionRegistry } from "./conversion/conversion-registr
 import {
 	type BaseValueGrammarConfig,
 	buildNumericPatternString,
+	EMPTY_DIAGNOSTICS,
 	type NumericParseOptions,
 	parseNumericValue,
 } from "./numeric";
@@ -138,6 +139,11 @@ export interface QuantityConsumerPolicy {
 	/** Whether data point counts (e.g. n=100) are allowed */
 	readonly allowDataPointCount?: boolean;
 }
+
+export type QuantityStatisticsPolicy =
+	| "accept"
+	| "reject"
+	| StatisticalConsumerPolicy;
 
 export interface QuantityDiagnostic {
 	readonly code: string;
@@ -380,7 +386,7 @@ export function parseQuantity(
 
 				return {
 					value: resultValue,
-					diagnostics: [],
+					diagnostics: EMPTY_DIAGNOSTICS,
 				};
 			}
 		}
@@ -413,7 +419,7 @@ export function parseQuantity(
 
 	return {
 		value: resultValue,
-		diagnostics: [],
+		diagnostics: EMPTY_DIAGNOSTICS,
 	};
 }
 

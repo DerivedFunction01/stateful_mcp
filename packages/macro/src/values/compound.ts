@@ -1,5 +1,5 @@
 import type { QuantityConversionRegistry } from "./conversion/conversion-registry";
-import { parseNumericValue } from "./numeric";
+import { EMPTY_DIAGNOSTICS, parseNumericValue } from "./numeric";
 import { resolveUnitAlias as resolveQuantityUnit } from "./quantity";
 import { escapeRegex } from "./regex";
 
@@ -22,7 +22,7 @@ export interface ChainedQuantityResult {
 
 export interface ChainedQuantityResolution {
 	readonly value?: ChainedQuantityResult;
-	readonly diagnostics: Array<{ code: string; message: string }>;
+	readonly diagnostics: readonly { code: string; message: string }[];
 }
 
 import type { BaseValueGrammarConfig } from "./numeric";
@@ -206,7 +206,7 @@ export function parseMultiUnitChain(
 			chain: resolvedChain,
 			rawText,
 		},
-		diagnostics: [],
+		diagnostics: EMPTY_DIAGNOSTICS,
 	};
 }
 

@@ -304,11 +304,13 @@ export function resolveArgumentPolicy(
 		allowRange: policy?.allowRange ?? true,
 		allowOperator: policy?.allowOperator ?? true,
 		statisticsPolicy:
-			policy?.statistics === "accept"
-				? { policy: "accept_all" }
-				: policy?.statistics === "reject"
-					? { policy: "reject_all_statistics" }
-					: undefined,
+			typeof policy?.statistics === "object"
+				? policy.statistics
+				: policy?.statistics === "accept"
+					? { policy: "accept_all" }
+					: policy?.statistics === "reject"
+						? { policy: "reject_all_statistics" }
+						: undefined,
 		allowDataPointCount: policy?.allowDataPointCount ?? false,
 	};
 

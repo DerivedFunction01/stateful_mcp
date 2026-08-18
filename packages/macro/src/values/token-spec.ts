@@ -84,7 +84,6 @@ export const DATE_TIME_TOKENS = [
 	"SS",
 	"ampm",
 	"tz",
-	"ERA",
 ] as const;
 export type DateTimeToken = (typeof DATE_TIME_TOKENS)[number];
 

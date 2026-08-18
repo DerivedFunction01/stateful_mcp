@@ -1,3 +1,4 @@
+const MAX_REGEX_CACHE_SIZE = 1000;
 const cache = new Map<string, RegExp>();
 
 export function getCompiledRegex(pattern: string, flags = "u"): RegExp {
@@ -6,6 +7,10 @@ export function getCompiledRegex(pattern: string, flags = "u"): RegExp {
 	const key = `${pattern}\x00${effectiveFlags}`;
 	const cached = cache.get(key);
 	if (cached) return cached;
+	if (cache.size >= MAX_REGEX_CACHE_SIZE) {
+		const firstKey = cache.keys().next().value;
+		if (firstKey !== undefined) cache.delete(firstKey);
+	}
 	const compiled = new RegExp(pattern, effectiveFlags);
 	cache.set(key, compiled);
 	return compiled;

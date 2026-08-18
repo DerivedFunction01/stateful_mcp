@@ -8,6 +8,8 @@ export interface GenerateTimeZoneMapOptions {
 	readonly blank?: boolean;
 }
 
+let cachedDefaultCodeMap: Record<string, string> | undefined;
+
 /**
  * Pure dynamic timezone short code map generator.
  * Zero hardcoded keys — derived dynamically from Intl.supportedValuesOf("timeZone").
@@ -17,6 +19,10 @@ export function generateTimeZoneCodeMap(
 ): Record<string, string> {
 	if (options.blank) {
 		return {};
+	}
+
+	if (cachedDefaultCodeMap) {
+		return { ...cachedDefaultCodeMap };
 	}
 
 	const map: Record<string, string> = {};
@@ -54,19 +60,34 @@ export function generateTimeZoneCodeMap(
 		}
 	}
 
-	return map;
+	cachedDefaultCodeMap = Object.freeze({ ...map });
+	return { ...cachedDefaultCodeMap };
 }
+
+const timeZoneValidityCache = new Map<string, boolean>();
+const MAX_TZ_VALIDITY_CACHE = 500;
 
 /**
  * Checks if a string is a valid IANA timezone supported by the runtime.
  */
 export function isValidTimeZone(timeZone: string): boolean {
+	const cached = timeZoneValidityCache.get(timeZone);
+	if (cached !== undefined) return cached;
+
+	let valid = false;
 	try {
 		Intl.DateTimeFormat(undefined, { timeZone });
-		return true;
+		valid = true;
 	} catch {
-		return false;
+		valid = false;
 	}
+
+	if (timeZoneValidityCache.size >= MAX_TZ_VALIDITY_CACHE) {
+		const firstKey = timeZoneValidityCache.keys().next().value;
+		if (firstKey !== undefined) timeZoneValidityCache.delete(firstKey);
+	}
+	timeZoneValidityCache.set(timeZone, valid);
+	return valid;
 }
 
 /**

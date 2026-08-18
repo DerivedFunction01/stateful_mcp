@@ -5,23 +5,12 @@ import {
 	extractPrefixAlias,
 	flattenAndSortAliases,
 } from "./token-matcher";
-import type { RelativeTimeToken, ValueFormatConfig } from "./token-spec";
-
-export const DATE_TIME_TOKENS = [
-	"YYYY",
-	"YY",
-	"MM_name",
-	"MM",
-	"DDD",
-	"DD",
-	"HH",
-	"min",
-	"SS",
-	"ampm",
-	"tz",
-] as const;
-
-export type DateTimeToken = (typeof DATE_TIME_TOKENS)[number];
+import {
+	DATE_TIME_TOKENS,
+	type DateTimeToken,
+	type RelativeTimeToken,
+	type ValueFormatConfig,
+} from "./token-spec";
 
 export type DateTimeValueKind = "date" | "time" | "datetime";
 export type DateTimeField =

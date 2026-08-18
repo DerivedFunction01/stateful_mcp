@@ -83,14 +83,14 @@ describe("Phase 3D — Generic vertical integration", () => {
 		const compiled = compileDomainConfig(userProfile, domainConfig);
 
 		// Tier 1 + Tier 2 unit aliases merged
-		expect(compiled.quantity.unitAliases.kg).toEqual([
+		expect(compiled.quantity.unitAliases!.kg).toEqual([
 			"kilograms",
 			"kilogrammes",
 			"kilos",
 			"kg",
 		]);
-		expect(compiled.quantity.unitAliases.box).toEqual(["boxes", "box", "bx"]);
-		expect(compiled.quantity.unitAliases.pallet).toEqual([
+		expect(compiled.quantity.unitAliases!.box).toEqual(["boxes", "box", "bx"]);
+		expect(compiled.quantity.unitAliases!.pallet).toEqual([
 			"pallets",
 			"pallet",
 			"plt",

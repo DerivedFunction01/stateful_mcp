@@ -1,7 +1,5 @@
 import { escapeRegex, getCompiledRegex } from "./regex";
 
-export * from "./token-spec";
-
 export interface TemplateTokenSpec<T = unknown> {
 	/** Regex pattern matching the token value (e.g. "\\d{4}", "[0-5]\\d", or "(?:0?[1-9]|1[0-2])") */
 	readonly pattern: string;
@@ -51,9 +49,7 @@ export interface TemplateParseResult<
 	readonly diagnostics: readonly TemplateDiagnostic[];
 }
 
-/**
- * In-memory cache of compiled templates keyed by composite signature.
- */
+const MAX_TEMPLATE_CACHE_SIZE = 500;
 const templateCache = new Map<string, CompiledTemplate<any>>();
 
 /**
@@ -184,6 +180,10 @@ export function compileFormatTemplate<
 		diagnostics: Object.freeze(diagnostics),
 	};
 
+	if (templateCache.size >= MAX_TEMPLATE_CACHE_SIZE) {
+		const firstKey = templateCache.keys().next().value;
+		if (firstKey !== undefined) templateCache.delete(firstKey);
+	}
 	templateCache.set(cacheKey, compiled);
 	return compiled;
 }

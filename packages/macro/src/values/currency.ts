@@ -1,5 +1,5 @@
 import type { CurrencyValue, ValueEvidence } from "../contracts/values";
-import { formatNumericValue, parseNumericValue } from "./numeric";
+import { EMPTY_DIAGNOSTICS, formatNumericValue, parseNumericValue } from "./numeric";
 import { escapeRegex } from "./regex";
 
 export interface CurrencyDenomination {
@@ -68,7 +68,7 @@ export interface CurrencyGrammarResult {
 
 export interface CurrencyResolution {
 	value?: CurrencyGrammarResult;
-	diagnostics: Array<{ code: string; message: string }>;
+	readonly diagnostics: readonly { code: string; message: string }[];
 }
 
 export const STANDARD_CURRENCY_CATALOG: readonly CurrencyDefinition[] = [
@@ -209,7 +209,7 @@ export function parseCurrency(
 		};
 		return {
 			value: curVal,
-			diagnostics: [],
+			diagnostics: EMPTY_DIAGNOSTICS,
 		};
 	}
 
@@ -284,7 +284,7 @@ export function parseCurrency(
 
 	return {
 		value: curVal,
-		diagnostics: [],
+		diagnostics: EMPTY_DIAGNOSTICS,
 	};
 }
 

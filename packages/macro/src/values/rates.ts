@@ -37,7 +37,7 @@ export interface CompoundRateValue {
 	readonly rawText: string;
 }
 
-import type { BaseValueGrammarConfig } from "./numeric";
+import { type BaseValueGrammarConfig, EMPTY_DIAGNOSTICS } from "./numeric";
 import type { RateToken, ValueFormatConfig } from "./token-spec";
 
 export interface CompoundRateConfig extends BaseValueGrammarConfig {
@@ -58,7 +58,7 @@ export interface CompoundRateConsumerPolicy {
 
 export interface CompoundRateResolution {
 	readonly value?: CompoundRateValue;
-	readonly diagnostics: Array<{ code: string; message: string }>;
+	readonly diagnostics: readonly { code: string; message: string }[];
 }
 
 /**
@@ -235,6 +235,6 @@ export function parseCompoundRate(
 
 	return {
 		value: rateValue,
-		diagnostics: [],
+		diagnostics: EMPTY_DIAGNOSTICS,
 	};
 }

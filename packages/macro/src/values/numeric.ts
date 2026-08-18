@@ -37,6 +37,8 @@ export interface NumericDiagnostic {
 	readonly message: string;
 }
 
+export const EMPTY_DIAGNOSTICS: readonly any[] = Object.freeze([]);
+
 export interface NumericParseResult {
 	readonly parsed?: ParsedNumber;
 	readonly diagnostics: readonly NumericDiagnostic[];
@@ -370,7 +372,7 @@ function validateNumericResult(
 
 	return {
 		parsed,
-		diagnostics: [],
+		diagnostics: EMPTY_DIAGNOSTICS,
 	};
 }
 

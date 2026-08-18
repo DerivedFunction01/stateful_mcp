@@ -94,6 +94,8 @@ function renderBoundary(
 					timeZone: options.timeZone ?? format.options?.timeZone ?? "UTC",
 					month: "long",
 				}).format(date);
+			default:
+				return "";
 		}
 	};
 	return format.tokens.reduce(
