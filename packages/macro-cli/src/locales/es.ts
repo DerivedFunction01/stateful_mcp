@@ -131,9 +131,9 @@ export const ES_LOCALE_CLI: Record<string, string> = {
 	"settings.schema.appearance.theme.title": "Tema de Color",
 	"settings.schema.appearance.theme.desc":
 		"Paleta de color activa para la interfaz de terminal.",
-	"settings.schema.editor.keymap.title": "Mapa de Teclas del Editor",
-	"settings.schema.editor.keymap.desc":
-		"Perfil modal activo de atajos de teclado.",
+	"settings.schema.editor.keybindings.title": "Atajos de Teclado",
+	"settings.schema.editor.keybindings.desc":
+		"Mapeo de comandos a secuencias de teclas (ej. {'editor.save': ['ctrl+s']}).",
 
 	"textEditor.unsaved": "● Cambios sin guardar",
 	"textEditor.saved": "Guardado",

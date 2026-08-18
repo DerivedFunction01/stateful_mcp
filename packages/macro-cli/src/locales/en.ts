@@ -129,8 +129,9 @@ export const EN_LOCALE_CLI: Record<string, string> = {
 	"settings.schema.appearance.theme.title": "Color Theme",
 	"settings.schema.appearance.theme.desc":
 		"Active color palette for the terminal UI.",
-	"settings.schema.editor.keymap.title": "Editor Keymap",
-	"settings.schema.editor.keymap.desc": "Active modal keybindings profile.",
+	"settings.schema.editor.keybindings.title": "Custom Keybindings",
+	"settings.schema.editor.keybindings.desc":
+		"Command keybinding chord mappings (e.g. {'editor.save': ['ctrl+s']}).",
 
 	"textEditor.unsaved": "● Unsaved Changes",
 	"textEditor.saved": "Saved",

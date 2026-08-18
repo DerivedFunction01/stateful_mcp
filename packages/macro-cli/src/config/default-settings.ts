@@ -16,7 +16,7 @@ export const DEFAULT_WORKSPACE_SETTINGS_VALUES = {
 		theme: "github-dark",
 	},
 	editor: {
-		keymap: "default",
+		keybindings: {},
 	},
 	locale: "en",
 } as const;
@@ -130,22 +130,21 @@ export function getDefaultSettingsSchema(
 			enumValues: [...THEME_IDS],
 		},
 		{
-			path: ["editor", "keymap"],
-			type: "enum",
-			widget: "dropdown",
+			path: ["editor", "keybindings"],
+			type: "object",
+			widget: "table",
 			category: "editor",
 			group: "Keybindings",
 			title: translate(
 				i18n,
-				"settings.schema.editor.keymap.title",
-				"Editor Keymap",
+				"settings.schema.editor.keybindings.title",
+				"Custom Keybindings",
 			),
 			description: translate(
 				i18n,
-				"settings.schema.editor.keymap.desc",
-				"Active modal keybindings profile.",
+				"settings.schema.editor.keybindings.desc",
+				"Command keybinding chord mappings (e.g. {'editor.save': ['ctrl+s']}).",
 			),
-			enumValues: ["default", "vim", "emacs"],
 		},
 	];
 }
