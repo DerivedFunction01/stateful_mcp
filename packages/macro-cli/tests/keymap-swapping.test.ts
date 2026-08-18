@@ -11,7 +11,7 @@ import { loadMacroCliWorkspace } from "../src/workspace-loader";
 
 const normalSettingsContext = {
 	activeTabId: "settings",
-	focusedPane: "main",
+	focusedPane: "modal",
 	editorMode: "NORMAL" as const,
 };
 
@@ -59,8 +59,8 @@ describe("profile-driven command keymaps", () => {
 			}),
 		);
 		const loaded = await loadMacroCliWorkspace({ keymapPath });
-		loaded.workspace.layout.setActiveTab("settings");
-		loaded.workspace.layout.setFocusedPane("main");
+		loaded.workspace.settingsModal?.open();
+		loaded.workspace.settingsModal?.setFocus("categories");
 
 		expect(
 			await dispatchTerminalInput(loaded.workspace, loaded.keymap, {

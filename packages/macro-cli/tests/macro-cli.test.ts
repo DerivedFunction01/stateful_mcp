@@ -441,14 +441,14 @@ describe("macro-cli terminal dispatcher", () => {
 		await workspace.runtime.dispose();
 	});
 
-	test("navigates and modifies settings tab with keyboard commands", async () => {
+	test("navigates and modifies settings modal with keyboard commands", async () => {
 		const loaded = await loadMacroCliWorkspace();
 		const { workspace, keymap } = loaded;
 
-		// 1. Open settings tab
-		workspace.layout.setActiveTab("settings");
-		workspace.layout.setFocusedPane("main");
-		expect(workspace.layout.getSnapshot().activeTabId).toBe("settings");
+		// 1. Open settings modal
+		await workspace.commands.executeCommand("workspace.openSettings");
+		workspace.settingsModal?.setFocus("categories");
+		expect(workspace.layout.getSnapshot().activeModal?.id).toBe("settings");
 
 		// 2. Navigate down sections with 'j' and 'down'
 		expect(await dispatchTerminalInput(workspace, keymap, { input: "j" })).toBe(
@@ -516,7 +516,7 @@ describe("macro-cli terminal dispatcher", () => {
 		expect(
 			await dispatchTerminalInput(workspace, keymap, { name: "escape" }),
 		).toBe("handled");
-		expect(workspace.layout.getSnapshot().activeTabId).toBe("scratchpad");
+		expect(workspace.layout.getSnapshot().activeModal).toBeNull();
 
 		await workspace.dispose();
 	});
@@ -529,9 +529,8 @@ describe("macro-cli terminal dispatcher", () => {
 		workspace.editor.buffer.setText("^initial scratchpad content");
 		workspace.editor.setMode("NORMAL");
 
-		// Switch to settings tab
-		workspace.layout.setActiveTab("settings");
-		workspace.layout.setFocusedPane("main");
+		// Open settings modal
+		await workspace.commands.executeCommand("workspace.openSettings");
 
 		// Typing 'i' on settings should NOT enter INSERT mode on the scratchpad editor
 		await dispatchTerminalInput(workspace, keymap, { input: "i" });

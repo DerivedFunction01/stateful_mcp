@@ -3,7 +3,9 @@ import { ExtensionRuntime } from "../extensions/runtime";
 import { WorkspaceSaveCoordinator } from "./commands/save-coordinator";
 import type { OpenSettingsRequest } from "./config/settings-navigation";
 import { SettingsNavigationState } from "./config/settings-navigation";
-import type { WorkspaceSettingsService } from "./config/settings-service";
+import { SettingsModalController } from "./config/settings-modal-controller";
+import { SettingsUiModel } from "./config/settings-ui-model";
+import { WorkspaceSettingsService } from "./config/settings-service";
 import { CommandRegistry } from "./contributions/command-registry";
 import { ExtensionContributionManager } from "./contributions/extension-contribution-manager";
 import { SettingsContributionRegistry } from "./contributions/settings-registry";
@@ -30,6 +32,7 @@ export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
 export * from "./config/profile-resolver";
 export * from "./config/settings-navigation";
+export * from "./config/settings-modal-controller";
 export * from "./config/settings-service";
 export * from "./config/settings-ui-model";
 export * from "./config/storage-driver";
@@ -81,6 +84,7 @@ export interface MacroWorkspace {
 	readonly contributions: ExtensionContributionManager;
 	readonly settingsContributions: SettingsContributionRegistry;
 	readonly settingsNavigation: SettingsNavigationState;
+	readonly settingsModal?: SettingsModalController;
 	dispose(): Promise<void>;
 }
 
@@ -112,6 +116,16 @@ export function createMacroWorkspace(
 	);
 	const palette = new CommandPaletteController(commands, layout, tabs);
 	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
+	const settingsService = options?.settings ??
+		new WorkspaceSettingsService({
+			defaults: {},
+			storage: { read: () => null, write: () => undefined, reset: () => undefined },
+		});
+	const settingsModal = new SettingsModalController(
+		new SettingsUiModel(settingsService, i18n),
+		layout,
+		settingsNavigation,
+	);
 	if (options?.settings) {
 		let previousLocale =
 			(options.settings.getEffective().locale as string) ??
@@ -228,10 +242,25 @@ export function createMacroWorkspace(
 		{
 			execute: (request?: OpenSettingsRequest) => {
 				settingsNavigation.open(request);
-				layout.setActiveTab("settings");
-				layout.setFocusedPane("main");
+				settingsModal?.open(request);
 			},
 		},
+	);
+	commands.registerCommand(
+		{
+			command: "workspace.closeSettings",
+			title: "Close Settings",
+			category: "Workspace",
+		},
+		{ execute: () => settingsModal?.close() },
+	);
+	commands.registerCommand(
+		{
+			command: "workspace.toggleSettings",
+			title: "Toggle Settings",
+			category: "Workspace",
+		},
+		{ execute: () => settingsModal?.toggle() },
 	);
 	commands.registerCommand(
 		{
@@ -287,6 +316,7 @@ export function createMacroWorkspace(
 		contributions,
 		settingsContributions,
 		settingsNavigation,
+		settingsModal,
 		dispose: async () => {
 			unsubscribeSettingsContributions();
 			contributions.dispose();

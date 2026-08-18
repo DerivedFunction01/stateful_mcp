@@ -318,6 +318,8 @@ function contextsOverlap(
 	second: WorkspaceKeybinding["when"],
 ): boolean {
 	if (!first || !second) return true;
+	if (isModalOnly(first) && excludesModal(second)) return false;
+	if (isModalOnly(second) && excludesModal(first)) return false;
 	if ("not" in first && "key" in first.not && "key" in second)
 		return first.not.key !== second.key || first.not.equals !== second.equals;
 	if ("not" in second && "key" in second.not && "key" in first)
@@ -325,6 +327,18 @@ function contextsOverlap(
 	if ("key" in first && "key" in second)
 		return first.key !== second.key || first.equals === second.equals;
 	return true;
+}
+
+function isModalOnly(expression: NonNullable<WorkspaceKeybinding["when"]>): boolean {
+	return "key" in expression && expression.key === "focusedPane" && expression.equals === "modal";
+}
+
+function excludesModal(expression: NonNullable<WorkspaceKeybinding["when"]>): boolean {
+	if ("not" in expression && "key" in expression.not)
+		return expression.not.key === "focusedPane" && expression.not.equals === "modal";
+	if ("allOf" in expression)
+		return expression.allOf.some((item) => "not" in item && "key" in item.not && item.not.key === "focusedPane" && item.not.equals === "modal");
+	return false;
 }
 
 const LEGACY_COMMAND_PATHS: Readonly<Record<string, string>> = {

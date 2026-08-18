@@ -18,7 +18,7 @@ describe("Dynamic Keymap-Driven HelpBar Hints", () => {
 	test("derives hints for settings tab dynamically from default keymap", () => {
 		const workspace = createMacroWorkspace({ initialLocale: "en" });
 		registerCliLocales(workspace.i18n);
-		workspace.layout.setActiveTab("settings");
+		workspace.settingsModal?.open();
 
 		const hints = buildContextualHelpBarHints(
 			workspace,
@@ -59,7 +59,7 @@ describe("Dynamic Keymap-Driven HelpBar Hints", () => {
 
 		const workspace = createMacroWorkspace({ initialLocale: "en" });
 		registerCliLocales(workspace.i18n);
-		workspace.layout.setActiveTab("settings");
+		workspace.settingsModal?.open();
 
 		const hints = buildContextualHelpBarHints(workspace, customKeymap);
 
@@ -77,7 +77,7 @@ describe("Dynamic Keymap-Driven HelpBar Hints", () => {
 	test("localizes action labels when Spanish locale is active", () => {
 		const workspace = createMacroWorkspace({ initialLocale: "es" });
 		registerCliLocales(workspace.i18n);
-		workspace.layout.setActiveTab("settings");
+		workspace.settingsModal?.open();
 
 		const hints = buildContextualHelpBarHints(
 			workspace,

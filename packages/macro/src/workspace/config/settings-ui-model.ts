@@ -89,6 +89,7 @@ export class SettingsUiModel {
 	private searchQuery = "";
 	private filterModifiedOnly = false;
 	private isSplitJsonMode = false;
+	private cachedProfiles: readonly string[] = [];
 	private readonly listeners = new Set<() => void>();
 
 	constructor(
@@ -143,6 +144,20 @@ export class SettingsUiModel {
 	setSearchQuery(query: string): void {
 		this.searchQuery = query;
 		this.notify();
+	}
+
+	setActiveSection(_sectionId: string): void {
+		// Section selection is owned by the modal controller. This method exists
+		// as a shared synchronization hook for consumers of the UI model.
+		this.notify();
+	}
+
+	async save() {
+		return this.service.save();
+	}
+
+	getDiagnostics(): readonly SettingsDiagnostic[] {
+		return this.service.getDiagnostics();
 	}
 
 	getFilterModifiedOnly(): boolean {
@@ -306,6 +321,7 @@ export class SettingsUiModel {
 
 		return {
 			activeProfileId: this.activeProfileId,
+			availableProfiles: this.cachedProfiles,
 			activeScope: this.activeScope,
 			searchQuery: this.searchQuery,
 			filterModifiedOnly: this.filterModifiedOnly,

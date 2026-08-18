@@ -22,6 +22,9 @@ export async function dispatchTerminalMouseInput(
 	event: TerminalMouseEvent,
 ): Promise<"handled" | "ignored"> {
 	const layout = workspace.layout.getSnapshot();
+	if (layout.activeModal?.id === "settings" && workspace.settingsModal) {
+		return workspace.settingsModal.handleInput(event);
+	}
 	if (workspace.palette.getIsOpen()) {
 		if (event.type === "wheel") {
 			workspace.palette.moveSelection(event.delta && event.delta > 0 ? 1 : -1);
@@ -64,6 +67,38 @@ export async function dispatchTerminalInput(
 	const isEnter =
 		name === "return" || name === "enter" || input === "\r" || input === "\n";
 	const layout = workspace.layout.getSnapshot();
+
+	if (layout.activeModal?.id === "settings" && workspace.settingsModal) {
+		if (name === "escape") {
+			workspace.settingsModal.requestClose();
+			return "handled";
+		}
+		const modalCommand = matchKeymapCommand(keymap, chordEvent, {
+			activeTabId: layout.activeTabId,
+			focusedPane: "modal",
+			editorMode: workspace.editor.getMode(),
+		});
+		if (modalCommand === "settings.save") {
+			await workspace.settingsModal.save();
+			return "handled";
+		}
+		if (modalCommand?.startsWith("settings."))
+			return workspace.settingsModal.handleCommand(modalCommand);
+		if (
+			workspace.settingsModal.getSnapshot().dialog ||
+			!["search", "json"].includes(workspace.settingsModal.getSnapshot().focus) &&
+			!['tab', 'pageup', 'pagedown', 'enter', 'return'].includes(name ?? input.toLowerCase())
+		)
+			return "ignored";
+		return workspace.settingsModal.handleInput({
+			type: "key",
+			key: name,
+			input,
+			ctrl: event.ctrl,
+			meta: event.meta,
+			shift: event.shift,
+		});
+	}
 
 	// 1. Command Palette Modal Focus
 	if (workspace.palette.getIsOpen()) {
@@ -370,6 +405,13 @@ export async function dispatchTerminalInput(
 		focusedPane: layout.focusedPane,
 		editorMode: currentMode,
 	});
+	if (
+		profileCommand === "workspace.openSettings" ||
+		profileCommand === "workspace.toggleSettings"
+	) {
+		await workspace.commands.executeCommand(profileCommand);
+		return "handled";
+	}
 	if (profileCommand && contribution?.handleAction) {
 		const result = await contribution.handleAction(profileCommand, undefined, {
 			scopeId:

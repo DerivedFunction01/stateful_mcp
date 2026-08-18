@@ -33,6 +33,7 @@ export function MacroCliApp({
 			workspace.tabs.subscribe(listener),
 			workspace.views.subscribe(listener),
 			workspace.settingsNavigation.subscribe(listener),
+			workspace.settingsModal?.subscribe(listener) ?? (() => undefined),
 			workspace.settings?.subscribe(listener) ?? (() => undefined),
 		];
 		return () => unsubscribers.forEach((unsubscribe) => unsubscribe());

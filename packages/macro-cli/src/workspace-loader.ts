@@ -18,7 +18,6 @@ import {
 } from "@stateful-mcp/macro";
 import { createElement } from "react";
 import { BuiltinActivityPanel } from "./components/BuiltinActivityPanel";
-import { createSettingsTabProvider } from "./components/SettingsWindow";
 import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
@@ -171,9 +170,6 @@ export async function loadMacroCliWorkspace(
 		initialLocale,
 		profile: resolvedProfile,
 		settings,
-	});
-	workspace.tabs.registerTabProvider("settings", {
-		...createSettingsTabProvider(workspace, keymap),
 	});
 	workspace.tabs.registerTabProvider("extensions", {
 		render: () =>

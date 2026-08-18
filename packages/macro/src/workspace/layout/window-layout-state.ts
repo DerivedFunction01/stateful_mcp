@@ -47,6 +47,7 @@ export class WindowLayoutStateManager {
 	private activeContainerId = "slots";
 	private focusedPane: FocusedPane = "main";
 	private modalStack: ModalDescriptor[] = [];
+	private modalFocusStack: FocusedPane[] = [];
 	private regions: Record<WorkspaceRegionId, WorkspaceRegionState> = {
 		activity: { open: true, dock: "start", widthRatio: 0.2 },
 		inspector: { open: true, dock: "end", widthRatio: 0.35 },
@@ -306,6 +307,7 @@ export class WindowLayoutStateManager {
 	}
 
 	openModal(modal: ModalDescriptor): void {
+		this.modalFocusStack.push(this.focusedPane);
 		this.modalStack.push(modal);
 		this.focusedPane = "modal";
 		this.notify();
@@ -313,9 +315,9 @@ export class WindowLayoutStateManager {
 
 	closeModal(): ModalDescriptor | undefined {
 		const closed = this.modalStack.pop();
-		if (this.modalStack.length === 0) {
-			this.focusedPane = "main";
-		}
+		const previousFocus = this.modalFocusStack.pop();
+		if (this.modalStack.length === 0 && previousFocus) this.focusedPane = previousFocus;
+		else if (this.modalStack.length > 0) this.focusedPane = "modal";
 		this.notify();
 		return closed;
 	}

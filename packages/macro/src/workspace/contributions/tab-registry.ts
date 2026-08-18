@@ -26,13 +26,6 @@ export class TabRegistry {
 			icon: "📓",
 		});
 		this.registerTab({
-			id: "settings",
-			label: "Settings",
-			order: 90,
-			defaultVisible: true,
-			icon: "⚙",
-		});
-		this.registerTab({
 			id: "extensions",
 			label: "Extensions",
 			order: 95,

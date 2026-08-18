@@ -306,6 +306,44 @@ export function buildContextualHelpBarHints(
 
 	const find = (cmd: string) => activeBindings.find((b) => b.command === cmd);
 
+	if (focusedPane === "modal" && layout.activeModal?.id === "settings") {
+		const hints: TuiShortcutHint[] = [];
+		const navChord = formatPairedChords(
+			find("settings.navigateDown"),
+			find("settings.navigateUp"),
+		);
+		if (navChord)
+			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate"), row: 1 });
+		const focusChord = formatPairedChords(
+			find("settings.focusNavigation"),
+			find("settings.focusContent"),
+		);
+		if (focusChord)
+			hints.push({ key: focusChord, action: translate(i18n, "helpBar.switchFocus"), row: 1 });
+		const searchChord = getPrimaryChord(find("settings.focusSearch"));
+		if (searchChord)
+			hints.push({ key: searchChord, action: translate(i18n, "command.settings.focusSearch"), row: 2 });
+		const saveChord = getPrimaryChord(find("settings.save"));
+		if (saveChord)
+			hints.push({ key: saveChord, action: translate(i18n, "command.settings.save"), row: 2 });
+		const closeChord = getPrimaryChord(find("settings.back"));
+		if (closeChord)
+				hints.push({ key: closeChord, action: translate(i18n, "command.settings.back"), row: 2 });
+		const focusRingChord = formatPairedChords(
+			find("settings.focusNext"),
+			find("settings.focusPrevious"),
+		);
+		if (focusRingChord)
+			hints.push({ key: focusRingChord, action: translate(i18n, "command.settings.focusNext"), row: 1 });
+		const sectionChord = formatPairedChords(
+			find("settings.nextSection"),
+			find("settings.previousSection"),
+		);
+		if (sectionChord)
+			hints.push({ key: sectionChord, action: translate(i18n, "command.settings.nextSection"), row: 2 });
+		return hints;
+	}
+
 	if (focusedPane === "palette") {
 		const hints: TuiShortcutHint[] = [];
 		const navChord = formatPairedChords(

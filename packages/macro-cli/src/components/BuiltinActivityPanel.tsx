@@ -33,10 +33,10 @@ export function BuiltinActivityPanel({
 			{
 				id: "dateTime",
 				label: "Date and time",
-				detail: profile?.dateTime
-					? `${Object.keys(profile.dateTime.formats).length} formats`
-					: profile?.date
-						? "Legacy date format"
+				detail: profile?.values?.dateTime?.formats
+					? `${Object.keys(profile.values.dateTime.formats).length} formats`
+					: profile?.values?.date
+						? "Configured date format"
 						: "Default formats",
 			},
 			{ id: "keymap", label: "Keymap", detail: keymap?.profileId ?? "default" },

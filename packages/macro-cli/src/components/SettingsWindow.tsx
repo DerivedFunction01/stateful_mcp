@@ -51,12 +51,21 @@ export interface SettingsWindowProps {
 	readonly height?: number;
 	readonly theme?: TuiThemeDefinition;
 	readonly i18n?: I18nKernel;
-	readonly focusedRegion?: "navigation" | "content" | "search";
+	readonly focusedRegion?:
+		| "navigation"
+		| "categories"
+		| "content"
+		| "search"
+		| "profile"
+		| "scope"
+		| "json"
+		| "actions";
 	readonly selectedCategoryId?: string;
 	readonly selectedItemIndex?: number;
 	readonly onSelectCategory?: (categoryId: string) => void;
 	readonly onOpenJson?: () => void;
 	readonly onSwitchProfile?: (profileId: string) => void;
+	readonly onScopeChange?: (scope: SettingsScope) => void;
 	readonly onCreateProfile?: () => void;
 }
 
@@ -72,6 +81,7 @@ export function SettingsWindowView({
 	onSelectCategory,
 	onOpenJson,
 	onSwitchProfile,
+	onScopeChange,
 	onCreateProfile,
 }: SettingsWindowProps) {
 	const activeTheme = theme ?? GlobalThemeRegistry.getActive();
@@ -199,6 +209,7 @@ export function SettingsWindowView({
 							}
 						}}
 						width={26}
+						isFocused={focusedRegion === "profile"}
 						theme={theme}
 					/>
 				</box>
@@ -206,26 +217,36 @@ export function SettingsWindowView({
 				{/* JSON Tab Open Action Button */}
 				<box
 					backgroundColor={
-						snapshot.isSplitJsonMode ? c.accentPrimary : c.bgElevated
+						focusedRegion === "json" || snapshot.isSplitJsonMode
+							? c.accentPrimary
+							: c.bgElevated
 					}
 					paddingLeft={1}
 					paddingRight={1}
 					onMouseDown={() => onOpenJson?.()}
 				>
 					<text
-						fg={snapshot.isSplitJsonMode ? c.bgCanvas : c.fgPrimary}
+						fg={focusedRegion === "json" || snapshot.isSplitJsonMode ? c.bgCanvas : c.fgPrimary}
 						attributes={TextAttributes.BOLD}
 					>
-						{"{ }"}
+						{translate(i18n, "settings.jsonAction")}
 					</text>
 				</box>
 			</box>
 
 			{/* 2. Scope Bar */}
-			<box height={1} marginBottom={1} flexDirection="row" alignItems="center">
+				<box
+					height={1}
+					marginBottom={1}
+					flexDirection="row"
+					alignItems="center"
+					borderStyle={focusedRegion === "scope" ? "single" : undefined}
+					borderColor={c.borderActive}
+				>
 				<TuiTabs
 					tabs={scopes}
 					activeTabId={snapshot.activeScope}
+					onSelectTab={(id) => onScopeChange?.(id as SettingsScope)}
 					theme={theme}
 				/>
 				<box flexGrow={1} />
@@ -247,7 +268,7 @@ export function SettingsWindowView({
 					paddingRight={1}
 					borderStyle="single"
 					borderColor={
-						focusedRegion === "navigation" ? c.borderActive : c.borderSubtle
+									(focusedRegion === "navigation" || focusedRegion === "categories") ? c.borderActive : c.borderSubtle
 					}
 				>
 					{snapshot.sections.map((sec) => {
@@ -282,7 +303,9 @@ export function SettingsWindowView({
 									{currentSection.title}
 								</text>
 								<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-									{`Configure ${currentSection.title.toLowerCase()} preferences and overrides.`}
+									{translate(i18n, "settings.configure", {
+										section: currentSection.title,
+									})}
 								</text>
 							</box>
 
@@ -347,10 +370,14 @@ function SettingItemRow({
 
 	const originBadge =
 		item.origin.kind === "overridden"
-			? `[Overridden in ${item.origin.sourceProfileId}]`
+			? translate(i18n, "settings.origin.overriddenLabel", {
+					profile: item.origin.sourceProfileId ?? "",
+				})
 			: item.origin.kind === "appended"
-				? `[Appended (+${item.origin.appendedCount ?? 2})]`
-				: `[Default]`;
+				? translate(i18n, "settings.origin.appendedLabel", {
+						count: item.origin.appendedCount ?? 0,
+					})
+				: translate(i18n, "settings.origin.defaultLabel");
 
 	const originColor =
 		item.origin.kind === "overridden"
@@ -452,8 +479,8 @@ function SettingItemRow({
 				) : widget === "table" ? (
 					<TuiTable
 						columns={[
-							{ id: "key", header: "Key" },
-							{ id: "value", header: "Value" },
+										{ id: "key", header: translate(i18n, "settings.table.key") },
+										{ id: "value", header: translate(i18n, "settings.table.value") },
 						]}
 						data={
 							Array.isArray(item.value)

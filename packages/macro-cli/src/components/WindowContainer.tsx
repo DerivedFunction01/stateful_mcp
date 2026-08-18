@@ -10,12 +10,14 @@ import { TuiMenuBar, type TuiMenuGroup } from "../ui/primitives/TuiMenuBar";
 import { TuiPanelRegion } from "../ui/primitives/TuiPanelRegion";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 import { CommandPaletteModal } from "./CommandPaletteModal";
+import { SettingsModal } from "./SettingsModal";
 import { HelpBar } from "./HelpBar";
 import { ScratchpadView } from "./ScratchpadView";
 import { SidepanelHost } from "./SidepanelHost";
 import { StatusBar } from "./StatusBar";
 import { TabHost } from "./TabHost";
 import { WorkspaceTabs } from "./WorkspaceTabs";
+import { translate } from "../locales";
 
 export function WindowContainer({
 	workspace,
@@ -49,6 +51,10 @@ export function WindowContainer({
 	);
 	const paletteWidth = Math.min(76, Math.max(48, Math.floor(columns * 0.65)));
 	const paletteMargin = Math.max(0, Math.floor((columns - paletteWidth) / 2));
+	const settingsWidth = Math.max(1, Math.min(106, columns - 4));
+	const settingsHeight = Math.max(1, Math.min(30, rows - 4));
+	const settingsMarginLeft = Math.max(0, Math.floor((columns - settingsWidth) / 2));
+	const settingsMarginTop = Math.max(0, Math.floor((rows - settingsHeight) / 2));
 
 	// Primary Activity Region Data
 	const activityContainers = workspace.views.getContainersForRegion("activity");
@@ -89,39 +95,39 @@ export function WindowContainer({
 	const menuGroups: readonly TuiMenuGroup[] = [
 		{
 			id: "file",
-			label: "File",
+			label: translate(workspace.i18n, "menu.file"),
 			items: [
 				{
 					id: "save",
-					label: "Save",
-					shortcut: ":w",
+					label: translate(workspace.i18n, "menu.save"),
+					shortcut: keymap?.keybindings?.["workspace.saveActive"]?.[0],
 					onSelect: () => execute("workspace.saveActive"),
 				},
 				{
 					id: "settings",
-					label: "Settings",
+					label: translate(workspace.i18n, "menu.settings"),
 					onSelect: () => execute("workspace.openSettings"),
 				},
 				{
 					id: "extensions",
-					label: "Extensions",
+					label: translate(workspace.i18n, "menu.extensions"),
 					onSelect: () => execute("workspace.openExtensions"),
 				},
 				{
 					id: "quit",
-					label: "Quit",
-					shortcut: ":q",
+					label: translate(workspace.i18n, "menu.quit"),
+					shortcut: keymap?.keybindings?.["workspace.quit"]?.[0],
 					onSelect: () => execute("workspace.quit"),
 				},
 			],
 		},
 		{
 			id: "edit",
-			label: "Edit",
+			label: translate(workspace.i18n, "menu.edit"),
 			items: [
 				{
 					id: "palette",
-					label: "Command Palette",
+					label: translate(workspace.i18n, "menu.commandPalette"),
 					shortcut: "Ctrl+P",
 					onSelect: () => workspace.palette.open(),
 				},
@@ -129,11 +135,11 @@ export function WindowContainer({
 		},
 		{
 			id: "view",
-			label: "View",
+			label: translate(workspace.i18n, "menu.view"),
 			items: [
 				{
 					id: "sidepanel",
-					label: "Toggle Sidepanel",
+					label: translate(workspace.i18n, "menu.toggleSidepanel"),
 					shortcut: keymap?.window.toggleSidepanel,
 					onSelect: () => execute("workspace.toggleSidepanel"),
 				},
@@ -141,8 +147,15 @@ export function WindowContainer({
 		},
 		{
 			id: "help",
-			label: "Help",
-			items: [{ id: "help", label: "Keyboard Help" }],
+			label: translate(workspace.i18n, "menu.help"),
+			items: [
+				{ id: "help", label: translate(workspace.i18n, "menu.keyboardHelp") },
+				{
+					id: "help-settings",
+					label: translate(workspace.i18n, "menu.settings"),
+					onSelect: () => execute("workspace.openSettings"),
+				},
+			],
 		},
 	];
 
@@ -261,10 +274,14 @@ export function WindowContainer({
 					</TuiPanelRegion>
 				}
 				footer={
-					<>
-						<HelpBar keymap={keymap} workspace={workspace} theme={theme} />
+					snapshot.activeModal?.id === "settings" ? (
 						<StatusBar workspace={workspace} theme={theme} />
-					</>
+					) : (
+						<>
+							<HelpBar keymap={keymap} workspace={workspace} theme={theme} />
+							<StatusBar workspace={workspace} theme={theme} />
+						</>
+					)
 				}
 				width={columns}
 				height={rows}
@@ -290,6 +307,22 @@ export function WindowContainer({
 					<CommandPaletteModal
 						workspace={workspace}
 						width={paletteWidth}
+						theme={theme}
+					/>
+				</box>
+			)}
+			{snapshot.activeModal?.id === "settings" && (
+				<box
+					position="absolute"
+					width={settingsWidth}
+					height={settingsHeight}
+					marginLeft={settingsMarginLeft}
+					marginTop={settingsMarginTop}
+				>
+					<SettingsModal
+						workspace={workspace}
+						width={settingsWidth}
+						height={settingsHeight}
 						theme={theme}
 					/>
 				</box>
