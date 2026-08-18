@@ -45,19 +45,15 @@ export function JournalView({
 	const entries = workspace.journal.getEntries();
 	const i18n: I18nKernel | undefined = workspace.i18n;
 
-	const t = (
-		key: string,
-		fallback: string,
-		params?: Readonly<Record<string, unknown>>,
-	) => translate(i18n, key, fallback, params);
+	const t = (key: string, params?: Readonly<Record<string, unknown>>) =>
+		translate(i18n, key, params);
 
-	const title = t("journal.title", "Journal");
-	const emptyMsg = t("journal.empty", "No committed entries.");
-	const hintNavigate = t("journal.hint.navigate", "↑↓ Navigate · ↵ Inspect");
+	const title = t("journal.title");
+	const emptyMsg = t("journal.empty");
+	const hintNavigate = t("journal.hint.navigate");
 
 	const count = entries.length;
-	const countLabel =
-		count === 1 ? t("journal.entry", "entry") : t("journal.entries", "entries");
+	const countLabel = count === 1 ? t("journal.entry") : t("journal.entries");
 
 	// Compute uniform gutter width based on max line number in this journal
 	const maxLineNum = Math.max(1, ...entries.map((e) => e.lineNumber));
@@ -125,12 +121,12 @@ export function JournalView({
 				const headerBg = isEntrySelected ? c.bgActive : c.bgElevated;
 
 				const outputLine = resultStr
-					? t("journal.output", `↳ Output: ${resultStr}`, {
+					? t("journal.output", {
 							summary: resultStr,
 						})
 					: null;
 				const reversalLine = entry.reversalReason
-					? t("journal.reversal", `↳ ▲ Reversal: ${entry.reversalReason}`, {
+					? t("journal.reversal", {
 							reason: entry.reversalReason,
 						})
 					: null;

@@ -99,38 +99,20 @@ export function TuiCompletionPopup({
 	const navigateKey = keymap.navigateKey ?? "↑↓";
 
 	// Localized strings
-	const titleText = translate(i18n, "completion.title", "Completions");
-	const noMatchesText = translate(
-		i18n,
-		"completion.noMatches",
-		"No matching completions",
-	);
-	const headerHint = translate(
-		i18n,
-		"completion.headerHint",
-		`${completeKey} Complete · ${insertKey} Insert`,
-		{
-			completeKey,
-			insertKey,
-		},
-	);
-	const footerHint = translate(
-		i18n,
-		"completion.footerHint",
-		`${navigateKey} Select candidate   ${insertKey} Insert   ${dismissKey} Dismiss`,
-		{
-			navigateKey,
-			insertKey,
-			dismissKey,
-		},
-	);
-	const paramsLabel = translate(i18n, "completion.parameters", "Parameters:");
-	const snippetLabel = translate(i18n, "completion.snippet", "Snippet:");
-	const noDetailsText = translate(
-		i18n,
-		"completion.noDetails",
-		"No details available",
-	);
+	const titleText = translate(i18n, "completion.title");
+	const noMatchesText = translate(i18n, "completion.noMatches");
+	const headerHint = translate(i18n, "completion.headerHint", {
+		completeKey,
+		insertKey,
+	});
+	const footerHint = translate(i18n, "completion.footerHint", {
+		navigateKey,
+		insertKey,
+		dismissKey,
+	});
+	const paramsLabel = translate(i18n, "completion.parameters");
+	const snippetLabel = translate(i18n, "completion.snippet");
+	const noDetailsText = translate(i18n, "completion.noDetails");
 
 	if (candidates.length === 0) {
 		return (
@@ -274,14 +256,9 @@ export function TuiCompletionPopup({
 						<box height={1} paddingLeft={1} backgroundColor={c.bgSurface}>
 							<text fg={c.fgDim} attributes={TextAttributes.DIM}>
 								{startIdx > 0 ? "▲ " : ""}
-								{translate(
-									i18n,
-									"completion.moreItems",
-									`+${totalCandidates - maxVisible} more`,
-									{
-										count: totalCandidates - maxVisible,
-									},
-								)}
+								{translate(i18n, "completion.moreItems", {
+									count: totalCandidates - maxVisible,
+								})}
 								{startIdx + maxVisible < totalCandidates ? " ▼" : ""}
 							</text>
 						</box>

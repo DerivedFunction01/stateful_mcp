@@ -42,25 +42,18 @@ export function TuiCommandPalette({
 	onSelect,
 }: TuiCommandPaletteProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
-	const title = translate(i18n, "palette.title", "Commands");
-	const dismissHint = translate(i18n, "palette.dismissHint", "esc");
+	const title = translate(i18n, "palette.title");
+	const dismissHint = translate(i18n, "palette.dismissHint");
 	const effectivePlaceholder =
-		placeholder ?? translate(i18n, "palette.placeholder", "Search");
+		placeholder ?? translate(i18n, "palette.placeholder");
 	const effectiveEmptyMessage =
-		emptyMessage ??
-		translate(
-			i18n,
-			"palette.noMatchingCommands",
-			"No matching commands found.",
-		);
+		emptyMessage ?? translate(i18n, "palette.noMatchingCommands");
 
 	// Group items by category
 	const categories = Array.from(
 		new Set(
 			items.map(
-				(item) =>
-					item.category ??
-					translate(i18n, "palette.category.general", "Commands"),
+				(item) => item.category ?? translate(i18n, "palette.category.general"),
 			),
 		),
 	);
@@ -80,8 +73,7 @@ export function TuiCommandPalette({
 	for (const cat of categories) {
 		const catItems = items.filter(
 			(item) =>
-				(item.category ??
-					translate(i18n, "palette.category.general", "Commands")) === cat,
+				(item.category ?? translate(i18n, "palette.category.general")) === cat,
 		);
 		if (categories.length > 0) {
 			renderedRows.push({ type: "header", category: cat });

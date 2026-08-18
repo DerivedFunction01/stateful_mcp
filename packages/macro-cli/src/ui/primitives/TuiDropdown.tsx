@@ -83,10 +83,9 @@ export function TuiDropdown({
 }: TuiDropdownProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 	const effectivePlaceholder =
-		placeholder ?? translate(i18n, "dropdown.placeholder", "Select an option");
-	const modalTitle =
-		title ?? label ?? translate(i18n, "dropdown.selectOption", "Select Option");
-	const dismissHint = translate(i18n, "palette.dismissHint", "esc");
+		placeholder ?? translate(i18n, "dropdown.placeholder");
+	const modalTitle = title ?? label ?? translate(i18n, "dropdown.selectOption");
+	const dismissHint = translate(i18n, "palette.dismissHint");
 
 	const selectedOption = options.find((o) => o.id === selectedId);
 	const borderColor = isFocused || isOpen ? c.borderActive : c.borderDefault;
@@ -191,11 +190,7 @@ export function TuiDropdown({
 				{filteredOptions.length === 0 && (
 					<box padding={1}>
 						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-							{translate(
-								i18n,
-								"dropdown.noOptions",
-								"No matching options found.",
-							)}
+							{translate(i18n, "dropdown.noOptions")}
 						</text>
 					</box>
 				)}

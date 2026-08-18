@@ -197,11 +197,11 @@ export function TuiColorPicker({
 				{/* Modal Header: Title + Dismiss Hint */}
 				<box height={1} flexDirection="row" marginBottom={1}>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "colorPicker.title", "Pick Color / Theme")}
+						{translate(i18n, "colorPicker.title")}
 					</text>
 					<box flexGrow={1} />
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						{translate(i18n, "palette.dismissHint", "esc")}
+						{translate(i18n, "palette.dismissHint")}
 					</text>
 				</box>
 
@@ -214,18 +214,14 @@ export function TuiColorPicker({
 					<TuiCursor char=" " theme={theme} />
 					<box flexGrow={1} />
 					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						{translate(
-							i18n,
-							"colorPicker.hexPlaceholder",
-							"Hex code (e.g. #388bfd)",
-						)}
+						{translate(i18n, "colorPicker.hexPlaceholder")}
 					</text>
 				</box>
 
 				{/* Preset Color Swatches */}
 				<box height={1} marginBottom={1} flexDirection="row">
 					<text fg={c.fgSecondary} attributes={TextAttributes.DIM}>
-						{translate(i18n, "colorPicker.themeColors", "Theme Colors")}:{" "}
+						{translate(i18n, "colorPicker.themeColors")}:{" "}
 					</text>
 					{[
 						c.accentPrimary,

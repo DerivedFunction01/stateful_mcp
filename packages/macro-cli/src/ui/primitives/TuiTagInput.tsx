@@ -139,11 +139,11 @@ export function TuiTagInput({
 				{/* Modal Header */}
 				<box height={1} flexDirection="row" marginBottom={1}>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "tagInput.title", "Edit Tags & Labels")}
+						{translate(i18n, "tagInput.title")}
 					</text>
 					<box flexGrow={1} />
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						{translate(i18n, "palette.dismissHint", "esc")}
+						{translate(i18n, "palette.dismissHint")}
 					</text>
 				</box>
 
@@ -152,11 +152,7 @@ export function TuiTagInput({
 					<TuiCursor char=" " theme={theme} />
 					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
 						{" "}
-						{translate(
-							i18n,
-							"tagInput.placeholder",
-							"+ Add tag (Enter to add)…",
-						)}
+						{translate(i18n, "tagInput.placeholder")}
 					</text>
 				</box>
 
@@ -184,7 +180,7 @@ export function TuiTagInput({
 				{/* Suggested Tags */}
 				<box height={1} marginBottom={1} flexDirection="row">
 					<text fg={c.fgSecondary} attributes={TextAttributes.DIM}>
-						{translate(i18n, "tagInput.suggested", "Suggested Tags:")}{" "}
+						{translate(i18n, "tagInput.suggested")}{" "}
 					</text>
 					{["v2.0", "stable", "hotfix", "security"].map((sug) => (
 						<box
@@ -213,7 +209,7 @@ export function TuiTagInput({
 						}}
 					>
 						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-							{translate(i18n, "modal.confirm", "Confirm")}
+							{translate(i18n, "modal.confirm")}
 						</text>
 					</box>
 
@@ -226,7 +222,7 @@ export function TuiTagInput({
 						}}
 					>
 						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-							{translate(i18n, "modal.cancel", "Cancel")}
+							{translate(i18n, "modal.cancel")}
 						</text>
 					</box>
 				</box>

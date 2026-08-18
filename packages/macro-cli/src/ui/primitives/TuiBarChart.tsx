@@ -446,11 +446,11 @@ export function TuiChartModal({
 			{/* Modal Header */}
 			<box height={1} flexDirection="row" marginBottom={1}>
 				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-					{title ?? translate(i18n, "chart.title", "Chart Data Explorer")}
+					{title ?? translate(i18n, "chart.title")}
 				</text>
 				<box flexGrow={1} />
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{translate(i18n, "palette.dismissHint", "esc")}
+					{translate(i18n, "palette.dismissHint")}
 				</text>
 			</box>
 
@@ -462,12 +462,7 @@ export function TuiChartModal({
 				<text fg={c.accentPrimary}>▎</text>
 				<box flexGrow={1} />
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-					{translate(
-						i18n,
-						"chart.dataPoints",
-						`${filteredItems.length} series data points`,
-						{ count: filteredItems.length },
-					)}
+					{translate(i18n, "chart.dataPoints", { count: filteredItems.length })}
 				</text>
 			</box>
 
@@ -525,23 +520,22 @@ export function TuiChartModal({
 				>
 					<box height={1} flexDirection="row">
 						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-							{translate(i18n, "chart.series", "Series:")} {activeItem.label}
+							{translate(i18n, "chart.series")} {activeItem.label}
 						</text>
 						<box flexGrow={1} />
 						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-							{translate(i18n, "chart.value", "Value:")}{" "}
+							{translate(i18n, "chart.value")}{" "}
 							{activeItem.formattedValue ?? activeItem.value}
 						</text>
 					</box>
 					<box height={1} flexDirection="row">
 						<text fg={c.fgSecondary} attributes={TextAttributes.DIM}>
-							{translate(i18n, "chart.percent", "Percent:")} {activePercent}% of
-							total
+							{translate(i18n, "chart.percent")} {activePercent}% of total
 						</text>
 						<box flexGrow={1} />
 						<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-							{translate(i18n, "chart.min", "Min:")} {minValue} ·{" "}
-							{translate(i18n, "chart.max", "Max:")} {maxValue}
+							{translate(i18n, "chart.min")} {minValue} ·{" "}
+							{translate(i18n, "chart.max")} {maxValue}
 						</text>
 					</box>
 				</box>
@@ -558,7 +552,7 @@ export function TuiChartModal({
 					}}
 				>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "modal.cancel", "Cancel")}
+						{translate(i18n, "modal.cancel")}
 					</text>
 				</box>
 			</box>

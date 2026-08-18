@@ -31,15 +31,10 @@ export function getDefaultSettingsSchema(
 			widget: "input",
 			category: "syntax",
 			group: "Tokens",
-			title: translate(
-				i18n,
-				"settings.schema.syntax.macroStartToken.title",
-				"Expression Trigger Token",
-			),
+			title: translate(i18n, "settings.schema.syntax.macroStartToken.title"),
 			description: translate(
 				i18n,
 				"settings.schema.syntax.macroStartToken.desc",
-				"Symbol used to initiate macro and expression invocations.",
 			),
 		},
 		{
@@ -48,16 +43,8 @@ export function getDefaultSettingsSchema(
 			widget: "input",
 			category: "syntax",
 			group: "Tokens",
-			title: translate(
-				i18n,
-				"settings.schema.syntax.conceptToken.title",
-				"Concept Identifier Token",
-			),
-			description: translate(
-				i18n,
-				"settings.schema.syntax.conceptToken.desc",
-				"Symbol used for ontology concept references.",
-			),
+			title: translate(i18n, "settings.schema.syntax.conceptToken.title"),
+			description: translate(i18n, "settings.schema.syntax.conceptToken.desc"),
 		},
 		{
 			path: ["syntax", "delimiter"],
@@ -65,16 +52,8 @@ export function getDefaultSettingsSchema(
 			widget: "input",
 			category: "syntax",
 			group: "Delimiters",
-			title: translate(
-				i18n,
-				"settings.schema.syntax.delimiter.title",
-				"Argument Assignment Delimiter",
-			),
-			description: translate(
-				i18n,
-				"settings.schema.syntax.delimiter.desc",
-				"Character separating argument names from values.",
-			),
+			title: translate(i18n, "settings.schema.syntax.delimiter.title"),
+			description: translate(i18n, "settings.schema.syntax.delimiter.desc"),
 		},
 		{
 			path: ["values", "decimalSeparator"],
@@ -82,15 +61,10 @@ export function getDefaultSettingsSchema(
 			widget: "dropdown",
 			category: "values",
 			group: "Numerics",
-			title: translate(
-				i18n,
-				"settings.schema.values.decimalSeparator.title",
-				"Decimal Separator",
-			),
+			title: translate(i18n, "settings.schema.values.decimalSeparator.title"),
 			description: translate(
 				i18n,
 				"settings.schema.values.decimalSeparator.desc",
-				"Radix point character used in numbers.",
 			),
 			enumValues: [".", ","],
 		},
@@ -100,15 +74,10 @@ export function getDefaultSettingsSchema(
 			widget: "input",
 			category: "values",
 			group: "Temporal",
-			title: translate(
-				i18n,
-				"settings.schema.values.dateTimeFormat.title",
-				"Date & Time Master Display Template",
-			),
+			title: translate(i18n, "settings.schema.values.dateTimeFormat.title"),
 			description: translate(
 				i18n,
 				"settings.schema.values.dateTimeFormat.desc",
-				"Master display template with optional conditional brackets [YYYY[-MM[-DD]]][ HH:min[:SS]].",
 			),
 		},
 		{
@@ -117,16 +86,8 @@ export function getDefaultSettingsSchema(
 			widget: "dropdown",
 			category: "appearance",
 			group: "Theme",
-			title: translate(
-				i18n,
-				"settings.schema.appearance.theme.title",
-				"Color Theme",
-			),
-			description: translate(
-				i18n,
-				"settings.schema.appearance.theme.desc",
-				"Active color palette for the terminal UI.",
-			),
+			title: translate(i18n, "settings.schema.appearance.theme.title"),
+			description: translate(i18n, "settings.schema.appearance.theme.desc"),
 			enumValues: [...THEME_IDS],
 		},
 		{
@@ -135,16 +96,8 @@ export function getDefaultSettingsSchema(
 			widget: "table",
 			category: "editor",
 			group: "Keybindings",
-			title: translate(
-				i18n,
-				"settings.schema.editor.keybindings.title",
-				"Custom Keybindings",
-			),
-			description: translate(
-				i18n,
-				"settings.schema.editor.keybindings.desc",
-				"Command keybinding chord mappings (e.g. {'editor.save': ['ctrl+s']}).",
-			),
+			title: translate(i18n, "settings.schema.editor.keybindings.title"),
+			description: translate(i18n, "settings.schema.editor.keybindings.desc"),
 		},
 	];
 }

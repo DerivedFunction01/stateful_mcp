@@ -156,11 +156,7 @@ export function ComponentLabApp({
 				flexDirection="row"
 			>
 				<text fg="cyan" attributes={TextAttributes.BOLD}>
-					{translate(
-						fixtureWorkspace.workspace.i18n,
-						"lab.title",
-						"Macro CLI Component Lab",
-					)}
+					{translate(fixtureWorkspace.workspace.i18n, "lab.title")}
 				</text>
 				<box flexGrow={1} />
 				<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
@@ -183,12 +179,8 @@ export function ComponentLabApp({
 				>
 					<box height={1} marginBottom={1}>
 						<text fg={TuiNamedColors.accent} attributes={TextAttributes.BOLD}>
-							{translate(
-								fixtureWorkspace.workspace.i18n,
-								"lab.components",
-								"Components",
-							)}{" "}
-							({stories.length})
+							{translate(fixtureWorkspace.workspace.i18n, "lab.components")} (
+							{stories.length})
 						</text>
 					</box>
 					{stories.map((s, idx) => {

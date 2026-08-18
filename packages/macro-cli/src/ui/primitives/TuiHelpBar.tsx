@@ -12,7 +12,7 @@ import {
 	resolveKeymapBindings,
 	surfaceKeybindingsForMode,
 } from "@stateful-mcp/macro";
-import { translate } from "../../locales";
+import { resolveLabel, translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export interface TuiShortcutHint {
@@ -73,19 +73,19 @@ export function buildDynamicKeymapHints(
 		return [
 			{
 				key: formatKeyDisplay(keymap.window.nextTab || "Tab"),
-				action: translate(i18n, "helpBar.duplicate", "New Line"),
+				action: translate(i18n, "helpBar.duplicate"),
 			},
 			{
 				key: "Enter",
-				action: translate(i18n, "helpBar.apply", "Execute"),
+				action: translate(i18n, "helpBar.apply"),
 			},
 			{
 				key: "↑/↓",
-				action: translate(i18n, "helpBar.navigate", "Navigate"),
+				action: translate(i18n, "helpBar.navigate"),
 			},
 			{
 				key: "Esc",
-				action: translate(i18n, "helpBar.esc", "Normal Mode"),
+				action: translate(i18n, "helpBar.esc"),
 			},
 		];
 	}
@@ -94,19 +94,19 @@ export function buildDynamicKeymapHints(
 		return [
 			{
 				key: "↑/↓",
-				action: translate(i18n, "helpBar.selectRange", "Select Range"),
+				action: translate(i18n, "helpBar.selectRange"),
 			},
 			{
 				key: "Enter",
-				action: translate(i18n, "helpBar.applySelected", "Execute Selected"),
+				action: translate(i18n, "helpBar.applySelected"),
 			},
 			{
 				key: formatKeyDisplay(keymap.visual.deleteSelection || "d"),
-				action: translate(i18n, "helpBar.delete", "Delete"),
+				action: translate(i18n, "helpBar.delete"),
 			},
 			{
 				key: "Esc",
-				action: translate(i18n, "helpBar.esc", "Normal Mode"),
+				action: translate(i18n, "helpBar.esc"),
 			},
 		];
 	}
@@ -114,39 +114,39 @@ export function buildDynamicKeymapHints(
 	return [
 		{
 			key: formatKeyDisplay(keymap.window.nextTab || "Tab"),
-			action: translate(i18n, "helpBar.nextTab", "Next Tab"),
+			action: translate(i18n, "helpBar.nextTab"),
 		},
 		{
 			key: formatKeyDisplay(keymap.normal.enterInsert || "i"),
-			action: translate(i18n, "helpBar.insert", "Insert"),
+			action: translate(i18n, "helpBar.insert"),
 		},
 		{
 			key: formatKeyDisplay(keymap.normal.enterVisual || "v"),
-			action: translate(i18n, "helpBar.visual", "Visual"),
+			action: translate(i18n, "helpBar.visual"),
 		},
 		{
 			key: formatKeyDisplay(keymap.sequences.deleteCell || "dd"),
-			action: translate(i18n, "helpBar.delete", "Delete"),
+			action: translate(i18n, "helpBar.delete"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.openCommandPalette || "Ctrl+P"),
-			action: translate(i18n, "palette.title", "Command Palette"),
+			action: translate(i18n, "palette.title"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.toggleActivityPanel || "Ctrl+E"),
-			action: translate(i18n, "helpBar.activity", "Activity"),
+			action: translate(i18n, "helpBar.activity"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.toggleSidepanel || "Ctrl+B"),
-			action: translate(i18n, "helpBar.inspector", "Inspector"),
+			action: translate(i18n, "helpBar.inspector"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.switchSplitFocus || "Ctrl+W"),
-			action: translate(i18n, "helpBar.switchFocus", "Focus Pane"),
+			action: translate(i18n, "helpBar.switchFocus"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.pinMacro || "Meta+P"),
-			action: translate(i18n, "helpBar.pin", "Pin"),
+			action: translate(i18n, "helpBar.pin"),
 		},
 	];
 }
@@ -161,9 +161,9 @@ export function buildContextualHelpBarHints(
 
 	if (focusedPane === "palette") {
 		return [
-			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
-			{ key: "Enter", action: translate(i18n, "helpBar.apply", "Execute") },
-			{ key: "Esc", action: translate(i18n, "helpBar.close", "Close") },
+			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate") },
+			{ key: "Enter", action: translate(i18n, "helpBar.apply") },
+			{ key: "Esc", action: translate(i18n, "helpBar.close") },
 		];
 	}
 
@@ -207,20 +207,18 @@ export function buildContextualHelpBarHints(
 		if (container?.contextualHints && container.contextualHints.length > 0) {
 			return container.contextualHints.map((h: ContextualKeyHint) => ({
 				key: h.key,
-				action: h.i18nKey
-					? translate(i18n, h.i18nKey, h.label ?? h.key)
-					: (h.label ?? h.key),
+				action: resolveLabel(i18n, h.i18nKey, h.label ?? h.key),
 			}));
 		}
 
 		return [
-			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
-			{ key: "Enter", action: translate(i18n, "helpBar.open", "Open") },
+			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate") },
+			{ key: "Enter", action: translate(i18n, "helpBar.open") },
 			{
 				key: "Ctrl+W",
-				action: translate(i18n, "helpBar.switchFocus", "Focus Pane"),
+				action: translate(i18n, "helpBar.switchFocus"),
 			},
-			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
+			{ key: "Esc", action: translate(i18n, "helpBar.editor") },
 		];
 	}
 
@@ -264,22 +262,20 @@ export function buildContextualHelpBarHints(
 		if (container?.contextualHints && container.contextualHints.length > 0) {
 			return container.contextualHints.map((h: ContextualKeyHint) => ({
 				key: h.key,
-				action: h.i18nKey
-					? translate(i18n, h.i18nKey, h.label ?? h.key)
-					: (h.label ?? h.key),
+				action: resolveLabel(i18n, h.i18nKey, h.label ?? h.key),
 			}));
 		}
 
 		const closeKey = container?.altKey ? `Alt+${container.altKey}` : "Ctrl+B";
 		return [
-			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate", "Navigate") },
-			{ key: "Enter", action: translate(i18n, "helpBar.apply", "Execute") },
-			{ key: closeKey, action: translate(i18n, "helpBar.close", "Close") },
+			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate") },
+			{ key: "Enter", action: translate(i18n, "helpBar.apply") },
+			{ key: closeKey, action: translate(i18n, "helpBar.close") },
 			{
 				key: "Ctrl+W",
-				action: translate(i18n, "helpBar.switchFocus", "Focus Pane"),
+				action: translate(i18n, "helpBar.switchFocus"),
 			},
-			{ key: "Esc", action: translate(i18n, "helpBar.editor", "Editor") },
+			{ key: "Esc", action: translate(i18n, "helpBar.editor") },
 		];
 	}
 
@@ -301,11 +297,7 @@ export function buildContextualHelpBarHints(
 				return settingsBindings.flatMap((binding) =>
 					binding.chords.map((chord) => ({
 						key: formatKeyDisplay(chord),
-						action: translate(
-							i18n,
-							binding.labelI18nKey ?? binding.command,
-							binding.command,
-						),
+						action: resolveLabel(i18n, binding.labelI18nKey, binding.command),
 					})),
 				);
 		}

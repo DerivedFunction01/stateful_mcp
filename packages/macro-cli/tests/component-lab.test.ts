@@ -112,11 +112,7 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 		expect(keymap.window.pinMacro).toBe("meta+p");
 
 		// Test i18n translation from workspace
-		const translatedCommands = translate(
-			workspace.i18n,
-			"palette.title",
-			"Commands",
-		);
+		const translatedCommands = translate(workspace.i18n, "palette.title");
 		expect(translatedCommands).toBe("Paleta de Comandos");
 	});
 

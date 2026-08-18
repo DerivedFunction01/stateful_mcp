@@ -40,8 +40,7 @@ export function TuiList({
 	i18n,
 }: TuiListProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
-	const effectiveEmptyMessage =
-		emptyMessage ?? translate(i18n, "list.empty", "No items available");
+	const effectiveEmptyMessage = emptyMessage ?? translate(i18n, "list.empty");
 
 	if (items.length === 0) {
 		return (

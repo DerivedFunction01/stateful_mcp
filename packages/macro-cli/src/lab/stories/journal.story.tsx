@@ -89,8 +89,8 @@ export const journalStory: TuiStory = {
 		const i18n = isSpanish ? mockWsEs.workspace.i18n : undefined;
 		const isEmpty = stateId === "empty-journal";
 
-		const title = translate(i18n, "journal.title", "Transaction Journal");
-		const emptyMsg = translate(i18n, "journal.empty", "No committed entries.");
+		const title = translate(i18n, "journal.title");
+		const emptyMsg = translate(i18n, "journal.empty");
 
 		if (isEmpty) {
 			return (
@@ -123,24 +123,13 @@ export const journalStory: TuiStory = {
 
 		const countLabel =
 			entries.length === 1
-				? translate(i18n, "journal.entry", "entry")
-				: translate(i18n, "journal.entries", "entries");
-		const hintActions = translate(
-			i18n,
-			"journal.hint.actions",
-			"↵ Inspect · r Replay · Del Revert",
-		);
-		const historyLabel = translate(
-			i18n,
-			"journal.historyLabel",
-			"Transaction History",
-		);
-		const activeSelectionLabel = translate(
-			i18n,
-			"journal.activeSelection",
-			`▶ Active: Entry ${selectedIndex + 1} (↑↓ to navigate)`,
-			{ n: selectedIndex + 1 },
-		);
+				? translate(i18n, "journal.entry")
+				: translate(i18n, "journal.entries");
+		const hintActions = translate(i18n, "journal.hint.actions");
+		const historyLabel = translate(i18n, "journal.historyLabel");
+		const activeSelectionLabel = translate(i18n, "journal.activeSelection", {
+			n: selectedIndex + 1,
+		});
 
 		return (
 			<TuiFrame
@@ -266,12 +255,9 @@ export const journalStory: TuiStory = {
 										<text fg="transparent"> {emptyGutter.lineNumText} </text>
 										<text fg={c.borderDefault}>│ </text>
 										<text fg={c.accentPeach} attributes={TextAttributes.BOLD}>
-											{translate(
-												i18n,
-												"journal.reversal",
-												`↳ ▲ Reversal: ${entry.reversalReason}`,
-												{ reason: entry.reversalReason },
-											)}
+											{translate(i18n, "journal.reversal", {
+												reason: entry.reversalReason,
+											})}
 										</text>
 									</box>
 								) : entry.resultSummary ? (
@@ -287,12 +273,9 @@ export const journalStory: TuiStory = {
 										<text fg="transparent"> {emptyGutter.lineNumText} </text>
 										<text fg={c.borderDefault}>│ </text>
 										<text fg={c.statusSuccess}>
-											{translate(
-												i18n,
-												"journal.output",
-												`↳ Output: ${entry.resultSummary}`,
-												{ summary: entry.resultSummary },
-											)}
+											{translate(i18n, "journal.output", {
+												summary: entry.resultSummary,
+											})}
 										</text>
 									</box>
 								) : null}

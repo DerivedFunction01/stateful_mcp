@@ -127,11 +127,11 @@ export function TuiToggle({
 				{/* Modal Header */}
 				<box height={1} flexDirection="row" marginBottom={1}>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "toggle.title", "Toggle Setting")}
+						{translate(i18n, "toggle.title")}
 					</text>
 					<box flexGrow={1} />
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						{translate(i18n, "palette.dismissHint", "esc")}
+						{translate(i18n, "palette.dismissHint")}
 					</text>
 				</box>
 
@@ -163,7 +163,7 @@ export function TuiToggle({
 							attributes={checked ? TextAttributes.BOLD : 0}
 						>
 							{checked ? "● " : "○ "}
-							{translate(i18n, "toggle.enabled", "Enabled")}
+							{translate(i18n, "toggle.enabled")}
 						</text>
 					</box>
 
@@ -180,7 +180,7 @@ export function TuiToggle({
 							attributes={!checked ? TextAttributes.BOLD : 0}
 						>
 							{!checked ? "● " : "○ "}
-							{translate(i18n, "toggle.disabled", "Disabled")}
+							{translate(i18n, "toggle.disabled")}
 						</text>
 					</box>
 				</box>
@@ -197,7 +197,7 @@ export function TuiToggle({
 						}}
 					>
 						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-							{translate(i18n, "modal.confirm", "Confirm")}
+							{translate(i18n, "modal.confirm")}
 						</text>
 					</box>
 
@@ -210,7 +210,7 @@ export function TuiToggle({
 						}}
 					>
 						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-							{translate(i18n, "modal.cancel", "Cancel")}
+							{translate(i18n, "modal.cancel")}
 						</text>
 					</box>
 				</box>

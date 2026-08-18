@@ -1,4 +1,5 @@
 import type { I18nKernel } from "../i18n/i18n-kernel";
+import { EN_LOCALE } from "../i18n/locales/en";
 import type {
 	SettingsDiagnostic,
 	SettingsSchemaEntry,
@@ -303,30 +304,14 @@ export function formatCategoryTitle(
 	category: string,
 	i18n?: I18nKernel,
 ): string {
-	if (i18n) {
-		const key = `settings.category.${category}`;
-		const translated = i18n.t(key);
-		if (translated && translated !== key) {
-			return translated;
-		}
+	const key = `settings.category.${category}`;
+	const translated: string | undefined = i18n ? i18n.t(key) : EN_LOCALE[key];
+	if (translated && translated !== key) {
+		return translated;
 	}
-	switch (category) {
-		case "syntax":
-			return "Core Syntax";
-		case "values":
-		case "fundamentals":
-			return "Fundamentals & Values";
-		case "appearance":
-			return "Appearance & Theme";
-		case "editor":
-			return "Editor Configuration";
-		case "keymap":
-			return "Keybindings & Motions";
-		case "extensions":
-			return "Extensions";
-		default:
-			return category.charAt(0).toUpperCase() + category.slice(1);
-	}
+	// Dynamic extension categories without dictionary entries fall back to
+	// algorithmic capitalization.
+	return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 function getAtPath(

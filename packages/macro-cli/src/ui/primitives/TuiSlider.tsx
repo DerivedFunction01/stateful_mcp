@@ -151,11 +151,11 @@ export function TuiSlider({
 				{/* Modal Header */}
 				<box height={1} flexDirection="row" marginBottom={1}>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "slider.title", "Adjust Value")}
+						{translate(i18n, "slider.title")}
 					</text>
 					<box flexGrow={1} />
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						{translate(i18n, "palette.dismissHint", "esc")}
+						{translate(i18n, "palette.dismissHint")}
 					</text>
 				</box>
 
@@ -201,9 +201,7 @@ export function TuiSlider({
 							}
 						}}
 					>
-						<text fg={c.fgSecondary}>
-							{translate(i18n, "slider.stepDown", "[- Step Down]")}
-						</text>
+						<text fg={c.fgSecondary}>{translate(i18n, "slider.stepDown")}</text>
 					</box>
 
 					<box
@@ -216,9 +214,7 @@ export function TuiSlider({
 							}
 						}}
 					>
-						<text fg={c.fgSecondary}>
-							{translate(i18n, "slider.stepUp", "[+ Step Up]")}
-						</text>
+						<text fg={c.fgSecondary}>{translate(i18n, "slider.stepUp")}</text>
 					</box>
 				</box>
 			</box>

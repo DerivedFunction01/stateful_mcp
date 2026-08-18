@@ -119,7 +119,10 @@ export class I18nKernel {
 	}
 }
 
-function interpolate(template: string, params?: TranslationParams): string {
+export function interpolate(
+	template: string,
+	params?: TranslationParams,
+): string {
 	if (!params) return template;
 	return template.replace(/\{(\w+)\}/g, (match, key) => {
 		const val = params[key];

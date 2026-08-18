@@ -65,30 +65,21 @@ export function ScratchpadView({
 	const isEmptyBuffer = authoredLines.length === 1 && authoredLines[0] === "";
 	const pinChord = formatKeyDisplay(keymap?.window.pinMacro || "Alt+P");
 	const trigger = workspace.runtime?.context?.syntax?.macroStartToken || "^";
-	const placeholderText = translate(
-		i18n,
-		"scratchpad.emptyPlaceholder",
-		`Type ${trigger} for macro autocomplete or start typing...`,
-		{ trigger },
-	);
+	const placeholderText = translate(i18n, "scratchpad.emptyPlaceholder", {
+		trigger,
+	});
 
 	const pinnedLabel = pinned
-		? translate(i18n, "scratchpad.pinnedLabel", `PINNED: ${pinned}`, {
+		? translate(i18n, "scratchpad.pinnedLabel", {
 				macro: pinned,
 			})
 		: "";
-	const pinnedHint = translate(
-		i18n,
-		"scratchpad.pinnedHint",
-		`(${pinChord} to toggle)`,
-		{ key: pinChord },
-	);
-	const pinnedBadge = translate(
-		i18n,
-		"scratchpad.pinnedBadge",
-		`[pinned to ${pinned ?? ""}]`,
-		{ macro: pinned ?? "" },
-	);
+	const pinnedHint = translate(i18n, "scratchpad.pinnedHint", {
+		key: pinChord,
+	});
+	const pinnedBadge = translate(i18n, "scratchpad.pinnedBadge", {
+		macro: pinned ?? "",
+	});
 
 	const lineModels: readonly TuiScratchpadLineModel[] = authoredLines.map(
 		(text, index) => {

@@ -100,7 +100,7 @@ export function TuiDatePicker({
 			: new Intl.DateTimeFormat(locale, { dateStyle: "short" }).format(
 					new Date(date.year, date.month - 1, date.day),
 				);
-	const placeholder = translate(i18n, "datePicker.placeholder", "Date");
+	const placeholder = translate(i18n, "datePicker.placeholder");
 	const today = new Date();
 
 	// Display date in trigger
@@ -280,11 +280,11 @@ export function TuiDatePicker({
 			{/* Modal Header: Title + Dismiss Hint */}
 			<box height={1} flexDirection="row" marginBottom={1}>
 				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-					{translate(i18n, "datePicker.title", "Select Date")}
+					{translate(i18n, "datePicker.title")}
 				</text>
 				<box flexGrow={1} />
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{translate(i18n, "palette.dismissHint", "esc")}
+					{translate(i18n, "palette.dismissHint")}
 				</text>
 			</box>
 
@@ -292,7 +292,7 @@ export function TuiDatePicker({
 			<box flexDirection="row" marginBottom={1}>
 				{[
 					{
-						label: translate(i18n, "datePicker.today", "Today"),
+						label: translate(i18n, "datePicker.today"),
 						date: {
 							year: today.getFullYear(),
 							month: today.getMonth() + 1,
@@ -300,7 +300,7 @@ export function TuiDatePicker({
 						},
 					},
 					{
-						label: translate(i18n, "datePicker.yesterday", "Yesterday"),
+						label: translate(i18n, "datePicker.yesterday"),
 						date: {
 							year: today.getFullYear(),
 							month: today.getMonth() + 1,
@@ -308,7 +308,7 @@ export function TuiDatePicker({
 						},
 					},
 					{
-						label: translate(i18n, "datePicker.thisMonth", "This Month"),
+						label: translate(i18n, "datePicker.thisMonth"),
 						date: {
 							year: today.getFullYear(),
 							month: today.getMonth() + 1,
@@ -495,11 +495,7 @@ export function TuiDatePicker({
 			</box>
 			<box height={1}>
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-					{translate(
-						i18n,
-						"datePicker.keyboardHints",
-						"Use arrows to move, Enter to select, Esc to close",
-					)}
+					{translate(i18n, "datePicker.keyboardHints")}
 				</text>
 			</box>
 		</box>

@@ -201,8 +201,7 @@ export function TuiProgressModal({
 	onClose,
 }: TuiProgressModalProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
-	const effectiveTitle =
-		title ?? translate(i18n, "progress.title", "Active Operation Progress");
+	const effectiveTitle = title ?? translate(i18n, "progress.title");
 	const percent = Math.round((progress / total) * 100);
 
 	return (
@@ -224,7 +223,7 @@ export function TuiProgressModal({
 				</text>
 				<box flexGrow={1} />
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{translate(i18n, "palette.dismissHint", "esc")}
+					{translate(i18n, "palette.dismissHint")}
 				</text>
 			</box>
 
@@ -250,12 +249,7 @@ export function TuiProgressModal({
 			{/* Metrics */}
 			<box height={1} marginBottom={1} flexDirection="row">
 				<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-					{translate(
-						i18n,
-						"progress.metrics",
-						`Elapsed: ${elapsed} · Transfer Rate: ${rate}`,
-						{ elapsed, rate },
-					)}
+					{translate(i18n, "progress.metrics", { elapsed, rate })}
 				</text>
 				<box flexGrow={1} />
 				<text fg={c.accentAmber} attributes={TextAttributes.BOLD}>
@@ -272,7 +266,7 @@ export function TuiProgressModal({
 					onMouseDown={() => onClose?.()}
 				>
 					<text fg={c.statusError} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "progress.cancel", "Cancel Operation")}
+						{translate(i18n, "progress.cancel")}
 					</text>
 				</box>
 			</box>

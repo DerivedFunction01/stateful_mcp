@@ -397,12 +397,11 @@ export function TuiInputModal({
 	onResetDefault,
 }: TuiInputModalProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
-	const effectiveTitle =
-		title ?? translate(i18n, "inputModal.title", "Edit Value");
+	const effectiveTitle = title ?? translate(i18n, "inputModal.title");
 	const effectivePlaceholder =
-		placeholder ?? translate(i18n, "inputModal.placeholder", "Enter value…");
+		placeholder ?? translate(i18n, "inputModal.placeholder");
 	const effectivePreviewLabel =
-		previewLabel ?? translate(i18n, "inputModal.livePreview", "Live Preview:");
+		previewLabel ?? translate(i18n, "inputModal.livePreview");
 	const lines = multiline ? value.split("\n") : [value];
 
 	return (
@@ -424,7 +423,7 @@ export function TuiInputModal({
 				</text>
 				<box flexGrow={1} />
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{translate(i18n, "palette.dismissHint", "esc")}
+					{translate(i18n, "palette.dismissHint")}
 				</text>
 			</box>
 
@@ -475,11 +474,7 @@ export function TuiInputModal({
 					marginBottom={1}
 				>
 					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						{translate(
-							i18n,
-							"inputModal.references",
-							"Syntax & Format References:",
-						)}
+						{translate(i18n, "inputModal.references")}
 					</text>
 					{examples.map((ex, idx) => (
 						<box key={idx} height={1} flexDirection="row">
@@ -586,7 +581,6 @@ export function TuiInputModal({
 						{translate(
 							i18n,
 							multiline ? "modal.confirmMultiline" : "modal.confirmEnter",
-							multiline ? "Confirm (Ctrl+Enter)" : "Confirm (Enter)",
 						)}
 					</text>
 				</box>
@@ -599,7 +593,7 @@ export function TuiInputModal({
 					onMouseDown={() => onCancel?.()}
 				>
 					<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-						{translate(i18n, "modal.cancelEsc", "Cancel (Esc)")}
+						{translate(i18n, "modal.cancelEsc")}
 					</text>
 				</box>
 
@@ -611,7 +605,7 @@ export function TuiInputModal({
 						onMouseDown={() => onResetDefault?.()}
 					>
 						<text fg={c.statusWarning} attributes={TextAttributes.DIM}>
-							{translate(i18n, "modal.resetDefault", "Reset Default (Ctrl+R)")}
+							{translate(i18n, "modal.resetDefault")}
 						</text>
 					</box>
 				)}

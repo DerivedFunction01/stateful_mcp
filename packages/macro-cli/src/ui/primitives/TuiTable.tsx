@@ -74,8 +74,7 @@ export function TuiTable<T extends Record<string, unknown>>({
 	formatOptions,
 }: TuiTableProps<T>) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
-	const effectiveEmptyMessage =
-		emptyMessage ?? translate(i18n, "table.empty", "No data available");
+	const effectiveEmptyMessage = emptyMessage ?? translate(i18n, "table.empty");
 	const formatCellValue = (value: unknown) =>
 		typeof value === "number"
 			? formatNumericValue(value, formatOptions)
@@ -524,12 +523,11 @@ export function TuiTableModal<T extends Record<string, unknown>>({
 			{/* Header */}
 			<box height={1} flexDirection="row" marginBottom={1}>
 				<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-					{title ??
-						translate(i18n, "table.recordDetail", "Record Detail Inspector")}
+					{title ?? translate(i18n, "table.recordDetail")}
 				</text>
 				<box flexGrow={1} />
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{translate(i18n, "palette.dismissHint", "esc")}
+					{translate(i18n, "palette.dismissHint")}
 				</text>
 			</box>
 
@@ -566,7 +564,7 @@ export function TuiTableModal<T extends Record<string, unknown>>({
 					}}
 				>
 					<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "modal.cancel", "Cancel")}
+						{translate(i18n, "modal.cancel")}
 					</text>
 				</box>
 			</box>

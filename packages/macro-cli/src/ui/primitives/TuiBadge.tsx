@@ -166,7 +166,6 @@ export interface TuiStatusBadgeProps {
 
 export function getStatusMeta(status: TuiStatusType): {
 	glyph: string;
-	fallbackLabel: string;
 	i18nKey: string;
 	colorKey:
 		| "statusSuccess"
@@ -183,35 +182,30 @@ export function getStatusMeta(status: TuiStatusType): {
 		case "success":
 			return {
 				glyph: "✓",
-				fallbackLabel: "committed",
 				i18nKey: "status.committed",
 				colorKey: "statusSuccess",
 			};
 		case "reversed":
 			return {
 				glyph: "↺",
-				fallbackLabel: "reversed",
 				i18nKey: "status.reversed",
 				colorKey: "accentPeach",
 			};
 		case "superseded":
 			return {
 				glyph: "⊘",
-				fallbackLabel: "superseded",
 				i18nKey: "status.superseded",
 				colorKey: "fgMuted",
 			};
 		case "executing":
 			return {
 				glyph: "⚡",
-				fallbackLabel: "executing",
 				i18nKey: "status.executing",
 				colorKey: "accentAmber",
 			};
 		case "pending":
 			return {
 				glyph: "◷",
-				fallbackLabel: "pending",
 				i18nKey: "status.pending",
 				colorKey: "statusInfo",
 			};
@@ -219,21 +213,18 @@ export function getStatusMeta(status: TuiStatusType): {
 		case "error":
 			return {
 				glyph: "✗",
-				fallbackLabel: "failed",
 				i18nKey: "status.failed",
 				colorKey: "statusError",
 			};
 		case "warning":
 			return {
 				glyph: "⚠",
-				fallbackLabel: "warning",
 				i18nKey: "status.warning",
 				colorKey: "statusWarning",
 			};
 		case "info":
 			return {
 				glyph: "ℹ",
-				fallbackLabel: "info",
 				i18nKey: "status.info",
 				colorKey: "statusInfo",
 			};
@@ -252,8 +243,7 @@ export function TuiStatusBadge({
 	const meta = getStatusMeta(status);
 	const color = c[meta.colorKey];
 
-	const rawLabel =
-		labelOverride ?? translate(i18n, meta.i18nKey, meta.fallbackLabel);
+	const rawLabel = labelOverride ?? translate(i18n, meta.i18nKey);
 	const labelText = uppercase ? rawLabel.toUpperCase() : rawLabel;
 
 	// 1. Solid Glyph Chip without Words (" ✓ " on solid color block)

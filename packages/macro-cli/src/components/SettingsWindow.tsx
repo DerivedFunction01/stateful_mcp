@@ -75,11 +75,7 @@ export function SettingsWindowView({
 	const activeTheme = theme ?? GlobalThemeRegistry.getActive();
 	const c = activeTheme.colors;
 	const snapshot = model.getSnapshot();
-	const effectivePlaceholder = translate(
-		i18n,
-		"settings.searchPlaceholder",
-		"Search settings (e.g. 'decimal', 'unit')",
-	);
+	const effectivePlaceholder = translate(i18n, "settings.searchPlaceholder");
 
 	// Force update on model state change
 	const [, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -96,12 +92,12 @@ export function SettingsWindowView({
 	const sidebarWidth = isNarrow ? 20 : 24;
 
 	const scopes: Array<{ id: SettingsScope; label: string }> = [
-		{ id: "user", label: translate(i18n, "settings.scope.user", "User") },
+		{ id: "user", label: translate(i18n, "settings.scope.user") },
 		{
 			id: "workspace",
-			label: translate(i18n, "settings.scope.workspace", "Workspace"),
+			label: translate(i18n, "settings.scope.workspace"),
 		},
-		{ id: "folder", label: translate(i18n, "settings.scope.folder", "Folder") },
+		{ id: "folder", label: translate(i18n, "settings.scope.folder") },
 	];
 
 	// Build profile options dynamically from availableProfiles with ZERO hardcoded names
@@ -113,20 +109,13 @@ export function SettingsWindowView({
 	const profileOptions = [
 		...profileList.map((pId) => ({
 			id: pId,
-			label:
-				pId === "base"
-					? translate(i18n, "settings.profile.base", "Base (Default)")
-					: pId,
+			label: pId === "base" ? translate(i18n, "settings.profile.base") : pId,
 			meta: pId === snapshot.activeProfileId ? "active" : undefined,
 		})),
 		{ id: "div-new", label: "", divider: true },
 		{
 			id: "create-new",
-			label: translate(
-				i18n,
-				"settings.profile.createNew",
-				"+ Create New Profile…",
-			),
+			label: translate(i18n, "settings.profile.createNew"),
 			meta: "Action",
 		},
 	];
@@ -158,7 +147,7 @@ export function SettingsWindowView({
 					fg={focusedRegion === "search" ? c.accentPrimary : c.fgMuted}
 					attributes={TextAttributes.BOLD}
 				>
-					{translate(i18n, "settings.findPrompt", "Find:")}{" "}
+					{translate(i18n, "settings.findPrompt")}{" "}
 				</text>
 				{snapshot.searchQuery.length > 0 ? (
 					<box flexDirection="row">
@@ -197,7 +186,7 @@ export function SettingsWindowView({
 				{/* Profile Switcher Dropdown */}
 				<box marginRight={1}>
 					<TuiDropdown
-						label={translate(i18n, "settings.profileLabel", "Profile")}
+						label={translate(i18n, "settings.profileLabel")}
 						options={profileOptions}
 						selectedId={snapshot.activeProfileId}
 						onSelect={(id) => {
@@ -240,19 +229,10 @@ export function SettingsWindowView({
 				<box flexGrow={1} />
 				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
 					{snapshot.totalModifiedCount > 0
-						? translate(
-								i18n,
-								"settings.filter.modified",
-								`Modified (${snapshot.totalModifiedCount})`,
-								{
-									count: snapshot.totalModifiedCount,
-								},
-							)
-						: translate(
-								i18n,
-								"settings.origin.inherited",
-								"Inherited from Base",
-							)}
+						? translate(i18n, "settings.filter.modified", {
+								count: snapshot.totalModifiedCount,
+							})
+						: translate(i18n, "settings.origin.inherited")}
 				</text>
 			</box>
 

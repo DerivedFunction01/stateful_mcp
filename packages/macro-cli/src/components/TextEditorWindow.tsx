@@ -195,7 +195,7 @@ export function TextEditorWindowView({
 				<box flexGrow={1} />
 				{isDirty && (
 					<text fg={c.accentPeach} attributes={TextAttributes.BOLD}>
-						{translate(i18n, "textEditor.unsaved", "● Unsaved Changes")}
+						{translate(i18n, "textEditor.unsaved")}
 					</text>
 				)}
 			</box>
@@ -248,11 +248,7 @@ export function TextEditorWindowView({
 					paddingBottom={0}
 				>
 					<text fg={c.fgDim} attributes={TextAttributes.DIM}>
-						{translate(
-							i18n,
-							"textEditor.references",
-							"Syntax & Format References:",
-						)}
+						{translate(i18n, "textEditor.references")}
 					</text>
 					{exampleHints.map((ex, idx) => (
 						<box key={idx} height={1} flexDirection="row">
@@ -344,14 +340,9 @@ export function TextEditorWindowView({
 							ⓧ{" "}
 						</text>
 						<text fg={c.fgPrimary}>
-							{translate(
-								i18n,
-								"textEditor.diagnostic",
-								diagnostics[0]?.message ?? "",
-								{
-									message: diagnostics[0]?.message ?? "",
-								},
-							)}
+							{translate(i18n, "textEditor.diagnostic", {
+								message: diagnostics[0]?.message ?? "",
+							})}
 						</text>
 					</box>
 				)}
@@ -368,11 +359,7 @@ export function TextEditorWindowView({
 					alignItems="center"
 				>
 					<text fg={c.accentSecondary} attributes={TextAttributes.BOLD}>
-						{translate(
-							i18n,
-							"textEditor.liveOutput",
-							"Live Statement Output:",
-						)}{" "}
+						{translate(i18n, "textEditor.liveOutput")}{" "}
 					</text>
 					<text fg={c.fgPrimary}>{activeLivePreview}</text>
 				</box>
