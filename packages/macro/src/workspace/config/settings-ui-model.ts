@@ -8,6 +8,27 @@ import type {
 
 export type SettingsScope = "user" | "workspace" | "folder";
 
+export const CORE_SETTINGS_CATEGORIES = [
+	"syntax",
+	"values",
+	"appearance",
+	"editor",
+	"keymap",
+	"extensions",
+] as const;
+
+export type CoreSettingsCategory = (typeof CORE_SETTINGS_CATEGORIES)[number];
+export type SettingsCategory = CoreSettingsCategory | (string & {});
+
+export const CORE_CATEGORY_ORDER: Readonly<Record<string, number>> = {
+	syntax: 10,
+	values: 20,
+	appearance: 30,
+	editor: 40,
+	keymap: 50,
+	extensions: 60,
+};
+
 export type SettingsOriginKind =
 	| "default"
 	| "inherited"
@@ -225,14 +246,6 @@ export class SettingsUiModel {
 			items.push(item);
 			sectionItemMap.set(category, items);
 		}
-
-		const CORE_CATEGORY_ORDER: Record<string, number> = {
-			syntax: 10,
-			values: 20,
-			appearance: 30,
-			editor: 40,
-			keymap: 50,
-		};
 
 		const sections: SettingsUiSection[] = [];
 		for (const [cat, items] of sectionItemMap.entries()) {

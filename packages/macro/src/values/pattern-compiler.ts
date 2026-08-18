@@ -50,22 +50,39 @@ export class ValuePatternCompiler {
 			this.dateTimeRegistry = grammar.dateTime;
 		} else {
 			const profile = grammar as Partial<UserMacroProfile> | undefined;
+			const valQuantity = profile?.values?.quantity;
 			this.quantityConfig = {
-				unitAliases: profile?.unitAliases ?? {},
-				rangeDelimiters: profile?.rangeDelimiters ?? [],
-				...(profile?.operatorAliases
-					? { operatorConfig: { operators: profile.operatorAliases } }
+				unitAliases: profile?.unitAliases ?? valQuantity?.unitAliases ?? {},
+				rangeDelimiters:
+					profile?.rangeDelimiters ?? valQuantity?.rangeDelimiters ?? [],
+				...(profile?.operatorAliases || valQuantity?.operatorConfig
+					? {
+							operatorConfig: valQuantity?.operatorConfig ?? {
+								operators: profile?.operatorAliases ?? {},
+							},
+						}
 					: {}),
-				...(profile?.statisticalAliases
-					? { statisticalConfig: { qualifiers: profile.statisticalAliases } }
+				...(profile?.statisticalAliases || valQuantity?.statisticalConfig
+					? {
+							statisticalConfig: valQuantity?.statisticalConfig ?? {
+								qualifiers: profile?.statisticalAliases ?? {},
+							},
+						}
 					: {}),
-				...(profile?.decimalSeparator
-					? { decimalSeparator: profile.decimalSeparator }
+				...(profile?.values?.numeric?.decimalPoint
+					? { decimalSeparator: profile.values.numeric.decimalPoint }
 					: {}),
+				...(valQuantity ?? {}),
 			};
-			this.currencyConfig = profile?.currency;
-			this.dateConfig = profile?.date;
-			this.dateTimeRegistry = profile?.dateTime;
+			this.currencyConfig = profile?.values?.currency as
+				| CurrencyFormatConfig
+				| undefined;
+			this.dateConfig = profile?.values?.date as
+				| DateTimeFormatConfig
+				| undefined;
+			this.dateTimeRegistry = profile?.values?.dateTime as
+				| DateTimeFormatRegistry
+				| undefined;
 		}
 	}
 

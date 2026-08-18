@@ -11,11 +11,14 @@ import type {
 	TemporalModifierKind,
 	TwoDigitYearCenturyConfig,
 } from "../values/date-time";
+import type { FrequencyGrammarConfig } from "../values/frequency";
+import type { NumericParseOptions } from "../values/numeric";
 import type {
 	QuantityConsumerPolicy,
 	QuantityGrammarConfig,
 	QuantityStatisticsPolicy,
 } from "../values/quantity";
+import type { CompoundRateConfig } from "../values/rates";
 import type { MacroSyntax } from "./syntax";
 import type { NumericBounds } from "./values";
 
@@ -65,6 +68,18 @@ export type {
 	TwoDigitYearCenturyConfig,
 };
 
+export interface UserMacroProfileValues {
+	readonly numeric?: Partial<NumericParseOptions>;
+	readonly dateTime?: Partial<DateTimeFormatRegistry>;
+	readonly date?: Partial<DateTimeFormatConfig>;
+	readonly relativeTemporal?: Partial<RelativeTemporalConfig>;
+	readonly frequency?: Partial<FrequencyGrammarConfig>;
+	readonly quantity?: Partial<QuantityGrammarConfig>;
+	readonly currency?: Partial<CurrencyFormatConfig>;
+	readonly rates?: Partial<CompoundRateConfig>;
+	readonly [customDomain: string]: unknown;
+}
+
 export interface UserMacroProfile {
 	readonly id?: string;
 	readonly extends?: string;
@@ -72,11 +87,7 @@ export interface UserMacroProfile {
 	readonly locale?: string;
 	readonly localization?: LocalizationPolicyConfig;
 	readonly numberWords?: NumberWordConfig;
-	readonly decimalSeparator?: "." | ",";
-	readonly date?: DateTimeFormatConfig;
-	readonly dateTime?: DateTimeFormatRegistry;
-	readonly relativeTemporal?: RelativeTemporalConfig;
-	readonly currency?: CurrencyFormatConfig;
+	readonly values?: UserMacroProfileValues;
 	readonly excludePrefixes?: readonly string[];
 	/** Master general spelling aliases (e.g. British vs US spellings, standard SI/Imperial) */
 	readonly unitAliases?: Readonly<Record<string, readonly string[]>>;

@@ -7,7 +7,7 @@ import {
 import { EN_LOCALE_CLI } from "./en";
 import { ES_LOCALE_CLI } from "./es";
 
-export { EN_LOCALE_CLI } from "./en";
+export { EN_LOCALE_CLI, type LocaleKey } from "./en";
 export { ES_LOCALE_CLI } from "./es";
 
 export function registerCliLocales(i18n: I18nKernel): void {
@@ -27,7 +27,8 @@ export function translate(
 	params?: TranslationParams,
 ): string {
 	if (i18n) return i18n.t(key, params);
-	const template: string | undefined = EN_LOCALE_CLI[key] ?? EN_LOCALE[key];
+	const template: string | undefined =
+		(EN_LOCALE_CLI as Record<string, string>)[key] ?? EN_LOCALE[key];
 	return template ? interpolate(template, params) : key;
 }
 
