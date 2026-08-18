@@ -26,16 +26,13 @@ describe("Modular Settings Registry & Domain Modules", () => {
 	});
 
 	it("constructs deep default settings tree matching canonical values.* structure", () => {
-		const defaults = DEFAULT_WORKSPACE_SETTINGS_VALUES as Record<
-			string,
-			any
-		>;
+		const defaults = DEFAULT_WORKSPACE_SETTINGS_VALUES as Record<string, any>;
 
 		expect(defaults.syntax).toBeDefined();
 		expect(defaults.syntax.macroStartToken).toBe("@");
 
 		expect(defaults.values).toBeDefined();
-		expect(defaults.values.numeric.decimalPoint).toBe(".");
+		expect(defaults.values.numeric.decimalSeparator).toBe(".");
 		expect(defaults.values.dateTime.is24Hour).toBe(true);
 		expect(defaults.values.frequency.intervalPrefixes).toContain("every");
 		expect(defaults.values.quantity.rangeDelimiters).toContain("-");
@@ -54,7 +51,7 @@ describe("Modular Settings Registry & Domain Modules", () => {
 		expect(enSchema.length).toBeGreaterThan(15);
 
 		const decimalEntryEn = enSchema.find(
-			(e) => e.path.join(".") === "values.numeric.decimalPoint",
+			(e) => e.path.join(".") === "values.numeric.decimalSeparator",
 		);
 		expect(decimalEntryEn).toBeDefined();
 		expect(decimalEntryEn!.title).toBe("Decimal Separator");
@@ -64,7 +61,7 @@ describe("Modular Settings Registry & Domain Modules", () => {
 		const esSchema: readonly SettingsSchemaEntry[] =
 			getDefaultSettingsSchema(kernel);
 		const decimalEntryEs = esSchema.find(
-			(e) => e.path.join(".") === "values.numeric.decimalPoint",
+			(e) => e.path.join(".") === "values.numeric.decimalSeparator",
 		);
 		expect(decimalEntryEs).toBeDefined();
 		expect(decimalEntryEs!.title).toBe("Separador Decimal");

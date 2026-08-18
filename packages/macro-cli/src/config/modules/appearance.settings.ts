@@ -28,10 +28,7 @@ export const appearanceSettingsModule: SettingsModule<AppearanceConfig> = {
 				category: "appearance",
 				group: "Appearance",
 				title: translate(i18n, "settings.schema.appearance.theme.title"),
-				description: translate(
-					i18n,
-					"settings.schema.appearance.theme.desc",
-				),
+				description: translate(i18n, "settings.schema.appearance.theme.desc"),
 				enumOptions: [
 					{ id: "default", label: "Default (Dark Theme)" },
 					{ id: "github-dark", label: "GitHub Dark" },
@@ -47,10 +44,7 @@ export const appearanceSettingsModule: SettingsModule<AppearanceConfig> = {
 				widget: "toggle",
 				category: "appearance",
 				group: "Appearance",
-				title: translate(
-					i18n,
-					"settings.schema.appearance.showBounds.title",
-				),
+				title: translate(i18n, "settings.schema.appearance.showBounds.title"),
 				description: translate(
 					i18n,
 					"settings.schema.appearance.showBounds.desc",

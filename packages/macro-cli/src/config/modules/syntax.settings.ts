@@ -27,10 +27,7 @@ export const syntaxSettingsModule: SettingsModule<Partial<MacroSyntax>> = {
 				widget: "input",
 				category: "syntax",
 				group: "Core Tokens",
-				title: translate(
-					i18n,
-					"settings.schema.syntax.macroStartToken.title",
-				),
+				title: translate(i18n, "settings.schema.syntax.macroStartToken.title"),
 				description: translate(
 					i18n,
 					"settings.schema.syntax.macroStartToken.desc",

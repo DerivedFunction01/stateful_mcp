@@ -69,8 +69,8 @@ export class ValuePatternCompiler {
 							},
 						}
 					: {}),
-				...(profile?.values?.numeric?.decimalPoint
-					? { decimalSeparator: profile.values.numeric.decimalPoint }
+				...(profile?.values?.numeric?.decimalSeparator
+					? { decimalSeparator: profile.values.numeric.decimalSeparator }
 					: {}),
 				...(valQuantity ?? {}),
 			};

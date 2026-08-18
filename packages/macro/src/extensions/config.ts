@@ -11,6 +11,8 @@ import type {
 	CurrencyDefinition,
 	CurrencyFormatConfig,
 } from "../values/currency";
+import type { DateTimeFormatConfig } from "../values/date-time";
+
 import type {
 	QuantityConsumerPolicy,
 	QuantityGrammarConfig,
@@ -32,8 +34,9 @@ export function compileDomainConfig(
 	profile?: UserMacroProfile,
 	config?: ExtensionDomainConfig,
 ): CompiledDomainGrammar {
-	const decimalSeparator =
-		config?.overrides?.decimalSeparator ?? profile?.decimalSeparator;
+	const decimalSeparator: "." | "," | undefined = (config?.overrides?.values
+		?.numeric?.decimalSeparator ??
+		profile?.values?.numeric?.decimalSeparator) as "." | "," | undefined;
 
 	const combinedUnitAliases: Record<string, string[]> = {};
 	if (profile?.unitAliases) {
@@ -135,13 +138,16 @@ export function compileDomainConfig(
 			: {}),
 	};
 
-	const date = config?.overrides?.date ?? profile?.date;
+	const date = (config?.overrides?.values?.date ?? profile?.values?.date) as
+		| DateTimeFormatConfig
+		| undefined;
 
 	// Merge currency configuration
 	let currency: CurrencyFormatConfig | undefined;
-	const profileCurrency = profile?.currency;
+	const profileCurrency =
+		config?.overrides?.values?.currency ?? profile?.values?.currency;
 	const domainCurrency = config?.currency;
-	const overrideCurrency = config?.overrides?.currency;
+	const overrideCurrency = config?.overrides?.values?.currency;
 
 	if (profileCurrency || domainCurrency || overrideCurrency) {
 		const combinedCurrencies: Record<string, string[]> = {};
@@ -193,11 +199,10 @@ export function compileDomainConfig(
 				overrideCurrency?.thousandsSeparator ??
 				domainCurrency?.thousandsSeparator ??
 				profileCurrency?.thousandsSeparator,
-			decimalSeparator:
-				overrideCurrency?.decimalSeparator ??
+			decimalSeparator: (overrideCurrency?.decimalSeparator ??
 				domainCurrency?.decimalSeparator ??
 				profileCurrency?.decimalSeparator ??
-				decimalSeparator,
+				decimalSeparator) as "." | "," | undefined,
 			...(Object.keys(combinedCurrencies).length
 				? { currencies: combinedCurrencies }
 				: {}),

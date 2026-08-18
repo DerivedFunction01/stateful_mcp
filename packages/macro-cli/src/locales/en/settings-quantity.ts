@@ -1,5 +1,6 @@
 export const EN_SETTINGS_QUANTITY = {
-	"settings.schema.values.quantity.templates.title": "Quantity Format Templates",
+	"settings.schema.values.quantity.templates.title":
+		"Quantity Format Templates",
 	"settings.schema.values.quantity.templates.desc":
 		"Ordered format templates using tokens (NUM, UNIT, PKG_CLASSIFIER, FILLER, etc.).",
 	"settings.schema.values.quantity.rangeDelimiters.title":

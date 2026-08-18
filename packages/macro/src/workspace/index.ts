@@ -112,7 +112,24 @@ export function createMacroWorkspace(
 	);
 	const palette = new CommandPaletteController(commands, layout, tabs);
 	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
-	if (options?.settings)
+	if (options?.settings) {
+		let previousLocale =
+			(options.settings.getEffective().locale as string) ??
+			options?.initialLocale ??
+			"en";
+
+		options.settings.subscribe(() => {
+			const effective = options.settings!.getEffective();
+			const newLocale = effective.locale as string | undefined;
+			if (newLocale && newLocale !== previousLocale) {
+				previousLocale = newLocale;
+				i18n.setActiveLocale(newLocale);
+			}
+
+			runtime.applyProfile(effective as unknown as UserMacroProfile);
+			void scratchpad.parseAllLines();
+		});
+
 		saveCoordinator.register({
 			id: "workspace.settings",
 			scope: "workspace",
@@ -132,6 +149,7 @@ export function createMacroWorkspace(
 						};
 			},
 		});
+	}
 	commands.registerCommand(
 		{
 			command: "workspace.saveActive",

@@ -119,11 +119,15 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 	const baseProfile: UserMacroProfile = {
 		id: "base",
 		locale: "en-US",
-		decimalSeparator: ".",
+		values: {
+			numeric: {
+				decimalSeparator: ".",
+			},
+		},
 		syntax: {
 			macroStartToken: "@",
 			conceptToken: "#",
-			argumentAssign: "=",
+			argumentDelimiter: "=",
 		},
 		unitAliases: {
 			"mass::milligram": ["mg"],
@@ -147,7 +151,11 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		await driver.saveProfile("base", baseProfile);
 		const spanishDelta: Partial<UserMacroProfile> = {
 			locale: "es-ES",
-			decimalSeparator: ",",
+			values: {
+				numeric: {
+					decimalSeparator: ",",
+				},
+			},
 			unitAliases: { "mass::milligram": ["miligramos"] },
 			rangeDelimiters: ["hasta"],
 		};
@@ -212,7 +220,11 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 			id: "spanish",
 			extends: "base",
 			locale: "es-ES",
-			decimalSeparator: ",",
+			values: {
+				numeric: {
+					decimalSeparator: ",",
+				},
+			},
 			unitAliases: {
 				"mass::milligram": ["miligramos"],
 				"packaging::box": ["caja"],
@@ -224,7 +236,7 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 
 		// Scalar properties are overridden
 		expect(resolved.locale).toBe("es-ES");
-		expect(resolved.decimalSeparator).toBe(",");
+		expect(resolved.values?.numeric?.decimalSeparator).toBe(",");
 
 		// Syntax is inherited from base
 		expect(resolved.syntax?.macroStartToken).toBe("@");
@@ -258,11 +270,15 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		const derived: UserMacroProfile = {
 			id: "spanish",
 			locale: "es-ES",
-			decimalSeparator: ",",
+			values: {
+				numeric: {
+					decimalSeparator: ",",
+				},
+			},
 			syntax: {
 				macroStartToken: "@",
 				conceptToken: "#",
-				argumentAssign: "=",
+				argumentDelimiter: "=",
 			},
 			unitAliases: {
 				"mass::milligram": ["miligramos"],
@@ -271,7 +287,7 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 
 		const delta = computeSparseDelta(derived, baseProfile);
 		expect(delta.locale).toBe("es-ES");
-		expect(delta.decimalSeparator).toBe(",");
+		expect(delta.values?.numeric?.decimalSeparator).toBe(",");
 		expect(delta.unitAliases).toBeDefined();
 
 		// Syntax was identical to base, so it was pruned from delta

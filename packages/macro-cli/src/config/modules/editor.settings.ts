@@ -29,14 +29,8 @@ export const editorSettingsModule: SettingsModule<EditorConfig> = {
 				widget: "input",
 				category: "editor",
 				group: "Editor",
-				title: translate(
-					i18n,
-					"settings.schema.editor.keybindings.title",
-				),
-				description: translate(
-					i18n,
-					"settings.schema.editor.keybindings.desc",
-				),
+				title: translate(i18n, "settings.schema.editor.keybindings.title"),
+				description: translate(i18n, "settings.schema.editor.keybindings.desc"),
 			},
 			{
 				path: ["editor", "tabSize"],
@@ -45,10 +39,7 @@ export const editorSettingsModule: SettingsModule<EditorConfig> = {
 				category: "editor",
 				group: "Editor",
 				title: translate(i18n, "settings.schema.editor.tabSize.title"),
-				description: translate(
-					i18n,
-					"settings.schema.editor.tabSize.desc",
-				),
+				description: translate(i18n, "settings.schema.editor.tabSize.desc"),
 			},
 			{
 				path: ["editor", "wordWrap"],
@@ -57,10 +48,7 @@ export const editorSettingsModule: SettingsModule<EditorConfig> = {
 				category: "editor",
 				group: "Editor",
 				title: translate(i18n, "settings.schema.editor.wordWrap.title"),
-				description: translate(
-					i18n,
-					"settings.schema.editor.wordWrap.desc",
-				),
+				description: translate(i18n, "settings.schema.editor.wordWrap.desc"),
 			},
 		];
 	},

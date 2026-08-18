@@ -1,5 +1,6 @@
 export const EN_SETTINGS_FREQUENCY = {
-	"settings.schema.values.frequency.templates.title": "Cadence Format Templates",
+	"settings.schema.values.frequency.templates.title":
+		"Cadence Format Templates",
 	"settings.schema.values.frequency.templates.desc":
 		"Ordered format templates using tokens (INTERVAL_MAG, INTERVAL_UNIT, RECURRENCE_COUNT, etc.).",
 	"settings.schema.values.frequency.intervalPrefixes.title":

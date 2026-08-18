@@ -1,7 +1,7 @@
-import {
-	type CurrencyFormatConfig,
-	type I18nKernel,
-	type SettingsSchemaEntry,
+import type {
+	CurrencyFormatConfig,
+	I18nKernel,
+	SettingsSchemaEntry,
 } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import type { SettingsModule } from "../registry";

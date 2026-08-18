@@ -16,7 +16,10 @@ import {
 	createMacroRuntimeContext,
 	type MacroRuntimeContext,
 } from "../contracts/context";
-import type { UserMacroProfile } from "../contracts/extension-config";
+import type {
+	CompiledDomainGrammar,
+	UserMacroProfile,
+} from "../contracts/extension-config";
 import type { ParseListener } from "../contracts/listeners";
 import type { MacroParseOptions, MacroSpec } from "../contracts/macro";
 import {
@@ -273,6 +276,22 @@ export class ExtensionRuntime {
 	async reload(item: LoadedExtension): Promise<ActivationResult> {
 		await this.dispose(item.extension.manifest.id);
 		return this.activate([item]);
+	}
+
+	applyProfile(profile?: UserMacroProfile): void {
+		this.options.profile = profile;
+		for (const [id, ctx] of this.contexts.entries()) {
+			const active = this.extensions.get(id);
+			if (active) {
+				(ctx as { profile?: UserMacroProfile }).profile = profile;
+				(
+					ctx as { compiledDomainGrammar: CompiledDomainGrammar }
+				).compiledDomainGrammar = compileDomainConfig(
+					profile,
+					active.manifest.domainConfig,
+				);
+			}
+		}
 	}
 
 	getListeners(): readonly ParseListener[] {

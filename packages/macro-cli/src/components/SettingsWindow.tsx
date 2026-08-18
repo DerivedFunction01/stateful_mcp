@@ -646,10 +646,12 @@ export function createSettingsTabProvider(
 			return (
 				<SettingsWindowView
 					model={uiModel}
+					availableProfiles={snapshot.availableProfiles}
 					i18n={workspace.i18n}
 					focusedRegion={focusedRegion}
 					selectedCategoryId={selectedCatId}
 					selectedItemIndex={selectedItemIndex}
+					onSwitchProfile={(id) => void uiModel.switchProfile(id)}
 					onOpenJson={() => {
 						void workspace.commands.executeCommand(
 							"workbench.action.openSettingsJson",

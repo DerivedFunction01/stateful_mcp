@@ -72,6 +72,7 @@ export interface SettingsUiSection {
 
 export interface SettingsUiSnapshot {
 	readonly activeProfileId: string;
+	readonly availableProfiles?: readonly string[];
 	readonly activeScope: SettingsScope;
 	readonly searchQuery: string;
 	readonly filterModifiedOnly: boolean;
@@ -94,19 +95,34 @@ export class SettingsUiModel {
 		private readonly service: WorkspaceSettingsService,
 		private readonly i18n?: I18nKernel,
 	) {
-		this.service.subscribe(() => this.notify());
+		this.activeProfileId = this.service.getActiveProfileId();
+		this.refreshProfiles();
+		this.service.subscribe(() => {
+			this.activeProfileId = this.service.getActiveProfileId();
+			this.refreshProfiles();
+			this.notify();
+		});
 		this.i18n?.subscribe(() => this.notify());
 	}
 
+	private refreshProfiles(): void {
+		void this.service.listProfiles().then((profiles) => {
+			this.cachedProfiles = profiles;
+		});
+	}
+
 	getActiveProfileId(): string {
-		return this.activeProfileId;
+		return this.service.getActiveProfileId() || this.activeProfileId;
+	}
+
+	async switchProfile(profileId: string): Promise<void> {
+		this.activeProfileId = profileId;
+		await this.service.switchProfile(profileId);
+		this.refreshProfiles();
 	}
 
 	setActiveProfileId(profileId: string): void {
-		if (this.activeProfileId !== profileId) {
-			this.activeProfileId = profileId;
-			this.notify();
-		}
+		void this.switchProfile(profileId);
 	}
 
 	getActiveScope(): SettingsScope {

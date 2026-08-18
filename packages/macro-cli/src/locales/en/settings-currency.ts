@@ -2,7 +2,8 @@ export const EN_SETTINGS_CURRENCY = {
 	"settings.schema.values.currency.defaultCurrency.title": "Default Currency",
 	"settings.schema.values.currency.defaultCurrency.desc":
 		"Default 3-letter ISO 4217 currency code (e.g. 'USD', 'EUR', 'GBP').",
-	"settings.schema.values.currency.templates.title": "Currency Format Templates",
+	"settings.schema.values.currency.templates.title":
+		"Currency Format Templates",
 	"settings.schema.values.currency.templates.desc":
 		"Ordered format templates using tokens (SYM, CODE, AMOUNT, SUBUNITS, OP).",
 	"settings.schema.values.currency.allowSubunits.title": "Allow Subunits",

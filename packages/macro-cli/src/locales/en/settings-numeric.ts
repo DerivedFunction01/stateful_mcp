@@ -1,6 +1,6 @@
 export const EN_SETTINGS_NUMERIC = {
-	"settings.schema.values.numeric.decimalPoint.title": "Decimal Separator",
-	"settings.schema.values.numeric.decimalPoint.desc":
+	"settings.schema.values.numeric.decimalSeparator.title": "Decimal Separator",
+	"settings.schema.values.numeric.decimalSeparator.desc":
 		"Radix point character used in numbers (e.g. '.' or ',').",
 	"settings.schema.values.numeric.thousandsSeparator.title":
 		"Thousands Separator",

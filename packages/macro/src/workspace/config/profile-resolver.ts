@@ -104,8 +104,8 @@ export async function resolveProfile(
 	const loaded = await driver.loadProfile(targetId);
 
 	if (!loaded) {
-		if (targetId === "base" && fallbackBase) {
-			return fallbackBase;
+		if (targetId === "base") {
+			return fallbackBase ?? { id: "base" };
 		}
 		if (fallbackBase) {
 			return fallbackBase;

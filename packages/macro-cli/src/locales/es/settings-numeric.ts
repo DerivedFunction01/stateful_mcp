@@ -1,6 +1,6 @@
 export const ES_SETTINGS_NUMERIC = {
-	"settings.schema.values.numeric.decimalPoint.title": "Separador Decimal",
-	"settings.schema.values.numeric.decimalPoint.desc":
+	"settings.schema.values.numeric.decimalSeparator.title": "Separador Decimal",
+	"settings.schema.values.numeric.decimalSeparator.desc":
 		"Carácter de punto decimal usado en números (ej. '.' o ',').",
 	"settings.schema.values.numeric.thousandsSeparator.title":
 		"Separador de Miles",

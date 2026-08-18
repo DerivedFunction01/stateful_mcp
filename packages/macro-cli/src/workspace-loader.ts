@@ -1,7 +1,10 @@
-import { readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { JsonlKvBackend, MemoryKvBackend } from "@stateful-mcp/core";
 import type { LoadedExtension, UserMacroProfile } from "@stateful-mcp/macro";
 import {
+	CoreKvSettingsStorageDriver,
+	createDefaultI18nKernel,
 	createMacroWorkspace,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
 	type EditorKeymapProfile,
@@ -9,6 +12,7 @@ import {
 	ExtensionLoader as MacroExtensionLoader,
 	type MacroWorkspace,
 	mergeEditorKeymap,
+	resolveProfile,
 	validateEditorKeymap,
 	WorkspaceSettingsService,
 } from "@stateful-mcp/macro";
@@ -63,7 +67,9 @@ export async function loadMacroCliWorkspace(
 		? await readWorkspaceManifest(options.workspacePath)
 		: undefined;
 	const profile = options.profilePath
-		? await readJsonFile<UserMacroProfile>(options.profilePath)
+		? await readJsonFile<UserMacroProfile>(options.profilePath).catch(
+				() => undefined,
+			)
 		: undefined;
 	const keymapOverride = options.keymapPath
 		? await readJsonFile<Partial<EditorKeymapProfile>>(options.keymapPath)
@@ -94,57 +100,76 @@ export async function loadMacroCliWorkspace(
 				resolved.extensions,
 			)
 		: [];
+	const kv = options.profilePath
+		? new JsonlKvBackend({ dataFilePath: resolve(options.profilePath) })
+		: new MemoryKvBackend();
+	const driver = new CoreKvSettingsStorageDriver(kv);
+
+	// Load existing settings metadata if any
+	const settingsDoc = await driver.loadSettings();
+	const activeProfileId =
+		settingsDoc.activeProfile ??
+		resolved.activeProfile ??
+		manifestResult?.manifest.activeProfile ??
+		"base";
+
+	// Seed profile into driver if passed explicitly
+	if (profile && profile.id) {
+		const existing = await driver.loadProfile(profile.id);
+		if (!existing) {
+			await driver.saveProfile(profile.id, profile);
+		}
+	}
+
+	// Resolve the active profile through the storage driver
+	const resolvedProfile = await resolveProfile(
+		activeProfileId,
+		driver,
+		profile,
+	);
+
+	const initialLocale =
+		options.locale ??
+		(settingsDoc as any).locale ??
+		resolvedProfile.locale ??
+		"en";
+
+	const i18n = createDefaultI18nKernel(initialLocale);
+	registerCliLocales(i18n);
+
+	// Load existing extension configs from storage driver
+	const extensionConfigs: Record<string, Record<string, unknown>> = {};
+	for (const ext of loadedExtensions) {
+		const extId = ext.extension.manifest.id;
+		const cfg = await driver.loadExtensionConfig(extId);
+		if (cfg) {
+			extensionConfigs[extId] = cfg as Record<string, unknown>;
+		}
+	}
+
 	const settings = new WorkspaceSettingsService({
 		defaults: {
 			...DEFAULT_WORKSPACE_SETTINGS_VALUES,
-			locale: options.locale ?? profile?.locale ?? "en",
+			locale: initialLocale,
 		},
-		schema: getDefaultSettingsSchema(),
-		initial: profile as Record<string, unknown> | undefined,
-		storage: options.profilePath
-			? {
-					read: async () => {
-						try {
-							return await readFile(resolve(options.profilePath!), "utf8");
-						} catch (error) {
-							return error instanceof Error &&
-								"code" in error &&
-								error.code === "ENOENT"
-								? null
-								: Promise.reject(error);
-						}
-					},
-					write: async (content) => {
-						const target = resolve(options.profilePath!);
-						const temporary = `${target}.${process.pid}.${Date.now()}.tmp`;
-						try {
-							await writeFile(temporary, content, "utf8");
-							await rename(temporary, target);
-						} finally {
-							await unlink(temporary).catch(() => undefined);
-						}
-					},
-					reset: async () => {
-						try {
-							await unlink(resolve(options.profilePath!));
-						} catch (error) {
-							if (
-								!(
-									error instanceof Error &&
-									"code" in error &&
-									error.code === "ENOENT"
-								)
-							)
-								throw error;
-						}
-					},
-				}
-			: { read: () => null, write: () => undefined, reset: () => undefined },
+		schema: getDefaultSettingsSchema(i18n),
+		initial: {
+			...DEFAULT_WORKSPACE_SETTINGS_VALUES,
+			...(resolvedProfile as Record<string, unknown>),
+			...(settingsDoc as Record<string, unknown>),
+			...(Object.keys(extensionConfigs).length > 0
+				? { extensions: extensionConfigs }
+				: {}),
+		},
+		driver,
+		activeProfileId,
+		baseProfile: resolvedProfile,
 	});
+
 	const workspace = createMacroWorkspace({
 		initialText: options.initialText,
-		initialLocale: options.locale ?? profile?.locale ?? "en",
-		profile,
+		initialLocale,
+		profile: resolvedProfile,
 		settings,
 	});
 	workspace.tabs.registerTabProvider("settings", {

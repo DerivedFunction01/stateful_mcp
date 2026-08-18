@@ -1,8 +1,4 @@
-import type {
-	DateTimeFormatRegistry,
-	I18nKernel,
-	SettingsSchemaEntry,
-} from "@stateful-mcp/macro";
+import type { I18nKernel, SettingsSchemaEntry } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import type { SettingsModule } from "../registry";
 

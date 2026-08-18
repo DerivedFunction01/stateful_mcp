@@ -1,3 +1,10 @@
+import type { UserMacroProfile } from "../../contracts/extension-config";
+import { computeSparseDelta, resolveProfile } from "./profile-resolver";
+import type {
+	SettingsStorageDriver,
+	WorkspaceSettings,
+} from "./storage-driver";
+
 export type SettingsFormWidget =
 	| "toggle"
 	| "input"
@@ -73,7 +80,10 @@ export interface WorkspaceSettingsServiceOptions {
 	readonly defaults: Readonly<Record<string, unknown>>;
 	readonly initial?: Readonly<Record<string, unknown>>;
 	readonly schema?: readonly SettingsSchemaEntry[];
-	readonly storage: SettingsStorage;
+	readonly storage?: SettingsStorage;
+	readonly driver?: SettingsStorageDriver;
+	readonly activeProfileId?: string;
+	readonly baseProfile?: UserMacroProfile;
 	readonly customValidate?: (
 		draft: Readonly<Record<string, unknown>>,
 	) => readonly SettingsDiagnostic[];
@@ -90,12 +100,18 @@ export class WorkspaceSettingsService {
 	private readonly coreSchema: readonly SettingsSchemaEntry[];
 	private defaults: Readonly<Record<string, unknown>>;
 	private schema: readonly SettingsSchemaEntry[];
+	private activeProfileId: string;
+	private baseProfile?: UserMacroProfile;
+	private driver?: SettingsStorageDriver;
 
 	constructor(private readonly options: WorkspaceSettingsServiceOptions) {
 		this.coreDefaults = options.defaults;
 		this.coreSchema = options.schema ?? [];
 		this.defaults = options.defaults;
 		this.schema = options.schema ?? [];
+		this.activeProfileId = options.activeProfileId ?? "base";
+		this.baseProfile = options.baseProfile;
+		this.driver = options.driver;
 		this.effective = clone(options.initial ?? options.defaults);
 		this.draft = clone(this.effective);
 		this.rawText = JSON.stringify(this.draft, null, 2);
@@ -187,9 +203,13 @@ export class WorkspaceSettingsService {
 		for (const entry of this.schema) {
 			const value = getAtPath(this.draft, entry.path);
 			if (value === undefined) continue;
+			const allowedEnumValues =
+				entry.enumValues ?? entry.enumOptions?.map((opt) => opt.id);
 			if (
 				!matchesType(value, entry.type) ||
-				(entry.type === "enum" && !entry.enumValues?.includes(String(value)))
+				(entry.type === "enum" &&
+					allowedEnumValues &&
+					!allowedEnumValues.includes(String(value)))
 			) {
 				diagnostics.push({
 					severity: "error",
@@ -218,11 +238,92 @@ export class WorkspaceSettingsService {
 		return this.diagnostics;
 	}
 
+	getActiveProfileId(): string {
+		return this.activeProfileId;
+	}
+
+	async listProfiles(): Promise<readonly string[]> {
+		if (this.driver) {
+			const list = await this.driver.listProfiles();
+			if (!list.includes(this.activeProfileId)) {
+				return Object.freeze([this.activeProfileId, ...list]);
+			}
+			return list;
+		}
+		return Object.freeze([this.activeProfileId]);
+	}
+
+	async switchProfile(id: string): Promise<void> {
+		this.activeProfileId = id;
+		if (this.driver) {
+			const resolved = await resolveProfile(id, this.driver, this.baseProfile);
+			this.effective = clone({
+				...this.defaults,
+				...(resolved as Record<string, unknown>),
+			});
+			this.draft = clone(this.effective);
+			this.rawText = JSON.stringify(this.draft, null, 2);
+			this.validate();
+			this.notify();
+		}
+	}
+
 	async save(): Promise<SettingsSaveResult> {
 		const diagnostics = this.validate();
 		if (diagnostics.some((diagnostic) => diagnostic.severity === "error"))
 			return { status: "blocked", diagnostics };
-		await this.options.storage.write(this.rawText);
+
+		if (this.driver) {
+			// 1. Profile-scoped state
+			const profileSubset: UserMacroProfile = {
+				locale: this.draft.locale as string | undefined,
+				syntax: this.draft.syntax as any,
+				values: this.draft.values as any,
+				unitAliases: this.draft.unitAliases as any,
+				rangeDelimiters: this.draft.rangeDelimiters as any,
+				operatorAliases: this.draft.operatorAliases as any,
+				statisticalAliases: this.draft.statisticalAliases as any,
+				excludePrefixes: this.draft.excludePrefixes as any,
+				numberWords: this.draft.numberWords as any,
+				localization: this.draft.localization as any,
+			};
+			const delta = computeSparseDelta(profileSubset, this.baseProfile ?? {});
+			await this.driver.saveProfile(this.activeProfileId, delta);
+
+			// 2. Workspace-scoped state
+			const appearance = (this.draft.appearance ?? {}) as Record<
+				string,
+				unknown
+			>;
+			const editor = (this.draft.editor ?? {}) as Record<string, unknown>;
+			const workspaceSettings: WorkspaceSettings = {
+				activeProfile: this.activeProfileId,
+				theme: appearance.theme as string | undefined,
+				showBounds: appearance.showBounds as boolean | undefined,
+				...appearance,
+				...editor,
+			};
+			await this.driver.saveSettings(workspaceSettings);
+
+			// 3. Extension-scoped configs
+			if (this.draft.extensions && typeof this.draft.extensions === "object") {
+				for (const [extId, extConfig] of Object.entries(
+					this.draft.extensions as Record<string, unknown>,
+				)) {
+					if (extConfig && typeof extConfig === "object") {
+						await this.driver.saveExtensionConfig(
+							extId,
+							extConfig as Record<string, unknown>,
+						);
+					}
+				}
+			}
+		}
+
+		if (this.options.storage) {
+			await this.options.storage.write(this.rawText);
+		}
+
 		const restartRequired = diagnostics.some(
 			(diagnostic) => diagnostic.restartRequired === true,
 		);
@@ -232,7 +333,9 @@ export class WorkspaceSettingsService {
 	}
 
 	async reset(): Promise<void> {
-		await this.options.storage.reset();
+		if (this.options.storage) {
+			await this.options.storage.reset();
+		}
 		this.draft = clone(this.defaults);
 		this.effective = clone(this.draft);
 		this.rawText = JSON.stringify(this.draft, null, 2);
@@ -242,14 +345,20 @@ export class WorkspaceSettingsService {
 	}
 
 	async reload(): Promise<void> {
-		const raw = await this.options.storage.read();
-		if (raw === null) return this.reset();
-		this.replaceRawText(raw);
-		if (
-			!this.diagnostics.some((diagnostic) => diagnostic.severity === "error")
-		) {
-			this.effective = clone(this.draft);
-			this.notify();
+		if (this.driver) {
+			await this.switchProfile(this.activeProfileId);
+			return;
+		}
+		if (this.options.storage) {
+			const raw = await this.options.storage.read();
+			if (raw === null) return this.reset();
+			this.replaceRawText(raw);
+			if (
+				!this.diagnostics.some((diagnostic) => diagnostic.severity === "error")
+			) {
+				this.effective = clone(this.draft);
+				this.notify();
+			}
 		}
 	}
 
@@ -316,6 +425,11 @@ function matchesType(
 		(type === "number" && typeof value === "number") ||
 		(type === "string" && typeof value === "string") ||
 		(type === "enum" && typeof value === "string") ||
+		(type === "array" && Array.isArray(value)) ||
+		(type === "object" &&
+			typeof value === "object" &&
+			value !== null &&
+			!Array.isArray(value)) ||
 		(type === "keymap" && typeof value === "object" && value !== null)
 	);
 }

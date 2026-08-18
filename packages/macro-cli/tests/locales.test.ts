@@ -4,7 +4,6 @@ import {
 	EN_LOCALE_CLI,
 	ES_LOCALE_CLI,
 	registerCliLocales,
-	translate,
 } from "../src/locales";
 
 describe("Modular i18n Architecture & Catalogs", () => {
@@ -53,9 +52,9 @@ describe("Modular i18n Architecture & Catalogs", () => {
 		).toBe("5/10 válidos");
 
 		// Settings schema key in Spanish
-		expect(kernel.t("settings.schema.values.numeric.decimalPoint.title")).toBe(
-			"Separador Decimal",
-		);
+		expect(
+			kernel.t("settings.schema.values.numeric.decimalSeparator.title"),
+		).toBe("Separador Decimal");
 	});
 
 	it("falls back to key when translation is not found in any catalog", () => {

@@ -9,7 +9,6 @@ import { quantitySettingsModule } from "./modules/quantity.settings";
 import { syntaxSettingsModule } from "./modules/syntax.settings";
 import { CompositeSettingsRegistry } from "./registry";
 
-export * from "./registry";
 export * from "./modules/appearance.settings";
 export * from "./modules/currency.settings";
 export * from "./modules/date-time.settings";
@@ -18,6 +17,7 @@ export * from "./modules/frequency.settings";
 export * from "./modules/numeric.settings";
 export * from "./modules/quantity.settings";
 export * from "./modules/syntax.settings";
+export * from "./registry";
 
 export function createDefaultSettingsRegistry(): CompositeSettingsRegistry {
 	return new CompositeSettingsRegistry()

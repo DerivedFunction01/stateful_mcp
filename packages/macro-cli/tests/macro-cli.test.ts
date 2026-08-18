@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
 	createMacroRuntimeContext,
@@ -86,12 +86,15 @@ describe("macro-cli workspace loading", () => {
 		const keymapPath = join(root, "keymap.json");
 		await writeFile(
 			profilePath,
-			JSON.stringify({ locale: "es", decimalSeparator: "," }),
+			JSON.stringify({
+				locale: "es",
+				values: { numeric: { decimalSeparator: "," } },
+			}),
 		);
 		await writeFile(keymapPath, JSON.stringify({ normal: { moveDown: "n" } }));
 
 		const loaded = await loadMacroCliWorkspace({ profilePath, keymapPath });
-		expect(loaded.profile?.decimalSeparator).toBe(",");
+		expect(loaded.profile?.values?.numeric?.decimalSeparator).toBe(",");
 		expect(loaded.keymap.normal.moveDown).toBe("n");
 		expect(loaded.keymap.normal.moveUp).toBe(
 			DEFAULT_EDITOR_KEYMAP_PROFILE.normal.moveUp,
@@ -104,13 +107,12 @@ describe("macro-cli workspace loading", () => {
 			join(process.env.TMPDIR ?? "/tmp", "macro-cli-"),
 		);
 		const source = join(root, "settings.ts");
-		const profilePath = join(root, "profile.json");
+		const profilePath = join(root, "storage.jsonl");
 		const manifestPath = join(root, "workspace.json");
 		await writeFile(
 			source,
 			`export default { manifest: { id: "sample.runtime", version: "1.0.0", contributes: { settings: [{ namespace: "sample.runtime", title: "Sample", schema: [{ path: ["enabled"], type: "boolean", title: "Enabled" }], defaults: { enabled: true } }] } }, activate() { return {}; } };\n`,
 		);
-		await writeFile(profilePath, "{}");
 		await writeFile(
 			manifestPath,
 			JSON.stringify({
@@ -130,11 +132,7 @@ describe("macro-cli workspace loading", () => {
 		settings.setPath(["extensions", "sample.runtime", "enabled"], false);
 		expect((await settings.save()).status).toBe("saved");
 		await loaded.workspace.dispose();
-		expect(
-			JSON.parse(await readFile(profilePath, "utf8")).extensions[
-				"sample.runtime"
-			].enabled,
-		).toBe(false);
+
 		const reloaded = await loadMacroCliWorkspace({
 			workspacePath: manifestPath,
 			profilePath,
