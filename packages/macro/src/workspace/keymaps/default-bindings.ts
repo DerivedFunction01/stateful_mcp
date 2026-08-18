@@ -135,4 +135,10 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		when: { key: "activeTabId", equals: "settings" },
 		labelI18nKey: "command.settings.back",
 	},
+	{
+		command: "workspace.openSettings",
+		chords: ["ctrl+,", "meta+,"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.workspace.openSettings",
+	},
 ];

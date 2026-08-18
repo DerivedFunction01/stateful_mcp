@@ -1,12 +1,14 @@
 import { TextAttributes } from "@opentui/core";
 import {
 	type EditorKeymapProfile,
+	type EnumOptionDefinition,
 	type ExtensionInteractionContext,
 	type ExtensionTabProvider,
 	type ExtensionTabRenderContext,
 	type I18nKernel,
 	type MacroWorkspace,
 	type SettingsScope,
+	type SettingsUiGroup,
 	type SettingsUiItem,
 	SettingsUiModel,
 	type WorkspaceInputEvent,
@@ -646,11 +648,22 @@ export function createSettingsTabProvider(
 			return (
 				<SettingsWindowView
 					model={uiModel}
+					width={context.width}
+					height={context.height}
 					availableProfiles={snapshot.availableProfiles}
 					i18n={workspace.i18n}
 					focusedRegion={focusedRegion}
 					selectedCategoryId={selectedCatId}
 					selectedItemIndex={selectedItemIndex}
+					onSelectCategory={(catId) => {
+						const idx = snapshot.sections.findIndex((s) => s.id === catId);
+						if (idx >= 0) {
+							selectedCategoryIndex = idx;
+							selectedItemIndex = 0;
+							focusedRegion = "content";
+							syncNavigationState();
+						}
+					}}
 					onSwitchProfile={(id) => void uiModel.switchProfile(id)}
 					onOpenJson={() => {
 						void workspace.commands.executeCommand(
@@ -666,6 +679,7 @@ export function createSettingsTabProvider(
 			payload: unknown,
 			context: ExtensionInteractionContext,
 		): WorkspaceInputResult {
+			const snapshot = uiModel.getSnapshot();
 			switch (actionId) {
 				case "settings.navigateDown":
 					navigateDown();
@@ -675,14 +689,57 @@ export function createSettingsTabProvider(
 					return "handled";
 				case "settings.focusNavigation":
 					focusedRegion = "navigation";
+					syncNavigationState();
 					return "handled";
 				case "settings.focusContent":
 					focusedRegion = "content";
+					syncNavigationState();
 					return "handled";
-				case "settings.selectEntry":
+				case "settings.selectEntry": {
+					if (focusedRegion === "navigation") {
+						focusedRegion = "content";
+						selectedItemIndex = 0;
+						syncNavigationState();
+						return "handled";
+					}
+					const section = snapshot.sections[selectedCategoryIndex];
+					const items = section
+						? [
+								...section.items,
+								...section.groups.flatMap((g) => g.items),
+							]
+						: [];
+					const item = items[selectedItemIndex];
+					if (item) {
+						if (item.schema.type === "boolean") {
+							uiModel.setValue(
+								item.schema.path,
+								!item.effectiveValue,
+							);
+						} else if (
+							item.schema.type === "enum" &&
+							item.schema.enumOptions &&
+							item.schema.enumOptions.length > 0
+						) {
+							const currentIdx = item.schema.enumOptions.findIndex(
+								(o: EnumOptionDefinition) =>
+									o.id === item.effectiveValue,
+							);
+							const nextOpt =
+								item.schema.enumOptions[
+									(currentIdx + 1) %
+										item.schema.enumOptions.length
+								];
+							if (nextOpt) {
+								uiModel.setValue(item.schema.path, nextOpt.id);
+							}
+						}
+					}
 					return "handled";
+				}
 				case "settings.focusSearch":
 					focusedRegion = "search";
+					syncNavigationState();
 					return "handled";
 				case "settings.back":
 					workspace.layout.setActiveTab("scratchpad");

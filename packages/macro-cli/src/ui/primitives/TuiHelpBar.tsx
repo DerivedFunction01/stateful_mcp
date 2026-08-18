@@ -6,6 +6,7 @@ import type {
 	I18nKernel,
 	MacroWorkspace,
 	RegisteredView,
+	WorkspaceKeybinding,
 } from "@stateful-mcp/macro";
 import {
 	contextMatches,
@@ -64,91 +65,193 @@ export function formatKeyDisplay(chord: string): string {
 	return formatted.join("+");
 }
 
+function getPrimaryChord(binding?: WorkspaceKeybinding): string | undefined {
+	if (!binding || !binding.chords || binding.chords.length === 0) return undefined;
+	return formatKeyDisplay(binding.chords[0]!);
+}
+
+function formatPairedChords(
+	bindingA?: WorkspaceKeybinding,
+	bindingB?: WorkspaceKeybinding,
+): string | undefined {
+	const chordA = getPrimaryChord(bindingA);
+	const chordB = getPrimaryChord(bindingB);
+	if (chordA && chordB) return `${chordA}/${chordB}`;
+	return chordA ?? chordB;
+}
+
 export function buildDynamicKeymapHints(
-	keymap: EditorKeymapProfile,
+	keymap?: EditorKeymapProfile,
 	i18n?: I18nKernel,
 	mode: EditorMode = "NORMAL",
 ): readonly TuiShortcutHint[] {
+	if (!keymap) return [];
+	const bindings = resolveKeymapBindings(keymap);
+	const find = (cmd: string) => bindings.find((b) => b.command === cmd);
+
+	const hints: TuiShortcutHint[] = [];
+
 	if (mode === "INSERT") {
-		return [
-			{
-				key: formatKeyDisplay(keymap.window.nextTab || "Tab"),
+		const nextTabChord = keymap.window?.nextTab
+			? formatKeyDisplay(keymap.window.nextTab)
+			: undefined;
+		if (nextTabChord) {
+			hints.push({
+				key: nextTabChord,
 				action: translate(i18n, "helpBar.duplicate"),
-			},
-			{
-				key: "Enter",
+			});
+		}
+
+		const applyChord = getPrimaryChord(find("editor.executeLine"));
+		if (applyChord) {
+			hints.push({
+				key: applyChord,
 				action: translate(i18n, "helpBar.apply"),
-			},
-			{
-				key: "↑/↓",
+			});
+		}
+
+		const navChord = formatPairedChords(
+			find("cursor.moveUp"),
+			find("cursor.moveDown"),
+		);
+		if (navChord) {
+			hints.push({
+				key: navChord,
 				action: translate(i18n, "helpBar.navigate"),
-			},
-			{
-				key: "Esc",
+			});
+		}
+
+		const closeChord =
+			getPrimaryChord(find("editor.close")) ??
+			(keymap.normal?.quit ? formatKeyDisplay(keymap.normal.quit) : undefined);
+		if (closeChord) {
+			hints.push({
+				key: closeChord,
 				action: translate(i18n, "helpBar.esc"),
-			},
-		];
+			});
+		}
+
+		return hints;
 	}
 
 	if (mode === "VISUAL") {
-		return [
-			{
-				key: "↑/↓",
+		const selectRangeChord =
+			formatPairedChords(find("cursor.moveUp"), find("cursor.moveDown")) ??
+			(keymap.visual?.extendUp && keymap.visual?.extendDown
+				? `${formatKeyDisplay(keymap.visual.extendUp)}/${formatKeyDisplay(keymap.visual.extendDown)}`
+				: undefined);
+		if (selectRangeChord) {
+			hints.push({
+				key: selectRangeChord,
 				action: translate(i18n, "helpBar.selectRange"),
-			},
-			{
-				key: "Enter",
+			});
+		}
+
+		const applyChord = getPrimaryChord(find("editor.executeLine"));
+		if (applyChord) {
+			hints.push({
+				key: applyChord,
 				action: translate(i18n, "helpBar.applySelected"),
-			},
-			{
-				key: formatKeyDisplay(keymap.visual.deleteSelection || "d"),
+			});
+		}
+
+		const delChord = keymap.visual?.deleteSelection
+			? formatKeyDisplay(keymap.visual.deleteSelection)
+			: undefined;
+		if (delChord) {
+			hints.push({
+				key: delChord,
 				action: translate(i18n, "helpBar.delete"),
-			},
-			{
-				key: "Esc",
+			});
+		}
+
+		const closeChord =
+			getPrimaryChord(find("editor.close")) ??
+			(keymap.normal?.quit ? formatKeyDisplay(keymap.normal.quit) : undefined);
+		if (closeChord) {
+			hints.push({
+				key: closeChord,
 				action: translate(i18n, "helpBar.esc"),
-			},
-		];
+			});
+		}
+
+		return hints;
 	}
 
-	return [
-		{
-			key: formatKeyDisplay(keymap.window.nextTab || "Tab"),
+	// NORMAL mode
+	const nextTab = keymap.window?.nextTab;
+	if (nextTab) {
+		hints.push({
+			key: formatKeyDisplay(nextTab),
 			action: translate(i18n, "helpBar.nextTab"),
-		},
-		{
-			key: formatKeyDisplay(keymap.normal.enterInsert || "i"),
+		});
+	}
+
+	const insert = keymap.normal?.enterInsert;
+	if (insert) {
+		hints.push({
+			key: formatKeyDisplay(insert),
 			action: translate(i18n, "helpBar.insert"),
-		},
-		{
-			key: formatKeyDisplay(keymap.normal.enterVisual || "v"),
+		});
+	}
+
+	const visual = keymap.normal?.enterVisual;
+	if (visual) {
+		hints.push({
+			key: formatKeyDisplay(visual),
 			action: translate(i18n, "helpBar.visual"),
-		},
-		{
-			key: formatKeyDisplay(keymap.sequences.deleteCell || "dd"),
+		});
+	}
+
+	const deleteCell = keymap.sequences?.deleteCell;
+	if (deleteCell) {
+		hints.push({
+			key: formatKeyDisplay(deleteCell),
 			action: translate(i18n, "helpBar.delete"),
-		},
-		{
-			key: formatKeyDisplay(keymap.window.openCommandPalette || "Ctrl+P"),
+		});
+	}
+
+	const palette = keymap.window?.openCommandPalette;
+	if (palette) {
+		hints.push({
+			key: formatKeyDisplay(palette),
 			action: translate(i18n, "palette.title"),
-		},
-		{
-			key: formatKeyDisplay(keymap.window.toggleActivityPanel || "Ctrl+E"),
+		});
+	}
+
+	const activity = keymap.window?.toggleActivityPanel;
+	if (activity) {
+		hints.push({
+			key: formatKeyDisplay(activity),
 			action: translate(i18n, "helpBar.activity"),
-		},
-		{
-			key: formatKeyDisplay(keymap.window.toggleSidepanel || "Ctrl+B"),
+		});
+	}
+
+	const sidepanel = keymap.window?.toggleSidepanel;
+	if (sidepanel) {
+		hints.push({
+			key: formatKeyDisplay(sidepanel),
 			action: translate(i18n, "helpBar.inspector"),
-		},
-		{
-			key: formatKeyDisplay(keymap.window.switchSplitFocus || "Ctrl+W"),
+		});
+	}
+
+	const switchSplit = keymap.window?.switchSplitFocus;
+	if (switchSplit) {
+		hints.push({
+			key: formatKeyDisplay(switchSplit),
 			action: translate(i18n, "helpBar.switchFocus"),
-		},
-		{
-			key: formatKeyDisplay(keymap.window.pinMacro || "Meta+P"),
+		});
+	}
+
+	const pin = keymap.window?.pinMacro;
+	if (pin) {
+		hints.push({
+			key: formatKeyDisplay(pin),
 			action: translate(i18n, "helpBar.pin"),
-		},
-	];
+		});
+	}
+
+	return hints;
 }
 
 export function buildContextualHelpBarHints(
@@ -157,14 +260,54 @@ export function buildContextualHelpBarHints(
 ): readonly TuiShortcutHint[] {
 	const layout = workspace.layout.getSnapshot();
 	const focusedPane = layout.focusedPane;
+	const mode = workspace.editor.getMode();
 	const i18n = workspace.i18n;
 
+	const resolvedKeymap =
+		keymap ??
+		(workspace.runtime as { context?: { keymap?: EditorKeymapProfile } })
+			?.context?.keymap;
+
+	if (!resolvedKeymap) return [];
+
+	const allBindings = resolveKeymapBindings(resolvedKeymap);
+	const activeBindings = allBindings.filter(
+		(b) =>
+			(!b.modes || b.modes.includes(mode)) &&
+			contextMatches(
+				{
+					activeTabId: layout.activeTabId,
+					focusedPane,
+					editorMode: mode,
+				},
+				b.when,
+			),
+	);
+
+	const find = (cmd: string) => activeBindings.find((b) => b.command === cmd);
+
 	if (focusedPane === "palette") {
-		return [
-			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate") },
-			{ key: "Enter", action: translate(i18n, "helpBar.apply") },
-			{ key: "Esc", action: translate(i18n, "helpBar.close") },
-		];
+		const hints: TuiShortcutHint[] = [];
+		const navChord = formatPairedChords(
+			allBindings.find((b) => b.command === "cursor.moveUp"),
+			allBindings.find((b) => b.command === "cursor.moveDown"),
+		);
+		if (navChord) {
+			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+		}
+		const applyChord = getPrimaryChord(
+			allBindings.find((b) => b.command === "editor.executeLine"),
+		);
+		if (applyChord) {
+			hints.push({ key: applyChord, action: translate(i18n, "helpBar.apply") });
+		}
+		const closeChord = getPrimaryChord(
+			allBindings.find((b) => b.command === "editor.close"),
+		);
+		if (closeChord) {
+			hints.push({ key: closeChord, action: translate(i18n, "helpBar.close") });
+		}
+		return hints;
 	}
 
 	if (focusedPane === "activity") {
@@ -178,11 +321,11 @@ export function buildContextualHelpBarHints(
 		if (
 			view?.provider &&
 			"getContextualHints" in view.provider &&
-			typeof (view.provider as { getContextualHints?: Function })
+			typeof (view.provider as { getContextualHints?: (ctx: unknown) => unknown })
 				.getContextualHints === "function"
 		) {
 			const providerHints = (
-				view.provider as { getContextualHints: Function }
+				view.provider as { getContextualHints: (ctx: unknown) => unknown }
 			).getContextualHints({
 				workspace,
 				width: 30,
@@ -211,15 +354,41 @@ export function buildContextualHelpBarHints(
 			}));
 		}
 
-		return [
-			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate") },
-			{ key: "Enter", action: translate(i18n, "helpBar.open") },
-			{
-				key: "Ctrl+W",
+		const hints: TuiShortcutHint[] = [];
+		const navChord = formatPairedChords(
+			allBindings.find((b) => b.command === "cursor.moveUp"),
+			allBindings.find((b) => b.command === "cursor.moveDown"),
+		);
+		if (navChord) {
+			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+		}
+		const openChord = getPrimaryChord(
+			allBindings.find((b) => b.command === "editor.executeLine"),
+		);
+		if (openChord) {
+			hints.push({ key: openChord, action: translate(i18n, "helpBar.open") });
+		}
+		const switchFocusChord =
+			getPrimaryChord(
+				allBindings.find((b) => b.command === "cursor.moveLeft"),
+			) ??
+			(resolvedKeymap.window?.switchSplitFocus
+				? formatKeyDisplay(resolvedKeymap.window.switchSplitFocus)
+				: undefined);
+		if (switchFocusChord) {
+			hints.push({
+				key: switchFocusChord,
 				action: translate(i18n, "helpBar.switchFocus"),
-			},
-			{ key: "Esc", action: translate(i18n, "helpBar.editor") },
-		];
+			});
+		}
+		const closeChord = getPrimaryChord(
+			allBindings.find((b) => b.command === "editor.close"),
+		);
+		if (closeChord) {
+			hints.push({ key: closeChord, action: translate(i18n, "helpBar.editor") });
+		}
+
+		return hints;
 	}
 
 	if (focusedPane === "sidepanel") {
@@ -233,11 +402,11 @@ export function buildContextualHelpBarHints(
 		if (
 			view?.provider &&
 			"getContextualHints" in view.provider &&
-			typeof (view.provider as { getContextualHints?: Function })
+			typeof (view.provider as { getContextualHints?: (ctx: unknown) => unknown })
 				.getContextualHints === "function"
 		) {
 			const providerHints = (
-				view.provider as { getContextualHints: Function }
+				view.provider as { getContextualHints: (ctx: unknown) => unknown }
 			).getContextualHints({
 				workspace,
 				width: 30,
@@ -266,45 +435,108 @@ export function buildContextualHelpBarHints(
 			}));
 		}
 
-		const closeKey = container?.altKey ? `Alt+${container.altKey}` : "Ctrl+B";
-		return [
-			{ key: "↑/↓", action: translate(i18n, "helpBar.navigate") },
-			{ key: "Enter", action: translate(i18n, "helpBar.apply") },
-			{ key: closeKey, action: translate(i18n, "helpBar.close") },
-			{
-				key: "Ctrl+W",
+		const hints: TuiShortcutHint[] = [];
+		const navChord = formatPairedChords(
+			allBindings.find((b) => b.command === "cursor.moveUp"),
+			allBindings.find((b) => b.command === "cursor.moveDown"),
+		);
+		if (navChord) {
+			hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+		}
+		const applyChord = getPrimaryChord(
+			allBindings.find((b) => b.command === "editor.executeLine"),
+		);
+		if (applyChord) {
+			hints.push({ key: applyChord, action: translate(i18n, "helpBar.apply") });
+		}
+
+		const closeKey = container?.altKey
+			? `Alt+${container.altKey}`
+			: resolvedKeymap.window?.toggleSidepanel
+				? formatKeyDisplay(resolvedKeymap.window.toggleSidepanel)
+				: undefined;
+		if (closeKey) {
+			hints.push({ key: closeKey, action: translate(i18n, "helpBar.close") });
+		}
+
+		const switchFocusChord = resolvedKeymap.window?.switchSplitFocus
+			? formatKeyDisplay(resolvedKeymap.window.switchSplitFocus)
+			: undefined;
+		if (switchFocusChord) {
+			hints.push({
+				key: switchFocusChord,
 				action: translate(i18n, "helpBar.switchFocus"),
-			},
-			{ key: "Esc", action: translate(i18n, "helpBar.editor") },
-		];
+			});
+		}
+
+		const closeChord = getPrimaryChord(
+			allBindings.find((b) => b.command === "editor.close"),
+		);
+		if (closeChord) {
+			hints.push({ key: closeChord, action: translate(i18n, "helpBar.editor") });
+		}
+
+		return hints;
 	}
 
 	if (focusedPane === "main" && layout.activeTabId !== "scratchpad") {
-		if (layout.activeTabId === "settings" && keymap) {
-			const settingsBindings = resolveKeymapBindings(keymap).filter(
-				(binding) =>
-					binding.modes?.includes(workspace.editor.getMode()) &&
-					contextMatches(
-						{
-							activeTabId: layout.activeTabId,
-							focusedPane,
-							editorMode: workspace.editor.getMode(),
-						},
-						binding.when,
-					),
+		if (layout.activeTabId === "settings") {
+			const hints: TuiShortcutHint[] = [];
+			const navChord = formatPairedChords(
+				find("settings.navigateDown"),
+				find("settings.navigateUp"),
 			);
-			if (settingsBindings.length > 0)
-				return settingsBindings.flatMap((binding) =>
-					binding.chords.map((chord) => ({
-						key: formatKeyDisplay(chord),
-						action: resolveLabel(i18n, binding.labelI18nKey, binding.command),
-					})),
-				);
+			if (navChord) {
+				hints.push({ key: navChord, action: translate(i18n, "helpBar.navigate") });
+			}
+
+			const focusChord = formatPairedChords(
+				find("settings.focusNavigation"),
+				find("settings.focusContent"),
+			);
+			if (focusChord) {
+				hints.push({ key: focusChord, action: translate(i18n, "helpBar.switchFocus") });
+			}
+
+			const selectChord = getPrimaryChord(find("settings.selectEntry"));
+			if (selectChord) {
+				hints.push({
+					key: selectChord,
+					action: translate(i18n, "command.settings.selectEntry"),
+				});
+			}
+
+			const searchChord = getPrimaryChord(find("settings.focusSearch"));
+			if (searchChord) {
+				hints.push({
+					key: searchChord,
+					action: translate(i18n, "command.settings.focusSearch"),
+				});
+			}
+
+			const saveChord = getPrimaryChord(find("settings.save"));
+			if (saveChord) {
+				hints.push({
+					key: saveChord,
+					action: translate(i18n, "command.settings.save"),
+				});
+			}
+
+			const backChord = getPrimaryChord(find("settings.back"));
+			if (backChord) {
+				hints.push({
+					key: backChord,
+					action: translate(i18n, "command.settings.back"),
+				});
+			}
+
+			return hints;
 		}
+
 		const tab = workspace.tabs.getTab(layout.activeTabId);
 		const bindings = surfaceKeybindingsForMode(
 			tab?.keybindings,
-			workspace.editor.getMode(),
+			mode,
 		);
 		if (bindings.length > 0)
 			return bindings.map((binding) => ({
@@ -313,18 +545,7 @@ export function buildContextualHelpBarHints(
 			}));
 	}
 
-	return buildDynamicKeymapHints(
-		keymap ??
-			(workspace.runtime as any)?.context?.keymap ?? {
-				window: {},
-				normal: {},
-				insert: {},
-				visual: {},
-				sequences: {},
-			},
-		workspace.i18n,
-		workspace.editor.getMode(),
-	);
+	return buildDynamicKeymapHints(resolvedKeymap, i18n, mode);
 }
 
 export function mergeShortcutHints(
@@ -360,7 +581,7 @@ export function TuiHelpBar({
 	hints,
 	customText,
 	theme,
-	twoRow,
+	twoRow = false,
 }: TuiHelpBarProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -378,8 +599,6 @@ export function TuiHelpBar({
 		hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n, mode) : []);
 	const resolvedHints = mergeShortcutHints(rawHints);
 
-	const isTwoRow = twoRow ?? resolvedHints.length > 5;
-
 	const renderBadge = (hint: TuiShortcutHint) => (
 		<box key={`${hint.key}-${hint.action}`} flexDirection="row" marginRight={2}>
 			<box backgroundColor={c.accentPrimary} paddingLeft={1} paddingRight={1}>
@@ -394,7 +613,7 @@ export function TuiHelpBar({
 		</box>
 	);
 
-	if (isTwoRow && resolvedHints.length > 3) {
+	if (twoRow && resolvedHints.length > 3) {
 		const midpoint = Math.ceil(resolvedHints.length / 2);
 		const row1 = resolvedHints.slice(0, midpoint);
 		const row2 = resolvedHints.slice(midpoint);

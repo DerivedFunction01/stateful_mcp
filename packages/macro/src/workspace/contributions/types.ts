@@ -188,6 +188,8 @@ export interface ExtensionViewRenderContext<TState = unknown> {
 export interface ExtensionTabRenderContext<TState = unknown> {
 	readonly tabId: string;
 	readonly isFocused: boolean;
+	readonly width?: number;
+	readonly height?: number;
 	readonly state?: TState;
 	readonly mode?: EditorMode;
 	readonly focusedInteractionId?: string;
