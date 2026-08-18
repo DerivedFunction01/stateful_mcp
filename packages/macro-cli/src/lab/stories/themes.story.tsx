@@ -283,7 +283,6 @@ export const themesStory: TuiStory = {
 				{/* 6. Embedded Command Palette preview */}
 				<box marginBottom={1}>
 					<TuiCommandPalette
-						variant="opencode-bordered"
 						items={[
 							{
 								id: "1",

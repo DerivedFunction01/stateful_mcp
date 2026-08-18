@@ -4,12 +4,6 @@ import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 import { TuiCursor } from "./TuiCursor";
 
-export type TuiCommandPaletteVariant =
-	| "opencode"
-	| "opencode-bordered"
-	| "opencode-floating"
-	| "vscode-quickpick";
-
 export interface TuiPaletteCommand {
 	readonly id: string;
 	readonly title: string;
@@ -19,7 +13,6 @@ export interface TuiPaletteCommand {
 }
 
 export interface TuiCommandPaletteProps {
-	readonly variant?: TuiCommandPaletteVariant;
 	readonly query?: string;
 	readonly items: readonly TuiPaletteCommand[];
 	readonly selectedIndex?: number;
@@ -35,7 +28,6 @@ export interface TuiCommandPaletteProps {
 }
 
 export function TuiCommandPalette({
-	variant = "opencode-bordered",
 	query = "",
 	items,
 	selectedIndex = 0,
@@ -110,21 +102,15 @@ export function TuiCommandPalette({
 		maxVisible + (categories.length > 1 ? categories.length : 0),
 	);
 
-	const isBordered =
-		variant === "opencode" ||
-		variant === "opencode-bordered" ||
-		variant === "vscode-quickpick";
-	const activeSelectionBg =
-		variant === "vscode-quickpick" ? c.borderActive : c.bgSelect;
-	const activeSelectionFg =
-		variant === "vscode-quickpick" ? c.fgInverse : c.bgSelectText;
+	const activeSelectionBg = c.bgSelect;
+	const activeSelectionFg = c.bgSelectText;
 
 	return (
 		<box
 			width={width}
 			backgroundColor={c.bgSurface}
-			borderStyle={isBordered ? "single" : undefined}
-			borderColor={isBordered ? c.borderDefault : undefined}
+			borderStyle="single"
+			borderColor={c.borderDefault}
 			flexDirection="column"
 			paddingLeft={2}
 			paddingRight={2}
@@ -165,13 +151,6 @@ export function TuiCommandPalette({
 					</box>
 				)}
 			</box>
-
-			{/* VS Code divider if applicable */}
-			{variant === "vscode-quickpick" && (
-				<box height={1} marginBottom={1}>
-					<text fg={c.borderDefault}>{"─".repeat(Math.max(4, width - 4))}</text>
-				</box>
-			)}
 
 			{/* Item List */}
 			<box flexDirection="column">

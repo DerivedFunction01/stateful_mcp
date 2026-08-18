@@ -102,7 +102,6 @@ export const commandPaletteStory: TuiStory = {
 		return (
 			<box padding={2} justifyContent="center" alignItems="center">
 				<TuiCommandPalette
-					variant="opencode-bordered"
 					items={PALETTE_COMMANDS}
 					selectedIndex={1}
 					width={68}

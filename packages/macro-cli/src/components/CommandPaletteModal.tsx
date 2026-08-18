@@ -27,7 +27,6 @@ export function CommandPaletteModal({
 
 	return (
 		<TuiCommandPalette
-			variant="opencode-bordered"
 			query={query}
 			items={items}
 			selectedIndex={selected}
