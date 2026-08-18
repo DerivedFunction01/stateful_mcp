@@ -217,7 +217,7 @@ describe("Theme System & CSS Generation", () => {
 		const themes = GlobalThemeRegistry.list();
 		expect(themes.map((t) => t.id)).toContain("github-dark");
 		expect(themes.map((t) => t.id)).toContain("github-light");
-		expect(themes.map((t) => t.id)).toContain("opencode-dark");
+		expect(themes.map((t) => t.id)).toContain("dark");
 		expect(themes.map((t) => t.id)).toContain("monokai");
 		expect(themes.map((t) => t.id)).toContain("nord");
 	});

@@ -25,10 +25,14 @@ import {
 
 export * from "./commands/command-descriptor";
 export * from "./commands/save-coordinator";
+export * from "./config/bundle-manager";
 export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
+export * from "./config/profile-resolver";
 export * from "./config/settings-navigation";
 export * from "./config/settings-service";
+export * from "./config/settings-ui-model";
+export * from "./config/storage-driver";
 export * from "./contributions/command-registry";
 export * from "./contributions/extension-contribution-manager";
 export * from "./contributions/settings-registry";

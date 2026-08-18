@@ -16,6 +16,7 @@ import type {
 	QuantityGrammarConfig,
 	QuantityStatisticsPolicy,
 } from "../values/quantity";
+import type { MacroSyntax } from "./syntax";
 import type { NumericBounds } from "./values";
 
 export type WordBoundaryPolicy =
@@ -65,6 +66,9 @@ export type {
 };
 
 export interface UserMacroProfile {
+	readonly id?: string;
+	readonly extends?: string;
+	readonly syntax?: Partial<MacroSyntax>;
 	readonly locale?: string;
 	readonly localization?: LocalizationPolicyConfig;
 	readonly numberWords?: NumberWordConfig;

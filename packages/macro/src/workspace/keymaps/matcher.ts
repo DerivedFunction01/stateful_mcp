@@ -47,6 +47,28 @@ const TERMINAL_KEY_MAP: Readonly<Record<string, CanonicalKey>> = {
 	page_down: "pagedown",
 	home: "home",
 	end: "end",
+	"\x01": "a",
+	"\x02": "b",
+	"\x03": "c",
+	"\x04": "d",
+	"\x05": "e",
+	"\x06": "f",
+	"\x07": "g",
+	"\x0b": "k",
+	"\x0c": "l",
+	"\x0e": "n",
+	"\x0f": "o",
+	"\x10": "p",
+	"\x11": "q",
+	"\x12": "r",
+	"\x13": "s",
+	"\x14": "t",
+	"\x15": "u",
+	"\x16": "v",
+	"\x17": "w",
+	"\x18": "x",
+	"\x19": "y",
+	"\x1a": "z",
 };
 
 /**
@@ -148,8 +170,20 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 	const target = parseChord(chord);
 	if (!target) return false;
 
-	// Check ctrl and meta modifiers
-	if (Boolean(event.ctrl) !== target.ctrl) return false;
+	// Canonicalize incoming event key name or character via map
+	const rawName = (event.name ?? "").toLowerCase();
+	const rawChar = (event.char ?? "").toLowerCase();
+
+	const isControlChar = Boolean(
+		rawChar.length === 1 &&
+			rawChar.charCodeAt(0) >= 1 &&
+			rawChar.charCodeAt(0) <= 26 &&
+			rawChar !== "\t" &&
+			rawChar !== "\n" &&
+			rawChar !== "\r",
+	);
+	const eventHasCtrl = Boolean(event.ctrl) || isControlChar;
+	if (eventHasCtrl !== target.ctrl) return false;
 	if (Boolean(event.meta) !== target.meta) return false;
 
 	// Check shift modifier
@@ -161,10 +195,6 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 	);
 	const eventHasShift = Boolean(event.shift) || isCharUppercase;
 	if (eventHasShift !== target.shift) return false;
-
-	// Canonicalize incoming event key name or character via map
-	const rawName = (event.name ?? "").toLowerCase();
-	const rawChar = (event.char ?? "").toLowerCase();
 
 	const eventKey =
 		TERMINAL_KEY_MAP[rawName] ??

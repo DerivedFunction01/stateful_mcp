@@ -44,8 +44,18 @@ export interface TuiThemeColors {
 	readonly modeBadgeFg: string;
 }
 
+export const THEME_IDS = [
+	"github-dark",
+	"github-light",
+	"dark",
+	"monokai",
+	"nord",
+] as const;
+
+export type TuiThemeId = (typeof THEME_IDS)[number];
+
 export interface TuiThemeDefinition {
-	readonly id: string;
+	readonly id: TuiThemeId | string;
 	readonly name: string;
 	readonly mode: "dark" | "light";
 	readonly colors: TuiThemeColors;
@@ -141,10 +151,10 @@ export const GITHUB_LIGHT_THEME: TuiThemeDefinition = {
 	},
 };
 
-// 3. OpenCode Dark
-export const OPENCODE_DARK_THEME: TuiThemeDefinition = {
-	id: "opencode-dark",
-	name: "OpenCode Dark",
+// 3. Dark Theme
+export const DARK_THEME: TuiThemeDefinition = {
+	id: "dark",
+	name: "Dark",
 	mode: "dark",
 	colors: {
 		bgCanvas: "#121417",
@@ -283,7 +293,7 @@ export class TuiThemeRegistry {
 	constructor() {
 		this.register(GITHUB_DARK_THEME);
 		this.register(GITHUB_LIGHT_THEME);
-		this.register(OPENCODE_DARK_THEME);
+		this.register(DARK_THEME);
 		this.register(MONOKAI_THEME);
 		this.register(NORD_THEME);
 	}

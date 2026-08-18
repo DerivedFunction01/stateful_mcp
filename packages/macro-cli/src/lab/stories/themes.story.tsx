@@ -103,7 +103,7 @@ export const themesStory: TuiStory = {
 	states: [
 		"github-dark",
 		"github-light",
-		"opencode-dark",
+		"dark",
 		"monokai-pro",
 		"nord-polar",
 	],
@@ -113,7 +113,7 @@ export const themesStory: TuiStory = {
 
 		let themeId = "github-dark";
 		if (stateId === "github-light") themeId = "github-light";
-		if (stateId === "opencode-dark") themeId = "opencode-dark";
+		if (stateId === "dark" || stateId === "opencode-dark") themeId = "dark";
 		if (stateId === "monokai-pro") themeId = "monokai";
 		if (stateId === "nord-polar") themeId = "nord";
 

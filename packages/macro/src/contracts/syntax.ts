@@ -1,6 +1,7 @@
 export interface MacroSyntax {
 	macroStartToken: string;
 	argumentDelimiter?: string;
+	argumentAssign?: string;
 	settingsListDelimiter?: string;
 	quoteCharacters?: readonly string[];
 	quotePairs?: readonly (readonly [open: string, close: string])[];

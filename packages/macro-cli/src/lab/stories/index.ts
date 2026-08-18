@@ -15,6 +15,7 @@ import { scratchpadStory } from "./scratchpad.story";
 import { settingsWindowStory } from "./settings-window.story";
 import { statusBarStory } from "./status-bar.story";
 import { tabsStory } from "./tabs.story";
+import { genericTextEditorStory } from "./text-editor.story";
 import { themesStory } from "./themes.story";
 import { topChromeStory } from "./top-chrome.story";
 
@@ -38,6 +39,7 @@ export function registerCoreStories(
 	registry.register(formInputsStory);
 	registry.register(navigationPanelStory);
 	registry.register(settingsWindowStory);
+	registry.register(genericTextEditorStory);
 	registry.register(emptyStateStory);
 }
 
@@ -50,6 +52,7 @@ export {
 	completionPopupStory,
 	emptyStateStory,
 	formInputsStory,
+	genericTextEditorStory,
 	helpBarStory,
 	inspectorRegionStory,
 	journalStory,

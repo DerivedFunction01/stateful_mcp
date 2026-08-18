@@ -15,6 +15,10 @@ import {
 import { createElement } from "react";
 import { BuiltinActivityPanel } from "./components/BuiltinActivityPanel";
 import { createSettingsTabProvider } from "./components/SettingsWindow";
+import {
+	DEFAULT_WORKSPACE_SETTINGS_VALUES,
+	getDefaultSettingsSchema,
+} from "./config/default-settings";
 import { registerCliLocales } from "./locales";
 
 export interface WorkspaceExtensionSpec {
@@ -91,7 +95,11 @@ export async function loadMacroCliWorkspace(
 			)
 		: [];
 	const settings = new WorkspaceSettingsService({
-		defaults: { locale: "en" },
+		defaults: {
+			...DEFAULT_WORKSPACE_SETTINGS_VALUES,
+			locale: options.locale ?? profile?.locale ?? "en",
+		},
+		schema: getDefaultSettingsSchema(),
 		initial: profile as Record<string, unknown> | undefined,
 		storage: options.profilePath
 			? {

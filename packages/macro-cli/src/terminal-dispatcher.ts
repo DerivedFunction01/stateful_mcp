@@ -147,7 +147,11 @@ export async function dispatchTerminalInput(
 		workspace.layout.toggleRegion("activity");
 		return "handled";
 	}
-	if (chordMatches(keymap.window.toggleSidepanel, chordEvent)) {
+	if (
+		(keymap.window.toggleSidepanel &&
+			chordMatches(keymap.window.toggleSidepanel, chordEvent)) ||
+		(event.ctrl && (name === "b" || input.toLowerCase() === "b" || input === "\x02"))
+	) {
 		workspace.layout.toggleSidepanel();
 		return "handled";
 	}

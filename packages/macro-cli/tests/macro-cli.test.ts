@@ -365,6 +365,24 @@ describe("macro-cli terminal dispatcher", () => {
 		).toBe("handled");
 		expect(workspace.layout.getSnapshot().regions.activity.open).toBe(false);
 
+		// 3b. Test Ctrl+B toggles inspector / sidepanel
+		const initialInspectorOpen = workspace.layout.getSnapshot().regions.inspector.open;
+		expect(
+			await dispatchTerminalInput(workspace, keymap, {
+				name: "b",
+				ctrl: true,
+			}),
+		).toBe("handled");
+		expect(workspace.layout.getSnapshot().regions.inspector.open).toBe(!initialInspectorOpen);
+
+		expect(
+			await dispatchTerminalInput(workspace, keymap, {
+				input: "\x02",
+				ctrl: true,
+			}),
+		).toBe("handled");
+		expect(workspace.layout.getSnapshot().regions.inspector.open).toBe(initialInspectorOpen);
+
 		// 4. Reopen and test Ctrl+W focus cycling
 		expect(
 			await dispatchTerminalInput(workspace, keymap, {
