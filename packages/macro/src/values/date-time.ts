@@ -1,4 +1,11 @@
+import { type BaseValueGrammarConfig, parseNumericValue } from "./numeric";
 import { getCompiledRegex } from "./regex";
+import {
+	extractPostfixAlias,
+	extractPrefixAlias,
+	flattenAndSortAliases,
+} from "./token-matcher";
+import type { RelativeTimeToken, ValueFormatConfig } from "./token-spec";
 
 export const DATE_TIME_TOKENS = [
 	"YYYY",
@@ -672,7 +679,19 @@ export interface CalendarWindowConfig {
 
 export type RelativeDirection = "past" | "future" | "current";
 
+export type UCUMTimeUnit =
+	| "ms"
+	| "s"
+	| "min"
+	| "h"
+	| "d"
+	| "wk"
+	| "mo"
+	| "a"
+	| "yr";
+
 export type RelativeTemporalUnit =
+	| UCUMTimeUnit
 	| "second"
 	| "minute"
 	| "hour"
@@ -765,29 +784,43 @@ export function evaluateAnchorRelativeTemporal(
 		}
 	}
 
-	// 2. Instantaneous Unit Offsets (second, minute, hour, day, week) without specific window qualifier
+	// 2. Instantaneous Unit Offsets (ms, s, min, h, d, wk) without specific window qualifier
 	if (
 		!slot.specificQualifier &&
-		(slot.unit === "second" ||
+		(slot.unit === "ms" ||
+			slot.unit === "s" ||
+			slot.unit === "second" ||
+			slot.unit === "min" ||
 			slot.unit === "minute" ||
+			slot.unit === "h" ||
 			slot.unit === "hour" ||
+			slot.unit === "d" ||
 			slot.unit === "day" ||
+			slot.unit === "wk" ||
 			slot.unit === "week")
 	) {
 		let msOffset = 0;
 		switch (slot.unit) {
+			case "ms":
+				msOffset = amount;
+				break;
+			case "s":
 			case "second":
 				msOffset = amount * 1000;
 				break;
+			case "min":
 			case "minute":
 				msOffset = amount * 60 * 1000;
 				break;
+			case "h":
 			case "hour":
 				msOffset = amount * 3600 * 1000;
 				break;
+			case "d":
 			case "day":
 				msOffset = amount * 86400 * 1000;
 				break;
+			case "wk":
 			case "week":
 				msOffset = amount * 7 * 86400 * 1000;
 				break;
@@ -900,4 +933,242 @@ export function evaluateAnchorRelativeTemporal(
 		isInstantaneous: false,
 		targetTimeZone,
 	};
+}
+
+export interface RelativeTemporalDefinition {
+	readonly direction: RelativeDirection;
+	readonly amount: number;
+	readonly unit: RelativeTemporalUnit;
+	readonly specificQualifier?: string;
+	readonly aliases: readonly string[];
+}
+
+export interface RelativeTemporalConfig extends BaseValueGrammarConfig {
+	readonly templates?: readonly (
+		| ValueFormatConfig<RelativeTimeToken>
+		| string
+	)[];
+	/** User-defined relative temporal definitions */
+	readonly relativeDefinitions?: readonly RelativeTemporalDefinition[];
+	/** Slot mappings for key-based aliases */
+	readonly relativeSlots?: Readonly<Record<string, RelativeTemporalSlot>>;
+	/** Aliases mapped to canonical slot keys */
+	readonly relativeTemporalAliases?: Readonly<
+		Record<string, readonly string[]>
+	>;
+	/** Direction prefix aliases (e.g. { past: ["il y a", "vor", "ago"], future: ["in", "dans", "in"] }) */
+	readonly directionPrefixes?: Readonly<
+		Partial<Record<RelativeDirection, readonly string[]>>
+	>;
+	/** Direction postfix aliases (e.g. { past: ["ago", "назад", "以前"], future: ["from now", "plus tard", "后", "後"] }) */
+	readonly directionPostfixes?: Readonly<
+		Partial<Record<RelativeDirection, readonly string[]>>
+	>;
+	/** Unit aliases for relative time (e.g. { hour: ["hour", "hours", "h", "heures", "часа", "小时"], day: ["day", "days", "d", "jours", "дня", "天"], week: ["week", "weeks", "semaines", "недели", "周"] }) */
+	readonly unitAliases?: Readonly<
+		Record<RelativeTemporalUnit | string, readonly string[]>
+	>;
+	/** Part-of-day configuration */
+	readonly partOfDayConfig?: PartOfDayConfig;
+	/** Calendar window configuration */
+	readonly calendarConfig?: CalendarWindowConfig;
+	readonly locales?: string | readonly string[];
+}
+
+/**
+ * Parses free text into a structured RelativeTemporalSlot using discrete pattern variants
+ * (shorthand definitions/dictionary, prefix offset, postfix offset, part-of-day/calendar window).
+ * Does NOT inject hardcoded English assumptions.
+ */
+export function parseRelativeTemporal(
+	input: string,
+	config: RelativeTemporalConfig = {},
+): RelativeTemporalSlot | undefined {
+	const trimmed = input.trim();
+	if (!trimmed) return undefined;
+
+	// Variant 1a: Direct RelativeTemporalDefinition matching
+	if (config.relativeDefinitions) {
+		const lower = trimmed.toLocaleLowerCase(config.locales as string);
+		for (const def of config.relativeDefinitions) {
+			for (const alias of def.aliases) {
+				if (alias.toLocaleLowerCase(config.locales as string) === lower) {
+					return {
+						direction: def.direction,
+						amount: def.amount,
+						unit: def.unit,
+						...(def.specificQualifier
+							? { specificQualifier: def.specificQualifier }
+							: {}),
+					};
+				}
+			}
+		}
+	}
+
+	// Variant 1b: Key-based relativeSlots & relativeTemporalAliases dictionary match
+	if (config.relativeTemporalAliases) {
+		const sorted = flattenAndSortAliases(config.relativeTemporalAliases, true);
+		const lower = trimmed.toLocaleLowerCase(config.locales as string);
+		for (const { key, alias } of sorted) {
+			if (alias.toLocaleLowerCase(config.locales as string) === lower) {
+				if (config.relativeSlots && config.relativeSlots[key]) {
+					return config.relativeSlots[key];
+				}
+				// Support self-describing structured key conventions: e.g. "past_1_day", "future_2_week", "current_0_day"
+				if (
+					key.startsWith("past_") ||
+					key.startsWith("future_") ||
+					key.startsWith("current_")
+				) {
+					const parts = key.split("_");
+					const dir = parts[0] as RelativeDirection;
+					const amt = Number(parts[1]) || 0;
+					const u = (parts[2] as RelativeTemporalUnit) || "day";
+					return { direction: dir, amount: amt, unit: u };
+				}
+				return {
+					direction: "current",
+					amount: 0,
+					unit: "day",
+					specificQualifier: key,
+				};
+			}
+		}
+	}
+
+	// Variant 2: Prefix Offset (e.g. "il y a 2 heures", "in 3 days", "vor 2 Stunden", "dans 15 minutes")
+	if (config.directionPrefixes) {
+		const sortedDirs = flattenAndSortAliases(config.directionPrefixes, true);
+		const dirMatch = extractPrefixAlias(trimmed, sortedDirs, config.locales);
+		if (dirMatch) {
+			const dir = dirMatch.key as RelativeDirection;
+			const rest = dirMatch.remainderText;
+			if (config.unitAliases) {
+				const sortedUnits = flattenAndSortAliases(config.unitAliases, true);
+				const unitMatch = extractPostfixAlias(
+					rest,
+					sortedUnits,
+					config.locales,
+				);
+				if (unitMatch) {
+					const numRes = parseNumericValue(unitMatch.remainderText, {
+						...config.numericConfig,
+					});
+					if (numRes.parsed) {
+						return {
+							direction: dir,
+							amount: numRes.parsed.value,
+							unit: unitMatch.key as RelativeTemporalUnit,
+						};
+					}
+				}
+			}
+		}
+	}
+
+	// Variant 3: Postfix Offset (e.g. "2 hours ago", "3 days from now", "2 часа назад", "3天后", "2 heures plus tard")
+	if (config.directionPostfixes) {
+		const sortedDirs = flattenAndSortAliases(config.directionPostfixes, true);
+		const dirMatch = extractPostfixAlias(trimmed, sortedDirs, config.locales);
+		if (dirMatch) {
+			const dir = dirMatch.key as RelativeDirection;
+			const rest = dirMatch.remainderText;
+			if (config.unitAliases) {
+				const sortedUnits = flattenAndSortAliases(config.unitAliases, true);
+				const unitMatch = extractPostfixAlias(
+					rest,
+					sortedUnits,
+					config.locales,
+				);
+				if (unitMatch) {
+					const numRes = parseNumericValue(unitMatch.remainderText, {
+						...config.numericConfig,
+					});
+					if (numRes.parsed) {
+						return {
+							direction: dir,
+							amount: numRes.parsed.value,
+							unit: unitMatch.key as RelativeTemporalUnit,
+						};
+					}
+				}
+			}
+		}
+	}
+
+	// Variant 4: Calendar / Season / Quarter Window Match (e.g. "summer in 2026", "Q2 2026", "2020s")
+	if (config.calendarConfig) {
+		// Seasons
+		if (config.calendarConfig.seasonAliases) {
+			const sortedSeasons = flattenAndSortAliases(
+				config.calendarConfig.seasonAliases,
+				true,
+			);
+			for (const { key, alias } of sortedSeasons) {
+				const regex = getCompiledRegex(
+					`^${escapeRegex(alias)}(?:\\s*(?:in\\s+)?(?<year>\\d{4}))?$`,
+					"iu",
+				);
+				const m = trimmed.match(regex);
+				if (m) {
+					const refYear = m.groups?.year ? Number(m.groups.year) : undefined;
+					return {
+						direction: "current",
+						amount: 0,
+						unit: "season",
+						specificQualifier: key,
+						...(refYear ? { referenceYear: refYear } : {}),
+					};
+				}
+			}
+		}
+		// Quarters
+		if (config.calendarConfig.quarterAliases) {
+			const sortedQuarters = flattenAndSortAliases(
+				config.calendarConfig.quarterAliases,
+				true,
+			);
+			for (const { key, alias } of sortedQuarters) {
+				const regex = getCompiledRegex(
+					`^${escapeRegex(alias)}(?:\\s*(?:in\\s+)?(?<year>\\d{4}))?$`,
+					"iu",
+				);
+				const m = trimmed.match(regex);
+				if (m) {
+					const refYear = m.groups?.year ? Number(m.groups.year) : undefined;
+					return {
+						direction: "current",
+						amount: 0,
+						unit: "quarter",
+						specificQualifier: key,
+						...(refYear ? { referenceYear: refYear } : {}),
+					};
+				}
+			}
+		}
+	}
+
+	// Variant 5: Part of Day Match (e.g. "morning", "evening", "matin", "soir")
+	if (config.partOfDayConfig?.aliases) {
+		const sortedParts = flattenAndSortAliases(
+			config.partOfDayConfig.aliases,
+			true,
+		);
+		for (const { key, alias } of sortedParts) {
+			if (
+				alias.toLocaleLowerCase(config.locales as string) ===
+				trimmed.toLocaleLowerCase(config.locales as string)
+			) {
+				return {
+					direction: "current",
+					amount: 0,
+					unit: "day",
+					specificQualifier: key,
+				};
+			}
+		}
+	}
+
+	return undefined;
 }

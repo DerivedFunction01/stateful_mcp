@@ -53,8 +53,12 @@ export class ValuePatternCompiler {
 			this.quantityConfig = {
 				unitAliases: profile?.unitAliases ?? {},
 				rangeDelimiters: profile?.rangeDelimiters ?? [],
-				operatorAliases: profile?.operatorAliases ?? {},
-				statisticalAliases: profile?.statisticalAliases ?? {},
+				...(profile?.operatorAliases
+					? { operatorConfig: { operators: profile.operatorAliases } }
+					: {}),
+				...(profile?.statisticalAliases
+					? { statisticalConfig: { qualifiers: profile.statisticalAliases } }
+					: {}),
 				...(profile?.decimalSeparator
 					? { decimalSeparator: profile.decimalSeparator }
 					: {}),
@@ -89,9 +93,11 @@ export class ValuePatternCompiler {
 
 		// Operator prefixes
 		const opAliases: string[] = [];
-		for (const aliases of Object.values(
-			this.quantityConfig.operatorAliases ?? {},
-		)) {
+		const opMap =
+			this.quantityConfig.operatorConfig?.operators ??
+			this.quantityConfig.operatorConfig?.prefixAliases ??
+			{};
+		for (const aliases of Object.values(opMap)) {
 			opAliases.push(...aliases);
 		}
 		const opPattern = opAliases.length
@@ -238,7 +244,6 @@ export class ValuePatternCompiler {
 			const policy: QuantityConsumerPolicy = consumerPolicy ?? {
 				allowRange: true,
 				allowOperator: true,
-				statistics: "ignore",
 				allowDataPointCount: false,
 			};
 			const res = parseQuantity(normalized, this.quantityConfig, policy);

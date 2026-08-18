@@ -144,7 +144,7 @@ export function splitByDelimiters(
 		const escaped = escapeRegex(delim);
 		const pattern = isSymbol
 			? options.requireBoundaries
-				? `(?<=[\\d\\p{Nd}\\s\\p{L}])\\s*${escaped}\\s*(?=[\\d\\p{Nd}\\s\\p{L}])`
+				? `(?:\\s+${escaped}\\s+|(?<=[\\d\\p{Nd}])\\s*${escaped}\\s*(?=[\\d\\p{Nd}]))`
 				: `\\s*${escaped}\\s*`
 			: `\\s+${escaped}\\s+`;
 		const regex = getCompiledRegex(pattern, "iu");

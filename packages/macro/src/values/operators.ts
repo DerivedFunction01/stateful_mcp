@@ -29,6 +29,9 @@ export const OPERATOR_INVERSIONS: Readonly<Record<OperatorKind, OperatorKind>> =
 	};
 
 export interface OperatorConfig {
+	readonly operators?: Readonly<
+		Partial<Record<OperatorKind, readonly string[]>>
+	>;
 	readonly prefixAliases?: Readonly<
 		Partial<Record<OperatorKind, readonly string[]>>
 	>;
@@ -75,7 +78,9 @@ export function resolveOperator(
 	const lower = trimmed.toLocaleLowerCase(config.locales as string);
 
 	const aliases =
-		position === "prefix" ? config.prefixAliases : config.postfixAliases;
+		position === "prefix"
+			? (config.prefixAliases ?? config.operators)
+			: config.postfixAliases;
 	if (!aliases) return undefined;
 
 	// Flatten and sort all aliases by length descending
@@ -163,8 +168,9 @@ export function extractOperator(
 	if (!text) return { remainderText: "" };
 
 	// 1. Check configured Prefix Operators
-	if (config.prefixAliases) {
-		const allPrefix = flattenAndSortAliases(config.prefixAliases, false);
+	const prefixAliases = config.prefixAliases ?? config.operators;
+	if (prefixAliases) {
+		const allPrefix = flattenAndSortAliases(prefixAliases, false);
 
 		// Check for user-defined NEG_PREFIX (e.g. "not", "no", "nicht")
 		let negationPrefix: string | undefined;
@@ -293,7 +299,9 @@ export function formatOperator(
 	config: OperatorConfig = {},
 ): string {
 	const aliases =
-		position === "prefix" ? config.prefixAliases : config.postfixAliases;
+		position === "prefix"
+			? (config.prefixAliases ?? config.operators)
+			: config.postfixAliases;
 	const configuredAlias = aliases?.[operator]?.[0];
 	if (configuredAlias) {
 		return configuredAlias;

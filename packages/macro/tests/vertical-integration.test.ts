@@ -302,14 +302,17 @@ describe("Phase 3D — Generic vertical integration", () => {
 								}
 								if (
 									qtyPolicy.bounds &&
-									!checkNumericBounds(parsed.value.lower, qtyPolicy.bounds)
+									!checkNumericBounds(
+										parsed.value.primaryQuantity.magnitude,
+										qtyPolicy.bounds,
+									)
 								) {
 									return {
 										status: "invalid",
 										diagnostics: [
 											{
 												code: "NORMALIZATION_FAILED" as const,
-												message: `Quantity ${parsed.value.lower} out of allowed range [${qtyPolicy.bounds.min}..${qtyPolicy.bounds.max}]`,
+												message: `Quantity ${parsed.value.primaryQuantity.magnitude} out of allowed range [${qtyPolicy.bounds.min}..${qtyPolicy.bounds.max}]`,
 											},
 										],
 									};
@@ -318,15 +321,15 @@ describe("Phase 3D — Generic vertical integration", () => {
 									status: "accepted",
 									binding: {
 										canonicalValue: {
-											magnitude: parsed.value.lower,
-											unit: parsed.value.unit,
+											magnitude: parsed.value.primaryQuantity.magnitude,
+											unit: parsed.value.primaryQuantity.unit,
 										},
-										displayValue: `${parsed.value.lower} ${parsed.value.unit}`,
+										displayValue: `${parsed.value.primaryQuantity.magnitude} ${parsed.value.primaryQuantity.unit}`,
 									},
 									previewValues: [
 										{
 											argumentId: "qty",
-											value: `${parsed.value.lower} ${parsed.value.unit}`,
+											value: `${parsed.value.primaryQuantity.magnitude} ${parsed.value.primaryQuantity.unit}`,
 										},
 									],
 								};

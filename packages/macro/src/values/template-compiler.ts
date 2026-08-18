@@ -1,5 +1,7 @@
 import { escapeRegex, getCompiledRegex } from "./regex";
 
+export * from "./token-spec";
+
 export interface TemplateTokenSpec<T = unknown> {
 	/** Regex pattern matching the token value (e.g. "\\d{4}", "[0-5]\\d", or "(?:0?[1-9]|1[0-2])") */
 	readonly pattern: string;

@@ -38,8 +38,10 @@ export const STATISTICAL_TYPE_TO_ROLE: Readonly<
 
 export interface StatisticalQualifier {
 	readonly type: StatisticalQualifierType;
+	readonly kind?: StatisticalQualifierType;
 	readonly role: StatisticalRole;
 	readonly confidenceLevel?: number; // e.g. 95 for 95% CI
+	readonly value?: number; // e.g. 5 for SD 5
 	readonly rawText: string;
 	readonly matchedAlias: string;
 }
@@ -59,6 +61,9 @@ export interface StatisticalConsumerPolicy {
 }
 
 export interface StatisticalConfig {
+	readonly qualifiers?: Readonly<
+		Partial<Record<StatisticalQualifierType, readonly string[]>>
+	>;
 	readonly qualifierAliases?: Readonly<
 		Partial<Record<StatisticalQualifierType, readonly string[]>>
 	>;
@@ -96,12 +101,13 @@ export function resolveStatisticalQualifier(
 	}
 	const lower = trimmed.toLocaleLowerCase(config.locales as string);
 
-	if (!config.qualifierAliases) {
+	const aliases = config.qualifierAliases ?? config.qualifiers;
+	if (!aliases) {
 		return { diagnostics: [] };
 	}
 
 	// Flatten and sort aliases by length descending
-	const allPairs = flattenAndSortAliases(config.qualifierAliases, false);
+	const allPairs = flattenAndSortAliases(aliases, false);
 
 	for (const { key: type, alias } of allPairs) {
 		const aliasLower = alias.toLocaleLowerCase(config.locales as string);
@@ -120,16 +126,17 @@ export function resolveStatisticalQualifier(
 					confidenceLevel = Number(ciMatch.groups.level);
 				}
 			}
-		}
-
-		if (!isMatch && aliasLower === lower) {
-			isMatch = true;
+		} else {
+			if (lower === aliasLower) {
+				isMatch = true;
+			}
 		}
 
 		if (isMatch) {
 			const role = STATISTICAL_TYPE_TO_ROLE[type];
 			const qualifier: StatisticalQualifier = {
 				type,
+				kind: type,
 				role,
 				...(confidenceLevel !== undefined ? { confidenceLevel } : {}),
 				rawText: trimmed,
@@ -144,8 +151,7 @@ export function resolveStatisticalQualifier(
 }
 
 /**
- * Extracts a statistical qualifier from the start or end of text, returning the remainder and validating against policy.
- * Does NOT inject hardcoded English words.
+ * Extracts a prefix or postfix statistical qualifier from a string and returns the clean remainder.
  */
 export function extractStatisticalQualifier(
 	input: string,
@@ -153,11 +159,12 @@ export function extractStatisticalQualifier(
 	policy: StatisticalConsumerPolicy = {},
 ): ExtractedQualifierResult {
 	const text = input.trim();
-	if (!text || !config.qualifierAliases) {
+	const aliases = config.qualifierAliases ?? config.qualifiers;
+	if (!text || !aliases) {
 		return { remainderText: text, diagnostics: [] };
 	}
 
-	const allPairs = flattenAndSortAliases(config.qualifierAliases, false);
+	const allPairs = flattenAndSortAliases(aliases, false);
 
 	// 1. Check for Prefix Qualifier (e.g. "error of 50 mg", "mean of 120", "95% CI 4.8-5.6")
 	for (const { key: type, alias } of allPairs) {
@@ -183,6 +190,7 @@ export function extractStatisticalQualifier(
 			const role = STATISTICAL_TYPE_TO_ROLE[type];
 			const qualifier: StatisticalQualifier = {
 				type,
+				kind: type,
 				role,
 				...(confidenceLevel !== undefined ? { confidenceLevel } : {}),
 				rawText: match[0].trim(),
@@ -198,18 +206,18 @@ export function extractStatisticalQualifier(
 		}
 	}
 
-	// 2. Check for Postfix Qualifier (e.g. "120 mmHg (SD)", "50 mg (error)")
+	// 2. Check for Postfix Qualifier (e.g. "120 mmHg (SD)", "50 mg (error)", "100 boxes of nitrile gloves (SD 5)")
 	for (const { key: type, alias } of allPairs) {
 		let confidenceLevel: number | undefined;
 		const isSymbol = /^[^a-zA-Z0-9\s]+$/u.test(alias);
 
 		let pattern: string;
 		if (type === "confidence_interval") {
-			pattern = `(?:\\(\\s*(?:(?<level>\\d+)%\\s*)?${escapeRegex(alias)}\\s*\\)|(?<=[\\s\\p{P}]|^)(?:(?<level2>\\d+)%\\s*)?${escapeRegex(alias)})$`;
+			pattern = `(?:\\(\\s*(?:(?<level>\\d+)%\\s*)?${escapeRegex(alias)}(?:\\s+(?<val>[^)]+))?\\s*\\)|(?<=[\\s\\p{P}]|^)(?:(?<level2>\\d+)%\\s*)?${escapeRegex(alias)})$`;
 		} else {
 			pattern = isSymbol
 				? `\\s*${escapeRegex(alias)}$`
-				: `(?:\\(\\s*${escapeRegex(alias)}\\s*\\)|(?<=[\\s\\p{P}]|^)${escapeRegex(alias)})$`;
+				: `(?:\\(\\s*${escapeRegex(alias)}(?:\\s+(?<val>[^)]+))?\\s*\\)|(?<=[\\s\\p{P}]|^)${escapeRegex(alias)})$`;
 		}
 
 		const regex = new RegExp(pattern, "iu");
@@ -219,12 +227,22 @@ export function extractStatisticalQualifier(
 			if (levelStr) {
 				confidenceLevel = Number(levelStr);
 			}
+			const valStr = match.groups?.val?.trim();
+			let numVal: number | undefined;
+			if (valStr) {
+				const parsed = Number(valStr);
+				if (!Number.isNaN(parsed)) {
+					numVal = parsed;
+				}
+			}
 			const remainder = text.slice(0, match.index).trim();
 			const role = STATISTICAL_TYPE_TO_ROLE[type];
 			const qualifier: StatisticalQualifier = {
 				type,
+				kind: type,
 				role,
 				...(confidenceLevel !== undefined ? { confidenceLevel } : {}),
+				...(numVal !== undefined ? { value: numVal } : {}),
 				rawText: match[0].trim(),
 				matchedAlias: alias,
 			};
@@ -365,6 +383,7 @@ export function parseRatioValue(
 	if (!rawText) return undefined;
 
 	const separators = options.ratioSeparators ?? [":"];
+	if (separators.length === 0) return undefined;
 
 	for (const sep of separators) {
 		const isSymbol = /^[^a-zA-Z0-9\s]+$/u.test(sep);

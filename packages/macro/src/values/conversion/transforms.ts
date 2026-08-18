@@ -19,3 +19,7 @@ export function functionalTransform(
 ): UnitTransform {
 	return { kind, toBase, fromBase };
 }
+
+export function identityTransform(): UnitTransform {
+	return multiplicativeTransform(1);
+}

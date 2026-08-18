@@ -6,6 +6,8 @@ import type {
 	UnitId,
 } from "./contracts";
 
+export * from "./transforms";
+
 export class QuantityConversionRegistry {
 	private readonly dimensions = new Map<
 		QuantityDimension,
@@ -245,4 +247,8 @@ function vectorsEqual(
 		if ((left[dimension] ?? 0) !== (right[dimension] ?? 0)) return false;
 	}
 	return true;
+}
+
+export function createQuantityConversionRegistry(): QuantityConversionRegistry {
+	return new QuantityConversionRegistry();
 }

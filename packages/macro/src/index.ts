@@ -65,5 +65,6 @@ export * from "./values/statistics";
 export * from "./values/template-compiler";
 export * from "./values/time-zone";
 export * from "./values/token-matcher";
+export * from "./values/token-spec";
 export * from "./workspace";
 export * from "./workspace/contributions/surface-keybindings";

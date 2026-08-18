@@ -25,7 +25,12 @@ export interface ChainedQuantityResolution {
 	readonly diagnostics: Array<{ code: string; message: string }>;
 }
 
-export interface MultiUnitParserOptions {
+import type { BaseValueGrammarConfig } from "./numeric";
+import type { DurationToken, ValueFormatConfig } from "./token-spec";
+
+export interface MultiUnitParserOptions extends BaseValueGrammarConfig {
+	/** Format templates for duration or compound unit chains */
+	readonly templates?: readonly (ValueFormatConfig<DurationToken> | string)[];
 	/** Unit alias map to map raw tokens e.g. "years" -> "a", "feet" -> "[ft_i]" */
 	readonly unitAliases?: Readonly<Record<string, readonly string[]>>;
 	/** Target canonical unit selection */
@@ -299,7 +304,9 @@ function extractRawSegments(
 	for (const match of matches) {
 		const rawNumStr = match[1]!;
 		const numRes = parseNumericValue(rawNumStr, {
-			decimalPoint: options.decimalSeparator,
+			...options.numericConfig,
+			decimalSeparator:
+				options.decimalSeparator ?? options.numericConfig?.decimalSeparator,
 		});
 		const rawUnit = match[2]!.trim();
 		if (numRes.parsed && rawUnit) {

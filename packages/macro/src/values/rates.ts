@@ -21,6 +21,7 @@ import { splitByDelimiters } from "./token-matcher";
 export interface CompoundRateDenominator {
 	readonly unit: string;
 	readonly magnitude: number; // usually 1, but e.g. "per 2 hours" -> 2
+	readonly quantity?: SingleQuantity;
 	readonly rawText: string;
 }
 
@@ -36,7 +37,11 @@ export interface CompoundRateValue {
 	readonly rawText: string;
 }
 
-export interface CompoundRateConfig {
+import type { BaseValueGrammarConfig } from "./numeric";
+import type { RateToken, ValueFormatConfig } from "./token-spec";
+
+export interface CompoundRateConfig extends BaseValueGrammarConfig {
+	readonly templates?: readonly (ValueFormatConfig<RateToken> | string)[];
 	readonly quantityConfig?: QuantityGrammarConfig;
 	readonly currencyConfig?: CurrencyFormatConfig;
 	readonly operatorConfig?: OperatorConfig;
@@ -101,7 +106,10 @@ export function parseCompoundRate(
 
 	// 2. Split into Numerator and Denominators using configured rateDelimiters
 	const rateDelimiters = config.rateDelimiters ?? ["/"];
-	const segments = splitByDelimiters(text, rateDelimiters)?.parts ?? [text];
+	const segments =
+		rateDelimiters.length > 0
+			? (splitByDelimiters(text, rateDelimiters)?.parts ?? [text])
+			: [text];
 
 	if (segments.length < 2) {
 		return {
@@ -208,18 +216,25 @@ export function parseCompoundRate(
 		denominators.push({
 			unit: unitStr,
 			magnitude,
+			quantity: {
+				magnitude,
+				unit: unitStr,
+				rawText: denSeg,
+			},
 			rawText: denSeg,
 		});
 	}
 
+	const rateValue: CompoundRateValue = {
+		kind: "rate",
+		numerator,
+		denominators,
+		...(operatorMatch ? { operator: operatorMatch } : {}),
+		rawText,
+	};
+
 	return {
-		value: {
-			kind: "rate",
-			numerator,
-			denominators,
-			...(operatorMatch ? { operator: operatorMatch } : {}),
-			rawText,
-		},
+		value: rateValue,
 		diagnostics: [],
 	};
 }

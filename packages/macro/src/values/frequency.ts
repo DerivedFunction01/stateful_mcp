@@ -1,4 +1,16 @@
+import {
+	type BaseValueGrammarConfig,
+	buildNumericPatternString,
+	parseNumericValue,
+} from "./numeric";
 import { escapeRegex } from "./regex";
+import { flattenAndSortAliases } from "./token-matcher";
+import {
+	compileFormatRegex,
+	FREQUENCY_TOKENS,
+	type FrequencyToken,
+	type ValueFormatConfig,
+} from "./token-spec";
 
 export const CADENCE_TYPES = [
 	"interval",
@@ -42,7 +54,8 @@ export interface CadenceSchedule<
 export interface FrequencyGrammarConfig<
 	TAnchor extends string = string,
 	TUnit extends string = string,
-> {
+> extends BaseValueGrammarConfig {
+	readonly templates?: readonly (ValueFormatConfig<FrequencyToken> | string)[];
 	readonly frequencyAliases?: Readonly<
 		Record<string, Partial<CadenceSchedule<TAnchor, TUnit>>>
 	>;
@@ -50,8 +63,10 @@ export interface FrequencyGrammarConfig<
 	readonly timeUnitAliases?: Readonly<Record<TUnit, readonly string[]>>;
 	readonly eventAnchorAliases?: Readonly<Record<TAnchor, readonly string[]>>;
 	readonly conditionalAliases?: readonly string[];
+	readonly conditionConnectors?: readonly string[];
 	readonly intervalPrefixes?: readonly string[];
 	readonly recurrenceConnectors?: readonly string[];
+	readonly rangeDelimiters?: readonly string[];
 	readonly relativeOffsetConnectors?: Readonly<
 		Record<"before" | "after" | "at" | "with", readonly string[]>
 	>;
@@ -80,293 +95,9 @@ export interface CadenceScheduleResolution<
 	readonly diagnostics: readonly FrequencyDiagnostic[];
 }
 
-export function createStandardTimeUnits(): Record<string, readonly string[]> {
-	return {
-		second: [
-			"s",
-			"sec",
-			"secs",
-			"second",
-			"seconds",
-			"segundo",
-			"segundos",
-			"sekunde",
-			"sekunden",
-			"秒",
-		],
-		minute: [
-			"min",
-			"mins",
-			"minute",
-			"minutes",
-			"minuto",
-			"minutos",
-			"分",
-			"minuten",
-		],
-		hour: [
-			"h",
-			"hr",
-			"hrs",
-			"hour",
-			"hours",
-			"hora",
-			"horas",
-			"stunde",
-			"stunden",
-			"std",
-			"時",
-			"小时",
-			"時間",
-		],
-		day: [
-			"d",
-			"day",
-			"days",
-			"daily",
-			"dia",
-			"dias",
-			"diario",
-			"tag",
-			"tage",
-			"täglich",
-			"日",
-			"天",
-		],
-		week: [
-			"w",
-			"wk",
-			"wks",
-			"week",
-			"weeks",
-			"weekly",
-			"semana",
-			"semanas",
-			"semanal",
-			"woche",
-			"wochen",
-			"wöchentlich",
-			"週",
-			"周",
-		],
-		month: [
-			"mo",
-			"mos",
-			"month",
-			"months",
-			"monthly",
-			"mes",
-			"meses",
-			"mensual",
-			"monat",
-			"monate",
-			"monatlich",
-			"月",
-		],
-		quarter: [
-			"q",
-			"quarter",
-			"quarters",
-			"quarterly",
-			"trimestre",
-			"quartal",
-			"quartale",
-			"vierteljährlich",
-			"季度",
-		],
-		year: [
-			"y",
-			"yr",
-			"yrs",
-			"year",
-			"years",
-			"yearly",
-			"annual",
-			"annually",
-			"año",
-			"años",
-			"anual",
-			"jahr",
-			"jahre",
-			"jährlich",
-			"年",
-		],
-	};
-}
-
-export function createStandardMultiplierAliases(): Record<
-	string,
-	readonly string[]
-> {
-	return {
-		"1": ["once", "1x", "single", "una vez", "einmal", "1回", "1次"],
-		"2": ["twice", "2x", "double", "dos veces", "zweimal", "2回", "2次"],
-		"3": [
-			"thrice",
-			"3x",
-			"triple",
-			"three times",
-			"tres veces",
-			"dreimal",
-			"3回",
-			"3次",
-		],
-		"4": ["4x", "four times", "cuatro veces", "viermal", "4回", "4次"],
-		"5": ["5x", "five times", "cinco veces", "fünfmal", "5回", "5次"],
-	};
-}
-
-export function createStandardFrequencyAliases(): Record<
-	string,
-	Partial<CadenceSchedule<string, string>>
-> {
-	return {
-		daily: {
-			cadenceType: "recurrence",
-			recurrence: { count: 1, period: "day" },
-		},
-		qd: { cadenceType: "recurrence", recurrence: { count: 1, period: "day" } },
-		"q.d.": {
-			cadenceType: "recurrence",
-			recurrence: { count: 1, period: "day" },
-		},
-		bid: { cadenceType: "recurrence", recurrence: { count: 2, period: "day" } },
-		"b.i.d.": {
-			cadenceType: "recurrence",
-			recurrence: { count: 2, period: "day" },
-		},
-		tid: { cadenceType: "recurrence", recurrence: { count: 3, period: "day" } },
-		"t.i.d.": {
-			cadenceType: "recurrence",
-			recurrence: { count: 3, period: "day" },
-		},
-		qid: { cadenceType: "recurrence", recurrence: { count: 4, period: "day" } },
-		"q.i.d.": {
-			cadenceType: "recurrence",
-			recurrence: { count: 4, period: "day" },
-		},
-		weekly: {
-			cadenceType: "recurrence",
-			recurrence: { count: 1, period: "week" },
-		},
-		qw: { cadenceType: "recurrence", recurrence: { count: 1, period: "week" } },
-		monthly: {
-			cadenceType: "recurrence",
-			recurrence: { count: 1, period: "month" },
-		},
-		qm: {
-			cadenceType: "recurrence",
-			recurrence: { count: 1, period: "month" },
-		},
-		q2h: { cadenceType: "interval", interval: { multiplier: 2, unit: "hour" } },
-		q4h: { cadenceType: "interval", interval: { multiplier: 4, unit: "hour" } },
-		q6h: { cadenceType: "interval", interval: { multiplier: 6, unit: "hour" } },
-		q8h: { cadenceType: "interval", interval: { multiplier: 8, unit: "hour" } },
-		q12h: {
-			cadenceType: "interval",
-			interval: { multiplier: 12, unit: "hour" },
-		},
-		qhs: { cadenceType: "event_anchored", eventAnchor: "before_sleep" },
-		"q.h.s.": { cadenceType: "event_anchored", eventAnchor: "before_sleep" },
-		qam: { cadenceType: "event_anchored", eventAnchor: "waking" },
-		"q.a.m.": { cadenceType: "event_anchored", eventAnchor: "waking" },
-		continuous: { cadenceType: "continuous" },
-		stat: { cadenceType: "one_time" },
-		prn: { cadenceType: "one_time", isConditional: true },
-		"p.r.n.": { cadenceType: "one_time", isConditional: true },
-	};
-}
-
-export function createStandardEventAnchors(): Record<
-	string,
-	readonly string[]
-> {
-	return {
-		before_sleep: [
-			"at bedtime",
-			"before bedtime",
-			"before sleep",
-			"bedtime",
-			"antes de dormir",
-			"vor dem schlafen",
-			"就寝前",
-			"睡前",
-		],
-		waking: [
-			"in the morning",
-			"upon waking",
-			"on waking",
-			"al despertar",
-			"beim aufwachen",
-			"起床時",
-			"晨起",
-		],
-		before_meal: [
-			"before meals",
-			"before meal",
-			"before food",
-			"preprandial",
-			"ac",
-			"a.c.",
-			"antes de las comidas",
-			"vor den mahlzeiten",
-			"食前",
-		],
-		with_meal: [
-			"with meals",
-			"with meal",
-			"with food",
-			"during meals",
-			"con las comidas",
-			"zu den mahlzeiten",
-			"食中",
-			"随餐",
-		],
-		after_meal: [
-			"after meals",
-			"after meal",
-			"after food",
-			"postprandial",
-			"pc",
-			"p.c.",
-			"después de las comidas",
-			"nach den mahlzeiten",
-			"食後",
-		],
-		market_open: [
-			"market open",
-			"at market open",
-			"market opening",
-			"apertura del mercado",
-			"开盘",
-		],
-		market_close: [
-			"market close",
-			"at market close",
-			"market closing",
-			"cierre del mercado",
-			"收盘",
-		],
-		midnight: [
-			"at midnight",
-			"midnight",
-			"a medianoche",
-			"mitternacht",
-			"午夜",
-		],
-		startup: ["on startup", "at startup", "startup", "al inicio", "启动时"],
-		shutdown: [
-			"on shutdown",
-			"at shutdown",
-			"shutdown",
-			"al apagado",
-			"关机时",
-		],
-	};
-}
-
 /**
  * Parses a free-text frequency, cadence, rate schedule, or shorthand into a structured CadenceSchedule.
+ * Zero hardcoded language fallbacks. If aliases/connectors/templates are not configured, nothing is parsed.
  */
 export function parseCadenceSchedule<
 	TAnchor extends string = string,
@@ -386,65 +117,25 @@ export function parseCadenceSchedule<
 	}
 
 	const diagnostics: FrequencyDiagnostic[] = [];
-	const timeUnitAliases = (config.timeUnitAliases ??
-		createStandardTimeUnits()) as Record<string, readonly string[]>;
-	const multiplierAliases =
-		config.multiplierAliases ?? createStandardMultiplierAliases();
-	const frequencyAliases = (config.frequencyAliases ??
-		createStandardFrequencyAliases()) as Record<
+	const timeUnitAliases = (config.timeUnitAliases ?? {}) as Record<
+		string,
+		readonly string[]
+	>;
+	const multiplierAliases = config.multiplierAliases ?? {};
+	const frequencyAliases = (config.frequencyAliases ?? {}) as Record<
 		string,
 		Partial<CadenceSchedule<TAnchor, TUnit>>
 	>;
-	const eventAnchorAliases = (config.eventAnchorAliases ??
-		createStandardEventAnchors()) as Record<string, readonly string[]>;
-	const conditionalAliases = config.conditionalAliases ?? [
-		"prn",
-		"p.r.n.",
-		"as needed",
-		"as-needed",
-		"on demand",
-		"on-demand",
-		"según sea necesario",
-		"nach bedarf",
-		"必要時",
-		"按需",
-	];
-	const intervalPrefixes = config.intervalPrefixes ?? [
-		"every",
-		"cada",
-		"alle",
-		"jede",
-		"jeder",
-		"jedes",
-		"每",
-		"q",
-	];
-	const recurrenceConnectors = config.recurrenceConnectors ?? [
-		"times a",
-		"times per",
-		"time a",
-		"time per",
-		"x a",
-		"x per",
-		"x/",
-		"veces al",
-		"veces por",
-		"mal pro",
-		"mal pro",
-		"回/",
-		"次/",
-		"per",
-		"a",
-		"por",
-		"pro",
-		"/",
-	];
-	const relativeOffsetConnectors = config.relativeOffsetConnectors ?? {
-		before: ["before", "prior to", "antes de", "vor", "前"],
-		after: ["after", "post", "después de", "nach", "後", "后"],
-		at: ["at", "on", "in the", "a", "um", "bei", "在", "于"],
-		with: ["with", "during", "con", "mit", "zu", "随"],
-	};
+	const eventAnchorAliases = (config.eventAnchorAliases ?? {}) as Record<
+		string,
+		readonly string[]
+	>;
+	const conditionalAliases = config.conditionalAliases ?? [];
+	const intervalPrefixes = config.intervalPrefixes ?? [];
+	const recurrenceConnectors = config.recurrenceConnectors ?? [];
+	const rangeDelimiters = config.rangeDelimiters ?? [];
+	const relativeOffsetConnectors = config.relativeOffsetConnectors ?? {};
+	const conditionConnectors = config.conditionConnectors ?? [];
 
 	let workingText = rawText;
 	let isConditional = false;
@@ -453,14 +144,26 @@ export function parseCadenceSchedule<
 	// 1. Check for Conditional / PRN trigger
 	for (const prnAlias of conditionalAliases) {
 		const prnRegex = new RegExp(
-			`(?<![\\p{L}\\p{N}])${escapeRegex(prnAlias)}(?![\\p{L}\\p{N}])(?:\\s+(?:for|due to|on|with)?\\s*(?<reason>[^,;]+))?`,
+			`(?<![\\p{L}\\p{N}])${escapeRegex(prnAlias)}(?![\\p{L}\\p{N}])(?:\\s+(?<reason>.+))?`,
 			"iu",
 		);
 		const match = workingText.match(prnRegex);
 		if (match) {
 			isConditional = true;
 			if (match.groups?.reason) {
-				conditionReason = match.groups.reason.trim();
+				let reasonText = match.groups.reason.trim();
+				for (const conn of conditionConnectors) {
+					const isSymbol = /^[^a-zA-Z0-9\s]+$/u.test(conn);
+					const connPattern = isSymbol
+						? `^${escapeRegex(conn)}\\s*`
+						: `^${escapeRegex(conn)}(?![\\p{L}\\p{N}])\\s*`;
+					const connRegex = new RegExp(connPattern, "iu");
+					if (connRegex.test(reasonText)) {
+						reasonText = reasonText.replace(connRegex, "").trim();
+						break;
+					}
+				}
+				conditionReason = reasonText;
 			}
 			workingText = (
 				workingText.slice(0, match.index) +
@@ -479,11 +182,13 @@ export function parseCadenceSchedule<
 
 	// Helper to resolve a raw time unit string
 	const resolveTimeUnit = (raw: string): TUnit | undefined => {
-		const lower = raw.toLocaleLowerCase().trim();
+		const lower = raw.toLocaleLowerCase(config.locales as string).trim();
 		for (const [canonical, aliases] of Object.entries(timeUnitAliases)) {
 			if (
-				canonical.toLocaleLowerCase() === lower ||
-				aliases.some((a) => a.toLocaleLowerCase() === lower)
+				canonical.toLocaleLowerCase(config.locales as string) === lower ||
+				aliases.some(
+					(a) => a.toLocaleLowerCase(config.locales as string) === lower,
+				)
 			) {
 				return canonical as TUnit;
 			}
@@ -495,9 +200,13 @@ export function parseCadenceSchedule<
 	const resolveMultiplier = (raw: string): number | undefined => {
 		const num = Number(raw);
 		if (!Number.isNaN(num) && num > 0) return num;
-		const lower = raw.toLocaleLowerCase().trim();
+		const lower = raw.toLocaleLowerCase(config.locales as string).trim();
 		for (const [countStr, aliases] of Object.entries(multiplierAliases)) {
-			if (aliases.some((a) => a.toLocaleLowerCase() === lower)) {
+			if (
+				aliases.some(
+					(a) => a.toLocaleLowerCase(config.locales as string) === lower,
+				)
+			) {
 				return Number(countStr);
 			}
 		}
@@ -505,9 +214,13 @@ export function parseCadenceSchedule<
 	};
 
 	// 2. Direct Shorthand Lookup (e.g. "BID", "Q4H", "QHS", "DAILY")
-	const normalizedLower = workingText.toLocaleLowerCase().replace(/[.\s]/g, "");
+	const normalizedLower = workingText
+		.toLocaleLowerCase(config.locales as string)
+		.replace(/[.\s]/g, "");
 	for (const [aliasKey, aliasSchedule] of Object.entries(frequencyAliases)) {
-		const normKey = aliasKey.toLocaleLowerCase().replace(/[.\s]/g, "");
+		const normKey = aliasKey
+			.toLocaleLowerCase(config.locales as string)
+			.replace(/[.\s]/g, "");
 		if (normalizedLower === normKey) {
 			const candidate: CadenceSchedule<TAnchor, TUnit> = {
 				cadenceType: (aliasSchedule.cadenceType ?? "interval") as any,
@@ -530,25 +243,228 @@ export function parseCadenceSchedule<
 		}
 	}
 
-	// 3. Match Interval Schedules with explicit interval prefix (e.g. "every 4 hours", "every 4-6 hours", "cada 8 horas", "alle 2 wochen", "每4時間")
+	// 3. Match explicit configured templates if provided
+	if (config.templates && config.templates.length > 0) {
+		const numPattern = buildNumericPatternString({
+			...config.numericConfig,
+			allowNegative: false,
+		});
+
+		const sortedPrefixes = [...intervalPrefixes].sort(
+			(a, b) => b.length - a.length,
+		);
+		const prefixPattern =
+			sortedPrefixes.length > 0
+				? `(?:${sortedPrefixes.map(escapeRegex).join("|")})`
+				: "";
+
+		const sortedUnitPairs = flattenAndSortAliases(timeUnitAliases, true);
+		const unitPattern =
+			sortedUnitPairs.length > 0
+				? `(?:${sortedUnitPairs.map((p) => escapeRegex(p.alias)).join("|")})`
+				: "";
+
+		const sortedRecConn = [...recurrenceConnectors].sort(
+			(a, b) => b.length - a.length,
+		);
+		const recConnPattern =
+			sortedRecConn.length > 0
+				? `(?:${sortedRecConn.map(escapeRegex).join("|")})`
+				: "";
+
+		const sortedOffsetDirs = flattenAndSortAliases(
+			relativeOffsetConnectors,
+			false,
+		);
+		const offsetDirPattern =
+			sortedOffsetDirs.length > 0
+				? `(?:${sortedOffsetDirs.map((p) => escapeRegex(p.alias)).join("|")})`
+				: "";
+
+		const sortedAnchors = flattenAndSortAliases(eventAnchorAliases, true);
+		const anchorPattern =
+			sortedAnchors.length > 0
+				? `(?:${sortedAnchors.map((p) => escapeRegex(p.alias)).join("|")})`
+				: "";
+
+		const tokenPatternMap: Record<string, string> = {
+			INTERVAL_PREFIX: prefixPattern
+				? `(?<INTERVAL_PREFIX>${prefixPattern})`
+				: "",
+			INTERVAL_MAG: `(?<INTERVAL_MAG>${numPattern})`,
+			INTERVAL_HIGH: `(?<INTERVAL_HIGH>${numPattern})`,
+			INTERVAL_UNIT: unitPattern ? `(?<INTERVAL_UNIT>${unitPattern})` : "",
+			RECURRENCE_COUNT: `(?<RECURRENCE_COUNT>${numPattern})`,
+			RECURRENCE_CONN: recConnPattern
+				? `(?<RECURRENCE_CONN>${recConnPattern})`
+				: "",
+			PERIOD: unitPattern ? `(?<PERIOD>${unitPattern})` : "",
+			OFFSET_MAG: `(?<OFFSET_MAG>${numPattern})`,
+			OFFSET_UNIT: unitPattern ? `(?<OFFSET_UNIT>${unitPattern})` : "",
+			OFFSET_DIR: offsetDirPattern ? `(?<OFFSET_DIR>${offsetDirPattern})` : "",
+			ANCHOR: anchorPattern ? `(?<ANCHOR>${anchorPattern})` : "",
+		};
+
+		for (const tpl of config.templates) {
+			const regex = compileFormatRegex(
+				tpl,
+				tokenPatternMap,
+				{ exact: true },
+				FREQUENCY_TOKENS,
+			);
+			const match = workingText.match(regex);
+			if (match?.groups) {
+				const g = match.groups;
+				// Check for Interval
+				if (g.INTERVAL_MAG && g.INTERVAL_UNIT) {
+					const mag = parseNumericValue(g.INTERVAL_MAG, config.numericConfig)
+						?.parsed?.value;
+					const high = g.INTERVAL_HIGH
+						? parseNumericValue(g.INTERVAL_HIGH, config.numericConfig)?.parsed
+								?.value
+						: undefined;
+					const unit = resolveTimeUnit(g.INTERVAL_UNIT);
+					if (mag !== undefined && unit) {
+						const candidate: CadenceSchedule<TAnchor, TUnit> = {
+							cadenceType: "interval" as any,
+							interval: {
+								multiplier: mag,
+								unit,
+								...(high !== undefined ? { upperMultiplier: high } : {}),
+							},
+							...(isConditional ? { isConditional: true } : {}),
+							...(conditionReason ? { condition: conditionReason } : {}),
+							rawText,
+						};
+						return validateAndResolve(candidate, policy, diagnostics);
+					}
+				}
+
+				// Check for Recurrence
+				if (g.RECURRENCE_COUNT && g.PERIOD) {
+					const count = resolveMultiplier(g.RECURRENCE_COUNT);
+					const period = resolveTimeUnit(g.PERIOD);
+					if (count !== undefined && period) {
+						const candidate: CadenceSchedule<TAnchor, TUnit> = {
+							cadenceType: "recurrence" as any,
+							recurrence: { count, period },
+							...(isConditional ? { isConditional: true } : {}),
+							...(conditionReason ? { condition: conditionReason } : {}),
+							rawText,
+						};
+						return validateAndResolve(candidate, policy, diagnostics);
+					}
+				}
+
+				// Check for Event Anchor & Relative Offset
+				if (g.ANCHOR) {
+					let matchedAnchorKey: TAnchor | undefined;
+					const anchorLower = g.ANCHOR.toLocaleLowerCase(
+						config.locales as string,
+					);
+					for (const [k, aliases] of Object.entries(eventAnchorAliases)) {
+						if (
+							k.toLocaleLowerCase(config.locales as string) === anchorLower ||
+							aliases.some(
+								(a) =>
+									a.toLocaleLowerCase(config.locales as string) === anchorLower,
+							)
+						) {
+							matchedAnchorKey = k as TAnchor;
+							break;
+						}
+					}
+
+					if (matchedAnchorKey) {
+						let relativeOffset:
+							| CadenceSchedule<TAnchor, TUnit>["relativeOffset"]
+							| undefined;
+						if (g.OFFSET_DIR) {
+							const dirLower = g.OFFSET_DIR.toLocaleLowerCase(
+								config.locales as string,
+							);
+							let dir: "before" | "after" | "at" | "with" = "at";
+							for (const [d, dAliases] of Object.entries(
+								relativeOffsetConnectors,
+							) as ["before" | "after" | "at" | "with", readonly string[]][]) {
+								if (
+									dAliases.some(
+										(da) =>
+											da.toLocaleLowerCase(config.locales as string) ===
+											dirLower,
+									)
+								) {
+									dir = d;
+									break;
+								}
+							}
+
+							const offsetMag = g.OFFSET_MAG
+								? parseNumericValue(g.OFFSET_MAG, config.numericConfig)?.parsed
+										?.value
+								: undefined;
+							const offsetUnit = g.OFFSET_UNIT
+								? resolveTimeUnit(g.OFFSET_UNIT)
+								: undefined;
+
+							relativeOffset = {
+								direction: dir,
+								...(offsetMag !== undefined && offsetUnit
+									? { duration: { magnitude: offsetMag, unit: offsetUnit } }
+									: {}),
+							};
+						}
+
+						const candidate: CadenceSchedule<TAnchor, TUnit> = {
+							cadenceType: "event_anchored" as any,
+							eventAnchor: matchedAnchorKey,
+							...(relativeOffset ? { relativeOffset } : {}),
+							...(isConditional ? { isConditional: true } : {}),
+							...(conditionReason ? { condition: conditionReason } : {}),
+							rawText,
+						};
+						return validateAndResolve(candidate, policy, diagnostics);
+					}
+				}
+			}
+		}
+	}
+
+	// 4. Match Interval Schedules with explicit interval prefix (e.g. "every 4 hours", "cada 8 horas", "每4小时", "q4h")
 	for (const prefix of intervalPrefixes) {
-		const isCjkPrefix = prefix === "每";
+		const isSymbol = /^[^a-zA-Z0-9\s]+$/u.test(prefix);
+		const prefixPattern = isSymbol
+			? `^${escapeRegex(prefix)}\\s*`
+			: `^${escapeRegex(prefix)}(?:\\s+|(?=[\\d\\p{Nd}]))`;
+
+		const sortedRangeDelims = [...rangeDelimiters].sort(
+			(a, b) => b.length - a.length,
+		);
+		const rangeDelimPattern =
+			sortedRangeDelims.length > 0
+				? `(?:\\s*(?:${sortedRangeDelims.map(escapeRegex).join("|")})\\s*(?<high>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?))?`
+				: "";
+
 		const intRegex = new RegExp(
-			`^${escapeRegex(prefix)}${isCjkPrefix ? "\\s*" : "\\s+"}(?<low>\\d+)(?:\\s*(?:-|–|to|a|bis|至)\\s*(?<high>\\d+))?\\s*(?<unit>[\\p{L}]+)$`,
+			`${prefixPattern}(?<low>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?)${rangeDelimPattern}\\s*(?<unit>[\\p{L}]+)$`,
 			"iu",
 		);
 		const match = workingText.match(intRegex);
 		if (match?.groups?.low && match.groups.unit) {
-			const low = Number(match.groups.low);
-			const high = match.groups.high ? Number(match.groups.high) : undefined;
+			const lowRes = parseNumericValue(match.groups.low, config.numericConfig);
+			const highRes = match.groups.high
+				? parseNumericValue(match.groups.high, config.numericConfig)
+				: undefined;
 			const unit = resolveTimeUnit(match.groups.unit);
-			if (!Number.isNaN(low) && unit) {
+			if (lowRes.parsed && unit) {
 				const candidate: CadenceSchedule<TAnchor, TUnit> = {
 					cadenceType: "interval" as any,
 					interval: {
-						multiplier: low,
+						multiplier: lowRes.parsed.value,
 						unit,
-						...(high !== undefined ? { upperMultiplier: high } : {}),
+						...(highRes?.parsed
+							? { upperMultiplier: highRes.parsed.value }
+							: {}),
 					},
 					...(isConditional ? { isConditional: true } : {}),
 					...(conditionReason ? { condition: conditionReason } : {}),
@@ -559,42 +475,57 @@ export function parseCadenceSchedule<
 		}
 	}
 
-	// 4. Match Event Anchors with Optional Relative Offsets (e.g. "at bedtime", "30 min before meals", "15 min before market close")
+	// 5. Match Event Anchors with Optional Relative Offsets (e.g. "at bedtime", "30 min before meals", "就寝前", "睡前")
 	for (const [anchorKey, aliases] of Object.entries(eventAnchorAliases)) {
-		for (const alias of aliases) {
+		const sortedAliases = [...aliases].sort((a, b) => b.length - a.length);
+		for (const alias of sortedAliases) {
 			const anchorRegex = new RegExp(
 				`(?<![\\p{L}\\p{N}])${escapeRegex(alias)}(?![\\p{L}\\p{N}])`,
 				"iu",
 			);
 			const match = workingText.match(anchorRegex);
-			if (match) {
+			if (match && match.index !== undefined) {
 				const prefix = workingText.slice(0, match.index).trim();
+				const postfix = workingText.slice(match.index + match[0].length).trim();
+
 				let relativeOffset:
 					| CadenceSchedule<TAnchor, TUnit>["relativeOffset"]
 					| undefined;
 
+				const relativeOffsetEntries = Object.entries(
+					relativeOffsetConnectors,
+				) as ["before" | "after" | "at" | "with", readonly string[]][];
+
+				// 5a. Prefix relative offset check (e.g. "30 min before meals" or "at bedtime")
 				if (prefix) {
-					// 1. Check if prefix ends with a direction connector (e.g. "30 min before")
-					for (const [dir, dirAliases] of Object.entries(
-						relativeOffsetConnectors,
-					)) {
-						for (const dirAlias of dirAliases) {
+					for (const [dir, dirAliases] of relativeOffsetEntries) {
+						const sortedDirAliases = [...dirAliases].sort(
+							(a, b) => b.length - a.length,
+						);
+						for (const dirAlias of sortedDirAliases) {
+							const isDirSymbol = /^[^a-zA-Z0-9\s]+$/u.test(dirAlias);
+							const dirPattern = isDirSymbol
+								? `\\s*${escapeRegex(dirAlias)}$`
+								: `(?:\\s+|^)${escapeRegex(dirAlias)}$`;
 							const offsetRegex = new RegExp(
-								`^(?:(?<mag>\\d+)\\s*(?<unit>[\\p{L}]+)\\s+)?${escapeRegex(dirAlias)}$`,
+								`^(?:(?<mag>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?)\\s*(?<unit>[\\p{L}]+))?${dirPattern}`,
 								"iu",
 							);
 							const offsetMatch = prefix.match(offsetRegex);
 							if (offsetMatch) {
-								const mag = offsetMatch.groups?.mag
-									? Number(offsetMatch.groups.mag)
+								const magRes = offsetMatch.groups?.mag
+									? parseNumericValue(
+											offsetMatch.groups.mag,
+											config.numericConfig,
+										)
 									: undefined;
 								const unit = offsetMatch.groups?.unit
 									? resolveTimeUnit(offsetMatch.groups.unit)
 									: undefined;
 								relativeOffset = {
-									direction: dir as "before" | "after" | "at" | "with",
-									...(mag !== undefined && unit
-										? { duration: { magnitude: mag, unit } }
+									direction: dir,
+									...(magRes?.parsed && unit
+										? { duration: { magnitude: magRes.parsed.value, unit } }
 										: {}),
 								};
 								break;
@@ -603,58 +534,154 @@ export function parseCadenceSchedule<
 						if (relativeOffset) break;
 					}
 
-					// 2. If prefix is a pure duration (e.g. "30 min") and alias/anchor starts with a direction (e.g. "before meals")
+					// Pure duration in prefix if anchor itself implies direction
 					if (!relativeOffset) {
-						const pureDurationRegex = /^(?<mag>\d+)\s*(?<unit>[\p{L}]+)$/iu;
+						const pureDurationRegex =
+							/^(?<mag>[\d\p{Nd}]+(?:[.,][\d\p{Nd}]+)?)\s*(?<unit>[\p{L}]+)$/iu;
 						const durMatch = prefix.match(pureDurationRegex);
 						if (durMatch?.groups?.mag && durMatch.groups.unit) {
-							const mag = Number(durMatch.groups.mag);
+							const magRes = parseNumericValue(
+								durMatch.groups.mag,
+								config.numericConfig,
+							);
 							const unit = resolveTimeUnit(durMatch.groups.unit);
-							if (!Number.isNaN(mag) && unit) {
+							if (magRes?.parsed && unit) {
 								let detectedDir: "before" | "after" | "at" | "with" = "at";
-								for (const [dir, dirAliases] of Object.entries(
-									relativeOffsetConnectors,
-								)) {
+								for (const [dir, dirAliases] of relativeOffsetEntries) {
 									if (
 										dirAliases.some((da) =>
 											alias
-												.toLocaleLowerCase()
-												.startsWith(da.toLocaleLowerCase()),
+												.toLocaleLowerCase(config.locales as string)
+												.startsWith(
+													da.toLocaleLowerCase(config.locales as string),
+												),
 										) ||
 										anchorKey.startsWith(dir)
 									) {
-										detectedDir = dir as any;
+										detectedDir = dir;
 										break;
 									}
 								}
 								relativeOffset = {
 									direction: detectedDir,
-									duration: { magnitude: mag, unit },
+									duration: { magnitude: magRes.parsed.value, unit },
 								};
 							}
 						}
 					}
 				}
 
-				const candidate: CadenceSchedule<TAnchor, TUnit> = {
-					cadenceType: "event_anchored" as any,
-					eventAnchor: anchorKey as TAnchor,
-					...(relativeOffset ? { relativeOffset } : {}),
-					...(isConditional ? { isConditional: true } : {}),
-					...(conditionReason ? { condition: conditionReason } : {}),
-					rawText,
-				};
-				return validateAndResolve(candidate, policy, diagnostics);
+				// 5b. Postfix relative offset check (e.g. "meals 30 min after", "饭后30分钟", "就寝前", "睡前")
+				if (!relativeOffset && postfix) {
+					for (const [dir, dirAliases] of relativeOffsetEntries) {
+						const sortedDirAliases = [...dirAliases].sort(
+							(a, b) => b.length - a.length,
+						);
+						for (const dirAlias of sortedDirAliases) {
+							const isDirSymbol = /^[^a-zA-Z0-9\s]+$/u.test(dirAlias);
+							const dirPattern = isDirSymbol
+								? `^${escapeRegex(dirAlias)}\\s*`
+								: `^${escapeRegex(dirAlias)}(?:\\s+|$)`;
+
+							// Postfix 1: Direction only (e.g. "前", "after", "before") -> NO duration tokens
+							const dirOnlyRegex = new RegExp(
+								`^${escapeRegex(dirAlias)}$`,
+								"iu",
+							);
+							if (dirOnlyRegex.test(postfix)) {
+								relativeOffset = { direction: dir };
+								break;
+							}
+
+							// Postfix 2: Direction + Duration (e.g. "after 30 min", "前30分钟")
+							const dirDurRegex = new RegExp(
+								`${dirPattern}(?<mag>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?)\\s*(?<unit>[\\p{L}]+)$`,
+								"iu",
+							);
+							const dirDurMatch = postfix.match(dirDurRegex);
+							if (dirDurMatch?.groups?.mag && dirDurMatch.groups.unit) {
+								const magRes = parseNumericValue(
+									dirDurMatch.groups.mag,
+									config.numericConfig,
+								);
+								const unit = resolveTimeUnit(dirDurMatch.groups.unit);
+								if (magRes?.parsed && unit) {
+									relativeOffset = {
+										direction: dir,
+										duration: { magnitude: magRes.parsed.value, unit },
+									};
+									break;
+								}
+							}
+
+							// Postfix 3: Duration + Direction (e.g. "30 min after")
+							const durDirRegex = new RegExp(
+								`^(?<mag>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?)\\s*(?<unit>[\\p{L}]+)\\s+${escapeRegex(dirAlias)}$`,
+								"iu",
+							);
+							const durDirMatch = postfix.match(durDirRegex);
+							if (durDirMatch?.groups?.mag && durDirMatch.groups.unit) {
+								const magRes = parseNumericValue(
+									durDirMatch.groups.mag,
+									config.numericConfig,
+								);
+								const unit = resolveTimeUnit(durDirMatch.groups.unit);
+								if (magRes?.parsed && unit) {
+									relativeOffset = {
+										direction: dir,
+										duration: { magnitude: magRes.parsed.value, unit },
+									};
+									break;
+								}
+							}
+						}
+						if (relativeOffset) break;
+					}
+				}
+
+				// If no prefix/postfix or prefix/postfix successfully matched as relative offset
+				if ((!prefix && !postfix) || relativeOffset) {
+					const candidate: CadenceSchedule<TAnchor, TUnit> = {
+						cadenceType: "event_anchored" as any,
+						eventAnchor: anchorKey as TAnchor,
+						...(relativeOffset ? { relativeOffset } : {}),
+						...(isConditional ? { isConditional: true } : {}),
+						...(conditionReason ? { condition: conditionReason } : {}),
+						rawText,
+					};
+					return validateAndResolve(candidate, policy, diagnostics);
+				}
 			}
 		}
 	}
 
-	// 5. Match Recurrence Schedules (e.g. "3 times a day", "twice a week", "once daily", "100 req/sec")
-	// Try multiplier + period (e.g. "once daily", "twice weekly")
+	// 6. Match Recurrence Schedules (e.g. "3 times a day", "twice daily", "100 req/sec", "2x/day")
+	// 6a. Multiplier word/alias + connector/space + period (e.g. "twice a week", "once daily", "thrice monthly")
 	for (const [countStr, mAliases] of Object.entries(multiplierAliases)) {
-		for (const mAlias of mAliases) {
+		const sortedMAliases = [...mAliases].sort((a, b) => b.length - a.length);
+		for (const mAlias of sortedMAliases) {
+			const isMSymbol = /^[^a-zA-Z0-9\s]+$/u.test(mAlias);
+			const mPrefix = isMSymbol
+				? `^${escapeRegex(mAlias)}\\s*`
+				: `^${escapeRegex(mAlias)}(?:\\s+|$)`;
+
+			// Direct match against single word period if period is already daily/monthly etc.
+			// Or via connector (e.g. "twice a week", "once daily")
+			const sortedConnectors = [...recurrenceConnectors].sort(
+				(a, b) => b.length - a.length,
+			);
+			const connPatterns = sortedConnectors.map((c) => {
+				const isCSymbol = /^[^a-zA-Z0-9\s]+$/u.test(c);
+				return isCSymbol
+					? `\\s*${escapeRegex(c)}\\s*`
+					: `\\s+${escapeRegex(c)}\\s+`;
+			});
+
+			const combinedConnPattern =
+				connPatterns.length > 0 ? `(?:${connPatterns.join("|")}|\\s+)` : "\\s+";
+
 			const mRegex = new RegExp(
-				`^${escapeRegex(mAlias)}\\s+(?:a\\s+|per\\s+|por\\s+|pro\\s+)?(?<period>[\\p{L}]+)$`,
+				`^${escapeRegex(mAlias)}${combinedConnPattern}(?<period>[\\p{L}]+)$`,
 				"iu",
 			);
 			const mMatch = workingText.match(mRegex);
@@ -674,10 +701,18 @@ export function parseCadenceSchedule<
 		}
 	}
 
-	// Try count + connector + period (e.g. "3 times a day", "2x/day", "100 / sec")
-	for (const connector of recurrenceConnectors) {
+	// 6b. Count + connector + period (e.g. "3 times a day", "2x/day", "100 / sec")
+	const sortedConnectors = [...recurrenceConnectors].sort(
+		(a, b) => b.length - a.length,
+	);
+	for (const connector of sortedConnectors) {
+		const isCSymbol = /^[^a-zA-Z0-9\s]+$/u.test(connector);
+		const connPattern = isCSymbol
+			? `\\s*${escapeRegex(connector)}\\s*`
+			: `\\s+${escapeRegex(connector)}\\s+`;
+
 		const recRegex = new RegExp(
-			`^(?<count>\\d+|[\\p{L}]+(?:\\s*x)?)\\s*${escapeRegex(connector)}\\s*(?<period>[\\p{L}]+)$`,
+			`^(?<count>[\\d\\p{Nd}]+|[\\p{L}]+(?:\\s*x)?)${connPattern}(?<period>[\\p{L}]+)$`,
 			"iu",
 		);
 		const match = workingText.match(recRegex);
@@ -697,7 +732,7 @@ export function parseCadenceSchedule<
 		}
 	}
 
-	// 6. If only PRN / Conditional was found without explicit interval (e.g. "prn pain")
+	// 7. If only PRN / Conditional was found without explicit interval (e.g. "prn pain")
 	if (isConditional) {
 		const candidate: CadenceSchedule<TAnchor, TUnit> = {
 			cadenceType: "one_time" as any,

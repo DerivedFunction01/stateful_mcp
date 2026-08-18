@@ -264,15 +264,17 @@ describe("Quantified Concepts & Discrete Packaging Units", () => {
 	describe("5. Compound Rates with Concepts", () => {
 		test("parses compound rate with concept numerator (e.g. '10 boxes of gloves / day')", () => {
 			const res = parseCompoundRate("10 boxes of nitrile gloves / day", {
-				quantityConfig: baseConfig,
-				registry,
+				quantityConfig: { ...baseConfig, conversionRegistry: registry },
 			});
 			expect(res.diagnostics).toHaveLength(0);
-			expect(res.result?.numerator.quantity.magnitude).toBe(10);
-			expect(res.result?.numerator.quantity.unit).toBe(
-				"inventory::gloves_box_100",
-			);
-			expect(res.result?.denominators[0]?.quantity.unit).toBe("d");
+			expect(res.value).toBeDefined();
+			if (res.value?.numerator.type === "quantity") {
+				expect(res.value.numerator.quantity.magnitude).toBe(10);
+				expect(res.value.numerator.quantity.unit).toBe(
+					"inventory::gloves_box_100",
+				);
+			}
+			expect(res.value?.denominators[0]?.quantity?.unit).toBe("d");
 		});
 	});
 

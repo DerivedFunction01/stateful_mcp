@@ -22,6 +22,7 @@ export interface ParsedNumber {
 
 export interface NumericParseOptions {
 	readonly decimalPoint?: string;
+	readonly decimalSeparator?: string;
 	readonly thousandsSeparator?: string;
 	readonly allowFractions?: boolean;
 	readonly allowMixedFractions?: boolean;
@@ -41,12 +42,21 @@ export interface NumericParseResult {
 	readonly diagnostics: readonly NumericDiagnostic[];
 }
 
+export interface BaseValueGrammarConfig {
+	readonly numericConfig?: NumericParseOptions;
+	readonly locales?: string | readonly string[];
+}
+
 export interface NumericFormatOptions {
 	integerDigits?: number;
 	decimalDigits?: number;
 	thousandsSeparator?: string;
 	decimalPoint?: string;
+	decimalSeparator?: string;
 	allowNegative?: boolean;
+	allowFractions?: boolean;
+	allowMixedFractions?: boolean;
+	allowScientific?: boolean;
 	exact?: boolean;
 	leadingMin?: number;
 	leadingMax?: number;
@@ -89,7 +99,7 @@ export function parseNumericValue(
 		};
 	}
 
-	const decimalPoint = options.decimalPoint ?? ".";
+	const decimalPoint = options.decimalPoint ?? options.decimalSeparator ?? ".";
 	const thousandsSep = options.thousandsSeparator;
 	const allowNegative = options.allowNegative ?? true;
 	const allowFractions = options.allowFractions ?? true;
@@ -307,6 +317,8 @@ export function parseNumericValue(
 	let cleanText = text;
 	if (thousandsSep) {
 		cleanText = cleanText.split(thousandsSep).join("");
+	} else if (decimalPoint !== ",") {
+		cleanText = cleanText.replace(/,/g, "");
 	}
 	if (decimalPoint !== ".") {
 		cleanText = cleanText.replace(decimalPoint, ".");
@@ -403,8 +415,11 @@ export function buildNumericPatternString(
 	const {
 		integerDigits,
 		thousandsSeparator,
-		decimalPoint = ".",
+		decimalPoint = options.decimalSeparator ?? ".",
 		allowNegative = integerDigits === undefined,
+		allowFractions = false,
+		allowMixedFractions = false,
+		allowScientific = false,
 		exact = false,
 		leadingMin,
 		leadingMax,
@@ -414,33 +429,67 @@ export function buildNumericPatternString(
 		groupName,
 		wrap = true,
 	} = options;
+
+	const digits = "[\\d\\p{Nd}]";
 	const leading =
 		leadingMin !== undefined && leadingMax !== undefined
 			? `[${leadingMin}-${leadingMax}]?`
 			: "";
+
 	const integer =
 		integerDigits !== undefined
 			? thousandsSeparator
-				? `\\d{1,${integerDigits}}`
-				: `\\d{${integerDigits}}`
+				? `${digits}{1,${integerDigits}}`
+				: `${digits}{${integerDigits}}`
 			: thousandsSeparator
-				? `(?:\\d{1,3}(?:${escapeRegex(thousandsSeparator)}\\d{3})+|${leading}\\d+)`
-				: `${leading}\\d+`;
+				? `(?:${digits}{1,3}(?:${escapeRegex(thousandsSeparator)}${digits}{3})+|${leading}${digits}+)`
+				: `${leading}${digits}+`;
+
 	const decimalDigits =
 		options.decimalDigits ?? (integerDigits !== undefined ? 0 : undefined);
 	const decimal =
 		decimalDigits === 0
 			? ""
-			: `(?:${escapeRegex(decimalPoint)}\\d${decimalDigits === undefined ? "+" : `{1,${decimalDigits}}`})?`;
-	const numeric = `${integer}${decimal}`;
+			: `(?:${escapeRegex(decimalPoint)}${digits}${decimalDigits === undefined ? "+" : `{1,${decimalDigits}}`})?`;
+	const standardNumeric = `${integer}${decimal}`;
+
+	const variants: string[] = [];
+
+	// 1. Mixed fractions (e.g. "1 1/2", "2 ½")
+	if (allowMixedFractions) {
+		const vulgar = "[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]";
+		const slashFrac = `${digits}+\\s*[/\\u2044\\u2215]\\s*${digits}+`;
+		variants.push(`(?:${integer}\\s+${slashFrac})`);
+		variants.push(`(?:${integer}\\s*${vulgar})`);
+	}
+
+	// 2. Scientific notation (e.g. "1.5e-3", "2.4E6")
+	if (allowScientific) {
+		variants.push(`(?:${standardNumeric}[eE][+-]?${digits}+)`);
+	}
+
+	// 3. Simple fractions (e.g. "3/4", "½")
+	if (allowFractions) {
+		const vulgar = "[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]";
+		const slashFrac = `${digits}+\\s*[/\\u2044\\u2215]\\s*${digits}+`;
+		variants.push(`(?:${slashFrac})`);
+		variants.push(vulgar);
+	}
+
+	// 4. Standard integer / decimal
+	variants.push(standardNumeric);
+
+	const coreNumber =
+		variants.length === 1 ? standardNumeric : `(?:${variants.join("|")})`;
+
 	const currency = currencySymbols.length
 		? `(?:${currencySymbols.map(escapeRegex).join("|")})?`
 		: "";
 	const sign = allowNegative ? "[-\\u2212\\u2013]?" : "";
 	const standard =
 		currencyPosition === "prefix"
-			? `${sign}${currency}${numeric}`
-			: `${sign}${numeric}${currency}`;
+			? `${sign}${currency}${coreNumber}`
+			: `${sign}${coreNumber}${currency}`;
 	const parenthesized =
 		allowNegative && (negativeStyle === "parens" || negativeStyle === "both")
 			? `\\(${standard}\\)`

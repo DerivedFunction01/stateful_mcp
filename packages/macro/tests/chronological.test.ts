@@ -3,6 +3,7 @@ import {
 	type CalendarWindowConfig,
 	evaluateAnchorRelativeTemporal,
 	type PartOfDayConfig,
+	parseRelativeTemporal,
 	type RelativeTemporalSlot,
 } from "../src";
 
@@ -234,6 +235,257 @@ describe("Universal Chronological & Anchor-Relative Evaluation Engine", () => {
 			// Start: Dec 21, 2026 -> End: Mar 20, 2027 (automatically inferred across year boundary)
 			expect(resWinter.startIsoUtc).toBe("2026-12-21T00:00:00.000Z");
 			expect(resWinter.endIsoUtc).toBe("2027-03-20T23:59:59.999Z");
+		});
+	});
+
+	describe("5. Multi-Lingual Relative Temporal Parsing & Anchor Evaluation", () => {
+		const relativeConfig = {
+			relativeDefinitions: [
+				{
+					direction: "current" as const,
+					amount: 0,
+					unit: "day" as const,
+					aliases: ["today", "aujourd'hui", "сегодня", "اليوم", "今天"],
+				},
+				{
+					direction: "past" as const,
+					amount: 1,
+					unit: "day" as const,
+					aliases: ["yesterday", "hier", "вчера", "أمس", "昨天"],
+				},
+				{
+					direction: "future" as const,
+					amount: 1,
+					unit: "day" as const,
+					aliases: ["tomorrow", "demain", "завтра", "غداً", "明天"],
+				},
+				{
+					direction: "past" as const,
+					amount: 1,
+					unit: "week" as const,
+					aliases: [
+						"last week",
+						"la semaine dernière",
+						"прошлая неделя",
+						"الأسبوع الماضي",
+						"上周",
+					],
+				},
+				{
+					direction: "future" as const,
+					amount: 1,
+					unit: "week" as const,
+					aliases: [
+						"next week",
+						"la semaine prochaine",
+						"следующая неделя",
+						"الأسبوع القادم",
+						"下周",
+					],
+				},
+			],
+			directionPrefixes: {
+				past: ["il y a", "vor", "منذ", "ago"],
+				future: ["in", "dans", "через", "في غضون"],
+			},
+			directionPostfixes: {
+				past: ["ago", "назад", "前", "以前"],
+				future: ["from now", "plus tard", "later", "后", "後", "спустя"],
+			},
+			unitAliases: {
+				hour: [
+					"hour",
+					"hours",
+					"h",
+					"heures",
+					"heure",
+					"часа",
+					"часов",
+					"ساعة",
+					"ساعتين",
+					"小时",
+				],
+				day: [
+					"day",
+					"days",
+					"d",
+					"jour",
+					"jours",
+					"дня",
+					"дней",
+					"يوم",
+					"أيام",
+					"天",
+					"日",
+				],
+				week: [
+					"week",
+					"weeks",
+					"semaine",
+					"semaines",
+					"недели",
+					"недель",
+					"أسبوع",
+					"周",
+				],
+				minute: [
+					"minute",
+					"minutes",
+					"min",
+					"минут",
+					"минуты",
+					"دقيقة",
+					"分钟",
+				],
+			},
+		};
+
+		test("parses non-numeric relative shorthands across 5 languages", () => {
+			// English
+			expect(parseRelativeTemporal("today", relativeConfig)).toEqual({
+				direction: "current",
+				amount: 0,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("yesterday", relativeConfig)).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("last week", relativeConfig)).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "week",
+			});
+
+			// French
+			expect(parseRelativeTemporal("aujourd'hui", relativeConfig)).toEqual({
+				direction: "current",
+				amount: 0,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("hier", relativeConfig)).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "day",
+			});
+			expect(
+				parseRelativeTemporal("la semaine dernière", relativeConfig),
+			).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "week",
+			});
+
+			// Russian
+			expect(parseRelativeTemporal("сегодня", relativeConfig)).toEqual({
+				direction: "current",
+				amount: 0,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("вчера", relativeConfig)).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("завтра", relativeConfig)).toEqual({
+				direction: "future",
+				amount: 1,
+				unit: "day",
+			});
+
+			// Arabic
+			expect(parseRelativeTemporal("اليوم", relativeConfig)).toEqual({
+				direction: "current",
+				amount: 0,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("أمس", relativeConfig)).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("غداً", relativeConfig)).toEqual({
+				direction: "future",
+				amount: 1,
+				unit: "day",
+			});
+
+			// Chinese
+			expect(parseRelativeTemporal("今天", relativeConfig)).toEqual({
+				direction: "current",
+				amount: 0,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("昨天", relativeConfig)).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "day",
+			});
+			expect(parseRelativeTemporal("上周", relativeConfig)).toEqual({
+				direction: "past",
+				amount: 1,
+				unit: "week",
+			});
+		});
+
+		test("parses numeric prefix & postfix offsets (e.g. '2 hours ago', 'il y a 2 heures', '3天后')", () => {
+			// English postfix: "2 hours ago"
+			const enSlot = parseRelativeTemporal("2 hours ago", relativeConfig);
+			expect(enSlot).toEqual({
+				direction: "past",
+				amount: 2,
+				unit: "hour",
+			});
+
+			// French prefix: "il y a 2 heures"
+			const frSlot = parseRelativeTemporal("il y a 2 heures", relativeConfig);
+			expect(frSlot).toEqual({
+				direction: "past",
+				amount: 2,
+				unit: "hour",
+			});
+
+			// French future prefix: "dans 15 minutes"
+			const frFuture = parseRelativeTemporal("dans 15 minutes", relativeConfig);
+			expect(frFuture).toEqual({
+				direction: "future",
+				amount: 15,
+				unit: "minute",
+			});
+
+			// Russian postfix: "2 часа назад"
+			const ruSlot = parseRelativeTemporal("2 часа назад", relativeConfig);
+			expect(ruSlot).toEqual({
+				direction: "past",
+				amount: 2,
+				unit: "hour",
+			});
+
+			// Chinese postfix: "3天后"
+			const zhSlot = parseRelativeTemporal("3天后", relativeConfig);
+			expect(zhSlot).toEqual({
+				direction: "future",
+				amount: 3,
+				unit: "day",
+			});
+		});
+
+		test("evaluates 'two hours ago' relative to current anchor timestamp", () => {
+			const slot = parseRelativeTemporal("2 hours ago", relativeConfig);
+			expect(slot).toBeDefined();
+
+			const evaluated = evaluateAnchorRelativeTemporal(
+				slot!,
+				ANCHOR_TIMESTAMP,
+				{
+					timeZone: "UTC",
+				},
+			);
+			// ANCHOR = 2026-08-17T12:00:00.000Z -> 2 hours ago = 2026-08-17T10:00:00.000Z
+			expect(evaluated.startIsoUtc).toBe("2026-08-17T10:00:00.000Z");
+			expect(evaluated.endIsoUtc).toBe("2026-08-17T10:00:00.000Z");
+			expect(evaluated.isInstantaneous).toBe(true);
 		});
 	});
 });

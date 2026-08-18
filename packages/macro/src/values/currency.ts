@@ -15,7 +15,12 @@ export interface CurrencyDefinition {
 	readonly denominations?: readonly CurrencyDenomination[];
 }
 
-export interface CurrencyFormatConfig {
+import type { BaseValueGrammarConfig } from "./numeric";
+import type { CurrencyToken, ValueFormatConfig } from "./token-spec";
+
+export interface CurrencyFormatConfig extends BaseValueGrammarConfig {
+	/** Format templates for currency e.g. ["SYM AMOUNT", "AMOUNT SYM", "CODE AMOUNT"] */
+	readonly templates?: readonly (ValueFormatConfig<CurrencyToken> | string)[];
 	readonly defaultCurrency?: string;
 	readonly currencies?: Readonly<Record<string, readonly string[]>>;
 	readonly definitions?: readonly CurrencyDefinition[];
@@ -195,14 +200,15 @@ export function parseCurrency(
 		}
 		const def = catalog.find((c) => c.code === currency);
 		const decimals = def?.decimals ?? 2;
+		const curVal: CurrencyGrammarResult = {
+			amount,
+			currency,
+			subunits: toSubunits(amount, decimals),
+			symbol,
+			rawText,
+		};
 		return {
-			value: {
-				amount,
-				currency,
-				subunits: toSubunits(amount, decimals),
-				symbol,
-				rawText,
-			},
+			value: curVal,
 			diagnostics: [],
 		};
 	}
@@ -268,14 +274,16 @@ export function parseCurrency(
 	const def = catalog.find((c) => c.code === currency);
 	const decimals = def?.decimals ?? 2;
 
+	const curVal: CurrencyGrammarResult = {
+		amount: finalAmount,
+		currency,
+		subunits: toSubunits(finalAmount, decimals),
+		symbol: symbolMatch.symbol,
+		rawText,
+	};
+
 	return {
-		value: {
-			amount: finalAmount,
-			currency,
-			subunits: toSubunits(finalAmount, decimals),
-			symbol: symbolMatch.symbol,
-			rawText,
-		},
+		value: curVal,
 		diagnostics: [],
 	};
 }

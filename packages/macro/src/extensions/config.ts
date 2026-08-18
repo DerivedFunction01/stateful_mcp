@@ -128,10 +128,10 @@ export function compileDomainConfig(
 		rangeDelimiters: combinedRangeDelimiters,
 		...(decimalSeparator ? { decimalSeparator } : {}),
 		...(Object.keys(combinedOperatorAliases).length
-			? { operatorAliases: combinedOperatorAliases }
+			? { operatorConfig: { operators: combinedOperatorAliases } }
 			: {}),
 		...(Object.keys(combinedStatisticalAliases).length
-			? { statisticalAliases: combinedStatisticalAliases }
+			? { statisticalConfig: { qualifiers: combinedStatisticalAliases } }
 			: {}),
 	};
 
@@ -303,7 +303,12 @@ export function resolveArgumentPolicy(
 		allowedUnits: policy?.allowedUnits,
 		allowRange: policy?.allowRange ?? true,
 		allowOperator: policy?.allowOperator ?? true,
-		statistics: policy?.statistics ?? "ignore",
+		statisticsPolicy:
+			policy?.statistics === "accept"
+				? { policy: "accept_all" }
+				: policy?.statistics === "reject"
+					? { policy: "reject_all_statistics" }
+					: undefined,
 		allowDataPointCount: policy?.allowDataPointCount ?? false,
 	};
 
