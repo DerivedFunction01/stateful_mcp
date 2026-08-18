@@ -36,6 +36,7 @@ export const QUANTITY_TOKENS = [
 	"FILLER",
 	"OP_PREFIX",
 	"OP_POSTFIX",
+	"OP_SUFFIX",
 	"STAT_QUALIFIER",
 ] as const;
 export type QuantityToken = (typeof QUANTITY_TOKENS)[number];
