@@ -428,13 +428,17 @@ export async function dispatchTerminalInput(
 	}
 
 	// 9. Editor Input Dispatch (Normal motions, Insert typing, Visual selections)
-	return workspace.editor.handleKey({
-		char: input,
-		name,
-		ctrl: event.ctrl,
-		meta: event.meta,
-		shift: event.shift,
-	})
-		? "handled"
-		: "ignored";
+	if (isScratchpadActive && layout.focusedPane === "main") {
+		return workspace.editor.handleKey({
+			char: input,
+			name,
+			ctrl: event.ctrl,
+			meta: event.meta,
+			shift: event.shift,
+		})
+			? "handled"
+			: "ignored";
+	}
+
+	return "ignored";
 }

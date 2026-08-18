@@ -265,7 +265,6 @@ export function WindowContainer({
 						<HelpBar
 							keymap={keymap}
 							workspace={workspace}
-							variant="nano-grid"
 							theme={theme}
 						/>
 						<StatusBar workspace={workspace} theme={theme} />

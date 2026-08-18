@@ -312,7 +312,7 @@ export const themesStory: TuiStory = {
 
 				{/* 7. Status Bar & Help Bar */}
 				<box marginBottom={1}>
-					<TuiHelpBar variant="nano-grid" theme={theme} />
+					<TuiHelpBar theme={theme} />
 				</box>
 				<box>
 					<TuiStatusBar

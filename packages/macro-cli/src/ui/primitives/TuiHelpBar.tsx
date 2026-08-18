@@ -11,26 +11,19 @@ import { surfaceKeybindingsForMode } from "@stateful-mcp/macro";
 import { translate } from "../../locales";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
-export type TuiHelpBarVariant =
-	| "nano-grid"
-	| "lualine-pills"
-	| "opencode-compact"
-	| "bracket-chips"
-	| "subtle-text";
-
 export interface TuiShortcutHint {
 	readonly key: string;
 	readonly action: string;
 }
 
 export interface TuiHelpBarProps {
-	readonly variant?: TuiHelpBarVariant;
 	readonly keymap?: EditorKeymapProfile;
 	readonly i18n?: I18nKernel;
 	readonly mode?: EditorMode;
 	readonly hints?: readonly TuiShortcutHint[];
 	readonly customText?: string;
 	readonly theme?: TuiThemeDefinition;
+	readonly twoRow?: boolean;
 }
 
 export function formatKeyDisplay(chord: string): string {
@@ -114,7 +107,6 @@ export function buildDynamicKeymapHints(
 		];
 	}
 
-	// NORMAL mode
 	return [
 		{
 			key: formatKeyDisplay(keymap.window.nextTab || "Tab"),
@@ -133,7 +125,7 @@ export function buildDynamicKeymapHints(
 			action: translate(i18n, "helpBar.delete", "Delete"),
 		},
 		{
-			key: formatKeyDisplay(keymap.window.openCommandPalette),
+			key: formatKeyDisplay(keymap.window.openCommandPalette || "Ctrl+P"),
 			action: translate(i18n, "palette.title", "Command Palette"),
 		},
 		{
@@ -141,26 +133,20 @@ export function buildDynamicKeymapHints(
 			action: translate(i18n, "helpBar.activity", "Activity"),
 		},
 		{
-			key: formatKeyDisplay(keymap.window.toggleSidepanel),
-			action: translate(i18n, "inspector.title", "Inspector"),
+			key: formatKeyDisplay(keymap.window.toggleSidepanel || "Ctrl+B"),
+			action: translate(i18n, "helpBar.inspector", "Inspector"),
 		},
 		{
 			key: formatKeyDisplay(keymap.window.switchSplitFocus || "Ctrl+W"),
 			action: translate(i18n, "helpBar.switchFocus", "Focus Pane"),
 		},
 		{
-			key: formatKeyDisplay(keymap.window.pinMacro || "Alt+P"),
+			key: formatKeyDisplay(keymap.window.pinMacro || "Meta+P"),
 			action: translate(i18n, "helpBar.pin", "Pin"),
 		},
 	];
 }
 
-/**
- * Resolves contextual shortcut hints dynamically based on the currently focused pane:
- * - When in editor ('main'): returns mode-based keymap hints
- * - When in 'palette': returns query navigation and execution hints
- * - When in 'activity' or 'sidepanel': queries active view provider or container contextualHints
- */
 export function buildContextualHelpBarHints(
 	workspace: MacroWorkspace,
 	keymap?: EditorKeymapProfile,
@@ -320,14 +306,40 @@ export function buildContextualHelpBarHints(
 	);
 }
 
+export function mergeShortcutHints(
+	hints: readonly TuiShortcutHint[],
+): readonly TuiShortcutHint[] {
+	const groups = new Map<string, { keys: string[]; action: string }>();
+
+	for (const hint of hints) {
+		const actionKey = hint.action.trim().toLowerCase();
+		const existing = groups.get(actionKey);
+		if (existing) {
+			if (!existing.keys.includes(hint.key)) {
+				existing.keys.push(hint.key);
+			}
+		} else {
+			groups.set(actionKey, {
+				keys: [hint.key],
+				action: hint.action,
+			});
+		}
+	}
+
+	return Array.from(groups.values()).map((g) => ({
+		key: g.keys.join("/"),
+		action: g.action,
+	}));
+}
+
 export function TuiHelpBar({
-	variant = "nano-grid",
 	keymap,
 	i18n,
 	mode = "NORMAL",
 	hints,
 	customText,
 	theme,
+	twoRow,
 }: TuiHelpBarProps) {
 	const c = (theme ?? GlobalThemeRegistry.getActive()).colors;
 
@@ -341,111 +353,54 @@ export function TuiHelpBar({
 		);
 	}
 
-	const resolvedHints =
+	const rawHints =
 		hints ?? (keymap ? buildDynamicKeymapHints(keymap, i18n, mode) : []);
+	const resolvedHints = mergeShortcutHints(rawHints);
 
-	// 1. Nano / Htop High-Contrast Inverse Badges (Default)
-	if (variant === "nano-grid") {
+	const isTwoRow = twoRow ?? resolvedHints.length > 5;
+
+	const renderBadge = (hint: TuiShortcutHint) => (
+		<box
+			key={`${hint.key}-${hint.action}`}
+			flexDirection="row"
+			marginRight={2}
+		>
+			<box
+				backgroundColor={c.accentPrimary}
+				paddingLeft={1}
+				paddingRight={1}
+			>
+				<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
+					{hint.key}
+				</text>
+			</box>
+			<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+				{" "}
+				{hint.action}
+			</text>
+		</box>
+	);
+
+	if (isTwoRow && resolvedHints.length > 3) {
+		const midpoint = Math.ceil(resolvedHints.length / 2);
+		const row1 = resolvedHints.slice(0, midpoint);
+		const row2 = resolvedHints.slice(midpoint);
+
 		return (
-			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
-				{resolvedHints.map((hint) => (
-					<box
-						key={`${hint.key}-${hint.action}`}
-						flexDirection="row"
-						marginRight={2}
-					>
-						<box
-							backgroundColor={c.accentPrimary}
-							paddingLeft={1}
-							paddingRight={1}
-						>
-							<text fg={c.fgInverse} attributes={TextAttributes.BOLD}>
-								{hint.key}
-							</text>
-						</box>
-						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
-							{" "}
-							{hint.action}
-						</text>
-					</box>
-				))}
+			<box flexDirection="column" paddingLeft={0} paddingRight={1}>
+				<box height={1} flexDirection="row">
+					{row1.map(renderBadge)}
+				</box>
+				<box height={1} flexDirection="row">
+					{row2.map(renderBadge)}
+				</box>
 			</box>
 		);
 	}
 
-	// 2. Lualine Continuous Ribbon with Glyph Dividers & Zero Gaps
-	if (variant === "lualine-pills") {
-		return (
-			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
-				{resolvedHints.map((hint) => (
-					<box
-						key={`${hint.key}-${hint.action}`}
-						flexDirection="row"
-						backgroundColor={c.bgSurface}
-						paddingLeft={0}
-						paddingRight={1}
-						marginRight={0}
-					>
-						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-							▎
-						</text>
-						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-							{" "}
-							{hint.key}
-						</text>
-						<text fg={c.fgPrimary}> {hint.action} </text>
-						<text fg={c.borderDefault}>│</text>
-					</box>
-				))}
-			</box>
-		);
-	}
-
-	// 3. OpenCode Minimalist Compact Glyph Strip
-	if (variant === "opencode-compact") {
-		return (
-			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
-				{resolvedHints.map((hint, index) => (
-					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-						{index > 0 && <text fg={c.borderDefault}> • </text>}
-						<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-							{hint.key}
-						</text>
-						<text fg={c.fgMuted}> {hint.action}</text>
-					</box>
-				))}
-			</box>
-		);
-	}
-
-	// 4. Subtle Clean Text Strip
-	if (variant === "subtle-text") {
-		return (
-			<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
-				{resolvedHints.map((hint, index) => (
-					<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-						{index > 0 && <text fg={c.borderDefault}> · </text>}
-						<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-							{hint.key}: {hint.action}
-						</text>
-					</box>
-				))}
-			</box>
-		);
-	}
-
-	// 5. Bracket Chips (Original Clean Format)
 	return (
 		<box height={1} paddingLeft={0} paddingRight={1} flexDirection="row">
-			{resolvedHints.map((hint, index) => (
-				<box key={`${hint.key}-${hint.action}`} flexDirection="row">
-					{index > 0 && <text fg={c.borderDefault}> │ </text>}
-					<text fg={c.accentPrimary} attributes={TextAttributes.BOLD}>
-						[ {hint.key} ]
-					</text>
-					<text fg={c.fgMuted}> {hint.action}</text>
-				</box>
-			))}
+			{resolvedHints.map(renderBadge)}
 		</box>
 	);
 }

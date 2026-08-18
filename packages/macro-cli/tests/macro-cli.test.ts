@@ -484,11 +484,62 @@ describe("macro-cli terminal dispatcher", () => {
 			"handled",
 		);
 
-		// 7. Escape from navigation returns to scratchpad editor
+		// 7. Search filtering with '/'
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "/" })).toBe(
+			"handled",
+		);
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "u" })).toBe(
+			"handled",
+		);
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "n" })).toBe(
+			"handled",
+		);
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "i" })).toBe(
+			"handled",
+		);
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "t" })).toBe(
+			"handled",
+		);
+		expect(
+			await dispatchTerminalInput(workspace, keymap, { name: "enter" }),
+		).toBe("handled");
+
+		// 8. Return to navigation with 'h' and escape to scratchpad
+		expect(await dispatchTerminalInput(workspace, keymap, { input: "h" })).toBe(
+			"handled",
+		);
 		expect(
 			await dispatchTerminalInput(workspace, keymap, { name: "escape" }),
 		).toBe("handled");
 		expect(workspace.layout.getSnapshot().activeTabId).toBe("scratchpad");
+
+		await workspace.dispose();
+	});
+
+	test("isolates keyboard input to the active tab without letting background scratchpad intercept", async () => {
+		const loaded = await loadMacroCliWorkspace();
+		const { workspace, keymap } = loaded;
+
+		// Set initial scratchpad text and mode
+		workspace.editor.buffer.setText("^initial scratchpad content");
+		workspace.editor.setMode("NORMAL");
+
+		// Switch to settings tab
+		workspace.layout.setActiveTab("settings");
+		workspace.layout.setFocusedPane("main");
+
+		// Typing 'i' on settings should NOT enter INSERT mode on the scratchpad editor
+		await dispatchTerminalInput(workspace, keymap, { input: "i" });
+		expect(workspace.editor.getMode()).toBe("NORMAL");
+
+		// Typing text on settings should NOT modify the background scratchpad buffer
+		await dispatchTerminalInput(workspace, keymap, { input: "x" });
+		expect(workspace.editor.buffer.getText()).toBe("^initial scratchpad content");
+
+		// 'dd' should NOT delete scratchpad lines when settings tab is active
+		await dispatchTerminalInput(workspace, keymap, { input: "d" });
+		await dispatchTerminalInput(workspace, keymap, { input: "d" });
+		expect(workspace.editor.buffer.getText()).toBe("^initial scratchpad content");
 
 		await workspace.dispose();
 	});

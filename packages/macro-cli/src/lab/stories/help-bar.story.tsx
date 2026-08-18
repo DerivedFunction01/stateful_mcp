@@ -32,7 +32,7 @@ export const helpBarStory: TuiStory = {
 				width={context.size.columns}
 				backgroundColor={theme.colors.bgCanvas}
 			>
-				<TuiHelpBar variant="nano-grid" hints={NORMAL_HINTS} theme={theme} />
+				<TuiHelpBar hints={NORMAL_HINTS} theme={theme} />
 			</box>
 		);
 	},

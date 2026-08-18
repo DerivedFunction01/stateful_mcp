@@ -184,7 +184,7 @@ export const inspectorRegionStory: TuiStory = {
 
 				{/* Bottom Footer & Status Anchors */}
 				<box marginBottom={1}>
-					<TuiHelpBar variant="nano-grid" theme={theme} />
+					<TuiHelpBar theme={theme} />
 				</box>
 				<box>
 					<TuiStatusBar

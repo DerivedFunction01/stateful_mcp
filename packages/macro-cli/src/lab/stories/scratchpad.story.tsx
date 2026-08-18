@@ -141,7 +141,7 @@ export const scratchpadStory: TuiStory = {
 				endRegion={rightPanel}
 				footer={
 					<>
-						<TuiHelpBar variant="nano-grid" theme={theme} />
+						<TuiHelpBar theme={theme} />
 						<TuiStatusBar
 							mode="NORMAL"
 							validCount={3}

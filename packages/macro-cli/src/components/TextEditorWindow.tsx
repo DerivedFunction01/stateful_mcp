@@ -257,7 +257,7 @@ export function createTextEditorTabProvider(
 				return "handled";
 			}
 
-			const key = event.key?.toLowerCase();
+			const key = (event.key || event.input || "").toLowerCase();
 			if (key === "j" || key === "down") {
 				cursorLine = Math.min(lines.length, cursorLine + 1);
 				return "handled";

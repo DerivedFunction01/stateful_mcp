@@ -21,6 +21,7 @@ import {
 	getDefaultSettingsSchema,
 } from "../config/default-settings";
 import { translate } from "../locales";
+import { TuiCursor } from "../ui/primitives/TuiCursor";
 import { TuiDropdown } from "../ui/primitives/TuiDropdown";
 import { TuiInput } from "../ui/primitives/TuiInput";
 import { TuiTabs } from "../ui/primitives/TuiTabs";
@@ -43,8 +44,8 @@ export interface SettingsWindowProps {
 
 export function SettingsWindowView({
 	model,
-	width,
-	theme: propTheme,
+	width = 100,
+	theme,
 	i18n,
 	focusedRegion = "content",
 	selectedCategoryId,
@@ -53,8 +54,14 @@ export function SettingsWindowView({
 	onOpenJson,
 	onSwitchProfile,
 }: SettingsWindowProps) {
-	const theme = propTheme ?? GlobalThemeRegistry.getActive();
-	const c = theme.colors;
+	const activeTheme = theme ?? GlobalThemeRegistry.getActive();
+	const c = activeTheme.colors;
+	const snapshot = model.getSnapshot();
+	const effectivePlaceholder = translate(
+		i18n,
+		"settings.searchPlaceholder",
+		"Search settings (e.g. 'decimal', 'unit')",
+	);
 
 	// Force update on model state change
 	const [, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -62,7 +69,6 @@ export function SettingsWindowView({
 		return model.subscribe(forceUpdate);
 	}, [model]);
 
-	const snapshot = model.getSnapshot();
 	const activeCatId = selectedCategoryId ?? snapshot.sections[0]?.id ?? "syntax";
 	const currentSection =
 		snapshot.sections.find((s) => s.id === activeCatId) ?? snapshot.sections[0];
@@ -70,7 +76,7 @@ export function SettingsWindowView({
 	const isNarrow = width !== undefined && width < 70;
 	const sidebarWidth = isNarrow ? 20 : 24;
 
-	const scopes = [
+	const scopes: Array<{ id: SettingsScope; label: string }> = [
 		{ id: "user", label: translate(i18n, "settings.scope.user", "User") },
 		{ id: "workspace", label: translate(i18n, "settings.scope.workspace", "Workspace") },
 		{ id: "folder", label: translate(i18n, "settings.scope.folder", "Folder") },
@@ -98,21 +104,34 @@ export function SettingsWindowView({
 				marginBottom={1}
 			>
 				<text fg={focusedRegion === "search" ? c.accentPrimary : c.fgMuted}>🔍 </text>
-				<text
-					fg={snapshot.searchQuery ? c.fgPrimary : c.fgDim}
-					attributes={snapshot.searchQuery ? TextAttributes.BOLD : 0}
-				>
-					{snapshot.searchQuery ||
-						translate(
-							i18n,
-							"settings.searchPlaceholder",
-							"Search settings (e.g. 'decimal', 'unit')",
+				{snapshot.searchQuery.length > 0 ? (
+					<box flexDirection="row">
+						<text fg={c.fgPrimary} attributes={TextAttributes.BOLD}>
+							{snapshot.searchQuery}
+						</text>
+						{focusedRegion === "search" && (
+							<TuiCursor char=" " theme={theme ?? GlobalThemeRegistry.getActive()} />
 						)}
-				</text>
-				{focusedRegion === "search" && (
-					<text fg={c.accentPeach} attributes={TextAttributes.BOLD}>
-						▌
-					</text>
+					</box>
+				) : (
+					<box flexDirection="row">
+						{focusedRegion === "search" ? (
+							<>
+								<TuiCursor
+									char={effectivePlaceholder.slice(0, 1)}
+									isPlaceholder={true}
+									theme={theme ?? GlobalThemeRegistry.getActive()}
+								/>
+								<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+									{effectivePlaceholder.slice(1)}
+								</text>
+							</>
+						) : (
+							<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
+								{effectivePlaceholder}
+							</text>
+						)}
+					</box>
 				)}
 				<box flexGrow={1} />
 
@@ -214,7 +233,7 @@ export function SettingsWindowView({
 									key={item.schema.path.join(".")}
 									item={item}
 									isFocused={focusedRegion === "content" && idx === selectedItemIndex}
-									theme={theme}
+									theme={activeTheme}
 									i18n={i18n}
 									onReset={() => model.resetValue(item.schema.path)}
 									onChange={(val) => model.setValue(item.schema.path, val)}
@@ -224,32 +243,6 @@ export function SettingsWindowView({
 						</box>
 					)}
 				</box>
-			</box>
-
-			{/* 4. Footer Status & Navigation Help Bar */}
-			<box
-				height={1}
-				marginTop={1}
-				paddingTop={1}
-				borderStyle="single"
-				borderColor={c.borderSubtle}
-				flexDirection="row"
-			>
-				<text fg={snapshot.hasErrors ? c.statusError : c.statusSuccess} attributes={TextAttributes.BOLD}>
-					{snapshot.hasErrors ? "● Error" : "● Ready"}
-				</text>
-				<text fg={c.fgMuted} attributes={TextAttributes.DIM}>
-					{" · "}
-					{snapshot.activeProfileId}
-				</text>
-				<box flexGrow={1} />
-				<text fg={c.fgDim}>
-					{translate(
-						i18n,
-						"settings.hint.navigate",
-						"j/k navigate · Tab switch pane · / search · Ctrl+S save · Esc back",
-					)}
-				</text>
 			</box>
 		</box>
 	);
@@ -514,6 +507,9 @@ export function createSettingsTabProvider(
 					return "handled";
 				case "settings.select":
 					return "handled";
+				case "settings.search":
+					focusedRegion = "search";
+					return "handled";
 				case "settings.back":
 					workspace.layout.setActiveTab("scratchpad");
 					return "handled";
@@ -562,8 +558,32 @@ export function createSettingsTabProvider(
 			}
 
 			// 2. Keyboard Navigation
-			const key = event.key?.toLowerCase();
-			if (key === "tab") {
+			const key = (event.key || event.input || "").toLowerCase();
+
+			// If search region is focused, capture text input like command palette
+			if (focusedRegion === "search") {
+				if (key === "escape" || key === "enter" || key === "tab" || key === "\t") {
+					focusedRegion = "content";
+					return "handled";
+				}
+				if (key === "backspace" || key === "\b" || key === "\x7f") {
+					uiModel.setSearchQuery(snapshot.searchQuery.slice(0, -1));
+					return "handled";
+				}
+				if (event.input && !event.ctrl && !event.meta && event.input.length === 1) {
+					uiModel.setSearchQuery(snapshot.searchQuery + event.input);
+					return "handled";
+				}
+				return "handled";
+			}
+
+			// Trigger search with '/'
+			if (key === "/") {
+				focusedRegion = "search";
+				return "handled";
+			}
+
+			if (key === "tab" || key === "\t") {
 				focusedRegion = focusedRegion === "navigation" ? "content" : "navigation";
 				return "handled";
 			}
