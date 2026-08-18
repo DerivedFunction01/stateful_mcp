@@ -4,6 +4,11 @@ import type { CurrencyFormatConfig } from "../values/currency";
 import type {
 	DateTimeFormatConfig,
 	DateTimeFormatRegistry,
+	RelativeDisambiguationPolicy,
+	RelativeTemporalConfig,
+	RelativeTemporalDefinition,
+	RelativeTemporalSlot,
+	TemporalModifierKind,
 	TwoDigitYearCenturyConfig,
 } from "../values/date-time";
 import type {
@@ -51,6 +56,11 @@ export type {
 	CurrencyFormatConfig,
 	MultiUnitCanonicalTarget,
 	QuantityStatisticsPolicy,
+	RelativeDisambiguationPolicy,
+	RelativeTemporalConfig,
+	RelativeTemporalDefinition,
+	RelativeTemporalSlot,
+	TemporalModifierKind,
 	TwoDigitYearCenturyConfig,
 };
 
@@ -61,6 +71,7 @@ export interface UserMacroProfile {
 	readonly decimalSeparator?: "." | ",";
 	readonly date?: DateTimeFormatConfig;
 	readonly dateTime?: DateTimeFormatRegistry;
+	readonly relativeTemporal?: RelativeTemporalConfig;
 	readonly currency?: CurrencyFormatConfig;
 	readonly excludePrefixes?: readonly string[];
 	/** Master general spelling aliases (e.g. British vs US spellings, standard SI/Imperial) */

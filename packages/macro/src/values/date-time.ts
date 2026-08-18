@@ -668,6 +668,17 @@ export interface CalendarWindowConfig {
 
 export type RelativeDirection = "past" | "future" | "current";
 
+export type TemporalModifierKind = "previous" | "next" | "current";
+
+export interface RelativeDisambiguationPolicy {
+	/** How to resolve 'next <weekday>' when anchor is before that weekday in current week (default: 'upcoming') */
+	readonly nextWeekdayPolicy?: "upcoming" | "following_week";
+	/** How to resolve 'last <weekday>' when anchor is on that same weekday (default: 'previous_occurrence') */
+	readonly sameDayPolicy?: "same_day" | "previous_occurrence";
+	/** First day of week (0 = Sunday, 1 = Monday, etc., default: 0) */
+	readonly firstDayOfWeek?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+}
+
 export type UCUMTimeUnit =
 	| "ms"
 	| "s"
@@ -728,6 +739,7 @@ export function evaluateAnchorRelativeTemporal(
 		timeZone?: string;
 		partOfDayConfig?: PartOfDayConfig;
 		calendarConfig?: CalendarWindowConfig;
+		disambiguationPolicy?: RelativeDisambiguationPolicy;
 	} = {},
 ): ResolvedTemporalWindow {
 	const anchorDate = new Date(anchorTimestampUtc);
@@ -773,7 +785,149 @@ export function evaluateAnchorRelativeTemporal(
 		}
 	}
 
-	// 2. Instantaneous Unit Offsets (ms, s, min, h, d, wk) without specific window qualifier
+	// 2. Specific Weekday Target (e.g. "last Sunday", "next Friday")
+	if (
+		slot.unit === "day" &&
+		slot.specificQualifier &&
+		(slot.specificQualifier.startsWith("weekday_") ||
+			/^(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/i.test(
+				slot.specificQualifier,
+			))
+	) {
+		let targetDay = 0;
+		if (slot.specificQualifier.startsWith("weekday_")) {
+			targetDay = Number(slot.specificQualifier.replace("weekday_", "")) || 0;
+		} else {
+			const names = [
+				"sunday",
+				"monday",
+				"tuesday",
+				"wednesday",
+				"thursday",
+				"friday",
+				"saturday",
+			];
+			targetDay = names.indexOf(slot.specificQualifier.toLowerCase());
+			if (targetDay < 0) targetDay = 0;
+		}
+
+		const anchorDay = anchorDate.getUTCDay();
+		let dayDiff = 0;
+
+		if (slot.direction === "future") {
+			dayDiff = (targetDay - anchorDay + 7) % 7;
+			if (dayDiff === 0) dayDiff = 7;
+			if (
+				options.disambiguationPolicy?.nextWeekdayPolicy === "following_week"
+			) {
+				dayDiff += 7;
+			}
+		} else if (slot.direction === "past") {
+			dayDiff = (anchorDay - targetDay + 7) % 7;
+			if (dayDiff === 0) {
+				if (options.disambiguationPolicy?.sameDayPolicy !== "same_day") {
+					dayDiff = 7;
+				}
+			}
+			dayDiff = -dayDiff;
+		} else {
+			dayDiff = targetDay - anchorDay;
+		}
+
+		const targetDate = new Date(anchorDate.getTime() + dayDiff * 86400000);
+		const yyyy = targetDate.getUTCFullYear();
+		const mm = String(targetDate.getUTCMonth() + 1).padStart(2, "0");
+		const dd = String(targetDate.getUTCDate()).padStart(2, "0");
+
+		return {
+			startIsoUtc: `${yyyy}-${mm}-${dd}T00:00:00.000Z`,
+			endIsoUtc: `${yyyy}-${mm}-${dd}T23:59:59.999Z`,
+			isInstantaneous: false,
+			targetTimeZone,
+		};
+	}
+
+	// 3. Calendar Month Window (e.g. "last December", "next month", "this month")
+	if (slot.unit === "month") {
+		let targetMonth: number;
+		let targetYear = anchorDate.getUTCFullYear();
+		const anchorMonth = anchorDate.getUTCMonth() + 1; // 1..12
+
+		if (slot.specificQualifier) {
+			const rawQ = slot.specificQualifier;
+			const numQ = Number(rawQ);
+			if (Number.isFinite(numQ) && numQ >= 1 && numQ <= 12) {
+				targetMonth = numQ;
+			} else {
+				const monthNames = [
+					"january",
+					"february",
+					"march",
+					"april",
+					"may",
+					"june",
+					"july",
+					"august",
+					"september",
+					"october",
+					"november",
+					"december",
+				];
+				const idx = monthNames.indexOf(rawQ.toLowerCase());
+				targetMonth = idx >= 0 ? idx + 1 : anchorMonth;
+			}
+
+			if (slot.direction === "past") {
+				targetYear = targetMonth >= anchorMonth ? targetYear - 1 : targetYear;
+			} else if (slot.direction === "future") {
+				targetYear = targetMonth <= anchorMonth ? targetYear + 1 : targetYear;
+			}
+		} else {
+			const rawMonth = anchorMonth + amount;
+			const d = new Date(Date.UTC(targetYear, rawMonth - 1, 1));
+			targetYear = d.getUTCFullYear();
+			targetMonth = d.getUTCMonth() + 1;
+		}
+
+		const mm = String(targetMonth).padStart(2, "0");
+		const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+		const dd = String(lastDay).padStart(2, "0");
+
+		return {
+			startIsoUtc: `${targetYear}-${mm}-01T00:00:00.000Z`,
+			endIsoUtc: `${targetYear}-${mm}-${dd}T23:59:59.999Z`,
+			isInstantaneous: false,
+			targetTimeZone,
+		};
+	}
+
+	// 4. Calendar Week Window (e.g. "last week", "next week", "this week")
+	if (slot.unit === "week" && !slot.specificQualifier) {
+		const firstDay = options.disambiguationPolicy?.firstDayOfWeek ?? 0;
+		const anchorDay = anchorDate.getUTCDay();
+		const diffToWeekStart = ((anchorDay - firstDay + 7) % 7) * 86400000;
+		const thisWeekStart = new Date(anchorDate.getTime() - diffToWeekStart);
+		const targetWeekStart = new Date(
+			thisWeekStart.getTime() + amount * 7 * 86400000,
+		);
+		const yyyy = targetWeekStart.getUTCFullYear();
+		const mm = String(targetWeekStart.getUTCMonth() + 1).padStart(2, "0");
+		const dd = String(targetWeekStart.getUTCDate()).padStart(2, "0");
+
+		const targetWeekEnd = new Date(targetWeekStart.getTime() + 6 * 86400000);
+		const endY = targetWeekEnd.getUTCFullYear();
+		const endM = String(targetWeekEnd.getUTCMonth() + 1).padStart(2, "0");
+		const endD = String(targetWeekEnd.getUTCDate()).padStart(2, "0");
+
+		return {
+			startIsoUtc: `${yyyy}-${mm}-${dd}T00:00:00.000Z`,
+			endIsoUtc: `${endY}-${endM}-${endD}T23:59:59.999Z`,
+			isInstantaneous: false,
+			targetTimeZone,
+		};
+	}
+
+	// 5. Instantaneous Unit Offsets (ms, s, min, h, d, wk) without specific window qualifier
 	if (
 		!slot.specificQualifier &&
 		(slot.unit === "ms" ||
@@ -825,7 +979,7 @@ export function evaluateAnchorRelativeTemporal(
 		};
 	}
 
-	// 3. Calendar Windows: Seasons / Quarters / Decades
+	// 6. Calendar Windows: Seasons / Quarters / Decades
 	const refYear =
 		slot.referenceYear ??
 		anchorDate.getUTCFullYear() +
@@ -945,6 +1099,16 @@ export interface RelativeTemporalConfig extends BaseValueGrammarConfig {
 	readonly relativeTemporalAliases?: Readonly<
 		Record<string, readonly string[]>
 	>;
+	/** Temporal modifiers (e.g. { previous: ["last", "past", "上", "上一"], next: ["next", "下", "下一"], current: ["this", "本", "今"] }) */
+	readonly temporalModifiers?: Readonly<
+		Partial<Record<TemporalModifierKind, readonly string[]>>
+	>;
+	/** Month aliases (e.g. { "1": ["january", "jan", "一月"], ... "12": ["december", "dec", "十二月"] }) */
+	readonly monthAliases?: Readonly<Record<string, readonly string[]>>;
+	/** Weekday aliases (e.g. { "0": ["sunday", "sun", "周日"], "1": ["monday", "mon", "周一"], ... "6": ["saturday", "sat", "周六"] }) */
+	readonly weekdayAliases?: Readonly<Record<string, readonly string[]>>;
+	/** Disambiguation policies for weekdays and calendar targets */
+	readonly disambiguationPolicy?: RelativeDisambiguationPolicy;
 	/** Direction prefix aliases (e.g. { past: ["il y a", "vor", "ago"], future: ["in", "dans", "in"] }) */
 	readonly directionPrefixes?: Readonly<
 		Partial<Record<RelativeDirection, readonly string[]>>
@@ -966,7 +1130,7 @@ export interface RelativeTemporalConfig extends BaseValueGrammarConfig {
 
 /**
  * Parses free text into a structured RelativeTemporalSlot using discrete pattern variants
- * (shorthand definitions/dictionary, prefix offset, postfix offset, part-of-day/calendar window).
+ * (shorthand definitions/dictionary, modifier + target, prefix offset, postfix offset, part-of-day/calendar window).
  * Does NOT inject hardcoded English assumptions.
  */
 export function parseRelativeTemporal(
@@ -1022,6 +1186,130 @@ export function parseRelativeTemporal(
 					unit: "day",
 					specificQualifier: key,
 				};
+			}
+		}
+	}
+
+	// Variant 1c: Temporal Modifier + Target Entity (e.g. "last December", "next Friday", "this month", "上个月", "下周五")
+	if (config.temporalModifiers) {
+		const sortedModifiers = flattenAndSortAliases(
+			config.temporalModifiers,
+			true,
+		);
+		const modMatch = extractPrefixAlias(
+			trimmed,
+			sortedModifiers,
+			config.locales,
+		);
+		if (modMatch) {
+			const modKind = modMatch.key as TemporalModifierKind;
+			const dir: RelativeDirection =
+				modKind === "previous"
+					? "past"
+					: modKind === "next"
+						? "future"
+						: "current";
+			const rest = modMatch.remainderText.trim();
+
+			if (rest) {
+				// 1. Check Month Aliases
+				if (config.monthAliases) {
+					const sortedMonths = flattenAndSortAliases(
+						config.monthAliases,
+						true,
+					);
+					const mMatch = extractPrefixAlias(
+						rest,
+						sortedMonths,
+						config.locales,
+					);
+					if (mMatch && !mMatch.remainderText) {
+						return {
+							direction: dir,
+							amount: 1,
+							unit: "month",
+							specificQualifier: mMatch.key,
+						};
+					}
+				}
+
+				// 2. Check Weekday Aliases
+				if (config.weekdayAliases) {
+					const sortedWeekdays = flattenAndSortAliases(
+						config.weekdayAliases,
+						true,
+					);
+					const wMatch = extractPrefixAlias(
+						rest,
+						sortedWeekdays,
+						config.locales,
+					);
+					if (wMatch && !wMatch.remainderText) {
+						return {
+							direction: dir,
+							amount: 1,
+							unit: "day",
+							specificQualifier: `weekday_${wMatch.key}`,
+						};
+					}
+				}
+
+				// 3. Check Unit Aliases (e.g. "week", "month", "year", "quarter", "season", "day")
+				if (config.unitAliases) {
+					const sortedUnits = flattenAndSortAliases(config.unitAliases, true);
+					const uMatch = extractPrefixAlias(
+						rest,
+						sortedUnits,
+						config.locales,
+					);
+					if (uMatch && !uMatch.remainderText) {
+						return {
+							direction: dir,
+							amount: 1,
+							unit: uMatch.key as RelativeTemporalUnit,
+						};
+					}
+				}
+
+				// 4. Check Calendar Season / Quarter Aliases
+				if (config.calendarConfig?.seasonAliases) {
+					const sortedSeasons = flattenAndSortAliases(
+						config.calendarConfig.seasonAliases,
+						true,
+					);
+					const sMatch = extractPrefixAlias(
+						rest,
+						sortedSeasons,
+						config.locales,
+					);
+					if (sMatch && !sMatch.remainderText) {
+						return {
+							direction: dir,
+							amount: 1,
+							unit: "season",
+							specificQualifier: sMatch.key,
+						};
+					}
+				}
+				if (config.calendarConfig?.quarterAliases) {
+					const sortedQuarters = flattenAndSortAliases(
+						config.calendarConfig.quarterAliases,
+						true,
+					);
+					const qMatch = extractPrefixAlias(
+						rest,
+						sortedQuarters,
+						config.locales,
+					);
+					if (qMatch && !qMatch.remainderText) {
+						return {
+							direction: dir,
+							amount: 1,
+							unit: "quarter",
+							specificQualifier: qMatch.key,
+						};
+					}
+				}
 			}
 		}
 	}
