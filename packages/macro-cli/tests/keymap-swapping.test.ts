@@ -6,7 +6,10 @@ import {
 	matchKeymapCommand,
 	mergeEditorKeymap,
 } from "@stateful-mcp/macro";
-import { dispatchTerminalInput } from "../src/terminal-dispatcher";
+import {
+	dispatchTerminalInput,
+	getSettingsModalController,
+} from "../src/terminal-dispatcher";
 import { loadMacroCliWorkspace } from "../src/workspace-loader";
 
 const normalSettingsContext = {
@@ -59,8 +62,9 @@ describe("profile-driven command keymaps", () => {
 			}),
 		);
 		const loaded = await loadMacroCliWorkspace({ keymapPath });
-		loaded.workspace.settingsModal?.open();
-		loaded.workspace.settingsModal?.setFocus("categories");
+		const settingsModal = getSettingsModalController(loaded.workspace);
+		settingsModal.open();
+		settingsModal.setFocus("categories");
 
 		expect(
 			await dispatchTerminalInput(loaded.workspace, loaded.keymap, {

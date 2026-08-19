@@ -17,16 +17,19 @@ import { SidepanelHost } from "./SidepanelHost";
 import { StatusBar } from "./StatusBar";
 import { TabHost } from "./TabHost";
 import { WorkspaceTabs } from "./WorkspaceTabs";
-import { translate } from "../locales";
+import { translate } from "@stateful-mcp/macro";
+import type { SettingsModalController } from "./settings-modal-controller";
 
 export function WindowContainer({
 	workspace,
+	settingsModal,
 	keymap,
 	renderer,
 	theme,
 	onMouse,
 }: {
 	workspace: MacroWorkspace;
+	settingsModal: SettingsModalController;
 	keymap?: EditorKeymapProfile;
 	renderer: CliRenderer;
 	theme?: TuiThemeDefinition;
@@ -321,6 +324,7 @@ export function WindowContainer({
 				>
 					<SettingsModal
 						workspace={workspace}
+						controller={settingsModal}
 						width={settingsWidth}
 						height={settingsHeight}
 						theme={theme}

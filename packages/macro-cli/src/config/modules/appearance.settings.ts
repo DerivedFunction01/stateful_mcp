@@ -1,5 +1,5 @@
 import type { I18nKernel, SettingsSchemaEntry } from "@stateful-mcp/macro";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import type { SettingsModule } from "../registry";
 
 export interface AppearanceConfig {

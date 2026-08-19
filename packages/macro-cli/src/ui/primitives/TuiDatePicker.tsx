@@ -4,7 +4,7 @@ import {
 	formatDateTimeValue,
 	type I18nKernel,
 } from "@stateful-mcp/macro";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

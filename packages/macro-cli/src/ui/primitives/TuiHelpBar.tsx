@@ -13,7 +13,7 @@ import {
 	resolveKeymapBindings,
 	surfaceKeybindingsForMode,
 } from "@stateful-mcp/macro";
-import { resolveLabel, translate } from "../../locales";
+import { resolveLabel, translate } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export interface TuiShortcutHint {

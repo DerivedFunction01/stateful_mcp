@@ -5,7 +5,7 @@ import {
 	type NumericFormatOptions,
 } from "@stateful-mcp/macro";
 import type { ReactNode } from "react";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiTableVariant = "modern" | "office-grid" | "zebra" | "compact";

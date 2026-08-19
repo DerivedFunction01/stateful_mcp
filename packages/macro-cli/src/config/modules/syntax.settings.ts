@@ -3,7 +3,7 @@ import type {
 	MacroSyntax,
 	SettingsSchemaEntry,
 } from "@stateful-mcp/macro";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import type { SettingsModule } from "../registry";
 
 export const DEFAULT_SYNTAX_SETTINGS: Partial<MacroSyntax> = {

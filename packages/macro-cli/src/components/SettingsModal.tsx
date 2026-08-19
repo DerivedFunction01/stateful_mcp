@@ -9,21 +9,22 @@ import {
 import type { TuiThemeDefinition } from "../ui/theme";
 import { HelpBar } from "./HelpBar";
 import { TuiButton } from "../ui/primitives/TuiButton";
-import { translate } from "../locales";
+import { translate } from "@stateful-mcp/macro";
+import type { SettingsModalController } from "./settings-modal-controller";
 
 export function SettingsModal({
 	workspace,
+	controller,
 	width,
 	height,
 	theme,
 }: {
 	workspace: MacroWorkspace;
+	controller: SettingsModalController;
 	width: number;
 	height: number;
 	theme?: TuiThemeDefinition;
 }) {
-	const controller = workspace.settingsModal;
-	if (!controller) return null;
 	const controllerSnapshot = controller.getSnapshot();
 	const modelSnapshot = controller.model.getSnapshot();
 	const modalFooter = (

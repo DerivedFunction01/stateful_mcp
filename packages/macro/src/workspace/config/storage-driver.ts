@@ -1,4 +1,5 @@
-import type { KvBackend, SqlExecutor } from "@stateful-mcp/core";
+import type { SqlExecutor } from "../../../../core/src/adapters/storage/generic/SqlExecutor";
+import type { KvBackend } from "../../../../core/src/adapters/storage/generic/kv/KvBackend";
 import type { UserMacroProfile } from "../../contracts/extension-config";
 
 export interface WorkspaceSettings {
@@ -210,7 +211,7 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 		const rows = await this.sql.query(
 			"SELECT id FROM macro_profiles ORDER BY id ASC",
 		);
-		return Object.freeze(rows.map((r) => r.id as string));
+		return Object.freeze(rows.map((r: { readonly id?: unknown }) => r.id as string));
 	}
 
 	async deleteProfile(id: string): Promise<void> {
@@ -254,6 +255,6 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 		const rows = await this.sql.query(
 			"SELECT id FROM macro_extensions ORDER BY id ASC",
 		);
-		return Object.freeze(rows.map((r) => r.id as string));
+		return Object.freeze(rows.map((r: { readonly id?: unknown }) => r.id as string));
 	}
 }

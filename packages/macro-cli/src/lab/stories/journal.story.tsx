@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core";
 import { formatJournalGutter } from "../../components/JournalView";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import {
 	getStatusMeta,
 	TuiStatusBadge,

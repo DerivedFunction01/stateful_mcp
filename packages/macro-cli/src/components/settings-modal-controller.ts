@@ -1,9 +1,12 @@
-import type { WorkspaceInputEvent, WorkspaceInputResult } from "../contributions/types";
-import type { WindowLayoutStateManager } from "../layout/window-layout-state";
-import { SettingsUiModel } from "./settings-ui-model";
-import type { EnumOptionDefinition } from "./settings-service";
-import type { OpenSettingsRequest } from "./settings-navigation";
-import type { SettingsNavigationState } from "./settings-navigation";
+import type {
+	EnumOptionDefinition,
+	OpenSettingsRequest,
+	SettingsNavigationState,
+	SettingsUiModel,
+	WindowLayoutStateManager,
+	WorkspaceInputEvent,
+	WorkspaceInputResult,
+} from "@stateful-mcp/macro";
 
 export type SettingsModalFocus =
 	| "search"
@@ -52,7 +55,7 @@ export class SettingsModalController {
 		};
 	}
 
-	open(request: OpenSettingsRequest = {}): void {
+	open(request: OpenSettingsRequest = {}, syncNavigation = true): void {
 		const sections = this.model.getSnapshot().sections;
 		const requested = request.section && request.section !== "all"
 			? sections.findIndex((section) => section.id === request.section)
@@ -66,7 +69,7 @@ export class SettingsModalController {
 		if (this.layout.getSnapshot().activeModal?.id !== "settings") {
 			this.layout.openModal({ id: "settings", title: "settings.title" });
 		}
-		this.syncNavigation();
+		if (syncNavigation) this.syncNavigation();
 		this.notify();
 	}
 

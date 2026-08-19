@@ -1,30 +1,30 @@
 import { describe, expect, it } from "bun:test";
-import { I18nKernel } from "@stateful-mcp/macro";
 import {
-	EN_LOCALE_CLI,
-	ES_LOCALE_CLI,
-	registerCliLocales,
-} from "../src/locales";
+	EN_LOCALE,
+	ES_LOCALE,
+	I18nKernel,
+	registerMacroLocales,
+} from "@stateful-mcp/macro";
 
-describe("Modular i18n Architecture & Catalogs", () => {
-	it("aggregates all modular slices into EN_LOCALE_CLI without empty or undefined values", () => {
-		const enKeys = Object.keys(EN_LOCALE_CLI);
+	describe("Modular i18n Architecture & Catalogs", () => {
+	it("aggregates all modular slices into EN_LOCALE without empty or undefined values", () => {
+		const enKeys = Object.keys(EN_LOCALE);
 		expect(enKeys.length).toBeGreaterThan(100);
 
-		for (const [key, value] of Object.entries(EN_LOCALE_CLI)) {
+		for (const [key, value] of Object.entries(EN_LOCALE)) {
 			expect(typeof value).toBe("string");
 			expect(value.length).toBeGreaterThan(0);
 		}
 	});
 
 	it("guarantees 100% key parity between English and Spanish CLI catalogs", () => {
-		const enKeys = Object.keys(EN_LOCALE_CLI);
-		const esKeys = Object.keys(ES_LOCALE_CLI);
+		const enKeys = Object.keys(EN_LOCALE);
+		const esKeys = Object.keys(ES_LOCALE);
 
 		expect(esKeys.sort()).toEqual(enKeys.sort());
 
 		for (const key of enKeys) {
-			const esVal = (ES_LOCALE_CLI as Record<string, string>)[key];
+			const esVal = (ES_LOCALE as Record<string, string>)[key];
 			expect(esVal).toBeDefined();
 			expect(esVal!.length).toBeGreaterThan(0);
 		}
@@ -32,7 +32,7 @@ describe("Modular i18n Architecture & Catalogs", () => {
 
 	it("registers catalogs dynamically into I18nKernel and resolves translations with parameters", () => {
 		const kernel = new I18nKernel("en");
-		registerCliLocales(kernel);
+		registerMacroLocales(kernel);
 
 		// English lookup
 		expect(

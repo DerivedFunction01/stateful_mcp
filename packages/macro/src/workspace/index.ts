@@ -3,7 +3,6 @@ import { ExtensionRuntime } from "../extensions/runtime";
 import { WorkspaceSaveCoordinator } from "./commands/save-coordinator";
 import type { OpenSettingsRequest } from "./config/settings-navigation";
 import { SettingsNavigationState } from "./config/settings-navigation";
-import { SettingsModalController } from "./config/settings-modal-controller";
 import { SettingsUiModel } from "./config/settings-ui-model";
 import { WorkspaceSettingsService } from "./config/settings-service";
 import { CommandRegistry } from "./contributions/command-registry";
@@ -32,7 +31,6 @@ export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
 export * from "./config/profile-resolver";
 export * from "./config/settings-navigation";
-export * from "./config/settings-modal-controller";
 export * from "./config/settings-service";
 export * from "./config/settings-ui-model";
 export * from "./config/storage-driver";
@@ -48,6 +46,7 @@ export * from "./editor/editor-kernel";
 export * from "./editor/vim-motions";
 export * from "./i18n/discovery";
 export * from "./i18n/i18n-kernel";
+export * from "./i18n/translation";
 export * from "./journal/workspace-journal";
 export * from "./keymaps";
 export * from "./layout/persistence";
@@ -84,7 +83,7 @@ export interface MacroWorkspace {
 	readonly contributions: ExtensionContributionManager;
 	readonly settingsContributions: SettingsContributionRegistry;
 	readonly settingsNavigation: SettingsNavigationState;
-	readonly settingsModal?: SettingsModalController;
+	readonly settingsUiModel: SettingsUiModel;
 	dispose(): Promise<void>;
 }
 
@@ -121,11 +120,7 @@ export function createMacroWorkspace(
 			defaults: {},
 			storage: { read: () => null, write: () => undefined, reset: () => undefined },
 		});
-	const settingsModal = new SettingsModalController(
-		new SettingsUiModel(settingsService, i18n),
-		layout,
-		settingsNavigation,
-	);
+	const settingsUiModel = new SettingsUiModel(settingsService, i18n);
 	if (options?.settings) {
 		let previousLocale =
 			(options.settings.getEffective().locale as string) ??
@@ -242,7 +237,7 @@ export function createMacroWorkspace(
 		{
 			execute: (request?: OpenSettingsRequest) => {
 				settingsNavigation.open(request);
-				settingsModal?.open(request);
+				layout.openModal({ id: "settings", title: "settings.title" });
 			},
 		},
 	);
@@ -252,7 +247,12 @@ export function createMacroWorkspace(
 			title: "Close Settings",
 			category: "Workspace",
 		},
-		{ execute: () => settingsModal?.close() },
+		{
+			execute: () => {
+			settingsNavigation.reset();
+			layout.closeModal();
+		},
+		},
 	);
 	commands.registerCommand(
 		{
@@ -260,7 +260,17 @@ export function createMacroWorkspace(
 			title: "Toggle Settings",
 			category: "Workspace",
 		},
-		{ execute: () => settingsModal?.toggle() },
+		{
+			execute: () => {
+				if (layout.getSnapshot().activeModal?.id === "settings") {
+					settingsNavigation.reset();
+					layout.closeModal();
+				} else {
+					settingsNavigation.open();
+					layout.openModal({ id: "settings", title: "settings.title" });
+				}
+			},
+		},
 	);
 	commands.registerCommand(
 		{
@@ -316,7 +326,7 @@ export function createMacroWorkspace(
 		contributions,
 		settingsContributions,
 		settingsNavigation,
-		settingsModal,
+		settingsUiModel,
 		dispose: async () => {
 			unsubscribeSettingsContributions();
 			contributions.dispose();

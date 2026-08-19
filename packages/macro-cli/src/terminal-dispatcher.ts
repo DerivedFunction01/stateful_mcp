@@ -5,6 +5,10 @@ import {
 	matchKeymapCommand,
 } from "@stateful-mcp/macro";
 import type { NormalizedMouseEvent } from "./input/mouse";
+import {
+	SettingsModalController,
+	type SettingsModalController as SettingsModalControllerType,
+} from "./components/settings-modal-controller";
 
 export interface TerminalKeyEvent {
 	readonly input?: string;
@@ -17,13 +21,41 @@ export interface TerminalKeyEvent {
 
 export type TerminalMouseEvent = NormalizedMouseEvent;
 
+const settingsControllers = new WeakMap<MacroWorkspace, SettingsModalControllerType>();
+
+export function getSettingsModalController(
+	workspace: MacroWorkspace,
+	provided?: SettingsModalControllerType,
+): SettingsModalControllerType {
+	if (provided) {
+		settingsControllers.set(workspace, provided);
+		return provided;
+	}
+	const existing = settingsControllers.get(workspace);
+	if (existing) return existing;
+	const controller = new SettingsModalController(
+		workspace.settingsUiModel,
+		workspace.layout,
+		workspace.settingsNavigation,
+	);
+	workspace.settingsNavigation.subscribe(() => {
+		if (!controller.getSnapshot().open) {
+			controller.open(workspace.settingsNavigation.getSnapshot(), false);
+		}
+	});
+	settingsControllers.set(workspace, controller);
+	return controller;
+}
+
 export async function dispatchTerminalMouseInput(
 	workspace: MacroWorkspace,
 	event: TerminalMouseEvent,
+	settingsModal?: SettingsModalControllerType,
 ): Promise<"handled" | "ignored"> {
+	const controller = getSettingsModalController(workspace, settingsModal);
 	const layout = workspace.layout.getSnapshot();
-	if (layout.activeModal?.id === "settings" && workspace.settingsModal) {
-		return workspace.settingsModal.handleInput(event);
+	if (layout.activeModal?.id === "settings") {
+		return controller.handleInput(event);
 	}
 	if (workspace.palette.getIsOpen()) {
 		if (event.type === "wheel") {
@@ -60,7 +92,9 @@ export async function dispatchTerminalInput(
 	workspace: MacroWorkspace,
 	keymap: EditorKeymapProfile,
 	event: TerminalKeyEvent,
+	settingsModal?: SettingsModalControllerType,
 ): Promise<"handled" | "ignored" | "quit"> {
+	const controller = getSettingsModalController(workspace, settingsModal);
 	const input = event.input ?? event.char ?? "";
 	const name = event.name;
 	const chordEvent = { ...event, char: input };
@@ -68,9 +102,9 @@ export async function dispatchTerminalInput(
 		name === "return" || name === "enter" || input === "\r" || input === "\n";
 	const layout = workspace.layout.getSnapshot();
 
-	if (layout.activeModal?.id === "settings" && workspace.settingsModal) {
+	if (layout.activeModal?.id === "settings") {
 		if (name === "escape") {
-			workspace.settingsModal.requestClose();
+			controller.requestClose();
 			return "handled";
 		}
 		const modalCommand = matchKeymapCommand(keymap, chordEvent, {
@@ -79,18 +113,18 @@ export async function dispatchTerminalInput(
 			editorMode: workspace.editor.getMode(),
 		});
 		if (modalCommand === "settings.save") {
-			await workspace.settingsModal.save();
+			await controller.save();
 			return "handled";
 		}
 		if (modalCommand?.startsWith("settings."))
-			return workspace.settingsModal.handleCommand(modalCommand);
+			return controller.handleCommand(modalCommand);
 		if (
-			workspace.settingsModal.getSnapshot().dialog ||
-			!["search", "json"].includes(workspace.settingsModal.getSnapshot().focus) &&
+			controller.getSnapshot().dialog ||
+			!["search", "json"].includes(controller.getSnapshot().focus) &&
 			!['tab', 'pageup', 'pagedown', 'enter', 'return'].includes(name ?? input.toLowerCase())
 		)
 			return "ignored";
-		return workspace.settingsModal.handleInput({
+		return controller.handleInput({
 			type: "key",
 			key: name,
 			input,

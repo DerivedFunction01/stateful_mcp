@@ -8,7 +8,10 @@ import {
 	ExtensionRuntime,
 } from "@stateful-mcp/macro";
 import { parseArgs } from "../src/index";
-import { dispatchTerminalInput } from "../src/terminal-dispatcher";
+import {
+	dispatchTerminalInput,
+	getSettingsModalController,
+} from "../src/terminal-dispatcher";
 import {
 	loadMacroCliWorkspace,
 	resolveWorkspaceExtensions,
@@ -447,7 +450,8 @@ describe("macro-cli terminal dispatcher", () => {
 
 		// 1. Open settings modal
 		await workspace.commands.executeCommand("workspace.openSettings");
-		workspace.settingsModal?.setFocus("categories");
+		getSettingsModalController(workspace).open();
+		getSettingsModalController(workspace).setFocus("categories");
 		expect(workspace.layout.getSnapshot().activeModal?.id).toBe("settings");
 
 		// 2. Navigate down sections with 'j' and 'down'

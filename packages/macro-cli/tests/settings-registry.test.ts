@@ -5,7 +5,7 @@ import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
 } from "../src/config";
-import { registerCliLocales } from "../src/locales";
+import { registerMacroLocales } from "@stateful-mcp/macro";
 
 describe("Modular Settings Registry & Domain Modules", () => {
 	it("registers all 8 domain modules cleanly", () => {
@@ -44,7 +44,7 @@ describe("Modular Settings Registry & Domain Modules", () => {
 
 	it("generates localized schema entries in English and Spanish", () => {
 		const kernel = new I18nKernel("en");
-		registerCliLocales(kernel);
+		registerMacroLocales(kernel);
 
 		const enSchema: readonly SettingsSchemaEntry[] =
 			getDefaultSettingsSchema(kernel);

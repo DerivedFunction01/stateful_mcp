@@ -9,7 +9,7 @@ import {
 } from "./workspace-loader";
 
 export * from "./lab/index";
-export * from "./locales/index";
+export { resolveLabel, registerMacroLocales, t, translate } from "@stateful-mcp/macro";
 export * from "./renderer";
 export * from "./terminal-dispatcher";
 export * from "./ui/index";

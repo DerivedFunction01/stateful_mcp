@@ -1,0 +1,37 @@
+{
+	"name": "@stateful-mcp/macro-web",
+	"version": "0.1.0",
+	"description": "Browser workbench and design system for Macro",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "bun --hot src/main.tsx",
+		"build": "bun build ./src/main.tsx --outdir dist --target browser --minify",
+		"check": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@radix-ui/react-dialog": "latest",
+		"@radix-ui/react-label": "latest",
+		"@radix-ui/react-scroll-area": "latest",
+		"@radix-ui/react-select": "latest",
+		"@radix-ui/react-separator": "latest",
+		"@radix-ui/react-slot": "latest",
+		"@radix-ui/react-switch": "latest",
+		"@radix-ui/react-tabs": "latest",
+		"@radix-ui/react-tooltip": "latest",
+		"@stateful-mcp/macro": "workspace:^",
+		"class-variance-authority": "latest",
+		"clsx": "latest",
+		"lucide-react": "latest",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
+		"tailwind-merge": "latest"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"typescript": "^5"
+	}
+}

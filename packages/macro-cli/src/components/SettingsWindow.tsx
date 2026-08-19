@@ -20,7 +20,7 @@ import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
 } from "../config/default-settings";
-import { translate } from "../locales";
+import { translate } from "@stateful-mcp/macro";
 import { TuiColorPicker } from "../ui/primitives/TuiColorPicker";
 import { TuiCursor } from "../ui/primitives/TuiCursor";
 import {

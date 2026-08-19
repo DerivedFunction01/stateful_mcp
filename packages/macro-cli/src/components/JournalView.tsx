@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core";
 import type { I18nKernel, MacroWorkspace } from "@stateful-mcp/macro";
-import { translate } from "../locales";
+import { translate } from "@stateful-mcp/macro";
 import {
 	getStatusMeta,
 	TuiStatusBadge,

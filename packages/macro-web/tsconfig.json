@@ -1,0 +1,14 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"jsx": "react-jsx",
+		"baseUrl": ".",
+		"paths": {
+			"@stateful-mcp/macro": ["../macro/src/index.ts"],
+			"@stateful-mcp/macro/*": ["../macro/src/*"]
+		}
+	},
+	"include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
+	"exclude": ["node_modules", "dist"]
+}

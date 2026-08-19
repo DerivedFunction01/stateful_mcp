@@ -9,7 +9,7 @@ import type {
 	WorkspaceInputEvent,
 	WorkspaceInputResult,
 } from "@stateful-mcp/macro";
-import { translate } from "../locales";
+import { translate } from "@stateful-mcp/macro";
 import { TuiStatusBar } from "../ui/primitives/TuiStatusBar";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 

@@ -1,7 +1,7 @@
 import { type CliRenderer, TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import { useEffect, useState } from "react";
-import { translate } from "../locales";
+import { translate } from "@stateful-mcp/macro";
 import { TuiNamedColors } from "../ui/tokens";
 import { createMockWorkspace } from "./mock-workspace";
 import type { TerminalSize, TuiStoryContext } from "./story-contract";

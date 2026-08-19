@@ -15,7 +15,6 @@ import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
 } from "./config/default-settings";
-import { registerCliLocales } from "./locales";
 
 export interface LoadMacroCliOptions extends LoadMacroWorkspaceOptions {
 	readonly keymapPath?: string;
@@ -56,7 +55,6 @@ export async function loadMacroCliWorkspace(
 		settings: {
 			defaults: DEFAULT_WORKSPACE_SETTINGS_VALUES,
 			schema: getDefaultSettingsSchema,
-			configureI18n: registerCliLocales,
 		},
 	});
 	return { ...loaded, keymap };

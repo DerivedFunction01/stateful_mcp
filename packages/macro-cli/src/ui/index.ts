@@ -1,4 +1,4 @@
-export * from "../locales";
+export { resolveLabel, registerMacroLocales, t, translate } from "@stateful-mcp/macro";
 export * from "./compositions";
 export * from "./hooks/useCursorBlink";
 export * from "./primitives/TuiAccordion";

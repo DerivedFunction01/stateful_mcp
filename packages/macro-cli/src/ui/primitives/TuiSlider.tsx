@@ -4,7 +4,7 @@ import {
 	type I18nKernel,
 	type NumericFormatOptions,
 } from "@stateful-mcp/macro";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 import { TuiCursor } from "./TuiCursor";
 

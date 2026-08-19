@@ -6,7 +6,7 @@ import {
 	type SettingsDiagnostic,
 	type SettingsSchemaEntry,
 } from "@stateful-mcp/macro";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import type { SettingsModule } from "../registry";
 
 export const DEFAULT_FREQUENCY_SETTINGS: Partial<FrequencyGrammarConfig> = {

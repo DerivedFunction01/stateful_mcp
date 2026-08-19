@@ -1,6 +1,24 @@
 import type { WorkspaceLocaleDictionary } from "../types";
+import { ES_CORE } from "./es/core";
+import { ES_SETTINGS_APPEARANCE } from "./es/settings-appearance";
+import { ES_SETTINGS_CURRENCY } from "./es/settings-currency";
+import { ES_SETTINGS_DATETIME } from "./es/settings-datetime";
+import { ES_SETTINGS_EDITOR } from "./es/settings-editor";
+import { ES_SETTINGS_FREQUENCY } from "./es/settings-frequency";
+import { ES_SETTINGS_NUMERIC } from "./es/settings-numeric";
+import { ES_SETTINGS_QUANTITY } from "./es/settings-quantity";
+import { ES_SETTINGS_SYNTAX } from "./es/settings-syntax";
 
 export const ES_LOCALE: WorkspaceLocaleDictionary = {
+	...ES_CORE,
+	...ES_SETTINGS_SYNTAX,
+	...ES_SETTINGS_NUMERIC,
+	...ES_SETTINGS_DATETIME,
+	...ES_SETTINGS_FREQUENCY,
+	...ES_SETTINGS_QUANTITY,
+	...ES_SETTINGS_CURRENCY,
+	...ES_SETTINGS_APPEARANCE,
+	...ES_SETTINGS_EDITOR,
 	"shell.mode.normal": "NORMAL",
 	"shell.mode.insert": "INSERCIÓN",
 	"shell.mode.visual": "VISUAL",
@@ -13,27 +31,6 @@ export const ES_LOCALE: WorkspaceLocaleDictionary = {
 	"sidepanel.slots.title": "Ranuras de Macro y Validación",
 	"sidepanel.journal.title": "Historial de Registro y Reversiones",
 	"sidepanel.explorer.title": "Explorador",
-	"palette.title": "Paleta de Comandos",
-	"palette.placeholder": "Escriba un comando o '{cmdPrefix}' para filtrar...",
-	"command.cursor.moveDown": "Mover cursor hacia abajo",
-	"command.cursor.moveUp": "Mover cursor hacia arriba",
-	"command.cursor.moveLeft": "Mover cursor a la izquierda",
-	"command.cursor.moveRight": "Mover cursor a la derecha",
-	"command.cursor.pageDown": "Bajar página",
-	"command.cursor.pageUp": "Subir página",
-	"command.editor.save": "Guardar",
-	"command.editor.close": "Cerrar editor",
-	"command.editor.executeLine": "Ejecutar línea",
-	"command.editor.switchTab": "Cambiar pestaña",
-	"command.workspace.quit": "Salir",
-	"command.settings.navigateDown": "Navegar hacia abajo",
-	"command.settings.navigateUp": "Navegar hacia arriba",
-	"command.settings.focusNavigation": "Enfocar navegación",
-	"command.settings.focusContent": "Enfocar contenido",
-	"command.settings.focusSearch": "Enfocar búsqueda",
-	"command.settings.selectEntry": "Seleccionar ajuste",
-	"command.settings.save": "Guardar ajustes",
-	"command.settings.back": "Volver al editor",
 	"settings.category.syntax": "Sintaxis Principal",
 	"settings.category.values": "Fundamentos y Valores",
 	"settings.category.appearance": "Apariencia y Tema",

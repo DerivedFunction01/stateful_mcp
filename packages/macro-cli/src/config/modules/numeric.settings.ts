@@ -3,7 +3,7 @@ import type {
 	NumericParseOptions,
 	SettingsSchemaEntry,
 } from "@stateful-mcp/macro";
-import { translate } from "../../locales";
+import { translate } from "@stateful-mcp/macro";
 import type { SettingsModule } from "../registry";
 
 export const DEFAULT_NUMERIC_SETTINGS: Partial<NumericParseOptions> = {

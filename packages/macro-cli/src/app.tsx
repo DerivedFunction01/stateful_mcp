@@ -1,7 +1,8 @@
 import type { CliRenderer, MouseEvent } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { WindowContainer } from "./components/WindowContainer";
+import { SettingsModalController } from "./components/settings-modal-controller";
 import { normalizeOpenTuiMouseEvent } from "./input/mouse";
 import {
 	dispatchTerminalInput,
@@ -23,6 +24,14 @@ export function MacroCliApp({
 	theme?: TuiThemeDefinition;
 	onExit?: () => void;
 }) {
+	const [settingsModal] = useState(
+		() =>
+			new SettingsModalController(
+				workspace.settingsUiModel,
+				workspace.layout,
+				workspace.settingsNavigation,
+			),
+	);
 	const subscribe = (listener: () => void) => {
 		const unsubscribers = [
 			workspace.editor.subscribe(listener),
@@ -33,7 +42,7 @@ export function MacroCliApp({
 			workspace.tabs.subscribe(listener),
 			workspace.views.subscribe(listener),
 			workspace.settingsNavigation.subscribe(listener),
-			workspace.settingsModal?.subscribe(listener) ?? (() => undefined),
+			settingsModal.subscribe(listener),
 			workspace.settings?.subscribe(listener) ?? (() => undefined),
 		];
 		return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -86,7 +95,7 @@ export function MacroCliApp({
 				ctrl: key.ctrl,
 				meta: key.meta,
 				shift: key.shift,
-			}).then((result) => {
+			}, settingsModal).then((result) => {
 				if (result === "quit") {
 					onExit?.();
 					renderer.destroy();
@@ -97,17 +106,19 @@ export function MacroCliApp({
 		return () => {
 			renderer.keyInput.off("keypress", handleKeypress);
 		};
-	}, [keymap, onExit, renderer, workspace]);
+	}, [keymap, onExit, renderer, settingsModal, workspace]);
 
 	return (
 		<WindowContainer
 			workspace={workspace}
+			settingsModal={settingsModal}
 			keymap={keymap}
 			renderer={renderer}
 			onMouse={(event: MouseEvent) =>
 				void dispatchTerminalMouseInput(
 					workspace,
 					normalizeOpenTuiMouseEvent(event),
+					settingsModal,
 				)
 			}
 			theme={theme}

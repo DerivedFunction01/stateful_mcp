@@ -1,6 +1,24 @@
 import type { WorkspaceLocaleDictionary } from "../types";
+import { EN_CORE } from "./en/core";
+import { EN_SETTINGS_APPEARANCE } from "./en/settings-appearance";
+import { EN_SETTINGS_CURRENCY } from "./en/settings-currency";
+import { EN_SETTINGS_DATETIME } from "./en/settings-datetime";
+import { EN_SETTINGS_EDITOR } from "./en/settings-editor";
+import { EN_SETTINGS_FREQUENCY } from "./en/settings-frequency";
+import { EN_SETTINGS_NUMERIC } from "./en/settings-numeric";
+import { EN_SETTINGS_QUANTITY } from "./en/settings-quantity";
+import { EN_SETTINGS_SYNTAX } from "./en/settings-syntax";
 
 export const EN_LOCALE: WorkspaceLocaleDictionary = {
+	...EN_CORE,
+	...EN_SETTINGS_SYNTAX,
+	...EN_SETTINGS_NUMERIC,
+	...EN_SETTINGS_DATETIME,
+	...EN_SETTINGS_FREQUENCY,
+	...EN_SETTINGS_QUANTITY,
+	...EN_SETTINGS_CURRENCY,
+	...EN_SETTINGS_APPEARANCE,
+	...EN_SETTINGS_EDITOR,
 	"shell.mode.normal": "NORMAL",
 	"shell.mode.insert": "INSERT",
 	"shell.mode.visual": "VISUAL",
@@ -13,27 +31,6 @@ export const EN_LOCALE: WorkspaceLocaleDictionary = {
 	"sidepanel.slots.title": "Macro Slots & Validation",
 	"sidepanel.journal.title": "Journal & Reversals",
 	"sidepanel.explorer.title": "Explorer",
-	"palette.title": "Command Palette",
-	"palette.placeholder": "Type a command or '{cmdPrefix}' to filter...",
-	"command.cursor.moveDown": "Move Cursor Down",
-	"command.cursor.moveUp": "Move Cursor Up",
-	"command.cursor.moveLeft": "Move Cursor Left",
-	"command.cursor.moveRight": "Move Cursor Right",
-	"command.cursor.pageDown": "Page Down",
-	"command.cursor.pageUp": "Page Up",
-	"command.editor.save": "Save",
-	"command.editor.close": "Close Editor",
-	"command.editor.executeLine": "Execute Line",
-	"command.editor.switchTab": "Switch Tab",
-	"command.workspace.quit": "Quit",
-	"command.settings.navigateDown": "Navigate Down",
-	"command.settings.navigateUp": "Navigate Up",
-	"command.settings.focusNavigation": "Focus Navigation",
-	"command.settings.focusContent": "Focus Content",
-	"command.settings.focusSearch": "Focus Search",
-	"command.settings.selectEntry": "Select Setting",
-	"command.settings.save": "Save Settings",
-	"command.settings.back": "Back to Editor",
 	"settings.category.syntax": "Core Syntax",
 	"settings.category.values": "Fundamentals & Values",
 	"settings.category.appearance": "Appearance & Theme",
