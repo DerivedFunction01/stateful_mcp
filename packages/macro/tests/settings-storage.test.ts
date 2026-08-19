@@ -10,13 +10,13 @@ import {
 	resolveProfile,
 } from "../src/workspace/config/profile-resolver";
 import {
-	CoreKvSettingsStorageDriver,
-	CoreSqlSettingsStorageDriver,
-} from "../src/workspace/config/storage-driver";
-import {
 	CoreKvSettingsBundleStorage,
 	CoreSqlSettingsBundleStorage,
 } from "../src/workspace/config/settings-bundle";
+import {
+	CoreKvSettingsStorageDriver,
+	CoreSqlSettingsStorageDriver,
+} from "../src/workspace/config/storage-driver";
 
 describe("Settings Storage & Profile Inheritance Engine", () => {
 	const baseProfile: UserMacroProfile = {

@@ -68,6 +68,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@stateful-mcp/core": "workspace:^",
+        "@stateful-mcp/macro-protocol": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "latest",

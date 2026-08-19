@@ -17,12 +17,25 @@ export interface DomainApplicationDescriptor {
 	readonly extensionVersion?: string;
 }
 
+export type KeymapBindingSource =
+	| "macro-profile"
+	| "browser-baseline"
+	| "user-override"
+	| "extension";
+
 export interface KeymapBindingDto {
 	readonly command: string;
 	readonly chords: readonly string[];
 	readonly modes?: readonly string[];
 	readonly when?: unknown;
 	readonly labelI18nKey?: string;
+	/**
+	 * Precedence owner of the effective binding. Projected by the host from the
+	 * resolved keymap layers; it does not change the canonical Macro profile.
+	 */
+	readonly source?: KeymapBindingSource;
+	/** Canonical command superseded by this binding when layers overlap. */
+	readonly replacedBinding?: string;
 }
 
 export interface EffectiveKeymapDto {

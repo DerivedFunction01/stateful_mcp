@@ -9,13 +9,18 @@ import {
 	Settings2,
 	Sparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CommandPalette } from "./components/CommandPalette";
 import { Gallery } from "./components/Gallery";
+import { KeymapShortcuts } from "./components/KeymapShortcuts";
 import { SettingsTab } from "./components/SettingsTab";
 import { StatusBar } from "./components/StatusBar";
 import { Badge, Button, Card } from "./components/ui/primitives";
 import { WorkbenchShell } from "./components/WorkbenchShell";
-import { normalizeBrowserChord, resolveKeymapCommand } from "./lib/bindings";
+import {
+	BrowserKeymapController,
+	type KeymapAnnouncement,
+} from "./lib/browser-keymap-controller";
 import {
 	BrowserHostClient,
 	type HostClient,
@@ -62,33 +67,58 @@ export function App() {
 		if (typeof uiLocale === "string" && uiLocale.length > 0)
 			setLocale(uiLocale);
 	}, [setLocale, snapshot?.settings]);
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [announcement, setAnnouncement] = useState("");
+	const lastFocused = useRef<Element | null>(null);
+
+	function openPalette(): void {
+		lastFocused.current = document.activeElement;
+		setPaletteOpen(true);
+	}
+	function closePalette(): void {
+		setPaletteOpen(false);
+		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
+	}
+	function announce(message: KeymapAnnouncement): void {
+		const text =
+			message.key === "chord.prefix"
+				? `${t("keymap.chordPrefix")} ${message.chord}`
+				: message.key === "shortcut.unavailable"
+					? `${t("keymap.shortcutUnavailable")} ${message.chord}`
+					: message.key === "shortcut.conditional"
+						? `${t("keymap.shortcutConditional")} ${message.chord}`
+						: t(`keymap.${message.key}`);
+		setAnnouncement(text);
+	}
+	async function runCommand(
+		command: string,
+		args?: readonly unknown[],
+	): Promise<void> {
+		await store.executeCommand(command, args);
+		if (
+			command === "workspace.openSettings" ||
+			command === "workspace.toggleSettings"
+		)
+			setRoute("settings");
+	}
 	useEffect(() => {
-		if (!snapshot) return;
-		const onKeyDown = (event: KeyboardEvent) => {
-			const layout = snapshot.layout;
-			const command = resolveKeymapCommand(
-				normalizeBrowserChord(event),
-				snapshot.keymap,
-				"NORMAL",
-				{
-					activeTabId: snapshot.activeTabId,
-					focusedPane:
-						typeof layout.focusedPane === "string"
-							? layout.focusedPane
-							: undefined,
+		const controller = new BrowserKeymapController({
+			getSnapshot: () => snapshot,
+			getContext: () => ({
+				editorFocused: Boolean(
+					document.activeElement?.closest("[data-editor-surface]"),
+				),
+				context: {
+					activeTabId: snapshot?.activeTabId,
+					focusedPane: snapshot?.layout.focusedPane,
 				},
-			);
-			if (!command) return;
-			event.preventDefault();
-			void store
-				.executeCommand(command, [])
-				.then(() => {
-					if (command === "workspace.openSettings") setRoute("settings");
-				})
-				.catch(() => undefined);
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
+			}),
+			onCommand: (command) => runCommand(command),
+			onCommandError: () => setAnnouncement(t("palette.executionFailed")),
+			announce,
+		});
+		controller.attach(window);
+		return () => controller.dispose();
 	}, [snapshot, store]);
 
 	const navigate = (next: Route) => {
@@ -109,6 +139,9 @@ export function App() {
 	const diagnostics = snapshot?.diagnostics.length ?? 0;
 	return (
 		<div className="app-shell">
+			<div className="sr-only" aria-live="polite">
+				{announcement}
+			</div>
 			<aside className="activity-rail" aria-label={t("nav.workbench")}>
 				<div className="brand-mark">
 					<Sparkles size={21} />
@@ -170,11 +203,7 @@ export function App() {
 						<Button
 							variant="ghost"
 							icon={<Command size={15} />}
-							onClick={() =>
-								void store
-									.executeCommand("workspace.openSettings")
-									.catch(() => navigate("settings"))
-							}
+							onClick={openPalette}
 						>
 							{t("nav.commandPalette")}
 						</Button>
@@ -217,6 +246,15 @@ export function App() {
 					}}
 				/>
 			</div>
+			{paletteOpen ? (
+				<CommandPalette
+					commands={snapshot?.commands ?? []}
+					onExecute={(command, args) => {
+						return runCommand(command, args).then(closePalette);
+					}}
+					onClose={closePalette}
+				/>
+			) : null}
 		</div>
 	);
 }
@@ -371,6 +409,14 @@ function HostRoute({
 					</span>
 				</div>
 			</Card>
+			{snapshot?.keymap ? (
+				<Card title={t("palette.keymapHint")}>
+					<KeymapShortcuts
+						keymap={snapshot.keymap}
+						commands={snapshot.commands}
+					/>
+				</Card>
+			) : null}
 		</div>
 	);
 }

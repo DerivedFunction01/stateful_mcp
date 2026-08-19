@@ -3,7 +3,6 @@ import type { UserMacroProfile } from "../../contracts/extension-config";
 import type {
 	SettingsBundleRecord,
 	SettingsStorageDriver,
-	WorkspaceSettings,
 } from "./storage-driver";
 
 /**

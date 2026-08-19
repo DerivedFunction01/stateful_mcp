@@ -140,7 +140,10 @@ export class CoreKvSettingsStorageDriver implements SettingsStorageDriver {
 				await this.kv.delete(key);
 			}
 		}
-		await this.kv.set(CoreKvSettingsStorageDriver.SETTINGS_KEY, bundle.settings);
+		await this.kv.set(
+			CoreKvSettingsStorageDriver.SETTINGS_KEY,
+			bundle.settings,
+		);
 		for (const [id, profile] of Object.entries(bundle.profiles)) {
 			await this.kv.set(`${profilePrefix}${id}`, { ...profile, id });
 		}

@@ -12,7 +12,8 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@stateful-mcp/core": "workspace:^"
+		"@stateful-mcp/core": "workspace:^",
+		"@stateful-mcp/macro-protocol": "workspace:^"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

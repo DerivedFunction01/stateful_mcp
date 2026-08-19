@@ -1190,3 +1190,122 @@ code,
 		flex-direction: column;
 	}
 }
+
+/* ── Command palette ─────────────────────────────────────────────────────── */
+.command-palette-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding-top: 12vh;
+	background: rgba(8, 10, 16, 0.45);
+	z-index: 40;
+}
+.command-palette {
+	width: min(640px, 92vw);
+	max-height: 70vh;
+	display: flex;
+	flex-direction: column;
+	background: var(--surface, #ffffff);
+	color: var(--text, #1a1d24);
+	border-radius: 12px;
+	box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+	overflow: hidden;
+}
+.command-palette__header {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--border, #e2e6ee);
+}
+.command-palette__input {
+	flex: 1;
+	border: none;
+	background: transparent;
+	font-size: 15px;
+	outline: none;
+	color: inherit;
+}
+.command-palette__badge {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted, #6b7280);
+}
+.command-palette__list {
+	list-style: none;
+	margin: 0;
+	padding: 6px;
+	overflow-y: auto;
+	flex: 1;
+}
+.command-palette__option {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+.command-palette__option--active {
+	background: var(--accent-soft, #eef2ff);
+}
+.command-palette__option-title {
+	flex: 1;
+	font-weight: 600;
+}
+.command-palette__option-category {
+	font-size: 12px;
+	color: var(--text-muted, #6b7280);
+}
+.command-palette__option-key {
+	font-size: 12px;
+	font-family: var(--mono, monospace);
+	padding: 2px 6px;
+	border-radius: 6px;
+	background: var(--surface-muted, #f1f3f7);
+}
+.command-palette__empty {
+	padding: 16px;
+	text-align: center;
+	color: var(--text-muted, #6b7280);
+}
+.command-palette__args {
+	padding: 10px 12px;
+	border-top: 1px solid var(--border, #e2e6ee);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.command-palette__arg {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 13px;
+}
+.command-palette__arg input {
+	padding: 6px 8px;
+	border-radius: 6px;
+	border: 1px solid var(--border, #e2e6ee);
+	background: var(--surface, #ffffff);
+	color: inherit;
+}
+.command-palette__arg-kind {
+	font-size: 11px;
+	color: var(--text-muted, #6b7280);
+	margin-left: 6px;
+}
+.command-palette__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px 12px;
+	border-top: 1px solid var(--border, #e2e6ee);
+}
+.command-palette__live {
+	font-size: 12px;
+	color: var(--text-muted, #6b7280);
+}

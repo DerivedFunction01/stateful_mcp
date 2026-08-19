@@ -195,11 +195,57 @@ const server = Bun.serve<SocketData>({
 						command?: string;
 						args?: readonly unknown[];
 						expectedRevision?: number;
+						profileId?: string;
+						chord?: string;
+						context?: Record<string, string | boolean | undefined>;
 					};
-					if (!payload || typeof payload.command !== "string")
+					if (!payload)
 						throw new SessionError(
 							"INVALID_COMMAND",
-							"A canonical command ID is required",
+							"errors.commandOperationRequired",
+							false,
+						);
+					if (envelope.type === "keymap.profile.select") {
+						if (typeof payload.profileId !== "string")
+							throw new SessionError(
+								"INVALID_COMMAND",
+								"errors.keymapProfileRequired",
+								false,
+							);
+						const snapshot = await sessions.selectKeymap(
+							sessionId,
+							payload.profileId,
+						);
+						return { profileId: payload.profileId, snapshot };
+					}
+					if (envelope.type === "keymap.binding.resolve") {
+						if (
+							typeof payload.chord !== "string" ||
+							!payload.context ||
+							typeof payload.context !== "object"
+						)
+							throw new SessionError(
+								"INVALID_COMMAND",
+								"errors.bindingContextRequired",
+								false,
+							);
+						const resolution = await sessions.resolveBinding(
+							sessionId,
+							payload.chord,
+							payload.context,
+						);
+						return { resolution };
+					}
+					if (envelope.type !== "command.execute")
+						throw new SessionError(
+							"INVALID_COMMAND",
+							"errors.unsupportedCommandOperation",
+							false,
+						);
+					if (typeof payload.command !== "string")
+						throw new SessionError(
+							"INVALID_COMMAND",
+							"errors.canonicalCommandRequired",
 							false,
 						);
 					const execution = await sessions.executeCommand(

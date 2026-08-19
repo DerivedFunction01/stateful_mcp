@@ -161,10 +161,13 @@ function redactRawJson(
 	rawText: string,
 	sections: readonly SerializedSettingsUiSection[],
 ): string {
-	const sensitivePaths = sections.flatMap((section) => [
-		...section.items,
-		...section.groups.flatMap((group) => group.items),
-	]).filter((item) => item.schema.sensitive === true).map((item) => item.path);
+	const sensitivePaths = sections
+		.flatMap((section) => [
+			...section.items,
+			...section.groups.flatMap((group) => group.items),
+		])
+		.filter((item) => item.schema.sensitive === true)
+		.map((item) => item.path);
 	try {
 		const parsed = JSON.parse(rawText) as unknown;
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -197,9 +200,7 @@ function serializeItem(
 	activeScope: SettingsScope,
 	supportedScopes: readonly SettingsScope[],
 ): SerializedSettingsUiItem {
-	const redacted = item.schema.sensitive
-		? redactItem(item, activeScope)
-		: item;
+	const redacted = item.schema.sensitive ? redactItem(item, activeScope) : item;
 	return {
 		path: item.schema.path,
 		schema: {

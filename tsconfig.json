@@ -30,6 +30,8 @@
 		// Path aliases — usable in external adapters without relative paths
 		"baseUrl": ".",
 		"paths": {
+			"@stateful-mcp/macro-protocol": ["packages/macro-protocol/src/index.ts"],
+			"@stateful-mcp/macro-protocol/*": ["packages/macro-protocol/src/*"],
 			"@stateful-mcp/loader": ["src/config/loader.ts"],
 			"@stateful-mcp/types": ["src/config/types.ts"],
 			"@stateful-mcp/errors": ["src/errors/types.ts"],

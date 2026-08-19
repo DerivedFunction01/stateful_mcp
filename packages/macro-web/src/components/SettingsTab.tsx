@@ -389,7 +389,10 @@ export function SettingsTab({
 						<Button variant="ghost" onClick={() => void exportSettings()}>
 							{t("settings.export")}
 						</Button>
-						<Button variant="ghost" onClick={() => importInput.current?.click()}>
+						<Button
+							variant="ghost"
+							onClick={() => importInput.current?.click()}
+						>
 							{t("settings.import")}
 						</Button>
 						<input
@@ -551,10 +554,7 @@ function itemMatches(item: SettingsUiItemDto, query: string): boolean {
 }
 
 function hasModified(snapshot: SettingsUiSnapshotDto): boolean {
-	return (
-		snapshot.modifiedCount > 0 ||
-		snapshot.totalModifiedCount > 0
-	);
+	return snapshot.modifiedCount > 0 || snapshot.totalModifiedCount > 0;
 }
 
 function errorMessage(error: unknown): string {

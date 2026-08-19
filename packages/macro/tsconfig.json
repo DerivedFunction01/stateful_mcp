@@ -17,7 +17,9 @@
 		"baseUrl": ".",
 		"paths": {
 			"@stateful-mcp/core": ["../core/src/index.ts"],
-			"@stateful-mcp/core/*": ["../core/src/*"]
+			"@stateful-mcp/core/*": ["../core/src/*"],
+			"@stateful-mcp/macro-protocol": ["../macro-protocol/src/index.ts"],
+			"@stateful-mcp/macro-protocol/*": ["../macro-protocol/src/*"]
 		}
 	},
 	"include": ["src/**/*", "tests/**/*"],

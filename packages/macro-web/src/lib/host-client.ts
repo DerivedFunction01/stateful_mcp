@@ -2,6 +2,8 @@ import {
 	type HostError,
 	type HostRequest,
 	type HostResponse,
+	type KeymapBindingContextDto,
+	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
 	type SettingsApplyResult,
 	type SettingsOperation,
@@ -39,6 +41,11 @@ export interface HostClient {
 		args?: readonly unknown[],
 		expectedRevision?: number,
 	): Promise<unknown>;
+	selectKeymap(profileId: string): Promise<unknown>;
+	resolveBinding(
+		chord: string,
+		context: KeymapBindingContextDto,
+	): Promise<KeymapBindingResolutionDto>;
 	applySettings(operation: SettingsOperation): Promise<SettingsApplyResult>;
 	applySettingsUi(operation: SettingsUiOperation): Promise<SettingsApplyResult>;
 	parse(text: string, textRevision: number): Promise<HostWorkspaceSnapshot>;
@@ -130,6 +137,39 @@ export class BrowserHostClient implements HostClient {
 		});
 		if (payload.snapshot) this.snapshot = payload.snapshot;
 		return payload.result;
+	}
+
+	async selectKeymap(profileId: string): Promise<unknown> {
+		const sessionId = this.requireSession();
+		const payload = await this.request<{
+			snapshot?: HostWorkspaceSnapshot;
+		}>(`/api/sessions/${encodeURIComponent(sessionId)}/commands`, {
+			type: "keymap.profile.select",
+			sessionId,
+			payload: { profileId },
+		});
+		if (payload.snapshot) this.snapshot = payload.snapshot;
+		return payload.snapshot;
+	}
+
+	async resolveBinding(
+		chord: string,
+		context: KeymapBindingContextDto,
+	): Promise<KeymapBindingResolutionDto> {
+		const sessionId = this.requireSession();
+		const payload = await this.request<{
+			resolution?: KeymapBindingResolutionDto;
+		}>(`/api/sessions/${encodeURIComponent(sessionId)}/commands`, {
+			type: "keymap.binding.resolve",
+			sessionId,
+			payload: { chord, context },
+		});
+		return (
+			payload.resolution ?? {
+				chord,
+				diagnostics: [],
+			}
+		);
 	}
 
 	async applySettings(

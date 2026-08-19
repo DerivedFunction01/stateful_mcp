@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-	normalizeBrowserChord,
-	resolveKeymapCommand,
-} from "../src/lib/bindings";
+import { matchEffectiveBindings } from "@stateful-mcp/macro";
+import { normalizeBrowserChord } from "../src/lib/bindings";
 
 describe("browser host binding pipeline", () => {
 	test("normalizes browser chords without hardcoded Vim actions", () => {
@@ -35,7 +33,11 @@ describe("browser host binding pipeline", () => {
 				{ command: "editor.togglePanel", chords: ["ctrl+\\"] },
 			],
 		};
-		expect(resolveKeymapCommand("k", keymap)).toBe("editor.moveLineUp");
-		expect(resolveKeymapCommand("i", keymap)).toBeUndefined();
+		expect(
+			matchEffectiveBindings(keymap.bindings, "k", "NORMAL", {})?.command,
+		).toBe("editor.moveLineUp");
+		expect(
+			matchEffectiveBindings(keymap.bindings, "i", "NORMAL", {}),
+		).toBeUndefined();
 	});
 });

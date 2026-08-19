@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { WorkspaceSettingsService } from "../src/workspace/config/settings-service";
 import { serializeSettingsUiSnapshot } from "../src/workspace/config/settings-projection";
+import { WorkspaceSettingsService } from "../src/workspace/config/settings-service";
 import { SettingsUiModel } from "../src/workspace/config/settings-ui-model";
 
 describe("settings UI projection", () => {
@@ -32,7 +32,9 @@ describe("settings UI projection", () => {
 			settingsRevision: "macro-settings:test",
 		});
 		const items = projection.sections.flatMap((section) => section.items);
-		const theme = items.find((item) => item.path.join(".") === "appearance.theme");
+		const theme = items.find(
+			(item) => item.path.join(".") === "appearance.theme",
+		);
 		const secret = items.find((item) => item.path.join(".") === "secretToken");
 		expect(theme?.value).toBe("dark");
 		expect(theme?.isModified).toBe(true);

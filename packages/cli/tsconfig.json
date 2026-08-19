@@ -22,6 +22,8 @@
 			"@stateful-mcp/core/*": ["../core/src/*"],
 			"@stateful-mcp/macro": ["../macro/src/index.ts"],
 			"@stateful-mcp/macro/*": ["../macro/src/*"],
+			"@stateful-mcp/macro-protocol": ["../macro-protocol/src/index.ts"],
+			"@stateful-mcp/macro-protocol/*": ["../macro-protocol/src/*"],
 			"@stateful-mcp/clinical": ["../clinical/src/index.ts"],
 			"@stateful-mcp/clinical/*": ["../clinical/src/*"],
 			"@stateful-mcp/cli/*": ["./src/*"],

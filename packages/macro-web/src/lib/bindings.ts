@@ -22,6 +22,12 @@ export interface BindingDispatchResult {
 	readonly command?: string;
 }
 
+/**
+ * Normalize a DOM key event into a canonical chord string. Modifiers are
+ * `ctrl`/`meta`/`shift` only; `alt`/`Option` is intentionally dropped because it
+ * is not a first-class canonical modifier and browser Alt combos are
+ * OS/chrome-owned. The browser keymap controller rejects Alt events entirely.
+ */
 export function normalizeBrowserChord(
 	event: Pick<
 		KeyboardEvent,
@@ -31,7 +37,6 @@ export function normalizeBrowserChord(
 	const modifiers: string[] = [];
 	if (event.ctrlKey) modifiers.push("ctrl");
 	if (event.metaKey) modifiers.push("meta");
-	if (event.altKey) modifiers.push("alt");
 	if (event.shiftKey) modifiers.push("shift");
 	const key =
 		event.key.length === 1
@@ -45,51 +50,6 @@ export function resolveBrowserBinding(
 	contexts: readonly BindingContext[],
 ): BindingDispatchResult {
 	return dispatchBinding(chord, contexts);
-}
-
-export function resolveKeymapCommand(
-	chord: string,
-	keymap: {
-		readonly bindings: readonly {
-			readonly command: string;
-			readonly chords: readonly string[];
-			readonly modes?: readonly string[];
-			readonly when?: unknown;
-		}[];
-	},
-	mode = "NORMAL",
-	context: Readonly<Record<string, string | boolean | undefined>> = {},
-): string | undefined {
-	const normalized = chord.toLowerCase();
-	return keymap.bindings.find(
-		(binding) =>
-			(!binding.modes || binding.modes.includes(mode)) &&
-			contextExpressionMatches(binding.when, context) &&
-			binding.chords.some(
-				(candidate) => candidate.toLowerCase() === normalized,
-			),
-	)?.command;
-}
-
-function contextExpressionMatches(
-	expression: unknown,
-	context: Readonly<Record<string, string | boolean | undefined>>,
-): boolean {
-	if (!expression || typeof expression !== "object") return true;
-	const value = expression as {
-		key?: string;
-		equals?: string | boolean;
-		allOf?: readonly unknown[];
-		anyOf?: readonly unknown[];
-		not?: unknown;
-	};
-	if (value.key) return String(context[value.key]) === String(value.equals);
-	if (value.allOf)
-		return value.allOf.every((item) => contextExpressionMatches(item, context));
-	if (value.anyOf)
-		return value.anyOf.some((item) => contextExpressionMatches(item, context));
-	if (value.not) return !contextExpressionMatches(value.not, context);
-	return true;
 }
 
 export function dispatchBinding(

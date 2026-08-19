@@ -1,4 +1,7 @@
-import type { SettingsApplyResult } from "@stateful-mcp/macro-protocol";
+import type {
+	KeymapBindingResolutionDto,
+	SettingsApplyResult,
+} from "@stateful-mcp/macro-protocol";
 import type { HostClient, HostWorkspaceSnapshot } from "../lib/host-client";
 
 /** Development-only fixture used by the component gallery and transport tests. */
@@ -71,6 +74,13 @@ export function createDiagnosticHostClient(): HostClient {
 		createSession: async () => snapshot,
 		getSnapshot: async () => snapshot,
 		executeCommand: async () => undefined,
+		selectKeymap: async () => snapshot,
+		resolveBinding: async (
+			chord: string,
+		): Promise<KeymapBindingResolutionDto> => ({
+			chord,
+			diagnostics: [],
+		}),
 		applySettings: async () => saved,
 		applySettingsUi: async () => saved,
 		parse: async () => snapshot,

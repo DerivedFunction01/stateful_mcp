@@ -1,4 +1,5 @@
-import type { ContextExpression } from "../contributions/types";
+import { matchEffectiveBindings as matchSharedEffectiveBindings } from "@stateful-mcp/macro-protocol/keymap";
+import type { KeymapBindingDto } from "@stateful-mcp/macro-protocol/workspace";
 import { DEFAULT_COMMAND_KEYBINDINGS } from "./default-bindings";
 import {
 	ALL_CANONICAL_KEYS,
@@ -208,40 +209,6 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 	return eventKey === target.key;
 }
 
-function contextValue(
-	context: KeymapContext,
-	key: string,
-): string | boolean | undefined {
-	switch (key) {
-		case "activeTabId":
-			return context.activeTabId;
-		case "activeViewId":
-			return context.activeViewId;
-		case "focusedPane":
-			return context.focusedPane;
-		case "focusedRegion":
-			return context.focusedRegion;
-		case "textInputOwner":
-			return context.textInputOwner;
-		default:
-			return undefined;
-	}
-}
-
-export function contextMatches(
-	context: KeymapContext,
-	expression?: ContextExpression,
-): boolean {
-	if (!expression) return true;
-	if ("key" in expression)
-		return contextValue(context, expression.key) === expression.equals;
-	if ("allOf" in expression)
-		return expression.allOf.every((item) => contextMatches(context, item));
-	if ("anyOf" in expression)
-		return expression.anyOf.some((item) => contextMatches(context, item));
-	return !contextMatches(context, expression.not);
-}
-
 /** Return the effective command bindings after central defaults and overrides. */
 export function resolveKeymapBindings(
 	profile: EditorKeymapProfile,
@@ -268,14 +235,51 @@ export function matchKeymapCommand(
 	event: KeyInputEvent,
 	context: KeymapContext,
 ): string | undefined {
-	const candidates = resolveKeymapBindings(profile).filter(
-		(binding) =>
-			(!binding.modes || binding.modes.includes(context.editorMode)) &&
-			contextMatches(context, binding.when),
-	);
-	return candidates.find((binding) =>
-		binding.chords.some((chord) => chordMatches(chord, event)),
-	)?.command;
+	const bindings = resolveKeymapBindings(profile);
+	const contextValues = {
+		activeTabId: context.activeTabId,
+		activeViewId: context.activeViewId,
+		focusedPane: context.focusedPane,
+		focusedRegion: context.focusedRegion,
+		textInputOwner: context.textInputOwner,
+	};
+	for (const binding of bindings) {
+		for (const chord of binding.chords) {
+			if (!chordMatches(chord, event)) continue;
+			return matchSharedEffectiveBindings(
+				bindings as readonly KeymapBindingDto[],
+				chord,
+				context.editorMode,
+				contextValues,
+			)?.command;
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Resolve a chord against a flat, already-resolved binding list (the same shape
+ * the browser receives as `KeymapBindingDto` / `WorkspaceKeybinding`). This is
+ * the single canonical matcher the browser imports so React never duplicates
+ * `contextExpressionMatches` / `chordMatches`.
+ *
+ * `chord` is a normalized canonical chord string (e.g. `ctrl+k`, `escape`,
+ * `g g`). It may be a single chord or a space-separated multi-chord sequence;
+ * only the final chord is matched here. The caller owns multi-chord pending
+ * state.
+ */
+export function matchEffectiveBindings(
+	bindings: readonly WorkspaceKeybinding[],
+	chord: string,
+	mode?: string,
+	context: Readonly<Record<string, string | boolean | undefined>> = {},
+): WorkspaceKeybinding | undefined {
+	return matchSharedEffectiveBindings(
+		bindings as readonly KeymapBindingDto[],
+		chord,
+		mode,
+		context,
+	) as WorkspaceKeybinding | undefined;
 }
 
 export function keymapBindingConflicts(

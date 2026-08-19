@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import {
+	BUILTIN_KEYMAP_PROFILES,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
 	type EditorKeymapProfile,
+	keymapBindingConflicts,
+	matchEffectiveBindings,
 	mergeEditorKeymap,
 	resolveKeymapBindings,
 } from "@stateful-mcp/macro";
@@ -17,7 +20,9 @@ import {
 	type HostEvent,
 	type HostEventType,
 	hostError,
+	type KeymapBindingContextDto,
 	type KeymapBindingDto,
+	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
 	type SettingsApplyResult,
 	type SettingsDiagnosticDto,
@@ -40,7 +45,7 @@ interface Session {
 	readonly id: string;
 	readonly workspaceId: string;
 	readonly loaded: LoadedMacroWorkspace;
-	readonly keymap: EditorKeymapProfile;
+	keymap: EditorKeymapProfile;
 	readonly listeners: Set<(event: HostEvent) => void>;
 	readonly unsubs: (() => void)[];
 	sequence: number;
@@ -128,6 +133,69 @@ export class HostSessionManager {
 		);
 		this.emit(session, "command.completed");
 		return { result, snapshot: this.snapshot(session) };
+	}
+
+	async selectKeymap(
+		sessionId: string,
+		profileId: string,
+	): Promise<WorkspaceSnapshot> {
+		const session = this.getOrError(sessionId);
+		const profile = BUILTIN_KEYMAP_PROFILES[profileId];
+		if (!profile)
+			throw new SessionError(
+				"KEYMAP_PROFILE_UNKNOWN",
+				"keymap.profileUnknown",
+				false,
+			);
+		// Per-window selection only. Never mutate other sessions or the
+		// canonical default profile.
+		session.keymap = profile;
+		this.emit(session, "keymap.changed");
+		return this.snapshot(session);
+	}
+
+	async resolveBinding(
+		sessionId: string,
+		chord: string,
+		context: KeymapBindingContextDto,
+	): Promise<KeymapBindingResolutionDto> {
+		const session = this.getOrError(sessionId);
+		const bindings = resolveKeymapBindings(session.keymap);
+		const matched = matchEffectiveBindings(
+			bindings,
+			chord,
+			context.editorMode,
+			context,
+		);
+		if (!matched) {
+			return {
+				chord,
+				diagnostics: [
+					{
+						severity: "info",
+						message:
+							translate(session.loaded.workspace.i18n, "keymap.noBinding") ||
+							"keymap.noBinding",
+						code: "no-binding",
+					},
+				],
+			};
+		}
+		const conflicts = keymapBindingConflicts(session.keymap).filter(
+			(conflict) => conflict.chord === matched.chords[0],
+		);
+		return {
+			chord,
+			command: matched.command,
+			source: "macro-profile",
+			diagnostics: conflicts.map((conflict) => ({
+				severity: "warning" as const,
+				message:
+					translate(session.loaded.workspace.i18n, "keymap.conflict") ||
+					"keymap.conflict",
+				code: "duplicate-binding",
+			})),
+		};
 	}
 
 	async settings(
@@ -357,6 +425,7 @@ export class HostSessionManager {
 			modes: binding.modes,
 			when: binding.when,
 			labelI18nKey: binding.labelI18nKey,
+			source: "macro-profile",
 		}));
 		const keymap: EffectiveKeymapDto = {
 			profileId: session.keymap.profileId,

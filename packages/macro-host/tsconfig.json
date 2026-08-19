@@ -5,6 +5,8 @@
 		"paths": {
 			"@stateful-mcp/macro": ["../macro/src/index.ts"],
 			"@stateful-mcp/macro/*": ["../macro/src/*"],
+			"@stateful-mcp/macro-protocol": ["../macro-protocol/src/index.ts"],
+			"@stateful-mcp/macro-protocol/*": ["../macro-protocol/src/*"],
 			"@stateful-mcp/core": ["../core/src/index.ts"],
 			"@stateful-mcp/core/*": ["../core/src/*"]
 		}
