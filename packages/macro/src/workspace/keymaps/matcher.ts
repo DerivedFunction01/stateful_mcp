@@ -1,4 +1,8 @@
-import { matchEffectiveBindings as matchSharedEffectiveBindings } from "@stateful-mcp/macro-protocol/keymap";
+import {
+	contextMatches as matchSharedContext,
+	matchEffectiveBindings as matchSharedEffectiveBindings,
+} from "@stateful-mcp/macro-protocol/keymap";
+import type { ContextExpression } from "../contributions/types";
 import type { KeymapBindingDto } from "@stateful-mcp/macro-protocol/workspace";
 import { DEFAULT_COMMAND_KEYBINDINGS } from "./default-bindings";
 import {
@@ -280,6 +284,21 @@ export function matchEffectiveBindings(
 		mode,
 		context,
 	) as WorkspaceKeybinding | undefined;
+}
+
+/** Canonical Macro context API, backed by the shared renderer-neutral evaluator. */
+export function contextMatches(
+	context: KeymapContext,
+	expression?: ContextExpression,
+): boolean {
+	return matchSharedContext(expression, {
+		activeTabId: context.activeTabId,
+		activeViewId: context.activeViewId,
+		focusedPane: context.focusedPane,
+		focusedRegion: context.focusedRegion,
+		textInputOwner: context.textInputOwner,
+		editorMode: context.editorMode,
+	});
 }
 
 export function keymapBindingConflicts(

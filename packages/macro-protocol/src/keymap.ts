@@ -78,14 +78,14 @@ export function matchEffectiveBindings(
 		(binding) =>
 			(!binding.modes ||
 				(mode !== undefined && binding.modes.includes(mode))) &&
-			contextExpressionMatches(binding.when, context) &&
+			contextMatches(binding.when, context) &&
 			binding.chords.some(
 				(candidate) => candidate.toLowerCase() === finalChord,
 			),
 	);
 }
 
-function contextExpressionMatches(
+export function contextMatches(
 	expression: unknown,
 	context: Readonly<Record<string, string | boolean | undefined>>,
 ): boolean {
@@ -99,9 +99,9 @@ function contextExpressionMatches(
 	};
 	if (value.key) return String(context[value.key]) === String(value.equals);
 	if (value.allOf)
-		return value.allOf.every((item) => contextExpressionMatches(item, context));
+		return value.allOf.every((item) => contextMatches(item, context));
 	if (value.anyOf)
-		return value.anyOf.some((item) => contextExpressionMatches(item, context));
-	if (value.not) return !contextExpressionMatches(value.not, context);
+		return value.anyOf.some((item) => contextMatches(item, context));
+	if (value.not) return !contextMatches(value.not, context);
 	return true;
 }
