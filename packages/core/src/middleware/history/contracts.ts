@@ -51,6 +51,27 @@ export interface HistoryStore<TPayload = unknown> {
 	recover(streamId?: string): Promise<HistoryRecoveryDiagnostic[]>;
 }
 
+/** A durable, explicitly named history resource. */
+export interface HistoryResource<TPayload = unknown> {
+	historyId: string;
+	formatVersion: number;
+	createdAt: string;
+	updatedAt: string;
+	metadata: Record<string, unknown>;
+	events: HistoryEvent<TPayload>[];
+}
+
+export interface HistoryResourceStore<TPayload = unknown> {
+	create(
+		historyId: string,
+		metadata?: Record<string, unknown>,
+	): Promise<HistoryResource<TPayload>>;
+	open(historyId: string): Promise<HistoryResource<TPayload> | null>;
+	save(resource: HistoryResource<TPayload>): Promise<void>;
+	list(): Promise<Array<Pick<HistoryResource<TPayload>, "historyId" | "formatVersion" | "createdAt" | "updatedAt" | "metadata">>>;
+	delete(historyId: string): Promise<void>;
+}
+
 export class HistoryConflictError extends Error {
 	readonly code = "HISTORY_SEQUENCE_CONFLICT";
 

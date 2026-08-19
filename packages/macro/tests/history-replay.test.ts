@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MemoryHistoryStore } from "@stateful-mcp/core";
+import { KvHistoryStore, MemoryKvBackend } from "@stateful-mcp/core";
 import {
 	type MacroExecutionAttempt,
 	MacroExecutionHistory,
@@ -22,7 +22,9 @@ const attempt = (id: string, sequenceValue: string): MacroExecutionAttempt => ({
 
 describe("macro history replay", () => {
 	test("dispatches listeners and renderers in deterministic order", async () => {
-		const history = new MemoryHistoryStore<MacroExecutionAttempt>();
+		const history = new KvHistoryStore<MacroExecutionAttempt>(
+			new MemoryKvBackend(),
+		);
 		const listeners = new MacroListenerRegistry();
 		const order: string[] = [];
 		listeners.register({
@@ -84,7 +86,9 @@ describe("macro history replay", () => {
 	});
 
 	test("records an externally rejected attempt", async () => {
-		const history = new MemoryHistoryStore<MacroExecutionAttempt>();
+		const history = new KvHistoryStore<MacroExecutionAttempt>(
+			new MemoryKvBackend(),
+		);
 		const execution = new MacroExecutionHistory(history, {
 			executor: { execute: async () => ({ outcome: "rejected" }) },
 		});

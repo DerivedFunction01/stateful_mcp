@@ -1,5 +1,5 @@
 import type { HistoryStore } from "@stateful-mcp/core";
-import { MemoryHistoryStore } from "@stateful-mcp/core";
+import { KvHistoryStore, MemoryKvBackend } from "@stateful-mcp/core";
 import {
 	type MacroDraftSession,
 	type MacroExecutionAttempt,
@@ -39,7 +39,8 @@ export class HeadlessDispatcher {
 			options.state ?? createHeadlessNotebookState(),
 		);
 		this.history =
-			options.history ?? new MemoryHistoryStore<MacroExecutionAttempt>();
+			options.history ??
+			new KvHistoryStore<MacroExecutionAttempt>(new MemoryKvBackend());
 		this.macroHistory =
 			options.macroHistory ??
 			new MacroExecutionHistory(this.history, {
