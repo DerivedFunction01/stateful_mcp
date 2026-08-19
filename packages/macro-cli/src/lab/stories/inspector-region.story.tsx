@@ -127,7 +127,7 @@ export const inspectorRegionStory: TuiStory = {
 				<TuiTabs
 					tabs={DEMO_TABS}
 					activeTabId="scratchpad"
-					variant="opencode"
+					
 					theme={theme}
 				/>
 				<box height={1}>

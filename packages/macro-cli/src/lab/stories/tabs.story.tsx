@@ -15,7 +15,7 @@ export const tabsStory: TuiStory = {
 	states: ["default"],
 	render() {
 		return (
-			<TuiTabs tabs={STATUS_TABS} activeTabId="scratchpad" variant="opencode" />
+			<TuiTabs tabs={STATUS_TABS} activeTabId="scratchpad"  />
 		);
 	},
 };

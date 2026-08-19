@@ -24,7 +24,6 @@ export interface TuiTabsProps {
 	readonly activeTabId?: string;
 	readonly onSelectTab?: (id: string) => void;
 	readonly onMouseDown?: (tabId: string, event: MouseEvent) => void;
-	readonly variant?: "opencode" | "browser" | "vscode" | "minimal";
 	readonly rowHeight?: 1 | 2;
 	readonly theme?: TuiThemeDefinition;
 }
@@ -38,7 +37,6 @@ export function TuiTabs({
 	activeTabId,
 	onSelectTab,
 	onMouseDown,
-	variant = "opencode",
 	rowHeight = 1,
 	theme,
 }: TuiTabsProps) {

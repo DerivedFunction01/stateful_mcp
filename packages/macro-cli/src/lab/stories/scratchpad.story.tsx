@@ -125,7 +125,7 @@ export const scratchpadStory: TuiStory = {
 					<TuiTabs
 						tabs={DEMO_TABS}
 						activeTabId="scratchpad"
-						variant="opencode"
+						
 						theme={theme}
 					/>
 				}
