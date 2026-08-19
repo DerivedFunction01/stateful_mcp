@@ -8,6 +8,7 @@ import { EN_SETTINGS_FREQUENCY } from "./en/settings-frequency";
 import { EN_SETTINGS_NUMERIC } from "./en/settings-numeric";
 import { EN_SETTINGS_QUANTITY } from "./en/settings-quantity";
 import { EN_SETTINGS_SYNTAX } from "./en/settings-syntax";
+import { EN_WEB } from "./en/web";
 
 export const EN_LOCALE: WorkspaceLocaleDictionary = {
 	...EN_CORE,
@@ -19,6 +20,7 @@ export const EN_LOCALE: WorkspaceLocaleDictionary = {
 	...EN_SETTINGS_CURRENCY,
 	...EN_SETTINGS_APPEARANCE,
 	...EN_SETTINGS_EDITOR,
+	...EN_WEB,
 	"shell.mode.normal": "NORMAL",
 	"shell.mode.insert": "INSERT",
 	"shell.mode.visual": "VISUAL",

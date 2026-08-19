@@ -22,7 +22,6 @@ import {
 } from "@stateful-mcp/macro-protocol";
 
 export interface HostSessionOptions {
-	readonly projectRoot?: string;
 	readonly workspacePath?: string;
 	readonly profileId?: string;
 	readonly locale?: string;
@@ -39,6 +38,7 @@ interface Session {
 	readonly unsubs: (() => void)[];
 	sequence: number;
 	revision: number;
+	documentRevision: number;
 	lastActivity: number;
 	disposed: boolean;
 }
@@ -49,11 +49,12 @@ export class HostSessionManager {
 	constructor(
 		private readonly host: MacroHost,
 		private readonly idleTimeoutMs = 30 * 60 * 1000,
+		private readonly projectRoot?: string,
 	) {}
 
 	async create(options: HostSessionOptions = {}): Promise<WorkspaceSnapshot> {
 		const loaded = await this.host.createWorkspace({
-			projectRoot: options.projectRoot,
+			...(this.projectRoot ? { projectRoot: this.projectRoot } : {}),
 			profileId: options.profileId,
 			locale: options.locale,
 			initialText: options.initialText,
@@ -68,6 +69,7 @@ export class HostSessionManager {
 			unsubs: [],
 			sequence: 0,
 			revision: 0,
+			documentRevision: 0,
 			lastActivity: Date.now(),
 			disposed: false,
 		};
@@ -110,7 +112,7 @@ export class HostSessionManager {
 		command: string,
 		args: readonly unknown[] = [],
 		expectedRevision?: number,
-	): Promise<unknown> {
+	): Promise<{ result: unknown; snapshot: WorkspaceSnapshot }> {
 		const session = this.getOrError(sessionId);
 		this.assertRevision(session, expectedRevision);
 		const result = await session.loaded.workspace.commands.executeCommand(
@@ -118,7 +120,7 @@ export class HostSessionManager {
 			...args,
 		);
 		this.emit(session, "command.completed");
-		return result;
+		return { result, snapshot: this.snapshot(session) };
 	}
 
 	async settings(
@@ -173,17 +175,17 @@ export class HostSessionManager {
 		textRevision: number,
 	): Promise<WorkspaceSnapshot> {
 		const session = this.getOrError(sessionId);
-		if (textRevision < session.revision)
+		if (textRevision < session.documentRevision)
 			throw new SessionError(
 				"STALE_REVISION",
 				"Parse revision is older than the session revision",
 				true,
-				{ textRevision, revision: session.revision },
+				{ textRevision, revision: session.documentRevision },
 			);
 		session.loaded.workspace.editor.buffer.setText(text);
 		await session.loaded.workspace.scratchpad.parseAllLines();
-		session.revision = textRevision;
-		this.emit(session, "parse.completed", textRevision);
+		session.documentRevision = textRevision;
+		this.emit(session, "parse.completed");
 		return this.snapshot(session);
 	}
 
@@ -245,11 +247,10 @@ export class HostSessionManager {
 	private emit(
 		session: Session,
 		type: HostEventType,
-		revision = session.revision,
 	): void {
 		if (session.disposed) return;
 		session.sequence += 1;
-		session.revision = Math.max(session.revision, revision);
+		session.revision += 1;
 		const event: HostEvent = {
 			version: MACRO_PROTOCOL_VERSION,
 			eventId: randomUUID(),
@@ -278,8 +279,8 @@ export class HostSessionManager {
 						extension.manifest.displayName ||
 						extension.manifest.id
 					: (extension.manifest.displayName ??
-						extension.manifest.contributes?.settings?.[0]?.title ??
-						extension.manifest.id),
+									extension.manifest.contributes?.settings?.[0]?.title ??
+								extension.manifest.id),
 				description: extension.manifest.descriptionI18nKey
 					? translate(workspace.i18n, extension.manifest.descriptionI18nKey) ||
 						extension.manifest.description
@@ -315,15 +316,13 @@ export class HostSessionManager {
 				extensionId: command.extensionId,
 			}));
 		const settings = workspace.settings;
-		const layout = workspace.layout.getSnapshot() as unknown as Readonly<
-			Record<string, unknown>
-		>;
+		const layout = workspace.layout.getSnapshot();
 		return {
 			workspaceId: session.workspaceId,
 			sessionId: session.id,
 			profile: {
 				id: profileId,
-				displayName: profileId,
+				displayName: session.loaded.profile?.id === profileId ? profileId : profileId,
 				enabledExtensionIds: extensionIds,
 			},
 			enabledExtensionIds: extensionIds,
@@ -335,18 +334,24 @@ export class HostSessionManager {
 					id: tab.id,
 					label: tab.label,
 					icon: tab.icon,
+					order: tab.order,
+					defaultVisible: tab.defaultVisible,
 					extensionId: tab.extensionId,
 				})),
 				views: workspace.views.getAllViews().map((view) => ({
 					id: view.id,
 					name: view.name,
 					containerId: view.containerId,
+					order: view.order,
+					region: view.region,
 					extensionId: view.extensionId,
 				})),
 				containers: workspace.views.getContainers().map((container) => ({
 					id: container.id,
 					title: container.title,
 					icon: container.icon,
+					order: container.order,
+					region: container.region,
 					extensionId: container.extensionId,
 				})),
 			},
@@ -371,8 +376,9 @@ export class HostSessionManager {
 					},
 			layout,
 			activeTabId: workspace.layout.getSnapshot().activeTabId,
-			scratchpad: {
-				text: workspace.editor.buffer.getText(),
+				scratchpad: {
+					text: workspace.editor.buffer.getText(),
+					textRevision: session.documentRevision,
 				lines: workspace.scratchpad.getProjectedLines().map((line) => ({
 					lineNumber: line.lineNumber,
 					rawText: line.rawText,
@@ -384,8 +390,12 @@ export class HostSessionManager {
 			...(session.loaded.project
 				? {
 						project: {
-							...session.loaded.project.descriptor,
-							rootPath: undefined,
+							projectId: session.loaded.project.descriptor.projectId,
+							displayName: session.loaded.project.descriptor.displayName,
+							lifecycle: session.loaded.project.descriptor.lifecycle,
+							revision: session.loaded.project.descriptor.revision,
+							resources: session.loaded.project.descriptor.resources,
+							historyResources: session.loaded.project.descriptor.historyResources,
 						},
 					}
 				: {}),

@@ -37,20 +37,47 @@ export interface ContributionSnapshotDto {
 		readonly id: string;
 		readonly label: string;
 		readonly icon?: string;
+		readonly order?: number;
+		readonly defaultVisible?: boolean;
 		readonly extensionId?: string;
 	}[];
 	readonly views: readonly {
 		readonly id: string;
 		readonly name: string;
 		readonly containerId: string;
+		readonly order?: number;
+		readonly region?: "activity" | "inspector";
 		readonly extensionId?: string;
 	}[];
 	readonly containers: readonly {
 		readonly id: string;
 		readonly title: string;
 		readonly icon: string;
+		readonly order?: number;
+		readonly region?: "activity" | "inspector";
 		readonly extensionId?: string;
 	}[];
+}
+
+export interface LayoutRegionDto {
+	readonly open: boolean;
+	readonly dock: "start" | "end";
+	readonly widthRatio: number;
+}
+
+export interface LayoutSnapshotDto {
+	readonly activeTabId: string;
+	readonly sidepanelOpen: boolean;
+	readonly sidepanelPosition: "left" | "right";
+	readonly sidepanelWidthRatio: number;
+	readonly activeContainerId: string;
+	readonly focusedPane: string;
+	readonly activeModal: { readonly id: string; readonly title: string; readonly data?: unknown } | null;
+	readonly regions: Readonly<Record<string, LayoutRegionDto>>;
+	readonly activeActivityContainerId: string;
+	readonly activeInspectorContainerId: string;
+	readonly inspectorMode: "follow" | "pinned";
+	readonly pinnedInspectorViewId: string | null;
 }
 
 export interface DiagnosticDto {
@@ -69,11 +96,6 @@ export interface ProjectResourceReferenceDto {
 export interface ProjectDescriptorDto {
 	readonly projectId: string;
 	readonly displayName: string;
-	readonly rootPath?: string;
-	readonly backend: {
-		readonly kind: "jsonl" | "sqlite";
-		readonly path: string;
-	};
 	readonly lifecycle: "open" | "dirty" | "closed";
 	readonly revision: string;
 	readonly resources: readonly ProjectResourceReferenceDto[];
@@ -90,7 +112,7 @@ export interface WorkspaceSnapshot {
 	readonly commands: readonly CommandDescriptorDto[];
 	readonly contributions: ContributionSnapshotDto;
 	readonly settings: SettingsSnapshotDto;
-	readonly layout: Readonly<Record<string, unknown>>;
+	readonly layout: LayoutSnapshotDto;
 	readonly activeTabId?: string;
 	readonly scratchpad: Readonly<Record<string, unknown>>;
 	readonly diagnostics: readonly DiagnosticDto[];

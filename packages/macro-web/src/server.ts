@@ -26,6 +26,7 @@ const buildRoot = resolve(packageRoot, "dist/dev");
 const assetsRoot = resolve(buildRoot, "assets");
 const port = Number(argument("port") ?? Bun.env.PORT ?? 3000);
 const hostname = argument("host") ?? Bun.env.HOST ?? "127.0.0.1";
+const projectRoot = argument("project") ?? Bun.env.MACRO_PROJECT_ROOT;
 
 const build = await Bun.build({
 	entrypoints: [resolve(packageRoot, "src/main.tsx")],
@@ -45,9 +46,9 @@ if (!build.success) {
 
 const host = await createMacroHost({
 	defaults: {},
-	workspacePath: argument("workspace"),
+	...(projectRoot ? { projectRoot } : {}),
 });
-const sessions = new HostSessionManager(host);
+const sessions = new HostSessionManager(host, 30 * 60 * 1000, projectRoot);
 const sockets = new Map<WebSocket, () => void>();
 
 const indexHtml = `<!doctype html>
@@ -101,6 +102,8 @@ function errorResponse(id: string, error: unknown): Response {
 	const status =
 		hostErrorValue.code === "SESSION_NOT_FOUND"
 			? 404
+			: hostErrorValue.code === "PROJECT_NOT_CONFIGURED"
+				? 503
 			: hostErrorValue.code === "STALE_REVISION"
 				? 409
 				: hostErrorValue.code === "INVALID_REQUEST"
@@ -140,16 +143,19 @@ const server = Bun.serve<SocketData>({
 		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
+				if (!projectRoot)
+					throw new SessionError(
+						"PROJECT_NOT_CONFIGURED",
+						"A host-configured Macro project is required",
+						false,
+					);
 				const payload = (envelope.payload ?? {}) as {
-					projectRoot?: string;
-					workspacePath?: string;
 					profileId?: string;
 					locale?: string;
 					initialText?: string;
 					keymap?: Record<string, unknown>;
 				};
 				const snapshot = await sessions.create({
-					projectRoot: payload.projectRoot,
 					profileId: payload.profileId,
 					locale: payload.locale,
 					initialText: payload.initialText,
@@ -195,15 +201,13 @@ const server = Bun.serve<SocketData>({
 							"A canonical command ID is required",
 							false,
 						);
-					return {
-						command: payload.command,
-						result: await sessions.executeCommand(
+					const execution = await sessions.executeCommand(
 							sessionId,
 							payload.command,
 							payload.args ?? [],
 							payload.expectedRevision,
-						),
-					};
+					);
+					return { command: payload.command, ...execution };
 				});
 			if (operation === "settings" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) =>

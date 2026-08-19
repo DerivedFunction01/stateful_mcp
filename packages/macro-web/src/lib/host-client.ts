@@ -4,6 +4,7 @@ import {
 	MACRO_PROTOCOL_VERSION,
 	type SettingsOperation,
 	type HostEvent as WireHostEvent,
+	type HostError,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 
@@ -16,6 +17,13 @@ export type TransportState =
 	| "reconnecting"
 	| "disconnected"
 	| "error";
+
+export class HostRequestError extends Error {
+	constructor(readonly error: HostError) {
+		super(error.message);
+		this.name = "HostRequestError";
+	}
+}
 
 export interface HostClient {
 	createSession(options?: {
@@ -35,6 +43,8 @@ export interface HostClient {
 	subscribeState(listener: (state: TransportState) => void): () => void;
 	getState(): TransportState;
 	getSessionId(): string | undefined;
+	getCachedSnapshot?(): HostWorkspaceSnapshot | undefined;
+	dispose?(): void;
 }
 
 export class BrowserHostClient implements HostClient {
@@ -44,6 +54,7 @@ export class BrowserHostClient implements HostClient {
 	private snapshot?: HostWorkspaceSnapshot;
 	private sessionId?: string;
 	private state: TransportState = "idle";
+	private reconnectTimer?: number;
 
 	constructor(private readonly baseUrl = "") {}
 
@@ -52,6 +63,18 @@ export class BrowserHostClient implements HostClient {
 	}
 	getSessionId(): string | undefined {
 		return this.sessionId;
+	}
+	getCachedSnapshot(): HostWorkspaceSnapshot | undefined {
+		return this.snapshot;
+	}
+	dispose(): void {
+		if (this.reconnectTimer !== undefined) window.clearTimeout(this.reconnectTimer);
+		this.reconnectTimer = undefined;
+		this.socket?.close();
+		this.socket = undefined;
+		this.sessionId = undefined;
+		this.snapshot = undefined;
+		this.setState("disconnected");
 	}
 
 	async createSession(
@@ -93,7 +116,10 @@ export class BrowserHostClient implements HostClient {
 		expectedRevision?: number,
 	): Promise<unknown> {
 		const sessionId = this.requireSession();
-		const payload = await this.request<{ result?: unknown }>(
+		const payload = await this.request<{
+			result?: unknown;
+			snapshot?: HostWorkspaceSnapshot;
+		}>(
 			`/api/sessions/${encodeURIComponent(sessionId)}/commands`,
 			{
 				type: "command.execute",
@@ -101,6 +127,7 @@ export class BrowserHostClient implements HostClient {
 				payload: { command, args, expectedRevision },
 			},
 		);
+		if (payload.snapshot) this.snapshot = payload.snapshot;
 		return payload.result;
 	}
 
@@ -162,12 +189,6 @@ export class BrowserHostClient implements HostClient {
 			try {
 				const event = JSON.parse(String(message.data)) as HostEvent;
 				if (event.sessionId !== this.sessionId) return;
-				if (
-					this.snapshot &&
-					event.sequence !== 0 &&
-					event.sequence < this.snapshot.revision
-				)
-					return;
 				const snapshot = (event.payload as { snapshot?: HostWorkspaceSnapshot })
 					.snapshot;
 				if (snapshot) this.snapshot = snapshot;
@@ -181,6 +202,7 @@ export class BrowserHostClient implements HostClient {
 			this.socket = undefined;
 			if (this.listeners.size > 0) {
 				this.setState("reconnecting");
+				void this.getSnapshot().catch(() => undefined);
 				this.reconnectTimer = window.setTimeout(
 					() => this.connectSocket(),
 					500,
@@ -214,10 +236,14 @@ export class BrowserHostClient implements HostClient {
 			...(method === "GET" ? {} : { body: JSON.stringify(request) }),
 		});
 		const envelope = (await response.json()) as HostResponse<T>;
-		if (!response.ok || !envelope.ok)
-			throw new Error(
-				envelope.error?.message ?? `Host responded with ${response.status}`,
+		if (!response.ok || !envelope.ok) {
+			throw new HostRequestError(
+				envelope.error ?? {
+					code: "HOST_REQUEST_FAILED",
+					message: `Host responded with ${response.status}`,
+				},
 			);
+		}
 		return envelope.payload as T;
 	}
 
@@ -257,7 +283,23 @@ export function createDiagnosticHostClient(): HostClient {
 			dirty: false,
 			activeProfileId: "clinical",
 		},
-		layout: {},
+		layout: {
+			activeTabId: "scratchpad",
+			sidepanelOpen: true,
+			sidepanelPosition: "right",
+			sidepanelWidthRatio: 0.35,
+			activeContainerId: "slots",
+			focusedPane: "main",
+			activeModal: null,
+			regions: {
+				activity: { open: true, dock: "start", widthRatio: 0.2 },
+				inspector: { open: true, dock: "end", widthRatio: 0.35 },
+			},
+			activeActivityContainerId: "explorer",
+			activeInspectorContainerId: "slots",
+			inspectorMode: "follow",
+			pinnedInspectorViewId: null,
+		},
 		scratchpad: {},
 		diagnostics: [
 			{

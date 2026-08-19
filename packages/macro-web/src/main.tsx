@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { I18nProvider } from "./lib/i18n";
+import { I18nProvider } from "./lib/macro-i18n-provider";
 import { ThemeProvider } from "./lib/theme";
 import "./styles/index.css";
 

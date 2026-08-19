@@ -8,7 +8,7 @@ import {
 	Keyboard,
 	WifiOff,
 } from "lucide-react";
-import { useI18n } from "../lib/i18n";
+import { useI18n } from "../lib/macro-i18n-provider";
 import { cn } from "../lib/utils";
 import { IconButton } from "./ui/primitives";
 

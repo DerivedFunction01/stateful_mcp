@@ -11,8 +11,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Gallery } from "./components/Gallery";
+import { GalleryI18nScope } from "./lib/macro-i18n-provider";
 import { SettingsTab } from "./components/SettingsTab";
 import { StatusBar } from "./components/StatusBar";
+import { WorkbenchShell } from "./components/WorkbenchShell";
 import { Badge, Button, Card } from "./components/ui/primitives";
 import { normalizeBrowserChord, resolveKeymapCommand } from "./lib/bindings";
 import {
@@ -20,8 +22,12 @@ import {
 	type HostClient,
 	type TransportState,
 } from "./lib/host-client";
-import { useI18n } from "./lib/i18n";
+import { useI18n } from "./lib/macro-i18n-provider";
 import { useTheme } from "./lib/theme";
+import {
+	BrowserWorkspaceStore,
+	useBrowserWorkspaceStore,
+} from "./lib/workspace-store";
 
 type Route = "workbench" | "settings" | "gallery" | "host";
 
@@ -33,37 +39,26 @@ function routeFromPath(pathname: string): Route {
 }
 
 export function App() {
-	const { t } = useI18n();
+	const { t, setLocale } = useI18n();
 	const { theme } = useTheme();
 	const [route, setRoute] = useState<Route>(() =>
 		routeFromPath(window.location.pathname),
 	);
-	const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>();
-	const [transport, setTransport] = useState<TransportState>("idle");
 	const host = useMemo<HostClient>(() => new BrowserHostClient(), []);
+	const store = useMemo(() => new BrowserWorkspaceStore(host), [host]);
+	const workspaceState = useBrowserWorkspaceStore(store);
+	const snapshot = workspaceState.snapshot;
+	const transport = workspaceState.status === "loading" ? "connecting" : workspaceState.status;
 
 	useEffect(() => {
 		if (route === "gallery") return;
-		let active = true;
-		const unsubscribe = host.subscribe((event) => {
-			const next = (event.payload as { snapshot?: WorkspaceSnapshot }).snapshot;
-			if (active && next) setSnapshot(next);
-		});
-		const unsubscribeState = host.subscribeState(setTransport);
-		void host
-			.createSession()
-			.then((next) => {
-				if (active) setSnapshot(next);
-			})
-			.catch(() => {
-				if (active) setTransport("error");
-			});
-		return () => {
-			active = false;
-			unsubscribe();
-			unsubscribeState();
-		};
-	}, [host, route]);
+		void store.start().catch(() => undefined);
+	}, [route, store]);
+	useEffect(() => () => store.dispose(), [store]);
+	useEffect(() => {
+		const uiLocale = snapshot?.settings.effective.uiLocale;
+		if (typeof uiLocale === "string" && uiLocale.length > 0) setLocale(uiLocale);
+	}, [setLocale, snapshot?.settings.effective.uiLocale]);
 	useEffect(() => {
 		if (!snapshot) return;
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -82,8 +77,8 @@ export function App() {
 			);
 			if (!command) return;
 			event.preventDefault();
-			void host
-				.executeCommand(command, [], snapshot.revision)
+			void store
+				.executeCommand(command, [])
 				.then(() => {
 					if (command === "workspace.openSettings") setRoute("settings");
 				})
@@ -91,7 +86,7 @@ export function App() {
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [host, snapshot]);
+	}, [snapshot, store]);
 
 	const navigate = (next: Route) => {
 		setRoute(next);
@@ -173,7 +168,7 @@ export function App() {
 							variant="ghost"
 							icon={<Command size={15} />}
 							onClick={() =>
-								void host
+								void store
 									.executeCommand("workspace.openSettings")
 									.catch(() => navigate("settings"))
 							}
@@ -184,16 +179,21 @@ export function App() {
 				</header>
 				<main className="app-content">
 					{route === "gallery" ? (
-						<Gallery />
+						<GalleryI18nScope><Gallery /></GalleryI18nScope>
 					) : route === "settings" ? (
 						<SettingsTab client={host} snapshot={snapshot} />
 					) : route === "host" ? (
 						<HostRoute snapshot={snapshot} transport={transport} />
 					) : (
-						<WorkbenchPlaceholder
+						<WorkbenchShell
 							snapshot={snapshot}
-							vimEnabled={vimEnabled}
-							onSettings={() => navigate("settings")}
+							status={workspaceState.status}
+							errorMessage={workspaceState.transportError}
+							onCommand={(command) => {
+								void store.executeCommand(command).then(() => {
+									if (command === "workspace.openSettings") navigate("settings");
+								}).catch(() => undefined);
+							}}
 						/>
 					)}
 				</main>

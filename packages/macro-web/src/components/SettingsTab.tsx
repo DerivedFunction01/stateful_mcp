@@ -3,7 +3,7 @@ import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
 import { Search, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { HostClient } from "../lib/host-client";
-import { useI18n } from "../lib/i18n";
+import { useI18n } from "../lib/macro-i18n-provider";
 import {
 	Button,
 	Card,

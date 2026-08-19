@@ -4,7 +4,7 @@ import {
 	createDiagnosticHostClient,
 	type HostWorkspaceSnapshot,
 } from "../lib/host-client";
-import { useI18n } from "../lib/i18n";
+import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEMES } from "../lib/theme";
 import { BrowserEditorFixture } from "./BrowserEditorFixture";
 import {
