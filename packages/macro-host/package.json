@@ -1,13 +1,10 @@
 {
-	"name": "@stateful-mcp/macro-cli",
+	"name": "@stateful-mcp/macro-host",
 	"version": "0.1.0",
-	"description": "Generic terminal UI for the Stateful macro workspace",
+	"description": "Bun-hosted application lifecycle for Macro workspaces",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"bin": {
-		"macro-cli": "./dist/index.js"
-	},
 	"files": ["dist"],
 	"scripts": {
 		"build": "bun build ./src/index.ts --outfile=dist/index.js --target=bun --format=esm --packages=external && tsc --emitDeclarationOnly --declaration --outDir dist",
@@ -15,17 +12,12 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@stateful-mcp/macro-host": "workspace:^",
-		"@stateful-mcp/macro": "workspace:^",
-		"@opentui/core": "latest",
-		"@opentui/keymap": "latest",
-		"@opentui/react": "latest",
-		"react": "^19.2.0"
+		"@stateful-mcp/core": "workspace:^",
+		"@stateful-mcp/macro": "workspace:^"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/node": "^20",
-		"@types/react": "^19.2.0",
 		"typescript": "^5"
 	}
 }
