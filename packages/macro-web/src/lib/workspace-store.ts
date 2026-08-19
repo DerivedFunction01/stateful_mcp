@@ -1,14 +1,22 @@
-import { useSyncExternalStore } from "react";
 import type {
-	HostEvent,
 	HostError,
+	HostEvent,
+	SettingsApplyResult,
+	SettingsUiSnapshotDto,
 	WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
-import { HostRequestError, type HostClient, type TransportState } from "./host-client";
+import { useSyncExternalStore } from "react";
+import {
+	type HostClient,
+	HostRequestError,
+	type TransportState,
+} from "./host-client";
 
 export interface BrowserWorkspaceState {
 	readonly status: TransportState | "loading";
 	readonly snapshot?: WorkspaceSnapshot;
+	readonly settingsSnapshot?: SettingsUiSnapshotDto;
+	readonly settingsRevision?: string;
 	readonly lastSequence: number;
 	readonly lastRevision: number;
 	readonly lastProjectRevision?: string;
@@ -50,8 +58,10 @@ export class BrowserWorkspaceStore {
 			.catch((error: unknown) => {
 				this.update({
 					status: "error",
-					protocolError: error instanceof HostRequestError ? error.error : undefined,
-					transportError: error instanceof Error ? error.message : String(error),
+					protocolError:
+						error instanceof HostRequestError ? error.error : undefined,
+					transportError:
+						error instanceof Error ? error.message : String(error),
 				});
 				throw error;
 			});
@@ -80,10 +90,18 @@ export class BrowserWorkspaceStore {
 
 	async applySettings(
 		operation: Parameters<HostClient["applySettings"]>[0],
-	): Promise<WorkspaceSnapshot> {
-		const snapshot = await this.client.applySettings(operation);
-		this.applyResponse(snapshot);
-		return snapshot;
+	): Promise<SettingsApplyResult> {
+		const result = await this.client.applySettings(operation);
+		this.applySettingsResult(result);
+		return result;
+	}
+
+	async applySettingsUi(
+		operation: Parameters<HostClient["applySettingsUi"]>[0],
+	): Promise<SettingsApplyResult> {
+		const result = await this.client.applySettingsUi(operation);
+		this.applySettingsResult(result);
+		return result;
 	}
 
 	async parse(text: string, textRevision: number): Promise<WorkspaceSnapshot> {
@@ -105,6 +123,8 @@ export class BrowserWorkspaceStore {
 		this.update({
 			status: "connected",
 			snapshot,
+			settingsSnapshot: snapshot.settings as SettingsUiSnapshotDto | undefined,
+			settingsRevision: snapshot.settings?.settingsRevision,
 			lastSequence: 0,
 			lastRevision: snapshot.revision,
 			lastProjectRevision: snapshot.project?.revision,
@@ -117,6 +137,8 @@ export class BrowserWorkspaceStore {
 		this.update({
 			status: "connected",
 			snapshot,
+			settingsSnapshot: snapshot.settings as SettingsUiSnapshotDto | undefined,
+			settingsRevision: snapshot.settings?.settingsRevision,
 			lastRevision: snapshot.revision,
 			lastProjectRevision: snapshot.project?.revision,
 			transportError: undefined,
@@ -125,20 +147,45 @@ export class BrowserWorkspaceStore {
 
 	private applyEvent(event: HostEvent): void {
 		if (event.sessionId !== this.client.getSessionId()) return;
-		const snapshot = (event.payload as { snapshot?: WorkspaceSnapshot }).snapshot;
+		const snapshot = (event.payload as { snapshot?: WorkspaceSnapshot })
+			.snapshot;
 		if (!snapshot) return;
 		if (snapshot.revision < this.state.lastRevision) return;
-		if (event.sequence !== 0 && event.sequence <= this.state.lastSequence) return;
+		if (event.sequence !== 0 && event.sequence <= this.state.lastSequence)
+			return;
 
 		// Events carry complete snapshots. If a sequence gap occurs, the snapshot
 		// is a safe resynchronization point; there is no browser patch log to replay.
 		this.update({
 			status: "connected",
 			snapshot,
+			settingsSnapshot: snapshot.settings as SettingsUiSnapshotDto | undefined,
+			settingsRevision: snapshot.settings?.settingsRevision,
 			lastSequence: event.sequence,
 			lastRevision: snapshot.revision,
 			lastProjectRevision: snapshot.project?.revision,
 			transportError: undefined,
+		});
+	}
+
+	private applySettingsResult(result: SettingsApplyResult): void {
+		if (
+			result.status === "conflict" ||
+			result.status === "blocked" ||
+			result.status === "unsupported"
+		) {
+			// Preserve the browser draft on validation/conflict errors. The
+			// returned snapshot reflects host-authoritative state, but the
+			// caller keeps its local draft edits.
+			this.update({
+				settingsSnapshot: result.snapshot,
+				settingsRevision: result.snapshot.settingsRevision,
+			});
+			return;
+		}
+		this.update({
+			settingsSnapshot: result.snapshot,
+			settingsRevision: result.settingsRevision,
 		});
 	}
 
@@ -151,5 +198,9 @@ export class BrowserWorkspaceStore {
 export function useBrowserWorkspaceStore(
 	store: BrowserWorkspaceStore,
 ): BrowserWorkspaceState {
-	return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+	return useSyncExternalStore(
+		store.subscribe,
+		store.getSnapshot,
+		store.getSnapshot,
+	);
 }

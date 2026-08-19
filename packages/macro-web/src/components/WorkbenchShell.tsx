@@ -1,3 +1,4 @@
+import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
 import {
 	AlertTriangle,
 	Box,
@@ -7,9 +8,8 @@ import {
 	PanelRight,
 } from "lucide-react";
 import { useState } from "react";
-import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
 import { useI18n } from "../lib/macro-i18n-provider";
-import { Badge, Button } from "./ui/primitives";
+import { Badge } from "./ui/primitives";
 
 export function WorkbenchShell({
 	snapshot,
@@ -47,17 +47,30 @@ export function WorkbenchShell({
 	);
 	return (
 		<div className="workbench-shell">
-			<aside className="workbench-domain-rail" aria-label={t("workbench.domainApps")}>
+			<aside
+				className="workbench-domain-rail"
+				aria-label={t("workbench.domainApps")}
+			>
 				<div className="rail-section-label">{t("workbench.domainApps")}</div>
 				{snapshot.applications.map((application) => (
 					<button
-						className={activeDomainId === application.id ? "domain-button active" : "domain-button"}
+						className={
+							activeDomainId === application.id
+								? "domain-button active"
+								: "domain-button"
+						}
 						key={application.id}
 						type="button"
 						onClick={() => setActiveDomain(application.id)}
 						title={application.description ?? application.displayName}
 					>
-						<span className="domain-icon">{application.icon ? <span aria-hidden>{application.icon}</span> : <Box size={15} />}</span>
+						<span className="domain-icon">
+							{application.icon ? (
+								<span aria-hidden>{application.icon}</span>
+							) : (
+								<Box size={15} />
+							)}
+						</span>
 						<span>{application.displayName}</span>
 					</button>
 				))}
@@ -73,7 +86,15 @@ export function WorkbenchShell({
 						{snapshot.contributions.views
 							.filter((view) => view.containerId === container.id)
 							.map((view) => (
-								<button className={activeView?.id === view.id ? "view-button active" : "view-button"} key={view.id} type="button">
+								<button
+									className={
+										activeView?.id === view.id
+											? "view-button active"
+											: "view-button"
+									}
+									key={view.id}
+									type="button"
+								>
 									<ChevronRight size={13} /> {view.name}
 								</button>
 							))}
@@ -81,13 +102,23 @@ export function WorkbenchShell({
 				))}
 			</aside>
 			<section className="workbench-center">
-				<div className="workbench-tabs" role="tablist" aria-label={t("workbench.tabs")}>
+				<div
+					className="workbench-tabs"
+					role="tablist"
+					aria-label={t("workbench.tabs")}
+				>
 					{snapshot.contributions.tabs.map((tab) => (
 						<button
-							className={snapshot.activeTabId === tab.id ? "workbench-tab active" : "workbench-tab"}
+							className={
+								snapshot.activeTabId === tab.id
+									? "workbench-tab active"
+									: "workbench-tab"
+							}
 							key={tab.id}
 							type="button"
-							onClick={() => tab.id === "settings" && onCommand("workspace.openSettings")}
+							onClick={() =>
+								tab.id === "settings" && onCommand("workspace.openSettings")
+							}
 							role="tab"
 							aria-selected={snapshot.activeTabId === tab.id}
 						>
@@ -101,15 +132,27 @@ export function WorkbenchShell({
 					{!snapshot.scratchpad.text && <p>{t("workbench.empty")}</p>}
 				</div>
 			</section>
-			<aside className="workbench-inspector" aria-label={t("workbench.inspector")}>
-				<div className="workbench-sidebar-heading"><span>{t("workbench.inspector")}</span><PanelRight size={15} /></div>
+			<aside
+				className="workbench-inspector"
+				aria-label={t("workbench.inspector")}
+			>
+				<div className="workbench-sidebar-heading">
+					<span>{t("workbench.inspector")}</span>
+					<PanelRight size={15} />
+				</div>
 				<div className="project-card">
 					<span className="field-label">{t("workbench.project")}</span>
-					<strong>{snapshot.project?.displayName ?? t("workbench.noProject")}</strong>
-					<Badge tone={snapshot.project ? "success" : "warning"}>{snapshot.project?.lifecycle ?? t("workbench.unavailable")}</Badge>
+					<strong>
+						{snapshot.project?.displayName ?? t("workbench.noProject")}
+					</strong>
+					<Badge tone={snapshot.project ? "success" : "warning"}>
+						{snapshot.project?.lifecycle ?? t("workbench.unavailable")}
+					</Badge>
 				</div>
 				<div className="inspector-card">
-					<div className="card-title"><AlertTriangle size={15} /> {t("status.diagnostics")}</div>
+					<div className="card-title">
+						<AlertTriangle size={15} /> {t("status.diagnostics")}
+					</div>
 					<strong>{snapshot.diagnostics.length}</strong>
 				</div>
 			</aside>

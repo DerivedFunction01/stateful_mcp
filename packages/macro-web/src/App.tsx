@@ -11,18 +11,17 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Gallery } from "./components/Gallery";
-import { GalleryI18nScope } from "./lib/macro-i18n-provider";
 import { SettingsTab } from "./components/SettingsTab";
 import { StatusBar } from "./components/StatusBar";
-import { WorkbenchShell } from "./components/WorkbenchShell";
 import { Badge, Button, Card } from "./components/ui/primitives";
+import { WorkbenchShell } from "./components/WorkbenchShell";
 import { normalizeBrowserChord, resolveKeymapCommand } from "./lib/bindings";
 import {
 	BrowserHostClient,
 	type HostClient,
 	type TransportState,
 } from "./lib/host-client";
-import { useI18n } from "./lib/macro-i18n-provider";
+import { GalleryI18nScope, useI18n } from "./lib/macro-i18n-provider";
 import { useTheme } from "./lib/theme";
 import {
 	BrowserWorkspaceStore,
@@ -48,7 +47,8 @@ export function App() {
 	const store = useMemo(() => new BrowserWorkspaceStore(host), [host]);
 	const workspaceState = useBrowserWorkspaceStore(store);
 	const snapshot = workspaceState.snapshot;
-	const transport = workspaceState.status === "loading" ? "connecting" : workspaceState.status;
+	const transport =
+		workspaceState.status === "loading" ? "connecting" : workspaceState.status;
 
 	useEffect(() => {
 		if (route === "gallery") return;
@@ -56,9 +56,12 @@ export function App() {
 	}, [route, store]);
 	useEffect(() => () => store.dispose(), [store]);
 	useEffect(() => {
-		const uiLocale = snapshot?.settings.effective.uiLocale;
-		if (typeof uiLocale === "string" && uiLocale.length > 0) setLocale(uiLocale);
-	}, [setLocale, snapshot?.settings.effective.uiLocale]);
+		const uiLocale = snapshot?.settings.sections
+			.flatMap((section) => section.items)
+			.find((item) => item.path.join(".") === "uiLocale")?.effectiveValue;
+		if (typeof uiLocale === "string" && uiLocale.length > 0)
+			setLocale(uiLocale);
+	}, [setLocale, snapshot?.settings]);
 	useEffect(() => {
 		if (!snapshot) return;
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -179,7 +182,9 @@ export function App() {
 				</header>
 				<main className="app-content">
 					{route === "gallery" ? (
-						<GalleryI18nScope><Gallery /></GalleryI18nScope>
+						<GalleryI18nScope>
+							<Gallery />
+						</GalleryI18nScope>
 					) : route === "settings" ? (
 						<SettingsTab client={host} snapshot={snapshot} />
 					) : route === "host" ? (
@@ -190,9 +195,13 @@ export function App() {
 							status={workspaceState.status}
 							errorMessage={workspaceState.transportError}
 							onCommand={(command) => {
-								void store.executeCommand(command).then(() => {
-									if (command === "workspace.openSettings") navigate("settings");
-								}).catch(() => undefined);
+								void store
+									.executeCommand(command)
+									.then(() => {
+										if (command === "workspace.openSettings")
+											navigate("settings");
+									})
+									.catch(() => undefined);
 							}}
 						/>
 					)}

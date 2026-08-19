@@ -12,6 +12,13 @@ export interface WorkspaceSettings {
 	readonly [key: string]: unknown;
 }
 
+export interface SettingsBundleRecord {
+	readonly settings: WorkspaceSettings;
+	readonly profiles: Readonly<Record<string, UserMacroProfile>>;
+	readonly extensions: Readonly<Record<string, Record<string, unknown>>>;
+	readonly revision: string;
+}
+
 export interface SettingsStorageDriver {
 	loadSettings(): Promise<WorkspaceSettings>;
 	saveSettings(settings: WorkspaceSettings): Promise<void>;
@@ -25,6 +32,7 @@ export interface SettingsStorageDriver {
 		config: Record<string, unknown>,
 	): Promise<void>;
 	listExtensionConfigs(): Promise<readonly string[]>;
+	replaceBundle?(bundle: SettingsBundleRecord): Promise<void>;
 }
 
 export class CoreKvSettingsStorageDriver implements SettingsStorageDriver {
@@ -117,6 +125,31 @@ export class CoreKvSettingsStorageDriver implements SettingsStorageDriver {
 		}
 		return Object.freeze(ids.sort());
 	}
+
+	async replaceBundle(bundle: SettingsBundleRecord): Promise<void> {
+		const all = await this.kv.load();
+		const profilePrefix = CoreKvSettingsStorageDriver.PROFILE_PREFIX;
+		const extensionPrefix = CoreKvSettingsStorageDriver.EXTENSION_PREFIX;
+		for (const key of Object.keys(all)) {
+			if (
+				(key.startsWith(profilePrefix) &&
+					!Object.hasOwn(bundle.profiles, key.slice(profilePrefix.length))) ||
+				(key.startsWith(extensionPrefix) &&
+					!Object.hasOwn(bundle.extensions, key.slice(extensionPrefix.length)))
+			) {
+				await this.kv.delete(key);
+			}
+		}
+		await this.kv.set(CoreKvSettingsStorageDriver.SETTINGS_KEY, bundle.settings);
+		for (const [id, profile] of Object.entries(bundle.profiles)) {
+			await this.kv.set(`${profilePrefix}${id}`, { ...profile, id });
+		}
+		for (const [id, config] of Object.entries(bundle.extensions)) {
+			await this.kv.set(`${extensionPrefix}${id}`, config);
+		}
+		await this.kv.set("macro:settings:bundle", bundle);
+		await this.kv.save();
+	}
 }
 
 export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
@@ -134,6 +167,16 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 				columns: [
 					{ name: "key", type: "text", primaryKey: true },
 					{ name: "data", type: "json", nullable: false },
+					{ name: "updated_at", type: "int", nullable: false },
+				],
+			}),
+			compiler.compileCreateTable({
+				table: "macro_settings_bundle",
+				ifNotExists: true,
+				columns: [
+					{ name: "id", type: "text", primaryKey: true },
+					{ name: "data", type: "json", nullable: false },
+					{ name: "revision", type: "text", nullable: false },
 					{ name: "updated_at", type: "int", nullable: false },
 				],
 			}),
@@ -308,5 +351,80 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 		return Object.freeze(
 			rows.map((r: { readonly id?: unknown }) => r.id as string),
 		);
+	}
+
+	async replaceBundle(bundle: SettingsBundleRecord): Promise<void> {
+		await this.ensureTables();
+		const compiler = this.sql.compiler;
+		const statements: Array<{ sql: string; params: any[] }> = [];
+		statements.push(
+			compiler.compileReplace({
+				table: "macro_workspace_settings",
+				values: {
+					key: "workspace",
+					data: JSON.stringify(bundle.settings),
+					updated_at: Date.now(),
+				},
+				conflictColumns: ["key"],
+			}),
+		);
+		const profileIds = Object.keys(bundle.profiles);
+		const extensionIds = Object.keys(bundle.extensions);
+		for (const id of await this.listProfiles()) {
+			if (!profileIds.includes(id)) {
+				statements.push(
+					compiler.compileDelete({
+						table: "macro_profiles",
+						where: [{ column: "id", op: "eq", value: id }],
+					}),
+				);
+			}
+		}
+		for (const id of await this.listExtensionConfigs()) {
+			if (!extensionIds.includes(id)) {
+				statements.push(
+					compiler.compileDelete({
+						table: "macro_extensions",
+						where: [{ column: "id", op: "eq", value: id }],
+					}),
+				);
+			}
+		}
+		for (const [id, profile] of Object.entries(bundle.profiles)) {
+			statements.push(
+				compiler.compileReplace({
+					table: "macro_profiles",
+					values: {
+						id,
+						extends_id: (profile as any).extends ?? null,
+						data: JSON.stringify({ ...profile, id }),
+						updated_at: Date.now(),
+					},
+					conflictColumns: ["id"],
+				}),
+			);
+		}
+		for (const [id, config] of Object.entries(bundle.extensions)) {
+			statements.push(
+				compiler.compileReplace({
+					table: "macro_extensions",
+					values: { id, data: JSON.stringify(config), updated_at: Date.now() },
+					conflictColumns: ["id"],
+				}),
+			);
+		}
+		statements.push(
+			compiler.compileReplace({
+				table: "macro_settings_bundle",
+				values: {
+					id: "bundle",
+					data: JSON.stringify(bundle),
+					revision: bundle.revision,
+					updated_at: Date.now(),
+				},
+				conflictColumns: ["id"],
+			}),
+		);
+		await this.sql.transaction(statements);
 	}
 }

@@ -1,10 +1,12 @@
 import {
+	type HostError,
 	type HostRequest,
 	type HostResponse,
 	MACRO_PROTOCOL_VERSION,
+	type SettingsApplyResult,
 	type SettingsOperation,
+	type SettingsUiOperation,
 	type HostEvent as WireHostEvent,
-	type HostError,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 
@@ -37,7 +39,8 @@ export interface HostClient {
 		args?: readonly unknown[],
 		expectedRevision?: number,
 	): Promise<unknown>;
-	applySettings(operation: SettingsOperation): Promise<HostWorkspaceSnapshot>;
+	applySettings(operation: SettingsOperation): Promise<SettingsApplyResult>;
+	applySettingsUi(operation: SettingsUiOperation): Promise<SettingsApplyResult>;
 	parse(text: string, textRevision: number): Promise<HostWorkspaceSnapshot>;
 	subscribe(listener: (event: HostEvent) => void): () => void;
 	subscribeState(listener: (state: TransportState) => void): () => void;
@@ -68,7 +71,8 @@ export class BrowserHostClient implements HostClient {
 		return this.snapshot;
 	}
 	dispose(): void {
-		if (this.reconnectTimer !== undefined) window.clearTimeout(this.reconnectTimer);
+		if (this.reconnectTimer !== undefined)
+			window.clearTimeout(this.reconnectTimer);
 		this.reconnectTimer = undefined;
 		this.socket?.close();
 		this.socket = undefined;
@@ -119,28 +123,39 @@ export class BrowserHostClient implements HostClient {
 		const payload = await this.request<{
 			result?: unknown;
 			snapshot?: HostWorkspaceSnapshot;
-		}>(
-			`/api/sessions/${encodeURIComponent(sessionId)}/commands`,
-			{
-				type: "command.execute",
-				sessionId,
-				payload: { command, args, expectedRevision },
-			},
-		);
+		}>(`/api/sessions/${encodeURIComponent(sessionId)}/commands`, {
+			type: "command.execute",
+			sessionId,
+			payload: { command, args, expectedRevision },
+		});
 		if (payload.snapshot) this.snapshot = payload.snapshot;
 		return payload.result;
 	}
 
 	async applySettings(
 		operation: SettingsOperation,
-	): Promise<HostWorkspaceSnapshot> {
+	): Promise<SettingsApplyResult> {
 		const sessionId = this.requireSession();
-		const snapshot = await this.request<HostWorkspaceSnapshot>(
+		const result = await this.request<SettingsApplyResult>(
 			`/api/sessions/${encodeURIComponent(sessionId)}/settings`,
 			{ type: "settings.apply", sessionId, payload: operation },
 		);
-		this.snapshot = snapshot;
-		return snapshot;
+		if (result.status === "saved" && result.snapshot)
+			this.snapshot = result.snapshot as unknown as HostWorkspaceSnapshot;
+		return result;
+	}
+
+	async applySettingsUi(
+		operation: SettingsUiOperation,
+	): Promise<SettingsApplyResult> {
+		const sessionId = this.requireSession();
+		const result = await this.request<SettingsApplyResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/settings.ui`,
+			{ type: "settings.ui.apply", sessionId, payload: operation },
+		);
+		if (result.status === "saved" && result.snapshot)
+			this.snapshot = result.snapshot as unknown as HostWorkspaceSnapshot;
+		return result;
 	}
 
 	async parse(
@@ -255,72 +270,4 @@ export class BrowserHostClient implements HostClient {
 		this.state = state;
 		for (const listener of this.stateListeners) listener(state);
 	}
-}
-
-export function createDiagnosticHostClient(): HostClient {
-	const snapshot = {
-		workspaceId: "sample-workspace",
-		sessionId: "web-gallery-session",
-		profile: {
-			id: "clinical",
-			displayName: "Clinical",
-			enabledExtensionIds: ["notes", "measurements", "sample.runtime"],
-		},
-		enabledExtensionIds: ["notes", "measurements", "sample.runtime"],
-		applications: ["notes", "measurements", "sample.runtime"].map((id) => ({
-			id,
-			displayName: id,
-		})),
-		keymap: { profileId: "default", name: "Fixture", bindings: [] },
-		commands: [],
-		contributions: { tabs: [], views: [], containers: [] },
-		settings: {
-			effective: {},
-			draft: {},
-			rawText: "{}",
-			schema: [],
-			diagnostics: [],
-			dirty: false,
-			activeProfileId: "clinical",
-		},
-		layout: {
-			activeTabId: "scratchpad",
-			sidepanelOpen: true,
-			sidepanelPosition: "right",
-			sidepanelWidthRatio: 0.35,
-			activeContainerId: "slots",
-			focusedPane: "main",
-			activeModal: null,
-			regions: {
-				activity: { open: true, dock: "start", widthRatio: 0.2 },
-				inspector: { open: true, dock: "end", widthRatio: 0.35 },
-			},
-			activeActivityContainerId: "explorer",
-			activeInspectorContainerId: "slots",
-			inspectorMode: "follow",
-			pinnedInspectorViewId: null,
-		},
-		scratchpad: {},
-		diagnostics: [
-			{
-				severity: "info" as const,
-				message: "Fixture data; host transport is not connected",
-			},
-		],
-		revision: 0,
-	} satisfies HostWorkspaceSnapshot;
-	return {
-		createSession: async () => snapshot,
-		getSnapshot: async () => snapshot,
-		executeCommand: async () => undefined,
-		applySettings: async () => snapshot,
-		parse: async () => snapshot,
-		subscribe: () => () => undefined,
-		subscribeState: (listener) => {
-			listener("connected");
-			return () => undefined;
-		},
-		getState: () => "connected",
-		getSessionId: () => snapshot.sessionId,
-	};
 }

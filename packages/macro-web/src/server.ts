@@ -8,6 +8,7 @@ import {
 	MACRO_PROTOCOL_VERSION,
 	response,
 	type SettingsOperation,
+	type SettingsUiOperation,
 } from "@stateful-mcp/macro-protocol";
 import {
 	HostSessionManager,
@@ -104,11 +105,11 @@ function errorResponse(id: string, error: unknown): Response {
 			? 404
 			: hostErrorValue.code === "PROJECT_NOT_CONFIGURED"
 				? 503
-			: hostErrorValue.code === "STALE_REVISION"
-				? 409
-				: hostErrorValue.code === "INVALID_REQUEST"
-					? 400
-					: 500;
+				: hostErrorValue.code === "STALE_REVISION"
+					? 409
+					: hostErrorValue.code === "INVALID_REQUEST"
+						? 400
+						: 500;
 	return Response.json(failure(id, hostErrorValue), { status });
 }
 
@@ -139,7 +140,7 @@ const server = Bun.serve<SocketData>({
 	fetch: async (request, serverInstance) => {
 		const url = new URL(request.url);
 		const sessionMatch = url.pathname.match(
-			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|parse))?$/,
+			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|parse))?$/,
 		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
@@ -202,16 +203,23 @@ const server = Bun.serve<SocketData>({
 							false,
 						);
 					const execution = await sessions.executeCommand(
-							sessionId,
-							payload.command,
-							payload.args ?? [],
-							payload.expectedRevision,
+						sessionId,
+						payload.command,
+						payload.args ?? [],
+						payload.expectedRevision,
 					);
 					return { command: payload.command, ...execution };
 				});
 			if (operation === "settings" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) =>
 					sessions.settings(sessionId, envelope.payload as SettingsOperation),
+				);
+			if (operation === "settings.ui" && request.method === "POST")
+				return handleJson(request, sessionId, async (envelope) =>
+					sessions.settingsUi(
+						sessionId,
+						envelope.payload as SettingsUiOperation,
+					),
 				);
 			if (operation === "parse" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) => {

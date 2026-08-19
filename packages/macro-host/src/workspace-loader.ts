@@ -13,7 +13,9 @@ import type {
 	UserMacroProfile,
 } from "@stateful-mcp/macro";
 import {
+	CoreKvSettingsBundleStorage,
 	CoreKvSettingsStorageDriver,
+	CoreSqlSettingsBundleStorage,
 	CoreSqlSettingsStorageDriver,
 	createDefaultI18nKernel,
 	createMacroWorkspace,
@@ -191,6 +193,10 @@ export async function loadMacroWorkspace(
 		? new CoreSqlSettingsStorageDriver(new SqlExecutor(sqlBackend))
 		: new CoreKvSettingsStorageDriver(kv);
 
+	const bundle = sqlBackend
+		? new CoreSqlSettingsBundleStorage(driver, new SqlExecutor(sqlBackend))
+		: new CoreKvSettingsBundleStorage(driver, kv);
+
 	// Load existing settings metadata if any
 	const settingsDoc = await driver.loadSettings();
 	const activeProfileId =
@@ -236,6 +242,7 @@ export async function loadMacroWorkspace(
 			extensionConfigs[extId] = cfg as Record<string, unknown>;
 		}
 	}
+	const initialBundle = await bundle.load();
 
 	const settings = new WorkspaceSettingsService({
 		defaults: {
@@ -254,6 +261,8 @@ export async function loadMacroWorkspace(
 				: {}),
 		},
 		driver,
+		bundle,
+		bundleRevision: initialBundle.revision,
 		activeProfileId,
 		baseProfile: resolvedProfile,
 	});

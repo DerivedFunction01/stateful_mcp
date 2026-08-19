@@ -30,7 +30,9 @@ export * from "./config/bundle-manager";
 export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
 export * from "./config/profile-resolver";
+export * from "./config/settings-bundle";
 export * from "./config/settings-navigation";
+export * from "./config/settings-projection";
 export * from "./config/settings-service";
 export * from "./config/settings-ui-model";
 export * from "./config/storage-driver";
@@ -160,9 +162,12 @@ export function createMacroWorkspace(
 						}
 					: {
 							status: "failed",
-							message: result.diagnostics
-								.map((diagnostic) => diagnostic.message)
-								.join("; "),
+							message:
+								result.status === "blocked"
+									? result.diagnostics
+											.map((diagnostic) => diagnostic.message)
+											.join("; ")
+									: "Settings revision conflict",
 						};
 			},
 		});

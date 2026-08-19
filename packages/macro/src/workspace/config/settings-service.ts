@@ -1,5 +1,9 @@
 import type { UserMacroProfile } from "../../contracts/extension-config";
 import { computeSparseDelta, resolveProfile } from "./profile-resolver";
+import {
+	SettingsBundleConflictError,
+	type SettingsBundleSnapshot,
+} from "./settings-bundle";
 import type {
 	SettingsStorageDriver,
 	WorkspaceSettings,
@@ -64,10 +68,19 @@ export interface SettingsDiagnostic {
 }
 
 export type SettingsSaveResult =
-	| { readonly status: "saved"; readonly restartRequired: boolean }
+	| {
+			readonly status: "saved";
+			readonly restartRequired: boolean;
+			readonly settingsRevision: string;
+	  }
 	| {
 			readonly status: "blocked";
 			readonly diagnostics: readonly SettingsDiagnostic[];
+	  }
+	| {
+			readonly status: "conflict";
+			readonly expectedRevision: string;
+			readonly actualRevision: string;
 	  };
 
 export interface SettingsStorage {
@@ -84,9 +97,17 @@ export interface WorkspaceSettingsServiceOptions {
 	readonly driver?: SettingsStorageDriver;
 	readonly activeProfileId?: string;
 	readonly baseProfile?: UserMacroProfile;
+	readonly bundleRevision?: string;
 	readonly customValidate?: (
 		draft: Readonly<Record<string, unknown>>,
 	) => readonly SettingsDiagnostic[];
+	readonly bundle?: {
+		load(): Promise<SettingsBundleSnapshot>;
+		save(
+			next: Omit<SettingsBundleSnapshot, "revision">,
+			expectedRevision: string,
+		): Promise<string>;
+	};
 }
 
 export class WorkspaceSettingsService {
@@ -103,6 +124,9 @@ export class WorkspaceSettingsService {
 	private activeProfileId: string;
 	private baseProfile?: UserMacroProfile;
 	private driver?: SettingsStorageDriver;
+	private readonly bundle?: WorkspaceSettingsServiceOptions["bundle"];
+	private bundleRevision = "";
+	private bundleRevisionLoad?: Promise<string>;
 
 	constructor(private readonly options: WorkspaceSettingsServiceOptions) {
 		this.coreDefaults = options.defaults;
@@ -112,9 +136,17 @@ export class WorkspaceSettingsService {
 		this.activeProfileId = options.activeProfileId ?? "base";
 		this.baseProfile = options.baseProfile;
 		this.driver = options.driver;
+		this.bundle = options.bundle;
+		this.bundleRevision = options.bundleRevision ?? "";
 		this.effective = clone(options.initial ?? options.defaults);
 		this.draft = clone(this.effective);
 		this.rawText = JSON.stringify(this.draft, null, 2);
+		if (this.bundle && !this.bundleRevision) {
+			this.bundleRevisionLoad = this.loadBundleRevision().then((revision) => {
+				this.bundleRevision = revision;
+				return revision;
+			});
+		}
 	}
 
 	getEffective(): Readonly<Record<string, unknown>> {
@@ -242,6 +274,10 @@ export class WorkspaceSettingsService {
 		return this.activeProfileId;
 	}
 
+	getSettingsRevision(): string {
+		return this.bundleRevision;
+	}
+
 	async listProfiles(): Promise<readonly string[]> {
 		if (this.driver) {
 			const list = await this.driver.listProfiles();
@@ -266,59 +302,39 @@ export class WorkspaceSettingsService {
 			this.validate();
 			this.notify();
 		}
+		if (this.bundle) {
+			this.bundleRevision = await this.loadBundleRevision();
+		}
 	}
 
-	async save(): Promise<SettingsSaveResult> {
+	async save(expectedRevision?: string): Promise<SettingsSaveResult> {
 		const diagnostics = this.validate();
 		if (diagnostics.some((diagnostic) => diagnostic.severity === "error"))
 			return { status: "blocked", diagnostics };
 
-		if (this.driver) {
-			// 1. Profile-scoped state
-			const profileSubset: UserMacroProfile = {
-				locale: this.draft.locale as string | undefined,
-				syntax: this.draft.syntax as any,
-				values: this.draft.values as any,
-				unitAliases: this.draft.unitAliases as any,
-				rangeDelimiters: this.draft.rangeDelimiters as any,
-				operatorAliases: this.draft.operatorAliases as any,
-				statisticalAliases: this.draft.statisticalAliases as any,
-				excludePrefixes: this.draft.excludePrefixes as any,
-				numberWords: this.draft.numberWords as any,
-				localization: this.draft.localization as any,
-			};
-			const delta = computeSparseDelta(profileSubset, this.baseProfile ?? {});
-			await this.driver.saveProfile(this.activeProfileId, delta);
-
-			// 2. Workspace-scoped state
-			const appearance = (this.draft.appearance ?? {}) as Record<
-				string,
-				unknown
-			>;
-			const editor = (this.draft.editor ?? {}) as Record<string, unknown>;
-			const workspaceSettings: WorkspaceSettings = {
-				activeProfile: this.activeProfileId,
-				uiLocale: this.draft.uiLocale as string | undefined,
-				theme: appearance.theme as string | undefined,
-				showBounds: appearance.showBounds as boolean | undefined,
-				...appearance,
-				...editor,
-			};
-			await this.driver.saveSettings(workspaceSettings);
-
-			// 3. Extension-scoped configs
-			if (this.draft.extensions && typeof this.draft.extensions === "object") {
-				for (const [extId, extConfig] of Object.entries(
-					this.draft.extensions as Record<string, unknown>,
-				)) {
-					if (extConfig && typeof extConfig === "object") {
-						await this.driver.saveExtensionConfig(
-							extId,
-							extConfig as Record<string, unknown>,
-						);
-					}
+		if (this.bundle) {
+			await this.ensureBundleRevision();
+			const bundle = await this.buildBundle();
+			try {
+				const revision = await this.bundle.save(
+					bundle,
+					expectedRevision ?? this.bundleRevision,
+				);
+				this.bundleRevision = revision;
+			} catch (error) {
+				if (error instanceof SettingsBundleConflictError) {
+					return {
+						status: "conflict",
+						expectedRevision: error.expectedRevision,
+						actualRevision: error.actualRevision,
+					};
 				}
+				throw error;
 			}
+		} else if (this.driver) {
+			// Legacy driver-only path: preserve existing behavior through the
+			// same canonical service contract.
+			await this.writeDriver(this.draft);
 		}
 
 		if (this.options.storage) {
@@ -330,7 +346,110 @@ export class WorkspaceSettingsService {
 		);
 		this.effective = clone(this.draft);
 		this.notify();
-		return { status: "saved", restartRequired };
+		return {
+			status: "saved",
+			restartRequired,
+			settingsRevision: this.bundleRevision,
+		};
+	}
+
+	private async buildBundle(): Promise<
+		Omit<SettingsBundleSnapshot, "revision">
+	> {
+		const settings = await this.buildWorkspaceSettings(this.draft);
+		const profiles: Record<string, UserMacroProfile> = {};
+		if (this.driver) {
+			const profileSubset = this.buildProfileSubset(this.draft);
+			const delta = computeSparseDelta(profileSubset, this.baseProfile ?? {});
+			profiles[this.activeProfileId] = {
+				...delta,
+				id: this.activeProfileId,
+			} as UserMacroProfile;
+		}
+		const extensions: Record<string, Record<string, unknown>> = {};
+		if (this.draft.extensions && typeof this.draft.extensions === "object") {
+			for (const [extId, extConfig] of Object.entries(
+				this.draft.extensions as Record<string, unknown>,
+			)) {
+				if (extConfig && typeof extConfig === "object") {
+					extensions[extId] = extConfig as Record<string, unknown>;
+				}
+			}
+		}
+		return { settings, profiles, extensions };
+	}
+
+	private async writeDriver(
+		draft: Readonly<Record<string, unknown>>,
+	): Promise<void> {
+		if (!this.driver) return;
+		const settings = await this.buildWorkspaceSettings(draft);
+		await this.driver.saveSettings(settings);
+
+		const profileSubset = this.buildProfileSubset(draft);
+		const delta = computeSparseDelta(profileSubset, this.baseProfile ?? {});
+		await this.driver.saveProfile(this.activeProfileId, delta);
+
+		if (draft.extensions && typeof draft.extensions === "object") {
+			for (const [extId, extConfig] of Object.entries(
+				draft.extensions as Record<string, unknown>,
+			)) {
+				if (extConfig && typeof extConfig === "object") {
+					await this.driver.saveExtensionConfig(
+						extId,
+						extConfig as Record<string, unknown>,
+					);
+				}
+			}
+		}
+	}
+
+	private buildWorkspaceSettings(
+		draft: Readonly<Record<string, unknown>>,
+	): Promise<WorkspaceSettings> {
+		const appearance = (draft.appearance ?? {}) as Record<string, unknown>;
+		const editor = (draft.editor ?? {}) as Record<string, unknown>;
+		return Promise.resolve({
+			activeProfile: this.activeProfileId,
+			uiLocale: draft.uiLocale as string | undefined,
+			theme: appearance.theme as string | undefined,
+			showBounds: appearance.showBounds as boolean | undefined,
+			...appearance,
+			...editor,
+		});
+	}
+
+	private buildProfileSubset(
+		draft: Readonly<Record<string, unknown>>,
+	): UserMacroProfile {
+		return {
+			locale: draft.locale as string | undefined,
+			syntax: draft.syntax as any,
+			values: draft.values as any,
+			unitAliases: draft.unitAliases as any,
+			rangeDelimiters: draft.rangeDelimiters as any,
+			operatorAliases: draft.operatorAliases as any,
+			statisticalAliases: draft.statisticalAliases as any,
+			excludePrefixes: draft.excludePrefixes as any,
+			numberWords: draft.numberWords as any,
+			localization: draft.localization as any,
+		};
+	}
+
+	private async loadBundleRevision(): Promise<string> {
+		if (!this.bundle) return "";
+		const snapshot = await this.bundle.load();
+		return snapshot.revision;
+	}
+
+	private async ensureBundleRevision(): Promise<void> {
+		if (this.bundleRevisionLoad) {
+			this.bundleRevision = await this.bundleRevisionLoad;
+			this.bundleRevisionLoad = undefined;
+		}
+		if (!this.bundleRevision) {
+			this.bundleRevision = await this.loadBundleRevision();
+		}
 	}
 
 	async reset(): Promise<void> {

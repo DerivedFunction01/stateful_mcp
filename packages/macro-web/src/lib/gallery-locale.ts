@@ -2,7 +2,8 @@ export const GALLERY_TRANSLATIONS = {
 	en: {
 		"gallery.eyebrow": "DEVELOPMENT ONLY",
 		"gallery.title": "Component gallery",
-		"gallery.description": "Responsive, accessible fixtures for the Macro web workbench.",
+		"gallery.description":
+			"Responsive, accessible fixtures for the Macro web workbench.",
 		"gallery.foundations": "Foundations",
 		"gallery.primary": "Primary action",
 		"gallery.secondary": "Secondary",
@@ -13,7 +14,8 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.editorContexts": "Editor contexts",
 		"gallery.themeSwatches": "Theme swatches",
 		"gallery.hostDiagnostics": "Host-connected diagnostics",
-		"gallery.hostFixture": "This story uses the same snapshot shape as the Bun host transport.",
+		"gallery.hostFixture":
+			"This story uses the same snapshot shape as the Bun host transport.",
 		"gallery.fixtureInfo": "This story is rendered from fixture data.",
 		"gallery.previewValid": "Macro preview is valid.",
 		"gallery.profileWarning": "The current profile has unsaved changes.",
@@ -26,7 +28,8 @@ export const GALLERY_TRANSLATIONS = {
 	es: {
 		"gallery.eyebrow": "SOLO DESARROLLO",
 		"gallery.title": "Galería de componentes",
-		"gallery.description": "Fixtures responsivos y accesibles para el espacio web de Macro.",
+		"gallery.description":
+			"Fixtures responsivos y accesibles para el espacio web de Macro.",
 		"gallery.foundations": "Fundamentos",
 		"gallery.primary": "Acción principal",
 		"gallery.secondary": "Secundaria",
@@ -37,7 +40,8 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.editorContexts": "Contextos del editor",
 		"gallery.themeSwatches": "Muestras de tema",
 		"gallery.hostDiagnostics": "Diagnóstico conectado al host",
-		"gallery.hostFixture": "Esta historia usa la misma forma de snapshot que el transporte Bun.",
+		"gallery.hostFixture":
+			"Esta historia usa la misma forma de snapshot que el transporte Bun.",
 		"gallery.fixtureInfo": "Esta historia se muestra con datos de fixture.",
 		"gallery.previewValid": "La vista previa de la macro es válida.",
 		"gallery.profileWarning": "El perfil actual tiene cambios sin guardar.",

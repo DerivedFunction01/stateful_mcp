@@ -152,8 +152,12 @@ export class SettingsUiModel {
 		this.notify();
 	}
 
-	async save() {
-		return this.service.save();
+	async save(expectedRevision?: string) {
+		return this.service.save(expectedRevision);
+	}
+
+	getSettingsRevision(): string {
+		return this.service.getSettingsRevision();
 	}
 
 	getDiagnostics(): readonly SettingsDiagnostic[] {

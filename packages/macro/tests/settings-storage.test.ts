@@ -13,6 +13,10 @@ import {
 	CoreKvSettingsStorageDriver,
 	CoreSqlSettingsStorageDriver,
 } from "../src/workspace/config/storage-driver";
+import {
+	CoreKvSettingsBundleStorage,
+	CoreSqlSettingsBundleStorage,
+} from "../src/workspace/config/settings-bundle";
 
 describe("Settings Storage & Profile Inheritance Engine", () => {
 	const baseProfile: UserMacroProfile = {
@@ -228,5 +232,65 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 
 		const importedExt = await destDriver.loadExtensionConfig("clinical");
 		expect(importedExt?.defaultUnit).toBe("mg");
+	});
+
+	test("JSONL settings bundle replaces resources atomically and rejects stale revisions", async () => {
+		const kv = new MemoryKvBackend();
+		const driver = new CoreKvSettingsStorageDriver(kv);
+		const storage = new CoreKvSettingsBundleStorage(driver, kv);
+		await driver.saveSettings({ activeProfile: "base", theme: "light" });
+		await driver.saveProfile("old", { id: "old", locale: "en-US" });
+		await driver.saveExtensionConfig("old.extension", { enabled: true });
+
+		const current = await storage.load();
+		const nextProfile = { ...baseProfile, id: "base" };
+		const nextRevision = await storage.save(
+			{
+				settings: { activeProfile: "base", theme: "dark" },
+				profiles: { base: nextProfile },
+				extensions: { "new.extension": { enabled: false } },
+			},
+			current.revision,
+		);
+		expect(nextRevision).not.toBe(current.revision);
+		expect(await driver.loadProfile("old")).toBeNull();
+		expect(await driver.loadExtensionConfig("old.extension")).toBeNull();
+		expect(await driver.loadExtensionConfig("new.extension")).toEqual({
+			enabled: false,
+		});
+		await expect(
+			storage.save(
+				{
+					settings: {},
+					profiles: {},
+					extensions: {},
+				},
+				current.revision,
+			),
+		).rejects.toMatchObject({ code: "SETTINGS_REVISION_STALE" });
+	});
+
+	test("SQLite settings bundle commits resources and revision in one transaction", async () => {
+		const backend = await SqlBackend.connect("sqlite", ":memory:");
+		const executor = new SqlExecutor(backend);
+		const driver = new CoreSqlSettingsStorageDriver(executor);
+		const storage = new CoreSqlSettingsBundleStorage(driver, executor);
+		await driver.saveProfile("old", { id: "old", locale: "en-US" });
+		const current = await storage.load();
+		await storage.save(
+			{
+				settings: { activeProfile: "base" },
+				profiles: { base: { ...baseProfile, id: "base" } },
+				extensions: { clinical: { enabled: true } },
+			},
+			current.revision,
+		);
+		expect(await driver.loadProfile("old")).toBeNull();
+		expect(await driver.loadProfile("base")).not.toBeNull();
+		expect(await driver.loadExtensionConfig("clinical")).toEqual({
+			enabled: true,
+		});
+		const reloaded = await storage.load();
+		expect(reloaded.revision).not.toBe(current.revision);
 	});
 });

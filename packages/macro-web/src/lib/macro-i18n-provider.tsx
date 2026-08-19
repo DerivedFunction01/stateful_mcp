@@ -1,3 +1,8 @@
+import { createDefaultI18nKernel } from "@stateful-mcp/macro/workspace/i18n/discovery";
+import type {
+	I18nKernel,
+	TranslationParams,
+} from "@stateful-mcp/macro/workspace/i18n/i18n-kernel";
 import {
 	createContext,
 	type ReactNode,
@@ -6,20 +11,12 @@ import {
 	useMemo,
 	useSyncExternalStore,
 } from "react";
-import {
-	createDefaultI18nKernel,
-} from "@stateful-mcp/macro/workspace/i18n/discovery";
-import type { I18nKernel, TranslationParams } from "@stateful-mcp/macro/workspace/i18n/i18n-kernel";
 import { GALLERY_TRANSLATIONS } from "./gallery-locale";
 
 export interface MacroWebI18n {
 	readonly locale: string;
 	readonly setLocale: (locale: string) => void;
-	t(
-		key: string,
-		fallback?: string,
-		params?: TranslationParams,
-	): string;
+	t(key: string, fallback?: string, params?: TranslationParams): string;
 }
 
 interface I18nContextValue {
@@ -47,10 +44,18 @@ export function I18nProvider({ children }: { readonly children: ReactNode }) {
 		() => kernel.getActiveLocale(),
 	);
 	const value = useMemo(() => valueForKernel(kernel), [kernel, locale]);
-	return <I18nContext.Provider value={{ publicValue: value, kernel }}>{children}</I18nContext.Provider>;
+	return (
+		<I18nContext.Provider value={{ publicValue: value, kernel }}>
+			{children}
+		</I18nContext.Provider>
+	);
 }
 
-export function GalleryI18nScope({ children }: { readonly children: ReactNode }) {
+export function GalleryI18nScope({
+	children,
+}: {
+	readonly children: ReactNode;
+}) {
 	const context = useContext(I18nContext);
 	if (!context) throw new Error("GalleryI18nScope must be inside I18nProvider");
 	const kernel = context.kernel;

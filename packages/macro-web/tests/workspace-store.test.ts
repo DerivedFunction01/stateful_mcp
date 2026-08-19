@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { HostEvent } from "@stateful-mcp/macro-protocol";
-import {
-	createDiagnosticHostClient,
-	type HostClient,
-} from "../src/lib/host-client";
+import { createDiagnosticHostClient } from "../src/dev/diagnostic-host-client";
+import type { HostClient } from "../src/lib/host-client";
 import { BrowserWorkspaceStore } from "../src/lib/workspace-store";
 
 function testClient() {
@@ -16,7 +14,11 @@ function testClient() {
 			return () => listeners.delete(listener);
 		},
 	};
-	return { client, emit: (event: HostEvent) => listeners.forEach((listener) => listener(event)) };
+	return {
+		client,
+		emit: (event: HostEvent) =>
+			listeners.forEach((listener) => listener(event)),
+	};
 }
 
 describe("BrowserWorkspaceStore", () => {
@@ -39,7 +41,13 @@ describe("BrowserWorkspaceStore", () => {
 		expect(store.getSnapshot().snapshot?.revision).toBe(1);
 		emit({ ...event, eventId: "event-duplicate" });
 		expect(store.getSnapshot().lastSequence).toBe(1);
-		emit({ ...event, eventId: "event-stale", sequence: 2, revision: 0, payload: { snapshot: initial } });
+		emit({
+			...event,
+			eventId: "event-stale",
+			sequence: 2,
+			revision: 0,
+			payload: { snapshot: initial },
+		});
 		expect(store.getSnapshot().snapshot?.revision).toBe(1);
 	});
 });

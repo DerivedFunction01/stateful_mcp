@@ -5,6 +5,8 @@ import {
 	mergeEditorKeymap,
 	resolveKeymapBindings,
 } from "@stateful-mcp/macro";
+import { serializeSettingsUiSnapshot } from "@stateful-mcp/macro/workspace/config/settings-projection";
+import type { SettingsDiagnostic } from "@stateful-mcp/macro/workspace/config/settings-service";
 import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
 import type { LoadedMacroWorkspace, MacroHost } from "@stateful-mcp/macro-host";
 import {
@@ -17,7 +19,12 @@ import {
 	hostError,
 	type KeymapBindingDto,
 	MACRO_PROTOCOL_VERSION,
+	type SettingsApplyResult,
+	type SettingsDiagnosticDto,
 	type SettingsOperation,
+	type SettingsScope,
+	type SettingsUiOperation,
+	type SettingsUiSnapshotDto,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 
@@ -126,47 +133,105 @@ export class HostSessionManager {
 	async settings(
 		sessionId: string,
 		operation: SettingsOperation,
-	): Promise<WorkspaceSnapshot> {
+	): Promise<SettingsApplyResult> {
 		const session = this.getOrError(sessionId);
+		const uiModel = session.loaded.workspace.settingsUiModel;
 		const settings = session.loaded.workspace.settings;
-		if (!settings)
+		if (!uiModel || !settings)
 			throw new SessionError(
 				"SETTINGS_UNAVAILABLE",
 				"Settings are unavailable",
 				false,
 			);
-		this.assertRevision(session, operation.expectedRevision);
+
+		// Semantic mutations route through the canonical SettingsUiModel so the
+		// host remains the sole authority on values, diagnostics, and
+		// persistence. The settings-bundle revision is opaque and distinct from
+		// the per-session workspace revision; it is never a session number.
 		switch (operation.operation) {
-			case "set": {
-				const draft = clone(settings.getDraft());
-				setAtPath(draft, operation.path, operation.value);
-				settings.replaceRawText(JSON.stringify(draft, null, 2));
+			case "set":
+				uiModel.setValue(operation.path, operation.value);
 				break;
-			}
 			case "replaceJson":
-				settings.replaceRawText(operation.rawText);
+				uiModel.replaceRawJson(operation.rawText);
 				break;
 			case "save": {
-				const result = await settings.save();
-				if (result.status === "blocked")
-					throw new SessionError(
-						"SETTINGS_INVALID",
-						"Settings contain validation errors",
-						false,
-						result.diagnostics,
-					);
-				break;
+				const result = await uiModel.save(operation.expectedRevision);
+				if (result.status === "conflict") {
+					return this.conflictResult(session, result);
+				}
+				if (result.status === "blocked") {
+					return this.blockedResult(session, result);
+				}
+				this.emit(session, "settings.changed");
+				return this.savedResult(session, result);
 			}
 			case "discard":
 			case "reload":
 				await settings.reload();
 				break;
 			case "profile.select":
-				await settings.switchProfile(operation.profileId);
+				await uiModel.switchProfile(operation.profileId);
+				break;
+			case "scope.select": {
+				const supported = this.supportedScopes(session);
+				if (!supported.includes(operation.scope)) {
+					return this.unsupportedScopeResult(session, operation.scope);
+				}
+				uiModel.setActiveScope(operation.scope);
+				break;
+			}
+			case "jsonMode.toggle":
+				if (operation.enabled !== uiModel.getIsSplitJsonMode())
+					uiModel.toggleSplitJsonMode();
 				break;
 		}
+
 		this.emit(session, "settings.changed");
-		return this.snapshot(session);
+		return this.snapshotResult(session);
+	}
+
+	async settingsUi(
+		sessionId: string,
+		operation: SettingsUiOperation,
+	): Promise<SettingsApplyResult> {
+		const session = this.getOrError(sessionId);
+		const uiModel = session.loaded.workspace.settingsUiModel;
+		if (!uiModel)
+			throw new SessionError(
+				"SETTINGS_UNAVAILABLE",
+				"Settings are unavailable",
+				false,
+			);
+		switch (operation.operation) {
+			case "settings.ui.scope.set": {
+				const supported = this.supportedScopes(session);
+				if (!supported.includes(operation.scope)) {
+					return this.unsupportedScopeResult(session, operation.scope);
+				}
+				uiModel.setActiveScope(operation.scope);
+				return this.snapshotResult(session);
+			}
+			case "settings.ui.search.set":
+				uiModel.setSearchQuery(operation.query);
+				break;
+			case "settings.ui.modifiedOnly.set":
+				uiModel.setFilterModifiedOnly(operation.enabled);
+				break;
+			case "settings.ui.jsonMode.toggle":
+				uiModel.toggleSplitJsonMode();
+				break;
+			case "settings.ui.section.set":
+				uiModel.setActiveSection(operation.sectionId);
+				break;
+			default:
+				throw new SessionError(
+					"SETTINGS_OPERATION_UNKNOWN",
+					"Unknown settings UI operation",
+					false,
+				);
+		}
+		return this.snapshotResult(session);
 	}
 
 	async parse(
@@ -244,10 +309,7 @@ export class HostSessionManager {
 			);
 	}
 
-	private emit(
-		session: Session,
-		type: HostEventType,
-	): void {
+	private emit(session: Session, type: HostEventType): void {
 		if (session.disposed) return;
 		session.sequence += 1;
 		session.revision += 1;
@@ -279,8 +341,8 @@ export class HostSessionManager {
 						extension.manifest.displayName ||
 						extension.manifest.id
 					: (extension.manifest.displayName ??
-									extension.manifest.contributes?.settings?.[0]?.title ??
-								extension.manifest.id),
+						extension.manifest.contributes?.settings?.[0]?.title ??
+						extension.manifest.id),
 				description: extension.manifest.descriptionI18nKey
 					? translate(workspace.i18n, extension.manifest.descriptionI18nKey) ||
 						extension.manifest.description
@@ -315,14 +377,36 @@ export class HostSessionManager {
 				args: command.args,
 				extensionId: command.extensionId,
 			}));
-		const settings = workspace.settings;
 		const layout = workspace.layout.getSnapshot();
+		const settings = workspace.settingsUiModel
+			? (serializeSettingsUiSnapshot(workspace.settingsUiModel.getSnapshot(), {
+					supportedScopes: this.supportedScopes(session),
+					i18n: workspace.i18n,
+				}) as unknown as SettingsUiSnapshotDto)
+			: undefined;
+		const fallback: SettingsUiSnapshotDto = {
+			activeProfileId: profileId,
+			availableProfiles: [],
+			activeScope: "workspace",
+			supportedScopes: [...this.supportedScopes(session)],
+			searchQuery: "",
+			filterModifiedOnly: false,
+			isSplitJsonMode: false,
+			jsonModeAvailable: true,
+			modifiedCount: 0,
+			totalModifiedCount: 0,
+			sections: [],
+			rawJsonText: "{}",
+			hasErrors: false,
+			settingsRevision: "",
+		};
 		return {
 			workspaceId: session.workspaceId,
 			sessionId: session.id,
 			profile: {
 				id: profileId,
-				displayName: session.loaded.profile?.id === profileId ? profileId : profileId,
+				displayName:
+					session.loaded.profile?.id === profileId ? profileId : profileId,
 				enabledExtensionIds: extensionIds,
 			},
 			enabledExtensionIds: extensionIds,
@@ -355,30 +439,12 @@ export class HostSessionManager {
 					extensionId: container.extensionId,
 				})),
 			},
-			settings: settings
-				? {
-						effective: settings.getEffective(),
-						draft: settings.getDraft(),
-						rawText: settings.getRawText(),
-						schema: settings.getSchema(),
-						diagnostics: settings.getDiagnostics(),
-						dirty: settings.isDirty(),
-						activeProfileId: settings.getActiveProfileId(),
-					}
-				: {
-						effective: {},
-						draft: {},
-						rawText: "{}",
-						schema: [],
-						diagnostics: [],
-						dirty: false,
-						activeProfileId: profileId,
-					},
+			settings: settings ?? fallback,
 			layout,
 			activeTabId: workspace.layout.getSnapshot().activeTabId,
-				scratchpad: {
-					text: workspace.editor.buffer.getText(),
-					textRevision: session.documentRevision,
+			scratchpad: {
+				text: workspace.editor.buffer.getText(),
+				textRevision: session.documentRevision,
 				lines: workspace.scratchpad.getProjectedLines().map((line) => ({
 					lineNumber: line.lineNumber,
 					rawText: line.rawText,
@@ -395,12 +461,111 @@ export class HostSessionManager {
 							lifecycle: session.loaded.project.descriptor.lifecycle,
 							revision: session.loaded.project.descriptor.revision,
 							resources: session.loaded.project.descriptor.resources,
-							historyResources: session.loaded.project.descriptor.historyResources,
+							historyResources:
+								session.loaded.project.descriptor.historyResources,
 						},
 					}
 				: {}),
 			revision: session.revision,
 		};
+	}
+
+	private supportedScopes(session: Session): SettingsScope[] {
+		return ["workspace"];
+	}
+
+	private snapshotResult(session: Session): SettingsApplyResult {
+		return {
+			status: "saved",
+			restartRequired: false,
+			settingsRevision:
+				session.loaded.workspace.settingsUiModel?.getSettingsRevision() ?? "",
+			snapshot: this.settingsSnapshot(session),
+		};
+	}
+
+	private savedResult(
+		session: Session,
+		result: {
+			status: "saved";
+			restartRequired: boolean;
+			settingsRevision: string;
+		},
+	): SettingsApplyResult {
+		return {
+			status: "saved",
+			restartRequired: result.restartRequired,
+			settingsRevision: result.settingsRevision,
+			snapshot: this.settingsSnapshot(session),
+		};
+	}
+
+	private blockedResult(
+		session: Session,
+		result: { status: "blocked"; diagnostics: readonly SettingsDiagnostic[] },
+	): SettingsApplyResult {
+		return {
+			status: "blocked",
+			diagnostics: result.diagnostics as unknown as SettingsDiagnosticDto[],
+			snapshot: this.settingsSnapshot(session),
+		};
+	}
+
+	private conflictResult(
+		session: Session,
+		result: {
+			status: "conflict";
+			expectedRevision: string;
+			actualRevision: string;
+		},
+	): SettingsApplyResult {
+		return {
+			status: "conflict",
+			code: "SETTINGS_REVISION_STALE",
+			message: "Settings bundle revision is stale",
+			expectedRevision: result.expectedRevision,
+			actualRevision: result.actualRevision,
+			snapshot: this.settingsSnapshot(session),
+		};
+	}
+
+	private unsupportedScopeResult(
+		session: Session,
+		scope: SettingsScope,
+	): SettingsApplyResult {
+		return {
+			status: "unsupported",
+			code: "SETTINGS_SCOPE_UNSUPPORTED",
+			message: `Settings storage for scope '${scope}' is not available`,
+			snapshot: this.settingsSnapshot(session),
+		};
+	}
+
+	private settingsSnapshot(session: Session): SettingsUiSnapshotDto {
+		const uiModel = session.loaded.workspace.settingsUiModel;
+		if (!uiModel) {
+			return {
+				activeProfileId: "base",
+				availableProfiles: [],
+				activeScope: "workspace",
+				supportedScopes: [...this.supportedScopes(session)],
+				searchQuery: "",
+				filterModifiedOnly: false,
+				isSplitJsonMode: false,
+				jsonModeAvailable: true,
+				modifiedCount: 0,
+				totalModifiedCount: 0,
+				sections: [],
+				rawJsonText: "{}",
+				hasErrors: false,
+				settingsRevision: "",
+			};
+		}
+		return serializeSettingsUiSnapshot(uiModel.getSnapshot(), {
+			supportedScopes: this.supportedScopes(session),
+			i18n: session.loaded.workspace.i18n,
+			settingsRevision: uiModel.getSettingsRevision(),
+		}) as unknown as SettingsUiSnapshotDto;
 	}
 }
 

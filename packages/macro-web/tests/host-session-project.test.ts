@@ -6,7 +6,9 @@ import { HostSessionManager } from "../src/server/host-session-manager";
 
 describe("host project session projection", () => {
 	test("projects safe project identity without backend paths", async () => {
-		const root = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "macro-web-"));
+		const root = await mkdtemp(
+			join(process.env.TMPDIR ?? "/tmp", "macro-web-"),
+		);
 		const project = await createMacroProject({ rootPath: root });
 		const host = await createMacroHost({ defaults: {}, projectRoot: root });
 		const sessions = new HostSessionManager(host, 60_000, root);

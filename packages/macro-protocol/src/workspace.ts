@@ -1,5 +1,5 @@
 import type { CommandDescriptorDto } from "./commands";
-import type { SettingsSnapshotDto } from "./settings";
+import type { SettingsUiSnapshotDto } from "./settings";
 
 export interface ProfileDescriptor {
 	readonly id: string;
@@ -72,7 +72,11 @@ export interface LayoutSnapshotDto {
 	readonly sidepanelWidthRatio: number;
 	readonly activeContainerId: string;
 	readonly focusedPane: string;
-	readonly activeModal: { readonly id: string; readonly title: string; readonly data?: unknown } | null;
+	readonly activeModal: {
+		readonly id: string;
+		readonly title: string;
+		readonly data?: unknown;
+	} | null;
 	readonly regions: Readonly<Record<string, LayoutRegionDto>>;
 	readonly activeActivityContainerId: string;
 	readonly activeInspectorContainerId: string;
@@ -111,7 +115,7 @@ export interface WorkspaceSnapshot {
 	readonly keymap: EffectiveKeymapDto;
 	readonly commands: readonly CommandDescriptorDto[];
 	readonly contributions: ContributionSnapshotDto;
-	readonly settings: SettingsSnapshotDto;
+	readonly settings: SettingsUiSnapshotDto;
 	readonly layout: LayoutSnapshotDto;
 	readonly activeTabId?: string;
 	readonly scratchpad: Readonly<Record<string, unknown>>;
