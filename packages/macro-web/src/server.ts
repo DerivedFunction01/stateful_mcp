@@ -1,50 +1,51 @@
 import { relative, resolve, sep } from "node:path";
-import { createMacroHost } from "../../macro-host/src/index";
+import { createMacroHost } from "@stateful-mcp/macro-host";
+import {
+	failure,
+	hostError,
+	isProtocolVersion,
+	MACRO_PROTOCOL_VERSION,
+	response,
+	type HostRequest,
+	type HostResponse,
+	type SettingsOperation,
+} from "@stateful-mcp/macro-protocol";
+import { HostSessionManager, SessionError } from "./server/host-session-manager";
+
+interface SocketData { readonly sessionId: string }
+interface JsonRequest extends HostRequest<string, unknown> { readonly requestId: string }
 
 const packageRoot = resolve(import.meta.dir, "..");
 const buildRoot = resolve(packageRoot, "dist/dev");
 const assetsRoot = resolve(buildRoot, "assets");
-const port = Number(Bun.env.PORT ?? 3000);
+const port = Number(argument("port") ?? Bun.env.PORT ?? 3000);
+const hostname = argument("host") ?? Bun.env.HOST ?? "127.0.0.1";
 
 const build = await Bun.build({
 	entrypoints: [resolve(packageRoot, "src/main.tsx")],
 	outdir: assetsRoot,
 	target: "browser",
 	sourcemap: "inline",
-	naming: {
-		entry: "macro-web.[ext]",
-		chunk: "[name]-[hash].[ext]",
-		asset: "[name].[ext]",
-	},
+	naming: { entry: "macro-web.[ext]", chunk: "[name]-[hash].[ext]", asset: "[name].[ext]" },
 });
-
 if (!build.success) {
 	for (const log of build.logs) console.error(log);
 	throw new Error("Macro Web browser build failed");
 }
 
-const host = await createMacroHost({ defaults: {} });
-const loaded = await host.createWorkspace();
-const sockets = new Set<unknown>();
+const host = await createMacroHost({
+	defaults: {},
+	workspacePath: argument("workspace"),
+});
+const sessions = new HostSessionManager(host);
+const sockets = new Map<WebSocket, () => void>();
 
 const indexHtml = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b1020" />
-    <title>Macro Web</title>
-    <link rel="stylesheet" href="/assets/macro-web.css" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/assets/macro-web.js"></script>
-  </body>
-</html>`;
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="theme-color" content="#0b1020" /><title>Macro Web</title><link rel="stylesheet" href="/assets/macro-web.css" /></head>
+<body><div id="root"></div><script type="module" src="/assets/macro-web.js"></script></body></html>`;
 
 function isWithinRoot(path: string, root: string): boolean {
-	const resolved = resolve(path);
-	const rootRelative = relative(root, resolved);
+	const rootRelative = relative(root, resolve(path));
 	return rootRelative === "" || (!rootRelative.startsWith(`..${sep}`) && rootRelative !== "..");
 }
 
@@ -52,59 +53,105 @@ async function serveAsset(pathname: string): Promise<Response | undefined> {
 	const assetPath = resolve(assetsRoot, pathname.slice("/assets/".length));
 	if (!isWithinRoot(assetPath, assetsRoot)) return new Response("Forbidden", { status: 403 });
 	const file = Bun.file(assetPath);
-	if (!(await file.exists())) return undefined;
-	return new Response(file);
+	return (await file.exists()) ? new Response(file) : undefined;
 }
 
-function workspaceSnapshot() {
-	return {
-		workspaceId: "macro-web-workspace",
-		sessionId: "macro-web-session",
-		profileId: loaded.profile?.id ?? "base",
-		enabledExtensionIds: loaded.resolvedExtensionIds,
-		diagnostics: [],
-	};
+async function jsonBody(request: Request): Promise<JsonRequest> {
+	const value = (await request.json()) as Partial<JsonRequest>;
+	if (!isProtocolVersion(value.version) || typeof value.requestId !== "string" || typeof value.type !== "string") {
+		throw new SessionError("INVALID_REQUEST", "Request envelope is invalid", false);
+	}
+	return value as JsonRequest;
 }
 
-const server = Bun.serve({
+function requestId(request: Request): string {
+	return request.headers.get("x-request-id") ?? crypto.randomUUID();
+}
+
+function errorResponse(id: string, error: unknown): Response {
+	const hostErrorValue = error instanceof SessionError ? error.toHostError() : hostError("HOST_REQUEST_FAILED", error instanceof Error ? error.message : "Host request failed");
+	const status = hostErrorValue.code === "SESSION_NOT_FOUND" ? 404 : hostErrorValue.code === "STALE_REVISION" ? 409 : hostErrorValue.code === "INVALID_REQUEST" ? 400 : 500;
+	return Response.json(failure(id, hostErrorValue), { status });
+}
+
+async function handleJson(request: Request, sessionId: string | undefined, handler: (envelope: JsonRequest) => Promise<unknown>): Promise<Response> {
+	const id = requestId(request);
+	try {
+		const envelope = await jsonBody(request);
+		if (sessionId && envelope.sessionId !== sessionId) throw new SessionError("SESSION_MISMATCH", "Request session does not match URL", false);
+		const payload = await handler(envelope);
+		return Response.json(response(envelope.requestId || id, payload));
+	} catch (error) {
+		return errorResponse(id, error);
+	}
+}
+
+const server = Bun.serve<SocketData>({
+	hostname,
 	port,
-	fetch: async (request, server) => {
+	fetch: async (request, serverInstance) => {
 		const url = new URL(request.url);
-
-		if (url.pathname === "/api/workspace/snapshot") {
-			return Response.json(workspaceSnapshot());
+		const sessionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|parse))?$/);
+		if (url.pathname === "/api/sessions" && request.method === "POST") {
+			return handleJson(request, undefined, async (envelope) => {
+				const payload = (envelope.payload ?? {}) as { workspacePath?: string; profileId?: string; locale?: string; initialText?: string; keymap?: Record<string, unknown> };
+				const snapshot = await sessions.create({ profileId: payload.profileId, locale: payload.locale, initialText: payload.initialText, keymap: payload.keymap as never });
+				return { sessionId: snapshot.sessionId, workspaceId: snapshot.workspaceId, protocolVersion: MACRO_PROTOCOL_VERSION, snapshot };
+			});
 		}
-
-		if (url.pathname === "/api/workspace/events" && server.upgrade(request)) {
-			return undefined;
+		if (sessionMatch) {
+			const sessionId = decodeURIComponent(sessionMatch[1]!);
+			const operation = sessionMatch[2];
+			if (operation === "events" && request.method === "GET") {
+				if (!sessions.get(sessionId)) return new Response("Session not found", { status: 404 });
+				if (serverInstance.upgrade(request, { data: { sessionId } })) return undefined;
+				return new Response("WebSocket upgrade required", { status: 426 });
+			}
+			if (operation === "snapshot" && request.method === "GET") {
+				try { return Response.json(response(requestId(request), sessions.snapshotFor(sessionId))); } catch (error) { return errorResponse(requestId(request), error); }
+			}
+			if (operation === "commands" && request.method === "POST") return handleJson(request, sessionId, async (envelope) => {
+				const payload = envelope.payload as { command?: string; args?: readonly unknown[]; expectedRevision?: number };
+				if (!payload || typeof payload.command !== "string") throw new SessionError("INVALID_COMMAND", "A canonical command ID is required", false);
+				return { command: payload.command, result: await sessions.executeCommand(sessionId, payload.command, payload.args ?? [], payload.expectedRevision) };
+			});
+			if (operation === "settings" && request.method === "POST") return handleJson(request, sessionId, async (envelope) => sessions.settings(sessionId, envelope.payload as SettingsOperation));
+			if (operation === "parse" && request.method === "POST") return handleJson(request, sessionId, async (envelope) => {
+				const payload = envelope.payload as { text?: string; textRevision?: number };
+				if (typeof payload?.text !== "string" || typeof payload.textRevision !== "number") throw new SessionError("INVALID_PARSE", "Parse text and textRevision are required", false);
+				return sessions.parse(sessionId, payload.text, payload.textRevision);
+			});
+			if (!operation && request.method === "DELETE") {
+				try { await sessions.dispose(sessionId); return Response.json(response(requestId(request), { disposed: true })); } catch (error) { return errorResponse(requestId(request), error); }
+			}
 		}
-
-		if (url.pathname.startsWith("/assets/")) {
-			return (await serveAsset(url.pathname)) ?? new Response("Not found", { status: 404 });
-		}
-
-		return new Response(indexHtml, {
-			headers: { "content-type": "text/html; charset=utf-8" },
-		});
+		if (url.pathname.startsWith("/assets/")) return (await serveAsset(url.pathname)) ?? new Response("Not found", { status: 404 });
+		return new Response(indexHtml, { headers: { "content-type": "text/html; charset=utf-8" } });
 	},
 	websocket: {
 		open(socket) {
-			sockets.add(socket);
-			socket.send(JSON.stringify({ type: "workspace.changed", snapshot: workspaceSnapshot() }));
+			const unsubscribe = sessions.subscribe(socket.data.sessionId, (event) => socket.send(JSON.stringify(event)));
+			sockets.set(socket as unknown as WebSocket, unsubscribe);
+			socket.send(JSON.stringify({ version: MACRO_PROTOCOL_VERSION, type: "session.ready", sessionId: socket.data.sessionId, sequence: 0, revision: sessions.snapshotFor(socket.data.sessionId).revision, eventId: crypto.randomUUID(), payload: { snapshot: sessions.snapshotFor(socket.data.sessionId) } }));
 		},
 		close(socket) {
-			sockets.delete(socket);
+			const key = socket as unknown as WebSocket;
+			sockets.get(key)?.();
+			sockets.delete(key);
 		},
-		message() {},
+		message(socket, message) {
+			if (message === "snapshot") socket.send(JSON.stringify({ type: "workspace.changed", version: MACRO_PROTOCOL_VERSION, sessionId: socket.data.sessionId, eventId: crypto.randomUUID(), sequence: 0, revision: sessions.snapshotFor(socket.data.sessionId).revision, payload: { snapshot: sessions.snapshotFor(socket.data.sessionId) } }));
+		},
 	},
 });
 
-console.log(`Macro Web listening at http://localhost:${server.port}`);
-
-const shutdown = async () => {
-	server.stop(true);
-	await host.dispose();
-};
-
+console.log(`Macro Web listening at http://${hostname}:${server.port}`);
+const cleanupTimer = setInterval(() => void sessions.disposeAbandoned(), 60_000);
+const shutdown = async () => { clearInterval(cleanupTimer); server.stop(true); await sessions.disposeAll(); await host.dispose(); };
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
+
+function argument(name: string): string | undefined {
+	const prefix = `--${name}=`;
+	return process.argv.find((value) => value.startsWith(prefix))?.slice(prefix.length);
+}

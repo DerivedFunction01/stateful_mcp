@@ -16,6 +16,10 @@ export interface ExtensionLocaleBundle {
 export interface MacroExtensionManifest {
 	id: string;
 	version: string;
+	displayName?: string;
+	displayNameI18nKey?: string;
+	description?: string;
+	descriptionI18nKey?: string;
 	requires?: readonly string[];
 	configDefaults?: Readonly<Record<string, unknown>>;
 	domainConfig?: ExtensionDomainConfig;
@@ -53,6 +57,10 @@ export function defineExtension(
 	const {
 		id,
 		version,
+		displayName,
+		displayNameI18nKey,
+		description,
+		descriptionI18nKey,
 		requires,
 		configDefaults,
 		domainConfig,
@@ -68,6 +76,10 @@ export function defineExtension(
 		manifest: {
 			id,
 			version,
+			...(displayName ? { displayName } : {}),
+			...(displayNameI18nKey ? { displayNameI18nKey } : {}),
+			...(description ? { description } : {}),
+			...(descriptionI18nKey ? { descriptionI18nKey } : {}),
 			...(requires ? { requires: [...requires] } : {}),
 			...(configDefaults ? { configDefaults } : {}),
 			...(domainConfig ? { domainConfig } : {}),

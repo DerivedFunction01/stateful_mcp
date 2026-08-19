@@ -13,7 +13,8 @@
 	},
 	"dependencies": {
 		"@stateful-mcp/core": "workspace:^",
-		"@stateful-mcp/macro": "workspace:^"
+		"@stateful-mcp/macro": "workspace:^",
+		"@stateful-mcp/macro-protocol": "workspace:^"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

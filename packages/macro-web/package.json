@@ -21,6 +21,7 @@
 		"@radix-ui/react-tabs": "latest",
 		"@radix-ui/react-tooltip": "latest",
 		"@stateful-mcp/macro": "workspace:^",
+		"@stateful-mcp/macro-protocol": "workspace:^",
 		"class-variance-authority": "latest",
 		"clsx": "latest",
 		"lucide-react": "latest",

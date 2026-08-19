@@ -1,0 +1,19 @@
+{
+	"name": "@stateful-mcp/macro-protocol",
+	"version": "0.1.0",
+	"description": "Dependency-free Macro host/browser wire protocol",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"build": "bun build ./src/index.ts --outfile dist/index.js --target bun --format esm && tsc --emitDeclarationOnly --declaration --outDir dist",
+		"check": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5"
+	}
+}
