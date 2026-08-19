@@ -126,10 +126,10 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			"INSERT",
 		);
 		expect(insertHints).toEqual([
-			{ key: "Tab", action: "New Line" },
-			{ key: "Enter", action: "Execute" },
-			{ key: "↑/↓", action: "Navigate" },
-			{ key: "Esc", action: "Normal Mode" },
+			{ key: "Tab", action: "New Line", row: 1 },
+			{ key: "Enter", action: "Execute", row: 1 },
+			{ key: "k/j", action: "Navigate", row: 1 },
+			{ key: "Esc", action: "Normal Mode", row: 1 },
 		]);
 
 		// VISUAL mode hints
@@ -139,10 +139,10 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			"VISUAL",
 		);
 		expect(visualHints).toEqual([
-			{ key: "↑/↓", action: "Select Range" },
-			{ key: "Enter", action: "Execute Selected" },
-			{ key: "d", action: "Delete" },
-			{ key: "Esc", action: "Normal Mode" },
+			{ key: "k/j", action: "Select Range", row: 1 },
+			{ key: "Enter", action: "Execute Selected", row: 1 },
+			{ key: "d", action: "Delete", row: 1 },
+			{ key: "Esc", action: "Normal Mode", row: 1 },
 		]);
 
 		// NORMAL mode hints
@@ -152,15 +152,15 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			"NORMAL",
 		);
 		expect(normalHints).toEqual([
-			{ key: "Tab", action: "Next Tab" },
-			{ key: "i", action: "Insert" },
-			{ key: "v", action: "Visual" },
-			{ key: "dd", action: "Delete" },
-			{ key: "Ctrl+P", action: "Command Palette" },
-			{ key: "Ctrl+E", action: "Activity" },
-			{ key: "Ctrl+B", action: "Inspector" },
-			{ key: "Ctrl+W", action: "Focus Pane" },
-			{ key: "Alt+P", action: "Pin" },
+			{ key: "Tab", action: "Next Tab", row: 1 },
+			{ key: "i", action: "Insert", row: 1 },
+			{ key: "v", action: "Visual", row: 1 },
+			{ key: "dd", action: "Delete", row: 1 },
+			{ key: "Ctrl+P", action: "Command Palette", row: 2 },
+			{ key: "Ctrl+E", action: "Activity", row: 2 },
+			{ key: "Ctrl+B", action: "Inspector", row: 2 },
+			{ key: "Ctrl+W", action: "Focus Pane", row: 2 },
+			{ key: "Alt+P", action: "Pin", row: 2 },
 		]);
 	});
 
@@ -171,16 +171,16 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 		workspace.layout.setFocusedPane("main");
 		const mainHints = buildContextualHelpBarHints(workspace as any, keymap);
 		expect(mainHints.length).toBeGreaterThan(0);
-		expect(mainHints[0]).toEqual({ key: "Tab", action: "Next Tab" });
+		expect(mainHints[0]).toEqual({ key: "Tab", action: "Next Tab", row: 1 });
 
 		// 2. When activity pane is focused, returns container-level or provider contextual hints
 		workspace.layout.setFocusedPane("activity");
 		const activityHints = buildContextualHelpBarHints(workspace as any, keymap);
 		expect(activityHints).toEqual([
-			{ key: "↑/↓", action: "Navigate" },
-			{ key: "Enter", action: "Open" },
-			{ key: "Ctrl+W", action: "Focus Pane" },
-			{ key: "Esc", action: "Editor" },
+			{ key: "↑/↓", action: "Navigate", row: 1 },
+			{ key: "Enter", action: "Open", row: 1 },
+			{ key: "Ctrl+W", action: "Focus Pane", row: 1 },
+			{ key: "Esc", action: "Editor", row: 1 },
 		]);
 
 		// 3. When sidepanel (inspector) is focused, returns inspector contextual hints
@@ -190,20 +190,20 @@ describe("Mock Workspace & Dynamic Keymaps/i18n", () => {
 			keymap,
 		);
 		expect(inspectorHints).toEqual([
-			{ key: "↑/↓", action: "Navigate" },
-			{ key: "Enter", action: "Execute" },
-			{ key: "Alt+2", action: "Close" },
-			{ key: "Ctrl+W", action: "Focus Pane" },
-			{ key: "Esc", action: "Editor" },
+			{ key: "↑/↓", action: "Navigate", row: 1 },
+			{ key: "Enter", action: "Execute", row: 1 },
+			{ key: "Alt+2", action: "Close", row: 1 },
+			{ key: "Ctrl+W", action: "Focus Pane", row: 1 },
+			{ key: "Esc", action: "Editor", row: 1 },
 		]);
 
 		// 4. When palette is focused, returns palette navigation and execution hints
 		workspace.layout.setFocusedPane("palette");
 		const paletteHints = buildContextualHelpBarHints(workspace as any, keymap);
 		expect(paletteHints).toEqual([
-			{ key: "↑/↓", action: "Navigate" },
-			{ key: "Enter", action: "Execute" },
-			{ key: "Esc", action: "Close" },
+			{ key: "k/j", action: "Navigate", row: 1 },
+			{ key: "Enter", action: "Execute", row: 1 },
+			{ key: "Esc", action: "Close", row: 1 },
 		]);
 	});
 });
