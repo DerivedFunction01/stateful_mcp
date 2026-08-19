@@ -1,4 +1,4 @@
-import { SqlExecutor } from "../../adapters/storage/generic/SqlExecutor";
+import type { SqlExecutor } from "../../adapters/storage/generic/SqlExecutor";
 import type { QueryCondition } from "../../translation/sql-compiler";
 import {
 	HistoryConflictError,
@@ -8,10 +8,7 @@ import {
 	type HistoryRecoveryDiagnostic,
 	type HistoryStore,
 } from "./contracts";
-import {
-	sameEventIdentity,
-	validateHistoryEvents,
-} from "./history-store";
+import { sameEventIdentity, validateHistoryEvents } from "./history-store";
 
 export interface SqlHistoryStoreOptions {
 	table?: string;
@@ -102,7 +99,10 @@ export class SqlHistoryStore<TPayload = unknown>
 				select: [{ column: "sequence", agg: "max", alias: "max_sequence" }],
 				where: [{ column: "stream_id", op: "eq", value: streamId }],
 			});
-			const nextRow = await this.executor.queryOne(nextQuery.sql, nextQuery.params);
+			const nextRow = await this.executor.queryOne(
+				nextQuery.sql,
+				nextQuery.params,
+			);
 			const nextSequence = Number(nextRow?.max_sequence ?? 0) + 1;
 			if (
 				expectedNextSequence !== undefined &&
@@ -123,9 +123,10 @@ export class SqlHistoryStore<TPayload = unknown>
 					event_type: created.eventType,
 					occurred_at: created.occurredAt,
 					payload: JSON.stringify(created.payload),
-					metadata: created.metadata === undefined
-						? null
-						: JSON.stringify(created.metadata),
+					metadata:
+						created.metadata === undefined
+							? null
+							: JSON.stringify(created.metadata),
 				},
 			});
 			await this.executor.exec(insert.sql, insert.params);
@@ -142,14 +143,23 @@ export class SqlHistoryStore<TPayload = unknown>
 			{ column: "stream_id", op: "eq", value: streamId },
 		];
 		if (options.afterSequence !== undefined)
-			where.push({ column: "sequence", op: "gt", value: options.afterSequence });
+			where.push({
+				column: "sequence",
+				op: "gt",
+				value: options.afterSequence,
+			});
 		if (options.throughSequence !== undefined)
-			where.push({ column: "sequence", op: "leq", value: options.throughSequence });
+			where.push({
+				column: "sequence",
+				op: "leq",
+				value: options.throughSequence,
+			});
 		const query = this.executor.compiler.compileSelect({
 			table: this.table,
 			where,
 			orderBy: [{ column: "sequence", direction: "ASC" }],
-			limit: options.limit === undefined ? undefined : Math.max(0, options.limit),
+			limit:
+				options.limit === undefined ? undefined : Math.max(0, options.limit),
 		});
 		const rows = await this.executor.query(query.sql, query.params);
 		const events = rows.map((row) => decodeRow<TPayload>(row));
@@ -158,7 +168,10 @@ export class SqlHistoryStore<TPayload = unknown>
 			select: [{ column: "sequence", agg: "max", alias: "max_sequence" }],
 			where: [{ column: "stream_id", op: "eq", value: streamId }],
 		});
-		const latest = await this.executor.queryOne(latestQuery.sql, latestQuery.params);
+		const latest = await this.executor.queryOne(
+			latestQuery.sql,
+			latestQuery.params,
+		);
 		return {
 			events,
 			nextSequence: Number(latest?.max_sequence ?? 0) + 1,

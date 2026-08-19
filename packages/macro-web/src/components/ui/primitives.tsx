@@ -1,6 +1,17 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import * as Switch from "@radix-ui/react-switch";
-import { AlertCircle, Check, ChevronDown, Info, LoaderCircle, X } from "lucide-react";
+import {
+	AlertCircle,
+	Check,
+	ChevronDown,
+	Info,
+	LoaderCircle,
+	X,
+} from "lucide-react";
+import type {
+	ButtonHTMLAttributes,
+	InputHTMLAttributes,
+	ReactNode,
+} from "react";
 import { cn } from "../../lib/utils";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -30,7 +41,11 @@ export function IconButton({
 	...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { readonly label: string }) {
 	return (
-		<button className={cn("icon-button", className)} aria-label={label} {...props}>
+		<button
+			className={cn("icon-button", className)}
+			aria-label={label}
+			{...props}
+		>
 			{children}
 		</button>
 	);
@@ -41,7 +56,13 @@ export function Badge({
 	tone = "neutral",
 }: {
 	readonly children: ReactNode;
-	readonly tone?: "neutral" | "info" | "success" | "warning" | "danger" | "accent";
+	readonly tone?:
+		| "neutral"
+		| "info"
+		| "success"
+		| "warning"
+		| "danger"
+		| "accent";
 }) {
 	return <span className={cn("badge", `badge-${tone}`)}>{children}</span>;
 }
@@ -70,7 +91,12 @@ export function Card({
 	);
 }
 
-export function TextInput({ label, hint, error, ...props }: InputHTMLAttributes<HTMLInputElement> & {
+export function TextInput({
+	label,
+	hint,
+	error,
+	...props
+}: InputHTMLAttributes<HTMLInputElement> & {
 	readonly label: string;
 	readonly hint?: string;
 	readonly error?: string;
@@ -78,8 +104,19 @@ export function TextInput({ label, hint, error, ...props }: InputHTMLAttributes<
 	return (
 		<label className="field">
 			<span className="field-label">{label}</span>
-			<input className={cn("input", error && "input-error")} aria-invalid={Boolean(error)} {...props} />
-			{error ? <span className="field-error"><AlertCircle size={14} />{error}</span> : hint && <span className="field-hint">{hint}</span>}
+			<input
+				className={cn("input", error && "input-error")}
+				aria-invalid={Boolean(error)}
+				{...props}
+			/>
+			{error ? (
+				<span className="field-error">
+					<AlertCircle size={14} />
+					{error}
+				</span>
+			) : (
+				hint && <span className="field-hint">{hint}</span>
+			)}
 		</label>
 	);
 }
@@ -99,8 +136,16 @@ export function SelectField({
 		<label className="field">
 			<span className="field-label">{label}</span>
 			<span className="select-wrap">
-				<select className="input select" value={value} onChange={(event) => onChange(event.target.value)}>
-					{options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+				<select
+					className="input select"
+					value={value}
+					onChange={(event) => onChange(event.target.value)}
+				>
+					{options.map((option) => (
+						<option key={option.id} value={option.id}>
+							{option.label}
+						</option>
+					))}
 				</select>
 				<ChevronDown size={16} aria-hidden="true" />
 			</span>
@@ -118,9 +163,15 @@ export function Toggle({
 	readonly onChange: (checked: boolean) => void;
 }) {
 	return (
-		<label className="toggle-row">
+		<label className="toggle-row" htmlFor={label + "-toggle"}>
 			<span>{label}</span>
-			<Switch.Root checked={checked} onCheckedChange={onChange} className={cn("toggle", checked && "toggle-checked")} aria-label={label}>
+			<Switch.Root
+				id={label + "-toggle"}
+				checked={checked}
+				onCheckedChange={onChange}
+				className={cn("toggle", checked && "toggle-checked")}
+				aria-label={label}
+			>
 				<Switch.Thumb />
 			</Switch.Root>
 		</label>
@@ -134,10 +185,30 @@ export function Diagnostic({
 	readonly severity: "info" | "success" | "warning" | "error";
 	readonly children: ReactNode;
 }) {
-	const Icon = severity === "error" ? X : severity === "warning" ? AlertCircle : severity === "success" ? Check : Info;
-	return <div className={cn("diagnostic", `diagnostic-${severity}`)} role={severity === "error" ? "alert" : "status"}><Icon size={16} />{children}</div>;
+	const Icon =
+		severity === "error"
+			? X
+			: severity === "warning"
+				? AlertCircle
+				: severity === "success"
+					? Check
+					: Info;
+	return (
+		<div
+			className={cn("diagnostic", `diagnostic-${severity}`)}
+			role={severity === "error" ? "alert" : "status"}
+		>
+			<Icon size={16} />
+			{children}
+		</div>
+	);
 }
 
 export function Loading({ label = "Loading" }: { readonly label?: string }) {
-	return <span className="loading"><LoaderCircle size={15} className="spin" />{label}</span>;
+	return (
+		<span className="loading">
+			<LoaderCircle size={15} className="spin" />
+			{label}
+		</span>
+	);
 }

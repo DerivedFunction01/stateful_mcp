@@ -1,11 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { I18nKernel, type SettingsSchemaEntry } from "@stateful-mcp/macro";
+import {
+	I18nKernel,
+	registerMacroLocales,
+	type SettingsSchemaEntry,
+} from "@stateful-mcp/macro";
 import {
 	createDefaultSettingsRegistry,
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
 } from "../src/config";
-import { registerMacroLocales } from "@stateful-mcp/macro";
 
 describe("Modular Settings Registry & Domain Modules", () => {
 	it("registers all 8 domain modules cleanly", () => {

@@ -1,7 +1,7 @@
 import { type MouseEvent, TextAttributes } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
-import { useEffect, useRef, useState } from "react";
 import { translate } from "@stateful-mcp/macro";
+import { useEffect, useRef, useState } from "react";
 import {
 	TuiScratchpadBody,
 	type TuiScratchpadLineModel,

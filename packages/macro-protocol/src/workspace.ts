@@ -33,15 +33,51 @@ export interface EffectiveKeymapDto {
 }
 
 export interface ContributionSnapshotDto {
-	readonly tabs: readonly { readonly id: string; readonly label: string; readonly icon?: string; readonly extensionId?: string }[];
-	readonly views: readonly { readonly id: string; readonly name: string; readonly containerId: string; readonly extensionId?: string }[];
-	readonly containers: readonly { readonly id: string; readonly title: string; readonly icon: string; readonly extensionId?: string }[];
+	readonly tabs: readonly {
+		readonly id: string;
+		readonly label: string;
+		readonly icon?: string;
+		readonly extensionId?: string;
+	}[];
+	readonly views: readonly {
+		readonly id: string;
+		readonly name: string;
+		readonly containerId: string;
+		readonly extensionId?: string;
+	}[];
+	readonly containers: readonly {
+		readonly id: string;
+		readonly title: string;
+		readonly icon: string;
+		readonly extensionId?: string;
+	}[];
 }
 
 export interface DiagnosticDto {
 	readonly severity: "info" | "warning" | "error";
 	readonly message: string;
 	readonly code?: string;
+}
+
+export interface ProjectResourceReferenceDto {
+	readonly resourceId: string;
+	readonly kind: string;
+	readonly revision?: string;
+	readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+export interface ProjectDescriptorDto {
+	readonly projectId: string;
+	readonly displayName: string;
+	readonly rootPath?: string;
+	readonly backend: {
+		readonly kind: "jsonl" | "sqlite";
+		readonly path: string;
+	};
+	readonly lifecycle: "open" | "dirty" | "closed";
+	readonly revision: string;
+	readonly resources: readonly ProjectResourceReferenceDto[];
+	readonly historyResources: readonly ProjectResourceReferenceDto[];
 }
 
 export interface WorkspaceSnapshot {
@@ -58,5 +94,6 @@ export interface WorkspaceSnapshot {
 	readonly activeTabId?: string;
 	readonly scratchpad: Readonly<Record<string, unknown>>;
 	readonly diagnostics: readonly DiagnosticDto[];
+	readonly project?: ProjectDescriptorDto;
 	readonly revision: number;
 }

@@ -4,11 +4,11 @@ import {
 	type MacroWorkspace,
 	matchKeymapCommand,
 } from "@stateful-mcp/macro";
-import type { NormalizedMouseEvent } from "./input/mouse";
 import {
 	SettingsModalController,
 	type SettingsModalController as SettingsModalControllerType,
 } from "./components/settings-modal-controller";
+import type { NormalizedMouseEvent } from "./input/mouse";
 
 export interface TerminalKeyEvent {
 	readonly input?: string;
@@ -21,7 +21,10 @@ export interface TerminalKeyEvent {
 
 export type TerminalMouseEvent = NormalizedMouseEvent;
 
-const settingsControllers = new WeakMap<MacroWorkspace, SettingsModalControllerType>();
+const settingsControllers = new WeakMap<
+	MacroWorkspace,
+	SettingsModalControllerType
+>();
 
 export function getSettingsModalController(
 	workspace: MacroWorkspace,
@@ -120,8 +123,10 @@ export async function dispatchTerminalInput(
 			return controller.handleCommand(modalCommand);
 		if (
 			controller.getSnapshot().dialog ||
-			!["search", "json"].includes(controller.getSnapshot().focus) &&
-			!['tab', 'pageup', 'pagedown', 'enter', 'return'].includes(name ?? input.toLowerCase())
+			(!["search", "json"].includes(controller.getSnapshot().focus) &&
+				!["tab", "pageup", "pagedown", "enter", "return"].includes(
+					name ?? input.toLowerCase(),
+				))
 		)
 			return "ignored";
 		return controller.handleInput({

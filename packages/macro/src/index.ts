@@ -39,6 +39,7 @@ export * from "./matcher/friendly";
 export * from "./parser/macro-parser";
 export * from "./parser/macro-scanner";
 export * from "./payload/payload-compiler";
+export * from "./project/contracts";
 export * from "./rendering/contracts";
 export * from "./resources/contracts";
 export * from "./resources/core-dictionary-adapter";

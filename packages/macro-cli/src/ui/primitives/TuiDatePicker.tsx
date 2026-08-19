@@ -3,8 +3,8 @@ import {
 	type DateTimeFormatConfig,
 	formatDateTimeValue,
 	type I18nKernel,
+	translate,
 } from "@stateful-mcp/macro";
-import { translate } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

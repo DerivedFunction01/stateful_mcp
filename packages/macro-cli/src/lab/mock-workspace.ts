@@ -3,8 +3,8 @@ import {
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
 	type EditorKeymapProfile,
 	type MacroWorkspace,
+	registerMacroLocales,
 } from "@stateful-mcp/macro";
-import { registerMacroLocales } from "@stateful-mcp/macro";
 
 export interface MockWorkspaceOptions {
 	readonly initialText?: string;

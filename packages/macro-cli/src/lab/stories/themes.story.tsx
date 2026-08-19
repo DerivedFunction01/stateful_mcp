@@ -189,12 +189,7 @@ export const themesStory: TuiStory = {
 
 				{/* 2. Tab Bar with Elevated Shelf */}
 				<box backgroundColor={c.bgSurface} height={1}>
-					<TuiTabs
-						tabs={DEMO_TABS}
-						activeTabId="scratchpad"
-						
-						theme={theme}
-					/>
+					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" theme={theme} />
 				</box>
 				<box height={1} marginBottom={1}>
 					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>

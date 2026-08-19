@@ -68,7 +68,14 @@ export interface HistoryResourceStore<TPayload = unknown> {
 	): Promise<HistoryResource<TPayload>>;
 	open(historyId: string): Promise<HistoryResource<TPayload> | null>;
 	save(resource: HistoryResource<TPayload>): Promise<void>;
-	list(): Promise<Array<Pick<HistoryResource<TPayload>, "historyId" | "formatVersion" | "createdAt" | "updatedAt" | "metadata">>>;
+	list(): Promise<
+		Array<
+			Pick<
+				HistoryResource<TPayload>,
+				"historyId" | "formatVersion" | "createdAt" | "updatedAt" | "metadata"
+			>
+		>
+	>;
 	delete(historyId: string): Promise<void>;
 }
 

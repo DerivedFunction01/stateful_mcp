@@ -3,6 +3,7 @@ import { createDependencyResolver } from "../context/dependency-resolver";
 import type {
 	ExtensionContext,
 	ExtensionLogger,
+	ExtensionStorageServices,
 	ListenerRegistryWriter,
 	MacroRegistryWriter,
 	MatcherFactory,
@@ -65,6 +66,7 @@ export interface ExtensionRuntimeOptions {
 	profile?: UserMacroProfile;
 	settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 	i18n?: I18nKernel;
+	storage?: ExtensionStorageServices;
 }
 
 export interface ActivationResult {
@@ -84,6 +86,7 @@ export class ExtensionRuntime {
 		logger: ExtensionLogger;
 		profile?: UserMacroProfile;
 		settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+		storage?: ExtensionStorageServices;
 	};
 	private loaded: LoadedExtension[] = [];
 
@@ -93,6 +96,7 @@ export class ExtensionRuntime {
 			logger: options.logger ?? consoleLogger,
 			profile: options.profile,
 			settings: options.settings ?? {},
+			storage: options.storage,
 		};
 		this.context = options.context ?? createMacroRuntimeContext();
 		this.i18n = options.i18n;
@@ -416,9 +420,7 @@ function createContext(
 			new Map(registry.list().map((item) => [item.manifest.id, item])),
 			manifest.requires ?? [],
 		),
-		storage: {
-			resolvePath: (path) => resolvePath(rootDirectory, sourceFile, path),
-		},
+		storage: options.storage ?? createDeferredStorage(manifest.id),
 		logger: options.logger,
 		seed: createExtensionSeedServices(extensionRoot),
 		i18n: i18n
@@ -470,6 +472,23 @@ function resolvePath(
 ): string {
 	if (path.startsWith("/")) return resolve(path);
 	return resolve(join(dirname(resolve(sourceFile)), path || rootDirectory));
+}
+
+function createDeferredStorage(extensionId: string): ExtensionStorageServices {
+	return {
+		extensionId,
+		resolvePath: () => {
+			throw new Error(
+				`Extension '${extensionId}' has no host storage scope; declare an explicit project, global, content, or cache scope`,
+			);
+		},
+		requestScope: (scope) => {
+			if (scope !== "global") return;
+			throw new Error(
+				`Global storage for extension '${extensionId}' is not configured`,
+			);
+		},
+	};
 }
 
 function validateManifests(loaded: readonly LoadedExtension[]): void {

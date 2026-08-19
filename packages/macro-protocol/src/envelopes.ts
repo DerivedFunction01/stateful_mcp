@@ -1,7 +1,10 @@
-import { MACRO_PROTOCOL_VERSION, type MacroProtocolVersion } from "./version";
 import type { HostError } from "./errors";
+import { MACRO_PROTOCOL_VERSION, type MacroProtocolVersion } from "./version";
 
-export interface HostRequest<TType extends string = string, TPayload = unknown> {
+export interface HostRequest<
+	TType extends string = string,
+	TPayload = unknown,
+> {
 	readonly version: MacroProtocolVersion;
 	readonly requestId: string;
 	readonly type: TType;
@@ -27,7 +30,9 @@ export interface HostEvent<TType extends string = string, TPayload = unknown> {
 	readonly payload: TPayload;
 }
 
-export function isProtocolVersion(value: unknown): value is MacroProtocolVersion {
+export function isProtocolVersion(
+	value: unknown,
+): value is MacroProtocolVersion {
 	return value === MACRO_PROTOCOL_VERSION;
 }
 
@@ -35,6 +40,9 @@ export function response<T>(requestId: string, payload: T): HostResponse<T> {
 	return { version: MACRO_PROTOCOL_VERSION, requestId, ok: true, payload };
 }
 
-export function failure(requestId: string, error: HostError): HostResponse<never> {
+export function failure(
+	requestId: string,
+	error: HostError,
+): HostResponse<never> {
 	return { version: MACRO_PROTOCOL_VERSION, requestId, ok: false, error };
 }

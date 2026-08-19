@@ -14,8 +14,6 @@ export const tabsStory: TuiStory = {
 	category: "Core",
 	states: ["default"],
 	render() {
-		return (
-			<TuiTabs tabs={STATUS_TABS} activeTabId="scratchpad"  />
-		);
+		return <TuiTabs tabs={STATUS_TABS} activeTabId="scratchpad" />;
 	},
 };

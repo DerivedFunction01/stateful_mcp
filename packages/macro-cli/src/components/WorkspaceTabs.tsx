@@ -29,7 +29,6 @@ export function WorkspaceTabs({
 				workspace.layout.setActiveTab(id);
 				workspace.layout.setFocusedPane("main");
 			}}
-			
 			theme={theme}
 		/>
 	);

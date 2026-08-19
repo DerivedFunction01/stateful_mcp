@@ -57,9 +57,10 @@ export class SettingsModalController {
 
 	open(request: OpenSettingsRequest = {}, syncNavigation = true): void {
 		const sections = this.model.getSnapshot().sections;
-		const requested = request.section && request.section !== "all"
-			? sections.findIndex((section) => section.id === request.section)
-			: -1;
+		const requested =
+			request.section && request.section !== "all"
+				? sections.findIndex((section) => section.id === request.section)
+				: -1;
 		if (requested >= 0) this.selectedCategoryIndex = requested;
 		this.focus = "content";
 		this.selectedItemIndex = 0;
@@ -82,7 +83,10 @@ export class SettingsModalController {
 
 	requestClose(): boolean {
 		if (this.dialog) return true;
-		if (this.model.getSnapshot().totalModifiedCount > 0 || this.model.getSnapshot().hasErrors) {
+		if (
+			this.model.getSnapshot().totalModifiedCount > 0 ||
+			this.model.getSnapshot().hasErrors
+		) {
 			this.dialog = "discard";
 			this.notify();
 			return true;
@@ -133,7 +137,8 @@ export class SettingsModalController {
 			"actions",
 		];
 		const current = order.indexOf(this.focus);
-		this.focus = order[(current + direction + order.length) % order.length] ?? "content";
+		this.focus =
+			order[(current + direction + order.length) % order.length] ?? "content";
 		this.notify();
 	}
 
@@ -157,9 +162,17 @@ export class SettingsModalController {
 	}
 
 	pageScroll(delta: 1 | -1): void {
-		const count = this.model.getSnapshot().sections[this.selectedCategoryIndex]?.items.length ?? 0;
-		this.scrollOffset = Math.max(0, Math.min(Math.max(0, count - 1), this.scrollOffset + delta * 5));
-		this.selectedItemIndex = Math.max(0, Math.min(Math.max(0, count - 1), this.scrollOffset));
+		const count =
+			this.model.getSnapshot().sections[this.selectedCategoryIndex]?.items
+				.length ?? 0;
+		this.scrollOffset = Math.max(
+			0,
+			Math.min(Math.max(0, count - 1), this.scrollOffset + delta * 5),
+		);
+		this.selectedItemIndex = Math.max(
+			0,
+			Math.min(Math.max(0, count - 1), this.scrollOffset),
+		);
 		this.notify();
 	}
 
@@ -169,7 +182,8 @@ export class SettingsModalController {
 			const profiles = snapshot.availableProfiles ?? [];
 			if (profiles.length > 0) {
 				const current = Math.max(0, profiles.indexOf(snapshot.activeProfileId));
-				const next = profiles[(current + delta + profiles.length) % profiles.length];
+				const next =
+					profiles[(current + delta + profiles.length) % profiles.length];
 				if (next) void this.model.switchProfile(next);
 			}
 			this.notify();
@@ -178,7 +192,9 @@ export class SettingsModalController {
 		if (this.focus === "scope") {
 			const scopes = ["user", "workspace", "folder"] as const;
 			const current = scopes.indexOf(snapshot.activeScope);
-			this.model.setActiveScope(scopes[(current + delta + scopes.length) % scopes.length]!);
+			this.model.setActiveScope(
+				scopes[(current + delta + scopes.length) % scopes.length]!,
+			);
 			this.notify();
 			return;
 		}
@@ -215,13 +231,15 @@ export class SettingsModalController {
 			return;
 		}
 		if (this.focus !== "content") return;
-		const section = this.model.getSnapshot().sections[this.selectedCategoryIndex];
+		const section =
+			this.model.getSnapshot().sections[this.selectedCategoryIndex];
 		const item = section?.items[this.selectedItemIndex];
 		if (!item) return;
 		if (item.schema.type === "boolean") {
 			this.model.setValue(item.schema.path, !item.effectiveValue);
 		} else if (item.schema.type === "enum") {
-			const options = item.schema.enumOptions ??
+			const options =
+				item.schema.enumOptions ??
 				item.schema.enumValues?.map((id) => ({ id, label: id }));
 			if (options && options.length > 0) {
 				const current = options.findIndex(
@@ -239,19 +257,43 @@ export class SettingsModalController {
 
 	handleCommand(command: string): WorkspaceInputResult {
 		switch (command) {
-			case "settings.navigateDown": this.navigate(1); return "handled";
-			case "settings.navigateUp": this.navigate(-1); return "handled";
-			case "settings.focusNavigation": this.setFocus("categories"); return "handled";
-			case "settings.focusContent": this.setFocus("content"); return "handled";
-			case "settings.focusSearch": this.setFocus("search"); return "handled";
-			case "settings.focusNext": this.focusNext(1); return "handled";
-			case "settings.focusPrevious": this.focusNext(-1); return "handled";
-			case "settings.selectEntry": this.select(); return "handled";
-			case "settings.save": return "handled";
-			case "settings.back": this.requestClose(); return "handled";
-			case "settings.nextSection": this.nextSection(); return "handled";
-			case "settings.previousSection": this.previousSection(); return "handled";
-			default: return "ignored";
+			case "settings.navigateDown":
+				this.navigate(1);
+				return "handled";
+			case "settings.navigateUp":
+				this.navigate(-1);
+				return "handled";
+			case "settings.focusNavigation":
+				this.setFocus("categories");
+				return "handled";
+			case "settings.focusContent":
+				this.setFocus("content");
+				return "handled";
+			case "settings.focusSearch":
+				this.setFocus("search");
+				return "handled";
+			case "settings.focusNext":
+				this.focusNext(1);
+				return "handled";
+			case "settings.focusPrevious":
+				this.focusNext(-1);
+				return "handled";
+			case "settings.selectEntry":
+				this.select();
+				return "handled";
+			case "settings.save":
+				return "handled";
+			case "settings.back":
+				this.requestClose();
+				return "handled";
+			case "settings.nextSection":
+				this.nextSection();
+				return "handled";
+			case "settings.previousSection":
+				this.previousSection();
+				return "handled";
+			default:
+				return "ignored";
 		}
 	}
 
@@ -264,7 +306,8 @@ export class SettingsModalController {
 	}
 
 	private syncNavigation(): void {
-		const section = this.model.getSnapshot().sections[this.selectedCategoryIndex];
+		const section =
+			this.model.getSnapshot().sections[this.selectedCategoryIndex];
 		if (section) {
 			this.model.setActiveSection(section.id);
 			this.navigation?.open({ section: section.id });
@@ -286,7 +329,8 @@ export class SettingsModalController {
 		if (this.dialog === "discard") {
 			if (key === "escape" || key === "c") this.confirmClose("cancel");
 			else if (key === "d") this.confirmClose("discard");
-			else if (key === "s" || key === "enter" || key === "return") this.confirmClose("save");
+			else if (key === "s" || key === "enter" || key === "return")
+				this.confirmClose("save");
 			return "handled";
 		}
 		if (key === "tab") {
@@ -330,25 +374,40 @@ export class SettingsModalController {
 			}
 			if (key === "backspace" || key === "\b" || key === "\x7f") {
 				if (this.jsonCursor > 0) {
-					this.model.replaceRawJson(raw.slice(0, this.jsonCursor - 1) + raw.slice(this.jsonCursor));
+					this.model.replaceRawJson(
+						raw.slice(0, this.jsonCursor - 1) + raw.slice(this.jsonCursor),
+					);
 					this.jsonCursor--;
 				}
 				this.notify();
 				return "handled";
 			}
 			if (key === "delete") {
-				this.model.replaceRawJson(raw.slice(0, this.jsonCursor) + raw.slice(this.jsonCursor + 1));
+				this.model.replaceRawJson(
+					raw.slice(0, this.jsonCursor) + raw.slice(this.jsonCursor + 1),
+				);
 				this.notify();
 				return "handled";
 			}
 			if (key === "enter" || key === "return") {
-				this.model.replaceRawJson(raw.slice(0, this.jsonCursor) + "\n" + raw.slice(this.jsonCursor));
+				this.model.replaceRawJson(
+					raw.slice(0, this.jsonCursor) + "\n" + raw.slice(this.jsonCursor),
+				);
 				this.jsonCursor++;
 				this.notify();
 				return "handled";
 			}
-			if (event.input && !event.ctrl && !event.meta && event.input.length === 1) {
-				this.model.replaceRawJson(raw.slice(0, this.jsonCursor) + event.input + raw.slice(this.jsonCursor));
+			if (
+				event.input &&
+				!event.ctrl &&
+				!event.meta &&
+				event.input.length === 1
+			) {
+				this.model.replaceRawJson(
+					raw.slice(0, this.jsonCursor) +
+						event.input +
+						raw.slice(this.jsonCursor),
+				);
 				this.jsonCursor += event.input.length;
 				this.notify();
 			}
@@ -367,7 +426,12 @@ export class SettingsModalController {
 				this.setSearchQuery(this.model.getSearchQuery().slice(0, -1));
 				return "handled";
 			}
-			if (event.input && !event.ctrl && !event.meta && event.input.length === 1) {
+			if (
+				event.input &&
+				!event.ctrl &&
+				!event.meta &&
+				event.input.length === 1
+			) {
 				this.setSearchQuery(this.model.getSearchQuery() + event.input);
 			}
 			return "handled";
@@ -393,7 +457,7 @@ export class SettingsModalController {
 			return "handled";
 		}
 		if (key === "tab" || key === "\t") {
-		this.setFocus(this.focus === "categories" ? "content" : "categories");
+			this.setFocus(this.focus === "categories" ? "content" : "categories");
 			return "handled";
 		}
 		if (key === "enter" || key === "return") {

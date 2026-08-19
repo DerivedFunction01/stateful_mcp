@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
 	HistoryConflictError,
-	KvHistoryStore,
 	KvHistoryResourceStore,
+	KvHistoryStore,
 	MemoryKvBackend,
 	SqlBackend,
 	SqlExecutor,
-	SqlHistoryStore,
 	SqlHistoryResourceStore,
+	SqlHistoryStore,
 } from "../src/index";
 
 const event = (eventId: string, value: unknown, streamId = "stream") => ({
@@ -20,9 +20,7 @@ const event = (eventId: string, value: unknown, streamId = "stream") => ({
 
 describe("history stores", () => {
 	test("KV allocates sequences and supports idempotent appends", async () => {
-		const store = new KvHistoryStore<{ value: number }>(
-			new MemoryKvBackend(),
-		);
+		const store = new KvHistoryStore<{ value: number }>(new MemoryKvBackend());
 		const first = await store.append("stream", event("a", 1));
 		const duplicate = await store.append("stream", event("a", 1));
 		const second = await store.append("stream", event("b", 2), 2);

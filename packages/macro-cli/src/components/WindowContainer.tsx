@@ -1,5 +1,6 @@
 import type { CliRenderer, MouseEvent } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
+import { translate } from "@stateful-mcp/macro";
 import type { MacroCliViewProvider } from "../renderer";
 import {
 	resolveTuiWorkspaceLayout,
@@ -10,15 +11,14 @@ import { TuiMenuBar, type TuiMenuGroup } from "../ui/primitives/TuiMenuBar";
 import { TuiPanelRegion } from "../ui/primitives/TuiPanelRegion";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../ui/theme";
 import { CommandPaletteModal } from "./CommandPaletteModal";
-import { SettingsModal } from "./SettingsModal";
 import { HelpBar } from "./HelpBar";
 import { ScratchpadView } from "./ScratchpadView";
+import { SettingsModal } from "./SettingsModal";
 import { SidepanelHost } from "./SidepanelHost";
 import { StatusBar } from "./StatusBar";
+import type { SettingsModalController } from "./settings-modal-controller";
 import { TabHost } from "./TabHost";
 import { WorkspaceTabs } from "./WorkspaceTabs";
-import { translate } from "@stateful-mcp/macro";
-import type { SettingsModalController } from "./settings-modal-controller";
 
 export function WindowContainer({
 	workspace,
@@ -56,8 +56,14 @@ export function WindowContainer({
 	const paletteMargin = Math.max(0, Math.floor((columns - paletteWidth) / 2));
 	const settingsWidth = Math.max(1, Math.min(106, columns - 4));
 	const settingsHeight = Math.max(1, Math.min(30, rows - 4));
-	const settingsMarginLeft = Math.max(0, Math.floor((columns - settingsWidth) / 2));
-	const settingsMarginTop = Math.max(0, Math.floor((rows - settingsHeight) / 2));
+	const settingsMarginLeft = Math.max(
+		0,
+		Math.floor((columns - settingsWidth) / 2),
+	);
+	const settingsMarginTop = Math.max(
+		0,
+		Math.floor((rows - settingsHeight) / 2),
+	);
 
 	// Primary Activity Region Data
 	const activityContainers = workspace.views.getContainersForRegion("activity");

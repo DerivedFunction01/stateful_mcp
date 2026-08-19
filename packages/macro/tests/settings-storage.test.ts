@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	MemoryKvBackend,
-	type SqlBackend,
-	SqlExecutor,
-	type SqlStatement,
-} from "@stateful-mcp/core";
+import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import type { UserMacroProfile } from "../src/contracts/extension-config";
 import {
 	exportSettingsBundle,
@@ -18,102 +13,6 @@ import {
 	CoreKvSettingsStorageDriver,
 	CoreSqlSettingsStorageDriver,
 } from "../src/workspace/config/storage-driver";
-
-const createMockSqlBackend = (): SqlBackend => {
-	const tables: Record<string, Record<string, Record<string, any>>> = {
-		macro_workspace_settings: {},
-		macro_profiles: {},
-		macro_extensions: {},
-	};
-
-	const backend: any = {
-		dialect: "sqlite",
-		conn: {} as any,
-		permissionPolicy: {} as any,
-		setPermissionPolicy: () => {},
-		capabilities: {},
-		permissions: {},
-		compiler: {} as any,
-		async query(sql: string, params?: any[]): Promise<Record<string, any>[]> {
-			if (sql.includes("SELECT id FROM macro_profiles")) {
-				return Object.keys(tables.macro_profiles ?? {}).map((id) => ({ id }));
-			}
-			if (sql.includes("SELECT id FROM macro_extensions")) {
-				return Object.keys(tables.macro_extensions ?? {}).map((id) => ({ id }));
-			}
-			return [];
-		},
-		async queryOne(
-			sql: string,
-			params?: any[],
-		): Promise<Record<string, any> | null> {
-			if (sql.includes("FROM macro_workspace_settings WHERE key = ?")) {
-				const key = params?.[0] as string | undefined;
-				const row = key ? tables.macro_workspace_settings?.[key] : undefined;
-				return row ?? null;
-			}
-			if (sql.includes("FROM macro_profiles WHERE id = ?")) {
-				const id = params?.[0] as string | undefined;
-				const row = id ? tables.macro_profiles?.[id] : undefined;
-				return row ?? null;
-			}
-			if (sql.includes("FROM macro_extensions WHERE id = ?")) {
-				const id = params?.[0] as string | undefined;
-				const row = id ? tables.macro_extensions?.[id] : undefined;
-				return row ?? null;
-			}
-			return null;
-		},
-		async exec(sql: string, params?: any[]): Promise<void> {
-			if (sql.includes("CREATE TABLE")) return;
-
-			if (sql.includes("INSERT INTO macro_workspace_settings")) {
-				const key = params?.[0] as string;
-				const data = params?.[1];
-				const updated_at = params?.[2];
-				if (tables.macro_workspace_settings && key) {
-					tables.macro_workspace_settings[key] = { key, data, updated_at };
-				}
-				return;
-			}
-
-			if (sql.includes("INSERT INTO macro_profiles")) {
-				const id = params?.[0] as string;
-				const extends_id = params?.[1];
-				const data = params?.[2];
-				const updated_at = params?.[3];
-				if (tables.macro_profiles && id) {
-					tables.macro_profiles[id] = { id, extends_id, data, updated_at };
-				}
-				return;
-			}
-
-			if (sql.includes("DELETE FROM macro_profiles WHERE id = ?")) {
-				const id = params?.[0] as string;
-				if (tables.macro_profiles && id) {
-					delete tables.macro_profiles[id];
-				}
-				return;
-			}
-
-			if (sql.includes("INSERT INTO macro_extensions")) {
-				const id = params?.[0] as string;
-				const data = params?.[1];
-				const updated_at = params?.[2];
-				if (tables.macro_extensions && id) {
-					tables.macro_extensions[id] = { id, data, updated_at };
-				}
-				return;
-			}
-		},
-		async transaction(statements: SqlStatement[]): Promise<void> {
-			for (const st of statements) {
-				await backend.exec(st.sql, st.params);
-			}
-		},
-	};
-	return backend as SqlBackend;
-};
 
 describe("Settings Storage & Profile Inheritance Engine", () => {
 	const baseProfile: UserMacroProfile = {
@@ -182,7 +81,7 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 	});
 
 	test("CoreSqlSettingsStorageDriver persists settings, profiles, and extensions", async () => {
-		const mockSql = createMockSqlBackend();
+		const mockSql = await SqlBackend.connect("sqlite", ":memory:");
 		const executor = new SqlExecutor(mockSql);
 		const driver = new CoreSqlSettingsStorageDriver(executor);
 

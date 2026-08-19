@@ -4,8 +4,8 @@ import {
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
 	type EditorKeymapProfile,
 	I18nKernel,
+	registerMacroLocales,
 } from "@stateful-mcp/macro";
-import { registerMacroLocales } from "@stateful-mcp/macro";
 import { getSettingsModalController } from "../src/terminal-dispatcher";
 import {
 	buildContextualHelpBarHints,
@@ -14,7 +14,7 @@ import {
 
 describe("Dynamic Keymap-Driven HelpBar Hints", () => {
 	const i18n = new I18nKernel();
-		registerMacroLocales(i18n);
+	registerMacroLocales(i18n);
 
 	test("derives hints for settings tab dynamically from default keymap", () => {
 		const workspace = createMacroWorkspace({ initialLocale: "en" });

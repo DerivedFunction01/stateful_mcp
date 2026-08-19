@@ -298,6 +298,7 @@ export class WorkspaceSettingsService {
 			const editor = (this.draft.editor ?? {}) as Record<string, unknown>;
 			const workspaceSettings: WorkspaceSettings = {
 				activeProfile: this.activeProfileId,
+				uiLocale: this.draft.uiLocale as string | undefined,
 				theme: appearance.theme as string | undefined,
 				showBounds: appearance.showBounds as boolean | undefined,
 				...appearance,

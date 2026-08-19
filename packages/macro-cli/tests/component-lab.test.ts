@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { translate } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, parseArgs } from "../src/index";
 import { createMockWorkspace } from "../src/lab/mock-workspace";
 import { TuiStoryRegistry } from "../src/lab/story-registry";
-import { translate } from "@stateful-mcp/macro";
 import { resolveTuiWorkspaceLayout } from "../src/ui/compositions/layout";
 import {
 	buildContextualHelpBarHints,

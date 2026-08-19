@@ -38,7 +38,12 @@ export interface ListenerRegistryWriter {
 }
 
 export interface ExtensionStorageServices {
-	resolvePath(path: string): string;
+	readonly extensionId?: string;
+	resolvePath(
+		scope: "project" | "global" | "content" | "cache",
+		path: string,
+	): string;
+	requestScope(scope: "project" | "global" | "content" | "cache"): void;
 }
 
 export interface ExtensionLogger {

@@ -124,12 +124,7 @@ export const inspectorRegionStory: TuiStory = {
 				padding={1}
 			>
 				{/* Top Workspace Tab Strip & Connecting Baseline Divider */}
-				<TuiTabs
-					tabs={DEMO_TABS}
-					activeTabId="scratchpad"
-					
-					theme={theme}
-				/>
+				<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" theme={theme} />
 				<box height={1}>
 					<text fg={c.borderSubtle}>{"▔".repeat(Math.max(20, width - 2))}</text>
 				</box>

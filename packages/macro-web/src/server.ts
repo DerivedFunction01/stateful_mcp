@@ -2,18 +2,24 @@ import { relative, resolve, sep } from "node:path";
 import { createMacroHost } from "@stateful-mcp/macro-host";
 import {
 	failure,
+	type HostRequest,
 	hostError,
 	isProtocolVersion,
 	MACRO_PROTOCOL_VERSION,
 	response,
-	type HostRequest,
-	type HostResponse,
 	type SettingsOperation,
 } from "@stateful-mcp/macro-protocol";
-import { HostSessionManager, SessionError } from "./server/host-session-manager";
+import {
+	HostSessionManager,
+	SessionError,
+} from "./server/host-session-manager";
 
-interface SocketData { readonly sessionId: string }
-interface JsonRequest extends HostRequest<string, unknown> { readonly requestId: string }
+interface SocketData {
+	readonly sessionId: string;
+}
+interface JsonRequest extends HostRequest<string, unknown> {
+	readonly requestId: string;
+}
 
 const packageRoot = resolve(import.meta.dir, "..");
 const buildRoot = resolve(packageRoot, "dist/dev");
@@ -26,7 +32,11 @@ const build = await Bun.build({
 	outdir: assetsRoot,
 	target: "browser",
 	sourcemap: "inline",
-	naming: { entry: "macro-web.[ext]", chunk: "[name]-[hash].[ext]", asset: "[name].[ext]" },
+	naming: {
+		entry: "macro-web.[ext]",
+		chunk: "[name]-[hash].[ext]",
+		asset: "[name].[ext]",
+	},
 });
 if (!build.success) {
 	for (const log of build.logs) console.error(log);
@@ -46,20 +56,32 @@ const indexHtml = `<!doctype html>
 
 function isWithinRoot(path: string, root: string): boolean {
 	const rootRelative = relative(root, resolve(path));
-	return rootRelative === "" || (!rootRelative.startsWith(`..${sep}`) && rootRelative !== "..");
+	return (
+		rootRelative === "" ||
+		(!rootRelative.startsWith(`..${sep}`) && rootRelative !== "..")
+	);
 }
 
 async function serveAsset(pathname: string): Promise<Response | undefined> {
 	const assetPath = resolve(assetsRoot, pathname.slice("/assets/".length));
-	if (!isWithinRoot(assetPath, assetsRoot)) return new Response("Forbidden", { status: 403 });
+	if (!isWithinRoot(assetPath, assetsRoot))
+		return new Response("Forbidden", { status: 403 });
 	const file = Bun.file(assetPath);
 	return (await file.exists()) ? new Response(file) : undefined;
 }
 
 async function jsonBody(request: Request): Promise<JsonRequest> {
 	const value = (await request.json()) as Partial<JsonRequest>;
-	if (!isProtocolVersion(value.version) || typeof value.requestId !== "string" || typeof value.type !== "string") {
-		throw new SessionError("INVALID_REQUEST", "Request envelope is invalid", false);
+	if (
+		!isProtocolVersion(value.version) ||
+		typeof value.requestId !== "string" ||
+		typeof value.type !== "string"
+	) {
+		throw new SessionError(
+			"INVALID_REQUEST",
+			"Request envelope is invalid",
+			false,
+		);
 	}
 	return value as JsonRequest;
 }
@@ -69,16 +91,38 @@ function requestId(request: Request): string {
 }
 
 function errorResponse(id: string, error: unknown): Response {
-	const hostErrorValue = error instanceof SessionError ? error.toHostError() : hostError("HOST_REQUEST_FAILED", error instanceof Error ? error.message : "Host request failed");
-	const status = hostErrorValue.code === "SESSION_NOT_FOUND" ? 404 : hostErrorValue.code === "STALE_REVISION" ? 409 : hostErrorValue.code === "INVALID_REQUEST" ? 400 : 500;
+	const hostErrorValue =
+		error instanceof SessionError
+			? error.toHostError()
+			: hostError(
+					"HOST_REQUEST_FAILED",
+					error instanceof Error ? error.message : "Host request failed",
+				);
+	const status =
+		hostErrorValue.code === "SESSION_NOT_FOUND"
+			? 404
+			: hostErrorValue.code === "STALE_REVISION"
+				? 409
+				: hostErrorValue.code === "INVALID_REQUEST"
+					? 400
+					: 500;
 	return Response.json(failure(id, hostErrorValue), { status });
 }
 
-async function handleJson(request: Request, sessionId: string | undefined, handler: (envelope: JsonRequest) => Promise<unknown>): Promise<Response> {
+async function handleJson(
+	request: Request,
+	sessionId: string | undefined,
+	handler: (envelope: JsonRequest) => Promise<unknown>,
+): Promise<Response> {
 	const id = requestId(request);
 	try {
 		const envelope = await jsonBody(request);
-		if (sessionId && envelope.sessionId !== sessionId) throw new SessionError("SESSION_MISMATCH", "Request session does not match URL", false);
+		if (sessionId && envelope.sessionId !== sessionId)
+			throw new SessionError(
+				"SESSION_MISMATCH",
+				"Request session does not match URL",
+				false,
+			);
 		const payload = await handler(envelope);
 		return Response.json(response(envelope.requestId || id, payload));
 	} catch (error) {
@@ -91,48 +135,134 @@ const server = Bun.serve<SocketData>({
 	port,
 	fetch: async (request, serverInstance) => {
 		const url = new URL(request.url);
-		const sessionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|parse))?$/);
+		const sessionMatch = url.pathname.match(
+			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|parse))?$/,
+		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
-				const payload = (envelope.payload ?? {}) as { workspacePath?: string; profileId?: string; locale?: string; initialText?: string; keymap?: Record<string, unknown> };
-				const snapshot = await sessions.create({ profileId: payload.profileId, locale: payload.locale, initialText: payload.initialText, keymap: payload.keymap as never });
-				return { sessionId: snapshot.sessionId, workspaceId: snapshot.workspaceId, protocolVersion: MACRO_PROTOCOL_VERSION, snapshot };
+				const payload = (envelope.payload ?? {}) as {
+					projectRoot?: string;
+					workspacePath?: string;
+					profileId?: string;
+					locale?: string;
+					initialText?: string;
+					keymap?: Record<string, unknown>;
+				};
+				const snapshot = await sessions.create({
+					projectRoot: payload.projectRoot,
+					profileId: payload.profileId,
+					locale: payload.locale,
+					initialText: payload.initialText,
+					keymap: payload.keymap as never,
+				});
+				return {
+					sessionId: snapshot.sessionId,
+					workspaceId: snapshot.workspaceId,
+					protocolVersion: MACRO_PROTOCOL_VERSION,
+					snapshot,
+				};
 			});
 		}
 		if (sessionMatch) {
 			const sessionId = decodeURIComponent(sessionMatch[1]!);
 			const operation = sessionMatch[2];
 			if (operation === "events" && request.method === "GET") {
-				if (!sessions.get(sessionId)) return new Response("Session not found", { status: 404 });
-				if (serverInstance.upgrade(request, { data: { sessionId } })) return undefined;
+				if (!sessions.get(sessionId))
+					return new Response("Session not found", { status: 404 });
+				if (serverInstance.upgrade(request, { data: { sessionId } }))
+					return undefined;
 				return new Response("WebSocket upgrade required", { status: 426 });
 			}
 			if (operation === "snapshot" && request.method === "GET") {
-				try { return Response.json(response(requestId(request), sessions.snapshotFor(sessionId))); } catch (error) { return errorResponse(requestId(request), error); }
+				try {
+					return Response.json(
+						response(requestId(request), sessions.snapshotFor(sessionId)),
+					);
+				} catch (error) {
+					return errorResponse(requestId(request), error);
+				}
 			}
-			if (operation === "commands" && request.method === "POST") return handleJson(request, sessionId, async (envelope) => {
-				const payload = envelope.payload as { command?: string; args?: readonly unknown[]; expectedRevision?: number };
-				if (!payload || typeof payload.command !== "string") throw new SessionError("INVALID_COMMAND", "A canonical command ID is required", false);
-				return { command: payload.command, result: await sessions.executeCommand(sessionId, payload.command, payload.args ?? [], payload.expectedRevision) };
-			});
-			if (operation === "settings" && request.method === "POST") return handleJson(request, sessionId, async (envelope) => sessions.settings(sessionId, envelope.payload as SettingsOperation));
-			if (operation === "parse" && request.method === "POST") return handleJson(request, sessionId, async (envelope) => {
-				const payload = envelope.payload as { text?: string; textRevision?: number };
-				if (typeof payload?.text !== "string" || typeof payload.textRevision !== "number") throw new SessionError("INVALID_PARSE", "Parse text and textRevision are required", false);
-				return sessions.parse(sessionId, payload.text, payload.textRevision);
-			});
+			if (operation === "commands" && request.method === "POST")
+				return handleJson(request, sessionId, async (envelope) => {
+					const payload = envelope.payload as {
+						command?: string;
+						args?: readonly unknown[];
+						expectedRevision?: number;
+					};
+					if (!payload || typeof payload.command !== "string")
+						throw new SessionError(
+							"INVALID_COMMAND",
+							"A canonical command ID is required",
+							false,
+						);
+					return {
+						command: payload.command,
+						result: await sessions.executeCommand(
+							sessionId,
+							payload.command,
+							payload.args ?? [],
+							payload.expectedRevision,
+						),
+					};
+				});
+			if (operation === "settings" && request.method === "POST")
+				return handleJson(request, sessionId, async (envelope) =>
+					sessions.settings(sessionId, envelope.payload as SettingsOperation),
+				);
+			if (operation === "parse" && request.method === "POST")
+				return handleJson(request, sessionId, async (envelope) => {
+					const payload = envelope.payload as {
+						text?: string;
+						textRevision?: number;
+					};
+					if (
+						typeof payload?.text !== "string" ||
+						typeof payload.textRevision !== "number"
+					)
+						throw new SessionError(
+							"INVALID_PARSE",
+							"Parse text and textRevision are required",
+							false,
+						);
+					return sessions.parse(sessionId, payload.text, payload.textRevision);
+				});
 			if (!operation && request.method === "DELETE") {
-				try { await sessions.dispose(sessionId); return Response.json(response(requestId(request), { disposed: true })); } catch (error) { return errorResponse(requestId(request), error); }
+				try {
+					await sessions.dispose(sessionId);
+					return Response.json(
+						response(requestId(request), { disposed: true }),
+					);
+				} catch (error) {
+					return errorResponse(requestId(request), error);
+				}
 			}
 		}
-		if (url.pathname.startsWith("/assets/")) return (await serveAsset(url.pathname)) ?? new Response("Not found", { status: 404 });
-		return new Response(indexHtml, { headers: { "content-type": "text/html; charset=utf-8" } });
+		if (url.pathname.startsWith("/assets/"))
+			return (
+				(await serveAsset(url.pathname)) ??
+				new Response("Not found", { status: 404 })
+			);
+		return new Response(indexHtml, {
+			headers: { "content-type": "text/html; charset=utf-8" },
+		});
 	},
 	websocket: {
 		open(socket) {
-			const unsubscribe = sessions.subscribe(socket.data.sessionId, (event) => socket.send(JSON.stringify(event)));
+			const unsubscribe = sessions.subscribe(socket.data.sessionId, (event) =>
+				socket.send(JSON.stringify(event)),
+			);
 			sockets.set(socket as unknown as WebSocket, unsubscribe);
-			socket.send(JSON.stringify({ version: MACRO_PROTOCOL_VERSION, type: "session.ready", sessionId: socket.data.sessionId, sequence: 0, revision: sessions.snapshotFor(socket.data.sessionId).revision, eventId: crypto.randomUUID(), payload: { snapshot: sessions.snapshotFor(socket.data.sessionId) } }));
+			socket.send(
+				JSON.stringify({
+					version: MACRO_PROTOCOL_VERSION,
+					type: "session.ready",
+					sessionId: socket.data.sessionId,
+					sequence: 0,
+					revision: sessions.snapshotFor(socket.data.sessionId).revision,
+					eventId: crypto.randomUUID(),
+					payload: { snapshot: sessions.snapshotFor(socket.data.sessionId) },
+				}),
+			);
 		},
 		close(socket) {
 			const key = socket as unknown as WebSocket;
@@ -140,18 +270,39 @@ const server = Bun.serve<SocketData>({
 			sockets.delete(key);
 		},
 		message(socket, message) {
-			if (message === "snapshot") socket.send(JSON.stringify({ type: "workspace.changed", version: MACRO_PROTOCOL_VERSION, sessionId: socket.data.sessionId, eventId: crypto.randomUUID(), sequence: 0, revision: sessions.snapshotFor(socket.data.sessionId).revision, payload: { snapshot: sessions.snapshotFor(socket.data.sessionId) } }));
+			if (message === "snapshot")
+				socket.send(
+					JSON.stringify({
+						type: "workspace.changed",
+						version: MACRO_PROTOCOL_VERSION,
+						sessionId: socket.data.sessionId,
+						eventId: crypto.randomUUID(),
+						sequence: 0,
+						revision: sessions.snapshotFor(socket.data.sessionId).revision,
+						payload: { snapshot: sessions.snapshotFor(socket.data.sessionId) },
+					}),
+				);
 		},
 	},
 });
 
 console.log(`Macro Web listening at http://${hostname}:${server.port}`);
-const cleanupTimer = setInterval(() => void sessions.disposeAbandoned(), 60_000);
-const shutdown = async () => { clearInterval(cleanupTimer); server.stop(true); await sessions.disposeAll(); await host.dispose(); };
+const cleanupTimer = setInterval(
+	() => void sessions.disposeAbandoned(),
+	60_000,
+);
+const shutdown = async () => {
+	clearInterval(cleanupTimer);
+	server.stop(true);
+	await sessions.disposeAll();
+	await host.dispose();
+};
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 
 function argument(name: string): string | undefined {
 	const prefix = `--${name}=`;
-	return process.argv.find((value) => value.startsWith(prefix))?.slice(prefix.length);
+	return process.argv
+		.find((value) => value.startsWith(prefix))
+		?.slice(prefix.length);
 }

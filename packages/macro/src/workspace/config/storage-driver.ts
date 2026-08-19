@@ -1,10 +1,11 @@
-import type { SqlExecutor } from "../../../../core/src/adapters/storage/generic/SqlExecutor";
 import type { KvBackend } from "../../../../core/src/adapters/storage/generic/kv/KvBackend";
+import type { SqlExecutor } from "../../../../core/src/adapters/storage/generic/SqlExecutor";
 import type { UserMacroProfile } from "../../contracts/extension-config";
 
 export interface WorkspaceSettings {
 	readonly activeProfile?: string;
 	readonly defaultProfile?: string;
+	readonly uiLocale?: string;
 	readonly theme?: string;
 	readonly density?: string;
 	readonly enabledExtensions?: readonly string[];
@@ -125,37 +126,53 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 
 	private async ensureTables(): Promise<void> {
 		if (this.initialized) return;
-		await this.sql.exec(`
-			CREATE TABLE IF NOT EXISTS macro_workspace_settings (
-				key TEXT PRIMARY KEY,
-				data TEXT NOT NULL,
-				updated_at INTEGER NOT NULL
-			);
-		`);
-		await this.sql.exec(`
-			CREATE TABLE IF NOT EXISTS macro_profiles (
-				id TEXT PRIMARY KEY,
-				extends_id TEXT,
-				data TEXT NOT NULL,
-				updated_at INTEGER NOT NULL
-			);
-		`);
-		await this.sql.exec(`
-			CREATE TABLE IF NOT EXISTS macro_extensions (
-				id TEXT PRIMARY KEY,
-				data TEXT NOT NULL,
-				updated_at INTEGER NOT NULL
-			);
-		`);
+		const compiler = this.sql.compiler;
+		const tables = [
+			compiler.compileCreateTable({
+				table: "macro_workspace_settings",
+				ifNotExists: true,
+				columns: [
+					{ name: "key", type: "text", primaryKey: true },
+					{ name: "data", type: "json", nullable: false },
+					{ name: "updated_at", type: "int", nullable: false },
+				],
+			}),
+			compiler.compileCreateTable({
+				table: "macro_profiles",
+				ifNotExists: true,
+				columns: [
+					{ name: "id", type: "text", primaryKey: true },
+					{ name: "extends_id", type: "text", nullable: true },
+					{ name: "data", type: "json", nullable: false },
+					{ name: "updated_at", type: "int", nullable: false },
+				],
+			}),
+			compiler.compileCreateTable({
+				table: "macro_extensions",
+				ifNotExists: true,
+				columns: [
+					{ name: "id", type: "text", primaryKey: true },
+					{ name: "data", type: "json", nullable: false },
+					{ name: "updated_at", type: "int", nullable: false },
+				],
+			}),
+		];
+		for (const table of tables) await this.sql.exec(table.sql, table.params);
 		this.initialized = true;
 	}
 
 	async loadSettings(): Promise<WorkspaceSettings> {
 		await this.ensureTables();
-		const row = await this.sql.queryOne(
-			"SELECT data FROM macro_workspace_settings WHERE key = ?",
-			["workspace"],
-		);
+		const query = this.sql.compiler.compileSelect({
+			table: "macro_workspace_settings",
+			select: [{ column: "data" }],
+			where: [{ column: "key", op: "eq", value: "workspace" }],
+			limit: 1,
+		});
+		const row = await this.sql.queryOne(query.sql, query.params);
+		if (row && row.data && typeof row.data === "object") {
+			return row.data as WorkspaceSettings;
+		}
 		if (row && typeof row.data === "string") {
 			try {
 				return JSON.parse(row.data) as WorkspaceSettings;
@@ -168,20 +185,30 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 
 	async saveSettings(settings: WorkspaceSettings): Promise<void> {
 		await this.ensureTables();
-		const json = JSON.stringify(settings);
-		const now = Date.now();
-		await this.sql.exec(
-			"INSERT INTO macro_workspace_settings (key, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
-			["workspace", json, now],
-		);
+		const query = this.sql.compiler.compileReplace({
+			table: "macro_workspace_settings",
+			values: {
+				key: "workspace",
+				data: JSON.stringify(settings),
+				updated_at: Date.now(),
+			},
+			conflictColumns: ["key"],
+		});
+		await this.sql.exec(query.sql, query.params);
 	}
 
 	async loadProfile(id: string): Promise<UserMacroProfile | null> {
 		await this.ensureTables();
-		const row = await this.sql.queryOne(
-			"SELECT data FROM macro_profiles WHERE id = ?",
-			[id],
-		);
+		const query = this.sql.compiler.compileSelect({
+			table: "macro_profiles",
+			select: [{ column: "data" }],
+			where: [{ column: "id", op: "eq", value: id }],
+			limit: 1,
+		});
+		const row = await this.sql.queryOne(query.sql, query.params);
+		if (row && row.data && typeof row.data === "object") {
+			return row.data as UserMacroProfile;
+		}
 		if (row && typeof row.data === "string") {
 			try {
 				return JSON.parse(row.data) as UserMacroProfile;
@@ -198,35 +225,55 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 	): Promise<void> {
 		await this.ensureTables();
 		const extendsId = (delta as any).extends ?? null;
-		const json = JSON.stringify({ ...delta, id });
-		const now = Date.now();
-		await this.sql.exec(
-			"INSERT INTO macro_profiles (id, extends_id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET extends_id = excluded.extends_id, data = excluded.data, updated_at = excluded.updated_at",
-			[id, extendsId, json, now],
-		);
+		const query = this.sql.compiler.compileReplace({
+			table: "macro_profiles",
+			values: {
+				id,
+				extends_id: extendsId,
+				data: JSON.stringify({ ...delta, id }),
+				updated_at: Date.now(),
+			},
+			conflictColumns: ["id"],
+		});
+		await this.sql.exec(query.sql, query.params);
 	}
 
 	async listProfiles(): Promise<readonly string[]> {
 		await this.ensureTables();
-		const rows = await this.sql.query(
-			"SELECT id FROM macro_profiles ORDER BY id ASC",
+		const query = this.sql.compiler.compileSelect({
+			table: "macro_profiles",
+			select: [{ column: "id" }],
+			orderBy: [{ column: "id", direction: "ASC" }],
+		});
+		const rows = await this.sql.query(query.sql, query.params);
+		return Object.freeze(
+			rows.map((r: { readonly id?: unknown }) => r.id as string),
 		);
-		return Object.freeze(rows.map((r: { readonly id?: unknown }) => r.id as string));
 	}
 
 	async deleteProfile(id: string): Promise<void> {
 		await this.ensureTables();
-		await this.sql.exec("DELETE FROM macro_profiles WHERE id = ?", [id]);
+		const query = this.sql.compiler.compileDelete({
+			table: "macro_profiles",
+			where: [{ column: "id", op: "eq", value: id }],
+		});
+		await this.sql.exec(query.sql, query.params);
 	}
 
 	async loadExtensionConfig(
 		id: string,
 	): Promise<Record<string, unknown> | null> {
 		await this.ensureTables();
-		const row = await this.sql.queryOne(
-			"SELECT data FROM macro_extensions WHERE id = ?",
-			[id],
-		);
+		const query = this.sql.compiler.compileSelect({
+			table: "macro_extensions",
+			select: [{ column: "data" }],
+			where: [{ column: "id", op: "eq", value: id }],
+			limit: 1,
+		});
+		const row = await this.sql.queryOne(query.sql, query.params);
+		if (row && row.data && typeof row.data === "object") {
+			return row.data as Record<string, unknown>;
+		}
 		if (row && typeof row.data === "string") {
 			try {
 				return JSON.parse(row.data) as Record<string, unknown>;
@@ -242,19 +289,24 @@ export class CoreSqlSettingsStorageDriver implements SettingsStorageDriver {
 		config: Record<string, unknown>,
 	): Promise<void> {
 		await this.ensureTables();
-		const json = JSON.stringify(config);
-		const now = Date.now();
-		await this.sql.exec(
-			"INSERT INTO macro_extensions (id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
-			[id, json, now],
-		);
+		const query = this.sql.compiler.compileReplace({
+			table: "macro_extensions",
+			values: { id, data: JSON.stringify(config), updated_at: Date.now() },
+			conflictColumns: ["id"],
+		});
+		await this.sql.exec(query.sql, query.params);
 	}
 
 	async listExtensionConfigs(): Promise<readonly string[]> {
 		await this.ensureTables();
-		const rows = await this.sql.query(
-			"SELECT id FROM macro_extensions ORDER BY id ASC",
+		const query = this.sql.compiler.compileSelect({
+			table: "macro_extensions",
+			select: [{ column: "id" }],
+			orderBy: [{ column: "id", direction: "ASC" }],
+		});
+		const rows = await this.sql.query(query.sql, query.params);
+		return Object.freeze(
+			rows.map((r: { readonly id?: unknown }) => r.id as string),
 		);
-		return Object.freeze(rows.map((r: { readonly id?: unknown }) => r.id as string));
 	}
 }

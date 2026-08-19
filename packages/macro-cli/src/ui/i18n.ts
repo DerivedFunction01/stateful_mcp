@@ -1,1 +1,6 @@
-export { resolveLabel, registerMacroLocales, t, translate } from "@stateful-mcp/macro";
+export {
+	registerMacroLocales,
+	resolveLabel,
+	t,
+	translate,
+} from "@stateful-mcp/macro";

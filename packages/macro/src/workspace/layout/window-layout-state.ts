@@ -316,7 +316,8 @@ export class WindowLayoutStateManager {
 	closeModal(): ModalDescriptor | undefined {
 		const closed = this.modalStack.pop();
 		const previousFocus = this.modalFocusStack.pop();
-		if (this.modalStack.length === 0 && previousFocus) this.focusedPane = previousFocus;
+		if (this.modalStack.length === 0 && previousFocus)
+			this.focusedPane = previousFocus;
 		else if (this.modalStack.length > 0) this.focusedPane = "modal";
 		this.notify();
 		return closed;

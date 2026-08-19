@@ -3,9 +3,9 @@ import type { I18nKernel } from "@stateful-mcp/macro";
 import {
 	formatNumericValue,
 	type NumericFormatOptions,
+	translate,
 } from "@stateful-mcp/macro";
 import type { ReactNode } from "react";
-import { translate } from "@stateful-mcp/macro";
 import { GlobalThemeRegistry, type TuiThemeDefinition } from "../theme";
 
 export type TuiTableVariant = "modern" | "office-grid" | "zebra" | "compact";

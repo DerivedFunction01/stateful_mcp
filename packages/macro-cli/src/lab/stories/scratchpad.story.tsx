@@ -122,12 +122,7 @@ export const scratchpadStory: TuiStory = {
 		return (
 			<TuiWorkspaceSurface
 				header={
-					<TuiTabs
-						tabs={DEMO_TABS}
-						activeTabId="scratchpad"
-						
-						theme={theme}
-					/>
+					<TuiTabs tabs={DEMO_TABS} activeTabId="scratchpad" theme={theme} />
 				}
 				startRegion={leftPanel}
 				body={

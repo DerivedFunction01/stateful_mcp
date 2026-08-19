@@ -5,8 +5,8 @@ import {
 	type QuantityGrammarConfig,
 	type SettingsDiagnostic,
 	type SettingsSchemaEntry,
+	translate,
 } from "@stateful-mcp/macro";
-import { translate } from "@stateful-mcp/macro";
 import type { SettingsModule } from "../registry";
 
 export const DEFAULT_QUANTITY_SETTINGS: Partial<QuantityGrammarConfig> = {

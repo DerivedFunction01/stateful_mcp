@@ -1,9 +1,6 @@
 import type { KvBackend } from "../../adapters/storage/generic/kv/KvBackend";
-import { SqlExecutor } from "../../adapters/storage/generic/SqlExecutor";
-import type {
-	HistoryResource,
-	HistoryResourceStore,
-} from "./contracts";
+import type { SqlExecutor } from "../../adapters/storage/generic/SqlExecutor";
+import type { HistoryResource, HistoryResourceStore } from "./contracts";
 
 const RESOURCE_PREFIX = "__stateful_history_resource__:";
 
@@ -192,7 +189,9 @@ function emptyResource<TPayload>(
 	};
 }
 
-function decodeResource<TPayload>(row: Record<string, any>): HistoryResource<TPayload> {
+function decodeResource<TPayload>(
+	row: Record<string, any>,
+): HistoryResource<TPayload> {
 	return {
 		historyId: String(row.history_id),
 		formatVersion: Number(row.format_version),

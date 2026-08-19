@@ -52,7 +52,7 @@ export class KvHistoryStore<TPayload = unknown>
 			.filter(([key]) => key.startsWith(`${PREFIX}${this.namespace}:`))
 			.map(([, value]) => value)
 			.filter(isHistoryEvent<TPayload>)
-			.map(clone)
+			.map(clone);
 	}
 
 	async append(
@@ -138,7 +138,9 @@ export class KvHistoryStore<TPayload = unknown>
 	}
 }
 
-function nextSequenceFor<TPayload>(events: readonly HistoryEvent<TPayload>[]): number {
+function nextSequenceFor<TPayload>(
+	events: readonly HistoryEvent<TPayload>[],
+): number {
 	return Math.max(0, ...events.map((event) => event.sequence)) + 1;
 }
 
@@ -146,7 +148,9 @@ function clone<T>(value: T): T {
 	return structuredClone(value);
 }
 
-function isHistoryEvent<TPayload>(value: unknown): value is HistoryEvent<TPayload> {
+function isHistoryEvent<TPayload>(
+	value: unknown,
+): value is HistoryEvent<TPayload> {
 	if (!value || typeof value !== "object") return false;
 	const item = value as Record<string, unknown>;
 	return (

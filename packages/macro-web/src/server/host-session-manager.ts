@@ -1,29 +1,28 @@
 import { randomUUID } from "node:crypto";
 import {
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
+	type EditorKeymapProfile,
 	mergeEditorKeymap,
 	resolveKeymapBindings,
-	type EditorKeymapProfile,
 } from "@stateful-mcp/macro";
+import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
 import type { LoadedMacroWorkspace, MacroHost } from "@stateful-mcp/macro-host";
 import {
-	hostError,
-	MACRO_PROTOCOL_VERSION,
 	type CommandDescriptorDto,
 	type DomainApplicationDescriptor,
 	type EffectiveKeymapDto,
+	type HostError,
 	type HostEvent,
 	type HostEventType,
-	type HostError,
-	type HostResponse,
+	hostError,
 	type KeymapBindingDto,
-	type ProfileDescriptor,
+	MACRO_PROTOCOL_VERSION,
 	type SettingsOperation,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
-import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
 
 export interface HostSessionOptions {
+	readonly projectRoot?: string;
 	readonly workspacePath?: string;
 	readonly profileId?: string;
 	readonly locale?: string;
@@ -54,6 +53,7 @@ export class HostSessionManager {
 
 	async create(options: HostSessionOptions = {}): Promise<WorkspaceSnapshot> {
 		const loaded = await this.host.createWorkspace({
+			projectRoot: options.projectRoot,
 			profileId: options.profileId,
 			locale: options.locale,
 			initialText: options.initialText,
@@ -87,11 +87,15 @@ export class HostSessionManager {
 
 	getOrError(sessionId: string): Session {
 		const session = this.get(sessionId);
-		if (!session) throw new SessionError("SESSION_NOT_FOUND", "Session not found", false);
+		if (!session)
+			throw new SessionError("SESSION_NOT_FOUND", "Session not found", false);
 		return session;
 	}
 
-	subscribe(sessionId: string, listener: (event: HostEvent) => void): () => void {
+	subscribe(
+		sessionId: string,
+		listener: (event: HostEvent) => void,
+	): () => void {
 		const session = this.getOrError(sessionId);
 		session.listeners.add(listener);
 		return () => session.listeners.delete(listener);
@@ -101,18 +105,34 @@ export class HostSessionManager {
 		return this.snapshot(this.getOrError(sessionId));
 	}
 
-	async executeCommand(sessionId: string, command: string, args: readonly unknown[] = [], expectedRevision?: number): Promise<unknown> {
+	async executeCommand(
+		sessionId: string,
+		command: string,
+		args: readonly unknown[] = [],
+		expectedRevision?: number,
+	): Promise<unknown> {
 		const session = this.getOrError(sessionId);
 		this.assertRevision(session, expectedRevision);
-		const result = await session.loaded.workspace.commands.executeCommand(command, ...args);
+		const result = await session.loaded.workspace.commands.executeCommand(
+			command,
+			...args,
+		);
 		this.emit(session, "command.completed");
 		return result;
 	}
 
-	async settings(sessionId: string, operation: SettingsOperation): Promise<WorkspaceSnapshot> {
+	async settings(
+		sessionId: string,
+		operation: SettingsOperation,
+	): Promise<WorkspaceSnapshot> {
 		const session = this.getOrError(sessionId);
 		const settings = session.loaded.workspace.settings;
-		if (!settings) throw new SessionError("SETTINGS_UNAVAILABLE", "Settings are unavailable", false);
+		if (!settings)
+			throw new SessionError(
+				"SETTINGS_UNAVAILABLE",
+				"Settings are unavailable",
+				false,
+			);
 		this.assertRevision(session, operation.expectedRevision);
 		switch (operation.operation) {
 			case "set": {
@@ -121,23 +141,45 @@ export class HostSessionManager {
 				settings.replaceRawText(JSON.stringify(draft, null, 2));
 				break;
 			}
-			case "replaceJson": settings.replaceRawText(operation.rawText); break;
+			case "replaceJson":
+				settings.replaceRawText(operation.rawText);
+				break;
 			case "save": {
 				const result = await settings.save();
-				if (result.status === "blocked") throw new SessionError("SETTINGS_INVALID", "Settings contain validation errors", false, result.diagnostics);
+				if (result.status === "blocked")
+					throw new SessionError(
+						"SETTINGS_INVALID",
+						"Settings contain validation errors",
+						false,
+						result.diagnostics,
+					);
 				break;
 			}
 			case "discard":
-			case "reload": await settings.reload(); break;
-			case "profile.select": await settings.switchProfile(operation.profileId); break;
+			case "reload":
+				await settings.reload();
+				break;
+			case "profile.select":
+				await settings.switchProfile(operation.profileId);
+				break;
 		}
 		this.emit(session, "settings.changed");
 		return this.snapshot(session);
 	}
 
-	async parse(sessionId: string, text: string, textRevision: number): Promise<WorkspaceSnapshot> {
+	async parse(
+		sessionId: string,
+		text: string,
+		textRevision: number,
+	): Promise<WorkspaceSnapshot> {
 		const session = this.getOrError(sessionId);
-		if (textRevision < session.revision) throw new SessionError("STALE_REVISION", "Parse revision is older than the session revision", true, { textRevision, revision: session.revision });
+		if (textRevision < session.revision)
+			throw new SessionError(
+				"STALE_REVISION",
+				"Parse revision is older than the session revision",
+				true,
+				{ textRevision, revision: session.revision },
+			);
 		session.loaded.workspace.editor.buffer.setText(text);
 		await session.loaded.workspace.scratchpad.parseAllLines();
 		session.revision = textRevision;
@@ -158,7 +200,8 @@ export class HostSessionManager {
 
 	async disposeAbandoned(now = Date.now()): Promise<void> {
 		for (const [id, session] of this.sessions) {
-			if (now - session.lastActivity > this.idleTimeoutMs) await this.dispose(id);
+			if (now - session.lastActivity > this.idleTimeoutMs)
+				await this.dispose(id);
 		}
 	}
 
@@ -177,17 +220,33 @@ export class HostSessionManager {
 			session.loaded.workspace.i18n,
 		];
 		for (const source of signalSources) {
-			if (source && "subscribe" in source && typeof source.subscribe === "function") {
-				session.unsubs.push(source.subscribe(() => this.emit(session, "workspace.changed")));
+			if (
+				source &&
+				"subscribe" in source &&
+				typeof source.subscribe === "function"
+			) {
+				session.unsubs.push(
+					source.subscribe(() => this.emit(session, "workspace.changed")),
+				);
 			}
 		}
 	}
 
 	private assertRevision(session: Session, expected?: number): void {
-		if (expected !== undefined && expected !== session.revision) throw new SessionError("STALE_REVISION", "Request revision is stale", true, { expected, actual: session.revision });
+		if (expected !== undefined && expected !== session.revision)
+			throw new SessionError(
+				"STALE_REVISION",
+				"Request revision is stale",
+				true,
+				{ expected, actual: session.revision },
+			);
 	}
 
-	private emit(session: Session, type: HostEventType, revision = session.revision): void {
+	private emit(
+		session: Session,
+		type: HostEventType,
+		revision = session.revision,
+	): void {
 		if (session.disposed) return;
 		session.sequence += 1;
 		session.revision = Math.max(session.revision, revision);
@@ -205,53 +264,163 @@ export class HostSessionManager {
 
 	private snapshot(session: Session): WorkspaceSnapshot {
 		const workspace = session.loaded.workspace;
-		const profileId = workspace.settings?.getActiveProfileId() ?? session.loaded.activeProfile ?? workspace.profile?.id ?? "base";
+		const profileId =
+			workspace.settings?.getActiveProfileId() ??
+			session.loaded.activeProfile ??
+			workspace.profile?.id ??
+			"base";
 		const extensionIds = session.loaded.resolvedExtensionIds;
-		const applications: DomainApplicationDescriptor[] = session.loaded.loadedExtensions.map(({ extension }) => ({
-			id: extension.manifest.id,
-			displayName: extension.manifest.displayNameI18nKey ? (translate(workspace.i18n, extension.manifest.displayNameI18nKey) || extension.manifest.displayName || extension.manifest.id) : extension.manifest.displayName ?? extension.manifest.contributes?.settings?.[0]?.title ?? extension.manifest.id,
-			description: extension.manifest.descriptionI18nKey ? (translate(workspace.i18n, extension.manifest.descriptionI18nKey) || extension.manifest.description) : extension.manifest.description,
-			extensionVersion: extension.manifest.version,
-	}));
-		const bindings: KeymapBindingDto[] = resolveKeymapBindings(session.keymap).map((binding) => ({ command: binding.command, chords: binding.chords, modes: binding.modes, when: binding.when, labelI18nKey: binding.labelI18nKey }));
-		const keymap: EffectiveKeymapDto = { profileId: session.keymap.profileId, name: session.keymap.name, description: session.keymap.description, bindings };
-		const commands: CommandDescriptorDto[] = workspace.commands.getCommands().map((command) => ({ id: command.command, title: command.title, verb: command.verb, aliases: command.aliases, category: command.category, description: command.description, keybinding: command.keybinding, args: command.args, extensionId: command.extensionId }));
+		const applications: DomainApplicationDescriptor[] =
+			session.loaded.loadedExtensions.map(({ extension }) => ({
+				id: extension.manifest.id,
+				displayName: extension.manifest.displayNameI18nKey
+					? translate(workspace.i18n, extension.manifest.displayNameI18nKey) ||
+						extension.manifest.displayName ||
+						extension.manifest.id
+					: (extension.manifest.displayName ??
+						extension.manifest.contributes?.settings?.[0]?.title ??
+						extension.manifest.id),
+				description: extension.manifest.descriptionI18nKey
+					? translate(workspace.i18n, extension.manifest.descriptionI18nKey) ||
+						extension.manifest.description
+					: extension.manifest.description,
+				extensionVersion: extension.manifest.version,
+			}));
+		const bindings: KeymapBindingDto[] = resolveKeymapBindings(
+			session.keymap,
+		).map((binding) => ({
+			command: binding.command,
+			chords: binding.chords,
+			modes: binding.modes,
+			when: binding.when,
+			labelI18nKey: binding.labelI18nKey,
+		}));
+		const keymap: EffectiveKeymapDto = {
+			profileId: session.keymap.profileId,
+			name: session.keymap.name,
+			description: session.keymap.description,
+			bindings,
+		};
+		const commands: CommandDescriptorDto[] = workspace.commands
+			.getCommands()
+			.map((command) => ({
+				id: command.command,
+				title: command.title,
+				verb: command.verb,
+				aliases: command.aliases,
+				category: command.category,
+				description: command.description,
+				keybinding: command.keybinding,
+				args: command.args,
+				extensionId: command.extensionId,
+			}));
 		const settings = workspace.settings;
-		const layout = workspace.layout.getSnapshot() as unknown as Readonly<Record<string, unknown>>;
+		const layout = workspace.layout.getSnapshot() as unknown as Readonly<
+			Record<string, unknown>
+		>;
 		return {
 			workspaceId: session.workspaceId,
 			sessionId: session.id,
-			profile: { id: profileId, displayName: profileId, enabledExtensionIds: extensionIds },
+			profile: {
+				id: profileId,
+				displayName: profileId,
+				enabledExtensionIds: extensionIds,
+			},
 			enabledExtensionIds: extensionIds,
 			applications,
 			keymap,
 			commands,
 			contributions: {
-				tabs: workspace.tabs.getTabs().map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon, extensionId: tab.extensionId })),
-				views: workspace.views.getAllViews().map((view) => ({ id: view.id, name: view.name, containerId: view.containerId, extensionId: view.extensionId })),
-				containers: workspace.views.getContainers().map((container) => ({ id: container.id, title: container.title, icon: container.icon, extensionId: container.extensionId })),
+				tabs: workspace.tabs.getTabs().map((tab) => ({
+					id: tab.id,
+					label: tab.label,
+					icon: tab.icon,
+					extensionId: tab.extensionId,
+				})),
+				views: workspace.views.getAllViews().map((view) => ({
+					id: view.id,
+					name: view.name,
+					containerId: view.containerId,
+					extensionId: view.extensionId,
+				})),
+				containers: workspace.views.getContainers().map((container) => ({
+					id: container.id,
+					title: container.title,
+					icon: container.icon,
+					extensionId: container.extensionId,
+				})),
 			},
-			settings: settings ? { effective: settings.getEffective(), draft: settings.getDraft(), rawText: settings.getRawText(), schema: settings.getSchema(), diagnostics: settings.getDiagnostics(), dirty: settings.isDirty(), activeProfileId: settings.getActiveProfileId() } : { effective: {}, draft: {}, rawText: "{}", schema: [], diagnostics: [], dirty: false, activeProfileId: profileId },
+			settings: settings
+				? {
+						effective: settings.getEffective(),
+						draft: settings.getDraft(),
+						rawText: settings.getRawText(),
+						schema: settings.getSchema(),
+						diagnostics: settings.getDiagnostics(),
+						dirty: settings.isDirty(),
+						activeProfileId: settings.getActiveProfileId(),
+					}
+				: {
+						effective: {},
+						draft: {},
+						rawText: "{}",
+						schema: [],
+						diagnostics: [],
+						dirty: false,
+						activeProfileId: profileId,
+					},
 			layout,
 			activeTabId: workspace.layout.getSnapshot().activeTabId,
-			scratchpad: { text: workspace.editor.buffer.getText(), lines: workspace.scratchpad.getProjectedLines().map((line) => ({ lineNumber: line.lineNumber, rawText: line.rawText, isValid: line.isValid, diagnostics: line.diagnostics })) },
+			scratchpad: {
+				text: workspace.editor.buffer.getText(),
+				lines: workspace.scratchpad.getProjectedLines().map((line) => ({
+					lineNumber: line.lineNumber,
+					rawText: line.rawText,
+					isValid: line.isValid,
+					diagnostics: line.diagnostics,
+				})),
+			},
 			diagnostics: [],
+			...(session.loaded.project
+				? {
+						project: {
+							...session.loaded.project.descriptor,
+							rootPath: undefined,
+						},
+					}
+				: {}),
 			revision: session.revision,
 		};
 	}
 }
 
 export class SessionError extends Error {
-	constructor(readonly code: string, message: string, readonly retryable = false, readonly details?: unknown) { super(message); }
-	toHostError(): HostError { return hostError(this.code, this.message, this.details, this.retryable); }
+	constructor(
+		readonly code: string,
+		message: string,
+		readonly retryable = false,
+		readonly details?: unknown,
+	) {
+		super(message);
+	}
+	toHostError(): HostError {
+		return hostError(this.code, this.message, this.details, this.retryable);
+	}
 }
 
-function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
-function setAtPath(target: Record<string, unknown>, path: readonly string[], value: unknown): void {
+function clone<T>(value: T): T {
+	return JSON.parse(JSON.stringify(value)) as T;
+}
+function setAtPath(
+	target: Record<string, unknown>,
+	path: readonly string[],
+	value: unknown,
+): void {
 	let cursor = target;
 	for (const key of path.slice(0, -1)) {
 		const next = cursor[key];
-		if (!next || typeof next !== "object" || Array.isArray(next)) cursor[key] = {};
+		if (!next || typeof next !== "object" || Array.isArray(next))
+			cursor[key] = {};
 		cursor = cursor[key] as Record<string, unknown>;
 	}
 	const leaf = path[path.length - 1];

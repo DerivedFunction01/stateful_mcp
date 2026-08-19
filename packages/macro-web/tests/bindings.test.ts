@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { dispatchBinding, type BindingContext } from "../src/lib/bindings";
-import { createBrowserVimController } from "../src/lib/browser-vim";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import { type BindingContext, dispatchBinding } from "../src/lib/bindings";
+import { createBrowserVimController } from "../src/lib/browser-vim";
 
 describe("browser binding contexts", () => {
 	test("only dispatches bindings from active contexts", () => {
@@ -9,26 +9,43 @@ describe("browser binding contexts", () => {
 			{
 				id: "surface:settings",
 				active: false,
-				bindings: [{ command: "settings.resetField", shortcut: "Escape", context: "surface:settings" }],
+				bindings: [
+					{
+						command: "settings.resetField",
+						shortcut: "Escape",
+						context: "surface:settings",
+					},
+				],
 			},
 			{
 				id: "vim:scratchpad",
 				active: true,
-				bindings: [{ command: "editor.moveLineUp", shortcut: "k", context: "vim:scratchpad" }],
+				bindings: [
+					{
+						command: "editor.moveLineUp",
+						shortcut: "k",
+						context: "vim:scratchpad",
+					},
+				],
 			},
 		];
 
 		expect(dispatchBinding("Escape", contexts)).toEqual({ handled: false });
-		expect(dispatchBinding("k", contexts)).toEqual({ handled: true, command: "editor.moveLineUp" });
+		expect(dispatchBinding("k", contexts)).toEqual({
+			handled: true,
+			command: "editor.moveLineUp",
+		});
 	});
 
 	test("does not intercept native keys with no active binding", () => {
-		expect(dispatchBinding("Ctrl+Z", [{ id: "global", active: true, bindings: [] }])).toEqual({ handled: false });
+		expect(
+			dispatchBinding("Ctrl+Z", [{ id: "global", active: true, bindings: [] }]),
+		).toEqual({ handled: false });
 	});
 
 	test("keeps Vim mode scoped to a browser editor context", () => {
 		const controller = createBrowserVimController(true);
-		const event = (key: string) => ({ key } as ReactKeyboardEvent);
+		const event = (key: string) => ({ key }) as ReactKeyboardEvent;
 		expect(controller.getState().mode).toBe("NORMAL");
 		expect(controller.handleKeyDown(event("i"))).toBe(true);
 		expect(controller.getState().mode).toBe("INSERT");

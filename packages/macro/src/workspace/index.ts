@@ -3,8 +3,8 @@ import { ExtensionRuntime } from "../extensions/runtime";
 import { WorkspaceSaveCoordinator } from "./commands/save-coordinator";
 import type { OpenSettingsRequest } from "./config/settings-navigation";
 import { SettingsNavigationState } from "./config/settings-navigation";
-import { SettingsUiModel } from "./config/settings-ui-model";
 import { WorkspaceSettingsService } from "./config/settings-service";
+import { SettingsUiModel } from "./config/settings-ui-model";
 import { CommandRegistry } from "./contributions/command-registry";
 import { ExtensionContributionManager } from "./contributions/extension-contribution-manager";
 import { SettingsContributionRegistry } from "./contributions/settings-registry";
@@ -115,21 +115,29 @@ export function createMacroWorkspace(
 	);
 	const palette = new CommandPaletteController(commands, layout, tabs);
 	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
-	const settingsService = options?.settings ??
+	const settingsService =
+		options?.settings ??
 		new WorkspaceSettingsService({
 			defaults: {},
-			storage: { read: () => null, write: () => undefined, reset: () => undefined },
+			storage: {
+				read: () => null,
+				write: () => undefined,
+				reset: () => undefined,
+			},
 		});
 	const settingsUiModel = new SettingsUiModel(settingsService, i18n);
 	if (options?.settings) {
 		let previousLocale =
+			(options.settings.getEffective().uiLocale as string) ??
 			(options.settings.getEffective().locale as string) ??
 			options?.initialLocale ??
 			"en";
 
 		options.settings.subscribe(() => {
 			const effective = options.settings!.getEffective();
-			const newLocale = effective.locale as string | undefined;
+			const newLocale = (effective.uiLocale ?? effective.locale) as
+				| string
+				| undefined;
 			if (newLocale && newLocale !== previousLocale) {
 				previousLocale = newLocale;
 				i18n.setActiveLocale(newLocale);
@@ -249,9 +257,9 @@ export function createMacroWorkspace(
 		},
 		{
 			execute: () => {
-			settingsNavigation.reset();
-			layout.closeModal();
-		},
+				settingsNavigation.reset();
+				layout.closeModal();
+			},
 		},
 	);
 	commands.registerCommand(

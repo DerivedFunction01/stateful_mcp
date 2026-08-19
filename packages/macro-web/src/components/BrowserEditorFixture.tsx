@@ -13,7 +13,11 @@ export function BrowserEditorFixture() {
 	return (
 		<div className="browser-editor-fixture">
 			<div className="mode-row">
-				<Toggle label="Enable Vim bindings for this editor" checked={state.enabled} onChange={(enabled) => controller.setEnabled(enabled)} />
+				<Toggle
+					label="Enable Vim bindings for this editor"
+					checked={state.enabled}
+					onChange={(enabled) => controller.setEnabled(enabled)}
+				/>
 				{state.enabled && <Badge tone="accent">{state.mode}</Badge>}
 			</div>
 			<textarea
@@ -26,7 +30,14 @@ export function BrowserEditorFixture() {
 					if (controller.handleKeyDown(event)) event.preventDefault();
 				}}
 			/>
-			<StatusBar vimEnabled={state.enabled} vimMode={state.mode} editorFocused={editorFocused} diagnostics={1} profile="Clinical" domain="Notes" />
+			<StatusBar
+				vimEnabled={state.enabled}
+				vimMode={state.mode}
+				editorFocused={editorFocused}
+				diagnostics={1}
+				profile="Clinical"
+				domain="Notes"
+			/>
 		</div>
 	);
 }

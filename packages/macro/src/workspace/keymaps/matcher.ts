@@ -329,15 +329,31 @@ function contextsOverlap(
 	return true;
 }
 
-function isModalOnly(expression: NonNullable<WorkspaceKeybinding["when"]>): boolean {
-	return "key" in expression && expression.key === "focusedPane" && expression.equals === "modal";
+function isModalOnly(
+	expression: NonNullable<WorkspaceKeybinding["when"]>,
+): boolean {
+	return (
+		"key" in expression &&
+		expression.key === "focusedPane" &&
+		expression.equals === "modal"
+	);
 }
 
-function excludesModal(expression: NonNullable<WorkspaceKeybinding["when"]>): boolean {
+function excludesModal(
+	expression: NonNullable<WorkspaceKeybinding["when"]>,
+): boolean {
 	if ("not" in expression && "key" in expression.not)
-		return expression.not.key === "focusedPane" && expression.not.equals === "modal";
+		return (
+			expression.not.key === "focusedPane" && expression.not.equals === "modal"
+		);
 	if ("allOf" in expression)
-		return expression.allOf.some((item) => "not" in item && "key" in item.not && item.not.key === "focusedPane" && item.not.equals === "modal");
+		return expression.allOf.some(
+			(item) =>
+				"not" in item &&
+				"key" in item.not &&
+				item.not.key === "focusedPane" &&
+				item.not.equals === "modal",
+		);
 	return false;
 }
 

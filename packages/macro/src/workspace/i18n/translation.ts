@@ -1,5 +1,9 @@
+import {
+	type I18nKernel,
+	interpolate,
+	type TranslationParams,
+} from "./i18n-kernel";
 import { EN_LOCALE, ES_LOCALE } from "./locales";
-import { I18nKernel, interpolate, type TranslationParams } from "./i18n-kernel";
 
 export function translate(
 	i18n: I18nKernel | undefined,

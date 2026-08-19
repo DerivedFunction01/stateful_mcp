@@ -6,7 +6,7 @@ import {
 	registerMacroLocales,
 } from "@stateful-mcp/macro";
 
-	describe("Modular i18n Architecture & Catalogs", () => {
+describe("Modular i18n Architecture & Catalogs", () => {
 	it("aggregates all modular slices into EN_LOCALE without empty or undefined values", () => {
 		const enKeys = Object.keys(EN_LOCALE);
 		expect(enKeys.length).toBeGreaterThan(100);

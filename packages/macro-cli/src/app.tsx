@@ -1,8 +1,8 @@
 import type { CliRenderer, MouseEvent } from "@opentui/core";
 import type { EditorKeymapProfile, MacroWorkspace } from "@stateful-mcp/macro";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { WindowContainer } from "./components/WindowContainer";
 import { SettingsModalController } from "./components/settings-modal-controller";
+import { WindowContainer } from "./components/WindowContainer";
 import { normalizeOpenTuiMouseEvent } from "./input/mouse";
 import {
 	dispatchTerminalInput,
@@ -89,13 +89,18 @@ export function MacroCliApp({
 			meta: boolean;
 			shift: boolean;
 		}) => {
-			void dispatchTerminalInput(workspace, keymap, {
-				input: key.sequence,
-				name: key.name,
-				ctrl: key.ctrl,
-				meta: key.meta,
-				shift: key.shift,
-			}, settingsModal).then((result) => {
+			void dispatchTerminalInput(
+				workspace,
+				keymap,
+				{
+					input: key.sequence,
+					name: key.name,
+					ctrl: key.ctrl,
+					meta: key.meta,
+					shift: key.shift,
+				},
+				settingsModal,
+			).then((result) => {
 				if (result === "quit") {
 					onExit?.();
 					renderer.destroy();

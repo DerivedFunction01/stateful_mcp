@@ -1,6 +1,11 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { JsonlKvBackend, MemoryKvBackend } from "@stateful-mcp/core";
+import {
+	JsonlKvBackend,
+	MemoryKvBackend,
+	SqlBackend,
+	SqlExecutor,
+} from "@stateful-mcp/core";
 import type {
 	I18nKernel,
 	LoadedExtension,
@@ -9,6 +14,7 @@ import type {
 } from "@stateful-mcp/macro";
 import {
 	CoreKvSettingsStorageDriver,
+	CoreSqlSettingsStorageDriver,
 	createDefaultI18nKernel,
 	createMacroWorkspace,
 	ExtensionError,
@@ -17,6 +23,12 @@ import {
 	resolveProfile,
 	WorkspaceSettingsService,
 } from "@stateful-mcp/macro";
+import {
+	type CreateMacroProjectOptions,
+	createMacroProject,
+	type MacroProject,
+	openMacroProject,
+} from "./project-store";
 
 export interface WorkspaceExtensionSpec {
 	readonly id: string;
@@ -40,6 +52,7 @@ export interface LoadedMacroWorkspace {
 	readonly loadedExtensions: readonly LoadedExtension[];
 	readonly activeProfile?: string;
 	readonly resolvedExtensionIds: readonly string[];
+	readonly project?: MacroProject;
 }
 
 export interface MacroHostSettingsOptions {
@@ -51,6 +64,7 @@ export interface MacroHostSettingsOptions {
 }
 
 export interface LoadMacroWorkspaceOptions {
+	readonly projectRoot?: string;
 	readonly workspacePath?: string;
 	readonly profilePath?: string;
 	readonly profileId?: string;
@@ -61,6 +75,7 @@ export interface LoadMacroWorkspaceOptions {
 }
 
 export interface MacroHostOptions extends MacroHostSettingsOptions {
+	readonly projectRoot?: string;
 	readonly workspacePath?: string;
 	readonly profilePath?: string;
 }
@@ -68,6 +83,7 @@ export interface MacroHostOptions extends MacroHostSettingsOptions {
 export class MacroHost {
 	private readonly options: MacroHostOptions;
 	private readonly workspaces = new Set<MacroWorkspace>();
+	private readonly projects = new Set<MacroProject>();
 
 	private constructor(options: MacroHostOptions) {
 		this.options = options;
@@ -92,6 +108,7 @@ export class MacroHost {
 				configureI18n: this.options.configureI18n,
 			},
 		});
+		if (loaded.project) this.projects.add(loaded.project);
 		this.workspaces.add(loaded.workspace);
 		return loaded;
 	}
@@ -99,6 +116,22 @@ export class MacroHost {
 	async dispose(): Promise<void> {
 		for (const workspace of [...this.workspaces]) await workspace.dispose();
 		this.workspaces.clear();
+		for (const project of this.projects) await project.close();
+		this.projects.clear();
+	}
+
+	async createProject(
+		options: CreateMacroProjectOptions,
+	): Promise<MacroProject> {
+		const project = await createMacroProject(options);
+		this.projects.add(project);
+		return project;
+	}
+
+	async openProject(rootPath: string): Promise<MacroProject> {
+		const project = await openMacroProject({ rootPath });
+		this.projects.add(project);
+		return project;
 	}
 }
 
@@ -111,11 +144,23 @@ export async function createMacroHost(
 export async function loadMacroWorkspace(
 	options: LoadMacroWorkspaceOptions = {},
 ): Promise<LoadedMacroWorkspace> {
-	const manifestResult = options.workspacePath
-		? await readWorkspaceManifest(options.workspacePath)
+	const project = options.projectRoot
+		? await openMacroProject({ rootPath: options.projectRoot })
 		: undefined;
-	const profile = options.profilePath
-		? await readJsonFile<UserMacroProfile>(options.profilePath).catch(
+	const manifestResult = project
+		? {
+				manifest: toWorkspaceManifest(project.manifest),
+				path: project.manifestPath,
+			}
+		: options.workspacePath
+			? await readWorkspaceManifest(options.workspacePath)
+			: undefined;
+	const effectiveProfilePath =
+		project?.manifest.backend.kind === "jsonl"
+			? resolve(project.rootPath, project.manifest.backend.path)
+			: options.profilePath;
+	const profile = effectiveProfilePath
+		? await readJsonFile<UserMacroProfile>(effectiveProfilePath).catch(
 				() => undefined,
 			)
 		: undefined;
@@ -132,10 +177,19 @@ export async function loadMacroWorkspace(
 				resolved.extensions,
 			)
 		: [];
-	const kv = options.profilePath
-		? new JsonlKvBackend({ dataFilePath: resolve(options.profilePath) })
+	const sqlBackend =
+		project?.manifest.backend.kind === "sqlite"
+			? await SqlBackend.connect(
+					"sqlite",
+					resolve(project.rootPath, project.manifest.backend.path),
+				)
+			: undefined;
+	const kv = effectiveProfilePath
+		? new JsonlKvBackend({ dataFilePath: resolve(effectiveProfilePath) })
 		: new MemoryKvBackend();
-	const driver = new CoreKvSettingsStorageDriver(kv);
+	const driver = sqlBackend
+		? new CoreSqlSettingsStorageDriver(new SqlExecutor(sqlBackend))
+		: new CoreKvSettingsStorageDriver(kv);
 
 	// Load existing settings metadata if any
 	const settingsDoc = await driver.loadSettings();
@@ -159,6 +213,8 @@ export async function loadMacroWorkspace(
 
 	const initialLocale =
 		options.locale ??
+		(project?.manifest.uiLocale as string | undefined) ??
+		(settingsDoc as any).uiLocale ??
 		(settingsDoc as any).locale ??
 		resolvedProfile.locale ??
 		"en";
@@ -184,11 +240,13 @@ export async function loadMacroWorkspace(
 	const settings = new WorkspaceSettingsService({
 		defaults: {
 			...settingsDefaults,
+			uiLocale: initialLocale,
 			locale: initialLocale,
 		},
 		schema: settingsSchema,
 		initial: {
 			...settingsDefaults,
+			uiLocale: initialLocale,
 			...(resolvedProfile as Record<string, unknown>),
 			...(settingsDoc as Record<string, unknown>),
 			...(Object.keys(extensionConfigs).length > 0
@@ -226,6 +284,17 @@ export async function loadMacroWorkspace(
 		loadedExtensions,
 		activeProfile: resolved.activeProfile,
 		resolvedExtensionIds: resolved.extensions.map((extension) => extension.id),
+		...(project ? { project } : {}),
+	};
+}
+
+function toWorkspaceManifest(
+	manifest: import("@stateful-mcp/macro").MacroProjectManifest,
+): MacroWorkspaceManifest {
+	return {
+		extensions: manifest.extensions,
+		profiles: manifest.extensionProfiles,
+		activeProfile: manifest.activeProfileId,
 	};
 }
 

@@ -8,9 +8,9 @@ import {
 	type I18nKernel,
 	type MacroWorkspace,
 	type SettingsScope,
-	type SettingsUiGroup,
 	type SettingsUiItem,
 	SettingsUiModel,
+	translate,
 	type WorkspaceInputEvent,
 	type WorkspaceInputResult,
 	WorkspaceSettingsService,
@@ -20,7 +20,6 @@ import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
 } from "../config/default-settings";
-import { translate } from "@stateful-mcp/macro";
 import { TuiColorPicker } from "../ui/primitives/TuiColorPicker";
 import { TuiCursor } from "../ui/primitives/TuiCursor";
 import {
@@ -226,7 +225,11 @@ export function SettingsWindowView({
 					onMouseDown={() => onOpenJson?.()}
 				>
 					<text
-						fg={focusedRegion === "json" || snapshot.isSplitJsonMode ? c.bgCanvas : c.fgPrimary}
+						fg={
+							focusedRegion === "json" || snapshot.isSplitJsonMode
+								? c.bgCanvas
+								: c.fgPrimary
+						}
 						attributes={TextAttributes.BOLD}
 					>
 						{translate(i18n, "settings.jsonAction")}
@@ -235,14 +238,14 @@ export function SettingsWindowView({
 			</box>
 
 			{/* 2. Scope Bar */}
-				<box
-					height={1}
-					marginBottom={1}
-					flexDirection="row"
-					alignItems="center"
-					borderStyle={focusedRegion === "scope" ? "single" : undefined}
-					borderColor={c.borderActive}
-				>
+			<box
+				height={1}
+				marginBottom={1}
+				flexDirection="row"
+				alignItems="center"
+				borderStyle={focusedRegion === "scope" ? "single" : undefined}
+				borderColor={c.borderActive}
+			>
 				<TuiTabs
 					tabs={scopes}
 					activeTabId={snapshot.activeScope}
@@ -268,7 +271,9 @@ export function SettingsWindowView({
 					paddingRight={1}
 					borderStyle="single"
 					borderColor={
-									(focusedRegion === "navigation" || focusedRegion === "categories") ? c.borderActive : c.borderSubtle
+						focusedRegion === "navigation" || focusedRegion === "categories"
+							? c.borderActive
+							: c.borderSubtle
 					}
 				>
 					{snapshot.sections.map((sec) => {
@@ -479,8 +484,8 @@ function SettingItemRow({
 				) : widget === "table" ? (
 					<TuiTable
 						columns={[
-										{ id: "key", header: translate(i18n, "settings.table.key") },
-										{ id: "value", header: translate(i18n, "settings.table.value") },
+							{ id: "key", header: translate(i18n, "settings.table.key") },
+							{ id: "value", header: translate(i18n, "settings.table.value") },
 						]}
 						data={
 							Array.isArray(item.value)
@@ -731,31 +736,23 @@ export function createSettingsTabProvider(
 					}
 					const section = snapshot.sections[selectedCategoryIndex];
 					const items = section
-						? [
-								...section.items,
-								...section.groups.flatMap((g) => g.items),
-							]
+						? [...section.items, ...section.groups.flatMap((g) => g.items)]
 						: [];
 					const item = items[selectedItemIndex];
 					if (item) {
 						if (item.schema.type === "boolean") {
-							uiModel.setValue(
-								item.schema.path,
-								!item.effectiveValue,
-							);
+							uiModel.setValue(item.schema.path, !item.effectiveValue);
 						} else if (
 							item.schema.type === "enum" &&
 							item.schema.enumOptions &&
 							item.schema.enumOptions.length > 0
 						) {
 							const currentIdx = item.schema.enumOptions.findIndex(
-								(o: EnumOptionDefinition) =>
-									o.id === item.effectiveValue,
+								(o: EnumOptionDefinition) => o.id === item.effectiveValue,
 							);
 							const nextOpt =
 								item.schema.enumOptions[
-									(currentIdx + 1) %
-										item.schema.enumOptions.length
+									(currentIdx + 1) % item.schema.enumOptions.length
 								];
 							if (nextOpt) {
 								uiModel.setValue(item.schema.path, nextOpt.id);

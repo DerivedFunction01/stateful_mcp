@@ -17,7 +17,10 @@ export const hostError = (
 	...(retryable === undefined ? {} : { retryable }),
 });
 
-export function safeHostError(error: unknown, fallback = "Host request failed"): HostError {
+export function safeHostError(
+	error: unknown,
+	fallback = "Host request failed",
+): HostError {
 	return error instanceof Error
 		? hostError("HOST_REQUEST_FAILED", error.message)
 		: hostError("HOST_REQUEST_FAILED", fallback);

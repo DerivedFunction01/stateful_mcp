@@ -9,28 +9,48 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		command: "cursor.moveDown",
 		chords: ["j", "down"],
 		modes: ["NORMAL", "VISUAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.cursor.moveDown",
 	},
 	{
 		command: "cursor.moveUp",
 		chords: ["k", "up"],
 		modes: ["NORMAL", "VISUAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.cursor.moveUp",
 	},
 	{
 		command: "cursor.moveLeft",
 		chords: ["h", "left"],
 		modes: ["NORMAL", "VISUAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.cursor.moveLeft",
 	},
 	{
 		command: "cursor.moveRight",
 		chords: ["l", "right"],
 		modes: ["NORMAL", "VISUAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.cursor.moveRight",
 	},
 	{
@@ -49,28 +69,48 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		command: "editor.save",
 		chords: ["ctrl+s"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.editor.save",
 	},
 	{
 		command: "editor.close",
 		chords: ["escape"],
 		modes: ["NORMAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.editor.close",
 	},
 	{
 		command: "editor.executeLine",
 		chords: ["enter", "r"],
 		modes: ["NORMAL", "VISUAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.editor.executeLine",
 	},
 	{
 		command: "editor.switchTab",
 		chords: ["tab", "shift+tab"],
 		modes: ["NORMAL"],
-		when: { allOf: [{ not: { key: "activeTabId", equals: "settings" } }, { not: { key: "focusedPane", equals: "modal" } }] },
+		when: {
+			allOf: [
+				{ not: { key: "activeTabId", equals: "settings" } },
+				{ not: { key: "focusedPane", equals: "modal" } },
+			],
+		},
 		labelI18nKey: "command.editor.switchTab",
 	},
 	{
