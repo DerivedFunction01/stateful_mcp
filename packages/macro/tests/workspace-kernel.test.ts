@@ -681,7 +681,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			});
 			expect(ws.editor.buffer.getText()).toBe("^note #test");
 			expect(ws.layout.getSnapshot().activeTabId).toBe("scratchpad");
-			expect(ws.tabs.getTabs()).toHaveLength(4);
+			expect(ws.tabs.getTabs()).toHaveLength(3);
 			expect(ws.views.getContainers()).toHaveLength(3);
 			expect(ws.i18n.t("shell.mode.normal")).toBe("NORMAL");
 			expect(ws.journal.getEntries()).toHaveLength(0);

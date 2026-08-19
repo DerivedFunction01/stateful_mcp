@@ -23,12 +23,14 @@ describe("Phase 3D — Generic vertical integration", () => {
 	// ─── TIER 1: User / Host Profile ──────────────────────────────────────
 	const userProfile: UserMacroProfile = {
 		locale: "en-US",
-		decimalSeparator: ".",
-		date: {
-			tokens: ["MM", "DD", "YY"],
-			separators: ["/", "/"],
-			options: {
-				twoDigitYear: { pivotYear: 30 },
+		values: {
+			numeric: { decimalSeparator: "." },
+			date: {
+				tokens: ["MM", "DD", "YY"],
+				separators: ["/", "/"],
+				options: {
+					twoDigitYear: { pivotYear: 30 },
+				},
 			},
 		},
 		excludePrefixes: ["test-", "mock-"],
@@ -189,8 +191,8 @@ describe("Phase 3D — Generic vertical integration", () => {
 				);
 
 				const datePatternResult = buildDatePatternString(
-					context.profile?.date?.tokens ?? ["MM", "DD", "YY"],
-					context.profile?.date?.separators ?? ["/", "/"],
+					context.profile?.values?.date?.tokens ?? ["MM", "DD", "YY"],
+					context.profile?.values?.date?.separators ?? ["/", "/"],
 				);
 
 				// 2. Define neutral macro spec
@@ -354,7 +356,7 @@ describe("Phase 3D — Generic vertical integration", () => {
 								}
 								const fullYear = resolveTwoDigitYear(
 									match.groups.YY!,
-									context.profile?.date?.options?.twoDigitYear,
+									context.profile?.values?.date?.options?.twoDigitYear,
 								);
 								const isoDate = `${fullYear}-${match.groups.MM}-${match.groups.DD}`;
 								return {

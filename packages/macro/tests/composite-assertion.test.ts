@@ -263,8 +263,10 @@ describe("Universal Composite Relational Assertion Engine (createAssertionMacro)
 			}),
 			{
 				grammar: {
-					currency: {
-						currencies: { USD: ["$"] },
+					values: {
+						currency: {
+							currencies: { USD: ["$"] },
+						},
 					},
 				},
 				syntax: {

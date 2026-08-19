@@ -279,7 +279,9 @@ describe("Adverse & Multi-lingual Assertion Tests (Zero Hardcoded Heuristics)", 
 			}),
 			{
 				grammar: {
-					decimalSeparator: ",",
+					values: {
+						numeric: { decimalSeparator: "," },
+					},
 					unitAliases: {
 						bar: ["bar", "Bar"],
 					},
