@@ -144,14 +144,14 @@ export function StatusBar({
 			id: "macro",
 			alignment: "right",
 			priority: 60,
-			value: "Macro",
+			value: t("status.macro"),
 			overflowable: true,
 		},
 		{
 			id: "encoding",
 			alignment: "right",
 			priority: 30,
-			value: "UTF-8",
+			value: t("status.encoding"),
 			overflowable: true,
 		},
 		{

@@ -44,6 +44,7 @@ export type CommandOperation =
 
 export interface KeymapBindingContextDto {
 	readonly activeTabId?: string;
+	readonly activeDocumentId?: string;
 	readonly focusedPane?: string;
 	readonly focusedRegion?: string;
 	readonly editorMode?: EditorMode;

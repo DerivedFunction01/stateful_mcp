@@ -1,4 +1,6 @@
 import type {
+	EditorOperation,
+	EditorOperationResult,
 	HostError,
 	HostEvent,
 	SettingsApplyResult,
@@ -22,12 +24,23 @@ export interface BrowserWorkspaceState {
 	readonly lastProjectRevision?: string;
 	readonly protocolError?: HostError;
 	readonly transportError?: string;
+	readonly editorDrafts: Readonly<Record<string, string>>;
+	readonly editorConflict?: {
+		readonly documentId: string;
+		readonly localText: string;
+		readonly result: EditorOperationResult;
+	};
+	readonly editorResult?: EditorOperationResult;
+	readonly pendingEditorRequests: Readonly<Record<string, string>>;
+	readonly editorError?: { readonly code?: string; readonly message: string };
 }
 
 const initialState: BrowserWorkspaceState = {
 	status: "loading",
 	lastSequence: 0,
 	lastRevision: 0,
+	editorDrafts: {},
+	pendingEditorRequests: {},
 };
 
 export class BrowserWorkspaceStore {
@@ -104,10 +117,124 @@ export class BrowserWorkspaceStore {
 		return result;
 	}
 
-	async parse(text: string, textRevision: number): Promise<WorkspaceSnapshot> {
-		const snapshot = await this.client.parse(text, textRevision);
-		this.applyResponse(snapshot);
-		return snapshot;
+	setEditorDraft(documentId: string, text: string): void {
+		this.update({
+			editorDrafts: { ...this.state.editorDrafts, [documentId]: text },
+		});
+	}
+
+	async applyEditorOperation(
+		operation: EditorOperation,
+	): Promise<EditorOperationResult> {
+		const requestKey =
+			"documentId" in operation ? operation.documentId : operation.operation;
+		this.update({
+			pendingEditorRequests: {
+				...this.state.pendingEditorRequests,
+				[requestKey]: operation.requestId,
+			},
+			editorError: undefined,
+		});
+		try {
+			const result = await this.applyEditorOperationResult(operation);
+			this.update({
+				editorError:
+					result.status === "rejected"
+						? { code: result.code, message: result.message ?? "" }
+						: undefined,
+			});
+			return result;
+		} catch (error) {
+			this.update({
+				editorError: {
+					code:
+						error instanceof HostRequestError ? error.error.code : undefined,
+					message: error instanceof Error ? error.message : String(error),
+				},
+			});
+			throw error;
+		} finally {
+			if (
+				this.state.pendingEditorRequests[requestKey] === operation.requestId
+			) {
+				const pending = { ...this.state.pendingEditorRequests };
+				delete pending[requestKey];
+				this.update({ pendingEditorRequests: pending });
+			}
+		}
+	}
+
+	private async applyEditorOperationResult(
+		operation: EditorOperation,
+	): Promise<EditorOperationResult> {
+		const result = await this.client.applyEditorOperation(operation);
+		const workspaceSnapshot = result.workspaceSnapshot;
+		const currentDocument =
+			"documentId" in operation
+				? this.state.snapshot?.editor.documents.find(
+						(document) => document.documentId === operation.documentId,
+					)
+				: undefined;
+		const staleWorkspaceResult = Boolean(
+			workspaceSnapshot && workspaceSnapshot.revision < this.state.lastRevision,
+		);
+		const staleDocumentResult = Boolean(
+			currentDocument &&
+				result.textRevision !== undefined &&
+				result.textRevision < currentDocument.textRevision,
+		);
+		if (workspaceSnapshot && !staleWorkspaceResult)
+			this.applyResponse(workspaceSnapshot);
+		if (!staleWorkspaceResult && !staleDocumentResult)
+			this.update({ editorResult: result });
+		if (result.status === "conflict" && "documentId" in operation) {
+			const localText = this.state.editorDrafts[operation.documentId];
+			if (localText !== undefined)
+				this.update({
+					editorConflict: {
+						documentId: operation.documentId,
+						localText,
+						result,
+					},
+				});
+		} else if (
+			result.status === "accepted" &&
+			operation.operation === "editor.replaceText" &&
+			"documentId" in operation &&
+			this.state.editorDrafts[operation.documentId] === operation.text
+		) {
+			const drafts = { ...this.state.editorDrafts };
+			delete drafts[operation.documentId];
+			this.update({ editorDrafts: drafts, editorConflict: undefined });
+		}
+		return result;
+	}
+
+	reloadEditorConflict(): void {
+		const conflict = this.state.editorConflict;
+		if (!conflict) return;
+		const drafts = { ...this.state.editorDrafts };
+		delete drafts[conflict.documentId];
+		this.update({ editorDrafts: drafts, editorConflict: undefined });
+	}
+
+	copyLocalDraft(documentId: string): string | undefined {
+		return this.state.editorDrafts[documentId];
+	}
+
+	async overwriteEditorConflict(): Promise<EditorOperationResult | undefined> {
+		const conflict = this.state.editorConflict;
+		const document = this.state.snapshot?.editor.documents.find(
+			(item) => item.documentId === conflict?.documentId,
+		);
+		if (!conflict || !document) return undefined;
+		return this.applyEditorOperation({
+			operation: "editor.replaceText",
+			requestId: crypto.randomUUID(),
+			documentId: conflict.documentId,
+			text: conflict.localText,
+			expectedTextRevision: document.textRevision,
+		});
 	}
 
 	dispose(): void {
@@ -149,6 +276,11 @@ export class BrowserWorkspaceStore {
 		if (event.sessionId !== this.client.getSessionId()) return;
 		const snapshot = (event.payload as { snapshot?: WorkspaceSnapshot })
 			.snapshot;
+		const result = (
+			event.payload as {
+				result?: EditorOperationResult;
+			}
+		).result;
 		if (!snapshot) return;
 		if (snapshot.revision < this.state.lastRevision) return;
 		if (event.sequence !== 0 && event.sequence <= this.state.lastSequence)
@@ -166,6 +298,21 @@ export class BrowserWorkspaceStore {
 			lastProjectRevision: snapshot.project?.revision,
 			transportError: undefined,
 		});
+		if (result && result.workspaceRevision >= this.state.lastRevision)
+			this.update({
+				editorResult: result,
+				editorError:
+					result.status === "rejected"
+						? { code: result.code, message: result.message ?? "" }
+						: undefined,
+			});
+		if (result?.status === "conflict" && result.documentId) {
+			const localText = this.state.editorDrafts[result.documentId];
+			if (localText !== undefined)
+				this.update({
+					editorConflict: { documentId: result.documentId, localText, result },
+				});
+		}
 	}
 
 	private applySettingsResult(result: SettingsApplyResult): void {

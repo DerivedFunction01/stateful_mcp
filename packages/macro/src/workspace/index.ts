@@ -10,7 +10,11 @@ import { ExtensionContributionManager } from "./contributions/extension-contribu
 import { SettingsContributionRegistry } from "./contributions/settings-registry";
 import { TabRegistry } from "./contributions/tab-registry";
 import { ViewRegistry } from "./contributions/view-registry";
-import { EditorKernel } from "./editor/editor-kernel";
+import type { EditorKernel } from "./editor/editor-kernel";
+import {
+	MacroDocumentManager,
+	type MacroDocumentTemplate,
+} from "./editor/macro-document-manager";
 import { createDefaultI18nKernel } from "./i18n/discovery";
 import type { I18nKernel } from "./i18n/i18n-kernel";
 import { WorkspaceJournal } from "./journal/workspace-journal";
@@ -19,9 +23,9 @@ import {
 	type WindowLayoutStateSnapshot,
 } from "./layout/window-layout-state";
 import { CommandPaletteController } from "./palette/command-palette";
-import {
+import type {
 	ScratchpadSession,
-	type ScratchpadSessionOptions,
+	ScratchpadSessionOptions,
 } from "./scratchpad/scratchpad-session";
 
 export * from "./commands/command-descriptor";
@@ -47,6 +51,7 @@ export * from "./contributions/view-registry";
 export * from "./editor/chips";
 export * from "./editor/cursor-buffer";
 export * from "./editor/editor-kernel";
+export * from "./editor/macro-document-manager";
 export * from "./editor/vim-motions";
 export * from "./i18n/discovery";
 export * from "./i18n/i18n-kernel";
@@ -68,6 +73,7 @@ export interface MacroWorkspaceOptions {
 	readonly settings?: WorkspaceSettingsService;
 	readonly journal?: import("./journal/workspace-journal").WorkspaceJournalOptions;
 	readonly scratchpad?: ScratchpadSessionOptions;
+	readonly templates?: readonly MacroDocumentTemplate[];
 }
 
 export interface MacroWorkspace {
@@ -76,6 +82,7 @@ export interface MacroWorkspace {
 	readonly layout: WindowLayoutStateManager;
 	readonly editor: EditorKernel;
 	readonly scratchpad: ScratchpadSession;
+	readonly documents: MacroDocumentManager;
 	readonly palette: CommandPaletteController;
 	readonly saveCoordinator: WorkspaceSaveCoordinator;
 	readonly journal: WorkspaceJournal;
@@ -94,13 +101,16 @@ export interface MacroWorkspace {
 export function createMacroWorkspace(
 	options?: MacroWorkspaceOptions,
 ): MacroWorkspace {
-	const tabs = new TabRegistry();
+	const i18n = createDefaultI18nKernel(options?.initialLocale ?? "en");
+	const tabs = new TabRegistry({
+		scratchpad: i18n.t("workspace.tab.scratchpad"),
+		extensions: i18n.t("workspace.tab.extensions"),
+	});
 	const views = new ViewRegistry();
 	const commands = new CommandRegistry();
 	const settingsContributions = new SettingsContributionRegistry();
 	const settingsNavigation = new SettingsNavigationState();
 	const journal = new WorkspaceJournal(options?.journal);
-	const i18n = createDefaultI18nKernel(options?.initialLocale ?? "en");
 	const runtime =
 		options?.runtime ??
 		new ExtensionRuntime({ profile: options?.profile, i18n });
@@ -110,13 +120,17 @@ export function createMacroWorkspace(
 		views,
 		options?.initialLayout,
 	);
-	const editor = new EditorKernel(options?.initialText ?? "");
-	const scratchpad = new ScratchpadSession(
-		runtime,
-		editor.buffer,
-		50,
-		options?.scratchpad,
-	);
+	const documents = new MacroDocumentManager(runtime, {
+		initialText: options?.initialText,
+		defaultTitle: i18n.t("editor.document.new"),
+		scratchpad: options?.scratchpad,
+		templates: options?.templates,
+	});
+	const activeDocument = documents.active();
+	if (!activeDocument)
+		throw new Error("Macro workspace requires an editor document");
+	const editor = activeDocument.editor;
+	const scratchpad = activeDocument.session;
 	const palette = new CommandPaletteController(commands, layout, tabs);
 	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
 	const settingsService =
@@ -148,7 +162,8 @@ export function createMacroWorkspace(
 			}
 
 			runtime.applyProfile(effective as unknown as UserMacroProfile);
-			void scratchpad.parseAllLines();
+			for (const document of documents.list())
+				void document.session.parseAllLines();
 		});
 
 		saveCoordinator.register({
@@ -183,6 +198,48 @@ export function createMacroWorkspace(
 			aliases: ["w"],
 		},
 		{ execute: () => saveCoordinator.saveActive() },
+	);
+	commands.registerCommand(
+		{
+			command: "editor.executeLine",
+			title: "Execute Macro Line",
+			category: "Editor",
+		},
+		{
+			execute: (request?: {
+				readonly documentId?: string;
+				readonly lineNumber?: number;
+				readonly expectedTextRevision?: number;
+			}) => executeLineCommand(documents, request),
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.executeRange",
+			title: "Execute Macro Range",
+			category: "Editor",
+		},
+		{
+			execute: (request?: {
+				readonly documentId?: string;
+				readonly startLine?: number;
+				readonly endLine?: number;
+				readonly expectedTextRevision?: number;
+			}) => executeRangeCommand(documents, request),
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.executeValidLines",
+			title: "Execute Valid Macro Lines",
+			category: "Editor",
+		},
+		{
+			execute: (request?: {
+				readonly documentId?: string;
+				readonly expectedTextRevision?: number;
+			}) => executeValidLinesCommand(documents, request),
+		},
 	);
 	commands.registerCommand(
 		{
@@ -359,8 +416,13 @@ export function createMacroWorkspace(
 		profile: options?.profile,
 		settings: options?.settings,
 		layout,
-		editor,
-		scratchpad,
+		get editor() {
+			return documents.active()?.editor ?? editor;
+		},
+		get scratchpad() {
+			return documents.active()?.session ?? scratchpad;
+		},
+		documents,
 		palette,
 		saveCoordinator,
 		journal,
@@ -376,9 +438,77 @@ export function createMacroWorkspace(
 		dispose: async () => {
 			unsubscribeSettingsContributions();
 			contributions.dispose();
+			documents.dispose();
 			await runtime.dispose();
 		},
 	};
 
 	return workspace;
+}
+
+function getDocument(documents: MacroDocumentManager, documentId?: string) {
+	return documentId
+		? (documents.get(documentId) ?? documents.select(documentId))
+		: documents.active();
+}
+
+async function executeLineCommand(
+	documents: MacroDocumentManager,
+	request?: {
+		readonly documentId?: string;
+		readonly lineNumber?: number;
+		readonly expectedTextRevision?: number;
+	},
+) {
+	const document = getDocument(documents, request?.documentId);
+	if (!document) return null;
+	if (request?.expectedTextRevision !== undefined)
+		documents.assertTextRevision(
+			document.documentId,
+			request.expectedTextRevision,
+		);
+	const lineNumber =
+		request?.lineNumber ?? document.editor.buffer.getCursor().line + 1;
+	const status = document.session.getLineStatusByNumber(lineNumber);
+	if (status !== "valid") return null;
+	return document.session.executeLine(lineNumber - 1);
+}
+
+async function executeRangeCommand(
+	documents: MacroDocumentManager,
+	request?: {
+		readonly documentId?: string;
+		readonly startLine?: number;
+		readonly endLine?: number;
+		readonly expectedTextRevision?: number;
+	},
+) {
+	const document = getDocument(documents, request?.documentId);
+	if (!document) return { receipts: [], skippedLines: [] };
+	if (request?.expectedTextRevision !== undefined)
+		documents.assertTextRevision(
+			document.documentId,
+			request.expectedTextRevision,
+		);
+	return document.session.executeRange(
+		request?.startLine ?? 1,
+		request?.endLine ?? document.session.getTotalLineCount(),
+	);
+}
+
+async function executeValidLinesCommand(
+	documents: MacroDocumentManager,
+	request?: {
+		readonly documentId?: string;
+		readonly expectedTextRevision?: number;
+	},
+) {
+	const document = getDocument(documents, request?.documentId);
+	if (!document) return { receipts: [], skippedLines: [] };
+	if (request?.expectedTextRevision !== undefined)
+		documents.assertTextRevision(
+			document.documentId,
+			request.expectedTextRevision,
+		);
+	return document.session.executeValidLines();
 }

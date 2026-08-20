@@ -1,3 +1,4 @@
+import type { EditorOperationResult } from "./editor";
 import type { WorkspaceSnapshot } from "./workspace";
 
 export type HostEventType =
@@ -8,18 +9,15 @@ export type HostEventType =
 	| "keymap.changed"
 	| "contributions.changed"
 	| "diagnostics.changed"
-	| "parse.completed"
+	| "editor.operation.completed"
 	| "command.completed"
 	| "session.disposed";
 
 export interface SnapshotEventPayload {
 	readonly snapshot: WorkspaceSnapshot;
+	readonly result?: EditorOperationResult;
 }
-export interface ParseRequestPayload {
-	readonly text: string;
-	readonly textRevision: number;
-}
-export interface ParseResultPayload {
-	readonly textRevision: number;
-	readonly lines: readonly Readonly<Record<string, unknown>>[];
+
+export interface EditorOperationEventPayload extends SnapshotEventPayload {
+	readonly result: EditorOperationResult;
 }

@@ -1,4 +1,7 @@
-import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
+import type {
+	EditorOperation,
+	WorkspaceSnapshot,
+} from "@stateful-mcp/macro-protocol";
 import {
 	Activity,
 	BookOpen,
@@ -330,6 +333,11 @@ export function App() {
 							<WorkbenchShell
 								snapshot={snapshot}
 								status={workspaceState.status}
+								editorDrafts={workspaceState.editorDrafts}
+								editorConflict={workspaceState.editorConflict}
+								editorResult={workspaceState.editorResult}
+								pendingEditorRequests={workspaceState.pendingEditorRequests}
+								editorError={workspaceState.editorError}
 								errorMessage={
 									workspaceState.protocolError?.message ?? t("common.error")
 								}
@@ -342,6 +350,18 @@ export function App() {
 										})
 										.catch(() => undefined);
 								}}
+								onEditorOperation={(operation: EditorOperation) => {
+									void store
+										.applyEditorOperation(operation)
+										.catch(() => undefined);
+								}}
+								onSetEditorDraft={(documentId, text) =>
+									store.setEditorDraft(documentId, text)
+								}
+								onReloadEditorConflict={() => store.reloadEditorConflict()}
+								onOverwriteEditorConflict={() =>
+									void store.overwriteEditorConflict()
+								}
 							/>
 						)}
 					</main>

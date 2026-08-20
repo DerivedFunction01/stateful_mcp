@@ -29,6 +29,7 @@ export const ES_LOCALE: WorkspaceLocaleDictionary = {
 	"shell.diagnostics.errors": "{count} Errores",
 	"workspace.tab.scratchpad": "Borrador",
 	"workspace.tab.notebook": "Cuaderno",
+	"workspace.tab.extensions": "Extensiones",
 	"workspace.tab.settings": "Configuración",
 	"sidepanel.slots.title": "Ranuras de Macro y Validación",
 	"sidepanel.journal.title": "Historial de Registro y Reversiones",

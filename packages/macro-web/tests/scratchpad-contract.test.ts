@@ -5,7 +5,8 @@ import { toScratchpadDiagnosticDto } from "../src/server/host-session-manager";
 describe("host-owned scratchpad projection", () => {
 	test("exposes revisioned text and projected line diagnostics", async () => {
 		const snapshot = await createDiagnosticHostClient().getSnapshot();
-		expect(snapshot.scratchpad).toEqual({
+		expect(snapshot.editor.activeDocument).toEqual({
+			documentId: "fixture-document",
 			text: "",
 			textRevision: 0,
 			lines: [],

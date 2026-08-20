@@ -9,25 +9,26 @@ export class TabRegistry {
 	private readonly tabs = new Map<string, RegisteredWorkspaceTab>();
 	private readonly listeners = new Set<() => void>();
 
-	constructor() {
+	constructor(
+		labels: {
+			readonly scratchpad: string;
+			readonly extensions: string;
+		} = {
+			scratchpad: "workspace.tab.scratchpad",
+			extensions: "workspace.tab.extensions",
+		},
+	) {
 		// Register core built-in tabs
 		this.registerTab({
 			id: "scratchpad",
-			label: "Scratchpad",
+			label: labels.scratchpad,
 			order: 10,
 			defaultVisible: true,
 			icon: "✎",
 		});
 		this.registerTab({
-			id: "notebook",
-			label: "Notebook",
-			order: 20,
-			defaultVisible: true,
-			icon: "📓",
-		});
-		this.registerTab({
 			id: "extensions",
-			label: "Extensions",
+			label: labels.extensions,
 			order: 95,
 			defaultVisible: false,
 			icon: "▣",

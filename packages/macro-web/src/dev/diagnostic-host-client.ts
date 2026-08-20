@@ -1,4 +1,6 @@
 import type {
+	EditorOperation,
+	EditorOperationResult,
 	KeymapBindingResolutionDto,
 	SettingsApplyResult,
 	SettingsBundleResult,
@@ -66,7 +68,26 @@ export function createDiagnosticHostClient(): HostClient {
 			inspectorMode: "follow",
 			pinnedInspectorViewId: null,
 		},
-		scratchpad: { text: "", textRevision: 0, lines: [] },
+		editor: {
+			documents: [
+				{
+					documentId: "fixture-document",
+					providerId: "macro.text",
+					title: "Scratchpad",
+					dirty: false,
+					textRevision: 0,
+				},
+			],
+			activeDocumentId: "fixture-document",
+			activeDocument: {
+				documentId: "fixture-document",
+				text: "",
+				textRevision: 0,
+				lines: [],
+			},
+			templates: [],
+			capabilities: { canCreate: true, canExecute: false, canPersist: false },
+		},
 		diagnostics: [
 			{
 				severity: "info" as const,
@@ -99,7 +120,18 @@ export function createDiagnosticHostClient(): HostClient {
 			code: "FIXTURE_ONLY",
 			message: "Settings bundles are unavailable in the diagnostic fixture",
 		}),
-		parse: async () => snapshot,
+		applyEditorOperation: async (
+			operation: EditorOperation,
+		): Promise<EditorOperationResult> => ({
+			operation: operation.operation,
+			requestId: operation.requestId,
+			status: "rejected",
+			code: "FIXTURE_ONLY",
+			message: "Editor transport is unavailable in the diagnostic fixture",
+			snapshot: snapshot.editor,
+			workspaceSnapshot: snapshot,
+			workspaceRevision: snapshot.revision,
+		}),
 		subscribe: () => () => undefined,
 		subscribeState: (listener) => {
 			listener("connected");

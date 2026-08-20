@@ -1,6 +1,7 @@
 import { relative, resolve, sep } from "node:path";
 import { createMacroHost } from "@stateful-mcp/macro-host";
 import {
+	type EditorOperation,
 	failure,
 	type HostRequest,
 	hostError,
@@ -141,7 +142,7 @@ const server = Bun.serve<SocketData>({
 	fetch: async (request, serverInstance) => {
 		const url = new URL(request.url);
 		const sessionMatch = url.pathname.match(
-			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|parse))?$/,
+			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|editor))?$/,
 		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
@@ -275,22 +276,16 @@ const server = Bun.serve<SocketData>({
 						envelope.payload as SettingsBundleOperation,
 					),
 				);
-			if (operation === "parse" && request.method === "POST")
+			if (operation === "editor" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) => {
-					const payload = envelope.payload as {
-						text?: string;
-						textRevision?: number;
-					};
-					if (
-						typeof payload?.text !== "string" ||
-						typeof payload.textRevision !== "number"
-					)
+					const payload = envelope.payload as EditorOperation;
+					if (!payload || typeof payload.operation !== "string")
 						throw new SessionError(
-							"INVALID_PARSE",
-							"Parse text and textRevision are required",
+							"INVALID_EDITOR_OPERATION",
+							"Editor operation is required",
 							false,
 						);
-					return sessions.parse(sessionId, payload.text, payload.textRevision);
+					return sessions.editor(sessionId, payload);
 				});
 			if (!operation && request.method === "DELETE") {
 				try {

@@ -1,4 +1,6 @@
 import {
+	type EditorOperation,
+	type EditorOperationResult,
 	type HostError,
 	type HostRequest,
 	type HostResponse,
@@ -53,7 +55,9 @@ export interface HostClient {
 	applySettingsBundle(
 		operation: SettingsBundleOperation,
 	): Promise<SettingsBundleResult>;
-	parse(text: string, textRevision: number): Promise<HostWorkspaceSnapshot>;
+	applyEditorOperation(
+		operation: EditorOperation,
+	): Promise<EditorOperationResult>;
 	subscribe(listener: (event: HostEvent) => void): () => void;
 	subscribeState(listener: (state: TransportState) => void): () => void;
 	getState(): TransportState;
@@ -213,17 +217,16 @@ export class BrowserHostClient implements HostClient {
 		);
 	}
 
-	async parse(
-		text: string,
-		textRevision: number,
-	): Promise<HostWorkspaceSnapshot> {
+	async applyEditorOperation(
+		operation: EditorOperation,
+	): Promise<EditorOperationResult> {
 		const sessionId = this.requireSession();
-		const snapshot = await this.request<HostWorkspaceSnapshot>(
-			`/api/sessions/${encodeURIComponent(sessionId)}/parse`,
-			{ type: "scratchpad.parse", sessionId, payload: { text, textRevision } },
+		const result = await this.request<EditorOperationResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/editor`,
+			{ type: operation.operation, sessionId, payload: operation },
 		);
-		this.snapshot = snapshot;
-		return snapshot;
+		if (result.workspaceSnapshot) this.snapshot = result.workspaceSnapshot;
+		return result;
 	}
 
 	subscribe(listener: (event: HostEvent) => void): () => void {

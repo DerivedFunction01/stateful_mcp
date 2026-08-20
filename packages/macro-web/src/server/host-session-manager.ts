@@ -2,11 +2,17 @@ import { randomUUID } from "node:crypto";
 import {
 	BUILTIN_KEYMAP_PROFILES,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
+	DocumentManagerError,
+	DocumentRevisionError,
 	type EditorKeymapProfile,
 	keymapBindingConflicts,
+	type MacroDocument,
+	type MacroDocumentTemplate,
 	matchEffectiveBindings,
 	mergeEditorKeymap,
 	resolveKeymapBindings,
+	type ScratchpadExecutionBatchResult,
+	type ScratchpadExecutionReceipt,
 } from "@stateful-mcp/macro";
 import type { MacroDiagnostic } from "@stateful-mcp/macro/contracts/input";
 import {
@@ -24,6 +30,12 @@ import {
 	type CommandDescriptorDto,
 	type DiagnosticDto,
 	type DomainApplicationDescriptor,
+	type EditorDocumentDto,
+	type EditorJsonValue,
+	type EditorOperation,
+	type EditorOperationResult,
+	type EditorPayloadEnvelope,
+	type EditorWorkspaceSnapshotDto,
 	type EffectiveKeymapDto,
 	type HostError,
 	type HostEvent,
@@ -33,6 +45,9 @@ import {
 	type KeymapBindingDto,
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
+	type ScratchpadLineDto,
+	type ScratchpadLineStatus,
+	type ScratchpadTemplateDescriptor,
 	SETTINGS_REDACTION_MARKER,
 	type SettingsApplyResult,
 	type SettingsBundleDto,
@@ -52,6 +67,7 @@ export interface HostSessionOptions {
 	readonly profileId?: string;
 	readonly locale?: string;
 	readonly initialText?: string;
+	readonly templates?: readonly MacroDocumentTemplate[];
 	readonly keymap?: Partial<EditorKeymapProfile>;
 }
 
@@ -64,7 +80,6 @@ interface Session {
 	readonly unsubs: (() => void)[];
 	sequence: number;
 	revision: number;
-	documentRevision: number;
 	lastActivity: number;
 	disposed: boolean;
 	stagedBundle?: {
@@ -91,7 +106,12 @@ export class HostSessionManager {
 			...(this.projectRoot ? { projectRoot: this.projectRoot } : {}),
 			profileId: options.profileId,
 			locale: options.locale,
-			initialText: options.initialText,
+			...(options.initialText === undefined
+				? {}
+				: { initialText: options.initialText }),
+			...(options.templates === undefined
+				? {}
+				: { templates: options.templates }),
 		});
 		const id = randomUUID();
 		const session: Session = {
@@ -103,7 +123,6 @@ export class HostSessionManager {
 			unsubs: [],
 			sequence: 0,
 			revision: 0,
-			documentRevision: 0,
 			lastActivity: Date.now(),
 			disposed: false,
 		};
@@ -502,24 +521,349 @@ export class HostSessionManager {
 		};
 	}
 
-	async parse(
+	async editor(
 		sessionId: string,
-		text: string,
-		textRevision: number,
-	): Promise<WorkspaceSnapshot> {
+		operation: EditorOperation,
+	): Promise<EditorOperationResult> {
 		const session = this.getOrError(sessionId);
-		if (textRevision < session.documentRevision)
-			throw new SessionError(
-				"STALE_REVISION",
-				"Parse revision is older than the session revision",
-				true,
-				{ textRevision, revision: session.documentRevision },
+		return this.handleEditorOperation(sessionId, operation);
+	}
+
+	async handleEditorOperation(
+		sessionId: string,
+		operation: EditorOperation,
+	): Promise<EditorOperationResult> {
+		const session = this.getOrError(sessionId);
+		const result = await this.executeEditorOperation(sessionId, operation);
+		this.emit(session, "editor.operation.completed", result);
+		return result;
+	}
+
+	private async executeEditorOperation(
+		sessionId: string,
+		operation: EditorOperation,
+	): Promise<EditorOperationResult> {
+		const session = this.getOrError(sessionId);
+		const workspace = session.loaded.workspace;
+		const documents = workspace.documents;
+		const base = () => ({
+			operation: operation.operation,
+			requestId: operation.requestId,
+			snapshot: this.editorSnapshot(session),
+			workspaceSnapshot: this.snapshot(session),
+			workspaceRevision: session.revision,
+		});
+		const conflict = (
+			documentId: string | undefined,
+			expected: number | undefined,
+			actual: number | undefined,
+		): EditorOperationResult => ({
+			...base(),
+			status: "conflict",
+			code: "EDITOR_REVISION_STALE",
+			message: this.message(session, "editor.input.stale"),
+			...(documentId ? { documentId } : {}),
+			...(expected === undefined ? {} : { expectedTextRevision: expected }),
+			...(actual === undefined ? {} : { actualTextRevision: actual }),
+		});
+
+		try {
+			switch (operation.operation) {
+				case "editor.newScratchpad": {
+					const document = documents.createBlank();
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+					};
+				}
+				case "editor.newScratchpadFromTemplate": {
+					const document = documents.createFromTemplate(operation.templateId);
+					await document.session.parseAllLines();
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+					};
+				}
+				case "editor.selectDocument": {
+					documents.select(operation.documentId);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: operation.documentId,
+					};
+				}
+				case "editor.closeDocument": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (
+						operation.expectedTextRevision !== undefined &&
+						operation.expectedTextRevision !== document.textRevision
+					)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					documents.close(operation.documentId, operation.force ?? false);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: operation.documentId,
+					};
+				}
+				case "editor.renameDocument": {
+					documents.rename(operation.documentId, operation.title);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: operation.documentId,
+					};
+				}
+				case "editor.pinMacro": {
+					documents.setPinnedMacro(operation.documentId, operation.macroId);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: operation.documentId,
+					};
+				}
+				case "editor.replaceText": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (document.textRevision !== operation.expectedTextRevision)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					const updated = documents.replaceText({
+						documentId: operation.documentId,
+						text: operation.text,
+						expectedTextRevision: operation.expectedTextRevision,
+					});
+					await updated.session.parseAllLines();
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: updated.documentId,
+						textRevision: updated.textRevision,
+					};
+				}
+				case "editor.previewLine":
+				case "editor.previewRange":
+				case "editor.previewDocument": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (document.textRevision !== operation.expectedTextRevision)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					await document.session.parseAllLines();
+					if (
+						(operation.operation === "editor.previewLine" &&
+							(operation.lineNumber < 1 ||
+								operation.lineNumber > document.session.getTotalLineCount())) ||
+						(operation.operation === "editor.previewRange" &&
+							(operation.startLine < 1 ||
+								operation.endLine < operation.startLine ||
+								operation.endLine > document.session.getTotalLineCount()))
+					)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_RANGE_INVALID",
+							this.message(session, "editor.execution.rangeInvalid"),
+						);
+					const lines = this.editorLinesForOperation(document, operation);
+					return {
+						...base(),
+						status: "preview",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+						lines,
+					};
+				}
+				case "editor.executeLine": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (document.textRevision !== operation.expectedTextRevision)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					await document.session.parseAllLines();
+					const status = document.session.getLineStatusByNumber(
+						operation.lineNumber,
+					);
+					if (status !== "valid")
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_LINE_NOT_EXECUTABLE",
+							this.message(session, "editor.execution.notExecutable"),
+						);
+					const receipt =
+						await workspace.commands.executeCommand<ScratchpadExecutionReceipt | null>(
+							"editor.executeLine",
+							operation,
+						);
+					if (!receipt)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_LINE_NOT_EXECUTABLE",
+							this.message(session, "editor.execution.failed"),
+						);
+					await session.loaded.workspace.journal.recordExecution(receipt);
+					this.emit(session, "command.completed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+						receipts: [this.toExecutionReceiptDto(receipt, operation, session)],
+					};
+				}
+				case "editor.executeRange": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (document.textRevision !== operation.expectedTextRevision)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					await document.session.parseAllLines();
+					try {
+						const result =
+							await workspace.commands.executeCommand<ScratchpadExecutionBatchResult>(
+								"editor.executeRange",
+								operation,
+							);
+						for (const receipt of result.receipts)
+							await session.loaded.workspace.journal.recordExecution(receipt);
+						this.emit(session, "command.completed");
+						return {
+							...base(),
+							status: "accepted",
+							documentId: document.documentId,
+							textRevision: document.textRevision,
+							receipts: result.receipts.map((receipt) =>
+								this.toExecutionReceiptDto(receipt, operation, session),
+							),
+							skippedLines: result.skippedLines,
+						};
+					} catch (error) {
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							(error as { code?: string }).code ?? "EDITOR_RANGE_INVALID",
+							(error as { code?: string }).code === "EDITOR_LINE_NOT_EXECUTABLE"
+								? this.message(session, "editor.execution.notExecutable")
+								: this.message(session, "editor.execution.rangeInvalid"),
+						);
+					}
+				}
+				case "editor.executeValidLines": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (document.textRevision !== operation.expectedTextRevision)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					await document.session.parseAllLines();
+					const result =
+						await workspace.commands.executeCommand<ScratchpadExecutionBatchResult>(
+							"editor.executeValidLines",
+							operation,
+						);
+					for (const receipt of result.receipts)
+						await session.loaded.workspace.journal.recordExecution(receipt);
+					this.emit(session, "command.completed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+						receipts: result.receipts.map((receipt) =>
+							this.toExecutionReceiptDto(receipt, operation, session),
+						),
+						skippedLines: result.skippedLines,
+					};
+				}
+			}
+		} catch (error) {
+			if (error instanceof DocumentRevisionError)
+				return conflict(
+					"documentId" in operation ? operation.documentId : undefined,
+					error.expectedRevision,
+					error.actualRevision,
+				);
+			if (error instanceof DocumentManagerError)
+				return this.rejectedEditorResult(
+					session,
+					operation,
+					error.code,
+					error.message,
+				);
+			return this.rejectedEditorResult(
+				session,
+				operation,
+				"EDITOR_OPERATION_FAILED",
+				error instanceof Error ? error.message : String(error),
 			);
-		session.loaded.workspace.editor.buffer.setText(text);
-		await session.loaded.workspace.scratchpad.parseAllLines();
-		session.documentRevision = textRevision;
-		this.emit(session, "parse.completed");
-		return this.snapshot(session);
+		}
 	}
 
 	async dispose(sessionId: string): Promise<boolean> {
@@ -531,6 +875,278 @@ export class HostSessionManager {
 		this.sessions.delete(sessionId);
 		await session.loaded.workspace.dispose();
 		return true;
+	}
+
+	private rejectedEditorResult(
+		session: Session,
+		operation: EditorOperation,
+		code: string,
+		message: string,
+	): EditorOperationResult {
+		const localizedMessage = this.editorMessage(session, code, message);
+		return {
+			operation: operation.operation,
+			requestId: operation.requestId,
+			status: "rejected",
+			code,
+			message: localizedMessage,
+			snapshot: this.editorSnapshot(session),
+			workspaceSnapshot: this.snapshot(session),
+			workspaceRevision: session.revision,
+			...("documentId" in operation
+				? { documentId: operation.documentId }
+				: {}),
+		};
+	}
+
+	private editorMessage(
+		session: Session,
+		code: string,
+		fallback: string,
+	): string {
+		switch (code) {
+			case "EDITOR_DOCUMENT_NOT_FOUND":
+				return this.message(session, "editor.document.notFound");
+			case "EDITOR_DOCUMENT_DIRTY":
+				return this.message(session, "editor.document.closeDirty");
+			case "EDITOR_LAST_DOCUMENT":
+				return this.message(session, "editor.document.last");
+			case "EDITOR_TITLE_REQUIRED":
+				return this.message(session, "editor.document.titleRequired");
+			case "EDITOR_TEMPLATE_NOT_FOUND":
+				return this.message(session, "editor.template.notFound");
+			case "EDITOR_TEMPLATE_SEED_UNAVAILABLE":
+				return this.message(session, "editor.template.seedUnavailable");
+			case "EDITOR_OPERATION_FAILED":
+				return this.message(session, "editor.operation.failed");
+			default:
+				return fallback;
+		}
+	}
+
+	private editorSnapshot(session: Session): EditorWorkspaceSnapshotDto {
+		const documents = session.loaded.workspace.documents;
+		const active = documents.active();
+		const templates: ScratchpadTemplateDescriptor[] = documents
+			.getTemplates()
+			.map((template) => ({
+				templateId: template.templateId,
+				providerId: "macro.text",
+				title: template.title,
+				...(template.description ? { description: template.description } : {}),
+				...(template.pinnedMacroIds
+					? { pinnedMacroIds: template.pinnedMacroIds }
+					: {}),
+				...(template.sourceExtensionId
+					? { sourceExtensionId: template.sourceExtensionId }
+					: {}),
+				...(template.requiresProfile ? { requiresProfile: true } : {}),
+			}));
+		return {
+			documents: documents
+				.list()
+				.map((document) => this.editorDocumentDto(document)),
+			activeDocumentId: documents.getActiveDocumentId(),
+			activeDocument: active ? this.editorDocumentSnapshot(active) : null,
+			templates,
+			capabilities: {
+				canCreate: true,
+				canExecute: Boolean(active),
+				canPersist: false,
+			},
+		};
+	}
+
+	private editorDocumentDto(document: MacroDocument): EditorDocumentDto {
+		return {
+			documentId: document.documentId,
+			providerId: "macro.text",
+			title: document.title,
+			...(document.templateId ? { templateId: document.templateId } : {}),
+			dirty: document.dirty,
+			textRevision: document.textRevision,
+			...(document.pinnedMacroIds.length > 0
+				? { pinnedMacroIds: document.pinnedMacroIds }
+				: {}),
+		};
+	}
+
+	private editorDocumentSnapshot(document: MacroDocument) {
+		const projectedLines = document.session.getProjectedLines();
+		const lines = projectedLines.map((line) => this.toScratchpadLineDto(line));
+		const projections = projectedLines.flatMap((line) => [
+			...line.projections.map((projection) => ({
+				kind: "slot" as const,
+				ownerId: projection.macroId,
+				version: projection.macroVersion,
+				payload: toEditorPayload(projection, {
+					kind: "slot",
+					ownerId: projection.macroId,
+					schemaVersion: 1,
+				}),
+			})),
+			...(line.extensionProjections ?? []).map((projection) => ({
+				kind: "extension" as const,
+				ownerId: projection.ownerExtensionId,
+				payload: toEditorPayload(projection.data, {
+					kind: "extension",
+					ownerId: projection.ownerExtensionId,
+				}),
+			})),
+		]);
+		const executionPreviews = projectedLines.flatMap((line) =>
+			line.executionPreview
+				? [
+						{
+							payload: toEditorPayload(line.executionPreview, {
+								kind: "execution-preview",
+							}),
+						},
+					]
+				: [],
+		);
+		return {
+			documentId: document.documentId,
+			text: document.editor.buffer.getText(),
+			textRevision: document.textRevision,
+			lines,
+			...(projections.length > 0 ? { projections } : {}),
+			...(executionPreviews.length > 0 ? { executionPreviews } : {}),
+		};
+	}
+
+	private editorLinesForOperation(
+		document: MacroDocument,
+		operation: Extract<
+			EditorOperation,
+			{
+				operation:
+					| "editor.previewLine"
+					| "editor.previewRange"
+					| "editor.previewDocument";
+			}
+		>,
+	): readonly ScratchpadLineDto[] {
+		const lines = document.session
+			.getProjectedLines()
+			.map((line) => this.toScratchpadLineDto(line));
+		if (operation.operation === "editor.previewDocument") return lines;
+		if (operation.operation === "editor.previewLine")
+			return lines.filter((line) => line.lineNumber === operation.lineNumber);
+		return lines.filter(
+			(line) =>
+				line.lineNumber >= operation.startLine &&
+				line.lineNumber <= operation.endLine,
+		);
+	}
+
+	private toScratchpadLineDto(line: {
+		readonly lineNumber: number;
+		readonly rawText: string;
+		readonly isValid: boolean;
+		readonly macroName?: string;
+		readonly projections: readonly {
+			readonly macroId: string;
+			readonly macroVersion: number;
+		}[];
+		readonly extensionProjections?: readonly {
+			readonly ownerExtensionId: string;
+			readonly data: unknown;
+		}[];
+		readonly preview?: { readonly text?: string };
+		readonly executionPreview?: unknown;
+		readonly diagnostics: readonly MacroDiagnostic[];
+	}): ScratchpadLineDto {
+		const lineStatus: ScratchpadLineStatus = !line.rawText.trim()
+			? "empty"
+			: !line.macroName
+				? "non-macro"
+				: line.isValid
+					? "valid"
+					: "invalid";
+		const lineProjections = [
+			...line.projections.map((projection) => ({
+				kind: "slot" as const,
+				ownerId: projection.macroId,
+				version: projection.macroVersion,
+				payload: toEditorPayload(projection, {
+					kind: "slot",
+					ownerId: projection.macroId,
+					schemaVersion: 1,
+				}),
+			})),
+			...(line.extensionProjections ?? []).map((projection) => ({
+				kind: "extension" as const,
+				ownerId: projection.ownerExtensionId,
+				payload: toEditorPayload(projection.data, {
+					kind: "extension",
+					ownerId: projection.ownerExtensionId,
+				}),
+			})),
+		];
+		return {
+			lineNumber: line.lineNumber,
+			rawText: line.rawText,
+			...(line.macroName ? { macroName: line.macroName } : {}),
+			lineStatus,
+			diagnostics: line.diagnostics.map((diagnostic) =>
+				toScratchpadDiagnosticDto(diagnostic, lineStatus === "valid"),
+			),
+			...(lineProjections.length > 0 ? { projections: lineProjections } : {}),
+			...(line.preview ? { preview: { text: line.preview.text } } : {}),
+			...(line.executionPreview
+				? {
+						executionPreview: {
+							payload: toEditorPayload(line.executionPreview, {
+								kind: "execution-preview",
+							}),
+						},
+					}
+				: {}),
+		};
+	}
+
+	private toExecutionReceiptDto(
+		receipt: {
+			readonly lineNumber: number;
+			readonly rawText: string;
+			readonly macroName: string;
+			readonly success: boolean;
+			readonly result?: unknown;
+			readonly error?: string;
+			readonly executedAt: number;
+		},
+		operation: EditorOperation,
+		session: Session,
+	) {
+		return {
+			documentId: "documentId" in operation ? operation.documentId : "",
+			requestId: operation.requestId,
+			textRevision:
+				"expectedTextRevision" in operation &&
+				operation.expectedTextRevision !== undefined
+					? operation.expectedTextRevision
+					: 0,
+			lineNumber: receipt.lineNumber,
+			rawText: receipt.rawText,
+			macroName: receipt.macroName,
+			success: receipt.success,
+			...(receipt.result === undefined
+				? {}
+				: {
+						result: toEditorPayload(receipt.result, {
+							kind: "execution-result",
+							ownerId: receipt.macroName,
+						}),
+					}),
+			...(receipt.error
+				? {
+						error: this.message(session, "editor.execution.failed"),
+						errorCode: "EDITOR_EXECUTION_FAILED",
+					}
+				: {}),
+			executedAt: receipt.executedAt,
+		};
 	}
 
 	async disposeAbandoned(now = Date.now()): Promise<void> {
@@ -551,7 +1167,6 @@ export class HostSessionManager {
 			session.loaded.workspace.commands,
 			session.loaded.workspace.tabs,
 			session.loaded.workspace.views,
-			session.loaded.workspace.scratchpad,
 			session.loaded.workspace.i18n,
 		];
 		for (const source of signalSources) {
@@ -577,10 +1192,23 @@ export class HostSessionManager {
 			);
 	}
 
-	private emit(session: Session, type: HostEventType): void {
+	private emit(
+		session: Session,
+		type: HostEventType,
+		result?: EditorOperationResult,
+	): void {
 		if (session.disposed) return;
 		session.sequence += 1;
 		session.revision += 1;
+		const snapshot = this.snapshot(session);
+		const eventResult = result
+			? {
+					...result,
+					snapshot: snapshot.editor,
+					workspaceSnapshot: snapshot,
+					workspaceRevision: session.revision,
+				}
+			: undefined;
 		const event: HostEvent = {
 			version: MACRO_PROTOCOL_VERSION,
 			eventId: randomUUID(),
@@ -588,7 +1216,10 @@ export class HostSessionManager {
 			sessionId: session.id,
 			sequence: session.sequence,
 			revision: session.revision,
-			payload: { snapshot: this.snapshot(session) },
+			payload: {
+				snapshot,
+				...(eventResult ? { result: eventResult } : {}),
+			},
 		};
 		for (const listener of session.listeners) listener(event);
 	}
@@ -698,18 +1329,7 @@ export class HostSessionManager {
 			settings: settings ?? fallback,
 			layout,
 			activeTabId: workspace.layout.getSnapshot().activeTabId,
-			scratchpad: {
-				text: workspace.editor.buffer.getText(),
-				textRevision: session.documentRevision,
-				lines: workspace.scratchpad.getProjectedLines().map((line) => ({
-					lineNumber: line.lineNumber,
-					rawText: line.rawText,
-					isValid: line.isValid,
-					diagnostics: line.diagnostics.map((diagnostic) =>
-						toScratchpadDiagnosticDto(diagnostic, line.isValid),
-					),
-				})),
-			},
+			editor: this.editorSnapshot(session),
 			diagnostics: [],
 			...(session.loaded.project
 				? {
@@ -857,7 +1477,70 @@ export function toScratchpadDiagnosticDto(
 		severity: isValid ? "info" : "error",
 		message: diagnostic.message,
 		code: diagnostic.code,
+		...(diagnostic.start !== undefined && diagnostic.end !== undefined
+			? {
+					span: {
+						start: diagnostic.start,
+						end: diagnostic.end,
+					},
+				}
+			: {}),
 	};
+}
+
+function toEditorPayload(
+	value: unknown,
+	metadata: Pick<EditorPayloadEnvelope, "kind" | "ownerId"> &
+		Partial<Pick<EditorPayloadEnvelope, "schemaVersion">>,
+): EditorPayloadEnvelope {
+	const data = toEditorJsonValue(value);
+	if (data === undefined)
+		return {
+			...metadata,
+			schemaVersion: metadata.schemaVersion ?? 1,
+			availability: "unavailable",
+			reasonCode: "EDITOR_PAYLOAD_UNAVAILABLE",
+		};
+	return {
+		...metadata,
+		schemaVersion: metadata.schemaVersion ?? 1,
+		availability: "available",
+		data,
+	};
+}
+
+function toEditorJsonValue(
+	value: unknown,
+	seen = new Set<object>(),
+	depth = 0,
+): EditorJsonValue | undefined {
+	if (depth > 8) return undefined;
+	if (value === null) return null;
+	if (typeof value === "string" || typeof value === "boolean") return value;
+	if (typeof value === "number")
+		return Number.isFinite(value) ? value : undefined;
+	if (typeof value !== "object") return undefined;
+	if (seen.has(value)) return undefined;
+	seen.add(value);
+	try {
+		if (Array.isArray(value)) {
+			const items = value.map((item) =>
+				toEditorJsonValue(item, seen, depth + 1),
+			);
+			return items.every((item) => item !== undefined)
+				? (items as EditorJsonValue[])
+				: undefined;
+		}
+		const prototype = Object.getPrototypeOf(value);
+		if (prototype !== Object.prototype && prototype !== null) return undefined;
+		const entries = Object.entries(value).map(
+			([key, item]) => [key, toEditorJsonValue(item, seen, depth + 1)] as const,
+		);
+		if (entries.some(([, item]) => item === undefined)) return undefined;
+		return Object.fromEntries(entries) as EditorJsonValue;
+	} finally {
+		seen.delete(value);
+	}
 }
 
 function toSettingsBundleDto(bundle: SettingsBundlePayload): SettingsBundleDto {

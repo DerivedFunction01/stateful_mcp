@@ -11,13 +11,16 @@ export function WorkspaceTabs({
 	theme?: TuiThemeDefinition;
 }) {
 	const active = workspace.layout.getSnapshot().activeTabId;
+	const activeDocument = workspace.documents.active();
 	const tabs: readonly TuiTabItem[] = workspace.tabs.getTabs().map((tab) => ({
 		id: tab.id,
 		label: tab.label,
 		icon: tab.icon,
 		isDirty:
 			tab.id === "scratchpad"
-				? workspace.editor.buffer.getText().length > 0
+				? Boolean(
+						activeDocument?.dirty || activeDocument?.editor.buffer.getText(),
+					)
 				: false,
 	}));
 

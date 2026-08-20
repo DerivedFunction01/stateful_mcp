@@ -17,6 +17,30 @@ export interface ScratchpadExecutionReceipt {
 	readonly executedAt: number;
 }
 
+export type ScratchpadLineStatus = "empty" | "valid" | "invalid" | "non-macro";
+
+export interface ScratchpadSkippedLine {
+	readonly lineNumber: number;
+	readonly lineStatus: ScratchpadLineStatus;
+	readonly reasonCode: string;
+}
+
+export interface ScratchpadExecutionBatchResult {
+	readonly receipts: readonly ScratchpadExecutionReceipt[];
+	readonly skippedLines: readonly ScratchpadSkippedLine[];
+}
+
+export class ScratchpadExecutionPolicyError extends Error {
+	constructor(
+		readonly code: "EDITOR_LINE_NOT_EXECUTABLE" | "EDITOR_RANGE_INVALID",
+		readonly lineNumber?: number,
+		readonly lineStatus?: ScratchpadLineStatus,
+	) {
+		super(code);
+		this.name = "ScratchpadExecutionPolicyError";
+	}
+}
+
 export interface PinnedMacroLineContext {
 	readonly macroId: string;
 	readonly macroName: string;
@@ -98,6 +122,18 @@ export class ScratchpadSession {
 
 	getProjectedLine(lineIndex: number): ProjectedMacroLine | undefined {
 		return this.projectedLines[lineIndex];
+	}
+
+	getLineStatus(lineIndex: number): ScratchpadLineStatus {
+		const line = this.projectedLines[lineIndex];
+		if (!line) return "non-macro";
+		if (!line.rawText.trim()) return "empty";
+		if (!line.macroName) return "non-macro";
+		return line.isValid ? "valid" : "invalid";
+	}
+
+	getLineStatusByNumber(lineNumber: number): ScratchpadLineStatus {
+		return this.getLineStatus(lineNumber - 1);
 	}
 
 	getValidLineCount(): number {
@@ -269,6 +305,65 @@ export class ScratchpadSession {
 		return receipts;
 	}
 
+	async executeRange(
+		startLine: number,
+		endLine: number,
+	): Promise<ScratchpadExecutionBatchResult> {
+		this.assertRange(startLine, endLine);
+		const skippedLines: ScratchpadSkippedLine[] = [];
+		for (let lineNumber = startLine; lineNumber <= endLine; lineNumber++) {
+			const lineStatus = this.getLineStatusByNumber(lineNumber);
+			if (lineStatus === "empty") {
+				skippedLines.push({
+					lineNumber,
+					lineStatus,
+					reasonCode: "EDITOR_EMPTY_LINE_SKIPPED",
+				});
+				continue;
+			}
+			if (lineStatus !== "valid")
+				throw new ScratchpadExecutionPolicyError(
+					"EDITOR_LINE_NOT_EXECUTABLE",
+					lineNumber,
+					lineStatus,
+				);
+		}
+
+		const receipts: ScratchpadExecutionReceipt[] = [];
+		for (let lineNumber = startLine; lineNumber <= endLine; lineNumber++) {
+			if (this.getLineStatusByNumber(lineNumber) !== "valid") continue;
+			const receipt = await this.executeLine(lineNumber - 1);
+			if (receipt) receipts.push(receipt);
+		}
+		return { receipts, skippedLines };
+	}
+
+	async executeValidLines(): Promise<ScratchpadExecutionBatchResult> {
+		const skippedLines: ScratchpadSkippedLine[] = [];
+		const receipts: ScratchpadExecutionReceipt[] = [];
+		for (
+			let lineNumber = 1;
+			lineNumber <= this.getTotalLineCount();
+			lineNumber++
+		) {
+			const lineStatus = this.getLineStatusByNumber(lineNumber);
+			if (lineStatus !== "valid") {
+				skippedLines.push({
+					lineNumber,
+					lineStatus,
+					reasonCode:
+						lineStatus === "empty"
+							? "EDITOR_EMPTY_LINE_SKIPPED"
+							: "EDITOR_LINE_NOT_EXECUTABLE_SKIPPED",
+				});
+				continue;
+			}
+			const receipt = await this.executeLine(lineNumber - 1);
+			if (receipt) receipts.push(receipt);
+		}
+		return { receipts, skippedLines };
+	}
+
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);
@@ -282,6 +377,17 @@ export class ScratchpadSession {
 				console.error("Error in ScratchpadSession listener:", e);
 			}
 		}
+	}
+
+	private assertRange(startLine: number, endLine: number): void {
+		if (
+			!Number.isInteger(startLine) ||
+			!Number.isInteger(endLine) ||
+			startLine < 1 ||
+			endLine < startLine ||
+			endLine > this.getTotalLineCount()
+		)
+			throw new ScratchpadExecutionPolicyError("EDITOR_RANGE_INVALID");
 	}
 }
 

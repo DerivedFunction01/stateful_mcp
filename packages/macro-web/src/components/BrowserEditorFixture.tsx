@@ -47,7 +47,7 @@ export function BrowserEditorFixture() {
 		<div className="browser-editor-fixture" ref={containerRef}>
 			<div className="mode-row">
 				<Toggle
-					label="Enable Vim bindings for this editor"
+					label={t("editor.toggleVim")}
 					checked={state.enabled}
 					onChange={(enabled) => controller.setEnabled(enabled)}
 				/>
@@ -56,8 +56,8 @@ export function BrowserEditorFixture() {
 			{notice && <p className="fixture-notice">{notice}</p>}
 			<textarea
 				className="browser-editor-input"
-				defaultValue={'@note(date="2026-08-19", title="Review")'}
-				aria-label="Scratchpad editor fixture"
+				defaultValue=""
+				aria-label={t("workbench.editor")}
 				onFocus={() => setEditorFocused(true)}
 				onBlur={() => setEditorFocused(false)}
 				onKeyDown={(event) => {
@@ -68,9 +68,9 @@ export function BrowserEditorFixture() {
 				vimEnabled={state.enabled}
 				vimMode={state.enabled ? state.mode : undefined}
 				editorFocused={editorFocused}
-				diagnostics={1}
-				profile="Clinical"
-				domain="Notes"
+				diagnostics={0}
+				profile={t("host.profile")}
+				domain={t("common.editor")}
 			/>
 		</div>
 	);

@@ -1,4 +1,5 @@
 import type { CommandDescriptorDto } from "./commands";
+import type { EditorWorkspaceSnapshotDto } from "./editor";
 import type { SettingsUiSnapshotDto } from "./settings";
 
 export const LAYOUT_RATIO_DEFAULTS: Readonly<{
@@ -120,6 +121,12 @@ export interface DiagnosticDto {
 	readonly severity: "info" | "warning" | "error";
 	readonly message: string;
 	readonly code?: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
+	readonly span?: {
+		readonly start: number;
+		readonly end: number;
+	};
 }
 
 export interface ProjectResourceReferenceDto {
@@ -138,23 +145,7 @@ export interface ProjectDescriptorDto {
 	readonly historyResources: readonly ProjectResourceReferenceDto[];
 }
 
-export interface ScratchpadLineDto {
-	readonly lineNumber: number;
-	readonly rawText: string;
-	readonly isValid: boolean;
-	readonly diagnostics: readonly DiagnosticDto[];
-}
-
-/**
- * Host-owned scratchpad projection. `textRevision` is the document revision
- * required by parse/edit mutations; browsers must not maintain a second text
- * model or infer execution receipts from this projection.
- */
-export interface ScratchpadSnapshotDto {
-	readonly text: string;
-	readonly textRevision: number;
-	readonly lines: readonly ScratchpadLineDto[];
-}
+export type { ScratchpadLineDto, ScratchpadSnapshotDto } from "./editor";
 
 export interface WorkspaceSnapshot {
 	readonly workspaceId: string;
@@ -168,7 +159,7 @@ export interface WorkspaceSnapshot {
 	readonly settings: SettingsUiSnapshotDto;
 	readonly layout: LayoutSnapshotDto;
 	readonly activeTabId?: string;
-	readonly scratchpad: ScratchpadSnapshotDto;
+	readonly editor: EditorWorkspaceSnapshotDto;
 	readonly diagnostics: readonly DiagnosticDto[];
 	readonly project?: ProjectDescriptorDto;
 	readonly revision: number;

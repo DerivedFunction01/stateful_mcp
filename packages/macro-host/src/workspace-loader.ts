@@ -21,6 +21,7 @@ import {
 	createDefaultI18nKernel,
 	createMacroWorkspace,
 	ExtensionError,
+	type MacroDocumentTemplate,
 	ExtensionLoader as MacroExtensionLoader,
 	type MacroWorkspace,
 	resolveProfile,
@@ -75,6 +76,7 @@ export interface LoadMacroWorkspaceOptions {
 	readonly extensionProfileId?: string;
 	readonly locale?: string;
 	readonly initialText?: string;
+	readonly templates?: readonly MacroDocumentTemplate[];
 	readonly settings?: MacroHostSettingsOptions;
 }
 
@@ -82,6 +84,7 @@ export interface MacroHostOptions extends MacroHostSettingsOptions {
 	readonly projectRoot?: string;
 	readonly workspacePath?: string;
 	readonly profilePath?: string;
+	readonly templates?: readonly MacroDocumentTemplate[];
 }
 
 export class MacroHost {
@@ -272,6 +275,7 @@ export async function loadMacroWorkspace(
 
 	const workspace = createMacroWorkspace({
 		initialText: options.initialText,
+		templates: options.templates,
 		initialLocale,
 		profile: resolvedProfile,
 		settings,
@@ -286,7 +290,8 @@ export async function loadMacroWorkspace(
 	}
 	// The workspace parses once during construction, before extensions are active.
 	// Re-project now so initial buffer content is immediately extension-aware.
-	await workspace.scratchpad.parseAllLines();
+	const activeDocument = workspace.documents.active();
+	if (activeDocument) await activeDocument.session.parseAllLines();
 
 	return {
 		workspace,

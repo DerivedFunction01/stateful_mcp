@@ -34,6 +34,7 @@ export function MacroCliApp({
 	);
 	const subscribe = (listener: () => void) => {
 		const unsubscribers = [
+			workspace.documents.subscribe(listener),
 			workspace.editor.subscribe(listener),
 			workspace.layout.subscribe(listener),
 			workspace.palette.subscribe(listener),

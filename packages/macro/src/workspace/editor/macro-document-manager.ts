@@ -1,0 +1,318 @@
+import type { ExtensionRuntime } from "../../extensions/runtime";
+import {
+	ScratchpadSession,
+	type ScratchpadSessionOptions,
+} from "../scratchpad/scratchpad-session";
+import { EditorKernel } from "./editor-kernel";
+
+export const MACRO_TEXT_DOCUMENT_PROVIDER = "macro.text" as const;
+
+export interface MacroDocumentTemplate {
+	readonly templateId: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly pinnedMacroIds?: readonly string[];
+	readonly sourceExtensionId?: string;
+	readonly requiresProfile?: boolean;
+	readonly initialText?: string;
+	readonly createText?: (runtime: ExtensionRuntime) => string;
+}
+
+export interface MacroDocument {
+	readonly documentId: string;
+	readonly providerId: typeof MACRO_TEXT_DOCUMENT_PROVIDER;
+	readonly editor: EditorKernel;
+	readonly session: ScratchpadSession;
+	readonly templateId?: string;
+	pinnedMacroIds: readonly string[];
+	title: string;
+	dirty: boolean;
+	textRevision: number;
+}
+
+export interface MacroDocumentManagerOptions {
+	readonly initialText?: string;
+	readonly defaultTitle?: string;
+	readonly scratchpad?: ScratchpadSessionOptions;
+	readonly templates?: readonly MacroDocumentTemplate[];
+}
+
+export interface ReplaceDocumentTextRequest {
+	readonly documentId: string;
+	readonly text: string;
+	readonly expectedTextRevision: number;
+}
+
+export class MacroDocumentManager {
+	private readonly documents = new Map<string, MacroDocument>();
+	private readonly documentUnsubs = new Map<string, () => void>();
+	private readonly listeners = new Set<() => void>();
+	private readonly templates: readonly MacroDocumentTemplate[];
+	private readonly scratchpadOptions: ScratchpadSessionOptions;
+	private readonly defaultTitle: string;
+	private activeDocumentId: string | null = null;
+
+	constructor(
+		private readonly runtime: ExtensionRuntime,
+		options: MacroDocumentManagerOptions = {},
+	) {
+		this.templates = options.templates ?? [];
+		this.scratchpadOptions = options.scratchpad ?? {};
+		this.defaultTitle = options.defaultTitle ?? "";
+		this.createDocument({
+			initialText: options.initialText ?? "",
+			title: this.defaultTitle,
+		});
+	}
+
+	list(): readonly MacroDocument[] {
+		return [...this.documents.values()];
+	}
+
+	get(documentId: string): MacroDocument | undefined {
+		return this.documents.get(documentId);
+	}
+
+	active(): MacroDocument | undefined {
+		return this.activeDocumentId
+			? this.documents.get(this.activeDocumentId)
+			: undefined;
+	}
+
+	getActiveDocumentId(): string | null {
+		return this.activeDocumentId;
+	}
+
+	assertTextRevision(
+		documentId: string,
+		expectedTextRevision: number,
+	): MacroDocument {
+		const document = this.require(documentId);
+		if (document.textRevision !== expectedTextRevision)
+			throw new DocumentRevisionError(
+				expectedTextRevision,
+				document.textRevision,
+			);
+		return document;
+	}
+
+	getTemplates(): readonly MacroDocumentTemplate[] {
+		return this.templates;
+	}
+
+	select(documentId: string): MacroDocument {
+		const document = this.require(documentId);
+		if (this.activeDocumentId !== documentId) {
+			this.activeDocumentId = documentId;
+			this.notify();
+		}
+		return document;
+	}
+
+	createBlank(title = this.defaultTitle): MacroDocument {
+		return this.createDocument({ initialText: "", title });
+	}
+
+	createFromTemplate(templateId: string): MacroDocument {
+		const template = this.templates.find(
+			(item) => item.templateId === templateId,
+		);
+		if (!template)
+			throw new DocumentManagerError(
+				"EDITOR_TEMPLATE_NOT_FOUND",
+				"The selected document template is unavailable",
+			);
+		for (const macroId of template.pinnedMacroIds ?? []) {
+			const available = this.runtime.adapters
+				.list()
+				.some(
+					(item) =>
+						item.adapter.definition.id === macroId ||
+						item.adapter.definition.name === macroId,
+				);
+			if (!available)
+				throw new DocumentManagerError(
+					"EDITOR_TEMPLATE_SEED_UNAVAILABLE",
+					"A configured template seed is unavailable",
+				);
+		}
+		const document = this.createDocument({
+			initialText:
+				template.createText?.(this.runtime) ?? template.initialText ?? "",
+			title: template.title,
+			templateId: template.templateId,
+			pinnedMacroIds: template.pinnedMacroIds,
+		});
+		for (const macroId of template.pinnedMacroIds ?? []) {
+			document.session.setPinnedMacro(macroId);
+			const lastLine = document.editor.buffer.getLineCount() - 1;
+			document.editor.buffer.setCursor(
+				lastLine,
+				document.editor.buffer.getLine(lastLine).length,
+			);
+			document.session.createPinnedMacroLine();
+		}
+		// Template seeding is part of document creation, not a user edit.
+		document.dirty = false;
+		return document;
+	}
+
+	close(documentId: string, force = false): MacroDocument | null {
+		const document = this.require(documentId);
+		if (document.dirty && !force)
+			throw new DocumentManagerError(
+				"EDITOR_DOCUMENT_DIRTY",
+				"The document has unsaved changes",
+			);
+		if (this.documents.size <= 1)
+			throw new DocumentManagerError(
+				"EDITOR_LAST_DOCUMENT",
+				"At least one editor document must remain open",
+			);
+
+		this.documents.delete(documentId);
+		this.documentUnsubs.get(documentId)?.();
+		this.documentUnsubs.delete(documentId);
+		if (this.activeDocumentId === documentId) {
+			this.activeDocumentId = this.list()[0]?.documentId ?? null;
+		}
+		this.notify();
+		return document;
+	}
+
+	rename(documentId: string, title: string): MacroDocument {
+		const document = this.require(documentId);
+		const normalized = title.trim();
+		if (!normalized)
+			throw new DocumentManagerError(
+				"EDITOR_TITLE_REQUIRED",
+				"Document title is required",
+			);
+		if (document.title !== normalized) {
+			document.title = normalized;
+			this.notify();
+		}
+		return document;
+	}
+
+	setPinnedMacro(documentId: string, macroId: string | null): MacroDocument {
+		const document = this.require(documentId);
+		const ids = macroId ? [macroId] : [];
+		document.session.setPinnedMacro(macroId);
+		document.pinnedMacroIds = ids;
+		this.notify();
+		return document;
+	}
+
+	replaceText(request: ReplaceDocumentTextRequest): MacroDocument {
+		const document = this.require(request.documentId);
+		if (document.textRevision !== request.expectedTextRevision)
+			throw new DocumentRevisionError(
+				request.expectedTextRevision,
+				document.textRevision,
+			);
+		if (document.editor.buffer.getText() !== request.text) {
+			document.editor.buffer.setText(request.text);
+			document.textRevision += 1;
+			document.dirty = true;
+			this.notify();
+		}
+		return document;
+	}
+
+	markClean(documentId: string): void {
+		const document = this.require(documentId);
+		if (document.dirty) {
+			document.dirty = false;
+			this.notify();
+		}
+	}
+
+	dispose(): void {
+		for (const unsubscribe of this.documentUnsubs.values()) unsubscribe();
+		this.documentUnsubs.clear();
+		this.documents.clear();
+		this.activeDocumentId = null;
+		this.notify();
+	}
+
+	subscribe(listener: () => void): () => void {
+		this.listeners.add(listener);
+		return () => this.listeners.delete(listener);
+	}
+
+	private createDocument(options: {
+		readonly initialText: string;
+		readonly title: string;
+		readonly templateId?: string;
+		readonly pinnedMacroIds?: readonly string[];
+	}): MacroDocument {
+		const editor = new EditorKernel(options.initialText);
+		const session = new ScratchpadSession(
+			this.runtime,
+			editor.buffer,
+			50,
+			this.scratchpadOptions,
+		);
+		const pinnedMacroIds = options.pinnedMacroIds ?? [];
+		if (pinnedMacroIds[0]) session.setPinnedMacro(pinnedMacroIds[0]);
+		const document: MacroDocument = {
+			documentId: createDocumentId(),
+			providerId: MACRO_TEXT_DOCUMENT_PROVIDER,
+			editor,
+			session,
+			...(options.templateId ? { templateId: options.templateId } : {}),
+			pinnedMacroIds,
+			title: options.title,
+			dirty: false,
+			textRevision: 0,
+		};
+		const unsubscribe = editor.buffer.subscribe(() => {
+			document.dirty = true;
+			this.notify();
+		});
+		this.documents.set(document.documentId, document);
+		this.documentUnsubs.set(document.documentId, unsubscribe);
+		this.activeDocumentId = document.documentId;
+		this.notify();
+		return document;
+	}
+
+	private require(documentId: string): MacroDocument {
+		const document = this.documents.get(documentId);
+		if (!document)
+			throw new DocumentManagerError(
+				"EDITOR_DOCUMENT_NOT_FOUND",
+				`Document '${documentId}' was not found`,
+			);
+		return document;
+	}
+
+	private notify(): void {
+		for (const listener of this.listeners) listener();
+	}
+}
+
+export class DocumentManagerError extends Error {
+	constructor(
+		readonly code: string,
+		message: string,
+	) {
+		super(message);
+		this.name = "DocumentManagerError";
+	}
+}
+
+export class DocumentRevisionError extends DocumentManagerError {
+	constructor(
+		readonly expectedRevision: number,
+		readonly actualRevision: number,
+	) {
+		super("EDITOR_REVISION_STALE", "The document revision is stale");
+		this.name = "DocumentRevisionError";
+	}
+}
+
+function createDocumentId(): string {
+	return `macro-document-${crypto.randomUUID()}`;
+}
