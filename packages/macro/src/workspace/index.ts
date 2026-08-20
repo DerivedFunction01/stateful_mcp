@@ -308,6 +308,37 @@ export function createMacroWorkspace(
 		},
 		{ execute: () => layout.toggleSidepanel() },
 	);
+	commands.registerCommand(
+		{
+			command: "layout.setRegionWidthRatio",
+			title: "Set Region Width Ratio",
+			category: "View",
+		},
+		{
+			execute: (request?: {
+				region?: "activity" | "inspector";
+				ratio?: number;
+			}) => {
+				if (request?.region && typeof request.ratio === "number") {
+					layout.setRegionWidthRatio(request.region, request.ratio);
+				}
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "layout.setDomainRailWidthRatio",
+			title: "Set Domain Rail Width Ratio",
+			category: "View",
+		},
+		{
+			execute: (request?: { ratio?: number }) => {
+				if (typeof request?.ratio === "number") {
+					layout.setDomainRailWidthRatio(request.ratio);
+				}
+			},
+		},
+	);
 	const contributions = new ExtensionContributionManager(
 		views,
 		tabs,

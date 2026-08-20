@@ -7,6 +7,7 @@ import {
 	isProtocolVersion,
 	MACRO_PROTOCOL_VERSION,
 	response,
+	type SettingsBundleOperation,
 	type SettingsOperation,
 	type SettingsUiOperation,
 } from "@stateful-mcp/macro-protocol";
@@ -140,7 +141,7 @@ const server = Bun.serve<SocketData>({
 	fetch: async (request, serverInstance) => {
 		const url = new URL(request.url);
 		const sessionMatch = url.pathname.match(
-			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|parse))?$/,
+			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|parse))?$/,
 		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
@@ -265,6 +266,13 @@ const server = Bun.serve<SocketData>({
 					sessions.settingsUi(
 						sessionId,
 						envelope.payload as SettingsUiOperation,
+					),
+				);
+			if (operation === "settings.bundle" && request.method === "POST")
+				return handleJson(request, sessionId, async (envelope) =>
+					sessions.settingsBundle(
+						sessionId,
+						envelope.payload as SettingsBundleOperation,
 					),
 				);
 			if (operation === "parse" && request.method === "POST")

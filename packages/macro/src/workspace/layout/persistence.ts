@@ -20,6 +20,7 @@ export async function saveWindowLayoutState(
 		sidepanelOpen: snapshot.sidepanelOpen,
 		sidepanelPosition: snapshot.sidepanelPosition,
 		sidepanelWidthRatio: snapshot.sidepanelWidthRatio,
+		domainRailWidthRatio: snapshot.domainRailWidthRatio,
 		activeContainerId: snapshot.activeContainerId,
 		regions: snapshot.regions,
 		activeActivityContainerId: snapshot.activeActivityContainerId,

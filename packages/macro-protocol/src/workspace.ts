@@ -1,6 +1,24 @@
 import type { CommandDescriptorDto } from "./commands";
 import type { SettingsUiSnapshotDto } from "./settings";
 
+export const LAYOUT_RATIO_DEFAULTS: Readonly<{
+	domainRail: number;
+	activity: number;
+	inspector: number;
+}> = {
+	domainRail: 0.2,
+	activity: 0.2,
+	inspector: 0.35,
+};
+
+export const LAYOUT_RATIO_BOUNDS: Readonly<{
+	min: number;
+	max: number;
+}> = {
+	min: 0.15,
+	max: 0.65,
+};
+
 export interface ProfileDescriptor {
 	readonly id: string;
 	readonly displayName: string;
@@ -83,6 +101,7 @@ export interface LayoutSnapshotDto {
 	readonly sidepanelOpen: boolean;
 	readonly sidepanelPosition: "left" | "right";
 	readonly sidepanelWidthRatio: number;
+	readonly domainRailWidthRatio: number;
 	readonly activeContainerId: string;
 	readonly focusedPane: string;
 	readonly activeModal: {
@@ -119,6 +138,24 @@ export interface ProjectDescriptorDto {
 	readonly historyResources: readonly ProjectResourceReferenceDto[];
 }
 
+export interface ScratchpadLineDto {
+	readonly lineNumber: number;
+	readonly rawText: string;
+	readonly isValid: boolean;
+	readonly diagnostics: readonly DiagnosticDto[];
+}
+
+/**
+ * Host-owned scratchpad projection. `textRevision` is the document revision
+ * required by parse/edit mutations; browsers must not maintain a second text
+ * model or infer execution receipts from this projection.
+ */
+export interface ScratchpadSnapshotDto {
+	readonly text: string;
+	readonly textRevision: number;
+	readonly lines: readonly ScratchpadLineDto[];
+}
+
 export interface WorkspaceSnapshot {
 	readonly workspaceId: string;
 	readonly sessionId: string;
@@ -131,7 +168,7 @@ export interface WorkspaceSnapshot {
 	readonly settings: SettingsUiSnapshotDto;
 	readonly layout: LayoutSnapshotDto;
 	readonly activeTabId?: string;
-	readonly scratchpad: Readonly<Record<string, unknown>>;
+	readonly scratchpad: ScratchpadSnapshotDto;
 	readonly diagnostics: readonly DiagnosticDto[];
 	readonly project?: ProjectDescriptorDto;
 	readonly revision: number;

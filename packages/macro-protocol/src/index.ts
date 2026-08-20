@@ -1,4 +1,5 @@
 export * from "./commands";
+export * from "./editor";
 export * from "./envelopes";
 export * from "./errors";
 export * from "./events";

@@ -1,12 +1,20 @@
 import type {
+	SettingsBundleDto,
+	SettingsBundleResult,
+	SettingsDiagnosticDto,
 	SettingsOperation,
 	SettingsUiItemDto,
 	SettingsUiOperation,
 	SettingsUiSnapshotDto,
 	WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
+import {
+	SETTINGS_REDACTION_MARKER,
+	SETTINGS_SCOPES,
+} from "@stateful-mcp/macro-protocol";
 import { Search, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { trapFocus } from "../lib/focus-trap";
 import type { HostClient } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
 import {
@@ -19,7 +27,7 @@ import {
 	Toggle,
 } from "./ui/primitives";
 
-const SCOPE_OPTIONS = ["user", "workspace", "folder"] as const;
+const SCOPE_OPTIONS = SETTINGS_SCOPES;
 
 type DraftNotice =
 	| {
@@ -45,6 +53,16 @@ export function SettingsTab({
 	const [jsonDraft, setJsonDraft] = useState(hostSettings?.rawJsonText ?? "{}");
 	const [notice, setNotice] = useState<DraftNotice>();
 	const [busy, setBusy] = useState(false);
+	const [importMode, setImportMode] = useState<"merge" | "replace">("replace");
+	const [pendingImport, setPendingImport] = useState<{
+		readonly stageId: string;
+		readonly revision: string;
+		readonly diagnostics: readonly SettingsDiagnosticDto[];
+		readonly mode: "merge" | "replace";
+		readonly restore: HTMLElement | null;
+	}>();
+	const importDialogRef = useRef<HTMLDivElement>(null);
+	const importRestoreRef = useRef<HTMLElement | null>(null);
 
 	useEffect(() => {
 		if (!hostSettings) return;
@@ -57,6 +75,10 @@ export function SettingsTab({
 			setActiveSection(hostSettings.sections[0]?.id ?? "");
 		}
 	}, [hostSettings, activeSection]);
+
+	useEffect(() => {
+		if (pendingImport) queueMicrotask(() => importDialogRef.current?.focus());
+	}, [pendingImport]);
 
 	const current = ui ?? hostSettings;
 	const filteredSections = useMemo(() => {
@@ -93,7 +115,7 @@ export function SettingsTab({
 				setNotice({ severity: "warning", message: result.message });
 			}
 		} catch (error) {
-			setNotice({ severity: "error", message: errorMessage(error) });
+			setNotice({ severity: "error", message: t("common.error") });
 		}
 	};
 
@@ -111,7 +133,9 @@ export function SettingsTab({
 				);
 				setNotice({
 					severity: "error",
-					message: result.diagnostics.map((item) => item.message).join("; "),
+					message: result.diagnostics
+						.map((item: SettingsDiagnosticDto) => item.message)
+						.join("; "),
 				});
 			} else if (result.status === "conflict") {
 				setNotice({
@@ -122,14 +146,18 @@ export function SettingsTab({
 				setNotice({ severity: "warning", message: result.message });
 			}
 		} catch (error) {
-			setNotice({ severity: "error", message: errorMessage(error) });
+			setNotice({ severity: "error", message: t("common.error") });
 		} finally {
 			setBusy(false);
 		}
 	};
 
 	const setPath = (item: SettingsUiItemDto, value: unknown) => {
-		if (readOnly || (item.schema.sensitive && value === "••••••••")) return;
+		if (
+			readOnly ||
+			(item.schema.sensitive && value === SETTINGS_REDACTION_MARKER)
+		)
+			return;
 		void applySetting({
 			operation: "set",
 			path: item.path,
@@ -150,42 +178,166 @@ export function SettingsTab({
 		});
 	const importInput = useRef<HTMLInputElement>(null);
 	const exportSettings = async () => {
-		const content = JSON.stringify(current, null, 2);
 		try {
-			await navigator.clipboard?.writeText(content);
-			setNotice({ severity: "info", message: t("settings.exported") });
+			const result = await client.applySettingsBundle({
+				operation: "export",
+				scope: current.activeScope,
+				profileId: current.activeProfileId,
+			});
+			if (result.status !== "exported") {
+				setNotice({
+					severity: "error",
+					message: bundleResultMessage(result, t),
+				});
+				return;
+			}
+			const content = JSON.stringify(result.bundle, null, 2);
+			try {
+				if (!navigator.clipboard) throw new Error("Clipboard unavailable");
+				await navigator.clipboard.writeText(content);
+				setNotice({ severity: "info", message: t("settings.exported") });
+			} catch {
+				const url = URL.createObjectURL(
+					new Blob([content], { type: "application/json" }),
+				);
+				const anchor = document.createElement("a");
+				anchor.href = url;
+				anchor.download = "macro-settings.json";
+				anchor.click();
+				URL.revokeObjectURL(url);
+				setNotice({ severity: "info", message: t("settings.downloaded") });
+			}
 		} catch {
-			const url = URL.createObjectURL(
-				new Blob([content], { type: "application/json" }),
-			);
-			const anchor = document.createElement("a");
-			anchor.href = url;
-			anchor.download = "macro-settings.json";
-			anchor.click();
-			URL.revokeObjectURL(url);
-			setNotice({ severity: "info", message: t("settings.downloaded") });
+			setNotice({ severity: "error", message: t("settings.conflict") });
 		}
 	};
 	const importSettings = async (file: File) => {
 		try {
 			const text = await file.text();
-			const parsed = JSON.parse(text) as { rawJsonText?: unknown };
-			if (!window.confirm(t("settings.importConfirm"))) return;
-			await applySetting({
-				operation: "replaceJson",
-				rawText:
-					typeof parsed.rawJsonText === "string"
-						? parsed.rawJsonText
-						: JSON.stringify(parsed, null, 2),
+			const parsed = JSON.parse(text) as SettingsBundleDto;
+			const result = await client.applySettingsBundle({
+				operation: "importStage",
+				bundle: parsed,
+				scope: current.activeScope,
+				profileId: current.activeProfileId,
+				mode: importMode,
 				expectedRevision: current.settingsRevision,
 			});
+			if (result.status !== "staged") {
+				setNotice({
+					severity: "error",
+					message: bundleResultMessage(result, t),
+				});
+				return;
+			}
+			importRestoreRef.current = document.activeElement as HTMLElement | null;
+			setPendingImport({
+				stageId: result.stageId,
+				revision: result.revision,
+				diagnostics: result.diagnostics,
+				mode: importMode,
+				restore: importRestoreRef.current,
+			});
 		} catch (error) {
-			setNotice({ severity: "error", message: errorMessage(error) });
+			setNotice({ severity: "error", message: t("common.error") });
+		}
+	};
+	const cancelImport = () => {
+		const restore = pendingImport?.restore;
+		setPendingImport(undefined);
+		queueMicrotask(() => restore?.focus());
+	};
+	const applyImport = async () => {
+		if (!pendingImport) return;
+		setBusy(true);
+		try {
+			const result = await client.applySettingsBundle({
+				operation: "importApply",
+				stageId: pendingImport.stageId,
+				mode: pendingImport.mode,
+				expectedRevision: pendingImport.revision,
+			});
+			if (result.status === "applied") {
+				setUi(result.snapshot);
+				setJsonDraft(result.snapshot.rawJsonText);
+				setNotice({ severity: "info", message: t("settings.imported") });
+				const restore = pendingImport.restore;
+				setPendingImport(undefined);
+				queueMicrotask(() => restore?.focus());
+			} else {
+				setNotice({
+					severity: "error",
+					message: bundleResultMessage(result, t),
+				});
+			}
+		} catch (error) {
+			setNotice({ severity: "error", message: t("common.error") });
+		} finally {
+			setBusy(false);
 		}
 	};
 
 	return (
 		<div className="settings-page">
+			{pendingImport && (
+				<div className="modal-overlay" role="presentation">
+					<div
+						ref={importDialogRef}
+						className="modal-card"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="settings-import-title"
+						tabIndex={-1}
+						onKeyDown={(event) => {
+							trapFocus(event, importDialogRef.current);
+							if (event.key === "Escape") {
+								event.preventDefault();
+								cancelImport();
+							}
+						}}
+					>
+						<h2 id="settings-import-title">{t("settings.importConfirm")}</h2>
+						{pendingImport.diagnostics.length > 0 ? (
+							<ul>
+								{pendingImport.diagnostics.map((diagnostic, index) => (
+									<li key={`${diagnostic.message}-${index}`}>
+										{diagnostic.path ? `${diagnostic.path.join(".")}: ` : ""}
+										{diagnostic.message}
+									</li>
+								))}
+							</ul>
+						) : (
+							<p>{t("settings.importReady")}</p>
+						)}
+						<label className="field-label" htmlFor="settings-import-mode">
+							{t("settings.importMode")}
+						</label>
+						<select
+							id="settings-import-mode"
+							className="input select"
+							value={importMode}
+							onChange={(event) => {
+								const mode = event.target.value as "merge" | "replace";
+								setImportMode(mode);
+								setPendingImport((previous) =>
+									previous ? { ...previous, mode } : previous,
+								);
+							}}
+						>
+							<option value="replace">{t("settings.importReplace")}</option>
+							<option value="merge">{t("settings.importMerge")}</option>
+						</select>
+						<div className="page-actions">
+							<Button variant="ghost" onClick={cancelImport}>
+								{t("settings.cancel")}
+							</Button>
+							<Button variant="primary" onClick={() => void applyImport()}>
+								{t("settings.import")}
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
 			<header className="page-header">
 				<div>
 					<span className="eyebrow">{t("settings.profileLabel")}</span>
@@ -443,7 +595,7 @@ function SchemaField({
 		return (
 			<TextInput
 				label={label}
-				value="••••••••"
+				value={SETTINGS_REDACTION_MARKER}
 				disabled={disabled}
 				hint={hint}
 				error={error}
@@ -557,6 +709,28 @@ function hasModified(snapshot: SettingsUiSnapshotDto): boolean {
 	return snapshot.modifiedCount > 0 || snapshot.totalModifiedCount > 0;
 }
 
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
+function bundleResultMessage(
+	result: SettingsBundleResult,
+	t: (
+		key: string,
+		fallback?: string,
+		params?: Readonly<Record<string, string | number>>,
+	) => string,
+): string {
+	if (result.status === "unsupported") {
+		if (result.code === "SETTINGS_SCOPE_UNSUPPORTED")
+			return t("settings.scope.unsupported");
+		if (result.code === "SETTINGS_PROFILE_UNSUPPORTED")
+			return t("settings.profile.unsupported");
+		return t("common.error");
+	}
+	if (result.status === "invalid") return t("settings.bundle.invalid");
+	if (result.status === "stale") return t("settings.conflict");
+	if (result.status === "blocked")
+		return t("settings.bundle.blocked", undefined, {
+			message: result.diagnostics
+				.map((diagnostic) => diagnostic.message)
+				.join("; "),
+		});
+	return t("settings.imported");
 }

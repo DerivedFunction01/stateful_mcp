@@ -1,4 +1,5 @@
 import type { CommandDescriptorDto } from "./commands";
+import type { EditorMode } from "./editor";
 import type {
 	DiagnosticDto,
 	KeymapBindingDto,
@@ -45,7 +46,7 @@ export interface KeymapBindingContextDto {
 	readonly activeTabId?: string;
 	readonly focusedPane?: string;
 	readonly focusedRegion?: string;
-	readonly editorMode?: string;
+	readonly editorMode?: EditorMode;
 	readonly textInputOwner?: string;
 	readonly [key: string]: string | boolean | undefined;
 }

@@ -1,3 +1,4 @@
+import type { EditorMode } from "@stateful-mcp/macro-protocol";
 import { CursorBuffer, type CursorPosition } from "./cursor-buffer";
 import {
 	findFirstNonBlank,
@@ -7,7 +8,7 @@ import {
 	findWordRangeAt,
 } from "./vim-motions";
 
-export type EditorMode = "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
+export type { EditorMode };
 
 export interface KeyInput {
 	readonly name?: string;

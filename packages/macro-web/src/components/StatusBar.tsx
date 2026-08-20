@@ -1,3 +1,4 @@
+import type { EditorMode } from "@stateful-mcp/macro-protocol";
 import {
 	Bell,
 	BookOpen,
@@ -8,6 +9,7 @@ import {
 	Keyboard,
 	WifiOff,
 } from "lucide-react";
+import { useActiveEditorSurface } from "../lib/editor-surface-registry";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { cn } from "../lib/utils";
 import { IconButton } from "./ui/primitives";
@@ -33,7 +35,7 @@ export interface StatusBarSegment {
 }
 
 export interface StatusBarProps {
-	readonly vimMode?: "NORMAL" | "INSERT" | "VISUAL";
+	readonly vimMode?: EditorMode;
 	readonly vimEnabled?: boolean;
 	readonly editorFocused?: boolean;
 	readonly dirty?: boolean;
@@ -45,6 +47,27 @@ export interface StatusBarProps {
 	readonly onAction?: (command: string) => void;
 }
 
+/**
+ * Status bar that derives Vim presentation from the active editor-surface
+ * registry. When no registered surface owns focus (or it is not Vim-enabled),
+ * the Vim segment is not shown and no editor-only command is offered. Explicit
+ * props override the registry (used by dev fixtures).
+ */
+export function RegisteredStatusBar(props: StatusBarProps) {
+	const active = useActiveEditorSurface();
+	const vimMode = props.vimMode ?? active?.mode;
+	const vimEnabled = props.vimEnabled ?? active?.vimEnabled ?? false;
+	const editorFocused = props.editorFocused ?? active !== undefined;
+	return (
+		<StatusBar
+			{...props}
+			vimMode={vimMode}
+			vimEnabled={vimEnabled}
+			editorFocused={editorFocused}
+		/>
+	);
+}
+
 export function StatusBar({
 	vimMode,
 	vimEnabled = false,
@@ -52,9 +75,9 @@ export function StatusBar({
 	dirty = false,
 	diagnostics = 0,
 	connected = true,
-	profile = "Clinical",
-	domain = "Notes",
-	cursor = "Ln 9, Col 1",
+	profile = "",
+	domain = "",
+	cursor = "",
 	onAction,
 }: StatusBarProps) {
 	const { t } = useI18n();
@@ -63,7 +86,7 @@ export function StatusBar({
 			id: "connection",
 			alignment: "left",
 			priority: 100,
-			value: connected ? "Local" : "Offline",
+			value: connected ? t("status.local") : t("status.offline"),
 			icon: connected ? <Cloud size={13} /> : <WifiOff size={13} />,
 			tone: connected ? "info" : "danger",
 			command: "host.openDiagnostics",

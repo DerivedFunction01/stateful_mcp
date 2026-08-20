@@ -15,6 +15,25 @@ export const EN_WEB = {
 	"settings.scope.user": "User",
 	"settings.scope.folder": "Folder",
 	"settings.scope.unsupported": "Storage for this scope is not available.",
+	"settings.profile.unsupported": "This settings profile is not available.",
+	"settings.bundle.invalid": "The settings bundle is invalid.",
+	"settings.bundle.blocked":
+		"The settings bundle could not be applied: {message}",
+	"settings.bundle.scopeUnsupported":
+		"Settings storage for the {scope} scope is not available.",
+	"settings.bundle.profileUnsupported":
+		"Settings profile {profile} is not available.",
+	"settings.bundle.versionInvalid":
+		"The settings bundle version is unsupported.",
+	"settings.bundle.stale": "The settings bundle revision is stale.",
+	"settings.bundle.stageUnavailable":
+		"The staged settings import is unavailable.",
+	"settings.bundle.stageUnknown": "The settings import stage is unknown.",
+	"settings.bundle.profileOutsideSelection":
+		"Settings bundle contains profile {profile} outside the selected profile.",
+	"settings.bundle.sensitiveOmitted":
+		"Sensitive setting was omitted from the imported bundle.",
+	"settings.bundle.valueInvalid": "Setting {path} has an invalid value.",
 	"settings.modifiedOnly": "Show modified only",
 	"settings.categories": "Settings categories",
 	"settings.jsonMode": "JSON mode",
@@ -26,7 +45,19 @@ export const EN_WEB = {
 	"settings.exported": "Settings copied to the clipboard.",
 	"settings.downloaded": "Settings downloaded.",
 	"settings.importConfirm":
-		"Replace the current settings draft with this file?",
+		"Apply this settings bundle to the selected profile?",
+	"settings.importReady":
+		"The file passed host validation and is ready to apply.",
+	"settings.importMode": "Import mode",
+	"settings.importReplace": "Replace selected settings",
+	"settings.importMerge": "Merge selected settings",
+	"settings.imported": "Settings imported.",
+	"settings.cancel": "Cancel",
+	"settings.unsavedTitle": "Unsaved settings",
+	"settings.unsavedMessage":
+		"Save or discard your settings changes before leaving?",
+	"settings.keepEditing": "Keep editing",
+	"settings.saveAndContinue": "Save and continue",
 	"settings.unsupportedWidget":
 		"This settings widget is not available in the web renderer.",
 	"settings.unavailable": "Settings are unavailable for this workspace.",
@@ -88,6 +119,10 @@ export const EN_WEB = {
 	"workbench.unavailable": "Unavailable",
 	"workbench.editor": "Editor surface",
 	"workbench.empty": "The host has not provided editor content.",
+	"workbench.splitterValue": "{value} percent",
+	"workbench.resizeDomainRail": "Resize domain rail",
+	"workbench.resizeSidebar": "Resize sidebar",
+	"workbench.resizeInspector": "Resize inspector",
 	"status.local": "Local",
 	"status.offline": "Offline",
 	"status.zeroDiagnostics": "0 diagnostics",

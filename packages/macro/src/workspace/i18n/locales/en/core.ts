@@ -209,6 +209,8 @@ export const EN_CORE = {
 	"command.editor.save": "Save",
 	"command.editor.close": "Close",
 	"command.editor.executeLine": "Execute Line",
+	"editor.commandModeUnsupported":
+		"Command mode is not available in the browser editor",
 	"command.editor.switchTab": "Switch Tab",
 	"command.workspace.quit": "Quit",
 	"command.settings.navigateDown": "Navigate Down",

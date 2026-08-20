@@ -209,6 +209,8 @@ export const ES_CORE = {
 	"command.editor.save": "Guardar",
 	"command.editor.close": "Cerrar",
 	"command.editor.executeLine": "Ejecutar Línea",
+	"editor.commandModeUnsupported":
+		"El modo de comando no está disponible en el editor del navegador",
 	"command.editor.switchTab": "Cambiar Pestaña",
 	"command.workspace.quit": "Salir",
 	"command.settings.navigateDown": "Navegar Abajo",

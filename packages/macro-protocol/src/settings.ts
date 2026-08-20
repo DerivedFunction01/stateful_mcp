@@ -1,5 +1,13 @@
 export type SettingsScope = "user" | "workspace" | "folder";
 
+export const SETTINGS_SCOPES: readonly SettingsScope[] = [
+	"user",
+	"workspace",
+	"folder",
+];
+
+export const SETTINGS_REDACTION_MARKER = "••••••••";
+
 export interface SettingsSchemaEntryDto {
 	readonly path: readonly string[];
 	readonly type:
@@ -193,3 +201,89 @@ export type SettingsApplyResult =
 	| SettingsBlockedResult
 	| SettingsConflictResult
 	| SettingsUnsupportedResult;
+
+export type SettingsBundleDto = {
+	readonly $schema?: string;
+	readonly version: 1;
+	readonly exportedAt: string;
+	readonly workspace?: Record<string, unknown>;
+	readonly profiles?: Readonly<Record<string, Record<string, unknown>>>;
+	readonly extensions?: Readonly<Record<string, Record<string, unknown>>>;
+	readonly [key: string]: unknown;
+};
+
+export type SettingsBundleOperation =
+	| {
+			readonly operation: "export";
+			readonly scope: SettingsScope;
+			readonly profileId: string;
+	  }
+	| {
+			readonly operation: "importStage";
+			readonly bundle: SettingsBundleDto;
+			readonly scope: SettingsScope;
+			readonly profileId: string;
+			readonly mode: "merge" | "replace";
+			readonly expectedRevision?: string;
+	  }
+	| {
+			readonly operation: "importApply";
+			readonly stageId: string;
+			readonly mode?: "merge" | "replace";
+			readonly expectedRevision?: string;
+	  };
+
+export type SettingsBundleExportResult = {
+	readonly status: "exported";
+	readonly revision: string;
+	readonly bundle: SettingsBundleDto;
+};
+
+export type SettingsBundleStageResult =
+	| {
+			readonly status: "staged";
+			readonly stageId: string;
+			readonly revision: string;
+			readonly diagnostics: readonly SettingsDiagnosticDto[];
+	  }
+	| {
+			readonly status: "invalid";
+			readonly message: string;
+			readonly diagnostics: readonly SettingsDiagnosticDto[];
+	  }
+	| {
+			readonly status: "unsupported";
+			readonly code: string;
+			readonly message: string;
+	  }
+	| {
+			readonly status: "stale";
+			readonly code: "SETTINGS_REVISION_STALE";
+			readonly message: string;
+			readonly expectedRevision: string;
+			readonly actualRevision: string;
+	  };
+
+export type SettingsBundleApplyResult =
+	| {
+			readonly status: "applied";
+			readonly settingsRevision: string;
+			readonly snapshot: SettingsUiSnapshotDto;
+	  }
+	| {
+			readonly status: "stale";
+			readonly code: "SETTINGS_REVISION_STALE";
+			readonly message: string;
+			readonly expectedRevision: string;
+			readonly actualRevision: string;
+	  }
+	| {
+			readonly status: "blocked";
+			readonly diagnostics: readonly SettingsDiagnosticDto[];
+			readonly snapshot: SettingsUiSnapshotDto;
+	  };
+
+export type SettingsBundleResult =
+	| SettingsBundleExportResult
+	| SettingsBundleStageResult
+	| SettingsBundleApplyResult;

@@ -84,6 +84,25 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(restored?.sidepanelWidthRatio).toBe(0.45);
 		});
 
+		test("clamps and persists the domain rail ratio", async () => {
+			const manager = new WindowLayoutStateManager();
+			manager.setDomainRailWidthRatio(0.01);
+			expect(manager.getSnapshot().domainRailWidthRatio).toBe(0.15);
+			manager.setDomainRailWidthRatio(0.99);
+			expect(manager.getSnapshot().domainRailWidthRatio).toBe(0.65);
+
+			const store = new Map<string, string>();
+			const storage = {
+				getItem: (key: string) => store.get(key) ?? null,
+				setItem: (key: string, value: string) => {
+					store.set(key, value);
+				},
+			};
+			await saveWindowLayoutState(manager, storage);
+			const restored = await loadWindowLayoutState(storage);
+			expect(restored?.domainRailWidthRatio).toBe(0.65);
+		});
+
 		test("keeps activity and inspector regions independent with pinning", () => {
 			const manager = new WindowLayoutStateManager();
 			manager.setActiveActivityContainer("explorer");

@@ -2,8 +2,8 @@ import {
 	contextMatches as matchSharedContext,
 	matchEffectiveBindings as matchSharedEffectiveBindings,
 } from "@stateful-mcp/macro-protocol/keymap";
-import type { ContextExpression } from "../contributions/types";
 import type { KeymapBindingDto } from "@stateful-mcp/macro-protocol/workspace";
+import type { ContextExpression } from "../contributions/types";
 import { DEFAULT_COMMAND_KEYBINDINGS } from "./default-bindings";
 import {
 	ALL_CANONICAL_KEYS,

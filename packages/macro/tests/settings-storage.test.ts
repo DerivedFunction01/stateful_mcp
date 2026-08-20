@@ -219,6 +219,10 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		expect(bundle.profiles?.["spanish"]?.locale).toBe("es-ES");
 		expect(bundle.extensions?.["clinical"]?.defaultUnit).toBe("mg");
 
+		const scopedBundle = await exportSettingsBundle(sourceDriver, "spanish");
+		expect(scopedBundle.profiles?.["spanish"]?.locale).toBe("es-ES");
+		expect(scopedBundle.profiles?.["base"]).toBeUndefined();
+
 		const destKv = new MemoryKvBackend();
 		const destDriver = new CoreKvSettingsStorageDriver(destKv);
 

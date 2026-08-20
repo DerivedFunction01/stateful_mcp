@@ -1,10 +1,9 @@
+import type { EditorMode } from "@stateful-mcp/macro-protocol";
 import type { KeyboardEvent } from "react";
-
-export type BrowserVimMode = "NORMAL" | "INSERT" | "VISUAL";
 
 export interface BrowserVimState {
 	readonly enabled: boolean;
-	readonly mode: BrowserVimMode;
+	readonly mode: EditorMode;
 }
 
 export interface BrowserVimController {
@@ -19,14 +18,23 @@ export interface BrowserVimController {
  * context. Text insertion, selection, and DOM caret behavior stay with the
  * focused editor element rather than being routed through the terminal
  * EditorKernel.
+ *
+ * `COMMAND` mode (the `:` command line) is explicitly unsupported in the
+ * browser during the pre-Phase-7 preflight. When `:` is entered in a focused,
+ * Vim-enabled surface with no command-line surface registered, the controller
+ * reports that fact through `onCommandModeUnsupported` but does NOT claim the
+ * event, does NOT call `preventDefault()`, does NOT transition to `COMMAND`, and
+ * does NOT route the character through NORMAL/INSERT bindings. Native text
+ * behavior is preserved. Phase 7 may implement the real command-line path.
  */
 export function createBrowserVimController(
 	initialEnabled = false,
+	options?: { onCommandModeUnsupported?: () => void },
 ): BrowserVimController {
 	let state: BrowserVimState = { enabled: initialEnabled, mode: "NORMAL" };
 	const listeners = new Set<() => void>();
 	const notify = () => listeners.forEach((listener) => listener());
-	const setMode = (mode: BrowserVimMode) => {
+	const setMode = (mode: EditorMode) => {
 		if (state.mode !== mode) {
 			state = { ...state, mode };
 			notify();
@@ -43,6 +51,10 @@ export function createBrowserVimController(
 		},
 		handleKeyDown: (event) => {
 			if (!state.enabled) return false;
+			if (event.key === ":") {
+				options?.onCommandModeUnsupported?.();
+				return false;
+			}
 			if (event.key === "Escape") {
 				setMode("NORMAL");
 				return true;

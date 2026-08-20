@@ -14,13 +14,18 @@ import { CommandPalette } from "./components/CommandPalette";
 import { Gallery } from "./components/Gallery";
 import { KeymapShortcuts } from "./components/KeymapShortcuts";
 import { SettingsTab } from "./components/SettingsTab";
-import { StatusBar } from "./components/StatusBar";
+import { RegisteredStatusBar } from "./components/StatusBar";
 import { Badge, Button, Card } from "./components/ui/primitives";
 import { WorkbenchShell } from "./components/WorkbenchShell";
 import {
 	BrowserKeymapController,
 	type KeymapAnnouncement,
 } from "./lib/browser-keymap-controller";
+import {
+	EditorSurfaceRegistry,
+	EditorSurfaceRegistryContext,
+} from "./lib/editor-surface-registry";
+import { trapFocus } from "./lib/focus-trap";
 import {
 	BrowserHostClient,
 	type HostClient,
@@ -50,6 +55,7 @@ export function App() {
 	);
 	const host = useMemo<HostClient>(() => new BrowserHostClient(), []);
 	const store = useMemo(() => new BrowserWorkspaceStore(host), [host]);
+	const registry = useMemo(() => new EditorSurfaceRegistry(), []);
 	const workspaceState = useBrowserWorkspaceStore(store);
 	const snapshot = workspaceState.snapshot;
 	const transport =
@@ -70,6 +76,17 @@ export function App() {
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [announcement, setAnnouncement] = useState("");
 	const lastFocused = useRef<Element | null>(null);
+	const [pendingNavigation, setPendingNavigation] = useState<{
+		readonly route: Route;
+		readonly restore: HTMLElement | null;
+	}>();
+	const navigationDialogRef = useRef<HTMLDivElement>(null);
+
+	const settingsDirty = Boolean(
+		snapshot?.settings &&
+			(snapshot.settings.modifiedCount > 0 ||
+				snapshot.settings.totalModifiedCount > 0),
+	);
 
 	function openPalette(): void {
 		lastFocused.current = document.activeElement;
@@ -99,163 +116,304 @@ export function App() {
 			command === "workspace.openSettings" ||
 			command === "workspace.toggleSettings"
 		)
-			setRoute("settings");
+			requestNavigate("settings");
 	}
 	useEffect(() => {
 		const controller = new BrowserKeymapController({
 			getSnapshot: () => snapshot,
-			getContext: () => ({
-				editorFocused: Boolean(
-					document.activeElement?.closest("[data-editor-surface]"),
-				),
-				context: {
-					activeTabId: snapshot?.activeTabId,
-					focusedPane: snapshot?.layout.focusedPane,
-				},
-			}),
+			getContext: () => {
+				const active = registry.getActive();
+				if (active) {
+					return { editorFocused: true, context: active.context };
+				}
+				return {
+					editorFocused: false,
+					context: {
+						activeTabId: snapshot?.activeTabId,
+						focusedPane: snapshot?.layout.focusedPane,
+					},
+				};
+			},
 			onCommand: (command) => runCommand(command),
 			onCommandError: () => setAnnouncement(t("palette.executionFailed")),
 			announce,
 		});
 		controller.attach(window);
 		return () => controller.dispose();
-	}, [snapshot, store]);
+	}, [snapshot, store, registry]);
 
-	const navigate = (next: Route) => {
+	const routePath = (next: Route) =>
+		next === "gallery"
+			? "/__dev/gallery"
+			: next === "host"
+				? "/__dev/host"
+				: next === "settings"
+					? "/settings"
+					: "/";
+	const commitNavigate = (next: Route, replace = false) => {
 		setRoute(next);
-		window.history.replaceState(
-			{},
-			"",
-			next === "gallery"
-				? "/__dev/gallery"
-				: next === "host"
-					? "/__dev/host"
-					: next === "settings"
-						? "/settings"
-						: "/",
-		);
+		const method = replace ? "replaceState" : "pushState";
+		window.history[method]({}, "", routePath(next));
 	};
-	const vimEnabled = Boolean(snapshot?.keymap);
+	const navigate = (next: Route) => {
+		if (next === route || !settingsDirty) {
+			commitNavigate(next);
+			return;
+		}
+		setPendingNavigation({
+			route: next,
+			restore:
+				document.activeElement instanceof HTMLElement
+					? document.activeElement
+					: null,
+		});
+	};
+	const requestNavigate = navigate;
+	useEffect(() => {
+		const handlePopState = () => {
+			const next = routeFromPath(window.location.pathname);
+			if (!settingsDirty) {
+				setRoute(next);
+				return;
+			}
+			window.history.pushState({}, "", routePath(route));
+			setPendingNavigation({
+				route: next,
+				restore:
+					document.activeElement instanceof HTMLElement
+						? document.activeElement
+						: null,
+			});
+		};
+		window.addEventListener("popstate", handlePopState);
+		return () => window.removeEventListener("popstate", handlePopState);
+	}, [route, settingsDirty]);
+	useEffect(() => {
+		if (pendingNavigation)
+			queueMicrotask(() => navigationDialogRef.current?.focus());
+	}, [pendingNavigation]);
+	useEffect(() => {
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!settingsDirty) return;
+			event.preventDefault();
+			event.returnValue = "";
+		};
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+	}, [settingsDirty]);
+	const finishNavigation = (restore: HTMLElement | null) => {
+		setPendingNavigation(undefined);
+		queueMicrotask(() => restore?.focus());
+	};
+	const discardAndNavigate = async () => {
+		if (!pendingNavigation || !snapshot?.settings) return;
+		const target = pendingNavigation.route;
+		try {
+			const result = await store.applySettings({
+				operation: "discard",
+				expectedRevision: snapshot.settings.settingsRevision,
+			});
+			if (result.status !== "saved") {
+				setAnnouncement(t("settings.conflict"));
+				return;
+			}
+			const restore = pendingNavigation.restore;
+			commitNavigate(target);
+			finishNavigation(restore);
+		} catch {
+			setAnnouncement(t("settings.conflict"));
+		}
+	};
+	const saveAndNavigate = async () => {
+		if (!pendingNavigation || !snapshot?.settings) return;
+		const target = pendingNavigation.route;
+		try {
+			const result = await store.applySettings({
+				operation: "save",
+				expectedRevision: snapshot.settings.settingsRevision,
+			});
+			if (result.status !== "saved") {
+				setAnnouncement(t("settings.conflict"));
+				return;
+			}
+			const restore = pendingNavigation.restore;
+			commitNavigate(target);
+			finishNavigation(restore);
+		} catch {
+			setAnnouncement(t("settings.conflict"));
+		}
+	};
 	const diagnostics = snapshot?.diagnostics.length ?? 0;
 	return (
-		<div className="app-shell">
-			<div className="sr-only" aria-live="polite">
-				{announcement}
-			</div>
-			<aside className="activity-rail" aria-label={t("nav.workbench")}>
-				<div className="brand-mark">
-					<Sparkles size={21} />
+		<EditorSurfaceRegistryContext.Provider value={registry}>
+			<div className="app-shell">
+				<div className="sr-only" aria-live="polite">
+					{announcement}
 				</div>
-				<nav>
-					<NavButton
-						label={t("nav.workbench")}
-						icon={<Activity size={19} />}
-						active={route === "workbench"}
-						onClick={() => navigate("workbench")}
-					/>
-					<NavButton
-						label={t("nav.notes")}
-						icon={<FileText size={19} />}
-						active={false}
-						onClick={() => navigate("workbench")}
-					/>
-					<NavButton
-						label={t("workspace.tab.settings")}
-						icon={<Settings2 size={19} />}
-						active={route === "settings"}
-						onClick={() => navigate("settings")}
-					/>
-				</nav>
-				<div className="rail-bottom">
-					<NavButton
-						label={t("nav.gallery")}
-						icon={<BookOpen size={19} />}
-						active={route === "gallery"}
-						onClick={() => navigate("gallery")}
-					/>
-					<NavButton
-						label={t("nav.host")}
-						icon={<Command size={19} />}
-						active={route === "host"}
-						onClick={() => navigate("host")}
-					/>
-				</div>
-			</aside>
-			<div className="app-main">
-				<header className="top-bar">
-					<div className="breadcrumb">
-						<span>Macro</span>
-						<ChevronRight size={14} />
-						<strong>
-							{route === "gallery"
-								? t("nav.gallery")
-								: route === "settings"
-									? t("workspace.tab.settings")
-									: route === "host"
-										? t("app.host")
-										: t("nav.workbench")}
-						</strong>
+				<aside className="activity-rail" aria-label={t("nav.workbench")}>
+					<div className="brand-mark">
+						<Sparkles size={21} />
 					</div>
-					<div className="top-actions">
-						<Badge tone={theme.mode === "dark" ? "info" : "success"}>
-							{theme.label}
-						</Badge>
-						<Button
-							variant="ghost"
-							icon={<Command size={15} />}
-							onClick={openPalette}
-						>
-							{t("nav.commandPalette")}
-						</Button>
-					</div>
-				</header>
-				<main className="app-content">
-					{route === "gallery" ? (
-						<GalleryI18nScope>
-							<Gallery />
-						</GalleryI18nScope>
-					) : route === "settings" ? (
-						<SettingsTab client={host} snapshot={snapshot} />
-					) : route === "host" ? (
-						<HostRoute snapshot={snapshot} transport={transport} />
-					) : (
-						<WorkbenchShell
-							snapshot={snapshot}
-							status={workspaceState.status}
-							errorMessage={workspaceState.transportError}
-							onCommand={(command) => {
-								void store
-									.executeCommand(command)
-									.then(() => {
-										if (command === "workspace.openSettings")
-											navigate("settings");
-									})
-									.catch(() => undefined);
-							}}
+					<nav>
+						<NavButton
+							label={t("nav.workbench")}
+							icon={<Activity size={19} />}
+							active={route === "workbench"}
+							onClick={() => navigate("workbench")}
 						/>
-					)}
-				</main>
-				<StatusBar
-					vimEnabled={vimEnabled}
-					vimMode="NORMAL"
-					editorFocused={route === "workbench"}
-					diagnostics={diagnostics}
-					onAction={(command) => {
-						if (command === "workspace.selectProfile") navigate("settings");
-						if (command === "host.openDiagnostics") navigate("host");
-					}}
-				/>
+						<NavButton
+							label={t("nav.notes")}
+							icon={<FileText size={19} />}
+							active={false}
+							onClick={() => navigate("workbench")}
+						/>
+						<NavButton
+							label={t("workspace.tab.settings")}
+							icon={<Settings2 size={19} />}
+							active={route === "settings"}
+							onClick={() => navigate("settings")}
+						/>
+					</nav>
+					<div className="rail-bottom">
+						<NavButton
+							label={t("nav.gallery")}
+							icon={<BookOpen size={19} />}
+							active={route === "gallery"}
+							onClick={() => navigate("gallery")}
+						/>
+						<NavButton
+							label={t("nav.host")}
+							icon={<Command size={19} />}
+							active={route === "host"}
+							onClick={() => navigate("host")}
+						/>
+					</div>
+				</aside>
+				<div className="app-main">
+					<header className="top-bar">
+						<div className="breadcrumb">
+							<span>Macro</span>
+							<ChevronRight size={14} />
+							<strong>
+								{route === "gallery"
+									? t("nav.gallery")
+									: route === "settings"
+										? t("workspace.tab.settings")
+										: route === "host"
+											? t("app.host")
+											: t("nav.workbench")}
+							</strong>
+						</div>
+						<div className="top-actions">
+							<Badge tone={theme.mode === "dark" ? "info" : "success"}>
+								{theme.label}
+							</Badge>
+							<Button
+								variant="ghost"
+								icon={<Command size={15} />}
+								onClick={openPalette}
+							>
+								{t("nav.commandPalette")}
+							</Button>
+						</div>
+					</header>
+					<main className="app-content">
+						{route === "gallery" ? (
+							<GalleryI18nScope>
+								<Gallery />
+							</GalleryI18nScope>
+						) : route === "settings" ? (
+							<SettingsTab client={host} snapshot={snapshot} />
+						) : route === "host" ? (
+							<HostRoute snapshot={snapshot} transport={transport} />
+						) : (
+							<WorkbenchShell
+								snapshot={snapshot}
+								status={workspaceState.status}
+								errorMessage={
+									workspaceState.protocolError?.message ?? t("common.error")
+								}
+								onCommand={(command, args) => {
+									void store
+										.executeCommand(command, args)
+										.then(() => {
+											if (command === "workspace.openSettings")
+												navigate("settings");
+										})
+										.catch(() => undefined);
+								}}
+							/>
+						)}
+					</main>
+					<RegisteredStatusBar
+						profile={snapshot?.profile.displayName}
+						domain={snapshot?.applications[0]?.displayName}
+						diagnostics={diagnostics}
+						onAction={(command) => {
+							if (command === "workspace.selectProfile") navigate("settings");
+							if (command === "host.openDiagnostics") navigate("host");
+						}}
+					/>
+				</div>
+				{pendingNavigation ? (
+					<div className="modal-overlay" role="presentation">
+						<div
+							ref={navigationDialogRef}
+							className="modal-card"
+							role="dialog"
+							aria-modal="true"
+							aria-labelledby="navigation-guard-title"
+							tabIndex={-1}
+							onKeyDown={(event) => {
+								trapFocus(event, navigationDialogRef.current);
+								if (event.key === "Escape") {
+									event.preventDefault();
+									const restore = pendingNavigation.restore;
+									setPendingNavigation(undefined);
+									queueMicrotask(() => restore?.focus());
+								}
+							}}
+						>
+							<h2 id="navigation-guard-title">{t("settings.unsavedTitle")}</h2>
+							<p>{t("settings.unsavedMessage")}</p>
+							<div className="page-actions">
+								<Button
+									variant="ghost"
+									onClick={() => {
+										const restore = pendingNavigation.restore;
+										setPendingNavigation(undefined);
+										queueMicrotask(() => restore?.focus());
+									}}
+								>
+									{t("settings.keepEditing")}
+								</Button>
+								<Button
+									variant="ghost"
+									onClick={() => void discardAndNavigate()}
+								>
+									{t("settings.discard")}
+								</Button>
+								<Button
+									variant="primary"
+									onClick={() => void saveAndNavigate()}
+								>
+									{t("settings.saveAndContinue")}
+								</Button>
+							</div>
+						</div>
+					</div>
+				) : null}
+				{paletteOpen ? (
+					<CommandPalette
+						commands={snapshot?.commands ?? []}
+						onExecute={(command, args) => {
+							return runCommand(command, args).then(closePalette);
+						}}
+						onClose={closePalette}
+					/>
+				) : null}
 			</div>
-			{paletteOpen ? (
-				<CommandPalette
-					commands={snapshot?.commands ?? []}
-					onExecute={(command, args) => {
-						return runCommand(command, args).then(closePalette);
-					}}
-					onClose={closePalette}
-				/>
-			) : null}
-		</div>
+		</EditorSurfaceRegistryContext.Provider>
 	);
 }
 

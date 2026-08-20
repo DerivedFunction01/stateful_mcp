@@ -6,6 +6,8 @@ import {
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
 	type SettingsApplyResult,
+	type SettingsBundleOperation,
+	type SettingsBundleResult,
 	type SettingsOperation,
 	type SettingsUiOperation,
 	type HostEvent as WireHostEvent,
@@ -48,6 +50,9 @@ export interface HostClient {
 	): Promise<KeymapBindingResolutionDto>;
 	applySettings(operation: SettingsOperation): Promise<SettingsApplyResult>;
 	applySettingsUi(operation: SettingsUiOperation): Promise<SettingsApplyResult>;
+	applySettingsBundle(
+		operation: SettingsBundleOperation,
+	): Promise<SettingsBundleResult>;
 	parse(text: string, textRevision: number): Promise<HostWorkspaceSnapshot>;
 	subscribe(listener: (event: HostEvent) => void): () => void;
 	subscribeState(listener: (state: TransportState) => void): () => void;
@@ -196,6 +201,16 @@ export class BrowserHostClient implements HostClient {
 		if (result.status === "saved" && result.snapshot)
 			this.snapshot = result.snapshot as unknown as HostWorkspaceSnapshot;
 		return result;
+	}
+
+	async applySettingsBundle(
+		operation: SettingsBundleOperation,
+	): Promise<SettingsBundleResult> {
+		const sessionId = this.requireSession();
+		return this.request<SettingsBundleResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/settings.bundle`,
+			{ type: "settings.bundle", sessionId, payload: operation },
+		);
 	}
 
 	async parse(

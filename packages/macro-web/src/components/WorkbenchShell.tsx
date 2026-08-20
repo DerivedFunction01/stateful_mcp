@@ -1,4 +1,8 @@
-import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
+import {
+	LAYOUT_RATIO_BOUNDS,
+	LAYOUT_RATIO_DEFAULTS,
+	type WorkspaceSnapshot,
+} from "@stateful-mcp/macro-protocol";
 import {
 	AlertTriangle,
 	Box,
@@ -7,8 +11,16 @@ import {
 	Files,
 	PanelRight,
 } from "lucide-react";
-import { useState } from "react";
+import {
+	type CSSProperties,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { useEditorSurfaceRegistry } from "../lib/editor-surface-registry";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { Splitter } from "./Splitter";
 import { Badge } from "./ui/primitives";
 
 export function WorkbenchShell({
@@ -20,10 +32,48 @@ export function WorkbenchShell({
 	readonly snapshot?: WorkspaceSnapshot;
 	readonly status?: string;
 	readonly errorMessage?: string;
-	readonly onCommand: (command: string) => void;
+	readonly onCommand: (command: string, args?: readonly unknown[]) => void;
 }) {
 	const { t } = useI18n();
 	const [activeDomain, setActiveDomain] = useState<string>();
+	const registry = useEditorSurfaceRegistry();
+	const surfaceRef = useRef<HTMLTextAreaElement | null>(null);
+	const [surfaceFocused, setSurfaceFocused] = useState(false);
+	const shellRef = useRef<HTMLDivElement | null>(null);
+	const domainRatio =
+		snapshot?.layout.domainRailWidthRatio ?? LAYOUT_RATIO_DEFAULTS.domainRail;
+	const sidebarRatio =
+		snapshot?.layout.regions.activity?.widthRatio ??
+		LAYOUT_RATIO_DEFAULTS.activity;
+	const inspectorRatio =
+		snapshot?.layout.regions.inspector?.widthRatio ??
+		LAYOUT_RATIO_DEFAULTS.inspector;
+	const totalFr = domainRatio + sidebarRatio + 1 + inspectorRatio;
+	const surfaceId = useMemo(
+		() => `editor:${snapshot?.activeTabId ?? "scratchpad"}`,
+		[snapshot?.activeTabId],
+	);
+	useEffect(() => {
+		const element = surfaceRef.current;
+		if (!element) return;
+		registry.register({
+			id: surfaceId,
+			element,
+			focused: surfaceFocused,
+			context: { focusedRegion: "main" },
+			vimEnabled: false,
+			mode: undefined,
+		});
+		return () => registry.unregister(surfaceId);
+	}, [registry, surfaceId]);
+	useEffect(() => {
+		registry.update(surfaceId, {
+			focused: surfaceFocused,
+			context: { focusedRegion: "main" },
+			vimEnabled: false,
+			mode: undefined,
+		});
+	}, [registry, surfaceId, surfaceFocused]);
 	if (status === "error") {
 		return (
 			<section className="workbench-state" aria-live="assertive">
@@ -46,7 +96,20 @@ export function WorkbenchShell({
 		(view) => view.containerId === snapshot.layout.activeContainerId,
 	);
 	return (
-		<div className="workbench-shell">
+		<div
+			className="workbench-shell"
+			ref={shellRef}
+			style={
+				{
+					"--domain-rail-ratio": domainRatio,
+					"--sidebar-ratio": sidebarRatio,
+					"--inspector-ratio": inspectorRatio,
+					"--domain-rail-track": `${domainRatio}fr`,
+					"--sidebar-track": `${sidebarRatio}fr`,
+					"--inspector-track": `${inspectorRatio}fr`,
+				} as CSSProperties
+			}
+		>
 			<aside
 				className="workbench-domain-rail"
 				aria-label={t("workbench.domainApps")}
@@ -75,6 +138,20 @@ export function WorkbenchShell({
 					</button>
 				))}
 			</aside>
+			<Splitter
+				orientation="vertical"
+				region="domain"
+				label={t("workbench.resizeDomainRail")}
+				value={domainRatio}
+				min={LAYOUT_RATIO_BOUNDS.min}
+				max={LAYOUT_RATIO_BOUNDS.max}
+				step={0.02}
+				totalFr={totalFr}
+				containerRef={shellRef}
+				onChange={(next) =>
+					onCommand("layout.setDomainRailWidthRatio", [{ ratio: next }])
+				}
+			/>
 			<aside className="workbench-sidebar" aria-label={t("workbench.views")}>
 				<div className="workbench-sidebar-heading">
 					<span>{t("workbench.views")}</span>
@@ -101,6 +178,22 @@ export function WorkbenchShell({
 					</div>
 				))}
 			</aside>
+			<Splitter
+				orientation="vertical"
+				region="sidebar"
+				label={t("workbench.resizeSidebar")}
+				value={sidebarRatio}
+				min={LAYOUT_RATIO_BOUNDS.min}
+				max={LAYOUT_RATIO_BOUNDS.max}
+				step={0.02}
+				totalFr={totalFr}
+				containerRef={shellRef}
+				onChange={(next) =>
+					onCommand("layout.setRegionWidthRatio", [
+						{ region: "activity", ratio: next },
+					])
+				}
+			/>
 			<section className="workbench-center">
 				<div
 					className="workbench-tabs"
@@ -126,12 +219,35 @@ export function WorkbenchShell({
 						</button>
 					))}
 				</div>
-				<div className="workbench-editor-surface">
-					<div className="surface-kicker">{t("workbench.editor")}</div>
-					<pre>{String(snapshot.scratchpad.text ?? "")}</pre>
-					{!snapshot.scratchpad.text && <p>{t("workbench.empty")}</p>}
-				</div>
+				<textarea
+					className="workbench-editor-surface"
+					ref={surfaceRef}
+					readOnly
+					aria-label={t("workbench.editor")}
+					value={String(snapshot.scratchpad.text ?? "")}
+					onFocus={() => setSurfaceFocused(true)}
+					onBlur={() => setSurfaceFocused(false)}
+				/>
+				{!snapshot.scratchpad.text && (
+					<p className="surface-empty">{t("workbench.empty")}</p>
+				)}
 			</section>
+			<Splitter
+				orientation="vertical"
+				region="inspector"
+				label={t("workbench.resizeInspector")}
+				value={inspectorRatio}
+				min={LAYOUT_RATIO_BOUNDS.min}
+				max={LAYOUT_RATIO_BOUNDS.max}
+				step={0.02}
+				totalFr={totalFr}
+				containerRef={shellRef}
+				onChange={(next) =>
+					onCommand("layout.setRegionWidthRatio", [
+						{ region: "inspector", ratio: next },
+					])
+				}
+			/>
 			<aside
 				className="workbench-inspector"
 				aria-label={t("workbench.inspector")}

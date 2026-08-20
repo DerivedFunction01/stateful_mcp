@@ -1,3 +1,7 @@
+import {
+	LAYOUT_RATIO_BOUNDS,
+	LAYOUT_RATIO_DEFAULTS,
+} from "@stateful-mcp/macro-protocol/workspace";
 import type { TabRegistry } from "../contributions/tab-registry";
 import type { WorkspaceDock, WorkspaceRegionId } from "../contributions/types";
 import type { ViewRegistry } from "../contributions/view-registry";
@@ -29,6 +33,7 @@ export interface WindowLayoutStateSnapshot {
 	readonly sidepanelOpen: boolean;
 	readonly sidepanelPosition: SidepanelPosition;
 	readonly sidepanelWidthRatio: number;
+	readonly domainRailWidthRatio: number;
 	readonly activeContainerId: string;
 	readonly focusedPane: FocusedPane;
 	readonly activeModal: ModalDescriptor | null;
@@ -43,14 +48,23 @@ export class WindowLayoutStateManager {
 	private activeTabId = "scratchpad";
 	private sidepanelOpen = true;
 	private sidepanelPosition: SidepanelPosition = "right";
-	private sidepanelWidthRatio = 0.35;
+	private sidepanelWidthRatio = LAYOUT_RATIO_DEFAULTS.inspector;
+	private domainRailWidthRatio = LAYOUT_RATIO_DEFAULTS.domainRail;
 	private activeContainerId = "slots";
 	private focusedPane: FocusedPane = "main";
 	private modalStack: ModalDescriptor[] = [];
 	private modalFocusStack: FocusedPane[] = [];
 	private regions: Record<WorkspaceRegionId, WorkspaceRegionState> = {
-		activity: { open: true, dock: "start", widthRatio: 0.2 },
-		inspector: { open: true, dock: "end", widthRatio: 0.35 },
+		activity: {
+			open: true,
+			dock: "start",
+			widthRatio: LAYOUT_RATIO_DEFAULTS.activity,
+		},
+		inspector: {
+			open: true,
+			dock: "end",
+			widthRatio: LAYOUT_RATIO_DEFAULTS.inspector,
+		},
 	};
 	private activeActivityContainerId = "explorer";
 	private activeInspectorContainerId = "slots";
@@ -70,6 +84,8 @@ export class WindowLayoutStateManager {
 			this.sidepanelPosition = initialState.sidepanelPosition;
 		if (initialState?.sidepanelWidthRatio !== undefined)
 			this.sidepanelWidthRatio = initialState.sidepanelWidthRatio;
+		if (initialState?.domainRailWidthRatio !== undefined)
+			this.domainRailWidthRatio = initialState.domainRailWidthRatio;
 		if (initialState?.activeContainerId)
 			this.activeContainerId = initialState.activeContainerId;
 		if (initialState?.focusedPane) this.focusedPane = initialState.focusedPane;
@@ -110,6 +126,7 @@ export class WindowLayoutStateManager {
 			sidepanelOpen: this.sidepanelOpen,
 			sidepanelPosition: this.sidepanelPosition,
 			sidepanelWidthRatio: this.sidepanelWidthRatio,
+			domainRailWidthRatio: this.domainRailWidthRatio,
 			activeContainerId: this.activeContainerId,
 			focusedPane: this.focusedPane,
 			activeModal: this.modalStack[this.modalStack.length - 1] ?? null,
@@ -186,7 +203,10 @@ export class WindowLayoutStateManager {
 	}
 
 	setSidepanelWidthRatio(ratio: number): void {
-		const clamped = Math.max(0.15, Math.min(0.65, ratio));
+		const clamped = Math.max(
+			LAYOUT_RATIO_BOUNDS.min,
+			Math.min(LAYOUT_RATIO_BOUNDS.max, ratio),
+		);
 		if (this.sidepanelWidthRatio !== clamped) {
 			this.sidepanelWidthRatio = clamped;
 			this.notify();
@@ -245,11 +265,26 @@ export class WindowLayoutStateManager {
 	}
 
 	setRegionWidthRatio(region: WorkspaceRegionId, ratio: number): void {
-		const clamped = Math.max(0.15, Math.min(0.65, ratio));
+		const clamped = Math.max(
+			LAYOUT_RATIO_BOUNDS.min,
+			Math.min(LAYOUT_RATIO_BOUNDS.max, ratio),
+		);
 		if (this.regions[region].widthRatio !== clamped) {
 			this.regions[region] = { ...this.regions[region], widthRatio: clamped };
 			this.notify();
 		}
+	}
+
+	setDomainRailWidthRatio(ratio: number): void {
+		const clamped = Math.max(0.15, Math.min(0.65, ratio));
+		if (this.domainRailWidthRatio !== clamped) {
+			this.domainRailWidthRatio = clamped;
+			this.notify();
+		}
+	}
+
+	getDomainRailWidthRatio(): number {
+		return this.domainRailWidthRatio;
 	}
 
 	setInspectorMode(mode: InspectorMode): void {

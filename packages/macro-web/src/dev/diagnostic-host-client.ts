@@ -1,7 +1,9 @@
 import type {
 	KeymapBindingResolutionDto,
 	SettingsApplyResult,
+	SettingsBundleResult,
 } from "@stateful-mcp/macro-protocol";
+import { LAYOUT_RATIO_DEFAULTS } from "@stateful-mcp/macro-protocol";
 import type { HostClient, HostWorkspaceSnapshot } from "../lib/host-client";
 
 /** Development-only fixture used by the component gallery and transport tests. */
@@ -42,20 +44,29 @@ export function createDiagnosticHostClient(): HostClient {
 			activeTabId: "scratchpad",
 			sidepanelOpen: true,
 			sidepanelPosition: "right",
-			sidepanelWidthRatio: 0.35,
+			sidepanelWidthRatio: LAYOUT_RATIO_DEFAULTS.inspector,
+			domainRailWidthRatio: LAYOUT_RATIO_DEFAULTS.domainRail,
 			activeContainerId: "slots",
 			focusedPane: "main",
 			activeModal: null,
 			regions: {
-				activity: { open: true, dock: "start", widthRatio: 0.2 },
-				inspector: { open: true, dock: "end", widthRatio: 0.35 },
+				activity: {
+					open: true,
+					dock: "start",
+					widthRatio: LAYOUT_RATIO_DEFAULTS.activity,
+				},
+				inspector: {
+					open: true,
+					dock: "end",
+					widthRatio: LAYOUT_RATIO_DEFAULTS.inspector,
+				},
 			},
 			activeActivityContainerId: "explorer",
 			activeInspectorContainerId: "slots",
 			inspectorMode: "follow",
 			pinnedInspectorViewId: null,
 		},
-		scratchpad: {},
+		scratchpad: { text: "", textRevision: 0, lines: [] },
 		diagnostics: [
 			{
 				severity: "info" as const,
@@ -83,6 +94,11 @@ export function createDiagnosticHostClient(): HostClient {
 		}),
 		applySettings: async () => saved,
 		applySettingsUi: async () => saved,
+		applySettingsBundle: async (): Promise<SettingsBundleResult> => ({
+			status: "unsupported",
+			code: "FIXTURE_ONLY",
+			message: "Settings bundles are unavailable in the diagnostic fixture",
+		}),
 		parse: async () => snapshot,
 		subscribe: () => () => undefined,
 		subscribeState: (listener) => {

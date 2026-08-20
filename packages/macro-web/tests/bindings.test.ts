@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { type BindingContext, dispatchBinding } from "../src/lib/bindings";
 import { createBrowserVimController } from "../src/lib/browser-vim";
+import { EditorSurfaceRegistry } from "../src/lib/editor-surface-registry";
 
 describe("browser binding contexts", () => {
 	test("only dispatches bindings from active contexts", () => {
@@ -51,5 +52,49 @@ describe("browser binding contexts", () => {
 		expect(controller.getState().mode).toBe("INSERT");
 		expect(controller.handleKeyDown(event("Escape"))).toBe(true);
 		expect(controller.getState().mode).toBe("NORMAL");
+	});
+
+	test("does not claim unsupported browser command mode", () => {
+		let reported = 0;
+		let prevented = 0;
+		const controller = createBrowserVimController(true, {
+			onCommandModeUnsupported: () => reported++,
+		});
+		const event = {
+			key: ":",
+			preventDefault: () => prevented++,
+		} as unknown as ReactKeyboardEvent;
+		expect(controller.handleKeyDown(event)).toBe(false);
+		expect(controller.getState().mode).toBe("NORMAL");
+		expect(reported).toBe(1);
+		expect(prevented).toBe(0);
+	});
+
+	test("selects only the focused registered editor surface", () => {
+		const registry = new EditorSurfaceRegistry();
+		const first = { id: "first" } as HTMLElement;
+		const second = { id: "second" } as HTMLElement;
+		const registration = (
+			id: string,
+			element: HTMLElement,
+			focused: boolean,
+		) => ({
+			id,
+			element,
+			focused,
+			context: { focusedRegion: "main" as const },
+			vimEnabled: true,
+			mode: "NORMAL" as const,
+		});
+		registry.register(registration("first", first, false));
+		registry.register(registration("second", second, true));
+		expect(registry.getActive()?.id).toBe("second");
+		registry.update("first", { focused: true });
+		expect(registry.getActive()?.id).toBe("first");
+		registry.update("second", { focused: false });
+		registry.update("first", { focused: false });
+		expect(registry.getActive()).toBeUndefined();
+		registry.unregister("first");
+		expect(registry.list()).toHaveLength(1);
 	});
 });

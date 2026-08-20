@@ -1,3 +1,4 @@
+import { SETTINGS_REDACTION_MARKER } from "@stateful-mcp/macro-protocol";
 import type { UserMacroProfile } from "../../contracts/extension-config";
 import { computeSparseDelta, resolveProfile } from "./profile-resolver";
 import {
@@ -89,6 +90,15 @@ export interface SettingsStorage {
 	reset(): Promise<void> | void;
 }
 
+export interface SettingsBundlePayload {
+	readonly $schema?: string;
+	readonly version: 1;
+	readonly exportedAt: string;
+	readonly workspace?: WorkspaceSettings;
+	readonly profiles?: Readonly<Record<string, Partial<UserMacroProfile>>>;
+	readonly extensions?: Readonly<Record<string, Record<string, unknown>>>;
+}
+
 export interface WorkspaceSettingsServiceOptions {
 	readonly defaults: Readonly<Record<string, unknown>>;
 	readonly initial?: Readonly<Record<string, unknown>>;
@@ -160,6 +170,101 @@ export class WorkspaceSettingsService {
 	}
 	getDiagnostics(): readonly SettingsDiagnostic[] {
 		return this.diagnostics;
+	}
+
+	getSettingsRevision(): string {
+		return this.bundleRevision;
+	}
+
+	async exportBundle(profileId: string): Promise<{
+		readonly revision: string;
+		readonly bundle: SettingsBundlePayload;
+	}> {
+		if (!this.bundle) throw new Error("Settings bundle storage is unavailable");
+		await this.ensureBundleRevision();
+		const current = await this.bundle.load();
+		const profile = current.profiles[profileId];
+		return {
+			revision: current.revision,
+			bundle: {
+				$schema: "https://schema.stateful-mcp.org/settings-bundle.v1.json",
+				version: 1,
+				exportedAt: new Date().toISOString(),
+				workspace: current.settings,
+				profiles: profile ? { [profileId]: profile } : {},
+				extensions: current.extensions,
+			},
+		};
+	}
+
+	async applyBundle(
+		bundle: SettingsBundlePayload,
+		profileId: string,
+		mode: "merge" | "replace",
+		expectedRevision: string,
+	): Promise<SettingsSaveResult> {
+		if (!this.bundle) throw new Error("Settings bundle storage is unavailable");
+		if (bundle.version !== 1)
+			return {
+				status: "blocked",
+				diagnostics: [
+					{
+						severity: "error",
+						message: "Invalid or unsupported settings bundle version",
+					},
+				],
+			};
+
+		await this.ensureBundleRevision();
+		const current = await this.bundle.load();
+		if (current.revision !== expectedRevision)
+			return {
+				status: "conflict",
+				expectedRevision,
+				actualRevision: current.revision,
+			};
+
+		const profiles = { ...current.profiles };
+		const importedProfile = bundle.profiles?.[profileId];
+		if (importedProfile) {
+			profiles[profileId] =
+				mode === "merge"
+					? ({ ...profiles[profileId], ...importedProfile } as UserMacroProfile)
+					: ({ ...importedProfile, id: profileId } as UserMacroProfile);
+		}
+		const extensions =
+			bundle.extensions === undefined
+				? current.extensions
+				: mode === "merge"
+					? { ...current.extensions, ...bundle.extensions }
+					: { ...bundle.extensions };
+		const next = {
+			settings: preserveSensitiveSettings(
+				bundle.workspace ?? current.settings,
+				current.settings,
+				this.schema,
+			),
+			profiles,
+			extensions,
+		};
+		try {
+			const revision = await this.bundle.save(next, expectedRevision);
+			this.bundleRevision = revision;
+			await this.reload();
+			return {
+				status: "saved",
+				restartRequired: false,
+				settingsRevision: revision,
+			};
+		} catch (error) {
+			if (error instanceof SettingsBundleConflictError)
+				return {
+					status: "conflict",
+					expectedRevision: error.expectedRevision,
+					actualRevision: error.actualRevision,
+				};
+			throw error;
+		}
 	}
 	getSchema(): readonly SettingsSchemaEntry[] {
 		return this.schema;
@@ -272,10 +377,6 @@ export class WorkspaceSettingsService {
 
 	getActiveProfileId(): string {
 		return this.activeProfileId;
-	}
-
-	getSettingsRevision(): string {
-		return this.bundleRevision;
 	}
 
 	async listProfiles(): Promise<readonly string[]> {
@@ -534,6 +635,26 @@ function setAtPath(
 		current = current[key] as Record<string, unknown>;
 	}
 	if (path.length > 0) current[path[path.length - 1]!] = value;
+}
+
+function preserveSensitiveSettings(
+	imported: WorkspaceSettings,
+	current: WorkspaceSettings,
+	schema: readonly SettingsSchemaEntry[],
+): WorkspaceSettings {
+	const result = clone(imported) as Record<string, unknown>;
+	for (const entry of schema) {
+		if (!entry.sensitive) continue;
+		const importedValue = getAtPath(result, entry.path);
+		const currentValue = getAtPath(current, entry.path);
+		if (
+			importedValue === undefined ||
+			importedValue === SETTINGS_REDACTION_MARKER
+		) {
+			setAtPath(result, entry.path, currentValue);
+		}
+	}
+	return result as WorkspaceSettings;
 }
 function matchesType(
 	value: unknown,

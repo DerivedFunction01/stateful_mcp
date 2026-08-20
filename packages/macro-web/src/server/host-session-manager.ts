@@ -8,12 +8,21 @@ import {
 	mergeEditorKeymap,
 	resolveKeymapBindings,
 } from "@stateful-mcp/macro";
-import { serializeSettingsUiSnapshot } from "@stateful-mcp/macro/workspace/config/settings-projection";
-import type { SettingsDiagnostic } from "@stateful-mcp/macro/workspace/config/settings-service";
+import type { MacroDiagnostic } from "@stateful-mcp/macro/contracts/input";
+import {
+	SUPPORTED_SETTINGS_SCOPES,
+	serializeSettingsUiSnapshot,
+} from "@stateful-mcp/macro/workspace/config/settings-projection";
+import type {
+	SettingsBundlePayload,
+	SettingsDiagnostic,
+	SettingsSchemaEntry,
+} from "@stateful-mcp/macro/workspace/config/settings-service";
 import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
 import type { LoadedMacroWorkspace, MacroHost } from "@stateful-mcp/macro-host";
 import {
 	type CommandDescriptorDto,
+	type DiagnosticDto,
 	type DomainApplicationDescriptor,
 	type EffectiveKeymapDto,
 	type HostError,
@@ -24,7 +33,11 @@ import {
 	type KeymapBindingDto,
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
+	SETTINGS_REDACTION_MARKER,
 	type SettingsApplyResult,
+	type SettingsBundleDto,
+	type SettingsBundleOperation,
+	type SettingsBundleResult,
 	type SettingsDiagnosticDto,
 	type SettingsOperation,
 	type SettingsScope,
@@ -53,6 +66,14 @@ interface Session {
 	documentRevision: number;
 	lastActivity: number;
 	disposed: boolean;
+	stagedBundle?: {
+		readonly stageId: string;
+		readonly revision: string;
+		readonly bundle: SettingsBundlePayload;
+		readonly scope: SettingsScope;
+		readonly profileId: string;
+		readonly mode: "merge" | "replace";
+	};
 }
 
 export class HostSessionManager {
@@ -302,6 +323,168 @@ export class HostSessionManager {
 		return this.snapshotResult(session);
 	}
 
+	async settingsBundle(
+		sessionId: string,
+		operation: SettingsBundleOperation,
+	): Promise<SettingsBundleResult> {
+		const session = this.getOrError(sessionId);
+		const settings = session.loaded.workspace.settings;
+		if (!settings)
+			throw new SessionError(
+				"SETTINGS_UNAVAILABLE",
+				"Settings are unavailable",
+				false,
+			);
+
+		if (operation.operation === "export") {
+			if (!this.supportedScopes(session).includes(operation.scope))
+				return {
+					status: "unsupported",
+					code: "SETTINGS_SCOPE_UNSUPPORTED",
+					message: this.message(session, "settings.bundle.scopeUnsupported", {
+						scope: operation.scope,
+					}),
+				};
+			const profiles = await settings.listProfiles();
+			if (!profiles.includes(operation.profileId))
+				return {
+					status: "unsupported",
+					code: "SETTINGS_PROFILE_UNSUPPORTED",
+					message: this.message(session, "settings.bundle.profileUnsupported", {
+						profile: operation.profileId,
+					}),
+				};
+			const exported = await settings.exportBundle(operation.profileId);
+			return {
+				status: "exported",
+				revision: exported.revision,
+				bundle: redactSensitiveBundle(
+					toSettingsBundleDto(exported.bundle),
+					settings.getSchema(),
+				),
+			};
+		}
+
+		if (operation.operation === "importStage") {
+			if (!this.supportedScopes(session).includes(operation.scope))
+				return {
+					status: "unsupported",
+					code: "SETTINGS_SCOPE_UNSUPPORTED",
+					message: this.message(session, "settings.bundle.scopeUnsupported", {
+						scope: operation.scope,
+					}),
+				};
+			if (!isSettingsBundleDto(operation.bundle))
+				return {
+					status: "invalid",
+					message: this.message(session, "settings.bundle.invalid"),
+					diagnostics: [
+						{
+							severity: "error",
+							message: this.message(session, "settings.bundle.versionInvalid"),
+						},
+					],
+				};
+			const profiles = await settings.listProfiles();
+			if (!profiles.includes(operation.profileId))
+				return {
+					status: "unsupported",
+					code: "SETTINGS_PROFILE_UNSUPPORTED",
+					message: this.message(session, "settings.bundle.profileUnsupported", {
+						profile: operation.profileId,
+					}),
+				};
+			const revision = settings.getSettingsRevision();
+			if (operation.expectedRevision && operation.expectedRevision !== revision)
+				return {
+					status: "stale",
+					code: "SETTINGS_REVISION_STALE",
+					message: this.message(session, "settings.bundle.stale"),
+					expectedRevision: operation.expectedRevision,
+					actualRevision: revision,
+				};
+			const prepared = prepareImportedBundle(
+				operation.bundle,
+				operation.profileId,
+				settings.getSchema(),
+				this.message.bind(this, session),
+			);
+			if (
+				prepared.diagnostics.some(
+					(diagnostic) => diagnostic.severity === "error",
+				)
+			)
+				return {
+					status: "invalid",
+					message: this.message(session, "settings.bundle.invalid"),
+					diagnostics: prepared.diagnostics,
+				};
+			const stageId = randomUUID();
+			session.stagedBundle = {
+				stageId,
+				revision,
+				bundle: fromSettingsBundleDto(prepared.bundle),
+				scope: operation.scope,
+				profileId: operation.profileId,
+				mode: operation.mode,
+			};
+			return {
+				status: "staged",
+				stageId,
+				revision,
+				diagnostics: prepared.diagnostics,
+			};
+		}
+
+		const staged = session.stagedBundle;
+		if (!staged || staged.stageId !== operation.stageId)
+			return {
+				status: "invalid",
+				message: this.message(session, "settings.bundle.stageUnavailable"),
+				diagnostics: [
+					{
+						severity: "error",
+						message: this.message(session, "settings.bundle.stageUnknown"),
+					},
+				],
+			};
+		const expectedRevision = operation.expectedRevision ?? staged.revision;
+		if (expectedRevision !== staged.revision)
+			return {
+				status: "stale",
+				code: "SETTINGS_REVISION_STALE",
+				message: this.message(session, "settings.bundle.stale"),
+				expectedRevision: staged.revision,
+				actualRevision: expectedRevision,
+			};
+		const result = await settings.applyBundle(
+			staged.bundle,
+			staged.profileId,
+			operation.mode ?? staged.mode,
+			expectedRevision,
+		);
+		session.stagedBundle = undefined;
+		if (result.status === "conflict")
+			return {
+				status: "stale",
+				code: "SETTINGS_REVISION_STALE",
+				message: this.message(session, "settings.bundle.stale"),
+				expectedRevision: result.expectedRevision,
+				actualRevision: result.actualRevision,
+			};
+		if (result.status === "blocked")
+			return {
+				status: "blocked",
+				diagnostics: result.diagnostics.map(toSettingsDiagnosticDto),
+				snapshot: this.settingsSnapshot(session),
+			};
+		return {
+			status: "applied",
+			settingsRevision: result.settingsRevision,
+			snapshot: this.settingsSnapshot(session),
+		};
+	}
+
 	async parse(
 		sessionId: string,
 		text: string,
@@ -448,34 +631,21 @@ export class HostSessionManager {
 			}));
 		const layout = workspace.layout.getSnapshot();
 		const settings = workspace.settingsUiModel
-			? (serializeSettingsUiSnapshot(workspace.settingsUiModel.getSnapshot(), {
+			? serializeSettingsUiSnapshot(workspace.settingsUiModel.getSnapshot(), {
 					supportedScopes: this.supportedScopes(session),
 					i18n: workspace.i18n,
-				}) as unknown as SettingsUiSnapshotDto)
+				})
 			: undefined;
-		const fallback: SettingsUiSnapshotDto = {
-			activeProfileId: profileId,
-			availableProfiles: [],
-			activeScope: "workspace",
-			supportedScopes: [...this.supportedScopes(session)],
-			searchQuery: "",
-			filterModifiedOnly: false,
-			isSplitJsonMode: false,
-			jsonModeAvailable: true,
-			modifiedCount: 0,
-			totalModifiedCount: 0,
-			sections: [],
-			rawJsonText: "{}",
-			hasErrors: false,
-			settingsRevision: "",
-		};
+		const fallback = emptySettingsSnapshot(
+			profileId,
+			this.supportedScopes(session),
+		);
 		return {
 			workspaceId: session.workspaceId,
 			sessionId: session.id,
 			profile: {
 				id: profileId,
-				displayName:
-					session.loaded.profile?.id === profileId ? profileId : profileId,
+				displayName: profileId,
 				enabledExtensionIds: extensionIds,
 			},
 			enabledExtensionIds: extensionIds,
@@ -518,7 +688,9 @@ export class HostSessionManager {
 					lineNumber: line.lineNumber,
 					rawText: line.rawText,
 					isValid: line.isValid,
-					diagnostics: line.diagnostics,
+					diagnostics: line.diagnostics.map((diagnostic) =>
+						toScratchpadDiagnosticDto(diagnostic, line.isValid),
+					),
 				})),
 			},
 			diagnostics: [],
@@ -540,7 +712,15 @@ export class HostSessionManager {
 	}
 
 	private supportedScopes(session: Session): SettingsScope[] {
-		return ["workspace"];
+		return [...SUPPORTED_SETTINGS_SCOPES];
+	}
+
+	private message(
+		session: Session,
+		key: string,
+		params?: Readonly<Record<string, string | number>>,
+	): string {
+		return translate(session.loaded.workspace.i18n, key, params) || key;
 	}
 
 	private snapshotResult(session: Session): SettingsApplyResult {
@@ -575,7 +755,7 @@ export class HostSessionManager {
 	): SettingsApplyResult {
 		return {
 			status: "blocked",
-			diagnostics: result.diagnostics as unknown as SettingsDiagnosticDto[],
+			diagnostics: result.diagnostics.map(toSettingsDiagnosticDto),
 			snapshot: this.settingsSnapshot(session),
 		};
 	}
@@ -591,7 +771,7 @@ export class HostSessionManager {
 		return {
 			status: "conflict",
 			code: "SETTINGS_REVISION_STALE",
-			message: "Settings bundle revision is stale",
+			message: this.message(session, "settings.bundle.stale"),
 			expectedRevision: result.expectedRevision,
 			actualRevision: result.actualRevision,
 			snapshot: this.settingsSnapshot(session),
@@ -605,37 +785,314 @@ export class HostSessionManager {
 		return {
 			status: "unsupported",
 			code: "SETTINGS_SCOPE_UNSUPPORTED",
-			message: `Settings storage for scope '${scope}' is not available`,
+			message: this.message(session, "settings.bundle.scopeUnsupported", {
+				scope,
+			}),
 			snapshot: this.settingsSnapshot(session),
 		};
 	}
 
 	private settingsSnapshot(session: Session): SettingsUiSnapshotDto {
 		const uiModel = session.loaded.workspace.settingsUiModel;
-		if (!uiModel) {
-			return {
-				activeProfileId: "base",
-				availableProfiles: [],
-				activeScope: "workspace",
-				supportedScopes: [...this.supportedScopes(session)],
-				searchQuery: "",
-				filterModifiedOnly: false,
-				isSplitJsonMode: false,
-				jsonModeAvailable: true,
-				modifiedCount: 0,
-				totalModifiedCount: 0,
-				sections: [],
-				rawJsonText: "{}",
-				hasErrors: false,
-				settingsRevision: "",
-			};
-		}
+		if (!uiModel)
+			return emptySettingsSnapshot("base", this.supportedScopes(session));
 		return serializeSettingsUiSnapshot(uiModel.getSnapshot(), {
 			supportedScopes: this.supportedScopes(session),
 			i18n: session.loaded.workspace.i18n,
 			settingsRevision: uiModel.getSettingsRevision(),
-		}) as unknown as SettingsUiSnapshotDto;
+		});
 	}
+}
+
+function emptySettingsSnapshot(
+	activeProfileId: string,
+	supportedScopes: readonly SettingsScope[],
+): SettingsUiSnapshotDto {
+	return {
+		activeProfileId,
+		availableProfiles: [],
+		activeScope: "workspace",
+		supportedScopes: [...supportedScopes],
+		searchQuery: "",
+		filterModifiedOnly: false,
+		isSplitJsonMode: false,
+		jsonModeAvailable: true,
+		modifiedCount: 0,
+		totalModifiedCount: 0,
+		sections: [],
+		rawJsonText: "{}",
+		hasErrors: false,
+		settingsRevision: "",
+	};
+}
+
+/**
+ * Canonical scratchpad diagnostics carry no severity of their own. A line is
+ * either valid or invalid, and every diagnostic on an invalid line is an
+ * error. Project the browser DTO explicitly instead of letting the host type
+ * leak through an `as` cast.
+ */
+export function toScratchpadDiagnosticDto(
+	diagnostic: MacroDiagnostic,
+	isValid: boolean,
+): DiagnosticDto {
+	return {
+		severity: isValid ? "info" : "error",
+		message: diagnostic.message,
+		code: diagnostic.code,
+	};
+}
+
+function toSettingsBundleDto(bundle: SettingsBundlePayload): SettingsBundleDto {
+	return {
+		$schema: bundle.$schema,
+		version: bundle.version,
+		exportedAt: bundle.exportedAt,
+		workspace: bundle.workspace ? { ...bundle.workspace } : undefined,
+		profiles: bundle.profiles
+			? Object.fromEntries(
+					Object.entries(bundle.profiles).map(([id, profile]) => [
+						id,
+						{ ...profile },
+					]),
+				)
+			: undefined,
+		extensions: bundle.extensions
+			? Object.fromEntries(
+					Object.entries(bundle.extensions).map(([id, config]) => [
+						id,
+						{ ...config },
+					]),
+				)
+			: undefined,
+	};
+}
+
+function isSettingsBundleDto(value: unknown): value is SettingsBundleDto {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+	const bundle = value as Record<string, unknown>;
+	if (bundle.version !== 1 || typeof bundle.exportedAt !== "string")
+		return false;
+	for (const key of ["workspace", "profiles", "extensions"]) {
+		const section = bundle[key];
+		if (
+			section !== undefined &&
+			(!section || typeof section !== "object" || Array.isArray(section))
+		)
+			return false;
+	}
+	return true;
+}
+
+function fromSettingsBundleDto(
+	bundle: SettingsBundleDto,
+): SettingsBundlePayload {
+	return {
+		$schema: bundle.$schema,
+		version: bundle.version,
+		exportedAt: bundle.exportedAt,
+		workspace: bundle.workspace ? { ...bundle.workspace } : undefined,
+		profiles: bundle.profiles
+			? Object.fromEntries(
+					Object.entries(bundle.profiles).map(([id, profile]) => [
+						id,
+						{ ...profile },
+					]),
+				)
+			: undefined,
+		extensions: bundle.extensions
+			? Object.fromEntries(
+					Object.entries(bundle.extensions).map(([id, config]) => [
+						id,
+						{ ...config },
+					]),
+				)
+			: undefined,
+	};
+}
+
+function toSettingsDiagnosticDto(
+	diagnostic: SettingsDiagnostic,
+): SettingsDiagnosticDto {
+	return {
+		severity: diagnostic.severity,
+		path: diagnostic.path,
+		message: diagnostic.message,
+		line: diagnostic.line,
+		column: diagnostic.column,
+		restartRequired: diagnostic.restartRequired,
+	};
+}
+
+export function redactSensitiveBundle(
+	bundle: SettingsBundleDto,
+	schema: readonly SettingsSchemaEntry[],
+): SettingsBundleDto {
+	const result = structuredClone(bundle);
+	const redact = (
+		value: Record<string, unknown> | undefined,
+		entries: readonly SettingsSchemaEntry[],
+	) => {
+		if (!value) return;
+		for (const entry of entries) {
+			if (entry.sensitive && hasBundlePath(value, entry.path))
+				setBundlePath(value, entry.path, SETTINGS_REDACTION_MARKER);
+		}
+	};
+	redact(result.workspace, sectionSchema(schema, "workspace"));
+	for (const [id, profile] of Object.entries(result.profiles ?? {}))
+		redact(profile, sectionSchema(schema, "profile", id));
+	for (const [id, extension] of Object.entries(result.extensions ?? {}))
+		redact(extension, sectionSchema(schema, "extension", id));
+	return result;
+}
+
+export function prepareImportedBundle(
+	bundle: SettingsBundleDto,
+	profileId: string,
+	schema: readonly SettingsSchemaEntry[],
+	messageForKey: (
+		key: string,
+		params?: Readonly<Record<string, string | number>>,
+	) => string = (key) => key,
+): {
+	bundle: SettingsBundleDto;
+	diagnostics: readonly SettingsDiagnosticDto[];
+} {
+	const result = structuredClone(bundle);
+	const diagnostics: SettingsDiagnosticDto[] = [];
+	const profileIds = Object.keys(result.profiles ?? {});
+	for (const importedProfileId of profileIds) {
+		if (importedProfileId !== profileId) {
+			diagnostics.push({
+				severity: "error",
+				message: messageForKey("settings.bundle.profileOutsideSelection", {
+					profile: importedProfileId,
+				}),
+			});
+		}
+	}
+	const sanitize = (
+		value: Record<string, unknown> | undefined,
+		entries: readonly SettingsSchemaEntry[],
+	) => {
+		if (!value) return;
+		for (const entry of entries) {
+			if (!hasBundlePath(value, entry.path)) continue;
+			if (entry.sensitive) {
+				diagnostics.push({
+					severity: "warning",
+					path: entry.path,
+					message: messageForKey("settings.bundle.sensitiveOmitted"),
+				});
+				deleteBundlePath(value, entry.path);
+				continue;
+			}
+			const current = getBundlePath(value, entry.path);
+			if (!matchesSettingsType(current, entry))
+				diagnostics.push({
+					severity: "error",
+					path: entry.path,
+					message: messageForKey("settings.bundle.valueInvalid", {
+						path: entry.path.join("."),
+					}),
+				});
+		}
+	};
+	sanitize(result.workspace, sectionSchema(schema, "workspace"));
+	for (const [id, profile] of Object.entries(result.profiles ?? {}))
+		sanitize(profile, sectionSchema(schema, "profile", id));
+	for (const [id, extension] of Object.entries(result.extensions ?? {}))
+		sanitize(extension, sectionSchema(schema, "extension", id));
+	return { bundle: result, diagnostics };
+}
+
+function sectionSchema(
+	schema: readonly SettingsSchemaEntry[],
+	section: "workspace" | "profile" | "extension",
+	id?: string,
+): readonly SettingsSchemaEntry[] {
+	return schema.flatMap((entry) => {
+		const prefix =
+			section === "extension"
+				? ["extensions", id]
+				: section === "profile"
+					? ["profiles", id]
+					: [];
+		if (prefix.length === 0)
+			return entry.path[0] === "extensions" || entry.path[0] === "profiles"
+				? []
+				: [entry];
+		if (
+			entry.path
+				.slice(0, prefix.length)
+				.every((part, index) => part === prefix[index])
+		)
+			return [{ ...entry, path: entry.path.slice(prefix.length) }];
+		return [];
+	});
+}
+
+function setBundlePath(
+	root: Record<string, unknown>,
+	path: readonly string[],
+	value: unknown,
+): void {
+	let current = root;
+	for (const key of path.slice(0, -1)) {
+		const child = current[key];
+		if (!child || typeof child !== "object" || Array.isArray(child))
+			current[key] = {};
+		current = current[key] as Record<string, unknown>;
+	}
+	if (path.length > 0) current[path[path.length - 1]!] = value;
+}
+
+function getBundlePath(
+	root: Record<string, unknown>,
+	path: readonly string[],
+): unknown {
+	return path.reduce<unknown>((value, key) => {
+		if (!value || typeof value !== "object" || Array.isArray(value))
+			return undefined;
+		return (value as Record<string, unknown>)[key];
+	}, root);
+}
+
+function hasBundlePath(
+	root: Record<string, unknown>,
+	path: readonly string[],
+): boolean {
+	return path.length > 0 && getBundlePath(root, path) !== undefined;
+}
+
+function deleteBundlePath(
+	root: Record<string, unknown>,
+	path: readonly string[],
+): void {
+	const parent = getBundlePath(root, path.slice(0, -1));
+	if (parent && typeof parent === "object" && !Array.isArray(parent))
+		delete (parent as Record<string, unknown>)[path[path.length - 1]!];
+}
+
+function matchesSettingsType(
+	value: unknown,
+	entry: SettingsSchemaEntry,
+): boolean {
+	if (entry.type === "json") return true;
+	if (entry.type === "boolean") return typeof value === "boolean";
+	if (entry.type === "number")
+		return typeof value === "number" && Number.isFinite(value);
+	if (entry.type === "string") return typeof value === "string";
+	if (entry.type === "enum")
+		return (
+			typeof value === "string" &&
+			(!entry.enumValues || entry.enumValues.includes(value))
+		);
+	if (entry.type === "array") return Array.isArray(value);
+	if (entry.type === "object")
+		return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export class SessionError extends Error {

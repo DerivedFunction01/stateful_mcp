@@ -15,10 +15,11 @@ export interface SettingsBundle {
 
 export async function exportSettingsBundle(
 	driver: SettingsStorageDriver,
+	profileId?: string,
 ): Promise<SettingsBundle> {
 	const workspace = await driver.loadSettings();
 
-	const profileIds = await driver.listProfiles();
+	const profileIds = profileId ? [profileId] : await driver.listProfiles();
 	const profiles: Record<string, Partial<UserMacroProfile>> = {};
 	for (const id of profileIds) {
 		const profile = await driver.loadProfile(id);
@@ -46,6 +47,11 @@ export async function exportSettingsBundle(
 	};
 }
 
+/**
+ * Legacy driver utility retained for headless callers. Browser/host imports
+ * must use WorkspaceSettingsService.applyBundle so revision checks and
+ * staged atomic storage remain authoritative.
+ */
 export async function importSettingsBundle(
 	bundle: SettingsBundle,
 	driver: SettingsStorageDriver,

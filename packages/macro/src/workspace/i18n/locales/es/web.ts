@@ -16,6 +16,29 @@ export const ES_WEB = {
 	"settings.scope.folder": "Carpeta",
 	"settings.scope.unsupported":
 		"El almacenamiento para este ámbito no está disponible.",
+	"settings.profile.unsupported":
+		"Este perfil de configuración no está disponible.",
+	"settings.bundle.invalid": "El paquete de configuración no es válido.",
+	"settings.bundle.blocked":
+		"No se pudo aplicar el paquete de configuración: {message}",
+	"settings.bundle.scopeUnsupported":
+		"El almacenamiento para el ámbito {scope} no está disponible.",
+	"settings.bundle.profileUnsupported":
+		"El perfil de configuración {profile} no está disponible.",
+	"settings.bundle.versionInvalid":
+		"La versión del paquete de configuración no es compatible.",
+	"settings.bundle.stale":
+		"La revisión del paquete de configuración está obsoleta.",
+	"settings.bundle.stageUnavailable":
+		"La importación de configuración preparada no está disponible.",
+	"settings.bundle.stageUnknown":
+		"La etapa de importación de configuración es desconocida.",
+	"settings.bundle.profileOutsideSelection":
+		"El paquete contiene el perfil {profile} fuera del perfil seleccionado.",
+	"settings.bundle.sensitiveOmitted":
+		"Se omitió la configuración sensible del paquete importado.",
+	"settings.bundle.valueInvalid":
+		"La configuración {path} tiene un valor no válido.",
 	"settings.modifiedOnly": "Mostrar solo modificados",
 	"settings.categories": "Categorías de configuración",
 	"settings.jsonMode": "Modo JSON",
@@ -26,7 +49,19 @@ export const ES_WEB = {
 	"settings.import": "Importar",
 	"settings.exported": "La configuración se copió al portapapeles.",
 	"settings.downloaded": "Configuración descargada.",
-	"settings.importConfirm": "¿Reemplazar el borrador actual con este archivo?",
+	"settings.importConfirm":
+		"¿Aplicar este paquete de configuración al perfil seleccionado?",
+	"settings.importReady":
+		"El archivo pasó la validación del host y está listo para aplicar.",
+	"settings.importMode": "Modo de importación",
+	"settings.importReplace": "Reemplazar configuración seleccionada",
+	"settings.importMerge": "Combinar configuración seleccionada",
+	"settings.imported": "Configuración importada.",
+	"settings.cancel": "Cancelar",
+	"settings.unsavedTitle": "Configuración sin guardar",
+	"settings.unsavedMessage": "¿Guardar o descartar los cambios antes de salir?",
+	"settings.keepEditing": "Seguir editando",
+	"settings.saveAndContinue": "Guardar y continuar",
 	"settings.unsupportedWidget":
 		"Este control de configuración no está disponible en el renderizador web.",
 	"settings.unavailable":
@@ -89,6 +124,10 @@ export const ES_WEB = {
 	"workbench.unavailable": "No disponible",
 	"workbench.editor": "Superficie del editor",
 	"workbench.empty": "El host no ha proporcionado contenido del editor.",
+	"workbench.splitterValue": "{value} por ciento",
+	"workbench.resizeDomainRail": "Redimensionar barra de dominio",
+	"workbench.resizeSidebar": "Redimensionar barra lateral",
+	"workbench.resizeInspector": "Redimensionar inspector",
 	"status.local": "Local",
 	"status.offline": "Sin conexión",
 	"status.zeroDiagnostics": "0 diagnósticos",

@@ -1,3 +1,7 @@
+import {
+	SETTINGS_REDACTION_MARKER,
+	type SettingsUiSnapshotDto,
+} from "@stateful-mcp/macro-protocol";
 import type { I18nKernel } from "../i18n/i18n-kernel";
 import { EN_WEB } from "../i18n/locales/en/web";
 import type {
@@ -81,23 +85,7 @@ export interface SerializedSettingsUiSection {
 export function serializeSettingsUiSnapshot(
 	snapshot: SettingsUiSnapshot,
 	options: SettingsUiProjectionOptions = {},
-): {
-	readonly activeProfileId: string;
-	readonly availableProfiles: readonly string[];
-	readonly activeScope: SettingsScope;
-	readonly supportedScopes: readonly SettingsScope[];
-	readonly unsupportedScopeReason?: string;
-	readonly searchQuery: string;
-	readonly filterModifiedOnly: boolean;
-	readonly isSplitJsonMode: boolean;
-	readonly jsonModeAvailable: boolean;
-	readonly modifiedCount: number;
-	readonly totalModifiedCount: number;
-	readonly sections: readonly SerializedSettingsUiSection[];
-	readonly rawJsonText: string;
-	readonly hasErrors: boolean;
-	readonly settingsRevision: string;
-} {
+): SettingsUiSnapshotDto {
 	const activeScope = options.activeScope ?? snapshot.activeScope;
 	const supportedScopes = (
 		options.supportedScopes ?? SUPPORTED_SETTINGS_SCOPES
@@ -298,7 +286,7 @@ function toTitleCase(value: string): string {
 	return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export const MASKED_VALUE = "••••••••";
+export const MASKED_VALUE = SETTINGS_REDACTION_MARKER;
 
 export function isSensitiveEntry(
 	schema: SettingsSchemaEntry,

@@ -112,6 +112,54 @@ test("reconfigures settings without discarding core defaults", () => {
 	});
 });
 
+test("preserves sensitive settings omitted by a redacted bundle", async () => {
+	let savedSettings: Record<string, unknown> | undefined;
+	const current = {
+		settings: {
+			credentials: { token: "secret" },
+			appearance: { theme: "light" },
+		},
+		profiles: { clinical: { locale: "en" } },
+		extensions: {},
+		revision: "revision-1",
+	};
+	const service = new WorkspaceSettingsService({
+		defaults: current.settings,
+		initial: current.settings,
+		activeProfileId: "clinical",
+		schema: [
+			{
+				path: ["credentials", "token"],
+				type: "string",
+				title: "Token",
+				sensitive: true,
+			},
+		],
+		bundle: {
+			load: async () => current,
+			save: async (next) => {
+				savedSettings = next.settings;
+				return "revision-2";
+			},
+		},
+	});
+	const result = await service.applyBundle(
+		{
+			version: 1,
+			exportedAt: new Date(0).toISOString(),
+			workspace: { appearance: { theme: "dark" } },
+		},
+		"clinical",
+		"replace",
+		"revision-1",
+	);
+	expect(result.status).toBe("saved");
+	expect(savedSettings).toEqual({
+		credentials: { token: "secret" },
+		appearance: { theme: "dark" },
+	});
+});
+
 test("validates mode-aware surface keybindings", () => {
 	expect(
 		validateSurfaceKeybindings([
