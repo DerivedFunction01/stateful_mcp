@@ -1,24 +1,13 @@
-import type {
-	EditorOperation,
-	WorkspaceSnapshot,
-} from "@stateful-mcp/macro-protocol";
-import {
-	Activity,
-	BookOpen,
-	ChevronRight,
-	Command,
-	ExternalLink,
-	FileText,
-	Settings2,
-	Sparkles,
-} from "lucide-react";
+import type { EditorOperation } from "@stateful-mcp/macro-protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityRail } from "./components/ActivityRail";
 import { CommandPalette } from "./components/CommandPalette";
 import { Gallery } from "./components/Gallery";
-import { KeymapShortcuts } from "./components/KeymapShortcuts";
+import { HostRoute } from "./components/HostRoute";
+import { MenuBar } from "./components/MenuBar";
 import { SettingsTab } from "./components/SettingsTab";
 import { RegisteredStatusBar } from "./components/StatusBar";
-import { Badge, Button, Card } from "./components/ui/primitives";
+import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { WorkbenchShell } from "./components/WorkbenchShell";
 import {
 	BrowserKeymapController,
@@ -28,14 +17,8 @@ import {
 	EditorSurfaceRegistry,
 	EditorSurfaceRegistryContext,
 } from "./lib/editor-surface-registry";
-import { trapFocus } from "./lib/focus-trap";
-import {
-	BrowserHostClient,
-	type HostClient,
-	type TransportState,
-} from "./lib/host-client";
+import { BrowserHostClient, type HostClient } from "./lib/host-client";
 import { GalleryI18nScope, useI18n } from "./lib/macro-i18n-provider";
-import { useTheme } from "./lib/theme";
 import {
 	BrowserWorkspaceStore,
 	useBrowserWorkspaceStore,
@@ -52,7 +35,6 @@ function routeFromPath(pathname: string): Route {
 
 export function App() {
 	const { t, setLocale } = useI18n();
-	const { theme } = useTheme();
 	const [route, setRoute] = useState<Route>(() =>
 		routeFromPath(window.location.pathname),
 	);
@@ -68,7 +50,9 @@ export function App() {
 		if (route === "gallery") return;
 		void store.start().catch(() => undefined);
 	}, [route, store]);
+
 	useEffect(() => () => store.dispose(), [store]);
+
 	useEffect(() => {
 		const uiLocale = snapshot?.settings.sections
 			.flatMap((section) => section.items)
@@ -76,6 +60,7 @@ export function App() {
 		if (typeof uiLocale === "string" && uiLocale.length > 0)
 			setLocale(uiLocale);
 	}, [setLocale, snapshot?.settings]);
+
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [announcement, setAnnouncement] = useState("");
 	const [editorCursor, setEditorCursor] = useState("");
@@ -84,7 +69,6 @@ export function App() {
 		readonly route: Route;
 		readonly restore: HTMLElement | null;
 	}>();
-	const navigationDialogRef = useRef<HTMLDivElement>(null);
 
 	const settingsDirty = Boolean(
 		snapshot?.settings &&
@@ -96,10 +80,12 @@ export function App() {
 		lastFocused.current = document.activeElement;
 		setPaletteOpen(true);
 	}
+
 	function closePalette(): void {
 		setPaletteOpen(false);
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
 	}
+
 	function announce(message: KeymapAnnouncement): void {
 		const text =
 			message.key === "chord.prefix"
@@ -111,6 +97,7 @@ export function App() {
 						: t(`keymap.${message.key}`);
 		setAnnouncement(text);
 	}
+
 	async function runCommand(
 		command: string,
 		args?: readonly unknown[],
@@ -122,6 +109,7 @@ export function App() {
 		)
 			requestNavigate("settings");
 	}
+
 	useEffect(() => {
 		const controller = new BrowserKeymapController({
 			getSnapshot: () => snapshot,
@@ -156,11 +144,13 @@ export function App() {
 				: next === "settings"
 					? "/settings"
 					: "/";
+
 	const commitNavigate = (next: Route, replace = false) => {
 		setRoute(next);
 		const method = replace ? "replaceState" : "pushState";
 		window.history[method]({}, "", routePath(next));
 	};
+
 	const navigate = (next: Route) => {
 		if (next === route || !settingsDirty) {
 			commitNavigate(next);
@@ -174,7 +164,9 @@ export function App() {
 					: null,
 		});
 	};
+
 	const requestNavigate = navigate;
+
 	useEffect(() => {
 		const handlePopState = () => {
 			const next = routeFromPath(window.location.pathname);
@@ -194,23 +186,12 @@ export function App() {
 		window.addEventListener("popstate", handlePopState);
 		return () => window.removeEventListener("popstate", handlePopState);
 	}, [route, settingsDirty]);
-	useEffect(() => {
-		if (pendingNavigation)
-			queueMicrotask(() => navigationDialogRef.current?.focus());
-	}, [pendingNavigation]);
-	useEffect(() => {
-		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			if (!settingsDirty) return;
-			event.preventDefault();
-			event.returnValue = "";
-		};
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-	}, [settingsDirty]);
+
 	const finishNavigation = (restore: HTMLElement | null) => {
 		setPendingNavigation(undefined);
 		queueMicrotask(() => restore?.focus());
 	};
+
 	const discardAndNavigate = async () => {
 		if (!pendingNavigation || !snapshot?.settings) return;
 		const target = pendingNavigation.route;
@@ -230,6 +211,7 @@ export function App() {
 			setAnnouncement(t("settings.conflict"));
 		}
 	};
+
 	const saveAndNavigate = async () => {
 		if (!pendingNavigation || !snapshot?.settings) return;
 		const target = pendingNavigation.route;
@@ -249,80 +231,33 @@ export function App() {
 			setAnnouncement(t("settings.conflict"));
 		}
 	};
+
 	const diagnostics = snapshot?.diagnostics.length ?? 0;
+	const activeDoc = snapshot?.editor.documents.find(
+		(d) => d.documentId === snapshot?.editor.activeDocumentId,
+	);
+
 	return (
 		<EditorSurfaceRegistryContext.Provider value={registry}>
 			<div className="app-shell">
 				<div className="sr-only" aria-live="polite">
 					{announcement}
 				</div>
-				<aside className="activity-rail" aria-label={t("nav.workbench")}>
-					<div className="brand-mark">
-						<Sparkles size={21} />
-					</div>
-					<nav>
-						<NavButton
-							label={t("nav.workbench")}
-							icon={<Activity size={19} />}
-							active={route === "workbench"}
-							onClick={() => navigate("workbench")}
-						/>
-						<NavButton
-							label={t("nav.notes")}
-							icon={<FileText size={19} />}
-							active={false}
-							onClick={() => navigate("workbench")}
-						/>
-						<NavButton
-							label={t("workspace.tab.settings")}
-							icon={<Settings2 size={19} />}
-							active={route === "settings"}
-							onClick={() => navigate("settings")}
-						/>
-					</nav>
-					<div className="rail-bottom">
-						<NavButton
-							label={t("nav.gallery")}
-							icon={<BookOpen size={19} />}
-							active={route === "gallery"}
-							onClick={() => navigate("gallery")}
-						/>
-						<NavButton
-							label={t("nav.host")}
-							icon={<Command size={19} />}
-							active={route === "host"}
-							onClick={() => navigate("host")}
-						/>
-					</div>
-				</aside>
-				<div className="app-main">
-					<header className="top-bar">
-						<div className="breadcrumb">
-							<span>Macro</span>
-							<ChevronRight size={14} />
-							<strong>
-								{route === "gallery"
-									? t("nav.gallery")
-									: route === "settings"
-										? t("workspace.tab.settings")
-										: route === "host"
-											? t("app.host")
-											: t("nav.workbench")}
-							</strong>
-						</div>
-						<div className="top-actions">
-							<Badge tone={theme.mode === "dark" ? "info" : "success"}>
-								{theme.label}
-							</Badge>
-							<Button
-								variant="ghost"
-								icon={<Command size={15} />}
-								onClick={openPalette}
-							>
-								{t("nav.commandPalette")}
-							</Button>
-						</div>
-					</header>
+
+				<MenuBar
+					snapshot={snapshot}
+					activeDocumentTitle={activeDoc?.title}
+					onCommand={(cmd, args) => {
+						void store.executeCommand(cmd, args);
+					}}
+					onOpenPalette={openPalette}
+					onNavigate={navigate}
+					currentRoute={route}
+				/>
+
+				<div className="app-body">
+					<ActivityRail currentRoute={route} onNavigate={navigate} />
+
 					<main className="app-content">
 						{route === "gallery" ? (
 							<GalleryI18nScope>
@@ -369,66 +304,32 @@ export function App() {
 							/>
 						)}
 					</main>
-					<RegisteredStatusBar
-						profile={snapshot?.profile.displayName}
-						domain={snapshot?.applications[0]?.displayName}
-						diagnostics={diagnostics}
-						cursor={editorCursor}
-						onAction={(command) => {
-							if (command === "workspace.selectProfile") navigate("settings");
-							if (command === "host.openDiagnostics") navigate("host");
-						}}
-					/>
 				</div>
-				{pendingNavigation ? (
-					<div className="modal-overlay" role="presentation">
-						<div
-							ref={navigationDialogRef}
-							className="modal-card"
-							role="dialog"
-							aria-modal="true"
-							aria-labelledby="navigation-guard-title"
-							tabIndex={-1}
-							onKeyDown={(event) => {
-								trapFocus(event, navigationDialogRef.current);
-								if (event.key === "Escape") {
-									event.preventDefault();
-									const restore = pendingNavigation.restore;
-									setPendingNavigation(undefined);
-									queueMicrotask(() => restore?.focus());
-								}
-							}}
-						>
-							<h2 id="navigation-guard-title">{t("settings.unsavedTitle")}</h2>
-							<p>{t("settings.unsavedMessage")}</p>
-							<div className="page-actions">
-								<Button
-									variant="ghost"
-									onClick={() => {
-										const restore = pendingNavigation.restore;
-										setPendingNavigation(undefined);
-										queueMicrotask(() => restore?.focus());
-									}}
-								>
-									{t("settings.keepEditing")}
-								</Button>
-								<Button
-									variant="ghost"
-									onClick={() => void discardAndNavigate()}
-								>
-									{t("settings.discard")}
-								</Button>
-								<Button
-									variant="primary"
-									onClick={() => void saveAndNavigate()}
-								>
-									{t("settings.saveAndContinue")}
-								</Button>
-							</div>
-						</div>
-					</div>
-				) : null}
-				{paletteOpen ? (
+
+				<RegisteredStatusBar
+					profile={snapshot?.profile.displayName}
+					domain={snapshot?.applications[0]?.displayName}
+					diagnostics={diagnostics}
+					cursor={editorCursor}
+					onAction={(command) => {
+						if (command === "workspace.selectProfile") navigate("settings");
+						if (command === "host.openDiagnostics") navigate("host");
+					}}
+				/>
+
+				{pendingNavigation && (
+					<UnsavedChangesModal
+						onKeepEditing={() => {
+							const restore = pendingNavigation.restore;
+							setPendingNavigation(undefined);
+							queueMicrotask(() => restore?.focus());
+						}}
+						onDiscard={() => void discardAndNavigate()}
+						onSave={() => void saveAndNavigate()}
+					/>
+				)}
+
+				{paletteOpen && (
 					<CommandPalette
 						commands={snapshot?.commands ?? []}
 						onExecute={(command, args) => {
@@ -436,170 +337,8 @@ export function App() {
 						}}
 						onClose={closePalette}
 					/>
-				) : null}
+				)}
 			</div>
 		</EditorSurfaceRegistryContext.Provider>
-	);
-}
-
-function NavButton({
-	label,
-	icon,
-	active,
-	onClick,
-}: {
-	readonly label: string;
-	readonly icon: React.ReactNode;
-	readonly active: boolean;
-	readonly onClick: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			className={active ? "rail-button active" : "rail-button"}
-			aria-label={label}
-			title={label}
-			onClick={onClick}
-		>
-			{icon}
-		</button>
-	);
-}
-
-function WorkbenchPlaceholder({
-	snapshot,
-	vimEnabled,
-	onSettings,
-}: {
-	readonly snapshot?: WorkspaceSnapshot;
-	readonly vimEnabled: boolean;
-	readonly onSettings: () => void;
-}) {
-	const { t } = useI18n();
-	return (
-		<div className="workbench-placeholder">
-			<div className="welcome-mark">
-				<Sparkles size={38} />
-			</div>
-			<span className="eyebrow">{t("workbench.previewEyebrow")}</span>
-			<h1>{t("workbench.heading")}</h1>
-			<p>{t("workbench.description")}</p>
-			<div className="welcome-actions">
-				<Button
-					variant="primary"
-					onClick={onSettings}
-					icon={<Settings2 size={16} />}
-				>
-					{t("workbench.openSettings")}
-				</Button>
-				<Button variant="secondary" icon={<ExternalLink size={16} />}>
-					{t("workbench.openScratchpad")}
-				</Button>
-			</div>
-			<div className="preview-grid">
-				<Card title={t("workbench.currentSession")}>
-					<div className="session-lines">
-						<span>
-							{t("app.profile")}{" "}
-							<strong>
-								{snapshot?.profile.displayName ?? t("common.loading")}
-							</strong>
-						</span>
-						<span>
-							{t("workbench.domainApps")}{" "}
-							<strong>{snapshot?.applications.length ?? 0}</strong>
-						</span>
-						<span>
-							{t("workbench.editorContext")}{" "}
-							<strong>
-								{vimEnabled
-									? t("workbench.vimEnabled")
-									: t("workbench.browserNative")}
-							</strong>
-						</span>
-					</div>
-				</Card>
-				<Card title={t("workbench.nextSurfaces")}>
-					<div className="session-lines">
-						<span>
-							<BookOpen size={15} /> {t("workspace.tab.settings")}
-						</span>
-						<span>
-							<FileText size={15} /> {t("workbench.openScratchpad")}
-						</span>
-						<span>
-							<Command size={15} /> {t("nav.commandPalette")}
-						</span>
-					</div>
-				</Card>
-			</div>
-		</div>
-	);
-}
-
-function HostRoute({
-	snapshot,
-	transport,
-}: {
-	readonly snapshot?: WorkspaceSnapshot;
-	readonly transport: TransportState;
-}) {
-	const { t } = useI18n();
-	return (
-		<div className="host-route">
-			<div className="page-header">
-				<div>
-					<span className="eyebrow">{t("gallery.eyebrow")}</span>
-					<h1>
-						<Command size={25} />
-						{t("app.host")}
-					</h1>
-					<p>{t("host.description")}</p>
-				</div>
-			</div>
-			<Card title={t("host.transport")}>
-				<div className="session-lines">
-					<span>
-						{t("host.workspace")}{" "}
-						<strong>{snapshot?.workspaceId ?? t("common.loading")}</strong>
-					</span>
-					<span>
-						{t("host.session")}{" "}
-						<strong>{snapshot?.sessionId ?? t("common.loading")}</strong>
-					</span>
-					<span>
-						{t("host.profile")}{" "}
-						<strong>
-							{snapshot?.profile.displayName ?? t("common.loading")}
-						</strong>
-					</span>
-					<span>
-						{t("host.transport")}{" "}
-						<Badge tone={transport === "connected" ? "success" : "warning"}>
-							{transport}
-						</Badge>
-					</span>
-					<span>
-						{t("host.protocol")} <strong>v1</strong>
-					</span>
-					<span>
-						{t("host.websocket")}{" "}
-						<strong>
-							{snapshot
-								? `${snapshot.revision} ${t("status.diagnostics")}`
-								: t("common.loading")}
-						</strong>
-					</span>
-				</div>
-			</Card>
-			{snapshot?.keymap ? (
-				<Card title={t("palette.keymapHint")}>
-					<KeymapShortcuts
-						keymap={snapshot.keymap}
-						commands={snapshot.commands}
-					/>
-				</Card>
-			) : null}
-		</div>
 	);
 }

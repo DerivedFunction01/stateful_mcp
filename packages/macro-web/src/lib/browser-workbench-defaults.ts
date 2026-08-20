@@ -11,6 +11,7 @@
  * Chords use the platform-neutral `primary` token (Ctrl on Windows/Linux,
  * Command on macOS).
  */
+import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
 import {
 	type BrowserShortcutPolicy,
 	classifyChord,
@@ -41,4 +42,26 @@ export const BROWSER_WORKBENCH_BASELINE: readonly BrowserBaselineBinding[] = [
 /** Capability metadata for a baseline chord, used in diagnostics. */
 export function baselineCapability(chord: string): BrowserShortcutPolicy {
 	return classifyChord(chord);
+}
+
+/**
+ * Returns the effective shortcut string for a command ID from snapshot keymap,
+ * command descriptors, or baseline workbench policy.
+ */
+export function getEffectiveCommandShortcut(
+	snapshot: WorkspaceSnapshot | undefined,
+	commandId: string,
+): string | undefined {
+	if (!snapshot) return undefined;
+	const explicit = snapshot.keymap?.bindings?.find(
+		(b) => b.command === commandId,
+	);
+	if (explicit?.chords?.length) return explicit.chords[0];
+	const cmd = snapshot.commands?.find((c) => c.id === commandId);
+	if (cmd?.keybinding) return cmd.keybinding;
+	const baseline = BROWSER_WORKBENCH_BASELINE.find(
+		(b) => b.command === commandId,
+	);
+	if (baseline?.chord) return baseline.chord;
+	return undefined;
 }

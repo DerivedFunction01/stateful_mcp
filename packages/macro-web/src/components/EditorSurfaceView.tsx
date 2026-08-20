@@ -1,9 +1,6 @@
-import type {
-	ScratchpadLineDto,
-	ScratchpadLineStatus,
-} from "@stateful-mcp/macro-protocol";
-import { AlertTriangle, Circle, Pin, Play } from "lucide-react";
-import { type RefObject, useEffect, useRef } from "react";
+import type { ScratchpadLineDto } from "@stateful-mcp/macro-protocol";
+import { AlertTriangle, Check, Circle, Pin, Play } from "lucide-react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import type {
 	BrowserEditorSurfaceAdapter,
 	BrowserVimKeyboardEvent,
@@ -99,10 +96,6 @@ function setSurfaceSelection(
 	selection?.addRange(range);
 }
 
-function lineForStatus(status: ScratchpadLineStatus): string {
-	return status === "non-macro" ? "nonMacro" : status;
-}
-
 export function EditorSurfaceView({
 	documentId,
 	text,
@@ -122,6 +115,7 @@ export function EditorSurfaceView({
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const focusedRef = useRef(false);
 	const lastRenderedText = useRef<string | undefined>(undefined);
+	const [activeLineNumber, setActiveLineNumber] = useState<number>(1);
 	const sourceText = draft ?? text;
 	const displayedLines: readonly ScratchpadLineDto[] = lines.length
 		? lines
@@ -132,13 +126,11 @@ export function EditorSurfaceView({
 		if (!root) return;
 		const selection = selectionFromSurface(root);
 		const currentText = textFromSurface(root);
-		const lineAt = (offset: number) =>
-			currentText.slice(0, offset).split("\n").length;
-		const columnAt = (offset: number) => {
-			const line = currentText.slice(0, offset).split("\n");
-			return (line.at(-1)?.length ?? 0) + 1;
-		};
-		onCursorChange?.(`${lineAt(selection.end)}:${columnAt(selection.end)}`);
+		const linesSlice = currentText.slice(0, selection.end).split("\n");
+		const currentLine = linesSlice.length;
+		const currentColumn = (linesSlice.at(-1)?.length ?? 0) + 1;
+		setActiveLineNumber(currentLine);
+		onCursorChange?.(`${currentLine}:${currentColumn}`);
 	};
 
 	useEffect(() => {
@@ -148,8 +140,14 @@ export function EditorSurfaceView({
 		root.replaceChildren(
 			...sourceText.split("\n").map((line, index) => {
 				const block = document.createElement("div");
+				block.className = "editor-line-row";
 				block.dataset.editorLine = String(index + 1);
-				block.textContent = line;
+				block.textContent = line.length > 0 ? line : "";
+				if (line.length === 0) {
+					// Add a br or zero-width space for empty lines so the DOM block is selectable and has line-height
+					const br = document.createElement("br");
+					block.appendChild(br);
+				}
 				return block;
 			}),
 		);
@@ -158,50 +156,55 @@ export function EditorSurfaceView({
 
 	return (
 		<div className="editor-surface-view" data-document-id={documentId}>
-			<div className="editor-surface-toolbar">
-				<span className="surface-kicker">{t("editor.surface.authored")}</span>
-				<span className="editor-surface-hint">
-					{t("editor.surface.nativeEditing")}
-				</span>
-			</div>
 			<div className="editor-canvas">
-				<div className="editor-lines" aria-hidden="true">
+				{/* Lined Gutter Layer */}
+				<div className="editor-gutter" aria-hidden="true">
 					{displayedLines.map((line) => {
+						const isLineActive = activeLineNumber === line.lineNumber;
 						const hasError =
 							line.lineStatus === "invalid" ||
-							line.diagnostics.some(
-								(diagnostic) => diagnostic.severity === "error",
-							);
-						const pinned = Boolean(
+							line.diagnostics.some((d) => d.severity === "error");
+						const isPinned = Boolean(
 							line.macroName && pinnedMacroIds.includes(line.macroName),
 						);
+						const isValid = line.lineStatus === "valid";
+
 						return (
 							<div
-								className={`editor-line-gutter-row ${line.lineStatus}`}
+								className={`gutter-line-cell ${isLineActive ? "active" : ""} ${line.lineStatus}`}
 								key={line.lineNumber}
 							>
+								<span className="gutter-marker">
+									{isLineActive ? "▎" : " "}
+								</span>
 								<span
-									className={`editor-line-marker ${hasError ? "error" : pinned ? "pinned" : line.lineStatus}`}
+									className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : line.lineStatus}`}
 								>
 									{hasError ? (
-										<AlertTriangle size={13} />
-									) : pinned ? (
+										<AlertTriangle size={12} />
+									) : isPinned ? (
 										<Pin size={12} />
-									) : line.lineStatus === "valid" ? (
-										<Circle size={9} fill="currentColor" />
+									) : isValid ? (
+										<Check size={12} />
+									) : isLineActive ? (
+										<Circle size={8} fill="currentColor" />
 									) : null}
 								</span>
-								<span className="editor-line-number">
+								<span className="gutter-number">
 									{String(line.lineNumber).padStart(
 										Math.max(2, String(lines.length || 1).length),
 										"0",
 									)}
 								</span>
+								<span className="gutter-border">│</span>
 							</div>
 						);
 					})}
 				</div>
-				<div className="editor-authored-column">
+
+				{/* Authored + Companion Projections Layer */}
+				<div className="editor-content-area">
+					{/* Native Authored Text Surface */}
 					<div
 						ref={(element) => {
 							rootRef.current = element;
@@ -209,6 +212,7 @@ export function EditorSurfaceView({
 						}}
 						className="editor-authored-input"
 						contentEditable={disabled ? false : "plaintext-only"}
+						spellCheck={false}
 						suppressContentEditableWarning
 						onFocus={() => {
 							focusedRef.current = true;
@@ -232,71 +236,88 @@ export function EditorSurfaceView({
 						onSelect={updateCursor}
 						onScroll={updateCursor}
 					/>
-					<div className="editor-projection-layer">
+
+					{/* Projection & Companion Row Annotations */}
+					<div className="editor-projection-stream" aria-live="polite">
 						{displayedLines.map((line) => {
+							const isLineActive = activeLineNumber === line.lineNumber;
 							const diagnostic = line.diagnostics[0];
-							const projection = line.projections?.find(
-								(item) => item.payload.availability === "available",
-							);
 							const projectionText =
 								line.preview?.text ?? line.executionPreview?.text;
+							const isPinned = Boolean(
+								line.macroName && pinnedMacroIds.includes(line.macroName),
+							);
+							const hasError =
+								line.lineStatus === "invalid" || Boolean(diagnostic);
+
+							if (
+								line.lineStatus === "empty" &&
+								!diagnostic &&
+								!projectionText
+							) {
+								return null;
+							}
+
 							return (
 								<div
-									className={`editor-projection-row ${line.lineStatus}`}
-									key={line.lineNumber}
+									className={`projection-companion-row ${line.lineStatus} ${isLineActive ? "active" : ""}`}
+									key={`proj:${line.lineNumber}`}
+									data-line-number={line.lineNumber}
 								>
-									<span className="projection-prefix">↳</span>
-									<span>
-										{diagnostic
-											? diagnostic.message
-											: (projectionText ??
-												(projection
-													? t("editor.surface.projectionAvailable")
-													: t("editor.surface.noProjection")))}
+									<span className="projection-anchor">↳</span>
+									<span className="projection-message">
+										{diagnostic ? (
+											<span className="projection-diagnostic-text">
+												{diagnostic.message}
+											</span>
+										) : projectionText ? (
+											<span className="projection-preview-text">
+												{projectionText}
+											</span>
+										) : (
+											<span className="projection-status-label">
+												{t(
+													`editor.lineStatus.${line.lineStatus === "non-macro" ? "nonMacro" : line.lineStatus}`,
+												)}
+											</span>
+										)}
 									</span>
-									{line.macroName && (
-										<button
-											type="button"
-											className="editor-line-action"
-											aria-label={t("editor.execution.line")}
-											onClick={() => onExecuteLine?.(line.lineNumber)}
-										>
-											<Play size={11} />
-										</button>
-									)}
+									<div className="projection-actions">
+										{line.macroName && (
+											<>
+												<button
+													type="button"
+													className="line-action-btn"
+													title={t("editor.execution.line")}
+													aria-label={t("editor.execution.line")}
+													onClick={() => onExecuteLine?.(line.lineNumber)}
+												>
+													<Play size={11} />
+												</button>
+												<button
+													type="button"
+													className={`line-action-btn ${isPinned ? "pinned" : ""}`}
+													title={
+														isPinned
+															? t("editor.document.pinnedMacro")
+															: t("editor.document.pinMacro")
+													}
+													onClick={() =>
+														onPinMacro?.(
+															isPinned ? null : (line.macroName ?? null),
+														)
+													}
+												>
+													<Pin size={11} />
+												</button>
+											</>
+										)}
+									</div>
 								</div>
 							);
 						})}
 					</div>
 				</div>
-			</div>
-			<div className="editor-line-status-list">
-				{displayedLines.map((line) => (
-					<div
-						className={`editor-line-status ${line.lineStatus}`}
-						key={line.lineNumber}
-					>
-						<span>
-							{t(`editor.lineStatus.${lineForStatus(line.lineStatus)}`)}
-						</span>
-						{line.macroName && (
-							<button
-								type="button"
-								onClick={() =>
-									onPinMacro?.(
-										pinnedMacroIds.includes(line.macroName!)
-											? null
-											: line.macroName!,
-									)
-								}
-							>
-								{pinnedMacroIds.includes(line.macroName)
-									? t("editor.document.pinnedMacro")
-									: t("editor.document.pinMacro")}
-							</button>
-						)}
-					</div>
-				))}
 			</div>
 		</div>
 	);
