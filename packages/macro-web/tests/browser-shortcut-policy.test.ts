@@ -4,7 +4,10 @@ import {
 	isRecommendedUserBinding,
 	normalizePrimary,
 } from "../src/lib/browser-shortcut-policy";
-import { BROWSER_WORKBENCH_BASELINE } from "../src/lib/browser-workbench-defaults";
+import {
+	baselineCapability,
+	getEffectiveCommandShortcut,
+} from "../src/lib/browser-workbench-defaults";
 
 describe("browser shortcut policy", () => {
 	test("normalizes platform-neutral primary chords", () => {
@@ -30,16 +33,34 @@ describe("browser shortcut policy", () => {
 		expect(policy.recommendedForUserBinding).toBe(false);
 	});
 
-	test("baseline entries are canonical commands only", () => {
+	test("resolves effective shortcuts dynamically from snapshot keymap", () => {
+		const mockSnapshot = {
+			keymap: {
+				profileId: "default",
+				name: "Standard Vim Modal",
+				workbench: {
+					openCommandPalette: "ctrl+shift+p",
+					quickOpen: "ctrl+p",
+					openSettings: "ctrl+,",
+					toggleSidepanel: "ctrl+b",
+				},
+				bindings: [],
+			},
+		} as any;
+
 		expect(
-			BROWSER_WORKBENCH_BASELINE.every((binding) =>
-				binding.command.startsWith("workspace."),
-			),
-		).toBe(true);
+			getEffectiveCommandShortcut(mockSnapshot, "workbench.commandPalette"),
+		).toBe("ctrl+shift+p");
 		expect(
-			BROWSER_WORKBENCH_BASELINE.some(
-				(binding) => binding.chord === "primary+p" || binding.chord === "f1",
-			),
-		).toBe(false);
+			getEffectiveCommandShortcut(mockSnapshot, "workbench.openSettings"),
+		).toBe("ctrl+,");
+		expect(
+			getEffectiveCommandShortcut(mockSnapshot, "workspace.toggleSidepanel"),
+		).toBe("ctrl+b");
+	});
+
+	test("baselineCapability classifies valid chords", () => {
+		const cap = baselineCapability("ctrl+shift+p");
+		expect(cap.disposition).toBeDefined();
 	});
 });

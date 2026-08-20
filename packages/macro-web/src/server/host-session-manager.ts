@@ -1420,7 +1420,10 @@ export class HostSessionManager {
 			vim: {
 				normal: session.keymap.normal as unknown as Record<string, string>,
 				visual: session.keymap.visual as unknown as Record<string, string>,
-				sequences: session.keymap.sequences as unknown as Record<string, string>,
+				sequences: session.keymap.sequences as unknown as Record<
+					string,
+					string
+				>,
 			},
 			workbench: session.keymap.window as unknown as Record<string, string>,
 			normal: session.keymap.normal as unknown as Record<string, string>,

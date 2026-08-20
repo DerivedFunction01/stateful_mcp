@@ -202,7 +202,8 @@ export function EditorSurfaceView({
 							const hasError =
 								lineDto?.lineStatus === "invalid" || Boolean(diagnostic);
 							const isPinned = Boolean(
-								lineDto?.macroName && pinnedMacroIds.includes(lineDto.macroName),
+								lineDto?.macroName &&
+									pinnedMacroIds.includes(lineDto.macroName),
 							);
 							const isValid = lineDto?.lineStatus === "valid";
 
@@ -225,7 +226,7 @@ export function EditorSurfaceView({
 											{isLineActive ? "▎" : " "}
 										</span>
 										<span
-											className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : lineDto?.lineStatus ?? ""}`}
+											className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : (lineDto?.lineStatus ?? "")}`}
 										>
 											{hasError ? (
 												<AlertTriangle size={12} />

@@ -5,8 +5,7 @@ import {
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import { normalizeBrowserChord } from "./bindings";
-import { classifyChord, normalizePrimary } from "./browser-shortcut-policy";
-import { BROWSER_WORKBENCH_BASELINE } from "./browser-workbench-defaults";
+import { classifyChord } from "./browser-shortcut-policy";
 
 export type BindingContextId =
 	| "global"
@@ -196,33 +195,15 @@ export class BrowserKeymapController {
 			};
 		}
 
-		// 2. Browser baseline — VS Code-style renderer policy, below profile.
-		for (const binding of BROWSER_WORKBENCH_BASELINE) {
-			if (
-				normalizePrimary(binding.chord) === normalizePrimary(chord) &&
-				ids.some((id) => contextMatchesBaseline(binding.context, id))
-			) {
-				return {
-					command: binding.command,
-					source: "browser-baseline",
-				};
-			}
-		}
 		return null;
 	}
 
 	private isPrefix(chord: string): boolean {
 		const snapshot = this.options.getSnapshot();
 		const bindings = snapshot?.keymap.bindings ?? [];
-		const baseline = BROWSER_WORKBENCH_BASELINE;
-		const prefix = `${chord} `;
-		return (
-			bindings.some((b) =>
-				b.chords.some((c) => c.toLowerCase().startsWith(prefix)),
-			) ||
-			baseline.some(
-				(b) => b.chord.toLowerCase().startsWith(prefix) && b.chord !== chord,
-			)
+		const prefix = `${chord.toLowerCase()} `;
+		return bindings.some((b) =>
+			b.chords.some((c) => c.toLowerCase().startsWith(prefix)),
 		);
 	}
 
@@ -272,26 +253,6 @@ export class BrowserKeymapController {
 			this.pendingTimer = undefined;
 		}
 	}
-}
-
-function contextMatchesBaseline(
-	bindingContext: string,
-	activeId: BindingContextId,
-): boolean {
-	if (bindingContext === "global") return activeId === "global";
-	if (bindingContext.startsWith("surface:")) {
-		const suffix = bindingContext.slice("surface:".length);
-		return activeId === `surface:${suffix}` || suffix === "*";
-	}
-	if (bindingContext.startsWith("component:")) {
-		const suffix = bindingContext.slice("component:".length);
-		return activeId === `component:${suffix}` || suffix === "*";
-	}
-	if (bindingContext.startsWith("vim:")) {
-		const suffix = bindingContext.slice("vim:".length);
-		return activeId === `vim:${suffix}` || suffix === "*";
-	}
-	return false;
 }
 
 export type { KeymapBindingDto };

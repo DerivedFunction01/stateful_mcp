@@ -180,7 +180,8 @@ export function createBrowserVimController(
 							const text = adapter.getText();
 							const sel = adapter.getSelection();
 							const lines = text.split("\n");
-							const currentLineIdx = text.slice(0, sel.end).split("\n").length - 1;
+							const currentLineIdx =
+								text.slice(0, sel.end).split("\n").length - 1;
 							lines.splice(currentLineIdx, 1);
 							adapter.replaceSelection("");
 							// Recompute text
@@ -288,14 +289,9 @@ export function createBrowserVimController(
 
 				// Check standard EffectiveKeymap bindings
 				if (bindings && bindings.length > 0) {
-					const matched = matchEffectiveBindings(
-						bindings,
-						chord,
-						state.mode,
-						{
-							editorMode: state.mode,
-						},
-					);
+					const matched = matchEffectiveBindings(bindings, chord, state.mode, {
+						editorMode: state.mode,
+					});
 					if (matched) {
 						if (matched.command === "editor.enterInsert") {
 							setMode("INSERT");

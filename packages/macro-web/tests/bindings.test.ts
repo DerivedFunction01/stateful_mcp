@@ -45,8 +45,21 @@ describe("browser binding contexts", () => {
 	});
 
 	test("keeps Vim mode scoped to a browser editor context", () => {
-		const controller = createBrowserVimController(true);
-		const event = (key: string) => ({ key }) as ReactKeyboardEvent;
+		const controller = createBrowserVimController(true, {
+			keymap: {
+				profileId: "default",
+				name: "Standard Vim Modal",
+				vim: {
+					normal: { enterInsert: "i" },
+				},
+				bindings: [],
+			},
+		});
+		const event = (key: string) =>
+			({
+				key,
+				preventDefault: () => undefined,
+			}) as unknown as ReactKeyboardEvent;
 		expect(controller.getState().mode).toBe("NORMAL");
 		expect(controller.handleKeyDown(event("i"))).toBe(true);
 		expect(controller.getState().mode).toBe("INSERT");
@@ -58,6 +71,14 @@ describe("browser binding contexts", () => {
 		let reported = 0;
 		let prevented = 0;
 		const controller = createBrowserVimController(true, {
+			keymap: {
+				profileId: "default",
+				name: "Standard Vim Modal",
+				vim: {
+					normal: { command: ":" },
+				},
+				bindings: [],
+			},
 			onCommandModeUnsupported: () => reported++,
 		});
 		const event = {

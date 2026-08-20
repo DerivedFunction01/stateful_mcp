@@ -152,7 +152,7 @@ describe("keymap-driven browser Vim controller", () => {
 	});
 
 	test("resolves structured section-oriented profile (keymap.vim)", () => {
-		let text = "alpha\nbeta";
+		const text = "alpha\nbeta";
 		let selection = { start: 0, end: 0 };
 		let prevented = 0;
 

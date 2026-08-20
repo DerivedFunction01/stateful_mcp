@@ -18,8 +18,8 @@ import {
 } from "./editor/macro-document-manager";
 import { createDefaultI18nKernel } from "./i18n/discovery";
 import type { I18nKernel } from "./i18n/i18n-kernel";
-import type { EditorKeymapProfile } from "./keymaps/types";
 import { WorkspaceJournal } from "./journal/workspace-journal";
+import type { EditorKeymapProfile } from "./keymaps/types";
 import {
 	WindowLayoutStateManager,
 	type WindowLayoutStateSnapshot,
@@ -145,7 +145,12 @@ export function createMacroWorkspace(
 			: options?.keymap
 				? () => options.keymap as EditorKeymapProfile
 				: undefined;
-	const palette = new CommandPaletteController(commands, layout, tabs, getKeymap);
+	const palette = new CommandPaletteController(
+		commands,
+		layout,
+		tabs,
+		getKeymap,
+	);
 	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
 	const settingsService =
 		options?.settings ??

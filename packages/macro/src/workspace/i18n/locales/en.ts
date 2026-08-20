@@ -347,8 +347,7 @@ export const EN_LOCALE: WorkspaceLocaleDictionary = {
 	"host.websocket": "WebSocket events",
 	"host.protocol": "Protocol",
 	"host.typed": "Typed snapshot/events",
-	"host.description":
-		"Inspect the host-connected snapshot and event boundary.",
+	"host.description": "Inspect the host-connected snapshot and event boundary.",
 	"host.fixtureNote":
 		"Open the component gallery for the fixture-backed snapshot while the Bun server endpoints are being wired.",
 

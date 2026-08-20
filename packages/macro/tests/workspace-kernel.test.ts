@@ -642,7 +642,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.normal.enterInsert).toBe("i");
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.sequences.deleteCell).toBe("dd");
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.window.openCommandPalette).toBe(
-				"ctrl+p",
+				"ctrl+shift+p",
 			);
 		});
 
