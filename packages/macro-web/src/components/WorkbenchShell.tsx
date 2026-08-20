@@ -90,9 +90,13 @@ export function WorkbenchShell({
 		});
 	};
 
+	const snapshotRef = useRef(snapshot);
+	snapshotRef.current = snapshot;
+
 	const [vimController] = useState(() =>
 		createBrowserVimController(false, {
 			getAdapter: getSurfaceAdapter,
+			getKeymap: () => snapshotRef.current?.keymap,
 			onCommandModeUnsupported: () =>
 				setVimNotice(t("editor.commandModeUnsupported")),
 		}),

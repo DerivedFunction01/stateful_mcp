@@ -117,9 +117,8 @@ export function EditorSurfaceView({
 	const lastRenderedText = useRef<string | undefined>(undefined);
 	const [activeLineNumber, setActiveLineNumber] = useState<number>(1);
 	const sourceText = draft ?? text;
-	const displayedLines: readonly ScratchpadLineDto[] = lines.length
-		? lines
-		: [{ lineNumber: 1, rawText: "", lineStatus: "empty", diagnostics: [] }];
+	const textLines = sourceText.split("\n");
+	const totalLineCount = Math.max(textLines.length, lines.length, 1);
 
 	const updateCursor = () => {
 		const root = rootRef.current;
@@ -144,7 +143,6 @@ export function EditorSurfaceView({
 				block.dataset.editorLine = String(index + 1);
 				block.textContent = line.length > 0 ? line : "";
 				if (line.length === 0) {
-					// Add a br or zero-width space for empty lines so the DOM block is selectable and has line-height
 					const br = document.createElement("br");
 					block.appendChild(br);
 				}
@@ -157,54 +155,9 @@ export function EditorSurfaceView({
 	return (
 		<div className="editor-surface-view" data-document-id={documentId}>
 			<div className="editor-canvas">
-				{/* Lined Gutter Layer */}
-				<div className="editor-gutter" aria-hidden="true">
-					{displayedLines.map((line) => {
-						const isLineActive = activeLineNumber === line.lineNumber;
-						const hasError =
-							line.lineStatus === "invalid" ||
-							line.diagnostics.some((d) => d.severity === "error");
-						const isPinned = Boolean(
-							line.macroName && pinnedMacroIds.includes(line.macroName),
-						);
-						const isValid = line.lineStatus === "valid";
-
-						return (
-							<div
-								className={`gutter-line-cell ${isLineActive ? "active" : ""} ${line.lineStatus}`}
-								key={line.lineNumber}
-							>
-								<span className="gutter-marker">
-									{isLineActive ? "▎" : " "}
-								</span>
-								<span
-									className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : line.lineStatus}`}
-								>
-									{hasError ? (
-										<AlertTriangle size={12} />
-									) : isPinned ? (
-										<Pin size={12} />
-									) : isValid ? (
-										<Check size={12} />
-									) : isLineActive ? (
-										<Circle size={8} fill="currentColor" />
-									) : null}
-								</span>
-								<span className="gutter-number">
-									{String(line.lineNumber).padStart(
-										Math.max(2, String(lines.length || 1).length),
-										"0",
-									)}
-								</span>
-								<span className="gutter-border">│</span>
-							</div>
-						);
-					})}
-				</div>
-
-				{/* Authored + Companion Projections Layer */}
-				<div className="editor-content-area">
-					{/* Native Authored Text Surface */}
+				{/* Lined Cells Container: Hybrid Jupyter/Editor per-cell companion layout */}
+				<div className="editor-cells-wrapper">
+					{/* Native Authored Text Surface (Overlaid / Synchronized) */}
 					<div
 						ref={(element) => {
 							rootRef.current = element;
@@ -237,82 +190,124 @@ export function EditorSurfaceView({
 						onScroll={updateCursor}
 					/>
 
-					{/* Projection & Companion Row Annotations */}
-					<div className="editor-projection-stream" aria-live="polite">
-						{displayedLines.map((line) => {
-							const isLineActive = activeLineNumber === line.lineNumber;
-							const diagnostic = line.diagnostics[0];
+					{/* Synchronized Gutter & Per-Cell Companion Outputs */}
+					<div className="editor-cell-decorations" aria-hidden="true">
+						{Array.from({ length: totalLineCount }).map((_, index) => {
+							const lineNum = index + 1;
+							const lineDto = lines.find((l) => l.lineNumber === lineNum);
+							const isLineActive = activeLineNumber === lineNum;
+							const diagnostic = lineDto?.diagnostics?.[0];
 							const projectionText =
-								line.preview?.text ?? line.executionPreview?.text;
-							const isPinned = Boolean(
-								line.macroName && pinnedMacroIds.includes(line.macroName),
-							);
+								lineDto?.preview?.text ?? lineDto?.executionPreview?.text;
 							const hasError =
-								line.lineStatus === "invalid" || Boolean(diagnostic);
+								lineDto?.lineStatus === "invalid" || Boolean(diagnostic);
+							const isPinned = Boolean(
+								lineDto?.macroName && pinnedMacroIds.includes(lineDto.macroName),
+							);
+							const isValid = lineDto?.lineStatus === "valid";
 
-							if (
-								line.lineStatus === "empty" &&
-								!diagnostic &&
-								!projectionText
-							) {
-								return null;
-							}
+							// Only show cell output when there's an actual diagnostic, preview, or macro match
+							const hasOutput = Boolean(
+								diagnostic ||
+									projectionText ||
+									(lineDto?.macroName && lineDto.lineStatus !== "empty"),
+							);
 
 							return (
 								<div
-									className={`projection-companion-row ${line.lineStatus} ${isLineActive ? "active" : ""}`}
-									key={`proj:${line.lineNumber}`}
-									data-line-number={line.lineNumber}
+									key={lineNum}
+									className={`editor-cell-unit ${isLineActive ? "active" : ""} ${lineDto?.lineStatus ?? "normal"} ${hasOutput ? "has-output" : ""}`}
+									data-line-number={lineNum}
 								>
-									<span className="projection-anchor">↳</span>
-									<span className="projection-message">
-										{diagnostic ? (
-											<span className="projection-diagnostic-text">
-												{diagnostic.message}
-											</span>
-										) : projectionText ? (
-											<span className="projection-preview-text">
-												{projectionText}
-											</span>
-										) : (
-											<span className="projection-status-label">
-												{t(
-													`editor.lineStatus.${line.lineStatus === "non-macro" ? "nonMacro" : line.lineStatus}`,
-												)}
-											</span>
-										)}
-									</span>
-									<div className="projection-actions">
-										{line.macroName && (
-											<>
-												<button
-													type="button"
-													className="line-action-btn"
-													title={t("editor.execution.line")}
-													aria-label={t("editor.execution.line")}
-													onClick={() => onExecuteLine?.(line.lineNumber)}
-												>
-													<Play size={11} />
-												</button>
-												<button
-													type="button"
-													className={`line-action-btn ${isPinned ? "pinned" : ""}`}
-													title={
-														isPinned
-															? t("editor.document.pinnedMacro")
-															: t("editor.document.pinMacro")
-													}
-													onClick={() =>
-														onPinMacro?.(
-															isPinned ? null : (line.macroName ?? null),
-														)
-													}
-												>
-													<Pin size={11} />
-												</button>
-											</>
-										)}
+									{/* Gutter cell aligned with the authored text line */}
+									<div className="editor-cell-gutter">
+										<span className="gutter-marker">
+											{isLineActive ? "▎" : " "}
+										</span>
+										<span
+											className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : lineDto?.lineStatus ?? ""}`}
+										>
+											{hasError ? (
+												<AlertTriangle size={12} />
+											) : isPinned ? (
+												<Pin size={12} />
+											) : isValid ? (
+												<Check size={12} />
+											) : isLineActive ? (
+												<Circle size={7} fill="currentColor" />
+											) : null}
+										</span>
+										<span className="gutter-number">
+											{String(lineNum).padStart(
+												Math.max(2, String(totalLineCount).length),
+												"0",
+											)}
+										</span>
+										<span className="gutter-border">│</span>
 									</div>
+
+									{/* Per-line Companion Cell Output (Hybrid Jupyter Output) */}
+									{hasOutput && (
+										<div
+											className={`editor-cell-output ${lineDto?.lineStatus ?? ""}`}
+										>
+											<div className="cell-output-gutter">
+												<span className="gutter-border">│</span>
+											</div>
+											<div className="cell-output-body">
+												<div className="cell-output-content">
+													{diagnostic ? (
+														<span className="cell-diagnostic-text">
+															{diagnostic.message}
+														</span>
+													) : projectionText ? (
+														<span className="cell-preview-text">
+															{projectionText}
+														</span>
+													) : lineDto?.macroName ? (
+														<span className="cell-macro-tag">
+															{lineDto.macroName}
+														</span>
+													) : null}
+												</div>
+
+												{lineDto?.macroName && (
+													<div className="cell-output-actions">
+														<button
+															type="button"
+															className="cell-action-btn"
+															title={t("editor.execution.line")}
+															aria-label={t("editor.execution.line")}
+															onClick={() => onExecuteLine?.(lineNum)}
+														>
+															<Play size={10} />
+														</button>
+														<button
+															type="button"
+															className={`cell-action-btn ${isPinned ? "pinned" : ""}`}
+															title={
+																isPinned
+																	? t("editor.document.pinnedMacro")
+																	: t("editor.document.pinMacro")
+															}
+															aria-label={
+																isPinned
+																	? t("editor.document.pinnedMacro")
+																	: t("editor.document.pinMacro")
+															}
+															onClick={() =>
+																onPinMacro?.(
+																	isPinned ? null : (lineDto.macroName ?? null),
+																)
+															}
+														>
+															<Pin size={10} />
+														</button>
+													</div>
+												)}
+											</div>
+										</div>
+									)}
 								</div>
 							);
 						})}
@@ -337,6 +332,67 @@ export function getEditorSurfaceAdapter(
 			const selection = selectionFromSurface(element);
 			const next = `${current.slice(0, selection.start)}${text}${current.slice(selection.end)}`;
 			onTextChange(next);
+		},
+		moveLine: (delta: -1 | 1) => {
+			const fullText = textFromSurface(element);
+			const selection = selectionFromSurface(element);
+			const beforeCaret = fullText.slice(0, selection.end);
+			const lines = fullText.split("\n");
+			const beforeLines = beforeCaret.split("\n");
+			const currentLineIdx = beforeLines.length - 1;
+			const currentCol = beforeLines[currentLineIdx]?.length ?? 0;
+			const targetLineIdx = currentLineIdx + delta;
+
+			if (targetLineIdx < 0 || targetLineIdx >= lines.length) return;
+
+			let targetOffset = 0;
+			for (let i = 0; i < targetLineIdx; i++) {
+				targetOffset += (lines[i]?.length ?? 0) + 1;
+			}
+			const targetLineLen = lines[targetLineIdx]?.length ?? 0;
+			const newOffset = targetOffset + Math.min(currentCol, targetLineLen);
+			setSurfaceSelection(element, newOffset, newOffset);
+		},
+		moveToLineBoundary: (boundary: "start" | "end") => {
+			const fullText = textFromSurface(element);
+			const selection = selectionFromSurface(element);
+			const prevNewline = fullText.lastIndexOf("\n", selection.end - 1);
+			const nextNewline = fullText.indexOf("\n", selection.end);
+			const startOffset = prevNewline === -1 ? 0 : prevNewline + 1;
+			const endOffset = nextNewline === -1 ? fullText.length : nextNewline;
+			const target = boundary === "start" ? startOffset : endOffset;
+			setSurfaceSelection(element, target, target);
+		},
+		deleteCurrentLine: () => {
+			const fullText = textFromSurface(element);
+			const selection = selectionFromSurface(element);
+			const prevNewline = fullText.lastIndexOf("\n", selection.end - 1);
+			const nextNewline = fullText.indexOf("\n", selection.end);
+			const startOffset = prevNewline === -1 ? 0 : prevNewline + 1;
+			const endOffset = nextNewline === -1 ? fullText.length : nextNewline + 1;
+			const nextText =
+				fullText.slice(0, startOffset) + fullText.slice(endOffset);
+			onTextChange(nextText);
+			const newPos = Math.min(startOffset, nextText.length);
+			setSurfaceSelection(element, newPos, newPos);
+		},
+		insertLine: (position: "above" | "below") => {
+			const fullText = textFromSurface(element);
+			const selection = selectionFromSurface(element);
+			if (position === "below") {
+				const nextNewline = fullText.indexOf("\n", selection.end);
+				const endOffset = nextNewline === -1 ? fullText.length : nextNewline;
+				const nextText = `${fullText.slice(0, endOffset)}\n${fullText.slice(endOffset)}`;
+				onTextChange(nextText);
+				const newPos = endOffset + 1;
+				setSurfaceSelection(element, newPos, newPos);
+			} else {
+				const prevNewline = fullText.lastIndexOf("\n", selection.end - 1);
+				const startOffset = prevNewline === -1 ? 0 : prevNewline + 1;
+				const nextText = `${fullText.slice(0, startOffset)}\n${fullText.slice(startOffset)}`;
+				onTextChange(nextText);
+				setSurfaceSelection(element, startOffset, startOffset);
+			}
 		},
 		focus: () => element.focus(),
 	};
