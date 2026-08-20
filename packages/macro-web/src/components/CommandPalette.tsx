@@ -4,6 +4,7 @@ import { useI18n } from "../lib/macro-i18n-provider";
 
 interface CommandPaletteProps {
 	readonly commands: readonly CommandDescriptorDto[];
+	readonly initialQuery?: string;
 	readonly onExecute: (
 		commandId: string,
 		args?: readonly unknown[],
@@ -53,11 +54,12 @@ function rankCommands(
 
 export function CommandPalette({
 	commands,
+	initialQuery = "",
 	onExecute,
 	onClose,
 }: CommandPaletteProps) {
 	const { t } = useI18n();
-	const [query, setQuery] = useState("");
+	const [query, setQuery] = useState(initialQuery);
 	const [selected, setSelected] = useState(0);
 	const [argsValues, setArgsValues] = useState<Record<string, string>>({});
 	const [pending, setPending] = useState(false);

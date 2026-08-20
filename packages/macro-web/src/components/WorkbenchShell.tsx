@@ -52,6 +52,7 @@ export function WorkbenchShell({
 	onReloadEditorConflict,
 	onOverwriteEditorConflict,
 	onEditorCursorChange,
+	onOpenPalette,
 }: {
 	readonly snapshot?: WorkspaceSnapshot;
 	readonly status?: string;
@@ -73,6 +74,7 @@ export function WorkbenchShell({
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
 	readonly onEditorCursorChange?: (cursor: string) => void;
+	readonly onOpenPalette?: (initialQuery?: string) => void;
 }) {
 	const { t } = useI18n();
 	const [activeDomain, setActiveDomain] = useState<string>();
@@ -97,8 +99,33 @@ export function WorkbenchShell({
 		createBrowserVimController(false, {
 			getAdapter: getSurfaceAdapter,
 			getKeymap: () => snapshotRef.current?.keymap,
-			onCommandModeUnsupported: () =>
-				setVimNotice(t("editor.commandModeUnsupported")),
+			onOpenCommandMode: (initialQuery) =>
+				onOpenPalette?.(initialQuery ?? ":"),
+			onExecuteLine: (lineNum) => {
+				const activeDoc = snapshotRef.current?.editor.activeDocument;
+				if (!activeDoc) return;
+				const targetLine =
+					lineNum ?? (getSurfaceAdapter()?.getActiveCellIndex?.() ?? 0) + 1;
+				void onEditorOperation({
+					operation: "editor.executeLine",
+					requestId: crypto.randomUUID(),
+					documentId: activeDoc.documentId,
+					lineNumber: targetLine,
+					expectedTextRevision: activeDoc.textRevision,
+				});
+			},
+			onExecuteRange: (startLine, endLine) => {
+				const activeDoc = snapshotRef.current?.editor.activeDocument;
+				if (!activeDoc) return;
+				void onEditorOperation({
+					operation: "editor.executeRange",
+					requestId: crypto.randomUUID(),
+					documentId: activeDoc.documentId,
+					startLine,
+					endLine,
+					expectedTextRevision: activeDoc.textRevision,
+				});
+			},
 		}),
 	);
 
@@ -573,6 +600,16 @@ export function WorkbenchShell({
 									requestId: requestId(),
 									documentId: activeDocument.documentId,
 									lineNumber,
+									expectedTextRevision: activeDocument.textRevision,
+								})
+							}
+							onExecuteRange={(startLine, endLine) =>
+								emitEditorOperation({
+									operation: "editor.executeRange",
+									requestId: requestId(),
+									documentId: activeDocument.documentId,
+									startLine,
+									endLine,
 									expectedTextRevision: activeDocument.textRevision,
 								})
 							}

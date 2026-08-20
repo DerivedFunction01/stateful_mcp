@@ -76,13 +76,17 @@ export function App() {
 				snapshot.settings.totalModifiedCount > 0),
 	);
 
-	function openPalette(): void {
+	const [paletteInitialQuery, setPaletteInitialQuery] = useState("");
+
+	function openPalette(initialQuery = ""): void {
 		lastFocused.current = document.activeElement;
+		setPaletteInitialQuery(initialQuery);
 		setPaletteOpen(true);
 	}
 
 	function closePalette(): void {
 		setPaletteOpen(false);
+		setPaletteInitialQuery("");
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
 	}
 
@@ -301,6 +305,7 @@ export function App() {
 									void store.overwriteEditorConflict()
 								}
 								onEditorCursorChange={setEditorCursor}
+								onOpenPalette={openPalette}
 							/>
 						)}
 					</main>
@@ -332,6 +337,7 @@ export function App() {
 				{paletteOpen && (
 					<CommandPalette
 						commands={snapshot?.commands ?? []}
+						initialQuery={paletteInitialQuery}
 						onExecute={(command, args) => {
 							return runCommand(command, args).then(closePalette);
 						}}

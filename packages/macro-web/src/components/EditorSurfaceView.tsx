@@ -4,6 +4,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import type {
 	BrowserEditorSurfaceAdapter,
 	BrowserVimKeyboardEvent,
+	CellRange,
 } from "../lib/browser-vim";
 import { useI18n } from "../lib/macro-i18n-provider";
 
@@ -24,6 +25,7 @@ export interface EditorSurfaceViewProps {
 	readonly onCursorChange?: (cursor: string) => void;
 	readonly onKeyDown?: (event: BrowserVimKeyboardEvent) => boolean;
 	readonly onExecuteLine?: (lineNumber: number) => void;
+	readonly onExecuteRange?: (startLine: number, endLine: number) => void;
 	readonly onPinMacro?: (macroId: string | null) => void;
 	readonly surfaceRef?: RefObject<HTMLElement | null>;
 }
@@ -108,6 +110,7 @@ export function EditorSurfaceView({
 	onCursorChange,
 	onKeyDown,
 	onExecuteLine,
+	onExecuteRange,
 	onPinMacro,
 	surfaceRef,
 }: EditorSurfaceViewProps) {
@@ -116,6 +119,9 @@ export function EditorSurfaceView({
 	const focusedRef = useRef(false);
 	const lastRenderedText = useRef<string | undefined>(undefined);
 	const [activeLineNumber, setActiveLineNumber] = useState<number>(1);
+	const [selectedCellRange, setSelectedCellRange] = useState<CellRange | null>(
+		null,
+	);
 	const sourceText = draft ?? text;
 	const textLines = sourceText.split("\n");
 	const totalLineCount = Math.max(textLines.length, lines.length, 1);
@@ -194,8 +200,21 @@ export function EditorSurfaceView({
 					<div className="editor-cell-decorations" aria-hidden="true">
 						{Array.from({ length: totalLineCount }).map((_, index) => {
 							const lineNum = index + 1;
+							const cellIdx = index;
 							const lineDto = lines.find((l) => l.lineNumber === lineNum);
 							const isLineActive = activeLineNumber === lineNum;
+							const isCellSelected =
+								selectedCellRange !== null &&
+								cellIdx >=
+									Math.min(
+										selectedCellRange.start,
+										selectedCellRange.end,
+									) &&
+								cellIdx <=
+									Math.max(
+										selectedCellRange.start,
+										selectedCellRange.end,
+									);
 							const diagnostic = lineDto?.diagnostics?.[0];
 							const projectionText =
 								lineDto?.preview?.text ?? lineDto?.executionPreview?.text;
@@ -217,13 +236,13 @@ export function EditorSurfaceView({
 							return (
 								<div
 									key={lineNum}
-									className={`editor-cell-unit ${isLineActive ? "active" : ""} ${lineDto?.lineStatus ?? "normal"} ${hasOutput ? "has-output" : ""}`}
+									className={`editor-cell-unit ${isLineActive ? "active" : ""} ${isCellSelected ? "cell-selected" : ""} ${lineDto?.lineStatus ?? "normal"} ${hasOutput ? "has-output" : ""}`}
 									data-line-number={lineNum}
 								>
 									{/* Gutter cell aligned with the authored text line */}
 									<div className="editor-cell-gutter">
 										<span className="gutter-marker">
-											{isLineActive ? "▎" : " "}
+											{isLineActive ? "▎" : isCellSelected ? "▌" : " "}
 										</span>
 										<span
 											className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : (lineDto?.lineStatus ?? "")}`}
@@ -258,54 +277,43 @@ export function EditorSurfaceView({
 											<div className="cell-output-body">
 												<div className="cell-output-content">
 													{diagnostic ? (
-														<span className="cell-diagnostic-text">
+														<span className="cell-diagnostic-message">
 															{diagnostic.message}
 														</span>
 													) : projectionText ? (
-														<span className="cell-preview-text">
+														<span className="cell-projection-preview">
 															{projectionText}
-														</span>
-													) : lineDto?.macroName ? (
-														<span className="cell-macro-tag">
-															{lineDto.macroName}
 														</span>
 													) : null}
 												</div>
-
-												{lineDto?.macroName && (
-													<div className="cell-output-actions">
+												<div className="cell-output-actions">
+													{lineDto?.macroName && !isPinned && (
 														<button
 															type="button"
-															className="cell-action-btn"
-															title={t("editor.execution.line")}
-															aria-label={t("editor.execution.line")}
-															onClick={() => onExecuteLine?.(lineNum)}
+															className="cell-action-btn pin"
+															title={t("editor.pinMacro")}
+															onClick={(e) => {
+																e.stopPropagation();
+																onPinMacro?.(lineDto.macroName ?? null);
+															}}
 														>
-															<Play size={10} />
+															<Pin size={12} />
 														</button>
+													)}
+													{isValid && (
 														<button
 															type="button"
-															className={`cell-action-btn ${isPinned ? "pinned" : ""}`}
-															title={
-																isPinned
-																	? t("editor.document.pinnedMacro")
-																	: t("editor.document.pinMacro")
-															}
-															aria-label={
-																isPinned
-																	? t("editor.document.pinnedMacro")
-																	: t("editor.document.pinMacro")
-															}
-															onClick={() =>
-																onPinMacro?.(
-																	isPinned ? null : (lineDto.macroName ?? null),
-																)
-															}
+															className="cell-action-btn run"
+															title={t("editor.runCell")}
+															onClick={(e) => {
+																e.stopPropagation();
+																onExecuteLine?.(lineNum);
+															}}
 														>
-															<Pin size={10} />
+															<Play size={12} />
 														</button>
-													</div>
-												)}
+													)}
+												</div>
 											</div>
 										</div>
 									)}
@@ -322,9 +330,170 @@ export function EditorSurfaceView({
 export function getEditorSurfaceAdapter(
 	element: HTMLElement | null,
 	onTextChange: (text: string) => void,
+	options?: {
+		readonly getSelectedCellRange?: () => CellRange | null;
+		readonly setSelectedCellRange?: (range: CellRange | null) => void;
+		readonly onExecuteLine?: (lineNumber: number) => void;
+		readonly onExecuteRange?: (startLine: number, endLine: number) => void;
+	},
 ): BrowserEditorSurfaceAdapter | undefined {
 	if (!element) return undefined;
+	let internalSelectedRange: CellRange | null = null;
+
+	const getFullLines = () => textFromSurface(element).split("\n");
+
+	const getActiveLineIdx = () => {
+		const fullText = textFromSurface(element);
+		const selection = selectionFromSurface(element);
+		const beforeCaret = fullText.slice(0, selection.end);
+		return Math.max(0, beforeCaret.split("\n").length - 1);
+	};
+
+	const setLineCaret = (lineIdx: number, col = 0) => {
+		const lines = getFullLines();
+		const targetLine = Math.max(0, Math.min(lines.length - 1, lineIdx));
+		let offset = 0;
+		for (let i = 0; i < targetLine; i++) {
+			offset += (lines[i]?.length ?? 0) + 1;
+		}
+		const targetLineLen = lines[targetLine]?.length ?? 0;
+		const finalOffset = offset + Math.min(col, targetLineLen);
+		setSurfaceSelection(element, finalOffset, finalOffset);
+	};
+
 	return {
+		// ─── Cell-Aware Primitives ──────────────────────────────────────────
+		getActiveCellIndex: () => getActiveLineIdx(),
+		setActiveCellIndex: (idx: number) => setLineCaret(idx),
+		getCellCount: () => getFullLines().length,
+
+		getSelectedCellRange: () =>
+			options?.getSelectedCellRange
+				? options.getSelectedCellRange()
+				: internalSelectedRange,
+
+		setSelectedCellRange: (range: CellRange | null) => {
+			internalSelectedRange = range;
+			options?.setSelectedCellRange?.(range);
+		},
+
+		moveCell: (delta: -1 | 1) => {
+			const current = getActiveLineIdx();
+			const total = getFullLines().length;
+			const next = Math.max(0, Math.min(total - 1, current + delta));
+			setLineCaret(next);
+		},
+
+		extendCellSelection: (delta: -1 | 1) => {
+			const current = getActiveLineIdx();
+			const total = getFullLines().length;
+			const next = Math.max(0, Math.min(total - 1, current + delta));
+			setLineCaret(next);
+
+			const existing = options?.getSelectedCellRange
+				? options.getSelectedCellRange()
+				: internalSelectedRange;
+			const newRange = existing
+				? { start: existing.start, end: next }
+				: { start: current, end: next };
+
+			internalSelectedRange = newRange;
+			options?.setSelectedCellRange?.(newRange);
+		},
+
+		swapSelectionAnchor: () => {
+			const existing = options?.getSelectedCellRange
+				? options.getSelectedCellRange()
+				: internalSelectedRange;
+			if (existing) {
+				const swapped = { start: existing.end, end: existing.start };
+				internalSelectedRange = swapped;
+				options?.setSelectedCellRange?.(swapped);
+				setLineCaret(swapped.end);
+			}
+		},
+
+		deleteCell: (index?: number) => {
+			const targetIdx = index ?? getActiveLineIdx();
+			const lines = getFullLines();
+			if (targetIdx < 0 || targetIdx >= lines.length) return "";
+			const deleted = lines[targetIdx] ?? "";
+			if (lines.length === 1) {
+				onTextChange("");
+				setLineCaret(0);
+			} else {
+				lines.splice(targetIdx, 1);
+				onTextChange(lines.join("\n"));
+				setLineCaret(Math.min(targetIdx, lines.length - 1));
+			}
+			return deleted;
+		},
+
+		deleteCellRange: (start: number, end: number) => {
+			const lines = getFullLines();
+			const minIdx = Math.max(0, Math.min(start, end));
+			const maxIdx = Math.min(lines.length - 1, Math.max(start, end));
+			const count = maxIdx - minIdx + 1;
+			const deletedLines = lines.splice(minIdx, count);
+			const newText = lines.length > 0 ? lines.join("\n") : "";
+			onTextChange(newText);
+			setLineCaret(Math.min(minIdx, Math.max(0, lines.length - 1)));
+			return deletedLines.join("\n");
+		},
+
+		yankCell: (index?: number) => {
+			const targetIdx = index ?? getActiveLineIdx();
+			const lines = getFullLines();
+			return lines[targetIdx] ?? "";
+		},
+
+		yankCellRange: (start: number, end: number) => {
+			const lines = getFullLines();
+			const minIdx = Math.max(0, Math.min(start, end));
+			const maxIdx = Math.min(lines.length - 1, Math.max(start, end));
+			return lines.slice(minIdx, maxIdx + 1).join("\n");
+		},
+
+		insertCell: (position: "above" | "below", text = "") => {
+			const current = getActiveLineIdx();
+			const lines = getFullLines();
+			const insertIdx = position === "below" ? current + 1 : current;
+			lines.splice(insertIdx, 0, text);
+			onTextChange(lines.join("\n"));
+			setLineCaret(insertIdx);
+		},
+
+		pasteCell: (text: string, position: "above" | "below") => {
+			const current = getActiveLineIdx();
+			const lines = getFullLines();
+			const pasteLines = text.split("\n");
+			const insertIdx = position === "below" ? current + 1 : current;
+			lines.splice(insertIdx, 0, ...pasteLines);
+			onTextChange(lines.join("\n"));
+			setLineCaret(insertIdx);
+		},
+
+		executeCell: (index?: number) => {
+			const targetLine = (index ?? getActiveLineIdx()) + 1;
+			options?.onExecuteLine?.(targetLine);
+		},
+
+		executeCellRange: (start: number, end: number) => {
+			const startLine = Math.min(start, end) + 1;
+			const endLine = Math.max(start, end) + 1;
+			options?.onExecuteRange?.(startLine, endLine);
+		},
+
+		focusCellForEdit: (index?: number) => {
+			if (index !== undefined) setLineCaret(index);
+			element.focus();
+		},
+
+		blurCellEdit: () => {
+			element.blur();
+		},
+
+		// ─── Text-Level Fallbacks ───────────────────────────────────────────
 		getText: () => textFromSurface(element),
 		getSelection: () => selectionFromSurface(element),
 		setSelection: ({ start, end }) => setSurfaceSelection(element, start, end),
@@ -335,24 +504,10 @@ export function getEditorSurfaceAdapter(
 			onTextChange(next);
 		},
 		moveLine: (delta: -1 | 1) => {
-			const fullText = textFromSurface(element);
-			const selection = selectionFromSurface(element);
-			const beforeCaret = fullText.slice(0, selection.end);
-			const lines = fullText.split("\n");
-			const beforeLines = beforeCaret.split("\n");
-			const currentLineIdx = beforeLines.length - 1;
-			const currentCol = beforeLines[currentLineIdx]?.length ?? 0;
-			const targetLineIdx = currentLineIdx + delta;
-
-			if (targetLineIdx < 0 || targetLineIdx >= lines.length) return;
-
-			let targetOffset = 0;
-			for (let i = 0; i < targetLineIdx; i++) {
-				targetOffset += (lines[i]?.length ?? 0) + 1;
-			}
-			const targetLineLen = lines[targetLineIdx]?.length ?? 0;
-			const newOffset = targetOffset + Math.min(currentCol, targetLineLen);
-			setSurfaceSelection(element, newOffset, newOffset);
+			const current = getActiveLineIdx();
+			const total = getFullLines().length;
+			const next = Math.max(0, Math.min(total - 1, current + delta));
+			setLineCaret(next);
 		},
 		moveToLineBoundary: (boundary: "start" | "end") => {
 			const fullText = textFromSurface(element);
@@ -365,35 +520,18 @@ export function getEditorSurfaceAdapter(
 			setSurfaceSelection(element, target, target);
 		},
 		deleteCurrentLine: () => {
-			const fullText = textFromSurface(element);
-			const selection = selectionFromSurface(element);
-			const prevNewline = fullText.lastIndexOf("\n", selection.end - 1);
-			const nextNewline = fullText.indexOf("\n", selection.end);
-			const startOffset = prevNewline === -1 ? 0 : prevNewline + 1;
-			const endOffset = nextNewline === -1 ? fullText.length : nextNewline + 1;
-			const nextText =
-				fullText.slice(0, startOffset) + fullText.slice(endOffset);
-			onTextChange(nextText);
-			const newPos = Math.min(startOffset, nextText.length);
-			setSurfaceSelection(element, newPos, newPos);
+			const current = getActiveLineIdx();
+			const lines = getFullLines();
+			lines.splice(current, 1);
+			onTextChange(lines.join("\n"));
 		},
 		insertLine: (position: "above" | "below") => {
-			const fullText = textFromSurface(element);
-			const selection = selectionFromSurface(element);
-			if (position === "below") {
-				const nextNewline = fullText.indexOf("\n", selection.end);
-				const endOffset = nextNewline === -1 ? fullText.length : nextNewline;
-				const nextText = `${fullText.slice(0, endOffset)}\n${fullText.slice(endOffset)}`;
-				onTextChange(nextText);
-				const newPos = endOffset + 1;
-				setSurfaceSelection(element, newPos, newPos);
-			} else {
-				const prevNewline = fullText.lastIndexOf("\n", selection.end - 1);
-				const startOffset = prevNewline === -1 ? 0 : prevNewline + 1;
-				const nextText = `${fullText.slice(0, startOffset)}\n${fullText.slice(startOffset)}`;
-				onTextChange(nextText);
-				setSurfaceSelection(element, startOffset, startOffset);
-			}
+			const current = getActiveLineIdx();
+			const lines = getFullLines();
+			const insertIdx = position === "below" ? current + 1 : current;
+			lines.splice(insertIdx, 0, "");
+			onTextChange(lines.join("\n"));
+			setLineCaret(insertIdx);
 		},
 		focus: () => element.focus(),
 	};

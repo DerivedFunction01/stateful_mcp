@@ -15,7 +15,33 @@ export interface BrowserVimKeyboardEvent {
 	stopPropagation(): void;
 }
 
+export interface CellRange {
+	readonly start: number;
+	readonly end: number;
+}
+
 export interface BrowserEditorSurfaceAdapter {
+	// Cell-aware operations
+	getActiveCellIndex?(): number;
+	setActiveCellIndex?(index: number): void;
+	getCellCount?(): number;
+	getSelectedCellRange?(): CellRange | null;
+	setSelectedCellRange?(range: CellRange | null): void;
+	moveCell?(delta: -1 | 1): void;
+	extendCellSelection?(delta: -1 | 1): void;
+	swapSelectionAnchor?(): void;
+	executeCell?(index?: number): void;
+	executeCellRange?(start: number, end: number): void;
+	deleteCell?(index?: number): string; // returns deleted text for yank
+	deleteCellRange?(start: number, end: number): string; // returns deleted text for yank
+	yankCell?(index?: number): string;
+	yankCellRange?(start: number, end: number): string;
+	insertCell?(position: "above" | "below", text?: string): void;
+	pasteCell?(text: string, position: "above" | "below"): void;
+	focusCellForEdit?(index?: number): void;
+	blurCellEdit?(): void;
+
+	// Underlying text operations (when in insert mode or text fallback)
 	getText(): string;
 	getSelection(): { start: number; end: number };
 	setSelection(selection: { start: number; end: number }): void;
@@ -87,14 +113,17 @@ export function createBrowserVimController(
 	initialEnabled = false,
 	options?: {
 		onCommandModeUnsupported?: () => void;
+		onOpenCommandMode?: (initialQuery?: string) => void;
 		getAdapter?: () => BrowserEditorSurfaceAdapter | undefined;
 		getKeymap?: () => KeymapSource;
-		onExecuteLine?: () => void;
+		onExecuteLine?: (lineNumber?: number) => void;
+		onExecuteRange?: (startLine: number, endLine: number) => void;
 		onPreviewLine?: () => void;
 	},
 ): BrowserVimController {
 	let state: BrowserVimState = { enabled: initialEnabled, mode: "NORMAL" };
 	let sequenceBuffer = "";
+	let yankBuffer = "";
 	let sequenceTimer: ReturnType<typeof setTimeout> | null = null;
 	const listeners = new Set<() => void>();
 	const notify = () => listeners.forEach((listener) => listener());
@@ -136,9 +165,11 @@ export function createBrowserVimController(
 			const keymap = options?.getKeymap?.();
 			const adapter = options?.getAdapter?.();
 
-			// Escape always returns to NORMAL mode
+			// Escape always resets to clean NORMAL mode
 			if (rawKey === "Escape" || chord === "escape" || chord === "ctrl+[") {
 				clearSequence();
+				adapter?.setSelectedCellRange?.(null);
+				adapter?.blurCellEdit?.();
 				setMode("NORMAL");
 				event.preventDefault();
 				return true;
@@ -155,36 +186,40 @@ export function createBrowserVimController(
 			const sequenceMap = keymap?.vim?.sequences ?? keymap?.sequences;
 			const bindings = keymap?.bindings;
 
-			// Handle sequence buffering (e.g. "dd", "yy", "[e", "]e")
+			// Handle sequence buffering (e.g. "dd", "yy", "[e", "]e", "gw", "gp")
 			if (state.mode === "NORMAL" && sequenceMap) {
 				const currentSeq = sequenceBuffer + rawKey;
+				let hasExactMatch = false;
+				let hasPartialMatch = false;
+				let matchedAction: string | null = null;
 
-				// Check if any defined sequence starts with or matches currentSeq
-				const matchingSequenceKey = Object.entries(sequenceMap).find(
-					([, seqChord]) => (seqChord as string) === currentSeq,
-				);
-				const hasPartialMatch = Object.values(sequenceMap).some(
-					(seqChord) =>
-						typeof seqChord === "string" &&
-						seqChord.startsWith(currentSeq) &&
-						seqChord.length > currentSeq.length,
-				);
+				for (const [action, seq] of Object.entries(sequenceMap)) {
+					if (seq === currentSeq) {
+						hasExactMatch = true;
+						matchedAction = action;
+						break;
+					}
+					if (seq.startsWith(currentSeq)) {
+						hasPartialMatch = true;
+					}
+				}
 
-				if (matchingSequenceKey) {
+				if (hasExactMatch && matchedAction) {
 					clearSequence();
-					const [action] = matchingSequenceKey;
-					if (action === "deleteCell") {
-						if (adapter?.deleteCurrentLine) {
-							adapter.deleteCurrentLine();
-						} else if (adapter) {
-							const text = adapter.getText();
-							const sel = adapter.getSelection();
-							const lines = text.split("\n");
-							const currentLineIdx =
-								text.slice(0, sel.end).split("\n").length - 1;
-							lines.splice(currentLineIdx, 1);
-							adapter.replaceSelection("");
-							// Recompute text
+					if (matchedAction === "deleteCell") {
+						const deleted =
+							adapter?.deleteCell?.() ??
+							adapter?.deleteCurrentLine?.() ??
+							"";
+						if (typeof deleted === "string" && deleted) {
+							yankBuffer = deleted;
+						}
+					} else if (matchedAction === "yankCell") {
+						const yanked = adapter?.yankCell?.();
+						if (yanked) yankBuffer = yanked;
+					} else if (matchedAction === "pasteAbove") {
+						if (yankBuffer) {
+							adapter?.pasteCell?.(yankBuffer, "above");
 						}
 					}
 					event.preventDefault();
@@ -204,41 +239,41 @@ export function createBrowserVimController(
 
 			// ── NORMAL Mode Keymap Dispatch ──────────────────────────────────────
 			if (state.mode === "NORMAL") {
-				// Check normal map actions directly (Strict Zero Fallback)
 				if (normalMap) {
 					if (normalMap.enterInsert && rawKey === normalMap.enterInsert) {
 						setMode("INSERT");
+						adapter?.focusCellForEdit?.() ?? adapter?.focus?.();
 						event.preventDefault();
 						return true;
 					}
 					if (normalMap.insertBelow && rawKey === normalMap.insertBelow) {
-						if (adapter?.insertLine) {
-							adapter.insertLine("below");
-						}
+						adapter?.insertCell?.("below") ??
+							adapter?.insertLine?.("below");
 						setMode("INSERT");
 						event.preventDefault();
 						return true;
 					}
 					if (normalMap.insertAbove && rawKey === normalMap.insertAbove) {
-						if (adapter?.insertLine) {
-							adapter.insertLine("above");
-						}
+						adapter?.insertCell?.("above") ??
+							adapter?.insertLine?.("above");
 						setMode("INSERT");
 						event.preventDefault();
 						return true;
 					}
 					if (normalMap.enterVisual && rawKey === normalMap.enterVisual) {
 						setMode("VISUAL");
+						const cur = adapter?.getActiveCellIndex?.() ?? 0;
+						adapter?.setSelectedCellRange?.({ start: cur, end: cur });
 						event.preventDefault();
 						return true;
 					}
 					if (normalMap.moveDown && rawKey === normalMap.moveDown) {
-						adapter?.moveLine?.(1);
+						adapter?.moveCell?.(1) ?? adapter?.moveLine?.(1);
 						event.preventDefault();
 						return true;
 					}
 					if (normalMap.moveUp && rawKey === normalMap.moveUp) {
-						adapter?.moveLine?.(-1);
+						adapter?.moveCell?.(-1) ?? adapter?.moveLine?.(-1);
 						event.preventDefault();
 						return true;
 					}
@@ -260,6 +295,13 @@ export function createBrowserVimController(
 						event.preventDefault();
 						return true;
 					}
+					if (normalMap.pasteBelow && rawKey === normalMap.pasteBelow) {
+						if (yankBuffer) {
+							adapter?.pasteCell?.(yankBuffer, "below");
+						}
+						event.preventDefault();
+						return true;
+					}
 					if (normalMap.undo && chord === normalMap.undo) {
 						adapter?.undo?.();
 						event.preventDefault();
@@ -271,7 +313,14 @@ export function createBrowserVimController(
 						return true;
 					}
 					if (normalMap.runCell && rawKey === normalMap.runCell) {
-						options?.onExecuteLine?.();
+						const cellIdx = adapter?.getActiveCellIndex?.();
+						if (options?.onExecuteLine) {
+							options.onExecuteLine(
+								cellIdx !== undefined ? cellIdx + 1 : undefined,
+							);
+						} else {
+							adapter?.executeCell?.(cellIdx);
+						}
 						event.preventDefault();
 						return true;
 					}
@@ -281,7 +330,20 @@ export function createBrowserVimController(
 						return true;
 					}
 					if (normalMap.command && rawKey === normalMap.command) {
-						options?.onCommandModeUnsupported?.();
+						setMode("COMMAND");
+						if (options?.onOpenCommandMode) {
+							options.onOpenCommandMode(":");
+						} else {
+							options?.onCommandModeUnsupported?.();
+						}
+						event.preventDefault();
+						return true;
+					}
+					if (
+						(normalMap.search && rawKey === normalMap.search) ||
+						(normalMap.searchAlt && rawKey === normalMap.searchAlt)
+					) {
+						options?.onOpenCommandMode?.("");
 						event.preventDefault();
 						return true;
 					}
@@ -295,22 +357,16 @@ export function createBrowserVimController(
 					if (matched) {
 						if (matched.command === "editor.enterInsert") {
 							setMode("INSERT");
+							adapter?.focusCellForEdit?.() ?? adapter?.focus?.();
 						} else if (matched.command === "editor.moveDown") {
-							adapter?.moveLine?.(1);
+							adapter?.moveCell?.(1) ?? adapter?.moveLine?.(1);
 						} else if (matched.command === "editor.moveUp") {
-							adapter?.moveLine?.(-1);
-						} else if (matched.command === "editor.moveLeft") {
-							if (adapter) {
-								const sel = adapter.getSelection();
-								const next = Math.max(0, sel.end - 1);
-								adapter.setSelection({ start: next, end: next });
-							}
-						} else if (matched.command === "editor.moveRight") {
-							if (adapter) {
-								const sel = adapter.getSelection();
-								const next = Math.min(adapter.getText().length, sel.end + 1);
-								adapter.setSelection({ start: next, end: next });
-							}
+							adapter?.moveCell?.(-1) ?? adapter?.moveLine?.(-1);
+						} else if (matched.command === "editor.executeLine") {
+							const cellIdx = adapter?.getActiveCellIndex?.();
+							options?.onExecuteLine?.(
+								cellIdx !== undefined ? cellIdx + 1 : undefined,
+							);
 						}
 						event.preventDefault();
 						return true;
@@ -329,40 +385,58 @@ export function createBrowserVimController(
 						visualMap.deleteSelection &&
 						rawKey === visualMap.deleteSelection
 					) {
-						adapter?.replaceSelection("");
+						const range = adapter?.getSelectedCellRange?.();
+						if (range && adapter?.deleteCellRange) {
+							const deleted = adapter.deleteCellRange(range.start, range.end);
+							if (deleted) yankBuffer = deleted;
+						} else {
+							adapter?.replaceSelection("");
+						}
+						adapter?.setSelectedCellRange?.(null);
+						setMode("NORMAL");
+						event.preventDefault();
+						return true;
+					}
+					if (
+						visualMap.yankSelection &&
+						rawKey === visualMap.yankSelection
+					) {
+						const range = adapter?.getSelectedCellRange?.();
+						if (range && adapter?.yankCellRange) {
+							const yanked = adapter.yankCellRange(range.start, range.end);
+							if (yanked) yankBuffer = yanked;
+						}
+						adapter?.setSelectedCellRange?.(null);
 						setMode("NORMAL");
 						event.preventDefault();
 						return true;
 					}
 					if (visualMap.extendDown && rawKey === visualMap.extendDown) {
-						adapter?.moveLine?.(1);
+						adapter?.extendCellSelection?.(1) ?? adapter?.moveLine?.(1);
 						event.preventDefault();
 						return true;
 					}
 					if (visualMap.extendUp && rawKey === visualMap.extendUp) {
-						adapter?.moveLine?.(-1);
+						adapter?.extendCellSelection?.(-1) ?? adapter?.moveLine?.(-1);
 						event.preventDefault();
 						return true;
 					}
-					if (visualMap.extendLeft && rawKey === visualMap.extendLeft) {
-						if (adapter) {
-							const sel = adapter.getSelection();
-							adapter.setSelection({
-								start: sel.start,
-								end: Math.max(0, sel.end - 1),
-							});
-						}
+					if (visualMap.swapAnchor && rawKey === visualMap.swapAnchor) {
+						adapter?.swapSelectionAnchor?.();
 						event.preventDefault();
 						return true;
 					}
-					if (visualMap.extendRight && rawKey === visualMap.extendRight) {
-						if (adapter) {
-							const sel = adapter.getSelection();
-							adapter.setSelection({
-								start: sel.start,
-								end: Math.min(adapter.getText().length, sel.end + 1),
-							});
+					if (normalMap?.runCell && rawKey === normalMap.runCell) {
+						const range = adapter?.getSelectedCellRange?.();
+						if (range) {
+							if (options?.onExecuteRange) {
+								options.onExecuteRange(range.start + 1, range.end + 1);
+							} else {
+								adapter?.executeCellRange?.(range.start, range.end);
+							}
 						}
+						adapter?.setSelectedCellRange?.(null);
+						setMode("NORMAL");
 						event.preventDefault();
 						return true;
 					}

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { createBrowserVimController } from "../src/lib/browser-vim";
+import {
+	type CellRange,
+	createBrowserVimController,
+} from "../src/lib/browser-vim";
 
 describe("keymap-driven browser Vim controller", () => {
 	const defaultProfile = {
@@ -202,5 +205,114 @@ describe("keymap-driven browser Vim controller", () => {
 		// Mode transition via keymap.vim.normal
 		expect(controller.handleKeyDown(event("i"))).toBe(true);
 		expect(controller.getState().mode).toBe("INSERT");
+	});
+
+	test("handles cell-aware navigation and cell range selection in VISUAL mode", () => {
+		let activeCell = 0;
+		let selectedRange: { start: number; end: number } | null = null;
+		let executedRange: { start: number; end: number } | null = null;
+
+		const profile = {
+			vim: {
+				normal: {
+					moveDown: "j",
+					moveUp: "k",
+					enterVisual: "v",
+					enterInsert: "i",
+					runCell: "r",
+					command: ":",
+				},
+				visual: {
+					extendDown: "j",
+					extendUp: "k",
+					deleteSelection: "d",
+					yankSelection: "y",
+					swapAnchor: "o",
+				},
+			},
+		};
+
+		let openedCommandQuery: string | undefined;
+
+		const controller = createBrowserVimController(true, {
+			getKeymap: () => profile,
+			onOpenCommandMode: (q) => {
+				openedCommandQuery = q;
+			},
+			getAdapter: () => ({
+				getActiveCellIndex: () => activeCell,
+				setActiveCellIndex: (idx) => {
+					activeCell = idx;
+				},
+				getCellCount: () => 4,
+				getSelectedCellRange: () => selectedRange,
+				setSelectedCellRange: (r) => {
+					selectedRange = r;
+				},
+				moveCell: (delta) => {
+					activeCell = Math.max(0, Math.min(3, activeCell + delta));
+				},
+				extendCellSelection: (delta) => {
+					const next = Math.max(0, Math.min(3, activeCell + delta));
+					activeCell = next;
+					selectedRange = selectedRange
+						? { start: selectedRange.start, end: next }
+						: { start: activeCell, end: next };
+				},
+				swapSelectionAnchor: () => {
+					if (selectedRange) {
+						selectedRange = {
+							start: selectedRange.end,
+							end: selectedRange.start,
+						};
+						activeCell = selectedRange.end;
+					}
+				},
+				executeCellRange: (start, end) => {
+					executedRange = { start, end };
+				},
+				getText: () => "c1\nc2\nc3\nc4",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		const event = (key: string) => ({
+			key,
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+
+		// 1. Move cell down
+		expect(controller.handleKeyDown(event("j"))).toBe(true);
+		expect(activeCell).toBe(1);
+
+		// 2. Enter VISUAL mode (cell selection anchored at cell 1)
+		expect(controller.handleKeyDown(event("v"))).toBe(true);
+		expect(controller.getState().mode).toBe("VISUAL");
+		expect(selectedRange!).toEqual({ start: 1, end: 1 });
+
+		// 3. Extend visual range down
+		expect(controller.handleKeyDown(event("j"))).toBe(true);
+		expect(activeCell).toBe(2);
+		expect(selectedRange!).toEqual({ start: 1, end: 2 });
+
+		// 4. Swap anchor in visual mode
+		expect(controller.handleKeyDown(event("o"))).toBe(true);
+		expect(selectedRange!).toEqual({ start: 2, end: 1 });
+		expect(activeCell).toBe(1);
+
+		// 5. Batch execute selected range with 'r'
+		expect(controller.handleKeyDown(event("r"))).toBe(true);
+		expect(executedRange!).toEqual({ start: 2, end: 1 });
+		expect(controller.getState().mode).toBe("NORMAL");
+		expect(selectedRange).toBeNull();
+
+		// 6. Enter command mode with configured command key ':'
+		expect(controller.handleKeyDown(event(":"))).toBe(true);
+		expect(controller.getState().mode).toBe("COMMAND");
+		expect(openedCommandQuery).toBe(":");
 	});
 });
