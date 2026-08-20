@@ -10,6 +10,7 @@ import { ExtensionContributionManager } from "./contributions/extension-contribu
 import { SettingsContributionRegistry } from "./contributions/settings-registry";
 import { TabRegistry } from "./contributions/tab-registry";
 import { ViewRegistry } from "./contributions/view-registry";
+import { MacroEditorGroupManager } from "./editor/editor-group-manager";
 import type { EditorKernel } from "./editor/editor-kernel";
 import {
 	MacroDocumentManager,
@@ -50,6 +51,7 @@ export * from "./contributions/types";
 export * from "./contributions/view-registry";
 export * from "./editor/chips";
 export * from "./editor/cursor-buffer";
+export * from "./editor/editor-group-manager";
 export * from "./editor/editor-kernel";
 export * from "./editor/macro-document-manager";
 export * from "./editor/vim-motions";
@@ -83,6 +85,7 @@ export interface MacroWorkspace {
 	readonly editor: EditorKernel;
 	readonly scratchpad: ScratchpadSession;
 	readonly documents: MacroDocumentManager;
+	readonly editorGroups: MacroEditorGroupManager;
 	readonly palette: CommandPaletteController;
 	readonly saveCoordinator: WorkspaceSaveCoordinator;
 	readonly journal: WorkspaceJournal;
@@ -129,6 +132,7 @@ export function createMacroWorkspace(
 	const activeDocument = documents.active();
 	if (!activeDocument)
 		throw new Error("Macro workspace requires an editor document");
+	const editorGroups = new MacroEditorGroupManager(documents);
 	const editor = activeDocument.editor;
 	const scratchpad = activeDocument.session;
 	const palette = new CommandPaletteController(commands, layout, tabs);
@@ -423,6 +427,7 @@ export function createMacroWorkspace(
 			return documents.active()?.session ?? scratchpad;
 		},
 		documents,
+		editorGroups,
 		palette,
 		saveCoordinator,
 		journal,
@@ -438,6 +443,7 @@ export function createMacroWorkspace(
 		dispose: async () => {
 			unsubscribeSettingsContributions();
 			contributions.dispose();
+			editorGroups.dispose();
 			documents.dispose();
 			await runtime.dispose();
 		},

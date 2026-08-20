@@ -11,8 +11,10 @@ import {
 	Box,
 	ChevronRight,
 	CircleDot,
+	Columns2,
 	Files,
 	PanelRight,
+	X,
 } from "lucide-react";
 import {
 	type CSSProperties,
@@ -20,9 +22,17 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
+import { createBrowserVimController } from "../lib/browser-vim";
 import { useEditorSurfaceRegistry } from "../lib/editor-surface-registry";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { EditorOutputDrawer } from "./EditorOutputDrawer";
+import {
+	EditorSurfaceView,
+	getEditorSurfaceAdapter,
+} from "./EditorSurfaceView";
+import { MacroSlotsInspector } from "./MacroSlotsInspector";
 import { Splitter } from "./Splitter";
 import { Badge } from "./ui/primitives";
 
@@ -40,6 +50,7 @@ export function WorkbenchShell({
 	onSetEditorDraft,
 	onReloadEditorConflict,
 	onOverwriteEditorConflict,
+	onEditorCursorChange,
 }: {
 	readonly snapshot?: WorkspaceSnapshot;
 	readonly status?: string;
@@ -60,12 +71,34 @@ export function WorkbenchShell({
 	readonly onSetEditorDraft: (documentId: string, text: string) => void;
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
+	readonly onEditorCursorChange?: (cursor: string) => void;
 }) {
 	const { t } = useI18n();
 	const [activeDomain, setActiveDomain] = useState<string>();
 	const registry = useEditorSurfaceRegistry();
-	const surfaceRef = useRef<HTMLTextAreaElement | null>(null);
+	const surfaceRef = useRef<HTMLElement | null>(null);
 	const [surfaceFocused, setSurfaceFocused] = useState(false);
+	const [vimNotice, setVimNotice] = useState<string>();
+	const getSurfaceAdapter = () => {
+		const element = surfaceRef.current;
+		if (!element) return undefined;
+		return getEditorSurfaceAdapter(element, (text) => {
+			if (activeDocumentMeta)
+				onSetEditorDraft(activeDocumentMeta.documentId, text);
+		});
+	};
+	const [vimController] = useState(() =>
+		createBrowserVimController(false, {
+			getAdapter: getSurfaceAdapter,
+			onCommandModeUnsupported: () =>
+				setVimNotice(t("editor.commandModeUnsupported")),
+		}),
+	);
+	const vimState = useSyncExternalStore(
+		vimController.subscribe,
+		vimController.getState,
+		vimController.getState,
+	);
 	const activeDocument = snapshot?.editor.activeDocument;
 	const activeDocumentMeta = snapshot?.editor.documents.find(
 		(document) => document.documentId === snapshot?.editor.activeDocumentId,
@@ -129,9 +162,13 @@ export function WorkbenchShell({
 			context: {
 				focusedRegion: "main",
 				activeDocumentId: snapshot?.editor.activeDocumentId ?? undefined,
+				editorMode: vimState.mode,
+				textInputOwner: "editor",
 			},
-			vimEnabled: false,
-			mode: undefined,
+			vimEnabled: vimState.enabled,
+			mode: vimState.mode,
+			adapter: getSurfaceAdapter(),
+			handleKeyDown: (event) => vimController.handleKeyDown(event),
 		});
 		return () => registry.unregister(surfaceId);
 	}, [registry, surfaceId]);
@@ -141,17 +178,23 @@ export function WorkbenchShell({
 			context: {
 				focusedRegion: "main",
 				activeDocumentId: snapshot?.editor.activeDocumentId ?? undefined,
+				editorMode: vimState.mode,
+				textInputOwner: "editor",
 			},
-			vimEnabled: false,
-			mode: undefined,
+			vimEnabled: vimState.enabled,
+			mode: vimState.mode,
+			adapter: getSurfaceAdapter(),
+			handleKeyDown: (event) => vimController.handleKeyDown(event),
 		});
-	}, [registry, surfaceId, surfaceFocused, snapshot?.editor.activeDocumentId]);
-	useEffect(() => {
-		const element = surfaceRef.current;
-		if (!element || surfaceFocused || localDraft !== undefined) return;
-		const hostText = activeDocument?.text ?? "";
-		if (element.value !== hostText) element.value = hostText;
-	}, [activeDocument?.text, localDraft, surfaceFocused]);
+	}, [
+		registry,
+		surfaceId,
+		surfaceFocused,
+		snapshot?.editor.activeDocumentId,
+		vimController,
+		vimState.enabled,
+		vimState.mode,
+	]);
 	useEffect(() => {
 		if (localDraft === undefined) {
 			lastSubmittedDraftRef.current = null;
@@ -187,6 +230,14 @@ export function WorkbenchShell({
 	}
 
 	const activeDomainId = activeDomain ?? snapshot.applications[0]?.id;
+	const activeGroup = snapshot.editor.groups.find(
+		(group) => group.groupId === snapshot.editor.activeGroupId,
+	);
+	const activeGroupDocuments = activeGroup
+		? snapshot.editor.documents.filter((document) =>
+				activeGroup.documentIds.includes(document.documentId),
+			)
+		: snapshot.editor.documents;
 	const activeView = snapshot.contributions.views.find(
 		(view) => view.containerId === snapshot.layout.activeContainerId,
 	);
@@ -197,11 +248,28 @@ export function WorkbenchShell({
 		t(`editor.lineStatus.${status === "non-macro" ? "nonMacro" : status}`);
 	const selectedLineRange = () => {
 		const element = surfaceRef.current;
-		const text = element?.value ?? activeDocument?.text ?? "";
-		const start = element?.selectionStart ?? 0;
-		const end = element?.selectionEnd ?? start;
+		const text =
+			getEditorSurfaceAdapter(element, () => undefined)?.getText() ??
+			activeDocument?.text ??
+			"";
+		const selection = getEditorSurfaceAdapter(
+			element,
+			() => undefined,
+		)?.getSelection() ?? { start: 0, end: 0 };
+		const start = selection.start;
+		const end = selection.end;
 		const lineAt = (offset: number) => text.slice(0, offset).split("\n").length;
 		return { startLine: lineAt(start), endLine: lineAt(Math.max(start, end)) };
+	};
+	const openDocumentInActiveGroup = (documentId: string) => {
+		if (!activeGroup) return;
+		emitEditorOperation({
+			operation: "editor.openDocumentInGroup",
+			requestId: requestId(),
+			groupId: activeGroup.groupId,
+			documentId,
+			expectedWorkspaceRevision: snapshot.revision,
+		});
 	};
 	return (
 		<div
@@ -304,11 +372,105 @@ export function WorkbenchShell({
 			/>
 			<section className="workbench-center">
 				<div
+					className="workbench-editor-groups"
+					role="tablist"
+					aria-label={t("editor.group.focus")}
+				>
+					{snapshot.editor.groups.map((group) => (
+						<button
+							key={group.groupId}
+							className={
+								group.groupId === snapshot.editor.activeGroupId
+									? "editor-group active"
+									: "editor-group"
+							}
+							type="button"
+							role="tab"
+							aria-selected={group.groupId === snapshot.editor.activeGroupId}
+							title={t("editor.group.focus")}
+							onClick={() =>
+								emitEditorOperation({
+									operation: "editor.focusGroup",
+									requestId: requestId(),
+									groupId: group.groupId,
+									expectedWorkspaceRevision: snapshot.revision,
+								})
+							}
+						>
+							{group.groupId.slice(-4)}
+						</button>
+					))}
+					{activeGroup &&
+						snapshot.editor.documents
+							.filter(
+								(document) =>
+									!activeGroup.documentIds.includes(document.documentId),
+							)
+							.map((document) => (
+								<button
+									key={`open:${document.documentId}`}
+									type="button"
+									title={t("editor.group.openDocument")}
+									onClick={() => openDocumentInActiveGroup(document.documentId)}
+								>
+									{document.title}
+								</button>
+							))}
+					<button
+						type="button"
+						aria-label={t("editor.toggleVim")}
+						aria-pressed={vimState.enabled}
+						disabled={!snapshot.editor.capabilities.canUseVim}
+						onClick={() => vimController.setEnabled(!vimState.enabled)}
+					>
+						{vimState.enabled
+							? t("editor.vimEnabled")
+							: t("editor.vimDisabled")}
+					</button>
+					<button
+						type="button"
+						title={t("editor.group.split")}
+						disabled={!snapshot.editor.capabilities.canSplit || pendingEditor}
+						onClick={() =>
+							emitEditorOperation({
+								operation: "editor.createSplitGroup",
+								requestId: requestId(),
+								sourceGroupId: activeGroup?.groupId,
+								documentId: activeDocument?.documentId,
+								expectedWorkspaceRevision: snapshot.revision,
+							})
+						}
+					>
+						<Columns2 size={14} aria-hidden />
+					</button>
+					{activeGroup && snapshot.editor.groups.length > 1 && (
+						<button
+							type="button"
+							title={t("editor.group.close")}
+							onClick={() =>
+								emitEditorOperation({
+									operation: "editor.closeGroup",
+									requestId: requestId(),
+									groupId: activeGroup.groupId,
+									expectedWorkspaceRevision: snapshot.revision,
+								})
+							}
+						>
+							<X size={14} aria-hidden />
+						</button>
+					)}
+					{vimNotice && (
+						<span className="editor-vim-notice" role="status">
+							{vimNotice}
+						</span>
+					)}
+				</div>
+				<div
 					className="workbench-tabs"
 					role="tablist"
 					aria-label={t("workbench.tabs")}
 				>
-					{snapshot.editor.documents.map((document) => (
+					{activeGroupDocuments.map((document) => (
 						<span className="workbench-document-tab" key={document.documentId}>
 							<button
 								className={
@@ -322,11 +484,17 @@ export function WorkbenchShell({
 										flushDraft();
 										return;
 									}
-									emitEditorOperation({
-										operation: "editor.selectDocument",
-										requestId: requestId(),
-										documentId: document.documentId,
-									});
+									if (
+										activeGroup &&
+										!activeGroup.documentIds.includes(document.documentId)
+									)
+										openDocumentInActiveGroup(document.documentId);
+									else
+										emitEditorOperation({
+											operation: "editor.selectDocument",
+											requestId: requestId(),
+											documentId: document.documentId,
+										});
 								}}
 								onDoubleClick={() => {
 									const title = window.prompt(
@@ -422,29 +590,52 @@ export function WorkbenchShell({
 							</button>
 						))}
 				</div>
-				<textarea
-					key={activeDocumentMeta?.documentId ?? "inactive-editor"}
-					className="workbench-editor-surface"
-					ref={surfaceRef}
-					aria-label={t("workbench.editor")}
-					defaultValue={localDraft ?? String(activeDocument?.text ?? "")}
-					onChange={(event) => {
-						if (activeDocumentMeta)
-							onSetEditorDraft(
-								activeDocumentMeta.documentId,
-								event.target.value,
-							);
-					}}
-					onBlur={() => {
-						setSurfaceFocused(false);
-						if (draftTimerRef.current !== undefined)
-							window.clearTimeout(draftTimerRef.current);
-						flushDraft();
-					}}
-					onFocus={() => setSurfaceFocused(true)}
-				/>
-				{!activeDocument?.text && !localDraft && (
-					<p className="surface-empty">{t("workbench.empty")}</p>
+				{activeDocument && activeDocumentMeta ? (
+					<EditorSurfaceView
+						key={activeDocumentMeta.documentId}
+						documentId={activeDocumentMeta.documentId}
+						text={activeDocument.text}
+						lines={activeDocument.lines}
+						draft={localDraft}
+						pinnedMacroIds={activeDocumentMeta.pinnedMacroIds}
+						disabled={Boolean(editorConflict)}
+						onTextChange={(text) =>
+							onSetEditorDraft(activeDocumentMeta.documentId, text)
+						}
+						onFocusChange={(focused) => {
+							setSurfaceFocused(focused);
+							if (!focused) {
+								if (draftTimerRef.current !== undefined)
+									window.clearTimeout(draftTimerRef.current);
+								flushDraft();
+							}
+						}}
+						onCursorChange={onEditorCursorChange}
+						onKeyDown={(event) => vimController.handleKeyDown(event)}
+						surfaceRef={surfaceRef}
+						onExecuteLine={(lineNumber) =>
+							emitEditorOperation({
+								operation: "editor.executeLine",
+								requestId: requestId(),
+								documentId: activeDocument.documentId,
+								lineNumber,
+								expectedTextRevision: activeDocument.textRevision,
+							})
+						}
+						onPinMacro={(macroId) =>
+							emitEditorOperation({
+								operation: "editor.pinMacro",
+								requestId: requestId(),
+								documentId: activeDocument.documentId,
+								macroId,
+							})
+						}
+					/>
+				) : (
+					<section className="editor-unavailable" role="status">
+						<strong>{t("editor.inactive.title")}</strong>
+						<span>{t("editor.inactive.description")}</span>
+					</section>
 				)}
 				{activeDocument && (
 					<div className="editor-line-actions">
@@ -566,6 +757,39 @@ export function WorkbenchShell({
 						))}
 					</div>
 				)}
+				{snapshot.editor.groups.length > 1 && (
+					<div className="editor-group-split-preview">
+						{snapshot.editor.groups
+							.filter(
+								(group) => group.groupId !== snapshot.editor.activeGroupId,
+							)
+							.map((group) => {
+								const document = snapshot.editor.documents.find(
+									(item) => item.documentId === group.activeDocumentId,
+								);
+								return (
+									<button
+										className="editor-group-split-preview-pane"
+										key={group.groupId}
+										type="button"
+										onClick={() =>
+											emitEditorOperation({
+												operation: "editor.focusGroup",
+												requestId: requestId(),
+												groupId: group.groupId,
+												expectedWorkspaceRevision: snapshot.revision,
+											})
+										}
+									>
+										<strong>
+											{document?.title ?? t("editor.group.notFound")}
+										</strong>
+										<span>{t("editor.group.focus")}</span>
+									</button>
+								);
+							})}
+					</div>
+				)}
 				{editorResult?.status === "accepted" &&
 					(editorResult.receipts?.length ||
 						editorResult.skippedLines?.length) && (
@@ -623,6 +847,7 @@ export function WorkbenchShell({
 						{t("editor.input.rejected")}
 					</div>
 				)}
+				<EditorOutputDrawer output={snapshot.editor.output} />
 			</section>
 			<Splitter
 				orientation="vertical"
@@ -662,6 +887,21 @@ export function WorkbenchShell({
 						<AlertTriangle size={15} /> {t("status.diagnostics")}
 					</div>
 					<strong>{snapshot.diagnostics.length}</strong>
+				</div>
+				<div className="inspector-card editor-output-card">
+					<MacroSlotsInspector
+						document={snapshot.editor.activeDocument}
+						meta={activeDocumentMeta}
+						onPin={(macroId) =>
+							activeDocument &&
+							emitEditorOperation({
+								operation: "editor.pinMacro",
+								requestId: requestId(),
+								documentId: activeDocument.documentId,
+								macroId,
+							})
+						}
+					/>
 				</div>
 			</aside>
 		</div>

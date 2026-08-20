@@ -68,6 +68,40 @@ export interface EditorDocumentDto {
 	readonly pinnedMacroIds?: readonly string[];
 }
 
+export interface EditorGroupDto {
+	readonly groupId: string;
+	readonly documentIds: readonly string[];
+	readonly activeDocumentId: string | null;
+	readonly orientation: "horizontal" | "vertical";
+	readonly sizeRatio?: number;
+}
+
+export interface EditorOutputIdentityDto {
+	readonly documentId: string;
+	readonly requestId: string;
+	readonly operation:
+		| "editor.executeLine"
+		| "editor.executeRange"
+		| "editor.executeValidLines";
+	readonly textRevision: number;
+}
+
+export interface EditorOutputEntryDto {
+	readonly outputId: string;
+	readonly availability: "available" | "legacy";
+	readonly identity?: EditorOutputIdentityDto;
+	readonly lineNumber?: number;
+	readonly status: "preview" | "committed" | "skipped" | "failed" | "reversed";
+	readonly result?: EditorPayloadEnvelope;
+	readonly errorCode?: string;
+	readonly executedAt: number;
+}
+
+export interface EditorOutputSnapshotDto {
+	readonly entries: readonly EditorOutputEntryDto[];
+	readonly hasMore: boolean;
+}
+
 export interface ScratchpadSnapshotDto {
 	readonly documentId: string;
 	readonly text: string;
@@ -89,13 +123,18 @@ export interface ScratchpadTemplateDescriptor {
 
 export interface EditorWorkspaceSnapshotDto {
 	readonly documents: readonly EditorDocumentDto[];
+	readonly groups: readonly EditorGroupDto[];
+	readonly activeGroupId: string | null;
 	readonly activeDocumentId: string | null;
 	readonly activeDocument: ScratchpadSnapshotDto | null;
 	readonly templates: readonly ScratchpadTemplateDescriptor[];
+	readonly output?: EditorOutputSnapshotDto;
 	readonly capabilities: {
 		readonly canCreate: boolean;
 		readonly canExecute: boolean;
 		readonly canPersist: boolean;
+		readonly canSplit: boolean;
+		readonly canUseVim: boolean;
 	};
 }
 
@@ -172,6 +211,35 @@ export type EditorOperation =
 			readonly operation: "editor.executeValidLines";
 			readonly documentId: string;
 			readonly expectedTextRevision: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.createSplitGroup";
+			readonly sourceGroupId?: string;
+			readonly documentId?: string;
+			readonly orientation?: "horizontal" | "vertical";
+			readonly expectedWorkspaceRevision: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.closeGroup";
+			readonly groupId: string;
+			readonly expectedWorkspaceRevision: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.focusGroup";
+			readonly groupId: string;
+			readonly expectedWorkspaceRevision: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.openDocumentInGroup";
+			readonly groupId: string;
+			readonly documentId: string;
+			readonly expectedWorkspaceRevision: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.moveDocumentToGroup";
+			readonly documentId: string;
+			readonly groupId: string;
+			readonly expectedWorkspaceRevision: number;
 	  });
 
 export interface ScratchpadExecutionReceiptDto {
@@ -201,7 +269,10 @@ export interface EditorOperationResultBase {
 	readonly workspaceSnapshot?: import("./workspace").WorkspaceSnapshot;
 	readonly workspaceRevision: number;
 	readonly documentId?: string;
+	readonly groupId?: string;
 	readonly textRevision?: number;
+	readonly expectedWorkspaceRevision?: number;
+	readonly actualWorkspaceRevision?: number;
 	readonly code?: string;
 	readonly message?: string;
 }

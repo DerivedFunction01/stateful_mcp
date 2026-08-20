@@ -127,7 +127,9 @@ export class BrowserWorkspaceStore {
 		operation: EditorOperation,
 	): Promise<EditorOperationResult> {
 		const requestKey =
-			"documentId" in operation ? operation.documentId : operation.operation;
+			"documentId" in operation && operation.documentId
+				? operation.documentId
+				: operation.operation;
 		this.update({
 			pendingEditorRequests: {
 				...this.state.pendingEditorRequests,
@@ -187,7 +189,11 @@ export class BrowserWorkspaceStore {
 			this.applyResponse(workspaceSnapshot);
 		if (!staleWorkspaceResult && !staleDocumentResult)
 			this.update({ editorResult: result });
-		if (result.status === "conflict" && "documentId" in operation) {
+		if (
+			result.status === "conflict" &&
+			"documentId" in operation &&
+			typeof operation.documentId === "string"
+		) {
 			const localText = this.state.editorDrafts[operation.documentId];
 			if (localText !== undefined)
 				this.update({

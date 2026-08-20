@@ -34,6 +34,7 @@ import {
 	type EditorJsonValue,
 	type EditorOperation,
 	type EditorOperationResult,
+	type EditorOutputSnapshotDto,
 	type EditorPayloadEnvelope,
 	type EditorWorkspaceSnapshotDto,
 	type EffectiveKeymapDto,
@@ -566,6 +567,14 @@ export class HostSessionManager {
 			...(expected === undefined ? {} : { expectedTextRevision: expected }),
 			...(actual === undefined ? {} : { actualTextRevision: actual }),
 		});
+		const workspaceConflict = (expected: number): EditorOperationResult => ({
+			...base(),
+			status: "conflict",
+			code: "EDITOR_WORKSPACE_REVISION_STALE",
+			message: this.message(session, "editor.input.stale"),
+			expectedWorkspaceRevision: expected,
+			actualWorkspaceRevision: session.revision,
+		});
 
 		try {
 			switch (operation.operation) {
@@ -591,10 +600,65 @@ export class HostSessionManager {
 				}
 				case "editor.selectDocument": {
 					documents.select(operation.documentId);
+					const activeGroup = workspace.editorGroups
+						.list()
+						.find((group) => group.activeDocumentId === operation.documentId);
+					if (activeGroup) workspace.editorGroups.focus(activeGroup.groupId);
 					this.emit(session, "workspace.changed");
 					return {
 						...base(),
 						status: "accepted",
+						documentId: operation.documentId,
+					};
+				}
+				case "editor.createSplitGroup": {
+					if (operation.expectedWorkspaceRevision !== session.revision)
+						return workspaceConflict(operation.expectedWorkspaceRevision);
+					const group = workspace.editorGroups.create(operation);
+					this.emit(session, "workspace.changed");
+					return { ...base(), status: "accepted", groupId: group.groupId };
+				}
+				case "editor.closeGroup": {
+					if (operation.expectedWorkspaceRevision !== session.revision)
+						return workspaceConflict(operation.expectedWorkspaceRevision);
+					workspace.editorGroups.close(operation.groupId);
+					this.emit(session, "workspace.changed");
+					return { ...base(), status: "accepted", groupId: operation.groupId };
+				}
+				case "editor.focusGroup": {
+					if (operation.expectedWorkspaceRevision !== session.revision)
+						return workspaceConflict(operation.expectedWorkspaceRevision);
+					workspace.editorGroups.focus(operation.groupId);
+					this.emit(session, "workspace.changed");
+					return { ...base(), status: "accepted", groupId: operation.groupId };
+				}
+				case "editor.openDocumentInGroup": {
+					if (operation.expectedWorkspaceRevision !== session.revision)
+						return workspaceConflict(operation.expectedWorkspaceRevision);
+					workspace.editorGroups.openDocument(
+						operation.groupId,
+						operation.documentId,
+					);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						groupId: operation.groupId,
+						documentId: operation.documentId,
+					};
+				}
+				case "editor.moveDocumentToGroup": {
+					if (operation.expectedWorkspaceRevision !== session.revision)
+						return workspaceConflict(operation.expectedWorkspaceRevision);
+					workspace.editorGroups.moveDocument(
+						operation.documentId,
+						operation.groupId,
+					);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						groupId: operation.groupId,
 						documentId: operation.documentId,
 					};
 				}
@@ -751,7 +815,9 @@ export class HostSessionManager {
 							"EDITOR_LINE_NOT_EXECUTABLE",
 							this.message(session, "editor.execution.failed"),
 						);
-					await session.loaded.workspace.journal.recordExecution(receipt);
+					await session.loaded.workspace.journal.recordExecution(
+						this.withExecutionIdentity(receipt, operation, document),
+					);
 					this.emit(session, "command.completed");
 					return {
 						...base(),
@@ -784,7 +850,9 @@ export class HostSessionManager {
 								operation,
 							);
 						for (const receipt of result.receipts)
-							await session.loaded.workspace.journal.recordExecution(receipt);
+							await session.loaded.workspace.journal.recordExecution(
+								this.withExecutionIdentity(receipt, operation, document),
+							);
 						this.emit(session, "command.completed");
 						return {
 							...base(),
@@ -829,7 +897,9 @@ export class HostSessionManager {
 							operation,
 						);
 					for (const receipt of result.receipts)
-						await session.loaded.workspace.journal.recordExecution(receipt);
+						await session.loaded.workspace.journal.recordExecution(
+							this.withExecutionIdentity(receipt, operation, document),
+						);
 					this.emit(session, "command.completed");
 					return {
 						...base(),
@@ -907,6 +977,10 @@ export class HostSessionManager {
 		switch (code) {
 			case "EDITOR_DOCUMENT_NOT_FOUND":
 				return this.message(session, "editor.document.notFound");
+			case "EDITOR_GROUP_NOT_FOUND":
+				return this.message(session, "editor.group.notFound");
+			case "EDITOR_LAST_GROUP":
+				return this.message(session, "editor.group.last");
 			case "EDITOR_DOCUMENT_DIRTY":
 				return this.message(session, "editor.document.closeDirty");
 			case "EDITOR_LAST_DOCUMENT":
@@ -946,14 +1020,57 @@ export class HostSessionManager {
 			documents: documents
 				.list()
 				.map((document) => this.editorDocumentDto(document)),
+			groups: session.loaded.workspace.editorGroups.list().map((group) => ({
+				groupId: group.groupId,
+				documentIds: group.documentIds,
+				activeDocumentId: group.activeDocumentId,
+				orientation: group.orientation,
+				...(group.sizeRatio === undefined
+					? {}
+					: { sizeRatio: group.sizeRatio }),
+			})),
+			activeGroupId: session.loaded.workspace.editorGroups.getActiveGroupId(),
 			activeDocumentId: documents.getActiveDocumentId(),
 			activeDocument: active ? this.editorDocumentSnapshot(active) : null,
 			templates,
+			output: this.editorOutput(session),
 			capabilities: {
 				canCreate: true,
 				canExecute: Boolean(active),
 				canPersist: false,
+				canSplit: true,
+				canUseVim: true,
 			},
+		};
+	}
+
+	private editorOutput(session: Session): EditorOutputSnapshotDto {
+		const entries = session.loaded.workspace.journal.getEntries();
+		const bounded = entries.slice(-100);
+		return {
+			entries: bounded.map((entry) => ({
+				outputId: entry.id,
+				availability: entry.availability ?? "legacy",
+				...(entry.identity ? { identity: entry.identity } : {}),
+				lineNumber: entry.lineNumber,
+				status:
+					entry.status === "reversed"
+						? "reversed"
+						: entry.success === false
+							? "failed"
+							: "committed",
+				...(entry.result === undefined
+					? {}
+					: {
+							result: toEditorPayload(entry.result, {
+								kind: "journal-result",
+								ownerId: entry.macroName,
+							}),
+						}),
+				...(entry.errorCode ? { errorCode: entry.errorCode } : {}),
+				executedAt: entry.executedAt,
+			})),
+			hasMore: entries.length > bounded.length,
 		};
 	}
 
@@ -1116,11 +1233,19 @@ export class HostSessionManager {
 			readonly error?: string;
 			readonly executedAt: number;
 		},
-		operation: EditorOperation,
+		operation: Extract<
+			EditorOperation,
+			{
+				operation:
+					| "editor.executeLine"
+					| "editor.executeRange"
+					| "editor.executeValidLines";
+			}
+		>,
 		session: Session,
 	) {
 		return {
-			documentId: "documentId" in operation ? operation.documentId : "",
+			documentId: operation.documentId,
 			requestId: operation.requestId,
 			textRevision:
 				"expectedTextRevision" in operation &&
@@ -1149,6 +1274,30 @@ export class HostSessionManager {
 		};
 	}
 
+	private withExecutionIdentity(
+		receipt: ScratchpadExecutionReceipt,
+		operation: Extract<
+			EditorOperation,
+			{
+				operation:
+					| "editor.executeLine"
+					| "editor.executeRange"
+					| "editor.executeValidLines";
+			}
+		>,
+		document: MacroDocument,
+	): ScratchpadExecutionReceipt {
+		return {
+			...receipt,
+			identity: {
+				documentId: document.documentId,
+				requestId: operation.requestId,
+				operation: operation.operation,
+				textRevision: document.textRevision,
+			},
+		};
+	}
+
 	async disposeAbandoned(now = Date.now()): Promise<void> {
 		for (const [id, session] of this.sessions) {
 			if (now - session.lastActivity > this.idleTimeoutMs)
@@ -1168,6 +1317,8 @@ export class HostSessionManager {
 			session.loaded.workspace.tabs,
 			session.loaded.workspace.views,
 			session.loaded.workspace.i18n,
+			session.loaded.workspace.editorGroups,
+			session.loaded.workspace.journal,
 		];
 		for (const source of signalSources) {
 			if (

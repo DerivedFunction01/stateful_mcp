@@ -8,6 +8,10 @@ import {
 	useMemo,
 	useSyncExternalStore,
 } from "react";
+import type {
+	BrowserEditorSurfaceAdapter,
+	BrowserVimKeyboardEvent,
+} from "./browser-vim";
 
 export interface EditorSurfaceRegistration {
 	readonly id: string;
@@ -16,6 +20,8 @@ export interface EditorSurfaceRegistration {
 	readonly context: KeymapBindingContextDto;
 	readonly vimEnabled: boolean;
 	readonly mode?: EditorMode;
+	readonly adapter?: BrowserEditorSurfaceAdapter;
+	readonly handleKeyDown?: (event: BrowserVimKeyboardEvent) => boolean;
 }
 
 type Listener = () => void;

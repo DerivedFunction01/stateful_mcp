@@ -39,6 +39,7 @@ export interface KeymapControllerOptions {
 		readonly editorFocused: boolean;
 	};
 	readonly onCommand: (command: string) => Promise<void> | void;
+	readonly onEditorKeyDown?: (event: KeyboardEvent) => boolean;
 	readonly onCommandError?: (error: unknown) => void;
 	readonly announce?: (announcement: KeymapAnnouncement) => void;
 }
@@ -105,6 +106,14 @@ export class BrowserKeymapController {
 			!this.options.getContext().editorFocused
 		)
 			return;
+		if (
+			this.options.getContext().editorFocused &&
+			this.options.onEditorKeyDown?.(event)
+		) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
 
 		if (event.key === "Escape") {
 			if (this.pendingChord) {

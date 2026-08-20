@@ -15,6 +15,15 @@ export interface ScratchpadExecutionReceipt {
 	readonly result?: unknown;
 	readonly error?: string;
 	readonly executedAt: number;
+	readonly identity?: {
+		readonly documentId: string;
+		readonly requestId: string;
+		readonly operation:
+			| "editor.executeLine"
+			| "editor.executeRange"
+			| "editor.executeValidLines";
+		readonly textRevision: number;
+	};
 }
 
 export type ScratchpadLineStatus = "empty" | "valid" | "invalid" | "non-macro";

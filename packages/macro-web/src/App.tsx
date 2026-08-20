@@ -78,6 +78,7 @@ export function App() {
 	}, [setLocale, snapshot?.settings]);
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [announcement, setAnnouncement] = useState("");
+	const [editorCursor, setEditorCursor] = useState("");
 	const lastFocused = useRef<Element | null>(null);
 	const [pendingNavigation, setPendingNavigation] = useState<{
 		readonly route: Route;
@@ -137,6 +138,8 @@ export function App() {
 					},
 				};
 			},
+			onEditorKeyDown: (event) =>
+				registry.getActive()?.handleKeyDown?.(event) ?? false,
 			onCommand: (command) => runCommand(command),
 			onCommandError: () => setAnnouncement(t("palette.executionFailed")),
 			announce,
@@ -362,6 +365,7 @@ export function App() {
 								onOverwriteEditorConflict={() =>
 									void store.overwriteEditorConflict()
 								}
+								onEditorCursorChange={setEditorCursor}
 							/>
 						)}
 					</main>
@@ -369,6 +373,7 @@ export function App() {
 						profile={snapshot?.profile.displayName}
 						domain={snapshot?.applications[0]?.displayName}
 						diagnostics={diagnostics}
+						cursor={editorCursor}
 						onAction={(command) => {
 							if (command === "workspace.selectProfile") navigate("settings");
 							if (command === "host.openDiagnostics") navigate("host");

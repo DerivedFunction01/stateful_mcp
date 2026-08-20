@@ -155,4 +155,36 @@ describe("Phase 7 editor transport", () => {
 		await sessions.disposeAll();
 		await host.dispose();
 	});
+
+	test("keeps editor groups revision-safe while sharing document identity", async () => {
+		const root = await mkdtemp(
+			join(process.env.TMPDIR ?? "/tmp", "macro-editor-"),
+		);
+		await createMacroProject({ rootPath: root });
+		const host = await createMacroHost({ defaults: {}, projectRoot: root });
+		const sessions = new HostSessionManager(host, 60_000, root);
+		const initial = await sessions.create();
+		const split = await sessions.editor(initial.sessionId, {
+			operation: "editor.createSplitGroup",
+			requestId: "create-split",
+			expectedWorkspaceRevision: 0,
+		});
+		expect(split.status).toBe("accepted");
+		expect(split.snapshot.groups).toHaveLength(2);
+		expect(split.snapshot.groups[0]?.documentIds).toEqual(
+			split.snapshot.groups[1]?.documentIds,
+		);
+
+		const stale = await sessions.editor(initial.sessionId, {
+			operation: "editor.focusGroup",
+			requestId: "stale-focus",
+			groupId: split.snapshot.groups[0]!.groupId,
+			expectedWorkspaceRevision: 0,
+		});
+		expect(stale.status).toBe("conflict");
+		expect(stale.code).toBe("EDITOR_WORKSPACE_REVISION_STALE");
+
+		await sessions.disposeAll();
+		await host.dispose();
+	});
 });

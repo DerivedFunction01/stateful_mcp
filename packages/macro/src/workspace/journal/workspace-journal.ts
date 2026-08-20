@@ -8,6 +8,10 @@ export interface JournalEntry {
 	readonly macroName: string;
 	readonly rawText: string;
 	readonly result: unknown;
+	readonly success?: boolean;
+	readonly errorCode?: string;
+	readonly identity?: ScratchpadExecutionReceipt["identity"];
+	readonly availability?: "available" | "legacy";
 	readonly fingerprint: string;
 	readonly executedAt: number;
 	readonly status: JournalEntryStatus;
@@ -78,6 +82,10 @@ export class WorkspaceJournal {
 			macroName: receipt.macroName,
 			rawText: receipt.rawText,
 			result: receipt.result,
+			success: receipt.success,
+			...(receipt.error ? { errorCode: "EDITOR_EXECUTION_FAILED" } : {}),
+			identity: receipt.identity,
+			availability: receipt.identity ? "available" : "legacy",
 			fingerprint: await fingerprintReceipt(receipt),
 			executedAt: receipt.executedAt,
 			status: "committed",
@@ -157,6 +165,7 @@ async function fingerprintReceipt(
 			success: receipt.success,
 			result: receipt.result,
 			error: receipt.error,
+			identity: receipt.identity,
 			executedAt: receipt.executedAt,
 		}),
 	);

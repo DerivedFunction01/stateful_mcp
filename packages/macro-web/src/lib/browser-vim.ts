@@ -1,5 +1,17 @@
 import type { EditorMode } from "@stateful-mcp/macro-protocol";
-import type { KeyboardEvent } from "react";
+
+export interface BrowserVimKeyboardEvent {
+	readonly key: string;
+	preventDefault(): void;
+	stopPropagation(): void;
+}
+export interface BrowserEditorSurfaceAdapter {
+	getText(): string;
+	getSelection(): { start: number; end: number };
+	setSelection(selection: { start: number; end: number }): void;
+	replaceSelection(text: string): void;
+	focus(): void;
+}
 
 export interface BrowserVimState {
 	readonly enabled: boolean;
@@ -9,7 +21,7 @@ export interface BrowserVimState {
 export interface BrowserVimController {
 	getState(): BrowserVimState;
 	setEnabled(enabled: boolean): void;
-	handleKeyDown(event: KeyboardEvent): boolean;
+	handleKeyDown(event: BrowserVimKeyboardEvent): boolean;
 	subscribe(listener: () => void): () => void;
 }
 
@@ -29,7 +41,10 @@ export interface BrowserVimController {
  */
 export function createBrowserVimController(
 	initialEnabled = false,
-	options?: { onCommandModeUnsupported?: () => void },
+	options?: {
+		onCommandModeUnsupported?: () => void;
+		getAdapter?: () => BrowserEditorSurfaceAdapter | undefined;
+	},
 ): BrowserVimController {
 	let state: BrowserVimState = { enabled: initialEnabled, mode: "NORMAL" };
 	const listeners = new Set<() => void>();
@@ -68,11 +83,44 @@ export function createBrowserVimController(
 				return false;
 			}
 			if (event.key === "i" || event.key === "a" || event.key === "o") {
+				const adapter = options?.getAdapter?.();
+				if (adapter && event.key === "o") {
+					const selection = adapter.getSelection();
+					adapter.setSelection({ start: selection.end, end: selection.end });
+					adapter.replaceSelection("\n");
+				}
+				if (adapter && event.key === "a") {
+					const selection = adapter.getSelection();
+					adapter.setSelection({
+						start: Math.min(selection.end + 1, adapter.getText().length),
+						end: Math.min(selection.end + 1, adapter.getText().length),
+					});
+				}
 				setMode("INSERT");
 				return true;
 			}
 			if (event.key === "v") {
+				const adapter = options?.getAdapter?.();
+				if (adapter) {
+					const selection = adapter.getSelection();
+					adapter.setSelection({ start: selection.start, end: selection.end });
+				}
 				setMode("VISUAL");
+				return true;
+			}
+			if (event.key === "h" || event.key === "l") {
+				const adapter = options?.getAdapter?.();
+				if (!adapter) return false;
+				const selection = adapter.getSelection();
+				const next = Math.max(
+					0,
+					Math.min(
+						adapter.getText().length,
+						selection.end + (event.key === "h" ? -1 : 1),
+					),
+				);
+				adapter.setSelection({ start: next, end: next });
+				adapter.focus();
 				return true;
 			}
 			return false;

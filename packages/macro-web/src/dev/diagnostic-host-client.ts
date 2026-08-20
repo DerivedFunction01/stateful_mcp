@@ -78,6 +78,15 @@ export function createDiagnosticHostClient(): HostClient {
 					textRevision: 0,
 				},
 			],
+			groups: [
+				{
+					groupId: "fixture-group",
+					documentIds: ["fixture-document"],
+					activeDocumentId: "fixture-document",
+					orientation: "horizontal",
+				},
+			],
+			activeGroupId: "fixture-group",
 			activeDocumentId: "fixture-document",
 			activeDocument: {
 				documentId: "fixture-document",
@@ -86,7 +95,14 @@ export function createDiagnosticHostClient(): HostClient {
 				lines: [],
 			},
 			templates: [],
-			capabilities: { canCreate: true, canExecute: false, canPersist: false },
+			output: { entries: [], hasMore: false },
+			capabilities: {
+				canCreate: true,
+				canExecute: false,
+				canPersist: false,
+				canSplit: true,
+				canUseVim: true,
+			},
 		},
 		diagnostics: [
 			{
