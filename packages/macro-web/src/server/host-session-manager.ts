@@ -10,6 +10,7 @@ import {
 	type MacroDocumentTemplate,
 	matchEffectiveBindings,
 	mergeEditorKeymap,
+	normalizeCommandAliases,
 	resolveKeymapBindings,
 	type ScratchpadExecutionBatchResult,
 	type ScratchpadExecutionReceipt,
@@ -1124,7 +1125,7 @@ export class HostSessionManager {
 		);
 		return {
 			documentId: document.documentId,
-			text: document.editor.buffer.getText(),
+			text: document.editor.getText(),
 			textRevision: document.textRevision,
 			lines,
 			...(projections.length > 0 ? { projections } : {}),
@@ -1409,10 +1410,24 @@ export class HostSessionManager {
 			labelI18nKey: binding.labelI18nKey,
 			source: "macro-profile",
 		}));
+		const flatAliases = session.keymap.aliases
+			? Object.fromEntries(normalizeCommandAliases(session.keymap.aliases))
+			: undefined;
 		const keymap: EffectiveKeymapDto = {
 			profileId: session.keymap.profileId,
 			name: session.keymap.name,
 			description: session.keymap.description,
+			vim: {
+				normal: session.keymap.normal as unknown as Record<string, string>,
+				visual: session.keymap.visual as unknown as Record<string, string>,
+				sequences: session.keymap.sequences as unknown as Record<string, string>,
+			},
+			workbench: session.keymap.window as unknown as Record<string, string>,
+			normal: session.keymap.normal as unknown as Record<string, string>,
+			visual: session.keymap.visual as unknown as Record<string, string>,
+			sequences: session.keymap.sequences as unknown as Record<string, string>,
+			window: session.keymap.window as unknown as Record<string, string>,
+			...(flatAliases ? { aliases: flatAliases } : {}),
 			bindings,
 		};
 		const commands: CommandDescriptorDto[] = workspace.commands

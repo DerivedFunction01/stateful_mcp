@@ -1,6 +1,6 @@
 import type { ExtensionRuntime } from "../../extensions/runtime";
 import { extractTokenChipsFromProjections } from "../editor/chips";
-import type { CursorBuffer } from "../editor/cursor-buffer";
+import type { EditorKernel } from "../editor/editor-kernel";
 import {
 	createEmptyProjectedLine,
 	type ProjectedMacroLine,
@@ -73,15 +73,15 @@ export class ScratchpadSession {
 
 	constructor(
 		public readonly runtime: ExtensionRuntime,
-		public readonly buffer: CursorBuffer,
+		public readonly editor: EditorKernel,
 		private readonly debounceMs = 50,
 		private readonly options: ScratchpadSessionOptions = {},
 	) {
-		this.projectedLines = this.buffer
+		this.projectedLines = this.editor
 			.getLines()
 			.map((text, idx) => createEmptyProjectedLine(idx + 1, text));
 
-		this.buffer.subscribe(() => {
+		this.editor.subscribe(() => {
 			this.scheduleParse();
 		});
 
@@ -120,8 +120,8 @@ export class ScratchpadSession {
 		const insertedText =
 			this.options.createPinnedLineSeed?.(context) ??
 			`${context.macroStartToken}${context.macroName} `;
-		this.buffer.splitLine();
-		this.buffer.insertText(insertedText);
+		this.editor.splitLine();
+		this.editor.insertText(insertedText);
 		return { insertedText, macroId };
 	}
 
@@ -154,7 +154,7 @@ export class ScratchpadSession {
 	}
 
 	async parseAllLines(): Promise<readonly ProjectedMacroLine[]> {
-		const lines = this.buffer.getLines();
+		const lines = this.editor.getLines();
 		const registeredAdapters = this.runtime.adapters.list();
 		const prefix = this.runtime.context.syntax.macroStartToken;
 

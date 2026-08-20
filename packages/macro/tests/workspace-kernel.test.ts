@@ -160,45 +160,48 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 		});
 	});
 
-	describe("EditorKernel (Dual-Mode Vim + Mouse)", () => {
-		test("Vim modal navigation and verbs", () => {
+	describe("EditorKernel (Document & Direct Manipulation)", () => {
+		test("Document text, lines, and modal transitions", () => {
 			const editor = new EditorKernel("line 1\nline 2\nline 3");
 			expect(editor.getMode()).toBe("NORMAL");
 
-			// Vim 'j' motion
-			editor.handleKey({ char: "j" });
-			expect(editor.buffer.getCursor()).toEqual({ line: 1, col: 0 });
+			// Cursor navigation
+			editor.setCursor(1, 0);
+			expect(editor.getCursor()).toEqual({ line: 1, col: 0 });
 
-			// Vim 'dd' delete line
-			editor.handleKey({ char: "d" });
-			editor.handleKey({ char: "d" });
-			expect(editor.buffer.getLineCount()).toBe(2);
-			expect(editor.buffer.getLine(1)).toBe("line 3");
+			// Delete line and check yank buffer
+			const deleted = editor.deleteLine(1);
+			editor.setYankBuffer(deleted);
+			expect(editor.getLineCount()).toBe(2);
+			expect(editor.getLine(1)).toBe("line 3");
 			expect(editor.getYankBuffer()).toBe("line 2");
 
-			// Vim 'i' to insert mode
-			editor.handleKey({ char: "i" });
+			// Insert mode & text insertion
+			editor.setMode("INSERT");
 			expect(editor.getMode()).toBe("INSERT");
-			editor.handleKey({ char: "A" });
-			editor.handleKey({ char: "B" });
-			expect(editor.buffer.getLine(1)).toBe("ABline 3");
+			editor.insertText("AB");
+			expect(editor.getLine(1)).toBe("ABline 3");
 
-			// Escape back to NORMAL
-			editor.handleKey({ name: "escape" });
+			// Mode back to NORMAL
+			editor.setMode("NORMAL");
 			expect(editor.getMode()).toBe("NORMAL");
 		});
 
-		test("Modeless Mouse interactions (click, drag, word-select)", () => {
+		test("Modeless mouse interactions (click, drag, word-select, line-select)", () => {
 			const editor = new EditorKernel("first second third");
 			editor.clickAt(0, 7);
-			expect(editor.buffer.getCursor()).toEqual({ line: 0, col: 7 });
+			expect(editor.getCursor()).toEqual({ line: 0, col: 7 });
 
 			editor.selectWordAt(0, 8);
 			expect(editor.getMode()).toBe("VISUAL");
-			expect(editor.buffer.getSelection()).toEqual({
+			expect(editor.getSelection()).toEqual({
 				start: { line: 0, col: 6 },
 				end: { line: 0, col: 12 },
 			});
+			expect(editor.getSelectedText()).toBe("second");
+
+			editor.selectLineAt(0);
+			expect(editor.getSelectedText()).toBe("first second third");
 		});
 	});
 
@@ -698,7 +701,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 				initialText: "^note #test",
 				initialLocale: "en",
 			});
-			expect(ws.editor.buffer.getText()).toBe("^note #test");
+			expect(ws.editor.getText()).toBe("^note #test");
 			expect(ws.layout.getSnapshot().activeTabId).toBe("scratchpad");
 			expect(ws.tabs.getTabs()).toHaveLength(2);
 			expect(ws.views.getContainers()).toHaveLength(3);
@@ -752,13 +755,13 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 	});
 
 	describe("Command surfaces, validation, and persistence", () => {
-		test("command mode preserves and submits text without entering normal handling", () => {
+		test("command mode preserves and submits text", () => {
 			const editor = new EditorKernel("one two");
 			editor.setMode("COMMAND");
-			editor.handleKey({ char: "w" });
+			editor.setCommandText("w");
 			expect(editor.getCommandText()).toBe("w");
-			expect(editor.buffer.getCursor()).toEqual({ line: 0, col: 0 });
-			editor.handleKey({ name: "return" });
+			expect(editor.getCursor()).toEqual({ line: 0, col: 0 });
+			editor.submitCommand();
 			expect(editor.consumeSubmittedCommand()).toBe("w");
 			expect(editor.getMode()).toBe("NORMAL");
 		});

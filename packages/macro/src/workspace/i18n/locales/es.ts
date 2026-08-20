@@ -1,43 +1,379 @@
 import type { WorkspaceLocaleDictionary } from "../types";
-import { ES_CORE } from "./es/core";
-import { ES_SETTINGS_APPEARANCE } from "./es/settings-appearance";
-import { ES_SETTINGS_CURRENCY } from "./es/settings-currency";
-import { ES_SETTINGS_DATETIME } from "./es/settings-datetime";
-import { ES_SETTINGS_EDITOR } from "./es/settings-editor";
-import { ES_SETTINGS_FREQUENCY } from "./es/settings-frequency";
-import { ES_SETTINGS_NUMERIC } from "./es/settings-numeric";
-import { ES_SETTINGS_QUANTITY } from "./es/settings-quantity";
-import { ES_SETTINGS_SYNTAX } from "./es/settings-syntax";
-import { ES_WEB } from "./es/web";
 
 export const ES_LOCALE: WorkspaceLocaleDictionary = {
-	...ES_CORE,
-	...ES_SETTINGS_SYNTAX,
-	...ES_SETTINGS_NUMERIC,
-	...ES_SETTINGS_DATETIME,
-	...ES_SETTINGS_FREQUENCY,
-	...ES_SETTINGS_QUANTITY,
-	...ES_SETTINGS_CURRENCY,
-	...ES_SETTINGS_APPEARANCE,
-	...ES_SETTINGS_EDITOR,
-	...ES_WEB,
+	// Shell & Status
 	"shell.mode.normal": "NORMAL",
 	"shell.mode.insert": "INSERCIÓN",
 	"shell.mode.visual": "VISUAL",
 	"shell.mode.command": "COMANDO",
 	"shell.diagnostics.valid": "{count} Válidos",
 	"shell.diagnostics.errors": "{count} Errores",
+
+	// Workspace Tabs & Nav
 	"workspace.tab.scratchpad": "Borrador",
 	"workspace.tab.notebook": "Cuaderno",
 	"workspace.tab.extensions": "Extensiones",
 	"workspace.tab.settings": "Configuración",
+	"nav.workbench": "Espacio de trabajo",
+	"nav.notes": "Notas",
+	"nav.settings": "Configuración",
+	"nav.gallery": "Galería de componentes",
+	"nav.host": "Diagnóstico del host",
+	"nav.commandPalette": "Paleta de comandos",
+
+	// Sidepanels & Views
 	"sidepanel.slots.title": "Ranuras de Macro y Validación",
 	"sidepanel.journal.title": "Historial de Registro y Reversiones",
 	"sidepanel.explorer.title": "Explorador",
+	"inspector.title": "Inspector",
+	"inspector.empty": "Vista principal lista para contenido contribuido.",
+
+	// Workbench Surface
+	"workbench.previewEyebrow": "VISTA PREVIA DEL ESPACIO WEB",
+	"workbench.heading": "Construye el espacio desde el host.",
+	"workbench.description":
+		"El límite de runtime y sesión está listo. Esta superficie se mantiene pequeña mientras la galería establece la interacción web.",
+	"workbench.openSettings": "Abrir configuración",
+	"workbench.openScratchpad": "Abrir bloc de notas",
+	"workbench.currentSession": "Sesión actual",
+	"workbench.nextSurfaces": "Próximas superficies",
+	"workbench.domainApps": "Aplicaciones de dominio",
+	"workbench.editorContext": "Contexto del editor",
+	"workbench.vimEnabled": "Vim activado",
+	"workbench.browserNative": "Nativo del navegador",
+	"workbench.views": "Vistas",
+	"workbench.tabs": "Pestañas del espacio de trabajo",
+	"workbench.inspector": "Inspector",
+	"workbench.project": "Proyecto",
+	"workbench.noProject": "No hay proyecto configurado",
+	"workbench.unavailable": "No disponible",
+	"workbench.editor": "Superficie del editor",
+	"workbench.empty": "El host no ha proporcionado contenido del editor.",
+	"workbench.splitterValue": "{value} por ciento",
+	"workbench.resizeDomainRail": "Redimensionar barra de dominio",
+	"workbench.resizeSidebar": "Redimensionar barra lateral",
+	"workbench.resizeInspector": "Redimensionar inspector",
+
+	// Editor & Documents
+	"editor.toggleVim": "Activar enlaces Vim para este editor",
+	"editor.vimEnabled": "Vim activado",
+	"editor.vimDisabled": "Vim desactivado",
+	"editor.document.new": "Nuevo borrador",
+	"editor.document.newFromTemplate": "Nuevo borrador desde plantilla",
+	"editor.document.select": "Seleccionar documento",
+	"editor.document.close": "Cerrar documento",
+	"editor.document.rename": "Renombrar documento",
+	"editor.document.pinMacro": "Fijar macro",
+	"editor.document.pinnedMacro": "Macro fijada",
+	"editor.document.noTemplates": "No hay plantillas de documento disponibles.",
+	"editor.input.pending": "Guardando cambios del editor…",
+	"editor.input.conflict.title": "El documento cambió en el host.",
+	"editor.input.conflict.message": "Elige cómo recuperar el borrador local.",
+	"editor.input.conflict.reloadHost": "Recargar documento del host",
+	"editor.input.conflict.reloadConfirm":
+		"¿Descartar el borrador local y recargar el documento del host?",
+	"editor.input.conflict.keepLocal": "Conservar borrador local",
+	"editor.input.conflict.copyLocal": "Copiar borrador local",
+	"editor.input.stale": "La revisión del documento del editor está obsoleta.",
+	"editor.input.rejected": "La operación del editor fue rechazada.",
+	"editor.document.notFound": "El documento del editor ya no está disponible.",
+	"editor.document.closeDirty":
+		"Guarda o descarta este documento antes de cerrarlo.",
+	"editor.document.last": "Debe permanecer al menos un documento del editor.",
+	"editor.document.titleRequired": "Se requiere un título de documento.",
+	"editor.group.notFound": "El grupo del editor ya no está disponible.",
+	"editor.group.last": "Debe permanecer al menos un grupo del editor.",
+	"editor.group.split": "Dividir editor",
+	"editor.group.close": "Cerrar grupo del editor",
+	"editor.group.focus": "Enfocar grupo del editor",
+	"editor.group.openDocument": "Abrir documento en el grupo",
+	"editor.output.title": "Salida e historial del editor",
+	"editor.output.empty": "Aún no hay salida del editor.",
+	"editor.output.legacy": "Entrada antigua sin identidad de editor",
+	"editor.output.committed": "Confirmada",
+	"editor.output.failed": "Fallida",
+	"editor.output.reversed": "Revertida",
+	"editor.output.preview": "Vista previa",
+	"editor.output.skipped": "Omitida",
+	"editor.template.notFound":
+		"La plantilla de documento seleccionada no está disponible.",
+	"editor.template.seedUnavailable":
+		"Una macro configurada en la plantilla no está disponible.",
+	"editor.operation.failed": "No se pudo completar la operación del editor.",
+	"editor.lineStatus.empty": "vacía",
+	"editor.lineStatus.valid": "válida",
+	"editor.lineStatus.invalid": "inválida",
+	"editor.lineStatus.nonMacro": "no es macro",
+	"editor.lineStatus.empty.description": "La línea está vacía y se omitirá.",
+	"editor.lineStatus.valid.description":
+		"La línea es una macro ejecutable válida.",
+	"editor.lineStatus.invalid.description":
+		"La línea contiene una macro no válida.",
+	"editor.lineStatus.nonMacro.description":
+		"La línea no es una macro reconocida.",
+	"editor.preview.title": "Vista previa",
+	"editor.preview.pending": "Vista previa pendiente",
+	"editor.preview.result": "Resultado de vista previa",
+	"editor.preview.failed": "La vista previa falló",
+	"editor.preview.vsExecution": "Vista previa frente a ejecución",
+	"editor.execution.preview": "Vista previa de ejecución",
+	"editor.execution.result": "Resultado de ejecución",
+	"editor.execution.failed": "La ejecución falló",
+	"editor.execution.succeeded": "Ejecutada",
+	"editor.execution.skipped": "Omitida",
+	"editor.execution.line": "Ejecutar línea",
+	"editor.execution.range": "Ejecutar rango",
+	"editor.execution.validLines": "Ejecutar líneas válidas",
+	"editor.execution.rangeInvalid": "El rango seleccionado no es válido.",
+	"editor.execution.notExecutable": "Esta línea no se puede ejecutar.",
+	"editor.template.title": "Plantilla de documento",
+	"editor.template.description": "Descripción de la plantilla de documento",
+	"editor.template.requiresProfile":
+		"Esta plantilla requiere un perfil activo.",
+	"editor.template.createFailed": "No se pudo crear la plantilla de documento.",
+	"editor.selection.range": "Rango seleccionado",
+	"editor.selection.noRange": "No hay un rango seleccionado",
+	"editor.commandModeUnsupported":
+		"El modo de comandos no está disponible en esta superficie.",
+	"editor.inactive.title": "Editor no disponible",
+	"editor.inactive.description":
+		"El host no ha activado un documento del editor.",
+	"editor.inactive.actionUnavailable":
+		"Esta acción del editor no está disponible.",
+	"editor.surface.authored": "Texto escrito",
+	"editor.surface.nativeEditing": "Edición nativa del navegador",
+	"editor.surface.projections": "Proyecciones de Macro",
+	"editor.surface.projectionAvailable": "Proyección disponible",
+	"editor.surface.noProjection": "Sin proyección",
+	"editor.slots.title": "Ranuras de Macro",
+
+	// Journal
+	"journal.title": "Historial",
+	"journal.empty": "No hay entradas confirmadas.",
+	"journal.historyLabel": "Historial de transacciones",
+	"journal.entry": "entrada",
+	"journal.entries": "entradas",
+	"journal.output": "↳ Salida: {summary}",
+	"journal.reversal": "↳ ▲ Reversión: {reason}",
+	"journal.hint.navigate": "↑↓ Navegar · ↵ Inspeccionar",
+	"journal.hint.actions": "↵ Inspeccionar · r Reintentar · Del Revertir",
+	"journal.activeSelection": "▶ Activo: Entrada {n} (↑↓ para navegar)",
+
+	// Palette
+	"palette.title": "Paleta de comandos",
+	"palette.dismissHint": "esc",
+	"palette.searchPrompt": ">",
+	"palette.placeholder": "Buscar comandos...",
+	"palette.noMatchingCommands": "No hay comandos coincidentes.",
+	"palette.quickOpen": "Ir a archivo",
+	"palette.noResults": "No hay comandos coincidentes",
+	"palette.results": "comandos",
+	"palette.selected": "seleccionado",
+	"palette.run": "Ejecutar comando",
+	"palette.pending": "Ejecutando...",
+	"palette.executionFailed": "Falló la ejecución del comando",
+	"palette.requiredArgument": "Argumento obligatorio",
+	"palette.arguments": "Argumentos",
+	"palette.argumentRequired": "Obligatorio",
+	"palette.argumentOptional": "Opcional",
+	"palette.keymapHint": "Atajo",
+	"palette.category": "Categoría",
+	"palette.category.suggested": "Sugeridos",
+	"palette.category.system": "Sistema",
+	"palette.category.workspace": "Espacio de trabajo",
+	"palette.category.general": "Comandos",
+
+	// Settings & Categories
+	"settings.title": "Configuración",
+	"settings.search": "Buscar configuración",
+	"settings.findPrompt": "Buscar:",
+	"settings.searchPlaceholder": "Buscar configuración",
+	"settings.profileLabel": "Perfil de configuración",
+	"settings.profile": "Perfil",
+	"settings.profile.base": "Base (Predeterminado)",
+	"settings.profile.createNew": "+ Crear nuevo perfil…",
+	"settings.profile.newFromBase": "Nuevo perfil desde base",
+	"settings.scope": "Ámbito de almacenamiento",
+	"settings.scope.workspace": "Espacio / Proyecto",
+	"settings.scope.user": "Usuario",
+	"settings.scope.folder": "Carpeta",
+	"settings.scope.unsupported":
+		"El almacenamiento para este ámbito no está disponible.",
+	"settings.profile.unsupported":
+		"Este perfil de configuración no está disponible.",
+	"settings.bundle.invalid": "El paquete de configuración no es válido.",
+	"settings.bundle.blocked":
+		"No se pudo aplicar el paquete de configuración: {message}",
+	"settings.bundle.scopeUnsupported":
+		"El almacenamiento para el ámbito {scope} no está disponible.",
+	"settings.bundle.profileUnsupported":
+		"El perfil de configuración {profile} no está disponible.",
+	"settings.bundle.versionInvalid":
+		"La versión del paquete de configuración no es compatible.",
+	"settings.bundle.stale":
+		"La revisión del paquete de configuración está obsoleta.",
+	"settings.bundle.stageUnavailable":
+		"La importación de configuración preparada no está disponible.",
+	"settings.bundle.stageUnknown":
+		"La etapa de importación de configuración es desconocida.",
+	"settings.bundle.profileOutsideSelection":
+		"El paquete contiene el perfil {profile} fuera del perfil seleccionado.",
+	"settings.bundle.sensitiveOmitted":
+		"Se omitió la configuración sensible del paquete importado.",
+	"settings.bundle.valueInvalid":
+		"La configuración {path} tiene un valor no válido.",
+	"settings.modifiedOnly": "Mostrar solo modificados",
+	"settings.categories": "Categorías de configuración",
 	"settings.category.syntax": "Sintaxis Principal",
 	"settings.category.values": "Fundamentos y Valores",
 	"settings.category.appearance": "Apariencia y Tema",
 	"settings.category.editor": "Configuración del Editor",
 	"settings.category.keymap": "Teclas y Movimientos",
 	"settings.category.extensions": "Extensiones",
+	"settings.jsonMode": "Modo JSON",
+	"settings.rawJson": "JSON de configuración sin formato",
+	"settings.jsonUnavailable":
+		"El modo JSON no está disponible para configuraciones sensibles.",
+	"settings.export": "Exportar",
+	"settings.import": "Importar",
+	"settings.exported": "La configuración se copió al portapapeles.",
+	"settings.downloaded": "Configuración descargada.",
+	"settings.importConfirm":
+		"¿Aplicar este paquete de configuración al perfil seleccionado?",
+	"settings.importReady":
+		"El archivo pasó la validación del host y está listo para aplicar.",
+	"settings.importMode": "Modo de importación",
+	"settings.importReplace": "Reemplazar configuración seleccionada",
+	"settings.importMerge": "Combinar configuración seleccionada",
+	"settings.preview": "Vista previa",
+	"settings.preview.tokens": "Tokens disponibles",
+	"settings.preview.sampleInput": "Entrada de muestra",
+	"settings.preview.unknownTokens": "Tokens de plantilla desconocidos",
+	"settings.preview.sampleMatched": "La muestra se analizó correctamente",
+	"settings.preview.sampleFailed": "La muestra no se pudo analizar",
+	"settings.preview.stale": "La vista previa está obsoleta",
+	"settings.preview.diagnostic": "Falló la validación de la vista previa",
+	"settings.imported": "Configuración importada.",
+	"settings.cancel": "Cancelar",
+	"settings.unsavedTitle": "Configuración sin guardar",
+	"settings.unsavedMessage": "¿Guardar o descartar los cambios antes de salir?",
+	"settings.keepEditing": "Seguir editando",
+	"settings.saveAndContinue": "Guardar y continuar",
+	"settings.unsupportedWidget":
+		"Este control de configuración no está disponible en el renderizador web.",
+	"settings.unavailable":
+		"La configuración no está disponible para este espacio.",
+	"settings.conflict":
+		"La configuración cambió en otro lugar. Recarga o continúa editando antes de guardar.",
+	"settings.actions.save": "Guardar configuración",
+	"settings.save": "Guardar cambios",
+	"settings.discard": "Descartar cambios",
+	"settings.language": "Idioma",
+	"settings.description":
+		"Configura fundamentos, comportamiento del perfil e interacciones del editor enfocado.",
+	"settings.settingsCount": "3 ajustes",
+	"settings.appearanceCard": "Apariencia",
+	"settings.profileCard": "Fundamentos y perfil",
+	"settings.editorCard": "Editor del bloc",
+	"settings.theme": "Tema",
+	"settings.density": "Densidad",
+	"settings.comfortable": "Cómoda",
+	"settings.compact": "Compacta",
+	"settings.activeProfile": "Perfil activo",
+	"settings.enabledApps": "Aplicaciones de dominio activadas",
+	"settings.clinical": "Clínico",
+	"settings.research": "Investigación",
+	"settings.notes": "Notas",
+	"settings.measurements": "Mediciones",
+	"settings.sampleRuntime": "Runtime de ejemplo",
+	"settings.vimToggle": "Activar enlaces Vim en el bloc enfocado",
+	"settings.macroToken": "Token inicial de macro",
+	"settings.macroTokenHint": "Se usa al escribir llamadas de macro.",
+	"settings.unsaved": "Tienes cambios de configuración sin guardar.",
+
+	// Themes & Common
+	"theme.midnight": "Medianoche",
+	"theme.cloud": "Nube",
+	"theme.violet": "Violeta",
+	"common.english": "English",
+	"common.spanish": "Español",
+	"common.appearance": "Apariencia",
+	"common.profile": "Perfil",
+	"common.editor": "Editor",
+	"common.themeDensity": "Tema y densidad",
+	"common.profileApps": "Fundamentos y aplicaciones de dominio",
+	"common.editorKeys": "Comportamiento del bloc y teclado",
+	"common.loading": "Cargando",
+	"common.error": "Algo salió mal",
+	"common.noResults": "Sin resultados",
+	"list.empty": "No hay elementos disponibles.",
+	"table.empty": "No hay datos disponibles.",
+
+	// Status Badges & Keymap Sources
+	"status.local": "Local",
+	"status.offline": "Sin conexión",
+	"status.zeroDiagnostics": "0 diagnósticos",
+	"status.macro": "Macro",
+	"status.encoding": "UTF-8",
+	"status.notifications": "Notificaciones",
+	"status.saved": "Guardado",
+	"status.dirty": "Cambios sin guardar",
+	"status.diagnostics": "diagnósticos",
+	"status.committed": "confirmada",
+	"status.reversed": "revertida",
+	"status.superseded": "reemplazada",
+	"status.executing": "ejecutando",
+	"status.pending": "pendiente",
+	"status.failed": "fallida",
+	"status.success": "éxito",
+	"status.warning": "advertencia",
+	"status.error": "error",
+	"status.info": "información",
+
+	// Host Diagnostics
+	"app.profile": "Perfil",
+	"app.host": "Diagnóstico del host",
+	"host.workspace": "Espacio de trabajo",
+	"host.session": "Sesión",
+	"host.profile": "Perfil",
+	"host.transport": "Estado del transporte",
+	"host.http": "Snapshot HTTP",
+	"host.websocket": "Eventos WebSocket",
+	"host.protocol": "Protocolo",
+	"host.typed": "Snapshot/eventos tipados",
+	"host.description":
+		"Inspecciona el snapshot conectado al host y el límite de eventos.",
+	"host.fixtureNote":
+		"Abre la galería para ver el snapshot de fixture mientras se conectan los endpoints Bun.",
+
+	// Keymap Info
+	"keymap.source.macro-profile": "Perfil de Macro",
+	"keymap.source.browser-baseline": "Predeterminado del navegador",
+	"keymap.source.user-override": "Anulación del usuario",
+	"keymap.source.extension": "Extensión",
+	"keymap.conflict": "La combinación también está asignada a otro comando",
+	"keymap.conditional": "El navegador puede reclamar el atajo",
+	"keymap.unavailable": "El atajo no se puede reasignar de forma fiable",
+	"keymap.chord.cancelled": "Combinación cancelada",
+	"keymap.chord.timeout": "La combinación expiró",
+	"keymap.chordPrefix": "Prefijo de combinación pulsado; esperando otra tecla",
+	"keymap.shortcutUnavailable":
+		"El atajo no se puede reasignar en el navegador:",
+	"keymap.shortcutConditional": "El navegador puede gestionar este atajo:",
+	"keymap.noBinding": "No hay una combinación activa para este contexto",
+	"keymap.profileUnknown":
+		"El perfil de combinaciones seleccionado no está disponible",
+
+	// Errors
+	"errors.commandOperationRequired": "Se requiere una operación de comando",
+	"errors.keymapProfileRequired":
+		"Se requiere un identificador de perfil de combinaciones",
+	"errors.bindingContextRequired": "Se requieren una combinación y un contexto",
+	"errors.unsupportedCommandOperation":
+		"La operación de comando no es compatible",
+	"errors.canonicalCommandRequired":
+		"Se requiere un identificador de comando canónico",
 };
+
+export const ES_WEB = ES_LOCALE;
+export const ES_CORE = ES_LOCALE;

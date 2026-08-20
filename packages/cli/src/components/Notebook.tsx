@@ -576,7 +576,7 @@ export function Notebook({
 	);
 	const targetScopeLabel =
 		selectedBranchIds.length === (workspace.snapshot?.branches.length ?? 0) &&
-		selectedBranchIds.length > 0
+			selectedBranchIds.length > 0
 			? t("workspace.scope.all")
 			: selectedBranchIds.length > 0
 				? t("workspace.scope.selected")
@@ -1003,7 +1003,7 @@ export function Notebook({
 						(b) =>
 							b.name.toLowerCase() === targetKey ||
 							(b.hypothesisConcept?.conceptId ?? "").toLowerCase() ===
-								targetKey ||
+							targetKey ||
 							b.name.toLowerCase().includes(targetKey),
 					);
 					if (targetBranch) {
@@ -1042,7 +1042,7 @@ export function Notebook({
 				const existing = existingBranches.find(
 					(b) =>
 						(b.hypothesisConcept?.conceptId ?? "").toLowerCase() ===
-							conceptKey || b.name.toLowerCase() === nameKey,
+						conceptKey || b.name.toLowerCase() === nameKey,
 				);
 
 				if (existing) {
@@ -1511,10 +1511,10 @@ export function Notebook({
 			onNavigationSearchQuery={(query) =>
 				isAssessmentNavigation
 					? assessmentSearchDispatch({
-							type: "UPDATE_QUERY",
-							query,
-							cells: assessmentSearchItems,
-						})
+						type: "UPDATE_QUERY",
+						query,
+						cells: assessmentSearchItems,
+					})
 					: searchDispatch({ type: "UPDATE_QUERY", query, cells: state.cells })
 			}
 			onNavigationSearchNext={() =>
@@ -1552,11 +1552,11 @@ export function Notebook({
 			onNavigationSearchOpen={
 				isAssessmentNavigation
 					? () =>
-							assessmentSearchDispatch({
-								type: "OPEN",
-								query: "",
-								cells: assessmentSearchItems,
-							})
+						assessmentSearchDispatch({
+							type: "OPEN",
+							query: "",
+							cells: assessmentSearchItems,
+						})
 					: undefined
 			}
 			assessmentSubTabsActive={

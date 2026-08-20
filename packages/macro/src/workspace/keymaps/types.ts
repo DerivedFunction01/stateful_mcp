@@ -203,24 +203,42 @@ export interface EditorKeymapVisualBindings {
 	readonly swapAnchor: KeyChord;
 }
 
-export interface EditorKeymapWindowBindings {
+export interface EditorKeymapWorkbenchBindings {
 	readonly toggleSidepanel: KeyChord;
 	readonly toggleActivityPanel?: KeyChord;
-	readonly switchSplitFocus: KeyChord;
+	readonly toggleDrawer?: KeyChord;
+	readonly switchSplitFocus?: KeyChord;
+	readonly splitGroup?: KeyChord;
 	readonly openCommandPalette: KeyChord;
+	readonly quickOpen?: KeyChord;
+	readonly openSettings?: KeyChord;
 	readonly nextTab: KeyChord;
 	readonly prevTab: KeyChord;
 	readonly pinMacro?: KeyChord;
 }
 
+export type EditorKeymapWindowBindings = EditorKeymapWorkbenchBindings;
+
+export interface EditorKeymapVimSection {
+	readonly normal: EditorKeymapNormalBindings;
+	readonly visual: EditorKeymapVisualBindings;
+	readonly sequences: EditorKeymapSequenceBindings;
+}
+
+export type CommandAliasValue = string | readonly string[];
+
 export interface EditorKeymapProfile {
 	readonly profileId: string;
 	readonly name: string;
 	readonly description?: string;
+	readonly vim?: EditorKeymapVimSection;
+	readonly workbench?: EditorKeymapWorkbenchBindings;
 	readonly normal: EditorKeymapNormalBindings;
 	readonly sequences: EditorKeymapSequenceBindings;
 	readonly visual: EditorKeymapVisualBindings;
 	readonly window: EditorKeymapWindowBindings;
 	/** Command-centric overrides. Presence replaces the command's defaults. */
 	readonly keybindings?: Readonly<Record<string, KeyChordVariants>>;
+	/** Multi-alias mapping: command ID -> alias string(s) */
+	readonly aliases?: Readonly<Record<string, CommandAliasValue>>;
 }

@@ -150,4 +150,57 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(prevented).toBe(1);
 		expect(controller.getState().mode).toBe("NORMAL");
 	});
+
+	test("resolves structured section-oriented profile (keymap.vim)", () => {
+		let text = "alpha\nbeta";
+		let selection = { start: 0, end: 0 };
+		let prevented = 0;
+
+		const sectionedProfile = {
+			vim: {
+				normal: {
+					moveDown: "j",
+					enterInsert: "i",
+				},
+				visual: {
+					extendDown: "j",
+				},
+				sequences: {
+					deleteCell: "dd",
+				},
+			},
+		};
+
+		const controller = createBrowserVimController(true, {
+			getKeymap: () => sectionedProfile,
+			getAdapter: () => ({
+				getText: () => text,
+				getSelection: () => selection,
+				setSelection: (next) => {
+					selection = next;
+				},
+				replaceSelection: () => undefined,
+				moveLine: (delta) => {
+					if (delta > 0) selection = { start: 6, end: 6 };
+				},
+				focus: () => undefined,
+			}),
+		});
+
+		const event = (key: string) => ({
+			key,
+			preventDefault: () => {
+				prevented++;
+			},
+			stopPropagation: () => undefined,
+		});
+
+		// Motion via keymap.vim.normal
+		expect(controller.handleKeyDown(event("j"))).toBe(true);
+		expect(selection).toEqual({ start: 6, end: 6 });
+
+		// Mode transition via keymap.vim.normal
+		expect(controller.handleKeyDown(event("i"))).toBe(true);
+		expect(controller.getState().mode).toBe("INSERT");
+	});
 });

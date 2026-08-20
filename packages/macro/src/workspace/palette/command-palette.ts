@@ -1,5 +1,6 @@
 import type { CommandRegistry } from "../contributions/command-registry";
 import type { TabRegistry } from "../contributions/tab-registry";
+import type { EditorKeymapProfile } from "../keymaps/types";
 import type { WindowLayoutStateManager } from "../layout/window-layout-state";
 
 export interface PaletteItem {
@@ -20,6 +21,7 @@ export class CommandPaletteController {
 		private readonly commandRegistry: CommandRegistry,
 		private readonly layoutManager?: WindowLayoutStateManager,
 		private readonly tabRegistry?: TabRegistry,
+		private readonly getKeymap?: () => EditorKeymapProfile | undefined,
 	) {}
 
 	getIsOpen(): boolean {
@@ -81,40 +83,60 @@ export class CommandPaletteController {
 	getItems(): readonly PaletteItem[] {
 		const allItems: PaletteItem[] = [];
 
+		const profile = this.getKeymap?.();
+		const aliases = profile?.aliases;
+
 		// 1. Extension and registered commands
 		for (const cmd of this.commandRegistry.getCommands()) {
+			const cmdAliases: string[] = [];
+			if (aliases) {
+				const entry = aliases[cmd.command];
+				if (Array.isArray(entry)) {
+					cmdAliases.push(...entry);
+				} else if (typeof entry === "string") {
+					cmdAliases.push(entry);
+				}
+			}
+			const aliasHint =
+				cmdAliases.length > 0 ? `:${cmdAliases.join(", :")}` : undefined;
 			allItems.push({
 				id: cmd.command,
 				title: cmd.title,
 				category: cmd.category ?? "Command",
-				keybinding:
-					cmd.keybinding ??
-					[cmd.verb, ...(cmd.aliases ?? [])].filter(Boolean).join(", "),
+				keybinding: cmd.keybinding ?? aliasHint,
 				execute: () => this.commandRegistry.executeCommand(cmd.command),
 			});
 		}
 
 		// 2. Built-in Windowing & Layout commands
 		if (this.layoutManager) {
+			const profile = this.getKeymap?.();
+			const sidepanelChord =
+				profile?.workbench?.toggleSidepanel ?? profile?.window?.toggleSidepanel;
+			const nextTabChord =
+				profile?.workbench?.nextTab ?? profile?.window?.nextTab;
+			const prevTabChord =
+				profile?.workbench?.prevTab ?? profile?.window?.prevTab;
+
 			allItems.push({
 				id: "view.toggleSidepanel",
 				title: "Toggle Sidepanel Visibility",
 				category: "View",
-				keybinding: "Ctrl+B",
+				...(sidepanelChord ? { keybinding: sidepanelChord } : {}),
 				execute: () => this.layoutManager?.toggleSidepanel(),
 			});
 			allItems.push({
 				id: "view.nextTab",
 				title: "Switch to Next Workspace Tab",
 				category: "View",
-				keybinding: "Ctrl+]",
+				...(nextTabChord ? { keybinding: nextTabChord } : {}),
 				execute: () => this.layoutManager?.nextTab(1),
 			});
 			allItems.push({
 				id: "view.prevTab",
 				title: "Switch to Previous Workspace Tab",
 				category: "View",
-				keybinding: "Ctrl+[",
+				...(prevTabChord ? { keybinding: prevTabChord } : {}),
 				execute: () => this.layoutManager?.nextTab(-1),
 			});
 		}

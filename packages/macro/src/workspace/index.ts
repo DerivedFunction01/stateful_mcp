@@ -18,6 +18,7 @@ import {
 } from "./editor/macro-document-manager";
 import { createDefaultI18nKernel } from "./i18n/discovery";
 import type { I18nKernel } from "./i18n/i18n-kernel";
+import type { EditorKeymapProfile } from "./keymaps/types";
 import { WorkspaceJournal } from "./journal/workspace-journal";
 import {
 	WindowLayoutStateManager,
@@ -72,6 +73,9 @@ export interface MacroWorkspaceOptions {
 	readonly initialLayout?: Partial<WindowLayoutStateSnapshot>;
 	readonly runtime?: ExtensionRuntime;
 	readonly profile?: UserMacroProfile;
+	readonly keymap?:
+		| EditorKeymapProfile
+		| (() => EditorKeymapProfile | undefined);
 	readonly settings?: WorkspaceSettingsService;
 	readonly journal?: import("./journal/workspace-journal").WorkspaceJournalOptions;
 	readonly scratchpad?: ScratchpadSessionOptions;
@@ -135,7 +139,13 @@ export function createMacroWorkspace(
 	const editorGroups = new MacroEditorGroupManager(documents);
 	const editor = activeDocument.editor;
 	const scratchpad = activeDocument.session;
-	const palette = new CommandPaletteController(commands, layout, tabs);
+	const getKeymap =
+		typeof options?.keymap === "function"
+			? options.keymap
+			: options?.keymap
+				? () => options.keymap as EditorKeymapProfile
+				: undefined;
+	const palette = new CommandPaletteController(commands, layout, tabs, getKeymap);
 	const saveCoordinator = new WorkspaceSaveCoordinator(layout);
 	const settingsService =
 		options?.settings ??
@@ -198,8 +208,6 @@ export function createMacroWorkspace(
 			command: "workspace.saveActive",
 			title: "Save Active Tab",
 			category: "Workspace",
-			verb: "write",
-			aliases: ["w"],
 		},
 		{ execute: () => saveCoordinator.saveActive() },
 	);
@@ -250,8 +258,6 @@ export function createMacroWorkspace(
 			command: "workspace.saveAll",
 			title: "Save All Tabs",
 			category: "Workspace",
-			verb: "wall",
-			aliases: ["wa"],
 		},
 		{ execute: () => saveCoordinator.saveAll() },
 	);
@@ -260,7 +266,6 @@ export function createMacroWorkspace(
 			command: "workspace.saveActiveAndClose",
 			title: "Save and Close",
 			category: "Workspace",
-			verb: "wq",
 		},
 		{ execute: () => saveCoordinator.saveActiveAndClose() },
 	);
@@ -269,7 +274,6 @@ export function createMacroWorkspace(
 			command: "workspace.saveAllAndQuit",
 			title: "Save All and Quit",
 			category: "Workspace",
-			verb: "wqa",
 		},
 		{ execute: () => saveCoordinator.saveAllAndQuit() },
 	);
@@ -278,8 +282,6 @@ export function createMacroWorkspace(
 			command: "workspace.quit",
 			title: "Quit Application",
 			category: "Workspace",
-			verb: "quit",
-			aliases: ["q"],
 		},
 		{ execute: () => undefined },
 	);
@@ -288,8 +290,6 @@ export function createMacroWorkspace(
 			command: "workspace.quitAll",
 			title: "Quit All",
 			category: "Workspace",
-			verb: "quitall",
-			aliases: ["qa"],
 		},
 		{ execute: () => saveCoordinator.saveAll("quit") },
 	);
@@ -298,7 +298,6 @@ export function createMacroWorkspace(
 			command: "workspace.closeActiveTab",
 			title: "Close Active Tab",
 			category: "Workspace",
-			verb: "tabclose",
 		},
 		{ execute: () => layout.closeActiveTab() },
 	);
@@ -307,8 +306,6 @@ export function createMacroWorkspace(
 			command: "workspace.openSettings",
 			title: "Open Settings",
 			category: "Workspace",
-			verb: "settings",
-			aliases: ["config"],
 		},
 		{
 			execute: (request?: OpenSettingsRequest) => {
@@ -353,7 +350,6 @@ export function createMacroWorkspace(
 			command: "workspace.openExtensions",
 			title: "Open Extensions",
 			category: "Workspace",
-			verb: "extensions",
 		},
 		{
 			execute: () => {
@@ -474,7 +470,7 @@ async function executeLineCommand(
 			request.expectedTextRevision,
 		);
 	const lineNumber =
-		request?.lineNumber ?? document.editor.buffer.getCursor().line + 1;
+		request?.lineNumber ?? document.editor.getCursor().line + 1;
 	const status = document.session.getLineStatusByNumber(lineNumber);
 	if (status !== "valid") return null;
 	return document.session.executeLine(lineNumber - 1);

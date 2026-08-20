@@ -4,7 +4,7 @@ import {
 } from "@stateful-mcp/macro-protocol/keymap";
 import type { KeymapBindingDto } from "@stateful-mcp/macro-protocol/workspace";
 import type { ContextExpression } from "../contributions/types";
-import { DEFAULT_COMMAND_KEYBINDINGS } from "./default-bindings";
+import { DEFAULT_COMMAND_KEYBINDINGS } from "./defaults";
 import {
 	ALL_CANONICAL_KEYS,
 	type CanonicalKey,

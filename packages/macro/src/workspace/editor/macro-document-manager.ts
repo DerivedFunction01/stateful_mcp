@@ -145,10 +145,10 @@ export class MacroDocumentManager {
 		});
 		for (const macroId of template.pinnedMacroIds ?? []) {
 			document.session.setPinnedMacro(macroId);
-			const lastLine = document.editor.buffer.getLineCount() - 1;
-			document.editor.buffer.setCursor(
+			const lastLine = document.editor.getLineCount() - 1;
+			document.editor.setCursor(
 				lastLine,
-				document.editor.buffer.getLine(lastLine).length,
+				document.editor.getLine(lastLine).length,
 			);
 			document.session.createPinnedMacroLine();
 		}
@@ -211,8 +211,8 @@ export class MacroDocumentManager {
 				request.expectedTextRevision,
 				document.textRevision,
 			);
-		if (document.editor.buffer.getText() !== request.text) {
-			document.editor.buffer.setText(request.text);
+		if (document.editor.getText() !== request.text) {
+			document.editor.setText(request.text);
 			document.textRevision += 1;
 			document.dirty = true;
 			this.notify();
@@ -250,7 +250,7 @@ export class MacroDocumentManager {
 		const editor = new EditorKernel(options.initialText);
 		const session = new ScratchpadSession(
 			this.runtime,
-			editor.buffer,
+			editor,
 			50,
 			this.scratchpadOptions,
 		);
@@ -267,7 +267,7 @@ export class MacroDocumentManager {
 			dirty: false,
 			textRevision: 0,
 		};
-		const unsubscribe = editor.buffer.subscribe(() => {
+		const unsubscribe = editor.subscribe(() => {
 			document.dirty = true;
 			this.notify();
 		});

@@ -57,10 +57,37 @@ export interface KeymapBindingDto {
 	readonly replacedBinding?: string;
 }
 
+export interface KeymapVimSectionDto {
+	readonly normal?: Readonly<Record<string, string>>;
+	readonly visual?: Readonly<Record<string, string>>;
+	readonly sequences?: Readonly<Record<string, string>>;
+}
+
+export interface KeymapWorkbenchSectionDto {
+	readonly openCommandPalette?: string;
+	readonly quickOpen?: string;
+	readonly openSettings?: string;
+	readonly toggleSidepanel?: string;
+	readonly toggleDrawer?: string;
+	readonly splitGroup?: string;
+	readonly toggleActivityPanel?: string;
+	readonly switchSplitFocus?: string;
+	readonly nextTab?: string;
+	readonly prevTab?: string;
+	readonly pinMacro?: string;
+}
+
 export interface EffectiveKeymapDto {
 	readonly profileId: string;
 	readonly name: string;
 	readonly description?: string;
+	readonly vim?: KeymapVimSectionDto;
+	readonly workbench?: KeymapWorkbenchSectionDto;
+	readonly normal?: Readonly<Record<string, string>>;
+	readonly visual?: Readonly<Record<string, string>>;
+	readonly sequences?: Readonly<Record<string, string>>;
+	readonly window?: Readonly<Record<string, string>>;
+	readonly aliases?: Readonly<Record<string, string>>;
 	readonly bindings: readonly KeymapBindingDto[];
 }
 

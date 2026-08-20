@@ -44,10 +44,16 @@ export interface BrowserVimController {
 }
 
 export interface EditorKeymapProfileShape {
-	readonly normal?: Record<string, string>;
-	readonly visual?: Record<string, string>;
-	readonly sequences?: Record<string, string>;
-	readonly window?: Record<string, string>;
+	readonly vim?: {
+		readonly normal?: Readonly<Record<string, string>>;
+		readonly visual?: Readonly<Record<string, string>>;
+		readonly sequences?: Readonly<Record<string, string>>;
+	};
+	readonly workbench?: Readonly<Record<string, string>>;
+	readonly normal?: Readonly<Record<string, string>>;
+	readonly visual?: Readonly<Record<string, string>>;
+	readonly sequences?: Readonly<Record<string, string>>;
+	readonly window?: Readonly<Record<string, string>>;
 	readonly bindings?: readonly KeymapBindingDto[];
 }
 
@@ -55,33 +61,6 @@ export type KeymapSource =
 	| EffectiveKeymapDto
 	| EditorKeymapProfileShape
 	| undefined;
-
-export const DEFAULT_VIM_MAP: EditorKeymapProfileShape = {
-	normal: {
-		moveDown: "j",
-		moveUp: "k",
-		moveLeft: "h",
-		moveRight: "l",
-		enterInsert: "i",
-		insertBelow: "o",
-		insertAbove: "O",
-		enterVisual: "v",
-		undo: "u",
-		redo: "ctrl+r",
-		command: ":",
-	},
-	sequences: {
-		deleteCell: "dd",
-		yankCell: "yy",
-	},
-	visual: {
-		deleteSelection: "d",
-		extendDown: "j",
-		extendUp: "k",
-		extendLeft: "h",
-		extendRight: "l",
-	},
-};
 
 export function normalizeChordFromEvent(
 	event: BrowserVimKeyboardEvent,
@@ -170,17 +149,11 @@ export function createBrowserVimController(
 				return false;
 			}
 
-			// Retrieve configured keymap definitions (defaulting only if no keymap was provided at all)
-			const resolvedKeymap = keymap ?? DEFAULT_VIM_MAP;
-			const normalMap = (resolvedKeymap as EditorKeymapProfileShape | undefined)
-				?.normal;
-			const visualMap = (resolvedKeymap as EditorKeymapProfileShape | undefined)
-				?.visual;
-			const sequenceMap = (
-				resolvedKeymap as EditorKeymapProfileShape | undefined
-			)?.sequences;
-			const bindings = (resolvedKeymap as EffectiveKeymapDto | undefined)
-				?.bindings;
+			// Retrieve configured keymap definitions directly with ZERO runtime fallbacks
+			const normalMap = keymap?.vim?.normal ?? keymap?.normal;
+			const visualMap = keymap?.vim?.visual ?? keymap?.visual;
+			const sequenceMap = keymap?.vim?.sequences ?? keymap?.sequences;
+			const bindings = keymap?.bindings;
 
 			// Handle sequence buffering (e.g. "dd", "yy", "[e", "]e")
 			if (state.mode === "NORMAL" && sequenceMap) {
@@ -188,11 +161,13 @@ export function createBrowserVimController(
 
 				// Check if any defined sequence starts with or matches currentSeq
 				const matchingSequenceKey = Object.entries(sequenceMap).find(
-					([, seqChord]) => seqChord === currentSeq,
+					([, seqChord]) => (seqChord as string) === currentSeq,
 				);
 				const hasPartialMatch = Object.values(sequenceMap).some(
 					(seqChord) =>
-						seqChord.startsWith(currentSeq) && seqChord.length > currentSeq.length,
+						typeof seqChord === "string" &&
+						seqChord.startsWith(currentSeq) &&
+						seqChord.length > currentSeq.length,
 				);
 
 				if (matchingSequenceKey) {

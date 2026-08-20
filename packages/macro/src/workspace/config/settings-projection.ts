@@ -3,7 +3,7 @@ import {
 	type SettingsUiSnapshotDto,
 } from "@stateful-mcp/macro-protocol";
 import type { I18nKernel } from "../i18n/i18n-kernel";
-import { EN_WEB } from "../i18n/locales/en/web";
+import { EN_WEB } from "../i18n/locales/en";
 import type {
 	SettingsDiagnostic,
 	SettingsSchemaEntry,
@@ -269,18 +269,21 @@ export function tScopeUnsupported(
 	i18n: I18nKernel | undefined,
 	scope: SettingsScope,
 ): string {
-	const key =
-		(UNSUPPORTED_SCOPE_REASONS[scope] as keyof typeof EN_WEB) ??
-		"settings.scope.unsupported";
-	return i18n ? i18n.t(key) : (EN_WEB[key] ?? key);
+	const key: string =
+		UNSUPPORTED_SCOPE_REASONS[scope] ?? "settings.scope.unsupported";
+	return i18n
+		? i18n.t(key)
+		: ((EN_WEB as Record<string, string>)[key] ?? key);
 }
 
 export function tCategory(
 	i18n: I18nKernel | undefined,
 	category: string,
 ): string {
-	const key = `settings.category.${category}` as keyof typeof EN_WEB;
-	const translated = i18n ? i18n.t(key) : EN_WEB[key];
+	const key = `settings.category.${category}`;
+	const translated = i18n
+		? i18n.t(key)
+		: (EN_WEB as Record<string, string>)[key];
 	return translated && translated !== key ? translated : toTitleCase(category);
 }
 
