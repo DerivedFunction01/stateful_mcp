@@ -1,3 +1,4 @@
+import type { SettingsPreviewDto } from "@stateful-mcp/macro-protocol";
 import { CheckCircle2, Code2, Palette, Terminal, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createDiagnosticHostClient } from "../dev/diagnostic-host-client";
@@ -126,8 +127,125 @@ export function Gallery() {
 					</div>
 				</Card>
 				<HostStory />
+				<SettingsPreviewStory />
 			</div>
 		</div>
+	);
+}
+
+const GALLERY_PREVIEWS: readonly SettingsPreviewDto[] = [
+	{
+		requestId: "gallery-valid",
+		settingsRevision: "gallery",
+		providerId: "values.quantity",
+		status: "valid",
+		diagnostics: [],
+		tokenDescriptors: [
+			{
+				id: "NUM",
+				domain: "quantity",
+				labelKey: "settings.tokens.quantity.NUM.label",
+				descriptionKey: "settings.tokens.quantity.NUM.description",
+			},
+			{
+				id: "UNIT",
+				domain: "quantity",
+				labelKey: "settings.tokens.quantity.UNIT.label",
+				descriptionKey: "settings.tokens.quantity.UNIT.description",
+			},
+		],
+		templateAnalysis: [
+			{
+				template: "NUM UNIT",
+				tokens: ["NUM", "UNIT"],
+				segments: [
+					{ kind: "token", text: "NUM", start: 0, end: 3, tokenId: "NUM" },
+					{ kind: "literal", text: " ", start: 3, end: 4 },
+					{ kind: "token", text: "UNIT", start: 4, end: 8, tokenId: "UNIT" },
+				],
+				unknownTokens: [],
+			},
+		],
+		sample: { input: "sample", matched: true, value: { kind: "quantity" } },
+	},
+	{
+		requestId: "gallery-invalid",
+		settingsRevision: "gallery",
+		providerId: "values.frequency",
+		status: "invalid",
+		diagnostics: [
+			{
+				severity: "error",
+				code: "UNKNOWN_TEMPLATE_TOKEN",
+				message: "gallery.preview.unknownToken",
+				path: ["values", "frequency", "templates"],
+			},
+		],
+		templateAnalysis: [
+			{
+				template: "every <UNKNOWN>",
+				tokens: [],
+				segments: [
+					{ kind: "literal", text: "every ", start: 0, end: 6 },
+					{
+						kind: "unknown-token",
+						text: "UNKNOWN",
+						start: 6,
+						end: 15,
+					},
+				],
+				unknownTokens: [
+					{
+						kind: "unknown-token",
+						text: "UNKNOWN",
+						start: 6,
+						end: 15,
+					},
+				],
+			},
+		],
+	},
+];
+
+function SettingsPreviewStory() {
+	return (
+		<Card title="Settings semantic preview variants">
+			<div className="form-stack">
+				{GALLERY_PREVIEWS.map((preview) => (
+					<div key={preview.requestId} className="form-stack">
+						<div className="badge-row">
+							<Badge tone={preview.status === "valid" ? "success" : "danger"}>
+								{preview.status}
+							</Badge>
+							<code>{preview.providerId}</code>
+						</div>
+						{preview.templateAnalysis?.map((analysis) => (
+							<div key={analysis.template}>
+								<strong>{analysis.template}</strong>
+								<div>
+									{analysis.segments.map((segment) => (
+										<code
+											key={`${segment.start}-${segment.end}`}
+											className={`settings-preview-segment ${segment.kind}`}
+										>
+											{segment.text}
+										</code>
+									))}
+								</div>
+							</div>
+						))}
+						{preview.diagnostics.map((diagnostic, index) => (
+							<Diagnostic
+								key={`${diagnostic.code}-${index}`}
+								severity={diagnostic.severity}
+							>
+								{diagnostic.message}
+							</Diagnostic>
+						))}
+					</div>
+				))}
+			</div>
+		</Card>
 	);
 }
 

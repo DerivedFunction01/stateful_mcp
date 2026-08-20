@@ -1,4 +1,8 @@
 import type { I18nKernel, SettingsSchemaEntry } from "@stateful-mcp/macro";
+import {
+	DEFAULT_SETTINGS_SEMANTIC_PROVIDERS,
+	type SettingsSemanticProvider,
+} from "@stateful-mcp/macro";
 import { createDefaultSettingsRegistry } from "./index";
 
 const defaultRegistry = createDefaultSettingsRegistry();
@@ -9,4 +13,8 @@ export function getDefaultSettingsSchema(
 	i18n?: I18nKernel,
 ): readonly SettingsSchemaEntry[] {
 	return defaultRegistry.getSchema(i18n);
+}
+
+export function getDefaultSettingsSemanticProviders(): readonly SettingsSemanticProvider[] {
+	return DEFAULT_SETTINGS_SEMANTIC_PROVIDERS;
 }

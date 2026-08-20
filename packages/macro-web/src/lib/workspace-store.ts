@@ -172,7 +172,8 @@ export class BrowserWorkspaceStore {
 		if (
 			result.status === "conflict" ||
 			result.status === "blocked" ||
-			result.status === "unsupported"
+			result.status === "unsupported" ||
+			result.status === "preview"
 		) {
 			// Preserve the browser draft on validation/conflict errors. The
 			// returned snapshot reflects host-authoritative state, but the

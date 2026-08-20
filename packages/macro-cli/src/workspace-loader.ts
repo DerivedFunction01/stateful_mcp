@@ -14,6 +14,7 @@ import {
 import {
 	DEFAULT_WORKSPACE_SETTINGS_VALUES,
 	getDefaultSettingsSchema,
+	getDefaultSettingsSemanticProviders,
 } from "./config/default-settings";
 
 export interface LoadMacroCliOptions extends LoadMacroWorkspaceOptions {
@@ -55,6 +56,7 @@ export async function loadMacroCliWorkspace(
 		settings: {
 			defaults: DEFAULT_WORKSPACE_SETTINGS_VALUES,
 			schema: getDefaultSettingsSchema,
+			semanticProviders: getDefaultSettingsSemanticProviders(),
 		},
 	});
 	return { ...loaded, keymap };

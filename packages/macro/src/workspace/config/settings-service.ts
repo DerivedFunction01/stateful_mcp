@@ -5,6 +5,12 @@ import {
 	SettingsBundleConflictError,
 	type SettingsBundleSnapshot,
 } from "./settings-bundle";
+import {
+	type SettingsPreviewRequest,
+	type SettingsPreviewResult,
+	type SettingsSemanticProvider,
+	SettingsSemanticRegistry,
+} from "./settings-semantic";
 import type {
 	SettingsStorageDriver,
 	WorkspaceSettings,
@@ -61,6 +67,7 @@ export interface SettingsSchemaEntry {
 
 export interface SettingsDiagnostic {
 	readonly severity: "error" | "warning";
+	readonly code?: string;
 	readonly path?: readonly string[];
 	readonly message: string;
 	readonly line?: number;
@@ -111,6 +118,7 @@ export interface WorkspaceSettingsServiceOptions {
 	readonly customValidate?: (
 		draft: Readonly<Record<string, unknown>>,
 	) => readonly SettingsDiagnostic[];
+	readonly semanticProviders?: readonly SettingsSemanticProvider[];
 	readonly bundle?: {
 		load(): Promise<SettingsBundleSnapshot>;
 		save(
@@ -137,6 +145,7 @@ export class WorkspaceSettingsService {
 	private readonly bundle?: WorkspaceSettingsServiceOptions["bundle"];
 	private bundleRevision = "";
 	private bundleRevisionLoad?: Promise<string>;
+	private readonly semanticRegistry = new SettingsSemanticRegistry();
 
 	constructor(private readonly options: WorkspaceSettingsServiceOptions) {
 		this.coreDefaults = options.defaults;
@@ -148,6 +157,8 @@ export class WorkspaceSettingsService {
 		this.driver = options.driver;
 		this.bundle = options.bundle;
 		this.bundleRevision = options.bundleRevision ?? "";
+		for (const provider of options.semanticProviders ?? [])
+			this.semanticRegistry.register(provider);
 		this.effective = clone(options.initial ?? options.defaults);
 		this.draft = clone(this.effective);
 		this.rawText = JSON.stringify(this.draft, null, 2);
@@ -170,6 +181,48 @@ export class WorkspaceSettingsService {
 	}
 	getDiagnostics(): readonly SettingsDiagnostic[] {
 		return this.diagnostics;
+	}
+
+	getSemanticProviders(): readonly SettingsSemanticProvider[] {
+		return this.semanticRegistry.getAll();
+	}
+
+	async preview(
+		request: SettingsPreviewRequest,
+	): Promise<SettingsPreviewResult> {
+		if (
+			request.settingsRevision &&
+			this.bundleRevision &&
+			request.settingsRevision !== this.bundleRevision
+		) {
+			return {
+				requestId: request.requestId,
+				settingsRevision: this.bundleRevision,
+				providerId: "settings",
+				status: "invalid",
+				diagnostics: [
+					{
+						severity: "error",
+						code: "SETTINGS_PREVIEW_STALE",
+						message: "The settings preview is stale",
+					},
+				],
+			};
+		}
+		const provider = this.semanticRegistry.getForPath(request.path);
+		if (!provider)
+			return {
+				requestId: request.requestId,
+				settingsRevision: this.bundleRevision,
+				providerId: "settings",
+				status: "unsupported",
+				diagnostics: [],
+			};
+		return provider.preview({
+			...request,
+			effectiveSettings: this.effective,
+			draftSettings: this.draft,
+		});
 	}
 
 	getSettingsRevision(): string {

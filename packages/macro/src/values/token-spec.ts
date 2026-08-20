@@ -97,6 +97,64 @@ export type DomainToken =
 	| RelativeTimeToken
 	| DateTimeToken;
 
+export type ValueTokenDomain =
+	| "frequency"
+	| "quantity"
+	| "currency"
+	| "rate"
+	| "duration"
+	| "relative-time"
+	| "date-time";
+
+export interface ValueTokenDescriptor {
+	readonly id: string;
+	readonly domain: ValueTokenDomain;
+	readonly labelKey: string;
+	readonly descriptionKey: string;
+	readonly available?: boolean;
+}
+
+export interface TemplateTokenSegment {
+	readonly kind: "token" | "literal" | "unknown-token";
+	readonly text: string;
+	readonly start: number;
+	readonly end: number;
+	readonly tokenId?: string;
+}
+
+export interface TemplateAnalysis<TToken extends string = string> {
+	readonly template: string;
+	readonly tokens: readonly TToken[];
+	readonly segments: readonly TemplateTokenSegment[];
+	readonly unknownTokens: readonly TemplateTokenSegment[];
+	readonly config: ValueFormatConfig<TToken>;
+}
+
+const TOKEN_DOMAIN_GROUPS: Readonly<
+	Record<ValueTokenDomain, readonly string[]>
+> = {
+	frequency: FREQUENCY_TOKENS,
+	quantity: QUANTITY_TOKENS,
+	currency: CURRENCY_TOKENS,
+	rate: RATE_TOKENS,
+	duration: DURATION_TOKENS,
+	"relative-time": RELATIVE_TIME_TOKENS,
+	"date-time": DATE_TIME_TOKENS,
+};
+
+export function getValueTokenDescriptors(
+	domain: ValueTokenDomain,
+	runtimeAvailable?: ReadonlySet<string>,
+): readonly ValueTokenDescriptor[] {
+	return TOKEN_DOMAIN_GROUPS[domain].map((id) => ({
+		id,
+		domain,
+		labelKey: `settings.tokens.${domain}.${id}.label`,
+		descriptionKey: `settings.tokens.${domain}.${id}.description`,
+		...(runtimeAvailable ? { available: runtimeAvailable.has(id) } : {}),
+	}));
+}
+
 /**
  * Parses a format template string into structured tokens and separators.
  * Longest tokens in the catalog are prioritized.
@@ -138,6 +196,85 @@ export function parseFormatTemplate<TToken extends string = string>(
 		...(id ? { id } : {}),
 		tokens: Object.freeze(tokens),
 		separators: Object.freeze(separators),
+	};
+}
+
+/**
+ * Provides source-preserving template analysis without changing the legacy
+ * parser/compiler behavior. Unknown tokens are only identified through the
+ * explicit <TOKEN> or {TOKEN} placeholder syntax.
+ */
+export function analyzeFormatTemplate<TToken extends string = string>(
+	template: string,
+	tokenCatalog: readonly TToken[],
+	id?: string,
+): TemplateAnalysis<TToken> {
+	const segments: TemplateTokenSegment[] = [];
+	const tokens: TToken[] = [];
+	const tokenSet = new Set(tokenCatalog);
+	const sortedCatalog = [...tokenCatalog].sort(
+		(left, right) => right.length - left.length,
+	);
+	const pushLiteral = (text: string, start: number, end: number) => {
+		if (text) segments.push({ kind: "literal", text, start, end });
+	};
+	let index = 0;
+	let literalStart = 0;
+	while (index < template.length) {
+		const token = sortedCatalog.find((candidate) =>
+			template.startsWith(candidate, index),
+		);
+		if (token) {
+			pushLiteral(template.slice(literalStart, index), literalStart, index);
+			const end = index + token.length;
+			segments.push({
+				kind: "token",
+				text: token,
+				start: index,
+				end,
+				tokenId: token,
+			});
+			tokens.push(token);
+			index = end;
+			literalStart = index;
+			continue;
+		}
+		const explicit =
+			template[index] === "<" ? ">" : template[index] === "{" ? "}" : undefined;
+		if (explicit) {
+			const close = template.indexOf(explicit, index + 1);
+			if (close > index + 1) {
+				const candidate = template.slice(index + 1, close);
+				if (/^[A-Z][A-Z0-9_]*$/u.test(candidate)) {
+					pushLiteral(template.slice(literalStart, index), literalStart, index);
+					const kind = tokenSet.has(candidate as TToken)
+						? "token"
+						: "unknown-token";
+					segments.push({
+						kind,
+						text: candidate,
+						start: index,
+						end: close + 1,
+						tokenId: candidate,
+					});
+					if (kind === "token") tokens.push(candidate as TToken);
+					index = close + 1;
+					literalStart = index;
+					continue;
+				}
+			}
+		}
+		index++;
+	}
+	pushLiteral(template.slice(literalStart), literalStart, template.length);
+	return {
+		template,
+		tokens: Object.freeze(tokens),
+		segments: Object.freeze(segments),
+		unknownTokens: Object.freeze(
+			segments.filter((segment) => segment.kind === "unknown-token"),
+		),
+		config: parseFormatTemplate(template, tokenCatalog, id),
 	};
 }
 

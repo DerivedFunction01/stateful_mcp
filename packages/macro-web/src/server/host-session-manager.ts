@@ -40,6 +40,7 @@ import {
 	type SettingsBundleResult,
 	type SettingsDiagnosticDto,
 	type SettingsOperation,
+	type SettingsPreviewDto,
 	type SettingsScope,
 	type SettingsUiOperation,
 	type SettingsUiSnapshotDto,
@@ -232,6 +233,22 @@ export class HostSessionManager {
 				"Settings are unavailable",
 				false,
 			);
+		if (operation.operation === "preview") {
+			const preview = await settings.preview({
+				requestId: operation.requestId,
+				settingsRevision:
+					operation.expectedRevision ?? settings.getSettingsRevision(),
+				path: operation.path,
+				draftValue: operation.draftValue,
+				effectiveSettings: settings.getEffective(),
+				sampleInput: operation.sampleInput,
+			});
+			return {
+				status: "preview",
+				preview: toSettingsPreviewDto(preview),
+				snapshot: this.snapshotResult(session).snapshot,
+			};
+		}
 
 		// Semantic mutations route through the canonical SettingsUiModel so the
 		// host remains the sole authority on values, diagnostics, and
@@ -916,11 +933,32 @@ function toSettingsDiagnosticDto(
 ): SettingsDiagnosticDto {
 	return {
 		severity: diagnostic.severity,
+		code: diagnostic.code,
 		path: diagnostic.path,
 		message: diagnostic.message,
 		line: diagnostic.line,
 		column: diagnostic.column,
 		restartRequired: diagnostic.restartRequired,
+	};
+}
+
+function toSettingsPreviewDto(
+	preview: import("@stateful-mcp/macro").SettingsPreviewResult,
+): SettingsPreviewDto {
+	return {
+		requestId: preview.requestId,
+		settingsRevision: preview.settingsRevision,
+		providerId: preview.providerId,
+		status: preview.status,
+		diagnostics: preview.diagnostics.map(toSettingsDiagnosticDto),
+		tokenDescriptors: preview.tokenDescriptors,
+		templateAnalysis: preview.templateAnalysis?.map((analysis) => ({
+			template: analysis.template,
+			tokens: analysis.tokens,
+			segments: analysis.segments,
+			unknownTokens: analysis.unknownTokens,
+		})),
+		sample: preview.sample,
 	};
 }
 

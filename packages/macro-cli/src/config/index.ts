@@ -1,4 +1,9 @@
-import type { I18nKernel, SettingsSchemaEntry } from "@stateful-mcp/macro";
+import type {
+	I18nKernel,
+	SettingsSchemaEntry,
+	SettingsSemanticProvider,
+} from "@stateful-mcp/macro";
+import { DEFAULT_SETTINGS_SEMANTIC_PROVIDERS } from "@stateful-mcp/macro";
 import { appearanceSettingsModule } from "./modules/appearance.settings";
 import { currencySettingsModule } from "./modules/currency.settings";
 import { dateTimeSettingsModule } from "./modules/date-time.settings";
@@ -39,4 +44,8 @@ export function getDefaultSettingsSchema(
 	i18n?: I18nKernel,
 ): readonly SettingsSchemaEntry[] {
 	return defaultRegistry.getSchema(i18n);
+}
+
+export function getDefaultSettingsSemanticProviders(): readonly SettingsSemanticProvider[] {
+	return DEFAULT_SETTINGS_SEMANTIC_PROVIDERS;
 }

@@ -10,6 +10,7 @@ import type {
 	I18nKernel,
 	LoadedExtension,
 	SettingsSchemaEntry,
+	SettingsSemanticProvider,
 	UserMacroProfile,
 } from "@stateful-mcp/macro";
 import {
@@ -63,6 +64,7 @@ export interface MacroHostSettingsOptions {
 		| readonly SettingsSchemaEntry[]
 		| ((i18n: I18nKernel) => readonly SettingsSchemaEntry[]);
 	readonly configureI18n?: (i18n: I18nKernel) => void;
+	readonly semanticProviders?: readonly SettingsSemanticProvider[];
 }
 
 export interface LoadMacroWorkspaceOptions {
@@ -265,6 +267,7 @@ export async function loadMacroWorkspace(
 		bundleRevision: initialBundle.revision,
 		activeProfileId,
 		baseProfile: resolvedProfile,
+		semanticProviders: options.settings?.semanticProviders,
 	});
 
 	const workspace = createMacroWorkspace({

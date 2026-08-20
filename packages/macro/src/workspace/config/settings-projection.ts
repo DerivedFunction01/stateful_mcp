@@ -247,6 +247,7 @@ function serializeOrigin(origin: SettingsOriginInfo): {
 
 function serializeDiagnostic(diagnostic: SettingsDiagnostic): {
 	readonly severity: SettingsDiagnostic["severity"];
+	readonly code?: string;
 	readonly path?: readonly string[];
 	readonly message: string;
 	readonly line?: number;
@@ -255,6 +256,7 @@ function serializeDiagnostic(diagnostic: SettingsDiagnostic): {
 } {
 	return {
 		severity: diagnostic.severity,
+		code: diagnostic.code,
 		path: diagnostic.path,
 		message: diagnostic.message,
 		line: diagnostic.line,

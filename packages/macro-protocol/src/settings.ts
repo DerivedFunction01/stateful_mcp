@@ -44,11 +44,51 @@ export interface SettingsSchemaEntryDto {
 
 export interface SettingsDiagnosticDto {
 	readonly severity: "error" | "warning";
+	readonly code?: string;
 	readonly path?: readonly string[];
 	readonly message: string;
 	readonly line?: number;
 	readonly column?: number;
 	readonly restartRequired?: boolean;
+}
+
+export interface SettingsTokenDescriptorDto {
+	readonly id: string;
+	readonly domain: string;
+	readonly labelKey: string;
+	readonly descriptionKey: string;
+	readonly available?: boolean;
+}
+
+export interface SettingsTemplateSegmentDto {
+	readonly kind: "token" | "literal" | "unknown-token";
+	readonly text: string;
+	readonly start: number;
+	readonly end: number;
+	readonly tokenId?: string;
+}
+
+export interface SettingsTemplateAnalysisDto {
+	readonly template: string;
+	readonly tokens: readonly string[];
+	readonly segments: readonly SettingsTemplateSegmentDto[];
+	readonly unknownTokens: readonly SettingsTemplateSegmentDto[];
+}
+
+export interface SettingsPreviewDto {
+	readonly requestId: string;
+	readonly settingsRevision: string;
+	readonly providerId: string;
+	readonly status: "valid" | "invalid" | "unsupported";
+	readonly diagnostics: readonly SettingsDiagnosticDto[];
+	readonly tokenDescriptors?: readonly SettingsTokenDescriptorDto[];
+	readonly templateAnalysis?: readonly SettingsTemplateAnalysisDto[];
+	readonly sample?: {
+		readonly input: string;
+		readonly matched: boolean;
+		readonly value?: unknown;
+		readonly formatted?: string;
+	};
 }
 
 export interface SettingsSnapshotDto {
@@ -116,6 +156,14 @@ export interface SettingsUiSnapshotDto {
 }
 
 export type SettingsOperation =
+	| {
+			readonly operation: "preview";
+			readonly requestId: string;
+			readonly path: readonly string[];
+			readonly draftValue: unknown;
+			readonly sampleInput?: string;
+			readonly expectedRevision?: string;
+	  }
 	| {
 			readonly operation: "set";
 			readonly path: readonly string[];
@@ -200,7 +248,14 @@ export type SettingsApplyResult =
 	| SettingsSavedResult
 	| SettingsBlockedResult
 	| SettingsConflictResult
-	| SettingsUnsupportedResult;
+	| SettingsUnsupportedResult
+	| SettingsPreviewResult;
+
+export interface SettingsPreviewResult {
+	readonly status: "preview";
+	readonly preview: SettingsPreviewDto;
+	readonly snapshot: SettingsUiSnapshotDto;
+}
 
 export type SettingsBundleDto = {
 	readonly $schema?: string;

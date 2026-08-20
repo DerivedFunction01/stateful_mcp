@@ -3,6 +3,7 @@ import type {
 	SettingsBundleResult,
 	SettingsDiagnosticDto,
 	SettingsOperation,
+	SettingsPreviewDto,
 	SettingsUiItemDto,
 	SettingsUiOperation,
 	SettingsUiSnapshotDto,
@@ -52,6 +53,12 @@ export function SettingsTab({
 	);
 	const [jsonDraft, setJsonDraft] = useState(hostSettings?.rawJsonText ?? "{}");
 	const [notice, setNotice] = useState<DraftNotice>();
+	const [preview, setPreview] = useState<SettingsPreviewDto>();
+	const [previewSampleInput, setPreviewSampleInput] = useState("");
+	const [previewContext, setPreviewContext] = useState<{
+		readonly path: readonly string[];
+		readonly draftValue: unknown;
+	}>();
 	const [busy, setBusy] = useState(false);
 	const [importMode, setImportMode] = useState<"merge" | "replace">("replace");
 	const [pendingImport, setPendingImport] = useState<{
@@ -142,8 +149,15 @@ export function SettingsTab({
 					severity: "warning",
 					message: t("settings.conflict"),
 				});
-			} else {
+			} else if (result.status === "unsupported") {
 				setNotice({ severity: "warning", message: result.message });
+			} else if (result.status === "preview") {
+				setNotice({
+					severity: result.preview.status === "invalid" ? "error" : "info",
+					message: result.preview.diagnostics
+						.map((diagnostic) => diagnostic.message)
+						.join("; "),
+				});
 			}
 		} catch (error) {
 			setNotice({ severity: "error", message: t("common.error") });
@@ -164,6 +178,26 @@ export function SettingsTab({
 			value,
 			expectedRevision: current.settingsRevision,
 		});
+		if (
+			item.path.length === 3 &&
+			item.path[0] === "values" &&
+			item.path[2] === "templates"
+		) {
+			setPreviewContext({ path: item.path, draftValue: value });
+			void client
+				.applySettings({
+					operation: "preview",
+					requestId: crypto.randomUUID(),
+					path: item.path,
+					draftValue: value,
+					expectedRevision: current.settingsRevision,
+					sampleInput: previewSampleInput || undefined,
+				})
+				.then((result) => {
+					if (result.status === "preview") setPreview(result.preview);
+				})
+				.catch(() => undefined);
+		}
 	};
 
 	const save = () =>
@@ -505,6 +539,30 @@ export function SettingsTab({
 					) : (
 						<Diagnostic severity="info">{t("common.noResults")}</Diagnostic>
 					)}
+					{preview && (
+						<SettingsPreviewPanel
+							preview={preview}
+							t={t}
+							sampleInput={previewSampleInput}
+							onSampleInputChange={(sampleInput) => {
+								setPreviewSampleInput(sampleInput);
+								if (!previewContext) return;
+								void client
+									.applySettings({
+										operation: "preview",
+										requestId: crypto.randomUUID(),
+										path: previewContext.path,
+										draftValue: previewContext.draftValue,
+										sampleInput: sampleInput || undefined,
+										expectedRevision: current.settingsRevision,
+									})
+									.then((result) => {
+										if (result.status === "preview") setPreview(result.preview);
+									})
+									.catch(() => undefined);
+							}}
+						/>
+					)}
 
 					{current.jsonModeAvailable ? (
 						<Toggle
@@ -692,6 +750,86 @@ function SchemaField({
 			onChange={(event) => onChange(event.target.value)}
 		/>
 	);
+}
+
+function SettingsPreviewPanel({
+	preview,
+	sampleInput,
+	onSampleInputChange,
+	t,
+}: {
+	readonly preview: SettingsPreviewDto;
+	readonly sampleInput: string;
+	readonly onSampleInputChange: (value: string) => void;
+	readonly t: (key: string, fallback?: string) => string;
+}) {
+	return (
+		<Card title={t("settings.preview")}>
+			<div className="form-stack">
+				<TextInput
+					label={t("settings.preview.sampleInput")}
+					value={sampleInput}
+					onChange={(event) => onSampleInputChange(event.target.value)}
+				/>
+				{preview.tokenDescriptors && preview.tokenDescriptors.length > 0 && (
+					<div>
+						<strong>{t("settings.preview.tokens")}</strong>
+						<ul>
+							{preview.tokenDescriptors.map((token) => (
+								<li key={token.id}>{t(token.labelKey)}</li>
+							))}
+						</ul>
+					</div>
+				)}
+				{preview.templateAnalysis?.map((analysis) => (
+					<div key={analysis.template}>
+						<strong>{analysis.template}</strong>
+						<div>
+							{analysis.segments.map((segment) => (
+								<span
+									key={`${segment.start}-${segment.end}`}
+									className={`settings-preview-segment ${segment.kind}`}
+								>
+									{segment.text}
+								</span>
+							))}
+						</div>
+						{analysis.unknownTokens.length > 0 && (
+							<Diagnostic severity="warning">
+								{t("settings.preview.unknownTokens")}
+							</Diagnostic>
+						)}
+					</div>
+				))}
+				{preview.sample && (
+					<Diagnostic severity={preview.sample.matched ? "info" : "warning"}>
+						{preview.sample.matched
+							? t("settings.preview.sampleMatched")
+							: t("settings.preview.sampleFailed")}
+					</Diagnostic>
+				)}
+				{preview.diagnostics.map((diagnostic, index) => (
+					<Diagnostic
+						key={`${diagnostic.code}-${index}`}
+						severity={diagnostic.severity}
+					>
+						{previewDiagnosticMessage(diagnostic, t)}
+					</Diagnostic>
+				))}
+			</div>
+		</Card>
+	);
+}
+
+function previewDiagnosticMessage(
+	diagnostic: SettingsDiagnosticDto,
+	t: (key: string, fallback?: string) => string,
+): string {
+	if (diagnostic.code === "UNKNOWN_TEMPLATE_TOKEN")
+		return t("settings.preview.unknownTokens");
+	if (diagnostic.code === "SETTINGS_PREVIEW_STALE")
+		return t("settings.preview.stale");
+	return t("settings.preview.diagnostic");
 }
 
 function itemMatches(item: SettingsUiItemDto, query: string): boolean {
