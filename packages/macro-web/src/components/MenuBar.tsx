@@ -298,7 +298,7 @@ export function MenuBar({
 				<Button
 					variant="ghost"
 					icon={<Command size={13} />}
-					onClick={onOpenPalette}
+					onClick={() => onOpenPalette()}
 				>
 					<span>{t("nav.commandPalette")}</span>
 					{paletteShortcut && (

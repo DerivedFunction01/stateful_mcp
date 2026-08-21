@@ -62,6 +62,7 @@ export function App() {
 	}, [setLocale, snapshot?.settings]);
 
 	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [paletteCommandMode, setPaletteCommandMode] = useState(false);
 	const [announcement, setAnnouncement] = useState("");
 	const [editorCursor, setEditorCursor] = useState("");
 	const lastFocused = useRef<Element | null>(null);
@@ -79,10 +80,11 @@ export function App() {
 	const [paletteInitialQuery, setPaletteInitialQuery] = useState("");
 	const [paletteQuery, setPaletteQuery] = useState("");
 
-	function openPalette(initialQuery = ""): void {
+	function openPalette(initialQuery = "", commandMode = false): void {
 		lastFocused.current = document.activeElement;
 		setPaletteInitialQuery(initialQuery);
 		setPaletteQuery(initialQuery);
+		setPaletteCommandMode(commandMode);
 		setPaletteOpen(true);
 	}
 
@@ -90,6 +92,7 @@ export function App() {
 		setPaletteOpen(false);
 		setPaletteInitialQuery("");
 		setPaletteQuery("");
+		setPaletteCommandMode(false);
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
 	}
 
@@ -319,7 +322,7 @@ export function App() {
 					domain={snapshot?.applications[0]?.displayName}
 					diagnostics={diagnostics}
 					cursor={editorCursor}
-					commandMode={paletteOpen && paletteInitialQuery.startsWith(":")}
+					commandMode={paletteOpen && paletteCommandMode}
 					commandText={paletteQuery}
 					onAction={(command) => {
 						if (command === "workspace.selectProfile") navigate("settings");

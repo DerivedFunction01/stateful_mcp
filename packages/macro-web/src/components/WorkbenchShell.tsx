@@ -77,7 +77,7 @@ export function WorkbenchShell({
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
 	readonly onEditorCursorChange?: (cursor: string) => void;
-	readonly onOpenPalette?: (initialQuery?: string) => void;
+	readonly onOpenPalette?: (initialQuery?: string, commandMode?: boolean) => void;
 }) {
 	const { t } = useI18n();
 	const [activeDomain, setActiveDomain] = useState<string>();
@@ -103,7 +103,8 @@ export function WorkbenchShell({
 			variant: "scratchpad",
 			getAdapter: getSurfaceAdapter,
 			getKeymap: () => snapshotRef.current?.keymap,
-			onOpenCommandMode: (initialQuery) => onOpenPalette?.(initialQuery ?? ":"),
+			onOpenCommandMode: (initialQuery, commandMode) =>
+				onOpenPalette?.(initialQuery ?? "", commandMode),
 			onExecuteLine: (lineNum) => {
 				const activeDoc = snapshotRef.current?.editor.activeDocument;
 				if (!activeDoc) return;

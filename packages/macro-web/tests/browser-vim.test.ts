@@ -230,11 +230,13 @@ describe("keymap-driven browser Vim controller", () => {
 		};
 
 		let openedCommandQuery: string | undefined;
+		let openedAsCommandMode = false;
 
 		const controller = createBrowserVimController(true, {
 			getKeymap: () => profile,
-			onOpenCommandMode: (q) => {
+			onOpenCommandMode: (q, commandMode) => {
 				openedCommandQuery = q;
+				openedAsCommandMode = commandMode === true;
 			},
 			getAdapter: () => ({
 				getActiveCellIndex: () => activeCell,
@@ -311,6 +313,7 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(controller.handleKeyDown(event(":"))).toBe(true);
 		expect(controller.getState().mode).toBe("COMMAND");
 		expect(openedCommandQuery).toBe(":");
+		expect(openedAsCommandMode).toBe(true);
 	});
 
 	test("maps pointer targets to logical cells and cellwise drag ranges", () => {
