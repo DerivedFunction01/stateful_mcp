@@ -37,6 +37,14 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.scratchpad.visual": "Visual mode · cell range",
 		"gallery.scratchpad.command": "Command mode · editor preserved",
 		"gallery.scratchpad.native": "Native editing · no Vim owner",
+		"gallery.inspectorTitle":
+			"Workbench Inspector (Problems, Cell Details & Quick-Runs)",
+		"gallery.quickrunTitle":
+			"Scratchpad Quick-Run Chip Bar & Frequency Variants",
+		"gallery.islandsTitle":
+			"Islands of Order & Macro Provenance Disambiguation",
+		"gallery.noEmojis": "No Emojis",
+		"gallery.richSidepanel": "Rich Sidepanel",
 	},
 	es: {
 		"gallery.eyebrow": "SOLO DESARROLLO",
@@ -76,5 +84,13 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.scratchpad.visual": "Modo visual · rango de celdas",
 		"gallery.scratchpad.command": "Modo comando · editor conservado",
 		"gallery.scratchpad.native": "Edición nativa · sin propietario Vim",
+		"gallery.inspectorTitle":
+			"Inspector del espacio (Problemas, Detalles de celda y Accesos rápidos)",
+		"gallery.quickrunTitle":
+			"Barra de fichas de ejecución rápida y variantes por frecuencia",
+		"gallery.islandsTitle":
+			"Islas de orden y desambiguación de procedencia de macros",
+		"gallery.noEmojis": "Sin emojis",
+		"gallery.richSidepanel": "Panel lateral enriquecido",
 	},
 } as const;

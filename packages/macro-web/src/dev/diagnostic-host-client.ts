@@ -147,10 +147,35 @@ export function createDiagnosticHostClient(): HostClient {
 			workspaceSnapshot: snapshot,
 			workspaceRevision: snapshot.revision,
 		}),
-		browseFs: async () => ({
-			currentPath: "/diagnostic/fixture",
-			parentPath: null,
-			entries: [],
+		browseFs: async (dirPath?: string) => ({
+			currentPath: dirPath || "/home/denny/projects",
+			parentPath: "/home/denny",
+			entries: [
+				{
+					name: "clinical-triage",
+					path: "/home/denny/projects/clinical-triage",
+					isDirectory: true,
+					isMacroProject: true,
+				},
+				{
+					name: "library-catalog",
+					path: "/home/denny/projects/library-catalog",
+					isDirectory: true,
+					isMacroProject: true,
+				},
+				{
+					name: "notes-2026",
+					path: "/home/denny/projects/notes-2026",
+					isDirectory: true,
+					isMacroProject: false,
+				},
+				{
+					name: "scratchpad.macro",
+					path: "/home/denny/projects/scratchpad.macro",
+					isDirectory: false,
+					isMacroProject: false,
+				},
+			],
 		}),
 		openProject: async () => snapshot,
 		initProject: async () => snapshot,

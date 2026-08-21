@@ -55,6 +55,8 @@ export interface MacroMatchingOptions {
 	mode?: MacroMatchingMode;
 	positionalFallback?: boolean;
 	overlap?: MacroOverlapStrategy;
+	subOrder?: readonly string[];
+	subOrderGroups?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface MacroSpec {
@@ -79,4 +81,6 @@ export interface MacroParseOptions {
 	mode?: MacroRunMode;
 	backends?: Readonly<Record<string, ExpressionBackend>>;
 	candidateSnapshots?: readonly import("./composition").MacroCandidateSnapshot[];
+	subOrder?: readonly string[];
+	subOrderGroups?: Readonly<Record<string, readonly string[]>>;
 }

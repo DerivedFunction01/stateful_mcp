@@ -1,3 +1,4 @@
+import type { PinnedMacroDto } from "@stateful-mcp/macro-protocol";
 import type { ExtensionRuntime } from "../../extensions/runtime";
 import { extractTokenChipsFromProjections } from "../editor/chips";
 import type { EditorKernel } from "../editor/editor-kernel";
@@ -69,6 +70,7 @@ export class ScratchpadSession {
 	private projectedLines: ProjectedMacroLine[] = [];
 	private pinnedMacroId: string | null = null;
 	private executedLineIndices = new Set<number>();
+	private readonly macroFrequencies = new Map<string, number>();
 	private parseDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners = new Set<() => void>();
 
@@ -88,6 +90,81 @@ export class ScratchpadSession {
 
 		// Initial parse
 		this.parseAllLinesSync();
+	}
+
+	recordExecution(macroName: string): void {
+		const current = this.macroFrequencies.get(macroName) ?? 0;
+		this.macroFrequencies.set(macroName, current + 1);
+	}
+
+	getFrequentMacros(
+		limit = 5,
+	): readonly { macroName: string; count: number }[] {
+		return [...this.macroFrequencies.entries()]
+			.map(([macroName, count]) => ({ macroName, count }))
+			.sort((a, b) => b.count - a.count)
+			.slice(0, limit);
+	}
+
+	getPinnedMacros(
+		projectPinned: readonly string[] = [],
+	): readonly PinnedMacroDto[] {
+		const result: PinnedMacroDto[] = [];
+		const seen = new Set<string>();
+
+		// 1. Session pinned macro
+		if (this.pinnedMacroId) {
+			seen.add(this.pinnedMacroId);
+			result.push({
+				id: `pin:${this.pinnedMacroId}`,
+				macroName: this.pinnedMacroId,
+				source: "project",
+				snippet: `^${this.pinnedMacroId} `,
+			});
+		}
+
+		// 2. Project pins
+		for (const pin of projectPinned) {
+			if (!seen.has(pin)) {
+				seen.add(pin);
+				result.push({
+					id: `project:${pin}`,
+					macroName: pin,
+					source: "project",
+					snippet: `^${pin} `,
+				});
+			}
+		}
+
+		// 3. Frequent macros from active session
+		for (const { macroName, count } of this.getFrequentMacros()) {
+			if (!seen.has(macroName)) {
+				seen.add(macroName);
+				result.push({
+					id: `frequent:${macroName}`,
+					macroName,
+					source: "frequent",
+					executionCount: count,
+					snippet: `^${macroName} `,
+				});
+			}
+		}
+
+		// 4. Extension defaults
+		for (const adapter of this.runtime.adapters.list()) {
+			const name = adapter.adapter.definition.name;
+			if (!seen.has(name)) {
+				seen.add(name);
+				result.push({
+					id: `ext:${name}`,
+					macroName: name,
+					source: "extension",
+					snippet: `^${name} `,
+				});
+			}
+		}
+
+		return result;
 	}
 
 	isLineExecuted(lineIndex: number): boolean {
@@ -301,6 +378,7 @@ export class ScratchpadSession {
 			const draft = await this.runtime.parseAdapter(line.adapterId, parseText);
 			const result = await this.runtime.executeAdapter(line.adapterId, draft);
 			this.executedLineIndices.add(lineIndex);
+			this.recordExecution(line.macroName);
 			this.notify();
 			return {
 				lineNumber: line.lineNumber,

@@ -1,20 +1,43 @@
 import type {
 	CommandDescriptorDto,
 	EditorMode,
+	EditorOutputSnapshotDto,
+	PinnedMacroDto,
 	ScratchpadLineDto,
+	ScratchpadSnapshotDto,
 	SettingsPreviewDto,
 } from "@stateful-mcp/macro-protocol";
-import { CheckCircle2, Code2, Palette, Terminal, X, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+	CheckCircle2,
+	Code2,
+	FolderGit2,
+	FolderPlus,
+	Palette,
+	Pin,
+	Play,
+	RotateCcw,
+	Save,
+	Terminal,
+	Trash2,
+	X,
+	Zap,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { createDiagnosticHostClient } from "../dev/diagnostic-host-client";
 import type { EditorSearchResult } from "../lib/browser-vim";
 import type { HostWorkspaceSnapshot } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEMES } from "../lib/theme";
+import {
+	loadUserPreferences,
+	saveUserPreferences,
+} from "../lib/user-preferences-storage";
 import { BrowserEditorFixture } from "./BrowserEditorFixture";
 import { CommandPalette } from "./CommandPalette";
+import { EditorOutputDrawer } from "./EditorOutputDrawer";
 import { EditorSurfaceView } from "./EditorSurfaceView";
 import { FindOverlay } from "./FindOverlay";
+import { OpenFolderModal } from "./OpenFolderModal";
 import {
 	Badge,
 	Button,
@@ -26,6 +49,7 @@ import {
 	TextInput,
 	Toggle,
 } from "./ui/primitives";
+import { WorkbenchInspector } from "./WorkbenchInspector";
 
 export function Gallery() {
 	const { themeId, setThemeId, theme } = useTheme();
@@ -83,6 +107,12 @@ export function Gallery() {
 					</div>
 				</Card>
 				<OverlayControlsStory />
+				<ProjectFolderModalStory />
+				<ExecutionToolbarAndUndoStory />
+				<UserPreferencesStory />
+				<WorkbenchInspectorStory />
+				<QuickRunChipsBarStory />
+				<IslandsOfOrderAndDisambiguationStory />
 				<Card title={t("gallery.formStates")}>
 					<div className="form-grid">
 						<TextInput
@@ -145,6 +175,347 @@ export function Gallery() {
 				<SettingsPreviewStory />
 			</div>
 		</div>
+	);
+}
+
+function ProjectFolderModalStory() {
+	const { t } = useI18n();
+	const [modalMode, setModalMode] = useState<
+		"open" | "init" | "saveAs" | undefined
+	>();
+	const client = useMemo(() => createDiagnosticHostClient(), []);
+
+	return (
+		<Card
+			title="Remote Project QuickPick Modal"
+			action={<Badge tone="accent">Server-Driven</Badge>}
+		>
+			<p className="story-note">
+				Browse remote filesystem paths, detect <code>.macro/project.json</code>{" "}
+				roots, and initialize or save workspaces.
+			</p>
+			<div className="button-row" style={{ marginTop: 12 }}>
+				<Button
+					variant="primary"
+					icon={<FolderGit2 size={14} />}
+					onClick={() => setModalMode("open")}
+				>
+					{t("workbench.openProjectTitle")}
+				</Button>
+				<Button
+					variant="secondary"
+					icon={<FolderPlus size={14} />}
+					onClick={() => setModalMode("init")}
+				>
+					{t("workbench.initProjectTitle")}
+				</Button>
+				<Button
+					variant="ghost"
+					icon={<Save size={14} />}
+					onClick={() => setModalMode("saveAs")}
+				>
+					{t("workbench.saveAsProjectTitle")}
+				</Button>
+			</div>
+
+			{modalMode && (
+				<OpenFolderModal
+					mode={modalMode}
+					client={client}
+					initialPath="/home/denny/projects"
+					onClose={() => setModalMode(undefined)}
+					onSelect={(_path: string) => {
+						setModalMode(undefined);
+					}}
+				/>
+			)}
+		</Card>
+	);
+}
+
+function ExecutionToolbarAndUndoStory() {
+	const { t } = useI18n();
+	const [drawerOutput, setDrawerOutput] = useState<EditorOutputSnapshotDto>({
+		entries: [
+			{
+				outputId: "entry-1",
+				availability: "available",
+				lineNumber: 1,
+				status: "committed",
+				executedAt: Date.now() - 60000,
+				result: {
+					kind: "vitals",
+					schemaVersion: 1,
+					availability: "available",
+					data: { bp: "120/80", hr: 72 },
+				},
+			},
+			{
+				outputId: "entry-2",
+				availability: "available",
+				lineNumber: 2,
+				status: "reversed",
+				executedAt: Date.now() - 30000,
+				result: {
+					kind: "dx",
+					schemaVersion: 1,
+					availability: "available",
+					data: { code: "I10", name: "Essential hypertension" },
+				},
+			},
+			{
+				outputId: "entry-3",
+				availability: "available",
+				lineNumber: 3,
+				status: "committed",
+				executedAt: Date.now() - 5000,
+				result: {
+					kind: "order",
+					schemaVersion: 1,
+					availability: "available",
+					data: { test: "CBC", priority: "STAT" },
+				},
+			},
+		],
+		hasMore: false,
+	});
+
+	return (
+		<Card
+			title="Cell Execution Toolbar & Reversal Journal"
+			action={<Badge tone="info">Two-Tier Undo</Badge>}
+		>
+			<p className="story-note">
+				Execute valid lines, clear executed cells, reset execution state, and
+				perform two-tier macro reversals.
+			</p>
+
+			{/* Simulated Scratchpad Action Toolbar */}
+			<div
+				className="editor-execution-actions"
+				style={{
+					display: "flex",
+					gap: 8,
+					padding: "8px 12px",
+					background: "var(--theme-surface-primary)",
+					borderRadius: 6,
+					border: "1px solid var(--theme-border-subtle)",
+					margin: "12px 0",
+					flexWrap: "wrap",
+					alignItems: "center",
+				}}
+			>
+				<button
+					type="button"
+					className="editor-toolbar-btn run-all-btn"
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 5,
+						padding: "4px 8px",
+						borderRadius: 4,
+						fontSize: 12,
+						background: "var(--theme-surface-elevated)",
+						border: "1px solid var(--theme-border-default)",
+						color: "var(--theme-content-primary)",
+					}}
+				>
+					<Play size={13} />
+					<span>{t("editor.execution.validLines")}</span>
+				</button>
+				<button
+					type="button"
+					className="editor-toolbar-btn clear-executed-btn"
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 5,
+						padding: "4px 8px",
+						borderRadius: 4,
+						fontSize: 12,
+						background: "var(--theme-surface-elevated)",
+						border: "1px solid var(--theme-border-default)",
+						color: "var(--theme-content-primary)",
+					}}
+				>
+					<Trash2 size={13} />
+					<span>{t("editor.clearExecuted")}</span>
+				</button>
+				<button
+					type="button"
+					className="editor-toolbar-btn reset-exec-btn"
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 5,
+						padding: "4px 8px",
+						borderRadius: 4,
+						fontSize: 12,
+						background: "var(--theme-surface-elevated)",
+						border: "1px solid var(--theme-border-default)",
+						color: "var(--theme-content-primary)",
+					}}
+				>
+					<RotateCcw size={13} />
+					<span>{t("editor.resetExecution")}</span>
+				</button>
+
+				<div
+					style={{
+						width: 1,
+						height: 16,
+						background: "var(--theme-border-subtle)",
+						margin: "0 4px",
+					}}
+				/>
+
+				{/* Pinned & Frequent Macro Quick-Run Chips */}
+				<div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+					<span
+						style={{
+							fontSize: 11,
+							color: "var(--theme-content-tertiary)",
+							display: "flex",
+							alignItems: "center",
+							gap: 3,
+						}}
+					>
+						<Pin size={11} /> Quick-Run:
+					</span>
+					<span
+						style={{
+							padding: "2px 6px",
+							borderRadius: 4,
+							fontSize: 11,
+							background:
+								"color-mix(in srgb, var(--theme-content-accent) 15%, transparent)",
+							color: "var(--theme-content-accent)",
+							border: "1px solid var(--theme-content-accent)",
+							fontFamily: "monospace",
+							cursor: "pointer",
+						}}
+					>
+						^vitals
+					</span>
+					<span
+						style={{
+							padding: "2px 6px",
+							borderRadius: 4,
+							fontSize: 11,
+							background:
+								"color-mix(in srgb, var(--theme-content-accent) 15%, transparent)",
+							color: "var(--theme-content-accent)",
+							border: "1px solid var(--theme-content-accent)",
+							fontFamily: "monospace",
+							cursor: "pointer",
+						}}
+					>
+						^dx
+					</span>
+					<span
+						style={{
+							padding: "2px 6px",
+							borderRadius: 4,
+							fontSize: 11,
+							background:
+								"color-mix(in srgb, var(--theme-status-info) 15%, transparent)",
+							color: "var(--theme-status-info)",
+							border: "1px solid var(--theme-status-info)",
+							fontFamily: "monospace",
+							cursor: "pointer",
+						}}
+					>
+						^order
+					</span>
+				</div>
+			</div>
+
+			{/* Embedded Output Drawer Preview */}
+			<div
+				style={{
+					border: "1px solid var(--theme-border-default)",
+					borderRadius: 6,
+					overflow: "hidden",
+				}}
+			>
+				<EditorOutputDrawer
+					output={drawerOutput}
+					defaultOpen={true}
+					onReverseEntry={async (entryId) => {
+						setDrawerOutput((prev) => ({
+							...prev,
+							entries: prev.entries.map((entry) =>
+								entry.outputId === entryId
+									? {
+											...entry,
+											status: "reversed" as const,
+											reversalReceipt: `REV-${Math.floor(Math.random() * 1000)}`,
+										}
+									: entry,
+							),
+						}));
+					}}
+				/>
+			</div>
+		</Card>
+	);
+}
+
+function UserPreferencesStory() {
+	const [prefs, setPrefs] = useState(() => loadUserPreferences());
+
+	const handleToggleVim = () => {
+		const next = !prefs.vimEnabled;
+		const updated = saveUserPreferences({ vimEnabled: next });
+		setPrefs(updated);
+	};
+
+	const handleTogglePurge = () => {
+		const next = !prefs.autoPurgeOnExecute;
+		const updated = saveUserPreferences({ autoPurgeOnExecute: next });
+		setPrefs(updated);
+	};
+
+	return (
+		<Card
+			title="Universal User Preferences (Durable Client Storage)"
+			action={<Badge tone="success">localStorage</Badge>}
+		>
+			<p className="story-note">
+				User-tier settings that survive project switching, folder open/close,
+				and server restarts.
+			</p>
+			<div className="form-grid" style={{ marginTop: 12 }}>
+				<div>
+					<span className="field-label">Active Keymap Profile</span>
+					<strong>{prefs.keymapProfile}</strong>
+				</div>
+				<div>
+					<span className="field-label">Active Theme</span>
+					<strong>{prefs.theme}</strong>
+				</div>
+				<div>
+					<span className="field-label">UI Locale</span>
+					<strong>{prefs.locale}</strong>
+				</div>
+				<div>
+					<span className="field-label">Storage Key</span>
+					<code>macro.user.preferences.v1</code>
+				</div>
+			</div>
+			<div className="form-stack" style={{ marginTop: 12 }}>
+				<Toggle
+					label="Enable Vim Modal Emulation"
+					checked={prefs.vimEnabled}
+					onChange={handleToggleVim}
+				/>
+				<Toggle
+					label="Auto-Purge Executed Lines on Enter"
+					checked={Boolean(prefs.autoPurgeOnExecute)}
+					onChange={handleTogglePurge}
+				/>
+			</div>
+		</Card>
 	);
 }
 
@@ -612,6 +983,319 @@ function HostStory() {
 					<Code2 size={15} />
 					{t("gallery.hostFixture")}
 				</p>
+			</div>
+		</Card>
+	);
+}
+
+function WorkbenchInspectorStory() {
+	const { t } = useI18n();
+	const [activeLine, setActiveLine] = useState(0);
+	const [pinned, setPinned] = useState<string[]>(["vitals"]);
+
+	const mockSnapshot: ScratchpadSnapshotDto = {
+		documentId: "doc-1",
+		textRevision: 1,
+		lines: [
+			{
+				lineNumber: 1,
+				rawText: "^vitals bp=120/80 hr=72",
+				macroName: "vitals",
+				lineStatus: "valid",
+				diagnostics: [],
+				projections: [
+					{
+						kind: "extension",
+						payload: {
+							kind: "vitals",
+							schemaVersion: 1,
+							availability: "available",
+							data: { bp: "120/80", hr: 72 },
+						},
+					},
+				],
+			},
+			{
+				lineNumber: 2,
+				rawText: "^box 20m something 15m prism 12m",
+				macroName: "box",
+				lineStatus: "valid",
+				diagnostics: [],
+				projections: [
+					{
+						kind: "extension",
+						payload: {
+							kind: "box_dimensions",
+							schemaVersion: 1,
+							availability: "available",
+							data: {
+								length: "20m",
+								width: "15m",
+								height: "12m",
+								shape: "prism",
+								name: "something",
+							},
+						},
+					},
+				],
+			},
+			{
+				lineNumber: 3,
+				rawText: "^vitals bp=invalid_bp",
+				macroName: "vitals",
+				lineStatus: "invalid",
+				diagnostics: [
+					{
+						code: "invalidBloodPressure",
+						messageKey: "errors.invalidBloodPressure",
+						severity: "error",
+						message:
+							"Invalid blood pressure format: expected 'systolic/diastolic'",
+						span: { start: 11, end: 21 },
+					},
+				],
+				projections: [],
+			},
+			{
+				lineNumber: 4,
+				rawText: "^evaluacion #asma con #sibilancias",
+				macroName: "evaluacion",
+				lineStatus: "valid",
+				diagnostics: [
+					{
+						code: "conceptUnverified",
+						messageKey: "errors.conceptUnverified",
+						messageParams: { term: "sibilancias", confidence: 92 },
+						severity: "warning",
+						message:
+							"Term 'sibilancias' matched local ontology with 92% confidence",
+						span: { start: 22, end: 34 },
+					},
+				],
+				projections: [
+					{
+						kind: "extension",
+						payload: {
+							kind: "clinical_assessment",
+							schemaVersion: 1,
+							availability: "available",
+							data: { dx: "asma", hallazgos: ["sibilancias"] },
+						},
+					},
+				],
+			},
+		],
+	};
+
+	const mockPinned: PinnedMacroDto[] = [
+		{
+			id: "pin:vitals",
+			macroName: "vitals",
+			title: "Vital Signs Quick-Run",
+			source: "project",
+			snippet: "^vitals bp=120/80 hr=72",
+		},
+		{
+			id: "freq:box",
+			macroName: "box",
+			title: "3D Bounding Box (Sub-Ordered)",
+			source: "frequent",
+			executionCount: 7,
+			snippet: "^box 20m 15m 12m prism",
+		},
+		{
+			id: "ext:evaluacion",
+			macroName: "evaluacion",
+			title: "Evaluación Clínica",
+			source: "extension",
+			snippet: "^evaluacion #",
+		},
+	];
+
+	return (
+		<Card
+			title={t("gallery.inspectorTitle", "Workbench Inspector")}
+			action={
+				<Badge tone="accent">
+					{t("gallery.richSidepanel", "Rich Sidepanel")}
+				</Badge>
+			}
+		>
+			<div
+				style={{
+					height: 420,
+					border: "1px solid var(--theme-border-subtle)",
+					borderRadius: 6,
+					overflow: "hidden",
+				}}
+			>
+				<WorkbenchInspector
+					document={mockSnapshot}
+					meta={{
+						documentId: "doc-1",
+						providerId: "macro.text",
+						title: "scratchpad.macro",
+						dirty: false,
+						textRevision: 1,
+						pinnedMacroIds: pinned,
+					}}
+					activeLineIndex={activeLine}
+					pinnedMacros={mockPinned}
+					onJumpToLine={(line) => setActiveLine(line - 1)}
+					onPin={(macroId) => {
+						if (!macroId) setPinned([]);
+						else
+							setPinned((prev) =>
+								prev.includes(macroId)
+									? prev.filter((p) => p !== macroId)
+									: [...prev, macroId],
+							);
+					}}
+				/>
+			</div>
+		</Card>
+	);
+}
+
+function QuickRunChipsBarStory() {
+	const { t } = useI18n();
+	const [activeSnippet, setActiveSnippet] = useState<string>("");
+	const sampleMacros: PinnedMacroDto[] = [
+		{
+			id: "p1",
+			macroName: "vitals",
+			source: "project",
+			title: "Project: Vital signs",
+		},
+		{
+			id: "p2",
+			macroName: "box",
+			source: "frequent",
+			executionCount: 12,
+			title: "Frequent: 3D Box",
+		},
+		{
+			id: "p3",
+			macroName: "dx",
+			source: "extension",
+			title: "Extension: Diagnosis",
+		},
+		{
+			id: "p4",
+			macroName: "evaluacion",
+			source: "extension",
+			title: "Extension: Clinical evaluation",
+		},
+	];
+
+	return (
+		<Card
+			title={t("gallery.quickrunTitle", "Scratchpad Quick-Run Chip Bar")}
+			action={<Badge tone="info">{t("gallery.noEmojis", "No Emojis")}</Badge>}
+		>
+			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+				<div
+					className="editor-quickrun-bar"
+					style={{
+						background: "var(--theme-surface-secondary)",
+						padding: "6px 10px",
+						borderRadius: 6,
+					}}
+				>
+					<span className="quickrun-label">
+						<Pin size={11} />
+					</span>
+					{sampleMacros.map((macro) => (
+						<button
+							key={macro.id}
+							type="button"
+							className={`quickrun-chip quickrun-${macro.source}`}
+							onClick={() =>
+								setActiveSnippet(
+									`^${macro.macroName} ... (inserted via quick-run chip)`,
+								)
+							}
+						>
+							^{macro.macroName}
+							{macro.executionCount && (
+								<span className="chip-count-badge">{macro.executionCount}</span>
+							)}
+						</button>
+					))}
+				</div>
+				{activeSnippet && (
+					<div className="cell-raw-preview" style={{ padding: 8 }}>
+						<strong>Inserted: </strong>
+						<code>{activeSnippet}</code>
+					</div>
+				)}
+			</div>
+		</Card>
+	);
+}
+
+function IslandsOfOrderAndDisambiguationStory() {
+	const { t } = useI18n();
+	return (
+		<Card
+			title={t("gallery.islandsTitle", "Islands of Order & Macro Provenance")}
+			action={<Badge tone="accent">Engine</Badge>}
+		>
+			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+				<div className="suborder-flow-badge" style={{ margin: 0 }}>
+					<div className="suborder-title">
+						{t("workbench.boundProjections", "Sub-Ordered Relative Slots")} (length, width, height)
+					</div>
+					<p
+						style={{
+							fontSize: 11.5,
+							color: "var(--theme-content-secondary)",
+							margin: "4px 0",
+						}}
+					>
+						Input: <code>^box 20m something 15m prism 12m</code>
+					</p>
+					<div className="suborder-tokens">
+						<span className="token-chip">length = 20m (pos: 0)</span>
+						<span className="token-chip">name = "something" (unordered)</span>
+						<span className="token-chip">width = 15m (pos: 1)</span>
+						<span className="token-chip">shape = "prism" (unordered)</span>
+						<span className="token-chip">height = 12m (pos: 2)</span>
+					</div>
+				</div>
+
+				<div
+					style={{
+						display: "grid",
+						gridTemplateColumns: "1fr 1fr",
+						gap: 8,
+					}}
+				>
+					<div className="pinned-macro-card">
+						<div className="pinned-card-title">
+							<strong>@clinical:vitals</strong>
+							<Badge tone="accent">
+								{t("workbench.activeExtension", "Active Extension")}
+							</Badge>
+						</div>
+						<span className="pinned-card-desc">
+							Provides <code>bp</code>, <code>hr</code> slots (aliases:{" "}
+							<code>v</code>, <code>vits</code>)
+						</span>
+					</div>
+					<div className="pinned-macro-card">
+						<div className="pinned-card-title">
+							<strong>@apple-health:vitals</strong>
+							<Badge tone="neutral">
+								{t("workbench.availableExtension", "Available")}
+							</Badge>
+						</div>
+						<span className="pinned-card-desc">
+							Provides <code>bp</code>, <code>steps</code> (alias:{" "}
+							<code>apple-vitals</code>)
+						</span>
+					</div>
+				</div>
 			</div>
 		</Card>
 	);

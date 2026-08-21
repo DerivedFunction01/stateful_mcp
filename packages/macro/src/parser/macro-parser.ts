@@ -395,7 +395,8 @@ function inferPositionalMatches(
 	let best: MacroArgumentMatch[] = [];
 	const visit = (index: number, selected: MacroArgumentMatch[]) => {
 		if (index >= specs.length) {
-			if (isBetterAssignment(selected, best, specs, tokens)) best = selected;
+			if (isBetterAssignment(selected, best, specs, tokens, options.subOrder))
+				best = selected;
 			return;
 		}
 		visit(index + 1, selected);
@@ -418,11 +419,25 @@ function inferPositionalMatches(
 		.map((match) => ({ match, candidates }));
 }
 
+function getEffectivePosition(
+	spec: MacroArgumentSpec,
+	subOrder?: readonly string[],
+): number {
+	if (subOrder && subOrder.length > 0) {
+		const nameIdx = subOrder.indexOf(spec.name);
+		if (nameIdx !== -1) return nameIdx;
+		const idIdx = subOrder.indexOf(spec.argumentId);
+		if (idIdx !== -1) return idIdx;
+	}
+	return spec.position ?? 0;
+}
+
 function isBetterAssignment(
 	left: readonly MacroArgumentMatch[],
 	right: readonly MacroArgumentMatch[],
 	specs: readonly MacroArgumentSpec[],
 	tokens: readonly MacroSpan[],
+	subOrder?: readonly string[],
 ): boolean {
 	const required = (items: readonly MacroArgumentMatch[]) =>
 		items.filter(
@@ -433,6 +448,35 @@ function isBetterAssignment(
 	if (required(left) !== required(right)) {
 		return required(left) > required(right);
 	}
+
+	// Inversion penalty: if itemA has lower effective position than itemB,
+	// but itemA appears after itemB in text, penalize this assignment.
+	const countInversions = (items: readonly MacroArgumentMatch[]) => {
+		let inversions = 0;
+		for (let i = 0; i < items.length; i++) {
+			for (let j = i + 1; j < items.length; j++) {
+				const itemA = items[i]!;
+				const itemB = items[j]!;
+				const specA = specs.find((s) => s.argumentId === itemA.argumentId);
+				const specB = specs.find((s) => s.argumentId === itemB.argumentId);
+				if (!specA || !specB) continue;
+				const posA = getEffectivePosition(specA, subOrder);
+				const posB = getEffectivePosition(specB, subOrder);
+				const startA = itemA.extraction.start;
+				const startB = itemB.extraction.start;
+				if (startA < startB && posA > posB) inversions++;
+				if (startA > startB && posA < posB) inversions++;
+			}
+		}
+		return inversions;
+	};
+
+	const leftInversions = countInversions(left);
+	const rightInversions = countInversions(right);
+	if (leftInversions !== rightInversions) {
+		return leftInversions < rightInversions;
+	}
+
 	const positionCost = (items: readonly MacroArgumentMatch[]) =>
 		items.reduce((total, item) => {
 			const token = tokens.findIndex(
@@ -441,13 +485,9 @@ function isBetterAssignment(
 					(candidate.start < item.extraction.start &&
 						candidate.end > item.extraction.start),
 			);
-			return (
-				total +
-				Math.abs(
-					(specs.find((spec) => spec.argumentId === item.argumentId)
-						?.position ?? 0) - token,
-				)
-			);
+			const spec = specs.find((s) => s.argumentId === item.argumentId);
+			const pos = spec ? getEffectivePosition(spec, subOrder) : 0;
+			return total + Math.abs(pos - token);
 		}, 0);
 	if (positionCost(left) !== positionCost(right)) {
 		return positionCost(left) < positionCost(right);

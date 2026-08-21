@@ -81,7 +81,7 @@ function MenuItemRenderer({
 	const [submenuOpen, setSubmenuOpen] = useState(false);
 
 	if (item.kind === "separator") {
-		return <div key={item.id} className="menu-separator" role="separator" />;
+		return <hr key={item.id} className="menu-separator" />;
 	}
 
 	if (item.kind === "submenu") {

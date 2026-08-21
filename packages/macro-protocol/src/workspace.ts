@@ -91,6 +91,43 @@ export interface EffectiveKeymapDto {
 	readonly bindings: readonly KeymapBindingDto[];
 }
 
+export const PINNED_MACRO_SOURCES = [
+	"extension",
+	"project",
+	"frequent",
+] as const;
+
+export type PinnedMacroSource = (typeof PINNED_MACRO_SOURCES)[number];
+
+export interface PinnedMacroDto {
+	readonly id: string;
+	readonly macroName: string;
+	readonly title?: string;
+	readonly source: PinnedMacroSource;
+	readonly executionCount?: number;
+	readonly extensionId?: string;
+	readonly snippet?: string;
+}
+
+export interface MacroCustomizationDto {
+	readonly subOrder?: readonly string[];
+	readonly subOrderGroups?: Readonly<Record<string, readonly string[]>>;
+	readonly aliases?: readonly string[];
+	readonly defaultValues?: Readonly<Record<string, unknown>>;
+}
+
+export interface MacroProjectManifestDto {
+	readonly projectId?: string;
+	readonly displayName?: string;
+	readonly activeProfileId?: string;
+	readonly enabledExtensions?: readonly string[];
+	readonly macroAliases?: Readonly<Record<string, string>>;
+	readonly macroCustomizations?: Readonly<
+		Record<string, MacroCustomizationDto>
+	>;
+	readonly pinnedMacros?: readonly string[];
+}
+
 export interface ContributionSnapshotDto {
 	readonly tabs: readonly {
 		readonly id: string;
@@ -116,6 +153,8 @@ export interface ContributionSnapshotDto {
 		readonly region?: "activity" | "inspector";
 		readonly extensionId?: string;
 	}[];
+	readonly pinnedMacros?: readonly PinnedMacroDto[];
+	readonly frequentMacros?: readonly PinnedMacroDto[];
 }
 
 export interface LayoutRegionDto {

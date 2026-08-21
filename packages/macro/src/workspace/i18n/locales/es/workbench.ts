@@ -38,4 +38,26 @@ export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.noDirectoriesFound": "No se encontraron directorios",
 	"workbench.pathPlaceholder": "/ruta/al/proyecto",
 	"workbench.closeProjectAction": "Cerrar proyecto",
+	"workbench.problems": "Problemas",
+	"workbench.cellDetails": "Detalles de la celda",
+	"workbench.slots": "Ranuras",
+	"workbench.quickRuns": "Ejecuciones rápidas",
+	"workbench.filterAll": "Todos ({count})",
+	"workbench.filterErrors": "Errores ({count})",
+	"workbench.filterWarnings": "Advertencias ({count})",
+	"workbench.noProblems": "No se detectaron problemas",
+	"workbench.allLinesValid":
+		"Todas las líneas de macro en el bloc de notas activo son sintácticamente válidas.",
+	"workbench.boundProjections": "Proyecciones y ranuras vinculadas",
+	"workbench.payloadEnvelopes": "Contenedores de carga útil",
+	"workbench.availableQuickRuns": "Fragmentos de ejecución rápida disponibles",
+	"workbench.noPinnedMacros":
+		"No hay macros fijadas ni plantillas iniciales.",
+	"workbench.noActiveLine": "Ninguna línea activa seleccionada.",
+	"workbench.noMacroLines":
+		"No hay líneas de macro en el documento actual.",
+	"workbench.executedCount": "Ejecutado {count} vez/veces en la sesión",
+	"workbench.insertSnippet": "Insertar",
+	"workbench.activeExtension": "Extensión activa",
+	"workbench.availableExtension": "Disponible",
 };

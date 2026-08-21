@@ -14,6 +14,7 @@ import {
 	Eraser,
 	Files,
 	PanelRight,
+	Pin,
 	Play,
 	Plus,
 	RotateCcw,
@@ -40,9 +41,9 @@ import {
 	EditorSurfaceView,
 	getEditorSurfaceAdapter,
 } from "./EditorSurfaceView";
-import { MacroSlotsInspector } from "./MacroSlotsInspector";
 import { Splitter } from "./Splitter";
 import { Button } from "./ui/primitives";
+import { WorkbenchInspector } from "./WorkbenchInspector";
 
 export function WorkbenchShell({
 	snapshot,
@@ -351,6 +352,20 @@ export function WorkbenchShell({
 		});
 	};
 
+	const handleInsertSnippet = (snippet: string) => {
+		if (!activeDocumentMeta) return;
+		const currentLines = localDraft ??
+			activeDocument?.lines.map((l) => l.rawText) ?? [""];
+		const targetIdx = vimState.activeCellIndex ?? currentLines.length - 1;
+		const newLines = [...currentLines];
+		if (newLines[targetIdx] === "" || newLines[targetIdx] === undefined) {
+			newLines[targetIdx] = snippet;
+		} else {
+			newLines.splice(targetIdx + 1, 0, snippet);
+		}
+		onSetEditorDraft(activeDocumentMeta.documentId, newLines);
+	};
+
 	return (
 		<div
 			className="workbench-shell"
@@ -647,6 +662,29 @@ export function WorkbenchShell({
 								>
 									<RotateCcw size={14} />
 								</button>
+								{snapshot.contributions?.pinnedMacros &&
+									snapshot.contributions.pinnedMacros.length > 0 && (
+										<div className="editor-quickrun-bar">
+											<span className="quickrun-label">
+												<Pin size={11} />
+											</span>
+											{snapshot.contributions.pinnedMacros.map((macro) => (
+												<button
+													key={macro.id}
+													type="button"
+													className={`quickrun-chip quickrun-${macro.source}`}
+													title={macro.title ?? `Quick-run ^${macro.macroName}`}
+													onClick={() => {
+														const snippet =
+															macro.snippet ?? `^${macro.macroName} `;
+														handleInsertSnippet(snippet);
+													}}
+												>
+													^{macro.macroName}
+												</button>
+											))}
+										</div>
+									)}
 							</>
 						)}
 					</div>
@@ -777,7 +815,7 @@ export function WorkbenchShell({
 				<EditorOutputDrawer
 					output={snapshot.editor.output}
 					result={editorResult}
-					onReverseEntry={(entryId) =>
+					onReverseEntry={(entryId: string) =>
 						onCommand("journal.reverseEntry", [{ entryId }])
 					}
 				/>
@@ -800,7 +838,7 @@ export function WorkbenchShell({
 				}
 			/>
 
-			{/* Secondary Sidepanel / Macro Slots Inspector */}
+			{/* Secondary Sidepanel / Workbench Inspector */}
 			<aside
 				className="workbench-inspector"
 				aria-label={t("workbench.inspector")}
@@ -811,9 +849,13 @@ export function WorkbenchShell({
 				</div>
 
 				<div className="inspector-content">
-					<MacroSlotsInspector
+					<WorkbenchInspector
 						document={snapshot.editor.activeDocument}
 						meta={activeDocumentMeta}
+						activeLineIndex={
+							vimState.enabled ? vimState.activeCellIndex : undefined
+						}
+						pinnedMacros={snapshot.contributions?.pinnedMacros}
 						onPin={(macroId) =>
 							activeDocument &&
 							emitEditorOperation({
@@ -823,6 +865,13 @@ export function WorkbenchShell({
 								macroId,
 							})
 						}
+						onJumpToLine={(lineNumber) => {
+							vimController.setActiveCell(
+								lineNumber - 1,
+								Math.max(1, activeLines.length),
+							);
+						}}
+						onInsertSnippet={handleInsertSnippet}
 					/>
 				</div>
 			</aside>
