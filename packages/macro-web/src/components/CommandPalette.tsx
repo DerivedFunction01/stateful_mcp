@@ -20,16 +20,33 @@ interface RankedCommand {
 	readonly exact: boolean;
 }
 
+export interface CommandQuery {
+	readonly token: string;
+	readonly argumentsText: string;
+}
+
+export function parseCommandQuery(
+	query: string,
+	commandToken = "",
+): CommandQuery {
+	const trimmed = query.trim();
+	const withoutCommandToken =
+		commandToken && trimmed.startsWith(commandToken)
+			? trimmed.slice(commandToken.length).trim()
+			: trimmed;
+	const [token = "", ...argumentsParts] = withoutCommandToken.split(/\s+/u);
+	return {
+		token: token.toLowerCase(),
+		argumentsText: argumentsParts.join(" "),
+	};
+}
+
 function rankCommands(
 	commands: readonly CommandDescriptorDto[],
 	query: string,
 	commandToken = "",
 ): RankedCommand[] {
-	const trimmed = query.trim();
-	const withoutCommandToken = commandToken && trimmed.startsWith(commandToken)
-		? trimmed.slice(commandToken.length)
-		: trimmed;
-	const q = withoutCommandToken.trim().toLowerCase();
+	const { token: q } = parseCommandQuery(query, commandToken);
 	if (!q) {
 		return commands.map((descriptor) => ({ descriptor, exact: false }));
 	}

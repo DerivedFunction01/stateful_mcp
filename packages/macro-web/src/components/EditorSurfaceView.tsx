@@ -3,11 +3,18 @@ import type {
 	ScratchpadLineDto,
 } from "@stateful-mcp/macro-protocol";
 import { AlertTriangle, Check, Circle, Pin, Play } from "lucide-react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import {
+	type ReactNode,
+	type RefObject,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import type {
 	BrowserEditorSurfaceAdapter,
 	BrowserVimKeyboardEvent,
 	CellRange,
+	EditorSearchResult,
 } from "../lib/browser-vim";
 import { useI18n } from "../lib/macro-i18n-provider";
 
@@ -39,6 +46,7 @@ export interface EditorSurfaceViewProps {
 	readonly onExecuteRange?: (startLine: number, endLine: number) => void;
 	readonly onPinMacro?: (macroId: string | null) => void;
 	readonly surfaceRef?: RefObject<HTMLElement | null>;
+	readonly searchWidget?: ReactNode;
 }
 
 function normalizeText(text: string): string {
@@ -269,6 +277,7 @@ export function EditorSurfaceView({
 	selectedCellRange: selectedCellRangeProp = null,
 	vimEnabled = false,
 	vimMode,
+	searchWidget,
 	onTextChange,
 	onFocusChange,
 	onCursorChange,
@@ -375,6 +384,7 @@ export function EditorSurfaceView({
 				pointerDownRef.current = null;
 			}}
 		>
+			{searchWidget}
 			<div className="editor-canvas">
 				{/* Lined Cells Container: Hybrid Jupyter/Editor per-cell companion layout */}
 				<div className="editor-cells-wrapper">
@@ -575,6 +585,8 @@ export function getEditorSurfaceAdapter(
 	element: HTMLElement | null,
 	onTextChange: (lines: readonly string[]) => void,
 	options?: {
+		readonly documentId?: string;
+		readonly textRevision?: number;
 		readonly getSelectedCellRange?: () => CellRange | null;
 		readonly setSelectedCellRange?: (range: CellRange | null) => void;
 		readonly onExecuteLine?: (lineNumber: number) => void;
@@ -585,6 +597,8 @@ export function getEditorSurfaceAdapter(
 	let internalSelectedRange: CellRange | null = null;
 	let currentCellIdx = 0;
 	let currentCol = 0;
+	let lastMatch: { cell: number; start: number; end: number } | null = null;
+	let lastSearch: string | null = null;
 
 	const getFullLines = () => linesFromSurface(element);
 
@@ -723,6 +737,177 @@ export function getEditorSurfaceAdapter(
 		insertTextAtCaret: (text: string) => {
 			const next = insertTextAtSelection(element, text);
 			if (next) onTextChange(next);
+		},
+
+		searchText: (
+			query: string,
+			direction: "forward" | "backward",
+		): EditorSearchResult => {
+			const lines = getFullLines();
+			const matches = lines.flatMap((text, logicalLineIndex) => {
+				const result: {
+					logicalLineIndex: number;
+					startOffset: number;
+					endOffset: number;
+				}[] = [];
+				if (!query) return result;
+				let start = 0;
+				while (start <= text.length) {
+					const found = text.indexOf(query, start);
+					if (found === -1) break;
+					result.push({
+						logicalLineIndex,
+						startOffset: found,
+						endOffset: found + query.length,
+					});
+					start = found + Math.max(1, query.length);
+				}
+				return result;
+			});
+			lastSearch = query;
+			syncFromDom();
+			const activeIndex = matches.findIndex((match) =>
+				direction === "forward"
+					? match.logicalLineIndex > currentCellIdx ||
+						(match.logicalLineIndex === currentCellIdx &&
+							match.startOffset >= currentCol)
+					: match.logicalLineIndex < currentCellIdx ||
+						(match.logicalLineIndex === currentCellIdx &&
+							match.endOffset <= currentCol),
+			);
+			const selectedIndex =
+				activeIndex === -1 ? (matches.length > 0 ? 0 : -1) : activeIndex;
+			const selected = selectedIndex >= 0 ? matches[selectedIndex] : undefined;
+			if (selected) {
+				lastMatch = {
+					cell: selected.logicalLineIndex,
+					start: selected.startOffset,
+					end: selected.endOffset,
+				};
+				currentCellIdx = selected.logicalLineIndex;
+				currentCol = selected.startOffset;
+				setLineAndCol(element, currentCellIdx, currentCol);
+			}
+			return {
+				documentId: options?.documentId ?? "",
+				textRevision: options?.textRevision ?? 0,
+				matches,
+				activeMatchIndex: selectedIndex,
+			};
+		},
+
+		findText: (query: string, direction: "forward" | "backward") => {
+			const needle = query;
+			if (!needle) return false;
+			lastSearch = needle;
+			syncFromDom();
+			const lines = getFullLines();
+			const count = lines.length;
+			for (let step = 0; step < count; step += 1) {
+				const index =
+					direction === "forward"
+						? (currentCellIdx + step) % count
+						: (currentCellIdx - step + count) % count;
+				const text = lines[index] ?? "";
+				const start =
+					direction === "forward"
+						? text.indexOf(needle, step === 0 ? currentCol : 0)
+						: text.lastIndexOf(
+								needle,
+								step === 0 ? currentCol - 1 : text.length,
+							);
+				if (start !== -1) {
+					lastMatch = { cell: index, start, end: start + needle.length };
+					currentCellIdx = index;
+					currentCol = start;
+					setLineAndCol(element, index, start);
+					return true;
+				}
+			}
+			return false;
+		},
+
+		repeatFind: (direction: "forward" | "backward") =>
+			lastSearch !== null &&
+			Boolean(
+				getFullLines().length > 0 &&
+					// Reuse the same match implementation while advancing from the current caret.
+					(() => {
+						const needle = lastSearch;
+						if (!needle) return false;
+						syncFromDom();
+						const lines = getFullLines();
+						const count = lines.length;
+						for (let step = 0; step < count; step += 1) {
+							const index =
+								direction === "forward"
+									? (currentCellIdx + step) % count
+									: (currentCellIdx - step + count) % count;
+							const text = lines[index] ?? "";
+							const start =
+								direction === "forward"
+									? text.indexOf(needle, step === 0 ? currentCol + 1 : 0)
+									: text.lastIndexOf(
+											needle,
+											step === 0 ? currentCol - 1 : text.length,
+										);
+							if (start !== -1) {
+								lastMatch = { cell: index, start, end: start + needle.length };
+								currentCellIdx = index;
+								currentCol = start;
+								setLineAndCol(element, index, start);
+								return true;
+							}
+						}
+						return false;
+					})(),
+			),
+
+		replaceCurrentMatch: (query: string, replacement: string) => {
+			if (
+				!lastMatch ||
+				getFullLines()[lastMatch.cell]?.slice(
+					lastMatch.start,
+					lastMatch.end,
+				) !== query
+			)
+				return false;
+			const lines = getFullLines();
+			const text = lines[lastMatch.cell] ?? "";
+			lines[lastMatch.cell] =
+				text.slice(0, lastMatch.start) +
+				replacement +
+				text.slice(lastMatch.end);
+			const nextColumn = lastMatch.start + replacement.length;
+			lastMatch = {
+				cell: lastMatch.cell,
+				start: lastMatch.start,
+				end: nextColumn,
+			};
+			currentCellIdx = lastMatch.cell;
+			currentCol = nextColumn;
+			onTextChange(lines);
+			setLineAndCol(element, currentCellIdx, currentCol);
+			return true;
+		},
+
+		replaceAllMatches: (query: string, replacement: string) => {
+			if (!query) return 0;
+			const lines = getFullLines();
+			let count = 0;
+			for (let index = 0; index < lines.length; index += 1) {
+				const text = lines[index] ?? "";
+				const matches = text.split(query).length - 1;
+				if (matches > 0) {
+					lines[index] = text.split(query).join(replacement);
+					count += matches;
+				}
+			}
+			if (count > 0) {
+				lastMatch = null;
+				onTextChange(lines);
+			}
+			return count;
 		},
 
 		pasteCell: (text: string, position: "above" | "below") => {

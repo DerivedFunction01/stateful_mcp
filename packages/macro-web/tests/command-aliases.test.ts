@@ -89,4 +89,25 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 		);
 		expect(saveallSuggestions[0]?.descriptor.id).toBe("workspace.saveAll");
 	});
+
+	test("strips only the configured command token", () => {
+		const suggestions = commandSuggestions(
+			descriptors,
+			normalizeCommandAliases({ "custom.brickwall": ["wall"] }),
+			";wall",
+			[],
+			8,
+			";",
+		);
+
+		expect(suggestions[0]?.value).toBe("wall");
+		expect(commandSuggestions(
+			descriptors,
+			normalizeCommandAliases({ "custom.brickwall": ["wall"] }),
+			":wall",
+			[],
+			8,
+			";",
+		)).toHaveLength(0);
+	});
 });

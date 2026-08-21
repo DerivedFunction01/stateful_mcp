@@ -18,8 +18,10 @@ const NORMAL_BINDINGS = {
 	redo: "ctrl+r",
 	command: ":",
 	macro: "^",
-	search: "s",
-	searchAlt: "/",
+	search: "/",
+	searchAlt: "?",
+	nextMatch: "n",
+	previousMatch: "N",
 	info: "I",
 	quit: "q",
 } as const;

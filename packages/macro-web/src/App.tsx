@@ -2,6 +2,7 @@ import type { EditorOperation } from "@stateful-mcp/macro-protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityRail } from "./components/ActivityRail";
 import { CommandPalette } from "./components/CommandPalette";
+import { FindOverlay } from "./components/FindOverlay";
 import { Gallery } from "./components/Gallery";
 import { HostRoute } from "./components/HostRoute";
 import { MenuBar } from "./components/MenuBar";
@@ -62,6 +63,20 @@ export function App() {
 	}, [setLocale, snapshot?.settings]);
 
 	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [findSessions, setFindSessions] = useState<
+		Readonly<
+			Record<
+				string,
+				{
+					readonly textRevision: number;
+					readonly open: boolean;
+					readonly direction: "forward" | "backward";
+					readonly query: string;
+					readonly replacement: string;
+				}
+			>
+		>
+	>({});
 	const [paletteCommandMode, setPaletteCommandMode] = useState(false);
 	const [paletteCommandToken, setPaletteCommandToken] = useState("");
 	const [announcement, setAnnouncement] = useState("");
@@ -101,6 +116,23 @@ export function App() {
 		setPaletteCommandMode(false);
 		setPaletteCommandToken("");
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
+	}
+
+	function openFind(direction: "forward" | "backward"): void {
+		const documentId = snapshot?.editor.activeDocumentId;
+		if (!documentId) return;
+		setFindSessions((sessions) => ({
+			...sessions,
+			[documentId]: {
+				...(sessions[documentId] ?? {
+					query: "",
+					replacement: "",
+					textRevision: snapshot?.editor.activeDocument?.textRevision ?? 0,
+				}),
+				open: true,
+				direction,
+			},
+		}));
 	}
 
 	function announce(message: KeymapAnnouncement): void {
@@ -253,7 +285,52 @@ export function App() {
 	const activeDoc = snapshot?.editor.documents.find(
 		(d) => d.documentId === snapshot?.editor.activeDocumentId,
 	);
-
+	const activeDocumentId = snapshot?.editor.activeDocumentId;
+	const findSession = activeDocumentId
+		? findSessions[activeDocumentId]
+		: undefined;
+	const findWidget =
+		activeDocumentId && findSession?.open ? (
+			<FindOverlay
+				key={activeDocumentId}
+				direction={findSession.direction}
+				initialQuery={findSession.query}
+				initialReplacement={findSession.replacement}
+				onFind={(query, direction) =>
+					registry.getActive()?.adapter?.searchText?.(query, direction) ?? false
+				}
+				onReplace={(query, replacement) =>
+					Boolean(
+						registry
+							.getActive()
+							?.adapter?.replaceCurrentMatch?.(query, replacement),
+					)
+				}
+				onReplaceAll={(query, replacement) =>
+					registry
+						.getActive()
+						?.adapter?.replaceAllMatches?.(query, replacement) ?? 0
+				}
+				onQueryChange={(query) =>
+					setFindSessions((sessions) => ({
+						...sessions,
+						[activeDocumentId]: { ...findSession, query },
+					}))
+				}
+				onReplacementChange={(replacement) =>
+					setFindSessions((sessions) => ({
+						...sessions,
+						[activeDocumentId]: { ...findSession, replacement },
+					}))
+				}
+				onClose={() =>
+					setFindSessions((sessions) => ({
+						...sessions,
+						[activeDocumentId]: { ...findSession, open: false },
+					}))
+				}
+			/>
+		) : undefined;
 	return (
 		<EditorSurfaceRegistryContext.Provider value={registry}>
 			<div className="app-shell">
@@ -319,6 +396,8 @@ export function App() {
 								}
 								onEditorCursorChange={setEditorCursor}
 								onOpenPalette={openPalette}
+								onOpenSearch={openFind}
+								searchWidget={findWidget}
 							/>
 						)}
 					</main>

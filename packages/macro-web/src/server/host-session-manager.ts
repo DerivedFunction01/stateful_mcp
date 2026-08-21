@@ -1412,6 +1412,13 @@ export class HostSessionManager {
 		const flatAliases = session.keymap.aliases
 			? Object.fromEntries(normalizeCommandAliases(session.keymap.aliases))
 			: undefined;
+		const aliasesByCommand = new Map<string, string[]>();
+		for (const [alias, commandId] of Object.entries(flatAliases ?? {})) {
+			const aliases = aliasesByCommand.get(commandId) ?? [];
+			if (!aliases.some((value) => value.toLowerCase() === alias.toLowerCase()))
+				aliases.push(alias);
+			aliasesByCommand.set(commandId, aliases);
+		}
 		const keymap: EffectiveKeymapDto = {
 			profileId: session.keymap.profileId,
 			name: session.keymap.name,
@@ -1434,17 +1441,28 @@ export class HostSessionManager {
 		};
 		const commands: CommandDescriptorDto[] = workspace.commands
 			.getCommands()
-			.map((command) => ({
-				id: command.command,
-				title: command.title,
-				verb: command.verb,
-				aliases: command.aliases,
-				category: command.category,
-				description: command.description,
-				keybinding: command.keybinding,
-				args: command.args,
-				extensionId: command.extensionId,
-			}));
+			.map((command) => {
+				const aliases = [
+					...(command.aliases ?? []),
+					...(aliasesByCommand.get(command.command) ?? []),
+				];
+				const uniqueAliases = [
+					...new Map(
+						aliases.map((alias) => [alias.toLowerCase(), alias]),
+					).values(),
+				];
+				return {
+					id: command.command,
+					title: command.title,
+					verb: command.verb,
+					...(uniqueAliases.length > 0 ? { aliases: uniqueAliases } : {}),
+					category: command.category,
+					description: command.description,
+					keybinding: command.keybinding,
+					args: command.args,
+					extensionId: command.extensionId,
+				};
+			});
 		const layout = workspace.layout.getSnapshot();
 		const settings = workspace.settingsUiModel
 			? serializeSettingsUiSnapshot(workspace.settingsUiModel.getSnapshot(), {

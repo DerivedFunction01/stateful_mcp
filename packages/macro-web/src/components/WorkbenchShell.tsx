@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
 	type CSSProperties,
+	type ReactNode,
 	useEffect,
 	useMemo,
 	useRef,
@@ -53,6 +54,8 @@ export function WorkbenchShell({
 	onOverwriteEditorConflict,
 	onEditorCursorChange,
 	onOpenPalette,
+	onOpenSearch,
+	searchWidget,
 }: {
 	readonly snapshot?: WorkspaceSnapshot;
 	readonly status?: string;
@@ -82,6 +85,8 @@ export function WorkbenchShell({
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
+	readonly onOpenSearch?: (direction: "forward" | "backward") => void;
+	readonly searchWidget?: ReactNode;
 }) {
 	const { t } = useI18n();
 	const [activeDomain, setActiveDomain] = useState<string>();
@@ -89,26 +94,47 @@ export function WorkbenchShell({
 	const surfaceRef = useRef<HTMLElement | null>(null);
 	const [surfaceFocused, setSurfaceFocused] = useState(false);
 	const [vimNotice, setVimNotice] = useState<string>();
+	const snapshotRef = useRef(snapshot);
+	snapshotRef.current = snapshot;
+	const onOpenSearchRef = useRef(onOpenSearch);
+	onOpenSearchRef.current = onOpenSearch;
+	const onSetEditorDraftRef = useRef(onSetEditorDraft);
+	onSetEditorDraftRef.current = onSetEditorDraft;
+	const activeDocument = snapshot?.editor.activeDocument;
+	const activeDocumentMeta = snapshot?.editor.documents.find(
+		(document) => document.documentId === snapshot?.editor.activeDocumentId,
+	);
 
 	const getSurfaceAdapter = () => {
 		const element = surfaceRef.current;
 		if (!element) return undefined;
-		return getEditorSurfaceAdapter(element, (text) => {
-			if (activeDocumentMeta)
-				onSetEditorDraft(activeDocumentMeta.documentId, text);
-		});
+		const currentSnapshot = snapshotRef.current;
+		const currentDocument = currentSnapshot?.editor.activeDocument;
+		const currentDocumentMeta = currentSnapshot?.editor.documents.find(
+			(document) =>
+				document.documentId === currentSnapshot?.editor.activeDocumentId,
+		);
+		return getEditorSurfaceAdapter(
+			element,
+			(text) => {
+				if (currentDocumentMeta)
+					onSetEditorDraftRef.current(currentDocumentMeta.documentId, text);
+			},
+			{
+				documentId: currentDocument?.documentId,
+				textRevision: currentDocument?.textRevision,
+			},
+		);
 	};
-
-	const snapshotRef = useRef(snapshot);
-	snapshotRef.current = snapshot;
 
 	const [vimController] = useState(() =>
 		createBrowserVimController(false, {
 			variant: "scratchpad",
 			getAdapter: getSurfaceAdapter,
 			getKeymap: () => snapshotRef.current?.keymap,
-		onOpenCommandMode: (initialQuery, commandMode, commandToken) =>
-			onOpenPalette?.(initialQuery ?? "", commandMode, commandToken ?? ""),
+			onOpenCommandMode: (initialQuery, commandMode, commandToken) =>
+				onOpenPalette?.(initialQuery ?? "", commandMode, commandToken ?? ""),
+			onOpenSearch: (direction) => onOpenSearchRef.current?.(direction),
 			onExecuteLine: (lineNum) => {
 				const activeDoc = snapshotRef.current?.editor.activeDocument;
 				if (!activeDoc) return;
@@ -143,10 +169,6 @@ export function WorkbenchShell({
 		vimController.getState,
 	);
 
-	const activeDocument = snapshot?.editor.activeDocument;
-	const activeDocumentMeta = snapshot?.editor.documents.find(
-		(document) => document.documentId === snapshot?.editor.activeDocumentId,
-	);
 	const localDraft = activeDocumentMeta
 		? editorDrafts[activeDocumentMeta.documentId]
 		: undefined;
@@ -595,6 +617,7 @@ export function WorkbenchShell({
 							selectedCellRange={vimState.enabled ? vimState.visualRange : null}
 							vimEnabled={vimState.enabled}
 							vimMode={vimState.mode}
+							searchWidget={searchWidget}
 							onTextChange={(lines) =>
 								onSetEditorDraft(activeDocumentMeta.documentId, lines)
 							}

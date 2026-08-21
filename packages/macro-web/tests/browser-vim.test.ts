@@ -348,6 +348,50 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(caret).toEqual({ cell: 3, column: 1 });
 	});
 
+	test("routes configured search keys to find mode instead of the command palette", () => {
+		const directions: string[] = [];
+		const controller = createBrowserVimController(true, {
+			variant: "scratchpad",
+			getKeymap: () => ({
+				vim: {
+					normal: { search: "f", searchAlt: "b" },
+				},
+			}),
+			onOpenSearch: (direction) => directions.push(direction),
+			getAdapter: () => ({
+				getCellCount: () => 1,
+				getText: () => "text",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		expect(
+			controller.handleKeyDown({
+				key: "f",
+				preventDefault: () => undefined,
+				stopPropagation: () => undefined,
+			}),
+		).toBe(true);
+		expect(
+			controller.handleKeyDown({
+				key: "b",
+				preventDefault: () => undefined,
+				stopPropagation: () => undefined,
+			}),
+		).toBe(true);
+		expect(
+			controller.handleKeyDown({
+				key: "/",
+				preventDefault: () => undefined,
+				stopPropagation: () => undefined,
+			}),
+		).toBe(true);
+		expect(directions).toEqual(["forward", "backward"]);
+	});
+
 	test("keeps insert-mode pointer targeting cellwise without entering visual mode", () => {
 		const event = (key: string) => ({
 			key,

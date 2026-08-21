@@ -60,9 +60,10 @@ export function commandSuggestions(
 ): readonly CommandSuggestion[] {
 	const aliasMap = normalizeCommandAliases(aliases);
 	const rawText = text.trim();
-	const trimmed = commandToken && rawText.startsWith(commandToken)
-		? rawText.slice(commandToken.length).trim()
-		: rawText;
+	const trimmed =
+		commandToken && rawText.startsWith(commandToken)
+			? rawText.slice(commandToken.length).trim()
+			: rawText;
 	const parts = trimmed.split(/\s+/u);
 	const queryVerb = (parts[0] ?? "").toLowerCase();
 	const argText = parts.slice(1).join(" ");

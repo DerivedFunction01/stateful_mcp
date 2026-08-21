@@ -21,6 +21,19 @@ export interface CellRange {
 	readonly end: number;
 }
 
+export interface EditorSearchMatch {
+	readonly logicalLineIndex: number;
+	readonly startOffset: number;
+	readonly endOffset: number;
+}
+
+export interface EditorSearchResult {
+	readonly documentId: string;
+	readonly textRevision: number;
+	readonly matches: readonly EditorSearchMatch[];
+	readonly activeMatchIndex: number;
+}
+
 export interface BrowserEditorSurfaceAdapter {
 	// Cell-aware operations (Scratchpad variant)
 	getActiveCellIndex?(): number;
@@ -41,6 +54,14 @@ export interface BrowserEditorSurfaceAdapter {
 	insertCell?(position: "above" | "below", text?: string): void;
 	splitCellAtCaret?(): void;
 	insertTextAtCaret?(text: string): void;
+	findText?(query: string, direction: "forward" | "backward"): boolean;
+	searchText?(
+		query: string,
+		direction: "forward" | "backward",
+	): EditorSearchResult;
+	repeatFind?(direction: "forward" | "backward"): boolean;
+	replaceCurrentMatch?(query: string, replacement: string): boolean;
+	replaceAllMatches?(query: string, replacement: string): number;
 	pasteCell?(text: string, position: "above" | "below"): void;
 	pasteCellRangeReplace?(start: number, end: number, text: string): void;
 	focusCellForEdit?(index?: number, column?: number): void;
@@ -137,6 +158,7 @@ export interface BrowserVimControllerOptions {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
+	readonly onOpenSearch?: (direction: "forward" | "backward") => void;
 	readonly getAdapter?: () => BrowserEditorSurfaceAdapter | undefined;
 	readonly getKeymap?: () => KeymapSource;
 	readonly onExecuteLine?: (lineNumber?: number) => void;
@@ -545,6 +567,16 @@ export function createBrowserVimController(
 						event.preventDefault();
 						return true;
 					}
+					if (normalMap.nextMatch && rawKey === normalMap.nextMatch) {
+						adapter?.repeatFind?.("forward");
+						event.preventDefault();
+						return true;
+					}
+					if (normalMap.previousMatch && rawKey === normalMap.previousMatch) {
+						adapter?.repeatFind?.("backward");
+						event.preventDefault();
+						return true;
+					}
 					if (normalMap.command && rawKey === normalMap.command) {
 						editorStore.dispatch({
 							type: "setCommandText",
@@ -567,7 +599,9 @@ export function createBrowserVimController(
 						(normalMap.search && rawKey === normalMap.search) ||
 						(normalMap.searchAlt && rawKey === normalMap.searchAlt)
 					) {
-						options?.onOpenCommandMode?.("", false, "");
+						const backward =
+							normalMap.searchAlt && rawKey === normalMap.searchAlt;
+						options?.onOpenSearch?.(backward ? "backward" : "forward");
 						event.preventDefault();
 						return true;
 					}

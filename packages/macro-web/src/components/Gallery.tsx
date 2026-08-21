@@ -7,12 +7,14 @@ import type {
 import { CheckCircle2, Code2, Palette, Terminal, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createDiagnosticHostClient } from "../dev/diagnostic-host-client";
+import type { EditorSearchResult } from "../lib/browser-vim";
 import type { HostWorkspaceSnapshot } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEMES } from "../lib/theme";
 import { BrowserEditorFixture } from "./BrowserEditorFixture";
 import { CommandPalette } from "./CommandPalette";
 import { EditorSurfaceView } from "./EditorSurfaceView";
+import { FindOverlay } from "./FindOverlay";
 import {
 	Badge,
 	Button,
@@ -118,6 +120,7 @@ export function Gallery() {
 					<BrowserEditorFixture />
 				</Card>
 				<ScratchpadVisualStory />
+				<FindWidgetStory />
 				<Card title="Theme swatches">
 					<div className="swatch-grid">
 						{[
@@ -141,6 +144,86 @@ export function Gallery() {
 				<SettingsPreviewStory />
 			</div>
 		</div>
+	);
+}
+
+const FIND_WIDGET_LINES: readonly ScratchpadLineDto[] = [
+	{
+		lineNumber: 1,
+		rawText: "macro search preview",
+		lineStatus: "non-macro",
+		diagnostics: [],
+	},
+	{
+		lineNumber: 2,
+		rawText: "replace the macro token",
+		lineStatus: "non-macro",
+		diagnostics: [],
+	},
+];
+
+function gallerySearchResult(query: string, direction: "forward" | "backward") {
+	const matches =
+		query === "macro"
+			? [
+					{ logicalLineIndex: 0, startOffset: 0, endOffset: 5 },
+					{ logicalLineIndex: 1, startOffset: 12, endOffset: 17 },
+				]
+			: [];
+	return {
+		documentId: `gallery-find-${direction}`,
+		textRevision: 1,
+		matches,
+		activeMatchIndex:
+			matches.length > 0 ? (direction === "forward" ? 0 : 1) : -1,
+	} satisfies EditorSearchResult;
+}
+
+function FindWidgetStory() {
+	const { t } = useI18n();
+	return (
+		<Card title={t("gallery.findWidget.title")}>
+			<div className="gallery-find-widget-grid">
+				<div className="gallery-find-widget-preview">
+					<strong>{t("gallery.findWidget.forward")}</strong>
+					<EditorSurfaceView
+						documentId="gallery-find-forward"
+						lines={FIND_WIDGET_LINES}
+						vimEnabled={false}
+						onTextChange={() => undefined}
+						searchWidget={
+							<FindOverlay
+								direction="forward"
+								initialQuery="macro"
+								initialReplacement="snippet"
+								onFind={gallerySearchResult}
+								onReplace={() => true}
+								onReplaceAll={() => 2}
+								onClose={() => undefined}
+							/>
+						}
+					/>
+				</div>
+				<div className="gallery-find-widget-preview">
+					<strong>{t("gallery.findWidget.noResults")}</strong>
+					<EditorSurfaceView
+						documentId="gallery-find-empty"
+						lines={FIND_WIDGET_LINES}
+						vimEnabled={false}
+						onTextChange={() => undefined}
+						searchWidget={
+							<FindOverlay
+								direction="backward"
+								initialQuery="missing"
+								initialReplacement="snippet"
+								onFind={gallerySearchResult}
+								onClose={() => undefined}
+							/>
+						}
+					/>
+				</div>
+			</div>
+		</Card>
 	);
 }
 
@@ -273,35 +356,36 @@ const GALLERY_SCRATCHPAD_LINES: readonly ScratchpadLineDto[] = [
 ];
 
 function ScratchpadVisualStory() {
+	const { t } = useI18n();
 	return (
 		<Card
-			title="Scratchpad visual states"
-			action={<Badge tone="info">logical cells / visual rows</Badge>}
+			title={t("gallery.scratchpad.visualStates")}
+			action={<Badge tone="info">{t("gallery.scratchpad.logicalRows")}</Badge>}
 		>
 			<div className="gallery-scratchpad-grid">
 				<ScratchpadModePreview
-					label="Insert mode · pinned multiline cell"
+					label={t("gallery.scratchpad.insert")}
 					mode="INSERT"
 					activeCellIndex={1}
 				/>
 				<ScratchpadModePreview
-					label="Normal mode · active cell"
+					label={t("gallery.scratchpad.normal")}
 					mode="NORMAL"
 					activeCellIndex={2}
 				/>
 				<ScratchpadModePreview
-					label="Visual mode · cell range"
+					label={t("gallery.scratchpad.visual")}
 					mode="VISUAL"
 					activeCellIndex={2}
 					selectedCellRange={{ start: 1, end: 2 }}
 				/>
 				<ScratchpadModePreview
-					label="Command mode · editor preserved"
+					label={t("gallery.scratchpad.command")}
 					mode="COMMAND"
 					activeCellIndex={0}
 				/>
 				<ScratchpadModePreview
-					label="Native editing · no Vim owner"
+					label={t("gallery.scratchpad.native")}
 					mode="INSERT"
 					activeCellIndex={undefined}
 					vimEnabled={false}
