@@ -15,6 +15,8 @@ export interface SplitterProps {
 	readonly onChange: (next: number) => void;
 	/** Container used only during an active drag to scale pointer movement. */
 	readonly containerRef?: React.RefObject<HTMLElement | null>;
+	/** When true or when resizing a right-docked panel, delta is inverted so dragging toward workspace center expands the panel. */
+	readonly invertDelta?: boolean;
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -37,6 +39,7 @@ export function Splitter({
 	totalFr,
 	onChange,
 	containerRef,
+	invertDelta = false,
 }: SplitterProps) {
 	const { t } = useI18n();
 	const dragRef = useRef<{
@@ -58,12 +61,13 @@ export function Splitter({
 	const onKeyDown = useCallback(
 		(event: React.KeyboardEvent) => {
 			if (orientation !== "vertical") return;
+			const delta = invertDelta ? -step : step;
 			if (event.key === "ArrowLeft") {
 				event.preventDefault();
-				commit(value - step);
+				commit(value - delta);
 			} else if (event.key === "ArrowRight") {
 				event.preventDefault();
-				commit(value + step);
+				commit(value + delta);
 			} else if (event.key === "Home") {
 				event.preventDefault();
 				commit(min);
@@ -72,7 +76,7 @@ export function Splitter({
 				commit(max);
 			}
 		},
-		[orientation, value, step, commit, min, max],
+		[orientation, value, step, commit, min, max, invertDelta],
 	);
 
 	const onPointerDown = useCallback(
@@ -101,21 +105,24 @@ export function Splitter({
 			};
 			event.currentTarget.setPointerCapture(event.pointerId);
 		},
-		[containerRef, value],
+		[containerRef, value, orientation, totalFr],
 	);
 
 	const onPointerMove = useCallback(
 		(event: React.PointerEvent) => {
 			const drag = dragRef.current;
 			if (!drag) return;
-			const deltaPx =
+			let deltaPx =
 				orientation === "vertical"
 					? event.clientX - drag.startX
 					: event.clientY - drag.startY;
+			if (invertDelta) {
+				deltaPx = -deltaPx;
+			}
 			const frDelta = (deltaPx * drag.totalFr) / drag.containerSize;
 			commit(drag.startValue + frDelta);
 		},
-		[totalFr, commit],
+		[orientation, invertDelta, commit],
 	);
 
 	const onPointerUp = useCallback((event: React.PointerEvent) => {

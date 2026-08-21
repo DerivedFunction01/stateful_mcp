@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Core Storage Manual Test</title>
+    <style>
+      body { font: 15px/1.4 system-ui, sans-serif; margin: 2rem; max-width: 1000px; }
+      button { margin: 0.2rem; }
+      section { border: 1px solid #bbb; margin: 1rem 0; padding: 1rem; }
+      pre { background: #f5f5f5; min-height: 12rem; overflow: auto; padding: 1rem; white-space: pre-wrap; }
+      .note { color: #555; }
+    </style>
+  </head>
+  <body>
+    <h1>Core Storage Manual Test</h1>
+    <p class="note">Serve this directory over HTTP. The page writes only fixture-prefixed records and tables. OPFS SQLite requires HTTPS or localhost plus cross-origin isolation (COOP/COEP headers).</p>
+    <p><button type="button" id="run-all">Run all tests</button> <button type="button" id="clear">Clear log</button></p>
+    <section>
+      <h2>Generic KV</h2>
+      <button type="button" data-test="generic-memory">Memory</button>
+      <button type="button" data-test="generic-localstorage">LocalStorage</button>
+      <button type="button" data-test="generic-indexeddb">IndexedDB</button>
+    </section>
+    <section>
+      <h2>Simple KV</h2>
+      <button type="button" data-test="simple-memory">Memory</button>
+      <button type="button" data-test="simple-localstorage">LocalStorage</button>
+      <button type="button" data-test="simple-indexeddb">IndexedDB</button>
+    </section>
+    <section>
+      <h2>OPFS SQLite</h2>
+      <button type="button" data-test="opfs">Run OPFS SQLite</button>
+    </section>
+    <pre id="log" aria-live="polite"></pre>
+    <script type="module" src="./manual-test.js"></script>
+  </body>
+</html>

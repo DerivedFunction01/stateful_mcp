@@ -1,7 +1,3 @@
-import { Database } from "bun:sqlite";
-import * as fs from "fs";
-import * as path from "path";
-
 /**
  * OPFS SQLite transport, internal to the SqlBackend family.
  */
@@ -10,7 +6,7 @@ export class OpfsDb {
 	private dbId: any = null;
 	private ready = false;
 	private fallback = false;
-	private sqlite: Database | null = null;
+	private sqlite: any = null;
 
 	constructor(
 		private dbName: string = "stateful_mcp_opfs.sqlite3",
@@ -19,13 +15,7 @@ export class OpfsDb {
 
 	async open(): Promise<void> {
 		if (typeof Worker === "undefined") {
-			this.fallback = true;
-			const dir = path.dirname(this.dbName);
-			if (dir !== "." && !fs.existsSync(dir)) {
-				fs.mkdirSync(dir, { recursive: true });
-			}
-			this.sqlite = new Database(this.dbName);
-			this.sqlite.run("PRAGMA journal_mode = WAL;");
+			await this.openBunFallback();
 			return;
 		}
 		try {
@@ -39,19 +29,73 @@ export class OpfsDb {
 					import.meta.url,
 				).href;
 			const worker = new Worker(workerScript, { type: "module" });
-			this.promiser = await sqlite3Worker1Promiser.v2({ worker });
-			const result = await this.promiser("open", { filename: this.dbName });
-			this.dbId = result.dbId;
-			this.ready = true;
-		} catch {
-			this.fallback = true;
-			const dir = path.dirname(this.dbName);
-			if (dir !== "." && !fs.existsSync(dir)) {
-				fs.mkdirSync(dir, { recursive: true });
+			worker.addEventListener("error", (event) => {
+				console.error("OpfsDb SQLite worker error", {
+					workerScript,
+					message: event.message,
+					filename: event.filename,
+					lineno: event.lineno,
+					colno: event.colno,
+				});
+			});
+			const config = {
+				worker,
+				onerror: (...args: unknown[]) =>
+					console.error("OpfsDb SQLite promiser error", ...args),
+			};
+			if (typeof sqlite3Worker1Promiser.v2 === "function") {
+				this.promiser = await sqlite3Worker1Promiser.v2(config);
+			} else {
+				this.promiser = await new Promise((resolve, reject) => {
+					try {
+						const promiser = sqlite3Worker1Promiser({
+							...config,
+							onready: resolve,
+							onerror: (...args: unknown[]) => {
+								config.onerror(...args);
+								reject(new Error("SQLite worker reported an error"));
+							},
+						});
+						void promiser;
+					} catch (error) {
+						reject(error);
+					}
+				});
 			}
-			this.sqlite = new Database(this.dbName);
-			this.sqlite.run("PRAGMA journal_mode = WAL;");
+			const result = await this.promiser("open", {
+				filename: this.dbName,
+				vfs: "opfs",
+			});
+			this.dbId = result.result?.dbId ?? result.dbId ?? result.args?.dbId;
+			this.ready = true;
+		} catch (error) {
+			if (typeof window !== "undefined" || typeof document !== "undefined") {
+				const detail = error instanceof Error ? error.message : String(error);
+				throw new Error(
+					`SQLite WASM worker failed (${this.workerUrl ?? "default worker"}): ${detail}`,
+					{ cause: error },
+				);
+			}
+			await this.openBunFallback();
 		}
+	}
+
+	private async openBunFallback(): Promise<void> {
+		const load = new Function("specifier", "return import(specifier)") as (
+			specifier: string,
+		) => Promise<any>;
+		const [{ Database }, fs, path] = await Promise.all([
+			load("bun:sqlite"),
+			load("fs"),
+			load("path"),
+		]);
+		this.fallback = true;
+		const dir = path.dirname(this.dbName);
+		if (dir !== "." && !fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+		this.sqlite = new Database(this.dbName);
+		this.sqlite.run("PRAGMA journal_mode = WAL;");
 	}
 
 	async exec(
@@ -76,8 +120,14 @@ export class OpfsDb {
 				returnValue: "resultRows" as const,
 			});
 			return {
-				changes: (result as any).changeCount as number,
-				lastInsertRowId: (result as any).lastInsertRowId as bigint | undefined,
+				changes:
+					(result as any).result?.changeCount ??
+					(result as any).changeCount ??
+					result.args?.changeCount,
+				lastInsertRowId:
+					(result as any).result?.lastInsertRowId ??
+					(result as any).lastInsertRowId ??
+					result.args?.lastInsertRowId,
 			};
 		}
 		return {};
@@ -108,7 +158,10 @@ export class OpfsDb {
 				rowMode: "object" as const,
 				returnValue: "resultRows" as const,
 			});
-			return ((result as any).resultRows || []) as T[];
+			return ((result as any).result?.resultRows ??
+				(result as any).resultRows ??
+				result.args?.resultRows ??
+				[]) as T[];
 		}
 		return [];
 	}

@@ -3,4 +3,5 @@ export {
 	MacroProjectFormatError,
 } from "@stateful-mcp/macro";
 export * from "./project-store";
+export * from "./user-preferences-store";
 export * from "./workspace-loader";

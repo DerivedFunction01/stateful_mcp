@@ -1,5 +1,6 @@
 import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
 import {
+	Check,
 	ChevronRight,
 	Columns2,
 	Command,
@@ -9,6 +10,8 @@ import {
 	FolderGit2,
 	FolderPlus,
 	HelpCircle,
+	PanelBottom,
+	PanelLeft,
 	PanelRight,
 	Save,
 	Settings,
@@ -69,6 +72,14 @@ export interface MenuBarProps {
 	) => void;
 	readonly currentRoute: string;
 	readonly extraMenus?: readonly MenuCategoryConfig[];
+	readonly isSidebarOpen?: boolean;
+	readonly onToggleSidebar?: () => void;
+	readonly isDrawerOpen?: boolean;
+	readonly onToggleDrawer?: () => void;
+	readonly isInspectorOpen?: boolean;
+	readonly onToggleInspector?: () => void;
+	readonly inspectorPosition?: "left" | "right";
+	readonly onSetInspectorPosition?: (position: "left" | "right") => void;
 }
 
 function MenuItemRenderer({
@@ -146,6 +157,14 @@ export function MenuBar({
 	onNavigate,
 	currentRoute,
 	extraMenus = [],
+	isSidebarOpen,
+	onToggleSidebar,
+	isDrawerOpen,
+	onToggleDrawer,
+	isInspectorOpen,
+	onToggleInspector,
+	inspectorPosition = "right",
+	onSetInspectorPosition,
 }: MenuBarProps) {
 	const { t } = useI18n();
 	const { theme, themeId, setThemeId } = useTheme();
@@ -285,10 +304,41 @@ export function MenuBar({
 			{
 				id: "view.toggleSidepanel",
 				label: t("menu.toggleSidepanel"),
-				icon: <PanelRight size={14} />,
+				icon: <PanelLeft size={14} />,
 				shortcut: sidepanelShortcut,
-				onSelect: () => onCommand("workspace.toggleSidepanel"),
+				onSelect: () =>
+					onToggleSidebar?.() ?? onCommand("workspace.toggleSidepanel"),
 			},
+			{
+				id: "view.toggleInspector",
+				label: t("workbench.inspector"),
+				icon: <PanelRight size={14} />,
+				shortcut: displayShortcut("primary+alt+b"),
+				onSelect: () => onToggleInspector?.(),
+			},
+			{
+				kind: "submenu",
+				id: "view.inspectorPosition",
+				label: "Inspector Position",
+				icon: <Columns2 size={14} />,
+				items: [
+					{
+						id: "view.posLeft",
+						label: "Left Side",
+						icon:
+							inspectorPosition === "left" ? <Check size={14} /> : undefined,
+						onSelect: () => onSetInspectorPosition?.("left"),
+					},
+					{
+						id: "view.posRight",
+						label: "Right Side",
+						icon:
+							inspectorPosition === "right" ? <Check size={14} /> : undefined,
+						onSelect: () => onSetInspectorPosition?.("right"),
+					},
+				],
+			},
+			{ kind: "separator", id: "view.sep1" },
 			{
 				id: "view.splitGroup",
 				label: t("editor.group.split"),
@@ -329,12 +379,17 @@ export function MenuBar({
 		paletteShortcut,
 		sidepanelShortcut,
 		splitShortcut,
+		inspectorPosition,
 		onCommand,
 		onOpenFolderModal,
 		onCloseProject,
 		onNavigate,
 		onOpenPalette,
+		onToggleSidebar,
+		onToggleInspector,
+		onSetInspectorPosition,
 		extraMenus,
+		platform,
 	]);
 
 	return (
@@ -388,6 +443,41 @@ export function MenuBar({
 			</div>
 
 			<div className="menubar-right">
+				{/* Top-Right Layout Control Toolbar (VS Code Style) */}
+				<div
+					className="layout-controls-group"
+					role="toolbar"
+					aria-label="Layout Controls"
+				>
+					<button
+						type="button"
+						className={`layout-toggle-btn ${isSidebarOpen ? "active" : ""}`}
+						title={`Toggle Primary Sidebar (${displayShortcut("primary+b") ?? "Ctrl+B"})`}
+						onClick={onToggleSidebar}
+						aria-label="Toggle Primary Sidebar"
+					>
+						<PanelLeft size={14} />
+					</button>
+					<button
+						type="button"
+						className={`layout-toggle-btn ${isDrawerOpen ? "active" : ""}`}
+						title={`Toggle Output Drawer (${displayShortcut("primary+j") ?? "Ctrl+J"})`}
+						onClick={onToggleDrawer}
+						aria-label="Toggle Output Drawer"
+					>
+						<PanelBottom size={14} />
+					</button>
+					<button
+						type="button"
+						className={`layout-toggle-btn ${isInspectorOpen ? "active" : ""}`}
+						title={`Toggle Inspector Panel (${displayShortcut("primary+alt+b") ?? "Ctrl+Alt+B"})`}
+						onClick={onToggleInspector}
+						aria-label="Toggle Inspector Panel"
+					>
+						<PanelRight size={14} />
+					</button>
+				</div>
+
 				<button
 					type="button"
 					className="theme-toggle-btn"

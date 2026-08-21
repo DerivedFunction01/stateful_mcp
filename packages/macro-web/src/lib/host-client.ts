@@ -12,6 +12,8 @@ import {
 	type SettingsBundleResult,
 	type SettingsOperation,
 	type SettingsUiOperation,
+	type UserPreferencesDto,
+	type UserPreferencesExportBundleDto,
 	type HostEvent as WireHostEvent,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
@@ -83,6 +85,14 @@ export interface HostClient {
 		displayName?: string,
 	): Promise<HostWorkspaceSnapshot>;
 	closeProject(): Promise<HostWorkspaceSnapshot>;
+	getUserPreferences?(): Promise<UserPreferencesDto>;
+	setUserPreferences?(
+		partial: Partial<UserPreferencesDto>,
+	): Promise<UserPreferencesDto>;
+	exportUserPreferences?(): Promise<UserPreferencesExportBundleDto>;
+	importUserPreferences?(
+		bundle: UserPreferencesExportBundleDto,
+	): Promise<UserPreferencesDto>;
 	subscribe(listener: (event: HostEvent) => void): () => void;
 	subscribeState(listener: (state: TransportState) => void): () => void;
 	getState(): TransportState;

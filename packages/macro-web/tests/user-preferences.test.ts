@@ -168,4 +168,21 @@ describe("Chunk 5 User Preferences and Durable Storage", () => {
 		await sessions.disposeAll();
 		await host.dispose();
 	});
+
+	test("persists inspectorPosition (left/right) and inspectorWidth", () => {
+		const initial = loadUserPreferences();
+		expect(initial.inspectorPosition).toBe("right");
+		expect(initial.inspectorWidth).toBe(320);
+
+		saveUserPreferences({ inspectorPosition: "left", inspectorWidth: 400 });
+		const updated = loadUserPreferences();
+		expect(updated.inspectorPosition).toBe("left");
+		expect(updated.inspectorWidth).toBe(400);
+
+		// Switch back to right
+		saveUserPreferences({ inspectorPosition: "right" });
+		const reloaded = loadUserPreferences();
+		expect(reloaded.inspectorPosition).toBe("right");
+		expect(reloaded.inspectorWidth).toBe(400);
+	});
 });

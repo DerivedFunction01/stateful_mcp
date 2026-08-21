@@ -13,7 +13,6 @@ import {
 	Columns2,
 	Eraser,
 	Files,
-	PanelRight,
 	Pin,
 	Play,
 	Plus,
@@ -35,6 +34,7 @@ import { useI18n } from "../lib/macro-i18n-provider";
 import {
 	loadUserPreferences,
 	saveUserPreferences,
+	subscribeUserPreferences,
 } from "../lib/user-preferences-storage";
 import { EditorOutputDrawer } from "./EditorOutputDrawer";
 import {
@@ -133,6 +133,26 @@ export function WorkbenchShell({
 			},
 		);
 	};
+
+	const [userPrefs, setUserPrefs] = useState(() => loadUserPreferences());
+	useEffect(() => subscribeUserPreferences(setUserPrefs), []);
+	const inspectorPosition = userPrefs.inspectorPosition ?? "right";
+	const isInspectorOpen = snapshot?.layout.sidepanelOpen ?? true;
+
+	const toggleInspector = () => onCommand("workspace.toggleSidepanel");
+	const setInspectorPosition = (pos: "left" | "right") =>
+		saveUserPreferences({ inspectorPosition: pos });
+
+	useEffect(() => {
+		const handleGlobalKeyDown = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === "b") {
+				e.preventDefault();
+				toggleInspector();
+			}
+		};
+		window.addEventListener("keydown", handleGlobalKeyDown);
+		return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+	}, []);
 
 	const [vimController] = useState(() =>
 		createBrowserVimController(loadUserPreferences().vimEnabled, {
@@ -366,6 +386,67 @@ export function WorkbenchShell({
 		onSetEditorDraft(activeDocumentMeta.documentId, newLines);
 	};
 
+	const inspectorElement = (
+		<aside
+			className="workbench-inspector"
+			aria-label={t("workbench.inspector")}
+			style={
+				!isInspectorOpen ? { width: 38, minWidth: 38, maxWidth: 38 } : undefined
+			}
+		>
+			<WorkbenchInspector
+				document={snapshot.editor.activeDocument}
+				meta={activeDocumentMeta}
+				activeLineIndex={
+					vimState.enabled ? vimState.activeCellIndex : undefined
+				}
+				pinnedMacros={snapshot.contributions?.pinnedMacros}
+				isOpen={isInspectorOpen}
+				onToggleOpen={toggleInspector}
+				dockPosition={inspectorPosition}
+				onToggleDockPosition={() =>
+					setInspectorPosition(inspectorPosition === "right" ? "left" : "right")
+				}
+				onPin={(macroId) =>
+					activeDocument &&
+					emitEditorOperation({
+						operation: "editor.pinMacro",
+						requestId: requestId(),
+						documentId: activeDocument.documentId,
+						macroId,
+					})
+				}
+				onJumpToLine={(lineNumber) => {
+					vimController.setActiveCell(
+						lineNumber - 1,
+						Math.max(1, activeLines.length),
+					);
+				}}
+				onInsertSnippet={handleInsertSnippet}
+			/>
+		</aside>
+	);
+
+	const inspectorSplitter = isInspectorOpen ? (
+		<Splitter
+			orientation="vertical"
+			region="inspector"
+			label={t("workbench.resizeInspector")}
+			value={inspectorRatio}
+			min={LAYOUT_RATIO_BOUNDS.min}
+			max={LAYOUT_RATIO_BOUNDS.max}
+			step={0.02}
+			totalFr={totalFr}
+			containerRef={shellRef}
+			invertDelta={inspectorPosition === "right"}
+			onChange={(next) =>
+				onCommand("layout.setRegionWidthRatio", [
+					{ region: "inspector", ratio: next },
+				])
+			}
+		/>
+	) : null;
+
 	return (
 		<div
 			className="workbench-shell"
@@ -470,6 +551,14 @@ export function WorkbenchShell({
 					])
 				}
 			/>
+
+			{/* Left-docked Inspector and Splitter */}
+			{inspectorPosition === "left" && (
+				<>
+					{inspectorElement}
+					{inspectorSplitter}
+				</>
+			)}
 
 			{/* Center Editor Canvas */}
 			<section className="workbench-center">
@@ -821,60 +910,13 @@ export function WorkbenchShell({
 				/>
 			</section>
 
-			<Splitter
-				orientation="vertical"
-				region="inspector"
-				label={t("workbench.resizeInspector")}
-				value={inspectorRatio}
-				min={LAYOUT_RATIO_BOUNDS.min}
-				max={LAYOUT_RATIO_BOUNDS.max}
-				step={0.02}
-				totalFr={totalFr}
-				containerRef={shellRef}
-				onChange={(next) =>
-					onCommand("layout.setRegionWidthRatio", [
-						{ region: "inspector", ratio: next },
-					])
-				}
-			/>
-
-			{/* Secondary Sidepanel / Workbench Inspector */}
-			<aside
-				className="workbench-inspector"
-				aria-label={t("workbench.inspector")}
-			>
-				<div className="workbench-sidebar-heading">
-					<span>{t("workbench.inspector")}</span>
-					<PanelRight size={14} />
-				</div>
-
-				<div className="inspector-content">
-					<WorkbenchInspector
-						document={snapshot.editor.activeDocument}
-						meta={activeDocumentMeta}
-						activeLineIndex={
-							vimState.enabled ? vimState.activeCellIndex : undefined
-						}
-						pinnedMacros={snapshot.contributions?.pinnedMacros}
-						onPin={(macroId) =>
-							activeDocument &&
-							emitEditorOperation({
-								operation: "editor.pinMacro",
-								requestId: requestId(),
-								documentId: activeDocument.documentId,
-								macroId,
-							})
-						}
-						onJumpToLine={(lineNumber) => {
-							vimController.setActiveCell(
-								lineNumber - 1,
-								Math.max(1, activeLines.length),
-							);
-						}}
-						onInsertSnippet={handleInsertSnippet}
-					/>
-				</div>
-			</aside>
+			{/* Right-docked Inspector and Splitter */}
+			{inspectorPosition === "right" && (
+				<>
+					{inspectorSplitter}
+					{inspectorElement}
+				</>
+			)}
 		</div>
 	);
 }

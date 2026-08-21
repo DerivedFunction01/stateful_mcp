@@ -8,8 +8,11 @@ import type {
 	SettingsPreviewDto,
 } from "@stateful-mcp/macro-protocol";
 import {
+	Activity,
 	CheckCircle2,
 	Code2,
+	Database,
+	Download,
 	FolderGit2,
 	FolderPlus,
 	Palette,
@@ -19,6 +22,7 @@ import {
 	Save,
 	Terminal,
 	Trash2,
+	Upload,
 	X,
 	Zap,
 } from "lucide-react";
@@ -29,7 +33,11 @@ import type { HostWorkspaceSnapshot } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEMES } from "../lib/theme";
 import {
+	exportUserPreferencesBundle,
+	getActiveUserPreferencesBackendKind,
+	importUserPreferencesBundle,
 	loadUserPreferences,
+	migrateUserPreferencesBackend,
 	saveUserPreferences,
 } from "../lib/user-preferences-storage";
 import { BrowserEditorFixture } from "./BrowserEditorFixture";
@@ -465,6 +473,10 @@ function ExecutionToolbarAndUndoStory() {
 
 function UserPreferencesStory() {
 	const [prefs, setPrefs] = useState(() => loadUserPreferences());
+	const [backendKind, setBackendKind] = useState(() =>
+		getActiveUserPreferencesBackendKind(),
+	);
+	const [statusMessage, setStatusMessage] = useState<string>("");
 
 	const handleToggleVim = () => {
 		const next = !prefs.vimEnabled;
@@ -478,14 +490,55 @@ function UserPreferencesStory() {
 		setPrefs(updated);
 	};
 
+	const handleMigrateBackend = async (
+		target: "indexeddb" | "localstorage" | "memory",
+	) => {
+		await migrateUserPreferencesBackend(target);
+		setBackendKind(target);
+		setStatusMessage(`Migrated preferences storage to ${target}`);
+	};
+
+	const handleExport = async () => {
+		const bundle = await exportUserPreferencesBundle();
+		const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+			type: "application/json",
+		});
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `macro-user-preferences-${new Date().toISOString().slice(0, 10)}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+		setStatusMessage("Exported preferences bundle as JSON download");
+	};
+
+	const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		try {
+			const text = await file.text();
+			const bundle = JSON.parse(text);
+			const updated = await importUserPreferencesBundle(bundle);
+			setPrefs(updated);
+			setStatusMessage(`Successfully imported preferences from ${file.name}`);
+		} catch (err: any) {
+			setStatusMessage(`Failed to import preferences: ${err?.message}`);
+		}
+	};
+
 	return (
 		<Card
-			title="Universal User Preferences (Durable Client Storage)"
-			action={<Badge tone="success">localStorage</Badge>}
+			title="Universal User Preferences (Pluggable KvBackend Storage)"
+			action={
+				<Badge tone="accent">
+					<Database size={11} style={{ marginRight: 4 }} />
+					{backendKind}
+				</Badge>
+			}
 		>
 			<p className="story-note">
-				User-tier settings that survive project switching, folder open/close,
-				and server restarts.
+				User-tier settings backed by pluggable <code>KvBackend</code> drivers
+				(IndexedDB / LocalStorage / Memory / Server JSONL).
 			</p>
 			<div className="form-grid" style={{ marginTop: 12 }}>
 				<div>
@@ -497,12 +550,12 @@ function UserPreferencesStory() {
 					<strong>{prefs.theme}</strong>
 				</div>
 				<div>
-					<span className="field-label">UI Locale</span>
-					<strong>{prefs.locale}</strong>
+					<span className="field-label">Inspector Position</span>
+					<strong>{prefs.inspectorPosition ?? "right"}</strong>
 				</div>
 				<div>
-					<span className="field-label">Storage Key</span>
-					<code>macro.user.preferences.v1</code>
+					<span className="field-label">Storage Backend</span>
+					<code>{backendKind}</code>
 				</div>
 			</div>
 			<div className="form-stack" style={{ marginTop: 12 }}>
@@ -516,6 +569,77 @@ function UserPreferencesStory() {
 					checked={Boolean(prefs.autoPurgeOnExecute)}
 					onChange={handleTogglePurge}
 				/>
+			</div>
+
+			<div
+				style={{
+					marginTop: 16,
+					paddingTop: 12,
+					borderTop: "1px solid var(--theme-border-subtle)",
+					display: "flex",
+					flexDirection: "column",
+					gap: 10,
+				}}
+			>
+				<span className="field-label">Storage Backend & Migration</span>
+				<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+					<Button
+						variant={backendKind === "indexeddb" ? "primary" : "secondary"}
+						onClick={() => handleMigrateBackend("indexeddb")}
+					>
+						IndexedDB (Default)
+					</Button>
+					<Button
+						variant={backendKind === "localstorage" ? "primary" : "secondary"}
+						onClick={() => handleMigrateBackend("localstorage")}
+					>
+						LocalStorage (Fallback)
+					</Button>
+					<Button
+						variant={backendKind === "memory" ? "primary" : "secondary"}
+						onClick={() => handleMigrateBackend("memory")}
+					>
+						Memory (Ephemeral)
+					</Button>
+				</div>
+
+				<div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+					<Button
+						variant="secondary"
+						icon={<Download size={13} />}
+						onClick={handleExport}
+					>
+						Export JSON Bundle
+					</Button>
+					<label style={{ cursor: "pointer" }}>
+						<Button
+							variant="secondary"
+							icon={<Upload size={13} />}
+							onClick={() => {
+								document.getElementById("import-pref-input")?.click();
+							}}
+						>
+							Import JSON Bundle
+						</Button>
+						<input
+							id="import-pref-input"
+							type="file"
+							accept=".json,application/json"
+							style={{ display: "none" }}
+							onChange={handleImport}
+						/>
+					</label>
+				</div>
+
+				{statusMessage && (
+					<div
+						className="cell-raw-preview"
+						style={{ padding: 8, color: "var(--theme-accent)" }}
+					>
+						<strong>Status: </strong>
+						<span>{statusMessage}</span>
+					</div>
+				)}
 			</div>
 		</Card>
 	);
@@ -994,6 +1118,8 @@ function WorkbenchInspectorStory() {
 	const { t } = useI18n();
 	const [activeLine, setActiveLine] = useState(0);
 	const [pinned, setPinned] = useState<string[]>(["vitals"]);
+	const [dockPosition, setDockPosition] = useState<"left" | "right">("right");
+	const [isOpen, setIsOpen] = useState(true);
 
 	const mockSnapshot: ScratchpadSnapshotDto = {
 		documentId: "doc-1",
@@ -1114,6 +1240,35 @@ function WorkbenchInspectorStory() {
 		},
 	];
 
+	const sampleContributedViews = [
+		{
+			id: "clinical.telemetry",
+			name: "Patient Telemetry",
+			icon: Activity,
+			render: () => (
+				<div
+					style={{
+						padding: 12,
+						display: "flex",
+						flexDirection: "column",
+						gap: 8,
+					}}
+				>
+					<Badge tone="accent">@clinical:telemetry</Badge>
+					<p
+						style={{
+							fontSize: 12,
+							color: "var(--theme-content-secondary)",
+							margin: 0,
+						}}
+					>
+						Live FHIR Trend: Blood Pressure stable at 120/80 mmHg, HR 72 bpm.
+					</p>
+				</div>
+			),
+		},
+	];
+
 	return (
 		<Card
 			title={t("gallery.inspectorTitle")}
@@ -1139,6 +1294,13 @@ function WorkbenchInspectorStory() {
 					}}
 					activeLineIndex={activeLine}
 					pinnedMacros={mockPinned}
+					isOpen={isOpen}
+					onToggleOpen={() => setIsOpen((prev) => !prev)}
+					dockPosition={dockPosition}
+					onToggleDockPosition={() =>
+						setDockPosition((prev) => (prev === "right" ? "left" : "right"))
+					}
+					contributedViews={sampleContributedViews}
 					onJumpToLine={(line) => setActiveLine(line - 1)}
 					onPin={(macroId) => {
 						if (!macroId) setPinned([]);
@@ -1298,10 +1460,14 @@ function IslandsOfOrderAndDisambiguationStory() {
 function MenuBarStory() {
 	const { t } = useI18n();
 	const [lastTriggered, setLastTriggered] = useState<string>("");
+	const [sidebarOpen, setSidebarOpen] = useState(true);
+	const [drawerOpen, setDrawerOpen] = useState(false);
+	const [inspectorOpen, setInspectorOpen] = useState(true);
+	const [inspectorPos, setInspectorPos] = useState<"left" | "right">("right");
 
 	return (
 		<Card
-			title="Declarative Menu Bar & Non-Wrapping Dropdowns"
+			title="Declarative Menu Bar & Top-Right Layout Controls"
 			action={<Badge tone="accent">QoL / UI</Badge>}
 		>
 			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1325,6 +1491,26 @@ function MenuBarStory() {
 						}
 						onNavigate={(route) => setLastTriggered(`Navigate: ${route}`)}
 						currentRoute="gallery"
+						isSidebarOpen={sidebarOpen}
+						onToggleSidebar={() => {
+							setSidebarOpen((prev) => !prev);
+							setLastTriggered(`Toggle Sidebar: ${!sidebarOpen}`);
+						}}
+						isDrawerOpen={drawerOpen}
+						onToggleDrawer={() => {
+							setDrawerOpen((prev) => !prev);
+							setLastTriggered(`Toggle Drawer: ${!drawerOpen}`);
+						}}
+						isInspectorOpen={inspectorOpen}
+						onToggleInspector={() => {
+							setInspectorOpen((prev) => !prev);
+							setLastTriggered(`Toggle Inspector: ${!inspectorOpen}`);
+						}}
+						inspectorPosition={inspectorPos}
+						onSetInspectorPosition={(pos) => {
+							setInspectorPos(pos);
+							setLastTriggered(`Set Inspector Position: ${pos}`);
+						}}
 					/>
 				</div>
 				{lastTriggered && (

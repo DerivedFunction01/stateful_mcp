@@ -155,7 +155,10 @@ export class IndexedDbKvBackend implements KvBackend {
 		const db = await this.getDB();
 		const tx = idbTransaction(db, "sessionStates", "readwrite");
 		const store = tx.objectStore("sessionStates");
-		store.delete(id);
+		const request = store.get(id);
+		request.onsuccess = () => {
+			if (request.result?.sessionId === sessionId) store.delete(id);
+		};
 
 		await new Promise<void>((resolve, reject) => {
 			tx.oncomplete = () => resolve();
@@ -198,7 +201,11 @@ export class IndexedDbKvBackend implements KvBackend {
 		const store = tx.objectStore("persistentStates");
 		const result = await idbRequest<PersistentStateRecord>(store.get(id));
 
-		if (result && result.scope) {
+		if (
+			result?.scope?.level === scope.level &&
+			(result.scope.level === "global" ||
+				(scope.level === "user" && result.scope.userId === scope.userId))
+		) {
 			return result.value;
 		}
 		return null;
@@ -224,7 +231,16 @@ export class IndexedDbKvBackend implements KvBackend {
 		const db = await this.getDB();
 		const tx = idbTransaction(db, "persistentStates", "readwrite");
 		const store = tx.objectStore("persistentStates");
-		store.delete(id);
+		const request = store.get(id);
+		request.onsuccess = () => {
+			const result = request.result as PersistentStateRecord | undefined;
+			if (
+				result?.scope?.level === scope.level &&
+				(result.scope.level === "global" ||
+					(scope.level === "user" && result.scope.userId === scope.userId))
+			)
+				store.delete(id);
+		};
 
 		await new Promise<void>((resolve, reject) => {
 			tx.oncomplete = () => resolve();

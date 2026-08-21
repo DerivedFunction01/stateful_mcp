@@ -40,24 +40,23 @@ export class IndexedDbKvBackend implements KvBackend {
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(this.storeName, "readonly");
 			const store = tx.objectStore(this.storeName);
-			const request = store.getAllKeys();
-			const result: Record<string, unknown> = {};
-			request.onsuccess = async () => {
-				const keys = request.result as string[];
-				for (const key of keys) {
-					try {
-						result[key] = await new Promise((res, rej) => {
-							const r = store.get(key);
-							r.onsuccess = () => res(r.result);
-							r.onerror = () => rej(r.error);
-						});
-					} catch {
-						// skip unreadable record
-					}
-				}
+			const keysRequest = store.getAllKeys();
+			const valuesRequest = store.getAll();
+			const finish = () => {
+				if (
+					keysRequest.readyState !== "done" ||
+					valuesRequest.readyState !== "done"
+				)
+					return;
+				const result: Record<string, unknown> = {};
+				for (const [index, key] of (keysRequest.result as string[]).entries())
+					result[key] = valuesRequest.result[index];
 				resolve(result);
 			};
-			request.onerror = () => reject(request.error);
+			keysRequest.onsuccess = finish;
+			valuesRequest.onsuccess = finish;
+			keysRequest.onerror = () => reject(keysRequest.error);
+			valuesRequest.onerror = () => reject(valuesRequest.error);
 		});
 	}
 

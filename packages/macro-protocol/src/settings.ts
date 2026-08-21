@@ -349,11 +349,33 @@ export interface CustomKeybindingDto {
 	readonly args?: readonly unknown[];
 }
 
+export type StorageBackendKind =
+	| "indexeddb"
+	| "localstorage"
+	| "memory"
+	| "jsonl";
+
+export interface StorageLocationConfigDto {
+	readonly kind: StorageBackendKind;
+	readonly dataFilePath?: string;
+	readonly maxWalEntries?: number;
+	readonly maxWalBytes?: number;
+}
+
 export interface UserPreferencesDto {
 	readonly keymapProfile: string;
 	readonly vimEnabled: boolean;
 	readonly theme: string;
 	readonly locale: string;
 	readonly autoPurgeOnExecute?: boolean;
+	readonly inspectorPosition?: "left" | "right";
+	readonly inspectorWidth?: number;
 	readonly customKeybindings?: readonly CustomKeybindingDto[];
+}
+
+export interface UserPreferencesExportBundleDto {
+	readonly schemaVersion: number;
+	readonly exportedAt: string;
+	readonly preferences: UserPreferencesDto;
+	readonly metadata?: Readonly<Record<string, unknown>>;
 }

@@ -32,6 +32,7 @@ import {
 	createMacroProject,
 	type LoadedMacroWorkspace,
 	type MacroHost,
+	ServerUserPreferencesStore,
 } from "@stateful-mcp/macro-host";
 import {
 	type CommandDescriptorDto,
@@ -67,6 +68,8 @@ import {
 	type SettingsScope,
 	type SettingsUiOperation,
 	type SettingsUiSnapshotDto,
+	type UserPreferencesDto,
+	type UserPreferencesExportBundleDto,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 
@@ -102,12 +105,38 @@ interface Session {
 
 export class HostSessionManager {
 	private readonly sessions = new Map<string, Session>();
+	private readonly userPreferencesStore: ServerUserPreferencesStore;
 
 	constructor(
 		private readonly host: MacroHost,
 		private readonly idleTimeoutMs = 30 * 60 * 1000,
 		private readonly projectRoot?: string,
-	) {}
+		preferencesOptions?: { readonly dataFilePath?: string },
+	) {
+		this.userPreferencesStore = new ServerUserPreferencesStore(
+			preferencesOptions,
+		);
+	}
+
+	async getUserPreferences(): Promise<UserPreferencesDto> {
+		return this.userPreferencesStore.loadPreferences();
+	}
+
+	async setUserPreferences(
+		partial: Partial<UserPreferencesDto>,
+	): Promise<UserPreferencesDto> {
+		return this.userPreferencesStore.savePreferences(partial);
+	}
+
+	async exportUserPreferences(): Promise<UserPreferencesExportBundleDto> {
+		return this.userPreferencesStore.exportBundle();
+	}
+
+	async importUserPreferences(
+		bundle: UserPreferencesExportBundleDto,
+	): Promise<UserPreferencesDto> {
+		return this.userPreferencesStore.importBundle(bundle);
+	}
 
 	async create(options: HostSessionOptions = {}): Promise<WorkspaceSnapshot> {
 		const loaded = await this.host.createWorkspace({

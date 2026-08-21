@@ -20,6 +20,7 @@ export * from "./adapters/storage/sql/dict-executor";
 export * from "./adapters/storage/sql/dict-filter-store";
 export * from "./adapters/storage/sql/dict-hydration";
 export * from "./adapters/storage/sql/dict-planner";
+export * from "./adapters/storage/sql/opfs-backend";
 export * from "./adapters/storage/sql/permission-policy";
 export * from "./adapters/storage/sql/resolve-db-path";
 export * from "./config/loader";
