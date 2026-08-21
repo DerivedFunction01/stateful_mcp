@@ -77,16 +77,19 @@ export function App() {
 	);
 
 	const [paletteInitialQuery, setPaletteInitialQuery] = useState("");
+	const [paletteQuery, setPaletteQuery] = useState("");
 
 	function openPalette(initialQuery = ""): void {
 		lastFocused.current = document.activeElement;
 		setPaletteInitialQuery(initialQuery);
+		setPaletteQuery(initialQuery);
 		setPaletteOpen(true);
 	}
 
 	function closePalette(): void {
 		setPaletteOpen(false);
 		setPaletteInitialQuery("");
+		setPaletteQuery("");
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
 	}
 
@@ -316,6 +319,8 @@ export function App() {
 					domain={snapshot?.applications[0]?.displayName}
 					diagnostics={diagnostics}
 					cursor={editorCursor}
+					commandMode={paletteOpen && paletteInitialQuery.startsWith(":")}
+					commandText={paletteQuery}
 					onAction={(command) => {
 						if (command === "workspace.selectProfile") navigate("settings");
 						if (command === "host.openDiagnostics") navigate("host");
@@ -338,6 +343,7 @@ export function App() {
 					<CommandPalette
 						commands={snapshot?.commands ?? []}
 						initialQuery={paletteInitialQuery}
+						onQueryChange={setPaletteQuery}
 						onExecute={(command, args) => {
 							return runCommand(command, args).then(closePalette);
 						}}

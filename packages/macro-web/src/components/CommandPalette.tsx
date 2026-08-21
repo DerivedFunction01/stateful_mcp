@@ -10,6 +10,7 @@ interface CommandPaletteProps {
 		args?: readonly unknown[],
 	) => Promise<void>;
 	readonly onClose: () => void;
+	readonly onQueryChange?: (query: string) => void;
 }
 
 interface RankedCommand {
@@ -21,7 +22,7 @@ function rankCommands(
 	commands: readonly CommandDescriptorDto[],
 	query: string,
 ): RankedCommand[] {
-	const q = query.trim().toLowerCase();
+	const q = query.trim().replace(/^:/, "").trim().toLowerCase();
 	if (!q) {
 		return commands.map((descriptor) => ({ descriptor, exact: false }));
 	}
@@ -57,6 +58,7 @@ export function CommandPalette({
 	initialQuery = "",
 	onExecute,
 	onClose,
+	onQueryChange,
 }: CommandPaletteProps) {
 	const { t } = useI18n();
 	const [query, setQuery] = useState(initialQuery);
@@ -119,6 +121,7 @@ export function CommandPalette({
 	function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
 		if (event.key === "Escape") {
 			event.preventDefault();
+			event.stopPropagation();
 			onClose();
 			return;
 		}
@@ -191,7 +194,10 @@ export function CommandPalette({
 						}
 						placeholder={t("palette.placeholder")}
 						value={query}
-						onChange={(event) => setQuery(event.target.value)}
+						onChange={(event) => {
+							setQuery(event.target.value);
+							onQueryChange?.(event.target.value);
+						}}
 					/>
 					<span className="command-palette__badge" aria-hidden="true">
 						{title}

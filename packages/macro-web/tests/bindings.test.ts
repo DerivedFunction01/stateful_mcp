@@ -46,14 +46,14 @@ describe("browser binding contexts", () => {
 
 	test("keeps Vim mode scoped to a browser editor context", () => {
 		const controller = createBrowserVimController(true, {
-			keymap: {
+			getKeymap: () => ({
 				profileId: "default",
 				name: "Standard Vim Modal",
 				vim: {
 					normal: { enterInsert: "i" },
 				},
 				bindings: [],
-			},
+			}),
 		});
 		const event = (key: string) =>
 			({
@@ -67,28 +67,25 @@ describe("browser binding contexts", () => {
 		expect(controller.getState().mode).toBe("NORMAL");
 	});
 
-	test("does not claim unsupported browser command mode", () => {
-		let reported = 0;
+	test("enters command mode from the configured Ex action", () => {
 		let prevented = 0;
 		const controller = createBrowserVimController(true, {
-			keymap: {
+			getKeymap: () => ({
 				profileId: "default",
 				name: "Standard Vim Modal",
 				vim: {
 					normal: { command: ":" },
 				},
 				bindings: [],
-			},
-			onCommandModeUnsupported: () => reported++,
+			}),
 		});
 		const event = {
 			key: ":",
 			preventDefault: () => prevented++,
 		} as unknown as ReactKeyboardEvent;
-		expect(controller.handleKeyDown(event)).toBe(false);
-		expect(controller.getState().mode).toBe("NORMAL");
-		expect(reported).toBe(1);
-		expect(prevented).toBe(0);
+		expect(controller.handleKeyDown(event)).toBe(true);
+		expect(controller.getState().mode).toBe("COMMAND");
+		expect(prevented).toBe(1);
 	});
 
 	test("selects only the focused registered editor surface", () => {

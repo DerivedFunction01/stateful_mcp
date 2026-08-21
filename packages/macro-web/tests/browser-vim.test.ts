@@ -315,4 +315,33 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(controller.getState().mode).toBe("COMMAND");
 		expect(openedCommandQuery).toBe(":");
 	});
+
+	test("maps pointer targets to logical cells and cellwise drag ranges", () => {
+		let caret = { cell: 0, column: 0 };
+		const controller = createBrowserVimController(true, {
+			variant: "scratchpad",
+			getKeymap: () => ({ vim: { normal: {}, visual: {} } }),
+			getAdapter: () => ({
+				getCellCount: () => 4,
+				setCellCaret: (cell, column) => {
+					caret = { cell, column };
+				},
+				getText: () => "one\ntwo\nthree\nfour",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		controller.setPointerTarget(2, 4, 2);
+		expect(controller.getState().activeCellIndex).toBe(2);
+		expect(controller.getState().mode).toBe("NORMAL");
+		expect(caret).toEqual({ cell: 2, column: 2 });
+
+		controller.setPointerTarget(3, 4, 1, true);
+		expect(controller.getState().mode).toBe("VISUAL");
+		expect(controller.getState().visualRange).toEqual({ start: 2, end: 3 });
+		expect(caret).toEqual({ cell: 3, column: 1 });
+	});
 });

@@ -97,6 +97,7 @@ export function WorkbenchShell({
 
 	const [vimController] = useState(() =>
 		createBrowserVimController(false, {
+			variant: "scratchpad",
 			getAdapter: getSurfaceAdapter,
 			getKeymap: () => snapshotRef.current?.keymap,
 			onOpenCommandMode: (initialQuery) =>
@@ -580,19 +581,49 @@ export function WorkbenchShell({
 							draft={localDraft}
 							pinnedMacroIds={activeDocumentMeta.pinnedMacroIds}
 							disabled={Boolean(editorConflict)}
+							activeCellIndex={vimState.enabled ? vimState.activeCellIndex : undefined}
+							selectedCellRange={vimState.enabled ? vimState.visualRange : null}
+							vimEnabled={vimState.enabled}
+							vimMode={vimState.mode}
 							onTextChange={(text) =>
 								onSetEditorDraft(activeDocumentMeta.documentId, text)
 							}
 							onFocusChange={(focused) => {
 								setSurfaceFocused(focused);
+								if (focused && vimState.mode === "COMMAND")
+									vimController.exitCommandMode();
 								if (!focused) {
 									if (draftTimerRef.current !== undefined)
 										window.clearTimeout(draftTimerRef.current);
 									flushDraft();
 								}
 							}}
-							onCursorChange={onEditorCursorChange}
+							onCursorChange={(cursor) => {
+								onEditorCursorChange?.(cursor);
+								const line = Number.parseInt(cursor.split(":")[0] ?? "", 10);
+								const column = Number.parseInt(cursor.split(":")[1] ?? "", 10);
+								if (Number.isFinite(line))
+									vimController.setActiveCell(
+										line - 1,
+										Math.max(
+											1,
+											(localDraft ?? activeDocument.text).split("\n").length,
+										),
+										Number.isFinite(column) ? column - 1 : undefined,
+									);
+							}}
 							onKeyDown={(event) => vimController.handleKeyDown(event)}
+							onPointerTarget={(lineIndex, column, dragging) =>
+								vimController.setPointerTarget(
+									lineIndex,
+									Math.max(
+										1,
+										(localDraft ?? activeDocument.text).split("\n").length,
+									),
+									column,
+									dragging,
+								)
+							}
 							surfaceRef={surfaceRef}
 							onExecuteLine={(lineNumber) =>
 								emitEditorOperation({

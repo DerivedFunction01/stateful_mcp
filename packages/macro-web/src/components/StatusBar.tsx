@@ -44,6 +44,8 @@ export interface StatusBarProps {
 	readonly profile?: string;
 	readonly domain?: string;
 	readonly cursor?: string;
+	readonly commandMode?: boolean;
+	readonly commandText?: string;
 	readonly onAction?: (command: string) => void;
 }
 
@@ -64,6 +66,8 @@ export function RegisteredStatusBar(props: StatusBarProps) {
 			vimMode={vimMode}
 			vimEnabled={vimEnabled}
 			editorFocused={editorFocused}
+			commandMode={props.commandMode}
+			commandText={props.commandText}
 		/>
 	);
 }
@@ -78,6 +82,8 @@ export function StatusBar({
 	profile = "",
 	domain = "",
 	cursor = "",
+	commandMode = false,
+	commandText = "",
 	onAction,
 }: StatusBarProps) {
 	const { t } = useI18n();
@@ -130,6 +136,17 @@ export function StatusBar({
 						icon: <Keyboard size={13} />,
 						tone: "accent" as const,
 						command: "scratchpad.configureVim",
+					},
+				]
+			: []),
+		...(commandMode
+			? [
+					{
+						id: "vim-command",
+						alignment: "right" as const,
+						priority: 105,
+						value: commandText || ":",
+						tone: "accent" as const,
 					},
 				]
 			: []),

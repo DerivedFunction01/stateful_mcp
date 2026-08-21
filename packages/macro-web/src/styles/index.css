@@ -791,6 +791,10 @@ kbd {
 	z-index: 2;
 }
 
+.editor-authored-input.vim-native-caret-hidden {
+	caret-color: transparent;
+}
+
 .editor-line-row {
 	min-height: 24px;
 	line-height: 24px;
@@ -814,6 +818,29 @@ kbd {
 	flex-direction: column;
 	min-height: 24px;
 	position: relative;
+}
+
+.editor-cell-unit.cell-selected {
+	background: color-mix(
+		in srgb,
+		var(--theme-content-accent) 18%,
+		transparent
+	);
+	box-shadow: inset 3px 0 var(--theme-content-accent);
+}
+
+.editor-cell-unit.cell-selected .editor-cell-gutter {
+	background: color-mix(
+		in srgb,
+		var(--theme-content-accent) 24%,
+		var(--theme-surface-navigation)
+	);
+	color: var(--theme-content-primary);
+}
+
+.editor-cell-unit.cell-selected.active {
+	outline: 1px solid var(--theme-content-accent);
+	outline-offset: -1px;
 }
 
 .editor-cell-gutter {
