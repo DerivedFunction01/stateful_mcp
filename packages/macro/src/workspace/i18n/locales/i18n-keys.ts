@@ -157,6 +157,7 @@ export const I18N_KEYS = [
 	"keymap.noBinding",
 	"keymap.profileUnknown",
 	"keymap.shortcutConditional",
+	"keymap.shortcutUnmapped",
 	"keymap.shortcutUnavailable",
 	"keymap.source.browser-baseline",
 	"keymap.source.extension",

@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_HOST: Record<string, string> = {
 	"app.profile": "Perfil",
 	"app.host": "Diagnóstico del host",
@@ -11,6 +9,8 @@ export const ES_HOST: Record<string, string> = {
 	"host.websocket": "Eventos WebSocket",
 	"host.protocol": "Protocolo",
 	"host.typed": "Snapshot/eventos tipados",
-	"host.description": "Inspecciona el snapshot conectado al host y el límite de eventos.",
-	"host.fixtureNote": "Abre la galería para ver el snapshot de fixture mientras se conectan los endpoints Bun.",
+	"host.description":
+		"Inspecciona el snapshot conectado al host y el límite de eventos.",
+	"host.fixtureNote":
+		"Abre la galería para ver el snapshot de fixture mientras se conectan los endpoints Bun.",
 };

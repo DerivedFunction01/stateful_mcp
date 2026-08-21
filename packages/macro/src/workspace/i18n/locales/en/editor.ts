@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_EDITOR: Record<string, string> = {
 	"editor.toggleVim": "Enable Vim bindings for this editor",
 	"editor.vimEnabled": "Vim enabled",
@@ -16,13 +14,15 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.input.conflict.title": "Document changed on the host.",
 	"editor.input.conflict.message": "Choose how to recover the local draft.",
 	"editor.input.conflict.reloadHost": "Reload host document",
-	"editor.input.conflict.reloadConfirm": "Discard the local draft and reload the host document?",
+	"editor.input.conflict.reloadConfirm":
+		"Discard the local draft and reload the host document?",
 	"editor.input.conflict.keepLocal": "Keep local draft",
 	"editor.input.conflict.copyLocal": "Copy local draft",
 	"editor.input.stale": "The editor document revision is stale.",
 	"editor.input.rejected": "The editor operation was rejected.",
 	"editor.document.notFound": "The editor document is no longer available.",
-	"editor.document.closeDirty": "Save or discard this document before closing it.",
+	"editor.document.closeDirty":
+		"Save or discard this document before closing it.",
 	"editor.document.last": "At least one editor document must remain open.",
 	"editor.document.titleRequired": "A document title is required.",
 	"editor.group.notFound": "The editor group is no longer available.",
@@ -40,16 +40,21 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.output.preview": "Preview",
 	"editor.output.skipped": "Skipped",
 	"editor.template.notFound": "The selected document template is unavailable.",
-	"editor.template.seedUnavailable": "A configured template macro is unavailable.",
+	"editor.template.seedUnavailable":
+		"A configured template macro is unavailable.",
 	"editor.operation.failed": "The editor operation could not be completed.",
 	"editor.lineStatus.empty": "empty",
 	"editor.lineStatus.valid": "valid",
 	"editor.lineStatus.invalid": "invalid",
 	"editor.lineStatus.nonMacro": "non-macro",
-	"editor.lineStatus.empty.description": "The line is empty and will be skipped.",
-	"editor.lineStatus.valid.description": "The line is a valid executable macro.",
-	"editor.lineStatus.invalid.description": "The line contains an invalid macro.",
-	"editor.lineStatus.nonMacro.description": "The line is not a recognized macro.",
+	"editor.lineStatus.empty.description":
+		"The line is empty and will be skipped.",
+	"editor.lineStatus.valid.description":
+		"The line is a valid executable macro.",
+	"editor.lineStatus.invalid.description":
+		"The line contains an invalid macro.",
+	"editor.lineStatus.nonMacro.description":
+		"The line is not a recognized macro.",
 	"editor.preview.title": "Preview",
 	"editor.preview.pending": "Preview pending",
 	"editor.preview.result": "Preview result",
@@ -67,13 +72,16 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.execution.notExecutable": "This line is not executable.",
 	"editor.template.title": "Document template",
 	"editor.template.description": "Document template description",
-	"editor.template.requiresProfile": "This template requires an active profile.",
+	"editor.template.requiresProfile":
+		"This template requires an active profile.",
 	"editor.template.createFailed": "The document template could not be created.",
 	"editor.selection.range": "Selected range",
 	"editor.selection.noRange": "No range selected",
-	"editor.commandModeUnsupported": "Command mode is not available in this surface.",
+	"editor.commandModeUnsupported":
+		"Command mode is not available in this surface.",
 	"editor.inactive.title": "Editor unavailable",
-	"editor.inactive.description": "The host has not activated an editor document.",
+	"editor.inactive.description":
+		"The host has not activated an editor document.",
 	"editor.inactive.actionUnavailable": "This editor action is unavailable.",
 	"editor.surface.authored": "Authored text",
 	"editor.surface.nativeEditing": "Native browser editing",

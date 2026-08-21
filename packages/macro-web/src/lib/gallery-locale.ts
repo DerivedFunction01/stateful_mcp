@@ -28,6 +28,8 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.findWidget.forward": "Forward search",
 		"gallery.findWidget.backward": "Backward search",
 		"gallery.findWidget.noResults": "No-results variation",
+		"keymap.shortcutUnmapped":
+			"Shortcut is mapped inside Macro but the browser may intercept it:",
 		"gallery.scratchpad.visualStates": "Scratchpad visual states",
 		"gallery.scratchpad.logicalRows": "logical cells / visual rows",
 		"gallery.scratchpad.insert": "Insert mode · pinned multiline cell",
@@ -65,6 +67,8 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.findWidget.forward": "Búsqueda hacia adelante",
 		"gallery.findWidget.backward": "Búsqueda hacia atrás",
 		"gallery.findWidget.noResults": "Variación sin resultados",
+		"keymap.shortcutUnmapped":
+			"El atajo está asignado dentro de Macro pero el navegador puede interceptarlo:",
 		"gallery.scratchpad.visualStates": "Estados visuales del portapapeles",
 		"gallery.scratchpad.logicalRows": "celdas lógicas / filas visuales",
 		"gallery.scratchpad.insert": "Modo insertar · celda multilinea fijada",

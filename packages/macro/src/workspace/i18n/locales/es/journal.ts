@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_JOURNAL: Record<string, string> = {
 	"journal.title": "Historial",
 	"journal.empty": "No hay entradas confirmadas.",

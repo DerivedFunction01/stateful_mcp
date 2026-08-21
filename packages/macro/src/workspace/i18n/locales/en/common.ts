@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_COMMON: Record<string, string> = {
 	"theme.midnight": "Midnight",
 	"theme.cloud": "Cloud",

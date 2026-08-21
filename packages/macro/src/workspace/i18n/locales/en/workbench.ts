@@ -1,9 +1,8 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_WORKBENCH: Record<string, string> = {
 	"workbench.previewEyebrow": "BROWSER WORKBENCH PREVIEW",
 	"workbench.heading": "Build the workbench from the host.",
-	"workbench.description": "The runtime and session boundary are ready. This surface intentionally stays small while the component gallery establishes the browser interaction model.",
+	"workbench.description":
+		"The runtime and session boundary are ready. This surface intentionally stays small while the component gallery establishes the browser interaction model.",
 	"workbench.openSettings": "Open settings",
 	"workbench.openScratchpad": "Open scratchpad",
 	"workbench.currentSession": "Current session",

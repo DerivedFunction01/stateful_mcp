@@ -1,9 +1,8 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.previewEyebrow": "VISTA PREVIA DEL ESPACIO WEB",
 	"workbench.heading": "Construye el espacio desde el host.",
-	"workbench.description": "El límite de runtime y sesión está listo. Esta superficie se mantiene pequeña mientras la galería establece la interacción web.",
+	"workbench.description":
+		"El límite de runtime y sesión está listo. Esta superficie se mantiene pequeña mientras la galería establece la interacción web.",
 	"workbench.openSettings": "Abrir configuración",
 	"workbench.openScratchpad": "Abrir bloc de notas",
 	"workbench.currentSession": "Sesión actual",

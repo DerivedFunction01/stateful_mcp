@@ -6,6 +6,7 @@ import type {
 import type { I18nKey } from "@stateful-mcp/macro/workspace/i18n/locales/i18n-keys";
 
 export type WebI18nKey = I18nKey | keyof (typeof GALLERY_TRANSLATIONS)["en"];
+
 import {
 	createContext,
 	type ReactNode,

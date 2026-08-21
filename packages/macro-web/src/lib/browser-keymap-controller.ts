@@ -5,7 +5,7 @@ import {
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import { normalizeBrowserChord } from "./bindings";
-import { classifyChord } from "./browser-shortcut-policy";
+import { auditKeymapPolicy, classifyChord } from "./browser-shortcut-policy";
 
 export type BindingContextId =
 	| "global"
@@ -29,7 +29,12 @@ export type KeymapAnnouncement =
 	| { readonly key: "chord.prefix"; readonly chord: string }
 	| { readonly key: "chord.timeout" }
 	| { readonly key: "shortcut.unavailable"; readonly chord: string }
-	| { readonly key: "shortcut.conditional"; readonly chord: string };
+	| { readonly key: "shortcut.conditional"; readonly chord: string }
+	| {
+			readonly key: "shortcut.unmapped";
+			readonly chord: string;
+			readonly command: string;
+	  };
 
 export interface KeymapControllerOptions {
 	readonly getSnapshot: () => WorkspaceSnapshot | undefined;
@@ -77,6 +82,7 @@ export class BrowserKeymapController {
 	attach(target: Window | HTMLElement = window): void {
 		this.attachedTarget = target;
 		target.addEventListener("keydown", this.handler as EventListener, true);
+		auditKeymapPolicy(this.options.getSnapshot());
 	}
 
 	dispose(): void {
@@ -216,10 +222,20 @@ export class BrowserKeymapController {
 		// Never claim browser/OS-reserved shortcuts; keep the visible fallback.
 		if (
 			policy.disposition === "browser-chrome" ||
-			policy.disposition === "platform-reserved" ||
-			policy.disposition === "unknown"
+			policy.disposition === "platform-reserved"
 		) {
 			this.options.announce?.({ key: "shortcut.unavailable", chord });
+			return;
+		}
+		if (policy.disposition === "unknown") {
+			// Blocked by policy, but a Macro command does exist. Surface the
+			// specific "unmapped" state so the user knows the chord works inside
+			// Macro even though the browser may intercept it.
+			this.options.announce?.({
+				key: resolved ? "shortcut.unmapped" : "shortcut.unavailable",
+				chord,
+				command: resolved.command,
+			});
 			return;
 		}
 		if (policy.canPreventDefaultWhenDelivered && event.cancelable) {

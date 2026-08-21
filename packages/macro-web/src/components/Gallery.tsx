@@ -29,21 +29,21 @@ import {
 
 export function Gallery() {
 	const { themeId, setThemeId, theme } = useTheme();
-	const { locale, setLocale } = useI18n();
+	const { locale, setLocale, t } = useI18n();
 	return (
 		<div className="gallery-page">
 			<header className="page-header gallery-header">
 				<div>
-					<span className="eyebrow">DEVELOPMENT ONLY</span>
+					<span className="eyebrow">{t("gallery.eyebrow")}</span>
 					<h1>
 						<Palette size={25} />
-						Component gallery
+						{t("gallery.title")}
 					</h1>
-					<p>Responsive, accessible fixtures for the Macro web workbench.</p>
+					<p>{t("gallery.description")}</p>
 				</div>
 				<div className="gallery-controls">
 					<SelectField
-						label="Theme"
+						label={t("gallery.theme")}
 						value={themeId}
 						options={WEB_THEMES.map((item) => ({
 							id: item.id,
@@ -52,11 +52,11 @@ export function Gallery() {
 						onChange={(value) => setThemeId(value as typeof themeId)}
 					/>
 					<SelectField
-						label="Locale"
+						label={t("gallery.locale")}
 						value={locale}
 						options={[
-							{ id: "en", label: "English" },
-							{ id: "es", label: "Español" },
+							{ id: "en", label: t("common.english") },
+							{ id: "es", label: t("common.spanish") },
 						]}
 						onChange={(value) => setLocale(value as "en" | "es")}
 					/>
@@ -64,16 +64,16 @@ export function Gallery() {
 			</header>
 			<div className="story-grid">
 				<Card
-					title="Foundations"
+					title={t("gallery.foundations")}
 					action={<Badge tone="accent">{theme.mode}</Badge>}
 				>
 					<div className="button-row">
 						<Button variant="primary" icon={<Zap size={15} />}>
-							Primary action
+							{t("gallery.primary")}
 						</Button>
-						<Button variant="secondary">Secondary</Button>
-						<Button variant="ghost">Ghost</Button>
-						<Button variant="danger">Danger</Button>
+						<Button variant="secondary">{t("gallery.secondary")}</Button>
+						<Button variant="ghost">{t("gallery.ghost")}</Button>
+						<Button variant="danger">{t("gallery.danger")}</Button>
 					</div>
 					<div className="badge-row">
 						<Badge tone="success">Saved</Badge>
@@ -83,7 +83,7 @@ export function Gallery() {
 					</div>
 				</Card>
 				<OverlayControlsStory />
-				<Card title="Form states">
+				<Card title={t("gallery.formStates")}>
 					<div className="form-grid">
 						<TextInput
 							label="Macro title"
@@ -102,26 +102,27 @@ export function Gallery() {
 						onChange={() => undefined}
 					/>
 				</Card>
-				<Card title="Diagnostics">
+				<Card title={t("gallery.diagnostics")}>
 					<div className="form-stack">
-						<Diagnostic severity="info">
-							This story is rendered from fixture data.
+						<Diagnostic severity="info">{t("gallery.fixtureInfo")}</Diagnostic>
+						<Diagnostic severity="success">
+							{t("gallery.previewValid")}
 						</Diagnostic>
-						<Diagnostic severity="success">Macro preview is valid.</Diagnostic>
 						<Diagnostic severity="warning">
-							The current profile has unsaved changes.
+							{t("gallery.profileWarning")}
 						</Diagnostic>
-						<Diagnostic severity="error">
-							The date argument could not be parsed.
-						</Diagnostic>
+						<Diagnostic severity="error">{t("gallery.dateError")}</Diagnostic>
 					</div>
 				</Card>
-				<Card title="Editor contexts" action={<Terminal size={17} />}>
+				<Card
+					title={t("gallery.editorContexts")}
+					action={<Terminal size={17} />}
+				>
 					<BrowserEditorFixture />
 				</Card>
 				<ScratchpadVisualStory />
 				<FindWidgetStory />
-				<Card title="Theme swatches">
+				<Card title={t("gallery.themeSwatches")}>
 					<div className="swatch-grid">
 						{[
 							"surface-canvas",
@@ -549,6 +550,7 @@ function SettingsPreviewStory() {
 }
 
 function HostStory() {
+	const { t } = useI18n();
 	const [snapshot, setSnapshot] = useState<HostWorkspaceSnapshot | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	useEffect(() => {
@@ -562,7 +564,7 @@ function HostStory() {
 	}, []);
 	return (
 		<Card
-			title="Host-connected diagnostics"
+			title={t("gallery.hostDiagnostics")}
 			action={
 				<Badge tone={error ? "danger" : snapshot ? "success" : "info"}>
 					{error ? "Disconnected" : snapshot ? "Connected" : "Loading"}
@@ -572,15 +574,15 @@ function HostStory() {
 			<div className="host-story">
 				<div className="host-meta">
 					<div>
-						<span className="field-label">Workspace</span>
+						<span className="field-label">{t("host.workspace")}</span>
 						<strong>{snapshot?.workspaceId ?? "—"}</strong>
 					</div>
 					<div>
-						<span className="field-label">Session</span>
+						<span className="field-label">{t("host.session")}</span>
 						<strong>{snapshot?.sessionId ?? "—"}</strong>
 					</div>
 					<div>
-						<span className="field-label">Profile</span>
+						<span className="field-label">{t("host.profile")}</span>
 						<strong>{snapshot?.profile.id ?? "—"}</strong>
 					</div>
 				</div>
@@ -594,7 +596,7 @@ function HostStory() {
 										<CheckCircle2 size={15} />
 										{id}
 									</span>
-									<Badge tone="success">Active</Badge>
+									<Badge tone="success">{t("gallery.active")}</Badge>
 								</div>
 							))}
 						</div>
@@ -608,7 +610,7 @@ function HostStory() {
 				{error && <Diagnostic severity="error">{error}</Diagnostic>}
 				<p className="story-note">
 					<Code2 size={15} />
-					This story uses the same snapshot shape as the Bun host transport.
+					{t("gallery.hostFixture")}
 				</p>
 			</div>
 		</Card>

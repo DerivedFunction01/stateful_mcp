@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_SETTINGS: Record<string, string> = {
 	"settings.title": "Settings",
 	"settings.search": "Search settings",
@@ -17,15 +15,22 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.scope.unsupported": "Storage for this scope is not available.",
 	"settings.profile.unsupported": "This settings profile is not available.",
 	"settings.bundle.invalid": "The settings bundle is invalid.",
-	"settings.bundle.blocked": "The settings bundle could not be applied: {message}",
-	"settings.bundle.scopeUnsupported": "Settings storage for the {scope} scope is not available.",
-	"settings.bundle.profileUnsupported": "Settings profile {profile} is not available.",
-	"settings.bundle.versionInvalid": "The settings bundle version is unsupported.",
+	"settings.bundle.blocked":
+		"The settings bundle could not be applied: {message}",
+	"settings.bundle.scopeUnsupported":
+		"Settings storage for the {scope} scope is not available.",
+	"settings.bundle.profileUnsupported":
+		"Settings profile {profile} is not available.",
+	"settings.bundle.versionInvalid":
+		"The settings bundle version is unsupported.",
 	"settings.bundle.stale": "The settings bundle revision is stale.",
-	"settings.bundle.stageUnavailable": "The staged settings import is unavailable.",
+	"settings.bundle.stageUnavailable":
+		"The staged settings import is unavailable.",
 	"settings.bundle.stageUnknown": "The settings import stage is unknown.",
-	"settings.bundle.profileOutsideSelection": "Settings bundle contains profile {profile} outside the selected profile.",
-	"settings.bundle.sensitiveOmitted": "Sensitive setting was omitted from the imported bundle.",
+	"settings.bundle.profileOutsideSelection":
+		"Settings bundle contains profile {profile} outside the selected profile.",
+	"settings.bundle.sensitiveOmitted":
+		"Sensitive setting was omitted from the imported bundle.",
 	"settings.bundle.valueInvalid": "Setting {path} has an invalid value.",
 	"settings.modifiedOnly": "Show modified only",
 	"settings.categories": "Settings categories",
@@ -37,13 +42,16 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.category.extensions": "Extensions",
 	"settings.jsonMode": "JSON mode",
 	"settings.rawJson": "Raw settings JSON",
-	"settings.jsonUnavailable": "JSON mode is unavailable for sensitive settings.",
+	"settings.jsonUnavailable":
+		"JSON mode is unavailable for sensitive settings.",
 	"settings.export": "Export",
 	"settings.import": "Import",
 	"settings.exported": "Settings copied to the clipboard.",
 	"settings.downloaded": "Settings downloaded.",
-	"settings.importConfirm": "Apply this settings bundle to the selected profile?",
-	"settings.importReady": "The file passed host validation and is ready to apply.",
+	"settings.importConfirm":
+		"Apply this settings bundle to the selected profile?",
+	"settings.importReady":
+		"The file passed host validation and is ready to apply.",
 	"settings.importMode": "Import mode",
 	"settings.importReplace": "Replace selected settings",
 	"settings.importMerge": "Merge selected settings",
@@ -58,17 +66,21 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.imported": "Settings imported.",
 	"settings.cancel": "Cancel",
 	"settings.unsavedTitle": "Unsaved settings",
-	"settings.unsavedMessage": "Save or discard your settings changes before leaving?",
+	"settings.unsavedMessage":
+		"Save or discard your settings changes before leaving?",
 	"settings.keepEditing": "Keep editing",
 	"settings.saveAndContinue": "Save and continue",
-	"settings.unsupportedWidget": "This settings widget is not available in the web renderer.",
+	"settings.unsupportedWidget":
+		"This settings widget is not available in the web renderer.",
 	"settings.unavailable": "Settings are unavailable for this workspace.",
-	"settings.conflict": "Settings changed elsewhere. Reload or keep editing before saving.",
+	"settings.conflict":
+		"Settings changed elsewhere. Reload or keep editing before saving.",
 	"settings.actions.save": "Save settings",
 	"settings.save": "Save changes",
 	"settings.discard": "Discard changes",
 	"settings.language": "Language",
-	"settings.description": "Configure fundamentals, profile behavior, and focused editor interactions.",
+	"settings.description":
+		"Configure fundamentals, profile behavior, and focused editor interactions.",
 	"settings.settingsCount": "3 settings",
 	"settings.appearanceCard": "Appearance",
 	"settings.profileCard": "Fundamentals and profile",
@@ -88,9 +100,11 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.schema.appearance.theme.title": "Color Theme",
 	"settings.schema.appearance.theme.desc": "Active color palette for the UI.",
 	"settings.schema.appearance.showBounds.title": "Show Component Bounds",
-	"settings.schema.appearance.showBounds.desc": "Render debug bounding boxes around layout containers.",
+	"settings.schema.appearance.showBounds.desc":
+		"Render debug bounding boxes around layout containers.",
 	"settings.schema.editor.fontSize.title": "Font Size",
 	"settings.schema.editor.fontSize.desc": "Editor font size in pixels.",
 	"settings.schema.editor.tabSize.title": "Tab Size",
-	"settings.schema.editor.tabSize.desc": "Number of spaces per indentation level.",
+	"settings.schema.editor.tabSize.desc":
+		"Number of spaces per indentation level.",
 };

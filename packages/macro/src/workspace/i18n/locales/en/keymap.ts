@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_KEYMAP: Record<string, string> = {
 	"keymap.source.macro-profile": "Macro profile",
 	"keymap.source.browser-baseline": "Browser default",

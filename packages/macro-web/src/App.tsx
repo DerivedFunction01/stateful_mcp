@@ -143,7 +143,9 @@ export function App() {
 					? `${t("keymap.shortcutUnavailable")} ${message.chord}`
 					: message.key === "shortcut.conditional"
 						? `${t("keymap.shortcutConditional")} ${message.chord}`
-						: t(`keymap.${message.key}`);
+						: message.key === "shortcut.unmapped"
+							? `${t("keymap.shortcutUnmapped")} ${message.chord} (${message.command})`
+							: t(`keymap.${message.key}`);
 		setAnnouncement(text);
 	}
 
@@ -158,6 +160,14 @@ export function App() {
 		)
 			requestNavigate("settings");
 	}
+
+	const uiCommandHandlers = useMemo(
+		() =>
+			new Map<string, () => void>([
+				["workbench.commandPalette", () => openPalette()],
+			]),
+		[openPalette],
+	);
 
 	useEffect(() => {
 		const controller = new BrowserKeymapController({
@@ -177,13 +187,20 @@ export function App() {
 			},
 			onEditorKeyDown: (event) =>
 				registry.getActive()?.handleKeyDown?.(event) ?? false,
-			onCommand: (command) => runCommand(command),
+			onCommand: (command) => {
+				const uiHandler = uiCommandHandlers.get(command);
+				if (uiHandler) {
+					uiHandler();
+					return;
+				}
+				return runCommand(command);
+			},
 			onCommandError: () => setAnnouncement(t("palette.executionFailed")),
 			announce,
 		});
 		controller.attach(window);
 		return () => controller.dispose();
-	}, [snapshot, store, registry]);
+	}, [snapshot, store, registry, t, uiCommandHandlers]);
 
 	const routePath = (next: Route) =>
 		next === "gallery"

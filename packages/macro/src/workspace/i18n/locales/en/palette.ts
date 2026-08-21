@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_PALETTE: Record<string, string> = {
 	"palette.title": "Command Palette",
 	"palette.dismissHint": "esc",

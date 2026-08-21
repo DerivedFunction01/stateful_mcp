@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_STATUS: Record<string, string> = {
 	"status.local": "Local",
 	"status.offline": "Offline",

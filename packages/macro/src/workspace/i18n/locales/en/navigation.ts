@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_NAVIGATION: Record<string, string> = {
 	"workspace.tab.scratchpad": "Scratchpad",
 	"workspace.tab.notebook": "Notebook",

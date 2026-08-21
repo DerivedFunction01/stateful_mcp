@@ -271,7 +271,9 @@ export function tScopeUnsupported(
 ): string {
 	const key: string =
 		UNSUPPORTED_SCOPE_REASONS[scope] ?? "settings.scope.unsupported";
-	return i18n ? i18n.t(key) : ((EN_LOCALE as Record<string, string>)[key] ?? key);
+	return i18n
+		? i18n.t(key)
+		: ((EN_LOCALE as Record<string, string>)[key] ?? key);
 }
 
 export function tCategory(

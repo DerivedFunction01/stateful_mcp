@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_KEYMAP: Record<string, string> = {
 	"keymap.source.macro-profile": "Perfil de Macro",
 	"keymap.source.browser-baseline": "Predeterminado del navegador",
@@ -11,8 +9,10 @@ export const ES_KEYMAP: Record<string, string> = {
 	"keymap.chord.cancelled": "Combinación cancelada",
 	"keymap.chord.timeout": "La combinación expiró",
 	"keymap.chordPrefix": "Prefijo de combinación pulsado; esperando otra tecla",
-	"keymap.shortcutUnavailable": "El atajo no se puede reasignar en el navegador:",
+	"keymap.shortcutUnavailable":
+		"El atajo no se puede reasignar en el navegador:",
 	"keymap.shortcutConditional": "El navegador puede gestionar este atajo:",
 	"keymap.noBinding": "No hay una combinación activa para este contexto",
-	"keymap.profileUnknown": "El perfil de combinaciones seleccionado no está disponible",
+	"keymap.profileUnknown":
+		"El perfil de combinaciones seleccionado no está disponible",
 };

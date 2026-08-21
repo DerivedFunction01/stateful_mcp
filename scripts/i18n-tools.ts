@@ -18,13 +18,8 @@
  *   bun scripts/i18n-tools.ts check
  */
 
-import {
-	readFileSync,
-	writeFileSync,
-	readdirSync,
-	existsSync,
-} from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -46,7 +41,11 @@ function parseKeyLiterals(src: string): string[] {
 	const re = /"((?:\\.|[^"\\])*)"\s*:/g;
 	const out: string[] = [];
 	let m: RegExpExecArray | null;
-	while ((m = re.exec(src))) out.push(m[1]);
+	m = re.exec(src);
+	while (m) {
+		out.push(m[1]);
+		m = re.exec(src);
+	}
 	return out;
 }
 
@@ -146,7 +145,11 @@ function extractUsedKeys(rootDir: string, skip: Set<string>): Set<string> {
 			const s = readFileSync(p, "utf8");
 			for (const re of CALL_RES) {
 				let m: RegExpExecArray | null;
-				while ((m = re.exec(s))) used.add(m[1]);
+				m = re.exec(s);
+				while (m) {
+					used.add(m[1]);
+					m = re.exec(s);
+				}
 			}
 		}
 	};
@@ -166,9 +169,9 @@ async function cmdCheck(): Promise<void> {
 
 	// 1. macro-web usages with no translation anywhere.
 	const webUsed = extractUsedKeys(join(WEB, "src"), new Set([GALLERY_FILE]));
-	const missingTranslations = [...webUsed].filter(
-		(k) => !enLocale.has(k) && !galleryEn.has(k),
-	).sort();
+	const missingTranslations = [...webUsed]
+		.filter((k) => !enLocale.has(k) && !galleryEn.has(k))
+		.sort();
 	if (missingTranslations.length > 0) {
 		problems.push(
 			`${missingTranslations.length} macro-web key(s) used but never translated:\n` +
@@ -188,9 +191,7 @@ async function cmdCheck(): Promise<void> {
 	}
 
 	// 3. Aggregator gaps: module keys not present in the merged EN_LOCALE.
-	const aggGaps = [...enModuleKeys]
-		.filter((k) => !enLocale.has(k))
-		.sort();
+	const aggGaps = [...enModuleKeys].filter((k) => !enLocale.has(k)).sort();
 	if (aggGaps.length > 0) {
 		problems.push(
 			`${aggGaps.length} key(s) defined in en/ modules but absent from EN_LOCALE aggregator:\n` +

@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_COMMANDS: Record<string, string> = {
 	// Default command labels (consumed via labelI18nKey)
 	"command.editor.save": "Guardar",

@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_SHELL: Record<string, string> = {
 	"shell.mode.normal": "NORMAL",
 	"shell.mode.insert": "INSERCIÓN",

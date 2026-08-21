@@ -325,6 +325,62 @@ const REGISTRY: readonly BrowserShortcutPolicy[] = [
 		recommendedForUserBinding: false,
 		canPreventDefaultWhenDelivered: false,
 	}),
+
+	// ── Macro default bindings (must be present to avoid unknown disposition) ──
+	entry("primary+\\", "page-default", ["editor split group"]),
+	entry("primary+pagedown", "page-default", [
+		"next editor tab / viewport scroll",
+	]),
+	entry("primary+pageup", "page-default", [
+		"previous editor tab / viewport scroll",
+	]),
+	entry("primary+,", "conditional", ["open settings / focus address bar"]),
+	entry("enter", "page-default", ["native confirm / editor execute"]),
+	entry("shift+enter", "page-default", [
+		"native newline / editor insert line break",
+	]),
+
+	// ── Platform-Reserved & OS-Level Intercepts ──
+	entry(
+		"primary+alt+delete",
+		"platform-reserved",
+		["system security screen (Windows)"],
+		{
+			recommendedForUserBinding: false,
+			canPreventDefaultWhenDelivered: false,
+		},
+	),
+	entry("alt+tab", "platform-reserved", ["OS window switcher"], {
+		recommendedForUserBinding: false,
+		canPreventDefaultWhenDelivered: false,
+	}),
+	entry(
+		"primary+space",
+		"platform-reserved",
+		["Spotlight (macOS) / IME switch"],
+		{
+			recommendedForUserBinding: false,
+			canPreventDefaultWhenDelivered: false,
+		},
+	),
+	entry(
+		"primary+alt+escape",
+		"platform-reserved",
+		["Force Quit menu (macOS)"],
+		{
+			recommendedForUserBinding: false,
+			canPreventDefaultWhenDelivered: false,
+		},
+	),
+	entry(
+		"primary+shift+escape",
+		"platform-reserved",
+		["OS task manager (Windows)"],
+		{
+			recommendedForUserBinding: false,
+			canPreventDefaultWhenDelivered: false,
+		},
+	),
 ];
 
 const POLICY_BY_CHORD = new Map<string, BrowserShortcutPolicy>(
@@ -369,4 +425,61 @@ export function isRecommendedUserBinding(
 	const policy = classifyChord(chord);
 	if (policy.nativeEditing && !inOwnedEditor) return false;
 	return policy.recommendedForUserBinding;
+}
+
+export interface AuditKeymapPolicyResult {
+	readonly unknownChords: readonly string[];
+	readonly duplicatePolicyChords: readonly string[];
+}
+
+/**
+ * Audit a workspace snapshot's keymap bindings against the browser shortcut
+ * policy registry. Returns any chords that resolve to `unknown` disposition
+ * and any policy chords that are duplicated across bindings.
+ *
+ * Call once at controller attach time (or when the snapshot reference changes),
+ * not on every keydown.
+ */
+export function auditKeymapPolicy(
+	snapshot:
+		| {
+				readonly keymap: {
+					readonly bindings: readonly { readonly chords: readonly string[] }[];
+				};
+		  }
+		| undefined,
+): AuditKeymapPolicyResult {
+	if (!snapshot) return { unknownChords: [], duplicatePolicyChords: [] };
+
+	const unknownChords: string[] = [];
+	const seen = new Set<string>();
+	const duplicatePolicyChords: string[] = [];
+
+	for (const binding of snapshot.keymap.bindings) {
+		for (const rawChord of binding.chords) {
+			const normalized = normalizePrimary(rawChord);
+			if (seen.has(normalized)) {
+				duplicatePolicyChords.push(normalized);
+				continue;
+			}
+			seen.add(normalized);
+			const policy = classifyChord(normalized);
+			if (policy.disposition === "unknown") unknownChords.push(normalized);
+		}
+	}
+
+	if (unknownChords.length > 0) {
+		console.warn(
+			`[browser-shortcut-policy] ${unknownChords.length} keymap binding(s) resolve to unknown browser disposition and will be blocked:`,
+			unknownChords,
+		);
+	}
+	if (duplicatePolicyChords.length > 0) {
+		console.warn(
+			`[browser-shortcut-policy] ${duplicatePolicyChords.length} duplicate chord(s) detected across keymap bindings:`,
+			duplicatePolicyChords,
+		);
+	}
+
+	return { unknownChords, duplicatePolicyChords };
 }

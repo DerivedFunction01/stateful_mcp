@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_SETTINGS: Record<string, string> = {
 	"settings.title": "Configuración",
 	"settings.search": "Buscar configuración",
@@ -14,19 +12,31 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.scope.workspace": "Espacio / Proyecto",
 	"settings.scope.user": "Usuario",
 	"settings.scope.folder": "Carpeta",
-	"settings.scope.unsupported": "El almacenamiento para este ámbito no está disponible.",
-	"settings.profile.unsupported": "Este perfil de configuración no está disponible.",
+	"settings.scope.unsupported":
+		"El almacenamiento para este ámbito no está disponible.",
+	"settings.profile.unsupported":
+		"Este perfil de configuración no está disponible.",
 	"settings.bundle.invalid": "El paquete de configuración no es válido.",
-	"settings.bundle.blocked": "No se pudo aplicar el paquete de configuración: {message}",
-	"settings.bundle.scopeUnsupported": "El almacenamiento para el ámbito {scope} no está disponible.",
-	"settings.bundle.profileUnsupported": "El perfil de configuración {profile} no está disponible.",
-	"settings.bundle.versionInvalid": "La versión del paquete de configuración no es compatible.",
-	"settings.bundle.stale": "La revisión del paquete de configuración está obsoleta.",
-	"settings.bundle.stageUnavailable": "La importación de configuración preparada no está disponible.",
-	"settings.bundle.stageUnknown": "La etapa de importación de configuración es desconocida.",
-	"settings.bundle.profileOutsideSelection": "El paquete contiene el perfil {profile} fuera del perfil seleccionado.",
-	"settings.bundle.sensitiveOmitted": "Se omitió la configuración sensible del paquete importado.",
-	"settings.bundle.valueInvalid": "La configuración {path} tiene un valor no válido.",
+	"settings.bundle.blocked":
+		"No se pudo aplicar el paquete de configuración: {message}",
+	"settings.bundle.scopeUnsupported":
+		"El almacenamiento para el ámbito {scope} no está disponible.",
+	"settings.bundle.profileUnsupported":
+		"El perfil de configuración {profile} no está disponible.",
+	"settings.bundle.versionInvalid":
+		"La versión del paquete de configuración no es compatible.",
+	"settings.bundle.stale":
+		"La revisión del paquete de configuración está obsoleta.",
+	"settings.bundle.stageUnavailable":
+		"La importación de configuración preparada no está disponible.",
+	"settings.bundle.stageUnknown":
+		"La etapa de importación de configuración es desconocida.",
+	"settings.bundle.profileOutsideSelection":
+		"El paquete contiene el perfil {profile} fuera del perfil seleccionado.",
+	"settings.bundle.sensitiveOmitted":
+		"Se omitió la configuración sensible del paquete importado.",
+	"settings.bundle.valueInvalid":
+		"La configuración {path} tiene un valor no válido.",
 	"settings.modifiedOnly": "Mostrar solo modificados",
 	"settings.categories": "Categorías de configuración",
 	"settings.category.syntax": "Sintaxis Principal",
@@ -37,13 +47,16 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.category.extensions": "Extensiones",
 	"settings.jsonMode": "Modo JSON",
 	"settings.rawJson": "JSON de configuración sin formato",
-	"settings.jsonUnavailable": "El modo JSON no está disponible para configuraciones sensibles.",
+	"settings.jsonUnavailable":
+		"El modo JSON no está disponible para configuraciones sensibles.",
 	"settings.export": "Exportar",
 	"settings.import": "Importar",
 	"settings.exported": "La configuración se copió al portapapeles.",
 	"settings.downloaded": "Configuración descargada.",
-	"settings.importConfirm": "¿Aplicar este paquete de configuración al perfil seleccionado?",
-	"settings.importReady": "El archivo pasó la validación del host y está listo para aplicar.",
+	"settings.importConfirm":
+		"¿Aplicar este paquete de configuración al perfil seleccionado?",
+	"settings.importReady":
+		"El archivo pasó la validación del host y está listo para aplicar.",
 	"settings.importMode": "Modo de importación",
 	"settings.importReplace": "Reemplazar configuración seleccionada",
 	"settings.importMerge": "Combinar configuración seleccionada",
@@ -61,14 +74,18 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.unsavedMessage": "¿Guardar o descartar los cambios antes de salir?",
 	"settings.keepEditing": "Seguir editando",
 	"settings.saveAndContinue": "Guardar y continuar",
-	"settings.unsupportedWidget": "Este control de configuración no está disponible en el renderizador web.",
-	"settings.unavailable": "La configuración no está disponible para este espacio.",
-	"settings.conflict": "La configuración cambió en otro lugar. Recarga o continúa editando antes de guardar.",
+	"settings.unsupportedWidget":
+		"Este control de configuración no está disponible en el renderizador web.",
+	"settings.unavailable":
+		"La configuración no está disponible para este espacio.",
+	"settings.conflict":
+		"La configuración cambió en otro lugar. Recarga o continúa editando antes de guardar.",
 	"settings.actions.save": "Guardar configuración",
 	"settings.save": "Guardar cambios",
 	"settings.discard": "Descartar cambios",
 	"settings.language": "Idioma",
-	"settings.description": "Configura fundamentos, comportamiento del perfil e interacciones del editor enfocado.",
+	"settings.description":
+		"Configura fundamentos, comportamiento del perfil e interacciones del editor enfocado.",
 	"settings.settingsCount": "3 ajustes",
 	"settings.appearanceCard": "Apariencia",
 	"settings.profileCard": "Fundamentos y perfil",
@@ -86,11 +103,16 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.macroTokenHint": "Se usa al escribir llamadas de macro.",
 	"settings.unsaved": "Tienes cambios de configuración sin guardar.",
 	"settings.schema.appearance.theme.title": "Tema de color",
-	"settings.schema.appearance.theme.desc": "Paleta de colores activa para la interfaz.",
-	"settings.schema.appearance.showBounds.title": "Mostrar límites de componentes",
-	"settings.schema.appearance.showBounds.desc": "Renderizar cajas de contorno de depuración alrededor de los contenedores de diseño.",
+	"settings.schema.appearance.theme.desc":
+		"Paleta de colores activa para la interfaz.",
+	"settings.schema.appearance.showBounds.title":
+		"Mostrar límites de componentes",
+	"settings.schema.appearance.showBounds.desc":
+		"Renderizar cajas de contorno de depuración alrededor de los contenedores de diseño.",
 	"settings.schema.editor.fontSize.title": "Tamaño de fuente",
-	"settings.schema.editor.fontSize.desc": "Tamaño de fuente del editor en píxeles.",
+	"settings.schema.editor.fontSize.desc":
+		"Tamaño de fuente del editor en píxeles.",
 	"settings.schema.editor.tabSize.title": "Tamaño de tabulación",
-	"settings.schema.editor.tabSize.desc": "Número de espacios por nivel de indentación.",
+	"settings.schema.editor.tabSize.desc":
+		"Número de espacios por nivel de indentación.",
 };

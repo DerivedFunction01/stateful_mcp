@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const EN_JOURNAL: Record<string, string> = {
 	"journal.title": "Journal",
 	"journal.empty": "No committed entries.",

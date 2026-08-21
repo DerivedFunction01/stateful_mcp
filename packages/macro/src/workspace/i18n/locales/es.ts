@@ -1,17 +1,17 @@
 import type { WorkspaceLocaleDictionary } from "../types";
-import { ES_SHELL } from "./es/shell";
-import { ES_NAVIGATION } from "./es/navigation";
-import { ES_WORKBENCH } from "./es/workbench";
+import { ES_COMMANDS } from "./es/commands";
+import { ES_COMMON } from "./es/common";
 import { ES_EDITOR } from "./es/editor";
+import { ES_ERRORS } from "./es/errors";
+import { ES_HOST } from "./es/host";
 import { ES_JOURNAL } from "./es/journal";
+import { ES_KEYMAP } from "./es/keymap";
+import { ES_NAVIGATION } from "./es/navigation";
 import { ES_PALETTE } from "./es/palette";
 import { ES_SETTINGS } from "./es/settings";
+import { ES_SHELL } from "./es/shell";
 import { ES_STATUS } from "./es/status";
-import { ES_HOST } from "./es/host";
-import { ES_KEYMAP } from "./es/keymap";
-import { ES_COMMANDS } from "./es/commands";
-import { ES_ERRORS } from "./es/errors";
-import { ES_COMMON } from "./es/common";
+import { ES_WORKBENCH } from "./es/workbench";
 
 export const ES_LOCALE: WorkspaceLocaleDictionary = {
 	...ES_SHELL,

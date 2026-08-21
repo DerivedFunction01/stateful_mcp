@@ -1,5 +1,3 @@
-import type { WorkspaceLocaleDictionary } from "../../types";
-
 export const ES_EDITOR: Record<string, string> = {
 	"editor.toggleVim": "Activar enlaces Vim para este editor",
 	"editor.vimEnabled": "Vim activado",
@@ -16,13 +14,15 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.input.conflict.title": "El documento cambió en el host.",
 	"editor.input.conflict.message": "Elige cómo recuperar el borrador local.",
 	"editor.input.conflict.reloadHost": "Recargar documento del host",
-	"editor.input.conflict.reloadConfirm": "¿Descartar el borrador local y recargar el documento del host?",
+	"editor.input.conflict.reloadConfirm":
+		"¿Descartar el borrador local y recargar el documento del host?",
 	"editor.input.conflict.keepLocal": "Conservar borrador local",
 	"editor.input.conflict.copyLocal": "Copiar borrador local",
 	"editor.input.stale": "La revisión del documento del editor está obsoleta.",
 	"editor.input.rejected": "La operación del editor fue rechazada.",
 	"editor.document.notFound": "El documento del editor ya no está disponible.",
-	"editor.document.closeDirty": "Guarda o descarta este documento antes de cerrarlo.",
+	"editor.document.closeDirty":
+		"Guarda o descarta este documento antes de cerrarlo.",
 	"editor.document.last": "Debe permanecer al menos un documento del editor.",
 	"editor.document.titleRequired": "Se requiere un título de documento.",
 	"editor.group.notFound": "El grupo del editor ya no está disponible.",
@@ -39,17 +39,22 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.output.reversed": "Revertida",
 	"editor.output.preview": "Vista previa",
 	"editor.output.skipped": "Omitida",
-	"editor.template.notFound": "La plantilla de documento seleccionada no está disponible.",
-	"editor.template.seedUnavailable": "Una macro configurada en la plantilla no está disponible.",
+	"editor.template.notFound":
+		"La plantilla de documento seleccionada no está disponible.",
+	"editor.template.seedUnavailable":
+		"Una macro configurada en la plantilla no está disponible.",
 	"editor.operation.failed": "No se pudo completar la operación del editor.",
 	"editor.lineStatus.empty": "vacía",
 	"editor.lineStatus.valid": "válida",
 	"editor.lineStatus.invalid": "inválida",
 	"editor.lineStatus.nonMacro": "no es macro",
 	"editor.lineStatus.empty.description": "La línea está vacía y se omitirá.",
-	"editor.lineStatus.valid.description": "La línea es una macro ejecutable válida.",
-	"editor.lineStatus.invalid.description": "La línea contiene una macro no válida.",
-	"editor.lineStatus.nonMacro.description": "La línea no es una macro reconocida.",
+	"editor.lineStatus.valid.description":
+		"La línea es una macro ejecutable válida.",
+	"editor.lineStatus.invalid.description":
+		"La línea contiene una macro no válida.",
+	"editor.lineStatus.nonMacro.description":
+		"La línea no es una macro reconocida.",
 	"editor.preview.title": "Vista previa",
 	"editor.preview.pending": "Vista previa pendiente",
 	"editor.preview.result": "Resultado de vista previa",
@@ -67,14 +72,18 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.execution.notExecutable": "Esta línea no se puede ejecutar.",
 	"editor.template.title": "Plantilla de documento",
 	"editor.template.description": "Descripción de la plantilla de documento",
-	"editor.template.requiresProfile": "Esta plantilla requiere un perfil activo.",
+	"editor.template.requiresProfile":
+		"Esta plantilla requiere un perfil activo.",
 	"editor.template.createFailed": "No se pudo crear la plantilla de documento.",
 	"editor.selection.range": "Rango seleccionado",
 	"editor.selection.noRange": "No hay un rango seleccionado",
-	"editor.commandModeUnsupported": "El modo de comandos no está disponible en esta superficie.",
+	"editor.commandModeUnsupported":
+		"El modo de comandos no está disponible en esta superficie.",
 	"editor.inactive.title": "Editor no disponible",
-	"editor.inactive.description": "El host no ha activado un documento del editor.",
-	"editor.inactive.actionUnavailable": "Esta acción del editor no está disponible.",
+	"editor.inactive.description":
+		"El host no ha activado un documento del editor.",
+	"editor.inactive.actionUnavailable":
+		"Esta acción del editor no está disponible.",
 	"editor.surface.authored": "Texto escrito",
 	"editor.surface.nativeEditing": "Edición nativa del navegador",
 	"editor.surface.projections": "Proyecciones de Macro",
