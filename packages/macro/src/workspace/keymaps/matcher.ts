@@ -9,6 +9,7 @@ import {
 	ALL_CANONICAL_KEYS,
 	type CanonicalKey,
 	type EditorKeymapProfile,
+	type KeyChordValue,
 	type KeymapContext,
 	type WorkspaceKeybinding,
 } from "./types";
@@ -253,12 +254,35 @@ export function resolveKeymapBindings(
 	const known = new Set(
 		DEFAULT_COMMAND_KEYBINDINGS.map((item) => item.command),
 	);
-	const bindings = DEFAULT_COMMAND_KEYBINDINGS.map((binding) => ({
-		...binding,
-		chords: Object.hasOwn(overrides, binding.command)
-			? (overrides[binding.command] ?? [])
-			: binding.chords,
-	}));
+	const defaultCombinedChords = new Map<string, Set<string>>();
+	for (const item of DEFAULT_COMMAND_KEYBINDINGS) {
+		const set = defaultCombinedChords.get(item.command) ?? new Set();
+		for (const chord of item.chords) set.add(chord);
+		defaultCombinedChords.set(item.command, set);
+	}
+
+	const isExplicitUserOverride = (
+		command: string,
+		chords: readonly string[],
+	): boolean => {
+		const defaultSet = defaultCombinedChords.get(command);
+		if (!defaultSet) return true;
+		if (chords.length !== defaultSet.size) return true;
+		return chords.some((c) => !defaultSet.has(c));
+	};
+
+	const bindings = DEFAULT_COMMAND_KEYBINDINGS.map((binding) => {
+		if (
+			Object.hasOwn(overrides, binding.command) &&
+			isExplicitUserOverride(binding.command, overrides[binding.command] ?? [])
+		) {
+			return {
+				...binding,
+				chords: overrides[binding.command] ?? [],
+			};
+		}
+		return binding;
+	});
 	for (const [command, chords] of Object.entries(overrides)) {
 		if (known.has(command)) continue;
 		bindings.push({ command, chords });
@@ -412,14 +436,20 @@ function excludesModal(
 	return false;
 }
 
-const LEGACY_COMMAND_PATHS: Readonly<Record<string, string>> = {
-	"normal.moveDown": "cursor.moveDown",
-	"normal.moveUp": "cursor.moveUp",
-	"normal.moveLeft": "cursor.moveLeft",
-	"normal.moveRight": "cursor.moveRight",
-	"window.nextTab": "workspace.nextTab",
-	"window.prevTab": "workspace.previousTab",
-};
+export function matchesChordValue(
+	bindingValue: KeyChordValue | undefined,
+	keyOrChord: string,
+): boolean {
+	if (!bindingValue) return false;
+	const normalizedInput = normalizeChord(keyOrChord) ?? keyOrChord;
+	const candidates = Array.isArray(bindingValue) ? bindingValue : [bindingValue];
+	return candidates.some((candidate) => {
+		if (!candidate) return false;
+		if (candidate === keyOrChord || candidate === normalizedInput) return true;
+		const norm = normalizeChord(candidate);
+		return norm === keyOrChord || norm === normalizedInput;
+	});
+}
 
 export function mergeEditorKeymap(
 	base: EditorKeymapProfile,
@@ -430,14 +460,6 @@ export function mergeEditorKeymap(
 		...(base.keybindings ?? {}),
 		...(override.keybindings ?? {}),
 	} as Record<string, readonly string[]>;
-	for (const [path, command] of Object.entries(LEGACY_COMMAND_PATHS)) {
-		const [group, action] = path.split(".");
-		const value = (override as Record<string, unknown>)[group!];
-		if (value && typeof value === "object" && action! in value) {
-			const chord = (value as Record<string, unknown>)[action!];
-			if (typeof chord === "string") keybindings[command] = [chord];
-		}
-	}
 	return {
 		profileId: override.profileId ?? base.profileId,
 		name: override.name ?? base.name,
@@ -498,38 +520,47 @@ export function validateEditorKeymap(
 	const modes = ["normal", "sequences", "visual", "window"] as const;
 	for (const mode of modes) {
 		const seen = new Map<string, [string, string]>();
-		for (const [action, chord] of Object.entries(profile[mode])) {
-			if (!chord) continue;
-			const normalized = normalizeChord(chord);
-			if (
-				!normalized &&
-				(mode !== "sequences" || !/^[[\]a-zA-Z]+$/u.test(chord))
-			) {
-				diagnostics.push({
-					severity: "error",
-					code: "invalid-chord",
-					message: `Unknown chord '${chord}'. Must conform to canonical grammar [ctrl+][meta+][primary+][shift+]<canonical_key>.`,
-					bindings: [chord],
-					paths: [`${mode}.${action}`],
-				});
-				continue;
+		for (const [action, chordValue] of Object.entries(profile[mode])) {
+			if (!chordValue) continue;
+			const chords = Array.isArray(chordValue) ? chordValue : [chordValue];
+			for (const chord of chords) {
+				if (!chord) continue;
+				const normalized = normalizeChord(chord);
+				if (
+					!normalized &&
+					(mode !== "sequences" || !/^[[\]a-zA-Z]+$/u.test(chord))
+				) {
+					diagnostics.push({
+						severity: "error",
+						code: "invalid-chord",
+						message: `Unknown chord '${chord}'. Must conform to canonical grammar [ctrl+][meta+][primary+][shift+]<canonical_key>.`,
+						bindings: [chord],
+						paths: [`${mode}.${action}`],
+					});
+					continue;
+				}
+				const key = normalized ?? chord;
+				const prior = seen.get(key);
+				if (prior && prior[1] !== action) {
+					diagnostics.push({
+						severity: "error",
+						code: "duplicate-binding",
+						message: `Chord '${chord}' is bound to both '${prior[1]}' and '${action}'.`,
+						bindings: [prior[0], chord],
+						paths: [`${mode}.${prior[1]}`, `${mode}.${action}`],
+					});
+				} else seen.set(key, [chord, action]);
 			}
-			const key = normalized ?? chord;
-			const prior = seen.get(key);
-			if (prior && prior[1] !== action) {
-				diagnostics.push({
-					severity: "error",
-					code: "duplicate-binding",
-					message: `Chord '${chord}' is bound to both '${prior[1]}' and '${action}'.`,
-					bindings: [prior[0], chord],
-					paths: [`${mode}.${prior[1]}`, `${mode}.${action}`],
-				});
-			} else seen.set(key, [chord, action]);
 		}
 	}
-	const sequences = Object.entries(profile.sequences).filter(([, value]) =>
-		Boolean(value),
-	);
+	const sequences: Array<[string, string]> = [];
+	for (const [action, value] of Object.entries(profile.sequences)) {
+		if (!value) continue;
+		const chords = Array.isArray(value) ? value : [value];
+		for (const chord of chords) {
+			if (chord) sequences.push([action, chord]);
+		}
+	}
 	for (let i = 0; i < sequences.length; i++) {
 		for (let j = i + 1; j < sequences.length; j++) {
 			const [a, first] = sequences[i]!;

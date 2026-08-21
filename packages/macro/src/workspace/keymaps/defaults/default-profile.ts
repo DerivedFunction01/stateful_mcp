@@ -77,11 +77,13 @@ export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 	sequences: SEQUENCE_BINDINGS,
 	visual: VISUAL_BINDINGS,
 	window: WORKBENCH_BINDINGS,
-	keybindings: Object.fromEntries(
-		DEFAULT_COMMAND_KEYBINDINGS.map((binding) => [
-			binding.command,
-			binding.chords,
-		]),
-	),
+	keybindings: DEFAULT_COMMAND_KEYBINDINGS.reduce<
+		Record<string, readonly string[]>
+	>((acc, binding) => {
+		acc[binding.command] = [
+			...new Set([...(acc[binding.command] ?? []), ...binding.chords]),
+		];
+		return acc;
+	}, {}),
 	aliases: DEFAULT_COMMAND_ALIASES,
 };

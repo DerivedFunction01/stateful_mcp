@@ -113,17 +113,19 @@ export interface BrowserVimController {
 	subscribe(listener: () => void): () => void;
 }
 
+export type KeyChordValueShape = string | readonly string[];
+
 export interface EditorKeymapProfileShape {
 	readonly vim?: {
-		readonly normal?: Readonly<Record<string, string>>;
-		readonly visual?: Readonly<Record<string, string>>;
-		readonly sequences?: Readonly<Record<string, string>>;
+		readonly normal?: Readonly<Record<string, KeyChordValueShape>>;
+		readonly visual?: Readonly<Record<string, KeyChordValueShape>>;
+		readonly sequences?: Readonly<Record<string, KeyChordValueShape>>;
 	};
-	readonly workbench?: Readonly<Record<string, string>>;
-	readonly normal?: Readonly<Record<string, string>>;
-	readonly visual?: Readonly<Record<string, string>>;
-	readonly sequences?: Readonly<Record<string, string>>;
-	readonly window?: Readonly<Record<string, string>>;
+	readonly workbench?: Readonly<Record<string, KeyChordValueShape>>;
+	readonly normal?: Readonly<Record<string, KeyChordValueShape>>;
+	readonly visual?: Readonly<Record<string, KeyChordValueShape>>;
+	readonly sequences?: Readonly<Record<string, KeyChordValueShape>>;
+	readonly window?: Readonly<Record<string, KeyChordValueShape>>;
 	readonly bindings?: readonly KeymapBindingDto[];
 }
 
@@ -164,6 +166,7 @@ export interface BrowserVimControllerOptions {
 	readonly getKeymap?: () => KeymapSource;
 	readonly onExecuteLine?: (lineNumber?: number) => void;
 	readonly onExecuteRange?: (startLine: number, endLine: number) => void;
+	readonly onExecuteValidLines?: () => void;
 	readonly onPreviewLine?: () => void;
 }
 
@@ -182,7 +185,7 @@ export function createBrowserVimController(
 ): BrowserVimController {
 	let state: BrowserVimState = {
 		enabled: initialEnabled,
-		mode: "NORMAL",
+		mode: initialEnabled ? "NORMAL" : "INSERT",
 		activeCellIndex: 0,
 		caretColumn: 0,
 		visualRange: null,
@@ -264,26 +267,18 @@ export function createBrowserVimController(
 				setMode("NORMAL");
 			}
 		},
-			handleKeyDown: (event) => {
-			if (!state.enabled) return false;
-
+		handleKeyDown: (event) => {
 			const chord = normalizeChordFromEvent(event);
-			const debugEditingKey =
-				event.key === "Enter" || event.key === "Tab";
-			if (debugEditingKey)
-				console.log("[browser-vim] editing keydown", {
-					key: event.key,
-					shiftKey: event.shiftKey,
-					chord,
-					mode: state.mode,
-					enabled: state.enabled,
-				});
 			const rawKey = event.key;
 			const keymap = options?.getKeymap?.();
 			const adapter = options?.getAdapter?.();
+			const isScratchpad =
+				options?.variant === "scratchpad" ||
+				Boolean(adapter?.getCellCount || adapter?.setActiveCellIndex);
+			const currentMode = state.enabled ? state.mode : "INSERT";
 
-			// Mode-aware Escape handling
-			if (rawKey === "Escape" || chord === "escape") {
+			// Mode-aware Escape handling (only active when Vim is enabled)
+			if (state.enabled && (rawKey === "Escape" || chord === "escape")) {
 				clearSequence();
 				if (state.mode === "INSERT") {
 					setMode("NORMAL");
@@ -295,46 +290,44 @@ export function createBrowserVimController(
 					editorStore.dispatch({ type: "clearVisual" });
 					setMode("NORMAL");
 				}
-				// In NORMAL mode, Escape is a focus-preserving no-op
 				event.preventDefault();
 				event.stopPropagation?.();
 				return true;
 			}
 
-			// Determine if active adapter is cell-oriented (Scratchpad variant)
-			const isScratchpad =
-				options?.variant === "scratchpad" ||
-				Boolean(adapter?.getCellCount || adapter?.setActiveCellIndex);
-
-			// Retrieve configured keymap definitions directly with ZERO runtime fallbacks
 			const normalMap = keymap?.vim?.normal ?? keymap?.normal;
 			const visualMap = keymap?.vim?.visual ?? keymap?.visual;
 			const sequenceMap = keymap?.vim?.sequences ?? keymap?.sequences;
 			const bindings = keymap?.bindings;
 
-			// INSERT-mode structural editing is keymap-driven. Unmapped structural
-			// keys are suppressed rather than falling through to browser behavior.
-			if (state.mode === "INSERT") {
+			// INSERT-mode structural editing is keymap-driven (shared between Standard & Vim Insert).
+			if (currentMode === "INSERT") {
 				const matched = bindings
-					? matchEffectiveBindings(bindings, chord, state.mode, {
-							editorMode: state.mode,
+					? matchEffectiveBindings(bindings, chord, "INSERT", {
+							editorMode: "INSERT",
 						})
 					: undefined;
-				if (debugEditingKey)
-					console.log("[browser-vim] insert-mode binding", {
-						chord,
-						matched,
-					});
+
+				if (matched?.command === "editor.executeValidLines") {
+					options?.onExecuteValidLines?.();
+					event.preventDefault();
+					return true;
+				}
+				if (matched?.command === "editor.executeLine") {
+					if (options?.onExecuteLine) {
+						options.onExecuteLine(cellIndex() + 1);
+					} else {
+						adapter?.executeCell?.(cellIndex());
+					}
+					event.preventDefault();
+					return true;
+				}
 				if (matched?.command === "editor.splitLine") {
-					if (debugEditingKey)
-						console.log("[browser-vim] matched splitLine");
 					adapter?.splitCellAtCaret?.();
 					event.preventDefault();
 					return true;
 				}
 				if (matched?.command === "editor.insertLineBreak") {
-					if (debugEditingKey)
-						console.log("[browser-vim] matched insertLineBreak");
 					adapter?.insertTextAtCaret?.("\n");
 					event.preventDefault();
 					return true;
@@ -344,25 +337,54 @@ export function createBrowserVimController(
 					event.preventDefault();
 					return true;
 				}
-				if (rawKey === "Enter" || rawKey === "Tab") {
-					if (debugEditingKey)
-						console.log("[browser-vim] suppressing unmapped insert key", {
-							rawKey,
-						});
+				if (state.enabled && (rawKey === "Enter" || rawKey === "Tab")) {
 					event.preventDefault();
 					return true;
 				}
 				return false;
 			}
 
+			if (!state.enabled) return false;
+
+function matchesKeyOrChord(
+	bindingValue: string | readonly string[] | undefined,
+	rawKey: string,
+	chord: string,
+): boolean {
+	if (!bindingValue) return false;
+	const candidates = Array.isArray(bindingValue) ? bindingValue : [bindingValue];
+	return candidates.some((candidate) => {
+		if (!candidate) return false;
+		if (candidate === rawKey || candidate === chord) return true;
+		const norm = candidate.toLowerCase();
+		return (
+			norm === rawKey.toLowerCase() ||
+			norm === chord.toLowerCase() ||
+			(rawKey === "ArrowDown" && norm === "down") ||
+			(rawKey === "ArrowUp" && norm === "up") ||
+			(rawKey === "ArrowLeft" && norm === "left") ||
+			(rawKey === "ArrowRight" && norm === "right")
+		);
+	});
+}
+
 			// ── Sequence Buffering (e.g. "dd", "yy", "gp") ─────────────────────────
 			if (state.mode === "NORMAL" && sequenceMap) {
 				const currentSeq = sequenceBuffer() + rawKey;
+				const allSequences: Array<{ action: string; seq: string }> = [];
+				for (const [action, val] of Object.entries(sequenceMap)) {
+					if (!val) continue;
+					const seqs = Array.isArray(val) ? val : [val];
+					for (const s of seqs) {
+						if (s) allSequences.push({ action, seq: s });
+					}
+				}
+
 				let hasExactMatch = false;
 				let hasPartialMatch = false;
 				let matchedAction: string | null = null;
 
-				for (const [action, seq] of Object.entries(sequenceMap)) {
+				for (const { action, seq } of allSequences) {
 					if (seq === currentSeq) {
 						hasExactMatch = true;
 						matchedAction = action;
@@ -418,232 +440,63 @@ export function createBrowserVimController(
 
 			// ── NORMAL Mode Keymap Dispatch ──────────────────────────────────────
 			if (state.mode === "NORMAL") {
-				if (normalMap) {
-					if (normalMap.enterInsert && rawKey === normalMap.enterInsert) {
-						setMode("INSERT");
-						if (isScratchpad && adapter?.focusCellForEdit) {
-							adapter.focusCellForEdit(cellIndex(), editorState().caretColumn);
-						} else {
-							adapter?.focus?.();
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.insertBelow && rawKey === normalMap.insertBelow) {
-						if (isScratchpad && adapter?.insertCell) {
-							adapter.insertCell("below");
-							const count = adapter.getCellCount?.() ?? 1;
-							editorStore.dispatch({
-								type: "setActiveCell",
-								index: cellIndex() + 1,
-								count,
-							});
-							adapter.focusCellForEdit?.(
-								cellIndex(),
-								editorState().caretColumn,
-							);
-						} else {
-							adapter?.insertLine?.("below");
-						}
-						setMode("INSERT");
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.insertAbove && rawKey === normalMap.insertAbove) {
-						if (isScratchpad && adapter?.insertCell) {
-							adapter.insertCell("above");
-							const count = adapter.getCellCount?.() ?? 1;
-							editorStore.dispatch({
-								type: "setActiveCell",
-								index: cellIndex(),
-								count,
-							});
-							adapter.focusCellForEdit?.(
-								cellIndex(),
-								editorState().caretColumn,
-							);
-						} else {
-							adapter?.insertLine?.("above");
-						}
-						setMode("INSERT");
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.enterVisual && rawKey === normalMap.enterVisual) {
-						editorStore.dispatch({ type: "beginVisual" });
-						setMode("VISUAL");
-						adapter?.setSelectedCellRange?.(cellRange());
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.moveDown && rawKey === normalMap.moveDown) {
-						if (isScratchpad && adapter) {
-							const total = adapter.getCellCount?.() ?? 1;
-							const nextIndex = Math.min(total - 1, cellIndex() + 1);
-							const lineLength = getCellText(adapter, nextIndex).length;
-							editorStore.dispatch({
-								type: "moveCell",
-								delta: 1,
-								count: total,
-								lineLength,
-							});
-							adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-								adapter.setActiveCellIndex?.(cellIndex());
-						} else {
-							adapter?.moveLine?.(1);
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.moveUp && rawKey === normalMap.moveUp) {
-						if (isScratchpad && adapter) {
-							const total = adapter.getCellCount?.() ?? 1;
-							const nextIndex = Math.max(0, cellIndex() - 1);
-							const lineLength = getCellText(adapter, nextIndex).length;
-							editorStore.dispatch({
-								type: "moveCell",
-								delta: -1,
-								count: total,
-								lineLength,
-							});
-							adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-								adapter.setActiveCellIndex?.(cellIndex());
-						} else {
-							adapter?.moveLine?.(-1);
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.moveLeft && rawKey === normalMap.moveLeft) {
-						if (adapter) {
-							if (isScratchpad) {
-								const line = getCellText(adapter, cellIndex());
-								editorStore.dispatch({
-									type: "moveCharacter",
-									delta: -1,
-									lineLength: line.length,
-								});
-								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn);
+				const executeNormalAction = (action: string): boolean => {
+					switch (action) {
+						case "enterInsert":
+						case "editor.enterInsert":
+							setMode("INSERT");
+							if (isScratchpad && adapter?.focusCellForEdit) {
+								adapter.focusCellForEdit(cellIndex(), editorState().caretColumn);
 							} else {
-								const sel = adapter.getSelection();
-								const next = Math.max(0, sel.end - 1);
-								adapter.setSelection({ start: next, end: next });
+								adapter?.focus?.();
 							}
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.moveRight && rawKey === normalMap.moveRight) {
-						if (adapter) {
-							if (isScratchpad) {
-								const line = getCellText(adapter, cellIndex());
-								editorStore.dispatch({
-									type: "moveCharacter",
-									delta: 1,
-									lineLength: line.length,
-								});
-								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn);
-							} else {
-								const sel = adapter.getSelection();
-								const next = Math.min(adapter.getText().length, sel.end + 1);
-								adapter.setSelection({ start: next, end: next });
-							}
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.pasteBelow && rawKey === normalMap.pasteBelow) {
-						if (yankBuffer()) {
-							adapter?.pasteCell?.(yankBuffer(), "below");
-							if (isScratchpad) {
-								const count = adapter?.getCellCount?.() ?? 1;
+							return true;
+						case "insertBelow":
+						case "editor.insertBelow":
+							if (isScratchpad && adapter?.insertCell) {
+								adapter.insertCell("below");
+								const count = adapter.getCellCount?.() ?? 1;
 								editorStore.dispatch({
 									type: "setActiveCell",
 									index: cellIndex() + 1,
 									count,
 								});
+								adapter.focusCellForEdit?.(
+									cellIndex(),
+									editorState().caretColumn,
+								);
+							} else {
+								adapter?.insertLine?.("below");
 							}
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.undo && chord === normalMap.undo) {
-						adapter?.undo?.();
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.redo && chord === normalMap.redo) {
-						adapter?.redo?.();
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.runCell && rawKey === normalMap.runCell) {
-						if (options?.onExecuteLine) {
-							options.onExecuteLine(cellIndex() + 1);
-						} else {
-							adapter?.executeCell?.(cellIndex());
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.previewCell && rawKey === normalMap.previewCell) {
-						options?.onPreviewLine?.();
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.nextMatch && rawKey === normalMap.nextMatch) {
-						adapter?.repeatFind?.("forward");
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.previousMatch && rawKey === normalMap.previousMatch) {
-						adapter?.repeatFind?.("backward");
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap.command && rawKey === normalMap.command) {
-						editorStore.dispatch({
-							type: "setCommandText",
-							value: normalMap.command,
-						});
-						setMode("COMMAND");
-						if (options?.onOpenCommandMode) {
-							options.onOpenCommandMode(
-								normalMap.command,
-								true,
-								normalMap.command,
-							);
-						} else {
-							options?.onCommandModeUnsupported?.();
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (
-						(normalMap.search && rawKey === normalMap.search) ||
-						(normalMap.searchAlt && rawKey === normalMap.searchAlt)
-					) {
-						const backward =
-							normalMap.searchAlt && rawKey === normalMap.searchAlt;
-						options?.onOpenSearch?.(backward ? "backward" : "forward");
-						event.preventDefault();
-						return true;
-					}
-				}
-
-				// Check standard EffectiveKeymap bindings
-				if (bindings && bindings.length > 0) {
-					const matched = matchEffectiveBindings(bindings, chord, state.mode, {
-						editorMode: state.mode,
-					});
-					if (matched) {
-						if (matched.command === "editor.enterInsert") {
 							setMode("INSERT");
-							adapter?.focusCellForEdit?.(
-								cellIndex(),
-								editorState().caretColumn,
-							) ?? adapter?.focus?.();
-						} else if (matched.command === "editor.moveDown") {
+							return true;
+						case "insertAbove":
+						case "editor.insertAbove":
+							if (isScratchpad && adapter?.insertCell) {
+								adapter.insertCell("above");
+								const count = adapter.getCellCount?.() ?? 1;
+								editorStore.dispatch({
+									type: "setActiveCell",
+									index: cellIndex(),
+									count,
+								});
+								adapter.focusCellForEdit?.(
+									cellIndex(),
+									editorState().caretColumn,
+								);
+							} else {
+								adapter?.insertLine?.("above");
+							}
+							setMode("INSERT");
+							return true;
+						case "enterVisual":
+						case "editor.enterVisual":
+							editorStore.dispatch({ type: "beginVisual" });
+							setMode("VISUAL");
+							adapter?.setSelectedCellRange?.(cellRange());
+							return true;
+						case "moveDown":
+						case "editor.moveDown":
 							if (isScratchpad && adapter) {
 								const total = adapter.getCellCount?.() ?? 1;
 								const nextIndex = Math.min(total - 1, cellIndex() + 1);
@@ -654,14 +507,14 @@ export function createBrowserVimController(
 									count: total,
 									lineLength,
 								});
-								adapter.setCellCaret?.(
-									cellIndex(),
-									editorState().caretColumn,
-								) ?? adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
+									adapter.setActiveCellIndex?.(cellIndex());
 							} else {
 								adapter?.moveLine?.(1);
 							}
-						} else if (matched.command === "editor.moveUp") {
+							return true;
+						case "moveUp":
+						case "editor.moveUp":
 							if (isScratchpad && adapter) {
 								const total = adapter.getCellCount?.() ?? 1;
 								const nextIndex = Math.max(0, cellIndex() - 1);
@@ -672,16 +525,141 @@ export function createBrowserVimController(
 									count: total,
 									lineLength,
 								});
-								adapter.setCellCaret?.(
-									cellIndex(),
-									editorState().caretColumn,
-								) ?? adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
+									adapter.setActiveCellIndex?.(cellIndex());
 							} else {
 								adapter?.moveLine?.(-1);
 							}
-						} else if (matched.command === "editor.executeLine") {
-							options?.onExecuteLine?.(cellIndex() + 1);
+							return true;
+						case "moveLeft":
+						case "editor.moveLeft":
+							if (adapter) {
+								if (isScratchpad) {
+									const line = getCellText(adapter, cellIndex());
+									editorStore.dispatch({
+										type: "moveCharacter",
+										delta: -1,
+										lineLength: line.length,
+									});
+									adapter.setCellCaret?.(cellIndex(), editorState().caretColumn);
+								} else {
+									const sel = adapter.getSelection();
+									const next = Math.max(0, sel.end - 1);
+									adapter.setSelection({ start: next, end: next });
+								}
+							}
+							return true;
+						case "moveRight":
+						case "editor.moveRight":
+							if (adapter) {
+								if (isScratchpad) {
+									const line = getCellText(adapter, cellIndex());
+									editorStore.dispatch({
+										type: "moveCharacter",
+										delta: 1,
+										lineLength: line.length,
+									});
+									adapter.setCellCaret?.(cellIndex(), editorState().caretColumn);
+								} else {
+									const sel = adapter.getSelection();
+									const next = Math.min(adapter.getText().length, sel.end + 1);
+									adapter.setSelection({ start: next, end: next });
+								}
+							}
+							return true;
+						case "pasteBelow":
+						case "editor.pasteBelow":
+							if (yankBuffer()) {
+								adapter?.pasteCell?.(yankBuffer(), "below");
+								if (isScratchpad) {
+									const count = adapter?.getCellCount?.() ?? 1;
+									editorStore.dispatch({
+										type: "setActiveCell",
+										index: cellIndex() + 1,
+										count,
+									});
+								}
+							}
+							return true;
+						case "undo":
+						case "editor.undo":
+							adapter?.undo?.();
+							return true;
+						case "redo":
+						case "editor.redo":
+							adapter?.redo?.();
+							return true;
+						case "runCell":
+						case "editor.executeLine":
+							if (options?.onExecuteLine) {
+								options.onExecuteLine(cellIndex() + 1);
+							} else {
+								adapter?.executeCell?.(cellIndex());
+							}
+							return true;
+						case "executeValidLines":
+						case "editor.executeValidLines":
+							options?.onExecuteValidLines?.();
+							return true;
+						case "previewCell":
+						case "editor.previewCell":
+							options?.onPreviewLine?.();
+							return true;
+						case "nextMatch":
+							adapter?.repeatFind?.("forward");
+							return true;
+						case "previousMatch":
+							adapter?.repeatFind?.("backward");
+							return true;
+						case "command":
+							const cmdText = Array.isArray(normalMap?.command)
+								? (normalMap.command[0] ?? ":")
+								: (normalMap?.command ?? ":");
+							editorStore.dispatch({
+								type: "setCommandText",
+								value: cmdText,
+							});
+							setMode("COMMAND");
+							if (options?.onOpenCommandMode) {
+								options.onOpenCommandMode(
+									cmdText,
+									true,
+									cmdText,
+								);
+							} else {
+								options?.onCommandModeUnsupported?.();
+							}
+							return true;
+						case "search":
+						case "searchAlt":
+							const backward =
+								action === "searchAlt" ||
+								(normalMap?.searchAlt &&
+									matchesKeyOrChord(normalMap.searchAlt, rawKey, chord));
+							options?.onOpenSearch?.(backward ? "backward" : "forward");
+							return true;
+						default:
+							return false;
+					}
+				};
+
+				if (normalMap) {
+					for (const [action, binding] of Object.entries(normalMap)) {
+						if (matchesKeyOrChord(binding, rawKey, chord)) {
+							if (executeNormalAction(action)) {
+								event.preventDefault();
+								return true;
+							}
 						}
+					}
+				}
+
+				// Check standard EffectiveKeymap bindings
+				if (bindings && bindings.length > 0) {
+					const matched = matchEffectiveBindings(bindings, chord, state.mode, {
+						editorMode: state.mode,
+					});
+					if (matched && executeNormalAction(matched.command)) {
 						event.preventDefault();
 						return true;
 					}
@@ -694,139 +672,173 @@ export function createBrowserVimController(
 
 			// ── VISUAL Mode Keymap Dispatch ──────────────────────────────────────
 			if (state.mode === "VISUAL") {
-				if (visualMap) {
-					if (
-						visualMap.deleteSelection &&
-						rawKey === visualMap.deleteSelection
-					) {
-						const range = cellRange();
-						if (isScratchpad && range && adapter?.deleteCellRange) {
-							const deleted = adapter.deleteCellRange(range.start, range.end);
-							if (deleted)
-								editorStore.dispatch({ type: "setYank", value: deleted });
-							editorStore.dispatch({
-								type: "setActiveCell",
-								index: Math.min(range.start, range.end),
-								count: adapter.getCellCount?.() ?? 1,
-							});
-							adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-								adapter.setActiveCellIndex?.(cellIndex());
-						} else {
-							adapter?.replaceSelection("");
-						}
-						editorStore.dispatch({ type: "clearVisual" });
-						adapter?.setSelectedCellRange?.(null);
-						setMode("NORMAL");
-						event.preventDefault();
-						return true;
-					}
-					if (visualMap.yankSelection && rawKey === visualMap.yankSelection) {
-						const range = cellRange();
-						if (isScratchpad && range && adapter?.yankCellRange) {
-							const yanked = adapter.yankCellRange(range.start, range.end);
-							if (yanked)
-								editorStore.dispatch({ type: "setYank", value: yanked });
-						}
-						editorStore.dispatch({ type: "clearVisual" });
-						adapter?.setSelectedCellRange?.(null);
-						setMode("NORMAL");
-						event.preventDefault();
-						return true;
-					}
-					if (visualMap.pasteSelection && rawKey === visualMap.pasteSelection) {
-						const range = cellRange();
-						if (isScratchpad && range && yankBuffer()) {
-							adapter?.pasteCellRangeReplace?.(
-								range.start,
-								range.end,
-								yankBuffer(),
-							);
-						}
-						editorStore.dispatch({ type: "clearVisual" });
-						adapter?.setSelectedCellRange?.(null);
-						setMode("NORMAL");
-						event.preventDefault();
-						return true;
-					}
-					if (visualMap.extendDown && rawKey === visualMap.extendDown) {
-						if (isScratchpad && adapter) {
-							const total = adapter.getCellCount?.() ?? 1;
-							editorStore.dispatch({
-								type: "extendVisual",
-								delta: 1,
-								count: total,
-							});
-							adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-								adapter.setActiveCellIndex?.(cellIndex());
-							adapter.setSelectedCellRange?.(cellRange());
-						} else {
-							adapter?.moveLine?.(1);
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (visualMap.extendUp && rawKey === visualMap.extendUp) {
-						if (isScratchpad && adapter) {
-							const total = adapter.getCellCount?.() ?? 1;
-							editorStore.dispatch({
-								type: "extendVisual",
-								delta: -1,
-								count: total,
-							});
-							adapter.setActiveCellIndex?.(cellIndex());
-							adapter.setSelectedCellRange?.(cellRange());
-						} else {
-							adapter?.moveLine?.(-1);
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (visualMap.extendLeft && rawKey === visualMap.extendLeft) {
-						if (!isScratchpad && adapter) {
-							const sel = adapter.getSelection();
-							adapter.setSelection({
-								start: sel.start,
-								end: Math.max(0, sel.end - 1),
-							});
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (visualMap.extendRight && rawKey === visualMap.extendRight) {
-						if (!isScratchpad && adapter) {
-							const sel = adapter.getSelection();
-							adapter.setSelection({
-								start: sel.start,
-								end: Math.min(adapter.getText().length, sel.end + 1),
-							});
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (visualMap.swapAnchor && rawKey === visualMap.swapAnchor) {
-						if (isScratchpad && cellRange()) {
-							editorStore.dispatch({ type: "swapVisualAnchor" });
-							adapter?.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-								adapter?.setActiveCellIndex?.(cellIndex());
-							adapter?.setSelectedCellRange?.(cellRange());
-						} else {
-							adapter?.swapSelectionAnchor?.();
-						}
-						event.preventDefault();
-						return true;
-					}
-					if (normalMap?.runCell && rawKey === normalMap.runCell) {
-						const range = cellRange();
-						if (isScratchpad && range) {
-							if (options?.onExecuteRange) {
-								options.onExecuteRange(range.start + 1, range.end + 1);
+				const executeVisualAction = (action: string): boolean => {
+					switch (action) {
+						case "deleteSelection":
+						case "editor.deleteSelection": {
+							const range = cellRange();
+							if (isScratchpad && range && adapter?.deleteCellRange) {
+								const deleted = adapter.deleteCellRange(range.start, range.end);
+								if (deleted)
+									editorStore.dispatch({ type: "setYank", value: deleted });
+								editorStore.dispatch({
+									type: "setActiveCell",
+									index: Math.min(range.start, range.end),
+									count: adapter.getCellCount?.() ?? 1,
+								});
+								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
+									adapter.setActiveCellIndex?.(cellIndex());
 							} else {
-								adapter?.executeCellRange?.(range.start, range.end);
+								adapter?.replaceSelection("");
+							}
+							editorStore.dispatch({ type: "clearVisual" });
+							adapter?.setSelectedCellRange?.(null);
+							setMode("NORMAL");
+							return true;
+						}
+						case "yankSelection":
+						case "editor.yankSelection": {
+							const range = cellRange();
+							if (isScratchpad && range && adapter?.yankCellRange) {
+								const yanked = adapter.yankCellRange(range.start, range.end);
+								if (yanked)
+									editorStore.dispatch({ type: "setYank", value: yanked });
+							}
+							editorStore.dispatch({ type: "clearVisual" });
+							adapter?.setSelectedCellRange?.(null);
+							setMode("NORMAL");
+							return true;
+						}
+						case "pasteSelection":
+						case "editor.pasteSelection": {
+							const range = cellRange();
+							if (isScratchpad && range && yankBuffer()) {
+								adapter?.pasteCellRangeReplace?.(
+									range.start,
+									range.end,
+									yankBuffer(),
+								);
+							}
+							editorStore.dispatch({ type: "clearVisual" });
+							adapter?.setSelectedCellRange?.(null);
+							setMode("NORMAL");
+							return true;
+						}
+						case "extendDown":
+						case "editor.extendDown":
+							if (isScratchpad && adapter) {
+								const total = adapter.getCellCount?.() ?? 1;
+								editorStore.dispatch({
+									type: "extendVisual",
+									delta: 1,
+									count: total,
+								});
+								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
+									adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setSelectedCellRange?.(cellRange());
+							} else {
+								adapter?.moveLine?.(1);
+							}
+							return true;
+						case "extendUp":
+						case "editor.extendUp":
+							if (isScratchpad && adapter) {
+								const total = adapter.getCellCount?.() ?? 1;
+								editorStore.dispatch({
+									type: "extendVisual",
+									delta: -1,
+									count: total,
+								});
+								adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setSelectedCellRange?.(cellRange());
+							} else {
+								adapter?.moveLine?.(-1);
+							}
+							return true;
+						case "extendLeft":
+						case "editor.extendLeft":
+							if (!isScratchpad && adapter) {
+								const sel = adapter.getSelection();
+								adapter.setSelection({
+									start: sel.start,
+									end: Math.max(0, sel.end - 1),
+								});
+							}
+							return true;
+						case "extendRight":
+						case "editor.extendRight":
+							if (!isScratchpad && adapter) {
+								const sel = adapter.getSelection();
+								adapter.setSelection({
+									start: sel.start,
+									end: Math.min(adapter.getText().length, sel.end + 1),
+								});
+							}
+							return true;
+						case "swapAnchor":
+						case "editor.swapAnchor":
+							if (isScratchpad && cellRange()) {
+								editorStore.dispatch({ type: "swapVisualAnchor" });
+								adapter?.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
+									adapter?.setActiveCellIndex?.(cellIndex());
+								adapter?.setSelectedCellRange?.(cellRange());
+							} else {
+								adapter?.swapSelectionAnchor?.();
+							}
+							return true;
+						case "runCell":
+						case "editor.executeLine": {
+							const range = cellRange();
+							if (isScratchpad && range) {
+								if (options?.onExecuteRange) {
+									options.onExecuteRange(range.start + 1, range.end + 1);
+								} else {
+									adapter?.executeCellRange?.(range.start, range.end);
+								}
+							}
+							editorStore.dispatch({ type: "clearVisual" });
+							adapter?.setSelectedCellRange?.(null);
+							setMode("NORMAL");
+							return true;
+						}
+						case "executeValidLines":
+						case "editor.executeValidLines": {
+							options?.onExecuteValidLines?.();
+							editorStore.dispatch({ type: "clearVisual" });
+							adapter?.setSelectedCellRange?.(null);
+							setMode("NORMAL");
+							return true;
+						}
+						default:
+							return false;
+					}
+				};
+
+				if (visualMap) {
+					for (const [action, binding] of Object.entries(visualMap)) {
+						if (matchesKeyOrChord(binding, rawKey, chord)) {
+							if (executeVisualAction(action)) {
+								event.preventDefault();
+								return true;
 							}
 						}
-						editorStore.dispatch({ type: "clearVisual" });
-						adapter?.setSelectedCellRange?.(null);
-						setMode("NORMAL");
+					}
+					if (
+						normalMap?.runCell &&
+						matchesKeyOrChord(normalMap.runCell, rawKey, chord)
+					) {
+						if (executeVisualAction("runCell")) {
+							event.preventDefault();
+							return true;
+						}
+					}
+				}
+
+				if (bindings && bindings.length > 0) {
+					const matched = matchEffectiveBindings(bindings, chord, state.mode, {
+						editorMode: state.mode,
+					});
+					if (matched && executeVisualAction(matched.command)) {
 						event.preventDefault();
 						return true;
 					}

@@ -59,7 +59,7 @@ export const createScratchpadEditorState = (
 	enabled = false,
 ): ScratchpadEditorState => ({
 	enabled,
-	mode: "NORMAL",
+	mode: enabled ? "NORMAL" : "INSERT",
 	activeCellIndex: 0,
 	caretColumn: 0,
 	preferredColumn: 0,

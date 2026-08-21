@@ -160,6 +160,16 @@ export function WorkbenchShell({
 					expectedTextRevision: activeDoc.textRevision,
 				});
 			},
+			onExecuteValidLines: () => {
+				const activeDoc = snapshotRef.current?.editor.activeDocument;
+				if (!activeDoc) return;
+				void onEditorOperation({
+					operation: "editor.executeValidLines",
+					requestId: crypto.randomUUID(),
+					documentId: activeDoc.documentId,
+					expectedTextRevision: activeDoc.textRevision,
+				});
+			},
 		}),
 	);
 

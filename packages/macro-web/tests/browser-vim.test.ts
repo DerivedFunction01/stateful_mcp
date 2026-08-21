@@ -515,4 +515,114 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(prevented).toEqual(["tab"]);
 		expect(inserted).toEqual(["\t"]);
 	});
+
+	test("supports multi-chord array bindings for motions and sequences", () => {
+		let moved = 0;
+		let deleted = 0;
+		const controller = createBrowserVimController(true, {
+			variant: "scratchpad",
+			getKeymap: () => ({
+				normal: {
+					moveDown: ["j", "down"],
+					moveUp: ["k", "up"],
+				},
+				sequences: {
+					deleteCell: ["dd", "xx"],
+				},
+			}),
+			getAdapter: () => ({
+				getCellCount: () => 4,
+				getCellText: () => "line",
+				setCellCaret: () => undefined,
+				setActiveCellIndex: () => undefined,
+				deleteCell: () => {
+					deleted++;
+					return "deleted";
+				},
+				moveLine: (delta) => {
+					moved += delta;
+				},
+				getText: () => "line 1\nline 2\nline 3\nline 4",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		// Motion via "j"
+		controller.handleKeyDown({
+			key: "j",
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		expect(controller.getState().activeCellIndex).toBe(1);
+
+		// Motion via "ArrowDown" (chord "down")
+		controller.handleKeyDown({
+			key: "ArrowDown",
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		expect(controller.getState().activeCellIndex).toBe(2);
+
+		// Motion via "ArrowUp" (chord "up")
+		controller.handleKeyDown({
+			key: "ArrowUp",
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		expect(controller.getState().activeCellIndex).toBe(1);
+
+		// Alternate sequence "xx"
+		controller.handleKeyDown({
+			key: "x",
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		controller.handleKeyDown({
+			key: "x",
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		expect(deleted).toBe(1);
+	});
+
+	test("dispatches editor.executeValidLines on primary+shift+enter in standard and Vim mode", () => {
+		let executed = false;
+		const controller = createBrowserVimController(false, {
+			variant: "scratchpad",
+			getKeymap: () => ({
+				bindings: [
+					{
+						command: "editor.executeValidLines",
+						chords: ["primary+shift+enter"],
+						modes: ["NORMAL", "INSERT", "VISUAL"],
+					},
+				],
+			}),
+			onExecuteValidLines: () => {
+				executed = true;
+			},
+			getAdapter: () => ({
+				getText: () => "line 1\nline 2",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		// Trigger Ctrl+Shift+Enter in standard / Insert mode
+		const handled = controller.handleKeyDown({
+			key: "Enter",
+			ctrlKey: true,
+			shiftKey: true,
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+
+		expect(handled).toBe(true);
+		expect(executed).toBe(true);
+	});
 });

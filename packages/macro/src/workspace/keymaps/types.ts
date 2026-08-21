@@ -139,6 +139,7 @@ export const ALL_CANONICAL_MODIFIERS = new Set<string>(
 
 export type KeyChord = string;
 export type KeyChordVariants = readonly KeyChord[];
+export type KeyChordValue = KeyChord | readonly KeyChord[];
 
 import type { ContextExpression } from "../contributions/types";
 import type { EditorMode } from "../editor/editor-kernel";
@@ -162,59 +163,59 @@ export interface KeymapContext {
 }
 
 export interface EditorKeymapNormalBindings {
-	readonly moveDown: KeyChord;
-	readonly moveUp: KeyChord;
-	readonly moveLeft: KeyChord;
-	readonly moveRight: KeyChord;
-	readonly enterInsert: KeyChord;
-	readonly insertBelow: KeyChord;
-	readonly insertAbove: KeyChord;
-	readonly enterVisual: KeyChord;
-	readonly pasteBelow: KeyChord;
-	readonly previewCell: KeyChord;
-	readonly runCell: KeyChord;
-	readonly undo: KeyChord;
-	readonly redo: KeyChord;
-	readonly command: KeyChord;
-	readonly macro: KeyChord;
-	readonly search: KeyChord;
-	readonly searchAlt: KeyChord;
-	readonly info: KeyChord;
-	readonly quit: KeyChord;
+	readonly moveDown: KeyChordValue;
+	readonly moveUp: KeyChordValue;
+	readonly moveLeft: KeyChordValue;
+	readonly moveRight: KeyChordValue;
+	readonly enterInsert: KeyChordValue;
+	readonly insertBelow: KeyChordValue;
+	readonly insertAbove: KeyChordValue;
+	readonly enterVisual: KeyChordValue;
+	readonly pasteBelow: KeyChordValue;
+	readonly previewCell: KeyChordValue;
+	readonly runCell: KeyChordValue;
+	readonly undo: KeyChordValue;
+	readonly redo: KeyChordValue;
+	readonly command: KeyChordValue;
+	readonly macro: KeyChordValue;
+	readonly search: KeyChordValue;
+	readonly searchAlt: KeyChordValue;
+	readonly info: KeyChordValue;
+	readonly quit: KeyChordValue;
 }
 
 export interface EditorKeymapSequenceBindings {
-	readonly deleteCell: KeyChord;
-	readonly yankCell: KeyChord;
-	readonly previousError: KeyChord;
-	readonly nextError: KeyChord;
-	readonly workspace: KeyChord;
-	readonly pasteAbove: KeyChord;
+	readonly deleteCell: KeyChordValue;
+	readonly yankCell: KeyChordValue;
+	readonly previousError: KeyChordValue;
+	readonly nextError: KeyChordValue;
+	readonly workspace: KeyChordValue;
+	readonly pasteAbove: KeyChordValue;
 }
 
 export interface EditorKeymapVisualBindings {
-	readonly deleteSelection: KeyChord;
-	readonly yankSelection: KeyChord;
-	readonly pasteSelection: KeyChord;
-	readonly extendDown: KeyChord;
-	readonly extendUp: KeyChord;
-	readonly extendLeft: KeyChord;
-	readonly extendRight: KeyChord;
-	readonly swapAnchor: KeyChord;
+	readonly deleteSelection: KeyChordValue;
+	readonly yankSelection: KeyChordValue;
+	readonly pasteSelection: KeyChordValue;
+	readonly extendDown: KeyChordValue;
+	readonly extendUp: KeyChordValue;
+	readonly extendLeft: KeyChordValue;
+	readonly extendRight: KeyChordValue;
+	readonly swapAnchor: KeyChordValue;
 }
 
 export interface EditorKeymapWorkbenchBindings {
-	readonly toggleSidepanel: KeyChord;
-	readonly toggleActivityPanel?: KeyChord;
-	readonly toggleDrawer?: KeyChord;
-	readonly switchSplitFocus?: KeyChord;
-	readonly splitGroup?: KeyChord;
-	readonly openCommandPalette: KeyChord;
-	readonly quickOpen?: KeyChord;
-	readonly openSettings?: KeyChord;
-	readonly nextTab: KeyChord;
-	readonly prevTab: KeyChord;
-	readonly pinMacro?: KeyChord;
+	readonly toggleSidepanel: KeyChordValue;
+	readonly toggleActivityPanel?: KeyChordValue;
+	readonly toggleDrawer?: KeyChordValue;
+	readonly switchSplitFocus?: KeyChordValue;
+	readonly splitGroup?: KeyChordValue;
+	readonly openCommandPalette: KeyChordValue;
+	readonly quickOpen?: KeyChordValue;
+	readonly openSettings?: KeyChordValue;
+	readonly nextTab: KeyChordValue;
+	readonly prevTab: KeyChordValue;
+	readonly pinMacro?: KeyChordValue;
 }
 
 export type EditorKeymapWindowBindings = EditorKeymapWorkbenchBindings;

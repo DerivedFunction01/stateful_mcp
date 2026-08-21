@@ -129,37 +129,23 @@ export class BrowserKeymapController {
 
 		const resolved = this.resolveChord(combined);
 
-		// Preserve ordinary text editing in inputs that are not owned by an editor
-		// surface. Modifier chords are command-layer input, so they remain
-		// available for any resolved command without maintaining a command-name
-		// allowlist that would become stale as commands are added.
 		const editorContext = this.options.getContext();
-		const preserveNativeEditing =
-			!event.ctrlKey &&
-			!event.metaKey &&
-			((isEditableTarget(event.target) && !editorContext.editorFocused) ||
-				(editorContext.editorFocused && editorContext.vimEnabled === false));
-		if (debugEditingKey)
-			console.log("[browser-keymap] editing key", {
-				key: event.key,
-				shiftKey: event.shiftKey,
-				chord,
-				combined,
-				resolved,
-				editorFocused: editorContext.editorFocused,
-				vimEnabled: editorContext.vimEnabled,
-				preserveNativeEditing,
-				target: event.target,
-			});
-		if (preserveNativeEditing) {
-			return;
-		}
 		if (
-			this.options.getContext().editorFocused &&
+			editorContext.editorFocused &&
 			this.options.onEditorKeyDown?.(event)
 		) {
 			event.preventDefault();
 			event.stopPropagation();
+			return;
+		}
+		// Non-modifier keys in editable targets or focused editor that were not
+		// handled by onEditorKeyDown fall through to native editing and never
+		// dispatch as global workbench commands.
+		if (
+			!event.ctrlKey &&
+			!event.metaKey &&
+			(isEditableTarget(event.target) || editorContext.editorFocused)
+		) {
 			return;
 		}
 		if (resolved) {

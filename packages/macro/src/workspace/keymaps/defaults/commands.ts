@@ -26,6 +26,18 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 	},
 	{
 		command: "editor.executeLine",
+		chords: ["primary+enter"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.editor.executeLine",
+	},
+	{
+		command: "editor.executeValidLines",
+		chords: ["primary+shift+enter"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.editor.executeValidLines",
+	},
+	{
+		command: "editor.executeLine",
 		chords: ["enter", "r"],
 		modes: ["NORMAL", "VISUAL"],
 		labelI18nKey: "command.editor.executeLine",

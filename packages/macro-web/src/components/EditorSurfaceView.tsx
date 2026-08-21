@@ -95,21 +95,32 @@ export function createEditorVisualRows(
 	return rows.length > 0
 		? rows
 		: [
-				{
-					logicalLineIndex: 0,
-					segmentIndex: 0,
-					displayLineNumber: 1,
-					text: "",
-					isCellStart: true,
-					isCellEnd: true,
-				},
-			];
+			{
+				logicalLineIndex: 0,
+				segmentIndex: 0,
+				displayLineNumber: 1,
+				text: "",
+				isCellStart: true,
+				isCellEnd: true,
+			},
+		];
 }
 
 function offsetAtPoint(root: HTMLElement, node: Node, offset: number): number {
 	const range = document.createRange();
 	range.selectNodeContents(root);
 	range.setEnd(node, offset);
+	return range.toString().length;
+}
+
+function offsetInBlock(
+	block: HTMLElement,
+	targetNode: Node,
+	targetOffset: number,
+): number {
+	const range = document.createRange();
+	range.selectNodeContents(block);
+	range.setEnd(targetNode, targetOffset);
 	return range.toString().length;
 }
 
@@ -132,11 +143,10 @@ function getActiveLineAndCol(root: HTMLElement): {
 	while (node && node !== root && node.parentElement !== root) {
 		node = node.parentElement;
 	}
-	if (node && node.parentElement === root) {
+	if (node && node.parentElement === root && node instanceof HTMLElement) {
 		const lineIdx = Array.prototype.indexOf.call(root.children, node);
 		if (lineIdx !== -1) {
-			const col =
-				range.endContainer.nodeType === Node.TEXT_NODE ? range.endOffset : 0;
+			const col = offsetInBlock(node, range.endContainer, range.endOffset);
 			return { lineIdx, col };
 		}
 	}
@@ -157,24 +167,45 @@ function setLineAndCol(root: HTMLElement, lineIdx: number, col = 0): void {
 	const block = root.children[targetIdx] as HTMLElement | undefined;
 	if (!block) return;
 
-	// Find the first text node in the block
-	let textNode: Text | null = null;
+	let remaining = col;
+	let targetNode: Node = block;
+	let targetOffset = 0;
+	let found = false;
+
 	const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-	const first = walker.nextNode();
-	if (first && first.nodeType === Node.TEXT_NODE) {
-		textNode = first as Text;
+	let textNode = walker.nextNode();
+	while (textNode) {
+		const len = textNode.textContent?.length ?? 0;
+		if (remaining <= len) {
+			targetNode = textNode;
+			targetOffset = remaining;
+			found = true;
+			break;
+		}
+		remaining -= len;
+		targetNode = textNode;
+		targetOffset = len;
+		textNode = walker.nextNode();
+	}
+
+	if (!found) {
+		if (block.lastChild) {
+			targetNode = block.lastChild;
+			targetOffset =
+				targetNode.nodeType === Node.TEXT_NODE
+					? (targetNode.textContent?.length ?? 0)
+					: 0;
+		} else {
+			const emptyNode = document.createTextNode("");
+			block.appendChild(emptyNode);
+			targetNode = emptyNode;
+			targetOffset = 0;
+		}
 	}
 
 	const range = document.createRange();
-	if (textNode) {
-		const maxCol = (textNode.textContent ?? "").length;
-		const finalOffset = Math.max(0, Math.min(maxCol, col));
-		range.setStart(textNode, finalOffset);
-		range.setEnd(textNode, finalOffset);
-	} else {
-		range.setStart(block, 0);
-		range.setEnd(block, 0);
-	}
+	range.setStart(targetNode, targetOffset);
+	range.setEnd(targetNode, targetOffset);
 
 	const selection = window.getSelection();
 	selection?.removeAllRanges();
@@ -189,9 +220,32 @@ function insertTextAtSelection(
 	if (!selection || selection.rangeCount === 0) return null;
 	const range = selection.getRangeAt(0);
 	if (!root.contains(range.commonAncestorContainer)) return null;
+
 	range.deleteContents();
 	const node = document.createTextNode(text);
 	range.insertNode(node);
+
+	// Find the containing .editor-line-row block
+	let block: HTMLElement | null = null;
+	let curr: Node | null = node;
+	while (curr && curr !== root) {
+		if (curr.parentElement === root && curr instanceof HTMLElement) {
+			block = curr;
+			break;
+		}
+		curr = curr.parentElement;
+	}
+
+	// In HTML pre-wrap, a trailing newline requires a trailing <br>
+	// for the browser layout engine to render the subsequent line and allow caret placement.
+	if (block) {
+		const blockText = block.textContent ?? "";
+		const hasTrailingBr = block.lastElementChild?.tagName === "BR";
+		if (blockText.endsWith("\n") && !hasTrailingBr) {
+			block.appendChild(document.createElement("br"));
+		}
+	}
+
 	range.setStartAfter(node);
 	range.collapse(true);
 	selection.removeAllRanges();
@@ -241,8 +295,8 @@ function pointerPosition(
 			: line
 				? targetLineIdx
 				: Math.floor(
-						(event.clientY - root.getBoundingClientRect().top - 10) / 24,
-					);
+					(event.clientY - root.getBoundingClientRect().top - 10) / 24,
+				);
 	const fallback = { lineIdx: Math.max(0, lineIdx), col: 0 };
 	const documentWithCaret = document as Document & {
 		caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -323,7 +377,7 @@ export function EditorSurfaceView({
 				block.className = "editor-line-row";
 				block.dataset.editorLine = String(index + 1);
 				block.textContent = line.length > 0 ? line : "";
-				if (line.length === 0) {
+				if (line.length === 0 || line.endsWith("\n")) {
 					const br = document.createElement("br");
 					block.appendChild(br);
 				}
@@ -423,30 +477,8 @@ export function EditorSurfaceView({
 								});
 							if (handled) {
 								event.preventDefault();
-								if (vimMode === "INSERT") updateCursor();
+								updateCursor();
 								return;
-							}
-							if (
-								!vimEnabled &&
-								(event.key === "Tab" || event.key === "Enter")
-							) {
-								event.preventDefault();
-								const root = rootRef.current;
-								const next = root
-									? insertTextAtSelection(
-											root,
-											event.key === "Tab" ? "\t" : "\n",
-										)
-									: null;
-								if (next) {
-									console.log("[editor-surface] local literal insertion", {
-										key: event.key,
-										inserted: event.key === "Tab" ? "\\t" : "\\n",
-										lines: next,
-									});
-									onTextChange(next);
-									updateCursor();
-								}
 							}
 						}}
 						onInput={() => {
@@ -476,15 +508,15 @@ export function EditorSurfaceView({
 							const isCellSelected =
 								selectedCellRangeProp !== null &&
 								cellIdx >=
-									Math.min(
-										selectedCellRangeProp.start,
-										selectedCellRangeProp.end,
-									) &&
+								Math.min(
+									selectedCellRangeProp.start,
+									selectedCellRangeProp.end,
+								) &&
 								cellIdx <=
-									Math.max(
-										selectedCellRangeProp.start,
-										selectedCellRangeProp.end,
-									);
+								Math.max(
+									selectedCellRangeProp.start,
+									selectedCellRangeProp.end,
+								);
 							const isVisualEndpoint =
 								selectedCellRangeProp !== null && activeCellIndex === cellIdx;
 							const diagnostic = lineDto?.diagnostics?.[0];
@@ -494,15 +526,15 @@ export function EditorSurfaceView({
 								lineDto?.lineStatus === "invalid" || Boolean(diagnostic);
 							const isPinned = Boolean(
 								lineDto?.macroName &&
-									pinnedMacroIds.includes(lineDto.macroName),
+								pinnedMacroIds.includes(lineDto.macroName),
 							);
 							const isValid = lineDto?.lineStatus === "valid";
 
 							// Only show cell output when there's an actual diagnostic, preview, or macro match
 							const hasOutput = Boolean(
 								diagnostic ||
-									projectionText ||
-									(lineDto?.macroName && lineDto.lineStatus !== "empty"),
+								projectionText ||
+								(lineDto?.macroName && lineDto.lineStatus !== "empty"),
 							);
 
 							return (
@@ -808,11 +840,11 @@ export function getEditorSurfaceAdapter(
 			const activeIndex = matches.findIndex((match) =>
 				direction === "forward"
 					? match.logicalLineIndex > currentCellIdx ||
-						(match.logicalLineIndex === currentCellIdx &&
-							match.startOffset >= currentCol)
+					(match.logicalLineIndex === currentCellIdx &&
+						match.startOffset >= currentCol)
 					: match.logicalLineIndex < currentCellIdx ||
-						(match.logicalLineIndex === currentCellIdx &&
-							match.endOffset <= currentCol),
+					(match.logicalLineIndex === currentCellIdx &&
+						match.endOffset <= currentCol),
 			);
 			const selectedIndex =
 				activeIndex === -1 ? (matches.length > 0 ? 0 : -1) : activeIndex;
@@ -852,9 +884,9 @@ export function getEditorSurfaceAdapter(
 					direction === "forward"
 						? text.indexOf(needle, step === 0 ? currentCol : 0)
 						: text.lastIndexOf(
-								needle,
-								step === 0 ? currentCol - 1 : text.length,
-							);
+							needle,
+							step === 0 ? currentCol - 1 : text.length,
+						);
 				if (start !== -1) {
 					lastMatch = { cell: index, start, end: start + needle.length };
 					currentCellIdx = index;
@@ -870,36 +902,36 @@ export function getEditorSurfaceAdapter(
 			lastSearch !== null &&
 			Boolean(
 				getFullLines().length > 0 &&
-					// Reuse the same match implementation while advancing from the current caret.
-					(() => {
-						const needle = lastSearch;
-						if (!needle) return false;
-						syncFromDom();
-						const lines = getFullLines();
-						const count = lines.length;
-						for (let step = 0; step < count; step += 1) {
-							const index =
-								direction === "forward"
-									? (currentCellIdx + step) % count
-									: (currentCellIdx - step + count) % count;
-							const text = lines[index] ?? "";
-							const start =
-								direction === "forward"
-									? text.indexOf(needle, step === 0 ? currentCol + 1 : 0)
-									: text.lastIndexOf(
-											needle,
-											step === 0 ? currentCol - 1 : text.length,
-										);
-							if (start !== -1) {
-								lastMatch = { cell: index, start, end: start + needle.length };
-								currentCellIdx = index;
-								currentCol = start;
-								setLineAndCol(element, index, start);
-								return true;
-							}
+				// Reuse the same match implementation while advancing from the current caret.
+				(() => {
+					const needle = lastSearch;
+					if (!needle) return false;
+					syncFromDom();
+					const lines = getFullLines();
+					const count = lines.length;
+					for (let step = 0; step < count; step += 1) {
+						const index =
+							direction === "forward"
+								? (currentCellIdx + step) % count
+								: (currentCellIdx - step + count) % count;
+						const text = lines[index] ?? "";
+						const start =
+							direction === "forward"
+								? text.indexOf(needle, step === 0 ? currentCol + 1 : 0)
+								: text.lastIndexOf(
+									needle,
+									step === 0 ? currentCol - 1 : text.length,
+								);
+						if (start !== -1) {
+							lastMatch = { cell: index, start, end: start + needle.length };
+							currentCellIdx = index;
+							currentCol = start;
+							setLineAndCol(element, index, start);
+							return true;
 						}
-						return false;
-					})(),
+					}
+					return false;
+				})(),
 			),
 
 		replaceCurrentMatch: (query: string, replacement: string) => {
