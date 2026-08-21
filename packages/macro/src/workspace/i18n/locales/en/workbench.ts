@@ -1,0 +1,27 @@
+import type { WorkspaceLocaleDictionary } from "../../types";
+
+export const EN_WORKBENCH: Record<string, string> = {
+	"workbench.previewEyebrow": "BROWSER WORKBENCH PREVIEW",
+	"workbench.heading": "Build the workbench from the host.",
+	"workbench.description": "The runtime and session boundary are ready. This surface intentionally stays small while the component gallery establishes the browser interaction model.",
+	"workbench.openSettings": "Open settings",
+	"workbench.openScratchpad": "Open scratchpad",
+	"workbench.currentSession": "Current session",
+	"workbench.nextSurfaces": "Next surfaces",
+	"workbench.domainApps": "Domain apps",
+	"workbench.editorContext": "Editor context",
+	"workbench.vimEnabled": "Vim enabled",
+	"workbench.browserNative": "Browser native",
+	"workbench.views": "Views",
+	"workbench.tabs": "Workbench tabs",
+	"workbench.inspector": "Inspector",
+	"workbench.project": "Project",
+	"workbench.noProject": "No project configured",
+	"workbench.unavailable": "Unavailable",
+	"workbench.editor": "Editor surface",
+	"workbench.empty": "The host has not provided editor content.",
+	"workbench.splitterValue": "{value} percent",
+	"workbench.resizeDomainRail": "Resize domain rail",
+	"workbench.resizeSidebar": "Resize sidebar",
+	"workbench.resizeInspector": "Resize inspector",
+};

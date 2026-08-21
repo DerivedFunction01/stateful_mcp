@@ -545,7 +545,7 @@ export function EditorSurfaceView({
 														<button
 															type="button"
 															className="cell-action-btn pin"
-															title={t("editor.pinMacro")}
+															title={t("editor.document.pinMacro")}
 															onClick={(e) => {
 																e.stopPropagation();
 																onPinMacro?.(lineDto.macroName ?? null);

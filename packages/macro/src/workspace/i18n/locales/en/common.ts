@@ -1,0 +1,20 @@
+import type { WorkspaceLocaleDictionary } from "../../types";
+
+export const EN_COMMON: Record<string, string> = {
+	"theme.midnight": "Midnight",
+	"theme.cloud": "Cloud",
+	"theme.violet": "Violet",
+	"common.english": "English",
+	"common.spanish": "Español",
+	"common.appearance": "Appearance",
+	"common.profile": "Profile",
+	"common.editor": "Editor",
+	"common.themeDensity": "Theme and density",
+	"common.profileApps": "Fundamentals and domain applications",
+	"common.editorKeys": "Scratchpad and keyboard behavior",
+	"common.loading": "Loading",
+	"common.error": "Something went wrong",
+	"common.noResults": "No results",
+	"list.empty": "No items available.",
+	"table.empty": "No data available.",
+};

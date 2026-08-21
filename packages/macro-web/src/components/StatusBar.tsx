@@ -10,7 +10,7 @@ import {
 	WifiOff,
 } from "lucide-react";
 import { useActiveEditorSurface } from "../lib/editor-surface-registry";
-import { useI18n } from "../lib/macro-i18n-provider";
+import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
 import { cn } from "../lib/utils";
 import { IconButton } from "./ui/primitives";
 
@@ -135,7 +135,7 @@ export function StatusBar({
 						id: "vim-mode",
 						alignment: "right" as const,
 						priority: 100,
-						value: t(`shell.mode.${vimMode.toLowerCase()}`),
+						value: t(`shell.mode.${vimMode.toLowerCase()}` as WebI18nKey),
 						icon: <Keyboard size={13} />,
 						tone: "accent" as const,
 						command: "scratchpad.configureVim",
@@ -179,8 +179,8 @@ export function StatusBar({
 			alignment: "right",
 			priority: 70,
 			value: dirty
-				? t("settings.status.modified", undefined, { count: 1 })
-				: t("textEditor.saved"),
+				? t("status.dirty", undefined, { count: 1 })
+				: t("status.saved"),
 			tone: dirty ? "warning" : "success",
 			overflowable: true,
 		},

@@ -1,0 +1,26 @@
+import type { WorkspaceLocaleDictionary } from "../../types";
+
+export const ES_PALETTE: Record<string, string> = {
+	"palette.title": "Paleta de comandos",
+	"palette.dismissHint": "esc",
+	"palette.searchPrompt": ">",
+	"palette.placeholder": "Buscar comandos...",
+	"palette.noMatchingCommands": "No hay comandos coincidentes.",
+	"palette.quickOpen": "Ir a archivo",
+	"palette.noResults": "No hay comandos coincidentes",
+	"palette.results": "comandos",
+	"palette.selected": "seleccionado",
+	"palette.run": "Ejecutar comando",
+	"palette.pending": "Ejecutando...",
+	"palette.executionFailed": "Falló la ejecución del comando",
+	"palette.requiredArgument": "Argumento obligatorio",
+	"palette.arguments": "Argumentos",
+	"palette.argumentRequired": "Obligatorio",
+	"palette.argumentOptional": "Opcional",
+	"palette.keymapHint": "Atajo",
+	"palette.category": "Categoría",
+	"palette.category.suggested": "Sugeridos",
+	"palette.category.system": "Sistema",
+	"palette.category.workspace": "Espacio de trabajo",
+	"palette.category.general": "Comandos",
+};

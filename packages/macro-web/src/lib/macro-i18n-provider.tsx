@@ -3,6 +3,9 @@ import type {
 	I18nKernel,
 	TranslationParams,
 } from "@stateful-mcp/macro/workspace/i18n/i18n-kernel";
+import type { I18nKey } from "@stateful-mcp/macro/workspace/i18n/locales/i18n-keys";
+
+export type WebI18nKey = I18nKey | keyof (typeof GALLERY_TRANSLATIONS)["en"];
 import {
 	createContext,
 	type ReactNode,
@@ -16,7 +19,7 @@ import { GALLERY_TRANSLATIONS } from "./gallery-locale";
 export interface MacroWebI18n {
 	readonly locale: string;
 	readonly setLocale: (locale: string) => void;
-	t(key: string, fallback?: string, params?: TranslationParams): string;
+	t(key: WebI18nKey, fallback?: string, params?: TranslationParams): string;
 }
 
 interface I18nContextValue {

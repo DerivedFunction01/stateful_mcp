@@ -1,0 +1,27 @@
+import type { WorkspaceLocaleDictionary } from "../../types";
+
+export const ES_WORKBENCH: Record<string, string> = {
+	"workbench.previewEyebrow": "VISTA PREVIA DEL ESPACIO WEB",
+	"workbench.heading": "Construye el espacio desde el host.",
+	"workbench.description": "El límite de runtime y sesión está listo. Esta superficie se mantiene pequeña mientras la galería establece la interacción web.",
+	"workbench.openSettings": "Abrir configuración",
+	"workbench.openScratchpad": "Abrir bloc de notas",
+	"workbench.currentSession": "Sesión actual",
+	"workbench.nextSurfaces": "Próximas superficies",
+	"workbench.domainApps": "Aplicaciones de dominio",
+	"workbench.editorContext": "Contexto del editor",
+	"workbench.vimEnabled": "Vim activado",
+	"workbench.browserNative": "Nativo del navegador",
+	"workbench.views": "Vistas",
+	"workbench.tabs": "Pestañas del espacio de trabajo",
+	"workbench.inspector": "Inspector",
+	"workbench.project": "Proyecto",
+	"workbench.noProject": "No hay proyecto configurado",
+	"workbench.unavailable": "No disponible",
+	"workbench.editor": "Superficie del editor",
+	"workbench.empty": "El host no ha proporcionado contenido del editor.",
+	"workbench.splitterValue": "{value} por ciento",
+	"workbench.resizeDomainRail": "Redimensionar barra de dominio",
+	"workbench.resizeSidebar": "Redimensionar barra lateral",
+	"workbench.resizeInspector": "Redimensionar inspector",
+};

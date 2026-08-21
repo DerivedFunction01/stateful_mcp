@@ -1,0 +1,18 @@
+import type { WorkspaceLocaleDictionary } from "../../types";
+
+export const EN_KEYMAP: Record<string, string> = {
+	"keymap.source.macro-profile": "Macro profile",
+	"keymap.source.browser-baseline": "Browser default",
+	"keymap.source.user-override": "User override",
+	"keymap.source.extension": "Extension",
+	"keymap.conflict": "Chord is also bound to another command",
+	"keymap.conditional": "Shortcut may be claimed by the browser",
+	"keymap.unavailable": "Shortcut is not reliably remappable in the browser",
+	"keymap.chord.cancelled": "Key chord cancelled",
+	"keymap.chord.timeout": "Key chord timed out",
+	"keymap.chordPrefix": "Key chord prefix pressed; waiting for chord",
+	"keymap.shortcutUnavailable": "Shortcut is not remappable in the browser:",
+	"keymap.shortcutConditional": "Browser may handle this shortcut:",
+	"keymap.noBinding": "No binding is active for this context",
+	"keymap.profileUnknown": "The selected keymap profile is unavailable",
+};

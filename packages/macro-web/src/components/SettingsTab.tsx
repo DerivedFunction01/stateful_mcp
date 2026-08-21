@@ -17,7 +17,7 @@ import { Search, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trapFocus } from "../lib/focus-trap";
 import type { HostClient } from "../lib/host-client";
-import { useI18n } from "../lib/macro-i18n-provider";
+import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
 import {
 	Badge,
 	Button,
@@ -632,7 +632,7 @@ function SchemaField({
 	readonly item: SettingsUiItemDto;
 	readonly disabled: boolean;
 	readonly onChange: (value: unknown) => void;
-	readonly t: (key: string, fallback?: string) => string;
+	readonly t: (key: WebI18nKey, fallback?: string) => string;
 }) {
 	const value = item.value;
 	const error = item.diagnostics.find(
@@ -761,7 +761,7 @@ function SettingsPreviewPanel({
 	readonly preview: SettingsPreviewDto;
 	readonly sampleInput: string;
 	readonly onSampleInputChange: (value: string) => void;
-	readonly t: (key: string, fallback?: string) => string;
+	readonly t: (key: WebI18nKey, fallback?: string) => string;
 }) {
 	return (
 		<Card title={t("settings.preview")}>
@@ -776,7 +776,7 @@ function SettingsPreviewPanel({
 						<strong>{t("settings.preview.tokens")}</strong>
 						<ul>
 							{preview.tokenDescriptors.map((token) => (
-								<li key={token.id}>{t(token.labelKey)}</li>
+								<li key={token.id}>{t(token.labelKey as WebI18nKey)}</li>
 							))}
 						</ul>
 					</div>
@@ -823,7 +823,7 @@ function SettingsPreviewPanel({
 
 function previewDiagnosticMessage(
 	diagnostic: SettingsDiagnosticDto,
-	t: (key: string, fallback?: string) => string,
+	t: (key: WebI18nKey, fallback?: string) => string,
 ): string {
 	if (diagnostic.code === "UNKNOWN_TEMPLATE_TOKEN")
 		return t("settings.preview.unknownTokens");
@@ -850,7 +850,7 @@ function hasModified(snapshot: SettingsUiSnapshotDto): boolean {
 function bundleResultMessage(
 	result: SettingsBundleResult,
 	t: (
-		key: string,
+		key: WebI18nKey,
 		fallback?: string,
 		params?: Readonly<Record<string, string | number>>,
 	) => string,

@@ -1,0 +1,29 @@
+import type { WorkspaceLocaleDictionary } from "../../types";
+
+export const ES_NAVIGATION: Record<string, string> = {
+	"workspace.tab.scratchpad": "Borrador",
+	"workspace.tab.notebook": "Cuaderno",
+	"workspace.tab.extensions": "Extensiones",
+	"workspace.tab.settings": "Configuración",
+	"nav.workbench": "Espacio de trabajo",
+	"nav.notes": "Notas",
+	"nav.settings": "Configuración",
+	"nav.gallery": "Galería de componentes",
+	"nav.host": "Diagnóstico del host",
+	"nav.commandPalette": "Paleta de comandos",
+	"sidepanel.slots.title": "Ranuras de Macro y Validación",
+	"sidepanel.journal.title": "Historial de Registro y Reversiones",
+	"sidepanel.explorer.title": "Explorador",
+	"inspector.title": "Inspector",
+	"inspector.empty": "Vista principal lista para contenido contribuido.",
+
+	// Menu Bar
+	"menu.file": "Archivo",
+	"menu.save": "Guardar",
+	"menu.settings": "Configuración",
+	"menu.edit": "Editar",
+	"menu.commandPalette": "Paleta de comandos",
+	"menu.view": "Ver",
+	"menu.toggleSidepanel": "Mostrar/ocultar panel lateral",
+	"menu.help": "Ayuda",
+};
