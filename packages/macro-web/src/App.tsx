@@ -63,6 +63,7 @@ export function App() {
 
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [paletteCommandMode, setPaletteCommandMode] = useState(false);
+	const [paletteCommandToken, setPaletteCommandToken] = useState("");
 	const [announcement, setAnnouncement] = useState("");
 	const [editorCursor, setEditorCursor] = useState("");
 	const lastFocused = useRef<Element | null>(null);
@@ -80,11 +81,16 @@ export function App() {
 	const [paletteInitialQuery, setPaletteInitialQuery] = useState("");
 	const [paletteQuery, setPaletteQuery] = useState("");
 
-	function openPalette(initialQuery = "", commandMode = false): void {
+	function openPalette(
+		initialQuery = "",
+		commandMode = false,
+		commandToken = "",
+	): void {
 		lastFocused.current = document.activeElement;
 		setPaletteInitialQuery(initialQuery);
 		setPaletteQuery(initialQuery);
 		setPaletteCommandMode(commandMode);
+		setPaletteCommandToken(commandToken);
 		setPaletteOpen(true);
 	}
 
@@ -93,6 +99,7 @@ export function App() {
 		setPaletteInitialQuery("");
 		setPaletteQuery("");
 		setPaletteCommandMode(false);
+		setPaletteCommandToken("");
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
 	}
 
@@ -324,6 +331,7 @@ export function App() {
 					cursor={editorCursor}
 					commandMode={paletteOpen && paletteCommandMode}
 					commandText={paletteQuery}
+					commandToken={paletteCommandToken}
 					onAction={(command) => {
 						if (command === "workspace.selectProfile") navigate("settings");
 						if (command === "host.openDiagnostics") navigate("host");
@@ -346,6 +354,7 @@ export function App() {
 					<CommandPalette
 						commands={snapshot?.commands ?? []}
 						initialQuery={paletteInitialQuery}
+						commandToken={paletteCommandToken}
 						onQueryChange={setPaletteQuery}
 						onExecute={(command, args) => {
 							return runCommand(command, args).then(closePalette);

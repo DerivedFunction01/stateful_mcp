@@ -132,7 +132,11 @@ export type VimVariant = "scratchpad" | "generic";
 export interface BrowserVimControllerOptions {
 	readonly variant?: VimVariant;
 	readonly onCommandModeUnsupported?: () => void;
-	readonly onOpenCommandMode?: (initialQuery?: string, commandMode?: boolean) => void;
+	readonly onOpenCommandMode?: (
+		initialQuery?: string,
+		commandMode?: boolean,
+		commandToken?: string,
+	) => void;
 	readonly getAdapter?: () => BrowserEditorSurfaceAdapter | undefined;
 	readonly getKeymap?: () => KeymapSource;
 	readonly onExecuteLine?: (lineNumber?: number) => void;
@@ -542,10 +546,17 @@ export function createBrowserVimController(
 						return true;
 					}
 					if (normalMap.command && rawKey === normalMap.command) {
-						editorStore.dispatch({ type: "setCommandText", value: ":" });
+						editorStore.dispatch({
+							type: "setCommandText",
+							value: normalMap.command,
+						});
 						setMode("COMMAND");
 						if (options?.onOpenCommandMode) {
-							options.onOpenCommandMode(normalMap.command, true);
+							options.onOpenCommandMode(
+								normalMap.command,
+								true,
+								normalMap.command,
+							);
 						} else {
 							options?.onCommandModeUnsupported?.();
 						}
@@ -556,7 +567,7 @@ export function createBrowserVimController(
 						(normalMap.search && rawKey === normalMap.search) ||
 						(normalMap.searchAlt && rawKey === normalMap.searchAlt)
 					) {
-						options?.onOpenCommandMode?.("", false);
+						options?.onOpenCommandMode?.("", false, "");
 						event.preventDefault();
 						return true;
 					}

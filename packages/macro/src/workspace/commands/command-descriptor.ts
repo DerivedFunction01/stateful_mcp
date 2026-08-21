@@ -56,9 +56,13 @@ export function commandSuggestions(
 	text = "",
 	history: readonly string[] = [],
 	limit = 8,
+	commandToken = "",
 ): readonly CommandSuggestion[] {
 	const aliasMap = normalizeCommandAliases(aliases);
-	const trimmed = text.replace(/^:/u, "").trim();
+	const rawText = text.trim();
+	const trimmed = commandToken && rawText.startsWith(commandToken)
+		? rawText.slice(commandToken.length).trim()
+		: rawText;
 	const parts = trimmed.split(/\s+/u);
 	const queryVerb = (parts[0] ?? "").toLowerCase();
 	const argText = parts.slice(1).join(" ");

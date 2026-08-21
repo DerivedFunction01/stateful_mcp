@@ -6,6 +6,7 @@ import { Button, ModalOverlay, ModalSurface } from "./ui/primitives";
 interface CommandPaletteProps {
 	readonly commands: readonly CommandDescriptorDto[];
 	readonly initialQuery?: string;
+	readonly commandToken?: string;
 	readonly onExecute: (
 		commandId: string,
 		args?: readonly unknown[],
@@ -22,8 +23,13 @@ interface RankedCommand {
 function rankCommands(
 	commands: readonly CommandDescriptorDto[],
 	query: string,
+	commandToken = "",
 ): RankedCommand[] {
-	const q = query.trim().replace(/^:/, "").trim().toLowerCase();
+	const trimmed = query.trim();
+	const withoutCommandToken = commandToken && trimmed.startsWith(commandToken)
+		? trimmed.slice(commandToken.length)
+		: trimmed;
+	const q = withoutCommandToken.trim().toLowerCase();
 	if (!q) {
 		return commands.map((descriptor) => ({ descriptor, exact: false }));
 	}
@@ -57,6 +63,7 @@ function rankCommands(
 export function CommandPalette({
 	commands,
 	initialQuery = "",
+	commandToken = "",
 	onExecute,
 	onClose,
 	onQueryChange,
@@ -72,8 +79,8 @@ export function CommandPalette({
 	const dialogRef = useRef<HTMLDivElement>(null);
 
 	const ranked = useMemo(
-		() => rankCommands(commands, query),
-		[commands, query],
+		() => rankCommands(commands, query, commandToken),
+		[commands, commandToken, query],
 	);
 	const selectedCommand = ranked[selected]?.descriptor;
 

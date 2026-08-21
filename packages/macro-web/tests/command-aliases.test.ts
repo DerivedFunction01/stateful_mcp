@@ -49,7 +49,7 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 		});
 
 		// Querying :w should match both :w (saveActive), :wa (saveAll), :wall (saveAll), :write (saveActive), :writeall (saveAll)
-		const suggestions = commandSuggestions(descriptors, aliasMap, ":w");
+		const suggestions = commandSuggestions(descriptors, aliasMap, ":w", [], 8, ":");
 		const values = suggestions.map((s) => s.value);
 		expect(values).toContain("w");
 		expect(values).toContain("write");
@@ -69,6 +69,9 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 			descriptors,
 			customAliasMap,
 			":wall",
+			[],
+			8,
+			":",
 		);
 		expect(wallSuggestions.length).toBeGreaterThan(0);
 		expect(wallSuggestions[0]?.value).toBe("wall");
@@ -80,6 +83,9 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 			descriptors,
 			customAliasMap,
 			":saveall",
+			[],
+			8,
+			":",
 		);
 		expect(saveallSuggestions[0]?.descriptor.id).toBe("workspace.saveAll");
 	});

@@ -46,6 +46,7 @@ export interface StatusBarProps {
 	readonly cursor?: string;
 	readonly commandMode?: boolean;
 	readonly commandText?: string;
+	readonly commandToken?: string;
 	readonly onAction?: (command: string) => void;
 }
 
@@ -68,6 +69,7 @@ export function RegisteredStatusBar(props: StatusBarProps) {
 			editorFocused={editorFocused}
 			commandMode={props.commandMode}
 			commandText={props.commandText}
+			commandToken={props.commandToken}
 		/>
 	);
 }
@@ -84,6 +86,7 @@ export function StatusBar({
 	cursor = "",
 	commandMode = false,
 	commandText = "",
+	commandToken = "",
 	onAction,
 }: StatusBarProps) {
 	const { t } = useI18n();
@@ -145,7 +148,7 @@ export function StatusBar({
 						id: "vim-command",
 						alignment: "right" as const,
 						priority: 105,
-						value: commandText || ":",
+						value: commandText || commandToken,
 						tone: "accent" as const,
 					},
 				]
