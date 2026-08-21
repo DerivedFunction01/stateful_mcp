@@ -1,21 +1,25 @@
 import type {
+	CommandDescriptorDto,
 	EditorMode,
 	ScratchpadLineDto,
 	SettingsPreviewDto,
 } from "@stateful-mcp/macro-protocol";
-import { CheckCircle2, Code2, Palette, Terminal, Zap } from "lucide-react";
+import { CheckCircle2, Code2, Palette, Terminal, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createDiagnosticHostClient } from "../dev/diagnostic-host-client";
 import type { HostWorkspaceSnapshot } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEMES } from "../lib/theme";
 import { BrowserEditorFixture } from "./BrowserEditorFixture";
+import { CommandPalette } from "./CommandPalette";
 import { EditorSurfaceView } from "./EditorSurfaceView";
 import {
 	Badge,
 	Button,
 	Card,
 	Diagnostic,
+	IconButton,
+	ModalSurface,
 	SelectField,
 	TextInput,
 	Toggle,
@@ -76,6 +80,7 @@ export function Gallery() {
 						<Badge tone="info">Host info</Badge>
 					</div>
 				</Card>
+				<OverlayControlsStory />
 				<Card title="Form states">
 					<div className="form-grid">
 						<TextInput
@@ -136,6 +141,94 @@ export function Gallery() {
 				<SettingsPreviewStory />
 			</div>
 		</div>
+	);
+}
+
+const GALLERY_COMMANDS: readonly CommandDescriptorDto[] = [
+	{
+		id: "workspace.openSettings",
+		title: "Open Settings",
+		category: "Workspace",
+		description: "Open the application settings surface.",
+		keybinding: "Ctrl+,",
+	},
+	{
+		id: "editor.save",
+		title: "Save Active Tab",
+		category: "Editor",
+		description: "Save the current editor document.",
+		keybinding: "Ctrl+S",
+	},
+	{
+		id: "editor.executeLine",
+		title: "Execute Macro Line",
+		category: "Macro",
+		description: "Execute the selected logical macro line.",
+		keybinding: "Enter",
+		args: [
+			{
+				name: "line",
+				required: true,
+				type: "identifier",
+				description: "Logical scratchpad line number",
+			},
+		],
+	},
+	{
+		id: "workspace.openCommandPalette",
+		title: "Open Command Palette with a Very Long Example Title",
+		category: "Workbench",
+		keybinding: "Ctrl+Shift+P",
+	},
+];
+
+function OverlayControlsStory() {
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	return (
+		<Card
+			title="Buttons and overlay surfaces"
+			action={<Badge tone="info">reusable primitives</Badge>}
+		>
+			<div className="gallery-overlay-story">
+				<div className="button-row">
+					<Button variant="primary">Primary</Button>
+					<Button variant="secondary">Secondary</Button>
+					<Button variant="ghost">Ghost</Button>
+					<Button variant="danger">Danger</Button>
+					<Button variant="primary" disabled>
+						Disabled
+					</Button>
+					<IconButton label="Close preview">
+						<X size={15} />
+					</IconButton>
+				</div>
+				<div className="gallery-modal-preview">
+					<ModalSurface className="gallery-modal-preview-surface">
+						<strong>Reusable modal surface</strong>
+						<span>Shared spacing, border, radius, and shadow.</span>
+						<div className="page-actions">
+							<Button variant="ghost">Cancel</Button>
+							<Button variant="primary">Continue</Button>
+						</div>
+					</ModalSurface>
+				</div>
+				<Button
+					variant="primary"
+					icon={<Code2 size={15} />}
+					onClick={() => setPaletteOpen(true)}
+				>
+					Open palette preview
+				</Button>
+			</div>
+			{paletteOpen && (
+				<CommandPalette
+					commands={GALLERY_COMMANDS}
+					initialQuery=""
+					onExecute={async () => setPaletteOpen(false)}
+					onClose={() => setPaletteOpen(false)}
+				/>
+			)}
+		</Card>
 	);
 }
 

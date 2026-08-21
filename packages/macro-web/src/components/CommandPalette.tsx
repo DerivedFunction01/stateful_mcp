@@ -1,6 +1,7 @@
 import type { CommandDescriptorDto } from "@stateful-mcp/macro-protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { Button, ModalOverlay, ModalSurface } from "./ui/primitives";
 
 interface CommandPaletteProps {
 	readonly commands: readonly CommandDescriptorDto[];
@@ -166,13 +167,13 @@ export function CommandPalette({
 		: t("palette.noResults");
 
 	return (
-		<div
+		<ModalOverlay
 			className="command-palette-overlay"
 			onMouseDown={(event) => {
 				if (event.target === event.currentTarget) onClose();
 			}}
 		>
-			<div
+			<ModalSurface
 				ref={dialogRef}
 				className="command-palette"
 				role="dialog"
@@ -287,19 +288,18 @@ export function CommandPalette({
 				) : null}
 
 				<div className="command-palette__footer">
-					<button
-						type="button"
-						className="button button-primary"
+					<Button
+						variant="primary"
 						disabled={!selectedCommand || pending}
 						onClick={() => void run()}
 					>
 						{pending ? t("palette.pending") : t("palette.run")}
-					</button>
+					</Button>
 					<span className="command-palette__live" aria-live="polite">
 						{error ?? liveMessage}
 					</span>
 				</div>
-			</div>
-		</div>
+			</ModalSurface>
+		</ModalOverlay>
 	);
 }

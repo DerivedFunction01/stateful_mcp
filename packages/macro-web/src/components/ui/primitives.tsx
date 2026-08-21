@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 import type {
 	ButtonHTMLAttributes,
+	HTMLAttributes,
 	InputHTMLAttributes,
 	ReactNode,
+	RefAttributes,
 } from "react";
 import { cn } from "../../lib/utils";
 
@@ -48,6 +50,30 @@ export function IconButton({
 		>
 			{children}
 		</button>
+	);
+}
+
+export function ModalOverlay({
+	className,
+	children,
+	...props
+}: HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>) {
+	return (
+		<div className={cn("modal-overlay", className)} {...props}>
+			{children}
+		</div>
+	);
+}
+
+export function ModalSurface({
+	className,
+	children,
+	...props
+}: HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>) {
+	return (
+		<div className={cn("modal-card", className)} {...props}>
+			{children}
+		</div>
 	);
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { trapFocus } from "../lib/focus-trap";
 import { useI18n } from "../lib/macro-i18n-provider";
-import { Button } from "./ui/primitives";
+import { Button, ModalOverlay, ModalSurface } from "./ui/primitives";
 
 export interface UnsavedChangesModalProps {
 	readonly onKeepEditing: () => void;
@@ -22,8 +22,8 @@ export function UnsavedChangesModal({
 	}, []);
 
 	return (
-		<div className="modal-overlay" role="presentation">
-			<div
+		<ModalOverlay role="presentation">
+			<ModalSurface
 				ref={dialogRef}
 				className="modal-card"
 				role="dialog"
@@ -51,7 +51,7 @@ export function UnsavedChangesModal({
 						{t("settings.saveAndContinue")}
 					</Button>
 				</div>
-			</div>
-		</div>
+			</ModalSurface>
+		</ModalOverlay>
 	);
 }
