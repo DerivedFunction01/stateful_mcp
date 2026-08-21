@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type {
 	EditorOperation,
 	EditorOperationResult,
@@ -176,6 +177,9 @@ export function createDiagnosticHostClient(): HostClient {
 					isMacroProject: false,
 				},
 			],
+		}),
+		createDirectory: async (parentPath: string, name: string) => ({
+			path: join(parentPath, name),
 		}),
 		openProject: async () => snapshot,
 		initProject: async () => snapshot,

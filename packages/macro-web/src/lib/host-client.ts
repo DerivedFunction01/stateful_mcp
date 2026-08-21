@@ -69,6 +69,10 @@ export interface HostClient {
 		operation: EditorOperation,
 	): Promise<EditorOperationResult>;
 	browseFs(path?: string): Promise<FsBrowseResult>;
+	createDirectory(
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }>;
 	openProject(path: string): Promise<HostWorkspaceSnapshot>;
 	initProject(
 		path: string,
@@ -253,6 +257,17 @@ export class BrowserHostClient implements HostClient {
 	async browseFs(path?: string): Promise<FsBrowseResult> {
 		const query = path ? `?path=${encodeURIComponent(path)}` : "";
 		return this.getRequest<FsBrowseResult>(`/api/fs/browse${query}`);
+	}
+
+	async createDirectory(
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }> {
+		return this.request<{ readonly path: string }>("/api/fs/directory", {
+			type: "fs.createDirectory",
+			sessionId: this.sessionId ?? "",
+			payload: { parentPath, name },
+		});
 	}
 
 	async openProject(path: string): Promise<HostWorkspaceSnapshot> {

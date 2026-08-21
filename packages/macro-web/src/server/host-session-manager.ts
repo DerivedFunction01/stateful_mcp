@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { mkdir } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import {
 	BUILTIN_KEYMAP_PROFILES,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
@@ -164,6 +165,31 @@ export class HostSessionManager {
 		const rootPath = resolve(projectRoot);
 		await createMacroProject({ rootPath, displayName });
 		return this.openProject(sessionId, rootPath);
+	}
+
+	async createDirectory(
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }> {
+		const trimmed = name.trim();
+		if (
+			!trimmed ||
+			trimmed === "." ||
+			trimmed === ".." ||
+			trimmed.includes("/") ||
+			trimmed.includes("\\") ||
+			trimmed.includes("\0")
+		) {
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Directory name must be a single non-empty path segment",
+				false,
+			);
+		}
+		const resolvedParent = resolve(parentPath);
+		const childPath = join(resolvedParent, trimmed);
+		await mkdir(childPath);
+		return { path: childPath };
 	}
 
 	async saveAsProject(

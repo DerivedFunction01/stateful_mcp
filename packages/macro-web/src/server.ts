@@ -186,6 +186,39 @@ const server = Bun.serve<SocketData>({
 				return errorResponse(id, error);
 			}
 		}
+		if (url.pathname === "/api/fs/directory" && request.method === "POST") {
+			const id = requestId(request);
+			try {
+				const envelope = await jsonBody(request);
+				const payload = (envelope.payload ?? {}) as {
+					parentPath?: unknown;
+					name?: unknown;
+				};
+				if (typeof payload.parentPath !== "string" || !payload.parentPath) {
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"Parent directory path is required",
+						false,
+					);
+				}
+				if (typeof payload.name !== "string") {
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"Directory name is required",
+						false,
+					);
+				}
+				const created = await sessions.createDirectory(
+					payload.parentPath,
+					payload.name,
+				);
+				return Response.json(
+					response(envelope.requestId || id, { path: created.path }),
+				);
+			} catch (error) {
+				return errorResponse(id, error);
+			}
+		}
 		const sessionMatch = url.pathname.match(
 			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|editor|project))?$/,
 		);

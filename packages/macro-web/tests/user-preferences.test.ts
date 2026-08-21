@@ -81,6 +81,7 @@ describe("Chunk 5 User Preferences and Durable Storage", () => {
 				parentPath: null,
 				entries: [],
 			}),
+			createDirectory: async () => ({ path: "" }),
 			openProject: async () => initial,
 			initProject: async () => initial,
 			saveAsProject: async () => initial,
@@ -137,6 +138,7 @@ describe("Chunk 5 User Preferences and Durable Storage", () => {
 				parentPath: null,
 				entries: [],
 			}),
+			createDirectory: async () => ({ path: "" }),
 			openProject: async (path: string) =>
 				sessions.openProject(initial.sessionId, path),
 			initProject: async () => initial,

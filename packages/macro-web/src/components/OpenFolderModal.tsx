@@ -39,8 +39,12 @@ export function OpenFolderModal({
 	const [loading, setLoading] = useState(true);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | undefined>();
+	const [creatingDirectory, setCreatingDirectory] = useState(false);
+	const [directoryName, setDirectoryName] = useState("");
+	const [creating, setCreating] = useState(false);
 	const dialogRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const nameInputRef = useRef<HTMLInputElement>(null);
 
 	const loadPath = async (targetPath?: string) => {
 		setLoading(true);
@@ -63,6 +67,45 @@ export function OpenFolderModal({
 		void loadPath(initialPath);
 		inputRef.current?.focus();
 	}, [initialPath]);
+
+	useEffect(() => {
+		if (creatingDirectory) nameInputRef.current?.focus();
+	}, [creatingDirectory]);
+
+	const startCreate = () => {
+		setCreatingDirectory(true);
+		setDirectoryName("");
+		setError(undefined);
+	};
+
+	const cancelCreate = () => {
+		setCreatingDirectory(false);
+		setDirectoryName("");
+		setError(undefined);
+	};
+
+	const handleCreateDirectory = async () => {
+		const name = directoryName.trim();
+		if (!name) {
+			setError(t("workbench.newFolderNameRequired"));
+			return;
+		}
+		setCreating(true);
+		setError(undefined);
+		try {
+			const result = await client.createDirectory(currentPath, name);
+			const sep = result.path.includes("\\") ? "\\" : "/";
+			const createdName = result.path.split(sep).filter(Boolean).pop() ?? name;
+			await loadPath(currentPath);
+			setSelectedEntry(createdName);
+			setCreatingDirectory(false);
+			setDirectoryName("");
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setCreating(false);
+		}
+	};
 
 	const title =
 		mode === "init"
@@ -138,7 +181,11 @@ export function OpenFolderModal({
 					trapFocus(event, dialogRef.current);
 					if (event.key === "Escape") {
 						event.preventDefault();
-						onClose();
+						if (creatingDirectory) {
+							cancelCreate();
+						} else {
+							onClose();
+						}
 					}
 				}}
 			>
@@ -196,6 +243,60 @@ export function OpenFolderModal({
 					<div className="modal-error-banner" role="alert">
 						<AlertCircle size={14} />
 						<span>{error}</span>
+					</div>
+				)}
+
+				{creatingDirectory ? (
+					<form
+						className="new-folder-form"
+						onSubmit={(event) => {
+							event.preventDefault();
+							void handleCreateDirectory();
+						}}
+					>
+						<input
+							ref={nameInputRef}
+							type="text"
+							className="folder-path-input new-folder-input"
+							value={directoryName}
+							onChange={(event) => setDirectoryName(event.target.value)}
+							placeholder={t("workbench.newFolderPlaceholder")}
+							aria-label={t("workbench.newFolderNameLabel")}
+							disabled={creating || loading || submitting}
+						/>
+						<Button
+							type="submit"
+							variant="secondary"
+							disabled={
+								creating || loading || submitting || !directoryName.trim()
+							}
+						>
+							{creating ? (
+								<Loader2 size={14} className="spin" />
+							) : (
+								t("workbench.newFolderCreate")
+							)}
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							onClick={cancelCreate}
+							disabled={creating}
+						>
+							{t("editor.find.close")}
+						</Button>
+					</form>
+				) : (
+					<div className="new-folder-toolbar">
+						<Button
+							type="button"
+							variant="ghost"
+							icon={<FolderPlus size={14} />}
+							onClick={startCreate}
+							disabled={loading || submitting}
+						>
+							{t("workbench.newFolderAction")}
+						</Button>
 					</div>
 				)}
 
