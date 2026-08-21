@@ -11,6 +11,7 @@ import {
 	Clock,
 	Eye,
 	PanelBottom,
+	RotateCcw,
 	XCircle,
 } from "lucide-react";
 import { useState } from "react";
@@ -21,6 +22,7 @@ export interface EditorOutputDrawerProps {
 	readonly output?: EditorOutputSnapshotDto;
 	readonly result?: EditorOperationResult;
 	readonly defaultOpen?: boolean;
+	readonly onReverseEntry?: (entryId: string) => void | Promise<void>;
 }
 
 type OutputTab = "output" | "preview" | "receipts" | "skipped";
@@ -29,6 +31,7 @@ export function EditorOutputDrawer({
 	output,
 	result,
 	defaultOpen = true,
+	onReverseEntry,
 }: EditorOutputDrawerProps) {
 	const { t } = useI18n();
 	const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -179,6 +182,18 @@ export function EditorOutputDrawer({
 													{entry.identity.documentId} (r
 													{entry.identity.textRevision})
 												</span>
+											)}
+
+											{entry.status === "committed" && onReverseEntry && (
+												<button
+													type="button"
+													className="entry-reversal-btn"
+													title={t("editor.undo.reverse")}
+													onClick={() => onReverseEntry(entry.outputId)}
+												>
+													<RotateCcw size={11} />
+													<span>{t("editor.undo.reverse")}</span>
+												</button>
 											)}
 										</div>
 									))}

@@ -342,3 +342,18 @@ export type SettingsBundleResult =
 	| SettingsBundleExportResult
 	| SettingsBundleStageResult
 	| SettingsBundleApplyResult;
+
+export interface CustomKeybindingDto {
+	readonly chord: string;
+	readonly command: string;
+	readonly args?: readonly unknown[];
+}
+
+export interface UserPreferencesDto {
+	readonly keymapProfile: string;
+	readonly vimEnabled: boolean;
+	readonly theme: string;
+	readonly locale: string;
+	readonly autoPurgeOnExecute?: boolean;
+	readonly customKeybindings?: readonly CustomKeybindingDto[];
+}

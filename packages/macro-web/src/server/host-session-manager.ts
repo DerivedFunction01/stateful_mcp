@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import {
 	BUILTIN_KEYMAP_PROFILES,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
@@ -26,7 +27,11 @@ import type {
 	SettingsSchemaEntry,
 } from "@stateful-mcp/macro/workspace/config/settings-service";
 import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
-import type { LoadedMacroWorkspace, MacroHost } from "@stateful-mcp/macro-host";
+import {
+	createMacroProject,
+	type LoadedMacroWorkspace,
+	type MacroHost,
+} from "@stateful-mcp/macro-host";
 import {
 	type CommandDescriptorDto,
 	type DiagnosticDto,
@@ -76,7 +81,7 @@ export interface HostSessionOptions {
 interface Session {
 	readonly id: string;
 	readonly workspaceId: string;
-	readonly loaded: LoadedMacroWorkspace;
+	loaded: LoadedMacroWorkspace;
 	keymap: EditorKeymapProfile;
 	readonly listeners: Set<(event: HostEvent) => void>;
 	readonly unsubs: (() => void)[];
@@ -130,6 +135,67 @@ export class HostSessionManager {
 		};
 		this.sessions.set(id, session);
 		this.attachSignals(session);
+		return this.snapshot(session);
+	}
+
+	async openProject(
+		sessionId: string,
+		projectRoot: string,
+	): Promise<WorkspaceSnapshot> {
+		const session = this.getOrError(sessionId);
+		for (const unsub of session.unsubs) unsub();
+		session.unsubs.length = 0;
+		await session.loaded.workspace.dispose();
+
+		const loaded = await this.host.createWorkspace({
+			projectRoot: resolve(projectRoot),
+		});
+		session.loaded = loaded;
+		this.attachSignals(session);
+		this.emit(session, "workspace.changed");
+		return this.snapshot(session);
+	}
+
+	async initProject(
+		sessionId: string,
+		projectRoot: string,
+		displayName?: string,
+	): Promise<WorkspaceSnapshot> {
+		const rootPath = resolve(projectRoot);
+		await createMacroProject({ rootPath, displayName });
+		return this.openProject(sessionId, rootPath);
+	}
+
+	async saveAsProject(
+		sessionId: string,
+		projectRoot: string,
+		displayName?: string,
+	): Promise<WorkspaceSnapshot> {
+		const session = this.getOrError(sessionId);
+		const rootPath = resolve(projectRoot);
+		const project = await createMacroProject({ rootPath, displayName });
+		const documents = session.loaded.workspace.documents.list();
+		for (const doc of documents) {
+			if (doc.editor.getLines().length > 0) {
+				await project.createHistory(doc.documentId, {
+					title: doc.title,
+					lines: doc.editor.getLines(),
+				});
+			}
+		}
+		return this.openProject(sessionId, rootPath);
+	}
+
+	async closeProject(sessionId: string): Promise<WorkspaceSnapshot> {
+		const session = this.getOrError(sessionId);
+		for (const unsub of session.unsubs) unsub();
+		session.unsubs.length = 0;
+		await session.loaded.workspace.dispose();
+
+		const loaded = await this.host.createWorkspace({});
+		session.loaded = loaded;
+		this.attachSignals(session);
+		this.emit(session, "workspace.changed");
 		return this.snapshot(session);
 	}
 
@@ -913,6 +979,72 @@ export class HostSessionManager {
 						skippedLines: result.skippedLines,
 					};
 				}
+				case "editor.clearExecutedLines": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (
+						operation.expectedTextRevision !== undefined &&
+						document.textRevision !== operation.expectedTextRevision
+					)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					documents.clearExecutedLines(operation.documentId);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+					};
+				}
+				case "editor.resetExecutionState": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					documents.resetExecutionState(operation.documentId);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+					};
+				}
+				case "editor.duplicateDocument": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					const duplicated = documents.duplicateDocument(
+						operation.documentId,
+						operation.title,
+					);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: duplicated.documentId,
+						textRevision: duplicated.textRevision,
+					};
+				}
 			}
 		} catch (error) {
 			if (error instanceof DocumentRevisionError)
@@ -1091,7 +1223,12 @@ export class HostSessionManager {
 
 	private editorDocumentSnapshot(document: MacroDocument) {
 		const projectedLines = document.session.getProjectedLines();
-		const lines = projectedLines.map((line) => this.toScratchpadLineDto(line));
+		const lines = projectedLines.map((line, idx) =>
+			this.toScratchpadLineDto({
+				...line,
+				isExecuted: document.session.isLineExecuted(idx),
+			}),
+		);
 		const projections = projectedLines.flatMap((line) => [
 			...line.projections.map((projection) => ({
 				kind: "slot" as const,
@@ -1134,26 +1271,26 @@ export class HostSessionManager {
 
 	private editorLinesForOperation(
 		document: MacroDocument,
-		operation: Extract<
-			EditorOperation,
-			{
-				operation:
-					| "editor.previewLine"
-					| "editor.previewRange"
-					| "editor.previewDocument";
-			}
-		>,
+		operation: {
+			readonly operation: string;
+			readonly lineNumber?: number;
+			readonly startLine?: number;
+			readonly endLine?: number;
+		},
 	): readonly ScratchpadLineDto[] {
-		const lines = document.session
-			.getProjectedLines()
-			.map((line) => this.toScratchpadLineDto(line));
+		const lines = document.session.getProjectedLines().map((line, idx) =>
+			this.toScratchpadLineDto({
+				...line,
+				isExecuted: document.session.isLineExecuted(idx),
+			}),
+		);
 		if (operation.operation === "editor.previewDocument") return lines;
 		if (operation.operation === "editor.previewLine")
 			return lines.filter((line) => line.lineNumber === operation.lineNumber);
 		return lines.filter(
 			(line) =>
-				line.lineNumber >= operation.startLine &&
-				line.lineNumber <= operation.endLine,
+				line.lineNumber >= operation.startLine! &&
+				line.lineNumber <= operation.endLine!,
 		);
 	}
 
@@ -1161,6 +1298,7 @@ export class HostSessionManager {
 		readonly lineNumber: number;
 		readonly rawText: string;
 		readonly isValid: boolean;
+		readonly isExecuted?: boolean;
 		readonly macroName?: string;
 		readonly projections: readonly {
 			readonly macroId: string;
@@ -1206,6 +1344,7 @@ export class HostSessionManager {
 			rawText: line.rawText,
 			...(line.macroName ? { macroName: line.macroName } : {}),
 			lineStatus,
+			...(line.isExecuted !== undefined ? { isExecuted: line.isExecuted } : {}),
 			diagnostics: line.diagnostics.map((diagnostic) =>
 				toScratchpadDiagnosticDto(diagnostic, lineStatus === "valid"),
 			),
@@ -1527,9 +1666,23 @@ export class HostSessionManager {
 							resources: session.loaded.project.descriptor.resources,
 							historyResources:
 								session.loaded.project.descriptor.historyResources,
+							ephemeral: false,
 						},
 					}
-				: {}),
+				: {
+						project: {
+							projectId: "in-memory",
+							displayName:
+								translate(workspace.i18n, "workbench.inMemorySession") ||
+								"In-Memory Session",
+							displayNameI18nKey: "workbench.inMemorySession",
+							lifecycle: "open" as const,
+							revision: "0",
+							resources: [],
+							historyResources: [],
+							ephemeral: true,
+						},
+					}),
 			revision: session.revision,
 		};
 	}

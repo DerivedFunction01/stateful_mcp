@@ -346,27 +346,29 @@ export function createBrowserVimController(
 
 			if (!state.enabled) return false;
 
-function matchesKeyOrChord(
-	bindingValue: string | readonly string[] | undefined,
-	rawKey: string,
-	chord: string,
-): boolean {
-	if (!bindingValue) return false;
-	const candidates = Array.isArray(bindingValue) ? bindingValue : [bindingValue];
-	return candidates.some((candidate) => {
-		if (!candidate) return false;
-		if (candidate === rawKey || candidate === chord) return true;
-		const norm = candidate.toLowerCase();
-		return (
-			norm === rawKey.toLowerCase() ||
-			norm === chord.toLowerCase() ||
-			(rawKey === "ArrowDown" && norm === "down") ||
-			(rawKey === "ArrowUp" && norm === "up") ||
-			(rawKey === "ArrowLeft" && norm === "left") ||
-			(rawKey === "ArrowRight" && norm === "right")
-		);
-	});
-}
+			function matchesKeyOrChord(
+				bindingValue: string | readonly string[] | undefined,
+				rawKey: string,
+				chord: string,
+			): boolean {
+				if (!bindingValue) return false;
+				const candidates = Array.isArray(bindingValue)
+					? bindingValue
+					: [bindingValue];
+				return candidates.some((candidate) => {
+					if (!candidate) return false;
+					if (candidate === rawKey || candidate === chord) return true;
+					const norm = candidate.toLowerCase();
+					return (
+						norm === rawKey.toLowerCase() ||
+						norm === chord.toLowerCase() ||
+						(rawKey === "ArrowDown" && norm === "down") ||
+						(rawKey === "ArrowUp" && norm === "up") ||
+						(rawKey === "ArrowLeft" && norm === "left") ||
+						(rawKey === "ArrowRight" && norm === "right")
+					);
+				});
+			}
 
 			// ── Sequence Buffering (e.g. "dd", "yy", "gp") ─────────────────────────
 			if (state.mode === "NORMAL" && sequenceMap) {
@@ -446,7 +448,10 @@ function matchesKeyOrChord(
 						case "editor.enterInsert":
 							setMode("INSERT");
 							if (isScratchpad && adapter?.focusCellForEdit) {
-								adapter.focusCellForEdit(cellIndex(), editorState().caretColumn);
+								adapter.focusCellForEdit(
+									cellIndex(),
+									editorState().caretColumn,
+								);
 							} else {
 								adapter?.focus?.();
 							}
@@ -507,8 +512,10 @@ function matchesKeyOrChord(
 									count: total,
 									lineLength,
 								});
-								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-									adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setCellCaret?.(
+									cellIndex(),
+									editorState().caretColumn,
+								) ?? adapter.setActiveCellIndex?.(cellIndex());
 							} else {
 								adapter?.moveLine?.(1);
 							}
@@ -525,8 +532,10 @@ function matchesKeyOrChord(
 									count: total,
 									lineLength,
 								});
-								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-									adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setCellCaret?.(
+									cellIndex(),
+									editorState().caretColumn,
+								) ?? adapter.setActiveCellIndex?.(cellIndex());
 							} else {
 								adapter?.moveLine?.(-1);
 							}
@@ -541,7 +550,10 @@ function matchesKeyOrChord(
 										delta: -1,
 										lineLength: line.length,
 									});
-									adapter.setCellCaret?.(cellIndex(), editorState().caretColumn);
+									adapter.setCellCaret?.(
+										cellIndex(),
+										editorState().caretColumn,
+									);
 								} else {
 									const sel = adapter.getSelection();
 									const next = Math.max(0, sel.end - 1);
@@ -559,7 +571,10 @@ function matchesKeyOrChord(
 										delta: 1,
 										lineLength: line.length,
 									});
-									adapter.setCellCaret?.(cellIndex(), editorState().caretColumn);
+									adapter.setCellCaret?.(
+										cellIndex(),
+										editorState().caretColumn,
+									);
 								} else {
 									const sel = adapter.getSelection();
 									const next = Math.min(adapter.getText().length, sel.end + 1);
@@ -611,7 +626,7 @@ function matchesKeyOrChord(
 						case "previousMatch":
 							adapter?.repeatFind?.("backward");
 							return true;
-						case "command":
+						case "command": {
 							const cmdText = Array.isArray(normalMap?.command)
 								? (normalMap.command[0] ?? ":")
 								: (normalMap?.command ?? ":");
@@ -621,23 +636,21 @@ function matchesKeyOrChord(
 							});
 							setMode("COMMAND");
 							if (options?.onOpenCommandMode) {
-								options.onOpenCommandMode(
-									cmdText,
-									true,
-									cmdText,
-								);
+								options.onOpenCommandMode(cmdText, true, cmdText);
 							} else {
 								options?.onCommandModeUnsupported?.();
 							}
 							return true;
+						}
 						case "search":
-						case "searchAlt":
+						case "searchAlt": {
 							const backward =
 								action === "searchAlt" ||
 								(normalMap?.searchAlt &&
 									matchesKeyOrChord(normalMap.searchAlt, rawKey, chord));
 							options?.onOpenSearch?.(backward ? "backward" : "forward");
 							return true;
+						}
 						default:
 							return false;
 					}
@@ -686,8 +699,10 @@ function matchesKeyOrChord(
 									index: Math.min(range.start, range.end),
 									count: adapter.getCellCount?.() ?? 1,
 								});
-								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-									adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setCellCaret?.(
+									cellIndex(),
+									editorState().caretColumn,
+								) ?? adapter.setActiveCellIndex?.(cellIndex());
 							} else {
 								adapter?.replaceSelection("");
 							}
@@ -733,8 +748,10 @@ function matchesKeyOrChord(
 									delta: 1,
 									count: total,
 								});
-								adapter.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-									adapter.setActiveCellIndex?.(cellIndex());
+								adapter.setCellCaret?.(
+									cellIndex(),
+									editorState().caretColumn,
+								) ?? adapter.setActiveCellIndex?.(cellIndex());
 								adapter.setSelectedCellRange?.(cellRange());
 							} else {
 								adapter?.moveLine?.(1);
@@ -779,8 +796,10 @@ function matchesKeyOrChord(
 						case "editor.swapAnchor":
 							if (isScratchpad && cellRange()) {
 								editorStore.dispatch({ type: "swapVisualAnchor" });
-								adapter?.setCellCaret?.(cellIndex(), editorState().caretColumn) ??
-									adapter?.setActiveCellIndex?.(cellIndex());
+								adapter?.setCellCaret?.(
+									cellIndex(),
+									editorState().caretColumn,
+								) ?? adapter?.setActiveCellIndex?.(cellIndex());
 								adapter?.setSelectedCellRange?.(cellRange());
 							} else {
 								adapter?.swapSelectionAnchor?.();

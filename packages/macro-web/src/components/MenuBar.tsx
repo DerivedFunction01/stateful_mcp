@@ -3,30 +3,137 @@ import {
 	ChevronRight,
 	Columns2,
 	Command,
+	Copy,
 	Eye,
 	FilePlus,
+	FolderGit2,
+	FolderPlus,
 	HelpCircle,
 	PanelRight,
 	Save,
 	Settings,
 	Sparkles,
+	X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { formatChord, getBrowserShortcutPlatform } from "../lib/bindings";
 import { getEffectiveCommandShortcut } from "../lib/browser-workbench-defaults";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEME_IDS } from "../lib/theme";
 import { Badge, Button } from "./ui/primitives";
 
+export interface MenuActionItem {
+	readonly kind?: "action";
+	readonly id: string;
+	readonly label: string;
+	readonly icon?: ReactNode;
+	readonly shortcut?: string;
+	readonly disabled?: boolean;
+	readonly active?: boolean;
+	readonly onSelect: () => void;
+}
+
+export interface MenuSeparatorItem {
+	readonly kind: "separator";
+	readonly id: string;
+}
+
+export interface MenuSubmenuItem {
+	readonly kind: "submenu";
+	readonly id: string;
+	readonly label: string;
+	readonly icon?: ReactNode;
+	readonly items: readonly (MenuActionItem | MenuSeparatorItem)[];
+}
+
+export type MenuItemConfig =
+	| MenuActionItem
+	| MenuSeparatorItem
+	| MenuSubmenuItem;
+
+export interface MenuCategoryConfig {
+	readonly id: string;
+	readonly label: string;
+	readonly items: readonly MenuItemConfig[];
+}
+
 export interface MenuBarProps {
 	readonly snapshot?: WorkspaceSnapshot;
 	readonly activeDocumentTitle?: string;
 	readonly onCommand: (command: string, args?: readonly unknown[]) => void;
 	readonly onOpenPalette: () => void;
+	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
+	readonly onCloseProject?: () => void;
 	readonly onNavigate: (
 		route: "workbench" | "settings" | "gallery" | "host",
 	) => void;
 	readonly currentRoute: string;
+	readonly extraMenus?: readonly MenuCategoryConfig[];
+}
+
+function MenuItemRenderer({
+	item,
+	onCloseMenu,
+}: {
+	readonly item: MenuItemConfig;
+	readonly onCloseMenu: () => void;
+}) {
+	const [submenuOpen, setSubmenuOpen] = useState(false);
+
+	if (item.kind === "separator") {
+		return <div key={item.id} className="menu-separator" role="separator" />;
+	}
+
+	if (item.kind === "submenu") {
+		return (
+			<div
+				key={item.id}
+				className="menu-submenu-container"
+				onMouseEnter={() => setSubmenuOpen(true)}
+				onMouseLeave={() => setSubmenuOpen(false)}
+			>
+				<button
+					type="button"
+					className="menu-item menu-item-submenu"
+					onClick={() => setSubmenuOpen((prev) => !prev)}
+					aria-haspopup="true"
+					aria-expanded={submenuOpen}
+				>
+					{item.icon}
+					<span>{item.label}</span>
+					<ChevronRight size={12} className="submenu-arrow" />
+				</button>
+				{submenuOpen && (
+					<div className="menu-dropdown menu-submenu" role="menu">
+						{item.items.map((subItem) => (
+							<MenuItemRenderer
+								key={subItem.id}
+								item={subItem}
+								onCloseMenu={onCloseMenu}
+							/>
+						))}
+					</div>
+				)}
+			</div>
+		);
+	}
+
+	return (
+		<button
+			key={item.id}
+			type="button"
+			className={`menu-item ${item.active ? "active" : ""}`}
+			disabled={item.disabled}
+			onClick={() => {
+				onCloseMenu();
+				item.onSelect();
+			}}
+		>
+			{item.icon}
+			<span>{item.label}</span>
+			{item.shortcut && <kbd className="menu-shortcut">{item.shortcut}</kbd>}
+		</button>
+	);
 }
 
 export function MenuBar({
@@ -34,14 +141,18 @@ export function MenuBar({
 	activeDocumentTitle,
 	onCommand,
 	onOpenPalette,
+	onOpenFolderModal,
+	onCloseProject,
 	onNavigate,
 	currentRoute,
+	extraMenus = [],
 }: MenuBarProps) {
 	const { t } = useI18n();
 	const { theme, themeId, setThemeId } = useTheme();
 	const [activeMenu, setActiveMenu] = useState<string | null>(null);
 	const menuBarRef = useRef<HTMLDivElement>(null);
 	const platform = getBrowserShortcutPlatform();
+
 	const displayShortcut = (shortcut: string | undefined) =>
 		shortcut ? formatChord(shortcut, platform) : undefined;
 
@@ -93,6 +204,134 @@ export function MenuBar({
 
 	const closeMenu = () => setActiveMenu(null);
 
+	// Declarative menu bar configuration array
+	const menuCategories = useMemo<readonly MenuCategoryConfig[]>(() => {
+		const fileItems: MenuItemConfig[] = [
+			{
+				id: "file.newScratchpad",
+				label: t("editor.document.new"),
+				icon: <FilePlus size={14} />,
+				shortcut: newScratchpadShortcut,
+				onSelect: () => onCommand("editor.newScratchpad"),
+			},
+			{
+				id: "file.duplicateDocument",
+				label: t("editor.document.duplicate"),
+				icon: <Copy size={14} />,
+				onSelect: () => onCommand("editor.duplicateDocument"),
+			},
+			{
+				id: "file.save",
+				label: t("menu.save"),
+				icon: <Save size={14} />,
+				shortcut: saveShortcut,
+				onSelect: () => onCommand("workspace.saveActive"),
+			},
+			{ kind: "separator", id: "file.sep1" },
+			{
+				id: "file.openProject",
+				label: t("workbench.openProjectTitle"),
+				icon: <FolderGit2 size={14} />,
+				onSelect: () => onOpenFolderModal?.("open"),
+			},
+			{
+				id: "file.initProject",
+				label: t("workbench.initProjectTitle"),
+				icon: <FolderPlus size={14} />,
+				onSelect: () => onOpenFolderModal?.("init"),
+			},
+			{
+				id: "file.saveAsProject",
+				label: t("workbench.saveAsProjectTitle"),
+				icon: <Save size={14} />,
+				onSelect: () => onOpenFolderModal?.("saveAs"),
+			},
+		];
+
+		if (snapshot?.project && !snapshot.project.ephemeral) {
+			fileItems.push({
+				id: "file.closeProject",
+				label: t("workbench.closeProjectAction"),
+				icon: <X size={14} />,
+				onSelect: () => onCloseProject?.(),
+			});
+		}
+
+		fileItems.push(
+			{ kind: "separator", id: "file.sep2" },
+			{
+				id: "file.settings",
+				label: t("menu.settings"),
+				icon: <Settings size={14} />,
+				onSelect: () => onNavigate("settings"),
+			},
+		);
+
+		const editItems: MenuItemConfig[] = [
+			{
+				id: "edit.commandPalette",
+				label: t("menu.commandPalette"),
+				icon: <Command size={14} />,
+				shortcut: paletteShortcut,
+				onSelect: () => onOpenPalette(),
+			},
+		];
+
+		const viewItems: MenuItemConfig[] = [
+			{
+				id: "view.toggleSidepanel",
+				label: t("menu.toggleSidepanel"),
+				icon: <PanelRight size={14} />,
+				shortcut: sidepanelShortcut,
+				onSelect: () => onCommand("workspace.toggleSidepanel"),
+			},
+			{
+				id: "view.splitGroup",
+				label: t("editor.group.split"),
+				icon: <Columns2 size={14} />,
+				shortcut: splitShortcut,
+				onSelect: () => onCommand("editor.createSplitGroup"),
+			},
+		];
+
+		const helpItems: MenuItemConfig[] = [
+			{
+				id: "help.gallery",
+				label: t("nav.gallery"),
+				icon: <Eye size={14} />,
+				onSelect: () => onNavigate("gallery"),
+			},
+			{
+				id: "help.host",
+				label: t("app.host"),
+				icon: <HelpCircle size={14} />,
+				onSelect: () => onNavigate("host"),
+			},
+		];
+
+		return [
+			{ id: "file", label: t("menu.file"), items: fileItems },
+			{ id: "edit", label: t("menu.edit"), items: editItems },
+			{ id: "view", label: t("menu.view"), items: viewItems },
+			{ id: "help", label: t("menu.help"), items: helpItems },
+			...extraMenus,
+		];
+	}, [
+		t,
+		snapshot?.project,
+		newScratchpadShortcut,
+		saveShortcut,
+		paletteShortcut,
+		sidepanelShortcut,
+		splitShortcut,
+		onCommand,
+		onOpenFolderModal,
+		onCloseProject,
+		onNavigate,
+		onOpenPalette,
+		extraMenus,
+	]);
+
 	return (
 		<header className="workbench-menubar" ref={menuBarRef}>
 			<div className="menubar-left">
@@ -102,173 +341,29 @@ export function MenuBar({
 				</div>
 
 				<nav className="menubar-nav" aria-label={t("menu.file")}>
-					{/* File Menu */}
-					<div className="menu-dropdown-container">
-						<button
-							type="button"
-							className={`menubar-item ${activeMenu === "file" ? "active" : ""}`}
-							onClick={() => toggleMenu("file")}
-							aria-expanded={activeMenu === "file"}
-						>
-							{t("menu.file")}
-						</button>
-						{activeMenu === "file" && (
-							<div className="menu-dropdown" role="menu">
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onCommand("editor.newScratchpad");
-									}}
-								>
-									<FilePlus size={14} />
-									<span>{t("editor.document.new")}</span>
-									{newScratchpadShortcut && (
-										<kbd className="menu-shortcut">{newScratchpadShortcut}</kbd>
-									)}
-								</button>
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onCommand("workspace.saveActive");
-									}}
-								>
-									<Save size={14} />
-									<span>{t("menu.save")}</span>
-									{saveShortcut && (
-										<kbd className="menu-shortcut">{saveShortcut}</kbd>
-									)}
-								</button>
-								<div className="menu-separator" />
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onNavigate("settings");
-									}}
-								>
-									<Settings size={14} />
-									<span>{t("menu.settings")}</span>
-								</button>
-							</div>
-						)}
-					</div>
-
-					{/* Edit Menu */}
-					<div className="menu-dropdown-container">
-						<button
-							type="button"
-							className={`menubar-item ${activeMenu === "edit" ? "active" : ""}`}
-							onClick={() => toggleMenu("edit")}
-							aria-expanded={activeMenu === "edit"}
-						>
-							{t("menu.edit")}
-						</button>
-						{activeMenu === "edit" && (
-							<div className="menu-dropdown" role="menu">
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onOpenPalette();
-									}}
-								>
-									<Command size={14} />
-									<span>{t("menu.commandPalette")}</span>
-									{paletteShortcut && (
-										<kbd className="menu-shortcut">{paletteShortcut}</kbd>
-									)}
-								</button>
-							</div>
-						)}
-					</div>
-
-					{/* View Menu */}
-					<div className="menu-dropdown-container">
-						<button
-							type="button"
-							className={`menubar-item ${activeMenu === "view" ? "active" : ""}`}
-							onClick={() => toggleMenu("view")}
-							aria-expanded={activeMenu === "view"}
-						>
-							{t("menu.view")}
-						</button>
-						{activeMenu === "view" && (
-							<div className="menu-dropdown" role="menu">
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onCommand("workspace.toggleSidepanel");
-									}}
-								>
-									<PanelRight size={14} />
-									<span>{t("menu.toggleSidepanel")}</span>
-									{sidepanelShortcut && (
-										<kbd className="menu-shortcut">{sidepanelShortcut}</kbd>
-									)}
-								</button>
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onCommand("editor.createSplitGroup");
-									}}
-								>
-									<Columns2 size={14} />
-									<span>{t("editor.group.split")}</span>
-									{splitShortcut && (
-										<kbd className="menu-shortcut">{splitShortcut}</kbd>
-									)}
-								</button>
-							</div>
-						)}
-					</div>
-
-					{/* Help Menu */}
-					<div className="menu-dropdown-container">
-						<button
-							type="button"
-							className={`menubar-item ${activeMenu === "help" ? "active" : ""}`}
-							onClick={() => toggleMenu("help")}
-							aria-expanded={activeMenu === "help"}
-						>
-							{t("menu.help")}
-						</button>
-						{activeMenu === "help" && (
-							<div className="menu-dropdown" role="menu">
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onNavigate("gallery");
-									}}
-								>
-									<Eye size={14} />
-									<span>{t("nav.gallery")}</span>
-								</button>
-								<button
-									type="button"
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										onNavigate("host");
-									}}
-								>
-									<HelpCircle size={14} />
-									<span>{t("app.host")}</span>
-								</button>
-							</div>
-						)}
-					</div>
+					{menuCategories.map((category) => (
+						<div key={category.id} className="menu-dropdown-container">
+							<button
+								type="button"
+								className={`menubar-item ${activeMenu === category.id ? "active" : ""}`}
+								onClick={() => toggleMenu(category.id)}
+								aria-expanded={activeMenu === category.id}
+							>
+								{category.label}
+							</button>
+							{activeMenu === category.id && (
+								<div className="menu-dropdown" role="menu">
+									{category.items.map((item) => (
+										<MenuItemRenderer
+											key={item.id}
+											item={item}
+											onCloseMenu={closeMenu}
+										/>
+									))}
+								</div>
+							)}
+						</div>
+					))}
 				</nav>
 
 				{/* Breadcrumb Context */}

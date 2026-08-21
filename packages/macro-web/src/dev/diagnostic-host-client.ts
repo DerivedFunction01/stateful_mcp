@@ -147,6 +147,15 @@ export function createDiagnosticHostClient(): HostClient {
 			workspaceSnapshot: snapshot,
 			workspaceRevision: snapshot.revision,
 		}),
+		browseFs: async () => ({
+			currentPath: "/diagnostic/fixture",
+			parentPath: null,
+			entries: [],
+		}),
+		openProject: async () => snapshot,
+		initProject: async () => snapshot,
+		saveAsProject: async () => snapshot,
+		closeProject: async () => snapshot,
 		subscribe: () => () => undefined,
 		subscribeState: (listener) => {
 			listener("connected");

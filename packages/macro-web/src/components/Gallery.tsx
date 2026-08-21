@@ -58,7 +58,7 @@ export function Gallery() {
 							{ id: "en", label: t("common.english") },
 							{ id: "es", label: t("common.spanish") },
 						]}
-						onChange={(value) => setLocale(value as "en" | "es")}
+						onChange={(value) => setLocale(value)}
 					/>
 				</div>
 			</header>

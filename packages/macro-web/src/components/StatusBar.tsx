@@ -5,6 +5,7 @@ import {
 	Check,
 	CircleAlert,
 	Cloud,
+	Folder,
 	GitBranch,
 	Keyboard,
 	WifiOff,
@@ -43,6 +44,7 @@ export interface StatusBarProps {
 	readonly connected?: boolean;
 	readonly profile?: string;
 	readonly domain?: string;
+	readonly project?: string;
 	readonly cursor?: string;
 	readonly commandMode?: boolean;
 	readonly commandText?: string;
@@ -83,6 +85,7 @@ export function StatusBar({
 	connected = true,
 	profile = "",
 	domain = "",
+	project = "",
 	cursor = "",
 	commandMode = false,
 	commandText = "",
@@ -100,6 +103,18 @@ export function StatusBar({
 			tone: connected ? "info" : "danger",
 			command: "host.openDiagnostics",
 		},
+		...(project
+			? [
+					{
+						id: "project",
+						alignment: "left" as const,
+						priority: 90,
+						value: project,
+						icon: <Folder size={13} />,
+						overflowable: true,
+					},
+				]
+			: []),
 		{
 			id: "profile",
 			alignment: "left",

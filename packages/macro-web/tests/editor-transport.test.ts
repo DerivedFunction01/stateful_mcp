@@ -187,4 +187,39 @@ describe("Phase 7 editor transport", () => {
 		await sessions.disposeAll();
 		await host.dispose();
 	});
+
+	test("supports duplicateDocument, clearExecutedLines and resetExecutionState operations", async () => {
+		const host = await createMacroHost({ defaults: {} });
+		const sessions = new HostSessionManager(host, 60_000);
+		const initial = await sessions.create({ initialText: "line 1\nline 2" });
+		const documentId = initial.editor.activeDocumentId!;
+
+		// Duplicate document
+		const dup = await sessions.editor(initial.sessionId, {
+			operation: "editor.duplicateDocument",
+			requestId: "dup-doc",
+			documentId,
+			title: "Cloned Scratchpad",
+		});
+		expect(dup.status).toBe("accepted");
+		expect(dup.snapshot.documents).toHaveLength(2);
+
+		// Clear executed lines & reset state
+		const clear = await sessions.editor(initial.sessionId, {
+			operation: "editor.clearExecutedLines",
+			requestId: "clear-lines",
+			documentId,
+		});
+		expect(clear.status).toBe("accepted");
+
+		const reset = await sessions.editor(initial.sessionId, {
+			operation: "editor.resetExecutionState",
+			requestId: "reset-lines",
+			documentId,
+		});
+		expect(reset.status).toBe("accepted");
+
+		await sessions.disposeAll();
+		await host.dispose();
+	});
 });

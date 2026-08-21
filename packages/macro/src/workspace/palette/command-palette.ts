@@ -7,7 +7,7 @@ export interface PaletteItem {
 	readonly id: string;
 	readonly title: string;
 	readonly category?: string;
-	readonly keybinding?: string;
+	readonly keybinding?: string | readonly string[];
 	readonly execute: () => Promise<void> | void;
 }
 

@@ -33,6 +33,16 @@ export class HostRequestError extends Error {
 	}
 }
 
+export interface FsBrowseResult {
+	readonly currentPath: string;
+	readonly parentPath: string | null;
+	readonly entries: readonly {
+		readonly name: string;
+		readonly isDirectory: boolean;
+		readonly isMacroProject: boolean;
+	}[];
+}
+
 export interface HostClient {
 	createSession(options?: {
 		readonly profileId?: string;
@@ -45,7 +55,7 @@ export interface HostClient {
 		args?: readonly unknown[],
 		expectedRevision?: number,
 	): Promise<unknown>;
-	selectKeymap(profileId: string): Promise<unknown>;
+	selectKeymap(profileId: string): Promise<HostWorkspaceSnapshot>;
 	resolveBinding(
 		chord: string,
 		context: KeymapBindingContextDto,
@@ -58,6 +68,17 @@ export interface HostClient {
 	applyEditorOperation(
 		operation: EditorOperation,
 	): Promise<EditorOperationResult>;
+	browseFs(path?: string): Promise<FsBrowseResult>;
+	openProject(path: string): Promise<HostWorkspaceSnapshot>;
+	initProject(
+		path: string,
+		displayName?: string,
+	): Promise<HostWorkspaceSnapshot>;
+	saveAsProject(
+		path: string,
+		displayName?: string,
+	): Promise<HostWorkspaceSnapshot>;
+	closeProject(): Promise<HostWorkspaceSnapshot>;
 	subscribe(listener: (event: HostEvent) => void): () => void;
 	subscribeState(listener: (state: TransportState) => void): () => void;
 	getState(): TransportState;
@@ -148,7 +169,7 @@ export class BrowserHostClient implements HostClient {
 		return payload.result;
 	}
 
-	async selectKeymap(profileId: string): Promise<unknown> {
+	async selectKeymap(profileId: string): Promise<HostWorkspaceSnapshot> {
 		const sessionId = this.requireSession();
 		const payload = await this.request<{
 			snapshot?: HostWorkspaceSnapshot;
@@ -158,7 +179,7 @@ export class BrowserHostClient implements HostClient {
 			payload: { profileId },
 		});
 		if (payload.snapshot) this.snapshot = payload.snapshot;
-		return payload.snapshot;
+		return payload.snapshot ?? this.getSnapshot();
 	}
 
 	async resolveBinding(
@@ -227,6 +248,69 @@ export class BrowserHostClient implements HostClient {
 		);
 		if (result.workspaceSnapshot) this.snapshot = result.workspaceSnapshot;
 		return result;
+	}
+
+	async browseFs(path?: string): Promise<FsBrowseResult> {
+		const query = path ? `?path=${encodeURIComponent(path)}` : "";
+		return this.getRequest<FsBrowseResult>(`/api/fs/browse${query}`);
+	}
+
+	async openProject(path: string): Promise<HostWorkspaceSnapshot> {
+		const sessionId = this.requireSession();
+		const payload = await this.request<{
+			snapshot: HostWorkspaceSnapshot;
+		}>(`/api/sessions/${encodeURIComponent(sessionId)}/project`, {
+			type: "project.open",
+			sessionId,
+			payload: { action: "open", path },
+		});
+		this.snapshot = payload.snapshot;
+		return payload.snapshot;
+	}
+
+	async initProject(
+		path: string,
+		displayName?: string,
+	): Promise<HostWorkspaceSnapshot> {
+		const sessionId = this.requireSession();
+		const payload = await this.request<{
+			snapshot: HostWorkspaceSnapshot;
+		}>(`/api/sessions/${encodeURIComponent(sessionId)}/project`, {
+			type: "project.init",
+			sessionId,
+			payload: { action: "init", path, displayName },
+		});
+		this.snapshot = payload.snapshot;
+		return payload.snapshot;
+	}
+
+	async saveAsProject(
+		path: string,
+		displayName?: string,
+	): Promise<HostWorkspaceSnapshot> {
+		const sessionId = this.requireSession();
+		const payload = await this.request<{
+			snapshot: HostWorkspaceSnapshot;
+		}>(`/api/sessions/${encodeURIComponent(sessionId)}/project`, {
+			type: "project.saveAs",
+			sessionId,
+			payload: { action: "saveAs", path, displayName },
+		});
+		this.snapshot = payload.snapshot;
+		return payload.snapshot;
+	}
+
+	async closeProject(): Promise<HostWorkspaceSnapshot> {
+		const sessionId = this.requireSession();
+		const payload = await this.request<{
+			snapshot: HostWorkspaceSnapshot;
+		}>(`/api/sessions/${encodeURIComponent(sessionId)}/project`, {
+			type: "project.close",
+			sessionId,
+			payload: { action: "close" },
+		});
+		this.snapshot = payload.snapshot;
+		return payload.snapshot;
 	}
 
 	subscribe(listener: (event: HostEvent) => void): () => void {

@@ -1,4 +1,5 @@
-import { relative, resolve, sep } from "node:path";
+import { access, readdir } from "node:fs/promises";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { createMacroHost } from "@stateful-mcp/macro-host";
 import {
 	type EditorOperation,
@@ -16,6 +17,15 @@ import {
 	HostSessionManager,
 	SessionError,
 } from "./server/host-session-manager";
+
+async function fileExists(path: string): Promise<boolean> {
+	try {
+		await access(path);
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 interface SocketData {
 	readonly sessionId: string;
@@ -141,17 +151,46 @@ const server = Bun.serve<SocketData>({
 	port,
 	fetch: async (request, serverInstance) => {
 		const url = new URL(request.url);
+		if (url.pathname === "/api/fs/browse" && request.method === "GET") {
+			const id = requestId(request);
+			const targetPath = url.searchParams.get("path") || process.cwd();
+			try {
+				const resolvedPath = resolve(targetPath);
+				const parentPath =
+					dirname(resolvedPath) !== resolvedPath ? dirname(resolvedPath) : null;
+				const dirEntries = await readdir(resolvedPath, { withFileTypes: true });
+				const entries = await Promise.all(
+					dirEntries
+						.filter((entry) => entry.isDirectory())
+						.map(async (entry) => {
+							const entryPath = join(resolvedPath, entry.name);
+							const isMacroProject = await fileExists(
+								join(entryPath, ".macro", "project.json"),
+							);
+							return {
+								name: entry.name,
+								isDirectory: true,
+								isMacroProject,
+							};
+						}),
+				);
+				entries.sort((a, b) => a.name.localeCompare(b.name));
+				return Response.json(
+					response(id, {
+						currentPath: resolvedPath,
+						parentPath,
+						entries,
+					}),
+				);
+			} catch (error) {
+				return errorResponse(id, error);
+			}
+		}
 		const sessionMatch = url.pathname.match(
-			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|editor))?$/,
+			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|editor|project))?$/,
 		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
-				if (!projectRoot)
-					throw new SessionError(
-						"PROJECT_NOT_CONFIGURED",
-						"A host-configured Macro project is required",
-						false,
-					);
 				const payload = (envelope.payload ?? {}) as {
 					profileId?: string;
 					locale?: string;
@@ -286,6 +325,64 @@ const server = Bun.serve<SocketData>({
 							false,
 						);
 					return sessions.editor(sessionId, payload);
+				});
+			if (operation === "project" && request.method === "POST")
+				return handleJson(request, sessionId, async (envelope) => {
+					const payload = envelope.payload as {
+						action: "open" | "init" | "saveAs" | "close";
+						path?: string;
+						displayName?: string;
+					};
+					if (payload.action === "open") {
+						if (!payload.path)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Project path required",
+								false,
+							);
+						const snapshot = await sessions.openProject(
+							sessionId,
+							payload.path,
+						);
+						return { snapshot };
+					}
+					if (payload.action === "init") {
+						if (!payload.path)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Project path required",
+								false,
+							);
+						const snapshot = await sessions.initProject(
+							sessionId,
+							payload.path,
+							payload.displayName,
+						);
+						return { snapshot };
+					}
+					if (payload.action === "saveAs") {
+						if (!payload.path)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Project path required",
+								false,
+							);
+						const snapshot = await sessions.saveAsProject(
+							sessionId,
+							payload.path,
+							payload.displayName,
+						);
+						return { snapshot };
+					}
+					if (payload.action === "close") {
+						const snapshot = await sessions.closeProject(sessionId);
+						return { snapshot };
+					}
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"Unknown project action",
+						false,
+					);
 				});
 			if (!operation && request.method === "DELETE") {
 				try {

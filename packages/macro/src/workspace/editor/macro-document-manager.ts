@@ -228,6 +228,33 @@ export class MacroDocumentManager {
 		}
 	}
 
+	clearExecutedLines(documentId: string): MacroDocument {
+		const document = this.require(documentId);
+		document.session.clearExecutedLines();
+		document.dirty = true;
+		document.textRevision += 1;
+		this.notify();
+		return document;
+	}
+
+	resetExecutionState(documentId: string): MacroDocument {
+		const document = this.require(documentId);
+		document.session.resetExecutionState();
+		this.notify();
+		return document;
+	}
+
+	duplicateDocument(documentId: string, newTitle?: string): MacroDocument {
+		const original = this.require(documentId);
+		const title = newTitle || `${original.title} (Copy)`;
+		const copy = this.createDocument({
+			initialText: original.editor.getLines().join("\n"),
+			title,
+			pinnedMacroIds: original.pinnedMacroIds,
+		});
+		return copy;
+	}
+
 	dispose(): void {
 		for (const unsubscribe of this.documentUnsubs.values()) unsubscribe();
 		this.documentUnsubs.clear();

@@ -95,15 +95,15 @@ export function createEditorVisualRows(
 	return rows.length > 0
 		? rows
 		: [
-			{
-				logicalLineIndex: 0,
-				segmentIndex: 0,
-				displayLineNumber: 1,
-				text: "",
-				isCellStart: true,
-				isCellEnd: true,
-			},
-		];
+				{
+					logicalLineIndex: 0,
+					segmentIndex: 0,
+					displayLineNumber: 1,
+					text: "",
+					isCellStart: true,
+					isCellEnd: true,
+				},
+			];
 }
 
 function offsetAtPoint(root: HTMLElement, node: Node, offset: number): number {
@@ -295,8 +295,8 @@ function pointerPosition(
 			: line
 				? targetLineIdx
 				: Math.floor(
-					(event.clientY - root.getBoundingClientRect().top - 10) / 24,
-				);
+						(event.clientY - root.getBoundingClientRect().top - 10) / 24,
+					);
 	const fallback = { lineIdx: Math.max(0, lineIdx), col: 0 };
 	const documentWithCaret = document as Document & {
 		caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -508,15 +508,15 @@ export function EditorSurfaceView({
 							const isCellSelected =
 								selectedCellRangeProp !== null &&
 								cellIdx >=
-								Math.min(
-									selectedCellRangeProp.start,
-									selectedCellRangeProp.end,
-								) &&
+									Math.min(
+										selectedCellRangeProp.start,
+										selectedCellRangeProp.end,
+									) &&
 								cellIdx <=
-								Math.max(
-									selectedCellRangeProp.start,
-									selectedCellRangeProp.end,
-								);
+									Math.max(
+										selectedCellRangeProp.start,
+										selectedCellRangeProp.end,
+									);
 							const isVisualEndpoint =
 								selectedCellRangeProp !== null && activeCellIndex === cellIdx;
 							const diagnostic = lineDto?.diagnostics?.[0];
@@ -526,15 +526,15 @@ export function EditorSurfaceView({
 								lineDto?.lineStatus === "invalid" || Boolean(diagnostic);
 							const isPinned = Boolean(
 								lineDto?.macroName &&
-								pinnedMacroIds.includes(lineDto.macroName),
+									pinnedMacroIds.includes(lineDto.macroName),
 							);
 							const isValid = lineDto?.lineStatus === "valid";
 
 							// Only show cell output when there's an actual diagnostic, preview, or macro match
 							const hasOutput = Boolean(
 								diagnostic ||
-								projectionText ||
-								(lineDto?.macroName && lineDto.lineStatus !== "empty"),
+									projectionText ||
+									(lineDto?.macroName && lineDto.lineStatus !== "empty"),
 							);
 
 							return (
@@ -840,11 +840,11 @@ export function getEditorSurfaceAdapter(
 			const activeIndex = matches.findIndex((match) =>
 				direction === "forward"
 					? match.logicalLineIndex > currentCellIdx ||
-					(match.logicalLineIndex === currentCellIdx &&
-						match.startOffset >= currentCol)
+						(match.logicalLineIndex === currentCellIdx &&
+							match.startOffset >= currentCol)
 					: match.logicalLineIndex < currentCellIdx ||
-					(match.logicalLineIndex === currentCellIdx &&
-						match.endOffset <= currentCol),
+						(match.logicalLineIndex === currentCellIdx &&
+							match.endOffset <= currentCol),
 			);
 			const selectedIndex =
 				activeIndex === -1 ? (matches.length > 0 ? 0 : -1) : activeIndex;
@@ -884,9 +884,9 @@ export function getEditorSurfaceAdapter(
 					direction === "forward"
 						? text.indexOf(needle, step === 0 ? currentCol : 0)
 						: text.lastIndexOf(
-							needle,
-							step === 0 ? currentCol - 1 : text.length,
-						);
+								needle,
+								step === 0 ? currentCol - 1 : text.length,
+							);
 				if (start !== -1) {
 					lastMatch = { cell: index, start, end: start + needle.length };
 					currentCellIdx = index;
@@ -902,36 +902,36 @@ export function getEditorSurfaceAdapter(
 			lastSearch !== null &&
 			Boolean(
 				getFullLines().length > 0 &&
-				// Reuse the same match implementation while advancing from the current caret.
-				(() => {
-					const needle = lastSearch;
-					if (!needle) return false;
-					syncFromDom();
-					const lines = getFullLines();
-					const count = lines.length;
-					for (let step = 0; step < count; step += 1) {
-						const index =
-							direction === "forward"
-								? (currentCellIdx + step) % count
-								: (currentCellIdx - step + count) % count;
-						const text = lines[index] ?? "";
-						const start =
-							direction === "forward"
-								? text.indexOf(needle, step === 0 ? currentCol + 1 : 0)
-								: text.lastIndexOf(
-									needle,
-									step === 0 ? currentCol - 1 : text.length,
-								);
-						if (start !== -1) {
-							lastMatch = { cell: index, start, end: start + needle.length };
-							currentCellIdx = index;
-							currentCol = start;
-							setLineAndCol(element, index, start);
-							return true;
+					// Reuse the same match implementation while advancing from the current caret.
+					(() => {
+						const needle = lastSearch;
+						if (!needle) return false;
+						syncFromDom();
+						const lines = getFullLines();
+						const count = lines.length;
+						for (let step = 0; step < count; step += 1) {
+							const index =
+								direction === "forward"
+									? (currentCellIdx + step) % count
+									: (currentCellIdx - step + count) % count;
+							const text = lines[index] ?? "";
+							const start =
+								direction === "forward"
+									? text.indexOf(needle, step === 0 ? currentCol + 1 : 0)
+									: text.lastIndexOf(
+											needle,
+											step === 0 ? currentCol - 1 : text.length,
+										);
+							if (start !== -1) {
+								lastMatch = { cell: index, start, end: start + needle.length };
+								currentCellIdx = index;
+								currentCol = start;
+								setLineAndCol(element, index, start);
+								return true;
+							}
 						}
-					}
-					return false;
-				})(),
+						return false;
+					})(),
 			),
 
 		replaceCurrentMatch: (query: string, replacement: string) => {

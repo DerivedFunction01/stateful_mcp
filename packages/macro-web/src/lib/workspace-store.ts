@@ -13,6 +13,10 @@ import {
 	HostRequestError,
 	type TransportState,
 } from "./host-client";
+import {
+	loadUserPreferences,
+	saveUserPreferences,
+} from "./user-preferences-storage";
 
 export interface BrowserWorkspaceState {
 	readonly status: TransportState | "loading";
@@ -67,7 +71,19 @@ export class BrowserWorkspaceStore {
 		});
 		this.startPromise = this.client
 			.createSession()
-			.then((snapshot) => this.installSnapshot(snapshot))
+			.then(async (snapshot) => {
+				const prefs = loadUserPreferences();
+				if (prefs.keymapProfile && prefs.keymapProfile !== "default") {
+					try {
+						const updated = await this.client.selectKeymap(prefs.keymapProfile);
+						this.installSnapshot(updated);
+						return;
+					} catch (e) {
+						console.warn("Could not apply persisted keymap profile:", e);
+					}
+				}
+				this.installSnapshot(snapshot);
+			})
 			.catch((error: unknown) => {
 				this.update({
 					status: "error",
@@ -84,7 +100,7 @@ export class BrowserWorkspaceStore {
 	async refresh(): Promise<void> {
 		this.update({ status: "reconnecting" });
 		const snapshot = await this.client.getSnapshot();
-		this.installSnapshot(snapshot);
+		await this.reassertUserPreferences(snapshot);
 	}
 
 	async executeCommand(
@@ -99,6 +115,48 @@ export class BrowserWorkspaceStore {
 		const snapshot = this.client.getCachedSnapshot?.();
 		if (snapshot) this.applyResponse(snapshot);
 		return result;
+	}
+
+	async selectKeymap(profileId: string): Promise<void> {
+		saveUserPreferences({ keymapProfile: profileId });
+		const snapshot = await this.client.selectKeymap(profileId);
+		this.installSnapshot(snapshot);
+	}
+
+	async openProject(path: string): Promise<void> {
+		const snapshot = await this.client.openProject(path);
+		await this.reassertUserPreferences(snapshot);
+	}
+
+	async initProject(path: string, displayName?: string): Promise<void> {
+		const snapshot = await this.client.initProject(path, displayName);
+		await this.reassertUserPreferences(snapshot);
+	}
+
+	async saveAsProject(path: string, displayName?: string): Promise<void> {
+		const snapshot = await this.client.saveAsProject(path, displayName);
+		await this.reassertUserPreferences(snapshot);
+	}
+
+	async closeProject(): Promise<void> {
+		const snapshot = await this.client.closeProject();
+		await this.reassertUserPreferences(snapshot);
+	}
+
+	private async reassertUserPreferences(
+		snapshot: WorkspaceSnapshot,
+	): Promise<void> {
+		const prefs = loadUserPreferences();
+		if (prefs.keymapProfile && prefs.keymapProfile !== "default") {
+			try {
+				const updated = await this.client.selectKeymap(prefs.keymapProfile);
+				this.installSnapshot(updated);
+				return;
+			} catch (e) {
+				console.warn("Could not reassert keymap profile:", e);
+			}
+		}
+		this.installSnapshot(snapshot);
 	}
 
 	async applySettings(

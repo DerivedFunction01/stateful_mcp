@@ -151,9 +151,14 @@ export async function createMacroHost(
 export async function loadMacroWorkspace(
 	options: LoadMacroWorkspaceOptions = {},
 ): Promise<LoadedMacroWorkspace> {
-	const project = options.projectRoot
-		? await openMacroProject({ rootPath: options.projectRoot })
-		: undefined;
+	let project: MacroProject | undefined;
+	if (options.projectRoot) {
+		try {
+			project = await openMacroProject({ rootPath: options.projectRoot });
+		} catch {
+			project = await createMacroProject({ rootPath: options.projectRoot });
+		}
+	}
 	const manifestResult = project
 		? {
 				manifest: toWorkspaceManifest(project.manifest),

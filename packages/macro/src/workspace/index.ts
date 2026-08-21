@@ -403,6 +403,21 @@ export function createMacroWorkspace(
 			},
 		},
 	);
+	commands.registerCommand(
+		{
+			command: "journal.reverseEntry",
+			title: "Reverse Journal Entry",
+			category: "Journal",
+		},
+		{
+			execute: async (request?: { entryId: string; reason?: string }) => {
+				if (request?.entryId) {
+					return journal.reverseEntry(request.entryId, request.reason);
+				}
+				return null;
+			},
+		},
+	);
 	const contributions = new ExtensionContributionManager(
 		views,
 		tabs,

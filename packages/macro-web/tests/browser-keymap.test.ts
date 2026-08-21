@@ -242,9 +242,7 @@ describe("BrowserKeymapController dispatch announcements", () => {
 			getSnapshot: () =>
 				({
 					keymap: {
-						bindings: [
-							{ command: "editor.executeLine", chords: ["enter"] },
-						],
+						bindings: [{ command: "editor.executeLine", chords: ["enter"] }],
 					},
 				}) as any,
 			getContext: () => ({

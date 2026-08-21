@@ -108,4 +108,10 @@ export const EN_EDITOR: Record<string, string> = {
 
 	// Editor cell actions
 	"editor.runCell": "Run cell",
+	"editor.runAll": "Run all valid lines",
+	"editor.clearExecuted": "Clear executed lines",
+	"editor.resetExecution": "Reset execution marks",
+	"editor.document.duplicate": "Duplicate document",
+	"editor.undo.reverse": "Undo / Reverse",
+	"editor.undo.reversed": "Reversed",
 };

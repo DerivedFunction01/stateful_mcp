@@ -442,7 +442,9 @@ export function matchesChordValue(
 ): boolean {
 	if (!bindingValue) return false;
 	const normalizedInput = normalizeChord(keyOrChord) ?? keyOrChord;
-	const candidates = Array.isArray(bindingValue) ? bindingValue : [bindingValue];
+	const candidates = Array.isArray(bindingValue)
+		? bindingValue
+		: [bindingValue];
 	return candidates.some((candidate) => {
 		if (!candidate) return false;
 		if (candidate === keyOrChord || candidate === normalizedInput) return true;

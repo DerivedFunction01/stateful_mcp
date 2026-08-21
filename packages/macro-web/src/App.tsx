@@ -6,6 +6,7 @@ import { FindOverlay } from "./components/FindOverlay";
 import { Gallery } from "./components/Gallery";
 import { HostRoute } from "./components/HostRoute";
 import { MenuBar } from "./components/MenuBar";
+import { OpenFolderModal } from "./components/OpenFolderModal";
 import { SettingsTab } from "./components/SettingsTab";
 import { RegisteredStatusBar } from "./components/StatusBar";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
@@ -20,7 +21,11 @@ import {
 	EditorSurfaceRegistryContext,
 } from "./lib/editor-surface-registry";
 import { BrowserHostClient, type HostClient } from "./lib/host-client";
-import { GalleryI18nScope, useI18n } from "./lib/macro-i18n-provider";
+import {
+	GalleryI18nScope,
+	useI18n,
+	type WebI18nKey,
+} from "./lib/macro-i18n-provider";
 import {
 	BrowserWorkspaceStore,
 	useBrowserWorkspaceStore,
@@ -95,6 +100,9 @@ export function App() {
 				snapshot.settings.totalModifiedCount > 0),
 	);
 
+	const [folderModalMode, setFolderModalMode] = useState<
+		"open" | "init" | "saveAs" | undefined
+	>();
 	const [paletteInitialQuery, setPaletteInitialQuery] = useState("");
 	const [paletteQuery, setPaletteQuery] = useState("");
 
@@ -371,6 +379,8 @@ export function App() {
 						void store.executeCommand(cmd, args);
 					}}
 					onOpenPalette={openPalette}
+					onOpenFolderModal={setFolderModalMode}
+					onCloseProject={() => void store.closeProject()}
 					onNavigate={navigate}
 					currentRoute={route}
 				/>
@@ -432,6 +442,11 @@ export function App() {
 				<RegisteredStatusBar
 					profile={snapshot?.profile.displayName}
 					domain={snapshot?.applications[0]?.displayName}
+					project={
+						snapshot?.project?.displayNameI18nKey
+							? t(snapshot.project.displayNameI18nKey as WebI18nKey)
+							: snapshot?.project?.displayName
+					}
 					diagnostics={diagnostics}
 					cursor={editorCursor}
 					commandMode={paletteOpen && paletteCommandMode}
@@ -470,6 +485,21 @@ export function App() {
 							return runCommand(command, args).then(closePalette);
 						}}
 						onClose={closePalette}
+					/>
+				)}
+
+				{folderModalMode && (
+					<OpenFolderModal
+						mode={folderModalMode}
+						client={host}
+						onSelect={async (path) => {
+							if (folderModalMode === "open") await store.openProject(path);
+							else if (folderModalMode === "init")
+								await store.initProject(path);
+							else if (folderModalMode === "saveAs")
+								await store.saveAsProject(path);
+						}}
+						onClose={() => setFolderModalMode(undefined)}
 					/>
 				)}
 			</div>

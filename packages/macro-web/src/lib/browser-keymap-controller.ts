@@ -112,8 +112,7 @@ export class BrowserKeymapController {
 		if (event.altKey) return;
 		const chord = normalizeBrowserChord(event, this.platform);
 		if (!chord) return;
-		const debugEditingKey =
-			event.key === "Enter" || event.key === "Tab";
+		const debugEditingKey = event.key === "Enter" || event.key === "Tab";
 
 		if (event.key === "Escape") {
 			if (this.pendingChord) {
@@ -130,10 +129,7 @@ export class BrowserKeymapController {
 		const resolved = this.resolveChord(combined);
 
 		const editorContext = this.options.getContext();
-		if (
-			editorContext.editorFocused &&
-			this.options.onEditorKeyDown?.(event)
-		) {
+		if (editorContext.editorFocused && this.options.onEditorKeyDown?.(event)) {
 			event.preventDefault();
 			event.stopPropagation();
 			return;

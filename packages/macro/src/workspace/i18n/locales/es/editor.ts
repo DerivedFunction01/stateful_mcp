@@ -109,4 +109,10 @@ export const ES_EDITOR: Record<string, string> = {
 
 	// Editor cell actions
 	"editor.runCell": "Ejecutar celda",
+	"editor.runAll": "Ejecutar todas las líneas válidas",
+	"editor.clearExecuted": "Limpiar líneas ejecutadas",
+	"editor.resetExecution": "Restablecer marcas de ejecución",
+	"editor.document.duplicate": "Duplicar documento",
+	"editor.undo.reverse": "Deshacer / Revertir",
+	"editor.undo.reversed": "Revertido",
 };

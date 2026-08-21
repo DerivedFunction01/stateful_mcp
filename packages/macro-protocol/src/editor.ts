@@ -52,6 +52,7 @@ export interface ScratchpadLineDto {
 	readonly rawText: string;
 	readonly macroName?: string;
 	readonly lineStatus: ScratchpadLineStatus;
+	readonly isExecuted?: boolean;
 	readonly diagnostics: readonly import("./workspace").DiagnosticDto[];
 	readonly projections?: readonly ScratchpadProjectionDto[];
 	readonly preview?: ScratchpadExecutionPreviewDto;
@@ -210,6 +211,21 @@ export type EditorOperation =
 			readonly operation: "editor.executeValidLines";
 			readonly documentId: string;
 			readonly expectedTextRevision: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.clearExecutedLines";
+			readonly documentId: string;
+			readonly expectedTextRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.resetExecutionState";
+			readonly documentId: string;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.duplicateDocument";
+			readonly documentId: string;
+			readonly title?: string;
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.createSplitGroup";

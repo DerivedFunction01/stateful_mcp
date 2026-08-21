@@ -11,10 +11,12 @@ import {
 	ChevronRight,
 	CircleDot,
 	Columns2,
+	Eraser,
 	Files,
 	PanelRight,
 	Play,
 	Plus,
+	RotateCcw,
 	X,
 } from "lucide-react";
 import {
@@ -29,6 +31,10 @@ import {
 import { createBrowserVimController } from "../lib/browser-vim";
 import { useEditorSurfaceRegistry } from "../lib/editor-surface-registry";
 import { useI18n } from "../lib/macro-i18n-provider";
+import {
+	loadUserPreferences,
+	saveUserPreferences,
+} from "../lib/user-preferences-storage";
 import { EditorOutputDrawer } from "./EditorOutputDrawer";
 import {
 	EditorSurfaceView,
@@ -128,7 +134,7 @@ export function WorkbenchShell({
 	};
 
 	const [vimController] = useState(() =>
-		createBrowserVimController(false, {
+		createBrowserVimController(loadUserPreferences().vimEnabled, {
 			variant: "scratchpad",
 			getAdapter: getSurfaceAdapter,
 			getKeymap: () => snapshotRef.current?.keymap,
@@ -553,7 +559,11 @@ export function WorkbenchShell({
 							aria-label={t("editor.toggleVim")}
 							aria-pressed={vimState.enabled}
 							disabled={!snapshot.editor.capabilities.canUseVim}
-							onClick={() => vimController.setEnabled(!vimState.enabled)}
+							onClick={() => {
+								const next = !vimState.enabled;
+								vimController.setEnabled(next);
+								saveUserPreferences({ vimEnabled: next });
+							}}
 							title={
 								vimState.enabled
 									? t("editor.vimEnabled")
@@ -582,25 +592,62 @@ export function WorkbenchShell({
 						</button>
 
 						{activeDocument && (
-							<button
-								type="button"
-								className="editor-preview-btn"
-								title={t("editor.preview.title")}
-								disabled={Boolean(
-									editorConflict || localDraft !== undefined || pendingEditor,
-								)}
-								onClick={() =>
-									emitEditorOperation({
-										operation: "editor.previewDocument",
-										requestId: requestId(),
-										documentId: activeDocument.documentId,
-										expectedTextRevision: activeDocument.textRevision,
-									})
-								}
-							>
-								<Play size={13} />
-								<span>{t("editor.preview.title")}</span>
-							</button>
+							<>
+								<button
+									type="button"
+									className="editor-preview-btn"
+									title={t("editor.execution.validLines")}
+									disabled={Boolean(
+										editorConflict || localDraft !== undefined || pendingEditor,
+									)}
+									onClick={() =>
+										emitEditorOperation({
+											operation: "editor.executeValidLines",
+											requestId: requestId(),
+											documentId: activeDocument.documentId,
+											expectedTextRevision: activeDocument.textRevision,
+										})
+									}
+								>
+									<Play size={13} />
+									<span>{t("editor.runAll")}</span>
+								</button>
+								<button
+									type="button"
+									className="editor-split-btn"
+									title={t("editor.clearExecuted")}
+									disabled={Boolean(
+										editorConflict || localDraft !== undefined || pendingEditor,
+									)}
+									onClick={() =>
+										emitEditorOperation({
+											operation: "editor.clearExecutedLines",
+											requestId: requestId(),
+											documentId: activeDocument.documentId,
+											expectedTextRevision: activeDocument.textRevision,
+										})
+									}
+								>
+									<Eraser size={14} />
+								</button>
+								<button
+									type="button"
+									className="editor-split-btn"
+									title={t("editor.resetExecution")}
+									disabled={Boolean(
+										editorConflict || localDraft !== undefined || pendingEditor,
+									)}
+									onClick={() =>
+										emitEditorOperation({
+											operation: "editor.resetExecutionState",
+											requestId: requestId(),
+											documentId: activeDocument.documentId,
+										})
+									}
+								>
+									<RotateCcw size={14} />
+								</button>
+							</>
 						)}
 					</div>
 				</div>
@@ -730,6 +777,9 @@ export function WorkbenchShell({
 				<EditorOutputDrawer
 					output={snapshot.editor.output}
 					result={editorResult}
+					onReverseEntry={(entryId) =>
+						onCommand("journal.reverseEntry", [{ entryId }])
+					}
 				/>
 			</section>
 

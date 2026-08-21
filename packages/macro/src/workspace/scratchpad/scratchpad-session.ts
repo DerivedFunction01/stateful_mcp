@@ -68,6 +68,7 @@ export interface ScratchpadSessionOptions {
 export class ScratchpadSession {
 	private projectedLines: ProjectedMacroLine[] = [];
 	private pinnedMacroId: string | null = null;
+	private executedLineIndices = new Set<number>();
 	private parseDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners = new Set<() => void>();
 
@@ -87,6 +88,31 @@ export class ScratchpadSession {
 
 		// Initial parse
 		this.parseAllLinesSync();
+	}
+
+	isLineExecuted(lineIndex: number): boolean {
+		return this.executedLineIndices.has(lineIndex);
+	}
+
+	markLineExecuted(lineIndex: number): void {
+		this.executedLineIndices.add(lineIndex);
+		this.notify();
+	}
+
+	clearExecutedLines(): void {
+		if (this.executedLineIndices.size === 0) return;
+		const currentLines = this.editor.getLines();
+		const remaining = currentLines.filter(
+			(_, idx) => !this.executedLineIndices.has(idx),
+		);
+		this.executedLineIndices.clear();
+		this.editor.setLines(remaining.length > 0 ? remaining : [""]);
+		this.notify();
+	}
+
+	resetExecutionState(): void {
+		this.executedLineIndices.clear();
+		this.notify();
 	}
 
 	getPinnedMacro(): string | null {
@@ -274,6 +300,8 @@ export class ScratchpadSession {
 
 			const draft = await this.runtime.parseAdapter(line.adapterId, parseText);
 			const result = await this.runtime.executeAdapter(line.adapterId, draft);
+			this.executedLineIndices.add(lineIndex);
+			this.notify();
 			return {
 				lineNumber: line.lineNumber,
 				rawText: line.rawText,

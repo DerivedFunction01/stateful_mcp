@@ -15,3 +15,6 @@ export const BUILTIN_LOCALES: Readonly<
 	en: EN_LOCALE,
 	es: ES_LOCALE,
 };
+
+export type BuiltinLanguageId = keyof typeof BUILTIN_LOCALES;
+export type LanguageId = BuiltinLanguageId | (string & {});

@@ -166,10 +166,12 @@ export interface ProjectResourceReferenceDto {
 export interface ProjectDescriptorDto {
 	readonly projectId: string;
 	readonly displayName: string;
+	readonly displayNameI18nKey?: string;
 	readonly lifecycle: "open" | "dirty" | "closed";
 	readonly revision: string;
 	readonly resources: readonly ProjectResourceReferenceDto[];
 	readonly historyResources: readonly ProjectResourceReferenceDto[];
+	readonly ephemeral?: boolean;
 }
 
 export type { ScratchpadLineDto, ScratchpadSnapshotDto } from "./editor";
