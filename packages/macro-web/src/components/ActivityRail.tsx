@@ -14,7 +14,7 @@ export function ActivityRail({ currentRoute, onNavigate }: ActivityRailProps) {
 
 	return (
 		<aside className="activity-rail" aria-label={t("nav.workbench")}>
-			<div className="brand-mark" title="Macro Workbench">
+			<div className="brand-mark" title={t("nav.workbench")}>
 				<Sparkles size={20} />
 			</div>
 			<nav className="rail-top">

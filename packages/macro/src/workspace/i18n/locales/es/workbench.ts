@@ -51,11 +51,9 @@ export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.boundProjections": "Proyecciones y ranuras vinculadas",
 	"workbench.payloadEnvelopes": "Contenedores de carga útil",
 	"workbench.availableQuickRuns": "Fragmentos de ejecución rápida disponibles",
-	"workbench.noPinnedMacros":
-		"No hay macros fijadas ni plantillas iniciales.",
+	"workbench.noPinnedMacros": "No hay macros fijadas ni plantillas iniciales.",
 	"workbench.noActiveLine": "Ninguna línea activa seleccionada.",
-	"workbench.noMacroLines":
-		"No hay líneas de macro en el documento actual.",
+	"workbench.noMacroLines": "No hay líneas de macro en el documento actual.",
 	"workbench.executedCount": "Ejecutado {count} vez/veces en la sesión",
 	"workbench.insertSnippet": "Insertar",
 	"workbench.activeExtension": "Extensión activa",

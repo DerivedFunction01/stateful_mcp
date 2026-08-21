@@ -178,8 +178,11 @@ export function MenuBar({
 	const sidepanelShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "workspace.toggleSidepanel"),
 	);
-	const newScratchpadShortcut = displayShortcut(
-		getEffectiveCommandShortcut(snapshot, "editor.newScratchpad"),
+	const openProjectShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "workbench.openProject"),
+	);
+	const saveAsShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "workbench.saveAsProject"),
 	);
 
 	useEffect(() => {
@@ -211,7 +214,6 @@ export function MenuBar({
 				id: "file.newScratchpad",
 				label: t("editor.document.new"),
 				icon: <FilePlus size={14} />,
-				shortcut: newScratchpadShortcut,
 				onSelect: () => onCommand("editor.newScratchpad"),
 			},
 			{
@@ -232,6 +234,7 @@ export function MenuBar({
 				id: "file.openProject",
 				label: t("workbench.openProjectTitle"),
 				icon: <FolderGit2 size={14} />,
+				shortcut: openProjectShortcut,
 				onSelect: () => onOpenFolderModal?.("open"),
 			},
 			{
@@ -244,6 +247,7 @@ export function MenuBar({
 				id: "file.saveAsProject",
 				label: t("workbench.saveAsProjectTitle"),
 				icon: <Save size={14} />,
+				shortcut: saveAsShortcut,
 				onSelect: () => onOpenFolderModal?.("saveAs"),
 			},
 		];
@@ -319,7 +323,8 @@ export function MenuBar({
 	}, [
 		t,
 		snapshot?.project,
-		newScratchpadShortcut,
+		openProjectShortcut,
+		saveAsShortcut,
 		saveShortcut,
 		paletteShortcut,
 		sidepanelShortcut,

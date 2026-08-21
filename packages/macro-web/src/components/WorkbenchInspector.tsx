@@ -84,11 +84,11 @@ export function WorkbenchInspector({
 		code?: string;
 	}) => {
 		if (d.messageKey) {
-			return t(d.messageKey as any, d.message, d.messageParams as any);
+			return t(d.messageKey as any, d.messageParams as any);
 		}
 		if (d.code) {
 			const errorKey = `errors.${d.code}` as any;
-			const translated = t(errorKey, "");
+			const translated = t(errorKey);
 			if (translated && translated !== errorKey) return translated;
 		}
 		return d.message;
@@ -128,7 +128,7 @@ export function WorkbenchInspector({
 					onClick={() => setActiveTab("problems")}
 				>
 					<ShieldAlert size={13} />
-					<span>{t("workbench.problems", "Problems")}</span>
+					<span>{t("workbench.problems")}</span>
 					{allDiagnostics.length > 0 ? (
 						<Badge tone={errorCount > 0 ? "danger" : "warning"}>
 							{allDiagnostics.length}
@@ -146,7 +146,7 @@ export function WorkbenchInspector({
 					onClick={() => setActiveTab("cell")}
 				>
 					<Layers size={13} />
-					<span>{t("workbench.cellDetails", "Cell Details")}</span>
+					<span>{t("workbench.cellDetails")}</span>
 					{activeLine?.macroName && (
 						<Badge tone="accent">{activeLine.macroName}</Badge>
 					)}
@@ -160,7 +160,7 @@ export function WorkbenchInspector({
 					onClick={() => setActiveTab("slots")}
 				>
 					<Sparkles size={13} />
-					<span>{t("workbench.slots", "Slots")}</span>
+					<span>{t("workbench.slots")}</span>
 					<span className="tab-count">{validSlots.length}</span>
 				</button>
 
@@ -172,7 +172,7 @@ export function WorkbenchInspector({
 					onClick={() => setActiveTab("pinned")}
 				>
 					<Pin size={13} />
-					<span>{t("workbench.quickRuns", "Quick-Runs")}</span>
+					<span>{t("workbench.quickRuns")}</span>
 					{pinnedMacros.length > 0 && (
 						<span className="tab-count">{pinnedMacros.length}</span>
 					)}
@@ -190,7 +190,7 @@ export function WorkbenchInspector({
 								className={`filter-chip ${severityFilter === "all" ? "active" : ""}`}
 								onClick={() => setSeverityFilter("all")}
 							>
-								{t("workbench.filterAll", `All (${allDiagnostics.length})`, {
+								{t("workbench.filterAll", {
 									count: allDiagnostics.length,
 								})}
 							</button>
@@ -199,7 +199,7 @@ export function WorkbenchInspector({
 								className={`filter-chip ${severityFilter === "error" ? "active" : ""}`}
 								onClick={() => setSeverityFilter("error")}
 							>
-								{t("workbench.filterErrors", `Errors (${errorCount})`, {
+								{t("workbench.filterErrors", {
 									count: errorCount,
 								})}
 							</button>
@@ -208,7 +208,7 @@ export function WorkbenchInspector({
 								className={`filter-chip ${severityFilter === "warning" ? "active" : ""}`}
 								onClick={() => setSeverityFilter("warning")}
 							>
-								{t("workbench.filterWarnings", `Warnings (${warnCount})`, {
+								{t("workbench.filterWarnings", {
 									count: warnCount,
 								})}
 							</button>
@@ -217,15 +217,8 @@ export function WorkbenchInspector({
 						{filteredDiagnostics.length === 0 ? (
 							<div className="inspector-empty-state">
 								<CheckCircle2 size={24} className="empty-success-icon" />
-								<strong>
-									{t("workbench.noProblems", "No problems detected")}
-								</strong>
-								<span>
-									{t(
-										"workbench.allLinesValid",
-										"All macro lines in the active scratchpad are syntactically valid.",
-									)}
-								</span>
+								<strong>{t("workbench.noProblems")}</strong>
+								<span>{t("workbench.allLinesValid")}</span>
 							</div>
 						) : (
 							<div className="diagnostic-group">
@@ -243,7 +236,7 @@ export function WorkbenchInspector({
 												<AlertTriangle size={13} className="diag-icon-warn" />
 											)}
 											<span className="diag-line-tag">
-												{t("editor.execution.line", `Line ${d.line}`, {
+												{t("editor.execution.line", {
 													line: d.line,
 												})}
 											</span>
@@ -270,18 +263,14 @@ export function WorkbenchInspector({
 								<div className="cell-meta-header">
 									<div className="cell-title-row">
 										<span className="slot-line-tag">
-											{t(
-												"editor.execution.line",
-												`Line ${activeLine.lineNumber}`,
-												{
-													line: activeLine.lineNumber,
-												},
-											)}
+											{t("editor.execution.line", {
+												line: activeLine.lineNumber,
+											})}
 										</span>
 										<strong className="cell-macro-title">
 											{activeLine.macroName
 												? `^${activeLine.macroName}`
-												: t("editor.lineStatus.nonMacro", "Plain Text Line")}
+												: t("editor.lineStatus.nonMacro")}
 										</strong>
 										<Badge
 											tone={
@@ -294,7 +283,6 @@ export function WorkbenchInspector({
 										>
 											{t(
 												`editor.lineStatus.${activeLine.lineStatus === "non-macro" ? "nonMacro" : activeLine.lineStatus}` as any,
-												activeLine.lineStatus,
 											)}
 										</Badge>
 									</div>
@@ -308,10 +296,7 @@ export function WorkbenchInspector({
 									activeLine.projections.length > 0 && (
 										<div className="suborder-flow-badge">
 											<div className="suborder-title">
-												{t(
-													"workbench.boundProjections",
-													"Bound Projections & Slots",
-												)}
+												{t("workbench.boundProjections")}
 											</div>
 											<div className="suborder-tokens">
 												{activeLine.projections.map((p, idx) => (
@@ -331,7 +316,7 @@ export function WorkbenchInspector({
 									activeLine.projections.length > 0 && (
 										<div className="cell-projections-list">
 											<div className="suborder-title">
-												{t("workbench.payloadEnvelopes", "Payload Envelopes")}
+												{t("workbench.payloadEnvelopes")}
 											</div>
 											{activeLine.projections.map((proj, index) => (
 												<div className="projection-item" key={index}>
@@ -354,9 +339,7 @@ export function WorkbenchInspector({
 						) : (
 							<div className="inspector-empty-state">
 								<Layers size={20} />
-								<span>
-									{t("workbench.noActiveLine", "No active line selected.")}
-								</span>
+								<span>{t("workbench.noActiveLine")}</span>
 							</div>
 						)}
 					</div>
@@ -368,12 +351,7 @@ export function WorkbenchInspector({
 						{validSlots.length === 0 ? (
 							<div className="inspector-empty-state">
 								<Sparkles size={20} />
-								<span>
-									{t(
-										"workbench.noMacroLines",
-										"No macro lines in current document.",
-									)}
-								</span>
+								<span>{t("workbench.noMacroLines")}</span>
 							</div>
 						) : (
 							<div className="macro-slot-rows">
@@ -440,20 +418,12 @@ export function WorkbenchInspector({
 					<div className="inspector-tab-content">
 						<div className="pinned-macros-list">
 							<div className="suborder-title">
-								{t(
-									"workbench.availableQuickRuns",
-									"Available Quick-Run Snippets",
-								)}
+								{t("workbench.availableQuickRuns")}
 							</div>
 							{pinnedMacros.length === 0 ? (
 								<div className="inspector-empty-state">
 									<Pin size={20} />
-									<span>
-										{t(
-											"workbench.noPinnedMacros",
-											"No pinned macros or starter templates.",
-										)}
-									</span>
+									<span>{t("workbench.noPinnedMacros")}</span>
 								</div>
 							) : (
 								pinnedMacros.map((macro) => (
@@ -485,18 +455,16 @@ export function WorkbenchInspector({
 													icon={<Plus size={11} />}
 													onClick={() => onInsertSnippet?.(macro.snippet!)}
 												>
-													{t("workbench.insertSnippet", "Insert")}
+													{t("workbench.insertSnippet")}
 												</Button>
 											)}
 										</div>
 										{macro.executionCount !== undefined &&
 											macro.executionCount > 0 && (
 												<span className="pinned-card-desc">
-													{t(
-														"workbench.executedCount",
-														`Executed ${macro.executionCount} time(s) in session`,
-														{ count: macro.executionCount },
-													)}
+													{t("workbench.executedCount", {
+														count: macro.executionCount,
+													})}
 												</span>
 											)}
 									</div>

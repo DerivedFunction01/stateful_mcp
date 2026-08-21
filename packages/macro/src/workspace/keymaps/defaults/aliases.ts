@@ -13,4 +13,9 @@ export const DEFAULT_COMMAND_ALIASES: Readonly<
 	"workspace.quitAll": ["qa", "quitall"],
 	"workspace.openSettings": ["settings", "config", "preferences"],
 	"workspace.openExtensions": ["extensions", "plugins"],
+	"editor.duplicateDocument": ["duplicate", "dup", "copy"],
+	"editor.newScratchpad": ["new", "tabnew", "newtab", "scratchpad"],
+	"editor.splitGroup": ["split", "vsplit", "sp", "vs"],
+	"workbench.openProject": ["open", "edit", "e"],
+	"workbench.saveAsProject": ["saveas", "saveproject"],
 };

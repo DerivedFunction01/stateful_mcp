@@ -57,7 +57,7 @@ export function FindOverlay({
 		}
 		setMessage(
 			result.matches.length > 0
-				? t("editor.find.matchCount", undefined, {
+				? t("editor.find.matchCount", {
 						current: result.activeMatchIndex + 1,
 						count: result.matches.length,
 					})
@@ -82,7 +82,7 @@ export function FindOverlay({
 		const count = onReplaceAll(query, replacement);
 		setMessage(
 			count > 0
-				? t("editor.find.matchesReplaced", undefined, { count })
+				? t("editor.find.matchesReplaced", { count })
 				: t("editor.find.noResults"),
 		);
 	}

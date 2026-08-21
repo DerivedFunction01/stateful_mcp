@@ -201,6 +201,7 @@ export const I18N_KEYS = [
 	"palette.category.suggested",
 	"palette.category.system",
 	"palette.category.workspace",
+	"palette.commandModePlaceholder",
 	"palette.dismissHint",
 	"palette.executionFailed",
 	"palette.keymapHint",

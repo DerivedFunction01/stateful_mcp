@@ -41,10 +41,15 @@ describe("browser shortcut policy", () => {
 		expect(commandPalette.browserNotes.join(" ")).toContain("Firefox");
 	});
 
-	test("does not treat unknown chords as safely remappable", () => {
+	test("classifies unreserved chords as deliverable page-default in open-world model", () => {
 		const policy = classifyChord("primary+alt+z");
-		expect(policy.disposition).toBe("unknown");
-		expect(policy.recommendedForUserBinding).toBe(false);
+		expect(policy.disposition).toBe("page-default");
+		expect(policy.recommendedForUserBinding).toBe(true);
+		expect(policy.canPreventDefaultWhenDelivered).toBe(true);
+
+		const empty = classifyChord("");
+		expect(empty.disposition).toBe("unknown");
+		expect(empty.recommendedForUserBinding).toBe(false);
 	});
 
 	test("resolves effective shortcuts dynamically from snapshot keymap", () => {
@@ -90,13 +95,15 @@ describe("browser shortcut policy", () => {
 });
 
 describe("auditKeymapPolicy", () => {
-	test("reports unknown chords from bindings", () => {
+	test("permits unreserved custom keybindings without unknown disposition", () => {
 		const result = auditKeymapPolicy([
 			{ command: "editor.splitGroup", chords: ["ctrl+\\"] },
 			{ command: "custom.action", chords: ["ctrl+shift+x"] },
+			{ command: "invalid.action", chords: [""] },
 		]);
-		expect(result.unknownChords).toContain("primary+shift+x");
+		expect(result.unknownChords).toContain("");
 		expect(result.unknownChords).not.toContain("primary+\\");
+		expect(result.unknownChords).not.toContain("primary+shift+x");
 	});
 
 	test("reports duplicate chords across bindings with overlapping modes", () => {

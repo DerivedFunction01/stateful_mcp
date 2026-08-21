@@ -93,6 +93,24 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		labelI18nKey: "command.workbench.quickOpen",
 	},
 	{
+		command: "workbench.openProject",
+		chords: ["primary+o"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.workbench.openProject",
+	},
+	{
+		command: "workbench.saveAsProject",
+		chords: ["primary+shift+s"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.workbench.saveAsProject",
+	},
+	{
+		command: "workspace.saveAll",
+		chords: ["primary+alt+s"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.workspace.saveAll",
+	},
+	{
 		command: "workspace.toggleSidepanel",
 		chords: ["primary+b"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],

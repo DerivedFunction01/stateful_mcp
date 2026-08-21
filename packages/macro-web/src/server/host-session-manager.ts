@@ -232,10 +232,9 @@ export class HostSessionManager {
 		sessionId: string,
 		command: string,
 		args: readonly unknown[] = [],
-		expectedRevision?: number,
+		_expectedRevision?: number,
 	): Promise<{ result: unknown; snapshot: WorkspaceSnapshot }> {
 		const session = this.getOrError(sessionId);
-		this.assertRevision(session, expectedRevision);
 		const result = await session.loaded.workspace.commands.executeCommand(
 			command,
 			...args,
@@ -1470,16 +1469,6 @@ export class HostSessionManager {
 				);
 			}
 		}
-	}
-
-	private assertRevision(session: Session, expected?: number): void {
-		if (expected !== undefined && expected !== session.revision)
-			throw new SessionError(
-				"STALE_REVISION",
-				"Request revision is stale",
-				true,
-				{ expected, actual: session.revision },
-			);
 	}
 
 	private emit(

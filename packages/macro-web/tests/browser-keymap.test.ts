@@ -77,8 +77,8 @@ describe("browser shortcut policy registry completeness", () => {
 		expect(isRecommendedUserBinding("primary+t")).toBe(false);
 	});
 
-	test("does not treat unknown chords as safely remappable", () => {
-		const policy = classifyChord("primary+alt+z");
+	test("does not treat invalid/empty chords as safely remappable", () => {
+		const policy = classifyChord("");
 		expect(policy.disposition).toBe("unknown");
 		expect(policy.recommendedForUserBinding).toBe(false);
 	});
@@ -184,13 +184,15 @@ describe("shortcut display formatting", () => {
 });
 
 describe("auditKeymapPolicy", () => {
-	test("reports unknown chords from bindings", () => {
+	test("permits unreserved custom keybindings without unknown disposition", () => {
 		const result = auditKeymapPolicy([
 			{ command: "editor.splitGroup", chords: ["ctrl+\\"] },
 			{ command: "custom.action", chords: ["ctrl+shift+x"] },
+			{ command: "invalid.action", chords: [""] },
 		]);
-		expect(result.unknownChords).toContain("primary+shift+x");
+		expect(result.unknownChords).toContain("");
 		expect(result.unknownChords).not.toContain("primary+\\");
+		expect(result.unknownChords).not.toContain("primary+shift+x");
 	});
 
 	test("reports duplicate chords across bindings with overlapping modes", () => {
@@ -313,9 +315,7 @@ describe("BrowserKeymapController dispatch announcements", () => {
 			getSnapshot: () =>
 				({
 					keymap: {
-						bindings: [
-							{ command: "custom.action", chords: ["primary+shift+x"] },
-						],
+						bindings: [{ command: "custom.action", chords: [""] }],
 					},
 				}) as any,
 			getContext: () => ({
@@ -331,8 +331,41 @@ describe("BrowserKeymapController dispatch announcements", () => {
 			platform: "windows",
 		});
 
-		// Simulate a keydown for a chord that resolves to a command but is
-		// unknown in the browser policy registry.
+		(controller as any).dispatch(
+			{ command: "custom.action" },
+			new KeyboardEvent("keydown"),
+			"",
+		);
+
+		const unmapped = announcements.find((a) => a.key === "shortcut.unmapped");
+		expect(unmapped).toBeDefined();
+		expect(unmapped?.command).toBe("custom.action");
+		// onCommand should NOT be called for unknown disposition.
+		expect(executedCommand).toBeUndefined();
+	});
+
+	test("dispatches unreserved chords cleanly as page-default", () => {
+		let executedCommand: string | undefined;
+		const controller = new BrowserKeymapController({
+			getSnapshot: () =>
+				({
+					keymap: {
+						bindings: [
+							{ command: "custom.action", chords: ["primary+shift+x"] },
+						],
+					},
+				}) as any,
+			getContext: () => ({
+				context: { editorMode: "NORMAL" },
+				editorFocused: false,
+			}),
+			onCommand: (command) => {
+				executedCommand = command;
+			},
+			announce: () => undefined,
+			platform: "windows",
+		});
+
 		const event = new KeyboardEvent("keydown", {
 			key: "x",
 			ctrlKey: true,
@@ -344,12 +377,7 @@ describe("BrowserKeymapController dispatch announcements", () => {
 		window.dispatchEvent(event);
 		controller.dispose();
 
-		const unmapped = announcements.find((a) => a.key === "shortcut.unmapped");
-		expect(unmapped).toBeDefined();
-		expect(unmapped?.chord).toBe("Ctrl+Shift+X");
-		expect(unmapped?.command).toBe("custom.action");
-		// onCommand should NOT be called for unknown disposition.
-		expect(executedCommand).toBeUndefined();
+		expect(executedCommand).toBe("custom.action");
 	});
 
 	test("announces shortcut.unavailable for browser-chrome disposition", () => {

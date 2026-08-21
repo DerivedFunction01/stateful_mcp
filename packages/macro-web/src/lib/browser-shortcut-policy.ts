@@ -140,9 +140,6 @@ const REGISTRY: readonly BrowserShortcutPolicy[] = [
 		recommendedForUserBinding: false,
 		canPreventDefaultWhenDelivered: false,
 	}),
-	entry("primary+b", "page-default", [
-		"toggle primary sidebar (VS Code convention)",
-	]),
 	entry("primary+h", "browser-chrome", ["browser history page"], {
 		recommendedForUserBinding: false,
 		canPreventDefaultWhenDelivered: false,
@@ -325,6 +322,16 @@ const REGISTRY: readonly BrowserShortcutPolicy[] = [
 		canPreventDefaultWhenDelivered: false,
 		recommendedForUserBinding: false,
 	}),
+	entry("enter", "page-default", ["native confirm / newline"], {
+		nativeEditing: true,
+		canPreventDefaultWhenDelivered: false,
+		recommendedForUserBinding: false,
+	}),
+	entry("shift+enter", "page-default", ["native soft newline"], {
+		nativeEditing: true,
+		canPreventDefaultWhenDelivered: false,
+		recommendedForUserBinding: false,
+	}),
 
 	// ── Function keys (conservative) ──
 	entry("f2", "conditional", ["OS/editor/accessibility dependent"]),
@@ -337,20 +344,6 @@ const REGISTRY: readonly BrowserShortcutPolicy[] = [
 		recommendedForUserBinding: false,
 		canPreventDefaultWhenDelivered: false,
 	}),
-
-	// ── Macro default bindings (must be present to avoid unknown disposition) ──
-	entry("primary+\\", "page-default", ["editor split group"]),
-	entry("primary+pagedown", "page-default", [
-		"next editor tab / viewport scroll",
-	]),
-	entry("primary+pageup", "page-default", [
-		"previous editor tab / viewport scroll",
-	]),
-	entry("primary+,", "conditional", ["open settings / focus address bar"]),
-	entry("enter", "page-default", ["native confirm / editor execute"]),
-	entry("shift+enter", "page-default", [
-		"native newline / editor insert line break",
-	]),
 
 	// ── Platform-Reserved & OS-Level Intercepts ──
 	entry(
@@ -416,7 +409,7 @@ export function normalizePrimary(chord: string): string {
 const UNKNOWN_POLICY: BrowserShortcutPolicy = {
 	chord: "unknown",
 	disposition: "unknown",
-	browserNotes: ["No capability data; do not silently intercept."],
+	browserNotes: ["Invalid chord token format."],
 	recommendedForUserBinding: false,
 	canPreventDefaultWhenDelivered: false,
 };
@@ -424,9 +417,30 @@ const UNKNOWN_POLICY: BrowserShortcutPolicy = {
 /** Classify a chord (raw or normalized) into its browser capability policy. */
 export function classifyChord(chord: string): BrowserShortcutPolicy {
 	const normalized = normalizePrimary(chord);
+	if (!normalized) return { ...UNKNOWN_POLICY, chord: "" };
+
 	const found = POLICY_BY_CHORD.get(normalized);
 	if (found) return found;
-	return { ...UNKNOWN_POLICY, chord: normalized };
+
+	if (/^[a-z0-9]$/.test(normalized)) {
+		return {
+			chord: normalized,
+			disposition: "page-default",
+			browserNotes: ["single character / modal editing key"],
+			recommendedForUserBinding: false,
+			canPreventDefaultWhenDelivered: false,
+			nativeEditing: true,
+		};
+	}
+
+	// Open-world default: unreserved browser chord deliverable to web applications.
+	return {
+		chord: normalized,
+		disposition: "page-default",
+		browserNotes: ["unreserved browser shortcut"],
+		recommendedForUserBinding: true,
+		canPreventDefaultWhenDelivered: true,
+	};
 }
 
 /** Whether a chord is safe for an explicit user binding in the given context. */

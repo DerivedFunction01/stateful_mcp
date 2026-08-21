@@ -246,13 +246,35 @@ export class MacroDocumentManager {
 
 	duplicateDocument(documentId: string, newTitle?: string): MacroDocument {
 		const original = this.require(documentId);
-		const title = newTitle || `${original.title} (Copy)`;
+		const title = newTitle || this.generateDuplicateTitle(original.title);
 		const copy = this.createDocument({
 			initialText: original.editor.getLines().join("\n"),
 			title,
 			pinnedMacroIds: original.pinnedMacroIds,
 		});
 		return copy;
+	}
+
+	private generateDuplicateTitle(originalTitle: string): string {
+		const dotIdx = originalTitle.lastIndexOf(".");
+		const hasExt = dotIdx > 0;
+		const baseName = hasExt ? originalTitle.slice(0, dotIdx) : originalTitle;
+		const ext = hasExt ? originalTitle.slice(dotIdx) : "";
+
+		const rootMatch = baseName.match(/^(.*?)(?:\s*\((?:Copy\s*)?(\d+)?\))?$/i);
+		const root = (rootMatch && rootMatch[1] ? rootMatch[1] : baseName).trim();
+
+		const existingTitles = new Set(
+			Array.from(this.documents.values()).map((d) => d.title.toLowerCase()),
+		);
+
+		let count = 1;
+		let candidate = `${root} (${count})${ext}`;
+		while (existingTitles.has(candidate.toLowerCase())) {
+			count += 1;
+			candidate = `${root} (${count})${ext}`;
+		}
+		return candidate;
 	}
 
 	dispose(): void {

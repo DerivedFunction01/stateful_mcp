@@ -217,7 +217,11 @@ export function CommandPalette({
 						aria-activedescendant={
 							selectedCommand ? `command-option-${selected}` : undefined
 						}
-						placeholder={t("palette.placeholder")}
+						placeholder={
+							commandToken === ":" || query.startsWith(":")
+								? t("palette.commandModePlaceholder")
+								: t("palette.placeholder")
+						}
 						value={query}
 						onChange={(event) => {
 							setQuery(event.target.value);
@@ -264,19 +268,30 @@ export function CommandPalette({
 										if (!descriptor.args?.length) void run(descriptor);
 									}}
 								>
-									<span className="command-palette__option-title">
-										{descriptor.title}
-									</span>
-									{descriptor.category ? (
-										<span className="command-palette__option-category">
-											{descriptor.category}
+									<div className="command-palette__option-info">
+										<span className="command-palette__option-title">
+											{descriptor.title}
 										</span>
-									) : null}
-									{descriptor.keybinding ? (
-										<span className="command-palette__option-key">
-											{descriptor.keybinding}
-										</span>
-									) : null}
+										{descriptor.category ? (
+											<span className="command-palette__option-category">
+												{descriptor.category}
+											</span>
+										) : null}
+									</div>
+									<div className="command-palette__option-badges">
+										{descriptor.aliases && descriptor.aliases.length > 0 ? (
+											<span className="command-palette__option-alias">
+												{descriptor.aliases
+													.map((a) => (a.startsWith(":") ? a : `:${a}`))
+													.join(" ")}
+											</span>
+										) : null}
+										{descriptor.keybinding ? (
+											<span className="command-palette__option-key">
+												{descriptor.keybinding}
+											</span>
+										) : null}
+									</div>
 								</div>
 							);
 						})

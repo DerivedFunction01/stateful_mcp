@@ -163,18 +163,62 @@ export function App() {
 		command: string,
 		args?: readonly unknown[],
 	): Promise<void> {
-		await store.executeCommand(command, args);
 		if (
 			command === "workspace.openSettings" ||
 			command === "workspace.toggleSettings"
-		)
+		) {
 			requestNavigate("settings");
+			return;
+		}
+		if (command === "workbench.openProject" || command === "file.openProject") {
+			setFolderModalMode("open");
+			return;
+		}
+		if (command === "workbench.initProject" || command === "file.initProject") {
+			setFolderModalMode("init");
+			return;
+		}
+		if (
+			command === "workbench.saveAsProject" ||
+			command === "workspace.saveAs" ||
+			command === "file.saveAsProject"
+		) {
+			setFolderModalMode("saveAs");
+			return;
+		}
+		if (command === "editor.save" || command === "workspace.saveActive") {
+			await store.executeCommand("workspace.saveActive", args);
+			return;
+		}
+		if (command === "workspace.saveAll") {
+			await store.executeCommand("workspace.saveAll", args);
+			return;
+		}
+		if (command === "editor.executeLine") {
+			const docId = snapshot?.editor.activeDocument?.documentId;
+			await store.executeCommand("editor.executeLine", [
+				{
+					documentId: docId,
+				},
+			]);
+			return;
+		}
+		if (command === "editor.executeValidLines") {
+			const docId = snapshot?.editor.activeDocument?.documentId;
+			await store.executeCommand("editor.executeValidLines", [
+				{ documentId: docId },
+			]);
+			return;
+		}
+		await store.executeCommand(command, args);
 	}
 
 	const uiCommandHandlers = useMemo(
 		() =>
 			new Map<string, () => void>([
 				["workbench.commandPalette", () => openPalette()],
+				["workbench.openProject", () => setFolderModalMode("open")],
+				["workbench.saveAsProject", () => setFolderModalMode("saveAs")],
 				["editor.find", () => openFind("forward")],
 				["editor.replace", () => openFind("forward")],
 			]),
@@ -376,7 +420,7 @@ export function App() {
 					snapshot={snapshot}
 					activeDocumentTitle={activeDoc?.title}
 					onCommand={(cmd, args) => {
-						void store.executeCommand(cmd, args);
+						void runCommand(cmd, args);
 					}}
 					onOpenPalette={openPalette}
 					onOpenFolderModal={setFolderModalMode}

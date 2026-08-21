@@ -37,6 +37,7 @@ import { CommandPalette } from "./CommandPalette";
 import { EditorOutputDrawer } from "./EditorOutputDrawer";
 import { EditorSurfaceView } from "./EditorSurfaceView";
 import { FindOverlay } from "./FindOverlay";
+import { MenuBar } from "./MenuBar";
 import { OpenFolderModal } from "./OpenFolderModal";
 import {
 	Badge,
@@ -110,6 +111,7 @@ export function Gallery() {
 				<ProjectFolderModalStory />
 				<ExecutionToolbarAndUndoStory />
 				<UserPreferencesStory />
+				<MenuBarStory />
 				<WorkbenchInspectorStory />
 				<QuickRunChipsBarStory />
 				<IslandsOfOrderAndDisambiguationStory />
@@ -1114,12 +1116,8 @@ function WorkbenchInspectorStory() {
 
 	return (
 		<Card
-			title={t("gallery.inspectorTitle", "Workbench Inspector")}
-			action={
-				<Badge tone="accent">
-					{t("gallery.richSidepanel", "Rich Sidepanel")}
-				</Badge>
-			}
+			title={t("gallery.inspectorTitle")}
+			action={<Badge tone="accent">{t("gallery.richSidepanel")}</Badge>}
 		>
 			<div
 				style={{
@@ -1190,8 +1188,8 @@ function QuickRunChipsBarStory() {
 
 	return (
 		<Card
-			title={t("gallery.quickrunTitle", "Scratchpad Quick-Run Chip Bar")}
-			action={<Badge tone="info">{t("gallery.noEmojis", "No Emojis")}</Badge>}
+			title={t("gallery.quickrunTitle")}
+			action={<Badge tone="info">{t("gallery.noEmojis")}</Badge>}
 		>
 			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 				<div
@@ -1238,13 +1236,13 @@ function IslandsOfOrderAndDisambiguationStory() {
 	const { t } = useI18n();
 	return (
 		<Card
-			title={t("gallery.islandsTitle", "Islands of Order & Macro Provenance")}
+			title={t("gallery.islandsTitle")}
 			action={<Badge tone="accent">Engine</Badge>}
 		>
 			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 				<div className="suborder-flow-badge" style={{ margin: 0 }}>
 					<div className="suborder-title">
-						{t("workbench.boundProjections", "Sub-Ordered Relative Slots")} (length, width, height)
+						{t("workbench.boundProjections")} (length, width, height)
 					</div>
 					<p
 						style={{
@@ -1274,9 +1272,7 @@ function IslandsOfOrderAndDisambiguationStory() {
 					<div className="pinned-macro-card">
 						<div className="pinned-card-title">
 							<strong>@clinical:vitals</strong>
-							<Badge tone="accent">
-								{t("workbench.activeExtension", "Active Extension")}
-							</Badge>
+							<Badge tone="accent">{t("workbench.activeExtension")}</Badge>
 						</div>
 						<span className="pinned-card-desc">
 							Provides <code>bp</code>, <code>hr</code> slots (aliases:{" "}
@@ -1286,9 +1282,7 @@ function IslandsOfOrderAndDisambiguationStory() {
 					<div className="pinned-macro-card">
 						<div className="pinned-card-title">
 							<strong>@apple-health:vitals</strong>
-							<Badge tone="neutral">
-								{t("workbench.availableExtension", "Available")}
-							</Badge>
+							<Badge tone="neutral">{t("workbench.availableExtension")}</Badge>
 						</div>
 						<span className="pinned-card-desc">
 							Provides <code>bp</code>, <code>steps</code> (alias:{" "}
@@ -1296,6 +1290,49 @@ function IslandsOfOrderAndDisambiguationStory() {
 						</span>
 					</div>
 				</div>
+			</div>
+		</Card>
+	);
+}
+
+function MenuBarStory() {
+	const { t } = useI18n();
+	const [lastTriggered, setLastTriggered] = useState<string>("");
+
+	return (
+		<Card
+			title="Declarative Menu Bar & Non-Wrapping Dropdowns"
+			action={<Badge tone="accent">QoL / UI</Badge>}
+		>
+			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+				<div
+					style={{
+						height: 38,
+						background: "var(--theme-surface-secondary)",
+						border: "1px solid var(--theme-border-subtle)",
+						borderRadius: 6,
+						padding: "0 8px",
+						display: "flex",
+						alignItems: "center",
+					}}
+				>
+					<MenuBar
+						activeDocumentTitle="scratchpad.macro"
+						onCommand={(cmd) => setLastTriggered(`Command: ${cmd}`)}
+						onOpenPalette={() => setLastTriggered("Action: Open Palette")}
+						onOpenFolderModal={(mode) =>
+							setLastTriggered(`Action: Open Project Modal (${mode})`)
+						}
+						onNavigate={(route) => setLastTriggered(`Navigate: ${route}`)}
+						currentRoute="gallery"
+					/>
+				</div>
+				{lastTriggered && (
+					<div className="cell-raw-preview" style={{ padding: 8 }}>
+						<strong>Triggered: </strong>
+						<code>{lastTriggered}</code>
+					</div>
+				)}
 			</div>
 		</Card>
 	);

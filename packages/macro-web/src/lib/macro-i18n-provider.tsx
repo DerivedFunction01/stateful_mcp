@@ -20,7 +20,7 @@ import { GALLERY_TRANSLATIONS } from "./gallery-locale";
 export interface MacroWebI18n {
 	readonly locale: string;
 	readonly setLocale: (locale: string) => void;
-	t(key: WebI18nKey, fallback?: string, params?: TranslationParams): string;
+	t(key: WebI18nKey, params?: TranslationParams): string;
 }
 
 interface I18nContextValue {
@@ -34,10 +34,7 @@ function valueForKernel(kernel: I18nKernel): MacroWebI18n {
 	return {
 		locale: kernel.getActiveLocale(),
 		setLocale: (locale) => kernel.setActiveLocale(locale),
-		t: (key, fallback = key, params) => {
-			const translated = kernel.t(key, params);
-			return translated === key ? fallback : translated;
-		},
+		t: (key, params) => kernel.t(key, params),
 	};
 }
 

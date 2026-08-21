@@ -3,6 +3,8 @@ export const EN_PALETTE: Record<string, string> = {
 	"palette.dismissHint": "esc",
 	"palette.searchPrompt": ">",
 	"palette.placeholder": "Search commands...",
+	"palette.commandModePlaceholder":
+		":command (e.g. :w, :wa, :wq, :split, :dup, :open)...",
 	"palette.noMatchingCommands": "No matching commands found.",
 	"palette.quickOpen": "Go to file",
 	"palette.noResults": "No matching commands",

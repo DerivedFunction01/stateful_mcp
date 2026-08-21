@@ -132,7 +132,7 @@ export function Splitter({
 			aria-valuemin={minPercent}
 			aria-valuemax={maxPercent}
 			aria-valuenow={now}
-			aria-valuetext={t("workbench.splitterValue", undefined, { value: now })}
+			aria-valuetext={t("workbench.splitterValue", { value: now })}
 			tabIndex={0}
 			className={`splitter splitter-${orientation}`}
 			data-region={region}

@@ -1,13 +1,13 @@
 import type { EditorMode } from "@stateful-mcp/macro-protocol";
 import {
 	Bell,
-	BookOpen,
 	Check,
 	CircleAlert,
 	Cloud,
-	Folder,
-	GitBranch,
+	FolderGit2,
 	Keyboard,
+	Layers,
+	Terminal,
 	WifiOff,
 } from "lucide-react";
 import { useActiveEditorSurface } from "../lib/editor-surface-registry";
@@ -76,6 +76,41 @@ export function RegisteredStatusBar(props: StatusBarProps) {
 	);
 }
 
+const VIM_COMMAND_HINTS: Record<string, string> = {
+	w: "Save Active Tab",
+	write: "Save Active Tab",
+	wa: "Save All Tabs",
+	wall: "Save All Tabs",
+	wq: "Save & Close",
+	wqa: "Save All & Quit",
+	q: "Quit Application",
+	quit: "Quit Application",
+	qa: "Quit All",
+	quitall: "Quit All",
+	open: "Open Project",
+	edit: "Open Project",
+	e: "Open Project",
+	saveas: "Save As Project",
+	split: "Split Editor Right",
+	vsplit: "Split Editor Right",
+	sp: "Split Editor Right",
+	vs: "Split Editor Right",
+	new: "New Scratchpad",
+	tabnew: "New Scratchpad",
+	dup: "Duplicate Document",
+	duplicate: "Duplicate Document",
+	settings: "Open Settings",
+};
+
+function getVimCommandLabel(text?: string, token?: string): string {
+	const raw = (text || token || "").trim();
+	const clean = raw.replace(/^:/, "").trim();
+	if (!clean) return ": [w, wa, wq, q, split, dup, open, saveas]";
+	const match = VIM_COMMAND_HINTS[clean.toLowerCase()];
+	if (match) return `:${clean} → ${match}`;
+	return `:${clean}`;
+}
+
 export function StatusBar({
 	vimMode,
 	vimEnabled = false,
@@ -108,37 +143,44 @@ export function StatusBar({
 					{
 						id: "project",
 						alignment: "left" as const,
-						priority: 90,
+						priority: 95,
 						value: project,
-						icon: <Folder size={13} />,
-						overflowable: true,
+						icon: <FolderGit2 size={13} />,
+						tone: "accent" as const,
+						command: "workbench.openProject",
+					},
+				]
+			: []),
+		...(domain
+			? [
+					{
+						id: "domain",
+						alignment: "left" as const,
+						priority: 90,
+						value: domain,
+						icon: <Terminal size={13} />,
+						tone: "accent" as const,
+					},
+				]
+			: []),
+		...(profile
+			? [
+					{
+						id: "profile",
+						alignment: "left" as const,
+						priority: 80,
+						value: profile,
+						icon: <Layers size={13} />,
+						command: "keymaps.switchProfile",
 					},
 				]
 			: []),
 		{
-			id: "profile",
-			alignment: "left",
-			priority: 80,
-			value: profile,
-			icon: <GitBranch size={13} />,
-			command: "workspace.selectProfile",
-			overflowable: true,
-		},
-		{
-			id: "domain",
-			alignment: "left",
-			priority: 70,
-			value: domain,
-			icon: <BookOpen size={13} />,
-			command: "domain.open",
-			overflowable: true,
-		},
-		{
 			id: "diagnostics",
 			alignment: "left",
-			priority: 100,
+			priority: 70,
 			value: diagnostics
-				? t("shell.diagnostics.errors", undefined, { count: diagnostics })
+				? t("shell.diagnostics.errors", { count: diagnostics })
 				: t("status.zeroDiagnostics"),
 			icon: diagnostics ? <CircleAlert size={13} /> : <Check size={13} />,
 			tone: diagnostics ? "danger" : "success",
@@ -163,7 +205,7 @@ export function StatusBar({
 						id: "vim-command",
 						alignment: "right" as const,
 						priority: 105,
-						value: commandText || commandToken,
+						value: getVimCommandLabel(commandText, commandToken),
 						tone: "accent" as const,
 					},
 				]
@@ -193,9 +235,7 @@ export function StatusBar({
 			id: "dirty",
 			alignment: "right",
 			priority: 70,
-			value: dirty
-				? t("status.dirty", undefined, { count: 1 })
-				: t("status.saved"),
+			value: dirty ? t("status.dirty", { count: 1 }) : t("status.saved"),
 			tone: dirty ? "warning" : "success",
 			overflowable: true,
 		},

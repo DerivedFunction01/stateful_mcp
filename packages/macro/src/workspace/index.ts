@@ -208,13 +208,125 @@ export function createMacroWorkspace(
 			},
 		});
 	}
+	saveCoordinator.register({
+		id: "macro.documents",
+		scope: "workspace",
+		isDirty: () => documents.list().some((d) => d.dirty),
+		save: async ({ scope }) => {
+			if (scope === "active") {
+				const active = documents.active() || documents.list()[0];
+				if (active) {
+					documents.markClean(active.documentId);
+				}
+			} else {
+				for (const doc of documents.list()) {
+					documents.markClean(doc.documentId);
+				}
+			}
+			return { status: "saved" };
+		},
+	});
 	commands.registerCommand(
 		{
 			command: "workspace.saveActive",
 			title: "Save Active Tab",
 			category: "Workspace",
 		},
-		{ execute: () => saveCoordinator.saveActive() },
+		{
+			execute: async () => {
+				const summary = await saveCoordinator.saveActive();
+				return { saved: !summary.blocked };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.newScratchpad",
+			title: "New Scratchpad Document",
+			category: "Editor",
+		},
+		{
+			execute: (options?: { title?: string; initialText?: string }) => {
+				const doc = documents.createBlank(options?.title);
+				if (options?.initialText) {
+					documents.replaceText({
+						documentId: doc.documentId,
+						lines: options.initialText.split("\n"),
+						expectedTextRevision: doc.textRevision,
+					});
+				}
+				documents.select(doc.documentId);
+				return { documentId: doc.documentId, title: doc.title };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.duplicateDocument",
+			title: "Duplicate Document",
+			category: "Editor",
+		},
+		{
+			execute: (request?: { documentId?: string; newTitle?: string }) => {
+				const targetId =
+					request?.documentId ||
+					documents.getActiveDocumentId() ||
+					documents.list()[0]?.documentId;
+				if (!targetId) return null;
+				const doc = documents.duplicateDocument(targetId, request?.newTitle);
+				documents.select(doc.documentId);
+				return { documentId: doc.documentId, title: doc.title };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.splitGroup",
+			title: "Split Editor Right",
+			category: "Editor",
+		},
+		{
+			execute: (request?: { orientation?: "horizontal" | "vertical" }) => {
+				const group = editorGroups.create({
+					orientation: request?.orientation ?? "horizontal",
+				});
+				return { groupId: group.groupId };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.createSplitGroup",
+			title: "Split Editor Right",
+			category: "Editor",
+		},
+		{
+			execute: (request?: { orientation?: "horizontal" | "vertical" }) => {
+				const group = editorGroups.create({
+					orientation: request?.orientation ?? "horizontal",
+				});
+				return { groupId: group.groupId };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.closeDocument",
+			title: "Close Document",
+			category: "Editor",
+		},
+		{
+			execute: (request?: { documentId?: string; force?: boolean }) => {
+				const targetId =
+					request?.documentId ||
+					documents.getActiveDocumentId() ||
+					documents.list()[0]?.documentId;
+				if (targetId) {
+					documents.close(targetId, request?.force ?? true);
+				}
+				return { documentId: targetId };
+			},
+		},
 	);
 	commands.registerCommand(
 		{
