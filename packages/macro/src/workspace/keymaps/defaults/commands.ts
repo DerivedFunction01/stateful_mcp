@@ -8,9 +8,21 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 	// Editor Operations
 	{
 		command: "editor.save",
-		chords: ["ctrl+s"],
+		chords: ["primary+s"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.editor.save",
+	},
+	{
+		command: "editor.find",
+		chords: ["primary+f"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.editor.find",
+	},
+	{
+		command: "editor.replace",
+		chords: ["primary+shift+f"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "command.editor.replace",
 	},
 	{
 		command: "editor.executeLine",
@@ -38,19 +50,19 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 	},
 	{
 		command: "editor.splitGroup",
-		chords: ["ctrl+\\"],
+		chords: ["primary+\\"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.editor.splitGroup",
 	},
 	{
 		command: "editor.nextTab",
-		chords: ["ctrl+pagedown"],
+		chords: ["primary+pagedown"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.editor.nextTab",
 	},
 	{
 		command: "editor.prevTab",
-		chords: ["ctrl+pageup"],
+		chords: ["primary+pageup"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.editor.prevTab",
 	},
@@ -58,38 +70,32 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 	// Workbench & Navigation (VS Code Aligned)
 	{
 		command: "workbench.commandPalette",
-		chords: ["ctrl+shift+p"],
+		chords: ["primary+shift+p"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.workbench.commandPalette",
 	},
 	{
 		command: "workbench.quickOpen",
-		chords: ["ctrl+p"],
+		chords: ["primary+p"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.workbench.quickOpen",
 	},
 	{
 		command: "workspace.toggleSidepanel",
-		chords: ["ctrl+b"],
+		chords: ["primary+b"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.workspace.toggleSidepanel",
 	},
 	{
 		command: "workbench.toggleDrawer",
-		chords: ["ctrl+`"],
+		chords: ["primary+`"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.workbench.toggleDrawer",
 	},
 	{
 		command: "workbench.openSettings",
-		chords: ["ctrl+,"],
+		chords: ["primary+,"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "command.workbench.openSettings",
-	},
-	{
-		command: "editor.pinMacro",
-		chords: ["meta+p"],
-		modes: ["NORMAL", "VISUAL"],
-		labelI18nKey: "command.editor.pinMacro",
 	},
 ];

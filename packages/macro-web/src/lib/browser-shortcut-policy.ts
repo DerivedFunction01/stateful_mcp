@@ -12,6 +12,8 @@
  * Windows/Linux and to Command (meta) on macOS.
  */
 
+import type { KeymapBindingDto } from "@stateful-mcp/macro-protocol";
+
 export type BrowserShortcutDisposition =
 	| "page-default"
 	| "conditional"
@@ -180,12 +182,22 @@ const REGISTRY: readonly BrowserShortcutPolicy[] = [
 
 	// ── Page/default + conditional: deliverable but vary by browser ──
 	entry("primary+p", "conditional", ["print", "often browser-handled"], {
-		browserNotes: ["VS Code-style quick-open is conditional here"],
+		browserNotes: ["print; VS Code-style quick-open is conditional here"],
 	}),
+	entry(
+		"meta+p",
+		"platform-reserved",
+		["Windows display projection shortcut"],
+		{
+			recommendedForUserBinding: false,
+			canPreventDefaultWhenDelivered: false,
+		},
+	),
 	entry("primary+shift+p", "conditional", [
-		"private-window or browser-specific action in some environments",
+		"command palette is interceptable in Chromium/WebKit; Firefox may retain browser handling",
 	]),
 	entry("primary+f", "conditional", ["browser Find"]),
+	entry("primary+shift+f", "conditional", ["browser Find / replace"]),
 	entry("f3", "conditional", ["browser Find next"]),
 	entry("primary+g", "conditional", ["next Find match"]),
 	entry("primary+shift+g", "conditional", ["previous Find match"]),
@@ -397,7 +409,7 @@ export function normalizePrimary(chord: string): string {
 		.split("+")
 		.map((part) => part.trim())
 		.filter(Boolean)
-		.map((part) => (part === "ctrl" || part === "meta" ? "primary" : part))
+		.map((part) => (part === "ctrl" ? "primary" : part))
 		.join("+");
 }
 
@@ -429,57 +441,193 @@ export function isRecommendedUserBinding(
 
 export interface AuditKeymapPolicyResult {
 	readonly unknownChords: readonly string[];
+	readonly unknownBindings: readonly {
+		readonly command: string;
+		readonly chord: string;
+	}[];
 	readonly duplicatePolicyChords: readonly string[];
+	readonly conflictingBindings: readonly {
+		readonly chord: string;
+		readonly commands: readonly string[];
+		readonly modes: readonly (readonly string[] | undefined)[];
+		readonly when: readonly unknown[];
+	}[];
 }
 
 /**
  * Audit a workspace snapshot's keymap bindings against the browser shortcut
- * policy registry. Returns any chords that resolve to `unknown` disposition
- * and any policy chords that are duplicated across bindings.
+ * policy registry. Returns any chords that resolve to `unknown` disposition,
+ * duplicate chords across bindings, and mode-aware conflict details.
+ *
+ * Duplicate/conflict analysis considers normalized chords, overlapping modes,
+ * and context expressions. Only reports true conflicts where commands differ
+ * and bindings can be active simultaneously.
  *
  * Call once at controller attach time (or when the snapshot reference changes),
  * not on every keydown.
  */
 export function auditKeymapPolicy(
-	snapshot:
-		| {
-				readonly keymap: {
-					readonly bindings: readonly { readonly chords: readonly string[] }[];
-				};
-		  }
-		| undefined,
+	bindings: readonly KeymapBindingDto[],
 ): AuditKeymapPolicyResult {
-	if (!snapshot) return { unknownChords: [], duplicatePolicyChords: [] };
+	if (bindings.length === 0)
+		return {
+			unknownChords: [],
+			unknownBindings: [],
+			duplicatePolicyChords: [],
+			conflictingBindings: [],
+		};
 
 	const unknownChords: string[] = [];
-	const seen = new Set<string>();
-	const duplicatePolicyChords: string[] = [];
+	const unknownBindings: { command: string; chord: string }[] = [];
+	const chordGroups = new Map<string, KeymapBindingDto[]>();
 
-	for (const binding of snapshot.keymap.bindings) {
+	for (const binding of bindings) {
 		for (const rawChord of binding.chords) {
 			const normalized = normalizePrimary(rawChord);
-			if (seen.has(normalized)) {
-				duplicatePolicyChords.push(normalized);
-				continue;
-			}
-			seen.add(normalized);
 			const policy = classifyChord(normalized);
-			if (policy.disposition === "unknown") unknownChords.push(normalized);
+			if (policy.disposition === "unknown") {
+				unknownChords.push(normalized);
+				unknownBindings.push({ command: binding.command, chord: normalized });
+			}
+			const group = chordGroups.get(normalized) ?? [];
+			group.push(binding);
+			chordGroups.set(normalized, group);
 		}
+	}
+
+	const duplicatePolicyChords: string[] = [];
+	const conflictingBindings: {
+		readonly chord: string;
+		readonly commands: readonly string[];
+		readonly modes: readonly (readonly string[] | undefined)[];
+		readonly when: readonly unknown[];
+	}[] = [];
+
+	for (const [chord, group] of chordGroups) {
+		if (group.length <= 1) continue;
+
+		// Group by command to detect cross-command duplicates.
+		const commandGroups = new Map<string, KeymapBindingDto[]>();
+		for (const binding of group) {
+			const cmdGroup = commandGroups.get(binding.command) ?? [];
+			cmdGroup.push(binding);
+			commandGroups.set(binding.command, cmdGroup);
+		}
+
+		if (commandGroups.size <= 1) continue; // Same command; not a conflict.
+
+		// Check mode overlap. A binding with no modes is unrestricted and
+		// overlaps with every other binding.
+		const hasModeOverlap = (): boolean => {
+			const entries = Array.from(commandGroups.values());
+			for (let i = 0; i < entries.length; i++) {
+				const groupA = entries[i]!;
+				for (let j = i + 1; j < entries.length; j++) {
+					const groupB = entries[j]!;
+					for (const a of groupA) {
+						for (const b of groupB) {
+							if (
+								!a.modes?.length ||
+								!b.modes?.length ||
+								a.modes.some((m) => (b.modes ?? []).includes(m))
+							) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+			return false;
+		};
+
+		if (!hasModeOverlap()) continue;
+
+		const contextEntries = Array.from(commandGroups.values());
+		let contextOverlap = false;
+		for (let i = 0; i < contextEntries.length && !contextOverlap; i++) {
+			for (let j = i + 1; j < contextEntries.length && !contextOverlap; j++) {
+				for (const first of contextEntries[i]!) {
+					for (const second of contextEntries[j]!) {
+						if (contextsOverlap(first.when, second.when)) {
+							contextOverlap = true;
+							break;
+						}
+					}
+				}
+			}
+		}
+		if (!contextOverlap) continue;
+
+		duplicatePolicyChords.push(chord);
+		conflictingBindings.push({
+			chord,
+			commands: Array.from(commandGroups.keys()),
+			modes: group.map((b) => b.modes),
+			when: group.map((b) => b.when),
+		});
 	}
 
 	if (unknownChords.length > 0) {
 		console.warn(
 			`[browser-shortcut-policy] ${unknownChords.length} keymap binding(s) resolve to unknown browser disposition and will be blocked:`,
-			unknownChords,
+			unknownBindings,
 		);
 	}
 	if (duplicatePolicyChords.length > 0) {
 		console.warn(
-			`[browser-shortcut-policy] ${duplicatePolicyChords.length} duplicate chord(s) detected across keymap bindings:`,
-			duplicatePolicyChords,
+			`[browser-shortcut-policy] ${duplicatePolicyChords.length} conflicting chord(s) detected across keymap bindings:`,
+			conflictingBindings,
 		);
 	}
 
-	return { unknownChords, duplicatePolicyChords };
+	return {
+		unknownChords,
+		unknownBindings,
+		duplicatePolicyChords,
+		conflictingBindings,
+	};
+}
+
+function contextsOverlap(first: unknown, second: unknown): boolean {
+	if (
+		!first ||
+		!second ||
+		typeof first !== "object" ||
+		typeof second !== "object"
+	)
+		return true;
+	const a = first as Record<string, unknown>;
+	const b = second as Record<string, unknown>;
+	if ("key" in a && "key" in b) {
+		return a.key !== b.key || a.equals === b.equals;
+	}
+	if (
+		"not" in a &&
+		a.not &&
+		typeof a.not === "object" &&
+		"key" in (a.not as object) &&
+		"key" in b
+	) {
+		const n = a.not as Record<string, unknown>;
+		return n.key !== b.key || n.equals !== b.equals;
+	}
+	if (
+		"not" in b &&
+		b.not &&
+		typeof b.not === "object" &&
+		"key" in (b.not as object) &&
+		"key" in a
+	) {
+		const n = b.not as Record<string, unknown>;
+		return n.key !== a.key || n.equals !== a.equals;
+	}
+	if (Array.isArray(a.allOf))
+		return a.allOf.every((item) => contextsOverlap(item, second));
+	if (Array.isArray(b.allOf))
+		return b.allOf.every((item) => contextsOverlap(first, item));
+	if (Array.isArray(a.anyOf))
+		return a.anyOf.some((item) => contextsOverlap(item, second));
+	if (Array.isArray(b.anyOf))
+		return b.anyOf.some((item) => contextsOverlap(first, item));
+	return true;
 }

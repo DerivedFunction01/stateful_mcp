@@ -18,12 +18,17 @@ export interface KeyInputEvent {
 	readonly name?: string;
 	readonly ctrl?: boolean;
 	readonly meta?: boolean;
+	/** Semantic platform-primary modifier, when supplied by the input adapter. */
+	readonly primary?: boolean;
+	/** Active platform used to map a physical Ctrl/Meta event to `primary`. */
+	readonly platform?: "mac" | "windows" | "linux" | "unknown";
 	readonly shift?: boolean;
 }
 
 export interface ParsedKeyChord {
 	readonly ctrl: boolean;
 	readonly meta: boolean;
+	readonly primary: boolean;
 	readonly shift: boolean;
 	readonly key: CanonicalKey;
 }
@@ -82,7 +87,7 @@ const TERMINAL_KEY_MAP: Readonly<Record<string, CanonicalKey>> = {
 
 /**
  * Strict parser for canonical key chords.
- * Follows the grammar: [ctrl+][meta+][shift+]<canonical_key> or single character (including uppercase for Shift).
+ * Follows the grammar: [ctrl+][meta+][primary+][shift+]<canonical_key> or single character (including uppercase for Shift).
  */
 export function parseChord(chord: string): ParsedKeyChord | null {
 	const raw = chord.trim();
@@ -93,6 +98,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 		return {
 			ctrl: false,
 			meta: false,
+			primary: false,
 			shift: true,
 			key: raw.toLowerCase() as CanonicalKey,
 		};
@@ -103,6 +109,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 		return {
 			ctrl: false,
 			meta: false,
+			primary: false,
 			shift: false,
 			key: raw as CanonicalKey,
 		};
@@ -117,6 +124,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 
 	let ctrl = false;
 	let meta = false;
+	let primary = false;
 	let shift = false;
 	let key: CanonicalKey | undefined;
 
@@ -127,6 +135,8 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 				ctrl = true;
 			} else if (part === "meta" || part === "alt") {
 				meta = true;
+			} else if (part === "primary") {
+				primary = true;
 			} else if (part === "shift") {
 				shift = true;
 			} else {
@@ -143,7 +153,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 	}
 
 	if (!key) return null;
-	return { ctrl, meta, shift, key };
+	return { ctrl, meta, primary, shift, key };
 }
 
 /**
@@ -153,6 +163,7 @@ export function formatParsedChord(parsed: ParsedKeyChord): string {
 	const parts: string[] = [];
 	if (parsed.ctrl) parts.push("ctrl");
 	if (parsed.meta) parts.push("meta");
+	if (parsed.primary) parts.push("primary");
 	if (parsed.shift) parts.push("shift");
 	parts.push(parsed.key);
 	return parts.join("+");
@@ -169,7 +180,13 @@ export function normalizeChord(chord: string): string | null {
 export function isSpecialChord(chord: string): boolean {
 	const parsed = parseChord(chord);
 	if (!parsed) return false;
-	return parsed.ctrl || parsed.meta || parsed.shift || parsed.key.length > 1;
+	return (
+		parsed.ctrl ||
+		parsed.meta ||
+		parsed.primary ||
+		parsed.shift ||
+		parsed.key.length > 1
+	);
 }
 
 /**
@@ -191,9 +208,24 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 			rawChar !== "\n" &&
 			rawChar !== "\r",
 	);
-	const eventHasCtrl = Boolean(event.ctrl) || isControlChar;
+	const platformPrimary =
+		event.primary ??
+		(event.platform === "mac"
+			? Boolean(event.meta)
+			: event.platform === "windows" || event.platform === "linux"
+				? Boolean(event.ctrl) || isControlChar
+				: false);
+	const eventHasCtrl = event.platform
+		? event.platform === "mac"
+			? Boolean(event.ctrl)
+			: event.platform === "unknown"
+				? Boolean(event.ctrl) || isControlChar
+				: false
+		: Boolean(event.ctrl) || isControlChar;
+	const eventHasMeta = event.platform === "mac" ? false : Boolean(event.meta);
 	if (eventHasCtrl !== target.ctrl) return false;
-	if (Boolean(event.meta) !== target.meta) return false;
+	if (eventHasMeta !== target.meta) return false;
+	if (platformPrimary !== target.primary) return false;
 
 	// Check shift modifier
 	const isCharUppercase = Boolean(
@@ -267,7 +299,7 @@ export function matchKeymapCommand(
  * the single canonical matcher the browser imports so React never duplicates
  * `contextExpressionMatches` / `chordMatches`.
  *
- * `chord` is a normalized canonical chord string (e.g. `ctrl+k`, `escape`,
+ * `chord` is a normalized canonical chord string (e.g. `primary+k`, `escape`,
  * `g g`). It may be a single chord or a space-separated multi-chord sequence;
  * only the final chord is matched here. The caller owns multi-chord pending
  * state.
@@ -476,7 +508,7 @@ export function validateEditorKeymap(
 				diagnostics.push({
 					severity: "error",
 					code: "invalid-chord",
-					message: `Unknown chord '${chord}'. Must conform to canonical grammar [ctrl+][meta+][shift+]<canonical_key>.`,
+					message: `Unknown chord '${chord}'. Must conform to canonical grammar [ctrl+][meta+][primary+][shift+]<canonical_key>.`,
 					bindings: [chord],
 					paths: [`${mode}.${action}`],
 				});

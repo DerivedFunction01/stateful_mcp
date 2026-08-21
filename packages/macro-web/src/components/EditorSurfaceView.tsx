@@ -409,13 +409,52 @@ export function EditorSurfaceView({
 						}}
 						onKeyDown={(event) => {
 							const handled = onKeyDown?.(event) ?? false;
+							const debugEditingKey =
+								event.key === "Enter" || event.key === "Tab";
+							if (debugEditingKey)
+								console.log("[editor-surface] keydown", {
+									key: event.key,
+									shiftKey: event.shiftKey,
+									vimEnabled,
+									vimMode,
+									handled,
+									defaultPrevented: event.defaultPrevented,
+									textBefore: rootRef.current?.textContent,
+								});
 							if (handled) {
 								event.preventDefault();
 								if (vimMode === "INSERT") updateCursor();
+								return;
+							}
+							if (
+								!vimEnabled &&
+								(event.key === "Tab" || event.key === "Enter")
+							) {
+								event.preventDefault();
+								const root = rootRef.current;
+								const next = root
+									? insertTextAtSelection(
+											root,
+											event.key === "Tab" ? "\t" : "\n",
+										)
+									: null;
+								if (next) {
+									console.log("[editor-surface] local literal insertion", {
+										key: event.key,
+										inserted: event.key === "Tab" ? "\\t" : "\\n",
+										lines: next,
+									});
+									onTextChange(next);
+									updateCursor();
+								}
 							}
 						}}
 						onInput={() => {
 							const next = linesFromSurface(rootRef.current!);
+							console.log("[editor-surface] input", {
+								lines: next,
+								text: rootRef.current?.textContent,
+							});
 							lastRenderedText.current = JSON.stringify(next);
 							onTextChange(next);
 							updateCursor();

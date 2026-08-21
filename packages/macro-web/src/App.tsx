@@ -10,6 +10,7 @@ import { SettingsTab } from "./components/SettingsTab";
 import { RegisteredStatusBar } from "./components/StatusBar";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { WorkbenchShell } from "./components/WorkbenchShell";
+import { formatChord, getBrowserShortcutPlatform } from "./lib/bindings";
 import {
 	BrowserKeymapController,
 	type KeymapAnnouncement,
@@ -46,6 +47,7 @@ export function App() {
 	const snapshot = workspaceState.snapshot;
 	const transport =
 		workspaceState.status === "loading" ? "connecting" : workspaceState.status;
+	const platform = useMemo(() => getBrowserShortcutPlatform(), []);
 
 	useEffect(() => {
 		if (route === "gallery") return;
@@ -165,8 +167,10 @@ export function App() {
 		() =>
 			new Map<string, () => void>([
 				["workbench.commandPalette", () => openPalette()],
+				["editor.find", () => openFind("forward")],
+				["editor.replace", () => openFind("forward")],
 			]),
-		[openPalette],
+		[openPalette, openFind],
 	);
 
 	useEffect(() => {
@@ -175,7 +179,11 @@ export function App() {
 			getContext: () => {
 				const active = registry.getActive();
 				if (active) {
-					return { editorFocused: true, context: active.context };
+					return {
+						editorFocused: true,
+						vimEnabled: active.vimEnabled,
+						context: active.context,
+					};
 				}
 				return {
 					editorFocused: false,
@@ -197,10 +205,11 @@ export function App() {
 			},
 			onCommandError: () => setAnnouncement(t("palette.executionFailed")),
 			announce,
+			platform,
 		});
 		controller.attach(window);
 		return () => controller.dispose();
-	}, [snapshot, store, registry, t, uiCommandHandlers]);
+	}, [snapshot, store, registry, t, uiCommandHandlers, platform]);
 
 	const routePath = (next: Route) =>
 		next === "gallery"
@@ -306,6 +315,12 @@ export function App() {
 	const findSession = activeDocumentId
 		? findSessions[activeDocumentId]
 		: undefined;
+	const findAdapter = () => {
+		const documentSurface = registry
+			.list()
+			.find((surface) => surface.context.activeDocumentId === activeDocumentId);
+		return documentSurface?.adapter ?? registry.getActive()?.adapter;
+	};
 	const findWidget =
 		activeDocumentId && findSession?.open ? (
 			<FindOverlay
@@ -314,19 +329,13 @@ export function App() {
 				initialQuery={findSession.query}
 				initialReplacement={findSession.replacement}
 				onFind={(query, direction) =>
-					registry.getActive()?.adapter?.searchText?.(query, direction) ?? false
+					findAdapter()?.searchText?.(query, direction) ?? false
 				}
 				onReplace={(query, replacement) =>
-					Boolean(
-						registry
-							.getActive()
-							?.adapter?.replaceCurrentMatch?.(query, replacement),
-					)
+					Boolean(findAdapter()?.replaceCurrentMatch?.(query, replacement))
 				}
 				onReplaceAll={(query, replacement) =>
-					registry
-						.getActive()
-						?.adapter?.replaceAllMatches?.(query, replacement) ?? 0
+					findAdapter()?.replaceAllMatches?.(query, replacement) ?? 0
 				}
 				onQueryChange={(query) =>
 					setFindSessions((sessions) => ({
@@ -448,7 +457,12 @@ export function App() {
 
 				{paletteOpen && (
 					<CommandPalette
-						commands={snapshot?.commands ?? []}
+						commands={(snapshot?.commands ?? []).map((command) => ({
+							...command,
+							keybinding: command.keybinding
+								? formatChord(command.keybinding, platform)
+								: undefined,
+						}))}
 						initialQuery={paletteInitialQuery}
 						commandToken={paletteCommandToken}
 						onQueryChange={setPaletteQuery}

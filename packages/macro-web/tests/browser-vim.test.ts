@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { createBrowserVimController } from "../src/lib/browser-vim";
+import {
+	createBrowserVimController,
+	normalizeChordFromEvent,
+} from "../src/lib/browser-vim";
 
 describe("keymap-driven browser Vim controller", () => {
 	const defaultProfile = {
@@ -28,6 +31,23 @@ describe("keymap-driven browser Vim controller", () => {
 			extendRight: "l",
 		},
 	};
+
+	test("preserves Shift when normalizing primary browser chords", () => {
+		expect(
+			normalizeChordFromEvent(
+				{
+					key: "P",
+					ctrlKey: true,
+					metaKey: false,
+					shiftKey: true,
+					altKey: false,
+					preventDefault: () => undefined,
+					stopPropagation: () => undefined,
+				},
+				"windows",
+			),
+		).toBe("primary+shift+p");
+	});
 
 	test("claims supported mode transitions only when enabled", () => {
 		let text = "abc\ndef";

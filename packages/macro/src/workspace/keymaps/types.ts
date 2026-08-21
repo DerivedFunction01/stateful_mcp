@@ -4,7 +4,7 @@
 
 export const CANONICAL_KEYS = {
 	// ── Modifiers ─────────────────────────────────────────────────────────────
-	MODIFIERS: ["ctrl", "meta", "shift"] as const,
+	MODIFIERS: ["ctrl", "meta", "primary", "shift"] as const,
 
 	// ── Navigation & Control ──────────────────────────────────────────────────
 	NAVIGATION: [

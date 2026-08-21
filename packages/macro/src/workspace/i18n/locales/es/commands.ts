@@ -1,6 +1,8 @@
 export const ES_COMMANDS: Record<string, string> = {
 	// Default command labels (consumed via labelI18nKey)
 	"command.editor.save": "Guardar",
+	"command.editor.find": "Buscar",
+	"command.editor.replace": "Buscar y reemplazar",
 	"command.editor.executeLine": "Ejecutar línea",
 	"command.editor.splitLine": "Dividir línea",
 	"command.editor.insertLineBreak": "Insertar salto de línea",

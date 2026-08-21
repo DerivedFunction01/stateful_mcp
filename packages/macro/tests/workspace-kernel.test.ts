@@ -672,8 +672,32 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.normal.enterInsert).toBe("i");
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.sequences.deleteCell).toBe("dd");
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.window.openCommandPalette).toBe(
-				"ctrl+shift+p",
+				"primary+shift+p",
 			);
+			expect(
+				DEFAULT_EDITOR_KEYMAP_PROFILE.keybindings?.["editor.pinMacro"],
+			).toBeUndefined();
+			expect(
+				DEFAULT_EDITOR_KEYMAP_PROFILE.keybindings?.["editor.find"],
+			).toEqual(["primary+f"]);
+			const crossPlatformDefaults = [
+				"editor.save",
+				"editor.splitGroup",
+				"editor.nextTab",
+				"editor.prevTab",
+				"workbench.commandPalette",
+				"workbench.quickOpen",
+				"workbench.openSettings",
+			];
+			for (const command of crossPlatformDefaults) {
+				for (const chord of DEFAULT_EDITOR_KEYMAP_PROFILE.keybindings?.[
+					command
+				] ?? []) {
+					expect(chord.startsWith("ctrl+") || chord.startsWith("meta+")).toBe(
+						false,
+					);
+				}
+			}
 		});
 
 		test("matches character inputs and special chords accurately", () => {
@@ -694,6 +718,27 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 				}),
 			).toBe(true);
 			expect(chordMatches("meta+p", { char: "p", meta: true })).toBe(true);
+			expect(
+				chordMatches("primary+p", {
+					char: "p",
+					ctrl: true,
+					platform: "windows",
+				}),
+			).toBe(true);
+			expect(
+				chordMatches("primary+p", {
+					char: "p",
+					meta: true,
+					platform: "windows",
+				}),
+			).toBe(false);
+			expect(
+				chordMatches("primary+p", {
+					char: "p",
+					meta: true,
+					platform: "mac",
+				}),
+			).toBe(true);
 			expect(
 				chordMatches("ctrl+shift+r", { char: "r", ctrl: true, shift: true }),
 			).toBe(true);

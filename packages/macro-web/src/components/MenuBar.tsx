@@ -12,6 +12,7 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { formatChord, getBrowserShortcutPlatform } from "../lib/bindings";
 import { getEffectiveCommandShortcut } from "../lib/browser-workbench-defaults";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEME_IDS } from "../lib/theme";
@@ -40,6 +41,9 @@ export function MenuBar({
 	const { theme, themeId, setThemeId } = useTheme();
 	const [activeMenu, setActiveMenu] = useState<string | null>(null);
 	const menuBarRef = useRef<HTMLDivElement>(null);
+	const platform = getBrowserShortcutPlatform();
+	const displayShortcut = (shortcut: string | undefined) =>
+		shortcut ? formatChord(shortcut, platform) : undefined;
 
 	const toggleTheme = () => {
 		const currentIndex = WEB_THEME_IDS.indexOf(themeId);
@@ -48,24 +52,23 @@ export function MenuBar({
 		setThemeId(nextThemeId);
 	};
 
-	const paletteShortcut =
+	const paletteShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "workbench.openPalette") ??
-		getEffectiveCommandShortcut(snapshot, "workbench.commandPalette") ??
-		getEffectiveCommandShortcut(snapshot, "palette.open");
-	const saveShortcut =
+			getEffectiveCommandShortcut(snapshot, "workbench.commandPalette") ??
+			getEffectiveCommandShortcut(snapshot, "palette.open"),
+	);
+	const saveShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "workspace.saveActive") ??
-		getEffectiveCommandShortcut(snapshot, "editor.save");
-	const splitShortcut = getEffectiveCommandShortcut(
-		snapshot,
-		"editor.createSplitGroup",
+			getEffectiveCommandShortcut(snapshot, "editor.save"),
 	);
-	const sidepanelShortcut = getEffectiveCommandShortcut(
-		snapshot,
-		"workspace.toggleSidepanel",
+	const splitShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "editor.createSplitGroup"),
 	);
-	const newScratchpadShortcut = getEffectiveCommandShortcut(
-		snapshot,
-		"editor.newScratchpad",
+	const sidepanelShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "workspace.toggleSidepanel"),
+	);
+	const newScratchpadShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "editor.newScratchpad"),
 	);
 
 	useEffect(() => {

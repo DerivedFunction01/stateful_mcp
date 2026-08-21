@@ -72,19 +72,34 @@ export function matchEffectiveBindings(
 	mode?: string,
 	context: Readonly<Record<string, string | boolean | undefined>> = {},
 ): KeymapBindingDto | undefined {
-	const normalized = chord.trim().toLowerCase();
+	const normalized = normalizeSemanticChord(chord);
 	const finalChord = normalized.includes(" ")
 		? normalized.slice(normalized.lastIndexOf(" ") + 1)
 		: normalized;
 	return bindings.find(
 		(binding) =>
-			(!binding.modes ||
-				(mode !== undefined && binding.modes.includes(mode))) &&
+			(!binding.modes || mode === undefined || binding.modes.includes(mode)) &&
 			contextMatches(binding.when, context) &&
 			binding.chords.some(
-				(candidate) => candidate.toLowerCase() === finalChord,
+				(candidate) => normalizeSemanticChord(candidate) === finalChord,
 			),
 	);
+}
+
+/** Normalize only spelling/semantic aliases; explicit `meta` remains explicit. */
+export function normalizeSemanticChord(chord: string): string {
+	return chord
+		.trim()
+		.toLowerCase()
+		.split(/\s+/u)
+		.map((sequence) =>
+			sequence
+				.split("+")
+				.map((token) => token.trim())
+				.filter(Boolean)
+				.join("+"),
+		)
+		.join(" ");
 }
 
 export function contextMatches(

@@ -5,25 +5,31 @@ import { normalizeBrowserChord } from "../src/lib/bindings";
 describe("browser host binding pipeline", () => {
 	test("normalizes browser chords without hardcoded Vim actions", () => {
 		expect(
-			normalizeBrowserChord({
-				key: "K",
-				code: "KeyK",
-				ctrlKey: false,
-				metaKey: false,
-				altKey: false,
-				shiftKey: false,
-			}),
+			normalizeBrowserChord(
+				{
+					key: "K",
+					code: "KeyK",
+					ctrlKey: false,
+					metaKey: false,
+					altKey: false,
+					shiftKey: false,
+				},
+				"windows",
+			),
 		).toBe("k");
 		expect(
-			normalizeBrowserChord({
-				key: "ArrowUp",
-				code: "ArrowUp",
-				ctrlKey: true,
-				metaKey: false,
-				altKey: false,
-				shiftKey: false,
-			}),
-		).toBe("ctrl+up");
+			normalizeBrowserChord(
+				{
+					key: "ArrowUp",
+					code: "ArrowUp",
+					ctrlKey: true,
+					metaKey: false,
+					altKey: false,
+					shiftKey: false,
+				},
+				"windows",
+			),
+		).toBe("primary+up");
 	});
 
 	test("resolves arbitrary profile bindings to canonical commands", () => {

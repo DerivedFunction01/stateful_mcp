@@ -4,6 +4,11 @@ import type {
 	KeymapBindingDto,
 } from "@stateful-mcp/macro-protocol";
 import { matchEffectiveBindings } from "@stateful-mcp/macro-protocol";
+import {
+	getBrowserShortcutPlatform,
+	normalizeBrowserChord,
+	type ShortcutPlatform,
+} from "./bindings";
 import { createScratchpadEditorStore } from "./scratchpad-editor-state";
 
 export interface BrowserVimKeyboardEvent {
@@ -129,23 +134,19 @@ export type KeymapSource =
 
 export function normalizeChordFromEvent(
 	event: BrowserVimKeyboardEvent,
+	platform: ShortcutPlatform = getBrowserShortcutPlatform(),
 ): string {
-	const parts: string[] = [];
-	if (event.ctrlKey) parts.push("ctrl");
-	if (event.metaKey) parts.push("meta");
-	if (event.altKey) parts.push("alt");
-	if (event.shiftKey && event.key.length > 1) parts.push("shift");
-
-	const key = event.key;
-	if (key === "Escape") parts.push("escape");
-	else if (key === "Enter") parts.push("enter");
-	else if (key === "Tab") parts.push("tab");
-	else if (key === "Backspace") parts.push("backspace");
-	else if (key === " ") parts.push("space");
-	else if (parts.length > 0) parts.push(key.toLowerCase());
-	else parts.push(key);
-
-	return parts.join("+");
+	return normalizeBrowserChord(
+		{
+			key: event.key,
+			code: event.key,
+			ctrlKey: Boolean(event.ctrlKey),
+			metaKey: Boolean(event.metaKey),
+			altKey: Boolean(event.altKey),
+			shiftKey: Boolean(event.shiftKey),
+		},
+		platform,
+	);
 }
 
 export type VimVariant = "scratchpad" | "generic";
@@ -263,10 +264,20 @@ export function createBrowserVimController(
 				setMode("NORMAL");
 			}
 		},
-		handleKeyDown: (event) => {
+			handleKeyDown: (event) => {
 			if (!state.enabled) return false;
 
 			const chord = normalizeChordFromEvent(event);
+			const debugEditingKey =
+				event.key === "Enter" || event.key === "Tab";
+			if (debugEditingKey)
+				console.log("[browser-vim] editing keydown", {
+					key: event.key,
+					shiftKey: event.shiftKey,
+					chord,
+					mode: state.mode,
+					enabled: state.enabled,
+				});
 			const rawKey = event.key;
 			const keymap = options?.getKeymap?.();
 			const adapter = options?.getAdapter?.();
@@ -309,12 +320,21 @@ export function createBrowserVimController(
 							editorMode: state.mode,
 						})
 					: undefined;
+				if (debugEditingKey)
+					console.log("[browser-vim] insert-mode binding", {
+						chord,
+						matched,
+					});
 				if (matched?.command === "editor.splitLine") {
+					if (debugEditingKey)
+						console.log("[browser-vim] matched splitLine");
 					adapter?.splitCellAtCaret?.();
 					event.preventDefault();
 					return true;
 				}
 				if (matched?.command === "editor.insertLineBreak") {
+					if (debugEditingKey)
+						console.log("[browser-vim] matched insertLineBreak");
 					adapter?.insertTextAtCaret?.("\n");
 					event.preventDefault();
 					return true;
@@ -325,6 +345,10 @@ export function createBrowserVimController(
 					return true;
 				}
 				if (rawKey === "Enter" || rawKey === "Tab") {
+					if (debugEditingKey)
+						console.log("[browser-vim] suppressing unmapped insert key", {
+							rawKey,
+						});
 					event.preventDefault();
 					return true;
 				}

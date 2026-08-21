@@ -4,7 +4,12 @@ import {
 	matchEffectiveBindings,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
-import { normalizeBrowserChord } from "./bindings";
+import {
+	formatChord,
+	getBrowserShortcutPlatform,
+	normalizeBrowserChord,
+	type ShortcutPlatform,
+} from "./bindings";
 import { auditKeymapPolicy, classifyChord } from "./browser-shortcut-policy";
 
 export type BindingContextId =
@@ -41,11 +46,13 @@ export interface KeymapControllerOptions {
 	readonly getContext: () => {
 		readonly context: KeymapBindingContextDto;
 		readonly editorFocused: boolean;
+		readonly vimEnabled?: boolean;
 	};
 	readonly onCommand: (command: string) => Promise<void> | void;
 	readonly onEditorKeyDown?: (event: KeyboardEvent) => boolean;
 	readonly onCommandError?: (error: unknown) => void;
 	readonly announce?: (announcement: KeymapAnnouncement) => void;
+	readonly platform?: ShortcutPlatform;
 }
 
 const MULTI_CHORD_TIMEOUT_MS = 1200;
@@ -73,16 +80,18 @@ export class BrowserKeymapController {
 	private pendingChord: string | null = null;
 	private pendingTimer: ReturnType<typeof setTimeout> | undefined;
 	private disposed = false;
+	private readonly platform: ShortcutPlatform;
 
 	constructor(options: KeymapControllerOptions) {
 		this.options = options;
+		this.platform = options.platform ?? getBrowserShortcutPlatform();
 		this.handler = (event: KeyboardEvent) => this.onKeyDown(event);
 	}
 
 	attach(target: Window | HTMLElement = window): void {
 		this.attachedTarget = target;
 		target.addEventListener("keydown", this.handler as EventListener, true);
-		auditKeymapPolicy(this.options.getSnapshot());
+		auditKeymapPolicy(this.options.getSnapshot()?.keymap?.bindings ?? []);
 	}
 
 	dispose(): void {
@@ -101,24 +110,10 @@ export class BrowserKeymapController {
 		// `alt`/`Option` is not a first-class canonical modifier. Browser Alt
 		// combos are OS/chrome-owned; never treat them as Macro bindings.
 		if (event.altKey) return;
-		const chord = normalizeBrowserChord(event);
+		const chord = normalizeBrowserChord(event, this.platform);
 		if (!chord) return;
-
-		// Preserve native text editing unless an opted-in editor context claims
-		// the binding.
-		if (
-			isEditableTarget(event.target) &&
-			!this.options.getContext().editorFocused
-		)
-			return;
-		if (
-			this.options.getContext().editorFocused &&
-			this.options.onEditorKeyDown?.(event)
-		) {
-			event.preventDefault();
-			event.stopPropagation();
-			return;
-		}
+		const debugEditingKey =
+			event.key === "Enter" || event.key === "Tab";
 
 		if (event.key === "Escape") {
 			if (this.pendingChord) {
@@ -133,6 +128,40 @@ export class BrowserKeymapController {
 			: chord;
 
 		const resolved = this.resolveChord(combined);
+
+		// Preserve ordinary text editing in inputs that are not owned by an editor
+		// surface. Modifier chords are command-layer input, so they remain
+		// available for any resolved command without maintaining a command-name
+		// allowlist that would become stale as commands are added.
+		const editorContext = this.options.getContext();
+		const preserveNativeEditing =
+			!event.ctrlKey &&
+			!event.metaKey &&
+			((isEditableTarget(event.target) && !editorContext.editorFocused) ||
+				(editorContext.editorFocused && editorContext.vimEnabled === false));
+		if (debugEditingKey)
+			console.log("[browser-keymap] editing key", {
+				key: event.key,
+				shiftKey: event.shiftKey,
+				chord,
+				combined,
+				resolved,
+				editorFocused: editorContext.editorFocused,
+				vimEnabled: editorContext.vimEnabled,
+				preserveNativeEditing,
+				target: event.target,
+			});
+		if (preserveNativeEditing) {
+			return;
+		}
+		if (
+			this.options.getContext().editorFocused &&
+			this.options.onEditorKeyDown?.(event)
+		) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
 		if (resolved) {
 			this.clearPending();
 			this.dispatch(resolved, event, combined);
@@ -219,12 +248,16 @@ export class BrowserKeymapController {
 		chord: string,
 	): void {
 		const policy = classifyChord(chord);
+		const formatted = formatChord(chord, this.platform);
 		// Never claim browser/OS-reserved shortcuts; keep the visible fallback.
 		if (
 			policy.disposition === "browser-chrome" ||
 			policy.disposition === "platform-reserved"
 		) {
-			this.options.announce?.({ key: "shortcut.unavailable", chord });
+			this.options.announce?.({
+				key: "shortcut.unavailable",
+				chord: formatted,
+			});
 			return;
 		}
 		if (policy.disposition === "unknown") {
@@ -233,7 +266,7 @@ export class BrowserKeymapController {
 			// Macro even though the browser may intercept it.
 			this.options.announce?.({
 				key: resolved ? "shortcut.unmapped" : "shortcut.unavailable",
-				chord,
+				chord: formatted,
 				command: resolved.command,
 			});
 			return;
@@ -243,7 +276,10 @@ export class BrowserKeymapController {
 			event.stopPropagation();
 		}
 		if (policy.disposition === "conditional" || policy.nativeEditing) {
-			this.options.announce?.({ key: "shortcut.conditional", chord });
+			this.options.announce?.({
+				key: "shortcut.conditional",
+				chord: formatted,
+			});
 		}
 		void Promise.resolve(this.options.onCommand(resolved.command)).catch(
 			(error: unknown) => this.options.onCommandError?.(error),

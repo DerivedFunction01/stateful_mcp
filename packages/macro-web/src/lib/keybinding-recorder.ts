@@ -1,4 +1,4 @@
-import { normalizeBrowserChord } from "./bindings";
+import { getBrowserShortcutPlatform, normalizeBrowserChord } from "./bindings";
 import {
 	type BrowserShortcutPolicy,
 	classifyChord,
@@ -73,7 +73,8 @@ export function validateShortcutInput(
 				finish({ status: "cancelled", reason: "unrelated-input" });
 				return;
 			}
-			const chord = normalizeBrowserChord(event);
+			const platform = getBrowserShortcutPlatform();
+			const chord = normalizeBrowserChord(event, platform);
 			if (!chord) {
 				finish({ status: "cancelled", reason: "unrelated-input" });
 				return;

@@ -47,16 +47,15 @@ const VISUAL_BINDINGS = {
 } as const;
 
 const WORKBENCH_BINDINGS = {
-	openCommandPalette: "ctrl+shift+p",
-	quickOpen: "ctrl+p",
-	openSettings: "ctrl+,",
-	toggleSidepanel: "ctrl+b",
-	toggleDrawer: "ctrl+`",
-	splitGroup: "ctrl+\\",
-	switchSplitFocus: "ctrl+w",
-	nextTab: "ctrl+pagedown",
-	prevTab: "ctrl+pageup",
-	pinMacro: "meta+p",
+	openCommandPalette: "primary+shift+p",
+	quickOpen: "primary+p",
+	openSettings: "primary+,",
+	toggleSidepanel: "primary+b",
+	toggleDrawer: "primary+`",
+	splitGroup: "primary+\\",
+	switchSplitFocus: "primary+w",
+	nextTab: "primary+pagedown",
+	prevTab: "primary+pageup",
 } as const;
 
 /**

@@ -127,6 +127,18 @@ export const BUILTIN_COMMAND_DEFINITIONS: readonly BuiltinCommandDefinition[] =
 			category: "Editor",
 			description: "Create a new scratchpad buffer in the active group.",
 		},
+		{
+			command: "editor.find",
+			title: "Find",
+			category: "Editor",
+			description: "Open the editor find widget.",
+		},
+		{
+			command: "editor.replace",
+			title: "Find and Replace",
+			category: "Editor",
+			description: "Open the editor find and replace widget.",
+		},
 
 		// Workbench & Navigation
 		{
