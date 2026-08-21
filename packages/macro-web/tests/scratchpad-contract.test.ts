@@ -3,11 +3,10 @@ import { createDiagnosticHostClient } from "../src/dev/diagnostic-host-client";
 import { toScratchpadDiagnosticDto } from "../src/server/host-session-manager";
 
 describe("host-owned scratchpad projection", () => {
-	test("exposes revisioned text and projected line diagnostics", async () => {
+	test("exposes revisioned logical lines and projected diagnostics", async () => {
 		const snapshot = await createDiagnosticHostClient().getSnapshot();
 		expect(snapshot.editor.activeDocument).toEqual({
 			documentId: "fixture-document",
-			text: "",
 			textRevision: 0,
 			lines: [],
 		});

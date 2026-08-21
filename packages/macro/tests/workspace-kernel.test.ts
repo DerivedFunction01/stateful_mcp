@@ -187,6 +187,22 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(editor.getMode()).toBe("NORMAL");
 		});
 
+		test("keeps embedded newlines inside one logical line", () => {
+			const editor = new EditorKernel("^macro arg");
+			editor.setCursor(0, 6);
+			editor.insertText("\ncontinued");
+
+			expect(editor.getLineCount()).toBe(1);
+			expect(editor.getLine(0)).toBe("^macro\ncontinued arg");
+			expect(editor.getCursor()).toEqual({ line: 0, col: 16 });
+
+			editor.splitLine();
+			expect(editor.getLineCount()).toBe(2);
+			expect(editor.getLine(0)).toBe("^macro\ncontinued");
+			expect(editor.getLine(1)).toBe(" arg");
+			expect(editor.getCursor()).toEqual({ line: 1, col: 0 });
+		});
+
 		test("Modeless mouse interactions (click, drag, word-select, line-select)", () => {
 			const editor = new EditorKernel("first second third");
 			editor.clickAt(0, 7);
@@ -556,6 +572,20 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			const allReceipts = await session.executeAllValidLines();
 			expect(allReceipts).toHaveLength(2);
 			expect((allReceipts[1]?.result as any)!.dx).toBe("bronquitis");
+
+			const multilineBuffer = new EditorKernel();
+			multilineBuffer.setLines(["^evaluacion #asma\ncon #sibilancias"]);
+			const multilineSession = new ScratchpadSession(
+				runtime,
+				multilineBuffer,
+				10,
+			);
+			const multilineProjected = await multilineSession.parseAllLines();
+			expect(multilineProjected).toHaveLength(1);
+			expect(multilineProjected[0]?.rawText).toBe(
+				"^evaluacion #asma\ncon #sibilancias",
+			);
+			expect(multilineProjected[0]?.isValid).toBe(true);
 
 			// Pinned Macro Mode test
 			const pinnedBuffer = new CursorBuffer("#asma con #sibilancias");

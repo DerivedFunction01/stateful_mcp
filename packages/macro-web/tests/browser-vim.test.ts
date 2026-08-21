@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	type CellRange,
-	createBrowserVimController,
-} from "../src/lib/browser-vim";
+import { createBrowserVimController } from "../src/lib/browser-vim";
 
 describe("keymap-driven browser Vim controller", () => {
 	const defaultProfile = {
@@ -343,5 +340,109 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(controller.getState().mode).toBe("VISUAL");
 		expect(controller.getState().visualRange).toEqual({ start: 2, end: 3 });
 		expect(caret).toEqual({ cell: 3, column: 1 });
+	});
+
+	test("keeps insert-mode pointer targeting cellwise without entering visual mode", () => {
+		const event = (key: string) => ({
+			key,
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		let caret = { cell: 0, column: 0 };
+		const controller = createBrowserVimController(true, {
+			variant: "scratchpad",
+			getKeymap: () => defaultProfile,
+			getAdapter: () => ({
+				getCellCount: () => 4,
+				setCellCaret: (cell, column) => {
+					caret = { cell, column };
+				},
+				getText: () => "one\ntwo\nthree\nfour",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		controller.handleKeyDown(event("i"));
+		controller.setPointerTarget(2, 4, 3, true);
+
+		expect(controller.getState().mode).toBe("INSERT");
+		expect(controller.getState().activeCellIndex).toBe(2);
+		expect(controller.getState().caretColumn).toBe(3);
+		expect(controller.getState().visualRange).toBeNull();
+		expect(caret).toEqual({ cell: 2, column: 3 });
+	});
+
+	test("passes the logical cell and column when normal mode enters insert mode", () => {
+		const event = (key: string) => ({
+			key,
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		let focused: { cell?: number; column?: number } = {};
+		const controller = createBrowserVimController(true, {
+			variant: "scratchpad",
+			getKeymap: () => defaultProfile,
+			getAdapter: () => ({
+				getCellCount: () => 4,
+				setCellCaret: () => undefined,
+				focusCellForEdit: (cell, column) => {
+					focused = { cell, column };
+				},
+				getText: () => "one\ntwo\nthree\nfour",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		controller.setPointerTarget(2, 4, 2);
+		controller.handleKeyDown(event("i"));
+
+		expect(focused).toEqual({ cell: 2, column: 2 });
+		expect(controller.getState().mode).toBe("INSERT");
+	});
+
+	test("dispatches insert structural keys through effective keybindings", () => {
+		const prevented: string[] = [];
+		const inserted: string[] = [];
+		const controller = createBrowserVimController(true, {
+			variant: "scratchpad",
+			getKeymap: () => ({
+				bindings: [
+					{ command: "editor.enterInsert", chords: ["i"], modes: ["NORMAL"] },
+					{ command: "editor.insertTab", chords: ["tab"], modes: ["INSERT"] },
+				],
+			}),
+			getAdapter: () => ({
+				getCellCount: () => 1,
+				getCellText: () => "macro",
+				setCellCaret: () => undefined,
+				insertTextAtCaret: (text) => inserted.push(text),
+				getText: () => "macro",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		controller.handleKeyDown({
+			key: "i",
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+		const handled = controller.handleKeyDown({
+			key: "Tab",
+			preventDefault: () => prevented.push("tab"),
+			stopPropagation: () => undefined,
+		});
+
+		expect(handled).toBe(true);
+		expect(prevented).toEqual(["tab"]);
+		expect(inserted).toEqual(["\t"]);
 	});
 });

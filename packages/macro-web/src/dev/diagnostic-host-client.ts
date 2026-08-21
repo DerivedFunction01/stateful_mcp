@@ -90,7 +90,6 @@ export function createDiagnosticHostClient(): HostClient {
 			activeDocumentId: "fixture-document",
 			activeDocument: {
 				documentId: "fixture-document",
-				text: "",
 				textRevision: 0,
 				lines: [],
 			},

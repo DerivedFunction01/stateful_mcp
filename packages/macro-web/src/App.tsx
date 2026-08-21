@@ -300,8 +300,8 @@ export function App() {
 										.applyEditorOperation(operation)
 										.catch(() => undefined);
 								}}
-								onSetEditorDraft={(documentId, text) =>
-									store.setEditorDraft(documentId, text)
+								onSetEditorDraft={(documentId, lines) =>
+									store.setEditorDraft(documentId, lines)
 								}
 								onReloadEditorConflict={() => store.reloadEditorConflict()}
 								onOverwriteEditorConflict={() =>

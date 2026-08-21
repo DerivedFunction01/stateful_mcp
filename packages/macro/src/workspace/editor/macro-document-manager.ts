@@ -39,7 +39,7 @@ export interface MacroDocumentManagerOptions {
 
 export interface ReplaceDocumentTextRequest {
 	readonly documentId: string;
-	readonly text: string;
+	readonly lines: readonly string[];
 	readonly expectedTextRevision: number;
 }
 
@@ -211,8 +211,8 @@ export class MacroDocumentManager {
 				request.expectedTextRevision,
 				document.textRevision,
 			);
-		if (document.editor.getText() !== request.text) {
-			document.editor.setText(request.text);
+		if (!sameLines(document.editor.getLines(), request.lines)) {
+			document.editor.setLines(request.lines);
 			document.textRevision += 1;
 			document.dirty = true;
 			this.notify();
@@ -291,6 +291,13 @@ export class MacroDocumentManager {
 	private notify(): void {
 		for (const listener of this.listeners) listener();
 	}
+}
+
+function sameLines(left: readonly string[], right: readonly string[]): boolean {
+	return (
+		left.length === right.length &&
+		left.every((line, index) => line === right[index])
+	);
 }
 
 export class DocumentManagerError extends Error {

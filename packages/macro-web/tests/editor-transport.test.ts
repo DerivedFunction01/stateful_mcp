@@ -42,7 +42,7 @@ describe("Phase 7 editor transport", () => {
 			operation: "editor.replaceText",
 			requestId: "replace-document",
 			documentId,
-			text: "local text",
+			lines: ["local text"],
 			expectedTextRevision: 0,
 		});
 		expect(applied.status).toBe("accepted");
@@ -52,15 +52,15 @@ describe("Phase 7 editor transport", () => {
 			operation: "editor.replaceText",
 			requestId: "stale-replace",
 			documentId,
-			text: "older local text",
+			lines: ["older local text"],
 			expectedTextRevision: 0,
 		});
 		expect(stale.status).toBe("conflict");
 		expect(stale.code).toBe("EDITOR_REVISION_STALE");
 		if (stale.status === "conflict") expect(stale.actualTextRevision).toBe(1);
-		expect(stale.workspaceSnapshot?.editor.activeDocument?.text).toBe(
-			"local text",
-		);
+		expect(
+			stale.workspaceSnapshot?.editor.activeDocument?.lines[0]?.rawText,
+		).toBe("local text");
 
 		const lineRejected = await sessions.editor(initial.sessionId, {
 			operation: "editor.executeLine",
@@ -105,7 +105,7 @@ describe("Phase 7 editor transport", () => {
 			operation: "editor.replaceText",
 			requestId: "correlated-replace",
 			documentId,
-			text: "host event text",
+			lines: ["host event text"],
 			expectedTextRevision: 0,
 		});
 

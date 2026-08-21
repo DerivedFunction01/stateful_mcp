@@ -724,7 +724,7 @@ export class HostSessionManager {
 						);
 					const updated = documents.replaceText({
 						documentId: operation.documentId,
-						text: operation.text,
+						lines: operation.lines,
 						expectedTextRevision: operation.expectedTextRevision,
 					});
 					await updated.session.parseAllLines();
@@ -1125,7 +1125,6 @@ export class HostSessionManager {
 		);
 		return {
 			documentId: document.documentId,
-			text: document.editor.getText(),
 			textRevision: document.textRevision,
 			lines,
 			...(projections.length > 0 ? { projections } : {}),

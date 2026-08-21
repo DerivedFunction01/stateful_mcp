@@ -1,4 +1,8 @@
-import type { SettingsPreviewDto } from "@stateful-mcp/macro-protocol";
+import type {
+	EditorMode,
+	ScratchpadLineDto,
+	SettingsPreviewDto,
+} from "@stateful-mcp/macro-protocol";
 import { CheckCircle2, Code2, Palette, Terminal, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createDiagnosticHostClient } from "../dev/diagnostic-host-client";
@@ -6,6 +10,7 @@ import type { HostWorkspaceSnapshot } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEMES } from "../lib/theme";
 import { BrowserEditorFixture } from "./BrowserEditorFixture";
+import { EditorSurfaceView } from "./EditorSurfaceView";
 import {
 	Badge,
 	Button,
@@ -107,6 +112,7 @@ export function Gallery() {
 				<Card title="Editor contexts" action={<Terminal size={17} />}>
 					<BrowserEditorFixture />
 				</Card>
+				<ScratchpadVisualStory />
 				<Card title="Theme swatches">
 					<div className="swatch-grid">
 						{[
@@ -129,6 +135,122 @@ export function Gallery() {
 				<HostStory />
 				<SettingsPreviewStory />
 			</div>
+		</div>
+	);
+}
+
+const GALLERY_SCRATCHPAD_LINES: readonly ScratchpadLineDto[] = [
+	{
+		lineNumber: 1,
+		rawText: "test",
+		lineStatus: "non-macro",
+		diagnostics: [],
+	},
+	{
+		lineNumber: 2,
+		rawText: "harry potter 12/31/2025\nadditional borrow input\ncontinuation",
+		macroName: "borrow",
+		lineStatus: "valid",
+		diagnostics: [],
+	},
+	{
+		lineNumber: 3,
+		rawText: "^other_macro argument\ncontinuation",
+		macroName: "other_macro",
+		lineStatus: "valid",
+		diagnostics: [],
+	},
+	{
+		lineNumber: 4,
+		rawText: "",
+		lineStatus: "empty",
+		diagnostics: [],
+	},
+	{
+		lineNumber: 5,
+		rawText: "invalid input",
+		lineStatus: "invalid",
+		diagnostics: [
+			{
+				severity: "error",
+				message: "Example diagnostic for the gallery",
+			},
+		],
+	},
+];
+
+function ScratchpadVisualStory() {
+	return (
+		<Card
+			title="Scratchpad visual states"
+			action={<Badge tone="info">logical cells / visual rows</Badge>}
+		>
+			<div className="gallery-scratchpad-grid">
+				<ScratchpadModePreview
+					label="Insert mode · pinned multiline cell"
+					mode="INSERT"
+					activeCellIndex={1}
+				/>
+				<ScratchpadModePreview
+					label="Normal mode · active cell"
+					mode="NORMAL"
+					activeCellIndex={2}
+				/>
+				<ScratchpadModePreview
+					label="Visual mode · cell range"
+					mode="VISUAL"
+					activeCellIndex={2}
+					selectedCellRange={{ start: 1, end: 2 }}
+				/>
+				<ScratchpadModePreview
+					label="Command mode · editor preserved"
+					mode="COMMAND"
+					activeCellIndex={0}
+				/>
+				<ScratchpadModePreview
+					label="Native editing · no Vim owner"
+					mode="INSERT"
+					activeCellIndex={undefined}
+					vimEnabled={false}
+				/>
+			</div>
+		</Card>
+	);
+}
+
+function ScratchpadModePreview({
+	label,
+	mode,
+	activeCellIndex,
+	selectedCellRange,
+	vimEnabled = true,
+}: {
+	readonly label: string;
+	readonly mode: EditorMode;
+	readonly activeCellIndex?: number;
+	readonly selectedCellRange?: { start: number; end: number };
+	readonly vimEnabled?: boolean;
+}) {
+	return (
+		<div className="gallery-scratchpad-preview">
+			<strong>{label}</strong>
+			<EditorSurfaceView
+				documentId={`gallery-scratchpad-${label}`}
+				lines={GALLERY_SCRATCHPAD_LINES}
+				pinnedMacroIds={["borrow"]}
+				vimEnabled={vimEnabled}
+				vimMode={mode}
+				activeCellIndex={activeCellIndex}
+				selectedCellRange={selectedCellRange}
+				onTextChange={() => undefined}
+				onFocusChange={() => undefined}
+				onCursorChange={() => undefined}
+				onPointerTarget={() => undefined}
+				onKeyDown={() => false}
+				onExecuteLine={() => undefined}
+				onExecuteRange={() => undefined}
+				onPinMacro={() => undefined}
+			/>
 		</div>
 	);
 }

@@ -1,7 +1,9 @@
-import type { ScratchpadLineDto } from "@stateful-mcp/macro-protocol";
+import type {
+	EditorMode,
+	ScratchpadLineDto,
+} from "@stateful-mcp/macro-protocol";
 import { AlertTriangle, Check, Circle, Pin, Play } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
-import type { EditorMode } from "@stateful-mcp/macro-protocol";
 import type {
 	BrowserEditorSurfaceAdapter,
 	BrowserVimKeyboardEvent,
@@ -16,16 +18,15 @@ export interface EditorSurfaceViewHandle {
 
 export interface EditorSurfaceViewProps {
 	readonly documentId: string;
-	readonly text: string;
 	readonly lines: readonly ScratchpadLineDto[];
-	readonly draft?: string;
+	readonly draft?: readonly string[];
 	readonly pinnedMacroIds?: readonly string[];
 	readonly disabled?: boolean;
 	readonly activeCellIndex?: number;
 	readonly selectedCellRange?: CellRange | null;
 	readonly vimEnabled?: boolean;
 	readonly vimMode?: EditorMode;
-	readonly onTextChange: (text: string) => void;
+	readonly onTextChange: (lines: readonly string[]) => void;
 	readonly onFocusChange?: (focused: boolean) => void;
 	readonly onCursorChange?: (cursor: string) => void;
 	readonly onPointerTarget?: (
@@ -45,14 +46,56 @@ function normalizeText(text: string): string {
 }
 
 function textFromSurface(element: HTMLElement): string {
+	return linesFromSurface(element).join("\n");
+}
+
+function linesFromSurface(element: HTMLElement): string[] {
 	const blocks = [...element.children].filter(
 		(child): child is HTMLElement => child instanceof HTMLElement,
 	);
-	return normalizeText(
-		(blocks.length ? blocks : [element])
-			.map((block) => block.textContent ?? "")
-			.join("\n"),
+	return (blocks.length ? blocks : [element]).map((block) =>
+		normalizeText(block.textContent ?? ""),
 	);
+}
+
+export interface EditorVisualRow {
+	readonly logicalLineIndex: number;
+	readonly segmentIndex: number;
+	readonly displayLineNumber: number;
+	readonly text: string;
+	readonly isCellStart: boolean;
+	readonly isCellEnd: boolean;
+}
+
+export function createEditorVisualRows(
+	lines: readonly string[],
+): readonly EditorVisualRow[] {
+	const rows: EditorVisualRow[] = [];
+	for (const [logicalLineIndex, line] of lines.entries()) {
+		const segments = normalizeText(line).split("\n");
+		segments.forEach((text, segmentIndex) => {
+			rows.push({
+				logicalLineIndex,
+				segmentIndex,
+				displayLineNumber: rows.length + 1,
+				text,
+				isCellStart: segmentIndex === 0,
+				isCellEnd: segmentIndex === segments.length - 1,
+			});
+		});
+	}
+	return rows.length > 0
+		? rows
+		: [
+				{
+					logicalLineIndex: 0,
+					segmentIndex: 0,
+					displayLineNumber: 1,
+					text: "",
+					isCellStart: true,
+					isCellEnd: true,
+				},
+			];
 }
 
 function offsetAtPoint(root: HTMLElement, node: Node, offset: number): number {
@@ -85,9 +128,7 @@ function getActiveLineAndCol(root: HTMLElement): {
 		const lineIdx = Array.prototype.indexOf.call(root.children, node);
 		if (lineIdx !== -1) {
 			const col =
-				range.endContainer.nodeType === Node.TEXT_NODE
-					? range.endOffset
-					: 0;
+				range.endContainer.nodeType === Node.TEXT_NODE ? range.endOffset : 0;
 			return { lineIdx, col };
 		}
 	}
@@ -132,20 +173,68 @@ function setLineAndCol(root: HTMLElement, lineIdx: number, col = 0): void {
 	selection?.addRange(range);
 }
 
+function insertTextAtSelection(
+	root: HTMLElement,
+	text: string,
+): string[] | null {
+	const selection = window.getSelection();
+	if (!selection || selection.rangeCount === 0) return null;
+	const range = selection.getRangeAt(0);
+	if (!root.contains(range.commonAncestorContainer)) return null;
+	range.deleteContents();
+	const node = document.createTextNode(text);
+	range.insertNode(node);
+	range.setStartAfter(node);
+	range.collapse(true);
+	selection.removeAllRanges();
+	selection.addRange(range);
+	return linesFromSurface(root);
+}
+
+function splitCellAtSelection(root: HTMLElement): string[] | null {
+	const { lineIdx, col } = getActiveLineAndCol(root);
+	const block = root.children[lineIdx] as HTMLElement | undefined;
+	if (!block) return null;
+	const text = block.textContent ?? "";
+	const splitAt = Math.max(0, Math.min(text.length, col));
+	const before = text.slice(0, splitAt);
+	const after = text.slice(splitAt);
+	block.textContent = before;
+	if (!before) block.appendChild(document.createElement("br"));
+	const next = document.createElement("div");
+	next.className = "editor-line-row";
+	next.dataset.editorLine = String(lineIdx + 2);
+	next.textContent = after;
+	if (!after) next.appendChild(document.createElement("br"));
+	block.after(next);
+	[...root.children].forEach((child, index) => {
+		if (child instanceof HTMLElement)
+			child.dataset.editorLine = String(index + 1);
+	});
+	setLineAndCol(root, lineIdx + 1, 0);
+	return linesFromSurface(root);
+}
+
 function pointerPosition(
 	root: HTMLElement,
 	event: React.PointerEvent<HTMLElement>,
 ): { lineIdx: number; col: number } {
 	const target = event.target instanceof Element ? event.target : null;
-	const line = target?.closest<HTMLElement>(".editor-line-row, [data-line-number]");
+	const line = target?.closest<HTMLElement>(
+		".editor-line-row, [data-line-number]",
+	);
+	const cell = target?.closest<HTMLElement>("[data-cell-index]");
 	const targetLineIdx = line?.classList.contains("editor-line-row")
 		? Number(line.dataset.editorLine ?? 1) - 1
 		: Number(line?.dataset.lineNumber ?? 1) - 1;
-	const lineIdx = line
-		? targetLineIdx
-		: Math.floor(
-				(event.clientY - root.getBoundingClientRect().top - 10) / 24,
-			);
+	const lineIdx =
+		cell?.dataset.cellIndex !== undefined
+			? Number(cell.dataset.cellIndex)
+			: line
+				? targetLineIdx
+				: Math.floor(
+						(event.clientY - root.getBoundingClientRect().top - 10) / 24,
+					);
 	const fallback = { lineIdx: Math.max(0, lineIdx), col: 0 };
 	const documentWithCaret = document as Document & {
 		caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -155,10 +244,11 @@ function pointerPosition(
 		event.clientY,
 	);
 	if (!range || !root.contains(range.startContainer)) return fallback;
-	let block: HTMLElement | null =
+	const block: HTMLElement | null =
 		range.startContainer instanceof Element
 			? range.startContainer.closest(".editor-line-row")
-			: range.startContainer.parentElement?.closest(".editor-line-row") ?? null;
+			: (range.startContainer.parentElement?.closest(".editor-line-row") ??
+				null);
 	if (!block) return fallback;
 	const local = document.createRange();
 	local.selectNodeContents(block);
@@ -171,7 +261,6 @@ function pointerPosition(
 
 export function EditorSurfaceView({
 	documentId,
-	text,
 	lines,
 	draft,
 	pinnedMacroIds = [],
@@ -195,9 +284,12 @@ export function EditorSurfaceView({
 	const focusedRef = useRef(false);
 	const lastRenderedText = useRef<string | undefined>(undefined);
 	const [activeLineNumber, setActiveLineNumber] = useState<number>(1);
-	const sourceText = draft ?? text;
-	const textLines = sourceText.split("\n");
-	const totalLineCount = Math.max(textLines.length, lines.length, 1);
+	const sourceLines = draft ?? lines.map((line) => line.rawText);
+	const visualRows = createEditorVisualRows(sourceLines);
+	const totalVisualLineCount = visualRows.length;
+	const visualRowsByCell = sourceLines.map((_, logicalLineIndex) =>
+		visualRows.filter((row) => row.logicalLineIndex === logicalLineIndex),
+	);
 	const pointerDownRef = useRef<number | null>(null);
 	const vimOwnsCaret = vimEnabled && vimMode !== "INSERT";
 
@@ -214,9 +306,10 @@ export function EditorSurfaceView({
 	useEffect(() => {
 		const root = rootRef.current;
 		if (!root || focusedRef.current) return;
-		if (lastRenderedText.current === sourceText) return;
+		const sourceKey = JSON.stringify(sourceLines);
+		if (lastRenderedText.current === sourceKey) return;
 		root.replaceChildren(
-			...sourceText.split("\n").map((line, index) => {
+			...sourceLines.map((line, index) => {
 				const block = document.createElement("div");
 				block.className = "editor-line-row";
 				block.dataset.editorLine = String(index + 1);
@@ -228,45 +321,59 @@ export function EditorSurfaceView({
 				return block;
 			}),
 		);
-		lastRenderedText.current = sourceText;
-	}, [sourceText]);
+		lastRenderedText.current = sourceKey;
+	}, [sourceLines]);
 
 	return (
 		<div
 			className="editor-surface-view"
 			data-document-id={documentId}
 			onPointerDown={(event) => {
-			const authored = rootRef.current;
-			if (!authored) return;
-			const target = event.target instanceof Element ? event.target : null;
-			if (target?.closest("button, a, input, textarea, select")) return;
-			const point = pointerPosition(authored, event);
-			pointerDownRef.current = event.pointerId;
-			event.currentTarget.setPointerCapture?.(event.pointerId);
-			if (vimOwnsCaret) {
+				const authored = rootRef.current;
+				if (!authored) return;
+				const target = event.target instanceof Element ? event.target : null;
+				if (target?.closest("button, a, input, textarea, select")) return;
+				const point = pointerPosition(authored, event);
+				pointerDownRef.current = event.pointerId;
+				event.currentTarget.setPointerCapture?.(event.pointerId);
+				if (vimOwnsCaret) {
+					event.preventDefault();
+					authored.focus();
+				}
+				if (vimEnabled) {
+					onPointerTarget?.(point.lineIdx, point.col, false);
+				}
+				if (!vimOwnsCaret && !authored.contains(event.target as Node)) {
+					authored.focus();
+				}
+			}}
+			onPointerMove={(event) => {
+				if (pointerDownRef.current !== event.pointerId || !vimOwnsCaret) return;
+				const authored = rootRef.current;
+				if (!authored) return;
+				const point = pointerPosition(authored, event);
 				event.preventDefault();
-				onPointerTarget?.(point.lineIdx, point.col, false);
-				authored.focus();
-			} else if (!authored.contains(event.target as Node)) {
-				authored.focus();
-			}
-		}}
-		onPointerMove={(event) => {
-			if (pointerDownRef.current !== event.pointerId || !vimOwnsCaret) return;
-			const authored = rootRef.current;
-			if (!authored) return;
-			const point = pointerPosition(authored, event);
-			event.preventDefault();
-			onPointerTarget?.(point.lineIdx, point.col, true);
-		}}
-		onPointerUp={(event) => {
-			if (pointerDownRef.current === event.pointerId)
+				onPointerTarget?.(point.lineIdx, point.col, true);
+			}}
+			onPointerUp={(event) => {
+				if (
+					pointerDownRef.current === event.pointerId &&
+					vimEnabled &&
+					vimMode === "INSERT"
+				) {
+					const authored = rootRef.current;
+					if (authored) {
+						const point = pointerPosition(authored, event);
+						onPointerTarget?.(point.lineIdx, point.col, false);
+					}
+				}
+				if (pointerDownRef.current === event.pointerId)
+					pointerDownRef.current = null;
+				event.currentTarget.releasePointerCapture?.(event.pointerId);
+			}}
+			onPointerCancel={() => {
 				pointerDownRef.current = null;
-			event.currentTarget.releasePointerCapture?.(event.pointerId);
-		}}
-		onPointerCancel={() => {
-			pointerDownRef.current = null;
-		}}
+			}}
 		>
 			<div className="editor-canvas">
 				{/* Lined Cells Container: Hybrid Jupyter/Editor per-cell companion layout */}
@@ -291,11 +398,15 @@ export function EditorSurfaceView({
 							onFocusChange?.(false);
 						}}
 						onKeyDown={(event) => {
-							if (onKeyDown?.(event)) event.preventDefault();
+							const handled = onKeyDown?.(event) ?? false;
+							if (handled) {
+								event.preventDefault();
+								if (vimMode === "INSERT") updateCursor();
+							}
 						}}
 						onInput={() => {
-							const next = textFromSurface(rootRef.current!);
-							lastRenderedText.current = next;
+							const next = linesFromSurface(rootRef.current!);
+							lastRenderedText.current = JSON.stringify(next);
 							onTextChange(next);
 							updateCursor();
 						}}
@@ -306,14 +417,13 @@ export function EditorSurfaceView({
 
 					{/* Synchronized Gutter & Per-Cell Companion Outputs */}
 					<div className="editor-cell-decorations" aria-hidden="true">
-						{Array.from({ length: totalLineCount }).map((_, index) => {
-							const lineNum = index + 1;
-							const cellIdx = index;
-							const lineDto = lines.find((l) => l.lineNumber === lineNum);
+						{sourceLines.map((_, cellIdx) => {
+							const cellRows = visualRowsByCell[cellIdx] ?? [];
+							const lineDto = lines.find((l) => l.lineNumber === cellIdx + 1);
 							const isLineActive =
 								activeCellIndex !== undefined
 									? activeCellIndex === cellIdx
-									: activeLineNumber === lineNum;
+									: activeLineNumber === cellIdx + 1;
 							const isCellSelected =
 								selectedCellRangeProp !== null &&
 								cellIdx >=
@@ -327,8 +437,7 @@ export function EditorSurfaceView({
 										selectedCellRangeProp.end,
 									);
 							const isVisualEndpoint =
-								selectedCellRangeProp !== null &&
-								activeCellIndex === cellIdx;
+								selectedCellRangeProp !== null && activeCellIndex === cellIdx;
 							const diagnostic = lineDto?.diagnostics?.[0];
 							const projectionText =
 								lineDto?.preview?.text ?? lineDto?.executionPreview?.text;
@@ -349,36 +458,56 @@ export function EditorSurfaceView({
 
 							return (
 								<div
-									key={lineNum}
-									className={`editor-cell-unit ${isLineActive ? "active" : ""} ${isCellSelected ? "cell-selected" : ""} ${lineDto?.lineStatus ?? "normal"} ${hasOutput ? "has-output" : ""}`}
+									key={cellIdx}
+									className={`editor-cell-unit ${isLineActive ? "active" : ""} ${isCellSelected ? "cell-selected" : ""} ${isPinned ? "pinned" : ""} ${lineDto?.lineStatus ?? "normal"} ${hasOutput ? "has-output" : ""}`}
 									data-cell-index={cellIdx}
-									data-line-number={lineNum}
+									data-logical-line-number={cellIdx + 1}
+									data-visual-rows={cellRows.length}
+									style={{
+										minHeight: `${Math.max(1, cellRows.length) * 24}px`,
+									}}
 								>
-									{/* Gutter cell aligned with the authored text line */}
-									<div className="editor-cell-gutter">
-										<span className="gutter-marker">
-											{isVisualEndpoint ? "▌" : isLineActive ? "▎" : isCellSelected ? "│" : " "}
-										</span>
-										<span
-											className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : (lineDto?.lineStatus ?? "")}`}
-										>
-											{hasError ? (
-												<AlertTriangle size={12} />
-											) : isPinned ? (
-												<Pin size={12} />
-											) : isValid ? (
-												<Check size={12} />
-											) : isLineActive ? (
-												<Circle size={7} fill="currentColor" />
-											) : null}
-										</span>
-										<span className="gutter-number">
-											{String(lineNum).padStart(
-												Math.max(2, String(totalLineCount).length),
-												"0",
-											)}
-										</span>
-										<span className="gutter-border">│</span>
+									{/* One physical gutter row per visual segment; the cell unit remains logical. */}
+									<div className="editor-cell-gutter-rows">
+										{cellRows.map((row) => (
+											<div
+												key={row.displayLineNumber}
+												className={`editor-cell-gutter ${row.isCellStart ? "cell-start" : "cell-continuation"}`}
+												data-line-number={row.displayLineNumber}
+											>
+												<span className="gutter-marker">
+													{row.isCellStart
+														? isVisualEndpoint
+															? "▌"
+															: isLineActive
+																? "▎"
+																: isCellSelected
+																	? "│"
+																	: " "
+														: isLineActive || isCellSelected
+															? "│"
+															: " "}
+												</span>
+												<span
+													className={`gutter-sign ${hasError ? "error" : isPinned ? "pinned" : (lineDto?.lineStatus ?? "")}`}
+												>
+													{row.isCellStart && hasError ? (
+														<AlertTriangle size={12} />
+													) : row.isCellStart && isValid ? (
+														<Check size={12} />
+													) : row.isCellStart && isLineActive ? (
+														<Circle size={7} fill="currentColor" />
+													) : null}
+												</span>
+												<span className="gutter-number">
+													{String(row.displayLineNumber).padStart(
+														Math.max(2, String(totalVisualLineCount).length),
+														"0",
+													)}
+												</span>
+												<span className="gutter-border">│</span>
+											</div>
+										))}
 									</div>
 
 									{/* Per-line Companion Cell Output (Hybrid Jupyter Output) */}
@@ -422,7 +551,7 @@ export function EditorSurfaceView({
 															title={t("editor.runCell")}
 															onClick={(e) => {
 																e.stopPropagation();
-																onExecuteLine?.(lineNum);
+																onExecuteLine?.(cellIdx + 1);
 															}}
 														>
 															<Play size={12} />
@@ -444,7 +573,7 @@ export function EditorSurfaceView({
 
 export function getEditorSurfaceAdapter(
 	element: HTMLElement | null,
-	onTextChange: (text: string) => void,
+	onTextChange: (lines: readonly string[]) => void,
 	options?: {
 		readonly getSelectedCellRange?: () => CellRange | null;
 		readonly setSelectedCellRange?: (range: CellRange | null) => void;
@@ -457,7 +586,7 @@ export function getEditorSurfaceAdapter(
 	let currentCellIdx = 0;
 	let currentCol = 0;
 
-	const getFullLines = () => textFromSurface(element).split("\n");
+	const getFullLines = () => linesFromSurface(element);
 
 	const syncFromDom = () => {
 		const res = getActiveLineAndCol(element);
@@ -484,6 +613,7 @@ export function getEditorSurfaceAdapter(
 			setLineAndCol(element, currentCellIdx, currentCol);
 		},
 		getCellCount: () => getFullLines().length,
+		getCellText: (index: number) => getFullLines()[index] ?? "",
 
 		getSelectedCellRange: () =>
 			options?.getSelectedCellRange
@@ -538,11 +668,11 @@ export function getEditorSurfaceAdapter(
 			if (targetIdx < 0 || targetIdx >= lines.length) return "";
 			const deleted = lines[targetIdx] ?? "";
 			if (lines.length <= 1) {
-				onTextChange("");
+				onTextChange([""]);
 				setLineAndCol(element, 0, 0);
 			} else {
 				lines.splice(targetIdx, 1);
-				onTextChange(lines.join("\n"));
+				onTextChange(lines);
 				setLineAndCol(element, Math.min(targetIdx, lines.length - 1), 0);
 			}
 			return deleted;
@@ -554,8 +684,7 @@ export function getEditorSurfaceAdapter(
 			const maxIdx = Math.min(lines.length - 1, Math.max(start, end));
 			const count = maxIdx - minIdx + 1;
 			const deletedLines = lines.splice(minIdx, count);
-			const newText = lines.length > 0 ? lines.join("\n") : "";
-			onTextChange(newText);
+			onTextChange(lines);
 			setLineAndCol(
 				element,
 				Math.min(minIdx, Math.max(0, lines.length - 1)),
@@ -582,8 +711,18 @@ export function getEditorSurfaceAdapter(
 			const lines = getFullLines();
 			const insertIdx = position === "below" ? lineIdx + 1 : lineIdx;
 			lines.splice(insertIdx, 0, text);
-			onTextChange(lines.join("\n"));
+			onTextChange(lines);
 			setLineAndCol(element, insertIdx, 0);
+		},
+
+		splitCellAtCaret: () => {
+			const next = splitCellAtSelection(element);
+			if (next) onTextChange(next);
+		},
+
+		insertTextAtCaret: (text: string) => {
+			const next = insertTextAtSelection(element, text);
+			if (next) onTextChange(next);
 		},
 
 		pasteCell: (text: string, position: "above" | "below") => {
@@ -592,7 +731,7 @@ export function getEditorSurfaceAdapter(
 			const pasteLines = text.split("\n");
 			const insertIdx = position === "below" ? lineIdx + 1 : lineIdx;
 			lines.splice(insertIdx, 0, ...pasteLines);
-			onTextChange(lines.join("\n"));
+			onTextChange(lines);
 			setLineAndCol(element, insertIdx, 0);
 		},
 
@@ -602,13 +741,12 @@ export function getEditorSurfaceAdapter(
 			const maxIdx = Math.min(lines.length - 1, Math.max(start, end));
 			const replacement = text.split("\n");
 			lines.splice(minIdx, maxIdx - minIdx + 1, ...replacement);
-			onTextChange(lines.join("\n"));
+			onTextChange(lines);
 			setLineAndCol(element, minIdx, 0);
 		},
 
 		executeCell: (index?: number) => {
-			const targetLine =
-				(index ?? getActiveLineAndCol(element).lineIdx) + 1;
+			const targetLine = (index ?? getActiveLineAndCol(element).lineIdx) + 1;
 			options?.onExecuteLine?.(targetLine);
 		},
 
@@ -618,8 +756,8 @@ export function getEditorSurfaceAdapter(
 			options?.onExecuteRange?.(startLine, endLine);
 		},
 
-		focusCellForEdit: (index?: number) => {
-			if (index !== undefined) setLineAndCol(element, index, 0);
+		focusCellForEdit: (index?: number, column?: number) => {
+			if (index !== undefined) setLineAndCol(element, index, column ?? 0);
 			element.focus();
 		},
 
@@ -655,7 +793,10 @@ export function getEditorSurfaceAdapter(
 			}
 			const currentPos = offset + col;
 			const next = `${current.slice(0, currentPos)}${text}${current.slice(currentPos)}`;
-			onTextChange(next);
+			const currentLines = getFullLines();
+			currentLines[lineIdx] =
+				`${currentLines[lineIdx]?.slice(0, col) ?? ""}${text}${currentLines[lineIdx]?.slice(col) ?? ""}`;
+			onTextChange(currentLines);
 		},
 		moveLine: (delta: -1 | 1) => {
 			const { lineIdx, col } = getActiveLineAndCol(element);
@@ -673,11 +814,11 @@ export function getEditorSurfaceAdapter(
 			const { lineIdx } = getActiveLineAndCol(element);
 			const lines = getFullLines();
 			if (lines.length <= 1) {
-				onTextChange("");
+				onTextChange([""]);
 				setLineAndCol(element, 0, 0);
 			} else {
 				lines.splice(lineIdx, 1);
-				onTextChange(lines.join("\n"));
+				onTextChange(lines);
 				setLineAndCol(element, Math.min(lineIdx, lines.length - 1), 0);
 			}
 		},
@@ -686,7 +827,7 @@ export function getEditorSurfaceAdapter(
 			const lines = getFullLines();
 			const insertIdx = position === "below" ? lineIdx + 1 : lineIdx;
 			lines.splice(insertIdx, 0, "");
-			onTextChange(lines.join("\n"));
+			onTextChange(lines);
 			setLineAndCol(element, insertIdx, 0);
 		},
 		focus: () => element.focus(),

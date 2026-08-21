@@ -104,7 +104,6 @@ export interface EditorOutputSnapshotDto {
 
 export interface ScratchpadSnapshotDto {
 	readonly documentId: string;
-	readonly text: string;
 	readonly textRevision: number;
 	readonly lines: readonly ScratchpadLineDto[];
 	readonly projections?: readonly ScratchpadProjectionDto[];
@@ -173,7 +172,7 @@ export type EditorOperation =
 	| (EditorRequestBase & {
 			readonly operation: "editor.replaceText";
 			readonly documentId: string;
-			readonly text: string;
+			readonly lines: readonly string[];
 			readonly expectedTextRevision: number;
 	  })
 	| (EditorRequestBase & {

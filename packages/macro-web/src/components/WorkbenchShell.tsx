@@ -58,10 +58,10 @@ export function WorkbenchShell({
 	readonly status?: string;
 	readonly errorMessage?: string;
 	readonly onCommand: (command: string, args?: readonly unknown[]) => void;
-	readonly editorDrafts: Readonly<Record<string, string>>;
+	readonly editorDrafts: Readonly<Record<string, readonly string[]>>;
 	readonly editorConflict?: {
 		readonly documentId: string;
-		readonly localText: string;
+		readonly localLines: readonly string[];
 		readonly result: EditorOperationResult;
 	};
 	readonly editorResult?: EditorOperationResult;
@@ -70,7 +70,10 @@ export function WorkbenchShell({
 	readonly onEditorOperation: (
 		operation: EditorOperation,
 	) => void | Promise<void>;
-	readonly onSetEditorDraft: (documentId: string, text: string) => void;
+	readonly onSetEditorDraft: (
+		documentId: string,
+		lines: readonly string[],
+	) => void;
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
 	readonly onEditorCursorChange?: (cursor: string) => void;
@@ -100,8 +103,7 @@ export function WorkbenchShell({
 			variant: "scratchpad",
 			getAdapter: getSurfaceAdapter,
 			getKeymap: () => snapshotRef.current?.keymap,
-			onOpenCommandMode: (initialQuery) =>
-				onOpenPalette?.(initialQuery ?? ":"),
+			onOpenCommandMode: (initialQuery) => onOpenPalette?.(initialQuery ?? ":"),
 			onExecuteLine: (lineNum) => {
 				const activeDoc = snapshotRef.current?.editor.activeDocument;
 				if (!activeDoc) return;
@@ -143,6 +145,8 @@ export function WorkbenchShell({
 	const localDraft = activeDocumentMeta
 		? editorDrafts[activeDocumentMeta.documentId]
 		: undefined;
+	const activeLines =
+		localDraft ?? activeDocument?.lines.map((line) => line.rawText) ?? [];
 	const pendingEditor = activeDocumentMeta
 		? pendingEditorRequests[activeDocumentMeta.documentId] !== undefined
 		: false;
@@ -150,7 +154,7 @@ export function WorkbenchShell({
 	const draftTimerRef = useRef<number | undefined>(undefined);
 	const lastSubmittedDraftRef = useRef<{
 		documentId: string;
-		text: string;
+		lines: readonly string[];
 		textRevision: number;
 	} | null>(null);
 
@@ -161,20 +165,20 @@ export function WorkbenchShell({
 		const previous = lastSubmittedDraftRef.current;
 		if (
 			previous?.documentId === activeDocumentMeta.documentId &&
-			previous.text === localDraft &&
+			linesEqual(previous?.lines, localDraft) &&
 			previous.textRevision === activeDocumentMeta.textRevision
 		)
 			return;
 		lastSubmittedDraftRef.current = {
 			documentId: activeDocumentMeta.documentId,
-			text: localDraft,
+			lines: localDraft,
 			textRevision: activeDocumentMeta.textRevision,
 		};
 		void onEditorOperation({
 			operation: "editor.replaceText",
 			requestId: requestId(),
 			documentId: activeDocumentMeta.documentId,
-			text: localDraft,
+			lines: localDraft,
 			expectedTextRevision: activeDocumentMeta.textRevision,
 		});
 	};
@@ -576,17 +580,18 @@ export function WorkbenchShell({
 						<EditorSurfaceView
 							key={activeDocumentMeta.documentId}
 							documentId={activeDocumentMeta.documentId}
-							text={activeDocument.text}
 							lines={activeDocument.lines}
 							draft={localDraft}
 							pinnedMacroIds={activeDocumentMeta.pinnedMacroIds}
 							disabled={Boolean(editorConflict)}
-							activeCellIndex={vimState.enabled ? vimState.activeCellIndex : undefined}
+							activeCellIndex={
+								vimState.enabled ? vimState.activeCellIndex : undefined
+							}
 							selectedCellRange={vimState.enabled ? vimState.visualRange : null}
 							vimEnabled={vimState.enabled}
 							vimMode={vimState.mode}
-							onTextChange={(text) =>
-								onSetEditorDraft(activeDocumentMeta.documentId, text)
+							onTextChange={(lines) =>
+								onSetEditorDraft(activeDocumentMeta.documentId, lines)
 							}
 							onFocusChange={(focused) => {
 								setSurfaceFocused(focused);
@@ -600,15 +605,13 @@ export function WorkbenchShell({
 							}}
 							onCursorChange={(cursor) => {
 								onEditorCursorChange?.(cursor);
+								if (vimState.enabled && vimState.mode !== "INSERT") return;
 								const line = Number.parseInt(cursor.split(":")[0] ?? "", 10);
 								const column = Number.parseInt(cursor.split(":")[1] ?? "", 10);
 								if (Number.isFinite(line))
 									vimController.setActiveCell(
 										line - 1,
-										Math.max(
-											1,
-											(localDraft ?? activeDocument.text).split("\n").length,
-										),
+										Math.max(1, activeLines.length),
 										Number.isFinite(column) ? column - 1 : undefined,
 									);
 							}}
@@ -616,10 +619,7 @@ export function WorkbenchShell({
 							onPointerTarget={(lineIndex, column, dragging) =>
 								vimController.setPointerTarget(
 									lineIndex,
-									Math.max(
-										1,
-										(localDraft ?? activeDocument.text).split("\n").length,
-									),
+									Math.max(1, activeLines.length),
 									column,
 									dragging,
 								)
@@ -739,5 +739,16 @@ export function WorkbenchShell({
 				</div>
 			</aside>
 		</div>
+	);
+}
+
+function linesEqual(
+	left: readonly string[] | undefined,
+	right: readonly string[],
+): boolean {
+	return (
+		left !== undefined &&
+		left.length === right.length &&
+		left.every((line, index) => line === right[index])
 	);
 }

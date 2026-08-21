@@ -8,6 +8,12 @@ export interface CursorPosition {
 	readonly col: number;
 }
 
+/** A logical scratchpad line (one macro cell). Its text may contain newlines. */
+export interface EditorLine {
+	readonly lineId: string;
+	readonly text: string;
+}
+
 export interface SelectionRange {
 	readonly start: CursorPosition;
 	readonly end: CursorPosition;
@@ -41,8 +47,9 @@ export class EditorKernel {
 	private yankBuffer = "";
 	private readonly listeners = new Set<() => void>();
 
-	constructor(initialText = "") {
-		this.lines = initialText.split("\n");
+	constructor(initialText = "", initialLines?: readonly EditorLine[]) {
+		this.lines =
+			initialLines?.map((line) => line.text) ?? initialText.split("\n");
 		if (this.lines.length === 0) this.lines = [""];
 	}
 
@@ -113,6 +120,14 @@ export class EditorKernel {
 		this.notify();
 	}
 
+	/** Replace the logical scratchpad lines. Embedded newlines stay in a line. */
+	setLines(lines: readonly string[]): void {
+		this.lines = lines.length > 0 ? [...lines] : [""];
+		this.clampCursor();
+		this.selection = null;
+		this.notify();
+	}
+
 	getLines(): readonly string[] {
 		return this.lines;
 	}
@@ -142,30 +157,11 @@ export class EditorKernel {
 		const prefix = current.slice(0, this.cursor.col);
 		const suffix = current.slice(this.cursor.col);
 
-		if (!text.includes("\n")) {
-			this.lines[this.cursor.line] = prefix + text + suffix;
-			this.cursor = {
-				line: this.cursor.line,
-				col: this.cursor.col + text.length,
-			};
-		} else {
-			const insertedLines = text.split("\n");
-			const firstLine = prefix + insertedLines[0];
-			const lastLine = (insertedLines[insertedLines.length - 1] ?? "") + suffix;
-			const middleLines = insertedLines.slice(1, -1);
-
-			this.lines.splice(
-				this.cursor.line,
-				1,
-				firstLine,
-				...middleLines,
-				lastLine,
-			);
-			this.cursor = {
-				line: this.cursor.line + insertedLines.length - 1,
-				col: (insertedLines[insertedLines.length - 1] ?? "").length,
-			};
-		}
+		this.lines[this.cursor.line] = prefix + text + suffix;
+		this.cursor = {
+			line: this.cursor.line,
+			col: this.cursor.col + text.length,
+		};
 		this.notify();
 	}
 

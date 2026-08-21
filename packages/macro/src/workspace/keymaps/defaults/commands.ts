@@ -19,6 +19,24 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		labelI18nKey: "command.editor.executeLine",
 	},
 	{
+		command: "editor.splitLine",
+		chords: ["enter"],
+		modes: ["INSERT"],
+		labelI18nKey: "command.editor.splitLine",
+	},
+	{
+		command: "editor.insertLineBreak",
+		chords: ["shift+enter"],
+		modes: ["INSERT"],
+		labelI18nKey: "command.editor.insertLineBreak",
+	},
+	{
+		command: "editor.insertTab",
+		chords: ["tab"],
+		modes: ["INSERT"],
+		labelI18nKey: "command.editor.insertTab",
+	},
+	{
 		command: "editor.splitGroup",
 		chords: ["ctrl+\\"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],

@@ -21,28 +21,39 @@ export type ScratchpadEditorAction =
 			readonly index: number;
 			readonly count: number;
 			readonly column?: number;
-		}
+	  }
 	| {
 			readonly type: "moveCell";
 			readonly delta: -1 | 1;
 			readonly count: number;
 			readonly lineLength: number;
-		}
-	| { readonly type: "moveCharacter"; readonly delta: -1 | 1; readonly lineLength: number }
+	  }
+	| {
+			readonly type: "moveCharacter";
+			readonly delta: -1 | 1;
+			readonly lineLength: number;
+	  }
 	| { readonly type: "beginVisual" }
-	| { readonly type: "extendVisual"; readonly delta: -1 | 1; readonly count: number }
+	| {
+			readonly type: "extendVisual";
+			readonly delta: -1 | 1;
+			readonly count: number;
+	  }
 	| {
 			readonly type: "setVisualFocus";
 			readonly index: number;
 			readonly count: number;
-		}
+	  }
 	| { readonly type: "swapVisualAnchor" }
 	| { readonly type: "clearVisual" }
 	| { readonly type: "setSequence"; readonly value: string }
 	| { readonly type: "clearSequence" }
 	| { readonly type: "setYank"; readonly value: string }
 	| { readonly type: "setCommandText"; readonly value: string }
-	| { readonly type: "setFocus"; readonly focus: ScratchpadEditorState["focus"] };
+	| {
+			readonly type: "setFocus";
+			readonly focus: ScratchpadEditorState["focus"];
+	  };
 
 export const createScratchpadEditorState = (
 	enabled = false,
@@ -72,14 +83,14 @@ export function reduceScratchpadEditorState(
 			return action.enabled
 				? { ...state, enabled: true, mode: "NORMAL", sequenceBuffer: "" }
 				: {
-					...state,
-					enabled: false,
-					mode: "INSERT",
-					visualRange: null,
-					sequenceBuffer: "",
-					commandText: "",
-					focus: state.focus === "commandLine" ? "external" : state.focus,
-				};
+						...state,
+						enabled: false,
+						mode: "INSERT",
+						visualRange: null,
+						sequenceBuffer: "",
+						commandText: "",
+						focus: state.focus === "commandLine" ? "external" : state.focus,
+					};
 		case "setMode":
 			return {
 				...state,
@@ -146,15 +157,15 @@ export function reduceScratchpadEditorState(
 		}
 		case "swapVisualAnchor":
 			return state.visualRange
-			? {
-					...state,
-					activeCellIndex: state.visualRange.start,
-					visualRange: {
-						start: state.visualRange.end,
-						end: state.visualRange.start,
-					},
-				}
-			: state;
+				? {
+						...state,
+						activeCellIndex: state.visualRange.start,
+						visualRange: {
+							start: state.visualRange.end,
+							end: state.visualRange.start,
+						},
+					}
+				: state;
 		case "clearVisual":
 			return { ...state, visualRange: null, mode: "NORMAL" };
 		case "setSequence":

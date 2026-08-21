@@ -24,10 +24,10 @@ export interface BrowserWorkspaceState {
 	readonly lastProjectRevision?: string;
 	readonly protocolError?: HostError;
 	readonly transportError?: string;
-	readonly editorDrafts: Readonly<Record<string, string>>;
+	readonly editorDrafts: Readonly<Record<string, readonly string[]>>;
 	readonly editorConflict?: {
 		readonly documentId: string;
-		readonly localText: string;
+		readonly localLines: readonly string[];
 		readonly result: EditorOperationResult;
 	};
 	readonly editorResult?: EditorOperationResult;
@@ -117,9 +117,9 @@ export class BrowserWorkspaceStore {
 		return result;
 	}
 
-	setEditorDraft(documentId: string, text: string): void {
+	setEditorDraft(documentId: string, lines: readonly string[]): void {
 		this.update({
-			editorDrafts: { ...this.state.editorDrafts, [documentId]: text },
+			editorDrafts: { ...this.state.editorDrafts, [documentId]: [...lines] },
 		});
 	}
 
@@ -194,12 +194,12 @@ export class BrowserWorkspaceStore {
 			"documentId" in operation &&
 			typeof operation.documentId === "string"
 		) {
-			const localText = this.state.editorDrafts[operation.documentId];
-			if (localText !== undefined)
+			const localLines = this.state.editorDrafts[operation.documentId];
+			if (localLines !== undefined)
 				this.update({
 					editorConflict: {
 						documentId: operation.documentId,
-						localText,
+						localLines,
 						result,
 					},
 				});
@@ -207,7 +207,7 @@ export class BrowserWorkspaceStore {
 			result.status === "accepted" &&
 			operation.operation === "editor.replaceText" &&
 			"documentId" in operation &&
-			this.state.editorDrafts[operation.documentId] === operation.text
+			linesEqual(this.state.editorDrafts[operation.documentId], operation.lines)
 		) {
 			const drafts = { ...this.state.editorDrafts };
 			delete drafts[operation.documentId];
@@ -224,7 +224,7 @@ export class BrowserWorkspaceStore {
 		this.update({ editorDrafts: drafts, editorConflict: undefined });
 	}
 
-	copyLocalDraft(documentId: string): string | undefined {
+	copyLocalDraft(documentId: string): readonly string[] | undefined {
 		return this.state.editorDrafts[documentId];
 	}
 
@@ -238,7 +238,7 @@ export class BrowserWorkspaceStore {
 			operation: "editor.replaceText",
 			requestId: crypto.randomUUID(),
 			documentId: conflict.documentId,
-			text: conflict.localText,
+			lines: conflict.localLines,
 			expectedTextRevision: document.textRevision,
 		});
 	}
@@ -313,10 +313,10 @@ export class BrowserWorkspaceStore {
 						: undefined,
 			});
 		if (result?.status === "conflict" && result.documentId) {
-			const localText = this.state.editorDrafts[result.documentId];
-			if (localText !== undefined)
+			const localLines = this.state.editorDrafts[result.documentId];
+			if (localLines !== undefined)
 				this.update({
-					editorConflict: { documentId: result.documentId, localText, result },
+					editorConflict: { documentId: result.documentId, localLines, result },
 				});
 		}
 	}
@@ -347,6 +347,17 @@ export class BrowserWorkspaceStore {
 		this.state = { ...this.state, ...next };
 		for (const listener of this.listeners) listener();
 	}
+}
+
+function linesEqual(
+	left: readonly string[] | undefined,
+	right: readonly string[],
+): boolean {
+	return (
+		left !== undefined &&
+		left.length === right.length &&
+		left.every((line, index) => line === right[index])
+	);
 }
 
 export function useBrowserWorkspaceStore(
