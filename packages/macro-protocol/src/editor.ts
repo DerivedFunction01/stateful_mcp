@@ -12,7 +12,7 @@ export type EditorMode = "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
 export type SearchDirection = "forward" | "backward";
 export type InsertPosition = "above" | "below";
 
-export type MacroDocumentProviderId = "macro.text";
+export type MacroDocumentProviderId = "macro.text" | "file" | "scratchpad";
 
 export type ScratchpadLineStatus = "empty" | "valid" | "invalid" | "non-macro";
 
@@ -67,6 +67,7 @@ export interface EditorDocumentDto {
 	readonly providerId: MacroDocumentProviderId;
 	readonly title: string;
 	readonly templateId?: string;
+	readonly filePath?: string;
 	readonly dirty: boolean;
 	readonly textRevision: number;
 	readonly pinnedMacroIds?: readonly string[];

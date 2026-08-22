@@ -1224,7 +1224,7 @@ export class HostSessionManager {
 			capabilities: {
 				canCreate: true,
 				canExecute: Boolean(active),
-				canPersist: false,
+				canPersist: true,
 				canSplit: true,
 				canUseVim: true,
 			},
@@ -1264,12 +1264,13 @@ export class HostSessionManager {
 	private editorDocumentDto(document: MacroDocument): EditorDocumentDto {
 		return {
 			documentId: document.documentId,
-			providerId: "macro.text",
+			providerId: document.providerId,
+			...(document.filePath ? { filePath: document.filePath } : {}),
 			title: document.title,
 			...(document.templateId ? { templateId: document.templateId } : {}),
 			dirty: document.dirty,
 			textRevision: document.textRevision,
-			...(document.pinnedMacroIds.length > 0
+			...(document.pinnedMacroIds?.length > 0
 				? { pinnedMacroIds: document.pinnedMacroIds }
 				: {}),
 		};

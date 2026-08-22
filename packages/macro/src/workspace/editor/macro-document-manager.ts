@@ -6,6 +6,10 @@ import {
 import { EditorKernel } from "./editor-kernel";
 
 export const MACRO_TEXT_DOCUMENT_PROVIDER = "macro.text" as const;
+export type MacroDocumentProviderKind =
+	| typeof MACRO_TEXT_DOCUMENT_PROVIDER
+	| "file"
+	| "scratchpad";
 
 export interface MacroDocumentTemplate {
 	readonly templateId: string;
@@ -20,7 +24,8 @@ export interface MacroDocumentTemplate {
 
 export interface MacroDocument {
 	readonly documentId: string;
-	readonly providerId: typeof MACRO_TEXT_DOCUMENT_PROVIDER;
+	providerId: MacroDocumentProviderKind;
+	filePath?: string;
 	readonly editor: EditorKernel;
 	readonly session: ScratchpadSession;
 	readonly templateId?: string;
@@ -28,6 +33,9 @@ export interface MacroDocument {
 	title: string;
 	dirty: boolean;
 	textRevision: number;
+	savedTextRevision: number;
+	lastDiskMtime?: number;
+	lastDiskHash?: string;
 }
 
 export interface MacroDocumentManagerOptions {
@@ -220,12 +228,73 @@ export class MacroDocumentManager {
 		return document;
 	}
 
+	openFile(filePath: string, initialText = "", title?: string): MacroDocument {
+		const existing = this.list().find((d) => d.filePath === filePath);
+		if (existing) {
+			this.select(existing.documentId);
+			return existing;
+		}
+		const docTitle = title || filePath.split("/").pop() || "untitled";
+		const document = this.createDocument({
+			initialText,
+			title: docTitle,
+			providerId: "file",
+			filePath,
+		});
+		return document;
+	}
+
+	saveAsFile(documentId: string, filePath: string, newTitle?: string): MacroDocument {
+		const document = this.require(documentId);
+		document.providerId = "file";
+		document.filePath = filePath;
+		if (newTitle) {
+			document.title = newTitle;
+		} else {
+			const fileName = filePath.split("/").pop();
+			if (fileName) document.title = fileName;
+		}
+		this.notify();
+		return document;
+	}
+
 	markClean(documentId: string): void {
 		const document = this.require(documentId);
 		if (document.dirty) {
 			document.dirty = false;
 			this.notify();
 		}
+	}
+
+	markSaved(
+		documentId: string,
+		diskMtime?: number,
+		diskHash?: string,
+	): MacroDocument {
+		const document = this.require(documentId);
+		document.savedTextRevision = document.textRevision;
+		document.dirty = false;
+		if (diskMtime !== undefined) document.lastDiskMtime = diskMtime;
+		if (diskHash !== undefined) document.lastDiskHash = diskHash;
+		this.notify();
+		return document;
+	}
+
+	reloadDiskText(
+		documentId: string,
+		lines: readonly string[],
+		diskMtime?: number,
+		diskHash?: string,
+	): MacroDocument {
+		const document = this.require(documentId);
+		document.editor.setLines(lines);
+		document.textRevision += 1;
+		document.savedTextRevision = document.textRevision;
+		document.dirty = false;
+		if (diskMtime !== undefined) document.lastDiskMtime = diskMtime;
+		if (diskHash !== undefined) document.lastDiskHash = diskHash;
+		this.notify();
+		return document;
 	}
 
 	clearExecutedLines(documentId: string): MacroDocument {
@@ -295,6 +364,8 @@ export class MacroDocumentManager {
 		readonly title: string;
 		readonly templateId?: string;
 		readonly pinnedMacroIds?: readonly string[];
+		readonly providerId?: MacroDocumentProviderKind;
+		readonly filePath?: string;
 	}): MacroDocument {
 		const editor = new EditorKernel(options.initialText);
 		const session = new ScratchpadSession(
@@ -307,7 +378,8 @@ export class MacroDocumentManager {
 		if (pinnedMacroIds[0]) session.setPinnedMacro(pinnedMacroIds[0]);
 		const document: MacroDocument = {
 			documentId: createDocumentId(),
-			providerId: MACRO_TEXT_DOCUMENT_PROVIDER,
+			providerId: options.providerId ?? MACRO_TEXT_DOCUMENT_PROVIDER,
+			...(options.filePath ? { filePath: options.filePath } : {}),
 			editor,
 			session,
 			...(options.templateId ? { templateId: options.templateId } : {}),
@@ -315,6 +387,7 @@ export class MacroDocumentManager {
 			title: options.title,
 			dirty: false,
 			textRevision: 0,
+			savedTextRevision: 0,
 		};
 		const unsubscribe = editor.subscribe(() => {
 			document.dirty = true;

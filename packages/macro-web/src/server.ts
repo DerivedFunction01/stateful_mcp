@@ -223,9 +223,13 @@ const server = Bun.serve<SocketData>({
 				const parentPath =
 					dirname(resolvedPath) !== resolvedPath ? dirname(resolvedPath) : null;
 				const dirEntries = await readdir(resolvedPath, { withFileTypes: true });
+				const IGNORED_BROWSE_DIRS = new Set([".macro", ".macro-user", ".git"]);
 				const entries = await Promise.all(
 					dirEntries
-						.filter((entry) => entry.isDirectory())
+						.filter(
+							(entry) =>
+								entry.isDirectory() && !IGNORED_BROWSE_DIRS.has(entry.name),
+						)
 						.map(async (entry) => {
 							const entryPath = join(resolvedPath, entry.name);
 							const isMacroProject = await fileExists(

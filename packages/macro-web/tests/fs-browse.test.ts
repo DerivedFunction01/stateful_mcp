@@ -25,4 +25,26 @@ describe("filesystem browsing and project detection", () => {
 		expect(sub1Project).toBe(false);
 		expect(sub2Project).toBe(true);
 	});
+
+	test("filters out internal infrastructure directories (.macro, .macro-user, .git)", async () => {
+		const root = await mkdtemp(
+			join(process.env.TMPDIR ?? "/tmp", "macro-filter-"),
+		);
+		await mkdir(join(root, "src"));
+		await mkdir(join(root, ".macro"));
+		await mkdir(join(root, ".macro-user"));
+		await mkdir(join(root, ".git"));
+
+		const { readdir } = await import("node:fs/promises");
+		const dirEntries = await readdir(root, { withFileTypes: true });
+		const IGNORED_BROWSE_DIRS = new Set([".macro", ".macro-user", ".git"]);
+		const visible = dirEntries
+			.filter((e) => e.isDirectory() && !IGNORED_BROWSE_DIRS.has(e.name))
+			.map((e) => e.name);
+
+		expect(visible).toEqual(["src"]);
+		expect(visible.includes(".macro")).toBe(false);
+		expect(visible.includes(".macro-user")).toBe(false);
+		expect(visible.includes(".git")).toBe(false);
+	});
 });
