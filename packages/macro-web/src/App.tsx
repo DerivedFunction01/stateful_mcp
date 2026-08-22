@@ -398,7 +398,8 @@ export function App() {
 		const documentSurface = registry
 			.list()
 			.find((surface) => surface.context.activeDocumentId === activeDocumentId);
-		return documentSurface?.adapter ?? registry.getActive()?.adapter;
+		const adapter = documentSurface?.adapter ?? registry.getActive()?.adapter;
+		return adapter;
 	};
 	const findWidget =
 		activeDocumentId && findSession?.open ? (
@@ -407,14 +408,22 @@ export function App() {
 				direction={findSession.direction}
 				initialQuery={findSession.query}
 				initialReplacement={findSession.replacement}
-				onFind={(query, direction) =>
-					findAdapter()?.searchText?.(query, direction) ?? false
-				}
-				onReplace={(query, replacement) =>
-					Boolean(findAdapter()?.replaceCurrentMatch?.(query, replacement))
-				}
-				onReplaceAll={(query, replacement) =>
-					findAdapter()?.replaceAllMatches?.(query, replacement) ?? 0
+				onFind={(query, direction, navigate, options) => {
+					const result = findAdapter()?.searchText?.(
+						query,
+						direction,
+						navigate,
+						options,
+					);
+					return result ?? false;
+				}}
+				onReplace={(query, replacement, options) => {
+					const result =
+						findAdapter()?.replaceCurrentMatch?.(query, replacement, undefined, undefined, options) ?? false;
+					return Boolean(result);
+				}}
+				onReplaceAll={(query, replacement, options) =>
+					findAdapter()?.replaceAllMatches?.(query, replacement, options) ?? 0
 				}
 				onQueryChange={(query) =>
 					setFindSessions((sessions) => ({
@@ -574,7 +583,15 @@ export function App() {
 					commandMode={paletteOpen && paletteCommandMode}
 					commandText={paletteQuery}
 					commandToken={paletteCommandToken}
+					commands={snapshot?.commands}
+					onToggleVim={() =>
+						window.dispatchEvent(new CustomEvent("workbench:toggleVim"))
+					}
 					onAction={(command) => {
+						if (command === "workbench.toggleVim") {
+							window.dispatchEvent(new CustomEvent("workbench:toggleVim"));
+							return;
+						}
 						if (command === "workspace.selectProfile") navigate("settings");
 						if (command === "host.openDiagnostics") navigate("host");
 					}}

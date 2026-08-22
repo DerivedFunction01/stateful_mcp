@@ -4,14 +4,14 @@ import type {
 	ScratchpadSnapshotDto,
 } from "@stateful-mcp/macro-protocol";
 import { Columns2, Eraser, Pin, Play, Plus, RotateCcw, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useI18n } from "../../lib/macro-i18n-provider";
 
 export interface EditorGroupHeaderProps {
 	readonly documents: readonly EditorDocumentDto[];
 	readonly activeDocumentId?: string | null;
 	readonly activeDocument?: ScratchpadSnapshotDto | null;
-	readonly canUseVim?: boolean;
-	readonly vimEnabled: boolean;
+	readonly activeDocumentMeta?: EditorDocumentDto;
 	readonly canSplit?: boolean;
 	readonly pendingEditor: boolean;
 	readonly hasConflict: boolean;
@@ -21,7 +21,6 @@ export interface EditorGroupHeaderProps {
 	readonly onRenameDocument: (documentId: string, title: string) => void;
 	readonly onCloseDocument: (documentId: string, textRevision: number) => void;
 	readonly onNewScratchpad: () => void;
-	readonly onToggleVim: () => void;
 	readonly onSplitGroup: () => void;
 	readonly onExecuteValidLines: () => void;
 	readonly onClearExecutedLines: () => void;
@@ -33,8 +32,7 @@ export function EditorGroupHeader({
 	documents,
 	activeDocumentId,
 	activeDocument,
-	canUseVim = true,
-	vimEnabled,
+	activeDocumentMeta,
 	canSplit = true,
 	pendingEditor,
 	hasConflict,
@@ -44,7 +42,6 @@ export function EditorGroupHeader({
 	onRenameDocument,
 	onCloseDocument,
 	onNewScratchpad,
-	onToggleVim,
 	onSplitGroup,
 	onExecuteValidLines,
 	onClearExecutedLines,
@@ -53,7 +50,31 @@ export function EditorGroupHeader({
 }: EditorGroupHeaderProps) {
 	const { t } = useI18n();
 
+	const tabsRef = useRef<HTMLDivElement | null>(null);
+
+	const isScratchpad = Boolean(
+		activeDocument &&
+			activeDocumentMeta?.providerId === "scratchpad" &&
+			!activeDocumentMeta?.filePath,
+	);
+
 	const isActionDisabled = Boolean(hasConflict || hasDraft || pendingEditor);
+
+	useEffect(() => {
+		if (!activeDocumentId) return;
+		const container = tabsRef.current;
+		if (!container) return;
+		const el = container.querySelector<HTMLElement>(
+			`[data-document-id="${CSS.escape(activeDocumentId)}"]`,
+		);
+		if (el) {
+			el.scrollIntoView({
+				behavior: "smooth",
+				inline: "nearest",
+				block: "nearest",
+			});
+		}
+	}, [activeDocumentId]);
 
 	return (
 		<div className="editor-group-header">
@@ -61,15 +82,25 @@ export function EditorGroupHeader({
 				className="workbench-tabs"
 				role="tablist"
 				aria-label={t("workbench.tabs")}
+				ref={tabsRef}
+				onWheel={(event) => {
+					if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+					if (event.deltaY === 0) return;
+					event.preventDefault();
+					const target = event.currentTarget;
+					target.scrollLeft += event.deltaY;
+				}}
 			>
 				{documents.map((document) => (
 					<div
 						className={`workbench-document-tab ${document.documentId === activeDocumentId ? "active" : ""}`}
 						key={document.documentId}
+						data-document-id={document.documentId}
 					>
 						<button
 							className="tab-title-btn"
 							type="button"
+							title={document.title}
 							onClick={() => onSelectDocument(document.documentId)}
 							onDoubleClick={() => {
 								const title = window.prompt(
@@ -111,18 +142,6 @@ export function EditorGroupHeader({
 			<div className="editor-group-actions">
 				<button
 					type="button"
-					className={`vim-toggle-btn ${vimEnabled ? "active" : ""}`}
-					aria-label={t("editor.toggleVim")}
-					aria-pressed={vimEnabled}
-					disabled={!canUseVim}
-					onClick={onToggleVim}
-					title={vimEnabled ? t("editor.vimEnabled") : t("editor.vimDisabled")}
-				>
-					<span>VIM</span>
-				</button>
-
-				<button
-					type="button"
 					className="editor-split-btn"
 					title={t("editor.group.split")}
 					disabled={!canSplit || pendingEditor}
@@ -131,7 +150,7 @@ export function EditorGroupHeader({
 					<Columns2 size={14} />
 				</button>
 
-				{activeDocument && (
+				{isScratchpad && (
 					<>
 						<button
 							type="button"
@@ -141,7 +160,6 @@ export function EditorGroupHeader({
 							onClick={onExecuteValidLines}
 						>
 							<Play size={13} />
-							<span>{t("editor.runAll")}</span>
 						</button>
 						<button
 							type="button"

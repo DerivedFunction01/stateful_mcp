@@ -214,6 +214,26 @@ function setLineAndCol(root: HTMLElement, lineIdx: number, col = 0): void {
 	selection?.addRange(range);
 }
 
+function revealLine(root: HTMLElement, lineIdx: number): void {
+	const block = root.children[lineIdx] as HTMLElement | undefined;
+	block?.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+
+function setSearchPosition(
+	root: HTMLElement,
+	lineIdx: number,
+	col: number,
+): void {
+	const editorFocused =
+		document.activeElement === root || root.contains(document.activeElement);
+	if (!editorFocused) {
+		revealLine(root, lineIdx);
+		return;
+	}
+	setLineAndCol(root, lineIdx, col);
+	revealLine(root, lineIdx);
+}
+
 function applySearchHighlights(
 	root: HTMLElement,
 	matches: readonly {
@@ -889,6 +909,7 @@ export function getEditorSurfaceAdapter(
 			query: string,
 			direction: SearchDirection,
 			navigate = false,
+			searchOptions = { matchCase: false, wholeWord: false, regex: false },
 		): EditorSearchResult => {
 			if (!query) {
 				clearSearchHighlights();
@@ -907,21 +928,35 @@ export function getEditorSurfaceAdapter(
 					endOffset: number;
 				}[] = [];
 				let start = 0;
-				while (start <= text.length) {
-					const found = text.indexOf(query, start);
-					if (found === -1) break;
+				const matcher = searchOptions.regex
+					? new RegExp(query, searchOptions.matchCase ? "g" : "gi")
+					: new RegExp(
+						searchOptions.wholeWord
+							? `\\b${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`
+							: query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+						searchOptions.matchCase ? "g" : "gi",
+					);
+				let match = matcher.exec(text);
+				while (match) {
+					const found = match.index;
 					result.push({
 						logicalLineIndex,
 						startOffset: found,
-						endOffset: found + query.length,
+						endOffset: found + match[0].length,
 					});
-					start = found + Math.max(1, query.length);
+					if (match[0].length === 0) matcher.lastIndex += 1;
+					match = matcher.exec(text);
 				}
 				return result;
 			});
+			const previousSearch = lastSearch;
 			lastSearch = query;
-			syncFromDom();
-			const activeIndex = matches.findIndex((match) =>
+			if (
+				document.activeElement === element ||
+				element.contains(document.activeElement)
+			)
+				syncFromDom();
+			const caretIndex = matches.findIndex((match) =>
 				direction === "forward"
 					? match.logicalLineIndex > currentCellIdx ||
 						(match.logicalLineIndex === currentCellIdx &&
@@ -930,8 +965,25 @@ export function getEditorSurfaceAdapter(
 						(match.logicalLineIndex === currentCellIdx &&
 							match.endOffset <= currentCol),
 			);
+			const previousMatch = lastMatch;
+			const lastIndex = previousMatch
+				? matches.findIndex(
+						(match) =>
+							match.logicalLineIndex === previousMatch.cell &&
+							match.startOffset === previousMatch.start,
+					)
+				: -1;
 			const selectedIndex =
-				activeIndex === -1 ? (matches.length > 0 ? 0 : -1) : activeIndex;
+				matches.length === 0
+					? -1
+					: navigate && previousSearch === query && lastIndex >= 0
+						? (lastIndex +
+								(direction === "forward" ? 1 : -1) +
+								matches.length) %
+							matches.length
+						: caretIndex === -1
+							? 0
+							: caretIndex;
 			const selected = selectedIndex >= 0 ? matches[selectedIndex] : undefined;
 			if (selected) {
 				lastMatch = {
@@ -942,7 +994,7 @@ export function getEditorSurfaceAdapter(
 				if (navigate) {
 					currentCellIdx = selected.logicalLineIndex;
 					currentCol = selected.startOffset;
-					setLineAndCol(element, currentCellIdx, currentCol);
+					setSearchPosition(element, currentCellIdx, currentCol);
 				}
 			}
 			applySearchHighlights(element, matches, selectedIndex);
@@ -1100,7 +1152,7 @@ export function getEditorSurfaceAdapter(
 			currentCellIdx = cell;
 			currentCol = nextColumn;
 			onTextChange(lines);
-			setLineAndCol(element, currentCellIdx, currentCol);
+			setSearchPosition(element, currentCellIdx, currentCol);
 			return true;
 		},
 

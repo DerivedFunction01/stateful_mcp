@@ -6,7 +6,13 @@ import {
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import { CircleDot } from "lucide-react";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { useEditorDraftSync } from "../hooks/useEditorDraftSync";
 import { useEditorSurfaceRegistration } from "../hooks/useEditorSurfaceRegistration";
 import { useWorkbenchLayout } from "../hooks/useWorkbenchLayout";
@@ -96,6 +102,10 @@ export function WorkbenchShell({
 
 	const surfaceRef = useRef<HTMLElement | null>(null);
 	const shellRef = useRef<HTMLDivElement | null>(null);
+	const surfaceAdapterRef = useRef<{
+		element: HTMLElement;
+		adapter: ReturnType<typeof getEditorSurfaceAdapter>;
+	} | null>(null);
 	const snapshotRef = useRef(snapshot);
 	snapshotRef.current = snapshot;
 	const onSetEditorDraftRef = useRef(onSetEditorDraft);
@@ -109,13 +119,15 @@ export function WorkbenchShell({
 	const getSurfaceAdapter = useCallback(() => {
 		const element = surfaceRef.current;
 		if (!element) return undefined;
+		if (surfaceAdapterRef.current?.element === element)
+			return surfaceAdapterRef.current.adapter;
 		const currentSnapshot = snapshotRef.current;
 		const currentDocument = currentSnapshot?.editor.activeDocument;
 		const currentDocumentMeta = currentSnapshot?.editor.documents.find(
 			(document) =>
 				document.documentId === currentSnapshot?.editor.activeDocumentId,
 		);
-		return getEditorSurfaceAdapter(
+		const adapter = getEditorSurfaceAdapter(
 			element,
 			(text) => {
 				if (currentDocumentMeta)
@@ -126,6 +138,8 @@ export function WorkbenchShell({
 				textRevision: currentDocument?.textRevision,
 			},
 		);
+		surfaceAdapterRef.current = { element, adapter };
+		return adapter;
 	}, []);
 
 	const {
@@ -147,6 +161,12 @@ export function WorkbenchShell({
 		onOpenSearch,
 		onEditorOperation,
 	});
+
+	useEffect(() => {
+		const onToggle = () => toggleVim();
+		window.addEventListener("workbench:toggleVim", onToggle);
+		return () => window.removeEventListener("workbench:toggleVim", onToggle);
+	}, [toggleVim]);
 
 	const {
 		localDraft,
@@ -382,8 +402,7 @@ export function WorkbenchShell({
 					documents={activeGroupDocuments}
 					activeDocumentId={snapshot.editor.activeDocumentId}
 					activeDocument={activeDocument}
-					canUseVim={snapshot.editor.capabilities.canUseVim}
-					vimEnabled={vimState.enabled}
+					activeDocumentMeta={activeDocumentMeta}
 					canSplit={snapshot.editor.capabilities.canSplit}
 					pendingEditor={pendingEditor}
 					hasConflict={Boolean(editorConflict)}
@@ -431,7 +450,6 @@ export function WorkbenchShell({
 							requestId: requestId(),
 						})
 					}
-					onToggleVim={toggleVim}
 					onSplitGroup={() =>
 						emitEditorOperation({
 							operation: "editor.createSplitGroup",

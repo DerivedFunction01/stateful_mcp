@@ -1,4 +1,6 @@
 export const ES_SHELL: Record<string, string> = {
+	"shell.vim.label": "VIM",
+	"shell.vim.disabled": "VIM: DESACTIVADO",
 	"shell.mode.normal": "NORMAL",
 	"shell.mode.insert": "INSERCIÓN",
 	"shell.mode.visual": "VISUAL",

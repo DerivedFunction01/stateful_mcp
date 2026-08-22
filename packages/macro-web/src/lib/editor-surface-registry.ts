@@ -121,3 +121,21 @@ export function useActiveEditorSurface():
 		() => registry.getActive(),
 	);
 }
+
+/**
+ * Reactive editor surface state for global UI such as the status bar.
+ *
+ * Unlike useActiveEditorSurface, this retains a registered surface when focus
+ * moves to the global UI. That allows global indicators to reflect editor
+ * state after their own controls receive focus.
+ */
+export function useEditorSurfaceForGlobalUi():
+	| EditorSurfaceRegistration
+	| undefined {
+	const registry = useEditorSurfaceRegistry();
+	return useSyncExternalStore(
+		useMemo(() => registry.subscribe.bind(registry), [registry]),
+		() => registry.getActive() ?? registry.list().at(-1),
+		() => registry.getActive() ?? registry.list().at(-1),
+	);
+}

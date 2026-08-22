@@ -65,11 +65,13 @@ export interface BrowserEditorSurfaceAdapter {
 		query: string,
 		direction: SearchDirection,
 		navigate?: boolean,
+		options?: { matchCase: boolean; wholeWord: boolean; regex: boolean },
 	): boolean;
 	searchText?(
 		query: string,
 		direction: SearchDirection,
 		navigate?: boolean,
+		options?: { matchCase: boolean; wholeWord: boolean; regex: boolean },
 	): EditorSearchResult;
 	jumpToMatch?(
 		logicalLineIndex: number,
@@ -83,8 +85,9 @@ export interface BrowserEditorSurfaceAdapter {
 		replacement: string,
 		lineIndex?: number,
 		startOffset?: number,
+		options?: { matchCase: boolean; wholeWord: boolean; regex: boolean },
 	): boolean;
-	replaceAllMatches?(query: string, replacement: string): number;
+	replaceAllMatches?(query: string, replacement: string, options?: { matchCase: boolean; wholeWord: boolean; regex: boolean }): number;
 	pasteCell?(text: string, position: InsertPosition): void;
 	pasteCellRangeReplace?(start: number, end: number, text: string): void;
 	focusCellForEdit?(index?: number, column?: number): void;

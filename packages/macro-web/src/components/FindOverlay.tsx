@@ -1,26 +1,17 @@
 import type { SearchDirection } from "@stateful-mcp/macro-protocol";
-import { ChevronDown, ChevronUp, Replace, Settings2, X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EditorSearchResult } from "../lib/browser-vim";
 import { useI18n } from "../lib/macro-i18n-provider";
-import {
-	insertAtCaret,
-	unescapeReplacementString,
-	unescapeSearchPattern,
-} from "../lib/search-utils";
-import { IconButton } from "./ui/primitives";
+import { unescapeReplacementString, unescapeSearchPattern } from "../lib/search-utils";
+import { SearchReplaceBar, type SearchOptions } from "./SearchReplaceBar";
 
 export interface FindOverlayProps {
 	readonly direction: SearchDirection;
 	readonly initialQuery?: string;
 	readonly initialReplacement?: string;
-	readonly onFind: (
-		query: string,
-		direction: SearchDirection,
-		navigate?: boolean,
-	) => boolean | EditorSearchResult;
-	readonly onReplace?: (query: string, replacement: string) => boolean;
-	readonly onReplaceAll?: (query: string, replacement: string) => number;
+	readonly onFind: (query: string, direction: SearchDirection, navigate?: boolean, options?: SearchOptions) => boolean | EditorSearchResult;
+	readonly onReplace?: (query: string, replacement: string, options?: SearchOptions) => boolean;
+	readonly onReplaceAll?: (query: string, replacement: string, options?: SearchOptions) => number;
 	readonly onQueryChange?: (query: string) => void;
 	readonly onReplacementChange?: (replacement: string) => void;
 	readonly onClose: () => void;
@@ -38,200 +29,63 @@ export function FindOverlay({
 	onClose,
 }: FindOverlayProps) {
 	const { t } = useI18n();
-	const inputRef = useRef<HTMLTextAreaElement>(null);
-	const findId = useId();
 	const onFindRef = useRef(onFind);
 	const [query, setQuery] = useState(initialQuery);
 	const [replacement, setReplacement] = useState(initialReplacement);
 	const [message, setMessage] = useState("");
 	const [replaceOpen, setReplaceOpen] = useState(true);
-
+	const [options, setOptions] = useState<SearchOptions>({ matchCase: false, wholeWord: false, regex: false });
 	onFindRef.current = onFind;
 
-	useEffect(() => {
-		inputRef.current?.focus();
-	}, []);
-
-	function find(searchDirection = direction, navigate = false): void {
+	const find = (searchDirection = direction, navigate = false) => {
 		if (!query) {
 			setMessage("");
-			onFindRef.current("", searchDirection, false);
+			onFindRef.current("", searchDirection, false, options);
 			return;
 		}
-		const result = onFindRef.current(
-			unescapeSearchPattern(query, false),
-			searchDirection,
-			navigate,
-		);
+		const result = onFindRef.current(unescapeSearchPattern(query, options.regex), searchDirection, navigate, options);
 		if (typeof result === "boolean") {
 			setMessage(result ? "" : t("editor.find.noResults"));
 			return;
 		}
-		setMessage(
-			result.matches.length > 0
-				? t("editor.find.matchCount", {
-						current: result.activeMatchIndex + 1,
-						count: result.matches.length,
-					})
-				: t("editor.find.noResults"),
-		);
-	}
-
-	useEffect(() => {
-		find(direction, false);
-	}, [query, direction]);
-
-	const handleClose = () => {
-		onFindRef.current("", direction, false);
-		onClose();
+		setMessage(result.matches.length > 0 ? t("editor.find.matchCount", { current: result.activeMatchIndex + 1, count: result.matches.length }) : t("editor.find.noResults"));
 	};
 
-	function replace(): void {
+	useEffect(() => { find(direction, false); }, [query, direction, options]);
+
+	const replace = () => {
 		if (!query || !onReplace) return;
-		setMessage(
-			onReplace(
-				unescapeSearchPattern(query, false),
-				unescapeReplacementString(replacement),
-			)
-				? ""
-				: t("editor.find.noResults"),
-		);
-	}
+		const replaced = onReplace(unescapeSearchPattern(query, options.regex), unescapeReplacementString(replacement), options);
+		if (replaced) requestAnimationFrame(() => find("forward", true));
+		else setMessage(t("editor.find.noResults"));
+	};
 
-	function replaceAll(): void {
-		if (!query || !onReplaceAll) return;
-		if (!window.confirm(t("editor.find.replaceAllConfirm"))) return;
-		const count = onReplaceAll(
-			unescapeSearchPattern(query, false),
-			unescapeReplacementString(replacement),
-		);
-		setMessage(
-			count > 0
-				? t("editor.find.matchesReplaced", { count })
-				: t("editor.find.noResults"),
-		);
-	}
-
-	const isNoResults = message === t("editor.find.noResults");
+	const replaceAll = () => {
+		if (!query || !onReplaceAll || !window.confirm(t("editor.find.replaceAllConfirm"))) return;
+		const count = onReplaceAll(unescapeSearchPattern(query, options.regex), unescapeReplacementString(replacement), options);
+		setMessage(count > 0 ? t("editor.find.matchesReplaced", { count }) : t("editor.find.noResults"));
+	};
 
 	return (
-		<div
-			className="editor-find-widget"
-			role="dialog"
-			aria-label={t("editor.find.ariaLabel")}
-			onKeyDown={(event) => {
-				if (event.key === "Escape") {
-					event.preventDefault();
-					handleClose();
-				} else if (
-					(event.key === "Enter" && (event.ctrlKey || event.altKey)) ||
-					event.key === "Tab"
-				) {
-					event.preventDefault();
-					if (event.target instanceof HTMLTextAreaElement) {
-						const isReplacement = event.target.id === `${findId}-replacement`;
-						insertAtCaret(
-							event.target,
-							event.key === "Tab" ? "\t" : "\n",
-							(value) => {
-								if (isReplacement) {
-									setReplacement(value);
-									onReplacementChange?.(value);
-								} else {
-									setQuery(value);
-									onQueryChange?.(value);
-								}
-							},
-						);
-					}
-				} else if (event.key === "Enter") {
-					event.preventDefault();
-					if (event.target === inputRef.current) {
-						find(event.shiftKey ? "backward" : direction, true);
-					} else {
-						replace();
-					}
-				}
-			}}
-		>
-			<div className="find-row">
-				<label htmlFor={`${findId}-query`}>{t("editor.find.inputLabel")}</label>
-				<textarea
-					ref={inputRef}
-					id={`${findId}-query`}
-					value={query}
-					placeholder={t("editor.find.inputLabel")}
-					onChange={(event) => {
-						setQuery(event.target.value);
-						onQueryChange?.(event.target.value);
-					}}
-					className="editor-find-textarea"
-					rows={1}
-				/>
-				<div className="find-actions">
-					<span
-						className={`find-message ${isNoResults ? "no-results" : ""}`}
-						aria-live="polite"
-					>
-						{message}
-					</span>
-					<IconButton
-						label={t("editor.find.backward")}
-						onClick={() => find("backward", true)}
-					>
-						<ChevronUp size={15} aria-hidden="true" />
-					</IconButton>
-					<IconButton
-						label={t("editor.find.forward")}
-						onClick={() => find("forward", true)}
-					>
-						<ChevronDown size={15} aria-hidden="true" />
-					</IconButton>
-					<IconButton
-						label={t("editor.find.options")}
-						onClick={() => setReplaceOpen((open) => !open)}
-						aria-expanded={replaceOpen}
-					>
-						<Settings2 size={15} aria-hidden="true" />
-					</IconButton>
-					<IconButton label={t("editor.find.close")} onClick={handleClose}>
-						<X size={15} aria-hidden="true" />
-					</IconButton>
-				</div>
-			</div>
-			{replaceOpen && (
-				<div className="find-row find-replace-row">
-					<label htmlFor={`${findId}-replacement`}>
-						{t("editor.find.replaceLabel")}
-					</label>
-					<textarea
-						id={`${findId}-replacement`}
-						value={replacement}
-						onChange={(event) => {
-							setReplacement(event.target.value);
-							onReplacementChange?.(event.target.value);
-						}}
-						className="editor-find-textarea"
-						rows={1}
-					/>
-					<div className="find-actions">
-						<IconButton
-							label={t("editor.find.replaceAction")}
-							onClick={replace}
-							disabled={!onReplace}
-						>
-							<Replace size={15} aria-hidden="true" />
-						</IconButton>
-						<IconButton
-							label={t("editor.find.replaceAllAction")}
-							onClick={replaceAll}
-							disabled={!onReplaceAll}
-						>
-							<Replace size={15} aria-hidden="true" />
-						</IconButton>
-					</div>
-				</div>
-			)}
+		<div className="editor-find-widget" role="dialog" aria-label={t("editor.find.ariaLabel")}>
+			<SearchReplaceBar
+				query={query}
+				replacement={replacement}
+				options={options}
+				message={message}
+				replaceOpen={replaceOpen}
+				showClose
+				onQueryChange={(value) => { setQuery(value); onQueryChange?.(value); }}
+				onReplacementChange={(value) => { setReplacement(value); onReplacementChange?.(value); }}
+				onOptionsChange={setOptions}
+				onQuerySubmit={() => find("forward", true)}
+				onReplacementSubmit={replace}
+				onNavigate={(searchDirection) => find(searchDirection, true)}
+				onReplace={replace}
+				onReplaceAll={replaceAll}
+				onToggleReplace={() => setReplaceOpen((open) => !open)}
+				onClose={() => { onFindRef.current("", direction, false, options); onClose(); }}
+			/>
 		</div>
 	);
 }

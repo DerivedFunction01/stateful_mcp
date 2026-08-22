@@ -12,7 +12,29 @@ export function insertAtCaret(
 	requestAnimationFrame(() => {
 		target.focus();
 		target.setSelectionRange(caret, caret);
+		if (target instanceof HTMLTextAreaElement) resizeTextareaToContent(target);
 	});
+}
+
+export function isPrimaryModifier(
+	event: KeyboardEvent | React.KeyboardEvent,
+): boolean {
+	return event.metaKey || event.ctrlKey;
+}
+
+export function isLiteralNewlineEvent(
+	event: KeyboardEvent | React.KeyboardEvent,
+): boolean {
+	return event.key === "Enter" && (event.shiftKey || isPrimaryModifier(event));
+}
+
+export function resizeTextareaToContent(textarea: HTMLTextAreaElement): void {
+	textarea.style.height = "auto";
+	const maxHeight = Number.parseFloat(getComputedStyle(textarea).maxHeight);
+	const height = Number.isFinite(maxHeight)
+		? Math.min(textarea.scrollHeight, maxHeight)
+		: textarea.scrollHeight;
+	textarea.style.height = `${height}px`;
 }
 
 export function unescapeSearchPattern(raw: string, isRegex: boolean): string {

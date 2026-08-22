@@ -321,6 +321,8 @@ export const I18N_KEYS = [
 	"shell.mode.insert",
 	"shell.mode.normal",
 	"shell.mode.visual",
+	"shell.vim.disabled",
+	"shell.vim.label",
 	"sidepanel.explorer.title",
 	"sidepanel.journal.title",
 	"sidepanel.slots.title",

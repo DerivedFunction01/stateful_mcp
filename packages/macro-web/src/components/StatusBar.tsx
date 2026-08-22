@@ -1,4 +1,5 @@
 import type {
+	CommandDescriptorDto,
 	EditorMode,
 	HorizontalAlignment,
 } from "@stateful-mcp/macro-protocol";
@@ -13,7 +14,10 @@ import {
 	Terminal,
 	WifiOff,
 } from "lucide-react";
-import { useActiveEditorSurface } from "../lib/editor-surface-registry";
+import {
+	useActiveEditorSurface,
+	useEditorSurfaceForGlobalUi,
+} from "../lib/editor-surface-registry";
 import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
 import { cn } from "../lib/utils";
 import { IconButton } from "./ui/primitives";
@@ -52,7 +56,9 @@ export interface StatusBarProps {
 	readonly commandMode?: boolean;
 	readonly commandText?: string;
 	readonly commandToken?: string;
+	readonly commands?: readonly CommandDescriptorDto[];
 	readonly onAction?: (command: string) => void;
+	readonly onToggleVim?: () => void;
 }
 
 /**
@@ -63,8 +69,9 @@ export interface StatusBarProps {
  */
 export function RegisteredStatusBar(props: StatusBarProps) {
 	const active = useActiveEditorSurface();
-	const vimMode = props.vimMode ?? active?.mode;
-	const vimEnabled = props.vimEnabled ?? active?.vimEnabled ?? false;
+	const globalSurface = useEditorSurfaceForGlobalUi();
+	const vimMode = props.vimMode ?? globalSurface?.mode;
+	const vimEnabled = props.vimEnabled ?? globalSurface?.vimEnabled ?? false;
 	const editorFocused = props.editorFocused ?? active !== undefined;
 	return (
 		<StatusBar
@@ -75,49 +82,49 @@ export function RegisteredStatusBar(props: StatusBarProps) {
 			commandMode={props.commandMode}
 			commandText={props.commandText}
 			commandToken={props.commandToken}
+			commands={props.commands}
+			onToggleVim={props.onToggleVim}
 		/>
 	);
 }
 
-const VIM_COMMAND_HINTS: Record<string, string> = {
-	w: "Save Active Tab",
-	write: "Save Active Tab",
-	wa: "Save All Tabs",
-	wall: "Save All Tabs",
-	wq: "Save & Close",
-	wqa: "Save All & Quit",
-	q: "Quit Application",
-	quit: "Quit Application",
-	qa: "Quit All",
-	quitall: "Quit All",
-	open: "Open Project",
-	edit: "Open Project",
-	e: "Open Project",
-	saveas: "Save As Project",
-	split: "Split Editor Right",
-	vsplit: "Split Editor Right",
-	sp: "Split Editor Right",
-	vs: "Split Editor Right",
-	new: "New Scratchpad",
-	tabnew: "New Scratchpad",
-	dup: "Duplicate Document",
-	duplicate: "Duplicate Document",
-	settings: "Open Settings",
-};
-
-function getVimCommandLabel(text?: string, token?: string): string {
+export function getVimCommandLabel(
+	text: string | undefined,
+	token: string | undefined,
+	commands: readonly CommandDescriptorDto[] = [],
+	translate: (key: string) => string = (key) => key,
+): string {
 	const raw = (text || token || "").trim();
 	const clean = raw.replace(/^:/, "").trim();
-	if (!clean) return ": [w, wa, wq, q, split, dup, open, saveas]";
-	const match = VIM_COMMAND_HINTS[clean.toLowerCase()];
-	if (match) return `:${clean} → ${match}`;
+	if (!clean) {
+		const examples = commands
+			.flatMap((command) => [
+				...(command.aliases ?? []),
+				...(command.verb ? [command.verb] : []),
+			])
+			.filter((value, index, values) => values.indexOf(value) === index)
+			.slice(0, 8);
+		return examples.length > 0 ? `: [${examples.join(", ")}]` : ":";
+	}
+	const normalized = clean.toLowerCase();
+	const match = commands.find((command) =>
+		[command.id, command.verb, ...(command.aliases ?? [])].some(
+			(value) => value?.toLowerCase() === normalized,
+		),
+	);
+	if (match) {
+		const translated = match.titleI18nKey
+			? translate(match.titleI18nKey)
+			: match.id;
+		const label = translated === match.titleI18nKey ? match.id : translated;
+		return `:${clean} → ${label}`;
+	}
 	return `:${clean}`;
 }
 
 export function StatusBar({
 	vimMode,
 	vimEnabled = false,
-	editorFocused = true,
 	dirty = false,
 	diagnostics = 0,
 	connected = true,
@@ -128,9 +135,25 @@ export function StatusBar({
 	commandMode = false,
 	commandText = "",
 	commandToken = "",
+	commands = [],
 	onAction,
+	onToggleVim,
 }: StatusBarProps) {
 	const { t } = useI18n();
+	const vimLabel = vimEnabled
+		? `${t("shell.vim.label" as WebI18nKey)}: ${t(
+				vimMode
+					? (`shell.mode.${vimMode.toLowerCase()}` as WebI18nKey)
+					: ("shell.mode.normal" as WebI18nKey),
+			)}`
+		: t("shell.vim.disabled" as WebI18nKey);
+	const handleAction = (command: string) => {
+		if (command === "workbench.toggleVim" && onToggleVim) {
+			onToggleVim();
+			return;
+		}
+		onAction?.(command);
+	};
 	const segments: StatusBarSegment[] = [
 		{
 			id: "connection",
@@ -189,26 +212,28 @@ export function StatusBar({
 			tone: diagnostics ? "danger" : "success",
 			command: "diagnostics.open",
 		},
-		...(vimEnabled && editorFocused && vimMode
-			? [
-					{
-						id: "vim-mode",
-						alignment: "right" as const,
-						priority: 100,
-						value: t(`shell.mode.${vimMode.toLowerCase()}` as WebI18nKey),
-						icon: <Keyboard size={13} />,
-						tone: "accent" as const,
-						command: "scratchpad.configureVim",
-					},
-				]
-			: []),
+		{
+			id: "vim-toggle",
+			alignment: "right" as const,
+			priority: 100,
+			value: vimLabel,
+			icon: <Keyboard size={13} />,
+			tone: vimEnabled ? ("accent" as const) : ("default" as const),
+			tooltip: vimEnabled ? t("editor.vimEnabled") : t("editor.vimDisabled"),
+			command: "workbench.toggleVim",
+		},
 		...(commandMode
 			? [
 					{
 						id: "vim-command",
 						alignment: "right" as const,
 						priority: 105,
-						value: getVimCommandLabel(commandText, commandToken),
+						value: getVimCommandLabel(
+							commandText,
+							commandToken,
+							commands,
+							(key) => t(key as WebI18nKey),
+						),
 						tone: "accent" as const,
 					},
 				]
@@ -254,12 +279,12 @@ export function StatusBar({
 		>
 			<div className="status-group status-group-left">
 				{left.map((item) => (
-					<StatusSegment key={item.id} segment={item} onAction={onAction} />
+					<StatusSegment key={item.id} segment={item} onAction={handleAction} />
 				))}
 			</div>
 			<div className="status-group status-group-right">
 				{right.map((item) => (
-					<StatusSegment key={item.id} segment={item} onAction={onAction} />
+					<StatusSegment key={item.id} segment={item} onAction={handleAction} />
 				))}
 				<IconButton
 					label={t("status.notifications")}
