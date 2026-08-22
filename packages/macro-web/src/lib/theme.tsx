@@ -1,4 +1,10 @@
 import {
+	WEB_THEME_IDS,
+	WEB_THEMES,
+	type WebThemeDefinition,
+	type WebThemeId,
+} from "@stateful-mcp/macro-protocol";
+import {
 	createContext,
 	type ReactNode,
 	useContext,
@@ -6,44 +12,41 @@ import {
 	useMemo,
 	useState,
 } from "react";
+import { useOptionalI18n } from "./macro-i18n-provider";
 
-export type WebThemeId = "midnight" | "cloud" | "violet";
+export { WEB_THEME_IDS, WEB_THEMES, type WebThemeDefinition, type WebThemeId };
 
-export const WEB_THEME_IDS: readonly WebThemeId[] = [
-	"midnight",
-	"cloud",
-	"violet",
-];
-
-export interface WebThemeDefinition {
-	readonly id: WebThemeId;
+export interface ActiveWebTheme extends WebThemeDefinition {
 	readonly label: string;
-	readonly mode: "dark" | "light";
 }
-
-export const WEB_THEMES: readonly WebThemeDefinition[] = [
-	{ id: "midnight", label: "Midnight", mode: "dark" },
-	{ id: "cloud", label: "Cloud", mode: "light" },
-	{ id: "violet", label: "Violet", mode: "dark" },
-];
 
 interface ThemeContextValue {
 	themeId: WebThemeId;
 	setThemeId: (themeId: WebThemeId) => void;
-	theme: WebThemeDefinition;
+	theme: ActiveWebTheme;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { readonly children: ReactNode }) {
+	const i18n = useOptionalI18n();
+	const t = i18n?.t ?? ((key: string) => key);
 	const [themeId, setThemeId] = useState<WebThemeId>("midnight");
-	const theme =
+	const baseTheme =
 		WEB_THEMES.find((item) => item.id === themeId) ?? WEB_THEMES[0]!;
+
+	const theme: ActiveWebTheme = useMemo(
+		() => ({
+			...baseTheme,
+			label: t(baseTheme.labelKey as any) || baseTheme.id,
+		}),
+		[baseTheme, t],
+	);
 
 	useEffect(() => {
 		document.documentElement.dataset.theme = theme.id;
 		document.documentElement.style.colorScheme = theme.mode;
-	}, [theme]);
+	}, [theme.id, theme.mode]);
 
 	const value = useMemo(
 		() => ({ themeId, setThemeId, theme }),

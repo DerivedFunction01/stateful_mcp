@@ -251,16 +251,28 @@ export class SettingsUiModel {
 				(d) => d.path?.join(".") === pathStr,
 			);
 
+			const originDesc = isModified
+				? this.i18n
+					? this.i18n.t("settings.origin.overridden", {
+							scope: this.activeProfileId,
+						})
+					: `Modified in ${this.activeProfileId}`
+				: this.i18n
+					? this.i18n.t("settings.origin.inherited", {
+							profile: "base",
+						})
+					: "Default";
+
 			const origin: SettingsOriginInfo = isModified
 				? {
 						kind: "overridden",
 						sourceProfileId: this.activeProfileId,
-						description: `Overridden in ${this.activeProfileId}`,
+						description: originDesc,
 					}
 				: {
 						kind: "inherited",
 						sourceProfileId: "base",
-						description: "Inherited from Base",
+						description: originDesc,
 					};
 
 			const item: SettingsUiItem = {
@@ -294,16 +306,17 @@ export class SettingsUiModel {
 			// Group items within section by group
 			const groupMap = new Map<string, SettingsUiItem[]>();
 			for (const it of sortedItems) {
-				const grpName = it.schema.group ?? "General";
-				const grpItems = groupMap.get(grpName) ?? [];
+				const grpId = it.schema.group ?? "general";
+				const grpItems = groupMap.get(grpId) ?? [];
 				grpItems.push(it);
-				groupMap.set(grpName, grpItems);
+				groupMap.set(grpId, grpItems);
 			}
 
 			const groups: SettingsUiGroup[] = [];
-			for (const [grpTitle, grpItems] of groupMap.entries()) {
+			for (const [grpId, grpItems] of groupMap.entries()) {
+				const grpTitle = formatGroupTitle(grpId, this.i18n);
 				groups.push({
-					id: grpTitle.toLowerCase().replace(/\s+/g, "-"),
+					id: grpId,
 					title: grpTitle,
 					items: Object.freeze(grpItems),
 				});
@@ -347,6 +360,15 @@ export class SettingsUiModel {
 			listener();
 		}
 	}
+}
+
+export function formatGroupTitle(groupId: string, i18n?: I18nKernel): string {
+	const key = `settings.group.${groupId}`;
+	const translated: string | undefined = i18n ? i18n.t(key) : EN_LOCALE[key];
+	if (translated && translated !== key) {
+		return translated;
+	}
+	return groupId.charAt(0).toUpperCase() + groupId.slice(1);
 }
 
 export function formatCategoryTitle(

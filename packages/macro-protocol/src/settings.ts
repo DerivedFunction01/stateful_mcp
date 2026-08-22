@@ -349,11 +349,14 @@ export interface CustomKeybindingDto {
 	readonly args?: readonly unknown[];
 }
 
-export type StorageBackendKind =
-	| "indexeddb"
-	| "localstorage"
-	| "memory"
-	| "jsonl";
+export const STORAGE_BACKEND_KINDS = [
+	"indexeddb",
+	"localstorage",
+	"memory",
+	"jsonl",
+] as const;
+
+export type StorageBackendKind = (typeof STORAGE_BACKEND_KINDS)[number];
 
 export interface StorageLocationConfigDto {
 	readonly kind: StorageBackendKind;

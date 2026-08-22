@@ -70,6 +70,7 @@ export function SettingsTab({
 	}>();
 	const importDialogRef = useRef<HTMLDivElement>(null);
 	const importRestoreRef = useRef<HTMLElement | null>(null);
+	const importInput = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		if (!hostSettings) return;
@@ -210,7 +211,6 @@ export function SettingsTab({
 			operation: "reload",
 			expectedRevision: current.settingsRevision,
 		});
-	const importInput = useRef<HTMLInputElement>(null);
 	const exportSettings = async () => {
 		try {
 			const result = await client.applySettingsBundle({
@@ -404,13 +404,13 @@ export function SettingsTab({
 				<Diagnostic severity={notice.severity}>{notice.message}</Diagnostic>
 			)}
 
-			<div className="settings-layout">
-				<aside className="settings-sidebar">
+			<div className="settings-toolbar">
+				<div className="settings-toolbar-left">
 					<label className="search-box">
 						<Search size={16} />
 						<input
 							value={query}
-							placeholder={t("settings.search")}
+							placeholder={t("settings.searchPlaceholder")}
 							aria-label={t("settings.search")}
 							onChange={(event) => {
 								const value = event.target.value;
@@ -421,62 +421,102 @@ export function SettingsTab({
 								});
 							}}
 						/>
-					</label>
-					<div className="form-stack">
-						<SelectField
-							label={t("settings.profile")}
-							value={current.activeProfileId}
-							options={current.availableProfiles.map((id) => ({
-								id,
-								label: id,
-							}))}
-							onChange={(profileId) =>
-								void applySetting({
-									operation: "profile.select",
-									profileId,
-									expectedRevision: current.settingsRevision,
-								})
-							}
-						/>
-						<label className="field">
-							<span className="field-label">{t("settings.scope")}</span>
-							<select
-								className="input select"
-								value={current.activeScope}
-								onChange={(event) => {
-									const scope = event.target
-										.value as (typeof SCOPE_OPTIONS)[number];
-									if (!current.supportedScopes.includes(scope)) return;
-									void applyUi({ operation: "settings.ui.scope.set", scope });
+						{query && (
+							<button
+								type="button"
+								className="settings-reset-button"
+								onClick={() => {
+									setQuery("");
+									void applyUi({
+										operation: "settings.ui.search.set",
+										query: "",
+									});
 								}}
 							>
-								{SCOPE_OPTIONS.map((scope) => (
-									<option
-										key={scope}
-										value={scope}
-										disabled={!current.supportedScopes.includes(scope)}
-									>
-										{scope === "workspace"
-											? t("settings.scope.workspace")
-											: scope === "user"
-												? t("settings.scope.user")
-												: t("settings.scope.folder")}
-									</option>
-								))}
-							</select>
-						</label>
-						<Toggle
-							label={t("settings.modifiedOnly")}
-							checked={current.filterModifiedOnly}
-							onChange={(enabled) =>
-								void applyUi({
-									operation: "settings.ui.modifiedOnly.set",
-									enabled,
-								})
-							}
-						/>
-					</div>
-					<nav aria-label={t("settings.categories")}>
+								×
+							</button>
+						)}
+					</label>
+				</div>
+				<div className="settings-toolbar-right">
+					<label className="field" style={{ width: "auto", minWidth: 140 }}>
+						<select
+							className="input select"
+							value={current.activeScope}
+							onChange={(event) => {
+								const scope = event.target
+									.value as (typeof SCOPE_OPTIONS)[number];
+								if (!current.supportedScopes.includes(scope)) return;
+								void applyUi({ operation: "settings.ui.scope.set", scope });
+							}}
+						>
+							{SCOPE_OPTIONS.map((scope) => (
+								<option
+									key={scope}
+									value={scope}
+									disabled={!current.supportedScopes.includes(scope)}
+								>
+									{scope === "workspace"
+										? t("settings.scope.workspace")
+										: scope === "user"
+											? t("settings.scope.user")
+											: t("settings.scope.folder")}
+								</option>
+							))}
+						</select>
+					</label>
+					<Toggle
+						label={t("settings.modifiedOnly")}
+						checked={current.filterModifiedOnly}
+						onChange={(enabled) =>
+							void applyUi({
+								operation: "settings.ui.modifiedOnly.set",
+								enabled,
+							})
+						}
+					/>
+					<Button variant="ghost" onClick={() => void exportSettings()}>
+						{t("settings.export")}
+					</Button>
+					<Button variant="ghost" onClick={() => importInput.current?.click()}>
+						{t("settings.import")}
+					</Button>
+					<input
+						ref={importInput}
+						type="file"
+						accept=".json,application/json"
+						className="sr-only"
+						onChange={(event) => {
+							const file = event.target.files?.[0];
+							if (file) void importSettings(file);
+							event.target.value = "";
+						}}
+					/>
+				</div>
+			</div>
+
+			<div className="settings-layout">
+				<aside className="settings-sidebar">
+					<SelectField
+						label={t("settings.profile")}
+						value={current.activeProfileId}
+						options={current.availableProfiles.map((id) => ({
+							id,
+							label: id,
+						}))}
+						onChange={(profileId) =>
+							void applySetting({
+								operation: "profile.select",
+								profileId,
+								expectedRevision: current.settingsRevision,
+							})
+						}
+					/>
+
+					<nav
+						className="settings-sidebar-nav"
+						aria-label={t("settings.categories")}
+					>
 						{filteredSections.map((section) => (
 							<button
 								type="button"
@@ -495,7 +535,11 @@ export function SettingsTab({
 								}}
 							>
 								<strong>{section.title}</strong>
-								<span>{section.description ?? section.category}</span>
+								<Badge
+									tone={activeSection === section.id ? "accent" : "neutral"}
+								>
+									{section.items.length}
+								</Badge>
 							</button>
 						))}
 					</nav>
@@ -503,42 +547,48 @@ export function SettingsTab({
 
 				<main className="settings-content">
 					{selectedSection ? (
-						<Card
-							title={selectedSection.title}
-							action={
-								<Badge tone="neutral">{selectedSection.items.length}</Badge>
-							}
-						>
-							<div className="form-stack">
-								{selectedSection.groups.length > 0
-									? selectedSection.groups.map((group) => (
-											<div className="form-stack" key={group.id}>
-												{group.title && <h3>{group.title}</h3>}
-												{group.items.map((item) => (
-													<SchemaField
-														key={item.path.join(".")}
-														item={item}
-														disabled={readOnly || busy}
-														onChange={(value) => setPath(item, value)}
-														t={t}
-													/>
-												))}
-											</div>
-										))
-									: selectedSection.items.map((item) => (
+						<div className="form-stack">
+							{selectedSection.groups.length > 0 ? (
+								selectedSection.groups.map((group) => (
+									<div className="settings-group-section" key={group.id}>
+										{group.title && (
+											<h3 className="settings-group-title">{group.title}</h3>
+										)}
+										<div className="form-stack">
+											{group.items.map((item) => (
+												<SchemaField
+													key={item.path.join(".")}
+													item={item}
+													disabled={readOnly || busy}
+													onChange={(value) => setPath(item, value)}
+													onReset={() => setPath(item, item.effectiveValue)}
+													t={t}
+												/>
+											))}
+										</div>
+									</div>
+								))
+							) : (
+								<div className="settings-group-section">
+									<div className="form-stack">
+										{selectedSection.items.map((item) => (
 											<SchemaField
 												key={item.path.join(".")}
 												item={item}
 												disabled={readOnly || busy}
 												onChange={(value) => setPath(item, value)}
+												onReset={() => setPath(item, item.effectiveValue)}
 												t={t}
 											/>
 										))}
-							</div>
-						</Card>
+									</div>
+								</div>
+							)}
+						</div>
 					) : (
 						<Diagnostic severity="info">{t("common.noResults")}</Diagnostic>
 					)}
+
 					{preview && (
 						<SettingsPreviewPanel
 							preview={preview}
@@ -564,59 +614,36 @@ export function SettingsTab({
 						/>
 					)}
 
-					{current.jsonModeAvailable ? (
-						<Toggle
-							label={t("settings.jsonMode")}
-							checked={current.isSplitJsonMode}
-							onChange={() =>
-								void applyUi({ operation: "settings.ui.jsonMode.toggle" })
-							}
-						/>
-					) : (
-						<Diagnostic severity="info">
-							{t("settings.jsonUnavailable")}
-						</Diagnostic>
-					)}
-					{current.isSplitJsonMode && current.jsonModeAvailable && (
-						<label className="field">
-							<span className="field-label">{t("settings.rawJson")}</span>
-							<textarea
-								className="input"
-								value={jsonDraft}
-								disabled={readOnly || busy}
-								onChange={(event) => setJsonDraft(event.target.value)}
-								onBlur={() =>
-									void applySetting({
-										operation: "replaceJson",
-										rawText: jsonDraft,
-										expectedRevision: current.settingsRevision,
-									})
+					{current.jsonModeAvailable && (
+						<div className="settings-group-section">
+							<Toggle
+								label={t("settings.jsonMode")}
+								checked={current.isSplitJsonMode}
+								onChange={() =>
+									void applyUi({ operation: "settings.ui.jsonMode.toggle" })
 								}
 							/>
-						</label>
+							{current.isSplitJsonMode && (
+								<label className="field">
+									<span className="field-label">{t("settings.rawJson")}</span>
+									<textarea
+										className="input"
+										rows={10}
+										value={jsonDraft}
+										disabled={readOnly || busy}
+										onChange={(event) => setJsonDraft(event.target.value)}
+										onBlur={() =>
+											void applySetting({
+												operation: "replaceJson",
+												rawText: jsonDraft,
+												expectedRevision: current.settingsRevision,
+											})
+										}
+									/>
+								</label>
+							)}
+						</div>
 					)}
-					<div className="page-actions">
-						<Button variant="ghost" onClick={() => void exportSettings()}>
-							{t("settings.export")}
-						</Button>
-						<Button
-							variant="ghost"
-							onClick={() => importInput.current?.click()}
-						>
-							{t("settings.import")}
-						</Button>
-						<input
-							ref={importInput}
-							type="file"
-							accept="application/json,.json"
-							hidden
-							onChange={(event) => {
-								const file = event.target.files?.[0];
-								if (file) void importSettings(file);
-								event.currentTarget.value = "";
-							}}
-						/>
-					</div>
 				</main>
 			</div>
 		</div>
@@ -627,11 +654,13 @@ function SchemaField({
 	item,
 	disabled,
 	onChange,
+	onReset,
 	t,
 }: {
 	readonly item: SettingsUiItemDto;
 	readonly disabled: boolean;
 	readonly onChange: (value: unknown) => void;
+	readonly onReset?: () => void;
 	readonly t: (key: WebI18nKey) => string;
 }) {
 	const value = item.value;
@@ -642,113 +671,342 @@ function SchemaField({
 	const hint = [item.schema.description, item.origin.description]
 		.filter(Boolean)
 		.join(" ");
-	const unsupported =
-		item.schema.type === "keymap" || item.schema.widget === "custom";
-	if (unsupported) {
-		return (
-			<Diagnostic severity="info">{`${label}: ${t("settings.unsupportedWidget")}`}</Diagnostic>
-		);
-	}
-	if (item.schema.sensitive) {
+
+	const renderInput = () => {
+		if (item.schema.type === "keymap" || item.schema.widget === "keymap") {
+			return (
+				<KeymapTableField
+					label={label}
+					bindings={Array.isArray(value) ? value : []}
+					disabled={disabled}
+					hint={hint}
+					error={error}
+					onChange={onChange}
+				/>
+			);
+		}
+		if (item.schema.widget === "tag-input" || item.schema.type === "array") {
+			return (
+				<TagInputField
+					label={label}
+					tags={Array.isArray(value) ? value.map(String) : []}
+					delimiters={item.schema.tagDelimiters}
+					disabled={disabled}
+					hint={hint}
+					error={error}
+					onChange={onChange}
+				/>
+			);
+		}
+		if (item.schema.sensitive) {
+			return (
+				<TextInput
+					label={label}
+					value={SETTINGS_REDACTION_MARKER}
+					disabled={disabled}
+					hint={hint}
+					error={error}
+					onChange={(event) => onChange(event.target.value)}
+				/>
+			);
+		}
+		if (item.schema.type === "boolean") {
+			return (
+				<Toggle
+					label={label}
+					checked={Boolean(value)}
+					onChange={onChange as (checked: boolean) => void}
+				/>
+			);
+		}
+		if (item.schema.type === "enum") {
+			const options =
+				item.schema.enumOptions?.map((option) => ({
+					id: option.id,
+					label: option.label,
+				})) ??
+				(item.schema.enumValues ?? []).map((option) => ({
+					id: option,
+					label: option,
+				}));
+			return (
+				<SelectField
+					label={label}
+					value={String(value ?? "")}
+					options={options}
+					onChange={onChange}
+				/>
+			);
+		}
+		if (item.schema.type === "number") {
+			return (
+				<TextInput
+					label={label}
+					type="number"
+					value={value == null ? "" : String(value)}
+					min={item.schema.min}
+					max={item.schema.max}
+					step={item.schema.step}
+					disabled={disabled}
+					hint={hint}
+					error={error}
+					onChange={(event) =>
+						onChange(
+							event.target.value === ""
+								? undefined
+								: Number(event.target.value),
+						)
+					}
+				/>
+			);
+		}
+		if (item.schema.type === "object" || item.schema.type === "json") {
+			return (
+				<label className="field">
+					<span className="field-label">{label}</span>
+					<textarea
+						className="input"
+						value={JSON.stringify(value ?? {}, null, 2)}
+						disabled={disabled}
+						aria-invalid={Boolean(error)}
+						onChange={(event) => {
+							try {
+								onChange(JSON.parse(event.target.value));
+							} catch {
+								/* validation remains host-owned */
+							}
+						}}
+					/>
+					<span className="field-hint">{hint}</span>
+					{error && <span className="field-error">{error}</span>}
+				</label>
+			);
+		}
 		return (
 			<TextInput
 				label={label}
-				value={SETTINGS_REDACTION_MARKER}
+				value={value == null ? "" : String(value)}
 				disabled={disabled}
+				placeholder={item.schema.placeholder}
 				hint={hint}
 				error={error}
 				onChange={(event) => onChange(event.target.value)}
 			/>
 		);
-	}
-	if (item.schema.type === "boolean") {
-		return (
-			<Toggle
-				label={label}
-				checked={Boolean(value)}
-				onChange={onChange as (checked: boolean) => void}
-			/>
-		);
-	}
-	if (item.schema.type === "enum") {
-		const options =
-			item.schema.enumOptions?.map((option) => ({
-				id: option.id,
-				label: option.label,
-			})) ??
-			(item.schema.enumValues ?? []).map((option) => ({
-				id: option,
-				label: option,
-			}));
-		return (
-			<SelectField
-				label={label}
-				value={String(value ?? "")}
-				options={options}
-				onChange={onChange}
-			/>
-		);
-	}
-	if (item.schema.type === "number") {
-		return (
-			<TextInput
-				label={label}
-				type="number"
-				value={value == null ? "" : String(value)}
-				min={item.schema.min}
-				max={item.schema.max}
-				step={item.schema.step}
-				disabled={disabled}
-				hint={hint}
-				error={error}
-				onChange={(event) =>
-					onChange(
-						event.target.value === "" ? undefined : Number(event.target.value),
-					)
-				}
-			/>
-		);
-	}
-	if (
-		item.schema.type === "array" ||
-		item.schema.type === "object" ||
-		item.schema.type === "json"
-	) {
-		return (
-			<label className="field">
-				<span className="field-label">{label}</span>
-				<textarea
-					className="input"
-					value={JSON.stringify(
-						value ?? (item.schema.type === "array" ? [] : {}),
-						null,
-						2,
+	};
+
+	return (
+		<div className="settings-field-row">
+			<div className="settings-field-header">
+				<span className="settings-path-breadcrumb">
+					{item.path.join(" › ")}
+				</span>
+				<div className="settings-field-meta">
+					<Badge tone={item.isModified ? "accent" : "neutral"}>
+						{item.origin.description}
+					</Badge>
+					{item.isModified && onReset && (
+						<button
+							type="button"
+							className="settings-reset-button"
+							title="Reset setting"
+							disabled={disabled}
+							onClick={onReset}
+						>
+							↺
+						</button>
 					)}
+				</div>
+			</div>
+			{renderInput()}
+		</div>
+	);
+}
+
+function TagInputField({
+	label,
+	tags,
+	hint,
+	error,
+	disabled,
+	delimiters,
+	onChange,
+}: {
+	readonly label: string;
+	readonly tags: readonly string[];
+	readonly hint?: string;
+	readonly error?: string;
+	readonly disabled?: boolean;
+	readonly delimiters?: readonly string[];
+	readonly onChange: (tags: readonly string[]) => void;
+}) {
+	const [input, setInput] = useState("");
+	const delims = delimiters ?? [",", " "];
+
+	const addTag = (text: string) => {
+		const trimmed = text.trim();
+		if (trimmed && !tags.includes(trimmed)) {
+			onChange([...tags, trimmed]);
+		}
+		setInput("");
+	};
+
+	const removeTag = (index: number) => {
+		onChange(tags.filter((_, i) => i !== index));
+	};
+
+	return (
+		<div className="field">
+			<span className="field-label">{label}</span>
+			<div className="settings-tag-container">
+				{tags.map((tag, idx) => (
+					<span key={`${tag}-${idx}`} className="settings-tag-pill">
+						{tag}
+						{!disabled && (
+							<button
+								type="button"
+								className="settings-tag-remove"
+								onClick={() => removeTag(idx)}
+							>
+								×
+							</button>
+						)}
+					</span>
+				))}
+				<input
+					className="settings-tag-input"
+					type="text"
+					value={input}
 					disabled={disabled}
-					aria-invalid={Boolean(error)}
-					onChange={(event) => {
-						try {
-							onChange(JSON.parse(event.target.value));
-						} catch {
-							/* validation remains host-owned */
+					placeholder={tags.length === 0 ? "Type and press Enter..." : ""}
+					onChange={(e) => {
+						const val = e.target.value;
+						if (delims.some((d) => val.includes(d))) {
+							const parts = val.split(
+								new RegExp(`[${delims.map((d) => `\\${d}`).join("")}]`),
+							);
+							for (const part of parts) {
+								if (part.trim()) addTag(part);
+							}
+						} else {
+							setInput(val);
+						}
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							addTag(input);
+						} else if (e.key === "Backspace" && !input && tags.length > 0) {
+							removeTag(tags.length - 1);
 						}
 					}}
 				/>
-				<span className="field-hint">{hint}</span>
-				{error && <span className="field-error">{error}</span>}
-			</label>
-		);
-	}
+			</div>
+			{hint && <span className="field-hint">{hint}</span>}
+			{error && <span className="field-error">{error}</span>}
+		</div>
+	);
+}
+
+interface KeybindingRow {
+	chord: string;
+	command: string;
+}
+
+function KeymapTableField({
+	label,
+	bindings,
+	hint,
+	error,
+	disabled,
+	onChange,
+}: {
+	readonly label: string;
+	readonly bindings: readonly unknown[];
+	readonly hint?: string;
+	readonly error?: string;
+	readonly disabled?: boolean;
+	readonly onChange: (bindings: readonly unknown[]) => void;
+}) {
+	const [newChord, setNewChord] = useState("");
+	const [newCommand, setNewCommand] = useState("");
+
+	const typedBindings = (
+		Array.isArray(bindings) ? bindings : []
+	) as KeybindingRow[];
+
+	const addBinding = () => {
+		if (newChord.trim() && newCommand.trim()) {
+			onChange([
+				...typedBindings,
+				{ chord: newChord.trim(), command: newCommand.trim() },
+			]);
+			setNewChord("");
+			setNewCommand("");
+		}
+	};
+
+	const removeBinding = (index: number) => {
+		onChange(typedBindings.filter((_, i) => i !== index));
+	};
+
 	return (
-		<TextInput
-			label={label}
-			value={value == null ? "" : String(value)}
-			disabled={disabled}
-			placeholder={item.schema.placeholder}
-			hint={hint}
-			error={error}
-			onChange={(event) => onChange(event.target.value)}
-		/>
+		<div className="field">
+			<span className="field-label">{label}</span>
+			<div className="settings-keymap-table-wrapper">
+				<table className="settings-keymap-table">
+					<thead>
+						<tr>
+							<th>Command</th>
+							<th>Keybinding Chord</th>
+							{!disabled && <th>Actions</th>}
+						</tr>
+					</thead>
+					<tbody>
+						{typedBindings.map((b, idx) => (
+							<tr key={`${b.command}-${idx}`}>
+								<td>
+									<code>{b.command}</code>
+								</td>
+								<td>
+									<kbd className="settings-chord-badge">{b.chord}</kbd>
+								</td>
+								{!disabled && (
+									<td>
+										<Button variant="ghost" onClick={() => removeBinding(idx)}>
+											Delete
+										</Button>
+									</td>
+								)}
+							</tr>
+						))}
+					</tbody>
+				</table>
+				{!disabled && (
+					<div className="settings-keymap-add-row">
+						<input
+							className="input"
+							type="text"
+							placeholder="Command ID (e.g. editor.save)"
+							value={newCommand}
+							onChange={(e) => setNewCommand(e.target.value)}
+						/>
+						<input
+							className="input"
+							type="text"
+							placeholder="Chord (e.g. Ctrl+S)"
+							value={newChord}
+							onChange={(e) => setNewChord(e.target.value)}
+						/>
+						<Button variant="primary" onClick={addBinding}>
+							Add
+						</Button>
+					</div>
+				)}
+			</div>
+			{hint && <span className="field-hint">{hint}</span>}
+			{error && <span className="field-error">{error}</span>}
+		</div>
 	);
 }
 

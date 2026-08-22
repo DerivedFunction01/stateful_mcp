@@ -43,7 +43,7 @@ function parseKeyLiterals(src: string): string[] {
 	let m: RegExpExecArray | null;
 	m = re.exec(src);
 	while (m) {
-		out.push(m[1]);
+		if (m[1]) out.push(m[1]);
 		m = re.exec(src);
 	}
 	return out;
@@ -147,7 +147,7 @@ function extractUsedKeys(rootDir: string, skip: Set<string>): Set<string> {
 				let m: RegExpExecArray | null;
 				m = re.exec(s);
 				while (m) {
-					used.add(m[1]);
+					if (m[1]) used.add(m[1]);
 					m = re.exec(s);
 				}
 			}

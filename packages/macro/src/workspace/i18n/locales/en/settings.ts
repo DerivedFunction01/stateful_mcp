@@ -1,3 +1,8 @@
+import { EN_SETTINGS_APPEARANCE } from "./settings/appearance";
+import { EN_SETTINGS_APPLICATION } from "./settings/application";
+import { EN_SETTINGS_EDITOR } from "./settings/editor";
+import { EN_SETTINGS_FUNDAMENTALS } from "./settings/fundamentals/index";
+
 export const EN_SETTINGS: Record<string, string> = {
 	"settings.title": "Settings",
 	"settings.search": "Search settings",
@@ -40,6 +45,20 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.category.editor": "Editor Configuration",
 	"settings.category.keymap": "Keybindings & Motions",
 	"settings.category.extensions": "Extensions",
+	"settings.group.currency": "Currency",
+	"settings.group.dateTime": "Date & Time",
+	"settings.group.quantity": "Quantity & Units",
+	"settings.group.frequency": "Frequency & Cadence",
+	"settings.group.numeric": "Numbers",
+	"settings.group.general": "General",
+	"settings.group.execution": "Execution",
+	"settings.group.font": "Font",
+	"settings.group.formatting": "Formatting",
+	"settings.group.layout": "Layout",
+	"settings.group.appearance": "Appearance",
+	"settings.group.i18n": "Internationalization",
+	"settings.group.storage": "Storage",
+	"settings.group.keyboard": "Keyboard",
 	"settings.jsonMode": "JSON mode",
 	"settings.rawJson": "Raw settings JSON",
 	"settings.jsonUnavailable":
@@ -81,7 +100,11 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.language": "Language",
 	"settings.description":
 		"Configure fundamentals, profile behavior, and focused editor interactions.",
-	"settings.settingsCount": "3 settings",
+	"settings.settingsCount": "{count} settings",
+	"settings.settingsCountOne": "1 setting",
+	"settings.origin.overridden": "Modified in {scope}",
+	"settings.origin.inherited": "Inherited from {profile}",
+	"settings.origin.default": "Default",
 	"settings.appearanceCard": "Appearance",
 	"settings.profileCard": "Fundamentals and profile",
 	"settings.editorCard": "Scratchpad editor",
@@ -97,14 +120,8 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.macroToken": "Macro start token",
 	"settings.macroTokenHint": "Used when authoring macro calls.",
 	"settings.unsaved": "You have unsaved settings changes.",
-	"settings.schema.appearance.theme.title": "Color Theme",
-	"settings.schema.appearance.theme.desc": "Active color palette for the UI.",
-	"settings.schema.appearance.showBounds.title": "Show Component Bounds",
-	"settings.schema.appearance.showBounds.desc":
-		"Render debug bounding boxes around layout containers.",
-	"settings.schema.editor.fontSize.title": "Font Size",
-	"settings.schema.editor.fontSize.desc": "Editor font size in pixels.",
-	"settings.schema.editor.tabSize.title": "Tab Size",
-	"settings.schema.editor.tabSize.desc":
-		"Number of spaces per indentation level.",
+	...EN_SETTINGS_FUNDAMENTALS,
+	...EN_SETTINGS_EDITOR,
+	...EN_SETTINGS_APPEARANCE,
+	...EN_SETTINGS_APPLICATION,
 };

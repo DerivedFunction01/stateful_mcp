@@ -7,9 +7,17 @@ import type {
 import { QuantityConversionRegistry } from "./conversion-registry";
 import { functionalTransform, multiplicativeTransform } from "./transforms";
 
+export const STANDARD_UNIT_BUNDLES = [
+	"si",
+	"us-customary",
+	"imperial",
+] as const;
+
+export type StandardUnitBundle = (typeof STANDARD_UNIT_BUNDLES)[number];
+
 export interface CommonUnitCatalogOptions {
 	dimensions?: readonly QuantityDimension[];
-	bundles?: readonly ("si" | "us-customary" | "imperial")[];
+	bundles?: readonly StandardUnitBundle[];
 	overrideExisting?: boolean;
 	canonicalUnits?: Readonly<Record<QuantityDimension, UnitId>>;
 	timeDefaults?: {

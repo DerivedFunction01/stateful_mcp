@@ -5,5 +5,6 @@ export * from "./errors";
 export * from "./events";
 export * from "./keymap";
 export * from "./settings";
+export * from "./theme";
 export * from "./version";
 export * from "./workspace";

@@ -1,6 +1,7 @@
 import type { UserMacroProfile } from "../contracts/extension-config";
 import { ExtensionRuntime } from "../extensions/runtime";
 import { WorkspaceSaveCoordinator } from "./commands/save-coordinator";
+import { createDefaultSettingsSchema } from "./config/schema";
 import type { OpenSettingsRequest } from "./config/settings-navigation";
 import { SettingsNavigationState } from "./config/settings-navigation";
 import { WorkspaceSettingsService } from "./config/settings-service";
@@ -36,6 +37,7 @@ export * from "./config/bundle-manager";
 export * from "./config/config-resolver";
 export * from "./config/ejection-manager";
 export * from "./config/profile-resolver";
+export * from "./config/schema";
 export * from "./config/settings-bundle";
 export * from "./config/settings-navigation";
 export * from "./config/settings-projection";
@@ -156,6 +158,7 @@ export function createMacroWorkspace(
 		options?.settings ??
 		new WorkspaceSettingsService({
 			defaults: {},
+			schema: createDefaultSettingsSchema(i18n),
 			storage: {
 				read: () => null,
 				write: () => undefined,

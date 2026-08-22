@@ -19,6 +19,7 @@ import {
 	CoreSqlSettingsBundleStorage,
 	CoreSqlSettingsStorageDriver,
 	createDefaultI18nKernel,
+	createDefaultSettingsSchema,
 	createMacroWorkspace,
 	ExtensionError,
 	type MacroDocumentTemplate,
@@ -241,7 +242,7 @@ export async function loadMacroWorkspace(
 	const settingsSchema =
 		typeof options.settings?.schema === "function"
 			? options.settings.schema(i18n)
-			: (options.settings?.schema ?? []);
+			: (options.settings?.schema ?? createDefaultSettingsSchema(i18n));
 
 	// Load existing extension configs from storage driver
 	const extensionConfigs: Record<string, Record<string, unknown>> = {};

@@ -73,6 +73,11 @@ export function GalleryI18nScope({
 	return <>{children}</>;
 }
 
+export function useOptionalI18n(): MacroWebI18n | null {
+	const context = useContext(I18nContext);
+	return context ? context.publicValue : null;
+}
+
 export function useI18n(): MacroWebI18n {
 	const context = useContext(I18nContext);
 	if (!context) throw new Error("useI18n must be used within I18nProvider");

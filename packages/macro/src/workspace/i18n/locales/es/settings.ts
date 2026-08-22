@@ -1,8 +1,14 @@
+import { ES_SETTINGS_APPEARANCE } from "./settings/appearance";
+import { ES_SETTINGS_APPLICATION } from "./settings/application";
+import { ES_SETTINGS_EDITOR } from "./settings/editor";
+import { ES_SETTINGS_FUNDAMENTALS } from "./settings/fundamentals/index";
+
 export const ES_SETTINGS: Record<string, string> = {
 	"settings.title": "Configuración",
 	"settings.search": "Buscar configuración",
 	"settings.findPrompt": "Buscar:",
-	"settings.searchPlaceholder": "Buscar configuración",
+	"settings.searchPlaceholder":
+		"Buscar configuración (ej. 'decimal', 'unidad')",
 	"settings.profileLabel": "Perfil de configuración",
 	"settings.profile": "Perfil",
 	"settings.profile.base": "Base (Predeterminado)",
@@ -20,13 +26,13 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.bundle.blocked":
 		"No se pudo aplicar el paquete de configuración: {message}",
 	"settings.bundle.scopeUnsupported":
-		"El almacenamiento para el ámbito {scope} no está disponible.",
+		"El almacenamiento de configuración para el ámbito {scope} no está disponible.",
 	"settings.bundle.profileUnsupported":
 		"El perfil de configuración {profile} no está disponible.",
 	"settings.bundle.versionInvalid":
 		"La versión del paquete de configuración no es compatible.",
 	"settings.bundle.stale":
-		"La revisión del paquete de configuración está obsoleta.",
+		"La revisión del paquete de configuración está desactualizada.",
 	"settings.bundle.stageUnavailable":
 		"La importación de configuración preparada no está disponible.",
 	"settings.bundle.stageUnknown":
@@ -35,28 +41,41 @@ export const ES_SETTINGS: Record<string, string> = {
 		"El paquete contiene el perfil {profile} fuera del perfil seleccionado.",
 	"settings.bundle.sensitiveOmitted":
 		"Se omitió la configuración sensible del paquete importado.",
-	"settings.bundle.valueInvalid":
-		"La configuración {path} tiene un valor no válido.",
+	"settings.bundle.valueInvalid": "El ajuste {path} tiene un valor no válido.",
 	"settings.modifiedOnly": "Mostrar solo modificados",
 	"settings.categories": "Categorías de configuración",
-	"settings.category.syntax": "Sintaxis Principal",
-	"settings.category.values": "Fundamentos y Valores",
-	"settings.category.appearance": "Apariencia y Tema",
-	"settings.category.editor": "Configuración del Editor",
-	"settings.category.keymap": "Teclas y Movimientos",
+	"settings.category.syntax": "Sintaxis principal",
+	"settings.category.values": "Fundamentos y valores",
+	"settings.category.appearance": "Apariencia y tema",
+	"settings.category.editor": "Configuración del editor",
+	"settings.category.keymap": "Atajos y movimientos",
 	"settings.category.extensions": "Extensiones",
+	"settings.group.currency": "Moneda",
+	"settings.group.dateTime": "Fecha y hora",
+	"settings.group.quantity": "Cantidad y unidades",
+	"settings.group.frequency": "Frecuencia y cadencia",
+	"settings.group.numeric": "Números",
+	"settings.group.general": "General",
+	"settings.group.execution": "Ejecución",
+	"settings.group.font": "Fuente",
+	"settings.group.formatting": "Formato",
+	"settings.group.layout": "Diseño",
+	"settings.group.appearance": "Apariencia",
+	"settings.group.i18n": "Internacionalización",
+	"settings.group.storage": "Almacenamiento",
+	"settings.group.keyboard": "Teclado",
 	"settings.jsonMode": "Modo JSON",
-	"settings.rawJson": "JSON de configuración sin formato",
+	"settings.rawJson": "JSON sin formato",
 	"settings.jsonUnavailable":
 		"El modo JSON no está disponible para configuraciones sensibles.",
 	"settings.export": "Exportar",
 	"settings.import": "Importar",
-	"settings.exported": "La configuración se copió al portapapeles.",
+	"settings.exported": "Configuración copiada al portapapeles.",
 	"settings.downloaded": "Configuración descargada.",
 	"settings.importConfirm":
 		"¿Aplicar este paquete de configuración al perfil seleccionado?",
 	"settings.importReady":
-		"El archivo pasó la validación del host y está listo para aplicar.",
+		"El archivo pasó la validación del host y está listo para aplicarse.",
 	"settings.importMode": "Modo de importación",
 	"settings.importReplace": "Reemplazar configuración seleccionada",
 	"settings.importMerge": "Combinar configuración seleccionada",
@@ -64,14 +83,15 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.preview.tokens": "Tokens disponibles",
 	"settings.preview.sampleInput": "Entrada de muestra",
 	"settings.preview.unknownTokens": "Tokens de plantilla desconocidos",
-	"settings.preview.sampleMatched": "La muestra se analizó correctamente",
+	"settings.preview.sampleMatched": "Muestra analizada correctamente",
 	"settings.preview.sampleFailed": "La muestra no se pudo analizar",
-	"settings.preview.stale": "La vista previa está obsoleta",
-	"settings.preview.diagnostic": "Falló la validación de la vista previa",
+	"settings.preview.stale": "La vista previa está desactualizada",
+	"settings.preview.diagnostic": "Error de validación de vista previa",
 	"settings.imported": "Configuración importada.",
 	"settings.cancel": "Cancelar",
-	"settings.unsavedTitle": "Configuración sin guardar",
-	"settings.unsavedMessage": "¿Guardar o descartar los cambios antes de salir?",
+	"settings.unsavedTitle": "Configuraciones sin guardar",
+	"settings.unsavedMessage":
+		"¿Guardar o descartar los cambios de configuración antes de salir?",
 	"settings.keepEditing": "Seguir editando",
 	"settings.saveAndContinue": "Guardar y continuar",
 	"settings.unsupportedWidget":
@@ -86,7 +106,11 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.language": "Idioma",
 	"settings.description":
 		"Configura fundamentos, comportamiento del perfil e interacciones del editor enfocado.",
-	"settings.settingsCount": "3 ajustes",
+	"settings.settingsCount": "{count} ajustes",
+	"settings.settingsCountOne": "1 ajuste",
+	"settings.origin.overridden": "Modificado en {scope}",
+	"settings.origin.inherited": "Heredado de {profile}",
+	"settings.origin.default": "Predeterminado",
 	"settings.appearanceCard": "Apariencia",
 	"settings.profileCard": "Fundamentos y perfil",
 	"settings.editorCard": "Editor del bloc",
@@ -99,20 +123,11 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.measurements": "Mediciones",
 	"settings.sampleRuntime": "Runtime de ejemplo",
 	"settings.vimToggle": "Activar enlaces Vim en el bloc enfocado",
-	"settings.macroToken": "Token inicial de macro",
+	"settings.macroToken": "Macro start token",
 	"settings.macroTokenHint": "Se usa al escribir llamadas de macro.",
 	"settings.unsaved": "Tienes cambios de configuración sin guardar.",
-	"settings.schema.appearance.theme.title": "Tema de color",
-	"settings.schema.appearance.theme.desc":
-		"Paleta de colores activa para la interfaz.",
-	"settings.schema.appearance.showBounds.title":
-		"Mostrar límites de componentes",
-	"settings.schema.appearance.showBounds.desc":
-		"Renderizar cajas de contorno de depuración alrededor de los contenedores de diseño.",
-	"settings.schema.editor.fontSize.title": "Tamaño de fuente",
-	"settings.schema.editor.fontSize.desc":
-		"Tamaño de fuente del editor en píxeles.",
-	"settings.schema.editor.tabSize.title": "Tamaño de tabulación",
-	"settings.schema.editor.tabSize.desc":
-		"Número de espacios por nivel de indentación.",
+	...ES_SETTINGS_FUNDAMENTALS,
+	...ES_SETTINGS_EDITOR,
+	...ES_SETTINGS_APPEARANCE,
+	...ES_SETTINGS_APPLICATION,
 };

@@ -10,10 +10,10 @@ if (!root) throw new Error("Macro Web root element is missing");
 
 createRoot(root).render(
 	<StrictMode>
-		<ThemeProvider>
-			<I18nProvider>
+		<I18nProvider>
+			<ThemeProvider>
 				<App />
-			</I18nProvider>
-		</ThemeProvider>
+			</ThemeProvider>
+		</I18nProvider>
 	</StrictMode>,
 );
