@@ -83,6 +83,8 @@ export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.searchResultsSummary": "{count} resultados en {files} archivo(s)",
 	"workbench.noResultsFound": "No se encontraron resultados",
 	"workbench.replaceAll": "Reemplazar todo",
+	"workbench.replaceAllInFile": "Reemplazar todo en el archivo",
+	"workbench.dismiss": "Descartar",
 	"workbench.toggleReplace": "Alternar reemplazo",
 	"workbench.matchCase": "Coincidir mayúsculas y minúsculas",
 	"workbench.matchWholeWord": "Coincidir palabra completa",

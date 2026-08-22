@@ -1,8 +1,11 @@
 import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
 import {
 	CaseSensitive,
+	CheckCheck,
 	ChevronDown,
 	ChevronRight,
+	ChevronUp,
+	ExternalLink,
 	FileText,
 	type LucideIcon,
 	MoreHorizontal,
@@ -33,6 +36,7 @@ export interface PrimarySidebarProps {
 	readonly onCommand?: (command: string, args?: readonly unknown[]) => void;
 	readonly onSearchQueryChange?: (query: string) => void;
 	readonly onJumpToLine?: (lineNumber: number, col?: number) => void;
+	readonly onReplace?: (query: string, replacement: string) => void;
 	readonly onReplaceAll?: (query: string, replacement: string) => void;
 }
 
@@ -268,8 +272,16 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 		activeDocumentLines,
 		onSelectDocument,
 		onJumpToLine,
+		onReplace,
 		onReplaceAll,
 	} = props;
+
+	const [dismissedFiles, setDismissedFiles] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
+	const [dismissedMatches, setDismissedMatches] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
 
 	const searchResults = useMemo<readonly FileSearchResult[]>(() => {
 		const query = searchQuery.trim();
@@ -291,6 +303,8 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 		const results: FileSearchResult[] = [];
 
 		for (const doc of documents) {
+			if (dismissedFiles.has(doc.documentId)) continue;
+
 			const lines: readonly string[] =
 				doc.documentId === snapshot?.editor.activeDocument?.documentId
 					? (activeDocumentLines ??
@@ -306,21 +320,24 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 				while (match !== null) {
 					const start = match.index;
 					const end = start + match[0].length;
-					const prefix = lineText.slice(Math.max(0, start - 20), start);
-					const matchText = match[0];
-					const suffix = lineText.slice(
-						end,
-						Math.min(lineText.length, end + 30),
-					);
+					const matchKey = `${doc.documentId}-${logicalLineIndex + 1}-${start}`;
+					if (!dismissedMatches.has(matchKey)) {
+						const prefix = lineText.slice(Math.max(0, start - 20), start);
+						const matchText = match[0];
+						const suffix = lineText.slice(
+							end,
+							Math.min(lineText.length, end + 30),
+						);
 
-					fileMatches.push({
-						lineNumber: logicalLineIndex + 1,
-						startOffset: start,
-						endOffset: end,
-						prefix,
-						matchText,
-						suffix,
-					});
+						fileMatches.push({
+							lineNumber: logicalLineIndex + 1,
+							startOffset: start,
+							endOffset: end,
+							prefix,
+							matchText,
+							suffix,
+						});
+					}
 					match = matcher!.exec(lineText);
 				}
 			});
@@ -343,6 +360,8 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 		matchCase,
 		wholeWord,
 		isRegex,
+		dismissedFiles,
+		dismissedMatches,
 	]);
 
 	const totalMatches = searchResults.reduce(
@@ -350,6 +369,39 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 		0,
 	);
 	const matchingFilesCount = searchResults.length;
+
+	const flatMatches = useMemo(() => {
+		const items: {
+			readonly documentId: string;
+			readonly lineNumber: number;
+			readonly startOffset: number;
+			readonly key: string;
+		}[] = [];
+		for (const group of searchResults) {
+			group.matches.forEach((m, i) => {
+				items.push({
+					documentId: group.documentId,
+					lineNumber: m.lineNumber,
+					startOffset: m.startOffset,
+					key: `${group.documentId}-${m.lineNumber}-${m.startOffset}-${i}`,
+				});
+			});
+		}
+		return items;
+	}, [searchResults]);
+
+	const [activeMatchIndex, setActiveMatchIndex] = useState<number>(-1);
+
+	const jumpToMatch = (index: number) => {
+		if (flatMatches.length === 0) return;
+		const nextIndex = (index + flatMatches.length) % flatMatches.length;
+		setActiveMatchIndex(nextIndex);
+		const target = flatMatches[nextIndex];
+		if (target) {
+			onSelectDocument?.(target.documentId);
+			onJumpToLine?.(target.lineNumber, target.startOffset);
+		}
+	};
 
 	return (
 		<div className="sidebar-search-container">
@@ -374,10 +426,61 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 						value={searchQuery}
 						onChange={(e) => {
 							setSearchQuery(e.target.value);
+							setActiveMatchIndex(-1);
+							setDismissedFiles(new Set());
+							setDismissedMatches(new Set());
 							props.onSearchQueryChange?.(e.target.value);
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								if (e.shiftKey) {
+									jumpToMatch(
+										activeMatchIndex <= 0
+											? flatMatches.length - 1
+											: activeMatchIndex - 1,
+									);
+								} else {
+									jumpToMatch(activeMatchIndex + 1);
+								}
+							} else if (e.key === "ArrowDown") {
+								e.preventDefault();
+								jumpToMatch(activeMatchIndex + 1);
+							} else if (e.key === "ArrowUp") {
+								e.preventDefault();
+								jumpToMatch(
+									activeMatchIndex <= 0
+										? flatMatches.length - 1
+										: activeMatchIndex - 1,
+								);
+							}
 						}}
 					/>
 					<div className="search-input-actions">
+						<button
+							type="button"
+							className="search-action-btn"
+							title={t("editor.find.backward")}
+							disabled={flatMatches.length === 0}
+							onClick={() =>
+								jumpToMatch(
+									activeMatchIndex <= 0
+										? flatMatches.length - 1
+										: activeMatchIndex - 1,
+								)
+							}
+						>
+							<ChevronUp size={13} />
+						</button>
+						<button
+							type="button"
+							className="search-action-btn"
+							title={t("editor.find.forward")}
+							disabled={flatMatches.length === 0}
+							onClick={() => jumpToMatch(activeMatchIndex + 1)}
+						>
+							<ChevronDown size={13} />
+						</button>
 						<button
 							type="button"
 							className={`search-action-btn ${matchCase ? "active" : ""}`}
@@ -413,16 +516,39 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 							placeholder={t("workbench.replacePlaceholder")}
 							value={searchReplace}
 							onChange={(e) => setSearchReplace(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									e.preventDefault();
+									if (e.shiftKey) {
+										onReplaceAll?.(searchQuery, searchReplace);
+									} else {
+										onReplace?.(searchQuery, searchReplace);
+										jumpToMatch(activeMatchIndex + 1);
+									}
+								}
+							}}
 						/>
 						<div className="search-input-actions">
 							<button
 								type="button"
 								className="search-action-btn"
-								title={t("workbench.replaceAll")}
-								disabled={!searchQuery}
-								onClick={() => onReplaceAll?.(searchQuery, searchReplace)}
+								title={t("editor.find.replaceAction")}
+								disabled={!searchQuery || flatMatches.length === 0}
+								onClick={() => {
+									onReplace?.(searchQuery, searchReplace);
+									jumpToMatch(activeMatchIndex + 1);
+								}}
 							>
 								<Replace size={13} />
+							</button>
+							<button
+								type="button"
+								className="search-action-btn"
+								title={t("workbench.replaceAll")}
+								disabled={!searchQuery || flatMatches.length === 0}
+								onClick={() => onReplaceAll?.(searchQuery, searchReplace)}
+							>
+								<CheckCheck size={13} />
 							</button>
 						</div>
 					</div>
@@ -463,34 +589,129 @@ function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 									<FileText size={13} className="doc-icon" />
 									<span>{fileGroup.title}</span>
 								</span>
-								<span className="search-pill-badge">
-									{fileGroup.matches.length}
-								</span>
+								<div className="search-file-actions">
+									{replaceOpen && (
+										<button
+											type="button"
+											className="search-file-action-btn"
+											title={t("workbench.replaceAllInFile")}
+											onClick={(e) => {
+												e.stopPropagation();
+												onSelectDocument?.(fileGroup.documentId);
+												onReplaceAll?.(searchQuery, searchReplace);
+											}}
+										>
+											<Replace size={12} />
+										</button>
+									)}
+									<button
+										type="button"
+										className="search-file-action-btn"
+										title={t("workbench.openEditors")}
+										onClick={(e) => {
+											e.stopPropagation();
+											onSelectDocument?.(fileGroup.documentId);
+										}}
+									>
+										<ExternalLink size={12} />
+									</button>
+									<button
+										type="button"
+										className="search-file-action-btn"
+										title={t("workbench.dismiss")}
+										onClick={(e) => {
+											e.stopPropagation();
+											setDismissedFiles((prev) => {
+												const next = new Set(prev);
+												next.add(fileGroup.documentId);
+												return next;
+											});
+										}}
+									>
+										<X size={12} />
+									</button>
+									<span className="search-pill-badge">
+										{fileGroup.matches.length}
+									</span>
+								</div>
 							</button>
 
 							{!isCollapsed &&
-								fileGroup.matches.map((match, idx) => (
-									<button
-										type="button"
-										key={`${match.lineNumber}-${match.startOffset}-${idx}`}
-										className="search-match-row"
-										onClick={() => {
-											onSelectDocument?.(fileGroup.documentId);
-											onJumpToLine?.(match.lineNumber, match.startOffset);
-										}}
-									>
-										<span className="search-match-line-num">
-											{match.lineNumber}
-										</span>
-										<span className="search-match-text">
-											{match.prefix}
-											<mark className="search-match-highlight">
-												{match.matchText}
-											</mark>
-											{match.suffix}
-										</span>
-									</button>
-								))}
+								fileGroup.matches.map((match, idx) => {
+									const matchRawKey = `${fileGroup.documentId}-${match.lineNumber}-${match.startOffset}`;
+									const matchKey = `${matchRawKey}-${idx}`;
+									const isMatchActive =
+										activeMatchIndex >= 0 &&
+										flatMatches[activeMatchIndex]?.key === matchKey;
+									return (
+										<button
+											type="button"
+											key={matchKey}
+											className={`search-match-row ${isMatchActive ? "active" : ""}`}
+											onClick={() => {
+												const matchIdx = flatMatches.findIndex(
+													(m) => m.key === matchKey,
+												);
+												if (matchIdx >= 0) {
+													setActiveMatchIndex(matchIdx);
+												}
+												onSelectDocument?.(fileGroup.documentId);
+												onJumpToLine?.(match.lineNumber, match.startOffset);
+											}}
+										>
+											<span className="search-match-line-num">
+												{match.lineNumber}
+											</span>
+											<span className="search-match-text">
+												{match.prefix}
+												<mark className="search-match-highlight">
+													{match.matchText}
+												</mark>
+												{match.suffix}
+											</span>
+											<div className="search-match-actions">
+												{replaceOpen && (
+													<button
+														type="button"
+														className="search-match-action-btn"
+														title={t("editor.find.replaceAction")}
+														onClick={(e) => {
+															e.stopPropagation();
+															onSelectDocument?.(fileGroup.documentId);
+															onJumpToLine?.(
+																match.lineNumber,
+																match.startOffset,
+															);
+															onReplace?.(searchQuery, searchReplace);
+															setDismissedMatches((prev) => {
+																const next = new Set(prev);
+																next.add(matchRawKey);
+																return next;
+															});
+														}}
+													>
+														<Replace size={11} />
+													</button>
+												)}
+												<button
+													type="button"
+													className="search-match-action-btn"
+													title={t("workbench.dismiss")}
+													onClick={(e) => {
+														e.stopPropagation();
+														setDismissedMatches((prev) => {
+															const next = new Set(prev);
+															next.add(matchRawKey);
+															return next;
+														});
+													}}
+												>
+													<X size={11} />
+												</button>
+											</div>
+										</button>
+									);
+								})}
 						</div>
 					);
 				})}

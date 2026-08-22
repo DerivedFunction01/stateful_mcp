@@ -83,6 +83,8 @@ export const EN_WORKBENCH: Record<string, string> = {
 	"workbench.searchResultsSummary": "{count} results in {files} file(s)",
 	"workbench.noResultsFound": "No results found",
 	"workbench.replaceAll": "Replace all",
+	"workbench.replaceAllInFile": "Replace all in file",
+	"workbench.dismiss": "Dismiss",
 	"workbench.toggleReplace": "Toggle replace",
 	"workbench.matchCase": "Match Case",
 	"workbench.matchWholeWord": "Match Whole Word",

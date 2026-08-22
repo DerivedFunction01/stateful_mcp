@@ -322,6 +322,9 @@ export function WorkbenchShell({
 							);
 							getSurfaceAdapter()?.jumpToMatch?.(lineNumber - 1, col ?? 0);
 						}}
+						onReplace={(query, replacement) => {
+							getSurfaceAdapter()?.replaceCurrentMatch?.(query, replacement);
+						}}
 						onReplaceAll={(query, replacement) => {
 							getSurfaceAdapter()?.replaceAllMatches?.(query, replacement);
 						}}

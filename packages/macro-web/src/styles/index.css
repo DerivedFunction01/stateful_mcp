@@ -1019,15 +1019,18 @@ kbd {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 4px 6px;
+	width: 100%;
+	padding: 4px 8px 4px 6px;
 	background: transparent;
 	border: none;
-	border-radius: 4px;
 	cursor: pointer;
+	border-radius: 4px;
 	color: var(--theme-content-primary);
 	font-size: 12px;
-	width: 100%;
+	font-weight: 500;
 	text-align: left;
+	box-sizing: border-box;
+	outline: none;
 	transition: background 0.12s ease;
 }
 
@@ -1043,6 +1046,36 @@ kbd {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	flex: 1;
+}
+
+.search-file-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.search-file-action-btn {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: 3px;
+	color: var(--theme-content-secondary);
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.search-file-header:hover .search-file-action-btn {
+	display: inline-flex;
+}
+
+.search-file-action-btn:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
 }
 
 .search-pill-badge {
@@ -1062,18 +1095,74 @@ kbd {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 3px 6px 3px 22px;
+	width: 100%;
+	padding: 4px 8px 4px 22px;
 	font-family: "DM Mono", monospace;
 	font-size: 11px;
 	color: var(--theme-content-secondary);
+	background: transparent;
+	border: none;
 	cursor: pointer;
 	border-radius: 3px;
-	transition: background 0.12s ease;
+	text-align: left;
+	box-sizing: border-box;
+	outline: none;
+	position: relative;
+	transition:
+		background 0.12s ease,
+		color 0.12s ease;
 }
 
 .search-match-row:hover {
 	background: var(--theme-action-ghost-surface-hover);
 	color: var(--theme-content-primary);
+}
+
+.search-match-row.active {
+	background: var(
+		--theme-action-ghost-surface-active,
+		rgba(56, 189, 248, 0.15)
+	);
+	color: var(--theme-content-primary);
+	outline: 1px solid var(--theme-border-focus, rgba(56, 189, 248, 0.4));
+}
+
+.search-match-row:focus-visible {
+	outline: 1px solid var(--theme-border-focus);
+	background: var(--theme-action-ghost-surface-hover);
+}
+
+.search-match-actions {
+	display: none;
+	align-items: center;
+	gap: 3px;
+	margin-left: auto;
+	flex-shrink: 0;
+}
+
+.search-match-row:hover .search-match-actions {
+	display: inline-flex;
+}
+
+.search-match-action-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	background: var(--theme-surface-elevated);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 3px;
+	color: var(--theme-content-secondary);
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.search-match-action-btn:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+	border-color: var(--theme-border-focus);
 }
 
 .search-match-line-num {

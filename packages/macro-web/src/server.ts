@@ -1,3 +1,4 @@
+import { watch } from "node:fs";
 import { access, readdir } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { createMacroHost } from "@stateful-mcp/macro-host";
@@ -28,7 +29,8 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 interface SocketData {
-	readonly sessionId: string;
+	readonly sessionId?: string;
+	readonly isDevReload?: boolean;
 }
 interface JsonRequest extends HostRequest<string, unknown> {
 	readonly requestId: string;
@@ -41,20 +43,59 @@ const port = Number(argument("port") ?? Bun.env.PORT ?? 3000);
 const hostname = argument("host") ?? Bun.env.HOST ?? "127.0.0.1";
 const projectRoot = argument("project") ?? Bun.env.MACRO_PROJECT_ROOT;
 
-const build = await Bun.build({
-	entrypoints: [resolve(packageRoot, "src/main.tsx")],
-	outdir: assetsRoot,
-	target: "browser",
-	sourcemap: "inline",
-	naming: {
-		entry: "macro-web.[ext]",
-		chunk: "[name]-[hash].[ext]",
-		asset: "[name].[ext]",
-	},
-});
-if (!build.success) {
-	for (const log of build.logs) console.error(log);
-	throw new Error("Macro Web browser build failed");
+async function buildClientBundle(): Promise<boolean> {
+	const build = await Bun.build({
+		entrypoints: [resolve(packageRoot, "src/main.tsx")],
+		outdir: assetsRoot,
+		target: "browser",
+		sourcemap: "inline",
+		naming: {
+			entry: "macro-web.[ext]",
+			chunk: "[name]-[hash].[ext]",
+			asset: "[name].[ext]",
+		},
+	});
+	if (!build.success) {
+		for (const log of build.logs) console.error(log);
+		return false;
+	}
+	return true;
+}
+
+const initialBuildSuccess = await buildClientBundle();
+if (!initialBuildSuccess) {
+	throw new Error("Macro Web browser initial build failed");
+}
+
+const devReloadSockets = new Set<unknown>();
+let rebuildDebounce: ReturnType<typeof setTimeout> | null = null;
+
+function triggerDevRebuild() {
+	if (rebuildDebounce) clearTimeout(rebuildDebounce);
+	rebuildDebounce = setTimeout(async () => {
+		const ok = await buildClientBundle();
+		if (ok) {
+			for (const socket of devReloadSockets) {
+				try {
+					(socket as { send: (data: string) => void }).send("reload");
+				} catch {
+					// Client socket will clean up on close
+				}
+			}
+		}
+	}, 100);
+}
+
+// Watch workspace sources for automatic client rebuild and hot reload
+try {
+	watch(resolve(packageRoot, "src"), { recursive: true }, () =>
+		triggerDevRebuild(),
+	);
+	watch(resolve(packageRoot, "../macro/src"), { recursive: true }, () =>
+		triggerDevRebuild(),
+	);
+} catch (err) {
+	console.warn("Dev file watcher warning:", err);
 }
 
 const host = await createMacroHost({
@@ -66,7 +107,19 @@ const sockets = new Map<WebSocket, () => void>();
 
 const indexHtml = `<!doctype html>
 <html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="theme-color" content="#0b1020" /><title>Macro Web</title><link rel="stylesheet" href="/assets/macro-web.css" /></head>
-<body><div id="root"></div><script type="module" src="/assets/macro-web.js"></script></body></html>`;
+<body><div id="root"></div><script type="module" src="/assets/macro-web.js"></script><script>
+(() => {
+	const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+	function connect() {
+		const ws = new WebSocket(\`\${protocol}//\${location.host}/api/dev-reload\`);
+		ws.onmessage = (e) => {
+			if (e.data === "reload") location.reload();
+		};
+		ws.onclose = () => setTimeout(connect, 1000);
+	}
+	connect();
+})();
+</script></body></html>`;
 
 function isWithinRoot(path: string, root: string): boolean {
 	const rootRelative = relative(root, resolve(path));
@@ -81,6 +134,9 @@ async function serveAsset(pathname: string): Promise<Response | undefined> {
 	if (!isWithinRoot(assetPath, assetsRoot))
 		return new Response("Forbidden", { status: 403 });
 	const file = Bun.file(assetPath);
+	if (!(await file.exists())) {
+		await buildClientBundle();
+	}
 	return (await file.exists()) ? new Response(file) : undefined;
 }
 
@@ -151,6 +207,14 @@ const server = Bun.serve<SocketData>({
 	port,
 	fetch: async (request, serverInstance) => {
 		const url = new URL(request.url);
+
+		if (url.pathname === "/api/dev-reload" && request.method === "GET") {
+			if (serverInstance.upgrade(request, { data: { isDevReload: true } })) {
+				return undefined;
+			}
+			return new Response("WebSocket upgrade required", { status: 426 });
+		}
+
 		if (url.pathname === "/api/fs/browse" && request.method === "GET") {
 			const id = requestId(request);
 			const targetPath = url.searchParams.get("path") || process.cwd();
@@ -439,6 +503,11 @@ const server = Bun.serve<SocketData>({
 	},
 	websocket: {
 		open(socket) {
+			if (socket.data.isDevReload) {
+				devReloadSockets.add(socket);
+				return;
+			}
+			if (!socket.data.sessionId) return;
 			const unsubscribe = sessions.subscribe(socket.data.sessionId, (event) =>
 				socket.send(JSON.stringify(event)),
 			);
@@ -456,12 +525,16 @@ const server = Bun.serve<SocketData>({
 			);
 		},
 		close(socket) {
+			if (socket.data.isDevReload) {
+				devReloadSockets.delete(socket);
+				return;
+			}
 			const key = socket as unknown as WebSocket;
 			sockets.get(key)?.();
 			sockets.delete(key);
 		},
 		message(socket, message) {
-			if (message === "snapshot")
+			if (message === "snapshot" && socket.data.sessionId)
 				socket.send(
 					JSON.stringify({
 						type: "workspace.changed",
