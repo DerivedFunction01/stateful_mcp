@@ -1,4 +1,7 @@
-import type { EditorMode } from "@stateful-mcp/macro-protocol";
+import type {
+	EditorMode,
+	HorizontalAlignment,
+} from "@stateful-mcp/macro-protocol";
 import {
 	Bell,
 	Check,
@@ -12,7 +15,6 @@ import {
 } from "lucide-react";
 import { useActiveEditorSurface } from "../lib/editor-surface-registry";
 import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
-import type { HorizontalAlignment } from "@stateful-mcp/macro-protocol";
 import { cn } from "../lib/utils";
 import { IconButton } from "./ui/primitives";
 

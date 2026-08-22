@@ -299,8 +299,8 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			cmdReg.registerCommand(
 				{
 					command: "macro.executeAll",
-					title: "Execute All Cells",
-					category: "Macro",
+					titleI18nKey: "macro.executeAll",
+					categoryI18nKey: "command.category.macro",
 				},
 				{
 					execute: () => {
@@ -313,7 +313,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			palette.open("execute");
 			const items = palette.getItems();
 			expect(items.length).toBeGreaterThanOrEqual(1);
-			expect(items[0]?.title).toBe("Execute All Cells");
+			expect(items[0]?.title).toBe("macro.executeAll");
 
 			await palette.executeSelected();
 			expect(executed).toBe(true);

@@ -1,6 +1,6 @@
 import type { CommandDescriptorDto } from "@stateful-mcp/macro-protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useI18n } from "../lib/macro-i18n-provider";
+import { type I18nKey, useI18n } from "../lib/macro-i18n-provider";
 import { Button, ModalOverlay, ModalSurface } from "./ui/primitives";
 
 interface CommandPaletteProps {
@@ -17,6 +17,8 @@ interface CommandPaletteProps {
 
 interface RankedCommand {
 	readonly descriptor: CommandDescriptorDto;
+	readonly localizedTitle: string;
+	readonly localizedCategory?: string;
 	readonly exact: boolean;
 }
 
@@ -45,17 +47,33 @@ function rankCommands(
 	commands: readonly CommandDescriptorDto[],
 	query: string,
 	commandToken = "",
+	translate: (key: I18nKey) => string,
 ): RankedCommand[] {
 	const { token: q } = parseCommandQuery(query, commandToken);
-	if (!q) {
-		return commands.map((descriptor) => ({ descriptor, exact: false }));
-	}
 	const scored: RankedCommand[] = [];
+
 	for (const descriptor of commands) {
+		const localizedTitle = descriptor.titleI18nKey
+			? translate(descriptor.titleI18nKey as I18nKey)
+			: descriptor.id;
+		const localizedCategory = descriptor.categoryI18nKey
+			? translate(descriptor.categoryI18nKey as I18nKey)
+			: undefined;
+
+		if (!q) {
+			scored.push({
+				descriptor,
+				localizedTitle,
+				localizedCategory,
+				exact: false,
+			});
+			continue;
+		}
+
 		const haystack = [
 			descriptor.id,
-			descriptor.title,
-			descriptor.category ?? "",
+			localizedTitle,
+			localizedCategory ?? "",
 			descriptor.description ?? "",
 			descriptor.extensionId ?? "",
 			...(descriptor.aliases ?? []),
@@ -63,16 +81,31 @@ function rankCommands(
 		]
 			.join(" ")
 			.toLowerCase();
+
 		const idMatch = descriptor.id.toLowerCase() === q;
 		const aliasMatch = (descriptor.aliases ?? []).some(
 			(alias) => alias.toLowerCase() === q,
 		);
 		const verbMatch =
 			descriptor.verb != null && descriptor.verb.toLowerCase() === q;
-		if (idMatch || aliasMatch || verbMatch)
-			scored.push({ descriptor, exact: true });
-		else if (haystack.includes(q)) scored.push({ descriptor, exact: false });
+
+		if (idMatch || aliasMatch || verbMatch) {
+			scored.push({
+				descriptor,
+				localizedTitle,
+				localizedCategory,
+				exact: true,
+			});
+		} else if (haystack.includes(q)) {
+			scored.push({
+				descriptor,
+				localizedTitle,
+				localizedCategory,
+				exact: false,
+			});
+		}
 	}
+
 	// Exact id/alias/verb matches rank above fuzzy title/description matches.
 	return scored.sort((a, b) => Number(b.exact) - Number(a.exact));
 }
@@ -96,8 +129,8 @@ export function CommandPalette({
 	const dialogRef = useRef<HTMLDivElement>(null);
 
 	const ranked = useMemo(
-		() => rankCommands(commands, query, commandToken),
-		[commands, commandToken, query],
+		() => rankCommands(commands, query, commandToken, t),
+		[commands, commandToken, query, t],
 	);
 	const selectedCommand = ranked[selected]?.descriptor;
 
@@ -270,11 +303,11 @@ export function CommandPalette({
 								>
 									<div className="command-palette__option-info">
 										<span className="command-palette__option-title">
-											{descriptor.title}
+											{item.localizedTitle}
 										</span>
-										{descriptor.category ? (
+										{item.localizedCategory ? (
 											<span className="command-palette__option-category">
-												{descriptor.category}
+												{item.localizedCategory}
 											</span>
 										) : null}
 									</div>

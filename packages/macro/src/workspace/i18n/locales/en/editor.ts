@@ -114,4 +114,9 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.document.duplicate": "Duplicate document",
 	"editor.undo.reverse": "Undo / Reverse",
 	"editor.undo.reversed": "Reversed",
+	"editor.splitLine": "Split Line",
+	"editor.insertLineBreak": "Insert Line Break",
+	"editor.insertTab": "Insert Tab",
+	"editor.nextTab": "Next Tab",
+	"editor.prevTab": "Previous Tab",
 };

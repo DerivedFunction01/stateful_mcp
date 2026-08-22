@@ -101,8 +101,8 @@ export class CommandPaletteController {
 				cmdAliases.length > 0 ? `:${cmdAliases.join(", :")}` : undefined;
 			allItems.push({
 				id: cmd.command,
-				title: cmd.title,
-				category: cmd.category ?? "Command",
+				title: cmd.titleI18nKey ?? cmd.command,
+				category: cmd.categoryI18nKey ?? "common.workspace",
 				keybinding: cmd.keybinding ?? aliasHint,
 				execute: () => this.commandRegistry.executeCommand(cmd.command),
 			});
@@ -120,22 +120,22 @@ export class CommandPaletteController {
 
 			allItems.push({
 				id: "view.toggleSidepanel",
-				title: "Toggle Sidepanel Visibility",
-				category: "View",
+				title: "menu.toggleSidepanel",
+				category: "menu.view",
 				...(sidepanelChord ? { keybinding: sidepanelChord } : {}),
 				execute: () => this.layoutManager?.toggleSidepanel(),
 			});
 			allItems.push({
 				id: "view.nextTab",
-				title: "Switch to Next Workspace Tab",
-				category: "View",
+				title: "editor.nextTab",
+				category: "menu.view",
 				...(nextTabChord ? { keybinding: nextTabChord } : {}),
 				execute: () => this.layoutManager?.nextTab(1),
 			});
 			allItems.push({
 				id: "view.prevTab",
-				title: "Switch to Previous Workspace Tab",
-				category: "View",
+				title: "editor.prevTab",
+				category: "menu.view",
 				...(prevTabChord ? { keybinding: prevTabChord } : {}),
 				execute: () => this.layoutManager?.nextTab(-1),
 			});
@@ -146,8 +146,8 @@ export class CommandPaletteController {
 			for (const tab of this.tabRegistry.getTabs()) {
 				allItems.push({
 					id: `tab.switch.${tab.id}`,
-					title: `Open ${tab.label} Tab`,
-					category: "Navigation",
+					title: tab.label,
+					category: "common.navigation",
 					execute: () => this.layoutManager?.setActiveTab(tab.id),
 				});
 			}

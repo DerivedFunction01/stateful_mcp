@@ -80,8 +80,8 @@ export interface WorkspaceTabContribution {
 
 export interface CommandContribution {
 	readonly command: string;
-	readonly title: string;
-	readonly category?: string;
+	readonly titleI18nKey?: string;
+	readonly categoryI18nKey?: string;
 	readonly keybinding?: string;
 	readonly when?: string;
 	readonly verb?: string;

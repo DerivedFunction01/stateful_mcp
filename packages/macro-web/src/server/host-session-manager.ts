@@ -1636,10 +1636,10 @@ export class HostSessionManager {
 				];
 				return {
 					id: command.command,
-					title: command.title,
+					titleI18nKey: command.titleI18nKey,
 					verb: command.verb,
 					...(uniqueAliases.length > 0 ? { aliases: uniqueAliases } : {}),
-					category: command.category,
+					categoryI18nKey: command.categoryI18nKey,
 					description: command.description,
 					keybinding: command.keybinding,
 					args: command.args,
@@ -1716,9 +1716,10 @@ export class HostSessionManager {
 				: {
 						project: {
 							projectId: "in-memory",
-							displayName:
-								translate(workspace.i18n, "workbench.inMemorySession") ||
-								"In-Memory Session",
+							displayName: translate(
+								workspace.i18n,
+								"workbench.inMemorySession",
+							),
 							displayNameI18nKey: "workbench.inMemorySession",
 							lifecycle: "open" as const,
 							revision: "0",

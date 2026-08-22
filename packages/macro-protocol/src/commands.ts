@@ -8,10 +8,10 @@ export interface CommandArgumentDto {
 
 export interface CommandDescriptorDto {
 	readonly id: string;
-	readonly title: string;
+	readonly titleI18nKey?: string;
 	readonly verb?: string;
 	readonly aliases?: readonly string[];
-	readonly category?: string;
+	readonly categoryI18nKey?: string;
 	readonly description?: string;
 	readonly keybinding?: string;
 	readonly args?: readonly CommandArgumentDto[];

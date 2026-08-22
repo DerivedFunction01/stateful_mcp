@@ -1,5 +1,4 @@
 import type { WorkspaceLocaleDictionary } from "../types";
-import { ES_COMMANDS } from "./es/commands";
 import { ES_COMMON } from "./es/common";
 import { ES_EDITOR } from "./es/editor";
 import { ES_ERRORS } from "./es/errors";
@@ -24,7 +23,6 @@ export const ES_LOCALE: WorkspaceLocaleDictionary = {
 	...ES_STATUS,
 	...ES_HOST,
 	...ES_KEYMAP,
-	...ES_COMMANDS,
 	...ES_ERRORS,
 	...ES_COMMON,
 };

@@ -9,20 +9,20 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 	const descriptors: WorkspaceCommandDescriptor[] = [
 		{
 			id: "workspace.saveActive",
-			title: "Save Active Tab",
-			category: "Workspace",
+			titleI18nKey: "command.editor.save",
+			categoryI18nKey: "command.category.workspace",
 			execute: () => undefined,
 		},
 		{
 			id: "workspace.saveAll",
-			title: "Save All Tabs",
-			category: "Workspace",
+			titleI18nKey: "command.workspace.saveAll",
+			categoryI18nKey: "command.category.workspace",
 			execute: () => undefined,
 		},
 		{
 			id: "custom.brickwall",
-			title: "Build Brick Wall",
-			category: "Custom",
+			titleI18nKey: "custom.brickwall.title",
+			categoryI18nKey: "command.category.custom",
 			execute: () => undefined,
 		},
 	];
@@ -83,7 +83,7 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 		expect(wallSuggestions.length).toBeGreaterThan(0);
 		expect(wallSuggestions[0]?.value).toBe("wall");
 		expect(wallSuggestions[0]?.descriptor.id).toBe("custom.brickwall");
-		expect(wallSuggestions[0]?.detail).toBe("Build Brick Wall");
+		expect(wallSuggestions[0]?.detail).toBe("custom.brickwall.title");
 
 		// :saveall still points to workspace.saveAll
 		const saveallSuggestions = commandSuggestions(

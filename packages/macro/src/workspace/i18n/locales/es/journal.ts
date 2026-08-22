@@ -9,4 +9,5 @@ export const ES_JOURNAL: Record<string, string> = {
 	"journal.hint.navigate": "↑↓ Navegar · ↵ Inspeccionar",
 	"journal.hint.actions": "↵ Inspeccionar · r Reintentar · Del Revertir",
 	"journal.activeSelection": "▶ Activo: Entrada {n} (↑↓ para navegar)",
+	"journal.reverseEntry": "Revertir entrada de diario",
 };

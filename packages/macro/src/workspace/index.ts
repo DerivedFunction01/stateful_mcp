@@ -232,8 +232,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "workspace.saveActive",
-			title: "Save Active Tab",
-			category: "Workspace",
+			titleI18nKey: "menu.save",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			execute: async () => {
@@ -245,8 +245,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.newScratchpad",
-			title: "New Scratchpad Document",
-			category: "Editor",
+			titleI18nKey: "editor.document.new",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (options?: { title?: string; initialText?: string }) => {
@@ -266,8 +266,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.duplicateDocument",
-			title: "Duplicate Document",
-			category: "Editor",
+			titleI18nKey: "editor.document.duplicate",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (request?: { documentId?: string; newTitle?: string }) => {
@@ -285,8 +285,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.splitGroup",
-			title: "Split Editor Right",
-			category: "Editor",
+			titleI18nKey: "editor.group.split",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (request?: { orientation?: "horizontal" | "vertical" }) => {
@@ -300,8 +300,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.createSplitGroup",
-			title: "Split Editor Right",
-			category: "Editor",
+			titleI18nKey: "editor.group.split",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (request?: { orientation?: "horizontal" | "vertical" }) => {
@@ -315,8 +315,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.closeDocument",
-			title: "Close Document",
-			category: "Editor",
+			titleI18nKey: "editor.document.close",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (request?: { documentId?: string; force?: boolean }) => {
@@ -334,8 +334,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.executeLine",
-			title: "Execute Macro Line",
-			category: "Editor",
+			titleI18nKey: "editor.execution.line",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (request?: {
@@ -348,8 +348,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.executeRange",
-			title: "Execute Macro Range",
-			category: "Editor",
+			titleI18nKey: "editor.execution.range",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (request?: {
@@ -363,8 +363,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.executeValidLines",
-			title: "Execute Valid Macro Lines",
-			category: "Editor",
+			titleI18nKey: "editor.execution.validLines",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: (request?: {
@@ -376,56 +376,56 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "workspace.saveAll",
-			title: "Save All Tabs",
-			category: "Workspace",
+			titleI18nKey: "workspace.saveAll",
+			categoryI18nKey: "common.workspace",
 		},
 		{ execute: () => saveCoordinator.saveAll() },
 	);
 	commands.registerCommand(
 		{
 			command: "workspace.saveActiveAndClose",
-			title: "Save and Close",
-			category: "Workspace",
+			titleI18nKey: "workspace.saveActiveAndClose",
+			categoryI18nKey: "common.workspace",
 		},
 		{ execute: () => saveCoordinator.saveActiveAndClose() },
 	);
 	commands.registerCommand(
 		{
 			command: "workspace.saveAllAndQuit",
-			title: "Save All and Quit",
-			category: "Workspace",
+			titleI18nKey: "workspace.saveAllAndQuit",
+			categoryI18nKey: "common.workspace",
 		},
 		{ execute: () => saveCoordinator.saveAllAndQuit() },
 	);
 	commands.registerCommand(
 		{
 			command: "workspace.quit",
-			title: "Quit Application",
-			category: "Workspace",
+			titleI18nKey: "workspace.quit",
+			categoryI18nKey: "common.workspace",
 		},
 		{ execute: () => undefined },
 	);
 	commands.registerCommand(
 		{
 			command: "workspace.quitAll",
-			title: "Quit All",
-			category: "Workspace",
+			titleI18nKey: "workspace.quitAll",
+			categoryI18nKey: "common.workspace",
 		},
 		{ execute: () => saveCoordinator.saveAll("quit") },
 	);
 	commands.registerCommand(
 		{
 			command: "workspace.closeActiveTab",
-			title: "Close Active Tab",
-			category: "Workspace",
+			titleI18nKey: "workspace.closeActiveTab",
+			categoryI18nKey: "common.workspace",
 		},
 		{ execute: () => layout.closeActiveTab() },
 	);
 	commands.registerCommand(
 		{
 			command: "workspace.openSettings",
-			title: "Open Settings",
-			category: "Workspace",
+			titleI18nKey: "workbench.openSettings",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			execute: (request?: OpenSettingsRequest) => {
@@ -437,8 +437,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "workspace.closeSettings",
-			title: "Close Settings",
-			category: "Workspace",
+			titleI18nKey: "workspace.closeSettings",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			execute: () => {
@@ -450,8 +450,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "workspace.toggleSettings",
-			title: "Toggle Settings",
-			category: "Workspace",
+			titleI18nKey: "workspace.toggleSettings",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			execute: () => {
@@ -468,8 +468,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "workspace.openExtensions",
-			title: "Open Extensions",
-			category: "Workspace",
+			titleI18nKey: "workspace.openExtensions",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			execute: () => {
@@ -481,8 +481,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "workspace.toggleSidepanel",
-			title: "Toggle Sidepanel",
-			category: "View",
+			titleI18nKey: "menu.toggleSidepanel",
+			categoryI18nKey: "menu.view",
 			verb: "sidepanel",
 		},
 		{ execute: () => layout.toggleSidepanel() },
@@ -490,16 +490,16 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "workspace.toggleActivity",
-			title: "Toggle Primary Sidebar",
-			category: "View",
+			titleI18nKey: "workspace.toggleActivity",
+			categoryI18nKey: "menu.view",
 		},
 		{ execute: () => layout.toggleRegion("activity") },
 	);
 	commands.registerCommand(
 		{
 			command: "layout.setRegionWidthRatio",
-			title: "Set Region Width Ratio",
-			category: "View",
+			titleI18nKey: "layout.setRegionWidthRatio",
+			categoryI18nKey: "menu.view",
 		},
 		{
 			execute: (request?: {
@@ -515,8 +515,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "layout.setDomainRailWidthRatio",
-			title: "Set Domain Rail Width Ratio",
-			category: "View",
+			titleI18nKey: "layout.setDomainRailWidthRatio",
+			categoryI18nKey: "menu.view",
 		},
 		{
 			execute: (request?: { ratio?: number }) => {
@@ -529,8 +529,8 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "journal.reverseEntry",
-			title: "Reverse Journal Entry",
-			category: "Journal",
+			titleI18nKey: "journal.reverseEntry",
+			categoryI18nKey: "journal.title",
 		},
 		{
 			execute: async (request?: { entryId: string; reason?: string }) => {

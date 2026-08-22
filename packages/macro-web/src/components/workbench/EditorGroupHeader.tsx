@@ -116,9 +116,7 @@ export function EditorGroupHeader({
 					aria-pressed={vimEnabled}
 					disabled={!canUseVim}
 					onClick={onToggleVim}
-					title={
-						vimEnabled ? t("editor.vimEnabled") : t("editor.vimDisabled")
-					}
+					title={vimEnabled ? t("editor.vimEnabled") : t("editor.vimDisabled")}
 				>
 					<span>VIM</span>
 				</button>

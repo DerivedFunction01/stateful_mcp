@@ -52,10 +52,10 @@ export class CommandRegistry {
 	getDescriptors(): readonly WorkspaceCommandDescriptor[] {
 		return this.getCommands().map((command) => ({
 			id: command.command,
-			title: command.title,
+			titleI18nKey: command.titleI18nKey,
 			verb: command.verb,
 			aliases: command.aliases,
-			category: command.category,
+			categoryI18nKey: command.categoryI18nKey,
 			description: command.description,
 			keybinding: command.keybinding,
 			args: command.args,

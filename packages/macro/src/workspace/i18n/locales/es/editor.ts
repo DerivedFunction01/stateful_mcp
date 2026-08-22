@@ -115,4 +115,9 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.document.duplicate": "Duplicar documento",
 	"editor.undo.reverse": "Deshacer / Revertir",
 	"editor.undo.reversed": "Revertido",
+	"editor.splitLine": "Dividir línea",
+	"editor.insertLineBreak": "Insertar salto de línea",
+	"editor.insertTab": "Insertar tabulación",
+	"editor.nextTab": "Pestaña siguiente",
+	"editor.prevTab": "Pestaña anterior",
 };

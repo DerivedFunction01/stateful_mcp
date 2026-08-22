@@ -5,10 +5,7 @@ import type {
 	ScratchpadSnapshotDto,
 } from "@stateful-mcp/macro-protocol";
 import type { ReactNode, RefObject } from "react";
-import type {
-	BrowserVimKeyboardEvent,
-	CellRange,
-} from "../../lib/browser-vim";
+import type { BrowserVimKeyboardEvent, CellRange } from "../../lib/browser-vim";
 import { useI18n } from "../../lib/macro-i18n-provider";
 import { EditorSurfaceView } from "../EditorSurfaceView";
 import { EditorConflictBanner } from "./EditorConflictBanner";

@@ -50,7 +50,17 @@ export function useEditorSurfaceRegistration({
 			handleKeyDown: (event) => vimController.handleKeyDown(event),
 		});
 		return () => registry.unregister(surfaceId);
-	}, [registry, surfaceId, surfaceRef, surfaceFocused, snapshot?.editor.activeDocumentId, vimState.mode, vimState.enabled, getSurfaceAdapter, vimController]);
+	}, [
+		registry,
+		surfaceId,
+		surfaceRef,
+		surfaceFocused,
+		snapshot?.editor.activeDocumentId,
+		vimState.mode,
+		vimState.enabled,
+		getSurfaceAdapter,
+		vimController,
+	]);
 
 	useEffect(() => {
 		registry.update(surfaceId, {

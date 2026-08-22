@@ -265,11 +265,19 @@ function applySearchHighlights(
 				delete(name: string): void;
 			};
 		};
-		const HighlightCtor = (window as unknown as { Highlight?: new (...ranges: Range[]) => unknown }).Highlight;
+		const HighlightCtor = (
+			window as unknown as { Highlight?: new (...ranges: Range[]) => unknown }
+		).Highlight;
 		if (cssWithHighlights.highlights && HighlightCtor) {
-			cssWithHighlights.highlights.set("search-match", new HighlightCtor(...matchRanges));
+			cssWithHighlights.highlights.set(
+				"search-match",
+				new HighlightCtor(...matchRanges),
+			);
 			if (currentRange) {
-				cssWithHighlights.highlights.set("search-current", new HighlightCtor(currentRange));
+				cssWithHighlights.highlights.set(
+					"search-current",
+					new HighlightCtor(currentRange),
+				);
 			} else {
 				cssWithHighlights.highlights.delete("search-current");
 			}
@@ -956,11 +964,7 @@ export function getEditorSurfaceAdapter(
 			clearSearchHighlights();
 		},
 
-		findText: (
-			query: string,
-			direction: SearchDirection,
-			navigate = true,
-		) => {
+		findText: (query: string, direction: SearchDirection, navigate = true) => {
 			const needle = query;
 			if (!needle) {
 				clearSearchHighlights();

@@ -699,4 +699,3 @@ describe("BrowserKeymapController dispatch announcements", () => {
 		expect(commands).toEqual(["workspace.toggleSidepanel"]);
 	});
 });
-

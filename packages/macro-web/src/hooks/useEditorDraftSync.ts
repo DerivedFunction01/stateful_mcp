@@ -43,7 +43,9 @@ export function useEditorDraftSync({
 		? editorDrafts[activeDocumentMeta.documentId]
 		: undefined;
 	const activeLines =
-		localDraft ?? activeDocument?.lines.map((line: ScratchpadLineDto) => line.rawText) ?? [];
+		localDraft ??
+		activeDocument?.lines.map((line: ScratchpadLineDto) => line.rawText) ??
+		[];
 
 	const draftTimerRef = useRef<number | undefined>(undefined);
 	const lastSubmittedDraftRef = useRef<{
@@ -112,7 +114,13 @@ export function useEditorDraftSync({
 			}
 			onSetEditorDraft(activeDocumentMeta.documentId, newLines);
 		},
-		[activeDocumentMeta, localDraft, activeDocument, activeCellIndex, onSetEditorDraft],
+		[
+			activeDocumentMeta,
+			localDraft,
+			activeDocument,
+			activeCellIndex,
+			onSetEditorDraft,
+		],
 	);
 
 	const clearDraftTimer = useCallback(() => {

@@ -1,15 +1,15 @@
 export interface BuiltinCommandDefinition {
 	readonly command: string;
-	readonly title: string;
-	readonly category: string;
+	readonly titleI18nKey?: string;
+	readonly categoryI18nKey?: string;
 	readonly verb?: string;
 	readonly defaultAliases?: readonly string[];
-	readonly description?: string;
+	readonly descriptionI18nKey?: string;
 }
 
 /**
  * Authoritative canonical built-in command catalog.
- * Defines canonical command IDs, titles, categories, Vim Ex-command verbs, and default aliases.
+ * Defines canonical command IDs, title i18n keys, category i18n keys, Vim Ex-command verbs, and default aliases.
  * User-configured and extension-contributed aliases layer on top of these canonical definitions.
  */
 export const BUILTIN_COMMAND_DEFINITIONS: readonly BuiltinCommandDefinition[] =
@@ -17,152 +17,130 @@ export const BUILTIN_COMMAND_DEFINITIONS: readonly BuiltinCommandDefinition[] =
 		// Workspace & Session
 		{
 			command: "workspace.saveActive",
-			title: "Save Active Tab",
-			category: "Workspace",
+			titleI18nKey: "menu.save",
+			categoryI18nKey: "common.workspace",
 			verb: "write",
 			defaultAliases: ["w"],
-			description: "Save active document changes to storage.",
 		},
 		{
 			command: "workspace.saveAll",
-			title: "Save All Tabs",
-			category: "Workspace",
+			titleI18nKey: "workspace.saveAll",
+			categoryI18nKey: "common.workspace",
 			verb: "wall",
 			defaultAliases: ["wa"],
-			description: "Save all open modified documents.",
 		},
 		{
 			command: "workspace.saveActiveAndClose",
-			title: "Save and Close",
-			category: "Workspace",
+			titleI18nKey: "workspace.saveActiveAndClose",
+			categoryI18nKey: "common.workspace",
 			verb: "wq",
-			description: "Save active document and close its tab.",
 		},
 		{
 			command: "workspace.saveAllAndQuit",
-			title: "Save All and Quit",
-			category: "Workspace",
+			titleI18nKey: "workspace.saveAllAndQuit",
+			categoryI18nKey: "common.workspace",
 			verb: "wqa",
-			description: "Save all open documents and quit the session.",
 		},
 		{
 			command: "workspace.quit",
-			title: "Quit Application",
-			category: "Workspace",
+			titleI18nKey: "workspace.quit",
+			categoryI18nKey: "common.workspace",
 			verb: "quit",
 			defaultAliases: ["q"],
-			description: "Exit the active workspace session.",
 		},
 		{
 			command: "workspace.quitAll",
-			title: "Quit All",
-			category: "Workspace",
+			titleI18nKey: "workspace.quitAll",
+			categoryI18nKey: "common.workspace",
 			verb: "quitall",
 			defaultAliases: ["qa"],
-			description: "Close all workspaces and quit.",
 		},
 		{
 			command: "workspace.closeActiveTab",
-			title: "Close Active Tab",
-			category: "Workspace",
+			titleI18nKey: "workspace.closeActiveTab",
+			categoryI18nKey: "common.workspace",
 			verb: "tabclose",
-			description: "Close current active workspace tab.",
 		},
 		{
 			command: "workspace.openSettings",
-			title: "Open Settings",
-			category: "Workspace",
+			titleI18nKey: "workbench.openSettings",
+			categoryI18nKey: "common.workspace",
 			verb: "settings",
 			defaultAliases: ["config"],
-			description: "Open the configuration and settings panel.",
 		},
 		{
 			command: "workspace.closeSettings",
-			title: "Close Settings",
-			category: "Workspace",
-			description: "Dismiss the settings panel.",
+			titleI18nKey: "workspace.closeSettings",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			command: "workspace.toggleSettings",
-			title: "Toggle Settings",
-			category: "Workspace",
-			description: "Toggle settings panel visibility.",
+			titleI18nKey: "workspace.toggleSettings",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			command: "workspace.openExtensions",
-			title: "Open Extensions",
-			category: "Workspace",
+			titleI18nKey: "workspace.openExtensions",
+			categoryI18nKey: "common.workspace",
 			verb: "extensions",
-			description: "Open extensions and plugin manager.",
 		},
 
 		// Editor Execution & Operations
 		{
 			command: "editor.executeLine",
-			title: "Execute Macro Line",
-			category: "Editor",
-			description: "Execute macro line at cursor or specified line.",
+			titleI18nKey: "editor.execution.line",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			command: "editor.executeRange",
-			title: "Execute Macro Range",
-			category: "Editor",
-			description: "Execute macro lines across the given range.",
+			titleI18nKey: "editor.execution.range",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			command: "editor.executeValidLines",
-			title: "Execute Valid Macro Lines",
-			category: "Editor",
-			description: "Execute all valid executable macro lines in document.",
+			titleI18nKey: "editor.execution.validLines",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			command: "editor.splitGroup",
-			title: "Split Editor Right",
-			category: "Editor",
-			description: "Split the active document into a side editor group.",
+			titleI18nKey: "editor.group.split",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			command: "editor.newScratchpad",
-			title: "New Scratchpad Document",
-			category: "Editor",
-			description: "Create a new scratchpad buffer in the active group.",
+			titleI18nKey: "editor.document.new",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			command: "editor.find",
-			title: "Find",
-			category: "Editor",
-			description: "Open the editor find widget.",
+			titleI18nKey: "editor.find.findAction",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			command: "editor.replace",
-			title: "Find and Replace",
-			category: "Editor",
-			description: "Open the editor find and replace widget.",
+			titleI18nKey: "editor.find.replaceAction",
+			categoryI18nKey: "common.editor",
 		},
 
 		// Workbench & Navigation
 		{
 			command: "workbench.commandPalette",
-			title: "Command Palette",
-			category: "Workbench",
-			description: "Open the command palette omnibar.",
+			titleI18nKey: "palette.title",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			command: "workbench.quickOpen",
-			title: "Go to File / Quick Open",
-			category: "Workbench",
-			description: "Quickly open files and documents by name.",
+			titleI18nKey: "workbench.quickOpen",
+			categoryI18nKey: "common.workspace",
 		},
 		{
 			command: "workspace.toggleSidepanel",
-			title: "Toggle Sidepanel Visibility",
-			category: "View",
-			description: "Show or hide the secondary sidebar panel.",
+			titleI18nKey: "menu.toggleSidepanel",
+			categoryI18nKey: "menu.view",
 		},
 		{
 			command: "workbench.toggleDrawer",
-			title: "Toggle Output Drawer",
-			category: "View",
-			description: "Show or hide the bottom output/journal drawer.",
+			titleI18nKey: "workbench.toggleDrawer",
+			categoryI18nKey: "menu.view",
 		},
 	];

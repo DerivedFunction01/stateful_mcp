@@ -3,8 +3,8 @@ import type { CommandAliasValue } from "../keymaps/types";
 
 export interface WorkspaceCommandDescriptor {
 	readonly id: string;
-	readonly title: string;
-	readonly category?: string;
+	readonly titleI18nKey?: string;
+	readonly categoryI18nKey?: string;
 	readonly description?: string;
 	readonly keybinding?: string;
 	readonly modes?: readonly ("NORMAL" | "VISUAL" | "COMMAND")[];
@@ -83,7 +83,7 @@ export function commandSuggestions(
 					matches.push({
 						descriptor,
 						value,
-						detail: descriptor.title,
+						detail: descriptor.titleI18nKey ?? descriptor.id,
 					});
 				}
 			}
@@ -98,7 +98,7 @@ export function commandSuggestions(
 				matches.push({
 					descriptor,
 					value: descriptor.id,
-					detail: descriptor.title,
+					detail: descriptor.titleI18nKey ?? descriptor.id,
 				});
 			}
 		}

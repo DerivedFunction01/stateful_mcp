@@ -730,22 +730,22 @@ function FindWidgetStory() {
 const GALLERY_COMMANDS: readonly CommandDescriptorDto[] = [
 	{
 		id: "workspace.openSettings",
-		title: "Open Settings",
-		category: "Workspace",
+		titleI18nKey: "workbench.openSettings",
+		categoryI18nKey: "common.workspace",
 		description: "Open the application settings surface.",
 		keybinding: "Ctrl+,",
 	},
 	{
 		id: "editor.save",
-		title: "Save Active Tab",
-		category: "Editor",
+		titleI18nKey: "menu.save",
+		categoryI18nKey: "common.editor",
 		description: "Save the current editor document.",
 		keybinding: "Ctrl+S",
 	},
 	{
 		id: "editor.executeLine",
-		title: "Execute Macro Line",
-		category: "Macro",
+		titleI18nKey: "editor.execution.line",
+		categoryI18nKey: "common.editor",
 		description: "Execute the selected logical macro line.",
 		keybinding: "Enter",
 		args: [
@@ -759,8 +759,8 @@ const GALLERY_COMMANDS: readonly CommandDescriptorDto[] = [
 	},
 	{
 		id: "workspace.openCommandPalette",
-		title: "Open Command Palette with a Very Long Example Title",
-		category: "Workbench",
+		titleI18nKey: "palette.title",
+		categoryI18nKey: "common.workspace",
 		keybinding: "Ctrl+Shift+P",
 	},
 ];
@@ -1120,8 +1120,7 @@ function WorkbenchInspectorStory() {
 	const { t } = useI18n();
 	const [activeLine, setActiveLine] = useState(0);
 	const [pinned, setPinned] = useState<string[]>(["vitals"]);
-	const [dockPosition, setDockPosition] =
-		useState<SidepanelPosition>("right");
+	const [dockPosition, setDockPosition] = useState<SidepanelPosition>("right");
 	const [isOpen, setIsOpen] = useState(true);
 
 	const mockSnapshot: ScratchpadSnapshotDto = {
@@ -1466,8 +1465,7 @@ function MenuBarStory() {
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	const [inspectorOpen, setInspectorOpen] = useState(true);
-	const [inspectorPos, setInspectorPos] =
-		useState<SidepanelPosition>("right");
+	const [inspectorPos, setInspectorPos] = useState<SidepanelPosition>("right");
 
 	return (
 		<Card

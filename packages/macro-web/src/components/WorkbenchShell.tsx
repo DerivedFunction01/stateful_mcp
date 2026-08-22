@@ -365,10 +365,7 @@ export function WorkbenchShell({
 							flushDraft();
 							return;
 						}
-						if (
-							activeGroup &&
-							!activeGroup.documentIds.includes(documentId)
-						) {
+						if (activeGroup && !activeGroup.documentIds.includes(documentId)) {
 							openDocumentInActiveGroup(documentId);
 						} else {
 							emitEditorOperation({

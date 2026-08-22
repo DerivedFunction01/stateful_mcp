@@ -5,6 +5,7 @@ import type {
 } from "@stateful-mcp/macro/workspace/i18n/i18n-kernel";
 import type { I18nKey } from "@stateful-mcp/macro/workspace/i18n/locales/i18n-keys";
 
+export type { I18nKey };
 export type WebI18nKey = I18nKey | keyof (typeof GALLERY_TRANSLATIONS)["en"];
 
 import {
