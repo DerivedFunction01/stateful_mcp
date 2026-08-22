@@ -658,4 +658,45 @@ describe("BrowserKeymapController dispatch announcements", () => {
 
 		expect(executed).toBe(false);
 	});
+
+	test("dispatches workspace.toggleSidepanel on primary+b across editor and workbench contexts", () => {
+		const commands: string[] = [];
+		const controller = new BrowserKeymapController({
+			getSnapshot: () =>
+				({
+					keymap: {
+						bindings: [
+							{
+								command: "workspace.toggleSidepanel",
+								chords: ["primary+b"],
+								modes: ["NORMAL", "INSERT", "VISUAL"],
+							},
+						],
+					},
+				}) as any,
+			getContext: () => ({
+				context: { editorMode: "NORMAL" },
+				editorFocused: true,
+			}),
+			onCommand: (command) => {
+				commands.push(command);
+			},
+			announce: () => undefined,
+			platform: "windows",
+		});
+
+		controller.attach(window);
+		window.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "b",
+				ctrlKey: true,
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		controller.dispose();
+
+		expect(commands).toEqual(["workspace.toggleSidepanel"]);
+	});
 });
+
