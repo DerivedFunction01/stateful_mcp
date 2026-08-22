@@ -3,7 +3,6 @@ import type {
 	WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import {
-	Check,
 	ChevronRight,
 	Columns2,
 	Command,
@@ -325,26 +324,13 @@ export function MenuBar({
 				onSelect: () => onToggleInspector?.(),
 			},
 			{
-				kind: "submenu",
-				id: "view.inspectorPosition",
-				label: "Inspector Position",
+				id: "view.toggleInspectorPosition",
+				label: `${t("settings.schema.workbench.inspectorPos.title")}: ${t(`settings.schema.workbench.inspectorPos.${inspectorPosition}`)}`,
 				icon: <Columns2 size={14} />,
-				items: [
-					{
-						id: "view.posLeft",
-						label: "Left Side",
-						icon:
-							inspectorPosition === "left" ? <Check size={14} /> : undefined,
-						onSelect: () => onSetInspectorPosition?.("left"),
-					},
-					{
-						id: "view.posRight",
-						label: "Right Side",
-						icon:
-							inspectorPosition === "right" ? <Check size={14} /> : undefined,
-						onSelect: () => onSetInspectorPosition?.("right"),
-					},
-				],
+				onSelect: () =>
+					onSetInspectorPosition?.(
+						inspectorPosition === "right" ? "left" : "right",
+					),
 			},
 			{ kind: "separator", id: "view.sep1" },
 			{
@@ -457,39 +443,39 @@ export function MenuBar({
 				<div
 					className="layout-controls-group"
 					role="toolbar"
-					aria-label="Layout Controls"
+					aria-label={t("workbench.layoutControls")}
 				>
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isSidebarOpen ? "active" : ""}`}
-						title={`Toggle Primary Sidebar${activityShortcut ? ` (${activityShortcut})` : ""}`}
+						title={`${t("workbench.togglePrimarySidebar")}${activityShortcut ? ` (${activityShortcut})` : ""}`}
 						onClick={
 							onToggleSidebar ?? (() => onCommand("workspace.toggleActivity"))
 						}
-						aria-label="Toggle Primary Sidebar"
+						aria-label={t("workbench.togglePrimarySidebar")}
 					>
 						<PanelLeft size={14} />
 					</button>
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isDrawerOpen ? "active" : ""}`}
-						title={`Toggle Output Drawer${drawerShortcut ? ` (${drawerShortcut})` : ""}`}
+						title={`${t("workbench.toggleOutputDrawer")}${drawerShortcut ? ` (${drawerShortcut})` : ""}`}
 						onClick={
 							onToggleDrawer ?? (() => onCommand("workbench.toggleDrawer"))
 						}
-						aria-label="Toggle Output Drawer"
+						aria-label={t("workbench.toggleOutputDrawer")}
 					>
 						<PanelBottom size={14} />
 					</button>
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isInspectorOpen ? "active" : ""}`}
-						title={`Toggle Inspector Panel${sidepanelShortcut ? ` (${sidepanelShortcut})` : ""}`}
+						title={`${t("workbench.toggleInspectorPanel")}${sidepanelShortcut ? ` (${sidepanelShortcut})` : ""}`}
 						onClick={
 							onToggleInspector ??
 							(() => onCommand("workspace.toggleSidepanel"))
 						}
-						aria-label="Toggle Inspector Panel"
+						aria-label={t("workbench.toggleInspectorPanel")}
 					>
 						<PanelRight size={14} />
 					</button>

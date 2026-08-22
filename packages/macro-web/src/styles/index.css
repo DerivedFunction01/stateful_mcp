@@ -624,6 +624,15 @@ kbd {
 	user-select: none;
 }
 
+/* Keep the activity rail opposite the inspector, like VS Code's layout. */
+.app-body.inspector-docked-left .activity-rail {
+	order: 2;
+}
+
+.app-body.inspector-docked-left .app-content {
+	order: 1;
+}
+
 .brand-mark {
 	width: 32px;
 	height: 32px;
@@ -2131,12 +2140,22 @@ kbd {
 }
 
 .editor-output-drawer.open {
-	max-height: 180px;
+	height: var(--output-drawer-height, 180px);
+	max-height: 600px;
 	min-height: 120px;
 }
 
 .editor-output-drawer.collapsed {
 	max-height: 28px;
+}
+
+.output-drawer-resizer {
+	height: 5px;
+	margin-top: -3px;
+	cursor: row-resize;
+	flex-shrink: 0;
+	touch-action: none;
+	z-index: 1;
 }
 
 .output-drawer-header {

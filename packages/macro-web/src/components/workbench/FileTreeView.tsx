@@ -116,11 +116,14 @@ export function FileTreeView({
 						<button
 							type="button"
 							className="file-tree-entry"
-							onClick={() =>
-									item.isDirectory
-										? (setSelectedFolder(item.path), setExpanded((current) => new Set(current).add(item.path)))
-									: onOpenFile(item.path)
-							}
+							onClick={() => {
+								if (item.isDirectory) {
+									setSelectedFolder(item.path);
+									setExpanded((current) => new Set(current).add(item.path));
+								} else {
+									onOpenFile(item.path);
+								}
+							}}
 						>
 							<FileEntryIcon
 								name={item.name}
@@ -196,7 +199,6 @@ export function FileTreeView({
 			{creating && (
 				<input
 					className="file-tree-create-input"
-					autoFocus
 					value={name}
 					onChange={(event) => setName(event.target.value)}
 					onKeyDown={(event) => {

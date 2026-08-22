@@ -13,8 +13,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Layers,
-	PanelLeftClose,
-	PanelRightClose,
 	Pin,
 	Plus,
 	ShieldAlert,
@@ -237,35 +235,18 @@ export function WorkbenchInspector({
 
 				<div className="inspector-strip-spacer" />
 
-				{/* Dock Position Swap Button */}
-				{onToggleDockPosition && (
-					<button
-						type="button"
-						className="inspector-strip-btn"
-						title={
-							dockPosition === "right"
-								? "Move Inspector to Left"
-								: "Move Inspector to Right"
-						}
-						onClick={onToggleDockPosition}
-						aria-label="Toggle Dock Position"
-					>
-						{dockPosition === "right" ? (
-							<PanelLeftClose size={17} />
-						) : (
-							<PanelRightClose size={17} />
-						)}
-					</button>
-				)}
-
 				{/* Close / Collapse Button */}
 				{onToggleOpen && (
 					<button
 						type="button"
 						className="inspector-strip-btn"
-						title={isOpen ? "Collapse Inspector" : "Expand Inspector"}
+						title={t(
+							isOpen
+								? "workbench.collapseInspector"
+								: "workbench.expandInspector",
+						)}
 						onClick={onToggleOpen}
-						aria-label="Toggle Inspector Visibility"
+						aria-label={t("workbench.toggleInspectorVisibility")}
 					>
 						{isOpen ? (
 							dockPosition === "right" ? (
@@ -300,9 +281,9 @@ export function WorkbenchInspector({
 								<button
 									type="button"
 									className="icon-button"
-									title="Close Inspector"
+									title={t("workbench.closeInspector")}
 									onClick={onToggleOpen}
-									aria-label="Close Inspector"
+									aria-label={t("workbench.closeInspector")}
 								>
 									<X size={13} />
 								</button>

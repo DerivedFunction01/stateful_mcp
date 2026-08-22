@@ -25,6 +25,8 @@ export interface WorkbenchShellProps {
 	readonly status?: string;
 	readonly errorMessage?: string;
 	readonly onCommand: (command: string, args?: readonly unknown[]) => void;
+	readonly isDrawerOpen?: boolean;
+	readonly onToggleDrawer?: () => void;
 	readonly editorDrafts: Readonly<Record<string, readonly string[]>>;
 	readonly editorConflict?: {
 		readonly documentId: string;
@@ -65,6 +67,8 @@ export function WorkbenchShell({
 	status = "loading",
 	errorMessage,
 	onCommand,
+	isDrawerOpen,
+	onToggleDrawer,
 	editorDrafts,
 	editorConflict,
 	editorResult,
@@ -558,6 +562,8 @@ export function WorkbenchShell({
 				<EditorOutputDrawer
 					output={snapshot.editor.output}
 					result={editorResult}
+					isOpen={isDrawerOpen}
+					onToggleOpen={onToggleDrawer}
 					onReverseEntry={(entryId: string) =>
 						onCommand("journal.reverseEntry", [{ entryId }])
 					}

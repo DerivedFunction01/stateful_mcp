@@ -14,7 +14,7 @@ import {
 	RotateCcw,
 	XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { Badge } from "./ui/primitives";
 
@@ -22,6 +22,8 @@ export interface EditorOutputDrawerProps {
 	readonly output?: EditorOutputSnapshotDto;
 	readonly result?: EditorOperationResult;
 	readonly defaultOpen?: boolean;
+	readonly isOpen?: boolean;
+	readonly onToggleOpen?: () => void;
 	readonly onReverseEntry?: (entryId: string) => void | Promise<void>;
 }
 
@@ -31,11 +33,49 @@ export function EditorOutputDrawer({
 	output,
 	result,
 	defaultOpen = true,
+	isOpen: controlledOpen,
+	onToggleOpen,
 	onReverseEntry,
 }: EditorOutputDrawerProps) {
 	const { t } = useI18n();
-	const [isOpen, setIsOpen] = useState(defaultOpen);
+	const [internalOpen, setInternalOpen] = useState(defaultOpen);
+	const isOpen = controlledOpen ?? internalOpen;
+	const setIsOpen = onToggleOpen ?? (() => setInternalOpen((open) => !open));
+	const openDrawer = () => {
+		if (isOpen) return;
+		if (onToggleOpen) onToggleOpen();
+		else setInternalOpen(true);
+	};
 	const [activeTab, setActiveTab] = useState<OutputTab>("output");
+	const [height, setHeight] = useState(180);
+	const resizeStart = useRef<{ y: number; height: number } | null>(null);
+
+	const handleResizePointerDown = (
+		event: React.PointerEvent<HTMLDivElement>,
+	) => {
+		event.preventDefault();
+		resizeStart.current = { y: event.clientY, height };
+		event.currentTarget.setPointerCapture(event.pointerId);
+	};
+	const handleResizePointerMove = (
+		event: React.PointerEvent<HTMLDivElement>,
+	) => {
+		if (!resizeStart.current) return;
+		setHeight(
+			Math.max(
+				120,
+				Math.min(
+					600,
+					resizeStart.current.height - (event.clientY - resizeStart.current.y),
+				),
+			),
+		);
+	};
+	const handleResizePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+		resizeStart.current = null;
+		if (event.currentTarget.hasPointerCapture(event.pointerId))
+			event.currentTarget.releasePointerCapture(event.pointerId);
+	};
 
 	const receipts =
 		result && "receipts" in result ? (result.receipts ?? []) : [];
@@ -54,8 +94,25 @@ export function EditorOutputDrawer({
 	return (
 		<section
 			className={`editor-output-drawer ${isOpen ? "open" : "collapsed"}`}
+			style={{ "--output-drawer-height": `${height}px` } as CSSProperties}
 			aria-label={t("editor.output.title")}
 		>
+			{isOpen && (
+				// biome-ignore lint/a11y/useSemanticElements: interactive window splitter widget requires div with role=separator
+				<div
+					className="output-drawer-resizer"
+					role="separator"
+					aria-orientation="horizontal"
+					aria-label={t("workbench.resizeOutputDrawer")}
+					aria-valuenow={height}
+					aria-valuemin={120}
+					aria-valuemax={600}
+					tabIndex={0}
+					onPointerDown={handleResizePointerDown}
+					onPointerMove={handleResizePointerMove}
+					onPointerUp={handleResizePointerUp}
+				/>
+			)}
 			<header className="output-drawer-header">
 				<div className="output-drawer-tabs">
 					<button
@@ -63,7 +120,7 @@ export function EditorOutputDrawer({
 						className={`drawer-tab-btn ${activeTab === "output" ? "active" : ""}`}
 						onClick={() => {
 							setActiveTab("output");
-							setIsOpen(true);
+							openDrawer();
 						}}
 					>
 						<PanelBottom size={13} />
@@ -79,7 +136,7 @@ export function EditorOutputDrawer({
 							className={`drawer-tab-btn ${activeTab === "receipts" ? "active" : ""}`}
 							onClick={() => {
 								setActiveTab("receipts");
-								setIsOpen(true);
+								openDrawer();
 							}}
 						>
 							<CheckCircle2 size={13} />
@@ -94,7 +151,7 @@ export function EditorOutputDrawer({
 							className={`drawer-tab-btn ${activeTab === "preview" ? "active" : ""}`}
 							onClick={() => {
 								setActiveTab("preview");
-								setIsOpen(true);
+								openDrawer();
 							}}
 						>
 							<Eye size={13} />
@@ -108,7 +165,7 @@ export function EditorOutputDrawer({
 							className={`drawer-tab-btn ${activeTab === "skipped" ? "active" : ""}`}
 							onClick={() => {
 								setActiveTab("skipped");
-								setIsOpen(true);
+								openDrawer();
 							}}
 						>
 							<AlertTriangle size={13} />
@@ -122,7 +179,9 @@ export function EditorOutputDrawer({
 					<button
 						type="button"
 						className="drawer-toggle-btn"
-						onClick={() => setIsOpen(!isOpen)}
+						onClick={() =>
+							onToggleOpen ? onToggleOpen() : setInternalOpen(!isOpen)
+						}
 						title={t(isOpen ? "menu.toggleSidepanel" : "menu.toggleSidepanel")}
 						aria-label={t("menu.toggleSidepanel")}
 					>
@@ -238,9 +297,7 @@ export function EditorOutputDrawer({
 							<div className="preview-lines-list">
 								{previewLines.map((line) => (
 									<div className="preview-line-row" key={line.lineNumber}>
-										<span className="preview-line-num">
-											{line.lineNumber}:
-										</span>
+										<span className="preview-line-num">{line.lineNumber}:</span>
 										<span className="preview-line-content">
 											{line.preview?.text ?? line.rawText}
 										</span>

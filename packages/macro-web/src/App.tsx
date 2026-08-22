@@ -34,6 +34,11 @@ import {
 	type WebI18nKey,
 } from "./lib/macro-i18n-provider";
 import {
+	loadUserPreferences,
+	saveUserPreferences,
+	subscribeUserPreferences,
+} from "./lib/user-preferences-storage";
+import {
 	BrowserWorkspaceStore,
 	useBrowserWorkspaceStore,
 } from "./lib/workspace-store";
@@ -58,6 +63,9 @@ export function App() {
 	const transport =
 		workspaceState.status === "loading" ? "connecting" : workspaceState.status;
 	const platform = useMemo(() => getBrowserShortcutPlatform(), []);
+	const [userPrefs, setUserPrefs] = useState(() => loadUserPreferences());
+	const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+	useEffect(() => subscribeUserPreferences(setUserPrefs), []);
 
 	useEffect(() => {
 		if (route === "gallery") return;
@@ -440,11 +448,17 @@ export function App() {
 					activeDocumentTitle={activeDoc?.title}
 					isSidebarOpen={snapshot?.layout.regions.activity?.open ?? true}
 					isInspectorOpen={snapshot?.layout.sidepanelOpen ?? true}
+					isDrawerOpen={isDrawerOpen}
+					inspectorPosition={userPrefs.inspectorPosition ?? "right"}
+					onSetInspectorPosition={(position) =>
+						saveUserPreferences({ inspectorPosition: position })
+					}
 					onCommand={(cmd, args) => {
 						void runCommand(cmd, args);
 					}}
 					onToggleSidebar={() => void runCommand("workspace.toggleActivity")}
 					onToggleInspector={() => void runCommand("workspace.toggleSidepanel")}
+					onToggleDrawer={() => setIsDrawerOpen((open) => !open)}
 					onOpenPalette={openPalette}
 					onOpenFolderModal={setFolderModalMode}
 					onCloseProject={() => void store.closeProject()}
@@ -452,7 +466,9 @@ export function App() {
 					currentRoute={route}
 				/>
 
-				<div className="app-body">
+				<div
+					className={`app-body ${userPrefs.inspectorPosition === "left" ? "inspector-docked-left" : ""}`}
+				>
 					<ActivityRail
 						currentRoute={route}
 						activePrimaryTab={activePrimaryTab}
@@ -474,6 +490,8 @@ export function App() {
 						) : (
 							<WorkbenchShell
 								snapshot={snapshot}
+								isDrawerOpen={isDrawerOpen}
+								onToggleDrawer={() => setIsDrawerOpen((open) => !open)}
 								status={workspaceState.status}
 								editorDrafts={workspaceState.editorDrafts}
 								editorConflict={workspaceState.editorConflict}
@@ -486,6 +504,10 @@ export function App() {
 								activePrimaryTab={activePrimaryTab}
 								onOpenFolderModal={setFolderModalMode}
 								onCommand={(command, args) => {
+									if (command === "workbench.toggleDrawer") {
+										setIsDrawerOpen((open) => !open);
+										return;
+									}
 									void store
 										.executeCommand(command, args)
 										.then(() => {
@@ -519,17 +541,15 @@ export function App() {
 										path,
 									});
 								}}
-									onCreateFile={(parent: string, name: string) => {
-									void host
-										.createFile?.(parent, name)
-										.then(({ path }) => {
-											void store.applyEditorOperation({
-												operation: "editor.openFile",
-												requestId: crypto.randomUUID(),
-												path,
-											});
-											return store.refreshFileTree();
+								onCreateFile={(parent: string, name: string) => {
+									void host.createFile?.(parent, name).then(({ path }) => {
+										void store.applyEditorOperation({
+											operation: "editor.openFile",
+											requestId: crypto.randomUUID(),
+											path,
 										});
+										return store.refreshFileTree();
+									});
 								}}
 								onCreateFolder={(parent: string, name: string) => {
 									void host

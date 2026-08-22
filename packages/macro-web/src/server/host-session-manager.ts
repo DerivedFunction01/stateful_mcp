@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { watch, type FSWatcher } from "node:fs";
+import { type FSWatcher, watch } from "node:fs";
 import {
 	mkdir,
-	readFile,
 	readdir,
+	readFile,
 	rename as renameFile,
 	rm,
 	stat,
@@ -460,8 +460,14 @@ export class HostSessionManager {
 		if (!root) return;
 		const onChange = (_event: string, filename: string | Buffer | null) => {
 			const changedPath = filename?.toString().replaceAll("\\", "/") ?? "";
-			if (changedPath.split("/").some((part) => [".macro", ".macro-user", ".git"].includes(part))) return;
-			if (session.fileTreeRefreshTimer) clearTimeout(session.fileTreeRefreshTimer);
+			if (
+				changedPath
+					.split("/")
+					.some((part) => [".macro", ".macro-user", ".git"].includes(part))
+			)
+				return;
+			if (session.fileTreeRefreshTimer)
+				clearTimeout(session.fileTreeRefreshTimer);
 			session.fileTreeRefreshTimer = setTimeout(() => {
 				session.fileTreeRefreshTimer = undefined;
 				this.emitFileTreeChanged(session);
@@ -490,7 +496,10 @@ export class HostSessionManager {
 				return;
 			}
 			for (const entry of entries) {
-				if (entry.isDirectory() && ![".macro", ".macro-user", ".git"].includes(entry.name))
+				if (
+					entry.isDirectory() &&
+					![".macro", ".macro-user", ".git"].includes(entry.name)
+				)
 					await visit(resolve(directory, entry.name));
 			}
 		};
@@ -503,7 +512,8 @@ export class HostSessionManager {
 	}
 
 	private stopFileTreeWatcher(session: Session): void {
-		if (session.fileTreeRefreshTimer) clearTimeout(session.fileTreeRefreshTimer);
+		if (session.fileTreeRefreshTimer)
+			clearTimeout(session.fileTreeRefreshTimer);
 		session.fileTreeRefreshTimer = undefined;
 		session.fileTreeWatcher?.close();
 		session.fileTreeWatcher = undefined;
