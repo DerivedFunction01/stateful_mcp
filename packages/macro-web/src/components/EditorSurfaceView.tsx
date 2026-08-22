@@ -214,6 +214,87 @@ function setLineAndCol(root: HTMLElement, lineIdx: number, col = 0): void {
 	selection?.addRange(range);
 }
 
+function applySearchHighlights(
+	root: HTMLElement,
+	matches: readonly {
+		logicalLineIndex: number;
+		startOffset: number;
+		endOffset: number;
+	}[],
+	activeMatchIndex: number,
+) {
+	if (typeof CSS === "undefined" || !("highlights" in CSS)) return;
+	const matchRanges: Range[] = [];
+	let currentRange: Range | null = null;
+	const lineBlocks = root.querySelectorAll(".editor-line-row");
+
+	matches.forEach((match, idx) => {
+		const block = lineBlocks[match.logicalLineIndex];
+		if (!block) return;
+		let targetNode: Node | null = null;
+		for (let i = 0; i < block.childNodes.length; i++) {
+			const child = block.childNodes[i];
+			if (child && child.nodeType === Node.TEXT_NODE) {
+				targetNode = child;
+				break;
+			}
+		}
+		if (!targetNode) return;
+		const nodeTextLen = targetNode.textContent?.length ?? 0;
+		const start = Math.min(match.startOffset, nodeTextLen);
+		const end = Math.min(match.endOffset, nodeTextLen);
+		if (start >= end) return;
+		try {
+			const range = document.createRange();
+			range.setStart(targetNode, start);
+			range.setEnd(targetNode, end);
+			if (idx === activeMatchIndex) {
+				currentRange = range;
+			} else {
+				matchRanges.push(range);
+			}
+		} catch {
+			// Range boundary fallback
+		}
+	});
+
+	try {
+		const cssWithHighlights = CSS as unknown as {
+			highlights?: {
+				set(name: string, highlight: unknown): void;
+				delete(name: string): void;
+			};
+		};
+		const HighlightCtor = (window as unknown as { Highlight?: new (...ranges: Range[]) => unknown }).Highlight;
+		if (cssWithHighlights.highlights && HighlightCtor) {
+			cssWithHighlights.highlights.set("search-match", new HighlightCtor(...matchRanges));
+			if (currentRange) {
+				cssWithHighlights.highlights.set("search-current", new HighlightCtor(currentRange));
+			} else {
+				cssWithHighlights.highlights.delete("search-current");
+			}
+		}
+	} catch {
+		// Browser fallback
+	}
+}
+
+function clearSearchHighlights() {
+	try {
+		const cssWithHighlights = CSS as unknown as {
+			highlights?: {
+				delete(name: string): void;
+			};
+		};
+		if (cssWithHighlights.highlights) {
+			cssWithHighlights.highlights.delete("search-match");
+			cssWithHighlights.highlights.delete("search-current");
+		}
+	} catch {
+		// Browser fallback
+	}
+}
+
 function insertTextAtSelection(
 	root: HTMLElement,
 	text: string,
@@ -799,7 +880,17 @@ export function getEditorSurfaceAdapter(
 		searchText: (
 			query: string,
 			direction: SearchDirection,
+			navigate = false,
 		): EditorSearchResult => {
+			if (!query) {
+				clearSearchHighlights();
+				return {
+					documentId: options?.documentId ?? "",
+					textRevision: options?.textRevision ?? 0,
+					matches: [],
+					activeMatchIndex: -1,
+				};
+			}
 			const lines = getFullLines();
 			const matches = lines.flatMap((text, logicalLineIndex) => {
 				const result: {
@@ -807,7 +898,6 @@ export function getEditorSurfaceAdapter(
 					startOffset: number;
 					endOffset: number;
 				}[] = [];
-				if (!query) return result;
 				let start = 0;
 				while (start <= text.length) {
 					const found = text.indexOf(query, start);
@@ -841,10 +931,13 @@ export function getEditorSurfaceAdapter(
 					start: selected.startOffset,
 					end: selected.endOffset,
 				};
-				currentCellIdx = selected.logicalLineIndex;
-				currentCol = selected.startOffset;
-				setLineAndCol(element, currentCellIdx, currentCol);
+				if (navigate) {
+					currentCellIdx = selected.logicalLineIndex;
+					currentCol = selected.startOffset;
+					setLineAndCol(element, currentCellIdx, currentCol);
+				}
 			}
+			applySearchHighlights(element, matches, selectedIndex);
 			return {
 				documentId: options?.documentId ?? "",
 				textRevision: options?.textRevision ?? 0,
@@ -853,9 +946,26 @@ export function getEditorSurfaceAdapter(
 			};
 		},
 
-		findText: (query: string, direction: SearchDirection) => {
+		jumpToMatch: (logicalLineIndex: number, startOffset: number) => {
+			currentCellIdx = logicalLineIndex;
+			currentCol = startOffset;
+			setLineAndCol(element, logicalLineIndex, startOffset);
+		},
+
+		clearSearchHighlights: () => {
+			clearSearchHighlights();
+		},
+
+		findText: (
+			query: string,
+			direction: SearchDirection,
+			navigate = true,
+		) => {
 			const needle = query;
-			if (!needle) return false;
+			if (!needle) {
+				clearSearchHighlights();
+				return false;
+			}
 			lastSearch = needle;
 			syncFromDom();
 			const lines = getFullLines();
@@ -875,9 +985,11 @@ export function getEditorSurfaceAdapter(
 							);
 				if (start !== -1) {
 					lastMatch = { cell: index, start, end: start + needle.length };
-					currentCellIdx = index;
-					currentCol = start;
-					setLineAndCol(element, index, start);
+					if (navigate) {
+						currentCellIdx = index;
+						currentCol = start;
+						setLineAndCol(element, index, start);
+					}
 					return true;
 				}
 			}

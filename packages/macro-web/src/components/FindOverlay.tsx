@@ -12,6 +12,7 @@ export interface FindOverlayProps {
 	readonly onFind: (
 		query: string,
 		direction: SearchDirection,
+		navigate?: boolean,
 	) => boolean | EditorSearchResult;
 	readonly onReplace?: (query: string, replacement: string) => boolean;
 	readonly onReplaceAll?: (query: string, replacement: string) => number;
@@ -46,12 +47,13 @@ export function FindOverlay({
 		inputRef.current?.focus();
 	}, []);
 
-	function find(searchDirection = direction): void {
+	function find(searchDirection = direction, navigate = false): void {
 		if (!query) {
 			setMessage("");
+			onFindRef.current("", searchDirection, false);
 			return;
 		}
-		const result = onFindRef.current(query, searchDirection);
+		const result = onFindRef.current(query, searchDirection, navigate);
 		if (typeof result === "boolean") {
 			setMessage(result ? "" : t("editor.find.noResults"));
 			return;
@@ -67,10 +69,13 @@ export function FindOverlay({
 	}
 
 	useEffect(() => {
-		find();
-		// Search intentionally follows query and direction only. The ref prevents
-		// parent callback identity changes from retriggering the search loop.
+		find(direction, false);
 	}, [query, direction]);
+
+	const handleClose = () => {
+		onFindRef.current("", direction, false);
+		onClose();
+	};
 
 	function replace(): void {
 		if (!query || !onReplace) return;
@@ -88,6 +93,8 @@ export function FindOverlay({
 		);
 	}
 
+	const isNoResults = message === t("editor.find.noResults");
+
 	return (
 		<div
 			className="editor-find-widget"
@@ -96,10 +103,10 @@ export function FindOverlay({
 			onKeyDown={(event) => {
 				if (event.key === "Escape") {
 					event.preventDefault();
-					onClose();
+					handleClose();
 				} else if (event.key === "Enter") {
 					event.preventDefault();
-					find(event.shiftKey ? "backward" : direction);
+					find(event.shiftKey ? "backward" : direction, true);
 				}
 			}}
 		>
@@ -116,18 +123,21 @@ export function FindOverlay({
 					}}
 				/>
 				<div className="find-actions">
-					<span className="find-message" aria-live="polite">
+					<span
+						className={`find-message ${isNoResults ? "no-results" : ""}`}
+						aria-live="polite"
+					>
 						{message}
 					</span>
 					<IconButton
 						label={t("editor.find.backward")}
-						onClick={() => find("backward")}
+						onClick={() => find("backward", true)}
 					>
 						<ChevronUp size={15} aria-hidden="true" />
 					</IconButton>
 					<IconButton
 						label={t("editor.find.forward")}
-						onClick={() => find("forward")}
+						onClick={() => find("forward", true)}
 					>
 						<ChevronDown size={15} aria-hidden="true" />
 					</IconButton>
@@ -138,7 +148,7 @@ export function FindOverlay({
 					>
 						<Settings2 size={15} aria-hidden="true" />
 					</IconButton>
-					<IconButton label={t("editor.find.close")} onClick={onClose}>
+					<IconButton label={t("editor.find.close")} onClick={handleClose}>
 						<X size={15} aria-hidden="true" />
 					</IconButton>
 				</div>

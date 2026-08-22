@@ -314,6 +314,17 @@ export function WorkbenchShell({
 								requestId: requestId(),
 							})
 						}
+						activeDocumentLines={activeLines}
+						onJumpToLine={(lineNumber, col) => {
+							vimController.setActiveCell(
+								lineNumber - 1,
+								Math.max(1, activeLines.length),
+							);
+							getSurfaceAdapter()?.jumpToMatch?.(lineNumber - 1, col ?? 0);
+						}}
+						onReplaceAll={(query, replacement) => {
+							getSurfaceAdapter()?.replaceAllMatches?.(query, replacement);
+						}}
 						onOpenFolderModal={onOpenFolderModal}
 						onCommand={onCommand}
 					/>

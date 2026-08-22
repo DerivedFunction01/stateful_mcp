@@ -1,5 +1,6 @@
 import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
 import {
+	CaseSensitive,
 	ChevronDown,
 	ChevronRight,
 	FileText,
@@ -7,12 +8,15 @@ import {
 	type LucideIcon,
 	MoreHorizontal,
 	Plus,
+	Regex,
+	Replace,
 	RotateCcw,
 	Search,
+	WholeWord,
 	X,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useI18n } from "../../lib/macro-i18n-provider";
 import type { PrimarySidebarTab } from "../ActivityRail";
 
@@ -23,6 +27,7 @@ export interface PrimarySidebarProps {
 	readonly snapshot?: WorkspaceSnapshot;
 	readonly documents?: readonly DocumentItem[];
 	readonly activeDocumentId?: string | null;
+	readonly activeDocumentLines?: readonly string[];
 	readonly isOpen?: boolean;
 	readonly onSelectDocument?: (documentId: string) => void;
 	readonly onCloseDocument?: (documentId: string, textRevision: number) => void;
@@ -30,6 +35,8 @@ export interface PrimarySidebarProps {
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
 	readonly onCommand?: (command: string, args?: readonly unknown[]) => void;
 	readonly onSearchQueryChange?: (query: string) => void;
+	readonly onJumpToLine?: (lineNumber: number, col?: number) => void;
+	readonly onReplaceAll?: (query: string, replacement: string) => void;
 }
 
 interface HeaderActionConfig {
@@ -48,6 +55,16 @@ interface SidebarPaneHelpers {
 	readonly setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
 	readonly searchReplace: string;
 	readonly setSearchReplace: React.Dispatch<React.SetStateAction<string>>;
+	readonly matchCase: boolean;
+	readonly setMatchCase: React.Dispatch<React.SetStateAction<boolean>>;
+	readonly wholeWord: boolean;
+	readonly setWholeWord: React.Dispatch<React.SetStateAction<boolean>>;
+	readonly isRegex: boolean;
+	readonly setIsRegex: React.Dispatch<React.SetStateAction<boolean>>;
+	readonly replaceOpen: boolean;
+	readonly setReplaceOpen: React.Dispatch<React.SetStateAction<boolean>>;
+	readonly collapsedFiles: ReadonlySet<string>;
+	readonly toggleFileCollapsed: (id: string) => void;
 	readonly t: ReturnType<typeof useI18n>["t"];
 }
 
@@ -59,6 +76,21 @@ interface SidebarPaneDescriptor {
 		props: PrimarySidebarProps,
 		helpers: SidebarPaneHelpers,
 	) => ReactNode;
+}
+
+interface SearchMatchItem {
+	readonly lineNumber: number;
+	readonly startOffset: number;
+	readonly endOffset: number;
+	readonly prefix: string;
+	readonly matchText: string;
+	readonly suffix: string;
+}
+
+interface FileSearchResult {
+	readonly documentId: string;
+	readonly title: string;
+	readonly matches: readonly SearchMatchItem[];
 }
 
 const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
@@ -73,10 +105,9 @@ const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
 				onClick: (p) => p.onNewScratchpad?.(),
 			},
 			{
-				id: "openFolder",
-				getTitle: (t) => t("workbench.openProjectAction"),
-				icon: FolderOpen,
-				onClick: (p) => p.onOpenFolderModal?.("open"),
+				id: "refresh",
+				getTitle: (t) => t("workbench.refresh"),
+				icon: RotateCcw,
 			},
 			{
 				id: "more",
@@ -86,13 +117,13 @@ const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
 		],
 		renderBody: (props, helpers) => {
 			const {
-				snapshot,
 				documents = [],
 				activeDocumentId,
 				onSelectDocument,
 				onCloseDocument,
 				onNewScratchpad,
 				onOpenFolderModal,
+				onCommand,
 			} = props;
 			const {
 				openEditorsCollapsed,
@@ -102,14 +133,8 @@ const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
 				t,
 			} = helpers;
 
-			const projectName = snapshot?.project?.displayName;
-			const hasProject =
-				Boolean(snapshot?.project?.projectId) &&
-				snapshot?.project?.displayName !== "In-Memory Session";
-
 			return (
 				<>
-					{/* 1. Open Editors Section */}
 					<div className="sidebar-accordion-section">
 						<button
 							type="button"
@@ -162,7 +187,6 @@ const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
 						)}
 					</div>
 
-					{/* 2. Workspace / Project Section */}
 					<div className="sidebar-accordion-section flex-1">
 						<button
 							type="button"
@@ -178,15 +202,15 @@ const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
 								)}
 							</span>
 							<span className="section-title">
-								{hasProject
-									? (projectName ?? t("workbench.project")).toUpperCase()
+								{props.snapshot?.project?.displayName
+									? props.snapshot.project.displayName.toUpperCase()
 									: t("workbench.noFolderOpened").toUpperCase()}
 							</span>
 						</button>
 
 						{!workspaceCollapsed && (
 							<div className="sidebar-workspace-content">
-								{!hasProject ? (
+								{!props.snapshot?.project || props.snapshot.project.ephemeral ? (
 									<div className="no-folder-state">
 										<p className="no-folder-description">
 											{t("workbench.noFolderDescription")}
@@ -216,16 +240,16 @@ const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
 										</div>
 									</div>
 								) : (
-									<div className="workspace-file-tree">
-										{documents.map((doc) => (
+									<div className="sidebar-file-tree">
+										{props.snapshot.project.resources.map((res) => (
 											<button
-												key={doc.documentId}
+												key={res.resourceId}
 												type="button"
-												className={`file-tree-row ${doc.documentId === activeDocumentId ? "active" : ""}`}
-												onClick={() => onSelectDocument?.(doc.documentId)}
+												className="file-tree-row"
+												onClick={() => onCommand?.("editor.openResource", [res])}
 											>
-												<FileText size={13} />
-												<span>{doc.title}</span>
+												<FileText size={13} className="doc-icon" />
+												<span>{res.resourceId}</span>
 											</button>
 										))}
 									</div>
@@ -247,30 +271,267 @@ const SIDEBAR_PANES: Record<PrimarySidebarTab, SidebarPaneDescriptor> = {
 				getTitle: (t) => t("workbench.refresh"),
 				icon: RotateCcw,
 			},
+			{
+				id: "clear",
+				getTitle: (t) => t("workbench.clearSearch"),
+				icon: X,
+				onClick: () => undefined,
+			},
 		],
-		renderBody: (_props, helpers) => {
-			const { searchQuery, setSearchQuery, searchReplace, setSearchReplace, t } =
-				helpers;
+		renderBody: (props, helpers) => {
+			const {
+				searchQuery,
+				setSearchQuery,
+				searchReplace,
+				setSearchReplace,
+				matchCase,
+				setMatchCase,
+				wholeWord,
+				setWholeWord,
+				isRegex,
+				setIsRegex,
+				replaceOpen,
+				setReplaceOpen,
+				collapsedFiles,
+				toggleFileCollapsed,
+				t,
+			} = helpers;
+
+			const {
+				snapshot,
+				documents = [],
+				activeDocumentLines,
+				onSelectDocument,
+				onJumpToLine,
+				onReplaceAll,
+			} = props;
+
+			const searchResults = useMemo<readonly FileSearchResult[]>(() => {
+				const query = searchQuery.trim();
+				if (!query) return [];
+
+				let matcher: RegExp | null = null;
+				try {
+					if (isRegex) {
+						matcher = new RegExp(query, matchCase ? "g" : "gi");
+					} else {
+						const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+						const pattern = wholeWord ? `\\b${escaped}\\b` : escaped;
+						matcher = new RegExp(pattern, matchCase ? "g" : "gi");
+					}
+				} catch {
+					return [];
+				}
+
+				const results: FileSearchResult[] = [];
+
+				for (const doc of documents) {
+					const lines: readonly string[] =
+						doc.documentId === snapshot?.editor.activeDocument?.documentId
+							? activeDocumentLines ??
+								snapshot?.editor.activeDocument?.lines.map((l) => l.rawText) ??
+								[]
+							: [];
+
+					const fileMatches: SearchMatchItem[] = [];
+
+					lines.forEach((lineText, logicalLineIndex) => {
+						matcher!.lastIndex = 0;
+						let match: RegExpExecArray | null = null;
+						while ((match = matcher!.exec(lineText)) !== null) {
+							const start = match.index;
+							const end = start + match[0].length;
+							const prefix = lineText.slice(Math.max(0, start - 20), start);
+							const matchText = match[0];
+							const suffix = lineText.slice(
+								end,
+								Math.min(lineText.length, end + 30),
+							);
+
+							fileMatches.push({
+								lineNumber: logicalLineIndex + 1,
+								startOffset: start,
+								endOffset: end,
+								prefix,
+								matchText,
+								suffix,
+							});
+
+							if (!matcher!.global) break;
+							if (match[0].length === 0) matcher!.lastIndex++;
+						}
+					});
+
+					if (fileMatches.length > 0) {
+						results.push({
+							documentId: doc.documentId,
+							title: doc.title,
+							matches: fileMatches,
+						});
+					}
+				}
+
+				return results;
+			}, [
+				searchQuery,
+				documents,
+				snapshot,
+				activeDocumentLines,
+				matchCase,
+				wholeWord,
+				isRegex,
+			]);
+
+			const totalMatches = searchResults.reduce(
+				(sum, r) => sum + r.matches.length,
+				0,
+			);
+			const matchingFilesCount = searchResults.length;
+
 			return (
 				<div className="sidebar-search-container">
-					<div className="search-input-wrapper">
-						<Search size={13} className="search-box-icon" />
-						<input
-							type="text"
-							className="vscode-search-input"
-							placeholder={t("workbench.searchPlaceholder")}
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-						/>
+					<div className="sidebar-search-header">
+						<div className="search-input-wrapper">
+							<button
+								type="button"
+								className="search-action-btn"
+								title={t("workbench.toggleReplace")}
+								onClick={() => setReplaceOpen((o) => !o)}
+							>
+								{replaceOpen ? (
+									<ChevronDown size={13} />
+								) : (
+									<ChevronRight size={13} />
+								)}
+							</button>
+							<input
+								type="text"
+								className="vscode-search-input"
+								placeholder={t("workbench.searchPlaceholder")}
+								value={searchQuery}
+								onChange={(e) => {
+									setSearchQuery(e.target.value);
+									props.onSearchQueryChange?.(e.target.value);
+								}}
+							/>
+							<div className="search-input-actions">
+								<button
+									type="button"
+									className={`search-action-btn ${matchCase ? "active" : ""}`}
+									title={t("workbench.matchCase")}
+									onClick={() => setMatchCase((c) => !c)}
+								>
+									<CaseSensitive size={13} />
+								</button>
+								<button
+									type="button"
+									className={`search-action-btn ${wholeWord ? "active" : ""}`}
+									title={t("workbench.matchWholeWord")}
+									onClick={() => setWholeWord((w) => !w)}
+								>
+									<WholeWord size={13} />
+								</button>
+								<button
+									type="button"
+									className={`search-action-btn ${isRegex ? "active" : ""}`}
+									title={t("workbench.useRegex")}
+									onClick={() => setIsRegex((r) => !r)}
+								>
+									<Regex size={13} />
+								</button>
+							</div>
+						</div>
+
+						{replaceOpen && (
+							<div className="search-input-wrapper">
+								<input
+									type="text"
+									className="vscode-search-input"
+									placeholder={t("workbench.replacePlaceholder")}
+									value={searchReplace}
+									onChange={(e) => setSearchReplace(e.target.value)}
+								/>
+								<div className="search-input-actions">
+									<button
+										type="button"
+										className="search-action-btn"
+										title={t("workbench.replaceAll")}
+										disabled={!searchQuery}
+										onClick={() => onReplaceAll?.(searchQuery, searchReplace)}
+									>
+										<Replace size={13} />
+									</button>
+								</div>
+							</div>
+						)}
 					</div>
-					<div className="search-input-wrapper">
-						<input
-							type="text"
-							className="vscode-search-input"
-							placeholder={t("workbench.replacePlaceholder")}
-							value={searchReplace}
-							onChange={(e) => setSearchReplace(e.target.value)}
-						/>
+
+					{searchQuery && (
+						<div
+							className={`sidebar-search-summary ${totalMatches === 0 ? "no-results" : ""}`}
+						>
+							<span>
+								{totalMatches > 0
+									? t("workbench.searchResultsSummary", {
+											count: totalMatches,
+											files: matchingFilesCount,
+										})
+									: t("workbench.noResultsFound")}
+							</span>
+						</div>
+					)}
+
+					<div className="sidebar-search-results">
+						{searchResults.map((fileGroup) => {
+							const isCollapsed = collapsedFiles.has(fileGroup.documentId);
+							return (
+								<div key={fileGroup.documentId} className="search-file-group">
+									<button
+										type="button"
+										className="search-file-header"
+										onClick={() => toggleFileCollapsed(fileGroup.documentId)}
+									>
+										<span className="search-file-title">
+											{isCollapsed ? (
+												<ChevronRight size={13} />
+											) : (
+												<ChevronDown size={13} />
+											)}
+											<FileText size={13} className="doc-icon" />
+											<span>{fileGroup.title}</span>
+										</span>
+										<span className="search-pill-badge">
+											{fileGroup.matches.length}
+										</span>
+									</button>
+
+									{!isCollapsed &&
+										fileGroup.matches.map((match, idx) => (
+											<div
+												key={`${match.lineNumber}-${match.startOffset}-${idx}`}
+												className="search-match-row"
+												onClick={() => {
+													onSelectDocument?.(fileGroup.documentId);
+													onJumpToLine?.(match.lineNumber, match.startOffset);
+												}}
+												role="button"
+												tabIndex={0}
+											>
+												<span className="search-match-line-num">
+													{match.lineNumber}
+												</span>
+												<span className="search-match-text">
+													{match.prefix}
+													<mark className="search-match-highlight">
+														{match.matchText}
+													</mark>
+													{match.suffix}
+												</span>
+											</div>
+										))}
+								</div>
+							);
+						})}
 					</div>
 				</div>
 			);
@@ -306,6 +567,25 @@ export function PrimarySidebar(props: PrimarySidebarProps) {
 	const [workspaceCollapsed, setWorkspaceCollapsed] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [searchReplace, setSearchReplace] = useState("");
+	const [matchCase, setMatchCase] = useState(false);
+	const [wholeWord, setWholeWord] = useState(false);
+	const [isRegex, setIsRegex] = useState(false);
+	const [replaceOpen, setReplaceOpen] = useState(false);
+	const [collapsedFiles, setCollapsedFiles] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
+
+	const toggleFileCollapsed = (docId: string) => {
+		setCollapsedFiles((prev) => {
+			const next = new Set(prev);
+			if (next.has(docId)) {
+				next.delete(docId);
+			} else {
+				next.add(docId);
+			}
+			return next;
+		});
+	};
 
 	if (!isOpen) return null;
 
@@ -320,6 +600,16 @@ export function PrimarySidebar(props: PrimarySidebarProps) {
 		setSearchQuery,
 		searchReplace,
 		setSearchReplace,
+		matchCase,
+		setMatchCase,
+		wholeWord,
+		setWholeWord,
+		isRegex,
+		setIsRegex,
+		replaceOpen,
+		setReplaceOpen,
+		collapsedFiles,
+		toggleFileCollapsed,
 		t,
 	};
 

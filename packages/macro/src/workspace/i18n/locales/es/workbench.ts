@@ -80,4 +80,12 @@ export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.replacePlaceholder": "Reemplazar",
 	"workbench.searchPlaceholder": "Buscar texto en documentos",
 	"workbench.refresh": "Actualizar",
+	"workbench.searchResultsSummary": "{count} resultados en {files} archivo(s)",
+	"workbench.noResultsFound": "No se encontraron resultados",
+	"workbench.replaceAll": "Reemplazar todo",
+	"workbench.toggleReplace": "Alternar reemplazo",
+	"workbench.matchCase": "Coincidir mayúsculas y minúsculas",
+	"workbench.matchWholeWord": "Coincidir palabra completa",
+	"workbench.useRegex": "Usar expresión regular",
+	"workbench.clearSearch": "Limpiar búsqueda",
 };
