@@ -320,10 +320,17 @@ export function WorkbenchShell({
 								lineNumber - 1,
 								Math.max(1, activeLines.length),
 							);
-							getSurfaceAdapter()?.jumpToMatch?.(lineNumber - 1, col ?? 0);
+							getSurfaceAdapter()?.jumpToMatch?.(lineNumber - 1, col ?? 0, 0);
 						}}
-						onReplace={(query, replacement) => {
-							getSurfaceAdapter()?.replaceCurrentMatch?.(query, replacement);
+						onReplace={(query, replacement, lineNumber, startOffset) => {
+							const lineIdx =
+								lineNumber !== undefined ? lineNumber - 1 : undefined;
+							getSurfaceAdapter()?.replaceCurrentMatch?.(
+								query,
+								replacement,
+								lineIdx,
+								startOffset,
+							);
 						}}
 						onReplaceAll={(query, replacement) => {
 							getSurfaceAdapter()?.replaceAllMatches?.(query, replacement);

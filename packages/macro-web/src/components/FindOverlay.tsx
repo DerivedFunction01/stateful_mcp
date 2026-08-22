@@ -3,6 +3,11 @@ import { ChevronDown, ChevronUp, Replace, Settings2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { EditorSearchResult } from "../lib/browser-vim";
 import { useI18n } from "../lib/macro-i18n-provider";
+import {
+	insertAtCaret,
+	unescapeReplacementString,
+	unescapeSearchPattern,
+} from "../lib/search-utils";
 import { IconButton } from "./ui/primitives";
 
 export interface FindOverlayProps {
@@ -33,7 +38,7 @@ export function FindOverlay({
 	onClose,
 }: FindOverlayProps) {
 	const { t } = useI18n();
-	const inputRef = useRef<HTMLInputElement>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const findId = useId();
 	const onFindRef = useRef(onFind);
 	const [query, setQuery] = useState(initialQuery);
@@ -53,7 +58,11 @@ export function FindOverlay({
 			onFindRef.current("", searchDirection, false);
 			return;
 		}
-		const result = onFindRef.current(query, searchDirection, navigate);
+		const result = onFindRef.current(
+			unescapeSearchPattern(query, false),
+			searchDirection,
+			navigate,
+		);
 		if (typeof result === "boolean") {
 			setMessage(result ? "" : t("editor.find.noResults"));
 			return;
@@ -79,13 +88,23 @@ export function FindOverlay({
 
 	function replace(): void {
 		if (!query || !onReplace) return;
-		setMessage(onReplace(query, replacement) ? "" : t("editor.find.noResults"));
+		setMessage(
+			onReplace(
+				unescapeSearchPattern(query, false),
+				unescapeReplacementString(replacement),
+			)
+				? ""
+				: t("editor.find.noResults"),
+		);
 	}
 
 	function replaceAll(): void {
 		if (!query || !onReplaceAll) return;
 		if (!window.confirm(t("editor.find.replaceAllConfirm"))) return;
-		const count = onReplaceAll(query, replacement);
+		const count = onReplaceAll(
+			unescapeSearchPattern(query, false),
+			unescapeReplacementString(replacement),
+		);
 		setMessage(
 			count > 0
 				? t("editor.find.matchesReplaced", { count })
@@ -104,15 +123,40 @@ export function FindOverlay({
 				if (event.key === "Escape") {
 					event.preventDefault();
 					handleClose();
+				} else if (
+					(event.key === "Enter" && (event.ctrlKey || event.altKey)) ||
+					event.key === "Tab"
+				) {
+					event.preventDefault();
+					if (event.target instanceof HTMLTextAreaElement) {
+						const isReplacement = event.target.id === `${findId}-replacement`;
+						insertAtCaret(
+							event.target,
+							event.key === "Tab" ? "\t" : "\n",
+							(value) => {
+								if (isReplacement) {
+									setReplacement(value);
+									onReplacementChange?.(value);
+								} else {
+									setQuery(value);
+									onQueryChange?.(value);
+								}
+							},
+						);
+					}
 				} else if (event.key === "Enter") {
 					event.preventDefault();
-					find(event.shiftKey ? "backward" : direction, true);
+					if (event.target === inputRef.current) {
+						find(event.shiftKey ? "backward" : direction, true);
+					} else {
+						replace();
+					}
 				}
 			}}
 		>
 			<div className="find-row">
 				<label htmlFor={`${findId}-query`}>{t("editor.find.inputLabel")}</label>
-				<input
+				<textarea
 					ref={inputRef}
 					id={`${findId}-query`}
 					value={query}
@@ -121,6 +165,8 @@ export function FindOverlay({
 						setQuery(event.target.value);
 						onQueryChange?.(event.target.value);
 					}}
+					className="editor-find-textarea"
+					rows={1}
 				/>
 				<div className="find-actions">
 					<span
@@ -158,13 +204,15 @@ export function FindOverlay({
 					<label htmlFor={`${findId}-replacement`}>
 						{t("editor.find.replaceLabel")}
 					</label>
-					<input
+					<textarea
 						id={`${findId}-replacement`}
 						value={replacement}
 						onChange={(event) => {
 							setReplacement(event.target.value);
 							onReplacementChange?.(event.target.value);
 						}}
+						className="editor-find-textarea"
+						rows={1}
 					/>
 					<div className="find-actions">
 						<IconButton

@@ -71,10 +71,19 @@ export interface BrowserEditorSurfaceAdapter {
 		direction: SearchDirection,
 		navigate?: boolean,
 	): EditorSearchResult;
-	jumpToMatch?(logicalLineIndex: number, startOffset: number): void;
+	jumpToMatch?(
+		logicalLineIndex: number,
+		startOffset: number,
+		length?: number,
+	): void;
 	clearSearchHighlights?(): void;
 	repeatFind?(direction: SearchDirection): boolean;
-	replaceCurrentMatch?(query: string, replacement: string): boolean;
+	replaceCurrentMatch?(
+		query: string,
+		replacement: string,
+		lineIndex?: number,
+		startOffset?: number,
+	): boolean;
 	replaceAllMatches?(query: string, replacement: string): number;
 	pasteCell?(text: string, position: InsertPosition): void;
 	pasteCellRangeReplace?(start: number, end: number, text: string): void;

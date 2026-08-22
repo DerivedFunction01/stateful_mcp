@@ -954,9 +954,18 @@ export function getEditorSurfaceAdapter(
 			};
 		},
 
-		jumpToMatch: (logicalLineIndex: number, startOffset: number) => {
+		jumpToMatch: (
+			logicalLineIndex: number,
+			startOffset: number,
+			length?: number,
+		) => {
 			currentCellIdx = logicalLineIndex;
 			currentCol = startOffset;
+			lastMatch = {
+				cell: logicalLineIndex,
+				start: startOffset,
+				end: startOffset + (length ?? (lastSearch ? lastSearch.length : 0)),
+			};
 			setLineAndCol(element, logicalLineIndex, startOffset);
 		},
 
@@ -1036,28 +1045,59 @@ export function getEditorSurfaceAdapter(
 					})(),
 			),
 
-		replaceCurrentMatch: (query: string, replacement: string) => {
-			if (
-				!lastMatch ||
-				getFullLines()[lastMatch.cell]?.slice(
-					lastMatch.start,
-					lastMatch.end,
-				) !== query
-			)
-				return false;
+		replaceCurrentMatch: (
+			query: string,
+			replacement: string,
+			targetLineIndex?: number,
+			targetStartOffset?: number,
+		) => {
+			if (!query) return false;
 			const lines = getFullLines();
-			const text = lines[lastMatch.cell] ?? "";
-			lines[lastMatch.cell] =
-				text.slice(0, lastMatch.start) +
-				replacement +
-				text.slice(lastMatch.end);
-			const nextColumn = lastMatch.start + replacement.length;
+			const cell =
+				targetLineIndex !== undefined
+					? targetLineIndex
+					: lastMatch
+						? lastMatch.cell
+						: currentCellIdx;
+			const text = lines[cell] ?? "";
+
+			let start =
+				targetStartOffset !== undefined
+					? targetStartOffset
+					: lastMatch
+						? lastMatch.start
+						: currentCol;
+			let end =
+				targetStartOffset !== undefined
+					? targetStartOffset + query.length
+					: lastMatch
+						? lastMatch.end
+						: start + query.length;
+
+			if (text.slice(start, end) !== query) {
+				const foundIdx = text.indexOf(query, start);
+				if (foundIdx !== -1) {
+					start = foundIdx;
+					end = start + query.length;
+				} else {
+					const anyIdx = text.indexOf(query);
+					if (anyIdx !== -1) {
+						start = anyIdx;
+						end = start + query.length;
+					} else {
+						return false;
+					}
+				}
+			}
+
+			lines[cell] = text.slice(0, start) + replacement + text.slice(end);
+			const nextColumn = start + replacement.length;
 			lastMatch = {
-				cell: lastMatch.cell,
-				start: lastMatch.start,
+				cell,
+				start,
 				end: nextColumn,
 			};
-			currentCellIdx = lastMatch.cell;
+			currentCellIdx = cell;
 			currentCol = nextColumn;
 			onTextChange(lines);
 			setLineAndCol(element, currentCellIdx, currentCol);
