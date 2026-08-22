@@ -34,6 +34,7 @@ export interface MacroDocument {
 	dirty: boolean;
 	textRevision: number;
 	savedTextRevision: number;
+	savedLines?: readonly string[];
 	lastDiskMtime?: number;
 	lastDiskHash?: string;
 }
@@ -141,7 +142,7 @@ export class MacroDocumentManager {
 			if (!available)
 				throw new DocumentManagerError(
 					"EDITOR_TEMPLATE_SEED_UNAVAILABLE",
-					"A configured template seed is unavailable",
+					"A configured template macro is unavailable",
 				);
 		}
 		const document = this.createDocument({
@@ -161,6 +162,8 @@ export class MacroDocumentManager {
 			document.session.createPinnedMacroLine();
 		}
 		// Template seeding is part of document creation, not a user edit.
+		document.savedLines = [...document.editor.getLines()];
+		document.savedTextRevision = document.textRevision;
 		document.dirty = false;
 		return document;
 	}
@@ -222,7 +225,10 @@ export class MacroDocumentManager {
 		if (!sameLines(document.editor.getLines(), request.lines)) {
 			document.editor.setLines(request.lines);
 			document.textRevision += 1;
-			document.dirty = true;
+			const isClean = document.savedLines
+				? sameLines(document.editor.getLines(), document.savedLines)
+				: document.textRevision === document.savedTextRevision;
+			document.dirty = !isClean;
 			this.notify();
 		}
 		return document;
@@ -252,6 +258,9 @@ export class MacroDocumentManager {
 		const document = this.require(documentId);
 		document.providerId = "file";
 		document.filePath = filePath;
+		document.savedLines = [...document.editor.getLines()];
+		document.savedTextRevision = document.textRevision;
+		document.dirty = false;
 		if (newTitle) {
 			document.title = newTitle;
 		} else {
@@ -264,6 +273,8 @@ export class MacroDocumentManager {
 
 	markClean(documentId: string): void {
 		const document = this.require(documentId);
+		document.savedLines = [...document.editor.getLines()];
+		document.savedTextRevision = document.textRevision;
 		if (document.dirty) {
 			document.dirty = false;
 			this.notify();
@@ -276,6 +287,7 @@ export class MacroDocumentManager {
 		diskHash?: string,
 	): MacroDocument {
 		const document = this.require(documentId);
+		document.savedLines = [...document.editor.getLines()];
 		document.savedTextRevision = document.textRevision;
 		document.dirty = false;
 		if (diskMtime !== undefined) document.lastDiskMtime = diskMtime;
@@ -293,6 +305,7 @@ export class MacroDocumentManager {
 		const document = this.require(documentId);
 		document.editor.setLines(lines);
 		document.textRevision += 1;
+		document.savedLines = [...lines];
 		document.savedTextRevision = document.textRevision;
 		document.dirty = false;
 		if (diskMtime !== undefined) document.lastDiskMtime = diskMtime;
@@ -392,9 +405,13 @@ export class MacroDocumentManager {
 			dirty: false,
 			textRevision: 0,
 			savedTextRevision: 0,
+			savedLines: editor.getLines(),
 		};
 		const unsubscribe = editor.subscribe(() => {
-			document.dirty = true;
+			const isClean = document.savedLines
+				? sameLines(document.editor.getLines(), document.savedLines)
+				: document.textRevision === document.savedTextRevision;
+			document.dirty = !isClean;
 			this.notify();
 		});
 		this.documents.set(document.documentId, document);

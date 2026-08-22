@@ -625,4 +625,177 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(handled).toBe(true);
 		expect(executed).toBe(true);
 	});
+
+	test("operates on continuous text buffers in generic variant without cell execution", () => {
+		let text = "hello world\nsecond line here\nthird line";
+		let selection = { start: 0, end: 0 };
+		let deletedLines: string[] = [];
+		let pasted: string[] = [];
+
+		const genericProfile = {
+			vim: {
+				normal: {
+					moveDown: "j",
+					moveUp: "k",
+					moveLeft: "h",
+					moveRight: "l",
+					moveWord: "w",
+					moveWordBackward: "b",
+					moveToLineStart: "0",
+					moveToLineEnd: "$",
+					moveToFirstNonBlank: "^",
+					deleteChar: "x",
+					enterInsert: "i",
+					enterVisual: "v",
+					pasteBelow: "p",
+					nextMatch: "n",
+					previousMatch: "N",
+				},
+				sequences: {
+					deleteLine: "dd",
+					yankLine: "yy",
+				},
+				visual: {
+					deleteSelection: "d",
+					yankSelection: "y",
+					pasteSelection: "p",
+					extendDown: "j",
+					extendUp: "k",
+					extendLeft: "h",
+					extendRight: "l",
+				},
+			},
+		};
+
+		const controller = createBrowserVimController(true, {
+			variant: "generic",
+			getKeymap: () => genericProfile,
+			getAdapter: () => ({
+				getText: () => text,
+				getSelection: () => selection,
+				setSelection: (next) => {
+					selection = next;
+				},
+				replaceSelection: (replacement) => {
+					const min = Math.min(selection.start, selection.end);
+					const max = Math.max(selection.start, selection.end);
+					text = text.slice(0, min) + replacement + text.slice(max);
+					selection = { start: min + replacement.length, end: min + replacement.length };
+				},
+				moveLine: (delta) => {
+					selection = {
+						start: delta > 0 ? 12 : 0,
+						end: delta > 0 ? 12 : 0,
+					};
+				},
+				moveToLineBoundary: (boundary) => {
+					selection = {
+						start: boundary === "end" ? 11 : 0,
+						end: boundary === "end" ? 11 : 0,
+					};
+				},
+				moveWord: (direction) => {
+					selection = {
+						start: direction > 0 ? 6 : 0,
+						end: direction > 0 ? 6 : 0,
+					};
+				},
+				deleteCharUnderCaret: () => {
+					text = text.slice(0, selection.start) + text.slice(selection.start + 1);
+				},
+				deleteCurrentLine: () => {
+					const lines = text.split("\n");
+					const del = lines.shift() ?? "";
+					deletedLines.push(del);
+					text = lines.join("\n");
+					return del;
+				},
+				pasteCell: (content, position) => {
+					pasted.push(`${position}:${content}`);
+				},
+				focus: () => undefined,
+			}),
+		});
+
+		const event = (key: string) => ({
+			key,
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+
+		// 1. Move word forward
+		controller.handleKeyDown(event("w"));
+		expect(selection).toEqual({ start: 6, end: 6 });
+
+		// 2. Move to line end
+		controller.handleKeyDown(event("$"));
+		expect(selection).toEqual({ start: 11, end: 11 });
+
+		// 3. Delete char under cursor
+		selection = { start: 0, end: 0 };
+		controller.handleKeyDown(event("x"));
+		expect(text.startsWith("ello")).toBe(true);
+
+		// 4. Line delete sequence "dd"
+		controller.handleKeyDown(event("d"));
+		controller.handleKeyDown(event("d"));
+		expect(deletedLines).toEqual(["ello world"]);
+		expect(text).toBe("second line here\nthird line");
+
+		// 5. Visual character selection and deletion
+		selection = { start: 0, end: 7 };
+		controller.handleKeyDown(event("v"));
+		expect(controller.getState().mode).toBe("VISUAL");
+		controller.handleKeyDown(event("d"));
+		expect(controller.getState().mode).toBe("NORMAL");
+		expect(text).toBe("line here\nthird line");
+	});
+
+	test("dynamically routes variant based on function evaluator", () => {
+		let currentProvider: "file" | "scratchpad" = "scratchpad";
+		let cellExecuted = false;
+
+		const controller = createBrowserVimController(true, {
+			variant: () => (currentProvider === "file" ? "generic" : "scratchpad"),
+			getKeymap: () => ({
+				vim: {
+					normal: {
+						runCell: "r",
+						moveDown: "j",
+					},
+				},
+			}),
+			onExecuteLine: () => {
+				if (currentProvider !== "file") {
+					cellExecuted = true;
+				}
+			},
+			getAdapter: () => ({
+				getCellCount: () => 3,
+				getActiveCellIndex: () => 0,
+				getText: () => "line 1\nline 2\nline 3",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		const event = (key: string) => ({
+			key,
+			preventDefault: () => undefined,
+			stopPropagation: () => undefined,
+		});
+
+		// Scratchpad mode -> r executes cell
+		controller.handleKeyDown(event("r"));
+		expect(cellExecuted).toBe(true);
+
+		// Switch to file document
+		cellExecuted = false;
+		currentProvider = "file";
+		controller.handleKeyDown(event("r"));
+		expect(cellExecuted).toBe(false);
+	});
 });
+

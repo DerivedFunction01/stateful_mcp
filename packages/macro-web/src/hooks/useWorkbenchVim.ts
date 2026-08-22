@@ -23,7 +23,7 @@ export interface UseWorkbenchVimOptions {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: SearchDirection) => void;
+	readonly onOpenSearch?: (direction: SearchDirection, vimSearch?: boolean) => void;
 	readonly onEditorOperation: (
 		operation: EditorOperation,
 	) => void | Promise<void>;
@@ -45,7 +45,13 @@ export function useWorkbenchVim({
 
 	const [vimController] = useState<BrowserVimController>(() =>
 		createBrowserVimController(loadUserPreferences().vimEnabled, {
-			variant: "scratchpad",
+			variant: () => {
+				const activeDocId = snapshotRef.current?.editor.activeDocumentId;
+				const activeDocMeta = snapshotRef.current?.editor.documents.find(
+					(doc) => doc.documentId === activeDocId,
+				);
+				return activeDocMeta?.providerId === "file" ? "generic" : "scratchpad";
+			},
 			getAdapter: getSurfaceAdapter,
 			getKeymap: () => snapshotRef.current?.keymap,
 			onOpenCommandMode: (initialQuery, commandMode, commandToken) =>
@@ -54,8 +60,14 @@ export function useWorkbenchVim({
 					commandMode,
 					commandToken ?? "",
 				),
-			onOpenSearch: (direction) => onOpenSearchRef.current?.(direction),
+			onOpenSearch: (direction, vimSearch) =>
+				onOpenSearchRef.current?.(direction, vimSearch),
 			onExecuteLine: (lineNum) => {
+				const activeDocMeta = snapshotRef.current?.editor.documents.find(
+					(doc) =>
+						doc.documentId === snapshotRef.current?.editor.activeDocumentId,
+				);
+				if (activeDocMeta?.providerId === "file") return;
 				const activeDoc = snapshotRef.current?.editor.activeDocument;
 				if (!activeDoc) return;
 				const targetLine =
@@ -69,6 +81,11 @@ export function useWorkbenchVim({
 				});
 			},
 			onExecuteRange: (startLine, endLine) => {
+				const activeDocMeta = snapshotRef.current?.editor.documents.find(
+					(doc) =>
+						doc.documentId === snapshotRef.current?.editor.activeDocumentId,
+				);
+				if (activeDocMeta?.providerId === "file") return;
 				const activeDoc = snapshotRef.current?.editor.activeDocument;
 				if (!activeDoc) return;
 				void onEditorOperationRef.current({
@@ -81,6 +98,11 @@ export function useWorkbenchVim({
 				});
 			},
 			onExecuteValidLines: () => {
+				const activeDocMeta = snapshotRef.current?.editor.documents.find(
+					(doc) =>
+						doc.documentId === snapshotRef.current?.editor.activeDocumentId,
+				);
+				if (activeDocMeta?.providerId === "file") return;
 				const activeDoc = snapshotRef.current?.editor.activeDocument;
 				if (!activeDoc) return;
 				void onEditorOperationRef.current({

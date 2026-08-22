@@ -12,6 +12,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import hljs from "highlight.js/lib/common";
 import type {
 	BrowserEditorSurfaceAdapter,
 	BrowserVimKeyboardEvent,
@@ -49,10 +50,64 @@ export interface EditorSurfaceViewProps {
 	readonly onPinMacro?: (macroId: string | null) => void;
 	readonly surfaceRef?: RefObject<HTMLElement | null>;
 	readonly searchWidget?: ReactNode;
+	readonly filePath?: string;
+	readonly title?: string;
 }
 
 function normalizeText(text: string): string {
 	return text.replace(/\r\n?/g, "\n");
+}
+
+export function detectLanguage(filePath?: string, title?: string): string | undefined {
+	const name = filePath || title || "";
+	const ext = name.split(".").pop()?.toLowerCase();
+	switch (ext) {
+		case "ts":
+		case "tsx":
+		case "mts":
+		case "cts":
+			return "typescript";
+		case "js":
+		case "jsx":
+		case "mjs":
+		case "cjs":
+			return "javascript";
+		case "json":
+			return "json";
+		case "py":
+			return "python";
+		case "sql":
+			return "sql";
+		case "md":
+		case "markdown":
+			return "markdown";
+		case "css":
+			return "css";
+		case "html":
+		case "xml":
+		case "svg":
+			return "xml";
+		case "yaml":
+		case "yml":
+			return "yaml";
+		case "sh":
+		case "bash":
+		case "zsh":
+			return "bash";
+		case "java":
+			return "java";
+		case "c":
+		case "cpp":
+		case "h":
+		case "hpp":
+			return "cpp";
+		case "rs":
+			return "rust";
+		case "go":
+			return "go";
+		default:
+			return undefined;
+	}
 }
 
 function textFromSurface(element: HTMLElement): string {
@@ -443,6 +498,8 @@ export function EditorSurfaceView({
 	vimEnabled = false,
 	vimMode,
 	searchWidget,
+	filePath,
+	title,
 	onTextChange,
 	onFocusChange,
 	onCursorChange,
@@ -480,14 +537,31 @@ export function EditorSurfaceView({
 	useEffect(() => {
 		const root = rootRef.current;
 		if (!root || focusedRef.current) return;
-		const sourceKey = JSON.stringify(sourceLines);
+		const sourceKey = `${JSON.stringify(sourceLines)}:${filePath ?? ""}:${title ?? ""}`;
 		if (lastRenderedText.current === sourceKey) return;
+		const lang = detectLanguage(filePath, title);
 		root.replaceChildren(
 			...sourceLines.map((line, index) => {
 				const block = document.createElement("div");
 				block.className = "editor-line-row";
 				block.dataset.editorLine = String(index + 1);
-				block.textContent = line.length > 0 ? line : "";
+				if (line.length > 0) {
+					if (lang && hljs.getLanguage(lang)) {
+						try {
+							const highlighted = hljs.highlight(line, {
+								language: lang,
+								ignoreIllegals: true,
+							});
+							block.innerHTML = highlighted.value;
+						} catch {
+							block.textContent = line;
+						}
+					} else {
+						block.textContent = line;
+					}
+				} else {
+					block.textContent = "";
+				}
 				if (line.length === 0 || line.endsWith("\n")) {
 					const br = document.createElement("br");
 					block.appendChild(br);
@@ -496,7 +570,7 @@ export function EditorSurfaceView({
 			}),
 		);
 		lastRenderedText.current = sourceKey;
-	}, [sourceLines]);
+	}, [sourceLines, filePath, title]);
 
 	return (
 		<div
@@ -928,14 +1002,19 @@ export function getEditorSurfaceAdapter(
 					endOffset: number;
 				}[] = [];
 				let start = 0;
-				const matcher = searchOptions.regex
-					? new RegExp(query, searchOptions.matchCase ? "g" : "gi")
-					: new RegExp(
-						searchOptions.wholeWord
-							? `\\b${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`
-							: query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-						searchOptions.matchCase ? "g" : "gi",
-					);
+				let matcher: RegExp;
+				try {
+					matcher = searchOptions.regex
+						? new RegExp(query, searchOptions.matchCase ? "gu" : "giu")
+						: new RegExp(
+							searchOptions.wholeWord
+								? `(?<![\\p{L}\\p{N}_])${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`
+								: query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+							searchOptions.matchCase ? "gu" : "giu",
+						);
+				} catch {
+					return result;
+				}
 				let match = matcher.exec(text);
 				while (match) {
 					const found = match.index;
@@ -1090,6 +1169,36 @@ export function getEditorSurfaceAdapter(
 								currentCellIdx = index;
 								currentCol = start;
 								setLineAndCol(element, index, start);
+								const highlightedMatches = lines.flatMap(
+									(text, logicalLineIndex) => {
+										const found: {
+											logicalLineIndex: number;
+											startOffset: number;
+											endOffset: number;
+										}[] = [];
+										let offset = 0;
+										while (offset <= text.length) {
+											const match = text.indexOf(needle, offset);
+											if (match < 0) break;
+											found.push({
+												logicalLineIndex,
+												startOffset: match,
+												endOffset: match + needle.length,
+											});
+											offset = match + Math.max(1, needle.length);
+										}
+										return found;
+									},
+								);
+								applySearchHighlights(
+									element,
+									highlightedMatches,
+									highlightedMatches.findIndex(
+										(match) =>
+											match.logicalLineIndex === index &&
+											match.startOffset === start,
+									),
+								);
 								return true;
 							}
 						}
@@ -1213,7 +1322,7 @@ export function getEditorSurfaceAdapter(
 
 		blurCellEdit: () => undefined,
 
-		// ─── Text-Level Fallbacks ───────────────────────────────────────────
+		// ─── Text-Level Operations (Generic text buffer variant) ────────────
 		getText: () => textFromSurface(element),
 		getSelection: () => {
 			const { lineIdx, col } = getActiveLineAndCol(element);
@@ -1226,12 +1335,48 @@ export function getEditorSurfaceAdapter(
 			const target = offset + col;
 			return { start: target, end: target };
 		},
-		setSelection: ({ start }) => {
+		setSelection: ({ start, end }: { start: number; end: number }) => {
 			const fullText = textFromSurface(element);
-			const before = fullText.slice(0, start).split("\n");
-			const lineIdx = Math.max(0, before.length - 1);
-			const col = before[lineIdx]?.length ?? 0;
-			setLineAndCol(element, lineIdx, col);
+			const beforeStart = fullText.slice(0, start).split("\n");
+			const startLineIdx = Math.max(0, beforeStart.length - 1);
+			const startCol = beforeStart[startLineIdx]?.length ?? 0;
+
+			if (start === end || end === undefined) {
+				setLineAndCol(element, startLineIdx, startCol);
+				return;
+			}
+
+			const beforeEnd = fullText.slice(0, end).split("\n");
+			const endLineIdx = Math.max(0, beforeEnd.length - 1);
+			const endCol = beforeEnd[endLineIdx]?.length ?? 0;
+
+			const startBlock = element.children[startLineIdx] as HTMLElement | undefined;
+			const endBlock = element.children[endLineIdx] as HTMLElement | undefined;
+			if (!startBlock || !endBlock) {
+				setLineAndCol(element, startLineIdx, startCol);
+				return;
+			}
+
+			try {
+				const range = document.createRange();
+				setLineAndCol(element, startLineIdx, startCol);
+				const sel = window.getSelection();
+				if (sel && sel.rangeCount > 0) {
+					const r = sel.getRangeAt(0);
+					range.setStart(r.startContainer, r.startOffset);
+				}
+				setLineAndCol(element, endLineIdx, endCol);
+				const sel2 = window.getSelection();
+				if (sel2 && sel2.rangeCount > 0) {
+					const r2 = sel2.getRangeAt(0);
+					range.setEnd(r2.endContainer, r2.endOffset);
+				}
+				const finalSel = window.getSelection();
+				finalSel?.removeAllRanges();
+				finalSel?.addRange(range);
+			} catch {
+				setLineAndCol(element, startLineIdx, startCol);
+			}
 		},
 		replaceSelection: (text) => {
 			const current = textFromSurface(element);
@@ -1254,11 +1399,61 @@ export function getEditorSurfaceAdapter(
 			const next = Math.max(0, Math.min(total - 1, lineIdx + delta));
 			setLineAndCol(element, next, col);
 		},
-		moveToLineBoundary: (boundary: "start" | "end") => {
+		moveToLineBoundary: (boundary: "start" | "end" | "firstNonWhitespace") => {
 			const { lineIdx } = getActiveLineAndCol(element);
 			const lines = getFullLines();
-			const lineLen = lines[lineIdx]?.length ?? 0;
-			setLineAndCol(element, lineIdx, boundary === "start" ? 0 : lineLen);
+			const line = lines[lineIdx] ?? "";
+			let targetCol = 0;
+			if (boundary === "end") {
+				targetCol = line.length;
+			} else if (boundary === "firstNonWhitespace") {
+				const match = /\S/.exec(line);
+				targetCol = match ? match.index : 0;
+			}
+			setLineAndCol(element, lineIdx, targetCol);
+		},
+		moveWord: (direction: -1 | 1) => {
+			const { lineIdx, col } = getActiveLineAndCol(element);
+			const lines = getFullLines();
+			const line = lines[lineIdx] ?? "";
+			const wordChar = /[\p{L}\p{N}_]/u;
+			const whitespace = /\s/;
+
+			if (direction === 1) {
+				let i = col;
+				const len = line.length;
+				if (i >= len - 1) {
+					if (lineIdx < lines.length - 1) {
+						setLineAndCol(element, lineIdx + 1, 0);
+					}
+					return;
+				}
+				const isWord = wordChar.test(line[i] ?? "");
+				if (isWord) {
+					while (i < len && wordChar.test(line[i] ?? "")) i++;
+				} else if (!whitespace.test(line[i] ?? "")) {
+					while (i < len && !wordChar.test(line[i] ?? "") && !whitespace.test(line[i] ?? "")) i++;
+				}
+				while (i < len && whitespace.test(line[i] ?? "")) i++;
+				setLineAndCol(element, lineIdx, Math.min(len, i));
+			} else {
+				if (col <= 0) {
+					if (lineIdx > 0) {
+						const prevLen = lines[lineIdx - 1]?.length ?? 0;
+						setLineAndCol(element, lineIdx - 1, prevLen);
+					}
+					return;
+				}
+				let i = col - 1;
+				while (i > 0 && whitespace.test(line[i] ?? "")) i--;
+				const isWord = wordChar.test(line[i] ?? "");
+				if (isWord) {
+					while (i > 0 && wordChar.test(line[i - 1] ?? "")) i--;
+				} else if (!whitespace.test(line[i] ?? "")) {
+					while (i > 0 && !wordChar.test(line[i - 1] ?? "") && !whitespace.test(line[i - 1] ?? "")) i--;
+				}
+				setLineAndCol(element, lineIdx, Math.max(0, i));
+			}
 		},
 		deleteCurrentLine: () => {
 			const { lineIdx } = getActiveLineAndCol(element);
@@ -1270,6 +1465,21 @@ export function getEditorSurfaceAdapter(
 				lines.splice(lineIdx, 1);
 				onTextChange(lines);
 				setLineAndCol(element, Math.min(lineIdx, lines.length - 1), 0);
+			}
+		},
+		deleteCharUnderCaret: () => {
+			const { lineIdx, col } = getActiveLineAndCol(element);
+			const lines = getFullLines();
+			const line = lines[lineIdx] ?? "";
+			if (col < line.length) {
+				lines[lineIdx] = line.slice(0, col) + line.slice(col + 1);
+				onTextChange(lines);
+				setLineAndCol(element, lineIdx, col);
+			} else if (lineIdx < lines.length - 1) {
+				const nextLine = lines[lineIdx + 1] ?? "";
+				lines.splice(lineIdx, 2, line + nextLine);
+				onTextChange(lines);
+				setLineAndCol(element, lineIdx, col);
 			}
 		},
 		insertLine: (position: InsertPosition) => {

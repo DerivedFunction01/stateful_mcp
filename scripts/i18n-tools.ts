@@ -49,13 +49,14 @@ function parseKeyLiterals(src: string): string[] {
 	return out;
 }
 
-/** Union of every `"key":` literal in `dir/*.ts` (the per-domain modules). */
+// Union of every "key": literal in dir/**/*.ts (the per-domain modules).
 function collectModuleKeys(dir: string): Set<string> {
 	const keys = new Set<string>();
 	if (!existsSync(dir)) return keys;
-	for (const f of readdirSync(dir)) {
-		if (!f.endsWith(".ts")) continue;
-		const src = readFileSync(join(dir, f), "utf8");
+	for (const f of readdirSync(dir, { recursive: true })) {
+		const rel = String(f);
+		if (!rel.endsWith(".ts")) continue;
+		const src = readFileSync(join(dir, rel), "utf8");
 		for (const k of parseKeyLiterals(src)) keys.add(k);
 	}
 	return keys;

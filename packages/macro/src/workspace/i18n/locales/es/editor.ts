@@ -120,4 +120,11 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.insertTab": "Insertar tabulación",
 	"editor.nextTab": "Pestaña siguiente",
 	"editor.prevTab": "Pestaña anterior",
+
+	// Editor close dirty confirmation dialog
+	"editor.dialog.closeDirtyTitle": "¿Desea guardar los cambios realizados en {title}?",
+	"editor.dialog.closeDirtyDescription": "Los cambios se perderán si no los guarda.",
+	"editor.dialog.save": "Guardar",
+	"editor.dialog.discard": "No guardar",
+	"editor.dialog.cancel": "Cancelar",
 };

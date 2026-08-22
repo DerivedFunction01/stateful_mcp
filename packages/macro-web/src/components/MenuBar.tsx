@@ -325,7 +325,11 @@ export function MenuBar({
 			},
 			{
 				id: "view.toggleInspectorPosition",
-				label: `${t("settings.schema.workbench.inspectorPos.title")}: ${t(`settings.schema.workbench.inspectorPos.${inspectorPosition}`)}`,
+				label: `${t("settings.schema.workbench.inspectorPos.title")}: ${
+					inspectorPosition === "left"
+						? t("settings.schema.workbench.inspectorPos.left")
+						: t("settings.schema.workbench.inspectorPos.right")
+				}`,
 				icon: <Columns2 size={14} />,
 				onSelect: () =>
 					onSetInspectorPosition?.(

@@ -82,6 +82,8 @@ export function EditorCanvas({
 					vimEnabled={vimEnabled}
 					vimMode={vimMode}
 					searchWidget={searchWidget}
+					filePath={activeDocumentMeta.filePath}
+					title={activeDocumentMeta.title}
 					onTextChange={onTextChange}
 					onFocusChange={onFocusChange}
 					onCursorChange={onCursorChange}

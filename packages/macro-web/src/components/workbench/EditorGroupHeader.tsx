@@ -54,8 +54,9 @@ export function EditorGroupHeader({
 
 	const isScratchpad = Boolean(
 		activeDocument &&
-			activeDocumentMeta?.providerId === "scratchpad" &&
-			!activeDocumentMeta?.filePath,
+		(activeDocumentMeta?.providerId === "scratchpad" ||
+			activeDocumentMeta?.providerId === "macro.text" ||
+			!activeDocumentMeta?.filePath),
 	);
 
 	const isActionDisabled = Boolean(hasConflict || hasDraft || pendingEditor);

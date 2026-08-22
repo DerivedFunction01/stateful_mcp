@@ -15,6 +15,8 @@ export interface FindOverlayProps {
 	readonly onQueryChange?: (query: string) => void;
 	readonly onReplacementChange?: (replacement: string) => void;
 	readonly onClose: () => void;
+	readonly onAccept?: () => void;
+	readonly vimMode?: boolean;
 }
 
 export function FindOverlay({
@@ -27,13 +29,15 @@ export function FindOverlay({
 	onQueryChange,
 	onReplacementChange,
 	onClose,
+	onAccept,
+	vimMode = false,
 }: FindOverlayProps) {
 	const { t } = useI18n();
 	const onFindRef = useRef(onFind);
 	const [query, setQuery] = useState(initialQuery);
 	const [replacement, setReplacement] = useState(initialReplacement);
 	const [message, setMessage] = useState("");
-	const [replaceOpen, setReplaceOpen] = useState(true);
+	const [replaceOpen, setReplaceOpen] = useState(!vimMode);
 	const [options, setOptions] = useState<SearchOptions>({ matchCase: false, wholeWord: false, regex: false });
 	onFindRef.current = onFind;
 
@@ -79,12 +83,22 @@ export function FindOverlay({
 				onReplacementChange={(value) => { setReplacement(value); onReplacementChange?.(value); }}
 				onOptionsChange={setOptions}
 				onQuerySubmit={() => find("forward", true)}
+				onAccept={vimMode ? () => { find("forward", true); onAccept?.(); } : undefined}
 				onReplacementSubmit={replace}
 				onNavigate={(searchDirection) => find(searchDirection, true)}
 				onReplace={replace}
 				onReplaceAll={replaceAll}
 				onToggleReplace={() => setReplaceOpen((open) => !open)}
-				onClose={() => { onFindRef.current("", direction, false, options); onClose(); }}
+				onClose={() => {
+					if (!vimMode) onFindRef.current("", direction, false, options);
+					onClose();
+				}}
+				autoFocus
+				selectQueryOnFocus
+				onCancel={() => {
+					if (!vimMode) onFindRef.current("", direction, false, options);
+					onClose();
+				}}
 			/>
 		</div>
 	);

@@ -32,6 +32,10 @@ export interface SearchReplaceBarProps {
 	readonly message?: string;
 	readonly replaceOpen: boolean;
 	readonly showClose?: boolean;
+	readonly autoFocus?: boolean;
+	readonly selectQueryOnFocus?: boolean;
+	readonly onAccept?: () => void;
+	readonly onCancel?: () => void;
 	readonly onQueryChange: (value: string) => void;
 	readonly onReplacementChange: (value: string) => void;
 	readonly onOptionsChange: (options: SearchOptions) => void;
@@ -51,6 +55,10 @@ export function SearchReplaceBar({
 	message,
 	replaceOpen,
 	showClose = false,
+	autoFocus = false,
+	selectQueryOnFocus = false,
+	onAccept,
+	onCancel,
 	onQueryChange,
 	onReplacementChange,
 	onOptionsChange,
@@ -67,6 +75,16 @@ export function SearchReplaceBar({
 	const barRef = useRef<HTMLDivElement>(null);
 	const queryRef = useRef<HTMLTextAreaElement>(null);
 	const replacementRef = useRef<HTMLTextAreaElement>(null);
+
+	useEffect(() => {
+		if (autoFocus) {
+			const frame = requestAnimationFrame(() => {
+				queryRef.current?.focus();
+				if (selectQueryOnFocus) queryRef.current?.select();
+			});
+			return () => cancelAnimationFrame(frame);
+		}
+	}, [autoFocus, selectQueryOnFocus]);
 
 	useEffect(() => {
 		if (queryRef.current) resizeTextareaToContent(queryRef.current);
@@ -99,7 +117,13 @@ export function SearchReplaceBar({
 		}
 		if (event.key === "Enter") {
 			event.preventDefault();
-			(replacementInput ? onReplacementSubmit : onQuerySubmit)?.();
+			if (replacementInput) onReplacementSubmit?.();
+			else (onAccept ?? onQuerySubmit)?.();
+			return;
+		}
+		if (event.key === "Escape") {
+			event.preventDefault();
+			onCancel?.();
 			return;
 		}
 		if (!replacementInput && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
@@ -110,6 +134,15 @@ export function SearchReplaceBar({
 
 	return (
 		<div ref={barRef} className="search-replace-bar">
+			<div
+				className="search-replace-keyboard-surface"
+				onKeyDown={(event) => {
+					if (event.key === "Escape") {
+						event.preventDefault();
+						onCancel?.();
+					}
+				}}
+			>
 			<div className="search-replace-row">
 				<button type="button" className="search-replace-toggle" onClick={onToggleReplace} aria-expanded={replaceOpen}>
 					{replaceOpen ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
@@ -181,6 +214,7 @@ export function SearchReplaceBar({
 					</div>
 				</div>
 			)}
+			</div>
 		</div>
 	);
 }

@@ -91,6 +91,7 @@ export function App() {
 					readonly textRevision: number;
 					readonly open: boolean;
 					readonly direction: SearchDirection;
+					readonly vimSearch?: boolean;
 					readonly query: string;
 					readonly replacement: string;
 				}
@@ -143,7 +144,7 @@ export function App() {
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
 	}
 
-	function openFind(direction: SearchDirection): void {
+	function openFind(direction: SearchDirection, vimSearch = false): void {
 		const documentId = snapshot?.editor.activeDocumentId;
 		if (!documentId) return;
 		setFindSessions((sessions) => ({
@@ -156,6 +157,7 @@ export function App() {
 				}),
 				open: true,
 				direction,
+				vimSearch,
 			},
 		}));
 	}
@@ -272,8 +274,10 @@ export function App() {
 					},
 				};
 			},
-			onEditorKeyDown: (event) =>
-				registry.getActive()?.handleKeyDown?.(event) ?? false,
+			onEditorKeyDown: (event) => {
+				const active = registry.getActive();
+				return active?.handleKeyDown?.(event) ?? false;
+			},
 			onCommand: (command) => {
 				const uiHandler = uiCommandHandlers.get(command);
 				if (uiHandler) {
@@ -408,6 +412,7 @@ export function App() {
 				direction={findSession.direction}
 				initialQuery={findSession.query}
 				initialReplacement={findSession.replacement}
+				vimMode={findSession.vimSearch}
 				onFind={(query, direction, navigate, options) => {
 					const result = findAdapter()?.searchText?.(
 						query,
@@ -437,11 +442,24 @@ export function App() {
 						[activeDocumentId]: { ...findSession, replacement },
 					}))
 				}
-				onClose={() =>
+				 onClose={() =>
 					setFindSessions((sessions) => ({
 						...sessions,
 						[activeDocumentId]: { ...findSession, open: false },
 					}))
+				}
+				onAccept={
+					findSession.vimSearch
+						? () => {
+							setFindSessions((sessions) => ({
+								...sessions,
+								[activeDocumentId]: { ...findSession, open: false },
+							}));
+							requestAnimationFrame(() =>
+								registry.list().find((surface) => surface.context.activeDocumentId === activeDocumentId)?.element.focus(),
+							);
+						}
+						: undefined
 				}
 			/>
 		) : undefined;

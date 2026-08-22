@@ -103,4 +103,31 @@ describe("MacroDocumentManager: Hybrid Documents & Persistence", () => {
 		expect(doc.savedTextRevision).toBe(1);
 		expect(doc.lastDiskMtime).toBe(mtime);
 	});
+
+	test("restoring lines to match on-disk content clears dirty state automatically", () => {
+		const manager = new MacroDocumentManager(runtime);
+		const doc = manager.openFile(
+			"/workspace/doc.txt",
+			"line 1\nline 2",
+		);
+
+		expect(doc.dirty).toBe(false);
+
+		// 1. Edit text -> dirty
+		manager.replaceText({
+			documentId: doc.documentId,
+			lines: ["line 1", "modified line 2"],
+			expectedTextRevision: doc.textRevision,
+		});
+		expect(doc.dirty).toBe(true);
+
+		// 2. Edit back to original on-disk content -> becomes clean
+		manager.replaceText({
+			documentId: doc.documentId,
+			lines: ["line 1", "line 2"],
+			expectedTextRevision: doc.textRevision,
+		});
+		expect(doc.dirty).toBe(false);
+	});
 });
+

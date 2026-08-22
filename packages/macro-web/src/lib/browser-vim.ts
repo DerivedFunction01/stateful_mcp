@@ -11,6 +11,7 @@ import {
 	normalizeBrowserChord,
 	type ShortcutPlatform,
 } from "./bindings";
+import { createGenericEditorStore } from "./generic-editor-state";
 import { createScratchpadEditorStore } from "./scratchpad-editor-state";
 
 export interface BrowserVimKeyboardEvent {
@@ -101,7 +102,7 @@ export interface BrowserEditorSurfaceAdapter {
 	replaceSelection(text: string): void;
 	focus(): void;
 	moveLine?(delta: -1 | 1): void;
-	moveToLineBoundary?(boundary: "start" | "end"): void;
+	moveToLineBoundary?(boundary: "start" | "end" | "firstNonWhitespace"): void;
 	moveWord?(direction: -1 | 1): void;
 	deleteCurrentLine?(): void;
 	insertLine?(position: InsertPosition): void;
@@ -116,6 +117,7 @@ export interface BrowserVimState {
 	readonly activeCellIndex: number;
 	readonly caretColumn: number;
 	readonly visualRange: CellRange | null;
+	readonly selection?: { readonly start: number; readonly end: number } | null;
 	readonly commandText: string;
 }
 
@@ -175,14 +177,14 @@ export function normalizeChordFromEvent(
 export type VimVariant = "scratchpad" | "generic";
 
 export interface BrowserVimControllerOptions {
-	readonly variant?: VimVariant;
+	readonly variant?: VimVariant | (() => VimVariant);
 	readonly onCommandModeUnsupported?: () => void;
 	readonly onOpenCommandMode?: (
 		initialQuery?: string,
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: SearchDirection) => void;
+	readonly onOpenSearch?: (direction: SearchDirection, vimSearch?: boolean) => void;
 	readonly getAdapter?: () => BrowserEditorSurfaceAdapter | undefined;
 	readonly getKeymap?: () => KeymapSource;
 	readonly onExecuteLine?: (lineNumber?: number) => void;
@@ -204,36 +206,74 @@ export function createBrowserVimController(
 	initialEnabled = false,
 	options?: BrowserVimControllerOptions,
 ): BrowserVimController {
+	const resolveVariant = (): VimVariant => {
+		if (typeof options?.variant === "function") return options.variant();
+		if (options?.variant) return options.variant;
+		const adapter = options?.getAdapter?.();
+		if (adapter?.getCellCount || adapter?.setActiveCellIndex) return "scratchpad";
+		return "generic";
+	};
+
+	let sequenceTimer: ReturnType<typeof setTimeout> | null = null;
+	const listeners = new Set<() => void>();
+	const notify = () => listeners.forEach((listener) => listener());
+
+	const scratchpadStore = createScratchpadEditorStore(initialEnabled);
+	const genericStore = createGenericEditorStore(initialEnabled);
+
 	let state: BrowserVimState = {
 		enabled: initialEnabled,
 		mode: initialEnabled ? "NORMAL" : "INSERT",
 		activeCellIndex: 0,
 		caretColumn: 0,
 		visualRange: null,
+		selection: null,
 		commandText: "",
 	};
-	let sequenceTimer: ReturnType<typeof setTimeout> | null = null;
-	const listeners = new Set<() => void>();
-	const notify = () => listeners.forEach((listener) => listener());
-	const editorStore = createScratchpadEditorStore(initialEnabled);
-	const editorState = () => editorStore.getState();
-	const cellIndex = () => editorState().activeCellIndex;
-	const cellRange = () => editorState().visualRange;
-	const yankBuffer = () => editorState().yankBuffer;
-	const sequenceBuffer = () => editorState().sequenceBuffer;
-	editorStore.subscribe(() => {
-		const next = editorState();
-		state = {
-			...state,
-			enabled: next.enabled,
-			mode: next.mode,
-			activeCellIndex: next.activeCellIndex,
-			caretColumn: next.caretColumn,
-			visualRange: next.visualRange,
-			commandText: next.commandText,
-		};
+
+	const syncState = () => {
+		const isGeneric = resolveVariant() === "generic";
+		if (isGeneric) {
+			const next = genericStore.getState();
+			state = {
+				...state,
+				enabled: next.enabled,
+				mode: next.mode,
+				activeCellIndex: 0,
+				caretColumn: next.cursorOffset,
+				visualRange: null,
+				selection: next.selection,
+				commandText: next.commandText,
+			};
+		} else {
+			const next = scratchpadStore.getState();
+			state = {
+				...state,
+				enabled: next.enabled,
+				mode: next.mode,
+				activeCellIndex: next.activeCellIndex,
+				caretColumn: next.caretColumn,
+				visualRange: next.visualRange,
+				selection: null,
+				commandText: next.commandText,
+			};
+		}
 		notify();
-	});
+	};
+
+	genericStore.subscribe(syncState);
+	scratchpadStore.subscribe(syncState);
+
+	const cellIndex = () => scratchpadStore.getState().activeCellIndex;
+	const cellRange = () => scratchpadStore.getState().visualRange;
+	const yankBuffer = () =>
+		resolveVariant() === "generic"
+			? genericStore.getState().yankBuffer
+			: scratchpadStore.getState().yankBuffer;
+	const sequenceBuffer = () =>
+		resolveVariant() === "generic"
+			? genericStore.getState().sequenceBuffer
+			: scratchpadStore.getState().sequenceBuffer;
 
 	const setMode = (mode: EditorMode) => {
 		if (sequenceTimer) {
@@ -242,12 +282,20 @@ export function createBrowserVimController(
 		}
 		if (state.mode !== mode) {
 			state = { ...state, mode };
-			editorStore.dispatch({ type: "setMode", mode });
+			if (resolveVariant() === "generic") {
+				genericStore.dispatch({ type: "setMode", mode });
+			} else {
+				scratchpadStore.dispatch({ type: "setMode", mode });
+			}
 		}
 	};
 
 	const clearSequence = () => {
-		editorStore.dispatch({ type: "clearSequence" });
+		if (resolveVariant() === "generic") {
+			genericStore.dispatch({ type: "clearSequence" });
+		} else {
+			scratchpadStore.dispatch({ type: "clearSequence" });
+		}
 		if (sequenceTimer) {
 			clearTimeout(sequenceTimer);
 			sequenceTimer = null;
@@ -257,27 +305,53 @@ export function createBrowserVimController(
 	return {
 		getState: () => state,
 		setActiveCell: (index, count, column) => {
-			editorStore.dispatch({ type: "setActiveCell", index, count, column });
+			if (resolveVariant() === "generic") {
+				genericStore.dispatch({ type: "setCursor", offset: column ?? 0 });
+			} else {
+				scratchpadStore.dispatch({ type: "setActiveCell", index, count, column });
+			}
 		},
 		setPointerTarget: (index, count, column, dragging = false) => {
 			if (!state.enabled) return;
-			if (state.mode === "VISUAL") {
-				editorStore.dispatch({ type: "setVisualFocus", index, count });
-			} else if (dragging && state.mode !== "INSERT") {
-				editorStore.dispatch({ type: "beginVisual" });
-				editorStore.dispatch({ type: "setVisualFocus", index, count });
-				setMode("VISUAL");
+			if (resolveVariant() === "generic") {
+				if (state.mode === "VISUAL") {
+					const currentSel = genericStore.getState().selection;
+					genericStore.dispatch({
+						type: "setSelection",
+						selection: currentSel
+							? { start: currentSel.start, end: column }
+							: { start: column, end: column },
+					});
+				} else if (dragging && state.mode !== "INSERT") {
+					genericStore.dispatch({ type: "beginVisual", offset: column });
+					setMode("VISUAL");
+				} else {
+					genericStore.dispatch({ type: "setCursor", offset: column });
+				}
+				options?.getAdapter?.()?.setSelection({ start: column, end: column });
 			} else {
-				editorStore.dispatch({ type: "setActiveCell", index, count, column });
+				if (state.mode === "VISUAL") {
+					scratchpadStore.dispatch({ type: "setVisualFocus", index, count });
+				} else if (dragging && state.mode !== "INSERT") {
+					scratchpadStore.dispatch({ type: "beginVisual" });
+					scratchpadStore.dispatch({ type: "setVisualFocus", index, count });
+					setMode("VISUAL");
+				} else {
+					scratchpadStore.dispatch({ type: "setActiveCell", index, count, column });
+				}
+				if (state.mode === "VISUAL" || dragging)
+					scratchpadStore.dispatch({ type: "setActiveCell", index, count, column });
+				options?.getAdapter?.()?.setCellCaret?.(index, column);
 			}
-			if (state.mode === "VISUAL" || dragging)
-				editorStore.dispatch({ type: "setActiveCell", index, count, column });
-			options?.getAdapter?.()?.setCellCaret?.(index, column);
 		},
 		setEnabled: (enabled) => {
 			if (state.enabled !== enabled) {
 				state = { ...state, enabled, mode: enabled ? "NORMAL" : "INSERT" };
-				editorStore.dispatch({ type: "setEnabled", enabled });
+				if (resolveVariant() === "generic") {
+					genericStore.dispatch({ type: "setEnabled", enabled });
+				} else {
+					scratchpadStore.dispatch({ type: "setEnabled", enabled });
+				}
 				clearSequence();
 				notify();
 			}
@@ -293,9 +367,11 @@ export function createBrowserVimController(
 			const rawKey = event.key;
 			const keymap = options?.getKeymap?.();
 			const adapter = options?.getAdapter?.();
+			const isGeneric = resolveVariant() === "generic";
 			const isScratchpad =
-				options?.variant === "scratchpad" ||
-				Boolean(adapter?.getCellCount || adapter?.setActiveCellIndex);
+				!isGeneric &&
+				(resolveVariant() === "scratchpad" ||
+					Boolean(adapter?.getCellCount || adapter?.setActiveCellIndex));
 			const currentMode = state.enabled ? state.mode : "INSERT";
 
 			// Mode-aware Escape handling (only active when Vim is enabled)
@@ -304,11 +380,21 @@ export function createBrowserVimController(
 				if (state.mode === "INSERT") {
 					setMode("NORMAL");
 				} else if (state.mode === "VISUAL") {
-					editorStore.dispatch({ type: "clearVisual" });
-					adapter?.setSelectedCellRange?.(null);
+					if (isGeneric) {
+						genericStore?.dispatch({ type: "clearVisual" });
+						const sel = adapter?.getSelection();
+						if (sel) adapter?.setSelection({ start: sel.start, end: sel.start });
+					} else {
+						scratchpadStore?.dispatch({ type: "clearVisual" });
+						adapter?.setSelectedCellRange?.(null);
+					}
 					setMode("NORMAL");
 				} else if (state.mode === "COMMAND") {
-					editorStore.dispatch({ type: "clearVisual" });
+					if (isGeneric) {
+						genericStore?.dispatch({ type: "clearVisual" });
+					} else {
+						scratchpadStore?.dispatch({ type: "clearVisual" });
+					}
 					setMode("NORMAL");
 				}
 				event.preventDefault();
@@ -330,21 +416,27 @@ export function createBrowserVimController(
 					: undefined;
 
 				if (matched?.command === "editor.executeValidLines") {
-					options?.onExecuteValidLines?.();
+					if (isScratchpad) options?.onExecuteValidLines?.();
 					event.preventDefault();
 					return true;
 				}
 				if (matched?.command === "editor.executeLine") {
-					if (options?.onExecuteLine) {
-						options.onExecuteLine(cellIndex() + 1);
-					} else {
-						adapter?.executeCell?.(cellIndex());
+					if (isScratchpad) {
+						if (options?.onExecuteLine) {
+							options.onExecuteLine(cellIndex() + 1);
+						} else {
+							adapter?.executeCell?.(cellIndex());
+						}
 					}
 					event.preventDefault();
 					return true;
 				}
 				if (matched?.command === "editor.splitLine") {
-					adapter?.splitCellAtCaret?.();
+					if (isScratchpad) {
+						adapter?.splitCellAtCaret?.();
+					} else {
+						adapter?.insertTextAtCaret?.("\n");
+					}
 					event.preventDefault();
 					return true;
 				}
@@ -420,26 +512,41 @@ export function createBrowserVimController(
 
 				if (hasExactMatch && matchedAction) {
 					clearSequence();
-					if (matchedAction === "deleteCell") {
+					if (matchedAction === "deleteCell" || matchedAction === "deleteLine") {
 						if (isScratchpad && adapter?.deleteCell) {
 							const deleted = adapter.deleteCell(cellIndex());
 							if (deleted)
-								editorStore.dispatch({ type: "setYank", value: deleted });
+								scratchpadStore?.dispatch({ type: "setYank", value: deleted });
 						} else {
 							const deleted =
 								adapter?.deleteCurrentLine?.() ?? adapter?.deleteCell?.() ?? "";
-							if (deleted)
-								editorStore.dispatch({ type: "setYank", value: deleted });
+							if (deleted) {
+								if (isGeneric) {
+									genericStore?.dispatch({ type: "setYank", value: deleted });
+								} else {
+									scratchpadStore?.dispatch({ type: "setYank", value: deleted });
+								}
+							}
 						}
-					} else if (matchedAction === "yankCell") {
+					} else if (matchedAction === "yankCell" || matchedAction === "yankLine") {
 						if (isScratchpad && adapter?.yankCell) {
 							const yanked = adapter.yankCell(cellIndex());
 							if (yanked)
-								editorStore.dispatch({ type: "setYank", value: yanked });
+								scratchpadStore?.dispatch({ type: "setYank", value: yanked });
 						} else {
-							const yanked = adapter?.yankCell?.();
-							if (yanked)
-								editorStore.dispatch({ type: "setYank", value: yanked });
+							const text = adapter?.getText() ?? "";
+							const sel = adapter?.getSelection() ?? { start: 0, end: 0 };
+							const before = text.slice(0, sel.start).split("\n");
+							const lineIdx = Math.max(0, before.length - 1);
+							const lines = text.split("\n");
+							const yanked = lines[lineIdx] ?? adapter?.yankCell?.() ?? "";
+							if (yanked) {
+								if (isGeneric) {
+									genericStore?.dispatch({ type: "setYank", value: yanked });
+								} else {
+									scratchpadStore?.dispatch({ type: "setYank", value: yanked });
+								}
+							}
 						}
 					} else if (matchedAction === "pasteAbove") {
 						if (yankBuffer()) {
@@ -451,7 +558,11 @@ export function createBrowserVimController(
 				}
 
 				if (hasPartialMatch) {
-					editorStore.dispatch({ type: "setSequence", value: currentSeq });
+					if (isGeneric) {
+						genericStore?.dispatch({ type: "setSequence", value: currentSeq });
+					} else {
+						scratchpadStore?.dispatch({ type: "setSequence", value: currentSeq });
+					}
 					if (sequenceTimer) clearTimeout(sequenceTimer);
 					sequenceTimer = setTimeout(clearSequence, 1000);
 					event.preventDefault();
@@ -471,7 +582,7 @@ export function createBrowserVimController(
 							if (isScratchpad && adapter?.focusCellForEdit) {
 								adapter.focusCellForEdit(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								);
 							} else {
 								adapter?.focus?.();
@@ -482,14 +593,14 @@ export function createBrowserVimController(
 							if (isScratchpad && adapter?.insertCell) {
 								adapter.insertCell("below");
 								const count = adapter.getCellCount?.() ?? 1;
-								editorStore.dispatch({
+								scratchpadStore?.dispatch({
 									type: "setActiveCell",
 									index: cellIndex() + 1,
 									count,
 								});
 								adapter.focusCellForEdit?.(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								);
 							} else {
 								adapter?.insertLine?.("below");
@@ -501,14 +612,14 @@ export function createBrowserVimController(
 							if (isScratchpad && adapter?.insertCell) {
 								adapter.insertCell("above");
 								const count = adapter.getCellCount?.() ?? 1;
-								editorStore.dispatch({
+								scratchpadStore?.dispatch({
 									type: "setActiveCell",
 									index: cellIndex(),
 									count,
 								});
 								adapter.focusCellForEdit?.(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								);
 							} else {
 								adapter?.insertLine?.("above");
@@ -517,9 +628,15 @@ export function createBrowserVimController(
 							return true;
 						case "enterVisual":
 						case "editor.enterVisual":
-							editorStore.dispatch({ type: "beginVisual" });
-							setMode("VISUAL");
-							adapter?.setSelectedCellRange?.(cellRange());
+							if (isScratchpad) {
+								scratchpadStore?.dispatch({ type: "beginVisual" });
+								setMode("VISUAL");
+								adapter?.setSelectedCellRange?.(cellRange());
+							} else {
+								const sel = adapter?.getSelection() ?? { start: 0, end: 0 };
+								genericStore?.dispatch({ type: "beginVisual", offset: sel.start });
+								setMode("VISUAL");
+							}
 							return true;
 						case "moveDown":
 						case "editor.moveDown":
@@ -527,7 +644,7 @@ export function createBrowserVimController(
 								const total = adapter.getCellCount?.() ?? 1;
 								const nextIndex = Math.min(total - 1, cellIndex() + 1);
 								const lineLength = getCellText(adapter, nextIndex).length;
-								editorStore.dispatch({
+								scratchpadStore?.dispatch({
 									type: "moveCell",
 									delta: 1,
 									count: total,
@@ -535,7 +652,7 @@ export function createBrowserVimController(
 								});
 								adapter.setCellCaret?.(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								) ?? adapter.setActiveCellIndex?.(cellIndex());
 							} else {
 								adapter?.moveLine?.(1);
@@ -547,7 +664,7 @@ export function createBrowserVimController(
 								const total = adapter.getCellCount?.() ?? 1;
 								const nextIndex = Math.max(0, cellIndex() - 1);
 								const lineLength = getCellText(adapter, nextIndex).length;
-								editorStore.dispatch({
+								scratchpadStore?.dispatch({
 									type: "moveCell",
 									delta: -1,
 									count: total,
@@ -555,7 +672,7 @@ export function createBrowserVimController(
 								});
 								adapter.setCellCaret?.(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								) ?? adapter.setActiveCellIndex?.(cellIndex());
 							} else {
 								adapter?.moveLine?.(-1);
@@ -566,14 +683,14 @@ export function createBrowserVimController(
 							if (adapter) {
 								if (isScratchpad) {
 									const line = getCellText(adapter, cellIndex());
-									editorStore.dispatch({
+									scratchpadStore?.dispatch({
 										type: "moveCharacter",
 										delta: -1,
 										lineLength: line.length,
 									});
 									adapter.setCellCaret?.(
 										cellIndex(),
-										editorState().caretColumn,
+										scratchpadStore?.getState().caretColumn ?? 0,
 									);
 								} else {
 									const sel = adapter.getSelection();
@@ -587,14 +704,14 @@ export function createBrowserVimController(
 							if (adapter) {
 								if (isScratchpad) {
 									const line = getCellText(adapter, cellIndex());
-									editorStore.dispatch({
+									scratchpadStore?.dispatch({
 										type: "moveCharacter",
 										delta: 1,
 										lineLength: line.length,
 									});
 									adapter.setCellCaret?.(
 										cellIndex(),
-										editorState().caretColumn,
+										scratchpadStore?.getState().caretColumn ?? 0,
 									);
 								} else {
 									const sel = adapter.getSelection();
@@ -603,13 +720,38 @@ export function createBrowserVimController(
 								}
 							}
 							return true;
+						case "moveWord":
+						case "editor.moveWord":
+							adapter?.moveWord?.(1);
+							return true;
+						case "moveWordBackward":
+						case "editor.moveWordBackward":
+							adapter?.moveWord?.(-1);
+							return true;
+						case "moveToLineStart":
+						case "editor.moveToLineStart":
+							adapter?.moveToLineBoundary?.("start");
+							return true;
+						case "moveToLineEnd":
+						case "editor.moveToLineEnd":
+							adapter?.moveToLineBoundary?.("end");
+							return true;
+						case "moveToFirstNonBlank":
+						case "editor.moveToFirstNonBlank":
+							adapter?.moveToLineBoundary?.("firstNonWhitespace");
+							return true;
+						case "deleteChar":
+						case "deleteCharUnderCaret":
+						case "editor.deleteChar":
+							adapter?.deleteCharUnderCaret?.();
+							return true;
 						case "pasteBelow":
 						case "editor.pasteBelow":
 							if (yankBuffer()) {
 								adapter?.pasteCell?.(yankBuffer(), "below");
 								if (isScratchpad) {
 									const count = adapter?.getCellCount?.() ?? 1;
-									editorStore.dispatch({
+									scratchpadStore?.dispatch({
 										type: "setActiveCell",
 										index: cellIndex() + 1,
 										count,
@@ -627,19 +769,21 @@ export function createBrowserVimController(
 							return true;
 						case "runCell":
 						case "editor.executeLine":
-							if (options?.onExecuteLine) {
-								options.onExecuteLine(cellIndex() + 1);
-							} else {
-								adapter?.executeCell?.(cellIndex());
+							if (isScratchpad) {
+								if (options?.onExecuteLine) {
+									options.onExecuteLine(cellIndex() + 1);
+								} else {
+									adapter?.executeCell?.(cellIndex());
+								}
 							}
 							return true;
 						case "executeValidLines":
 						case "editor.executeValidLines":
-							options?.onExecuteValidLines?.();
+							if (isScratchpad) options?.onExecuteValidLines?.();
 							return true;
 						case "previewCell":
 						case "editor.previewCell":
-							options?.onPreviewLine?.();
+							if (isScratchpad) options?.onPreviewLine?.();
 							return true;
 						case "nextMatch":
 							adapter?.repeatFind?.("forward");
@@ -651,10 +795,17 @@ export function createBrowserVimController(
 							const cmdText = Array.isArray(normalMap?.command)
 								? (normalMap.command[0] ?? ":")
 								: (normalMap?.command ?? ":");
-							editorStore.dispatch({
-								type: "setCommandText",
-								value: cmdText,
-							});
+							if (isGeneric) {
+								genericStore?.dispatch({
+									type: "setCommandText",
+									value: cmdText,
+								});
+							} else {
+								scratchpadStore?.dispatch({
+									type: "setCommandText",
+									value: cmdText,
+								});
+							}
 							setMode("COMMAND");
 							if (options?.onOpenCommandMode) {
 								options.onOpenCommandMode(cmdText, true, cmdText);
@@ -669,7 +820,7 @@ export function createBrowserVimController(
 								action === "searchAlt" ||
 								(normalMap?.searchAlt &&
 									matchesKeyOrChord(normalMap.searchAlt, rawKey, chord));
-							options?.onOpenSearch?.(backward ? "backward" : "forward");
+							options?.onOpenSearch?.(backward ? "backward" : "forward", true);
 							return true;
 						}
 						default:
@@ -714,21 +865,38 @@ export function createBrowserVimController(
 							if (isScratchpad && range && adapter?.deleteCellRange) {
 								const deleted = adapter.deleteCellRange(range.start, range.end);
 								if (deleted)
-									editorStore.dispatch({ type: "setYank", value: deleted });
-								editorStore.dispatch({
+									scratchpadStore?.dispatch({ type: "setYank", value: deleted });
+								scratchpadStore?.dispatch({
 									type: "setActiveCell",
 									index: Math.min(range.start, range.end),
 									count: adapter.getCellCount?.() ?? 1,
 								});
 								adapter.setCellCaret?.(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								) ?? adapter.setActiveCellIndex?.(cellIndex());
+								scratchpadStore?.dispatch({ type: "clearVisual" });
+								adapter?.setSelectedCellRange?.(null);
 							} else {
+								const text = adapter?.getText() ?? "";
+								const sel = adapter?.getSelection() ?? { start: 0, end: 0 };
+								const minPos = Math.min(sel.start, sel.end);
+								const maxPos = Math.max(sel.start, sel.end);
+								const deleted = text.slice(minPos, maxPos);
+								if (deleted) {
+									if (isGeneric) {
+										genericStore?.dispatch({ type: "setYank", value: deleted });
+									} else {
+										scratchpadStore?.dispatch({ type: "setYank", value: deleted });
+									}
+								}
 								adapter?.replaceSelection("");
+								if (isGeneric) {
+									genericStore?.dispatch({ type: "clearVisual" });
+								} else {
+									scratchpadStore?.dispatch({ type: "clearVisual" });
+								}
 							}
-							editorStore.dispatch({ type: "clearVisual" });
-							adapter?.setSelectedCellRange?.(null);
 							setMode("NORMAL");
 							return true;
 						}
@@ -738,10 +906,28 @@ export function createBrowserVimController(
 							if (isScratchpad && range && adapter?.yankCellRange) {
 								const yanked = adapter.yankCellRange(range.start, range.end);
 								if (yanked)
-									editorStore.dispatch({ type: "setYank", value: yanked });
+									scratchpadStore?.dispatch({ type: "setYank", value: yanked });
+								scratchpadStore?.dispatch({ type: "clearVisual" });
+								adapter?.setSelectedCellRange?.(null);
+							} else {
+								const text = adapter?.getText() ?? "";
+								const sel = adapter?.getSelection() ?? { start: 0, end: 0 };
+								const minPos = Math.min(sel.start, sel.end);
+								const maxPos = Math.max(sel.start, sel.end);
+								const yanked = text.slice(minPos, maxPos);
+								if (yanked) {
+									if (isGeneric) {
+										genericStore?.dispatch({ type: "setYank", value: yanked });
+									} else {
+										scratchpadStore?.dispatch({ type: "setYank", value: yanked });
+									}
+								}
+								if (isGeneric) {
+									genericStore?.dispatch({ type: "clearVisual" });
+								} else {
+									scratchpadStore?.dispatch({ type: "clearVisual" });
+								}
 							}
-							editorStore.dispatch({ type: "clearVisual" });
-							adapter?.setSelectedCellRange?.(null);
 							setMode("NORMAL");
 							return true;
 						}
@@ -754,9 +940,16 @@ export function createBrowserVimController(
 									range.end,
 									yankBuffer(),
 								);
+								scratchpadStore?.dispatch({ type: "clearVisual" });
+								adapter?.setSelectedCellRange?.(null);
+							} else {
+								if (yankBuffer()) adapter?.replaceSelection(yankBuffer());
+								if (isGeneric) {
+									genericStore?.dispatch({ type: "clearVisual" });
+								} else {
+									scratchpadStore?.dispatch({ type: "clearVisual" });
+								}
 							}
-							editorStore.dispatch({ type: "clearVisual" });
-							adapter?.setSelectedCellRange?.(null);
 							setMode("NORMAL");
 							return true;
 						}
@@ -764,14 +957,14 @@ export function createBrowserVimController(
 						case "editor.extendDown":
 							if (isScratchpad && adapter) {
 								const total = adapter.getCellCount?.() ?? 1;
-								editorStore.dispatch({
+								scratchpadStore?.dispatch({
 									type: "extendVisual",
 									delta: 1,
 									count: total,
 								});
 								adapter.setCellCaret?.(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								) ?? adapter.setActiveCellIndex?.(cellIndex());
 								adapter.setSelectedCellRange?.(cellRange());
 							} else {
@@ -782,7 +975,7 @@ export function createBrowserVimController(
 						case "editor.extendUp":
 							if (isScratchpad && adapter) {
 								const total = adapter.getCellCount?.() ?? 1;
-								editorStore.dispatch({
+								scratchpadStore?.dispatch({
 									type: "extendVisual",
 									delta: -1,
 									count: total,
@@ -816,10 +1009,10 @@ export function createBrowserVimController(
 						case "swapAnchor":
 						case "editor.swapAnchor":
 							if (isScratchpad && cellRange()) {
-								editorStore.dispatch({ type: "swapVisualAnchor" });
+								scratchpadStore?.dispatch({ type: "swapVisualAnchor" });
 								adapter?.setCellCaret?.(
 									cellIndex(),
-									editorState().caretColumn,
+									scratchpadStore?.getState().caretColumn ?? 0,
 								) ?? adapter?.setActiveCellIndex?.(cellIndex());
 								adapter?.setSelectedCellRange?.(cellRange());
 							} else {
@@ -836,16 +1029,18 @@ export function createBrowserVimController(
 									adapter?.executeCellRange?.(range.start, range.end);
 								}
 							}
-							editorStore.dispatch({ type: "clearVisual" });
+							scratchpadStore?.dispatch({ type: "clearVisual" });
 							adapter?.setSelectedCellRange?.(null);
 							setMode("NORMAL");
 							return true;
 						}
 						case "executeValidLines":
 						case "editor.executeValidLines": {
-							options?.onExecuteValidLines?.();
-							editorStore.dispatch({ type: "clearVisual" });
-							adapter?.setSelectedCellRange?.(null);
+							if (isScratchpad) {
+								options?.onExecuteValidLines?.();
+								scratchpadStore?.dispatch({ type: "clearVisual" });
+								adapter?.setSelectedCellRange?.(null);
+							}
 							setMode("NORMAL");
 							return true;
 						}
@@ -896,4 +1091,14 @@ export function createBrowserVimController(
 			return () => listeners.delete(listener);
 		},
 	};
+}
+
+export function createGenericVimController(
+	initialEnabled = false,
+	options?: BrowserVimControllerOptions,
+): BrowserVimController {
+	return createBrowserVimController(initialEnabled, {
+		...options,
+		variant: "generic",
+	});
 }

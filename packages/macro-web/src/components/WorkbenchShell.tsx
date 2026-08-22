@@ -21,6 +21,10 @@ import { useI18n } from "../lib/macro-i18n-provider";
 import { EditorOutputDrawer } from "./EditorOutputDrawer";
 import { getEditorSurfaceAdapter } from "./EditorSurfaceView";
 import { Splitter } from "./Splitter";
+import {
+	CloseDirtyDialog,
+	type PendingCloseDocument,
+} from "./workbench/CloseDirtyDialog";
 import { EditorCanvas } from "./workbench/EditorCanvas";
 import { EditorGroupHeader } from "./workbench/EditorGroupHeader";
 import { PrimarySidebar } from "./workbench/PrimarySidebar";
@@ -57,7 +61,7 @@ export interface WorkbenchShellProps {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: SearchDirection) => void;
+	readonly onOpenSearch?: (direction: SearchDirection, vimSearch?: boolean) => void;
 	readonly searchWidget?: ReactNode;
 	readonly activePrimaryTab?: import("./ActivityRail").PrimarySidebarTab;
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
@@ -99,6 +103,7 @@ export function WorkbenchShell({
 	const [activeDomain, setActiveDomain] = useState<string>();
 	const [surfaceFocused, setSurfaceFocused] = useState(false);
 	const [vimNotice] = useState<string>();
+	const [pendingCloseDoc, setPendingCloseDoc] = useState<PendingCloseDocument | null>(null);
 
 	const surfaceRef = useRef<HTMLElement | null>(null);
 	const shellRef = useRef<HTMLDivElement | null>(null);
@@ -192,6 +197,69 @@ export function WorkbenchShell({
 		getSurfaceAdapter,
 	});
 
+	const requestId = () => crypto.randomUUID();
+	const emitEditorOperation = (operation: EditorOperation) => {
+		void onEditorOperation(operation);
+	};
+
+	const handleCloseDocument = (documentId: string, textRevision?: number) => {
+		if (localDraft !== undefined) {
+			flushDraft();
+			return;
+		}
+		const docMeta = snapshot?.editor.documents.find(
+			(d) => d.documentId === documentId,
+		);
+		if (docMeta?.dirty) {
+			setPendingCloseDoc({
+				documentId,
+				title: docMeta.title,
+				textRevision: textRevision ?? docMeta.textRevision,
+				filePath: docMeta.filePath,
+			});
+			return;
+		}
+		emitEditorOperation({
+			operation: "editor.closeDocument",
+			requestId: requestId(),
+			documentId,
+			expectedTextRevision: textRevision,
+			force: false,
+		});
+	};
+
+	const handleSaveAndClose = (target: PendingCloseDocument) => {
+		if (target.filePath) {
+			emitEditorOperation({
+				operation: "editor.save",
+				requestId: requestId(),
+				documentId: target.documentId,
+				expectedTextRevision: target.textRevision,
+			});
+			emitEditorOperation({
+				operation: "editor.closeDocument",
+				requestId: requestId(),
+				documentId: target.documentId,
+				expectedTextRevision: target.textRevision,
+				force: true,
+			});
+		} else {
+			onOpenFolderModal?.("saveAs");
+		}
+		setPendingCloseDoc(null);
+	};
+
+	const handleDiscardAndClose = (target: PendingCloseDocument) => {
+		emitEditorOperation({
+			operation: "editor.closeDocument",
+			requestId: requestId(),
+			documentId: target.documentId,
+			expectedTextRevision: target.textRevision,
+			force: true,
+		});
+		setPendingCloseDoc(null);
+	};
+
 	if (status === "error") {
 		return (
 			<section className="workbench-state" aria-live="assertive">
@@ -225,11 +293,6 @@ export function WorkbenchShell({
 	const pendingEditor = activeDocumentMeta
 		? pendingEditorRequests[activeDocumentMeta.documentId] !== undefined
 		: false;
-
-	const requestId = () => crypto.randomUUID();
-	const emitEditorOperation = (operation: EditorOperation) => {
-		void onEditorOperation(operation);
-	};
 
 	const openDocumentInActiveGroup = (documentId: string) => {
 		if (!activeGroup) return;
@@ -296,6 +359,13 @@ export function WorkbenchShell({
 
 	return (
 		<div className="workbench-shell" ref={shellRef} style={shellStyle}>
+			<CloseDirtyDialog
+				target={pendingCloseDoc}
+				onSaveAndClose={handleSaveAndClose}
+				onDiscardAndClose={handleDiscardAndClose}
+				onCancel={() => setPendingCloseDoc(null)}
+			/>
+
 			{inspectorPosition === "left" && (
 				<>
 					{inspectorElement}
@@ -329,19 +399,7 @@ export function WorkbenchShell({
 								});
 							}
 						}}
-						onCloseDocument={(documentId, textRevision) => {
-							if (localDraft !== undefined) {
-								flushDraft();
-								return;
-							}
-							emitEditorOperation({
-								operation: "editor.closeDocument",
-								requestId: requestId(),
-								documentId,
-								expectedTextRevision: textRevision,
-								force: false,
-							});
-						}}
+						onCloseDocument={handleCloseDocument}
 						onNewScratchpad={() =>
 							emitEditorOperation({
 								operation: "editor.newScratchpad",
@@ -431,19 +489,7 @@ export function WorkbenchShell({
 							title,
 						});
 					}}
-					onCloseDocument={(documentId, textRevision) => {
-						if (localDraft !== undefined) {
-							flushDraft();
-							return;
-						}
-						emitEditorOperation({
-							operation: "editor.closeDocument",
-							requestId: requestId(),
-							documentId,
-							expectedTextRevision: textRevision,
-							force: false,
-						});
-					}}
+					onCloseDocument={handleCloseDocument}
 					onNewScratchpad={() =>
 						emitEditorOperation({
 							operation: "editor.newScratchpad",
