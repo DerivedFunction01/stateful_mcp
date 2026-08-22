@@ -3,6 +3,7 @@ import type {
 	PinnedMacroDto,
 	ScratchpadLineDto,
 	ScratchpadSnapshotDto,
+	SidepanelPosition,
 } from "@stateful-mcp/macro-protocol";
 import {
 	AlertCircle,
@@ -38,7 +39,7 @@ export interface WorkbenchInspectorProps {
 	readonly pinnedMacros?: readonly PinnedMacroDto[];
 	readonly isOpen?: boolean;
 	readonly onToggleOpen?: () => void;
-	readonly dockPosition?: "left" | "right";
+	readonly dockPosition?: SidepanelPosition;
 	readonly onToggleDockPosition?: () => void;
 	readonly onPin?: (macroId: string | null) => void;
 	readonly onJumpToLine?: (lineNumber: number) => void;
@@ -161,7 +162,7 @@ export function WorkbenchInspector({
 					onClick={() => handleTabClick("problems")}
 					aria-label={t("workbench.problems")}
 				>
-					<ShieldAlert size={15} />
+					<ShieldAlert size={18} />
 					{allDiagnostics.length > 0 && (
 						<span
 							className={`inspector-strip-badge ${errorCount > 0 ? "danger" : "warning"}`}
@@ -179,7 +180,7 @@ export function WorkbenchInspector({
 					onClick={() => handleTabClick("cell")}
 					aria-label={t("workbench.cellDetails")}
 				>
-					<Layers size={15} />
+					<Layers size={18} />
 					{activeLine?.macroName && (
 						<span className="inspector-strip-badge neutral">^</span>
 					)}
@@ -193,7 +194,7 @@ export function WorkbenchInspector({
 					onClick={() => handleTabClick("slots")}
 					aria-label={t("workbench.slots")}
 				>
-					<Sparkles size={15} />
+					<Sparkles size={18} />
 					{validSlots.length > 0 && (
 						<span className="inspector-strip-badge neutral">
 							{validSlots.length}
@@ -209,7 +210,7 @@ export function WorkbenchInspector({
 					onClick={() => handleTabClick("pinned")}
 					aria-label={t("workbench.quickRuns")}
 				>
-					<Pin size={15} />
+					<Pin size={18} />
 					{pinnedMacros.length > 0 && (
 						<span className="inspector-strip-badge neutral">
 							{pinnedMacros.length}
@@ -229,7 +230,7 @@ export function WorkbenchInspector({
 							onClick={() => handleTabClick(view.id)}
 							aria-label={view.name}
 						>
-							<IconComponent size={15} />
+							<IconComponent size={18} />
 						</button>
 					);
 				})}
@@ -250,9 +251,9 @@ export function WorkbenchInspector({
 						aria-label="Toggle Dock Position"
 					>
 						{dockPosition === "right" ? (
-							<PanelLeftClose size={14} />
+							<PanelLeftClose size={17} />
 						) : (
-							<PanelRightClose size={14} />
+							<PanelRightClose size={17} />
 						)}
 					</button>
 				)}
@@ -268,14 +269,14 @@ export function WorkbenchInspector({
 					>
 						{isOpen ? (
 							dockPosition === "right" ? (
-								<ChevronRight size={15} />
+								<ChevronRight size={18} />
 							) : (
-								<ChevronLeft size={15} />
+								<ChevronLeft size={18} />
 							)
 						) : dockPosition === "right" ? (
-							<ChevronLeft size={15} />
+							<ChevronLeft size={18} />
 						) : (
-							<ChevronRight size={15} />
+							<ChevronRight size={18} />
 						)}
 					</button>
 				)}

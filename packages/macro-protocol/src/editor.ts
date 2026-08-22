@@ -9,6 +9,9 @@
  */
 export type EditorMode = "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
 
+export type SearchDirection = "forward" | "backward";
+export type InsertPosition = "above" | "below";
+
 export type MacroDocumentProviderId = "macro.text";
 
 export type ScratchpadLineStatus = "empty" | "valid" | "invalid" | "non-macro";

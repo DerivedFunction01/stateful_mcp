@@ -12,12 +12,13 @@ import {
 } from "lucide-react";
 import { useActiveEditorSurface } from "../lib/editor-surface-registry";
 import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
+import type { HorizontalAlignment } from "@stateful-mcp/macro-protocol";
 import { cn } from "../lib/utils";
 import { IconButton } from "./ui/primitives";
 
 export interface StatusBarSegment {
 	readonly id: string;
-	readonly alignment: "left" | "right";
+	readonly alignment: HorizontalAlignment;
 	readonly priority: number;
 	readonly minContainerWidth?: "compact" | "comfortable" | "wide";
 	readonly label?: string;

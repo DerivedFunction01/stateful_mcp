@@ -25,45 +25,20 @@ export class ViewRegistry {
 		this.registerContainer({
 			id: "explorer",
 			title: "Explorer",
-			icon: "📁",
-			altKey: "1",
 			order: 10,
 			region: "activity",
-			contextualHints: [
-				{ key: "↑/↓", label: "Navigate", i18nKey: "helpBar.navigate" },
-				{ key: "Enter", label: "Open", i18nKey: "helpBar.open" },
-				{ key: "Ctrl+W", label: "Focus Pane", i18nKey: "helpBar.switchFocus" },
-				{ key: "Esc", label: "Editor", i18nKey: "helpBar.editor" },
-			],
 		});
 		this.registerContainer({
 			id: "slots",
 			title: "Macro Slots",
-			icon: "▧",
-			altKey: "2",
 			order: 20,
 			region: "inspector",
-			contextualHints: [
-				{ key: "↑/↓", label: "Navigate", i18nKey: "helpBar.navigate" },
-				{ key: "Enter", label: "Execute", i18nKey: "helpBar.apply" },
-				{ key: "Alt+2", label: "Close", i18nKey: "helpBar.close" },
-				{ key: "Ctrl+W", label: "Focus Pane", i18nKey: "helpBar.switchFocus" },
-				{ key: "Esc", label: "Editor", i18nKey: "helpBar.editor" },
-			],
 		});
 		this.registerContainer({
 			id: "journal",
 			title: "Journal History",
-			icon: "◷",
-			altKey: "3",
 			order: 30,
 			region: "activity",
-			contextualHints: [
-				{ key: "↑/↓", label: "Navigate", i18nKey: "helpBar.navigate" },
-				{ key: "Enter", label: "Open", i18nKey: "helpBar.open" },
-				{ key: "Ctrl+W", label: "Focus Pane", i18nKey: "helpBar.switchFocus" },
-				{ key: "Esc", label: "Editor", i18nKey: "helpBar.editor" },
-			],
 		});
 	}
 

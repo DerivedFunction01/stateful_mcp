@@ -489,6 +489,14 @@ export function createMacroWorkspace(
 	);
 	commands.registerCommand(
 		{
+			command: "workspace.toggleActivity",
+			title: "Toggle Primary Sidebar",
+			category: "View",
+		},
+		{ execute: () => layout.toggleRegion("activity") },
+	);
+	commands.registerCommand(
+		{
 			command: "layout.setRegionWidthRatio",
 			title: "Set Region Width Ratio",
 			category: "View",

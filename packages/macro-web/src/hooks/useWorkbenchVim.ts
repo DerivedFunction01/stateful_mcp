@@ -1,5 +1,6 @@
 import type {
 	EditorOperation,
+	SearchDirection,
 	WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import { type RefObject, useRef, useState, useSyncExternalStore } from "react";
@@ -22,7 +23,7 @@ export interface UseWorkbenchVimOptions {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: "forward" | "backward") => void;
+	readonly onOpenSearch?: (direction: SearchDirection) => void;
 	readonly onEditorOperation: (
 		operation: EditorOperation,
 	) => void | Promise<void>;

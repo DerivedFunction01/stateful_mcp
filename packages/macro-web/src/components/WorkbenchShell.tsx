@@ -2,6 +2,7 @@ import {
 	type EditorOperation,
 	type EditorOperationResult,
 	LAYOUT_RATIO_BOUNDS,
+	type SearchDirection,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import { CircleDot } from "lucide-react";
@@ -14,10 +15,9 @@ import { useI18n } from "../lib/macro-i18n-provider";
 import { EditorOutputDrawer } from "./EditorOutputDrawer";
 import { getEditorSurfaceAdapter } from "./EditorSurfaceView";
 import { Splitter } from "./Splitter";
-import { DomainRail } from "./workbench/DomainRail";
 import { EditorCanvas } from "./workbench/EditorCanvas";
 import { EditorGroupHeader } from "./workbench/EditorGroupHeader";
-import { ViewsSidebar } from "./workbench/ViewsSidebar";
+import { PrimarySidebar } from "./workbench/PrimarySidebar";
 import { WorkbenchDockedInspector } from "./workbench/WorkbenchDockedInspector";
 
 export interface WorkbenchShellProps {
@@ -49,8 +49,10 @@ export interface WorkbenchShellProps {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: "forward" | "backward") => void;
+	readonly onOpenSearch?: (direction: SearchDirection) => void;
 	readonly searchWidget?: ReactNode;
+	readonly activePrimaryTab?: import("./ActivityRail").PrimarySidebarTab;
+	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
 }
 
 export function WorkbenchShell({
@@ -70,6 +72,8 @@ export function WorkbenchShell({
 	onOpenPalette,
 	onOpenSearch,
 	searchWidget,
+	activePrimaryTab = "explorer",
+	onOpenFolderModal,
 }: WorkbenchShellProps) {
 	const { t } = useI18n();
 	const [activeDomain, setActiveDomain] = useState<string>();
@@ -113,9 +117,9 @@ export function WorkbenchShell({
 	const {
 		inspectorPosition,
 		isInspectorOpen,
+		isSidebarOpen,
 		toggleInspector,
 		setInspectorPosition,
-		domainRatio,
 		sidebarRatio,
 		inspectorRatio,
 		totalFr,
@@ -258,54 +262,78 @@ export function WorkbenchShell({
 
 	return (
 		<div className="workbench-shell" ref={shellRef} style={shellStyle}>
-			<DomainRail
-				applications={snapshot.applications}
-				activeDomainId={activeDomainId}
-				onSelectDomain={setActiveDomain}
-			/>
-
-			<Splitter
-				orientation="vertical"
-				region="domain"
-				label={t("workbench.resizeDomainRail")}
-				value={domainRatio}
-				min={LAYOUT_RATIO_BOUNDS.min}
-				max={LAYOUT_RATIO_BOUNDS.max}
-				step={0.02}
-				totalFr={totalFr}
-				containerRef={shellRef}
-				onChange={(next) =>
-					onCommand("layout.setDomainRailWidthRatio", [{ ratio: next }])
-				}
-			/>
-
-			<ViewsSidebar
-				containers={snapshot.contributions.containers}
-				views={snapshot.contributions.views}
-				activeViewId={activeView?.id}
-			/>
-
-			<Splitter
-				orientation="vertical"
-				region="sidebar"
-				label={t("workbench.resizeSidebar")}
-				value={sidebarRatio}
-				min={LAYOUT_RATIO_BOUNDS.min}
-				max={LAYOUT_RATIO_BOUNDS.max}
-				step={0.02}
-				totalFr={totalFr}
-				containerRef={shellRef}
-				onChange={(next) =>
-					onCommand("layout.setRegionWidthRatio", [
-						{ region: "activity", ratio: next },
-					])
-				}
-			/>
-
 			{inspectorPosition === "left" && (
 				<>
 					{inspectorElement}
 					{inspectorSplitter}
+				</>
+			)}
+
+			{isSidebarOpen && (
+				<>
+					<PrimarySidebar
+						activeTab={activePrimaryTab}
+						snapshot={snapshot}
+						documents={snapshot.editor.documents}
+						activeDocumentId={snapshot.editor.activeDocumentId}
+						isOpen={isSidebarOpen}
+						onSelectDocument={(documentId) => {
+							if (localDraft !== undefined) {
+								flushDraft();
+								return;
+							}
+							if (
+								activeGroup &&
+								!activeGroup.documentIds.includes(documentId)
+							) {
+								openDocumentInActiveGroup(documentId);
+							} else {
+								emitEditorOperation({
+									operation: "editor.selectDocument",
+									requestId: requestId(),
+									documentId,
+								});
+							}
+						}}
+						onCloseDocument={(documentId, textRevision) => {
+							if (localDraft !== undefined) {
+								flushDraft();
+								return;
+							}
+							emitEditorOperation({
+								operation: "editor.closeDocument",
+								requestId: requestId(),
+								documentId,
+								expectedTextRevision: textRevision,
+								force: false,
+							});
+						}}
+						onNewScratchpad={() =>
+							emitEditorOperation({
+								operation: "editor.newScratchpad",
+								requestId: requestId(),
+							})
+						}
+						onOpenFolderModal={onOpenFolderModal}
+						onCommand={onCommand}
+					/>
+
+					<Splitter
+						orientation="vertical"
+						region="sidebar"
+						label={t("workbench.resizeSidebar")}
+						value={sidebarRatio}
+						min={LAYOUT_RATIO_BOUNDS.min}
+						max={LAYOUT_RATIO_BOUNDS.max}
+						step={0.02}
+						totalFr={totalFr}
+						containerRef={shellRef}
+						onChange={(next) =>
+							onCommand("layout.setRegionWidthRatio", [
+								{ region: "activity", ratio: next },
+							])
+						}
+					/>
 				</>
 			)}
 

@@ -63,4 +63,21 @@ export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.insertSnippet": "Insertar",
 	"workbench.activeExtension": "Extensión activa",
 	"workbench.availableExtension": "Disponible",
+	"workbench.explorer": "Explorador",
+	"workbench.search": "Buscar",
+	"workbench.journalHistory": "Historial del diario",
+	"workbench.openEditors": "Editores abiertos",
+	"workbench.noFolderOpened": "Ninguna carpeta abierta",
+	"workbench.noFolderDescription":
+		"Aún no has abierto ninguna carpeta ni espacio de proyecto.",
+	"workbench.newScratchpad": "Nuevo bloc de notas",
+	"workbench.initProject": "Inicializar proyecto",
+	"workbench.moreActions": "Más acciones",
+	"workbench.reverseAll": "Revertir todo",
+	"workbench.journalHint":
+		"Las celdas de macro ejecutadas y las transacciones de sesión se registran en el diario del host.",
+	"workbench.close": "Cerrar",
+	"workbench.replacePlaceholder": "Reemplazar",
+	"workbench.searchPlaceholder": "Buscar texto en documentos",
+	"workbench.refresh": "Actualizar",
 };

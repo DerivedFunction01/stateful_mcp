@@ -1,5 +1,6 @@
 import {
 	LAYOUT_RATIO_DEFAULTS,
+	type SidepanelPosition,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import { type CSSProperties, useEffect, useState } from "react";
@@ -18,9 +19,11 @@ export function useWorkbenchLayout(
 
 	const inspectorPosition = userPrefs.inspectorPosition ?? "right";
 	const isInspectorOpen = snapshot?.layout.sidepanelOpen ?? true;
+	const isSidebarOpen = snapshot?.layout.regions.activity?.open ?? true;
 
 	const toggleInspector = () => onCommand("workspace.toggleSidepanel");
-	const setInspectorPosition = (pos: "left" | "right") =>
+	const toggleSidebar = () => onCommand("workspace.toggleActivity");
+	const setInspectorPosition = (pos: SidepanelPosition) =>
 		saveUserPreferences({ inspectorPosition: pos });
 
 	const domainRatio =
@@ -31,13 +34,11 @@ export function useWorkbenchLayout(
 	const inspectorRatio =
 		snapshot?.layout.regions.inspector?.widthRatio ??
 		LAYOUT_RATIO_DEFAULTS.inspector;
-	const totalFr = domainRatio + sidebarRatio + 1 + inspectorRatio;
+	const totalFr = 1;
 
 	const shellStyle: CSSProperties = {
-		"--domain-rail-ratio": domainRatio,
 		"--sidebar-ratio": sidebarRatio,
 		"--inspector-ratio": inspectorRatio,
-		"--domain-rail-track": `${domainRatio}fr`,
 		"--sidebar-track": `${sidebarRatio}fr`,
 		"--inspector-track": `${inspectorRatio}fr`,
 	} as CSSProperties;
@@ -45,7 +46,9 @@ export function useWorkbenchLayout(
 	return {
 		inspectorPosition,
 		isInspectorOpen,
+		isSidebarOpen,
 		toggleInspector,
+		toggleSidebar,
 		setInspectorPosition,
 		domainRatio,
 		sidebarRatio,

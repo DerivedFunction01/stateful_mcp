@@ -5,7 +5,9 @@ import type {
 	PinnedMacroDto,
 	ScratchpadLineDto,
 	ScratchpadSnapshotDto,
+	SearchDirection,
 	SettingsPreviewDto,
+	SidepanelPosition,
 } from "@stateful-mcp/macro-protocol";
 import {
 	Activity,
@@ -660,7 +662,7 @@ const FIND_WIDGET_LINES: readonly ScratchpadLineDto[] = [
 	},
 ];
 
-function gallerySearchResult(query: string, direction: "forward" | "backward") {
+function gallerySearchResult(query: string, direction: SearchDirection) {
 	const matches =
 		query === "macro"
 			? [
@@ -1118,7 +1120,8 @@ function WorkbenchInspectorStory() {
 	const { t } = useI18n();
 	const [activeLine, setActiveLine] = useState(0);
 	const [pinned, setPinned] = useState<string[]>(["vitals"]);
-	const [dockPosition, setDockPosition] = useState<"left" | "right">("right");
+	const [dockPosition, setDockPosition] =
+		useState<SidepanelPosition>("right");
 	const [isOpen, setIsOpen] = useState(true);
 
 	const mockSnapshot: ScratchpadSnapshotDto = {
@@ -1463,7 +1466,8 @@ function MenuBarStory() {
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	const [inspectorOpen, setInspectorOpen] = useState(true);
-	const [inspectorPos, setInspectorPos] = useState<"left" | "right">("right");
+	const [inspectorPos, setInspectorPos] =
+		useState<SidepanelPosition>("right");
 
 	return (
 		<Card

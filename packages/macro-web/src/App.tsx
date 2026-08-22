@@ -1,6 +1,13 @@
-import type { EditorOperation } from "@stateful-mcp/macro-protocol";
+import type {
+	EditorOperation,
+	SearchDirection,
+} from "@stateful-mcp/macro-protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityRail } from "./components/ActivityRail";
+import {
+	ActivityRail,
+	type AppRoute,
+	type PrimarySidebarTab,
+} from "./components/ActivityRail";
 import { CommandPalette } from "./components/CommandPalette";
 import { FindOverlay } from "./components/FindOverlay";
 import { Gallery } from "./components/Gallery";
@@ -31,9 +38,7 @@ import {
 	useBrowserWorkspaceStore,
 } from "./lib/workspace-store";
 
-type Route = "workbench" | "settings" | "gallery" | "host";
-
-function routeFromPath(pathname: string): Route {
+function routeFromPath(pathname: string): AppRoute {
 	if (pathname === "/__dev/gallery") return "gallery";
 	if (pathname === "/__dev/host") return "host";
 	if (pathname === "/settings") return "settings";
@@ -42,7 +47,7 @@ function routeFromPath(pathname: string): Route {
 
 export function App() {
 	const { t, setLocale } = useI18n();
-	const [route, setRoute] = useState<Route>(() =>
+	const [route, setRoute] = useState<AppRoute>(() =>
 		routeFromPath(window.location.pathname),
 	);
 	const host = useMemo<HostClient>(() => new BrowserHostClient(), []);
@@ -77,7 +82,7 @@ export function App() {
 				{
 					readonly textRevision: number;
 					readonly open: boolean;
-					readonly direction: "forward" | "backward";
+					readonly direction: SearchDirection;
 					readonly query: string;
 					readonly replacement: string;
 				}
@@ -90,7 +95,7 @@ export function App() {
 	const [editorCursor, setEditorCursor] = useState("");
 	const lastFocused = useRef<Element | null>(null);
 	const [pendingNavigation, setPendingNavigation] = useState<{
-		readonly route: Route;
+		readonly route: AppRoute;
 		readonly restore: HTMLElement | null;
 	}>();
 
@@ -103,6 +108,8 @@ export function App() {
 	const [folderModalMode, setFolderModalMode] = useState<
 		"open" | "init" | "saveAs" | undefined
 	>();
+	const [activePrimaryTab, setActivePrimaryTab] =
+		useState<PrimarySidebarTab>("explorer");
 	const [paletteInitialQuery, setPaletteInitialQuery] = useState("");
 	const [paletteQuery, setPaletteQuery] = useState("");
 
@@ -128,7 +135,7 @@ export function App() {
 		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
 	}
 
-	function openFind(direction: "forward" | "backward"): void {
+	function openFind(direction: SearchDirection): void {
 		const documentId = snapshot?.editor.activeDocumentId;
 		if (!documentId) return;
 		setFindSessions((sessions) => ({
@@ -263,7 +270,7 @@ export function App() {
 		return () => controller.dispose();
 	}, [snapshot, store, registry, t, uiCommandHandlers, platform]);
 
-	const routePath = (next: Route) =>
+	const routePath = (next: AppRoute) =>
 		next === "gallery"
 			? "/__dev/gallery"
 			: next === "host"
@@ -272,13 +279,13 @@ export function App() {
 					? "/settings"
 					: "/";
 
-	const commitNavigate = (next: Route, replace = false) => {
+	const commitNavigate = (next: AppRoute, replace = false) => {
 		setRoute(next);
 		const method = replace ? "replaceState" : "pushState";
 		window.history[method]({}, "", routePath(next));
 	};
 
-	const navigate = (next: Route) => {
+	const navigate = (next: AppRoute) => {
 		if (next === route || !settingsDirty) {
 			commitNavigate(next);
 			return;
@@ -419,9 +426,13 @@ export function App() {
 				<MenuBar
 					snapshot={snapshot}
 					activeDocumentTitle={activeDoc?.title}
+					isSidebarOpen={snapshot?.layout.regions.activity?.open ?? true}
+					isInspectorOpen={snapshot?.layout.sidepanelOpen ?? true}
 					onCommand={(cmd, args) => {
 						void runCommand(cmd, args);
 					}}
+					onToggleSidebar={() => void runCommand("workspace.toggleActivity")}
+					onToggleInspector={() => void runCommand("workspace.toggleSidepanel")}
 					onOpenPalette={openPalette}
 					onOpenFolderModal={setFolderModalMode}
 					onCloseProject={() => void store.closeProject()}
@@ -430,7 +441,14 @@ export function App() {
 				/>
 
 				<div className="app-body">
-					<ActivityRail currentRoute={route} onNavigate={navigate} />
+					<ActivityRail
+						currentRoute={route}
+						activePrimaryTab={activePrimaryTab}
+						isSidebarOpen={snapshot?.layout.regions.activity?.open ?? true}
+						onSelectPrimaryTab={setActivePrimaryTab}
+						onToggleSidebar={() => void runCommand("workspace.toggleActivity")}
+						onNavigate={navigate}
+					/>
 
 					<main className="app-content">
 						{route === "gallery" ? (
@@ -453,6 +471,8 @@ export function App() {
 								errorMessage={
 									workspaceState.protocolError?.message ?? t("common.error")
 								}
+								activePrimaryTab={activePrimaryTab}
+								onOpenFolderModal={setFolderModalMode}
 								onCommand={(command, args) => {
 									void store
 										.executeCommand(command, args)

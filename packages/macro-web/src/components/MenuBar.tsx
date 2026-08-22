@@ -1,4 +1,7 @@
-import type { WorkspaceSnapshot } from "@stateful-mcp/macro-protocol";
+import type {
+	SidepanelPosition,
+	WorkspaceSnapshot,
+} from "@stateful-mcp/macro-protocol";
 import {
 	Check,
 	ChevronRight,
@@ -23,6 +26,7 @@ import { formatChord, getBrowserShortcutPlatform } from "../lib/bindings";
 import { getEffectiveCommandShortcut } from "../lib/browser-workbench-defaults";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEME_IDS } from "../lib/theme";
+import type { AppRoute } from "./ActivityRail";
 import { Badge, Button } from "./ui/primitives";
 
 export interface MenuActionItem {
@@ -67,10 +71,8 @@ export interface MenuBarProps {
 	readonly onOpenPalette: () => void;
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
 	readonly onCloseProject?: () => void;
-	readonly onNavigate: (
-		route: "workbench" | "settings" | "gallery" | "host",
-	) => void;
-	readonly currentRoute: string;
+	readonly onNavigate: (route: AppRoute) => void;
+	readonly currentRoute: AppRoute | string;
 	readonly extraMenus?: readonly MenuCategoryConfig[];
 	readonly isSidebarOpen?: boolean;
 	readonly onToggleSidebar?: () => void;
@@ -78,8 +80,8 @@ export interface MenuBarProps {
 	readonly onToggleDrawer?: () => void;
 	readonly isInspectorOpen?: boolean;
 	readonly onToggleInspector?: () => void;
-	readonly inspectorPosition?: "left" | "right";
-	readonly onSetInspectorPosition?: (position: "left" | "right") => void;
+	readonly inspectorPosition?: SidepanelPosition;
+	readonly onSetInspectorPosition?: (position: SidepanelPosition) => void;
 }
 
 function MenuItemRenderer({
@@ -452,8 +454,10 @@ export function MenuBar({
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isSidebarOpen ? "active" : ""}`}
-						title={`Toggle Primary Sidebar (${displayShortcut("primary+b") ?? "Ctrl+B"})`}
-						onClick={onToggleSidebar}
+						title={`Toggle Primary Sidebar (${displayShortcut("primary+shift+e") ?? "Ctrl+Shift+E"})`}
+						onClick={
+							onToggleSidebar ?? (() => onCommand("workspace.toggleActivity"))
+						}
 						aria-label="Toggle Primary Sidebar"
 					>
 						<PanelLeft size={14} />
@@ -462,7 +466,9 @@ export function MenuBar({
 						type="button"
 						className={`layout-toggle-btn ${isDrawerOpen ? "active" : ""}`}
 						title={`Toggle Output Drawer (${displayShortcut("primary+j") ?? "Ctrl+J"})`}
-						onClick={onToggleDrawer}
+						onClick={
+							onToggleDrawer ?? (() => onCommand("workbench.toggleDrawer"))
+						}
 						aria-label="Toggle Output Drawer"
 					>
 						<PanelBottom size={14} />
@@ -470,8 +476,11 @@ export function MenuBar({
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isInspectorOpen ? "active" : ""}`}
-						title={`Toggle Inspector Panel (${displayShortcut("primary+alt+b") ?? "Ctrl+Alt+B"})`}
-						onClick={onToggleInspector}
+						title={`Toggle Inspector Panel (${displayShortcut("primary+b") ?? "Ctrl+B"})`}
+						onClick={
+							onToggleInspector ??
+							(() => onCommand("workspace.toggleSidepanel"))
+						}
 						aria-label="Toggle Inspector Panel"
 					>
 						<PanelRight size={14} />

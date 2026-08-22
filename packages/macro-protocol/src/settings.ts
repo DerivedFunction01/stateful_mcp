@@ -1,3 +1,5 @@
+import type { SidepanelPosition } from "./workspace";
+
 export type SettingsScope = "user" | "workspace" | "folder";
 
 export const SETTINGS_SCOPES: readonly SettingsScope[] = [
@@ -371,7 +373,7 @@ export interface UserPreferencesDto {
 	readonly theme: string;
 	readonly locale: string;
 	readonly autoPurgeOnExecute?: boolean;
-	readonly inspectorPosition?: "left" | "right";
+	readonly inspectorPosition?: SidepanelPosition;
 	readonly inspectorWidth?: number;
 	readonly customKeybindings?: readonly CustomKeybindingDto[];
 }

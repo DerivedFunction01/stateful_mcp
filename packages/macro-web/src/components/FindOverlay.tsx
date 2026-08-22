@@ -1,3 +1,4 @@
+import type { SearchDirection } from "@stateful-mcp/macro-protocol";
 import { ChevronDown, ChevronUp, Replace, Settings2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { EditorSearchResult } from "../lib/browser-vim";
@@ -5,12 +6,12 @@ import { useI18n } from "../lib/macro-i18n-provider";
 import { IconButton } from "./ui/primitives";
 
 export interface FindOverlayProps {
-	readonly direction: "forward" | "backward";
+	readonly direction: SearchDirection;
 	readonly initialQuery?: string;
 	readonly initialReplacement?: string;
 	readonly onFind: (
 		query: string,
-		direction: "forward" | "backward",
+		direction: SearchDirection,
 	) => boolean | EditorSearchResult;
 	readonly onReplace?: (query: string, replacement: string) => boolean;
 	readonly onReplaceAll?: (query: string, replacement: string) => number;

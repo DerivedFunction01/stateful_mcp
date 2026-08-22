@@ -2,6 +2,7 @@ import type {
 	EditorDocumentDto,
 	PinnedMacroDto,
 	ScratchpadSnapshotDto,
+	SidepanelPosition,
 } from "@stateful-mcp/macro-protocol";
 import { useI18n } from "../../lib/macro-i18n-provider";
 import { WorkbenchInspector } from "../WorkbenchInspector";
@@ -13,7 +14,7 @@ export interface WorkbenchDockedInspectorProps {
 	readonly pinnedMacros?: readonly PinnedMacroDto[];
 	readonly isOpen: boolean;
 	readonly onToggleOpen: () => void;
-	readonly dockPosition: "left" | "right";
+	readonly dockPosition: SidepanelPosition;
 	readonly onToggleDockPosition: () => void;
 	readonly onPin: (macroId: string | null) => void;
 	readonly onJumpToLine: (lineNumber: number) => void;
@@ -39,7 +40,7 @@ export function WorkbenchDockedInspector({
 		<aside
 			className="workbench-inspector"
 			aria-label={t("workbench.inspector")}
-			style={!isOpen ? { width: 38, minWidth: 38, maxWidth: 38 } : undefined}
+			style={!isOpen ? { width: 46, minWidth: 46, maxWidth: 46 } : undefined}
 		>
 			<WorkbenchInspector
 				document={document}

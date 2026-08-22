@@ -1,6 +1,8 @@
 import type {
 	EditorMode,
+	InsertPosition,
 	ScratchpadLineDto,
+	SearchDirection,
 } from "@stateful-mcp/macro-protocol";
 import { AlertTriangle, Check, Circle, Pin, Play } from "lucide-react";
 import {
@@ -775,7 +777,7 @@ export function getEditorSurfaceAdapter(
 			return lines.slice(minIdx, maxIdx + 1).join("\n");
 		},
 
-		insertCell: (position: "above" | "below", text = "") => {
+		insertCell: (position: InsertPosition, text = "") => {
 			const { lineIdx } = getActiveLineAndCol(element);
 			const lines = getFullLines();
 			const insertIdx = position === "below" ? lineIdx + 1 : lineIdx;
@@ -796,7 +798,7 @@ export function getEditorSurfaceAdapter(
 
 		searchText: (
 			query: string,
-			direction: "forward" | "backward",
+			direction: SearchDirection,
 		): EditorSearchResult => {
 			const lines = getFullLines();
 			const matches = lines.flatMap((text, logicalLineIndex) => {
@@ -851,7 +853,7 @@ export function getEditorSurfaceAdapter(
 			};
 		},
 
-		findText: (query: string, direction: "forward" | "backward") => {
+		findText: (query: string, direction: SearchDirection) => {
 			const needle = query;
 			if (!needle) return false;
 			lastSearch = needle;
@@ -882,7 +884,7 @@ export function getEditorSurfaceAdapter(
 			return false;
 		},
 
-		repeatFind: (direction: "forward" | "backward") =>
+		repeatFind: (direction: SearchDirection) =>
 			lastSearch !== null &&
 			Boolean(
 				getFullLines().length > 0 &&
@@ -965,7 +967,7 @@ export function getEditorSurfaceAdapter(
 			return count;
 		},
 
-		pasteCell: (text: string, position: "above" | "below") => {
+		pasteCell: (text: string, position: InsertPosition) => {
 			const { lineIdx } = getActiveLineAndCol(element);
 			const lines = getFullLines();
 			const pasteLines = text.split("\n");
@@ -1062,7 +1064,7 @@ export function getEditorSurfaceAdapter(
 				setLineAndCol(element, Math.min(lineIdx, lines.length - 1), 0);
 			}
 		},
-		insertLine: (position: "above" | "below") => {
+		insertLine: (position: InsertPosition) => {
 			const { lineIdx } = getActiveLineAndCol(element);
 			const lines = getFullLines();
 			const insertIdx = position === "below" ? lineIdx + 1 : lineIdx;

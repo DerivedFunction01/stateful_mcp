@@ -1,7 +1,9 @@
 import type {
 	EditorMode,
 	EffectiveKeymapDto,
+	InsertPosition,
 	KeymapBindingDto,
+	SearchDirection,
 } from "@stateful-mcp/macro-protocol";
 import { matchEffectiveBindings } from "@stateful-mcp/macro-protocol";
 import {
@@ -56,18 +58,18 @@ export interface BrowserEditorSurfaceAdapter {
 	deleteCellRange?(start: number, end: number): string; // returns deleted text for yank
 	yankCell?(index?: number): string;
 	yankCellRange?(start: number, end: number): string;
-	insertCell?(position: "above" | "below", text?: string): void;
+	insertCell?(position: InsertPosition, text?: string): void;
 	splitCellAtCaret?(): void;
 	insertTextAtCaret?(text: string): void;
-	findText?(query: string, direction: "forward" | "backward"): boolean;
+	findText?(query: string, direction: SearchDirection): boolean;
 	searchText?(
 		query: string,
-		direction: "forward" | "backward",
+		direction: SearchDirection,
 	): EditorSearchResult;
-	repeatFind?(direction: "forward" | "backward"): boolean;
+	repeatFind?(direction: SearchDirection): boolean;
 	replaceCurrentMatch?(query: string, replacement: string): boolean;
 	replaceAllMatches?(query: string, replacement: string): number;
-	pasteCell?(text: string, position: "above" | "below"): void;
+	pasteCell?(text: string, position: InsertPosition): void;
 	pasteCellRangeReplace?(start: number, end: number, text: string): void;
 	focusCellForEdit?(index?: number, column?: number): void;
 	blurCellEdit?(): void;
@@ -83,7 +85,7 @@ export interface BrowserEditorSurfaceAdapter {
 	moveToLineBoundary?(boundary: "start" | "end"): void;
 	moveWord?(direction: -1 | 1): void;
 	deleteCurrentLine?(): void;
-	insertLine?(position: "above" | "below"): void;
+	insertLine?(position: InsertPosition): void;
 	deleteCharUnderCaret?(): void;
 	undo?(): void;
 	redo?(): void;
@@ -161,7 +163,7 @@ export interface BrowserVimControllerOptions {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: "forward" | "backward") => void;
+	readonly onOpenSearch?: (direction: SearchDirection) => void;
 	readonly getAdapter?: () => BrowserEditorSurfaceAdapter | undefined;
 	readonly getKeymap?: () => KeymapSource;
 	readonly onExecuteLine?: (lineNumber?: number) => void;

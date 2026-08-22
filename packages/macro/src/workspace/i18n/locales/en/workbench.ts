@@ -63,4 +63,21 @@ export const EN_WORKBENCH: Record<string, string> = {
 	"workbench.insertSnippet": "Insert",
 	"workbench.activeExtension": "Active Extension",
 	"workbench.availableExtension": "Available",
+	"workbench.explorer": "Explorer",
+	"workbench.search": "Search",
+	"workbench.journalHistory": "Journal History",
+	"workbench.openEditors": "Open Editors",
+	"workbench.noFolderOpened": "No Folder Opened",
+	"workbench.noFolderDescription":
+		"You have not yet opened a folder or project workspace.",
+	"workbench.newScratchpad": "New Scratchpad",
+	"workbench.initProject": "Initialize Project",
+	"workbench.moreActions": "More Actions",
+	"workbench.reverseAll": "Reverse All",
+	"workbench.journalHint":
+		"Executed macro cells and session transactions are recorded in the host journal.",
+	"workbench.close": "Close",
+	"workbench.replacePlaceholder": "Replace",
+	"workbench.searchPlaceholder": "Search text in documents",
+	"workbench.refresh": "Refresh",
 };

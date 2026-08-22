@@ -23,7 +23,7 @@ export interface SurfaceKeybinding {
 export interface ViewContainerContribution {
 	readonly id: string;
 	readonly title: string;
-	readonly icon: string;
+	readonly icon?: string;
 	readonly altKey?: string;
 	readonly order?: number;
 	readonly region?: WorkspaceRegionId;

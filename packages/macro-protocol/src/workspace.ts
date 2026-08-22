@@ -148,7 +148,7 @@ export interface ContributionSnapshotDto {
 	readonly containers: readonly {
 		readonly id: string;
 		readonly title: string;
-		readonly icon: string;
+		readonly icon?: string;
 		readonly order?: number;
 		readonly region?: "activity" | "inspector";
 		readonly extensionId?: string;
@@ -156,6 +156,9 @@ export interface ContributionSnapshotDto {
 	readonly pinnedMacros?: readonly PinnedMacroDto[];
 	readonly frequentMacros?: readonly PinnedMacroDto[];
 }
+
+export type SidepanelPosition = "left" | "right";
+export type HorizontalAlignment = "left" | "right";
 
 export interface LayoutRegionDto {
 	readonly open: boolean;
@@ -166,7 +169,7 @@ export interface LayoutRegionDto {
 export interface LayoutSnapshotDto {
 	readonly activeTabId: string;
 	readonly sidepanelOpen: boolean;
-	readonly sidepanelPosition: "left" | "right";
+	readonly sidepanelPosition: SidepanelPosition;
 	readonly sidepanelWidthRatio: number;
 	readonly domainRailWidthRatio: number;
 	readonly activeContainerId: string;
