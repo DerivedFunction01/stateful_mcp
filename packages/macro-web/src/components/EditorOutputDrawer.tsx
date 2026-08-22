@@ -239,7 +239,7 @@ export function EditorOutputDrawer({
 								{previewLines.map((line) => (
 									<div className="preview-line-row" key={line.lineNumber}>
 										<span className="preview-line-num">
-											L{line.lineNumber}:
+											{line.lineNumber}:
 										</span>
 										<span className="preview-line-content">
 											{line.preview?.text ?? line.rawText}

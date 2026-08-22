@@ -199,6 +199,12 @@ export function MenuBar({
 	const sidepanelShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "workspace.toggleSidepanel"),
 	);
+	const activityShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "workspace.toggleActivity"),
+	);
+	const drawerShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "workbench.toggleDrawer"),
+	);
 	const openProjectShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "workbench.openProject"),
 	);
@@ -315,7 +321,7 @@ export function MenuBar({
 				id: "view.toggleInspector",
 				label: t("workbench.inspector"),
 				icon: <PanelRight size={14} />,
-				shortcut: displayShortcut("primary+alt+b"),
+				shortcut: sidepanelShortcut,
 				onSelect: () => onToggleInspector?.(),
 			},
 			{
@@ -380,6 +386,8 @@ export function MenuBar({
 		saveShortcut,
 		paletteShortcut,
 		sidepanelShortcut,
+		activityShortcut,
+		drawerShortcut,
 		splitShortcut,
 		inspectorPosition,
 		onCommand,
@@ -454,7 +462,7 @@ export function MenuBar({
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isSidebarOpen ? "active" : ""}`}
-						title={`Toggle Primary Sidebar (${displayShortcut("primary+shift+e") ?? "Ctrl+Shift+E"})`}
+						title={`Toggle Primary Sidebar${activityShortcut ? ` (${activityShortcut})` : ""}`}
 						onClick={
 							onToggleSidebar ?? (() => onCommand("workspace.toggleActivity"))
 						}
@@ -465,7 +473,7 @@ export function MenuBar({
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isDrawerOpen ? "active" : ""}`}
-						title={`Toggle Output Drawer (${displayShortcut("primary+j") ?? "Ctrl+J"})`}
+						title={`Toggle Output Drawer${drawerShortcut ? ` (${drawerShortcut})` : ""}`}
 						onClick={
 							onToggleDrawer ?? (() => onCommand("workbench.toggleDrawer"))
 						}
@@ -476,7 +484,7 @@ export function MenuBar({
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isInspectorOpen ? "active" : ""}`}
-						title={`Toggle Inspector Panel (${displayShortcut("primary+b") ?? "Ctrl+B"})`}
+						title={`Toggle Inspector Panel${sidepanelShortcut ? ` (${sidepanelShortcut})` : ""}`}
 						onClick={
 							onToggleInspector ??
 							(() => onCommand("workspace.toggleSidepanel"))

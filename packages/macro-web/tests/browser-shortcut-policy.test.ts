@@ -62,6 +62,8 @@ describe("browser shortcut policy", () => {
 					quickOpen: "ctrl+p",
 					openSettings: "ctrl+,",
 					toggleSidepanel: "ctrl+b",
+					toggleActivityPanel: "ctrl+shift+e",
+					toggleDrawer: "ctrl+j",
 				},
 				bindings: [],
 			},
@@ -76,6 +78,15 @@ describe("browser shortcut policy", () => {
 		expect(
 			getEffectiveCommandShortcut(mockSnapshot, "workspace.toggleSidepanel"),
 		).toBe("ctrl+b");
+		expect(
+			getEffectiveCommandShortcut(mockSnapshot, "workspace.toggleActivity"),
+		).toBe("ctrl+shift+e");
+		expect(
+			getEffectiveCommandShortcut(mockSnapshot, "workbench.toggleDrawer"),
+		).toBe("ctrl+j");
+		expect(
+			getEffectiveCommandShortcut(mockSnapshot, "unbound.command"),
+		).toBeUndefined();
 	});
 
 	test("baselineCapability classifies valid chords", () => {

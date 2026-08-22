@@ -47,6 +47,10 @@ export function getEffectiveCommandShortcut(
 			if (snapshot.keymap.workbench.toggleSidepanel)
 				return snapshot.keymap.workbench.toggleSidepanel;
 		}
+		if (commandId === "workspace.toggleActivity") {
+			if (snapshot.keymap.workbench.toggleActivityPanel)
+				return snapshot.keymap.workbench.toggleActivityPanel;
+		}
 		if (
 			commandId === "workbench.toggleDrawer" ||
 			commandId === "workbench.toggleOutput"
