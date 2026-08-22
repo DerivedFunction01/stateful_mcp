@@ -259,6 +259,17 @@ export type EditorOperation =
 			readonly documentId: string;
 			readonly groupId: string;
 			readonly expectedWorkspaceRevision: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.openFile";
+			readonly path: string;
+			readonly expectedWorkspaceRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.save";
+			readonly documentId: string;
+			readonly expectedTextRevision?: number;
+			readonly force?: boolean;
 	  });
 
 export interface ScratchpadExecutionReceiptDto {
@@ -288,6 +299,7 @@ export interface EditorOperationResultBase {
 	readonly workspaceSnapshot?: import("./workspace").WorkspaceSnapshot;
 	readonly workspaceRevision: number;
 	readonly documentId?: string;
+	readonly path?: string;
 	readonly groupId?: string;
 	readonly textRevision?: number;
 	readonly expectedWorkspaceRevision?: number;

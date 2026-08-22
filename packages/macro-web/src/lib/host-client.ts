@@ -1,6 +1,7 @@
 import {
 	type EditorOperation,
 	type EditorOperationResult,
+	type FileTreeItemDto,
 	type HostError,
 	type HostRequest,
 	type HostResponse,
@@ -75,6 +76,17 @@ export interface HostClient {
 		parentPath: string,
 		name: string,
 	): Promise<{ readonly path: string }>;
+	createProjectDirectory?(
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }>;
+	getFileTree?(): Promise<readonly FileTreeItemDto[]>;
+	createFile?(
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }>;
+	renamePath?(source: string, destination: string): Promise<void>;
+	deletePath?(path: string): Promise<void>;
 	openProject(path: string): Promise<HostWorkspaceSnapshot>;
 	initProject(
 		path: string,
@@ -277,6 +289,55 @@ export class BrowserHostClient implements HostClient {
 			type: "fs.createDirectory",
 			sessionId: this.sessionId ?? "",
 			payload: { parentPath, name },
+		});
+	}
+
+	async createProjectDirectory(
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }> {
+		return this.request<{ readonly path: string }>("/api/project/directory", {
+			type: "project.createDirectory",
+			sessionId: this.requireSession(),
+			payload: { parentPath, name },
+		});
+	}
+
+	async getFileTree(): Promise<readonly FileTreeItemDto[]> {
+		const result = await this.request<{
+			readonly tree: readonly FileTreeItemDto[];
+		}>("/api/project/file-tree", {
+			type: "project.getFileTree",
+			sessionId: this.requireSession(),
+			payload: {},
+		});
+		return result.tree;
+	}
+
+	async createFile(
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }> {
+		return this.request<{ readonly path: string }>("/api/project/file", {
+			type: "project.createFile",
+			sessionId: this.requireSession(),
+			payload: { parentPath, name },
+		});
+	}
+
+	async renamePath(source: string, destination: string): Promise<void> {
+		await this.request("/api/project/rename", {
+			type: "project.rename",
+			sessionId: this.requireSession(),
+			payload: { source, destination },
+		});
+	}
+
+	async deletePath(path: string): Promise<void> {
+		await this.request("/api/project/delete", {
+			type: "project.delete",
+			sessionId: this.requireSession(),
+			payload: { path },
 		});
 	}
 

@@ -287,6 +287,86 @@ const server = Bun.serve<SocketData>({
 				return errorResponse(id, error);
 			}
 		}
+		if (url.pathname === "/api/project/file-tree" && request.method === "POST")
+			return handleJson(request, undefined, async (envelope) => ({
+				tree: await sessions.getFileTree(envelope.sessionId),
+			}));
+		if (url.pathname === "/api/project/file" && request.method === "POST")
+			return handleJson(request, undefined, async (envelope) => {
+				const payload = envelope.payload as {
+					parentPath?: unknown;
+					name?: unknown;
+				};
+				if (
+					typeof payload.parentPath !== "string" ||
+					typeof payload.name !== "string"
+				)
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"File parent and name are required",
+						false,
+					);
+				return sessions.createFile(
+					envelope.sessionId,
+					payload.parentPath,
+					payload.name,
+				);
+			});
+		if (url.pathname === "/api/project/directory" && request.method === "POST")
+			return handleJson(request, undefined, async (envelope) => {
+				const payload = envelope.payload as {
+					parentPath?: unknown;
+					name?: unknown;
+				};
+				if (
+					typeof payload.parentPath !== "string" ||
+					typeof payload.name !== "string"
+				)
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"Directory parent and name are required",
+						false,
+					);
+				return sessions.createProjectDirectory(
+					envelope.sessionId,
+					payload.parentPath,
+					payload.name,
+				);
+			});
+		if (url.pathname === "/api/project/rename" && request.method === "POST")
+			return handleJson(request, undefined, async (envelope) => {
+				const payload = envelope.payload as {
+					source?: unknown;
+					destination?: unknown;
+				};
+				if (
+					typeof payload.source !== "string" ||
+					typeof payload.destination !== "string"
+				)
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"Rename paths are required",
+						false,
+					);
+				await sessions.renamePath(
+					envelope.sessionId,
+					payload.source,
+					payload.destination,
+				);
+				return { renamed: true };
+			});
+		if (url.pathname === "/api/project/delete" && request.method === "POST")
+			return handleJson(request, undefined, async (envelope) => {
+				const payload = envelope.payload as { path?: unknown };
+				if (typeof payload.path !== "string")
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"Delete path is required",
+						false,
+					);
+				await sessions.deletePath(envelope.sessionId, payload.path);
+				return { deleted: true };
+			});
 		const sessionMatch = url.pathname.match(
 			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|editor|project))?$/,
 		);

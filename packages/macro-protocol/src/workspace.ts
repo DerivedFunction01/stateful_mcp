@@ -2,6 +2,18 @@ import type { CommandDescriptorDto } from "./commands";
 import type { EditorWorkspaceSnapshotDto } from "./editor";
 import type { SettingsUiSnapshotDto } from "./settings";
 
+export type GitFileStatus = "modified" | "untracked" | "staged" | "deleted";
+
+export interface FileTreeItemDto {
+	readonly name: string;
+	readonly path: string;
+	readonly isDirectory: boolean;
+	readonly size?: number;
+	readonly mtime?: number;
+	readonly gitStatus?: GitFileStatus;
+	readonly children?: readonly FileTreeItemDto[];
+}
+
 export const LAYOUT_RATIO_DEFAULTS: Readonly<{
 	domainRail: number;
 	activity: number;

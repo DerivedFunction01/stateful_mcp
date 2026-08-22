@@ -1,6 +1,7 @@
 import type {
 	EditorOperation,
 	EditorOperationResult,
+	FileTreeItemDto,
 	HostError,
 	HostEvent,
 	SettingsApplyResult,
@@ -37,6 +38,7 @@ export interface BrowserWorkspaceState {
 	readonly editorResult?: EditorOperationResult;
 	readonly pendingEditorRequests: Readonly<Record<string, string>>;
 	readonly editorError?: { readonly code?: string; readonly message: string };
+	readonly projectFileTree: readonly FileTreeItemDto[];
 }
 
 const initialState: BrowserWorkspaceState = {
@@ -45,6 +47,7 @@ const initialState: BrowserWorkspaceState = {
 	lastRevision: 0,
 	editorDrafts: {},
 	pendingEditorRequests: {},
+	projectFileTree: [],
 };
 
 export class BrowserWorkspaceStore {
@@ -72,6 +75,12 @@ export class BrowserWorkspaceStore {
 		this.startPromise = this.client
 			.createSession()
 			.then(async (snapshot) => {
+				if (
+					this.client.getFileTree &&
+					snapshot.project &&
+					!snapshot.project.ephemeral
+				)
+					this.update({ projectFileTree: await this.client.getFileTree() });
 				const prefs = loadUserPreferences();
 				if (prefs.keymapProfile && prefs.keymapProfile !== "default") {
 					try {
@@ -141,6 +150,11 @@ export class BrowserWorkspaceStore {
 	async closeProject(): Promise<void> {
 		const snapshot = await this.client.closeProject();
 		await this.reassertUserPreferences(snapshot);
+	}
+
+	async refreshFileTree(): Promise<void> {
+		if (!this.client.getFileTree) return;
+		this.update({ projectFileTree: await this.client.getFileTree() });
 	}
 
 	private async reassertUserPreferences(
@@ -274,9 +288,17 @@ export class BrowserWorkspaceStore {
 		return result;
 	}
 
-	reloadEditorConflict(): void {
+	async reloadEditorConflict(): Promise<void> {
 		const conflict = this.state.editorConflict;
 		if (!conflict) return;
+		const path = conflict.result.path;
+		if (path) {
+			await this.applyEditorOperation({
+				operation: "editor.openFile",
+				requestId: crypto.randomUUID(),
+				path,
+			});
+		}
 		const drafts = { ...this.state.editorDrafts };
 		delete drafts[conflict.documentId];
 		this.update({ editorDrafts: drafts, editorConflict: undefined });
@@ -293,11 +315,11 @@ export class BrowserWorkspaceStore {
 		);
 		if (!conflict || !document) return undefined;
 		return this.applyEditorOperation({
-			operation: "editor.replaceText",
+			operation: "editor.save",
 			requestId: crypto.randomUUID(),
 			documentId: conflict.documentId,
-			lines: conflict.localLines,
 			expectedTextRevision: document.textRevision,
+			force: true,
 		});
 	}
 
@@ -320,6 +342,7 @@ export class BrowserWorkspaceStore {
 			lastRevision: snapshot.revision,
 			lastProjectRevision: snapshot.project?.revision,
 			transportError: undefined,
+			...(snapshot.project?.ephemeral ? { projectFileTree: [] } : {}),
 		});
 	}
 
@@ -362,6 +385,9 @@ export class BrowserWorkspaceStore {
 			lastProjectRevision: snapshot.project?.revision,
 			transportError: undefined,
 		});
+		const tree = (event.payload as { tree?: readonly FileTreeItemDto[] }).tree;
+		if (event.type === "project.fileTree.changed" && tree)
+			this.update({ projectFileTree: tree });
 		if (result && result.workspaceRevision >= this.state.lastRevision)
 			this.update({
 				editorResult: result,

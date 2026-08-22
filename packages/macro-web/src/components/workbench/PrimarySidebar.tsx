@@ -24,6 +24,7 @@ import {
 	unescapeSearchPattern,
 } from "../../lib/search-utils";
 import type { PrimarySidebarTab } from "../ActivityRail";
+import { FileTreeView } from "./FileTreeView";
 
 type DocumentItem = WorkspaceSnapshot["editor"]["documents"][number];
 
@@ -39,6 +40,11 @@ export interface PrimarySidebarProps {
 	readonly onNewScratchpad?: () => void;
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
 	readonly onCommand?: (command: string, args?: readonly unknown[]) => void;
+	readonly projectFileTree?: readonly import("@stateful-mcp/macro-protocol").FileTreeItemDto[];
+	readonly onOpenFile?: (path: string) => void;
+	readonly onRefreshFileTree?: () => void;
+	readonly onCreateFile?: (parent: string, name: string) => void;
+	readonly onCreateFolder?: (parent: string, name: string) => void;
 	readonly onSearchQueryChange?: (query: string) => void;
 	readonly onJumpToLine?: (lineNumber: number, col?: number) => void;
 	readonly onReplace?: (
@@ -236,19 +242,13 @@ function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 								</div>
 							</div>
 						) : (
-							<div className="sidebar-file-tree">
-								{props.snapshot.project.resources.map((res) => (
-									<button
-										key={res.resourceId}
-										type="button"
-										className="file-tree-row"
-										onClick={() => onCommand?.("editor.openResource", [res])}
-									>
-										<FileText size={13} className="doc-icon" />
-										<span>{res.resourceId}</span>
-									</button>
-								))}
-							</div>
+							<FileTreeView
+								tree={props.projectFileTree ?? []}
+								onOpenFile={props.onOpenFile ?? (() => undefined)}
+								onRefresh={props.onRefreshFileTree}
+								onCreateFile={props.onCreateFile}
+								onCreateFolder={props.onCreateFolder}
+							/>
 						)}
 					</div>
 				)}

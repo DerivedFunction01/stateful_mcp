@@ -244,7 +244,11 @@ export class MacroDocumentManager {
 		return document;
 	}
 
-	saveAsFile(documentId: string, filePath: string, newTitle?: string): MacroDocument {
+	saveAsFile(
+		documentId: string,
+		filePath: string,
+		newTitle?: string,
+	): MacroDocument {
 		const document = this.require(documentId);
 		document.providerId = "file";
 		document.filePath = filePath;

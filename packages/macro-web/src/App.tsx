@@ -194,7 +194,19 @@ export function App() {
 			return;
 		}
 		if (command === "editor.save" || command === "workspace.saveActive") {
-			await store.executeCommand("workspace.saveActive", args);
+			const active = snapshot?.editor.documents.find(
+				(document) => document.documentId === snapshot.editor.activeDocumentId,
+			);
+			if (command === "editor.save" && active) {
+				await store.applyEditorOperation({
+					operation: "editor.save",
+					requestId: crypto.randomUUID(),
+					documentId: active.documentId,
+					expectedTextRevision: active.textRevision,
+				});
+			} else {
+				await store.executeCommand("workspace.saveActive", args);
+			}
 			return;
 		}
 		if (command === "workspace.saveAll") {
@@ -498,6 +510,32 @@ export function App() {
 								onOpenPalette={openPalette}
 								onOpenSearch={openFind}
 								searchWidget={findWidget}
+								projectFileTree={workspaceState.projectFileTree}
+								onRefreshFileTree={() => void store.refreshFileTree()}
+								onOpenFile={(path) => {
+									void store.applyEditorOperation({
+										operation: "editor.openFile",
+										requestId: crypto.randomUUID(),
+										path,
+									});
+								}}
+									onCreateFile={(parent: string, name: string) => {
+									void host
+										.createFile?.(parent, name)
+										.then(({ path }) => {
+											void store.applyEditorOperation({
+												operation: "editor.openFile",
+												requestId: crypto.randomUUID(),
+												path,
+											});
+											return store.refreshFileTree();
+										});
+								}}
+								onCreateFolder={(parent: string, name: string) => {
+									void host
+										.createProjectDirectory?.(parent, name)
+										.then(() => store.refreshFileTree());
+								}}
 							/>
 						)}
 					</main>

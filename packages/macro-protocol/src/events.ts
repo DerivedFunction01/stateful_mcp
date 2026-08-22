@@ -1,5 +1,5 @@
 import type { EditorOperationResult } from "./editor";
-import type { WorkspaceSnapshot } from "./workspace";
+import type { FileTreeItemDto, WorkspaceSnapshot } from "./workspace";
 
 export type HostEventType =
 	| "session.ready"
@@ -11,7 +11,12 @@ export type HostEventType =
 	| "diagnostics.changed"
 	| "editor.operation.completed"
 	| "command.completed"
+	| "project.fileTree.changed"
 	| "session.disposed";
+
+export interface FileTreeChangedEventPayload {
+	readonly tree: readonly FileTreeItemDto[];
+}
 
 export interface SnapshotEventPayload {
 	readonly snapshot: WorkspaceSnapshot;

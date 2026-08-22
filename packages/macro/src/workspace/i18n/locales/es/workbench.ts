@@ -64,6 +64,7 @@ export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.activeExtension": "Extensión activa",
 	"workbench.availableExtension": "Disponible",
 	"workbench.explorer": "Explorador",
+	"workbench.fileExplorerActions": "Acciones del explorador de archivos",
 	"workbench.search": "Buscar",
 	"workbench.journalHistory": "Historial del diario",
 	"workbench.openEditors": "Editores abiertos",
@@ -71,6 +72,8 @@ export const ES_WORKBENCH: Record<string, string> = {
 	"workbench.noFolderDescription":
 		"Aún no has abierto ninguna carpeta ni espacio de proyecto.",
 	"workbench.newScratchpad": "Nuevo bloc de notas",
+	"workbench.newFile": "Nuevo archivo",
+	"workbench.collapseAll": "Contraer todas las carpetas",
 	"workbench.initProject": "Inicializar proyecto",
 	"workbench.moreActions": "Más acciones",
 	"workbench.reverseAll": "Revertir todo",

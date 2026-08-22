@@ -25,7 +25,10 @@ describe("MacroDocumentManager: Hybrid Documents & Persistence", () => {
 	test("opens a file-backed document and selects it", () => {
 		const manager = new MacroDocumentManager(runtime);
 		const filePath = "/workspace/notes/clinic_summary.macro";
-		const fileDoc = manager.openFile(filePath, "summary line 1\nsummary line 2");
+		const fileDoc = manager.openFile(
+			filePath,
+			"summary line 1\nsummary line 2",
+		);
 
 		expect(fileDoc.providerId).toBe("file");
 		expect(fileDoc.filePath).toBe(filePath);
@@ -36,7 +39,9 @@ describe("MacroDocumentManager: Hybrid Documents & Persistence", () => {
 		// Opening the same path returns the existing open document without duplicating
 		const existingDoc = manager.openFile(filePath);
 		expect(existingDoc.documentId).toBe(fileDoc.documentId);
-		expect(manager.list().filter((d) => d.filePath === filePath)).toHaveLength(1);
+		expect(manager.list().filter((d) => d.filePath === filePath)).toHaveLength(
+			1,
+		);
 	});
 
 	test("converts a scratchpad to a file-backed document via saveAsFile", () => {
@@ -83,7 +88,10 @@ describe("MacroDocumentManager: Hybrid Documents & Persistence", () => {
 
 	test("reloads text from disk and updates saved revision", () => {
 		const manager = new MacroDocumentManager(runtime);
-		const doc = manager.openFile("/workspace/external_edit.macro", "original text");
+		const doc = manager.openFile(
+			"/workspace/external_edit.macro",
+			"original text",
+		);
 
 		const updatedLines = ["reloaded line 1", "reloaded line 2"];
 		const mtime = 1720000050000;

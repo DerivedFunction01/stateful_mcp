@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { watch, type FSWatcher } from "node:fs";
+import {
+	mkdir,
+	readFile,
+	readdir,
+	rename as renameFile,
+	rm,
+	stat,
+	writeFile,
+} from "node:fs/promises";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
 	BUILTIN_KEYMAP_PROFILES,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
@@ -30,6 +39,7 @@ import type {
 import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
 import {
 	createMacroProject,
+	getProjectFileTree,
 	type LoadedMacroWorkspace,
 	type MacroHost,
 	ServerUserPreferencesStore,
@@ -46,6 +56,7 @@ import {
 	type EditorPayloadEnvelope,
 	type EditorWorkspaceSnapshotDto,
 	type EffectiveKeymapDto,
+	type FileTreeItemDto,
 	type HostError,
 	type HostEvent,
 	type HostEventType,
@@ -93,6 +104,9 @@ interface Session {
 	revision: number;
 	lastActivity: number;
 	disposed: boolean;
+	fileTreeWatcher?: FSWatcher;
+	fileTreeRefreshTimer?: ReturnType<typeof setTimeout>;
+	fileTreeWatchers?: readonly FSWatcher[];
 	stagedBundle?: {
 		readonly stageId: string;
 		readonly revision: string;
@@ -101,6 +115,11 @@ interface Session {
 		readonly profileId: string;
 		readonly mode: "merge" | "replace";
 	};
+}
+
+function isWithin(root: string, target: string): boolean {
+	const child = relative(resolve(root), resolve(target));
+	return child === "" || (!child.startsWith(`..${sep}`) && child !== "..");
 }
 
 export class HostSessionManager {
@@ -165,6 +184,7 @@ export class HostSessionManager {
 		};
 		this.sessions.set(id, session);
 		this.attachSignals(session);
+		this.startFileTreeWatcher(session);
 		return this.snapshot(session);
 	}
 
@@ -175,6 +195,7 @@ export class HostSessionManager {
 		const session = this.getOrError(sessionId);
 		for (const unsub of session.unsubs) unsub();
 		session.unsubs.length = 0;
+		this.stopFileTreeWatcher(session);
 		await session.loaded.workspace.dispose();
 
 		const loaded = await this.host.createWorkspace({
@@ -182,6 +203,7 @@ export class HostSessionManager {
 		});
 		session.loaded = loaded;
 		this.attachSignals(session);
+		this.startFileTreeWatcher(session);
 		this.emit(session, "workspace.changed");
 		return this.snapshot(session);
 	}
@@ -215,10 +237,278 @@ export class HostSessionManager {
 				false,
 			);
 		}
-		const resolvedParent = resolve(parentPath);
-		const childPath = join(resolvedParent, trimmed);
+		const root = this.requireProjectRootForPath(parentPath);
+		const resolvedParent = isAbsolute(parentPath)
+			? this.resolveProjectPathAbsolute(root, parentPath)
+			: this.resolveProjectPath(root, parentPath);
+		const childPath = this.resolveProjectPath(
+			root,
+			join(relative(root, resolvedParent), trimmed),
+		);
 		await mkdir(childPath);
 		return { path: childPath };
+	}
+
+	async createProjectDirectory(
+		sessionId: string,
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }> {
+		const session = this.getOrError(sessionId);
+		const root = this.requireProjectRoot(session);
+		this.validateSegment(name);
+		const parent = this.resolveProjectPath(root, parentPath || ".");
+		const childPath = this.resolveProjectPath(
+			root,
+			join(relative(root, parent), name),
+		);
+		await mkdir(childPath);
+		this.emitFileTreeChanged(session);
+		return { path: relative(root, childPath).split(sep).join("/") };
+	}
+
+	async getFileTree(sessionId: string): Promise<readonly FileTreeItemDto[]> {
+		return getProjectFileTree(
+			this.requireProjectRoot(this.getOrError(sessionId)),
+		);
+	}
+
+	async createFile(
+		sessionId: string,
+		parentPath: string,
+		name: string,
+	): Promise<{ readonly path: string }> {
+		const root = this.requireProjectRoot(this.getOrError(sessionId));
+		this.validateSegment(name);
+		const path = this.resolveProjectPath(root, join(parentPath, name));
+		await writeFile(path, "", { flag: "wx" });
+		this.emitFileTreeChanged(this.getOrError(sessionId));
+		return { path: relative(root, path).split(sep).join("/") };
+	}
+
+	async renamePath(
+		sessionId: string,
+		source: string,
+		destination: string,
+	): Promise<void> {
+		const session = this.getOrError(sessionId);
+		const root = this.requireProjectRoot(session);
+		const from = this.resolveProjectPath(root, source, false);
+		const to = this.resolveProjectPath(root, destination, false);
+		if (from === root || to === root)
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Project root cannot be renamed",
+				false,
+			);
+		for (const document of session.loaded.workspace.documents.list()) {
+			if (
+				document.dirty &&
+				document.filePath &&
+				(document.filePath === from ||
+					document.filePath.startsWith(`${from}${sep}`))
+			)
+				throw new SessionError(
+					"INVALID_REQUEST",
+					"Dirty open documents must be saved before rename",
+					false,
+				);
+		}
+		await renameFile(from, to);
+		for (const document of session.loaded.workspace.documents.list()) {
+			if (!document.filePath) continue;
+			if (
+				document.filePath === from ||
+				document.filePath.startsWith(`${from}${sep}`)
+			) {
+				const updated = to + document.filePath.slice(from.length);
+				session.loaded.workspace.documents.saveAsFile(
+					document.documentId,
+					updated,
+				);
+			}
+		}
+		this.emit(session, "workspace.changed");
+		this.emitFileTreeChanged(session);
+	}
+
+	async deletePath(sessionId: string, target: string): Promise<void> {
+		const session = this.getOrError(sessionId);
+		const root = this.requireProjectRoot(session);
+		const path = this.resolveProjectPath(root, target, false);
+		if (path === root)
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Project root cannot be deleted",
+				false,
+			);
+		for (const document of session.loaded.workspace.documents.list()) {
+			if (
+				document.filePath === path ||
+				document.filePath?.startsWith(`${path}${sep}`)
+			)
+				throw new SessionError(
+					"INVALID_REQUEST",
+					"Open documents must be closed before delete",
+					false,
+				);
+		}
+		await rm(path, { recursive: true, force: false });
+		this.emitFileTreeChanged(session);
+	}
+
+	private requireProjectRoot(session: Session): string {
+		const root = session.loaded.project?.rootPath;
+		if (!root)
+			throw new SessionError("PROJECT_NOT_OPENED", "No project is open", false);
+		return resolve(root);
+	}
+
+	private requireProjectRootForPath(path: string): string {
+		const session = [...this.sessions.values()].find(
+			(candidate) =>
+				candidate.loaded.project?.rootPath &&
+				isWithin(candidate.loaded.project.rootPath, resolve(path)),
+		);
+		if (
+			!session &&
+			this.projectRoot &&
+			isWithin(this.projectRoot, resolve(path))
+		)
+			return resolve(this.projectRoot);
+		if (!session)
+			throw new SessionError("PROJECT_NOT_OPENED", "No project is open", false);
+		return this.requireProjectRoot(session);
+	}
+
+	private resolveProjectPath(
+		root: string,
+		child: string,
+		allowRoot = true,
+	): string {
+		if (isAbsolute(child))
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Paths must be project-relative",
+				false,
+			);
+		const normalized = child.replaceAll("\\", "/");
+		const segments = normalized.split("/").filter(Boolean);
+		if (
+			segments.some(
+				(segment) =>
+					segment === ".." ||
+					segment === ".macro" ||
+					segment === ".macro-user" ||
+					segment === ".git" ||
+					segment === "node_modules",
+			)
+		)
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Path is outside the editable project area",
+				false,
+			);
+		const result = resolve(root, normalized);
+		if ((!allowRoot && result === root) || !isWithin(root, result))
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Path escapes the project root",
+				false,
+			);
+		return result;
+	}
+
+	private resolveProjectPathAbsolute(root: string, child: string): string {
+		const result = resolve(child);
+		if (!isWithin(root, result) || (result === root && child !== root))
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Path escapes the project root",
+				false,
+			);
+		return result;
+	}
+
+	private validateSegment(name: string): void {
+		if (
+			!name.trim() ||
+			name === "." ||
+			name === ".." ||
+			name.includes("/") ||
+			name.includes("\\") ||
+			name.includes("\0")
+		)
+			throw new SessionError(
+				"INVALID_REQUEST",
+				"Name must be a single path segment",
+				false,
+			);
+	}
+
+	private emitFileTreeChanged(session: Session): void {
+		void getProjectFileTree(this.requireProjectRoot(session))
+			.then((tree) =>
+				this.emit(session, "project.fileTree.changed", undefined, { tree }),
+			)
+			.catch(() => undefined);
+	}
+
+	private startFileTreeWatcher(session: Session): void {
+		this.stopFileTreeWatcher(session);
+		const root = session.loaded.project?.rootPath;
+		if (!root) return;
+		const onChange = (_event: string, filename: string | Buffer | null) => {
+			const changedPath = filename?.toString().replaceAll("\\", "/") ?? "";
+			if (changedPath.split("/").some((part) => [".macro", ".macro-user", ".git"].includes(part))) return;
+			if (session.fileTreeRefreshTimer) clearTimeout(session.fileTreeRefreshTimer);
+			session.fileTreeRefreshTimer = setTimeout(() => {
+				session.fileTreeRefreshTimer = undefined;
+				this.emitFileTreeChanged(session);
+				this.startFileTreeWatcher(session);
+			}, 100);
+		};
+		void this.watchProjectDirectories(session, root, onChange);
+	}
+
+	private async watchProjectDirectories(
+		session: Session,
+		root: string,
+		onChange: (event: string, filename: string | Buffer | null) => void,
+	): Promise<void> {
+		const watchers: FSWatcher[] = [];
+		const visit = async (directory: string): Promise<void> => {
+			let entries;
+			try {
+				entries = await readdir(directory, { withFileTypes: true });
+			} catch {
+				return;
+			}
+			try {
+				watchers.push(watch(directory, onChange));
+			} catch {
+				return;
+			}
+			for (const entry of entries) {
+				if (entry.isDirectory() && ![".macro", ".macro-user", ".git"].includes(entry.name))
+					await visit(resolve(directory, entry.name));
+			}
+		};
+		await visit(root);
+		if (session.disposed) {
+			for (const watcher of watchers) watcher.close();
+		} else {
+			session.fileTreeWatchers = watchers;
+		}
+	}
+
+	private stopFileTreeWatcher(session: Session): void {
+		if (session.fileTreeRefreshTimer) clearTimeout(session.fileTreeRefreshTimer);
+		session.fileTreeRefreshTimer = undefined;
+		session.fileTreeWatcher?.close();
+		session.fileTreeWatcher = undefined;
+		for (const watcher of session.fileTreeWatchers ?? []) watcher.close();
+		session.fileTreeWatchers = undefined;
 	}
 
 	async saveAsProject(
@@ -245,6 +535,7 @@ export class HostSessionManager {
 		const session = this.getOrError(sessionId);
 		for (const unsub of session.unsubs) unsub();
 		session.unsubs.length = 0;
+		this.stopFileTreeWatcher(session);
 		await session.loaded.workspace.dispose();
 
 		const loaded = await this.host.createWorkspace({});
@@ -732,6 +1023,109 @@ export class HostSessionManager {
 						documentId: operation.documentId,
 					};
 				}
+				case "editor.openFile": {
+					const root = this.requireProjectRoot(session);
+					const path = this.resolveProjectPath(root, operation.path, false);
+					const metadata = await stat(path);
+					if (metadata.isDirectory())
+						throw new SessionError(
+							"INVALID_REQUEST",
+							"Cannot open a directory",
+							false,
+						);
+					if (metadata.size > 2 * 1024 * 1024)
+						throw new SessionError(
+							"FILE_NOT_EDITABLE_AS_TEXT",
+							"File is too large to edit as text",
+							false,
+						);
+					const bytes = await readFile(path);
+					if (bytes.includes(0))
+						throw new SessionError(
+							"FILE_NOT_EDITABLE_AS_TEXT",
+							"Binary files cannot be opened in the text editor",
+							false,
+						);
+					const document = documents.openFile(path, bytes.toString("utf8"));
+					documents.markSaved(document.documentId, metadata.mtimeMs);
+					const activeGroup = workspace.editorGroups
+						.list()
+						.find(
+							(group) =>
+								group.groupId === workspace.editorGroups.getActiveGroupId(),
+						);
+					if (activeGroup)
+						workspace.editorGroups.openDocument(
+							activeGroup.groupId,
+							document.documentId,
+						);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+					};
+				}
+				case "editor.save": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (document.providerId !== "file" || !document.filePath)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"FILE_NOT_EDITABLE_AS_TEXT",
+							"Document is not file-backed",
+						);
+					if (
+						operation.expectedTextRevision !== undefined &&
+						operation.expectedTextRevision !== document.textRevision
+					)
+						return conflict(
+							document.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					const root = this.requireProjectRoot(session);
+					const path = this.resolveProjectPath(
+						root,
+						relative(root, document.filePath),
+						false,
+					);
+					const currentMetadata = await stat(path);
+					if (
+						!operation.force &&
+						document.lastDiskMtime !== undefined &&
+						currentMetadata.mtimeMs !== document.lastDiskMtime
+					)
+						return {
+							...base(),
+							status: "conflict",
+							code: "EDITOR_EXTERNAL_CHANGE",
+							message: "The file changed on disk. Reload or overwrite it.",
+							documentId: document.documentId,
+							path: relative(root, path).split(sep).join("/"),
+							textRevision: document.textRevision,
+						};
+					const text = document.editor.getLines().join("\n");
+					await writeFile(path, text, "utf8");
+					const metadata = await stat(path);
+					documents.markSaved(document.documentId, metadata.mtimeMs);
+					this.emit(session, "workspace.changed");
+					this.emitFileTreeChanged(session);
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+					};
+				}
 				case "editor.createSplitGroup": {
 					if (operation.expectedWorkspaceRevision !== session.revision)
 						return workspaceConflict(operation.expectedWorkspaceRevision);
@@ -1127,6 +1521,7 @@ export class HostSessionManager {
 		const session = this.sessions.get(sessionId);
 		if (!session) return false;
 		session.disposed = true;
+		this.stopFileTreeWatcher(session);
 		for (const unsubscribe of session.unsubs) unsubscribe();
 		session.listeners.clear();
 		this.sessions.delete(sessionId);
@@ -1531,6 +1926,7 @@ export class HostSessionManager {
 		session: Session,
 		type: HostEventType,
 		result?: EditorOperationResult,
+		additionalPayload?: Record<string, unknown>,
 	): void {
 		if (session.disposed) return;
 		session.sequence += 1;
@@ -1553,6 +1949,7 @@ export class HostSessionManager {
 			revision: session.revision,
 			payload: {
 				snapshot,
+				...additionalPayload,
 				...(eventResult ? { result: eventResult } : {}),
 			},
 		};

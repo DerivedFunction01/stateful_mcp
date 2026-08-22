@@ -53,6 +53,11 @@ export interface WorkbenchShellProps {
 	readonly searchWidget?: ReactNode;
 	readonly activePrimaryTab?: import("./ActivityRail").PrimarySidebarTab;
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
+	readonly projectFileTree?: readonly import("@stateful-mcp/macro-protocol").FileTreeItemDto[];
+	readonly onOpenFile?: (path: string) => void;
+	readonly onRefreshFileTree?: () => void;
+	readonly onCreateFile?: (parent: string, name: string) => void;
+	readonly onCreateFolder?: (parent: string, name: string) => void;
 }
 
 export function WorkbenchShell({
@@ -74,6 +79,11 @@ export function WorkbenchShell({
 	searchWidget,
 	activePrimaryTab = "explorer",
 	onOpenFolderModal,
+	projectFileTree = [],
+	onOpenFile,
+	onRefreshFileTree,
+	onCreateFile,
+	onCreateFolder,
 }: WorkbenchShellProps) {
 	const { t } = useI18n();
 	const [activeDomain, setActiveDomain] = useState<string>();
@@ -337,6 +347,11 @@ export function WorkbenchShell({
 						}}
 						onOpenFolderModal={onOpenFolderModal}
 						onCommand={onCommand}
+						projectFileTree={projectFileTree}
+						onOpenFile={onOpenFile}
+						onRefreshFileTree={onRefreshFileTree}
+						onCreateFile={onCreateFile}
+						onCreateFolder={onCreateFolder}
 					/>
 
 					<Splitter

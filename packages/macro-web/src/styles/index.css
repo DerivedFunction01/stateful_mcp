@@ -2,6 +2,15 @@
 
 /* The web palette is intentionally independent from the legacy TUI theme. */
 :root {
+	--syntax-keyword: #c9a7ff;
+	--syntax-variable: #9cd5ff;
+	--syntax-function: #8be9d0;
+	--syntax-string: #f7c978;
+	--syntax-number: #ff9eae;
+	--syntax-comment: #7d8ca2;
+	--syntax-operator: #dce7f6;
+	--syntax-punctuation: #b4c2d5;
+	--syntax-type: #9eafff;
 	--theme-action-primary-border: transparent;
 	--theme-action-primary-content: #07111f;
 	--theme-action-primary-surface-default: #8be9d0;
@@ -67,6 +76,56 @@
 	--theme-radius-md: 8px;
 	--theme-radius-lg: 12px;
 	--theme-shadow-lg: 0 20px 55px rgb(0 0 0 / 28%);
+}
+
+:root[data-theme="cloud"] {
+	--syntax-keyword: #7b3fb2;
+	--syntax-variable: #176090;
+	--syntax-function: #087f70;
+	--syntax-string: #8a5b10;
+	--syntax-number: #b23850;
+	--syntax-comment: #65758b;
+	--syntax-operator: #263954;
+	--syntax-punctuation: #40516a;
+	--syntax-type: #315aa6;
+}
+
+.syntax-keyword {
+	color: var(--syntax-keyword);
+}
+.syntax-variable {
+	color: var(--syntax-variable);
+}
+.syntax-function {
+	color: var(--syntax-function);
+}
+.syntax-string {
+	color: var(--syntax-string);
+}
+.syntax-number {
+	color: var(--syntax-number);
+}
+.syntax-comment {
+	color: var(--syntax-comment);
+}
+.syntax-operator {
+	color: var(--syntax-operator);
+}
+.syntax-punctuation {
+	color: var(--syntax-punctuation);
+}
+.syntax-type {
+	color: var(--syntax-type);
+}
+.file-tree-git-modified {
+	color: var(--theme-content-warning);
+}
+.file-tree-git-untracked,
+.file-tree-git-staged {
+	color: var(--theme-content-success);
+}
+.file-tree-git-deleted {
+	color: var(--theme-content-danger);
 }
 
 :root[data-theme="cloud"] {
@@ -914,6 +973,149 @@ kbd {
 	border-radius: 4px;
 	text-align: left;
 	width: 100%;
+}
+
+.file-tree-view {
+	min-width: 0;
+	width: 100%;
+	color: var(--theme-content-secondary);
+}
+
+.file-tree-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 2px 8px 7px;
+	flex-wrap: wrap;
+}
+
+.file-tree-toolbar-button {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 24px;
+	padding: 3px 7px;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	background: transparent;
+	color: var(--theme-content-tertiary);
+	font-family: Inter, system-ui, sans-serif;
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+	width: 26px;
+	height: 26px;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease,
+		color 120ms ease;
+}
+
+.file-tree-toolbar-button svg {
+	flex: 0 0 auto;
+}
+
+.file-tree-toolbar-button:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	border-color: var(--theme-border-subtle);
+	color: var(--theme-content-primary);
+}
+
+.file-tree-toolbar-button:active {
+	background: var(--theme-surface-elevated);
+}
+
+.file-tree-toolbar-button:focus-visible,
+.file-tree-create-input:focus-visible {
+	outline: var(--theme-focus-ring-width) solid var(--theme-border-focus);
+	outline-offset: 1px;
+}
+
+.file-tree-create-input {
+	display: block;
+	width: calc(100% - 16px);
+	min-height: 26px;
+	margin: 0 8px 6px;
+	padding: 4px 7px;
+	border: 1px solid var(--theme-border-focus);
+	border-radius: 3px;
+	background: var(--theme-surface-secondary);
+	box-shadow: 0 0 0 1px
+		color-mix(in srgb, var(--theme-border-focus) 25%, transparent);
+	color: var(--theme-content-primary);
+	font-size: 12px;
+}
+
+.file-tree-create-input::placeholder {
+	color: var(--theme-content-tertiary);
+}
+
+.file-tree-chevron,
+.file-tree-entry,
+.file-tree-delete {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: inherit;
+}
+
+.file-tree-chevron {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 20px;
+	padding: 0;
+	color: var(--theme-content-tertiary);
+	flex: 0 0 16px;
+}
+
+.file-tree-entry {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	flex: 1;
+	padding: 2px 0;
+	text-align: left;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.file-tree-entry > span:last-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.file-tree-entry:hover,
+.file-tree-chevron:hover,
+.file-tree-delete:hover {
+	color: var(--theme-content-primary);
+}
+
+.file-tree-git {
+	min-width: 12px;
+	margin-left: 4px;
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	font-weight: 700;
+	text-align: center;
+}
+
+.file-tree-delete {
+	display: none;
+	padding: 1px 4px;
+	font-size: 14px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.file-tree-row:hover .file-tree-delete {
+	display: inline-flex;
 }
 
 .file-tree-row:hover,
