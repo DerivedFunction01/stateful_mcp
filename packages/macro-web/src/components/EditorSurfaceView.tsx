@@ -4,6 +4,7 @@ import type {
 	ScratchpadLineDto,
 	SearchDirection,
 } from "@stateful-mcp/macro-protocol";
+import hljs from "highlight.js/lib/common";
 import { AlertTriangle, Check, Circle, Pin, Play } from "lucide-react";
 import {
 	type ReactNode,
@@ -12,7 +13,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import hljs from "highlight.js/lib/common";
 import type {
 	BrowserEditorSurfaceAdapter,
 	BrowserVimKeyboardEvent,
@@ -58,7 +58,10 @@ function normalizeText(text: string): string {
 	return text.replace(/\r\n?/g, "\n");
 }
 
-export function detectLanguage(filePath?: string, title?: string): string | undefined {
+export function detectLanguage(
+	filePath?: string,
+	title?: string,
+): string | undefined {
 	const name = filePath || title || "";
 	const ext = name.split(".").pop()?.toLowerCase();
 	switch (ext) {
@@ -1001,17 +1004,17 @@ export function getEditorSurfaceAdapter(
 					startOffset: number;
 					endOffset: number;
 				}[] = [];
-				let start = 0;
+				const start = 0;
 				let matcher: RegExp;
 				try {
 					matcher = searchOptions.regex
 						? new RegExp(query, searchOptions.matchCase ? "gu" : "giu")
 						: new RegExp(
-							searchOptions.wholeWord
-								? `(?<![\\p{L}\\p{N}_])${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`
-								: query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-							searchOptions.matchCase ? "gu" : "giu",
-						);
+								searchOptions.wholeWord
+									? `(?<![\\p{L}\\p{N}_])${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`
+									: query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+								searchOptions.matchCase ? "gu" : "giu",
+							);
 				} catch {
 					return result;
 				}
@@ -1350,7 +1353,9 @@ export function getEditorSurfaceAdapter(
 			const endLineIdx = Math.max(0, beforeEnd.length - 1);
 			const endCol = beforeEnd[endLineIdx]?.length ?? 0;
 
-			const startBlock = element.children[startLineIdx] as HTMLElement | undefined;
+			const startBlock = element.children[startLineIdx] as
+				| HTMLElement
+				| undefined;
 			const endBlock = element.children[endLineIdx] as HTMLElement | undefined;
 			if (!startBlock || !endBlock) {
 				setLineAndCol(element, startLineIdx, startCol);
@@ -1432,7 +1437,12 @@ export function getEditorSurfaceAdapter(
 				if (isWord) {
 					while (i < len && wordChar.test(line[i] ?? "")) i++;
 				} else if (!whitespace.test(line[i] ?? "")) {
-					while (i < len && !wordChar.test(line[i] ?? "") && !whitespace.test(line[i] ?? "")) i++;
+					while (
+						i < len &&
+						!wordChar.test(line[i] ?? "") &&
+						!whitespace.test(line[i] ?? "")
+					)
+						i++;
 				}
 				while (i < len && whitespace.test(line[i] ?? "")) i++;
 				setLineAndCol(element, lineIdx, Math.min(len, i));
@@ -1450,7 +1460,12 @@ export function getEditorSurfaceAdapter(
 				if (isWord) {
 					while (i > 0 && wordChar.test(line[i - 1] ?? "")) i--;
 				} else if (!whitespace.test(line[i] ?? "")) {
-					while (i > 0 && !wordChar.test(line[i - 1] ?? "") && !whitespace.test(line[i - 1] ?? "")) i--;
+					while (
+						i > 0 &&
+						!wordChar.test(line[i - 1] ?? "") &&
+						!whitespace.test(line[i - 1] ?? "")
+					)
+						i--;
 				}
 				setLineAndCol(element, lineIdx, Math.max(0, i));
 			}

@@ -69,7 +69,6 @@ export function CloseDirtyDialog({
 							type="button"
 							className="close-dirty-dialog__button close-dirty-dialog__button--save"
 							onClick={() => target && onSaveAndClose(target)}
-							autoFocus
 						>
 							{t("editor.dialog.save")}
 						</button>

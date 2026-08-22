@@ -33,7 +33,10 @@ export type GenericEditorAction =
 	  }
 	| {
 			readonly type: "setSelection";
-			readonly selection: { readonly start: number; readonly end: number } | null;
+			readonly selection: {
+				readonly start: number;
+				readonly end: number;
+			} | null;
 	  }
 	| { readonly type: "clearVisual" }
 	| { readonly type: "setSequence"; readonly value: string }
@@ -124,7 +127,9 @@ export function reduceGenericEditorState(
 			return {
 				...state,
 				selection: action.selection,
-				cursorOffset: action.selection ? action.selection.end : state.cursorOffset,
+				cursorOffset: action.selection
+					? action.selection.end
+					: state.cursorOffset,
 			};
 		case "clearVisual":
 			return {

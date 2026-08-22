@@ -11,7 +11,7 @@ import {
 	unescapeReplacementString,
 	unescapeSearchPattern,
 } from "../../lib/search-utils";
-import { SearchReplaceBar, type SearchOptions } from "../SearchReplaceBar";
+import { type SearchOptions, SearchReplaceBar } from "../SearchReplaceBar";
 import type { SidebarPaneProps } from "./primary-sidebar-types";
 
 interface SearchMatchItem {
@@ -65,7 +65,11 @@ export function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 		() => new Set(),
 	);
 	const [searchRefresh, setSearchRefresh] = useState(0);
-	const [options, setOptions] = useState<SearchOptions>({ matchCase, wholeWord, regex: isRegex });
+	const [options, setOptions] = useState<SearchOptions>({
+		matchCase,
+		wholeWord,
+		regex: isRegex,
+	});
 
 	const searchResults = useMemo<readonly FileSearchResult[]>(() => {
 		const query = unescapeSearchPattern(searchQuery.trim(), isRegex);
@@ -225,7 +229,14 @@ export function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 					query={searchQuery}
 					replacement={searchReplace}
 					options={options}
-					message={searchQuery ? t("workbench.searchResultsSummary", { count: totalMatches, files: matchingFilesCount }) : ""}
+					message={
+						searchQuery
+							? t("workbench.searchResultsSummary", {
+									count: totalMatches,
+									files: matchingFilesCount,
+								})
+							: ""
+					}
 					replaceOpen={replaceOpen}
 					onQueryChange={(value) => {
 						setSearchQuery(value);
@@ -243,9 +254,20 @@ export function SearchPaneBody({ props, helpers }: SidebarPaneProps) {
 					}}
 					onQuerySubmit={refreshSearchResults}
 					onReplacementSubmit={refreshSearchResults}
-					onNavigate={(direction) => jumpToMatch(direction === "forward" ? activeMatchIndex + 1 : activeMatchIndex - 1)}
+					onNavigate={(direction) =>
+						jumpToMatch(
+							direction === "forward"
+								? activeMatchIndex + 1
+								: activeMatchIndex - 1,
+						)
+					}
 					onReplace={replaceCurrentMatchAndAdvance}
-					onReplaceAll={() => onReplaceAll?.(searchPattern, unescapeReplacementString(searchReplace))}
+					onReplaceAll={() =>
+						onReplaceAll?.(
+							searchPattern,
+							unescapeReplacementString(searchReplace),
+						)
+					}
 					onToggleReplace={() => setReplaceOpen((open) => !open)}
 				/>
 				{/* Search results remain below the shared control bar. */}

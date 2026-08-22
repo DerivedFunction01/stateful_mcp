@@ -171,6 +171,10 @@ export class ScratchpadSession {
 		return this.executedLineIndices.has(lineIndex);
 	}
 
+	getExecutedLineIndices(): readonly number[] {
+		return Array.from(this.executedLineIndices);
+	}
+
 	markLineExecuted(lineIndex: number): void {
 		this.executedLineIndices.add(lineIndex);
 		this.notify();

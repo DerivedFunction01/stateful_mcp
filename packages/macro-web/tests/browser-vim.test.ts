@@ -629,8 +629,8 @@ describe("keymap-driven browser Vim controller", () => {
 	test("operates on continuous text buffers in generic variant without cell execution", () => {
 		let text = "hello world\nsecond line here\nthird line";
 		let selection = { start: 0, end: 0 };
-		let deletedLines: string[] = [];
-		let pasted: string[] = [];
+		const deletedLines: string[] = [];
+		const pasted: string[] = [];
 
 		const genericProfile = {
 			vim: {
@@ -680,7 +680,10 @@ describe("keymap-driven browser Vim controller", () => {
 					const min = Math.min(selection.start, selection.end);
 					const max = Math.max(selection.start, selection.end);
 					text = text.slice(0, min) + replacement + text.slice(max);
-					selection = { start: min + replacement.length, end: min + replacement.length };
+					selection = {
+						start: min + replacement.length,
+						end: min + replacement.length,
+					};
 				},
 				moveLine: (delta) => {
 					selection = {
@@ -701,7 +704,8 @@ describe("keymap-driven browser Vim controller", () => {
 					};
 				},
 				deleteCharUnderCaret: () => {
-					text = text.slice(0, selection.start) + text.slice(selection.start + 1);
+					text =
+						text.slice(0, selection.start) + text.slice(selection.start + 1);
 				},
 				deleteCurrentLine: () => {
 					const lines = text.split("\n");
@@ -798,4 +802,3 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(cellExecuted).toBe(false);
 	});
 });
-

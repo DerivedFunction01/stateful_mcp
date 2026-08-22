@@ -234,6 +234,40 @@ export class MacroDocumentManager {
 		return document;
 	}
 
+	openScratchpadResource(resource: {
+		scratchpadId: string;
+		title: string;
+		rawText: string;
+		executedLineIndices?: readonly number[];
+		pinnedMacroIds?: readonly string[];
+	}): MacroDocument {
+		const existing = this.list().find(
+			(d) => d.documentId === resource.scratchpadId,
+		);
+		if (existing) {
+			this.select(existing.documentId);
+			return existing;
+		}
+		const document = this.createDocument({
+			documentId: resource.scratchpadId,
+			initialText: resource.rawText,
+			title: resource.title,
+			pinnedMacroIds: resource.pinnedMacroIds,
+		});
+		if (resource.executedLineIndices) {
+			for (const lineIdx of resource.executedLineIndices) {
+				document.session.markLineExecuted?.(lineIdx);
+			}
+		}
+		for (const macroId of resource.pinnedMacroIds ?? []) {
+			document.session.setPinnedMacro(macroId);
+		}
+		document.savedLines = [...document.editor.getLines()];
+		document.savedTextRevision = document.textRevision;
+		document.dirty = false;
+		return document;
+	}
+
 	openFile(filePath: string, initialText = "", title?: string): MacroDocument {
 		const existing = this.list().find((d) => d.filePath === filePath);
 		if (existing) {
@@ -377,6 +411,7 @@ export class MacroDocumentManager {
 	}
 
 	private createDocument(options: {
+		readonly documentId?: string;
 		readonly initialText: string;
 		readonly title: string;
 		readonly templateId?: string;
@@ -394,7 +429,7 @@ export class MacroDocumentManager {
 		const pinnedMacroIds = options.pinnedMacroIds ?? [];
 		if (pinnedMacroIds[0]) session.setPinnedMacro(pinnedMacroIds[0]);
 		const document: MacroDocument = {
-			documentId: createDocumentId(),
+			documentId: options.documentId ?? createDocumentId(),
 			providerId: options.providerId ?? MACRO_TEXT_DOCUMENT_PROVIDER,
 			...(options.filePath ? { filePath: options.filePath } : {}),
 			editor,

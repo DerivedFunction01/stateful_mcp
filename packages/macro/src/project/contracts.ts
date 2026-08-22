@@ -31,6 +31,7 @@ export interface MacroProjectManifest {
 	readonly extensionProfiles?: Readonly<Record<string, readonly string[]>>;
 	readonly resources: readonly MacroProjectResourceReference[];
 	readonly historyResources: readonly MacroProjectResourceReference[];
+	readonly scratchpadResources?: readonly MacroProjectResourceReference[];
 	readonly migration?: Readonly<Record<string, unknown>>;
 }
 
@@ -46,6 +47,7 @@ export interface MacroProjectDescriptor {
 	readonly revision: string;
 	readonly resources: readonly MacroProjectResourceReference[];
 	readonly historyResources: readonly MacroProjectResourceReference[];
+	readonly scratchpadResources?: readonly MacroProjectResourceReference[];
 }
 
 export interface ProjectRevision {

@@ -2,16 +2,32 @@ import type { SearchDirection } from "@stateful-mcp/macro-protocol";
 import { useEffect, useRef, useState } from "react";
 import type { EditorSearchResult } from "../lib/browser-vim";
 import { useI18n } from "../lib/macro-i18n-provider";
-import { unescapeReplacementString, unescapeSearchPattern } from "../lib/search-utils";
-import { SearchReplaceBar, type SearchOptions } from "./SearchReplaceBar";
+import {
+	unescapeReplacementString,
+	unescapeSearchPattern,
+} from "../lib/search-utils";
+import { type SearchOptions, SearchReplaceBar } from "./SearchReplaceBar";
 
 export interface FindOverlayProps {
 	readonly direction: SearchDirection;
 	readonly initialQuery?: string;
 	readonly initialReplacement?: string;
-	readonly onFind: (query: string, direction: SearchDirection, navigate?: boolean, options?: SearchOptions) => boolean | EditorSearchResult;
-	readonly onReplace?: (query: string, replacement: string, options?: SearchOptions) => boolean;
-	readonly onReplaceAll?: (query: string, replacement: string, options?: SearchOptions) => number;
+	readonly onFind: (
+		query: string,
+		direction: SearchDirection,
+		navigate?: boolean,
+		options?: SearchOptions,
+	) => boolean | EditorSearchResult;
+	readonly onReplace?: (
+		query: string,
+		replacement: string,
+		options?: SearchOptions,
+	) => boolean;
+	readonly onReplaceAll?: (
+		query: string,
+		replacement: string,
+		options?: SearchOptions,
+	) => number;
 	readonly onQueryChange?: (query: string) => void;
 	readonly onReplacementChange?: (replacement: string) => void;
 	readonly onClose: () => void;
@@ -38,7 +54,11 @@ export function FindOverlay({
 	const [replacement, setReplacement] = useState(initialReplacement);
 	const [message, setMessage] = useState("");
 	const [replaceOpen, setReplaceOpen] = useState(!vimMode);
-	const [options, setOptions] = useState<SearchOptions>({ matchCase: false, wholeWord: false, regex: false });
+	const [options, setOptions] = useState<SearchOptions>({
+		matchCase: false,
+		wholeWord: false,
+		regex: false,
+	});
 	onFindRef.current = onFind;
 
 	const find = (searchDirection = direction, navigate = false) => {
@@ -47,31 +67,66 @@ export function FindOverlay({
 			onFindRef.current("", searchDirection, false, options);
 			return;
 		}
-		const result = onFindRef.current(unescapeSearchPattern(query, options.regex), searchDirection, navigate, options);
+		const result = onFindRef.current(
+			unescapeSearchPattern(query, options.regex),
+			searchDirection,
+			navigate,
+			options,
+		);
 		if (typeof result === "boolean") {
 			setMessage(result ? "" : t("editor.find.noResults"));
 			return;
 		}
-		setMessage(result.matches.length > 0 ? t("editor.find.matchCount", { current: result.activeMatchIndex + 1, count: result.matches.length }) : t("editor.find.noResults"));
+		setMessage(
+			result.matches.length > 0
+				? t("editor.find.matchCount", {
+						current: result.activeMatchIndex + 1,
+						count: result.matches.length,
+					})
+				: t("editor.find.noResults"),
+		);
 	};
 
-	useEffect(() => { find(direction, false); }, [query, direction, options]);
+	useEffect(() => {
+		find(direction, false);
+	}, [query, direction, options]);
 
 	const replace = () => {
 		if (!query || !onReplace) return;
-		const replaced = onReplace(unescapeSearchPattern(query, options.regex), unescapeReplacementString(replacement), options);
+		const replaced = onReplace(
+			unescapeSearchPattern(query, options.regex),
+			unescapeReplacementString(replacement),
+			options,
+		);
 		if (replaced) requestAnimationFrame(() => find("forward", true));
 		else setMessage(t("editor.find.noResults"));
 	};
 
 	const replaceAll = () => {
-		if (!query || !onReplaceAll || !window.confirm(t("editor.find.replaceAllConfirm"))) return;
-		const count = onReplaceAll(unescapeSearchPattern(query, options.regex), unescapeReplacementString(replacement), options);
-		setMessage(count > 0 ? t("editor.find.matchesReplaced", { count }) : t("editor.find.noResults"));
+		if (
+			!query ||
+			!onReplaceAll ||
+			!window.confirm(t("editor.find.replaceAllConfirm"))
+		)
+			return;
+		const count = onReplaceAll(
+			unescapeSearchPattern(query, options.regex),
+			unescapeReplacementString(replacement),
+			options,
+		);
+		setMessage(
+			count > 0
+				? t("editor.find.matchesReplaced", { count })
+				: t("editor.find.noResults"),
+		);
 	};
 
 	return (
-		<div className="editor-find-widget" role="dialog" aria-label={t("editor.find.ariaLabel")}>
+		<div
+			className="editor-find-widget"
+			role="dialog"
+			aria-label={t("editor.find.ariaLabel")}
+		>
 			<SearchReplaceBar
 				query={query}
 				replacement={replacement}
@@ -79,11 +134,24 @@ export function FindOverlay({
 				message={message}
 				replaceOpen={replaceOpen}
 				showClose
-				onQueryChange={(value) => { setQuery(value); onQueryChange?.(value); }}
-				onReplacementChange={(value) => { setReplacement(value); onReplacementChange?.(value); }}
+				onQueryChange={(value) => {
+					setQuery(value);
+					onQueryChange?.(value);
+				}}
+				onReplacementChange={(value) => {
+					setReplacement(value);
+					onReplacementChange?.(value);
+				}}
 				onOptionsChange={setOptions}
 				onQuerySubmit={() => find("forward", true)}
-				onAccept={vimMode ? () => { find("forward", true); onAccept?.(); } : undefined}
+				onAccept={
+					vimMode
+						? () => {
+								find("forward", true);
+								onAccept?.();
+							}
+						: undefined
+				}
 				onReplacementSubmit={replace}
 				onNavigate={(searchDirection) => find(searchDirection, true)}
 				onReplace={replace}

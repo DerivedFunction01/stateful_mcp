@@ -12,6 +12,7 @@ import {
 	RefreshCw,
 } from "lucide-react";
 import { useState } from "react";
+import { getFileIcon } from "../../lib/file-icon-resolver";
 import { useI18n } from "../../lib/macro-i18n-provider";
 
 export function FileEntryIcon({
@@ -25,13 +26,9 @@ export function FileEntryIcon({
 }) {
 	if (isDirectory)
 		return isExpanded ? <FolderOpen size={15} /> : <Folder size={15} />;
-	const ext =
-		name.startsWith(".") && !name.includes(".", 1)
-			? name.slice(1)
-			: (name.split(".").pop() ?? "");
 	return (
 		<Icon
-			icon={`vscode-icons:file-type-${ext.toLowerCase()}`}
+			icon={getFileIcon(name)}
 			width={15}
 			height={15}
 			fallback={<File size={15} />}

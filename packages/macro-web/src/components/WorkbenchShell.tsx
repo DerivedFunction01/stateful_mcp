@@ -61,7 +61,10 @@ export interface WorkbenchShellProps {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: SearchDirection, vimSearch?: boolean) => void;
+	readonly onOpenSearch?: (
+		direction: SearchDirection,
+		vimSearch?: boolean,
+	) => void;
 	readonly searchWidget?: ReactNode;
 	readonly activePrimaryTab?: import("./ActivityRail").PrimarySidebarTab;
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
@@ -103,7 +106,8 @@ export function WorkbenchShell({
 	const [activeDomain, setActiveDomain] = useState<string>();
 	const [surfaceFocused, setSurfaceFocused] = useState(false);
 	const [vimNotice] = useState<string>();
-	const [pendingCloseDoc, setPendingCloseDoc] = useState<PendingCloseDocument | null>(null);
+	const [pendingCloseDoc, setPendingCloseDoc] =
+		useState<PendingCloseDocument | null>(null);
 
 	const surfaceRef = useRef<HTMLElement | null>(null);
 	const shellRef = useRef<HTMLDivElement | null>(null);
@@ -236,16 +240,21 @@ export function WorkbenchShell({
 				documentId: target.documentId,
 				expectedTextRevision: target.textRevision,
 			});
+		} else {
 			emitEditorOperation({
-				operation: "editor.closeDocument",
+				operation: "editor.saveScratchpad",
 				requestId: requestId(),
 				documentId: target.documentId,
 				expectedTextRevision: target.textRevision,
-				force: true,
 			});
-		} else {
-			onOpenFolderModal?.("saveAs");
 		}
+		emitEditorOperation({
+			operation: "editor.closeDocument",
+			requestId: requestId(),
+			documentId: target.documentId,
+			expectedTextRevision: target.textRevision,
+			force: true,
+		});
 		setPendingCloseDoc(null);
 	};
 

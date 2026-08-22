@@ -22,7 +22,10 @@ describe("syntax highlighting & language detection", () => {
 		expect(lang).toBe("typescript");
 
 		const code = "const count: number = 42;";
-		const result = hljs.highlight(code, { language: lang!, ignoreIllegals: true });
+		const result = hljs.highlight(code, {
+			language: lang!,
+			ignoreIllegals: true,
+		});
 
 		expect(result.value).toContain("hljs-keyword");
 		expect(result.value).toContain("hljs-number");

@@ -121,8 +121,10 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.prevTab": "Previous Tab",
 
 	// Editor close dirty confirmation dialog
-	"editor.dialog.closeDirtyTitle": "Do you want to save the changes you made to {title}?",
-	"editor.dialog.closeDirtyDescription": "Your changes will be lost if you don't save them.",
+	"editor.dialog.closeDirtyTitle":
+		"Do you want to save the changes you made to {title}?",
+	"editor.dialog.closeDirtyDescription":
+		"Your changes will be lost if you don't save them.",
 	"editor.dialog.save": "Save",
 	"editor.dialog.discard": "Don't Save",
 	"editor.dialog.cancel": "Cancel",

@@ -6,9 +6,13 @@ import {
 	type HistoryResourceStore,
 	JsonlKvBackend,
 	KvHistoryResourceStore,
+	KvScratchpadResourceStore,
+	type ScratchpadResource,
+	type ScratchpadResourceStore,
 	SqlBackend,
 	SqlExecutor,
 	SqlHistoryResourceStore,
+	SqlScratchpadResourceStore,
 } from "@stateful-mcp/core";
 import {
 	type MacroProjectBackendKind,
@@ -44,6 +48,7 @@ export interface MacroProject {
 	readonly rootPath: string;
 	readonly manifestPath: string;
 	readonly history: HistoryResourceStore;
+	readonly scratchpads: ScratchpadResourceStore;
 	readonly descriptor: MacroProjectDescriptor;
 	createHistory(
 		historyId: string,
@@ -56,6 +61,22 @@ export interface MacroProject {
 	): Promise<string>;
 	listHistory(): ReturnType<HistoryResourceStore["list"]>;
 	deleteHistory(historyId: string, expectedRevision?: string): Promise<void>;
+	createScratchpad(
+		scratchpadId: string,
+		title?: string,
+		initialText?: string,
+		metadata?: Record<string, unknown>,
+	): Promise<ScratchpadResource>;
+	openScratchpad(scratchpadId: string): Promise<ScratchpadResource | null>;
+	saveScratchpad(
+		resource: ScratchpadResource,
+		expectedRevision?: string,
+	): Promise<string>;
+	listScratchpads(): ReturnType<ScratchpadResourceStore["list"]>;
+	deleteScratchpad(
+		scratchpadId: string,
+		expectedRevision?: string,
+	): Promise<void>;
 	saveManifest(
 		manifest: MacroProjectManifest,
 		expectedRevision: string,
@@ -137,6 +158,7 @@ export async function openMacroProject(
 		manifestPath,
 		manifest,
 		storage.history,
+		storage.scratchpads,
 		storage.flush,
 	);
 }
@@ -182,6 +204,7 @@ class MacroProjectHandle implements MacroProject {
 		readonly manifestPath: string,
 		manifest: MacroProjectManifest,
 		readonly history: HistoryResourceStore,
+		readonly scratchpads: ScratchpadResourceStore,
 		private readonly flush: () => Promise<void>,
 	) {
 		this.currentManifest = manifest;
@@ -203,6 +226,7 @@ class MacroProjectHandle implements MacroProject {
 			revision: this.currentRevision,
 			resources: this.currentManifest.resources,
 			historyResources: this.currentManifest.historyResources,
+			scratchpadResources: this.currentManifest.scratchpadResources,
 		};
 	}
 
@@ -311,6 +335,121 @@ class MacroProjectHandle implements MacroProject {
 		);
 	}
 
+	async createScratchpad(
+		scratchpadId: string,
+		title = "scratchpad",
+		initialText = "",
+		metadata: Record<string, unknown> = {},
+	) {
+		this.assertOpen();
+		const resource = await this.scratchpads.create(
+			scratchpadId,
+			title,
+			initialText,
+			{
+				...metadata,
+				projectId: this.currentManifest.projectId,
+			},
+		);
+		const reference: MacroProjectResourceReference = {
+			resourceId: scratchpadId,
+			kind: "scratchpad",
+		};
+		const scratchpadResources = [
+			...(this.currentManifest.scratchpadResources ?? []).filter(
+				(item) => item.resourceId !== scratchpadId,
+			),
+			reference,
+		];
+		await this.saveManifest(
+			{
+				...this.currentManifest,
+				scratchpadResources,
+			},
+			this.currentRevision,
+		);
+		return resource;
+	}
+
+	openScratchpad(scratchpadId: string) {
+		this.assertOpen();
+		return this.scratchpads.open(scratchpadId);
+	}
+
+	async saveScratchpad(
+		resource: ScratchpadResource,
+		expectedRevision?: string,
+	): Promise<string> {
+		this.assertOpen();
+		const current = await this.scratchpads.open(resource.scratchpadId);
+		if (
+			expectedRevision &&
+			(!current || hashJson(current) !== expectedRevision)
+		) {
+			throw new MacroProjectConflictError(
+				"Scratchpad resource revision is stale",
+				{
+					scratchpadId: resource.scratchpadId,
+					expectedRevision,
+					actualRevision: current ? hashJson(current) : undefined,
+				},
+			);
+		}
+		await this.scratchpads.save(resource);
+		const saved = await this.scratchpads.open(resource.scratchpadId);
+		const revision = saved ? hashJson(saved) : hashJson(resource);
+		const scratchpadResources = (
+			this.currentManifest.scratchpadResources ?? []
+		).map((item) =>
+			item.resourceId === resource.scratchpadId ? { ...item, revision } : item,
+		);
+		if (
+			!scratchpadResources.some(
+				(item) => item.resourceId === resource.scratchpadId,
+			)
+		) {
+			scratchpadResources.push({
+				resourceId: resource.scratchpadId,
+				kind: "scratchpad",
+				revision,
+			});
+		}
+		await this.saveManifest(
+			{ ...this.currentManifest, scratchpadResources },
+			this.currentRevision,
+		);
+		return revision;
+	}
+
+	listScratchpads() {
+		this.assertOpen();
+		return this.scratchpads.list();
+	}
+
+	async deleteScratchpad(
+		scratchpadId: string,
+		expectedRevision?: string,
+	): Promise<void> {
+		this.assertOpen();
+		const current = await this.scratchpads.open(scratchpadId);
+		if (!current) return;
+		if (expectedRevision && hashJson(current) !== expectedRevision)
+			throw new MacroProjectConflictError(
+				"Scratchpad resource revision is stale",
+				{ scratchpadId },
+			);
+		await this.scratchpads.delete(scratchpadId);
+		await this.saveManifest(
+			{
+				...this.currentManifest,
+				scratchpadResources: (
+					this.currentManifest.scratchpadResources ?? []
+				).filter((item) => item.resourceId !== scratchpadId),
+			},
+			this.currentRevision,
+		);
+	}
+
 	async saveManifest(
 		manifest: MacroProjectManifest,
 		expectedRevision: string,
@@ -347,17 +486,24 @@ class MacroProjectHandle implements MacroProject {
 async function openHistoryStorage(
 	kind: MacroProjectBackendKind,
 	path: string,
-): Promise<{ history: HistoryResourceStore; flush: () => Promise<void> }> {
+): Promise<{
+	history: HistoryResourceStore;
+	scratchpads: ScratchpadResourceStore;
+	flush: () => Promise<void>;
+}> {
 	if (kind === "jsonl") {
 		const backend = new JsonlKvBackend({ dataFilePath: path });
 		return {
 			history: new KvHistoryResourceStore(backend),
+			scratchpads: new KvScratchpadResourceStore(backend),
 			flush: () => backend.save(),
 		};
 	}
 	const backend = await SqlBackend.connect("sqlite", path);
+	const executor = new SqlExecutor(backend);
 	return {
-		history: new SqlHistoryResourceStore(new SqlExecutor(backend)),
+		history: new SqlHistoryResourceStore(executor),
+		scratchpads: new SqlScratchpadResourceStore(executor),
 		flush: async () => undefined,
 	};
 }

@@ -88,7 +88,11 @@ export interface BrowserEditorSurfaceAdapter {
 		startOffset?: number,
 		options?: { matchCase: boolean; wholeWord: boolean; regex: boolean },
 	): boolean;
-	replaceAllMatches?(query: string, replacement: string, options?: { matchCase: boolean; wholeWord: boolean; regex: boolean }): number;
+	replaceAllMatches?(
+		query: string,
+		replacement: string,
+		options?: { matchCase: boolean; wholeWord: boolean; regex: boolean },
+	): number;
 	pasteCell?(text: string, position: InsertPosition): void;
 	pasteCellRangeReplace?(start: number, end: number, text: string): void;
 	focusCellForEdit?(index?: number, column?: number): void;
@@ -184,7 +188,10 @@ export interface BrowserVimControllerOptions {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: SearchDirection, vimSearch?: boolean) => void;
+	readonly onOpenSearch?: (
+		direction: SearchDirection,
+		vimSearch?: boolean,
+	) => void;
 	readonly getAdapter?: () => BrowserEditorSurfaceAdapter | undefined;
 	readonly getKeymap?: () => KeymapSource;
 	readonly onExecuteLine?: (lineNumber?: number) => void;
@@ -210,7 +217,8 @@ export function createBrowserVimController(
 		if (typeof options?.variant === "function") return options.variant();
 		if (options?.variant) return options.variant;
 		const adapter = options?.getAdapter?.();
-		if (adapter?.getCellCount || adapter?.setActiveCellIndex) return "scratchpad";
+		if (adapter?.getCellCount || adapter?.setActiveCellIndex)
+			return "scratchpad";
 		return "generic";
 	};
 
@@ -308,7 +316,12 @@ export function createBrowserVimController(
 			if (resolveVariant() === "generic") {
 				genericStore.dispatch({ type: "setCursor", offset: column ?? 0 });
 			} else {
-				scratchpadStore.dispatch({ type: "setActiveCell", index, count, column });
+				scratchpadStore.dispatch({
+					type: "setActiveCell",
+					index,
+					count,
+					column,
+				});
 			}
 		},
 		setPointerTarget: (index, count, column, dragging = false) => {
@@ -337,10 +350,20 @@ export function createBrowserVimController(
 					scratchpadStore.dispatch({ type: "setVisualFocus", index, count });
 					setMode("VISUAL");
 				} else {
-					scratchpadStore.dispatch({ type: "setActiveCell", index, count, column });
+					scratchpadStore.dispatch({
+						type: "setActiveCell",
+						index,
+						count,
+						column,
+					});
 				}
 				if (state.mode === "VISUAL" || dragging)
-					scratchpadStore.dispatch({ type: "setActiveCell", index, count, column });
+					scratchpadStore.dispatch({
+						type: "setActiveCell",
+						index,
+						count,
+						column,
+					});
 				options?.getAdapter?.()?.setCellCaret?.(index, column);
 			}
 		},
@@ -383,7 +406,8 @@ export function createBrowserVimController(
 					if (isGeneric) {
 						genericStore?.dispatch({ type: "clearVisual" });
 						const sel = adapter?.getSelection();
-						if (sel) adapter?.setSelection({ start: sel.start, end: sel.start });
+						if (sel)
+							adapter?.setSelection({ start: sel.start, end: sel.start });
 					} else {
 						scratchpadStore?.dispatch({ type: "clearVisual" });
 						adapter?.setSelectedCellRange?.(null);
@@ -512,7 +536,10 @@ export function createBrowserVimController(
 
 				if (hasExactMatch && matchedAction) {
 					clearSequence();
-					if (matchedAction === "deleteCell" || matchedAction === "deleteLine") {
+					if (
+						matchedAction === "deleteCell" ||
+						matchedAction === "deleteLine"
+					) {
 						if (isScratchpad && adapter?.deleteCell) {
 							const deleted = adapter.deleteCell(cellIndex());
 							if (deleted)
@@ -524,11 +551,17 @@ export function createBrowserVimController(
 								if (isGeneric) {
 									genericStore?.dispatch({ type: "setYank", value: deleted });
 								} else {
-									scratchpadStore?.dispatch({ type: "setYank", value: deleted });
+									scratchpadStore?.dispatch({
+										type: "setYank",
+										value: deleted,
+									});
 								}
 							}
 						}
-					} else if (matchedAction === "yankCell" || matchedAction === "yankLine") {
+					} else if (
+						matchedAction === "yankCell" ||
+						matchedAction === "yankLine"
+					) {
 						if (isScratchpad && adapter?.yankCell) {
 							const yanked = adapter.yankCell(cellIndex());
 							if (yanked)
@@ -561,7 +594,10 @@ export function createBrowserVimController(
 					if (isGeneric) {
 						genericStore?.dispatch({ type: "setSequence", value: currentSeq });
 					} else {
-						scratchpadStore?.dispatch({ type: "setSequence", value: currentSeq });
+						scratchpadStore?.dispatch({
+							type: "setSequence",
+							value: currentSeq,
+						});
 					}
 					if (sequenceTimer) clearTimeout(sequenceTimer);
 					sequenceTimer = setTimeout(clearSequence, 1000);
@@ -634,7 +670,10 @@ export function createBrowserVimController(
 								adapter?.setSelectedCellRange?.(cellRange());
 							} else {
 								const sel = adapter?.getSelection() ?? { start: 0, end: 0 };
-								genericStore?.dispatch({ type: "beginVisual", offset: sel.start });
+								genericStore?.dispatch({
+									type: "beginVisual",
+									offset: sel.start,
+								});
 								setMode("VISUAL");
 							}
 							return true;
@@ -865,7 +904,10 @@ export function createBrowserVimController(
 							if (isScratchpad && range && adapter?.deleteCellRange) {
 								const deleted = adapter.deleteCellRange(range.start, range.end);
 								if (deleted)
-									scratchpadStore?.dispatch({ type: "setYank", value: deleted });
+									scratchpadStore?.dispatch({
+										type: "setYank",
+										value: deleted,
+									});
 								scratchpadStore?.dispatch({
 									type: "setActiveCell",
 									index: Math.min(range.start, range.end),
@@ -887,7 +929,10 @@ export function createBrowserVimController(
 									if (isGeneric) {
 										genericStore?.dispatch({ type: "setYank", value: deleted });
 									} else {
-										scratchpadStore?.dispatch({ type: "setYank", value: deleted });
+										scratchpadStore?.dispatch({
+											type: "setYank",
+											value: deleted,
+										});
 									}
 								}
 								adapter?.replaceSelection("");
@@ -919,7 +964,10 @@ export function createBrowserVimController(
 									if (isGeneric) {
 										genericStore?.dispatch({ type: "setYank", value: yanked });
 									} else {
-										scratchpadStore?.dispatch({ type: "setYank", value: yanked });
+										scratchpadStore?.dispatch({
+											type: "setYank",
+											value: yanked,
+										});
 									}
 								}
 								if (isGeneric) {

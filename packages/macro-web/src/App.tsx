@@ -390,6 +390,26 @@ export function App() {
 		}
 	};
 
+	useEffect(() => {
+		void store.refreshFileTree();
+
+		if (activePrimaryTab === "explorer") {
+			const interval = setInterval(() => {
+				void store.refreshFileTree();
+			}, 4000);
+
+			const onFocus = () => {
+				void store.refreshFileTree();
+			};
+			window.addEventListener("focus", onFocus);
+
+			return () => {
+				clearInterval(interval);
+				window.removeEventListener("focus", onFocus);
+			};
+		}
+	}, [store, activePrimaryTab]);
+
 	const diagnostics = snapshot?.diagnostics.length ?? 0;
 	const activeDoc = snapshot?.editor.documents.find(
 		(d) => d.documentId === snapshot?.editor.activeDocumentId,
@@ -424,7 +444,13 @@ export function App() {
 				}}
 				onReplace={(query, replacement, options) => {
 					const result =
-						findAdapter()?.replaceCurrentMatch?.(query, replacement, undefined, undefined, options) ?? false;
+						findAdapter()?.replaceCurrentMatch?.(
+							query,
+							replacement,
+							undefined,
+							undefined,
+							options,
+						) ?? false;
 					return Boolean(result);
 				}}
 				onReplaceAll={(query, replacement, options) =>
@@ -442,7 +468,7 @@ export function App() {
 						[activeDocumentId]: { ...findSession, replacement },
 					}))
 				}
-				 onClose={() =>
+				onClose={() =>
 					setFindSessions((sessions) => ({
 						...sessions,
 						[activeDocumentId]: { ...findSession, open: false },
@@ -451,14 +477,20 @@ export function App() {
 				onAccept={
 					findSession.vimSearch
 						? () => {
-							setFindSessions((sessions) => ({
-								...sessions,
-								[activeDocumentId]: { ...findSession, open: false },
-							}));
-							requestAnimationFrame(() =>
-								registry.list().find((surface) => surface.context.activeDocumentId === activeDocumentId)?.element.focus(),
-							);
-						}
+								setFindSessions((sessions) => ({
+									...sessions,
+									[activeDocumentId]: { ...findSession, open: false },
+								}));
+								requestAnimationFrame(() =>
+									registry
+										.list()
+										.find(
+											(surface) =>
+												surface.context.activeDocumentId === activeDocumentId,
+										)
+										?.element.focus(),
+								);
+							}
 						: undefined
 				}
 			/>
@@ -650,11 +682,15 @@ export function App() {
 						mode={folderModalMode}
 						client={host}
 						onSelect={async (path) => {
-							if (folderModalMode === "open") await store.openProject(path);
-							else if (folderModalMode === "init")
-								await store.initProject(path);
-							else if (folderModalMode === "saveAs")
-								await store.saveAsProject(path);
+							try {
+								if (folderModalMode === "open") await store.openProject(path);
+								else if (folderModalMode === "init")
+									await store.initProject(path);
+								else if (folderModalMode === "saveAs")
+									await store.saveAsProject(path);
+							} finally {
+								await store.refreshFileTree();
+							}
 						}}
 						onClose={() => setFolderModalMode(undefined)}
 					/>

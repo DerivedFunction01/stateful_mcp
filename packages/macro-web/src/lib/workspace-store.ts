@@ -135,21 +135,25 @@ export class BrowserWorkspaceStore {
 	async openProject(path: string): Promise<void> {
 		const snapshot = await this.client.openProject(path);
 		await this.reassertUserPreferences(snapshot);
+		await this.refreshFileTree();
 	}
 
 	async initProject(path: string, displayName?: string): Promise<void> {
 		const snapshot = await this.client.initProject(path, displayName);
 		await this.reassertUserPreferences(snapshot);
+		await this.refreshFileTree();
 	}
 
 	async saveAsProject(path: string, displayName?: string): Promise<void> {
 		const snapshot = await this.client.saveAsProject(path, displayName);
 		await this.reassertUserPreferences(snapshot);
+		await this.refreshFileTree();
 	}
 
 	async closeProject(): Promise<void> {
 		const snapshot = await this.client.closeProject();
 		await this.reassertUserPreferences(snapshot);
+		this.update({ projectFileTree: [] });
 	}
 
 	async refreshFileTree(): Promise<void> {

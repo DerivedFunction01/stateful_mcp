@@ -3517,7 +3517,10 @@ kbd {
 	font-weight: 500;
 	border-radius: var(--theme-radius-sm);
 	cursor: pointer;
-	transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+	transition:
+		background 0.12s ease,
+		border-color 0.12s ease,
+		color 0.12s ease;
 }
 
 .close-dirty-dialog__button--cancel {

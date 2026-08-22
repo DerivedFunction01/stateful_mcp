@@ -1136,6 +1136,100 @@ export class HostSessionManager {
 						textRevision: document.textRevision,
 					};
 				}
+				case "editor.saveScratchpad": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (
+						operation.expectedTextRevision !== undefined &&
+						operation.expectedTextRevision !== document.textRevision
+					)
+						return conflict(
+							document.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					const project = session.loaded.project;
+					const scratchpadId =
+						operation.scratchpadId ??
+						(document.documentId.startsWith("scratchpad-")
+							? document.documentId
+							: `scratchpad-${document.documentId}`);
+					const title = operation.title ?? document.title;
+					const lines = document.editor.getLines().map((rawText, idx) => ({
+						lineNumber: idx + 1,
+						rawText,
+					}));
+					const executedLineIndices: number[] = [
+						...document.session.getExecutedLineIndices(),
+					];
+					const pinnedMacroIds: string[] = [...(document.pinnedMacroIds ?? [])];
+					if (project) {
+						await project.saveScratchpad({
+							scratchpadId,
+							formatVersion: 1,
+							title,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+							textRevision: document.textRevision,
+							rawText: document.editor.getLines().join("\n"),
+							lines,
+							executedLineIndices,
+							pinnedMacroIds,
+							metadata: {},
+						});
+					}
+					documents.markSaved(document.documentId);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+					};
+				}
+				case "editor.openScratchpad": {
+					const project = session.loaded.project;
+					if (!project)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"PROJECT_NOT_FOUND",
+							"No active project to load scratchpads from",
+						);
+					const resource = await project.openScratchpad(operation.scratchpadId);
+					if (!resource)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"SCRATCHPAD_NOT_FOUND",
+							"Saved scratchpad not found",
+						);
+					const doc = documents.openScratchpadResource(resource);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: doc.documentId,
+						textRevision: doc.textRevision,
+					};
+				}
+				case "editor.deleteScratchpad": {
+					const project = session.loaded.project;
+					if (project) {
+						await project.deleteScratchpad(operation.scratchpadId);
+					}
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+					};
+				}
 				case "editor.createSplitGroup": {
 					if (operation.expectedWorkspaceRevision !== session.revision)
 						return workspaceConflict(operation.expectedWorkspaceRevision);

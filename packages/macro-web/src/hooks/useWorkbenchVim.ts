@@ -23,7 +23,10 @@ export interface UseWorkbenchVimOptions {
 		commandMode?: boolean,
 		commandToken?: string,
 	) => void;
-	readonly onOpenSearch?: (direction: SearchDirection, vimSearch?: boolean) => void;
+	readonly onOpenSearch?: (
+		direction: SearchDirection,
+		vimSearch?: boolean,
+	) => void;
 	readonly onEditorOperation: (
 		operation: EditorOperation,
 	) => void | Promise<void>;

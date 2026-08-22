@@ -270,6 +270,22 @@ export type EditorOperation =
 			readonly documentId: string;
 			readonly expectedTextRevision?: number;
 			readonly force?: boolean;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.saveScratchpad";
+			readonly documentId: string;
+			readonly scratchpadId?: string;
+			readonly title?: string;
+			readonly expectedTextRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.openScratchpad";
+			readonly scratchpadId: string;
+			readonly expectedWorkspaceRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.deleteScratchpad";
+			readonly scratchpadId: string;
 	  });
 
 export interface ScratchpadExecutionReceiptDto {
